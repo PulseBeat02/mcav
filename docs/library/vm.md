@@ -6,11 +6,13 @@ package manager or follow the steps [here](https://www.qemu.org/download/), and 
 programs are on the `PATH`.
 ```
 
-One of the most unique features of MCAV is streaming virtual machines. Add the `mcav-vm` module, which depends on the
-`mcav-vnc` module, and install both modules when you create the library instance.
+One of the most unique features of MCAV is streaming virtual machines. Add the `mcav-vm` module together with the
+`mcav-vnc` module it is built on, and install both modules when you create the library instance. `mcav-vm` does not
+bring `mcav-vnc` with it: without its own line the code compiles, then fails when `VNCModule` is loaded.
 
 ```kotlin
 dependencies {
+    implementation("me.brandonli:mcav-vnc:1.0.0-SNAPSHOT")
     implementation("me.brandonli:mcav-vm:1.0.0-SNAPSHOT")
 }
 ```

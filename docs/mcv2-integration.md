@@ -60,7 +60,8 @@ gpu-codec at build or run time.
 **Conformance is the bar.** The decoder reproduces the reference's float32 and float64 operations in their order
 (numpy 2.5.3 semantics were pinned by experiment: negative float→uint8 wraps, reduced-chroma residuals are scaled in
 float64, channel sums associate left to right), and is bit-exact on every frame of the round-19 corpus and both
-shipped streams (780 of 780 frames, per-frame SHA-256 of the RGB output). The serializer reproduces all 780 frames
+shipped streams (780 of 780 frames, per-frame SHA-256 of the RGB output, checked once when the port was made; the
+committed vectors are their 724-frame prefixes, conformance.md). The serializer reproduces all 780 frames
 byte for byte from their rebuilt block trees. The encoder only had to decode with the reference and land within
 0.3 VMAF / 0.1 dB of the reference encoder; it does better: it reproduces the reference encoder's output **byte for
 byte** on both shipped 30-frame 1080p30 streams (archive SHA-256 `6fc68739…` and `4399bb6f…`), so its quality and
@@ -173,9 +174,15 @@ id, the page frames' outline colour, the transport alphabet (the RGB of map colo
   signature (21, 3, 58, 44, 9, 37, 60, 17); every other map and all other text (signs, names, GUI, see-through and
   grayscale variants) is drawn exactly as by vanilla. A page quad moves to the rows of the slot its header names:
   slot p starts p·R rows from the top of the screen, R = ceil(4,096 / screen width), and `core/text.fsh` packs four
-  six-bit symbols into the three bytes of one pixel, so a page needs 4,096 pixels (three rows at 1920 wide). The
-  anchors' descriptor row follows the slots, so the strip is SLOTS·R + 1 rows (13 at 1920 wide with four slots). Alpha
-  is 1, so the `TRANSLUCENT` blend writes the bytes unchanged.
+  six-bit symbols into the three bytes of one pixel, so a page needs 4,096 pixels (three rows at 1920 wide). Every
+  screen configuration of the pack has its own slots, and one descriptor row per configuration follows all of them, so
+  the strip is TOTAL_SLOTS·R + SCREENS rows, where TOTAL_SLOTS adds up the page slots (8 by default) of every
+  configuration in the pack (`mcv2_strip.glsl`, `MCV2_TOTAL_SLOTS`): one screen takes 8·3 + 1 = 25 rows at 1920 wide
+  and 8·5 + 1 = 41 rows in the client's default 854x480 window. The pack keeps a configuration for every screen size it
+  has served since the server started, the pacer's smaller sizes included, up to `Mcv2Pack.MAX_SCREENS` = 8; with
+  eight the strip is 200 rows at 1920x1080 and 328 of the 480 rows of the default window, which the scene row below
+  covers as vertical streaks (measured in the soak of 2026-10-01). Alpha is 1, so the `TRANSLUCENT` blend writes the
+  bytes unchanged.
 - **Anchors.** The screen's own item frames (the wall's maps) carry small anchor patches in their top map rows: the
   signature, the frame's column and row, the screen's size in blocks, its facing and a checksum. The vertex shader of
   any visible anchor writes the screen's corner, right and down vectors in view space and the projection matrix into
@@ -338,11 +345,12 @@ the captures run in clear weather.
   without the pack the dithered maps of the same wall through `CompressedMapResult`, so nobody sees a screen their
   client cannot show.
 - **`Mcv2Pack`** builds the pack through `SimpleResourcePack` (which gained generated entries) and serves it through
-  the existing `PackHosting` strategies; its description and `mcav_mcv2.json` name the codec, the gpu-codec commit,
-  the profile and the page geometry.
+  the existing `PackHosting` strategies; its description names the decoder and the video size of every screen
+  (`mcav MCV2 decoder, N screens: WxH, ...`), and `mcav_mcv2.json` the codec, the gpu-codec commit and every screen's
+  page geometry, but no profile, so screens encoded with other profiles share one pack.
 - **Sandbox commands.** `/mcav video mcv2 <players> <player> <audio> <resolution> <blocks> <mapId> <profile>
   <dithering> <flags> <mrl>` plays media with an encoder profile (`ship`, `low`, `keyframe` = model B, `intra` = model
-  D, `live`, `live_keyframe`), offering the pack to the selected players. `/mcav mcv2 play <players> <blocks> <mapId>
+  D, `live`, `live_adaptive`, `live_fast`, `live_keyframe`), offering the pack to the selected players. `/mcav mcv2 play <players> <blocks> <mapId>
   <ticks> <file>` loops a pre-encoded stream (u32 little-endian length + frame, the gpu-codec archive layout) every few
   ticks, `/mcav mcv2 stream ... <fps> <file>` at a frame rate from its own thread, and `/mcav mcv2 stop` stops it;
   `/mcav mcv2 encode <video> <output> <resolution> <profile>` pre-encodes a file in the shared encoder budget and
@@ -361,7 +369,8 @@ its default level, inflated as the client does): **the first `live` profile at 1
 per frame) and 55-76 us of inflate per frame on the client. The TCP payload measured on the lab's far listener agrees (3.4-3.6 Mbit/s for
 that `live` stream, the first live profile's). The shipped `live` at its default lambda 72 and 1080p30: **2.85 -> 1.86
 Mbit/s on the 1080p30 proxy (-35%) and 27.7 -> 17.0 on real gameplay (-39%)** (600 frames each, the same compression
-model). No compression threshold is recommended: skipping the map packets would give up a third of the bandwidth to
+model; measured before §12's lambda that rises with the motion, with which the default `live` sends 13.0 -> 8.3 on the
+same gameplay). No compression threshold is recommended: skipping the map packets would give up a third of the bandwidth to
 save 1-2% of a core per viewer.
 
 ## 8. Hostile input
@@ -474,8 +483,8 @@ keyframe-reference variant, 9.5 Mbit/s, on 6 Mbit/s) keeps the server's backlog 
 flight: game packets then waited seconds; bounding in-flight bytes as well is a next step.
 
 **For server owners:** after the game's compression a viewer needs about **1.9 Mbit/s for `live` 1080p30 on quiet
-content and 17 Mbit/s on fast gameplay** at the default lambda (8 Mbit/s at lambda 210), and **2.2 Mbit/s for `ship`
-1080p30** on quiet content, with headroom; run the server with BBR (`net.ipv4.tcp_congestion_control=bbr`); keep
+content and 8.3 Mbit/s on fast gameplay** (the default raises its lambda with the motion, §12; 8.6 once the screen
+steps to `adaptive`), and **2.2 Mbit/s for `ship` 1080p30** on quiet content, with headroom; run the server with BBR (`net.ipv4.tcp_congestion_control=bbr`); keep
 backpressure on (the default): it costs nothing nearby and keeps a far viewer's game playable.
 
 ## 11. Server viability
@@ -498,8 +507,9 @@ Linux the size of the budget is what keeps processors free for the game.
 **Adaptive, never overload.** `Mcv2Pacer` watches the encode time of every P frame (keyframes, which come every few
 seconds and cost more, are left out) against the time the video gives a frame. When the smoothed time has been over it
 for a second, the screen steps down to the first rung that the measured time predicts to fit in 85% of its frame time:
-first a faster preset of the ladder (§12: `ship`'s search, `live`, `live-fast`; a faster preset that keeps every frame
-only has to keep up, and each is an encoder of its own, whose first frame is a keyframe), then the frame rate (every
+first a faster preset of the ladder (§12: `ship`'s search, `live`, `adaptive`, `live-fast`; a faster preset that keeps
+every frame only has to keep up; the live presets share one encoder and switch without a keyframe, and only a step to
+or from `ship`'s search starts a new encoder, whose first frame is a keyframe), then the frame rate (every
 second, third, fourth or sixth frame of the video, not below 10 fps), then a smaller video size the screen offers, then
 the dithered maps every other viewer sees, which need no encoder (the page frames are removed, so a viewer with the
 pack sees the dithered wall). It climbs back when a rung above has been predicted to fit
@@ -530,8 +540,11 @@ gameplay; 720p30: ~1.5 and ~2.1), but a frame also has 9-11 ms of work outside t
 decode, the writer, the global motion), so the frame time stops falling past ~8 threads: the 32 ms p95 of 1080p30
 needs 4 threads on quiet content and, on gameplay, all 12 with `live` (31.2-31.9 ms over 660 frames) or 6-8 with
 `adaptive`; 720p30 needs 3 and 4. More threads cost more CPU per frame on shared cores (hyperthreads, memory
-bandwidth). The frames per second a server encodes live with the default budget (half its processors, `1000 / mean
-ms` of the faster of `live` and `adaptive`, at most the source's 30), the pacer stepping to the rungs that fit:
+bandwidth). The frames per second the encoder sustains with the default budget (half its processors, `1000 / mean
+ms` of the faster of `live` and `adaptive`, at most the source's 30). These are throughputs, not the rates a screen
+plays at: from a 30 fps source the pacer's rungs encode every frame, every second or every third (30, 15 or 10 fps,
+`Mcv2Pacer.DIVISORS` above `MIN_FPS`), at the asked size, two thirds or half of it, so a cell below 30 means a faster
+preset, 15 or 10 fps, or a smaller size:
 
 | server | default encoder threads | 1080p30, quiet content | 1080p30, gameplay | 720p30, quiet content | 720p30, gameplay |
 | --- | ---: | --- | --- | --- | --- |
@@ -574,8 +587,8 @@ the modes `ship` uses on real gameplay: local **motion**, **solid** colours, **p
 (the luma offset and the two 4-bit 4x4 luma grids, with and without chroma) at **the one quantizer their fitted values
 need** (`FIT_ONE`: the finest that holds them unclipped; a compact record's length does not depend on its quantizer, so
 a coarser one only adds error). Local motion is a diamond seeded from the previous frame's 8x8 vectors, searched down to
-16-pixel blocks, **first on the pictures at half resolution** (`HALF_MOTION`: a half-resolution half pixel is a whole
-pixel), then refined at full resolution to half pixels; smaller blocks inherit their parent's vector. Keyframes try
+16-pixel blocks, **first on the pictures at a quarter and then at half resolution** (`QUARTER_MOTION`, `HALF_MOTION`: a
+half-resolution half pixel is a whole pixel), then refined at full resolution to half pixels; smaller blocks inherit their parent's vector. Keyframes try
 every intra mode; palettes and intra grids use the cheaper fits (`FastFits`); compact records are tried on the closer
 of the global and the local prediction only. The early-exit thresholds have property tests (monotonic in lambda; SKIP
 exactly at or below the threshold, `LiveSearchPropertyTest`) and the profile's output is pinned by a digest on a small
@@ -735,13 +748,14 @@ live profiles' pinned digests through each level, and the levels the library rep
 Emulators prove correctness only; no speed was measured under one.
 
 **Loading.** The jar holds `natives/<platform>/<library>` next to `Mcv2Natives`, whose SHA-256 is compiled into
-`Mcv2Natives.DIGESTS`. The first live encoder extracts the library into the folder the plugin gives
+`Mcv2Natives.DIGESTS`. The first live encoder (in the sandbox: the plugin, when it starts) extracts the library into the folder the plugin gives
 `Mcv2Natives.install` - the sandbox gives `plugins/<plugin>/natives`, never `/tmp`, which hosted servers often mount
 without execution - as `mcv2kernels-<sha256>-<library>` (written to a temporary name and moved into place; a file of
 that name with the right content is reused), checks it against the compiled-in SHA-256, loads it, checks its ABI
 version and logs once which kernels run: `MCV2 kernels: native avx2 (linux-x86_64)`, or `MCV2 kernels: Java, <why>`.
-Anything that stops the library - no library for the platform, a checksum, the extraction, the load, the JVM refusing
-native access - is logged once as a warning, and the Java kernels run.
+Anything that stops the library from loading - a checksum, the extraction, the load, the JVM refusing native access - is
+logged once as a warning, and the Java kernels run; a platform MCAV has no library for is not a failure and appears only
+in that info line.
 
 **Turning it off.** `mcv2.native: off` in the sandbox's `config.yml` (`auto`, the default, uses the library), or
 `-Dmcv2.native=off` on the server's command line, which wins over the configuration. A library that is not there has
@@ -853,7 +867,8 @@ the other pack's text and outline changes are shadowed while the MCV2 pack stays
 leaves, since the pack is not withdrawn when a screen stops. Its other assets are unaffected, and ordinary glowing
 entities keep their outline (the vanilla passes run after MCV2's). A pack pushed after MCV2's with those files would
 win instead, and MCV2 screens would show nothing while the client reports the pack loaded. A server owner who needs
-their own text or outline shaders must merge them into MCV2's copies (`mcav/mcv2/pack` in the plugin jar), which are
+their own text or outline shaders must merge them into MCV2's copies (`mcav/mcv2/pack`, and `mcav/mcv2/chain.json` for
+the outline chain, in the `mcav-bukkit` jar the plugin downloads into the server's `libraries/mcav` folder), which are
 vanilla's plus the decoder.
 
 **Far viewers on a browser screen** (the host's netem "thin link" on port 25590: 40 ms each way, 5 ms jitter, 0.2%

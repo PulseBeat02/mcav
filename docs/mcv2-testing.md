@@ -41,7 +41,7 @@ The wall is 6 maps wide and 3 high, maps 200 to 217, starting at the top left as
 `run/plugins/MCAV/mcv2/`; a command names a file there (a name that leads out of that folder is refused).
 
 ```
-mcav mcv2 encode "/absolute/path/to/video.mp4" "clip.mcs" "1536x384" ship
+mcav mcv2 encode "/absolute/path/to/video.mp4" "clip.mcs" "1536x768" ship
 ```
 
 The encode runs on its own thread inside the encoder budget while the server keeps ticking; it reports progress every

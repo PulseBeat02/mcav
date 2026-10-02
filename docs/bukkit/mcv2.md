@@ -66,8 +66,11 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.Dit
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import org.bukkit.entity.ItemFrame;
 
+  // the result and the lease of one wall: release() the result, then close() the lease, on the main thread
+  public record Mcv2Wall(Mcv2Result result, Mcv2PackServer.Lease lease) {}
+
   // call on the main thread; topLeft is the item frame holding the wall's first map
-  public static Mcv2Result showOnMcv2Wall(
+  public static Mcv2Wall showOnMcv2Wall(
     final Mcv2PackServer packs,
     final ItemFrame topLeft,
     final int firstMapId,
@@ -88,18 +91,23 @@ import org.bukkit.entity.ItemFrame;
     final Mcv2Configuration configuration = lease.getConfiguration();
     final DitherAlgorithm fallback = DitherAlgorithm.filterLite(); // for the viewers without the pack
     final Mcv2Result result = new Mcv2Result(configuration, packs.getViewers(), fallback);
-    result.start();
-
-    final VideoPipelineStep pipeline = VideoPipelineStep.of(result);
-    final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
-    videoCallback.attach(pipeline);
-    return result; // release() the result, then close() the lease, when the video is over
+    try {
+      result.start();
+      final VideoPipelineStep pipeline = VideoPipelineStep.of(result);
+      final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
+      videoCallback.attach(pipeline);
+    } catch (final RuntimeException failure) {
+      result.release();
+      lease.close(); // otherwise the slot stays taken until the server stops
+      throw failure;
+    }
+    return new Mcv2Wall(result, lease);
   }
 ```
 
 When the video is over, call `release()` on the result on the main thread, which stops the encoder, removes the page
 frames and clears the dithered maps, and then `close()` on the lease, which gives the screen's slot back to the pack for the next screen of its
-size.
+size. Keep the lease for that: `release()` does not free the slot, and once all 8 slots are taken `open` throws.
 
 `Mcv2Result` resizes every frame to the configured video size and encodes the newest one on the shared budget; frames
 that arrive while it works replace each other, so a slow encoder shows fewer frames instead of falling behind. Viewers
@@ -109,7 +117,7 @@ whose pack has not loaded see the wall dithered with the fallback algorithm. A f
 |---|---|---|
 | `settings(EncoderSettings)` | `EncoderSettings.LIVE` | The preset: `LIVE`, `LIVE_ADAPTIVE` or `LIVE_FAST` for sources that play as they are encoded, `SHIP` and `LOW_BANDWIDTH` for pre-encoding ([choosing a preset](../mcv2/using.md#choosing-a-preset)) |
 | `video(width, height)` | the wall's native size, 128 pixels per map | The resolution of the video, up to 4096 on a side; the pack scales it to the wall |
-| `pageSlots(n)` | 8, or one per map of a smaller wall | How many pages a frame may have (8 carry 98 KB); the encoder keeps every frame within them |
+| `pageSlots(n)` | 8, or one per map of a smaller wall | How many pages a frame may have (8 carry 98 KB); the encoder searches a frame that would not fit again at a higher lambda, and a frame that still does not fit is not sent |
 | `maxFrameRate(fps)` | 30 | Sources that paint faster, such as a browser, are thinned to it: a client decodes at most one frame per frame it draws |
 | `backlogLimit(bytes)`, `unsentLimit(bytes)` | 128 KiB, 32 KiB | Per-viewer backpressure ([far viewers](../mcv2/server.md#far-viewers)) |
 

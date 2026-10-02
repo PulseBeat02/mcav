@@ -36,5 +36,6 @@ the video is over.
   }
 ```
 
-Frames are applied on the main thread, one tick at a time, so the frame rate of these displays is limited to 20 frames
-per second.
+The block, entity and scoreboard displays apply frames on the main thread, one tick at a time, so their frame rate is
+limited to 20 frames per second. The chat display sends every frame as a new chat message as soon as it arrives, from
+the thread of the video player.

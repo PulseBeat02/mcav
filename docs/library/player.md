@@ -101,7 +101,8 @@ every player and every audio output behind it.
 
 The FFmpeg and VLC players can play video and audio from two different sources and keep them in sync. This is how
 the separate streams yt-dlp resolves for high-quality YouTube videos are played. The OpenCV and device backends
-share the multiplexer interface but do not decode audio.
+share the multiplexer interface; the device backend decodes no audio, and the OpenCV backend only where it reads files
+with the bundled FFmpeg, as on Linux.
 
 ```java
   public static boolean playSeparateStreams(final VideoPlayerMultiplexer player, final URI videoUri, final URI audioUri) {

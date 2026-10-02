@@ -81,7 +81,8 @@ by that player until they leave (the MCV2 pack stays loaded after its screens st
 and again). Everything else in your pack - textures, sounds, other shaders - is unaffected, and glowing entities keep
 their outline. If another plugin sends a pack with those files after the MCV2 pack, that pack wins and MCV2 screens
 show nothing. To keep your own text or outline shaders, merge your changes into the MCV2 pack's copies (the
-`mcav/mcv2/pack` folder of the plugin jar), which are vanilla's plus the decoder.
+`mcav/mcv2/pack` folder, and `mcav/mcv2/chain.json` from which the outline chain is generated, in the `mcav-bukkit` jar
+the plugin downloads into the server's `libraries/mcav` folder), which are vanilla's plus the decoder.
 
 ---
 

@@ -25,10 +25,11 @@ split, so every leaf is 32, 16 or 8 pixels square, and every leaf mode is allowe
 | 8-11 | RESIDUAL 1x1 to 8x8 | 2 + 3 bytes a node | The prediction plus a YCoCg grid scaled by `2^q` |
 | 12, 14 | reduced intra | 18 or 72 bytes | A luma grid (4x4 or 8x8) with a single chroma pair or a 2x2 chroma grid |
 | 13, 15 | reduced residual | 20 or 74 bytes | The same as a residual on the prediction |
-| 17 | COMPACT | 2 to 21 bytes | The prediction plus a compact residual (six classes, two books of trained vectors) |
+| 17 | COMPACT | 2 to 21 bytes | The prediction plus a compact residual (nine classes, of which the encoder tries six; a book of 4x4 trained vectors and two sets of 4x2 product vectors) |
 | 18 | PATTERN | 2 to 11 bytes | Two colours, one chosen per column or per row |
 
-Temporal modes (0, 1, 8-11, 13, 15, 17) predict from the reference and are refused on keyframes. Every value a leaf
+Temporal modes (0, 1, 8-11, 13, 15, 17, and the immediate motion form, 20) predict from the reference and are refused
+on keyframes, except SKIP in a keyframe whose header sets `DEFAULT_SOLID`, which draws the default colour. Every value a leaf
 draws is exact: prediction at half-pixel positions averages one, two or four pixels, grid weights are dyadic, and every
 channel ends as `floor(clamp(v, 0, 255) + 0.5)`, so the Java decoder, the reference and the shader produce the same
 bytes ([specification, section 5](format.md#5-reconstruction)).
@@ -49,8 +50,9 @@ static wall. There are three forms:
   itself and cost no record.
 
 The search range is 24 pixels around the global vector, so a stored delta of at most 48 half pixels needs seven signed
-bits an axis; quarter-pixel motion would need nine, more than the two-byte record holds, which is why the research
-stopped at half pixels ([results](results.md#the-per-frame-tables-rounds-16-to-19)).
+bits an axis; quarter-pixel motion would need eight, the whole of the two-byte record. The research stopped at half
+pixels because round 19 gained less than the 2% the owner asked of it before a quarter-pixel round
+([results](results.md#the-per-frame-tables-rounds-16-to-19)).
 
 ## Descriptors and Addressing
 

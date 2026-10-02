@@ -70,9 +70,10 @@ it; without the permission a click does nothing, while the frames of the screen 
 | **Description** | Dumps your logs, system information, and other debugging information into a paste used for support. |
 | **Arguments**   | None                                                                                                |
 
-The paste is public. Before the log goes up, the addresses of players, what players typed after the commands of other
-plugins, secret-looking settings, and the user name and password, query and fragment of every web address are
-replaced with `<redacted>`; the host and path of an address stay, since they are what a bug report is about.
+The paste is public. Before the log goes up, the IP addresses of players are replaced with `<redacted-address>`, and
+what players typed after the commands of other plugins, secret-looking settings, and the user name and password, query
+and fragment of every web address with `<redacted>`; the host and path of an address stay, since they are what a bug
+report is about.
 
 ---
 
@@ -105,8 +106,10 @@ With `mcv2`:
   watches too. Any other selector means the players it matches when the command runs, who are offered the pack again
   when they join or change world.
 - The picture is encoded as it arrives, with the default live preset `live`, on the encoder threads every MCV2 screen
-  shares (`mcv2.encoder-threads`). When they cannot keep up, the screen steps down to faster presets, then a smaller
-  video, then fewer frames a second, and at worst the dithered maps; whoever started it is told every step and why.
+  shares (`mcv2.encoder-threads`). When they cannot keep up, the screen steps down to faster presets, then fewer frames
+  a second, then a smaller video, and at worst the dithered maps; whoever started it is told every step and why.
+- An MCV2 wall can be at most 63 maps on a side, and its resolution at most 4096 pixels on a side, against 64 maps and
+  8192 pixels for the dithered maps.
 - A wall that no item frame holds (build it with `/mcav screen` first, with the same size and map id) shows the dithered
   maps, and the command says so. The server only knows the item frames of loaded chunks, so start a screen while a
   player is near its wall; from then on the screen keeps the chunks of its page frames loaded until it is released, so

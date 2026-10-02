@@ -28,9 +28,10 @@ gameplay, where `ship`'s exhaustive search finds more, they cost 7.9% and 24.9% 
 (the rule: the default for a frame rate is the slowest rung that meets that frame rate's gate). When the encoder
 cannot keep up, the screen steps **down the ladder** first (`live` to `adaptive` to `live-fast`, without a keyframe:
 every live search writes the same format from the same pictures), then to fewer frames a second, then to a smaller
-video, and at worst to the dithered maps ([server cost](server.md#adaptive-never-overload)). The plugin caps every screen at
-30 frames a second (`Mcv2Configuration.maxFrameRate`): no preset meets 1080p60, and a client decodes at most one video
-frame per frame it draws.
+video, and at worst to the dithered maps ([server cost](server.md#adaptive-never-overload)). The plugin caps every screen it
+encodes at 30 frames a second (`Mcv2Configuration.maxFrameRate`): no preset meets 1080p60, and a client decodes at most
+one video frame per frame it draws. A pre-encoded stream played with `/mcav mcv2 stream` is not encoded and plays at
+the rate the command gives, up to 240 frames a second.
 
 ## The Gates
 
@@ -120,7 +121,7 @@ The smallest kernels gain nothing: a call costs 50 to 90 ns of argument checks b
 
 **What the server log says.** The first live encoder extracts the library into the plugin's data folder (never `/tmp`,
 which hosted servers often mount without execution), checks it against the SHA-256 compiled into MCAV, loads it and
-logs once which kernels run:
+logs once which kernels run; the plugin does this when it starts, before any screen:
 
 ```text
 MCV2 kernels: native avx2 (linux-x86_64)

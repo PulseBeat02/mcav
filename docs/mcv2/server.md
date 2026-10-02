@@ -104,8 +104,8 @@ every frame verified, the native AVX2 kernels, on the i7-8700 limited to that ma
 
 **Cores needed = CPU ms per frame x frames a second / 1000**, with the one-thread CPU time: 1080p30 needs about 2.4
 cores of this CPU on quiet content and 3.6 on fast gameplay, 720p30 1.5 and 2.1. The frame time stops falling past
-about 8 threads, where the 9 to 11 ms of a frame outside the parallel search remain. What a server encodes live with the
-default budget, the pacer stepping to the rungs that fit:
+about 8 threads, where the 9 to 11 ms of a frame outside the parallel search remain. How many frames a second the
+`live` search sustains with the default budget, `1000 / mean ms` of the table above, at most the source's 30:
 
 | Server | Encoder threads | 1080p30, quiet content | 1080p30, gameplay | 720p30, quiet content | 720p30, gameplay |
 |---|---:|---|---|---|---|
@@ -113,6 +113,11 @@ default budget, the pacer stepping to the rungs that fit:
 | 4 processors | 2 | 24 fps | 17 fps | 30 fps | 30 fps |
 | 6 processors | 3 | 30 fps | 25 fps | 30 fps | 30 fps |
 | 8 processors or more | 4 or more | 30 fps | 30 fps | 30 fps | 30 fps |
+
+A screen never plays at a rate between these rungs: from a 30 fps source the pacer encodes 30, 15 or 10 frames a
+second (every frame, every second or every third), at the size asked for, two thirds or half of it, or switches to the
+dithered maps. Where the table shows less than 30, the pacer first tries the faster presets at 30 frames a second, then
+the fastest one at 15 and 10, then the smaller sizes, and plays the first rung its measured times predict to fit.
 
 "Processors" are this CPU's hardware threads at 3.2 to 4.6 GHz; a VPS's vCPU is usually a hyperthread of a busier,
 often slower host, so expect up to a third less. With the Java kernels (`mcv2.native: off`, or a platform without a

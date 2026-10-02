@@ -25,7 +25,8 @@ between the source and the previous decoded frame moved by the global vector, ov
 blocks, above the scene threshold of 45. Every other frame is a **P frame** and predicts from the previous decoded
 frame.
 
-A keyframe may hold no temporal leaf (no SKIP, motion, residual or compact record). The previous decoded frame is not
+A keyframe may hold no temporal leaf (no motion, residual or compact record, and SKIP only when the header's
+`DEFAULT_SOLID` flag makes it draw the default colour). The previous decoded frame is not
 the only possible reference: the encoder can predict from the last keyframe instead (`ReferencePolicy.LAST_KEYFRAME`),
 or make every frame a keyframe (a key interval of 1). Both cost far more rate for the same picture, 73% and 144% more
 at matched VMAF, and exist for viewers who cannot keep a chain of frames (see

@@ -33,16 +33,18 @@ picture, and neither does the information hologram of `/mcav video hologram`.
 
 Viewers are asked to load MCAV's MCV2 resource pack. Those who accept see the MCV2 picture once their client has loaded
 it; those who decline, or whose client cannot load it, keep seeing the **dithered maps of the same wall**, never a
-broken screen, and the chat tells them why. A player who declines is not asked again while online.
+broken screen, and the chat tells them why. A player who declines is not asked again while online. A pre-encoded
+stream played with `/mcav mcv2 play` or `/mcav mcv2 stream` has no dithered maps: there, a player without the pack
+sees nothing new on the wall.
 
 ## Choosing a Preset
 
 | Your source | Preset | Why |
 |---|---|---|
-| Anything that plays live: a browser, a VM, a VNC desktop, a stream, a camera, and video files by default | `live` (chosen for you) | The best picture per bit that encodes a 1080p frame in time on a 6-core server. A screen that cannot keep up steps down by itself |
+| Anything that plays live: a browser, a VM, a VNC desktop, a stream, a camera, and video files by default | `live` (chosen for you) | The best picture per bit that encodes a 1080p30 frame in time with all 12 threads of a 6-core server; with the default budget of half of them, gameplay steps down to `LIVE_ADAPTIVE`. A screen that cannot keep up steps down by itself |
 | Fast gameplay or a busy picture on a small encoder budget | `LIVE_ADAPTIVE` | Switches to the faster search while the picture moves; about 25% more rate on gameplay, same on quiet content |
 | A server that cannot keep up with `live` at all | `LIVE_FAST` | The fastest search inside the quality rules; up to 30% more rate than `ship` |
-| Viewers whose clients draw fewer frames a second than the video has | `LIVE_KEYFRAME` | Every frame predicts from the last keyframe, so a frame a client missed costs it nothing; about 73% more rate |
+| Viewers whose clients draw fewer frames a second than the video has | `LIVE_KEYFRAME` | Every frame predicts from the last keyframe, so a frame a client missed costs it nothing; about 2.5 times the rate of `live` (9.5 against 3.6 Mbit/s in the [far-viewer runs](results.md)) |
 | A video file you show often, or a server too small to encode live | pre-encode with `SHIP` | The best quality for its bandwidth; far slower than real time, so it runs ahead of time |
 | The same, for viewers on slow links | pre-encode with `LOW` | About 39% less rate than `ship` for a VMAF mean of 70.6 instead of 77.9 |
 
@@ -108,8 +110,9 @@ server or the proxy. It overrides three files, `assets/minecraft/shaders/core/te
 those three files are shadowed until the player leaves (the MCV2 pack stays loaded after its screens stop, so players
 are not reloaded again and again). Everything else in your pack is unaffected, and glowing entities keep their outline.
 If another plugin sends a pack with those files after the MCV2 pack, that pack wins and MCV2 screens show nothing. To
-keep your own text or outline shaders, merge your changes into the MCV2 pack's copies (`mcav/mcv2/pack` in the plugin
-jar), which are vanilla's plus the decoder.
+keep your own text or outline shaders, merge your changes into the MCV2 pack's copies (`mcav/mcv2/pack`, and
+`mcav/mcv2/chain.json` for the outline chain, in the `mcav-bukkit` jar the plugin downloads into the server's
+`libraries/mcav` folder), which are vanilla's plus the decoder.
 
 ## Testing on Your Own Client
 
@@ -121,8 +124,10 @@ decoder's decision on each rendered frame.
 ## Troubleshooting
 
 **Players see the dithered maps on an MCV2 screen.** Their client has not loaded the pack yet, declined it, or could not
-load it (the chat says which). A screen is dithered for everyone when no item frame holds its top-left map, when eight
-MCV2 screens already play, or when even the fastest encoder cannot keep up; the command that started it says which.
+load it (the chat says which). A `--codec mcv2` screen is dithered for everyone when no item frame holds its top-left
+map, when eight MCV2 screens already play, or when even the fastest encoder cannot keep up; the command that started it
+says which. `/mcav video mcv2`, `/mcav mcv2 play` and `/mcav mcv2 stream` do not start at all on a wall no item frame
+holds, and say so.
 
 **The wall looks like a blank map, or shows the backs of item frames.** More than one item frame hangs in a block of the
 wall, placed by hand, by another plugin or by an old version of MCAV: the extra frames hang in front of the maps,

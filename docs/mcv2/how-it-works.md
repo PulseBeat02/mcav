@@ -53,7 +53,8 @@ resource pack of a vanilla client. Nothing but map packets and one resource pack
 
 The server needs nothing but the plugin: the encoder is Java, with optional native kernels for the live presets
 that MCAV ships for six platforms ([live encoding](live.md)). The client needs the resource pack, which the server
-offers when a player looks at an MCV2 screen, and nothing else: no mod, no shader loader, no client setting. A player
+offers to the viewers of an MCV2 screen when it starts, and to a viewer who joins or changes world while it plays, and
+nothing else: no mod, no shader loader, no client setting. A player
 who declines the pack sees the ordinary dithered maps of the same wall.
 
 ```{note}

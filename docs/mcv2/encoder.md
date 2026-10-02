@@ -46,7 +46,9 @@ mcav's port differs from the reference only where the reference is not a specifi
 - **One serializer defect worked around.** The reference's `v2.pack_derived` writes a zero-entry packed-symbol table
   for a frame without descriptors, which its own parser rejects; `FrameWriter` leaves the table out then (tested).
 - **Pipelining and bounds.** `begin` searches and writes a frame, `finish` verifies it, so a caller can verify frame N
-  while it searches frame N+1. `setFrameLimit` keeps every frame within the bytes a screen's page slots carry.
+  while it searches frame N+1. `setFrameLimit` searches a live frame that would take more bytes than a screen's page
+  slots carry again at twice the lambda, up to four times; a frame still too large after that is not sent, and the
+  screen asks for a keyframe instead.
 
 ## The shipped settings
 

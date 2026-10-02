@@ -64,8 +64,8 @@ headless servers. Check the `FACE_DETECTION` [capability](instance.md#capabiliti
 cascade file too, such as OpenCV's `haarcascade_frontalface_default.xml`, which MCAV does not ship.
 ```
 
-The display filters that end a pipeline come with their modules: `DitherFilter` and the map, block, chat, entity and
-scoreboard results of `mcav-bukkit` ([Bukkit integration](../bukkit/bukkit.md)), `Mcv2Result` for
+The display filters that end a pipeline come with their modules: `DitherFilter` of `mcav-common`, the map, block, chat,
+entity and scoreboard results of `mcav-bukkit` ([Bukkit integration](../bukkit/bukkit.md)), `Mcv2Result` for
 [MCV2](../bukkit/mcv2.md), and `GLTextureFilter` of `mcav-lwjgl` ([LWJGL module](lwjgl.md)).
 
 ## Audio Filters

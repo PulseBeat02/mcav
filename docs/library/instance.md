@@ -21,9 +21,9 @@ life of your application or plugin.
 
 This takes a few seconds on the first start of a machine and less afterward. FFmpeg players can be used right away.
 
-VLC and yt-dlp are external programs, so they are prepared **in the background** after `install` returned. Each is
-taken from the system if it is installed there, from the MCAV cache folder (`~/.mcav/cache`) if an earlier run
-downloaded it, or downloaded into that folder otherwise. No administrator rights or system packages are needed. The
+VLC and yt-dlp are external programs, so they are prepared **in the background** after `install` returned. VLC is
+taken from the system if it is installed there; both are taken from the MCAV cache folder (`~/.mcav/cache`) if an
+earlier run downloaded them, or downloaded into that folder otherwise. A yt-dlp installed on the system is not used. No administrator rights or system packages are needed. The
 first download can take several minutes on a slow connection, and nothing waits for it: each capability simply turns
 on once its program is ready. The log shows `VLC ready in <n> ms` when VLC is ready, or a warning that says why VLC
 is not available.

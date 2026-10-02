@@ -46,7 +46,8 @@ pixel. Every other map, sign, name and interface text is drawn exactly as vanill
 
 The screen's own maps carry small **anchor** patches in their top rows: an eight-symbol signature, the frame's column
 and row, the wall's size and facing, and a checksum. The vertex shader of any visible anchor writes the wall's corner,
-its right and down vectors in view space and the projection matrix into a descriptor row after the slots. That is how
+its right and down vectors in view space and the projection matrix into its screen's descriptor row, which follows
+the slots of every screen of the pack. That is how
 the post chain learns where the wall is, with no marker colour that anything in the world could imitate.
 
 ## Twelve Passes
@@ -149,7 +150,8 @@ reloads the client's resources, a hitch that took 1.1 to 3.1 seconds from the of
 The pack replaces vanilla's `core/text.vsh`, `core/text.fsh` and `post_effect/entity_outline.json`. A pack loaded after
 it that replaces the same files wins, and MCV2 screens then show nothing; a server pack sent at join is loaded first,
 so MCV2 wins over it. Its copies are vanilla's plus the decoder, so a server that needs its own text or outline shaders
-can merge them into MCV2's (`mcav/mcv2/pack` in the plugin jar).
+can merge them into MCV2's (`mcav/mcv2/pack`, and `mcav/mcv2/chain.json` for the outline chain, in the
+`mcav-bukkit` jar, which the plugin downloads into the server's `libraries/mcav` folder).
 ```
 
 Minecraft 26.3 compiles every shader through shaderc into SPIR-V and, on OpenGL, back into GLSL 330 through

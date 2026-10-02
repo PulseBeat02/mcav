@@ -139,8 +139,8 @@ the counts it was sized by.
   -0.433% to -8.830% at 5 to 20 map Mbps for VMAF changes of +0.07 to -0.21, and **+22.411% at the near-lossless point**
   for identical VMAF, where every half-pixel vector is paid for and buys nothing. That point anchors the integral.
 - **No round 20.** Owner decision 6 allowed quarter-pixel motion only if round 19 was kept at 2% or more. A stored
-  motion delta is the vector less the global vector, both bounded by the search range of 24, so it needs seven signed
-  bits an axis; quarter pixels need nine, eighteen bits against the sixteen of a two-byte record.
+  motion delta is the vector less the global vector, at most 24 pixels apart, so it needs seven signed bits an axis;
+  quarter pixels would need eight, all sixteen bits of a two-byte record.
 
 ## The 1080p30 operating points
 

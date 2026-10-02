@@ -14,8 +14,9 @@ writes it. Why the codec is built this way, and the evidence for it, is in the d
 - **What is described:** mcav's implementation in `mcav-bukkit`, package `me.brandonli.mcav.bukkit.media.mcv2`. Each rule
   names the Java method that enforces it and the reference function it mirrors. `FrameParser.parse` is written to
   accept exactly the frames the reference's `v2.parse_frame` accepts (reached through `format.parse_frame`), apart
-  from the syntax below, and `Mcv2Decoder` is bit-exact with the reference on all 780 conformance frames (design doc,
-  section 2).
+  from the syntax below, and `Mcv2Decoder` is bit-exact with the reference on the 724 committed conformance frames, and was
+  on all 780 frames of the full streams they were cut from when the port was made (design doc, section 2;
+  [conformance.md](conformance.md)).
 - **Conventions:** integers are unsigned and little-endian unless marked signed (two's complement: s4, s8, s16);
   offsets count bytes from the first byte of the frame; bit fields and bit streams are least significant bit first;
   sizes are in pixels and motion in half pixels. Upper-case names are `Mcv2Format` constants unless another class is
@@ -332,7 +333,8 @@ bytes as above, or with flag 8192 two u16 RGB565 colours (R in bits 11-15, G in 
   reference at the half-pixel position `hx = clamp(2X + mx, 0, 2 * (width - 1))`, `x0 = hx >> 1`,
   `x1 = min(x0 + 1, width - 1)`, and the same in y, averaging one, two or four pixels as `hx` and `hy` are even or
   odd. The kernels carry four times the prediction as an integer, so `P = 0.25 * that` is exact in float32.
-- **Grids** (`Reconstruction.interpolate`, `pixels.interpolation` and `expand_grid`): along an axis of `g` nodes over
+- **Grids** (`Reconstruction.intraGrid` and `residualGrid`, which interpolate with the private `horizontal` and
+  `vertical`; `pixels.interpolation` and `expand_grid`): along an axis of `g` nodes over
   `s` pixels, `t = clamp((p + 0.5) * g / s - 0.5, 0, g - 1)`, `i0 = floor(t)`, `i1 = min(i0 + 1, g - 1)`,
   `f = t - i0`, and the value is bilinear in the four nodes. The weights are dyadic and the nodes are integers times
   powers of two, so every value is exact and the order of the reference's `einsum` cannot change it.
@@ -340,7 +342,9 @@ bytes as above, or with flag 8192 two u16 RGB565 colours (R in bits 11-15, G in 
   float32, so SKIP and motion leaves round half-pixel averages half up.
 - **Colour:** YCoCg converts as `R = (Y + Co) - Cg`, `G = Y + Cg`, `B = (Y - Co) - Cg`, associated left to right, and
   a residual is converted first and then added to the prediction: `P + ((Y + Co) - Cg)`.
-- **Precision:** intra grids (modes 4-7) are rounded as interpolated; modes 12 and 14 convert in float32. Modes 8-11
+- **Precision:** the reference's float32 and float64 operations, which `Reconstruction` reproduces in exact integer
+  arithmetic (every number involved is a dyadic rational with few significant bits, so none of them rounds; the tests
+  keep the floating-point form as the oracle): intra grids (modes 4-7) are rounded as interpolated; modes 12 and 14 convert in float32. Modes 8-11
   scale the nodes by `2^q` before interpolating, all in float32 (`residualGrid`). Modes 13 and 15 interpolate in
   float32, then scale, convert and add the prediction in float64, narrowing to float32 once before `rgb8`: the
   reference multiplies its float32 grid by a uint32 array of steps, which numpy promotes to float64

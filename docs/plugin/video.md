@@ -17,8 +17,9 @@ every command is on the [commands](commands.md) page.
 video started afterwards; `/mcav video hologram disable` turns it off again.
 
 A wall of maps shows 128x128 pixels per map, dithered to the map palette, or, with MCV2, a video of the resolution
-you choose decoded by a resource pack ([Using MCV2](../mcv2/using.md)). The other displays are not dithered and
-update at most 20 times a second, once per server tick.
+you choose decoded by a resource pack ([Using MCV2](../mcv2/using.md)). The other displays are not dithered; the
+block, entity and scoreboard displays update at most 20 times a second, once per server tick, and the chat display
+sends every frame as a new message as it arrives.
 
 **Dithering.** `FILTER_LITE` is the recommended default, `NEAREST_COLOR` keeps text and desktops sharp, and
 `FLOYD_STEINBERG_TEMPORAL` keeps unchanged areas identical from frame to frame, so less of the wall has to be sent. A
@@ -52,7 +53,7 @@ until it is granted.
 | `NONE` | Nowhere | - |
 | `HTTP_SERVER` | An audio web page the players open in a browser | `http-server` of the [configuration](config.md) |
 | `DISCORD_BOT` | A Discord voice channel | `discord-bot` |
-| `SIMPLE_VOICE_CHAT` | Positional voice chat for the players near the screen | `simple-voice-chat`, and the Simple Voice Chat plugin |
+| `SIMPLE_VOICE_CHAT` | Voice chat, played from the position of each viewer and heard within 32 blocks of them | `simple-voice-chat`, and the Simple Voice Chat plugin |
 
 One source plays through the audio outputs at a time: a video, a browser or a virtual machine that starts takes them
 over from the one that played before.

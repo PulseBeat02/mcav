@@ -88,8 +88,10 @@ mcav video map @a VLC HTTP_SERVER "1920x1080" "15x9" 0 FLOYD_STEINBERG "" "/abso
 > enclosing pair of double quotes. Both forms support paths containing spaces. Use quotes for video MRLs
 > containing spaces. Empty and malformed image sources still report `Invalid MRL!`.
 
-With `HTTP_SERVER` audio, the console prints `The audio web page is available at http://localhost:8080/`; open
-that page in a browser (forward port 8080 the same way) and press play. Listen for audio and compare its timing
+`HTTP_SERVER` audio needs the audio web page, which is off by default: set `enabled: true` under `http-server` in
+`run/plugins/MCAV/config.yml` and restart the server, or the command is refused. At startup the console then prints
+`The audio web page is available at http://localhost:3000/` (port 3000 unless `http-server.port` says otherwise);
+open that page in a browser (forward port 3000 the same way) and press play. Listen for audio and compare its timing
 with the video; a successful connection alone does not verify synchronization.
 
 ## 5. What to look for
