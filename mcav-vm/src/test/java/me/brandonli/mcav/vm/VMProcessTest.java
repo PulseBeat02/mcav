@@ -531,6 +531,15 @@ final class VMProcessTest {
     both.option("M", "microvm");
     both.repeatable("machine", "usb=on");
     assertEquals("microvm", VMProcess.machineType(both));
+    // the spellings mix in the order of the arguments, as QEMU reads them
+    final VMConfiguration aliases = VMConfiguration.builder();
+    aliases.option("M", "q35");
+    aliases.machine("microvm");
+    assertEquals("microvm", VMProcess.machineType(aliases));
+    final VMConfiguration repeated = VMConfiguration.builder();
+    repeated.repeatable("M", "microvm");
+    repeated.repeatable("machine", "q35");
+    assertEquals("q35", VMProcess.machineType(repeated));
     final VMConfiguration empty = VMConfiguration.builder();
     empty.machine(",usb=on");
     assertEquals("", VMProcess.machineType(empty));

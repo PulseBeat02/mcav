@@ -294,13 +294,14 @@ final class VMProcess {
    * @return the values
    */
   private static List<String> machineValues(final VMConfiguration configuration) {
+    // read off the arguments QEMU gets: grouped by spelling, -M q35 -machine microvm read as q35 where QEMU runs microvm
+    final List<String> arguments = configuration.getArguments();
     final List<String> values = new ArrayList<>();
-    for (final String option : List.of("machine", "M")) {
-      final String value = configuration.get(option);
-      if (value != null) {
-        values.add(value);
+    for (int index = 0; index + 1 < arguments.size(); index++) {
+      final String argument = arguments.get(index);
+      if (argument.equals("-machine") || argument.equals("-M")) {
+        values.add(arguments.get(index + 1));
       }
-      values.addAll(configuration.getAll(option));
     }
     return values;
   }
