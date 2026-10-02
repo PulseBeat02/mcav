@@ -560,6 +560,11 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       if (length > data.length - offset - LENGTH_BYTES) {
         throw new IOException("Truncated frame");
       }
+      // a record no frame can be is refused before it is copied: records of a few bytes each made the copies take
+      // several times the file's size in memory
+      if (length < Mcv2Format.HEADER_BYTES || length > Mcv2Format.MAX_FRAME_BYTES) {
+        throw new IOException("Invalid MCV2 frame length: " + length);
+      }
       final byte[] frame = new byte[(int) length];
       System.arraycopy(data, offset + LENGTH_BYTES, frame, 0, frame.length);
       frames.add(frame);

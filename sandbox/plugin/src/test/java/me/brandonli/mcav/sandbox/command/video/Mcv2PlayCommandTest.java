@@ -34,6 +34,8 @@ import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -49,6 +51,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
@@ -508,6 +511,19 @@ final class Mcv2PlayCommandTest {
     assertFalse(Files.exists(this.folder.getParent().resolve("escape.mcs")));
   }
 
+  /** A record of a stream file: the length, little-endian, then that many bytes. */
+  private static byte[] record(final int length) {
+    final byte[] record = new byte[Integer.BYTES + length];
+    ByteBuffer.wrap(record).order(ByteOrder.LITTLE_ENDIAN).putInt(0, length);
+    return record;
+  }
+
+  private static byte[] concat(final byte[] first, final byte[] second) {
+    final byte[] both = Arrays.copyOf(first, first.length + second.length);
+    System.arraycopy(second, 0, both, first.length, second.length);
+    return both;
+  }
+
   @Test
   void readsLengthPrefixedFrames() throws IOException {
     final List<byte[]> stream = Mcv2PlaybackTest.stream();
@@ -529,16 +545,26 @@ final class Mcv2PlayCommandTest {
       "The stream file is larger than 4 bytes",
       assertThrows(IOException.class, () -> Mcv2PlayCommand.read(truncatedFrame, 4)).getMessage()
     );
-    assertEquals(1, Mcv2PlayCommand.read(Files.write(this.folder.resolve("d.mcs"), new byte[] { 1, 0, 0, 0, 7 }), 5).size());
+    // the shortest frame is its header, and a file of one takes exactly its size
+    final byte[] shortest = record(Mcv2Format.HEADER_BYTES);
+    assertEquals(1, Mcv2PlayCommand.read(Files.write(this.folder.resolve("d.mcs"), shortest), shortest.length).size());
     // after a first frame: three bytes are no length, a length past the end no frame
-    final Path shortTail = Files.write(this.folder.resolve("e.mcs"), new byte[] { 1, 0, 0, 0, 7, 1, 0, 0 });
+    final Path shortTail = Files.write(this.folder.resolve("e.mcs"), concat(shortest, new byte[] { 1, 0, 0 }));
     assertEquals("Truncated frame length", assertThrows(IOException.class, () -> Mcv2PlayCommand.read(shortTail)).getMessage());
-    final Path longTail = Files.write(this.folder.resolve("f.mcs"), new byte[] { 1, 0, 0, 0, 7, 9, 0, 0, 0, 1 });
+    final Path longTail = Files.write(this.folder.resolve("f.mcs"), concat(shortest, new byte[] { 9, 0, 0, 0, 1 }));
     assertEquals("Truncated frame", assertThrows(IOException.class, () -> Mcv2PlayCommand.read(longTail)).getMessage());
-    // four bytes are a length: an empty frame
-    final List<byte[]> empties = Mcv2PlayCommand.read(Files.write(this.folder.resolve("g.mcs"), new byte[] { 0, 0, 0, 0 }));
-    assertEquals(1, empties.size());
-    assertEquals(0, empties.getFirst().length);
+    // a record shorter than a frame's header is no frame, an empty one neither: refused before it is copied, as a file
+    // of such records took several times its size in memory
+    final Path tiny = Files.write(this.folder.resolve("g.mcs"), new byte[] { 1, 0, 0, 0, 7 });
+    assertEquals("Invalid MCV2 frame length: 1", assertThrows(IOException.class, () -> Mcv2PlayCommand.read(tiny)).getMessage());
+    final Path empties = Files.write(this.folder.resolve("i.mcs"), concat(shortest, new byte[] { 0, 0, 0, 0 }));
+    assertEquals("Invalid MCV2 frame length: 0", assertThrows(IOException.class, () -> Mcv2PlayCommand.read(empties)).getMessage());
+    // and one longer than a frame may be
+    final Path huge = Files.write(this.folder.resolve("j.mcs"), record(Mcv2Format.MAX_FRAME_BYTES + 1));
+    assertEquals(
+      "Invalid MCV2 frame length: " + (Mcv2Format.MAX_FRAME_BYTES + 1),
+      assertThrows(IOException.class, () -> Mcv2PlayCommand.read(huge)).getMessage()
+    );
     // every byte of the length counts, little-endian: 16 bytes follow, fewer than any of these lengths
     for (int high = 1; high < 4; high++) {
       final byte[] data = new byte[4 + 16];
