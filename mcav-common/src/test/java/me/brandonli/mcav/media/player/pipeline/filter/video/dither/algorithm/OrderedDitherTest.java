@@ -213,6 +213,19 @@ final class OrderedDitherTest {
   }
 
   @Test
+  void aLargeStrengthPushesEveryPixelAllTheWayItsOffsetPoints() {
+    // the 2x2 pattern's offsets are -0.375 and 0.125 over 0.375 and -0.125, here times a strength of 10^30
+    final PixelMapper strong = PixelMapper.ofPixelMapper(BayerDither.NORMAL_2X2, 1e30f);
+    final OrderedDither dither = new OrderedDither(DitherPalette.colors(0x000000, 0xFFFFFF), strong);
+    final int[] gray = new int[4];
+    Arrays.fill(gray, 0xFF808080);
+    try (final ImageBuffer image = ImageBuffer.buffer(gray, 2, 2)) {
+      final byte[] indices = dither.ditherIntoBytes(image);
+      assertArrayEquals(new byte[] { 0, 1, 1, 0 }, indices, "a positive offset brightens to white, a negative one darkens to black");
+    }
+  }
+
+  @Test
   void rejectsNonFiniteStrengths() {
     assertThrows(IllegalArgumentException.class, () -> PixelMapper.ofPixelMapper(BayerDither.NORMAL_2X2, Float.POSITIVE_INFINITY));
     assertThrows(IllegalArgumentException.class, () -> PixelMapper.ofPixelMapper(BayerDither.NORMAL_2X2, Float.NEGATIVE_INFINITY));

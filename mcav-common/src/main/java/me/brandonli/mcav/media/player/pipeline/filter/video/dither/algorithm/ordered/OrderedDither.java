@@ -64,7 +64,9 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
     this.offsets = new int[this.patternHeight][this.patternWidth];
     for (int row = 0; row < this.patternHeight; row++) {
       for (int column = 0; column < this.patternWidth; column++) {
-        this.offsets[row][column] = Math.round(matrix[row][column] * spread);
+        // no channel moves more than 255 either way; an offset of a large strength rounded to the end of the int range,
+        // where adding it to a channel wrapped a brightening offset round to black
+        this.offsets[row][column] = Math.clamp(Math.round(matrix[row][column] * spread), -255, 255);
       }
     }
   }
