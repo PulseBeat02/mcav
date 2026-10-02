@@ -54,6 +54,26 @@ final class CommandTaskDeadlineTest {
 
   private static final class StringFuture extends CompletableFuture<String> {}
 
+  /**
+   * A parent that starts a child sharing its standard streams and ends, while the child holds the pipes for 30 seconds.
+   * With three arguments, the Java executable, the class path and the file for the child's pid, it is the parent;
+   * with one, the child.
+   */
+  static final class InheritedPipes {
+
+    private InheritedPipes() {}
+
+    public static void main(final String[] args) throws IOException, InterruptedException {
+      if (args.length == 1) {
+        Thread.sleep(30_000L);
+        return;
+      }
+      final Process child = new ProcessBuilder(args[0], "-cp", args[1], InheritedPipes.class.getName(), "child").inheritIO().start();
+      Files.writeString(Path.of(args[2]), Long.toString(child.pid()));
+      Thread.sleep(500L);
+    }
+  }
+
   private static Process finishedProcess() throws InterruptedException {
     final Process process = mock(Process.class);
     when(process.waitFor(anyLong(), eq(TimeUnit.NANOSECONDS))).thenReturn(true);
@@ -133,24 +153,13 @@ final class CommandTaskDeadlineTest {
   @Test
   @Timeout(15)
   void inheritedChildPipesCannotExtendTheTimeoutOrTheReaderExecutorClose() throws Exception {
-    final Path program = this.directory.resolve("InheritedPipes.java");
     final Path childPid = this.directory.resolve("child.pid");
-    final String source = """
-    import java.nio.file.*;
-    class InheritedPipes {
-      public static void main(String[] args) throws Exception {
-        if (args.length == 1) { Thread.sleep(30_000L); return; }
-        Process child = new ProcessBuilder(args[0], args[1], "child").inheritIO().start();
-        Files.writeString(Path.of(args[2]), Long.toString(child.pid()));
-        Thread.sleep(500L);
-      }
-    }
-    """;
-    Files.writeString(program, source);
     final String java = javaExecutable();
-    final String programPath = program.toString();
+    // the compiled class: launching a source file compiles it first, which took most of the budget on a busy machine
+    final String classes = Path.of(InheritedPipes.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();
+    final String fixture = InheritedPipes.class.getName();
     final String pidPath = childPid.toString();
-    final CommandTask task = new CommandTask(java, programPath, java, programPath, pidPath);
+    final CommandTask task = new CommandTask(java, "-cp", classes, fixture, java, classes, pidPath);
     final Duration timeout = Duration.ofSeconds(5);
     final long before = System.nanoTime();
     try {
