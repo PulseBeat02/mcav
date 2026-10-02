@@ -263,7 +263,8 @@ public final class Mcv2Channel {
   private void retireRemoved(final Set<UUID> selected) {
     this.scheduled.removeIf(viewer -> !selected.contains(viewer));
     for (final UUID viewer : Set.copyOf(this.links.keySet())) {
-      if (!selected.contains(viewer) && this.links.remove(viewer) != null) {
+      if (!selected.contains(viewer)) {
+        this.links.remove(viewer);
         Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), () -> this.hide(viewer));
       }
     }

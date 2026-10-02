@@ -22,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -35,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
@@ -50,6 +53,8 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitTask;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -185,6 +190,37 @@ final class Mcv2ChannelTest {
     assertEquals(Map.of(), channel.getLinks(), "the link is retired");
     this.server.runTasks();
     verify(this.screen).hide(this.player);
+  }
+
+  @Test
+  void everyViewerRemovedWhileTheScreenClosesIsHidden() {
+    final UUID second = UUID.fromString("00000000-0000-0000-0000-000000000034");
+    final CraftPlayer secondPlayer = this.server.addPlayer(second);
+    when(this.viewers.isLoaded(second)).thenReturn(true);
+    this.configuration.getViewers().add(second);
+    final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
+    channel.update();
+    this.server.runTasks();
+    assertEquals(Set.of(LOADED, second), channel.getLinks().keySet());
+    this.configuration.getViewers().removeAll(List.of(LOADED, second));
+    // the main thread closes the screen while the video's thread retires both viewers: the close clears the link of
+    // whichever viewer the update reaches second
+    final List<Runnable> hides = new ArrayList<>();
+    final AtomicBoolean closed = new AtomicBoolean();
+    doAnswer(invocation -> {
+      if (closed.compareAndSet(false, true)) {
+        channel.close();
+      }
+      hides.add(invocation.getArgument(1));
+      return mock(BukkitTask.class);
+    })
+      .when(this.server.getScheduler())
+      .runTask(any(Plugin.class), any(Runnable.class));
+    channel.update();
+    hides.forEach(Runnable::run);
+    // each keeps the screen's team otherwise
+    verify(this.screen).hide(this.player);
+    verify(this.screen).hide(secondPlayer);
   }
 
   @Test
