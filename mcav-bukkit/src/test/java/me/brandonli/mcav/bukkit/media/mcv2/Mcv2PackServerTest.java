@@ -31,7 +31,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -50,6 +54,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.zip.ZipFile;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 import me.brandonli.mcav.bukkit.resourcepack.provider.http.HttpHosting;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
@@ -94,6 +99,9 @@ final class Mcv2PackServerTest {
   private static final UUID CAROL = UUID.fromString("00000000-0000-0000-0000-0000000ca501");
 
   private static final long NOW = 1_234_567_890L;
+
+  /** How long the slot of a stopped screen stays in the pack. */
+  private static final long A_MINUTE = 60_000;
 
   @TempDir
   Path folder;
@@ -171,6 +179,25 @@ final class Mcv2PackServerTest {
 
   private void load(final Player player, final UUID pack) {
     this.packs.getViewers().handleStatus(new PlayerResourcePackStatusEvent(player, pack, Status.SUCCESSFULLY_LOADED));
+  }
+
+  /** The slots of the pack hosted last, as its manifest names them: "stream id: width x height", in strip order. */
+  private List<String> slotsOfTheLastPack() throws IOException {
+    final Path zip = this.hostings.getLast().getZip();
+    try (
+      final ZipFile pack = new ZipFile(zip.toFile());
+      final InputStream manifest = pack.getInputStream(pack.getEntry("mcav_mcv2.json"))
+    ) {
+      final JsonObject parsed = JsonParser.parseString(new String(manifest.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
+      final List<String> slots = new ArrayList<>();
+      for (final JsonElement screen : parsed.getAsJsonArray("screens")) {
+        final JsonObject slot = screen.getAsJsonObject();
+        slots.add(
+          slot.get("stream_id").getAsLong() + ": " + slot.get("video_width").getAsInt() + "x" + slot.get("video_height").getAsInt()
+        );
+      }
+      return slots;
+    }
   }
 
   @Test
@@ -464,7 +491,7 @@ final class Mcv2PackServerTest {
   }
 
   @Test
-  void aScreenKeepsTheSlotOfEverySizeItSteppedDownTo() {
+  void aScreenKeepsTheSlotOfTheSizeItLeftSoSteppingBackChangesNothing() {
     final CraftPlayer alice = this.online(ALICE);
     this.packs.start();
     final Mcv2Configuration full = screen(320, Set.of(ALICE));
@@ -903,5 +930,107 @@ final class Mcv2PackServerTest {
       this.drain();
       return true;
     }
+  }
+
+  @Test
+  void screensThatPlayOneAfterAnotherShareOneSlotOfThePack() throws IOException {
+    this.packs.start();
+    for (int width = 160; width <= 352; width += 32) {
+      this.packs.open(screen(width, Set.of())).close();
+      this.settle();
+    }
+    final Mcv2PackServer.Lease last = this.packs.open(screen(384, Set.of()));
+    this.settle();
+    assertEquals(1, last.getConfiguration().getStreamId());
+    assertEquals(List.of("1: 384x96"), this.slotsOfTheLastPack(), "one screen at a time needs one slot of the pack");
+  }
+
+  @Test
+  void aScreenThatStepsThroughThreeSizesKeepsOnlyTheSlotOfTheSizeItLeftLast() throws IOException {
+    this.packs.start();
+    final Mcv2PackServer.Lease lease = this.packs.open(screen(320, Set.of()));
+    final Mcv2Configuration playing = lease.getConfiguration();
+    lease.resize(playing.withVideo(288, 96));
+    lease.resize(playing.withVideo(256, 96));
+    this.settle();
+    assertEquals(List.of("1: 256x96", "2: 288x96"), this.slotsOfTheLastPack(), "the first size gave its slot to the third");
+    final int hosted = this.hostings.size();
+
+    assertEquals(2, lease.resize(playing.withVideo(288, 96)).getConfiguration().getStreamId());
+    this.settle();
+
+    assertEquals(hosted, this.hostings.size(), "back at the size it left last, the pack stays");
+    lease.close();
+  }
+
+  @Test
+  void theSlotsOfScreensThatStoppedLeaveThePackAfterAMinute() throws IOException {
+    final CraftPlayer alice = this.online(ALICE);
+    this.packs.start();
+    final Mcv2PackServer.Lease video = this.packs.open(screen(320, Set.of(ALICE)));
+    final Mcv2PackServer.Lease machine = this.packs.open(screen(288, Set.of(ALICE)));
+    final Mcv2PackServer.Lease desktop = this.packs.open(screen(256, Set.of(ALICE)));
+    this.settle();
+    final UUID threeSlots = packOf(requestSentTo(alice));
+    machine.close();
+    desktop.close();
+
+    this.millis.addAndGet(A_MINUTE - 1);
+    this.server.runLaterTasks();
+    this.settle();
+    assertEquals(1, this.hostings.size(), "within the minute a screen of either size takes its slot without a reload");
+
+    this.millis.addAndGet(1);
+    this.server.runLaterTasks();
+    this.settle();
+    assertEquals(List.of("1: 320x96"), this.slotsOfTheLastPack());
+    verify(alice).removeResourcePacks(threeSlots);
+    assertEquals(0, this.server.runLaterTasks(), "nothing is left to take out");
+    video.close();
+  }
+
+  @Test
+  void thePlayersRemoveThePackAMinuteAfterTheLastScreenStopped() {
+    final CraftPlayer alice = this.online(ALICE);
+    this.packs.start();
+    final Mcv2PackServer.Lease lease = this.packs.open(screen(320, Set.of(ALICE)));
+    this.settle();
+    final UUID pack = packOf(requestSentTo(alice));
+    this.load(alice, pack);
+    lease.close();
+
+    this.millis.addAndGet(A_MINUTE);
+    this.server.runLaterTasks();
+    this.settle();
+
+    verify(alice).removeResourcePacks(pack);
+    verify(this.hostings.getFirst()).shutdown();
+    assertEquals(1, this.hostings.size(), "no screen plays, so no pack is written");
+    assertFalse(this.packs.getViewers().isLoaded(ALICE));
+    // the next screen brings a pack again
+    this.packs.open(screen(320, Set.of(ALICE)));
+    this.settle();
+    assertEquals(2, this.hostings.size());
+    verify(alice, Mockito.times(2)).sendResourcePacks(any(ResourcePackRequest.class));
+  }
+
+  @Test
+  void aNewScreenTakesTheSpareOfAPlayingScreenOnlyWhenThePackIsFull() {
+    this.packs.start();
+    final List<Mcv2PackServer.Lease> leases = new ArrayList<>();
+    for (int screen = 0; screen < Mcv2Pack.MAX_SCREENS / 2; screen++) {
+      final Mcv2PackServer.Lease lease = this.packs.open(screen(320 + 32 * screen, Set.of()));
+      lease.resize(lease.getConfiguration().withVideo(160 + 16 * screen, 90));
+      leases.add(lease);
+    }
+    this.settle();
+
+    // four screens, each in the slot of its size and with the spare of the size it left: every slot is taken
+    final Mcv2PackServer.Lease fifth = this.packs.open(screen(608, Set.of()));
+
+    assertEquals(1, fifth.getConfiguration().getStreamId(), "the spare left first");
+    // the first screen's spare is gone: stepping back takes the spare left next, the second screen's
+    final Mcv2Configuration first = leases.getFirst().getConfiguration();
+    assertEquals(3, leases.getFirst().resize(first.withVideo(320, 96)).getConfiguration().getStreamId());
   }
 }

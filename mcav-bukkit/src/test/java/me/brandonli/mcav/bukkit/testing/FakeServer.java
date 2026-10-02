@@ -79,6 +79,8 @@ public final class FakeServer implements AutoCloseable {
 
   private final List<ScheduledTask> tasks;
 
+  private final List<ScheduledTask> laterTasks;
+
   private volatile boolean primaryThread;
 
   private FakeServer() {
@@ -92,6 +94,7 @@ public final class FakeServer implements AutoCloseable {
     this.sentPackets = new ConcurrentHashMap<>();
     this.pendingWrites = new ConcurrentHashMap<>();
     this.tasks = new CopyOnWriteArrayList<>();
+    this.laterTasks = new CopyOnWriteArrayList<>();
     this.primaryThread = true;
 
     this.stubScheduler();
@@ -109,6 +112,23 @@ public final class FakeServer implements AutoCloseable {
     };
     when(this.scheduler.runTaskTimer(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenAnswer(repeatingTask);
     when(this.scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(singleTask);
+    when(this.scheduler.runTaskLater(any(Plugin.class), any(Runnable.class), anyLong())).thenAnswer(invocation -> {
+      final Runnable runnable = invocation.getArgument(1);
+      return this.scheduleLater(runnable);
+    });
+  }
+
+  private BukkitTask scheduleLater(final Runnable runnable) {
+    final BukkitTask task = mock(BukkitTask.class);
+    final ScheduledTask scheduled = new ScheduledTask(runnable, false, task);
+    doAnswer(_ -> {
+      this.laterTasks.remove(scheduled);
+      return null;
+    })
+      .when(task)
+      .cancel();
+    this.laterTasks.add(scheduled);
+    return task;
   }
 
   private MockedStatic<Bukkit> mockBukkit() {
@@ -307,6 +327,21 @@ public final class FakeServer implements AutoCloseable {
       if (!task.repeating) {
         this.tasks.remove(task);
       }
+      task.runnable.run();
+    }
+    return snapshot.size();
+  }
+
+  /**
+   * Runs every task scheduled with a delay once, as if its delay had passed, and removes it. {@link #runTasks()} never
+   * runs them, so a test decides when their time has come.
+   *
+   * @return the number of tasks that ran
+   */
+  public int runLaterTasks() {
+    final List<ScheduledTask> snapshot = new ArrayList<>(this.laterTasks);
+    for (final ScheduledTask task : snapshot) {
+      this.laterTasks.remove(task);
       task.runnable.run();
     }
     return snapshot.size();

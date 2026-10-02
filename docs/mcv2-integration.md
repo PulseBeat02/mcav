@@ -178,11 +178,16 @@ id, the page frames' outline colour, the transport alphabet (the RGB of map colo
   screen configuration of the pack has its own slots, and one descriptor row per configuration follows all of them, so
   the strip is TOTAL_SLOTS·R + SCREENS rows, where TOTAL_SLOTS adds up the page slots (8 by default) of every
   configuration in the pack (`mcv2_strip.glsl`, `MCV2_TOTAL_SLOTS`): one screen takes 8·3 + 1 = 25 rows at 1920 wide
-  and 8·5 + 1 = 41 rows in the client's default 854x480 window. The pack keeps a configuration for every screen size it
-  has served since the server started, the pacer's smaller sizes included, up to `Mcv2Pack.MAX_SCREENS` = 8; with
-  eight the strip is 200 rows at 1920x1080 and 328 of the 480 rows of the default window, which the scene row below
-  covers as vertical streaks (measured in the soak of 2026-10-01). Alpha is 1, so the `TRANSLUCENT` blend writes the
-  bytes unchanged.
+  and 8·5 + 1 = 41 rows in the client's default 854x480 window. The scene row below covers the strip, which a player
+  sees as vertical streaks, so `Mcv2PackServer` keeps few configurations in the pack: a screen that starts takes a free
+  configuration of its size, else reshapes a free one of another size, and only then adds one (up to
+  `Mcv2Pack.MAX_SCREENS` = 8); a screen whose pacer steps to another size keeps the configuration of the size it left
+  last as its spare while it plays, so stepping back reloads nothing; and the configurations of a screen that stopped
+  leave the pack after a minute (a new video on the same wall takes them within it), the pack itself once none is left.
+  So the strip is 41 rows per playing screen in the default window, 82 for one that changed size. Before this rule the
+  pack kept every size it had served since the server started, the pacer's included: eight configurations made the
+  strip 200 rows at 1920x1080 and 328 of the 480 rows of the default window (measured in the soak of 2026-10-01).
+  Alpha is 1, so the `TRANSLUCENT` blend writes the bytes unchanged.
 - **Anchors.** The screen's own item frames (the wall's maps) carry small anchor patches in their top map rows: the
   signature, the frame's column and row, the screen's size in blocks, its facing and a checksum. The vertex shader of
   any visible anchor writes the screen's corner, right and down vectors in view space and the projection matrix into
