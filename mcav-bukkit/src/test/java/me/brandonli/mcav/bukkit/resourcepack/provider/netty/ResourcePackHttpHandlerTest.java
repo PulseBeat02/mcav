@@ -34,20 +34,31 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import me.brandonli.mcav.bukkit.resourcepack.provider.netty.ResourcePackHttpHandler.RequestType;
 import me.brandonli.mcav.bukkit.testing.LogCapture;
 import org.apache.logging.log4j.Level;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -331,6 +342,8 @@ final class ResourcePackHttpHandlerTest {
     final ChannelHandlerContext context = mock(ChannelHandlerContext.class);
     final ChannelFuture future = mock(ChannelFuture.class);
     when(context.alloc()).thenReturn(ByteBufAllocator.DEFAULT);
+    // like a real context it has a pipeline, where serving swaps the game's read timeout for the download's
+    when(context.pipeline()).thenReturn(mock(ChannelPipeline.class));
     // like a real channel, every write returns a future
     when(context.write(any())).thenReturn(future);
     when(context.writeAndFlush(any())).thenReturn(future);
@@ -404,5 +417,95 @@ final class ResourcePackHttpHandlerTest {
   void usesAStablePipelineNamePrefix() {
     // NettyHosting appends its instance number, because a Netty pipeline rejects two handlers of one name
     assertEquals("mcav_resource_pack_http", ResourcePackHttpHandler.NAME);
+  }
+
+  /** Holds back the pack's content, like a client that takes the download slowly, and fails it when the connection closes. */
+  private static final class SlowClient extends ChannelDuplexHandler {
+
+    private int writes;
+
+    private @Nullable Object content;
+
+    private @Nullable ChannelPromise pending;
+
+    @Override
+    public void write(final ChannelHandlerContext context, final Object message, final ChannelPromise promise) {
+      if (++this.writes == 1) {
+        final ChannelFuture headers = context.write(message, promise);
+        headers.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+        return;
+      }
+      this.content = message;
+      this.pending = promise;
+    }
+
+    @Override
+    public void channelInactive(final ChannelHandlerContext context) {
+      final ChannelPromise promise = this.pending;
+      if (promise != null) {
+        ReferenceCountUtil.release(this.content);
+        promise.tryFailure(new IOException("closed"));
+      }
+      context.fireChannelInactive();
+    }
+  }
+
+  /** The pipeline of a game connection: the slow client, this handler in front, then the game's 30-second read timeout. */
+  private EmbeddedChannel gameConnection() {
+    final EmbeddedChannel channel = new EmbeddedChannel();
+    channel.freezeTime();
+    final ChannelPipeline pipeline = channel.pipeline();
+    pipeline.addLast("client", new SlowClient());
+    pipeline.addLast(ResourcePackHttpHandler.NAME, new ResourcePackHttpHandler(new ResourcePackFile(this.packPath), "/"));
+    pipeline.addLast("timeout", new ReadTimeoutHandler(30));
+    return channel;
+  }
+
+  private EmbeddedChannel downloading() {
+    final EmbeddedChannel channel = this.gameConnection();
+    writeText(channel, "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    return channel;
+  }
+
+  @Test
+  void aDownloadLongerThanTheGamesReadTimeoutIsNotCut() {
+    final EmbeddedChannel channel = this.downloading();
+    channel.advanceTimeBy(31, TimeUnit.SECONDS);
+    channel.runScheduledPendingTasks();
+    assertTrue(channel.isOpen(), "the game counts 30 seconds from the request, and a download sends nothing after it");
+    assertNull(channel.pipeline().get(ReadTimeoutHandler.class));
+    assertInstanceOf(IdleStateHandler.class, channel.pipeline().get(ResourcePackHttpHandler.STALL_NAME));
+    channel.finishAndReleaseAll();
+  }
+
+  @Test
+  void aDownloadThatTakesNothingForAMinuteIsClosed() {
+    final EmbeddedChannel channel = this.downloading();
+    channel.advanceTimeBy(ResourcePackHttpHandler.STALL_SECONDS + 1, TimeUnit.SECONDS);
+    channel.runScheduledPendingTasks();
+    assertFalse(channel.isOpen(), "a client that stopped reading does not hold the game's port forever");
+    channel.finishAndReleaseAll();
+  }
+
+  @Test
+  void passesOnTheEventsItDoesNotHandle() {
+    final List<Object> events = new ArrayList<>();
+    // a download still running, because a finished one closes the connection
+    final EmbeddedChannel channel = this.gameConnection();
+    channel.pipeline().addLast(
+      "events",
+      new ChannelInboundHandlerAdapter() {
+        @Override
+        public void userEventTriggered(final ChannelHandlerContext context, final Object event) {
+          events.add(event);
+        }
+      }
+    );
+    // before a download, and a reader idle event during one, belong to the handlers after it
+    channel.pipeline().fireUserEventTriggered("before");
+    writeText(channel, "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    channel.pipeline().fireUserEventTriggered(IdleStateEvent.READER_IDLE_STATE_EVENT);
+    assertEquals(List.of("before", IdleStateEvent.READER_IDLE_STATE_EVENT), events);
+    channel.finishAndReleaseAll();
   }
 }

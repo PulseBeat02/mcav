@@ -24,12 +24,19 @@ import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.handler.timeout.IdleStateHandler;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +63,12 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
    * The name of the handler inside the channel pipeline.
    */
   static final String NAME = "mcav_resource_pack_http";
+
+  /** The name of the handler that closes a download that stopped making progress. */
+  static final String STALL_NAME = "mcav_resource_pack_stall";
+
+  /** How long a download may take nothing of the pack before its connection is closed, in seconds. */
+  static final long STALL_SECONDS = 60;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ResourcePackHttpHandler.class);
   private static final String PACK_NOT_READ = "Could not read the resource pack for an HTTP download";
@@ -151,7 +164,42 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     this.cumulation = null;
     this.served = true;
     data.release();
+    replaceReadTimeout(context);
     this.respond(context, isHeadRequest);
+  }
+
+  /**
+   * Bounds the connection by the download's progress instead of the game's read timeout. The game closes a connection
+   * that sent nothing for 30 seconds, and a client downloading the pack sends nothing after its request, so a download
+   * longer than that was cut. A client that stops taking the pack is still closed, once it took nothing for
+   * {@value #STALL_SECONDS} seconds.
+   */
+  private static void replaceReadTimeout(final ChannelHandlerContext context) {
+    final ChannelPipeline pipeline = context.pipeline();
+    for (final Map.Entry<String, ChannelHandler> handler : pipeline.toMap().entrySet()) {
+      if (handler.getValue() instanceof ReadTimeoutHandler) {
+        pipeline.remove(handler.getKey());
+      }
+    }
+    // before this handler, so its writes pass through it and its idle event reaches this handler
+    pipeline.addBefore(context.name(), STALL_NAME, new IdleStateHandler(true, 0, STALL_SECONDS, 0, TimeUnit.SECONDS));
+  }
+
+  /**
+   * Closes a download that took nothing of the pack for {@value #STALL_SECONDS} seconds, and passes every other event
+   * on.
+   *
+   * @param context the context of this handler
+   * @param event   the event
+   */
+  @Override
+  public void userEventTriggered(final ChannelHandlerContext context, final Object event) {
+    if (this.served && event instanceof final IdleStateEvent idle && idle.state() == IdleState.WRITER_IDLE) {
+      final ChannelFuture closing = context.close();
+      closing.addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+      return;
+    }
+    context.fireUserEventTriggered(event);
   }
 
   private ByteBuf accumulate(final ChannelHandlerContext context, final ByteBuf buffer) {
