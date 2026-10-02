@@ -1,7 +1,7 @@
 """Rate-VMAF points of H.264, VP9 and AV1 on a raw RGB source, scored the way the MCV2 frontier scores MCV2.
 
     python docs/mcv2/measure/codec_curves.py --ffmpeg "$FFMPEG" --source "$SRC" --name proxy30 \\
-        --width 1920 --height 1080 --frames 30 --fps 30 --out docs/mcv2/data/codec_curves.json
+        --width 1920 --height 1080 --frames 30 --fps 30 --qualities 20 28 36 --out docs/mcv2/data/codec_curves.json
 
 For every codec and quality setting the source is encoded from raw RGB24 into the codec's 4:2:0, decoded back to raw
 RGB24 first (`-fps_mode passthrough`, so no frame is dropped or repeated), and only then scored raw against raw with
@@ -11,7 +11,8 @@ size over the clip's duration: it charges none of the map transport that an MCV2
 
 The measurements of the MCV2 docs used ffmpeg 7.0.2 (a static build with libvmaf, libx264, libvpx-vp9 and libaom),
 the ffmpeg the frontier scored with. The output records every command with the placeholders $FFMPEG, $SRC, ENCODED
-and DECODED instead of local paths. Points already in the output file are kept, so a run can be resumed.
+and DECODED instead of local paths. Points already in the output file are kept, so a run can be resumed; a run that
+names a source measured before with other content is refused, as its points would mix with the earlier ones.
 """
 
 import argparse
@@ -157,6 +158,24 @@ def point(arguments, codec, quality, folder):
     }
 
 
+def resume(out, name, identity):
+    """The measurements already in the output, with the identity of this run's source recorded under its name.
+
+    The curves are kept under "codecs", as in docs/mcv2/data/codec_curves.json; the first runs wrote them under "points",
+    which is read too. A name whose recorded source is other content is refused: its points would mix with this run's.
+    """
+    measured = json.load(open(out)) if os.path.exists(out) else {"sources": {}, "codecs": []}
+    if "points" in measured:
+        if "codecs" in measured:
+            raise ValueError("%s holds both points and codecs; resolve the two datasets first" % out)
+        measured["codecs"] = measured.pop("points")
+    previous = measured["sources"].get(name)
+    if previous is not None and any(previous.get(key) != value for key, value in identity.items()):
+        raise ValueError("%s already has measurements of other content; use another --name" % name)
+    measured["sources"][name] = identity
+    return measured
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--ffmpeg", required=True)
@@ -170,15 +189,18 @@ def main():
     parser.add_argument("--qualities", nargs="+", type=int, required=True, help="the CRF values to encode at")
     parser.add_argument("--out", required=True)
     arguments = parser.parse_args()
-    measured = json.load(open(arguments.out)) if os.path.exists(arguments.out) else {"sources": {}, "points": []}
-    measured["sources"][arguments.name] = {
+    identity = {
         "width": arguments.width,
         "height": arguments.height,
         "frames": arguments.frames,
         "fps": arguments.fps,
         "sha256": sha256(arguments.source),
     }
-    done = {(p["source"], p["codec"], p["quality"]) for p in measured["points"]}
+    try:
+        measured = resume(arguments.out, arguments.name, identity)
+    except ValueError as error:
+        parser.error(str(error))
+    done = {(p["source"], p["codec"], p["quality"]) for p in measured["codecs"]}
     version = subprocess.run([arguments.ffmpeg, "-version"], capture_output=True, text=True).stdout.splitlines()[0]
     measured["ffmpeg"] = version
     with tempfile.TemporaryDirectory() as folder:
@@ -186,10 +208,10 @@ def main():
             for quality in arguments.qualities:
                 if (arguments.name, codec, quality) in done:
                     continue
-                measured["points"].append(point(arguments, codec, quality, folder))
-                print(json.dumps(measured["points"][-1]["codec"]), quality, measured["points"][-1]["container_mbps"],
-                      measured["points"][-1]["vmaf_mean"], flush=True)
-                measured["points"].sort(key=lambda p: (p["source"], p["codec"], p["quality"]))
+                measured["codecs"].append(point(arguments, codec, quality, folder))
+                print(json.dumps(measured["codecs"][-1]["codec"]), quality, measured["codecs"][-1]["container_mbps"],
+                      measured["codecs"][-1]["vmaf_mean"], flush=True)
+                measured["codecs"].sort(key=lambda p: (p["source"], p["codec"], p["quality"]))
                 temporary = arguments.out + ".partial"
                 with open(temporary, "w") as out:
                     json.dump(measured, out, indent=1)
