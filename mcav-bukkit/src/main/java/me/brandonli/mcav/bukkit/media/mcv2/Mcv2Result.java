@@ -117,6 +117,10 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** A pacing step, as the pacer describes it to the pacing listener too. */
   private static final String PACING_STEP = "{}";
 
+  private static final String ENCODER_FAILED = "The MCV2 screen stops: encoding a frame failed";
+
+  private static final String SENDER_FAILED = "The MCV2 screen stops: verifying or sending a frame failed";
+
   private static final double NANOS_PER_SECOND = 1e9;
 
   /** The frames a screen may take at once after a pause: more than one, so a frame arriving early is not lost, fewer than two. */
@@ -548,7 +552,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * not sent, and not heard.
    *
    * <p>The callback receives the actual encoded array without a defensive copy. Treat it as read-only and
-   * copy it before handing it to code that may mutate it. Callback failures propagate on the sender thread.
+   * copy it before handing it to code that may mutate it. A callback that throws stops the screen: the failure is
+   * logged, and no later frame is encoded or sent.
    *
    * @param listener called with every frame sent, on the thread that sends the frames, which it should not hold up
    * @throws NullPointerException if {@code listener} is null
@@ -781,6 +786,10 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * @param first the encoder of the screen's settings, the top of its ladder
    */
   void encodeLoop(final Mcv2Encoder first) {
+    final Pipeline own;
+    synchronized (this.lock) {
+      own = this.pipeline;
+    }
     long frameId = this.requested.getFirstFrameId();
     Mcv2Encoder encoder = first;
     try {
@@ -796,6 +805,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       }
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
+    } catch (final RuntimeException failure) {
+      // an encoder that cannot encode the frame, such as one of a size the codec cannot carry
+      LOGGER.error(ENCODER_FAILED, failure);
+    } finally {
+      // the sender waits for this thread's frames only, so it stops with it
+      this.stopPipeline(own);
     }
   }
 
@@ -934,16 +949,48 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    */
   void drain() throws InterruptedException {
     synchronized (this.lock) {
-      while (this.delivered < this.handed) {
+      // a stopped pipeline sends nothing more, so a frame it was handed will never be delivered
+      while (this.running && this.delivered < this.handed) {
         this.lock.wait();
       }
     }
   }
 
   /**
-   * Verifies and sends the frames the screen's thread hands over, in order, until the result is released. A frame that
-   * fails its verification stops the screen: the screen's thread is interrupted, and the failure ends this thread as it
-   * ended the screen's thread when the screen verified its frames there.
+   * Stops a pipeline from one of its own threads, once that thread ends for any reason: the screen takes no more
+   * frames, a drain waits for nothing, and the other thread, which would otherwise wait for this one forever, is
+   * interrupted. Does nothing once the result was released, or started again with another pipeline.
+   *
+   * @param stopped the pipeline the ending thread belongs to, or null when it ran without one
+   */
+  private void stopPipeline(final @Nullable Pipeline stopped) {
+    final Thread screenThread;
+    final Thread delivery;
+    synchronized (this.lock) {
+      final Pipeline current = this.pipeline;
+      // each start makes a queue of its own, so a pipeline equals only itself
+      if (stopped == null || current == null || !stopped.equals(current)) {
+        return;
+      }
+      this.running = false;
+      this.lock.notifyAll();
+      screenThread = this.worker;
+      delivery = this.sender;
+    }
+    // the release joins both threads; here they only learn that the screen stopped
+    if (screenThread != null) {
+      screenThread.interrupt();
+    }
+    if (delivery != null) {
+      delivery.interrupt();
+    }
+  }
+
+  /**
+   * Verifies and sends the frames the screen's thread hands over, in order, until the result is released. Anything
+   * that fails here - a frame that fails its verification, a frame listener or a send that throws - stops the screen:
+   * the failure is logged, and the screen's thread, which would otherwise wait forever to hand over its next frame, is
+   * stopped too.
    *
    * @param running      the budget, and where the screen's thread hands the frames over
    * @param screenThread the screen's thread
@@ -952,13 +999,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     try {
       while (true) {
         final Handoff handoff = running.queue().take();
-        final Mcv2Encoder.Encoded encoded;
-        try {
-          encoded = running.budget().run(() -> handoff.encoder().finish(handoff.pending()));
-        } catch (final IllegalStateException failure) {
-          screenThread.interrupt();
-          throw failure;
-        }
+        final Mcv2Encoder.Encoded encoded = running.budget().run(() -> handoff.encoder().finish(handoff.pending()));
         this.deliver(new Delivery(encoded.getData(), encoded.getStats(), handoff.frameId(), handoff.source()));
         synchronized (this.lock) {
           this.delivered++;
@@ -967,6 +1008,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       }
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
+    } catch (final RuntimeException failure) {
+      LOGGER.error(SENDER_FAILED, failure);
+    } finally {
+      this.stopPipeline(running);
+      // also when a release cleared the pipeline first: the screen's thread must not wait for this one
+      screenThread.interrupt();
     }
   }
 

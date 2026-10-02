@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -39,6 +40,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -724,6 +726,19 @@ final class Mcv2ResultTest {
     result.release();
   }
 
+  /** Whether a screen's or a sender's thread that did not exist before is alive. */
+  private static boolean hasPipelineThreads(final Set<Thread> before) {
+    return !threads("mcav-mcv2-screen", before).isEmpty() || !threads("mcav-mcv2-sender", before).isEmpty();
+  }
+
+  /** Waits up to five seconds for the screen's and the sender's threads that did not exist before to end. */
+  private static void awaitPipelineEnd(final Set<Thread> before) throws InterruptedException {
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+    while (hasPipelineThreads(before) && System.nanoTime() < deadline) {
+      Thread.sleep(10);
+    }
+  }
+
   /** The live threads of a name that did not exist before. */
   private static Set<Thread> threads(final String name, final Set<Thread> before) {
     final Set<Thread> found = new HashSet<>();
@@ -1309,5 +1324,72 @@ final class Mcv2ResultTest {
       result.release();
     }
     assertEquals(List.of("256x128", "256x128"), dithered, "a wall of 2x1 maps is 256x128 pixels");
+  }
+
+  @Test
+  void aFrameListenerThatFailsStopsTheScreenInsteadOfLeavingItsEncoderWaitingForever() throws InterruptedException {
+    final Set<Thread> before = Set.copyOf(Thread.getAllStackTraces().keySet());
+    final Mcv2Result result = this.result(this.configuration, this.algorithm);
+    result.setFrameListener(_ -> {
+      throw new IllegalStateException("a listener that fails");
+    });
+    try (final LogCapture logs = LogCapture.capture(Mcv2Result.class)) {
+      result.start();
+      result.applyFilter(Images.solid(64, 32, 0xFF336699), this.metadata);
+      // shows the screen to the viewer with the pack: the next frame is sent, and the listener hears it
+      this.server.runTasks();
+      final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+      for (int shade = 0; hasPipelineThreads(before) && System.nanoTime() < deadline; shade++) {
+        result.applyFilter(Images.solid(64, 32, 0xFF336699 + shade), this.metadata);
+        Thread.sleep(20);
+      }
+      assertEquals(Set.of(), threads("mcav-mcv2-sender", before), "the listener's failure ends the sender");
+      assertEquals(Set.of(), threads("mcav-mcv2-screen", before), "and the screen's thread, instead of waiting for it");
+      assertTimeoutPreemptively(Duration.ofSeconds(5), result::drain, "a stopped screen has nothing to drain");
+      assertTrue(
+        logs
+          .getEvents()
+          .stream()
+          .anyMatch(event -> Level.ERROR.equals(event.getLevel())),
+        "the failure is logged"
+      );
+    }
+    result.release();
+  }
+
+  @Test
+  void anEncoderThatFailsStopsTheScreenAndItsSender() throws InterruptedException {
+    final Set<Thread> before = Set.copyOf(Thread.getAllStackTraces().keySet());
+    final Mcv2Encoder failing = mock(Mcv2Encoder.class);
+    when(failing.getSettings()).thenReturn(EncoderSettings.LIVE_FAST);
+    when(failing.begin(any(), anyInt(), anyInt(), anyLong())).thenThrow(new IllegalArgumentException("a size the codec cannot carry"));
+    final Mcv2Configuration fast = packScreen(EncoderSettings.LIVE_FAST);
+    final Mcv2Result result = new Mcv2Result(
+      fast,
+      new Mcv2Channel(fast, this.viewers, this.screen),
+      this.algorithm,
+      System::nanoTime,
+      Runnable::run,
+      _ -> failing
+    );
+    try (final LogCapture logs = LogCapture.capture(Mcv2Result.class)) {
+      result.start();
+      final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+      result.applyFilter(frame, this.metadata);
+      this.server.runTasks();
+      result.applyFilter(frame, this.metadata);
+      verify(failing, timeout(TimeUnit.SECONDS.toMillis(10))).begin(any(), anyInt(), anyInt(), anyLong());
+      awaitPipelineEnd(before);
+      assertEquals(Set.of(), threads("mcav-mcv2-screen", before), "the encoder's failure ends the screen's thread");
+      assertEquals(Set.of(), threads("mcav-mcv2-sender", before), "and the sender, which waits for its frames");
+      assertTrue(
+        logs
+          .getEvents()
+          .stream()
+          .anyMatch(event -> Level.ERROR.equals(event.getLevel())),
+        "the failure is logged"
+      );
+    }
+    result.release();
   }
 }
