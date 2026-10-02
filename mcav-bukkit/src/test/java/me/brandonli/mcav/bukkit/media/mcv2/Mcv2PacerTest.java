@@ -423,8 +423,8 @@ final class Mcv2PacerTest {
     assertEquals(new Mcv2Pacer.Rung(1920, 1080, 2), pacer.getRung());
     driver.play(7, 11);
     assertEquals(new Mcv2Pacer.Rung(1920, 1080, 1), pacer.getRung());
-    // holding the top rung for five seconds makes the wait short again
-    driver.play(6, 11);
+    // holding the top rung as long as it would next be kept off, forty seconds, makes the wait short again
+    driver.play(41, 11);
     driver.play(2, 25);
     assertEquals(new Mcv2Pacer.Rung(1920, 1080, 2), pacer.getRung());
     driver.play(16, 11);
@@ -599,16 +599,16 @@ final class Mcv2PacerTest {
   }
 
   @Test
-  void aRungHeldFiveSecondsIsKeptOffOnlyTenSecondsAgain() {
-    // 50 fps. Leaving the top rung doubles how long it is kept off the next time it is left, unless it held for five
-    // seconds meanwhile: step down, climb back after ten seconds, hold the top exactly five seconds, then leave it at
-    // once (61 ms per frame is over at the first frame) - the top is then kept off ten seconds, not twenty
+  void aRungHeldAsLongAsItWouldNextBeKeptOffIsKeptOffOnlyTenSecondsAgain() {
+    // 50 fps. Leaving the top rung doubles how long it is kept off the next time it is left, unless it held meanwhile
+    // as long as that next wait: step down, climb back after ten seconds, hold the top exactly twenty seconds, then
+    // leave it at once (61 ms per frame is over at the first frame) - the top is then kept off ten seconds, not twenty
     final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
     final Exact clock = new Exact(pacer, FRAME_50, 0);
     clock.until(30, 1000);
     assertEquals(pacer.getLadder().getFirst(), clock.until(10, 2000).to());
-    // the top's first encoded frame starts its hold; 250 frames later is exactly five seconds
-    for (int frameNumber = 0; frameNumber < 251; frameNumber++) {
+    // the top's first encoded frame starts its hold; 1000 frames later is exactly twenty seconds
+    for (int frameNumber = 0; frameNumber < 1001; frameNumber++) {
       assertNull(clock.frame(10));
     }
     final Mcv2Pacer.Change left = clock.until(61, 1000);
@@ -619,5 +619,46 @@ final class Mcv2PacerTest {
       clock.frame(10);
     }
     assertTrue(clock.now < stepped + 20 * SECOND, "climbed back " + (clock.now - stepped) / 1e9 + " s after the step");
+  }
+
+  @Test
+  void aRungThatFailsSoonAfterItsReturnIsKeptOffTwiceAsLong() {
+    // 50 fps: step down, climb back after ten seconds, hold the top for six seconds, then leave it at once - the
+    // top held less than the twenty seconds it would next be kept off, so it is kept off those twenty seconds
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Exact clock = new Exact(pacer, FRAME_50, 0);
+    clock.until(30, 1000);
+    assertEquals(pacer.getLadder().getFirst(), clock.until(10, 2000).to());
+    for (int frameNumber = 0; frameNumber < 300; frameNumber++) {
+      assertNull(clock.frame(10));
+    }
+    assertTrue(clock.until(61, 1000).down());
+    final long stepped = clock.now;
+    while (!pacer.getRung().equals(pacer.getLadder().getFirst()) && clock.now < stepped + 60 * SECOND) {
+      clock.frame(10);
+    }
+    assertTrue(clock.now >= stepped + 20 * SECOND, "climbed back " + (clock.now - stepped) / 1e9 + " s after the step");
+  }
+
+  @Test
+  void aTryThatHoldsLessThanItsWaitDoesNotShortenTheNextWait() {
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL, SMALL));
+    final Driver driver = new Driver(pacer, 60, 0);
+    driver.play(5, 5);
+    driver.play(2, 2000);
+    assertTrue(pacer.getRung().isDithered());
+    // 30 seconds later 720p at 10 fps is tried; at 89 ms of its 100 it keeps up for ten seconds, then fails
+    driver.play(31, 200);
+    assertEquals(new Mcv2Pacer.Rung(1280, 720, 6), pacer.getRung());
+    driver.play(10, 200);
+    driver.play(2, 2000);
+    assertTrue(pacer.getRung().isDithered());
+    final int changes = driver.changes.size();
+    final long fellBack = driver.now;
+    // the try held less than the 60 seconds the next wait is, so that wait stays 60 seconds instead of going back to 30
+    while (driver.changes.size() == changes && driver.now < fellBack + 120 * SECOND) {
+      driver.play(1, 2000);
+    }
+    assertTrue(driver.now - fellBack >= 58 * SECOND, "tried again " + (driver.now - fellBack) / 1e9 + " s after falling back");
   }
 }

@@ -84,7 +84,8 @@ public final class Mcv2Pacer {
 
   /**
    * How long the pacer keeps off a rung it had to leave downwards, twice as long every time it has to leave it again,
-   * up to {@link #MAX_RETRY_SECONDS}; a rung that holds for {@link #UP_SECONDS} is free again.
+   * up to {@link #MAX_RETRY_SECONDS}; a rung that holds as long as it would next be kept off, and at least
+   * {@link #UP_SECONDS}, starts again from this.
    */
   private static final double BLOCK_SECONDS = 10.0;
 
@@ -446,10 +447,15 @@ public final class Mcv2Pacer {
       return null;
     }
     this.overSince = NEVER;
-    if (now - this.settledSince >= seconds(UP_SECONDS)) {
-      // a rung that held long enough ends the waits that failed tries left behind
-      this.retrySeconds = RETRY_SECONDS;
+    // a rung that held as long as the wait a failed try of it would get next ends the waits that failed tries left
+    // behind; ending them once it held UP_SECONDS undid the doubling, and a screen whose better rung failed again soon
+    // after it climbed back went to and fro every 20 to 90 seconds (mcav-soak D7: 2,255 rung changes in 25 hours)
+    final long held = now - this.settledSince;
+    if (held >= seconds(Math.max(UP_SECONDS, this.blockSeconds[this.current]))) {
       this.blockSeconds[this.current] = BLOCK_SECONDS;
+    }
+    if (held >= seconds(Math.max(UP_SECONDS, this.retrySeconds))) {
+      this.retrySeconds = RETRY_SECONDS;
     }
     final int above = this.bestAbove(now);
     if (above < 0) {
