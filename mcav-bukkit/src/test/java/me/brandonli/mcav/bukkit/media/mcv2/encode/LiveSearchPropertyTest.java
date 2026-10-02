@@ -86,7 +86,7 @@ final class LiveSearchPropertyTest {
     final EncoderSettings settings = EncoderSettings.SHIP.withLambda(lambda).withLive(search);
     job[0] = new FrameJob(settings, frames[0], frames[1], SIZE, SIZE, false, new int[] { 0 }, new int[] { 0 }, null, null);
     final BlockCoder coder = new BlockCoder(job[0], SIZE);
-    coder.code(0, 0, 0, 0, -1, 0);
+    coder.code(0, 0, 0, 0, BlockCoder.NO_VECTOR, 0);
     return coder;
   }
 
@@ -145,7 +145,7 @@ final class LiveSearchPropertyTest {
   private static FrameJob root(final byte[][] frames, final double lambda, final LiveSearch search) {
     final EncoderSettings settings = EncoderSettings.SHIP.withLambda(lambda).withLive(search);
     final FrameJob job = new FrameJob(settings, frames[0], frames[1], SIZE, SIZE, false, new int[] { 0 }, new int[] { 0 }, null, null);
-    new BlockCoder(job, SIZE).code(0, 0, 0, 0, -1, 0);
+    new BlockCoder(job, SIZE).code(0, 0, 0, 0, BlockCoder.NO_VECTOR, 0);
     return job;
   }
 

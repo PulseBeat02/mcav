@@ -84,6 +84,58 @@ final class BlockCoderTest {
     );
   }
 
+  /** A live search of every mode in which a block smaller than 16 takes its parent's vector without searching. */
+  private static LiveSearch searchFrom16() {
+    return new LiveSearch(
+      8,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      LiveSearch.ALL_MODES,
+      LiveSearch.ALL_MODES,
+      LiveSearch.ALL_MODES,
+      LiveSearch.ALL_CLASSES,
+      LiveSearch.FROM_LAMBDA,
+      false,
+      16,
+      false,
+      0,
+      0,
+      false
+    );
+  }
+
+  @Test
+  void aBlockBelowTheSearchSizeTakesItsParentsVectorWhicheverWayItPoints() {
+    // a still picture: a search finds no motion, so a vector other than none is the parent's
+    final Random random = new Random(45);
+    final byte[] picture = new byte[32 * 32 * 3];
+    random.nextBytes(picture);
+    final EncoderSettings settings = STILL.withLive(searchFrom16());
+    // left, up and right by two pixels, in half pixels, and left and up by half a pixel: a leftward vector packs
+    // negative, the last one to -1
+    for (final int parent : new int[] {
+      MotionSearch.pack(-4, 0),
+      MotionSearch.pack(0, -4),
+      MotionSearch.pack(4, 0),
+      MotionSearch.pack(-1, -1),
+    }) {
+      final FrameJob job = new FrameJob(settings, picture, picture.clone(), 32, 32, false, new int[] { 0 }, new int[] { 0 }, null, null);
+      final BlockCoder coder = new BlockCoder(job, 8);
+      // the 8x8 block at (8, 8), the sixth at its level
+      coder.code(2, 5, 8, 8, parent, 0);
+      assertEquals(parent, coder.localVector(), "parent " + MotionSearch.unpackX(parent) + "," + MotionSearch.unpackY(parent));
+    }
+    // the root has no parent, and searches
+    final FrameJob job = new FrameJob(settings, picture, picture.clone(), 32, 32, false, new int[] { 0 }, new int[] { 0 }, null, null);
+    final BlockCoder root = new BlockCoder(job, 8);
+    root.code(2, 5, 8, 8);
+    assertEquals(MotionSearch.pack(0, 0), root.localVector());
+  }
+
   /** The rounded mean of a channel of YCoCg values over a square cell of an 8x8 block, as a cell fit takes it. */
   private static int cellMean(final float[] values, final int channel, final int cell, final int column, final int row, final int low) {
     double sum = 0;

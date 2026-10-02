@@ -85,9 +85,10 @@ final class BlockCoder {
 
   /**
    * A vector no search produces, x and y both -32768 half pixels, far outside the largest motion range: the local
-   * vectors of a block that has not predicted locally.
+   * vectors of a block that has not predicted locally, and the parent vector of a root. Every leftward vector packs to a
+   * negative int, so a sign does not tell a vector from none.
    */
-  private static final int NO_VECTOR = 0x80008000;
+  static final int NO_VECTOR = 0x80008000;
 
   /** The modes whose records predict at the local vector, so they need the local motion search. */
   private static final int LOCAL_MODES =
@@ -325,7 +326,7 @@ final class BlockCoder {
    * @param top   the block's top edge
    */
   void code(final int level, final int block, final int left, final int top) {
-    this.code(level, block, left, top, -1);
+    this.code(level, block, left, top, NO_VECTOR);
   }
 
   /**
@@ -335,7 +336,7 @@ final class BlockCoder {
    * @param block  the block index in raster order at that level
    * @param left   the block's left edge
    * @param top    the block's top edge
-   * @param parent the enclosing block's local vector of the first global vector, or -1 at the root
+   * @param parent the enclosing block's local vector of the first global vector, or {@link #NO_VECTOR} at the root
    */
   void code(final int level, final int block, final int left, final int top, final int parent) {
     this.code(level, block, left, top, parent, 0);
@@ -349,7 +350,7 @@ final class BlockCoder {
    * @param block  the block index in raster order at that level
    * @param left   the block's left edge
    * @param top    the block's top edge
-   * @param parent the enclosing block's local vector of the first global vector, or -1 at the root
+   * @param parent the enclosing block's local vector of the first global vector, or {@link #NO_VECTOR} at the root
    * @param share  the cost below which no dearer candidate is tried, or 0
    */
   void code(final int level, final int block, final int left, final int top, final int parent, final double share) {
@@ -408,7 +409,9 @@ final class BlockCoder {
         for (int vectorIndex = 0; vectorIndex < frame.vectorCount(); vectorIndex++) {
           // a block below the live search's smallest searching size predicts with its parent's vector
           this.localVectors[vectorIndex] =
-            live != null && this.size < live.searchBlock() && parent >= 0 ? parent : this.search(left, top, vectorIndex, live, parent);
+            live != null && this.size < live.searchBlock() && parent != NO_VECTOR
+              ? parent
+              : this.search(left, top, vectorIndex, live, parent);
           this.predict(this.localVectors[vectorIndex], this.localPrediction[vectorIndex]);
         }
       } else {
@@ -651,7 +654,7 @@ final class BlockCoder {
     seeds[2] = frame.previousMotion(left + this.size, top + half);
     seeds[3] = frame.previousMotion(left + half, top - 1);
     seeds[4] = frame.previousMotion(left + half, top + this.size);
-    seeds[5] = parent < 0 ? seeds[0] : parent;
+    seeds[5] = parent == NO_VECTOR ? seeds[0] : parent;
     if ((this.shortcuts & LiveSearch.HALF_MOTION) != 0 && this.size >= HALF_MOTION_SMALLEST) {
       Arrays.fill(seeds, this.halfResolutionMotion(left, top, vectorIndex));
     }

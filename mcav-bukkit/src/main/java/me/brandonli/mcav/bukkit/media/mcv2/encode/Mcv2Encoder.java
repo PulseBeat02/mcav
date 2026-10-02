@@ -1010,7 +1010,7 @@ public final class Mcv2Encoder {
         for (final BlockCoder coder : coders) {
           coder.setHurried(late);
         }
-        descend(job, coders, 0, left, top, -1, deepest, threshold, split, live.childGate(), 0);
+        descend(job, coders, 0, left, top, BlockCoder.NO_VECTOR, deepest, threshold, split, live.childGate(), 0);
         final List<Leaf> chosen = new ArrayList<>();
         roots[index] = Preconditions.checkNotNull(this.select(job, 0, left, top, 0, chosen)).node();
         // only this task reads and writes the superblock's entry
