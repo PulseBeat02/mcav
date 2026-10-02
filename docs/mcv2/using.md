@@ -32,8 +32,8 @@ picture, and neither does the information hologram of `/mcav video hologram`.
 ## What the Players See
 
 Viewers are asked to load MCAV's MCV2 resource pack. Those who accept see the MCV2 picture once their client has loaded
-it; those who decline, or whose client cannot load it, keep seeing the **dithered maps of the same wall**, never a
-broken screen, and the chat tells them why. A player who declines is not asked again while online. A pre-encoded
+it; those who decline, or whose client cannot load it, keep seeing the **dithered maps of the same wall**, the whole
+picture scaled to the wall as the pack scales it, never a broken screen, and the chat tells them why. A player who declines is not asked again while online. A pre-encoded
 stream played with `/mcav mcv2 play` or `/mcav mcv2 stream` has no dithered maps: there, a player without the pack
 sees nothing new on the wall.
 

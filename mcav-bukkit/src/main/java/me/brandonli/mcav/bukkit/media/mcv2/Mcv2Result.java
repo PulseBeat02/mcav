@@ -475,6 +475,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       .map(configuration.getMap())
       .mapBlockWidth(configuration.getColumns())
       .mapBlockHeight(configuration.getRows())
+      // the pack scales the picture to the wall, so the dithered maps do too: a video larger than the maps would be
+      // cropped to its middle, and a smaller one, such as a pacer rung, drawn small in the middle of the wall
+      .resize(true)
       .viewers(viewers)
       .build();
   }

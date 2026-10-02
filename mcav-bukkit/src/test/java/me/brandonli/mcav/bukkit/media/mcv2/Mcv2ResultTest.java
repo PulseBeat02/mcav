@@ -1275,4 +1275,33 @@ final class Mcv2ResultTest {
     }
     result.release();
   }
+
+  @Test
+  void theDitheredMapsShowTheWholeVideoScaledToTheWall() {
+    final List<String> dithered = new CopyOnWriteArrayList<>();
+    final DitherAlgorithm recording = mock(DitherAlgorithm.class);
+    when(recording.ditherIntoBytes(any())).thenAnswer(invocation -> {
+      final ImageBuffer image = invocation.getArgument(0);
+      dithered.add(image.getWidth() + "x" + image.getHeight());
+      return new byte[image.getWidth() * image.getHeight()];
+    });
+    // a video larger than the wall's maps, and one smaller, as a pacer rung makes it
+    for (final int[] video : new int[][] { { 512, 128 }, { 128, 64 } }) {
+      final Mcv2Configuration wide = Mcv2Configuration.builder()
+        .viewers(List.of(WITHOUT))
+        .origin(new Location(WORLD, 0, 64, 0))
+        .facing(BlockFace.SOUTH)
+        .map(100)
+        .columns(2)
+        .rows(1)
+        .video(video[0], video[1])
+        .pageMap(500)
+        .maxFrameRate(0)
+        .build();
+      final Mcv2Result result = new Mcv2Result(wide, new Mcv2Channel(wide, this.viewers, this.screen), recording, System::nanoTime, Runnable::run);
+      result.applyFilter(Images.solid(video[0], video[1], 0xFF336699), this.metadata);
+      result.release();
+    }
+    assertEquals(List.of("256x128", "256x128"), dithered, "a wall of 2x1 maps is 256x128 pixels");
+  }
 }
