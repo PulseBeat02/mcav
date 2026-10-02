@@ -34,5 +34,14 @@
     },
     "url": "https://get.videolan.org/vlc/3.0.24/macosx/vlc-3.0.24-intel64.dmg",
     "hash": "1ef6c903e2dc026d4e58ddf7b2a9ed0eb6f8caf80a9a9f46f96490340b962707"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://github.com/ivan-hc/VLC-appimage/releases/download/20261001-112729/VLC-media-player_3.0.23_2-16-archimage5.0-x86_64.AppImage",
+    "hash": "7f6772a5a0e1d242b233e597a2833d38d0b1d1ec83ccae4e905430dfad754ab9"
   }
 ]

@@ -31,9 +31,10 @@ optional native features can also need system libraries, a display, or an audio 
 | Linux            | x86-64, ARM64             | VLC is used from the system, or downloaded as an AppImage on x86-64. |
 
 On Windows and macOS the download is VLC 3.0.24 from VideoLAN, checked against the SHA-256 hash MCAV ships. VideoLAN
-publishes no Linux build, so on x86-64 Linux MCAV downloads the AppImage that is built every week from the VLC package
-of Arch Linux (<https://github.com/ivan-hc/VLC-appimage>), checked against the SHA-256 digest GitHub publishes for it;
-it follows VideoLAN's releases once Arch Linux packages them.
+publishes no Linux build, so on x86-64 Linux MCAV downloads an AppImage built from the VLC package of Arch Linux
+(<https://github.com/ivan-hc/VLC-appimage>): one dated release, VLC 3.0.23 of 2026-10-01, pinned with the SHA-256 hash
+MCAV ships, like the others. MCAV runs the AppImage to unpack it, so it runs only that reviewed build, never what the
+project's weekly tag points to later; a newer VLC there needs a new pin in MCAV.
 
 FFmpeg and OpenCV are bundled with the library for every platform above. The OpenCV build differs per platform: the
 Windows and macOS builds read video files themselves, the Linux build has no file backend and only captures from
