@@ -21,11 +21,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import io.papermc.paper.math.Position;
 import java.lang.reflect.Field;
@@ -74,6 +76,8 @@ final class BlockRendererTest {
     this.viewer = this.server.addPlayer(VIEWER);
     this.server.injectModule();
     this.world = FakeWorld.create();
+    // the wall goes only to viewers in its world
+    this.world.enter(this.viewer);
     final List<UUID> initialViewers = List.of(VIEWER, OFFLINE);
     this.viewers = new CopyOnWriteArrayList<>(initialViewers);
   }
@@ -241,6 +245,7 @@ final class BlockRendererTest {
     renderer.render(first);
     this.server.runTasks();
     final CraftPlayer latePlayer = this.server.addPlayer(LATE);
+    this.world.enter(latePlayer);
     this.viewers.add(LATE);
     renderer.render(changed);
     this.server.runTasks();
@@ -293,6 +298,7 @@ final class BlockRendererTest {
     renderer.render(changed);
     this.server.runTasks();
     final CraftPlayer rejoined = this.server.addPlayer(VIEWER);
+    this.world.enter(rejoined);
     this.server.runTasks();
 
     final List<Map<? extends Position, BlockData>> rejoinedChanges = captureChanges(rejoined, 1);
@@ -515,5 +521,42 @@ final class BlockRendererTest {
 
     assertThrows(NullPointerException.class, () -> new BlockRenderer(null));
     assertThrows(NullPointerException.class, () -> renderer.render(null));
+  }
+
+  @Test
+  void sendsTheWallOnlyToViewersInItsWorld() {
+    final CraftPlayer elsewhere = this.server.addPlayer(LATE);
+    FakeWorld.create().enter(elsewhere);
+    this.viewers.add(LATE);
+    final BlockRenderer renderer = new BlockRenderer(this.createConfiguration());
+    renderer.show();
+    renderer.render(solidImage(3, 2, BROWN));
+    this.server.runTasks();
+    renderer.render(imageWithOneMagentaBlock());
+    this.server.runTasks();
+    this.runTicksUntilTheFullResendIsDue();
+    renderer.hide();
+    this.server.runTasks();
+    // the wall's blocks have no world, so a viewer in another world would see them at the same coordinates there
+    verify(elsewhere, never()).sendMultiBlockChange(any());
+    captureChanges(this.viewer, 4);
+  }
+
+  @Test
+  void aViewerWhoComesBackFromAnotherWorldGetsTheWholeWallAgain() {
+    final BlockRenderer renderer = new BlockRenderer(this.createConfiguration());
+    renderer.show();
+    renderer.render(solidImage(3, 2, BROWN));
+    this.server.runTasks();
+    final World nether = FakeWorld.create().getWorld();
+    when(this.viewer.getWorld()).thenReturn(nether);
+    renderer.render(imageWithOneMagentaBlock());
+    this.server.runTasks();
+    // nothing goes to the nether, not even the original blocks
+    captureChanges(this.viewer, 1);
+    this.world.enter(this.viewer);
+    this.server.runTasks();
+    final List<Map<? extends Position, BlockData>> changes = captureChanges(this.viewer, 2);
+    assertEquals(6, changes.getLast().size(), "the whole wall, not only what changed while they were away");
   }
 }

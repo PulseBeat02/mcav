@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
@@ -33,6 +34,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.craftbukkit.entity.CraftTextDisplay;
+import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.mockito.ArgumentMatchers;
 
@@ -49,6 +51,8 @@ public final class FakeWorld {
 
   private FakeWorld() {
     this.world = mock(World.class);
+    // renderers tell their world from a player's other worlds by its id
+    when(this.world.getUID()).thenReturn(UUID.randomUUID());
     this.spawnedDisplays = new CopyOnWriteArrayList<>();
     this.spawnLocations = new CopyOnWriteArrayList<>();
     this.blocks = new ConcurrentHashMap<>();
@@ -81,6 +85,17 @@ public final class FakeWorld {
    */
   public static FakeWorld create() {
     return new FakeWorld();
+  }
+
+  /**
+   * Puts players into this world: each player's world is this one from now on.
+   *
+   * @param players the players
+   */
+  public void enter(final Player... players) {
+    for (final Player player : players) {
+      when(player.getWorld()).thenReturn(this.world);
+    }
   }
 
   /**

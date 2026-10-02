@@ -83,6 +83,8 @@ final class DisplayableImageTest {
     this.viewer = this.server.addPlayer(VIEWER);
     this.server.injectModule();
     this.world = FakeWorld.create();
+    // a block wall goes only to viewers in its world
+    this.world.enter(this.viewer);
     this.algorithm = mock(DitherAlgorithm.class);
     when(this.algorithm.ditherIntoBytes(any(ImageBuffer.class))).thenAnswer(DisplayableImageTest::ditherToPattern);
   }

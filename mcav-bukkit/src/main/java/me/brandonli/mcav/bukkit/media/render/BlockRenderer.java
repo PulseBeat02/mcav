@@ -80,6 +80,8 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
   private final Set<UUID> activeViewers;
 
   private Position @Nullable [] positions;
+  // the world of the wall, by id: a block change carries no world, so a viewer elsewhere would get the wall there
+  private @Nullable UUID worldId;
   private BlockData @Nullable [] originalBlocks;
   private BlockData @Nullable [] displayedBlocks;
   private int ticksSinceFullResend;
@@ -167,8 +169,14 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
     }
 
     this.positions = capturedPositions;
+    this.worldId = world.getUID();
     this.originalBlocks = capturedBlocks;
     this.displayedBlocks = null;
+  }
+
+  /** Whether a player is in the world of the wall, the only one whose client shows it. */
+  private boolean isInWallWorld(final Player player) {
+    return player.getWorld().getUID().equals(this.worldId);
   }
 
   /**
@@ -248,7 +256,7 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
     for (final UUID viewer : viewers) {
       final boolean watching = this.activeViewers.contains(viewer);
       final Player player = Bukkit.getPlayer(viewer);
-      if (watching && player != null) {
+      if (watching && player != null && this.isInWallWorld(player)) {
         player.sendMultiBlockChange(changes);
       }
     }
@@ -293,7 +301,8 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
   }
 
   /**
-   * Adds every online viewer to the watching viewers and marks them as active.
+   * Adds every online viewer in the world of the wall to the watching viewers and marks them as active. A viewer in
+   * another world is not watching: coming back, they receive the complete wall again.
    *
    * @return the online viewers who need the complete wall, because they just started watching or it is due
    */
@@ -302,7 +311,7 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
     final Collection<UUID> viewers = this.configuration.getViewers();
     for (final UUID viewer : viewers) {
       final Player player = Bukkit.getPlayer(viewer);
-      if (player == null) {
+      if (player == null || !this.isInWallWorld(player)) {
         continue;
       }
       watchingViewers.add(viewer);
@@ -326,7 +335,7 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
 
     this.activeViewers.retainAll(watchingViewers);
     final Map<Position, BlockData> restored = this.createOriginalBlockMap(currentPositions);
-    sendToOnlinePlayers(removedViewers, restored);
+    this.sendToPlayersInWallWorld(removedViewers, restored);
   }
 
   private void restoreBlocks() {
@@ -340,9 +349,10 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
     final Set<UUID> viewers = new HashSet<>(configured);
     // A viewer can leave the configuration immediately before hide, without another render tick.
     viewers.addAll(this.activeViewers);
-    sendToOnlinePlayers(viewers, restored);
+    this.sendToPlayersInWallWorld(viewers, restored);
 
     this.positions = null;
+    this.worldId = null;
     this.originalBlocks = null;
     this.displayedBlocks = null;
     this.activeViewers.clear();
@@ -355,10 +365,11 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
     return createBlockMap(currentPositions, original);
   }
 
-  private static void sendToOnlinePlayers(final Collection<UUID> players, final Map<Position, BlockData> blocks) {
+  // a player in another world has nothing of the wall to restore; their client dropped this world's blocks when they left
+  private void sendToPlayersInWallWorld(final Collection<UUID> players, final Map<Position, BlockData> blocks) {
     for (final UUID uuid : players) {
       final Player player = Bukkit.getPlayer(uuid);
-      if (player != null) {
+      if (player != null && this.isInWallWorld(player)) {
         player.sendMultiBlockChange(blocks);
       }
     }
