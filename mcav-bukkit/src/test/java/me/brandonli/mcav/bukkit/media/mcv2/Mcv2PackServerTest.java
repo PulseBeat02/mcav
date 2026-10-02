@@ -495,6 +495,31 @@ final class Mcv2PackServerTest {
   }
 
   @Test
+  void aScreenInALaterSlotKeepsItsOwnPageMapsWhenItStepsToAnotherSize() {
+    this.packs.start();
+    final Mcv2PackServer.Lease first = this.packs.open(screen(320, Set.of()));
+    final Mcv2PackServer.Lease second = this.packs.open(screen(288, Set.of()));
+    this.settle();
+    final Mcv2Configuration playing = second.getConfiguration();
+    assertEquals(2, playing.getStreamId());
+    assertEquals(Mcv2Configuration.DEFAULT_PAGE_MAP + 8, playing.getPageMap());
+
+    // the screen's result asks for the other size with the configuration its slot gave it
+    final Mcv2Channel stepped = second.resize(playing.withVideo(160, 90));
+    this.settle();
+    final Mcv2PackServer.Lease third = this.packs.open(screen(256, Set.of()));
+
+    final Mcv2Configuration step = stepped.getConfiguration();
+    assertEquals(3, step.getStreamId());
+    assertEquals(Mcv2Configuration.DEFAULT_PAGE_MAP + 16, step.getPageMap(), "the page maps of slot 3");
+    assertEquals(4, third.getConfiguration().getStreamId());
+    assertEquals(Mcv2Configuration.DEFAULT_PAGE_MAP + 24, third.getConfiguration().getPageMap());
+    final Mcv2Channel back = second.resize(playing.withVideo(288, 96));
+    assertEquals(playing.getPageMap(), back.getConfiguration().getPageMap(), "the screen's own page maps at its own size");
+    first.close();
+  }
+
+  @Test
   void aSizeWithoutAFreeSlotIsDitheredForEveryViewer() {
     final CraftPlayer alice = this.online(ALICE);
     this.packs.start();

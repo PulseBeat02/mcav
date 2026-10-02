@@ -677,7 +677,9 @@ public final class Mcv2PackServer {
     }
 
     /**
-     * Gets the channel of the screen at another video size, in the slot of that size.
+     * Gets the channel of the screen at another video size, in the slot of that size. The channel's stream id and page
+     * maps are the slot's, counted from the first page map the lease was opened with: the stream id and page map of
+     * {@code resized} are not used, so the configuration of the lease or of any of its channels may be resized.
      *
      * @param resized the screen at the other size
      * @return its channel, not opened yet; one whose viewers all see the dithered maps if no slot is free
@@ -700,7 +702,9 @@ public final class Mcv2PackServer {
           slot.holder = this;
           this.held.put(geometry, slot);
         }
-        return new Mcv2Channel(resized.withSlot(slot.streamId, pageMapOf(resized, slot), this.firstFrameId), Mcv2PackServer.this.viewers);
+        // the page maps count from the screen's own first page map: a result asks with the configuration its slot gave
+        // it, whose page map already has that slot's offset
+        return new Mcv2Channel(resized.withSlot(slot.streamId, pageMapOf(this.requested, slot), this.firstFrameId), Mcv2PackServer.this.viewers);
       }
     }
 
