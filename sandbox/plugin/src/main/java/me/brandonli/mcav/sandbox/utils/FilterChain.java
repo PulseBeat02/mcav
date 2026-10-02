@@ -377,7 +377,19 @@ public final class FilterChain {
     if (size > MAX_OVERLAY_BYTES) {
       throw new IllegalArgumentException("the overlay %s is larger than %d bytes".formatted(name, MAX_OVERLAY_BYTES));
     }
-    return () -> new OverlayImageFilter(readOverlay(file), 0, 0);
+    return () -> overlayFilter(readOverlay(file));
+  }
+
+  /**
+   * Creates the filter of an overlay and releases the decoded picture, which the filter copied: up to a few megabytes of
+   * native memory that otherwise waited for the garbage collector, for every filter created.
+   */
+  static OverlayImageFilter overlayFilter(final ImageBuffer decoded) {
+    try {
+      return new OverlayImageFilter(decoded, 0, 0);
+    } finally {
+      decoded.release();
+    }
   }
 
   /** Decodes an overlay, where the pictures are filtered, scaled down to at most the largest side. */

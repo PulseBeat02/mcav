@@ -321,6 +321,17 @@ final class FilterChainTest {
   }
 
   @Test
+  void releasesTheDecodedOverlayOnceItsFilterHoldsACopy() {
+    final ImageBuffer decoded = picture(2, 2, 0xff0000);
+    final VideoFilter overlay = FilterChain.overlayFilter(decoded);
+    assertThrows(IllegalStateException.class, decoded::getWidth, "the decoded picture is released");
+    final ImageBuffer covered = picture(4, 4, 0x0000ff);
+    overlay.applyFilter(covered);
+    assertEquals(0xff0000, covered.getPixels()[0] & 0xffffff, "the filter draws its own copy");
+    assertEquals(0x0000ff, covered.getPixels()[3] & 0xffffff);
+  }
+
+  @Test
   void scalesALargeOverlayDownAndRemakesARegionForEverySize() throws IOException {
     this.writeOverlay("wide", 2_048, 16);
     final VideoFilter overlay = this.parse("overlay=wide").create().getFirst();
