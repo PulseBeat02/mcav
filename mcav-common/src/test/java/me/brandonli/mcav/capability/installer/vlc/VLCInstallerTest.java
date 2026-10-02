@@ -371,6 +371,8 @@ final class VLCInstallerTest {
     assertSha256(hash, url);
   }
 
+  private static final String PINNED_APPIMAGES = "https://github.com/ivan-hc/VLC-appimage/releases/download/";
+
   @Test
   void bundlesVerifiedDownloadsOfTheAdvertisedVersion() {
     final Download[] downloads = IOUtils.readDownloadsFromJsonResource("vlc.json");
@@ -379,7 +381,10 @@ final class VLCInstallerTest {
     for (final Download download : downloads) {
       final String url = download.getUrl();
       final String hash = download.getHash();
-      final boolean advertisedVersion = url.contains(versionDirectory);
+      // VideoLAN publishes no Linux build: Linux takes one pinned AppImage of Arch Linux's VLC package, which has its own
+      // version, and whose release ReleasePackageManagerTest pins
+      final boolean linux = download.getPlatform().getOS() == OS.LINUX;
+      final boolean advertisedVersion = linux ? url.startsWith(PINNED_APPIMAGES) : url.contains(versionDirectory);
       final boolean secure = url.startsWith("https://");
       assertTrue(advertisedVersion, url);
       assertTrue(secure, url);
