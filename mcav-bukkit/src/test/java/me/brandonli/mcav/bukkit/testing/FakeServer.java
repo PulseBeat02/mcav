@@ -30,6 +30,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -41,6 +42,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
@@ -79,6 +81,9 @@ public final class FakeServer implements AutoCloseable {
 
   private final List<ScheduledTask> tasks;
 
+  /** The entities whose visibility a grant inverts, per player. */
+  private final Map<UUID, Set<Entity>> visibility;
+
   private final List<ScheduledTask> laterTasks;
 
   private volatile boolean primaryThread;
@@ -94,6 +99,7 @@ public final class FakeServer implements AutoCloseable {
     this.sentPackets = new ConcurrentHashMap<>();
     this.pendingWrites = new ConcurrentHashMap<>();
     this.tasks = new CopyOnWriteArrayList<>();
+    this.visibility = new ConcurrentHashMap<>();
     this.laterTasks = new CopyOnWriteArrayList<>();
     this.primaryThread = true;
 
@@ -264,6 +270,35 @@ public final class FakeServer implements AutoCloseable {
       .when(connection)
       .send(any(Packet.class), any(ChannelFutureListener.class));
     handle.connection = connection;
+    // visibility as Paper keeps it: a grant inverts an entity's visibility by default, per session
+    final Set<Entity> inverted = ConcurrentHashMap.newKeySet();
+    doAnswer(invocation -> {
+      final Entity entity = invocation.getArgument(1);
+      if (entity.isVisibleByDefault()) {
+        inverted.remove(entity);
+      } else {
+        inverted.add(entity);
+      }
+      return null;
+    })
+      .when(player)
+      .showEntity(any(Plugin.class), any(Entity.class));
+    doAnswer(invocation -> {
+      final Entity entity = invocation.getArgument(1);
+      if (entity.isVisibleByDefault()) {
+        inverted.add(entity);
+      } else {
+        inverted.remove(entity);
+      }
+      return null;
+    })
+      .when(player)
+      .hideEntity(any(Plugin.class), any(Entity.class));
+    when(player.canSee(any(Entity.class))).thenAnswer(invocation -> {
+      final Entity entity = invocation.getArgument(0);
+      return entity.isVisibleByDefault() != inverted.contains(entity);
+    });
+    this.visibility.put(uuid, inverted);
     when(player.getHandle()).thenReturn(handle);
     when(player.getUniqueId()).thenReturn(uuid);
     this.bukkit.when(() -> Bukkit.getPlayer(uuid)).thenReturn(player);
@@ -271,6 +306,16 @@ public final class FakeServer implements AutoCloseable {
     this.sentPackets.put(uuid, packets);
     this.pendingWrites.put(uuid, pending);
     return player;
+  }
+
+  /**
+   * Ends the tracking of an entity as Paper does when its chunk section stops being tracked: every player loses the
+   * grant that inverted its visibility (CraftPlayer.onEntityRemove, called from ServerLevel's onTrackingEnd).
+   *
+   * @param entity the entity
+   */
+  public void endTracking(final Entity entity) {
+    this.visibility.values().forEach(inverted -> inverted.remove(entity));
   }
 
   /**

@@ -148,13 +148,14 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
   }
 
   /**
-   * Shows the display to viewers who are not seeing it yet.
+   * Shows the display to every viewer who cannot see it.
    *
    * <p>The entity is spawned with {@code setVisibleByDefault(false)}, so a player only ever sees it after an
-   * explicit {@link Player#showEntity(Plugin, org.bukkit.entity.Entity)}. That is per session and per player, so a
-   * viewer added to the configuration after the spawn, and a viewer who logged out and back in, would never see the
-   * entity again without this. Viewers who went offline are forgotten, so they are served again when they return.
-   * Online viewers removed from the configuration have this plugin's visibility grant revoked.
+   * explicit {@link Player#showEntity(Plugin, org.bukkit.entity.Entity)}. That grant is per session and per player,
+   * and Paper takes it back whenever the entity stops being tracked, which a display respawned as its chunk loads again
+   * can do before its viewer ever saw it. So every tick, each online viewer who cannot see the display is shown it: a
+   * viewer added to the configuration after the spawn, a viewer who logged out and back in, and a viewer whose grant
+   * was taken back. Online viewers removed from the configuration have this plugin's visibility grant revoked.
    */
   @Override
   protected void onTick() {
@@ -177,11 +178,10 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
         continue;
       }
       watching.add(viewer);
-      final boolean alreadyShown = this.shownTo.contains(viewer);
-      if (!alreadyShown) {
+      if (!player.canSee(display)) {
         player.showEntity(plugin, display);
-        this.shownTo.add(viewer);
       }
+      this.shownTo.add(viewer);
     }
     final Set<UUID> removed = new HashSet<>(this.shownTo);
     removed.removeAll(watching);

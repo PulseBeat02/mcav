@@ -320,6 +320,30 @@ final class EntityRendererTest {
   }
 
   @Test
+  void aViewerWhoseGrantPaperTookBackIsShownTheDisplayAgain() {
+    final EntityConfiguration configuration = this.createConfiguration(this.position);
+    final EntityRenderer renderer = new EntityRenderer(configuration);
+    final Plugin plugin = this.server.getPlugin();
+    renderer.show();
+    renderer.apply(Component.literal("still"));
+    final CraftTextDisplay discarded = this.world.getSpawnedDisplays().getFirst();
+    when(discarded.isValid()).thenReturn(false);
+    when(this.world.getWorld().isChunkLoaded(0, 0)).thenReturn(true);
+    renderer.onTick();
+    final CraftTextDisplay respawned = this.world.getSpawnedDisplays().get(1);
+    assertTrue(this.viewer.canSee(respawned));
+    // respawned the moment its chunk loaded again, the display stops being tracked before the viewer saw it, and
+    // Paper takes the viewer's grant back
+    this.server.endTracking(respawned);
+    renderer.onTick();
+    assertTrue(this.viewer.canSee(respawned), "the viewer is shown the display again");
+    verify(this.viewer, times(2)).showEntity(plugin, respawned);
+    renderer.onTick();
+    verify(this.viewer, times(2)).showEntity(plugin, respawned);
+    renderer.hide();
+  }
+
+  @Test
   void waitsForTheChunkToLoadBeforeRespawningTheDisplay() {
     final EntityConfiguration configuration = this.createConfiguration(this.position);
     final EntityRenderer renderer = new EntityRenderer(configuration);
