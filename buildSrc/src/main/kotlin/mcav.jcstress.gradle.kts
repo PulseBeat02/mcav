@@ -1,9 +1,11 @@
 // Concurrency tests on jcstress, OpenJDK's harness that races a few actors over shared state millions of times.
 // `./gradlew jcstressTest` runs every test in quick mode, -Pjcstress.tests=<regex> a selection; CI passes
 // -Pjcstress.mode=quick|default|stress and -Pjcstress.timeBudgetMinutes=<n>, and -Pjcstress.cpus=<n> bounds the actors
-// that run at once. A result a test marks FORBIDDEN makes jcstress exit with an error, which fails the task.
+// that run at once. A result a test marks FORBIDDEN makes jcstress exit with an error, which fails the task, and so
+// does a test jcstress skipped because it could not even be created.
 
 import me.brandonli.mcav.gradle.JcstressBudget
+import me.brandonli.mcav.gradle.JcstressConsole
 import me.brandonli.mcav.gradle.libraryOf
 import me.brandonli.mcav.gradle.libs
 import net.ltgt.gradle.errorprone.errorprone
@@ -75,14 +77,20 @@ tasks.register<JavaExec>("jcstressTest") {
     val budget = budgetMinutes.orNull
     val tests = selection.orNull
     val cpuCount = cpus.toInt()
+    val console = workingDirectory.map { it.file("console.txt") }
     doFirst {
         workingDirectory.get().asFile.mkdirs()
+        standardOutput = JcstressConsole.tee(System.out, console.get().asFile)
         if (budget != null) {
             val testCount = JcstressBudget.countTests(jar.get().asFile, tests)
             val iterationMillis = JcstressBudget.iterationMillis(mode, budget, testCount, cpuCount)
             logger.lifecycle(ITERATION_TIME, testCount, mode, budget, iterationMillis)
             args("-time", iterationMillis.toString())
         }
+    }
+    doLast {
+        standardOutput.close()
+        JcstressConsole.checkNoneSkipped(console.get().asFile)
     }
     // a stress run depends on the scheduling of the machine, so its result is never reused
     outputs.upToDateWhen { false }
