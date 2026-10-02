@@ -358,6 +358,14 @@ final class Mcv2ResultTest {
   }
 
   @Test
+  void anEncodeLoopThatFindsNoPipelineEndsAtOnce() throws InterruptedException {
+    final Mcv2Result result = this.result(this.configuration, null);
+    // the screen's thread of a start that a release overtook finds no pipeline to stop
+    assertTimeoutPreemptively(Duration.ofSeconds(10), () -> result.encodeLoop(mock(Mcv2Encoder.class)));
+    assertNull(result.take());
+  }
+
+  @Test
   void stopsWaitingOnceReleasedOrInterrupted() throws InterruptedException {
     final Mcv2Result result = this.result(this.configuration, null);
     // not started: nothing to wait for

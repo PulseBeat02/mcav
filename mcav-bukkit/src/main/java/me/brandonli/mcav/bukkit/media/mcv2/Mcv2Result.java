@@ -20,6 +20,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
@@ -968,22 +969,20 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final Thread delivery;
     synchronized (this.lock) {
       final Pipeline current = this.pipeline;
-      // each start makes a queue of its own, so a pipeline equals only itself
-      if (stopped == null || current == null || !stopped.equals(current)) {
+      // each start makes a queue of its own, so a pipeline equals only itself; a thread that ran without one, or ends
+      // after a release or a new start, stops nothing
+      if (stopped == null || !Objects.equals(stopped, current)) {
         return;
       }
       this.running = false;
       this.lock.notifyAll();
-      screenThread = this.worker;
-      delivery = this.sender;
+      // start sets the pipeline and its two threads together, and release clears them together
+      screenThread = Objects.requireNonNull(this.worker, "A running pipeline has its screen's thread");
+      delivery = Objects.requireNonNull(this.sender, "A running pipeline has its sender");
     }
     // the release joins both threads; here they only learn that the screen stopped
-    if (screenThread != null) {
-      screenThread.interrupt();
-    }
-    if (delivery != null) {
-      delivery.interrupt();
-    }
+    screenThread.interrupt();
+    delivery.interrupt();
   }
 
   /**
