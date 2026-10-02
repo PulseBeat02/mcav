@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,6 +33,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -264,6 +266,41 @@ final class Mcv2PlayCommandTest {
     }
   }
 
+  /** A video that reads one frame, then waits for the encode to be cancelled, and lets go of itself slowly. */
+  private static final class SlowToClose implements Mcv2FileEncoder.FrameReader {
+
+    private final CountDownLatch mayClose;
+
+    private int read;
+
+    SlowToClose(final CountDownLatch mayClose) {
+      this.mayClose = mayClose;
+    }
+
+    @Override
+    public boolean read(final byte[] rgb) {
+      if (this.read++ > 0) {
+        try {
+          // until the cancel interrupts the encode
+          new CountDownLatch(1).await();
+        } catch (final InterruptedException exception) {
+          Thread.currentThread().interrupt();
+        }
+      }
+      return true;
+    }
+
+    @Override
+    public void close() {
+      // the cancel's interrupt is kept for after, so the wait is not cut short by it
+      final boolean interrupted = Thread.interrupted();
+      Uninterruptibles.awaitUninterruptibly(this.mayClose);
+      if (interrupted) {
+        Thread.currentThread().interrupt();
+      }
+    }
+  }
+
   private static String text(final Component component) {
     return PlainTextComponentSerializer.plainText().serialize(component);
   }
@@ -391,7 +428,7 @@ final class Mcv2PlayCommandTest {
     this.command.encode(this.sender, "other.mp4", "other.mcs", "16x16", Mcv2Profile.LIVE);
     verify(this.sender).sendMessage(Message.MCV2_ENCODE_BUSY.build());
     this.command.cancel(this.sender);
-    assertNull(this.command.getEncoding());
+    assertSame(thread, this.command.getEncoding(), "the cancelled encode is the running one until its thread ends");
     Objects.requireNonNull(thread).join(TimeUnit.SECONDS.toMillis(60));
     assertFalse(thread.isAlive());
     verify(this.sender).sendMessage(Message.MCV2_ENCODE_CANCELLED.build());
@@ -403,7 +440,31 @@ final class Mcv2PlayCommandTest {
     verify(this.sender).sendMessage(Message.MCV2_ENCODE_NONE.build());
     // a size that is not one is refused before anything starts
     this.command.encode(this.sender, "clip.mp4", "long.mcs", "big", Mcv2Profile.LIVE);
-    assertNull(this.command.getEncoding());
+    assertSame(thread, this.command.getEncoding());
+  }
+
+  @Test
+  void aNewEncodeWaitsUntilACancelledOneHasEnded() throws Exception {
+    final CountDownLatch mayClose = new CountDownLatch(1);
+    this.command.setOpener((_, _, _) -> new SlowToClose(mayClose));
+    this.command.encode(this.sender, "long.mp4", "long.mcs", "16x16", Mcv2Profile.LIVE);
+    final Thread cancelled = Objects.requireNonNull(this.command.getEncoding());
+    this.command.cancel(this.sender);
+    // the cancelled encode still lets go of its video, and deletes long.mcs.part once it has
+    final CountDownLatch released = new CountDownLatch(0);
+    this.command.setOpener((_, _, _) -> new SolidFrames(2, released));
+    this.command.encode(this.sender, "again.mp4", "long.mcs", "16x16", Mcv2Profile.LIVE);
+    verify(this.sender).sendMessage(Message.MCV2_ENCODE_BUSY.build());
+    assertSame(cancelled, this.command.getEncoding());
+    mayClose.countDown();
+    cancelled.join(TimeUnit.SECONDS.toMillis(60));
+    assertFalse(cancelled.isAlive());
+    // once it has ended, the same file is encoded and kept
+    this.command.encode(this.sender, "again.mp4", "long.mcs", "16x16", Mcv2Profile.LIVE);
+    final Thread again = Objects.requireNonNull(this.command.getEncoding());
+    again.join(TimeUnit.SECONDS.toMillis(60));
+    assertTrue(Files.exists(this.streams.resolve("long.mcs")));
+    assertFalse(Files.exists(this.streams.resolve("long.mcs.part")));
   }
 
   @Test

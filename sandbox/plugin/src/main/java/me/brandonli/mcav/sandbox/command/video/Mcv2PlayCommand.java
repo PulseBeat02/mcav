@@ -429,7 +429,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   /**
    * Gets the thread of the file encode started last.
    *
-   * @return the thread, or null if none was started or it was cancelled
+   * @return the thread, also while a cancelled encode cleans up, or null if none was started
    */
   synchronized @Nullable Thread getEncoding() {
     return this.encoding;
@@ -447,9 +447,10 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.mcv2.cancel.info")
   public void cancel(final CommandSender sender) {
     final Thread running;
+    // the encode stays the running one until its thread ends: a new encode before then would write the same partial
+    // file the cancelled one deletes as it ends
     synchronized (this) {
       running = this.encoding;
-      this.encoding = null;
     }
     if (running == null || !running.isAlive()) {
       sender.sendMessage(Message.MCV2_ENCODE_NONE.build());
