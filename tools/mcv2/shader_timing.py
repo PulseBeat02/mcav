@@ -14,7 +14,9 @@ which is what every rendered frame without new video costs (the decode pass then
 decode pass of a new frame is drawn K more times on the same inputs (--repeats) and the mean is reported, the way
 gpu-codec's harness times a draw. The whole stream is played R times (--rounds); the first round warms the GPU clocks
 and is not counted. Every picture is checked against the one the first round decoded, so a timing run is also a
-determinism check. Needs numpy and moderngl; make_pages comes from the reference in tools/mcv2-reference.
+determinism check. Needs numpy and moderngl; make_pages comes from the reference in tools/mcv2-reference. The exit
+code is 1 when a frame was not decoded when its pages arrived, was decoded again from the same pages, or decoded to
+another picture in a later round.
 """
 
 import argparse
@@ -109,6 +111,9 @@ def main():
     parser.add_argument("--json", type=Path)
     parser.add_argument("--pack", type=Path, help="another pack source folder (default: mcav-bukkit's)")
     arguments = parser.parse_args()
+    # the first round only warms the GPU up, so one round would time nothing
+    if arguments.rounds < 2 or arguments.repeats < 1 or arguments.slots < 1:
+        parser.error("need at least two rounds, one repeat and one page slot")
     if arguments.pack:
         shader_check.PACK = arguments.pack
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "mcv2-reference"))
@@ -121,6 +126,8 @@ def main():
     print(renderer, context.info["GL_VERSION"])
     report = dict(renderer=renderer, version=context.info["GL_VERSION"], rounds=arguments.rounds,
                   repeats=arguments.repeats, streams={})
+    # what the run saw go wrong, which a timing printed in the table would otherwise hide behind a success
+    failures = 0
     for stream in arguments.streams:
         frames = list(shader_check.frames(stream))
         width, height = struct.unpack_from("<HH", frames[0], 8)
@@ -146,6 +153,7 @@ def main():
                 again["total"] = sum(again[name] for name in names)
                 pictures.append(chain.target("previous").read())
                 if not decoded or shown_again:
+                    failures += 1
                     print("  frame %d: decoded %s, decoded again %s" % (index, decoded, shown_again))
                 if round_index > 0:
                     (new_key if keyframes[index] else new_p).append(times)
@@ -157,6 +165,7 @@ def main():
         result = dict(width=width, height=height, frames=len(frames), mismatches=mismatches,
                       new_keyframe=summarize(new_key, names), new_p=summarize(new_p, names), idle=summarize(idle, names))
         report["streams"][Path(stream).name] = result
+        failures += mismatches
         print("%s (%dx%d, %d frames, %d rounds counted, %d picture mismatches between rounds)" % (
             Path(stream).name, width, height, len(frames), arguments.rounds - 1, mismatches))
         print("  %-24s %22s %22s %22s" % ("pass (ms)", "new P frame mean/p95", "new keyframe mean/p95", "no new video mean/p95"))
@@ -165,6 +174,7 @@ def main():
             print("  %-24s %22s %22s %22s" % (name, *("%9.3f / %9.3f" % (cell["mean"], cell["p95"]) for cell in cells)))
     if arguments.json:
         arguments.json.write_text(json.dumps(report, indent=2))
+    sys.exit(1 if failures else 0)
 
 
 if __name__ == "__main__":

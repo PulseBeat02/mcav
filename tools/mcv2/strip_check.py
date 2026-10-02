@@ -11,7 +11,7 @@ page slot (green: a valid page, red: none), one for the client frame's decision 
 red: a frame that cannot be decoded) and four grey squares for the bytes of the decoded-frame counter, lowest first.
 Every square must be one exact colour, a slot's square must agree with the page read from the same capture, no
 decision may be red, and the counter must never go down. The summary is one JSON line; the exit code is 1 when any
-check failed.
+check failed, and 2 when the folder holds no PNG screenshot.
 
 A pack of several screens has every screen's slots in the strip, then one descriptor row per screen, and the debug
 view draws the screens' pictures one under the other: --screens and --total-slots describe the strip, --screen,
@@ -70,6 +70,9 @@ def main():
         return symbols[: -(-(PAGE_HEADER.size + size) * 8 // 6)].tobytes()
 
     captures = sorted(arguments.captures.glob("*.png"))
+    # a folder without captures checked nothing, which must not read as a pass
+    if not captures:
+        parser.error("%s holds no PNG screenshots" % arguments.captures)
     valid, invalid, frames = Counter(), Counter(), set()
     descriptors, decisions, failures, counts = 0, Counter(), [], []
     squared = 0
