@@ -58,6 +58,11 @@ library (`MCAVApi.release`) does not stop the machines either; release every pla
   }
 ```
 
+QEMU gives a guest its user-mode network unless told otherwise, and in it the address 10.0.2.2 is the machine QEMU runs
+on: the guest reaches every service there that listens only on the loopback address. `network("none")` gives the guest
+no network, and `network("user,restrict=on")` one that reaches neither the host nor the internet, apart from the
+forwards you add.
+
 Options that QEMU accepts more than once, such as `-drive` or `-device`, are added with `drive(...)`, `device(...)`, or
 `repeatable(key, value)`; every other option replaces its earlier value. `start` throws an
 `ExecutableNotInPathException` when the QEMU program of the architecture is not installed, and a `PlayerException`
