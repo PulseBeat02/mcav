@@ -1015,6 +1015,123 @@ final class Mcv2PackServerTest {
   }
 
   @Test
+  void aNewScreenOfTheSizeAPlayingScreenLeftTakesThatScreensSpare() {
+    this.packs.start();
+    final Mcv2PackServer.Lease first = this.packs.open(screen(320, Set.of()));
+    final Mcv2Configuration requested = first.getConfiguration();
+    first.resize(requested.withVideo(160, 90));
+    this.settle();
+    final int hosted = this.hostings.size();
+    // the first screen plays at 160 in slot 2 and keeps slot 1, at 320, as its spare; no slot of 320 is free
+    final Mcv2PackServer.Lease second = this.packs.open(screen(320, Set.of()));
+    this.settle();
+    assertEquals(1, second.getConfiguration().getStreamId(), "the pack has the size, as the playing screen's spare");
+    assertEquals(hosted, this.hostings.size(), "so the pack stays");
+    // the spare is the second screen's now, so stepping back takes a slot of its own
+    assertEquals(3, first.resize(requested.withVideo(320, 96)).getConfiguration().getStreamId());
+    second.close();
+    first.close();
+  }
+
+  @Test
+  void aFullPackReshapesTheSpareLeftFirstWhereverItsSlotIs() {
+    this.packs.start();
+    final List<Mcv2PackServer.Lease> leases = new ArrayList<>();
+    for (int screen = 0; screen < Mcv2Pack.MAX_SCREENS / 2; screen++) {
+      final Mcv2PackServer.Lease lease = this.packs.open(screen(320 + 32 * screen, Set.of()));
+      lease.resize(lease.getConfiguration().withVideo(160 + 16 * screen, 90));
+      leases.add(lease);
+    }
+    // the first screen steps back, so its spare is now slot 2, left last, while the spares of slots 3, 5 and 7 are older
+    final Mcv2PackServer.Lease firstScreen = leases.getFirst();
+    assertEquals(1, firstScreen.resize(firstScreen.getConfiguration().withVideo(320, 96)).getConfiguration().getStreamId());
+    this.settle();
+
+    final Mcv2PackServer.Lease fifth = this.packs.open(screen(608, Set.of()));
+
+    assertEquals(3, fifth.getConfiguration().getStreamId(), "the spare left first, behind a newer one");
+  }
+
+  @Test
+  void aSpareOutlivesTheTrimOfTheSlotsAroundIt() throws IOException {
+    this.packs.start();
+    final Mcv2PackServer.Lease playing = this.packs.open(screen(320, Set.of()));
+    final Mcv2Configuration requested = playing.getConfiguration();
+    playing.resize(requested.withVideo(160, 90));
+    final Mcv2PackServer.Lease stopped = this.packs.open(screen(288, Set.of()));
+    this.settle();
+    stopped.close();
+
+    this.millis.addAndGet(A_MINUTE);
+    this.server.runLaterTasks();
+    this.settle();
+
+    assertEquals(List.of("1: 320x96", "2: 160x90"), this.slotsOfTheLastPack().stream().sorted().toList());
+    assertEquals(1, playing.resize(requested.withVideo(320, 96)).getConfiguration().getStreamId(), "the spare is kept");
+    playing.close();
+  }
+
+  @Test
+  void aPluginBeingDisabledSchedulesNoTrim() {
+    this.packs.start();
+    final Mcv2PackServer.Lease lease = this.packs.open(screen(320, Set.of()));
+    this.settle();
+    when(this.server.getPlugin().isEnabled()).thenReturn(false);
+    lease.close();
+    assertEquals(0, this.server.runLaterTasks(), "its pack server is shut down next, which takes the slots out");
+  }
+
+  @Test
+  void aTrimDueAfterTheShutdownChangesNothing() {
+    this.packs.start();
+    final Mcv2PackServer.Lease lease = this.packs.open(screen(320, Set.of()));
+    this.settle();
+    lease.close();
+    this.packs.shutdown();
+    final int hosted = this.hostings.size();
+
+    this.millis.addAndGet(A_MINUTE);
+    assertEquals(1, this.server.runLaterTasks(), "the trim asked for before the shutdown");
+    this.settle();
+
+    assertEquals(hosted, this.hostings.size());
+  }
+
+  @Test
+  void aScreenThatStoppedBeforeItsPackWasWrittenLeavesNoPackToWithdraw() {
+    final CraftPlayer alice = this.online(ALICE);
+    this.packs.start();
+    final Mcv2PackServer.Lease lease = this.packs.open(screen(320, Set.of(ALICE)));
+    // the tick asks for the pack, which the writer has not written yet when the screen stops and its slot leaves
+    this.server.runTasks();
+    lease.close();
+
+    this.millis.addAndGet(A_MINUTE);
+    this.server.runLaterTasks();
+    this.settle();
+
+    assertEquals(List.of(), this.hostings, "the pack asked for was out of date before it was written");
+    verify(alice, never()).sendResourcePacks(any(ResourcePackRequest.class));
+    verify(alice, never()).removeResourcePacks(any(UUID.class));
+  }
+
+  @Test
+  void aResizeToTheSizeThatPlaysChangesNothing() {
+    this.packs.start();
+    final Mcv2PackServer.Lease lease = this.packs.open(screen(320, Set.of()));
+    this.settle();
+    final Mcv2Configuration requested = lease.getConfiguration();
+    final int hosted = this.hostings.size();
+
+    final Mcv2Channel same = lease.resize(requested.withVideo(320, 96));
+    this.settle();
+
+    assertEquals(requested.getStreamId(), same.getConfiguration().getStreamId());
+    assertEquals(hosted, this.hostings.size());
+    lease.close();
+  }
+
+  @Test
   void aNewScreenTakesTheSpareOfAPlayingScreenOnlyWhenThePackIsFull() {
     this.packs.start();
     final List<Mcv2PackServer.Lease> leases = new ArrayList<>();
