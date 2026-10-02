@@ -64,7 +64,8 @@ public final class Mcv2Link {
   /**
    * Constructs the link of a viewer that has decoded nothing yet.
    *
-   * @param limit the most video bytes the viewer's connection may have left to write for another frame to be sent
+   * @param limit the nonnegative backlog threshold in estimated bytes before accepting another frame;
+   *              zero admits a frame only when the tracked backlog is zero
    * @throws IllegalArgumentException if the limit is negative
    */
   public Mcv2Link(final long limit) {
@@ -88,11 +89,15 @@ public final class Mcv2Link {
    * Decides whether a frame goes to the viewer now, and when it does, records it as sent and adds its bytes to the
    * backlog; {@link #written(long)} takes them off again.
    *
+   * <p>The threshold tests the existing backlog before adding this frame, so an accepted frame can take the
+   * backlog above the threshold. Send every accepted frame and balance its byte charge with {@link #written(long)}.
+   *
    * @param frameId     the frame's id
    * @param referenceId the id of the frame a P frame predicts from
    * @param isKeyframe  whether the frame is a keyframe
    * @param bytes       the video bytes the frame puts on the viewer's connection
    * @return true if the frame is to be sent to the viewer
+   * @throws IllegalArgumentException if frameId is outside unsigned 32-bit range or bytes is negative
    */
   public synchronized boolean offer(final long frameId, final long referenceId, final boolean isKeyframe, final long bytes) {
     Preconditions.checkArgument(frameId >= 0 && frameId <= Mcv2Format.MAX_U32, "Frame id must be an unsigned 32-bit value");
@@ -127,6 +132,9 @@ public final class Mcv2Link {
 
   /**
    * Takes a sent frame's bytes off the backlog once its write completed or failed.
+   *
+   * <p>Call exactly once for each charged byte, including failed writes. Partial bundle completions may split
+   * a frame's charge. Nonnegative amounts and balanced accounting are caller preconditions, not checked here.
    *
    * @param bytes the bytes {@link #offer} added for the frame
    */

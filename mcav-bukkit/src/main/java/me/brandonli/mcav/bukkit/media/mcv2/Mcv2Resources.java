@@ -38,12 +38,13 @@ public final class Mcv2Resources {
   /**
    * Loads and checks one resource of this package.
    *
-   * @param name   the file name
+   * @param name the non-null classpath name, relative to this package unless it begins with a slash
    * @param sha256 the expected lowercase hexadecimal SHA-256
-   * @param length the expected length in bytes
-   * @return the bytes
+   * @param length the nonnegative expected length in bytes; a negative value fails the length check
+   * @return a newly read caller-owned array; the resource stream has been closed
    * @throws IllegalStateException if the resource is missing or does not match
    * @throws UncheckedIOException  if it cannot be read
+   * @throws NullPointerException if the resource name is null
    */
   public static byte[] load(final String name, final String sha256, final int length) {
     return verify(read(Mcv2Resources.class.getResourceAsStream(name), name), sha256, length, name);
@@ -92,6 +93,7 @@ public final class Mcv2Resources {
    *
    * @param bytes the bytes
    * @return the lowercase hexadecimal SHA-256
+   * @throws NullPointerException if bytes is null
    */
   public static String sha256(final byte[] bytes) {
     return digest(bytes, "SHA-256");

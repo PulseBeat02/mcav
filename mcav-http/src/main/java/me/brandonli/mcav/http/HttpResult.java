@@ -33,7 +33,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * media information at {@code /media}. By default the server listens on every network interface, because the
  * browsers of players connect from other machines; {@link HttpResultBuilder#bindAddress(java.net.InetAddress)}
  * restricts it to one interface. The host name only decides the URL returned by {@link #getFullUrl()}. On Linux
- * and macOS, ports below 1024 need administrator rights, so use a higher port.
+ * and macOS, ports below 1024 may require elevated privileges, depending on the host configuration.
+ *
+ * <p>The caller owns each server and must call {@link #stop()} when finished; {@link HttpModule} does not
+ * stop servers. Stop or detach audio producers first. Start and stop are serialized in the default
+ * implementation; media updates are safely published, and listener counts are snapshots. Audio buffers must
+ * stay stable while being copied, and concurrent producers must arrange any required ordering themselves.
+ * Stopping preserves the current media information for a later restart.
  *
  * <pre><code>
  *   final HttpResult http = HttpResult.http("play.example.com", 8080);
@@ -54,6 +60,7 @@ public interface HttpResult extends AudioFilter {
    *
    * @param port the port, from 1 to 65535
    * @return the server, not started yet
+   * @throws IllegalArgumentException if {@code port} is outside 1 through 65535
    */
   static HttpResult port(final int port) {
     return http("localhost", port);
@@ -62,8 +69,10 @@ public interface HttpResult extends AudioFilter {
   /**
    * Creates a server on port 80 for a host name.
    *
-   * @param domain the host name listeners use
+   * @param domain the non-null, nonblank host name or IP address listeners use, without a scheme or path
    * @return the server, not started yet
+   * @throws NullPointerException if {@code domain} is null
+   * @throws IllegalArgumentException if {@code domain} is blank
    */
   static HttpResult domain(final String domain) {
     return http(domain, 80);
@@ -72,9 +81,11 @@ public interface HttpResult extends AudioFilter {
   /**
    * Creates a server.
    *
-   * @param domain the host name listeners use
+   * @param domain the non-null, nonblank host name or IP address, without a scheme or path
    * @param port   the port, from 1 to 65535
    * @return the server, not started yet
+   * @throws IllegalArgumentException if {@code domain} is blank or {@code port} is outside 1 through 65535
+   * @throws NullPointerException if {@code domain} is null
    */
   static HttpResult http(final String domain, final int port) {
     Preconditions.checkNotNull(domain, "Domain must not be null");
@@ -87,10 +98,13 @@ public interface HttpResult extends AudioFilter {
    * Creates a server that serves the web page from a directory instead of the copy bundled in the jar, which is
    * useful while developing the page.
    *
-   * @param domain    the host name listeners use
+   * @param domain    the non-null, nonblank host name or IP address, without a scheme or path
    * @param port      the port, from 1 to 65535
-   * @param directory the directory with the built page, such as {@code mcav-website/out}
+   * @param directory the non-null directory with the built page, such as {@code mcav-website/out};
+   *                  existence is not checked by this factory
    * @return the server, not started yet
+   * @throws IllegalArgumentException if {@code domain} is blank or {@code port} is outside 1 through 65535
+   * @throws NullPointerException if {@code domain} or {@code directory} is null
    */
   static HttpResult http(final String domain, final int port, final Path directory) {
     Preconditions.checkNotNull(domain, "Domain must not be null");
@@ -120,7 +134,8 @@ public interface HttpResult extends AudioFilter {
   /**
    * Starts the server on another thread.
    *
-   * @return a future that completes when the server accepts connections
+   * @return a future that completes normally when startup returns, or exceptionally with the startup failure;
+   *         work runs on the common pool and cancelling the future does not stop a running server
    */
   default CompletableFuture<Void> startAsync() {
     return CompletableFuture.runAsync(this::start);
@@ -128,7 +143,8 @@ public interface HttpResult extends AudioFilter {
 
   /**
    * Stops the server and disconnects every listener. The server can be started again afterwards. Stopping never
-   * waits for a listener whose connection is stuck.
+   * waits for a listener whose connection is stuck. The media information is retained across a restart.
+   * @throws RuntimeException if closing the embedded web framework fails
    */
   void stop();
 
@@ -142,7 +158,7 @@ public interface HttpResult extends AudioFilter {
   /**
    * Gets the number of browsers currently listening.
    *
-   * @return the listener count
+   * @return a nonnegative snapshot of the connected listener count
    */
   int getListenerCount();
 
@@ -150,14 +166,15 @@ public interface HttpResult extends AudioFilter {
    * Gets the address of the web page, built from the host name and the port. An IPv6 address as host name is put
    * in brackets, as URLs require.
    *
-   * @return the URL listeners open
+   * @return the HTTP URL built from the configured host and port; it does not test reachability or configure TLS
    */
   String getFullUrl();
 
   /**
    * Shows the title, artist, and thumbnail yt-dlp reported for the current media.
    *
-   * @param dump the output of yt-dlp
+   * @param dump the non-null output of yt-dlp; selected fields are copied into an immutable snapshot
+   * @throws NullPointerException if {@code dump} is null
    */
   void setCurrentMedia(final URLParseDump dump);
 
@@ -171,7 +188,7 @@ public interface HttpResult extends AudioFilter {
   /**
    * Gets the information shown about the current media.
    *
-   * @return the information
+   * @return the current immutable snapshot, or {@link MediaInfo#EMPTY} before any media is set or after clearing it
    */
   MediaInfo getCurrentMedia();
 }

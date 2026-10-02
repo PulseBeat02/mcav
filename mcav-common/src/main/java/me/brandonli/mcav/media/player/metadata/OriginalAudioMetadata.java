@@ -35,10 +35,12 @@ public interface OriginalAudioMetadata extends OriginalMetadata {
    *
    * @param codec           the name of the codec, such as {@code aac}
    * @param audioBitrate    the bitrate in bits per second, or {@link #UNKNOWN}
-   * @param audioSampleRate the sample rate in hertz
-   * @param audioChannels   the number of channels
+   * @param audioSampleRate the strictly positive sample rate in hertz
+   * @param audioChannels   the strictly positive number of channels
    * @param samplingFormat  the FFmpeg sample format identifier, or {@link #UNKNOWN}
    * @return the metadata
+   * @throws IllegalArgumentException if the sample rate or channel count is nonpositive
+   * @throws NullPointerException if {@code codec} is null
    */
   static OriginalAudioMetadata of(
     final String codec,

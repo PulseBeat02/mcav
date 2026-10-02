@@ -27,8 +27,8 @@ import org.bytedeco.opencv.opencv_core.Scalar;
  * Tints frames by blending them with a solid color.
  *
  * <p>The matrix of the tint color is kept between frames and only rebuilt when a frame has another size, so tinting
- * allocates nothing per frame. One filter may be attached to several pipelines at once: the matrix is lent to one
- * frame at a time, see {@link ReusableMat}, and freed when the filter is garbage collected.
+ * reuses native image storage in the usual serial case with stable dimensions. Concurrent calls borrow
+ * separate matrices as needed; see {@link ReusableMat}, and freed when the filter is garbage collected.
  */
 public class TintFilter extends MatVideoFilter {
 
@@ -39,8 +39,10 @@ public class TintFilter extends MatVideoFilter {
   /**
    * Constructs a new tint filter.
    *
-   * @param color    the blue, green, and red components of the tint color, from 0 to 255
+   * @param color    the blue, green, and red components of the tint color, normally 0 to 255; the non-null array is copied
    * @param strength how strongly the color is applied, from 0 for no tint to 1 for a solid color
+   * @throws IllegalArgumentException if {@code strength} is outside 0 through 1 or is NaN
+   * @throws NullPointerException if {@code color} is null
    */
   public TintFilter(final double[] color, final double strength) {
     Preconditions.checkArgument(strength >= 0 && strength <= 1, "Strength must be between 0 and 1");

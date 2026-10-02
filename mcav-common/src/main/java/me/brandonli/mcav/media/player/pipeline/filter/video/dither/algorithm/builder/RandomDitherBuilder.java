@@ -32,6 +32,7 @@ public interface RandomDitherBuilder<T extends RandomDither, B extends RandomDit
    *
    * @param weight the weight from 0 to 255
    * @return this builder
+   * @throws IllegalArgumentException if the weight is outside 0 through 255
    */
   B withWeight(final int weight);
 }

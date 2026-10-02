@@ -50,6 +50,10 @@ public class ScoreboardImage implements DisplayableImage {
 
   /**
    * Removes the scoreboard and restores the scoreboard every viewer had before. May be called from any thread.
+   *
+   * <p>During plugin shutdown, call on the main thread so entity removal or restoration can run immediately.
+   *
+   * <p>A scoreboard installed by another plugin after this display started is preserved.
    */
   @Override
   public void release() {

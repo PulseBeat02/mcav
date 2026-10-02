@@ -28,8 +28,8 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
  * <p>Every pixel is drawn as the configured character in the color of the pixel, and every row of pixels becomes
  * one line of the sidebar. The sidebar shows at most 15 lines.
  *
- * <p>The viewers collection is not copied, so a concurrent collection can be passed. The scoreboard is shown to
- * the viewers that are online when the display starts.
+ * <p>The viewers collection is not copied, so a concurrent collection can be passed. The renderer checks membership each server tick,
+ * shows the board to new or returning online viewers, and restores removed viewers who still see its board.
  */
 public class ScoreboardConfiguration {
 
@@ -53,7 +53,8 @@ public class ScoreboardConfiguration {
   /**
    * Gets the players who see the scoreboard.
    *
-   * @return the UUIDs of the viewers
+   * @return the original mutable-or-immutable collection supplied to the builder, without a copy; use a
+   *         concurrent collection if another thread changes membership during rendering
    */
   public Collection<UUID> getViewers() {
     return this.viewers;
@@ -119,6 +120,9 @@ public class ScoreboardConfiguration {
   /**
    * Builds scoreboard configurations. Every value is required.
    *
+   * <p>Builders are mutable and not thread-safe. Setters retain reference arguments; numeric ranges and
+   * required fields are checked by {@link #build()}, which may be called again to create another configuration.
+   *
    * @param <T> the type of the builder
    */
   public abstract static class Builder<T extends Builder<T>> {
@@ -154,6 +158,9 @@ public class ScoreboardConfiguration {
 
     /**
      * Sets the text drawn for every pixel.
+     *
+     * <p>The text must be nonempty when {@link #build()} is called. Multiple characters are allowed, but
+     * change the visual width of a pixel; no font or character-width validation is performed.
      *
      * @param character the pixel text, usually a single character such as {@code █}
      * @return this builder

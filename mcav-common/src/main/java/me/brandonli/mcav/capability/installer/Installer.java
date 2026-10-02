@@ -35,7 +35,7 @@ public interface Installer {
    *
    * @param executable true to mark the downloaded file as executable, which is required for programs that are
    *                   run directly and has no effect on Windows
-   * @return the path to the installed program, which is a directory for programs that are shipped as archives
+   * @return the installation path chosen by the implementation: an executable file or an extracted directory
    * @throws IOException if the download fails, the file cannot be written, or the hash does not match
    */
   Path download(final boolean executable) throws IOException;

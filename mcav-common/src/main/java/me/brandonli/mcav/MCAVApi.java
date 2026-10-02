@@ -63,6 +63,7 @@ public interface MCAVApi {
    * @param capability the capability to check
    * @return true if the capability is available
    * @throws MCAVLoadingException if the library has not been installed yet
+   * @throws NullPointerException if {@code capability} is null
    */
   boolean hasCapability(final Capability capability);
 
@@ -70,7 +71,9 @@ public interface MCAVApi {
    * Gets a future that completes once a capability is ready, without polling. It completes with true when the
    * capability is available, and with false when it cannot be provided: the system does not support it, its
    * installation failed, or {@link #release()} cancelled the installation first. Once the future completed with
-   * true, {@link #hasCapability(Capability)} reports the capability as available.
+   * true, {@link #hasCapability(Capability)} reports the capability as available for that installation until
+   * release. The returned future is separate from the installation's internal future: completing or cancelling
+   * it does not change or cancel preparation.
    *
    * <p>A capability that is not prepared in the background, or whose preparation already finished, gets a future
    * that is complete already. Callbacks attached to the future never run on the installation threads of the library,
@@ -79,6 +82,7 @@ public interface MCAVApi {
    * @param capability the capability to wait for
    * @return a future that completes with whether the capability is available
    * @throws MCAVLoadingException if the library has not been installed yet
+   * @throws NullPointerException if {@code capability} is null
    */
   CompletableFuture<Boolean> whenCapabilityReady(final Capability capability);
 
@@ -91,9 +95,11 @@ public interface MCAVApi {
    * is installing it, fails. After {@link #release()}, or after an installation that failed, the library can be
    * installed again.
    *
-   * @param modules the module classes to start, which must implement {@link MCAVModule}
+   * @param modules a non-null array of non-null module classes implementing {@link MCAVModule}, with
+   *                accessible no-argument constructors; duplicates are started once and an empty array is allowed
    * @throws MCAVLoadingException if the library cannot be installed, is installed already, or is being installed by
    *                              another thread
+   * @throws NullPointerException if the module array itself is null
    */
   void install(final Class<?>... modules);
 
@@ -117,6 +123,7 @@ public interface MCAVApi {
    * @param <T>         the type of the module
    * @return the module instance
    * @throws me.brandonli.mcav.module.ModuleException if the module was not installed
+   * @throws NullPointerException if {@code moduleClass} is null
    */
   <T extends MCAVModule> T getModule(final Class<T> moduleClass);
 }

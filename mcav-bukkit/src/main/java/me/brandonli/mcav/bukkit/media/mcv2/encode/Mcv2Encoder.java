@@ -68,6 +68,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * at most: it calls {@code finish} for every frame, in order, and begins frame N+2 only after frame N is finished.
  *
  * <p>Instances are not thread-safe beyond that: one encoder encodes one stream.
+ *
+ * <p>The encoder borrows its pool and has no close operation. Keep that pool running for the stream and
+ * close it through its owner after all encoders finish. Input RGB arrays are read synchronously by begin and may
+ * be reused after it returns; do not mutate them during encoding. Configure settings, limits and keyframe requests
+ * on the search thread between begin calls. Finish only pending frames from this encoder, exactly once and in
+ * creation order. A verification failure permanently invalidates the stream; create a new encoder afterward.
  */
 public final class Mcv2Encoder {
 
@@ -185,7 +191,8 @@ public final class Mcv2Encoder {
     /**
      * Gets the frame bytes.
      *
-     * @return the bytes, which the caller may keep
+     * @return the retained array without a copy; the caller may keep it, but must not mutate it while
+     *         other consumers use this encoded frame
      */
     public byte[] getData() {
       return this.data;
@@ -281,8 +288,10 @@ public final class Mcv2Encoder {
    * @param settings     the profile
    * @param pool         the pool block evaluation runs on
    * @param threads      how many workers evaluate blocks at once, at least 1
-   * @param shouldVerify whether every frame is checked against its own decode before it becomes the reference; keep this
-   *                     on unless a measurement has shown the cost matters
+   * @param shouldVerify whether to compare each frame with its decode; live begin advances the reference
+   *                     before finish checks it, so callers must finish successfully before transmitting it
+   * @throws NullPointerException if settings or pool is null
+   * @throws IllegalArgumentException if threads is nonpositive
    */
   public Mcv2Encoder(final EncoderSettings settings, final ForkJoinPool pool, final int threads, final boolean shouldVerify) {
     this(settings, pool, threads, shouldVerify, settings.live() == null ? JavaKernels.FACTORY : Mcv2Natives.factory());
@@ -390,6 +399,9 @@ public final class Mcv2Encoder {
    * scene cut on a busy machine, ends soon after its budget. What such a frame contains depends on how fast the
    * machine searched it, so the budget is off unless set. The reference's search takes no budget.
    *
+   * <p>The budget is checked during live search, not an interrupting deadline. Already running work, writing
+   * and verification may extend beyond it; serialized frame-size retries also share the elapsed search time.
+   *
    * @param nanoseconds the budget of a frame, or 0 for none
    * @throws IllegalArgumentException if the budget is negative
    */
@@ -404,6 +416,9 @@ public final class Mcv2Encoder {
    * search counts. A gameplay keyframe at a live lambda can take more than a screen's slots carry, and a frame that
    * does not fit is not sent, so without the bound such a stream would never show again. The reference's search takes
    * no bound.
+   *
+   * <p>This is a search target, not a hard output cap: the last retry can still exceed it. Callers must check
+   * the returned frame length and arrange a later keyframe if a frame is discarded.
    *
    * @param bytes the most bytes of a frame, or 0 for any number
    * @throws IllegalArgumentException if the bound is negative
@@ -436,6 +451,7 @@ public final class Mcv2Encoder {
    *
    * @param next the settings, a live profile's
    * @throws IllegalArgumentException if these or the next settings are not a live profile's
+   * @throws NullPointerException if {@code next} is null
    */
   public void switchTo(final EncoderSettings next) {
     Preconditions.checkNotNull(next, "Settings must not be null");
@@ -452,7 +468,7 @@ public final class Mcv2Encoder {
   }
 
   /**
-   * Gets the outcome of the last encoded frame.
+   * Gets the outcome of the last frame successfully finished.
    *
    * @return the statistics, or null before the first frame
    */
@@ -481,6 +497,7 @@ public final class Mcv2Encoder {
    * @throws IllegalArgumentException if the picture or the id is invalid
    * @throws IllegalStateException    if the verification finds the frame does not decode to what was chosen, or an
    *                                  earlier frame's did
+   * @throws NullPointerException if rgb is null
    */
   public byte[] encode(final byte[] rgb, final int width, final int height, final long frameId) {
     return this.finish(this.begin(rgb, width, height, frameId)).getData();
@@ -489,7 +506,7 @@ public final class Mcv2Encoder {
   /**
    * Searches and writes one frame, and makes its reconstruction the reference of the frame after it; {@link #finish}
    * verifies it. The reference's search verifies here already: its check reads the frame's job, which the next frame
-   * reuses. A request for a keyframe made after this call applies to the frame after the next one.
+   * reuses. A keyframe request made after this call and before the next begin applies to that next begin call.
    *
    * @param rgb     the picture, row-major RGB, {@code width * height * 3} bytes
    * @param width   the width, 1 to 4096
@@ -498,6 +515,7 @@ public final class Mcv2Encoder {
    * @return the frame, which {@link #finish} verifies
    * @throws IllegalArgumentException if the picture or the id is invalid
    * @throws IllegalStateException    if a verification failed, or the frame before the one begun last is not finished
+   * @throws NullPointerException if {@code rgb} is null
    */
   public Pending begin(final byte[] rgb, final int width, final int height, final long frameId) {
     Preconditions.checkState(!this.failed, STOPPED);
@@ -738,6 +756,7 @@ public final class Mcv2Encoder {
    * @return the frame's bytes and statistics
    * @throws IllegalStateException if the verification finds the frame does not decode to what was chosen, if an
    *                               earlier frame's did, or if the frame is finished already
+   * @throws NullPointerException if {@code pending} is null
    */
   public Encoded finish(final Pending pending) {
     Preconditions.checkNotNull(pending, "Frame must not be null");

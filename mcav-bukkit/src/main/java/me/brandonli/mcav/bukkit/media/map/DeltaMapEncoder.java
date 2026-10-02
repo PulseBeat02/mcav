@@ -29,7 +29,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <h2>How it works</h2>
  *
- * <p>The encoder remembers exactly which colors the clients currently display on every map. For every frame it:
+ * <p>The encoder remembers colors from previously returned patches, assuming the caller delivered all of them.
+ * It does not send packets or observe client acknowledgments. For every frame it:
  *
  * <ol>
  *   <li>compares the new frame against that remembered state in tiles of 16x16 pixels, using a vectorized array
@@ -54,7 +55,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class DeltaMapEncoder {
 
   /**
-   * The default maximum number of bytes sent per frame, 128 KiB. At 30 frames per second this is at most about
+   * The default ordinary-update budget, 128 KiB per frame including estimated patch overhead.
+   * The first urgent map may exceed the budget. At 30 frames per second the budget is about
    * 3.8 MB/s per viewer, while a full 5x5 map wall would need about 12 MB/s without delta encoding.
    *
    * <p>Earlier versions used a default of 2 MiB per frame. The lower default keeps the connections of the viewers
@@ -88,6 +90,7 @@ public final class DeltaMapEncoder {
    * @param maxBytesPerFrame the maximum number of bytes to send per frame; the most urgent map is always sent,
    *                         even if it alone exceeds the budget
    * @throws IllegalArgumentException if the budget is not positive
+   * @throws NullPointerException if {@code layout} is null
    */
   public DeltaMapEncoder(final MapLayout layout, final int maxBytesPerFrame) {
     Preconditions.checkNotNull(layout, "Layout must not be null");
@@ -119,6 +122,7 @@ public final class DeltaMapEncoder {
    * @param image the frame as map palette indices, laid out row by row, matching the image size of the layout
    * @return the patches to send, or an empty list if nothing visible changed
    * @throws IllegalArgumentException if the image size does not match the layout
+   * @throws NullPointerException if {@code image} is null
    */
   public List<MapTilePatch> encode(final byte[] image) {
     Preconditions.checkNotNull(image, "Image must not be null");
@@ -186,7 +190,7 @@ public final class DeltaMapEncoder {
   }
 
   /**
-   * Creates patches that describe the complete picture the clients currently display. Send these to viewers
+   * Creates independent patches for the complete picture represented by earlier returned updates. Send these to viewers
    * that start watching while the stream is running, so they can follow the deltas of the following frames.
    *
    * @return one patch for every map that has been sent at least once
@@ -223,7 +227,9 @@ public final class DeltaMapEncoder {
   }
 
   /**
-   * Forgets what the clients display, so the next frame is sent completely.
+   * Forgets previously returned patches and all waiting/noise counters. Subsequent frames rebuild the complete
+   * visible picture within the ordinary-update budget, which may require more than one frame. No packets are sent
+   * by this method. {@link #snapshot()} is empty until another frame is encoded.
    */
   public void reset() {
     Arrays.fill(this.synced, false);

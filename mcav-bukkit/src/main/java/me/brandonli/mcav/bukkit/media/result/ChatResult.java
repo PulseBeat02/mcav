@@ -34,6 +34,11 @@ import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
  * A video filter that displays every frame as a chat message. Every frame is sent as a new message that pushes
  * the previous frame up, so the chat height of the viewers should match the configured height. Packets are sent
  * directly, so the filter may run on any thread.
+ *
+ * <p>The caller owns this result and its lifecycle; attaching it to a pipeline does not call start or release.
+ * Input buffers remain caller-owned and are consumed synchronously, even when converted display data is applied
+ * on a later server tick. Serialize frame delivery with lifecycle operations unless this class explicitly provides
+ * locking, and never mutate an input buffer concurrently with conversion.
  */
 public class ChatResult implements FunctionalVideoFilter {
 
@@ -43,6 +48,7 @@ public class ChatResult implements FunctionalVideoFilter {
    * Constructs a new {@code ChatResult}.
    *
    * @param configuration the configuration describing the viewers, character, and size of the chat image
+   * @throws NullPointerException if {@code configuration} is null
    */
   public ChatResult(final ChatConfiguration configuration) {
     Preconditions.checkNotNull(configuration, "Chat configuration must not be null");
@@ -55,6 +61,7 @@ public class ChatResult implements FunctionalVideoFilter {
    * @param data     the frame to display, which is resized to the configured chat size
    * @param metadata the metadata of the original video
    * @return always true, because the frame is resized
+   * @throws NullPointerException if {@code data} or {@code metadata} is null
    */
   @Override
   public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {

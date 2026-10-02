@@ -83,6 +83,7 @@ public final class DiscordPlayerImpl implements DiscordPlayer {
    * @param samples  the little-endian 16-bit stereo samples between the position and the limit of the buffer
    * @param metadata the metadata of the original audio
    * @return always false, because the samples are only read out into frames and never changed
+   * @throws NullPointerException if {@code samples} or {@code metadata} is null
    */
   @Override
   public boolean applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
@@ -138,7 +139,8 @@ public final class DiscordPlayerImpl implements DiscordPlayer {
   /**
    * Checks whether a complete frame is queued, which JDA asks before every 20 millisecond interval.
    *
-   * @return true if {@link #provide20MsAudio()} returns a frame
+   * @return true if a complete frame is queued at the time of this call; a concurrent flush or consumer
+   *         can remove it before {@link #provide20MsAudio()}
    */
   @Override
   public boolean canProvide() {
@@ -150,7 +152,8 @@ public final class DiscordPlayerImpl implements DiscordPlayer {
   /**
    * Takes the oldest queued frame for JDA to send.
    *
-   * @return a big-endian frame of {@value #FRAME_BYTES} bytes, or null if nothing is queued
+   * @return a big-endian PCM frame of {@value #FRAME_BYTES} bytes with position zero, owned by the caller,
+   *         or null if nothing is queued; the player does not reuse or change a returned buffer
    */
   @Override
   public @Nullable ByteBuffer provide20MsAudio() {
@@ -174,7 +177,7 @@ public final class DiscordPlayerImpl implements DiscordPlayer {
    * Gets the duration of the complete frames waiting to be sent; samples that do not fill a frame yet are not
    * counted.
    *
-   * @return the queued duration in milliseconds, a multiple of 20
+   * @return the queued duration in milliseconds, from 0 to 3000 in multiples of 20
    */
   @Override
   public long getQueuedMillis() {
@@ -189,6 +192,7 @@ public final class DiscordPlayerImpl implements DiscordPlayer {
    * describes.
    *
    * @param dump the media information from yt-dlp
+   * @throws NullPointerException if {@code dump} is null
    */
   @Override
   public void setCurrentMedia(final URLParseDump dump) {
@@ -202,6 +206,7 @@ public final class DiscordPlayerImpl implements DiscordPlayer {
    * Discord.
    *
    * @param title the title
+   * @throws NullPointerException if {@code title} is null
    */
   @Override
   public void setPlaying(final String title) {

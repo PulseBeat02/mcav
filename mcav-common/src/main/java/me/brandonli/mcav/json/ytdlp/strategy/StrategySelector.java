@@ -49,8 +49,9 @@ public interface StrategySelector {
    * Selects the audio stream.
    *
    * @param dump the metadata yt-dlp produced
-   * @return the selected stream
+   * @return the selected format object from the dump, borrowed rather than copied
    * @throws NoMatchingFormatException if no stream matches the audio strategy
+   * @throws NullPointerException if {@code dump} is null
    */
   Format getAudioSource(final URLParseDump dump);
 
@@ -58,8 +59,9 @@ public interface StrategySelector {
    * Selects the video stream.
    *
    * @param dump the metadata yt-dlp produced
-   * @return the selected stream
+   * @return the selected format object from the dump, borrowed rather than copied
    * @throws NoMatchingFormatException if no stream matches the video strategy
+   * @throws NullPointerException if {@code dump} is null
    */
   Format getVideoSource(final URLParseDump dump);
 
@@ -69,6 +71,7 @@ public interface StrategySelector {
    * @param audio the strategy for audio
    * @param video the strategy for video
    * @return the selector
+   * @throws NullPointerException if {@code audio} or {@code video} is null
    */
   static StrategySelector of(final FormatStrategy audio, final FormatStrategy video) {
     Preconditions.checkNotNull(audio, "Audio strategy must not be null");

@@ -34,7 +34,7 @@ public enum Capability {
   VLC("VLC"),
 
   /**
-   * Playback through FFmpeg, which is bundled with the library and always available.
+   * Playback through the bundled FFmpeg libraries. Successful core installation requires these natives to load.
    */
   FFMPEG("FFmpeg"),
 

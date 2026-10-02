@@ -26,6 +26,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>The stored record is the endpoints (six bytes, or a one-byte index into the frame's endpoint table), then the
  * orientation byte and {@code size / 8} axis bytes (or a one-byte index into the frame's selector table for this size).
  *
+ * <p>Expanded instances own a copy of their selector axis and retain endpoint colors as integers, so input
+ * arrays can be reused after expansion. Instances are immutable and safe to share.
  */
 public final class PatternRecord {
 
@@ -52,11 +54,12 @@ public final class PatternRecord {
    *
    * @param data      the frame bytes
    * @param offset    the record offset
-   * @param size      the leaf size, 8, 16 or 32
+   * @param size the leaf size, 8, 16 or 32; a caller precondition, not checked here
    * @param endpoints the frame's endpoint table as six-byte RGB pairs, or null when the record stores its endpoints
    * @param selectors the frame's selector table for this size, or null when the record stores its selector word
    * @return the resolved record
    * @throws Mcv2Exception if the record is truncated, an index is outside its table, or the orientation is not 0 or 1
+   * @throws NullPointerException if data is null
    */
   public static PatternRecord expand(
     final byte[] data,
@@ -140,7 +143,8 @@ public final class PatternRecord {
   /**
    * Gets the selector of one position along the pattern's axis.
    *
-   * @param index the column (orientation 0) or row (orientation 1) inside the leaf
+   * @param index the zero-based column (orientation 0) or row (orientation 1), from 0 through size - 1;
+   *              this logical range is a caller precondition
    * @return 0 or 1
    */
   public int getSelector(final int index) {

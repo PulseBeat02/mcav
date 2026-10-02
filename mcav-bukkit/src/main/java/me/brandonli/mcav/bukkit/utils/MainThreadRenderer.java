@@ -85,6 +85,8 @@ public abstract class MainThreadRenderer<T> {
   /**
    * Starts applying submitted frames once per server tick. Calling this method again while the renderer is
    * running has no effect. May be called from any thread.
+   * @throws IllegalStateException if no plugin has been injected
+   * @throws org.bukkit.plugin.IllegalPluginAccessException if the injected plugin cannot schedule tasks
    */
   protected synchronized void startRendering() {
     if (this.task != null) {
@@ -100,6 +102,7 @@ public abstract class MainThreadRenderer<T> {
    * invalidates this request before its queued callback can change the world.
    *
    * @param initialize the main-thread display initialization, which may leave an existing display in place
+   * @throws NullPointerException if {@code initialize} is null
    */
   protected final void showDisplay(final Runnable initialize) {
     Preconditions.checkNotNull(initialize, "Initialization must not be null");
@@ -126,6 +129,7 @@ public abstract class MainThreadRenderer<T> {
    * a queued removal, so that old cleanup cannot remove the newly requested display.
    *
    * @param remove the main-thread display removal, which may do nothing for a hidden display
+   * @throws NullPointerException if {@code remove} is null
    */
   protected final void hideDisplay(final Runnable remove) {
     Preconditions.checkNotNull(remove, "Removal must not be null");
@@ -147,7 +151,11 @@ public abstract class MainThreadRenderer<T> {
    * Submits a frame to be applied on the next server tick, replacing any frame that has not been applied yet.
    * May be called from any thread.
    *
+   * <p>The frame reference is retained without copying. Publish complete frame data and do not mutate it
+   * after submission. Submission while stopped is allowed and retains the frame until rendering starts or stops again.
+   *
    * @param frame the frame to apply
+   * @throws NullPointerException if {@code frame} is null
    */
   protected void submit(final T frame) {
     Preconditions.checkNotNull(frame, "Frame must not be null");
@@ -181,7 +189,12 @@ public abstract class MainThreadRenderer<T> {
    * <p>A disabled plugin cannot schedule tasks anymore, so if the plugin is disabled and the caller is not on the
    * main thread, the task is skipped and a warning is logged. Call this method on the main thread during shutdown.
    *
+   * <p>Exceptions from an immediately executed task propagate to the caller. Queued task failures are handled
+   * by the server scheduler and are not reported to this caller.
+   *
    * @param task the task to run
+   * @throws IllegalStateException if called off the main thread before a plugin has been injected
+   * @throws NullPointerException if {@code task} is null
    */
   public static void runOnMainThread(final Runnable task) {
     Preconditions.checkNotNull(task, "Task must not be null");

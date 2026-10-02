@@ -57,7 +57,7 @@ public final class AudioPipelineStepImpl implements AudioPipelineStep {
   }
 
   /**
-   * Applies the filter of this step to the samples. Whatever the filter returns, the samples are passed on.
+   * Applies the filter of this step to the samples. The filter's return value is ignored; this call does not invoke the next step.
    *
    * @param buffer   the samples
    * @param metadata the metadata of the original audio stream

@@ -107,12 +107,15 @@ public final class DelayedAudioOutput implements AutoCloseable {
    *
    * @param source          names the source in the failures it reports, such as {@code "the virtual machine"}
    * @param delayMillis     how long every chunk is held before the pipeline gets it, in milliseconds
-   * @param maxQueuedMillis the most sound that waits for the pipeline, the delay included, in milliseconds
+   * @param maxQueuedMillis the queue duration in milliseconds, strictly greater than {@code delayMillis};
+   *                        use at most 11,184,810 so its 192-bytes-per-millisecond size fits in an {@code int}.
+   *                        The upper bound is a caller precondition and is not validated here
    * @param pipeline        gives the audio pipeline of the player for every chunk, so a pipeline attached later is
    *                        used
    * @param failures        receives a failure of the pipeline
    * @return the running output
    * @throws IllegalArgumentException if the delay is negative or leaves no room in the queue
+   * @throws NullPointerException if {@code source}, {@code pipeline} or {@code failures} is null
    */
   public static DelayedAudioOutput start(
     final String source,
@@ -176,7 +179,11 @@ public final class DelayedAudioOutput implements AutoCloseable {
    * Queues a copy of samples, dropping the oldest queued ones beyond the limit, or drops them while paused.
    *
    * @param samples the buffer, which the caller may reuse
-   * @param length  the number of bytes of samples at its start, whole frames
+   * @param length  the byte count at the start of the array, from 0 through its length and a multiple of
+   *                four for complete stereo frames; frame alignment is a caller precondition
+   * @throws NullPointerException if samples are actually queued and {@code samples} is null
+   * @throws IllegalArgumentException if samples are queued with a negative length
+   * @throws IndexOutOfBoundsException if the requested byte range exceeds the array while queuing
    */
   public synchronized void accept(final byte[] samples, final int length) {
     if (this.paused || this.closed || length == 0) {
@@ -211,7 +218,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
   }
 
   /**
-   * Queues samples again.
+   * Queues samples again after a pause. Calling this after close does not reopen the output.
    */
   public synchronized void resume() {
     this.paused = false;

@@ -48,6 +48,7 @@ public final class MonoDownmixer {
    * @param stereo little-endian interleaved 16-bit stereo samples, read from position to limit without changing
    *               the buffer; a trailing incomplete sample is ignored
    * @return one mono sample for every stereo sample
+   * @throws NullPointerException if {@code stereo} is null
    */
   public static short[] downmix(final ByteBuffer stereo) {
     Preconditions.checkNotNull(stereo, "Samples must not be null");

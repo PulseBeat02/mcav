@@ -45,6 +45,7 @@ public final class OSXInstallationStrategy extends ManualInstallationStrategy {
    * Constructs a new strategy for the installer.
    *
    * @param installer the installer whose installation directory is used
+   * @throws NullPointerException if {@code installer} is null
    */
   public OSXInstallationStrategy(final VLCInstaller installer) {
     super(installer);
@@ -78,6 +79,7 @@ public final class OSXInstallationStrategy extends ManualInstallationStrategy {
    * @param archive the downloaded disk image
    * @return the directory that contains {@code libvlc.dylib}
    * @throws IOException if the disk image cannot be mounted or copied, or does not contain the library
+   * @throws NullPointerException if {@code archive} is null
    */
   @Override
   public Path execute(final Path archive) throws IOException {

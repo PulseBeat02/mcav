@@ -34,6 +34,7 @@ public class ErosionFilter extends MatVideoFilter {
    * Constructs a new erosion filter.
    *
    * @param kernelSize the size of the structuring element in pixels, which must be positive
+   * @throws IllegalArgumentException if {@code kernelSize} is nonpositive
    */
   public ErosionFilter(final int kernelSize) {
     Preconditions.checkArgument(kernelSize > 0, "Kernel size must be positive");

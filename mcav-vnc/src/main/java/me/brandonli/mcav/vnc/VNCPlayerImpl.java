@@ -129,6 +129,10 @@ public final class VNCPlayerImpl implements VNCPlayer {
     this.latestFrame = new AtomicReference<>();
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code source} is null
+   */
   @Override
   public boolean start(final VNCSource source) {
     Preconditions.checkNotNull(source, "Source must not be null");
@@ -377,6 +381,12 @@ public final class VNCPlayerImpl implements VNCPlayer {
     return pending != null;
   }
 
+  /**
+   * Pauses frame delivery and discards the update waiting for the renderer, while keeping the VNC connection
+   * and input forwarding active. An already-running pipeline call may finish.
+   *
+   * @return true if an active session changed from unpaused to paused; false if inactive or already paused
+   */
   @Override
   public boolean pause() {
     this.lock.lock();
@@ -398,6 +408,11 @@ public final class VNCPlayerImpl implements VNCPlayer {
     }
   }
 
+  /**
+   * Resumes delivery of subsequent screen updates from a paused active session.
+   *
+   * @return true if an active session changed from paused to unpaused; false if inactive or already unpaused
+   */
   @Override
   public boolean resume() {
     this.lock.lock();
@@ -412,6 +427,14 @@ public final class VNCPlayerImpl implements VNCPlayer {
     }
   }
 
+  /**
+   * Permanently releases this player, closes its VNC connection and drops waiting images. Waits up to two
+   * seconds for the render thread unless called from that thread; interruption ends the wait and preserves
+   * the interrupt flag. A filter still running at the end of that wait may finish later. Attached filters
+   * are not released by this method.
+   *
+   * @return true for the first release, including before startup; false if already released
+   */
   @Override
   public boolean release() {
     this.lock.lock();
@@ -499,6 +522,10 @@ public final class VNCPlayerImpl implements VNCPlayer {
     this.forward(() -> vncClient.moveMouse(translated[0], translated[1]));
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code type} is null
+   */
   @Override
   public void sendMouseEvent(final MouseClick type, final int frameX, final int frameY) {
     Preconditions.checkNotNull(type, "Mouse click type must not be null");
@@ -528,6 +555,10 @@ public final class VNCPlayerImpl implements VNCPlayer {
     };
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code text} is null
+   */
   @Override
   public void sendKeyEvent(final String text) {
     Preconditions.checkNotNull(text, "Text must not be null");
@@ -604,6 +635,10 @@ public final class VNCPlayerImpl implements VNCPlayer {
     return this.exceptionHandler.getExceptionHandler();
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code exceptionHandler} is null
+   */
   @Override
   public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
     Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null");

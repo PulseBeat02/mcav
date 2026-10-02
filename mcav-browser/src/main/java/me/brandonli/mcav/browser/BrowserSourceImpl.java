@@ -42,7 +42,7 @@ public final class BrowserSourceImpl implements BrowserSource {
   /**
    * Gets the width of the page and of the frames.
    *
-   * @return the width in pixels
+   * @return the width in pixels, from 1 to {@value BrowserSource#MAX_SIDE}
    */
   @Override
   public int getWidth() {
@@ -52,7 +52,7 @@ public final class BrowserSourceImpl implements BrowserSource {
   /**
    * Gets the height of the page and of the frames.
    *
-   * @return the height in pixels
+   * @return the height in pixels, from 1 to {@value BrowserSource#MAX_SIDE}
    */
   @Override
   public int getHeight() {
@@ -62,7 +62,7 @@ public final class BrowserSourceImpl implements BrowserSource {
   /**
    * Gets how many painted frames make one streamed frame.
    *
-   * @return the interval; 1 streams every frame
+   * @return the interval, from 1 to {@value BrowserSource#MAX_FRAME_INTERVAL}; 1 streams every painted frame
    */
   @Override
   public int getFrameInterval() {
@@ -82,7 +82,7 @@ public final class BrowserSourceImpl implements BrowserSource {
   /**
    * Checks whether another object is a browser source with the same address and settings.
    *
-   * @param other the object to compare with
+   * @param other the object to compare with, or null
    * @return true if every setting is equal
    */
   @Override

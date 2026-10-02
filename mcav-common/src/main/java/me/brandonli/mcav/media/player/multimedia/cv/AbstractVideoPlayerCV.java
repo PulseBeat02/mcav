@@ -53,8 +53,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * pipeline, and frames of decoders that ignore the requested size, such as the file reader of OpenCV, are scaled
  * right after decoding.
  *
- * <p>Starting, seeking, and releasing wait until the previous playback has stopped, which takes a few milliseconds
- * but up to several seconds when a decoder is stuck in a slow network read. Call the asynchronous variants, such as
+ * <p>Starting, seeking, and releasing request shutdown of previous playback and wait up to five seconds for each
+ * worker. A decoder or callback that ignores interruption can outlive those waits. Call the asynchronous variants, such as
  * {@link #releaseAsync()}, from threads that must not block.
  */
 public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
@@ -101,7 +101,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
    * Creates the grabber that decodes a resource. The grabber is configured and started by the player.
    *
    * @param resource the resource to decode, such as a file path, a URL, or a device index
-   * @return a new, unstarted grabber
+   * @return a non-null, new, unstarted grabber whose ownership transfers to the player
    */
   protected abstract FrameGrabber createFrameGrabber(final String resource);
 
@@ -112,6 +112,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
    * @param combined the source
    * @return true if playback started, false if the player is released, another start is in progress, or the source cannot be opened, which is
    * reported to the exception handler
+   * @throws NullPointerException if {@code combined} is null
    */
   @Override
   public boolean start(final Source combined) {
@@ -127,6 +128,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
    * @param audio the audio source
    * @return true if playback started, false if the player is released, another start is in progress, or the video source cannot be opened, which
    * is reported to the exception handler
+   * @throws NullPointerException if {@code video} or {@code audio} is null
    */
   @Override
   public boolean start(final Source video, final Source audio) {
@@ -404,6 +406,7 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
    * @param time the position in milliseconds from the start of the media, not negative
    * @return true if the player seeked, false if nothing was played, the media cannot be seeked, such as a live
    * stream or a camera, or it cannot be opened again
+   * @throws IllegalArgumentException if {@code time} is negative
    */
   @Override
   public boolean seek(final long time) {
@@ -495,7 +498,8 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
   /**
    * Stops playback and releases the player. A released player cannot be started again. The threads of the playback
    * are awaited without holding the lock of the player, so other methods return right away meanwhile, but this
-   * method can block for seconds when a decoder is stuck; see {@link #releaseAsync()}. A pending start is cancelled;
+   * method can wait up to five seconds per worker, and a stuck worker may outlive it; see {@link #releaseAsync()}.
+   * A pending start is cancelled;
    * its owner closes its prepared resources when acquisition or previous-session shutdown returns.
    *
    * @return true if the player was released, false if it was already released

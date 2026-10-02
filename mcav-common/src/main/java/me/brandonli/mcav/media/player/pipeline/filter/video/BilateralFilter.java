@@ -27,7 +27,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
  * diameter of 5 to 9 is a reasonable range for real-time video.
  *
  * <p>OpenCV cannot filter bilaterally in place, so the result is written into the spare matrix of the frame, see
- * {@link MatImageBuffer#transformMat(java.util.function.BiConsumer)}, which allocates and copies nothing per frame. The
+ * {@link MatImageBuffer#transformMat(java.util.function.BiConsumer)}, which reuses the frame-sized output storage once dimensions have settled. The
  * filter keeps no state of its own, so one filter may be attached to several pipelines at once.
  */
 public class BilateralFilter extends MatVideoFilter {
@@ -42,6 +42,7 @@ public class BilateralFilter extends MatVideoFilter {
    * @param diameter   the diameter of the pixel neighborhood used for filtering, which must be positive
    * @param sigmaColor how far apart colors may be to still be mixed; larger values blur more
    * @param sigmaSpace how far apart pixels may be to still influence each other; larger values blur more
+   * @throws IllegalArgumentException if the diameter is nonpositive, or a sigma is nonpositive or NaN
    */
   public BilateralFilter(final int diameter, final double sigmaColor, final double sigmaSpace) {
     Preconditions.checkArgument(diameter > 0, "Diameter must be positive");

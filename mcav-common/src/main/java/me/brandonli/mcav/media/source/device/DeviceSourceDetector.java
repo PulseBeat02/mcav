@@ -33,6 +33,10 @@ public class DeviceSourceDetector implements SourceDetector<DeviceSource> {
     // stateless
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code raw} is null
+   */
   @Override
   public boolean isDetectedSource(final String raw) {
     Preconditions.checkNotNull(raw, "Raw must not be null");
@@ -40,6 +44,13 @@ public class DeviceSourceDetector implements SourceDetector<DeviceSource> {
     return parsed != null && parsed >= 0;
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @throws NumberFormatException if the string is not a decimal {@code int}
+   * @throws IllegalArgumentException if the parsed index is negative
+   * @throws NullPointerException if {@code raw} is null
+   */
   @Override
   public DeviceSource createSource(final String raw) {
     Preconditions.checkNotNull(raw, "Raw must not be null");

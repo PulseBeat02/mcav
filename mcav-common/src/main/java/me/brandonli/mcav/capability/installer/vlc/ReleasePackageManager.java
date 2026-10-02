@@ -90,6 +90,7 @@ public final class ReleasePackageManager {
    *
    * @param resourcePath the name of the JSON resource, such as {@code vlc.json}
    * @return the downloads for every supported platform
+   * @throws NullPointerException if {@code resourcePath} is null
    */
   public static Download[] readVLCDownloadsFromJsonResource(final String resourcePath) {
     Preconditions.checkNotNull(resourcePath, "Resource path must not be null");

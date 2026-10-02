@@ -31,8 +31,11 @@ public interface ParallelDitherAlgorithm extends DitherAlgorithm {
    * identical, to {@link #ditherIntoBytes(ImageBuffer)}.
    *
    * @param buffer the image to dither, which must not be modified while the method runs
-   * @param pool   the pool that runs the work
+   * @param pool   the non-null caller-owned pool that runs the work; this call waits for submitted tasks
    * @return the palette index of every pixel, laid out row by row
+   * @throws NullPointerException if the image or pool is null
+   * @throws java.util.concurrent.RejectedExecutionException if the pool rejects submitted work
+   * @throws IllegalStateException if the image has been released
    */
   byte[] ditherIntoBytes(final ImageBuffer buffer, final ForkJoinPool pool);
 }

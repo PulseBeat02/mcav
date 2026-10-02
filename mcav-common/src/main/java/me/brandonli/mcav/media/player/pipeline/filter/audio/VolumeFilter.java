@@ -32,7 +32,7 @@ public final class VolumeFilter implements AudioFilter {
   /** The volume that leaves the audio as it is. */
   public static final double UNCHANGED = 1.0;
 
-  /** The largest volume, twice as loud: beyond it most media only clips. */
+  /** The largest amplitude multiplier, 2.0; this doubles sample values before clipping, not perceived loudness. */
   public static final double MAX_VOLUME = 2.0;
 
   private volatile double volume;
@@ -65,11 +65,14 @@ public final class VolumeFilter implements AudioFilter {
   }
 
   /**
-   * Scales the samples in place, unless the volume leaves them as they are.
+   * Scales complete 16-bit samples in place, unless the volume leaves them as they are. A trailing unmatched
+   * byte is left untouched. Position, limit and the original buffer's byte order do not change.
    *
    * @param samples  16-bit little-endian samples from the position to the limit of the buffer, which is not consumed
    * @param metadata the metadata of the original stream
    * @return true if the samples were scaled
+   * @throws java.nio.ReadOnlyBufferException if scaling writes to a read-only buffer
+   * @throws NullPointerException if {@code samples} is null
    */
   @Override
   public boolean applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {

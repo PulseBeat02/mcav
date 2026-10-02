@@ -47,6 +47,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * arithmetic, scaled by {@code (2 size)^2}, interpolating separably (rows, then columns), which is the same result
  * without floating point. The first, floating-point form of the kernels is kept by the tests as the oracle these are
  * compared with.
+ *
+ * <p>These kernels operate on already validated codec data. Sizes must be 8, 16 or 32 pixels; full grids
+ * have 1, 2, 4 or 8 nodes per axis, reduced grids use luma/chroma pairs 4/1 or 8/2, and residual quantizers range
+ * from 0 through 7. Input record extents and output capacities are caller preconditions, not checked here. Every
+ * output and prediction block has at least {@code size * size * 3} entries, with prediction channels from 0 through
+ * 1020. Output, scratch and score storage must be exclusive to the calling worker; input arrays remain caller-owned
+ * and must stay stable. Scored kernels may return false after writing only part of the output, which must then be
+ * discarded. Calls using independent scratch and arrays can run concurrently.
  */
 public final class Reconstruction {
 
@@ -172,6 +180,9 @@ public final class Reconstruction {
     /**
      * Starts measuring a reconstruction.
      *
+     * <p>The source array is retained until the next start call. Keep it stable during scoring. Rate and cost
+     * use the same unscaled distortion units; the accumulated integer distortion is divided by DISTORTION_SCALE for comparison.
+     *
      * @param block the block's source channels, 0..255, three per pixel in row-major order
      * @param bits  the candidate's rate in units of distortion over 96: lambda times its bits
      * @param cost  the cost the candidate must stay below to be chosen
@@ -214,9 +225,9 @@ public final class Reconstruction {
    * The error of one pixel in the units of {@link #DISTORTION_SCALE}: 96 times the reference's weighted squared YCoCg
    * error of the channel differences.
    *
-   * @param redDifference   the red difference
-   * @param greenDifference the green difference
-   * @param blueDifference  the blue difference
+   * @param redDifference the red channel difference, from -255 through 255
+   * @param greenDifference the green channel difference, from -255 through 255
+   * @param blueDifference the blue channel difference, from -255 through 255
    * @return the error, at most about 6.2 million for differences of 8-bit channels
    */
   public static int pixelError(final int redDifference, final int greenDifference, final int blueDifference) {
@@ -308,7 +319,7 @@ public final class Reconstruction {
    * @param height    the picture height
    * @param blockLeft the block's left edge
    * @param blockTop  the block's top edge
-   * @param size      the block size; pixels outside the picture are predicted too, from clamped coordinates
+   * @param size      the block side, 8, 16 or 32 pixels; pixels outside the picture are predicted too, from clamped coordinates
    * @param motionX   the horizontal displacement in half pixels
    * @param motionY   the vertical displacement in half pixels
    * @param out       receives four times each predicted channel, {@code size * size * 3} values
@@ -418,8 +429,8 @@ public final class Reconstruction {
    * Reconstructs a skip or motion block: the prediction, rounded.
    *
    * @param prediction four times the predicted channels
-   * @param size       the block size
-   * @param out        the reconstructed channels
+   * @param size       the block side, 8, 16 or 32 pixels
+   * @param out        the caller-owned output, at least {@code size * size * 3} RGB channel entries
    */
   public static void predicted(final int[] prediction, final int size, final int[] out) {
     predicted(prediction, size, out, null);
@@ -429,8 +440,8 @@ public final class Reconstruction {
    * Reconstructs a skip or motion block and measures it.
    *
    * @param prediction four times the predicted channels
-   * @param size       the block size
-   * @param out        the reconstructed channels
+   * @param size       the block side, 8, 16 or 32 pixels
+   * @param out        the caller-owned output, at least {@code size * size * 3} RGB channel entries
    * @param score      the measure, or null
    * @return whether the block was finished: false when the measure stopped it
    */
@@ -453,8 +464,8 @@ public final class Reconstruction {
    * Reconstructs a flat block.
    *
    * @param color the colour as {@code 0xRRGGBB}
-   * @param size  the block size
-   * @param out   the reconstructed channels
+   * @param size  the block side, 8, 16 or 32 pixels
+   * @param out   the caller-owned output, at least {@code size * size * 3} RGB channel entries
    */
   public static void solid(final int color, final int size, final int[] out) {
     solid(color, size, out, null);
@@ -464,8 +475,8 @@ public final class Reconstruction {
    * Reconstructs a flat block and measures it.
    *
    * @param color the colour as {@code 0xRRGGBB}
-   * @param size  the block size
-   * @param out   the reconstructed channels
+   * @param size  the block side, 8, 16 or 32 pixels
+   * @param out   the caller-owned output, at least {@code size * size * 3} RGB channel entries
    * @param score the measure, or null
    * @return whether the block was finished: false when the measure stopped it
    */
@@ -492,8 +503,8 @@ public final class Reconstruction {
    *
    * @param record the bytes holding the record
    * @param offset the record offset
-   * @param size   the block size
-   * @param out    the reconstructed channels
+   * @param size   the block side, 8, 16 or 32 pixels
+   * @param out    the caller-owned output, at least {@code size * size * 3} RGB channel entries
    */
   public static void palette(final byte[] record, final int offset, final int size, final int[] out) {
     palette(record, offset, size, out, null);
@@ -504,8 +515,8 @@ public final class Reconstruction {
    *
    * @param record the bytes holding the record
    * @param offset the record offset
-   * @param size   the block size
-   * @param out    the reconstructed channels
+   * @param size   the block side, 8, 16 or 32 pixels
+   * @param out    the caller-owned output, at least {@code size * size * 3} RGB channel entries
    * @param score  the measure, or null
    * @return whether the block was finished: false when the measure stopped it
    */
@@ -530,8 +541,8 @@ public final class Reconstruction {
    * Reconstructs a pattern palette block.
    *
    * @param pattern the resolved pattern
-   * @param size    the block size
-   * @param out     the reconstructed channels
+   * @param size    the block side, 8, 16 or 32 pixels
+   * @param out     the caller-owned output, at least {@code size * size * 3} RGB channel entries
    */
   public static void pattern(final PatternRecord pattern, final int size, final int[] out) {
     for (int row = 0; row < size; row++) {
@@ -551,9 +562,9 @@ public final class Reconstruction {
    * @param record  the bytes holding the nodes
    * @param offset  the offset of the first node
    * @param grid    the grid width
-   * @param size    the block size
-   * @param scratch the scratch space
-   * @param out     the reconstructed channels
+   * @param size    the block side, 8, 16 or 32 pixels
+   * @param scratch exclusive per-worker scratch space, reused and overwritten during the call
+   * @param out     the caller-owned output, at least {@code size * size * 3} RGB channel entries
    */
   public static void intraGrid(
     final byte[] record,
@@ -572,9 +583,9 @@ public final class Reconstruction {
    * @param record  the bytes holding the nodes
    * @param offset  the offset of the first node
    * @param grid    the grid width
-   * @param size    the block size
-   * @param scratch the scratch space
-   * @param out     the reconstructed channels
+   * @param size    the block side, 8, 16 or 32 pixels
+   * @param scratch exclusive per-worker scratch space, reused and overwritten during the call
+   * @param out     the caller-owned output, at least {@code size * size * 3} RGB channel entries
    * @param score   the measure, or null
    * @return whether the block was finished: false when the measure stopped it
    */
@@ -625,9 +636,9 @@ public final class Reconstruction {
    * @param offset     the offset of the first node, after the motion bytes
    * @param grid       the grid width
    * @param quantizer  the quantizer
-   * @param size       the block size
-   * @param scratch    the scratch space
-   * @param out        the reconstructed channels
+   * @param size       the block side, 8, 16 or 32 pixels
+   * @param scratch    exclusive per-worker scratch space, reused and overwritten during the call
+   * @param out        the caller-owned output, at least {@code size * size * 3} RGB channel entries
    */
   public static void residualGrid(
     final int[] prediction,
@@ -650,9 +661,9 @@ public final class Reconstruction {
    * @param offset     the offset of the first node, after the motion bytes
    * @param grid       the grid width
    * @param quantizer  the quantizer
-   * @param size       the block size
-   * @param scratch    the scratch space
-   * @param out        the reconstructed channels
+   * @param size       the block side, 8, 16 or 32 pixels
+   * @param scratch    exclusive per-worker scratch space, reused and overwritten during the call
+   * @param out        the caller-owned output, at least {@code size * size * 3} RGB channel entries
    * @param score      the measure, or null
    * @return whether the block was finished: false when the measure stopped it
    */
@@ -708,9 +719,9 @@ public final class Reconstruction {
    * @param luma       the luma grid width
    * @param chroma     the chroma grid width
    * @param quantizer  the quantizer, zero for an intra record
-   * @param size       the block size
-   * @param scratch    the scratch space
-   * @param out        the reconstructed channels
+   * @param size       the block side, 8, 16 or 32 pixels
+   * @param scratch    exclusive per-worker scratch space, reused and overwritten during the call
+   * @param out        the caller-owned output, at least {@code size * size * 3} RGB channel entries
    */
   public static void reduced(
     final int @Nullable [] prediction,
@@ -735,9 +746,9 @@ public final class Reconstruction {
    * @param luma       the luma grid width
    * @param chroma     the chroma grid width
    * @param quantizer  the quantizer, zero for an intra record
-   * @param size       the block size
-   * @param scratch    the scratch space
-   * @param out        the reconstructed channels
+   * @param size       the block side, 8, 16 or 32 pixels
+   * @param scratch    exclusive per-worker scratch space, reused and overwritten during the call
+   * @param out        the caller-owned output, at least {@code size * size * 3} RGB channel entries
    * @param score      the measure, or null
    * @return whether the block was finished: false when the measure stopped it
    */
@@ -807,9 +818,9 @@ public final class Reconstruction {
    * @param body       the offset of the first body byte
    * @param kind       the class, 0 to 8
    * @param quantizer  the quantizer
-   * @param size       the block size
-   * @param scratch    the scratch space
-   * @param out        the reconstructed channels
+   * @param size       the block side, 8, 16 or 32 pixels
+   * @param scratch    exclusive per-worker scratch space, reused and overwritten during the call
+   * @param out        the caller-owned output, at least {@code size * size * 3} RGB channel entries
    */
   public static void compact(
     final int[] prediction,
@@ -832,9 +843,9 @@ public final class Reconstruction {
    * @param body       the offset of the first body byte
    * @param kind       the class, 0 to 8
    * @param quantizer  the quantizer
-   * @param size       the block size
-   * @param scratch    the scratch space
-   * @param out        the reconstructed channels
+   * @param size       the block side, 8, 16 or 32 pixels
+   * @param scratch    exclusive per-worker scratch space, reused and overwritten during the call
+   * @param out        the caller-owned output, at least {@code size * size * 3} RGB channel entries
    * @param score      the measure, or null
    * @return whether the block was finished: false when the measure stopped it
    */

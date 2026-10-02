@@ -39,7 +39,8 @@ public class LineFilter extends MatVideoFilter {
    * @param startY the y coordinate of the start of the line
    * @param endX   the x coordinate of the end of the line
    * @param endY   the y coordinate of the end of the line
-   * @param color  the blue, green, and red components of the color, from 0 to 255
+   * @param color  the blue, green, and red components of the color, normally 0 to 255; the non-null array is copied
+   * @throws NullPointerException if {@code color} is null
    */
   public LineFilter(final int startX, final int startY, final int endX, final int endY, final double[] color) {
     this.start = new Point(startX, startY);

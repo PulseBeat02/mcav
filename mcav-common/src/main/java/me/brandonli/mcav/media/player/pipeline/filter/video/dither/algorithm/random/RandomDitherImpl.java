@@ -45,6 +45,8 @@ public final class RandomDitherImpl extends AbstractDitherAlgorithm implements R
    *
    * @param palette the palette to reduce images to
    * @param weight  the largest noise value added to or subtracted from a channel, see {@link #NORMAL_WEIGHT}
+   * @throws NullPointerException if {@code palette} is null
+   * @throws IllegalArgumentException if the weight is outside 0 through 255
    */
   public RandomDitherImpl(final DitherPalette palette, final int weight) {
     super(palette);
@@ -60,6 +62,8 @@ public final class RandomDitherImpl extends AbstractDitherAlgorithm implements R
    * @param palette the palette to reduce images to
    * @param weight  the largest noise value added to or subtracted from a channel, see {@link #NORMAL_WEIGHT}
    * @param random  the random number generator every thread uses
+   * @throws NullPointerException if {@code palette}, {@code random} is null
+   * @throws IllegalArgumentException if the weight is outside 0 through 255
    */
   public RandomDitherImpl(final DitherPalette palette, final int weight, final RandomNumberProvider random) {
     super(palette);

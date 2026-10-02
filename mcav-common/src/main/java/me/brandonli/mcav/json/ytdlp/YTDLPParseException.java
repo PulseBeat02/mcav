@@ -21,12 +21,12 @@ import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Thrown when yt-dlp fails for a URL, for example because the video is private, region locked, or the site is not
- * supported. The message contains the error yt-dlp printed.
+ * Thrown when yt-dlp exits with a failure or returns missing or malformed metadata.
  *
- * <p>This is a plain {@link RuntimeException} rather than an {@link IllegalArgumentException}: a well-formed URL can
- * still fail because of the state of the remote site, so the failure does not mean the caller passed a bad argument.
- * Keeping it apart from {@link IllegalArgumentException} also lets callers catch both in one multi-catch clause.
+ * <p>A nonzero exit reports the URL and yt-dlp's error output, falling back to its standard output when stderr
+ * is blank. Invalid JSON reports the URL and retains the parse failure as its cause. This unchecked exception
+ * is separate from {@link java.io.IOException} for installation/process I/O and from
+ * {@link IllegalArgumentException} for an invalid input scheme.
  */
 public class YTDLPParseException extends RuntimeException {
 

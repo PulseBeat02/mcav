@@ -30,6 +30,7 @@ public final class FilterLiteDither extends ErrorDiffusionDither {
    * Constructs a new Filter Lite algorithm for the specified palette.
    *
    * @param palette the palette to reduce images to
+   * @throws NullPointerException if {@code palette} is null
    */
   public FilterLiteDither(final DitherPalette palette) {
     super(palette, DiffusionKernel.FILTER_LITE);

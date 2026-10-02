@@ -25,6 +25,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * in {@link #formats}, and the fields of the stream yt-dlp would download by default, which is often a merge of the
  * best video and the best audio stream. The fields mirror the JSON and are filled by Gson; fields yt-dlp did not
  * report are null or zero.
+ *
+ * <p>This is a mutable Gson data model, not a validated media object. Nullable fields may be null when absent;
+ * primitive fields default to zero or false, which does not distinguish missing values from reported ones.
+ * Instances and their nested lists are not synchronized; copy or coordinate them before concurrent mutation.
  */
 public class URLParseDump {
 
@@ -257,7 +261,7 @@ public class URLParseDump {
   /** The width of the default stream divided by its height. */
   public double aspect_ratio;
 
-  /** The HTTP headers that requests for the default stream must send, or null if any request works. */
+  /** The HTTP headers that requests for the default stream must send, or null if no headers were reported. */
   public @Nullable HttpHeaders http_headers;
 
   /** The video extension of the default stream, such as {@code mp4}, or {@code none}. */

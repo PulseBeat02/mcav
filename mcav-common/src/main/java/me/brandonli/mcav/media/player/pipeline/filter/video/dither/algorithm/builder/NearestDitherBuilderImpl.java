@@ -51,6 +51,7 @@ public class NearestDitherBuilderImpl implements NearestDitherBuilder<NearestDit
    *
    * @param palette the palette
    * @return this builder
+   * @throws NullPointerException if {@code palette} is null
    */
   @Override
   public NearestDitherBuilderImpl withPalette(final DitherPalette palette) {

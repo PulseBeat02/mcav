@@ -45,6 +45,7 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
    * Constructs a new strategy for the installer.
    *
    * @param installer the installer whose installation directory is used
+   * @throws NullPointerException if {@code installer} is null
    */
   public LinuxInstallationStrategy(final VLCInstaller installer) {
     super(installer);
@@ -78,6 +79,7 @@ public final class LinuxInstallationStrategy extends ManualInstallationStrategy 
    * @param archive the downloaded AppImage
    * @return the directory that contains {@code libvlccore.so}
    * @throws IOException if the AppImage cannot be extracted or does not contain the library
+   * @throws NullPointerException if {@code archive} is null
    */
   @Override
   public Path execute(final Path archive) throws IOException {

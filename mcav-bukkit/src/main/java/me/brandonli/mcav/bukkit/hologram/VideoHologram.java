@@ -56,7 +56,8 @@ public abstract class VideoHologram implements Hologram {
   }
 
   /**
-   * Replaces the display entity of this hologram. The previous entity is not removed.
+   * Replaces the display entity of this hologram. The previous entity is not removed. The caller must remove any replaced or detached entity.
+   * A non-null replacement becomes owned by this hologram and is removed by {@link #kill()}.
    *
    * @param display the display entity, or null to detach the hologram from its entity
    */

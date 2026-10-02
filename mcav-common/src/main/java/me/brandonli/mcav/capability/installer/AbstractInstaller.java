@@ -54,7 +54,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Downloads are serialized per installer, but a running download never blocks the other methods:
  * {@link #getPath()} reads the last installation without locking, and the download links are resolved under a lock of
- * their own.
+ * their own. Different installer objects are not serialized with each other, so callers must coordinate
+ * instances targeting the same program and folder. The installer owns no persistent thread or native resource
+ * that needs closing. It keeps downloaded files and the configuration for reuse after process shutdown.
  */
 public abstract class AbstractInstaller implements Installer {
 
@@ -81,8 +83,12 @@ public abstract class AbstractInstaller implements Installer {
    * Constructs a new installer with lazily resolved downloads.
    *
    * @param folder    the folder the program is installed into
-   * @param name      the name of the program, which is used as the file name and as the key in the configuration
-   * @param downloads supplies the downloads of the program, called at most once
+   * @param name      the non-null, nonblank program name, used as the file name and configuration key
+   * @param downloads the non-null supplier of a non-null array of non-null downloads; called lazily for
+   *                  platform resolution, whose successful result (including no match) is cached; a failure
+   *                  before resolution completes can cause the supplier to be called again
+   * @throws IllegalArgumentException if {@code name} is blank
+   * @throws NullPointerException if {@code folder}, {@code name} or {@code downloads} is null
    */
   protected AbstractInstaller(final Path folder, final String name, final Supplier<Download[]> downloads) {
     Preconditions.checkNotNull(folder, "Folder must not be null");
@@ -100,8 +106,10 @@ public abstract class AbstractInstaller implements Installer {
    * Constructs a new installer with a fixed list of downloads.
    *
    * @param folder    the folder the program is installed into
-   * @param name      the name of the program, which is used as the file name and as the key in the configuration
-   * @param downloads the downloads of the program
+   * @param name      the non-null, nonblank program name, used as the file name and configuration key
+   * @param downloads the non-null array of non-null downloads, retained without copying; do not mutate it
+   * @throws IllegalArgumentException if {@code name} is blank
+   * @throws NullPointerException if {@code folder}, {@code name} or {@code downloads} is null
    */
   protected AbstractInstaller(final Path folder, final String name, final Download[] downloads) {
     Preconditions.checkNotNull(downloads, "Downloads must not be null");
@@ -112,8 +120,11 @@ public abstract class AbstractInstaller implements Installer {
   /**
    * Constructs a new installer that installs into the cache folder of the library.
    *
-   * @param name      the name of the program, which is used as the file name and as the key in the configuration
-   * @param downloads the downloads of the program
+   * @param name      the non-null, nonblank program name, used as the file name and configuration key
+   * @param downloads the non-null array of non-null downloads, retained without copying; do not mutate it
+   * @throws IllegalArgumentException if {@code name} is blank
+   * @throws NullPointerException if {@code name} or {@code downloads} is null
+   * @throws UncheckedIOException if the default cache folder cannot be created
    */
   protected AbstractInstaller(final String name, final Download[] downloads) {
     final Path defaultFolder = getDefaultExecutableFolderPath();
@@ -155,6 +166,7 @@ public abstract class AbstractInstaller implements Installer {
    * @return the path of the installation
    * @throws IOException if the download fails, the file cannot be written or marked as executable, or the hash does
    *                     not match
+   * @throws IllegalArgumentException if a configured download URL is not a valid URI
    */
   @Override
   public Path download(final boolean executable) throws IOException {
@@ -195,6 +207,7 @@ public abstract class AbstractInstaller implements Installer {
    *
    * @param file the file to mark
    * @throws IOException if the permissions of the file cannot be changed
+   * @throws NullPointerException if {@code file} is null
    */
   protected static void markExecutable(final Path file) throws IOException {
     Preconditions.checkNotNull(file, "File must not be null");
@@ -475,6 +488,7 @@ public abstract class AbstractInstaller implements Installer {
    *
    * @param installedPath the path of the installation
    * @throws IOException if the configuration file cannot be written
+   * @throws NullPointerException if {@code installedPath} is null
    */
   public void writePathToConfig(final Path installedPath) throws IOException {
     Preconditions.checkNotNull(installedPath, "Path must not be null");

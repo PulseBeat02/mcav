@@ -62,9 +62,12 @@ public final class ResidualBooks {
   /**
    * Gets one node of a 4x4 vector of the VQ book.
    *
+   * <p>The component ranges are caller preconditions; only the final Java array access checks its bounds.
+   *
    * @param index the vector, 0 to 63
    * @param node  the raster node, 0 to 15
    * @return the signed value
+   * @throws ArrayIndexOutOfBoundsException if the computed address is outside the codebook array
    */
   public static int vq(final int index, final int node) {
     return BOOKS[index * VQ_NODES + node];
@@ -73,10 +76,13 @@ public final class ResidualBooks {
   /**
    * Gets one node of a 4x2 vector of a product book.
    *
+   * <p>The component ranges are caller preconditions; only the final Java array access checks its bounds.
+   *
    * @param half  0 for the left half's book, 1 for the right half's
    * @param index the vector, 0 to 63
    * @param node  the raster node of the 4 rows by 2 columns, 0 to 7
    * @return the signed value
+   * @throws ArrayIndexOutOfBoundsException if the computed address is outside the codebook array
    */
   public static int pq(final int half, final int index, final int node) {
     return BOOKS[PQ_START + half * PQ_BOOK + index * PQ_NODES + node];

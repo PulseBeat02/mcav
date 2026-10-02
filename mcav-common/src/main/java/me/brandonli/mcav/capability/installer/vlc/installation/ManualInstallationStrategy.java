@@ -52,6 +52,7 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
    * Constructs a new strategy for the installer that runs external tools as child processes.
    *
    * @param installer the installer whose installation directory is used
+   * @throws NullPointerException if {@code installer} is null
    */
   protected ManualInstallationStrategy(final VLCInstaller installer) {
     this(installer, COMMAND_RUNNER);
@@ -62,6 +63,7 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
    *
    * @param installer     the installer whose installation directory is used
    * @param processRunner runs the external tools the installation needs
+   * @throws NullPointerException if {@code installer} or {@code processRunner} is null
    */
   protected ManualInstallationStrategy(final VLCInstaller installer, final ProcessRunner processRunner) {
     Preconditions.checkNotNull(installer, "Installer must not be null");
@@ -95,6 +97,7 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
    * @param pattern the complete library file-name pattern
    * @return the parent directory of a matching library, or empty if none exists
    * @throws IOException if a candidate directory or library cannot be read
+   * @throws NullPointerException if {@code root} or {@code pattern} is null
    */
   protected static Optional<Path> findLibraryDirectory(final Path root, final Pattern pattern) throws IOException {
     return findLibraryDirectory(root, pattern, new Pattern[0]);
@@ -110,6 +113,7 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
    * @param companions additional library patterns that must match files in the same directory
    * @return the first complete library directory, or empty if no complete directory exists
    * @throws IOException if a candidate directory or library cannot be read
+   * @throws NullPointerException if {@code root}, {@code pattern}, the companion array or a companion pattern is null
    */
   protected static Optional<Path> findLibraryDirectory(final Path root, final Pattern pattern, final Pattern... companions)
     throws IOException {
@@ -174,7 +178,7 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
 
   /**
    * Runs an external tool and fails if it does not exit successfully. A tool that runs longer than ten minutes is
-   * killed.
+   * killed by the default runner. An injected {@link ProcessRunner} defines its own timeout behavior.
    *
    * @param workingDirectory the working directory of the tool, or null for the working directory of the JVM
    * @param arguments        the tool followed by its arguments
@@ -201,6 +205,7 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
    * @param path the file or directory to delete
    * @throws IOException if a file cannot be deleted
    * @see IOUtils#deleteRecursively(Path)
+   * @throws NullPointerException if {@code path} is null
    */
   public static void deleteRecursively(final Path path) throws IOException {
     Preconditions.checkNotNull(path, "Path must not be null");
@@ -212,6 +217,7 @@ public abstract class ManualInstallationStrategy implements InstallationStrategy
    *
    * @param file the file to delete
    * @throws IOException if the file cannot be deleted
+   * @throws NullPointerException if {@code file} is null
    */
   public void deleteFile(final Path file) throws IOException {
     Preconditions.checkNotNull(file, "File must not be null");

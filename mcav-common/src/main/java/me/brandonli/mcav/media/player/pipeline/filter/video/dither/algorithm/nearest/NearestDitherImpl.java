@@ -39,6 +39,7 @@ public final class NearestDitherImpl extends AbstractDitherAlgorithm implements 
    * Constructs a new nearest color algorithm.
    *
    * @param palette the palette to reduce images to
+   * @throws NullPointerException if {@code palette} is null
    */
   public NearestDitherImpl(final DitherPalette palette) {
     super(palette);
@@ -68,6 +69,7 @@ public final class NearestDitherImpl extends AbstractDitherAlgorithm implements 
    * @param image the image to map, which must not be modified while the method runs
    * @param pool  the pool that runs the work
    * @return the palette index of every pixel, laid out row by row
+   * @throws NullPointerException if {@code pool} is null
    */
   @Override
   public byte[] ditherIntoBytes(final ImageBuffer image, final ForkJoinPool pool) {

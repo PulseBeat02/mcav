@@ -51,6 +51,7 @@ public interface VideoFilter extends Filter<ImageBuffer, OriginalVideoMetadata> 
    *
    * @param samples the frame to process
    * @return true if the filter changed the frame or may have changed it, false if it left the frame untouched
+   * @throws NullPointerException if {@code samples} is null
    */
   default boolean applyFilter(final ImageBuffer samples) {
     Preconditions.checkNotNull(samples, "Samples must not be null");

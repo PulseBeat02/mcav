@@ -26,6 +26,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Frame ids wrap modulo 2^32; a frame is newer when {@code 0 < (new - last) mod 2^32 < 2^31}. Instances are not
  * thread-safe.
+ *
+ * <p>This receiver retains only the immediately preceding decoded picture. A stream referencing an older
+ * keyframe needs a caller-managed reference strategy with {@link Mcv2Decoder}, even if that keyframe was received.
  */
 public final class Mcv2Receiver {
 
@@ -44,9 +47,11 @@ public final class Mcv2Receiver {
    * Validates, decodes and commits a frame.
    *
    * @param data the frame bytes
-   * @return the decoded picture
+   * @return the decoded row-major RGB picture, retained as this receiver's next reference; do not mutate
+   *         it while the receiver may use it, and copy it for independently mutable storage
    * @throws Mcv2Exception if the frame is invalid, not newer than the last one, or predicts from a frame this receiver
    *                       does not hold; the state is unchanged then
+   * @throws NullPointerException if the frame bytes are null
    */
   public byte[] accept(final byte[] data) throws Mcv2Exception {
     final Mcv2Frame frame = FrameParser.parse(data);

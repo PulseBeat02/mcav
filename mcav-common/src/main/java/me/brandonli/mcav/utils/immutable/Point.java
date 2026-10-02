@@ -33,7 +33,8 @@ public final class Point {
   }
 
   /**
-   * Creates a point.
+   * Creates a point without validating its coordinates. Units depend on the consuming API; NaN, infinities
+   * and signed zero are retained. Equality uses {@link Double#compare(double, double)} for each coordinate.
    *
    * @param xCoordinate the x coordinate
    * @param yCoordinate the y coordinate

@@ -51,7 +51,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * so the cached ARGB pixels are rebuilt; the video filters of the library do that automatically.
  *
  * <p>The packed ARGB pixels are only computed when {@link #getPixels()} asks for them, and the byte array used to
- * convert between the two layouts is kept between frames, so updating an image every frame allocates nothing.
+ * convert between the two layouts is kept between frames. Updating an image can reuse that scratch space;
+ * the ARGB array is allocated again when requested after a change.
  *
  * <p>Operations that cannot work in place, such as resizing, write into a second matrix through
  * {@link #transformMat(BiConsumer)}. The image keeps whichever of the two matrices it does not currently use as a
@@ -490,6 +491,10 @@ public final class MatImageBuffer implements ImageBuffer {
     return image;
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code image} is null
+   */
   @Override
   public void setAsBufferedImage(final BufferedImage image) {
     Preconditions.checkNotNull(image, "Image must not be null");
@@ -540,6 +545,10 @@ public final class MatImageBuffer implements ImageBuffer {
     return candidateWidth == width && candidateHeight == height;
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code value} is null
+   */
   @Override
   public void setPixel(final int column, final int row, final double[] value) {
     Preconditions.checkNotNull(value, "Value must not be null");
@@ -650,6 +659,10 @@ public final class MatImageBuffer implements ImageBuffer {
     return this.mat.createBuffer();
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code data} is null
+   */
   @Override
   public void updateData(final ByteBuffer data, final int width, final int height) {
     Preconditions.checkNotNull(data, "Data must not be null");
@@ -665,6 +678,10 @@ public final class MatImageBuffer implements ImageBuffer {
     this.invalidateCache();
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code pixels} is null
+   */
   @Override
   public void updateArgb(final int[] pixels, final int width, final int height) {
     Preconditions.checkNotNull(pixels, "Pixels must not be null");

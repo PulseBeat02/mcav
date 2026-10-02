@@ -42,6 +42,7 @@ public final class KeyUtils {
    *
    * @param input the text with key names
    * @return the text with key characters
+   * @throws NullPointerException if {@code input} is null
    */
   public static String replaceKeysWithKeyCodes(final String input) {
     Preconditions.checkNotNull(input, "Input must not be null");

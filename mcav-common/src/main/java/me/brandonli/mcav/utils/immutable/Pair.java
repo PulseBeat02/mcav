@@ -22,7 +22,7 @@ import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * An immutable pair of two non-null values.
+ * A shallowly immutable pair of two non-null values, retained by reference rather than copied.
  *
  * @param <A> the type of the first value
  * @param <B> the type of the second value
@@ -45,6 +45,7 @@ public final class Pair<A, B> {
    * @param first  the first value
    * @param second the second value
    * @return the pair
+   * @throws NullPointerException if {@code first} or {@code second} is null
    */
   public static <C, D> Pair<C, D> pair(final C first, final D second) {
     Preconditions.checkNotNull(first, "First value must not be null");

@@ -48,7 +48,9 @@ public class TextFilter extends MatVideoFilter {
    * @param baseline the y coordinate of the text baseline
    * @param font     the font, one of the {@code FONT_HERSHEY_} constants of {@link opencv_imgproc}
    * @param scale    the size of the text relative to the base size of the font, which must be positive
-   * @param color    the blue, green, and red components of the color, from 0 to 255
+   * @param color    the blue, green, and red components of the color, normally 0 to 255; the non-null array is copied
+   * @throws IllegalArgumentException if {@code scale} is nonpositive or NaN
+   * @throws NullPointerException if {@code text} or {@code color} is null
    */
   public TextFilter(final String text, final int left, final int baseline, final int font, final double scale, final double[] color) {
     Preconditions.checkNotNull(text, "Text must not be null");

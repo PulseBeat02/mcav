@@ -24,6 +24,8 @@ import me.brandonli.mcav.media.source.uri.UriSource;
 /**
  * A web page to stream: its address, the size of the page and of the frames, and how many painted frames are skipped
  * between streamed frames. Only absolute {@code http} and {@code https} addresses with a host can be shown.
+ * The factories create immutable sources and perform no network access. Address-policy checks, including
+ * the default restriction on private networks, happen when the browser loads the page.
  */
 public interface BrowserSource extends UriSource {
   /**
@@ -47,20 +49,22 @@ public interface BrowserSource extends UriSource {
   int MAX_FRAME_INTERVAL = 1000;
 
   /**
-   * The longest address, in characters.
+   * The longest {@link URI#toString()} representation accepted by the factories, in UTF-16 code units.
    */
   int MAX_ADDRESS_LENGTH = 65_536;
 
   /**
    * Creates a source with every setting.
    *
-   * @param uri           the address of the page, an absolute {@code http} or {@code https} address
+   * @param uri           the non-null absolute {@code http} or {@code https} address with a host;
+   *                      its string representation has at most {@value #MAX_ADDRESS_LENGTH} UTF-16 code units
    * @param width         the width of the page and the frames in pixels, from 1 to {@value #MAX_SIDE}
    * @param height        the height of the page and the frames in pixels, from 1 to {@value #MAX_SIDE}
    * @param frameInterval stream every n-th painted frame, from 1 to {@value #MAX_FRAME_INTERVAL}; 1 streams every frame
    * @return the source
    * @throws IllegalArgumentException if the address is not a web address, is longer than {@value #MAX_ADDRESS_LENGTH}
    *                                  characters, or a number is out of range
+   * @throws NullPointerException if {@code uri} is null
    */
   static BrowserSource uri(final URI uri, final int width, final int height, final int frameInterval) {
     Preconditions.checkNotNull(uri, "URI must not be null");
@@ -93,9 +97,11 @@ public interface BrowserSource extends UriSource {
    * Creates a source with the default settings: {@value #DEFAULT_WIDTH} by {@value #DEFAULT_HEIGHT} pixels, every
    * frame.
    *
-   * @param uri the address of the page, an absolute {@code http} or {@code https} address
+   * @param uri the non-null absolute {@code http} or {@code https} address with a host
    * @return the source
-   * @throws IllegalArgumentException if the address is not a web address
+   * @throws IllegalArgumentException if the address lacks a web scheme or host, or exceeds
+   *                                  {@value #MAX_ADDRESS_LENGTH} UTF-16 code units
+   * @throws NullPointerException if {@code uri} is null
    */
   static BrowserSource uri(final URI uri) {
     return uri(uri, DEFAULT_WIDTH, DEFAULT_HEIGHT, 1);
@@ -104,21 +110,21 @@ public interface BrowserSource extends UriSource {
   /**
    * Gets the width of the page and of the frames.
    *
-   * @return the width in pixels
+   * @return the width in pixels, from 1 to {@value BrowserSource#MAX_SIDE}
    */
   int getWidth();
 
   /**
    * Gets the height of the page and of the frames.
    *
-   * @return the height in pixels
+   * @return the height in pixels, from 1 to {@value BrowserSource#MAX_SIDE}
    */
   int getHeight();
 
   /**
    * Gets how many painted frames make one streamed frame.
    *
-   * @return the interval; 1 streams every frame
+   * @return the interval, from 1 to {@value BrowserSource#MAX_FRAME_INTERVAL}; 1 streams every painted frame
    */
   int getFrameInterval();
 

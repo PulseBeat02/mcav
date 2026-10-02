@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Registers the virtual machine backend. Install it with {@code MCAV.api().install(VMModule.class)}.
  *
- * <p>QEMU cannot be installed by the library without administrator rights, so it must be installed on the
+ * <p>The library does not install QEMU. Make it available on the
  * machine: through the package manager on Linux, Homebrew on macOS, or the installer from
  * <a href="https://qemu.weka.io/">qemu.weka.io</a> on Windows. The {@code qemu-system-*} programs must be on the
  * {@code PATH} of the Java process, or in a folder {@link ExecutableFinder} also searches: {@code /usr/local/bin}
@@ -65,6 +65,11 @@ public final class VMModule implements MCAVModule {
     this.finder = finder;
   }
 
+  /**
+   * Checks for {@code qemu-system-x86_64} and records and logs whether it was found. This creates no virtual
+   * machines and does not check executables for the other guest architectures. Missing QEMU is logged rather
+   * than thrown here; each player resolves its selected executable at startup.
+   */
   @Override
   public void start() {
     final String command = VMPlayer.Architecture.X86_64.getCommand();
@@ -78,11 +83,20 @@ public final class VMModule implements MCAVModule {
     }
   }
 
+  /**
+   * Stops the module without releasing any players or changing the recorded availability result.
+   * Call {@link VMPlayer#release()} on every owned player before unloading the backend.
+   */
   @Override
   public void stop() {
     // nothing to release
   }
 
+  /**
+   * Gets the module identifier.
+   *
+   * @return {@code vm}
+   */
   @Override
   public String getModuleName() {
     return "vm";
@@ -91,7 +105,7 @@ public final class VMModule implements MCAVModule {
   /**
    * Checks whether QEMU for x86-64 guests was found when the module started.
    *
-   * @return true if QEMU is available
+   * @return the result of the last module start, initially false; this does not recheck the executable
    */
   public boolean isQemuInstalled() {
     return this.qemuInstalled;

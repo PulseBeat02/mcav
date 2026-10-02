@@ -152,9 +152,10 @@ public final class DiffusionKernel {
    * Constructs a new kernel.
    *
    * @param name    the name of the algorithm the kernel belongs to
-   * @param divisor the number the weights are divided by
-   * @param taps    the taps as {@code {dx, dy, weight}} triples
-   * @throws IllegalArgumentException if a tap points to an already processed pixel, reaches farther than
+   * @param divisor the strictly positive divisor of each weight
+   * @param taps    the nonempty array of non-null {@code {dx, dy, weight}} triples, copied by this constructor
+   * @throws IllegalArgumentException if the divisor is nonpositive, there are no taps, a tap has other than
+   *                                 three elements, or a tap points to an already processed pixel, reaches farther than
    *                                  {@link #MAX_OFFSET} pixels, or has a non-positive weight
    * @throws NullPointerException     if the name, the taps or one of the taps is null
    */
@@ -237,8 +238,9 @@ public final class DiffusionKernel {
   /**
    * Gets the horizontal offset of a tap, relative to the scanning direction.
    *
-   * @param tap the tap index
+   * @param tap the zero-based tap index, less than {@link #getTapCount()}
    * @return the horizontal offset
+   * @throws IndexOutOfBoundsException if the tap index is outside the kernel
    */
   public int getOffsetX(final int tap) {
     return this.offsetsX[tap];
@@ -247,8 +249,9 @@ public final class DiffusionKernel {
   /**
    * Gets the vertical offset of a tap.
    *
-   * @param tap the tap index
+   * @param tap the zero-based tap index, less than {@link #getTapCount()}
    * @return the vertical offset, which is never negative
+   * @throws IndexOutOfBoundsException if the tap index is outside the kernel
    */
   public int getOffsetY(final int tap) {
     return this.offsetsY[tap];
@@ -257,8 +260,9 @@ public final class DiffusionKernel {
   /**
    * Gets the weight of a tap.
    *
-   * @param tap the tap index
+   * @param tap the zero-based tap index, less than {@link #getTapCount()}
    * @return the weight
+   * @throws IndexOutOfBoundsException if the tap index is outside the kernel
    */
   public int getWeight(final int tap) {
     return this.weights[tap];

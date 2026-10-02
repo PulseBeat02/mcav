@@ -39,6 +39,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   final BukkitModule module = api.getModule(BukkitModule.class);
  *   module.inject(plugin);
  * </code></pre>
+ *
+ * <p>Initialize and stop this module on the server's main thread. The injected plugin remains caller-owned.
+ * The module does not track or release players, holograms, image displays or hosted resource packs;
+ * release those resources before disabling the plugin.
  */
 public final class BukkitModule implements MCAVModule {
 
@@ -56,6 +60,7 @@ public final class BukkitModule implements MCAVModule {
    *
    * @param plugin the plugin instance
    * @throws UnsupportedServerVersionException if the server runs an unsupported Minecraft version
+   * @throws NullPointerException if the plugin is null
    */
   public void inject(final Plugin plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null");

@@ -47,6 +47,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@code floor(clamp(value, 0, 255) + 0.5)}.
  *
  * <p>Pictures are row-major RGB, three bytes per pixel. The decoder has no state and is thread-safe.
+ *
+ * <p>The caller owns decoded arrays, reference arrays and workers. References are read synchronously and
+ * never modified by the decoder; keep them stable until decoding returns. When supplying a reusable output array,
+ * it must not alias the reference of a P frame or any buffer another decode is reading. Output contents may be
+ * partially overwritten if decoding fails. Custom worker pools are not shut down by decoding.
  */
 public final class Mcv2Decoder {
 
@@ -65,6 +70,7 @@ public final class Mcv2Decoder {
    * @param referenceId the id of that picture
    * @return the decoded picture, {@code width * height * 3} bytes
    * @throws Mcv2Exception if the frame is a P frame and the reference is missing, has the wrong size, or has another id
+   * @throws NullPointerException if frame is null
    */
   public static byte[] decode(final Mcv2Frame frame, final byte @Nullable [] reference, final long referenceId) throws Mcv2Exception {
     return decode(frame, reference, referenceId, Workers.SEQUENTIAL);
@@ -80,6 +86,7 @@ public final class Mcv2Decoder {
    * @param workers     the workers
    * @return the decoded picture, {@code width * height * 3} bytes
    * @throws Mcv2Exception if the frame is a P frame and the reference is missing, has the wrong size, or has another id
+   * @throws NullPointerException if frame or workers is null
    */
   public static byte[] decode(final Mcv2Frame frame, final byte @Nullable [] reference, final long referenceId, final Workers workers)
     throws Mcv2Exception {
@@ -97,6 +104,7 @@ public final class Mcv2Decoder {
    * @param into        the picture to decode into, or null or one of another size for a new one
    * @return the decoded picture: {@code into} when it had the size, else a new one of {@code width * height * 3} bytes
    * @throws Mcv2Exception if the frame is a P frame and the reference is missing, has the wrong size, or has another id
+   * @throws NullPointerException if {@code frame} or {@code workers} is null
    */
   public static byte[] decode(
     final Mcv2Frame frame,
@@ -162,6 +170,7 @@ public final class Mcv2Decoder {
    * @param referenceId the id of that picture
    * @return the decoded picture
    * @throws Mcv2Exception if the bytes are not a valid frame or the reference does not match
+   * @throws NullPointerException if the frame byte array is null
    */
   public static byte[] decode(final byte[] data, final byte @Nullable [] reference, final long referenceId) throws Mcv2Exception {
     return decode(FrameParser.parse(data), reference, referenceId);

@@ -113,6 +113,11 @@ public final class YTDLPParserImpl implements YTDLPParser {
     return installer.download(true);
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @throws NullPointerException if {@code input}, the argument array or an argument is null
+   */
   @Override
   public URLParseDump parse(final UriSource input, final String... arguments) throws IOException {
     Preconditions.checkNotNull(input, "Input must not be null");

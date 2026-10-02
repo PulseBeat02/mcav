@@ -21,13 +21,12 @@ import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Thrown when dependencies cannot be resolved, downloaded, or verified.
+ * Thrown when Maven dependencies cannot be resolved, verified or copied, or an artifact id is invalid.
  *
- * <p>This is a plain {@link RuntimeException}: an installation depends on the network, the Maven repositories, and
- * the file system, none of which the caller controls, so a failure is neither a programming error nor a state of the
- * installer, and trying again later may succeed. It is not a {@link java.io.UncheckedIOException}, because a failed
- * resolution has no {@link java.io.IOException} to wrap, and it is never an {@link Error}, so the plugin or
- * application that bootstraps mcav can catch it and shut down cleanly.
+ * <p>The installer preserves the underlying cause for resolution and I/O failures. Interruption while waiting
+ * for file copies is wrapped and the caller's interrupt flag is restored. Catch this unchecked exception to
+ * report a bootstrap failure; retrying may help a temporary repository or I/O failure, while invalid inputs
+ * must first be corrected. The installer does not roll back jars already loaded by a custom loader.
  */
 public class InstallationException extends RuntimeException {
 

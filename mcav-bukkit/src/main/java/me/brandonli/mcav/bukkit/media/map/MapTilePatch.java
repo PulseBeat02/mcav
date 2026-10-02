@@ -42,13 +42,15 @@ public final class MapTilePatch {
   /**
    * Constructs a new patch.
    *
-   * @param mapId  the id of the map to update
+   * @param mapId the nonnegative id of the map to update
    * @param left   the x coordinate of the top left corner of the rectangle, from 0 to 127
    * @param top    the y coordinate of the top left corner of the rectangle, from 0 to 127
-   * @param width  the width of the rectangle in pixels
-   * @param height the height of the rectangle in pixels
+   * @param width the positive width in pixels, with the rectangle ending at or before coordinate 128
+   * @param height the positive height in pixels, with the rectangle ending at or before coordinate 128
    * @param colors the map palette indices of the rectangle, exactly {@code width * height} bytes long
-   * @throws IllegalArgumentException if the rectangle is not inside the map, or the color array has the wrong size
+   * @throws IllegalArgumentException if the map id is negative, the rectangle is empty or outside the map,
+   *         or the color array has the wrong size
+   * @throws NullPointerException if {@code colors} is null
    */
   public MapTilePatch(final int mapId, final int left, final int top, final int width, final int height, final byte[] colors) {
     Preconditions.checkNotNull(colors, "Colors must not be null");

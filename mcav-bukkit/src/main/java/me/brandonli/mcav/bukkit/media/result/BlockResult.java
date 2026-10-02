@@ -29,6 +29,11 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilte
  *
  * <p>Call {@link #start()} before playback and {@link #release()} afterward. Blocks update at most once per server
  * tick, and only blocks that changed are sent. The filter may run on any thread.
+ *
+ * <p>The caller owns this result and its lifecycle; attaching it to a pipeline does not call start or release.
+ * Input buffers remain caller-owned and are consumed synchronously, even when converted display data is applied
+ * on a later server tick. Serialize frame delivery with lifecycle operations unless this class explicitly provides
+ * locking, and never mutate an input buffer concurrently with conversion.
  */
 public class BlockResult implements FunctionalVideoFilter {
 
@@ -38,6 +43,7 @@ public class BlockResult implements FunctionalVideoFilter {
    * Constructs a new {@code BlockResult}.
    *
    * @param configuration the configuration describing the viewers, position, and size of the block wall
+   * @throws NullPointerException if {@code configuration} is null
    */
   public BlockResult(final BlockConfiguration configuration) {
     Preconditions.checkNotNull(configuration, "Block configuration must not be null");
@@ -59,6 +65,7 @@ public class BlockResult implements FunctionalVideoFilter {
    * @param data     the frame to display, which may be resized by the renderer
    * @param metadata the metadata of the original video, which is not used
    * @return always true, because the renderer may resize the frame
+   * @throws NullPointerException if {@code data} or {@code metadata} is null
    */
   @Override
   public boolean applyFilter(final ImageBuffer data, final OriginalVideoMetadata metadata) {

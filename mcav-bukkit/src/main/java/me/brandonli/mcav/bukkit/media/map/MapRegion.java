@@ -24,6 +24,11 @@ package me.brandonli.mcav.bukkit.media.map;
  * inside the 128x128 map, and the source coordinates describe which pixel of the image is drawn at the local
  * origin. When the image is smaller than the map grid, maps at the border are only partly covered, and maps that
  * the image does not reach at all have an empty region.
+ *
+ * <p>Instances are immutable, but the public constructor stores values without validation. For a valid
+ * nonempty map region, local coordinates must be nonnegative, dimensions positive, and both local extents at most
+ * 128 pixels; source coordinates identify valid pixels in the source image. Obtain validated regions through
+ * {@link MapLayout#getRegion(int)} when describing an image layout.
  */
 public final class MapRegion {
 
@@ -110,7 +115,7 @@ public final class MapRegion {
   /**
    * Checks whether the image does not cover the map at all.
    *
-   * @return true if the region is empty
+   * @return true if either stored dimension is zero or negative
    */
   public boolean isEmpty() {
     return this.width <= 0 || this.height <= 0;

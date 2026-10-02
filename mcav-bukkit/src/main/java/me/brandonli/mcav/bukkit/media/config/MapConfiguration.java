@@ -42,6 +42,9 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
  *     .viewers(viewers)
  *     .build();
  * </code></pre>
+ *
+ * <p>This configuration does not create map items, reserve map ids or place item frames. The caller supplies
+ * the display surfaces and ensures the consecutive ids belong to this screen. Resizing is disabled by default.
  */
 public class MapConfiguration {
 
@@ -80,7 +83,8 @@ public class MapConfiguration {
   /**
    * Gets the players who see the maps.
    *
-   * @return the UUIDs of the viewers
+   * @return the original mutable-or-immutable collection supplied to the builder, without a copy; use a
+   *         concurrent collection if another thread changes membership during rendering
    */
   public Collection<UUID> getViewers() {
     return this.viewers;
@@ -164,6 +168,9 @@ public class MapConfiguration {
 
   /**
    * Builds map configurations. The map id, the grid size, and the viewers are required.
+   *
+   * <p>Builders are mutable and not thread-safe. Setters retain reference arguments; numeric ranges and
+   * required fields are checked by {@link #build()}, which may be called again to create another configuration.
    *
    * @param <T> the type of the builder
    */
@@ -278,7 +285,8 @@ public class MapConfiguration {
      * Builds the map configuration. The builder is not changed, so it can be reused to build more configurations.
      *
      * @return the map configuration
-     * @throws IllegalArgumentException if a value is out of range
+     * @throws IllegalArgumentException if the first map id is negative, a grid dimension is nonpositive,
+     *         a requested resolution is negative, or a default resolution would overflow an integer
      * @throws NullPointerException     if the viewers were not set
      */
     public MapConfiguration build() {

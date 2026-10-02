@@ -51,6 +51,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Because the entity is not saved, the server discards it when its chunk unloads, for example when every
  * player walked away. The renderer notices that on the next frame and spawns a new entity once the chunk is
  * loaded again, so the display comes back when the viewers return.
+ *
+ * <p>Call {@link #show()} before submitting frames and {@link #hide()} when finished. Conversion reads and
+ * may resize the caller-owned image synchronously; the scheduled task retains only converted frame data. At most
+ * the latest submitted frame is applied per tick, so intermediate frames may be dropped. Do not concurrently
+ * write to the same input buffer. Hiding clears pending work; the renderer can subsequently be shown again.
  */
 public final class EntityRenderer extends MainThreadRenderer<Component> {
 
@@ -74,7 +79,8 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
   /**
    * Spawns the text display and shows it to every online viewer. May be called from any thread.
    *
-   * @throws IllegalStateException if the position of the entity has no world, when called on the main thread
+   * @throws IllegalStateException if no plugin was injected, or if initialization runs on the calling thread
+   *         and the configured position no longer has a world
    */
   public void show() {
     this.showDisplay(this::spawnEntity);
@@ -85,6 +91,7 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
    *
    * @param image the image to render, which is resized to the entity dimensions in place
    * @throws NullPointerException if the image is null
+   * @throws IllegalStateException if the image has been released
    */
   public void render(final ImageBuffer image) {
     Preconditions.checkNotNull(image, "Image must not be null");

@@ -69,8 +69,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * File, hashing, network, and archive helpers used throughout the library.
  *
- * <p>Methods that fail throw {@link UncheckedIOException}, so callers that cannot recover from I/O errors do not
- * have to handle checked exceptions.
+ * <p>Most I/O failures are wrapped in {@link UncheckedIOException}. Deletion and replacement moves retain
+ * checked {@link IOException}s; argument errors and unsafe archive entries use their documented exception types.
  */
 public final class IOUtils {
 
@@ -104,6 +104,7 @@ public final class IOUtils {
    * @param url the URL, such as {@code https://example.com/files/video.mp4}
    * @return the last segment of the path, such as {@code video.mp4}, or an empty string if the path is empty
    * @throws IllegalArgumentException if the URL is not a valid URI
+   * @throws NullPointerException if {@code url} is null
    */
   public static String getFileNameFromUrl(final String url) {
     Preconditions.checkNotNull(url, "URL must not be null");
@@ -117,7 +118,8 @@ public final class IOUtils {
   }
 
   /**
-   * Finds a free TCP port, starting at the standard VNC port 5900.
+   * Probes TCP ports from 5900 through 65535 and returns the first one that can be bound. The probe socket
+   * is immediately closed: another process can claim the returned port before the caller binds it.
    *
    * @return the first free port at or above 5900
    * @throws UncheckedIOException if no port is free
@@ -155,6 +157,7 @@ public final class IOUtils {
    * @return true if the directory was created, false if it already existed
    * @throws UncheckedIOException if the directory cannot be created, for example because a file of the same name
    *                              exists
+   * @throws NullPointerException if {@code path} is null
    */
   public static boolean createDirectoryIfNotExists(final Path path) {
     Preconditions.checkNotNull(path, "Path must not be null");
@@ -177,6 +180,7 @@ public final class IOUtils {
    * @param path the file to create
    * @return true if the file was created, false if it already existed
    * @throws UncheckedIOException if the file cannot be created
+   * @throws NullPointerException if {@code path} is null
    */
   public static boolean createFileIfNotExists(final Path path) {
     Preconditions.checkNotNull(path, "Path must not be null");
@@ -203,6 +207,7 @@ public final class IOUtils {
    *
    * @param file the file to mark
    * @throws UncheckedIOException if the permissions cannot be changed
+   * @throws NullPointerException if {@code file} is null
    */
   public static void markExecutable(final Path file) {
     Preconditions.checkNotNull(file, "File must not be null");
@@ -227,6 +232,7 @@ public final class IOUtils {
    *
    * @param path the file or directory to delete
    * @throws IOException if a file cannot be deleted
+   * @throws NullPointerException if {@code path} is null
    */
   public static void deleteRecursively(final Path path) throws IOException {
     Preconditions.checkNotNull(path, "Path must not be null");
@@ -260,6 +266,7 @@ public final class IOUtils {
    * @param source the file to move
    * @param target the destination, which is replaced if it exists
    * @throws IOException if the file cannot be moved
+   * @throws NullPointerException if {@code source} or {@code target} is null
    */
   public static void moveReplacing(final Path source, final Path target) throws IOException {
     Preconditions.checkNotNull(source, "Source must not be null");
@@ -337,6 +344,7 @@ public final class IOUtils {
    * @param path the file to hash
    * @return the hash as lowercase hexadecimal
    * @throws UncheckedIOException if the file cannot be read
+   * @throws NullPointerException if {@code path} is null
    */
   public static String getSHA256Hash(final Path path) {
     Preconditions.checkNotNull(path, "Path must not be null");
@@ -350,6 +358,7 @@ public final class IOUtils {
    * @param path the file to hash
    * @return the hash as lowercase hexadecimal
    * @throws UncheckedIOException if the file cannot be read
+   * @throws NullPointerException if {@code path} is null
    */
   public static String getSHA1Hash(final Path path) {
     Preconditions.checkNotNull(path, "Path must not be null");
@@ -389,6 +398,7 @@ public final class IOUtils {
    *
    * @param bytes the bytes to convert
    * @return the hexadecimal string, which is empty for an empty array
+   * @throws NullPointerException if {@code bytes} is null
    */
   public static String bytesToHex(final byte[] bytes) {
     Preconditions.checkNotNull(bytes, "Bytes must not be null");
@@ -410,6 +420,7 @@ public final class IOUtils {
    * @param path the path
    * @return the last element of the path
    * @throws IllegalArgumentException if the path has no elements, such as a root directory
+   * @throws NullPointerException if {@code path} is null
    */
   public static String getName(final Path path) {
     Preconditions.checkNotNull(path, "Path must not be null");
@@ -428,9 +439,11 @@ public final class IOUtils {
    * how much it sends and a picture of a map screen is far smaller than that.
    *
    * @param source the URL of the image
-   * @return the path to the downloaded image
+   * @return the cached file path; releasing a decoded image does not remove this file
    * @throws UncheckedIOException if the image cannot be downloaded, including when it is larger than
    *                              {@link #MAX_IMAGE_BYTES}
+   * @throws IllegalArgumentException if the source does not describe an absolute HTTP or HTTPS URI with a host
+   * @throws NullPointerException if {@code source} is null
    */
   public static Path downloadImage(final UriSource source) {
     Preconditions.checkNotNull(source, "Source must not be null");
@@ -470,6 +483,7 @@ public final class IOUtils {
    * @param resourcePath the name of the JSON resource, such as {@code yt-dlp.json}
    * @return the downloads described by the resource
    * @throws UncheckedIOException if the resource is missing or not valid JSON
+   * @throws NullPointerException if {@code resourcePath} is null
    */
   public static Download[] readDownloadsFromJsonResource(final String resourcePath) {
     Preconditions.checkNotNull(resourcePath, "Resource path must not be null");
@@ -556,7 +570,7 @@ public final class IOUtils {
    * Extracts a zip archive into a directory.
    *
    * <p>The destination is resolved to its real directory. Entries that would escape it or use an existing symbolic
-   * link below it are rejected. Single entries larger than 512 MB or archives larger than 2 GB in total are
+   * link below it are rejected. Single entries larger than 512 MiB or archives larger than 2 GiB in total are
    * rejected before bytes beyond either limit are written. Extraction may leave files written before a failure.
    * The destination must not be modified concurrently: these checks do not prevent another process from replacing
    * a parent directory between a check and a write.

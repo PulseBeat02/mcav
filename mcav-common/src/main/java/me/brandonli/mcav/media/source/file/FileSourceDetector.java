@@ -23,7 +23,7 @@ import me.brandonli.mcav.media.source.SourceDetector;
 import me.brandonli.mcav.utils.SourceUtils;
 
 /**
- * Detects paths of existing files.
+ * Detects paths of existing files or directories. Existence does not establish that a player can decode them.
  */
 public class FileSourceDetector implements SourceDetector<FileSource> {
 
@@ -34,12 +34,22 @@ public class FileSourceDetector implements SourceDetector<FileSource> {
     // stateless
   }
 
+  /**
+   * {@inheritDoc}
+   * @throws NullPointerException if {@code raw} is null
+   */
   @Override
   public boolean isDetectedSource(final String raw) {
     Preconditions.checkNotNull(raw, "Raw must not be null");
     return SourceUtils.isPath(raw);
   }
 
+  /**
+   * {@inheritDoc}
+   *
+   * @throws java.nio.file.InvalidPathException if the string is not a valid path on this file system
+   * @throws NullPointerException if {@code raw} is null
+   */
   @Override
   public FileSource createSource(final String raw) {
     Preconditions.checkNotNull(raw, "Raw must not be null");

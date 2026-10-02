@@ -38,10 +38,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * left, in frames facing {@link #getFacing()}; {@link #getOrigin()} is the block the top-left frame hangs in. For
  * players with the pack, those maps carry anchors that tell the shader where the screen is, and hidden glowing frames
  * behind the wall carry the frames' pages on the page maps from {@link #getPageMap()} on. The default page maps lie
- * far above the ids a world hands out, so the server never sends map data of its own for them.
+ * far above ordinary world allocations to avoid server map updates; callers must still ensure that those ids
+ * are not allocated to other maps or streams.
  *
  * <p>The viewers collection is not copied. It is read for every frame, so a concurrent collection can be passed to
  * add or remove viewers while media is playing.
+ *
+ * <p>Configurations copy their origin and retain their viewer collection, encoder settings and optional pool.
+ * Use a concurrent viewer collection when membership changes on another thread. The caller owns any explicitly
+ * supplied encoder pool; neither the configuration nor a screen closes it. Creating a configuration does not
+ * reserve map ids or build the visible wall.
  */
 public final class Mcv2Configuration {
 
@@ -71,8 +77,8 @@ public final class Mcv2Configuration {
   public static final double MAX_FRAME_RATE = 240;
 
   /**
-   * The backlog limit when none is set: 128 KiB of map colours, a keyframe and a few P frames of a 1080p stream, about
-   * 170 milliseconds of a 6 Mbit/s link.
+   * The default backlog threshold: 128 KiB of estimated map-update bytes, including patch overhead and anchors.
+   * Its duration and number of buffered frames depend on encoded content and connection speed.
    */
   public static final long DEFAULT_BACKLOG_LIMIT = 128 * 1024;
 
@@ -279,7 +285,7 @@ public final class Mcv2Configuration {
   /**
    * Gets the stream id every page carries; the pack decodes only its own stream.
    *
-   * @return the unsigned 32-bit stream id
+   * @return the configured stream id, from 0 through {@value #MAX_STREAM_ID}
    */
   public long getStreamId() {
     return this.streamId;
@@ -307,8 +313,8 @@ public final class Mcv2Configuration {
   }
 
   /**
-   * Gets how much video a viewer's connection may have left to write for the viewer to be sent another frame, in map
-   * colour bytes. A viewer over it misses frames until one it can decode comes with its backlog under it again (see
+   * Gets how much video a viewer's connection may have left to write for the viewer to be sent another frame, in estimated
+   * map-update bytes including patch overhead. A viewer over it misses frames until one it can decode comes with its backlog under it again (see
    * {@link Mcv2Link}), so a slow connection neither delays the other viewers nor piles video in front of its own
    * game packets.
    *
@@ -412,6 +418,11 @@ public final class Mcv2Configuration {
   /**
    * Builds MCV2 screen configurations. The viewers, the origin, the facing, the map id and the wall size are
    * required.
+   *
+   * <p>Builders are mutable and not thread-safe. Numeric setters generally defer validation to {@link #build()}.
+   * Origin, facing and outline-color setters validate immediately. A zero video dimension selects 128 times the
+   * corresponding wall dimension; keep the resolved video within the codec's 4096-pixel limit, which is not checked
+   * again after resolving that default.
    */
   public static final class Builder {
 
@@ -460,6 +471,7 @@ public final class Mcv2Configuration {
      *
      * @param viewers the UUIDs of the viewers
      * @return this builder
+     * @throws NullPointerException if {@code viewers} is null
      */
     public Builder viewers(final Collection<UUID> viewers) {
       Preconditions.checkNotNull(viewers, "Viewers must not be null");
@@ -470,8 +482,12 @@ public final class Mcv2Configuration {
     /**
      * Sets the block the top-left frame of the wall hangs in.
      *
+     * <p>The location is copied to block coordinates; subsequent caller mutations do not move the screen.
+     *
      * @param origin the location of that block, in a world
      * @return this builder
+     * @throws IllegalArgumentException if the origin has no world
+     * @throws NullPointerException if {@code origin} is null
      */
     public Builder origin(final Location origin) {
       Preconditions.checkNotNull(origin, "Origin must not be null");
@@ -485,6 +501,8 @@ public final class Mcv2Configuration {
      *
      * @param facing north, south, east or west
      * @return this builder
+     * @throws IllegalArgumentException if the direction is not horizontal and cardinal
+     * @throws NullPointerException if {@code facing} is null
      */
     public Builder facing(final BlockFace facing) {
       Preconditions.checkNotNull(facing, "Facing must not be null");
@@ -586,7 +604,8 @@ public final class Mcv2Configuration {
     /**
      * Sets the most frames a second the screen shows; defaults to {@link #DEFAULT_MAX_FRAME_RATE}.
      *
-     * @param maxFrameRate at most {@value #MAX_FRAME_RATE}, or 0 for every frame the source gives
+     * @param maxFrameRate a finite rate from 0 through {@value #MAX_FRAME_RATE} frames per second;
+     *                     0 accepts every source frame
      * @return this builder
      */
     public Builder maxFrameRate(final double maxFrameRate) {
@@ -604,6 +623,7 @@ public final class Mcv2Configuration {
      *
      * @param settings the settings
      * @return this builder
+     * @throws NullPointerException if {@code settings} is null
      */
     public Builder settings(final EncoderSettings settings) {
       Preconditions.checkNotNull(settings, "Settings must not be null");
@@ -617,6 +637,8 @@ public final class Mcv2Configuration {
      * @param outlineColor the colour, not black: an outline colour of zero means no outline, so the client would not
      *                     run the pack's post chain
      * @return this builder
+     * @throws IllegalArgumentException if the color is black
+     * @throws NullPointerException if {@code outlineColor} is null
      */
     public Builder outlineColor(final NamedTextColor outlineColor) {
       Preconditions.checkNotNull(outlineColor, "Outline color must not be null");
@@ -629,7 +651,8 @@ public final class Mcv2Configuration {
      * Sets how much video a viewer's connection may have left to write for the viewer to be sent another frame;
      * defaults to {@link #DEFAULT_BACKLOG_LIMIT}.
      *
-     * @param backlogLimit the limit in map colour bytes, not negative
+     * @param backlogLimit the nonnegative threshold in estimated map-update bytes, including patch overhead;
+     *                     zero allows a new frame only once the tracked backlog has drained
      * @return this builder
      */
     public Builder backlogLimit(final long backlogLimit) {
@@ -654,6 +677,7 @@ public final class Mcv2Configuration {
      *
      * @param encoderPool the budget
      * @return this builder
+     * @throws NullPointerException if {@code encoderPool} is null
      */
     public Builder encoderPool(final EncoderPool encoderPool) {
       this.encoderPool = Preconditions.checkNotNull(encoderPool, "Encoder pool must not be null");

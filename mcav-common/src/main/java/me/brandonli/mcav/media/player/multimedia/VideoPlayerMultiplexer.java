@@ -35,8 +35,10 @@ public interface VideoPlayerMultiplexer extends VideoPlayer, ControllablePlayer,
    *
    * @param video the source of the video
    * @param audio the source of the audio
-   * @return true if playback started, false if it could not start, for example because a source cannot be opened;
+   * @return true if the backend accepted playback (VLC may still be opening); false if the player is released,
+   * another start is in progress, or a required source could not be opened;
    * the reason is passed to the exception handler of the player
+   * @throws NullPointerException if either source is null
    */
   boolean start(final Source video, final Source audio);
 
@@ -47,6 +49,9 @@ public interface VideoPlayerMultiplexer extends VideoPlayer, ControllablePlayer,
    * @param audio    the source of the audio
    * @param executor the executor that opens the sources
    * @return a future that completes with the result of {@link #start(Source, Source)}
+   * @throws java.util.concurrent.RejectedExecutionException if the executor rejects the task
+   * @see java.util.concurrent.CompletableFuture#supplyAsync(java.util.function.Supplier, java.util.concurrent.Executor)
+   * @throws NullPointerException if {@code video}, {@code audio} or {@code executor} is null
    */
   default CompletableFuture<Boolean> startAsync(final Source video, final Source audio, final ExecutorService executor) {
     Preconditions.checkNotNull(video, "Video source must not be null");
@@ -61,6 +66,8 @@ public interface VideoPlayerMultiplexer extends VideoPlayer, ControllablePlayer,
    * @param video the source of the video
    * @param audio the source of the audio
    * @return a future that completes with the result of {@link #start(Source, Source)}
+   * @throws NullPointerException if either source is null
+   * @see java.util.concurrent.CompletableFuture#supplyAsync(java.util.function.Supplier, java.util.concurrent.Executor)
    */
   default CompletableFuture<Boolean> startAsync(final Source video, final Source audio) {
     final ForkJoinPool pool = ForkJoinPool.commonPool();

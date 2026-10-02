@@ -23,8 +23,8 @@ import org.bytedeco.opencv.opencv_core.Mat;
 /**
  * Converts frames to grayscale. The frame keeps its three channels, so it stays compatible with every other filter.
  *
- * <p>The single-channel matrix the gray levels pass through is kept between frames, so converting allocates nothing
- * per frame. One filter may be attached to several pipelines at once: the matrix is lent to one frame at a time, see
+ * <p>The single-channel matrix the gray levels pass through is kept between frames, so converting reuses native image storage
+ * in the usual serial case with stable dimensions. Concurrent calls borrow separate matrices as needed; see
  * {@link ReusableMat}, and freed when the filter is garbage collected.
  */
 public class GrayscaleFilter extends MatVideoFilter {

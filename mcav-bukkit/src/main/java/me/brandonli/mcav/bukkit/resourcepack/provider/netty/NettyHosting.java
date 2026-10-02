@@ -46,6 +46,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Connections that arrive through a proxy using the PROXY protocol, or that are terminated by a proxy such as
  * Velocity, never reach this server as HTTP and cannot be served. Use a separate web server in that case.
+ *
+ * <p>The caller retains ownership of the source file. Start and shutdown are synchronized and support reuse.
+ * The hosting instance registers a connection initializer but does not own the Minecraft listener. Shutdown
+ * removes that registration; already-installed handlers on existing connections retain their behavior.
  */
 public final class NettyHosting implements InjectorHosting {
 
@@ -68,6 +72,7 @@ public final class NettyHosting implements InjectorHosting {
    * {@link #start()} is called.
    *
    * @param zip the path to the resource pack zip to serve
+   * @throws NullPointerException if {@code zip} is null
    */
   public NettyHosting(final Path zip) {
     Preconditions.checkNotNull(zip, "Resource pack path must not be null");
@@ -90,6 +95,8 @@ public final class NettyHosting implements InjectorHosting {
    * are enclosed in brackets. The public address is looked up the first time this method is called, and the URL is
    * cached once the address is known. While the address cannot be determined, a URL with {@code localhost} is
    * returned and the lookup is tried again on the next call.
+   *
+   * <p>The first address lookup may block. Obtaining a URL does not start hosting or verify external reachability.
    *
    * @return the URL of the resource pack, in the format {@code http://<address>:<port>/mcav/resourcepack_<instance>.zip}
    */
@@ -126,7 +133,10 @@ public final class NettyHosting implements InjectorHosting {
   /**
    * Starts answering HTTP requests on the Minecraft port. Calling this method again while running has no effect.
    *
-   * @throws InjectorException if the resource pack file does not exist
+   * <p>The initial pack read is attempted on the calling thread. A read failure is logged and hosting still
+   * starts; a later download attempts to read it again and reports a failure to that HTTP client if necessary.
+   *
+   * @throws InjectorException if the path is not a regular file, including on a repeated start
    */
   @Override
   public synchronized void start() {

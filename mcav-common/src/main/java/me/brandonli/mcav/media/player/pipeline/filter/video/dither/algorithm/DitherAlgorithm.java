@@ -73,7 +73,9 @@ public interface DitherAlgorithm {
    * Dithers an image into palette indices, one byte per pixel laid out row by row. The image is not modified.
    *
    * @param buffer the image to dither
-   * @return the palette index of every pixel
+   * @return a new caller-owned array containing the palette index of every pixel; alpha is ignored
+   * @throws NullPointerException if {@code buffer} is null
+   * @throws IllegalStateException if the image has been released
    */
   byte[] ditherIntoBytes(final ImageBuffer buffer);
 
@@ -81,7 +83,9 @@ public interface DitherAlgorithm {
    * Dithers pixels in place, replacing every pixel with the ARGB value of a palette color.
    *
    * @param buffer the ARGB pixels laid out row by row, which are replaced with palette colors
-   * @param width  the width of the image, which must divide the length of the buffer
+   * @param width  the strictly positive width, which must divide the buffer length; an empty buffer is allowed
+   * @throws NullPointerException if {@code buffer} is null
+   * @throws IllegalArgumentException if width is nonpositive or does not divide the buffer length
    */
   void dither(final int[] buffer, final int width);
 
@@ -178,6 +182,9 @@ public interface DitherAlgorithm {
    * @param errorThreshold    the total error below which no error is diffused, which suppresses noise
    * @param errorStrength     the fraction of the error that is diffused, from 0 to 1
    * @return a new algorithm, which holds the state of one video and must not be shared between players
+   * @throws NullPointerException if {@code palette} is null
+   * @throws IllegalArgumentException if the temporal threshold is outside 0 through 255, the error
+   *                                  threshold is negative, or the strength is outside 0 through 1 or NaN
    */
   static TemporalDitherAlgorithm temporalFloydSteinberg(
     final DitherPalette palette,

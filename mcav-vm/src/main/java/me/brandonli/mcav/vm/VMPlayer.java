@@ -39,6 +39,12 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * {@code -vnc}, {@code -audio} or {@code -audiodev} itself. QEMU must be installed on the machine; see
  * {@link VMModule}.
  *
+ * <p>Pausing suppresses picture and sound delivery; it does not suspend the guest or its QEMU process. Input
+ * can still be forwarded while paused. The caller owns the player and must {@link #release()} it before
+ * unloading the backend. Release is terminal for playback, although repeated release retries termination of
+ * a surviving QEMU process. Pipelines and their filters remain caller-owned. Video and audio callbacks run
+ * on background threads and must not retain borrowed buffers without copying them.
+ *
  * <pre><code>
  *   final VMPlayer player = VMPlayer.create();
  *   final VideoAttachableCallback video = player.getVideoAttachableCallback();
@@ -62,14 +68,19 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer, Exceptio
 
   /**
    * Starts QEMU and connects to its display. Starting takes a few seconds; the call returns once the VNC display
-   * is reachable.
+   * is reachable. Each QEMU launch waits up to 60 seconds for its display, and an automatic accelerator fallback
+   * can make another launch attempt. An audio connection failure is reported to the exception handler and may
+   * leave an otherwise successful machine running without audio.
    *
-   * @param settings      how the machine is streamed
-   * @param architecture  the guest architecture, which picks the QEMU program
-   * @param configuration the QEMU command line
+   * @param settings      the non-null output dimensions, requested frame rate and local VNC port
+   * @param architecture  the non-null guest architecture, which picks the QEMU program
+   * @param configuration the non-null QEMU options; do not mutate them while this player uses them
    * @return true if the machine started, false if the player is already running or released
    * @throws ExecutableNotInPathException              if the QEMU program is not installed
-   * @throws me.brandonli.mcav.media.player.PlayerException if QEMU exits, its display never becomes reachable, or a previous machine cannot be stopped
+   * @throws me.brandonli.mcav.media.player.PlayerException if reserved display/audio options are configured,
+   *         the port cannot be bound, QEMU cannot launch or exits, the display cannot be connected within
+   *         the startup deadline, the wait is interrupted, or a previous machine cannot be stopped
+   * @throws NullPointerException if any argument is null
    */
   boolean start(final VMSettings settings, final Architecture architecture, final VMConfiguration configuration);
 
@@ -79,8 +90,11 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer, Exceptio
    * @param settings      how the machine is streamed
    * @param architecture  the guest architecture
    * @param configuration the QEMU command line
-   * @param executor      the executor that starts QEMU
-   * @return a future that completes with the result of {@link #start(VMSettings, Architecture, VMConfiguration)}
+   * @param executor      the non-null caller-owned executor that starts QEMU; it is never shut down by the player
+   * @return a future that completes with the startup result, or exceptionally if startup fails; cancelling
+   *         the future does not release the player or terminate its process
+   * @throws java.util.concurrent.RejectedExecutionException if the executor refuses the startup task
+   * @throws NullPointerException if {@code settings}, {@code architecture}, {@code configuration} or {@code executor} is null
    */
   default CompletableFuture<Boolean> startAsync(
     final VMSettings settings,
@@ -101,7 +115,9 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer, Exceptio
    * @param settings      how the machine is streamed
    * @param architecture  the guest architecture
    * @param configuration the QEMU command line
-   * @return a future that completes with the result of {@link #start(VMSettings, Architecture, VMConfiguration)}
+   * @return a future that completes with the startup result, or exceptionally if startup fails; cancelling
+   *         the future does not release the player or terminate its process
+   * @throws NullPointerException if any argument is null
    */
   default CompletableFuture<Boolean> startAsync(
     final VMSettings settings,
@@ -113,10 +129,11 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer, Exceptio
   }
 
   /**
-   * Moves the mouse pointer.
+   * Moves the mouse pointer while the machine is active, including while paused; otherwise does nothing.
+   * Coordinates are translated and clamped as {@link me.brandonli.mcav.vnc.VNCPlayer#moveMouse(int, int)} describes.
    *
-   * @param frameX the x coordinate in the streamed frame
-   * @param frameY the y coordinate in the streamed frame
+   * @param frameX the horizontal pixel coordinate from the left edge of the output frame
+   * @param frameY the vertical pixel coordinate from the top edge of the output frame
    */
   void moveMouse(final int frameX, final int frameY);
 
@@ -125,6 +142,7 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer, Exceptio
    * key; any other text is typed character by character.
    *
    * @param text the text or key name
+   * @throws NullPointerException if {@code text} is null, including while inactive
    */
   void sendKeyEvent(final String text);
 
@@ -132,8 +150,9 @@ public interface VMPlayer extends ControllablePlayer, ReleasablePlayer, Exceptio
    * Moves the mouse pointer and performs a click.
    *
    * @param type   the kind of click
-   * @param frameX the x coordinate in the streamed frame
-   * @param frameY the y coordinate in the streamed frame
+   * @param frameX the horizontal pixel coordinate from the left edge of the output frame
+   * @param frameY the vertical pixel coordinate from the top edge of the output frame
+   * @throws NullPointerException if {@code type} is null, including while inactive
    */
   void sendMouseEvent(final MouseClick type, final int frameX, final int frameY);
 

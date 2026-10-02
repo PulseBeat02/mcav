@@ -29,6 +29,7 @@ public final class BurkesDither extends ErrorDiffusionDither {
    * Constructs a new Burkes algorithm for the specified palette.
    *
    * @param palette the palette to reduce images to
+   * @throws NullPointerException if {@code palette} is null
    */
   public BurkesDither(final DitherPalette palette) {
     super(palette, DiffusionKernel.BURKES);

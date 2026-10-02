@@ -33,6 +33,9 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
  *
  * <p>The viewers collection is not copied. It is read for every frame, so a concurrent collection can be passed
  * to add or remove viewers while media is playing.
+ *
+ * <p>The position is retained by reference. Finish setting it before creating the display and do not
+ * mutate it while rendering. {@link #getPosition()} returns that same mutable location.
  */
 public class BlockConfiguration {
 
@@ -51,7 +54,8 @@ public class BlockConfiguration {
   /**
    * Gets the players who see the block wall.
    *
-   * @return the UUIDs of the viewers
+   * @return the original mutable-or-immutable collection supplied to the builder, without a copy; use a
+   *         concurrent collection if another thread changes membership during rendering
    */
   public Collection<UUID> getViewers() {
     return this.viewers;
@@ -78,7 +82,7 @@ public class BlockConfiguration {
   /**
    * Gets the bottom center of the wall.
    *
-   * @return the position of the wall
+   * @return the original location supplied to the builder, without a defensive copy
    */
   public Location getPosition() {
     return this.position;
@@ -116,6 +120,9 @@ public class BlockConfiguration {
   /**
    * Builds block configurations. Every value is required.
    *
+   * <p>Builders are mutable and not thread-safe. Setters retain reference arguments; numeric ranges and
+   * required fields are checked by {@link #build()}, which may be called again to create another configuration.
+   *
    * @param <T> the type of the builder
    */
   public abstract static class Builder<T extends Builder<T>> {
@@ -151,6 +158,8 @@ public class BlockConfiguration {
 
     /**
      * Sets the bottom center of the wall.
+     *
+     * <p>The location is stored without copying. Its world is checked when {@link #build()} is called.
      *
      * @param position the position of the wall, which must have a world
      * @return this builder

@@ -48,7 +48,9 @@ public final class SVCModule implements MCAVModule {
    * Hands the Simple Voice Chat server API to the library. Call it from the {@code initialize} method of your
    * voice chat plugin.
    *
-   * @param api the server API
+   * @param api the non-null server API, borrowed until {@link #stop()}; it replaces the API shared by
+   *            all module instances
+   * @throws NullPointerException if {@code api} is null
    */
   public void inject(final VoicechatServerApi api) {
     Preconditions.checkNotNull(api, "Voice chat API must not be null");
@@ -58,7 +60,7 @@ public final class SVCModule implements MCAVModule {
   /**
    * Gets the injected server API.
    *
-   * @return the API, or null if it was not injected yet
+   * @return the shared API snapshot, or null before injection or after {@link #stop()}
    */
   public static @Nullable VoicechatServerApi getVoiceChatApi() {
     return voiceChatApi;
@@ -89,7 +91,7 @@ public final class SVCModule implements MCAVModule {
 
   /**
    * Stops the module and forgets the injected voice chat API, so filters can no longer be created or started until
-   * an API is injected again.
+   * an API is injected again. Existing filters keep their speakers and must be released by their callers.
    */
   @Override
   public void stop() {

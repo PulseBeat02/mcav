@@ -38,6 +38,8 @@ import org.slf4j.LoggerFactory;
  * </ol>
  * The libraries of a private copy are loaded straight from its installation directory, and the kit never touches
  * vlcj's own configuration files. Either way, vlcj is ready to create media players once {@link #start()} returns.
+ * Factory-created kits share synchronized load state, so concurrent starts use the first successful native
+ * load. The kit does not own media players and has no close operation; callers release their players separately.
  *
  * <pre><code>
  *   final VLCInstallationKit kit = VLCInstallationKit.create();
@@ -74,6 +76,7 @@ public final class VLCInstallationKit {
    * Creates a kit that installs VLC into the cache folder of the library when no system installation exists.
    *
    * @return the kit
+   * @throws java.io.UncheckedIOException if the default cache folder cannot be created
    */
   public static VLCInstallationKit create() {
     final VLCInstaller installer = VLCInstaller.create();
@@ -85,6 +88,7 @@ public final class VLCInstallationKit {
    *
    * @param installer the installer used to download VLC
    * @return the kit
+   * @throws NullPointerException if {@code installer} is null
    */
   public static VLCInstallationKit create(final VLCInstaller installer) {
     Preconditions.checkNotNull(installer, "Installer must not be null");
@@ -114,13 +118,14 @@ public final class VLCInstallationKit {
 
   /**
    * Finds or installs VLC and loads its native libraries into vlcj. This method blocks while VLC is downloaded,
-   * which only happens once per machine. libvlc can only be loaded once per JVM, so after the first successful call
+   * unless an existing installation can be reused. Successful load state is shared by factory-created kits, so after the first successful call
    * every call returns the same result immediately.
    *
    * @return the directory the native libraries were loaded from, or empty if vlcj had already loaded them without
    * reporting a location
-   * @throws IOException                          if VLC has to be downloaded and the download fails
-   * @throws UnsupportedOperatingSystemException if VLC cannot be found and cannot be installed on this system
+   * @throws IOException if installation discovery, download, verification or extraction fails
+   * @throws UnsupportedOperatingSystemException if VLC cannot be found or installed on this system, or
+   *                                             the discovered private libraries cannot be loaded
    */
   public Optional<Path> start() throws IOException {
     return this.loadState.loadOnce(this::discoverOrInstall);

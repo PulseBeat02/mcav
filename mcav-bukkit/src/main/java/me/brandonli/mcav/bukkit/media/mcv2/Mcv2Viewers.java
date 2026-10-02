@@ -42,6 +42,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>The states may be read from any thread; the refusal callback runs on the main thread, where the events are
  * fired. Whoever shows the video reads {@link #isLoaded(UUID)}, which is how {@link Mcv2Result} learns of new players
  * with the pack.
+ *
+ * <p>This tracker records client status reports; it cannot verify shader compatibility or successful frame
+ * decoding. Register/unregister listeners and retarget the pack on the main thread. Reads may occur from media
+ * threads. Registration alone does not offer a pack; the caller sends the request and records it with
+ * {@link #requested(UUID)}. Unregistering retains recorded state.
  */
 public final class Mcv2Viewers {
 
@@ -71,6 +76,7 @@ public final class Mcv2Viewers {
    * @param packId    the id of the pack request, as sent to the players
    * @param onRefused called with a player whose client just refused the pack or failed to load it, for example to
    *                  tell them why they see the dithered maps
+   * @throws NullPointerException if {@code packId} or {@code onRefused} is null
    */
   public Mcv2Viewers(final UUID packId, final Consumer<Player> onRefused) {
     Preconditions.checkNotNull(packId, "Pack id must not be null");
@@ -82,6 +88,7 @@ public final class Mcv2Viewers {
 
   /**
    * Starts listening to the players' pack status and to players leaving, who lose their state.
+   * @throws IllegalStateException if no plugin has been injected
    */
   public synchronized void register() {
     this.unregister();
@@ -111,6 +118,7 @@ public final class Mcv2Viewers {
    * declined.
    *
    * @param newPackId the id of the new pack's request
+   * @throws NullPointerException if {@code newPackId} is null
    */
   public void retarget(final UUID newPackId) {
     Preconditions.checkNotNull(newPackId, "Pack id must not be null");
@@ -131,6 +139,7 @@ public final class Mcv2Viewers {
    * Records that the pack was requested from a player.
    *
    * @param player the player's UUID
+   * @throws NullPointerException if {@code player} is null
    */
   public void requested(final UUID player) {
     Preconditions.checkNotNull(player, "Player must not be null");
@@ -141,7 +150,8 @@ public final class Mcv2Viewers {
    * Gets what a player's client reported.
    *
    * @param player the player's UUID
-   * @return the state, or null if the pack was never requested from the player or they left
+   * @return the recorded state, or null when no state is currently tracked, including after quit or retarget
+   * @throws NullPointerException if {@code player} is null
    */
   public @Nullable PackState getState(final UUID player) {
     Preconditions.checkNotNull(player, "Player must not be null");
@@ -152,7 +162,7 @@ public final class Mcv2Viewers {
    * Checks whether a player's client loaded the pack.
    *
    * @param player the player's UUID
-   * @return true if the player sees the decoded video
+   * @return true if the tracked client status is LOADED; this is not a playback acknowledgment
    */
   public boolean isLoaded(final UUID player) {
     return this.getState(player) == PackState.LOADED;

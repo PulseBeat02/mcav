@@ -85,10 +85,14 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
   /**
    * Constructs a new strategy that searches the directories of vlcj's providers.
    *
-   * @param filenamePatterns  the regular expressions every one of which must match a file in the library directory
-   * @param pluginPathFormats the formats of the plugin directory, each with a {@code %s} for the library directory,
-   *                          tried in order
+   * @param filenamePatterns  a non-null, nonempty array of non-null regular expressions; each must match a
+   *                          library file name; expressions are compiled during construction
+   * @param pluginPathFormats a non-null array of non-null format strings, each with a {@code %s} for the library
+   *                          directory, copied and tried in order; an empty array publishes no plugin path
    * @param environmentSetter sets the environment variable that tells libvlc where its plugins are
+   * @throws NullPointerException if an array, filename expression or the environment setter is null
+   * @throws IllegalArgumentException if no filename pattern is supplied
+   * @throws java.util.regex.PatternSyntaxException if a filename expression is not a valid regular expression
    */
   protected DirectoryProviderDiscoveryStrategy(
     final String[] filenamePatterns,
@@ -185,7 +189,8 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
   /**
    * Gets the directories that are searched, in order, without searching them.
    *
-   * @return the directories named by the supported providers, highest priority first
+   * @return a new mutable list of directory names from supported providers, highest priority first;
+   *         modifying it does not change the strategy
    */
   public final List<String> discoveryDirectories() {
     final List<SearchProvider> providers = this.getSupportedProviders();
@@ -335,6 +340,7 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
    *
    * @param path the directory that contains the libraries
    * @return {@code true} to let vlcj add the directory to the JNA search path
+   * @throws NullPointerException if {@code path} is null
    */
   @Override
   public boolean onFound(final String path) {
@@ -348,6 +354,8 @@ public abstract class DirectoryProviderDiscoveryStrategy implements NativeDiscov
    *
    * @param path the directory that contains the libraries
    * @return {@code true} if a plugin directory exists and was published
+   * @throws java.util.IllegalFormatException if a configured plugin path format cannot accept a directory string
+   * @throws NullPointerException if {@code path} is null
    */
   @Override
   public final boolean onSetPluginPath(final String path) {

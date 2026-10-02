@@ -43,7 +43,7 @@ public final class BrowserUnavailableException extends PlayerException {
    * Constructs the exception.
    *
    * @param message why the browser cannot run
-   * @param cause   the failure behind it
+   * @param cause   the underlying failure, or null if no cause is available
    */
   public BrowserUnavailableException(final String message, final @Nullable Throwable cause) {
     super(message, cause);

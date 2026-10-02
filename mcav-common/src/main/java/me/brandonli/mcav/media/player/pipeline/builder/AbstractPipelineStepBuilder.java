@@ -55,6 +55,7 @@ public abstract class AbstractPipelineStepBuilder<
    *
    * @param filter the filter
    * @return this builder
+   * @throws NullPointerException if {@code filter} is null
    */
   public B then(final F filter) {
     Preconditions.checkNotNull(filter, "Filter must not be null");
@@ -72,7 +73,8 @@ public abstract class AbstractPipelineStepBuilder<
   }
 
   /**
-   * Links the filters into a chain, first filter first.
+   * Links the filters into a new chain, first filter first, retaining the filter instances. The builder is
+   * unchanged; appending more filters later does not alter this chain.
    *
    * @return the first step, or the no-op step if no filter was added
    */

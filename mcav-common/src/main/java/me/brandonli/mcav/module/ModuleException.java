@@ -32,7 +32,7 @@ public class ModuleException extends RuntimeException {
   /**
    * Constructs a new exception.
    *
-   * @param message the detail message
+   * @param message the detail message, or null if none is provided
    */
   public ModuleException(final @Nullable String message) {
     super(message);
@@ -41,8 +41,8 @@ public class ModuleException extends RuntimeException {
   /**
    * Constructs a new exception.
    *
-   * @param message the detail message
-   * @param cause   the cause
+   * @param message the detail message, or null if none is provided
+   * @param cause   the underlying failure, or null if unknown
    */
   public ModuleException(final @Nullable String message, final @Nullable Throwable cause) {
     super(message, cause);

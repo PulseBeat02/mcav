@@ -36,6 +36,7 @@ public interface ErrorDiffusionDitherBuilder<
    *
    * @param algorithm the algorithm
    * @return this builder
+   * @throws NullPointerException if {@code algorithm} is null
    */
   B withAlgorithm(final Algorithm algorithm);
 
@@ -45,14 +46,16 @@ public interface ErrorDiffusionDitherBuilder<
    *
    * @param threshold the threshold from 0 to 255
    * @return this builder
+   * @throws IllegalArgumentException if the threshold is outside 0 through 255
    */
   B withTemporalThreshold(final int threshold);
 
   /**
    * Sets the total error below which nothing is diffused. Only used by {@link Algorithm#TEMPORAL_FLOYD_STEINBERG}.
    *
-   * @param threshold the threshold
+   * @param threshold the nonnegative sum of absolute channel errors at or below which diffusion is skipped
    * @return this builder
+   * @throws IllegalArgumentException if the threshold is negative
    */
   B withErrorThreshold(final int threshold);
 
@@ -61,6 +64,7 @@ public interface ErrorDiffusionDitherBuilder<
    *
    * @param strength the strength from 0 to 1
    * @return this builder
+   * @throws IllegalArgumentException if the strength is outside 0 through 1 or is NaN
    */
   B withErrorStrength(final float strength);
 

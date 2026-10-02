@@ -75,8 +75,11 @@ public final class HttpResultBuilder {
    * Sets the host name listeners use, which decides the URL returned by {@link HttpResult#getFullUrl()}. It does
    * not decide which network interface the server listens on; see {@link #bindAddress(InetAddress)}.
    *
-   * @param domain the host name or IP address, such as {@code play.example.com}
+   * @param domain the non-null, nonblank host name or IP address, such as {@code play.example.com};
+   *               it is stored unchanged and must not include a scheme or path
    * @return this builder
+   * @throws IllegalArgumentException if {@code domain} is blank
+   * @throws NullPointerException if {@code domain} is null
    */
   public HttpResultBuilder domain(final String domain) {
     Preconditions.checkNotNull(domain, "Domain must not be null");
@@ -86,10 +89,11 @@ public final class HttpResultBuilder {
   }
 
   /**
-   * Sets the port. On Linux and macOS, ports below 1024 need administrator rights, so use a higher port.
+   * Sets the port. Ports below 1024 may require elevated privileges depending on the host configuration.
    *
    * @param port the port, from 1 to 65535
    * @return this builder
+   * @throws IllegalArgumentException if {@code port} is outside 1 through 65535
    */
   public HttpResultBuilder port(final int port) {
     Preconditions.checkArgument(port > 0 && port <= 65535, "Port must be between 1 and 65535 but was %s", port);
@@ -101,8 +105,10 @@ public final class HttpResultBuilder {
    * Serves the web page from a directory instead of the copy bundled in the jar, which is useful while developing
    * the page. Files outside the directory are never served.
    *
-   * @param directory the directory with the built page, such as {@code mcav-website/out}
+   * @param directory the non-null directory with the built page, such as {@code mcav-website/out};
+   *                  existence is not checked here
    * @return this builder
+   * @throws NullPointerException if {@code directory} is null
    */
   public HttpResultBuilder directory(final Path directory) {
     Preconditions.checkNotNull(directory, "Directory must not be null");
@@ -115,8 +121,10 @@ public final class HttpResultBuilder {
    * loopback address when a reverse proxy on the same machine forwards the players, or the address of one
    * network card to keep the server off the others.
    *
-   * @param address a local address of this machine, such as {@link InetAddress#getLoopbackAddress()}
+   * @param address a non-null local address of this machine, such as {@link InetAddress#getLoopbackAddress()};
+   *                binding is attempted when the built server starts
    * @return this builder
+   * @throws NullPointerException if {@code address} is null
    */
   public HttpResultBuilder bindAddress(final InetAddress address) {
     Preconditions.checkNotNull(address, "Bind address must not be null");

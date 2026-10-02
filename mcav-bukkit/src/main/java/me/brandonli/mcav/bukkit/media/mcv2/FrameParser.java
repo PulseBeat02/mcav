@@ -108,8 +108,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * syntax {@link UnsupportedSyntaxException} names.
  *
  * <p>The parser reads only inside the bytes it is given, allocates at most in proportion to their length, and never
- * trusts a count or offset it has not checked. Whatever the input, it either returns a frame or throws
- * {@link Mcv2Exception}.
+ * trusts a count or offset it has not checked. Malformed non-null byte input is reported as
+ * {@link Mcv2Exception}; null is an API precondition failure, reported separately.
  */
 public final class FrameParser {
 
@@ -142,6 +142,7 @@ public final class FrameParser {
    * @return the validated frame
    * @throws UnsupportedSyntaxException if the bytes are an MCV1 frame or use the syntax of a reverted round
    * @throws Mcv2Exception             if the bytes are not a valid MCV2 frame
+   * @throws NullPointerException if {@code bytes} is null
    */
   public static Mcv2Frame parse(final byte[] bytes) throws Mcv2Exception {
     Preconditions.checkNotNull(bytes, "Frame bytes must not be null");

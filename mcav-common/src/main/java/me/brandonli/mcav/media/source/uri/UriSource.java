@@ -31,6 +31,7 @@ public interface UriSource extends DynamicSource {
    *
    * @param uri the URL
    * @return the source
+   * @throws NullPointerException if {@code uri} is null
    */
   static UriSource uri(final URI uri) {
     Preconditions.checkNotNull(uri, "URI must not be null");

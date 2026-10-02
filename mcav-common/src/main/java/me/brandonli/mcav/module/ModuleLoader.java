@@ -37,7 +37,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Modules are created through their no-argument constructor, which may be package-private, so module classes
  * can hide their constructor from library users. Modules are started in the order they were requested and stopped
- * in reverse order.
+ * in reverse order. Loading, shutdown and the ordered snapshot query are serialized on the loader.
+ * Individual module lookup is concurrent and can observe only modules whose startup has finished; a lookup
+ * racing with shutdown can return a module that is being stopped. The caller owns the loader and must call
+ * {@link #shutdownModules()} when its modules are no longer needed.
  */
 public final class ModuleLoader {
 
@@ -67,6 +70,7 @@ public final class ModuleLoader {
    * @param <T>         the type of the module
    * @return the module
    * @throws ModuleException if no module of that class was started
+   * @throws NullPointerException if {@code moduleClass} is null
    */
   public <T extends MCAVModule> T getModule(final Class<T> moduleClass) {
     Preconditions.checkNotNull(moduleClass, "Module class must not be null");
@@ -87,8 +91,10 @@ public final class ModuleLoader {
    * failing. If a module cannot be created or fails to start, the modules started before it stay started; stop them
    * with {@link #shutdownModules()}.
    *
-   * @param moduleClasses the module classes, which must implement {@link MCAVModule}
+   * @param moduleClasses the non-null array of non-null module classes implementing {@link MCAVModule};
+   *                      each needs an accessible no-argument constructor, duplicates are skipped
    * @throws ModuleException if a class is not a module, cannot be created, or fails to start
+   * @throws NullPointerException if the array or a module class is null
    */
   public synchronized void loadModules(final Class<?>... moduleClasses) {
     Preconditions.checkNotNull(moduleClasses, "Module classes must not be null");
@@ -170,8 +176,9 @@ public final class ModuleLoader {
   }
 
   /**
-   * Stops every started module in reverse start order. A module that fails to stop is logged and the remaining
-   * modules are still stopped.
+   * Stops started modules in reverse start order and clears the registry. Recoverable exceptions or errors
+   * thrown by a module's {@code stop} callback are logged so remaining modules can be stopped. Fatal VM errors
+   * propagate immediately. Calling this again after successful shutdown does nothing.
    */
   public synchronized void shutdownModules() {
     final List<MCAVModule> reversed = new ArrayList<>(this.startOrder);
@@ -194,7 +201,8 @@ public final class ModuleLoader {
   /**
    * Gets every started module.
    *
-   * @return the started modules in start order
+   * @return an unmodifiable snapshot of started modules in start order; module instances are borrowed
+   *         and later shutdown may stop them
    */
   public synchronized Collection<MCAVModule> getModules() {
     return List.copyOf(this.startOrder);

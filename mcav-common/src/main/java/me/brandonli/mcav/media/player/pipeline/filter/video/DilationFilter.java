@@ -34,6 +34,7 @@ public class DilationFilter extends MatVideoFilter {
    * Constructs a new dilation filter.
    *
    * @param kernelSize the size of the structuring element in pixels, which must be positive
+   * @throws IllegalArgumentException if {@code kernelSize} is nonpositive
    */
   public DilationFilter(final int kernelSize) {
     Preconditions.checkArgument(kernelSize > 0, "Kernel size must be positive");

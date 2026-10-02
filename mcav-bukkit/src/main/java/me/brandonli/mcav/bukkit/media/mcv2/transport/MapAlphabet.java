@@ -23,7 +23,7 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
 /**
  * The six-bit alphabet that carries transport symbols as Minecraft map colours: symbol {@code s} is sent as map colour
  * byte {@code s + 4}, the packed colour ids 4 to 67, which are the four brightnesses of the base colours 1 to 16. Their
- * 64 RGB values are distinct on Minecraft 26.3, whose palette is the one of 26.2 and 1.21.9, so the resource pack's
+ * 64 RGB values are distinct on the supported Minecraft 26.3 palette, so the resource pack's
  * shader recovers every symbol exactly from the texel the client uploads.
  */
 public final class MapAlphabet {
@@ -45,7 +45,9 @@ public final class MapAlphabet {
    * Converts symbols into map colour bytes, padding with symbol 0 up to a whole number of 128-colour rows.
    *
    * @param symbols the symbols, at most 16,384
-   * @return the map colours, a multiple of 128 bytes
+   * @return a new map-color array, a multiple of 128 bytes; empty input produces an empty array
+   * @throws IllegalArgumentException if there are more than 16,384 symbols or an unsigned symbol exceeds 63
+   * @throws NullPointerException if {@code symbols} is null
    */
   public static byte[] toMapColors(final byte[] symbols) {
     Preconditions.checkNotNull(symbols, "Symbols must not be null");
@@ -63,8 +65,9 @@ public final class MapAlphabet {
    * Converts map colour bytes back into symbols.
    *
    * @param colors the map colours
-   * @return the symbols
+   * @return a new symbol array of the same length; any row padding remains present
    * @throws Mcv2Exception if a colour is outside the alphabet
+   * @throws NullPointerException if {@code colors} is null
    */
   public static byte[] fromMapColors(final byte[] colors) throws Mcv2Exception {
     Preconditions.checkNotNull(colors, "Colors must not be null");

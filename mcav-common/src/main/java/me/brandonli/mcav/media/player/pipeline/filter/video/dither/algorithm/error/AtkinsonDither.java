@@ -29,6 +29,7 @@ public final class AtkinsonDither extends ErrorDiffusionDither {
    * Constructs a new Atkinson algorithm for the specified palette.
    *
    * @param palette the palette to reduce images to
+   * @throws NullPointerException if {@code palette} is null
    */
   public AtkinsonDither(final DitherPalette palette) {
     super(palette, DiffusionKernel.ATKINSON);

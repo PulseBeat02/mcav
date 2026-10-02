@@ -36,6 +36,7 @@ public final class TemporalFloydSteinbergDither extends TemporalDitherAlgorithm 
    * Constructs a new algorithm with default settings.
    *
    * @param palette the palette to reduce images to
+   * @throws NullPointerException if {@code palette} is null
    */
   public TemporalFloydSteinbergDither(final DitherPalette palette) {
     super(palette, DiffusionKernel.FLOYD_STEINBERG);
@@ -49,6 +50,9 @@ public final class TemporalFloydSteinbergDither extends TemporalDitherAlgorithm 
    *                          recomputed
    * @param errorThreshold    the total error at or below which no error is diffused
    * @param errorStrength     the fraction of the error that is diffused, from 0 to 1
+   * @throws NullPointerException if {@code palette} is null
+   * @throws IllegalArgumentException if the temporal threshold is outside 0 through 255, the error
+   *                                  threshold is negative, or the strength is outside 0 through 1 or NaN
    */
   public TemporalFloydSteinbergDither(
     final DitherPalette palette,

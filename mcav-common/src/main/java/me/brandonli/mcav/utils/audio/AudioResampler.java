@@ -51,12 +51,12 @@ import org.bytedeco.javacpp.PointerPointer;
  *
  * <p>Changing the sample rate needs a few samples of look-ahead, so the resampler holds back a short tail of every
  * buffer and emits it with the next one; {@link #flush()} drains that tail at the end of a stream. Channel counts
- * map to FFmpeg's default layouts (mono, stereo, 2.1, quad, 5.0, 5.1, 6.1 and 7.1); mixing down averages the
- * channels and mixing up spreads them without raising the volume.
+ * use FFmpeg's default layouts and mixing matrix for the requested channel counts. This is not a promise of
+ * a simple arithmetic average for every multichannel layout; use {@link MonoDownmixer} for stereo averaging.
  *
  * <p>A resampler holds a native context, so it must be {@linkplain #close() closed} when it is no longer needed. An
  * instance keeps state between calls and is not thread-safe: use it from one thread at a time, which is the case
- * for a filter of an audio pipeline because players run their pipelines on a single decoding thread.
+ * for a filter used by one audio pipeline. Do not share the same resampler between independently rendering players.
  */
 public final class AudioResampler implements AutoCloseable {
 
@@ -115,6 +115,7 @@ public final class AudioResampler implements AutoCloseable {
    * @return a new resampler, which must be closed by the caller
    * @throws IllegalArgumentException if a sample rate is not positive or a channel count is out of range
    * @throws IllegalStateException    if FFmpeg cannot set up the conversion
+   * @throws NullPointerException if {@code inputFormat} or {@code outputFormat} is null
    */
   public static AudioResampler create(
     final int inputSampleRate,
@@ -153,6 +154,7 @@ public final class AudioResampler implements AutoCloseable {
    * @return a new resampler, which must be closed by the caller
    * @throws IllegalArgumentException if the sample rate is not positive or the channel count is out of range
    * @throws IllegalStateException    if FFmpeg cannot set up the conversion
+   * @throws NullPointerException if {@code outputFormat} is null
    */
   public static AudioResampler fromPipelineFormat(final int outputSampleRate, final int outputChannels, final SampleFormat outputFormat) {
     return create(
@@ -204,8 +206,10 @@ public final class AudioResampler implements AutoCloseable {
    * call can be slightly shorter than the rate ratio suggests while the output of a whole stream is not.
    *
    * @param input interleaved samples in the input format, in native byte order
-   * @return the converted interleaved samples in the output format and native byte order, possibly empty
+   * @return a new caller-owned array of interleaved samples in the output format and native byte order,
+   *         possibly empty; the byte-order property of the input buffer is not consulted
    * @throws IllegalStateException if the resampler is closed or FFmpeg fails to convert the samples
+   * @throws NullPointerException if {@code input} is null
    */
   public byte[] resample(final ByteBuffer input) {
     Preconditions.checkNotNull(input, "Input must not be null");

@@ -104,6 +104,7 @@ public final class SourceUtils {
    *
    * @param source the source
    * @return true if the path or URL ends with {@code .gif}
+   * @throws NullPointerException if {@code source} is null
    */
   public static boolean isImageGif(final Source source) {
     Preconditions.checkNotNull(source, "Source must not be null");
@@ -129,6 +130,7 @@ public final class SourceUtils {
    *
    * @param raw the string
    * @return true if the string is such a URL
+   * @throws NullPointerException if {@code raw} is null
    */
   public static boolean isUri(final String raw) {
     Preconditions.checkNotNull(raw, "Raw must not be null");
@@ -174,6 +176,7 @@ public final class SourceUtils {
    *
    * @param raw the string
    * @return true if the path exists
+   * @throws NullPointerException if {@code raw} is null
    */
   public static boolean isPath(final String raw) {
     Preconditions.checkNotNull(raw, "Raw must not be null");
@@ -192,6 +195,7 @@ public final class SourceUtils {
    * @return true if yt-dlp reports the URL as live, false if it does not or if yt-dlp fails
    * @throws IllegalStateException if the library is still preparing yt-dlp in the background, so the answer is not
    *                               known yet
+   * @throws NullPointerException if {@code url} is null
    */
   public static boolean isDynamicStream(final String url) {
     Preconditions.checkNotNull(url, "URL must not be null");

@@ -40,6 +40,7 @@ public interface AudioPipelineStep extends PipelineStep<ByteBuffer, OriginalAudi
    * @param next   the step that follows, or null to end the chain
    * @param filter the filter of the step
    * @return the step
+   * @throws NullPointerException if {@code filter} is null
    */
   static AudioPipelineStep of(final @Nullable AudioPipelineStep next, final AudioFilter filter) {
     Preconditions.checkNotNull(filter, "Filter must not be null");
@@ -51,6 +52,7 @@ public interface AudioPipelineStep extends PipelineStep<ByteBuffer, OriginalAudi
    *
    * @param filter the filter of the step
    * @return the step
+   * @throws NullPointerException if {@code filter} is null
    */
   static AudioPipelineStep of(final AudioFilter filter) {
     Preconditions.checkNotNull(filter, "Filter must not be null");
@@ -82,6 +84,7 @@ public interface AudioPipelineStep extends PipelineStep<ByteBuffer, OriginalAudi
    * @param buffer   the samples
    * @param metadata the metadata of the original audio stream
    * @throws NullPointerException if the samples or the metadata are null
+   * @throws RuntimeException if a step or filter fails; subsequent steps are not invoked
    */
   @Override
   default void processAll(final ByteBuffer buffer, final OriginalAudioMetadata metadata) {

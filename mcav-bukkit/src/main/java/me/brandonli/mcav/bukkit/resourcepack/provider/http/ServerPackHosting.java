@@ -27,6 +27,12 @@ import java.nio.file.Path;
  * <p>Use this when the Minecraft port cannot be shared, for example behind a proxy. The port must be reachable by
  * the players, so it usually has to be opened in the firewall and forwarded. The resource pack file is read for
  * every download, so it can be rebuilt while the server is running.
+ *
+ * <p>The advertised host name affects the URL only; the listener binds the configured port on all local
+ * interfaces. Start and shutdown are serialized by the owned server. Shutdown waits for its listener and event
+ * loops to close, so avoid calling it from an event-loop callback. The instance can be started again afterward.
+ * The source file remains caller-owned, and file/read failures are reported to downloaders rather than checked
+ * when the listener starts.
  */
 public class ServerPackHosting implements HttpHosting {
 
@@ -42,6 +48,7 @@ public class ServerPackHosting implements HttpHosting {
    * @param hostName the host name or address players use to reach this server
    * @param port     the port to listen on, from 1 to 65535
    * @throws IllegalArgumentException if the port is out of range
+   * @throws NullPointerException if the zip path or advertised host name is null
    */
   public ServerPackHosting(final Path zip, final String hostName, final int port) {
     this(zip, hostName, port, new FileHttpServer(port, zip));

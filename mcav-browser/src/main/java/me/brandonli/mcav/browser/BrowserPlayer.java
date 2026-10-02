@@ -59,7 +59,15 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * just-in-time compiler (see {@link BrowserOptions}).
  *
  * <p>Input coordinates are pixels of the page, which has the size of the frames, so a click at the position of a
- * pixel in a frame lands on the same spot of the page.
+ * pixel in a frame lands on the same spot of the page. Coordinates outside the page are clamped to its edges.
+ * Input is queued without waiting for the helper; when its queue is full, input is dropped and reported to
+ * the exception handler with rate limiting. Input sent before startup, after failure or after release is ignored.
+ *
+ * <p>Start and release are serialized by the default player. The caller must release each player when finished;
+ * release is terminal, while a player whose helper failed can be started again. {@link BrowserModule#stop()}
+ * also closes registered helpers and blocks new ones until module startup. Attached filters remain caller-owned.
+ * Video and audio callbacks run on background threads; images are closed after the video callback, so copy
+ * anything retained beyond the callback. Exception handlers must be fast and must not throw.
  */
 public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
   /**
@@ -85,8 +93,9 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
   /**
    * Creates a player.
    *
-   * @param options how the player treats the pages it shows
-   * @return the player
+   * @param options the non-null immutable policy and frame-rate options
+   * @return a new idle player; native installation and helper startup are deferred to {@link #start(BrowserSource)}
+   * @throws NullPointerException if {@code options} is null
    */
   static BrowserPlayer create(final BrowserOptions options) {
     Preconditions.checkNotNull(options, "Options must not be null");
@@ -98,10 +107,12 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * streams one page at a time; pages the page opens in new windows are opened in its place. The first start on a
    * machine also downloads the CEF build for it.
    *
-   * @param source the page and its size
-   * @return true if streaming started, false if the player is already playing or released
+   * @param source the non-null page address, output dimensions and painted-frame interval
+   * @return true if streaming started; false if already playing or released, or if the helper ended
+   *         while startup was being handed over to the player (also reported to the exception handler)
    * @throws me.brandonli.mcav.media.player.PlayerException if the browser cannot be installed or started, or the page
-   *                                                        cannot be loaded
+   *                                                        cannot be loaded, or the browser module is stopped
+   * @throws NullPointerException if {@code source} is null
    */
   boolean start(final BrowserSource source);
 
@@ -109,8 +120,11 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * Starts streaming on an executor.
    *
    * @param source   the page and its size
-   * @param executor the executor that starts the browser
-   * @return a future that completes with the result of {@link #start(BrowserSource)}
+   * @param executor the non-null caller-owned executor that starts the browser; the player never shuts it down
+   * @return a future that completes with the startup result, or exceptionally if startup throws; cancelling
+   *         the future does not release the player or stop its helper
+   * @throws java.util.concurrent.RejectedExecutionException if the executor refuses the startup task
+   * @throws NullPointerException if {@code source} or {@code executor} is null
    */
   default CompletableFuture<Boolean> startAsync(final BrowserSource source, final ExecutorService executor) {
     Preconditions.checkNotNull(source, "Source must not be null");
@@ -122,7 +136,9 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * Starts streaming on the common pool.
    *
    * @param source the page and its size
-   * @return a future that completes with the result of {@link #start(BrowserSource)}
+   * @return a future that completes with the startup result, or exceptionally if startup throws; cancelling
+   *         the future does not release the player or stop its helper
+   * @throws NullPointerException if {@code source} is null
    */
   default CompletableFuture<Boolean> startAsync(final BrowserSource source) {
     Preconditions.checkNotNull(source, "Source must not be null");
@@ -133,8 +149,8 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
   /**
    * Moves the mouse pointer.
    *
-   * @param pageX the x coordinate on the page
-   * @param pageY the y coordinate on the page
+   * @param pageX the horizontal pixel coordinate from the left edge, clamped to the page
+   * @param pageY the vertical pixel coordinate from the top edge, clamped to the page
    */
   void moveMouse(final int pageX, final int pageY);
 
@@ -142,18 +158,19 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * Moves the mouse pointer and performs a click.
    *
    * @param type  the kind of click
-   * @param pageX the x coordinate on the page
-   * @param pageY the y coordinate on the page
+   * @param pageX the horizontal pixel coordinate from the left edge, clamped to the page
+   * @param pageY the vertical pixel coordinate from the top edge, clamped to the page
+   * @throws NullPointerException if {@code type} is null, even while not playing
    */
   void sendMouseEvent(final MouseClick type, final int pageX, final int pageY);
 
   /**
    * Turns the mouse wheel over a position, which scrolls what is under the pointer.
    *
-   * @param pageX  the x coordinate on the page
-   * @param pageY  the y coordinate on the page
-   * @param deltaX how far to scroll right in pixels, negative to scroll left
-   * @param deltaY how far to scroll down in pixels, negative to scroll up
+   * @param pageX  the horizontal pixel coordinate from the left edge, clamped to the page
+   * @param pageY  the vertical pixel coordinate from the top edge, clamped to the page
+   * @param deltaX how far to scroll right in pixels, negative to scroll left; clamped to -32768 through 32767
+   * @param deltaY how far to scroll down in pixels, negative to scroll up; clamped to -32768 through 32767
    */
   void scroll(final int pageX, final int pageY, final int deltaX, final int deltaY);
 
@@ -161,7 +178,8 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * Types text into the focused element. Special keys are pressed by their W3C name, such as {@code Enter},
    * {@code PageDown} or {@code ArrowLeft}; any other text is typed character by character.
    *
-   * @param text the text or key name
+   * @param text the non-null text or key name; long text is split into protocol messages in order
+   * @throws NullPointerException if {@code text} is null, even while not playing
    */
   void sendKeyEvent(final String text);
 

@@ -42,7 +42,9 @@ public class RegionScalarFilter extends MatVideoFilter {
    * @param top    the y coordinate of the top left corner
    * @param width  the width of the rectangle, which must be positive
    * @param height the height of the rectangle, which must be positive
-   * @param color  the blue, green, and red components of the color, from 0 to 255
+   * @param color  the blue, green, and red components of the color, normally 0 to 255; the non-null array is copied
+   * @throws IllegalArgumentException if the origin is negative or either size is nonpositive
+   * @throws NullPointerException if {@code color} is null
    */
   public RegionScalarFilter(final int left, final int top, final int width, final int height, final double[] color) {
     Preconditions.checkArgument(left >= 0 && top >= 0, "Region origin must not be negative");

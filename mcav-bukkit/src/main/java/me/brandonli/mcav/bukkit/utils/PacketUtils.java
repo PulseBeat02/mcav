@@ -69,6 +69,10 @@ public final class PacketUtils {
   /**
    * Registers the connection tracking listener and caches the connections of every player that is already
    * online. Only meant to be called by {@link BukkitModule}.
+   *
+   * <p>Run on the server main thread. Reinitialization unregisters the previous listener and rebuilds the cache.
+   *
+   * @throws IllegalStateException if no plugin has been injected
    */
   public static synchronized void init() {
     shutdown();
@@ -91,6 +95,8 @@ public final class PacketUtils {
   /**
    * Unregisters the connection tracking listener and clears all cached connections. Only meant to be called by
    * {@link BukkitModule}.
+   *
+   * <p>Run on the server main thread. Existing player connections remain server-owned and are not closed.
    */
   public static synchronized void shutdown() {
     final Listener listener = connectionListener;
@@ -106,7 +112,9 @@ public final class PacketUtils {
    * any thread.
    *
    * @param player the UUID of the player
-   * @return true if packets can be sent to the player
+   * @return true if a connection is currently cached; this is a snapshot and does not guarantee that a
+   *         subsequent send succeeds or that the client receives it
+   * @throws NullPointerException if {@code player} is null
    */
   public static boolean isConnected(final UUID player) {
     Preconditions.checkNotNull(player, "Player must not be null");
@@ -119,6 +127,7 @@ public final class PacketUtils {
    *
    * @param viewers the UUIDs of the players to send the packets to
    * @param packets the packets to send, in order
+   * @throws NullPointerException if {@code viewers} or {@code packets} is null
    */
   public static void sendPackets(final Collection<UUID> viewers, final Packet<?>... packets) {
     Preconditions.checkNotNull(viewers, "Viewers must not be null");
@@ -143,6 +152,7 @@ public final class PacketUtils {
    * @param listener called on the player's connection thread when the packet was written, or could not be
    * @return true if the player is online and the packet was handed to the connection, false if nothing was sent, in
    *     which case the listener is never called
+   * @throws NullPointerException if {@code viewer}, {@code packet} or {@code listener} is null
    */
   public static boolean sendPacket(final UUID viewer, final Packet<?> packet, final ChannelFutureListener listener) {
     Preconditions.checkNotNull(viewer, "Viewer must not be null");
@@ -164,10 +174,15 @@ public final class PacketUtils {
    * packets wait behind all of it. Bytes already sent and waiting for their acknowledgement do not count, so the cap
    * does not slow a connection down. May be called from any thread.
    *
+   * <p>The transport owns the option and may reject it with a transport-specific runtime exception. A true
+   * return reports option acceptance, not a measurement of the connection backlog.
+   *
    * @param player the UUID of the player
    * @param bytes  the most unsent bytes the system may hold, positive
    * @return true if the cap was set; false for a player who is not online, a connection not open yet, or a transport
    *     without the option
+   * @throws IllegalArgumentException if the byte limit is nonpositive
+   * @throws NullPointerException if {@code player} is null
    */
   public static boolean limitUnsent(final UUID player, final int bytes) {
     Preconditions.checkNotNull(player, "Player must not be null");
