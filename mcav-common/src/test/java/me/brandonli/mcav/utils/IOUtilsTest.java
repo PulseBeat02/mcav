@@ -329,6 +329,15 @@ final class IOUtilsTest {
   }
 
   @Test
+  void refusesADirectoryEntryThatCarriesData() throws IOException {
+    // inflating it would go unmeasured: the size budgets count the files written
+    final Path archive = this.writeZip("folder/", "x".repeat(1 << 16));
+    final Path destination = this.directory.resolve("extracted");
+    final ZipEntryIntegrityException refused = assertThrows(ZipEntryIntegrityException.class, () -> IOUtils.unzip(archive, destination));
+    assertEquals("Zip directory entry carries data: folder/", refused.getMessage());
+  }
+
+  @Test
   void rejectsEntriesThatEscapeTheDestination() throws IOException {
     final Path archive = this.writeZip("../escape.txt", "evil");
     final Path destination = this.directory.resolve("safe");

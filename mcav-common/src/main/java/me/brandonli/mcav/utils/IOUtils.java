@@ -662,6 +662,10 @@ public final class IOUtils {
     final String name = entry.getName();
     final Path target = resolveInside(destination, name);
     if (entry.isDirectory()) {
+      // a directory has no data; closing the entry would inflate whatever it carries, outside every size budget
+      if (zip.read() != -1) {
+        throw new ZipEntryIntegrityException("Zip directory entry carries data: %s".formatted(name));
+      }
       Files.createDirectories(target);
       return 0;
     }
