@@ -97,10 +97,11 @@ public final class MCAVLoader implements PluginLoader {
    */
   @VisibleForTesting
   static List<String> readRequiredClasses(final ClassLoader classLoader) {
-    try (final InputStream list = classLoader.getResourceAsStream(REQUIRED_CLASSES)) {
-      if (list == null) {
-        return List.of();
-      }
+    final InputStream list = classLoader.getResourceAsStream(REQUIRED_CLASSES);
+    if (list == null) {
+      return List.of();
+    }
+    try (list) {
       return new String(list.readAllBytes(), StandardCharsets.UTF_8)
         .lines()
         .filter(line -> !line.isBlank())

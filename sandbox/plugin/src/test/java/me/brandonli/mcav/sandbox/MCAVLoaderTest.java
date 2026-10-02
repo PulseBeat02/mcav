@@ -31,12 +31,14 @@ import io.papermc.paper.plugin.loader.PluginClasspathBuilder;
 import io.papermc.paper.plugin.loader.library.ClassPathLibrary;
 import io.papermc.paper.plugin.loader.library.LibraryStore;
 import io.papermc.paper.plugin.loader.library.impl.JarLibrary;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -252,5 +254,16 @@ final class MCAVLoaderTest {
       }
     };
     assertThrows(UncheckedIOException.class, () -> MCAVLoader.readRequiredClasses(unreadable));
+  }
+
+  @Test
+  void readsTheListWithoutItsBlankLines() {
+    final ClassLoader listed = new ClassLoader(null) {
+      @Override
+      public InputStream getResourceAsStream(final String name) {
+        return new ByteArrayInputStream("me/brandonli/mcav/MCAV\n\n  \nme/brandonli/mcav/MCAVApi\n".getBytes(StandardCharsets.UTF_8));
+      }
+    };
+    assertEquals(List.of("me/brandonli/mcav/MCAV", "me/brandonli/mcav/MCAVApi"), MCAVLoader.readRequiredClasses(listed));
   }
 }

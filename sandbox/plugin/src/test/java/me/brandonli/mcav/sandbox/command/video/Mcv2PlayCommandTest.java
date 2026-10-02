@@ -444,6 +444,13 @@ final class Mcv2PlayCommandTest {
   }
 
   @Test
+  void aCancelBeforeAnyEncodeSaysThereIsNone() {
+    this.command.cancel(this.sender);
+    verify(this.sender).sendMessage(Message.MCV2_ENCODE_NONE.build());
+    assertNull(this.command.getEncoding());
+  }
+
+  @Test
   void aNewEncodeWaitsUntilACancelledOneHasEnded() throws Exception {
     final CountDownLatch mayClose = new CountDownLatch(1);
     this.command.setOpener((_, _, _) -> new SlowToClose(mayClose));
