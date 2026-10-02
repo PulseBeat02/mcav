@@ -48,8 +48,10 @@ final class NullDisplayFuzzTest {
     } catch (final IOException ended) {
       // a request the display does not accept ends the connection
     }
-    // the largest answer is a keyboard mapping of 255 key codes, 32 + 4 * 255 bytes, for a request of four bytes
-    final long bound = 1_000L + (input.length / 4 + 1) * (32L + 4 * 255);
+    // the largest answer to a request of four bytes is an atom's name, which an earlier request may have interned as long
+    // as a request may be, 4 * MAX_REQUEST_UNITS bytes; a keyboard mapping of 255 key codes is only 32 + 4 * 255
+    final long largestReply = 32L + 4L * NullDisplay.MAX_REQUEST_UNITS;
+    final long bound = 1_000L + (input.length / 4L + 1L) * largestReply;
     assertTrue(output.size() <= bound, output.size() + " bytes answered to " + input.length);
   }
 
