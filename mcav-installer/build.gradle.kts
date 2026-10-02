@@ -16,6 +16,12 @@ mcavPublishing {
     bundledJar = tasks.shadowJar
 }
 
+// the jar of the module's own classes is named apart from the bundled jar, which is the one published and tested: both
+// wrote libs/mcav-installer.jar, so a build that ran the jar task and a publication failed, or published the wrong one
+tasks.jar {
+    archiveClassifier = "plain"
+}
+
 tasks.shadowJar {
     archiveClassifier = ""
     mergeServiceFiles()
