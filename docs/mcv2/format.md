@@ -31,9 +31,11 @@ writes it. Why the codec is built this way, and the evidence for it, is in the d
   | flag 256, the motion table of round 15, with derived offsets | decodes it: motion vectors at the end of the payload, named by leaves of mode 23 |
   | flag 256 on a stored-index frame | ignores it: the stored path never reads the flag |
   | leaf mode 23 | accepts it only with flag 256 and derived offsets |
+  | a split with a nonzero q in the derived-offsets form ("Nonzero split quantizer") | reads and drops the q (`v2.parse_derived`); the stored forms refuse it as invalid |
 
-  These are the only inputs on which mcav and the reference knowingly disagree. The reference is more lenient in two
-  places: it accepts modes 21 and 22, and on stored-index frames it ignores flag 256 instead of refusing it. MCV1 and
+  These are the only inputs on which mcav and the reference knowingly disagree. The reference is more lenient in three
+  places: it accepts modes 21 and 22, on stored-index frames it ignores flag 256 instead of refusing it, and it accepts
+  a split with a q in the derived form, a second spelling of one tree. MCV1 and
   the round-15 motion table on derived-offset frames are syntax mcav does not port.
 - **Out of scope:** containers of several frames (the research `.mcs` archives), the resource pack's GLSL decoder, and
   how the encoder chooses modes; section 3.4 only says how `FrameWriter` lays out a tree it is given.
@@ -192,7 +194,8 @@ length"), and the records must end exactly where the selector words begin ("Nonc
 takes the u16 at `plane + (i * w >> 3)`, which may reach into the walk region, shifted right by `i * w & 7`
 (`DerivedParser.descriptor`). An index of `S` or more is refused ("Symbol index outside the table"); otherwise the
 descriptor is the table byte it names. Leaf modes here are 0-15, 17 and 18: modes 19 and 20 exist only in the stored
-forms.
+forms. A split's q must be zero, as in the stored forms; mcav refuses a nonzero one as unsupported syntax ("Nonzero
+split quantizer", section 1), where the reference reads and drops it.
 
 **Level order.** Level 0 is the present roots in raster order, found by counting mask bits: a stray mask bit is "Bad
 root directory", each checkpoint must equal the count before its group ("Noncanonical descriptor checkpoint"), and the

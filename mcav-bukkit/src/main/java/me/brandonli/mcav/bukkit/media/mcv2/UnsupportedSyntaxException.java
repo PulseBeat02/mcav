@@ -20,9 +20,10 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import java.io.Serial;
 
 /**
- * Thrown for syntax the research codec defined but mcav deliberately does not implement: MCV1 frames, and the syntax
- * of the frontier rounds that were not kept (the coarse palette modes 21 and 22 of round 3, and the motion table flag
- * and indexed motion mode 23 of round 15).
+ * Thrown for syntax the research codec defined but mcav deliberately does not implement: MCV1 frames, the syntax of the
+ * frontier rounds that were not kept (the coarse palette modes 21 and 22 of round 3, and the motion table flag and
+ * indexed motion mode 23 of round 15), and a split with a quantizer in the derived-offsets form, a second spelling of
+ * one tree that the stored forms refuse and the reference reads and drops.
  *
  * <p>The reference decoder accepts some of these, so this exception marks the only inputs on which the Java decoder
  * and the reference knowingly disagree.

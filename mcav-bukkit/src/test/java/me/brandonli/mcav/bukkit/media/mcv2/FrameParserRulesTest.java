@@ -112,6 +112,20 @@ final class FrameParserRulesTest {
   }
 
   @Test
+  void refusesASplitWithAQuantizerInTheDerivedForm() throws Mcv2Exception {
+    final byte[] frame = keyframe(32, 32, DERIVED, split(solid(1, 2, 3)));
+    FrameParser.parse(frame);
+    final Layout layout = Layout.of(frame);
+    // the symbol table holds the solid leaf's descriptor, then the split's, the largest
+    final int splitSymbol = layout.table() + frame[layout.table()];
+    assertEquals(Mcv2Format.MODE_SPLIT, frame[splitSymbol]);
+    final byte[] quantized = withByte(frame, splitSymbol, Mcv2Format.MODE_SPLIT | (1 << 5));
+    // refused as syntax mcav does not take, the one kind of refusal the reference may disagree with
+    final UnsupportedSyntaxException refused = assertThrows(UnsupportedSyntaxException.class, () -> FrameParser.parse(quantized));
+    assertEquals("Nonzero split quantizer", refused.getMessage());
+  }
+
+  @Test
   void refusesAnUnsortedSymbolTable() {
     final byte[] frame = keyframe(64, 32, DERIVED, solid(1, 1, 1), split(leaf(Mcv2Format.MODE_PALETTE, 0, 16, 3)));
     final Layout layout = Layout.of(frame);

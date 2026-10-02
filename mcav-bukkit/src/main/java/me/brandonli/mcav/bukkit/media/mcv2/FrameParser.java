@@ -704,6 +704,11 @@ public final class FrameParser {
           pairs[point * 2 + 1] = splits;
         }
         if (mode == MODE_SPLIT) {
+          // a split carries no record, so a q on it is a second spelling of one tree, which the stored forms refuse; the
+          // reference reads and drops it here, so it is one of the inputs on which the two knowingly disagree
+          if (quantizers[index] != 0) {
+            throw new UnsupportedSyntaxException("Nonzero split quantizer");
+          }
           splits++;
           continue;
         }
