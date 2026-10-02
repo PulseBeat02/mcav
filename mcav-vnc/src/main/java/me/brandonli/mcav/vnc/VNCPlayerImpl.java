@@ -30,6 +30,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Objects;
 import java.util.OptionalInt;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -67,6 +68,8 @@ public final class VNCPlayerImpl implements VNCPlayer {
   private static final long IDLE_PARK_NANOS = TimeUnit.MILLISECONDS.toNanos(10);
   private static final long STOP_TIMEOUT_MILLIS = 2_000L;
   private static final int CONNECT_TIMEOUT_MILLIS = 10_000;
+  // the handshake as a whole, not each read: a server that sends a byte now and then would keep a read timeout happy
+  private static final long HANDSHAKE_TIMEOUT_MILLIS = 10_000L;
 
   private final Function<VernacularConfig, VernacularClient> clientFactory;
   private final Supplier<Socket> socketFactory;
@@ -75,6 +78,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
   private final Lock lock;
   private final Object frameLock;
   private final long idleParkNanos;
+  private final long handshakeTimeoutMillis;
   private final AtomicBoolean paused;
   private final AtomicBoolean released;
   private final AtomicReference<@Nullable BufferedImage> latestFrame;
@@ -116,9 +120,30 @@ public final class VNCPlayerImpl implements VNCPlayer {
     final Supplier<Socket> socketFactory,
     final long idleParkNanos
   ) {
+    this(clientFactory, socketFactory, idleParkNanos, HANDSHAKE_TIMEOUT_MILLIS);
+  }
+
+  /**
+   * Constructs a player with a replaceable idle wait and handshake deadline.
+   *
+   * @param clientFactory          creates the client of a session
+   * @param socketFactory          creates its socket
+   * @param idleParkNanos          how long an idle renderer waits unless a frame or shutdown wakes it first
+   * @param handshakeTimeoutMillis how long the server may take to complete the handshake before the connection is
+   *                               closed and the start fails
+   */
+  @VisibleForTesting
+  VNCPlayerImpl(
+    final Function<VernacularConfig, VernacularClient> clientFactory,
+    final Supplier<Socket> socketFactory,
+    final long idleParkNanos,
+    final long handshakeTimeoutMillis
+  ) {
     Preconditions.checkArgument(idleParkNanos > 0, "Idle wait must be positive");
+    Preconditions.checkArgument(handshakeTimeoutMillis > 0, "Handshake timeout must be positive");
     this.clientFactory = clientFactory;
     this.socketFactory = socketFactory;
+    this.handshakeTimeoutMillis = handshakeTimeoutMillis;
     this.videoCallback = VideoAttachableCallback.create();
     this.exceptionHandler = ExceptionHandler.createDefault();
     this.lock = new ReentrantLock();
@@ -196,12 +221,20 @@ public final class VNCPlayerImpl implements VNCPlayer {
     final VernacularConfig config = this.createConfig(source, created, renderWorker);
     final VernacularClient vncClient = this.clientFactory.apply(config);
     final Socket socket = this.connect(source);
+    // the handshake runs on this thread, under the player's lock: a server that accepts the connection and never answers
+    // would hold both forever, and release() with them, so the connection is closed once the deadline passes
+    final CompletableFuture<Void> deadline = CompletableFuture.runAsync(
+      () -> closeQuietly(socket),
+      CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS)
+    );
     try {
       vncClient.start(socket);
     } catch (final RuntimeException exception) {
       closeQuietly(socket);
       final String message = exception.getMessage();
-      throw new PlayerException("Failed to start the VNC session with " + source + ": " + message, exception);
+      throw new PlayerException(this.startFailure(source, deadline, message), exception);
+    } finally {
+      deadline.cancel(false);
     }
 
     // the client reports handshake failures, such as a rejected password, to the error listener and returns; a
@@ -211,9 +244,16 @@ public final class VNCPlayerImpl implements VNCPlayer {
       vncClient.stop();
       closeQuietly(socket);
       final String message = failure.getMessage();
-      throw new PlayerException("Failed to start the VNC session with " + source + ": " + message, failure);
+      throw new PlayerException(this.startFailure(source, deadline, message), failure);
     }
     return vncClient;
+  }
+
+  // a deadline that ran out closed the connection, which is the reason, whatever the client made of the closed socket
+  private String startFailure(final VNCSource source, final CompletableFuture<Void> deadline, final @Nullable String message) {
+    final boolean timedOut = deadline.isDone() && !deadline.isCancelled();
+    final String reason = timedOut ? "the server did not finish the handshake within " + this.handshakeTimeoutMillis + " ms" : message;
+    return "Failed to start the VNC session with " + source + ": " + reason;
   }
 
   // the client connects on its own thread and would only report failures later, so the socket is opened here; the

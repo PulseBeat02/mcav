@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -53,6 +54,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -1888,5 +1890,19 @@ final class VNCPlayerImplTest {
       this.closeAttempted = true;
       throw new IOException("close failed on purpose");
     }
+  }
+
+  @Test
+  void givesUpOnAServerThatNeverAnswersItsHandshake() throws IOException {
+    // a server that accepts the connection and never sends its version
+    final ServerSocket silent = this.listeningSocket();
+    final VNCPlayerImpl player = this.track(new VNCPlayerImpl(VernacularClient::new, Socket::new, TimeUnit.MILLISECONDS.toNanos(10), 500));
+    final VNCSource source = source(silent, 0, 0);
+    final PlayerException failure = assertTimeoutPreemptively(Duration.ofSeconds(15), () ->
+      assertThrows(PlayerException.class, () -> player.start(source))
+    );
+    assertTrue(failure.getMessage().endsWith(": the server did not finish the handshake within 500 ms"), failure.getMessage());
+    // the lock is free again: release does not wait for the silent server
+    assertTimeoutPreemptively(Duration.ofSeconds(5), player::release);
   }
 }
