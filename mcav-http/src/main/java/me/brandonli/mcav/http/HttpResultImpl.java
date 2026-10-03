@@ -286,6 +286,7 @@ public final class HttpResultImpl implements HttpResult {
   /**
    * Closes the Spring context with the class loader of this class as the context class loader of the thread, because
    * Spring looks up its own resources through it while shutting down, and restores the previous one afterwards.
+   * Temporarily clears an existing interrupt so Spring can acquire its shutdown lock, then restores it.
    * Visible for testing.
    *
    * @param current the context to close
@@ -296,10 +297,15 @@ public final class HttpResultImpl implements HttpResult {
     final ClassLoader previous = thread.getContextClassLoader();
     final ClassLoader own = HttpResultImpl.class.getClassLoader();
     thread.setContextClassLoader(own);
+    // Spring silently skips closing if the caller's interrupt prevents taking its shutdown lock.
+    final boolean interrupted = Thread.interrupted();
     try {
       current.close();
     } finally {
       thread.setContextClassLoader(previous);
+      if (interrupted) {
+        thread.interrupt();
+      }
     }
   }
 
