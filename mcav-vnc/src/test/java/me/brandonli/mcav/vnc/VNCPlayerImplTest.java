@@ -1212,6 +1212,10 @@ final class VNCPlayerImplTest {
     final long delayNanos = TimeUnit.MICROSECONDS.toNanos(attempt * 25L);
     final UnknownMessageTypeException failure = new UnknownMessageTypeException(attempt);
     doAnswer(_ -> {
+      if (attempt == 0) {
+        pushError(config, failure);
+        return null;
+      }
       final Thread sender = new Thread(() -> {
         LockSupport.parkNanos(delayNanos);
         pushError(config, failure);
@@ -1227,6 +1231,7 @@ final class VNCPlayerImplTest {
     try {
       running = player.start(source);
     } catch (final PlayerException exception) {
+      assertSame(failure, exception.getCause(), "a refused handshake must carry its injected error");
       running = false;
     }
     if (running) {
