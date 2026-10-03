@@ -98,6 +98,10 @@ final class DependencyLoaderTest {
     assertDoesNotThrow(() -> loader.loadModules());
     // OpenCV's own pool would outlive every player, a thread per processor but one, named after the first caller
     assertEquals(1, opencv_core.getNumThreads());
+    // the setting belongs to the process and outlives a test, so the loader must set it, not find it set already
+    opencv_core.setNumThreads(5);
+    assertDoesNotThrow(() -> loader.loadModules());
+    assertEquals(1, opencv_core.getNumThreads(), "loading the natives sets OpenCV's threads");
     final String previous = System.getProperty(DependencyLoader.OPENCV_THREADS_PROPERTY);
     try {
       System.setProperty(DependencyLoader.OPENCV_THREADS_PROPERTY, "3");
