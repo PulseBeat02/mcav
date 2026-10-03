@@ -32,6 +32,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
@@ -44,6 +45,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
@@ -73,13 +75,16 @@ import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import net.minecraft.network.protocol.Packet;
 import org.apache.logging.log4j.Level;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
+import org.bukkit.entity.Player;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.InOrder;
 import org.mockito.Mockito;
 
 final class Mcv2ResultTest {
@@ -90,6 +95,9 @@ final class Mcv2ResultTest {
 
   /** A location holds its world weakly; a world a test builds screens in again must stay reachable. */
   private static final World WORLD = mock(World.class);
+
+  /** Another world, which a viewer can be in. */
+  private static final World ELSEWHERE = mock(World.class);
 
   private FakeServer server;
 
@@ -858,6 +866,95 @@ final class Mcv2ResultTest {
     }
     assertTrue(result.getRung().isDithered());
     assertNull(result.poll());
+    result.release();
+  }
+
+  /** A viewer whose client sees six chunks far, from wherever the position is. */
+  private static void seesSixChunksFrom(final Player player, final AtomicReference<Location> position) {
+    when(player.getViewDistance()).thenReturn(6);
+    when(player.getWorld()).thenAnswer(_ -> position.get().getWorld());
+    when(player.getLocation()).thenAnswer(_ -> position.get());
+  }
+
+  @Test
+  void aViewerTooFarFromTheWallGetsNoDitheredMapsWhenTheyStandInForTheFrames() throws InterruptedException {
+    when(WORLD.getUID()).thenReturn(UUID.fromString("00000000-0000-0000-0000-00000000a0a0"));
+    when(ELSEWHERE.getUID()).thenReturn(UUID.fromString("00000000-0000-0000-0000-00000000b0b0"));
+    final UUID far = UUID.fromString("00000000-0000-0000-0000-000000000043");
+    final UUID otherWorld = UUID.fromString("00000000-0000-0000-0000-000000000044");
+    // the viewer without the pack stands at the wall, another 400 blocks from it, a third in another world
+    final AtomicReference<Location> farPosition = new AtomicReference<>(new Location(WORLD, 400, 64, 0));
+    seesSixChunksFrom(Objects.requireNonNull(Bukkit.getPlayer(WITHOUT)), new AtomicReference<>(new Location(WORLD, 0, 64, 5)));
+    seesSixChunksFrom(this.server.addPlayer(far), farPosition);
+    seesSixChunksFrom(this.server.addPlayer(otherWorld), new AtomicReference<>(new Location(ELSEWHERE, 0, 64, 0)));
+    PacketUtils.init();
+    final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
+    final Mcv2Configuration wall = Mcv2Configuration.builder()
+      .viewers(List.of(WITH_PACK, WITHOUT, far, otherWorld))
+      .origin(new Location(WORLD, 0, 64, 0))
+      .facing(BlockFace.SOUTH)
+      .map(100)
+      .columns(1)
+      .rows(1)
+      .video(64, 32)
+      .pageMap(500)
+      .settings(EncoderSettings.LIVE_FAST)
+      .maxFrameRate(0)
+      .build();
+    final Mcv2Result result = new Mcv2Result(
+      wall,
+      new Mcv2Channel(wall, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run
+    );
+    result.pace();
+    // opened as start opens it, without the threads: the test hands the frames to the encoder itself
+    result.getChannel().open();
+    final AtomicLong encodeNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
+    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
+      clock.addAndGet(encodeNanos.get());
+      return Mcv2ChannelTest.keyframe();
+    });
+    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
+    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    this.play(result, clock, encoder, frame, 300);
+    // two seconds a frame: the pacer falls back to the dithered maps, which every viewer near the wall is shown
+    encodeNanos.set(TimeUnit.SECONDS.toNanos(2));
+    for (int frameNumber = 0; frameNumber < 600 && !result.getRung().isDithered(); frameNumber++) {
+      this.play(result, clock, encoder, frame, 1);
+    }
+    assertTrue(result.getRung().isDithered());
+    this.server.runTasks();
+    verify(this.screen).remove();
+    final int withPack = this.server.getSentPackets(WITH_PACK).size();
+    this.play(result, clock, encoder, frame, 30);
+    assertTrue(this.server.getSentPackets(WITH_PACK).size() > withPack, "the viewer with the pack is shown the dithered maps");
+    assertEquals(List.of(), this.server.getSentPackets(far), "a viewer 400 blocks from the wall cannot see it");
+    assertEquals(List.of(), this.server.getSentPackets(otherWorld), "nor one in another world");
+    // one who comes near meanwhile is shown the maps as soon as the distances are measured again
+    farPosition.set(new Location(WORLD, 0, 64, 5));
+    this.server.runTasks();
+    this.play(result, clock, encoder, frame, 1);
+    assertFalse(this.server.getSentPackets(far).isEmpty(), "a viewer who came near the wall sees the dithered maps");
+    // the load drops: the pacer tries the frames again, and the first frame encoded after its return is a keyframe
+    encodeNanos.set(TimeUnit.MILLISECONDS.toNanos(1));
+    for (int frameNumber = 0; frameNumber < 60 * 60 && result.getRung().isDithered(); frameNumber++) {
+      this.play(result, clock, encoder, frame, 1);
+    }
+    assertFalse(result.getRung().isDithered());
+    clearInvocations(encoder);
+    this.server.runTasks();
+    this.play(result, clock, encoder, frame, 1);
+    verify(encoder, never()).encode(any(), anyInt(), anyInt(), anyLong());
+    this.server.runTasks();
+    this.play(result, clock, encoder, frame, 60);
+    final InOrder order = inOrder(encoder);
+    order.verify(encoder).requestKeyframe();
+    order.verify(encoder).encode(any(), anyInt(), anyInt(), anyLong());
     result.release();
   }
 

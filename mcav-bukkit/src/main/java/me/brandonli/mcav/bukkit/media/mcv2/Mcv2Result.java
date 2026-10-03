@@ -653,7 +653,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       this.announce(tried);
     }
     final Screen current = this.screen;
-    final Set<UUID> others = everyoneDithered ? Set.copyOf(this.requested.getViewers()) : current.channel().update();
+    // on the dithered maps every viewer near the wall is dithered for; one too far from it sees no wall on any rung
+    final Set<UUID> others = everyoneDithered ? current.channel().near(this.requested.getViewers()) : current.channel().update();
     this.fallbackViewers.retainAll(others);
     this.fallbackViewers.addAll(others);
     final int width = current.configuration().getVideoWidth();
@@ -1054,8 +1055,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   /**
    * Brings the screen in line with the pacer's rung, on the main thread, however many steps came since the last time:
-   * on the dithered maps the page frames go; on an encoded rung of another video size the screen is replaced by one at
-   * that size (the owner offers its pack), and the page frames of an encoded rung are there.
+   * on the dithered maps the page frames go, while the channel still measures who is near the wall; on an encoded rung
+   * of another video size the screen is replaced by one at that size (the owner offers its pack), and the page frames
+   * of an encoded rung are there.
    */
   void sync() {
     final Mcv2Pacer.Rung rung;
@@ -1068,17 +1070,18 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
     final Screen current = this.screen;
     final Mcv2Configuration configuration = current.configuration();
-    final boolean resized =
-      !rung.isDithered() && size(rung.width(), rung.height()) != size(configuration.getVideoWidth(), configuration.getVideoHeight());
-    if (this.opened && (rung.isDithered() || resized)) {
-      current.channel().close();
-      this.opened = false;
-    }
     if (rung.isDithered()) {
+      if (this.opened) {
+        current.channel().removeFrames();
+        this.opened = false;
+      }
       return;
     }
     Screen target = current;
-    if (resized) {
+    if (size(rung.width(), rung.height()) != size(configuration.getVideoWidth(), configuration.getVideoHeight())) {
+      // closed even after the dithered maps removed its page frames, as it still measured the distances
+      current.channel().close();
+      this.opened = false;
       final Mcv2Configuration size = this.requested.withVideo(rung.width(), rung.height());
       target = new Screen(size, Preconditions.checkNotNull(this.resizer).resize(size));
       this.screen = target;

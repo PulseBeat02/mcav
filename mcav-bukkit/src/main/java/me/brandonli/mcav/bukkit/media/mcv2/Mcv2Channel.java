@@ -19,6 +19,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -60,10 +61,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * acknowledgment, and can succeed when no viewers are currently eligible.
  *
  * <p>While the channel is open, a viewer farther from the wall than their view distance, or in another world, receives
- * nothing: no frames, and no dithered maps either, as their client cannot see the wall. Coming back, the viewer is
- * shown the screen again and starts on a keyframe. The distances are measured on the main thread once a second; a
- * viewer who is near goes out of range only {@value #RANGE_MARGIN} blocks farther, so one at the edge does not come
- * and go.
+ * nothing: no frames, and no dithered maps either, as their client cannot see the wall. That holds while the dithered
+ * maps stand in for the frames too, as the distances are still measured once the page frames are gone. Coming back, the
+ * viewer is shown the screen again and starts on a keyframe. The distances are measured on the main thread once a
+ * second; a viewer who is near goes out of range only {@value #RANGE_MARGIN} blocks farther, so one at the edge does
+ * not come and go.
  */
 public final class Mcv2Channel {
 
@@ -140,15 +142,17 @@ public final class Mcv2Channel {
   }
 
   /**
-   * Spawns the screen's page frames, and starts measuring how far the viewers are from the wall. Call on the main
-   * thread.
+   * Spawns the screen's page frames, and starts measuring how far the viewers are from the wall, unless the channel
+   * still measures them since the dithered maps took the page frames' place. Call on the main thread.
    * @throws IllegalStateException if the screen is already built or no plugin has been injected
    * @throws NullPointerException if the origin no longer resolves to a world
    */
   public void open() {
     this.screen.build();
-    this.measureRange();
-    this.ranging = Bukkit.getScheduler().runTaskTimer(BukkitModule.getPlugin(), this::measureRange, RANGE_TICKS, RANGE_TICKS);
+    if (this.ranging == null) {
+      this.measureRange();
+      this.ranging = Bukkit.getScheduler().runTaskTimer(BukkitModule.getPlugin(), this::measureRange, RANGE_TICKS, RANGE_TICKS);
+    }
   }
 
   /**
@@ -160,11 +164,33 @@ public final class Mcv2Channel {
       task.cancel();
       this.ranging = null;
     }
+    this.removeFrames();
+    this.farAway = Set.of();
+  }
+
+  /**
+   * Removes the screen's page frames, but keeps measuring the viewers' distances, for the dithered maps that stand in
+   * for the frames meanwhile. {@link #open()} brings the page frames back, and {@link #close()} stops the measuring.
+   * Call on the main thread.
+   */
+  void removeFrames() {
     this.screen.remove();
     this.scheduled.clear();
     this.links.clear();
     this.recipients = Map.of();
-    this.farAway = Set.of();
+  }
+
+  /**
+   * Gets the viewers near enough to the wall to see it, as of the last measurement: those the dithered maps go to while
+   * they stand in for the frames.
+   *
+   * @param viewers the viewers dithered for
+   * @return those of them not too far from the wall
+   */
+  Set<UUID> near(final Collection<UUID> viewers) {
+    final Set<UUID> near = new HashSet<>(viewers);
+    near.removeAll(this.farAway);
+    return near;
   }
 
   /** Finds the viewers too far from the wall to see it, on the main thread. */
