@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -29,8 +30,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.image.MatImageBuffer;
 import me.brandonli.mcav.testing.Images;
 import me.brandonli.mcav.testing.OpenCvModules;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Rect;
+import org.bytedeco.opencv.opencv_core.RectVector;
 import org.bytedeco.opencv.opencv_objdetect.CascadeClassifier;
 import org.bytedeco.opencv.presets.opencv_objdetect;
 import org.junit.jupiter.api.Assumptions;
@@ -72,11 +78,36 @@ final class FaceDetectionFilterTest {
     try (final ImageBuffer image = Images.noise(96, 96, 42L)) {
       final int[] original = image.getPixels();
       final int[] before = original.clone();
+      final int[] expected = before.clone();
+      try (
+        final CascadeClassifier detector = new CascadeClassifier(cascade.toString());
+        final Mat gray = new Mat();
+        final RectVector rectangles = new RectVector()
+      ) {
+        opencv_imgproc.cvtColor(((MatImageBuffer) image).getMat(), gray, opencv_imgproc.COLOR_BGR2GRAY);
+        detector.detectMultiScale(gray, rectangles);
+        assertTrue(rectangles.size() > 0, "the fixture must produce detections");
+        for (long index = 0; index < rectangles.size(); index++) {
+          final Rect rectangle = rectangles.get(index);
+          final int left = rectangle.x();
+          final int top = rectangle.y();
+          final int right = left + rectangle.width() - 1;
+          final int bottom = top + rectangle.height() - 1;
+          for (int row = Math.max(0, top); row <= Math.min(95, bottom); row++) {
+            for (int column = Math.max(0, left); column <= Math.min(95, right); column++) {
+              if (row == top || row == bottom || column == left || column == right) {
+                expected[row * 96 + column] = 0xFFFF0000;
+              }
+            }
+          }
+        }
+      }
       final boolean detected = filter.applyFilter(image);
       final int[] after = image.getPixels();
       final boolean changed = !Arrays.equals(before, after);
       assertTrue(detected);
       assertTrue(changed, "the detections are outlined");
+      assertArrayEquals(expected, after, "every detection has its red outline and every other pixel is retained");
     }
   }
 
