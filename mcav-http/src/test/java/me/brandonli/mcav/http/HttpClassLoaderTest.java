@@ -36,9 +36,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Enumeration;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -80,7 +80,7 @@ final class HttpClassLoaderTest {
     localPort.setAccessible(true);
     try {
       start.invoke(server);
-      assertEquals(Boolean.TRUE, running.invoke(server));
+      assertEquals(true, running.invoke(server));
       final int port = (Integer) localPort.invoke(server);
       final URI address = URI.create("http://127.0.0.1:" + port + "/");
       final HttpRequest request = HttpRequest.newBuilder(address).timeout(Duration.ofSeconds(10)).build();
@@ -90,13 +90,15 @@ final class HttpClassLoaderTest {
     } finally {
       stop.invoke(server);
     }
-    assertEquals(Boolean.FALSE, running.invoke(server));
+    assertEquals(false, running.invoke(server));
   }
 
   private static URL[] libraryLocations() throws IOException {
-    final Set<URL> locations = new LinkedHashSet<>();
-    locations.add(HttpResultImpl.class.getProtectionDomain().getCodeSource().getLocation());
-    locations.add(AudioFilter.class.getProtectionDomain().getCodeSource().getLocation());
+    final Map<String, URL> locations = new LinkedHashMap<>();
+    final URL httpLocation = HttpResultImpl.class.getProtectionDomain().getCodeSource().getLocation();
+    final URL commonLocation = AudioFilter.class.getProtectionDomain().getCodeSource().getLocation();
+    locations.put(httpLocation.toExternalForm(), httpLocation);
+    locations.put(commonLocation.toExternalForm(), commonLocation);
     // Gradle and PIT use different loader types; manifests locate their dependency jars without a loader cast.
     final ClassLoader loader = HttpClassLoaderTest.class.getClassLoader();
     final Enumeration<URL> manifests = loader.getResources("META-INF/MANIFEST.MF");
@@ -104,10 +106,11 @@ final class HttpClassLoaderTest {
       final URL manifest = manifests.nextElement();
       final URLConnection connection = manifest.openConnection();
       if (connection instanceof final JarURLConnection jar) {
-        locations.add(jar.getJarFileURL());
+        final URL location = jar.getJarFileURL();
+        locations.put(location.toExternalForm(), location);
       }
     }
     assertTrue(locations.size() > 2, "the isolated loader includes the real HTTP dependencies");
-    return locations.toArray(URL[]::new);
+    return locations.values().toArray(URL[]::new);
   }
 }
