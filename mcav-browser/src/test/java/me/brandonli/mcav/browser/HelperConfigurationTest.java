@@ -212,7 +212,12 @@ class HelperConfigurationTest {
     assertThrows(NumberFormatException.class, () -> HelperConfiguration.fromLine(withValue(5, "wide")));
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(0, "zz")));
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(4, "file:///etc/passwd")));
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine("not base64!:a:b:c:d:e:f:g:h:i:j"));
+    final String[] invalidEncoding = parts(configuration(false));
+    invalidEncoding[3] = "!" + invalidEncoding[3];
+    final IllegalArgumentException malformed = assertThrows(IllegalArgumentException.class, () ->
+      HelperConfiguration.fromLine(String.join(":", invalidEncoding))
+    );
+    assertEquals("Illegal base64 character 21", malformed.getMessage());
     final String tooLong = "A".repeat(1024 * 1024 + 1);
     final IllegalArgumentException longLine = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(tooLong));
     assertEquals("The configuration line is too long", longLine.getMessage());
