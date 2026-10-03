@@ -36,7 +36,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -66,6 +65,8 @@ import org.apache.logging.log4j.Level;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
@@ -244,6 +245,33 @@ final class CompressedMapResultTest {
     final ClientboundMapItemDataPacket snapshotPacket = snapshot.getFirst();
     assertEquals(1, count);
     MapPackets.assertMapPacket(snapshotPacket, 3, 0, 0, 128, 128, firstFrame);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { false, true })
+  void reconnectedViewerGetsSnapshotWithoutAnInterveningFrame(final boolean changesWhileOffline) {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, false);
+    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    try (final ImageBuffer image = Images.solid(128, 128, 0xFF000000)) {
+      result.process(image, this.algorithm);
+      this.server.removePlayer(FIRST);
+      PacketUtils.init();
+      this.server.addPlayer(FIRST);
+      PacketUtils.init();
+      if (changesWhileOffline) {
+        this.nextFrame = this.changedFrame();
+      }
+      result.process(image, this.algorithm);
+
+      assertEquals(1, this.firstViewerPacketCount(), "a replacement connection needs its own complete baseline");
+      final List<ClientboundMapItemDataPacket> snapshot = this.packetsOf(FIRST, 0);
+      assertEquals(1, snapshot.size());
+      MapPackets.assertMapPacket(snapshot.getFirst(), 3, 0, 0, 128, 128, this.nextFrame);
+      result.process(image, this.algorithm);
+      assertEquals(1, this.firstViewerPacketCount(), "the replacement connection retains its new baseline");
+    } finally {
+      result.release();
+    }
   }
 
   private static void applyPacketsToCanvas(
@@ -690,7 +718,7 @@ final class CompressedMapResultTest {
     assertTrue(retained.isEmpty(), "released displays must not retain obsolete rendering state");
     final Field viewersField = CompressedMapResult.class.getDeclaredField("activeViewers");
     viewersField.setAccessible(true);
-    final Set<?> retainedViewers = (Set<?>) viewersField.get(result);
+    final Map<?, ?> retainedViewers = (Map<?, ?>) viewersField.get(result);
     assertTrue(retainedViewers.isEmpty(), "release drops the old viewer snapshot");
   }
 
