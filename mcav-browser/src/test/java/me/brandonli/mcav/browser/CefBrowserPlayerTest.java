@@ -254,13 +254,18 @@ class CefBrowserPlayerTest {
     });
     final ExecutorService starter = Executors.newSingleThreadExecutor();
     try {
-      final Future<Boolean> started = starter.submit(() -> slow.start(SOURCE));
+      // read on the thread that called start, in the same task: the executor clears a worker's interrupt between tasks
+      final AtomicBoolean leftInterrupted = new AtomicBoolean(true);
+      final Future<Boolean> started = starter.submit(() -> {
+        final boolean result = slow.start(SOURCE);
+        leftInterrupted.set(Thread.currentThread().isInterrupted());
+        return result;
+      });
       opening.await();
       assertTrue(assertTimeoutPreemptively(Duration.ofSeconds(5), slow::release), "the release does not wait for the start");
       assertFalse(started.get(5, TimeUnit.SECONDS), "the start of a released player fails");
       assertFalse(slow.isPlaying());
-      final boolean interrupted = starter.submit(() -> Thread.currentThread().isInterrupted()).get(5, TimeUnit.SECONDS);
-      assertFalse(interrupted, "the release's interrupt is the player's own, not left to the thread that called start");
+      assertFalse(leftInterrupted.get(), "the release's interrupt is the player's own, not left to the thread that called start");
     } finally {
       starter.shutdownNow();
     }
@@ -398,6 +403,31 @@ class CefBrowserPlayerTest {
     assertFalse(this.player.isPlaying());
     this.startFailure = null;
     assertTrue(this.player.start(SOURCE));
+  }
+
+  @Test
+  void aStartThatIsRefusedKeepsTheInterruptOfItsCaller() {
+    assertTrue(this.player.start(SOURCE));
+    Thread.currentThread().interrupt();
+    try {
+      assertFalse(this.player.start(SOURCE), "a playing player does not start twice");
+      assertTrue(Thread.currentThread().isInterrupted(), "an interrupt of the caller's own is not the player's to take");
+    } finally {
+      Thread.interrupted();
+    }
+  }
+
+  @Test
+  void aStartThatFailsKeepsTheInterruptOfItsCaller() {
+    this.startFailure = new PlayerException("no browser here");
+    Thread.currentThread().interrupt();
+    try {
+      assertThrows(PlayerException.class, () -> this.player.start(SOURCE));
+      assertTrue(Thread.currentThread().isInterrupted(), "an interrupt of the caller's own is not the player's to take");
+    } finally {
+      Thread.interrupted();
+      this.startFailure = null;
+    }
   }
 
   @Test

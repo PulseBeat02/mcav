@@ -69,6 +69,7 @@ class BrowserSourceTest {
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 0, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 4097, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 4097, 1));
+    assertEquals(4096, BrowserSource.uri(PAGE, 4096, 4096, 1).getHeight(), "4096 per side is the largest frame, and allowed");
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 1, 0));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 1, 1001));
     final String start = "https://example.com/";

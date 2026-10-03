@@ -289,6 +289,7 @@ class HelperSessionTest {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
     Await.until("the first frame", () -> !this.listener.frames.isEmpty());
     final List<Thread> threads = session.getThreads();
+    assertEquals(3, threads.size(), "the reader, delivery and output threads");
     for (final Thread thread : threads) {
       assertTrue(thread.isDaemon(), thread.getName() + " would keep the JVM alive");
     }
