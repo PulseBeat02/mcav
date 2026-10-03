@@ -141,6 +141,17 @@ final class RfbGuardTest {
     assertRefused(session, unsigned32(19), "security type 19");
   }
 
+  @Test
+  void refusesTheInvalidSecurityTypeAsOneTheClientChose() throws IOException {
+    final RfbSession session = new RfbSession();
+    session.server(version(8));
+    session.client(version(8));
+    session.server(new byte[] { 1, NONE });
+    // type 0, RFB's invalid type, is a choice the client made, not the absence of one
+    session.client(new byte[] { 0 });
+    assertRefused(session, unsigned32(0), "security type 0");
+  }
+
   @ParameterizedTest
   @ValueSource(ints = { 3, 8 })
   void acceptsAFailureReasonAndNothingAfterIt(final int minor) throws IOException {
