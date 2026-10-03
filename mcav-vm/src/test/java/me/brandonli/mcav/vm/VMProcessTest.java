@@ -1017,6 +1017,7 @@ final class VMProcessTest {
     final boolean outputClosed = output.closed;
     assertFalse(alive);
     assertTrue(outputClosed, "shutdown must wait for the output reader to consume and close the stream");
+    assertEquals(output.content.length, output.position, "shutdown consumes the entire final diagnostic before closing it");
   }
 
   @Test
