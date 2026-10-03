@@ -77,6 +77,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
   private final ExceptionHandler exceptionHandler;
   private final Lock lock;
   private final Object frameLock;
+  private final Object deliveryLock;
   private final long idleParkNanos;
   private final long handshakeTimeoutMillis;
   private final AtomicBoolean paused;
@@ -148,6 +149,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
     this.exceptionHandler = ExceptionHandler.createDefault();
     this.lock = new ReentrantLock();
     this.frameLock = new Object();
+    this.deliveryLock = new Object();
     this.idleParkNanos = idleParkNanos;
     this.paused = new AtomicBoolean(false);
     this.released = new AtomicBoolean(false);
@@ -367,7 +369,12 @@ public final class VNCPlayerImpl implements VNCPlayer {
 
       // the metadata is created together with the resize filter
       final OriginalVideoMetadata current = Objects.requireNonNull(metadata, "Metadata must exist with the filter");
-      this.deliver(frame, resizeFilter, current);
+      synchronized (this.deliveryLock) {
+        // A callback can restart playback before it returns; the replacement must deliver after that callback.
+        if (owner.isAlive()) {
+          this.deliver(frame, resizeFilter, current);
+        }
+      }
     }
   }
 

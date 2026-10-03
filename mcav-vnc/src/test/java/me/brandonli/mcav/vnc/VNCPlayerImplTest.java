@@ -67,6 +67,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
@@ -1738,6 +1739,109 @@ final class VNCPlayerImplTest {
   @Test
   void restartsAnEndedSessionFromARenderCallbackWithoutWaitingForItself() throws Exception {
     this.assertControlFromRenderCallback(true);
+  }
+
+  @Test
+  void restartKeepsPipelineDeliverySerialAcrossSessions() throws Exception {
+    final ServerSocket listening = this.listeningSocket();
+    final VernacularClient client = mock(VernacularClient.class);
+    final AtomicReference<VernacularConfig> config = new AtomicReference<>();
+    final VNCPlayerImpl player = this.mockedPlayer(client, config);
+    final VNCSource source = source(listening, 0, 0);
+    final CountDownLatch restarted = new CountDownLatch(1);
+    final CountDownLatch releaseFirst = new CountDownLatch(1);
+    final CountDownLatch secondEntered = new CountDownLatch(1);
+    final CountDownLatch delivered = new CountDownLatch(2);
+    final AtomicInteger active = new AtomicInteger();
+    final AtomicInteger maximum = new AtomicInteger();
+    final List<Integer> colors = new CopyOnWriteArrayList<>();
+    final UnknownMessageTypeException failure = new UnknownMessageTypeException(9);
+    final VideoPipelineStep recorder = VideoPipelineStep.of((image, _) -> {
+      colors.add(image.getPixels()[0] & 0xFFFFFF);
+      active.decrementAndGet();
+      delivered.countDown();
+      return false;
+    });
+    final VideoPipelineStep controller = VideoPipelineStep.of(recorder, (image, _) -> {
+      maximum.accumulateAndGet(active.incrementAndGet(), Math::max);
+      if ((image.getPixels()[0] & 0xFFFFFF) == RED) {
+        pushError(config, failure);
+        assertTrue(player.start(source));
+        pushScreen(config, image(4, 4, BLUE));
+        restarted.countDown();
+        awaitLatch(releaseFirst);
+      } else {
+        secondEntered.countDown();
+      }
+      return false;
+    });
+    player.getVideoAttachableCallback().attach(controller);
+    try {
+      assertTrue(player.start(source));
+      pushScreen(config, image(4, 4, RED));
+      assertTrue(restarted.await(10, TimeUnit.SECONDS));
+      assertFalse(secondEntered.await(200, TimeUnit.MILLISECONDS), "the replacement entered a pipeline still processing the old session");
+      releaseFirst.countDown();
+      assertTrue(delivered.await(10, TimeUnit.SECONDS));
+      assertEquals(1, maximum.get());
+      assertEquals(List.of(RED, BLUE), colors, "the replacement's frame must remain the last displayed frame");
+      assertEquals(List.of(failure), this.errors);
+    } finally {
+      releaseFirst.countDown();
+      player.release();
+    }
+  }
+
+  @Test
+  void endedReplacementDropsItsFrameWhileWaitingForAnOldCallback() throws Exception {
+    final ServerSocket listening = this.listeningSocket();
+    final VernacularClient client = mock(VernacularClient.class);
+    final AtomicReference<VernacularConfig> config = new AtomicReference<>();
+    final VNCPlayerImpl player = this.mockedPlayer(client, config);
+    final VNCSource source = source(listening, 0, 0);
+    final CountDownLatch restarted = new CountDownLatch(1);
+    final CountDownLatch releaseFirst = new CountDownLatch(1);
+    final AtomicReference<Thread> originalRenderer = new AtomicReference<>();
+    final List<Integer> colors = new CopyOnWriteArrayList<>();
+    final UnknownMessageTypeException originalFailure = new UnknownMessageTypeException(9);
+    final UnknownMessageTypeException replacementFailure = new UnknownMessageTypeException(10);
+    player.getVideoAttachableCallback().attach(
+      VideoPipelineStep.of((frame, _) -> {
+        final int color = frame.getPixels()[0] & 0xFFFFFF;
+        if (color == RED) {
+          originalRenderer.set(Thread.currentThread());
+          pushError(config, originalFailure);
+          assertTrue(player.start(source));
+          pushScreen(config, image(4, 4, BLUE));
+          restarted.countDown();
+          assertTrue(awaitLatch(releaseFirst));
+        }
+        colors.add(color);
+        return false;
+      })
+    );
+    try {
+      assertTrue(player.start(source));
+      pushScreen(config, image(4, 4, RED));
+      assertTrue(restarted.await(10, TimeUnit.SECONDS));
+      final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+      while (player.hasPendingFrame() && System.nanoTime() < deadline) {
+        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
+      }
+      assertFalse(player.hasPendingFrame(), "the replacement takes its queued frame");
+      pushError(config, replacementFailure);
+      releaseFirst.countDown();
+    } finally {
+      releaseFirst.countDown();
+      player.release();
+      final Thread original = originalRenderer.get();
+      if (original != null) {
+        original.join(10_000);
+        assertFalse(original.isAlive(), "the original renderer must finish");
+      }
+    }
+    assertEquals(List.of(RED), colors, "the ended replacement cannot show its waiting frame");
+    assertEquals(List.of(originalFailure, replacementFailure), this.errors);
   }
 
   private void assertControlFromRenderCallback(final boolean restarts) throws Exception {

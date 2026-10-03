@@ -590,7 +590,12 @@ final class PlaybackSession {
   private void runVideoPipeline(final VideoPipelineStep first, final MatImageBuffer image) {
     final OriginalVideoMetadata metadata = this.videoMetadata;
     try {
-      first.processAll(image, metadata);
+      synchronized (this.videoCallback) {
+        // The callback slot survives replacement sessions, including a replacement started by this pipeline.
+        if (this.running.get()) {
+          first.processAll(image, metadata);
+        }
+      }
     } catch (final RuntimeException | Error exception) {
       // filters are user code, and native filters can throw a LinkageError, so any failure is reported and playback
       // goes on; only a virtual machine error ends the thread, because reporting it would hide it
@@ -639,7 +644,12 @@ final class PlaybackSession {
   private void runAudioPipeline(final AudioPipelineStep first, final ByteBuffer samples) {
     final OriginalAudioMetadata metadata = this.audioMetadata;
     try {
-      first.processAll(samples, metadata);
+      synchronized (this.audioCallback) {
+        // Audio and video remain independent, while successive sessions share each delivery boundary.
+        if (this.running.get()) {
+          first.processAll(samples, metadata);
+        }
+      }
     } catch (final RuntimeException | Error exception) {
       // filters are user code, and native filters can throw a LinkageError, so any failure is reported and playback
       // goes on; only a virtual machine error ends the thread, because reporting it would hide it
