@@ -25,6 +25,8 @@ import static me.brandonli.mcav.vnc.RfbSession.unsigned16;
 import static me.brandonli.mcav.vnc.RfbSession.unsigned32;
 import static me.brandonli.mcav.vnc.RfbSession.update;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -63,6 +65,8 @@ final class RfbGuardPropertyTest {
       assertDoesNotThrow(() -> session.server(part));
       at += chunk;
     }
+    final IOException boundary = assertThrows(IOException.class, () -> session.server(new byte[] { (byte) 255 }));
+    assertEquals("The VNC server broke the protocol or a bound: message type 255", boundary.getMessage());
   }
 
   @Property(seed = SEED, tries = 300)
