@@ -37,6 +37,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import com.shinyhut.vernacular.client.VernacularClient;
 import com.shinyhut.vernacular.client.VernacularConfig;
 import com.shinyhut.vernacular.client.exceptions.AuthenticationFailedException;
@@ -1913,5 +1914,44 @@ final class VNCPlayerImplTest {
     assertTrue(failure.getMessage().endsWith(": the server did not finish the handshake within 500 ms"), failure.getMessage());
     // the lock is free again: release does not wait for the silent server
     assertTimeoutPreemptively(Duration.ofSeconds(5), player::release);
+  }
+
+  /** A socket whose first close, the deadline's, takes a second to return once the socket is closed, as a close can. */
+  private static final class SlowToClose extends Socket {
+
+    private final AtomicBoolean first = new AtomicBoolean(true);
+
+    @Override
+    public void close() throws IOException {
+      super.close();
+      if (this.first.getAndSet(false)) {
+        Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+      }
+    }
+  }
+
+  @Test
+  void blamesTheDeadlineWhenTheHandshakeFailsBeforeTheDeadlinesCloseReturns() throws IOException {
+    final ServerSocket silent = this.listeningSocket();
+    final VNCPlayerImpl player = this.track(
+      new VNCPlayerImpl(VernacularClient::new, SlowToClose::new, TimeUnit.MILLISECONDS.toNanos(10), 500)
+    );
+    final VNCSource source = source(silent, 0, 0);
+    // the handshake fails on the closed socket, and the start calls the deadline off, while the deadline's close has not
+    // returned
+    final PlayerException failure = assertTimeoutPreemptively(Duration.ofSeconds(15), () ->
+      assertThrows(PlayerException.class, () -> player.start(source))
+    );
+    assertTrue(failure.getMessage().endsWith(": the server did not finish the handshake within 500 ms"), failure.getMessage());
+  }
+
+  @Test
+  void aHandshakeThatEndsInTimeKeepsItsConnection() throws InterruptedException {
+    final RfbTestServer answering = this.server(64, 48);
+    final VNCPlayerImpl player = this.track(new VNCPlayerImpl(VernacularClient::new, Socket::new, TimeUnit.MILLISECONDS.toNanos(10), 300));
+    assertTrue(player.start(source(answering, 64, 48)));
+    // the deadline was called off: the connection outlives it, three times over
+    assertFalse(answering.getDisconnected().await(900, TimeUnit.MILLISECONDS), "the deadline closed an established session");
+    assertEquals(1, answering.getConnections());
   }
 }

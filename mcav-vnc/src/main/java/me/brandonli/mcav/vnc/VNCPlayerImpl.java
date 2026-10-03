@@ -223,8 +223,14 @@ public final class VNCPlayerImpl implements VNCPlayer {
     final Socket socket = this.connect(source);
     // the handshake runs on this thread, under the player's lock: a server that accepts the connection and never answers
     // would hold both forever, and release() with them, so the connection is closed once the deadline passes
+    final AtomicBoolean expired = new AtomicBoolean();
     final CompletableFuture<Void> deadline = CompletableFuture.runAsync(
-      () -> closeQuietly(socket),
+      () -> {
+        // marked before the close: the handshake can fail on the closed socket before the close returns, and the
+        // cancel below can win against a deadline whose close is still running
+        expired.set(true);
+        closeQuietly(socket);
+      },
       CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS)
     );
     try {
@@ -232,7 +238,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
     } catch (final RuntimeException exception) {
       closeQuietly(socket);
       final String message = exception.getMessage();
-      throw new PlayerException(this.startFailure(source, deadline, message), exception);
+      throw new PlayerException(this.startFailure(source, expired.get(), message), exception);
     } finally {
       deadline.cancel(false);
     }
@@ -244,14 +250,13 @@ public final class VNCPlayerImpl implements VNCPlayer {
       vncClient.stop();
       closeQuietly(socket);
       final String message = failure.getMessage();
-      throw new PlayerException(this.startFailure(source, deadline, message), failure);
+      throw new PlayerException(this.startFailure(source, expired.get(), message), failure);
     }
     return vncClient;
   }
 
   // a deadline that ran out closed the connection, which is the reason, whatever the client made of the closed socket
-  private String startFailure(final VNCSource source, final CompletableFuture<Void> deadline, final @Nullable String message) {
-    final boolean timedOut = deadline.isDone() && !deadline.isCancelled();
+  private String startFailure(final VNCSource source, final boolean timedOut, final @Nullable String message) {
     final String reason = timedOut ? "the server did not finish the handshake within " + this.handshakeTimeoutMillis + " ms" : message;
     return "Failed to start the VNC session with " + source + ": " + reason;
   }
