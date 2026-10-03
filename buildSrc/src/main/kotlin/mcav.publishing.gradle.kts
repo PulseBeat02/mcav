@@ -8,6 +8,7 @@ import me.brandonli.mcav.gradle.McavPublishingExtension
 plugins {
     java
     `maven-publish`
+    id("mcav.licensing")
 }
 
 val settings = extensions.create<McavPublishingExtension>("mcavPublishing")
@@ -20,14 +21,6 @@ java {
 
 tasks.withType<Javadoc>().configureEach {
     options.encoding = "UTF-8"
-}
-
-// every published jar names the third-party code mcav's jars bundle and what mcav downloads while it runs
-val thirdPartyNotices = rootProject.file("THIRD-PARTY-NOTICES.md")
-tasks.withType<Jar>().matching { it.name == "jar" || it.name == "shadowJar" }.configureEach {
-    from(thirdPartyNotices) {
-        into("META-INF")
-    }
 }
 
 tasks.withType<GenerateModuleMetadata>().configureEach {
@@ -57,6 +50,23 @@ afterEvaluate {
         groupId = "me.brandonli"
         artifactId = project.name
         version = rootProject.version.toString()
+        pom {
+            name.set(project.name)
+            description.set("MCAV multimedia library: ${project.name}")
+            url.set("https://github.com/PulseBeat02/mcav")
+            licenses {
+                license {
+                    name.set("GNU General Public License, version 3 or later")
+                    url.set("https://www.gnu.org/licenses/gpl-3.0.html")
+                    distribution.set("repo")
+                }
+            }
+            scm {
+                connection.set("scm:git:https://github.com/PulseBeat02/mcav.git")
+                developerConnection.set("scm:git:ssh://git@github.com/PulseBeat02/mcav.git")
+                url.set("https://github.com/PulseBeat02/mcav")
+            }
+        }
         if (settings.bundledJar.isPresent) {
             artifact(settings.bundledJar.get())
             artifact(tasks.named("sourcesJar").get())
