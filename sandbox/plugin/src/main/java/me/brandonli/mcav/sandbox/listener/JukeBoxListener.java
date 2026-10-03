@@ -34,6 +34,7 @@ import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
@@ -87,11 +88,12 @@ public final class JukeBoxListener implements Listener {
 
   /**
    * Boots the virtual machine of the disc a player puts into a jukebox, if the ISO folder has an image named like
-   * the disc. The disc is kept.
+   * the disc. The disc is kept. It runs at the highest priority, once the plugins that protect regions, which decide at
+   * lower priorities, may have denied the player the jukebox; a denied use boots nothing.
    *
    * @param event the interaction
    */
-  @EventHandler
+  @EventHandler(priority = EventPriority.HIGHEST)
   public void onJukeboxInteract(final PlayerInteractEvent event) {
     Preconditions.checkNotNull(event, "Event must not be null");
     // a use of the jukebox that another plugin denied, such as a region's protection, starts nothing with the player's

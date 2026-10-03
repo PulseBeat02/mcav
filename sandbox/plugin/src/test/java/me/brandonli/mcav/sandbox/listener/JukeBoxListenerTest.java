@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,13 +35,19 @@ import me.brandonli.mcav.sandbox.testing.TestServer;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
+import org.bukkit.event.EventException;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.RegisteredListener;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -156,6 +163,60 @@ final class JukeBoxListenerTest {
     // a region's protection, for example, denies the player the jukebox
     when(event.useInteractedBlock()).thenReturn(Event.Result.DENY);
     this.assertIgnored(event);
+  }
+
+  /** A real interaction with a disc named after the image, which listeners can change as they do on a server. */
+  private PlayerInteractEvent discOnJukebox() {
+    final Block jukebox = mock(Block.class);
+    when(jukebox.getType()).thenReturn(Material.JUKEBOX);
+    final ItemStack disc = mock(ItemStack.class);
+    when(disc.getType()).thenReturn(Material.MUSIC_DISC_CAT);
+    final Component name = Component.text("[alpine.iso]");
+    when(disc.displayName()).thenReturn(name);
+    return new PlayerInteractEvent(this.player, Action.RIGHT_CLICK_BLOCK, disc, jukebox, BlockFace.UP);
+  }
+
+  /** The listener as the plugin manager registers it: at the priority its handler's annotation names. */
+  private RegisteredListener registered() throws NoSuchMethodException {
+    final EventHandler handler = JukeBoxListener.class
+      .getMethod("onJukeboxInteract", PlayerInteractEvent.class)
+      .getAnnotation(EventHandler.class);
+    return new RegisteredListener(
+      this.listener,
+      (listener, event) -> ((JukeBoxListener) listener).onJukeboxInteract((PlayerInteractEvent) event),
+      handler.priority(),
+      this.sandbox,
+      false
+    );
+  }
+
+  /** Calls the listeners of an event as the server does, in the order of their priorities. */
+  private static void dispatch(final Event event, final RegisteredListener... listeners) throws EventException {
+    final HandlerList handlers = new HandlerList();
+    for (final RegisteredListener listener : listeners) {
+      handlers.register(listener);
+    }
+    for (final RegisteredListener listener : handlers.getRegisteredListeners()) {
+      listener.callEvent(event);
+    }
+  }
+
+  @Test
+  void decidesAfterThePluginsThatProtectRegions() throws Exception {
+    this.createImage("alpine.iso");
+    // a region's protection that denies the jukebox at a high priority, as such plugins decide before the highest
+    final RegisteredListener protection = new RegisteredListener(
+      new Listener() {},
+      (listener, event) -> ((PlayerInteractEvent) event).setUseInteractedBlock(Event.Result.DENY),
+      EventPriority.HIGH,
+      this.sandbox,
+      false
+    );
+    dispatch(this.discOnJukebox(), protection, this.registered());
+    verify(this.player, never()).performCommand(anyString());
+    // where nothing denies it, the disc boots its machine once
+    dispatch(this.discOnJukebox(), this.registered());
+    verify(this.player, times(1)).performCommand(anyString());
   }
 
   @Test
