@@ -20,12 +20,15 @@ package me.brandonli.mcav.media.player.pipeline.filter.video;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.testing.Images;
 import org.bytedeco.opencv.global.opencv_core;
@@ -121,10 +124,17 @@ final class ColorFiltersTest {
   }
 
   @Test
-  void tintRebuildsItsColorOnlyForFramesOfAnotherSizeOrType() {
+  void tintRebuildsItsColorOnlyForFramesOfAnotherSizeOrType() throws ReflectiveOperationException {
     final TintFilter filter = new TintFilter(BLUE, 0.5);
     final int first = tintedBlue(filter, 3, 3);
+    final Field holderField = TintFilter.class.getDeclaredField("tint");
+    holderField.setAccessible(true);
+    final Field idleField = ReusableMat.class.getDeclaredField("idle");
+    idleField.setAccessible(true);
+    final AtomicReference<?> idle = (AtomicReference<?>) idleField.get(holderField.get(filter));
+    final Object kept = idle.get();
     final int sameSize = tintedBlue(filter, 3, 3);
+    assertSame(kept, idle.get(), "a stable frame size reuses the cached tint matrix");
     final int otherWidth = tintedBlue(filter, 2, 3);
     final int otherHeight = tintedBlue(filter, 2, 2);
     final int grayLevel;
@@ -256,13 +266,21 @@ final class ColorFiltersTest {
   void blendIgnoresFramesOfAnotherSize() {
     try (final ImageBuffer other = Images.solid(2, 2, 0xFFFFFFFF); final ImageBuffer image = Images.solid(3, 3, 0xFF000000)) {
       final BlendFilter filter = new BlendFilter(other, 0.5);
+      final ByteBuffer before = ByteBuffer.allocate(image.getData().remaining()).put(image.getData()).flip();
       final boolean modified = filter.applyFilter(image);
       assertFalse(modified);
+      assertEquals(before, image.getData());
+      assertEquals(3, image.getWidth());
+      assertEquals(3, image.getHeight());
     }
     try (final ImageBuffer tall = Images.solid(3, 4, 0xFFFFFFFF); final ImageBuffer image = Images.solid(3, 3, 0xFF000000)) {
       final BlendFilter filter = new BlendFilter(tall, 0.5);
+      final ByteBuffer before = ByteBuffer.allocate(image.getData().remaining()).put(image.getData()).flip();
       final boolean modified = filter.applyFilter(image);
       assertFalse(modified);
+      assertEquals(before, image.getData());
+      assertEquals(3, image.getWidth());
+      assertEquals(3, image.getHeight());
     }
   }
 
