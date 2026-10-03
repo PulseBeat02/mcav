@@ -5,6 +5,7 @@ import java.io.File
 import java.nio.file.Path
 import org.gradle.api.GradleException
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -54,12 +55,19 @@ class JcstressConsoleTest {
 
     @Test
     fun keepsWhatItShowsAndLeavesTheConsoleOpen() {
-        val shown = ByteArrayOutputStream()
+        // a console that knows it was closed: closing a ByteArrayOutputStream does nothing, so it cannot tell
+        var closed = false
+        val shown = object : ByteArrayOutputStream() {
+            override fun close() {
+                closed = true
+            }
+        }
         val file = this.directory.resolve("console.txt").toFile()
         val tee = JcstressConsole.tee(shown, file)
         tee.write("[OK] one\n".toByteArray())
         tee.write('x'.code)
         tee.close()
+        assertFalse(closed, "the build's console stays open for everything after the run")
         shown.write('!'.code)
         assertEquals("[OK] one\nx!", shown.toString())
         assertEquals("[OK] one\nx", file.readText())
