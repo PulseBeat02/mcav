@@ -473,15 +473,27 @@ final class Mcv2ChannelTest {
 
   /** A wall of one map at (0, 64, 0) in a world of its own, watched by the viewer with the pack at a view distance of 6. */
   private Mcv2Channel watchedFrom(final World world, final AtomicReference<Location> position) {
+    return this.watchedFrom(world, position, BlockFace.SOUTH, 1, 1);
+  }
+
+  /** A wall of the given shape whose top-left block is at 0, 64, 0, watched by the viewer with the pack. */
+  private Mcv2Channel watchedFrom(
+    final World world,
+    final AtomicReference<Location> position,
+    final BlockFace facing,
+    final int columns,
+    final int rows
+  ) {
     when(world.getUID()).thenReturn(UUID.fromString("00000000-0000-0000-0000-00000000a0a0"));
     final Mcv2Configuration wall = Mcv2Configuration.builder()
       .viewers(List.of(LOADED))
       .origin(new Location(world, 0, 64, 0))
-      .facing(BlockFace.SOUTH)
+      .facing(facing)
       .map(100)
-      .columns(1)
-      .rows(1)
+      .columns(columns)
+      .rows(rows)
       .pageMap(500)
+      .pageSlots(1)
       .build();
     when(this.player.getViewDistance()).thenReturn(6);
     when(this.player.getWorld()).thenAnswer(_ -> position.get().getWorld());
@@ -557,5 +569,61 @@ final class Mcv2ChannelTest {
     this.tick(channel);
     assertEquals(Set.of(LOADED), channel.getRecipients());
     channel.close();
+  }
+
+  /** Whether the viewer with the pack is sent the stream when they stand at a point, measured afresh. */
+  private boolean receivesFrom(final BlockFace facing, final int columns, final int rows, final double x, final double y, final double z) {
+    final World world = mock(World.class);
+    final AtomicReference<Location> position = new AtomicReference<>(new Location(world, x, y, z));
+    final Mcv2Channel channel = this.watchedFrom(world, position, facing, columns, rows);
+    channel.open();
+    this.tick(channel);
+    final boolean receiving = channel.getRecipients().contains(LOADED);
+    channel.close();
+    return receiving;
+  }
+
+  @Test
+  void aWideWallReachesAsFarAsItsLastColumn() {
+    // a view distance of 6 chunks and the margin of a viewer who has not left: 128 blocks from the nearest block
+    assertTrue(this.receivesFrom(BlockFace.SOUTH, 5, 1, 133, 64.5, 0.5), "128 blocks east of the fifth column");
+    assertTrue(this.receivesFrom(BlockFace.WEST, 5, 1, 0.5, 64.5, 133), "128 blocks south of the fifth column");
+  }
+
+  @Test
+  void aTallWallReachesDownToItsLowestRow() {
+    // the third row from the top is the block at y 62
+    assertTrue(this.receivesFrom(BlockFace.SOUTH, 1, 3, 0.5, -66, 0.5), "128 blocks below the lowest row");
+    assertFalse(this.receivesFrom(BlockFace.SOUTH, 1, 3, 0.5, -67, 0.5), "129 blocks below it");
+  }
+
+  @Test
+  void aViewerOffTheWallOnTwoAxesIsAsFarAsBothTogether() {
+    // 100 blocks off on each of two axes: 141 blocks away, though neither alone is out of reach
+    assertFalse(this.receivesFrom(BlockFace.SOUTH, 1, 1, 101, 165, 0.5), "east and above");
+    assertFalse(this.receivesFrom(BlockFace.SOUTH, 1, 1, 101, 64.5, 101), "east and south");
+  }
+
+  @Test
+  void anOpenedChannelKnowsAtOnceWhoIsTooFar() {
+    final World world = mock(World.class);
+    final AtomicReference<Location> position = new AtomicReference<>(new Location(world, 400, 64, 0));
+    final Mcv2Channel channel = this.watchedFrom(world, position);
+    channel.open();
+    // before the first measurement of the timer the viewer 400 blocks away is in neither group
+    assertEquals(Set.of(), channel.update());
+    assertEquals(1, this.server.getScheduledTaskCount(), "only the measurement: the screen is not shown to them");
+    channel.close();
+  }
+
+  @Test
+  void closingStopsMeasuringTheViewersDistances() {
+    final World world = mock(World.class);
+    final AtomicReference<Location> position = new AtomicReference<>(new Location(world, 0, 64, 4));
+    final Mcv2Channel channel = this.watchedFrom(world, position);
+    channel.open();
+    assertEquals(1, this.server.getScheduledTaskCount(), "the measurement every second");
+    channel.close();
+    assertEquals(0, this.server.getScheduledTaskCount());
   }
 }

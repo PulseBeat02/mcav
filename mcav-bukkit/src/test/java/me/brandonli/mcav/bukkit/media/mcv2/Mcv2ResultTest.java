@@ -1400,4 +1400,123 @@ final class Mcv2ResultTest {
     }
     result.release();
   }
+
+  /** Waits up to ten seconds until a thread waits, such as on the result's lock. */
+  private static void awaitWaiting(final Thread thread) throws InterruptedException {
+    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+    while (thread.getState() != Thread.State.WAITING && System.nanoTime() < deadline) {
+      Thread.sleep(5);
+    }
+    assertEquals(Thread.State.WAITING, thread.getState());
+  }
+
+  /** Waits for a latch the way code that does not answer interrupts does, and keeps the interrupt for later. */
+  private static void awaitUninterruptibly(final CountDownLatch latch) {
+    boolean interrupted = false;
+    while (true) {
+      try {
+        latch.await();
+        break;
+      } catch (final InterruptedException exception) {
+        interrupted = true;
+      }
+    }
+    if (interrupted) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  /** A thread that waits in {@link Mcv2Result#take()} and keeps what it took. */
+  private static Thread taker(final Mcv2Result result, final AtomicReference<Mcv2Result.Arrival> taken) {
+    return new Thread(() -> {
+      try {
+        taken.set(result.take());
+      } catch (final InterruptedException exception) {
+        Thread.currentThread().interrupt();
+      }
+    });
+  }
+
+  @Test
+  void aReleaseWakesAThreadThatWaitsForAFrame() throws InterruptedException {
+    final Mcv2Result result = this.result(this.configuration, null);
+    result.start();
+    final AtomicReference<Mcv2Result.Arrival> taken = new AtomicReference<>(
+      new Mcv2Result.Arrival(new byte[0], 0, 0, 0, Mcv2Pacer.Preset.ONLY)
+    );
+    final Thread waiter = taker(result, taken);
+    waiter.start();
+    awaitWaiting(waiter);
+    result.release();
+    waiter.join(TimeUnit.SECONDS.toMillis(5));
+    assertFalse(waiter.isAlive(), "the release wakes a thread that waits for a frame");
+    assertNull(taken.get(), "and hands it none");
+  }
+
+  @Test
+  void aSenderThatFailsStopsTheScreenWhileItsThreadCannotBeInterrupted() throws InterruptedException {
+    final Mcv2Configuration fast = packScreen(EncoderSettings.LIVE_FAST);
+    final CountDownLatch inSecondFrame = new CountDownLatch(1);
+    final CountDownLatch secondFrameMayGoOn = new CountDownLatch(1);
+    final CountDownLatch firstFrameMayFail = new CountDownLatch(1);
+    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    when(encoder.getSettings()).thenReturn(EncoderSettings.LIVE_FAST);
+    final Mcv2Encoder.Pending first = mock(Mcv2Encoder.Pending.class);
+    when(encoder.begin(any(), anyInt(), anyInt(), anyLong())).thenReturn(first);
+    final AtomicInteger frames = new AtomicInteger();
+    doAnswer(_ -> {
+      if (frames.getAndIncrement() == 1) {
+        // the second frame's work on the screen's own thread does not answer the interrupt that stops the screen, as
+        // native code does not
+        inSecondFrame.countDown();
+        awaitUninterruptibly(secondFrameMayGoOn);
+      }
+      return null;
+    })
+      .when(encoder)
+      .setFrameLimit(anyInt());
+    when(encoder.finish(first)).thenAnswer(_ -> {
+      firstFrameMayFail.await();
+      throw new IllegalStateException("MCV2 live picture and decoded picture disagree");
+    });
+    final Mcv2Result result = new Mcv2Result(
+      fast,
+      new Mcv2Channel(fast, this.viewers, this.screen),
+      this.algorithm,
+      System::nanoTime,
+      Runnable::run,
+      _ -> encoder
+    );
+    try (final LogCapture logs = LogCapture.capture(Mcv2Result.class)) {
+      result.start();
+      final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+      result.applyFilter(frame, this.metadata);
+      this.server.runTasks();
+      // the first frame goes to the sender, which holds it; the screen's thread is stuck in the second frame
+      result.applyFilter(frame, this.metadata);
+      verify(encoder, timeout(TimeUnit.SECONDS.toMillis(10))).finish(first);
+      result.applyFilter(frame, this.metadata);
+      assertTrue(inSecondFrame.await(10, TimeUnit.SECONDS));
+      final AtomicReference<Mcv2Result.Arrival> taken = new AtomicReference<>(
+        new Mcv2Result.Arrival(new byte[0], 0, 0, 0, Mcv2Pacer.Preset.ONLY)
+      );
+      final Thread waiter = taker(result, taken);
+      waiter.start();
+      awaitWaiting(waiter);
+      firstFrameMayFail.countDown();
+      waiter.join(TimeUnit.SECONDS.toMillis(5));
+      assertFalse(waiter.isAlive(), "the sender's failure stops the screen at once, not when its thread is free again");
+      assertNull(taken.get());
+      assertTrue(
+        logs
+          .getEvents()
+          .stream()
+          .anyMatch(event -> Level.ERROR.equals(event.getLevel())),
+        "the failure is logged"
+      );
+    } finally {
+      secondFrameMayGoOn.countDown();
+      result.release();
+    }
+  }
 }

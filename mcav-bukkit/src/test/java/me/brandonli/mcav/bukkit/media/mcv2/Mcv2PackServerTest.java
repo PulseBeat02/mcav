@@ -1034,7 +1034,7 @@ final class Mcv2PackServerTest {
   }
 
   @Test
-  void aFullPackReshapesTheSpareLeftFirstWhereverItsSlotIs() {
+  void aFullPackReshapesTheSpareLeftFirstWhereverItsSlotIs() throws IOException {
     this.packs.start();
     final List<Mcv2PackServer.Lease> leases = new ArrayList<>();
     for (int screen = 0; screen < Mcv2Pack.MAX_SCREENS / 2; screen++) {
@@ -1050,6 +1050,33 @@ final class Mcv2PackServerTest {
     final Mcv2PackServer.Lease fifth = this.packs.open(screen(608, Set.of()));
 
     assertEquals(3, fifth.getConfiguration().getStreamId(), "the spare left first, behind a newer one");
+    this.settle();
+    assertTrue(this.slotsOfTheLastPack().contains("3: 608x96"), "the slot has the new screen's size");
+  }
+
+  @Test
+  void aClosedScreensSlotIsTrimmedOnTheTickItsGraceEnds() {
+    this.packs.start();
+    final Mcv2PackServer.Lease lease = this.packs.open(screen(320, Set.of()));
+    this.settle();
+    lease.close();
+    // the 60 seconds of grace are 1,200 ticks of 50 ms
+    verify(this.server.getScheduler()).runTaskLater(any(Plugin.class), any(Runnable.class), eq(1_200L));
+  }
+
+  @Test
+  void aTrimBeforeTheLastGraceEndsAsksAgainForWhatIsLeftOfIt() {
+    this.packs.start();
+    final Mcv2PackServer.Lease first = this.packs.open(screen(320, Set.of()));
+    final Mcv2PackServer.Lease second = this.packs.open(screen(288, Set.of()));
+    this.settle();
+    first.close();
+    this.millis.addAndGet(20_000);
+    second.close();
+    this.millis.addAndGet(40_000);
+    // the trim takes the first slot out, and the second has 20 seconds of its grace left: 400 ticks
+    this.server.runLaterTasks();
+    verify(this.server.getScheduler()).runTaskLater(any(Plugin.class), any(Runnable.class), eq(400L));
   }
 
   @Test

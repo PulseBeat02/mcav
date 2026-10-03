@@ -661,4 +661,26 @@ final class Mcv2PacerTest {
     }
     assertTrue(driver.now - fellBack >= 58 * SECOND, "tried again " + (driver.now - fellBack) / 1e9 + " s after falling back");
   }
+
+  @Test
+  void aRungThatHoldsExactlyItsNextWaitIsKeptOffOnlyTheFirstWaitAgain() {
+    // 50 fps: the top fails and is kept off ten seconds, so a second failure would keep it off twenty
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Exact clock = new Exact(pacer, FRAME_50, 0);
+    clock.until(30, 1000);
+    assertEquals(pacer.getLadder().getFirst(), clock.until(10, 2000).to());
+    // its first frame back starts the hold; the 1,000th after it ends exactly the twenty seconds it held
+    for (int frameNumber = 0; frameNumber <= 1000; frameNumber++) {
+      assertNull(clock.frame(10));
+    }
+    // one frame far over, so no later frame of the hold counts, then a second of frames over
+    assertNull(clock.frame(1000));
+    assertTrue(clock.until(30, 1000).down());
+    final long stepped = clock.now;
+    while (!pacer.getRung().equals(pacer.getLadder().getFirst()) && clock.now < stepped + 60 * SECOND) {
+      clock.frame(10);
+    }
+    // the hold ended the doubled wait: ten seconds kept off and five of room, not twenty and five
+    assertTrue(clock.now - stepped < 20 * SECOND, "climbed back " + (clock.now - stepped) / 1e9 + " s after the step");
+  }
 }
