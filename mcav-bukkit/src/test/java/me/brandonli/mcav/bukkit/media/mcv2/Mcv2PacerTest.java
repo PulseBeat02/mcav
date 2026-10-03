@@ -638,6 +638,8 @@ final class Mcv2PacerTest {
       clock.frame(10);
     }
     assertTrue(clock.now >= stepped + 20 * SECOND, "climbed back " + (clock.now - stepped) / 1e9 + " s after the step");
+    assertEquals(pacer.getLadder().getFirst(), pacer.getRung(), "the held-off rung eventually returns");
+    assertTrue(clock.now < stepped + 60 * SECOND, "the climb occurred before the loop deadline");
   }
 
   @Test
@@ -660,6 +662,11 @@ final class Mcv2PacerTest {
       driver.play(1, 2000);
     }
     assertTrue(driver.now - fellBack >= 58 * SECOND, "tried again " + (driver.now - fellBack) / 1e9 + " s after falling back");
+    assertTrue(driver.changes.size() > changes, "the encoded retry actually occurred");
+    final Mcv2Pacer.Change retry = driver.changes.get(changes);
+    assertTrue(retry.from().isDithered());
+    assertFalse(retry.to().isDithered());
+    assertTrue(driver.now < fellBack + 120 * SECOND, "the retry occurred before the loop deadline");
   }
 
   @Test
