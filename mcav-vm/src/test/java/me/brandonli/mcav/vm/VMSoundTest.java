@@ -18,6 +18,7 @@
 package me.brandonli.mcav.vm;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -44,6 +45,7 @@ import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.opentest4j.AssertionFailedError;
 
 /**
  * Runs real QEMU guests and listens to them through the audio pipeline of the player. The guests are boot sectors
@@ -55,6 +57,9 @@ import org.junit.jupiter.api.io.TempDir;
 final class VMSoundTest {
 
   private static final int TONE_HERTZ = 1000;
+
+  /** The fewest changes of the picture a measurement must match to say anything of the sync. */
+  private static final int MIN_MATCHED = 10;
   // 5 ms of samples, which hold exactly 5 periods of the tone
   private static final int WINDOW_FRAMES = AudioFilter.SAMPLE_RATE / 200;
 
@@ -254,13 +259,33 @@ final class VMSoundTest {
     // ITU-R BT.1359: sound may lead the picture by 90 ms and lag it by 185 ms before viewers find it unacceptable
     final long acceptable = judgement.within(-90, 185);
     System.out.printf(Locale.ROOT, "A/V sync: %d of %d within ITU-R BT.1359 acceptability [-90, +185] ms%n", acceptable, changes);
+    assertInSync(judgement);
+  }
+
+  /**
+   * The measurement's verdict: enough changes of the picture matched, nearly every change has its sound near it, the
+   * two arrive together in the middle, and they do not drift apart.
+   *
+   * @param judgement the changes of the picture and how far their sound was from each
+   */
+  static void assertInSync(final SyncJudgement judgement) {
+    final List<Double> offsets = judgement.offsets();
+    final int changes = judgement.changes();
+    // the measurement waits for 20 seconds of sound, not for changes of the picture: a few changes, however well they
+    // match, pass every rate below and say nothing of the sync
+    assertTrue(offsets.size() >= MIN_MATCHED, "matched " + offsets.size() + " changes of the picture, fewer than " + MIN_MATCHED);
     // every change of the picture counts: one without sound near it is a change out of sync
     assertTrue(offsets.size() >= Math.ceil(changes * 0.9), "matched " + offsets.size() + " of " + changes + " changes of the picture");
     // the picture reaches the pipeline late now and then, when QEMU refreshes its VNC display late or the host is busy;
     // the sound is held so that the two arrive together in the middle, and they must not drift apart
+    final List<Double> sorted = new ArrayList<>(offsets);
+    Collections.sort(sorted);
     assertTrue(Math.abs(median(sorted)) <= 40, "the sound and the picture arrive together in the middle");
+    final long acceptable = judgement.within(-90, 185);
     assertTrue(acceptable >= Math.ceil(changes * 0.9), acceptable + " of " + changes + " changes are in sync");
-    assertTrue(Math.abs(secondHalf - firstHalf) < 25, "the sound does not drift from the picture");
+    final int half = offsets.size() / 2;
+    final double drift = median(offsets.subList(half, offsets.size())) - median(offsets.subList(0, half));
+    assertTrue(Math.abs(drift) < 25, "the sound does not drift from the picture");
   }
 
   /**
@@ -318,6 +343,18 @@ final class VMSoundTest {
       .toList();
     final SyncJudgement inSync = SyncJudgement.of(picture, onTime, TimeUnit.MILLISECONDS.toNanos(165));
     assertEquals(50, inSync.within(-40, 80));
+    // the measurement's verdict on both
+    assertInSync(inSync);
+    assertThrows(AssertionFailedError.class, () -> assertInSync(late));
+    // two changes in sync, all a picture undersampled for 20 seconds of sound shows, pass every rate but are too few
+    final List<Long> twice = List.of(TimeUnit.SECONDS.toNanos(5), TimeUnit.SECONDS.toNanos(15));
+    final List<Long> twiceHeard = twice
+      .stream()
+      .map(shown -> shown + TimeUnit.MILLISECONDS.toNanos(20))
+      .toList();
+    final SyncJudgement undersampled = SyncJudgement.of(twice, twiceHeard, TimeUnit.MILLISECONDS.toNanos(165));
+    assertEquals(2, undersampled.within(-90, 185));
+    assertThrows(AssertionFailedError.class, () -> assertInSync(undersampled));
   }
 
   private static double median(final List<Double> values) {
