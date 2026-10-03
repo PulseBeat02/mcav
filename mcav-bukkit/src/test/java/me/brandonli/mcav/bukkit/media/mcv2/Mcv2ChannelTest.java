@@ -572,9 +572,16 @@ final class Mcv2ChannelTest {
   }
 
   /** Whether the viewer with the pack is sent the stream when they stand at a point, measured afresh. */
-  private boolean receivesFrom(final BlockFace facing, final int columns, final int rows, final double x, final double y, final double z) {
+  private boolean receivesFrom(
+    final BlockFace facing,
+    final int columns,
+    final int rows,
+    final double east,
+    final double height,
+    final double south
+  ) {
     final World world = mock(World.class);
-    final AtomicReference<Location> position = new AtomicReference<>(new Location(world, x, y, z));
+    final AtomicReference<Location> position = new AtomicReference<>(new Location(world, east, height, south));
     final Mcv2Channel channel = this.watchedFrom(world, position, facing, columns, rows);
     channel.open();
     this.tick(channel);
