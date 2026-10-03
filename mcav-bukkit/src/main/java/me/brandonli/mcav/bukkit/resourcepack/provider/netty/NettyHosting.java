@@ -78,7 +78,7 @@ public final class NettyHosting implements InjectorHosting {
     Preconditions.checkNotNull(zip, "Resource pack path must not be null");
     final int instanceNumber = INSTANCE_COUNTER.incrementAndGet();
     @Subst("resourcepack_1")
-    final String keyValue = "resourcepack_%d".formatted(instanceNumber);
+    final String keyValue = "resourcepack_" + instanceNumber;
     this.requestPath = "/mcav/" + keyValue + ".zip";
     this.zip = zip;
     this.listenerKey = Key.key(KEY_NAMESPACE, keyValue);
@@ -110,7 +110,7 @@ public final class NettyHosting implements InjectorHosting {
     final String address = ServerAddress.getPublicIPAddress();
     final int port = Bukkit.getPort();
     final String host = formatHost(address);
-    final String builtUrl = "http://%s:%d%s".formatted(host, port, this.requestPath);
+    final String builtUrl = "http://" + host + ":" + port + this.requestPath;
     final boolean fallback = ServerAddress.isFallbackAddress(address);
     if (!fallback) {
       this.url = builtUrl;
