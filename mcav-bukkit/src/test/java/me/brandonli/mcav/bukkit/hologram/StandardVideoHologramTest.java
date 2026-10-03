@@ -228,6 +228,17 @@ final class StandardVideoHologramTest {
   }
 
   @Test
+  void showsMetadataWithBackslashesAsItIs() {
+    final StandardVideoHologram hologram = new StandardVideoHologram();
+    // a site names its videos and uploaders, so a backslash may end them or stand before a tag
+    final URLParseDump dump = createDump("Paths like C:\\", "a\\<red>b\\", -5, 1);
+    hologram.handleRequest(this.location, dump);
+    final Component text = lastText(hologram.getDisplay());
+    final String plain = PLAIN.serialize(text);
+    assertEquals("Paths like C:\\\na\\<red>b\\ (Unknown date)", plain);
+  }
+
+  @Test
   void replacesThePreviousDisplayOnANewRequest() {
     final StandardVideoHologram hologram = new StandardVideoHologram();
     final URLParseDump dump = createDump("t", "u", 0, 1);
