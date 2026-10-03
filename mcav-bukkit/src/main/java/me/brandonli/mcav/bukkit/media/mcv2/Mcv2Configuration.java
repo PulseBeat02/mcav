@@ -426,8 +426,8 @@ public final class Mcv2Configuration {
    *
    * <p>Builders are mutable and not thread-safe. Numeric setters generally defer validation to {@link #build()}.
    * Origin, facing and outline-color setters validate immediately. A zero video dimension selects 128 times the
-   * corresponding wall dimension; keep the resolved video within the codec's 4096-pixel limit, which is not checked
-   * again after resolving that default.
+   * corresponding wall dimension, which {@link #build()} refuses past the codec's 4096-pixel limit: a wall of more than
+   * 32 maps on a side needs a smaller video size.
    */
   public static final class Builder {
 
