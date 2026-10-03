@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -40,13 +41,24 @@ final class RenderThreadTest {
   private static final long TIMEOUT_SECONDS = 5L;
   private static final String THREAD_NAME = "test-render";
 
+  private final List<RuntimeException> unexpectedFailures = Collections.synchronizedList(new ArrayList<>());
+  private final List<RenderThread> strictThreads = new ArrayList<>();
+
+  @AfterEach
+  void checkWorkerFailures() {
+    for (final RenderThread thread : this.strictThreads) {
+      thread.stop();
+    }
+    assertEquals(List.of(), this.unexpectedFailures, "no rendering step of this test fails");
+  }
+
   /**
    * Creates a render thread whose steps must never fail.
    */
-  private static RenderThread strictThread() {
-    return new RenderThread(THREAD_NAME, failure -> {
-      throw new AssertionError("no step of this test fails", failure);
-    });
+  private RenderThread strictThread() {
+    final RenderThread thread = new RenderThread(THREAD_NAME, this.unexpectedFailures::add);
+    this.strictThreads.add(thread);
+    return thread;
   }
 
   /**
@@ -125,7 +137,7 @@ final class RenderThreadTest {
 
   @Test
   void runsTheStepUntilStoppedAndWaitsForTheThreadToExit() throws Exception {
-    final RenderThread thread = strictThread();
+    final RenderThread thread = this.strictThread();
     final AtomicInteger steps = new AtomicInteger();
     final CountDownLatch blocked = new CountDownLatch(1);
     final AtomicBoolean cleanedUp = new AtomicBoolean();
@@ -151,7 +163,7 @@ final class RenderThreadTest {
 
   @Test
   void endsTheLoopAfterTheCurrentStepWhenStoppedFromItself() throws Exception {
-    final RenderThread thread = strictThread();
+    final RenderThread thread = this.strictThread();
     final AtomicInteger steps = new AtomicInteger();
     final CountDownLatch cleanedUp = new CountDownLatch(1);
     final AtomicBoolean interruptedInCleanup = new AtomicBoolean();
@@ -197,7 +209,7 @@ final class RenderThreadTest {
 
   @Test
   void stopsWaitingWhenTheCallerIsInterrupted() throws Exception {
-    final RenderThread thread = strictThread();
+    final RenderThread thread = this.strictThread();
     final CountDownLatch started = new CountDownLatch(1);
     final CountDownLatch release = new CountDownLatch(1);
     final CountDownLatch cleanedUp = new CountDownLatch(1);
@@ -223,7 +235,7 @@ final class RenderThreadTest {
 
   @Test
   void stoppingAThreadThatNeverStartedDoesNothing() {
-    final RenderThread thread = strictThread();
+    final RenderThread thread = this.strictThread();
     final boolean runningBeforeStop = thread.isRunning();
     thread.stop();
     thread.stop();
@@ -234,7 +246,7 @@ final class RenderThreadTest {
 
   @Test
   void cannotBeStartedTwice() {
-    final RenderThread thread = strictThread();
+    final RenderThread thread = this.strictThread();
     final RenderThread.Step idle = () -> Thread.sleep(10);
     thread.start(idle, () -> {});
     try {
