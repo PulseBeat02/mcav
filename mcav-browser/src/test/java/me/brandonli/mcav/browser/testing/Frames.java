@@ -22,6 +22,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CopyOnWriteArrayList;
 import javax.imageio.ImageIO;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -196,7 +197,7 @@ public final class Frames {
       if (index == all.size() - 1 || all.get(index + 1).getCenter() != center) {
         centers
           .append(centers.isEmpty() ? "" : ", ")
-          .append(String.format("%06x", center))
+          .append(String.format(Locale.ROOT, "%06x", center))
           .append(" x")
           .append(run);
         run = 0;
@@ -209,7 +210,7 @@ public final class Frames {
       "x" +
       frame.getHeight() +
       " with center " +
-      String.format("%06x", frame.getCenter()) +
+      String.format(Locale.ROOT, "%06x", frame.getCenter()) +
       "; centers in order: " +
       centers
     );

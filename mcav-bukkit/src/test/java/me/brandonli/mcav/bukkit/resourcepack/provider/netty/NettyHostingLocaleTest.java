@@ -66,7 +66,10 @@ final class NettyHostingLocaleTest {
   }
 
   private static void assertDownloadAddress(final NettyHosting hosting) {
-    try (final MockedStatic<Bukkit> server = Mockito.mockStatic(Bukkit.class); final MockedStatic<ServerAddress> address = Mockito.mockStatic(ServerAddress.class)) {
+    try (
+      final MockedStatic<Bukkit> server = Mockito.mockStatic(Bukkit.class);
+      final MockedStatic<ServerAddress> address = Mockito.mockStatic(ServerAddress.class)
+    ) {
       server.when(Bukkit::getPort).thenReturn(PORT);
       address.when(ServerAddress::getPublicIPAddress).thenReturn("127.0.0.1");
       final URI uri = URI.create(hosting.getRawUrl());

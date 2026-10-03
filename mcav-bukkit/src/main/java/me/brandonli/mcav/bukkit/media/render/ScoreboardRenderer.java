@@ -24,6 +24,7 @@ import io.papermc.paper.scoreboard.numbers.NumberFormat;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -145,7 +146,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
   }
 
   private Objective registerObjective(final Scoreboard board) {
-    final String objectiveName = "mcav_%d".formatted(this.id);
+    final String objectiveName = String.format(Locale.getDefault(Locale.Category.FORMAT), "mcav_%d", this.id);
     final Component title = Component.empty();
     final Objective objective = board.registerNewObjective(objectiveName, Criteria.DUMMY, title);
 
@@ -162,7 +163,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
   private void registerTeams(final Scoreboard board, final Objective objective) {
     final int lines = this.teams.length;
     for (int row = 0; row < lines; row++) {
-      final String teamName = "mcav_%d_%d".formatted(this.id, row);
+      final String teamName = String.format(Locale.getDefault(Locale.Category.FORMAT), "mcav_%d_%d", this.id, row);
       final Team team = board.registerNewTeam(teamName);
       final String entry = ChatUtils.getUniqueString(row);
       team.addEntry(entry);

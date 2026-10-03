@@ -37,6 +37,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -665,7 +666,7 @@ final class VMProcessTest {
   void reportsTheLastFortyLinesOfOutput() {
     final StringBuilder output = new StringBuilder();
     for (int line = 1; line <= 45; line++) {
-      final String number = String.format("%02d", line);
+      final String number = String.format(Locale.ROOT, "%02d", line);
       output.append("line-");
       output.append(number);
       output.append("\r\n");
@@ -678,7 +679,7 @@ final class VMProcessTest {
     final String message = exception.getMessage();
     final List<String> kept = new ArrayList<>();
     for (int line = 6; line <= 45; line++) {
-      final String number = String.format("%02d", line);
+      final String number = String.format(Locale.ROOT, "%02d", line);
       kept.add("line-" + number);
     }
     final String separator = System.lineSeparator();

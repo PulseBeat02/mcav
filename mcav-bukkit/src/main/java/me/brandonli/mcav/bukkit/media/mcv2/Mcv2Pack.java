@@ -217,7 +217,13 @@ public final class Mcv2Pack {
       .stream()
       .map(screen -> screen.getVideoWidth() + "x" + screen.getVideoHeight())
       .collect(Collectors.joining(", "));
-    return "mcav MCV2 decoder, %d %s: %s".formatted(screens.size(), screens.size() == 1 ? "screen" : "screens", sizes);
+    return String.format(
+      Locale.getDefault(Locale.Category.FORMAT),
+      "mcav MCV2 decoder, %d %s: %s",
+      screens.size(),
+      screens.size() == 1 ? "screen" : "screens",
+      sizes
+    );
   }
 
   static byte[] resource(final String file) {
@@ -338,7 +344,13 @@ public final class Mcv2Pack {
         String.format(Locale.ROOT, "const int MCV2_SCREEN_SLOTS[%d] = int[%d](%s);", count, count, slots),
         String.format(Locale.ROOT, "const int MCV2_SCREEN_FIRST_SLOTS[%d] = int[%d](%s);", count, count, firsts),
         String.format(Locale.ROOT, "const bool MCV2_DEBUG_VIEW = %s;", showsDebugView),
-        String.format(Locale.ROOT, "const ivec3 MCV2_OUTLINE_COLOR = ivec3(%d, %d, %d);", (color >> 16) & 255, (color >> 8) & 255, color & 255),
+        String.format(
+          Locale.ROOT,
+          "const ivec3 MCV2_OUTLINE_COLOR = ivec3(%d, %d, %d);",
+          (color >> 16) & 255,
+          (color >> 8) & 255,
+          color & 255
+        ),
         ""
       )
     );
@@ -399,10 +411,23 @@ public final class Mcv2Pack {
     for (int symbol = 0; symbol < colors.length; symbol++) {
       final int color = colors[symbol];
       if (!seen.add(color)) {
-        throw new IllegalStateException("Map colours %d and another symbol are the same RGB".formatted(symbol + MapAlphabet.FIRST_COLOR));
+        throw new IllegalStateException(
+          String.format(
+            Locale.getDefault(Locale.Category.FORMAT),
+            "Map colours %d and another symbol are the same RGB",
+            symbol + MapAlphabet.FIRST_COLOR
+          )
+        );
       }
       table.append(
-        String.format(Locale.ROOT, "    ivec3(%d, %d, %d)%s%n", (color >> 16) & 255, (color >> 8) & 255, color & 255, symbol < colors.length - 1 ? "," : "")
+        String.format(
+          Locale.ROOT,
+          "    ivec3(%d, %d, %d)%s%n",
+          (color >> 16) & 255,
+          (color >> 8) & 255,
+          color & 255,
+          symbol < colors.length - 1 ? "," : ""
+        )
       );
     }
     return guarded(

@@ -34,6 +34,7 @@ import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -353,7 +354,9 @@ public final class Mcv2PackServer {
     }
     final Slot slot = this.acquire(requested);
     if (slot == null) {
-      throw new IllegalStateException("Every one of the %d MCV2 slots plays a screen".formatted(Mcv2Pack.MAX_SCREENS));
+      throw new IllegalStateException(
+        String.format(Locale.getDefault(Locale.Category.FORMAT), "Every one of the %d MCV2 slots plays a screen", Mcv2Pack.MAX_SCREENS)
+      );
     }
     final Lease lease = new Lease(requested, (this.millis.getAsLong() / FRAME_ID_MILLIS) & Mcv2Format.MAX_U32, slot);
     slot.holder = lease;
@@ -756,7 +759,15 @@ public final class Mcv2PackServer {
   static String describe(final List<Mcv2Configuration> screens) {
     return screens
       .stream()
-      .map(screen -> "%d: %dx%d".formatted(screen.getStreamId(), screen.getVideoWidth(), screen.getVideoHeight()))
+      .map(screen ->
+        String.format(
+          Locale.getDefault(Locale.Category.FORMAT),
+          "%d: %dx%d",
+          screen.getStreamId(),
+          screen.getVideoWidth(),
+          screen.getVideoHeight()
+        )
+      )
       .collect(Collectors.joining(", ", "slots ", ""));
   }
 
