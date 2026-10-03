@@ -30,6 +30,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.builder.NearestDitherBuilder;
@@ -276,18 +277,25 @@ final class RandomAndNearestDitherTest {
     final XoroshiroRandomProvider first = new XoroshiroRandomProvider(42L);
     final XoroshiroRandomProvider second = new XoroshiroRandomProvider(42L);
     final XoroshiroRandomProvider other = new XoroshiroRandomProvider(43L);
+    final int[] firstSequence = new int[1_000];
+    final int[] otherSequence = new int[1_000];
     for (int draw = 0; draw < 1_000; draw++) {
       final int value = first.nextInt(-2, 3);
       final int sameValue = second.nextInt(-2, 3);
+      firstSequence[draw] = value;
+      otherSequence[draw] = other.nextInt(-2, 3);
       final double fraction = first.nextDouble(1.0, 2.0);
       final double sameFraction = second.nextDouble(1.0, 2.0);
+      other.nextDouble(1.0, 2.0);
       final boolean drawn = first.nextBoolean();
       final boolean sameFlag = second.nextBoolean();
+      other.nextBoolean();
       assertEquals(value, sameValue);
       assertEquals(fraction, sameFraction);
       assertEquals(drawn, sameFlag);
     }
 
+    assertFalse(Arrays.equals(firstSequence, otherSequence), "different seeds differ at the same positions");
     final int firstNext = first.nextInt(0, Integer.MAX_VALUE);
     final int otherNext = other.nextInt(0, Integer.MAX_VALUE);
     assertNotEquals(firstNext, otherNext, "another seed produces another sequence");
