@@ -28,11 +28,14 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.stream.ChunkedStream;
+import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.ReferenceCountUtil;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -67,8 +70,14 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
   /** The name of the handler that closes a download that stopped making progress. */
   static final String STALL_NAME = "mcav_resource_pack_stall";
 
-  /** How long a download may take nothing of the pack before its connection is closed, in seconds. */
+  /** The name of the handler that writes the pack a chunk at a time. */
+  static final String CHUNKS_NAME = "mcav_resource_pack_chunks";
+
+  /** How long a download may take less than a chunk of the pack before its connection is closed, in seconds. */
   static final long STALL_SECONDS = 60;
+
+  /** How much of the pack is written at a time, in bytes. */
+  static final int CHUNK_BYTES = 8 * 1024;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ResourcePackHttpHandler.class);
   private static final String PACK_NOT_READ = "Could not read the resource pack for an HTTP download";
@@ -171,8 +180,8 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
   /**
    * Bounds the connection by the download's progress instead of the game's read timeout. The game closes a connection
    * that sent nothing for 30 seconds, and a client downloading the pack sends nothing after its request, so a download
-   * longer than that was cut. A client that stops taking the pack is still closed, once it took nothing for
-   * {@value #STALL_SECONDS} seconds.
+   * longer than that was cut. A client that stops taking the pack is still closed, once it took less than a chunk of
+   * {@value #CHUNK_BYTES} bytes for {@value #STALL_SECONDS} seconds.
    */
   private static void replaceReadTimeout(final ChannelHandlerContext context) {
     final ChannelPipeline pipeline = context.pipeline();
@@ -181,13 +190,16 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
         pipeline.remove(handler.getKey());
       }
     }
-    // before this handler, so its writes pass through it and its idle event reaches this handler
-    pipeline.addBefore(context.name(), STALL_NAME, new IdleStateHandler(true, 0, STALL_SECONDS, 0, TimeUnit.SECONDS));
+    // the stall handler counts a write once it is complete, and raises its first idle event however far a write still
+    // in progress got, so the pack goes out a chunk at a time, each chunk a write of its own that passes through it
+    pipeline.addBefore(context.name(), CHUNKS_NAME, new ChunkedWriteHandler());
+    // before the chunks, so their writes pass through it, and its idle event reaches this handler
+    pipeline.addBefore(CHUNKS_NAME, STALL_NAME, new IdleStateHandler(true, 0, STALL_SECONDS, 0, TimeUnit.SECONDS));
   }
 
   /**
-   * Closes a download that took nothing of the pack for {@value #STALL_SECONDS} seconds, and passes every other event
-   * on.
+   * Closes a download that took less than a chunk of the pack for {@value #STALL_SECONDS} seconds, and passes every
+   * other event on.
    *
    * @param context the context of this handler
    * @param event   the event
@@ -233,8 +245,8 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
       return;
     }
 
-    final ByteBuf content = Unpooled.wrappedBuffer(body);
-    // a connection that cannot take the headers is closed at once; the content write then fails and is released
+    final ChunkedStream content = new ChunkedStream(new ByteArrayInputStream(body), CHUNK_BYTES);
+    // a connection that cannot take the headers is closed at once; the content write then fails and is closed
     final ChannelFuture headersFuture = context.write(headers);
     headersFuture.addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
     final ChannelFuture contentFuture = context.writeAndFlush(content);

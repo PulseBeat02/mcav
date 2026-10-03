@@ -40,6 +40,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelOutboundBuffer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -484,6 +485,68 @@ final class ResourcePackHttpHandlerTest {
     channel.advanceTimeBy(ResourcePackHttpHandler.STALL_SECONDS + 1, TimeUnit.SECONDS);
     channel.runScheduledPendingTasks();
     assertFalse(channel.isOpen(), "a client that stopped reading does not hold the game's port forever");
+    channel.finishAndReleaseAll();
+  }
+
+  /**
+   * A connection whose client takes what is written to it only as fast as the test lets it, as a slow socket does: what
+   * it has not taken waits in the channel's outbound buffer, a write is complete once all of it is taken, and the
+   * channel is not writable while too much waits.
+   */
+  private static final class SlowSocket extends EmbeddedChannel {
+
+    private long allowance;
+
+    private long taken;
+
+    /** Lets the client take more bytes, and writes as much as it takes. */
+    void take(final int bytes) {
+      this.allowance += bytes;
+      this.flushOutbound();
+      this.runPendingTasks();
+    }
+
+    long taken() {
+      return this.taken;
+    }
+
+    @Override
+    protected void doWrite(final ChannelOutboundBuffer in) {
+      while (this.allowance > 0 && in.current() instanceof final ByteBuf buffer) {
+        final int bytes = (int) Math.min(this.allowance, buffer.readableBytes());
+        this.allowance -= bytes;
+        this.taken += bytes;
+        in.removeBytes(bytes);
+      }
+    }
+  }
+
+  @Test
+  void aDownloadThatKeepsTakingThePackIsNotCutHoweverLongItTakes() throws IOException {
+    // a pack of 1 MiB, which a client that takes 32 KiB every 30 seconds needs a quarter of an hour for
+    final int size = 1 << 20;
+    Files.write(this.packPath, new byte[size]);
+    final SlowSocket channel = new SlowSocket();
+    channel.freezeTime();
+    final ChannelPipeline pipeline = channel.pipeline();
+    pipeline.addLast(ResourcePackHttpHandler.NAME, new ResourcePackHttpHandler(new ResourcePackFile(this.packPath), "/"));
+    pipeline.addLast("timeout", new ReadTimeoutHandler(30));
+    writeText(channel, "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n");
+    // four times the stall bound, and the client takes some of the pack all along
+    for (int step = 1; step <= 8; step++) {
+      channel.advanceTimeBy(30, TimeUnit.SECONDS);
+      channel.runScheduledPendingTasks();
+      assertTrue(channel.isOpen(), "a download that took some of the pack in the last 30 s is not cut, after " + step * 30 + " s");
+      channel.take(32 * 1024);
+    }
+    assertTrue(channel.taken() < size, "the download is still running");
+    // the client stops taking it: closed once the stall bound passed without a chunk taken
+    channel.advanceTimeBy(ResourcePackHttpHandler.STALL_SECONDS - 1, TimeUnit.SECONDS);
+    channel.runScheduledPendingTasks();
+    assertTrue(channel.isOpen());
+    channel.advanceTimeBy(2, TimeUnit.SECONDS);
+    channel.runScheduledPendingTasks();
+    assertFalse(channel.isOpen(), "a client that stopped taking the pack does not hold the game's port forever");
     channel.finishAndReleaseAll();
   }
 
