@@ -683,4 +683,30 @@ final class Mcv2PacerTest {
     // the hold ended the doubled wait: ten seconds kept off and five of room, not twenty and five
     assertTrue(clock.now - stepped < 20 * SECOND, "climbed back " + (clock.now - stepped) / 1e9 + " s after the step");
   }
+
+  @Test
+  void aTryThatHoldsExactlyItsNextWaitShortensThatWaitAgain() {
+    // 50 fps, one size: far over at the top, the pacer falls back to the dithered maps; the next fall would wait 60 s
+    final Mcv2Pacer pacer = new Mcv2Pacer(List.of(FULL));
+    final Exact clock = new Exact(pacer, FRAME_50, 0);
+    Mcv2Pacer.Change fall = clock.until(1000, 100_000);
+    while (!fall.to().isDithered()) {
+      fall = clock.until(1000, 100_000);
+    }
+    // 30 seconds later the lowest encoded rung is tried: at 60 ms a frame it keeps up, with no room to climb
+    final Mcv2Pacer.Change tried = clock.until(60, 2000);
+    assertFalse(tried.to().isDithered());
+    // its hold starts with its first encoded frame, a divisor of frames after the try, and ends on an encoded frame
+    // exactly 60 seconds later, as long as the next wait would be
+    final long held = clock.now + tried.to().divisor() * FRAME_50 + 60 * SECOND;
+    while (clock.now < held) {
+      assertNull(clock.frame(60));
+    }
+    // every frame after it is far over, so no later frame of the try counts, and the pacer falls back again
+    assertTrue(clock.until(1000, 1000).to().isDithered());
+    final long fellBack = clock.now;
+    clock.until(60, 5000);
+    // the try held as long as the wait, so the wait went back to 30 seconds instead of 60
+    assertEquals(30 * SECOND, clock.now - fellBack, "tried again " + (clock.now - fellBack) / 1e9 + " s after falling back");
+  }
 }
