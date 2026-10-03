@@ -99,8 +99,16 @@ tasks.named<Jar>("sourcesJar") {
     }
 }
 
-// the notice tests read the jar the build made, with the website and its npm notices in it
+// the notice tests read the jar the build made, with the website and its npm notices in it, and so do PIT's runs of
+// them: Gradle keeps a -D among the test task's system properties, which PIT is not given
+val builtJar = "-Dmcav.http.jar=" + layout.buildDirectory.file("libs/mcav-http.jar").get().asFile.absolutePath
 tasks.test {
     dependsOn(tasks.jar)
-    jvmArgs("-Dmcav.http.jar=" + layout.buildDirectory.file("libs/mcav-http.jar").get().asFile.absolutePath)
+    jvmArgs(builtJar)
+}
+pitest {
+    jvmArgs.add(builtJar)
+}
+tasks.named("pitest") {
+    dependsOn(tasks.jar)
 }

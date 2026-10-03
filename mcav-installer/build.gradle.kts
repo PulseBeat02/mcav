@@ -44,9 +44,17 @@ tasks.assemble {
 }
 
 // the reflective injector needs java.net opened, as the error message of the injector tells users to do; the notice
-// tests read the jar the build made
+// tests read the jar the build made, and so do PIT's runs of them: Gradle keeps a -D among the test task's system
+// properties, which PIT is not given
+val builtJar = "-Dmcav.installer.jar=" + layout.buildDirectory.file("libs/mcav-installer.jar").get().asFile.absolutePath
 tasks.test {
     jvmArgs("--add-opens", "java.base/java.net=ALL-UNNAMED")
     dependsOn(tasks.shadowJar)
-    jvmArgs("-Dmcav.installer.jar=" + layout.buildDirectory.file("libs/mcav-installer.jar").get().asFile.absolutePath)
+    jvmArgs(builtJar)
+}
+pitest {
+    jvmArgs.add(builtJar)
+}
+tasks.named("pitest") {
+    dependsOn(tasks.shadowJar)
 }
