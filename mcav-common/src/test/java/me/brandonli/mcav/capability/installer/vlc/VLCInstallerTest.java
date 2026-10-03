@@ -48,12 +48,14 @@ import me.brandonli.mcav.testing.LocalHttpServer;
 import me.brandonli.mcav.testing.TemporaryUserHome;
 import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.os.Arch;
+import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.OSUtils;
 import me.brandonli.mcav.utils.os.Platform;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Stubber;
 
@@ -122,7 +124,20 @@ final class VLCInstallerTest {
       // no VLC is published for the rest, and an unresolved download answers with an empty URL
       default -> "";
     };
-    assertTrue(url.startsWith(expectedPrefix), url);
+    if (expectedPrefix.isEmpty()) {
+      assertEquals("", url);
+    } else {
+      assertTrue(url.startsWith(expectedPrefix), url);
+    }
+    for (final OS unsupported : new OS[] { OS.FREEBSD, OS.OTHER }) {
+      final Platform unavailable = Platform.ofPlatform(unsupported, Arch.X86, Bits.BITS_64);
+      try (final MockedStatic<Platform> platforms = Mockito.mockStatic(Platform.class, Mockito.CALLS_REAL_METHODS)) {
+        platforms.when(Platform::getCurrentPlatform).thenReturn(unavailable);
+        final VLCInstaller missing = VLCInstaller.create(this.folder);
+        assertEquals("", missing.getUrl(), "an unsupported platform has no download URL");
+        assertFalse(missing.isSupported());
+      }
+    }
   }
 
   @Test
@@ -396,6 +411,7 @@ final class VLCInstallerTest {
     assertNotNull(hash, url);
     final int length = hash.length();
     assertEquals(64, length, url);
+    assertTrue(hash.matches("[0-9a-f]{64}"), "a SHA-256 digest must be hexadecimal: " + url);
   }
 
   private VLCInstaller installerDownloadingFrom(final LocalHttpServer server) {
