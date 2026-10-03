@@ -186,12 +186,13 @@ final class Mcv2ConfigurationTest {
     assertEquals(code, configuration.getFacingCode());
   }
 
-  private static void refuses(final Consumer<Mcv2Configuration.Builder> change) {
+  private static void refuses(final String message, final Consumer<Mcv2Configuration.Builder> change) {
     final Mcv2Configuration.Builder builder = complete();
-    assertThrows(RuntimeException.class, () -> {
+    final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> {
       change.accept(builder);
       builder.build();
     });
+    assertEquals(message, failure.getMessage());
   }
 
   @Test
@@ -217,28 +218,28 @@ final class Mcv2ConfigurationTest {
         .rows(1)
         .build()
     );
-    refuses(builder -> builder.origin(new Location(null, 0, 0, 0)));
-    refuses(builder -> builder.facing(BlockFace.UP));
-    refuses(builder -> builder.facing(BlockFace.NORTH_EAST));
-    refuses(builder -> builder.map(-1));
-    refuses(builder -> builder.columns(0));
-    refuses(builder -> builder.columns(Mcv2Configuration.MAX_SIDE + 1));
-    refuses(builder -> builder.rows(0));
-    refuses(builder -> builder.rows(Mcv2Configuration.MAX_SIDE + 1));
-    refuses(builder -> builder.video(-1, 10));
-    refuses(builder -> builder.video(4097, 10));
-    refuses(builder -> builder.video(10, -1));
-    refuses(builder -> builder.video(10, 4097));
-    refuses(builder -> builder.pageSlots(-1));
-    refuses(builder -> builder.pageSlots(Mcv2Configuration.MAX_PAGE_SLOTS + 1));
-    refuses(builder -> builder.streamId(-1));
-    refuses(builder -> builder.streamId(Mcv2Configuration.MAX_STREAM_ID + 1));
-    refuses(builder -> builder.backlogLimit(-1));
-    refuses(builder -> builder.unsentLimit(-1));
-    refuses(builder -> builder.pageMap(-1));
-    refuses(builder -> builder.pageMap(Integer.MAX_VALUE));
-    refuses(builder -> builder.map(Integer.MAX_VALUE));
-    refuses(builder -> builder.outlineColor(NamedTextColor.BLACK));
+    refuses("Origin must be in a world", builder -> builder.origin(new Location(null, 0, 0, 0)));
+    refuses("Frames must face a horizontal direction: UP", builder -> builder.facing(BlockFace.UP));
+    refuses("Frames must face a horizontal direction: NORTH_EAST", builder -> builder.facing(BlockFace.NORTH_EAST));
+    refuses("Map id must be set and non-negative", builder -> builder.map(-1));
+    refuses("Columns must be 1 to 63", builder -> builder.columns(0));
+    refuses("Columns must be 1 to 63", builder -> builder.columns(Mcv2Configuration.MAX_SIDE + 1));
+    refuses("Rows must be 1 to 63", builder -> builder.rows(0));
+    refuses("Rows must be 1 to 63", builder -> builder.rows(Mcv2Configuration.MAX_SIDE + 1));
+    refuses("Video width must be 0 to 4096", builder -> builder.video(-1, 10));
+    refuses("Video width must be 0 to 4096", builder -> builder.video(4097, 10));
+    refuses("Video height must be 0 to 4096", builder -> builder.video(10, -1));
+    refuses("Video height must be 0 to 4096", builder -> builder.video(10, 4097));
+    refuses("Page slots must be 0 to 8", builder -> builder.pageSlots(-1));
+    refuses("Page slots must be 0 to 8", builder -> builder.pageSlots(Mcv2Configuration.MAX_PAGE_SLOTS + 1));
+    refuses("Stream id must be 0 to 4095", builder -> builder.streamId(-1));
+    refuses("Stream id must be 0 to 4095", builder -> builder.streamId(Mcv2Configuration.MAX_STREAM_ID + 1));
+    refuses("Backlog limit must not be negative", builder -> builder.backlogLimit(-1));
+    refuses("Unsent limit must not be negative", builder -> builder.unsentLimit(-1));
+    refuses("Page map ids must be non-negative ints", builder -> builder.pageMap(-1));
+    refuses("Page map ids must be non-negative ints", builder -> builder.pageMap(Integer.MAX_VALUE));
+    refuses("Map ids exceed the integer range", builder -> builder.map(Integer.MAX_VALUE));
+    refuses("The outline colour must not be black", builder -> builder.outlineColor(NamedTextColor.BLACK));
   }
 
   @Test
@@ -297,9 +298,9 @@ final class Mcv2ConfigurationTest {
   @Test
   void keepsThePageMapsOffTheWall() {
     // the wall is maps 7 to 21; four page slots end below it at 3, the default eight at none
-    refuses(builder -> builder.pageMap(21));
-    refuses(builder -> builder.pageSlots(4).pageMap(4));
-    refuses(builder -> builder.pageMap(0));
+    refuses("Page maps must not be maps of the wall", builder -> builder.pageMap(21));
+    refuses("Page maps must not be maps of the wall", builder -> builder.pageSlots(4).pageMap(4));
+    refuses("Page maps must not be maps of the wall", builder -> builder.pageMap(0));
     assertEquals(3, complete().pageSlots(4).pageMap(3).build().getPageMap());
     assertEquals(22, complete().pageMap(22).build().getPageMap());
   }
