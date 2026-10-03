@@ -53,6 +53,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.zip.ZipFile;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
@@ -796,15 +797,29 @@ final class Mcv2PackServerTest {
 
   @Test
   void theDefaultWriterIsAThreadOfItsOwn() throws InterruptedException {
-    final Mcv2PackServer own = new Mcv2PackServer(this.folder, this::hosting, true, this.offered::add, this.refused::add);
-    own.start();
-    own.open(screen(320, Set.of()));
-    this.server.runTasks();
-    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-    while (this.hostings.isEmpty() && System.nanoTime() < deadline) {
-      Thread.sleep(10);
+    final AtomicReference<Thread> writerThread = new AtomicReference<>();
+    final Mcv2PackServer own = new Mcv2PackServer(
+      this.folder,
+      zip -> {
+        writerThread.set(Thread.currentThread());
+        return this.hosting(zip);
+      },
+      true,
+      this.offered::add,
+      this.refused::add
+    );
+    try {
+      own.start();
+      own.open(screen(320, Set.of()));
+      this.server.runTasks();
+      final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+      while (this.hostings.isEmpty() && System.nanoTime() < deadline) {
+        Thread.sleep(10);
+      }
+    } finally {
+      own.shutdown();
     }
-    own.shutdown();
+    assertNotEquals(Thread.currentThread(), writerThread.get(), "pack creation must leave the calling thread");
     assertEquals(1, this.hostings.size());
     verify(this.hostings.getFirst()).shutdown();
   }
