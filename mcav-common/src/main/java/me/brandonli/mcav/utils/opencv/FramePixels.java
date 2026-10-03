@@ -46,14 +46,13 @@ public final class FramePixels {
    *
    * @param frame the frame, decoded to BGR24 with eight bits per channel
    * @return the pixels, three bytes per pixel in blue, green, red order, ready to be read from position zero
-   * @throws IllegalArgumentException if the frame holds no 8-bit image or its rows are shorter than its width
+   * @throws IllegalArgumentException if the frame holds no 8-bit image, its dimensions are negative, its rows are
+   *                                 shorter than its width, or its compact pixels cannot fit in one buffer
    * @throws NullPointerException if {@code frame} is null
    */
   public static ByteBuffer copyBgr(final Frame frame) {
     Preconditions.checkNotNull(frame, "Frame must not be null");
-    final int width = frame.imageWidth;
-    final int height = frame.imageHeight;
-    final int size = width * height * BGR_CHANNELS;
+    final int size = checkedSize(frame);
     final ByteBuffer pixels = ByteBuffer.allocateDirect(size);
     copyBgr(frame, pixels);
     return pixels;
@@ -67,7 +66,8 @@ public final class FramePixels {
    * @param frame  the frame, decoded to BGR24 with eight bits per channel
    * @param target the buffer that receives the pixels, three bytes per pixel in blue, green, red order; its capacity
    *               must be at least {@code width * height * 3} bytes
-   * @throws IllegalArgumentException if the frame holds no 8-bit image, its rows are shorter than its width,
+   * @throws IllegalArgumentException if the frame holds no 8-bit image, its dimensions are negative, its rows are
+   *                                 shorter than its width, its compact pixels cannot fit in one buffer,
    *                                 the source plane cannot hold the declared rows, or the
    *                                  target is too small
    * @throws java.nio.ReadOnlyBufferException if the target is read-only
@@ -77,15 +77,26 @@ public final class FramePixels {
     Preconditions.checkNotNull(frame, "Frame must not be null");
     Preconditions.checkNotNull(target, "Target must not be null");
     final ByteBuffer source = getPlane(frame);
+    final int size = checkedSize(frame);
     final int width = frame.imageWidth;
     final int height = frame.imageHeight;
     final int stride = frame.imageStride;
     final int rowBytes = width * BGR_CHANNELS;
-    Preconditions.checkArgument(stride >= rowBytes, "Row stride %s is shorter than a row of %s pixels", stride, width);
-    final int size = rowBytes * height;
     final int capacity = target.capacity();
     Preconditions.checkArgument(capacity >= size, "Target holds %s bytes but the frame needs %s", capacity, size);
     copyRows(source, target, rowBytes, height, stride);
+  }
+
+  private static int checkedSize(final Frame frame) {
+    final int width = frame.imageWidth;
+    final int height = frame.imageHeight;
+    Preconditions.checkArgument(width >= 0 && height >= 0, "Frame dimensions must not be negative: %sx%s", width, height);
+    final long rowBytes = (long) width * BGR_CHANNELS;
+    final int stride = frame.imageStride;
+    Preconditions.checkArgument(stride >= rowBytes, "Row stride %s is shorter than a row of %s pixels", stride, width);
+    final long size = rowBytes * height;
+    Preconditions.checkArgument(size <= Integer.MAX_VALUE, "Frame needs more bytes than a buffer can hold: %s", size);
+    return (int) size;
   }
 
   private static ByteBuffer getPlane(final Frame frame) {
