@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.ForkJoinWorkerThread;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -66,6 +67,7 @@ final class WorkersTest {
       workers.forEach(counts.length(), scratches::incrementAndGet, (_, index) -> {
         counts.incrementAndGet(index);
         threads.add(Thread.currentThread());
+        assertSame(pool, ForkJoinTask.getPool(), "every index must run on the supplied pool");
       });
       for (int position = 0; position < counts.length(); position++) {
         assertEquals(1, counts.get(position), "index " + position);
