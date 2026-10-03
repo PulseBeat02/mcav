@@ -1159,7 +1159,7 @@ final class Mcv2PackServerTest {
   }
 
   @Test
-  void aNewScreenTakesTheSpareOfAPlayingScreenOnlyWhenThePackIsFull() {
+  void aNewScreenOfAnotherSizeTakesTheSpareOfAPlayingScreenOnlyWhenThePackIsFull() {
     this.packs.start();
     final List<Mcv2PackServer.Lease> leases = new ArrayList<>();
     for (int screen = 0; screen < Mcv2Pack.MAX_SCREENS / 2; screen++) {

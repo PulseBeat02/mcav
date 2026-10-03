@@ -75,14 +75,15 @@ import org.slf4j.LoggerFactory;
  * <p>The pack decodes a set of slots, each with a video size, a number of page slots and a stream id of its own. Every
  * slot costs every player who loaded the pack rows of the transport strip at the top of their screen, so the pack
  * carries the slots of the screens that play and little else. A screen that starts is given a free slot of its size,
- * so while screens of sizes the pack already has start and stop, the pack stays the same and no client reloads its
- * resources, a hitch of a second or more. Only a screen of a new size changes the pack: it gets a free slot of
- * another size, else a new slot, else, in a full pack of {@link Mcv2Pack#MAX_SCREENS}, the spare slot a playing screen
- * left. A screen that changes size keeps the slot of the size it left as its spare while it plays, so stepping back
- * changes nothing; the slots of a screen that stopped stay in the pack, free, for a minute, then leave it, and once no
- * slot is left the players are asked to remove the pack. A changed pack is written, hashed and hosted off the main
- * thread, then every viewer is asked to swap the old pack for it, and sees the dithered maps until their client loaded
- * it.
+ * else the spare slot of its size a playing screen left, so while screens of sizes the pack already has start and
+ * stop, the pack stays the same and no client reloads its resources, a hitch of a second or more. Only a screen of a
+ * new size changes the pack: it gets a free slot of another size, else a new slot, else, in a full pack of
+ * {@link Mcv2Pack#MAX_SCREENS}, the spare slot a playing screen left. A screen that changes size keeps the slot of the
+ * size it left as its spare while it plays, so stepping back changes nothing, unless a new screen took the spare: one
+ * of that size at once, one of another size in a full pack. The slots of a screen that stopped stay in the pack, free,
+ * for a minute, then leave it, and once no slot is left the players are asked to remove the pack. A changed pack is
+ * written, hashed and hosted off the main thread, then every viewer is asked to swap the old pack for it, and sees the
+ * dithered maps until their client loaded it.
  *
  * <p>The pack is offered to the viewers of a screen when it starts, and to a viewer who joins or changes world while
  * the screen plays. It is optional and additive: it replaces no other pack, and a player who declines keeps the
@@ -793,7 +794,8 @@ public final class Mcv2PackServer {
    * A screen's hold on the pack: the slot of the video size it plays at, and, while it plays, the slot of the size it
    * left last as its spare, until it is closed. It is the screen's {@link Mcv2Result.Resizer}: a size it has no slot
    * for gets one, which may change the pack once, and stepping back to the size it left last changes nothing, unless
-   * a new screen took that spare in a full pack.
+   * a new screen took that spare: a screen of that size takes it at once, as the pack has its size, and a screen of
+   * another size only in a full pack.
    */
   public final class Lease implements Mcv2Result.Resizer {
 
