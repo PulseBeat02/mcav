@@ -46,6 +46,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
+import java.util.function.Supplier;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
@@ -437,6 +439,60 @@ class CefBrowserPlayerTest {
       Thread.interrupted();
       this.startFailure = null;
     }
+  }
+
+  /**
+   * Starts a player whose helper is reached by a release while it starts, and ends as the given ending does, then
+   * releases the player. The helper notices the release's interrupt only once it is done.
+   *
+   * @return whether the starting thread was left interrupted once the start ended
+   */
+  private static boolean leftInterruptedByAStartThat(final Supplier<BrowserSession> ending) throws Exception {
+    final CountDownLatch opening = new CountDownLatch(1);
+    final CefBrowserPlayer late = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
+      opening.countDown();
+      while (!Thread.currentThread().isInterrupted()) {
+        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
+      }
+      return ending.get();
+    });
+    final ExecutorService starter = Executors.newSingleThreadExecutor();
+    try {
+      // read on the thread that called start, in the same task: the executor clears a worker's interrupt between tasks
+      final Future<Boolean> leftInterrupted = starter.submit(() -> {
+        try {
+          late.start(SOURCE);
+        } catch (final IllegalStateException failure) {
+          // the helper's own failure, which the start passes on
+        }
+        return Thread.currentThread().isInterrupted();
+      });
+      opening.await();
+      // the release interrupts the start, then waits for it to end and closes what it opened
+      assertTrue(assertTimeoutPreemptively(Duration.ofSeconds(5), late::release));
+      final boolean left = leftInterrupted.get(5, TimeUnit.SECONDS);
+      assertFalse(late.isPlaying(), "a released player plays nothing");
+      return left;
+    } finally {
+      starter.shutdownNow();
+    }
+  }
+
+  @Test
+  void aStartThatEndsWellDespiteTheReleaseTakesItsInterruptBack() throws Exception {
+    // the helper connected in time: the start returns as if nothing happened, and the release closes the session
+    assertFalse(leftInterruptedByAStartThat(FakeSession::new), "the release's interrupt is the player's own");
+  }
+
+  @Test
+  void aStartThatFailsAnotherWayAfterTheReleaseTakesItsInterruptBack() throws Exception {
+    // the helper fails with an error of its own, which the start does not take for a stop by the release
+    assertFalse(
+      leftInterruptedByAStartThat(() -> {
+        throw new IllegalStateException("the helper broke");
+      }),
+      "the release's interrupt is the player's own"
+    );
   }
 
   @Test
