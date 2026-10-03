@@ -45,6 +45,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
@@ -266,6 +267,14 @@ class CefBrowserPlayerTest {
       assertFalse(started.get(5, TimeUnit.SECONDS), "the start of a released player fails");
       assertFalse(slow.isPlaying());
       assertFalse(leftInterrupted.get(), "the release's interrupt is the player's own, not left to the thread that called start");
+      // the start the release stopped took that interrupt back; a later start does not take its caller's own
+      Thread.currentThread().interrupt();
+      try {
+        assertFalse(slow.start(SOURCE), "a released player never starts");
+        assertTrue(Thread.currentThread().isInterrupted(), "an interrupt of the caller's own is not the player's to take");
+      } finally {
+        Thread.interrupted();
+      }
     } finally {
       starter.shutdownNow();
     }
@@ -427,6 +436,37 @@ class CefBrowserPlayerTest {
     } finally {
       Thread.interrupted();
       this.startFailure = null;
+    }
+  }
+
+  @Test
+  void aStartAfterTheReleaseKeepsTheInterruptOfItsCaller() {
+    assertTrue(this.player.release());
+    Thread.currentThread().interrupt();
+    try {
+      assertFalse(this.player.start(SOURCE), "a released player never starts");
+      assertTrue(Thread.currentThread().isInterrupted(), "the release interrupted no start, so the interrupt is the caller's");
+    } finally {
+      Thread.interrupted();
+    }
+    assertTrue(this.sessions.isEmpty(), "no helper was started");
+  }
+
+  @Test
+  void aCallerInterruptedBeforeAReleaseStopsItsStartKeepsItsInterrupt() {
+    final AtomicReference<CefBrowserPlayer> self = new AtomicReference<>();
+    // the release comes while the helper starts, on the starting thread itself, so the order is certain
+    final CefBrowserPlayer releasing = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
+      assertTrue(self.get().release());
+      throw new PlayerException("Interrupted while starting the browser");
+    });
+    self.set(releasing);
+    Thread.currentThread().interrupt();
+    try {
+      assertFalse(releasing.start(SOURCE), "the start of a released player fails");
+      assertTrue(Thread.currentThread().isInterrupted(), "the caller was interrupted before the release, so the interrupt is its own");
+    } finally {
+      Thread.interrupted();
     }
   }
 

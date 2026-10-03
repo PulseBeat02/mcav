@@ -90,6 +90,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
   // to START_TIMEOUT_MILLIS; guarded by itself, so no interrupt reaches the thread once its start is over
   private final Object starter;
   private @Nullable Thread starting;
+  // whether the release interrupted the start in progress, whose thread then takes that interrupt back; guarded by starter
+  private boolean startInterrupted;
   // a player who clicks while the helper does not read its input makes a report for every click
   private final LogBudget dropReports;
   private volatile @Nullable BrowserSession session;
@@ -151,8 +153,11 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   // a release while the helper starts interrupts the start, which then fails; the release closes what it had opened
   private boolean startReleasably(final BrowserSource source) {
+    final Thread caller = Thread.currentThread();
+    // an interrupt the caller had before is its own, even if a release interrupts the start too
+    final boolean callerInterrupted = caller.isInterrupted();
     synchronized (this.starter) {
-      this.starting = Thread.currentThread();
+      this.starting = caller;
     }
     try {
       // checked once the start can be interrupted, so a release either finds the start or is seen here
@@ -164,10 +169,13 @@ final class CefBrowserPlayer implements BrowserPlayer {
       }
       throw failure;
     } finally {
+      final boolean interrupted;
       synchronized (this.starter) {
         this.starting = null;
+        interrupted = this.startInterrupted;
+        this.startInterrupted = false;
       }
-      if (this.released.get()) {
+      if (interrupted && !callerInterrupted) {
         // the interrupt of the release is the player's own, not the caller's
         Thread.interrupted();
       }
@@ -229,6 +237,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     synchronized (this.starter) {
       final Thread thread = this.starting;
       if (thread != null) {
+        this.startInterrupted = true;
         thread.interrupt();
       }
     }
