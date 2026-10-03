@@ -282,6 +282,12 @@ final class PaperServerEndToEndTest {
     final int firstLine = server.getLineCount();
     runCommand(server, "mcav vnc create @a 320x240 10 3x2 12 NEAREST_COLOR 127.0.0.1:" + vnc.getPort(), "Connected to the VNC desktop!");
     server.awaitLine(firstLine, line -> line.contains("Maps 12 to 17 show their first picture"), COMMAND_TIMEOUT);
+    // the client asks for the desktop's next picture at the screen's rate, ten a second here, and a release sent at once
+    // after the first picture comes back before that; a desktop that sends only one picture still fails below
+    final long deadline = System.nanoTime() + COMMAND_TIMEOUT.toNanos();
+    while (vnc.getUpdates() < 2 && System.nanoTime() < deadline) {
+      TimeUnit.MILLISECONDS.sleep(50);
+    }
     runCommand(server, "mcav vnc release", "VNC desktop released!");
     System.out.printf(Locale.ROOT, "The VNC desktop logged in %d time(s) and sent %d updates%n", vnc.getLogins(), vnc.getUpdates());
     assertEquals(1, vnc.getLogins(), "the plugin logs in with the listed password");
