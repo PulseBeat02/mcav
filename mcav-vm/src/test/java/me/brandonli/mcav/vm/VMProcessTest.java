@@ -508,6 +508,14 @@ final class VMProcessTest {
     final List<String> command = this.x86Command(named);
     assertTrue(command.containsAll(List.of("-name", "-machine")), command::toString);
     assertEquals("-machine", command.get(command.indexOf("pcspk-audiodev=mcav-audio") - 1), command::toString);
+    // nor the machine: the option after such a value is not read as the machine, which keeps its sound
+    final VMConfiguration followed = VMConfiguration.builder();
+    followed.machine("q35");
+    followed.option("name", "-M");
+    followed.cpu("host");
+    final List<String> sound = this.x86Command(followed);
+    assertTrue(sound.contains("ich9-intel-hda,id=mcav-sound"), sound::toString);
+    assertTrue(sound.contains("pcspk-audiodev=mcav-audio"), sound::toString);
   }
 
   @Test
@@ -543,6 +551,16 @@ final class VMProcessTest {
     final VMConfiguration empty = VMConfiguration.builder();
     empty.machine(",usb=on");
     assertEquals("", VMProcess.machineType(empty));
+    // only option names are read: another option's value that looks like a machine option is that option's value
+    for (final String lookalike : List.of("-M", "-machine")) {
+      final VMConfiguration valued = VMConfiguration.builder();
+      valued.machine("q35");
+      valued.option("name", lookalike);
+      valued.cpu("host");
+      valued.repeatable("device", lookalike);
+      valued.repeatable("device", "e1000");
+      assertEquals("q35", VMProcess.machineType(valued), valued::toString);
+    }
     assertTrue(VMProcess.isPcMachine(""));
     assertTrue(VMProcess.isPcMachine("pc"));
     assertTrue(VMProcess.isPcMachine("q35"));

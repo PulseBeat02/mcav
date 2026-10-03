@@ -36,6 +36,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
 import me.brandonli.mcav.media.player.PlayerException;
@@ -78,6 +79,7 @@ final class VMProcess {
   private static final String READER_NOT_STOPPED = "QEMU output reader did not stop within {} ms";
   private static final String STILL_ALIVE = "QEMU is still alive after forced termination";
   private static final String LOCALHOST = "127.0.0.1";
+  private static final Set<String> MACHINE_OPTIONS = Set.of("machine", "M");
   // QEMU listens on the IPv4 loopback address, which is parsed from the literal rather than looked up
   static final InetAddress LOOPBACK = InetAddress.ofLiteral(LOCALHOST);
   private static final long START_TIMEOUT_MILLIS = 60_000L;
@@ -294,16 +296,9 @@ final class VMProcess {
    * @return the values
    */
   private static List<String> machineValues(final VMConfiguration configuration) {
-    // read off the arguments QEMU gets: grouped by spelling, -M q35 -machine microvm read as q35 where QEMU runs microvm
-    final List<String> arguments = configuration.getArguments();
-    final List<String> values = new ArrayList<>();
-    for (int index = 0; index + 1 < arguments.size(); index++) {
-      final String argument = arguments.get(index);
-      if (argument.equals("-machine") || argument.equals("-M")) {
-        values.add(arguments.get(index + 1));
-      }
-    }
-    return values;
+    // in the order of the arguments QEMU gets: grouped by spelling, -M q35 -machine microvm read as q35 where QEMU runs
+    // microvm; and by option name, as a scan of every argument read -name -M -cpu host as the machine -cpu
+    return configuration.valuesOf(MACHINE_OPTIONS);
   }
 
   /**

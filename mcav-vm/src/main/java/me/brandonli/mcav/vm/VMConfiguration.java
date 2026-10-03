@@ -373,6 +373,29 @@ public final class VMConfiguration {
   }
 
   /**
+   * Gets the values of options in the order of {@link #getArguments()}, whether an option was set once or repeated.
+   * Only option names are matched, so the value of another option that looks like one of them is left out.
+   *
+   * @param keys the option names without the leading dash
+   * @return the values
+   */
+  List<String> valuesOf(final Set<String> keys) {
+    final List<String> values = new ArrayList<>();
+    for (final Map.Entry<String, String> entry : this.options.entrySet()) {
+      if (keys.contains(entry.getKey())) {
+        values.add(entry.getValue());
+      }
+    }
+    for (int index = 0; index < this.repeatable.size(); index += 2) {
+      final String name = this.repeatable.get(index);
+      if (keys.contains(name.substring(1))) {
+        values.add(this.repeatable.get(index + 1));
+      }
+    }
+    return values;
+  }
+
+  /**
    * Gets the command-line arguments in order: options, repeatable options, then flags.
    *
    * @return an unmodifiable snapshot; later configuration changes do not affect the returned list
