@@ -508,6 +508,34 @@ final class AudioProviderTest {
   }
 
   @Test
+  void aTakeoverThatFailsLeavesTheSourceBeforePlayingThroughItsSpeakers() {
+    final Object machine = new Object();
+    final AudioFilter video = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
+    // the machine chose the bot, which is not ready, so it cannot take the outputs over
+    final IllegalStateException failure = assertThrows(IllegalStateException.class, () ->
+      this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players, machine)
+    );
+    assertEquals("The Discord bot is not ready", failure.getMessage());
+    this.provider.releaseAudioFilter(machine);
+    verify(this.voiceChatFilter, never()).release();
+    assertPlaysInto(this.voiceChatFilter, video);
+  }
+
+  @Test
+  void theSpeakersOfTheSourceBeforeStopWhenTheNewSourcePlaysOnTheWebPage() {
+    this.enableHttp();
+    this.provider.initialize();
+    final Object machine = new Object();
+    this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
+    final AudioFilter sound = this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players, machine);
+    verify(this.voiceChatFilter).release();
+    assertPlaysInto(this.httpServer, sound);
+    // the stopped speakers are no output of the machine's: its release does not stop them again
+    this.provider.releaseAudioFilter(machine);
+    verify(this.voiceChatFilter, times(1)).release();
+  }
+
+  @Test
   void aSourceThatChoseAgainIsNeverHandedItsEarlierChoiceBack() {
     this.enableDiscord();
     this.enableHttp();

@@ -350,17 +350,31 @@ public final class AudioProvider {
     }
     synchronized (this.outputLock) {
       final Claim current = this.owner;
-      if (current == null || !IDENTITY.equivalent(current.source, source)) {
-        // the speakers of the previous source stop; the bot and the web page play the new one from now on
-        this.releaseSpeakers();
-      }
+      final boolean takeover = current == null || !IDENTITY.equivalent(current.source, source);
+      // the speakers of the previous source stop only once the new source has its output, so a takeover that fails,
+      // such as one through a bot that is not ready, leaves the previous source playing
+      final SVCFilter previousSpeakers = takeover ? this.voiceChatFilter : null;
       final Claim claim = new Claim(source, argument, dump, players);
       claim.output = this.connect(claim);
       this.claims.removeIf(held -> IDENTITY.equivalent(held.source, source));
       this.claims.push(claim);
       this.owner = claim;
+      if (previousSpeakers != null) {
+        // the bot and the web page play the new source from now on
+        this.retireSpeakers(previousSpeakers);
+      }
       return (samples, metadata) -> this.owner == claim && claim.output.applyFilter(samples, metadata);
     }
+  }
+
+  // stops the speakers of the source another source took the outputs from; identity is the point, as the field still
+  // holds them unless the new source's own speakers replaced them
+  @SuppressWarnings("ReferenceEquality")
+  private void retireSpeakers(final SVCFilter speakers) {
+    if (this.voiceChatFilter == speakers) {
+      this.voiceChatFilter = null;
+    }
+    speakers.release();
   }
 
   /** Connects the output a source chose to it. */
@@ -507,7 +521,7 @@ public final class AudioProvider {
     // the speakers of Simple Voice Chat are made again when the source gets the outputs back
     private volatile AudioFilter output;
 
-    Claim(final Object source, final AudioArgument argument, final URLParseDump dump, final Object[] players) {
+    private Claim(final Object source, final AudioArgument argument, final URLParseDump dump, final Object[] players) {
       this.source = source;
       this.argument = argument;
       this.dump = dump;
