@@ -170,10 +170,22 @@ final class TransportPagesTest {
   @Test
   void refusesInconsistentPageMetadata() throws Mcv2Exception {
     final byte[] page = page();
-    assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(withHeaderByte(page, 24, 10), 6));
-    assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(withHeaderByte(withHeaderByte(page, 26, 0), 27, 1), 6));
-    assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(withHeaderByte(page, 18, 2), 6));
-    assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(withHeaderByte(page, 16, 1), 6));
+    assertEquals(
+      "Invalid page metadata",
+      assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(withHeaderByte(page, 24, 10), 6)).getMessage()
+    );
+    assertEquals(
+      "Invalid page metadata",
+      assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(withHeaderByte(withHeaderByte(page, 26, 0), 27, 1), 6)).getMessage()
+    );
+    assertEquals(
+      "Invalid page metadata",
+      assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(withHeaderByte(page, 18, 2), 6)).getMessage()
+    );
+    assertEquals(
+      "Invalid page metadata",
+      assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(withHeaderByte(page, 16, 1), 6)).getMessage()
+    );
     assertEquals(
       "Page CRC mismatch",
       assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(withHeaderByte(page, 8, 8), 6)).getMessage()
