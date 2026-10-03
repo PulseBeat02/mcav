@@ -605,9 +605,10 @@ class HelperSessionTest {
   void aTextLongerThanOneMessageArrivesWhole() {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
     Await.until("the first frame", () -> !this.listener.blues().isEmpty());
-    // 5000 characters are 10000 DevTools calls in two messages; the scripted page turns the count into its blue
+    // A full 16-bit counter distinguishes all 10000 calls from a missing 8192-call message.
     assertTrue(session.sendKey(HelperProtocol.KEY_TYPE, "a".repeat(5_000)));
-    Await.until("every character typed", () -> this.listener.blues().contains(10_000 & 0xFF));
+    Await.until("every character typed", () -> this.listener.inputCounts().contains(10_000));
+    assertEquals(10_000, this.listener.inputCounts().getLast());
   }
 
   @Test
@@ -973,6 +974,17 @@ class HelperSessionTest {
     final List<byte[]> sound = new CopyOnWriteArrayList<>();
     private final List<Long> frameNanos = new CopyOnWriteArrayList<>();
     final List<String> ended = new CopyOnWriteArrayList<>();
+
+    private List<Integer> inputCounts() {
+      final List<Integer> counts = new ArrayList<>();
+      for (final ImageBuffer frame : this.frames) {
+        final ByteBuffer pixels = frame.getData();
+        final int low = pixels.get(0) & 0xFF;
+        final int high = (pixels.get(1) & 0xFF) ^ ScriptedEngine.GREEN;
+        counts.add(low | (high << 8));
+      }
+      return counts;
+    }
 
     private List<Integer> blues() {
       final List<Integer> blues = new ArrayList<>();
