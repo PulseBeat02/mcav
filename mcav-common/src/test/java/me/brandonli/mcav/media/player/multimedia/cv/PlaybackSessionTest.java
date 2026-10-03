@@ -27,6 +27,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.Serial;
+import java.lang.reflect.Field;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
@@ -662,8 +663,20 @@ final class PlaybackSessionTest {
     when(detaching.retrieve()).thenReturn(counting).thenReturn(VideoPipelineStep.NO_OP);
     final ScriptedFrameGrabber grabber = videoAt(FRAME_MICROS);
     final PlaybackSession session = this.sessionWithVideoCallback(grabber, detaching);
-    session.start();
-    awaitEnd(session);
+    final Field poolField = PlaybackSession.class.getDeclaredField("imagePool");
+    poolField.setAccessible(true);
+    final ImagePool pool = (ImagePool) poolField.get(session);
+    try (final ImageBuffer retained = ImageBuffer.bytes(new byte[4 * 2 * 3], 4, 2)) {
+      pool.recycle((MatImageBuffer) retained);
+      session.start();
+      awaitEnd(session);
+      final IllegalStateException released = assertThrows(
+        IllegalStateException.class,
+        retained::getWidth,
+        "the detached frame returns to the pool and is released when rendering ends"
+      );
+      assertEquals("Image buffer has been released", released.getMessage());
+    }
 
     final long position = session.getPositionMicros();
     final int frameCount = frames.get();
