@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
+import org.apache.catalina.webresources.TomcatURLStreamHandlerFactory;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -175,6 +176,8 @@ public final class HttpResultImpl implements HttpResult {
 
   private ConfigurableApplicationContext createApplication() {
     keepTheLoggingOfTheHost();
+    // The JVM keeps a URL factory forever; a replacement plugin loader must not register another copy of Tomcat's.
+    TomcatURLStreamHandlerFactory.disable();
 
     final SpringApplicationBuilder builder = new SpringApplicationBuilder(HttpServerApplication.class);
     builder.web(WebApplicationType.SERVLET);
