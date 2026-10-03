@@ -173,12 +173,14 @@ final class Mcv2ScreenTest {
 
   @Test
   void refusesAnOriginWithoutAWorld() {
-    final Mcv2Configuration configuration = this.configuration(BlockFace.SOUTH);
     final Mcv2Configuration unloaded = mock(Mcv2Configuration.class);
     when(unloaded.getOrigin()).thenReturn(new Location(null, 0, 0, 0));
-    assertThrows(NullPointerException.class, () -> new Mcv2Screen(unloaded).build());
-    assertThrows(NullPointerException.class, () -> new Mcv2Screen(null));
-    assertEquals(3, configuration.getColumns());
+    final Mcv2Screen screen = new Mcv2Screen(unloaded);
+    final NullPointerException missingWorld = assertThrows(NullPointerException.class, screen::build);
+    assertEquals("The origin must be in a world", missingWorld.getMessage());
+    final NullPointerException missingConfiguration = assertThrows(NullPointerException.class, () -> new Mcv2Screen(null));
+    assertEquals("Configuration must not be null", missingConfiguration.getMessage());
+    assertEquals(List.of(), screen.getFrames(), "a failed build leaves no page frames");
   }
 
   @Test
