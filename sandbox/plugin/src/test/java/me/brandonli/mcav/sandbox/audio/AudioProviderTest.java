@@ -508,6 +508,40 @@ final class AudioProviderTest {
   }
 
   @Test
+  void aSourceThatChoseAgainIsNeverHandedItsEarlierChoiceBack() {
+    this.enableDiscord();
+    this.enableHttp();
+    this.provider.initialize();
+    final Object machine = new Object();
+    final Object browser = new Object();
+    // the video chose the web page, then the bot: its second choice replaced the first
+    this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
+    this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
+    this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
+    // the bot lost the right to join its channel meanwhile, so the video gives the outputs up
+    doThrow(new IllegalStateException("Missing permission VOICE_CONNECT")).when(this.audioManager).openAudioConnection(this.channel);
+    this.provider.releaseAudioFilter(machine);
+    // a browser that plays and is released later hands the web page back to no one
+    this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, browser);
+    this.provider.releaseAudioFilter(browser);
+    verify(this.httpServer, times(1)).setCurrentMedia(this.dump);
+  }
+
+  @Test
+  void aSourceReleasedAfterTheShutdownStartsNoOutputAgain() {
+    final SVCFilter lateSpeakers = mock(SVCFilter.class);
+    this.svcFilters.when(() -> SVCFilter.svc(this.players)).thenReturn(this.voiceChatFilter, this.voiceChatFilter, lateSpeakers);
+    final Object machine = new Object();
+    this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
+    this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
+    this.provider.shutdown();
+    // a machine whose release ends after the shutdown: the video it took the outputs from no longer waits for them
+    this.provider.releaseAudioFilter(machine);
+    verify(lateSpeakers, never()).start();
+    this.svcFilters.verify(() -> SVCFilter.svc(this.players), times(2));
+  }
+
+  @Test
   void playsThroughVoiceChatSpeakersUntilReleased() {
     final AudioFilter filter = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
     assertPlaysInto(this.voiceChatFilter, filter);

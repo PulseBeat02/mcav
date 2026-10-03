@@ -633,6 +633,9 @@ final class Mcv2PlayCommandTest {
       "Invalid MCV2 frame length: " + (Mcv2Format.MAX_FRAME_BYTES + 1),
       assertThrows(IOException.class, () -> Mcv2PlayCommand.read(huge)).getMessage()
     );
+    // while the longest a frame may be is one
+    final byte[] longest = record(Mcv2Format.MAX_FRAME_BYTES);
+    assertEquals(1, Mcv2PlayCommand.read(Files.write(this.folder.resolve("k.mcs"), longest)).size());
     // every byte of the length counts, little-endian: 16 bytes follow, fewer than any of these lengths
     for (int high = 1; high < 4; high++) {
       final byte[] data = new byte[4 + 16];

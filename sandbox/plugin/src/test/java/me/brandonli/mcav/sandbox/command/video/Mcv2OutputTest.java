@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.sandbox.command.video;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -59,6 +60,7 @@ final class Mcv2OutputTest {
     final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(64, 32);
     when(this.result.applyFilter(frame, metadata)).thenReturn(true);
     assertTrue(this.output.applyFilter(frame, metadata));
+    assertFalse(this.output.applyFilter(mock(ImageBuffer.class), metadata), "what the result answers comes back");
     this.output.start();
     verify(this.result).start();
     assertSame(this.result, this.output.getResult());
