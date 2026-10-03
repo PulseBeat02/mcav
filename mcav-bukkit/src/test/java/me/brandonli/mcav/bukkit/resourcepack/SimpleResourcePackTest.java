@@ -405,11 +405,54 @@ final class SimpleResourcePackTest {
   }
 
   @Test
-  void createsIndependentBuilders() {
+  void createsIndependentBuilders() throws IOException {
     final SimpleResourcePack first = SimpleResourcePack.pack();
     final SimpleResourcePack second = SimpleResourcePack.pack();
 
     assertNotSame(first, second);
+    first.meta(1, "first");
+    second.meta(2, "second");
+    first.external("credits.txt", this.credits);
+    second.external("credits.txt", this.secondSound);
+    first.data("generated.txt", FIRST_SOUND);
+    second.data("generated.txt", SECOND_SOUND);
+    first.sound("mcav:first", this.firstSound);
+    second.sound("mcav:second", this.secondSound);
+    final Path firstZip = this.directory.resolve("first.zip");
+    final Path secondZip = this.directory.resolve("second.zip");
+    first.zip(firstZip);
+    second.zip(secondZip);
+
+    final Map<String, byte[]> firstEntries = readZip(firstZip);
+    final Map<String, byte[]> secondEntries = readZip(secondZip);
+    assertEquals(
+      Set.of("pack.mcmeta", "credits.txt", "generated.txt", "assets/mcav/sounds/first.ogg", "assets/mcav/sounds.json"),
+      firstEntries.keySet()
+    );
+    assertEquals(
+      Set.of("pack.mcmeta", "credits.txt", "generated.txt", "assets/mcav/sounds/second.ogg", "assets/mcav/sounds.json"),
+      secondEntries.keySet()
+    );
+    assertEquals(
+      JsonParser.parseString("{\"pack\":{\"description\":\"first\",\"pack_format\":1,\"min_format\":1,\"max_format\":1}}"),
+      parseEntry(firstEntries, "pack.mcmeta")
+    );
+    assertEquals(
+      JsonParser.parseString("{\"pack\":{\"description\":\"second\",\"pack_format\":2,\"min_format\":2,\"max_format\":2}}"),
+      parseEntry(secondEntries, "pack.mcmeta")
+    );
+    final JsonObject firstEvents = new JsonObject();
+    final JsonObject secondEvents = new JsonObject();
+    addSoundEvent(firstEvents, "first", "mcav:first");
+    addSoundEvent(secondEvents, "second", "mcav:second");
+    assertEquals(firstEvents, parseEntry(firstEntries, "assets/mcav/sounds.json"));
+    assertEquals(secondEvents, parseEntry(secondEntries, "assets/mcav/sounds.json"));
+    assertEntry(CREDITS, firstEntries, "credits.txt");
+    assertEntry(SECOND_SOUND, secondEntries, "credits.txt");
+    assertEntry(FIRST_SOUND, firstEntries, "generated.txt");
+    assertEntry(SECOND_SOUND, secondEntries, "generated.txt");
+    assertEntry(FIRST_SOUND, firstEntries, "assets/mcav/sounds/first.ogg");
+    assertEntry(SECOND_SOUND, secondEntries, "assets/mcav/sounds/second.ogg");
   }
 
   @Test
