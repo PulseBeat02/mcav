@@ -67,6 +67,8 @@ import me.brandonli.mcav.utils.os.OSUtils;
 import me.brandonli.mcav.utils.os.Platform;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentMatchers;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -393,6 +395,36 @@ final class AbstractInstallerTest {
       assertSame(chmodFailure, cause);
       assertTrue(namesTheProblem, message);
       assertTrue(nothingRemembered, "a failed installation is not remembered");
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { false, true })
+  void retriesExecutablePreparationAfterAPermissionFailure(final boolean freshInstaller) throws IOException {
+    try (
+      final FileSystem fileSystem = Jimfs.newFileSystem(posixConfiguration());
+      final LocalHttpServer server = LocalHttpServer.start();
+      final MockedStatic<IOUtils> ioUtils = Mockito.mockStatic(IOUtils.class, Mockito.CALLS_REAL_METHODS)
+    ) {
+      server.respond(TOOL_PATH, 200, PROGRAM);
+      final Download download = new Download(CURRENT_PLATFORM, server.uri(TOOL_PATH).toString(), null);
+      final Path tools = fileSystem.getPath("/tools");
+      final TestInstaller first = new TestInstaller(tools, NAME, new Download[] { download });
+      final AtomicInteger permissionAttempts = new AtomicInteger();
+      ioUtils
+        .when(() -> IOUtils.markExecutable(ArgumentMatchers.any(Path.class)))
+        .thenAnswer(invocation -> {
+          if (permissionAttempts.getAndIncrement() == 0) {
+            throw new UncheckedIOException(new IOException("temporary permission failure"));
+          }
+          return invocation.callRealMethod();
+        });
+      assertThrows(IOException.class, () -> first.download(true));
+      final TestInstaller retry = freshInstaller ? new TestInstaller(tools, NAME, new Download[] { download }) : first;
+      final Path installed = retry.download(true);
+      assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(installed));
+      assertEquals(2, permissionAttempts.get(), "a failed preparation is retried even by a new installer");
+      assertArrayEquals(PROGRAM, Files.readAllBytes(installed));
     }
   }
 
