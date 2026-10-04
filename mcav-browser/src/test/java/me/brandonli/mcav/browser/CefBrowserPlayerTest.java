@@ -59,6 +59,8 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.audio.DelayedAudioOutput;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
 
 class CefBrowserPlayerTest {
 
@@ -467,7 +469,7 @@ class CefBrowserPlayerTest {
         }
         return Thread.currentThread().isInterrupted();
       });
-      opening.await();
+      assertTrue(opening.await(5, TimeUnit.SECONDS), "the helper factory must be entered before release");
       // the release interrupts the start, then waits for it to end and closes what it opened
       assertTrue(assertTimeoutPreemptively(Duration.ofSeconds(5), late::release));
       final boolean left = leftInterrupted.get(5, TimeUnit.SECONDS);
@@ -475,6 +477,37 @@ class CefBrowserPlayerTest {
       return left;
     } finally {
       starter.shutdownNow();
+      try {
+        assertTrue(starter.awaitTermination(5, TimeUnit.SECONDS), "the fixture must stop its startup worker");
+      } finally {
+        assertTimeoutPreemptively(Duration.ofSeconds(5), late::release);
+      }
+    }
+  }
+
+  @Test
+  void aStartThatNeverReachesItsFactoryStillEndsTheInterruptFixture() {
+    assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
+      try (final MockedConstruction<CefBrowserPlayer> players = Mockito.mockConstruction(CefBrowserPlayer.class)) {
+        final AssertionError failure = assertThrows(AssertionError.class, () -> leftInterruptedByAStartThat(FakeSession::new));
+        assertTrue(failure.getMessage().contains("the helper factory"));
+        assertEquals(1, players.constructed().size());
+      }
+    });
+  }
+
+  @Test
+  void theInterruptFixtureUsesTheResultOfItsBoundedWait() throws Exception {
+    try (
+      final MockedConstruction<CountDownLatch> latches = Mockito.mockConstruction(CountDownLatch.class, (latch, _) ->
+        Mockito.doThrow(new AssertionError("unbounded fixture wait")).when(latch).await()
+      );
+      final MockedConstruction<CefBrowserPlayer> players = Mockito.mockConstruction(CefBrowserPlayer.class)
+    ) {
+      final AssertionError failure = assertThrows(AssertionError.class, () -> leftInterruptedByAStartThat(FakeSession::new));
+      assertTrue(failure.getMessage().contains("the helper factory"), failure.getMessage());
+      assertEquals(1, latches.constructed().size());
+      assertEquals(1, players.constructed().size());
     }
   }
 
