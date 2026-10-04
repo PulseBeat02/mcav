@@ -96,6 +96,7 @@ final class VirtualizeCommandTest {
   private VirtualizeCommand command;
   private CommandSender sender;
   private MultiplePlayerSelector selector;
+  private Player viewer;
   private VMPlayer machine;
   private AudioProvider provider;
   private VideoAttachableCallback callback;
@@ -126,8 +127,8 @@ final class VirtualizeCommandTest {
     this.command = new VirtualizeCommand(this.plugin);
     this.sender = mock(CommandSender.class);
     this.selector = mock(MultiplePlayerSelector.class);
-    final Player viewer = mock(Player.class);
-    final List<Player> viewers = List.of(viewer);
+    this.viewer = mock(Player.class);
+    final List<Player> viewers = List.of(this.viewer);
     when(this.selector.values()).thenReturn(viewers);
 
     this.machine = mock(VMPlayer.class);
@@ -664,6 +665,8 @@ final class VirtualizeCommandTest {
   void aMachineThatStartsWithTheWebPageSendsItsLink() {
     this.createWithTheWebPage(CompletableFuture.completedFuture(true));
     verify(this.provider).constructHttpUrl();
+    assertEquals(List.of(Message.AUDIO_HTTP.build("http://mc.example.com:3000/")), Components.received(this.viewer));
+    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), Components.receivedText(this.viewer));
   }
 
   @Test
@@ -831,6 +834,11 @@ final class VirtualizeCommandTest {
     final List<Component> messages = Components.received(this.sender);
     final boolean toldOnce = messages.size() == 1;
     assertTrue(toldOnce, messages.toString());
+    final String accepted = String.join(", ", VirtualizeCommand.supportedOptions());
+    assertEquals(
+      "Invalid QEMU flags! Unsupported QEMU option -plugin; the command accepts " + accepted,
+      Components.plain(messages.getFirst())
+    );
     this.machines.verifyNoInteractions();
     assertNull(this.command.player);
     assertNull(this.command.result);
