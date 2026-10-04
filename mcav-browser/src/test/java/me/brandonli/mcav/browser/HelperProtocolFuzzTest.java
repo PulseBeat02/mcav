@@ -25,6 +25,7 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Set;
 import org.junit.jupiter.api.Tag;
 
 /**
@@ -64,6 +65,9 @@ final class HelperProtocolFuzzTest {
         assertTrue(region.getX() + region.getWidth() <= region.getPageWidth(), "the region fits the page horizontally");
         assertTrue(region.getY() + region.getHeight() <= region.getPageHeight(), "the region fits the page vertically");
         assertTrue(region.getWidth() >= 1 && region.getPageWidth() <= HelperProtocol.MAX_SIDE, "the sizes are in range");
+        assertTrue(region.getHeight() >= 1 && region.getHeight() <= HelperProtocol.MAX_SIDE, "the region height is in range");
+        assertTrue(region.getPageHeight() >= 1 && region.getPageHeight() <= HelperProtocol.MAX_SIDE, "the page height is in range");
+        assertTrue(region.getPageWidth() >= 1 && region.getWidth() <= HelperProtocol.MAX_SIDE, "the widths are in range");
       }
       case HelperProtocol.AUDIO -> {
         final int length = message.getSamples().length;
@@ -74,7 +78,10 @@ final class HelperProtocolFuzzTest {
         final int length = message.getText().getBytes(StandardCharsets.UTF_8).length;
         assertTrue(length <= HelperProtocol.MAX_TEXT_BYTES, "the text is within its limit");
       }
-      default -> assertTrue(type >= HelperProtocol.HELLO && type <= HelperProtocol.CLOSE, () -> "type " + type);
+      default -> {
+        assertTrue(type >= HelperProtocol.HELLO && type <= HelperProtocol.CLOSE, () -> "type " + type);
+        assertTrue(Set.of(1, 4, 5, 16, 18).contains(type), () -> "undefined message type " + type);
+      }
     }
   }
 
