@@ -48,6 +48,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -510,10 +511,21 @@ final class Mcv2PlayCommandTest {
     // a frame is reported every frame; no report can say more milliseconds per frame, nor the end more seconds, than the
     // whole encode took
     final Path output = this.folder.resolve("timed.mcs");
+    final AtomicLong openingNanos = new AtomicLong();
     final long started = System.nanoTime();
     Mcv2PlayCommand.encodeFile(
       this.sender,
-      (_, _, _) -> new SolidFrames(3, new CountDownLatch(0)),
+      (_, _, _) -> {
+        final long openingStarted = System.nanoTime();
+        try {
+          Thread.sleep(700);
+        } catch (final InterruptedException interrupted) {
+          Thread.currentThread().interrupt();
+          throw new IOException(interrupted);
+        }
+        openingNanos.set(System.nanoTime() - openingStarted);
+        return new SolidFrames(3, new CountDownLatch(0));
+      },
       Path.of("f.mp4"),
       output,
       320,
@@ -524,13 +536,17 @@ final class Mcv2PlayCommandTest {
     );
     final double took = (System.nanoTime() - started) / 1e6;
     final List<String> told = this.finish();
+    final double openingMillis = openingNanos.get() / 1e6;
+    assertTrue(openingMillis >= 600, "opening consumed independently measured time");
     final Matcher progress = Pattern.compile("MCV2 encode: (\\d+) frames, (\\d+) ms per frame").matcher(told.get(2));
     assertTrue(progress.find(), told.get(2));
     assertEquals(3, Integer.parseInt(progress.group(1)));
     assertTrue(Integer.parseInt(progress.group(2)) <= took / 3 + 0.5, told.get(2) + " in " + took + " ms");
+    assertTrue(Integer.parseInt(progress.group(2)) >= openingMillis / 3 - 0.5, "progress includes source opening");
     final Matcher done = Pattern.compile(" in (\\d+) s, ").matcher(told.getLast());
     assertTrue(done.find(), told.getLast());
     assertTrue(Integer.parseInt(done.group(1)) <= took / 1000 + 0.5, told.getLast() + " in " + took + " ms");
+    assertTrue(Integer.parseInt(done.group(1)) >= openingMillis / 1000 - 0.5, "completion includes source opening");
   }
 
   @Test
