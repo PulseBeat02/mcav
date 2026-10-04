@@ -27,8 +27,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.papermc.paper.math.Position;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
 import me.brandonli.mcav.bukkit.media.config.ChatConfiguration;
@@ -44,6 +46,8 @@ import me.brandonli.mcav.bukkit.testing.MapPackets;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextColor;
+import net.minecraft.network.chat.Style;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
@@ -60,6 +64,7 @@ import org.bukkit.scoreboard.Team;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 
 /**
@@ -331,7 +336,17 @@ final class DisplayableImageTest {
     final List<CraftTextDisplay> displays = this.world.getSpawnedDisplays();
     final CraftTextDisplay entity = displays.getFirst();
     final Display.TextDisplay handle = entity.getHandle();
-    verify(handle).setText(any(net.minecraft.network.chat.Component.class)); // fqn: Component is imported as net.kyori.adventure.text.Component
+    final ArgumentCaptor<net.minecraft.network.chat.Component> textCaptor = ArgumentCaptor.captor(); // fqn: Component is imported as net.kyori.adventure.text.Component
+    verify(handle).setText(textCaptor.capture());
+    assertEquals("#", textCaptor.getValue().getString());
+    final List<Integer> colors = new ArrayList<>();
+    textCaptor.getValue().visit((style, characters) -> {
+      for (int index = 0; index < characters.length(); index++) {
+        colors.add(style.getColor() == null ? -1 : style.getColor().getValue());
+      }
+      return Optional.empty();
+    }, Style.EMPTY);
+    assertEquals(List.of(0x808080), colors, "the submitted image's exact color reaches the display");
     verify(entity).remove();
     assertThrows(NullPointerException.class, () -> display.displayImage(null));
   }
@@ -357,7 +372,7 @@ final class DisplayableImageTest {
     final Team firstTeam = teams.getFirst();
     assertSame(board, shown);
     assertSame(previous, restored);
-    verify(firstTeam).suffix(any(Component.class));
+    verify(firstTeam).suffix(Component.text("#", TextColor.color(0x808080)));
     assertThrows(NullPointerException.class, () -> display.displayImage(null));
   }
 
