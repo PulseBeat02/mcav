@@ -403,10 +403,33 @@ final class AudioProviderTest {
   }
 
   @Test
+  void replacingTheSameSourcesSpeakersReleasesThePreviousFilter() {
+    final Object source = new Object();
+    final Object[] replacementPlayers = { "Alex" };
+    final SVCFilter replacementSpeakers = mock(SVCFilter.class);
+    this.svcFilters.when(() -> SVCFilter.svc(replacementPlayers)).thenReturn(replacementSpeakers);
+    final AudioFilter previous = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, source);
+    final AudioFilter replacement = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, replacementPlayers, source);
+    final InOrder ownership = inOrder(this.voiceChatFilter, replacementSpeakers);
+    ownership.verify(this.voiceChatFilter).start();
+    ownership.verify(replacementSpeakers).start();
+    ownership.verify(this.voiceChatFilter).release();
+    final ByteBuffer samples = ByteBuffer.allocate(4);
+    final OriginalAudioMetadata metadata = OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1);
+    assertFalse(previous.applyFilter(samples, metadata));
+    assertPlaysInto(replacementSpeakers, replacement);
+    this.provider.releaseAudioFilter(source);
+    verify(this.voiceChatFilter, times(1)).release();
+    verify(replacementSpeakers, times(1)).release();
+    assertFalse(replacement.applyFilter(samples, metadata));
+  }
+
+  @Test
   void theOutputsPlayOneSourceAtATime() {
     final SVCFilter videoSpeakers = this.voiceChatFilter;
     final SVCFilter machineSpeakers = mock(SVCFilter.class);
-    this.svcFilters.when(() -> SVCFilter.svc(this.players)).thenReturn(videoSpeakers, machineSpeakers);
+    final SVCFilter replacementSpeakers = mock(SVCFilter.class);
+    this.svcFilters.when(() -> SVCFilter.svc(this.players)).thenReturn(videoSpeakers, machineSpeakers, replacementSpeakers);
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
     final AudioFilter sound = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
@@ -418,16 +441,21 @@ final class AudioProviderTest {
     verify(videoSpeakers, never()).applyFilter(any(), any());
     assertPlaysInto(machineSpeakers, sound);
     assertFalse(sound.applyFilter(ByteBuffer.allocate(8), metadata), "what the output answers comes back");
-    // the source that has the outputs keeps them when it asks again
-    this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
-    verify(machineSpeakers, never()).release();
+    // the real factory creates fresh speakers on every request, including the same source
+    final AudioFilter replacement = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
+    verify(machineSpeakers).release();
+    verify(replacementSpeakers, never()).release();
+    assertFalse(sound.applyFilter(samples, metadata));
+    assertPlaysInto(replacementSpeakers, replacement);
     // releasing the video leaves the machine playing; releasing the machine lets go of the outputs
     this.provider.releaseAudioFilter();
-    verify(machineSpeakers, never()).release();
+    verify(replacementSpeakers, never()).release();
     this.provider.releaseAudioFilter(new Object());
-    verify(machineSpeakers, never()).release();
+    verify(replacementSpeakers, never()).release();
     this.provider.releaseAudioFilter(machine);
-    verify(machineSpeakers).release();
+    verify(machineSpeakers, times(1)).release();
+    verify(replacementSpeakers, times(1)).release();
+    assertFalse(replacement.applyFilter(samples, metadata));
     assertFalse(sound.applyFilter(samples, metadata), "a released source plays no more");
     assertThrows(NullPointerException.class, () -> this.provider.releaseAudioFilter(null));
     assertThrows(NullPointerException.class, () -> this.provider.constructFilter(AudioArgument.NONE, this.dump, this.players, null));
