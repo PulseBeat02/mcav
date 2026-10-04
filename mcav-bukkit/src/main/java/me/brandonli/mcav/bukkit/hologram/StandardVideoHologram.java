@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import net.kyori.adventure.text.Component;
@@ -45,8 +46,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class StandardVideoHologram extends VideoHologram {
 
-  private static final DateTimeFormatter MONTH_DAY_FORMATTER = DateTimeFormatter.ofPattern("MMMM d");
-  private static final DateTimeFormatter YEAR_TIME_FORMATTER = DateTimeFormatter.ofPattern(", yyyy h:mm a");
+  private static final DateTimeFormatter MONTH_DAY_FORMATTER = DateTimeFormatter.ofPattern(
+    "MMMM d",
+    Locale.getDefault(Locale.Category.FORMAT)
+  );
+  private static final DateTimeFormatter YEAR_TIME_FORMATTER = DateTimeFormatter.ofPattern(
+    ", yyyy h:mm a",
+    Locale.getDefault(Locale.Category.FORMAT)
+  );
   private static final MiniMessage MINI_MESSAGE = MiniMessage.miniMessage();
 
   private static final String PROGRESS_FILLED = "<green>■</green>";
@@ -207,7 +214,7 @@ public class StandardVideoHologram extends VideoHologram {
   private static String formatTime(final int seconds) {
     final int minutes = seconds / 60;
     final int remainingSeconds = seconds % 60;
-    return "%02d:%02d".formatted(minutes, remainingSeconds);
+    return String.format(Locale.getDefault(Locale.Category.FORMAT), "%02d:%02d", minutes, remainingSeconds);
   }
 
   private void cancelTask() {

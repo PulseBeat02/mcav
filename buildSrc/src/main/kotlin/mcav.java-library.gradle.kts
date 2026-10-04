@@ -41,7 +41,8 @@ val enforcedChecks = listOf(
     "StaticQualifiedUsingExpression",
     "LongLiteralLowerCaseSuffix",
     "MultipleTopLevelClasses",
-    "PackageLocation"
+    "PackageLocation",
+    "DefaultLocale"
 )
 
 repositories {

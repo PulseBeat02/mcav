@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Type;
+import java.util.Locale;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.utils.IOUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -96,7 +97,7 @@ public final class MapPaletteLoader {
 
   private static int toColor(final int @Nullable [] rgb, final int index) {
     if (rgb == null || rgb.length != 3) {
-      final String message = "Map color %d does not have three components".formatted(index);
+      final String message = String.format(Locale.getDefault(Locale.Category.FORMAT), "Map color %d does not have three components", index);
       throw new PaletteLoadingException(message);
     }
     final int red = checkComponent(rgb[0], index);
@@ -107,7 +108,12 @@ public final class MapPaletteLoader {
 
   private static int checkComponent(final int component, final int index) {
     if (component < 0 || component > 255) {
-      final String message = "Map color %d has the component %d, which is outside of 0 to 255".formatted(index, component);
+      final String message = String.format(
+        Locale.getDefault(Locale.Category.FORMAT),
+        "Map color %d has the component %d, which is outside of 0 to 255",
+        index,
+        component
+      );
       throw new PaletteLoadingException(message);
     }
     return component;

@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -211,7 +212,13 @@ public final class CommandTask {
       return;
     }
     final String strippedError = this.errorOutput.strip();
-    final String message = "Command %s exited with code %d: %s".formatted(this.command, code, strippedError);
+    final String message = String.format(
+      Locale.getDefault(Locale.Category.FORMAT),
+      "Command %s exited with code %d: %s",
+      this.command,
+      code,
+      strippedError
+    );
     throw new ProcessException(message);
   }
 

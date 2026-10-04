@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.SplittableRandom;
@@ -219,7 +220,9 @@ final class PlaybackSessionStopStressTest {
       this.point = point;
       this.stopAfterFrames = random.nextInt(1, frameCount + 1);
       this.waitBeforeStopNanos = random.nextLong(0L, 2_000_000L);
-      this.description = "round %d of seed %d: stop %s, %d frames, stop after %d frames or %d ns, %s audio%s".formatted(
+      this.description = String.format(
+        Locale.ROOT,
+        "round %d of seed %d: stop %s, %d frames, stop after %d frames or %d ns, %s audio%s",
         number,
         SEED,
         point,

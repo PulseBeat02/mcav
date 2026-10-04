@@ -33,6 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -90,87 +91,97 @@ public final class TestPages implements AutoCloseable {
 
   // a 1000 Hz oscillator that plays once the page may: after the first click on it, which resumes its context; the
   // page reports every state its context takes, so a test that hears nothing can tell why
-  private static final String TONE_SCRIPT = """
-  <script>
-    const context = new AudioContext();
-    context.addEventListener('statechange', () => {
-      report('state', { key: context.state });
-      // whether the clock of the context runs: without an audio device that renders, it stands still
-      let times = 0;
-      const clock = setInterval(() => {
-        report('time', { key: context.currentTime.toFixed(2) });
-        if (++times === 10) {
-          clearInterval(clock);
-        }
-      }, 1000);
-    });
-    const oscillator = context.createOscillator();
-    oscillator.frequency.value = %d;
-    const gain = context.createGain();
-    gain.gain.value = %s;
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start();
-    addEventListener('pointerdown', () => context.resume().catch((error) => report('state', { key: 'resume failed: ' + error.name })));
-  </script>
-  """.formatted(TONE_HERTZ, TONE_AMPLITUDE);
+  private static final String TONE_SCRIPT = String.format(
+    Locale.ROOT,
+    """
+    <script>
+      const context = new AudioContext();
+      context.addEventListener('statechange', () => {
+        report('state', { key: context.state });
+        // whether the clock of the context runs: without an audio device that renders, it stands still
+        let times = 0;
+        const clock = setInterval(() => {
+          report('time', { key: context.currentTime.toFixed(2) });
+          if (++times === 10) {
+            clearInterval(clock);
+          }
+        }, 1000);
+      });
+      const oscillator = context.createOscillator();
+      oscillator.frequency.value = %d;
+      const gain = context.createGain();
+      gain.gain.value = %s;
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      addEventListener('pointerdown', () => context.resume().catch((error) => report('state', { key: 'resume failed: ' + error.name })));
+    </script>
+    """,
+    TONE_HERTZ,
+    TONE_AMPLITUDE
+  );
 
   // the tone of TONE_SCRIPT on a page that first wraps everything of Web Audio that a capture could call, keeps every
   // script processor it sees, reports how many, and feeds each one samples of its own, without waiting for a click
-  private static final String WRAPPED_TONE_SCRIPT = """
-  <script>
-    const taps = new Set();
-    const keep = (node) => {
-      if (node instanceof ScriptProcessorNode) {
-        taps.add(node);
-      }
-      return node;
-    };
-    for (const prototype of [BaseAudioContext.prototype, AudioContext.prototype]) {
-      for (const name of ['createScriptProcessor', 'createGain', 'createMediaElementSource']) {
-        const original = prototype[name];
-        if (typeof original === 'function') {
-          prototype[name] = function (...args) {
-            return keep(original.apply(this, args));
-          };
+  private static final String WRAPPED_TONE_SCRIPT = String.format(
+    Locale.ROOT,
+    """
+    <script>
+      const taps = new Set();
+      const keep = (node) => {
+        if (node instanceof ScriptProcessorNode) {
+          taps.add(node);
+        }
+        return node;
+      };
+      for (const prototype of [BaseAudioContext.prototype, AudioContext.prototype]) {
+        for (const name of ['createScriptProcessor', 'createGain', 'createMediaElementSource']) {
+          const original = prototype[name];
+          if (typeof original === 'function') {
+            prototype[name] = function (...args) {
+              return keep(original.apply(this, args));
+            };
+          }
         }
       }
-    }
-    const connect = AudioNode.prototype.connect;
-    AudioNode.prototype.connect = function (target, ...rest) {
-      keep(this);
-      keep(target);
-      return connect.call(this, target, ...rest);
-    };
-    const listen = EventTarget.prototype.addEventListener;
-    EventTarget.prototype.addEventListener = function (type, listener, ...rest) {
-      keep(this);
-      return listen.call(this, type, listener, ...rest);
-    };
-    const context = new AudioContext();
-    const oscillator = context.createOscillator();
-    oscillator.frequency.value = %d;
-    const gain = context.createGain();
-    gain.gain.value = %s;
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start();
-    const forged = new AudioBuffer({ length: 2048, numberOfChannels: 2, sampleRate: 48000 });
-    forged.getChannelData(0).fill(0.5);
-    forged.getChannelData(1).fill(0.5);
-    setInterval(() => {
-      for (const tap of taps) {
-        const event = new AudioProcessingEvent('audioprocess', { playbackTime: 0, inputBuffer: forged, outputBuffer: forged });
-        if (typeof tap.onaudioprocess === 'function') {
-          tap.onaudioprocess(event);
+      const connect = AudioNode.prototype.connect;
+      AudioNode.prototype.connect = function (target, ...rest) {
+        keep(this);
+        keep(target);
+        return connect.call(this, target, ...rest);
+      };
+      const listen = EventTarget.prototype.addEventListener;
+      EventTarget.prototype.addEventListener = function (type, listener, ...rest) {
+        keep(this);
+        return listen.call(this, type, listener, ...rest);
+      };
+      const context = new AudioContext();
+      const oscillator = context.createOscillator();
+      oscillator.frequency.value = %d;
+      const gain = context.createGain();
+      gain.gain.value = %s;
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      const forged = new AudioBuffer({ length: 2048, numberOfChannels: 2, sampleRate: 48000 });
+      forged.getChannelData(0).fill(0.5);
+      forged.getChannelData(1).fill(0.5);
+      setInterval(() => {
+        for (const tap of taps) {
+          const event = new AudioProcessingEvent('audioprocess', { playbackTime: 0, inputBuffer: forged, outputBuffer: forged });
+          if (typeof tap.onaudioprocess === 'function') {
+            tap.onaudioprocess(event);
+          }
+          tap.dispatchEvent(event);
         }
-        tap.dispatchEvent(event);
-      }
-    }, 50);
-    report('taps', { clientX: taps.size });
-    addEventListener('pointerdown', () => context.resume());
-  </script>
-  """.formatted(TONE_HERTZ, TONE_AMPLITUDE);
+      }, 50);
+      report('taps', { clientX: taps.size });
+      addEventListener('pointerdown', () => context.resume());
+    </script>
+    """,
+    TONE_HERTZ,
+    TONE_AMPLITUDE
+  );
 
   // an audio element that plays the tone at the volume and muting of the address, from the first click
   private static final String ELEMENT_SCRIPT = """
@@ -187,32 +198,38 @@ public final class TestPages implements AutoCloseable {
   """;
 
   // from the first click, the picture turns white and the tone plays at once, and both stop at once, in turns
-  private static final String TOGGLE_SCRIPT = """
-  <script>
-    const context = new AudioContext();
-    const oscillator = context.createOscillator();
-    oscillator.frequency.value = %d;
-    const gain = context.createGain();
-    gain.gain.value = 0;
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start();
-    let on = false;
-    let started = false;
-    addEventListener('pointerdown', () => {
-      context.resume();
-      if (started) {
-        return;
-      }
-      started = true;
-      setInterval(() => {
-        on = !on;
-        document.body.style.background = on ? '#ffffff' : '#000000';
-        gain.gain.setValueAtTime(on ? %s : 0, context.currentTime);
-      }, %d);
-    });
-  </script>
-  """.formatted(TONE_HERTZ, TONE_AMPLITUDE, TOGGLE_MILLIS);
+  private static final String TOGGLE_SCRIPT = String.format(
+    Locale.ROOT,
+    """
+    <script>
+      const context = new AudioContext();
+      const oscillator = context.createOscillator();
+      oscillator.frequency.value = %d;
+      const gain = context.createGain();
+      gain.gain.value = 0;
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start();
+      let on = false;
+      let started = false;
+      addEventListener('pointerdown', () => {
+        context.resume();
+        if (started) {
+          return;
+        }
+        started = true;
+        setInterval(() => {
+          on = !on;
+          document.body.style.background = on ? '#ffffff' : '#000000';
+          gain.gain.setValueAtTime(on ? %s : 0, context.currentTime);
+        }, %d);
+      });
+    </script>
+    """,
+    TONE_HERTZ,
+    TONE_AMPLITUDE,
+    TOGGLE_MILLIS
+  );
 
   private static final String SCRIPT = """
   <script>
@@ -435,7 +452,7 @@ public final class TestPages implements AutoCloseable {
   }
 
   private static void page(final HttpExchange exchange, final String name, final int color, final String extra) throws IOException {
-    final String hex = String.format("#%06x", color);
+    final String hex = String.format(Locale.ROOT, "#%06x", color);
     final String html =
       "<!doctype html><html><head><title>" +
       name +

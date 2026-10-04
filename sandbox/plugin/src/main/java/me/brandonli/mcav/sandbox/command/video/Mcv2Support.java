@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.function.Function;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
@@ -226,7 +227,12 @@ public final class Mcv2Support {
     result.setSmallerSizes(smallerSizes(slotted.getVideoWidth(), slotted.getVideoHeight()), lease);
     final String record = System.getProperty(RECORD_PROPERTY);
     if (record != null) {
-      final String name = "screen-%d-%d.mcs".formatted(slotted.getStreamId(), System.currentTimeMillis());
+      final String name = String.format(
+        Locale.getDefault(Locale.Category.FORMAT),
+        "screen-%d-%d.mcs",
+        slotted.getStreamId(),
+        System.currentTimeMillis()
+      );
       result.setFrameListener(new FrameRecorder(Path.of(record).resolve(name)));
     }
     return new Mcv2Output(result, lease);

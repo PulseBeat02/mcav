@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -137,10 +138,13 @@ public final class MCAVLoader implements PluginLoader {
     }
     if (!missing.isEmpty()) {
       throw new IllegalStateException(
-        (
+        String.format(
+          Locale.getDefault(Locale.Category.FORMAT),
           "The mcav modules the server downloaded are older than this plugin, which uses classes they lack (%d), such as %s. " +
-          "Publish the modules of the plugin's own version, or build the plugin with -Pmcav.e2e=true"
-        ).formatted(missing.size(), String.join(", ", missing.subList(0, Math.min(NAMED_MISSING, missing.size()))))
+            "Publish the modules of the plugin's own version, or build the plugin with -Pmcav.e2e=true",
+          missing.size(),
+          String.join(", ", missing.subList(0, Math.min(NAMED_MISSING, missing.size())))
+        )
       );
     }
   }

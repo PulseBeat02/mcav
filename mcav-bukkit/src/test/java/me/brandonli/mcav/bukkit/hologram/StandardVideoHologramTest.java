@@ -37,6 +37,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.TimeZone;
 import java.util.function.Consumer;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
@@ -122,8 +123,8 @@ final class StandardVideoHologramTest {
 
   private static String expectedDate(final int day, final String suffix) {
     final LocalDateTime dateTime = LocalDateTime.of(2024, 1, day, 15, 30);
-    final DateTimeFormatter monthDay = DateTimeFormatter.ofPattern("MMMM d");
-    final DateTimeFormatter yearTime = DateTimeFormatter.ofPattern(", yyyy h:mm a");
+    final DateTimeFormatter monthDay = DateTimeFormatter.ofPattern("MMMM d", Locale.getDefault(Locale.Category.FORMAT));
+    final DateTimeFormatter yearTime = DateTimeFormatter.ofPattern(", yyyy h:mm a", Locale.getDefault(Locale.Category.FORMAT));
     final String monthDayText = dateTime.format(monthDay);
     final String yearTimeText = dateTime.format(yearTime);
     return monthDayText + suffix + yearTimeText;

@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
+import com.google.common.base.Equivalence;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -34,6 +35,7 @@ import me.brandonli.mcav.media.player.PlayerException;
  */
 final class HelperProcesses {
 
+  private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
   private static final Set<HelperSession> SESSIONS = new LinkedHashSet<>();
   private static boolean stopped;
   private static long generation;
@@ -114,7 +116,7 @@ final class HelperProcesses {
       } catch (final RuntimeException exception) {
         if (failure == null) {
           failure = exception;
-        } else {
+        } else if (!FAILURE_IDENTITY.equivalent(failure, exception)) {
           failure.addSuppressed(exception);
         }
       }
