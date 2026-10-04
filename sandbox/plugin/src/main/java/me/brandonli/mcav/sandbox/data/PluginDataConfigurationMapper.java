@@ -287,7 +287,12 @@ public final class PluginDataConfigurationMapper {
     }
     final Object password = map.get("password");
     final String secret = password == null ? "" : password.toString();
-    return new VncAllowList.Entry(host, port, secret.isEmpty() ? null : secret);
+    try {
+      return new VncAllowList.Entry(host, port, secret.isEmpty() ? null : secret);
+    } catch (final IllegalArgumentException invalidHost) {
+      LOGGER.warn(INVALID_VNC_HOST, VNC_ALLOWED_HOSTS, hostValue, portValue);
+      return null;
+    }
   }
 
   /**
