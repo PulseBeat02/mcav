@@ -17,12 +17,14 @@
  */
 package me.brandonli.mcav.sandbox.locale;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.MissingResourceException;
 import java.util.function.Function;
 import me.brandonli.mcav.sandbox.testing.Components;
@@ -31,6 +33,8 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
 
 /**
  * Tests {@link LocaleTools}.
@@ -101,11 +105,13 @@ final class LocaleToolsTest {
 
   @Test
   void rendersMessagesWithTwoArguments() {
-    final Function<String, String> upper = String::toUpperCase;
+    final Function<String, String> upper = value -> value.toUpperCase(Locale.ROOT);
     final LocaleTools.BiComponent<String, String> message = LocaleTools.direct(LINK_KEY, upper, null);
     final Component component = message.build("http://a/", "ignored");
     final String text = Components.plain(component);
     assertEquals(LINK_PREFIX + "HTTP://A/", text);
+    final LocaleTools.BiComponent<String, String> pair = LocaleTools.direct("mcav.test.two", upper, value -> "length=" + value.length());
+    assertEquals("FIRST|length=6", Components.plain(assertDoesNotThrow(() -> pair.build("first", "second"))));
   }
 
   @Test
@@ -114,6 +120,13 @@ final class LocaleToolsTest {
     final Component component = message.build("http://b/", "second", "third");
     final String text = Components.plain(component);
     assertEquals(LINK_PREFIX + "http://b/", text);
+    final LocaleTools.TriComponent<String, String, Integer> triple = LocaleTools.direct(
+      "mcav.test.three",
+      value -> value.toUpperCase(Locale.ROOT),
+      value -> "[" + value + "]",
+      value -> "number=" + value
+    );
+    assertEquals("FIRST|[second]|number=3", Components.plain(triple.build("first", "second", 3)));
   }
 
   @Test
@@ -151,5 +164,12 @@ final class LocaleToolsTest {
   void sharesOneTranslationManager() {
     final TranslationManager manager = LocaleTools.MANAGER;
     assertNotNull(manager);
+    try (final MockedConstruction<TranslationManager> managers = Mockito.mockConstruction(TranslationManager.class)) {
+      final Component first = LocaleTools.direct("mcav.command.screen.build").build();
+      final Component second = LocaleTools.direct("mcav.command.screen.build").build();
+      assertEquals(List.of(), managers.constructed(), "message builders share the initialized manager");
+      assertEquals("Built a new map screen!", Components.plain(first));
+      assertEquals(first, second);
+    }
   }
 }

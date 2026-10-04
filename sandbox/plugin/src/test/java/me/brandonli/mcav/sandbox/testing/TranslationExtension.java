@@ -93,7 +93,13 @@ public final class TranslationExtension implements BeforeAllCallback {
 
   private static Path createTemporaryFolder() {
     try {
-      return Files.createTempDirectory("mcav-sandbox-messages");
+      final Path folder = Files.createTempDirectory("mcav-sandbox-messages");
+      final Path locale = Files.createDirectories(folder.resolve("locale"));
+      Files.writeString(
+        locale.resolve("mcav_en_us.properties"),
+        "mcav.test.two=<arg:0>|<arg:1>\nmcav.test.three=<arg:0>|<arg:1>|<arg:2>\n"
+      );
+      return folder;
     } catch (final IOException exception) {
       throw new UncheckedIOException(exception);
     }
