@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -52,6 +53,9 @@ import me.brandonli.mcav.browser.testing.OpenFiles;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
 
 class NetworkGuardTest {
 
@@ -551,6 +555,17 @@ class NetworkGuardTest {
     assertThrows(ConnectException.class, () -> NetworkGuard.connect(new InetSocketAddress(LOOPBACK, closedPort)));
     try (final Socket socket = NetworkGuard.connect(new InetSocketAddress(LOOPBACK, this.echo.getLocalPort()))) {
       assertTrue(socket.isConnected());
+    }
+
+    final ConnectException refusal = new ConnectException("fixture refused connection");
+    try (
+      final MockedConstruction<Socket> sockets = Mockito.mockConstruction(Socket.class, (socket, _) ->
+        Mockito.doThrow(refusal).when(socket).connect(ArgumentMatchers.any(), ArgumentMatchers.anyInt())
+      )
+    ) {
+      assertSame(refusal, assertThrows(ConnectException.class, () -> NetworkGuard.connect(new InetSocketAddress(LOOPBACK, closedPort))));
+      assertEquals(1, sockets.constructed().size());
+      Mockito.verify(sockets.constructed().getFirst()).close();
     }
   }
 
