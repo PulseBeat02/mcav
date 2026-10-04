@@ -45,7 +45,7 @@ final class ErrorRows {
   private final int rowCount;
   private final long weightSum;
   private final int largestTap;
-  private final int[][] rows;
+  private final long[][] rows;
 
   /**
    * Creates the error rows of a pass over an image of the given width.
@@ -60,7 +60,7 @@ final class ErrorRows {
     this.weightSum = sumWeights(kernel);
     this.largestTap = findLargestTap(kernel);
     final int paddedWidth = width + 2 * this.padding;
-    this.rows = new int[this.rowCount][paddedWidth * CHANNELS];
+    this.rows = new long[this.rowCount][paddedWidth * CHANNELS];
   }
 
   private static long sumWeights(final DiffusionKernel kernel) {
@@ -176,21 +176,21 @@ final class ErrorRows {
    * @return the wanted color of the pixel as a packed color, clamped to the valid range
    */
   int applyPendingError(final int argb, final int column, final int row) {
-    final int[] errorRow = this.rows[row % this.rowCount];
+    final long[] errorRow = this.rows[row % this.rowCount];
     final int index = (column + this.padding) * CHANNELS;
-    final int wantedRed = red(argb) + errorRow[index];
-    final int wantedGreen = green(argb) + errorRow[index + 1];
-    final int wantedBlue = blue(argb) + errorRow[index + 2];
-    final int red = DitherUtils.clamp(wantedRed);
-    final int green = DitherUtils.clamp(wantedGreen);
-    final int blue = DitherUtils.clamp(wantedBlue);
+    final int sourceRed = red(argb);
+    final int sourceGreen = green(argb);
+    final int sourceBlue = blue(argb);
+    final int red = sourceRed + Math.clamp(errorRow[index], -sourceRed, 255 - sourceRed);
+    final int green = sourceGreen + Math.clamp(errorRow[index + 1], -sourceGreen, 255 - sourceGreen);
+    final int blue = sourceBlue + Math.clamp(errorRow[index + 2], -sourceBlue, 255 - sourceBlue);
     return (red << 16) | (green << 8) | blue;
   }
 
   /**
    * Spreads an error from a pixel to its unprocessed neighbors, as described by the kernel. The shares add up to
    * the error times the sum of the weights divided by the divisor, rounded toward zero, so no error is lost to
-   * rounding.
+   * rounding. Arithmetic beyond the long range is rejected instead of wrapping a pending error.
    *
    * @param column     the column of the pixel
    * @param row        the row of the pixel
@@ -198,6 +198,7 @@ final class ErrorRows {
    * @param errorRed   the error of the red channel
    * @param errorGreen the error of the green channel
    * @param errorBlue  the error of the blue channel
+   * @throws ArithmeticException if a custom kernel exceeds the long range for pending errors
    */
   void diffuse(final int column, final int row, final int step, final int errorRed, final int errorGreen, final int errorBlue) {
     if (errorRed == 0 && errorGreen == 0 && errorBlue == 0) {
@@ -210,28 +211,28 @@ final class ErrorRows {
     long spreadBlue = 0;
     for (int tap = 0; tap < tapCount; tap++) {
       final int weight = this.kernel.getWeight(tap);
-      final int shareRed = (int) (((long) errorRed * weight) / divisor);
-      final int shareGreen = (int) (((long) errorGreen * weight) / divisor);
-      final int shareBlue = (int) (((long) errorBlue * weight) / divisor);
+      final long shareRed = ((long) errorRed * weight) / divisor;
+      final long shareGreen = ((long) errorGreen * weight) / divisor;
+      final long shareBlue = ((long) errorBlue * weight) / divisor;
       this.addError(tap, column, row, step, shareRed, shareGreen, shareBlue);
-      spreadRed += shareRed;
-      spreadGreen += shareGreen;
-      spreadBlue += shareBlue;
+      spreadRed = Math.addExact(spreadRed, shareRed);
+      spreadGreen = Math.addExact(spreadGreen, shareGreen);
+      spreadBlue = Math.addExact(spreadBlue, shareBlue);
     }
-    final int remainderRed = (int) ((errorRed * this.weightSum) / divisor - spreadRed);
-    final int remainderGreen = (int) ((errorGreen * this.weightSum) / divisor - spreadGreen);
-    final int remainderBlue = (int) ((errorBlue * this.weightSum) / divisor - spreadBlue);
+    final long remainderRed = Math.multiplyExact((long) errorRed, this.weightSum) / divisor - spreadRed;
+    final long remainderGreen = Math.multiplyExact((long) errorGreen, this.weightSum) / divisor - spreadGreen;
+    final long remainderBlue = Math.multiplyExact((long) errorBlue, this.weightSum) / divisor - spreadBlue;
     this.addError(this.largestTap, column, row, step, remainderRed, remainderGreen, remainderBlue);
   }
 
-  private void addError(final int tap, final int column, final int row, final int step, final int red, final int green, final int blue) {
+  private void addError(final int tap, final int column, final int row, final int step, final long red, final long green, final long blue) {
     final int offsetX = this.kernel.getOffsetX(tap) * step;
     final int offsetY = this.kernel.getOffsetY(tap);
-    final int[] targetRow = this.rows[(row + offsetY) % this.rowCount];
+    final long[] targetRow = this.rows[(row + offsetY) % this.rowCount];
     final int targetIndex = (column + offsetX + this.padding) * CHANNELS;
-    targetRow[targetIndex] += red;
-    targetRow[targetIndex + 1] += green;
-    targetRow[targetIndex + 2] += blue;
+    targetRow[targetIndex] = Math.addExact(targetRow[targetIndex], red);
+    targetRow[targetIndex + 1] = Math.addExact(targetRow[targetIndex + 1], green);
+    targetRow[targetIndex + 2] = Math.addExact(targetRow[targetIndex + 2], blue);
   }
 
   /**
@@ -241,7 +242,7 @@ final class ErrorRows {
    * @param row the row that was finished
    */
   void finishRow(final int row) {
-    final int[] errorRow = this.rows[row % this.rowCount];
+    final long[] errorRow = this.rows[row % this.rowCount];
     Arrays.fill(errorRow, 0);
   }
 }

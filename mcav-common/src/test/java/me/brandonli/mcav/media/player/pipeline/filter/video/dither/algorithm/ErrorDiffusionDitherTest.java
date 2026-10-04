@@ -83,6 +83,20 @@ final class ErrorDiffusionDitherTest {
   }
 
   @Test
+  void amplifiedPositiveErrorBrightensTheNextPixelInBothOutputForms() {
+    final DiffusionKernel kernel = new DiffusionKernel("Amplified right", 1, new int[][] { { 1, 0, Integer.MAX_VALUE } });
+    final ErrorDiffusionDither dither = new ErrorDiffusionDither(DitherTestImages.BLACK_WHITE, kernel) {};
+    final int[] source = { 0xFF646464, 0xFF646464 };
+    final int[] inPlace = source.clone();
+    dither.dither(inPlace, 2);
+    assertArrayEquals(new int[] { 0xFF000000, 0xFFFFFFFF }, inPlace);
+    try (final ImageBuffer image = ImageBuffer.buffer(source, 2, 1)) {
+      assertArrayEquals(new byte[] { 0, 1 }, dither.ditherIntoBytes(image));
+      assertArrayEquals(new int[] { 0xFF646464, 0xFF646464 }, image.getPixels());
+    }
+  }
+
+  @Test
   void everyAlgorithmPreservesTheAverageBrightness() {
     final int[] pixels = DitherTestImages.gradient(WIDTH, HEIGHT);
     for (final ErrorDiffusionDitherBuilder.Algorithm algorithm : ErrorDiffusionDitherBuilder.Algorithm.values()) {

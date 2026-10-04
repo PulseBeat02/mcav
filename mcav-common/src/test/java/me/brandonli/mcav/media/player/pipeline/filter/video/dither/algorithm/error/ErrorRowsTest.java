@@ -195,6 +195,29 @@ final class ErrorRowsTest {
   }
 
   @Test
+  void largeAmplificationKeepsTheSignUntilColorClamping() {
+    final DiffusionKernel kernel = new DiffusionKernel("Amplified right", 1, new int[][] { { 1, 0, Integer.MAX_VALUE } });
+    final ErrorRows rows = new ErrorRows(kernel, 2);
+    rows.diffuse(0, 0, 1, 100, -100, 1);
+    assertEquals(0xFF00FF, rows.applyPendingError(GRAY, 1, 0));
+    rows.diffuse(0, 0, 1, -100, 100, -1);
+    assertEquals(GRAY, rows.applyPendingError(GRAY, 1, 0), "opposing errors cancel before clamping");
+  }
+
+  @Test
+  void individuallySafeContributionsDoNotWrapWhenAccumulated() {
+    final DiffusionKernel kernel = new DiffusionKernel("Two amplified shares", 1, new int[][] {
+      { 1, 0, 1_000_000_000 },
+      { 1, 0, 1_000_000_000 },
+    });
+    final ErrorRows rows = new ErrorRows(kernel, 2);
+    rows.diffuse(0, 0, 1, 2, -2, 2);
+    assertEquals(0xFF00FF, rows.applyPendingError(GRAY, 1, 0));
+    rows.finishRow(0);
+    assertEquals(GRAY, rows.applyPendingError(GRAY, 1, 1));
+  }
+
+  @Test
   void dropsErrorsThatFallOutsideTheImage() {
     final ErrorRows rows = new ErrorRows(DiffusionKernel.STEVENSON_ARCE, 1);
     rows.diffuse(0, 0, 1, 200, 200, 200);
