@@ -270,7 +270,9 @@ public final class Mcv2Channel {
       } else if (!this.viewers.isLoaded(viewer)) {
         others.add(viewer);
         this.scheduled.remove(viewer);
-        this.links.remove(viewer);
+        if (this.links.remove(viewer) != null) {
+          Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), () -> this.hide(viewer));
+        }
       } else if (link != null) {
         receiving.put(viewer, link);
       } else {
@@ -317,7 +319,7 @@ public final class Mcv2Channel {
   void show(final UUID viewer) {
     final Player player = Bukkit.getPlayer(viewer);
     // a viewer removed from the configuration since the show was scheduled is not shown the screen
-    if (player == null || !this.scheduled.contains(viewer) || !this.configuration.getViewers().contains(viewer)) {
+    if (player == null || !this.canShow(viewer)) {
       this.scheduled.remove(viewer);
       return;
     }
@@ -328,8 +330,26 @@ public final class Mcv2Channel {
       PacketUtils.limitUnsent(viewer, unsent);
     }
     // a viewer shown the screen again starts over: its client holds no picture of this stream yet
-    this.links.put(viewer, new Mcv2Link(this.configuration.getBacklogLimit()));
+    final Mcv2Link link = new Mcv2Link(this.configuration.getBacklogLimit());
+    this.links.put(viewer, link);
+    // publishing before rechecking lets an overlapping retirement own either the link or its cleanup
+    if (!this.canShow(viewer)) {
+      this.scheduled.remove(viewer);
+      if (this.links.remove(viewer, link)) {
+        this.screen.hide(player);
+      }
+      return;
+    }
     this.keyframeRequest.request();
+  }
+
+  private boolean canShow(final UUID viewer) {
+    return (
+      this.scheduled.contains(viewer) &&
+      this.configuration.getViewers().contains(viewer) &&
+      this.viewers.isLoaded(viewer) &&
+      !this.farAway.contains(viewer)
+    );
   }
 
   /**

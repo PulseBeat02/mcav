@@ -59,6 +59,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 final class Mcv2ChannelTest {
 
@@ -175,6 +177,49 @@ final class Mcv2ChannelTest {
     verify(this.screen).show(this.player);
     channel.requestKeyframe();
     assertTrue(channel.takeKeyframeRequest());
+  }
+
+  @Test
+  void unloadingThePackHidesAnAlreadyShownScreen() {
+    final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
+    channel.update();
+    this.server.runTasks();
+    when(this.viewers.isLoaded(LOADED)).thenReturn(false);
+    channel.update();
+    channel.update();
+    this.server.runTasks();
+    verify(this.screen).hide(this.player);
+    assertEquals(Map.of(), channel.getLinks());
+    assertEquals(Set.of(), channel.getRecipients());
+    when(this.viewers.isLoaded(LOADED)).thenReturn(true);
+    channel.update();
+    this.server.runTasks();
+    verify(this.screen, times(2)).show(this.player);
+    channel.update();
+    assertEquals(Set.of(LOADED), channel.getRecipients());
+  }
+
+  @ParameterizedTest
+  @ValueSource(ints = { 0, 1, 2 })
+  void aViewerRetiredDuringShowDoesNotKeepALink(final int retirement) {
+    final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
+    doAnswer(_ -> {
+      if (retirement == 2) {
+        this.configuration.getViewers().remove(LOADED);
+      } else {
+        when(this.viewers.isLoaded(LOADED)).thenReturn(false);
+      }
+      if (retirement == 0) {
+        channel.update();
+      }
+      return null;
+    })
+      .when(this.screen)
+      .show(this.player);
+    channel.update();
+    this.server.runTasks();
+    assertEquals(Map.of(), channel.getLinks(), "a retired show cannot publish a receiving link");
+    verify(this.screen).hide(this.player);
   }
 
   @Test
