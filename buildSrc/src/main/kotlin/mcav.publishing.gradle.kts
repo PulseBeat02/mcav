@@ -78,4 +78,15 @@ afterEvaluate {
             suppressAllPomMetadataWarnings()
         }
     }
+    // POM tests inspect the generated publication; PIT forwards JVM arguments, but not Test.systemProperties.
+    val generatedPom = tasks.named<GenerateMavenPom>("generatePomFileForMavenPublication")
+    tasks.named<Test>("test") {
+        dependsOn(generatedPom)
+        jvmArgs("-Dmcav.published.pom=" + generatedPom.get().destination.absolutePath)
+    }
+    pluginManager.withPlugin("info.solidsoft.pitest") {
+        tasks.named("pitest") {
+            dependsOn(generatedPom)
+        }
+    }
 }

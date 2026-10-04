@@ -12,13 +12,13 @@ dependencies {
     compileOnlyApi(project(":mcav-common"))
     testImplementation(project(":mcav-common"))
     testImplementation(libs.slf4j.simple)
-    // the releases that fix the known vulnerabilities of the Tomcat and Jackson Spring Boot brings (see the catalog)
-    constraints {
-        api(libs.tomcat.embed.core)
-        api(libs.tomcat.embed.el)
-        api(libs.tomcat.embed.websocket)
-        api(libs.jackson.bom)
-    }
+    // Maven consumers do not inherit transitive version constraints from this library's dependencyManagement.
+    api(libs.tomcat.embed.core)
+    api(libs.tomcat.embed.el)
+    api(libs.tomcat.embed.websocket)
+    api(platform(libs.jackson.bom))
+    api(libs.jackson.core)
+    api(libs.jackson.databind)
 }
 
 // The website of the audio web player (mcav-website, Next.js) is built with the npm of the Node.js the build downloads
