@@ -21,10 +21,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.List;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.capability.CapabilityGuard;
 import me.brandonli.mcav.media.player.multimedia.vlc.VLCPlayer;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
+import uk.co.caprica.vlcj.factory.MediaPlayerFactory;
 
 /**
  * Tests the VLC factory of {@link VideoPlayer}. The tests that mark VLC in the shared guard forget it again, so the
@@ -63,10 +67,15 @@ final class VideoPlayerFactoriesTest {
 
   @Test
   void createsVlcPlayersWithoutLoadingVlc() {
-    final VideoPlayer withoutOptions = VideoPlayer.vlc();
-    final VideoPlayer withOptions = VideoPlayer.vlc("--no-video-title-show");
-    assertInstanceOf(VLCPlayer.class, withoutOptions);
-    assertInstanceOf(VLCPlayer.class, withOptions);
+    try (final MockedConstruction<MediaPlayerFactory> factories = Mockito.mockConstruction(MediaPlayerFactory.class)) {
+      final VideoPlayer withoutOptions = VideoPlayer.vlc();
+      final VideoPlayer withOptions = VideoPlayer.vlc("--no-video-title-show");
+      final VLCPlayer first = assertInstanceOf(VLCPlayer.class, withoutOptions);
+      final VLCPlayer second = assertInstanceOf(VLCPlayer.class, withOptions);
+      assertEquals(List.of(), factories.constructed(), "creating a player must not initialize the VLC engine");
+      first.release();
+      second.release();
+    }
   }
 
   @Test
