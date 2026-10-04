@@ -288,7 +288,10 @@ final class DumpUtilsTest {
   @Test
   void reportsTheMemoryInMegabytesAndTheUptime() {
     final Path log = this.missingLog();
+    final RuntimeMXBean runtimeBean = ManagementFactory.getRuntimeMXBean();
+    final long beforeDump = runtimeBean.getUptime();
     final String dump = DumpUtils.createDumpContents(log);
+    final long afterDump = runtimeBean.getUptime();
     final Runtime runtime = Runtime.getRuntime();
     final long maxMemory = runtime.maxMemory();
     final long expectedMax = maxMemory / MEGABYTE;
@@ -300,7 +303,8 @@ final class DumpUtilsTest {
     // the free memory never exceeds the heap the JVM holds, and that never exceeds the heap it may grow to
     assertTrue(free <= total, "free memory of " + free + " MB above the total of " + total + " MB");
     assertTrue(total <= expectedMax, "total memory of " + total + " MB above the maximum of " + expectedMax + " MB");
-    assertTrue(uptime >= 0, "uptime of " + uptime + " ms");
+    assertTrue(beforeDump > 0, "the fixture has a nonzero uptime");
+    assertTrue(uptime >= beforeDump && uptime <= afterDump, "uptime of " + uptime + " ms outside [" + beforeDump + ", " + afterDump + "]");
   }
 
   @Test
