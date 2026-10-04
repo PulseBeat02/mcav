@@ -21,13 +21,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import io.papermc.paper.math.Position;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
 import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
@@ -42,6 +43,8 @@ import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextColor;
+import net.minecraft.network.chat.Style;
 import net.minecraft.world.entity.Display;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -56,6 +59,7 @@ import org.bukkit.scoreboard.Team;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 /**
  * Tests {@link BlockResult}, {@link EntityResult}, and {@link ScoreboardResult}, the video filters that hand every
@@ -152,7 +156,17 @@ final class RendererResultsTest {
 
     assertTrue(handled);
     verify(this.viewer).showEntity(plugin, display);
-    verify(handle).setText(any(net.minecraft.network.chat.Component.class)); // fqn: Component is imported as net.kyori.adventure.text.Component
+    final ArgumentCaptor<net.minecraft.network.chat.Component> textCaptor = ArgumentCaptor.captor(); // fqn: Component is imported as net.kyori.adventure.text.Component
+    verify(handle).setText(textCaptor.capture());
+    assertEquals("#", textCaptor.getValue().getString());
+    final List<Integer> colors = new ArrayList<>();
+    textCaptor.getValue().visit((style, characters) -> {
+      for (int index = 0; index < characters.length(); index++) {
+        colors.add(style.getColor() == null ? -1 : style.getColor().getValue());
+      }
+      return Optional.empty();
+    }, Style.EMPTY);
+    assertEquals(List.of(0x000000), colors, "the submitted image's exact color reaches the display");
     verify(display).remove();
     assertThrows(NullPointerException.class, () -> new EntityResult(null));
 
@@ -186,7 +200,7 @@ final class RendererResultsTest {
     assertTrue(handled);
     assertSame(board, shown);
     assertSame(previous, restored);
-    verify(team).suffix(any(Component.class));
+    verify(team).suffix(Component.text("#", TextColor.color(0x000000)));
     assertThrows(NullPointerException.class, () -> new ScoreboardResult(null));
 
     this.assertRejectsMissingFrames(result);
