@@ -48,6 +48,7 @@ import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
@@ -226,6 +227,27 @@ final class CompressedMapResultTest {
       result.refresh();
       result.process(image, this.algorithm);
       assertEquals(released, this.firstViewerPacketCount(), "a refresh cannot revive released playback");
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
+  void refreshLetsAnotherThreadAcquireTheProcessingLock() throws ReflectiveOperationException, InterruptedException {
+    final MapConfiguration configuration = this.createConfiguration(1, 1, false);
+    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final Field lockField = CompressedMapResult.class.getDeclaredField("lock");
+    lockField.setAccessible(true);
+    final Lock lock = (Lock) lockField.get(result);
+    try {
+      result.refresh();
+      runInAnotherThread(() -> {
+        final boolean acquired = lock.tryLock();
+        if (acquired) {
+          lock.unlock();
+        }
+        assertTrue(acquired, "refresh must release the processing lock for the next frame on another thread");
+      });
     } finally {
       result.release();
     }
