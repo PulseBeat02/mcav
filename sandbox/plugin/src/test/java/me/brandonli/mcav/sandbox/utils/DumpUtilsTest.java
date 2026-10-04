@@ -44,6 +44,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.sandbox.testing.UtilityClassAssertions;
@@ -72,6 +74,8 @@ final class DumpUtilsTest {
   private final AtomicReference<String> contentType = new AtomicReference<>();
 
   private HttpServer server;
+  private final ExecutorService handlers = Executors.newSingleThreadExecutor();
+  private final AtomicReference<AssertionError> handlerFailure = new AtomicReference<>();
   private volatile int status;
   private volatile String answer;
   private volatile CountDownLatch release;
@@ -85,14 +89,18 @@ final class DumpUtilsTest {
     final InetSocketAddress address = new InetSocketAddress(loopback, 0);
     this.server = HttpServer.create(address, 0);
     this.server.createContext("/", this::handle);
+    this.server.setExecutor(this.handlers);
     this.server.start();
   }
 
   @AfterEach
-  void stopPasteSite() {
+  void stopPasteSite() throws InterruptedException {
     this.release.countDown();
     this.server.stop(0);
     this.client.close();
+    this.handlers.shutdown();
+    assertTrue(this.handlers.awaitTermination(10, TimeUnit.SECONDS), "the paste callbacks finish");
+    assertEquals(null, this.handlerFailure.get(), "HTTP handler assertions reach JUnit");
   }
 
   private void handle(final HttpExchange exchange) throws IOException {
@@ -109,7 +117,12 @@ final class DumpUtilsTest {
     this.contentType.set(type);
     try {
       final boolean released = this.release.await(10, TimeUnit.SECONDS);
-      assertTrue(released, "the test never let the paste site answer");
+      try {
+        assertTrue(released, "the test never let the paste site answer");
+        assertEquals("POST", exchange.getRequestMethod(), "a dump is uploaded by POST");
+      } catch (final AssertionError failure) {
+        this.handlerFailure.compareAndSet(null, failure);
+      }
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
