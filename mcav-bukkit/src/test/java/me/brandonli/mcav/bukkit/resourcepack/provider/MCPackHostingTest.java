@@ -54,6 +54,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
@@ -102,13 +104,15 @@ final class MCPackHostingTest {
   }
 
   @AfterEach
-  void stopService() {
-    this.service.close();
-    System.setProperty("user.home", this.previousHome);
-
-    // clears the flag as well, so a failed test cannot leave later tests interrupted
-    final boolean leftInterrupted = Thread.interrupted();
-    assertFalse(leftInterrupted, "no test leaves the interrupt flag set");
+  void stopService() throws InterruptedException {
+    try {
+      this.service.close();
+    } finally {
+      System.setProperty("user.home", this.previousHome);
+      // clears the flag as well, so a failed test cannot leave later tests interrupted
+      final boolean leftInterrupted = Thread.interrupted();
+      assertFalse(leftInterrupted, "no test leaves the interrupt flag set");
+    }
   }
 
   private MCPackHosting createHosting(final Path pack) {
@@ -553,6 +557,8 @@ final class MCPackHostingTest {
     private static final int REJECTED_STATUS = 500;
 
     private final HttpServer server;
+    private final ExecutorService handlers = Executors.newSingleThreadExecutor();
+    private final AtomicReference<AssertionError> handlerFailure = new AtomicReference<>();
     private final List<Upload> uploads;
     private final List<String> downloadMethods;
 
@@ -574,8 +580,17 @@ final class MCPackHostingTest {
       final InetSocketAddress address = new InetSocketAddress(loopback, 0);
       final HttpServer httpServer = HttpServer.create(address, 0);
       final PackService service = new PackService(httpServer);
-      httpServer.createContext("/upload", service::handleUpload);
+      httpServer.createContext("/upload", exchange -> {
+        try {
+          service.handleUpload(exchange);
+        } catch (final AssertionError failure) {
+          service.handlerFailure.compareAndSet(null, failure);
+        } finally {
+          exchange.close();
+        }
+      });
       httpServer.createContext("/pack/", service::handleDownload);
+      httpServer.setExecutor(service.handlers);
       httpServer.start();
       return service;
     }
@@ -594,6 +609,7 @@ final class MCPackHostingTest {
       final Upload upload = new Upload(method, contentType, userAgent, accept, body);
       this.uploads.add(upload);
       this.uploadHook.run();
+      assertEquals("POST", method, "a pack is uploaded by POST");
 
       final byte[] response = "ok".getBytes(StandardCharsets.US_ASCII);
       exchange.sendResponseHeaders(this.uploadStatus, response.length);
@@ -648,6 +664,14 @@ final class MCPackHostingTest {
     @Override
     public void close() {
       this.server.stop(0);
+      this.handlers.shutdown();
+      try {
+        assertTrue(this.handlers.awaitTermination(10, TimeUnit.SECONDS), "the upload callbacks finish");
+      } catch (final InterruptedException failure) {
+        Thread.currentThread().interrupt();
+        throw new AssertionError("Interrupted while joining upload callbacks", failure);
+      }
+      assertEquals(null, this.handlerFailure.get(), "upload assertions reach JUnit");
     }
   }
 }
