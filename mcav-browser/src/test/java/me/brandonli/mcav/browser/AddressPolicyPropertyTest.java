@@ -73,6 +73,17 @@ final class AddressPolicyPropertyTest {
     if (prefixes.size() == 1) {
       assertEquals(AddressPolicy.isPublicIpv4(ipv4), AddressPolicy.isPublic(translate(prefix, length, ipv4), prefixes));
     }
+    final byte[] ordinary = prefix.clone();
+    // 2a00::/8 avoids every reserved subrange while the remaining prefix bits still vary.
+    ordinary[0] = 0x2A;
+    final InetAddress[] ordinaryAnswer = { translate(ordinary, length, 0xC00000AA), translate(ordinary, length, 0xC00000AB) };
+    final List<AddressPolicy.TranslationPrefix> discovered = AddressPolicy.findTranslationPrefixes(ordinaryAnswer);
+    final List<AddressPolicy.TranslationPrefix> matching = discovered
+      .stream()
+      .filter(found -> found.getLength() == length && found.contains(ordinary))
+      .toList();
+    assertEquals(1, matching.size(), "the generated ordinary prefix is discovered exactly once");
+    assertEquals(AddressPolicy.isPublicIpv4(ipv4), AddressPolicy.isPublic(translate(ordinary, length, ipv4), matching));
   }
 
   @Property(seed = SEED, tries = 2000)
