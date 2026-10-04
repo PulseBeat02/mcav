@@ -360,7 +360,11 @@ class CefBrowserPlayerTest {
     });
     this.player.getVideoAttachableCallback().attach(builder.build());
     this.player.start(SOURCE);
-    this.listener.onFrame(frame());
+    final ClosingProbe probe = new ClosingProbe();
+    try (final ImageBuffer original = frame()) {
+      this.listener.onFrame(probe.wrap(original));
+      assertTrue(probe.isClosed(), "a failed pipeline still returns the frame's ownership");
+    }
     assertEquals(List.of("Failed to process a browser frame: filter broke"), this.reports);
   }
 
@@ -372,7 +376,11 @@ class CefBrowserPlayerTest {
     });
     this.player.getVideoAttachableCallback().attach(builder.build());
     this.player.start(SOURCE);
-    assertThrows(OutOfMemoryError.class, () -> this.listener.onFrame(frame()));
+    final ClosingProbe probe = new ClosingProbe();
+    try (final ImageBuffer original = frame()) {
+      assertThrows(OutOfMemoryError.class, () -> this.listener.onFrame(probe.wrap(original)));
+      assertTrue(probe.isClosed(), "a fatal pipeline failure still returns the frame's ownership");
+    }
   }
 
   @Test
@@ -691,14 +699,24 @@ class CefBrowserPlayerTest {
 
   @Test
   void startingAsynchronouslyUsesTheExecutor() throws Exception {
-    final ExecutorService executor = Executors.newSingleThreadExecutor();
+    final ExecutorService executor = Mockito.mock(ExecutorService.class);
+    final List<Runnable> queued = new ArrayList<>();
+    Mockito.doAnswer(invocation -> {
+      queued.add(invocation.getArgument(0));
+      return null;
+    })
+      .when(executor)
+      .execute(Mockito.any());
     try {
       final CompletableFuture<Boolean> started = this.player.startAsync(SOURCE, executor);
+      assertFalse(started.isDone(), "startup must wait for its supplied executor");
+      assertEquals(1, queued.size());
+      assertTrue(this.sessions.isEmpty(), "no session may start before the executor runs");
+      queued.getFirst().run();
       assertTrue(started.get(10, TimeUnit.SECONDS));
     } finally {
-      executor.shutdownNow();
+      this.player.release();
     }
-    this.player.release();
     final CefBrowserPlayer other = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> new FakeSession());
     assertTrue(other.startAsync(SOURCE).get(10, TimeUnit.SECONDS));
     assertThrows(NullPointerException.class, () -> other.startAsync(null));
