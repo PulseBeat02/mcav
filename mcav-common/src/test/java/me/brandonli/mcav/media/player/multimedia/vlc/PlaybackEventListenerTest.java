@@ -25,12 +25,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
@@ -104,6 +106,30 @@ final class PlaybackEventListenerTest {
     assertTrue(waiterStarted);
     assertTrue(returned);
     assertFalse(returnedEarly, "a start that returns false finds the reason in the handler");
+  }
+
+  @Test
+  void aKnownOpeningFailureRemainsFailedWhileItsReportIsBlocked() throws Exception {
+    final CountDownLatch reporting = new CountDownLatch(1);
+    final CountDownLatch finishReport = new CountDownLatch(1);
+    final AtomicReference<Throwable> reportingFailure = new AtomicReference<>();
+    this.owner.setExceptionHandler((_, _) -> {
+      reporting.countDown();
+      assertTrue(Uninterruptibles.awaitUninterruptibly(finishReport, 10, TimeUnit.SECONDS));
+    });
+    final Thread reporter = new Thread(() -> this.listener.error(this.mediaPlayer));
+    reporter.setUncaughtExceptionHandler((_, failure) -> reportingFailure.set(failure));
+    reporter.start();
+    try {
+      assertTrue(reporting.await(10, TimeUnit.SECONDS), "the opening error reached its handler");
+      assertFalse(this.listener.awaitOpened(0), "a known failure cannot become a successful open at the timeout");
+    } finally {
+      finishReport.countDown();
+      reporter.join(10_000L);
+    }
+    assertFalse(reporter.isAlive());
+    assertEquals(null, reportingFailure.get());
+    assertFalse(this.listener.awaitOpened(0));
   }
 
   @Test
