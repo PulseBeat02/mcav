@@ -17,17 +17,22 @@
  */
 package me.brandonli.mcav.utils;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Tag;
 
@@ -44,26 +49,37 @@ final class UnzipFuzzTest {
   void extractsOnlyIntoTheDestination(final byte[] archiveBytes) throws IOException {
     final Path root = Files.createTempDirectory("mcav-unzip-fuzz");
     try {
-      final Path archive = root.resolve("archive.zip");
-      // deep enough below the root that an entry has to climb out of nine folders before it could escape unseen
-      final Path nesting = root.resolve("1/2/3/4/5/6/7/8");
-      final Path destination = nesting.resolve("destination");
-      Files.createDirectories(nesting);
-      Files.write(archive, archiveBytes);
-      final List<Path> before = listTree(root);
-      try {
-        IOUtils.unzip(archive, destination);
-      } catch (final UncheckedIOException | ZipEntryIntegrityException refused) {
-        // a broken or unsafe archive; what matters is where anything was written
+      checkExtraction(root, root, archiveBytes);
+      try (final FileSystem fileSystem = FileSystems.newFileSystem(root.resolve("observed.zip"), Map.of("create", "true"))) {
+        final Path scope = fileSystem.getPath("/");
+        final Path extractionRoot = Files.createDirectories(scope.resolve("nested/root"));
+        checkExtraction(extractionRoot, scope, archiveBytes);
       }
-      final List<Path> after = listTree(root);
-      final Stream<Path> created = after.stream();
-      final Stream<Path> escaped = created.filter(path -> !before.contains(path) && !path.startsWith(destination));
-      final List<Path> outside = escaped.toList();
-      assertEquals(List.of(), outside, "something was written outside the destination");
     } finally {
       deleteTree(root);
     }
+  }
+
+  private static void checkExtraction(final Path root, final Path scope, final byte[] archiveBytes) throws IOException {
+    final Path archive = root.resolve("archive.zip");
+    // Keep the native-filesystem cases and replay them with the entire ZIP filesystem observable.
+    final Path nesting = root.resolve("1/2/3/4/5/6/7/8");
+    final Path destination = nesting.resolve("destination");
+    Files.createDirectories(nesting);
+    Files.write(archive, archiveBytes);
+    final List<Path> before = listTree(scope);
+    try {
+      IOUtils.unzip(archive, destination);
+    } catch (final UncheckedIOException | ZipEntryIntegrityException refused) {
+      // a broken or unsafe archive; what matters is where anything was written
+    }
+    final List<Path> after = listTree(scope);
+    final Stream<Path> created = after.stream();
+    final Stream<Path> escaped = created.filter(path -> !before.contains(path) && !path.startsWith(destination));
+    final List<Path> outside = escaped.toList();
+    assertEquals(List.of(), outside, "something was written outside the destination");
+    assertTrue(after.containsAll(before), "preexisting paths survive extraction");
+    assertArrayEquals(archiveBytes, Files.readAllBytes(archive), "extraction preserves the original archive");
   }
 
   private static List<Path> listTree(final Path directory) throws IOException {
