@@ -10,9 +10,10 @@ on screen for several captures. The reference is the reference decoder's picture
 after another.
 
 Every capture is matched with the reference frame it equals byte for byte; a capture that equals none is matched with
-the frame it is closest to, and reported with its PSNR. The summary gives how many of the stream's frames were seen
-exactly, and PSNR, SSIM and (with --vmaf, the path of an ffmpeg built with libvmaf) VMAF of the captured pictures
-against their reference frames.
+the frame it is closest to, and reported with its PSNR. Coverage counts distinct visible pictures: identical reference
+frames cannot be distinguished by screenshots, so their occurrence coverage is reported as ambiguous. The summary
+also gives PSNR, SSIM and (with --vmaf, the path of an ffmpeg built with libvmaf) VMAF of the captured pictures against
+their reference frames.
 """
 
 import argparse
@@ -89,7 +90,9 @@ def main():
         print("the screen shows %dx%d of the %dx%d picture; the rest is not compared" % (shown, visible, width, height))
         reference = np.ascontiguousarray(reference[:, :visible, :shown])
         height, width = visible, shown
-    index = {hashlib.sha256(frame.tobytes()).hexdigest(): frame_index for frame_index, frame in enumerate(reference)}
+    index = {}
+    for frame_index, frame in enumerate(reference):
+        index.setdefault(hashlib.sha256(frame.tobytes()).hexdigest(), []).append(frame_index)
     exact, near = {}, []
     pairs = []
     for path in paths:
@@ -97,19 +100,23 @@ def main():
         crop = np.ascontiguousarray(screen[arguments.top : arguments.top + height, :width])
         key = hashlib.sha256(crop.tobytes()).hexdigest()
         if key in index:
-            exact.setdefault(index[key], path.name)
-            pairs.append((index[key], crop))
+            exact.setdefault(key, path.name)
+            pairs.append((index[key][0], crop))
             continue
         scores = [psnr(crop, frame) for frame in reference]
         best = int(np.argmax(scores))
         near.append((path.name, best, scores[best]))
         pairs.append((best, crop))
-    print("captures:", len(pairs), "- frames seen exactly:", len(exact), "of", len(reference))
+    unique_frames_seen = sum(1 for key in exact if len(index[key]) == 1)
+    ambiguous_frames = sum(len(occurrences) for occurrences in index.values() if len(occurrences) > 1)
+    print("captures:", len(pairs), "- distinct pictures seen exactly:", len(exact), "of", len(index))
+    if ambiguous_frames:
+        print(" ", ambiguous_frames, "reference frame occurrences are indistinguishable; their individual display is unknown")
     for name, best, score in near:
         print("  %s is not exact: closest frame %d, PSNR %.2f dB" % (name, best, score))
-    missing = sorted(set(range(len(reference))) - set(exact))
+    missing = sorted(occurrences[0] for key, occurrences in index.items() if key not in exact)
     if missing:
-        print("  frames never seen exactly:", missing)
+        print("  pictures never seen exactly (first reference frame):", missing)
     captured = [crop for _, crop in pairs]
     matched = [reference[frame_index] for frame_index, _ in pairs]
     psnrs = [psnr(capture, expected) for capture, expected in zip(captured, matched)]
@@ -117,8 +124,11 @@ def main():
     summary = {
         "captures": len(pairs),
         "exact_captures": len(pairs) - len(near),
-        "frames_seen_exactly": len(exact),
+        "frames_seen_exactly": unique_frames_seen,
         "frames": len(reference),
+        "pictures_seen_exactly": len(exact),
+        "distinct_pictures": len(index),
+        "ambiguous_reference_frames": ambiguous_frames,
         "psnr_min_db": min(finite) if finite else "inf",
         "ssim_mean": float(np.mean([ssim(capture, expected) for capture, expected in zip(captured, matched)])),
     }
