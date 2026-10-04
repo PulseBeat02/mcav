@@ -112,6 +112,21 @@ public final class TestMedia {
   }
 
   /**
+   * Gets a five second video that changes from red to blue after three seconds.
+   *
+   * @return the video file
+   */
+  public static synchronized Path seekVideo() {
+    final String arguments =
+      "-f lavfi -i color=c=red:size=320x240:rate=30:duration=3 " +
+      "-f lavfi -i color=c=blue:size=320x240:rate=30:duration=2 " +
+      "-filter_complex [0:v][1:v]concat=n=2:v=1:a=0 " +
+      MPEG4_VIDEO_OUTPUT +
+      " -g 30 -an";
+    return generate("seek-video.mp4", arguments);
+  }
+
+  /**
    * Gets a one second 320x240 video without an audio track.
    *
    * @return the video file
