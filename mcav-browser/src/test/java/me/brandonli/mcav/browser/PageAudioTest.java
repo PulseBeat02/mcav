@@ -268,8 +268,9 @@ class PageAudioTest {
   }
 
   @Test
-  void theScriptTakesTheBindingAwayAndSendsWhatThePagePlays() {
+  void theScriptTakesTheBindingAwayAndSendsWhatThePagePlays() throws Exception {
     final String script = PageAudio.SCRIPT;
+    ScriptAssertions.execute("page-audio.mjs", script);
     assertTrue(script.contains("const BINDING = '" + PageAudio.BINDING + "';"), "the script uses the binding's name");
     assertTrue(script.contains("delete globalThis[BINDING]"), "the page cannot send through it once it is taken");
     assertTrue(script.contains("const RATE = 48000;"), "the sound has the rate of mcav's audio pipeline");
