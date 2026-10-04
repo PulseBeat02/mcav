@@ -23,9 +23,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.Serial;
 import java.lang.reflect.Field;
 import java.nio.Buffer;
@@ -912,17 +915,46 @@ final class PlaybackSessionTest {
 
   @Test
   void reportsNothingAfterItWasStopped() throws Exception {
-    final ScriptedFrameGrabber.Delay stuck = new ScriptedFrameGrabber.Delay(300L);
+    final CountDownLatch entered = new CountDownLatch(1);
+    final CountDownLatch releaseFailure = new CountDownLatch(1);
     final FrameGrabber.Exception lateFailure = new FrameGrabber.Exception("late failure");
-    final ScriptedFrameGrabber grabber = ScriptedFrameGrabber.of(stuck, lateFailure);
+    final AtomicReference<Throwable> thrown = new AtomicReference<>();
+    final AtomicReference<Throwable> stopFailure = new AtomicReference<>();
+    final ScriptedFrameGrabber grabber = spy(ScriptedFrameGrabber.of(lateFailure));
+    doAnswer(invocation -> {
+      entered.countDown();
+      assertTrue(Uninterruptibles.awaitUninterruptibly(releaseFailure, TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
+      try {
+        return invocation.callRealMethod();
+      } catch (final FrameGrabber.Exception failure) {
+        thrown.set(failure);
+        throw failure;
+      }
+    })
+      .when(grabber)
+      .grab();
     final PlaybackSession session = this.session(grabber, 0L, false);
-    session.start();
-    session.stop();
-    // the decoder closes its grabber only after it threw the late failure
-    awaitCondition("the decoder hit the failure", grabber::isClosed);
-
-    final boolean noReports = this.reports.isEmpty();
-    assertTrue(noReports, this.reports::toString);
+    final Thread stopper = new Thread(session::stop);
+    stopper.setUncaughtExceptionHandler((_, failure) -> stopFailure.set(failure));
+    try {
+      session.start();
+      awaitCondition("the decoder entered grab or closed", () -> entered.getCount() == 0 || grabber.isClosed());
+      assertEquals(0, entered.getCount(), "the late failure must be in progress before stopping");
+      stopper.start();
+      awaitCondition("the session stopped accepting reports", () -> !session.isActive());
+      releaseFailure.countDown();
+      stopper.join(TIMEOUT_MILLIS);
+      assertFalse(stopper.isAlive(), "stop waited for the decoder");
+      assertEquals(null, stopFailure.get());
+      assertTrue(grabber.isClosed());
+      assertSame(lateFailure, thrown.get(), "the decoder actually threw after stop");
+      assertEquals(0, grabber.getRemainingSteps());
+      assertEquals(List.of(), this.reports);
+    } finally {
+      releaseFailure.countDown();
+      session.stop();
+      stopper.join(TIMEOUT_MILLIS);
+    }
   }
 
   @Test
