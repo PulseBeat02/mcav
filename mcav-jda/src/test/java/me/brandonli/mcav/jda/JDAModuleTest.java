@@ -20,7 +20,10 @@ package me.brandonli.mcav.jda;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import net.dv8tion.jda.api.JDABuilder;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 /**
  * Tests {@link JDAModule}.
@@ -37,9 +40,15 @@ final class JDAModuleTest {
   @Test
   void startsAndStopsWithoutHoldingResources() {
     final JDAModule module = new JDAModule();
-    assertDoesNotThrow(module::start);
-    assertDoesNotThrow(module::stop);
-    assertDoesNotThrow(module::start);
-    assertDoesNotThrow(module::stop);
+    try (final MockedStatic<JDABuilder> builders = Mockito.mockStatic(JDABuilder.class)) {
+      assertDoesNotThrow(module::start);
+      builders.verifyNoInteractions();
+      assertDoesNotThrow(module::stop);
+      builders.verifyNoInteractions();
+      assertDoesNotThrow(module::start);
+      builders.verifyNoInteractions();
+      assertDoesNotThrow(module::stop);
+      builders.verifyNoInteractions();
+    }
   }
 }
