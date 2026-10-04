@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -40,6 +41,8 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.err
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalDitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 /**
  * Tests the error diffusion algorithms, their builder and the factories of {@link DitherAlgorithm}.
@@ -268,6 +271,18 @@ final class ErrorDiffusionDitherTest {
     assertSame(DiffusionKernel.FLOYD_STEINBERG, floydKernel);
     assertEquals(TemporalDitherAlgorithm.DEFAULT_TEMPORAL_THRESHOLD, temporalThreshold);
     assertEquals(2, customErrorThreshold);
+  }
+
+  @ParameterizedTest
+  @EnumSource(ErrorDiffusionDitherBuilder.Algorithm.class)
+  void emptyInputIsANoOpForEveryPositiveWidth(final ErrorDiffusionDitherBuilder.Algorithm algorithm) {
+    final ErrorDiffusionDither dither = build(algorithm);
+    final int[] empty = new int[0];
+    assertThrows(IllegalArgumentException.class, () -> dither.dither(empty, 0));
+    assertThrows(IllegalArgumentException.class, () -> dither.dither(empty, -1));
+    assertDoesNotThrow(() -> dither.dither(empty, 1));
+    assertDoesNotThrow(() -> dither.dither(empty, Integer.MAX_VALUE));
+    assertArrayEquals(new int[0], empty);
   }
 
   @Test
