@@ -195,6 +195,71 @@ final class CompressedMapResultTest {
   }
 
   @Test
+  void refreshesEveryViewerOnceThenResumesOrdinaryDeltas() {
+    this.server.addPlayer(SECOND);
+    PacketUtils.init();
+    final MapConfiguration configuration = this.createConfiguration(1, 1, false);
+    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    final byte[] original = this.nextFrame.clone();
+    try (final ImageBuffer image = Images.solid(128, 128, 0xFF000000)) {
+      result.process(image, this.algorithm);
+      MapPacketFactory.clear(this.viewers, 3, 1);
+      result.refresh();
+      result.refresh();
+      assertEquals(2, this.firstViewerPacketCount(), "requests send no packets before the next frame");
+      assertEquals(2, this.server.getSentPackets(SECOND).size());
+
+      result.process(image, this.algorithm);
+      result.process(image, this.algorithm);
+      assertEquals(3, this.firstViewerPacketCount(), "requests coalesce and unchanged frames stay quiet");
+      assertEquals(3, this.server.getSentPackets(SECOND).size());
+      MapPackets.assertMapPacket(this.packetsOf(FIRST, 2).getFirst(), 3, 0, 0, 128, 128, original);
+      MapPackets.assertMapPacket(this.packetsOf(SECOND, 2).getFirst(), 3, 0, 0, 128, 128, original);
+
+      this.nextFrame = this.changedFrame();
+      result.process(image, this.algorithm);
+      final byte[] changed = topLeftTile(this.nextFrame);
+      MapPackets.assertMapPacket(this.packetsOf(FIRST, 3).getFirst(), 3, 0, 0, 16, 16, changed);
+      MapPackets.assertMapPacket(this.packetsOf(SECOND, 3).getFirst(), 3, 0, 0, 16, 16, changed);
+      result.release();
+      final int released = this.firstViewerPacketCount();
+      result.refresh();
+      result.process(image, this.algorithm);
+      assertEquals(released, this.firstViewerPacketCount(), "a refresh cannot revive released playback");
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
+  void refreshRetainsHistoricalCleanupWithoutTouchingUnownedPixels() {
+    final MapConfiguration configuration = this.createConfiguration(2, 1, false);
+    final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
+    this.nextFrame = MapPackets.pattern(128 * 64, 4);
+    try (final ImageBuffer original = Images.solid(128, 64, 0xFF000000)) {
+      result.process(original, this.algorithm);
+    }
+    final byte[] smallFrame = MapPackets.pattern(64 * 32, 9);
+    this.nextFrame = smallFrame;
+    try (final ImageBuffer small = Images.solid(64, 32, 0xFF000000)) {
+      result.process(small, this.algorithm);
+      result.refresh();
+      result.process(small, this.algorithm);
+      final byte[] canvas = new byte[256 * 128];
+      Arrays.fill(canvas, (byte) 117);
+      applyPacketsToCanvas(canvas, 2, 1, this.packetsOf(FIRST, 0));
+      applyPacketsToCanvas(canvas, 2, 1, this.packetsOf(FIRST, 2));
+      final byte[] expected = new byte[256 * 128];
+      Arrays.fill(expected, (byte) 117);
+      placeRectangle(expected, 256, 64, 32, 128, 64, new byte[128 * 64]);
+      placeRectangle(expected, 256, 96, 48, 64, 32, smallFrame);
+      assertArrayEquals(expected, canvas, "repair clears an old picture restored externally and preserves pixels never owned");
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
   void sendsThePictureToViewersThatStartWatchingLater() {
     final MapConfiguration configuration = this.createConfiguration(1, 1, false);
     final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
