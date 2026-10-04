@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.sandbox.command.interaction;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Set;
@@ -87,7 +88,20 @@ final class QemuHardwareValuesPropertyTest {
     @ForAll("fileProperties") final String property,
     @ForAll final String prefix
   ) {
-    final String value = "pc," + property + "=" + prefix.replace(",", "") + "file";
+    final String validBase = switch (option) {
+      case "m" -> "512";
+      case "smp" -> "2";
+      case "accel" -> "tcg";
+      case "boot" -> "c";
+      case "name" -> "guest";
+      case "rtc" -> "base=utc";
+      case "cpu" -> "max";
+      case "k" -> "en-us";
+      case "vga" -> "std";
+      default -> "pc";
+    };
+    assertDoesNotThrow(() -> QemuHardwareValues.check(option, validBase));
+    final String value = validBase + "," + property + "=" + prefix.replace(",", "") + "file";
     assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.check(option, value));
   }
 
