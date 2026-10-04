@@ -124,6 +124,7 @@ final class EncoderPoolTest {
     try (final EncoderPool pool = new EncoderPool(1)) {
       final Set<Thread> seen = ConcurrentHashMap.newKeySet();
       final AtomicInteger blocks = new AtomicInteger();
+      final AtomicInteger threadsWhileBlocked = new AtomicInteger();
       pool.run(() -> {
         seen.add(Thread.currentThread());
         // a pool asked to keep its threads running while one blocks would start a spare; the budget's does not
@@ -132,6 +133,7 @@ final class EncoderPoolTest {
             @Override
             public boolean block() {
               blocks.incrementAndGet();
+              threadsWhileBlocked.set(ForkJoinTask.getPool().getPoolSize());
               return true;
             }
 
@@ -145,6 +147,7 @@ final class EncoderPoolTest {
         return null;
       });
       assertEquals(1, blocks.get());
+      assertEquals(1, threadsWhileBlocked.get(), "managed blocking must not create a spare worker");
       assertEquals(1, seen.size());
     }
   }
