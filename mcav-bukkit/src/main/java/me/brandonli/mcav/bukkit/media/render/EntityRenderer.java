@@ -220,6 +220,7 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
       return;
     }
 
+    this.lastText = text;
     final boolean valid = current.isValid();
     final TextDisplay display = valid ? current : this.respawnEntity();
     if (display == null) {
@@ -227,7 +228,6 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
     }
 
     setText(display, text);
-    this.lastText = text;
   }
 
   private static void setText(final TextDisplay display, final Component text) {

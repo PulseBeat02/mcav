@@ -290,6 +290,29 @@ final class EntityRendererTest {
   }
 
   @Test
+  void aDisplayReturningToALoadedChunkUsesTheNewestSubmittedText() {
+    final EntityRenderer renderer = new EntityRenderer(this.createConfiguration(this.position));
+    final Component beforeUnload = Component.literal("before");
+    final Component whileUnloaded = Component.literal("latest");
+    renderer.show();
+    renderer.apply(beforeUnload);
+    final CraftTextDisplay discarded = this.world.getSpawnedDisplays().getFirst();
+    final World configuredWorld = this.world.getWorld();
+    when(discarded.isValid()).thenReturn(false);
+    when(configuredWorld.isChunkLoaded(0, 0)).thenReturn(false);
+    renderer.apply(whileUnloaded);
+    renderer.onTick();
+    assertEquals(1, this.world.getSpawnedDisplays().size());
+    when(configuredWorld.isChunkLoaded(0, 0)).thenReturn(true);
+    renderer.onTick();
+    final CraftTextDisplay replacement = this.world.getSpawnedDisplays().get(1);
+    final net.minecraft.world.entity.Display.TextDisplay handle = replacement.getHandle(); // fqn: Display is imported as org.bukkit.entity.Display
+    verify(handle).setText(whileUnloaded);
+    verify(handle, never()).setText(beforeUnload);
+    renderer.hide();
+  }
+
+  @Test
   void aStillImageComesBackWithItsTextOnceItsChunkIsLoadedAgain() {
     final EntityConfiguration configuration = this.createConfiguration(this.position);
     final EntityRenderer renderer = new EntityRenderer(configuration);
