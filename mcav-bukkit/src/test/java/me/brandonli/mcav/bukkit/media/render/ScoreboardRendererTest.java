@@ -138,6 +138,17 @@ final class ScoreboardRendererTest {
   }
 
   @Test
+  void duplicateViewersStillRestoreTheirOriginalScoreboard() {
+    this.viewers.add(VIEWER);
+    this.viewers.add(VIEWER);
+    final ScoreboardRenderer renderer = new ScoreboardRenderer(this.createConfiguration(3));
+    renderer.show();
+    assertSame(this.scoreboards.getBoard(), this.viewer.getScoreboard());
+    renderer.hide();
+    assertSame(this.previousBoard, this.viewer.getScoreboard(), "duplicate entries must not replace the saved original board");
+  }
+
+  @Test
   void usesDifferentNamesForEveryRenderer() {
     final ScoreboardConfiguration firstConfiguration = this.createConfiguration(1);
     final ScoreboardConfiguration secondConfiguration = this.createConfiguration(1);

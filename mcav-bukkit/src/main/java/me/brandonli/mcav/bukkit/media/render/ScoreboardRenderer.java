@@ -174,7 +174,7 @@ public final class ScoreboardRenderer extends MainThreadRenderer<Component[]> {
   }
 
   private void showToViewers(final Scoreboard board) {
-    final Collection<UUID> viewers = this.configuration.getViewers();
+    final Set<UUID> viewers = new HashSet<>(this.configuration.getViewers());
     for (final UUID viewer : viewers) {
       final Player player = Bukkit.getPlayer(viewer);
       if (player == null) {
