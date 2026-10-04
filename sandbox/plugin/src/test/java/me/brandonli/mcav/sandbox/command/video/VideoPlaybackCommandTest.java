@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.MoreExecutors;
@@ -147,6 +148,9 @@ final class VideoPlaybackCommandTest {
     when(this.decoded.setSpeed(2)).thenReturn(false);
     this.command.setSpeed(this.sender, 2);
     verify(this.other, never()).seek(anyLong());
+    verifyNoInteractions(this.other);
+    verify(this.decoded).setSpeed(1.5);
+    verify(this.decoded).setSpeed(2);
     this.assertReceived(
       Message.SPEED_FAILED.build(),
       Message.VLC_UNSUPPORTED.build(),
