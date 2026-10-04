@@ -19,6 +19,7 @@ package me.brandonli.mcav.vm;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -44,6 +45,8 @@ import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.OSUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 /**
  * Tests {@link ExecutableFinder}.
@@ -478,13 +481,15 @@ final class ExecutableFinderTest {
   }
 
   @Test
-  void searchesTheDefaultProgramFilesFolderWithoutItsVariable() {
-    final Path defaultProgram = Path.of("C:\\Program Files", "qemu", "qemu-system-x86_64.exe");
-    final boolean installed = Files.isRegularFile(defaultProgram);
+  void searchesTheDefaultProgramFilesFolderWithoutItsVariable() throws IOException {
+    final Path program = this.createProgram("default-program-files/qemu", "qemu-system-x86_64.exe");
+    final Path qemu = program.getParent();
+    final Optional<Path> expected = absolute(program);
     final ExecutableFinder windows = this.finderWithoutPath(OS.WINDOWS);
-    final Optional<Path> found = windows.find("qemu-system-x86_64");
-    final boolean present = found.isPresent();
-    assertEquals(installed, present);
+    try (final MockedStatic<Path> paths = Mockito.mockStatic(Path.class, Mockito.CALLS_REAL_METHODS)) {
+      paths.when(() -> assertNotNull(Path.of("C:\\Program Files", "qemu"))).thenReturn(qemu);
+      assertEquals(expected, windows.find("qemu-system-x86_64"), "the default Program Files folder is searched without the variable");
+    }
   }
 
   @Test
