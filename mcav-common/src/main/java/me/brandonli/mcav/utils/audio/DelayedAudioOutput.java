@@ -307,7 +307,8 @@ public final class DelayedAudioOutput implements AutoCloseable {
   private void report(final Throwable failure) {
     try {
       this.failures.accept("Failed to process the audio of " + this.source, failure);
-    } catch (final RuntimeException handlerFailure) {
+    } catch (final RuntimeException | Error handlerFailure) {
+      ThrowableUtils.throwIfFatal(handlerFailure);
       // the exception handler is user code too; the sound goes on, and nothing else is left to tell
     }
   }

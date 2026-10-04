@@ -17,8 +17,10 @@
  */
 package me.brandonli.mcav.utils.audio;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -39,6 +41,8 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class DelayedAudioOutputTest {
 
@@ -155,6 +159,46 @@ class DelayedAudioOutputTest {
     } finally {
       failing.close();
     }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { false, true })
+  void aNonfatalErrorInTheExceptionHandlerDoesNotStopTheSound(final boolean linkage) throws InterruptedException {
+    final AtomicReference<byte[]> heard = new AtomicReference<>();
+    final AtomicReference<Throwable> escaped = new AtomicReference<>();
+    final CountDownLatch settled = new CountDownLatch(1);
+    final Error reportFailure = linkage ? new NoClassDefFoundError("reporter unavailable") : new AssertionError("reporter failed");
+    final DelayedAudioOutput failing = start(
+      () ->
+        AudioPipelineStep.of((samples, metadata) -> {
+          if (samples.get(0) == 1) {
+            throw new IllegalStateException("filter failed");
+          }
+          final byte[] copy = new byte[samples.remaining()];
+          samples.get(copy);
+          heard.set(copy);
+          settled.countDown();
+          return true;
+        }),
+      (message, failure) -> {
+        throw reportFailure;
+      }
+    );
+    failing.getThread().setUncaughtExceptionHandler((thread, failure) -> {
+      escaped.set(failure);
+      settled.countDown();
+    });
+    try {
+      failing.accept(new byte[] { 1, 0, 0, 0 }, 4);
+      failing.accept(new byte[] { 2, 3, 4, 5 }, 4);
+      assertTrue(settled.await(10, TimeUnit.SECONDS), "delivery or an escaped failure must be observed");
+      assertNull(escaped.get(), "a recoverable reporting error must stay inside the delivery boundary");
+      assertArrayEquals(new byte[] { 2, 3, 4, 5 }, heard.get());
+      assertTrue(failing.getThread().isAlive());
+    } finally {
+      failing.close();
+    }
+    assertFalse(failing.getThread().isAlive());
   }
 
   @Test
