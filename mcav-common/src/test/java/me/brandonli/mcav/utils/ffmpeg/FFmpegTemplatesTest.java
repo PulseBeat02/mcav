@@ -18,10 +18,12 @@
 package me.brandonli.mcav.utils.ffmpeg;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -31,6 +33,8 @@ import me.brandonli.mcav.testing.TestMedia;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import me.brandonli.mcav.utils.MetadataUtils;
 import me.brandonli.mcav.utils.runtime.CommandTask;
+import org.bytedeco.javacv.FFmpegFrameGrabber;
+import org.bytedeco.javacv.Frame;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -75,6 +79,24 @@ final class FFmpegTemplatesTest {
     final boolean isVorbis = codec.contains("vorbis");
     assertTrue(isVorbis, codec);
     assertTrue(sampleRate > 0, "the file can be decoded");
+    long decodedSamples = 0;
+    try (final FFmpegFrameGrabber decoder = new FFmpegFrameGrabber(output.toFile())) {
+      decoder.start();
+      Frame frame = decoder.grabSamples();
+      while (frame != null) {
+        assertNotNull(frame.samples);
+        assertEquals(2, frame.audioChannels);
+        assertEquals(sampleRate, frame.sampleRate);
+        for (final Buffer samples : frame.samples) {
+          decodedSamples += samples.remaining();
+        }
+        frame = decoder.grabSamples();
+      }
+    }
+    final long decodedFrames = decodedSamples / channels;
+    final long expectedFrames = (long) TestMedia.VIDEO_SECONDS * sampleRate;
+    // AAC and Vorbis may pad the source and destination by a codec block.
+    assertTrue(Math.abs(decodedFrames - expectedFrames) <= 2048, "decoded sample frames: " + decodedFrames);
   }
 
   @Test
