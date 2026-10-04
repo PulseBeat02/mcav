@@ -1046,6 +1046,21 @@ final class PlaybackSessionTest {
   }
 
   @Test
+  void audioLeadLeavesTheRemainingTimestampDelay() throws Exception {
+    final AtomicLong virtualTime = new AtomicLong();
+    final List<Long> deliveredAt = Collections.synchronizedList(new ArrayList<>());
+    this.onAudio((_, _) -> deliveredAt.add(virtualTime.get()));
+    final ScriptedFrameGrabber grabber = ScriptedFrameGrabber.of(ScriptedFrameGrabber.audio(0L), ScriptedFrameGrabber.audio(500_000L));
+    final Timing timing = new Timing(400_000_000L, Long.MAX_VALUE, () -> virtualTime.getAndAdd(10_000_000L));
+    final PlaybackSession session = this.session(factoryOf(grabber), null, this.videoCallback, timing, 0L, false);
+    session.start();
+    awaitEnd(session);
+    assertEquals(2, deliveredAt.size());
+    assertTrue(deliveredAt.getFirst() < 100_000_000L, "the initial audio needs no timestamp delay");
+    assertTrue(deliveredAt.get(1) >= 100_000_000L, "the 400ms lead leaves 100ms of the 500ms timestamp");
+  }
+
+  @Test
   void replacesTheQueueWithTheEndMarkerEvenWhenADecoderRefillsIt() {
     final RefillingQueue queue = new RefillingQueue();
     queue.add("frame");
