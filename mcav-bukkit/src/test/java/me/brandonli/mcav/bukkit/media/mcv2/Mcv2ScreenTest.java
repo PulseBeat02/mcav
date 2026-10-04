@@ -20,6 +20,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -34,6 +35,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -215,7 +217,8 @@ final class Mcv2ScreenTest {
     final List<Packet<?>> packets = this.server.getSentPackets(VIEWER);
     assertEquals(2, packets.size());
     final ClientboundSetPlayerTeamPacket team = assertInstanceOf(ClientboundSetPlayerTeamPacket.class, packets.get(0));
-    assertEquals(Mcv2Screen.TEAM, team.getName());
+    assertTrue(team.getName().matches(Mcv2Screen.TEAM + "[0-9a-z]{1,7}"));
+    assertEquals(screen.team().getName(), team.getName());
     assertEquals(Optional.of(TeamColor.GOLD), team.getParameters().orElseThrow().color());
     assertEquals(6, team.getPlayers().size());
     assertTrue(team.getPlayers().contains(this.frames.get(3).getUniqueId().toString()));
@@ -230,9 +233,47 @@ final class Mcv2ScreenTest {
       ClientboundSetPlayerTeamPacket.class,
       this.server.getSentPackets(VIEWER).get(2)
     );
-    assertEquals(Mcv2Screen.TEAM, removal.getName());
+    assertEquals(team.getName(), removal.getName());
     assertThrows(NullPointerException.class, () -> screen.show(null));
     assertThrows(NullPointerException.class, () -> screen.hide(null));
+  }
+
+  @Test
+  void hidingOneScreenCannotRemoveAnotherScreensTeam() {
+    final Mcv2Screen first = new Mcv2Screen(this.configuration(BlockFace.SOUTH));
+    final Mcv2Screen second = new Mcv2Screen(this.configuration(BlockFace.SOUTH, 11));
+    first.build();
+    second.build();
+    try {
+      first.show(this.player);
+      second.show(this.player);
+      first.hide(this.player);
+      final List<Packet<?>> packets = this.server.getSentPackets(VIEWER);
+      final ClientboundSetPlayerTeamPacket firstTeam = assertInstanceOf(ClientboundSetPlayerTeamPacket.class, packets.get(0));
+      final ClientboundSetPlayerTeamPacket secondTeam = assertInstanceOf(ClientboundSetPlayerTeamPacket.class, packets.get(2));
+      final ClientboundSetPlayerTeamPacket removal = assertInstanceOf(ClientboundSetPlayerTeamPacket.class, packets.get(4));
+      assertEquals(firstTeam.getName(), removal.getName());
+      assertNotEquals(secondTeam.getName(), removal.getName(), "a screen removes only its own team");
+      assertEquals(
+        new HashSet<>(
+          second
+            .getFrames()
+            .stream()
+            .map(frame -> frame.getUniqueId().toString())
+            .toList()
+        ),
+        Set.copyOf(secondTeam.getPlayers())
+      );
+      second.hide(this.player);
+      final ClientboundSetPlayerTeamPacket secondRemoval = assertInstanceOf(
+        ClientboundSetPlayerTeamPacket.class,
+        this.server.getSentPackets(VIEWER).get(5)
+      );
+      assertEquals(secondTeam.getName(), secondRemoval.getName());
+    } finally {
+      first.remove();
+      second.remove();
+    }
   }
 
   @Test
@@ -311,7 +352,8 @@ final class Mcv2ScreenTest {
     final Mcv2Screen screen = new Mcv2Screen(this.configuration(BlockFace.SOUTH));
     final PlayerTeam team = screen.team();
     assertEquals(Optional.of(TeamColor.GOLD), team.getColor());
-    assertEquals(Mcv2Screen.TEAM, team.getName());
+    assertTrue(team.getName().matches(Mcv2Screen.TEAM + "[0-9a-z]{1,7}"));
+    assertEquals(screen.team().getName(), team.getName());
   }
 
   @Test
