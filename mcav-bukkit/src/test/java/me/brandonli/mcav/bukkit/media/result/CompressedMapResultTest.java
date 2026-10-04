@@ -129,6 +129,23 @@ final class CompressedMapResultTest {
     return packets.size();
   }
 
+  private byte[] replayFrames(final int firstPacket, final int columns) {
+    final byte[] canvas = new byte[columns * 128 * 128];
+    for (int packetIndex = firstPacket; packetIndex < this.firstViewerPacketCount(); packetIndex++) {
+      for (final ClientboundMapItemDataPacket packet : this.packetsOf(FIRST, packetIndex)) {
+        final int map = packet.mapId().id() - 3;
+        assertTrue(map >= 0 && map < columns);
+        final MapItemSavedData.MapPatch patch = packet.colorPatch().orElseThrow();
+        final byte[] colors = patch.mapColors();
+        for (int row = 0; row < patch.height(); row++) {
+          final int target = (patch.startY() + row) * columns * 128 + map * 128 + patch.startX();
+          System.arraycopy(colors, row * patch.width(), canvas, target, patch.width());
+        }
+      }
+    }
+    return canvas;
+  }
+
   private byte[] changedFrame() {
     final byte[] frame = this.nextFrame.clone();
     for (int row = 0; row < 16; row++) {
@@ -735,11 +752,15 @@ final class CompressedMapResultTest {
     result.release();
     final int afterRelease = this.firstViewerPacketCount();
 
+    this.nextFrame = MapPackets.pattern(256 * 128, 13);
     result.start();
     result.process(image, this.algorithm);
     final int afterRestart = this.firstViewerPacketCount();
 
     assertTrue(afterRestart > afterRelease, "a started result sends frames again instead of dropping them");
+    assertArrayEquals(this.nextFrame, this.replayFrames(afterRelease, 2), "the entire second picture reaches both maps");
+    result.release();
+    image.close();
   }
 
   @Test
@@ -817,11 +838,14 @@ final class CompressedMapResultTest {
     final ImageBuffer image = Images.solid(128, 128, 0xFF000000);
 
     result.process(image, this.algorithm);
+    assertArrayEquals(this.nextFrame, this.replayFrames(0, 1));
+    this.nextFrame = MapPackets.pattern(128 * 128, 19);
     assertTimeoutPreemptively(
       TIMEOUT,
       () -> runInAnotherThread(() -> result.process(image, this.algorithm)),
       "a frame that was processed releases the lock again"
     );
+    assertArrayEquals(this.nextFrame, this.replayFrames(0, 1), "the other thread delivered the next picture");
 
     result.release();
     assertTimeoutPreemptively(TIMEOUT, () -> runInAnotherThread(result::release), "releasing releases the lock again");
@@ -829,6 +853,7 @@ final class CompressedMapResultTest {
     final int packets = this.firstViewerPacketCount();
     final boolean sent = packets > 0;
     assertTrue(sent, "both threads got through to the viewers");
+    image.close();
   }
 
   @Test
