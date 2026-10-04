@@ -26,14 +26,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.Uninterruptibles;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.LongSupplier;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import org.junit.jupiter.api.Test;
@@ -86,14 +89,21 @@ final class PlaybackEventListenerTest {
   void reportsAnErrorBeforeAWaitingStartWakesUp() throws Exception {
     final AtomicBoolean waiterReturned = new AtomicBoolean();
     final AtomicBoolean returnedBeforeTheReport = new AtomicBoolean();
+    final AtomicLong notificationCountAtReport = new AtomicLong(-1);
+    final AtomicReference<LongSupplier> notificationCount = new AtomicReference<>();
     final BiConsumer<String, Throwable> handler = (_, _) -> {
       final boolean returned = waiterReturned.get();
       returnedBeforeTheReport.set(returned);
+      notificationCountAtReport.set(notificationCount.get().getAsLong());
     };
     final VideoPlayerMultiplexer handlerOwner = mock(VideoPlayerMultiplexer.class);
     when(handlerOwner.getExceptionHandler()).thenReturn(handler);
     final AtomicBoolean running = new AtomicBoolean(true);
     final PlaybackEventListener waitedOn = new PlaybackEventListener(handlerOwner, "missing.mp4", running);
+    final Field settledField = PlaybackEventListener.class.getDeclaredField("settled");
+    settledField.setAccessible(true);
+    final CountDownLatch notification = (CountDownLatch) settledField.get(waitedOn);
+    notificationCount.set(notification::getCount);
     final CountDownLatch waiting = new CountDownLatch(1);
     final Thread waiter = startWaiter(waitedOn, waiting, waiterReturned);
 
@@ -106,6 +116,7 @@ final class PlaybackEventListenerTest {
     assertTrue(waiterStarted);
     assertTrue(returned);
     assertFalse(returnedEarly, "a start that returns false finds the reason in the handler");
+    assertEquals(1, notificationCountAtReport.get(), "notification cannot be released before its failure report");
   }
 
   @Test
