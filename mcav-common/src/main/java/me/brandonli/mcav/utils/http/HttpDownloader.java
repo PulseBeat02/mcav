@@ -201,15 +201,10 @@ public final class HttpDownloader {
    */
   @VisibleForTesting
   static boolean isSameOrigin(final URI first, final URI second) {
-    final String scheme = first.getScheme();
-    final String host = first.getHost();
-    return (
-      scheme != null &&
-      host != null &&
-      scheme.equalsIgnoreCase(second.getScheme()) &&
-      host.equalsIgnoreCase(second.getHost()) &&
-      portOf(first) == portOf(second)
-    );
+    // the URI of a download was checked to name a scheme and a host
+    final String scheme = Objects.requireNonNull(first.getScheme());
+    final String host = Objects.requireNonNull(first.getHost());
+    return scheme.equalsIgnoreCase(second.getScheme()) && host.equalsIgnoreCase(second.getHost()) && portOf(first) == portOf(second);
   }
 
   private static int portOf(final URI uri) {
