@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -130,7 +131,7 @@ class ChromiumConfinementTest {
   @Test
   void splitsListsOfPaths() {
     assertEquals(List.of(), ChromiumConfinement.pathsOf(null));
-    final String separator = java.io.File.pathSeparator;
+    final String separator = File.pathSeparator;
     assertEquals(List.of(Path.of("first"), Path.of("second")), ChromiumConfinement.pathsOf("first" + separator + separator + "second"));
   }
 
