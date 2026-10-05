@@ -1245,6 +1245,42 @@ final class PlaybackSessionTest {
   }
 
   /**
+   * A source that decodes slower than it plays has its frames dropped one after the other, which freezes the picture
+   * without a word, so the session says so.
+   */
+  @Test
+  void saysSoWhenMostFramesComeTooLate() throws Exception {
+    final AtomicInteger shown = new AtomicInteger();
+    this.onVideo((_, _) -> shown.incrementAndGet() > 0);
+    final List<String> reports = Collections.synchronizedList(new ArrayList<>());
+    final List<Object> script = frames(320, FRAME_MICROS);
+    final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(4, 2, false, script);
+    // a lag below zero drops every frame as late, and at a thousand times the speed the ten seconds of video pass in
+    // ten milliseconds, whatever the load of the machine
+    final PlaybackSession session = new PlaybackSession(
+      factoryOf(grabber),
+      null,
+      this.videoCallback,
+      this.audioCallback,
+      this.dimensionCallback,
+      this::report,
+      0L,
+      false,
+      PlaybackSession.AUDIO_LEAD_NANOS,
+      -1L,
+      System::nanoTime,
+      (dropped, frames) -> reports.add(dropped + " of " + frames)
+    );
+    session.setSpeed(1_000.0);
+    session.start();
+    awaitEnd(session);
+
+    final int shownCount = shown.get();
+    assertEquals(0, shownCount);
+    assertEquals(List.of("302 of 302"), reports, "the frames of the first ten seconds, all dropped");
+  }
+
+  /**
    * The timing a test session runs with: how early audio is handed on, how late a frame may be, and the clock.
    */
   private static final class Timing {
