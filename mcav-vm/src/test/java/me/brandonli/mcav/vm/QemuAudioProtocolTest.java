@@ -138,6 +138,10 @@ class QemuAudioProtocolTest {
     final ByteArrayOutputStream preferred = new ByteArrayOutputStream();
     assertTrue(QemuAudioProtocol.negotiateSecurity(input(new byte[] { 2, 1, 2 }), new DataOutputStream(preferred), "Pa55word"));
     assertArrayEquals(new byte[] { 2 }, preferred.toByteArray());
+    // a known password is no reason to authenticate with a server that does not ask for it
+    final ByteArrayOutputStream open = new ByteArrayOutputStream();
+    assertFalse(QemuAudioProtocol.negotiateSecurity(input(new byte[] { 1, 1 }), new DataOutputStream(open), "Pa55word"));
+    assertArrayEquals(new byte[] { 1 }, open.toByteArray());
     final byte[] challenge = new byte[16];
     for (int index = 0; index < challenge.length; index++) {
       challenge[index] = (byte) (index * 37 + 11);

@@ -69,6 +69,22 @@ final class QemuProcessRecordsTest {
    * @return the process
    */
   private Process child(final boolean ignoresStop) throws IOException {
+    final List<String> command = this.sleeper(ignoresStop);
+    final Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+    this.children.add(process);
+    // a JVM that printed has its shutdown hook in place
+    final byte[] ready = process.getInputStream().readNBytes(5);
+    assertEquals("ready", new String(ready, StandardCharsets.US_ASCII));
+    return process;
+  }
+
+  /**
+   * Writes the program of a JVM that sleeps for five minutes, standing in for QEMU.
+   *
+   * @param ignoresStop whether it ignores a request to end, so only a kill ends it
+   * @return the command that starts it
+   */
+  private List<String> sleeper(final boolean ignoresStop) throws IOException {
     final String hook = ignoresStop ? "Runtime.getRuntime().addShutdownHook(new Thread(Sleep::sleep));" : "";
     final String source =
       "class Sleep { static void sleep() { try { Thread.sleep(300_000L); } catch (InterruptedException e) { } } " +
@@ -78,12 +94,7 @@ final class QemuProcessRecordsTest {
     final Path file = this.directory.resolve("Sleep" + this.children.size() + ".java");
     Files.writeString(file, source);
     final String java = ProcessHandle.current().info().command().orElseThrow();
-    final Process process = new ProcessBuilder(java, file.toString()).redirectErrorStream(true).start();
-    this.children.add(process);
-    // a JVM that printed has its shutdown hook in place
-    final byte[] ready = process.getInputStream().readNBytes(5);
-    assertEquals("ready", new String(ready, StandardCharsets.US_ASCII));
-    return process;
+    return List.of(java, file.toString());
   }
 
   private QemuProcessRecords records(final ProcessHandle owner) {
@@ -103,6 +114,20 @@ final class QemuProcessRecordsTest {
 
   private Path recordOf(final long pid) {
     return this.directory.resolve("records").resolve(pid + ".qemu");
+  }
+
+  @Test
+  void theLauncherOfQemuRecordsAProcessItStartsUntilItEnds() throws IOException, InterruptedException {
+    final VMProcess.RecordingLauncher launcher = new VMProcess.RecordingLauncher(this.records(ProcessHandle.current()));
+    final Process qemu = launcher.launch(this.sleeper(false));
+    this.children.add(qemu);
+    final boolean recorded = Files.isRegularFile(this.recordOf(qemu.pid()));
+    qemu.destroyForcibly();
+    qemu.waitFor(10, TimeUnit.SECONDS);
+    launcher.ended(qemu);
+
+    assertTrue(recorded, "a started QEMU is recorded at once, before anything can kill this JVM");
+    assertFalse(Files.exists(this.recordOf(qemu.pid())), "an ended QEMU is forgotten");
   }
 
   @Test

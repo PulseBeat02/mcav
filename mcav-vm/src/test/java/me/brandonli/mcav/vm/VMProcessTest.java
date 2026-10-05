@@ -31,6 +31,8 @@ import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -494,6 +496,47 @@ final class VMProcessTest {
     final Path windows = VMProcess.createSecretFolder(this.directory, false);
     assertTrue(Files.isDirectory(windows));
     assertFalse(posix.equals(windows), "a folder of its own for every start");
+    // the default file system makes temporary folders private on its own, other POSIX file systems do not
+    final Map<String, String> posixZip = Map.of("create", "true", "enablePosixFileAttributes", "true");
+    try (final FileSystem zipped = FileSystems.newFileSystem(this.directory.resolve("folders.zip"), posixZip)) {
+      final Path zippedFolder = VMProcess.createSecretFolder(zipped.getPath("/"), true);
+      assertEquals("rwx------", PosixFilePermissions.toString(Files.getPosixFilePermissions(zippedFolder)));
+    }
+  }
+
+  @Test
+  void theLauncherLearnsWhenTheMachineItStartedHasEnded() {
+    final FakeProcess qemu = FakeProcess.running("");
+    final List<Process> ended = new ArrayList<>();
+    final VMProcess.Launcher launcher = new VMProcess.Launcher() {
+      @Override
+      public Process launch(final List<String> command) throws IOException {
+        VMProcessTest.this.openDisplay();
+        return qemu;
+      }
+
+      @Override
+      public void ended(final Process process) {
+        ended.add(process);
+      }
+    };
+    final VMProcess process = new VMProcess(
+      this.reachableSettings(),
+      VMPlayer.Architecture.AARCH64,
+      QEMU,
+      VMConfiguration.builder(),
+      launcher,
+      OS.WINDOWS,
+      this.missingKvm,
+      SHORT_TIMEOUT_MILLIS,
+      this::secretFolder
+    );
+    process.start();
+    final List<Process> endedWhileRunning = List.copyOf(ended);
+    process.shutdown();
+
+    assertEquals(List.of(), endedWhileRunning);
+    assertEquals(List.of(qemu), ended, "a launcher that records its processes forgets one once it ended");
   }
 
   @Test

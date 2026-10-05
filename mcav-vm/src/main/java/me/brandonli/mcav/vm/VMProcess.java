@@ -895,7 +895,8 @@ final class VMProcess {
   /**
    * Starts QEMU and records it, so that a later start of the module stops it if this JVM is killed before it could.
    */
-  private static final class RecordingLauncher implements Launcher {
+  @VisibleForTesting
+  static final class RecordingLauncher implements Launcher {
 
     private final QemuProcessRecords records;
 
