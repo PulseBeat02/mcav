@@ -178,7 +178,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** Makes the encoder of a preset in the screen's encoder budget. */
   private final Function<EncoderSettings, Mcv2Encoder> encoders;
 
-  private @Nullable Arrival pending;
+  // the newest frame the video handed over, until the screen's thread takes it
+  private final Mcv2LatestFrame<Arrival> pending;
 
   private boolean running;
 
@@ -436,6 +437,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       this.dithering = dithering;
     }
     this.lock = new Object();
+    this.pending = new Mcv2LatestFrame<>();
     this.statistics = new Statistics();
     this.clock = clock;
     this.framesPerNano = configuration.getMaxFrameRate() / NANOS_PER_SECOND;
@@ -612,6 +614,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       this.handed = 0;
       this.delivered = 0;
       this.running = true;
+      this.pending.open();
     }
     delivery.start();
     thread.start();
@@ -667,10 +670,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     // on the dithered maps the pacer encodes no frame
     if (encode && !current.channel().getRecipients().isEmpty()) {
       final Arrival arrival = new Arrival(rgb(data.getPixels(), width * height), width, height, System.currentTimeMillis(), preset);
-      synchronized (this.lock) {
-        this.pending = arrival;
-        this.lock.notifyAll();
-      }
+      this.pending.offer(arrival);
     }
     final Fallback dithered = this.fallback;
     if (dithered != null && !others.isEmpty() && this.ditheringBusy.compareAndSet(false, true)) {
@@ -863,11 +863,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * @return the frame, or null if there is none
    */
   @Nullable Arrival poll() {
-    synchronized (this.lock) {
-      final Arrival arrival = this.pending;
-      this.pending = null;
-      return arrival;
-    }
+    return this.pending.poll();
   }
 
   /**
@@ -877,14 +873,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * @throws InterruptedException if the thread is interrupted while it waits
    */
   @Nullable Arrival take() throws InterruptedException {
-    synchronized (this.lock) {
-      while (this.running && this.pending == null) {
-        this.lock.wait();
-      }
-      final Arrival arrival = this.pending;
-      this.pending = null;
-      return this.running ? arrival : null;
-    }
+    return this.pending.take();
   }
 
   /**
@@ -978,6 +967,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
         return;
       }
       this.running = false;
+      this.pending.close();
       this.lock.notifyAll();
       // start sets the pipeline and its two threads together, and release clears them together
       screenThread = Objects.requireNonNull(this.worker, "A running pipeline has its screen's thread");
@@ -1050,7 +1040,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private void follow(final Mcv2Pacer.Change change) {
     this.ditheredForAll = change.to().isDithered();
     if (this.ditheredForAll) {
-      this.pending = null;
+      this.pending.clear();
     }
     Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), this::sync);
   }
@@ -1117,6 +1107,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final Thread delivery;
     synchronized (this.lock) {
       this.running = false;
+      this.pending.close();
       this.lock.notifyAll();
       thread = this.worker;
       delivery = this.sender;
