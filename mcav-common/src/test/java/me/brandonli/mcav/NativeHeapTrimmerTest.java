@@ -107,16 +107,16 @@ final class NativeHeapTrimmerTest {
   @Test
   void trimsOnlyOnLinuxInAJvmThatDoesNotTrimItselfAtAPositiveInterval() {
     final Runnable nothing = () -> {};
-    final NativeHeapTrimmer trimming = NativeHeapTrimmer.create(true, 0L, 60L, nothing);
+    final NativeHeapTrimmer trimming = NativeHeapTrimmer.create(OS.LINUX, 0L, 60L, nothing);
     trimming.start();
     final boolean trims = trimming.isTrimming();
     trimming.close();
 
     assertTrue(trims);
-    assertNeverTrims(NativeHeapTrimmer.create(false, 0L, 60L, nothing), "off Linux");
-    assertNeverTrims(NativeHeapTrimmer.create(true, 1L, 60L, nothing), "in a JVM that trims itself");
-    assertNeverTrims(NativeHeapTrimmer.create(true, 0L, 0L, nothing), "turned off");
-    assertNeverTrims(NativeHeapTrimmer.create(true, 0L, -1L, nothing), "turned off by a negative interval");
+    assertNeverTrims(NativeHeapTrimmer.create(OS.WINDOWS, 0L, 60L, nothing), "off Linux");
+    assertNeverTrims(NativeHeapTrimmer.create(OS.LINUX, 1L, 60L, nothing), "in a JVM that trims itself");
+    assertNeverTrims(NativeHeapTrimmer.create(OS.LINUX, 0L, 0L, nothing), "turned off");
+    assertNeverTrims(NativeHeapTrimmer.create(OS.LINUX, 0L, -1L, nothing), "turned off by a negative interval");
   }
 
   private static void assertNeverTrims(final NativeHeapTrimmer trimmer, final String reason) {
@@ -179,9 +179,11 @@ final class NativeHeapTrimmerTest {
   void trimsWithTheCommandOfTheJdk() {
     final MBeanServer server = ManagementFactory.getPlatformMBeanServer();
     final String answer = NativeHeapTrimmer.trimWithJdk(server);
+    final String ownAnswer = NativeHeapTrimmer.trimThisJvm();
     final boolean linux = OSUtils.getOS() == OS.LINUX;
     final String expected = linux ? "Trim native heap" : "Not available";
     assertTrue(answer.startsWith(expected), answer);
+    assertTrue(ownAnswer.startsWith(expected), ownAnswer);
   }
 
   @Test

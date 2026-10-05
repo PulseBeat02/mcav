@@ -91,24 +91,24 @@ final class NativeHeapTrimmer implements AutoCloseable {
    *         trimming off
    */
   static NativeHeapTrimmer forThisJvm() {
-    final boolean linux = OSUtils.getOS() == OS.LINUX;
+    final OS os = OSUtils.getOS();
     final long jvmIntervalMillis = readJvmIntervalMillis();
     final long seconds = Long.getLong(INTERVAL_PROPERTY, DEFAULT_INTERVAL_SECONDS);
-    return create(linux, jvmIntervalMillis, seconds, () -> trimWithJdk(ManagementFactory.getPlatformMBeanServer()));
+    return create(os, jvmIntervalMillis, seconds, NativeHeapTrimmer::trimThisJvm);
   }
 
   /**
    * Creates a trimmer that trims at the interval, unless the system is no Linux or the JVM trims itself.
    *
-   * @param linux             whether the system is Linux
+   * @param os                the operating system
    * @param jvmIntervalMillis the interval of the JVM's own trims, in milliseconds, zero if it trims never
    * @param seconds           the interval of the trims, in seconds; zero or less trims never
    * @param trim              trims the native heap once
    * @return the trimmer
    */
   @VisibleForTesting
-  static NativeHeapTrimmer create(final boolean linux, final long jvmIntervalMillis, final long seconds, final Runnable trim) {
-    final boolean trims = linux && jvmIntervalMillis <= 0;
+  static NativeHeapTrimmer create(final OS os, final long jvmIntervalMillis, final long seconds, final Runnable trim) {
+    final boolean trims = os == OS.LINUX && jvmIntervalMillis <= 0;
     final Duration interval = trims ? Duration.ofSeconds(seconds) : Duration.ZERO;
     return new NativeHeapTrimmer(interval, trim);
   }
@@ -177,6 +177,18 @@ final class NativeHeapTrimmer implements AutoCloseable {
     final VMOption option = hotspot.getVMOption(JVM_INTERVAL_OPTION);
     final String value = option.getValue();
     return Long.parseLong(value);
+  }
+
+  /**
+   * Trims the native heap of this JVM with the JDK's {@code System.trim_native_heap} command.
+   *
+   * @return the answer of the command
+   * @throws IllegalStateException if the command cannot be run
+   */
+  @VisibleForTesting
+  static String trimThisJvm() {
+    final MBeanServer server = ManagementFactory.getPlatformMBeanServer();
+    return trimWithJdk(server);
   }
 
   /**
