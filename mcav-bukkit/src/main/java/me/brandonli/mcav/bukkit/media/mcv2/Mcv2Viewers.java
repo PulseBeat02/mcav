@@ -38,16 +38,18 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Tracks which players have the MCV2 resource pack loaded, from the status their client reports for the pack's
  * request id. Only a player whose client reported the pack as loaded sees the decoded video; everyone else keeps the
- * dithered maps, so no one is shown a screen their client cannot decode.
+ * dithered maps, so no one is shown a screen their client cannot decode. That includes a player whose MCV2 client mod
+ * reports, on the {@code mcav:mcv2} plugin channel, that Iris draws a shader pack under which MCV2 does not decode:
+ * they keep the dithered maps until it reports otherwise.
  *
  * <p>The states may be read from any thread; the refusal callback runs on the main thread, where the events are
  * fired. Whoever shows the video reads {@link #isLoaded(UUID)}, which is how {@link Mcv2Result} learns of new players
  * with the pack.
  *
- * <p>This tracker records client status reports; it cannot verify shader compatibility or successful frame
- * decoding. Register/unregister listeners and retarget the pack on the main thread. Reads may occur from media
- * threads. Registration alone does not offer a pack; the caller sends the request and records it with
- * {@link #requested(UUID)}. Unregistering retains recorded state.
+ * <p>This tracker records client status reports; without the client mod it cannot verify shader compatibility, and it
+ * never verifies successful frame decoding. Register/unregister listeners and retarget the pack on the main thread.
+ * Reads may occur from media threads. Registration alone does not offer a pack; the caller sends the request and
+ * records it with {@link #requested(UUID)}. Unregistering retains recorded state.
  */
 public final class Mcv2Viewers {
 
@@ -72,6 +74,8 @@ public final class Mcv2Viewers {
   private final Map<UUID, Long> sessions;
   private final AtomicLong nextSession;
 
+  private final Mcv2ShaderReports shaderReports;
+
   private @Nullable Listener listener;
 
   /**
@@ -90,10 +94,13 @@ public final class Mcv2Viewers {
     this.states = new ConcurrentHashMap<>();
     this.sessions = new ConcurrentHashMap<>();
     this.nextSession = new AtomicLong();
+    this.shaderReports = new Mcv2ShaderReports(System::nanoTime);
   }
 
   /**
-   * Starts listening to the players' pack status and to players leaving, who lose their state.
+   * Starts listening to the players' pack status, to the reports of their MCV2 client mod, and to players leaving, who
+   * lose their state. Register before players join: a client learns of the plugin channel as it joins, and its mod
+   * reports only once it knows the channel.
    * @throws IllegalStateException if no plugin has been injected
    */
   public synchronized void register() {
@@ -104,6 +111,7 @@ public final class Mcv2Viewers {
     final EventExecutor quit = (_, event) -> this.handleQuit((PlayerQuitEvent) event);
     manager.registerEvent(PlayerResourcePackStatusEvent.class, events, EventPriority.MONITOR, status, BukkitModule.getPlugin());
     manager.registerEvent(PlayerQuitEvent.class, events, EventPriority.MONITOR, quit, BukkitModule.getPlugin());
+    Bukkit.getMessenger().registerIncomingPluginChannel(BukkitModule.getPlugin(), Mcv2ShaderReports.CHANNEL, this.shaderReports);
     this.listener = events;
   }
 
@@ -114,6 +122,7 @@ public final class Mcv2Viewers {
     final Listener events = this.listener;
     if (events != null) {
       HandlerList.unregisterAll(events);
+      Bukkit.getMessenger().unregisterIncomingPluginChannel(BukkitModule.getPlugin(), Mcv2ShaderReports.CHANNEL, this.shaderReports);
       this.listener = null;
     }
   }
@@ -166,13 +175,25 @@ public final class Mcv2Viewers {
   }
 
   /**
-   * Checks whether a player's client loaded the pack.
+   * Checks whether a player's client loaded the pack and can decode with it: one whose MCV2 client mod reports a shader
+   * pack in use, under which MCV2 does not decode, cannot, whatever its pack status.
    *
    * @param player the player's UUID
-   * @return true if the tracked client status is LOADED; this is not a playback acknowledgment
+   * @return true if the tracked client status is LOADED and no report of the client mod rules decoding out; this is not
+   *         a playback acknowledgment
    */
   public boolean isLoaded(final UUID player) {
-    return this.getState(player) == PackState.LOADED;
+    return this.getState(player) == PackState.LOADED && !this.shaderReports.blocksDecoding(player);
+  }
+
+  /**
+   * Checks whether a player's MCV2 client mod reported their shader state since they joined.
+   *
+   * @param player the player's UUID
+   * @return true if the server knows the player's shader state from their mod
+   */
+  boolean hasShaderReport(final UUID player) {
+    return this.shaderReports.hasReported(player);
   }
 
   /**
@@ -222,5 +243,6 @@ public final class Mcv2Viewers {
     final UUID player = event.getPlayer().getUniqueId();
     this.states.remove(player);
     this.sessions.remove(player);
+    this.shaderReports.forget(player);
   }
 }

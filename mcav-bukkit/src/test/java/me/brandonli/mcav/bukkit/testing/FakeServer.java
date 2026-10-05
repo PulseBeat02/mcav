@@ -46,6 +46,8 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.messaging.Messenger;
+import org.bukkit.plugin.messaging.StandardMessenger;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.ScoreboardManager;
@@ -58,7 +60,7 @@ import org.mockito.stubbing.Answer;
  *
  * <p>{@link Bukkit} is mocked statically for the current thread until the server is closed. The server reports the
  * supported Minecraft version, runs on the main thread by default, and has a plugin manager, a scoreboard manager,
- * and a scheduler. Scheduled tasks never run on their own; {@link #runTasks()} runs them like one server tick.
+ * a scheduler, and Bukkit's own messenger of plugin channels. Scheduled tasks never run on their own; {@link #runTasks()} runs them like one server tick.
  * Players added with {@link #addPlayer(UUID)} are online, and every packet sent to them is recorded.
  */
 public final class FakeServer implements AutoCloseable {
@@ -72,6 +74,8 @@ public final class FakeServer implements AutoCloseable {
   private final BukkitScheduler scheduler;
 
   private final ScoreboardManager scoreboardManager;
+
+  private final Messenger messenger;
 
   private final List<Player> onlinePlayers;
 
@@ -95,6 +99,7 @@ public final class FakeServer implements AutoCloseable {
     this.pluginManager = mock(PluginManager.class);
     this.scheduler = mock(BukkitScheduler.class);
     this.scoreboardManager = mock(ScoreboardManager.class);
+    this.messenger = new StandardMessenger();
     this.onlinePlayers = new CopyOnWriteArrayList<>();
     this.sentPackets = new ConcurrentHashMap<>();
     this.pendingWrites = new ConcurrentHashMap<>();
@@ -143,6 +148,7 @@ public final class FakeServer implements AutoCloseable {
     staticBukkit.when(Bukkit::getPluginManager).thenReturn(this.pluginManager);
     staticBukkit.when(Bukkit::getScheduler).thenReturn(this.scheduler);
     staticBukkit.when(Bukkit::getScoreboardManager).thenReturn(this.scoreboardManager);
+    staticBukkit.when(Bukkit::getMessenger).thenReturn(this.messenger);
     staticBukkit.when(Bukkit::getOnlinePlayers).thenAnswer(_ -> List.copyOf(this.onlinePlayers));
     staticBukkit.when(Bukkit::isPrimaryThread).thenAnswer(_ -> this.primaryThread);
     staticBukkit.when(Bukkit::getIp).thenReturn("127.0.0.1");
@@ -215,6 +221,15 @@ public final class FakeServer implements AutoCloseable {
    */
   public ScoreboardManager getScoreboardManager() {
     return this.scoreboardManager;
+  }
+
+  /**
+   * Gets the messenger of plugin channels, through which a test delivers what a client sends on one.
+   *
+   * @return the messenger, Bukkit's own
+   */
+  public Messenger getMessenger() {
+    return this.messenger;
   }
 
   /**

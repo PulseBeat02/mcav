@@ -126,10 +126,11 @@ decoder's decision on each rendered frame.
 ## Troubleshooting
 
 **Players see the dithered maps on an MCV2 screen.** Their client has not loaded the pack yet, declined it, or could not
-load it (the chat says which). A `--codec mcv2` screen is dithered for everyone when no item frame holds its top-left
-map, when eight MCV2 screens already play, or when even the fastest encoder cannot keep up; the command that started it
-says which. `/mcav video mcv2`, `/mcav mcv2 play` and `/mcav mcv2 stream` do not start at all on a wall no item frame
-holds, and say so.
+load it (the chat says which), or their MCV2 client mod reports Iris shaders on, which the server log says; they see the
+video again as soon as they turn the shaders off. A `--codec mcv2` screen is dithered for everyone when no item frame
+holds its top-left map, when eight MCV2 screens already play, or when even the fastest encoder cannot keep up; the
+command that started it says which. `/mcav video mcv2`, `/mcav mcv2 play` and `/mcav mcv2 stream` do not start at all on
+a wall no item frame holds, and say so.
 
 **The wall looks like a blank map, or shows the backs of item frames.** More than one item frame hangs in a block of the
 wall, placed by hand, by another plugin or by an old version of MCAV: the extra frames hang in front of the maps,
