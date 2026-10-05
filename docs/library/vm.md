@@ -35,8 +35,10 @@ QEMU started.
 
 The example boots an ISO image and presses a key in its boot menu. The `display` filter is yours and shows the frames;
 release the returned player to stop the machine. QEMU is a process of its own: a JVM that ends without releasing the
-player, or is killed, leaves it running, with its memory and its VNC port, until it is stopped by hand. Releasing the
-library (`MCAVApi.release`) does not stop the machines either; release every player first.
+player, or is killed, leaves it running, with its memory and its VNC port. Every QEMU mcav starts is recorded in
+`~/.mcav/vm`, and the next start of the VM module (`VMModule.start`, part of `MCAVApi.install`) stops each recorded
+QEMU whose JVM is gone and logs it; a QEMU of another JVM that still runs is left alone. Releasing the library
+(`MCAVApi.release`) does not stop the machines either; release every player first.
 
 ```java
   public static VMPlayer bootIsoImage(final Path isoFile, final VideoFilter display) {

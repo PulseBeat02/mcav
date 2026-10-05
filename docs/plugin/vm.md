@@ -56,4 +56,4 @@ chat mode.
 With `vm.allow-network` on, the guest's user-mode network can reach the server's loopback address (`10.0.2.2` inside
 the guest). QEMU's VNC display stays on the loopback address and asks for a random password only the plugin knows, so
 another process on the server cannot watch it. QEMU is a child process of the server: if the server is killed hard, without releasing its
-players, a running machine keeps running.
+players, a running machine keeps running until the plugin starts again, which stops it and says so in the console.

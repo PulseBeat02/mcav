@@ -158,7 +158,7 @@ final class VMProcess {
       architecture,
       executable,
       configuration,
-      VMProcess::startProcess,
+      new RecordingLauncher(QemuProcessRecords.ofUser()),
       currentOs,
       KVM_DEVICE,
       START_TIMEOUT_MILLIS,
@@ -837,6 +837,7 @@ final class VMProcess {
       final boolean alive = current.isAlive();
       if (!alive) {
         this.process = null;
+        this.launcher.ended(current);
       } else {
         LOGGER.warn(STILL_ALIVE);
       }
@@ -892,6 +893,32 @@ final class VMProcess {
   }
 
   /**
+   * Starts QEMU and records it, so that a later start of the module stops it if this JVM is killed before it could.
+   */
+  private static final class RecordingLauncher implements Launcher {
+
+    private final QemuProcessRecords records;
+
+    RecordingLauncher(final QemuProcessRecords records) {
+      this.records = records;
+    }
+
+    @Override
+    public Process launch(final List<String> command) throws IOException {
+      final Process started = startProcess(command);
+      final ProcessHandle handle = started.toHandle();
+      this.records.add(handle);
+      return started;
+    }
+
+    @Override
+    public void ended(final Process process) {
+      final long pid = process.pid();
+      this.records.remove(pid);
+    }
+  }
+
+  /**
    * Starts a process from its command line.
    */
   @FunctionalInterface
@@ -904,5 +931,14 @@ final class VMProcess {
      * @throws IOException if the process cannot be started
      */
     Process launch(List<String> command) throws IOException;
+
+    /**
+     * Learns that a process this launcher started has ended.
+     *
+     * @param process the process
+     */
+    default void ended(final Process process) {
+      // a launcher that keeps nothing about its processes has nothing to forget
+    }
   }
 }
