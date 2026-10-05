@@ -344,6 +344,21 @@ public class CompressedMapResult implements DitherResultStep {
   }
 
   /**
+   * Requests a complete snapshot for every connected viewer on the next processed frame. Repeated requests before
+   * that frame coalesce. The encoder's delta history and the coverage used for resize cleanup are retained.
+   * This request sends no packets itself, shares the processing lock, and does not resume a released result.
+   * The snapshot is additional to the ordinary delta byte budget.
+   */
+  public void refresh() {
+    this.lock.lock();
+    try {
+      this.activeViewers.clear();
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  /**
    * Accepts frames again. The encoder itself is created lazily when the first frame arrives, because the frame size
    * is unknown until then; this only undoes a previous {@link #release()}, so the same result can show a second
    * video, the way every other result of this module can.

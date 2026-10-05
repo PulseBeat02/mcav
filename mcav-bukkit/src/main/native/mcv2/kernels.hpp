@@ -1500,6 +1500,72 @@ void cell_means(const float *target, int32_t size, int32_t channel, int32_t grid
   }
 }
 
+// FrameVerification.javaMatches: the descriptors come only from a parsed frame, grouped by block size.
+int32_t verify(const uint8_t *reference, const uint8_t *picture, int32_t width, int32_t height, const int32_t *leaves,
+               int32_t first, int32_t count, int32_t size, const int8_t *records) {
+  int32_t prediction[ROOT_SIZE * ROOT_SIZE * CHANNELS];
+  int32_t block[ROOT_SIZE * ROOT_SIZE * CHANNELS];
+  for (int32_t index = first; index < first + count; index++) {
+    const int32_t *leaf = leaves + index * 10;
+    const int32_t left = leaf[0];
+    const int32_t top = leaf[1];
+    if (left >= width || top >= height) {
+      continue;
+    }
+    const int32_t mode = leaf[2];
+    const int32_t quantizer = leaf[3];
+    const int32_t offset = leaf[4];
+    if (mode == 0 || mode == 4 || mode == 6 || mode == 7) {
+      predict(reference, width, height, left, top, size, leaf[5], leaf[6], prediction);
+    }
+    // Comparing a completed row with itself disables pruning without changing the search kernels' hot path.
+    const Measure measure{block, 0, 1, 0};
+    switch (mode) {
+    case 0:
+      predicted(prediction, size, block, measure);
+      break;
+    case 1:
+      solid(leaf[9], size, block, measure);
+      break;
+    case 2:
+      palette(records, offset, size, block, measure);
+      break;
+    case 3:
+      intra_grid(records, offset, leaf[7], size, block, measure);
+      break;
+    case 4:
+      residual_grid(prediction, records, offset, leaf[7], quantizer, size, block, measure);
+      break;
+    case 5:
+    case 6:
+      reduced(prediction, mode == 5, records, offset, leaf[7], leaf[8], quantizer, size, block, measure);
+      break;
+    default:
+      compact(prediction, records, offset, leaf[7], quantizer, size, block, measure);
+    }
+    const int32_t rows = min32(size, height - top);
+    const int32_t channels = min32(size, width - left) * CHANNELS;
+    for (int32_t y = 0; y < rows; y++) {
+      const int32_t *out = block + y * size * CHANNELS;
+      const uint8_t *expected = picture + ((top + y) * width + left) * CHANNELS;
+      VI difference = VI::zero();
+      int32_t channel = 0;
+      for (; channel + VI::N <= channels; channel += VI::N) {
+        difference = difference + VI::abs((VI::load(out + channel) & VI::set1(255)) - VI::loadu8(expected + channel));
+      }
+      if (difference.sum() != 0) {
+        return 0;
+      }
+      for (; channel < channels; channel++) {
+        if ((uint8_t)out[channel] != expected[channel]) {
+          return 0;
+        }
+      }
+    }
+  }
+  return 1;
+}
+
 } // namespace
 } // namespace mcv2
 

@@ -107,9 +107,6 @@ public final class Mcv2Encoder {
 
   private final boolean shouldVerify;
 
-  /** The picture the live search's check decodes into, kept from frame to frame. */
-  private byte @Nullable [] verified;
-
   /** How long a live frame may search, in nanoseconds, or 0 for as long as it takes. */
   private long frameBudget;
 
@@ -767,9 +764,15 @@ public final class Mcv2Encoder {
       try {
         final Mcv2Frame written = parseChosen(pending.data);
         checkTree(written, pending.roots, this.workers);
-        final byte[] decoded = decodeChosen(written, pending.predictFrom, pending.predictFromId, this.workers, this.verified);
-        this.verified = decoded;
-        Preconditions.checkState(same(pending.picture, decoded, this.workers), "MCV2 live picture and decoded picture disagree");
+        try {
+          final FrameVerification verification = new FrameVerification(written);
+          Preconditions.checkState(
+            verification.matches(pending.predictFrom, pending.predictFromId, pending.picture, this.workers, this.kernels),
+            "MCV2 live picture and decoded picture disagree"
+          );
+        } catch (final Mcv2Exception exception) {
+          throw new IllegalStateException("The encoder wrote a frame the decoder rejects", exception);
+        }
       } catch (final IllegalStateException exception) {
         this.failed = true;
         throw exception;

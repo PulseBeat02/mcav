@@ -105,6 +105,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** How long a release waits for the encoding thread to stop. */
   private static final long JOIN_SECONDS = 10;
 
+  // Vanilla can initialize a map after its first fallback snapshot; an unchanged delta stream cannot repair it.
+  private static final long FALLBACK_REFRESH_NANOS = TimeUnit.SECONDS.toNanos(4);
+
   private static final double NANOS_PER_MILLISECOND = 1e6;
 
   /** The link counts {@link #linkCounts} sums, and where each is. */
@@ -169,6 +172,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private double frameCredit = FRAME_CREDIT_CAP;
 
   private long lastFrame = Long.MIN_VALUE;
+
+  private long lastFallbackRefresh;
 
   /** The settings the screen steps down through, from the ones it was asked for: each a faster search. */
   private final List<EncoderSettings> ladder;
@@ -441,6 +446,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     this.pending = new Mcv2LatestFrame<>();
     this.statistics = new Statistics();
     this.clock = clock;
+    this.lastFallbackRefresh = clock.getAsLong();
     this.framesPerNano = configuration.getMaxFrameRate() / NANOS_PER_SECOND;
     this.ladder = ladder(configuration.getSettings());
     this.presets = presets(this.ladder);
@@ -719,7 +725,13 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** Dithers one frame onto the maps of the viewers without the pack, then lets the next frame be dithered. */
   private void dither(final Fallback dithered, final int[] argb, final int width, final int height) {
     try (final ImageBuffer frame = ImageBuffer.buffer(argb, width, height)) {
-      dithered.result().process(frame, dithered.algorithm());
+      final CompressedMapResult maps = dithered.result();
+      final long now = this.clock.getAsLong();
+      if (now - this.lastFallbackRefresh >= FALLBACK_REFRESH_NANOS) {
+        maps.refresh();
+        this.lastFallbackRefresh = now;
+      }
+      maps.process(frame, dithered.algorithm());
     } finally {
       this.ditheringBusy.set(false);
     }

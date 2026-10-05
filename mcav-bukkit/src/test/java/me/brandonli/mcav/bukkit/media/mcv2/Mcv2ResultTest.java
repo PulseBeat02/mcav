@@ -62,6 +62,7 @@ import java.util.function.Function;
 import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
+import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.LiveSearch;
@@ -692,6 +693,71 @@ final class Mcv2ResultTest {
     result.start();
     assertEquals(new Mcv2Pacer.Rung(64, 32, 1), result.getRung());
     result.release();
+  }
+
+  @Test
+  void repairsAnUnchangedFallbackAfterVanillaOverwritesItsFirstSnapshot() {
+    when(this.viewers.isLoaded(WITH_PACK)).thenReturn(false);
+    doAnswer(invocation -> MapPackets.pattern(invocation.getArgument(0)))
+      .when(this.algorithm)
+      .ditherIntoBytes(any());
+    final AtomicLong clock = new AtomicLong(-TimeUnit.SECONDS.toNanos(60));
+    final Mcv2Result result = new Mcv2Result(
+      this.configuration,
+      new Mcv2Channel(this.configuration, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run
+    );
+    result.start();
+    try (final ImageBuffer frame = Images.solid(64, 32, 0xFF336699)) {
+      result.applyFilter(frame, this.metadata);
+      final byte[] expected = MapPackets.pattern(128 * 128, 4);
+      MapPackets.assertMapPacket(
+        MapPackets.unbundle(this.server.getSentPackets(WITHOUT).getLast()).getFirst(),
+        100,
+        0,
+        0,
+        128,
+        128,
+        expected
+      );
+      // Vanilla can initialize its map after the first snapshot, leaving an unchanged delta stream transparent.
+      MapPacketFactory.clear(List.of(WITHOUT), 100, 1);
+      clock.addAndGet(TimeUnit.SECONDS.toNanos(4) - 1);
+      result.applyFilter(frame, this.metadata);
+      assertEquals(2, this.server.getSentPackets(WITHOUT).size(), "ordinary identical frames keep delta savings");
+      clock.incrementAndGet();
+      result.applyFilter(frame, this.metadata);
+      MapPackets.assertMapPacket(
+        MapPackets.unbundle(this.server.getSentPackets(WITHOUT).getLast()).getFirst(),
+        100,
+        0,
+        0,
+        128,
+        128,
+        expected
+      );
+      assertEquals(3, this.server.getSentPackets(WITHOUT).size(), "the fallback repairs an external map reset");
+      clock.incrementAndGet();
+      result.applyFilter(frame, this.metadata);
+      assertEquals(3, this.server.getSentPackets(WITHOUT).size(), "a repair starts a fresh interval");
+      MapPacketFactory.clear(List.of(WITHOUT), 100, 1);
+      clock.addAndGet(TimeUnit.SECONDS.toNanos(4));
+      result.applyFilter(frame, this.metadata);
+      MapPackets.assertMapPacket(
+        MapPackets.unbundle(this.server.getSentPackets(WITHOUT).getLast()).getFirst(),
+        100,
+        0,
+        0,
+        128,
+        128,
+        expected
+      );
+      assertEquals(5, this.server.getSentPackets(WITHOUT).size(), "recovery is periodic, not a one-time join delay");
+    } finally {
+      result.release();
+    }
   }
 
   @Test

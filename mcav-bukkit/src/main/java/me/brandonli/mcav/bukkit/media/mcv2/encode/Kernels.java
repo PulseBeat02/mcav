@@ -29,6 +29,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 abstract sealed class Kernels permits JavaKernels, NativeKernels {
 
+  /** Compares a bounded group of validated leaves with the expected picture. */
+  abstract boolean verify(FrameVerification frame, byte[] reference, byte[] picture, int group);
+
   /** Makes the kernels of one coder. */
   @FunctionalInterface
   interface Factory {
