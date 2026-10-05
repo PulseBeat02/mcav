@@ -142,7 +142,9 @@ a page can do instead:
 - Downloads, file choosers, logins and invalid certificates are refused, JavaScript dialogs are dismissed (alerts are
   confirmed, questions answered with cancel, pages may always be left), and permission prompts are denied.
 - The helper gets a minimal environment, a folder only the user running MCAV can read (on Windows, a folder in the
-  user's own temporary folder), which is deleted when the browser is released, and a profile that keeps nothing.
+  user's own temporary folder), which is deleted when the browser is released, and a profile that keeps nothing. The
+  folder names the server that made it, so a folder a killed server left behind is deleted when the browser module
+  starts again.
 
 - The sound of the page reaches the helper through a DevTools binding that the page could call too, before MCAV's
   script takes it away; the helper takes only exact calls with whole frames of sound, at most two seconds of sound per

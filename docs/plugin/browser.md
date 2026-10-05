@@ -74,8 +74,8 @@ A page is untrusted content, and the browser runs without Chromium's sandbox, wh
   with heavy scripts run slower; `browser.javascript-jit: true` turns it on for pages you trust.
 - **Only `http` and `https`.** `file:` and other schemes are refused, downloads, file choosers, logins and invalid
   certificates are refused, JavaScript dialogs are dismissed, and popups open in place, only during a click or a key.
-- **Nothing kept.** The browser's profile keeps nothing, and its folder is deleted when it is released. No debugging
-  port is ever opened.
+- **Nothing kept.** The browser's profile keeps nothing, and its folder is deleted when it is released, or at the
+  next start if the server was killed. No debugging port is ever opened.
 
 The details are in the [browser module](../library/browser.md#security).
 

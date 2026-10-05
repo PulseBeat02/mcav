@@ -311,7 +311,8 @@ final class HelperSession implements BrowserSession {
   }
 
   /**
-   * Creates the folder of a session, readable by the owner only where the file system has POSIX permissions.
+   * Creates the folder of a session, readable by the owner only where the file system has POSIX permissions, and names
+   * this server in it, see {@link SessionFolders}.
    *
    * @param temporary the folder the session folder is created in
    * @return the new folder
@@ -322,14 +323,16 @@ final class HelperSession implements BrowserSession {
     try {
       final FileSystem fileSystem = temporary.getFileSystem();
       final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains("posix");
-      if (supportsPosix) {
-        return Files.createTempDirectory(
-          temporary,
-          "mcav-browser-",
-          PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"))
-        );
-      }
-      return Files.createTempDirectory(temporary, "mcav-browser-");
+      final Path folder = supportsPosix
+        ? Files.createTempDirectory(
+            temporary,
+            SessionFolders.PREFIX,
+            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"))
+          )
+        : Files.createTempDirectory(temporary, SessionFolders.PREFIX);
+      // a later start of the module removes it if this server is killed
+      SessionFolders.ofThisServer().record(folder);
+      return folder;
     } catch (final IOException exception) {
       throw new PlayerException("The folder of the browser session cannot be created: " + exception.getMessage(), exception);
     }
