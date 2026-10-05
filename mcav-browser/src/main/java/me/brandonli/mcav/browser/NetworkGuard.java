@@ -122,6 +122,34 @@ final class NetworkGuard implements Closeable {
   }
 
   /**
+   * Starts a guard with another resolver, policy, connector and handshake timeout, for tests.
+   *
+   * @param resolver               resolves host names
+   * @param policy                 decides which addresses may be reached
+   * @param connector              connects to an allowed address
+   * @param notices                receives a line for every refused host
+   * @param handshakeTimeoutMillis how long a client may take for its handshake
+   * @return the running guard
+   * @throws IOException if no port of the loopback interface can be bound
+   */
+  static NetworkGuard start(
+    final Resolver resolver,
+    final Predicate<InetAddress> policy,
+    final Connector connector,
+    final Consumer<String> notices,
+    final int handshakeTimeoutMillis
+  ) throws IOException {
+    final ServerSocket server = new ServerSocket();
+    final InetAddress loopback = InetAddress.getLoopbackAddress();
+    server.bind(new InetSocketAddress(loopback, 0), BACKLOG);
+    final NetworkGuard guard = new NetworkGuard(server, resolver, policy, connector, notices, handshakeTimeoutMillis);
+    final Thread thread = new Thread(guard::acceptConnections, "mcav-browser-guard");
+    thread.setDaemon(true);
+    thread.start();
+    return guard;
+  }
+
+  /**
    * Combines the test for the addresses of this machine with the addresses of the refused hosts.
    *
    * @param own     whether an address belongs to a network interface of this machine
@@ -151,34 +179,6 @@ final class NetworkGuard implements Closeable {
       }
     }
     return addresses;
-  }
-
-  /**
-   * Starts a guard with another resolver, policy, connector and handshake timeout, for tests.
-   *
-   * @param resolver               resolves host names
-   * @param policy                 decides which addresses may be reached
-   * @param connector              connects to an allowed address
-   * @param notices                receives a line for every refused host
-   * @param handshakeTimeoutMillis how long a client may take for its handshake
-   * @return the running guard
-   * @throws IOException if no port of the loopback interface can be bound
-   */
-  static NetworkGuard start(
-    final Resolver resolver,
-    final Predicate<InetAddress> policy,
-    final Connector connector,
-    final Consumer<String> notices,
-    final int handshakeTimeoutMillis
-  ) throws IOException {
-    final ServerSocket server = new ServerSocket();
-    final InetAddress loopback = InetAddress.getLoopbackAddress();
-    server.bind(new InetSocketAddress(loopback, 0), BACKLOG);
-    final NetworkGuard guard = new NetworkGuard(server, resolver, policy, connector, notices, handshakeTimeoutMillis);
-    final Thread thread = new Thread(guard::acceptConnections, "mcav-browser-guard");
-    thread.setDaemon(true);
-    thread.start();
-    return guard;
   }
 
   /**
