@@ -87,11 +87,11 @@ final class Mcv2ShaderFallbackTest {
     this.server.runTasks();
     assertEquals(Set.of(), channel.update(), "with the pack loaded, the player gets the frames");
 
-    this.server.getMessenger().dispatchIncomingMessage(this.player, CHANNEL, SHADERS_ON);
+    this.server.receivePluginMessage(this.player, CHANNEL, SHADERS_ON);
     assertEquals(Set.of(VIEWER), channel.update(), "a player reporting shaders in use still gets MCV2 frames");
     assertEquals(Set.of(), channel.getRecipients());
 
-    this.server.getMessenger().dispatchIncomingMessage(this.player, CHANNEL, SHADERS_OFF);
+    this.server.receivePluginMessage(this.player, CHANNEL, SHADERS_OFF);
     channel.update();
     this.server.runTasks();
     assertEquals(Set.of(), channel.update(), "shaders off, the player is shown the screen again without rejoining");
@@ -100,7 +100,7 @@ final class Mcv2ShaderFallbackTest {
 
   @Test
   void aPlayerWhoReportedShadersBeforeTheirPackLoadedIsNeverShownTheFrames() {
-    this.server.getMessenger().dispatchIncomingMessage(this.latePlayer, CHANNEL, SHADERS_ON);
+    this.server.receivePluginMessage(this.latePlayer, CHANNEL, SHADERS_ON);
     this.load(this.latePlayer);
     final Mcv2Channel channel = this.channel(List.of(LATE_VIEWER));
     assertEquals(Set.of(LATE_VIEWER), channel.update());
@@ -113,7 +113,7 @@ final class Mcv2ShaderFallbackTest {
   void listensToTheChannelWhileRegisteredAndForgetsAPlayerWhoLeft() {
     assertTrue(this.server.getMessenger().isIncomingChannelRegistered(this.server.getPlugin(), CHANNEL));
     this.load(this.player);
-    this.server.getMessenger().dispatchIncomingMessage(this.player, CHANNEL, SHADERS_ON);
+    this.server.receivePluginMessage(this.player, CHANNEL, SHADERS_ON);
     assertTrue(this.viewers.hasShaderReport(VIEWER));
     assertFalse(this.viewers.isLoaded(VIEWER));
     assertFalse(this.viewers.hasShaderReport(LATE_VIEWER), "a report is its sender's alone");
@@ -125,7 +125,7 @@ final class Mcv2ShaderFallbackTest {
 
     this.viewers.unregister();
     assertFalse(this.server.getMessenger().isIncomingChannelRegistered(this.server.getPlugin(), CHANNEL));
-    this.server.getMessenger().dispatchIncomingMessage(this.player, CHANNEL, SHADERS_ON);
+    this.server.receivePluginMessage(this.player, CHANNEL, SHADERS_ON);
     assertTrue(this.viewers.isLoaded(VIEWER), "an unregistered tracker reads no reports");
   }
 

@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.papermc.paper.connection.PlayerGameConnection;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -230,6 +231,19 @@ public final class FakeServer implements AutoCloseable {
    */
   public Messenger getMessenger() {
     return this.messenger;
+  }
+
+  /**
+   * Delivers a plugin message that a player's client sent in the game, through the messenger, as the server does.
+   *
+   * @param player  the player
+   * @param channel the plugin channel
+   * @param message the message
+   */
+  public void receivePluginMessage(final Player player, final String channel, final byte[] message) {
+    final PlayerGameConnection connection = mock(PlayerGameConnection.class);
+    when(connection.getPlayer()).thenReturn(player);
+    this.messenger.dispatchIncomingMessage(connection, channel, message);
   }
 
   /**

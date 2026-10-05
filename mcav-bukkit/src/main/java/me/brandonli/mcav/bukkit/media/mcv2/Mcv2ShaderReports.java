@@ -19,6 +19,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -118,7 +119,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
       return;
     }
     final Report before = this.reports.put(uuid, report);
-    if (!report.equals(before)) {
+    if (!Objects.equals(before, report)) {
       LOGGER.info(REPORTED, name, report.describe(), report.blocksDecoding() ? "the dithered maps" : "the video");
     }
   }

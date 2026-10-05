@@ -694,7 +694,7 @@ final class Mcv2PackServerTest {
     this.packs.open(screen(320, Set.of(ALICE)));
     this.settle();
     final UUID pack = this.packs.getViewers().getPackId();
-    this.server.getMessenger().dispatchIncomingMessage(alice, "mcav:mcv2", new byte[] { 1, 1, 0, 0 });
+    this.server.receivePluginMessage(alice, "mcav:mcv2", new byte[] { 1, 1, 0, 0 });
     this.load(alice, pack);
     try (final LogCapture logs = LogCapture.capture(Mcv2PackServer.class)) {
       assertEquals(0, this.packs.handleStatus(new PlayerResourcePackStatusEvent(alice, pack, Status.SUCCESSFULLY_LOADED)));
