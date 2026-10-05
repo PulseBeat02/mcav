@@ -38,8 +38,10 @@ import java.util.Set;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.OSUtils;
 import org.bytedeco.javacv.FrameGrabber;
+import org.bytedeco.javacv.OpenCVFrameGrabber;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
@@ -128,6 +130,24 @@ final class CaptureDevicesTest {
       assertEquals(List.of(), CaptureDevices.list());
       systems.when(OSUtils::getOS).thenReturn(OS.LINUX);
       assertEquals(CaptureDevices.listSysfs(CaptureDevices.SYSFS), CaptureDevices.list());
+    }
+  }
+
+  @Test
+  void listsTheNumbersWhoseOpenCvGrabberStartsWhereTheSystemDoesNotListDevices() throws IOException {
+    try (
+      final MockedStatic<OSUtils> systems = Mockito.mockStatic(OSUtils.class);
+      final MockedConstruction<OpenCVFrameGrabber> grabbers = Mockito.mockConstruction(OpenCVFrameGrabber.class)
+    ) {
+      systems.when(OSUtils::getOS).thenReturn(OS.WINDOWS);
+      final List<CaptureDevices.Device> devices = CaptureDevices.list();
+      assertEquals(new CaptureDevices.Device(0, "device 0"), devices.getFirst());
+      assertTrue(CaptureDevices.opens(5));
+      final List<OpenCVFrameGrabber> opened = grabbers.constructed();
+      assertEquals(devices.size() + 1, opened.size());
+      for (final OpenCVFrameGrabber grabber : opened) {
+        verify(grabber).close();
+      }
     }
   }
 
