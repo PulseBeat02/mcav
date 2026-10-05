@@ -51,6 +51,48 @@ class PublishingPluginTest {
         }
     }
 
+    @Test
+    fun mutationTestJvmCanReadTheGeneratedPublication() {
+        prepareProject()
+        directory.resolve("build.gradle").toFile().appendText(
+            """
+            apply plugin: 'info.solidsoft.pitest'
+            pitest { jvmArgs = provider { tasks.test.jvmArgs } }
+            tasks.register('readMutationPom', JavaExec) {
+                dependsOn 'classes', 'generatePomFileForMavenPublication'
+                classpath = sourceSets.main.runtimeClasspath
+                mainClass = 'Example'
+                doFirst { jvmArgs project.pitest.jvmArgs.get() }
+            }
+            """.trimIndent()
+        )
+        directory.resolve("src/main/java/Example.java").toFile().writeText(
+            """
+            import java.nio.file.Files;
+            import java.nio.file.Path;
+
+            public class Example {
+                public static void main(String[] args) throws Exception {
+                    String pom = System.getProperty("mcav.published.pom");
+                    if (pom == null) {
+                        throw new IllegalStateException("PIT's JVM cannot see the generated publication POM");
+                    }
+                    String contents = Files.readString(Path.of(pom));
+                    if (!contents.contains("<artifactId>mcav-fixture</artifactId>")) {
+                        throw new IllegalStateException("PIT's JVM must read this project's generated POM");
+                    }
+                    Files.writeString(Path.of("build/mutation-pom.txt"), contents);
+                }
+            }
+            """.trimIndent()
+        )
+        run("readMutationPom")
+        assertEquals(
+            directory.resolve("build/publications/maven/pom-default.xml").toFile().readText(),
+            directory.resolve("build/mutation-pom.txt").toFile().readText()
+        )
+    }
+
     private fun prepareProject() {
         val project = directory.toFile()
         project.resolve("settings.gradle").writeText("rootProject.name = 'mcav-fixture'\n")

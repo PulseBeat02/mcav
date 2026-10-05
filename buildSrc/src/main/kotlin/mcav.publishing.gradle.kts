@@ -3,6 +3,7 @@
 // credentials from the Gradle properties brandonliUsername and brandonliPassword. `mcavPublishing` changes what a module
 // publishes.
 
+import info.solidsoft.gradle.pitest.PitestPluginExtension
 import me.brandonli.mcav.gradle.McavPublishingExtension
 
 plugins {
@@ -78,13 +79,17 @@ afterEvaluate {
             suppressAllPomMetadataWarnings()
         }
     }
-    // POM tests inspect the generated publication; PIT forwards JVM arguments, but not Test.systemProperties.
+    // Gradle stores -D options as Test.systemProperties, so PIT needs its own copy for the forked test JVMs.
     val generatedPom = tasks.named<GenerateMavenPom>("generatePomFileForMavenPublication")
+    val publishedPom = "-Dmcav.published.pom=" + generatedPom.get().destination.absolutePath
     tasks.named<Test>("test") {
         dependsOn(generatedPom)
-        jvmArgs("-Dmcav.published.pom=" + generatedPom.get().destination.absolutePath)
+        jvmArgs(publishedPom)
     }
     pluginManager.withPlugin("info.solidsoft.pitest") {
+        extensions.configure<PitestPluginExtension> {
+            jvmArgs.add(publishedPom)
+        }
         tasks.named("pitest") {
             dependsOn(generatedPom)
         }
