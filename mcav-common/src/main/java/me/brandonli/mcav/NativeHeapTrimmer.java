@@ -39,7 +39,8 @@ import org.slf4j.LoggerFactory;
  * in use: after 31 hours of a soak test, the arenas of the server held 2.1 GB of free memory beside 0.3 GB in use, and
  * its resident memory grew by about 20 MB an hour. The JDK's {@code System.trim_native_heap} command returns the free
  * pages of every arena to the system. A JVM started with {@code -XX:TrimNativeHeapInterval} trims on its own and is left
- * to it, and so is a JVM other than HotSpot, which has neither that option nor the command.
+ * to it, and so is a JVM other than HotSpot, or a runtime without the jdk.management module, which have neither that
+ * option nor the command.
  *
  * <p>The interval is the system property {@value #INTERVAL_PROPERTY}, in seconds, {@value #DEFAULT_INTERVAL_SECONDS} by
  * default; zero or less turns trimming off.
@@ -189,8 +190,9 @@ final class NativeHeapTrimmer implements AutoCloseable {
       final VMOption option = hotspot.getVMOption(JVM_INTERVAL_OPTION);
       final String value = option.getValue();
       return Long.parseLong(value);
-    } catch (final IllegalArgumentException exception) {
-      // a JVM other than HotSpot may lack the bean or the option; it lacks the command that trims as well
+    } catch (final IllegalArgumentException | NoClassDefFoundError exception) {
+      // a JVM other than HotSpot may lack the bean or the option, and a runtime linked without the jdk.management module
+      // lacks the bean's class; either lacks the command that trims as well
       return NO_JVM_INTERVAL;
     }
   }
