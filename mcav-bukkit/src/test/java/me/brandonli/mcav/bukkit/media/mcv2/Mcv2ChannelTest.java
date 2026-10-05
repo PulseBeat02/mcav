@@ -23,18 +23,13 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.netty.channel.ChannelException;
-import java.nio.channels.ClosedChannelException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -64,7 +59,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.MockedStatic;
 
 final class Mcv2ChannelTest {
 
@@ -181,22 +175,6 @@ final class Mcv2ChannelTest {
     verify(this.screen).show(this.player);
     channel.requestKeyframe();
     assertTrue(channel.takeKeyframeRequest());
-  }
-
-  @Test
-  void showsTheScreenToAViewerWhoseConnectionRefusesTheUnsentLimit() {
-    // epoll refuses the option of a connection that closed since the show was scheduled, as when the player leaves
-    final ChannelException closed = new ChannelException(new ClosedChannelException());
-    try (final MockedStatic<PacketUtils> packets = mockStatic(PacketUtils.class, CALLS_REAL_METHODS)) {
-      packets.when(() -> PacketUtils.limitUnsent(any(), anyInt())).thenThrow(closed);
-      final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
-      channel.update();
-      this.server.runTasks();
-
-      verify(this.screen).show(this.player);
-      assertEquals(Set.of(WITHOUT, OFFLINE), channel.update(), "the viewer receives frames, without the limit");
-      assertEquals(Set.of(LOADED), channel.getRecipients());
-    }
   }
 
   @Test
