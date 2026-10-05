@@ -661,8 +661,9 @@ final class Mcv2PackServerTest {
       assertEquals(-1, this.packs.handleStatus(new PlayerResourcePackStatusEvent(alice, pack, Status.SUCCESSFULLY_LOADED)));
       verify(alice).sendMessage(
         Component.text(
-          "MCV2: your modded client may replace the video shaders. If video is blank or frozen, turn off Iris shaders, " +
-            "or ask the server admin for dithered playback. MCAV cannot detect active shader settings.",
+          "MCV2: your modded client may replace the video shaders. If video is blank or frozen, install the MCAV MCV2 " +
+            "Client mod, which shows you the dithered maps while Iris shaders are on, or turn off Iris shaders. Without " +
+            "the mod, MCAV cannot detect active shader settings.",
           NamedTextColor.YELLOW
         )
       );
@@ -670,8 +671,8 @@ final class Mcv2PackServerTest {
         List.of(
           "MCV2 pack loaded by Alice (client brand " +
             brand +
-            "); active shaders cannot be verified. " +
-            "Iris shader packs can prevent decoding: disable Iris shaders or use dithered playback."
+            ") without the MCAV MCV2 Client mod, so active shaders cannot be verified. " +
+            "Iris shader packs can prevent decoding: with the mod, such a player sees the dithered maps."
         ),
         logs
           .getEvents()
@@ -682,6 +683,30 @@ final class Mcv2PackServerTest {
       );
     }
     assertTrue(this.packs.getViewers().isLoaded(ALICE), "a brand advisory must preserve working Sodium clients");
+  }
+
+  @Test
+  void doesNotWarnAModdedViewerWhoseMcv2ClientModReportedTheirShaders() {
+    final CraftPlayer alice = this.online(ALICE);
+    when(alice.getName()).thenReturn("Alice");
+    when(alice.getClientBrandName()).thenReturn("fabric");
+    this.packs.start();
+    this.packs.open(screen(320, Set.of(ALICE)));
+    this.settle();
+    final UUID pack = this.packs.getViewers().getPackId();
+    this.server.getMessenger().dispatchIncomingMessage(alice, "mcav:mcv2", new byte[] { 1, 1, 0, 0 });
+    this.load(alice, pack);
+    try (final LogCapture logs = LogCapture.capture(Mcv2PackServer.class)) {
+      assertEquals(0, this.packs.handleStatus(new PlayerResourcePackStatusEvent(alice, pack, Status.SUCCESSFULLY_LOADED)));
+      verify(alice, never()).sendMessage(any(Component.class));
+      assertTrue(
+        logs
+          .getEvents()
+          .stream()
+          .noneMatch(event -> event.getLevel().equals(Level.WARN))
+      );
+    }
+    assertTrue(this.packs.getViewers().isLoaded(ALICE), "shaders off, as the mod reported");
   }
 
   @ParameterizedTest
