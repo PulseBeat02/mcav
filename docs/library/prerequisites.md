@@ -34,7 +34,9 @@ On Windows and macOS the download is VLC 3.0.24 from VideoLAN, checked against t
 publishes no Linux build, so on x86-64 Linux MCAV downloads an AppImage built from the VLC package of Arch Linux
 (<https://github.com/ivan-hc/VLC-appimage>): one dated release, VLC 3.0.23 of 2026-10-01, pinned with the SHA-256 hash
 MCAV ships, like the others. MCAV runs the AppImage to unpack it, so it runs only that reviewed build, never what the
-project's weekly tag points to later; a newer VLC there needs a new pin in MCAV.
+project's weekly tag points to later; a newer VLC there needs a new pin in MCAV. A server that should run no build of a
+third party installs VLC from its distribution (`apt install vlc`, `dnf install vlc`): MCAV then uses that VLC and
+downloads nothing.
 
 FFmpeg and OpenCV are bundled with the library for every platform above. The OpenCV build differs per platform: the
 Windows and macOS builds read video files themselves, the Linux build has no file backend and only captures from
