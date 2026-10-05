@@ -126,6 +126,22 @@ final class FrameParserRulesTest {
   }
 
   @Test
+  void refusesALeafOfARevertedRoundInTheDerivedForm() throws Mcv2Exception {
+    final byte[] frame = keyframe(64, 32, DERIVED, solid(1, 1, 1), leaf(Mcv2Format.MODE_PALETTE, 0, 32, 3));
+    FrameParser.parse(frame);
+    final Layout layout = Layout.of(frame);
+    // the palette leaf's descriptor is the largest of the symbol table, so a reverted mode in its place keeps it sorted
+    final int paletteSymbol = layout.table() + frame[layout.table()];
+    assertEquals(Mcv2Format.MODE_PALETTE, frame[paletteSymbol]);
+    for (final int mode : List.of(Mcv2Format.MODE_COARSE_PALETTE_2, Mcv2Format.MODE_COARSE_PALETTE_4, Mcv2Format.MODE_INDEXED_MOTION)) {
+      final byte[] reverted = withByte(frame, paletteSymbol, mode);
+      // refused as syntax mcav does not take, as in the stored forms, not as a broken descriptor
+      final UnsupportedSyntaxException refused = assertThrows(UnsupportedSyntaxException.class, () -> FrameParser.parse(reverted));
+      assertEquals("Leaf mode " + mode + " of a reverted round is not supported", refused.getMessage());
+    }
+  }
+
+  @Test
   void refusesAnUnsortedSymbolTable() {
     final byte[] frame = keyframe(64, 32, DERIVED, solid(1, 1, 1), split(leaf(Mcv2Format.MODE_PALETTE, 0, 16, 3)));
     final Layout layout = Layout.of(frame);
