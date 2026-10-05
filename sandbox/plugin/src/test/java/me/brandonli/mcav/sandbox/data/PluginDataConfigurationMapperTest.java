@@ -82,6 +82,8 @@ final class PluginDataConfigurationMapperTest {
     allow-private-networks: true
     javascript-jit: true
     autoplay-sound: true
+  vm:
+    allow-network: true
   """;
 
   @TempDir
@@ -226,6 +228,7 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(this.mapper.isBrowserPrivateNetworks());
     assertFalse(this.mapper.isBrowserJavaScriptJit());
     assertFalse(this.mapper.isBrowserAutoplaySound());
+    assertFalse(this.mapper.isVmAllowNetwork(), "machines get a network that reaches nothing");
     assertSame(MapCodec.DITHER, this.mapper.getMcv2DefaultCodec());
     assertSame(Mcv2Hosting.INJECTOR, this.mapper.getMcv2PackHosting());
     assertEquals("", this.mapper.getMcv2PackHttpHost());
@@ -336,6 +339,7 @@ final class PluginDataConfigurationMapperTest {
     assertTrue(this.mapper.isBrowserPrivateNetworks());
     assertTrue(this.mapper.isBrowserJavaScriptJit());
     assertTrue(this.mapper.isBrowserAutoplaySound());
+    assertTrue(this.mapper.isVmAllowNetwork());
   }
 
   @Test

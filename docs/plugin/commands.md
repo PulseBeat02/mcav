@@ -580,11 +580,12 @@ folder, named without its folder, such as `-cdrom "alpine linux.iso"`. Put your 
 `copy-on-read`, `discard`, `detect-zeroes`, `werror` and `rerror`, such as `-drive file=disk.img,format=raw,if=virtio`;
 any other property is refused. A machine may have at most half of the memory of the server (or of its container),
 and at least 512 MiB, since a guest can use all the memory it is given; a larger `-m` is refused. The
-display of the guest always stays on the loopback address the plugin chose for it, and the guest keeps the user-mode
-network QEMU gives it by default. In that network the address 10.0.2.2 is the server itself: a guest reaches every
-service the server offers only on its loopback address, such as an RCON port, a database or an admin page, as a program
-on the server would. Whoever types into the guest can use them, so on a server with such services do not create
-machines for players who may not.
+display of the guest always stays on the loopback address the plugin chose for it. The guest's network card reaches
+nothing, neither the internet nor the server, unless `vm.allow-network` is on in `config.yml`. With it on, the guest
+gets QEMU's user-mode network, in which the address 10.0.2.2 is the server itself: a guest reaches every service the
+server offers only on its loopback address, such as an RCON port, a database or an admin page, as a program on the
+server would. Whoever types into the guest can use them, so turn it on only if every player who may create or use a
+machine may use them.
 
 ## Image Commands
 

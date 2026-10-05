@@ -161,6 +161,20 @@ browser:
   # should play a video with sound as soon as it opens.
   # Default is false
   autoplay-sound: false
+
+# ======================================================================
+# VIRTUAL MACHINE CONFIGURATION
+# ======================================================================
+
+# The virtual machines of /mcav vm create.
+vm:
+
+  # Whether a machine's guest gets QEMU's user-mode network. It reaches the internet, and also every service of the
+  # server that listens only on its loopback address (10.0.2.2 inside the guest), such as an RCON port, a database or
+  # an admin page. Off, the guest has a network card that reaches nothing. Turn it on only if everyone who may create
+  # a machine or type into one may use those services.
+  # Default is false
+  allow-network: false
 ```
 
 ```{warning}
@@ -199,7 +213,9 @@ Chromium in `~/.mcav/cache/jcef` (136 to 165 MB) and, on Linux, the libraries it
 `~/.mcav/cache/jcef-libraries` (about 13 MB). On a Pterodactyl server that is `/home/container/.mcav/cache`. The folder
 has no setting of its own; delete it to download everything again.
 
-Virtual machines have no settings in `config.yml`: where their sound plays is chosen with the audio type of
+A virtual machine's guest gets a network card that reaches nothing, neither the internet nor the server.
+`vm.allow-network` gives it QEMU's own user-mode network instead, which reaches the internet and every service the
+server offers only on its loopback address. Where a machine's sound plays is chosen with the audio type of
 `/mcav vm create`, and MCAV gives an `X86_64` machine its sound card itself.
 
 ## MCV2

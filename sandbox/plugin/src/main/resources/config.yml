@@ -155,3 +155,17 @@ browser:
   # should play a video with sound as soon as it opens.
   # Default is false
   autoplay-sound: false
+
+# ======================================================================
+# VIRTUAL MACHINE CONFIGURATION
+# ======================================================================
+
+# The virtual machines of /mcav vm create.
+vm:
+
+  # Whether a machine's guest gets QEMU's user-mode network. It reaches the internet, and also every service of the
+  # server that listens only on its loopback address (10.0.2.2 inside the guest), such as an RCON port, a database or
+  # an admin page. Off, the guest has a network card that reaches nothing. Turn it on only if everyone who may create
+  # a machine or type into one may use those services.
+  # Default is false
+  allow-network: false

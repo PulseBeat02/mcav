@@ -58,10 +58,11 @@ library (`MCAVApi.release`) does not stop the machines either; release every pla
   }
 ```
 
-QEMU gives a guest its user-mode network unless told otherwise, and in it the address 10.0.2.2 is the machine QEMU runs
-on: the guest reaches every service there that listens only on the loopback address. `network("none")` gives the guest
-no network, and `network("user,restrict=on")` one that reaches neither the host nor the internet, apart from the
-forwards you add.
+A machine whose configuration chooses no network (`-nic`, `-netdev`, `-net` or `-nodefaults`) gets
+`-nic user,restrict=on`: a network card that reaches neither the host nor the internet, apart from the forwards you
+add. QEMU's own default network, which `network("user")` gives back, reaches the internet, and in it the address
+10.0.2.2 is the machine QEMU runs on: the guest reaches every service there that listens only on the loopback address.
+`network("none")` gives the guest no network card at all.
 
 Options that QEMU accepts more than once, such as `-drive` or `-device`, are added with `drive(...)`, `device(...)`, or
 `repeatable(key, value)`; every other option replaces its earlier value. `start` throws an

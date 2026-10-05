@@ -80,6 +80,9 @@ final class VMProcess {
   private static final String STILL_ALIVE = "QEMU is still alive after forced termination";
   private static final String LOCALHOST = "127.0.0.1";
   private static final Set<String> MACHINE_OPTIONS = Set.of("machine", "M");
+  // the options with which a configuration chooses the network of the guest; -nodefaults leaves out QEMU's own
+  private static final List<String> NETWORK_OPTIONS = List.of("nic", "netdev", "net", "nodefaults");
+  private static final String RESTRICTED_NETWORK = "user,restrict=on";
   // QEMU listens on the IPv4 loopback address, which is parsed from the literal rather than looked up
   static final InetAddress LOOPBACK = InetAddress.ofLiteral(LOCALHOST);
   private static final long START_TIMEOUT_MILLIS = 60_000L;
@@ -415,9 +418,10 @@ final class VMProcess {
   }
 
   /**
-   * Adds the options MCAV relies on: a standard VGA card and no window on the host unless the configuration sets
-   * them itself, the sound of the machine, a VNC display on the configured port that every client shares, and a USB
-   * tablet. The tablet reports absolute coordinates, so VNC pointer positions map straight onto the screen.
+   * Adds the options MCAV relies on: a standard VGA card, no window on the host and a network that reaches neither
+   * the host nor the internet unless the configuration sets them itself, the sound of the machine, a VNC display on
+   * the configured port that every client shares, and a USB tablet. The tablet reports absolute coordinates, so VNC
+   * pointer positions map straight onto the screen.
    */
   private void addDefaultOptions(final List<String> command) {
     this.addUnlessConfigured(command, "vga", "-vga", "std");
@@ -425,6 +429,13 @@ final class VMProcess {
     if (!hasDisplay) {
       command.add("-display");
       command.add("none");
+    }
+    // QEMU's own default network lets the guest reach every service of the host's loopback address (10.0.2.2 inside
+    // the guest), so a machine that chose no network gets one that reaches neither the host nor the internet
+    final boolean hasNetwork = NETWORK_OPTIONS.stream().anyMatch(this.configuration::has);
+    if (!hasNetwork) {
+      command.add("-nic");
+      command.add(RESTRICTED_NETWORK);
     }
     final int port = this.settings.getPort();
     final int display = port - FIRST_VNC_PORT;

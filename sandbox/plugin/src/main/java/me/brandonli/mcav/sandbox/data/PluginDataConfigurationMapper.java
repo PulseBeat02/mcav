@@ -90,6 +90,8 @@ public final class PluginDataConfigurationMapper {
 
   private static final String BROWSER_AUTOPLAY_SOUND = "browser.autoplay-sound";
 
+  private static final String VM_ALLOW_NETWORK = "vm.allow-network";
+
   private static final String VNC_ALLOWED_HOSTS = "vnc.allowed-hosts";
 
   private static final int DEFAULT_HTTP_PORT = 3000;
@@ -132,6 +134,8 @@ public final class PluginDataConfigurationMapper {
   private boolean browserJavaScriptJit;
 
   private boolean browserAutoplaySound;
+
+  private boolean vmAllowNetwork;
 
   private int mcv2EncoderThreads;
 
@@ -189,6 +193,7 @@ public final class PluginDataConfigurationMapper {
     this.browserPrivateNetworks = config.getBoolean(BROWSER_PRIVATE_NETWORKS, false);
     this.browserJavaScriptJit = config.getBoolean(BROWSER_JAVASCRIPT_JIT, false);
     this.browserAutoplaySound = config.getBoolean(BROWSER_AUTOPLAY_SOUND, false);
+    this.vmAllowNetwork = config.getBoolean(VM_ALLOW_NETWORK, false);
     this.vncAllowList = readVncAllowList(config);
   }
 
@@ -315,6 +320,16 @@ public final class PluginDataConfigurationMapper {
    */
   public synchronized boolean isBrowserAutoplaySound() {
     return this.browserAutoplaySound;
+  }
+
+  /**
+   * Checks whether virtual machines get QEMU's own user-mode network, which reaches the internet and every service of
+   * the server's loopback address, instead of one that reaches nothing.
+   *
+   * @return true if {@code vm.allow-network} is on
+   */
+  public synchronized boolean isVmAllowNetwork() {
+    return this.vmAllowNetwork;
   }
 
   /**

@@ -31,8 +31,8 @@ plugin accepts only the options that describe a machine ([the full list](command
   values of its kind only, and a few switches such as `-snapshot` and `-no-reboot`.
 - **Memory**: at most half of the server's memory (or of its container's), and at least 512 MiB.
 
-The display always stays on the loopback address the plugin chose for it, and the guest keeps the user-mode network
-QEMU gives it by default.
+The display always stays on the loopback address the plugin chose for it. The guest's network card reaches nothing,
+neither the internet nor the server, unless `vm.allow-network` is on in `config.yml`.
 
 ## Sound
 
@@ -52,7 +52,7 @@ chat mode.
 
 ## Known Limits
 
-The guest's user-mode network can reach the server's loopback address (`10.0.2.2` inside the guest), and QEMU's VNC
-display, bound to the loopback address, has no password, so another process on the server could watch it. Both come
-from QEMU's defaults. QEMU is a child process of the server: if the server is killed hard, without releasing its
+With `vm.allow-network` on, the guest's user-mode network can reach the server's loopback address (`10.0.2.2` inside
+the guest). QEMU's VNC display, bound to the loopback address, has no password, so another process on the server could
+watch it. QEMU is a child process of the server: if the server is killed hard, without releasing its
 players, a running machine keeps running.

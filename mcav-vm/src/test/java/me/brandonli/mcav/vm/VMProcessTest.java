@@ -156,6 +156,8 @@ final class VMProcessTest {
       "std",
       "-display",
       "none",
+      "-nic",
+      "user,restrict=on",
       "-vnc",
       "127.0.0.1:" + display + ",share=force-shared",
       "-usb",
@@ -186,7 +188,16 @@ final class VMProcessTest {
    */
   private static List<String> expectedOnDisplayOne(final List<String> options, final List<String> usbOptions) {
     final String program = QEMU.toString();
-    final List<String> displayDefaults = List.of("-vga", "std", "-display", "none", "-vnc", "127.0.0.1:1,share=force-shared");
+    final List<String> displayDefaults = List.of(
+      "-vga",
+      "std",
+      "-display",
+      "none",
+      "-nic",
+      "user,restrict=on",
+      "-vnc",
+      "127.0.0.1:1,share=force-shared"
+    );
     final List<String> expected = new ArrayList<>();
     expected.add(program);
     expected.addAll(options);
@@ -387,6 +398,39 @@ final class VMProcessTest {
   }
 
   @Test
+  void aMachineThatChoseNoNetworkGetsOneThatReachesNeitherTheServerNorTheInternet() {
+    // QEMU's own default network would let the guest reach every service of the server's loopback address
+    final VMSettings settings = new VMSettings(5907, 64, 48, 10);
+    final VMConfiguration configuration = VMConfiguration.builder();
+    final List<String> command = this.commandWithoutAccelerator(settings, configuration);
+    final int network = command.indexOf("-nic");
+    assertTrue(network > 0, () -> "a -nic option in " + command);
+    assertEquals("user,restrict=on", command.get(network + 1));
+    assertEquals(network, command.lastIndexOf("-nic"), "one network");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "nic", "netdev", "net" })
+  void aMachineThatChoseItsNetworkKeepsIt(final String option) {
+    final VMSettings settings = new VMSettings(5907, 64, 48, 10);
+    final VMConfiguration configuration = VMConfiguration.builder();
+    configuration.option(option, "user,id=mine");
+    final List<String> command = this.commandWithoutAccelerator(settings, configuration);
+    final boolean restricted = command.contains("user,restrict=on");
+    assertFalse(restricted, () -> "no network added to " + command);
+  }
+
+  @Test
+  void aMachineWithoutDefaultDevicesGetsNoNetworkFromMcav() {
+    final VMSettings settings = new VMSettings(5907, 64, 48, 10);
+    final VMConfiguration configuration = VMConfiguration.builder();
+    configuration.flag("nodefaults");
+    final List<String> command = this.commandWithoutAccelerator(settings, configuration);
+    final boolean network = command.contains("-nic");
+    assertFalse(network, () -> "no network added to " + command);
+  }
+
+  @Test
   void leavesOutTheDefaultsTheConfigurationSets() {
     final VMSettings settings = new VMSettings(5907, 64, 48, 10);
     final VMConfiguration configuration = VMConfiguration.builder();
@@ -404,6 +448,8 @@ final class VMProcessTest {
       "gtk",
       "-usbdevice",
       "tablet",
+      "-nic",
+      "user,restrict=on",
       "-vnc",
       "127.0.0.1:7,share=force-shared"
     );
@@ -439,6 +485,8 @@ final class VMProcessTest {
       "std",
       "-display",
       "none",
+      "-nic",
+      "user,restrict=on",
       "-audiodev",
       "none,id=mcav-audio,out.frequency=48000",
       "-device",
@@ -608,6 +656,8 @@ final class VMProcessTest {
       "tcg",
       "-vga",
       "std",
+      "-nic",
+      "user,restrict=on",
       "-vnc",
       "127.0.0.1:1,share=force-shared",
       "-usb",
