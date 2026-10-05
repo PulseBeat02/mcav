@@ -52,6 +52,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
@@ -312,12 +313,23 @@ class JcefNativesTest {
       REPOSITORY,
       new ArchiveExtractor()
     );
-    final CompletableFuture<Path> first = CompletableFuture.supplyAsync(() -> install(natives));
-    final CompletableFuture<Path> second = CompletableFuture.supplyAsync(() -> install(natives));
-    Thread.sleep(100L);
+    final CompletableFuture<Path> first = new CompletableFuture<>();
+    final CompletableFuture<Path> second = new CompletableFuture<>();
+    Thread.ofPlatform().start(() -> first.complete(install(natives)));
+    Await.until("the first start downloads", () -> this.downloads.get() == 1);
+    // the second start found no installation yet and waits for the first to finish it, so it takes the check of the
+    // installation that comes after the lock: a sleep left that to the timing of the machine
+    final Thread secondStart = Thread.ofPlatform().start(() -> second.complete(install(natives)));
+    Await.until("the second start waits for the first", () -> isWaitingToInstall(secondStart));
     release.countDown();
     assertEquals(first.get(30, TimeUnit.SECONDS), second.get(30, TimeUnit.SECONDS));
     assertEquals(1, this.downloads.get());
+  }
+
+  private static boolean isWaitingToInstall(final Thread start) {
+    final StackTraceElement[] stack = start.getStackTrace();
+    final boolean inInstall = stack.length > 0 && stack[0].getClassName().equals(JcefNatives.class.getName());
+    return start.getState() == Thread.State.BLOCKED && inInstall && stack[0].getMethodName().equals("install");
   }
 
   @Test
