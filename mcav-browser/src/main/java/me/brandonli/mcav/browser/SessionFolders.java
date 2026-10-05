@@ -22,7 +22,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.attribute.UserPrincipal;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
@@ -40,7 +42,9 @@ import org.slf4j.LoggerFactory;
  * SIGKILL, a crash, the out-of-memory killer) cannot remove it. Each folder therefore gets a file with the process id
  * and the start instant of its server, and {@link #removeStale(Path)} removes every folder whose server is gone, while
  * the process with the recorded id is not the one that made it (another start instant, or no process at all). A folder
- * without the file, made by an earlier version or still being made, is left alone.
+ * without the file, made by an earlier version or still being made, is left alone, and so is, on a file system with
+ * POSIX permissions, a folder of another user: in a temporary folder every user shares, another user may make a folder
+ * of that name, with a record, and swap what is inside it for a link while it is deleted.
  */
 final class SessionFolders {
 
@@ -147,14 +151,15 @@ final class SessionFolders {
     return removed;
   }
 
-  // a folder of another user, which cannot be read, or one without a readable record, is left alone
+  // a folder of another user, or one without a readable record, is left alone
   private boolean isStale(final Path folder) {
     final Path record = folder.resolve(OWNER_FILE);
-    if (!Files.isRegularFile(record)) {
-      return false;
-    }
     final List<String> lines;
     try {
+      final boolean own = this.isOwnFolder(folder);
+      if (!own || !Files.isRegularFile(record)) {
+        return false;
+      }
       lines = Files.readAllLines(record, StandardCharsets.US_ASCII);
     } catch (final IOException exception) {
       return false;
@@ -172,5 +177,16 @@ final class SessionFolders {
     }
     final Optional<ProcessHandle> server = this.lookup.apply(pid);
     return server.isEmpty() || !server.get().info().startInstant().equals(Optional.of(started));
+  }
+
+  private boolean isOwnFolder(final Path folder) throws IOException {
+    final boolean posix = folder.getFileSystem().supportedFileAttributeViews().contains("posix");
+    if (!posix) {
+      // Windows, whose temporary folder of a user is that user's own
+      return true;
+    }
+    final Optional<String> user = this.owner.info().user();
+    final UserPrincipal folderOwner = Files.getOwner(folder, LinkOption.NOFOLLOW_LINKS);
+    return user.isPresent() && user.get().equals(folderOwner.getName());
   }
 }

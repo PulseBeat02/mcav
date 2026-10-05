@@ -25,11 +25,14 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -107,6 +110,37 @@ class SessionFoldersTest {
     assertEquals(Files.isReadable(record) ? 1 : 0, removed, "a user who may read every file reads the record");
     for (final Path kept : List.of(unnamed, garbage, truncated, other)) {
       assertTrue(Files.exists(kept), kept.toString());
+    }
+  }
+
+  @Test
+  void aFolderOfAnotherUserIsLeftAloneEvenIfItsRecordNamesAServerThatIsGone() throws IOException {
+    // another user of the machine may make a folder of that name in a shared temporary folder, readable and with a
+    // record, and swap what is inside it while it is deleted
+    final Path planted = this.folderOf(server(GONE, Optional.of(Instant.parse("2026-10-05T00:00:00Z"))));
+    final ProcessHandle serverOfAnotherUser = server(ProcessHandle.current().pid(), ProcessHandle.current().info().startInstant());
+    when(serverOfAnotherUser.info().user()).thenReturn(Optional.of("not-" + Files.getOwner(planted).getName()));
+    final ProcessHandle serverOfNoKnownUser = server(ProcessHandle.current().pid(), ProcessHandle.current().info().startInstant());
+    when(serverOfNoKnownUser.info().user()).thenReturn(Optional.empty());
+
+    assertEquals(0, new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(this.temporary));
+    assertEquals(0, new SessionFolders(serverOfNoKnownUser, ProcessHandle::of).removeStale(this.temporary));
+    assertTrue(Files.exists(planted.resolve("Cookies")), "only folders of the server's own user are removed");
+    assertEquals(1, SessionFolders.ofThisServer().removeStale(this.temporary));
+  }
+
+  @Test
+  void aFolderOnAFileSystemWithoutOwnersIsRemovedByItsRecordAlone() throws IOException {
+    final ProcessHandle serverOfAnotherUser = server(ProcessHandle.current().pid(), ProcessHandle.current().info().startInstant());
+    when(serverOfAnotherUser.info().user()).thenReturn(Optional.of("someone-else"));
+    final Path zip = this.temporary.resolve("folders.zip");
+    try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true"))) {
+      final Path root = zipped.getPath("/");
+      final Path folder = Files.createDirectory(root.resolve(SessionFolders.PREFIX + "zipped"));
+      Files.writeString(folder.resolve(SessionFolders.OWNER_FILE), GONE + "\n2001-01-01T00:00:00Z\n");
+
+      assertEquals(1, new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(root));
+      assertFalse(Files.exists(folder), "as on Windows, whose temporary folder belongs to its user alone");
     }
   }
 

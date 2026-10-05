@@ -158,7 +158,8 @@ a page can do instead:
 - The helper gets a minimal environment, a folder only the user running MCAV can read (on Windows, a folder in the
   user's own temporary folder), which is deleted when the browser is released, and a profile that keeps nothing. The
   folder names the server that made it, so a folder a killed server left behind is deleted when the browser module
-  starts again.
+  starts again. On Linux and macOS only folders of the user running the server are deleted, as other users of the
+  machine share the temporary folder.
 
 - The sound of the page reaches the helper through a DevTools binding that the page could call too, before MCAV's
   script takes it away; the helper takes only exact calls with whole frames of sound, at most two seconds of sound per
