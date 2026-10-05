@@ -25,7 +25,9 @@ every painted frame over as plain pixels, so frames arrive only when the page ch
 The first browser that starts on a machine downloads the CEF build for it, 136 to 165 MB depending on the platform,
 from Maven Central into MCAV's cache folder (`~/.mcav/cache/jcef` of the user that runs the application). The download
 is checked against a SHA-256 hash pinned in MCAV and unpacked with checks that keep every file inside that folder;
-later starts reuse it. Two applications starting at the same time download it once.
+later starts reuse it. Two applications starting at the same time download it once. Only the user that runs the
+application may change the installation, whatever its umask; one that an older version left writable for its group is
+fixed at the next start.
 
 | Operating System | Architectures           | Notes                                                                        |
 |------------------|-------------------------|------------------------------------------------------------------------------|

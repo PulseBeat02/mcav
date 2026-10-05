@@ -23,11 +23,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.FileSystem;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
@@ -37,6 +40,8 @@ import java.util.Set;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Extracts the gzip-compressed tar archive of the CEF natives, refusing anything that could write outside the target
@@ -69,6 +74,8 @@ final class ArchiveExtractor {
   private static final Set<PosixFilePermission> EXECUTABLE = PosixFilePermissions.fromString("rwxr-xr-x");
   private static final Set<PosixFilePermission> REGULAR = PosixFilePermissions.fromString("rw-r--r--");
   private static final Set<PosixFilePermission> FOLDER = PosixFilePermissions.fromString("rwxr-xr-x");
+  private static final Logger LOGGER = LoggerFactory.getLogger(ArchiveExtractor.class);
+  private static final String NOT_TIGHTENED = "The group may still write {} of the browser's installation: {}";
   private static final int EXECUTE_BITS = 0111;
   private static final int BUFFER_BYTES = 64 * 1024;
 
@@ -261,6 +268,66 @@ final class ArchiveExtractor {
       for (final Path created : missing) {
         Files.setPosixFilePermissions(created, FOLDER);
       }
+    }
+  }
+
+  /**
+   * Takes the write permission of the group and of everyone else away from a folder and everything in it, where the
+   * file system has POSIX permissions: an installation made before MCAV set the permissions itself has the ones the
+   * umask of its server left, such as {@code rwxrwxr-x}, which let the group replace the native code. A path whose
+   * permissions cannot be changed is logged and left as it is.
+   *
+   * @param folder the folder
+   * @throws IOException if the folder cannot be walked
+   */
+  static void tighten(final Path folder) throws IOException {
+    final FileSystem fileSystem = folder.getFileSystem();
+    if (!fileSystem.supportedFileAttributeViews().contains("posix") || !Files.isDirectory(folder)) {
+      return;
+    }
+    Files.walkFileTree(
+      folder,
+      new SimpleFileVisitor<>() {
+        @Override
+        public FileVisitResult preVisitDirectory(final Path directory, final BasicFileAttributes attributes) {
+          takeWriteAway(directory);
+          return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFile(final Path file, final BasicFileAttributes attributes) {
+          // a link has no permissions of its own, and changing them would change those of its target
+          if (!attributes.isSymbolicLink()) {
+            takeWriteAway(file);
+          }
+          return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFileFailed(final Path file, final IOException exception) {
+          // deleted meanwhile, or a folder its owner may not read
+          return FileVisitResult.CONTINUE;
+        }
+      }
+    );
+  }
+
+  /**
+   * Takes the write permission of the group and of everyone else away from one file or folder.
+   *
+   * @param path the file or folder
+   */
+  @VisibleForTesting
+  static void takeWriteAway(final Path path) {
+    try {
+      final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path, LinkOption.NOFOLLOW_LINKS);
+      final boolean groupMayWrite = permissions.remove(PosixFilePermission.GROUP_WRITE);
+      final boolean othersMayWrite = permissions.remove(PosixFilePermission.OTHERS_WRITE);
+      if (groupMayWrite || othersMayWrite) {
+        Files.setPosixFilePermissions(path, permissions);
+      }
+    } catch (final IOException exception) {
+      LOGGER.warn(NOT_TIGHTENED, path, exception.toString());
     }
   }
 

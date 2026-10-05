@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -208,6 +209,26 @@ class JcefNativesTest {
     assertEquals(List.of(installation.getFileName().toString()), this.leftovers(), "the jar and the staging folder are gone");
     assertEquals(installation, natives.install("linux-amd64", "pinned", PINNED_SIZE));
     assertEquals(1, this.downloads.get());
+  }
+
+  @Test
+  void nativesAnEarlierVersionInstalledLoseTheWritePermissionOfTheGroup() throws IOException {
+    assumeTrue(this.folder.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
+    final JcefNatives natives = this.natives(nativesJar(true));
+    final Path installation = natives.install("linux-amd64", "pinned", PINNED_SIZE);
+    // as an earlier version left them under a umask of 0002
+    final Path library = installation.resolve("libjcef.so");
+    final Path marker = installation.resolve(JcefNatives.INSTALL_MARKER);
+    Files.setPosixFilePermissions(this.folder, PosixFilePermissions.fromString("rwxrwxr-x"));
+    Files.setPosixFilePermissions(installation, PosixFilePermissions.fromString("rwxrwxr-x"));
+    Files.setPosixFilePermissions(library, PosixFilePermissions.fromString("rw-rw-rw-"));
+    Files.setPosixFilePermissions(marker, PosixFilePermissions.fromString("rw-rw-r--"));
+    assertEquals(installation, natives.install("linux-amd64", "pinned", PINNED_SIZE));
+    assertEquals(1, this.downloads.get(), "nothing is installed again");
+    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(this.folder));
+    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(installation));
+    assertEquals(PosixFilePermissions.fromString("rw-r--r--"), Files.getPosixFilePermissions(library));
+    assertEquals(PosixFilePermissions.fromString("rw-r--r--"), Files.getPosixFilePermissions(marker));
   }
 
   @Test
