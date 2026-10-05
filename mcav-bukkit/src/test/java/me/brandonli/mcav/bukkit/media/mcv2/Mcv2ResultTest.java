@@ -40,6 +40,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -656,11 +657,13 @@ final class Mcv2ResultTest {
   }
 
   @Test
-  void convertsArgbToRgb() {
-    assertArrayEquals(
-      new byte[] { 0x11, 0x22, 0x33, (byte) 0xAA, (byte) 0xBB, (byte) 0xCC },
-      Mcv2Result.rgb(new int[] { 0xFF112233, 0x00AABBCC, 7 }, 2)
-    );
+  void convertsBgrToRgbFromThePositionOfTheBuffer() {
+    final ByteBuffer bgr = ByteBuffer.wrap(new byte[] { 9, 0x33, 0x22, 0x11, (byte) 0xCC, (byte) 0xBB, (byte) 0xAA, 7 });
+    bgr.position(1);
+    final byte[] rgb = Mcv2Result.rgb(bgr, 2);
+
+    assertArrayEquals(new byte[] { 0x11, 0x22, 0x33, (byte) 0xAA, (byte) 0xBB, (byte) 0xCC }, rgb);
+    assertEquals(1, bgr.position(), "the buffer is left as it was");
   }
 
   @Test

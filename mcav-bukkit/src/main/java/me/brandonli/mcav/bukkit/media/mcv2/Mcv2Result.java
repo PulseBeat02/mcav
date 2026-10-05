@@ -18,6 +18,7 @@
 package me.brandonli.mcav.bukkit.media.mcv2;
 
 import com.google.common.base.Preconditions;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -669,13 +670,16 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
     // on the dithered maps the pacer encodes no frame
     if (encode && !current.channel().getRecipients().isEmpty()) {
-      final Arrival arrival = new Arrival(rgb(data.getPixels(), width * height), width, height, System.currentTimeMillis(), preset);
+      // straight from the picture's own bytes: its ARGB pixels would be one more full-frame array every frame, at
+      // 1080p 8 MB, which G1 allocates as a humongous object (pass-6 soak O5: 99 % of the collections were for those)
+      final Arrival arrival = new Arrival(rgb(data.getData(), width * height), width, height, System.currentTimeMillis(), preset);
       this.pending.offer(arrival);
     }
     final Fallback dithered = this.fallback;
     if (dithered != null && !others.isEmpty() && this.ditheringBusy.compareAndSet(false, true)) {
-      // the dithering's own copy of the frame, which the video reuses once this returns
-      final int[] argb = data.getPixels().clone();
+      // the picture hands out a new pixel array whenever it changes (ImageBuffer#getPixels), so the dithering may read
+      // this one after the video moved on, without a copy
+      final int[] argb = data.getPixels();
       try {
         this.dithering.execute(() -> this.dither(dithered, argb, width, height));
       } catch (final RejectedExecutionException released) {
@@ -721,14 +725,20 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  static byte[] rgb(final int[] argb, final int pixels) {
+  /**
+   * Copies the first pixels of a picture's 8-bit BGR bytes into a new array in RGB order.
+   *
+   * @param bgr    the bytes, from the buffer's position on, which is left as it is
+   * @param pixels the number of pixels to copy
+   * @return the RGB bytes
+   */
+  static byte[] rgb(final ByteBuffer bgr, final int pixels) {
     final byte[] rgb = new byte[pixels * Mcv2Format.CHANNELS];
-    for (int pixelIndex = 0; pixelIndex < pixels; pixelIndex++) {
-      final int pixel = argb[pixelIndex];
-      final int at = pixelIndex * Mcv2Format.CHANNELS;
-      rgb[at] = (byte) (pixel >> 16);
-      rgb[at + 1] = (byte) (pixel >> 8);
-      rgb[at + 2] = (byte) pixel;
+    bgr.get(bgr.position(), rgb);
+    for (int at = 0; at < rgb.length; at += Mcv2Format.CHANNELS) {
+      final byte blue = rgb[at];
+      rgb[at] = rgb[at + 2];
+      rgb[at + 2] = blue;
     }
     return rgb;
   }
