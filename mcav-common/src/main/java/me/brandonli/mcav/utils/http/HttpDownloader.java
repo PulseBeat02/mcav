@@ -319,17 +319,6 @@ public final class HttpDownloader {
   }
 
   /**
-   * Gets how long a pinned download may take: a minute, and a second for every 64 KiB of its size.
-   *
-   * @param maxBytes the pinned size
-   * @return the time it may take
-   */
-  @VisibleForTesting
-  static Duration pinnedDeadline(final long maxBytes) {
-    return PINNED_GRACE.plusSeconds(maxBytes / PINNED_MIN_BYTES_PER_SECOND);
-  }
-
-  /**
    * Downloads a file with a custom delay between attempts and the default idle timeout.
    *
    * @param uri            the URI to download
@@ -407,6 +396,17 @@ public final class HttpDownloader {
     } finally {
       Files.deleteIfExists(partFile);
     }
+  }
+
+  /**
+   * Gets how long a pinned download may take: a minute, and a second for every 64 KiB of its size.
+   *
+   * @param maxBytes the pinned size
+   * @return the time it may take
+   */
+  @VisibleForTesting
+  static Duration pinnedDeadline(final long maxBytes) {
+    return PINNED_GRACE.plusSeconds(maxBytes / PINNED_MIN_BYTES_PER_SECOND);
   }
 
   /**
