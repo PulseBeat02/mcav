@@ -526,6 +526,19 @@ class NullDisplayTest {
     return reply[0] == 1;
   }
 
+  private static boolean isServed(final Socket client) {
+    try {
+      return internsAnAtom(client);
+    } catch (final IOException ended) {
+      return false;
+    }
+  }
+
+  /**
+   * The display answers a setup before the thread of the client takes a slot, so on a busy machine the thread of an
+   * earlier client may take its slot after a later one's, and that earlier client is the one ended: of one client more
+   * than the limit, exactly one ends and the others are served, whichever it is.
+   */
   @Test
   void clientsWithTheCookieBeyondTheLimitAreEndedAndOneThatLeavesFreesItsPlace() throws IOException {
     final Path authority = this.folder.resolve("Xauthority");
@@ -534,14 +547,18 @@ class NullDisplayTest {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
       final byte[] cookie = cookieOf(authority);
-      for (int count = 0; count < NullDisplay.MAX_CONNECTIONS; count++) {
+      for (int count = 0; count <= NullDisplay.MAX_CONNECTIONS; count++) {
         clients.add(introduce(loopback, port, cookie));
       }
-      try (final Socket extra = introduce(loopback, port, cookie)) {
-        assertEnded(extra.getInputStream());
+      final List<Socket> served = new ArrayList<>();
+      for (final Socket client : clients) {
+        if (isServed(client)) {
+          served.add(client);
+        }
       }
+      assertEquals(NullDisplay.MAX_CONNECTIONS, served.size(), "one client more than the limit is ended");
       // a client that leaves frees its place
-      clients.removeFirst().close();
+      served.getFirst().close();
       Await.until("a place for another client", () -> {
         try (final Socket next = introduce(loopback, port, cookie)) {
           return internsAnAtom(next);
