@@ -82,6 +82,8 @@ import org.mockito.verification.VerificationMode;
  */
 final class VMPlayerImplTest {
 
+  private static final String PASSWORD = "Pa55word";
+
   @TempDir
   private Path directory;
 
@@ -91,10 +93,12 @@ final class VMPlayerImplTest {
 
   private final List<VMAudioClient.Sink> sinks = new CopyOnWriteArrayList<>();
   private final List<InetSocketAddress> audioAddresses = new CopyOnWriteArrayList<>();
+  private final List<String> audioPasswords = new CopyOnWriteArrayList<>();
   private final VMAudioClient audioClient = mock(VMAudioClient.class);
   // a machine of the mocked QEMU has no sound unless a test says so, and then this connects to it
-  private final VMPlayerImpl.AudioConnector audio = (address, sink, failures) -> {
+  private final VMPlayerImpl.AudioConnector audio = (address, password, sink, failures) -> {
     this.audioAddresses.add(address);
+    this.audioPasswords.add(password);
     this.sinks.add(sink);
     return this.audioClient;
   };
@@ -108,6 +112,7 @@ final class VMPlayerImplTest {
   void createParts() throws IOException {
     this.vnc = mock(VNCPlayer.class);
     this.qemu = mock(VMProcess.class);
+    when(this.qemu.getPassword()).thenReturn(PASSWORD);
     final AtomicBoolean alive = new AtomicBoolean();
     this.processAlive = alive;
     when(this.qemu.isAlive()).thenAnswer(_ -> alive.get());
@@ -200,6 +205,7 @@ final class VMPlayerImplTest {
     final int sourceWidth = source.getScreenWidth();
     final int sourceHeight = source.getScreenHeight();
     final int sourceFrameRate = source.getTargetFrameRate();
+    final String sourcePassword = source.getPassword();
 
     final int port = settings.getPort();
     final int width = settings.getWidth();
@@ -210,6 +216,7 @@ final class VMPlayerImplTest {
     assertEquals(width, sourceWidth);
     assertEquals(height, sourceHeight);
     assertEquals(frameRate, sourceFrameRate);
+    assertEquals(PASSWORD, sourcePassword, "the display asks for the password of its machine");
   }
 
   @Test
@@ -222,6 +229,7 @@ final class VMPlayerImplTest {
     final VMPlayerImpl player = this.startedPlayer();
     player.getAudioAttachableCallback().attach(AudioPipelineStep.of((samples, metadata) -> heard.add(samples.remaining())));
     assertEquals(List.of(new InetSocketAddress(VMProcess.LOOPBACK, 5905)), this.audioAddresses);
+    assertEquals(List.of(PASSWORD), this.audioPasswords, "the sound connection sends the password of its machine");
     final VMAudioClient.Sink sink = this.sinks.getFirst();
     sink.accept(new byte[8], 8);
     waitUntil(() -> heard.size() == 1);
@@ -273,7 +281,7 @@ final class VMPlayerImplTest {
       this.vnc,
       this.finder,
       (settings, architecture, executable, configuration) -> this.qemu,
-      (address, sink, failures) -> {
+      (address, password, sink, failures) -> {
         throw new IOException("connection refused");
       }
     );
@@ -418,6 +426,7 @@ final class VMPlayerImplTest {
   void stopsWhenQemuExitsAndCanStartAgain() {
     final VMProcess exited = this.qemu;
     final VMProcess next = mock(VMProcess.class);
+    when(next.getPassword()).thenReturn(PASSWORD);
     when(next.isAlive()).thenReturn(true);
     final List<VMProcess> initialProcesses = List.of(exited, next);
     final List<VMProcess> processes = new CopyOnWriteArrayList<>(initialProcesses);
@@ -613,6 +622,7 @@ final class VMPlayerImplTest {
   void refusesToReplaceAnUnstoppableFailedStartAndRetriesBeforeLaunchingItsReplacement() {
     final VMProcess previous = this.qemu;
     final VMProcess next = mock(VMProcess.class);
+    when(next.getPassword()).thenReturn(PASSWORD);
     when(next.isAlive()).thenReturn(true);
     final AtomicBoolean alive = new AtomicBoolean(true);
     final AtomicInteger attempts = new AtomicInteger();

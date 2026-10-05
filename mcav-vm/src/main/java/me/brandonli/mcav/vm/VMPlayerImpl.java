@@ -153,7 +153,7 @@ public final class VMPlayerImpl implements VMPlayer {
     this.process = qemu;
     try {
       qemu.start();
-      this.connectDisplay(settings);
+      this.connectDisplay(settings, qemu);
       this.connectAudio(settings, qemu);
       this.running.set(true);
     } catch (final RuntimeException | Error failure) {
@@ -214,8 +214,9 @@ public final class VMPlayerImpl implements VMPlayer {
   }
 
   /** Connects the VNC player to the display; launchMachine retains responsibility for failed-start cleanup. */
-  private void connectDisplay(final VMSettings settings) {
-    final VNCSource source = createSource(settings);
+  private void connectDisplay(final VMSettings settings, final VMProcess qemu) {
+    final String password = qemu.getPassword();
+    final VNCSource source = createSource(settings, password);
     final boolean connected = this.vncPlayer.start(source);
     if (!connected) {
       throw new PlayerException("The VNC player could not be started");
@@ -242,7 +243,8 @@ public final class VMPlayerImpl implements VMPlayer {
     this.audioOutput = output;
     final InetSocketAddress address = new InetSocketAddress(VMProcess.LOOPBACK, settings.getPort());
     try {
-      this.audioClient = this.audioConnector.connect(address, output::accept, this::report);
+      final String password = qemu.getPassword();
+      this.audioClient = this.audioConnector.connect(address, password, output::accept, this::report);
     } catch (final IOException exception) {
       this.disconnectAudio();
       this.report("The sound of the virtual machine could not be connected, it runs without sound", exception);
@@ -277,7 +279,7 @@ public final class VMPlayerImpl implements VMPlayer {
     return found.get();
   }
 
-  private static VNCSource createSource(final VMSettings settings) {
+  private static VNCSource createSource(final VMSettings settings, final String password) {
     final int port = settings.getPort();
     final int width = settings.getWidth();
     final int height = settings.getHeight();
@@ -288,6 +290,7 @@ public final class VMPlayerImpl implements VMPlayer {
     builder.screenWidth(width);
     builder.screenHeight(height);
     builder.targetFrameRate(frameRate);
+    builder.password(password);
     return builder.build();
   }
 
@@ -454,11 +457,13 @@ public final class VMPlayerImpl implements VMPlayer {
      * Connects to the VNC server of a machine and starts receiving its sound.
      *
      * @param address  the address of the VNC server
+     * @param password the password of the display
      * @param sink     receives the samples
      * @param failures receives an unexpected end of the connection
      * @return the connection
      * @throws IOException if the connection or its handshake fails
      */
-    VMAudioClient connect(InetSocketAddress address, VMAudioClient.Sink sink, BiConsumer<String, Throwable> failures) throws IOException;
+    VMAudioClient connect(InetSocketAddress address, String password, VMAudioClient.Sink sink, BiConsumer<String, Throwable> failures)
+      throws IOException;
   }
 }

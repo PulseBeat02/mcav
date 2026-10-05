@@ -19,8 +19,11 @@ package me.brandonli.mcav.vm;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -32,6 +35,11 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ProtocolException;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.Provider;
+import java.security.Security;
+import java.util.List;
+import me.brandonli.mcav.vm.testing.VncPasswords;
 import org.junit.jupiter.api.Test;
 
 class QemuAudioProtocolTest {
@@ -97,11 +105,12 @@ class QemuAudioProtocolTest {
     QemuAudioProtocol.readVersion(input("RFB 004.001\n".getBytes(StandardCharsets.US_ASCII)));
     assertArrayEquals("RFB 003.008\n".getBytes(StandardCharsets.US_ASCII), bytes(QemuAudioProtocol::writeVersion));
     final ByteArrayOutputStream chosen = new ByteArrayOutputStream();
-    QemuAudioProtocol.negotiateSecurity(input(new byte[] { 2, 2, 1 }), new DataOutputStream(chosen));
+    final boolean authenticates = QemuAudioProtocol.negotiateSecurity(input(new byte[] { 2, 2, 1 }), new DataOutputStream(chosen), "");
+    assertFalse(authenticates, "without a password there is no challenge to answer");
     assertArrayEquals(new byte[] { 1 }, chosen.toByteArray());
     // a server that offers no authentication first and more after it: every type is read
     final DataInputStream offers = input(new byte[] { 3, 1, 2, 16, 42 });
-    QemuAudioProtocol.negotiateSecurity(offers, new DataOutputStream(new ByteArrayOutputStream()));
+    QemuAudioProtocol.negotiateSecurity(offers, new DataOutputStream(new ByteArrayOutputStream()), "");
     assertEquals(42, offers.readUnsignedByte(), "the stream stays in step");
     QemuAudioProtocol.readSecurityResult(input(new byte[] { 0, 0, 0, 0 }));
     assertArrayEquals(new byte[] { 1 }, bytes(QemuAudioProtocol::writeClientInit));
@@ -116,6 +125,47 @@ class QemuAudioProtocolTest {
     final DataInputStream init = input(serverInit);
     QemuAudioProtocol.readServerInit(init);
     assertEquals(42, init.readUnsignedByte(), "the whole description was read");
+  }
+
+  @Test
+  void theClientAnswersThePasswordChallengeOfADisplayWithAPassword() throws IOException {
+    // the display of a machine asks for its password (VNC authentication), and offers nothing else
+    final ByteArrayOutputStream chosen = new ByteArrayOutputStream();
+    final boolean authenticates = QemuAudioProtocol.negotiateSecurity(input(new byte[] { 1, 2 }), new DataOutputStream(chosen), "Pa55word");
+    assertTrue(authenticates);
+    assertArrayEquals(new byte[] { 2 }, chosen.toByteArray());
+    // with a password, VNC authentication wins over none, whatever the order
+    final ByteArrayOutputStream preferred = new ByteArrayOutputStream();
+    assertTrue(QemuAudioProtocol.negotiateSecurity(input(new byte[] { 2, 1, 2 }), new DataOutputStream(preferred), "Pa55word"));
+    assertArrayEquals(new byte[] { 2 }, preferred.toByteArray());
+    final byte[] challenge = new byte[16];
+    for (int index = 0; index < challenge.length; index++) {
+      challenge[index] = (byte) (index * 37 + 11);
+    }
+    // eight characters, fewer (padded with zeros), and more (the first eight count), against Vernacular's answers
+    for (final String password : List.of("Pa55word", "pw", "a much longer password")) {
+      final ByteArrayOutputStream answer = new ByteArrayOutputStream();
+      QemuAudioProtocol.answerChallenge(input(challenge), new DataOutputStream(answer), password);
+      final byte[] expected = VncPasswords.response(challenge, password);
+      assertArrayEquals(expected, answer.toByteArray(), password);
+    }
+  }
+
+  @Test
+  void aRuntimeWithoutDesCannotAnswerThePasswordChallenge() throws IOException {
+    final Provider[] providers = Security.getProviders();
+    for (final Provider provider : providers) {
+      Security.removeProvider(provider.getName());
+    }
+    try {
+      final IOException failure = assertThrows(IOException.class, () -> QemuAudioProtocol.respond(new byte[16], "Pa55word"));
+      assertInstanceOf(GeneralSecurityException.class, failure.getCause());
+    } finally {
+      for (final Provider provider : providers) {
+        Security.addProvider(provider);
+      }
+    }
+    assertEquals(16, QemuAudioProtocol.respond(new byte[16], "Pa55word").length, "the providers are back");
   }
 
   @Test
@@ -145,11 +195,11 @@ class QemuAudioProtocolTest {
       out.write("full".getBytes(StandardCharsets.US_ASCII));
     });
     final ProtocolException refused = assertThrows(ProtocolException.class, () ->
-      QemuAudioProtocol.negotiateSecurity(input(refusal), new DataOutputStream(new ByteArrayOutputStream()))
+      QemuAudioProtocol.negotiateSecurity(input(refusal), new DataOutputStream(new ByteArrayOutputStream()), "")
     );
     assertEquals("The VNC server refused the connection: full", refused.getMessage());
     final ProtocolException password = assertThrows(ProtocolException.class, () ->
-      QemuAudioProtocol.negotiateSecurity(input(new byte[] { 1, 2 }), new DataOutputStream(new ByteArrayOutputStream()))
+      QemuAudioProtocol.negotiateSecurity(input(new byte[] { 1, 2 }), new DataOutputStream(new ByteArrayOutputStream()), "")
     );
     assertEquals("The VNC server asks for authentication, which the audio connection does not do", password.getMessage());
     final byte[] failed = bytes(out -> {

@@ -1,8 +1,8 @@
 # Virtualization Module
 
 ```{warning}
-You must install QEMU yourself to use the virtual machine player; MCAV never installs it. Install it from your
-package manager or follow the steps [here](https://www.qemu.org/download/), and make sure the `qemu-system-*`
+You must install QEMU 6.0 or newer yourself to use the virtual machine player; MCAV never installs it. Install it from
+your package manager or follow the steps [here](https://www.qemu.org/download/), and make sure the `qemu-system-*`
 programs are on the `PATH`.
 ```
 
@@ -29,7 +29,9 @@ dependencies {
 The QEMU command line is built with a `VMConfiguration`, and a `VMSettings` describes how the machine is streamed:
 the size frames are scaled to and the frame rate requested from QEMU. The player adds the display, VNC, and pointer
 options itself, and picks the fastest accelerator of the machine (KVM, WHPX, or HVF), falling back to software
-emulation when the accelerator is unavailable.
+emulation when the accelerator is unavailable. The VNC display listens on the loopback address and asks for a random
+password the player alone knows; QEMU reads it from a file of a folder only your user can open, which is deleted once
+QEMU started.
 
 The example boots an ISO image and presses a key in its boot menu. The `display` filter is yours and shows the frames;
 release the returned player to stop the machine. QEMU is a process of its own: a JVM that ends without releasing the

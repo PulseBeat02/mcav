@@ -4,8 +4,9 @@
 output. Players click it by clicking the wall and type into it through chat, like a [browser](browser.md).
 
 ```{warning}
-QEMU must be installed on the server and on the `PATH` of the server's process; MCAV never installs it. Install it
-from your package manager or from the [QEMU website](https://www.qemu.org/download/). Without it the command says so.
+QEMU 6.0 or newer must be installed on the server and on the `PATH` of the server's process; MCAV never installs it.
+Install it from your package manager or from the [QEMU website](https://www.qemu.org/download/). Without it the
+command says so.
 ```
 
 ```text
@@ -53,6 +54,6 @@ chat mode.
 ## Known Limits
 
 With `vm.allow-network` on, the guest's user-mode network can reach the server's loopback address (`10.0.2.2` inside
-the guest). QEMU's VNC display, bound to the loopback address, has no password, so another process on the server could
-watch it. QEMU is a child process of the server: if the server is killed hard, without releasing its
+the guest). QEMU's VNC display stays on the loopback address and asks for a random password only the plugin knows, so
+another process on the server cannot watch it. QEMU is a child process of the server: if the server is killed hard, without releasing its
 players, a running machine keeps running.

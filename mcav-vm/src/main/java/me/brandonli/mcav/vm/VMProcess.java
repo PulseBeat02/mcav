@@ -28,8 +28,14 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.security.SecureRandom;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -61,7 +67,9 @@ import org.slf4j.LoggerFactory;
  * ({@link VMAudioClient}). Other machines have no sound.
  *
  * <p>The VNC port must be free before QEMU starts, and QEMU must still run a moment after the port accepts
- * connections, so the player never connects to another server that listens on the port.
+ * connections, so the player never connects to another server that listens on the port. The display asks for a random
+ * password, which QEMU reads from a file of a folder only the server's user can open; the file is deleted once QEMU
+ * started, and the password reaches the players of the display through {@link #getPassword()}.
  */
 final class VMProcess {
 
@@ -72,12 +80,30 @@ final class VMProcess {
    */
   private static final String AUDIO_ID = "mcav-audio";
 
+  /**
+   * The id of the secret object that holds the password of the display.
+   */
+  private static final String PASSWORD_ID = "mcav-vnc-password";
+
+  // VNC's password authentication reads at most eight characters
+  private static final int PASSWORD_LENGTH = 8;
+  private static final String PASSWORD_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  private static final String PASSWORD_FILE = "password";
+  private static final String SECRET_FOLDER_PREFIX = "mcav-vm-";
+  private static final SecureRandom RANDOM = new SecureRandom();
+  private static final Path TEMPORARY_FOLDER = Path.of(System.getProperty("java.io.tmpdir"));
+  private static final boolean POSIX = FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
+  private static final FileAttribute<Set<PosixFilePermission>> OWNER_ONLY = PosixFilePermissions.asFileAttribute(
+    PosixFilePermissions.fromString("rwx------")
+  );
+
   private static final Logger LOGGER = LoggerFactory.getLogger(VMProcess.class);
   private static final String ACCELERATOR_FAILED = "QEMU failed with the {} accelerator, retrying with software emulation: {}";
   private static final String STARTING = "Starting QEMU: {}";
   private static final String QEMU_OUTPUT = "qemu: {}";
   private static final String READER_NOT_STOPPED = "QEMU output reader did not stop within {} ms";
   private static final String STILL_ALIVE = "QEMU is still alive after forced termination";
+  private static final String SECRET_NOT_DELETED = "The password file of the virtual machine could not be deleted: {}";
   private static final String LOCALHOST = "127.0.0.1";
   private static final Set<String> MACHINE_OPTIONS = Set.of("machine", "M");
   // the options with which a configuration chooses the network of the guest; -nodefaults leaves out QEMU's own
@@ -103,6 +129,8 @@ final class VMProcess {
   private final Path kvmDevice;
   private final long startTimeoutNanos;
   private final LongSupplier nanoClock;
+  private final SecretFolder secretFolder;
+  private final String password;
   private final Deque<String> outputTail;
 
   // written while starting and stopping, but read from other threads through isRunning()/liveness checks
@@ -133,7 +161,8 @@ final class VMProcess {
       VMProcess::startProcess,
       currentOs,
       KVM_DEVICE,
-      START_TIMEOUT_MILLIS
+      START_TIMEOUT_MILLIS,
+      () -> createSecretFolder(TEMPORARY_FOLDER, POSIX)
     );
   }
 
@@ -148,6 +177,7 @@ final class VMProcess {
    * @param os                 the operating system, which decides the accelerator
    * @param kvmDevice          the KVM device, used on Linux
    * @param startTimeoutMillis how long the display may take to accept connections
+   * @param secretFolder       creates the folder of the password file of a start
    */
   @VisibleForTesting
   VMProcess(
@@ -158,9 +188,10 @@ final class VMProcess {
     final Launcher launcher,
     final OS os,
     final Path kvmDevice,
-    final long startTimeoutMillis
+    final long startTimeoutMillis,
+    final SecretFolder secretFolder
   ) {
-    this(settings, architecture, executable, configuration, launcher, os, kvmDevice, startTimeoutMillis, System::nanoTime);
+    this(settings, architecture, executable, configuration, launcher, os, kvmDevice, startTimeoutMillis, System::nanoTime, secretFolder);
   }
 
   /** Constructs a process with a monotonic clock for deterministic startup deadline checks. */
@@ -174,7 +205,8 @@ final class VMProcess {
     final OS os,
     final Path kvmDevice,
     final long startTimeoutMillis,
-    final LongSupplier nanoClock
+    final LongSupplier nanoClock,
+    final SecretFolder secretFolder
   ) {
     this.settings = settings;
     this.architecture = architecture;
@@ -185,7 +217,44 @@ final class VMProcess {
     this.kvmDevice = kvmDevice;
     this.startTimeoutNanos = TimeUnit.MILLISECONDS.toNanos(startTimeoutMillis);
     this.nanoClock = nanoClock;
+    this.secretFolder = secretFolder;
+    this.password = createPassword();
     this.outputTail = new ArrayDeque<>();
+  }
+
+  private static String createPassword() {
+    final StringBuilder password = new StringBuilder(PASSWORD_LENGTH);
+    for (int index = 0; index < PASSWORD_LENGTH; index++) {
+      final int character = RANDOM.nextInt(PASSWORD_CHARACTERS.length());
+      password.append(PASSWORD_CHARACTERS.charAt(character));
+    }
+    return password.toString();
+  }
+
+  /**
+   * Creates an empty folder that only the server's user can open. A file system without POSIX permissions is Windows,
+   * whose temporary folder of a user is private to that user already.
+   *
+   * @param parent the folder to create it in
+   * @param posix  whether the file system has POSIX permissions
+   * @return the folder
+   * @throws IOException if it cannot be created
+   */
+  @VisibleForTesting
+  static Path createSecretFolder(final Path parent, final boolean posix) throws IOException {
+    if (posix) {
+      return Files.createTempDirectory(parent, SECRET_FOLDER_PREFIX, OWNER_ONLY);
+    }
+    return Files.createTempDirectory(parent, SECRET_FOLDER_PREFIX);
+  }
+
+  /**
+   * Gets the password of the display, which a VNC client of the machine must send.
+   *
+   * @return the password, eight letters and digits
+   */
+  String getPassword() {
+    return this.password;
   }
 
   private static Process startProcess(final List<String> command) throws IOException {
@@ -202,30 +271,68 @@ final class VMProcess {
   void start() {
     checkModuleOptions(this.configuration);
     this.ensurePortIsFree();
+    final Path folder = this.writePassword();
+    try {
+      this.launchMachine(folder.resolve(PASSWORD_FILE));
+    } finally {
+      // QEMU has read the password once its display accepts connections, or it failed to start
+      deleteSecret(folder);
+    }
+  }
 
+  private void launchMachine(final Path passwordFile) {
     final boolean acceleratorConfigured = this.configuration.has("accel") || this.configuration.has("enable-kvm");
     if (acceleratorConfigured) {
-      this.launch(null);
+      this.launch(null, passwordFile);
       return;
     }
 
     final String accelerator = detectAccelerator(this.os, this.kvmDevice);
     if (accelerator.equals(SOFTWARE_ACCELERATOR)) {
-      this.launch(SOFTWARE_ACCELERATOR);
+      this.launch(SOFTWARE_ACCELERATOR, passwordFile);
       return;
     }
 
-    this.launchWithSoftwareFallback(accelerator);
+    this.launchWithSoftwareFallback(accelerator, passwordFile);
+  }
+
+  /**
+   * Writes the password of the display into a new private folder.
+   *
+   * @return the folder
+   * @throws PlayerException if the folder or the file cannot be written
+   */
+  private Path writePassword() {
+    try {
+      final Path folder = this.secretFolder.create();
+      final Path file = folder.resolve(PASSWORD_FILE);
+      // QEMU reads the whole file as the password, so it has no line break
+      Files.writeString(file, this.password, StandardCharsets.US_ASCII, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+      return folder;
+    } catch (final IOException exception) {
+      final String message = exception.getMessage();
+      throw new PlayerException("Failed to write the password of the display: " + message, exception);
+    }
+  }
+
+  private static void deleteSecret(final Path folder) {
+    try {
+      Files.deleteIfExists(folder.resolve(PASSWORD_FILE));
+      Files.deleteIfExists(folder);
+    } catch (final IOException exception) {
+      LOGGER.warn(SECRET_NOT_DELETED, folder, exception);
+    }
   }
 
   /**
    * Starts QEMU with a hardware accelerator, and again with software emulation if QEMU blames the accelerator.
    *
-   * @param accelerator the hardware accelerator to try first
+   * @param accelerator  the hardware accelerator to try first
+   * @param passwordFile the file that holds the password of the display
    */
-  private void launchWithSoftwareFallback(final String accelerator) {
+  private void launchWithSoftwareFallback(final String accelerator, final Path passwordFile) {
     try {
-      this.launch(accelerator);
+      this.launch(accelerator, passwordFile);
     } catch (final PlayerException exception) {
       final String reason = exception.getMessage();
       final boolean acceleratorProblem = mentionsAccelerator(reason, accelerator);
@@ -234,7 +341,7 @@ final class VMProcess {
       }
 
       LOGGER.warn(ACCELERATOR_FAILED, accelerator, reason);
-      this.launch(SOFTWARE_ACCELERATOR);
+      this.launch(SOFTWARE_ACCELERATOR, passwordFile);
     }
   }
 
@@ -346,8 +453,8 @@ final class VMProcess {
     return lower.contains(accelerator) || lower.contains("accel") || lower.contains("hypervisor") || lower.contains("virtualization");
   }
 
-  private void launch(final @Nullable String accelerator) {
-    final List<String> command = this.buildCommand(accelerator);
+  private void launch(final @Nullable String accelerator, final Path passwordFile) {
+    final List<String> command = this.buildCommand(accelerator, passwordFile);
     final String rendered = String.join(" ", command);
     LOGGER.info(STARTING, rendered);
 
@@ -385,11 +492,12 @@ final class VMProcess {
   /**
    * Builds the command line of QEMU.
    *
-   * @param accelerator the accelerator to add, or null to add none
+   * @param accelerator  the accelerator to add, or null to add none
+   * @param passwordFile the file QEMU reads the password of the display from
    * @return the program followed by its arguments
    */
   @VisibleForTesting
-  List<String> buildCommand(final @Nullable String accelerator) {
+  List<String> buildCommand(final @Nullable String accelerator, final Path passwordFile) {
     final List<String> command = new ArrayList<>();
     final String program = this.executable.toString();
     command.add(program);
@@ -402,7 +510,7 @@ final class VMProcess {
       command.add("-accel");
       command.add(accelerator);
     }
-    this.addDefaultOptions(command);
+    this.addDefaultOptions(command, passwordFile);
     return command;
   }
 
@@ -420,10 +528,10 @@ final class VMProcess {
   /**
    * Adds the options MCAV relies on: a standard VGA card, no window on the host and a network that reaches neither
    * the host nor the internet unless the configuration sets them itself, the sound of the machine, a VNC display on
-   * the configured port that every client shares, and a USB tablet. The tablet reports absolute coordinates, so VNC
+   * the configured port that every client shares and that asks for the password, and a USB tablet. The tablet reports absolute coordinates, so VNC
    * pointer positions map straight onto the screen.
    */
-  private void addDefaultOptions(final List<String> command) {
+  private void addDefaultOptions(final List<String> command, final Path passwordFile) {
     this.addUnlessConfigured(command, "vga", "-vga", "std");
     final boolean hasDisplay = this.configuration.has("display") || this.configuration.has("nographic");
     if (!hasDisplay) {
@@ -439,7 +547,11 @@ final class VMProcess {
     }
     final int port = this.settings.getPort();
     final int display = port - FIRST_VNC_PORT;
-    final String vnc = LOCALHOST + ":" + display + ",share=force-shared";
+    // QEMU splits its option values at commas, so a comma of the path is written twice
+    final String secretFile = passwordFile.toString().replace(",", ",,");
+    command.add("-object");
+    command.add("secret,id=" + PASSWORD_ID + ",file=" + secretFile);
+    final String vnc = LOCALHOST + ":" + display + ",share=force-shared,password-secret=" + PASSWORD_ID;
     if (this.hasAudio()) {
       this.addAudio(command);
       command.add("-vnc");
@@ -763,6 +875,20 @@ final class VMProcess {
         thread.interrupt();
       }
     }
+  }
+
+  /**
+   * Creates the folder of the password file of one start.
+   */
+  @FunctionalInterface
+  interface SecretFolder {
+    /**
+     * Creates an empty folder that only the server's user can open.
+     *
+     * @return the folder
+     * @throws IOException if it cannot be created
+     */
+    Path create() throws IOException;
   }
 
   /**
