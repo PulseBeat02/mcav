@@ -47,6 +47,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.testing.Images;
@@ -903,6 +904,18 @@ final class MatImageBufferTest {
       assertArrayEquals(expected, pixels);
       assertEquals(0xFF000002, moved, "the image still transforms after failed transformations");
       assertThrows(NullPointerException.class, () -> buffer.transformMat(null));
+    }
+  }
+
+  @Test
+  void freesTheMatrixOfAFailedTransformationAtOnce() {
+    try (final ImageBuffer image = Images.indexed(2, 2)) {
+      final MatImageBuffer buffer = (MatImageBuffer) image;
+      final AtomicReference<Mat> given = new AtomicReference<>();
+      assertThrows(IllegalArgumentException.class, () -> buffer.transformMat((_, target) -> given.set(target)));
+      final Mat target = given.get();
+      final boolean freed = target.isNull();
+      assertTrue(freed, "the matrix the operation left empty is freed rather than left to the garbage collector");
     }
   }
 
