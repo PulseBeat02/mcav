@@ -33,6 +33,8 @@ final class JavaKernels extends Kernels {
   /** The kernels of every coder that has no native library. */
   static final Kernels.Factory FACTORY = JavaKernels::new;
 
+  private FrameVerification.@Nullable Scratch verification;
+
   private final Reconstruction.Score score = new Reconstruction.Score();
 
   private final Reconstruction.Scratch scratch = new Reconstruction.Scratch();
@@ -111,6 +113,14 @@ final class JavaKernels extends Kernels {
     final int[] out
   ) {
     return Reconstruction.compact(prediction, record, body, kind, quantizer, size, this.scratch, out, this.score);
+  }
+
+  @Override
+  boolean verify(final FrameVerification frame, final byte[] reference, final byte[] picture, final int group) {
+    if (this.verification == null) {
+      this.verification = new FrameVerification.Scratch();
+    }
+    return frame.javaMatches(reference, picture, group, this.verification);
   }
 
   @Override

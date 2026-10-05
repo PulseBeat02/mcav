@@ -191,4 +191,9 @@ void MCV2_PREFIX(cell_means)(const float *target, int32_t size, int32_t channel,
 #endif
   mcv2::cell_means(target, size, channel, grid, out, out_offset, out_stride);
 }
+int32_t MCV2_PREFIX(verify)(const uint8_t *reference, const uint8_t *picture, int32_t width, int32_t height,
+                            const int32_t *leaves, int32_t first, int32_t count, int32_t size, const int8_t *records) {
+  MCV2_HAND_OFF(verify, reference, picture, width, height, leaves, first, count, size, records)
+  return mcv2::verify(reference, picture, width, height, leaves, first, count, size, records);
+}
 }

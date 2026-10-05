@@ -186,15 +186,85 @@ void report(bool equal, const char *kernel, const Level &level, int trial) {
 
 constexpr int32_t KINDS[] = {0, 1, 2, 3, 4, 8};
 
+// Build the expected picture with the existing scalar kernels, then require both equality and corruption detection.
+int32_t verification_case(Random &inputs, const Level &scalar, const Level &level, int32_t size, int trial) {
+  const int32_t count = inputs.range(1, 7);
+  const int32_t first = inputs.range(0, 2);
+  const int32_t width = count * size - inputs.range(0, size - 1);
+  const int32_t height = size - inputs.range(0, size - 1);
+  const std::vector<uint8_t> reference = inputs.ubytes((size_t)width * height * 3);
+  std::vector<uint8_t> picture(reference.size(), 0);
+  std::vector<int32_t> leaves((size_t)(first + count + 1) * 10, 0);
+  const std::vector<int8_t> records = inputs.bytes((size_t)(first + count + 1) * 256);
+  std::vector<int32_t> prediction((size_t)size * size * 3, 0);
+  std::vector<int32_t> block(prediction.size(), 0);
+  const std::vector<int32_t> source(prediction.size(), 0);
+  for (int32_t index = first; index < first + count; index++) {
+    int32_t *leaf = leaves.data() + index * 10;
+    leaf[0] = (index - first) * size;
+    leaf[1] = 0;
+    leaf[2] = inputs.range(0, 7);
+    leaf[3] = inputs.range(0, 7);
+    leaf[4] = index * 256;
+    leaf[5] = inputs.range(-40, 40);
+    leaf[6] = inputs.range(-40, 40);
+    leaf[7] = leaf[2] == 7 ? KINDS[inputs.range(0, 5)] : 1 << inputs.range(0, 3);
+    leaf[8] = 1 << inputs.range(0, 3);
+    leaf[9] = inputs.range(0, 0xFFFFFF);
+    scalar.predict(reference.data(), width, height, leaf[0], leaf[1], size, leaf[5], leaf[6], prediction.data());
+    switch (leaf[2]) {
+    case 0:
+      scalar.predicted(prediction.data(), size, block.data(), source.data(), 0, INFINITY);
+      break;
+    case 1:
+      scalar.solid(leaf[9], size, block.data(), source.data(), 0, INFINITY);
+      break;
+    case 2:
+      scalar.palette(records.data(), leaf[4], size, block.data(), source.data(), 0, INFINITY);
+      break;
+    case 3:
+      scalar.intra_grid(records.data(), leaf[4], leaf[7], size, block.data(), source.data(), 0, INFINITY);
+      break;
+    case 4:
+      scalar.residual_grid(prediction.data(), records.data(), leaf[4], leaf[7], leaf[3], size, block.data(),
+                           source.data(), 0, INFINITY);
+      break;
+    case 5:
+    case 6:
+      scalar.reduced(prediction.data(), leaf[2] == 5, records.data(), leaf[4], leaf[7], leaf[8], leaf[3], size,
+                     block.data(), source.data(), 0, INFINITY);
+      break;
+    default:
+      scalar.compact(prediction.data(), records.data(), leaf[4], leaf[7], leaf[3], size, block.data(), source.data(), 0,
+                     INFINITY);
+    }
+    const int32_t columns = width - leaf[0] < size ? width - leaf[0] : size;
+    for (int32_t y = 0; y < height; y++) {
+      for (int32_t x = 0; x < columns * 3; x++) {
+        picture[((size_t)y * width + leaf[0]) * 3 + x] = (uint8_t)block[(size_t)y * size * 3 + x];
+      }
+    }
+  }
+  const bool changed = (trial & 1) != 0;
+  if (changed) {
+    picture[inputs.range(0, (int32_t)picture.size() - 1)] ^= 1;
+  }
+  const int32_t result =
+      level.verify(reference.data(), picture.data(), width, height, leaves.data(), first, count, size, records.data());
+  report(result == (changed ? 0 : 1), "verify expected match", level, trial);
+  return result;
+}
+
 // runs every kernel TRIALS times on every level, comparing with the first (scalar) level
 void run(const std::vector<Level> &levels, int trials) {
   const Level &scalar = levels[0];
-  const char *names[] = {
-      "predicted",      "solid",  "palette",     "intra_grid",    "residual_grid", "reduced",         "compact",
-      "predict",        "fit",    "cell_sums",   "luma_residual", "cluster",       "palette_cluster", "assign",
-      "assign_pattern", "seeded", "load_source", "halve",         "ycocg",         "residual_target", "cell_means"};
+  const char *names[] = {"predicted",     "solid",       "palette",         "intra_grid", "residual_grid",
+                         "reduced",       "compact",     "predict",         "fit",        "cell_sums",
+                         "luma_residual", "cluster",     "palette_cluster", "assign",     "assign_pattern",
+                         "seeded",        "load_source", "halve",           "ycocg",      "residual_target",
+                         "cell_means",    "verify"};
   Digest total;
-  for (int kernel = 0; kernel < 21; kernel++) {
+  for (int kernel = 0; kernel < 22; kernel++) {
     Random random{0x6D637632ull * (kernel + 1)};
     Digest digest;
     for (int trial = 0; trial < trials; trial++) {
@@ -350,13 +420,16 @@ void run(const std::vector<Level> &levels, int trials) {
           level.residual_target(ycocg.data(), prediction.data(), size * size, inputs.range(0, 1), floats.data());
           break;
         }
-        default: {
+        case 20: {
           const std::vector<float> target = inputs.floats(channels);
           const int32_t grid = 1 << inputs.range(0, 3);
           floats.assign(1 + (size_t)grid * grid * 2, 0);
           level.cell_means(target.data(), size, inputs.range(0, 2), grid, floats.data(), 1, 2);
           break;
         }
+        default:
+          measured = verification_case(inputs, scalar, level, size, trial);
+          break;
         }
         // the scalar level's outputs are the reference: fold them into the digest, compare every other level's
         static std::vector<int32_t> reference_out;

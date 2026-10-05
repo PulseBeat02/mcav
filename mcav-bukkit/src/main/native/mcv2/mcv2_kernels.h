@@ -94,7 +94,10 @@
     (const float *ycocg, const int32_t *prediction, int32_t count, int32_t chroma, float *target))                     \
   X(void, cell_means,                                                                                                  \
     (const float *target, int32_t size, int32_t channel, int32_t grid, float *out, int32_t out_offset,                 \
-     int32_t out_stride))
+     int32_t out_stride))                                                                                              \
+  X(int32_t, verify,                                                                                                   \
+    (const uint8_t *reference, const uint8_t *picture, int32_t width, int32_t height, const int32_t *leaves,           \
+     int32_t first, int32_t count, int32_t size, const int8_t *records))
 
 #ifdef __cplusplus
 extern "C" {
