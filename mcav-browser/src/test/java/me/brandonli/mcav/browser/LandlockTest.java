@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import me.brandonli.mcav.browser.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -55,6 +56,12 @@ class LandlockTest {
 
   @TempDir
   private Path folder;
+
+  @Test
+  void cannotBeInstantiated() {
+    UtilityClassAssertions.assertNotInstantiable(Landlock.class);
+    UtilityClassAssertions.assertNotInstantiable(ChromiumConfinement.class);
+  }
 
   @Test
   void readsTheAnswerOfTheKernel() {

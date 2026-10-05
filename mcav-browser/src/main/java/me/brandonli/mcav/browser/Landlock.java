@@ -303,10 +303,6 @@ final class Landlock {
     );
     private static final MethodHandle CLOSE = bind("close", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT), -1);
 
-    private Calls() {
-      throw new UnsupportedOperationException("Utility class cannot be instantiated");
-    }
-
     // the C library is part of every process on Linux; prctl and syscall are variadic, open has an optional mode
     @SuppressWarnings("restricted")
     private static MethodHandle bind(final String name, final FunctionDescriptor descriptor, final int firstVariadic) {
