@@ -232,6 +232,7 @@ final class HelperSession implements BrowserSession {
     final byte[] token = createToken();
     Process process = null;
     HelperSession session = null;
+    SocketChannel pendingChannel = null;
     try (final ServerSocketChannel server = bind(socket)) {
       final Path libraries = launcher.linkLibraries(folder);
       final URI uri = source.getUri();
@@ -241,9 +242,11 @@ final class HelperSession implements BrowserSession {
       final long timeoutMillis = launcher.getStartTimeoutMillis();
       final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
       final SocketChannel channel = accept(server, process, deadline);
+      pendingChannel = channel;
       Files.deleteIfExists(socket);
       final FrameCanvas canvas = new FrameCanvas(source.getWidth(), source.getHeight());
       session = new HelperSession(folder, process, standardInput, channel, canvas, listener);
+      pendingChannel = null;
       if (!HelperProcesses.register(session, generation)) {
         throw new PlayerException("The browser module was stopped while the browser started");
       }
@@ -251,10 +254,10 @@ final class HelperSession implements BrowserSession {
       session.awaitStart(deadline, uri);
       return session;
     } catch (final IOException exception) {
-      closeAfterFailure(session, process, folder);
+      closeAfterFailure(session, process, pendingChannel, folder);
       throw new PlayerException("The browser helper could not be started: " + exception.getMessage(), exception);
     } catch (final RuntimeException | Error failure) {
-      closeAfterFailure(session, process, folder);
+      closeAfterFailure(session, process, pendingChannel, folder);
       throw failure;
     }
   }
@@ -294,7 +297,15 @@ final class HelperSession implements BrowserSession {
     return standardInput;
   }
 
-  private static void closeAfterFailure(final @Nullable HelperSession session, final @Nullable Process process, final Path folder) {
+  private static void closeAfterFailure(
+    final @Nullable HelperSession session,
+    final @Nullable Process process,
+    final @Nullable SocketChannel pendingChannel,
+    final Path folder
+  ) {
+    if (pendingChannel != null) {
+      closeQuietly(pendingChannel);
+    }
     if (session != null) {
       // the session owns the process and the folder, and closes them once
       session.close();
