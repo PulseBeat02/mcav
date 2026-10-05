@@ -558,18 +558,24 @@ final class Mcv2ChannelTest {
     this.assertHiddenWhenRemovedAt(new Location(nether, 0, 64, 4));
   }
 
+  /** The screen of one map at (0, 64, 0), seen by the viewer with the pack from wherever the position is. */
+  private Mcv2Channel seenFrom(final AtomicReference<Location> position) {
+    final World world = this.configuration.getOrigin().getWorld();
+    when(world.getUID()).thenReturn(UUID.fromString("00000000-0000-0000-0000-00000000a0a0"));
+    when(this.player.getViewDistance()).thenReturn(6);
+    when(this.player.getWorld()).thenAnswer(_ -> position.get().getWorld());
+    when(this.player.getLocation()).thenAnswer(_ -> position.get());
+    return new Mcv2Channel(this.configuration, this.viewers, this.screen);
+  }
+
   /**
    * Shows the screen to the viewer with the pack beside the wall, lets them go where the screen sends them nothing, and
    * removes them from the screen there: the page frames and the team they were shown must not stay with them.
    */
   private void assertHiddenWhenRemovedAt(final Location elsewhere) {
     final World world = this.configuration.getOrigin().getWorld();
-    when(world.getUID()).thenReturn(UUID.fromString("00000000-0000-0000-0000-00000000a0a0"));
     final AtomicReference<Location> position = new AtomicReference<>(new Location(world, 0, 64, 4));
-    when(this.player.getViewDistance()).thenReturn(6);
-    when(this.player.getWorld()).thenAnswer(_ -> position.get().getWorld());
-    when(this.player.getLocation()).thenAnswer(_ -> position.get());
-    final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
+    final Mcv2Channel channel = this.seenFrom(position);
     channel.open();
     this.tick(channel);
     assertEquals(Set.of(LOADED), channel.getRecipients());
@@ -586,6 +592,21 @@ final class Mcv2ChannelTest {
     channel.update();
     this.server.runTasks();
     verify(this.screen).hide(this.player);
+    channel.close();
+  }
+
+  @Test
+  void aViewerNeverShownTheScreenHasNothingToHideWhenRemovedWhileAway() {
+    final World world = this.configuration.getOrigin().getWorld();
+    final Mcv2Channel channel = this.seenFrom(new AtomicReference<>(new Location(world, 400, 64, 0)));
+    channel.open();
+    this.tick(channel);
+    this.configuration.getViewers().remove(LOADED);
+    channel.update();
+    this.server.runTasks();
+    verify(this.screen, never()).show(this.player);
+    // a hide would take away the team of the other screens shown to them
+    verify(this.screen, never()).hide(this.player);
     channel.close();
   }
 
