@@ -51,6 +51,11 @@ import org.slf4j.LoggerFactory;
  * does not expose a partial download as the destination before that move. A non-atomic fallback move has the
  * guarantees of its file-system provider.
  *
+ * <p>A download whose hash and size are both pinned follows a redirect only to the same host, port and scheme, so a
+ * mirror cannot make the server send requests to hosts of its choosing, and it is given up, without another attempt,
+ * once it takes longer than a minute plus a second for every 64 KiB of its size, so a mirror that trickles cannot hold
+ * up whoever waits for it.
+ *
  * <p>Network failures, server errors, and bodies that deliver no data for longer than the idle timeout of one minute
  * are retried a few times with a growing delay, because installer downloads are large and connection resets are
  * common. Client errors such as {@code 404 Not Found}, hash mismatches, and failures to move the finished file into
@@ -76,6 +81,9 @@ public final class HttpDownloader {
   private static final Duration RETRY_DELAY = Duration.ofSeconds(2);
   private static final int BUFFER_SIZE = 64 * 1024;
   private static final String PART_SUFFIX = ".part";
+  private static final int MAX_REDIRECTS = 5;
+  private static final Duration PINNED_GRACE = Duration.ofMinutes(1);
+  private static final long PINNED_MIN_BYTES_PER_SECOND = 64L * 1024;
   /**
    * The limit of a download that names no limit of its own, which is none.
    */
@@ -99,9 +107,13 @@ public final class HttpDownloader {
    * @return a new client, which the caller must close
    */
   public static HttpClient createClient() {
+    return createClient(HttpClient.Redirect.NORMAL);
+  }
+
+  private static HttpClient createClient(final HttpClient.Redirect redirects) {
     final HttpClient.Builder builder = HttpClient.newBuilder();
     builder.connectTimeout(CONNECT_TIMEOUT);
-    builder.followRedirects(HttpClient.Redirect.NORMAL);
+    builder.followRedirects(redirects);
     return builder.build();
   }
 
@@ -137,19 +149,81 @@ public final class HttpDownloader {
   public static InputStream openStream(final URI uri) throws IOException {
     Preconditions.checkNotNull(uri, "URI must not be null");
     final HttpRequest request = createRequest(uri);
-    final HttpResponse.BodyHandler<InputStream> bodyHandler = HttpResponse.BodyHandlers.ofInputStream();
     final HttpClient client = createClient();
-    try {
-      final HttpResponse<InputStream> response = client.send(request, bodyHandler);
+    final HttpResponse<InputStream> response = send(client, request, uri);
+    return bodyOf(response, client, uri);
+  }
+
+  /**
+   * Opens the body of a pinned download: a redirect is followed only to the host, port and scheme of the URI, and at
+   * most {@value #MAX_REDIRECTS} times, so a mirror cannot make the server request what it chooses.
+   *
+   * @param uri the URI to download
+   * @return the body of the response, which closes its client
+   * @throws RedirectRefusedException if the server redirects elsewhere, or too often
+   * @throws IOException if a request fails or the server answers with an error status
+   */
+  @VisibleForTesting
+  static InputStream openPinnedStream(final URI uri) throws IOException {
+    URI current = uri;
+    for (int redirects = 0; ; redirects++) {
+      final HttpRequest request = createRequest(current);
+      final HttpClient client = createClient(HttpClient.Redirect.NEVER);
+      final HttpResponse<InputStream> response = send(client, request, current);
       final int status = response.statusCode();
-      final InputStream body = response.body();
-      final boolean successful = status / 100 == 2;
-      if (!successful) {
-        body.close();
-        client.close();
-        throw new HttpStatusException(status, uri);
+      final Optional<String> location = response.headers().firstValue("Location");
+      if (!isRedirect(status) || location.isEmpty()) {
+        return bodyOf(response, client, current);
       }
-      return new ClientClosingStream(body, client);
+      response.body().close();
+      client.close();
+      final URI next = current.resolve(location.get());
+      if (!isSameOrigin(uri, next)) {
+        throw new RedirectRefusedException("The pinned download of " + uri + " was redirected to another host: " + next);
+      }
+      if (redirects == MAX_REDIRECTS) {
+        throw new RedirectRefusedException("The pinned download of " + uri + " was redirected more than " + MAX_REDIRECTS + " times");
+      }
+      current = next;
+    }
+  }
+
+  private static boolean isRedirect(final int status) {
+    return status == 301 || status == 302 || status == 303 || status == 307 || status == 308;
+  }
+
+  /**
+   * Checks whether two URIs name the same scheme, host and port, a port left out being the scheme's own.
+   *
+   * @param first  a URI
+   * @param second another URI
+   * @return true if both have the same origin
+   */
+  @VisibleForTesting
+  static boolean isSameOrigin(final URI first, final URI second) {
+    final String scheme = first.getScheme();
+    final String host = first.getHost();
+    return (
+      scheme != null &&
+      host != null &&
+      scheme.equalsIgnoreCase(second.getScheme()) &&
+      host.equalsIgnoreCase(second.getHost()) &&
+      portOf(first) == portOf(second)
+    );
+  }
+
+  private static int portOf(final URI uri) {
+    final int port = uri.getPort();
+    if (port >= 0) {
+      return port;
+    }
+    return "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80;
+  }
+
+  private static HttpResponse<InputStream> send(final HttpClient client, final HttpRequest request, final URI uri) throws IOException {
+    final HttpResponse.BodyHandler<InputStream> bodyHandler = HttpResponse.BodyHandlers.ofInputStream();
+    try {
+      return client.send(request, bodyHandler);
     } catch (final InterruptedException exception) {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
@@ -159,6 +233,18 @@ public final class HttpDownloader {
       client.close();
       throw exception;
     }
+  }
+
+  private static InputStream bodyOf(final HttpResponse<InputStream> response, final HttpClient client, final URI uri) throws IOException {
+    final int status = response.statusCode();
+    final InputStream body = response.body();
+    final boolean successful = status / 100 == 2;
+    if (!successful) {
+      body.close();
+      client.close();
+      throw new HttpStatusException(status, uri);
+    }
+    return new ClientClosingStream(body, client);
   }
 
   /**
@@ -229,7 +315,18 @@ public final class HttpDownloader {
   public static void download(final URI uri, final Path destination, final String expectedSha256, final long maxBytes) throws IOException {
     Preconditions.checkNotNull(expectedSha256, "Expected SHA-256 must not be null");
     Preconditions.checkArgument(maxBytes > 0, "The size limit must be positive but was %s", maxBytes);
-    download(uri, destination, expectedSha256, RETRY_DELAY, IDLE_TIMEOUT, maxBytes);
+    download(uri, destination, expectedSha256, RETRY_DELAY, IDLE_TIMEOUT, maxBytes, pinnedDeadline(maxBytes));
+  }
+
+  /**
+   * Gets how long a pinned download may take: a minute, and a second for every 64 KiB of its size.
+   *
+   * @param maxBytes the pinned size
+   * @return the time it may take
+   */
+  @VisibleForTesting
+  static Duration pinnedDeadline(final long maxBytes) {
+    return PINNED_GRACE.plusSeconds(maxBytes / PINNED_MIN_BYTES_PER_SECOND);
   }
 
   /**
@@ -267,6 +364,32 @@ public final class HttpDownloader {
     final Duration idleTimeout,
     final long maxBytes
   ) throws IOException {
+    download(uri, destination, expectedSha256, retryDelay, idleTimeout, maxBytes, null);
+  }
+
+  /**
+   * Downloads a file as the method above does, pinned if a deadline is given.
+   *
+   * @param uri            the URI to download
+   * @param destination    the file to write to; its parent directories are created if needed
+   * @param expectedSha256 the expected SHA-256 hash in hexadecimal, or {@code null} to skip verification
+   * @param retryDelay     the delay before the second attempt; later attempts wait correspondingly longer
+   * @param idleTimeout    how long a read may wait for data before the attempt fails
+   * @param maxBytes       the largest number of bytes the download may have, or {@link #NO_SIZE_LIMIT} for no limit
+   * @param pinnedDeadline how long an attempt of a pinned download may take, which also follows a redirect only to
+   *                       its own host, or null for a download that is not pinned
+   * @throws IOException if every attempt fails or the file cannot be moved into place
+   */
+  @VisibleForTesting
+  static void download(
+    final URI uri,
+    final Path destination,
+    final @Nullable String expectedSha256,
+    final Duration retryDelay,
+    final Duration idleTimeout,
+    final long maxBytes,
+    final @Nullable Duration pinnedDeadline
+  ) throws IOException {
     Preconditions.checkNotNull(uri, "URI must not be null");
     Preconditions.checkNotNull(destination, "Destination must not be null");
     final Path target = destination.toAbsolutePath();
@@ -278,7 +401,7 @@ public final class HttpDownloader {
     final String partPrefix = fileName + ".";
     final Path partFile = Files.createTempFile(parent, partPrefix, PART_SUFFIX);
     try {
-      downloadWithRetries(uri, partFile, expectedSha256, retryDelay, idleTimeout, maxBytes);
+      downloadWithRetries(uri, partFile, expectedSha256, retryDelay, idleTimeout, maxBytes, pinnedDeadline);
       // a failed move is a problem of the file system, not of the network, so the download is not repeated
       moveIntoPlace(partFile, target);
     } finally {
@@ -309,12 +432,13 @@ public final class HttpDownloader {
     final @Nullable String expectedSha256,
     final Duration retryDelay,
     final Duration idleTimeout,
-    final long maxBytes
+    final long maxBytes,
+    final @Nullable Duration pinnedDeadline
   ) throws IOException {
     IOException lastFailure = null;
     for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
-        downloadOnce(uri, partFile, expectedSha256, idleTimeout, maxBytes);
+        downloadOnce(uri, partFile, expectedSha256, idleTimeout, maxBytes, pinnedDeadline);
         return;
       } catch (final IOException exception) {
         lastFailure = exception;
@@ -345,6 +469,10 @@ public final class HttpDownloader {
     if (exception instanceof DownloadTooLargeException) {
       return false;
     }
+    // a mirror that redirects elsewhere or trickles does so again: the caller tries the next one instead
+    if (exception instanceof RedirectRefusedException || exception instanceof DownloadTooSlowException) {
+      return false;
+    }
     if (!(exception instanceof final HttpStatusException statusException)) {
       return true;
     }
@@ -357,15 +485,17 @@ public final class HttpDownloader {
     final Path partFile,
     final @Nullable String expectedSha256,
     final Duration idleTimeout,
-    final long maxBytes
+    final long maxBytes,
+    final @Nullable Duration pinnedDeadline
   ) throws IOException {
     final MessageDigest digest = createDigest("SHA-256");
+    final long started = System.nanoTime();
     try (
-      final InputStream response = openStream(uri);
+      final InputStream response = pinnedDeadline == null ? openStream(uri) : openPinnedStream(uri);
       final InputStream body = new IdleTimeoutInputStream(response, idleTimeout);
       final OutputStream partOutput = Files.newOutputStream(partFile)
     ) {
-      copy(body, partOutput, digest, uri, maxBytes);
+      copy(body, partOutput, digest, uri, maxBytes, started, pinnedDeadline);
     }
     verifyChecksum(uri, digest, expectedSha256);
   }
@@ -373,14 +503,16 @@ public final class HttpDownloader {
   /**
    * Copies the body into the part file and feeds every chunk into the digest on the way, so the file is hashed
    * without reading it a second time. A body that passes the limit stops the download at once, before the bytes
-   * beyond it are written.
+   * beyond it are written, and so does one that takes longer than its deadline.
    */
   private static void copy(
     final InputStream body,
     final OutputStream partOutput,
     final MessageDigest digest,
     final URI uri,
-    final long maxBytes
+    final long maxBytes,
+    final long started,
+    final @Nullable Duration deadline
   ) throws IOException {
     final byte[] chunk = new byte[BUFFER_SIZE];
     long written = 0;
@@ -390,6 +522,10 @@ public final class HttpDownloader {
       if (written > maxBytes) {
         final String message = "The download of %s is larger than the %s bytes it may have".formatted(uri, maxBytes);
         throw new DownloadTooLargeException(message);
+      }
+      if (deadline != null && System.nanoTime() - started > deadline.toNanos()) {
+        final String message = "The download of %s took longer than the %s it may take".formatted(uri, deadline);
+        throw new DownloadTooSlowException(message);
       }
       partOutput.write(chunk, 0, read);
       digest.update(chunk, 0, read);
