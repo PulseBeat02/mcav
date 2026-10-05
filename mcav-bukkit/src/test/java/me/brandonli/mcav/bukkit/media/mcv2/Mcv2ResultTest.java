@@ -719,6 +719,35 @@ final class Mcv2ResultTest {
   }
 
   @Test
+  void clearsTheWallOfTheViewersWithThePackWhenReleased() {
+    // a client with the pack keeps drawing its last decoded picture over a wall whose maps still carry the screen's
+    // anchors, so a release clears their maps too, not only the dithered ones
+    final Mcv2Result result = new Mcv2Result(
+      this.configuration,
+      new Mcv2Channel(this.configuration, this.viewers, this.screen),
+      this.algorithm,
+      System::nanoTime,
+      Runnable::run
+    );
+    result.start();
+    // the first frame dithers for both and shows the screen to the viewer with the pack, who then decodes the second
+    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    result.applyFilter(frame, this.metadata);
+    assertEquals(Set.of(WITH_PACK), result.getChannel().getRecipients());
+    final int withPack = this.server.getSentPackets(WITH_PACK).size();
+    final int without = this.server.getSentPackets(WITHOUT).size();
+
+    result.release();
+
+    final List<Packet<?>> cleared = this.server.getSentPackets(WITH_PACK);
+    assertEquals(withPack + 1, cleared.size(), "one bundle clears the wall of the viewer with the pack");
+    MapPackets.assertMapPacket(MapPackets.unbundle(cleared.getLast()).getFirst(), 100, 0, 0, 128, 128, new byte[128 * 128]);
+    assertEquals(without + 1, this.server.getSentPackets(WITHOUT).size(), "the dithered maps are cleared once");
+  }
+
+  @Test
   void dithersAgainAfterARefusedHandover() {
     final AtomicInteger handed = new AtomicInteger();
     final Executor refusesOnce = task -> {

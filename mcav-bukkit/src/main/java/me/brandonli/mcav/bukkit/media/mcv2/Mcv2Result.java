@@ -19,6 +19,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -37,6 +38,7 @@ import java.util.function.Function;
 import java.util.function.LongSupplier;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
+import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.LiveSearch;
@@ -1103,7 +1105,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /**
-   * Stops the encoder, removes the page frames and clears the dithered maps. Call on the main thread.
+   * Stops the encoder, removes the page frames and clears the wall's maps for every viewer, those dithered for and those
+   * decoding MCV2. Call on the main thread.
    *
    * <p>Worker joins are bounded; a worker that does not respond to interruption may outlive this call.
    * Fallback executor shutdown does not await termination. Release does not close the shared encoder pool or pack tracker.
@@ -1126,6 +1129,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     stop(delivery);
     this.screen.channel().close();
     this.opened = false;
+    // the wall's maps of a viewer decoding MCV2 still carry the screen's anchors, over which the client keeps drawing
+    // its last decoded picture: they are cleared too, as the dithered maps clear those of the viewers dithered for
+    final Set<UUID> decoding = new HashSet<>(this.requested.getViewers());
+    decoding.removeAll(this.fallbackViewers);
+    final int maps = this.requested.getColumns() * this.requested.getRows();
+    MapPacketFactory.clear(decoding, this.requested.getMap(), maps);
     final ExecutorService ditheringOwn = this.ditheringThread;
     if (ditheringOwn != null) {
       ditheringOwn.shutdown();
