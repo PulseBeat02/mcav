@@ -297,6 +297,19 @@ final class FrameParserRulesTest {
   }
 
   @Test
+  void refusesAChildQuartetThatRunsIntoThePayload() throws Mcv2Exception {
+    final TreeNode quartet = TreeNode.split(motion(1, 1), motion(2, 2), motion(3, 3), motion(4, 4));
+    final byte[] frame = predicted(32, 32, 0, 0, SHORT_PLAIN, quartet);
+    FrameParser.parse(frame);
+    // the root descriptor at 48, then four three-byte child descriptors, up to the payload at 63
+    assertEquals(Mcv2Format.MODE_SPLIT, frame[50] & 31);
+    assertEquals(63L, Mcv2Format.u32(frame, 28));
+    // a quartet one byte or eleven bytes too long is refused before a child is read from the payload
+    assertEquals("Truncated children", message(withWord(frame, 28, 62)));
+    assertEquals("Truncated children", message(withWord(frame, 28, 52)));
+  }
+
+  @Test
   void refusesTemporalLeavesInAKeyframe() {
     final byte[] immediate = predicted(32, 32, 0, 0, SHORT, motion(1, 1));
     assertEquals("Temporal keyframe leaf", message(asKeyframe(immediate)));
