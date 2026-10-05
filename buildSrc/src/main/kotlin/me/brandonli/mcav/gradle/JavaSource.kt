@@ -12,11 +12,14 @@ object JavaSource {
      * @param source the text of a Java file
      * @return the masked text, as long as the source
      */
-    fun mask(source: String): String = Masker(source).mask()
+    fun mask(source: String): String = Masker(source, true).mask()
+
+    /** Replaces comments with spaces while preserving literals, offsets and line breaks. */
+    fun withoutComments(source: String): String = Masker(source, false).mask()
 
     private enum class State { CODE, LINE_COMMENT, BLOCK_COMMENT, TEXT_BLOCK, STRING, CHARACTER }
 
-    private class Masker(private val source: String) {
+    private class Masker(private val source: String, private val maskLiterals: Boolean) {
 
         private val out = StringBuilder(source.length)
         private var state = State.CODE
@@ -64,24 +67,34 @@ object JavaSource {
 
         private fun textBlock() {
             when {
-                source[index] == '\\' -> blank(2)
+                source[index] == '\\' -> literalCharacters(2)
                 source.startsWith(TEXT_BLOCK_QUOTES, index) -> enter(State.CODE, TEXT_BLOCK_QUOTES.length)
-                else -> blank(1)
+                else -> literalCharacters(1)
             }
         }
 
         // a string or character literal ends at its quote, or at the end of the line if it lacks one
         private fun literal(quote: Char) {
             when (source[index]) {
-                '\\' -> blank(2)
+                '\\' -> literalCharacters(2)
                 quote, '\n' -> enter(State.CODE, 1)
-                else -> blank(1)
+                else -> literalCharacters(1)
             }
         }
 
         private fun enter(next: State, length: Int) {
+            val comment = state == State.LINE_COMMENT || state == State.BLOCK_COMMENT ||
+                next == State.LINE_COMMENT || next == State.BLOCK_COMMENT
             state = next
-            blank(length)
+            if (comment) blank(length) else literalCharacters(length)
+        }
+
+        private fun literalCharacters(length: Int) {
+            if (maskLiterals) {
+                blank(length)
+            } else {
+                repeat(minOf(length, source.length - index)) { keep() }
+            }
         }
 
         // replaces the next characters with spaces, keeping the line breaks

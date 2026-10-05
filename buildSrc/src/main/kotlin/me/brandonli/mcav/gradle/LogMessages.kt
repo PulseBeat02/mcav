@@ -30,9 +30,10 @@ object LogMessages {
      */
     fun find(source: String): List<InlineLogMessage> {
         val code = JavaSource.mask(source)
+        val text = JavaSource.withoutComments(source)
         return CALL.findAll(code)
             .filter { LOGGER.matches(it.groupValues[1]) }
-            .filter { call -> isInline(arguments(source, code, call.range.last + 1)) }
+            .filter { call -> isInline(arguments(text, code, call.range.last + 1)) }
             .map { call -> InlineLogMessage(lineOf(source, call.range.first), call.value.substringBefore('(')) }
             .toList()
     }
