@@ -292,6 +292,37 @@ final class PlaybackSessionTest {
   }
 
   @Test
+  void theThreadsOfASessionAreDaemonsWhateverThreadStartsIt() throws Exception {
+    final PlaybackSession session = this.session(threePicturesWithSound(), 0L, true);
+    final AtomicReference<Exception> failure = new AtomicReference<>();
+    // a thread that is no daemon, as a server's main thread: what it starts is no daemon unless made so
+    final Thread starter = Thread.ofPlatform()
+      .daemon(false)
+      .start(() -> {
+        try {
+          session.start();
+        } catch (final Exception exception) {
+          failure.set(exception);
+        }
+      });
+    starter.join();
+    try {
+      assertEquals(null, failure.get());
+      final List<Thread> threads = Thread.getAllStackTraces()
+        .keySet()
+        .stream()
+        .filter(thread -> thread.getName().startsWith("mcav-decode-") || thread.getName().startsWith("mcav-render-"))
+        .toList();
+      assertFalse(threads.isEmpty(), "the session runs its threads");
+      for (final Thread thread : threads) {
+        assertTrue(thread.isDaemon(), thread.getName() + " would keep the JVM alive");
+      }
+    } finally {
+      session.stop();
+    }
+  }
+
+  @Test
   void rendersVideoAndAudioOfOneGrabber() throws Exception {
     final AtomicInteger frames = new AtomicInteger();
     final AtomicInteger chunks = new AtomicInteger();
