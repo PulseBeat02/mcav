@@ -53,6 +53,8 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 import me.brandonli.mcav.bukkit.resourcepack.provider.http.HttpHosting;
 import net.kyori.adventure.resource.ResourcePackInfo;
 import net.kyori.adventure.resource.ResourcePackRequest;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventPriority;
@@ -106,6 +108,14 @@ public final class Mcv2PackServer {
   private static final String PACK_FAILED = "Cannot serve the MCV2 pack with {}";
 
   private static final String PACK_LOADED = "{} loaded the MCV2 pack {} {} ms after it was offered";
+
+  private static final String MODDED_CLIENT_LOADED =
+    "MCV2 pack loaded by {} (client brand {}); active shaders cannot be verified. " +
+    "Iris shader packs can prevent decoding: disable Iris shaders or use dithered playback.";
+
+  private static final String MODDED_CLIENT_ADVISORY =
+    "MCV2: your modded client may replace the video shaders. If video is blank or frozen, turn off Iris shaders, " +
+    "or ask the server admin for dithered playback. MCAV cannot detect active shader settings.";
 
   private static final String NO_SLOT = "No MCV2 slot is free for a {}x{} video: the screen is dithered at that size";
 
@@ -681,7 +691,17 @@ public final class Mcv2PackServer {
     }
     final long took = this.millis.getAsLong() - since;
     LOGGER.info(PACK_LOADED, player.getName(), pack.id(), took);
+    adviseModdedViewer(player);
     return took;
+  }
+
+  private static void adviseModdedViewer(final Player player) {
+    final String brand = player.getClientBrandName();
+    if (brand == null || "vanilla".equals(brand)) {
+      return;
+    }
+    LOGGER.warn(MODDED_CLIENT_LOADED, player.getName(), brand);
+    player.sendMessage(Component.text(MODDED_CLIENT_ADVISORY, NamedTextColor.YELLOW));
   }
 
   /** Stops hosting a pack that is not served, and deletes it, on the writer thread unless it was shut down. */
