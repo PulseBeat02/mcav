@@ -759,6 +759,16 @@ final class PlaybackSession {
   }
 
   /**
+   * Checks whether the decoder holds a copy of an unscaled picture, which it must release once decoding ended.
+   *
+   * @return true if the decoder holds such a copy
+   */
+  @VisibleForTesting
+  boolean hasUnscaledCopy() {
+    return this.frameCopier.hasUnscaledCopy();
+  }
+
+  /**
    * Stops the session and waits for its threads to exit. Calling this method more than once has no effect, and it
    * may be called from a pipeline running on one of the threads of the session.
    *

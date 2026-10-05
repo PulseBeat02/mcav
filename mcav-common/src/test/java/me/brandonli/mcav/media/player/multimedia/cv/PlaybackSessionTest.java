@@ -1121,6 +1121,130 @@ final class PlaybackSessionTest {
   }
 
   /**
+   * Creates a picture whose pixels are on the Java heap, where OpenCV cannot read them, so the decoder copies it into
+   * an image of its own size before it scales it.
+   */
+  private static Frame heapPicture(final long timestampMicros) {
+    final Frame frame = ScriptedFrameGrabber.video(timestampMicros);
+    final ByteBuffer direct = (ByteBuffer) frame.image[0];
+    final ByteBuffer whole = direct.duplicate();
+    whole.clear();
+    final byte[] pixels = new byte[whole.capacity()];
+    whole.get(pixels);
+    frame.image[0] = ByteBuffer.wrap(pixels);
+    return frame;
+  }
+
+  @Test
+  void releasesTheCopyOfAnUnscaledPictureWhenDecodingEnds() throws Exception {
+    final List<String> sizes = Collections.synchronizedList(new ArrayList<>());
+    this.onVideo((image, _) -> {
+      final int width = image.getWidth();
+      final int height = image.getHeight();
+      return sizes.add(width + "x" + height);
+    });
+    final Dimension size = Dimension.of(2, 1);
+    this.dimensionCallback.attach(size);
+    final Frame picture = heapPicture(0L);
+    final ScriptedFrameGrabber grabber = ScriptedFrameGrabber.of(picture);
+    final PlaybackSession session = this.session(grabber, 0L, false);
+    session.start();
+    awaitEnd(session);
+
+    final boolean copyKept = session.hasUnscaledCopy();
+    assertEquals(List.of("2x1"), sizes);
+    assertFalse(copyKept, "the decoder releases its copy of the unscaled picture once it is done");
+  }
+
+  /**
+   * A pipeline may interrupt the thread it runs on, for instance when it gives up a blocking call. Its renderer then
+   * ends, and it stops the session: otherwise the decoder would wait for room in a queue nobody empties anymore.
+   */
+  @Test
+  void aVideoPipelineThatInterruptsItsThreadStopsTheSession() throws Exception {
+    final AtomicReference<Thread> rendererHolder = new AtomicReference<>();
+    this.onVideo((_, _) -> {
+      final Thread renderer = Thread.currentThread();
+      rendererHolder.set(renderer);
+      renderer.interrupt();
+      return true;
+    });
+    final List<Object> pictures = frames(20, FRAME_MICROS);
+    final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(4, 2, false, pictures);
+    final PlaybackSession session = this.session(grabber, 0L, false);
+    session.start();
+
+    awaitCondition("the session stopped and closed its decoder", () -> !session.isActive() && grabber.isClosed());
+    assertEndedInterrupted(rendererHolder.get());
+  }
+
+  /**
+   * Checks that a renderer ended and kept the interrupt it ended on, for whoever watches the thread.
+   */
+  private static void assertEndedInterrupted(final Thread renderer) throws InterruptedException {
+    renderer.join(TIMEOUT_MILLIS);
+    final boolean alive = renderer.isAlive();
+    final boolean interrupted = renderer.isInterrupted();
+    assertFalse(alive);
+    assertTrue(interrupted, "the renderer keeps its interrupt");
+  }
+
+  @Test
+  void anAudioPipelineThatInterruptsItsThreadStopsTheSession() throws Exception {
+    final AtomicReference<Thread> rendererHolder = new AtomicReference<>();
+    this.onAudio((_, _) -> {
+      final Thread renderer = Thread.currentThread();
+      rendererHolder.set(renderer);
+      renderer.interrupt();
+      return true;
+    });
+    // more chunks than the queue holds, so a decoder nobody takes chunks from waits for room
+    final List<Object> sounds = new ArrayList<>();
+    for (int index = 0; index < 100; index++) {
+      final Frame sound = ScriptedFrameGrabber.audio(0L);
+      sounds.add(sound);
+    }
+    final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(4, 2, false, sounds);
+    final PlaybackSession session = this.session(grabber, 0L, false);
+    session.start();
+
+    awaitCondition("the session stopped and closed its decoder", () -> !session.isActive() && grabber.isClosed());
+    assertEndedInterrupted(rendererHolder.get());
+  }
+
+  /**
+   * The audio renderer is not interrupted when its own pipeline stops the session, so it ends through the end marker
+   * the stop puts into its queue. The decoder is stopped before it could queue one: it waits for room in the queue.
+   */
+  @Test
+  void canBeStoppedFromItsOwnAudioPipeline() throws Exception {
+    final AtomicReference<PlaybackSession> holder = new AtomicReference<>();
+    final AtomicReference<Thread> rendererHolder = new AtomicReference<>();
+    this.onAudio((_, _) -> {
+      final Thread renderer = Thread.currentThread();
+      rendererHolder.set(renderer);
+      final PlaybackSession own = holder.get();
+      own.stop();
+      return true;
+    });
+    final List<Object> sounds = new ArrayList<>();
+    for (int index = 0; index < 100; index++) {
+      final Frame sound = ScriptedFrameGrabber.audio(0L);
+      sounds.add(sound);
+    }
+    final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(4, 2, false, sounds);
+    final PlaybackSession session = this.session(grabber, 0L, false);
+    holder.set(session);
+    session.start();
+    awaitCondition("the pipeline stopped the session", () -> rendererHolder.get() != null && !session.isActive());
+
+    final Thread renderer = rendererHolder.get();
+    renderer.join(TIMEOUT_MILLIS);
+    final boolean alive = renderer.isAlive();
+    assertFalse(alive, "the audio renderer that stopped the session ends");
+  }
+
+  /**
    * The timing a test session runs with: how early audio is handed on, how late a frame may be, and the clock.
    */
   private static final class Timing {
