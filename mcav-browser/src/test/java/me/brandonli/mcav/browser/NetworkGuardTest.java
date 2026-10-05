@@ -532,8 +532,44 @@ class NetworkGuardTest {
   }
 
   @Test
+  void theRefusedHostsAreResolvedOnceAndOneWithoutAnAddressIsReported() throws UnknownHostException {
+    final InetAddress first = InetAddress.getByName("203.0.113.5");
+    final InetAddress second = InetAddress.getByName("2001:db8::5");
+    final NetworkGuard.Resolver resolver = host -> {
+      if (host.equals("missing.example")) {
+        throw new UnknownHostException(host);
+      }
+      return new InetAddress[] { first, second };
+    };
+    final Set<InetAddress> refused = NetworkGuard.resolveAll(resolver, List.of("mc.example.com", "missing.example"), this.notices::add);
+    assertEquals(Set.of(first, second), refused);
+    assertEquals(List.of("The refused host missing.example has no address, so pages are not kept from it"), this.notices);
+  }
+
+  @Test
+  void anAddressOfARefusedHostCountsAsTheMachinesOwn() throws UnknownHostException {
+    final InetAddress refusedAddress = InetAddress.getByName("203.0.113.5");
+    final InetAddress interfaceAddress = InetAddress.getByName("198.51.100.7");
+    final Predicate<InetAddress> own = NetworkGuard.ownOrRefused(interfaceAddress::equals, Set.of(refusedAddress));
+    assertTrue(own.test(refusedAddress));
+    assertTrue(own.test(interfaceAddress));
+    assertFalse(own.test(InetAddress.getByName("1.1.1.1")));
+  }
+
+  @Test
+  void theDefaultGuardRefusesTheAddressesOfTheRefusedHosts() throws IOException {
+    try (final NetworkGuard guard = NetworkGuard.start(this.notices::add, List.of("8.8.8.8"))) {
+      final Socket client = this.client(guard);
+      exchange(client, GREETING, 2);
+      final byte[] answer = exchange(client, SocksProtocolTest.domainRequest(SocksProtocol.CONNECT, "8.8.8.8", 53), 10);
+      assertArrayEquals(reply(SocksProtocol.NOT_ALLOWED), answer);
+      assertEquals(List.of("Refused a connection to 8.8.8.8, which is not a public address"), this.notices);
+    }
+  }
+
+  @Test
   void theDefaultGuardRefusesLoopback() throws IOException {
-    try (final NetworkGuard guard = NetworkGuard.start(this.notices::add)) {
+    try (final NetworkGuard guard = NetworkGuard.start(this.notices::add, List.of())) {
       final Socket client = this.client(guard);
       exchange(client, GREETING, 2);
       final byte[] answer = exchange(client, SocksProtocolTest.domainRequest(1, "localhost", this.echo.getLocalPort()), 10);

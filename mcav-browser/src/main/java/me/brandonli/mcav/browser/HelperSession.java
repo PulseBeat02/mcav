@@ -316,7 +316,8 @@ final class HelperSession implements BrowserSession {
       options.isPrivateNetworks(),
       options.isAutoplay(),
       options.isConfined(),
-      Path.of(System.getProperty("user.dir")).toAbsolutePath()
+      Path.of(System.getProperty("user.dir")).toAbsolutePath(),
+      options.getRefusedHosts()
     );
   }
 

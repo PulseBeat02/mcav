@@ -267,7 +267,7 @@ final class CefEngine implements HelperEngine {
     if (configuration.isPrivateNetworks()) {
       return 0;
     }
-    final NetworkGuard startedGuard = NetworkGuard.start(events::onNotice);
+    final NetworkGuard startedGuard = NetworkGuard.start(events::onNotice, configuration.getRefusedHosts());
     this.guard = startedGuard;
     return startedGuard.getPort();
   }

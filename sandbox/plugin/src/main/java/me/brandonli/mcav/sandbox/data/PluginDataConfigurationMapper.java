@@ -92,6 +92,8 @@ public final class PluginDataConfigurationMapper {
 
   private static final String BROWSER_CONFINE_CHROMIUM = "browser.confine-chromium";
 
+  private static final String BROWSER_REFUSED_HOSTS = "browser.refused-hosts";
+
   private static final String VM_ALLOW_NETWORK = "vm.allow-network";
 
   private static final String VNC_ALLOWED_HOSTS = "vnc.allowed-hosts";
@@ -102,6 +104,7 @@ public final class PluginDataConfigurationMapper {
 
   private static final String INVALID_PORT = "Invalid {} {}, using {}";
 
+  private static final String INVALID_REFUSED_HOST = "Ignoring an entry of {} that is not a host name or address: {}";
   private static final String INVALID_THREADS = "Invalid {} {}, using half the processors";
 
   private static final String INVALID_NATIVE = "Invalid {} {}, using " + Mcv2Natives.AUTO;
@@ -138,6 +141,8 @@ public final class PluginDataConfigurationMapper {
   private boolean browserAutoplaySound;
 
   private boolean browserConfineChromium = true;
+
+  private List<String> browserRefusedHosts = List.of();
 
   private boolean vmAllowNetwork;
 
@@ -198,6 +203,7 @@ public final class PluginDataConfigurationMapper {
     this.browserJavaScriptJit = config.getBoolean(BROWSER_JAVASCRIPT_JIT, false);
     this.browserAutoplaySound = config.getBoolean(BROWSER_AUTOPLAY_SOUND, false);
     this.browserConfineChromium = config.getBoolean(BROWSER_CONFINE_CHROMIUM, true);
+    this.browserRefusedHosts = readRefusedHosts(config);
     this.vmAllowNetwork = config.getBoolean(VM_ALLOW_NETWORK, false);
     this.vncAllowList = readVncAllowList(config);
   }
@@ -249,6 +255,19 @@ public final class PluginDataConfigurationMapper {
     }
     LOGGER.warn(INVALID_CHOICE, key, value, fallback);
     return fallback;
+  }
+
+  private static List<String> readRefusedHosts(final FileConfiguration config) {
+    final List<String> hosts = new ArrayList<>();
+    for (final String entry : config.getStringList(BROWSER_REFUSED_HOSTS)) {
+      final String host = entry.strip();
+      if (host.isEmpty() || host.chars().anyMatch(character -> character == ',' || Character.isWhitespace(character))) {
+        LOGGER.warn(INVALID_REFUSED_HOST, BROWSER_REFUSED_HOSTS, entry);
+      } else {
+        hosts.add(host);
+      }
+    }
+    return List.copyOf(hosts);
   }
 
   private static int readEncoderThreads(final FileConfiguration config) {
@@ -337,6 +356,15 @@ public final class PluginDataConfigurationMapper {
    */
   public synchronized boolean isBrowserConfineChromium() {
     return this.browserConfineChromium;
+  }
+
+  /**
+   * Gets the hosts whose addresses pages of the browser may not reach, besides the private ones and the server's own.
+   *
+   * @return the names and addresses of {@code browser.refused-hosts}, unmodifiable
+   */
+  public synchronized List<String> getBrowserRefusedHosts() {
+    return this.browserRefusedHosts;
   }
 
   /**

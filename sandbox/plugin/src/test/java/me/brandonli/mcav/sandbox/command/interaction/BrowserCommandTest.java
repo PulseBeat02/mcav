@@ -375,11 +375,13 @@ final class BrowserCommandTest {
     when(this.configuration.isBrowserJavaScriptJit()).thenReturn(true);
     when(this.configuration.isBrowserAutoplaySound()).thenReturn(true);
     when(this.configuration.isBrowserConfineChromium()).thenReturn(true);
+    when(this.configuration.getBrowserRefusedHosts()).thenReturn(List.of("203.0.113.5"));
     final BrowserOptions options = this.command.createOptions();
     assertTrue(options.isPrivateNetworks());
     assertTrue(options.isJavaScriptJit());
     assertTrue(options.isAutoplay());
     assertTrue(options.isConfined());
+    assertEquals(List.of("203.0.113.5"), options.getRefusedHosts());
   }
 
   @Test

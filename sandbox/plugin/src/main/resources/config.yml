@@ -164,6 +164,14 @@ browser:
   # Default is true
   confine-chromium: true
 
+  # More hosts whose addresses pages may not reach, by name or address. Pages never reach private addresses or the
+  # addresses of this machine's network interfaces, but inside a container (Docker, Pterodactyl) the public address of
+  # the machine around it is no interface of the container, and it still reaches every service that listens on all
+  # interfaces of that machine, past its firewall. List that address, or the name it has, here, for example
+  # ["203.0.113.5", "play.example.com"]. Names are looked up when a browser starts.
+  # Default is []
+  refused-hosts: []
+
 # ======================================================================
 # VIRTUAL MACHINE CONFIGURATION
 # ======================================================================

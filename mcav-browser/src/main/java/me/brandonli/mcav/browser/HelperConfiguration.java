@@ -28,8 +28,8 @@ import java.util.StringJoiner;
 /**
  * Everything the browser helper process needs to know, handed to it as one line on its standard input, so none of it
  * shows up in the process list: the session token, the socket to connect to, the installed CEF, the profile folder,
- * the page and its size, the security profile, and whether Chromium is confined and which server folder it may not
- * read then.
+ * the page and its size, the security profile with the hosts the guard refuses, and whether Chromium is confined and
+ * which server folder it may not read then.
  */
 final class HelperConfiguration {
 
@@ -39,7 +39,9 @@ final class HelperConfiguration {
   static final int MAX_FRAME_RATE = 60;
 
   private static final String SEPARATOR = ":";
-  private static final int FIELDS = 14;
+  private static final int FIELDS = 15;
+  // a host name or an address never holds a comma
+  private static final String HOST_SEPARATOR = ",";
   // the longest line a configuration of the longest address and long paths makes, in three-byte characters and Base64
   private static final int MAX_LINE_CHARACTERS = 1024 * 1024;
   private static final int MAX_FRAME_INTERVAL = 1000;
@@ -58,6 +60,7 @@ final class HelperConfiguration {
   private final boolean allowsAutoplay;
   private final boolean confined;
   private final Path serverFolder;
+  private final List<String> refusedHosts;
 
   /**
    * Constructs a configuration and checks every value.
@@ -76,6 +79,7 @@ final class HelperConfiguration {
    * @param allowsAutoplay        true to let the page play sound before anyone clicked or typed into it
    * @param confined              true to confine Chromium where the helper can, see {@link ChromiumConfinement}
    * @param serverFolder          the folder of the server, which a confined Chromium may not read, an absolute path
+   * @param refusedHosts          names or addresses of this machine the guard refuses, see {@link BrowserOptions}
    * @throws IllegalArgumentException if a value is out of range
    */
   HelperConfiguration(
@@ -92,13 +96,17 @@ final class HelperConfiguration {
     final boolean allowsPrivateNetworks,
     final boolean allowsAutoplay,
     final boolean confined,
-    final Path serverFolder
+    final Path serverFolder,
+    final List<String> refusedHosts
   ) {
     requireThat(token.length == HelperProtocol.TOKEN_BYTES, "The token must have " + HelperProtocol.TOKEN_BYTES + " bytes");
     requireAbsolute(socket, "socket");
     requireAbsolute(natives, "natives");
     requireAbsolute(profile, "profile");
     requireAbsolute(serverFolder, "server folder");
+    for (final String host : refusedHosts) {
+      requireThat(isHost(host), "Not a host name or address: " + host);
+    }
     requireThat(NavigationPolicy.isWebAddress(url), "The page must be an absolute http or https address: " + url);
     requireRange(width, 1, HelperProtocol.MAX_SIDE, "width");
     requireRange(height, 1, HelperProtocol.MAX_SIDE, "height");
@@ -118,6 +126,7 @@ final class HelperConfiguration {
     this.allowsAutoplay = allowsAutoplay;
     this.confined = confined;
     this.serverFolder = serverFolder;
+    this.refusedHosts = List.copyOf(refusedHosts);
   }
 
   /**
@@ -142,7 +151,8 @@ final class HelperConfiguration {
       Boolean.toString(this.allowsPrivateNetworks),
       Boolean.toString(this.allowsAutoplay),
       Boolean.toString(this.confined),
-      this.serverFolder.toString()
+      this.serverFolder.toString(),
+      String.join(HOST_SEPARATOR, this.refusedHosts)
     );
     final Base64.Encoder encoder = Base64.getEncoder();
     final StringJoiner line = new StringJoiner(SEPARATOR);
@@ -185,6 +195,7 @@ final class HelperConfiguration {
     final boolean allowsAutoplay = parseBoolean(values[11]);
     final boolean confined = parseBoolean(values[12]);
     final Path serverFolder = Path.of(values[13]);
+    final List<String> refusedHosts = values[14].isEmpty() ? List.of() : List.of(values[14].split(HOST_SEPARATOR, -1));
     return new HelperConfiguration(
       token,
       socket,
@@ -199,8 +210,19 @@ final class HelperConfiguration {
       allowsPrivateNetworks,
       allowsAutoplay,
       confined,
-      serverFolder
+      serverFolder,
+      refusedHosts
     );
+  }
+
+  /**
+   * Checks whether a text can be a host name or an address: not empty, and without a comma or a space.
+   *
+   * @param host the text
+   * @return true if it can be
+   */
+  static boolean isHost(final String host) {
+    return !host.isEmpty() && host.chars().noneMatch(character -> character == ',' || Character.isWhitespace(character));
   }
 
   private static boolean parseBoolean(final String value) {
@@ -279,5 +301,9 @@ final class HelperConfiguration {
 
   Path getServerFolder() {
     return this.serverFolder;
+  }
+
+  List<String> getRefusedHosts() {
+    return this.refusedHosts;
   }
 }

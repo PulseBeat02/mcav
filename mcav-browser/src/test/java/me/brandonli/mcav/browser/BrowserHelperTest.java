@@ -99,7 +99,8 @@ class BrowserHelperTest {
       false,
       allowsAutoplay,
       false,
-      this.folder
+      this.folder,
+      List.of()
     );
   }
 

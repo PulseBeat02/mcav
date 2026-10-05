@@ -18,6 +18,8 @@
 package me.brandonli.mcav.browser;
 
 import com.google.common.base.Preconditions;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * Immutable options for how a {@link BrowserPlayer} treats pages; instances may be shared across threads.
@@ -29,7 +31,9 @@ import com.google.common.base.Preconditions;
  * <p>Pages reach public addresses of the internet only, by default: every connection of the browser goes through a
  * guard in the helper process that resolves the host itself and refuses loopback, private, link-local (such as the
  * metadata service of a cloud machine) and other special addresses, so neither a page nor a player clicking on it can
- * use the server to look into its own network. Allow private networks only to show pages of your own network.
+ * use the server to look into its own network. Allow private networks only to show pages of your own network. Inside a
+ * container the guard cannot see the public address of the machine the container runs on, which reaches the
+ * services that listen on every interface of that machine: name it in {@link Builder#refusedHosts(Collection)}.
  *
  * <p>On Linux, Chromium is confined, by default: its processes cannot read the server's folder, the home folder of the
  * server's user or the server's temporary folder, apart from what the browser needs there, and they change files only
@@ -61,19 +65,22 @@ public final class BrowserOptions {
   private final boolean allowsPrivateNetworks;
   private final boolean allowsAutoplay;
   private final boolean confined;
+  private final List<String> refusedHosts;
 
   private BrowserOptions(
     final int frameRate,
     final boolean allowsJavaScriptJit,
     final boolean allowsPrivateNetworks,
     final boolean allowsAutoplay,
-    final boolean confined
+    final boolean confined,
+    final List<String> refusedHosts
   ) {
     this.frameRate = frameRate;
     this.allowsJavaScriptJit = allowsJavaScriptJit;
     this.allowsPrivateNetworks = allowsPrivateNetworks;
     this.allowsAutoplay = allowsAutoplay;
     this.confined = confined;
+    this.refusedHosts = refusedHosts;
   }
 
   /**
@@ -133,6 +140,16 @@ public final class BrowserOptions {
   }
 
   /**
+   * Gets the names and addresses whose addresses pages may not reach, besides the private ones and the machine's own,
+   * see {@link Builder#refusedHosts(Collection)}.
+   *
+   * @return the hosts, unmodifiable
+   */
+  public List<String> getRefusedHosts() {
+    return this.refusedHosts;
+  }
+
+  /**
    * Builds immutable {@link BrowserOptions}. Builders are mutable and not thread-safe;
    * {@link #build()} snapshots their current values.
    */
@@ -143,6 +160,7 @@ public final class BrowserOptions {
     private boolean allowsPrivateNetworks;
     private boolean allowsAutoplay;
     private boolean confined = true;
+    private List<String> refusedHosts = List.of();
 
     private Builder() {}
 
@@ -216,12 +234,39 @@ public final class BrowserOptions {
     }
 
     /**
+     * Names more hosts whose addresses pages may not reach, such as the public name or address of the machine the
+     * server runs on. The guard refuses private addresses and every address of the machine's network interfaces
+     * already; inside a container, the public address of the machine around it is no interface of the container,
+     * but still reaches the services that listen on every interface of that machine, past a firewall in front of it.
+     * The names are resolved when a browser starts. None by default, and refusing them only matters while pages may
+     * not reach private networks.
+     *
+     * @param refusedHosts the names or addresses, each without a comma or a space
+     * @return this builder
+     * @throws IllegalArgumentException if a host is empty or holds a comma or a space
+     */
+    public Builder refusedHosts(final Collection<String> refusedHosts) {
+      for (final String host : refusedHosts) {
+        Preconditions.checkArgument(HelperConfiguration.isHost(host), "Not a host name or address: '%s'", host);
+      }
+      this.refusedHosts = List.copyOf(refusedHosts);
+      return this;
+    }
+
+    /**
      * Builds the options.
      *
      * @return the options
      */
     public BrowserOptions build() {
-      return new BrowserOptions(this.frameRate, this.allowsJavaScriptJit, this.allowsPrivateNetworks, this.allowsAutoplay, this.confined);
+      return new BrowserOptions(
+        this.frameRate,
+        this.allowsJavaScriptJit,
+        this.allowsPrivateNetworks,
+        this.allowsAutoplay,
+        this.confined,
+        this.refusedHosts
+      );
     }
   }
 }

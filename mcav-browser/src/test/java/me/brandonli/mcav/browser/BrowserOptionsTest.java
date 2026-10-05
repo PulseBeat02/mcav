@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class BrowserOptionsTest {
@@ -34,6 +35,7 @@ class BrowserOptionsTest {
     assertFalse(BrowserOptions.DEFAULT.isPrivateNetworks());
     assertFalse(BrowserOptions.DEFAULT.isAutoplay());
     assertTrue(BrowserOptions.DEFAULT.isConfined(), "Chromium is confined where the system can");
+    assertEquals(List.of(), BrowserOptions.DEFAULT.getRefusedHosts());
   }
 
   @Test
@@ -44,12 +46,17 @@ class BrowserOptionsTest {
       .privateNetworks(true)
       .autoplay(true)
       .confinement(false)
+      .refusedHosts(List.of("mc.example.com", "203.0.113.5"))
       .build();
     assertEquals(1, options.getFrameRate());
     assertTrue(options.isJavaScriptJit());
     assertTrue(options.isPrivateNetworks());
     assertTrue(options.isAutoplay());
     assertFalse(options.isConfined());
+    assertEquals(List.of("mc.example.com", "203.0.113.5"), options.getRefusedHosts());
+    final BrowserOptions.Builder builder = BrowserOptions.builder();
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> builder.refusedHosts(List.of("a b")));
+    assertEquals("Not a host name or address: 'a b'", refused.getMessage());
     assertEquals(60, BrowserOptions.builder().frameRate(60).build().getFrameRate());
   }
 

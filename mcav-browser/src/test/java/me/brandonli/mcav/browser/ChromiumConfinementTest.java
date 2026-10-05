@@ -66,7 +66,8 @@ class ChromiumConfinementTest {
       false,
       false,
       confined,
-      serverFolder
+      serverFolder,
+      List.of()
     );
   }
 

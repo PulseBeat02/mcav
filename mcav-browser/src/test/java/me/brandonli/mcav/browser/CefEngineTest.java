@@ -80,7 +80,8 @@ class CefEngineTest {
       false,
       allowsAutoplay,
       true,
-      ROOT.resolve("server")
+      ROOT.resolve("server"),
+      List.of()
     );
   }
 
