@@ -34,6 +34,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.messaging.StandardMessenger;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -67,8 +68,8 @@ public final class TestServer {
   }
 
   /**
-   * Resets the server and gives it a new plugin manager and a scheduler that runs every task at once, as if the
-   * caller were the main thread.
+   * Resets the server and gives it a new plugin manager, Bukkit's own messenger of plugin channels and a scheduler
+   * that runs every task at once, as if the caller were the main thread.
    *
    * <p>The thread that calls this method is the main thread of the server: {@link Bukkit#isPrimaryThread()} is true
    * only on it, so code that must not touch the world from other threads can be checked.
@@ -88,6 +89,7 @@ public final class TestServer {
     when(SERVER.getLogger()).thenReturn(logger);
     final PluginManager pluginManager = mock(PluginManager.class);
     when(SERVER.getPluginManager()).thenReturn(pluginManager);
+    when(SERVER.getMessenger()).thenReturn(new StandardMessenger());
     final BukkitScheduler scheduler = mock(BukkitScheduler.class);
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(invocation -> {
       final Runnable task = invocation.getArgument(1);
