@@ -555,6 +555,10 @@ A switch such as `no-playlist` is written on its own, an option with a value as 
 list, a switch given a value, an option missing its value, or a value that starts with a dash is refused and the
 command tells you which option it was.
 
+The page chooses the addresses yt-dlp reports for its streams, so only `http` and `https` streams are played. A page
+that names a stream of another kind, such as a `file:` of the server or a `tcp:` connection, does not start, and the
+console says why.
+
 ## QEMU options
 
 `/mcav vm create` passes its `flags` to QEMU. QEMU can read and write any file of the server, load a plugin library,
