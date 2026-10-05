@@ -47,6 +47,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.StandardError;
+import me.friwi.jcefmaven.CefBuildInfo;
 import org.cef.CefApp;
 import org.cef.CefClient;
 import org.cef.CefSettings;
@@ -148,6 +149,38 @@ class CefEngineTest {
     for (final String value : open) {
       assertFalse(value.startsWith("--proxy"), value);
     }
+  }
+
+  /**
+   * Chromium's own services contact Google when it starts, which tells Google that a browser started on this server:
+   * the sign-in check, the AI mode check of the search box, the network time service and the preconnect to the search
+   * engine (measured with Chromium's net log).
+   */
+  @Test
+  void chromiumsOwnServicesNeverContactGoogle() {
+    final List<String> switches = CefEngine.createSwitches(configuration(false), false, false, 0, null);
+    final List<String> disabled = switches
+      .stream()
+      .filter(value -> value.startsWith("--disable-features="))
+      .toList();
+    assertTrue(switches.containsAll(List.of("--gaia-url=https://accounts.invalid", "--google-base-url=https://www.invalid")));
+    assertEquals(1, disabled.size(), "Chromium keeps the last --disable-features switch only");
+    final String value = disabled.getFirst().substring("--disable-features=".length());
+    final List<String> features = List.of(value.split(",", -1));
+    assertTrue(features.containsAll(List.of("NetworkTimeServiceQuerying", "PreconnectToSearch")), value);
+    assertTrue(features.containsAll(CefEngine.CEF_DISABLED_FEATURES), "the features CEF disables itself stay disabled");
+  }
+
+  /**
+   * CEF passes a --disable-features switch of its own before the switches of the helper, and Chromium keeps the last
+   * one only, so the helper's switch repeats CEF's list, which belongs to this CEF. Before moving to another CEF, load a
+   * page without the helper's switch and copy the list its renderer gets on its command line.
+   */
+  @Test
+  void theFeaturesCefDisablesItselfAreThoseOfThisCef() throws IOException {
+    final CefBuildInfo build = CefBuildInfo.fromClasspath();
+    final String release = build.getReleaseTag();
+    assertTrue(release.contains("+cef-152.0.6+"), release);
   }
 
   @Test

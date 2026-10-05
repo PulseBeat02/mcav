@@ -77,6 +77,8 @@ A page is untrusted content, and the browser runs without Chromium's sandbox, wh
   certificates are refused, JavaScript dialogs are dismissed, and popups open in place, only during a click or a key.
 - **Nothing kept.** The browser's profile keeps nothing, and its folder is deleted when it is released, or at the
   next start if the server was killed. No debugging port is ever opened.
+- **No calls home.** Chromium's own services (sign-in, search, network time) do not contact Google, so starting a
+  browser tells Google nothing. Pages still load what they load, Google's included.
 
 The details are in the [browser module](../library/browser.md#security).
 

@@ -147,6 +147,9 @@ a page can do instead:
   a dashboard of your network.
 - JavaScript runs without V8's just-in-time compiler by default, the part of Chromium most exploits target.
   `BrowserOptions.builder().javaScriptJit(true)` turns it on for pages you trust.
+- Chromium's own services do not contact Google when it starts: its sign-in and search services are sent to names
+  that cannot exist (`accounts.invalid`, `www.invalid`), and its network time service and the preconnect to the search
+  engine are off. Pages still load what they load, Google's included.
 - New windows open in place, as long as their address may be shown: `window.open`, links and forms that target
   another window, but only during a click or a key, as a popup blocker allows; links into a named frame of the page
   stay in that frame.

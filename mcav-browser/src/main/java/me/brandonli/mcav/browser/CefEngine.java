@@ -69,6 +69,16 @@ final class CefEngine implements HelperEngine {
   private static final String NOT_CONFIRMED = "not confirmed";
   private static final String CHROMIUM_THREAD = "mcav-browser-chromium";
 
+  // the features CEF disables itself: CEF passes them in a --disable-features switch before the switches of the helper,
+  // and Chromium keeps only the last of several, so the helper's switch repeats them
+  @VisibleForTesting
+  static final List<String> CEF_DISABLED_FEATURES = List.of(
+    "AutofillActorMode",
+    "GlicActorUi",
+    "KillOnInvalidNavigationHeaders",
+    "LensOverlay"
+  );
+
   private final CountDownLatch terminated;
   private volatile @Nullable NetworkGuard guard;
   private volatile @Nullable NullDisplay display;
@@ -120,6 +130,15 @@ final class CefEngine implements HelperEngine {
     switches.add("--no-first-run");
     switches.add("--site-per-process");
     switches.add("--disable-webgpu");
+    // Chromium's own services contact Google when it starts, which tells Google that a browser runs on this server: the
+    // sign-in and search services are sent to names that cannot exist (RFC 6761), and the network time service and the
+    // preconnect to the search engine are turned off
+    switches.add("--gaia-url=https://accounts.invalid");
+    switches.add("--google-base-url=https://www.invalid");
+    final List<String> disabledFeatures = new ArrayList<>(CEF_DISABLED_FEATURES);
+    disabledFeatures.add("NetworkTimeServiceQuerying");
+    disabledFeatures.add("PreconnectToSearch");
+    switches.add("--disable-features=" + String.join(",", disabledFeatures));
     if (!configuration.isJavaScriptJit()) {
       switches.add("--js-flags=--jitless");
     }
