@@ -560,7 +560,9 @@ class NullDisplayTest {
   void clientsWithoutTheCookieCannotKeepOneThatHasItOut() throws IOException {
     final Path authority = this.folder.resolve("Xauthority");
     final List<Socket> silent = new ArrayList<>();
-    try (final NullDisplay display = NullDisplay.start(authority)) {
+    // no setup timeout, so only the eviction this test is about can end a waiting client: on a busy machine the
+    // default's ten seconds passed while the clients connected, and the second client was closed by it
+    try (final NullDisplay display = NullDisplay.start(authority, 0)) {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
       for (int count = 0; count < NullDisplay.MAX_PENDING; count++) {
