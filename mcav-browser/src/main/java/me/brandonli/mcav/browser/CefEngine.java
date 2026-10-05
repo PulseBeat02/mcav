@@ -355,10 +355,12 @@ final class CefEngine implements HelperEngine {
       }
       if (!confirmed) {
         notices.accept("The scripts of the page were not confirmed in " + attempt + " attempts; it loads anyway");
-        answered.thenRun(() -> {
+        final CompletableFuture<String> late = answered.thenApply(lateAnswer -> {
           notices.accept("The scripts of the page were confirmed late; it loads again");
           EventQueue.invokeLater(created::reload);
+          return lateAnswer;
         });
+        late.exceptionally(CefEngine::logFailedCall);
       }
       EventQueue.invokeLater(() -> created.loadURL(url));
     });
