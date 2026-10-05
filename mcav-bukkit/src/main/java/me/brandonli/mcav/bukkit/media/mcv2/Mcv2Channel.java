@@ -43,6 +43,8 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Delivers encoded MCV2 frames to the viewers of a screen who can decode them.
@@ -68,6 +70,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * not come and go.
  */
 public final class Mcv2Channel {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(Mcv2Channel.class);
+  private static final String UNSENT_LIMIT_REFUSED = "The connection of viewer {} refused the limit of unsent bytes";
 
   /** The blocks past their view distance a viewer near the wall may go before the screen stops sending to them. */
   static final int RANGE_MARGIN = 32;
@@ -362,7 +367,13 @@ public final class Mcv2Channel {
     // the rest of the viewer's video waits where its backlog limit sees it
     final int unsent = this.configuration.getUnsentLimit();
     if (unsent > 0) {
-      PacketUtils.limitUnsent(viewer, unsent);
+      try {
+        PacketUtils.limitUnsent(viewer, unsent);
+      } catch (final RuntimeException refused) {
+        // the transport may refuse the option, as epoll does for a connection that closed since the show was scheduled
+        // (the player is leaving): the limit only keeps a slow viewer's backlog small, and the screen works without it
+        LOGGER.debug(UNSENT_LIMIT_REFUSED, viewer, refused);
+      }
     }
     // a viewer shown the screen again starts over: its client holds no picture of this stream yet
     this.links.put(viewer, new Mcv2Link(this.configuration.getBacklogLimit()));
