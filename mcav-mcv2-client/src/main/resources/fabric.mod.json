@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "mcav_mcv2",
+  "version": "${version}",
+  "name": "MCAV MCV2 Client",
+  "description": "Tells MCAV servers whether Iris draws a shader pack, which keeps MCV2 screens from decoding, so they show you the dithered maps while one is on.",
+  "authors": ["Brandon Li"],
+  "contact": {
+    "homepage": "https://github.com/PulseBeat02/mcav"
+  },
+  "license": "GPL-3.0-or-later",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["me.brandonli.mcav.client.FabricEntrypoint"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-networking-api-v1": "*",
+    "fabric-lifecycle-events-v1": "*"
+  }
+}

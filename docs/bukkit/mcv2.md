@@ -111,10 +111,11 @@ size. Keep the lease for that: `release()` does not free the slot, and once all 
 
 `Mcv2Result` resizes every frame to the configured video size and encodes the newest one on the shared budget; frames
 that arrive while it works replace each other, so a slow encoder shows fewer frames instead of falling behind. Viewers
-whose pack has not loaded see the wall dithered with the fallback algorithm, and so do viewers whose MCV2 client mod
-reports that Iris draws a shader pack, which keeps the pack's shaders from decoding; they get the video back, without
-rejoining, once it reports the shaders off. `packs.start()` listens for those reports on the `mcav:mcv2` plugin channel,
-which a client learns of as it joins, so start the pack server in `onEnable`. A few settings matter:
+whose pack has not loaded see the wall dithered with the fallback algorithm, and so do viewers whose [MCV2 client
+mod](../mcv2/client-mod.md) reports that Iris draws a shader pack, which keeps the pack's shaders from decoding; they
+get the video back, without rejoining, once it reports the shaders off. `packs.start()` listens for those reports on the
+`mcav:mcv2` plugin channel, which a client learns of as it joins, so start the pack server in `onEnable`. A few settings
+matter:
 
 | Setting | Default | What it does |
 |---|---|---|
