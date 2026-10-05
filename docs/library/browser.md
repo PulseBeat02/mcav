@@ -62,6 +62,11 @@ its helper process gets that folder on its `LD_LIBRARY_PATH`. A few basic librar
 and freetype) are expected from the server, as every server image tested has them; a server without one of them gets
 a `BrowserUnavailableException` that names it.
 
+Debian 11's long-term support ended in August 2026, so these packages get no more security updates. They stay for
+the servers whose glibc is too old for Debian 12's, but a server that installs the libraries from its own distribution
+(the packages that provide `libnss3.so`, `libatk-1.0.so.0`, `libcups.so.2`, `libasound.so.2`, `libgbm.so.1`,
+`libxkbcommon.so.0` and the X11 client libraries) keeps them up to date, as its own libraries always win.
+
 This was proven in the images `eclipse-temurin:25-jre`, `ghcr.io/pterodactyl/yolks:java_25` and
 `itzg/minecraft-server:latest`, run as an unprivileged user without capabilities: a page streams, the player is
 released and started again, and no process of the browser is left.
