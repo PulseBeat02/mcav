@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -125,11 +126,22 @@ final class CaptureDevicesTest {
 
   @Test
   void triesDevicesOnlyWhereTheSystemDoesNotListThem() {
-    try (final MockedStatic<OSUtils> systems = Mockito.mockStatic(OSUtils.class)) {
+    // grabbers that never start, whatever cameras the machine running the tests has
+    final FrameGrabber.Exception noCamera = new FrameGrabber.Exception("no camera");
+    try (
+      final MockedStatic<OSUtils> systems = Mockito.mockStatic(OSUtils.class);
+      final MockedConstruction<OpenCVFrameGrabber> grabbers = Mockito.mockConstruction(OpenCVFrameGrabber.class, (grabber, _) ->
+        doThrow(noCamera).when(grabber).start()
+      )
+    ) {
       systems.when(OSUtils::getOS).thenReturn(OS.WINDOWS);
       assertEquals(List.of(), CaptureDevices.list());
+      final int tried = grabbers.constructed().size();
       systems.when(OSUtils::getOS).thenReturn(OS.LINUX);
       assertEquals(CaptureDevices.listSysfs(CaptureDevices.SYSFS), CaptureDevices.list());
+
+      assertTrue(tried > 0, "the numbers are tried");
+      assertEquals(tried, grabbers.constructed().size(), "Linux names its devices, and listing them opens none");
     }
   }
 
