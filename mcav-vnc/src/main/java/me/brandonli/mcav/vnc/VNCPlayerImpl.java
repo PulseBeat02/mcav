@@ -31,6 +31,7 @@ import java.net.Socket;
 import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -62,6 +63,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * started again.
  */
 public final class VNCPlayerImpl implements VNCPlayer {
+
+  private static final Executor HANDSHAKE_DEADLINES = task -> {
+    // Closing may block in a socket implementation; one deadline must not hold up another.
+    final Thread worker = Thread.ofVirtual().name("mcav-vnc-deadline").unstarted(task);
+    worker.start();
+  };
 
   private static final int LEFT_BUTTON = 1;
   private static final int RIGHT_BUTTON = 3;
@@ -231,10 +238,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
         expired.set(true);
         closeQuietly(socket);
       },
-      // a thread of its own: the common pool of the server may be busy with the tasks of other plugins
-      CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS, task ->
-        Thread.ofVirtual().name("mcav-vnc-handshake-deadline").start(task)
-      )
+      CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS, HANDSHAKE_DEADLINES)
     );
     try {
       vncClient.start(socket);
