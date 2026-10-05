@@ -22,8 +22,11 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.DERIVED_565;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.keyframe;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.pattern;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.solid;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.split;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
 import me.brandonli.mcav.bukkit.media.mcv2.FrameParser;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
@@ -31,7 +34,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests that the derived form names its pattern endpoints in a table only when the table saves bytes: a table costs
- * an entry per pair and a byte, and saves a few bytes per use.
+ * an entry per pair and a byte, and saves a few bytes per use; and that the payload the derived form's 16-bit offsets
+ * must reach counts that saving.
  */
 final class FrameWriterEndpointTableTest {
 
@@ -65,5 +69,17 @@ final class FrameWriterEndpointTableTest {
     assertEquals(0, tableFlags(keyframe(32, 32, DERIVED, onePatternLeaf(ENDPOINTS))));
     final TreeNode root = onePatternLeaf(ENDPOINTS);
     assertEquals(Mcv2Format.ENDPOINT_TABLE, tableFlags(keyframe(64, 32, DERIVED, root, root)));
+  }
+
+  @Test
+  void countsTheTableInThePayloadTheDerivedOffsetsMustReach() throws Mcv2Exception {
+    // 16384 pattern leaves of one pair: two bytes each with the table and the selector words, seven without the table,
+    // so the payload fits the derived form's 16-bit offsets only once the table's saving is counted
+    final TreeNode root = split(split(pattern(8, ENDPOINTS, 0, 0x0F)));
+    final TreeNode[] roots = new TreeNode[32 * 32];
+    Arrays.fill(roots, root);
+    final int flags = FrameParser.parse(keyframe(1024, 1024, DERIVED, roots)).getFlags();
+    assertTrue((flags & Mcv2Format.DERIVED_OFFSETS) != 0, "the derived form");
+    assertEquals(Mcv2Format.ENDPOINT_TABLE, flags & TABLE_FLAGS);
   }
 }
