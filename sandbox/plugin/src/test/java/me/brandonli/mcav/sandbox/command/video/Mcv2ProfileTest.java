@@ -18,7 +18,9 @@
 package me.brandonli.mcav.sandbox.command.video;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import org.junit.jupiter.api.Test;
 
@@ -36,5 +38,23 @@ final class Mcv2ProfileTest {
     assertEquals(EncoderSettings.LIVE_FAST, Mcv2Profile.LIVE_FAST.getSettings());
     assertEquals(EncoderSettings.ReferencePolicy.LAST_KEYFRAME, Mcv2Profile.LIVE_KEYFRAME.getSettings().reference());
     assertEquals(EncoderSettings.LIVE.live(), Mcv2Profile.LIVE_KEYFRAME.getSettings().live());
+  }
+
+  /**
+   * The encoder matches the reference encoder byte for byte at the two lambdas EncoderConformanceTest pins, and only
+   * there: at another lambda a node at a rounding tie may quantize one step apart, which is valid MCV2 but no longer the
+   * reference's stream. So a profile with the reference's exhaustive search and a new lambda needs its own conformance
+   * check before it ships.
+   */
+  @Test
+  void everyProfileOfTheReferenceSearchUsesALambdaTheConformanceTestPins() {
+    final List<Double> pinned = List.of(EncoderSettings.SHIP.lambda(), EncoderSettings.LOW_BANDWIDTH.lambda());
+    for (final Mcv2Profile profile : Mcv2Profile.values()) {
+      final EncoderSettings settings = profile.getSettings();
+      final boolean referenceSearch = settings.live() == null;
+      if (referenceSearch) {
+        assertTrue(pinned.contains(settings.lambda()), profile + " codes at lambda " + settings.lambda());
+      }
+    }
   }
 }
