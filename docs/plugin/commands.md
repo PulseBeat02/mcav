@@ -36,6 +36,9 @@ granted.
 `mcav.browser.interact`, `mcav.vm.interact` and `mcav.vnc.interact` do not only switch chat input on: they are also
 what lets a player click a browser, a virtual machine or a desktop by clicking its map screen. The screen stands in the world, so anyone can reach
 it; without the permission a click does nothing, while the frames of the screen stay protected for everyone.
+The permission is the only check: a region plugin that protects the area, or a chat plugin that cancels the message,
+does not stop a click or typed text from a player who has it. To keep a screen to some players or places, give the
+permission only there, for example per world with your permissions plugin.
 ```
 
 ## General Commands
