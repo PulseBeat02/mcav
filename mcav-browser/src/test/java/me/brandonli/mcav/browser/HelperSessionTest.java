@@ -284,6 +284,64 @@ class HelperSessionTest {
   }
 
   @Test
+  void closingWaitsForTheDeliveryOfAPictureThatIsStillRunning() throws Exception {
+    final CountDownLatch entered = new CountDownLatch(1);
+    final CountDownLatch release = new CountDownLatch(1);
+    final BrowserSession.Listener slow = new BrowserSession.Listener() {
+      @Override
+      public void onFrame(final ImageBuffer frame) {
+        frame.close();
+        entered.countDown();
+        try {
+          release.await();
+        } catch (final InterruptedException exception) {
+          Thread.currentThread().interrupt();
+        }
+      }
+
+      @Override
+      public void onAudio(final byte[] samples) {}
+
+      @Override
+      public void onEnded(final String reason, final Throwable cause) {}
+    };
+    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final HelperSession session = HelperSession.open(
+      launcher(ScriptedEngine.class.getName(), 60_000L),
+      NATIVES,
+      source,
+      BrowserOptions.DEFAULT,
+      slow
+    );
+    this.sessions.add(session);
+    assertTrue(entered.await(30, TimeUnit.SECONDS), "a picture is handed over");
+    final Thread delivery = session.getThreads().get(1);
+    final Thread closer = Thread.ofPlatform().name("closer").start(session::close);
+    try {
+      Await.until("the close waits for the delivery", () ->
+        Arrays.stream(closer.getStackTrace()).anyMatch(
+          frame -> frame.getClassName().equals(Thread.class.getName()) && frame.getMethodName().equals("join")
+        )
+      );
+      assertTrue(delivery.isAlive(), "the delivery still hands its picture over");
+    } finally {
+      release.countDown();
+    }
+    closer.join(TimeUnit.SECONDS.toMillis(30));
+    assertFalse(closer.isAlive());
+    assertFalse(delivery.isAlive(), "the close returned only once the delivery ended");
+  }
+
+  @Test
+  void theDeliveryThreadWaitsBetweenTheRepeatsOfAPictureInsteadOfSpinning() {
+    final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
+    Await.until("the first frame", () -> !this.listener.frames.isEmpty());
+    final Thread delivery = session.getThreads().get(1);
+    // the last picture is handed over again every 50 ms for two seconds, and the thread waits in between
+    Await.until("the delivery thread waits for the next repeat", () -> delivery.getState() == Thread.State.TIMED_WAITING);
+  }
+
+  @Test
   void closingEndsTheThreadsTheConnectionAndThePictureAndRemovesTheFolder() {
     // the folder is not read from the helper's command line: Linux shows no arguments of a command line longer than a
     // page, which the class path of a test run is
