@@ -32,7 +32,6 @@ import java.lang.invoke.VarHandle;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import me.brandonli.mcav.utils.ThrowableUtils;
 
 /**
  * Landlock, the sandbox of the Linux kernel (5.13 and later) that a process can put itself in without privileges: a
@@ -251,8 +250,11 @@ final class Landlock {
       return ((Number) result).longValue();
     } catch (final Throwable failure) {
       // a function of the C library throws nothing itself: this is the JVM, such as a refused native access; a
-      // virtual machine error, such as running out of memory, is no answer of the call and goes on as it is
-      ThrowableUtils.throwIfFatal(failure);
+      // virtual machine error, such as running out of memory, is no answer of the call and goes on as it is (checked
+      // here, as mcav-common's ThrowableUtils is not on the helper's class path)
+      if (failure instanceof final VirtualMachineError fatal) {
+        throw fatal;
+      }
       throw new IllegalStateException("The C library could not be called", failure);
     }
   }
