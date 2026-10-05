@@ -202,6 +202,43 @@ class VMAudioClientTest {
   }
 
   @Test
+  void theEndOfTheGuestsSoundTellsTheSinkItWentQuiet() throws Exception {
+    final List<String> heard = new CopyOnWriteArrayList<>();
+    final VMAudioClient.Sink sink = new VMAudioClient.Sink() {
+      @Override
+      public void accept(final byte[] samples, final int length) {
+        heard.add("sound " + length);
+      }
+
+      @Override
+      public void quiet() {
+        heard.add("quiet");
+      }
+    };
+    final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
+      try (final Socket socket = this.server.accept()) {
+        final Streams streams = handshake(socket);
+        QemuAudioProtocolTest.writeAcknowledgement(streams.out());
+        streams.out().write(new byte[] { (byte) 255, 1, 0, 1 });
+        QemuAudioProtocolTest.writeData(streams.out(), new byte[] { 1, 2, 3, 4 });
+        streams.out().write(new byte[] { (byte) 255, 1, 0, 0 });
+        streams.out().flush();
+        waitUntil(() -> heard.size() == 2);
+      } catch (final IOException exception) {
+        throw new UncheckedIOException(exception);
+      }
+    });
+    try (final VMAudioClient client = VMAudioClient.connect(this.address(), PASSWORD, sink, (message, failure) -> {})) {
+      served.get(10, TimeUnit.SECONDS);
+      assertEquals(List.of("sound 4", "quiet"), heard, "the end of the guest's sound, after its samples");
+      assertTrue(client.getReader() != null);
+    }
+    // a sink that keeps no time ignores the end
+    final VMAudioClient.Sink plain = (samples, length) -> {};
+    plain.quiet();
+  }
+
+  @Test
   void aSinkThatFailsEndsTheConnectionAndIsReported() throws Exception {
     final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
       try (final Socket socket = this.server.accept()) {

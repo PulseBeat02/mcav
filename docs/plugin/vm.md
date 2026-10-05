@@ -41,7 +41,8 @@ MCAV gives an **x86-64** machine of the PC or Q35 family (the default machine, `
 Intel HD Audio card and the PC speaker, so the guest needs no option for it, only a driver, which every current
 operating system has. Its sound plays through the chosen audio output like a video's, and takes the outputs over from
 a playing video or browser. It is held about 70 ms on purpose, so that it plays with QEMU's picture, which refreshes 30
-ms after a change at the earliest. Machines of other architectures have no sound and must choose `NONE`. A
+ms after a change at the earliest. A pause of up to two seconds in its sound plays as silence, so the sound keeps its
+rhythm. Machines of other architectures have no sound and must choose `NONE`. A
 configuration that sets `-audio`, `-audiodev`, `-vnc` or routes the PC speaker itself is refused: the plugin owns the
 sound and the display.
 

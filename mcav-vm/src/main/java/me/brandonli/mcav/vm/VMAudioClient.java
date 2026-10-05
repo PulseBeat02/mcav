@@ -142,8 +142,12 @@ final class VMAudioClient implements Closeable {
     try {
       while (true) {
         final QemuAudioProtocol.Message message = QemuAudioProtocol.readMessage(this.in, AudioFilter.FRAME_SIZE, size -> buffer);
-        if (message.getKind() == QemuAudioProtocol.Kind.DATA) {
+        final QemuAudioProtocol.Kind kind = message.getKind();
+        if (kind == QemuAudioProtocol.Kind.DATA) {
           this.sink.accept(message.getSamples(), message.getLength());
+        } else if (kind == QemuAudioProtocol.Kind.END) {
+          // QEMU sends nothing until the guest plays again, so the sink keeps the time of the pause itself
+          this.sink.quiet();
         }
       }
     } catch (final IOException | RuntimeException exception) {
@@ -227,5 +231,12 @@ final class VMAudioClient implements Closeable {
      * @param length  the number of bytes of samples at its start, whole frames
      */
     void accept(byte[] samples, int length);
+
+    /**
+     * Learns that the guest stopped playing: nothing arrives until it plays again.
+     */
+    default void quiet() {
+      // a sink that does not keep the time of the sound has nothing to do
+    }
   }
 }

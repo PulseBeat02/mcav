@@ -244,7 +244,7 @@ public final class VMPlayerImpl implements VMPlayer {
     final InetSocketAddress address = new InetSocketAddress(VMProcess.LOOPBACK, settings.getPort());
     try {
       final String password = qemu.getPassword();
-      this.audioClient = this.audioConnector.connect(address, password, output::accept, this::report);
+      this.audioClient = this.audioConnector.connect(address, password, new OutputSink(output), this::report);
     } catch (final IOException exception) {
       this.disconnectAudio();
       this.report("The sound of the virtual machine could not be connected, it runs without sound", exception);
@@ -446,6 +446,29 @@ public final class VMPlayerImpl implements VMPlayer {
      * @return the process
      */
     VMProcess create(VMSettings settings, Architecture architecture, Path executable, VMConfiguration configuration);
+  }
+
+  /**
+   * Hands the sound of the machine to its output, and the pauses of the guest's sound too, which the output fills with
+   * silence so the sound keeps its timing.
+   */
+  private static final class OutputSink implements VMAudioClient.Sink {
+
+    private final DelayedAudioOutput output;
+
+    OutputSink(final DelayedAudioOutput output) {
+      this.output = output;
+    }
+
+    @Override
+    public void accept(final byte[] samples, final int length) {
+      this.output.accept(samples, length);
+    }
+
+    @Override
+    public void quiet() {
+      this.output.quiet();
+    }
   }
 
   /**

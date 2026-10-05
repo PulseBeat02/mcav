@@ -97,5 +97,7 @@ itself with `pcspk-audiodev`, is refused.
 QEMU sends the sound about every 10 ms, but refreshes the picture of its VNC display 30 ms after a change at the
 earliest, and later when the screen was idle, so the player holds the sound for 70 ms to keep it with the picture. At
 most 130 ms of sound wait for the pipeline, the hold included; a slow pipeline loses the oldest sound, so the sound
-never falls further behind. While the player is paused, the sound of the guest is dropped. A sound connection that
-cannot be made is reported to the exception handler, and the machine runs without sound.
+never falls further behind. QEMU sends nothing while the guest plays no sound, so when the guest stops playing the
+player hands silence to the pipeline instead, for two seconds at most: a pause between two sounds keeps its length.
+While the player is paused, the sound of the guest is dropped. A sound connection that cannot be made is reported to
+the exception handler, and the machine runs without sound.

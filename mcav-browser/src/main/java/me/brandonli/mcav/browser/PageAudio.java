@@ -76,6 +76,9 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     const INSTALLED = Symbol.for('mcav.audio.installed');
     const RATE = 48000;
     const CHUNK = 2048;
+    // a pause after sound is sent as silence for two seconds, so the server keeps the time of the sound; a longer one,
+    // and silence before any sound, is not sent
+    const QUIET_CHUNKS = Math.ceil((2 * RATE) / CHUNK);
     const GESTURES = ['pointerdown', 'mousedown', 'keydown', 'touchend'];
     if (typeof AudioContext !== 'function' || globalThis[INSTALLED] === true) {
       return;
@@ -107,6 +110,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     const construct = Reflect.construct;
 
     let send = null;
+    let quietChunks = QUIET_CHUNKS;
     const findSend = () => {
       if (send === null && typeof globalThis[BINDING] === 'function') {
         send = globalThis[BINDING];
@@ -139,9 +143,12 @@ final class PageAudio implements CefDevToolsClient.EventListener {
         view.setInt16(frame * 4 + 2, second, true);
         loud = loud || first !== 0 || second !== 0;
       }
-      if (!loud) {
-        // silence is not sent: the server plays nothing when nothing arrives
+      if (loud) {
+        quietChunks = 0;
+      } else if (quietChunks >= QUIET_CHUNKS) {
         return;
+      } else {
+        quietChunks++;
       }
       let text = '';
       for (let start = 0; start < bytes.length; start += 0x2000) {
@@ -378,7 +385,20 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       return false;
     }
     this.speaker = chunk.context();
-    this.spoken = now;
+    // the silence a frame sends after its sound keeps the time of that sound, but does not keep another frame from
+    // taking over once the sound ended
+    if (!isSilent(chunk.samples())) {
+      this.spoken = now;
+    }
+    return true;
+  }
+
+  private static boolean isSilent(final byte[] samples) {
+    for (final byte sample : samples) {
+      if (sample != 0) {
+        return false;
+      }
+    }
     return true;
   }
 

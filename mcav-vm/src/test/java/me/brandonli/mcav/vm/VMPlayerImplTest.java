@@ -220,6 +220,22 @@ final class VMPlayerImplTest {
   }
 
   @Test
+  void aPauseOfTheGuestsSoundReachesTheAudioPipelineAsSilence() {
+    when(this.qemu.hasAudio()).thenReturn(true);
+    final List<Integer> heard = new CopyOnWriteArrayList<>();
+    final VMPlayerImpl player = this.startedPlayer();
+    player.getAudioAttachableCallback().attach(AudioPipelineStep.of((samples, metadata) -> heard.add(samples.remaining())));
+    final VMAudioClient.Sink sink = this.sinks.getFirst();
+    sink.accept(new byte[8], 8);
+    waitUntil(() -> heard.size() == 1);
+    // the guest stopped playing, and QEMU sends nothing until it plays again
+    sink.quiet();
+    waitUntil(() -> heard.size() >= 2);
+    assertEquals(3840, heard.get(1), "20 ms of silence after the sound");
+    player.release();
+  }
+
+  @Test
   void theSoundOfAMachineWithSoundReachesTheAudioPipelineAndStopsWhilePaused() {
     when(this.qemu.hasAudio()).thenReturn(true);
     when(this.vnc.pause()).thenReturn(true);

@@ -49,7 +49,8 @@ The page's sound, from Web Audio and its audio and video elements, plays into th
 (`HTTP_SERVER`, `DISCORD_BOT`, `SIMPLE_VOICE_CHAT`), and takes the outputs over from a video or a virtual machine; `NONE`
 keeps the page silent. As in a desktop browser, a page plays sound only once a player clicked its wall or typed into it,
 so a page cannot play sound before anyone looked at it; set `browser.autoplay-sound: true` for a screen that should play
-a video with sound as soon as it opens. The sound of a frame embedded from another site, of media from another site
+a video with sound as soon as it opens. A pause of up to two seconds in its sound plays as silence, so the sound keeps
+its rhythm. The sound of a frame embedded from another site, of media from another site
 that does not allow it, and of protected (DRM) media cannot be captured: open the embedded player's own address
 instead.
 

@@ -162,5 +162,7 @@ nothing before anyone touched it even if it works around Chromium's rule; a pres
 next page the browser loads, by a link or by itself. `BrowserOptions.builder().autoplay(true)` lets pages play
 sound right away. The sound of one frame of the page plays at
 a time, and the sound of frames from another site (which Chromium runs in another process), of media from another site
-that does not allow it (CORS), and of protected media (DRM) stays silent. The sound reaches the pipeline within a few
-tens of milliseconds of its picture.
+that does not allow it (CORS), and of protected media (DRM) stays silent. When a page stops playing, two seconds of
+silence still reach the pipeline, so a pause between two sounds keeps its length; a longer pause, and the silence of a
+page that has played nothing yet, are not sent. The sound reaches the pipeline within a few tens of milliseconds of its
+picture.
