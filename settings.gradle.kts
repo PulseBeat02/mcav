@@ -22,6 +22,7 @@ include(
     "mcav-vm",
     "mcav-lwjgl",
     "mcav-svc",
+    "mcav-mcv2-client",
     "mcav-jcstress",
     "sandbox:plugin",
 )
