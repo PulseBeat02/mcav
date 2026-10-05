@@ -140,6 +140,17 @@ final class FrameParserTest {
     assertEquals("Invalid frame length", message(huge));
   }
 
+  @Test
+  void judgesTheLengthOfBytesThatStartLikeAFrame() {
+    final byte[] magic = new byte[Mcv2Format.WORD_BYTES];
+    Mcv2Format.putU32(magic, 0, Mcv2Format.MAGIC);
+    // the magic alone is a frame too short, not something else
+    assertEquals("Invalid frame length", message(magic));
+    // the shortest and the longest frames pass the length check and reach the header's
+    assertEquals("Unsupported MCV2 header", message(Arrays.copyOf(magic, Mcv2Format.HEADER_BYTES)));
+    assertEquals("Unsupported MCV2 header", message(Arrays.copyOf(magic, Mcv2Format.MAX_FRAME_BYTES)));
+  }
+
   static Stream<Arguments> headerRules() {
     final byte[] key = keyframe(40, 40, DERIVED, solid(1, 2, 3), solid(4, 5, 6), solid(1, 2, 3), solid(7, 8, 9));
     final byte[] motion = predicted(40, 40, 2, 0, SHORT, motion(1, 1), motion(1, 1), motion(1, 1), motion(1, 1));
