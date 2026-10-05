@@ -119,6 +119,15 @@ class LandlockTest {
     assertEquals(4, Landlock.invoke(length, "four"));
   }
 
+  @Test
+  void aVirtualMachineErrorIsNotTurnedIntoAnAnswerOfTheCall() {
+    final OutOfMemoryError exhausted = new OutOfMemoryError("no memory for the call");
+    final MethodHandle throwing = MethodHandles.throwException(long.class, OutOfMemoryError.class);
+    final MethodHandle call = MethodHandles.insertArguments(throwing, 0, exhausted);
+    final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> Landlock.invoke(call));
+    assertSame(exhausted, thrown);
+  }
+
   /**
    * Runs a task on a thread of its own and waits for it.
    *
