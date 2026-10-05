@@ -359,8 +359,18 @@ final class PluginDataConfigurationMapperTest {
   }
 
   @ParameterizedTest
-  @CsvSource({ "1, 1", "65535, 65535", "0, 3000", "-5, 3000", "65536, 3000" })
-  void acceptsOnlyValidPorts(final int configured, final int expected) throws IOException {
+  @CsvSource({
+    "1, 1",
+    "65535, 65535",
+    "0, 3000",
+    "-5, 3000",
+    "65536, 3000",
+    // a number beyond an int is not cut down to its low bits, which are 80 here
+    "4294967376, 3000",
+    "18446744073709551696, 3000",
+    "8080.9, 3000",
+  })
+  void acceptsOnlyValidPorts(final String configured, final int expected) throws IOException {
     this.writeConfiguration("http-server:\n  port: " + configured + "\n");
     this.mapper.deserialize();
     final int port = this.mapper.getHttpPort();
@@ -368,8 +378,8 @@ final class PluginDataConfigurationMapperTest {
   }
 
   @ParameterizedTest
-  @CsvSource({ "0, 0", "1, 1", "256, 256", "-1, 0", "257, 0" })
-  void acceptsOnlyValidEncoderThreads(final int configured, final int expected) throws IOException {
+  @CsvSource({ "0, 0", "1, 1", "256, 256", "-1, 0", "257, 0", "4294967297, 0", "2.5, 0" })
+  void acceptsOnlyValidEncoderThreads(final String configured, final int expected) throws IOException {
     this.writeConfiguration("mcv2:\n  encoder-threads: " + configured + "\n");
     this.mapper.deserialize();
     assertEquals(expected, this.mapper.getMcv2EncoderThreads());

@@ -224,9 +224,11 @@ public final class PluginDataConfigurationMapper {
   }
 
   private static int readPort(final FileConfiguration config, final String key, final int fallback) {
-    final int port = config.getInt(key, fallback);
-    if (port < 1 || port > MAX_PORT) {
-      LOGGER.warn(INVALID_PORT, key, port, fallback);
+    // only a YAML int is taken: getInt cuts a longer number down to its low 32 bits (4294967376 reads as port 80) and
+    // a fraction down to a whole number
+    final Object value = config.get(key, fallback);
+    if (!(value instanceof final Integer port) || port < 1 || port > MAX_PORT) {
+      LOGGER.warn(INVALID_PORT, key, value, fallback);
       return fallback;
     }
     return port;
@@ -245,9 +247,10 @@ public final class PluginDataConfigurationMapper {
   }
 
   private static int readEncoderThreads(final FileConfiguration config) {
-    final int threads = config.getInt(MCV2_ENCODER_THREADS, 0);
-    if (threads < 0 || threads > EncoderPool.MAX_THREADS) {
-      LOGGER.warn(INVALID_THREADS, MCV2_ENCODER_THREADS, threads);
+    // only a YAML int is taken, as for a port
+    final Object value = config.get(MCV2_ENCODER_THREADS, 0);
+    if (!(value instanceof final Integer threads) || threads < 0 || threads > EncoderPool.MAX_THREADS) {
+      LOGGER.warn(INVALID_THREADS, MCV2_ENCODER_THREADS, value);
       return 0;
     }
     return threads;

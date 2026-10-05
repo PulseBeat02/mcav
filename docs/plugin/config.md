@@ -177,6 +177,9 @@ vm:
   allow-network: false
 ```
 
+A port or a number of threads that is not a whole number in its range, such as a port of 4294967376 or 8080.5, is
+refused with a warning in the server log, and the option keeps its default.
+
 ```{warning}
 Keep the Discord bot token secret. Do not share your `config.yml` without removing it first; the `/mcav dump` command
 never includes it.
