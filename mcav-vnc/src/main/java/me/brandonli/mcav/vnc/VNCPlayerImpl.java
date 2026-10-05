@@ -231,7 +231,10 @@ public final class VNCPlayerImpl implements VNCPlayer {
         expired.set(true);
         closeQuietly(socket);
       },
-      CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS)
+      // a thread of its own: the common pool of the server may be busy with the tasks of other plugins
+      CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS, task ->
+        Thread.ofVirtual().name("mcav-vnc-handshake-deadline").start(task)
+      )
     );
     try {
       vncClient.start(socket);

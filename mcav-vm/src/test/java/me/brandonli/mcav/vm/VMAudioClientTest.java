@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.DataInputStream;
@@ -35,11 +36,13 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -285,6 +288,53 @@ class VMAudioClientTest {
       // the client gave up and closed the connection
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
+    }
+  }
+
+  /**
+   * Keeps every worker of the common pool busy until the returned latch opens, as the tasks of other plugins can.
+   *
+   * @return the latch that frees the workers
+   */
+  private static CountDownLatch occupyTheCommonPool() throws InterruptedException {
+    final int workers = ForkJoinPool.getCommonPoolParallelism();
+    final CountDownLatch busy = new CountDownLatch(workers);
+    final CountDownLatch release = new CountDownLatch(1);
+    final ForkJoinPool pool = ForkJoinPool.commonPool();
+    for (int worker = 0; worker < workers; worker++) {
+      pool.execute(() -> {
+        busy.countDown();
+        try {
+          release.await();
+        } catch (final InterruptedException exception) {
+          Thread.currentThread().interrupt();
+        }
+      });
+    }
+    assertTrue(busy.await(30, TimeUnit.SECONDS), "every worker of the common pool is busy");
+    return release;
+  }
+
+  @Test
+  void theHandshakeDeadlineHoldsWhileTheCommonPoolIsBusy() throws Exception {
+    final CountDownLatch release = occupyTheCommonPool();
+    try {
+      // a server that accepts the connection and never says a word, on a thread of its own
+      final Thread server = Thread.ofPlatform()
+        .daemon()
+        .start(() -> {
+          try (final Socket socket = this.server.accept()) {
+            release.await();
+          } catch (final IOException exception) {
+            // the test ended
+          } catch (final InterruptedException exception) {
+            Thread.currentThread().interrupt();
+          }
+        });
+      assertTimeoutPreemptively(Duration.ofSeconds(60), () -> assertThrows(IOException.class, this::connect));
+      assertTrue(server.isAlive(), "the client gave up, not the server");
+    } finally {
+      release.countDown();
     }
   }
 

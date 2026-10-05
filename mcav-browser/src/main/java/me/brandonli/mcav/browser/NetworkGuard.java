@@ -229,8 +229,11 @@ final class NetworkGuard implements Closeable {
    */
   private void serve(final Socket client) {
     // a client whose handshake takes too long is closed, however it trickles it; a deadline cancelled in time never
-    // runs, and after the handshake the connection may stay quiet for as long as it likes
-    final Executor later = CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS);
+    // runs, one that runs gets a thread of its own, as the common pool may be busy, and after the handshake the
+    // connection may stay quiet for as long as it likes
+    final Executor later = CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS, task ->
+      Thread.ofVirtual().name("mcav-browser-guard-deadline").start(task)
+    );
     final CompletableFuture<Void> deadline = CompletableFuture.runAsync(() -> closeQuietly(client), later);
     try {
       final InputStream rawInput = client.getInputStream();

@@ -88,8 +88,9 @@ final class VMAudioClient implements Closeable {
   ) throws IOException {
     final Socket socket = new Socket();
     // the read timeout only limits a pause, so a server that trickles its handshake is cut off once it took too long;
-    // a deadline cancelled in time never runs
-    final Executor later = CompletableFuture.delayedExecutor(HANDSHAKE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+    // a deadline cancelled in time never runs, and one that runs gets a thread of its own, as the common pool of the
+    // server may be busy with the tasks of other plugins for longer than the deadline
+    final Executor later = CompletableFuture.delayedExecutor(HANDSHAKE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS, VMAudioClient::onOwnThread);
     final CompletableFuture<Void> deadline = CompletableFuture.runAsync(() -> closeQuietly(socket), later);
     try {
       socket.connect(address, HANDSHAKE_TIMEOUT_MILLIS);
@@ -186,6 +187,10 @@ final class VMAudioClient implements Closeable {
     this.closed = true;
     closeQuietly(this.socket);
     join(this.reader);
+  }
+
+  private static void onOwnThread(final Runnable task) {
+    Thread.ofVirtual().name("mcav-vm-audio-deadline").start(task);
   }
 
   /**
