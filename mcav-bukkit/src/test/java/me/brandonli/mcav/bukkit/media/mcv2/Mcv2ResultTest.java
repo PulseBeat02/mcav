@@ -1190,6 +1190,19 @@ final class Mcv2ResultTest {
     result.applyFilter(frame, this.metadata);
     awaitEncoders(made, 2);
     verify(made.get(1), timeout(TimeUnit.SECONDS.toMillis(10))).finish(any());
+    // the screen searches the next frame while the sender verifies the last, so frames are handed over only once the
+    // failed verification has stopped the screen, which also ends a drain: right after finish was called, a frame could
+    // still be searched on a loaded machine
+    final Thread drainer = new Thread(() -> {
+      try {
+        result.drain();
+      } catch (final InterruptedException exception) {
+        Thread.currentThread().interrupt();
+      }
+    });
+    drainer.start();
+    drainer.join(TimeUnit.SECONDS.toMillis(10));
+    assertFalse(drainer.isAlive(), "the failed verification stops the screen");
     // the failure stops the screen's thread too: no later frame begins, and nothing was sent
     result.applyFilter(frame, this.metadata);
     result.applyFilter(frame, this.metadata);
