@@ -518,7 +518,8 @@ public final class HttpDownloader {
         final String message = "The download of %s is larger than the %s bytes it may have".formatted(uri, maxBytes);
         throw new DownloadTooLargeException(message);
       }
-      if (deadline != null && System.nanoTime() - started > deadline.toNanos()) {
+      // compared as durations: the deadline of the largest pinned size does not fit a long of nanoseconds
+      if (deadline != null && Duration.ofNanos(System.nanoTime() - started).compareTo(deadline) > 0) {
         final String message = "The download of %s took longer than the %s it may take".formatted(uri, deadline);
         throw new DownloadTooSlowException(message);
       }

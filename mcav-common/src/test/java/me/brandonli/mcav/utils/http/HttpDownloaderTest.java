@@ -364,6 +364,16 @@ final class HttpDownloaderTest {
   }
 
   @Test
+  void aPinnedDownloadOfTheLargestSizeHasADeadlineFarAway() throws IOException {
+    try (final LocalHttpServer server = LocalHttpServer.start()) {
+      server.respond("/file", 200, CONTENT);
+      final Path destination = this.directory.resolve("unbounded.bin");
+      HttpDownloader.download(server.uri("/file"), destination, CONTENT_SHA256, HttpDownloader.NO_SIZE_LIMIT);
+      assertArrayEquals(CONTENT, Files.readAllBytes(destination));
+    }
+  }
+
+  @Test
   void aPinnedDownloadMayTakeAMinuteAndASecondForEvery64KibOfItsSize() {
     assertEquals(Duration.ofMinutes(1), HttpDownloader.pinnedDeadline(1));
     assertEquals(Duration.ofSeconds(62), HttpDownloader.pinnedDeadline(2 * 64 * 1024));
