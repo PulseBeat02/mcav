@@ -114,6 +114,15 @@ and keys for a moment right after a page appears.
 A page is untrusted content, and the browser runs without Chromium's sandbox, which JCEF cannot use. MCAV limits what
 a page can do instead:
 
+- On Linux 5.13 and later, Chromium is confined with Landlock, the kernel's sandbox for unprivileged processes: the
+  helper starts Chromium on a thread that restricts itself first, so every thread and process of Chromium is
+  restricted too. They cannot read the server's working folder, the home folder of the server's user or the server's
+  temporary folder, apart from Java, CEF, the libraries and class path of the helper and the folder of the session;
+  they change files only in the folder of the session (which is also their temporary folder), the devices and the
+  process folder. The helper's own threads, the network guard among them, are not restricted. The log of the server
+  says whether Chromium runs confined; on Windows, macOS and older kernels it runs as before.
+  `BrowserOptions.builder().confinement(false)` turns it off, for a page that needs something it hides.
+
 - Only `http` and `https` pages are shown, besides the empty `about:blank`; frames may also hold `data:` and `blob:`
   documents. `file:`, `chrome:` and other addresses are refused, and so is handing an address to another program.
 - By default, pages reach public addresses of the internet only. Every connection goes through a guard in the helper

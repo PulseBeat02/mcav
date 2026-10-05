@@ -58,6 +58,12 @@ instead.
 
 A page is untrusted content, and the browser runs without Chromium's sandbox, which JCEF cannot use, so MCAV limits it:
 
+- **Confined on Linux.** Chromium's processes cannot read the server's folder, the home folder or the temporary
+  folder, apart from what the browser needs there, and they change files only in the folder of their browser. So a
+  page that exploits a flaw of Chromium cannot read your `config.yml` or change the server's files. It needs Linux
+  5.13 or later (Landlock); on Windows, macOS and older kernels the browser runs as before, and the server log says
+  `Chromium runs without confinement` with the reason. `browser.confine-chromium: false` turns it off.
+
 - **Only the public internet.** Every connection goes through a guard that refuses loopback, private, link-local (such
   as a cloud server's metadata service) and every other special address, also when a public name resolves to one, and
   every address of the server's own network interfaces. So a page, or a player clicking on it, cannot read a service

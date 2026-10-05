@@ -280,7 +280,9 @@ final class HelperSession implements BrowserSession {
       options.getFrameRate(),
       options.isJavaScriptJit(),
       options.isPrivateNetworks(),
-      options.isAutoplay()
+      options.isAutoplay(),
+      options.isConfined(),
+      Path.of(System.getProperty("user.dir")).toAbsolutePath()
     );
   }
 

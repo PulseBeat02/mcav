@@ -28,7 +28,8 @@ import java.util.StringJoiner;
 /**
  * Everything the browser helper process needs to know, handed to it as one line on its standard input, so none of it
  * shows up in the process list: the session token, the socket to connect to, the installed CEF, the profile folder,
- * the page and its size, and the security profile.
+ * the page and its size, the security profile, and whether Chromium is confined and which server folder it may not
+ * read then.
  */
 final class HelperConfiguration {
 
@@ -38,7 +39,7 @@ final class HelperConfiguration {
   static final int MAX_FRAME_RATE = 60;
 
   private static final String SEPARATOR = ":";
-  private static final int FIELDS = 12;
+  private static final int FIELDS = 14;
   // the longest line a configuration of the longest address and long paths makes, in three-byte characters and Base64
   private static final int MAX_LINE_CHARACTERS = 1024 * 1024;
   private static final int MAX_FRAME_INTERVAL = 1000;
@@ -55,6 +56,8 @@ final class HelperConfiguration {
   private final boolean allowsJavaScriptJit;
   private final boolean allowsPrivateNetworks;
   private final boolean allowsAutoplay;
+  private final boolean confined;
+  private final Path serverFolder;
 
   /**
    * Constructs a configuration and checks every value.
@@ -71,6 +74,8 @@ final class HelperConfiguration {
    * @param allowsJavaScriptJit   true to let V8 compile JavaScript to machine code
    * @param allowsPrivateNetworks true to let the page reach loopback, private and link-local addresses
    * @param allowsAutoplay        true to let the page play sound before anyone clicked or typed into it
+   * @param confined              true to confine Chromium where the helper can, see {@link ChromiumConfinement}
+   * @param serverFolder          the folder of the server, which a confined Chromium may not read, an absolute path
    * @throws IllegalArgumentException if a value is out of range
    */
   HelperConfiguration(
@@ -85,12 +90,15 @@ final class HelperConfiguration {
     final int frameRate,
     final boolean allowsJavaScriptJit,
     final boolean allowsPrivateNetworks,
-    final boolean allowsAutoplay
+    final boolean allowsAutoplay,
+    final boolean confined,
+    final Path serverFolder
   ) {
     requireThat(token.length == HelperProtocol.TOKEN_BYTES, "The token must have " + HelperProtocol.TOKEN_BYTES + " bytes");
     requireAbsolute(socket, "socket");
     requireAbsolute(natives, "natives");
     requireAbsolute(profile, "profile");
+    requireAbsolute(serverFolder, "server folder");
     requireThat(NavigationPolicy.isWebAddress(url), "The page must be an absolute http or https address: " + url);
     requireRange(width, 1, HelperProtocol.MAX_SIDE, "width");
     requireRange(height, 1, HelperProtocol.MAX_SIDE, "height");
@@ -108,6 +116,8 @@ final class HelperConfiguration {
     this.allowsJavaScriptJit = allowsJavaScriptJit;
     this.allowsPrivateNetworks = allowsPrivateNetworks;
     this.allowsAutoplay = allowsAutoplay;
+    this.confined = confined;
+    this.serverFolder = serverFolder;
   }
 
   /**
@@ -130,7 +140,9 @@ final class HelperConfiguration {
       Integer.toString(this.frameRate),
       Boolean.toString(this.allowsJavaScriptJit),
       Boolean.toString(this.allowsPrivateNetworks),
-      Boolean.toString(this.allowsAutoplay)
+      Boolean.toString(this.allowsAutoplay),
+      Boolean.toString(this.confined),
+      this.serverFolder.toString()
     );
     final Base64.Encoder encoder = Base64.getEncoder();
     final StringJoiner line = new StringJoiner(SEPARATOR);
@@ -171,6 +183,8 @@ final class HelperConfiguration {
     final boolean allowsJavaScriptJit = parseBoolean(values[9]);
     final boolean allowsPrivateNetworks = parseBoolean(values[10]);
     final boolean allowsAutoplay = parseBoolean(values[11]);
+    final boolean confined = parseBoolean(values[12]);
+    final Path serverFolder = Path.of(values[13]);
     return new HelperConfiguration(
       token,
       socket,
@@ -183,7 +197,9 @@ final class HelperConfiguration {
       frameRate,
       allowsJavaScriptJit,
       allowsPrivateNetworks,
-      allowsAutoplay
+      allowsAutoplay,
+      confined,
+      serverFolder
     );
   }
 
@@ -255,5 +271,13 @@ final class HelperConfiguration {
 
   boolean isAutoplay() {
     return this.allowsAutoplay;
+  }
+
+  boolean isConfined() {
+    return this.confined;
+  }
+
+  Path getServerFolder() {
+    return this.serverFolder;
   }
 }

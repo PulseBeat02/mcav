@@ -33,15 +33,23 @@ class BrowserOptionsTest {
     assertFalse(BrowserOptions.DEFAULT.isJavaScriptJit());
     assertFalse(BrowserOptions.DEFAULT.isPrivateNetworks());
     assertFalse(BrowserOptions.DEFAULT.isAutoplay());
+    assertTrue(BrowserOptions.DEFAULT.isConfined(), "Chromium is confined where the system can");
   }
 
   @Test
   void theBuilderSetsEveryOption() {
-    final BrowserOptions options = BrowserOptions.builder().frameRate(1).javaScriptJit(true).privateNetworks(true).autoplay(true).build();
+    final BrowserOptions options = BrowserOptions.builder()
+      .frameRate(1)
+      .javaScriptJit(true)
+      .privateNetworks(true)
+      .autoplay(true)
+      .confinement(false)
+      .build();
     assertEquals(1, options.getFrameRate());
     assertTrue(options.isJavaScriptJit());
     assertTrue(options.isPrivateNetworks());
     assertTrue(options.isAutoplay());
+    assertFalse(options.isConfined());
     assertEquals(60, BrowserOptions.builder().frameRate(60).build().getFrameRate());
   }
 

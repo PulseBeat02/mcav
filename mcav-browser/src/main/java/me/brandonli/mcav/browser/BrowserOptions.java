@@ -31,6 +31,12 @@ import com.google.common.base.Preconditions;
  * metadata service of a cloud machine) and other special addresses, so neither a page nor a player clicking on it can
  * use the server to look into its own network. Allow private networks only to show pages of your own network.
  *
+ * <p>On Linux, Chromium is confined, by default: its processes cannot read the server's folder, the home folder of the
+ * server's user or the server's temporary folder, apart from what the browser needs there, and they change files only
+ * in the folder of their session. A page that exploits a flaw of Chromium then cannot read the server's configuration
+ * or change its files. The confinement needs Landlock, which Linux has since 5.13; elsewhere, and on an older kernel,
+ * the browser runs as before and the server log says so.
+ *
  * <pre>{@code
  *   final BrowserOptions options = BrowserOptions.builder().frameRate(30).build();
  *   final BrowserPlayer browser = BrowserPlayer.create(options);
@@ -46,7 +52,7 @@ public final class BrowserOptions {
 
   /**
    * The options {@link BrowserPlayer#create()} uses: 60 frames per second at most, no JavaScript JIT, public addresses
-   * only, and sound only once someone clicked or typed into the page.
+   * only, sound only once someone clicked or typed into the page, and Chromium confined where the system can.
    */
   public static final BrowserOptions DEFAULT = builder().build();
 
@@ -54,17 +60,20 @@ public final class BrowserOptions {
   private final boolean allowsJavaScriptJit;
   private final boolean allowsPrivateNetworks;
   private final boolean allowsAutoplay;
+  private final boolean confined;
 
   private BrowserOptions(
     final int frameRate,
     final boolean allowsJavaScriptJit,
     final boolean allowsPrivateNetworks,
-    final boolean allowsAutoplay
+    final boolean allowsAutoplay,
+    final boolean confined
   ) {
     this.frameRate = frameRate;
     this.allowsJavaScriptJit = allowsJavaScriptJit;
     this.allowsPrivateNetworks = allowsPrivateNetworks;
     this.allowsAutoplay = allowsAutoplay;
+    this.confined = confined;
   }
 
   /**
@@ -115,6 +124,15 @@ public final class BrowserOptions {
   }
 
   /**
+   * Checks whether Chromium is confined where the system can confine it, see {@link Builder#confinement(boolean)}.
+   *
+   * @return true if Chromium is confined
+   */
+  public boolean isConfined() {
+    return this.confined;
+  }
+
+  /**
    * Builds immutable {@link BrowserOptions}. Builders are mutable and not thread-safe;
    * {@link #build()} snapshots their current values.
    */
@@ -124,6 +142,7 @@ public final class BrowserOptions {
     private boolean allowsJavaScriptJit;
     private boolean allowsPrivateNetworks;
     private boolean allowsAutoplay;
+    private boolean confined = true;
 
     private Builder() {}
 
@@ -183,12 +202,26 @@ public final class BrowserOptions {
     }
 
     /**
+     * Confines Chromium on Linux, or lets it run as before. On by default: Chromium's processes then cannot read the
+     * server's folder, the home folder of the server's user or the server's temporary folder, apart from Java, CEF and
+     * the folder of their session, and they change files only in the folder of their session. Turn it off only if a
+     * page needs something it hides, such as fonts in the home folder.
+     *
+     * @param confined true to confine Chromium where the system can
+     * @return this builder
+     */
+    public Builder confinement(final boolean confined) {
+      this.confined = confined;
+      return this;
+    }
+
+    /**
      * Builds the options.
      *
      * @return the options
      */
     public BrowserOptions build() {
-      return new BrowserOptions(this.frameRate, this.allowsJavaScriptJit, this.allowsPrivateNetworks, this.allowsAutoplay);
+      return new BrowserOptions(this.frameRate, this.allowsJavaScriptJit, this.allowsPrivateNetworks, this.allowsAutoplay, this.confined);
     }
   }
 }

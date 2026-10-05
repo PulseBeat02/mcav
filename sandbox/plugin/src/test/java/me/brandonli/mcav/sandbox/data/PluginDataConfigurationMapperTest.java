@@ -82,6 +82,7 @@ final class PluginDataConfigurationMapperTest {
     allow-private-networks: true
     javascript-jit: true
     autoplay-sound: true
+    confine-chromium: false
   vm:
     allow-network: true
   """;
@@ -228,6 +229,7 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(this.mapper.isBrowserPrivateNetworks());
     assertFalse(this.mapper.isBrowserJavaScriptJit());
     assertFalse(this.mapper.isBrowserAutoplaySound());
+    assertTrue(this.mapper.isBrowserConfineChromium(), "Chromium is confined where the system can");
     assertFalse(this.mapper.isVmAllowNetwork(), "machines get a network that reaches nothing");
     assertSame(MapCodec.DITHER, this.mapper.getMcv2DefaultCodec());
     assertSame(Mcv2Hosting.INJECTOR, this.mapper.getMcv2PackHosting());
@@ -272,6 +274,7 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(this.mapper.isBrowserPrivateNetworks(), "the bundled file keeps the browser on public addresses");
     assertFalse(this.mapper.isBrowserJavaScriptJit(), "and JavaScript without its compiler");
     assertFalse(this.mapper.isBrowserAutoplaySound(), "and pages silent until a player clicked them");
+    assertTrue(this.mapper.isBrowserConfineChromium(), "and Chromium confined");
     assertSame(MapCodec.DITHER, this.mapper.getMcv2DefaultCodec(), "and the maps dithered unless a command asks for MCV2");
     assertSame(Mcv2Hosting.INJECTOR, this.mapper.getMcv2PackHosting());
     assertEquals("", this.mapper.getMcv2PackHttpHost());
@@ -339,6 +342,7 @@ final class PluginDataConfigurationMapperTest {
     assertTrue(this.mapper.isBrowserPrivateNetworks());
     assertTrue(this.mapper.isBrowserJavaScriptJit());
     assertTrue(this.mapper.isBrowserAutoplaySound());
+    assertFalse(this.mapper.isBrowserConfineChromium());
     assertTrue(this.mapper.isVmAllowNetwork());
   }
 

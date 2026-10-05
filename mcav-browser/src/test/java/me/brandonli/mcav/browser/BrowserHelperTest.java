@@ -97,7 +97,9 @@ class BrowserHelperTest {
       30,
       false,
       false,
-      allowsAutoplay
+      allowsAutoplay,
+      false,
+      this.folder
     );
   }
 

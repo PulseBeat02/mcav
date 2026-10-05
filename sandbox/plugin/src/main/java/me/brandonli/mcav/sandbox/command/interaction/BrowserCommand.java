@@ -309,10 +309,12 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     final boolean allowsPrivateNetworks = configuration.isBrowserPrivateNetworks();
     final boolean allowsJavaScriptJit = configuration.isBrowserJavaScriptJit();
     final boolean allowsAutoplay = configuration.isBrowserAutoplaySound();
+    final boolean confinesChromium = configuration.isBrowserConfineChromium();
     return BrowserOptions.builder()
       .privateNetworks(allowsPrivateNetworks)
       .javaScriptJit(allowsJavaScriptJit)
       .autoplay(allowsAutoplay)
+      .confinement(confinesChromium)
       .build();
   }
 

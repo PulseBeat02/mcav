@@ -26,8 +26,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import me.friwi.jcefmaven.CefAppBuilder;
@@ -51,7 +55,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * denying every permission prompt, with a mock keychain on macOS and a basic password store on Linux, and with V8's
  * JIT compiler off unless the configuration allows it. The profile lives in the folder the server gave, and the
  * remote debugging port stays closed. Unless the configuration allows private networks, every connection goes
- * through a {@link NetworkGuard} that lets pages reach public addresses only.
+ * through a {@link NetworkGuard} that lets pages reach public addresses only. Chromium starts on a thread of its own,
+ * which {@link ChromiumConfinement} confines first where the configuration asks for it.
  */
 final class CefEngine implements HelperEngine {
 
@@ -62,6 +67,7 @@ final class CefEngine implements HelperEngine {
   private static final int PLACING_ATTEMPTS = 2;
   // what the placing of the scripts completes with when no answer arrived in time, which no JSON answer can be
   private static final String NOT_CONFIRMED = "not confirmed";
+  private static final String CHROMIUM_THREAD = "mcav-browser-chromium";
 
   private final CountDownLatch terminated;
   private volatile @Nullable NetworkGuard guard;
@@ -183,6 +189,47 @@ final class CefEngine implements HelperEngine {
     final CefSettings settings = builder.getCefSettings();
     configureSettings(settings, configuration);
     builder.setAppHandler(new StateListener(this.terminated, events));
+    // a confinement holds for the thread that starts Chromium and everything it starts, the AWT event thread, CEF's
+    // threads and Chromium's processes among them, while the helper's own threads stay free: the guard and the display
+    // connect anywhere, and the main thread ends the JVM
+    runOnOwnThread(CHROMIUM_THREAD, () -> {
+      events.onNotice(ChromiumConfinement.confine(configuration, isLinux));
+      this.startChromium(builder, configuration, painter, events);
+      return null;
+    });
+  }
+
+  /**
+   * Runs a task on a new thread and waits for it, so that a restriction the task puts on its thread holds for that
+   * thread and what it starts only.
+   *
+   * @param name the name of the thread
+   * @param task the task
+   * @throws Exception what the task threw
+   */
+  @VisibleForTesting
+  static void runOnOwnThread(final String name, final Callable<?> task) throws Exception {
+    final FutureTask<?> future = new FutureTask<>(task);
+    final Thread thread = new Thread(future, name);
+    thread.start();
+    try {
+      future.get();
+    } catch (final ExecutionException exception) {
+      // a task throws an exception or an error, never anything else
+      final Throwable cause = Objects.requireNonNullElse(exception.getCause(), exception);
+      if (cause instanceof final Error error) {
+        throw error;
+      }
+      throw (Exception) cause;
+    }
+  }
+
+  private void startChromium(
+    final CefAppBuilder builder,
+    final HelperConfiguration configuration,
+    final McavOffscreenBrowser.PaintListener painter,
+    final HelperEvents events
+  ) throws Exception {
     final CefApp created = builder.build();
     this.app = created;
     final String versionText = describe(created.getVersion());

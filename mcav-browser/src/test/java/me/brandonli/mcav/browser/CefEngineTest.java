@@ -20,6 +20,8 @@ package me.brandonli.mcav.browser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -37,6 +39,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -75,7 +78,34 @@ class CefEngineTest {
       30,
       allowsJit,
       false,
-      allowsAutoplay
+      allowsAutoplay,
+      true,
+      ROOT.resolve("server")
+    );
+  }
+
+  @Test
+  void chromiumStartsOnAThreadOfItsOwnWhoseFailureReachesTheCaller() throws Exception {
+    final List<String> names = new ArrayList<>();
+    CefEngine.runOnOwnThread("mcav-browser-chromium", () -> names.add(Thread.currentThread().getName()));
+    assertEquals(List.of("mcav-browser-chromium"), names);
+    final IOException refused = new IOException("Landlock could not restrict the thread (error 1)");
+    assertSame(
+      refused,
+      assertThrows(IOException.class, () ->
+        CefEngine.runOnOwnThread("failing", () -> {
+          throw refused;
+        })
+      )
+    );
+    final UnsatisfiedLinkError unlinked = new UnsatisfiedLinkError("libcef.so");
+    assertSame(
+      unlinked,
+      assertThrows(UnsatisfiedLinkError.class, () ->
+        CefEngine.runOnOwnThread("unlinked", () -> {
+          throw unlinked;
+        })
+      )
     );
   }
 
