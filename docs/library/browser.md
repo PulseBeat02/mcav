@@ -125,7 +125,9 @@ a page can do instead:
   they change files only in the folder of the session (which is also their temporary folder), the devices and the
   process folder. The helper's own threads, the network guard among them, are not restricted. The log of the server
   says whether Chromium runs confined; on Windows, macOS and older kernels it runs as before.
-  `BrowserOptions.builder().confinement(false)` turns it off, for a page that needs something it hides.
+  `BrowserOptions.builder().confinement(false)` turns it off, for a page that needs something it hides. As Chromium
+  binds a socket in the folder of the session, the temporary folder of the server (`java.io.tmpdir`) may have at most
+  47 characters on Linux; a browser in a longer one is refused with that reason.
 
 - Only `http` and `https` pages are shown, besides the empty `about:blank`; frames may also hold `data:` and `blob:`
   documents. `file:`, `chrome:` and other addresses are refused, and so is handing an address to another program.

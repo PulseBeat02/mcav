@@ -40,9 +40,11 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -63,10 +65,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.IOUtils;
+import me.brandonli.mcav.utils.os.OS;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,6 +111,7 @@ final class HelperSession implements BrowserSession {
   private static final String HELPER_KILLED = "The browser helper did not stop within {} ms and is killed";
   private static final String CLOSE_FAILED = "Failed to close {}";
   private static final String FOLDER_NOT_REMOVED = "The folder of the browser session {} could not be removed: {}";
+  private static final String FOLDER_NAME_TAKEN = "The name {} of a browser session's folder is taken, another is drawn";
   private static final int MAX_QUEUED_INPUT = 128;
   private static final int OUTPUT_TAIL_LINES = 40;
   private static final int OUTPUT_LINE_CHARACTERS = 1024;
@@ -116,6 +121,11 @@ final class HelperSession implements BrowserSession {
   private static final byte[] NO_PIXELS = new byte[0];
   private static final long EXIT_POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(10L);
   private static final String SOCKET_NAME = "s";
+  // a socket's path has at most 107 characters, and on Linux Chromium binds one 45 characters below the folder of the
+  // session, which is its temporary folder: <folder>/org.chromium.Chromium.XXXXXX/SingletonSocket
+  private static final int MAX_SOCKET_PATH = 107;
+  private static final int CHROMIUM_SOCKET_TAIL = 45;
+  private static final int MAX_FOLDER_ATTEMPTS = 100;
   private static final Thread NOT_STARTED = new Thread("mcav-browser-not-started");
 
   /**
@@ -233,6 +243,7 @@ final class HelperSession implements BrowserSession {
     Process process = null;
     HelperSession session = null;
     try (final ServerSocketChannel server = bind(socket)) {
+      requireShortEnough(launcher.getOs(), folder);
       final Path libraries = launcher.linkLibraries(folder);
       final URI uri = source.getUri();
       final HelperConfiguration configuration = configure(token, socket, natives, folder.resolve("profile"), uri, source, options);
@@ -256,6 +267,29 @@ final class HelperSession implements BrowserSession {
     } catch (final RuntimeException | Error failure) {
       closeAfterFailure(session, process, folder);
       throw failure;
+    }
+  }
+
+  /**
+   * Refuses a folder of a session whose path is too long for the socket Chromium binds in it on Linux, with a reason
+   * the operator can act on instead of Chromium's abort.
+   *
+   * @param os     the operating system of the helper
+   * @param folder the folder of the session
+   * @throws PlayerException if the path is too long
+   */
+  @VisibleForTesting
+  static void requireShortEnough(final OS os, final Path folder) {
+    final String path = folder.toString();
+    if (os == OS.LINUX && path.length() + CHROMIUM_SOCKET_TAIL > MAX_SOCKET_PATH) {
+      final int longest = MAX_SOCKET_PATH - CHROMIUM_SOCKET_TAIL - 1 - SessionFolders.PREFIX.length() - SessionFolders.RANDOM_CHARACTERS;
+      throw new PlayerException(
+        "The temporary folder " +
+          folder.getParent() +
+          " is too long for the browser: on Linux it may have at most " +
+          longest +
+          " characters, so start the server with a shorter java.io.tmpdir, such as /tmp"
+      );
     }
   }
 
@@ -320,19 +354,38 @@ final class HelperSession implements BrowserSession {
    */
   @VisibleForTesting
   static Path createFolder(final Path temporary) {
+    return createFolder(temporary, SessionFolders::newName);
+  }
+
+  /**
+   * Creates the folder of a session as {@link #createFolder(Path)} does, with names drawn from a supplier: a name that
+   * is taken is drawn again, {@value #MAX_FOLDER_ATTEMPTS} times at most.
+   *
+   * @param temporary the folder the session folder is created in
+   * @param names     draws the name of a folder
+   * @return the new folder
+   * @throws PlayerException if the folder cannot be created
+   */
+  @VisibleForTesting
+  static Path createFolder(final Path temporary, final Supplier<String> names) {
+    final FileSystem fileSystem = temporary.getFileSystem();
+    final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains("posix");
+    final FileAttribute<?>[] attributes = supportsPosix
+      ? new FileAttribute<?>[] { PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")) }
+      : new FileAttribute<?>[0];
     try {
-      final FileSystem fileSystem = temporary.getFileSystem();
-      final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains("posix");
-      final Path folder = supportsPosix
-        ? Files.createTempDirectory(
-            temporary,
-            SessionFolders.PREFIX,
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"))
-          )
-        : Files.createTempDirectory(temporary, SessionFolders.PREFIX);
-      // a later start of the module removes it if this server is killed
-      SessionFolders.ofThisServer().record(folder);
-      return folder;
+      for (int attempt = 1; attempt <= MAX_FOLDER_ATTEMPTS; attempt++) {
+        final Path candidate = temporary.resolve(names.get());
+        try {
+          final Path folder = Files.createDirectory(candidate, attributes);
+          // a later start of the module removes it if this server is killed
+          SessionFolders.ofThisServer().record(folder);
+          return folder;
+        } catch (final FileAlreadyExistsException taken) {
+          LOGGER.debug(FOLDER_NAME_TAKEN, candidate);
+        }
+      }
+      throw new IOException("every name drawn was taken");
     } catch (final IOException exception) {
       throw new PlayerException("The folder of the browser session cannot be created: " + exception.getMessage(), exception);
     }

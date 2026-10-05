@@ -47,6 +47,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -903,6 +904,52 @@ class HelperSessionTest {
       HelperSession.createFolder(this.directory.resolve("missing"))
     );
     assertTrue(missing.getMessage().startsWith("The folder of the browser session cannot be created"), missing.getMessage());
+  }
+
+  @Test
+  void aSessionFolderHasAShortRandomNameAndATakenNameIsDrawnAgain() throws IOException {
+    final Path folder = HelperSession.createFolder(this.directory);
+    assertTrue(folder.getFileName().toString().matches("mcavb-[a-z0-9]{8}"), folder.toString());
+    Files.createDirectory(this.directory.resolve("mcavb-taken"));
+    final Iterator<String> names = List.of("mcavb-taken", "mcavb-free").iterator();
+    assertEquals(this.directory.resolve("mcavb-free"), HelperSession.createFolder(this.directory, names::next));
+    final PlayerException exhausted = assertThrows(PlayerException.class, () ->
+      HelperSession.createFolder(this.directory, () -> "mcavb-taken")
+    );
+    assertTrue(exhausted.getMessage().endsWith("every name drawn was taken"), exhausted.getMessage());
+  }
+
+  @Test
+  void aTemporaryFolderTooLongForChromiumsSocketIsRefusedOnLinuxWithTheReason() {
+    // the longest temporary folder, 47 characters: Chromium's socket path has 107, the most a path may have
+    HelperSession.requireShortEnough(OS.LINUX, Path.of("/" + "t".repeat(46), "mcavb-12345678"));
+    final Path tooLong = Path.of("/" + "t".repeat(47), "mcavb-12345678");
+    final PlayerException refused = assertThrows(PlayerException.class, () -> HelperSession.requireShortEnough(OS.LINUX, tooLong));
+    assertEquals(
+      "The temporary folder /" +
+        "t".repeat(47) +
+        " is too long for the browser: on Linux it may have at most 47 characters, so start the server with a shorter" +
+        " java.io.tmpdir, such as /tmp",
+      refused.getMessage()
+    );
+    // elsewhere, Chromium's socket does not lie in the folder of the session
+    HelperSession.requireShortEnough(OS.WINDOWS, tooLong);
+  }
+
+  @Test
+  @EnabledOnOs(org.junit.jupiter.api.condition.OS.LINUX) // fqn: OS is imported as me.brandonli.mcav.utils.os.OS
+  void aHelperIsNotStartedInATemporaryFolderTooLongForChromiumAndItsFolderIsRemoved() throws IOException {
+    // long enough for Chromium's socket to be too long, short enough for the server's own socket
+    final Path temporary = Files.createDirectories(this.directory.resolve("t".repeat(70 - this.directory.toString().length())));
+    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), 60_000L, OS.LINUX);
+    final PlayerException refused = assertThrows(PlayerException.class, () ->
+      HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, temporary)
+    );
+    assertTrue(refused.getMessage().startsWith("The temporary folder " + temporary + " is too long"), refused.getMessage());
+    try (final Stream<Path> left = Files.list(temporary)) {
+      assertEquals(List.of(), left.toList(), "the folder of the session is removed");
+    }
   }
 
   @Test

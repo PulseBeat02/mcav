@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
@@ -46,7 +47,16 @@ final class SessionFolders {
   /**
    * The start of the name of every folder of a session.
    */
-  static final String PREFIX = "mcav-browser-";
+  static final String PREFIX = "mcavb-";
+
+  /**
+   * How many random letters and digits follow the prefix. The name is short, as the sockets in the folder may have
+   * paths of at most 107 characters.
+   */
+  static final int RANDOM_CHARACTERS = 8;
+
+  private static final String ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
+  private static final SecureRandom RANDOM = new SecureRandom();
 
   /**
    * The file in the folder of a session that names its server.
@@ -80,6 +90,19 @@ final class SessionFolders {
   SessionFolders(final ProcessHandle owner, final LongFunction<Optional<ProcessHandle>> lookup) {
     this.owner = owner;
     this.lookup = lookup;
+  }
+
+  /**
+   * Draws the name of a new folder: the prefix and random letters and digits.
+   *
+   * @return the name
+   */
+  static String newName() {
+    final StringBuilder name = new StringBuilder(PREFIX);
+    for (int index = 0; index < RANDOM_CHARACTERS; index++) {
+      name.append(ALPHABET.charAt(RANDOM.nextInt(ALPHABET.length())));
+    }
+    return name.toString();
   }
 
   /**
