@@ -86,6 +86,11 @@ Loading throws an `InstallationException` when an artifact cannot be resolved, d
 `JarInjectorException` when the jars cannot be added to the class loader. `injector(Path, Object)` also throws a
 `JarInjectorException` when the object was loaded by the bootstrap class loader, which cannot receive jars.
 
+The jars are added through the class loader's `addURL` method, for which `java.net` must be open: start the server
+with `--add-opens java.base/java.net=ALL-UNNAMED`. Without it, the installer adds them through `sun.misc.Unsafe`,
+which Java 24 and newer warn about the first time; a later Java that removes those methods of `sun.misc.Unsafe` leaves
+only `addURL`, and without the option the installer then throws a `JarInjectorException` that says to add it.
+
 ```{note}
 Paper plugins can also declare their libraries in a `PluginLoader`, as the sandbox plugin does with Gremlin. Use
 whichever mechanism fits your platform.
