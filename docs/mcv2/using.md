@@ -137,9 +137,9 @@ backwards, and hide the dithered maps and the MCV2 picture alike, whatever is se
 `/mcav screen`, which now removes the frames already hanging where it places one.
 
 **The pack loaded, but the wall shows nothing new.** Another pack that overrides `core/text` or `entity_outline.json` was
-loaded after it; the client uses improved transparency (a video setting), Iris or Sodium, or the Vulkan backend, none of
-which shows the MCV2 picture; or the page frames are out of view: the decoder runs only while one of the wall's hidden
-page frames is drawn, so look at the wall.
+loaded after it; the client uses improved transparency (a video setting), an Iris shader pack, or the Vulkan backend,
+none of which shows the MCV2 picture (Sodium, and Iris with its shaders off, do); or the page frames are out of view: the
+decoder runs only while one of the wall's hidden page frames is drawn, so look at the wall.
 
 **The picture freezes and jumps every few seconds.** The client draws fewer frames a second than the video has, so it
 misses frames, and under the default prediction a missed frame is repaired only by the next keyframe (every 4 seconds
