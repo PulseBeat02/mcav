@@ -1088,6 +1088,29 @@ final class VMProcessTest {
   }
 
   @Test
+  void honorsUsbOffThroughEitherMachineAliasAndItsLastOverride() {
+    final VMSettings settings = new VMSettings(5901, 64, 48, 10);
+    for (final String alias : List.of("M", "machine")) {
+      final String other = alias.equals("M") ? "machine" : "M";
+      final List<VMConfiguration> disabled = List.of(
+        VMConfiguration.builder().option(alias, "q35,usb=off"),
+        VMConfiguration.builder().option(other, "q35,usb=on").option(alias, "usb=off"),
+        VMConfiguration.builder().repeatable(alias, "q35,usb=on").repeatable(alias, "usb=off"),
+        VMConfiguration.builder().option(alias, "q35,usb=on,usb=off")
+      );
+      for (final VMConfiguration configuration : disabled) {
+        final List<String> command = this.commandWithoutAccelerator(settings, configuration);
+        assertFalse(command.contains("-usb"), configuration::toString);
+        assertFalse(command.contains("usb-tablet"), configuration::toString);
+      }
+      final VMConfiguration enabled = VMConfiguration.builder().option(other, "q35,usb=off").option(alias, "usb=on");
+      final List<String> enabledCommand = this.commandWithoutAccelerator(settings, enabled);
+      assertFalse(enabledCommand.contains("-usb"), enabled::toString);
+      assertTrue(enabledCommand.contains("usb-tablet"), enabled::toString);
+    }
+  }
+
+  @Test
   void letsTheConfigurationChooseOrTurnOffUsb() {
     final VMSettings settings = new VMSettings(5901, 64, 48, 10);
     final VMConfiguration usbOn = VMConfiguration.builder();
