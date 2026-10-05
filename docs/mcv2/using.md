@@ -93,7 +93,8 @@ one reload.
 **Players who join later.** A player who joins, rejoins or changes world while a screen plays for `@a` (or a selector
 that matches them) is offered the pack on the spot and sees the dithered maps until it has loaded. A screen keeps the
 chunks of its page frames loaded until it is released, so players who walk away and come back see it too. A player who
-changes world sees an exact picture again from the next keyframe.
+changes world sees an exact picture again from the next keyframe. A player who leaves and joins again while the video
+is paused is shown the screen anew once it plays.
 
 **Where the pack is downloaded from.**
 
