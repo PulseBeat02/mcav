@@ -323,8 +323,13 @@ class VMAudioClientTest {
       final Thread server = Thread.ofPlatform()
         .daemon()
         .start(() -> {
-          try (final Socket socket = this.server.accept()) {
-            release.await();
+          try {
+            final Socket socket = this.server.accept();
+            try {
+              release.await();
+            } finally {
+              socket.close();
+            }
           } catch (final IOException exception) {
             // the test ended
           } catch (final InterruptedException exception) {
