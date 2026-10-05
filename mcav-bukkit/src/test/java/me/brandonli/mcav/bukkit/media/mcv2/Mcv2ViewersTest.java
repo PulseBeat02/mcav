@@ -116,6 +116,34 @@ final class Mcv2ViewersTest {
   }
 
   @Test
+  void aClientThatLoadsThePackAnewStartsASession() {
+    final Mcv2Viewers viewers = this.viewers();
+    assertEquals(0L, viewers.getSession(PLAYER), "no session before the pack loaded");
+    viewers.handleStatus(this.status(PACK, Status.SUCCESSFULLY_LOADED));
+    final long first = viewers.getSession(PLAYER);
+    assertTrue(first > 0);
+    viewers.handleStatus(this.status(PACK, Status.SUCCESSFULLY_LOADED));
+    assertEquals(first, viewers.getSession(PLAYER), "the same load reported twice is one session");
+    // the player leaves and joins again: their new client loads the pack anew
+    viewers.handleQuit(new PlayerQuitEvent(this.player, (Component) null, PlayerQuitEvent.QuitReason.DISCONNECTED));
+    assertEquals(0L, viewers.getSession(PLAYER));
+    viewers.handleStatus(this.status(PACK, Status.SUCCESSFULLY_LOADED));
+    final long rejoined = viewers.getSession(PLAYER);
+    assertTrue(rejoined > first, "a new session");
+    // downloading the pack again before loading it is a new session too
+    viewers.handleStatus(this.status(PACK, Status.DOWNLOADED));
+    viewers.handleStatus(this.status(PACK, Status.SUCCESSFULLY_LOADED));
+    final long reloaded = viewers.getSession(PLAYER);
+    assertTrue(reloaded > rejoined);
+    viewers.handleStatus(this.status(PACK, Status.FAILED_RELOAD));
+    assertEquals(0L, viewers.getSession(PLAYER), "a client that failed to load the pack has no session");
+    viewers.handleStatus(this.status(PACK, Status.SUCCESSFULLY_LOADED));
+    assertTrue(viewers.getSession(PLAYER) > reloaded);
+    viewers.retarget(OTHER);
+    assertEquals(0L, viewers.getSession(PLAYER), "another pack ends every session");
+  }
+
+  @Test
   void unregistersTheListenerItReplacesOrStops() {
     try (final MockedStatic<HandlerList> lists = Mockito.mockStatic(HandlerList.class)) {
       final Mcv2Viewers viewers = this.viewers();

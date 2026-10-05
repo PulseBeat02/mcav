@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import org.bukkit.Bukkit;
@@ -67,6 +68,9 @@ public final class Mcv2Viewers {
   private final Consumer<Player> onRefused;
 
   private final Map<UUID, PackState> states;
+  // a client loads the pack anew after its player joined again, or after another pack: each load is a new session
+  private final Map<UUID, Long> sessions;
+  private final AtomicLong nextSession;
 
   private @Nullable Listener listener;
 
@@ -84,6 +88,8 @@ public final class Mcv2Viewers {
     this.packId = packId;
     this.onRefused = onRefused;
     this.states = new ConcurrentHashMap<>();
+    this.sessions = new ConcurrentHashMap<>();
+    this.nextSession = new AtomicLong();
   }
 
   /**
@@ -124,6 +130,7 @@ public final class Mcv2Viewers {
     Preconditions.checkNotNull(newPackId, "Pack id must not be null");
     this.packId = newPackId;
     this.states.values().removeIf(state -> state != PackState.DECLINED);
+    this.sessions.clear();
   }
 
   /**
@@ -168,6 +175,20 @@ public final class Mcv2Viewers {
     return this.getState(player) == PackState.LOADED;
   }
 
+  /**
+   * Gets the session of a player's client with the pack: a number that changes whenever the client loads the pack
+   * anew, after its player joined again or after another pack. A screen shown to the client of an earlier session is
+   * not shown to the client of this one.
+   *
+   * @param player the player's UUID
+   * @return the session, or 0 while the client has not loaded the pack
+   * @throws NullPointerException if {@code player} is null
+   */
+  public long getSession(final UUID player) {
+    Preconditions.checkNotNull(player, "Player must not be null");
+    return this.sessions.getOrDefault(player, 0L);
+  }
+
   void handleStatus(final PlayerResourcePackStatusEvent event) {
     if (!this.packId.equals(event.getID())) {
       return;
@@ -175,14 +196,22 @@ public final class Mcv2Viewers {
     final Player player = event.getPlayer();
     final UUID uuid = player.getUniqueId();
     switch (event.getStatus()) {
-      case SUCCESSFULLY_LOADED -> this.states.put(uuid, PackState.LOADED);
+      case SUCCESSFULLY_LOADED -> this.loaded(uuid);
       case ACCEPTED, DOWNLOADED -> this.states.put(uuid, PackState.REQUESTED);
       case DECLINED -> this.refuse(player, PackState.DECLINED);
       default -> this.refuse(player, PackState.REFUSED);
     }
   }
 
+  private void loaded(final UUID player) {
+    final PackState before = this.states.put(player, PackState.LOADED);
+    if (before != PackState.LOADED) {
+      this.sessions.put(player, this.nextSession.incrementAndGet());
+    }
+  }
+
   private void refuse(final Player player, final PackState state) {
+    this.sessions.remove(player.getUniqueId());
     final PackState before = this.states.put(player.getUniqueId(), state);
     if (before != PackState.REFUSED && before != PackState.DECLINED) {
       this.onRefused.accept(player);
@@ -190,6 +219,8 @@ public final class Mcv2Viewers {
   }
 
   void handleQuit(final PlayerQuitEvent event) {
-    this.states.remove(event.getPlayer().getUniqueId());
+    final UUID player = event.getPlayer().getUniqueId();
+    this.states.remove(player);
+    this.sessions.remove(player);
   }
 }
