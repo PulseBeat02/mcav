@@ -46,8 +46,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -297,39 +300,45 @@ class JcefNativesTest {
 
   @Test
   void twoStartsAtOnceDownloadOnce() throws Exception {
-    final CountDownLatch release = new CountDownLatch(1);
-    final byte[] jar = nativesJar(true);
-    final JcefNatives natives = new JcefNatives(
-      this.folder,
-      (uri, destination, sha256, size) -> {
-        this.downloads.incrementAndGet();
-        try {
-          release.await(10, TimeUnit.SECONDS);
-        } catch (final InterruptedException exception) {
-          Thread.currentThread().interrupt();
-        }
-        Files.write(destination, jar);
-      },
-      REPOSITORY,
-      new ArchiveExtractor()
-    );
-    final CompletableFuture<Path> first = new CompletableFuture<>();
-    final CompletableFuture<Path> second = new CompletableFuture<>();
-    Thread.ofPlatform().start(() -> first.complete(install(natives)));
-    Await.until("the first start downloads", () -> this.downloads.get() == 1);
-    // the second start found no installation yet and waits for the first to finish it, so it takes the check of the
-    // installation that comes after the lock: a sleep left that to the timing of the machine
-    final Thread secondStart = Thread.ofPlatform().start(() -> second.complete(install(natives)));
-    Await.until("the second start waits for the first", () -> isWaitingToInstall(secondStart));
-    release.countDown();
-    assertEquals(first.get(30, TimeUnit.SECONDS), second.get(30, TimeUnit.SECONDS));
-    assertEquals(1, this.downloads.get());
-  }
-
-  private static boolean isWaitingToInstall(final Thread start) {
-    final StackTraceElement[] stack = start.getStackTrace();
-    final boolean inInstall = stack.length > 0 && stack[0].getClassName().equals(JcefNatives.class.getName());
-    return start.getState() == Thread.State.BLOCKED && inInstall && stack[0].getMethodName().equals("install");
+    try (final ExecutorService starts = Executors.newFixedThreadPool(2)) {
+      final CountDownLatch release = new CountDownLatch(1);
+      final CountDownLatch downloading = new CountDownLatch(1);
+      final AtomicReference<Thread> secondCaller = new AtomicReference<>();
+      final byte[] jar = nativesJar(true);
+      final JcefNatives natives = new JcefNatives(
+        this.folder,
+        (uri, destination, sha256, size) -> {
+          this.downloads.incrementAndGet();
+          downloading.countDown();
+          try {
+            assertTrue(release.await(10, TimeUnit.SECONDS), "the first download is released");
+          } catch (final InterruptedException exception) {
+            Thread.currentThread().interrupt();
+          }
+          Files.write(destination, jar);
+        },
+        REPOSITORY,
+        new ArchiveExtractor()
+      );
+      final CompletableFuture<Path> first = CompletableFuture.supplyAsync(() -> install(natives), starts);
+      final CompletableFuture<Path> second;
+      try {
+        assertTrue(downloading.await(10, TimeUnit.SECONDS), "the first install owns the download");
+        second = CompletableFuture.supplyAsync(() -> {
+          secondCaller.set(Thread.currentThread());
+          return install(natives);
+        }, starts);
+        Await.until("the second installer waits on the held installation lock", () -> {
+          final Thread caller = secondCaller.get();
+          return caller != null && caller.getState() == Thread.State.BLOCKED;
+        });
+        assertFalse(second.isDone());
+      } finally {
+        release.countDown();
+      }
+      assertEquals(first.get(30, TimeUnit.SECONDS), second.get(30, TimeUnit.SECONDS));
+      assertEquals(1, this.downloads.get());
+    }
   }
 
   @Test
