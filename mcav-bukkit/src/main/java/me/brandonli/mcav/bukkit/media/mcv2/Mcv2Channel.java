@@ -88,6 +88,9 @@ public final class Mcv2Channel {
   /** The viewers shown the screen, each with its link. */
   private final Map<UUID, Mcv2Link> links;
 
+  /** The viewers shown the screen who lost their link out of sight of the wall: their client still holds the screen. */
+  private final Set<UUID> away;
+
   /** The viewers that receive frames as of the last update, with their links. */
   private volatile Map<UUID, Mcv2Link> recipients;
 
@@ -118,6 +121,7 @@ public final class Mcv2Channel {
     this.screen = screen;
     this.scheduled = ConcurrentHashMap.newKeySet();
     this.links = new ConcurrentHashMap<>();
+    this.away = ConcurrentHashMap.newKeySet();
     this.recipients = Map.of();
     this.farAway = Set.of();
     this.keyframeRequest = new Mcv2KeyframeRequest();
@@ -264,9 +268,13 @@ public final class Mcv2Channel {
     for (final UUID viewer : selected) {
       final Mcv2Link link = this.links.get(viewer);
       if (far.contains(viewer)) {
-        // the client cannot see the wall: nothing is sent, and coming back the viewer is shown the screen anew
+        // the client cannot see the wall: nothing is sent, and coming back the viewer is shown the screen anew. The
+        // screen is not hidden meanwhile, as hiding removes the team every screen shown to the viewer shares, but it is
+        // still theirs to retire should they be removed while away
         this.scheduled.remove(viewer);
-        this.links.remove(viewer);
+        if (this.links.remove(viewer) != null) {
+          this.away.add(viewer);
+        }
       } else if (!this.viewers.isLoaded(viewer)) {
         others.add(viewer);
         this.scheduled.remove(viewer);
@@ -286,14 +294,18 @@ public final class Mcv2Channel {
 
   /**
    * Retires the viewers removed from the configuration: a viewer the screen was still to be shown to is not shown it,
-   * and one shown it loses their link, and has the page frames hidden on the main thread. The removed viewer kept the
-   * screen otherwise, frozen on its last frame, and the channel kept their link.
+   * and one shown it loses their link, or their place among those away from the wall, and has the page frames hidden
+   * on the main thread. The removed viewer kept the screen otherwise, frozen on its last frame, and the channel kept
+   * their link.
    */
   private void retireRemoved(final Set<UUID> selected) {
     this.scheduled.removeIf(viewer -> !selected.contains(viewer));
-    for (final UUID viewer : Set.copyOf(this.links.keySet())) {
+    final Set<UUID> shown = new HashSet<>(this.links.keySet());
+    shown.addAll(this.away);
+    for (final UUID viewer : shown) {
       if (!selected.contains(viewer)) {
         this.links.remove(viewer);
+        this.away.remove(viewer);
         Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), () -> this.hide(viewer));
       }
     }

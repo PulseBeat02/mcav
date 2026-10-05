@@ -37,6 +37,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -258,7 +259,11 @@ public class MCPackHosting implements WebsiteHosting {
       final HttpResponse<String> response = client.send(request, bodyHandler);
       final int status = response.statusCode();
       if (status != HTTP_OK) {
-        final String message = "mc-packs.net rejected the upload with status %d".formatted(status);
+        final String message = String.format(
+          Locale.getDefault(Locale.Category.FORMAT),
+          "mc-packs.net rejected the upload with status %d",
+          status
+        );
         throw new MCPacksException(message);
       }
     } catch (final IOException exception) {

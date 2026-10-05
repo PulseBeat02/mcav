@@ -302,7 +302,9 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       }
       sender.sendMessage(
         Message.MCV2_ENCODE_START.build(
-          "%s into %s at %dx%d with the %s profile, on %d encoder threads".formatted(
+          String.format(
+            Locale.getDefault(Locale.Category.FORMAT),
+            "%s into %s at %dx%d with the %s profile, on %d encoder threads",
             source,
             target,
             width,

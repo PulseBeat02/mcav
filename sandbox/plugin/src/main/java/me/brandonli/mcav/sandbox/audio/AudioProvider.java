@@ -25,6 +25,7 @@ import java.util.Deque;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import me.brandonli.mcav.http.HttpResult;
 import me.brandonli.mcav.http.MediaInfo;
 import me.brandonli.mcav.jda.DiscordPlayer;
@@ -68,6 +69,13 @@ public final class AudioProvider {
   private static final String DISCORD_FAILED = "The Discord bot could not connect, so its audio is not available";
 
   private static final String HAND_BACK_FAILED = "The audio outputs could not go back to the source that played before";
+
+  private static final String STARTUP_NOT_STOPPED =
+    "Audio startup did not stop within {} seconds; restart the server before enabling MCAV again";
+
+  private static final String STARTUP_WAIT_INTERRUPTED = "Interrupted while waiting for audio startup to stop";
+
+  private static final long STARTUP_STOP_TIMEOUT_SECONDS = 10L;
 
   // the source a video plays as, as there is one video at a time
   private static final Object VIDEO = new Object();
@@ -483,6 +491,9 @@ public final class AudioProvider {
 
   /**
    * Stops every output, including those that are still starting.
+   *
+   * <p>Interrupts startup and waits up to ten seconds for its cleanup before Paper closes the library loader.
+   * A startup that does not terminate is reported; an interrupted wait preserves the caller's interrupt flag.
    */
   public void shutdown() {
     synchronized (this.lock) {
@@ -508,7 +519,22 @@ public final class AudioProvider {
     if (bot != null) {
       bot.shutdown();
     }
+    this.stopStartup();
+  }
+
+  private void stopStartup() {
     this.startup.shutdownNow();
+    // Paper closes the library loader after onDisable returns, including jars a startup callback still needs.
+    try {
+      final boolean terminated = this.startup.awaitTermination(STARTUP_STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      if (!terminated) {
+        LOGGER.warn(STARTUP_NOT_STOPPED, STARTUP_STOP_TIMEOUT_SECONDS);
+      }
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+      LOGGER.warn(STARTUP_WAIT_INTERRUPTED);
+    }
   }
 
   /** A source's hold on the outputs: the output it chose, what it shows there, and the filter it plays into. */

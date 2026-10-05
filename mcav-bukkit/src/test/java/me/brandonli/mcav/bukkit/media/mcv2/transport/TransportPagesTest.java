@@ -31,8 +31,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.Stream;
+import java.util.zip.CRC32;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Fixtures;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.FrameWriter;
+import me.brandonli.mcav.bukkit.media.mcv2.encode.TreeNode;
 import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -203,6 +207,74 @@ final class TransportPagesTest {
     assertThrows(Mcv2Exception.class, () -> TransportPages.makePages(new byte[48], 1, 6));
     assertThrows(IllegalArgumentException.class, () -> TransportPages.makePages(new byte[48], -1, 6));
     assertThrows(IllegalArgumentException.class, () -> TransportPages.makePages(new byte[48], 1L << 32, 6));
+  }
+
+  @Test
+  void refusesASymbolWidthOutsideSixToEightBeforeReadingTheFrame() {
+    // as with the stream id, the arguments are checked first: these bytes are no frame either
+    assertThrows(IllegalArgumentException.class, () -> TransportPages.makePages(new byte[48], 1, 5));
+    assertThrows(IllegalArgumentException.class, () -> TransportPages.makePages(new byte[48], 1, 9));
+  }
+
+  @Test
+  void everyPageNamesTheFrameItsFrameIsPredictedFrom() throws Mcv2Exception {
+    final TreeNode root = TreeNode.leaf(Mcv2Format.MODE_MOTION, 0, new byte[] { 1, 1 });
+    final byte[] frame = FrameWriter.write(32, 32, 5, 4, false, 0, 0, List.of(root), FrameWriter.Options.production(false));
+    for (final byte[] page : TransportPages.makePages(frame, 7, 6)) {
+      final TransportPage read = TransportPages.readPage(page, 6);
+      assertEquals(5, read.getFrameId());
+      assertEquals(4, read.getReferenceId());
+      assertEquals(0, read.getFlags(), "a P frame");
+    }
+  }
+
+  /**
+   * A six-bit page made by hand, with a correct CRC: page {@code number} of {@code count} of a frame of
+   * {@code frameBytes} bytes, carrying {@code size} bytes of it. read_page checks the numbers against each other.
+   */
+  private static byte[] pageOfFrame(final long frameBytes, final int number, final int count, final int size) {
+    final byte[] raw = new byte[TransportPages.HEADER_BYTES + size];
+    Mcv2Format.putU32(raw, 0, TransportPages.MAGIC);
+    raw[4] = 1;
+    raw[5] = 6;
+    Mcv2Format.putU16(raw, 16, number);
+    Mcv2Format.putU16(raw, 18, count);
+    Mcv2Format.putU32(raw, 24, frameBytes);
+    final CRC32 crc = new CRC32();
+    crc.update(raw);
+    Mcv2Format.putU32(raw, 28, crc.getValue());
+    return TransportPages.toSymbols(raw, 6);
+  }
+
+  @Test
+  void readsThePagesOfTheSmallestAndTheLargestFrames() throws Mcv2Exception {
+    // a frame is at least its 48-byte header
+    assertEquals(48, TransportPages.readPage(pageOfFrame(48, 0, 1, 48), 6).getFrameBytes());
+    // the largest frame, 16,777,215 bytes, takes 1,369 six-bit pages of 12,256 bytes; the last carries the other 11,007
+    assertEquals(11_007, TransportPages.readPage(pageOfFrame(16_777_215, 1368, 1369, 11_007), 6).getPayload().length);
+  }
+
+  @Test
+  void aFrameOneByteShortOfAFullPageTakesOnePage() throws Mcv2Exception {
+    assertEquals(1, TransportPages.readPage(pageOfFrame(12_255, 0, 1, 12_255), 6).getCount());
+  }
+
+  @Test
+  void refusesAPageNumberedPastTheLastPage() {
+    assertEquals(
+      "Invalid page metadata",
+      assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(pageOfFrame(100, 1, 1, 100), 6)).getMessage()
+    );
+  }
+
+  @Test
+  void refusesAPageCutRightAfterItsHeaderForItsExtent() throws Mcv2Exception {
+    // 43 six-bit symbols hold the whole 32-byte header, so the header reads; the missing payload is what is wrong
+    final byte[] page = page();
+    assertEquals(
+      "Invalid symbol extent",
+      assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(Arrays.copyOf(page, 43), 6)).getMessage()
+    );
   }
 
   @Test

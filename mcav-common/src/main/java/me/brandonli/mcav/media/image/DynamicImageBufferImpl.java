@@ -124,9 +124,10 @@ final class DynamicImageBufferImpl implements DynamicImageBuffer {
    */
   @VisibleForTesting
   static float resolveFrameRate(final double reported, final int frameCount, final long firstTimestamp, final long lastTimestamp) {
-    final boolean validReported = reported > 0 && Double.isFinite(reported);
+    final float reportedRate = (float) reported;
+    final boolean validReported = reportedRate > 0 && Float.isFinite(reportedRate);
     if (validReported) {
-      return (float) reported;
+      return reportedRate;
     }
     final long span = lastTimestamp - firstTimestamp;
     if (frameCount > 1 && span > 0) {

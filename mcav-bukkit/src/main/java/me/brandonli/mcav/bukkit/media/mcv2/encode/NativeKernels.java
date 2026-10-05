@@ -42,11 +42,10 @@ import me.brandonli.mcav.bukkit.media.mcv2.CompactRecord;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * The encoder's kernels in the native library, at one dispatch level. Every call is one downcall that does one block's
- * arithmetic, well under a millisecond, on the Java arrays themselves ({@link Linker.Option#critical}): no copy, no
- * native memory. Before each call every size, offset and length the library will index with is checked here, so the
- * library reads and writes only inside the arrays it is given; the values themselves need no check, the library
- * computes with them as Java would. The library never sees a frame's bytes, only the encoder's own pictures.
+ * The encoder's kernels in the native library, at one dispatch level. Search calls handle one block; verification
+ * handles at most 64 same-size leaves. Both use the Java arrays themselves ({@link Linker.Option#critical}), without
+ * native allocation. Caller-supplied sizes and spans are checked before a call. Verification's record offsets and
+ * modes come from a {@link FrameVerification} built from a parsed frame, so its bounded group can share those checks.
  */
 final class NativeKernels extends Kernels {
 
@@ -187,6 +186,19 @@ final class NativeKernels extends Kernels {
     JAVA_DOUBLE
   );
 
+  private static final FunctionDescriptor VERIFY = FunctionDescriptor.of(
+    JAVA_INT,
+    ADDRESS,
+    ADDRESS,
+    JAVA_INT,
+    JAVA_INT,
+    ADDRESS,
+    JAVA_INT,
+    JAVA_INT,
+    JAVA_INT,
+    ADDRESS
+  );
+
   private static final FunctionDescriptor PREDICT = FunctionDescriptor.ofVoid(
     ADDRESS,
     JAVA_INT,
@@ -300,6 +312,8 @@ final class NativeKernels extends Kernels {
 
     private final MethodHandle reduced;
 
+    private final MethodHandle verify;
+
     private final MethodHandle compact;
 
     private final MethodHandle predict;
@@ -345,6 +359,7 @@ final class NativeKernels extends Kernels {
       this.intraGrid = handle.apply("intra_grid", INTRA_GRID);
       this.residualGrid = handle.apply("residual_grid", RESIDUAL_GRID);
       this.reduced = handle.apply("reduced", REDUCED);
+      this.verify = handle.apply("verify", VERIFY);
       this.compact = handle.apply("compact", COMPACT);
       this.predict = handle.apply("predict", PREDICT);
       this.fit = handle.apply("fit", FIT);
@@ -708,6 +723,31 @@ final class NativeKernels extends Kernels {
           this.rate,
           this.limit
         )
+      );
+    } catch (final Throwable failure) {
+      throw new IllegalStateException(FAILED, failure);
+    }
+  }
+
+  @Override
+  boolean verify(final FrameVerification frame, final byte[] reference, final byte[] picture, final int group) {
+    frame.check(reference, picture);
+    if (!frame.nativeSupported(group)) {
+      return this.fallback.verify(frame, reference, picture, group);
+    }
+    try {
+      return (
+        (int) this.binding.verify.invokeExact(
+          of(reference),
+          of(picture),
+          frame.width(),
+          frame.height(),
+          of(frame.leaves()),
+          frame.first(group),
+          frame.count(group),
+          frame.size(group),
+          of(frame.records())
+        ) != 0
       );
     } catch (final Throwable failure) {
       throw new IllegalStateException(FAILED, failure);
