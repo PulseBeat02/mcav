@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  * in use: after 31 hours of a soak test, the arenas of the server held 2.1 GB of free memory beside 0.3 GB in use, and
  * its resident memory grew by about 20 MB an hour. The JDK's {@code System.trim_native_heap} command returns the free
  * pages of every arena to the system. A JVM started with {@code -XX:TrimNativeHeapInterval} trims on its own and is left
- * to it.
+ * to it, and so is a JVM other than HotSpot, which has neither that option nor the command.
  *
  * <p>The interval is the system property {@value #INTERVAL_PROPERTY}, in seconds, {@value #DEFAULT_INTERVAL_SECONDS} by
  * default; zero or less turns trimming off.
@@ -60,6 +60,11 @@ final class NativeHeapTrimmer implements AutoCloseable {
    * The name of the thread that trims.
    */
   static final String THREAD_NAME = "mcav-native-trim";
+
+  /**
+   * The interval of the JVM's own trims in a JVM that has no such option, as no HotSpot JVM.
+   */
+  static final long NO_JVM_INTERVAL = -1L;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NativeHeapTrimmer.class);
   private static final String TRIM_FAILED = "Could not trim the native heap";
@@ -87,8 +92,8 @@ final class NativeHeapTrimmer implements AutoCloseable {
   /**
    * Creates the trimmer of this JVM, which trims with the JDK's command.
    *
-   * @return the trimmer, which trims never off Linux, in a JVM that trims itself, or when the system property turns
-   *         trimming off
+   * @return the trimmer, which trims never off Linux, in a JVM that trims itself or is no HotSpot JVM, or when the
+   *         system property turns trimming off
    */
   static NativeHeapTrimmer forThisJvm() {
     final OS os = OSUtils.getOS();
@@ -98,17 +103,19 @@ final class NativeHeapTrimmer implements AutoCloseable {
   }
 
   /**
-   * Creates a trimmer that trims at the interval, unless the system is no Linux or the JVM trims itself.
+   * Creates a trimmer that trims at the interval, unless the system is no Linux or the JVM trims itself or is no HotSpot
+   * JVM.
    *
    * @param os                the operating system
-   * @param jvmIntervalMillis the interval of the JVM's own trims, in milliseconds, zero if it trims never
+   * @param jvmIntervalMillis the interval of the JVM's own trims, in milliseconds, zero if it trims never, or
+   *                          {@link #NO_JVM_INTERVAL} if it has no such option
    * @param seconds           the interval of the trims, in seconds; zero or less trims never
    * @param trim              trims the native heap once
    * @return the trimmer
    */
   @VisibleForTesting
   static NativeHeapTrimmer create(final OS os, final long jvmIntervalMillis, final long seconds, final Runnable trim) {
-    final boolean trims = os == OS.LINUX && jvmIntervalMillis <= 0;
+    final boolean trims = os == OS.LINUX && jvmIntervalMillis == 0;
     final Duration interval = trims ? Duration.ofSeconds(seconds) : Duration.ZERO;
     return new NativeHeapTrimmer(interval, trim);
   }
@@ -169,14 +176,23 @@ final class NativeHeapTrimmer implements AutoCloseable {
   /**
    * Reads the interval of the JVM's own trims.
    *
-   * @return the interval in milliseconds, zero if the JVM trims never
+   * @return the interval in milliseconds, zero if the JVM trims never, or {@link #NO_JVM_INTERVAL} if the JVM has no
+   *         such option
    */
   @VisibleForTesting
   static long readJvmIntervalMillis() {
-    final HotSpotDiagnosticMXBean hotspot = ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
-    final VMOption option = hotspot.getVMOption(JVM_INTERVAL_OPTION);
-    final String value = option.getValue();
-    return Long.parseLong(value);
+    try {
+      final @Nullable HotSpotDiagnosticMXBean hotspot = ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
+      if (hotspot == null) {
+        return NO_JVM_INTERVAL;
+      }
+      final VMOption option = hotspot.getVMOption(JVM_INTERVAL_OPTION);
+      final String value = option.getValue();
+      return Long.parseLong(value);
+    } catch (final IllegalArgumentException exception) {
+      // a JVM other than HotSpot may lack the bean or the option; it lacks the command that trims as well
+      return NO_JVM_INTERVAL;
+    }
   }
 
   /**

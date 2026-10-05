@@ -23,9 +23,12 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
 
+import com.sun.management.HotSpotDiagnosticMXBean;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
@@ -41,6 +44,7 @@ import javax.management.ObjectName;
 import me.brandonli.mcav.utils.os.OS;
 import me.brandonli.mcav.utils.os.OSUtils;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 /**
  * Tests {@link NativeHeapTrimmer} with trims the tests count, and once with the JDK's own command.
@@ -115,6 +119,7 @@ final class NativeHeapTrimmerTest {
     assertTrue(trims);
     assertNeverTrims(NativeHeapTrimmer.create(OS.WINDOWS, 0L, 60L, nothing), "off Linux");
     assertNeverTrims(NativeHeapTrimmer.create(OS.LINUX, 1L, 60L, nothing), "in a JVM that trims itself");
+    assertNeverTrims(NativeHeapTrimmer.create(OS.LINUX, NativeHeapTrimmer.NO_JVM_INTERVAL, 60L, nothing), "in a JVM other than HotSpot");
     assertNeverTrims(NativeHeapTrimmer.create(OS.LINUX, 0L, 0L, nothing), "turned off");
     assertNeverTrims(NativeHeapTrimmer.create(OS.LINUX, 0L, -1L, nothing), "turned off by a negative interval");
   }
@@ -173,6 +178,22 @@ final class NativeHeapTrimmerTest {
   @Test
   void readsTheIntervalOfTheJvmsOwnTrims() {
     assertEquals(0L, NativeHeapTrimmer.readJvmIntervalMillis(), "the JVM of the tests does not trim itself");
+  }
+
+  @Test
+  void aJvmOtherThanHotSpotIsNotTrimmed() {
+    final HotSpotDiagnosticMXBean withoutTheOption = mock(HotSpotDiagnosticMXBean.class);
+    final IllegalArgumentException noOption = new IllegalArgumentException("VM option \"TrimNativeHeapInterval\" does not exist");
+    when(withoutTheOption.getVMOption(any())).thenThrow(noOption);
+    final IllegalArgumentException noBean = new IllegalArgumentException("not a platform management interface");
+    try (final MockedStatic<ManagementFactory> factory = mockStatic(ManagementFactory.class, CALLS_REAL_METHODS)) {
+      factory.when(() -> ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class)).thenReturn(null);
+      assertNeverTrims(NativeHeapTrimmer.forThisJvm(), "a JVM without HotSpot's diagnostic bean");
+      factory.when(() -> ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class)).thenReturn(withoutTheOption);
+      assertNeverTrims(NativeHeapTrimmer.forThisJvm(), "a JVM without the option of HotSpot's own trims");
+      factory.when(() -> ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class)).thenThrow(noBean);
+      assertNeverTrims(NativeHeapTrimmer.forThisJvm(), "a JVM that does not know HotSpot's diagnostic bean");
+    }
   }
 
   @Test

@@ -47,7 +47,8 @@ While MCAV is installed on Linux, it hands the memory the C library keeps free b
 the JDK's `System.trim_native_heap` command. FFmpeg, OpenCV and the encoders free large buffers on many threads, and
 glibc keeps them for later: in a server that plays for days, the memory it holds free otherwise grows by about 20
 megabytes an hour. `-Dmcav.nativeTrimSeconds=<n>` trims every `n` seconds instead, and `0` turns it off; a JVM started
-with `-XX:TrimNativeHeapInterval` trims on its own, and MCAV leaves it to that.
+with `-XX:TrimNativeHeapInterval` trims on its own, and MCAV leaves it to that. A JVM other than HotSpot, such as
+OpenJ9, has no such command, and MCAV does not trim there.
 
 ## Capabilities
 
