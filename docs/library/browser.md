@@ -184,4 +184,5 @@ a time, and the sound of frames from another site (which Chromium runs in anothe
 that does not allow it (CORS), and of protected media (DRM) stays silent. When a page stops playing, two seconds of
 silence still reach the pipeline, so a pause between two sounds keeps its length; a longer pause, and the silence of a
 page that has played nothing yet, are not sent. The sound reaches the pipeline within a few tens of milliseconds of its
-picture.
+picture. On a very busy machine the script that hands the sound over can take longer than ten seconds to be placed:
+the page then loads without it, and loads again once it is in place.

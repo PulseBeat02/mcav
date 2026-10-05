@@ -303,7 +303,8 @@ final class CefEngine implements HelperEngine {
    * would miss them. A DevTools client of JCEF can lose its answers, and with them the events of the page, so without
    * an answer in time the client is closed and a new one places the scripts again, which run once in a document
    * however often they are placed. After the last attempt, or on a failure, the page is loaded anyway and a notice says
-   * so; the page then may lack its sound and open new windows nowhere.
+   * so; the page then may lack its sound and open new windows nowhere, until the answer of the last attempt arrives
+   * after all, as it does late on a busy machine: then the page loads again, and its new document runs the scripts.
    *
    * @param created       the browser
    * @param url           the address of the page
@@ -342,7 +343,9 @@ final class CefEngine implements HelperEngine {
       last = devTools.executeDevToolsMethod(call.getMethod(), call.getParameters());
       last.exceptionally(CefEngine::logFailedCall);
     }
-    final CompletableFuture<String> placed = last.completeOnTimeout(NOT_CONFIRMED, timeoutMillis, TimeUnit.MILLISECONDS);
+    // a copy times out, so the answer itself can still arrive late
+    final CompletableFuture<String> answered = last;
+    final CompletableFuture<String> placed = answered.copy().completeOnTimeout(NOT_CONFIRMED, timeoutMillis, TimeUnit.MILLISECONDS);
     final CompletableFuture<String> loading = placed.whenComplete((answer, failure) -> {
       final boolean confirmed = failure == null && !NOT_CONFIRMED.equals(answer);
       if (!confirmed && attempt < PLACING_ATTEMPTS) {
@@ -352,6 +355,10 @@ final class CefEngine implements HelperEngine {
       }
       if (!confirmed) {
         notices.accept("The scripts of the page were not confirmed in " + attempt + " attempts; it loads anyway");
+        answered.thenRun(() -> {
+          notices.accept("The scripts of the page were confirmed late; it loads again");
+          EventQueue.invokeLater(created::reload);
+        });
       }
       EventQueue.invokeLater(() -> created.loadURL(url));
     });

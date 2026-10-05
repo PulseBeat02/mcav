@@ -307,6 +307,42 @@ class CefEngineTest {
   }
 
   @Test
+  void aPageWhoseScriptsAreConfirmedLateLoadsAgainToRunThem() throws Exception {
+    final CefBrowser browser = mock(CefBrowser.class);
+    final CefDevToolsClient devTools = mock(CefDevToolsClient.class);
+    when(browser.getDevToolsClient()).thenReturn(devTools);
+    final CompletableFuture<String> late = new CompletableFuture<>();
+    when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(late);
+    final List<String> notices = new CopyOnWriteArrayList<>();
+    CefEngine.openPage(browser, "https://example.com/late", 100L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
+    Await.until("the page loaded after the timeout", () -> {
+      try {
+        EventQueue.invokeAndWait(() -> {});
+      } catch (final InterruptedException | InvocationTargetException exception) {
+        throw new IllegalStateException(exception);
+      }
+      return mockingDetails(browser)
+        .getInvocations()
+        .stream()
+        .anyMatch(call -> call.getMethod().getName().equals("loadURL"));
+    });
+    verify(browser, never()).reload();
+    // the answer arrives after all, as it does late on a busy machine: the scripts are in place for a new document
+    late.complete("{}");
+    EventQueue.invokeAndWait(() -> {});
+    final InOrder order = inOrder(browser);
+    order.verify(browser).loadURL("https://example.com/late");
+    order.verify(browser).reload();
+    assertEquals(
+      List.of(
+        "The scripts of the page were not confirmed in 2 attempts; it loads anyway",
+        "The scripts of the page were confirmed late; it loads again"
+      ),
+      notices
+    );
+  }
+
+  @Test
   void theVersionIsDescribedWhenJcefReportsOne() {
     assertEquals("unknown", CefEngine.describe(null));
     final CefApp.CefVersion version = mock(CefApp.CefVersion.class);
