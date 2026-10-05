@@ -187,7 +187,7 @@ final class ChromiumConfinement {
     if (list == null) {
       return paths;
     }
-    for (final String entry : list.split(File.pathSeparator)) {
+    for (final String entry : list.split(File.pathSeparator, -1)) {
       if (!entry.isEmpty()) {
         paths.add(Path.of(entry));
       }
