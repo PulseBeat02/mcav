@@ -148,7 +148,9 @@ final class MatImageBufferTest {
       assertEquals(8, width);
       assertEquals(0xFFFF0000, red);
     }
-    assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.bytes(new byte[0]));
+    final IllegalArgumentException empty = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.bytes(new byte[0]));
+    // no bytes are refused as such, before the size check could refuse them as no image
+    assertEquals("Encoded image must not be empty", empty.getMessage());
     assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.bytes(new byte[] { 1, 2, 3 }));
     assertThrowsWhileOpening(NullPointerException.class, () -> ImageBuffer.bytes(null));
   }
