@@ -19,6 +19,7 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -67,6 +68,16 @@ class LandlockTest {
   void readsTheAnswerOfTheKernel() {
     assertEquals(4, Landlock.versionOf(4, 0));
     assertEquals(-38, Landlock.versionOf(-1, 38));
+    // the error number is read only when the call failed: what a call that succeeded left there is no answer
+    assertEquals(0, Landlock.versionOf(0, 38));
+    assertEquals(3, Landlock.versionOf(3, 38));
+  }
+
+  @Test
+  @EnabledOnOs(OS.LINUX)
+  void theKernelAnswersAVersionOrWhyItHasNoneButNeverNothing() {
+    final int version = Landlock.version();
+    assertNotEquals(0, version, "1 or more, or the negated error number of a kernel without Landlock");
   }
 
   @Test
@@ -152,6 +163,17 @@ class LandlockTest {
     final int version = Landlock.version();
     assumeTrue(version >= 1, () -> "this kernel cannot restrict: " + Landlock.describeMissing(version));
     return version;
+  }
+
+  @Test
+  @EnabledOnOs(OS.LINUX)
+  void rightsTheKernelDoesNotKnowAreRefusedWithItsErrorNumber() throws InterruptedException {
+    final int version = availableVersion();
+    // the fifth version handles device control, which older kernels refuse to handle
+    assumeTrue(version < 5, () -> "this kernel knows every right of the fifth version: " + version);
+    final Throwable failure = onThread(() -> Landlock.restrictThread(5, List.of()));
+    assertInstanceOf(IOException.class, failure);
+    assertEquals("Landlock could not create a ruleset (error 22)", failure.getMessage());
   }
 
   @Test
