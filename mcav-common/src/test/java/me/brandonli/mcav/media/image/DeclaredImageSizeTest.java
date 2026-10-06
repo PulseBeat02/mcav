@@ -453,9 +453,34 @@ final class DeclaredImageSizeTest {
         30000,
         20000
       ),
+      Arguments.of("bmp of the shortest info header of 32-bit sizes", bytes("BM", new byte[12], le(36, 4), le(5, 4), le(7, 4)), 5, 7),
+      Arguments.of("jpeg of the last kind of frame", bytes(0xFF, 0xD8, 0xFF, 0xCF, be(17, 2), 8, be(7, 2), be(5, 2)), 5, 7),
       Arguments.of(
         "jpeg with a stuffed zero before its frame",
         bytes(0xFF, 0xD8, 0xFF, 0x00, 0xFF, 0xC0, be(17, 2), 8, be(7, 2), be(5, 2)),
+        5,
+        7
+      ),
+      Arguments.of("pbm with a nul in a comment", bytes("P4 #a", 0, " 1 1\n3 4\n"), 3, 4),
+      Arguments.of("ppm of the widest width", bytes("P6\n2147483647 1\n255\n"), 2147483647L, 1),
+      Arguments.of("pam of a ten-digit width", bytes("P7\nWIDTH 4294967295\nHEIGHT 1\nENDHDR\n"), 4294967295L, 1),
+      Arguments.of("pam with a nul in a comment", bytes("P7\n# a", 0, "b\nWIDTH 5\nHEIGHT 7\nENDHDR\n"), 5, 7),
+      Arguments.of("pfm of a signed ten-digit width", bytes("PF\n+1234567890 7\n"), 1234567890, 7),
+      Arguments.of("pfm with a nul in its width", bytes("PF\n5", 0, " 7\n"), 5, 7),
+      Arguments.of("pfm with a width as long as a number may be", bytes("PF\n5", "a".repeat(2047), "7\n"), 5, 7),
+      Arguments.of("hdr of the widest width", bytes("#?RGBE\n\n-Y 5 +X 2147483647\n"), 2147483647L, 5),
+      Arguments.of("hdr with a nul in a header line", bytes("#?RGBE\nFORMAT=32-bit_rle_rgbe", 0, "\n\n-Y 7 +X 5\n"), 5, 7),
+      Arguments.of(
+        "tiff with an entry past its count",
+        bytes(
+          "II",
+          le(42, 2),
+          le(8, 4),
+          le(2, 2),
+          tiffEntry(false, 256, 3, 1, 5),
+          tiffEntry(false, 257, 3, 1, 7),
+          tiffEntry(false, 256, 3, 1, 9)
+        ),
         5,
         7
       ),
@@ -563,6 +588,10 @@ final class DeclaredImageSizeTest {
       Arguments.of("tiff with a width in bytes", classicTiff(tiffEntry(false, 256, 1, 1, 5), tiffEntry(false, 257, 3, 1, 7))),
       Arguments.of("classic tiff with an eight-byte width", classicTiff(tiffEntry(false, 256, 16, 1, 5), tiffEntry(false, 257, 3, 1, 7))),
       Arguments.of("tiff without its length", classicTiff(tiffEntry(false, 256, 3, 1, 5))),
+      Arguments.of("pam with a width of 0 and another", bytes("P7\nWIDTH 0\nWIDTH 5\nHEIGHT 7\nENDHDR\n")),
+      Arguments.of("pam with a height of 0 and another", bytes("P7\nWIDTH 5\nHEIGHT 0\nHEIGHT 7\nENDHDR\n")),
+      Arguments.of("pam with a line one longer than its limit", bytes("P7\nWIDTH", " ".repeat(507), "5\nHEIGHT 7\nENDHDR\n")),
+      Arguments.of("hdr with an eleven-digit width", bytes("#?RGBE\n\n-Y 5 +X 21474836470\n")),
       Arguments.of("png without its header chunk", bytes(0x89, "PNG\r\n", 0x1A, "\n", be(13, 4), "IDAT", be(5, 4), be(7, 4))),
       Arguments.of("png of no height", bytes(0x89, "PNG\r\n", 0x1A, "\n", be(13, 4), "IHDR", be(5, 4), be(0, 4)))
     );
