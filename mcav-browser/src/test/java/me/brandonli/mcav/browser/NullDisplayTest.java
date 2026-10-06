@@ -603,6 +603,44 @@ class NullDisplayTest {
   }
 
   @Test
+  void aClientRefusedInItsSetupLeavesTheQueueOfWaitingClients() throws IOException {
+    final Path authority = this.folder.resolve("Xauthority");
+    final List<Socket> silent = new ArrayList<>();
+    // no setup timeout, as above: only a refusal or an eviction ends a client here
+    try (final NullDisplay display = NullDisplay.start(authority, 0)) {
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+      final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
+      for (int count = 1; count < NullDisplay.MAX_PENDING; count++) {
+        final Socket client = new Socket(loopback, port);
+        client.setSoTimeout(10_000);
+        silent.add(client);
+      }
+      try (final Socket refused = new Socket(loopback, port)) {
+        refused.setSoTimeout(10_000);
+        refused.getOutputStream().write(setup(new byte[NullDisplay.COOKIE_BYTES]));
+        try {
+          refused.getInputStream().readAllBytes();
+        } catch (final SocketException reset) {
+          // a refused connection may be reset instead
+        }
+      }
+      // the display counts a client until it has also left the queue of clients that have not introduced themselves
+      Await.until("the refused client is gone", () -> display.countClients() == NullDisplay.MAX_PENDING - 1);
+      try (final Socket introduced = introduce(loopback, port, cookieOf(authority))) {
+        assertTrue(internsAnAtom(introduced), "the client with the cookie is served");
+      }
+      // the refused client no longer waits in the queue, so the newcomer fit without ending the oldest waiting client
+      final Socket oldest = silent.getFirst();
+      oldest.setSoTimeout(300);
+      assertThrows(SocketTimeoutException.class, () -> oldest.getInputStream().read(), "the oldest client still waits");
+    } finally {
+      for (final Socket client : silent) {
+        client.close();
+      }
+    }
+  }
+
+  @Test
   void aClientThatOnlyAsksWhetherAnAtomExistsCreatesNone() {
     final NullDisplay.Atoms atoms = new NullDisplay.Atoms();
     final ByteBuffer asked = NullDisplay.answer(
