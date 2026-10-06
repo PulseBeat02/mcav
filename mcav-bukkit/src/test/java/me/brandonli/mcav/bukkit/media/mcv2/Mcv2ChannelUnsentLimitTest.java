@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -67,13 +68,20 @@ final class Mcv2ChannelUnsentLimitTest {
     this.server.close();
   }
 
-  @Test
-  void showsTheScreenToAViewerWhoseConnectionRefusesTheLimit() {
+  private static Mcv2Viewers viewers() {
     final Mcv2Viewers viewers = mock(Mcv2Viewers.class);
     when(viewers.isLoaded(VIEWER)).thenReturn(true);
+    return viewers;
+  }
+
+  private static Mcv2Screen screen() {
     final Mcv2Screen screen = mock(Mcv2Screen.class);
     when(screen.anchors()).thenReturn(List.of(new MapTilePatch(100, 0, 0, 128, 1, new byte[128])));
-    final Mcv2Configuration configuration = Mcv2Configuration.builder()
+    return screen;
+  }
+
+  private static Mcv2Configuration configuration(final int unsentLimit) {
+    return Mcv2Configuration.builder()
       .viewers(List.of(VIEWER))
       .origin(new Location(mock(World.class), 0, 64, 0))
       .facing(BlockFace.SOUTH)
@@ -81,8 +89,15 @@ final class Mcv2ChannelUnsentLimitTest {
       .columns(1)
       .rows(1)
       .pageMap(500)
-      .unsentLimit(4096)
+      .unsentLimit(unsentLimit)
       .build();
+  }
+
+  @Test
+  void showsTheScreenToAViewerWhoseConnectionRefusesTheLimit() {
+    final Mcv2Viewers viewers = viewers();
+    final Mcv2Screen screen = screen();
+    final Mcv2Configuration configuration = configuration(4096);
     // epoll refuses the option of a connection that closed since the show was scheduled, as when the player leaves
     final ChannelException closed = new ChannelException(new ClosedChannelException());
     try (final MockedStatic<PacketUtils> packets = mockStatic(PacketUtils.class, CALLS_REAL_METHODS)) {
@@ -95,6 +110,19 @@ final class Mcv2ChannelUnsentLimitTest {
       assertEquals(Set.of(), channel.update(), "the viewer receives frames, without the limit");
       assertEquals(Set.of(VIEWER), channel.getRecipients());
       packets.verify(() -> PacketUtils.limitUnsent(VIEWER, 4096));
+    }
+  }
+
+  @Test
+  void leavesTheConnectionAloneForAScreenWithoutALimit() {
+    final Mcv2Screen screen = screen();
+    try (final MockedStatic<PacketUtils> packets = mockStatic(PacketUtils.class, CALLS_REAL_METHODS)) {
+      final Mcv2Channel channel = new Mcv2Channel(configuration(0), viewers(), screen);
+      channel.update();
+      this.server.runTasks();
+      verify(screen).show(this.player);
+      // a limit of 0 is none: the connection keeps the unsent bytes it would keep without MCV2
+      packets.verify(() -> PacketUtils.limitUnsent(any(), anyInt()), never());
     }
   }
 }
