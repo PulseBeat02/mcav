@@ -104,6 +104,9 @@ public final class MatImageBuffer implements ImageBuffer {
 
   MatImageBuffer(final byte[] encoded) {
     Preconditions.checkArgument(encoded.length > 0, "Encoded image must not be empty");
+    // OpenCV allocates the whole picture once it has read the header, so a small file declaring a huge size is
+    // refused before it gets there
+    DeclaredImageSize.checkBytes(encoded);
     try (final BytePointer pointer = new BytePointer(encoded); final Mat wrapper = new Mat(pointer)) {
       final Mat decoded = opencv_imgcodecs.imdecode(wrapper, opencv_imgcodecs.IMREAD_COLOR);
       final boolean empty = decoded.empty();
@@ -152,6 +155,7 @@ public final class MatImageBuffer implements ImageBuffer {
   }
 
   private static Mat readFile(final Path path) {
+    DeclaredImageSize.checkFile(path);
     final String raw = path.toString();
     final Mat decoded = opencv_imgcodecs.imread(raw, opencv_imgcodecs.IMREAD_COLOR);
     final boolean empty = decoded.empty();

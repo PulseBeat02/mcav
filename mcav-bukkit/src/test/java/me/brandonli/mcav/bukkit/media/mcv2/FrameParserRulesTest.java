@@ -126,6 +126,22 @@ final class FrameParserRulesTest {
   }
 
   @Test
+  void refusesALeafOfARevertedRoundInTheDerivedForm() throws Mcv2Exception {
+    final byte[] frame = keyframe(64, 32, DERIVED, solid(1, 1, 1), leaf(Mcv2Format.MODE_PALETTE, 0, 32, 3));
+    FrameParser.parse(frame);
+    final Layout layout = Layout.of(frame);
+    // the palette leaf's descriptor is the largest of the symbol table, so a reverted mode in its place keeps it sorted
+    final int paletteSymbol = layout.table() + frame[layout.table()];
+    assertEquals(Mcv2Format.MODE_PALETTE, frame[paletteSymbol]);
+    for (final int mode : List.of(Mcv2Format.MODE_COARSE_PALETTE_2, Mcv2Format.MODE_COARSE_PALETTE_4, Mcv2Format.MODE_INDEXED_MOTION)) {
+      final byte[] reverted = withByte(frame, paletteSymbol, mode);
+      // refused as syntax mcav does not take, as in the stored forms, not as a broken descriptor
+      final UnsupportedSyntaxException refused = assertThrows(UnsupportedSyntaxException.class, () -> FrameParser.parse(reverted));
+      assertEquals("Leaf mode " + mode + " of a reverted round is not supported", refused.getMessage());
+    }
+  }
+
+  @Test
   void refusesAnUnsortedSymbolTable() {
     final byte[] frame = keyframe(64, 32, DERIVED, solid(1, 1, 1), split(leaf(Mcv2Format.MODE_PALETTE, 0, 16, 3)));
     final Layout layout = Layout.of(frame);
@@ -278,6 +294,19 @@ final class FrameParserRulesTest {
     final byte[] wide = predicted(32, 32, 0, 0, WIDE_IMMEDIATE, split(motion(1, 1)));
     assertEquals(16, wide[51]);
     assertEquals("Invalid sparse child mask or layout", message(withByte(wide, 51, 19)));
+  }
+
+  @Test
+  void refusesAChildQuartetThatRunsIntoThePayload() throws Mcv2Exception {
+    final TreeNode quartet = TreeNode.split(motion(1, 1), motion(2, 2), motion(3, 3), motion(4, 4));
+    final byte[] frame = predicted(32, 32, 0, 0, SHORT_PLAIN, quartet);
+    FrameParser.parse(frame);
+    // the root descriptor at 48, then four three-byte child descriptors, up to the payload at 63
+    assertEquals(Mcv2Format.MODE_SPLIT, frame[50] & 31);
+    assertEquals(63L, Mcv2Format.u32(frame, 28));
+    // a quartet one byte or eleven bytes too long is refused before a child is read from the payload
+    assertEquals("Truncated children", message(withWord(frame, 28, 62)));
+    assertEquals("Truncated children", message(withWord(frame, 28, 52)));
   }
 
   @Test

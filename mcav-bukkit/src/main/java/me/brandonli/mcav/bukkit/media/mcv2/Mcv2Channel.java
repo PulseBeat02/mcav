@@ -43,6 +43,8 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Delivers encoded MCV2 frames to the viewers of a screen who can decode them.
@@ -69,6 +71,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class Mcv2Channel {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(Mcv2Channel.class);
+  private static final String UNSENT_LIMIT_REFUSED = "The connection of viewer {} refused the limit of unsent bytes";
+
   /** The blocks past their view distance a viewer near the wall may go before the screen stops sending to them. */
   static final int RANGE_MARGIN = 32;
 
@@ -90,6 +95,9 @@ public final class Mcv2Channel {
 
   /** The viewers shown the screen who lost their link out of sight of the wall: their client still holds the screen. */
   private final Set<UUID> away;
+
+  /** The pack session of each link, as {@link Mcv2Viewers#getSession(UUID)} gave it when the link was first updated. */
+  private final Map<UUID, Long> sessions;
 
   /** The viewers that receive frames as of the last update, with their links. */
   private volatile Map<UUID, Mcv2Link> recipients;
@@ -122,6 +130,7 @@ public final class Mcv2Channel {
     this.scheduled = ConcurrentHashMap.newKeySet();
     this.links = new ConcurrentHashMap<>();
     this.away = ConcurrentHashMap.newKeySet();
+    this.sessions = new ConcurrentHashMap<>();
     this.recipients = Map.of();
     this.farAway = Set.of();
     this.keyframeRequest = new Mcv2KeyframeRequest();
@@ -262,6 +271,7 @@ public final class Mcv2Channel {
     // one view of a collection the caller may change while this runs
     final Set<UUID> selected = new HashSet<>(this.configuration.getViewers());
     this.retireRemoved(selected);
+    this.forgetEarlierSessions(selected);
     final Map<UUID, Mcv2Link> receiving = new HashMap<>();
     final Set<UUID> others = ConcurrentHashMap.newKeySet();
     final Set<UUID> far = this.farAway;
@@ -312,6 +322,26 @@ public final class Mcv2Channel {
   }
 
   /**
+   * Forgets the link of a viewer whose client loaded the pack anew since the link was made, which happens when the
+   * player left and joined again while no frame came, for example while the video was paused: the new client was never
+   * shown the page frames, which nobody sees by default, so the viewer is shown the screen again. The session of a link
+   * is the one of its first update, as frames go out only from then on.
+   */
+  private void forgetEarlierSessions(final Set<UUID> selected) {
+    this.sessions.keySet().removeIf(viewer -> !selected.contains(viewer) || !this.links.containsKey(viewer));
+    final Set<UUID> linked = new HashSet<>(this.links.keySet());
+    for (final UUID viewer : linked) {
+      final long current = this.viewers.getSession(viewer);
+      final Long session = this.sessions.putIfAbsent(viewer, current);
+      if (session != null && session != current) {
+        this.scheduled.remove(viewer);
+        this.links.remove(viewer);
+        this.sessions.remove(viewer);
+      }
+    }
+  }
+
+  /**
    * Hides the screen from a viewer removed from the configuration, unless they were added back since: such a viewer is
    * scheduled again. A viewer added back is shown the screen by a show scheduled after this hide, which runs after it.
    */
@@ -337,7 +367,13 @@ public final class Mcv2Channel {
     // the rest of the viewer's video waits where its backlog limit sees it
     final int unsent = this.configuration.getUnsentLimit();
     if (unsent > 0) {
-      PacketUtils.limitUnsent(viewer, unsent);
+      try {
+        PacketUtils.limitUnsent(viewer, unsent);
+      } catch (final RuntimeException refused) {
+        // the transport may refuse the option, as epoll does for a connection that closed since the show was scheduled
+        // (the player is leaving): the limit only keeps a slow viewer's backlog small, and the screen works without it
+        LOGGER.debug(UNSENT_LIMIT_REFUSED, viewer, refused);
+      }
     }
     // a viewer shown the screen again starts over: its client holds no picture of this stream yet
     this.links.put(viewer, new Mcv2Link(this.configuration.getBacklogLimit()));

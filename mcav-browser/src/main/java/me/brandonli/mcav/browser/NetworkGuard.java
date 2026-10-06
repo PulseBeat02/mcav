@@ -33,6 +33,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -104,15 +106,18 @@ final class NetworkGuard implements Closeable {
   }
 
   /**
-   * Starts a guard that lets pages reach public addresses only.
+   * Starts a guard that lets pages reach public addresses only, and none of the addresses of the refused hosts.
    *
-   * @param notices receives a line for every refused host
+   * @param notices      receives a line for every refused host
+   * @param refusedHosts more names or addresses of this machine, such as its public name, which the guard cannot find
+   *                     among the interfaces of a container; resolved once, now
    * @return the running guard
    * @throws IOException if no port of the loopback interface can be bound
    */
-  static NetworkGuard start(final Consumer<String> notices) throws IOException {
+  static NetworkGuard start(final Consumer<String> notices, final List<String> refusedHosts) throws IOException {
     final Resolver resolver = InetAddress::getAllByName;
-    final PublicAddresses policy = new PublicAddresses(resolver, NetworkGuard::isOwnAddress);
+    final Set<InetAddress> refused = resolveAll(resolver, refusedHosts, notices);
+    final PublicAddresses policy = new PublicAddresses(resolver, ownOrRefused(NetworkGuard::isOwnAddress, refused));
     return start(resolver, policy, NetworkGuard::connect, notices, HANDSHAKE_TIMEOUT_MILLIS);
   }
 
@@ -142,6 +147,38 @@ final class NetworkGuard implements Closeable {
     thread.setDaemon(true);
     thread.start();
     return guard;
+  }
+
+  /**
+   * Combines the test for the addresses of this machine with the addresses of the refused hosts.
+   *
+   * @param own     whether an address belongs to a network interface of this machine
+   * @param refused the addresses of the refused hosts
+   * @return whether an address is one of either
+   */
+  static Predicate<InetAddress> ownOrRefused(final Predicate<InetAddress> own, final Set<InetAddress> refused) {
+    return address -> own.test(address) || refused.contains(address);
+  }
+
+  /**
+   * Resolves the refused hosts; one without an address is reported and left out, so its address, once it has one,
+   * is refused only if it is otherwise not public or the machine's own.
+   *
+   * @param resolver resolves the names
+   * @param hosts    the names or addresses
+   * @param notices  receives a line for every host without an address
+   * @return every address of the hosts
+   */
+  static Set<InetAddress> resolveAll(final Resolver resolver, final List<String> hosts, final Consumer<String> notices) {
+    final Set<InetAddress> addresses = new HashSet<>();
+    for (final String host : hosts) {
+      try {
+        addresses.addAll(Arrays.asList(resolver.resolve(host)));
+      } catch (final UnknownHostException exception) {
+        notices.accept("The refused host " + host + " has no address, so pages are not kept from it");
+      }
+    }
+    return addresses;
   }
 
   /**
@@ -192,8 +229,11 @@ final class NetworkGuard implements Closeable {
    */
   private void serve(final Socket client) {
     // a client whose handshake takes too long is closed, however it trickles it; a deadline cancelled in time never
-    // runs, and after the handshake the connection may stay quiet for as long as it likes
-    final Executor later = CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS);
+    // runs, one that runs gets a thread of its own, as the common pool may be busy, and after the handshake the
+    // connection may stay quiet for as long as it likes
+    final Executor later = CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS, task ->
+      Thread.ofVirtual().name("mcav-browser-guard-deadline").start(task)
+    );
     final CompletableFuture<Void> deadline = CompletableFuture.runAsync(() -> closeQuietly(client), later);
     try {
       final InputStream rawInput = client.getInputStream();

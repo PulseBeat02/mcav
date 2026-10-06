@@ -161,7 +161,40 @@ browser:
   # should play a video with sound as soon as it opens.
   # Default is false
   autoplay-sound: false
+
+  # Whether Chromium is confined, on Linux 5.13 or later: its processes cannot read the server's folder, the home
+  # folder or the temporary folder, apart from what the browser needs there, and they change files only in the folder
+  # of their browser. A page that exploits a flaw of Chromium then cannot read this file or change the server's files.
+  # Elsewhere the browser runs as before, and the server log says so. Turn it off only if a page needs something it
+  # hides, such as fonts in the home folder.
+  # Default is true
+  confine-chromium: true
+
+  # More hosts whose addresses pages may not reach, by name or address. Pages never reach private addresses or the
+  # addresses of this machine's network interfaces, but inside a container (Docker, Pterodactyl) the public address of
+  # the machine around it is no interface of the container, and it still reaches every service that listens on all
+  # interfaces of that machine, past its firewall. List that address, or the name it has, here, for example
+  # ["203.0.113.5", "play.example.com"]. Names are looked up when a browser starts.
+  # Default is []
+  refused-hosts: []
+
+# ======================================================================
+# VIRTUAL MACHINE CONFIGURATION
+# ======================================================================
+
+# The virtual machines of /mcav vm create.
+vm:
+
+  # Whether a machine's guest gets QEMU's user-mode network. It reaches the internet, and also every service of the
+  # server that listens only on its loopback address (10.0.2.2 inside the guest), such as an RCON port, a database or
+  # an admin page. Off, the guest has a network card that reaches nothing. Turn it on only if everyone who may create
+  # a machine or type into one may use those services.
+  # Default is false
+  allow-network: false
 ```
+
+A port or a number of threads that is not a whole number in its range, such as a port of 4294967376 or 8080.5, is
+refused with a warning in the server log, and the option keeps its default.
 
 ```{warning}
 Keep the Discord bot token secret. Do not share your `config.yml` without removing it first; the `/mcav dump` command
@@ -199,7 +232,9 @@ Chromium in `~/.mcav/cache/jcef` (136 to 165 MB) and, on Linux, the libraries it
 `~/.mcav/cache/jcef-libraries` (about 13 MB). On a Pterodactyl server that is `/home/container/.mcav/cache`. The folder
 has no setting of its own; delete it to download everything again.
 
-Virtual machines have no settings in `config.yml`: where their sound plays is chosen with the audio type of
+A virtual machine's guest gets a network card that reaches nothing, neither the internet nor the server.
+`vm.allow-network` gives it QEMU's own user-mode network instead, which reaches the internet and every service the
+server offers only on its loopback address. Where a machine's sound plays is chosen with the audio type of
 `/mcav vm create`, and MCAV gives an `X86_64` machine its sound card itself.
 
 ## MCV2

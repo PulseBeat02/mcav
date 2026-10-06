@@ -274,6 +274,8 @@ final class HttpDownloaderTest {
     final boolean timeoutRetryable = HttpDownloader.isRetryable(new HttpStatusException(408, uri));
     final boolean throttledRetryable = HttpDownloader.isRetryable(new HttpStatusException(429, uri));
     final boolean notFoundRetryable = HttpDownloader.isRetryable(new HttpStatusException(404, uri));
+    final boolean redirectRetryable = HttpDownloader.isRetryable(new RedirectRefusedException("elsewhere"));
+    final boolean slowRetryable = HttpDownloader.isRetryable(new DownloadTooSlowException("trickling"));
     assertTrue(networkRetryable);
     assertFalse(checksumRetryable);
     assertFalse(tooLargeRetryable, "the same bytes would arrive again");
@@ -281,6 +283,102 @@ final class HttpDownloaderTest {
     assertTrue(timeoutRetryable);
     assertTrue(throttledRetryable);
     assertFalse(notFoundRetryable);
+    assertFalse(redirectRetryable, "a mirror that redirects elsewhere does so again");
+    assertFalse(slowRetryable, "a mirror that trickles does so again");
+  }
+
+  @Test
+  void aPinnedDownloadFollowsARedirectWithinItsOwnHostOnly() throws IOException {
+    try (final LocalHttpServer server = LocalHttpServer.start(); final LocalHttpServer other = LocalHttpServer.start()) {
+      server.respond("/file", 200, CONTENT);
+      server.respondRedirect("/moved", 302, "/file");
+      other.respond("/file", 200, CONTENT);
+      server.respondRedirect("/away", 302, other.uri("/file").toString());
+      final Path moved = this.directory.resolve("moved.bin");
+      HttpDownloader.download(server.uri("/moved"), moved, CONTENT_SHA256, CONTENT.length);
+      assertArrayEquals(CONTENT, Files.readAllBytes(moved));
+      final Path away = this.directory.resolve("away.bin");
+      final IOException refused = assertThrows(IOException.class, () ->
+        HttpDownloader.download(server.uri("/away"), away, CONTENT_SHA256, CONTENT.length)
+      );
+      assertInstanceOf(RedirectRefusedException.class, refused);
+      assertEquals(1, server.getRequestCount("/away"), "not tried again");
+      assertEquals(0, other.getRequestCount("/file"), "the other host is never asked");
+      assertFalse(Files.exists(away));
+      // a download that is not pinned follows it, as before
+      HttpDownloader.download(server.uri("/away"), away, CONTENT_SHA256);
+      assertArrayEquals(CONTENT, Files.readAllBytes(away));
+    }
+  }
+
+  @Test
+  void aPinnedDownloadFollowsEveryKindOfRedirectFiveTimesAtMost() throws IOException {
+    try (final LocalHttpServer server = LocalHttpServer.start()) {
+      server.respond("/file", 200, CONTENT);
+      for (final int status : new int[] { 301, 302, 303, 307, 308 }) {
+        server.respondRedirect("/" + status, status, "/file");
+        try (final InputStream body = HttpDownloader.openPinnedStream(server.uri("/" + status))) {
+          assertArrayEquals(CONTENT, body.readAllBytes(), "after a " + status);
+        }
+      }
+      server.respondRedirect("/loop", 307, "/loop");
+      final IOException loop = assertThrows(IOException.class, () -> openAndClosePinned(server.uri("/loop")));
+      assertInstanceOf(RedirectRefusedException.class, loop);
+      assertEquals(6, server.getRequestCount("/loop"), "the first request and five redirects");
+      // a redirect without a place to go, or a status that is no redirect, is an error of the server
+      server.respond("/nowhere", 302, new byte[0]);
+      assertEquals(302, assertThrows(HttpStatusException.class, () -> openAndClosePinned(server.uri("/nowhere"))).getStatusCode());
+      server.respondRedirect("/choices", 300, "/file");
+      assertEquals(300, assertThrows(HttpStatusException.class, () -> openAndClosePinned(server.uri("/choices"))).getStatusCode());
+    }
+  }
+
+  private static void openAndClosePinned(final URI uri) throws IOException {
+    HttpDownloader.openPinnedStream(uri).close();
+  }
+
+  @Test
+  void anOriginIsItsSchemeItsHostAndItsPort() {
+    final URI page = URI.create("https://mirror.example/debian/pool/a.deb");
+    assertTrue(HttpDownloader.isSameOrigin(page, URI.create("https://MIRROR.example:443/file/b.deb")));
+    assertTrue(HttpDownloader.isSameOrigin(URI.create("http://mirror.example/a"), URI.create("http://mirror.example:80/b")));
+    assertFalse(HttpDownloader.isSameOrigin(page, URI.create("http://mirror.example/a.deb")), "another scheme");
+    assertFalse(HttpDownloader.isSameOrigin(page, URI.create("https://other.example/a.deb")), "another host");
+    assertFalse(HttpDownloader.isSameOrigin(page, URI.create("https://mirror.example:8443/a.deb")), "another port");
+  }
+
+  @Test
+  void aPinnedDownloadThatTricklesIsGivenUpAtItsDeadlineWithoutAnotherAttempt() throws IOException {
+    try (final LocalHttpServer server = LocalHttpServer.start()) {
+      // a byte every 50 ms: the 14 bytes take 700 ms, more than the 200 ms the download may take
+      server.respondTrickling("/slow", 200, CONTENT, 50);
+      final Path slow = this.directory.resolve("slow.bin");
+      final Duration deadline = Duration.ofMillis(200);
+      final IOException failure = assertThrows(IOException.class, () ->
+        HttpDownloader.download(server.uri("/slow"), slow, CONTENT_SHA256, NO_DELAY, Duration.ofSeconds(10), CONTENT.length, deadline)
+      );
+      assertInstanceOf(DownloadTooSlowException.class, failure);
+      assertEquals(1, server.getRequestCount("/slow"));
+      assertFalse(Files.exists(slow));
+    }
+  }
+
+  @Test
+  void aPinnedDownloadOfTheLargestSizeHasADeadlineFarAway() throws IOException {
+    try (final LocalHttpServer server = LocalHttpServer.start()) {
+      server.respond("/file", 200, CONTENT);
+      final Path destination = this.directory.resolve("unbounded.bin");
+      HttpDownloader.download(server.uri("/file"), destination, CONTENT_SHA256, HttpDownloader.NO_SIZE_LIMIT);
+      assertArrayEquals(CONTENT, Files.readAllBytes(destination));
+    }
+  }
+
+  @Test
+  void aPinnedDownloadMayTakeAMinuteAndASecondForEvery64KibOfItsSize() {
+    assertEquals(Duration.ofMinutes(1), HttpDownloader.pinnedDeadline(1));
+    assertEquals(Duration.ofSeconds(62), HttpDownloader.pinnedDeadline(2 * 64 * 1024));
+    // the CEF build of x86-64 Linux, about 200 MB: an hour at the slowest
+    assertEquals(Duration.ofSeconds(60 + 3051), HttpDownloader.pinnedDeadline(200_000_000L));
   }
 
   @Test

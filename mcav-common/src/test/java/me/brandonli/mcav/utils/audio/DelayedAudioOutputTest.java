@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.utils.audio;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -29,10 +30,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
@@ -44,6 +47,8 @@ class DelayedAudioOutputTest {
 
   private static final int DELAY_MILLIS = 70;
   private static final int MAX_QUEUED_MILLIS = DELAY_MILLIS + 60;
+  // one frame of 48 kHz sound, 20833.3 ns, rounded down as the output rounds it
+  private static final long FRAME_NANOS = 20_833;
   private static final int MAX_BYTES = (AudioFilter.SAMPLE_RATE / 1000) * MAX_QUEUED_MILLIS * AudioFilter.FRAME_SIZE;
 
   private final List<byte[]> processed = new CopyOnWriteArrayList<>();
@@ -219,7 +224,8 @@ class DelayedAudioOutputTest {
         }),
       (message, failure) -> this.failures.add(message),
       System::nanoTime,
-      100
+      100,
+      DelayedAudioOutput.SILENCE_MILLIS
     );
     stuck.accept(new byte[4], 4);
     assertTrue(entered.await(10, TimeUnit.SECONDS), "the pipeline got the samples");
@@ -240,13 +246,190 @@ class DelayedAudioOutputTest {
       () -> this.step,
       (message, failure) -> this.failures.add(message),
       now::get,
-      DelayedAudioOutput.JOIN_TIMEOUT_MILLIS
+      DelayedAudioOutput.JOIN_TIMEOUT_MILLIS,
+      DelayedAudioOutput.SILENCE_MILLIS
     );
     this.output.accept(new byte[4], 4);
     Thread.sleep(3L * DELAY_MILLIS);
     assertEquals(0, this.processed.size(), "not due before the clock passed the delay");
     now.set(TimeUnit.MILLISECONDS.toNanos(DELAY_MILLIS));
     waitUntil(() -> this.processed.size() == 1);
+  }
+
+  /** An output whose clock the test moves, with at most {@code silenceMillis} of silence after {@link DelayedAudioOutput#quiet()}. */
+  private DelayedAudioOutput quietOutput(final AtomicLong now, final int silenceMillis) {
+    return this.quietOutput((LongSupplier) now::get, silenceMillis);
+  }
+
+  private DelayedAudioOutput quietOutput(final LongSupplier clock, final int silenceMillis) {
+    this.output.close();
+    this.output = DelayedAudioOutput.start(
+      "the virtual machine",
+      DELAY_MILLIS,
+      MAX_QUEUED_MILLIS,
+      () -> this.step,
+      (message, failure) -> this.failures.add(message),
+      clock,
+      DelayedAudioOutput.JOIN_TIMEOUT_MILLIS,
+      silenceMillis
+    );
+    return this.output;
+  }
+
+  private static boolean isSilence(final byte[] samples) {
+    for (final byte sample : samples) {
+      if (sample != 0) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private int silentBytes() {
+    int bytes = 0;
+    for (final byte[] samples : this.processed) {
+      if (isSilence(samples)) {
+        bytes += samples.length;
+      }
+    }
+    return bytes;
+  }
+
+  /** Moves the clock to a time and waits until the pipeline has seen a number of chunks. */
+  private void at(final AtomicLong now, final int millis, final int chunks) {
+    now.set(TimeUnit.MILLISECONDS.toNanos(millis));
+    waitUntil(() -> this.processed.size() >= chunks);
+  }
+
+  @Test
+  void aQuietSourceIsFollowedBySilenceInRealTimeUpToItsLimit() {
+    final AtomicLong now = new AtomicLong();
+    final DelayedAudioOutput quiet = this.quietOutput(now, 60);
+    // 10 ms of sound, then the source says it went quiet
+    final byte[] sound = new byte[1920];
+    sound[0] = 7;
+    quiet.accept(sound, sound.length);
+    this.at(now, DELAY_MILLIS, 1);
+    assertEquals(7, this.processed.getFirst()[0], "the sound comes first");
+    quiet.quiet();
+    // the silence starts once the sound has played, and comes a chunk at a time as the clock goes on
+    this.at(now, 80, 2);
+    assertEquals(3840, this.processed.get(1).length, "20 ms of silence");
+    assertTrue(isSilence(this.processed.get(1)));
+    this.at(now, 100, 3);
+    this.at(now, 120, 4);
+    now.set(TimeUnit.MILLISECONDS.toNanos(400));
+    quiet.accept(new byte[] { 2, 0, 2, 0 }, 4);
+    this.at(now, 470, 5);
+    assertEquals(2, this.processed.getLast()[0]);
+    assertEquals(3 * 3840, this.silentBytes(), "60 ms of silence at most, then the stream waits for the sound");
+  }
+
+  @Test
+  void theSilenceEndsWhereTheNextSoundIsDue() {
+    final AtomicLong now = new AtomicLong();
+    final DelayedAudioOutput quiet = this.quietOutput(now, 2000);
+    // a source that went quiet before it played: its silence starts at once
+    quiet.quiet();
+    this.at(now, 0, 1);
+    this.at(now, 20, 2);
+    // samples arrive 30 ms in; they are due 70 ms later, at 100 ms, and the silence fills the time until then exactly
+    now.set(TimeUnit.MILLISECONDS.toNanos(30));
+    quiet.accept(new byte[] { 9, 0, 9, 0 }, 4);
+    this.at(now, 40, 3);
+    this.at(now, 60, 4);
+    this.at(now, 80, 5);
+    this.at(now, 100, 6);
+    assertEquals(9, this.processed.getLast()[0], "the sound, right after the silence");
+    assertEquals(100 * 192, this.silentBytes(), "silence up to the sound, and no more");
+    // the sound ends the quiet time: no silence follows it unless the source says so again
+    now.set(TimeUnit.MILLISECONDS.toNanos(400));
+    quiet.accept(new byte[] { 1, 0, 1, 0 }, 4);
+    this.at(now, 470, 7);
+    assertEquals(100 * 192, this.silentBytes());
+  }
+
+  @Test
+  void aSilenceCutBetweenTwoFramesStillAddsUpToItsLimitAndThenTheOutputWaits() {
+    final long start = TimeUnit.SECONDS.toNanos(1);
+    final AtomicLong now = new AtomicLong(start);
+    final DelayedAudioOutput quiet = this.quietOutput(now, 60);
+    quiet.accept(new byte[] { 5, 0, 5, 0 }, 4);
+    final long due = start + TimeUnit.MILLISECONDS.toNanos(DELAY_MILLIS);
+    // quiet a frame and 1 ns before the samples are due: the first silence is one frame, 20833 ns rounded down
+    now.set(due - FRAME_NANOS - 1);
+    quiet.quiet();
+    waitUntil(() -> this.processed.size() == 1);
+    assertArrayEquals(new byte[4], this.processed.getFirst());
+    now.set(due);
+    waitUntil(() -> this.processed.size() == 2);
+    assertEquals(5, this.processed.get(1)[0], "the samples, then the rest of the silence");
+    now.set(due + FRAME_NANOS);
+    waitUntil(() -> this.processed.size() == 3);
+    now.addAndGet(TimeUnit.MILLISECONDS.toNanos(20));
+    waitUntil(() -> this.processed.size() == 4);
+    now.addAndGet(TimeUnit.MILLISECONDS.toNanos(20));
+    waitUntil(() -> this.processed.size() == 5);
+    assertEquals(3836, this.processed.get(4).length, "the last chunk is shorter by the rounding of the first");
+    // 1 ns of silence is left, less than a frame: the output waits for samples instead of waking again and again
+    now.addAndGet(TimeUnit.MILLISECONDS.toNanos(20));
+    waitUntil(() -> quiet.getThread().getState() == Thread.State.WAITING);
+    assertEquals(5, this.processed.size());
+    assertEquals(60 * 192, this.silentBytes());
+  }
+
+  @Test
+  void samplesDueWithinAFrameOfTheQuietMomentAreFollowedByTheSilence() {
+    final long start = TimeUnit.SECONDS.toNanos(1);
+    final AtomicLong now = new AtomicLong(start);
+    final AtomicInteger reads = new AtomicInteger();
+    final DelayedAudioOutput quiet = this.quietOutput(() -> {
+      reads.incrementAndGet();
+      return now.get();
+    }, 60);
+    quiet.accept(new byte[] { 6, 0, 6, 0 }, 4);
+    final long due = start + TimeUnit.MILLISECONDS.toNanos(DELAY_MILLIS);
+    // quiet 10 ns before the samples are due, too little for a frame of silence before them
+    now.set(due - 10);
+    quiet.quiet();
+    final int seen = reads.get();
+    // two more reads of the clock: the output has looked at the gap at least once
+    waitUntil(() -> reads.get() >= seen + 2);
+    assertTrue(this.processed.isEmpty(), "nothing comes before the samples");
+    now.set(due);
+    waitUntil(() -> this.processed.size() == 1);
+    assertEquals(6, this.processed.getFirst()[0]);
+    // the silence was kept for the time after them
+    now.set(due + FRAME_NANOS);
+    waitUntil(() -> this.processed.size() == 2);
+    now.addAndGet(TimeUnit.MILLISECONDS.toNanos(20));
+    waitUntil(() -> this.processed.size() == 3);
+    now.addAndGet(TimeUnit.MILLISECONDS.toNanos(20));
+    waitUntil(() -> this.processed.size() == 4);
+    assertEquals(60 * 192, this.silentBytes());
+  }
+
+  @Test
+  void aPausedOrClosedOutputFillsNoSilence() {
+    final AtomicLong now = new AtomicLong();
+    final DelayedAudioOutput quiet = this.quietOutput(now, 2000);
+    quiet.pause();
+    quiet.quiet();
+    quiet.resume();
+    now.set(TimeUnit.MILLISECONDS.toNanos(500));
+    quiet.accept(new byte[] { 3, 0, 3, 0 }, 4);
+    now.set(TimeUnit.MILLISECONDS.toNanos(570));
+    waitUntil(() -> this.processed.size() == 1);
+    assertEquals(3, this.processed.getFirst()[0], "no silence was asked for while paused");
+    quiet.quiet();
+    quiet.pause();
+    now.set(TimeUnit.MILLISECONDS.toNanos(900));
+    quiet.accept(new byte[4], 4);
+    assertEquals(0, quiet.getQueuedBytes(), "paused");
+    assertEquals(0, this.silentBytes(), "pausing ends the silence");
+    quiet.close();
+    quiet.quiet();
+    assertEquals(1, this.processed.size());
   }
 
   @Test

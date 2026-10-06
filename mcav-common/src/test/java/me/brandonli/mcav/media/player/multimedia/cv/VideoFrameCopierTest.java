@@ -383,4 +383,18 @@ final class VideoFrameCopierTest {
     image.release();
     afterRelease.release();
   }
+
+  @Test
+  void releasingFreesTheUnscaledCopyRatherThanLeavingItToTheGarbageCollector() {
+    this.attachSize(1, 1);
+    final Frame frame = heapFrame(2, (byte) 0, (byte) 0, (byte) 0);
+    final MatImageBuffer image = this.copier.copy(frame);
+    final MatImageBuffer unscaled = this.copier.getUnscaledCopy();
+    final int unscaledWidth = unscaled.getWidth();
+    this.copier.release();
+
+    assertEquals(2, unscaledWidth, "the copy has the size of the frame");
+    assertThrows(IllegalStateException.class, unscaled::getWidth, "the copy was released");
+    image.release();
+  }
 }

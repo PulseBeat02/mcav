@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -45,12 +46,16 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.utils.IOUtils;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
@@ -211,6 +216,26 @@ class JcefNativesTest {
   }
 
   @Test
+  void nativesAnEarlierVersionInstalledLoseTheWritePermissionOfTheGroup() throws IOException {
+    assumeTrue(this.folder.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
+    final JcefNatives natives = this.natives(nativesJar(true));
+    final Path installation = natives.install("linux-amd64", "pinned", PINNED_SIZE);
+    // as an earlier version left them under a umask of 0002
+    final Path library = installation.resolve("libjcef.so");
+    final Path marker = installation.resolve(JcefNatives.INSTALL_MARKER);
+    Files.setPosixFilePermissions(this.folder, PosixFilePermissions.fromString("rwxrwxr-x"));
+    Files.setPosixFilePermissions(installation, PosixFilePermissions.fromString("rwxrwxr-x"));
+    Files.setPosixFilePermissions(library, PosixFilePermissions.fromString("rw-rw-rw-"));
+    Files.setPosixFilePermissions(marker, PosixFilePermissions.fromString("rw-rw-r--"));
+    assertEquals(installation, natives.install("linux-amd64", "pinned", PINNED_SIZE));
+    assertEquals(1, this.downloads.get(), "nothing is installed again");
+    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(this.folder));
+    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(installation));
+    assertEquals(PosixFilePermissions.fromString("rw-r--r--"), Files.getPosixFilePermissions(library));
+    assertEquals(PosixFilePermissions.fromString("rw-r--r--"), Files.getPosixFilePermissions(marker));
+  }
+
+  @Test
   void aPlatformIsInstalledWithItsPin() throws IOException {
     final List<String> hashes = new ArrayList<>();
     final JcefNatives natives = new JcefNatives(
@@ -275,28 +300,45 @@ class JcefNativesTest {
 
   @Test
   void twoStartsAtOnceDownloadOnce() throws Exception {
-    final CountDownLatch release = new CountDownLatch(1);
-    final byte[] jar = nativesJar(true);
-    final JcefNatives natives = new JcefNatives(
-      this.folder,
-      (uri, destination, sha256, size) -> {
-        this.downloads.incrementAndGet();
-        try {
-          release.await(10, TimeUnit.SECONDS);
-        } catch (final InterruptedException exception) {
-          Thread.currentThread().interrupt();
-        }
-        Files.write(destination, jar);
-      },
-      REPOSITORY,
-      new ArchiveExtractor()
-    );
-    final CompletableFuture<Path> first = CompletableFuture.supplyAsync(() -> install(natives));
-    final CompletableFuture<Path> second = CompletableFuture.supplyAsync(() -> install(natives));
-    Thread.sleep(100L);
-    release.countDown();
-    assertEquals(first.get(30, TimeUnit.SECONDS), second.get(30, TimeUnit.SECONDS));
-    assertEquals(1, this.downloads.get());
+    try (final ExecutorService starts = Executors.newFixedThreadPool(2)) {
+      final CountDownLatch release = new CountDownLatch(1);
+      final CountDownLatch downloading = new CountDownLatch(1);
+      final AtomicReference<Thread> secondCaller = new AtomicReference<>();
+      final byte[] jar = nativesJar(true);
+      final JcefNatives natives = new JcefNatives(
+        this.folder,
+        (uri, destination, sha256, size) -> {
+          this.downloads.incrementAndGet();
+          downloading.countDown();
+          try {
+            assertTrue(release.await(10, TimeUnit.SECONDS), "the first download is released");
+          } catch (final InterruptedException exception) {
+            Thread.currentThread().interrupt();
+          }
+          Files.write(destination, jar);
+        },
+        REPOSITORY,
+        new ArchiveExtractor()
+      );
+      final CompletableFuture<Path> first = CompletableFuture.supplyAsync(() -> install(natives), starts);
+      final CompletableFuture<Path> second;
+      try {
+        assertTrue(downloading.await(10, TimeUnit.SECONDS), "the first install owns the download");
+        second = CompletableFuture.supplyAsync(() -> {
+          secondCaller.set(Thread.currentThread());
+          return install(natives);
+        }, starts);
+        Await.until("the second installer waits on the held installation lock", () -> {
+          final Thread caller = secondCaller.get();
+          return caller != null && caller.getState() == Thread.State.BLOCKED;
+        });
+        assertFalse(second.isDone());
+      } finally {
+        release.countDown();
+      }
+      assertEquals(first.get(30, TimeUnit.SECONDS), second.get(30, TimeUnit.SECONDS));
+      assertEquals(1, this.downloads.get());
+    }
   }
 
   @Test

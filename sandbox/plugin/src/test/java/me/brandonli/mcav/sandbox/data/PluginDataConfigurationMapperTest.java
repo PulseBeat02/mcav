@@ -82,6 +82,10 @@ final class PluginDataConfigurationMapperTest {
     allow-private-networks: true
     javascript-jit: true
     autoplay-sound: true
+    confine-chromium: false
+    refused-hosts: ["203.0.113.5", "play.example.com"]
+  vm:
+    allow-network: true
   """;
 
   @TempDir
@@ -226,6 +230,9 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(this.mapper.isBrowserPrivateNetworks());
     assertFalse(this.mapper.isBrowserJavaScriptJit());
     assertFalse(this.mapper.isBrowserAutoplaySound());
+    assertTrue(this.mapper.isBrowserConfineChromium(), "Chromium is confined where the system can");
+    assertEquals(List.of(), this.mapper.getBrowserRefusedHosts());
+    assertFalse(this.mapper.isVmAllowNetwork(), "machines get a network that reaches nothing");
     assertSame(MapCodec.DITHER, this.mapper.getMcv2DefaultCodec());
     assertSame(Mcv2Hosting.INJECTOR, this.mapper.getMcv2PackHosting());
     assertEquals("", this.mapper.getMcv2PackHttpHost());
@@ -269,6 +276,8 @@ final class PluginDataConfigurationMapperTest {
     assertFalse(this.mapper.isBrowserPrivateNetworks(), "the bundled file keeps the browser on public addresses");
     assertFalse(this.mapper.isBrowserJavaScriptJit(), "and JavaScript without its compiler");
     assertFalse(this.mapper.isBrowserAutoplaySound(), "and pages silent until a player clicked them");
+    assertTrue(this.mapper.isBrowserConfineChromium(), "and Chromium confined");
+    assertEquals(List.of(), this.mapper.getBrowserRefusedHosts(), "and no more hosts refused");
     assertSame(MapCodec.DITHER, this.mapper.getMcv2DefaultCodec(), "and the maps dithered unless a command asks for MCV2");
     assertSame(Mcv2Hosting.INJECTOR, this.mapper.getMcv2PackHosting());
     assertEquals("", this.mapper.getMcv2PackHttpHost());
@@ -336,6 +345,9 @@ final class PluginDataConfigurationMapperTest {
     assertTrue(this.mapper.isBrowserPrivateNetworks());
     assertTrue(this.mapper.isBrowserJavaScriptJit());
     assertTrue(this.mapper.isBrowserAutoplaySound());
+    assertFalse(this.mapper.isBrowserConfineChromium());
+    assertEquals(List.of("203.0.113.5", "play.example.com"), this.mapper.getBrowserRefusedHosts());
+    assertTrue(this.mapper.isVmAllowNetwork());
   }
 
   @Test
@@ -355,8 +367,18 @@ final class PluginDataConfigurationMapperTest {
   }
 
   @ParameterizedTest
-  @CsvSource({ "1, 1", "65535, 65535", "0, 3000", "-5, 3000", "65536, 3000" })
-  void acceptsOnlyValidPorts(final int configured, final int expected) throws IOException {
+  @CsvSource({
+    "1, 1",
+    "65535, 65535",
+    "0, 3000",
+    "-5, 3000",
+    "65536, 3000",
+    // a number beyond an int is not cut down to its low bits, which are 80 here
+    "4294967376, 3000",
+    "18446744073709551696, 3000",
+    "8080.9, 3000",
+  })
+  void acceptsOnlyValidPorts(final String configured, final int expected) throws IOException {
     this.writeConfiguration("http-server:\n  port: " + configured + "\n");
     this.mapper.deserialize();
     final int port = this.mapper.getHttpPort();
@@ -364,11 +386,27 @@ final class PluginDataConfigurationMapperTest {
   }
 
   @ParameterizedTest
-  @CsvSource({ "0, 0", "1, 1", "256, 256", "-1, 0", "257, 0" })
-  void acceptsOnlyValidEncoderThreads(final int configured, final int expected) throws IOException {
+  @CsvSource({ "0, 0", "1, 1", "256, 256", "-1, 0", "257, 0", "4294967297, 0", "2.5, 0" })
+  void acceptsOnlyValidEncoderThreads(final String configured, final int expected) throws IOException {
     this.writeConfiguration("mcv2:\n  encoder-threads: " + configured + "\n");
     this.mapper.deserialize();
     assertEquals(expected, this.mapper.getMcv2EncoderThreads());
+  }
+
+  @Test
+  void skipsRefusedHostsThatAreNoHostAndLogsThem() throws IOException {
+    final PrintStream original = System.err;
+    final ByteArrayOutputStream logged = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(logged, true, StandardCharsets.UTF_8));
+    try {
+      this.writeConfiguration("browser:\n  refused-hosts: [\" play.example.com \", \"two hosts\", \"a,b\", \"\"]\n");
+      this.mapper.deserialize();
+    } finally {
+      System.setErr(original);
+    }
+    assertEquals(List.of("play.example.com"), this.mapper.getBrowserRefusedHosts());
+    final String text = logged.toString(StandardCharsets.UTF_8);
+    assertEquals(3, text.split("Ignoring an entry of browser.refused-hosts", -1).length - 1, text);
   }
 
   @ParameterizedTest

@@ -18,7 +18,9 @@
 package me.brandonli.mcav.bukkit.media.mcv2;
 
 import com.google.common.base.Preconditions;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -37,6 +39,7 @@ import java.util.function.Function;
 import java.util.function.LongSupplier;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
+import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.LiveSearch;
@@ -181,7 +184,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** Makes the encoder of a preset in the screen's encoder budget. */
   private final Function<EncoderSettings, Mcv2Encoder> encoders;
 
-  private @Nullable Arrival pending;
+  // the newest frame the video handed over, until the screen's thread takes it
+  private final Mcv2LatestFrame<Arrival> pending;
 
   private boolean running;
 
@@ -439,6 +443,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       this.dithering = dithering;
     }
     this.lock = new Object();
+    this.pending = new Mcv2LatestFrame<>();
     this.statistics = new Statistics();
     this.clock = clock;
     this.lastFallbackRefresh = clock.getAsLong();
@@ -616,6 +621,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       this.handed = 0;
       this.delivered = 0;
       this.running = true;
+      this.pending.open();
     }
     delivery.start();
     thread.start();
@@ -670,16 +676,16 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
     // on the dithered maps the pacer encodes no frame
     if (encode && !current.channel().getRecipients().isEmpty()) {
-      final Arrival arrival = new Arrival(rgb(data.getPixels(), width * height), width, height, System.currentTimeMillis(), preset);
-      synchronized (this.lock) {
-        this.pending = arrival;
-        this.lock.notifyAll();
-      }
+      // straight from the picture's own bytes: its ARGB pixels would be one more full-frame array every frame, at
+      // 1080p 8 MB, which G1 allocates as a humongous object (pass-6 soak O5: 99 % of the collections were for those)
+      final Arrival arrival = new Arrival(rgb(data.getData(), width * height), width, height, System.currentTimeMillis(), preset);
+      this.pending.offer(arrival);
     }
     final Fallback dithered = this.fallback;
     if (dithered != null && !others.isEmpty() && this.ditheringBusy.compareAndSet(false, true)) {
-      // the dithering's own copy of the frame, which the video reuses once this returns
-      final int[] argb = data.getPixels().clone();
+      // the picture hands out a new pixel array whenever it changes (ImageBuffer#getPixels), so the dithering may read
+      // this one after the video moved on, without a copy
+      final int[] argb = data.getPixels();
       try {
         this.dithering.execute(() -> this.dither(dithered, argb, width, height));
       } catch (final RejectedExecutionException released) {
@@ -731,14 +737,20 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  static byte[] rgb(final int[] argb, final int pixels) {
+  /**
+   * Copies the first pixels of a picture's 8-bit BGR bytes into a new array in RGB order.
+   *
+   * @param bgr    the bytes, from the buffer's position on, which is left as it is
+   * @param pixels the number of pixels to copy
+   * @return the RGB bytes
+   */
+  static byte[] rgb(final ByteBuffer bgr, final int pixels) {
     final byte[] rgb = new byte[pixels * Mcv2Format.CHANNELS];
-    for (int pixelIndex = 0; pixelIndex < pixels; pixelIndex++) {
-      final int pixel = argb[pixelIndex];
-      final int at = pixelIndex * Mcv2Format.CHANNELS;
-      rgb[at] = (byte) (pixel >> 16);
-      rgb[at + 1] = (byte) (pixel >> 8);
-      rgb[at + 2] = (byte) pixel;
+    bgr.get(bgr.position(), rgb);
+    for (int at = 0; at < rgb.length; at += Mcv2Format.CHANNELS) {
+      final byte blue = rgb[at];
+      rgb[at] = rgb[at + 2];
+      rgb[at + 2] = blue;
     }
     return rgb;
   }
@@ -873,11 +885,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * @return the frame, or null if there is none
    */
   @Nullable Arrival poll() {
-    synchronized (this.lock) {
-      final Arrival arrival = this.pending;
-      this.pending = null;
-      return arrival;
-    }
+    return this.pending.poll();
   }
 
   /**
@@ -887,14 +895,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * @throws InterruptedException if the thread is interrupted while it waits
    */
   @Nullable Arrival take() throws InterruptedException {
-    synchronized (this.lock) {
-      while (this.running && this.pending == null) {
-        this.lock.wait();
-      }
-      final Arrival arrival = this.pending;
-      this.pending = null;
-      return this.running ? arrival : null;
-    }
+    return this.pending.take();
   }
 
   /**
@@ -988,6 +989,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
         return;
       }
       this.running = false;
+      this.pending.close();
       this.lock.notifyAll();
       // start sets the pipeline and its two threads together, and release clears them together
       screenThread = Objects.requireNonNull(this.worker, "A running pipeline has its screen's thread");
@@ -1060,7 +1062,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private void follow(final Mcv2Pacer.Change change) {
     this.ditheredForAll = change.to().isDithered();
     if (this.ditheredForAll) {
-      this.pending = null;
+      this.pending.clear();
     }
     Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), this::sync);
   }
@@ -1115,7 +1117,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /**
-   * Stops the encoder, removes the page frames and clears the dithered maps. Call on the main thread.
+   * Stops the encoder, removes the page frames and clears the wall's maps for every viewer, those dithered for and those
+   * decoding MCV2. Call on the main thread.
    *
    * <p>Worker joins are bounded; a worker that does not respond to interruption may outlive this call.
    * Fallback executor shutdown does not await termination. Release does not close the shared encoder pool or pack tracker.
@@ -1126,6 +1129,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final Thread delivery;
     synchronized (this.lock) {
       this.running = false;
+      this.pending.close();
       this.lock.notifyAll();
       thread = this.worker;
       delivery = this.sender;
@@ -1138,6 +1142,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     stop(delivery);
     this.screen.channel().close();
     this.opened = false;
+    // the wall's maps of a viewer decoding MCV2 still carry the screen's anchors, over which the client keeps drawing
+    // its last decoded picture: they are cleared too, as the dithered maps clear those of the viewers dithered for
+    final Set<UUID> decoding = new HashSet<>(this.requested.getViewers());
+    decoding.removeAll(this.fallbackViewers);
+    final int maps = this.requested.getColumns() * this.requested.getRows();
+    MapPacketFactory.clear(decoding, this.requested.getMap(), maps);
     final ExecutorService ditheringOwn = this.ditheringThread;
     if (ditheringOwn != null) {
       ditheringOwn.shutdown();

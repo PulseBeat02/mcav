@@ -128,6 +128,14 @@ commands answer that VLC is not supported.
 
 ---
 
+## Does the server's memory grow while videos play for days?
+
+Not by much anymore. FFmpeg and OpenCV free large buffers on many threads, and the C library of Linux keeps that memory
+for later, so a server's memory used to grow by about 20 MB an hour. MCAV now hands it back to the system once a
+minute. Start the server with `-Dmcav.nativeTrimSeconds=<n>` to do it every `n` seconds, or `0` to turn it off.
+
+---
+
 ## I'm getting an `UnsatisfiedLinkError` saying that version `GLIBC_2.38` is not found, how do I fix this?
 
 The error indicates that your system's GLibC version is way too old for VLC to use. To fix this, you have to install

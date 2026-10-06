@@ -1,0 +1,26 @@
+modLoader = "javafml"
+loaderVersion = "*"
+license = "GPL-3.0-or-later"
+
+[[mods]]
+modId = "mcav_mcv2"
+version = "${version}"
+displayName = "MCAV MCV2 Client"
+authors = "Brandon Li"
+description = '''
+Tells MCAV servers whether Iris draws a shader pack, which keeps MCV2 screens from decoding, so they show you the dithered maps while one is on.
+'''
+
+[[dependencies.mcav_mcv2]]
+modId = "neoforge"
+type = "required"
+versionRange = "[26.3.0.43-beta,)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[dependencies.mcav_mcv2]]
+modId = "minecraft"
+type = "required"
+versionRange = "[26.3,26.4)"
+ordering = "NONE"
+side = "CLIENT"

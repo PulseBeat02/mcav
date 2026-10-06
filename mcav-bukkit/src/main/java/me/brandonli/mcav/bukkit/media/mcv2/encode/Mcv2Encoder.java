@@ -30,6 +30,7 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.SMALLEST_BLOCK;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.follows;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.isResidual;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -1344,7 +1345,8 @@ public final class Mcv2Encoder {
   }
 
   /** The reference's trial error: the weighted squared error over the frame padded to 32-pixel blocks by replication. */
-  private static long trialError(final byte[] source, final byte[] picture, final int width, final int height) {
+  @VisibleForTesting
+  static long trialError(final byte[] source, final byte[] picture, final int width, final int height) {
     final int extraX = (ROOT_SIZE - (width % ROOT_SIZE)) % ROOT_SIZE;
     final int extraY = (ROOT_SIZE - (height % ROOT_SIZE)) % ROOT_SIZE;
     long sum = 0;
