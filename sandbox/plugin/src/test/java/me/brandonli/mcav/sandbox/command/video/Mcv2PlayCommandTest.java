@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -46,7 +47,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
@@ -64,6 +68,7 @@ import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.TestServer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -107,6 +112,9 @@ final class Mcv2PlayCommandTest {
 
   private final UUID viewer = UUID.randomUUID();
 
+  /** The tasks the command handed over to the main thread, from the thread that reads stream files. */
+  private final BlockingQueue<Runnable> handedOver = new LinkedBlockingQueue<>();
+
   @BeforeEach
   void createCommand() {
     TestServer.reset();
@@ -140,6 +148,20 @@ final class Mcv2PlayCommandTest {
     when(TestServer.scheduler().runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong())).thenReturn(
       this.task
     );
+    when(TestServer.scheduler().runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(invocation -> {
+      this.handedOver.add(invocation.getArgument(1));
+      return null;
+    });
+  }
+
+  /**
+   * Runs on the main thread, which the test thread is, the next task the command handed over to it from the thread that
+   * reads stream files.
+   */
+  private void runHandedOver() throws InterruptedException {
+    final Runnable handed = this.handedOver.poll(10, TimeUnit.SECONDS);
+    assertNotNull(handed, "the command handed nothing over to the main thread");
+    handed.run();
   }
 
   private Path archive(final List<byte[]> frames) throws IOException {
@@ -155,10 +177,11 @@ final class Mcv2PlayCommandTest {
   }
 
   @Test
-  void playsAStreamOnTheWallUntilStopped() throws IOException {
+  void playsAStreamOnTheWallUntilStopped() throws IOException, InterruptedException {
     final Path file = this.archive(Mcv2PlaybackTest.stream());
     try (final MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class)) {
       this.command.play(this.sender, this.selector, "5x3", 20, 2, file.toString());
+      this.runHandedOver();
       final Mcv2Channel channel = channels.constructed().getFirst();
       verify(channel).open();
       final ArgumentCaptor<Mcv2Configuration> configurations = ArgumentCaptor.forClass(Mcv2Configuration.class);
@@ -172,6 +195,7 @@ final class Mcv2PlayCommandTest {
       verify(this.sender).sendMessage(Message.MCV2_PLAY.build());
       // a new stream replaces the one before
       this.command.play(this.sender, this.selector, "5x3", 20, 2, file.toString());
+      this.runHandedOver();
       verify(this.task).cancel();
       verify(channel).close();
       verify(this.lease).close();
@@ -185,6 +209,85 @@ final class Mcv2PlayCommandTest {
   }
 
   @Test
+  void readsTheStreamFileOffTheMainThreadAndOpensTheScreenOnIt() throws IOException, InterruptedException {
+    final Path file = this.archive(Mcv2PlaybackTest.stream());
+    final List<Boolean> fromMainThread = new CopyOnWriteArrayList<>();
+    when(TestServer.scheduler().runTask(any(Plugin.class), any(Runnable.class))).thenAnswer(invocation -> {
+      fromMainThread.add(Bukkit.isPrimaryThread());
+      this.handedOver.add(invocation.getArgument(1));
+      return null;
+    });
+    try (final MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class)) {
+      this.command.play(this.sender, this.selector, "5x3", 20, 2, file.toString());
+      // the command returns before the file is read: a stream file holds up to a gibibyte, and a busy disk held the
+      // server's main thread up to 51 s in soak72
+      verify(this.packs, never()).open(any());
+      verify(this.sender, never()).sendMessage(any(Component.class));
+      this.runHandedOver();
+      assertEquals(List.of(false), fromMainThread, "the file is read on a thread of its own, which hands the screen over");
+      verify(channels.constructed().getFirst()).open();
+      verify(this.packs).open(any());
+      verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), any(Runnable.class), eq(0L), eq(2L));
+      verify(this.sender).sendMessage(Message.MCV2_PLAY.build());
+    }
+  }
+
+  @Test
+  void aStreamAskedForLaterReplacesOneWhoseFileIsStillBeingRead() throws IOException, InterruptedException {
+    final Path file = this.archive(Mcv2PlaybackTest.stream());
+    try (final MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class)) {
+      this.command.play(this.sender, this.selector, "5x3", 20, 2, file.toString());
+      this.command.play(this.sender, this.selector, "5x3", 20, 3, file.toString());
+      this.runHandedOver();
+      this.runHandedOver();
+      // only the stream asked for last plays, however the reads end
+      assertEquals(1, channels.constructed().size());
+      verify(this.packs).open(any());
+      verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), any(Runnable.class), eq(0L), eq(3L));
+      verify(TestServer.scheduler(), never()).runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), eq(2L));
+      verify(this.sender).sendMessage(Message.MCV2_PLAY.build());
+    }
+  }
+
+  @Test
+  void aStopReplacesAStreamWhoseFileIsStillBeingRead() throws IOException, InterruptedException {
+    final Path file = this.archive(Mcv2PlaybackTest.stream());
+    try (final MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class)) {
+      this.command.play(this.sender, this.selector, "5x3", 20, 2, this.streams.resolve("missing.mcs").toString());
+      this.command.stop(this.sender);
+      this.command.play(this.sender, this.selector, "5x3", 20, 3, file.toString());
+      this.runHandedOver();
+      this.runHandedOver();
+      // the file asked for before the stop is not reported, nor played; the one asked for after it plays
+      verify(this.sender, Mockito.times(2)).sendMessage(any(Component.class));
+      verify(this.sender).sendMessage(Message.MCV2_STOP.build());
+      verify(this.sender).sendMessage(Message.MCV2_PLAY.build());
+      assertEquals(1, channels.constructed().size());
+      verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), any(Runnable.class), eq(0L), eq(3L));
+    }
+  }
+
+  @Test
+  void aStreamReadAsThePluginStopsIsNotOpened() throws IOException, InterruptedException {
+    final Path file = this.archive(Mcv2PlaybackTest.stream());
+    try (final MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class)) {
+      this.command.play(this.sender, this.selector, "5x3", 20, 2, file.toString());
+      this.command.play(this.sender, this.selector, "5x3", 20, 3, file.toString());
+      // both files are read, and the main thread has not yet opened either, when the plugin stops
+      final Runnable first = this.handedOver.poll(10, TimeUnit.SECONDS);
+      final Runnable second = this.handedOver.poll(10, TimeUnit.SECONDS);
+      assertNotNull(first);
+      assertNotNull(second);
+      this.command.shutdown();
+      first.run();
+      second.run();
+      assertEquals(List.of(), channels.constructed());
+      verify(this.packs, never()).open(any());
+      verify(this.sender, never()).sendMessage(any(Component.class));
+    }
+  }
+
+  @Test
   void streamsAtAFrameRateOffTheServerTick() throws IOException, InterruptedException {
     final Path file = this.archive(Mcv2PlaybackTest.stream());
     try (
@@ -193,6 +296,7 @@ final class Mcv2PlayCommandTest {
       )
     ) {
       this.command.stream(this.sender, this.selector, "5x3", 20, 100, file.toString());
+      this.runHandedOver();
       final Mcv2Channel channel = channels.constructed().getFirst();
       verify(channel).open();
       // 100 frames a second from the stream's own thread, not from the server's scheduler
@@ -207,26 +311,33 @@ final class Mcv2PlayCommandTest {
       verify(channel, never()).send(any());
       // a stream that cannot be read is reported like one to play: the play and stop messages, then the error
       this.command.stream(this.sender, this.selector, "5x3", 20, 60, this.streams.resolve("missing.mcs").toString());
+      this.runHandedOver();
       verify(this.sender, Mockito.times(3)).sendMessage(any(Component.class));
     }
   }
 
   @Test
-  void playsNothingWhenEverySlotOfThePackPlays() throws IOException {
+  void playsNothingWhenEverySlotOfThePackPlays() throws IOException, InterruptedException {
     when(this.packs.open(any())).thenThrow(new IllegalStateException("full"));
     this.command.play(this.sender, this.selector, "5x3", 20, 2, this.archive(Mcv2PlaybackTest.stream()).toString());
+    this.runHandedOver();
     verify(this.sender).sendMessage(Message.MCV2_FULL.build());
     verify(TestServer.scheduler(), never()).runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), anyLong(), anyLong());
   }
 
   @Test
-  void refusesWhatItCannotPlay() throws IOException {
+  void refusesWhatItCannotPlay() throws IOException, InterruptedException {
+    // a wall of the wrong size is refused before any file is read
     this.command.play(this.sender, this.selector, "65x1", 20, 2, "anything");
+    assertTrue(this.handedOver.isEmpty());
     this.command.play(this.sender, this.selector, "5x3", 20, 2, this.streams.resolve("missing.mcs").toString());
+    this.runHandedOver();
     this.command.play(this.sender, this.selector, "5x3", 20, 2, this.archive(List.of(new byte[48])).toString());
+    this.runHandedOver();
     // the wall size, the missing file and the frame that is not MCV2 are each reported
     verify(this.sender, Mockito.times(3)).sendMessage(any(Component.class));
     this.command.play(this.sender, this.selector, "5x3", 21, 2, this.archive(Mcv2PlaybackTest.stream()).toString());
+    this.runHandedOver();
     verify(this.sender).sendMessage(Message.MCV2_SCREEN_ERROR.build(21));
     verify(this.packs, never()).open(any());
   }
@@ -475,10 +586,11 @@ final class Mcv2PlayCommandTest {
   }
 
   @Test
-  void stopsTheStreamWhenThePluginStops() throws IOException {
+  void stopsTheStreamWhenThePluginStops() throws IOException, InterruptedException {
     final Path file = this.archive(Mcv2PlaybackTest.stream());
     try (final MockedConstruction<Mcv2Channel> channels = Mockito.mockConstruction(Mcv2Channel.class)) {
       this.command.play(this.sender, this.selector, "5x3", 20, 2, file.toString());
+      this.runHandedOver();
       this.command.shutdown();
       verify(this.task).cancel();
       verify(channels.constructed().getFirst()).close();
@@ -568,7 +680,9 @@ final class Mcv2PlayCommandTest {
     }
     // so neither a stream is read from outside it nor an encode written there
     this.command.play(this.sender, this.selector, "5x3", 20, 2, "/etc/passwd");
+    this.runHandedOver();
     this.command.stream(this.sender, this.selector, "5x3", 20, 60, "../stream.mcs");
+    this.runHandedOver();
     verify(this.packs, never()).open(any());
     this.command.encode(this.sender, "clip.mp4", "../../escape.mcs", "16x16", Mcv2Profile.LIVE);
     assertNull(this.command.getEncoding());

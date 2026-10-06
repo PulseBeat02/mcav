@@ -488,7 +488,7 @@ They have no sound. Stream files live in the plugin's `mcv2` folder; a name that
 |-------------------------------------------|--------------------------------------------------------------------------------------------------------|
 | **Usage**                                 | `/mcav mcv2 play <playerSelector> <blockDimensions> <mapId> <ticks> <file>` or `/mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <fps> <file>` |
 | **Permission**                            | `mcav.command.mcv2.play`                                                                               |
-| **Description**                           | Plays a stream file on a wall of maps with MCV2, looping; `play` sends a frame every few server ticks, `stream` at a frame rate of its own. The screen takes a slot of the MCV2 pack like every MCV2 screen, and replaces the stream played before |
+| **Description**                           | Plays a stream file on a wall of maps with MCV2, looping; `play` sends a frame every few server ticks, `stream` at a frame rate of its own. The file is read off the server's main thread, so a large file or a busy disk does not hold the server up, and the screen opens once it is read. The screen takes a slot of the MCV2 pack like every MCV2 screen, and replaces the stream played before, also one whose file is still being read |
 | **Arguments**                             |                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ticks` / `fps`   | The server ticks between frames (1 or more), or the frames a second (1 to 240)                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`file`            | The stream file in the plugin's `mcv2` folder                                                          |
@@ -500,7 +500,7 @@ They have no sound. Stream files live in the plugin's `mcv2` folder; a name that
 |-----------------|----------------------------------------------------------|
 | **Usage**       | `/mcav mcv2 stop`                                        |
 | **Permission**  | `mcav.command.mcv2.play`                                 |
-| **Description** | Stops the stream and gives its slot of the pack back    |
+| **Description** | Stops the stream, also one whose file is still being read, and gives its slot of the pack back |
 | **Arguments**   | None                                                     |
 
 ## Filters
