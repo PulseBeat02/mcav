@@ -251,6 +251,28 @@ final class DeclaredImageSizeTest {
   }
 
   @Test
+  void aStuffedZeroBetweenMarkersIsSkippedAsLibjpegSkipsIt() {
+    try (
+      final Mat picture = new Mat(2, 300, opencv_core.CV_8UC3, new Scalar(10, 200, 30, 0));
+      final BytePointer output = new BytePointer()
+    ) {
+      assertTrue(opencv_imgcodecs.imencode(".jpg", picture, output));
+      final byte[] jpeg = new byte[(int) output.limit()];
+      output.get(jpeg);
+      // FF 00 right after the start of the image: libjpeg's next_marker drops a stuffed zero and finds the picture's
+      // own markers; read as a marker, its "length" would be those markers' first two bytes, and would lead past the
+      // picture's end to a frame of one pixel put there
+      final int decoy = 4 + (((jpeg[2] & 0xFF) << 8) | (jpeg[3] & 0xFF));
+      final byte[] frame = bytes(0xFF, 0xC0, be(17, 2), 8, be(1, 2), be(1, 2), 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1);
+      final byte[] crafted = new byte[decoy + frame.length];
+      System.arraycopy(bytes(0xFF, 0xD8, 0xFF, 0x00), 0, crafted, 0, 4);
+      System.arraycopy(jpeg, 2, crafted, 4, jpeg.length - 2);
+      System.arraycopy(frame, 0, crafted, decoy, frame.length);
+      assertDeclaresWhatOpenCvDecodes("a stuffed zero before the first marker", crafted);
+    }
+  }
+
+  @Test
   void theFuzzSeedsDeclareTheSizeOpenCvDecodes() throws IOException, URISyntaxException {
     final URL seeds = DeclaredImageSizeTest.class.getResource(SEEDS);
     assertTrue(seeds != null, "the seed folder is on the class path");
@@ -430,6 +452,12 @@ final class DeclaredImageSizeTest {
         classicTiff(tiffEntry(false, 254, 4, 1, 0), tiffEntry(false, 256, 3, 1, 30000), tiffEntry(false, 257, 4, 1, 20000)),
         30000,
         20000
+      ),
+      Arguments.of(
+        "jpeg with a stuffed zero before its frame",
+        bytes(0xFF, 0xD8, 0xFF, 0x00, 0xFF, 0xC0, be(17, 2), 8, be(7, 2), be(5, 2)),
+        5,
+        7
       ),
       Arguments.of("png", bytes(0x89, "PNG\r\n", 0x1A, "\n", be(13, 4), "IHDR", be(4294967295L, 4), be(1, 4)), 4294967295L, 1)
     );

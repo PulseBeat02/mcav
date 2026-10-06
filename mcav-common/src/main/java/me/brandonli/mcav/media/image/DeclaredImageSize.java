@@ -246,7 +246,9 @@ final class DeclaredImageSize {
       if (frame) {
         return of(header.be(position + 5, 2), header.be(position + 3, 2));
       }
-      final boolean standalone = code == 0x01 || (code >= 0xD0 && code <= 0xD7);
+      // FF 00 is a stuffed zero, no marker: libjpeg's next_marker drops it and looks on, as after a marker that stands
+      // alone; read as a marker with a length, it would lead the search away from the frame libjpeg reads
+      final boolean standalone = code == 0x00 || code == 0x01 || (code >= 0xD0 && code <= 0xD7);
       if (standalone) {
         continue;
       }
