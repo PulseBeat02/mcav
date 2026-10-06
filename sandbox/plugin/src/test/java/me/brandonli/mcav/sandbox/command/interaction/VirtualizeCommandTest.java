@@ -412,7 +412,8 @@ final class VirtualizeCommandTest {
     when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.machine))).thenReturn(
       mock(AudioFilter.class)
     );
-    when(this.machine.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
+    final AudioAttachableCallback sound = mock(AudioAttachableCallback.class);
+    when(this.machine.getAudioAttachableCallback()).thenReturn(sound);
     this.startsWith(CompletableFuture.completedFuture(true));
     this.command.createVM(
       this.sender,
@@ -433,6 +434,7 @@ final class VirtualizeCommandTest {
     this.command.releaseVM(this.sender);
     verify(this.provider).releaseAudioFilter(this.machine);
     verify(this.callback).detach();
+    verify(sound).detach();
     verify(this.machine, timeout(RELEASE_MILLIS)).release();
   }
 
