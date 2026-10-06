@@ -43,6 +43,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -952,6 +953,10 @@ class HelperSessionTest {
   void theFolderOfASessionIsCreatedOnEveryFileSystem() throws IOException {
     final Path folder = HelperSession.createFolder(this.directory);
     assertTrue(Files.isDirectory(folder));
+    if (this.directory.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+      // the server's user alone may enter it, whatever the umask
+      assertEquals(PosixFilePermissions.fromString("rwx------"), Files.getPosixFilePermissions(folder));
+    }
     final Path zip = this.directory.resolve("folders.zip");
     try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true"))) {
       final Path root = zipped.getPath("/");
@@ -971,10 +976,19 @@ class HelperSessionTest {
     Files.createDirectory(this.directory.resolve("mcavb-taken"));
     final Iterator<String> names = List.of("mcavb-taken", "mcavb-free").iterator();
     assertEquals(this.directory.resolve("mcavb-free"), HelperSession.createFolder(this.directory, names::next));
+    // a hundred names are drawn at most, and the hundredth may be the free one
+    final AtomicInteger drawn = new AtomicInteger();
+    final Path last = HelperSession.createFolder(this.directory, () -> drawn.incrementAndGet() < 100 ? "mcavb-taken" : "mcavb-last");
+    assertEquals(this.directory.resolve("mcavb-last"), last);
+    drawn.set(0);
     final PlayerException exhausted = assertThrows(PlayerException.class, () ->
-      HelperSession.createFolder(this.directory, () -> "mcavb-taken")
+      HelperSession.createFolder(this.directory, () -> {
+        drawn.incrementAndGet();
+        return "mcavb-taken";
+      })
     );
     assertTrue(exhausted.getMessage().endsWith("every name drawn was taken"), exhausted.getMessage());
+    assertEquals(100, drawn.get());
   }
 
   @Test
