@@ -51,8 +51,9 @@ verify, operate and extend MCV2 is in mcav, and nothing in the build, the tests 
 - **The shipped profile is round 19's `p30r19-compact_final-65p255994`**: the cheapest round-19 1080p30 point at VMAF
   75, 3.458 map Mbps, which mcav's encoder reproduces byte for byte (results.md). The research file's own
   recommendation is a stale, 64% more expensive point.
-- **Live sources use `live` at 1080p30.** The live presets meet 1080p30 (p95 under 32 ms at 12 threads); none meets
-  1080p60 on the 6-core machine it was measured on (design doc §12; results.md).
+- **Live sources use `live` at 1080p30.** The original measurements reached p95 under 32 ms at 12 threads; later
+  loaded-host measurements missed that budget. Neither run met the 1080p60 gate. The pacer reduces work to fit the
+  available CPU; see [current limits](using.md#troubleshooting) and the original design doc §12 and results.md.
 - **The client decodes in the entity-outline post chain**, the one vanilla hook that runs every frame with persistent
   targets and may write the screen: it runs while a glowing entity is drawn, so each screen hides glowing page frames
   behind its wall; black outlines are rejected because an outline colour of 0 means none (design doc §5).
@@ -91,16 +92,18 @@ The full reports are in the owner's home folder, named below; this is their conc
 
 ## Known issues
 
-- **1080p60 live encoding is not met**: `live-fast` needs 19.7 ms (proxy) and 31.3 ms (gameplay) per frame at the 95th
-  percentile against 16 ms on 12 threads of an i7-8700; a 60 fps gameplay frame costs 207 ms of CPU. At the default 6
-  encoder threads, `live` misses the 32 ms 1080p30 target on fast gameplay (36.4 ms) while its mean still fits.
+- **1080p60 live encoding is not met**. In the original integration, `live_fast` needed 19.7 ms (proxy) and 31.3 ms
+  (gameplay) per frame at the 95th percentile against 16 ms on 12 threads of an i7-8700; a 60 fps gameplay frame cost
+  207 ms of CPU. At the default 6 encoder threads, `live` missed the 32 ms 1080p30 target on fast gameplay (36.4 ms).
+  Later bit-exact optimizations reduced CPU time but did not pass the 1080p60 gate; the
+  [current limits](using.md#troubleshooting) distinguish that loaded-host run from these original measurements.
 - **Improved Transparency** (a 26.3 video option) draws text into its transparency targets, where a page's bytes
   cannot reach the screen unchanged, so the pack discards page fragments there and such a client shows no MCV2 picture.
 - **Minecraft 26.3's Vulkan backend** was not tried beyond a software renderer, on which loading the pack's shaders
   took over ten minutes; real GPUs other than the Intel UHD 630 and Mesa's llvmpipe are untested (the owner's
   procedure: `docs/mcv2-testing.md`).
-- **Paper 26.3 has only alpha builds** (build 49 is the one tested); its bundled spark profiler stalled the server thread
-  under the lab's load twice.
+- **Paper 26.3 alpha build 49 was tested**; its bundled spark profiler stalled the server thread under the lab's load
+  twice. This records the tested build, not the availability or behavior of later Paper builds.
 - **Untested platforms**: ARM64 servers (the AArch64 libraries pass under emulation only), AVX-512 speed, Windows and
   macOS on Apple silicon and Windows on ARM64, and Windows and macOS servers beyond the kernels' JVM tests.
 
@@ -147,5 +150,7 @@ From mcav's side:
 - **Without the game**: `tools/mcv2/shader_check.py`, plain and `--spirv` (Minecraft 26.3's compile path, through
   `Mcv2ShaderCompile.java`, which also compiles each screen's copy of the passes in `post/s<screen>/`), on the
   conformance and edge streams; `--second-screen` runs them as the second screen of a two-screen pack.
-- **In the build**: the conformance, property, fuzz and differential tests run with `./gradlew build`;
+- **In the build**: the conformance, property, fuzz and native-kernel differential comparisons run with
+  `./gradlew build`. The Python reference differential and shader checks are separate tools described in
+  `tools/mcv2/README.md`; they do not run as part of that command.
   `:sandbox:plugin:e2eTest -Pmcav.e2e=true -Pmcav.acceptMinecraftEula=true` runs a real Paper server.

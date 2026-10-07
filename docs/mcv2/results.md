@@ -9,6 +9,10 @@ measured for the documentation ([The codec comparison](#the-codec-comparison), [
 format itself is in [format.md](format.md), the encoder in [encoder.md](encoder.md), and how mcav runs the codec in
 Minecraft in [the design doc](../mcv2-integration.md); the MCV2 chapter explains all of it for a reader who is new to it.
 
+The timing tables retain the original measurements and their workloads. Later bit-exact CPU improvements and
+loaded-host limits are summarized in [current usage](using.md#troubleshooting); neither set of results guarantees
+the same throughput on another server.
+
 ## Status
 
 **The research frontier was stopped by the owner, after round 19 (owner decision 6, 2026-09-25). It did not converge.**
@@ -195,8 +199,9 @@ min**, RGB PSNR 34.444, SSIM 0.85944. **`low_bandwidth` = `p30r19-compact_final-
   | `adaptive` | 72, 55 in motion | 75.7 / 76.1 | -5.5% / -3.8% | +24.9% / +14.3% | 20.37 / 27.44 ms |
   | `live-fast` | 55 | 76.1 / 76.1 | +17.7% / +18.4% | +29.4% / +17.1% | 17.61 / 27.24 ms |
 
-  All three meet the 1080p30 gate (p95 under 32 ms at 12 threads) with the native kernels; `live` is the default
-  because it is the slowest rung that does. **1080p60 is not met** by any preset: `live-fast` needs 19.72 ms (proxy)
+  In those measurements all three met the 1080p30 gate (p95 under 32 ms at 12 threads) with the native kernels;
+  `live` was chosen as the default because it was the slowest rung that did. **1080p60 was not met** by any preset:
+  `live-fast` needed 19.72 ms (proxy)
   and 31.34 ms (gameplay) per frame at the 95th percentile against 16 ms, because a 60 fps gameplay frame costs 207 ms
   of CPU. A viewer of the default `live` at 1080p30 receives 2.80 map Mbit/s (1.83 on the wire, compressed) on the
   proxy and 13.0 (8.3) on gameplay.
