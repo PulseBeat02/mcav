@@ -4,8 +4,9 @@
 output. Players click it by clicking the wall and type into it through chat, like a [browser](browser.md).
 
 ```{warning}
-QEMU must be installed on the server and on the `PATH` of the server's process; MCAV never installs it. Install it
-from your package manager or from the [QEMU website](https://www.qemu.org/download/). Without it the command says so.
+QEMU 6.0 or newer must be installed on the server and on the `PATH` of the server's process; MCAV never installs it.
+Install it from your package manager or from the [QEMU website](https://www.qemu.org/download/). Without it the
+command says so.
 ```
 
 ```text
@@ -31,8 +32,8 @@ plugin accepts only the options that describe a machine ([the full list](command
   values of its kind only, and a few switches such as `-snapshot` and `-no-reboot`.
 - **Memory**: at most half of the server's memory (or of its container's), and at least 512 MiB.
 
-The display always stays on the loopback address the plugin chose for it, and the guest keeps the user-mode network
-QEMU gives it by default.
+The display always stays on the loopback address the plugin chose for it. The guest's network card reaches nothing,
+neither the internet nor the server, unless `vm.allow-network` is on in `config.yml`.
 
 ## Sound
 
@@ -40,7 +41,8 @@ MCAV gives an **x86-64** machine of the PC or Q35 family (the default machine, `
 Intel HD Audio card and the PC speaker, so the guest needs no option for it, only a driver, which every current
 operating system has. Its sound plays through the chosen audio output like a video's, and takes the outputs over from
 a playing video or browser. It is held about 70 ms on purpose, so that it plays with QEMU's picture, which refreshes 30
-ms after a change at the earliest. Machines of other architectures have no sound and must choose `NONE`. A
+ms after a change at the earliest. A pause of up to two seconds in its sound plays as silence, so the sound keeps its
+rhythm. Machines of other architectures have no sound and must choose `NONE`. A
 configuration that sets `-audio`, `-audiodev`, `-vnc` or routes the PC speaker itself is refused: the plugin owns the
 sound and the display.
 
@@ -52,7 +54,7 @@ chat mode.
 
 ## Known Limits
 
-The guest's user-mode network can reach the server's loopback address (`10.0.2.2` inside the guest), and QEMU's VNC
-display, bound to the loopback address, has no password, so another process on the server could watch it. Both come
-from QEMU's defaults. QEMU is a child process of the server: if the server is killed hard, without releasing its
-players, a running machine keeps running.
+With `vm.allow-network` on, the guest's user-mode network can reach the server's loopback address (`10.0.2.2` inside
+the guest). QEMU's VNC display stays on the loopback address and asks for a random password only the plugin knows, so
+another process on the server cannot watch it. QEMU is a child process of the server: if the server is killed hard, without releasing its
+players, a running machine keeps running until the plugin starts again, which stops it and says so in the console.

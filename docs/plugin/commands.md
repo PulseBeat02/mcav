@@ -36,6 +36,9 @@ granted.
 `mcav.browser.interact`, `mcav.vm.interact` and `mcav.vnc.interact` do not only switch chat input on: they are also
 what lets a player click a browser, a virtual machine or a desktop by clicking its map screen. The screen stands in the world, so anyone can reach
 it; without the permission a click does nothing, while the frames of the screen stay protected for everyone.
+The permission is the only check: a region plugin that protects the area, or a chat plugin that cancels the message,
+does not stop a click or typed text from a player who has it. To keep a screen to some players or places, give the
+permission only there, for example per world with your permissions plugin.
 ```
 
 ## General Commands
@@ -98,7 +101,8 @@ With `mcv2`:
 
 - The viewers are offered MCAV's MCV2 resource pack, one pack that decodes every MCV2 screen of the server. It is
   optional and replaces no other pack: a player who declines it sees the dithered maps and is not asked again while
-  online. Until a player's client has loaded it, that player sees the dithered maps.
+  online. Until a player's client has loaded it, that player sees the dithered maps, and so does a player whose
+  [MCV2 client mod](../mcv2/client-mod.md) reports Iris shaders on, until they turn them off.
 - Loading the pack reloads the client's resources, a hitch of a second or more. The pack changes only when a screen of
   a video size it does not decode yet starts, and a minute after a screen stopped, when its size leaves the pack (the
   pack itself, once no screen plays); a new screen of the same size within that minute reloads nothing. It decodes up
@@ -484,7 +488,7 @@ They have no sound. Stream files live in the plugin's `mcv2` folder; a name that
 |-------------------------------------------|--------------------------------------------------------------------------------------------------------|
 | **Usage**                                 | `/mcav mcv2 play <playerSelector> <blockDimensions> <mapId> <ticks> <file>` or `/mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <fps> <file>` |
 | **Permission**                            | `mcav.command.mcv2.play`                                                                               |
-| **Description**                           | Plays a stream file on a wall of maps with MCV2, looping; `play` sends a frame every few server ticks, `stream` at a frame rate of its own. The screen takes a slot of the MCV2 pack like every MCV2 screen, and replaces the stream played before |
+| **Description**                           | Plays a stream file on a wall of maps with MCV2, looping; `play` sends a frame every few server ticks, `stream` at a frame rate of its own. The file is read off the server's main thread, so a large file or a busy disk does not hold the server up, and the screen opens once it is read. The screen takes a slot of the MCV2 pack like every MCV2 screen, and replaces the stream played before, also one whose file is still being read |
 | **Arguments**                             |                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ticks` / `fps`   | The server ticks between frames (1 or more), or the frames a second (1 to 240)                         |
 | &nbsp;&nbsp;&nbsp;&nbsp;`file`            | The stream file in the plugin's `mcv2` folder                                                          |
@@ -496,7 +500,7 @@ They have no sound. Stream files live in the plugin's `mcv2` folder; a name that
 |-----------------|----------------------------------------------------------|
 | **Usage**       | `/mcav mcv2 stop`                                        |
 | **Permission**  | `mcav.command.mcv2.play`                                 |
-| **Description** | Stops the stream and gives its slot of the pack back    |
+| **Description** | Stops the stream, also one whose file is still being read, and gives its slot of the pack back |
 | **Arguments**   | None                                                     |
 
 ## Filters
@@ -555,6 +559,10 @@ A switch such as `no-playlist` is written on its own, an option with a value as 
 list, a switch given a value, an option missing its value, or a value that starts with a dash is refused and the
 command tells you which option it was.
 
+The page chooses the addresses yt-dlp reports for its streams, so only `http` and `https` streams are played. A page
+that names a stream of another kind, such as a `file:` of the server or a `tcp:` connection, does not start, and the
+console says why.
+
 ## QEMU options
 
 `/mcav vm create` passes its `flags` to QEMU. QEMU can read and write any file of the server, load a plugin library,
@@ -576,13 +584,17 @@ folder, named without its folder, such as `-cdrom "alpine linux.iso"`. Put your 
 `copy-on-read`, `discard`, `detect-zeroes`, `werror` and `rerror`, such as `-drive file=disk.img,format=raw,if=virtio`;
 any other property is refused. A machine may have at most half of the memory of the server (or of its container),
 and at least 512 MiB, since a guest can use all the memory it is given; a larger `-m` is refused. The
-display of the guest always stays on the loopback address the plugin chose for it, and the guest keeps the user-mode
-network QEMU gives it by default. In that network the address 10.0.2.2 is the server itself: a guest reaches every
-service the server offers only on its loopback address, such as an RCON port, a database or an admin page, as a program
-on the server would. Whoever types into the guest can use them, so on a server with such services do not create
-machines for players who may not.
+display of the guest always stays on the loopback address the plugin chose for it. The guest's network card reaches
+nothing, neither the internet nor the server, unless `vm.allow-network` is on in `config.yml`. With it on, the guest
+gets QEMU's user-mode network, in which the address 10.0.2.2 is the server itself: a guest reaches every service the
+server offers only on its loopback address, such as an RCON port, a database or an admin page, as a program on the
+server would. Whoever types into the guest can use them, so turn it on only if every player who may create or use a
+machine may use them.
 
 ## Image Commands
+
+An image that declares more than 8192 by 8192 pixels is refused before it is decoded, since decoding it could take
+gigabytes of memory. Start the server with `-Dmcav.image.maxPixels=<pixels>` for another limit.
 
 | **Command**     | `/mcav image release`                                     |
 |-----------------|-----------------------------------------------------------|

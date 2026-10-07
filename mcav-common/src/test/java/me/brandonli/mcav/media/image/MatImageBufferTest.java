@@ -43,9 +43,11 @@ import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.testing.Images;
@@ -59,6 +61,7 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Rect;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.bytedeco.opencv.opencv_core.Size;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -145,7 +148,9 @@ final class MatImageBufferTest {
       assertEquals(8, width);
       assertEquals(0xFFFF0000, red);
     }
-    assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.bytes(new byte[0]));
+    final IllegalArgumentException empty = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.bytes(new byte[0]));
+    // no bytes are refused as such, before the size check could refuse them as no image
+    assertEquals("Encoded image must not be empty", empty.getMessage());
     assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.bytes(new byte[] { 1, 2, 3 }));
     assertThrowsWhileOpening(NullPointerException.class, () -> ImageBuffer.bytes(null));
   }
@@ -181,6 +186,105 @@ final class MatImageBufferTest {
     assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(invalid));
     assertThrowsWhileOpening(NullPointerException.class, () -> ImageBuffer.path(null));
     assertThrowsWhileOpening(NullPointerException.class, () -> ImageBuffer.uri(null));
+  }
+
+  @Test
+  void refusesAnImageThatDeclaresMorePixelsThanTheLimitBeforeDecodingIt() throws IOException {
+    final BufferedImage source = new BufferedImage(16, 16, BufferedImage.TYPE_INT_RGB);
+    final byte[] png = Images.encode(source, "png");
+    final Path file = this.directory.resolve("sixteen.png");
+    Files.write(file, png);
+    final FileSource path = FileSource.path(file);
+    final String expected =
+      "Image declares 16x16 pixels, more than the 255 pixels mcav decodes (the system property mcav.image.maxPixels raises the limit)";
+    final String previous = System.getProperty(DeclaredImageSize.MAX_PIXELS_PROPERTY);
+    System.setProperty(DeclaredImageSize.MAX_PIXELS_PROPERTY, "255");
+    try {
+      final IllegalArgumentException fromBytes = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.bytes(png));
+      assertEquals(expected, fromBytes.getMessage());
+      final IllegalArgumentException fromFile = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(path));
+      assertEquals(expected, fromFile.getMessage());
+      System.setProperty(DeclaredImageSize.MAX_PIXELS_PROPERTY, "256");
+      try (final ImageBuffer atTheLimit = ImageBuffer.bytes(png); final ImageBuffer fileAtTheLimit = ImageBuffer.path(path)) {
+        final int width = atTheLimit.getWidth();
+        final int height = fileAtTheLimit.getHeight();
+        assertEquals(16, width);
+        assertEquals(16, height);
+      }
+    } finally {
+      restoreMaxPixels(previous);
+    }
+  }
+
+  @Test
+  void refusesAHeaderThatDeclaresAHugeSizeForItsSize() {
+    // a PNG signature and header for 65535 by 65535 pixels with no picture after it: OpenCV would allocate ~12 GiB of
+    // BGR first, so the limit has to be what refuses it
+    final byte[] header = new byte[] {
+      (byte) 0x89,
+      'P',
+      'N',
+      'G',
+      '\r',
+      '\n',
+      0x1A,
+      '\n',
+      0,
+      0,
+      0,
+      13,
+      'I',
+      'H',
+      'D',
+      'R',
+      0,
+      0,
+      (byte) 0xFF,
+      (byte) 0xFF,
+      0,
+      0,
+      (byte) 0xFF,
+      (byte) 0xFF,
+      8,
+      2,
+      0,
+      0,
+      0,
+    };
+    final String previous = System.getProperty(DeclaredImageSize.MAX_PIXELS_PROPERTY);
+    System.clearProperty(DeclaredImageSize.MAX_PIXELS_PROPERTY);
+    try {
+      final IllegalArgumentException refused = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.bytes(header));
+      assertEquals(
+        "Image declares 65535x65535 pixels, more than the 67108864 pixels mcav decodes (the system property mcav.image.maxPixels raises the limit)",
+        refused.getMessage()
+      );
+    } finally {
+      restoreMaxPixels(previous);
+    }
+  }
+
+  @Test
+  void refusesAnImageWhosePictureIsMissingAfterAValidHeader() throws IOException {
+    // the header passes the size check, so it is OpenCV that finds nothing to decode
+    final byte[] headerOnly = "P6\n4 4\n255\n".getBytes(StandardCharsets.US_ASCII);
+    final IllegalArgumentException fromBytes = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+      ImageBuffer.bytes(headerOnly)
+    );
+    assertEquals("Bytes are not a supported image format", fromBytes.getMessage());
+    final Path file = this.directory.resolve("header-only.ppm");
+    Files.write(file, headerOnly);
+    final FileSource path = FileSource.path(file);
+    final IllegalArgumentException fromFile = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(path));
+    assertEquals("File is not a supported image: " + file, fromFile.getMessage());
+  }
+
+  private static void restoreMaxPixels(final @Nullable String previous) {
+    if (previous == null) {
+      System.clearProperty(DeclaredImageSize.MAX_PIXELS_PROPERTY);
+    } else {
+      System.setProperty(DeclaredImageSize.MAX_PIXELS_PROPERTY, previous);
+    }
   }
 
   /**
@@ -815,6 +919,18 @@ final class MatImageBufferTest {
       assertArrayEquals(expected, pixels);
       assertEquals(0xFF000002, moved, "the image still transforms after failed transformations");
       assertThrows(NullPointerException.class, () -> buffer.transformMat(null));
+    }
+  }
+
+  @Test
+  void freesTheMatrixOfAFailedTransformationAtOnce() {
+    try (final ImageBuffer image = Images.indexed(2, 2)) {
+      final MatImageBuffer buffer = (MatImageBuffer) image;
+      final AtomicReference<Mat> given = new AtomicReference<>();
+      assertThrows(IllegalArgumentException.class, () -> buffer.transformMat((_, target) -> given.set(target)));
+      final Mat target = given.get();
+      final boolean freed = target.isNull();
+      assertTrue(freed, "the matrix the operation left empty is freed rather than left to the garbage collector");
     }
   }
 

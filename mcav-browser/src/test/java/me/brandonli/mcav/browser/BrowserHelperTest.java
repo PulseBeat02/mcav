@@ -97,7 +97,10 @@ class BrowserHelperTest {
       30,
       false,
       false,
-      allowsAutoplay
+      allowsAutoplay,
+      false,
+      this.folder,
+      List.of()
     );
   }
 
@@ -604,10 +607,26 @@ class BrowserHelperTest {
     OpenFiles.leaveNoneOpen("a failed connection", () -> assertThrows(IOException.class, () -> BrowserHelper.connect(missing)));
   }
 
+  /**
+   * Runs a helper as its main method does, on a thread that is no daemon: the threads it starts are daemons only if it
+   * makes them so, while those a daemon thread starts are daemons anyway.
+   */
+  private CompletableFuture<Integer> runOnMainLikeThread(final BrowserHelper helper) throws IOException {
+    this.server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
+    this.server.bind(UnixDomainSocketAddress.of(this.folder.resolve("s")));
+    final PipedReader reader = new PipedReader(this.standardInput);
+    final CompletableFuture<Integer> result = new CompletableFuture<>();
+    Thread.ofPlatform()
+      .daemon(false)
+      .name("helper-main")
+      .start(() -> result.complete(helper.run(reader, BrowserHelperTest::connectTo)));
+    return result;
+  }
+
   @Test
   void theThreadsOfTheHelperDoNotKeepItsJvmAlive() throws Exception {
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
-    final CompletableFuture<Integer> result = this.run(helper);
+    final CompletableFuture<Integer> result = this.runOnMainLikeThread(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
       peer.readUntil(HelperProtocol.READY);
       final List<Thread> threads = Thread.getAllStackTraces()

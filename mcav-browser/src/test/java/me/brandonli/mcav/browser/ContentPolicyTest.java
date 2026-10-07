@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
+import org.cef.browser.McavOffscreenBrowser;
 import org.cef.callback.CefAuthCallback;
 import org.cef.callback.CefBeforeDownloadCallback;
 import org.cef.callback.CefCallback;
@@ -270,6 +271,23 @@ class ContentPolicyTest {
     this.policy.onDownloadUpdated(this.browser, mock(CefDownloadItem.class), updated);
     verify(updated).cancel();
     assertEquals(List.of("notice: Refused a download of evil.exe"), this.events.log);
+  }
+
+  /**
+   * On macOS the view of a page that started a download while it loaded stayed white after the download was refused,
+   * until the page changed; the refusal asks the off-screen browser to paint its view again.
+   */
+  @Test
+  void aRefusedDownloadRepaintsTheView() {
+    final McavOffscreenBrowser offscreen = mock(McavOffscreenBrowser.class);
+    final boolean handled = this.policy.onBeforeDownload(
+      offscreen,
+      mock(CefDownloadItem.class),
+      "evil.exe",
+      mock(CefBeforeDownloadCallback.class)
+    );
+    assertFalse(handled);
+    verify(offscreen).repaint();
   }
 
   @Test

@@ -18,10 +18,14 @@
 package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -29,6 +33,7 @@ import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class BrowserModuleTest {
 
@@ -55,6 +60,18 @@ class BrowserModuleTest {
     final HelperLauncher launcher = HelperSessionTest.launcher(ScriptedEngine.class.getName(), 60_000L);
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
     return HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener);
+  }
+
+  @Test
+  void startingRemovesTheFolderOfASessionWhoseServerWasKilled(@TempDir final Path temporary) throws IOException {
+    final Path stale = Files.createDirectory(temporary.resolve(SessionFolders.PREFIX + "stale"));
+    // a server no system hands this id out to
+    Files.writeString(stale.resolve(SessionFolders.OWNER_FILE), Long.MAX_VALUE + "\n2026-10-05T00:00:00Z\n", StandardCharsets.US_ASCII);
+    final Path live = HelperSession.createFolder(temporary);
+    assertTrue(Files.isRegularFile(live.resolve(SessionFolders.OWNER_FILE)), "a new folder names its server");
+    new BrowserModule().start(temporary);
+    assertFalse(Files.exists(stale), "a killed server left it behind");
+    assertTrue(Files.exists(live), "the folder of a session of this server stays until its browser is released");
   }
 
   @Test

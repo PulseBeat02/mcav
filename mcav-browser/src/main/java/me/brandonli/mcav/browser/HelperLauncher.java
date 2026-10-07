@@ -192,8 +192,8 @@ final class HelperLauncher {
 
   /**
    * Builds the environment of a helper: the kept variables of the server, and on Linux the authority file of the
-   * helper's null display, which X clients read, and the libraries the server lacks. No display of the server is
-   * passed on.
+   * helper's null display, which X clients read, the folder of the session as the temporary folder and the folder of
+   * user data, and the libraries the server lacks. No display of the server is passed on.
    *
    * @param folder    the private folder of the session
    * @param libraries the folder of the libraries the server lacks on Linux, or null
@@ -204,6 +204,10 @@ final class HelperLauncher {
     if (this.os == OS.LINUX) {
       final Path authority = authorityOf(folder);
       kept.put("XAUTHORITY", authority.toString());
+      // Chromium keeps its temporary files, its shared memory among them, and its certificate database where a
+      // confined Chromium may write
+      kept.put("TMPDIR", folder.toString());
+      kept.put("XDG_DATA_HOME", folder.toString());
     }
     if (libraries != null) {
       kept.put("LD_LIBRARY_PATH", libraries.toString());

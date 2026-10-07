@@ -138,8 +138,10 @@ public final class CapabilityGuard {
    */
   public void checkUsable(final Capability capability) {
     Preconditions.checkNotNull(capability, "Capability must not be null");
-    this.checkNotPreparing(capability);
     final State state = this.states.get(capability);
+    if (state == State.PREPARING) {
+      throw new IllegalStateException(describePreparing(capability));
+    }
     if (state == State.UNAVAILABLE) {
       final String name = capability.getDisplayName();
       throw new IllegalStateException(name + " is not available on this system");

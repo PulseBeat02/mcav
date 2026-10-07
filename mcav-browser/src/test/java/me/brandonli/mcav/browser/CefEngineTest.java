@@ -20,6 +20,8 @@ package me.brandonli.mcav.browser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -37,6 +39,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -44,6 +47,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.StandardError;
+import me.friwi.jcefmaven.CefBuildInfo;
 import org.cef.CefApp;
 import org.cef.CefClient;
 import org.cef.CefSettings;
@@ -75,7 +79,35 @@ class CefEngineTest {
       30,
       allowsJit,
       false,
-      allowsAutoplay
+      allowsAutoplay,
+      true,
+      ROOT.resolve("server"),
+      List.of()
+    );
+  }
+
+  @Test
+  void chromiumStartsOnAThreadOfItsOwnWhoseFailureReachesTheCaller() throws Exception {
+    final List<String> names = new ArrayList<>();
+    CefEngine.runOnOwnThread("mcav-browser-chromium", () -> names.add(Thread.currentThread().getName()));
+    assertEquals(List.of("mcav-browser-chromium"), names);
+    final IOException refused = new IOException("Landlock could not restrict the thread (error 1)");
+    assertSame(
+      refused,
+      assertThrows(IOException.class, () ->
+        CefEngine.runOnOwnThread("failing", () -> {
+          throw refused;
+        })
+      )
+    );
+    final UnsatisfiedLinkError unlinked = new UnsatisfiedLinkError("libcef.so");
+    assertSame(
+      unlinked,
+      assertThrows(UnsatisfiedLinkError.class, () ->
+        CefEngine.runOnOwnThread("unlinked", () -> {
+          throw unlinked;
+        })
+      )
     );
   }
 
@@ -117,6 +149,38 @@ class CefEngineTest {
     for (final String value : open) {
       assertFalse(value.startsWith("--proxy"), value);
     }
+  }
+
+  /**
+   * Chromium's own services contact Google when it starts, which tells Google that a browser started on this server:
+   * the sign-in check, the AI mode check of the search box, the network time service and the preconnect to the search
+   * engine (measured with Chromium's net log).
+   */
+  @Test
+  void chromiumsOwnServicesNeverContactGoogle() {
+    final List<String> switches = CefEngine.createSwitches(configuration(false), false, false, 0, null);
+    final List<String> disabled = switches
+      .stream()
+      .filter(value -> value.startsWith("--disable-features="))
+      .toList();
+    assertTrue(switches.containsAll(List.of("--gaia-url=https://accounts.invalid", "--google-base-url=https://www.invalid")));
+    assertEquals(1, disabled.size(), "Chromium keeps the last --disable-features switch only");
+    final String value = disabled.getFirst().substring("--disable-features=".length());
+    final List<String> features = List.of(value.split(",", -1));
+    assertTrue(features.containsAll(List.of("NetworkTimeServiceQuerying", "PreconnectToSearch")), value);
+    assertTrue(features.containsAll(CefEngine.CEF_DISABLED_FEATURES), "the features CEF disables itself stay disabled");
+  }
+
+  /**
+   * CEF passes a --disable-features switch of its own before the switches of the helper, and Chromium keeps the last
+   * one only, so the helper's switch repeats CEF's list, which belongs to this CEF. Before moving to another CEF, load a
+   * page without the helper's switch and copy the list its renderer gets on its command line.
+   */
+  @Test
+  void theFeaturesCefDisablesItselfAreThoseOfThisCef() throws IOException {
+    final CefBuildInfo build = CefBuildInfo.fromClasspath();
+    final String release = build.getReleaseTag();
+    assertTrue(release.contains("+cef-152.0.6+"), release);
   }
 
   @Test
@@ -273,6 +337,42 @@ class CefEngineTest {
     verify(browser).loadURL("https://example.com/lost");
     verify(devTools).close();
     assertEquals(List.of("The scripts of the page were not confirmed in 2 attempts; it loads anyway"), notices);
+  }
+
+  @Test
+  void aPageWhoseScriptsAreConfirmedLateLoadsAgainToRunThem() throws Exception {
+    final CefBrowser browser = mock(CefBrowser.class);
+    final CefDevToolsClient devTools = mock(CefDevToolsClient.class);
+    when(browser.getDevToolsClient()).thenReturn(devTools);
+    final CompletableFuture<String> late = new CompletableFuture<>();
+    when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(late);
+    final List<String> notices = new CopyOnWriteArrayList<>();
+    CefEngine.openPage(browser, "https://example.com/late", 100L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
+    Await.until("the page loaded after the timeout", () -> {
+      try {
+        EventQueue.invokeAndWait(() -> {});
+      } catch (final InterruptedException | InvocationTargetException exception) {
+        throw new IllegalStateException(exception);
+      }
+      return mockingDetails(browser)
+        .getInvocations()
+        .stream()
+        .anyMatch(call -> call.getMethod().getName().equals("loadURL"));
+    });
+    verify(browser, never()).reload();
+    // the answer arrives after all, as it does late on a busy machine: the scripts are in place for a new document
+    late.complete("{}");
+    EventQueue.invokeAndWait(() -> {});
+    final InOrder order = inOrder(browser);
+    order.verify(browser).loadURL("https://example.com/late");
+    order.verify(browser).reload();
+    assertEquals(
+      List.of(
+        "The scripts of the page were not confirmed in 2 attempts; it loads anyway",
+        "The scripts of the page were confirmed late; it loads again"
+      ),
+      notices
+    );
   }
 
   @Test

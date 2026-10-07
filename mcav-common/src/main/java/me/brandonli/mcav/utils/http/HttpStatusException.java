@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.Serial;
 import java.net.URI;
+import java.util.Locale;
 
 /**
  * Thrown when a server answers a request with a status code outside of the {@code 2xx} range.
@@ -44,7 +45,12 @@ public class HttpStatusException extends IOException {
    */
   public HttpStatusException(final int statusCode, final URI uri) {
     Preconditions.checkNotNull(uri, "URI must not be null");
-    final String message = "Server answered with status %d for %s".formatted(statusCode, uri);
+    final String message = String.format(
+      Locale.getDefault(Locale.Category.FORMAT),
+      "Server answered with status %d for %s",
+      statusCode,
+      uri
+    );
     super(message);
     this.statusCode = statusCode;
   }

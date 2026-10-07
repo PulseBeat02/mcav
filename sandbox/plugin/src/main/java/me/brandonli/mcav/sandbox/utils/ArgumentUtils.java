@@ -19,6 +19,7 @@ package me.brandonli.mcav.sandbox.utils;
 
 import com.google.common.base.Preconditions;
 import java.util.Collection;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Stream;
 import me.brandonli.mcav.sandbox.listener.OnlinePlayers;
@@ -77,7 +78,9 @@ public final class ArgumentUtils {
       throw new IllegalArgumentException("Dimensions must be positive integers: " + argument);
     }
     if (width > MAX_SIDE || height > MAX_SIDE) {
-      throw new IllegalArgumentException("Dimensions must be at most %d on each side: %s".formatted(MAX_SIDE, argument));
+      throw new IllegalArgumentException(
+        String.format(Locale.getDefault(Locale.Category.FORMAT), "Dimensions must be at most %d on each side: %s", MAX_SIDE, argument)
+      );
     }
     return Pair.pair(width, height);
   }
@@ -97,7 +100,14 @@ public final class ArgumentUtils {
     final int width = dimensions.getFirst();
     final int height = dimensions.getSecond();
     if (width > MAX_SCREEN_SIDE || height > MAX_SCREEN_SIDE) {
-      throw new IllegalArgumentException("A wall may be at most %d maps on each side: %s".formatted(MAX_SCREEN_SIDE, argument));
+      throw new IllegalArgumentException(
+        String.format(
+          Locale.getDefault(Locale.Category.FORMAT),
+          "A wall may be at most %d maps on each side: %s",
+          MAX_SCREEN_SIDE,
+          argument
+        )
+      );
     }
     return dimensions;
   }

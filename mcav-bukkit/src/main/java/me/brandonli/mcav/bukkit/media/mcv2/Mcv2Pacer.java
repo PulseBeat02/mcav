@@ -196,7 +196,14 @@ public final class Mcv2Pacer {
     public String describe(final double videoFps) {
       return this.isDithered()
         ? "the dithered maps"
-        : "%dx%d at %s fps%s".formatted(this.width, this.height, rate(this.fps(videoFps)), this.preset.suffix());
+        : String.format(
+            Locale.getDefault(Locale.Category.FORMAT),
+            "%dx%d at %s fps%s",
+            this.width,
+            this.height,
+            rate(this.fps(videoFps)),
+            this.preset.suffix()
+          );
     }
   }
 

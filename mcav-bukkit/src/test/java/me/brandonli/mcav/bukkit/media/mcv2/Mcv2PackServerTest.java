@@ -58,10 +58,12 @@ import java.util.zip.ZipFile;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 import me.brandonli.mcav.bukkit.resourcepack.provider.http.HttpHosting;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
+import me.brandonli.mcav.bukkit.testing.LogCapture;
 import net.kyori.adventure.resource.ResourcePackInfo;
 import net.kyori.adventure.resource.ResourcePackRequest;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.apache.logging.log4j.Level;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
@@ -77,10 +79,14 @@ import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.event.player.PlayerResourcePackStatusEvent.Status;
 import org.bukkit.plugin.EventExecutor;
 import org.bukkit.plugin.Plugin;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.MockedStatic;
@@ -634,6 +640,95 @@ final class Mcv2PackServerTest {
     status.execute(listener, new PlayerResourcePackStatusEvent(alice, pack, Status.SUCCESSFULLY_LOADED));
     quit.execute(listener, new PlayerQuitEvent(bob, (Component) null, PlayerQuitEvent.QuitReason.DISCONNECTED));
     assertEquals(-1, this.packs.handleStatus(new PlayerResourcePackStatusEvent(bob, pack, Status.SUCCESSFULLY_LOADED)));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "fabric", "neoforge" })
+  void warnsModdedViewersAndAdminsWithoutTreatingTheBrandAsADecoderFailure(final String brand) {
+    final CraftPlayer alice = this.online(ALICE);
+    when(alice.getName()).thenReturn("Alice");
+    when(alice.getClientBrandName()).thenReturn(brand);
+    this.packs.start();
+    this.packs.open(screen(320, Set.of(ALICE)));
+    this.settle();
+    final UUID pack = this.packs.getViewers().getPackId();
+    assertEquals(-1, this.packs.handleStatus(new PlayerResourcePackStatusEvent(alice, pack, Status.DOWNLOADED)));
+    verify(alice, never()).sendMessage(any(Component.class));
+
+    this.load(alice, pack);
+    try (final LogCapture logs = LogCapture.capture(Mcv2PackServer.class)) {
+      assertEquals(0, this.packs.handleStatus(new PlayerResourcePackStatusEvent(alice, pack, Status.SUCCESSFULLY_LOADED)));
+      assertEquals(-1, this.packs.handleStatus(new PlayerResourcePackStatusEvent(alice, pack, Status.SUCCESSFULLY_LOADED)));
+      verify(alice).sendMessage(
+        Component.text(
+          "MCV2: your modded client may replace the video shaders. If video is blank or frozen, install the MCAV MCV2 " +
+            "Client mod, which shows you the dithered maps while Iris shaders are on, or turn off Iris shaders. Without " +
+            "the mod, MCAV cannot detect active shader settings.",
+          NamedTextColor.YELLOW
+        )
+      );
+      assertEquals(
+        List.of(
+          "MCV2 pack loaded by Alice (client brand " +
+            brand +
+            ") without the MCAV MCV2 Client mod, so active shaders cannot be verified. " +
+            "Iris shader packs can prevent decoding: with the mod, such a player sees the dithered maps."
+        ),
+        logs
+          .getEvents()
+          .stream()
+          .filter(event -> event.getLevel().equals(Level.WARN))
+          .map(LogCapture.RecordedEvent::getMessage)
+          .toList()
+      );
+    }
+    assertTrue(this.packs.getViewers().isLoaded(ALICE), "a brand advisory must preserve working Sodium clients");
+  }
+
+  @Test
+  void doesNotWarnAModdedViewerWhoseMcv2ClientModReportedTheirShaders() {
+    final CraftPlayer alice = this.online(ALICE);
+    when(alice.getName()).thenReturn("Alice");
+    when(alice.getClientBrandName()).thenReturn("fabric");
+    this.packs.start();
+    this.packs.open(screen(320, Set.of(ALICE)));
+    this.settle();
+    final UUID pack = this.packs.getViewers().getPackId();
+    this.server.receivePluginMessage(alice, "mcav:mcv2", new byte[] { 1, 1, 0, 0 });
+    this.load(alice, pack);
+    try (final LogCapture logs = LogCapture.capture(Mcv2PackServer.class)) {
+      assertEquals(0, this.packs.handleStatus(new PlayerResourcePackStatusEvent(alice, pack, Status.SUCCESSFULLY_LOADED)));
+      verify(alice, never()).sendMessage(any(Component.class));
+      assertTrue(
+        logs
+          .getEvents()
+          .stream()
+          .noneMatch(event -> event.getLevel().equals(Level.WARN))
+      );
+    }
+    assertTrue(this.packs.getViewers().isLoaded(ALICE), "shaders off, as the mod reported");
+  }
+
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(strings = "vanilla")
+  void doesNotInferAModdedRendererFromAnUnknownOrVanillaBrand(final @Nullable String brand) {
+    final CraftPlayer alice = this.online(ALICE);
+    when(alice.getClientBrandName()).thenReturn(brand);
+    this.packs.start();
+    this.packs.open(screen(320, Set.of(ALICE)));
+    this.settle();
+    final UUID pack = this.packs.getViewers().getPackId();
+    try (final LogCapture logs = LogCapture.capture(Mcv2PackServer.class)) {
+      assertEquals(0, this.packs.handleStatus(new PlayerResourcePackStatusEvent(alice, pack, Status.SUCCESSFULLY_LOADED)));
+      verify(alice, never()).sendMessage(any(Component.class));
+      assertTrue(
+        logs
+          .getEvents()
+          .stream()
+          .noneMatch(event -> event.getLevel().equals(Level.WARN))
+      );
+    }
   }
 
   @Test

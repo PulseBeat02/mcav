@@ -43,6 +43,13 @@ Until a program is ready:
 for the installation threads to finish; an installer that does not respond to interruption may outlive that wait.
 Temporary downloads are deleted as the installer unwinds.
 
+While MCAV is installed on Linux, it hands the memory the C library keeps free back to the system once a minute, with
+the JDK's `System.trim_native_heap` command. FFmpeg, OpenCV and the encoders free large buffers on many threads, and
+glibc keeps them for later: in a server that plays for days, the memory it holds free otherwise grows by about 20
+megabytes an hour. `-Dmcav.nativeTrimSeconds=<n>` trims every `n` seconds instead, and `0` turns it off; a JVM started
+with `-XX:TrimNativeHeapInterval` trims on its own, and MCAV leaves it to that. A JVM other than HotSpot, such as
+OpenJ9, and a runtime built without the `jdk.management` module have no such command, and MCAV does not trim there.
+
 ## Capabilities
 
 MCAV builds on several native programs. FFmpeg and OpenCV are bundled and always available; VLC and yt-dlp are

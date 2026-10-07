@@ -20,6 +20,7 @@ package me.brandonli.mcav.vnc;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 /**
  * Drives an {@link RfbGuard} through a VNC conversation in protocol order, the way a client and a server take turns:
@@ -90,7 +91,7 @@ final class RfbSession {
   }
 
   static byte[] version(final int minor) {
-    return "RFB 003.%03d\n".formatted(minor).getBytes(StandardCharsets.US_ASCII);
+    return String.format(Locale.ROOT, "RFB 003.%03d\n", minor).getBytes(StandardCharsets.US_ASCII);
   }
 
   static byte[] unsigned16(final int value) {

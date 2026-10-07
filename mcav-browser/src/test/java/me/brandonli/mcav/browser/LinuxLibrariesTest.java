@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -323,6 +324,25 @@ class LinuxLibrariesTest {
     try (final Stream<Path> left = Files.list(this.folder.resolve("cache"))) {
       assertEquals(2, left.count(), "the installation and its lock file, nothing staged");
     }
+  }
+
+  @Test
+  void librariesAnEarlierVersionInstalledLoseTheWritePermissionOfTheGroup() throws IOException {
+    assumeTrue(this.folder.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
+    final byte[] deb = testPackage();
+    final LinuxLibraries libraries = this.installer(deb, List.of("https://mirror.test/debian/"), List.of(pin(deb)));
+    final Path installation = libraries.install("linux-amd64");
+    // as an earlier version left them under a umask of 0002
+    final Path cache = this.folder.resolve("cache");
+    final Path library = installation.resolve("libmcavtest.so.1");
+    Files.setPosixFilePermissions(cache, PosixFilePermissions.fromString("rwxrwxr-x"));
+    Files.setPosixFilePermissions(installation, PosixFilePermissions.fromString("rwxrwxr-x"));
+    Files.setPosixFilePermissions(library, PosixFilePermissions.fromString("rwxrwxrwx"));
+    assertEquals(installation, libraries.install("linux-amd64"));
+    assertEquals(1, this.downloads.size(), "nothing is installed again");
+    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(cache));
+    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(installation));
+    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(library));
   }
 
   @Test

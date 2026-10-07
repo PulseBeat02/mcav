@@ -90,9 +90,9 @@ Add `--filters "grayscale,blur=3"` to a video or image command to filter every p
 
 If playback pauses or arrives in bursts without an error, try a lower-resolution, lower-frame-rate H.264 file and
 compare it with the original on the same screen. Decoding a high-resolution AV1 source can fall behind on a busy
-server. The playing message reports player state; it does not guarantee frames are arriving. MCAV currently has
-no decoder-progress warning, and a static image can also produce no map updates, so packet silence alone does not
-identify a decoder failure.
+server; when the player drops most frames of ten seconds of video for coming too late, the server log says
+`Playback falls behind`. The playing message reports player state; it does not guarantee frames are arriving, and a
+static image can also produce no map updates, so packet silence alone does not identify a decoder failure.
 
 ### If you would like to create a browser, here are the steps to take:
 1) Use the `/mcav browser create` command to create a new browser on that screen. Browsers can only be created on maps.
@@ -149,7 +149,8 @@ MCV2 whenever a command has no flag, set `mcv2.default-codec` to `mcv2` in the [
 3) The players who watch are asked to load MCAV's MCV2 resource pack. Those who accept see the MCV2 picture once their
 client has loaded it; those who decline, or whose client cannot load it, keep seeing the dithered maps. The same pack
 serves every MCV2 screen of the server, so a player loads it once, and again only when a screen of a new video size
-starts.
+starts. Iris shader packs keep the MCV2 picture from showing: players who use them can install
+[the MCV2 client mod](../mcv2/client-mod.md), which shows them the dithered maps while the shaders are on.
 4) If players join through a proxy such as Velocity or BungeeCord, the pack cannot be served on the Minecraft port: set
 `mcv2.pack.hosting` to `http` (and open `mcv2.pack.http-port`) or to `website` in the MCV2 part of the [configuration file](./config.md).
 5) MCV2 encodes on the server's CPU, on the threads of `mcv2.encoder-threads`, which every MCV2 screen shares. When a

@@ -74,17 +74,23 @@ final class VMAudioClient implements Closeable {
    * Connects to the VNC server of a machine, enables its audio and starts receiving samples.
    *
    * @param address  the address of the VNC server
+   * @param password the password of the display, or an empty string for a display without one
    * @param sink     receives the samples
    * @param failures receives an unexpected end of the connection
    * @return the connected client
    * @throws IOException if the connection or the handshake fails
    */
-  static VMAudioClient connect(final InetSocketAddress address, final Sink sink, final BiConsumer<String, Throwable> failures)
-    throws IOException {
+  static VMAudioClient connect(
+    final InetSocketAddress address,
+    final String password,
+    final Sink sink,
+    final BiConsumer<String, Throwable> failures
+  ) throws IOException {
     final Socket socket = new Socket();
     // the read timeout only limits a pause, so a server that trickles its handshake is cut off once it took too long;
-    // a deadline cancelled in time never runs
-    final Executor later = CompletableFuture.delayedExecutor(HANDSHAKE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+    // a deadline cancelled in time never runs, and one that runs gets a thread of its own, as the common pool of the
+    // server may be busy with the tasks of other plugins for longer than the deadline
+    final Executor later = CompletableFuture.delayedExecutor(HANDSHAKE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS, VMAudioClient::onOwnThread);
     final CompletableFuture<Void> deadline = CompletableFuture.runAsync(() -> closeQuietly(socket), later);
     try {
       socket.connect(address, HANDSHAKE_TIMEOUT_MILLIS);
@@ -92,7 +98,7 @@ final class VMAudioClient implements Closeable {
       final DataInputStream in = new DataInputStream(new BufferedInputStream(rawInput));
       final OutputStream rawOutput = socket.getOutputStream();
       final DataOutputStream out = new DataOutputStream(new BufferedOutputStream(rawOutput));
-      handshake(in, out);
+      handshake(in, out, password);
       // afterwards the guest may stay silent for as long as it likes
       deadline.cancel(false);
       final VMAudioClient client = new VMAudioClient(socket, in, sink, failures);
@@ -105,19 +111,24 @@ final class VMAudioClient implements Closeable {
   }
 
   /**
-   * Agrees on RFB 3.8 without authentication, shares the display, and enables the audio in the format of the audio
-   * pipeline.
+   * Agrees on RFB 3.8 with the password of the display, or without authentication if the server asks for none, shares
+   * the display, and enables the audio in the format of the audio pipeline.
    *
-   * @param in  the stream from the server
-   * @param out the stream to the server
+   * @param in       the stream from the server
+   * @param out      the stream to the server
+   * @param password the password of the display, or an empty string for none
    * @throws IOException if the handshake fails
    */
-  static void handshake(final DataInputStream in, final DataOutputStream out) throws IOException {
+  static void handshake(final DataInputStream in, final DataOutputStream out, final String password) throws IOException {
     QemuAudioProtocol.readVersion(in);
     QemuAudioProtocol.writeVersion(out);
     out.flush();
-    QemuAudioProtocol.negotiateSecurity(in, out);
+    final boolean authenticate = QemuAudioProtocol.negotiateSecurity(in, out, password);
     out.flush();
+    if (authenticate) {
+      QemuAudioProtocol.answerChallenge(in, out, password);
+      out.flush();
+    }
     QemuAudioProtocol.readSecurityResult(in);
     QemuAudioProtocol.writeClientInit(out);
     out.flush();
@@ -132,8 +143,12 @@ final class VMAudioClient implements Closeable {
     try {
       while (true) {
         final QemuAudioProtocol.Message message = QemuAudioProtocol.readMessage(this.in, AudioFilter.FRAME_SIZE, size -> buffer);
-        if (message.getKind() == QemuAudioProtocol.Kind.DATA) {
+        final QemuAudioProtocol.Kind kind = message.getKind();
+        if (kind == QemuAudioProtocol.Kind.DATA) {
           this.sink.accept(message.getSamples(), message.getLength());
+        } else if (kind == QemuAudioProtocol.Kind.END) {
+          // QEMU sends nothing until the guest plays again, so the sink keeps the time of the pause itself
+          this.sink.quiet();
         }
       }
     } catch (final IOException | RuntimeException exception) {
@@ -172,6 +187,10 @@ final class VMAudioClient implements Closeable {
     this.closed = true;
     closeQuietly(this.socket);
     join(this.reader);
+  }
+
+  private static void onOwnThread(final Runnable task) {
+    Thread.ofVirtual().name("mcav-vm-audio-deadline").start(task);
   }
 
   /**
@@ -217,5 +236,12 @@ final class VMAudioClient implements Closeable {
      * @param length  the number of bytes of samples at its start, whole frames
      */
     void accept(byte[] samples, int length);
+
+    /**
+     * Learns that the guest stopped playing: nothing arrives until it plays again.
+     */
+    default void quiet() {
+      // a sink that does not keep the time of the sound has nothing to do
+    }
   }
 }

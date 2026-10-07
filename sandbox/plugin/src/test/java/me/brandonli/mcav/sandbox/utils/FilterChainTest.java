@@ -200,6 +200,13 @@ final class FilterChainTest {
   }
 
   @Test
+  void aFilterIsNamedByWhatComesBeforeItsFirstEqualsSign() {
+    // nothing comes before it here, and no filter has the empty name
+    final IllegalArgumentException unnamed = assertThrows(IllegalArgumentException.class, () -> this.parse("=invert"));
+    assertTrue(Objects.requireNonNull(unnamed.getMessage()).startsWith("no filter ; "), unnamed.getMessage());
+  }
+
+  @Test
   void boundsTheChain() {
     assertEquals(
       FilterChain.MAX_FILTERS,

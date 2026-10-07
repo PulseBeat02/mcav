@@ -34,6 +34,7 @@ import java.util.HexFormat;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -52,6 +53,8 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 import me.brandonli.mcav.bukkit.resourcepack.provider.http.HttpHosting;
 import net.kyori.adventure.resource.ResourcePackInfo;
 import net.kyori.adventure.resource.ResourcePackRequest;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventPriority;
@@ -105,6 +108,15 @@ public final class Mcv2PackServer {
   private static final String PACK_FAILED = "Cannot serve the MCV2 pack with {}";
 
   private static final String PACK_LOADED = "{} loaded the MCV2 pack {} {} ms after it was offered";
+
+  private static final String MODDED_CLIENT_LOADED =
+    "MCV2 pack loaded by {} (client brand {}) without the MCAV MCV2 Client mod, so active shaders cannot be verified. " +
+    "Iris shader packs can prevent decoding: with the mod, such a player sees the dithered maps.";
+
+  private static final String MODDED_CLIENT_ADVISORY =
+    "MCV2: your modded client may replace the video shaders. If video is blank or frozen, install the MCAV MCV2 Client " +
+    "mod, which shows you the dithered maps while Iris shaders are on, or turn off Iris shaders. Without the mod, MCAV " +
+    "cannot detect active shader settings.";
 
   private static final String NO_SLOT = "No MCV2 slot is free for a {}x{} video: the screen is dithered at that size";
 
@@ -353,7 +365,9 @@ public final class Mcv2PackServer {
     }
     final Slot slot = this.acquire(requested);
     if (slot == null) {
-      throw new IllegalStateException("Every one of the %d MCV2 slots plays a screen".formatted(Mcv2Pack.MAX_SCREENS));
+      throw new IllegalStateException(
+        String.format(Locale.getDefault(Locale.Category.FORMAT), "Every one of the %d MCV2 slots plays a screen", Mcv2Pack.MAX_SCREENS)
+      );
     }
     final Lease lease = new Lease(requested, (this.millis.getAsLong() / FRAME_ID_MILLIS) & Mcv2Format.MAX_U32, slot);
     slot.holder = lease;
@@ -678,7 +692,21 @@ public final class Mcv2PackServer {
     }
     final long took = this.millis.getAsLong() - since;
     LOGGER.info(PACK_LOADED, player.getName(), pack.id(), took);
+    this.adviseModdedViewer(player);
     return took;
+  }
+
+  /**
+   * Warns a player with a modded client, and the log, that shaders may keep MCV2 from decoding, unless their MCV2 client
+   * mod reported their shaders, which the screens then follow.
+   */
+  private void adviseModdedViewer(final Player player) {
+    final String brand = player.getClientBrandName();
+    if (brand == null || "vanilla".equals(brand) || this.viewers.hasShaderReport(player.getUniqueId())) {
+      return;
+    }
+    LOGGER.warn(MODDED_CLIENT_LOADED, player.getName(), brand);
+    player.sendMessage(Component.text(MODDED_CLIENT_ADVISORY, NamedTextColor.YELLOW));
   }
 
   /** Stops hosting a pack that is not served, and deletes it, on the writer thread unless it was shut down. */
@@ -756,7 +784,15 @@ public final class Mcv2PackServer {
   static String describe(final List<Mcv2Configuration> screens) {
     return screens
       .stream()
-      .map(screen -> "%d: %dx%d".formatted(screen.getStreamId(), screen.getVideoWidth(), screen.getVideoHeight()))
+      .map(screen ->
+        String.format(
+          Locale.getDefault(Locale.Category.FORMAT),
+          "%d: %dx%d",
+          screen.getStreamId(),
+          screen.getVideoWidth(),
+          screen.getVideoHeight()
+        )
+      )
       .collect(Collectors.joining(", ", "slots ", ""));
   }
 

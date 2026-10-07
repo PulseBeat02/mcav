@@ -37,6 +37,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.audio.AudioOutputs;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
+import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.sandbox.utils.CleanupUtils;
@@ -104,6 +105,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
   private static final String DRIVE_OPTION = "drive";
 
   private static final String FILE_KEY = "file=";
+  // QEMU's own user-mode network, which vm.allow-network gives a guest
+  private static final String QEMU_NETWORK = "user";
   // the least memory a machine may always have, whatever the memory of the server
   private static final long MIN_MACHINE_MEMORY_BYTES = 512L << 20;
 
@@ -431,7 +434,13 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VMPlayer
     final Path dataFolder = this.plugin.getDataPath();
     final Path imageFolder = DiskImages.folderOf(dataFolder);
     try {
-      return parseOptions(flags, imageFolder, maxMemoryBytes());
+      final VMConfiguration configuration = parseOptions(flags, imageFolder, maxMemoryBytes());
+      // without it, the guest gets mcav's network that reaches nothing, as no option of the command chooses one
+      final PluginDataConfigurationMapper settings = this.plugin.getConfiguration();
+      if (settings.isVmAllowNetwork()) {
+        configuration.network(QEMU_NETWORK);
+      }
+      return configuration;
     } catch (final IllegalArgumentException exception) {
       final String cause = exception.getMessage();
       final String reason = Objects.requireNonNullElse(cause, "The options are not valid");

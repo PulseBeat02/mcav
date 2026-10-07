@@ -26,9 +26,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -37,6 +40,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
@@ -159,6 +164,28 @@ final class CommandTaskTest {
     final IOException exception = assertThrows(IOException.class, () -> task.awaitCompletion(finished, failedOutput, errorOutput, null));
     final Throwable cause = exception.getCause();
     assertEquals(readFailure, cause);
+  }
+
+  @Test
+  @EnabledOnOs({ OS.LINUX, OS.MAC })
+  void outputThatCannotBeReadEndsTheProgramsThatOutlivedIt() throws IOException, InterruptedException {
+    // a shell that starts a long sleep, says its process id and ends a second later, while the sleep goes on
+    final Process shell = new ProcessBuilder("sh", "-c", "sleep 60 & echo $!; sleep 1").start();
+    final String line;
+    try (final BufferedReader output = new BufferedReader(new InputStreamReader(shell.getInputStream(), StandardCharsets.US_ASCII))) {
+      line = output.readLine();
+    }
+    final ProcessHandle sleeper = ProcessHandle.of(Long.parseLong(line.strip())).orElseThrow();
+    try {
+      final CommandTask task = new CommandTask("sh");
+      final Future<String> failedOutput = CompletableFuture.failedFuture(new IOException("broken pipe"));
+      final Future<String> errorOutput = CompletableFuture.completedFuture("");
+      assertThrows(IOException.class, () -> task.awaitCompletion(shell, failedOutput, errorOutput, null));
+      final boolean ended = sleeper.onExit().completeOnTimeout(null, 10, TimeUnit.SECONDS).join() != null;
+      assertTrue(ended, "the sleep the shell left running is ended with it");
+    } finally {
+      sleeper.destroyForcibly();
+    }
   }
 
   @Test

@@ -63,6 +63,10 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private static final String CANNOT_ENABLE = "MCAV cannot be enabled: {} ({})";
 
+  private static final String CANNOT_REENABLE = "Paper cannot re-enable this plugin after it has been disabled";
+
+  private static final String RESTART_REMEDY = "restart the server to enable MCAV";
+
   private static final String LOADING = "Loading MCAV";
 
   private static final String NO_QEMU = "QEMU is not installed, virtual machines will not be available";
@@ -100,6 +104,8 @@ public final class MCAVSandbox extends JavaPlugin {
   private boolean qemuInstalled;
   private boolean browserSupported;
 
+  private boolean hasBeenDisabled;
+
   /**
    * Constructs the plugin. Paper creates it for you; everything else is created in {@link #onEnable()}.
    */
@@ -108,6 +114,9 @@ public final class MCAVSandbox extends JavaPlugin {
   /**
    * Enables the plugin: installs the library and its modules, reads the configuration, starts the audio outputs
    * and the media managers, and registers the commands and the jukebox listener.
+   *
+   * <p>An instance that Paper has disabled cannot be enabled again because its class loader and lifecycle
+   * registrations are closed. A later enable attempt logs one error with an instruction to restart the server.
    *
    * <p>Two failures are setup problems of the server rather than bugs: a server that runs a Minecraft version the
    * library does not support, and Simple Voice Chat audio that is enabled in {@code config.yml} while the voicechat
@@ -120,6 +129,11 @@ public final class MCAVSandbox extends JavaPlugin {
   @Override
   public void onEnable() {
     this.logger = this.getComponentLogger();
+    // Paper closes the plugin loader and its lifecycle registrations when disabling it.
+    if (this.hasBeenDisabled) {
+      this.disableBecause(new IllegalStateException(CANNOT_REENABLE), RESTART_REMEDY);
+      return;
+    }
     try {
       this.loadMCAV();
       this.loadPluginData();
@@ -227,6 +241,7 @@ public final class MCAVSandbox extends JavaPlugin {
    */
   @Override
   public void onDisable() {
+    this.hasBeenDisabled = true;
     final VideoPlayerManager videos = this.videoPlayerManager;
     final ImageManager images = this.imageManager;
     final JukeBoxListener jukebox = this.listener;

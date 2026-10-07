@@ -90,6 +90,12 @@ public final class PluginDataConfigurationMapper {
 
   private static final String BROWSER_AUTOPLAY_SOUND = "browser.autoplay-sound";
 
+  private static final String BROWSER_CONFINE_CHROMIUM = "browser.confine-chromium";
+
+  private static final String BROWSER_REFUSED_HOSTS = "browser.refused-hosts";
+
+  private static final String VM_ALLOW_NETWORK = "vm.allow-network";
+
   private static final String VNC_ALLOWED_HOSTS = "vnc.allowed-hosts";
 
   private static final int DEFAULT_HTTP_PORT = 3000;
@@ -98,6 +104,7 @@ public final class PluginDataConfigurationMapper {
 
   private static final String INVALID_PORT = "Invalid {} {}, using {}";
 
+  private static final String INVALID_REFUSED_HOST = "Ignoring an entry of {} that is not a host name or address: {}";
   private static final String INVALID_THREADS = "Invalid {} {}, using half the processors";
 
   private static final String INVALID_NATIVE = "Invalid {} {}, using " + Mcv2Natives.AUTO;
@@ -132,6 +139,12 @@ public final class PluginDataConfigurationMapper {
   private boolean browserJavaScriptJit;
 
   private boolean browserAutoplaySound;
+
+  private boolean browserConfineChromium = true;
+
+  private List<String> browserRefusedHosts = List.of();
+
+  private boolean vmAllowNetwork;
 
   private int mcv2EncoderThreads;
 
@@ -189,6 +202,9 @@ public final class PluginDataConfigurationMapper {
     this.browserPrivateNetworks = config.getBoolean(BROWSER_PRIVATE_NETWORKS, false);
     this.browserJavaScriptJit = config.getBoolean(BROWSER_JAVASCRIPT_JIT, false);
     this.browserAutoplaySound = config.getBoolean(BROWSER_AUTOPLAY_SOUND, false);
+    this.browserConfineChromium = config.getBoolean(BROWSER_CONFINE_CHROMIUM, true);
+    this.browserRefusedHosts = readRefusedHosts(config);
+    this.vmAllowNetwork = config.getBoolean(VM_ALLOW_NETWORK, false);
     this.vncAllowList = readVncAllowList(config);
   }
 
@@ -219,9 +235,11 @@ public final class PluginDataConfigurationMapper {
   }
 
   private static int readPort(final FileConfiguration config, final String key, final int fallback) {
-    final int port = config.getInt(key, fallback);
-    if (port < 1 || port > MAX_PORT) {
-      LOGGER.warn(INVALID_PORT, key, port, fallback);
+    // only a YAML int is taken: getInt cuts a longer number down to its low 32 bits (4294967376 reads as port 80) and
+    // a fraction down to a whole number
+    final Object value = config.get(key, fallback);
+    if (!(value instanceof final Integer port) || port < 1 || port > MAX_PORT) {
+      LOGGER.warn(INVALID_PORT, key, value, fallback);
       return fallback;
     }
     return port;
@@ -239,10 +257,24 @@ public final class PluginDataConfigurationMapper {
     return fallback;
   }
 
+  private static List<String> readRefusedHosts(final FileConfiguration config) {
+    final List<String> hosts = new ArrayList<>();
+    for (final String entry : config.getStringList(BROWSER_REFUSED_HOSTS)) {
+      final String host = entry.strip();
+      if (host.isEmpty() || host.chars().anyMatch(character -> character == ',' || Character.isWhitespace(character))) {
+        LOGGER.warn(INVALID_REFUSED_HOST, BROWSER_REFUSED_HOSTS, entry);
+      } else {
+        hosts.add(host);
+      }
+    }
+    return List.copyOf(hosts);
+  }
+
   private static int readEncoderThreads(final FileConfiguration config) {
-    final int threads = config.getInt(MCV2_ENCODER_THREADS, 0);
-    if (threads < 0 || threads > EncoderPool.MAX_THREADS) {
-      LOGGER.warn(INVALID_THREADS, MCV2_ENCODER_THREADS, threads);
+    // only a YAML int is taken, as for a port
+    final Object value = config.get(MCV2_ENCODER_THREADS, 0);
+    if (!(value instanceof final Integer threads) || threads < 0 || threads > EncoderPool.MAX_THREADS) {
+      LOGGER.warn(INVALID_THREADS, MCV2_ENCODER_THREADS, value);
       return 0;
     }
     return threads;
@@ -315,6 +347,34 @@ public final class PluginDataConfigurationMapper {
    */
   public synchronized boolean isBrowserAutoplaySound() {
     return this.browserAutoplaySound;
+  }
+
+  /**
+   * Checks whether the browser confines Chromium where the system can.
+   *
+   * @return true if {@code browser.confine-chromium} is on
+   */
+  public synchronized boolean isBrowserConfineChromium() {
+    return this.browserConfineChromium;
+  }
+
+  /**
+   * Gets the hosts whose addresses pages of the browser may not reach, besides the private ones and the server's own.
+   *
+   * @return the names and addresses of {@code browser.refused-hosts}, unmodifiable
+   */
+  public synchronized List<String> getBrowserRefusedHosts() {
+    return this.browserRefusedHosts;
+  }
+
+  /**
+   * Checks whether virtual machines get QEMU's own user-mode network, which reaches the internet and every service of
+   * the server's loopback address, instead of one that reaches nothing.
+   *
+   * @return true if {@code vm.allow-network} is on
+   */
+  public synchronized boolean isVmAllowNetwork() {
+    return this.vmAllowNetwork;
   }
 
   /**

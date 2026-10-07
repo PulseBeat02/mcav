@@ -298,13 +298,16 @@ final class AudioListenerTest {
   @Test
   void reportsAListenerWhoseWriteIsBlockedForTooLong() throws Exception {
     this.blockTheFirstSend();
-    final AudioListener listener = this.createListener(50, 1024);
+    final long limitMillis = 50L;
+    final long limitNanos = TimeUnit.MILLISECONDS.toNanos(limitMillis);
+    // the sender reads the clock when it takes the chunk, and the next offer finds the write running a nanosecond
+    // longer than the limit
+    final LongSupplier clock = scriptedClock(0L, limitNanos + 1);
+    final AudioListener listener = this.createListener(limitMillis, 1024, clock);
     listener.start();
     final byte[] first = chunk(10, 1);
     listener.offer(first);
     this.awaitFirstSend();
-    // the write started before the answer was entered, so it is now blocked for twice the send time limit
-    Thread.sleep(100);
     final byte[] next = chunk(10, 2);
     final boolean queued = listener.offer(next);
     assertFalse(queued);

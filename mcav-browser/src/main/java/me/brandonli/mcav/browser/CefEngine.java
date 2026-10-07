@@ -26,8 +26,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import me.friwi.jcefmaven.CefAppBuilder;
@@ -51,7 +55,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * denying every permission prompt, with a mock keychain on macOS and a basic password store on Linux, and with V8's
  * JIT compiler off unless the configuration allows it. The profile lives in the folder the server gave, and the
  * remote debugging port stays closed. Unless the configuration allows private networks, every connection goes
- * through a {@link NetworkGuard} that lets pages reach public addresses only.
+ * through a {@link NetworkGuard} that lets pages reach public addresses only. Chromium starts on a thread of its own,
+ * which {@link ChromiumConfinement} confines first where the configuration asks for it.
  */
 final class CefEngine implements HelperEngine {
 
@@ -62,6 +67,17 @@ final class CefEngine implements HelperEngine {
   private static final int PLACING_ATTEMPTS = 2;
   // what the placing of the scripts completes with when no answer arrived in time, which no JSON answer can be
   private static final String NOT_CONFIRMED = "not confirmed";
+  private static final String CHROMIUM_THREAD = "mcav-browser-chromium";
+
+  // the features CEF disables itself: CEF passes them in a --disable-features switch before the switches of the helper,
+  // and Chromium keeps only the last of several, so the helper's switch repeats them
+  @VisibleForTesting
+  static final List<String> CEF_DISABLED_FEATURES = List.of(
+    "AutofillActorMode",
+    "GlicActorUi",
+    "KillOnInvalidNavigationHeaders",
+    "LensOverlay"
+  );
 
   private final CountDownLatch terminated;
   private volatile @Nullable NetworkGuard guard;
@@ -114,6 +130,15 @@ final class CefEngine implements HelperEngine {
     switches.add("--no-first-run");
     switches.add("--site-per-process");
     switches.add("--disable-webgpu");
+    // Chromium's own services contact Google when it starts, which tells Google that a browser runs on this server: the
+    // sign-in and search services are sent to names that cannot exist (RFC 6761), and the network time service and the
+    // preconnect to the search engine are turned off
+    switches.add("--gaia-url=https://accounts.invalid");
+    switches.add("--google-base-url=https://www.invalid");
+    final List<String> disabledFeatures = new ArrayList<>(CEF_DISABLED_FEATURES);
+    disabledFeatures.add("NetworkTimeServiceQuerying");
+    disabledFeatures.add("PreconnectToSearch");
+    switches.add("--disable-features=" + String.join(",", disabledFeatures));
     if (!configuration.isJavaScriptJit()) {
       switches.add("--js-flags=--jitless");
     }
@@ -183,6 +208,47 @@ final class CefEngine implements HelperEngine {
     final CefSettings settings = builder.getCefSettings();
     configureSettings(settings, configuration);
     builder.setAppHandler(new StateListener(this.terminated, events));
+    // a confinement holds for the thread that starts Chromium and everything it starts, the AWT event thread, CEF's
+    // threads and Chromium's processes among them, while the helper's own threads stay free: the guard and the display
+    // connect anywhere, and the main thread ends the JVM
+    runOnOwnThread(CHROMIUM_THREAD, () -> {
+      events.onNotice(ChromiumConfinement.confine(configuration, isLinux));
+      this.startChromium(builder, configuration, painter, events);
+      return null;
+    });
+  }
+
+  /**
+   * Runs a task on a new thread and waits for it, so that a restriction the task puts on its thread holds for that
+   * thread and what it starts only.
+   *
+   * @param name the name of the thread
+   * @param task the task
+   * @throws Exception what the task threw
+   */
+  @VisibleForTesting
+  static void runOnOwnThread(final String name, final Callable<?> task) throws Exception {
+    final FutureTask<?> future = new FutureTask<>(task);
+    final Thread thread = new Thread(future, name);
+    thread.start();
+    try {
+      future.get();
+    } catch (final ExecutionException exception) {
+      // a task throws an exception or an error, never anything else
+      final Throwable cause = Objects.requireNonNullElse(exception.getCause(), exception);
+      if (cause instanceof final Error error) {
+        throw error;
+      }
+      throw (Exception) cause;
+    }
+  }
+
+  private void startChromium(
+    final CefAppBuilder builder,
+    final HelperConfiguration configuration,
+    final McavOffscreenBrowser.PaintListener painter,
+    final HelperEvents events
+  ) throws Exception {
     final CefApp created = builder.build();
     this.app = created;
     final String versionText = describe(created.getVersion());
@@ -220,7 +286,7 @@ final class CefEngine implements HelperEngine {
     if (configuration.isPrivateNetworks()) {
       return 0;
     }
-    final NetworkGuard startedGuard = NetworkGuard.start(events::onNotice);
+    final NetworkGuard startedGuard = NetworkGuard.start(events::onNotice, configuration.getRefusedHosts());
     this.guard = startedGuard;
     return startedGuard.getPort();
   }
@@ -256,7 +322,8 @@ final class CefEngine implements HelperEngine {
    * would miss them. A DevTools client of JCEF can lose its answers, and with them the events of the page, so without
    * an answer in time the client is closed and a new one places the scripts again, which run once in a document
    * however often they are placed. After the last attempt, or on a failure, the page is loaded anyway and a notice says
-   * so; the page then may lack its sound and open new windows nowhere.
+   * so; the page then may lack its sound and open new windows nowhere, until the answer of the last attempt arrives
+   * after all, as it does late on a busy machine: then the page loads again, and its new document runs the scripts.
    *
    * @param created       the browser
    * @param url           the address of the page
@@ -295,7 +362,9 @@ final class CefEngine implements HelperEngine {
       last = devTools.executeDevToolsMethod(call.getMethod(), call.getParameters());
       last.exceptionally(CefEngine::logFailedCall);
     }
-    final CompletableFuture<String> placed = last.completeOnTimeout(NOT_CONFIRMED, timeoutMillis, TimeUnit.MILLISECONDS);
+    // a copy times out, so the answer itself can still arrive late
+    final CompletableFuture<String> answered = last;
+    final CompletableFuture<String> placed = answered.copy().completeOnTimeout(NOT_CONFIRMED, timeoutMillis, TimeUnit.MILLISECONDS);
     final CompletableFuture<String> loading = placed.whenComplete((answer, failure) -> {
       final boolean confirmed = failure == null && !NOT_CONFIRMED.equals(answer);
       if (!confirmed && attempt < PLACING_ATTEMPTS) {
@@ -305,6 +374,12 @@ final class CefEngine implements HelperEngine {
       }
       if (!confirmed) {
         notices.accept("The scripts of the page were not confirmed in " + attempt + " attempts; it loads anyway");
+        final CompletableFuture<String> late = answered.thenApply(lateAnswer -> {
+          notices.accept("The scripts of the page were confirmed late; it loads again");
+          EventQueue.invokeLater(created::reload);
+          return lateAnswer;
+        });
+        late.exceptionally(CefEngine::logFailedCall);
       }
       EventQueue.invokeLater(() -> created.loadURL(url));
     });

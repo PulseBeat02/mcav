@@ -27,10 +27,12 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.LongConsumer;
 import me.brandonli.mcav.bukkit.media.mcv2.FrameParser;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
@@ -45,7 +47,9 @@ import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.AnnotationCommandFeature;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.ArgumentUtils;
+import me.brandonli.mcav.sandbox.utils.TaskUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.scheduler.BukkitTask;
@@ -63,6 +67,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * MCV2-encoded on a wall of maps, looping, without a video player or an encoder. It shows streams made offline, such as
  * the encoder's own conformance streams, and is how the pack and the transport are tested in-game: {@code play} sends a
  * frame every few server ticks, {@code stream} at a frame rate on its own thread, off the server's 20 ticks a second.
+ * Both read the stream file on a thread of their own, as a file of up to a gibibyte, or a busy disk, would hold the
+ * server up for seconds, and open the screen on the main thread once it is read.
  * {@code /mcav mcv2 encode} makes such a stream from a video file ahead of time, the path for a server too small to
  * encode while a video plays, and {@code /mcav mcv2 cancel} stops it.
  *
@@ -102,6 +108,15 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   private @Nullable Thread encoding;
 
+  /** Reads stream files, one at a time, so that commands given quickly one after another hold one file at a time. */
+  private final ExecutorService reads;
+
+  /**
+   * How many streams were asked for or stopped: a stream whose file is read once a later play, stream or stop command
+   * was given is dropped. Read and written on the main thread.
+   */
+  private long loads;
+
   private Opener opener = Mcv2FileEncoder::ffmpeg;
 
   /** Opens a video file's frames at a size. */
@@ -127,13 +142,16 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   public Mcv2PlayCommand(final MCAVSandbox plugin) {
     Preconditions.checkNotNull(plugin, "Plugin must not be null");
     this.plugin = plugin;
+    this.reads = Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name("mcav-mcv2-stream-read").factory());
   }
 
   /**
    * Handles {@code /mcav mcv2 play <playerSelector> <blockDimensions> <mapId> <ticks> <file>}: plays an MCV2 stream,
    * a file of frames each preceded by its length as a little-endian 32-bit number, one frame every {@code ticks}
    * server ticks, on the wall built with {@code /mcav screen}. The players are sent the MCV2 pack first; playback
-   * starts over from the first frame whenever a player starts watching. Replaces the stream played before.
+   * starts over from the first frame whenever a player starts watching. Replaces the stream played before. The file is
+   * read off the main thread, and the screen opens once it is read, unless another play, stream or stop command came
+   * in the meantime.
    *
    * <p>Requires the permission {@code mcav.command.mcv2.play}.
    *
@@ -155,12 +173,10 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     @Range(min = "1") final int ticks,
     @Quoted final String file
   ) {
-    final Mcv2Playback playback = this.open(sender, playerSelector, blockDimensions, mapId, file);
-    if (playback == null) {
-      return;
-    }
-    this.task = Bukkit.getScheduler().runTaskTimerAsynchronously(this.plugin, playback, 0, ticks);
-    sender.sendMessage(Message.MCV2_PLAY.build());
+    this.load(sender, playerSelector, blockDimensions, mapId, file, playback -> {
+      this.task = Bukkit.getScheduler().runTaskTimerAsynchronously(this.plugin, playback, 0, ticks);
+      sender.sendMessage(Message.MCV2_PLAY.build());
+    });
   }
 
   /**
@@ -189,43 +205,88 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     @Range(min = "1", max = "240") final int fps,
     @Quoted final String file
   ) {
-    final Mcv2Playback playback = this.open(sender, playerSelector, blockDimensions, mapId, file);
-    if (playback == null) {
-      return;
-    }
-    final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
-      Thread.ofPlatform().daemon().name("mcav-mcv2-stream").factory()
-    );
-    this.streaming = executor.scheduleAtFixedRate(playback, 0, TimeUnit.SECONDS.toNanos(1) / fps, TimeUnit.NANOSECONDS);
-    this.streamer = executor;
-    sender.sendMessage(Message.MCV2_PLAY.build());
+    this.load(sender, playerSelector, blockDimensions, mapId, file, playback -> {
+      final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
+        Thread.ofPlatform().daemon().name("mcav-mcv2-stream").factory()
+      );
+      this.streaming = executor.scheduleAtFixedRate(playback, 0, TimeUnit.SECONDS.toNanos(1) / fps, TimeUnit.NANOSECONDS);
+      this.streamer = executor;
+      sender.sendMessage(Message.MCV2_PLAY.build());
+    });
   }
 
   /**
-   * Opens a screen for a stream: reads it, stops the stream played before, offers the players the pack and opens the
-   * channel.
+   * Starts a stream: checks the wall's size, then reads the stream file on the reading thread, and opens the screen and
+   * starts the playback on the main thread once it is read, unless a later play, stream or stop command came first.
+   * Errors are reported to the sender.
    *
-   * @return the playback to schedule, or null when the wall, the file or the stream is wrong, which is reported
+   * @param start schedules the playback, on the main thread
    */
-  private @Nullable Mcv2Playback open(
+  private void load(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
     final String blockDimensions,
     final int mapId,
-    final String file
+    final String file,
+    final Consumer<Mcv2Playback> start
   ) {
     final Pair<Integer, Integer> blocks = AbstractVideoCommand.parseScreenDimensions(sender, blockDimensions);
     if (blocks == null) {
-      return null;
+      return;
     }
-    final List<byte[]> frames;
-    final Mcv2Frame first;
+    final long load = ++this.loads;
+    this.reads.execute(() ->
+      TaskUtils.runOnMainThread(this.plugin, this.readStream(load, sender, playerSelector, blocks, mapId, file, start))
+    );
+  }
+
+  /**
+   * Reads a stream file and its first frame, on the reading thread.
+   *
+   * @return what the main thread does next: open the screen, or tell the sender why the file cannot be played
+   */
+  private Runnable readStream(
+    final long load,
+    final CommandSender sender,
+    final MultiplePlayerSelector playerSelector,
+    final Pair<Integer, Integer> blocks,
+    final int mapId,
+    final String file,
+    final Consumer<Mcv2Playback> start
+  ) {
     try {
-      frames = read(this.streamFile(file));
-      first = FrameParser.parse(frames.getFirst());
+      final List<byte[]> frames = read(this.streamFile(file));
+      final Mcv2Frame first = FrameParser.parse(frames.getFirst());
+      return () -> this.open(load, sender, playerSelector, blocks, mapId, frames, first, start);
     } catch (final IOException | Mcv2Exception | RuntimeException exception) {
-      sender.sendMessage(Message.MCV2_FILE_ERROR.build(String.valueOf(exception.getMessage())));
-      return null;
+      final Component message = Message.MCV2_FILE_ERROR.build(String.valueOf(exception.getMessage()));
+      return () -> this.report(load, sender, message);
+    }
+  }
+
+  /** Tells the sender why their stream cannot be played, unless a later command replaced it. Runs on the main thread. */
+  private void report(final long load, final CommandSender sender, final Component message) {
+    if (load == this.loads) {
+      sender.sendMessage(message);
+    }
+  }
+
+  /**
+   * Opens the screen of a stream that was read, unless a later command replaced it: stops the stream played before,
+   * offers the players the pack, opens the channel and starts the playback. Runs on the main thread.
+   */
+  private void open(
+    final long load,
+    final CommandSender sender,
+    final MultiplePlayerSelector playerSelector,
+    final Pair<Integer, Integer> blocks,
+    final int mapId,
+    final List<byte[]> frames,
+    final Mcv2Frame first,
+    final Consumer<Mcv2Playback> start
+  ) {
+    if (load != this.loads) {
+      return;
     }
     final Pair<Integer, Integer> resolution = Pair.pair(first.getWidth(), first.getHeight());
     final Mcv2Support support = this.plugin.getMcv2Support();
@@ -238,19 +299,19 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers())
     );
     if (configuration == null) {
-      return null;
+      return;
     }
     this.stop();
     final Mcv2PackServer.Lease slot = support.open(sender, configuration);
     if (slot == null) {
-      return null;
+      return;
     }
     final Mcv2Configuration slotted = slot.getConfiguration();
     final Mcv2Channel opened = new Mcv2Channel(slotted, support.getViewers());
     opened.open();
     this.channel = opened;
     this.lease = slot;
-    return new Mcv2Playback(opened, frames, slotted.getFirstFrameId());
+    start.accept(new Mcv2Playback(opened, frames, slotted.getFirstFrameId()));
   }
 
   /**
@@ -302,7 +363,9 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       }
       sender.sendMessage(
         Message.MCV2_ENCODE_START.build(
-          "%s into %s at %dx%d with the %s profile, on %d encoder threads".formatted(
+          String.format(
+            Locale.getDefault(Locale.Category.FORMAT),
+            "%s into %s at %dx%d with the %s profile, on %d encoder threads",
             source,
             target,
             width,
@@ -461,10 +524,12 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   }
 
   /**
-   * Stops the stream and the file encode when the plugin is disabled.
+   * Stops the stream, the reading of a stream file and the file encode when the plugin is disabled.
    */
   @Override
   public void shutdown() {
+    this.loads++;
+    this.reads.shutdownNow();
     this.stop();
     final Thread running;
     synchronized (this) {
@@ -477,7 +542,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   }
 
   /**
-   * Handles {@code /mcav mcv2 stop}: stops the stream and removes the screen's page frames.
+   * Handles {@code /mcav mcv2 stop}: stops the stream, also one whose file is still being read, and removes the screen's
+   * page frames.
    *
    * @param sender who ran the command
    */
@@ -485,6 +551,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.mcv2.play")
   @CommandDescription("mcav.command.mcv2.stop.info")
   public void stop(final CommandSender sender) {
+    this.loads++;
     this.stop();
     sender.sendMessage(Message.MCV2_STOP.build());
   }

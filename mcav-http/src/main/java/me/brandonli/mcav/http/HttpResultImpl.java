@@ -32,6 +32,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
+import org.apache.catalina.webresources.TomcatURLStreamHandlerFactory;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -175,6 +176,8 @@ public final class HttpResultImpl implements HttpResult {
 
   private ConfigurableApplicationContext createApplication() {
     keepTheLoggingOfTheHost();
+    // The JVM keeps a URL factory forever; a replacement plugin loader must not register another copy of Tomcat's.
+    TomcatURLStreamHandlerFactory.disable();
 
     final SpringApplicationBuilder builder = new SpringApplicationBuilder(HttpServerApplication.class);
     builder.web(WebApplicationType.SERVLET);
@@ -283,6 +286,7 @@ public final class HttpResultImpl implements HttpResult {
   /**
    * Closes the Spring context with the class loader of this class as the context class loader of the thread, because
    * Spring looks up its own resources through it while shutting down, and restores the previous one afterwards.
+   * Temporarily clears an existing interrupt so Spring can acquire its shutdown lock, then restores it.
    * Visible for testing.
    *
    * @param current the context to close
@@ -293,10 +297,15 @@ public final class HttpResultImpl implements HttpResult {
     final ClassLoader previous = thread.getContextClassLoader();
     final ClassLoader own = HttpResultImpl.class.getClassLoader();
     thread.setContextClassLoader(own);
+    // Spring silently skips closing if the caller's interrupt prevents taking its shutdown lock.
+    final boolean interrupted = Thread.interrupted();
     try {
       current.close();
     } finally {
       thread.setContextClassLoader(previous);
+      if (interrupted) {
+        thread.interrupt();
+      }
     }
   }
 
