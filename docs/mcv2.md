@@ -634,9 +634,11 @@ percentile time to encode a 1080p frame:
 A 30 fps frame has 33 ms, so 1080p30 is met on 12 threads. With the default budget of 6 threads, `live` on gameplay
 misses it at the 95th percentile while its mean, 29 ms, still fits: a late frame now and then. 1080p60 isn't met: even
 `live-fast` finishes a frame every 19.7 ms on the proxy and 31.3 ms on gameplay at the 95th percentile, against the 16.7
-ms a 60 fps frame has. Compared with `ship` at equal VMAF on the wire, `live` costs -3.4 % on the proxy and +6.9 % on
-gameplay, `adaptive` -3.8 % and +14.3 %, and `live-fast` +18.4 % and +17.1 %. Pre-encoding a minute of 1080p30 with
-`ship` takes 26 minutes on four threads.
+ms a 60 fps frame has. These are times on a quiet machine. On the same machine busy with other work (a load average of
+54 on its 12 threads), `live` took 73 ms per gameplay frame at the 95th percentile on 6 threads, so measure your own
+server rather than take them as a promise. Compared with `ship` at equal VMAF on the wire, `live` costs -3.4 % on the
+proxy and +6.9 % on gameplay, `adaptive` -3.8 % and +14.3 %, and `live-fast` +18.4 % and +17.1 %. Pre-encoding a
+minute of 1080p30 with `ship` takes 26 minutes on four threads.
 
 **The server.** Every MCV2 screen shares one encoder budget, half the processors by default, and the encoders never
 run on the server thread: with one or two live 1080p screens the server kept 20 TPS, and the tick's 95th percentile
@@ -674,7 +676,9 @@ configuration, hosting the pack, the client mod for Iris shader players and the 
   picture. With Iris 1.11.7 the MCV2 client mod decodes it anyway: it builds the transport strip on the CPU from the
   frame's maps after the shader pack's final image and runs the pack's chain over it. With another Iris version the mod
   tells the server, which shows that player the dithered maps. Sodium, and Iris with its shaders off, show MCV2
-  normally. Improved transparency shows no MCV2 picture, and the Vulkan backend was never tested.
+  normally. Improved transparency shows no MCV2 picture.
+- **Tested clients.** Every client I tested ran on Linux and drew in software (Mesa's llvmpipe). NVIDIA, AMD and Apple
+  GPUs, Windows and macOS clients, and the Vulkan backend were never tested.
 - **The top of the screen.** While a page frame is in view, the strip takes the top rows of the screen (41 rows in an
   854x480 window with one screen of eight slots, 25 at 1080p), and the chain covers them with the scene row just below,
   so a detailed sky or ceiling smears there.

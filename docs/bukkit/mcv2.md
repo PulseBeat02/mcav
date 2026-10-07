@@ -34,7 +34,7 @@ a player without the pack sees nothing new on the wall.
 
 | Your source | Preset | Why |
 |---|---|---|
-| Anything that plays live: a browser, a VM, a VNC desktop, a stream, a camera, and video files by default | `live` (chosen for you) | The best picture per bit that encodes a 1080p30 frame in time on a 6-core server; a screen that cannot keep up steps down by itself |
+| Anything that plays live: a browser, a VM, a VNC desktop, a stream, a camera, and video files by default | `live` (chosen for you) | The best picture per bit of the live presets. Whether it keeps up depends on the source and the processors free; a screen that cannot steps down by itself to a faster preset, fewer frames or a smaller size |
 | Fast gameplay or a busy picture on a small encoder budget | `LIVE_ADAPTIVE` | Switches to the faster search while the picture moves |
 | A server that cannot keep up with `live` at all | `LIVE_FAST` | The fastest search |
 | Viewers whose clients draw fewer frames a second than the video has | `LIVE_KEYFRAME` | Every frame predicts from the last keyframe, so a frame a client missed costs it nothing, at a higher rate |
@@ -72,11 +72,13 @@ The server log says at startup `MCV2 encoders share N of M processors` and which
 
 ### The Resource Pack
 
-One pack decodes every MCV2 screen of the server, up to eight at once, each in a slot of its own video size. A screen
-of a size the pack already has starts and stops without anyone reloading; only a screen of a new video size changes the
-pack, and its viewers are asked to load the new one. Loading the pack reloads the client's resources, a hitch of a
-second or more. A player who joins, rejoins or changes world while a screen plays for them is offered the pack on the
-spot and sees the dithered maps until it has loaded.
+One pack decodes every MCV2 screen of the server, up to eight at once, each in a slot of its own video size. A screen of
+a size the pack already has starts and stops without anyone reloading; only a screen of a new video size changes the
+pack, and its viewers are asked to load the new one. A screen's slot stays in the pack for a minute after it stops, so
+the next video of that size takes it without a reload; then the pack is rebuilt without it, or taken back when no screen
+plays. Loading the pack reloads the client's resources, a hitch of a second or more. A player who joins, rejoins or
+changes world while a screen plays for them is offered the pack on the spot and sees the dithered maps until it has
+loaded.
 
 | `mcv2.pack.hosting` | How | Pick it when |
 |---|---|---|
