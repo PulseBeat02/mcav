@@ -59,6 +59,8 @@ final class ShaderDecoder {
 
   private final BooleanSupplier shaderPackInUse;
 
+  private final BooleanSupplier shadowPass;
+
   private final Supplier<Optional<String>> config;
 
   private final LongSupplier clock;
@@ -77,12 +79,15 @@ final class ShaderDecoder {
 
   private int hooks;
 
+  private boolean levelProjection;
+
   /**
    * Constructs the decoder.
    *
    * @param testedIris      whether the Iris installed is the version this decoder was proven with: another version may
    *                        draw in another order, so this stays off for it
    * @param shaderPackInUse whether Iris draws a shader pack now
+   * @param shadowPass      whether Iris is drawing its shadow pass, which draws the maps again from the sun's view
    * @param config          the text of the pack's generated layout, empty while no MCV2 pack is loaded
    * @param clock           nanoseconds
    * @param matrices        reads the game's matrices
@@ -91,6 +96,7 @@ final class ShaderDecoder {
   ShaderDecoder(
     final boolean testedIris,
     final BooleanSupplier shaderPackInUse,
+    final BooleanSupplier shadowPass,
     final Supplier<Optional<String>> config,
     final LongSupplier clock,
     final GameMatrices matrices,
@@ -98,6 +104,7 @@ final class ShaderDecoder {
   ) {
     this.testedIris = testedIris;
     this.shaderPackInUse = shaderPackInUse;
+    this.shadowPass = shadowPass;
     this.config = config;
     this.clock = clock;
     this.matrices = matrices;
@@ -130,24 +137,38 @@ final class ShaderDecoder {
   }
 
   /**
-   * A map was posed.
+   * A map was posed. Iris's shadow pass poses the maps again, from the sun's view, which is not where the screens are.
    *
    * @param texture the map's texture
    * @param pose    the pose the map is drawn with: its top left corner is at the origin, just in front of the frame
    */
   void posed(final Object texture, final PoseStack.Pose pose) {
     this.hooks |= POSED;
+    // a decoder of another Iris never decodes, and only the tested one is asked about its shadow pass
+    if (!this.testedIris || this.shadowPass.getAsBoolean()) {
+      return;
+    }
     final float[] corner = TransportStrip.transform(this.matrices.pose(pose), 0, 0, MAP_DEPTH, 1);
     this.frame.posed(texture, corner[0], corner[1], corner[2]);
   }
 
+  /** The game is about to set the projection it renders the level with: the next one {@link #projected} is that one. */
+  void projecting() {
+    this.levelProjection = true;
+  }
+
   /**
-   * The game set the projection it renders the level with, its camera's own with the view bobbing and the screen
-   * effects applied.
+   * The game set a projection. Only the one it renders the level with is the frame's: Iris sets its shadow pass's and
+   * its hands' the same way. With shaders on, Iris draws the view bobbing through the camera's view rotation, which
+   * {@link #rendered} reads, instead of through this projection.
    *
    * @param projection the projection, a JOML 4x4 float matrix
    */
   void projected(final @Nullable Object projection) {
+    if (!this.levelProjection) {
+      return;
+    }
+    this.levelProjection = false;
     this.hooks |= PROJECTED;
     this.frame.projected(GameMatrices.floats(projection));
   }

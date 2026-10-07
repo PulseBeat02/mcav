@@ -50,7 +50,15 @@ final class MixinsTest {
   }
 
   @Test
-  void theProjectionBufferHandsOnTheProjectionOfTheLevel() {
+  void theGameRendererSaysTheNextProjectionIsTheLevels() {
+    try (final MockedStatic<Mcv2Shaders> shaders = mockStatic(Mcv2Shaders.class)) {
+      new GameRendererMixin() {}.mcav$projecting(new CallbackInfo("renderLevel", false));
+      shaders.verify(Mcv2Shaders::projecting);
+    }
+  }
+
+  @Test
+  void theProjectionBufferHandsOnEveryProjection() {
     final Object projection = new Object();
     try (final MockedStatic<Mcv2Shaders> shaders = mockStatic(Mcv2Shaders.class)) {
       new ProjectionMatrixBufferMixin() {}.mcav$projected(projection, new CallbackInfoReturnable<>("getBuffer", false));

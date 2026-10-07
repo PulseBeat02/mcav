@@ -78,8 +78,13 @@ public final class Mcv2Shaders {
     }
   }
 
+  /** The game is about to set the projection it renders the level with. */
+  public static void projecting() {
+    ShaderDecoder.current().ifPresent(ShaderDecoder::projecting);
+  }
+
   /**
-   * The game set the projection it renders the level with.
+   * The game set a projection, the level's or another.
    *
    * @param projection the projection, a JOML 4x4 float matrix
    */
@@ -124,7 +129,15 @@ public final class Mcv2Shaders {
   private static ShaderDecoder decoder(final Optional<String> irisVersion, final GameMatrices matrices) {
     final MinecraftStripOutput output = new MinecraftStripOutput(Mcv2Shaders::mainTarget, Mcv2Shaders::outlineChain, Mcv2Shaders::commands);
     final boolean tested = irisVersion.filter(IrisShaders::isTested).isPresent();
-    return new ShaderDecoder(tested, Mcv2Shaders::shaderPackInUse, Mcv2Shaders::layout, System::nanoTime, matrices, output);
+    return new ShaderDecoder(
+      tested,
+      Mcv2Shaders::shaderPackInUse,
+      Mcv2Shaders::shadowPass,
+      Mcv2Shaders::layout,
+      System::nanoTime,
+      matrices,
+      output
+    );
   }
 
   /** The game's main target, which Iris's final pass writes the shader pack's image into. */
@@ -144,6 +157,10 @@ public final class Mcv2Shaders {
 
   static boolean shaderPackInUse() {
     return IrisApi.getInstance().isShaderPackInUse();
+  }
+
+  static boolean shadowPass() {
+    return IrisApi.getInstance().isRenderingShadowPass();
   }
 
   /** The text of the MCV2 pack's generated layout, empty while no MCV2 pack is loaded. */

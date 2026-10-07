@@ -63,6 +63,8 @@ final class ShaderDecoderTest {
 
   private final AtomicBoolean shaderPack = new AtomicBoolean(true);
 
+  private final AtomicBoolean shadowPass = new AtomicBoolean();
+
   private final AtomicInteger layoutReads = new AtomicInteger();
 
   private final AtomicReference<Optional<String>> config = new AtomicReference<>(Optional.of(PackLayoutTest.config("7u", "2", "0", 1)));
@@ -79,6 +81,7 @@ final class ShaderDecoderTest {
     return new ShaderDecoder(
       testedIris,
       this.shaderPack::get,
+      this.shadowPass::get,
       () -> {
         this.layoutReads.incrementAndGet();
         return this.config.get();
@@ -103,6 +106,7 @@ final class ShaderDecoderTest {
     final PoseStack stack = new PoseStack();
     stack.translate(1F, 2F, 3F);
     decoder.posed("anchor", stack.last());
+    decoder.projecting();
     decoder.projected(projection());
   }
 
@@ -120,6 +124,61 @@ final class ShaderDecoderTest {
   }
 
   @Test
+  void onlyTheProjectionTheGameRendersTheLevelWithIsTheFrames() throws ReflectiveOperationException {
+    final ShaderDecoder decoder = this.decoder(true, 854, 480);
+    decoder.extracted("page", PAGE);
+    decoder.extracted("anchor", ANCHOR);
+    final PoseStack stack = new PoseStack();
+    stack.translate(1F, 2F, 3F);
+    decoder.posed("anchor", stack.last());
+    final PoseStack other = new PoseStack();
+    other.translate(9F, 9F, 9F);
+    final Object elsewhere = PoseStack.Pose.class.getMethod("pose").invoke(other.last());
+    // Iris's hand projection, before the level's; the level's; then Iris's shadow projection
+    decoder.projected(elsewhere);
+    decoder.projecting();
+    decoder.projected(projection());
+    decoder.projected(elsewhere);
+    decoder.rendered(this.allocator, this.camera);
+    final ArgumentCaptor<byte[]> strip = ArgumentCaptor.forClass(byte[].class);
+    verify(this.output).decode(strip.capture(), eq(ROWS), same(this.allocator));
+    final StripAnchor anchor = StripAnchor.of(ANCHOR, 1F, 2F, -0.01F + 3F);
+    assertArrayEquals(TransportStrip.build(LAYOUT, 854, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), strip.getValue());
+    // without the game's word, no projection is the level's: the frame is left alone
+    final ShaderDecoder unmarked = this.decoder(true, 854, 480);
+    unmarked.extracted("page", PAGE);
+    unmarked.extracted("anchor", ANCHOR);
+    unmarked.posed("anchor", stack.last());
+    unmarked.projected(projection());
+    unmarked.rendered(this.allocator, this.camera);
+    verify(this.output).decode(any(), anyInt(), any());
+    assertFalse(unmarked.decodesUnderShaders(), "the level's projection never came");
+  }
+
+  @Test
+  void theMapsOfIrissShadowPassAreNotWhereTheScreensAre() throws ReflectiveOperationException {
+    final ShaderDecoder decoder = this.decoder(true, 854, 480);
+    decoder.extracted("page", PAGE);
+    decoder.extracted("anchor", ANCHOR);
+    // the shadow pass poses the anchor from the sun's view, here before the camera's pass does
+    this.shadowPass.set(true);
+    final PoseStack sun = new PoseStack();
+    sun.translate(50F, 60F, 70F);
+    decoder.posed("anchor", sun.last());
+    this.shadowPass.set(false);
+    final PoseStack stack = new PoseStack();
+    stack.translate(1F, 2F, 3F);
+    decoder.posed("anchor", stack.last());
+    decoder.projecting();
+    decoder.projected(projection());
+    decoder.rendered(this.allocator, this.camera);
+    final ArgumentCaptor<byte[]> strip = ArgumentCaptor.forClass(byte[].class);
+    verify(this.output).decode(strip.capture(), eq(ROWS), same(this.allocator));
+    final StripAnchor anchor = StripAnchor.of(ANCHOR, 1F, 2F, -0.01F + 3F);
+    assertArrayEquals(TransportStrip.build(LAYOUT, 854, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), strip.getValue());
+  }
+
+  @Test
   void decodesUnderShadersOnlyWithTheTestedIrisOnceTheGameCalledEveryHook() throws ReflectiveOperationException {
     for (int missing = 0; missing < 4; missing++) {
       final ShaderDecoder decoder = this.decoder(true, 854, 480);
@@ -130,6 +189,7 @@ final class ShaderDecoderTest {
         decoder.posed("picture", new PoseStack().last());
       }
       if (missing != 2) {
+        decoder.projecting();
         decoder.projected(projection());
       }
       if (missing != 3) {
@@ -149,6 +209,7 @@ final class ShaderDecoderTest {
     final ShaderDecoder decoder = this.decoder(true, 854, 480);
     decoder.extracted("page", PAGE);
     decoder.rendered(this.allocator, this.camera);
+    decoder.projecting();
     decoder.projected(projection());
     decoder.rendered(this.allocator, this.camera);
     this.shaderPack.set(false);
@@ -156,6 +217,7 @@ final class ShaderDecoderTest {
     decoder.rendered(this.allocator, this.camera);
     this.shaderPack.set(true);
     // the frame's maps were used up even though nothing was decoded
+    decoder.projecting();
     decoder.projected(projection());
     decoder.rendered(this.allocator, this.camera);
     verify(this.output, never()).decode(any(), anyInt(), any());

@@ -17,25 +17,28 @@
  */
 package me.brandonli.mcav.client.mixin;
 
-import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import me.brandonli.mcav.client.Mcv2Shaders;
-import net.minecraft.client.renderer.ProjectionMatrixBuffer;
+import net.minecraft.client.renderer.GameRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Coerce;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Hands the decoder every projection set through this overload of {@code getBuffer}: the level's, which
- * {@code GameRenderer.renderLevel} builds from the camera's ({@link GameRendererMixin} marks it), and Iris's shadow and
- * hand projections. The matrix is a JOML one, which the mod never names: Mixin passes it as an {@link Object}.
+ * Tells the decoder that the projection {@code renderLevel} is about to hand {@code ProjectionMatrixBuffer} is the
+ * level's, so the shadow and hand projections Iris sets the same way later in the frame are not taken for it.
  */
-@Mixin(ProjectionMatrixBuffer.class)
-abstract class ProjectionMatrixBufferMixin {
+@Mixin(GameRenderer.class)
+abstract class GameRendererMixin {
 
-  @Inject(method = "getBuffer(Lorg/joml/Matrix4f;)Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;", at = @At("HEAD"))
-  void mcav$projected(@Coerce final Object projection, final CallbackInfoReturnable<GpuBufferSlice> info) {
-    Mcv2Shaders.projected(projection);
+  @Inject(
+    method = "renderLevel",
+    at = @At(
+      value = "INVOKE",
+      target = "Lnet/minecraft/client/renderer/ProjectionMatrixBuffer;getBuffer(Lorg/joml/Matrix4f;)Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;"
+    )
+  )
+  void mcav$projecting(final CallbackInfo info) {
+    Mcv2Shaders.projecting();
   }
 }

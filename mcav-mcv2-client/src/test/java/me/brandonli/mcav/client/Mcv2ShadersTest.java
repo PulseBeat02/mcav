@@ -87,6 +87,8 @@ final class Mcv2ShadersTest {
     final PoseStack pose = new PoseStack();
     Mcv2Shaders.posed(state, pose);
     verify(decoder).posed(TEXTURE, pose.last());
+    Mcv2Shaders.projecting();
+    verify(decoder).projecting();
     final Object projection = new Object();
     Mcv2Shaders.projected(projection);
     verify(decoder).projected(projection);
@@ -109,6 +111,7 @@ final class Mcv2ShadersTest {
     state.texture = TEXTURE;
     Mcv2Shaders.extracted(state, data);
     Mcv2Shaders.posed(state, new PoseStack());
+    Mcv2Shaders.projecting();
     Mcv2Shaders.projected(new Object());
     Mcv2Shaders.rendered(mock(GraphicsResourceAllocator.class), new CameraRenderState());
     verifyNoInteractions(decoder);
@@ -116,9 +119,16 @@ final class Mcv2ShadersTest {
 
   @Test
   void startsADecoderThatDecodesUnderShadersOnlyWithTheTestedIris() throws ReflectiveOperationException {
-    assertTrue(hooked(Mcv2Shaders.start(Optional.of("1.11.7+mc26.3"))));
-    assertFalse(hooked(Mcv2Shaders.start(Optional.of("1.11.8+mc26.3"))));
-    assertFalse(hooked(Mcv2Shaders.start(Optional.empty())));
+    final IrisApi api = mock(IrisApi.class);
+    try (final MockedStatic<IrisApi> iris = mockStatic(IrisApi.class)) {
+      iris.when(IrisApi::getInstance).thenReturn(api);
+      assertTrue(hooked(Mcv2Shaders.start(Optional.of("1.11.7+mc26.3"))));
+      // the tested Iris is asked whether it draws its shadow pass, another one not at all
+      verify(api).isRenderingShadowPass();
+      assertFalse(hooked(Mcv2Shaders.start(Optional.of("1.11.8+mc26.3"))));
+      assertFalse(hooked(Mcv2Shaders.start(Optional.empty())));
+      verify(api).isRenderingShadowPass();
+    }
   }
 
   /** Runs every hook of the started decoder on a frame without MCV2 maps, and asks whether it decodes under shaders. */
@@ -128,6 +138,7 @@ final class Mcv2ShadersTest {
     final PoseStack stack = new PoseStack();
     decoder.extracted(TEXTURE, new byte[Mcv2Maps.COLOURS]);
     decoder.posed(TEXTURE, stack.last());
+    decoder.projecting();
     decoder.projected(PoseStack.Pose.class.getMethod("pose").invoke(stack.last()));
     decoder.rendered(mock(GraphicsResourceAllocator.class), new CameraRenderState());
     return decodes.getAsBoolean();
@@ -163,7 +174,7 @@ final class Mcv2ShadersTest {
   }
 
   @Test
-  void asksIrisWhetherItDrawsAShaderPack() {
+  void asksIrisWhetherItDrawsAShaderPackAndItsShadowPass() {
     final IrisApi api = mock(IrisApi.class);
     try (final MockedStatic<IrisApi> iris = mockStatic(IrisApi.class)) {
       iris.when(IrisApi::getInstance).thenReturn(api);
@@ -171,6 +182,10 @@ final class Mcv2ShadersTest {
       assertTrue(Mcv2Shaders.shaderPackInUse());
       when(api.isShaderPackInUse()).thenReturn(false);
       assertFalse(Mcv2Shaders.shaderPackInUse());
+      when(api.isRenderingShadowPass()).thenReturn(true);
+      assertTrue(Mcv2Shaders.shadowPass());
+      when(api.isRenderingShadowPass()).thenReturn(false);
+      assertFalse(Mcv2Shaders.shadowPass());
     }
   }
 
