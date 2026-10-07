@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An HTTP server on the loopback interface for tests that download files.
@@ -125,6 +126,32 @@ public final class LocalHttpServer implements AutoCloseable {
     this.addResponse(path, response);
   }
 
+  /**
+   * Adds a redirect to another place, with an empty body.
+   *
+   * @param path     the path, starting with a slash
+   * @param status   the status code, such as 302
+   * @param location the place, which may be relative
+   */
+  public void respondRedirect(final String path, final int status, final String location) {
+    final Response response = new Response(status, new byte[0], null, -1, location, 0);
+    this.addResponse(path, response);
+  }
+
+  /**
+   * Adds a response that trickles: it announces the length of the body and sends one byte of it at a time, a byte
+   * every interval, until the body is sent or the server is closed.
+   *
+   * @param path           the path, starting with a slash
+   * @param status         the status code
+   * @param body           the body
+   * @param intervalMillis the time between two bytes, in milliseconds
+   */
+  public void respondTrickling(final String path, final int status, final byte[] body, final long intervalMillis) {
+    final Response response = new Response(status, body, null, -1, null, intervalMillis);
+    this.addResponse(path, response);
+  }
+
   private void addResponse(final String path, final Response response) {
     final Deque<Response> queue = this.responses.computeIfAbsent(path, _ -> new ArrayDeque<>());
     synchronized (queue) {
@@ -211,6 +238,13 @@ public final class LocalHttpServer implements AutoCloseable {
       this.stall(exchange, response);
       return;
     }
+    if (response.location != null) {
+      exchange.getResponseHeaders().add("Location", response.location);
+    }
+    if (response.trickleMillis > 0) {
+      this.trickle(exchange, response);
+      return;
+    }
     final byte[] body = response.body;
     final String method = exchange.getRequestMethod();
     final boolean isHeadRequest = method.equals("HEAD");
@@ -233,6 +267,23 @@ public final class LocalHttpServer implements AutoCloseable {
     exchange.close();
     if (!closed) {
       throw new IOException("The stalling response gave up because the server was not closed within " + MAX_WAIT_SECONDS + " s");
+    }
+  }
+
+  private void trickle(final HttpExchange exchange, final Response response) throws IOException {
+    exchange.sendResponseHeaders(response.status, response.body.length);
+    try (final OutputStream output = exchange.getResponseBody()) {
+      for (final byte value : response.body) {
+        output.write(value);
+        output.flush();
+        if (this.closing.await(response.trickleMillis, TimeUnit.MILLISECONDS)) {
+          return;
+        }
+      }
+    } catch (final InterruptedException exception) {
+      // closing the server interrupts its handlers
+      final Thread currentThread = Thread.currentThread();
+      currentThread.interrupt();
     }
   }
 
@@ -309,12 +360,27 @@ public final class LocalHttpServer implements AutoCloseable {
     private final byte[] body;
     private final CountDownLatch gate;
     private final long announcedLength;
+    private final @Nullable String location;
+    private final long trickleMillis;
 
     Response(final int status, final byte[] body, final CountDownLatch gate, final long announcedLength) {
+      this(status, body, gate, announcedLength, null, 0);
+    }
+
+    Response(
+      final int status,
+      final byte[] body,
+      final CountDownLatch gate,
+      final long announcedLength,
+      final @Nullable String location,
+      final long trickleMillis
+    ) {
       this.status = status;
       this.body = body.clone();
       this.gate = gate;
       this.announcedLength = announcedLength;
+      this.location = location;
+      this.trickleMillis = trickleMillis;
     }
   }
 }

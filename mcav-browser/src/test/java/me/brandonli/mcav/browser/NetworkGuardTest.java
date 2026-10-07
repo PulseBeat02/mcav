@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.Closeable;
@@ -39,11 +40,14 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -260,6 +264,43 @@ class NetworkGuardTest {
     final Socket socks4 = this.client(guard);
     socks4.getOutputStream().write(new byte[] { 4, 1, 0, 80, 127, 0, 0, 1, 0 });
     assertEnded(socks4);
+  }
+
+  /**
+   * Keeps every worker of the common pool busy until the returned latch opens, as the tasks of other plugins can.
+   *
+   * @return the latch that frees the workers
+   */
+  private static CountDownLatch occupyTheCommonPool() throws InterruptedException {
+    final int workers = ForkJoinPool.getCommonPoolParallelism();
+    final CountDownLatch busy = new CountDownLatch(workers);
+    final CountDownLatch release = new CountDownLatch(1);
+    final ForkJoinPool pool = ForkJoinPool.commonPool();
+    for (int worker = 0; worker < workers; worker++) {
+      pool.execute(() -> {
+        busy.countDown();
+        try {
+          release.await();
+        } catch (final InterruptedException exception) {
+          Thread.currentThread().interrupt();
+        }
+      });
+    }
+    assertTrue(busy.await(30, TimeUnit.SECONDS), "every worker of the common pool is busy");
+    return release;
+  }
+
+  @Test
+  void aClientThatStallsInItsHandshakeIsDroppedWhileTheCommonPoolIsBusy() throws Exception {
+    final CountDownLatch release = occupyTheCommonPool();
+    try {
+      final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, 200);
+      final Socket client = this.client(guard);
+      client.getOutputStream().write(5);
+      assertTimeoutPreemptively(Duration.ofSeconds(30), () -> assertEnded(client));
+    } finally {
+      release.countDown();
+    }
   }
 
   @Test
@@ -532,8 +573,44 @@ class NetworkGuardTest {
   }
 
   @Test
+  void theRefusedHostsAreResolvedOnceAndOneWithoutAnAddressIsReported() throws UnknownHostException {
+    final InetAddress first = InetAddress.getByName("203.0.113.5");
+    final InetAddress second = InetAddress.getByName("2001:db8::5");
+    final NetworkGuard.Resolver resolver = host -> {
+      if (host.equals("missing.example")) {
+        throw new UnknownHostException(host);
+      }
+      return new InetAddress[] { first, second };
+    };
+    final Set<InetAddress> refused = NetworkGuard.resolveAll(resolver, List.of("mc.example.com", "missing.example"), this.notices::add);
+    assertEquals(Set.of(first, second), refused);
+    assertEquals(List.of("The refused host missing.example has no address, so pages are not kept from it"), this.notices);
+  }
+
+  @Test
+  void anAddressOfARefusedHostCountsAsTheMachinesOwn() throws UnknownHostException {
+    final InetAddress refusedAddress = InetAddress.getByName("203.0.113.5");
+    final InetAddress interfaceAddress = InetAddress.getByName("198.51.100.7");
+    final Predicate<InetAddress> own = NetworkGuard.ownOrRefused(interfaceAddress::equals, Set.of(refusedAddress));
+    assertTrue(own.test(refusedAddress));
+    assertTrue(own.test(interfaceAddress));
+    assertFalse(own.test(InetAddress.getByName("1.1.1.1")));
+  }
+
+  @Test
+  void theDefaultGuardRefusesTheAddressesOfTheRefusedHosts() throws IOException {
+    try (final NetworkGuard guard = NetworkGuard.start(this.notices::add, List.of("8.8.8.8"))) {
+      final Socket client = this.client(guard);
+      exchange(client, GREETING, 2);
+      final byte[] answer = exchange(client, SocksProtocolTest.domainRequest(SocksProtocol.CONNECT, "8.8.8.8", 53), 10);
+      assertArrayEquals(reply(SocksProtocol.NOT_ALLOWED), answer);
+      assertEquals(List.of("Refused a connection to 8.8.8.8, which is not a public address"), this.notices);
+    }
+  }
+
+  @Test
   void theDefaultGuardRefusesLoopback() throws IOException {
-    try (final NetworkGuard guard = NetworkGuard.start(this.notices::add)) {
+    try (final NetworkGuard guard = NetworkGuard.start(this.notices::add, List.of())) {
       final Socket client = this.client(guard);
       exchange(client, GREETING, 2);
       final byte[] answer = exchange(client, SocksProtocolTest.domainRequest(1, "localhost", this.echo.getLocalPort()), 10);

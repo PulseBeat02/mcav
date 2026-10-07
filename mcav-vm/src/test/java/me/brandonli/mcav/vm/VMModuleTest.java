@@ -26,8 +26,11 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import me.brandonli.mcav.utils.os.OS;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -39,6 +42,11 @@ final class VMModuleTest {
 
   @TempDir
   private Path directory;
+
+  private QemuProcessRecords records() {
+    final Path folder = this.directory.resolve("records");
+    return new QemuProcessRecords(folder, ProcessHandle.current(), ProcessHandle::of, Duration.ofSeconds(10));
+  }
 
   private ExecutableFinder finderWithPath(final Path folder) {
     final String path = folder.toString();
@@ -58,7 +66,7 @@ final class VMModuleTest {
     assertTrue(madeExecutable);
 
     final ExecutableFinder finder = this.finderWithPath(folder);
-    final VMModule module = new VMModule(finder);
+    final VMModule module = new VMModule(finder, this.records());
     final boolean beforeStart = module.isQemuInstalled();
     module.start();
     final boolean qemuFoundAfterStart = module.isQemuInstalled();
@@ -67,11 +75,36 @@ final class VMModuleTest {
   }
 
   @Test
+  void stopsTheQemuOfAKilledServerWhenStarted() throws IOException, InterruptedException {
+    // a record of a server that is gone, for a process still running: a sleeping JVM stands in for QEMU
+    final String java = ProcessHandle.current().info().command().orElseThrow();
+    final Path sleeper = this.directory.resolve("Sleep.java");
+    Files.writeString(sleeper, "class Sleep { public static void main(String[] a) throws Exception { Thread.sleep(300_000L); } }");
+    final Process qemu = new ProcessBuilder(java, sleeper.toString()).start();
+    try {
+      final Instant started = qemu.toHandle().info().startInstant().orElseThrow();
+      final Path record = this.directory.resolve("records").resolve(qemu.pid() + ".qemu");
+      Files.createDirectories(record.getParent());
+      Files.writeString(record, started + "\n" + Long.MAX_VALUE + "\n" + started + "\n");
+      final Path empty = this.directory.resolve("empty");
+      Files.createDirectories(empty);
+      final VMModule module = new VMModule(this.finderWithPath(empty), this.records());
+
+      module.start();
+
+      assertTrue(qemu.waitFor(10, TimeUnit.SECONDS), "the QEMU of the killed server is stopped");
+      assertFalse(Files.exists(record));
+    } finally {
+      qemu.destroyForcibly();
+    }
+  }
+
+  @Test
   void reportsAMissingQemu() throws IOException {
     final Path empty = this.directory.resolve("empty");
     Files.createDirectories(empty);
     final ExecutableFinder finder = this.finderWithPath(empty);
-    final VMModule module = new VMModule(finder);
+    final VMModule module = new VMModule(finder, this.records());
     module.start();
     final boolean installed = module.isQemuInstalled();
     assertFalse(installed);

@@ -95,6 +95,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
@@ -534,6 +536,36 @@ final class AbstractVideoCommandTest {
     this.assertStartedWithStreams(videoStreamSource, audioStreamSource);
     final Component started = Message.START_VIDEO.build();
     this.assertSenderReceived(started);
+  }
+
+  @ParameterizedTest
+  @CsvSource({
+    "file:///home/minecraft/world/level.dat, https://cdn.example.com/audio",
+    "https://cdn.example.com/video, concat:/etc/hostname",
+    "http://cdn.example.com/video, file:///etc/hostname",
+    "tcp://127.0.0.1:25575, https://cdn.example.com/audio",
+  })
+  void refusesStreamsOfAWebPageThatAreNotOnTheWeb(final String videoStream, final String audioStream) throws IOException {
+    // the page, not the player, chooses the stream URLs yt-dlp reports, and FFmpeg would open the server's files or
+    // connect to its own services for any other scheme
+    final URLParseDump resolved = new URLParseDump();
+    when(this.parser.parse(any(UriSource.class))).thenReturn(resolved);
+    final UriSource videoStreamSource = UriSource.uri(URI.create(videoStream));
+    final UriSource audioStreamSource = UriSource.uri(URI.create(audioStream));
+    final StrategySelector strategies = mockStrategies(resolved, videoStreamSource, audioStreamSource);
+
+    try (final MockedStatic<StrategySelector> selectors = Mockito.mockStatic(StrategySelector.class)) {
+      selectors
+        .when(() -> StrategySelector.of(FormatStrategy.BEST_QUALITY_AUDIO, FormatStrategy.BEST_QUALITY_VIDEO))
+        .thenReturn(strategies);
+      this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "");
+    }
+
+    final Component error = Message.VIDEO_START_ERROR.build();
+    this.assertSenderReceived(error);
+    verify(this.player, never()).start(any(), any());
+    verify(this.manager, never()).setPlayer(any());
+    this.assertNotStarting();
   }
 
   @Test

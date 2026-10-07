@@ -526,6 +526,19 @@ class NullDisplayTest {
     return reply[0] == 1;
   }
 
+  private static boolean isServed(final Socket client) {
+    try {
+      return internsAnAtom(client);
+    } catch (final IOException ended) {
+      return false;
+    }
+  }
+
+  /**
+   * The display answers a setup before the thread of the client takes a slot, so on a busy machine the thread of an
+   * earlier client may take its slot after a later one's, and that earlier client is the one ended: of one client more
+   * than the limit, exactly one ends and the others are served, whichever it is.
+   */
   @Test
   void clientsWithTheCookieBeyondTheLimitAreEndedAndOneThatLeavesFreesItsPlace() throws IOException {
     final Path authority = this.folder.resolve("Xauthority");
@@ -534,14 +547,18 @@ class NullDisplayTest {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
       final byte[] cookie = cookieOf(authority);
-      for (int count = 0; count < NullDisplay.MAX_CONNECTIONS; count++) {
+      for (int count = 0; count <= NullDisplay.MAX_CONNECTIONS; count++) {
         clients.add(introduce(loopback, port, cookie));
       }
-      try (final Socket extra = introduce(loopback, port, cookie)) {
-        assertEnded(extra.getInputStream());
+      final List<Socket> served = new ArrayList<>();
+      for (final Socket client : clients) {
+        if (isServed(client)) {
+          served.add(client);
+        }
       }
+      assertEquals(NullDisplay.MAX_CONNECTIONS, served.size(), "one client more than the limit is ended");
       // a client that leaves frees its place
-      clients.removeFirst().close();
+      served.getFirst().close();
       Await.until("a place for another client", () -> {
         try (final Socket next = introduce(loopback, port, cookie)) {
           return internsAnAtom(next);
@@ -560,7 +577,9 @@ class NullDisplayTest {
   void clientsWithoutTheCookieCannotKeepOneThatHasItOut() throws IOException {
     final Path authority = this.folder.resolve("Xauthority");
     final List<Socket> silent = new ArrayList<>();
-    try (final NullDisplay display = NullDisplay.start(authority)) {
+    // no setup timeout, so only the eviction this test is about can end a waiting client: on a busy machine the
+    // default's ten seconds passed while the clients connected, and the second client was closed by it
+    try (final NullDisplay display = NullDisplay.start(authority, 0)) {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
       for (int count = 0; count < NullDisplay.MAX_PENDING; count++) {
@@ -576,6 +595,77 @@ class NullDisplayTest {
       final Socket second = silent.get(1);
       second.setSoTimeout(300);
       assertThrows(SocketTimeoutException.class, () -> second.getInputStream().read(), "the second client still waits");
+    } finally {
+      for (final Socket client : silent) {
+        client.close();
+      }
+    }
+  }
+
+  @Test
+  void aClientRefusedInItsSetupLeavesTheQueueOfWaitingClients() throws IOException {
+    final Path authority = this.folder.resolve("Xauthority");
+    final List<Socket> silent = new ArrayList<>();
+    // no setup timeout, as above: only a refusal or an eviction ends a client here
+    try (final NullDisplay display = NullDisplay.start(authority, 0)) {
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+      final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
+      for (int count = 1; count < NullDisplay.MAX_PENDING; count++) {
+        final Socket client = new Socket(loopback, port);
+        client.setSoTimeout(10_000);
+        silent.add(client);
+      }
+      try (final Socket refused = new Socket(loopback, port)) {
+        refused.setSoTimeout(10_000);
+        refused.getOutputStream().write(setup(new byte[NullDisplay.COOKIE_BYTES]));
+        // the display read the whole setup, then says why it refuses the client before it ends the connection
+        final byte[] answer = refused.getInputStream().readAllBytes();
+        assertTrue(answer.length >= 8, "the refusal arrives");
+        assertEquals(0, answer[0], "an X11 setup that failed");
+        assertTrue(new String(answer, StandardCharsets.US_ASCII).contains("the cookie of the display is missing"));
+      }
+      // the display counts a client until it has also left the queue of clients that have not introduced themselves
+      Await.until("the refused client is gone", () -> display.countClients() == NullDisplay.MAX_PENDING - 1);
+      try (final Socket introduced = introduce(loopback, port, cookieOf(authority))) {
+        assertTrue(internsAnAtom(introduced), "the client with the cookie is served");
+      }
+      // the refused client no longer waits in the queue, so the newcomer fit without ending the oldest waiting client
+      final Socket oldest = silent.getFirst();
+      oldest.setSoTimeout(300);
+      assertThrows(SocketTimeoutException.class, () -> oldest.getInputStream().read(), "the oldest client still waits");
+    } finally {
+      for (final Socket client : silent) {
+        client.close();
+      }
+    }
+  }
+
+  @Test
+  void aServedClientLeavesTheQueueOfWaitingClients() throws IOException {
+    final Path authority = this.folder.resolve("Xauthority");
+    final List<Socket> silent = new ArrayList<>();
+    // no setup timeout, as above: only an eviction ends a client here
+    try (final NullDisplay display = NullDisplay.start(authority, 0)) {
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+      final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
+      for (int count = 2; count < NullDisplay.MAX_PENDING; count++) {
+        final Socket client = new Socket(loopback, port);
+        client.setSoTimeout(10_000);
+        silent.add(client);
+      }
+      try (final Socket served = introduce(loopback, port, cookieOf(authority))) {
+        assertTrue(internsAnAtom(served), "the client with the cookie is served, and stays");
+        final Socket newcomer = new Socket(loopback, port);
+        newcomer.setSoTimeout(10_000);
+        silent.add(newcomer);
+        // the queue holds 254 + 1 waiting clients and the second client while it introduces itself: none too many
+        try (final Socket second = introduce(loopback, port, cookieOf(authority))) {
+          assertTrue(internsAnAtom(second), "the second client with the cookie is served");
+        }
+      }
+      final Socket oldest = silent.getFirst();
+      oldest.setSoTimeout(300);
+      assertThrows(SocketTimeoutException.class, () -> oldest.getInputStream().read(), "the oldest client still waits");
     } finally {
       for (final Socket client : silent) {
         client.close();

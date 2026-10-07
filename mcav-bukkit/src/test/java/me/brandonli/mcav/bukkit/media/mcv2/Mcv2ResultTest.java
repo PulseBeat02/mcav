@@ -40,6 +40,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -657,11 +658,13 @@ final class Mcv2ResultTest {
   }
 
   @Test
-  void convertsArgbToRgb() {
-    assertArrayEquals(
-      new byte[] { 0x11, 0x22, 0x33, (byte) 0xAA, (byte) 0xBB, (byte) 0xCC },
-      Mcv2Result.rgb(new int[] { 0xFF112233, 0x00AABBCC, 7 }, 2)
-    );
+  void convertsBgrToRgbFromThePositionOfTheBuffer() {
+    final ByteBuffer bgr = ByteBuffer.wrap(new byte[] { 9, 0x33, 0x22, 0x11, (byte) 0xCC, (byte) 0xBB, (byte) 0xAA, 7 });
+    bgr.position(1);
+    final byte[] rgb = Mcv2Result.rgb(bgr, 2);
+
+    assertArrayEquals(new byte[] { 0x11, 0x22, 0x33, (byte) 0xAA, (byte) 0xBB, (byte) 0xCC }, rgb);
+    assertEquals(1, bgr.position(), "the buffer is left as it was");
   }
 
   @Test
@@ -782,6 +785,35 @@ final class Mcv2ResultTest {
     result.applyFilter(frame, this.metadata);
     verify(this.algorithm).ditherIntoBytes(any());
     result.release();
+  }
+
+  @Test
+  void clearsTheWallOfTheViewersWithThePackWhenReleased() {
+    // a client with the pack keeps drawing its last decoded picture over a wall whose maps still carry the screen's
+    // anchors, so a release clears their maps too, not only the dithered ones
+    final Mcv2Result result = new Mcv2Result(
+      this.configuration,
+      new Mcv2Channel(this.configuration, this.viewers, this.screen),
+      this.algorithm,
+      System::nanoTime,
+      Runnable::run
+    );
+    result.start();
+    // the first frame dithers for both and shows the screen to the viewer with the pack, who then decodes the second
+    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    result.applyFilter(frame, this.metadata);
+    assertEquals(Set.of(WITH_PACK), result.getChannel().getRecipients());
+    final int withPack = this.server.getSentPackets(WITH_PACK).size();
+    final int without = this.server.getSentPackets(WITHOUT).size();
+
+    result.release();
+
+    final List<Packet<?>> cleared = this.server.getSentPackets(WITH_PACK);
+    assertEquals(withPack + 1, cleared.size(), "one bundle clears the wall of the viewer with the pack");
+    MapPackets.assertMapPacket(MapPackets.unbundle(cleared.getLast()).getFirst(), 100, 0, 0, 128, 128, new byte[128 * 128]);
+    assertEquals(without + 1, this.server.getSentPackets(WITHOUT).size(), "the dithered maps are cleared once");
   }
 
   @Test
@@ -1224,6 +1256,19 @@ final class Mcv2ResultTest {
     result.applyFilter(frame, this.metadata);
     awaitEncoders(made, 2);
     verify(made.get(1), timeout(TimeUnit.SECONDS.toMillis(10))).finish(any());
+    // the screen searches the next frame while the sender verifies the last, so frames are handed over only once the
+    // failed verification has stopped the screen, which also ends a drain: right after finish was called, a frame could
+    // still be searched on a loaded machine
+    final Thread drainer = new Thread(() -> {
+      try {
+        result.drain();
+      } catch (final InterruptedException exception) {
+        Thread.currentThread().interrupt();
+      }
+    });
+    drainer.start();
+    drainer.join(TimeUnit.SECONDS.toMillis(10));
+    assertFalse(drainer.isAlive(), "the failed verification stops the screen");
     // the failure stops the screen's thread too: no later frame begins, and nothing was sent
     result.applyFilter(frame, this.metadata);
     result.applyFilter(frame, this.metadata);

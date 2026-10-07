@@ -510,6 +510,30 @@ final class Mcv2ChannelTest {
   }
 
   @Test
+  void aViewerWhoRejoinedWhileNoFrameCameIsShownTheScreenAgain() {
+    when(this.viewers.getSession(LOADED)).thenReturn(1L);
+    final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
+    channel.update();
+    this.server.runTasks();
+    channel.update();
+    assertEquals(Set.of(LOADED), channel.getRecipients());
+    verify(this.screen).show(this.player);
+    // the video is paused, so no update runs while the viewer leaves, comes back and loads the pack again: their new
+    // client was never shown the page frames, which are hidden by default
+    this.server.removePlayer(LOADED);
+    final CraftPlayer rejoined = this.server.addPlayer(LOADED);
+    when(this.viewers.getSession(LOADED)).thenReturn(2L);
+
+    assertEquals(Set.of(LOADED, WITHOUT, OFFLINE), channel.update(), "no frames to a client that cannot show them");
+
+    assertEquals(Set.of(), channel.getRecipients());
+    this.server.runTasks();
+    verify(this.screen).show(rejoined);
+    channel.update();
+    assertEquals(Set.of(LOADED), channel.getRecipients(), "the frames resume once the screen is shown again");
+  }
+
+  @Test
   void aViewerOutOfSightOfTheWallGetsNoFramesUntilTheyComeBack() {
     final World world = mock(World.class);
     final AtomicReference<Location> position = new AtomicReference<>(new Location(world, 400, 64, 0));

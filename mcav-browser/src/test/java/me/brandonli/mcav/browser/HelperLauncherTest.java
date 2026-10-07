@@ -89,16 +89,44 @@ class HelperLauncherTest {
 
   @Test
   void theEnvironmentKeepsLittleAndNeverTheDisplayOfTheServer() throws IOException {
-    final Map<String, String> server = Map.of("PATH", "/usr/bin", "DISCORD_TOKEN", "secret", "DISPLAY", ":0", "LD_LIBRARY_PATH", "/opt/x");
+    final Map<String, String> server = Map.of(
+      "PATH",
+      "/usr/bin",
+      "DISCORD_TOKEN",
+      "secret",
+      "DISPLAY",
+      ":0",
+      "LD_LIBRARY_PATH",
+      "/opt/x",
+      "TMPDIR",
+      "/var/tmp"
+    );
     final HelperLauncher linux = launcher(OS.LINUX, server);
     final Path authority = this.folder.resolve(NullDisplay.AUTHORITY_FILE);
-    assertEquals(Map.of("PATH", "/usr/bin", "XAUTHORITY", authority.toString()), linux.createEnvironment(this.folder, null));
+    // on Linux, the temporary folder and the folder of user data are the folder of the session, the only one a
+    // confined Chromium may write
+    final String session = this.folder.toString();
+    assertEquals(
+      Map.of("PATH", "/usr/bin", "XAUTHORITY", authority.toString(), "TMPDIR", session, "XDG_DATA_HOME", session),
+      linux.createEnvironment(this.folder, null)
+    );
     final Path libraries = this.folder.resolve("lib");
     assertEquals(
-      Map.of("PATH", "/usr/bin", "XAUTHORITY", authority.toString(), "LD_LIBRARY_PATH", libraries.toString()),
+      Map.of(
+        "PATH",
+        "/usr/bin",
+        "XAUTHORITY",
+        authority.toString(),
+        "TMPDIR",
+        session,
+        "XDG_DATA_HOME",
+        session,
+        "LD_LIBRARY_PATH",
+        libraries.toString()
+      ),
       linux.createEnvironment(this.folder, libraries)
     );
-    assertEquals(Map.of("PATH", "/usr/bin"), launcher(OS.WINDOWS, server).createEnvironment(this.folder, null));
+    assertEquals(Map.of("PATH", "/usr/bin", "TMPDIR", "/var/tmp"), launcher(OS.WINDOWS, server).createEnvironment(this.folder, null));
     assertEquals(OS.LINUX, linux.getOs());
     assertEquals(5_000L, linux.getStartTimeoutMillis());
   }

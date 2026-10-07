@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
+import com.google.common.annotations.VisibleForTesting;
+import java.nio.file.Path;
 import me.brandonli.mcav.module.MCAVModule;
 
 /**
@@ -26,7 +28,8 @@ import me.brandonli.mcav.module.MCAVModule;
  * <p>Starting the module prepares nothing: the CEF build for this machine is downloaded when the first browser starts,
  * so servers that never show a web page never download it. Stopping the module ends the helper process of every
  * browser that is still running, so disabling a plugin leaves no browser process behind, and a later start of the
- * module can start browsers again.
+ * module can start browsers again. Starting it also removes the folders of browser sessions that a killed server
+ * left in the temporary folder.
  */
 public final class BrowserModule implements MCAVModule {
 
@@ -36,12 +39,24 @@ public final class BrowserModule implements MCAVModule {
   public BrowserModule() {}
 
   /**
-   * Lets browsers start again after {@link #stop()}; the browser itself is installed by the first browser that
-   * starts.
+   * Lets browsers start again after {@link #stop()}, and removes the folders of browser sessions whose server ended
+   * without releasing them; the browser itself is installed by the first browser that starts.
    */
   @Override
   public void start() {
+    final Path temporary = Path.of(System.getProperty("java.io.tmpdir"));
+    this.start(temporary);
+  }
+
+  /**
+   * Starts the module as {@link #start()} does, with the folders of sessions in another temporary folder.
+   *
+   * @param temporary the temporary folder
+   */
+  @VisibleForTesting
+  void start(final Path temporary) {
     HelperProcesses.open();
+    SessionFolders.ofThisServer().removeStale(temporary);
   }
 
   /**

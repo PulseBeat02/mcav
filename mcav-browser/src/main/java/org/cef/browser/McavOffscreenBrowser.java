@@ -137,6 +137,13 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   }
 
   /**
+   * Asks CEF to paint the whole view again, which reaches the listeners as a new frame.
+   */
+  public void repaint() {
+    this.invalidate();
+  }
+
+  /**
    * Gives the browser focus or takes it away, unless it already has that state.
    *
    * @param enable true to give the browser focus

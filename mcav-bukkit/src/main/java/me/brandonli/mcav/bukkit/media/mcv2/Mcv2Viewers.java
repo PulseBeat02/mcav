@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import org.bukkit.Bukkit;
@@ -37,16 +38,18 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Tracks which players have the MCV2 resource pack loaded, from the status their client reports for the pack's
  * request id. Only a player whose client reported the pack as loaded sees the decoded video; everyone else keeps the
- * dithered maps, so no one is shown a screen their client cannot decode.
+ * dithered maps, so no one is shown a screen their client cannot decode. That includes a player whose MCV2 client mod
+ * reports, on the {@code mcav:mcv2} plugin channel, that Iris draws a shader pack under which MCV2 does not decode:
+ * they keep the dithered maps until it reports otherwise.
  *
  * <p>The states may be read from any thread; the refusal callback runs on the main thread, where the events are
  * fired. Whoever shows the video reads {@link #isLoaded(UUID)}, which is how {@link Mcv2Result} learns of new players
  * with the pack.
  *
- * <p>This tracker records client status reports; it cannot verify shader compatibility or successful frame
- * decoding. Register/unregister listeners and retarget the pack on the main thread. Reads may occur from media
- * threads. Registration alone does not offer a pack; the caller sends the request and records it with
- * {@link #requested(UUID)}. Unregistering retains recorded state.
+ * <p>This tracker records client status reports; without the client mod it cannot verify shader compatibility, and it
+ * never verifies successful frame decoding. Register/unregister listeners and retarget the pack on the main thread.
+ * Reads may occur from media threads. Registration alone does not offer a pack; the caller sends the request and
+ * records it with {@link #requested(UUID)}. Unregistering retains recorded state.
  */
 public final class Mcv2Viewers {
 
@@ -67,6 +70,11 @@ public final class Mcv2Viewers {
   private final Consumer<Player> onRefused;
 
   private final Map<UUID, PackState> states;
+  // a client loads the pack anew after its player joined again, or after another pack: each load is a new session
+  private final Map<UUID, Long> sessions;
+  private final AtomicLong nextSession;
+
+  private final Mcv2ShaderReports shaderReports;
 
   private @Nullable Listener listener;
 
@@ -84,10 +92,15 @@ public final class Mcv2Viewers {
     this.packId = packId;
     this.onRefused = onRefused;
     this.states = new ConcurrentHashMap<>();
+    this.sessions = new ConcurrentHashMap<>();
+    this.nextSession = new AtomicLong();
+    this.shaderReports = new Mcv2ShaderReports(System::nanoTime);
   }
 
   /**
-   * Starts listening to the players' pack status and to players leaving, who lose their state.
+   * Starts listening to the players' pack status, to the reports of their MCV2 client mod, and to players leaving, who
+   * lose their state. Register before players join: a client learns of the plugin channel as it joins, and its mod
+   * reports only once it knows the channel.
    * @throws IllegalStateException if no plugin has been injected
    */
   public synchronized void register() {
@@ -98,6 +111,7 @@ public final class Mcv2Viewers {
     final EventExecutor quit = (_, event) -> this.handleQuit((PlayerQuitEvent) event);
     manager.registerEvent(PlayerResourcePackStatusEvent.class, events, EventPriority.MONITOR, status, BukkitModule.getPlugin());
     manager.registerEvent(PlayerQuitEvent.class, events, EventPriority.MONITOR, quit, BukkitModule.getPlugin());
+    Bukkit.getMessenger().registerIncomingPluginChannel(BukkitModule.getPlugin(), Mcv2ShaderReports.CHANNEL, this.shaderReports);
     this.listener = events;
   }
 
@@ -108,6 +122,7 @@ public final class Mcv2Viewers {
     final Listener events = this.listener;
     if (events != null) {
       HandlerList.unregisterAll(events);
+      Bukkit.getMessenger().unregisterIncomingPluginChannel(BukkitModule.getPlugin(), Mcv2ShaderReports.CHANNEL, this.shaderReports);
       this.listener = null;
     }
   }
@@ -124,6 +139,7 @@ public final class Mcv2Viewers {
     Preconditions.checkNotNull(newPackId, "Pack id must not be null");
     this.packId = newPackId;
     this.states.values().removeIf(state -> state != PackState.DECLINED);
+    this.sessions.clear();
   }
 
   /**
@@ -159,13 +175,39 @@ public final class Mcv2Viewers {
   }
 
   /**
-   * Checks whether a player's client loaded the pack.
+   * Checks whether a player's client loaded the pack and can decode with it: one whose MCV2 client mod reports a shader
+   * pack in use, under which MCV2 does not decode, cannot, whatever its pack status.
    *
    * @param player the player's UUID
-   * @return true if the tracked client status is LOADED; this is not a playback acknowledgment
+   * @return true if the tracked client status is LOADED and no report of the client mod rules decoding out; this is not
+   *         a playback acknowledgment
    */
   public boolean isLoaded(final UUID player) {
-    return this.getState(player) == PackState.LOADED;
+    return this.getState(player) == PackState.LOADED && !this.shaderReports.blocksDecoding(player);
+  }
+
+  /**
+   * Checks whether a player's MCV2 client mod reported their shader state since they joined.
+   *
+   * @param player the player's UUID
+   * @return true if the server knows the player's shader state from their mod
+   */
+  boolean hasShaderReport(final UUID player) {
+    return this.shaderReports.hasReported(player);
+  }
+
+  /**
+   * Gets the session of a player's client with the pack: a number that changes whenever the client loads the pack
+   * anew, after its player joined again or after another pack. A screen shown to the client of an earlier session is
+   * not shown to the client of this one.
+   *
+   * @param player the player's UUID
+   * @return the session, or 0 while the client has not loaded the pack
+   * @throws NullPointerException if {@code player} is null
+   */
+  public long getSession(final UUID player) {
+    Preconditions.checkNotNull(player, "Player must not be null");
+    return this.sessions.getOrDefault(player, 0L);
   }
 
   void handleStatus(final PlayerResourcePackStatusEvent event) {
@@ -175,14 +217,22 @@ public final class Mcv2Viewers {
     final Player player = event.getPlayer();
     final UUID uuid = player.getUniqueId();
     switch (event.getStatus()) {
-      case SUCCESSFULLY_LOADED -> this.states.put(uuid, PackState.LOADED);
+      case SUCCESSFULLY_LOADED -> this.loaded(uuid);
       case ACCEPTED, DOWNLOADED -> this.states.put(uuid, PackState.REQUESTED);
       case DECLINED -> this.refuse(player, PackState.DECLINED);
       default -> this.refuse(player, PackState.REFUSED);
     }
   }
 
+  private void loaded(final UUID player) {
+    final PackState before = this.states.put(player, PackState.LOADED);
+    if (before != PackState.LOADED) {
+      this.sessions.put(player, this.nextSession.incrementAndGet());
+    }
+  }
+
   private void refuse(final Player player, final PackState state) {
+    this.sessions.remove(player.getUniqueId());
     final PackState before = this.states.put(player.getUniqueId(), state);
     if (before != PackState.REFUSED && before != PackState.DECLINED) {
       this.onRefused.accept(player);
@@ -190,6 +240,9 @@ public final class Mcv2Viewers {
   }
 
   void handleQuit(final PlayerQuitEvent event) {
-    this.states.remove(event.getPlayer().getUniqueId());
+    final UUID player = event.getPlayer().getUniqueId();
+    this.states.remove(player);
+    this.sessions.remove(player);
+    this.shaderReports.forget(player);
   }
 }

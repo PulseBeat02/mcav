@@ -25,6 +25,13 @@ otherwise the memory is only freed when the garbage collector finds the object.
 Images can also be loaded from files and URLs with `ImageBuffer.path(FileSource)` and `ImageBuffer.uri(UriSource)`,
 or created from raw pixels with `ImageBuffer.buffer(int[], width, height)`.
 
+OpenCV allocates the whole picture as soon as it has read a file's header, so a small file can make it take gigabytes.
+`ImageBuffer.bytes`, `path` and `uri` therefore read the header first and refuse, with an `IllegalArgumentException`,
+an image that declares more than 67,108,864 pixels (8192 by 8192). The system property `mcav.image.maxPixels` sets
+another limit, and `0` turns the check off. The header is read for the formats OpenCV decodes: BMP, GIF, JPEG, PNG,
+WebP, TIFF, Radiance HDR, Sun raster and PBM, PGM, PPM, PAM and PFM. JPEG 2000 and OpenEXR, which OpenCV turns off
+unless an environment variable turns them on, are refused while the check is on.
+
 ## Reading Pixels
 
 `ImageBuffer` offers the pixels as packed ARGB integers, laid out row by row, in three ways:

@@ -46,32 +46,39 @@ public final class VMModule implements MCAVModule {
   private static final String QEMU_MISSING = "{} is not on the PATH or in the usual install folders, virtual machines cannot be started";
 
   private final ExecutableFinder finder;
+  private final QemuProcessRecords records;
   private volatile boolean qemuInstalled;
 
   /**
    * Constructs the module. The module loader creates it for you.
    */
   public VMModule() {
-    this(new ExecutableFinder());
+    this(new ExecutableFinder(), QemuProcessRecords.ofUser());
   }
 
   /**
    * Constructs a module that looks for QEMU with the given finder.
    *
-   * @param finder finds the QEMU program
+   * @param finder  finds the QEMU program
+   * @param records the QEMU processes started by this and earlier servers
    */
   @VisibleForTesting
-  VMModule(final ExecutableFinder finder) {
+  VMModule(final ExecutableFinder finder, final QemuProcessRecords records) {
     this.finder = finder;
+    this.records = records;
   }
 
   /**
    * Checks for {@code qemu-system-x86_64} and records and logs whether it was found. This creates no virtual
    * machines and does not check executables for the other guest architectures. Missing QEMU is logged rather
    * than thrown here; each player resolves its selected executable at startup.
+   *
+   * <p>First, it stops every QEMU process that a server killed before it could release its players left running,
+   * which would still hold its memory and its VNC port; each one is logged.
    */
   @Override
   public void start() {
+    this.records.reap();
     final String command = VMPlayer.Architecture.X86_64.getCommand();
     final Optional<Path> qemu = this.finder.find(command);
     this.qemuInstalled = qemu.isPresent();

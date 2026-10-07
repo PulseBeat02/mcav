@@ -1,8 +1,8 @@
 # Virtualization Module
 
 ```{warning}
-You must install QEMU yourself to use the virtual machine player; MCAV never installs it. Install it from your
-package manager or follow the steps [here](https://www.qemu.org/download/), and make sure the `qemu-system-*`
+You must install QEMU 6.0 or newer yourself to use the virtual machine player; MCAV never installs it. Install it from
+your package manager or follow the steps [here](https://www.qemu.org/download/), and make sure the `qemu-system-*`
 programs are on the `PATH`.
 ```
 
@@ -29,12 +29,16 @@ dependencies {
 The QEMU command line is built with a `VMConfiguration`, and a `VMSettings` describes how the machine is streamed:
 the size frames are scaled to and the frame rate requested from QEMU. The player adds the display, VNC, and pointer
 options itself, and picks the fastest accelerator of the machine (KVM, WHPX, or HVF), falling back to software
-emulation when the accelerator is unavailable.
+emulation when the accelerator is unavailable. The VNC display listens on the loopback address and asks for a random
+password the player alone knows; QEMU reads it from a file of a folder only your user can open, which is deleted once
+QEMU started.
 
 The example boots an ISO image and presses a key in its boot menu. The `display` filter is yours and shows the frames;
 release the returned player to stop the machine. QEMU is a process of its own: a JVM that ends without releasing the
-player, or is killed, leaves it running, with its memory and its VNC port, until it is stopped by hand. Releasing the
-library (`MCAVApi.release`) does not stop the machines either; release every player first.
+player, or is killed, leaves it running, with its memory and its VNC port. Every QEMU mcav starts is recorded in
+`~/.mcav/vm`, and the next start of the VM module (`VMModule.start`, part of `MCAVApi.install`) stops each recorded
+QEMU whose JVM is gone and logs it; a QEMU of another JVM that still runs is left alone. Releasing the library
+(`MCAVApi.release`) does not stop the machines either; release every player first.
 
 ```java
   public static VMPlayer bootIsoImage(final Path isoFile, final VideoFilter display) {
@@ -58,10 +62,11 @@ library (`MCAVApi.release`) does not stop the machines either; release every pla
   }
 ```
 
-QEMU gives a guest its user-mode network unless told otherwise, and in it the address 10.0.2.2 is the machine QEMU runs
-on: the guest reaches every service there that listens only on the loopback address. `network("none")` gives the guest
-no network, and `network("user,restrict=on")` one that reaches neither the host nor the internet, apart from the
-forwards you add.
+A machine whose configuration chooses no network (`-nic`, `-netdev`, `-net` or `-nodefaults`) gets
+`-nic user,restrict=on`: a network card that reaches neither the host nor the internet, apart from the forwards you
+add. QEMU's own default network, which `network("user")` gives back, reaches the internet, and in it the address
+10.0.2.2 is the machine QEMU runs on: the guest reaches every service there that listens only on the loopback address.
+`network("none")` gives the guest no network card at all.
 
 Options that QEMU accepts more than once, such as `-drive` or `-device`, are added with `drive(...)`, `device(...)`, or
 `repeatable(key, value)`; every other option replaces its earlier value. `start` throws an
@@ -92,5 +97,7 @@ itself with `pcspk-audiodev`, is refused.
 QEMU sends the sound about every 10 ms, but refreshes the picture of its VNC display 30 ms after a change at the
 earliest, and later when the screen was idle, so the player holds the sound for 70 ms to keep it with the picture. At
 most 130 ms of sound wait for the pipeline, the hold included; a slow pipeline loses the oldest sound, so the sound
-never falls further behind. While the player is paused, the sound of the guest is dropped. A sound connection that
-cannot be made is reported to the exception handler, and the machine runs without sound.
+never falls further behind. QEMU sends nothing while the guest plays no sound, so when the guest stops playing the
+player hands silence to the pipeline instead, for two seconds at most: a pause between two sounds keeps its length.
+While the player is paused, the sound of the guest is dropped. A sound connection that cannot be made is reported to
+the exception handler, and the machine runs without sound.

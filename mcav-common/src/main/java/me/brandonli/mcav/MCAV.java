@@ -44,6 +44,9 @@ import org.slf4j.LoggerFactory;
  * <p>Installing and releasing never overlap: {@link #release()} waits for an installation that is still running on
  * another thread, so it can never stop modules while they are being started. It cancels the background preparation
  * of VLC and yt-dlp instead of waiting for it, which never runs into the lock both methods share.
+ *
+ * <p>While MCAV is installed, a {@link NativeHeapTrimmer} hands the memory the C library keeps free back to the system
+ * once a minute, on Linux.
  */
 public final class MCAV implements MCAVApi {
 
@@ -58,6 +61,7 @@ public final class MCAV implements MCAVApi {
   private final CapabilityGuard guard;
   private final AtomicBoolean installing;
   private final Object lifecycleLock;
+  private final NativeHeapTrimmer trimmer;
 
   // written under the lifecycle lock and read without it, so it is volatile
   private volatile @Nullable BackgroundInstallation background;
@@ -83,6 +87,7 @@ public final class MCAV implements MCAVApi {
     this.guard = guard;
     this.installing = new AtomicBoolean(false);
     this.lifecycleLock = new Object();
+    this.trimmer = NativeHeapTrimmer.forThisJvm();
   }
 
   /**
@@ -142,6 +147,7 @@ public final class MCAV implements MCAVApi {
       final BackgroundInstallation installation = new BackgroundInstallation(this.dependencyLoader, this.guard);
       installation.start();
       this.background = installation;
+      this.trimmer.start();
     }
   }
 
@@ -188,8 +194,19 @@ public final class MCAV implements MCAVApi {
       // the installation threads never take the lifecycle lock, so waiting for them here cannot deadlock
       installation.cancel();
       this.moduleLoader.shutdownModules();
+      this.trimmer.close();
       this.installing.set(false);
     }
+  }
+
+  /**
+   * Checks whether MCAV trims the native heap, which it does while it is installed on Linux.
+   *
+   * @return true if a trimmer runs
+   */
+  @VisibleForTesting
+  boolean isTrimmingNativeHeap() {
+    return this.trimmer.isTrimming();
   }
 
   /**

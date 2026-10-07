@@ -79,7 +79,10 @@ final class VMProcessPortProbeTest {
           launcher,
           OS.LINUX,
           kvm,
-          1
+          1,
+          () -> {
+            throw new AssertionError("no password is written after the port probe fails");
+          }
         );
         final PlayerException failure = assertThrows(PlayerException.class, process::start);
         assertFalse(sockets.constructed().isEmpty());
