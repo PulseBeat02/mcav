@@ -129,6 +129,13 @@ final class RandomAndNearestDitherTest {
   }
 
   @Test
+  void randomDitherReportsAMissingImageBeforeReadingItsPixels() {
+    final RandomDitherImpl random = new RandomDitherImpl(DitherTestImages.BLACK_WHITE, 0);
+    final NullPointerException missingImage = assertThrows(NullPointerException.class, () -> random.ditherIntoBytes(null));
+    assertEquals("Image must not be null", missingImage.getMessage());
+  }
+
+  @Test
   void acceptsTheBoundaryWeights() {
     final RandomDitherBuilder<RandomDither, RandomDitherBuilderImpl> builder = DitherAlgorithm.random();
     final RandomDitherBuilderImpl lightest = builder.withWeight(0);
@@ -254,7 +261,10 @@ final class RandomAndNearestDitherTest {
     } finally {
       pool.shutdownNow();
     }
-    assertThrows(NullPointerException.class, () -> nearest.ditherIntoBytes(null, pool));
+    final NullPointerException missingImage = assertThrows(NullPointerException.class, () -> nearest.ditherIntoBytes(null));
+    final NullPointerException missingParallelImage = assertThrows(NullPointerException.class, () -> nearest.ditherIntoBytes(null, pool));
+    assertEquals("Image must not be null", missingImage.getMessage());
+    assertEquals("Image must not be null", missingParallelImage.getMessage());
   }
 
   @Test
