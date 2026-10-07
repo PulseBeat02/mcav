@@ -17,7 +17,7 @@ every command is on the [commands](commands.md) page.
 video started afterwards; `/mcav video hologram disable` turns it off again.
 
 A wall of maps shows 128x128 pixels per map, dithered to the map palette, or, with MCV2, a video of the resolution
-you choose decoded by a resource pack ([Using MCV2](../mcv2/using.md)). The other displays are not dithered; the
+you choose decoded by a resource pack ([MCV2 on Maps](../bukkit/mcv2.md)). The other displays are not dithered; the
 block, entity and scoreboard displays update at most 20 times a second, once per server tick, and the chat display
 sends every frame as a new message as it arrives.
 
@@ -25,7 +25,7 @@ sends every frame as a new message as it arrives.
 `FLOYD_STEINBERG_TEMPORAL` keeps unchanged areas identical from frame to frame, so less of the wall has to be sent. A
 wall of maps sends only the parts of each map that changed, at most 128 KiB per frame and viewer; a big picture that
 changes everywhere, such as 1080p video, needs far more than that, so the wall shows each change a few frames late
-([why MCV2 exists](../mcv2/why.md)).
+([why MCV2 exists](../mcv2.md#why-maps-need-their-own-codec)).
 
 ## Players
 

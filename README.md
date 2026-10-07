@@ -66,24 +66,23 @@ VLC installed on the system, but the bundled FFmpeg and OpenCV natives only exis
 ### MCV2
 
 A wall of maps normally shows a dithered picture: 128 pixels per map, in the colours of the map palette. For moving
-1080p video that needs far more than a server can send: the plugin caps it at 128 KiB per frame, about 30 Mbit/s per
-viewer at 30 fps, and the wall still falls behind the video. MCV2 is MCAV's own video codec for Minecraft: the server
-encodes the video and sends it as the colours of a few hidden maps, and a resource pack decodes it on the player's GPU,
-in full colour, at the resolution you choose. The client needs no mod.
+1080p video that needs far more than a server can send: the plugin caps it at 128 KiB per frame, about 10 Mbit/s per
+viewer at 30 fps after Minecraft's compression, and the wall still falls behind the video. MCV2 is MCAV's own video
+codec for Minecraft: the server encodes the video and sends it as the colours of a few hidden maps, and a resource pack
+decodes it on the player's GPU, in full colour, at the resolution you choose. The client needs no mod.
 
-| At 1080p, 30 fps | Map packets | After Minecraft's compression | VMAF mean |
-|------------------|-------------|-------------------------------|-----------|
-| Dithered maps, the default budget | 30.4 Mbit/s | 10.4 Mbit/s | 33.4: the wall never shows a whole frame |
-| MCV2 `ship`, pre-encoded | 3.46 Mbit/s | 2.21 Mbit/s | 77.9 |
-| MCV2 `live`, the default for live sources | 2.80 Mbit/s | 1.83 Mbit/s | 75.7 |
-| MCV2 `live`, real Minecraft gameplay | 13.0 Mbit/s | 8.3 Mbit/s | 76.1 |
+| At 1080p, 30 fps | Rate on the wire, after Minecraft's compression | VMAF mean |
+|------------------|-------------------------------------------------|-----------|
+| Dithered maps, the default budget | 10.4 Mbit/s | 33.4: the wall never shows a whole frame |
+| MCV2 `ship`, pre-encoded | 2.21 Mbit/s | 77.9 |
+| MCV2 `live`, the default for live sources | 1.83 Mbit/s | 75.7 |
+| MCV2 `live`, real Minecraft gameplay | 8.3 Mbit/s | 76.1 |
 
 The first three rows are measured on a procedural Minecraft test clip, which flatters MCV2; the last on real gameplay.
-"Map packets" charges everything the map transport sends, "after compression" is what the game's own zlib leaves of it.
 Live sources (browsers, virtual machines, VNC desktops, streams, cameras, and video files by default) encode in real time
 at 1080p30 on a 6-core server; smaller servers step down on their own, or pre-encode. Players without the pack keep the
 dithered maps. Turn it on with `--codec mcv2` on any command that draws on a wall of maps, or with
-`mcv2.default-codec: mcv2` in `config.yml`. The [MCV2 chapter](https://mcav.readthedocs.io/en/latest/mcv2/why.html)
+`mcv2.default-codec: mcv2` in `config.yml`. The [MCV2 article](https://mcav.readthedocs.io/en/latest/mcv2.html)
 explains how it works, what it costs, and how it compares with H.264, VP9 and AV1.
 
 ---

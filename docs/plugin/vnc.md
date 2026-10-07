@@ -33,7 +33,7 @@ it as `[::1]:5902`. Restart the server after changing the list.
 The arguments are the viewers, the size the desktop is scaled to, the frames a second streamed from it (1 to 240), the
 wall's size and first map id, the dithering algorithm (`NEAREST_COLOR` keeps text sharp), and the server as
 `host:port` exactly as listed. Add `--codec mcv2` at the end for a sharper picture; a desktop's text reads far better at
-its own resolution than dithered at 128 pixels per map ([Using MCV2](../mcv2/using.md)). `/mcav vnc release`
+its own resolution than dithered at 128 pixels per map ([MCV2 on Maps](../bukkit/mcv2.md)). `/mcav vnc release`
 disconnects and clears the wall. A VNC desktop has no sound.
 
 ## Clicking and Typing

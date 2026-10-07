@@ -1,0 +1,39 @@
+// MCV2 end to end: from a video frame on the server to a picture on the player's screen.
+digraph overview {
+  rankdir=TB;
+  bgcolor="white";
+  pad=0.25;
+  nodesep=1.0;
+  ranksep=0.45;
+  splines=ortho;
+  newrank=true;
+  node [shape=box, style="filled", fillcolor="#dae8fc", color="#6c8ebf", fontname="Liberation Sans", fontsize=12, fontcolor="black", margin="0.14,0.09", penwidth=1.2];
+  edge [color="black", arrowsize=0.75, penwidth=1.0, fontname="Liberation Sans", fontsize=11, fontcolor="black"];
+
+  subgraph cluster_server {
+    label="Minecraft server"; labeljust=l;
+    fontname="Liberation Sans"; fontsize=12;
+    style="dashed"; color="#6c8ebf";
+    source [label="Video frame", fillcolor="#fff2cc", color="#d6b656"];
+    encoder [label="Encoder\n(block tree, motion)"];
+    frame [label="MCV2 frame\n(bytes)", fillcolor="#fff2cc", color="#d6b656"];
+    pages [label="Pages\n(header + CRC32,\nsix-bit symbols)"];
+    packets [label="Map packets\n(one map per page)"];
+    source -> encoder -> frame -> pages -> packets;
+  }
+
+  subgraph cluster_client {
+    label="Vanilla client with the resource pack"; labeljust=l;
+    fontname="Liberation Sans"; fontsize=12;
+    style="dashed"; color="#82b366";
+    maps [label="Map textures", fillcolor="#d5e8d4", color="#82b366"];
+    strip [label="Text shaders move\npage maps into a strip", fillcolor="#d5e8d4", color="#82b366"];
+    chain [label="Post chain decodes,\nkeeps the reference", fillcolor="#d5e8d4", color="#82b366"];
+    screen [label="Picture drawn\nover the wall", fillcolor="#fff2cc", color="#d6b656"];
+    maps -> strip -> chain -> screen;
+  }
+
+  // down the server, across the network, down the client: narrow enough for a page column
+  {rank=same; packets; maps;}
+  packets -> maps [xlabel="TCP,\nzlib"];
+}

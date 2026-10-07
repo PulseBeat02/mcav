@@ -13,7 +13,7 @@ own, so a crashing page never takes the server with it.
 The arguments are the viewers, the size of the page in pixels (at most 4096 on a side), how many painted frames make
 one frame on the wall (1 streams every change), the wall's size and first map id, the dithering algorithm, the audio
 output, and the address, which must be a full `http` or `https` URL and takes the rest of the line. Add `--codec mcv2`
-at the end for a sharper picture ([Using MCV2](../mcv2/using.md)). One browser runs at a time; `/mcav browser release`
+at the end for a sharper picture ([MCV2 on Maps](../bukkit/mcv2.md)). One browser runs at a time; `/mcav browser release`
 closes it.
 
 ## The First Start Downloads Chromium
