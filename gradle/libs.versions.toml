@@ -47,7 +47,7 @@ maven-resolver = "2.0.23"
 jda = "6.7.0"
 spring-boot = "4.1.1"
 # Spring Boot 4.1.1 brings Tomcat 11.0.24, Jackson 3.1.5 and JDA Jackson 2.22.2, all with known vulnerabilities; the
-# releases that fix them, pinned as constraints by mcav-http and mcav-jda until those bring them themselves
+# releases that fix them, declared directly by mcav-http and mcav-jda so Maven consumers also receive them
 tomcat = "11.0.25"
 jackson = "3.1.7"
 jackson2 = "2.22.3"
@@ -136,7 +136,11 @@ tomcat-embed-core = { module = "org.apache.tomcat.embed:tomcat-embed-core", vers
 tomcat-embed-el = { module = "org.apache.tomcat.embed:tomcat-embed-el", version.ref = "tomcat" }
 tomcat-embed-websocket = { module = "org.apache.tomcat.embed:tomcat-embed-websocket", version.ref = "tomcat" }
 jackson-bom = { module = "tools.jackson:jackson-bom", version.ref = "jackson" }
+jackson-core = { module = "tools.jackson.core:jackson-core", version.ref = "jackson" }
+jackson-databind = { module = "tools.jackson.core:jackson-databind", version.ref = "jackson" }
 jackson2-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson2" }
+jackson2-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson2" }
+jackson2-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson2" }
 xz = { module = "org.tukaani:xz", version.ref = "xz" }
 vernacular = { module = "com.shinyhut:vernacular", version.ref = "vernacular" }
 lwjgl = { module = "org.lwjgl:lwjgl", version.ref = "lwjgl" }

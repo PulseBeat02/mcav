@@ -24,7 +24,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
@@ -83,6 +86,35 @@ final class ThirdPartyNoticesTest {
       }
       assertTrue(bundled.size() > 20, "the jar bundles the resolver: " + bundled);
       assertEquals(List.of(), unnamed, "bundled, but not in THIRD-PARTY-NOTICES.md");
+    }
+  }
+
+  @Test
+  void isolatesBundledLibrariesFromTheHostClassPath() throws IOException {
+    try (final ZipFile jar = builtJar()) {
+      final List<String> classes = List.of("com/google/gson/Gson.class", "org/objectweb/asm/ClassReader.class");
+      final List<String> unrelocated = classes
+        .stream()
+        .filter(name -> jar.getEntry(name) != null)
+        .toList();
+      assertEquals(List.of(), unrelocated, "bundled libraries must not use host namespaces");
+      for (final String name : classes) {
+        assertNotNull(jar.getEntry("me/brandonli/mcav/libs/" + name), "the private copy is still bundled: " + name);
+      }
+    }
+  }
+
+  @Test
+  void keepsTheBundledAsmCopyrightAndLicense() throws IOException, NoSuchAlgorithmException {
+    try (final ZipFile jar = builtJar()) {
+      final String notices = read(jar, "META-INF/THIRD-PARTY-NOTICES.md");
+      assertTrue(notices.contains("| org.ow2.asm:asm | BSD-3-Clause |"), "the bundled ASM component must be named in the notices");
+      final String license = read(jar, "META-INF/LICENSE-ASM");
+      final byte[] bytes = license.getBytes(StandardCharsets.UTF_8);
+      final byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
+      final String actual = HexFormat.of().formatHex(digest);
+      // The upstream licence, including its copyright and disclaimer, must survive packaging without truncation.
+      assertEquals("337e92fd361effe495d03978a34a3cd44681a63b8329adfd99c8996b306b2a8c", actual);
     }
   }
 }
