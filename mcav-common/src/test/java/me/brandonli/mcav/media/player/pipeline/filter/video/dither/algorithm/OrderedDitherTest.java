@@ -187,9 +187,11 @@ final class OrderedDitherTest {
   @Test
   void rejectsInvalidInput() {
     final OrderedDither dither = blackWhite4x4();
-    assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null));
+    final NullPointerException missingImage = assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null));
+    assertEquals("Image must not be null", missingImage.getMessage());
     try (final ForkJoinPool pool = new ForkJoinPool(1)) {
-      assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null, pool));
+      final NullPointerException missingParallelImage = assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null, pool));
+      assertEquals("Image must not be null", missingParallelImage.getMessage());
     }
     try (final ImageBuffer image = ImageBuffer.buffer(new int[1], 1, 1)) {
       assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(image, null));
