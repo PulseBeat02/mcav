@@ -37,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntConsumer;
 import me.brandonli.mcav.media.Polling;
@@ -47,7 +48,11 @@ import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.media.source.Source;
+import me.brandonli.mcav.media.source.ffmpeg.FFmpegDirectSource;
 import me.brandonli.mcav.media.source.file.FileSource;
+import org.bytedeco.ffmpeg.global.avutil;
+import org.bytedeco.ffmpeg.global.swscale;
+import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
 import org.junit.jupiter.api.BeforeAll;
@@ -70,6 +75,94 @@ final class CVPlayerTransitionTest {
   private static Source source() {
     final Path path = Path.of("transition.mp4");
     return FileSource.path(path);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { false, true })
+  void configuresTheFormatsAndFfmpegOptionsPromisedToThePipelines(final boolean directInput) {
+    final TestPlayer player = new TestPlayer();
+    final FFmpegFrameGrabber grabber = mock(FFmpegFrameGrabber.class);
+    final Source source = directInput ? FFmpegDirectSource.mrl("color=c=blue", "lavfi") : source();
+    try {
+      player.configureGrabber(grabber, source);
+      verify(grabber).setPixelFormat(avutil.AV_PIX_FMT_BGR24);
+      verify(grabber).setSampleMode(FrameGrabber.SampleMode.SHORT);
+      verify(grabber).setSampleFormat(avutil.AV_SAMPLE_FMT_S16);
+      verify(grabber).setSampleRate(48_000);
+      verify(grabber).setAudioChannels(2);
+      verify(grabber).setImageScalingFlags(swscale.SWS_AREA);
+      verify(grabber).setVideoOption("threads", "auto");
+      verify(grabber).setVideoOption("flags", "low_delay");
+      verify(grabber).setOption("rw_timeout", "15000000");
+      verify(grabber).setOption("reconnect", "1");
+      verify(grabber).setOption("reconnect_streamed", "1");
+      verify(grabber).setOption("reconnect_delay_max", "5");
+      verify(grabber).setOption("fflags", "discardcorrupt+genpts");
+      verify(grabber).setOption("hwaccel", "auto");
+      if (directInput) {
+        verify(grabber).setFormat("lavfi");
+        verify(grabber).setOption("probesize", "32");
+        verify(grabber).setOption("analyzeduration", "0");
+      } else {
+        verify(grabber, never()).setFormat("lavfi");
+        verify(grabber, never()).setOption("probesize", "32");
+        verify(grabber, never()).setOption("analyzeduration", "0");
+      }
+    } finally {
+      player.release();
+    }
+  }
+
+  @Test
+  void playbackControlsReportWhetherTheActiveSessionWasChanged() {
+    final TestPlayer player = new TestPlayer();
+    final AtomicBoolean paused = new AtomicBoolean();
+    try (
+      final MockedConstruction<PlaybackSession> sessions = Mockito.mockConstruction(PlaybackSession.class, (session, _) -> {
+        when(session.isActive()).thenReturn(true);
+        when(session.isSeekable()).thenReturn(true);
+        when(session.isPaused()).thenAnswer(_ -> paused.get());
+        doAnswer(_ -> {
+          paused.set(true);
+          return null;
+        })
+          .when(session)
+          .pause();
+        doAnswer(_ -> {
+          paused.set(false);
+          return null;
+        })
+          .when(session)
+          .resume();
+      })
+    ) {
+      assertFalse(player.pause());
+      assertFalse(player.resume());
+      assertFalse(player.seek(0));
+      assertFalse(player.setSpeed(0.5));
+      assertTrue(player.start(source()));
+      final PlaybackSession session = sessions.constructed().getFirst();
+      assertFalse(player.resume());
+      assertTrue(player.pause());
+      assertTrue(paused.get());
+      assertFalse(player.pause());
+      assertTrue(player.resume());
+      assertFalse(paused.get());
+      assertFalse(player.resume());
+      assertTrue(player.setSpeed(0.5));
+      assertEquals(0.5, player.getSpeed());
+      verify(session).setSpeed(0.5);
+      assertTrue(player.setSpeed(2.0));
+      assertEquals(2.0, player.getSpeed());
+      verify(session).setSpeed(2.0);
+      when(session.isSeekable()).thenReturn(false);
+      assertFalse(player.setSpeed(1.5));
+      assertEquals(2.0, player.getSpeed());
+      verify(session, never()).setSpeed(1.5);
+      player.release();
+    } finally {
+      player.release();
+    }
   }
 
   @Test
