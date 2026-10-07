@@ -140,7 +140,8 @@ burst of 5; a player without the mod sees MCV2 screens as before.
   `/mcav screen`, which removes the frames already hanging where it places one.
 - **The pack loaded, but the wall shows nothing new.** Another pack that overrides `core/text` or `entity_outline.json`
   was loaded after it; the client uses improved transparency, an Iris shader pack without the client mod, or the Vulkan
-  backend; or the hidden page frames are out of view: the decoder only runs while one is drawn, so look at the wall.
+  backend, which was never tested; or the hidden page frames are out of view: the decoder only runs while one is drawn,
+  so look at the wall.
 - **The picture freezes and jumps every few seconds.** The client draws fewer frames a second than the video has, and a
   missed frame is repaired only by the next keyframe. A faster client fixes it; `LIVE_KEYFRAME` hides it at a higher
   rate.

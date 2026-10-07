@@ -674,7 +674,7 @@ configuration, hosting the pack, the client mod for Iris shader players and the 
   picture. With Iris 1.11.7 the MCV2 client mod decodes it anyway: it builds the transport strip on the CPU from the
   frame's maps after the shader pack's final image and runs the pack's chain over it. With another Iris version the mod
   tells the server, which shows that player the dithered maps. Sodium, and Iris with its shaders off, show MCV2
-  normally. Improved transparency and the Vulkan backend show no MCV2 picture.
+  normally. Improved transparency shows no MCV2 picture, and the Vulkan backend was never tested.
 - **The top of the screen.** While a page frame is in view, the strip takes the top rows of the screen (41 rows in an
   854x480 window with one screen of eight slots, 25 at 1080p), and the chain covers them with the scene row just below,
   so a detailed sky or ceiling smears there.
