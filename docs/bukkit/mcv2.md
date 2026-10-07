@@ -93,11 +93,17 @@ and `mcav/mcv2/chain.json` for the outline chain, in the `mcav-bukkit` jar the p
 
 ### The Client Mod for Iris Shader Players
 
-Iris draws with its own shaders while a shader pack is on, and they replace the MCV2 pack's shaders, so a player with
-Iris shaders on sees an MCV2 wall frozen or blank. A server cannot see a client's shader settings, so the MCAV MCV2
-Client mod tells it: while a shader pack is on, every MCV2 screen shows that player the dithered maps, and with the
-shaders off the video again, without rejoining. Vanilla, Sodium, and Iris with its shaders off all show MCV2 and need
-no mod.
+Iris draws the world with its shader pack's own programs, which replace the MCV2 pack's shaders, and it writes the
+shader pack's final image over the screen after the level is drawn. On its own, a player with Iris shaders on sees an
+MCV2 wall frozen or blank. The MCAV MCV2 Client mod fixes that with Iris 1.11.7: it reads the frame's MCV2 maps as the
+game draws them, builds the transport strip on the CPU once the shader pack's final image is done, writes it into the
+top rows of the screen and runs the pack's post chain over it. The screens decode under shader packs such as
+Complementary and BSL like they do without them, and a frame without MCV2 maps is left exactly as Iris drew it.
+
+The mod decodes only under the Iris version it was proven with. With another one, or if the game's code it hooks into
+isn't there, it tells the server instead: while a shader pack is on, every MCV2 screen shows that player the dithered
+maps, and with the shaders off the video again, without rejoining. Vanilla, Sodium, and Iris with its shaders off all
+show MCV2 and need no mod.
 
 The mod is for Minecraft 26.3, on Fabric (Loader 0.19.5 or newer, with Fabric API) or NeoForge (26.3.0.43-beta or
 newer), with or without Iris. Build it with `./gradlew :mcav-mcv2-client:assemble` and put
@@ -110,25 +116,27 @@ only to a server that registered it. A report is four bytes:
 | 0 | the report's version, 1 |
 | 1 | 1 if Iris is installed, else 0 |
 | 2 | the shader pack: 0 none in use, 1 in use, 2 unknown (an Iris without the API the mod asks) |
-| 3 | 1 if MCV2 decodes under the shader pack, else 0 |
+| 3 | 1 if the mod decodes MCV2 under the shader pack in use (Iris 1.11.7), else 0 |
 
-The mod sends a report when the player joins and whenever it changes, once it held for a second. For admins there is
-nothing to set up: the pack server listens on the channel from the moment it starts. A client learns of the channel as
-it joins, so players who joined before the pack server started report only after they rejoin. The server log says what
-each mod reports and what that player's screens show. Reports longer than 64 bytes, of another version or malformed are
-ignored, and so is one sent faster than once a second after a burst of 5; a player without the mod sees MCV2 screens
-as before.
+The mod sends a report when the player joins and whenever it changes, once it held for a second. Under Iris 1.11.7 it
+reports that MCV2 decodes once the game has drawn a map, so a player who joins with shaders on may see the dithered maps
+for a moment before the video starts. For admins there is nothing to set up: the pack server listens on the channel from
+the moment it starts. A client learns of the channel as it joins, so players who joined before the pack server started
+report only after they rejoin. The server log says what each mod reports and what that player's screens show. Reports
+longer than 64 bytes, of another version or malformed are ignored, and so is one sent faster than once a second after a
+burst of 5; a player without the mod sees MCV2 screens as before.
 
 ### Troubleshooting
 
 - **Players see the dithered maps on an MCV2 screen.** Their client has not loaded the pack yet, declined it or could
-  not load it (the chat says which), or their client mod reports Iris shaders on (the server log says so). A
+  not load it (the chat says which), or their client mod reports Iris shaders on that it can't decode under, with an
+  Iris other than 1.11.7 (the server log says so). A
   `--codec mcv2` screen is dithered for everyone when no item frame holds its top-left map, when eight MCV2 screens
   already play, or when even the fastest encoder cannot keep up; the command that started it says which.
 - **The wall shows the backs of item frames.** More than one item frame hangs in a block of the wall. Rebuild it with
   `/mcav screen`, which removes the frames already hanging where it places one.
-- **The pack loaded, but the wall shows nothing new.** Another pack that overrides `core/text` or
-  `entity_outline.json` was loaded after it; the client uses improved transparency, an Iris shader pack or the Vulkan
+- **The pack loaded, but the wall shows nothing new.** Another pack that overrides `core/text` or `entity_outline.json`
+  was loaded after it; the client uses improved transparency, an Iris shader pack without the client mod, or the Vulkan
   backend; or the hidden page frames are out of view: the decoder only runs while one is drawn, so look at the wall.
 - **The picture freezes and jumps every few seconds.** The client draws fewer frames a second than the video has, and a
   missed frame is repaired only by the next keyframe. A faster client fixes it; `LIVE_KEYFRAME` hides it at a higher
@@ -254,8 +262,8 @@ the next screen of its size. Keep the lease for that: `release()` does not free 
 `Mcv2Result` resizes every frame to the configured video size and encodes the newest one on the shared budget; frames
 that arrive while it works replace each other, so a slow encoder shows fewer frames instead of falling behind. Viewers
 whose pack has not loaded see the wall dithered with the fallback algorithm, and so do viewers whose [MCV2 client
-mod](#the-client-mod-for-iris-shader-players) reports that Iris draws a shader pack, which keeps the pack's shaders from
-decoding; they get the video back, without rejoining, once it reports the shaders off. `packs.start()` listens for those
+mod](#the-client-mod-for-iris-shader-players) reports that Iris draws a shader pack it can't decode under; they get the
+video back, without rejoining, once it reports the shaders off. `packs.start()` listens for those
 reports on the `mcav:mcv2` plugin channel, which a client learns of as it joins, so start the pack server in `onEnable`.
 A few settings matter:
 

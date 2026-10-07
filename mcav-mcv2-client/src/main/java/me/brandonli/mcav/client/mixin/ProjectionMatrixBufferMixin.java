@@ -1,0 +1,41 @@
+/*
+ * This file is part of mcav, a media playback library for Java
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package me.brandonli.mcav.client.mixin;
+
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import me.brandonli.mcav.client.Mcv2Shaders;
+import net.minecraft.client.renderer.ProjectionMatrixBuffer;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Coerce;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+/**
+ * Hands the decoder the projection the level is rendered with: the camera's own, with the view bobbing, the hurt
+ * shake and the screen effects applied, which only {@code GameRenderer.renderLevel} builds and gives this overload of
+ * {@code getBuffer}. The matrix is a JOML one, which the mod never names: Mixin passes it as an {@link Object}.
+ */
+@Mixin(ProjectionMatrixBuffer.class)
+abstract class ProjectionMatrixBufferMixin {
+
+  @Inject(method = "getBuffer(Lorg/joml/Matrix4f;)Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;", at = @At("HEAD"))
+  void mcav$projected(@Coerce final Object projection, final CallbackInfoReturnable<GpuBufferSlice> info) {
+    Mcv2Shaders.projected(projection);
+  }
+}

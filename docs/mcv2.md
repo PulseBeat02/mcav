@@ -666,9 +666,11 @@ configuration, hosting the pack, the client mod for Iris shader players and the 
 
 - **Lighting.** The picture is drawn at full brightness, like a map in a glow item frame: the post chain has no light
   level for the wall.
-- **Shader packs.** Iris with a shader pack on replaces the pack's shaders, so the wall shows no MCV2 picture.
-  The MCV2 client mod tells the server, which then shows that player the dithered maps. Sodium, and Iris with its
-  shaders off, show MCV2 normally. Improved transparency and the Vulkan backend show no MCV2 picture either.
+- **Shader packs.** Iris with a shader pack on replaces the pack's shaders, so on its own the wall shows no MCV2
+  picture. With Iris 1.11.7 the MCV2 client mod decodes it anyway: it builds the transport strip on the CPU from the
+  frame's maps after the shader pack's final image and runs the pack's chain over it. With another Iris version the mod
+  tells the server, which shows that player the dithered maps. Sodium, and Iris with its shaders off, show MCV2
+  normally. Improved transparency and the Vulkan backend show no MCV2 picture.
 - **Missed frames.** A client that renders fewer frames than the video has misses frames, and under the default
   prediction a missed frame is repaired only by the next keyframe.
 - **Sound.** MCV2 adds the client's decode time to the picture, and the plugin doesn't delay the sound to match.
