@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOutboundBuffer;
@@ -88,7 +89,8 @@ final class FileDownloadProgressTest {
     channel.freezeTime();
     try {
       final ChannelPromise completion = channel.newPromise();
-      channel.writeOneOutbound("payload", completion);
+      final ChannelFuture submitted = channel.writeOneOutbound("payload", completion);
+      assertSame(completion, submitted);
       assertFalse(completion.isDone());
       held.promise().setSuccess();
       assertTrue(completion.isSuccess());
@@ -107,7 +109,8 @@ final class FileDownloadProgressTest {
     channel.freezeTime();
     try {
       final ChannelPromise completion = channel.newPromise();
-      channel.writeOneOutbound("payload", completion);
+      final ChannelFuture submitted = channel.writeOneOutbound("payload", completion);
+      assertSame(completion, submitted);
       final IOException failure = new IOException("socket closed");
       held.promise().setFailure(failure);
       assertSame(failure, completion.cause());
@@ -125,9 +128,10 @@ final class FileDownloadProgressTest {
     final EmbeddedChannel channel = new EmbeddedChannel(held, new ProgressWriteTimeoutHandler(300), new IgnoreTimeout());
     channel.freezeTime();
     try {
-      channel.writeOneOutbound("payload");
+      final ChannelFuture completion = channel.writeOneOutbound("payload");
+      assertFalse(completion.isDone());
       channel.advanceTimeBy(200, TimeUnit.SECONDS);
-      held.promise().setProgress(0, 10);
+      assertTrue(held.promise().tryProgress(0, 10));
       channel.advanceTimeBy(101, TimeUnit.SECONDS);
       channel.runScheduledPendingTasks();
       assertFalse(channel.isOpen());
@@ -145,9 +149,10 @@ final class FileDownloadProgressTest {
     channel.freezeTime();
     try {
       final ChannelPromise completion = channel.newPromise();
-      channel.writeOneOutbound("payload", completion);
+      final ChannelFuture submitted = channel.writeOneOutbound("payload", completion);
+      assertSame(completion, submitted);
       channel.pipeline().remove(handler);
-      held.promise().setProgress(1, 10);
+      assertTrue(held.promise().tryProgress(1, 10));
       channel.advanceTimeBy(301, TimeUnit.SECONDS);
       channel.runScheduledPendingTasks();
       assertTrue(channel.isOpen(), "a removed handler cannot create another deadline");
