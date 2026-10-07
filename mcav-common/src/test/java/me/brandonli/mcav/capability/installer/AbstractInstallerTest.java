@@ -34,6 +34,7 @@ import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -395,6 +396,37 @@ final class AbstractInstallerTest {
       assertSame(chmodFailure, cause);
       assertTrue(namesTheProblem, message);
       assertTrue(nothingRemembered, "a failed installation is not remembered");
+    }
+  }
+
+  @Test
+  void preservesThePermissionFailureWhenRemovingTheFailedDownloadAlsoFails() throws IOException {
+    final UncheckedIOException permissionFailure = new UncheckedIOException(new IOException("permission denied"));
+    try (
+      final LocalHttpServer server = LocalHttpServer.start();
+      final MockedStatic<IOUtils> ioUtils = Mockito.mockStatic(IOUtils.class, Mockito.CALLS_REAL_METHODS)
+    ) {
+      server.respond(TOOL_PATH, 200, PROGRAM);
+      final TestInstaller installer = this.installerDownloadingFrom(server, TOOL_PATH, null);
+      final Path destination = installer.getDefaultPath();
+      ioUtils
+        .when(() -> IOUtils.markExecutable(destination))
+        .thenAnswer(_ -> {
+          // A nonempty replacement makes cleanup fail on every platform without relying on OS permissions.
+          Files.delete(destination);
+          Files.createDirectory(destination);
+          Files.writeString(destination.resolve("busy"), "retained");
+          throw permissionFailure;
+        });
+      final IOException failure = assertThrows(IOException.class, () -> installer.download(true));
+      assertSame(permissionFailure, failure.getCause());
+      assertEquals("Cannot mark " + destination + " as executable: " + permissionFailure.getMessage(), failure.getMessage());
+      final Throwable[] suppressed = failure.getSuppressed();
+      assertEquals(1, suppressed.length, "cleanup must not hide either failure");
+      assertEquals(DirectoryNotEmptyException.class, suppressed[0].getClass());
+      assertEquals(destination.toString(), ((DirectoryNotEmptyException) suppressed[0]).getFile());
+      assertEquals(new Properties(), this.readConfig(), "a failed installation is not remembered");
+      assertEquals("retained", Files.readString(destination.resolve("busy")));
     }
   }
 
