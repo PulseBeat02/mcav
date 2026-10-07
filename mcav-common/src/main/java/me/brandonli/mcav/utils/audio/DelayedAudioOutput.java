@@ -205,12 +205,13 @@ public final class DelayedAudioOutput implements AutoCloseable {
     copy.put(samples, length - kept, kept);
     copy.flip();
     final long due = this.clock.getAsLong() + this.delayNanos;
-    this.queue.addLast(new Chunk(copy, due));
-    this.queuedBytes += kept;
-    while (this.queuedBytes > this.maxQueuedBytes) {
+    // Make room before addition so even the largest accepted queue cannot wrap its byte counter.
+    while (this.queuedBytes > this.maxQueuedBytes - kept) {
       final Chunk dropped = this.queue.removeFirst();
       this.queuedBytes -= dropped.samples().remaining();
     }
+    this.queue.addLast(new Chunk(copy, due));
+    this.queuedBytes += kept;
     this.notifyAll();
   }
 
