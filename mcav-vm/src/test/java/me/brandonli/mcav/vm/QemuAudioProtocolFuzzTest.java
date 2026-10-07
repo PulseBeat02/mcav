@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Tag;
 final class QemuAudioProtocolFuzzTest {
 
   private static final int FRAME = 4;
+  private static final String PASSWORD = "Pa55word";
 
   @FuzzTest(maxDuration = "30s")
   void readsTheHandshakeAndTheMessagesOrRefusesThem(final FuzzedDataProvider data) {
@@ -47,7 +48,10 @@ final class QemuAudioProtocolFuzzTest {
     final DataOutputStream out = new DataOutputStream(OutputStream.nullOutputStream());
     try {
       QemuAudioProtocol.readVersion(in);
-      QemuAudioProtocol.negotiateSecurity(in, out);
+      final boolean authenticates = QemuAudioProtocol.negotiateSecurity(in, out, PASSWORD);
+      if (authenticates) {
+        QemuAudioProtocol.answerChallenge(in, out, PASSWORD);
+      }
       QemuAudioProtocol.readSecurityResult(in);
       QemuAudioProtocol.readServerInit(in);
       while (true) {

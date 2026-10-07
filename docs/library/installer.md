@@ -15,6 +15,8 @@ The installer resolves a module and all of its compile and runtime dependencies 
 jars into a folder, and adds them to a class loader. It supports `URLClassLoader`, which includes the plugin class
 loaders of Bukkit and Paper, and the Knot class loader of Fabric. The JVM must allow the access needed to add jars;
 if it refuses both available strategies, the installer throws a `JarInjectorException` with the required JVM option.
+It says what it downloads and loads through `java.util.logging`, under the names of its classes, which a server
+shows in its console; the SLF4J inside the installer's jar is its own, and never meets yours.
 
 ```java
   final File dataFolder = this.getDataFolder();
@@ -86,6 +88,11 @@ nothing reads them anymore, and they are deleted.
 Loading throws an `InstallationException` when an artifact cannot be resolved, downloaded, or copied, and a
 `JarInjectorException` when the jars cannot be added to the class loader. `injector(Path, Object)` also throws a
 `JarInjectorException` when the object was loaded by the bootstrap class loader, which cannot receive jars.
+
+The jars are added through the class loader's `addURL` method, for which `java.net` must be open: start the server
+with `--add-opens java.base/java.net=ALL-UNNAMED`. Without it, the installer adds them through `sun.misc.Unsafe`,
+which Java 24 and newer warn about the first time; a later Java that removes those methods of `sun.misc.Unsafe` leaves
+only `addURL`, and without the option the installer then throws a `JarInjectorException` that says to add it.
 
 ```{note}
 Paper plugins can also declare their libraries in a `PluginLoader`, as the sandbox plugin does with Gremlin. Use

@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.multimedia.vlc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -39,6 +40,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import me.brandonli.mcav.media.Polling;
 import me.brandonli.mcav.media.source.Source;
@@ -305,6 +307,32 @@ final class VLCPlaybackTest {
       // No render threads were started; balance this test's mocked factory reference after the fatal-path check.
       shared.release();
     }
+  }
+
+  @Test
+  void theSynchronizerIsADaemonWhateverThreadStartsThePlayback() throws InterruptedException {
+    final VLCPlayback playback = VLCPlayback.create(this.owner, this.video, this.audio);
+    final AtomicBoolean started = new AtomicBoolean();
+    // a thread that is no daemon, as a server's main thread: what it starts is no daemon unless made so
+    final Thread starter = Thread.ofPlatform()
+      .daemon(false)
+      .start(() -> started.set(playback.start()));
+    starter.join();
+    try {
+      assertTrue(started.get());
+      final List<Thread> synchronizers = Thread.getAllStackTraces()
+        .keySet()
+        .stream()
+        .filter(thread -> thread.getName().equals("mcav-vlc-sync"))
+        .toList();
+      assertFalse(synchronizers.isEmpty(), "the synchronizer runs");
+      for (final Thread thread : synchronizers) {
+        assertTrue(thread.isDaemon(), "the synchronizer would keep the JVM alive");
+      }
+    } finally {
+      playback.stop();
+    }
+    awaitNoPlaybackThreads();
   }
 
   @Test

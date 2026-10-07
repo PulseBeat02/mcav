@@ -77,6 +77,27 @@ class PageAudioTest {
   }
 
   @Test
+  void theSilenceAfterAFramesSoundPassesWithoutKeepingAnotherFrameFromSpeaking() {
+    final AtomicLong now = new AtomicLong();
+    final List<Byte> passed = new ArrayList<>();
+    final PageAudio audio = new PageAudio(samples -> passed.add(samples[0]), now::get);
+    final String sound = call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 1, 0, 0, 0 }), "1");
+    final String silence = call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[4]), "1");
+    final String other = call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 2, 0, 0, 0 }), "2");
+    audio.onEvent(PageAudio.BINDING_EVENT, sound);
+    // the frame's pause passes, so the server keeps its timing
+    now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLIS - 1));
+    audio.onEvent(PageAudio.BINDING_EVENT, silence);
+    assertEquals(List.of((byte) 1, (byte) 0), passed);
+    // but the quiet moment counts from its last sound, not from its silence
+    now.addAndGet(TimeUnit.MILLISECONDS.toNanos(1));
+    audio.onEvent(PageAudio.BINDING_EVENT, other);
+    assertEquals(List.of((byte) 1, (byte) 0, (byte) 2), passed, "another frame speaks after the quiet moment");
+    audio.onEvent(PageAudio.BINDING_EVENT, silence);
+    assertEquals(3, passed.size(), "the silence of a frame that lost the word does not pass");
+  }
+
+  @Test
   void aCallOfTheBindingIsSoundOfWholeFrames() {
     assertArrayEquals(FRAMES, samplesOf(PageAudio.parse(PageAudio.BINDING_EVENT, call(FRAMES))));
     final String encoded = Base64.getEncoder().encodeToString(FRAMES);

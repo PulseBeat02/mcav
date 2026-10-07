@@ -65,6 +65,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -2008,6 +2009,48 @@ final class VNCPlayerImplTest {
     public synchronized void close() throws IOException {
       this.closeAttempted = true;
       throw new IOException("close failed on purpose");
+    }
+  }
+
+  /**
+   * Keeps every worker of the common pool busy until the returned latch opens, as the tasks of other plugins can.
+   *
+   * @return the latch that frees the workers
+   */
+  private static CountDownLatch occupyTheCommonPool() throws InterruptedException {
+    final int workers = ForkJoinPool.getCommonPoolParallelism();
+    final CountDownLatch busy = new CountDownLatch(workers);
+    final CountDownLatch release = new CountDownLatch(1);
+    final ForkJoinPool pool = ForkJoinPool.commonPool();
+    for (int worker = 0; worker < workers; worker++) {
+      pool.execute(() -> {
+        busy.countDown();
+        try {
+          release.await();
+        } catch (final InterruptedException exception) {
+          Thread.currentThread().interrupt();
+        }
+      });
+    }
+    assertTrue(busy.await(30, TimeUnit.SECONDS), "every worker of the common pool is busy");
+    return release;
+  }
+
+  @Test
+  void givesUpOnAServerThatNeverAnswersItsHandshakeWhileTheCommonPoolIsBusy() throws Exception {
+    final CountDownLatch release = occupyTheCommonPool();
+    try {
+      final ServerSocket silent = this.listeningSocket();
+      final VNCPlayerImpl player = this.track(
+        new VNCPlayerImpl(VernacularClient::new, Socket::new, TimeUnit.MILLISECONDS.toNanos(10), 500)
+      );
+      final VNCSource source = source(silent, 0, 0);
+      final PlayerException failure = assertTimeoutPreemptively(Duration.ofSeconds(30), () ->
+        assertThrows(PlayerException.class, () -> player.start(source))
+      );
+      assertTrue(failure.getMessage().endsWith(": the server did not finish the handshake within 500 ms"), failure.getMessage());
+    } finally {
+      release.countDown();
     }
   }
 

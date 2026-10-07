@@ -108,7 +108,9 @@ public interface ImageBuffer extends Image {
    *
    * @param bytes the encoded image
    * @return the image buffer
-   * @throws IllegalArgumentException if the bytes are not a supported image format
+   * @throws IllegalArgumentException if the bytes are not a supported image format, or their header declares more pixels
+   *                                  than the system property {@code mcav.image.maxPixels} allows (8192 by 8192 if it
+   *                                  is not set)
    * @throws NullPointerException if {@code bytes} is null
    */
   static ImageBuffer bytes(final byte[] bytes) {
@@ -136,7 +138,8 @@ public interface ImageBuffer extends Image {
    * @param source the URL of the image
    * @return the image buffer
    * @throws java.io.UncheckedIOException if the image cannot be downloaded
-   * @throws IllegalArgumentException     if the file is not a supported image format
+   * @throws IllegalArgumentException     if the file is not a supported image format, or its header declares more
+   *                                      pixels than the system property {@code mcav.image.maxPixels} allows
    * @throws NullPointerException if {@code source} is null
    */
   static ImageBuffer uri(final UriSource source) {
@@ -149,7 +152,8 @@ public interface ImageBuffer extends Image {
    *
    * @param source the image file
    * @return the image buffer
-   * @throws IllegalArgumentException if the file does not exist or is not a supported image format
+   * @throws IllegalArgumentException if the file does not exist or is not a supported image format, or its header
+   *                                  declares more pixels than the system property {@code mcav.image.maxPixels} allows
    * @throws NullPointerException if {@code source} is null
    */
   static ImageBuffer path(final FileSource source) {

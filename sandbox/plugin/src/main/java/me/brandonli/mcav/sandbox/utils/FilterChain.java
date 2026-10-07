@@ -204,11 +204,13 @@ public final class FilterChain {
       return NONE;
     }
     if (text.length() > MAX_LENGTH) {
-      throw new IllegalArgumentException("at most %d characters of filters".formatted(MAX_LENGTH));
+      throw new IllegalArgumentException(
+        String.format(Locale.getDefault(Locale.Category.FORMAT), "at most %d characters of filters", MAX_LENGTH)
+      );
     }
     final String[] specs = text.split(",", -1);
     if (specs.length > MAX_FILTERS) {
-      throw new IllegalArgumentException("at most %d filters".formatted(MAX_FILTERS));
+      throw new IllegalArgumentException(String.format(Locale.getDefault(Locale.Category.FORMAT), "at most %d filters", MAX_FILTERS));
     }
     final List<Supplier<VideoFilter>> filters = new ArrayList<>();
     for (final String spec : specs) {
@@ -351,7 +353,9 @@ public final class FilterChain {
     count("text", args, 1);
     final String text = args.getFirst();
     if (!TEXT.matcher(text).matches()) {
-      throw new IllegalArgumentException("text takes up to %d letters, digits, spaces and .!?'()+-".formatted(MAX_TEXT));
+      throw new IllegalArgumentException(
+        String.format(Locale.getDefault(Locale.Category.FORMAT), "text takes up to %d letters, digits, spaces and .!?'()+-", MAX_TEXT)
+      );
     }
     return () -> new TextFilter(text, TEXT_X, TEXT_Y, TextFilter.DEFAULT_FONT, TEXT_SCALE, WHITE);
   }
@@ -375,7 +379,9 @@ public final class FilterChain {
     }
     final long size = attributes.size();
     if (size > MAX_OVERLAY_BYTES) {
-      throw new IllegalArgumentException("the overlay %s is larger than %d bytes".formatted(name, MAX_OVERLAY_BYTES));
+      throw new IllegalArgumentException(
+        String.format(Locale.getDefault(Locale.Category.FORMAT), "the overlay %s is larger than %d bytes", name, MAX_OVERLAY_BYTES)
+      );
     }
     return () -> overlayFilter(readOverlay(file));
   }
@@ -406,17 +412,23 @@ public final class FilterChain {
 
   private static void count(final String name, final List<String> args, final int expected) {
     if (args.size() != expected) {
-      throw new IllegalArgumentException("%s takes %d argument%s".formatted(name, expected, expected == 1 ? "" : "s"));
+      throw new IllegalArgumentException(
+        String.format(Locale.getDefault(Locale.Category.FORMAT), "%s takes %d argument%s", name, expected, expected == 1 ? "" : "s")
+      );
     }
   }
 
   private static int whole(final String name, final String text, final int min, final int max) {
     if (!WHOLE.matcher(text).matches()) {
-      throw new IllegalArgumentException("%s takes a whole number from %d to %d, not %s".formatted(name, min, max, text));
+      throw new IllegalArgumentException(
+        String.format(Locale.getDefault(Locale.Category.FORMAT), "%s takes a whole number from %d to %d, not %s", name, min, max, text)
+      );
     }
     final int value = Integer.parseInt(text);
     if (value < min || value > max) {
-      throw new IllegalArgumentException("%s takes a whole number from %d to %d, not %s".formatted(name, min, max, text));
+      throw new IllegalArgumentException(
+        String.format(Locale.getDefault(Locale.Category.FORMAT), "%s takes a whole number from %d to %d, not %s", name, min, max, text)
+      );
     }
     return value;
   }

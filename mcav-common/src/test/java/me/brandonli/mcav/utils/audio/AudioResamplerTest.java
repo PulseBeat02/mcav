@@ -27,8 +27,11 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
+import org.bytedeco.javacpp.Pointer;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -468,6 +471,43 @@ final class AudioResamplerTest {
     assertTrue(closedAfter);
     assertThrows(IllegalStateException.class, () -> resampler.resample(tone));
     assertThrows(IllegalStateException.class, resampler::flush);
+  }
+
+  /**
+   * Names the native objects that are still allocated.
+   */
+  private static List<String> allocated(final List<Pointer> objects) {
+    final List<String> names = new ArrayList<>();
+    for (final Pointer object : objects) {
+      final boolean freed = object.isNull();
+      if (!freed) {
+        final Class<? extends Pointer> type = object.getClass();
+        names.add(type.getSimpleName());
+      }
+    }
+    return names;
+  }
+
+  @Test
+  void closingFreesTheNativeContextAndBothChannelLayoutsAtOnce() {
+    final AudioResampler resampler = AudioResampler.fromPipelineFormat(SPEECH_RATE, 1, SampleFormat.SIGNED_16_BIT);
+    final List<Pointer> objects = resampler.getNativeObjects();
+    final List<String> beforeClose = allocated(objects);
+    resampler.close();
+    final List<String> afterClose = allocated(objects);
+
+    assertEquals(List.of("SwrContext", "AVChannelLayout", "AVChannelLayout"), beforeClose);
+    assertEquals(List.of(), afterClose, "closing frees them rather than leaving them to the garbage collector");
+  }
+
+  @Test
+  void aConversionFfmpegCannotSetUpIsReported() {
+    // FFmpeg refuses to build a filter for a ratio of rates this extreme
+    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
+      AudioResampler.create(48_000_000, 1, SampleFormat.SIGNED_16_BIT, 1, 1, SampleFormat.SIGNED_16_BIT)
+    );
+    final String message = exception.getMessage();
+    assertEquals("Could not initialize the resampler: Cannot allocate memory (FFmpeg error -12)", message);
   }
 
   @Test

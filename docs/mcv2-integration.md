@@ -4,7 +4,9 @@ Status: **design, written before the integration code** (2026-09-25), updated as
 below cite the measurement or experiment behind them; where a decision is provisional it says what would settle it.
 Timing and platform tables retain their original integration measurements. Later CPU results and client compatibility
 are summarized in [current usage and limits](mcv2/using.md#troubleshooting); these workloads do not establish a
-throughput guarantee for another server or GPU. Handover notes for later stages are at the end.
+throughput guarantee for another server or GPU. Where this page names Minecraft 26.2, it records a measurement taken
+on 26.2 before the port to 26.3, the version mcav supports; those records are kept as they were taken. Handover notes
+for later stages are at the end.
 
 MCV2 is the block codec of the gpu-codec research repository: a server-side rate-distortion encoder, a bitstream of
 32→16→8 block trees without an entropy coder, a transport that carries each frame as six-bit symbols in Minecraft

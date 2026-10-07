@@ -45,6 +45,8 @@ import me.brandonli.mcav.loader.DependencyLoader;
 import me.brandonli.mcav.module.MCAVModule;
 import me.brandonli.mcav.module.ModuleException;
 import me.brandonli.mcav.module.ModuleLoader;
+import me.brandonli.mcav.utils.os.OS;
+import me.brandonli.mcav.utils.os.OSUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -200,6 +202,24 @@ final class MCAVTest {
     } finally {
       ImageIO.setUseCache(previousCache);
     }
+  }
+
+  /**
+   * glibc kept freed memory in its arenas and a server's resident memory grew for days (soak test S9), so an installed
+   * MCAV hands it back to the system once a minute, on Linux.
+   */
+  @Test
+  void trimsTheNativeHeapWhileInstalled() {
+    final boolean linux = OSUtils.getOS() == OS.LINUX;
+    final boolean beforeInstall = this.mcav.isTrimmingNativeHeap();
+    this.mcav.install();
+    final boolean installed = this.mcav.isTrimmingNativeHeap();
+    this.mcav.release();
+    final boolean released = this.mcav.isTrimmingNativeHeap();
+
+    assertFalse(beforeInstall);
+    assertEquals(linux, installed);
+    assertFalse(released);
   }
 
   @Test

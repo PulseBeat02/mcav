@@ -40,6 +40,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -61,6 +62,7 @@ import java.util.function.Function;
 import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
+import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.LiveSearch;
@@ -661,11 +663,13 @@ final class Mcv2ResultTest {
   }
 
   @Test
-  void convertsArgbToRgb() {
-    assertArrayEquals(
-      new byte[] { 0x11, 0x22, 0x33, (byte) 0xAA, (byte) 0xBB, (byte) 0xCC },
-      Mcv2Result.rgb(new int[] { 0xFF112233, 0x00AABBCC, 7 }, 2)
-    );
+  void convertsBgrToRgbFromThePositionOfTheBuffer() {
+    final ByteBuffer bgr = ByteBuffer.wrap(new byte[] { 9, 0x33, 0x22, 0x11, (byte) 0xCC, (byte) 0xBB, (byte) 0xAA, 7 });
+    bgr.position(1);
+    final byte[] rgb = Mcv2Result.rgb(bgr, 2);
+
+    assertArrayEquals(new byte[] { 0x11, 0x22, 0x33, (byte) 0xAA, (byte) 0xBB, (byte) 0xCC }, rgb);
+    assertEquals(1, bgr.position(), "the buffer is left as it was");
   }
 
   @Test
@@ -713,6 +717,71 @@ final class Mcv2ResultTest {
   }
 
   @Test
+  void repairsAnUnchangedFallbackAfterVanillaOverwritesItsFirstSnapshot() {
+    when(this.viewers.isLoaded(WITH_PACK)).thenReturn(false);
+    doAnswer(invocation -> MapPackets.pattern(invocation.getArgument(0)))
+      .when(this.algorithm)
+      .ditherIntoBytes(any());
+    final AtomicLong clock = new AtomicLong(-TimeUnit.SECONDS.toNanos(60));
+    final Mcv2Result result = new Mcv2Result(
+      this.configuration,
+      new Mcv2Channel(this.configuration, this.viewers, this.screen),
+      this.algorithm,
+      clock::get,
+      Runnable::run
+    );
+    result.start();
+    try (final ImageBuffer frame = Images.solid(64, 32, 0xFF336699)) {
+      result.applyFilter(frame, this.metadata);
+      final byte[] expected = MapPackets.pattern(128 * 128, 4);
+      MapPackets.assertMapPacket(
+        MapPackets.unbundle(this.server.getSentPackets(WITHOUT).getLast()).getFirst(),
+        100,
+        0,
+        0,
+        128,
+        128,
+        expected
+      );
+      // Vanilla can initialize its map after the first snapshot, leaving an unchanged delta stream transparent.
+      MapPacketFactory.clear(List.of(WITHOUT), 100, 1);
+      clock.addAndGet(TimeUnit.SECONDS.toNanos(4) - 1);
+      result.applyFilter(frame, this.metadata);
+      assertEquals(2, this.server.getSentPackets(WITHOUT).size(), "ordinary identical frames keep delta savings");
+      clock.incrementAndGet();
+      result.applyFilter(frame, this.metadata);
+      MapPackets.assertMapPacket(
+        MapPackets.unbundle(this.server.getSentPackets(WITHOUT).getLast()).getFirst(),
+        100,
+        0,
+        0,
+        128,
+        128,
+        expected
+      );
+      assertEquals(3, this.server.getSentPackets(WITHOUT).size(), "the fallback repairs an external map reset");
+      clock.incrementAndGet();
+      result.applyFilter(frame, this.metadata);
+      assertEquals(3, this.server.getSentPackets(WITHOUT).size(), "a repair starts a fresh interval");
+      MapPacketFactory.clear(List.of(WITHOUT), 100, 1);
+      clock.addAndGet(TimeUnit.SECONDS.toNanos(4));
+      result.applyFilter(frame, this.metadata);
+      MapPackets.assertMapPacket(
+        MapPackets.unbundle(this.server.getSentPackets(WITHOUT).getLast()).getFirst(),
+        100,
+        0,
+        0,
+        128,
+        128,
+        expected
+      );
+      assertEquals(5, this.server.getSentPackets(WITHOUT).size(), "recovery is periodic, not a one-time join delay");
+    } finally {
+      result.release();
+    }
+  }
+
+  @Test
   void dithersAgainOnceStartedAgainAndClearsTheMapsWhenReleased() {
     final Mcv2Result result = new Mcv2Result(
       this.configuration,
@@ -737,6 +806,35 @@ final class Mcv2ResultTest {
     result.applyFilter(frame, this.metadata);
     verify(this.algorithm).ditherIntoBytes(any());
     result.release();
+  }
+
+  @Test
+  void clearsTheWallOfTheViewersWithThePackWhenReleased() {
+    // a client with the pack keeps drawing its last decoded picture over a wall whose maps still carry the screen's
+    // anchors, so a release clears their maps too, not only the dithered ones
+    final Mcv2Result result = new Mcv2Result(
+      this.configuration,
+      new Mcv2Channel(this.configuration, this.viewers, this.screen),
+      this.algorithm,
+      System::nanoTime,
+      Runnable::run
+    );
+    result.start();
+    // the first frame dithers for both and shows the screen to the viewer with the pack, who then decodes the second
+    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+    result.applyFilter(frame, this.metadata);
+    this.server.runTasks();
+    result.applyFilter(frame, this.metadata);
+    assertEquals(Set.of(WITH_PACK), result.getChannel().getRecipients());
+    final int withPack = this.server.getSentPackets(WITH_PACK).size();
+    final int without = this.server.getSentPackets(WITHOUT).size();
+
+    result.release();
+
+    final List<Packet<?>> cleared = this.server.getSentPackets(WITH_PACK);
+    assertEquals(withPack + 1, cleared.size(), "one bundle clears the wall of the viewer with the pack");
+    MapPackets.assertMapPacket(MapPackets.unbundle(cleared.getLast()).getFirst(), 100, 0, 0, 128, 128, new byte[128 * 128]);
+    assertEquals(without + 1, this.server.getSentPackets(WITHOUT).size(), "the dithered maps are cleared once");
   }
 
   @Test
@@ -1179,6 +1277,19 @@ final class Mcv2ResultTest {
     result.applyFilter(frame, this.metadata);
     awaitEncoders(made, 2);
     verify(made.get(1), timeout(TimeUnit.SECONDS.toMillis(10))).finish(any());
+    // the screen searches the next frame while the sender verifies the last, so frames are handed over only once the
+    // failed verification has stopped the screen, which also ends a drain: right after finish was called, a frame could
+    // still be searched on a loaded machine
+    final Thread drainer = new Thread(() -> {
+      try {
+        result.drain();
+      } catch (final InterruptedException exception) {
+        Thread.currentThread().interrupt();
+      }
+    });
+    drainer.start();
+    drainer.join(TimeUnit.SECONDS.toMillis(10));
+    assertFalse(drainer.isAlive(), "the failed verification stops the screen");
     // the failure stops the screen's thread too: no later frame begins, and nothing was sent
     result.applyFilter(frame, this.metadata);
     result.applyFilter(frame, this.metadata);

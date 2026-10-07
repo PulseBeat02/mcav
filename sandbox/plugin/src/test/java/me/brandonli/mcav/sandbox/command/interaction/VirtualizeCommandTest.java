@@ -110,6 +110,8 @@ final class VirtualizeCommandTest {
 
   private Path imageFolder;
 
+  private PluginDataConfigurationMapper configuration;
+
   @BeforeEach
   void createCommand() {
     final Server server = TestServer.reset();
@@ -118,6 +120,7 @@ final class VirtualizeCommandTest {
     final PluginDataConfigurationMapper defaults = mock(PluginDataConfigurationMapper.class);
     when(defaults.getMcv2DefaultCodec()).thenReturn(MapCodec.DITHER);
     when(this.plugin.getConfiguration()).thenReturn(defaults);
+    this.configuration = defaults;
     when(this.plugin.getServer()).thenReturn(server);
     when(this.plugin.isQemuInstalled()).thenReturn(true);
     when(this.plugin.getDataPath()).thenReturn(this.dataFolder);
@@ -249,6 +252,21 @@ final class VirtualizeCommandTest {
     final Component loading = Message.VM_LOADING.build();
     final Component created = Message.VM_CREATE.build();
     this.assertReceived(loading, created);
+  }
+
+  @Test
+  void givesTheGuestQemusOwnNetworkOnlyWhenTheConfigurationAllowsIt() throws IOException {
+    this.startsWith(CompletableFuture.completedFuture(true));
+    final String image = this.image("alpine linux.iso");
+    when(this.configuration.isVmAllowNetwork()).thenReturn(true);
+
+    this.create("640x480", "5x4", "-cdrom \"alpine linux.iso\"");
+
+    final ArgumentCaptor<VMConfiguration> configurations = ArgumentCaptor.forClass(VMConfiguration.class);
+    verify(this.machine).startAsync(any(VMSettings.class), eq(VMPlayer.Architecture.X86_64), configurations.capture(), any());
+    final VMConfiguration machine = configurations.getValue();
+    final List<String> arguments = machine.getArguments();
+    assertEquals(List.of("-cdrom", image, "-nic", "user"), arguments);
   }
 
   @Test
@@ -395,7 +413,8 @@ final class VirtualizeCommandTest {
     when(this.provider.constructFilter(eq(AudioArgument.SIMPLE_VOICE_CHAT), any(), any(), eq(this.machine))).thenReturn(
       mock(AudioFilter.class)
     );
-    when(this.machine.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
+    final AudioAttachableCallback sound = mock(AudioAttachableCallback.class);
+    when(this.machine.getAudioAttachableCallback()).thenReturn(sound);
     this.startsWith(CompletableFuture.completedFuture(true));
     this.command.createVM(
       this.sender,
@@ -416,6 +435,7 @@ final class VirtualizeCommandTest {
     this.command.releaseVM(this.sender);
     verify(this.provider).releaseAudioFilter(this.machine);
     verify(this.callback).detach();
+    verify(sound).detach();
     verify(this.machine, timeout(RELEASE_MILLIS)).release();
   }
 

@@ -372,16 +372,22 @@ final class BrowserCommandTest {
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
     this.create("1280x720", "5x3", "https://example.com/page");
     this.browsers.verify(() ->
-      BrowserPlayer.create(argThat(options -> !options.isPrivateNetworks() && !options.isJavaScriptJit() && !options.isAutoplay()))
+      BrowserPlayer.create(
+        argThat(options -> !options.isPrivateNetworks() && !options.isJavaScriptJit() && !options.isAutoplay() && !options.isConfined())
+      )
     );
 
     when(this.configuration.isBrowserPrivateNetworks()).thenReturn(true);
     when(this.configuration.isBrowserJavaScriptJit()).thenReturn(true);
     when(this.configuration.isBrowserAutoplaySound()).thenReturn(true);
+    when(this.configuration.isBrowserConfineChromium()).thenReturn(true);
+    when(this.configuration.getBrowserRefusedHosts()).thenReturn(List.of("203.0.113.5"));
     final BrowserOptions options = this.command.createOptions();
     assertTrue(options.isPrivateNetworks());
     assertTrue(options.isJavaScriptJit());
     assertTrue(options.isAutoplay());
+    assertTrue(options.isConfined());
+    assertEquals(List.of("203.0.113.5"), options.getRefusedHosts());
   }
 
   @Test

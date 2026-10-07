@@ -18,6 +18,7 @@
 package me.brandonli.mcav.sandbox.utils;
 
 import com.google.common.base.Preconditions;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -104,6 +105,8 @@ public record SeekPosition(boolean relative, long millis) {
     final long totalMinutes = totalSeconds / SECONDS_PER_MINUTE;
     final long minutes = totalMinutes % MINUTES_PER_HOUR;
     final long hours = totalMinutes / MINUTES_PER_HOUR;
-    return hours > 0 ? "%d:%02d:%02d".formatted(hours, minutes, seconds) : "%d:%02d".formatted(minutes, seconds);
+    return hours > 0
+      ? String.format(Locale.getDefault(Locale.Category.FORMAT), "%d:%02d:%02d", hours, minutes, seconds)
+      : String.format(Locale.getDefault(Locale.Category.FORMAT), "%d:%02d", minutes, seconds);
   }
 }

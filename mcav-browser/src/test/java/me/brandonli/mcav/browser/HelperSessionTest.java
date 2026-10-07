@@ -43,10 +43,12 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -280,6 +282,64 @@ class HelperSessionTest {
     Await.until("the repeats of the changed page", () -> this.listener.frames.size() >= 2 * expected);
     session.close();
     assertEquals(List.of(), this.listener.ended);
+  }
+
+  @Test
+  void closingWaitsForTheDeliveryOfAPictureThatIsStillRunning() throws Exception {
+    final CountDownLatch entered = new CountDownLatch(1);
+    final CountDownLatch release = new CountDownLatch(1);
+    final BrowserSession.Listener slow = new BrowserSession.Listener() {
+      @Override
+      public void onFrame(final ImageBuffer frame) {
+        frame.close();
+        entered.countDown();
+        try {
+          release.await();
+        } catch (final InterruptedException exception) {
+          Thread.currentThread().interrupt();
+        }
+      }
+
+      @Override
+      public void onAudio(final byte[] samples) {}
+
+      @Override
+      public void onEnded(final String reason, final Throwable cause) {}
+    };
+    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final HelperSession session = HelperSession.open(
+      launcher(ScriptedEngine.class.getName(), 60_000L),
+      NATIVES,
+      source,
+      BrowserOptions.DEFAULT,
+      slow
+    );
+    this.sessions.add(session);
+    assertTrue(entered.await(30, TimeUnit.SECONDS), "a picture is handed over");
+    final Thread delivery = session.getThreads().get(1);
+    final Thread closer = Thread.ofPlatform().name("closer").start(session::close);
+    try {
+      Await.until("the close waits for the delivery", () ->
+        Arrays.stream(closer.getStackTrace()).anyMatch(
+          frame -> frame.getClassName().equals(Thread.class.getName()) && frame.getMethodName().equals("join")
+        )
+      );
+      assertTrue(delivery.isAlive(), "the delivery still hands its picture over");
+    } finally {
+      release.countDown();
+    }
+    closer.join(TimeUnit.SECONDS.toMillis(30));
+    assertFalse(closer.isAlive());
+    assertFalse(delivery.isAlive(), "the close returned only once the delivery ended");
+  }
+
+  @Test
+  void theDeliveryThreadWaitsBetweenTheRepeatsOfAPictureInsteadOfSpinning() {
+    final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
+    Await.until("the first frame", () -> !this.listener.frames.isEmpty());
+    final Thread delivery = session.getThreads().get(1);
+    // the last picture is handed over again every 50 ms for two seconds, and the thread waits in between
+    Await.until("the delivery thread waits for the next repeat", () -> delivery.getState() == Thread.State.TIMED_WAITING);
   }
 
   @Test
@@ -894,6 +954,10 @@ class HelperSessionTest {
   void theFolderOfASessionIsCreatedOnEveryFileSystem() throws IOException {
     final Path folder = HelperSession.createFolder(this.directory);
     assertTrue(Files.isDirectory(folder));
+    if (this.directory.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+      // the server's user alone may enter it, whatever the umask
+      assertEquals(PosixFilePermissions.fromString("rwx------"), Files.getPosixFilePermissions(folder));
+    }
     final Path zip = this.directory.resolve("folders.zip");
     try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true"))) {
       final Path root = zipped.getPath("/");
@@ -904,6 +968,61 @@ class HelperSessionTest {
       HelperSession.createFolder(this.directory.resolve("missing"))
     );
     assertTrue(missing.getMessage().startsWith("The folder of the browser session cannot be created"), missing.getMessage());
+  }
+
+  @Test
+  void aSessionFolderHasAShortRandomNameAndATakenNameIsDrawnAgain() throws IOException {
+    final Path folder = HelperSession.createFolder(this.directory);
+    assertTrue(folder.getFileName().toString().matches("mcavb-[a-z0-9]{8}"), folder.toString());
+    Files.createDirectory(this.directory.resolve("mcavb-taken"));
+    final Iterator<String> names = List.of("mcavb-taken", "mcavb-free").iterator();
+    assertEquals(this.directory.resolve("mcavb-free"), HelperSession.createFolder(this.directory, names::next));
+    // a hundred names are drawn at most, and the hundredth may be the free one
+    final AtomicInteger drawn = new AtomicInteger();
+    final Path last = HelperSession.createFolder(this.directory, () -> drawn.incrementAndGet() < 100 ? "mcavb-taken" : "mcavb-last");
+    assertEquals(this.directory.resolve("mcavb-last"), last);
+    drawn.set(0);
+    final PlayerException exhausted = assertThrows(PlayerException.class, () ->
+      HelperSession.createFolder(this.directory, () -> {
+        drawn.incrementAndGet();
+        return "mcavb-taken";
+      })
+    );
+    assertTrue(exhausted.getMessage().endsWith("every name drawn was taken"), exhausted.getMessage());
+    assertEquals(100, drawn.get());
+  }
+
+  @Test
+  void aTemporaryFolderTooLongForChromiumsSocketIsRefusedOnLinuxWithTheReason() {
+    // the longest temporary folder, 47 characters: Chromium's socket path has 107, the most a path may have
+    HelperSession.requireShortEnough(OS.LINUX, Path.of("/" + "t".repeat(46), "mcavb-12345678"));
+    final Path tooLong = Path.of("/" + "t".repeat(47), "mcavb-12345678");
+    final PlayerException refused = assertThrows(PlayerException.class, () -> HelperSession.requireShortEnough(OS.LINUX, tooLong));
+    assertEquals(
+      "The temporary folder /" +
+        "t".repeat(47) +
+        " is too long for the browser: on Linux it may have at most 47 characters, so start the server with a shorter" +
+        " java.io.tmpdir, such as /tmp",
+      refused.getMessage()
+    );
+    // elsewhere, Chromium's socket does not lie in the folder of the session
+    HelperSession.requireShortEnough(OS.WINDOWS, tooLong);
+  }
+
+  @Test
+  @EnabledOnOs(org.junit.jupiter.api.condition.OS.LINUX) // fqn: OS is imported as me.brandonli.mcav.utils.os.OS
+  void aHelperIsNotStartedInATemporaryFolderTooLongForChromiumAndItsFolderIsRemoved() throws IOException {
+    // long enough for Chromium's socket to be too long, short enough for the server's own socket
+    final Path temporary = Files.createDirectories(this.directory.resolve("t".repeat(70 - this.directory.toString().length())));
+    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
+    final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), 60_000L, OS.LINUX);
+    final PlayerException refused = assertThrows(PlayerException.class, () ->
+      HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, temporary)
+    );
+    assertTrue(refused.getMessage().startsWith("The temporary folder " + temporary + " is too long"), refused.getMessage());
+    try (final Stream<Path> left = Files.list(temporary)) {
+      assertEquals(List.of(), left.toList(), "the folder of the session is removed");
+    }
   }
 
   @Test

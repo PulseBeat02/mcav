@@ -31,12 +31,16 @@ import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -112,6 +116,22 @@ final class VMProcessTest {
     }
   }
 
+  // the folder of the password file of every start; a start deletes it again once QEMU read the password
+  private Path secretFolder() throws IOException {
+    final Path folder = this.directory.resolve("secret");
+    return Files.createDirectories(folder);
+  }
+
+  private Path passwordFile() {
+    final Path folder = this.directory.resolve("secret");
+    return folder.resolve("password");
+  }
+
+  private String secretObject() {
+    final Path file = this.passwordFile();
+    return "secret,id=mcav-vnc-password,file=" + file;
+  }
+
   private VMSettings reachableSettings() {
     return new VMSettings(this.port, 64, 48, 10);
   }
@@ -139,7 +159,17 @@ final class VMProcessTest {
       return started;
     };
     // an architecture without sound, so these tests see the display options alone; the sound has tests of its own
-    return new VMProcess(settings, VMPlayer.Architecture.AARCH64, QEMU, configuration, launcher, os, this.missingKvm, SHORT_TIMEOUT_MILLIS);
+    return new VMProcess(
+      settings,
+      VMPlayer.Architecture.AARCH64,
+      QEMU,
+      configuration,
+      launcher,
+      os,
+      this.missingKvm,
+      SHORT_TIMEOUT_MILLIS,
+      this::secretFolder
+    );
   }
 
   private VMProcess reachable(final OS os, final Object... results) {
@@ -155,8 +185,12 @@ final class VMProcessTest {
       "std",
       "-display",
       "none",
+      "-nic",
+      "user,restrict=on",
+      "-object",
+      this.secretObject(),
       "-vnc",
-      "127.0.0.1:" + display + ",share=force-shared",
+      "127.0.0.1:" + display + ",share=force-shared,password-secret=mcav-vnc-password",
       "-usb",
       "-device",
       "usb-tablet"
@@ -176,16 +210,27 @@ final class VMProcessTest {
 
   private List<String> commandWithoutAccelerator(final VMSettings settings, final VMConfiguration configuration) {
     final VMProcess process = this.process(settings, configuration, OS.LINUX);
-    return process.buildCommand(null);
+    return process.buildCommand(null, this.passwordFile());
   }
 
   /**
    * Builds the command expected on VNC display 1: the program, the configured options, the display defaults, and
    * the USB options the player adds.
    */
-  private static List<String> expectedOnDisplayOne(final List<String> options, final List<String> usbOptions) {
+  private List<String> expectedOnDisplayOne(final List<String> options, final List<String> usbOptions) {
     final String program = QEMU.toString();
-    final List<String> displayDefaults = List.of("-vga", "std", "-display", "none", "-vnc", "127.0.0.1:1,share=force-shared");
+    final List<String> displayDefaults = List.of(
+      "-vga",
+      "std",
+      "-display",
+      "none",
+      "-nic",
+      "user,restrict=on",
+      "-object",
+      this.secretObject(),
+      "-vnc",
+      "127.0.0.1:1,share=force-shared,password-secret=mcav-vnc-password"
+    );
     final List<String> expected = new ArrayList<>();
     expected.add(program);
     expected.addAll(options);
@@ -320,7 +365,8 @@ final class VMProcessTest {
       OS.FREEBSD,
       this.missingKvm,
       SHORT_TIMEOUT_MILLIS,
-      clock
+      clock,
+      this::secretFolder
     );
     assertThrows(PlayerException.class, process::start);
     final boolean alive = process.isAlive();
@@ -348,7 +394,8 @@ final class VMProcessTest {
       OS.FREEBSD,
       this.missingKvm,
       SHORT_TIMEOUT_MILLIS,
-      clock
+      clock,
+      this::secretFolder
     );
     try {
       process.start();
@@ -386,6 +433,236 @@ final class VMProcessTest {
   }
 
   @Test
+  void theDisplayAsksForAPasswordOnlyTheServerKnows() throws IOException {
+    // without one, any process of the server's machine could watch, drive and hear the guest
+    final List<String> secrets = new CopyOnWriteArrayList<>();
+    final VMSettings settings = this.reachableSettings();
+    final VMProcess.Launcher launcher = command -> {
+      this.commands.add(command);
+      final int object = command.indexOf("-object");
+      assertTrue(object > 0, () -> "a secret object in " + command);
+      final String secret = command.get(object + 1);
+      final String prefix = "secret,id=mcav-vnc-password,file=";
+      assertTrue(secret.startsWith(prefix), secret);
+      final Path file = Path.of(secret.substring(prefix.length()));
+      secrets.add(Files.readString(file, StandardCharsets.US_ASCII));
+      this.openDisplay();
+      return FakeProcess.running("");
+    };
+    final VMProcess process = new VMProcess(
+      settings,
+      VMPlayer.Architecture.AARCH64,
+      QEMU,
+      VMConfiguration.builder(),
+      launcher,
+      OS.LINUX,
+      this.missingKvm,
+      SHORT_TIMEOUT_MILLIS,
+      this::secretFolder
+    );
+    process.start();
+    try {
+      final List<String> command = this.commands.getFirst();
+      final String vnc = command.get(command.indexOf("-vnc") + 1);
+      assertTrue(vnc.endsWith(",password-secret=mcav-vnc-password"), vnc);
+      assertEquals(1, secrets.size());
+      final String password = secrets.getFirst();
+      assertTrue(password.matches("[A-Za-z0-9]{8}"), password);
+      final String secret = command.get(command.indexOf("-object") + 1);
+      final Path file = Path.of(secret.substring(secret.indexOf("file=") + 5));
+      assertFalse(Files.exists(file), "QEMU read the password, so it is not left on disk");
+    } finally {
+      process.shutdown();
+    }
+  }
+
+  @Test
+  void everyProcessHasAPasswordOfItsOwn() {
+    final VMProcess first = this.reachable(OS.LINUX);
+    final VMProcess second = this.reachable(OS.LINUX);
+    final String firstPassword = first.getPassword();
+    final String secondPassword = second.getPassword();
+    assertTrue(firstPassword.matches("[A-Za-z0-9]{8}"), firstPassword);
+    assertTrue(secondPassword.matches("[A-Za-z0-9]{8}"), secondPassword);
+    // two equal passwords of 62^8 have a chance of 1 in 2*10^14
+    assertFalse(firstPassword.equals(secondPassword), "random passwords");
+  }
+
+  @Test
+  void thePasswordFolderIsOpenOnlyToTheServersUser() throws IOException {
+    final Path posix = VMProcess.createSecretFolder(this.directory, true);
+    final String permissions = PosixFilePermissions.toString(Files.getPosixFilePermissions(posix));
+    assertEquals("rwx------", permissions);
+    final Path windows = VMProcess.createSecretFolder(this.directory, false);
+    assertTrue(Files.isDirectory(windows));
+    assertFalse(posix.equals(windows), "a folder of its own for every start");
+    // the default file system makes temporary folders private on its own, other POSIX file systems do not
+    final Map<String, String> posixZip = Map.of("create", "true", "enablePosixFileAttributes", "true");
+    try (final FileSystem zipped = FileSystems.newFileSystem(this.directory.resolve("folders.zip"), posixZip)) {
+      final Path zippedFolder = VMProcess.createSecretFolder(zipped.getPath("/"), true);
+      assertEquals("rwx------", PosixFilePermissions.toString(Files.getPosixFilePermissions(zippedFolder)));
+    }
+  }
+
+  @Test
+  void theLauncherLearnsWhenTheMachineItStartedHasEnded() {
+    final FakeProcess qemu = FakeProcess.running("");
+    final List<Process> ended = new ArrayList<>();
+    final VMProcess.Launcher launcher = new VMProcess.Launcher() {
+      @Override
+      public Process launch(final List<String> command) throws IOException {
+        VMProcessTest.this.openDisplay();
+        return qemu;
+      }
+
+      @Override
+      public void ended(final Process process) {
+        ended.add(process);
+      }
+    };
+    final VMProcess process = new VMProcess(
+      this.reachableSettings(),
+      VMPlayer.Architecture.AARCH64,
+      QEMU,
+      VMConfiguration.builder(),
+      launcher,
+      OS.WINDOWS,
+      this.missingKvm,
+      SHORT_TIMEOUT_MILLIS,
+      this::secretFolder
+    );
+    process.start();
+    final List<Process> endedWhileRunning = List.copyOf(ended);
+    process.shutdown();
+
+    assertEquals(List.of(), endedWhileRunning);
+    assertEquals(List.of(qemu), ended, "a launcher that records its processes forgets one once it ended");
+  }
+
+  @Test
+  void aCommaOfThePasswordPathIsWrittenTwice() throws IOException {
+    final VMSettings settings = this.reachableSettings();
+    final Path folder = this.directory.resolve("a,b");
+    final VMProcess.Launcher launcher = command -> {
+      this.commands.add(command);
+      this.openDisplay();
+      return FakeProcess.running("");
+    };
+    final VMProcess process = new VMProcess(
+      settings,
+      VMPlayer.Architecture.AARCH64,
+      QEMU,
+      VMConfiguration.builder(),
+      launcher,
+      OS.LINUX,
+      this.missingKvm,
+      SHORT_TIMEOUT_MILLIS,
+      () -> Files.createDirectories(folder)
+    );
+    process.start();
+    process.shutdown();
+    final List<String> command = this.commands.getFirst();
+    final String secret = command.get(command.indexOf("-object") + 1);
+    assertEquals("secret,id=mcav-vnc-password,file=" + this.directory.resolve("a,,b").resolve("password"), secret);
+  }
+
+  @Test
+  void aPasswordThatCannotBeWrittenStopsTheStartBeforeQemu() {
+    final VMSettings settings = this.reachableSettings();
+    final VMProcess.Launcher launcher = command -> {
+      throw new AssertionError("QEMU must not start without the password of its display");
+    };
+    final VMProcess process = new VMProcess(
+      settings,
+      VMPlayer.Architecture.AARCH64,
+      QEMU,
+      VMConfiguration.builder(),
+      launcher,
+      OS.LINUX,
+      this.missingKvm,
+      SHORT_TIMEOUT_MILLIS,
+      () -> {
+        throw new IOException("disk full");
+      }
+    );
+    final PlayerException failure = assertThrows(PlayerException.class, process::start);
+    assertEquals("Failed to write the password of the display: disk full", failure.getMessage());
+    assertFalse(process.isAlive());
+  }
+
+  @Test
+  void aFailedStartDeletesThePasswordToo() {
+    final VMProcess process = this.reachable(OS.LINUX, new IOException("no QEMU"));
+    assertThrows(PlayerException.class, process::start);
+    final Path folder = this.directory.resolve("secret");
+    assertFalse(Files.exists(folder), "the password and its folder are gone");
+  }
+
+  @Test
+  void aPasswordFolderThatCannotBeDeletedLeavesTheMachineRunning() throws IOException {
+    // something else put a file into the folder, so it is not empty: the start succeeds and only warns
+    final VMSettings settings = this.reachableSettings();
+    final Path folder = this.directory.resolve("secret");
+    final VMProcess.Launcher launcher = command -> {
+      Files.writeString(folder.resolve("other"), "kept");
+      this.openDisplay();
+      return FakeProcess.running("");
+    };
+    final VMProcess process = new VMProcess(
+      settings,
+      VMPlayer.Architecture.AARCH64,
+      QEMU,
+      VMConfiguration.builder(),
+      launcher,
+      OS.LINUX,
+      this.missingKvm,
+      SHORT_TIMEOUT_MILLIS,
+      this::secretFolder
+    );
+    process.start();
+    try {
+      assertTrue(process.isAlive());
+      assertFalse(Files.exists(folder.resolve("password")), "the password itself is deleted");
+      assertTrue(Files.exists(folder.resolve("other")));
+    } finally {
+      process.shutdown();
+    }
+  }
+
+  @Test
+  void aMachineThatChoseNoNetworkGetsOneThatReachesNeitherTheServerNorTheInternet() {
+    // QEMU's own default network would let the guest reach every service of the server's loopback address
+    final VMSettings settings = new VMSettings(5907, 64, 48, 10);
+    final VMConfiguration configuration = VMConfiguration.builder();
+    final List<String> command = this.commandWithoutAccelerator(settings, configuration);
+    final int network = command.indexOf("-nic");
+    assertTrue(network > 0, () -> "a -nic option in " + command);
+    assertEquals("user,restrict=on", command.get(network + 1));
+    assertEquals(network, command.lastIndexOf("-nic"), "one network");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "nic", "netdev", "net" })
+  void aMachineThatChoseItsNetworkKeepsIt(final String option) {
+    final VMSettings settings = new VMSettings(5907, 64, 48, 10);
+    final VMConfiguration configuration = VMConfiguration.builder();
+    configuration.option(option, "user,id=mine");
+    final List<String> command = this.commandWithoutAccelerator(settings, configuration);
+    final boolean restricted = command.contains("user,restrict=on");
+    assertFalse(restricted, () -> "no network added to " + command);
+  }
+
+  @Test
+  void aMachineWithoutDefaultDevicesGetsNoNetworkFromMcav() {
+    final VMSettings settings = new VMSettings(5907, 64, 48, 10);
+    final VMConfiguration configuration = VMConfiguration.builder();
+    configuration.flag("nodefaults");
+    final List<String> command = this.commandWithoutAccelerator(settings, configuration);
+    final boolean network = command.contains("-nic");
+    assertFalse(network, () -> "no network added to " + command);
+  }
+
+  @Test
   void leavesOutTheDefaultsTheConfigurationSets() {
     final VMSettings settings = new VMSettings(5907, 64, 48, 10);
     final VMConfiguration configuration = VMConfiguration.builder();
@@ -393,7 +670,7 @@ final class VMProcessTest {
     configuration.option("display", "gtk");
     configuration.option("usbdevice", "tablet");
     final VMProcess process = this.process(settings, configuration, OS.LINUX);
-    final List<String> command = process.buildCommand(null);
+    final List<String> command = process.buildCommand(null, this.passwordFile());
     final String program = QEMU.toString();
     final List<String> expected = List.of(
       program,
@@ -403,8 +680,12 @@ final class VMProcessTest {
       "gtk",
       "-usbdevice",
       "tablet",
+      "-nic",
+      "user,restrict=on",
+      "-object",
+      this.secretObject(),
       "-vnc",
-      "127.0.0.1:7,share=force-shared"
+      "127.0.0.1:7,share=force-shared,password-secret=mcav-vnc-password"
     );
     assertEquals(expected, command);
   }
@@ -422,9 +703,10 @@ final class VMProcessTest {
       launcher,
       OS.LINUX,
       this.missingKvm,
-      SHORT_TIMEOUT_MILLIS
+      SHORT_TIMEOUT_MILLIS,
+      this::secretFolder
     );
-    return process.buildCommand(null);
+    return process.buildCommand(null, this.passwordFile());
   }
 
   @Test
@@ -438,6 +720,10 @@ final class VMProcessTest {
       "std",
       "-display",
       "none",
+      "-nic",
+      "user,restrict=on",
+      "-object",
+      this.secretObject(),
       "-audiodev",
       "none,id=mcav-audio,out.frequency=48000",
       "-device",
@@ -445,7 +731,7 @@ final class VMProcessTest {
       "-device",
       "hda-output,bus=mcav-sound.0,audiodev=mcav-audio",
       "-vnc",
-      "127.0.0.1:3,share=force-shared,audiodev=mcav-audio",
+      "127.0.0.1:3,share=force-shared,password-secret=mcav-vnc-password,audiodev=mcav-audio",
       "-usb",
       "-device",
       "usb-tablet"
@@ -477,7 +763,7 @@ final class VMProcessTest {
     microvm.machine("microvm");
     final List<String> command = this.x86Command(microvm);
     assertFalse(command.contains("-audiodev"), command::toString);
-    assertTrue(command.contains("127.0.0.1:3,share=force-shared"), command::toString);
+    assertTrue(command.contains("127.0.0.1:3,share=force-shared,password-secret=mcav-vnc-password"), command::toString);
     // the type named last wins, as in QEMU
     final VMConfiguration twice = VMConfiguration.builder();
     twice.machine("type=pc,type=microvm,usb=off");
@@ -598,7 +884,7 @@ final class VMProcessTest {
     final VMConfiguration configuration = VMConfiguration.builder();
     configuration.flag("nographic");
     final VMProcess process = this.process(settings, configuration, OS.LINUX);
-    final List<String> command = process.buildCommand("tcg");
+    final List<String> command = process.buildCommand("tcg", this.passwordFile());
     final String program = QEMU.toString();
     final List<String> expected = List.of(
       program,
@@ -607,8 +893,12 @@ final class VMProcessTest {
       "tcg",
       "-vga",
       "std",
+      "-nic",
+      "user,restrict=on",
+      "-object",
+      this.secretObject(),
       "-vnc",
-      "127.0.0.1:1,share=force-shared",
+      "127.0.0.1:1,share=force-shared,password-secret=mcav-vnc-password",
       "-usb",
       "-device",
       "usb-tablet"
@@ -665,7 +955,7 @@ final class VMProcessTest {
   void reportsTheLastFortyLinesOfOutput() {
     final StringBuilder output = new StringBuilder();
     for (int line = 1; line <= 45; line++) {
-      final String number = String.format("%02d", line);
+      final String number = String.format(Locale.ROOT, "%02d", line);
       output.append("line-");
       output.append(number);
       output.append("\r\n");
@@ -678,7 +968,7 @@ final class VMProcessTest {
     final String message = exception.getMessage();
     final List<String> kept = new ArrayList<>();
     for (int line = 6; line <= 45; line++) {
-      final String number = String.format("%02d", line);
+      final String number = String.format(Locale.ROOT, "%02d", line);
       kept.add("line-" + number);
     }
     final String separator = System.lineSeparator();
@@ -1079,9 +1369,9 @@ final class VMProcessTest {
     final List<String> plainOptions = List.of("-device", "usb-tablet");
     final List<String> withBusOptions = List.of("-device", "usb-tablet,bus=usb-bus.0");
     final List<String> otherOptions = List.of("-device", "virtio-net-pci");
-    final List<String> expectedPlain = expectedOnDisplayOne(plainOptions, controllerOnly);
-    final List<String> expectedWithBus = expectedOnDisplayOne(withBusOptions, controllerOnly);
-    final List<String> expectedOther = expectedOnDisplayOne(otherOptions, controllerAndTablet);
+    final List<String> expectedPlain = this.expectedOnDisplayOne(plainOptions, controllerOnly);
+    final List<String> expectedWithBus = this.expectedOnDisplayOne(withBusOptions, controllerOnly);
+    final List<String> expectedOther = this.expectedOnDisplayOne(otherOptions, controllerAndTablet);
     assertEquals(expectedPlain, plainCommand);
     assertEquals(expectedWithBus, withBusCommand);
     assertEquals(expectedOther, otherCommand);
@@ -1129,9 +1419,9 @@ final class VMProcessTest {
     final List<String> onOptions = List.of("-machine", "q35,usb=on");
     final List<String> offOptions = List.of("-machine", "q35,usb=off");
     final List<String> flagOptions = List.of("-usb");
-    final List<String> expectedOn = expectedOnDisplayOne(onOptions, tabletOnly);
-    final List<String> expectedOff = expectedOnDisplayOne(offOptions, nothing);
-    final List<String> expectedFlag = expectedOnDisplayOne(flagOptions, tabletOnly);
+    final List<String> expectedOn = this.expectedOnDisplayOne(onOptions, tabletOnly);
+    final List<String> expectedOff = this.expectedOnDisplayOne(offOptions, nothing);
+    final List<String> expectedFlag = this.expectedOnDisplayOne(flagOptions, tabletOnly);
     assertEquals(expectedOn, onCommand);
     assertEquals(expectedOff, offCommand);
     assertEquals(expectedFlag, flagCommand);

@@ -22,13 +22,18 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.net.ProtocolException;
 import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.util.function.IntFunction;
 import java.util.regex.Pattern;
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 /**
  * The part of the RFB protocol that the audio connection to QEMU's VNC server speaks, with QEMU's audio extension.
  *
- * <p>The connection is a second, shared client of the display: it agrees on RFB 3.8 without authentication, asks for
+ * <p>The connection is a second, shared client of the display: it agrees on RFB 3.8 with the password of the display
+ * (VNC authentication) or, if the server asks for none, without authentication, asks for
  * the audio pseudo-encoding ({@value #AUDIO_ENCODING}), which QEMU confirms with an empty rectangle of that encoding,
  * sets the format of the samples and enables the audio. It never asks for the picture, so QEMU sends it none. From
  * then on QEMU sends a begin and an end whenever the guest starts and stops playing, and the samples in between.
@@ -83,6 +88,13 @@ final class QemuAudioProtocol {
   private static final int VERSION_BYTES = 12;
   private static final Pattern SERVER_VERSION = Pattern.compile("RFB \\d{3}\\.\\d{3}\n");
   private static final int SECURITY_NONE = 1;
+  private static final int SECURITY_VNC = 2;
+  private static final int CHALLENGE_BYTES = 16;
+  // VNC authentication takes the first eight characters of the password as the DES key
+  private static final int KEY_BYTES = 8;
+  private static final int DES_BLOCK_BYTES = 8;
+  // CBC from a zero vector encrypts a single block as ECB, the mode VNC authentication uses
+  private static final String CIPHER = "DES/CBC/NoPadding";
   private static final int CLIENT_SET_ENCODINGS = 2;
   private static final int CLIENT_QEMU = 255;
   private static final int CLIENT_AUDIO_ENABLE = 0;
@@ -127,27 +139,81 @@ final class QemuAudioProtocol {
   }
 
   /**
-   * Reads the security types of the server, which must offer to go without authentication, and chooses it.
+   * Reads the security types of the server and chooses one: VNC authentication when the server offers it and a
+   * password is known, otherwise no authentication, which the server must then offer.
    *
-   * @param in  the stream from the server
-   * @param out the stream to the server
-   * @throws IOException if the stream ends, the server refuses the connection, or it asks for authentication
+   * @param in       the stream from the server
+   * @param out      the stream to the server
+   * @param password the password of the display, or an empty string for none
+   * @return true if VNC authentication was chosen, whose challenge {@link #answerChallenge} answers next
+   * @throws IOException if the stream ends, the server refuses the connection, or it asks for an authentication the
+   *                     connection cannot do
    */
-  static void negotiateSecurity(final DataInput in, final DataOutput out) throws IOException {
+  static boolean negotiateSecurity(final DataInput in, final DataOutput out, final String password) throws IOException {
     final int count = in.readUnsignedByte();
     if (count == 0) {
       throw new ProtocolException("The VNC server refused the connection: " + readText(in));
     }
     boolean withoutAuthentication = false;
+    boolean withPassword = false;
     for (int index = 0; index < count; index++) {
       // every offered type is read, so the stream stays in step whichever comes first
       final int type = in.readUnsignedByte();
       withoutAuthentication = withoutAuthentication || type == SECURITY_NONE;
+      withPassword = withPassword || type == SECURITY_VNC;
     }
-    if (!withoutAuthentication) {
+    final boolean authenticate = withPassword && !password.isEmpty();
+    if (!authenticate && !withoutAuthentication) {
       throw new ProtocolException("The VNC server asks for authentication, which the audio connection does not do");
     }
-    out.writeByte(SECURITY_NONE);
+    out.writeByte(authenticate ? SECURITY_VNC : SECURITY_NONE);
+    return authenticate;
+  }
+
+  /**
+   * Answers the challenge of VNC authentication with the password (RFC 6143, 7.2.2).
+   *
+   * @param in       the stream from the server
+   * @param out      the stream to the server
+   * @param password the password of the display
+   * @throws IOException if the stream ends, or DES is missing from the Java runtime
+   */
+  static void answerChallenge(final DataInput in, final DataOutput out, final String password) throws IOException {
+    final byte[] challenge = new byte[CHALLENGE_BYTES];
+    in.readFully(challenge);
+    final byte[] response = respond(challenge, password);
+    out.write(response);
+  }
+
+  /**
+   * Encrypts the challenge with DES, block by block. The key is the first eight bytes of the password, padded with
+   * zeros, with the bits of every byte reversed.
+   *
+   * @param challenge the challenge, a multiple of eight bytes
+   * @param password  the password
+   * @return the response
+   * @throws IOException if DES is missing from the Java runtime
+   */
+  static byte[] respond(final byte[] challenge, final String password) throws IOException {
+    final byte[] characters = password.getBytes(StandardCharsets.ISO_8859_1);
+    final byte[] key = new byte[KEY_BYTES];
+    final int length = Math.min(KEY_BYTES, characters.length);
+    for (int index = 0; index < length; index++) {
+      key[index] = (byte) (Integer.reverse(characters[index] & 0xFF) >>> 24);
+    }
+    final byte[] response = new byte[challenge.length];
+    try {
+      final Cipher cipher = Cipher.getInstance(CIPHER);
+      final SecretKeySpec secret = new SecretKeySpec(key, "DES");
+      final IvParameterSpec zeros = new IvParameterSpec(new byte[DES_BLOCK_BYTES]);
+      for (int block = 0; block < challenge.length; block += DES_BLOCK_BYTES) {
+        cipher.init(Cipher.ENCRYPT_MODE, secret, zeros);
+        cipher.doFinal(challenge, block, DES_BLOCK_BYTES, response, block);
+      }
+    } catch (final GeneralSecurityException exception) {
+      throw new IOException("The Java runtime cannot answer the password challenge of the VNC server", exception);
+    }
+    return response;
   }
 
   /**

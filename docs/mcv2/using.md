@@ -93,7 +93,9 @@ one reload.
 **Players who join later.** A player who joins, rejoins or changes world while a screen plays for `@a` (or a selector
 that matches them) is offered the pack on the spot and sees the dithered maps until it has loaded. A screen keeps the
 chunks of its page frames loaded until it is released, so players who walk away and come back see it too. A player who
-changes world sees an exact picture again from the next keyframe.
+changes world sees an exact picture again from the next keyframe. A player who leaves and joins again while the video
+is paused is shown the screen anew once it plays. Releasing a screen clears its wall for every viewer, with the pack or
+without it.
 
 **Where the pack is downloaded from.**
 
@@ -124,10 +126,11 @@ decoder's decision on each rendered frame.
 ## Troubleshooting
 
 **Players see the dithered maps on an MCV2 screen.** Their client has not loaded the pack yet, declined it, or could not
-load it (the chat says which). A `--codec mcv2` screen is dithered for everyone when no item frame holds its top-left
-map, when eight MCV2 screens already play, or when even the fastest encoder cannot keep up; the command that started it
-says which. `/mcav video mcv2`, `/mcav mcv2 play` and `/mcav mcv2 stream` do not start at all on a wall no item frame
-holds, and say so.
+load it (the chat says which), or their [MCV2 client mod](client-mod.md) reports Iris shaders on, which the server log
+says; they see the video again as soon as they turn the shaders off. A `--codec mcv2` screen is dithered for everyone
+when no item frame holds its top-left map, when eight MCV2 screens already play, or when even the fastest encoder cannot
+keep up; the command that started it says which. `/mcav video mcv2`, `/mcav mcv2 play` and `/mcav mcv2 stream` do not
+start at all on a wall no item frame holds, and say so.
 
 **The wall looks like a blank map, or shows the backs of item frames.** More than one item frame hangs in a block of the
 wall, placed by hand, by another plugin or by an old version of MCAV: the extra frames hang in front of the maps,
@@ -139,8 +142,11 @@ loaded after it; an Iris shader pack bypasses MCV2's text and outline pipelines;
 the decoder runs only while one of the wall's hidden page frames is drawn, so look at the wall. Sodium 0.9.2 and
 Iris 1.11.7 with shaders disabled displayed MCV2 correctly in the Minecraft 26.3 client matrix. With Iris shaders
 active, Complementary Reimagined r5.9.3 and BSL 10.1.8 left the MCV2 picture blank or frozen even though the pack
-reported that it loaded. Disable the shader pack or use ordinary dithered maps. This matrix used software rendering;
-it does not establish compatibility with every graphics driver, resource pack or rendering backend.
+reported that it loaded. Disable the shader pack or use ordinary dithered maps. A player with a modded client is told
+in the chat once the pack loads that shaders may hide the picture, and that the [MCV2 client mod](client-mod.md)
+shows them the dithered maps while Iris shaders are on. The unmodified-client matrix used software rendering;
+it does not establish compatibility with every graphics driver, resource pack, improved-transparency setting or
+rendering backend, including Vulkan.
 
 **The picture freezes and jumps every few seconds.** The client draws fewer frames a second than the video has, so it
 misses frames, and under the default prediction a missed frame is repaired only by the next keyframe (every 4 seconds

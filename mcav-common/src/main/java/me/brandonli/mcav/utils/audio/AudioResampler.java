@@ -17,8 +17,10 @@
  */
 package me.brandonli.mcav.utils.audio;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.nio.ByteBuffer;
+import java.util.List;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import org.bytedeco.ffmpeg.avutil.AVChannelLayout;
 import org.bytedeco.ffmpeg.global.avutil;
@@ -371,6 +373,16 @@ public final class AudioResampler implements AutoCloseable {
    */
   public boolean isClosed() {
     return this.closed;
+  }
+
+  /**
+   * Gets the native objects this resampler owns: its context and the layouts of its input and output channels.
+   *
+   * @return the context, the input layout and the output layout
+   */
+  @VisibleForTesting
+  List<Pointer> getNativeObjects() {
+    return List.of(this.context, this.inputLayout, this.outputLayout);
   }
 
   /**

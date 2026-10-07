@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import net.jqwik.api.Arbitraries;
 import net.jqwik.api.Arbitrary;
 import net.jqwik.api.ForAll;
@@ -53,7 +54,7 @@ final class FilterChainPropertyTest {
       Arbitraries.of("90", "180", "270").map(angle -> "rotate=" + angle),
       Arbitraries.integers()
         .between(0, 99)
-        .map(left -> "crop=%d:0:%d:100".formatted(left, 100 - left)),
+        .map(left -> String.format(Locale.ROOT, "crop=%d:0:%d:100", left, 100 - left)),
       Arbitraries.integers()
         .between(1, FilterChain.MAX_MORPHOLOGY)
         .map(kernel -> "dilate=" + kernel),

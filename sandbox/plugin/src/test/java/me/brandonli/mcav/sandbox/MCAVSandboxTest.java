@@ -233,6 +233,23 @@ final class MCAVSandboxTest {
     assertTrue(imageStopped);
   }
 
+  @Test
+  void refusesReenableBeforeStartingResourcesOfAClosedPluginLoader() {
+    this.sandbox.onEnable();
+    this.sandbox.onDisable();
+
+    this.sandbox.onEnable();
+
+    this.assertDisabledItselfWithOneError(
+      "Paper cannot re-enable this plugin after it has been disabled",
+      "restart the server to enable MCAV"
+    );
+    verify(this.api, times(1)).install(BukkitModule.class, BrowserModule.class, VMModule.class, SVCModule.class);
+    assertThrows(IllegalStateException.class, this.sandbox::getVideoPlayerManager);
+    this.sandbox.onDisable();
+    verify(this.api, times(1)).release();
+  }
+
   private void assertLibraryInstalled() {
     verify(this.api).install(BukkitModule.class, BrowserModule.class, VMModule.class, SVCModule.class);
     verify(this.bukkitModule).inject(this.sandbox);

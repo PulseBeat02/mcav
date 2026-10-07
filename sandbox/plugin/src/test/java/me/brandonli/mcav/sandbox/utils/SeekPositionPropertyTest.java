@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Locale;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.constraints.LongRange;
@@ -40,7 +41,7 @@ final class SeekPositionPropertyTest {
 
   @Property
   void readsSecondsWithTheirMilliseconds(@ForAll @LongRange(min = 0, max = SeekPosition.MAX_MILLIS) final long millis) {
-    final String text = "%d.%03d".formatted(millis / 1_000L, millis % 1_000L);
+    final String text = String.format(Locale.ROOT, "%d.%03d", millis / 1_000L, millis % 1_000L);
     final SeekPosition position = SeekPosition.parse(text);
     assertNotNull(position, text);
     assertEquals(millis, position.millis());

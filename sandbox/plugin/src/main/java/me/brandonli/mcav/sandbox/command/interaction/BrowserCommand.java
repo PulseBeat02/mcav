@@ -19,6 +19,7 @@ package me.brandonli.mcav.sandbox.command.interaction;
 
 import com.google.common.base.Preconditions;
 import java.net.URI;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -309,10 +310,14 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     final boolean allowsPrivateNetworks = configuration.isBrowserPrivateNetworks();
     final boolean allowsJavaScriptJit = configuration.isBrowserJavaScriptJit();
     final boolean allowsAutoplay = configuration.isBrowserAutoplaySound();
+    final boolean confinesChromium = configuration.isBrowserConfineChromium();
+    final List<String> refusedHosts = configuration.getBrowserRefusedHosts();
     return BrowserOptions.builder()
       .privateNetworks(allowsPrivateNetworks)
       .javaScriptJit(allowsJavaScriptJit)
       .autoplay(allowsAutoplay)
+      .confinement(confinesChromium)
+      .refusedHosts(refusedHosts)
       .build();
   }
 

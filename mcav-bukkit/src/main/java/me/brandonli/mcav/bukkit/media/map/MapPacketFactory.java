@@ -125,8 +125,9 @@ public final class MapPacketFactory {
    * Clears maps by filling them completely with the transparent color.
    *
    * <p>This synchronous operation has no byte budget or tick pacing. Each map contributes 16384 color bytes
-   * per viewer, in bundles of up to 4096 maps. Large layouts can therefore produce a large network burst;
-   * the delta encoder's playback budget does not apply to clearing.
+   * per viewer before network compression, in bundles of up to 4096 maps; compressed, a transparent map is about 40
+   * bytes. The calling thread only queues the packets: the connection threads compress them. The delta encoder's
+   * playback budget does not apply to clearing.
    *
    * @param viewers    the UUIDs of the players to clear the maps for
    * @param startMapId the id of the first map

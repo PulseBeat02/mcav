@@ -30,6 +30,7 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.SMALLEST_BLOCK;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.follows;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format.isResidual;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -106,9 +107,6 @@ public final class Mcv2Encoder {
   private final Workers workers;
 
   private final boolean shouldVerify;
-
-  /** The picture the live search's check decodes into, kept from frame to frame. */
-  private byte @Nullable [] verified;
 
   /** How long a live frame may search, in nanoseconds, or 0 for as long as it takes. */
   private long frameBudget;
@@ -767,9 +765,15 @@ public final class Mcv2Encoder {
       try {
         final Mcv2Frame written = parseChosen(pending.data);
         checkTree(written, pending.roots, this.workers);
-        final byte[] decoded = decodeChosen(written, pending.predictFrom, pending.predictFromId, this.workers, this.verified);
-        this.verified = decoded;
-        Preconditions.checkState(same(pending.picture, decoded, this.workers), "MCV2 live picture and decoded picture disagree");
+        try {
+          final FrameVerification verification = new FrameVerification(written);
+          Preconditions.checkState(
+            verification.matches(pending.predictFrom, pending.predictFromId, pending.picture, this.workers, this.kernels),
+            "MCV2 live picture and decoded picture disagree"
+          );
+        } catch (final Mcv2Exception exception) {
+          throw new IllegalStateException("The encoder wrote a frame the decoder rejects", exception);
+        }
       } catch (final IllegalStateException exception) {
         this.failed = true;
         throw exception;
@@ -1341,7 +1345,8 @@ public final class Mcv2Encoder {
   }
 
   /** The reference's trial error: the weighted squared error over the frame padded to 32-pixel blocks by replication. */
-  private static long trialError(final byte[] source, final byte[] picture, final int width, final int height) {
+  @VisibleForTesting
+  static long trialError(final byte[] source, final byte[] picture, final int width, final int height) {
     final int extraX = (ROOT_SIZE - (width % ROOT_SIZE)) % ROOT_SIZE;
     final int extraY = (ROOT_SIZE - (height % ROOT_SIZE)) % ROOT_SIZE;
     long sum = 0;

@@ -54,6 +54,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -145,7 +146,12 @@ public final class IOUtils {
         // the port is in use, try the next one
       }
     }
-    final String message = "No free port available in range %d-%d".formatted(firstPort, lastPort);
+    final String message = String.format(
+      Locale.getDefault(Locale.Category.FORMAT),
+      "No free port available in range %d-%d",
+      firstPort,
+      lastPort
+    );
     final BindException noFreePort = new BindException(message);
     throw new UncheckedIOException(message, noFreePort);
   }

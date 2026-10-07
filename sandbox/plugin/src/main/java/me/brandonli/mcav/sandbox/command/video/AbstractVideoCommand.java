@@ -656,7 +656,24 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final Format audioFormat = selector.getAudioSource(dump);
     final UriSource video = videoFormat.toUriSource();
     final UriSource audio = audioFormat.toUriSource();
+    checkWebStream(page, video);
+    checkWebStream(page, audio);
     return new SourceSelection(video, audio, dump);
+  }
+
+  /**
+   * Refuses a stream that is not on the web. The page, not the player, chooses the stream URLs yt-dlp reports, and
+   * FFmpeg and VLC open whatever their protocols reach, such as a file of the server or a service only it can connect
+   * to; a player needs the capture permission even to name such an input.
+   */
+  private static void checkWebStream(final UriSource page, final UriSource stream) {
+    final URI uri = stream.getUri();
+    final String scheme = uri.getScheme();
+    final boolean web = "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+    if (!web) {
+      final URI pageUri = page.getUri();
+      throw new IllegalStateException("yt-dlp reported a stream of " + pageUri + " that is not an http or https URL: " + scheme);
+    }
   }
 
   /**

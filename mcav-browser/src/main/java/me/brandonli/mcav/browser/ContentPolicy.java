@@ -21,6 +21,7 @@ import java.util.Vector;
 import java.util.function.Consumer;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
+import org.cef.browser.McavOffscreenBrowser;
 import org.cef.callback.CefAuthCallback;
 import org.cef.callback.CefBeforeDownloadCallback;
 import org.cef.callback.CefCallback;
@@ -311,7 +312,7 @@ final class ContentPolicy
   // CefDownloadHandler
 
   /**
-   * Refuses a download, which an off-screen browser cancels by default.
+   * Refuses a download, which an off-screen browser cancels by default, and paints the view again.
    *
    * @return false for the default handling, which cancels the download
    */
@@ -323,6 +324,11 @@ final class ContentPolicy
     final CefBeforeDownloadCallback callback
   ) {
     this.events.onNotice("Refused a download of " + suggestedName);
+    // on macOS the view of a page that started a download while it loaded stayed white after the refusal, until the
+    // page changed
+    if (browser instanceof final McavOffscreenBrowser offscreen) {
+      offscreen.repaint();
+    }
     return false;
   }
 

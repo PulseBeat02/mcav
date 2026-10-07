@@ -49,7 +49,8 @@ The page's sound, from Web Audio and its audio and video elements, plays into th
 (`HTTP_SERVER`, `DISCORD_BOT`, `SIMPLE_VOICE_CHAT`), and takes the outputs over from a video or a virtual machine; `NONE`
 keeps the page silent. As in a desktop browser, a page plays sound only once a player clicked its wall or typed into it,
 so a page cannot play sound before anyone looked at it; set `browser.autoplay-sound: true` for a screen that should play
-a video with sound as soon as it opens. The sound of a frame embedded from another site, of media from another site
+a video with sound as soon as it opens. A pause of up to two seconds in its sound plays as silence, so the sound keeps
+its rhythm. The sound of a frame embedded from another site, of media from another site
 that does not allow it, and of protected (DRM) media cannot be captured: open the embedded player's own address
 instead.
 
@@ -57,18 +58,27 @@ instead.
 
 A page is untrusted content, and the browser runs without Chromium's sandbox, which JCEF cannot use, so MCAV limits it:
 
+- **Confined on Linux.** Chromium's processes cannot read the server's folder, the home folder or the temporary
+  folder, apart from what the browser needs there, and they change files only in the folder of their browser. So a
+  page that exploits a flaw of Chromium cannot read your `config.yml` or change the server's files. It needs Linux
+  5.13 or later (Landlock); on Windows, macOS and older kernels the browser runs as before, and the server log says
+  `Chromium runs without confinement` with the reason. `browser.confine-chromium: false` turns it off.
+
 - **Only the public internet.** Every connection goes through a guard that refuses loopback, private, link-local (such
   as a cloud server's metadata service) and every other special address, also when a public name resolves to one, and
   every address of the server's own network interfaces. So a page, or a player clicking on it, cannot read a service
   only the server can reach: a router, a database console, an admin page. Set `browser.allow-private-networks: true`
   only to show a page of your own network, and only if you trust everyone who may create a browser, every page they
-  open, and every player who may click it.
+  open, and every player who may click it. Inside a container (Docker, Pterodactyl) the guard cannot see the public
+  address of the machine around it: list it, or its name, in `browser.refused-hosts`.
 - **No JavaScript compiler.** JavaScript runs without V8's just-in-time compiler, the part most exploits target. Pages
   with heavy scripts run slower; `browser.javascript-jit: true` turns it on for pages you trust.
 - **Only `http` and `https`.** `file:` and other schemes are refused, downloads, file choosers, logins and invalid
   certificates are refused, JavaScript dialogs are dismissed, and popups open in place, only during a click or a key.
-- **Nothing kept.** The browser's profile keeps nothing, and its folder is deleted when it is released. No debugging
-  port is ever opened.
+- **Nothing kept.** The browser's profile keeps nothing, and its folder is deleted when it is released, or at the
+  next start if the server was killed. No debugging port is ever opened.
+- **No calls home.** Chromium's own services (sign-in, search, network time) do not contact Google, so starting a
+  browser tells Google nothing. Pages still load what they load, Google's included.
 
 The details are in the [browser module](../library/browser.md#security).
 

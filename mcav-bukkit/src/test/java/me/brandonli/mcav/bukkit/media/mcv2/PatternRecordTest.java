@@ -63,4 +63,14 @@ final class PatternRecordTest {
     orientation[6] = 2;
     assertThrows(Mcv2Exception.class, () -> PatternRecord.expand(orientation, 0, 8, null, null));
   }
+
+  @Test
+  void refusesARecordThatRunsPastTheEndOfTheData() {
+    // read from the second byte, the record's selector word would be the byte after the data
+    final byte[] shifted = { 0, 1, 2, 3, 4, 5, 6, 0 };
+    assertEquals(
+      "Invalid palette pattern record",
+      assertThrows(Mcv2Exception.class, () -> PatternRecord.expand(shifted, 1, 8, null, null)).getMessage()
+    );
+  }
 }

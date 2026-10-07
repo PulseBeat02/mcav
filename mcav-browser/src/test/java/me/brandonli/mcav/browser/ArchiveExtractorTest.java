@@ -28,10 +28,13 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Map;
 import java.util.Set;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
@@ -262,5 +265,61 @@ class ArchiveExtractorTest {
   void aNameThatStartsWithABackslashIsRefused() {
     final IOException failure = assertThrows(IOException.class, () -> ArchiveExtractor.resolve(this.target, "\\evil"));
     assertEquals("The archive entry name is not allowed: \\evil", failure.getMessage());
+  }
+
+  @Test
+  void tighteningTakesTheWriteOfTheGroupAndOfOthersAwayAndLeavesLinksAndTheRestAlone() throws IOException {
+    assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
+    final Path installation = Files.createDirectories(this.target.resolve("installation"));
+    final Path inner = Files.createDirectories(installation.resolve("locales"));
+    final Path groupWritable = Files.writeString(inner.resolve("group.pak"), "group");
+    final Path othersWritable = Files.writeString(installation.resolve("others.so"), "others");
+    final Path untouched = Files.writeString(installation.resolve("untouched.dat"), "untouched");
+    final Path outside = Files.writeString(this.target.resolve("outside.txt"), "outside");
+    Files.createSymbolicLink(installation.resolve("link"), outside);
+    Files.setPosixFilePermissions(installation, PosixFilePermissions.fromString("rwxrwxr-x"));
+    Files.setPosixFilePermissions(inner, PosixFilePermissions.fromString("rwxrwxrwx"));
+    Files.setPosixFilePermissions(groupWritable, PosixFilePermissions.fromString("rw-rw-r--"));
+    Files.setPosixFilePermissions(othersWritable, PosixFilePermissions.fromString("rwxr-xrwx"));
+    Files.setPosixFilePermissions(untouched, PosixFilePermissions.fromString("r--------"));
+    Files.setPosixFilePermissions(outside, PosixFilePermissions.fromString("rw-rw-rw-"));
+
+    ArchiveExtractor.tighten(installation);
+
+    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(installation));
+    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(inner));
+    assertEquals(PosixFilePermissions.fromString("rw-r--r--"), Files.getPosixFilePermissions(groupWritable));
+    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(othersWritable));
+    assertEquals(PosixFilePermissions.fromString("r--------"), Files.getPosixFilePermissions(untouched));
+    assertEquals(PosixFilePermissions.fromString("rw-rw-rw-"), Files.getPosixFilePermissions(outside), "a link's target is not ours");
+  }
+
+  @Test
+  void tighteningSkipsWhatItCannotReadOrChangeAndWhatIsNoFolder() throws IOException {
+    final Path file = Files.writeString(this.target.resolve("file.txt"), "file");
+    ArchiveExtractor.tighten(file);
+    ArchiveExtractor.tighten(this.target.resolve("missing"));
+    // a path that is gone by the time its permissions are changed is logged, not thrown
+    ArchiveExtractor.takeWriteAway(this.target.resolve("gone"));
+    assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
+    final Path closed = Files.createDirectories(this.target.resolve("closed"));
+    Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("-wx------"));
+    try {
+      assumeTrue(!Files.isReadable(closed), "the user may read every folder");
+      ArchiveExtractor.tighten(this.target);
+      assertEquals(PosixFilePermissions.fromString("-wx------"), Files.getPosixFilePermissions(closed));
+    } finally {
+      Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("rwx------"));
+    }
+  }
+
+  @Test
+  void aFileSystemWithoutPosixPermissionsIsNotTightened() throws IOException {
+    final Path zip = this.target.resolve("tightened.zip");
+    try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true"))) {
+      final Path folder = Files.createDirectories(zipped.getPath("/natives"));
+      ArchiveExtractor.tighten(folder);
+      assertTrue(Files.isDirectory(folder));
+    }
   }
 }

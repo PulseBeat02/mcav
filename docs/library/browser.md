@@ -25,7 +25,11 @@ every painted frame over as plain pixels, so frames arrive only when the page ch
 The first browser that starts on a machine downloads the CEF build for it, about 136 to 163 MiB depending on the platform,
 from Maven Central into MCAV's cache folder (`~/.mcav/cache/jcef` of the user that runs the application). The download
 is checked against a SHA-256 hash pinned in MCAV and unpacked with checks that keep every file inside that folder;
-later starts reuse it. Two applications starting at the same time download it once.
+later starts reuse it. A mirror may redirect the download only to itself, and one that takes longer than a minute
+plus a second for every 64 KiB is given up, so a mirror cannot make the server send requests elsewhere or hold the
+installation up. Two applications starting at the same time download it once. Only the user that runs the
+application may change the installation, whatever its umask; one that an older version left writable for its group is
+fixed at the next start.
 
 | Operating System | Architectures           | Notes                                                                        |
 |------------------|-------------------------|------------------------------------------------------------------------------|
@@ -57,6 +61,11 @@ library the server lacks, or has only for another architecture, are linked into 
 its helper process gets that folder on its `LD_LIBRARY_PATH`. A few basic libraries (such as zlib, expat, fontconfig
 and freetype) are expected from the server, as every server image tested has them; a server without one of them gets
 a `BrowserUnavailableException` that names it.
+
+Debian 11's long-term support ended in August 2026, so these packages get no more security updates. They stay for
+the servers whose glibc is too old for Debian 12's, but a server that installs the libraries from its own distribution
+(the packages that provide `libnss3.so`, `libatk-1.0.so.0`, `libcups.so.2`, `libasound.so.2`, `libgbm.so.1`,
+`libxkbcommon.so.0` and the X11 client libraries) keeps them up to date, as its own libraries always win.
 
 This was proven in the images `eclipse-temurin:25-jre`, `ghcr.io/pterodactyl/yolks:java_25` and
 `itzg/minecraft-server:latest`, run as an unprivileged user without capabilities: a page streams, the player is
@@ -114,6 +123,17 @@ and keys for a moment right after a page appears.
 A page is untrusted content, and the browser runs without Chromium's sandbox, which JCEF cannot use. MCAV limits what
 a page can do instead:
 
+- On Linux 5.13 and later, Chromium is confined with Landlock, the kernel's sandbox for unprivileged processes: the
+  helper starts Chromium on a thread that restricts itself first, so every thread and process of Chromium is
+  restricted too. They cannot read the server's working folder, the home folder of the server's user or the server's
+  temporary folder, apart from Java, CEF, the libraries and class path of the helper and the folder of the session;
+  they change files only in the folder of the session (which is also their temporary folder), the devices and the
+  process folder. The helper's own threads, the network guard among them, are not restricted. The log of the server
+  says whether Chromium runs confined; on Windows, macOS and older kernels it runs as before.
+  `BrowserOptions.builder().confinement(false)` turns it off, for a page that needs something it hides. As Chromium
+  binds a socket in the folder of the session, the temporary folder of the server (`java.io.tmpdir`) may have at most
+  47 characters on Linux; a browser in a longer one is refused with that reason.
+
 - Only `http` and `https` pages are shown, besides the empty `about:blank`; frames may also hold `data:` and `blob:`
   documents. `file:`, `chrome:` and other addresses are refused, and so is handing an address to another program.
 - By default, pages reach public addresses of the internet only. Every connection goes through a guard in the helper
@@ -121,17 +141,25 @@ a page can do instead:
   machine) and other special addresses, also when a public name resolves to one, and also behind a NAT64 prefix of
   the network, which the guard learns from `ipv4only.arpa`. It also refuses every address of the machine's own
   network interfaces, since a public address of the server reaches the services that listen on every interface,
-  which a firewall in front of the server does not hide from the server itself. WebRTC may only use proxied connections. `BrowserOptions.builder().privateNetworks(true)` allows the machine's own network, for example to show
+  which a firewall in front of the server does not hide from the server itself. Inside a container the public
+  address of the machine around it is no interface of the container: `BrowserOptions.builder().refusedHosts(...)`
+  names it, or any other host, and the guard refuses its addresses too. WebRTC may only use proxied connections. `BrowserOptions.builder().privateNetworks(true)` allows the machine's own network, for example to show
   a dashboard of your network.
 - JavaScript runs without V8's just-in-time compiler by default, the part of Chromium most exploits target.
   `BrowserOptions.builder().javaScriptJit(true)` turns it on for pages you trust.
+- Chromium's own services do not contact Google when it starts: its sign-in and search services are sent to names
+  that cannot exist (`accounts.invalid`, `www.invalid`), and its network time service and the preconnect to the search
+  engine are off. Pages still load what they load, Google's included.
 - New windows open in place, as long as their address may be shown: `window.open`, links and forms that target
   another window, but only during a click or a key, as a popup blocker allows; links into a named frame of the page
   stay in that frame.
 - Downloads, file choosers, logins and invalid certificates are refused, JavaScript dialogs are dismissed (alerts are
   confirmed, questions answered with cancel, pages may always be left), and permission prompts are denied.
 - The helper gets a minimal environment, a folder only the user running MCAV can read (on Windows, a folder in the
-  user's own temporary folder), which is deleted when the browser is released, and a profile that keeps nothing.
+  user's own temporary folder), which is deleted when the browser is released, and a profile that keeps nothing. The
+  folder names the server that made it, so a folder a killed server left behind is deleted when the browser module
+  starts again. On Linux and macOS only folders of the user running the server are deleted, as other users of the
+  machine share the temporary folder.
 
 - The sound of the page reaches the helper through a DevTools binding that the page could call too, before MCAV's
   script takes it away; the helper takes only exact calls with whole frames of sound, at most two seconds of sound per
@@ -162,5 +190,8 @@ nothing before anyone touched it even if it works around Chromium's rule; a pres
 next page the browser loads, by a link or by itself. `BrowserOptions.builder().autoplay(true)` lets pages play
 sound right away. The sound of one frame of the page plays at
 a time, and the sound of frames from another site (which Chromium runs in another process), of media from another site
-that does not allow it (CORS), and of protected media (DRM) stays silent. The sound reaches the pipeline within a few
-tens of milliseconds of its picture.
+that does not allow it (CORS), and of protected media (DRM) stays silent. When a page stops playing, two seconds of
+silence still reach the pipeline, so a pause between two sounds keeps its length; a longer pause, and the silence of a
+page that has played nothing yet, are not sent. The sound reaches the pipeline within a few tens of milliseconds of its
+picture. On a very busy machine the script that hands the sound over can take longer than ten seconds to be placed:
+the page then loads without it, and loads again once it is in place.

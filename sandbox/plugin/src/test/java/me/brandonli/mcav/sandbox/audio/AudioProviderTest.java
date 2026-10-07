@@ -38,7 +38,12 @@ import com.google.common.util.concurrent.MoreExecutors;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import me.brandonli.mcav.http.HttpResult;
 import me.brandonli.mcav.http.MediaInfo;
 import me.brandonli.mcav.jda.DiscordPlayer;
@@ -47,6 +52,7 @@ import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.sandbox.testing.StandardErrorCapture;
 import me.brandonli.mcav.sandbox.testing.TestServer;
 import me.brandonli.mcav.sandbox.utils.AudioArgument;
 import me.brandonli.mcav.svc.SVCFilter;
@@ -648,6 +654,84 @@ final class AudioProviderTest {
     assertEquals("http://mc.example.com:3000/", url);
     final boolean stopped = this.startup.isShutdown();
     assertTrue(stopped);
+  }
+
+  @Test
+  void waitsForInterruptedHttpStartupToCloseBeforeReturningFromShutdown() throws Exception {
+    final CountDownLatch entered = new CountDownLatch(1);
+    final CountDownLatch interrupted = new CountDownLatch(1);
+    final CountDownLatch finishStartup = new CountDownLatch(1);
+    this.startup.shutdownNow();
+    this.startup = Executors.newSingleThreadExecutor();
+    this.provider = new AudioProvider(this.sandbox, this.startup);
+    this.enableHttp();
+    doAnswer(_ -> {
+      entered.countDown();
+      try {
+        assertTrue(finishStartup.await(10, TimeUnit.SECONDS));
+      } catch (final InterruptedException exception) {
+        interrupted.countDown();
+        assertTrue(finishStartup.await(10, TimeUnit.SECONDS));
+      }
+      return null;
+    })
+      .when(this.httpServer)
+      .start();
+    this.provider.initialize();
+    final ExecutorService stopping = Executors.newSingleThreadExecutor();
+    try {
+      assertTrue(entered.await(10, TimeUnit.SECONDS));
+      final Future<?> shutdown = stopping.submit(this.provider::shutdown);
+      try {
+        assertTrue(interrupted.await(10, TimeUnit.SECONDS));
+        assertThrows(
+          TimeoutException.class,
+          () -> shutdown.get(1, TimeUnit.SECONDS),
+          "the plugin loader must stay open until startup releases its server"
+        );
+      } finally {
+        finishStartup.countDown();
+        shutdown.get(10, TimeUnit.SECONDS);
+      }
+      assertTrue(this.startup.awaitTermination(10, TimeUnit.SECONDS));
+      verify(this.httpServer).stop();
+      assertFalse(this.provider.isHttpReady());
+    } finally {
+      finishStartup.countDown();
+      this.startup.shutdownNow();
+      stopping.shutdownNow();
+      assertTrue(this.startup.awaitTermination(10, TimeUnit.SECONDS));
+      assertTrue(stopping.awaitTermination(10, TimeUnit.SECONDS));
+    }
+  }
+
+  @Test
+  void reportsStartupThatDoesNotTerminateBeforeTheShutdownDeadline() throws InterruptedException {
+    this.startInTheBackground();
+    when(this.startup.awaitTermination(10, TimeUnit.SECONDS)).thenReturn(false);
+    final String output;
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      this.provider.shutdown();
+      output = errors.getOutput();
+    }
+    verify(this.startup).shutdownNow();
+    verify(this.startup).awaitTermination(10, TimeUnit.SECONDS);
+    assertTrue(output.contains("Audio startup did not stop within 10 seconds"), output);
+  }
+
+  @Test
+  void preservesTheInterruptWhenShutdownCannotWaitForStartup() throws InterruptedException {
+    this.startInTheBackground();
+    when(this.startup.awaitTermination(10, TimeUnit.SECONDS)).thenThrow(new InterruptedException("stop waiting"));
+    final String output;
+    try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
+      this.provider.shutdown();
+      output = errors.getOutput();
+    }
+    final boolean interrupted = Thread.interrupted();
+    assertTrue(interrupted);
+    verify(this.startup).shutdownNow();
+    assertTrue(output.contains("Interrupted while waiting for audio startup to stop"), output);
   }
 
   @Test

@@ -20,6 +20,7 @@ parts:
     chapters:
       - file: library/prerequisites.md
       - file: library/licensing.md
+      - file: library/migration-rewrite.md
       - file: library/instance.md
       - file: library/source.md
       - file: library/pipeline.md
@@ -68,6 +69,7 @@ parts:
       - file: mcv2/using.md
         sections:
           - file: mcv2-testing.md
+          - file: mcv2/client-mod.md
       - file: mcv2/reference.md
         sections:
           - file: mcv2/format.md

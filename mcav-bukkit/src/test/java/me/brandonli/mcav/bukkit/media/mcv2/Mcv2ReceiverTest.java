@@ -54,6 +54,17 @@ final class Mcv2ReceiverTest {
   }
 
   @Test
+  void aFrameAfterFrameZeroMustStillBeNewer() throws Mcv2Exception {
+    final Mcv2Receiver receiver = new Mcv2Receiver();
+    receiver.accept(keyframeWithId(0, 1));
+    assertEquals(
+      "Stale or ambiguous frame number",
+      assertThrows(Mcv2Exception.class, () -> receiver.accept(keyframeWithId(0, 2))).getMessage()
+    );
+    assertEquals(0, receiver.getFrameId());
+  }
+
+  @Test
   void wrapsFrameIdsAroundThirtyTwoBits() throws Mcv2Exception {
     final Mcv2Receiver receiver = new Mcv2Receiver();
     receiver.accept(keyframeWithId(0xFFFFFFFFL, 1));

@@ -51,6 +51,8 @@ import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * One playback of one media source, or of one video source with a separate audio source.
@@ -58,7 +60,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>A session owns up to four threads. One decoding thread per grabber pulls frames out of FFmpeg or OpenCV as
  * fast as the bounded queues allow, so decoding never blocks on the pipelines. A video rendering thread waits until
  * each frame is due according to the {@link PlaybackClock}, then runs the video pipeline; frames that are more than
- * 100 ms late are dropped, so a slow pipeline lowers the frame rate instead of drifting out of sync. An audio
+ * 100 ms late are dropped, so a slow pipeline lowers the frame rate instead of drifting out of sync; when most frames
+ * of ten seconds of video are dropped, the session says so, see {@link LateFrameCounter}. An audio
  * rendering thread hands each chunk to the audio pipeline slightly before it is due, which keeps downstream buffers
  * full without running ahead of the video. Played faster or slower, the clock runs at that speed and the audio is
  * resampled to match, see {@link SpeedResampler}.
@@ -77,6 +80,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 final class PlaybackSession {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(PlaybackSession.class);
+  private static final String FALLING_BEHIND =
+    "Playback falls behind: {} of the last {} frames came too late to show; decoding or the video pipeline is slower than the video";
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
   private static final long END_OFFER_TIMEOUT_MILLIS = 50L;
 
@@ -121,6 +127,7 @@ final class PlaybackSession {
   private final BlockingQueue<DecodedAudioChunk> audioQueue;
   private final ImagePool imagePool;
   private final VideoFrameCopier frameCopier;
+  private final LateFrameCounter lateFrames;
   private final SpeedResampler resampler;
   private final AtomicBoolean running;
   private final List<Thread> threads;
@@ -143,6 +150,20 @@ final class PlaybackSession {
      * @throws FrameGrabber.Exception if the source cannot be opened
      */
     FrameGrabber create() throws FrameGrabber.Exception;
+  }
+
+  /**
+   * Hears that playback fell behind: most frames of a stretch of video came too late and were dropped.
+   */
+  @FunctionalInterface
+  interface LagListener {
+    /**
+     * Called on the video rendering thread for a stretch in which most frames were dropped.
+     *
+     * @param droppedFrames the number of frames dropped
+     * @param frames        the number of frames of the stretch
+     */
+    void fellBehind(int droppedFrames, int frames);
   }
 
   /**
@@ -177,6 +198,54 @@ final class PlaybackSession {
     final long maxVideoLagNanos,
     final LongSupplier nanoClock
   ) {
+    this(
+      videoGrabberFactory,
+      audioGrabberFactory,
+      videoCallback,
+      audioCallback,
+      dimensionCallback,
+      exceptionHandler,
+      startMicros,
+      startPaused,
+      audioLeadNanos,
+      maxVideoLagNanos,
+      nanoClock,
+      PlaybackSession::logFallingBehind
+    );
+  }
+
+  /**
+   * Constructs a new session that tells a listener when playback falls behind, where the other constructor logs a
+   * warning.
+   *
+   * @param videoGrabberFactory creates the grabber of the video source
+   * @param audioGrabberFactory creates the grabber of a separate audio source, or {@code null} if there is none
+   * @param videoCallback       provides the video pipeline
+   * @param audioCallback       provides the audio pipeline
+   * @param dimensionCallback   provides the size frames are scaled to, if attached
+   * @param exceptionHandler    receives decoding and pipeline failures
+   * @param startMicros         the position to start at in microseconds
+   * @param startPaused         whether the session starts paused
+   * @param audioLeadNanos      how long before its timestamp an audio chunk is handed to the pipeline, in nanoseconds
+   * @param maxVideoLagNanos    how late a frame may be before it is dropped, in nanoseconds
+   * @param nanoClock           the clock media is scheduled with, in nanoseconds
+   * @param lagListener         hears of stretches of video in which most frames came too late, see
+   *                            {@link LateFrameCounter}
+   */
+  PlaybackSession(
+    final GrabberFactory videoGrabberFactory,
+    final @Nullable GrabberFactory audioGrabberFactory,
+    final VideoAttachableCallback videoCallback,
+    final AudioAttachableCallback audioCallback,
+    final DimensionAttachableCallback dimensionCallback,
+    final BiConsumer<String, Throwable> exceptionHandler,
+    final long startMicros,
+    final boolean startPaused,
+    final long audioLeadNanos,
+    final long maxVideoLagNanos,
+    final LongSupplier nanoClock,
+    final LagListener lagListener
+  ) {
     this.videoGrabberFactory = videoGrabberFactory;
     this.audioGrabberFactory = audioGrabberFactory;
     this.videoCallback = videoCallback;
@@ -191,6 +260,7 @@ final class PlaybackSession {
     this.audioQueue = new ArrayBlockingQueue<>(AUDIO_QUEUE_CAPACITY);
     this.imagePool = new ImagePool(IMAGE_POOL_CAPACITY);
     this.frameCopier = new VideoFrameCopier(this.imagePool, dimensionCallback);
+    this.lateFrames = new LateFrameCounter(lagListener);
     this.resampler = new SpeedResampler();
     this.running = new AtomicBoolean(true);
     this.threads = new ArrayList<>();
@@ -575,7 +645,9 @@ final class PlaybackSession {
   private void presentVideoFrame(final DecodedVideoFrame frame, final @Nullable MatImageBuffer image) throws InterruptedException {
     final long timestamp = frame.getTimestampMicros();
     final long lateNanos = this.awaitDue(timestamp, 0L);
-    if (lateNanos > this.maxVideoLagNanos) {
+    final boolean late = lateNanos > this.maxVideoLagNanos;
+    this.lateFrames.count(timestamp, late);
+    if (late) {
       return;
     }
     this.positionMicros = timestamp;
@@ -602,6 +674,17 @@ final class PlaybackSession {
       ThrowableUtils.throwIfFatal(exception);
       this.report("Video filter failed", exception);
     }
+  }
+
+  /**
+   * Warns in the log that playback fell behind, which players do.
+   *
+   * @param droppedFrames the number of frames dropped
+   * @param frames        the number of frames of the stretch
+   */
+  @VisibleForTesting
+  static void logFallingBehind(final int droppedFrames, final int frames) {
+    LOGGER.warn(FALLING_BEHIND, droppedFrames, frames);
   }
 
   private static void releaseImage(final DecodedVideoFrame frame) {
@@ -766,6 +849,16 @@ final class PlaybackSession {
     final Stream<@Nullable MatImageBuffer> pictures = frames.map(DecodedVideoFrame::getImage);
     final Stream<@Nullable MatImageBuffer> present = pictures.filter(Objects::nonNull);
     return present.count();
+  }
+
+  /**
+   * Checks whether the decoder holds a copy of an unscaled picture, which it must release once decoding ended.
+   *
+   * @return true if the decoder holds such a copy
+   */
+  @VisibleForTesting
+  boolean hasUnscaledCopy() {
+    return this.frameCopier.hasUnscaledCopy();
   }
 
   /**
