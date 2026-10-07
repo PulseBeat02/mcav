@@ -220,6 +220,18 @@ final class MapResultTest {
     MapPackets.assertMapPacket(last, 8, 0, 0, 128, 128, transparent);
   }
 
+  @ParameterizedTest
+  @ValueSource(ints = { 3, 5 })
+  void rejectsDitheredPixelsWhoseLengthDoesNotMatchTheImage(final int length) {
+    final MapResult result = new MapResult(createConfiguration(false));
+    when(this.algorithm.ditherIntoBytes(any(ImageBuffer.class))).thenReturn(new byte[length]);
+    try (final ImageBuffer image = Images.solid(2, 2, 0xFF102030)) {
+      final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> result.process(image, this.algorithm));
+      assertEquals("Image size does not match layout", failure.getMessage());
+    }
+    assertEquals(List.of(), this.server.getSentPackets(VIEWER), "invalid converted pixels must not reach the viewer");
+  }
+
   @Test
   void rejectsMissingArguments() {
     final MapConfiguration configuration = createConfiguration(false);
