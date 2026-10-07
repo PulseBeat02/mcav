@@ -228,8 +228,10 @@ id, the page frames' outline colour, the transport alphabet (the RGB of map colo
   (`UV2`, `Sampler2`), so a lit screen is possible by carrying it in the descriptor row; not done.
 - **Resource reloads** drop persistent targets; the picture returns with the next keyframe (at most the key interval,
   2 s for the shipped profiles).
-- **Known limits.** Iris/Sodium shader pipelines and the Vulkan backend are outside what was tested (on 26.3 with
-  Mesa's software Vulkan the pack's shaders took over ten minutes to compile, §5.2); with improved transparency (26.3's
+- **Known limits.** The original integration did not test Iris/Sodium or the Vulkan backend (on 26.3 with
+  Mesa's software Vulkan the pack's shaders took over ten minutes to compile, §5.2). The later 26.3 client matrix
+  passed Sodium 0.9.2 and Iris 1.11.7 with shaders disabled on Fabric and NeoForge under llvmpipe; active Complementary
+  Reimagined r5.9.3 and BSL 10.1.8 bypass the decoder (see [current compatibility](mcv2/using.md#troubleshooting)). With improved transparency (26.3's
   order-independent transparency, formerly Fabulous) the text shaders draw into the transparency targets, where the
   pack discards its page and anchor fragments, so the screen shows nothing new. Another pack that overrides `core/text`
   or `entity_outline.json` was tested on 26.3 (§14): the pack loaded last wins those files. Seen from behind the wall,
@@ -869,8 +871,9 @@ player); a screen whose pacer steps down to a smaller size adds a slot, and with
 **Other packs.** The pack is optional and additive (`required(false)`, `replace(false)`). With a server pack
 (`server.properties`) that also overrides `core/text.fsh` (tinting text red) and `entity_outline.json` (a wider blur),
 the client stacks the MCV2 pack above it, because it arrives later: MCV2 wins those three files, screens decode, and
-the other pack's text and outline changes are shadowed while the MCV2 pack stays loaded - which is until the player
-leaves, since the pack is not withdrawn when a screen stops. Its other assets are unaffected, and ordinary glowing
+the other pack's text and outline changes are shadowed while the MCV2 pack stays loaded. In that original run it
+remained until the player left. The current pack server keeps a stopped screen's slot for one minute for reuse,
+then rebuilds the pack without it or removes the pack when no slots remain. Its other assets are unaffected, and ordinary glowing
 entities keep their outline (the vanilla passes run after MCV2's). A pack pushed after MCV2's with those files would
 win instead, and MCV2 screens would show nothing while the client reports the pack loaded. A server owner who needs
 their own text or outline shaders must merge them into MCV2's copies (`mcav/mcv2/pack`, and `mcav/mcv2/chain.json` for

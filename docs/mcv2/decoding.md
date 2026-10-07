@@ -20,8 +20,9 @@ the client keeps showing the last picture it decoded, and never draws a guess.
 The chart describes the path proven on the **vanilla client with its OpenGL backend**: in-game captures on Minecraft
 26.3 equal the reference decoder byte for byte, and the chain runs bit-exactly on an Intel UHD 630 and on Mesa's
 llvmpipe. The dashed box is not proven: the Vulkan backend (only tried on a software renderer, where compiling the
-pack's shaders took over ten minutes), NVIDIA, AMD and Apple GPUs, and Windows and macOS clients. Iris or Sodium and the
-improved transparency setting are known to show no MCV2 picture.
+pack's shaders took over ten minutes), NVIDIA, AMD and Apple GPUs, and Windows and macOS clients. The later 26.3
+client matrix passed with Sodium 0.9.2 and Iris 1.11.7 with shaders disabled on Fabric and NeoForge, using llvmpipe.
+Active Iris shader packs and improved transparency can bypass the decoder; see [compatibility](using.md#troubleshooting).
 ```
 
 ## The Hook: a Glowing Entity
@@ -165,8 +166,9 @@ and proven bit-exact again in the real 26.3 client; it copies its own persistent
 - **Lighting.** The picture is drawn at full brightness, like a map in a glow item frame, because the post chain has
   no light level for the wall.
 - **Resource reloads** drop the persistent targets; the picture returns with the next keyframe.
-- **Iris, Sodium, the Vulkan backend and improved transparency** are outside what was tested; with improved
-  transparency the text shaders draw into its targets, where the pack discards its fragments, so the screen shows
-  nothing new.
+- **Iris shader packs and improved transparency** can bypass the decoder. Sodium and Iris with shaders disabled
+  passed the 26.3 software-rendered client matrix. With improved transparency the text shaders draw into its targets,
+  where the pack discards its fragments, so the screen shows nothing new. Vulkan and hardware-driver coverage remain
+  unverified; see [compatibility](using.md#troubleshooting).
 - **A client that renders fewer frames than the video** decodes at most one video frame per rendered frame; under
   model A a missed frame costs the picture until the next keyframe.
