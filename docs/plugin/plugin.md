@@ -20,6 +20,8 @@ The MCAV plugin works on **Paper** servers only, not on **Spigot** or **Bukkit**
 ```
 
 1) Download the latest JAR from the TeamCity CI page [here](https://ci.brandonli.me/repository/download/mcav_Build/.lastFinished/mcav-sandbox-1.0.0-v26.3-all.jar).
+   If CI asks you to sign in and you do not have access, [build the plugin from source](../library/compile.md);
+   the jar is `sandbox/plugin/build/libs/mcav-sandbox-1.0.0-v26.3-all.jar`.
 2) Place the JAR file into the `plugins` folder of your server.
 3) Start the server.
 

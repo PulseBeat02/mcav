@@ -54,7 +54,7 @@ it; without the permission a click does nothing, while the frames of the screen 
 |-------------------------------------------|-----------------------------------------------------------------------------------------------------|
 | **Usage**                                 | `/mcav screen <blockDimensions> <mapId> <material> <location>`                                      |
 | **Permission**                            | `mcav.command.screen`                                                                               |
-| **Description**                           | Brings up a menu to build a new map screen. Use the block width and height to construct the screen. |
+| **Description**                           | Builds a wall of maps directly, using the block width and height. Players choose its facing by looking; the console builds it facing north. |
 | **Arguments**                             |                                                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions` | The dimensions of the map blocks (e.g., 3x2), at most 64x64 so one frame of the wall still fits into a single packet bundle |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`           | The ID of the map to use. It may lie at most 4096 ids past the maps the world already has, because every map in between is created |
