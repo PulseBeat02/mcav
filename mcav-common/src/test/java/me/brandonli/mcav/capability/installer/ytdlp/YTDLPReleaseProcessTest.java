@@ -29,10 +29,12 @@ import static org.mockito.Mockito.when;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.opentest4j.AssertionFailedError;
 
@@ -111,23 +113,41 @@ final class YTDLPReleaseProcessTest {
     final Thread caller = Thread.currentThread();
     final AtomicReference<Thread> closer = new AtomicReference<>();
     final Process process = mock(Process.class);
-    when(process.getInputStream()).thenReturn(new ByteArrayInputStream(new byte[0]) {
-      @Override
-      public void close() {
-        closer.set(Thread.currentThread());
+    when(process.getInputStream()).thenReturn(
+      new ByteArrayInputStream(new byte[0]) {
+        @Override
+        public void close() {
+          closer.set(Thread.currentThread());
+        }
       }
-    });
+    );
     when(process.waitFor(10, TimeUnit.SECONDS)).thenReturn(true);
     assertThrows(AssertionFailedError.class, () -> YTDLPReleaseTest.runVersion(process, Duration.ofMillis(250)));
     assertNotSame(caller, closer.get(), "closing stdout must not block the deadline waiter");
     assertTrue(closer.get() != null, "the drain still owns closing stdout");
   }
 
-  private static Process startChild(final String mode) throws IOException {
+  private static Process startChild(final String mode) throws IOException, URISyntaxException {
     final String javaHome = System.getProperty("java.home");
     final String executable = Path.of(javaHome, "bin", "java").toString();
-    final String classpath = System.getProperty("java.class.path");
-    return new ProcessBuilder(executable, "-cp", classpath, Child.class.getName(), mode).redirectErrorStream(true).start();
+    // Gradle loads test classes outside the worker launcher's java.class.path.
+    final String classpath = Path.of(Child.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();
+    final ProcessBuilder builder = new ProcessBuilder(
+      executable,
+      "-Xmx64m",
+      "-XX:ActiveProcessorCount=2",
+      "-cp",
+      classpath,
+      Child.class.getName(),
+      mode
+    );
+    final Map<String, String> environment = builder.environment();
+    // JVM startup diagnostics must not become part of the simulated yt-dlp version.
+    environment.remove("JAVA_TOOL_OPTIONS");
+    environment.remove("JDK_JAVA_OPTIONS");
+    environment.remove("_JAVA_OPTIONS");
+    builder.redirectErrorStream(true);
+    return builder.start();
   }
 
   public static final class Child {
