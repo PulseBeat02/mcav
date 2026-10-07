@@ -9,7 +9,7 @@ in `META-INF/` of every jar mcav publishes and of the sandbox plugin.
 
 The installer bundles the Maven resolver and what it needs, most of it relocated under `me.brandonli.mcav.libs`. The
 NOTICE files of these components are merged into the jar's `META-INF/NOTICE`, and the Apache License 2.0 is its
-`META-INF/LICENSE`.
+`META-INF/LICENSE`. ASM's complete BSD licence and copyright notice are in `META-INF/LICENSE-ASM`.
 
 | Component (group:artifact) | Licence |
 |---|---|
@@ -35,6 +35,7 @@ NOTICE files of these components are merged into the jar's `META-INF/NOTICE`, an
 | org.apache.maven.resolver:maven-resolver-util | Apache-2.0 |
 | org.codehaus.plexus:plexus-interpolation | Apache-2.0 |
 | org.codehaus.plexus:plexus-utils | Apache-2.0 |
+| org.ow2.asm:asm | BSD-3-Clause |
 | org.slf4j:jcl-over-slf4j | Apache-2.0 |
 | org.slf4j:slf4j-api | MIT |
 

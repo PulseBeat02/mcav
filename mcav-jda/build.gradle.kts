@@ -9,8 +9,8 @@ dependencies {
     testImplementation(libs.jda)
     testImplementation(project(":mcav-common"))
     testImplementation(libs.jna)
-    // the release that fixes the known vulnerabilities of the Jackson JDA brings (see the catalog)
-    constraints {
-        api(libs.jackson2.bom)
-    }
+    // Maven consumers need the same Jackson versions as this library's resolved runtime.
+    api(platform(libs.jackson2.bom))
+    implementation(libs.jackson2.core)
+    implementation(libs.jackson2.databind)
 }

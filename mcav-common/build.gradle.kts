@@ -19,7 +19,11 @@ val unusedJavacvPresets = listOf(
 )
 
 dependencies {
-    api(libs.vlcj)
+    api(libs.vlcj) {
+        // The JPMS variants repeat the JNA classes supplied by the direct dependencies below.
+        exclude(group = "net.java.dev.jna", module = "jna-jpms")
+        exclude(group = "net.java.dev.jna", module = "jna-platform-jpms")
+    }
     api(libs.javacv.platform) {
         unusedJavacvPresets.forEach { preset ->
             exclude(group = "org.bytedeco", module = preset)
