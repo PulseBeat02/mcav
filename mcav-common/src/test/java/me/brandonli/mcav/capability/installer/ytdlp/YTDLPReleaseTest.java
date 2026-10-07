@@ -32,7 +32,10 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 import me.brandonli.mcav.capability.installer.Download;
 import me.brandonli.mcav.utils.IOUtils;
@@ -124,16 +127,39 @@ final class YTDLPReleaseTest {
     final ProcessBuilder builder = new ProcessBuilder(command, "--version");
     builder.redirectErrorStream(true);
     final Process process = builder.start();
-    final byte[] output;
-    try (final InputStream stream = process.getInputStream()) {
-      output = stream.readAllBytes();
+    return runVersion(process, TIMEOUT);
+  }
+
+  static String runVersion(final Process process, final Duration timeout) throws IOException, InterruptedException {
+    final InputStream stream = process.getInputStream();
+    final FutureTask<byte[]> drain = new FutureTask<>(() -> {
+      try (stream) {
+        return stream.readAllBytes();
+      }
+    });
+    final Thread reader = Thread.ofVirtual().start(drain);
+    final long started = System.nanoTime();
+    final long timeoutNanos = timeout.toNanos();
+    try {
+      final boolean finished = process.waitFor(timeoutNanos, TimeUnit.NANOSECONDS);
+      assertTrue(finished, "yt-dlp --version did not finish");
+      final long remaining = Math.max(1, timeoutNanos - (System.nanoTime() - started));
+      final byte[] output = drain.get(remaining, TimeUnit.NANOSECONDS);
+      final int exitCode = process.exitValue();
+      final String printed = new String(output, StandardCharsets.UTF_8);
+      assertEquals(0, exitCode, printed);
+      return printed.strip();
+    } catch (final ExecutionException | TimeoutException failure) {
+      throw new IOException("Could not read yt-dlp --version output", failure);
+    } finally {
+      process.destroyForcibly();
+      try {
+        assertTrue(process.waitFor(10, TimeUnit.SECONDS), "yt-dlp child did not terminate after forced exit");
+      } finally {
+        reader.interrupt();
+        reader.join(10_000L);
+        assertTrue(!reader.isAlive(), "yt-dlp output reader did not finish");
+      }
     }
-    final long timeoutSeconds = TIMEOUT.toSeconds();
-    final boolean finished = process.waitFor(timeoutSeconds, TimeUnit.SECONDS);
-    assertTrue(finished, "yt-dlp --version did not finish");
-    final int exitCode = process.exitValue();
-    final String printed = new String(output, StandardCharsets.UTF_8);
-    assertEquals(0, exitCode, printed);
-    return printed.strip();
   }
 }
