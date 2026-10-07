@@ -108,7 +108,7 @@ public final class MatImageBuffer implements ImageBuffer {
     // refused before it gets there
     DeclaredImageSize.checkBytes(encoded);
     try (final BytePointer pointer = new BytePointer(encoded); final Mat wrapper = new Mat(pointer)) {
-      final Mat decoded = decode(wrapper);
+      final Mat decoded = opencv_imgcodecs.imdecode(wrapper, opencv_imgcodecs.IMREAD_COLOR);
       final boolean empty = decoded.empty();
       Preconditions.checkArgument(!empty, "Bytes are not a supported image format");
       this.mat = toContinuousBgr(decoded);
@@ -157,25 +157,10 @@ public final class MatImageBuffer implements ImageBuffer {
   private static Mat readFile(final Path path) {
     DeclaredImageSize.checkFile(path);
     final String raw = path.toString();
-    final Mat decoded;
-    try {
-      decoded = opencv_imgcodecs.imread(raw, opencv_imgcodecs.IMREAD_COLOR);
-    } catch (final RuntimeException failure) {
-      throw new IllegalArgumentException("File is not a supported image: " + path, failure);
-    }
+    final Mat decoded = opencv_imgcodecs.imread(raw, opencv_imgcodecs.IMREAD_COLOR);
     final boolean empty = decoded.empty();
     Preconditions.checkArgument(!empty, "File is not a supported image: %s", path);
     return toContinuousBgr(decoded);
-  }
-
-  // OpenCV raises its own error, an unchecked RuntimeException, for an image whose codec is disabled in this build or
-  // whose header is broken; such bytes are simply not an image mcav can decode, so they are refused as unsupported
-  private static Mat decode(final Mat wrapper) {
-    try {
-      return opencv_imgcodecs.imdecode(wrapper, opencv_imgcodecs.IMREAD_COLOR);
-    } catch (final RuntimeException failure) {
-      throw new IllegalArgumentException("Bytes are not a supported image format", failure);
-    }
   }
 
   private static FileSource downloadFile(final UriSource source) {
