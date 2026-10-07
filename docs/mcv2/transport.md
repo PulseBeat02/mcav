@@ -70,7 +70,8 @@ MCV2 at both rates.
 
 A screen's stream is encoded once, and every viewer receives it through a link of its own (`Mcv2Link`), which sends a
 frame only when that viewer can decode it (a keyframe, or a P frame whose reference is the last frame or keyframe that
-viewer was sent) and only while the viewer's unwritten video is under 128 KiB (twice that for a keyframe). A viewer
+viewer was sent) and only while the viewer's existing unwritten video is at most 128 KiB (twice that for a keyframe),
+with the default settings. That check happens before the new frame is charged, so one frame can exceed the threshold. A viewer
 whose connection falls behind skips to the next frame it can decode, while the others are not held back. This limits
 queued video, but cannot take back bytes already in flight: a connection slower than the stream can still delay game
 packets ([server and network](server.md#far-viewers)).

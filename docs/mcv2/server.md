@@ -33,8 +33,10 @@ therefore gets a link of its own (`Mcv2Link`):
 - **Only frames the viewer can decode**: a keyframe, or a P frame whose reference is the last frame or keyframe that
   viewer was sent. A viewer who missed a frame waits for the next frame it can decode, and its client keeps the last
   picture meanwhile.
-- **A bounded backlog**: a frame goes out only while the viewer's video that is handed to its connection but not yet
-  written stays under 128 KiB (`Mcv2Configuration.backlogLimit`), or twice that for a keyframe.
+- **A backlog threshold**: before accepting a frame, the link checks the viewer's video that was handed to its
+  connection but has not yet been written. The default threshold is 128 KiB (`Mcv2Configuration.backlogLimit`), or
+  twice that for a keyframe. An existing backlog at the threshold still admits one frame; adding that frame can
+  take the backlog above it.
 - **No backlog hidden in the operating system**: Linux would take megabytes of unsent data into a socket's buffer at
   once (measured: 1.2 MB on a 200 ms link), where the limit cannot see it and every game packet waits behind it. So a
   viewer's connection has its unsent bytes capped at 32 KiB with `TCP_NOTSENT_LOWAT` (on Linux, where Paper uses the
