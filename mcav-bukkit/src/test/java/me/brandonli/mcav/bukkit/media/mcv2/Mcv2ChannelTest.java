@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
@@ -220,6 +221,28 @@ final class Mcv2ChannelTest {
     this.server.runTasks();
     assertEquals(Map.of(), channel.getLinks(), "a retired show cannot publish a receiving link");
     verify(this.screen).hide(this.player);
+  }
+
+  @Test
+  void aConcurrentCloseOwnsTheCleanupOfAPublishedLink() {
+    final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
+    channel.update();
+    final AtomicInteger loadedChecks = new AtomicInteger();
+    when(this.viewers.isLoaded(LOADED)).thenAnswer(_ -> {
+      if (loadedChecks.getAndIncrement() == 0) {
+        return true;
+      }
+      channel.close();
+      return false;
+    });
+    this.server.runTasks();
+    assertEquals(2, loadedChecks.get(), "close overlaps the check after link publication");
+    assertEquals(Map.of(), channel.getLinks());
+    assertEquals(Set.of(), channel.getRecipients());
+    verify(this.screen).show(this.player);
+    verify(this.screen).remove();
+    verify(this.screen, never()).hide(this.player);
+    assertFalse(channel.takeKeyframeRequest(), "a retired show must not request another frame");
   }
 
   @Test
@@ -574,6 +597,26 @@ final class Mcv2ChannelTest {
     channel.send(frame(2, 2, true));
     assertEquals(1, this.server.getSentPackets(LOADED).size());
     channel.close();
+  }
+
+  @Test
+  void aScheduledShowRechecksTheViewersDistance() {
+    final World world = mock(World.class);
+    final AtomicReference<Location> position = new AtomicReference<>(new Location(world, 0, 64, 4));
+    final Mcv2Channel channel = this.watchedFrom(world, position);
+    channel.open();
+    try {
+      channel.update();
+      position.set(new Location(world, 400, 64, 0));
+      channel.measureRange();
+      this.server.runTasks();
+      assertEquals(Map.of(), channel.getLinks());
+      assertEquals(Set.of(), channel.getRecipients());
+      verify(this.screen, never()).show(this.player);
+      assertFalse(channel.takeKeyframeRequest(), "an out-of-range show must not request another frame");
+    } finally {
+      channel.close();
+    }
   }
 
   @Test
