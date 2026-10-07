@@ -672,6 +672,9 @@ configuration, hosting the pack, the client mod for Iris shader players and the 
   frame's maps after the shader pack's final image and runs the pack's chain over it. With another Iris version the mod
   tells the server, which shows that player the dithered maps. Sodium, and Iris with its shaders off, show MCV2
   normally. Improved transparency and the Vulkan backend show no MCV2 picture.
+- **The top of the screen.** While a page frame is in view, the strip takes the top rows of the screen (41 rows in an
+  854x480 window with one screen of eight slots, 25 at 1080p), and the chain covers them with the scene row just below,
+  so a detailed sky or ceiling smears there.
 - **Missed frames.** A client that renders fewer frames than the video has misses frames, and under the default
   prediction a missed frame is repaired only by the next keyframe.
 - **Sound.** MCV2 adds the client's decode time to the picture, and the plugin doesn't delay the sound to match.
