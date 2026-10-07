@@ -18,6 +18,7 @@
 package me.brandonli.mcav.sandbox.command.video;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -26,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -78,6 +80,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
@@ -426,6 +430,60 @@ final class Mcv2PlayCommandTest {
     assertTrue(failures.get(2).startsWith("The MCV2 encode failed: "), failures.get(2));
     assertEquals(3, failures.size());
     assertTrue(Files.isDirectory(this.folder.resolve("blocked.mcs.part")));
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "4097x1", "1x4097" })
+  void refusesOfflineDimensionsBeyondTheCodecLimit(final String dimensions) throws Exception {
+    final Mcv2PlayCommand.Opener opener = mock(Mcv2PlayCommand.Opener.class);
+    when(opener.open(any(), anyInt(), anyInt())).thenThrow(new IOException("unexpected open"));
+    this.command.setOpener(opener);
+    try {
+      this.command.encode(this.sender, "clip.mp4", "limit.mcs", dimensions, Mcv2Profile.LIVE);
+      assertNull(this.command.getEncoding(), "invalid codec dimensions cannot start a worker");
+      Mockito.verifyNoInteractions(opener);
+      verify(this.sender).sendMessage(Message.UNSUPPORTED_DIMENSION.build());
+      assertFalse(Files.exists(this.streams.resolve("limit.mcs.part")));
+    } finally {
+      this.finish();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "4096x1", "1x4096" })
+  void acceptsOfflineDimensionsAtTheCodecLimit(final String dimensions) throws Exception {
+    final Mcv2FileEncoder.FrameReader frames = mock(Mcv2FileEncoder.FrameReader.class);
+    when(frames.read(any(byte[].class))).thenReturn(true, false);
+    this.command.setOpener((_, _, _) -> frames);
+    this.command.encode(this.sender, "clip.mp4", "limit.mcs", dimensions, Mcv2Profile.LIVE);
+    this.finish();
+    assertEquals(1, Mcv2PlayCommand.read(this.streams.resolve("limit.mcs")).size());
+    verify(frames).close();
+  }
+
+  @Test
+  void reportsRecoverableEncodeFailuresAndRemovesOnlyItsPartialOutput() throws Exception {
+    final Path target = this.folder.resolve("old.mcs");
+    final byte[] previous = { 1, 2, 3 };
+    Files.write(target, previous);
+    assertDoesNotThrow(() ->
+      Mcv2PlayCommand.encodeFile(
+        this.sender,
+        (_, _, _) -> {
+          throw new IllegalStateException("reader rejected the source");
+        },
+        Path.of("clip.mp4"),
+        target,
+        16,
+        16,
+        Mcv2Profile.LIVE,
+        EncoderPool.shared(),
+        0
+      )
+    );
+    assertFalse(Files.exists(this.folder.resolve("old.mcs.part")));
+    assertArrayEquals(previous, Files.readAllBytes(target));
+    verify(this.sender).sendMessage(Message.MCV2_ENCODE_ERROR.build("reader rejected the source"));
   }
 
   @Test

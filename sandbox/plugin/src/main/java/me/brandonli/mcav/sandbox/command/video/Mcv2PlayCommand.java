@@ -284,6 +284,10 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     }
     final int width = size.getFirst();
     final int height = size.getSecond();
+    if (width > Mcv2Format.MAX_DIMENSION || height > Mcv2Format.MAX_DIMENSION) {
+      sender.sendMessage(Message.UNSUPPORTED_DIMENSION.build());
+      return;
+    }
     final Path source = Path.of(file);
     final Path target;
     try {
@@ -353,7 +357,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
         result = Mcv2FileEncoder.encode(opener.open(source, width, height), width, height, profile.getSettings(), budget, out, progress);
       }
       Files.move(partial, target, StandardCopyOption.REPLACE_EXISTING);
-    } catch (final IOException exception) {
+    } catch (final IOException | RuntimeException exception) {
       deleteQuietly(partial);
       sender.sendMessage(Message.MCV2_ENCODE_ERROR.build(String.valueOf(exception.getMessage())));
       return;
