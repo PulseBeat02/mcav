@@ -22,8 +22,8 @@ started, and stopped by your code.
 
 The `HttpResult` is an audio filter: attach it to the audio pipeline of a player and every connected browser receives
 the samples over a WebSocket. By default the server listens on all network interfaces, because the browsers of players
-connect from other machines; the host name only decides the address returned by `getFullUrl()`. On Linux and macOS,
-ports below 1024 need administrator rights, so pick a higher port.
+connect from other machines; the host name only decides the address returned by `getFullUrl()`. Ports below 1024 may
+require elevated privileges depending on the host configuration, so pick a higher port.
 
 `HttpResult` offers a factory for the common cases. None of them starts the server.
 
