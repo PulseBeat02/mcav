@@ -47,6 +47,7 @@ import java.util.concurrent.TimeUnit;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentMatchers;
@@ -69,6 +70,8 @@ final class HttpResultImplTest {
 
   @TempDir
   private Path directory;
+
+  private final WorkerAssertions workers = new WorkerAssertions();
 
   private final OriginalAudioMetadata metadata = Mockito.mock(OriginalAudioMetadata.class);
 
@@ -118,11 +121,12 @@ final class HttpResultImplTest {
     return session;
   }
 
-  private static WebSocketSession stuckSession(final CountDownLatch writeEntered, final CountDownLatch releaseWrite) throws IOException {
+  private WebSocketSession stuckSession(final CountDownLatch writeEntered, final CountDownLatch releaseWrite) throws IOException {
     final WebSocketSession stuck = Mockito.mock(WebSocketSession.class);
     Mockito.when(stuck.getId()).thenReturn("stuck");
     Mockito.when(stuck.isOpen()).thenReturn(true);
     Mockito.doAnswer(_ -> {
+      this.workers.observeCurrentThread();
       writeEntered.countDown();
       final boolean released = releaseWrite.await(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
       assertTrue(released, "the test releases the stuck write");
@@ -131,6 +135,11 @@ final class HttpResultImplTest {
       .when(stuck)
       .sendMessage(ArgumentMatchers.any());
     return stuck;
+  }
+
+  @AfterEach
+  void assertWorkersFinished() throws InterruptedException {
+    this.workers.assertFinished();
   }
 
   private void applySingleByteChunks(final HttpResultImpl http, final int first, final int last) {
@@ -301,7 +310,7 @@ final class HttpResultImplTest {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     final CountDownLatch stuckWriteEntered = new CountDownLatch(1);
     final CountDownLatch releaseStuckWrite = new CountDownLatch(1);
-    final WebSocketSession stuck = stuckSession(stuckWriteEntered, releaseStuckWrite);
+    final WebSocketSession stuck = this.stuckSession(stuckWriteEntered, releaseStuckWrite);
     final BlockingQueue<byte[]> healthySent = new LinkedBlockingQueue<>();
     final WebSocketSession healthy = session("healthy", healthySent);
     http.addListener(stuck);
@@ -461,7 +470,10 @@ final class HttpResultImplTest {
     Mockito.when(broken.getId()).thenReturn("same-id");
     Mockito.when(broken.isOpen()).thenReturn(true);
     final CountDownLatch replaced = new CountDownLatch(1);
+    final CountDownLatch sendEntered = new CountDownLatch(1);
     Mockito.doAnswer(_ -> {
+      this.workers.observeCurrentThread();
+      sendEntered.countDown();
       final boolean ready = replaced.await(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
       assertTrue(ready);
       throw new IOException("broken pipe");
@@ -472,6 +484,7 @@ final class HttpResultImplTest {
     final ByteBuffer samples = ByteBuffer.allocate(4);
     http.applyFilter(samples, this.metadata);
 
+    assertTrue(sendEntered.await(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS), "the old connection is sending before replacement");
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
     final WebSocketSession replacement = session("same-id", sent);
     http.addListener(replacement);

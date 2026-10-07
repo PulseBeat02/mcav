@@ -42,8 +42,9 @@ public final class JavaDocFormattingExample {
    *
    * @param viewer the player who sees the image
    * @param file   the image file
+   * @return the displayed image, which the caller releases when it is no longer shown
    */
-  public static void showScoreboardImage(final UUID viewer, final Path file) {
+  public static DisplayableImage showScoreboardImage(final UUID viewer, final Path file) {
     final Collection<UUID> viewers = List.of(viewer);
     final ScoreboardConfiguration.Builder<?> builder = ScoreboardConfiguration.builder();
     builder.character(Characters.FULL_CHARACTER);
@@ -58,7 +59,6 @@ public final class JavaDocFormattingExample {
       display.displayImage(image);
     }
 
-    // later, when the image is no longer shown
-    display.release();
+    return display;
   }
 }

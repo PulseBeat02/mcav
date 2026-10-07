@@ -20,10 +20,15 @@ package me.brandonli.mcav.utils.audio;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -42,6 +47,9 @@ import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.Mockito;
 
 class DelayedAudioOutputTest {
 
@@ -157,6 +165,83 @@ class DelayedAudioOutputTest {
       failing.accept(new byte[] { 2, 0, 0, 0 }, 4);
       waitUntil(() -> heard.size() == 1);
       assertEquals(2, heard.getFirst()[0], "the chunk after the failures still plays");
+    } finally {
+      failing.close();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { false, true })
+  void aNonfatalErrorInTheExceptionHandlerDoesNotStopTheSound(final boolean linkage) throws InterruptedException {
+    final AtomicReference<byte[]> heard = new AtomicReference<>();
+    final AtomicReference<Throwable> escaped = new AtomicReference<>();
+    final CountDownLatch settled = new CountDownLatch(1);
+    final Error reportFailure = linkage ? new NoClassDefFoundError("reporter unavailable") : new AssertionError("reporter failed");
+    final DelayedAudioOutput failing = start(
+      () ->
+        AudioPipelineStep.of((samples, metadata) -> {
+          if (samples.get(0) == 1) {
+            throw new IllegalStateException("filter failed");
+          }
+          final byte[] copy = new byte[samples.remaining()];
+          samples.get(copy);
+          heard.set(copy);
+          settled.countDown();
+          return true;
+        }),
+      (message, failure) -> {
+        throw reportFailure;
+      }
+    );
+    failing.getThread().setUncaughtExceptionHandler((thread, failure) -> {
+      escaped.set(failure);
+      settled.countDown();
+    });
+    try {
+      failing.accept(new byte[] { 1, 0, 0, 0 }, 4);
+      failing.accept(new byte[] { 2, 3, 4, 5 }, 4);
+      assertTrue(settled.await(10, TimeUnit.SECONDS), "delivery or an escaped failure must be observed");
+      assertNull(escaped.get(), "a recoverable reporting error must stay inside the delivery boundary");
+      assertArrayEquals(new byte[] { 2, 3, 4, 5 }, heard.get());
+      assertTrue(failing.getThread().isAlive());
+    } finally {
+      failing.close();
+    }
+    assertFalse(failing.getThread().isAlive());
+  }
+
+  @Test
+  void aFatalErrorInTheExceptionHandlerEndsTheOutputBeforeTheNextChunk() throws InterruptedException {
+    final AtomicReference<Throwable> escaped = new AtomicReference<>();
+    final AtomicBoolean continued = new AtomicBoolean();
+    final CountDownLatch settled = new CountDownLatch(1);
+    final OutOfMemoryError reportFailure = new OutOfMemoryError("synthetic reporter failure");
+    final DelayedAudioOutput failing = start(
+      () ->
+        AudioPipelineStep.of((samples, metadata) -> {
+          if (samples.get(0) == 1) {
+            throw new IllegalStateException("filter failed");
+          }
+          continued.set(true);
+          settled.countDown();
+          return true;
+        }),
+      (message, failure) -> {
+        throw reportFailure;
+      }
+    );
+    failing.getThread().setUncaughtExceptionHandler((thread, failure) -> {
+      escaped.set(failure);
+      settled.countDown();
+    });
+    try {
+      failing.accept(new byte[] { 1, 0, 0, 0 }, 4);
+      failing.accept(new byte[] { 2, 0, 0, 0 }, 4);
+      assertTrue(settled.await(10, TimeUnit.SECONDS), "the failure or the next chunk must be observed");
+      assertSame(reportFailure, escaped.get(), "a fatal reporting error must reach the thread's uncaught handler");
+      assertFalse(continued.get(), "a fatal reporting error ends delivery before the next chunk");
+      failing.getThread().join(10_000);
+      assertFalse(failing.getThread().isAlive());
     } finally {
       failing.close();
     }
@@ -500,6 +585,42 @@ class DelayedAudioOutputTest {
     }
     live.getThread().join(10_000L);
     assertFalse(live.getThread().isAlive());
+  }
+
+  @Test
+  void trimsBeforeTheQueuedByteSumCanOverflow() throws ReflectiveOperationException {
+    this.output.close();
+    this.output = DelayedAudioOutput.start(
+      "queue probe",
+      1,
+      DelayedAudioOutput.MAX_QUEUED_MILLIS,
+      () -> this.step,
+      (message, failure) -> this.failures.add(message),
+      () -> 0L,
+      DelayedAudioOutput.JOIN_TIMEOUT_MILLIS,
+      DelayedAudioOutput.SILENCE_MILLIS
+    );
+    final int capacity = DelayedAudioOutput.MAX_QUEUED_MILLIS * 192;
+    final ByteBuffer samples = Mockito.mock(ByteBuffer.allocate(1).getClass());
+    Mockito.when(samples.remaining()).thenReturn(capacity);
+    final Class<?> chunkType = Class.forName(DelayedAudioOutput.class.getName() + "$Chunk");
+    final Constructor<?> constructor = chunkType.getDeclaredConstructor(ByteBuffer.class, long.class, boolean.class);
+    constructor.setAccessible(true);
+    final Object chunk = constructor.newInstance(samples, TimeUnit.DAYS.toNanos(1), false);
+    final Field queueField = DelayedAudioOutput.class.getDeclaredField("queue");
+    queueField.setAccessible(true);
+    final Field counterField = DelayedAudioOutput.class.getDeclaredField("queuedBytes");
+    counterField.setAccessible(true);
+    final DelayedAudioOutput running = this.output;
+    synchronized (running) {
+      final Object queue = queueField.get(this.output);
+      Deque.class.getMethod("addLast", Object.class).invoke(queue, chunk);
+      counterField.setInt(this.output, capacity);
+      this.output.accept(new byte[192], 192);
+      assertEquals(192, this.output.getQueuedBytes(), "the oldest chunk must be evicted before the counter wraps");
+      assertEquals(1, ((Deque<?>) queue).size());
+      assertFalse(((Deque<?>) queue).contains(chunk));
+    }
   }
 
   @Test

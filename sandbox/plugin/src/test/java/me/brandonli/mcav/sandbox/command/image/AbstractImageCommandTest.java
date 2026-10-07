@@ -49,6 +49,7 @@ import javax.imageio.ImageIO;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.image.MatImageBuffer;
+import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
 import me.brandonli.mcav.media.source.SourceDetectionHelper;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
@@ -220,6 +221,51 @@ final class AbstractImageCommandTest {
       // the picture is black but for its red top-left corner, so inverted its bottom-right corner is white
       final int[] pixels = image.getPixels();
       assertEquals(0xffffff, pixels[pixels.length - 1] & 0xffffff);
+    }
+  }
+
+  @Test
+  void releasesTheDecodedImageWhenResizingForFiltersFails() throws IOException {
+    final Path file = this.writeImage("filter-failure.png", "png");
+    final IllegalStateException failure = new IllegalStateException("resize failed after decoding");
+    try (
+      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class);
+      final MockedConstruction<ResizeFilter> resizers = Mockito.mockConstruction(ResizeFilter.class, (filter, context) ->
+        Mockito.doThrow(failure).when(filter).applyFilter(any())
+      )
+    ) {
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", file.toString(), "invert");
+      assertEquals(1, resizers.constructed().size());
+      assertEquals(1, buffers.constructed().size());
+      final MatImageBuffer decoded = buffers.constructed().getFirst();
+      verify(decoded, times(1)).release();
+      assertEquals(List.of(Message.LOAD_IMAGE_START.build(), Message.UNSUPPORTED_MRL.build()), Components.received(this.sender));
+      this.assertNothingShown();
+      verify(this.manager, never()).retainLoaded(Mockito.anyLong(), any());
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { false, true })
+  void keepsTheFilterFailureWhenReleasingTheImageAlsoFails(final boolean sameFailure) throws IOException {
+    final Path file = this.writeImage("filter-cleanup-failure.png", "png");
+    final IllegalStateException failure = new IllegalStateException("resize failed");
+    final RuntimeException cleanupFailure = sameFailure ? failure : new IllegalArgumentException("release failed");
+    try (
+      final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, context) ->
+        Mockito.doThrow(cleanupFailure).when(image).release()
+      );
+      final MockedConstruction<ResizeFilter> resizers = Mockito.mockConstruction(ResizeFilter.class, (filter, context) ->
+        Mockito.doThrow(failure).when(filter).applyFilter(any())
+      )
+    ) {
+      this.command.displayImage(_ -> "configuration", this.sender, "4x2", file.toString(), "invert");
+      assertEquals(1, resizers.constructed().size());
+      verify(buffers.constructed().getFirst(), times(1)).release();
+      final Throwable[] expected = sameFailure ? new Throwable[0] : new Throwable[] { cleanupFailure };
+      assertArrayEquals(expected, failure.getSuppressed());
+      assertEquals(List.of(Message.LOAD_IMAGE_START.build(), Message.UNSUPPORTED_MRL.build()), Components.received(this.sender));
+      this.assertNothingShown();
     }
   }
 

@@ -33,6 +33,7 @@ import java.util.stream.Stream;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.Frames;
 import me.brandonli.mcav.browser.testing.HelperCoverage;
+import me.brandonli.mcav.browser.testing.StandardError;
 import me.brandonli.mcav.browser.testing.TestPages;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.interaction.MouseClick;
@@ -314,15 +315,26 @@ class CefBrowserIntegrationTest {
 
   @Test
   void aPageCannotNavigateToAFileOrDownloadOne() throws InterruptedException {
-    final BrowserPlayer toFile = this.player(LOCAL);
-    final Frames fileFrames = this.start(toFile, "/to-file");
-    final BrowserPlayer toDownload = this.player(LOCAL);
-    final Frames downloadFrames = this.start(toDownload, "/to-download");
-    Thread.sleep(1_500L);
-    assertTrue(fileFrames.lastShows(TestPages.MAIN_COLOR), () -> "still the page, not the file: " + fileFrames.describeLast());
-    assertTrue(downloadFrames.lastShows(TestPages.MAIN_COLOR), () -> "still the page, not a download: " + downloadFrames.describeLast());
-    assertTrue(toFile.isPlaying());
-    assertTrue(toDownload.isPlaying());
+    try (final StandardError reports = new StandardError()) {
+      final BrowserPlayer toFile = this.player(LOCAL);
+      final Frames fileFrames = this.start(toFile, "/to-file");
+      final BrowserPlayer toDownload = this.player(LOCAL);
+      final Frames downloadFrames = this.start(toDownload, "/to-download");
+      Thread.sleep(1_500L);
+      assertTrue(fileFrames.lastShows(TestPages.MAIN_COLOR), () -> "still the page, not the file: " + fileFrames.describeLast());
+      assertTrue(downloadFrames.lastShows(TestPages.MAIN_COLOR), () -> "still the page, not a download: " + downloadFrames.describeLast());
+      assertTrue(toFile.isPlaying());
+      assertTrue(toDownload.isPlaying());
+      final String refusal = "Browser: Refused a download of evil.exe";
+      Await.until("the real download reaches the refusal handler", () -> reports.text().contains(refusal));
+      final List<String> downloadReports = reports
+        .text()
+        .lines()
+        .filter(line -> line.contains("Browser: Refused a download of "))
+        .map(line -> line.substring(line.indexOf("Browser: Refused a download of ")))
+        .toList();
+      assertEquals(List.of(refusal), downloadReports);
+    }
   }
 
   @Test

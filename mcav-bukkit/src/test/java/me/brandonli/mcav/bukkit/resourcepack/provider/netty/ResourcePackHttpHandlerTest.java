@@ -500,23 +500,23 @@ final class ResourcePackHttpHandlerTest {
     private long taken;
 
     /** Lets the client take more bytes, and writes as much as it takes. */
-    void take(final int bytes) {
+    private void take(final int bytes) {
       this.allowance += bytes;
       this.flushOutbound();
       this.runPendingTasks();
     }
 
-    long taken() {
+    private long taken() {
       return this.taken;
     }
 
     @Override
-    protected void doWrite(final ChannelOutboundBuffer in) {
-      while (this.allowance > 0 && in.current() instanceof final ByteBuf buffer) {
+    protected void doWrite(final ChannelOutboundBuffer outbound) {
+      while (this.allowance > 0 && outbound.current() instanceof final ByteBuf buffer) {
         final int bytes = (int) Math.min(this.allowance, buffer.readableBytes());
         this.allowance -= bytes;
         this.taken += bytes;
-        in.removeBytes(bytes);
+        outbound.removeBytes(bytes);
       }
     }
   }

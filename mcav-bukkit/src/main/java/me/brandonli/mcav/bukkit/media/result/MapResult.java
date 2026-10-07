@@ -18,12 +18,14 @@
 package me.brandonli.mcav.bukkit.media.result;
 
 import com.google.common.base.Preconditions;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
 import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
+import me.brandonli.mcav.bukkit.media.map.MapRegion;
 import me.brandonli.mcav.bukkit.media.map.MapTilePatch;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.ResizeFilter;
@@ -57,8 +59,8 @@ public class MapResult implements DitherResultStep {
   }
 
   /**
-   * Resizes the frame if the configuration asks for it, dithers it, and sends every covered map completely to the
-   * viewers.
+   * Resizes the frame if the configuration asks for it, dithers it, and sends every configured map completely to the
+   * viewers, with transparent padding around a smaller picture.
    *
    * @param samples   the frame, which is resized in place if resizing is configured
    * @param algorithm the dithering algorithm that converts the frame into map colors
@@ -77,10 +79,29 @@ public class MapResult implements DitherResultStep {
     final int width = samples.getWidth();
     final int height = samples.getHeight();
     final MapLayout layout = new MapLayout(startMapId, columns, rows, width, height);
-    final List<MapTilePatch> patches = layout.extractAll(dithered);
+    final List<MapTilePatch> patches = completeGrid(layout, dithered);
 
     final Collection<UUID> viewers = this.configuration.getViewers();
     MapPacketFactory.send(viewers, patches);
+  }
+
+  private static List<MapTilePatch> completeGrid(final MapLayout layout, final byte[] image) {
+    final int width = layout.getImageWidth();
+    Preconditions.checkArgument(image.length == width * layout.getImageHeight(), "Image size does not match layout");
+    final List<MapTilePatch> patches = new ArrayList<>(layout.getMapCount());
+    for (int index = 0; index < layout.getMapCount(); index++) {
+      final MapRegion region = layout.getRegion(index);
+      final byte[] colors = new byte[MapLayout.MAP_SIZE * MapLayout.MAP_SIZE];
+      if (!region.isEmpty()) {
+        for (int row = 0; row < region.getHeight(); row++) {
+          final int source = (region.getSourceY() + row) * width + region.getSourceX();
+          final int target = (region.getLocalY() + row) * MapLayout.MAP_SIZE + region.getLocalX();
+          System.arraycopy(image, source, colors, target, region.getWidth());
+        }
+      }
+      patches.add(new MapTilePatch(layout.getMapId(index), 0, 0, MapLayout.MAP_SIZE, MapLayout.MAP_SIZE, colors));
+    }
+    return patches;
   }
 
   private void resizeIfConfigured(final ImageBuffer samples) {

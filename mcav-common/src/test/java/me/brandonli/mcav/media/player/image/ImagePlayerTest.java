@@ -42,6 +42,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import me.brandonli.mcav.media.Polling;
@@ -237,6 +238,31 @@ final class ImagePlayerTest {
 
     final long shortestGap = shortestGap(times);
     assertTrue(shortestGap >= 50_000_000L, "a slow filter limits the frame rate instead of catching up in bursts, gap " + shortestGap);
+  }
+
+  @Test
+  void oneSlowFrameResetsTheDeadlineBeforeTheNextFastFrame() throws InterruptedException {
+    final AtomicLong clock = new AtomicLong();
+    final List<Long> starts = new ArrayList<>();
+    final CountDownLatch finished = new CountDownLatch(1);
+    final ImagePlayer player = new ImagePlayerImpl(clock::get, clock::addAndGet);
+    attach(player, (_, _) -> {
+      starts.add(clock.get());
+      if (starts.size() == 1) {
+        clock.addAndGet(60_000_000L);
+      } else if (starts.size() == 3) {
+        player.release();
+        finished.countDown();
+      }
+      return true;
+    });
+    try {
+      assertTrue(player.start(solidFrames(4, 4, 100.0f)));
+      assertTrue(finished.await(10, TimeUnit.SECONDS), "three controlled frames are rendered");
+      assertEquals(List.of(0L, 60_000_000L, 70_000_000L), starts);
+    } finally {
+      player.release();
+    }
   }
 
   @Test

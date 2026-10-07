@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -40,6 +41,8 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.err
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.error.TemporalDitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.palette.DitherPalette;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 /**
  * Tests the error diffusion algorithms, their builder and the factories of {@link DitherAlgorithm}.
@@ -77,6 +80,20 @@ final class ErrorDiffusionDitherTest {
 
   private static int gray(final int value) {
     return 0xFF000000 | (value << 16) | (value << 8) | value;
+  }
+
+  @Test
+  void amplifiedPositiveErrorBrightensTheNextPixelInBothOutputForms() {
+    final DiffusionKernel kernel = new DiffusionKernel("Amplified right", 1, new int[][] { { 1, 0, Integer.MAX_VALUE } });
+    final ErrorDiffusionDither dither = new ErrorDiffusionDither(DitherTestImages.BLACK_WHITE, kernel) {};
+    final int[] source = { 0xFF646464, 0xFF646464 };
+    final int[] inPlace = source.clone();
+    dither.dither(inPlace, 2);
+    assertArrayEquals(new int[] { 0xFF000000, 0xFFFFFFFF }, inPlace);
+    try (final ImageBuffer image = ImageBuffer.buffer(source, 2, 1)) {
+      assertArrayEquals(new byte[] { 0, 1 }, dither.ditherIntoBytes(image));
+      assertArrayEquals(new int[] { 0xFF646464, 0xFF646464 }, image.getPixels());
+    }
   }
 
   @Test
@@ -270,10 +287,23 @@ final class ErrorDiffusionDitherTest {
     assertEquals(2, customErrorThreshold);
   }
 
+  @ParameterizedTest
+  @EnumSource(ErrorDiffusionDitherBuilder.Algorithm.class)
+  void emptyInputIsANoOpForEveryPositiveWidth(final ErrorDiffusionDitherBuilder.Algorithm algorithm) {
+    final ErrorDiffusionDither dither = build(algorithm);
+    final int[] empty = new int[0];
+    assertThrows(IllegalArgumentException.class, () -> dither.dither(empty, 0));
+    assertThrows(IllegalArgumentException.class, () -> dither.dither(empty, -1));
+    assertDoesNotThrow(() -> dither.dither(empty, 1));
+    assertDoesNotThrow(() -> dither.dither(empty, Integer.MAX_VALUE));
+    assertArrayEquals(new int[0], empty);
+  }
+
   @Test
   void rejectsInvalidInput() {
     final ErrorDiffusionDither dither = build(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
-    assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null));
+    final NullPointerException missingImage = assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null));
+    assertEquals("Image must not be null", missingImage.getMessage());
     assertThrows(NullPointerException.class, () -> dither.dither(null, 1));
     assertThrows(IllegalArgumentException.class, () -> dither.dither(new int[4], 0));
     assertThrows(IllegalArgumentException.class, () -> dither.dither(new int[5], 2));

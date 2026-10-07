@@ -42,6 +42,7 @@ import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -83,7 +84,7 @@ final class FileHttpChannelInitializerTest {
   }
 
   @Test
-  void addsTheTimeoutsInFrontOfTheFileHandler() {
+  void addsTheTimeoutsInFrontOfTheFileHandler() throws ReflectiveOperationException {
     final Connection connection = new Connection();
     final SocketChannel channel = connection.channel;
     final ChannelPipeline pipeline = connection.pipeline;
@@ -104,7 +105,11 @@ final class FileHttpChannelInitializerTest {
     final ReadTimeoutHandler readTimeout = assertInstanceOf(ReadTimeoutHandler.class, timeoutHandler);
     final long timeoutMillis = readTimeout.getReaderIdleTimeInMillis();
     assertEquals(30_000, timeoutMillis);
-    assertInstanceOf(WriteTimeoutHandler.class, writeTimeoutHandler);
+    final WriteTimeoutHandler writeTimeout = assertInstanceOf(WriteTimeoutHandler.class, writeTimeoutHandler);
+    final Field timeoutField = WriteTimeoutHandler.class.getDeclaredField("timeoutNanos");
+    timeoutField.setAccessible(true);
+    final long configuredTimeout = timeoutField.getLong(writeTimeout);
+    assertEquals(TimeUnit.MINUTES.toNanos(5), configuredTimeout, "the installed handler uses the five-minute timeout");
     assertEquals(300, FileHttpChannelInitializer.WRITE_TIMEOUT_SECONDS, "a stalled download is closed after five minutes");
     assertInstanceOf(FileServerHandler.class, fileHandler);
   }

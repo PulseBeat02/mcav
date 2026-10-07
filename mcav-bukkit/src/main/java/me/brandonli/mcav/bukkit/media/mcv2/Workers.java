@@ -20,6 +20,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import com.google.common.base.Preconditions;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.ObjIntConsumer;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
@@ -88,17 +89,30 @@ public final class Workers {
       return;
     }
     final AtomicInteger next = new AtomicInteger();
+    final AtomicReference<@Nullable Throwable> failure = new AtomicReference<>();
     target
       .submit(() ->
         IntStream.range(0, workers)
           .parallel()
           .forEach(_ -> {
-            final T state = scratch.get();
-            for (int index = next.getAndIncrement(); index < count; index = next.getAndIncrement()) {
-              body.accept(state, index);
+            try {
+              final T state = scratch.get();
+              for (int index = next.getAndIncrement(); index < count; index = next.getAndIncrement()) {
+                body.accept(state, index);
+              }
+            } catch (final RuntimeException | Error exception) {
+              // Exceptional stream completion can return before siblings finish using the caller's state.
+              failure.compareAndSet(null, exception);
             }
           })
       )
       .join();
+    final Throwable reported = failure.get();
+    if (reported instanceof final RuntimeException exception) {
+      throw exception;
+    }
+    if (reported instanceof final Error error) {
+      throw error;
+    }
   }
 }

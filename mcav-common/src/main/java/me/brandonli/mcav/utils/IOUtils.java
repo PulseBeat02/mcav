@@ -623,18 +623,28 @@ public final class IOUtils {
   }
 
   /**
-   * Fails unless a file starts like a zip archive. {@link ZipInputStream} reads any other file as an archive without
-   * entries, which would let a truncated or wrong download pass as an empty archive.
+   * Requires a complete first header: ZipInputStream silently accepts a truncated one as an empty archive.
    */
   private static void requireZipArchive(final Path archive) throws IOException {
-    final byte[] signature = new byte[ZIP_SIGNATURE_LENGTH];
     try (final InputStream stream = Files.newInputStream(archive)) {
-      stream.readNBytes(signature, 0, ZIP_SIGNATURE_LENGTH);
-    }
-    final boolean hasEntries = Arrays.equals(signature, ZIP_LOCAL_FILE_HEADER);
-    final boolean empty = Arrays.equals(signature, ZIP_END_OF_CENTRAL_DIRECTORY);
-    if (!hasEntries && !empty) {
-      throw new ZipException("Not a zip archive: " + archive);
+      final byte[] signature = stream.readNBytes(ZIP_SIGNATURE_LENGTH);
+      final boolean hasEntries = Arrays.equals(signature, ZIP_LOCAL_FILE_HEADER);
+      final boolean empty = Arrays.equals(signature, ZIP_END_OF_CENTRAL_DIRECTORY);
+      if (!hasEntries && !empty) {
+        throw new ZipException("Not a zip archive: " + archive);
+      }
+      final int remainingHeaderSize = empty ? 18 : 26;
+      final byte[] header = stream.readNBytes(remainingHeaderSize);
+      if (header.length != remainingHeaderSize) {
+        throw new ZipException("Truncated zip archive: " + archive);
+      }
+      if (empty) {
+        final int commentLength = (header[16] & 0xFF) | ((header[17] & 0xFF) << 8);
+        final byte[] comment = stream.readNBytes(commentLength);
+        if (comment.length != commentLength) {
+          throw new ZipException("Truncated zip archive: " + archive);
+        }
+      }
     }
   }
 

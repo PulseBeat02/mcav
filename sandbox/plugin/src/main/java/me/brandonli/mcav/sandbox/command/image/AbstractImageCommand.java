@@ -127,9 +127,22 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
 
   /** Filters an image at the size it is shown at, which bounds the work of the filters, on the loading thread. */
   private static ImageBuffer filter(final ImageBuffer image, final Pair<Integer, Integer> resolution, final FilterChain chain) {
-    new ResizeFilter(resolution.getFirst(), resolution.getSecond()).applyFilter(image);
-    chain.apply(image);
-    return image;
+    try {
+      new ResizeFilter(resolution.getFirst(), resolution.getSecond()).applyFilter(image);
+      chain.apply(image);
+      return image;
+    } catch (final RuntimeException | Error failure) {
+      ThrowableUtils.throwIfFatal(failure);
+      try {
+        image.release();
+      } catch (final RuntimeException | Error cleanupFailure) {
+        ThrowableUtils.throwIfFatal(cleanupFailure);
+        if (!FAILURE_IDENTITY.equivalent(failure, cleanupFailure)) {
+          failure.addSuppressed(cleanupFailure);
+        }
+      }
+      throw failure;
+    }
   }
 
   private static String unwrapMrl(final String mrl) {

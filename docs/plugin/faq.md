@@ -6,7 +6,7 @@ Please read these questions before asking for help in the support channels.
 
 ## Why does the first browser take so long to start?
 
-The first `/mcav browser create` on a server downloads Chromium (136 to 165 MB, depending on the platform) into the
+The first `/mcav browser create` on a server downloads Chromium (about 136 to 163 MiB, depending on the platform) into the
 MCAV cache folder of the user running the server (`~/.mcav/cache/jcef`), and on Linux the libraries it needs that the
 server lacks (about 13 MB of Debian 11 packages, into `~/.mcav/cache/jcef-libraries`). Every file is checked against a
 SHA-256 hash pinned in MCAV; later starts reuse them. The browser needs no X server, Xvfb or packages, and no Java
@@ -78,8 +78,8 @@ Only if your pack changes the text shaders (`assets/minecraft/shaders/core/text.
 (`assets/minecraft/post_effect/entity_outline.json`), which the MCV2 pack replaces to decode the video. The pack that a
 player's client loads last wins those files. Your server pack (`server.properties`) is sent when the player joins and
 the MCV2 pack later, so the MCV2 pack wins: MCV2 screens work, and your pack's versions of those three files are not used
-by that player until they leave (the MCV2 pack stays loaded after its screens stop, so players are not reloaded again
-and again). Everything else in your pack - textures, sounds, other shaders - is unaffected, and glowing entities keep
+while the MCV2 pack is loaded. A stopped screen leaves its slot available for reuse for one minute; afterwards the
+pack is rebuilt without it, or removed when no slots remain. Everything else in your pack - textures, sounds, other shaders - is unaffected, and glowing entities keep
 their outline. If another plugin sends a pack with those files after the MCV2 pack, that pack wins and MCV2 screens
 show nothing. To keep your own text or outline shaders, merge your changes into the MCV2 pack's copies (the
 `mcav/mcv2/pack` folder, and `mcav/mcv2/chain.json` from which the outline chain is generated, in the `mcav-bukkit` jar
@@ -119,8 +119,8 @@ the server's password in that list, never in the command, and restart the server
 On the first start of a server that has no VLC, the plugin downloads VLC in the background into the MCAV cache folder
 of the user running the server, without `sudo` or administrator rights. The server does not wait for it, so players
 can join right away. Until the download is finished and VLC is loaded, video commands with the `VLC` player answer
-that VLC is still being prepared; try again once the console logs `VLC ready in <n> ms`, or use the `FFMPEG` player,
-which is bundled and always works. Commands given a web page, such as a YouTube video, answer the same way while
+that VLC is still being prepared; try again once the console logs `VLC ready in <n> ms`, or use the bundled `FFMPEG`
+player on a supported platform. Commands given a web page, such as a YouTube video, answer the same way while
 yt-dlp is being downloaded. Later starts use the downloaded copies at once.
 
 If the console logs a warning that VLC is not available instead, VLC cannot be installed on this system, and VLC
@@ -138,6 +138,7 @@ minute. Start the server with `-Dmcav.nativeTrimSeconds=<n>` to do it every `n` 
 
 ## I'm getting an `UnsatisfiedLinkError` saying that version `GLIBC_2.38` is not found, how do I fix this?
 
-The error indicates that your system's GLibC version is way too old for VLC to use. To fix this, you have to install
-a newer version of GLibC. If you are on a dedicated server provider, you would have to contact them to see if they are
-able to update this library for you.
+The selected VLC build or one of its native dependencies requires a glibc version the server's runtime does not
+provide. MCAV catches this native-loading failure, logs why VLC is unavailable and leaves VLC commands unsupported;
+the `FFMPEG` player does not need VLC. Loading a different VLC build requires one compatible with the server's
+operating system and architecture. On a managed server, the provider controls that runtime.

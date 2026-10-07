@@ -230,12 +230,13 @@ public final class DelayedAudioOutput implements AutoCloseable {
     final long due = this.clock.getAsLong() + this.delayNanos;
     // the first samples after the source went quiet end the silence once they are due
     final boolean endsQuiet = this.silenceLeftNanos > 0;
-    this.queue.addLast(new Chunk(copy, due, endsQuiet));
-    this.queuedBytes += kept;
-    while (this.queuedBytes > this.maxQueuedBytes) {
+    // Make room before addition so even the largest accepted queue cannot wrap its byte counter.
+    while (this.queuedBytes > this.maxQueuedBytes - kept) {
       final Chunk dropped = this.queue.removeFirst();
       this.queuedBytes -= dropped.samples().remaining();
     }
+    this.queue.addLast(new Chunk(copy, due, endsQuiet));
+    this.queuedBytes += kept;
     this.notifyAll();
   }
 
@@ -391,7 +392,8 @@ public final class DelayedAudioOutput implements AutoCloseable {
   private void report(final Throwable failure) {
     try {
       this.failures.accept("Failed to process the audio of " + this.source, failure);
-    } catch (final RuntimeException handlerFailure) {
+    } catch (final RuntimeException | Error handlerFailure) {
+      ThrowableUtils.throwIfFatal(handlerFailure);
       // the exception handler is user code too; the sound goes on, and nothing else is left to tell
     }
   }

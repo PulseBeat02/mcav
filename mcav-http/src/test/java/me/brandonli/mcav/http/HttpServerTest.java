@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -63,12 +64,16 @@ import java.util.logging.Logger;
 import me.brandonli.mcav.http.testing.Await;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
+import org.apache.coyote.AbstractProtocol;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
+import org.springframework.boot.tomcat.TomcatWebServer;
+import org.springframework.boot.web.server.context.WebServerApplicationContext;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -108,7 +113,14 @@ final class HttpServerTest {
   private static HttpResultImpl server;
   private static HttpClient client;
 
+  private final WorkerAssertions workers = new WorkerAssertions();
+
   private final OriginalAudioMetadata metadata = Mockito.mock(OriginalAudioMetadata.class);
+
+  @AfterEach
+  void assertWorkersFinished() throws InterruptedException {
+    this.workers.assertFinished();
+  }
 
   @BeforeAll
   static void startTheServer() throws IOException {
@@ -550,6 +562,16 @@ final class HttpServerTest {
       final int status = page.statusCode();
       final String body = page.body();
       assertEquals(200, status, "server.address=127.0.0.1 of the copied list is in effect");
+      final Field contextField = HttpResultImpl.class.getDeclaredField("context");
+      contextField.setAccessible(true);
+      final WebServerApplicationContext context = (WebServerApplicationContext) contextField.get(http);
+      final TomcatWebServer webServer = (TomcatWebServer) context.getWebServer();
+      final AbstractProtocol<?> protocol = (AbstractProtocol<?>) webServer.getTomcat().getConnector().getProtocolHandler();
+      assertEquals(
+        InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }),
+        protocol.getAddress(),
+        "the connector binds only to the copied address"
+      );
       assertTrue(body.contains("other page"), "an extra property overrides the default location");
       assertFalse(body.contains("directory test page"));
     } finally {
@@ -603,11 +625,12 @@ final class HttpServerTest {
    * Creates a session whose writes block until released and which, like the WebSocket sessions of Spring, waits
    * for the write in progress when it is closed.
    */
-  private static WebSocketSession stuckSession(final CountDownLatch writeEntered, final CountDownLatch releaseWrite) throws IOException {
+  private WebSocketSession stuckSession(final CountDownLatch writeEntered, final CountDownLatch releaseWrite) throws IOException {
     final WebSocketSession stuck = Mockito.mock(WebSocketSession.class);
     Mockito.when(stuck.getId()).thenReturn("stuck");
     Mockito.when(stuck.isOpen()).thenReturn(true);
     Mockito.doAnswer(_ -> {
+      this.workers.observeCurrentThread();
       writeEntered.countDown();
       final boolean released = releaseWrite.await(60, TimeUnit.SECONDS);
       assertTrue(released, "the test releases the stuck write");
@@ -616,6 +639,7 @@ final class HttpServerTest {
       .when(stuck)
       .sendMessage(ArgumentMatchers.any());
     Mockito.doAnswer(_ -> {
+      this.workers.observeCurrentThread();
       final boolean released = releaseWrite.await(60, TimeUnit.SECONDS);
       assertTrue(released, "the test releases the stuck write");
       return null;
@@ -630,7 +654,7 @@ final class HttpServerTest {
     final HttpResultImpl http = new HttpResultImpl("localhost", 0, pageDirectory, LOOPBACK);
     final CountDownLatch writeEntered = new CountDownLatch(1);
     final CountDownLatch releaseWrite = new CountDownLatch(1);
-    final WebSocketSession stuck = stuckSession(writeEntered, releaseWrite);
+    final WebSocketSession stuck = this.stuckSession(writeEntered, releaseWrite);
     try {
       http.start();
       http.addListener(stuck);

@@ -48,6 +48,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.browser.BrowserModule;
@@ -427,6 +428,15 @@ final class MCAVSandboxTest {
 
   @Test
   void logsTheStartAndHowLongLoadingTook() {
+    final AtomicLong installationMillis = new AtomicLong();
+    doAnswer(_ -> {
+      final long before = System.currentTimeMillis();
+      Thread.sleep(25);
+      installationMillis.set(System.currentTimeMillis() - before);
+      return null;
+    })
+      .when(this.api)
+      .install(BukkitModule.class, BrowserModule.class, VMModule.class, SVCModule.class);
     this.sandbox.onEnable();
 
     final ArgumentCaptor<Object> duration = ArgumentCaptor.forClass(Object.class);
@@ -434,6 +444,8 @@ final class MCAVSandboxTest {
     verify(this.logger).info(eq("MCAV loaded in {} ms"), duration.capture());
     final Object logged = duration.getValue();
     final long milliseconds = (Long) logged;
+    assertTrue(installationMillis.get() > 0, "installation consumed measurable time");
+    assertTrue(milliseconds >= installationMillis.get(), "the logged duration includes the entire installation");
     // a sum of two timestamps instead of their difference would be billions of milliseconds
     final boolean plausible = milliseconds >= 0 && milliseconds < 600_000;
     assertTrue(plausible, "the log reports how long loading took, which was " + milliseconds + " ms");

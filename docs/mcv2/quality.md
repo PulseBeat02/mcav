@@ -81,7 +81,8 @@ What the chart says, as the rate each codec needs for the same VMAF mean
 
 That is the price of decoding in a vanilla client's fragment shader, measured in [the design page](design.md): MCV2
 cannot use the transforms and entropy coding the other three are built on. In exchange it needs no client mod, and a
-player's GPU decodes a 1080p frame in under 9 ms ([decoding cost](client.md)).
+measured Intel UHD 630 runs the 1080p decoder chain in 7.4 to 8.8 ms when a rendered frame brings new video
+([decoding cost](client.md)); other GPUs and the complete game's frame rate need their own measurements.
 
 ## Against AV1 at the Same Nominal Budget
 

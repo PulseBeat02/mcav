@@ -24,6 +24,8 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
+import java.util.function.LongConsumer;
+import java.util.function.LongSupplier;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
@@ -43,6 +45,8 @@ public final class ImagePlayerImpl implements ImagePlayer {
 
   private static final long STOP_TIMEOUT_MILLIS = 2_000L;
 
+  private final LongSupplier clock;
+  private final LongConsumer park;
   private final VideoAttachableCallback callback;
   private final ExceptionHandler exceptionHandler;
   private final Lock lock;
@@ -52,6 +56,12 @@ public final class ImagePlayerImpl implements ImagePlayer {
   private @Nullable Thread thread;
 
   ImagePlayerImpl() {
+    this(System::nanoTime, LockSupport::parkNanos);
+  }
+
+  ImagePlayerImpl(final LongSupplier clock, final LongConsumer park) {
+    this.clock = clock;
+    this.park = park;
     this.callback = VideoAttachableCallback.create();
     this.exceptionHandler = ExceptionHandler.createDefault();
     this.lock = new ReentrantLock();
@@ -220,16 +230,16 @@ public final class ImagePlayerImpl implements ImagePlayer {
     }
 
     void run(final long periodNanos) {
-      long deadline = System.nanoTime();
+      long deadline = ImagePlayerImpl.this.clock.getAsLong();
       try {
         while (ImagePlayerImpl.this.playing.get()) {
           deadline += periodNanos;
           this.renderFrame();
-          final long remaining = deadline - System.nanoTime();
+          final long remaining = deadline - ImagePlayerImpl.this.clock.getAsLong();
           if (remaining > 0) {
-            LockSupport.parkNanos(remaining);
+            ImagePlayerImpl.this.park.accept(remaining);
           } else {
-            deadline = System.nanoTime();
+            deadline = ImagePlayerImpl.this.clock.getAsLong();
           }
         }
       } finally {

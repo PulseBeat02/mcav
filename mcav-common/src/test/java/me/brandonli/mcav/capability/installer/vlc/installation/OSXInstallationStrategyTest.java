@@ -201,12 +201,42 @@ final class OSXInstallationStrategyTest {
   }
 
   @Test
-  void usesChildProcessesByDefault() {
+  void usesChildProcessesByDefault() throws IOException {
     final VLCInstaller installer = VLCInstaller.create(this.temp);
     final OSXInstallationStrategy strategy = new OSXInstallationStrategy(installer);
     final VLCInstaller strategyInstaller = strategy.getInstaller();
     assertSame(installer, strategyInstaller);
     assertThrows(NullPointerException.class, () -> strategy.execute(null));
+    final Path javaFolder = Path.of(System.getProperty("java.home"), "bin");
+    final Path windowsJava = javaFolder.resolve("java.exe");
+    final Path java = Files.isRegularFile(windowsJava) ? windowsJava : javaFolder.resolve("java");
+    final Path marker = this.temp.resolve("child.txt");
+    strategy.runProcess(
+      this.temp,
+      java.toString(),
+      "-cp",
+      System.getProperty("java.class.path"),
+      ChildProbe.class.getName(),
+      marker.toString()
+    );
+    assertTrue(Files.isRegularFile(marker), "the default runner executes its child process");
+    assertEquals("child ran", Files.readString(marker));
+  }
+
+  /** A portable child that proves the strategy ran the requested program. */
+  public static final class ChildProbe {
+
+    private ChildProbe() {}
+
+    /**
+     * Writes the marker of a completed child process.
+     *
+     * @param arguments the marker path
+     * @throws IOException if the marker cannot be written
+     */
+    public static void main(final String[] arguments) throws IOException {
+      Files.writeString(Path.of(arguments[0]), "child ran");
+    }
   }
 
   private static OSXInstallationStrategy strategyWith(

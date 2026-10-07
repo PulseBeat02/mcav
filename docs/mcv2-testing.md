@@ -1,8 +1,10 @@
 # Testing MCV2 on your own client
 
 This is how to watch MCV2 on a real Minecraft client and GPU, and what to compare with the numbers measured on the
-build machine (a 6-core Intel i7-8700 with an Intel UHD 630, whose client rendered in software). Everything the build
-machine could check is listed at the end, with what only your client can show. How MCV2 works, and what each preset
+build machine (a 6-core Intel i7-8700 with an Intel UHD 630, whose client rendered in software). Those integration
+measurements describe that workload and machine; they are not a throughput guarantee. The later loaded-host CPU
+measurements and client matrix are summarized in [current usage and limits](mcv2/using.md). What the original build
+machine checked is listed at the end, with what only your client can show. How MCV2 works, and what each preset
 costs, is in [the MCV2 chapter](mcv2/how-it-works.md).
 
 You need a vanilla Minecraft **26.3** client (any GPU with OpenGL 3.3; no mods) and the sandbox server of this branch.
@@ -87,12 +89,13 @@ a faster search first (`live_adaptive`, which switches to the `live_fast` search
 - **Ordinary maps still render** beside it, unchanged.
 - **Motion.** With `stream` at 30 fps the picture should move at 30 fps. A client that renders fewer frames per second
   than the video decodes only what it renders: with the shipped profiles (each P frame predicts from the frame before)
-  it then shows a frozen picture until the next keyframe, every two seconds. That is the codec's reference model, not
-  a bug; `keyframe` streams avoid it at about 1.7 times the rate.
+  it then shows a frozen picture until the next keyframe: every 60 encoded frames for `ship`, or 120 for `live`
+  (two or four seconds at 30 fps). That is the codec's reference model; `keyframe` streams avoid dependence on a missed
+  P frame, at about 1.7 times the rate in the original ship measurements.
 - **Your frame time.** Open F3 and compare the frame time with the wall in view and out of view. The decoder runs on
   every rendered frame while page frames are in view; measured on an Intel UHD 630: 7.9 ms for a frame that brings a new
-  video frame, 8.8 ms for a keyframe, 6.6 ms for one that does not (all at 1080p). A GPU twice that fast runs it in
-  under 4 ms.
+  video frame, 8.8 ms for a keyframe, 6.6 ms for one that does not (all at 1080p). Measure your client and driver;
+  these timings do not establish the cost on other GPUs.
 
 ## 5. Shader errors
 

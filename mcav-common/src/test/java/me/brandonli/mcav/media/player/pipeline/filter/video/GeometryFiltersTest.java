@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.ByteBuffer;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.image.MatImageBuffer;
 import me.brandonli.mcav.testing.Images;
@@ -48,7 +49,14 @@ final class GeometryFiltersTest {
   private static boolean crop(final int left, final int top, final int width, final int height) {
     try (final ImageBuffer image = Images.indexed(4, 4)) {
       final CropFilter filter = new CropFilter(left, top, width, height);
-      return filter.applyFilter(image);
+      final ByteBuffer before = ByteBuffer.allocate(image.getData().remaining()).put(image.getData()).flip();
+      final boolean changed = filter.applyFilter(image);
+      if (!changed) {
+        assertEquals(before, image.getData());
+        assertEquals(4, image.getWidth());
+        assertEquals(4, image.getHeight());
+      }
+      return changed;
     }
   }
 

@@ -68,6 +68,9 @@ final class GLTextureFilterTest {
 
   private GLTextureFilter filter;
 
+  private final List<Thread> workers = new ArrayList<>();
+  private final List<Throwable> workerFailures = new CopyOnWriteArrayList<>();
+
   @BeforeAll
   static void createContext() {
     try {
@@ -105,8 +108,16 @@ final class GLTextureFilterTest {
   }
 
   @AfterEach
-  void releaseFilter() {
-    this.filter.release();
+  void releaseFilter() throws InterruptedException {
+    try {
+      for (final Thread worker : this.workers) {
+        worker.join(10_000L);
+        assertFalse(worker.isAlive(), "the frame worker finished");
+      }
+      assertEquals(List.of(), this.workerFailures, "frame worker assertions reach the test thread");
+    } finally {
+      this.filter.release();
+    }
   }
 
   @Test
@@ -267,9 +278,12 @@ final class GLTextureFilterTest {
     }
   }
 
-  private static void startThread(final Runnable action) {
+  private Thread startThread(final Runnable action) {
     final Thread thread = new Thread(action);
+    thread.setUncaughtExceptionHandler((_, failure) -> this.workerFailures.add(failure));
+    this.workers.add(thread);
     thread.start();
+    return thread;
   }
 
   @Test
@@ -469,9 +483,9 @@ final class GLTextureFilterTest {
     final GLTextureFilter slow = slowFilter(uploading, finishUpload);
     slow.start();
     stage(slow, 2, 2, 0xFFFF0000);
-    startThread(() -> stageOnceUploading(slow, uploading, applied));
+    this.startThread(() -> stageOnceUploading(slow, uploading, applied));
     // the player must get its frame in while the render thread is still uploading
-    startThread(() -> finishUploadOnceApplied(applied, finishUpload));
+    this.startThread(() -> finishUploadOnceApplied(applied, finishUpload));
 
     final long before = System.nanoTime();
     final boolean firstUploaded = slow.upload();
@@ -560,8 +574,7 @@ final class GLTextureFilterTest {
   @Test
   void acceptsFramesFromAnotherThread() throws InterruptedException {
     this.filter.start();
-    final Thread player = new Thread(() -> stage(this.filter, 2, 2, 0xFF0000FF));
-    player.start();
+    final Thread player = this.startThread(() -> stage(this.filter, 2, 2, 0xFF0000FF));
     Await.until("the frame of the player thread is staged", this.filter::hasPendingFrame);
     player.join(10_000L);
     final boolean uploaded = this.filter.upload();

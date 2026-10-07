@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -85,7 +86,7 @@ public class CompressedMapResult implements DitherResultStep {
 
   private final MapConfiguration configuration;
   private final int maxBytesPerFrame;
-  private final Set<UUID> activeViewers;
+  private final Map<UUID, Object> activeViewers;
   private final Map<Integer, BitSet> sentPixels;
   private final Lock lock;
 
@@ -119,7 +120,7 @@ public class CompressedMapResult implements DitherResultStep {
     Preconditions.checkArgument(maxBytesPerFrame > 0, "Byte budget must be positive");
     this.configuration = configuration;
     this.maxBytesPerFrame = maxBytesPerFrame;
-    this.activeViewers = new HashSet<>();
+    this.activeViewers = new HashMap<>();
     this.sentPixels = new TreeMap<>();
     this.lock = new ReentrantLock();
   }
@@ -274,17 +275,17 @@ public class CompressedMapResult implements DitherResultStep {
     final Collection<UUID> viewers = this.configuration.getViewers();
     final Set<UUID> connectedViewers = new HashSet<>();
     for (final UUID viewer : viewers) {
-      final boolean connected = PacketUtils.isConnected(viewer);
-      if (!connected) {
+      final Object connection = PacketUtils.connectionIdentity(viewer);
+      if (connection == null) {
         continue;
       }
       connectedViewers.add(viewer);
-      final boolean alreadyWatching = this.activeViewers.contains(viewer);
+      final Object previous = this.activeViewers.put(viewer, connection);
+      final boolean alreadyWatching = connection.equals(previous);
       final List<UUID> group = alreadyWatching ? existingViewers : newViewers;
       group.add(viewer);
     }
-    this.activeViewers.retainAll(connectedViewers);
-    this.activeViewers.addAll(newViewers);
+    this.activeViewers.keySet().retainAll(connectedViewers);
   }
 
   private DeltaMapEncoder getEncoder(final int width, final int height) {

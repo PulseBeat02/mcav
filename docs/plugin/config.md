@@ -228,7 +228,7 @@ scripts faster, at the cost of the protection described in the [browser module](
 `browser.autoplay-sound` lets pages play sound before a player clicked their screen.
 
 The browser keeps what it downloads in the MCAV cache folder of the user running the server, like VLC and yt-dlp:
-Chromium in `~/.mcav/cache/jcef` (136 to 165 MB) and, on Linux, the libraries it needs that the server lacks in
+Chromium in `~/.mcav/cache/jcef` (about 136 to 163 MiB) and, on Linux, the libraries it needs that the server lacks in
 `~/.mcav/cache/jcef-libraries` (about 13 MB). On a Pterodactyl server that is `/home/container/.mcav/cache`. The folder
 has no setting of its own; delete it to download everything again.
 

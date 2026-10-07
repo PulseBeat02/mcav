@@ -160,11 +160,17 @@ final class MotionSearchTest {
     // a block in the corner, displaced so its samples clamp: the general sampling path
     final byte[] rgb = picture();
     final int[] source = new int[8 * 8 * 3];
-    for (int index = 0; index < 64; index++) {
-      System.arraycopy(new int[] { rgb[0] & 0xFF, rgb[1] & 0xFF, rgb[2] & 0xFF }, 0, source, index * 3, 3);
+    for (int row = 0; row < 8; row++) {
+      for (int column = 0; column < 8; column++) {
+        final int referenceRow = Math.max(0, row - 4);
+        final int referenceColumn = Math.max(0, column - 4);
+        for (int channel = 0; channel < 3; channel++) {
+          source[(row * 8 + column) * 3 + channel] = rgb[(referenceRow * WIDTH + referenceColumn) * 3 + channel] & 0xFF;
+        }
+      }
     }
     final int found = MotionSearch.seeded(rgb, WIDTH, HEIGHT, source, 0, 0, 8, 0, 0, 4, true, new int[] { vector(-8, -8) });
-    // whatever the clamped samples measure, the vector stays within the four pixels of range
     assertEquals(true, Math.abs(found >> 16) <= 8 && Math.abs((short) found) <= 8);
+    assertEquals(vector(-8, -8), found, "the clamped corner has an exact four-pixel displacement");
   }
 }

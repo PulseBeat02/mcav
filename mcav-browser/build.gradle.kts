@@ -1,6 +1,7 @@
 plugins {
     id("mcav.module")
     id("mcav.publishing")
+    id("mcav.script-testing")
 }
 
 dependencies {

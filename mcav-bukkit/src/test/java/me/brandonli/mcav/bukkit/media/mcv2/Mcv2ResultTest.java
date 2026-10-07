@@ -87,6 +87,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InOrder;
+import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 
 final class Mcv2ResultTest {
@@ -164,34 +165,38 @@ final class Mcv2ResultTest {
 
   @Test
   void encodesForViewersWithThePackAndDithersForTheOthers() throws InterruptedException {
-    final Mcv2Result result = this.result(this.configuration, this.algorithm);
-    final List<byte[]> heard = new CopyOnWriteArrayList<>();
-    result.setFrameListener(heard::add);
-    result.start();
-    verify(this.screen).build();
-    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
-    // the first frame only schedules showing the screen, so both viewers are dithered for, on the dithering thread
-    result.applyFilter(frame, this.metadata);
-    verify(this.algorithm, timeout(5000)).ditherIntoBytes(any());
-    this.server.runTasks();
-    assertTrue(result.applyFilter(frame, this.metadata));
-    awaitFrames(result, 1);
-    // the next frame, of the same size, is a P frame
-    result.applyFilter(Images.solid(64, 32, 0xFF336698), this.metadata);
-    awaitFrames(result, 2);
-    final Mcv2Result.Statistics statistics = result.getStatistics();
-    assertEquals(1, statistics.getKeyframes());
-    assertEquals(0, statistics.getDropped());
-    assertTrue(statistics.getBytes() > 48);
-    assertTrue(statistics.getMapBytes() > 0 && statistics.getMapBytes() % 128 == 0);
-    assertTrue(statistics.getNanoseconds() > 0);
-    final List<Packet<?>> packets = this.server.getSentPackets(WITH_PACK);
-    assertEquals(500, MapPackets.unbundle(packets.getLast()).getFirst().mapId().id());
-    assertSame(result.getChannel(), result.getChannel());
-    // the listener heard both frames sent, a keyframe first
-    assertEquals(2, heard.size());
-    assertEquals(statistics.getBytes(), heard.getFirst().length + heard.getLast().length);
-    result.release();
+    final Mcv2Channel channel = new Mcv2Channel(this.configuration, this.viewers, this.screen);
+    final Mcv2Result result = new Mcv2Result(this.configuration, channel, this.algorithm);
+    try {
+      final List<byte[]> heard = new CopyOnWriteArrayList<>();
+      result.setFrameListener(heard::add);
+      result.start();
+      verify(this.screen).build();
+      final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
+      // the first frame only schedules showing the screen, so both viewers are dithered for, on the dithering thread
+      result.applyFilter(frame, this.metadata);
+      verify(this.algorithm, timeout(5000)).ditherIntoBytes(any());
+      this.server.runTasks();
+      assertTrue(result.applyFilter(frame, this.metadata));
+      awaitFrames(result, 1);
+      // the next frame, of the same size, is a P frame
+      result.applyFilter(Images.solid(64, 32, 0xFF336698), this.metadata);
+      awaitFrames(result, 2);
+      final Mcv2Result.Statistics statistics = result.getStatistics();
+      assertEquals(1, statistics.getKeyframes());
+      assertEquals(0, statistics.getDropped());
+      assertTrue(statistics.getBytes() > 48);
+      assertTrue(statistics.getMapBytes() > 0 && statistics.getMapBytes() % 128 == 0);
+      assertTrue(statistics.getNanoseconds() > 0);
+      final List<Packet<?>> packets = this.server.getSentPackets(WITH_PACK);
+      assertEquals(500, MapPackets.unbundle(packets.getLast()).getFirst().mapId().id());
+      assertSame(channel, result.getChannel());
+      // the listener heard both frames sent, a keyframe first
+      assertEquals(2, heard.size());
+      assertEquals(statistics.getBytes(), heard.getFirst().length + heard.getLast().length);
+    } finally {
+      result.release();
+    }
     verify(this.screen).remove();
   }
 
@@ -669,12 +674,28 @@ final class Mcv2ResultTest {
 
   @Test
   void refusesNulls() {
-    assertThrows(NullPointerException.class, () -> new Mcv2Result(null, this.viewers, null));
-    assertThrows(NullPointerException.class, () -> new Mcv2Result(this.configuration, (Mcv2Channel) null, null));
+    assertEquals(
+      "Configuration must not be null",
+      assertThrows(NullPointerException.class, () -> new Mcv2Result(null, this.viewers, null)).getMessage()
+    );
+    assertEquals(
+      "Channel must not be null",
+      assertThrows(NullPointerException.class, () -> new Mcv2Result(this.configuration, (Mcv2Channel) null, null)).getMessage()
+    );
     final Mcv2Result result = new Mcv2Result(this.configuration, this.viewers, this.algorithm);
-    assertThrows(NullPointerException.class, () -> result.applyFilter(null, this.metadata));
-    assertThrows(NullPointerException.class, () -> result.applyFilter(Images.solid(64, 32, 0), null));
-    assertEquals(EncoderSettings.LIVE_FAST, this.configuration.getSettings());
+    try (final ImageBuffer image = Images.solid(64, 32, 0)) {
+      assertEquals(
+        "Frame must not be null",
+        assertThrows(NullPointerException.class, () -> result.applyFilter(null, this.metadata)).getMessage()
+      );
+      assertEquals(
+        "Metadata must not be null",
+        assertThrows(NullPointerException.class, () -> result.applyFilter(image, null)).getMessage()
+      );
+      assertEquals(0, result.getStatistics().getFrames(), "invalid input cannot publish a frame");
+    } finally {
+      result.release();
+    }
   }
 
   @Test
@@ -1653,12 +1674,71 @@ final class Mcv2ResultTest {
       new Mcv2Result.Arrival(new byte[0], 0, 0, 0, Mcv2Pacer.Preset.ONLY)
     );
     final Thread waiter = taker(result, taken);
-    waiter.start();
-    awaitWaiting(waiter);
-    result.release();
-    waiter.join(TimeUnit.SECONDS.toMillis(5));
-    assertFalse(waiter.isAlive(), "the release wakes a thread that waits for a frame");
-    assertNull(taken.get(), "and hands it none");
+    try {
+      waiter.start();
+      awaitWaiting(waiter);
+      result.release();
+      waiter.join(TimeUnit.SECONDS.toMillis(5));
+      assertFalse(waiter.isAlive(), "the release wakes a thread that waits for a frame");
+      assertNull(taken.get(), "and hands it none");
+    } finally {
+      releaseAndStopWaiter(result, waiter);
+    }
+  }
+
+  @Test
+  void aFailedReleaseNotificationAssertionStillStopsItsWaiter() throws InterruptedException {
+    final CountDownLatch neverNotified = new CountDownLatch(1);
+    final AtomicReference<Thread> waiting = new AtomicReference<>();
+    try (
+      final MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class, (result, _) -> {
+        when(result.take()).thenAnswer(_ -> {
+          waiting.set(Thread.currentThread());
+          neverNotified.await();
+          return null;
+        });
+      })
+    ) {
+      final AssertionError failure = assertThrows(AssertionError.class, this::aReleaseWakesAThreadThatWaitsForAFrame);
+      assertTrue(failure.getMessage().contains("the release wakes a thread"));
+      assertEquals(1, results.constructed().size());
+      assertFalse(waiting.get().isAlive(), "a failed release-notification test leaked its waiter");
+    } finally {
+      final Thread waiter = waiting.get();
+      if (waiter != null) {
+        waiter.interrupt();
+        waiter.join(5000);
+        assertFalse(waiter.isAlive(), "the fixture probe must stop its own waiter");
+      }
+    }
+  }
+
+  @Test
+  void aReleaseFailureStillStopsTheFixtureWaiter() throws InterruptedException {
+    final CountDownLatch neverNotified = new CountDownLatch(1);
+    final AtomicReference<Thread> waiting = new AtomicReference<>();
+    final AssertionError forcedFailure = new AssertionError("forced release assertion");
+    try (
+      final MockedConstruction<Mcv2Result> results = Mockito.mockConstruction(Mcv2Result.class, (result, _) -> {
+        when(result.take()).thenAnswer(_ -> {
+          waiting.set(Thread.currentThread());
+          neverNotified.await();
+          return null;
+        });
+        Mockito.doThrow(forcedFailure).doNothing().when(result).release();
+      })
+    ) {
+      assertSame(forcedFailure, assertThrows(AssertionError.class, this::aReleaseWakesAThreadThatWaitsForAFrame));
+      assertEquals(1, results.constructed().size());
+      assertFalse(waiting.get().isAlive(), "a release failure leaked the fixture waiter");
+    } finally {
+      final Thread waiter = waiting.get();
+      if (waiter != null) {
+        waiter.interrupt();
+        waiter.join(5000);
+        assertFalse(waiter.isAlive(), "the fixture probe must stop its own waiter");
+      }
+    }
   }
 
   @Test
@@ -1695,6 +1775,10 @@ final class Mcv2ResultTest {
       Runnable::run,
       _ -> encoder
     );
+    final AtomicReference<Mcv2Result.Arrival> taken = new AtomicReference<>(
+      new Mcv2Result.Arrival(new byte[0], 0, 0, 0, Mcv2Pacer.Preset.ONLY)
+    );
+    final Thread waiter = taker(result, taken);
     try (final LogCapture logs = LogCapture.capture(Mcv2Result.class)) {
       result.start();
       final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
@@ -1705,10 +1789,6 @@ final class Mcv2ResultTest {
       verify(encoder, timeout(TimeUnit.SECONDS.toMillis(10))).finish(first);
       result.applyFilter(frame, this.metadata);
       assertTrue(inSecondFrame.await(10, TimeUnit.SECONDS));
-      final AtomicReference<Mcv2Result.Arrival> taken = new AtomicReference<>(
-        new Mcv2Result.Arrival(new byte[0], 0, 0, 0, Mcv2Pacer.Preset.ONLY)
-      );
-      final Thread waiter = taker(result, taken);
       waiter.start();
       awaitWaiting(waiter);
       firstFrameMayFail.countDown();
@@ -1723,8 +1803,20 @@ final class Mcv2ResultTest {
         "the failure is logged"
       );
     } finally {
+      firstFrameMayFail.countDown();
       secondFrameMayGoOn.countDown();
+      releaseAndStopWaiter(result, waiter);
+    }
+  }
+
+  private static void releaseAndStopWaiter(final Mcv2Result result, final Thread waiter) throws InterruptedException {
+    try {
       result.release();
+    } finally {
+      // Cleanup must not depend on the production notification that this fixture tests.
+      waiter.interrupt();
+      waiter.join(TimeUnit.SECONDS.toMillis(5));
+      assertFalse(waiter.isAlive(), "the fixture must stop its waiter even after an assertion fails");
     }
   }
 }

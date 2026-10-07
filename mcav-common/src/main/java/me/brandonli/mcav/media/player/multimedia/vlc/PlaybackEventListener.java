@@ -80,7 +80,8 @@ final class PlaybackEventListener extends MediaPlayerEventAdapter {
 
   /**
    * Records that VLC could not open or play the media and reports it to the exception handler, unless the playback
-   * has already been stopped. The report happens before a thread waiting in {@link #awaitOpened(long)} wakes up.
+   * has already been stopped. The report releases a thread waiting in {@link #awaitOpened(long)} after the handler
+   * finishes; a wait that times out during the report still observes the recorded failure.
    *
    * @param mediaPlayer the player that failed
    */
@@ -113,11 +114,7 @@ final class PlaybackEventListener extends MediaPlayerEventAdapter {
    * @throws InterruptedException if the calling thread is interrupted while waiting
    */
   boolean awaitOpened(final long timeoutMillis) throws InterruptedException {
-    final boolean settledInTime = this.settled.await(timeoutMillis, TimeUnit.MILLISECONDS);
-    if (!settledInTime) {
-      // VLC may still be opening a slow stream, and a failure that arrives later is reported to the exception handler
-      return true;
-    }
+    this.settled.await(timeoutMillis, TimeUnit.MILLISECONDS);
 
     final boolean failedToOpen = this.failed.get();
     return !failedToOpen;

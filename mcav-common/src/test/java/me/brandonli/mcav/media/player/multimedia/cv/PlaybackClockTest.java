@@ -92,6 +92,34 @@ final class PlaybackClockTest {
   }
 
   @Test
+  void schedulingDuringPausePreservesTheRemainingMediaDelay() {
+    final AtomicLong now = new AtomicLong();
+    final PlaybackClock clock = new PlaybackClock(now::get);
+    assertEquals(0L, clock.dueAt(0L));
+    now.set(100_000_000L);
+    clock.pause();
+    now.set(3_100_000_000L);
+    clock.dueAt(500_000L);
+    assertTrue(clock.isPaused());
+    now.set(3_200_000_000L);
+    clock.resume();
+    assertEquals(3_600_000_000L, clock.dueAt(500_000L), "the pending frame keeps its remaining 400ms");
+  }
+
+  @Test
+  void firstTimestampScheduledDuringPauseIsDueAtResume() {
+    final AtomicLong now = new AtomicLong();
+    final PlaybackClock clock = new PlaybackClock(now::get);
+    clock.pause();
+    now.set(1_000_000_000L);
+    clock.dueAt(0L);
+    assertTrue(clock.isPaused());
+    now.set(1_500_000_000L);
+    clock.resume();
+    assertEquals(1_500_000_000L, clock.dueAt(0L), "time before the first frame is not added twice");
+  }
+
+  @Test
   void waitsUntilResumed() throws InterruptedException {
     final PlaybackClock clock = new PlaybackClock(System::nanoTime);
     clock.pause();

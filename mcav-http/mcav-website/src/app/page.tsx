@@ -356,7 +356,12 @@ export default function AudioStreamPlayer() {
     const animateVisualizer = useCallback(() => {
         const canvas = canvasRef.current;
         const ctx = canvas?.getContext('2d');
-        if (!canvas || !ctx || !pcmProcessorRef.current) return;
+        const processor = pcmProcessorRef.current;
+        if (!canvas || !ctx || !processor) return;
+        if (animationIdRef.current !== null) {
+            cancelAnimationFrame(animationIdRef.current);
+            animationIdRef.current = null;
+        }
 
         const dataLength = 256;
 
@@ -365,13 +370,14 @@ export default function AudioStreamPlayer() {
         let lastWidth = -1;
 
         const draw = () => {
-
+            // a dispatched callback can outlive cancellation and must not adopt a replacement processor
+            if (pcmProcessorRef.current !== processor) return;
             if (!canvasRef.current || !pcmProcessorRef.current || pcmProcessorRef.current.isDestroyed) {
                 animationIdRef.current = null;
                 return;
             }
 
-            const {smoothedData, hue} = pcmProcessorRef.current.getVisualizerData();
+            const {smoothedData, hue} = processor.getVisualizerData();
             // the canvas follows the size of its container, so the geometry is read every frame
             const width = canvas.width;
             const height = canvas.height;
@@ -521,6 +527,10 @@ export default function AudioStreamPlayer() {
     }, [stopMetadataRefresh, stopHeartbeat, updateStatus]);
 
     const connectWebSocket = useCallback(() => {
+        if (animationIdRef.current !== null) {
+            cancelAnimationFrame(animationIdRef.current);
+            animationIdRef.current = null;
+        }
         if (pcmProcessorRef.current) {
             pcmProcessorRef.current.destroy();
             pcmProcessorRef.current = null;

@@ -2,8 +2,11 @@
 
 Status: **design, written before the integration code** (2026-09-25), updated as evidence arrived and as built. The decisions
 below cite the measurement or experiment behind them; where a decision is provisional it says what would settle it.
-Handover notes for later stages are at the end. Where this page names Minecraft 26.2, it records a measurement taken
-on 26.2 before the port to 26.3, the version mcav supports; those records are kept as they were taken.
+Timing and platform tables retain their original integration measurements. Later CPU results and client compatibility
+are summarized in [current usage and limits](mcv2/using.md#troubleshooting); these workloads do not establish a
+throughput guarantee for another server or GPU. Where this page names Minecraft 26.2, it records a measurement taken
+on 26.2 before the port to 26.3, the version mcav supports; those records are kept as they were taken. Handover notes
+for later stages are at the end.
 
 MCV2 is the block codec of the gpu-codec research repository: a server-side rate-distortion encoder, a bitstream of
 32→16→8 block trees without an entropy coder, a transport that carries each frame as six-bit symbols in Minecraft
@@ -22,10 +25,10 @@ map colours, and a GLSL 330 fragment decoder. mcav sends a vanilla client one or
   4096), 18 RGB565 endpoints (flag 8192), 19 half-pixel motion (encoder). The pre-frontier MCV2 syntax (short index,
   sparse child quartets, compact classes 0-8 with the static 2,048-byte residual books, pattern palettes) is kept.
 - **Not ported, rejected with `UnsupportedSyntaxException`:** MCV1 frames (magic `MCV1`), the coarse palette modes 21
-  and 22 of round 3, and the motion table flag 256 with indexed motion mode 23 of round 15. These are the only inputs
-  on which the Java decoder and the reference knowingly disagree: the reference decodes MCV1, modes 21/22, and flag 256
-  with mode 23 on derived-offset frames, and ignores flag 256 on stored-index frames (table in
-  [mcv2/format.md](mcv2/format.md), section 1).
+  and 22 of round 3, the motion table flag 256 with indexed motion mode 23 of round 15, and a split with a nonzero
+  quantizer in the derived-offsets form. These are the deliberate Java/reference divergences: the reference decodes
+  MCV1, modes 21/22, and flag 256 with mode 23 on derived-offset frames, ignores flag 256 on stored-index frames,
+  and reads and drops the derived split quantizer (table in [mcv2/format.md](mcv2/format.md), section 1).
 - **Profiles shipped** (owner addendum 2, rule: newest round with 1080p30 points, cheapest `wire_mbps` at VMAF mean
   >= 75, and its >= 70 alternative from the same round, in `results/frontier_1080p30.json`):
 
@@ -72,7 +75,7 @@ pseudo-inverse matrices, loaded from `fitting_matrices.bin` and applied separabl
 ## 3. Threading and the real-time budget
 
 - **Budget:** 1080p30 is 33.3 ms per frame (1080p60, a stretch goal, 16.7 ms). The reference encoder takes 172 s per
-  frame for the ship profile on this 12-core machine, 5,200 times too slow.
+  frame for the ship profile on the 6-core, 12-thread i7-8700, 5,200 times too slow.
 - **Structure:** every block's mode decision depends only on the previous decoded frame, never on a current-frame
   neighbour (no entropy coder, no left/above prediction, no spatial intra predictor). All blocks of all three levels
   are independent, so candidate evaluation is parallel over blocks with no shared mutable state: each worker owns its
@@ -216,7 +219,8 @@ id, the page frames' outline colour, the transport alphabet (the RGB of map colo
   restarts (a playlist loop, a server restart) is not refused as older. This is what lets the server choose model
   A, B or D per screen with the same pack (§4).
 - **Trigger and outline colour.** The chain runs only while a glowing entity is drawn. The page frames hide two blocks
-  behind the wall, glow on the team `mcav_mcv2`, and are shown only to viewers whose pack loaded. Their colour
+  behind the wall, glow on a private team whose name starts with `mcav_mcv2`, and are shown only to viewers whose pack
+  loaded. Each screen owns its team so hiding it cannot remove another screen's outline colour. Their colour
   (default `DARK_PURPLE`) is removed from the outline target by the last pass, so no glow is ever visible. **Black is
   rejected**: an outline colour of 0 is `EntityRenderState.NO_OUTLINE` (26.2 and 26.3), so the chain would never run
   (found in-game).
@@ -228,9 +232,11 @@ id, the page frames' outline colour, the transport alphabet (the RGB of map colo
   at night: the post chain has no world light at the wall. The anchor's vertex shader does have the frame's light
   (`UV2`, `Sampler2`), so a lit screen is possible by carrying it in the descriptor row; not done.
 - **Resource reloads** drop persistent targets; the picture returns with the next keyframe (at most the key interval,
-  2 s for the shipped profiles).
-- **Known limits.** Iris/Sodium shader pipelines and the Vulkan backend are outside what was tested (on 26.3 with
-  Mesa's software Vulkan the pack's shaders took over ten minutes to compile, §5.2); with improved transparency (26.3's
+  60 encoded frames for `ship` or 120 for `live`: 2 s or 4 s at 30 fps).
+- **Known limits.** The original integration did not test Iris/Sodium or the Vulkan backend (on 26.3 with
+  Mesa's software Vulkan the pack's shaders took over ten minutes to compile, §5.2). The later 26.3 client matrix
+  passed Sodium 0.9.2 and Iris 1.11.7 with shaders disabled on Fabric and NeoForge under llvmpipe; active Complementary
+  Reimagined r5.9.3 and BSL 10.1.8 bypass the decoder (see [current compatibility](mcv2/using.md#troubleshooting)). With improved transparency (26.3's
   order-independent transparency, formerly Fabulous) the text shaders draw into the transparency targets, where the
   pack discards its page and anchor fragments, so the screen shows nothing new. Another pack that overrides `core/text`
   or `entity_outline.json` was tested on 26.3 (§14): the pack loaded last wins those files. Seen from behind the wall,
@@ -437,8 +443,8 @@ pass cannot write the target it reads).
 
 **Does 1080p60 fit the UHD 630?** The chain now takes 7.4-8.8 ms of a 16.7 ms frame when every rendered frame brings a
 new video frame (a 30 fps video brings one every other frame at 60 fps), leaving about 8 ms for Minecraft's own rendering, which at 1080p on a UHD 630 usually needs more:
-expect 35-50 fps on that GPU. A GPU about twice as fast (Intel Iris Xe with 80-96 EUs, AMD 680M, or any discrete GPU
-since a GTX 1050) runs the chain in under 4 ms and fits 60 fps with room for the game. A client that renders fewer
+the integration estimated 35-50 fps on that GPU. No other GPU's frame budget follows from this measurement; test the
+complete game and decoder on the client and driver you plan to use. A client that renders fewer
 frames per second than the video has decodes at most one video frame per rendered frame; the others are overwritten
 on the page maps before the chain sees them (see §10 for what that does to a previous-frame reference).
 
@@ -580,7 +586,8 @@ play while they are encoded. The same pack decodes it; no format change. The own
 under 32 ms per frame (revised 2026-09-26), and since addendum 14 1080p at 60 fps - the p95 of the interval between
 finished frames under 16 ms and of arrival to finished under 33 ms - each rung at VMAF mean >= 75 at its default and at
 most 10 % (`live`) or 30 % (the faster rungs) more bandwidth than `ship` at equal VMAF, on both sources of its rate.
-1080p30 is met; 1080p60 is not, on this machine (below).
+The original integration met 1080p30 at the gate budget and did not meet 1080p60 (below). The later loaded-host run
+did not meet the 1080p30 p95 budget either; see [current limits](mcv2/using.md#troubleshooting).
 
 **The profile** (`EncoderSettings.LIVE`, `LiveSearch.LIVE`): **lambda 72**, a keyframe every 120 frames (4 s at 30 fps),
 scene cut at a mean absolute luma change of 45 after prediction, P frames predicting from the previous frame; **one
@@ -689,7 +696,7 @@ from other work; the report's LIVE 1080p60 section has every run):
 | `adaptive` | 6 | 22.5 ms | 31.6 ms | 101; 137 ms | | |
 | `live-fast` | 6 | 20.9 ms | 31.8 ms | 96; 135 ms | | |
 
-**All three live rungs meet the 32 ms p95 gate on quiet content and on gameplay with 12 threads**, `live` on gameplay
+**In these original measurements all three live rungs met the 32 ms p95 gate with 12 threads**, `live` on gameplay
 by the least margin. With 6 threads `adaptive` and `live-fast` meet it just, and `live` does not. **At 1080p60 no rung
 meets the gate** (the p95 of the interval between finished frames under 16 ms, of arrival to finished under 33 ms):
 with 12 threads `live-fast` reaches an interval p95 of 19.7 ms on the 1080p60 proxy, where its latency p95 of 25.9 ms
@@ -870,8 +877,9 @@ player); a screen whose pacer steps down to a smaller size adds a slot, and with
 **Other packs.** The pack is optional and additive (`required(false)`, `replace(false)`). With a server pack
 (`server.properties`) that also overrides `core/text.fsh` (tinting text red) and `entity_outline.json` (a wider blur),
 the client stacks the MCV2 pack above it, because it arrives later: MCV2 wins those three files, screens decode, and
-the other pack's text and outline changes are shadowed while the MCV2 pack stays loaded - which is until the player
-leaves, since the pack is not withdrawn when a screen stops. Its other assets are unaffected, and ordinary glowing
+the other pack's text and outline changes are shadowed while the MCV2 pack stays loaded. In that original run it
+remained until the player left. The current pack server keeps a stopped screen's slot for one minute for reuse,
+then rebuilds the pack without it or removes the pack when no slots remain. Its other assets are unaffected, and ordinary glowing
 entities keep their outline (the vanilla passes run after MCV2's). A pack pushed after MCV2's with those files would
 win instead, and MCV2 screens would show nothing while the client reports the pack loaded. A server owner who needs
 their own text or outline shaders must merge them into MCV2's copies (`mcav/mcv2/pack`, and `mcav/mcv2/chain.json` for
@@ -928,10 +936,12 @@ exact from then on).
 
 **End to end.** `:sandbox:plugin:e2eTest` runs the plugin on a headless Paper 26.3 server: the browser and the VM play
 their tones and leave no process behind; a VNC server of the test (RFB 3.8 with VNC authentication, its random password
-only in the allow-list) shows on six maps after one login and no refusal, and its password is in no line of the server
-log; an MCV2 browser screen plays on a wall in chunks the test force-loads (26.3 keeps no spawn chunks), and the pack
+only in the allow-list) produces updates after one login and no refusal, and its password is in no line of the server
+log. That update count does not verify a client's rendered maps. The test starts an MCV2 browser screen on a wall in
+chunks it force-loads (26.3 keeps no spawn chunks), and the pack
 fetched from the game port hashes to the id the server announced; a clip plays with `--filters`, seeks, speeds up, loops
-and turns down; the capture devices are listed; a picture is filtered.
+and turns down; the capture devices are listed; a picture is filtered. The pack hash and ZIP contents establish the
+served artifact; client shader compilation and rendered playback require the separate client checks above.
 
 **Lab limits.** The lab client renders about 3 frames a second (llvmpipe at 1920x1080): under previous-frame
 prediction it decodes mostly keyframes, so its picture of a 30 fps `live` screen updates every few seconds; its

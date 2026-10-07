@@ -20,8 +20,10 @@ package me.brandonli.mcav.media.player.pipeline.filter.video;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 import org.bytedeco.opencv.global.opencv_core;
 import org.bytedeco.opencv.global.opencv_imgproc;
 import org.bytedeco.opencv.opencv_core.Mat;
@@ -31,6 +33,20 @@ import org.junit.jupiter.api.Test;
 
 /** Verifies the measured rate and its visible label against controlled time windows. */
 final class FPSFilterTest {
+
+  @Test
+  void defaultConstructorUsesTheMonotonicNanosecondClock() throws ReflectiveOperationException {
+    final long before = System.nanoTime();
+    final FPSFilter filter = new FPSFilter();
+    // Observe the default clock directly so this wiring check needs no elapsed-time deadline.
+    final Field clockField = FPSFilter.class.getDeclaredField("clock");
+    clockField.setAccessible(true);
+    final LongSupplier clock = (LongSupplier) clockField.get(filter);
+    final long observed = clock.getAsLong();
+    final long after = System.nanoTime();
+    assertTrue(observed - before >= 0L, "the clock is in the monotonic nanosecond time domain");
+    assertTrue(after - observed >= 0L, "the clock sample belongs to this observation window");
+  }
 
   @Test
   void updatesAtOneSecondAndDividesByTheActualElapsedTime() {
