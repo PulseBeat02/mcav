@@ -5,8 +5,8 @@ What MCV2 costs and what it gives, in four parts: the picture it delivers for a 
 decoding costs a player's GPU, and what a screen costs the server and the network. Every number on these pages comes
 from a measurement committed with MCAV and says which: the research's result files and the measurements of MCAV's
 port are on the [results page](results.md), the design and its evidence in the [design doc](../mcv2-integration.md).
-The tables retain the original workloads. Later CPU results and client compatibility are summarized in
-[current usage](using.md#troubleshooting); the timings are not throughput guarantees.
+The tables retain the original workloads; the timings are not throughput guarantees. See
+[troubleshooting](using.md#troubleshooting) for encoder configuration and client compatibility.
 
 ## At a Glance
 

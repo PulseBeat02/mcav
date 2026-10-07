@@ -95,8 +95,8 @@ The full reports are in the owner's home folder, named below; this is their conc
 - **1080p60 live encoding is not met**. In the original integration, `live_fast` needed 19.7 ms (proxy) and 31.3 ms
   (gameplay) per frame at the 95th percentile against 16 ms on 12 threads of an i7-8700; a 60 fps gameplay frame cost
   207 ms of CPU. At the default 6 encoder threads, `live` missed the 32 ms 1080p30 target on fast gameplay (36.4 ms).
-  Later bit-exact optimizations reduced CPU time but did not pass the 1080p60 gate; the
-  [current limits](using.md#troubleshooting) distinguish that loaded-host run from these original measurements.
+  Later bit-exact optimizations reduced CPU time but did not pass the 1080p60 gate. See
+  [troubleshooting](using.md#troubleshooting) for the configuration choices when a screen cannot keep up.
 - **Improved Transparency** (a 26.3 video option) draws text into its transparency targets, where a page's bytes
   cannot reach the screen unchanged, so the pack discards page fragments there and such a client shows no MCV2 picture.
 - **Minecraft 26.3's Vulkan backend** was not tried beyond a software renderer, on which loading the pack's shaders

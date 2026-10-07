@@ -8,8 +8,8 @@ of an i7-8700, 17 times too slow for 30 frames a second. MCAV's answer is a ladd
 same format. Every figure on this page was measured by the mcv2 stage on that 6-core i7-8700 (12 threads) under
 Temurin 25, and is on the [results page](results.md#the-live-presets) with its method, or in the
 [design doc, section 12](../mcv2-integration.md#12-live-1080p60-the-live-profile). These are the original integration
-measurements; later bit-exact CPU improvements and loaded-host limits are summarized in
-[current usage](using.md#troubleshooting).
+measurements, not throughput guarantees for another server. See
+[troubleshooting](using.md#troubleshooting) when a screen cannot keep up.
 
 ## The Preset Ladder
 

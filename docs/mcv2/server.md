@@ -4,8 +4,8 @@
 What an MCV2 screen costs the server and the network, per screen and per viewer. Everything was measured on Temurin 25
 (HotSpot C2, the JVM the common server images ship) on a 6-core i7-8700 with 12 hardware threads, shared with other
 work, and is in the [design doc, sections 7, 10, 11 and 14](../mcv2-integration.md#11-server-viability) or on the
-[results page](results.md#far-viewers). These are the original integration workloads; later CPU results and
-loaded-host limits are summarized in [current usage](using.md#troubleshooting).
+[results page](results.md#far-viewers). These are the original integration workloads, not throughput guarantees for
+another server. See [troubleshooting](using.md#troubleshooting) when a screen cannot keep up.
 
 ## Bandwidth per Viewer
 

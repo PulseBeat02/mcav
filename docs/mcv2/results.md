@@ -9,9 +9,8 @@ measured for the documentation ([The codec comparison](#the-codec-comparison), [
 format itself is in [format.md](format.md), the encoder in [encoder.md](encoder.md), and how mcav runs the codec in
 Minecraft in [the design doc](../mcv2-integration.md); the MCV2 chapter explains all of it for a reader who is new to it.
 
-The timing tables retain the original measurements and their workloads. Later bit-exact CPU improvements and
-loaded-host limits are summarized in [current usage](using.md#troubleshooting); neither set of results guarantees
-the same throughput on another server.
+The timing tables retain the original measurements and their workloads; they do not guarantee the same throughput
+on another server. See [troubleshooting](using.md#troubleshooting) for encoder configuration and client compatibility.
 
 ## Status
 
