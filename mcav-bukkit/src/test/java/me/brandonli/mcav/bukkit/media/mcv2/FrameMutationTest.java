@@ -18,11 +18,13 @@
 package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -72,8 +74,7 @@ final class FrameMutationTest {
             continue;
           }
           accepted++;
-          final byte[] decoded = decodeAgainst(parsed, picture, reference.getFrameId());
-          assertEquals(parsed.getWidth() * parsed.getHeight() * 3, decoded.length);
+          decodeAgainst(parsed, picture, reference.getFrameId());
         }
       }
     }
@@ -81,13 +82,25 @@ final class FrameMutationTest {
     assertTrue(accepted > 0, stream + " accepted nothing");
   }
 
-  private static byte[] decodeAgainst(final Mcv2Frame parsed, final byte[] picture, final long id) throws Mcv2Exception {
-    if (parsed.isKeyframe()) {
-      return Mcv2Decoder.decode(parsed, null, 0);
+  @Test
+  void checksAReferenceMismatchThroughTheDecoder() throws Mcv2Exception {
+    final List<byte[]> stream = Mcv2Fixtures.frames(Mcv2Fixtures.read("edge/edge-derived-plain.mcs"));
+    final Mcv2Frame keyframe = FrameParser.parse(stream.getFirst());
+    final byte[] reference = Mcv2Decoder.decode(keyframe, null, 0);
+    final Mcv2Frame interFrame = FrameParser.parse(stream.get(1));
+    assertTrue(!interFrame.isKeyframe(), "the fixture contains an inter frame");
+    final long wrongReference = interFrame.getReferenceId() + 1;
+    decodeAgainst(interFrame, reference, wrongReference);
+  }
+
+  private static void decodeAgainst(final Mcv2Frame parsed, final byte[] picture, final long id) throws Mcv2Exception {
+    final int expectedLength = parsed.getWidth() * parsed.getHeight() * 3;
+    if (!parsed.isKeyframe() && (parsed.getReferenceId() != id || expectedLength != picture.length)) {
+      final Mcv2Exception mismatch = assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.decode(parsed, picture, id));
+      assertEquals("Reference frame mismatch", mismatch.getMessage());
+      return;
     }
-    if (parsed.getReferenceId() != id || parsed.getWidth() * parsed.getHeight() * 3 != picture.length) {
-      return new byte[parsed.getWidth() * parsed.getHeight() * 3];
-    }
-    return Mcv2Decoder.decode(parsed, picture, id);
+    final byte[] decoded = parsed.isKeyframe() ? Mcv2Decoder.decode(parsed, null, 0) : Mcv2Decoder.decode(parsed, picture, id);
+    assertEquals(expectedLength, decoded.length);
   }
 }

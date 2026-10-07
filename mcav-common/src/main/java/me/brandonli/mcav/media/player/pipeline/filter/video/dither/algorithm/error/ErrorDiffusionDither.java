@@ -88,6 +88,9 @@ public abstract class ErrorDiffusionDither extends AbstractDitherAlgorithm {
   @Override
   public void dither(final int[] buffer, final int width) {
     checkBuffer(buffer, width);
+    if (buffer.length == 0) {
+      return;
+    }
     this.run(buffer, width, null, true);
   }
 

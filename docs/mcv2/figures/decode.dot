@@ -29,7 +29,7 @@ digraph decode {
   shown [label="Picture on the wall", fillcolor="#fff2cc", color="#d6b656"];
   lost [label="A page lost or corrupt (CRC mismatch)", fillcolor="#ffffff"];
   wait [label="Frames predicting from the missed one cannot be\ndecoded: the picture waits for the next keyframe\n(key interval: 2 s for ship, 4 s for live at 30 fps)"];
-  unverified [label="Not verified on a vanilla client: the Vulkan backend,\nNVIDIA, AMD and Apple GPUs, Windows and macOS clients;\nknown to show no picture: improved transparency, Iris or Sodium", style="filled,dashed", fillcolor="#ffffff"];
+  unverified [label="Not verified on a vanilla client: the Vulkan backend,\nNVIDIA, AMD and Apple GPUs, Windows and macOS clients;\nDecoder bypass: improved transparency or active Iris shader packs", style="filled,dashed", fillcolor="#ffffff"];
 
   arrive -> glow -> text -> pages -> status -> decide;
   decide -> keepold [label="no"];

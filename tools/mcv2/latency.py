@@ -21,6 +21,7 @@ frames held back by the backlog limit or a missing reference. Both clocks are th
 
 import argparse
 import json
+import math
 import subprocess
 import sys
 from datetime import datetime
@@ -113,19 +114,26 @@ def main():
     arguments = parser.parse_args()
     frames = sends(arguments.recording, arguments.jfr, arguments.stream) if arguments.stream else events(arguments.recording, arguments.jfr)
     shots = captures(arguments.capture)
-    numbered = [event for event in frames if event["number"] is not None and event["arrived"] == event["arrived"]]
+    numbered = [event for event in frames if event["number"] is not None and math.isfinite(event["arrived"])]
     # a displayed picture is matched with the latest frame of its number that left before it was seen, since a
     # stream's numbers repeat every loop; its first capture is its display time
     by_number = {}
     for event in numbered:
-        by_number.setdefault(event["number"], []).append(event["arrived"])
+        by_number.setdefault(event["number"], []).append(event)
     first_seen = {}
+    ambiguous = set()
     previous = None
     for time, number in shots:
         if number is not None and number != previous:
-            candidates = [timestamp for timestamp in by_number.get(number, []) if timestamp <= time]
+            candidates = [event for event in by_number.get(number, [])
+                          if event["sent_to"] > 0 and math.isfinite(event["sent"])
+                          and event["arrived"] <= event["sent"] <= time]
             if candidates:
-                first_seen[(number, max(candidates))] = time
+                latest = max(candidates, key=lambda event: event["sent"])
+                occurrence = (number, latest["arrived"])
+                first_seen[occurrence] = time
+                if len(candidates) > 1:
+                    ambiguous.add(occurrence)
         previous = number if number is not None else previous
     latencies = [time - arrival for (number, arrival), time in first_seen.items()]
     arrived = {event["number"]: event for event in numbered}
@@ -145,6 +153,7 @@ def main():
         captured=len(shots),
         capture_seconds=duration,
         displayed=len(first_seen),
+        ambiguous_displayed=len(ambiguous),
         displayed_fps=len(first_seen) / duration if duration == duration and duration > 0 else float("nan"),
         server_ms_mean=float(np.mean(server)) if server else float("nan"),
         server_ms_p95=percentile(server, 95),

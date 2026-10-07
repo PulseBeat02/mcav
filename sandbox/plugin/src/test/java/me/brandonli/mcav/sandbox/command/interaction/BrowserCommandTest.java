@@ -89,6 +89,7 @@ final class BrowserCommandTest {
   private PluginDataConfigurationMapper configuration;
   private CommandSender sender;
   private MultiplePlayerSelector selector;
+  private Player viewer;
   private BrowserPlayer browser;
   private VideoAttachableCallback callback;
   private FunctionalVideoFilter ditherFilter;
@@ -112,8 +113,8 @@ final class BrowserCommandTest {
     this.command = new BrowserCommand(plugin);
     this.sender = mock(CommandSender.class);
     this.selector = mock(MultiplePlayerSelector.class);
-    final Player viewer = mock(Player.class);
-    final List<Player> viewers = List.of(viewer);
+    this.viewer = mock(Player.class);
+    final List<Player> viewers = List.of(this.viewer);
     when(this.selector.values()).thenReturn(viewers);
 
     this.browser = mock(BrowserPlayer.class);
@@ -256,10 +257,15 @@ final class BrowserCommandTest {
 
   @Test
   void aBrowserThatStartsWithTheWebPageSendsItsLinkAndOneThatFailsSendsNone() {
+    final List<Component> expected = List.of(Message.AUDIO_HTTP.build("http://mc.example.com:3000/"));
     this.createWithTheWebPage(CompletableFuture.completedFuture(true));
     verify(this.provider).constructHttpUrl();
+    assertEquals(expected, Components.received(this.viewer));
+    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), Components.receivedText(this.viewer));
     this.createWithTheWebPage(CompletableFuture.failedFuture(new IllegalStateException("the page broke")));
     verify(this.provider).constructHttpUrl();
+    assertEquals(expected, Components.received(this.viewer));
+    assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), Components.receivedText(this.viewer));
   }
 
   @Test

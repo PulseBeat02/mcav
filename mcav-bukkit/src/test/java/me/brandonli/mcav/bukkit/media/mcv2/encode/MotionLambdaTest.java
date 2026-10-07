@@ -35,8 +35,8 @@ final class MotionLambdaTest {
 
   private static final double BASE = 72;
 
-  /** The samples of a 400x300 frame: every fourth pixel of every fourth row. */
-  private static final int SAMPLES = 100 * 75;
+  /** Forty thousand samples span three temporal-information bands. */
+  private static final int SAMPLES = 200 * 200;
 
   /** A 5x5 grey picture whose four sampled pixels, at the corners, hold the given grey values. */
   private static byte[] corners(final int topLeft, final int topRight, final int bottomLeft, final int bottomRight) {
@@ -73,18 +73,24 @@ final class MotionLambdaTest {
   void measuresTheSameMotionOnManyWorkers() {
     // many bands of rows and of samples, so every worker has some
     final Random random = new Random(11);
-    final byte[] first = new byte[400 * 300 * 3];
+    final byte[] first = new byte[800 * 800 * 3];
     final byte[] second = new byte[first.length];
     random.nextBytes(first);
     random.nextBytes(second);
     final Workers workers = new Workers(ForkJoinPool.commonPool(), 4);
-    final int[] blurred = MotionLambda.blurredLuma(first, 400, 300, Workers.SEQUENTIAL, new int[SAMPLES], new int[SAMPLES]);
-    assertArrayEquals(blurred, MotionLambda.blurredLuma(first, 400, 300, workers, new int[SAMPLES], new int[SAMPLES]));
-    final int[] other = MotionLambda.blurredLuma(second, 400, 300, Workers.SEQUENTIAL, new int[SAMPLES], new int[SAMPLES]);
+    final int[] blurred = MotionLambda.blurredLuma(first, 800, 800, Workers.SEQUENTIAL, new int[SAMPLES], new int[SAMPLES]);
+    assertArrayEquals(blurred, MotionLambda.blurredLuma(first, 800, 800, workers, new int[SAMPLES], new int[SAMPLES]));
+    final int[] other = MotionLambda.blurredLuma(second, 800, 800, Workers.SEQUENTIAL, new int[SAMPLES], new int[SAMPLES]);
     assertEquals(
       MotionLambda.temporalInformation(blurred, other, Workers.SEQUENTIAL),
       MotionLambda.temporalInformation(blurred, other, workers)
     );
+    long difference = 0;
+    for (int sample = 0; sample < blurred.length; sample++) {
+      difference += Math.abs((long) blurred[sample] - other[sample]);
+    }
+    final double expected = difference / (blurred.length * 36.0);
+    assertEquals(expected, MotionLambda.temporalInformation(blurred, other, workers));
   }
 
   @Test

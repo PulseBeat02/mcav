@@ -148,6 +148,13 @@ final class OrderedDitherTest {
     final OrderedDitherBuilderImpl blackWhite = builder.withPalette(DitherTestImages.BLACK_WHITE);
     final BayerDither dither = blackWhite.build();
     final byte[] indices = ditherMidGray(dither, 8, 8);
+    final byte[] expected = new byte[64];
+    for (int row = 0; row < 8; row++) {
+      for (int column = 0; column < 8; column++) {
+        expected[row * 8 + column] = (byte) ((row + column) % 2);
+      }
+    }
+    assertArrayEquals(expected, indices, "the default 2x2 ranks darken the diagonal and brighten the other cells");
     for (int row = 0; row < 6; row++) {
       for (int column = 0; column < 6; column++) {
         final int index = indices[row * 8 + column];
@@ -180,9 +187,11 @@ final class OrderedDitherTest {
   @Test
   void rejectsInvalidInput() {
     final OrderedDither dither = blackWhite4x4();
-    assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null));
+    final NullPointerException missingImage = assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null));
+    assertEquals("Image must not be null", missingImage.getMessage());
     try (final ForkJoinPool pool = new ForkJoinPool(1)) {
-      assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null, pool));
+      final NullPointerException missingParallelImage = assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null, pool));
+      assertEquals("Image must not be null", missingParallelImage.getMessage());
     }
     try (final ImageBuffer image = ImageBuffer.buffer(new int[1], 1, 1)) {
       assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(image, null));

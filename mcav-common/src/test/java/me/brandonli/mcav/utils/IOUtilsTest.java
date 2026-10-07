@@ -47,6 +47,7 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -578,6 +579,41 @@ final class IOUtilsTest {
     final Throwable truncatedCause = truncatedFailure.getCause();
     assertInstanceOf(ZipException.class, textCause);
     assertInstanceOf(ZipException.class, truncatedCause);
+  }
+
+  @Test
+  void rejectsArchivesTruncatedAfterTheCompleteSignature() throws IOException {
+    final Path populated = this.writeZip("file.txt", "content");
+    final byte[] populatedBytes = Files.readAllBytes(populated);
+    final Path empty = this.writeZip();
+    final byte[] emptyBytes = Files.readAllBytes(empty);
+    for (final byte[] archiveBytes : List.of(populatedBytes, emptyBytes)) {
+      final int headerSize = archiveBytes[2] == 5 ? 22 : 30;
+      for (int retained = 4; retained < headerSize; retained++) {
+        final Path truncated = this.directory.resolve("header-" + headerSize + "-" + retained + ".zip");
+        Files.write(truncated, Arrays.copyOf(archiveBytes, retained));
+        final Path destination = this.directory.resolve("truncated-output");
+        final UncheckedIOException failure = assertThrows(UncheckedIOException.class, () -> IOUtils.unzip(truncated, destination));
+        assertInstanceOf(ZipException.class, failure.getCause());
+        assertEquals("Truncated zip archive: " + truncated, failure.getMessage());
+      }
+    }
+  }
+
+  @Test
+  void emptyArchiveCommentsMustBeComplete() throws IOException {
+    final Path archive = this.directory.resolve("commented.zip");
+    try (final ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(archive))) {
+      output.setComment("archive comment");
+    }
+    final Path destination = this.directory.resolve("commented-output");
+    IOUtils.unzip(archive, destination);
+    final byte[] bytes = Files.readAllBytes(archive);
+    final Path truncated = this.directory.resolve("comment-truncated.zip");
+    Files.write(truncated, Arrays.copyOf(bytes, bytes.length - 1));
+    final UncheckedIOException failure = assertThrows(UncheckedIOException.class, () -> IOUtils.unzip(truncated, destination));
+    assertInstanceOf(ZipException.class, failure.getCause());
+    assertEquals("Truncated zip archive: " + truncated, failure.getMessage());
   }
 
   @Test

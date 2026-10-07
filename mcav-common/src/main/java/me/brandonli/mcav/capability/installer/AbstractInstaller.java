@@ -193,7 +193,16 @@ public abstract class AbstractInstaller implements Installer {
     Files.createDirectories(this.folder);
     HttpDownloader.download(uri, destination, hash);
     if (executable) {
-      markExecutable(destination);
+      try {
+        markExecutable(destination);
+      } catch (final IOException failure) {
+        try {
+          Files.deleteIfExists(destination);
+        } catch (final IOException cleanupFailure) {
+          failure.addSuppressed(cleanupFailure);
+        }
+        throw failure;
+      }
     }
     final Path installed = this.install(destination);
     this.writePathToConfig(installed);

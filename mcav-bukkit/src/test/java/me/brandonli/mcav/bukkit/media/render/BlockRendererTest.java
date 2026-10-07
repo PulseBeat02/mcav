@@ -558,5 +558,8 @@ final class BlockRendererTest {
     this.server.runTasks();
     final List<Map<? extends Position, BlockData>> changes = captureChanges(this.viewer, 2);
     assertEquals(6, changes.getLast().size(), "the whole wall, not only what changed while they were away");
+    final Map<Position, BlockData> expected = expectAll(BlockPaletteLookup.getBlockData(BROWN));
+    expected.put(Position.block(10, 64, -6), BlockPaletteLookup.getBlockData(MAGENTA));
+    assertEquals(expected, changes.getLast(), "returning viewers see every pixel of the newest wall");
   }
 }

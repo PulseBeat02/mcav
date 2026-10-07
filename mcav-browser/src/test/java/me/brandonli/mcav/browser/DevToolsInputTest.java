@@ -199,7 +199,8 @@ class DevToolsInputTest {
   }
 
   @Test
-  void theScriptThatOpensWindowsInPlaceIsSentAsOneJsonString() {
+  void theScriptThatOpensWindowsInPlaceIsSentAsOneJsonString() throws Exception {
+    ScriptAssertions.execute("open-windows.mjs", DevToolsInput.OPEN_IN_PLACE_SCRIPT);
     final List<DevToolsInput.DevToolsCall> calls = DevToolsInput.openWindowsInPlace();
     assertEquals(2, calls.size());
     assertEquals("Page.enable", calls.getFirst().getMethod());

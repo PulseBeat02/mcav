@@ -4,7 +4,8 @@
 What an MCV2 screen costs the server and the network, per screen and per viewer. Everything was measured on Temurin 25
 (HotSpot C2, the JVM the common server images ship) on a 6-core i7-8700 with 12 hardware threads, shared with other
 work, and is in the [design doc, sections 7, 10, 11 and 14](../mcv2-integration.md#11-server-viability) or on the
-[results page](results.md#far-viewers).
+[results page](results.md#far-viewers). These are the original integration workloads, not throughput guarantees for
+another server. See [troubleshooting](using.md#troubleshooting) when a screen cannot keep up.
 
 ## Bandwidth per Viewer
 
@@ -32,8 +33,10 @@ therefore gets a link of its own (`Mcv2Link`):
 - **Only frames the viewer can decode**: a keyframe, or a P frame whose reference is the last frame or keyframe that
   viewer was sent. A viewer who missed a frame waits for the next frame it can decode, and its client keeps the last
   picture meanwhile.
-- **A bounded backlog**: a frame goes out only while the viewer's video that is handed to its connection but not yet
-  written stays under 128 KiB (`Mcv2Configuration.backlogLimit`), or twice that for a keyframe.
+- **A backlog threshold**: before accepting a frame, the link checks the viewer's video that was handed to its
+  connection but has not yet been written. The default threshold is 128 KiB (`Mcv2Configuration.backlogLimit`), or
+  twice that for a keyframe. An existing backlog at the threshold still admits one frame; adding that frame can
+  take the backlog above it.
 - **No backlog hidden in the operating system**: Linux would take megabytes of unsent data into a socket's buffer at
   once (measured: 1.2 MB on a 200 ms link), where the limit cannot see it and every game packet waits behind it. So a
   viewer's connection has its unsent bytes capped at 32 KiB with `TCP_NOTSENT_LOWAT` (on Linux, where Paper uses the
@@ -107,7 +110,8 @@ every frame verified, the native AVX2 kernels, on the i7-8700 limited to that ma
 **Cores needed = CPU ms per frame x frames a second / 1000**, with the one-thread CPU time: 1080p30 needs about 2.4
 cores of this CPU on quiet content and 3.6 on fast gameplay, 720p30 1.5 and 2.1. The frame time stops falling past
 about 8 threads, where the 9 to 11 ms of a frame outside the parallel search remain. How many frames a second the
-`live` search sustains with the default budget, `1000 / mean ms` of the table above, at most the source's 30:
+faster of `live` and `adaptive` sustains with the default budget, `1000 / mean ms`, at most the source's 30 (the
+[design doc](../mcv2-integration.md#11-server-viability) also gives the adaptive measurements):
 
 | Server | Encoder threads | 1080p30, quiet content | 1080p30, gameplay | 720p30, quiet content | 720p30, gameplay |
 |---|---:|---|---|---|---|
@@ -122,7 +126,7 @@ dithered maps. Where the table shows less than 30, the pacer first tries the fas
 the fastest one at 15 and 10, then the smaller sizes, and plays the first rung its measured times predict to fit.
 
 "Processors" are this CPU's hardware threads at 3.2 to 4.6 GHz; a VPS's vCPU is usually a hyperthread of a busier,
-often slower host, so expect up to a third less. With the Java kernels (`mcv2.native: off`, or a platform without a
+often slower host, so measure its available budget and contention instead of applying a fixed percentage reduction. With the Java kernels (`mcv2.native: off`, or a platform without a
 library) a live frame costs about 2.7 times the CPU on gameplay and 1.8 times on quiet content. ARM64 servers were not
 measured.
 

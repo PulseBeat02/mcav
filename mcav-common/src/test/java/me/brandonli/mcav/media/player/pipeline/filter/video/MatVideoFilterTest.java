@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.pipeline.filter.video;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -122,14 +123,18 @@ final class MatVideoFilterTest {
       received.set(metadata);
       return true;
     };
-    final WrittenPixels written = new WrittenPixels();
-    final ImageBuffer image = foreignImage(1, 1, 0, written);
-    final boolean changed = recorder.applyFilter(image);
-    final OriginalVideoMetadata metadata = received.get();
-    final boolean noOp = VideoFilter.NO_OP.applyFilter(image);
-    assertTrue(changed);
-    assertFalse(noOp, "the no-op filter leaves every frame untouched");
-    assertSame(OriginalVideoMetadata.EMPTY, metadata);
+    try (final ImageBuffer image = Images.indexed(2, 2)) {
+      final ByteBuffer before = ByteBuffer.allocate(image.getData().remaining()).put(image.getData()).flip();
+      final boolean changed = recorder.applyFilter(image);
+      final OriginalVideoMetadata metadata = received.get();
+      final boolean noOp = VideoFilter.NO_OP.applyFilter(image);
+      assertTrue(changed);
+      assertFalse(noOp, "the no-op filter leaves every frame untouched");
+      assertSame(OriginalVideoMetadata.EMPTY, metadata);
+      assertEquals(before, image.getData());
+      assertEquals(2, image.getWidth());
+      assertEquals(2, image.getHeight());
+    }
   }
 
   @Test

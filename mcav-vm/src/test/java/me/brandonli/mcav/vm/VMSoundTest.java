@@ -268,7 +268,7 @@ final class VMSoundTest {
    *
    * @param judgement the changes of the picture and how far their sound was from each
    */
-  static void assertInSync(final SyncJudgement judgement) {
+  private static void assertInSync(final SyncJudgement judgement) {
     final List<Double> offsets = judgement.offsets();
     final int changes = judgement.changes();
     // the measurement waits for 20 seconds of sound, not for changes of the picture: a few changes, however well they

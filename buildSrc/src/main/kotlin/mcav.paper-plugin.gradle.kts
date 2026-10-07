@@ -17,6 +17,7 @@ import xyz.jpenilla.runtask.task.AbstractRun
 
 plugins {
     java
+    id("mcav.licensing")
     id("com.gradleup.shadow")
     id("xyz.jpenilla.run-paper")
     id("xyz.jpenilla.resource-factory-paper-convention")
@@ -57,13 +58,6 @@ configurations.matching { it.name.endsWith("Classpath") }.configureEach {
 
 tasks.assemble {
     dependsOn(tasks.shadowJar)
-}
-
-// the plugin jar bundles third-party code too, which the notices name
-tasks.shadowJar {
-    from(rootProject.file("THIRD-PARTY-NOTICES.md")) {
-        into("META-INF")
-    }
 }
 
 // the classes of the downloaded modules the plugin's code uses, which its loader checks the downloaded modules against,
@@ -143,6 +137,7 @@ val e2eTestSourceSet = sourceSets.create("e2eTest")
 dependencies {
     "e2eTestImplementation"(platform(libs.libraryOf("junit-bom")))
     "e2eTestImplementation"(libs.libraryOf("junit-jupiter"))
+    "e2eTestImplementation"(libs.libraryOf("gson"))
     "e2eTestRuntimeOnly"(libs.libraryOf("junit-platform-launcher"))
 }
 

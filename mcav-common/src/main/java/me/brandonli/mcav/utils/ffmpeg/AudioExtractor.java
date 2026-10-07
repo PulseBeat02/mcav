@@ -17,9 +17,11 @@
  */
 package me.brandonli.mcav.utils.ffmpeg;
 
+import com.google.common.base.Equivalence;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 import me.brandonli.mcav.media.source.Source;
@@ -40,6 +42,8 @@ import me.brandonli.mcav.utils.runtime.ProcessException;
  */
 public final class AudioExtractor {
 
+  private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
+
   private static final String OGG_EXTENSION = ".ogg";
 
   private AudioExtractor() {
@@ -53,7 +57,8 @@ public final class AudioExtractor {
    * <p>Every call writes a new file with a random name into the MCAV cache folder, {@code ~/.mcav/cache}, so
    * extracting the same source twice yields two files. The caller owns the file and may move or delete it. This
    * method blocks until FFmpeg finishes, which can take a while for long media or slow network sources, so avoid
-   * calling it on threads that must stay responsive.
+   * calling it on threads that must stay responsive. A failed extraction removes its partial output; a failure to
+   * remove it is retained as a suppressed exception on the extraction failure.
    *
    * @param source the media to extract the audio from, such as a file or a URL
    * @return the absolute path of the new Ogg Vorbis file
@@ -76,7 +81,18 @@ public final class AudioExtractor {
 
     final FFmpegCommand command = FFmpegTemplates.extractOggVorbis(input, output);
     final CommandTask task = command.createTask();
-    task.runChecked();
-    return outputFile;
+    try {
+      task.runChecked();
+      return outputFile;
+    } catch (final IOException | RuntimeException failure) {
+      try {
+        Files.deleteIfExists(outputFile);
+      } catch (final IOException | RuntimeException cleanupFailure) {
+        if (!FAILURE_IDENTITY.equivalent(failure, cleanupFailure)) {
+          failure.addSuppressed(cleanupFailure);
+        }
+      }
+      throw failure;
+    }
   }
 }

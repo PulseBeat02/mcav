@@ -87,7 +87,7 @@ A `VolumeFilter` before an output turns the output down or up; one filter in fro
   builder.then(speakers);
   final AudioPipelineStep audioPipeline = builder.build();
   // ... attach it, start the player, and later:
-  volume.setVolume(0.5); // half as loud, from the next chunk on
+  volume.setVolume(0.5); // half the sample amplitude, from the next chunk on
 ```
 
 ## Writing Your Own

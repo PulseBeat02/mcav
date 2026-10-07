@@ -47,7 +47,14 @@ final class SocksProtocolFuzzTest {
       assertTrue(!host.isEmpty() && host.length() <= 255, () -> "host of " + host.length() + " characters");
       for (int index = 0; index < host.length(); index++) {
         final char character = host.charAt(index);
-        final boolean allowed = character < 128 && (SocksProtocol.isHostNameCharacter((byte) character) || character == ':');
+        final boolean allowed =
+          (character >= 'a' && character <= 'z') ||
+          (character >= 'A' && character <= 'Z') ||
+          (character >= '0' && character <= '9') ||
+          character == '-' ||
+          character == '.' ||
+          character == '_' ||
+          character == ':';
         assertTrue(allowed, () -> "host " + host);
       }
     } catch (final IOException refused) {

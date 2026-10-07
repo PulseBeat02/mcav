@@ -22,6 +22,7 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.SHORT;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.motion;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.solid;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -79,5 +80,15 @@ final class Mcv2ReceiverTest {
     final byte[] orphan = FrameWriter.write(4, 4, 2, 7, false, 0, 0, List.of(motion(0, 0)), SHORT);
     assertThrows(Mcv2Exception.class, () -> receiver.accept(orphan));
     assertEquals(1, receiver.getFrameId());
+    final byte[] expected = new byte[4 * 4 * 3];
+    Arrays.fill(expected, (byte) 3);
+    final byte[] next = FrameWriter.write(4, 4, 2, 1, false, 0, 0, List.of(motion(0, 0)), SHORT);
+    assertArrayEquals(expected, assertDoesNotThrow(() -> receiver.accept(next)));
+    assertEquals(2, receiver.getFrameId());
+    final byte[] anotherOrphan = FrameWriter.write(4, 4, 3, 8, false, 0, 0, List.of(motion(0, 0)), SHORT);
+    assertThrows(Mcv2Exception.class, () -> receiver.accept(anotherOrphan));
+    final byte[] retry = FrameWriter.write(4, 4, 3, 2, false, 0, 0, List.of(motion(0, 0)), SHORT);
+    assertArrayEquals(expected, assertDoesNotThrow(() -> receiver.accept(retry)));
+    assertEquals(3, receiver.getFrameId());
   }
 }

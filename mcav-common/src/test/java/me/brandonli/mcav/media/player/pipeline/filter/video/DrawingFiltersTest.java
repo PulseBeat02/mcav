@@ -24,9 +24,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicLong;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.testing.Images;
+import org.bytedeco.opencv.global.opencv_core;
+import org.bytedeco.opencv.global.opencv_imgproc;
+import org.bytedeco.opencv.opencv_core.Mat;
+import org.bytedeco.opencv.opencv_core.Point;
+import org.bytedeco.opencv.opencv_core.Scalar;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -150,22 +157,32 @@ final class DrawingFiltersTest {
   @Test
   void drawsText() {
     final TextFilter filter = new TextFilter("MCAV", 2, 20, TextFilter.DEFAULT_FONT, 0.8, WHITE);
-    try (final ImageBuffer image = Images.solid(80, 30, BLACK_ARGB)) {
+    try (
+      final ImageBuffer image = Images.solid(80, 30, BLACK_ARGB);
+      final Scalar black = new Scalar(0.0);
+      final Scalar white = new Scalar(255.0, 255.0, 255.0, 0.0);
+      final Point baseline = new Point(2, 20);
+      final Mat expected = new Mat(30, 80, opencv_core.CV_8UC3, black)
+    ) {
       final boolean modified = filter.applyFilter(image);
       final int drawn = countNonBlack(image);
       assertTrue(modified);
       assertTrue(drawn > 0);
+      opencv_imgproc.putText(expected, "MCAV", baseline, opencv_imgproc.FONT_HERSHEY_SIMPLEX, 0.8, white);
+      final ByteBuffer expectedPixels = expected.createBuffer();
+      assertEquals(expectedPixels, image.getData(), "the text, baseline, size and color must match");
     }
     assertThrows(NullPointerException.class, () -> new TextFilter(null, 0, 0, TextFilter.DEFAULT_FONT, 1.0, WHITE));
     assertThrows(IllegalArgumentException.class, () -> new TextFilter("x", 0, 0, TextFilter.DEFAULT_FONT, 0.0, WHITE));
   }
 
   @Test
-  void drawsTheMeasuredFrameRate() throws InterruptedException {
-    final FPSFilter filter = new FPSFilter();
+  void drawsTheMeasuredFrameRate() {
+    final AtomicLong clock = new AtomicLong();
+    final FPSFilter filter = new FPSFilter(clock::get);
     try (final ImageBuffer first = Images.solid(120, 40, BLACK_ARGB); final ImageBuffer second = Images.solid(120, 40, BLACK_ARGB)) {
       final boolean firstModified = filter.applyFilter(first);
-      Thread.sleep(1_050);
+      clock.set(1_000_000_000L);
       final boolean secondModified = filter.applyFilter(second);
       assertTrue(firstModified, "the filter reports the change, which decides whether the result is written back");
       assertTrue(secondModified);
@@ -177,6 +194,22 @@ final class DrawingFiltersTest {
       assertTrue(firstDrawn > 0);
       assertTrue(secondDrawn > 0);
       assertFalse(sameText, "after one second the text changes from 0 fps to 2 fps");
+      assertFrameRateLabel(first, "0 fps");
+      assertFrameRateLabel(second, "2 fps");
+    }
+  }
+
+  private static void assertFrameRateLabel(final ImageBuffer image, final String label) {
+    try (
+      final Scalar black = new Scalar(0.0);
+      final Scalar white = new Scalar(255.0, 255.0, 255.0, 0.0);
+      final Point baseline = new Point(10, 24);
+      final Mat expected = new Mat(40, 120, opencv_core.CV_8UC3, black)
+    ) {
+      opencv_imgproc.putText(expected, label, baseline, opencv_imgproc.FONT_HERSHEY_SIMPLEX, 0.6, black, 3, opencv_imgproc.LINE_AA, false);
+      opencv_imgproc.putText(expected, label, baseline, opencv_imgproc.FONT_HERSHEY_SIMPLEX, 0.6, white, 1, opencv_imgproc.LINE_AA, false);
+      final ByteBuffer expectedPixels = expected.createBuffer();
+      assertEquals(expectedPixels, image.getData(), label);
     }
   }
 
@@ -207,8 +240,11 @@ final class DrawingFiltersTest {
     try (final ImageBuffer image = Images.solid(3, 2, BLACK_ARGB)) {
       final RegionScalarFilter right = new RegionScalarFilter(3, 0, 1, 1, WHITE);
       final RegionScalarFilter below = new RegionScalarFilter(0, 2, 1, 1, WHITE);
+      final ByteBuffer before = ByteBuffer.allocate(image.getData().remaining()).put(image.getData()).flip();
       final boolean rightModified = right.applyFilter(image);
+      assertEquals(before, image.getData());
       final boolean belowModified = below.applyFilter(image);
+      assertEquals(before, image.getData());
       assertFalse(rightModified);
       assertFalse(belowModified);
     }
@@ -236,8 +272,11 @@ final class DrawingFiltersTest {
     try (final ImageBuffer overlay = Images.solid(2, 2, 0xFFFF0000); final ImageBuffer image = Images.solid(4, 4, 0xFF0000FF)) {
       final OverlayImageFilter right = new OverlayImageFilter(overlay, 4, 0);
       final OverlayImageFilter below = new OverlayImageFilter(overlay, 0, 4);
+      final ByteBuffer before = ByteBuffer.allocate(image.getData().remaining()).put(image.getData()).flip();
       final boolean rightModified = right.applyFilter(image);
+      assertEquals(before, image.getData());
       final boolean belowModified = below.applyFilter(image);
+      assertEquals(before, image.getData());
       assertFalse(rightModified);
       assertFalse(belowModified);
       assertThrows(IllegalArgumentException.class, () -> new OverlayImageFilter(overlay, -1, 0));

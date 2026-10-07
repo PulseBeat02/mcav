@@ -34,6 +34,7 @@ import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -67,6 +68,8 @@ import me.brandonli.mcav.utils.os.OSUtils;
 import me.brandonli.mcav.utils.os.Platform;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentMatchers;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -393,6 +396,67 @@ final class AbstractInstallerTest {
       assertSame(chmodFailure, cause);
       assertTrue(namesTheProblem, message);
       assertTrue(nothingRemembered, "a failed installation is not remembered");
+    }
+  }
+
+  @Test
+  void preservesThePermissionFailureWhenRemovingTheFailedDownloadAlsoFails() throws IOException {
+    final UncheckedIOException permissionFailure = new UncheckedIOException(new IOException("permission denied"));
+    try (
+      final LocalHttpServer server = LocalHttpServer.start();
+      final MockedStatic<IOUtils> ioUtils = Mockito.mockStatic(IOUtils.class, Mockito.CALLS_REAL_METHODS)
+    ) {
+      server.respond(TOOL_PATH, 200, PROGRAM);
+      final TestInstaller installer = this.installerDownloadingFrom(server, TOOL_PATH, null);
+      final Path destination = installer.getDefaultPath();
+      ioUtils
+        .when(() -> IOUtils.markExecutable(destination))
+        .thenAnswer(_ -> {
+          // A nonempty replacement makes cleanup fail on every platform without relying on OS permissions.
+          Files.delete(destination);
+          Files.createDirectory(destination);
+          Files.writeString(destination.resolve("busy"), "retained");
+          throw permissionFailure;
+        });
+      final IOException failure = assertThrows(IOException.class, () -> installer.download(true));
+      assertSame(permissionFailure, failure.getCause());
+      assertEquals("Cannot mark " + destination + " as executable: " + permissionFailure.getMessage(), failure.getMessage());
+      final Throwable[] suppressed = failure.getSuppressed();
+      assertEquals(1, suppressed.length, "cleanup must not hide either failure");
+      assertEquals(DirectoryNotEmptyException.class, suppressed[0].getClass());
+      assertEquals(destination.toString(), ((DirectoryNotEmptyException) suppressed[0]).getFile());
+      assertEquals(new Properties(), this.readConfig(), "a failed installation is not remembered");
+      assertEquals("retained", Files.readString(destination.resolve("busy")));
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { false, true })
+  void retriesExecutablePreparationAfterAPermissionFailure(final boolean freshInstaller) throws IOException {
+    try (
+      final FileSystem fileSystem = Jimfs.newFileSystem(posixConfiguration());
+      final LocalHttpServer server = LocalHttpServer.start();
+      final MockedStatic<IOUtils> ioUtils = Mockito.mockStatic(IOUtils.class, Mockito.CALLS_REAL_METHODS)
+    ) {
+      server.respond(TOOL_PATH, 200, PROGRAM);
+      final Download download = new Download(CURRENT_PLATFORM, server.uri(TOOL_PATH).toString(), null);
+      final Path tools = fileSystem.getPath("/tools");
+      final TestInstaller first = new TestInstaller(tools, NAME, new Download[] { download });
+      final AtomicInteger permissionAttempts = new AtomicInteger();
+      ioUtils
+        .when(() -> IOUtils.markExecutable(ArgumentMatchers.any(Path.class)))
+        .thenAnswer(invocation -> {
+          if (permissionAttempts.getAndIncrement() == 0) {
+            throw new UncheckedIOException(new IOException("temporary permission failure"));
+          }
+          return invocation.callRealMethod();
+        });
+      assertThrows(IOException.class, () -> first.download(true));
+      final TestInstaller retry = freshInstaller ? new TestInstaller(tools, NAME, new Download[] { download }) : first;
+      final Path installed = retry.download(true);
+      assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(installed));
+      assertEquals(2, permissionAttempts.get(), "a failed preparation is retried even by a new installer");
+      assertArrayEquals(PROGRAM, Files.readAllBytes(installed));
     }
   }
 

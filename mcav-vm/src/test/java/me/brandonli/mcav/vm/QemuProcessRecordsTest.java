@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.lang.ProcessBuilder.Redirect;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -70,7 +71,8 @@ final class QemuProcessRecordsTest {
    */
   private Process child(final boolean ignoresStop) throws IOException {
     final List<String> command = this.sleeper(ignoresStop);
-    final Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+    // JVM startup diagnostics are separate from the fixture's readiness protocol.
+    final Process process = new ProcessBuilder(command).redirectError(Redirect.INHERIT).start();
     this.children.add(process);
     // a JVM that printed has its shutdown hook in place
     final byte[] ready = process.getInputStream().readNBytes(5);

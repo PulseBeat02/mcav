@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,12 +28,14 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 import java.util.zip.GZIPOutputStream;
@@ -66,13 +70,39 @@ final class ArchiveExtractorFuzzTest {
         // malformed or breaking a rule; what was written so far is checked all the same
       }
       check(root, target);
+      checkWholeFileSystem(root.resolve("observed.zip"), compressed.toByteArray());
     } finally {
       IOUtils.deleteRecursively(root);
     }
   }
 
+  private static void checkWholeFileSystem(final Path backing, final byte[] archive) throws IOException {
+    try (final FileSystem fileSystem = FileSystems.newFileSystem(backing, Map.of("create", "true", "enablePosixFileAttributes", "true"))) {
+      final Path scope = fileSystem.getPath("/");
+      final Path root = Files.createDirectories(scope.resolve("nested/root"));
+      final Path target = Files.createDirectory(root.resolve("target"));
+      final byte[] untouched = { 3, 5, 7 };
+      final Path sentinel = Files.write(scope.resolve("existing"), untouched);
+      final List<Path> before;
+      try (final Stream<Path> paths = Files.walk(scope)) {
+        before = paths.toList();
+      }
+      try {
+        new ArchiveExtractor(MAX_ENTRIES, MAX_BYTES).extract(new ByteArrayInputStream(archive), target);
+      } catch (final IOException refused) {
+        // A refused archive must preserve the surrounding file system too.
+      }
+      check(root, target);
+      try (final Stream<Path> paths = Files.walk(scope)) {
+        final List<Path> outside = paths.filter(path -> !before.contains(path) && !path.startsWith(target)).toList();
+        assertEquals(List.of(), outside, "writes above the extraction root remain visible");
+      }
+      assertArrayEquals(untouched, Files.readAllBytes(sentinel));
+    }
+  }
+
   private static void check(final Path root, final Path target) throws IOException {
-    final boolean supportsPosix = FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
+    final boolean supportsPosix = root.getFileSystem().supportedFileAttributeViews().contains("posix");
     try (final Stream<Path> paths = Files.walk(root)) {
       final List<Path> all = paths.toList();
       long bytes = 0L;

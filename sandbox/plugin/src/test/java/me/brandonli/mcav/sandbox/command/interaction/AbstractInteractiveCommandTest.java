@@ -36,6 +36,7 @@ import static org.mockito.Mockito.when;
 
 import io.papermc.paper.event.player.AsyncChatEvent;
 import java.io.PrintStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -1440,6 +1441,7 @@ final class AbstractInteractiveCommandTest {
     final CompletableFuture<Boolean> firstStart = new CompletableFuture<>();
     final CommandSender sender = mock(CommandSender.class);
     this.command.reportStartWhenDone(sender, "first", firstScreen, firstStart, "first browser");
+    final AtomicReference<Throwable> callbackFailure = new AtomicReference<>();
     final CountDownLatch loggedFailure = new CountDownLatch(1);
     final CountDownLatch resumeFailure = new CountDownLatch(1);
     final IllegalStateException failure = Mockito.spy(new IllegalStateException("startup failed"));
@@ -1447,9 +1449,14 @@ final class AbstractInteractiveCommandTest {
     // boundary so the main thread can really replace the screen while its completion worker is in flight.
     Mockito.doAnswer(invocation -> {
       loggedFailure.countDown();
-      final boolean resumed = resumeFailure.await(10, TimeUnit.SECONDS);
-      assertTrue(resumed, "The main thread must release the failure callback");
-      return invocation.callRealMethod();
+      try {
+        final boolean resumed = resumeFailure.await(10, TimeUnit.SECONDS);
+        assertTrue(resumed, "The main thread must release the failure callback");
+        return invocation.callRealMethod();
+      } catch (final Throwable callbackProblem) {
+        callbackFailure.set(callbackProblem);
+        throw callbackProblem;
+      }
     })
       .when(failure)
       .printStackTrace(any(PrintStream.class));
@@ -1465,6 +1472,7 @@ final class AbstractInteractiveCommandTest {
         resumeFailure.countDown();
         final boolean completed = completion.get(10, TimeUnit.SECONDS);
         assertTrue(completed);
+        assertNull(callbackFailure.get(), "callback assertions reach the test thread");
         TestServer.runPendingTasks();
         assertEquals("second", this.command.player);
         assertSame(secondMaps, this.command.result);
@@ -1571,12 +1579,17 @@ final class AbstractInteractiveCommandTest {
   void aScreenTellsTheLogOnceThatItsMapsShowAPicture() {
     final List<String> messages = new ArrayList<>();
     final VideoFilter announcement = AbstractInteractiveCommand.announceFirstPicture(4, 6, messages::add);
-    final ImageBuffer frame = mock(ImageBuffer.class);
-    assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY), "the step leaves the frame as it is");
-    assertEquals(List.of("Maps 4 to 9 show their first picture"), messages, "at the first picture");
-    assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY));
-    assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY));
-    assertEquals(List.of("Maps 4 to 9 show their first picture"), messages, "and never again");
+    final byte[] pixels = { 3, 5, 7, 11, 13, 17 };
+    try (final ImageBuffer frame = ImageBuffer.bytes(pixels.clone(), 2, 1)) {
+      assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY), "the step leaves the frame as it is");
+      assertEquals(ByteBuffer.wrap(pixels), frame.getData());
+      assertEquals(List.of("Maps 4 to 9 show their first picture"), messages, "at the first picture");
+      assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY));
+      assertEquals(ByteBuffer.wrap(pixels), frame.getData());
+      assertFalse(announcement.applyFilter(frame, OriginalVideoMetadata.EMPTY));
+      assertEquals(ByteBuffer.wrap(pixels), frame.getData());
+      assertEquals(List.of("Maps 4 to 9 show their first picture"), messages, "and never again");
+    }
   }
 
   @Test

@@ -91,6 +91,29 @@ final class LiveAnalysisTest {
     }
   }
 
+  private static byte[] halfShifted(final byte[] reference, final int width, final int height, final int horizontal, final int vertical) {
+    final byte[] source = new byte[reference.length];
+    for (int row = 0; row < height; row++) {
+      for (int column = 0; column < width; column++) {
+        final double sourceX = Math.clamp(column + horizontal / 2.0, 0, width - 1);
+        final double sourceY = Math.clamp(row + vertical / 2.0, 0, height - 1);
+        final int left = (int) Math.floor(sourceX);
+        final int right = (int) Math.ceil(sourceX);
+        final int top = (int) Math.floor(sourceY);
+        final int bottom = (int) Math.ceil(sourceY);
+        for (int channel = 0; channel < 3; channel++) {
+          final int sum =
+            (reference[(top * width + left) * 3 + channel] & 0xFF) +
+            (reference[(top * width + right) * 3 + channel] & 0xFF) +
+            (reference[(bottom * width + left) * 3 + channel] & 0xFF) +
+            (reference[(bottom * width + right) * 3 + channel] & 0xFF);
+          source[(row * width + column) * 3 + channel] = (byte) ((sum + 2) / 4);
+        }
+      }
+    }
+    return source;
+  }
+
   @Test
   void samplesHalfPixelsAndFindsSceneCuts() {
     final int width = 64;
@@ -99,16 +122,16 @@ final class LiveAnalysisTest {
     // every half-pixel case of the sampling, near the edges too
     for (final int vector : new int[] { vector(1, 0), vector(0, 1), vector(1, 1), vector(-7, 9), vector(9, -7) }) {
       final LiveAnalysis.Result result = LiveAnalysis.analyze(
-        reference,
+        halfShifted(reference, width, height, vector >> 16, (short) vector),
         reference,
         width,
         height,
         LAMBDA,
         45,
-        new int[] { vector },
+        new int[] { 0, vector },
         Workers.SEQUENTIAL
       );
-      assertEquals(0, result.vector());
+      assertEquals(1, result.vector(), "the half-pixel candidate must beat the unshifted frame");
       assertFalse(result.sceneCut());
     }
     final byte[] inverted = reference.clone();

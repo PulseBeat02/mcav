@@ -22,7 +22,7 @@ every painted frame over as plain pixels, so frames arrive only when the page ch
 
 ## Installation
 
-The first browser that starts on a machine downloads the CEF build for it, 136 to 165 MB depending on the platform,
+The first browser that starts on a machine downloads the CEF build for it, about 136 to 163 MiB depending on the platform,
 from Maven Central into MCAV's cache folder (`~/.mcav/cache/jcef` of the user that runs the application). The download
 is checked against a SHA-256 hash pinned in MCAV and unpacked with checks that keep every file inside that folder;
 later starts reuse it. A mirror may redirect the download only to itself, and one that takes longer than a minute

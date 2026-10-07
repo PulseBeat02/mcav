@@ -20,7 +20,6 @@ package me.brandonli.mcav.sandbox.command.video;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -52,6 +51,23 @@ final class YtDlpArgumentAssertions {
     "no-match-filters"
   );
 
+  private static final Set<String> VALUE_OPTIONS = Set.of(
+    "format",
+    "format-sort",
+    "playlist-items",
+    "match-filter",
+    "break-match-filters",
+    "geo-bypass-country",
+    "geo-bypass-ip-block",
+    "retries",
+    "extractor-retries",
+    "socket-timeout",
+    "source-address",
+    "add-header",
+    "user-agent",
+    "referer"
+  );
+
   private YtDlpArgumentAssertions() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
@@ -63,14 +79,13 @@ final class YtDlpArgumentAssertions {
    * @param arguments what the parser produced
    */
   static void assertSafe(final String typed, final String[] arguments) {
-    final List<String> supported = VideoFlagsParser.supportedOptions();
     int index = 0;
     while (index < arguments.length) {
       final String argument = arguments[index];
       final boolean option = argument.startsWith("--");
       assertTrue(option, () -> "'" + argument + "' reaches yt-dlp where an option belongs, from '" + typed + "'");
       final String name = argument.substring(2);
-      final boolean accepted = supported.contains(name);
+      final boolean accepted = SWITCHES.contains(name) || VALUE_OPTIONS.contains(name);
       assertTrue(accepted, () -> "the option " + name + " is not accepted, from '" + typed + "'");
       index++;
       if (SWITCHES.contains(name)) {

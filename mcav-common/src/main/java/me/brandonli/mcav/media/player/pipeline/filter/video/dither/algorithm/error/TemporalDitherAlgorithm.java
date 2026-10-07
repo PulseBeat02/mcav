@@ -159,6 +159,9 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
   @Override
   public void dither(final int[] buffer, final int width) {
     checkBuffer(buffer, width);
+    if (buffer.length == 0) {
+      return;
+    }
     final int height = buffer.length / width;
     final byte[] indices = new byte[buffer.length];
     this.processStrip(buffer, width, 0, height, null, indices);

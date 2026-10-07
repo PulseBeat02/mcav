@@ -150,11 +150,11 @@ final class ScriptedEngine implements HelperEngine {
     this.events.onLoading(false);
   }
 
-  private synchronized void paint(final int blue) {
+  private synchronized void paint(final int value) {
     final ByteBuffer buffer = ByteBuffer.allocateDirect(this.width * this.height * 4);
     for (int index = 0; index < this.width * this.height; index++) {
-      buffer.put((byte) blue);
-      buffer.put((byte) GREEN);
+      buffer.put((byte) value);
+      buffer.put((byte) (GREEN ^ (value >>> 8)));
       buffer.put((byte) RED);
       buffer.put((byte) 255);
     }
@@ -168,7 +168,7 @@ final class ScriptedEngine implements HelperEngine {
     for (final DevToolsInput.DevToolsCall call : dispatched) {
       this.calls.add(call.getMethod() + " " + call.getParameters());
     }
-    this.paint(this.calls.size() & 0xFF);
+    this.paint(this.calls.size());
     if (this.soundOnInput) {
       this.events.onAudio(chunk(this.calls.size()));
     }

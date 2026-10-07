@@ -52,7 +52,7 @@ Click to watch a demo video above.
 | Platforms | Windows (x86-64), macOS (x86-64 and Apple silicon), and Linux (x86-64 and ARM64): FFmpeg and OpenCV are bundled for these, and their natives are extracted into the JavaCPP cache of the user |
 | VLC (optional) | Nothing: when the system has none, VLC 3.0.24 is downloaded into the cache folder of the user on Windows and macOS, and on x86-64 Linux, for which VideoLAN publishes no build, a pinned AppImage of Arch Linux's VLC package; elsewhere the system's VLC is used |
 | yt-dlp (optional) | Nothing: it is downloaded into the cache folder of the user, pinned and checked; its Linux builds need glibc |
-| Web browser | Nothing: MCAV embeds Chromium through JCEF, so there is no Selenium, Playwright, ChromeDriver or installed browser. Chromium (136 to 165 MB) is downloaded on the first browser start, and on Linux the libraries a server lacks (about 13 MB). No X server, no Xvfb and no JVM options; 64-bit Linux, Windows and macOS on x86-64 and ARM64 |
+| Web browser | Nothing: MCAV embeds Chromium through JCEF, so there is no Selenium, Playwright, ChromeDriver or installed browser. Chromium (about 136 to 163 MiB) is downloaded on the first browser start, and on Linux the libraries a server lacks (about 13 MB). No X server, no Xvfb and no JVM options; 64-bit Linux, Windows and macOS on x86-64 and ARM64 |
 | Virtual machines | QEMU, installed by you and on the `PATH` |
 | MCV2 | Players accept a resource pack the server offers; the server's CPU encodes, with native kernels for Linux, Windows and macOS on x86-64 and ARM64 and a Java fallback anywhere else |
 | Sound in Minecraft | A port for the audio web page, a Discord bot, or the [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) plugin (2.6.24 for Minecraft 26.3) |
@@ -80,8 +80,9 @@ in full colour, at the resolution you choose. The client needs no mod.
 
 The first three rows are measured on a procedural Minecraft test clip, which flatters MCV2; the last on real gameplay.
 "Map packets" charges everything the map transport sends, "after compression" is what the game's own zlib leaves of it.
-Live sources (browsers, virtual machines, VNC desktops, streams, cameras, and video files by default) encode in real time
-at 1080p30 on a 6-core server; smaller servers step down on their own, or pre-encode. Players without the pack keep the
+Live sources (browsers, virtual machines, VNC desktops, streams, cameras, and video files by default) share a configurable
+CPU budget. Throughput depends on the source, encoder preset and available CPU; 1080p30 is a measured workload, not a
+guarantee for every six-core server. A screen that cannot keep up steps down on its own, or you can pre-encode a file. Players without the pack keep the
 dithered maps. Turn it on with `--codec mcv2` on any command that draws on a wall of maps, or with
 `mcv2.default-codec: mcv2` in `config.yml`. The [MCV2 chapter](https://mcav.readthedocs.io/en/latest/mcv2/why.html)
 explains how it works, what it costs, and how it compares with H.264, VP9 and AV1.

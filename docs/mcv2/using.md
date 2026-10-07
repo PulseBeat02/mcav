@@ -41,7 +41,7 @@ sees nothing new on the wall.
 
 | Your source | Preset | Why |
 |---|---|---|
-| Anything that plays live: a browser, a VM, a VNC desktop, a stream, a camera, and video files by default | `live` (chosen for you) | The best picture per bit that encodes a 1080p30 frame in time with all 12 threads of a 6-core server; with the default budget of half of them, gameplay steps down to `LIVE_ADAPTIVE`. A screen that cannot keep up steps down by itself |
+| Anything that plays live: a browser, a VM, a VNC desktop, a stream, a camera, and video files by default | `live` (chosen for you) | The default balance of picture quality and encode cost. Throughput depends on the source and available CPU; a screen that cannot keep up steps down to a faster preset, fewer frames or a smaller size |
 | Fast gameplay or a busy picture on a small encoder budget | `LIVE_ADAPTIVE` | Switches to the faster search while the picture moves; about 25% more rate on gameplay, same on quiet content |
 | A server that cannot keep up with `live` at all | `LIVE_FAST` | The fastest search inside the quality rules; up to 30% more rate than `ship` |
 | Viewers whose clients draw fewer frames a second than the video has | `LIVE_KEYFRAME` | Every frame predicts from the last keyframe, so a frame a client missed costs it nothing; about 2.5 times the rate of `live` (9.5 against 3.6 Mbit/s in the [far-viewer runs](results.md)) |
@@ -109,8 +109,8 @@ without it.
 server or the proxy. It overrides three files, `assets/minecraft/shaders/core/text.vsh`, `core/text.fsh` and
 `assets/minecraft/post_effect/entity_outline.json`, and the pack a client loads last wins those. A server pack
 (`server.properties`) is sent at join and the MCV2 pack later, so MCV2 wins: screens work, and your pack's versions of
-those three files are shadowed until the player leaves (the MCV2 pack stays loaded after its screens stop, so players
-are not reloaded again and again). Everything else in your pack is unaffected, and glowing entities keep their outline.
+those three files are shadowed while the MCV2 pack is loaded. After a screen stops, its free slot stays in the pack
+for a minute for reuse; then the pack is rebuilt, or removed when no slots remain. Everything else in your pack is unaffected, and glowing entities keep their outline.
 If another plugin sends a pack with those files after the MCV2 pack, that pack wins and MCV2 screens show nothing. To
 keep your own text or outline shaders, merge your changes into the MCV2 pack's copies (`mcav/mcv2/pack`, and
 `mcav/mcv2/chain.json` for the outline chain, in the `mcav-bukkit` jar the plugin downloads into the server's
@@ -137,12 +137,16 @@ wall, placed by hand, by another plugin or by an old version of MCAV: the extra 
 backwards, and hide the dithered maps and the MCV2 picture alike, whatever is sent. Rebuild the wall with
 `/mcav screen`, which now removes the frames already hanging where it places one.
 
-**The pack loaded, but the wall shows nothing new.** Another pack that overrides `core/text` or `entity_outline.json`
-was loaded after it; the client uses improved transparency (a video setting), an Iris shader pack, or the Vulkan
-backend, none of which shows the MCV2 picture (Sodium, and Iris with its shaders off, do); or the page frames are out of
-view: the decoder runs only while one of the wall's hidden page frames is drawn, so look at the wall. A player with a
-modded client is told in the chat once the pack loads that shaders may hide the picture, and that the MCAV MCV2 Client
-mod shows them the dithered maps while Iris shaders are on ([the MCV2 client mod](client-mod.md)).
+**The pack loaded, but the wall shows nothing new.** Another pack that overrides `core/text` or `entity_outline.json` was
+loaded after it; an Iris shader pack bypasses MCV2's text and outline pipelines; or the page frames are out of view:
+the decoder runs only while one of the wall's hidden page frames is drawn, so look at the wall. Sodium 0.9.2 and
+Iris 1.11.7 with shaders disabled displayed MCV2 correctly in the Minecraft 26.3 client matrix. With Iris shaders
+active, Complementary Reimagined r5.9.3 and BSL 10.1.8 left the MCV2 picture blank or frozen even though the pack
+reported that it loaded. Disable the shader pack or use ordinary dithered maps. A player with a modded client is told
+in the chat once the pack loads that shaders may hide the picture, and that the [MCV2 client mod](client-mod.md)
+shows them the dithered maps while Iris shaders are on. The unmodified-client matrix used software rendering;
+it does not establish compatibility with every graphics driver, resource pack, improved-transparency setting or
+rendering backend, including Vulkan.
 
 **The picture freezes and jumps every few seconds.** The client draws fewer frames a second than the video has, so it
 misses frames, and under the default prediction a missed frame is repaired only by the next keyframe (every 4 seconds

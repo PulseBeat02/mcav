@@ -12,10 +12,11 @@ dependencies {
 ```
 
 The installer resolves a module and all of its compile and runtime dependencies from Maven repositories, copies the
-jars into a folder, and adds them to a class loader. It works with every `URLClassLoader`, which includes the plugin
-class loaders of Bukkit and Paper, and with the Knot class loader of Fabric. It says what it downloads and loads
-through `java.util.logging`, under the names of its classes, which a server shows in its console; the SLF4J inside
-the installer's jar is its own, and never meets yours.
+jars into a folder, and adds them to a class loader. It supports `URLClassLoader`, which includes the plugin class
+loaders of Bukkit and Paper, and the Knot class loader of Fabric. The JVM must allow the access needed to add jars;
+if it refuses both available strategies, the installer throws a `JarInjectorException` with the required JVM option.
+It says what it downloads and loads through `java.util.logging`, under the names of its classes, which a server
+shows in its console; the SLF4J inside the installer's jar is its own, and never meets yours.
 
 ```java
   final File dataFolder = this.getDataFolder();

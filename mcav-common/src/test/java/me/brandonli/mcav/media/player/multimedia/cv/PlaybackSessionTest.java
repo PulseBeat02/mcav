@@ -23,10 +23,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.Serial;
+import java.lang.reflect.Field;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
@@ -693,8 +697,20 @@ final class PlaybackSessionTest {
     when(detaching.retrieve()).thenReturn(counting).thenReturn(VideoPipelineStep.NO_OP);
     final ScriptedFrameGrabber grabber = videoAt(FRAME_MICROS);
     final PlaybackSession session = this.sessionWithVideoCallback(grabber, detaching);
-    session.start();
-    awaitEnd(session);
+    final Field poolField = PlaybackSession.class.getDeclaredField("imagePool");
+    poolField.setAccessible(true);
+    final ImagePool pool = (ImagePool) poolField.get(session);
+    try (final ImageBuffer retained = ImageBuffer.bytes(new byte[4 * 2 * 3], 4, 2)) {
+      pool.recycle((MatImageBuffer) retained);
+      session.start();
+      awaitEnd(session);
+      final IllegalStateException released = assertThrows(
+        IllegalStateException.class,
+        retained::getWidth,
+        "the detached frame returns to the pool and is released when rendering ends"
+      );
+      assertEquals("Image buffer has been released", released.getMessage());
+    }
 
     final long position = session.getPositionMicros();
     final int frameCount = frames.get();
@@ -930,17 +946,46 @@ final class PlaybackSessionTest {
 
   @Test
   void reportsNothingAfterItWasStopped() throws Exception {
-    final ScriptedFrameGrabber.Delay stuck = new ScriptedFrameGrabber.Delay(300L);
+    final CountDownLatch entered = new CountDownLatch(1);
+    final CountDownLatch releaseFailure = new CountDownLatch(1);
     final FrameGrabber.Exception lateFailure = new FrameGrabber.Exception("late failure");
-    final ScriptedFrameGrabber grabber = ScriptedFrameGrabber.of(stuck, lateFailure);
+    final AtomicReference<Throwable> thrown = new AtomicReference<>();
+    final AtomicReference<Throwable> stopFailure = new AtomicReference<>();
+    final ScriptedFrameGrabber grabber = spy(ScriptedFrameGrabber.of(lateFailure));
+    doAnswer(invocation -> {
+      entered.countDown();
+      assertTrue(Uninterruptibles.awaitUninterruptibly(releaseFailure, TIMEOUT_MILLIS, TimeUnit.MILLISECONDS));
+      try {
+        return invocation.callRealMethod();
+      } catch (final FrameGrabber.Exception failure) {
+        thrown.set(failure);
+        throw failure;
+      }
+    })
+      .when(grabber)
+      .grab();
     final PlaybackSession session = this.session(grabber, 0L, false);
-    session.start();
-    session.stop();
-    // the decoder closes its grabber only after it threw the late failure
-    awaitCondition("the decoder hit the failure", grabber::isClosed);
-
-    final boolean noReports = this.reports.isEmpty();
-    assertTrue(noReports, this.reports::toString);
+    final Thread stopper = new Thread(session::stop);
+    stopper.setUncaughtExceptionHandler((_, failure) -> stopFailure.set(failure));
+    try {
+      session.start();
+      awaitCondition("the decoder entered grab or closed", () -> entered.getCount() == 0 || grabber.isClosed());
+      assertEquals(0, entered.getCount(), "the late failure must be in progress before stopping");
+      stopper.start();
+      awaitCondition("the session stopped accepting reports", () -> !session.isActive());
+      releaseFailure.countDown();
+      stopper.join(TIMEOUT_MILLIS);
+      assertFalse(stopper.isAlive(), "stop waited for the decoder");
+      assertEquals(null, stopFailure.get());
+      assertTrue(grabber.isClosed());
+      assertSame(lateFailure, thrown.get(), "the decoder actually threw after stop");
+      assertEquals(0, grabber.getRemainingSteps());
+      assertEquals(List.of(), this.reports);
+    } finally {
+      releaseFailure.countDown();
+      session.stop();
+      stopper.join(TIMEOUT_MILLIS);
+    }
   }
 
   @Test
@@ -1029,6 +1074,21 @@ final class PlaybackSessionTest {
     final long second = deliveries.get(1);
     final long gap = second - first;
     assertTrue(gap < 450_000_000L, "the chunk is handed on ahead of its timestamp, gap " + gap);
+  }
+
+  @Test
+  void audioLeadLeavesTheRemainingTimestampDelay() throws Exception {
+    final AtomicLong virtualTime = new AtomicLong();
+    final List<Long> deliveredAt = Collections.synchronizedList(new ArrayList<>());
+    this.onAudio((_, _) -> deliveredAt.add(virtualTime.get()));
+    final ScriptedFrameGrabber grabber = ScriptedFrameGrabber.of(ScriptedFrameGrabber.audio(0L), ScriptedFrameGrabber.audio(500_000L));
+    final Timing timing = new Timing(400_000_000L, Long.MAX_VALUE, () -> virtualTime.getAndAdd(10_000_000L));
+    final PlaybackSession session = this.session(factoryOf(grabber), null, this.videoCallback, timing, 0L, false);
+    session.start();
+    awaitEnd(session);
+    assertEquals(2, deliveredAt.size());
+    assertTrue(deliveredAt.getFirst() < 100_000_000L, "the initial audio needs no timestamp delay");
+    assertTrue(deliveredAt.get(1) >= 100_000_000L, "the 400ms lead leaves 100ms of the 500ms timestamp");
   }
 
   @Test

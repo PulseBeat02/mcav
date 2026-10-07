@@ -29,7 +29,9 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -56,6 +58,9 @@ final class AudioListenerTest {
   private static final long TIMEOUT_SECONDS = 10;
   private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(TIMEOUT_SECONDS);
 
+  private final WorkerAssertions workers = new WorkerAssertions();
+  private final List<AudioListener> listeners = new ArrayList<>();
+
   private final WebSocketSession session = Mockito.mock(WebSocketSession.class);
   private final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
   private final CountDownLatch firstSendEntered = new CountDownLatch(1);
@@ -65,13 +70,23 @@ final class AudioListenerTest {
   private AudioListener createListener(final long sendTimeLimitMillis, final int bufferLimitBytes) {
     Mockito.when(this.session.getId()).thenReturn("listener-1");
     Mockito.when(this.session.isOpen()).thenReturn(true);
-    return new AudioListener(this.session, sendTimeLimitMillis, bufferLimitBytes, this.failure::complete);
+    final AudioListener listener = new AudioListener(this.session, sendTimeLimitMillis, bufferLimitBytes, this.failure::complete);
+    this.listeners.add(listener);
+    return listener;
   }
 
   private AudioListener createListener(final long sendTimeLimitMillis, final int bufferLimitBytes, final LongSupplier nanoClock) {
     Mockito.when(this.session.getId()).thenReturn("listener-1");
     Mockito.when(this.session.isOpen()).thenReturn(true);
-    return new AudioListener(this.session, sendTimeLimitMillis, bufferLimitBytes, this.failure::complete, nanoClock);
+    final AudioListener listener = new AudioListener(
+      this.session,
+      sendTimeLimitMillis,
+      bufferLimitBytes,
+      this.failure::complete,
+      nanoClock
+    );
+    this.listeners.add(listener);
+    return listener;
   }
 
   /**
@@ -123,6 +138,7 @@ final class AudioListenerTest {
       final WebSocketMessage<?> message = invocation.getArgument(0);
       final byte[] payload = payloadOf(message);
       this.sent.add(payload);
+      this.workers.observeCurrentThread();
       this.firstSendEntered.countDown();
       final boolean released = this.releaseSends.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertTrue(released);
@@ -133,8 +149,10 @@ final class AudioListenerTest {
   }
 
   @AfterEach
-  void releaseBlockedSenders() {
+  void releaseBlockedSenders() throws InterruptedException {
     this.releaseSends.countDown();
+    this.listeners.forEach(AudioListener::stop);
+    this.workers.assertFinished();
   }
 
   private static byte[] payloadOf(final WebSocketMessage<?> message) {
