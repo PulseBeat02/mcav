@@ -100,6 +100,9 @@ game draws them, builds the transport strip on the CPU once the shader pack's fi
 top rows of the screen and runs the pack's post chain over it. The screens decode under shader packs such as
 Complementary and BSL like they do without them, and a frame without MCV2 maps is left exactly as Iris drew it.
 
+A shader pack costs frames: a client that draws fewer frames a second than the video has sees the picture freeze and
+jump (see Troubleshooting below), and `LIVE_KEYFRAME` hides that at a higher rate.
+
 The mod decodes only under the Iris version it was proven with. With another one, or if the game's code it hooks into
 isn't there, it tells the server instead: while a shader pack is on, every MCV2 screen shows that player the dithered
 maps, and with the shaders off the video again, without rejoining. Vanilla, Sodium, and Iris with its shaders off all
