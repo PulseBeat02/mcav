@@ -302,7 +302,8 @@ final class ErrorDiffusionDitherTest {
   @Test
   void rejectsInvalidInput() {
     final ErrorDiffusionDither dither = build(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
-    assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null));
+    final NullPointerException missingImage = assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null));
+    assertEquals("Image must not be null", missingImage.getMessage());
     assertThrows(NullPointerException.class, () -> dither.dither(null, 1));
     assertThrows(IllegalArgumentException.class, () -> dither.dither(new int[4], 0));
     assertThrows(IllegalArgumentException.class, () -> dither.dither(new int[5], 2));
