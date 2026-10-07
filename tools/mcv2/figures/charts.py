@@ -96,7 +96,8 @@ def rate_at(points, level):
 
 
 def draw_codecs(data):
-    figure, axes = plt.subplots(1, 2, figsize=(12, 5.2), sharey=True)
+    # one panel above the other: the chart keeps its size in a page column
+    figure, axes = plt.subplots(2, 1, figsize=(8, 9.6), sharex=True)
     for axis, (source, title) in zip(axes, SOURCES):
         for codec, name, colour, marker in CODECS:
             rates, scores = zip(*curve(data, source, codec))
@@ -104,8 +105,10 @@ def draw_codecs(data):
                       markeredgecolor=SURFACE, markeredgewidth=0.8, zorder=3 if codec == "mcv2" else 2)
             # the name at the curve's cheapest point, where the curves stand apart, in ink: a line is never told by
             # its colour alone
-            axis.annotate(name, (rates[0], scores[0]), textcoords="offset points", xytext=(-7, -1), fontsize=9.5,
-                          color=SECONDARY, ha="right", va="center")
+            # VP9 starts next to AV1 and MCV2 next to H.264: their names go right of and below their first points
+            offset, align = {"vp9": ((7, -1), "left"), "mcv2": ((0, -13), "center")}.get(codec, ((-7, -1), "right"))
+            axis.annotate(name, (rates[0], scores[0]), textcoords="offset points", xytext=offset, fontsize=9.5,
+                          color=SECONDARY, ha=align, va="center")
         axis.set_xscale("log")
         axis.xaxis.set_major_locator(FixedLocator(TICKS))
         axis.xaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}"))
@@ -117,10 +120,12 @@ def draw_codecs(data):
         axis.margins(x=0.18)
         for side in ("top", "right"):
             axis.spines[side].set_visible(False)
-    axes[0].set_ylabel("VMAF (mean)", color=SECONDARY)
+    for axis in axes:
+        axis.set_ylabel("VMAF (mean)", color=SECONDARY)
+        axis.xaxis.set_tick_params(labelbottom=True)
     handles, labels = axes[0].get_legend_handles_labels()
     figure.legend(handles, labels, loc="lower center", ncol=4, frameon=False, fontsize=10)
-    figure.tight_layout(rect=(0, 0.07, 1, 1))
+    figure.tight_layout(rect=(0, 0.04, 1, 1))
     figure.savefig(IMAGES / "codecs.png", dpi=120, facecolor=SURFACE)
     plt.close(figure)
 
