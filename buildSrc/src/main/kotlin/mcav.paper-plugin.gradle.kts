@@ -143,6 +143,7 @@ val e2eTestSourceSet = sourceSets.create("e2eTest")
 dependencies {
     "e2eTestImplementation"(platform(libs.libraryOf("junit-bom")))
     "e2eTestImplementation"(libs.libraryOf("junit-jupiter"))
+    "e2eTestImplementation"(libs.libraryOf("gson"))
     "e2eTestRuntimeOnly"(libs.libraryOf("junit-platform-launcher"))
 }
 

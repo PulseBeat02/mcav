@@ -23,6 +23,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.Strictness;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -223,10 +228,15 @@ final class PaperServerEndToEndTest {
     return LocalMavenRepositoryServer.start(repositoryDirectory, repositoryPort);
   }
 
-  private static void assertRanCleanly(final int exitCode, final String mediaInfo, final List<String> output) {
+  static void assertRanCleanly(final int exitCode, final String mediaInfo, final List<String> output) {
     assertEquals(0, exitCode, "the server stops cleanly");
-    final boolean json = mediaInfo.startsWith("{");
-    assertTrue(json, mediaInfo);
+    final Gson gson = new GsonBuilder().setStrictness(Strictness.STRICT).create();
+    final JsonElement actual = gson.fromJson(mediaInfo, JsonElement.class);
+    final JsonObject expected = new JsonObject();
+    expected.addProperty("duration", 0);
+    expected.addProperty("view_count", 0);
+    expected.addProperty("like_count", 0);
+    assertEquals(expected, actual, "the idle media response contains the complete empty snapshot");
     assertLogged(output, "MCAV loaded in");
     assertLogged(output, "JavaCV natives loaded in");
     assertLogged(output, "Simple Voice Chat audio is ready");
@@ -463,10 +473,14 @@ final class PaperServerEndToEndTest {
     fail("the server log must contain \"" + text + "\"");
   }
 
-  private static void assertNoErrors(final List<String> output) {
+  static void assertNoErrors(final List<String> output) {
     final List<String> errors = new ArrayList<>();
     for (final String line : output) {
-      final boolean error = line.contains(" ERROR]") || line.contains("Error occurred while enabling");
+      final boolean playbackFailure =
+        line.contains("Failed to decode media") || line.contains("Video filter failed") || line.contains("Audio filter failed") ||
+        line.contains("Failed to render a frame") || line.contains("Failed to start playback") || line.contains("Failed to start VLC playback");
+      final boolean error = line.contains(" ERROR]") || line.contains("/ERROR]") || line.contains("Error occurred while enabling") ||
+        line.contains("Exception in thread ") || ((line.contains(" WARN]") || line.contains("/WARN]")) && playbackFailure);
       if (error) {
         errors.add(line);
       }
