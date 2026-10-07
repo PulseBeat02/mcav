@@ -6,7 +6,7 @@ Please read these questions before asking for help in the support channels.
 
 ## Why does the first browser take so long to start?
 
-The first `/mcav browser create` on a server downloads Chromium (136 to 165 MB, depending on the platform) into the
+The first `/mcav browser create` on a server downloads Chromium (about 136 to 163 MiB, depending on the platform) into the
 MCAV cache folder of the user running the server (`~/.mcav/cache/jcef`), and on Linux the libraries it needs that the
 server lacks (about 13 MB of Debian 11 packages, into `~/.mcav/cache/jcef-libraries`). Every file is checked against a
 SHA-256 hash pinned in MCAV; later starts reuse them. The browser needs no X server, Xvfb or packages, and no Java

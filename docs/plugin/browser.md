@@ -19,7 +19,7 @@ closes it.
 ## The First Start Downloads Chromium
 
 Nothing has to be installed, and the server needs no JVM options. The first browser on a server downloads the CEF build
-of its platform, **136 to 165 MB** depending on the platform, from Maven Central into the MCAV cache folder of the user
+of its platform, **about 136 to 163 MiB** depending on the platform, from Maven Central into the MCAV cache folder of the user
 running the server (`~/.mcav/cache/jcef`; on a Pterodactyl server `/home/container/.mcav/cache`), checked against a
 SHA-256 hash pinned in MCAV. Later starts reuse it. The browser runs on 64-bit Linux, Windows and macOS on x86-64 and
 ARM64 (Windows on ARM64 is supported by the build but untested); anywhere else, and after a failed download, the
