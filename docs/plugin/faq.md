@@ -119,8 +119,8 @@ the server's password in that list, never in the command, and restart the server
 On the first start of a server that has no VLC, the plugin downloads VLC in the background into the MCAV cache folder
 of the user running the server, without `sudo` or administrator rights. The server does not wait for it, so players
 can join right away. Until the download is finished and VLC is loaded, video commands with the `VLC` player answer
-that VLC is still being prepared; try again once the console logs `VLC ready in <n> ms`, or use the `FFMPEG` player,
-which is bundled and always works. Commands given a web page, such as a YouTube video, answer the same way while
+that VLC is still being prepared; try again once the console logs `VLC ready in <n> ms`, or use the bundled `FFMPEG`
+player on a supported platform. Commands given a web page, such as a YouTube video, answer the same way while
 yt-dlp is being downloaded. Later starts use the downloaded copies at once.
 
 If the console logs a warning that VLC is not available instead, VLC cannot be installed on this system, and VLC
@@ -130,6 +130,7 @@ commands answer that VLC is not supported.
 
 ## I'm getting an `UnsatisfiedLinkError` saying that version `GLIBC_2.38` is not found, how do I fix this?
 
-The error indicates that your system's GLibC version is way too old for VLC to use. To fix this, you have to install
-a newer version of GLibC. If you are on a dedicated server provider, you would have to contact them to see if they are
-able to update this library for you.
+The selected VLC build or one of its native dependencies requires a glibc version the server's runtime does not
+provide. MCAV catches this native-loading failure, logs why VLC is unavailable and leaves VLC commands unsupported;
+the `FFMPEG` player does not need VLC. Loading a different VLC build requires one compatible with the server's
+operating system and architecture. On a managed server, the provider controls that runtime.
