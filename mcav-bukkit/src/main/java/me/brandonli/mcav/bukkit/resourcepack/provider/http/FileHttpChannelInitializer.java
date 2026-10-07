@@ -91,7 +91,7 @@ final class FileHttpChannelInitializer extends ChannelInitializer<SocketChannel>
 
     final ChannelPipeline pipeline = channel.pipeline();
     final ReadTimeoutHandler readTimeout = new ReadTimeoutHandler(READ_TIMEOUT_SECONDS);
-    final WriteTimeoutHandler writeTimeout = new WriteTimeoutHandler(WRITE_TIMEOUT_SECONDS);
+    final WriteTimeoutHandler writeTimeout = new ProgressWriteTimeoutHandler(WRITE_TIMEOUT_SECONDS);
     final FileServerHandler handler = new FileServerHandler(this.filePath);
     pipeline.addLast(READ_TIMEOUT_NAME, readTimeout);
     pipeline.addLast(WRITE_TIMEOUT_NAME, writeTimeout);
