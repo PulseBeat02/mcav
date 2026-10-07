@@ -386,11 +386,12 @@ is padded to whole 128-colour rows with colour 4. Six bits per map byte is the p
 colours would hold almost eight bits, but a symbol must be recovered from the RGB the client draws, so the alphabet is
 a power of two of distinct colours.
 
-**Packets.** The server writes page `n` of a frame into the top rows of page map `pageMap + n`, one map-data packet
-per page, and sends all pages of a frame in one bundle so they arrive together. Minecraft compresses every packet of
-256 bytes or more with zlib, and map colours that carry six-bit symbols use only 64 of 256 byte values, so compression
-takes back a good part of the six-bit expansion. That compression costs the server 1.3 to 2.0 % of a core per viewer,
-and the client 55 to 76 microseconds per frame to inflate, so I leave it on.
+**Packets.** The server writes page `n` of a frame into the top rows of page map `pageMap + n`, one map-data packet per
+page, and sends all pages of a frame in one bundle so they arrive together. Minecraft compresses every packet that
+reaches the server's compression threshold, 256 bytes by default, with zlib, and map colours that carry six-bit symbols
+use only 64 of 256 byte values, so compression takes back a good part of the six-bit expansion. That compression costs
+the server 1.3 to 2.0 % of a core per viewer, and the client 55 to 76 microseconds per frame to inflate, so I leave it
+on.
 
 **Reassembly.** Pages of one stream may arrive in any order. At most four frames are pending, and a page of a fifth
 evicts the oldest. A page must agree with the pages already held for its frame in page count, reference id, frame length
@@ -400,9 +401,11 @@ pages.
 
 **One stream, many viewers.** A screen is encoded once, and every viewer gets it through a link of their own, which
 sends a frame only when that viewer can decode it (a keyframe, or a P frame whose reference that viewer was sent) and
-only while the viewer's unwritten video is under 128 KiB (twice that for a keyframe). A viewer whose connection falls
-behind skips to the next frame they can decode, the others are not held back, and their game packets never wait behind
-seconds of video.
+only while the video already handed to the viewer's connection but not yet written is at most 128 KiB (twice that for a
+keyframe), with the default settings. The check comes before the frame is added, so one frame can take the backlog
+above it. A viewer whose connection falls behind skips to the next frame they can decode and the others are not held
+back; what is already in flight can't be taken back, so a connection slower than the stream can still delay that
+viewer's game packets.
 
 ## Decoding in the Shader
 
