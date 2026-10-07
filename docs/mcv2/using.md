@@ -41,7 +41,7 @@ sees nothing new on the wall.
 
 | Your source | Preset | Why |
 |---|---|---|
-| Anything that plays live: a browser, a VM, a VNC desktop, a stream, a camera, and video files by default | `live` (chosen for you) | The best picture per bit that encodes a 1080p30 frame in time with all 12 threads of a 6-core server; with the default budget of half of them, gameplay steps down to `LIVE_ADAPTIVE`. A screen that cannot keep up steps down by itself |
+| Anything that plays live: a browser, a VM, a VNC desktop, a stream, a camera, and video files by default | `live` (chosen for you) | The default balance of picture quality and encode cost. Throughput depends on the source and available CPU; a screen that cannot keep up steps down to a faster preset, fewer frames or a smaller size |
 | Fast gameplay or a busy picture on a small encoder budget | `LIVE_ADAPTIVE` | Switches to the faster search while the picture moves; about 25% more rate on gameplay, same on quiet content |
 | A server that cannot keep up with `live` at all | `LIVE_FAST` | The fastest search inside the quality rules; up to 30% more rate than `ship` |
 | Viewers whose clients draw fewer frames a second than the video has | `LIVE_KEYFRAME` | Every frame predicts from the last keyframe, so a frame a client missed costs it nothing; about 2.5 times the rate of `live` (9.5 against 3.6 Mbit/s in the [far-viewer runs](results.md)) |

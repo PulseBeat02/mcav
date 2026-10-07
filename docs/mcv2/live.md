@@ -7,7 +7,9 @@ speed, looping and the audio outputs follow the player. The `ship` search takes 
 of an i7-8700, 17 times too slow for 30 frames a second. MCAV's answer is a ladder of cheaper searches that write the
 same format. Every figure on this page was measured by the mcv2 stage on that 6-core i7-8700 (12 threads) under
 Temurin 25, and is on the [results page](results.md#the-live-presets) with its method, or in the
-[design doc, section 12](../mcv2-integration.md#12-live-1080p60-the-live-profile).
+[design doc, section 12](../mcv2-integration.md#12-live-1080p60-the-live-profile). These are the original integration
+measurements; later bit-exact CPU improvements and loaded-host limits are summarized in
+[current usage](using.md#troubleshooting).
 
 ## The Preset Ladder
 
@@ -24,8 +26,8 @@ live presets are inside their caps, map and after compression. On the proxy `liv
 because the motion-dependent lambda and the half- and quarter-resolution motion search suit its quiet content; on real
 gameplay, where `ship`'s exhaustive search finds more, they cost 7.9% and 24.9% more rate.
 
-**Which preset a live source uses.** A screen starts with `live`, the slowest preset that meets the 1080p30 gate below
-(the rule: the default for a frame rate is the slowest rung that meets that frame rate's gate). When the encoder
+**Which preset a live source uses.** A screen starts with `live`, chosen as the slowest preset that met the original
+1080p30 gate below. Its performance on another source or host must be measured. When the encoder
 cannot keep up, the screen steps **down the ladder** first (`live` to `adaptive` to `live-fast`, without a keyframe:
 every live search writes the same format from the same pictures), then to fewer frames a second, then to a smaller
 video, and at worst to the dithered maps ([server cost](server.md#adaptive-never-overload)). The plugin caps every screen it
@@ -35,7 +37,7 @@ the rate the command gives, up to 240 frames a second.
 
 ## The Gates
 
-**1080p30: met.** The p95 of the time to encode a frame, every frame verified, as a screen encodes it, over 660 frames
+**1080p30: met in the original integration.** The p95 of the time to encode a frame, every frame verified, as a screen encodes it, over 660 frames
 with keyframes and scene cuts, best of three runs, with the native AVX2 kernels:
 
 | Preset | 12 threads: proxy; gameplay | 6 threads (the default budget of a 12-thread machine): proxy; gameplay |
@@ -60,8 +62,8 @@ inside the quality cap, 12 threads, best of three:
 A 60 fps gameplay frame costs 207 ms of CPU even with `live-fast`: 17 ms at a perfect split over 12 hardware threads,
 which are hyperthreads adding about 25% over the 6 cores, before the 5 to 10 ms of each frame that do not split (the
 verification's decode, the writer, the global motion). Pipelining already hides that serial part behind the next
-frame's search. Nothing inside the quality cap cuts more than about 3%; what cuts 10 to 20% leaves the cap on
-gameplay by 38.6 to 56%. By the hardware guide, about 10 (proxy) to 15 (gameplay) fully used cores of this CPU would
+frame's search. Of the original search levers tried, nothing inside the quality cap cut more than about 3%; the changes that cut
+10 to 20% left the cap on gameplay by 38.6 to 56%. This predates the later bit-exact CPU optimizations. By the hardware guide, about 10 (proxy) to 15 (gameplay) fully used cores of this CPU would
 hold 1080p60; on this machine, a 60 fps screen steps down to `adaptive`, `live-fast` and then fewer frames.
 
 ## What Each Lever Bought

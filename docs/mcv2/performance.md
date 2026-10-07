@@ -5,6 +5,8 @@ What MCV2 costs and what it gives, in four parts: the picture it delivers for a 
 decoding costs a player's GPU, and what a screen costs the server and the network. Every number on these pages comes
 from a measurement committed with MCAV and says which: the research's result files and the measurements of MCAV's
 port are on the [results page](results.md), the design and its evidence in the [design doc](../mcv2-integration.md).
+The tables retain the original workloads. Later CPU results and client compatibility are summarized in
+[current usage](using.md#troubleshooting); the timings are not throughput guarantees.
 
 ## At a Glance
 
@@ -12,7 +14,7 @@ port are on the [results page](results.md), the design and its evidence in the [
 |---|---|---|
 | Rate and quality of the shipped profile | `ship`: 3.46 map Mbit/s (2.21 after the game's compression) for VMAF 77.9 on the 1080p30 proxy | [Rate and Quality](quality.md) |
 | Against AV1 | 15.8 VMAF points behind AV1 at the same nominal budget on the 1080p60 proxy; the four-codec chart shows where MCV2 wins and where it loses | [Rate and Quality](quality.md#four-codecs-on-one-chart) |
-| Live encoding | `live` encodes a 1080p30 frame in 20.1 ms (quiet content) and 31.2 ms (gameplay) at the 95th percentile on 12 threads of a 6-core CPU; 1080p60 is not met | [Live Encoding](live.md) |
+| Live encoding | The original integration encoded a 1080p30 frame with `live` in 20.1 ms (quiet content) and 31.2 ms (gameplay) at the 95th percentile on 12 threads of a 6-core CPU; 1080p60 is not met | [Live Encoding](live.md) |
 | What a viewer needs | 1.83 Mbit/s after compression for `live` 1080p30 on quiet content, 8.3 Mbit/s on fast gameplay | [Server and Network](server.md#bandwidth-per-viewer) |
 | Client decode | 7.9 ms per new 1080p frame, 6.6 ms per rendered frame without new video, on an Intel UHD 630 | [Decoding Cost](client.md) |
 | The server's tick | 20 TPS; one or two live 1080p screens raise the tick's p95 by 0.2 to 0.4 ms | [Server and Network](server.md#one-encoder-budget-per-server) |

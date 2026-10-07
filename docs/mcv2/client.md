@@ -26,10 +26,9 @@ write the target it reads.
 
 **At 60 frames a second.** The chain takes 7.4 to 8.8 ms of a 16.7 ms frame when a rendered frame brings a new video
 frame; a 30 fps video brings one on every other rendered frame at 60 fps. That leaves about 8 ms for Minecraft itself,
-which at 1080p on a UHD 630 usually needs more: expect 35 to 50 frames a second on that GPU with the wall in view. A
-GPU about twice as fast (Intel Iris Xe with 80 to 96 execution units, AMD 680M, any discrete GPU since a GTX 1050) runs
-the chain in under 4 ms and fits 60 frames a second with room for the game. These are projections from the UHD 630's
-measurements; no faster GPU was measured.
+so the chain timing alone cannot establish the game's frame rate. The integration projected 35 to 50 frames a second
+on that GPU with the wall in view; it did not measure a faster GPU. Measure the complete game and decoder on your
+client and driver using the [testing guide](../mcv2-testing.md).
 
 ## The Decoder Speed Work
 
