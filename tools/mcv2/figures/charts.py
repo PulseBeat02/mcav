@@ -125,10 +125,10 @@ def draw_codecs(data):
     plt.close(figure)
 
 
-def ablation_rates(ablation):
-    """The BD-rate (%) on the wire of every turned-off feature and source, with the VMAF range it covers."""
+def ablation_rates(ablation, kind="features"):
+    """The BD-rate (%) on the wire of every turned-off feature (or variant) and source, with the VMAF range it covers."""
     results = []
-    for feature in ablation.get("features", []):
+    for feature in ablation.get(kind, []):
         row = {"id": feature["id"], "name": feature["name"]}
         for source, _ in SOURCES:
             baseline = [(p["zlib_mbps"], p["vmaf_mean"]) for p in ablation["baseline"][source]]
@@ -176,7 +176,7 @@ def signed(value):
     return "0.0%" if text in ("+0.0%", "-0.0%") else text
 
 
-def print_tables(data, rows):
+def print_tables(data, rows, variants):
     print("Rate on the wire (Mbit/s) for the same VMAF mean, log-linear between measured points:\n")
     print("| VMAF mean | " + " | ".join(name for _, name, _, _ in CODECS) + " |")
     print("|---:|" + "---:|" * len(CODECS))
@@ -203,6 +203,9 @@ def print_tables(data, rows):
         for row in sorted(rows, key=lambda row: -(row["gameplay30"][0] + row["proxy30"][0])):
             cells = [f"{signed(row[source][0])} ({row[source][1]:.0f}-{row[source][2]:.0f})" for source, _ in SOURCES]
             print(f"| {row['name']} | " + " | ".join(cells) + " |")
+    for row in variants:
+        cells = [f"{title} {signed(row[source][0])} (VMAF {row[source][1]:.0f}-{row[source][2]:.0f})" for source, title in SOURCES]
+        print(f"\n{row['name']}, against the full encoder: " + "; ".join(cells))
 
 
 def main():
@@ -221,7 +224,7 @@ def main():
     if rows:
         draw_features(rows)
     if arguments.tables:
-        print_tables(data, rows)
+        print_tables(data, rows, ablation_rates(ablation, "variants"))
 
 
 if __name__ == "__main__":

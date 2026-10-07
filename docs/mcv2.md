@@ -438,12 +438,13 @@ chain ray-casts every pixel of the wall's screen box onto the wall's plane, dept
 the picture. No step loops over other pixels, and every loop has a constant bound, so a malformed frame can't make a
 fragment do unbounded work or read outside its textures.
 
-**References.** The pack keeps two persistent references, the previous decoded frame and the last decoded keyframe,
-and a P frame's reference id picks which one it predicts from. By default every P frame predicts from the frame before
-it: that is the cheapest on the wire, but a client that misses a frame (it renders fewer frames than the video has,
-looks away, or reloads its resources) can't decode the frames after it, and keeps the last picture until the next
-keyframe: at most 2 seconds for `ship` and 4 seconds for `live` at 30 fps. Predicting from the last keyframe instead
-lets any render rate work, at the price of more rate on the wire.
+**References.** The pack keeps two persistent references, the previous decoded frame and the last decoded keyframe, and
+a P frame's reference id picks which one it predicts from. By default every P frame predicts from the frame before it:
+that is the cheapest on the wire, but a client that misses a frame (it renders fewer frames than the video has, looks
+away, or reloads its resources) can't decode the frames after it, and keeps the last picture until the next keyframe: at
+most 2 seconds for `ship` and 4 seconds for `live` at 30 fps. Predicting from the last keyframe instead lets any render
+rate work, but costs rate on the wire: 65% more on the proxy and 14% more on the gameplay clip, measured the way the
+features [below](#how-much-each-feature-saves) are.
 
 **The resource pack.** The server builds it and serves it for pack format 97 (Minecraft 26.3). Its shader sources are
 fixed; what depends on the server is generated into it: the video sizes, page slots and stream ids of the screens, the

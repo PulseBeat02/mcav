@@ -1,7 +1,7 @@
 {
  "description": "MCV2's reference search (the ship profile) with one feature turned off at a time, against the full encoder, on the two sources of codec_curves.json. Each curve is six lambdas; every point is one tools/mcv2/rate_quality.py encode with tools/mcv2/Mcv2Bench.java, scored with libvmaf the way codec_curves.json scores MCV2. tools/mcv2/figures/charts.py computes the BD-rate of every curve against the baseline on zlib_mbps, the rate after Minecraft's packet compression.",
- "method": "A feature was turned off with a switch in a scratch copy of the encoder that is not part of MCAV (BlockCoder.tries for the leaf modes, the local motion branch of BlockCoder.evaluate, the half-pixel steps of FrameJob and BlockCoder, the global vector of Mcv2Encoder.encode, the split decision of Mcv2Encoder.select, and FrameWriter.Options for the writer's forms), or with Mcv2Bench's own argument key. With nothing turned off, the scratch encoder writes the same bytes as MCAV's. The writer-only features (w-*) leave every picture as it is and change only the bytes.",
- "command": "python3 tools/mcv2/rate_quality.py --classpath CLASSPATH --main Mcv2Bench --source SRC --frames N --fps 30 --lambdas LAMBDAS --ffmpeg FFMPEG --out OUT -- profile=ship threads=12 budget=true verify=false [key=1]; proxy30: N=30, LAMBDAS=19.0449229,33.670698488,65.255994022,137.730758207,254.48409453,500; gameplay30: N=60, LAMBDAS=30,65.255994022,137.730758207,260,400,900; FFMPEG is ffmpeg 7.0.2 with libvmaf",
+ "method": "A feature was turned off with a switch in a scratch copy of the encoder that is not part of MCAV (BlockCoder.tries for the leaf modes, the local motion branch of BlockCoder.evaluate, the half-pixel steps of FrameJob and BlockCoder, the global vector of Mcv2Encoder.encode, the split decision of Mcv2Encoder.select, and FrameWriter.Options for the writer's forms), or with Mcv2Bench's own arguments key and reference. With nothing turned off, the scratch encoder writes the same bytes as MCAV's. The writer-only features (w-*) leave every picture as it is and change only the bytes.",
+ "command": "python3 tools/mcv2/rate_quality.py --classpath CLASSPATH --main Mcv2Bench --source SRC --frames N --fps 30 --lambdas LAMBDAS --ffmpeg FFMPEG --out OUT -- profile=ship threads=12 budget=true verify=false [key=1 | reference=keyframe]; proxy30: N=30, LAMBDAS=19.0449229,33.670698488,65.255994022,137.730758207,254.48409453,500; gameplay30: N=60, LAMBDAS=30,65.255994022,137.730758207,260,400,900; FFMPEG is ffmpeg 7.0.2 with libvmaf",
  "sources": {
   "proxy30": {
    "what": "the 1080p30 Minecraft proxy, 30 frames",
@@ -2292,6 +2292,151 @@
       "vmaf_mean": 54.22002805,
       "vmaf_min": 36.08898,
       "psnr_global": 26.4809
+     }
+    ]
+   }
+  }
+ ],
+ "variants": [
+  {
+   "id": "keyref",
+   "name": "P frames predict from the last keyframe",
+   "what": "Mcv2Bench reference=keyframe",
+   "points": {
+    "proxy30": [
+     {
+      "lambda": 19.0449229,
+      "frames": 30,
+      "keyframes": 1,
+      "logical_mbps": 11.93932,
+      "map_mbps": 16.002608,
+      "zlib_mbps": 9.593072,
+      "vmaf_mean": 87.1088728,
+      "vmaf_min": 81.588104,
+      "psnr_global": 36.2392
+     },
+     {
+      "lambda": 33.670698488,
+      "frames": 30,
+      "keyframes": 1,
+      "logical_mbps": 6.991184,
+      "map_mbps": 9.381248,
+      "zlib_mbps": 5.661904,
+      "vmaf_mean": 82.1636165,
+      "vmaf_min": 75.966447,
+      "psnr_global": 35.0937
+     },
+     {
+      "lambda": 65.255994022,
+      "frames": 30,
+      "keyframes": 1,
+      "logical_mbps": 4.051752,
+      "map_mbps": 5.446816,
+      "zlib_mbps": 3.002824,
+      "vmaf_mean": 76.5285992,
+      "vmaf_min": 70.116537,
+      "psnr_global": 34.3553
+     },
+     {
+      "lambda": 137.730758207,
+      "frames": 30,
+      "keyframes": 1,
+      "logical_mbps": 2.938616,
+      "map_mbps": 3.95648,
+      "zlib_mbps": 1.946648,
+      "vmaf_mean": 69.93959576666666,
+      "vmaf_min": 64.586544,
+      "psnr_global": 33.5822
+     },
+     {
+      "lambda": 254.48409453,
+      "frames": 30,
+      "keyframes": 1,
+      "logical_mbps": 2.333384,
+      "map_mbps": 3.138928,
+      "zlib_mbps": 1.546392,
+      "vmaf_mean": 63.182145999999996,
+      "vmaf_min": 59.165277,
+      "psnr_global": 32.9019
+     },
+     {
+      "lambda": 500.0,
+      "frames": 30,
+      "keyframes": 1,
+      "logical_mbps": 1.784784,
+      "map_mbps": 2.41072,
+      "zlib_mbps": 1.207832,
+      "vmaf_mean": 50.676979599999996,
+      "vmaf_min": 44.711426,
+      "psnr_global": 31.6905
+     }
+    ],
+    "gameplay30": [
+     {
+      "lambda": 30.0,
+      "frames": 60,
+      "keyframes": 3,
+      "logical_mbps": 40.904364,
+      "map_mbps": 54.765896,
+      "zlib_mbps": 32.685468,
+      "vmaf_mean": 96.66980836666667,
+      "vmaf_min": 78.83374,
+      "psnr_global": 33.9588
+     },
+     {
+      "lambda": 65.255994022,
+      "frames": 60,
+      "keyframes": 3,
+      "logical_mbps": 24.031736,
+      "map_mbps": 32.183072,
+      "zlib_mbps": 19.759572,
+      "vmaf_mean": 90.1722046,
+      "vmaf_min": 71.648617,
+      "psnr_global": 32.0394
+     },
+     {
+      "lambda": 137.730758207,
+      "frames": 60,
+      "keyframes": 3,
+      "logical_mbps": 13.440468,
+      "map_mbps": 18.009032,
+      "zlib_mbps": 11.323708,
+      "vmaf_mean": 81.40802118333333,
+      "vmaf_min": 61.459174,
+      "psnr_global": 30.3543
+     },
+     {
+      "lambda": 260.0,
+      "frames": 60,
+      "keyframes": 3,
+      "logical_mbps": 9.324096,
+      "map_mbps": 12.501248,
+      "zlib_mbps": 7.812472,
+      "vmaf_mean": 73.55368431666666,
+      "vmaf_min": 52.795382,
+      "psnr_global": 29.0971
+     },
+     {
+      "lambda": 400.0,
+      "frames": 60,
+      "keyframes": 3,
+      "logical_mbps": 7.98426,
+      "map_mbps": 10.706872,
+      "zlib_mbps": 6.582436,
+      "vmaf_mean": 68.22395833333333,
+      "vmaf_min": 47.669809,
+      "psnr_global": 28.3716
+     },
+     {
+      "lambda": 900.0,
+      "frames": 60,
+      "keyframes": 3,
+      "logical_mbps": 5.473184,
+      "map_mbps": 7.347696,
+      "zlib_mbps": 4.651004,
+      "vmaf_mean": 55.2214313,
+      "vmaf_min": 36.166389,
+      "psnr_global": 26.5306
      }
     ]
    }
