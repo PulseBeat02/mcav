@@ -27,6 +27,7 @@ import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -62,6 +63,7 @@ public class StandardVideoHologram extends VideoHologram {
   private static final String UNKNOWN_TITLE = "Unknown title";
   private static final String UNKNOWN_UPLOADER = "Unknown uploader";
   private static final String UNKNOWN_DATE = "Unknown date";
+  private static final String METADATA_TEMPLATE = "<white><title></white>\n<gray><uploader> (<date>)</gray>";
 
   private static final int PROGRESS_SEGMENTS = 20;
   private static final long TICKS_PER_SECOND = 20L;
@@ -115,13 +117,17 @@ public class StandardVideoHologram extends VideoHologram {
   }
 
   private static Component createMetadataText(final URLParseDump dump) {
-    final String rawTitle = dump.title == null ? UNKNOWN_TITLE : dump.title;
-    final String rawUploader = dump.uploader == null ? UNKNOWN_UPLOADER : dump.uploader;
-    final String title = MINI_MESSAGE.escapeTags(rawTitle);
-    final String uploader = MINI_MESSAGE.escapeTags(rawUploader);
+    final String title = dump.title == null ? UNKNOWN_TITLE : dump.title;
+    final String uploader = dump.uploader == null ? UNKNOWN_UPLOADER : dump.uploader;
     final String uploadDate = formatUploadDate(dump.timestamp);
-    final String miniMessage = "<white>%s</white>\n<gray>%s (%s)</gray>".formatted(title, uploader, uploadDate);
-    return MINI_MESSAGE.deserialize(miniMessage);
+    // the site names its videos and uploaders, so the names are inserted as text that is never parsed: escaping them
+    // leaves a backslash at their end, which would escape the closing tag after them
+    return MINI_MESSAGE.deserialize(
+      METADATA_TEMPLATE,
+      Placeholder.unparsed("title", title),
+      Placeholder.unparsed("uploader", uploader),
+      Placeholder.unparsed("date", uploadDate)
+    );
   }
 
   private static String formatUploadDate(final int timestamp) {

@@ -40,6 +40,7 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
+import java.util.zip.CRC32;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.IOUtils;
@@ -65,6 +67,10 @@ class LinuxLibrariesTest {
 
   private static final String LIBRARY = "usr/lib/x86_64-linux-gnu/libmcavtest.so.1.2.3";
   private static final String POOL = "pool/main/m/mcavtest/libmcavtest1_1.2.3-1_amd64.deb";
+  private static final byte[] XZ_MAGIC = { (byte) 0xFD, '7', 'z', 'X', 'Z', 0 };
+  // LZMA2 stores the dictionary size in one byte: (2 | byte & 1) << (byte / 2 + 11)
+  private static final int DICTIONARY_64_MIB = 28;
+  private static final int DICTIONARY_192_MIB = 31;
 
   @TempDir
   Path folder;
@@ -150,6 +156,31 @@ class LinuxLibrariesTest {
     header[18] = (byte) machine;
     header[19] = (byte) (machine >> 8);
     return header;
+  }
+
+  /**
+   * Makes the xz data of a package ask its reader for another dictionary size, which the header of its first block
+   * holds: the writer puts the block's size, flags without the optional sizes, LZMA2 (0x21) with one byte of properties,
+   * padding and the CRC32 of all that.
+   */
+  private static byte[] withDictionary(final byte[] deb, final int dictionary) {
+    final byte[] patched = deb.clone();
+    int stream = 0;
+    while (!Arrays.equals(patched, stream, stream + XZ_MAGIC.length, XZ_MAGIC, 0, XZ_MAGIC.length)) {
+      stream++;
+    }
+    final int block = stream + 12;
+    final int headerBytes = ((patched[block] & 0xFF) + 1) * 4;
+    assertEquals(0x21, patched[block + 2], "the block holds LZMA2");
+    assertEquals(1, patched[block + 3], "LZMA2 has one byte of properties");
+    patched[block + 4] = (byte) dictionary;
+    final CRC32 crc = new CRC32();
+    crc.update(patched, block, headerBytes - Integer.BYTES);
+    final long checksum = crc.getValue();
+    for (int index = 0; index < Integer.BYTES; index++) {
+      patched[block + headerBytes - Integer.BYTES + index] = (byte) (checksum >>> (Byte.SIZE * index));
+    }
+    return patched;
   }
 
   private static String sha256(final byte[] bytes) {
@@ -389,6 +420,31 @@ class LinuxLibrariesTest {
     assertEquals("The package full.deb has more than 1 entries", entries.getMessage());
     // exactly at the limits is fine
     LinuxLibraries.extract(large, wanted, Files.createDirectory(this.folder.resolve("e")), 11, 1);
+  }
+
+  @Test
+  void aPackageMayNotAskForMoreMemoryThanTheStrongestCompressionOfDpkg() throws IOException {
+    final Map<String, String> wanted = Map.of(LIBRARY, "libmcavtest.so.1");
+    final byte[] greedy = withDictionary(testPackage(), DICTIONARY_192_MIB);
+    final Path deb = Files.write(this.folder.resolve("greedy.deb"), greedy);
+    final Path target = Files.createDirectory(this.folder.resolve("greedy"));
+
+    assertThrows(IOException.class, () -> LinuxLibraries.extract(deb, wanted, target));
+    try (final Stream<Path> written = Files.list(target)) {
+      assertEquals(List.of(), written.toList(), "nothing of a refused package is written");
+    }
+  }
+
+  @Test
+  void aPackageCompressedWithTheStrongestCompressionOfDpkgIsRead() throws IOException {
+    // xz -9, the strongest preset dpkg-deb compresses with, reads with a dictionary of 64 MiB
+    final byte[] strongest = withDictionary(testPackage(), DICTIONARY_64_MIB);
+    final Path deb = Files.write(this.folder.resolve("strongest.deb"), strongest);
+    final Path target = Files.createDirectory(this.folder.resolve("strongest"));
+
+    LinuxLibraries.extract(deb, Map.of(LIBRARY, "libmcavtest.so.1"), target);
+
+    assertArrayEquals("the library".getBytes(StandardCharsets.US_ASCII), Files.readAllBytes(target.resolve("libmcavtest.so.1")));
   }
 
   @Test

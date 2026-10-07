@@ -281,6 +281,32 @@ final class FileServerHandlerTest {
   }
 
   @Test
+  void answersARequestWhoseHeadersEndInAReadThatPassesTheLimit() throws IOException {
+    final EmbeddedChannel channel = createChannel(this.pack);
+    final String request = "GET /pack.zip HTTP/1.1\r\nHost: localhost\r\n\r\n";
+    // the bytes after the headers arrive in the same read, which takes it past the limit of the headers
+    final String afterHeaders = "a".repeat(8192);
+
+    writeRequest(channel, request + afterHeaders);
+    final String headers = readOutboundText(channel);
+
+    assertEquals(OK_HEADERS, headers, "the headers ended within the limit, so the request is answered");
+    final byte[] body = readRegion(channel);
+    assertArrayEquals(PACK, body);
+  }
+
+  @Test
+  void answersHeadersThatEndAtTheLimitInAReadThatPassesIt() {
+    final EmbeddedChannel channel = createChannel(this.pack);
+    final String headersAtTheLimit = "a".repeat(8188) + "\r\n\r\n";
+
+    writeRequest(channel, headersAtTheLimit + "b");
+    final String response = readOutboundText(channel);
+
+    assertEquals(METHOD_NOT_ALLOWED, response, "headers that end at the limit are read, whatever follows them");
+  }
+
+  @Test
   void rejectsHeadersThatAreTooLarge() {
     final EmbeddedChannel single = createChannel(this.pack);
     final EmbeddedChannel accumulated = createChannel(this.pack);
