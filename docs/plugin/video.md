@@ -31,7 +31,7 @@ changes everywhere, such as 1080p video, needs far more than that, so the wall s
 
 | `playerType` | What it plays | Seek | Speed and loop |
 |---|---|---|---|
-| `FFMPEG` | Files, URLs, streams and raw FFmpeg inputs with the FFmpeg bundled in MCAV; always available | to a time, or back and forth from where it plays | yes, for files |
+| `FFMPEG` | Files, URLs, streams and raw FFmpeg inputs with the FFmpeg bundled in MCAV | to a time, or back and forth from where it plays | yes, for files |
 | `VLC` | The same with VLC, which the plugin downloads in the background on the first start of a server without one | to a time from the start | no |
 | `DEVICE` | A camera or capture card of the server, by the number `/mcav video devices` lists | no | no |
 
