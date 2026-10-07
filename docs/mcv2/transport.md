@@ -48,7 +48,7 @@ id, scale, lock and decoration flags, the rectangle and the colour array's lengt
 
 ## The Game's Compression
 
-Minecraft compresses every packet of 256 bytes or more with zlib {cite}`rfc1950`. Map colours that carry six-bit symbols use only 64
+At the default 256-byte compression threshold, Minecraft compresses larger packets with zlib {cite}`rfc1950`. Map colours that carry six-bit symbols use only 64
 of 256 byte values, so compression takes back a large part of the expansion. Measured on the packets MCAV sends (every
 page as its map-data packet, deflated at the game's default level) ([design doc §7](../mcv2-integration.md#7-transport-and-wire-accounting)):
 
@@ -71,8 +71,9 @@ MCV2 at both rates.
 A screen's stream is encoded once, and every viewer receives it through a link of its own (`Mcv2Link`), which sends a
 frame only when that viewer can decode it (a keyframe, or a P frame whose reference is the last frame or keyframe that
 viewer was sent) and only while the viewer's unwritten video is under 128 KiB (twice that for a keyframe). A viewer
-whose connection falls behind skips to the next frame it can decode, while the others are not held back, and its game
-packets never wait behind seconds of video ([server and network](server.md#far-viewers)).
+whose connection falls behind skips to the next frame it can decode, while the others are not held back. This limits
+queued video, but cannot take back bytes already in flight: a connection slower than the stream can still delay game
+packets ([server and network](server.md#far-viewers)).
 
 ## On the Client
 
