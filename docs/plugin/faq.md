@@ -78,8 +78,8 @@ Only if your pack changes the text shaders (`assets/minecraft/shaders/core/text.
 (`assets/minecraft/post_effect/entity_outline.json`), which the MCV2 pack replaces to decode the video. The pack that a
 player's client loads last wins those files. Your server pack (`server.properties`) is sent when the player joins and
 the MCV2 pack later, so the MCV2 pack wins: MCV2 screens work, and your pack's versions of those three files are not used
-by that player until they leave (the MCV2 pack stays loaded after its screens stop, so players are not reloaded again
-and again). Everything else in your pack - textures, sounds, other shaders - is unaffected, and glowing entities keep
+while the MCV2 pack is loaded. A stopped screen leaves its slot available for reuse for one minute; afterwards the
+pack is rebuilt without it, or removed when no slots remain. Everything else in your pack - textures, sounds, other shaders - is unaffected, and glowing entities keep
 their outline. If another plugin sends a pack with those files after the MCV2 pack, that pack wins and MCV2 screens
 show nothing. To keep your own text or outline shaders, merge your changes into the MCV2 pack's copies (the
 `mcav/mcv2/pack` folder, and `mcav/mcv2/chain.json` from which the outline chain is generated, in the `mcav-bukkit` jar

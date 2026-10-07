@@ -80,8 +80,9 @@ in full colour, at the resolution you choose. The client needs no mod.
 
 The first three rows are measured on a procedural Minecraft test clip, which flatters MCV2; the last on real gameplay.
 "Map packets" charges everything the map transport sends, "after compression" is what the game's own zlib leaves of it.
-Live sources (browsers, virtual machines, VNC desktops, streams, cameras, and video files by default) encode in real time
-at 1080p30 on a 6-core server; smaller servers step down on their own, or pre-encode. Players without the pack keep the
+Live sources (browsers, virtual machines, VNC desktops, streams, cameras, and video files by default) share a configurable
+CPU budget. Throughput depends on the source, encoder preset and available CPU; 1080p30 is a measured workload, not a
+guarantee for every six-core server. A screen that cannot keep up steps down on its own, or you can pre-encode a file. Players without the pack keep the
 dithered maps. Turn it on with `--codec mcv2` on any command that draws on a wall of maps, or with
 `mcv2.default-codec: mcv2` in `config.yml`. The [MCV2 chapter](https://mcav.readthedocs.io/en/latest/mcv2/why.html)
 explains how it works, what it costs, and how it compares with H.264, VP9 and AV1.

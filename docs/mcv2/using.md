@@ -107,8 +107,8 @@ changes world sees an exact picture again from the next keyframe.
 server or the proxy. It overrides three files, `assets/minecraft/shaders/core/text.vsh`, `core/text.fsh` and
 `assets/minecraft/post_effect/entity_outline.json`, and the pack a client loads last wins those. A server pack
 (`server.properties`) is sent at join and the MCV2 pack later, so MCV2 wins: screens work, and your pack's versions of
-those three files are shadowed until the player leaves (the MCV2 pack stays loaded after its screens stop, so players
-are not reloaded again and again). Everything else in your pack is unaffected, and glowing entities keep their outline.
+those three files are shadowed while the MCV2 pack is loaded. After a screen stops, its free slot stays in the pack
+for a minute for reuse; then the pack is rebuilt, or removed when no slots remain. Everything else in your pack is unaffected, and glowing entities keep their outline.
 If another plugin sends a pack with those files after the MCV2 pack, that pack wins and MCV2 screens show nothing. To
 keep your own text or outline shaders, merge your changes into the MCV2 pack's copies (`mcav/mcv2/pack`, and
 `mcav/mcv2/chain.json` for the outline chain, in the `mcav-bukkit` jar the plugin downloads into the server's
@@ -135,9 +135,12 @@ backwards, and hide the dithered maps and the MCV2 picture alike, whatever is se
 `/mcav screen`, which now removes the frames already hanging where it places one.
 
 **The pack loaded, but the wall shows nothing new.** Another pack that overrides `core/text` or `entity_outline.json` was
-loaded after it; the client uses improved transparency (a video setting), Iris or Sodium, or the Vulkan backend, none of
-which shows the MCV2 picture; or the page frames are out of view: the decoder runs only while one of the wall's hidden
-page frames is drawn, so look at the wall.
+loaded after it; an Iris shader pack bypasses MCV2's text and outline pipelines; or the page frames are out of view:
+the decoder runs only while one of the wall's hidden page frames is drawn, so look at the wall. Sodium 0.9.2 and
+Iris 1.11.7 with shaders disabled displayed MCV2 correctly in the Minecraft 26.3 client matrix. With Iris shaders
+active, Complementary Reimagined r5.9.3 and BSL 10.1.8 left the MCV2 picture blank or frozen even though the pack
+reported that it loaded. Disable the shader pack or use ordinary dithered maps. This matrix used software rendering;
+it does not establish compatibility with every graphics driver, resource pack or rendering backend.
 
 **The picture freezes and jumps every few seconds.** The client draws fewer frames a second than the video has, so it
 misses frames, and under the default prediction a missed frame is repaired only by the next keyframe (every 4 seconds
