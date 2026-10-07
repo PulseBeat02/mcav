@@ -31,9 +31,15 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HexFormat;
@@ -635,6 +641,42 @@ final class LiveEncoderTest {
     final BlockCoder coder = new BlockCoder(job, 16);
     coder.code(1, 0, 0, 0, 6 << 16);
     assertTrue(job.cost(0, 1)[0] < Double.POSITIVE_INFINITY);
+    for (int row = 0; row < 8; row++) {
+      for (int column = 0; column < 8; column++) {
+        field[row * 8 + column] = ((2 * column) << 16) | ((-2 * row) & 0xFFFF);
+      }
+    }
+    final EncoderSettings seededSettings = settings.withLive(search(8, 0, 0, 0, 0, ALL, ALL, 1, true, 8, true, 0));
+    for (final int parent : new int[] { BlockCoder.NO_VECTOR, 0xFFFAFFFC }) {
+      final FrameJob seededJob = new FrameJob(
+        seededSettings,
+        source,
+        reference,
+        64,
+        64,
+        false,
+        new int[] { 0 },
+        new int[] { 0 },
+        field,
+        null
+      );
+      final Kernels kernels = spy(new JavaKernels());
+      final List<int[]> captured = new ArrayList<>();
+      doAnswer(invocation -> {
+        final int[] values = invocation.getArgument(11);
+        captured.add(values.clone());
+        return invocation.callRealMethod();
+      })
+        .when(kernels)
+        .seeded(any(), anyInt(), anyInt(), any(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt(), anyBoolean(), any());
+      final BlockCoder seededCoder = new BlockCoder(seededJob, 16, kernels);
+      seededCoder.code(1, 5, 16, 16, parent);
+      assertEquals(1, captured.size(), "the full-resolution search must consume the previous and parent seeds");
+      assertArrayEquals(
+        new int[] { 0x0006FFFA, 0x0002FFFA, 0x0008FFFA, 0x0006FFFE, 0x0006FFF8, parent == BlockCoder.NO_VECTOR ? 0x0006FFFA : 0xFFFAFFFC },
+        captured.getFirst()
+      );
+    }
   }
 
   @Test

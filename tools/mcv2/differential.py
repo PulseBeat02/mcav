@@ -19,7 +19,7 @@ research archives (u32 length, then the frame) and decodes each with both decode
 The reference decodes with `Decoder.accept` (commit a valid, newer frame; otherwise raise and keep the state); mcav with
 `Mcv2Receiver.accept`, through `tools/mcv2/Mcv2Digests.java`. Per frame, both must give the same SHA-256 of the RGB
 picture, or both refuse the frame. The only allowed difference is syntax mcav deliberately does not implement (MCV1, the
-coarse palettes of round 3, the motion table of round 15): mcav refuses it as unsupported where the reference may
+coarse palettes of round 3, the motion table of round 15, nonzero derived split quantizers): mcav refuses it as unsupported where the reference may
 accept it, and from that frame on the two decoders hold different pictures, so the rest of that archive is not
 compared. Writes `summary.json` into the output folder and exits non-zero on any disagreement.
 """
@@ -50,7 +50,7 @@ from mcvideo.compact import BODY_BYTES, COMPACT  # noqa: E402
 from mcvideo.decoder import Decoder  # noqa: E402
 from mcvideo.encoder import Settings  # noqa: E402
 from mcvideo.pattern import PATTERN_PALETTE  # noqa: E402
-from mcvideo.v2 import SPLIT, Node, TreeEncoder, TreeSettings, pack_frame  # noqa: E402
+from mcvideo.v2 import SPLIT, Node, TreeEncoder, TreeSettings, pack_frame, parse_frame, symbol_width  # noqa: E402
 
 RANDOM = random.Random(ARGS.seed)
 
@@ -222,6 +222,41 @@ def reference_tokens(frames):
     return tokens
 
 
+def deliberately_unsupported(frame):
+    """Only exempt syntax present in the frame, independently of the Java result token."""
+    if frame[:4] == b"MCV1":
+        return True
+    try:
+        parsed = parse_frame(frame)
+    except ValueError:
+        return False
+    if parsed.flags & fmt.MOTION_TABLE:
+        return True
+    if any(leaf[3] in (fmt.COARSE_PALETTE_2, fmt.COARSE_PALETTE_4, fmt.MODE_INDEXED_MOTION) for leaf in parsed.leaves):
+        return True
+    if not parsed.flags & fmt.DERIVED_OFFSETS:
+        return False
+    root_count = struct.unpack_from("<I", frame, 24)[0]
+    groups = (root_count + 31) // 32
+    header = 48 + groups * 4 + ((groups + 7) // 8) * 4
+    descriptors = sum(struct.unpack_from("<HHH", frame, header))
+    plane = header + 6
+    if parsed.flags & fmt.PACKED_SYMBOLS:
+        size = frame[plane]
+        table = frame[plane + 1:plane + 1 + size]
+        plane += 1 + size
+        width = symbol_width(size)
+        symbols = []
+        for index in range(descriptors):
+            position = index * width
+            offset = plane + position // 8
+            word = int.from_bytes(frame[offset:offset + 2], "little")
+            symbols.append(table[(word >> (position % 8)) & ((1 << width) - 1)])
+    else:
+        symbols = frame[plane:plane + descriptors]
+    return any(symbol & 31 == SPLIT and symbol >> 5 != 0 for symbol in symbols)
+
+
 def main():
     out = ARGS.out
     (out / "archives").mkdir(parents=True, exist_ok=True)
@@ -261,6 +296,10 @@ def main():
         for index, (mcav_token, reference_token) in enumerate(zip(mine, theirs)):
             counts["frames"] += 1
             if mcav_token == "unsupported":
+                if not deliberately_unsupported(frames[index]):
+                    disagreements.append(dict(archive=name, frame=index, reason="unsupported syntax exemption not justified",
+                                              mcav=mcav_token, reference=reference_token))
+                    break
                 # the reference may accept syntax mcav refuses; the two decoders hold different pictures from here on
                 counts["unsupported_skipped"] += len(mine) - index
                 break

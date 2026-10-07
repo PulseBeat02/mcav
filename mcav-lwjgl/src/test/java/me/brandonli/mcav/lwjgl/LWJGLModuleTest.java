@@ -20,8 +20,11 @@ package me.brandonli.mcav.lwjgl;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.lang.reflect.Constructor;
+import java.util.List;
 import me.brandonli.mcav.module.MCAVModule;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
 
 /**
  * Tests {@link LWJGLModule}.
@@ -38,10 +41,16 @@ final class LWJGLModuleTest {
   @Test
   void startsAndStopsWithoutPreparingAnything() {
     final MCAVModule module = new LWJGLModule();
-    module.start();
-    module.stop();
-    module.start();
-    module.stop();
+    try (final MockedConstruction<GLTextureFilter> filters = Mockito.mockConstruction(GLTextureFilter.class)) {
+      module.start();
+      assertEquals(List.of(), filters.constructed());
+      module.stop();
+      assertEquals(List.of(), filters.constructed());
+      module.start();
+      assertEquals(List.of(), filters.constructed());
+      module.stop();
+      assertEquals(List.of(), filters.constructed());
+    }
     final String name = module.getModuleName();
     assertEquals("lwjgl", name);
   }

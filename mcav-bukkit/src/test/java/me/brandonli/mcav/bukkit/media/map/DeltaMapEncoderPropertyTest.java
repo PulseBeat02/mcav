@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.map;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -386,6 +387,11 @@ final class DeltaMapEncoderPropertyTest {
      * Asserts that the snapshot is exactly what the clients display: every map that received anything, and nothing else.
      */
     private void assertMatchesSnapshot(final List<MapTilePatch> snapshot) {
+      final ClientModel restored = new ClientModel(this.layout);
+      restored.applyAll(snapshot);
+      for (int index = 0; index < this.maps.length; index++) {
+        assertArrayEquals(this.maps[index], restored.maps[index], "the snapshot reconstructs every sent pixel of map " + index);
+      }
       final Set<Integer> snapshotMaps = new HashSet<>();
       for (final MapTilePatch patch : snapshot) {
         final int index = this.indexOf(patch);

@@ -17,10 +17,16 @@
  */
 package me.brandonli.mcav.utils.ffmpeg;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -29,6 +35,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 import javax.sound.sampled.AudioFileFormat;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
@@ -36,6 +45,7 @@ import javax.sound.sampled.AudioSystem;
 import me.brandonli.mcav.media.source.file.FileSource;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import me.brandonli.mcav.utils.IOUtils;
+import me.brandonli.mcav.utils.runtime.CommandTask;
 import me.brandonli.mcav.utils.runtime.ProcessException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -43,6 +53,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.Isolated;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 
 /**
  * Tests {@link AudioExtractor} with the bundled FFmpeg. The tests change {@code user.home}, so they run in
@@ -132,6 +146,62 @@ final class AudioExtractorTest {
     final FileSource source = FileSource.path(missing);
     assertThrows(ProcessException.class, () -> AudioExtractor.extractOggVorbis(source));
     assertThrows(NullPointerException.class, () -> AudioExtractor.extractOggVorbis(null));
+  }
+
+  @Test
+  void removesOnlyThePartialOutputWhenExtractionFails() throws IOException {
+    this.checkFailedExtraction(false, false);
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = { false, true })
+  void keepsTheExtractionFailureWhenDeletingThePartialFileFails(final boolean sameFailure) throws IOException {
+    this.checkFailedExtraction(true, sameFailure);
+  }
+
+  private void checkFailedExtraction(final boolean cleanupFails, final boolean sameFailure) throws IOException {
+    final Path cache = IOUtils.getCachedFolder();
+    final Path existing = Files.writeString(cache.resolve("keep.ogg"), "existing audio");
+    final AtomicReference<Path> partial = new AtomicReference<>();
+    final FFmpegCommand command = mock(FFmpegCommand.class);
+    final CommandTask task = mock(CommandTask.class);
+    final IOException failure = new IOException("output failed after writing bytes");
+    final IOException cleanupFailure = sameFailure ? failure : new IOException("partial output could not be deleted");
+    when(command.createTask()).thenReturn(task);
+    doAnswer(_ -> {
+      Files.writeString(partial.get(), "partial audio");
+      throw failure;
+    })
+      .when(task)
+      .runChecked();
+    try (
+      final MockedStatic<FFmpegTemplates> templates = Mockito.mockStatic(FFmpegTemplates.class);
+      final MockedStatic<Files> files = Mockito.mockStatic(Files.class, Mockito.CALLS_REAL_METHODS)
+    ) {
+      templates
+        .when(() -> FFmpegTemplates.extractOggVorbis(anyString(), anyString()))
+        .thenAnswer(invocation -> {
+          final String output = invocation.getArgument(1);
+          final Path outputPath = Path.of(output);
+          partial.set(outputPath);
+          if (cleanupFails) {
+            files.when(() -> Files.deleteIfExists(outputPath)).thenThrow(cleanupFailure);
+          }
+          return command;
+        });
+      final FileSource source = FileSource.path(this.directory.resolve("input.wav"));
+      final IOException thrown = assertThrows(IOException.class, () -> AudioExtractor.extractOggVorbis(source));
+      assertSame(failure, thrown);
+      assertEquals(cleanupFails, Files.exists(partial.get()), "only a cleanup failure can leave the unowned partial output");
+      final Throwable[] expectedFailures = cleanupFails && !sameFailure ? new Throwable[] { cleanupFailure } : new Throwable[0];
+      assertArrayEquals(expectedFailures, failure.getSuppressed());
+      assertEquals("existing audio", Files.readString(existing));
+      if (!cleanupFails) {
+        try (final Stream<Path> cacheFiles = Files.list(cache)) {
+          assertEquals(List.of(existing), cacheFiles.toList());
+        }
+      }
+    }
   }
 
   @Test

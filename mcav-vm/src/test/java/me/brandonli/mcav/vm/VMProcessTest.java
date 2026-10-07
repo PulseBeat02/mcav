@@ -1307,6 +1307,7 @@ final class VMProcessTest {
     final boolean outputClosed = output.closed;
     assertFalse(alive);
     assertTrue(outputClosed, "shutdown must wait for the output reader to consume and close the stream");
+    assertEquals(output.content.length, output.position, "shutdown consumes the entire final diagnostic before closing it");
   }
 
   @Test
@@ -1374,6 +1375,29 @@ final class VMProcessTest {
     assertEquals(expectedPlain, plainCommand);
     assertEquals(expectedWithBus, withBusCommand);
     assertEquals(expectedOther, otherCommand);
+  }
+
+  @Test
+  void honorsUsbOffThroughEitherMachineAliasAndItsLastOverride() {
+    final VMSettings settings = new VMSettings(5901, 64, 48, 10);
+    for (final String alias : List.of("M", "machine")) {
+      final String other = alias.equals("M") ? "machine" : "M";
+      final List<VMConfiguration> disabled = List.of(
+        VMConfiguration.builder().option(alias, "q35,usb=off"),
+        VMConfiguration.builder().option(other, "q35,usb=on").option(alias, "usb=off"),
+        VMConfiguration.builder().repeatable(alias, "q35,usb=on").repeatable(alias, "usb=off"),
+        VMConfiguration.builder().option(alias, "q35,usb=on,usb=off")
+      );
+      for (final VMConfiguration configuration : disabled) {
+        final List<String> command = this.commandWithoutAccelerator(settings, configuration);
+        assertFalse(command.contains("-usb"), configuration::toString);
+        assertFalse(command.contains("usb-tablet"), configuration::toString);
+      }
+      final VMConfiguration enabled = VMConfiguration.builder().option(other, "q35,usb=off").option(alias, "usb=on");
+      final List<String> enabledCommand = this.commandWithoutAccelerator(settings, enabled);
+      assertFalse(enabledCommand.contains("-usb"), enabled::toString);
+      assertTrue(enabledCommand.contains("usb-tablet"), enabled::toString);
+    }
   }
 
   @Test

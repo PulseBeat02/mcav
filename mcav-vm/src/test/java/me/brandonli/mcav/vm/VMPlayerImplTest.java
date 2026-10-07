@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -48,10 +49,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
@@ -877,22 +878,46 @@ final class VMPlayerImplTest {
   @Test
   void startsAsynchronously() throws Exception {
     this.stubConnectingStream();
+    final AtomicReference<Thread> startupThread = new AtomicReference<>();
+    doAnswer(_ -> {
+      startupThread.set(Thread.currentThread());
+      this.processAlive.set(true);
+      return null;
+    })
+      .when(this.qemu)
+      .start();
     final VMPlayer player = this.player();
     final VMSettings settings = VMSettings.of(5905, 320, 240, 15);
     final VMConfiguration configuration = VMConfiguration.builder();
-    final CompletableFuture<Boolean> first = player.startAsync(settings, VMPlayer.Architecture.X86_64, configuration);
-    final boolean started = first.get(10, TimeUnit.SECONDS);
-    assertTrue(started);
+    try {
+      final CompletableFuture<Boolean> first = player.startAsync(settings, VMPlayer.Architecture.X86_64, configuration);
+      final boolean started = first.get(10, TimeUnit.SECONDS);
+      assertTrue(started);
+      assertNotSame(Thread.currentThread(), startupThread.get(), "the default executor must perform startup");
 
-    try (final ExecutorService executor = Executors.newSingleThreadExecutor()) {
-      final CompletableFuture<Boolean> second = player.startAsync(settings, VMPlayer.Architecture.X86_64, configuration, executor);
-      final boolean startedAgain = second.get(10, TimeUnit.SECONDS);
-      assertFalse(startedAgain);
-      assertThrows(NullPointerException.class, () -> player.startAsync(null, VMPlayer.Architecture.X86_64, configuration, executor));
-      assertThrows(NullPointerException.class, () -> player.startAsync(settings, null, configuration, executor));
-      assertThrows(NullPointerException.class, () -> player.startAsync(settings, VMPlayer.Architecture.X86_64, null, executor));
-      assertThrows(NullPointerException.class, () -> player.startAsync(settings, VMPlayer.Architecture.X86_64, configuration, null));
-      assertThrows(NullPointerException.class, () -> player.startAsync(null, VMPlayer.Architecture.X86_64, configuration));
+      final ExecutorService executor = mock(ExecutorService.class);
+      final List<Runnable> queued = new CopyOnWriteArrayList<>();
+      doAnswer(invocation -> {
+        queued.add(invocation.getArgument(0));
+        return null;
+      })
+        .when(executor)
+        .execute(any());
+      try (executor) {
+        final CompletableFuture<Boolean> second = player.startAsync(settings, VMPlayer.Architecture.X86_64, configuration, executor);
+        assertFalse(second.isDone(), "the supplied executor owns the second startup");
+        assertEquals(1, queued.size());
+        queued.getFirst().run();
+        final boolean startedAgain = second.get(10, TimeUnit.SECONDS);
+        assertFalse(startedAgain);
+        assertThrows(NullPointerException.class, () -> player.startAsync(null, VMPlayer.Architecture.X86_64, configuration, executor));
+        assertThrows(NullPointerException.class, () -> player.startAsync(settings, null, configuration, executor));
+        assertThrows(NullPointerException.class, () -> player.startAsync(settings, VMPlayer.Architecture.X86_64, null, executor));
+        assertThrows(NullPointerException.class, () -> player.startAsync(settings, VMPlayer.Architecture.X86_64, configuration, null));
+        assertThrows(NullPointerException.class, () -> player.startAsync(null, VMPlayer.Architecture.X86_64, configuration));
+      }
+    } finally {
+      player.release();
     }
   }
 

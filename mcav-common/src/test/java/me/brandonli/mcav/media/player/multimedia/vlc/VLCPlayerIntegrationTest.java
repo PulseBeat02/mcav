@@ -263,10 +263,11 @@ final class VLCPlayerIntegrationTest {
 
   @Test
   void seeksNearTheEndAndStopsThere() throws Exception {
-    final boolean started = this.startTestVideo();
+    final boolean started = this.player.start(FileSource.path(TestMedia.seekVideo()));
     assertTrue(started);
     this.awaitFrames(5);
 
+    final int framesBeforeSeek = this.frames.get();
     final long seekedAt = System.nanoTime();
     final boolean seeked = this.player.seek(4_000L);
     assertTrue(seeked);
@@ -279,6 +280,14 @@ final class VLCPlayerIntegrationTest {
     final boolean pausedAfterTheEnd = this.player.pause();
     final boolean seekedAfterTheEnd = this.player.seek(0L);
     assertTrue(playedMillis < 2_500L, "played " + playedMillis + " ms after seeking to 4 of 5 seconds");
+    assertTrue(this.frames.get() > framesBeforeSeek, "seeking still delivers a frame from the requested position");
+    final int[] finalPixels = this.lastFrame.get();
+    for (final int pixel : finalPixels) {
+      final int red = (pixel >>> 16) & 0xFF;
+      final int green = (pixel >>> 8) & 0xFF;
+      final int blue = pixel & 0xFF;
+      assertTrue(red <= 5 && green <= 5 && blue >= 250, "the frame near four seconds is blue: " + Integer.toHexString(pixel));
+    }
     assertFalse(pausedAfterTheEnd, "nothing plays after the end");
     assertFalse(seekedAfterTheEnd, "media that has ended cannot be seeked");
   }

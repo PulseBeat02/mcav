@@ -357,11 +357,9 @@ public final class AudioProvider {
       return AudioFilter.NO_OP;
     }
     synchronized (this.outputLock) {
-      final Claim current = this.owner;
-      final boolean takeover = current == null || !IDENTITY.equivalent(current.source, source);
       // the speakers of the previous source stop only once the new source has its output, so a takeover that fails,
       // such as one through a bot that is not ready, leaves the previous source playing
-      final SVCFilter previousSpeakers = takeover ? this.voiceChatFilter : null;
+      final SVCFilter previousSpeakers = this.voiceChatFilter;
       final Claim claim = new Claim(source, argument, dump, players);
       claim.output = this.connect(claim);
       this.claims.removeIf(held -> IDENTITY.equivalent(held.source, source));

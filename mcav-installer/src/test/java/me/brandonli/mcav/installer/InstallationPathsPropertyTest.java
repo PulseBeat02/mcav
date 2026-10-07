@@ -57,6 +57,7 @@ final class InstallationPathsPropertyTest {
   private Path folder;
   private Path localRepository;
   private InstallationManager manager;
+  private InstallationTreeAssertions completeTree;
 
   @BeforeProperty
   void createManager() throws IOException {
@@ -71,11 +72,17 @@ final class InstallationPathsPropertyTest {
     final RemoteRepository remote = InstallationManager.createRepository("empty", remoteUrl);
     final List<RemoteRepository> repositories = List.of(remote);
     this.manager = new InstallationManager(this.folder, repositories, this.localRepository);
+    this.completeTree = new InstallationTreeAssertions(
+      this.root.resolve("complete-tree.zip"),
+      repositories,
+      this.root.resolve("complete-local")
+    );
   }
 
   @AfterProperty
   void deleteFolders() throws IOException {
     this.manager.close();
+    this.completeTree.close();
     deleteTree(this.root);
   }
 
@@ -106,6 +113,7 @@ final class InstallationPathsPropertyTest {
 
   @Property(seed = SEED, tries = 80)
   void noArtifactIdCreatesAnythingOutsideTheInstallationFolder(@ForAll("hostileIds") final String artifactId) throws IOException {
+    this.completeTree.assertArtifactFolder(artifactId);
     final Path installed = this.folder.toAbsolutePath();
     final Path cache = this.localRepository.toAbsolutePath();
     final List<Path> before = listTree(this.root);

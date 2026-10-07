@@ -586,10 +586,16 @@ final class VMProcess {
    */
   private void addUsbTablet(final List<String> command) {
     final boolean legacyTablet = this.configuration.has("usbdevice");
-    final String machineOrNull = this.configuration.get("machine");
-    final String machine = Objects.requireNonNullElse(machineOrNull, "");
-    final boolean controllerChosen = this.configuration.has("usb") || machine.contains("usb=");
-    final boolean usbOff = machine.contains("usb=off");
+    boolean controllerChosen = this.configuration.has("usb");
+    boolean usbOff = false;
+    for (final String machine : machineValues(this.configuration)) {
+      for (final String part : Splitter.on(',').split(machine)) {
+        if (part.startsWith("usb=")) {
+          controllerChosen = true;
+          usbOff = part.equals("usb=off");
+        }
+      }
+    }
     final List<String> devices = this.configuration.getAll("device");
     final boolean tabletAdded = hasTablet(devices);
 

@@ -100,7 +100,7 @@ For example, running `/mcav browser create @a 640x640 1 5x5 0 FILTER_LITE HTTP_S
 create a new browser that all players can see on the 5x5 screen you just created with a resolution of 640x640 pixels,
 streams every changed browser frame with Filter Lite dithering, and plays the sound of the page on the audio web page.
 The frame-skip value of `1` keeps every frame; it does not set a one-second interval. Choose `NONE` as the audio type
-for a silent page. The first browser on a server downloads Chromium once (136 to 165 MB), and on Linux the libraries
+for a silent page. The first browser on a server downloads Chromium once (about 136 to 163 MiB), and on Linux the libraries
 it needs that the server lacks (about 13 MB), so it takes a moment longer to start; nothing has to be installed.
 As in a desktop browser, a page plays sound only after a player clicked its screen or typed into it; turn on
 `browser.autoplay-sound` in the [configuration](./config) to let pages play sound right away.

@@ -71,13 +71,13 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
   static final String STALL_NAME = "mcav_resource_pack_stall";
 
   /** The name of the handler that writes the pack a chunk at a time. */
-  static final String CHUNKS_NAME = "mcav_resource_pack_chunks";
+  private static final String CHUNKS_NAME = "mcav_resource_pack_chunks";
 
   /** How long a download may take less than a chunk of the pack before its connection is closed, in seconds. */
   static final long STALL_SECONDS = 60;
 
   /** How much of the pack is written at a time, in bytes. */
-  static final int CHUNK_BYTES = 8 * 1024;
+  private static final int CHUNK_BYTES = 8 * 1024;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ResourcePackHttpHandler.class);
   private static final String PACK_NOT_READ = "Could not read the resource pack for an HTTP download";

@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.sandbox.utils;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -266,6 +267,17 @@ final class FilterChainTest {
     assertTrue((blurred.getPixels()[1 + 5 * 2] & 0xff) > 0, "a blur of radius 1 reaches the next pixel");
   }
 
+  private static ImageBuffer quadrantPicture() {
+    final int[] pixels = new int[100];
+    final int[] colors = { 0x123456, 0x789ABC, 0xFEDCBA, 0xABCDEF };
+    for (int row = 0; row < 10; row++) {
+      for (int column = 0; column < 10; column++) {
+        pixels[row * 10 + column] = OPAQUE | colors[(row / 5) * 2 + column / 5];
+      }
+    }
+    return ImageBuffer.buffer(pixels, 10, 10);
+  }
+
   @Test
   void placesARegionAtThePercentsTyped() {
     final VideoFilter inside = this.parse("rectangle=25:50:50:25:ffffff").create().getFirst();
@@ -278,12 +290,14 @@ final class FilterChainTest {
     for (final int[] black : new int[][] { { 9, 25 }, { 30, 25 }, { 20, 19 }, { 20, 30 } }) {
       assertEquals(0, framed.getPixels()[black[0] + 40 * black[1]] & 0xffffff, Arrays.toString(black));
     }
-    assertTrue(
-      this.parse("crop=0:0:50:50")
-        .create()
-        .getFirst()
-        .applyFilter(picture(10, 10, 0))
-    );
+    try (final ImageBuffer cropped = quadrantPicture()) {
+      assertTrue(this.parse("crop=0:0:50:50").create().getFirst().applyFilter(cropped));
+      assertEquals(10, cropped.getWidth());
+      assertEquals(10, cropped.getHeight());
+      final int[] expected = new int[100];
+      Arrays.fill(expected, OPAQUE | 0x123456);
+      assertArrayEquals(expected, cropped.getPixels(), "the top-left quadrant fills the result");
+    }
   }
 
   @Test
@@ -313,10 +327,14 @@ final class FilterChainTest {
     final ImageBuffer inverted = picture(4, 2, 0x204060);
     this.parse("invert").apply(inverted);
     assertEquals(0xdfbf9f, inverted.getPixels()[3] & 0xffffff);
-    final ImageBuffer zoomed = picture(10, 10, 0x000000);
-    this.parse("crop=50:50:50:50").apply(zoomed);
-    assertEquals(10, zoomed.getWidth());
-    assertEquals(10, zoomed.getHeight());
+    try (final ImageBuffer zoomed = quadrantPicture()) {
+      this.parse("crop=50:50:50:50").apply(zoomed);
+      assertEquals(10, zoomed.getWidth());
+      assertEquals(10, zoomed.getHeight());
+      final int[] expected = new int[100];
+      Arrays.fill(expected, OPAQUE | 0xABCDEF);
+      assertArrayEquals(expected, zoomed.getPixels(), "the bottom-right quadrant fills the result");
+    }
     final ImageBuffer framed = picture(20, 20, 0x000000);
     this.parse("rectangle=0:0:50:50:00ff00").apply(framed);
     assertEquals(0x00ff00, framed.getPixels()[0] & 0xffffff);

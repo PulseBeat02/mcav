@@ -29,7 +29,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
@@ -37,6 +39,7 @@ import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.FakeWorld;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -211,7 +214,13 @@ final class EntityRendererTest {
   void setsTheTextOfTheServerEntityOncePerTick() {
     final EntityConfiguration configuration = this.createConfiguration(this.position);
     final EntityRenderer renderer = new EntityRenderer(configuration);
-    final ImageBuffer image = BlockRendererTest.solidImage(20, 10, 0x123456);
+    final int[] sourcePixels = new int[20 * 10];
+    for (int row = 0; row < 10; row++) {
+      for (int column = 0; column < 20; column++) {
+        sourcePixels[row * 20 + column] = column < 10 ? 0xFF123456 : 0xFFABCDEF;
+      }
+    }
+    final ImageBuffer image = ImageBuffer.buffer(sourcePixels, 20, 10);
 
     renderer.show();
     renderer.render(image);
@@ -228,6 +237,14 @@ final class EntityRendererTest {
     final int width = image.getWidth();
     final int height = image.getHeight();
     assertEquals("##", plain);
+    final List<Integer> colors = new ArrayList<>();
+    text.visit((style, characters) -> {
+      for (int index = 0; index < characters.length(); index++) {
+        colors.add(style.getColor() == null ? -1 : style.getColor().getValue());
+      }
+      return Optional.empty();
+    }, Style.EMPTY);
+    assertEquals(List.of(0x123456, 0xABCDEF), colors, "each rendered pixel retains its exact RGB");
     assertEquals(2, width);
     assertEquals(1, height);
   }
@@ -286,6 +303,29 @@ final class EntityRendererTest {
     assertEquals(2, spawned.size(), "the display comes back");
     final net.minecraft.world.entity.Display.TextDisplay handle = spawned.get(1).getHandle(); // fqn: Display is imported as org.bukkit.entity.Display
     verify(handle, never()).setText(any());
+    renderer.hide();
+  }
+
+  @Test
+  void aDisplayReturningToALoadedChunkUsesTheNewestSubmittedText() {
+    final EntityRenderer renderer = new EntityRenderer(this.createConfiguration(this.position));
+    final Component beforeUnload = Component.literal("before");
+    final Component whileUnloaded = Component.literal("latest");
+    renderer.show();
+    renderer.apply(beforeUnload);
+    final CraftTextDisplay discarded = this.world.getSpawnedDisplays().getFirst();
+    final World configuredWorld = this.world.getWorld();
+    when(discarded.isValid()).thenReturn(false);
+    when(configuredWorld.isChunkLoaded(0, 0)).thenReturn(false);
+    renderer.apply(whileUnloaded);
+    renderer.onTick();
+    assertEquals(1, this.world.getSpawnedDisplays().size());
+    when(configuredWorld.isChunkLoaded(0, 0)).thenReturn(true);
+    renderer.onTick();
+    final CraftTextDisplay replacement = this.world.getSpawnedDisplays().get(1);
+    final net.minecraft.world.entity.Display.TextDisplay handle = replacement.getHandle(); // fqn: Display is imported as org.bukkit.entity.Display
+    verify(handle).setText(whileUnloaded);
+    verify(handle, never()).setText(beforeUnload);
     renderer.hide();
   }
 

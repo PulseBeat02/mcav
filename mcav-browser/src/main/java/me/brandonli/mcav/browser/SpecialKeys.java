@@ -62,7 +62,7 @@ final class SpecialKeys {
     final Type type = token.getType();
     try (reader) {
       final Set<String> keys = gson.fromJson(reader, type);
-      if (keys == null) {
+      if (keys == null || keys.isEmpty()) {
         throw new PlayerException("The key list resource " + RESOURCE + " is empty");
       }
       return Set.copyOf(keys);

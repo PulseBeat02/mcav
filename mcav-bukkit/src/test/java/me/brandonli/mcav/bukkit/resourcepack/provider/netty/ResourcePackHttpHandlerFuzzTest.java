@@ -115,6 +115,19 @@ final class ResourcePackHttpHandlerFuzzTest {
       final byte[] tail = Arrays.copyOfRange(answered, Math.max(0, answered.length - PACK.length), answered.length);
       if (isGetRequest) {
         assertArrayEquals(PACK, tail, "a GET request receives the pack");
+      } else {
+        final int headerEnd = response.indexOf("\r\n\r\n");
+        assertTrue(headerEnd >= 0, "HEAD has complete response headers");
+        assertEquals(headerEnd + 4, answered.length, "HEAD has no response body");
+        final String headers = response.substring(0, headerEnd);
+        assertEquals(
+          1L,
+          headers
+            .lines()
+            .filter(line -> line.equals("Content-Length: " + PACK.length))
+            .count(),
+          headers
+        );
       }
       return;
     }

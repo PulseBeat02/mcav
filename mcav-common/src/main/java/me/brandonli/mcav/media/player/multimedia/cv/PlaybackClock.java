@@ -71,7 +71,7 @@ final class PlaybackClock {
    */
   long dueAt(final long mediaMicros) {
     synchronized (this.lock) {
-      final long now = this.nanoClock.getAsLong();
+      final long now = this.paused ? this.pausedAtNanos : this.nanoClock.getAsLong();
       if (!this.anchored) {
         this.anchor(mediaMicros, now);
         return now;

@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
 import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
@@ -57,7 +58,7 @@ import org.bukkit.plugin.Plugin;
  * wall that hold the page maps.
  *
  * <p>Behind every map of the wall hangs one item frame, facing away from the wall, holding page map
- * {@code (column + row) % pageSlots}, so any run of page-slot many maps of a row has every page behind it. The frames
+ * {@code (row * columns + column) % pageSlots}, cycling over the complete wall in row order. The frames
  * are real entities that nobody sees until {@link #show(Player)} shows them to a player with the pack; they glow,
  * because the client only runs the pack's post chain while a glowing entity is drawn, and the player is sent a team
  * that gives them the configured outline colour, which the pack filters out. The frames are not saved with the world,
@@ -75,8 +76,12 @@ import org.bukkit.plugin.Plugin;
  */
 public final class Mcv2Screen {
 
-  /** The name of the team of the page frames. */
+  /** The prefix of the per-screen team names of the page frames. */
   public static final String TEAM = "mcav_mcv2";
+
+  private static final AtomicInteger NEXT_TEAM_ID = new AtomicInteger();
+
+  private final String teamName;
 
   private static final int[] SIGNATURE = { 21, 3, 58, 44, 9, 37, 60, 17 };
 
@@ -104,6 +109,7 @@ public final class Mcv2Screen {
   public Mcv2Screen(final Mcv2Configuration configuration) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null");
     this.configuration = configuration;
+    this.teamName = TEAM + Integer.toUnsignedString(NEXT_TEAM_ID.getAndIncrement(), 36);
     this.frames = new ArrayList<>();
     this.chunks = new LinkedHashSet<>();
   }
@@ -242,7 +248,7 @@ public final class Mcv2Screen {
 
   /** The team of the page frames, with the configured colour. */
   PlayerTeam team() {
-    final PlayerTeam team = new PlayerTeam(new Scoreboard(), TEAM);
+    final PlayerTeam team = new PlayerTeam(new Scoreboard(), this.teamName);
     final String name = NamedTextColor.NAMES.keyOrThrow(this.configuration.getOutlineColor());
     team.setColor(Optional.of(TeamColor.valueOf(name.toUpperCase(Locale.ROOT))));
     final Collection<String> members = team.getPlayers();

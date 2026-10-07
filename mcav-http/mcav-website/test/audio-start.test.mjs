@@ -8,7 +8,7 @@ import {test} from 'node:test';
 import vm from 'node:vm';
 
 const PAGE = new URL('../src/app/page.tsx', import.meta.url);
-const CALLBACKS = ['attemptReconnect', 'stopStream', 'connectWebSocket', 'handleStart', 'handleStop'];
+const CALLBACKS = ['animateVisualizer', 'attemptReconnect', 'stopStream', 'connectWebSocket', 'handleStart', 'handleStop'];
 const CLOSED = 3;
 
 // the index just past the bracket that closes the one at index, skipping strings, templates and comments
@@ -83,6 +83,9 @@ function pageCallbacks() {
  */
 function loadPage(permission = 'granted') {
     const timers = new Map();
+    const animations = new Map();
+    let nextAnimation = 1;
+    let draws = 0;
     let nextTimer = 1;
     const sockets = [];
     const processors = [];
@@ -139,6 +142,10 @@ function loadPage(permission = 'granted') {
 
         flush() {
         }
+
+        getVisualizerData() {
+            return {smoothedData: new Float32Array(256), hue: 60};
+        }
     }
 
     class FakeAudioContext {
@@ -177,11 +184,24 @@ function loadPage(permission = 'granted') {
             return id;
         },
         clearTimeout: id => timers.delete(id),
-        cancelAnimationFrame: noop,
+        requestAnimationFrame: callback => {
+            const identifier = nextAnimation++;
+            animations.set(identifier, callback);
+            return identifier;
+        },
+        cancelAnimationFrame: identifier => animations.delete(identifier),
         wsRef: ref(null), pcmProcessorRef: ref(null), audioContextRef: ref(null), connectRef: ref(noop),
         shouldReconnectRef: ref(false), streamingRef: ref(false), reconnectTimeoutRef: ref(null),
         connectTimeoutRef: ref(null), reconnectAttemptsRef: ref(0), animationIdRef: ref(null), volumeRef: ref(100),
-        canvasRef: ref(null), placeholderRef: ref(null),
+        canvasRef: ref({
+            width: 320, height: 120, style: {},
+            getContext: () => ({
+                fillRect: noop, clearRect: noop, beginPath: noop, moveTo: noop, lineTo: noop,
+                closePath: noop, fill: noop,
+                createLinearGradient: () => ({addColorStop: noop}),
+                stroke: () => { draws++; },
+            }),
+        }), placeholderRef: ref(null),
         maxReconnectAttempts: 5,
         setIsLoading: loading => {
             state.loading = loading;
@@ -190,13 +210,21 @@ function loadPage(permission = 'granted') {
             state.connected = connected;
         },
         updateStatus: noop, startMetadataRefresh: noop, stopMetadataRefresh: noop, startHeartbeat: noop,
-        stopHeartbeat: noop, animateVisualizer: noop,
+        stopHeartbeat: noop,
     });
     const page = vm.runInContext(pageCallbacks(), context, {filename: PAGE.pathname});
     // the page keeps its connect function in this ref for the reconnect timer
     context.connectRef.current = page.connectWebSocket;
     return {
         ...page, sockets, processors, contexts, state,
+        activeAnimations: () => animations.size,
+        pendingAnimation: () => animations.values().next().value,
+        draws: () => draws,
+        runAnimationFrame() {
+            const due = [...animations.values()];
+            animations.clear();
+            due.forEach(callback => callback());
+        },
         // runs the timers due now, then the ones they started, as time passes
         runTimers() {
             for (let round = 0; round < 10 && timers.size > 0; round++) {
@@ -293,4 +321,39 @@ test('a Start allowed to play once resumed opens one stream', async () => {
     await settle();
     page.runTimers();
     assert.equal(page.sockets.length, 1);
+});
+
+test('reconnecting before the next animation frame keeps one visualizer loop', () => {
+    const page = loadPage();
+    page.handleStart();
+    page.runTimers();
+    page.sockets.at(-1).opened();
+    assert.equal(page.activeAnimations(), 1);
+    for (let reconnect = 0; reconnect < 3; reconnect++) {
+        page.sockets.at(-1).closed();
+        page.runTimers();
+        page.sockets.at(-1).opened();
+        assert.equal(page.activeAnimations(), 1, 'only the replacement owns an animation');
+        const before = page.draws();
+        page.runAnimationFrame();
+        assert.equal(page.draws(), before + 1, 'one draw per display frame');
+        assert.equal(page.activeAnimations(), 1, 'one successor');
+    }
+    page.handleStop();
+    assert.equal(page.activeAnimations(), 0);
+});
+
+test('a dispatched animation from an older processor cannot adopt its replacement', () => {
+    const page = loadPage();
+    page.handleStart();
+    page.runTimers();
+    page.sockets.at(-1).opened();
+    const oldDraw = page.pendingAnimation();
+    page.sockets.at(-1).closed();
+    page.runTimers();
+    page.sockets.at(-1).opened();
+    oldDraw();
+    assert.equal(page.draws(), 0, 'the superseded processor owns no new draw');
+    page.handleStop();
+    assert.equal(page.activeAnimations(), 0, 'a late callback must not forget the current animation id');
 });

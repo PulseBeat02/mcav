@@ -54,6 +54,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
@@ -196,6 +197,34 @@ final class PluginDataConfigurationMapperTest {
     final String text = logged.toString(StandardCharsets.UTF_8);
     assertEquals(5, text.split("Ignoring an entry of vnc.allowed-hosts", -1).length - 1, text);
     assertFalse(text.contains("hunter2"), text);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = { "[]", "[ ]" })
+  void skipsHostsThatBecomeBlankAfterRemovingIpv6Brackets(final String host) throws IOException {
+    final PrintStream original = System.err;
+    final ByteArrayOutputStream logged = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(logged, true, StandardCharsets.UTF_8));
+    try {
+      this.writeConfiguration(
+        """
+        vnc:
+          allowed-hosts:
+            - host: "%s"
+              port: 5901
+              password: hidden-secret
+            - host: kept.example
+              port: 5904
+        """.formatted(host)
+      );
+      this.mapper.deserialize();
+    } finally {
+      System.setErr(original);
+    }
+    assertEquals(List.of(new VncAllowList.Entry("kept.example", 5904, null)), this.mapper.getVncAllowList().entries());
+    final String text = logged.toString(StandardCharsets.UTF_8);
+    assertEquals(1, text.split("Ignoring an entry of vnc.allowed-hosts", -1).length - 1, text);
+    assertFalse(text.contains("hidden-secret"), text);
   }
 
   private void writeConfiguration(final String yaml) throws IOException {

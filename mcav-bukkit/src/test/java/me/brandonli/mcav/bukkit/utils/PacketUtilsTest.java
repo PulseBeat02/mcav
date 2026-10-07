@@ -20,6 +20,7 @@ package me.brandonli.mcav.bukkit.utils;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -112,6 +113,37 @@ final class PacketUtilsTest {
     final ArgumentCaptor<EventExecutor> captor = ArgumentCaptor.forClass(EventExecutor.class);
     verify(pluginManager).registerEvent(eq(eventType), any(Listener.class), eq(priority), captor.capture(), eq(plugin));
     return captor.getValue();
+  }
+
+  @Test
+  void distinguishesReconnectsWhileKeepingAnUnchangedConnectionsIdentity() throws ReflectiveOperationException, EventException {
+    final CraftPlayer first = this.server.addPlayer(FIRST);
+    this.server.addPlayer(SECOND);
+    this.server.injectModule();
+    final Object original = Objects.requireNonNull(PacketUtils.connectionIdentity(FIRST));
+    assertNotSame(original, PacketUtils.connectionIdentity(SECOND));
+    assertNull(PacketUtils.connectionIdentity(LATE));
+    final Listener listener = this.captureListener(1);
+    final EventExecutor join = this.captureExecutor(PlayerJoinEvent.class, EventPriority.LOWEST);
+    final PlayerJoinEvent joined = mock(PlayerJoinEvent.class);
+    when(joined.getPlayer()).thenReturn(first);
+    join.execute(listener, joined);
+    assertSame(original, PacketUtils.connectionIdentity(FIRST), "a repeated event cannot invalidate a live baseline");
+    PacketUtils.init();
+    assertSame(original, PacketUtils.connectionIdentity(FIRST), "refreshing the cache keeps a live connection's identity");
+
+    this.server.removePlayer(FIRST);
+    final CraftPlayer replacement = this.server.addPlayer(FIRST);
+    when(joined.getPlayer()).thenReturn(replacement);
+    join.execute(listener, joined);
+    final Object reconnected = Objects.requireNonNull(PacketUtils.connectionIdentity(FIRST));
+    assertNotSame(original, reconnected, "a new connection cannot inherit the previous client's map state");
+    PacketUtils.shutdown();
+    assertNull(PacketUtils.connectionIdentity(FIRST));
+    assertEquals(
+      "Player must not be null",
+      assertThrows(NullPointerException.class, () -> PacketUtils.connectionIdentity(null)).getMessage()
+    );
   }
 
   @Test

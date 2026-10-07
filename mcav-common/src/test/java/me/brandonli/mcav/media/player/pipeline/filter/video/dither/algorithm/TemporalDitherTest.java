@@ -371,8 +371,11 @@ final class TemporalDitherTest {
     assertThrows(IllegalArgumentException.class, () -> new TemporalFloydSteinbergDither(PRIMARIES, 0, 0, -0.1f));
     assertThrows(IllegalArgumentException.class, () -> new TemporalFloydSteinbergDither(PRIMARIES, 0, 0, 1.1f));
     final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(PRIMARIES);
+    final NullPointerException missingImage = assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null));
+    assertEquals("Image must not be null", missingImage.getMessage());
     try (final ForkJoinPool pool = new ForkJoinPool(1)) {
-      assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null, pool));
+      final NullPointerException missingParallelImage = assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(null, pool));
+      assertEquals("Image must not be null", missingParallelImage.getMessage());
     }
     try (final ImageBuffer image = ImageBuffer.buffer(new int[1], 1, 1)) {
       assertThrows(NullPointerException.class, () -> dither.ditherIntoBytes(image, null));

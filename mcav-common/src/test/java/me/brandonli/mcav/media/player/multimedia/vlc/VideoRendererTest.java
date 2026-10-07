@@ -33,6 +33,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -313,6 +314,14 @@ final class VideoRendererTest {
 
     this.display(1, 1, GREEN);
     this.renderer.setPaused(true);
+    final Field pendingField = VideoRenderer.class.getDeclaredField("pendingFrame");
+    pendingField.setAccessible(true);
+    final BlockingQueue<?> pending = (BlockingQueue<?>) pendingField.get(this.renderer);
+    try {
+      assertTrue(pending.isEmpty(), "pause discards the queued frame before any new frame can replace it");
+    } finally {
+      proceed.countDown();
+    }
     this.renderer.setPaused(false);
     proceed.countDown();
     // a frame displayed after the pause is rendered, so once it arrived the dropped frame would have arrived before it

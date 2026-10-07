@@ -74,7 +74,11 @@ final class FftTest {
     for (int index = 0; index < plane.length; index++) {
       plane[index] = random.nextInt(256);
     }
+    final double[] original = plane.clone();
     final double[][] spectrum = Fft.forward2d(plane, rows, columns);
+    assertArrayEquals(original, plane);
+    final double[] originalReal = spectrum[0].clone();
+    final double[] originalImaginary = spectrum[1].clone();
     final double[] sum = { 0 };
     for (final double value : plane) {
       sum[0] += value;
@@ -86,6 +90,8 @@ final class FftTest {
       assertEquals(plane[index] * plane.length, restored[index], 1e-6);
     }
     assertEquals(sum[0], spectrum[0][0], 1e-9);
+    assertArrayEquals(originalReal, spectrum[0]);
+    assertArrayEquals(originalImaginary, spectrum[1]);
   }
 
   @Test

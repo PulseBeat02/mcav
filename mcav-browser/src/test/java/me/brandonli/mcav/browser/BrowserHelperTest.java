@@ -374,7 +374,8 @@ class BrowserHelperTest {
 
   @Test
   void anInterruptedHelperStillStopsItsEngine() throws Exception {
-    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
+    final ScriptedEngine engine = new ScriptedEngine();
+    final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), engine);
     this.server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
     this.server.bind(UnixDomainSocketAddress.of(this.folder.resolve("s")));
     final PipedReader reader = new PipedReader(this.standardInput);
@@ -390,6 +391,8 @@ class BrowserHelperTest {
       running.interrupt();
       running.join(10_000L);
     }
+    assertFalse(running.isAlive(), "the interrupted helper has terminated");
+    assertTrue(engine.isStopped(), "the interrupted helper stops its engine");
     assertEquals(0, status.get());
     assertTrue(interrupted.get(), "the interrupt is kept");
   }

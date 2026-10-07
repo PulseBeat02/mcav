@@ -59,6 +59,7 @@ final class InstallationPathsFuzzTest {
   }
 
   private static void assertArtifactFolder(final String artifactId) throws IOException {
+    WORKSPACE.completeTree.assertArtifactFolder(artifactId);
     final List<Path> before = WORKSPACE.list();
     boolean refused = false;
     try {
@@ -111,6 +112,7 @@ final class InstallationPathsFuzzTest {
     private final Path folder;
     private final Path localRepository;
     private final InstallationManager manager;
+    private final InstallationTreeAssertions completeTree;
 
     Workspace() {
       try {
@@ -125,6 +127,11 @@ final class InstallationPathsFuzzTest {
         final RemoteRepository repository = InstallationManager.createRepository("empty", remoteUrl);
         final List<RemoteRepository> repositories = List.of(repository);
         this.manager = new InstallationManager(this.folder, repositories, this.localRepository);
+        this.completeTree = new InstallationTreeAssertions(
+          this.root.resolve("complete-tree.zip"),
+          repositories,
+          this.root.resolve("complete-local")
+        );
       } catch (final IOException exception) {
         throw new UncheckedIOException(exception);
       }
