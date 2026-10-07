@@ -22,8 +22,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -80,6 +82,7 @@ public final class DependencyLoader {
   private static final String PATHS_FIRST_VALUE = "false";
 
   private final Set<Capability> capabilities;
+  private final Map<Capability, Object> preparations = new EnumMap<>(Capability.class);
   private final Logger logger;
 
   /**
@@ -288,23 +291,46 @@ public final class DependencyLoader {
    */
   @VisibleForTesting
   void installVLC(final VLCStarter starter) {
+    final Object preparation = this.beginPreparation(Capability.VLC);
     this.logger.info(PREPARING_VLC);
     final long start = System.currentTimeMillis();
     try {
       starter.start();
       // a preparation that succeeds after one that failed, after a release, makes VLC available again
-      this.capabilities.add(Capability.VLC);
+      this.recordPreparation(Capability.VLC, preparation, true);
       final long end = System.currentTimeMillis();
       final long elapsed = end - start;
       this.logger.info(VLC_READY, elapsed);
     } catch (final IOException | RuntimeException | LinkageError exception) {
       // every mcav failure is a RuntimeException, and LinkageError covers VLC natives that cannot be linked; other
       // errors, such as an OutOfMemoryError, are not a reason to run without VLC and must reach the caller
-      this.capabilities.remove(Capability.VLC);
+      this.recordPreparation(Capability.VLC, preparation, false);
       final boolean cancelled = this.logCancellation(Capability.VLC);
       if (!cancelled) {
         final String reason = exception.getMessage();
         this.logger.warn(VLC_UNAVAILABLE, reason);
+      }
+    }
+  }
+
+  private Object beginPreparation(final Capability capability) {
+    final Object preparation = new Object();
+    synchronized (this.preparations) {
+      this.preparations.put(capability, preparation);
+    }
+    return preparation;
+  }
+
+  private void recordPreparation(final Capability capability, final Object preparation, final boolean available) {
+    synchronized (this.preparations) {
+      // Cancellation may return before an uncooperative installer; only the latest attempt owns the capability.
+      if (!preparation.equals(this.preparations.get(capability))) {
+        return;
+      }
+      if (available) {
+        this.capabilities.add(capability);
+      } else {
+        this.capabilities.remove(capability);
       }
     }
   }
@@ -350,9 +376,10 @@ public final class DependencyLoader {
    */
   @VisibleForTesting
   void installYTDLP(final Installer installer) {
+    final Object preparation = this.beginPreparation(Capability.YT_DLP);
     final boolean supported = installer.isSupported();
     if (!supported) {
-      this.capabilities.remove(Capability.YT_DLP);
+      this.recordPreparation(Capability.YT_DLP, preparation, false);
       this.logger.warn(YTDLP_UNSUPPORTED);
       return;
     }
@@ -360,13 +387,13 @@ public final class DependencyLoader {
     final long start = System.currentTimeMillis();
     try {
       installer.download(true);
-      this.capabilities.add(Capability.YT_DLP);
+      this.recordPreparation(Capability.YT_DLP, preparation, true);
       final long end = System.currentTimeMillis();
       final long elapsed = end - start;
       this.logger.info(YTDLP_READY, elapsed);
     } catch (final IOException | RuntimeException exception) {
       // an installer reports unchecked failures, such as a cache folder that cannot be created, as RuntimeExceptions
-      this.capabilities.remove(Capability.YT_DLP);
+      this.recordPreparation(Capability.YT_DLP, preparation, false);
       final boolean cancelled = this.logCancellation(Capability.YT_DLP);
       if (!cancelled) {
         final String reason = exception.getMessage();

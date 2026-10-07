@@ -30,11 +30,14 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.capability.Capability;
 import me.brandonli.mcav.capability.CapabilityGuard;
 import me.brandonli.mcav.loader.DependencyLoader;
+import me.brandonli.mcav.loader.LoaderPreparationProbe;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import org.mockito.stubbing.Stubber;
@@ -261,6 +264,52 @@ final class BackgroundInstallationTest {
     verifiedLogger.warn(NOT_STOPPED, VLC_THREAD, 50L);
     finishVlc.countDown();
     joinAll(installation);
+  }
+
+  @Test
+  void cancelledPreparationCannotOverrideANewerSuccessfulPreparation() throws Exception {
+    final CountDownLatch oldStarted = new CountDownLatch(1);
+    final CountDownLatch oldFinish = new CountDownLatch(1);
+    final CountDownLatch newRecorded = new CountDownLatch(1);
+    final CountDownLatch newFinish = new CountDownLatch(1);
+    final AtomicInteger attempts = new AtomicInteger();
+    final Logger progress = Mockito.mock(Logger.class);
+    Mockito.doAnswer(_ -> {
+      newRecorded.countDown();
+      Uninterruptibles.awaitUninterruptibly(newFinish);
+      return null;
+    })
+      .when(progress)
+      .info(ArgumentMatchers.eq("VLC ready in {} ms"), ArgumentMatchers.anyLong());
+    final DependencyLoader loader = LoaderPreparationProbe.vlc(progress, () -> {
+      if (attempts.incrementAndGet() == 1) {
+        oldStarted.countDown();
+        Uninterruptibles.awaitUninterruptibly(oldFinish);
+        throw new IllegalStateException("cancelled preparation ended late");
+      }
+    });
+    final BackgroundInstallation oldInstallation = new BackgroundInstallation(loader, this.guard, this.logger, SHORT_CANCEL_TIMEOUT);
+    final BackgroundInstallation newInstallation = new BackgroundInstallation(loader, this.guard, this.logger, SHORT_CANCEL_TIMEOUT);
+    try {
+      oldInstallation.start();
+      assertTrue(oldStarted.await(WAIT_SECONDS, TimeUnit.SECONDS));
+      oldInstallation.cancel();
+      assertFalse(await(oldInstallation, Capability.VLC));
+      newInstallation.start();
+      assertTrue(newRecorded.await(WAIT_SECONDS, TimeUnit.SECONDS));
+      oldFinish.countDown();
+      joinAll(oldInstallation);
+      newFinish.countDown();
+      assertTrue(await(newInstallation, Capability.VLC), "the successful reinstall owns its readiness result");
+      assertDoesNotThrow(() -> this.guard.checkUsable(Capability.VLC));
+    } finally {
+      oldFinish.countDown();
+      newFinish.countDown();
+      oldInstallation.cancel();
+      newInstallation.cancel();
+      joinAll(oldInstallation);
+      joinAll(newInstallation);
+    }
   }
 
   @Test

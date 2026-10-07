@@ -35,12 +35,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.base.Throwables;
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -269,6 +272,65 @@ final class DependencyLoaderTest {
     assertFalse(hasVlc);
     assertTrue(hasYtdlp);
     assertTrue(hasFfmpeg);
+  }
+
+  @Test
+  void olderPreparationsCannotOverwriteTheLatestOutcome() throws Exception {
+    for (final Capability capability : List.of(Capability.VLC, Capability.YT_DLP)) {
+      for (final boolean latestSucceeds : List.of(false, true)) {
+        final DependencyLoader loader = new DependencyLoader();
+        final CountDownLatch entered = new CountDownLatch(1);
+        final CountDownLatch finish = new CountDownLatch(1);
+        final Thread older = new Thread(
+          () ->
+            prepareProgram(loader, capability, () -> {
+              entered.countDown();
+              Uninterruptibles.awaitUninterruptibly(finish);
+              if (latestSucceeds) {
+                throw new IllegalStateException("old failure");
+              }
+            }),
+          "old-preparation"
+        );
+        older.start();
+        try {
+          assertTrue(entered.await(10, TimeUnit.SECONDS));
+          older.interrupt();
+          prepareProgram(loader, capability, () -> {
+            if (!latestSucceeds) {
+              throw new IllegalStateException("new failure");
+            }
+          });
+          finish.countDown();
+          assertTrue(older.join(Duration.ofSeconds(10)));
+          assertEquals(latestSucceeds, loader.hasCapability(capability), capability + " keeps the newest preparation outcome");
+        } finally {
+          finish.countDown();
+          assertTrue(older.join(Duration.ofSeconds(10)));
+        }
+      }
+    }
+  }
+
+  private static void prepareProgram(final DependencyLoader loader, final Capability capability, final Runnable prepare) {
+    if (capability == Capability.VLC) {
+      loader.installVLC(() -> {
+        prepare.run();
+        return Optional.empty();
+      });
+    } else {
+      final Installer installer = mock(Installer.class);
+      when(installer.isSupported()).thenReturn(true);
+      try {
+        when(installer.download(true)).thenAnswer(_ -> {
+          prepare.run();
+          return Path.of("prepared");
+        });
+      } catch (final IOException exception) {
+        throw new AssertionError(exception);
+      }
+      loader.installYTDLP(installer);
+    }
   }
 
   @Test
