@@ -477,10 +477,18 @@ final class PaperServerEndToEndTest {
     final List<String> errors = new ArrayList<>();
     for (final String line : output) {
       final boolean playbackFailure =
-        line.contains("Failed to decode media") || line.contains("Video filter failed") || line.contains("Audio filter failed") ||
-        line.contains("Failed to render a frame") || line.contains("Failed to start playback") || line.contains("Failed to start VLC playback");
-      final boolean error = line.contains(" ERROR]") || line.contains("/ERROR]") || line.contains("Error occurred while enabling") ||
-        line.contains("Exception in thread ") || ((line.contains(" WARN]") || line.contains("/WARN]")) && playbackFailure);
+        line.contains("Failed to decode media") ||
+        line.contains("Video filter failed") ||
+        line.contains("Audio filter failed") ||
+        line.contains("Failed to render a frame") ||
+        line.contains("Failed to start playback") ||
+        line.contains("Failed to start VLC playback");
+      final boolean error =
+        line.contains(" ERROR]") ||
+        line.contains("/ERROR]") ||
+        line.contains("Error occurred while enabling") ||
+        line.contains("Exception in thread ") ||
+        ((line.contains(" WARN]") || line.contains("/WARN]")) && playbackFailure);
       if (error) {
         errors.add(line);
       }
