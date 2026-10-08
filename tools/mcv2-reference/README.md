@@ -1,7 +1,7 @@
 # MCV2 version 3 reference
 
 This is the normative Python reference for MCV2 v3, together with the specification in
-[docs/mcv2.md](../../docs/mcv2.md). It was written from the specification, independently of
+[mcav-docs/mcv2.md](../../mcav-docs/mcv2.md). It was written from the specification, independently of
 mcav's Java code. It validates and decodes frames, serializes supplied block trees, and
 implements six-bit transport pages. It contains no encoder or search code.
 

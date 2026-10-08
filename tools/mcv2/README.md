@@ -34,13 +34,13 @@ python -m unittest discover -s mcav-bukkit/src/test/python
 | `capture_check.py <reference.rgb> <w> <h> <captures> [--top ROWS] [--vmaf FFMPEG]` | compares screenshots of the pack's debug view with raw RGB from `mcvideo.decoder.decode` for the same v3 stream: distinct pictures seen byte for byte, PSNR, SSIM and VMAF; identical reference pictures stay indistinguishable |
 | `strip_check.py <captures> --slots N --video-width W` | extracts six-bit symbols from the debug strip, removes map row padding and validates each exact page through the v3 reference transport; checks anchors and status squares, reports a JSON summary and exits nonzero on failures |
 
-The scripts that measure the curves of [docs/mcv2.md](../../docs/mcv2.md) and draw its pictures:
+The scripts that measure the curves of [mcav-docs/mcv2.md](../../mcav-docs/mcv2.md) and draw its pictures:
 
 | script | what it does |
 |---|---|
 | `codec_curves.py --ffmpeg FFMPEG --source SRC --name NAME ... --out data/codec_curves.json` | the rate-VMAF points of H.264, VP9 and AV1 on a raw RGB source, every encode decoded back to RGB and scored the way MCV2 is; resumable (`test_codec_curves.py` checks the resuming, `python -m unittest tools/mcv2/test_codec_curves.py`) |
 | `DitherBench.java key=value...` | what MCAV's dithered maps send and show on the same sources: map rate, zlib rate and the pictures a viewer's maps show, for VMAF |
-| `figures/charts.py [--tables]` | draws `docs/images/mcv2/codecs.png` and `features.png` from `data/codec_curves.json` and `data/ablation.json`, and prints the article's tables |
+| `figures/charts.py [--tables]` | draws `mcav-docs/images/mcv2/codecs.png` and `features.png` from `data/codec_curves.json` and `data/ablation.json`, and prints the article's tables |
 | `figures/samples.py tree\|leaves\|quality\|bytes ...` | draws the article's sample pictures from real streams (`tree.png`, `frame.png`: every leaf outlined and coloured by mode; `leaves.png`: a palette and a pattern leaf blown up; `quality.png`: one frame at several rates) with the reference decoder, and prints a frame's bytes field by field; its docstring has the arguments |
 | `figures/render.sh` | renders the article's diagrams from the Graphviz sources next to it |
 
@@ -53,7 +53,7 @@ version 2 of MCV2, before it was simplified.
 ## Conformance fixtures
 
 The independent Python reference in `tools/mcv2-reference` defines MCV2 version 3 together with
-[docs/mcv2.md](../../docs/mcv2.md). Its README lists source/test SHA-256 hashes, the public API and pinned requirements.
+[mcav-docs/mcv2.md](../../mcav-docs/mcv2.md). Its README lists source/test SHA-256 hashes, the public API and pinned requirements.
 The fixture root is `mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2`.
 Archives (`.mcs`) contain repeated little-endian u32 frame lengths followed by the frame bytes, matching
 `Mcv2FileEncoder`.

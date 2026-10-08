@@ -2,7 +2,7 @@
 
 The audio web player of `mcav-http`: a Next.js page that plays the sound a server streams over the WebSocket `/audio`,
 with the title and thumbnail of the current media from `/media`, and a visualizer. `mcav-http` serves it from its jar
-([docs/library/http.md](../../docs/library/http.md)); it is not deployed on its own.
+([mcav-docs/library/http.md](../../mcav-docs/library/http.md)); it is not deployed on its own.
 
 ## Building
 
