@@ -1036,7 +1036,8 @@ those were gone: 1.1 %, so the vector is always two bytes and the record always 
 (-0.1 %: it saved nothing). With them, the header lost every field a decoder can work out for itself and went from 32
 bytes to 20. Two options cost rate but stayed, because the speed test needs them: the `FAST` preset (6.2 % more rate
 than `DEFAULT` on average: 13.6 % more on the proxy, 1.2 % less on gameplay) keeps 1080p gameplay inside its time on a
-busy machine, and rate control by motion (1.1 % more rate) keeps the encoder 40 % faster on gameplay. Together, these
+busy machine, and rate control by motion costs 1.1 % more rate, but without it the encoder needs about 40 % more processor time on
+gameplay. Together, these
 last removals cost 1.7 % on average: 4.9 % more on gameplay, mostly the cap on the quantizer, and 1.5 % less on the
 proxy, where the shorter COMPACT record more than pays for what went.
 
