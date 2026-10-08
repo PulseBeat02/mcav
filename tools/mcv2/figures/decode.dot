@@ -11,11 +11,11 @@ digraph decode {
 
   glow [label="A glowing page frame is drawn,\nso the outline post chain runs", fillcolor="#fff2cc", color="#d6b656"];
   pages [label="Read the strip back into bytes,\ncheck every page's CRC32"];
-  decide [shape=diamond, label="A complete new frame\nwith its reference?", fillcolor="#f8cecc", color="#b85450", margin="0.04,0.04"];
+  decide [shape=diamond, label="A complete new frame:\na keyframe, or a P frame\nof the held picture?", fillcolor="#f8cecc", color="#b85450", margin="0.04,0.04"];
   copy [label="Copy the last picture"];
   resolve [label="Resolve: one fragment\nper 8x8 cell finds its leaf"];
   decode [label="Decode: one fragment\nper pixel"];
-  keep [label="Keep it in persistent targets\n(previous frame, last keyframe)"];
+  keep [label="Keep it in a persistent target\nfor the next frame to predict from"];
   screen [label="Ray-cast the wall onto the screen,\ndepth-tested against the world"];
   outline [label="Remove the page frames' glow"];
   shown [label="Picture on the wall", fillcolor="#fff2cc", color="#d6b656"];

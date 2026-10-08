@@ -1,5 +1,5 @@
-// How one pixel finds the leaf that covers it and the leaf's record in a derived-offsets frame: a bounded walk with no
-// neighbour and no scan of the frame.
+// How one pixel finds the leaf that covers it and the leaf's record: a bounded walk with no neighbour and no scan of the
+// frame.
 digraph leaf {
   rankdir=TB;
   bgcolor="white";
@@ -13,7 +13,7 @@ digraph leaf {
   pixel [label="Pixel (x, y)", fillcolor="#fff2cc", color="#d6b656"];
   root [label="Superblock\nr = (y / 32) x columns + x / 32"];
   present [shape=diamond, label="Bit r of the\npresence masks set?", fillcolor="#f8cecc", color="#b85450", margin="0.04,0.04"];
-  skip [label="SKIP: the reference\nat the global vector\n(the default colour\non a keyframe)", fillcolor="#d5e8d4", color="#82b366"];
+  skip [label="SKIP: the held picture\nat the same place\n(the default colour\non a keyframe)", fillcolor="#d5e8d4", color="#82b366"];
   index [label="Descriptor index =\ndirectory checkpoint\n+ popcounts of\nat most 7 masks"];
   read [label="Read the descriptor (mode, q)"];
   split [shape=diamond, label="A split?", fillcolor="#f8cecc", color="#b85450", margin="0.04,0.04"];
