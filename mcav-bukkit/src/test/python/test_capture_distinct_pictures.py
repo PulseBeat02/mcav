@@ -28,7 +28,7 @@ from unittest.mock import patch
 import numpy
 from PIL import Image
 
-import mcv2_tools as capture_check
+import mcv2_tools
 
 
 class CaptureCheckTest(unittest.TestCase):
@@ -41,10 +41,10 @@ class CaptureCheckTest(unittest.TestCase):
             for index, picture in enumerate(captures):
                 Image.fromarray(picture).save(root / ("capture-%02d.png" % index))
             height, width = references[0].shape[:2]
-            arguments = ["capture_check.py", str(reference), str(width), str(height), str(root), "--top", "0"]
+            arguments = ["mcv2_tools.py", str(reference), str(width), str(height), str(root), "--top", "0"]
             output = StringIO()
             with patch.object(sys, "argv", arguments), redirect_stdout(output), self.assertRaises(SystemExit) as ended:
-                capture_check.capture_check_main()
+                mcv2_tools.capture_check_main()
             return ended.exception.code, json.loads(output.getvalue().splitlines()[-1]), output.getvalue()
 
     def test_identical_reference_frames_do_not_create_unmatchable_missing_pictures(self):

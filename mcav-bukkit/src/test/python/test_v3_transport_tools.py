@@ -16,16 +16,14 @@
 
 """Six-bit strip extraction."""
 
-import sys
 import unittest
-from pathlib import Path
 
 import numpy
 
-ROOT = Path(__file__).resolve().parents[4]
-import mcv2_tools as strip_check
 from mcv2_reference import make_pages
 from mcv2_reference import pack_frame
+
+import mcv2_tools
 
 
 class StripTest(unittest.TestCase):
@@ -37,21 +35,21 @@ class StripTest(unittest.TestCase):
         groups = padded.reshape(-1, 4)
         words = groups[:, 0] | groups[:, 1] << 6 | groups[:, 2] << 12 | groups[:, 3] << 18
         image = numpy.stack((words & 255, words >> 8 & 255, words >> 16), axis=1).astype(numpy.uint8).reshape(32, 128, 3)
-        actual = strip_check.strip_check_page_symbols(image, 0, 32)
+        actual = mcv2_tools.strip_check_page_symbols(image, 0, 32)
         self.assertEqual(padded.astype(numpy.uint8).tobytes(), actual.tobytes())
-        page = strip_check.strip_check_read_strip_page(actual)
+        page = mcv2_tools.strip_check_read_strip_page(actual)
         self.assertEqual(frame, page.payload)
         self.assertEqual((5, 7, 6), (page.stream_id, page.frame_id, page.symbol_bits))
 
     def test_invalid_and_truncated_strip_pages_are_rejected(self):
         for symbols in (numpy.zeros(0, numpy.uint8), numpy.zeros(42, numpy.uint8), numpy.zeros(16384, numpy.uint8)):
             with self.assertRaises(ValueError):
-                strip_check.strip_check_read_strip_page(symbols)
+                mcv2_tools.strip_check_read_strip_page(symbols)
         frame = pack_frame(1, 1, 0, 0, {})
         damaged = numpy.frombuffer(make_pages(frame)[0], numpy.uint8).copy()
         damaged[50] ^= 1
         with self.assertRaisesRegex(ValueError, 'CRC'):
-            strip_check.strip_check_read_strip_page(damaged)
+            mcv2_tools.strip_check_read_strip_page(damaged)
 
 
 if __name__ == '__main__':
