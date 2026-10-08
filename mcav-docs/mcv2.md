@@ -898,7 +898,7 @@ Shading Language**, is the language GPU programs are written in; it looks like C
 
 ### How Big It Is
 
-I counted every line, including blank lines and comments. Here is what I ended up with.
+I counted every line, including blank lines and comments.
 
 | Part | Version 2 (lines) | Version 3 (lines) |
 |---|---:|---:|
@@ -911,6 +911,9 @@ I counted every line, including blank lines and comments. Here is what I ended u
 | Tests (Java) | 19,178 | 17,308 |
 | Reference decoder (Python) | 4,010 | 507 |
 | Tools (Java and Python) | 3,445 | 3,370 |
+| All of MCV2 | 52,613 | 35,321 |
+
+I got it down from 52,613 to 35,321 lines, mostly by shrinking the encoder and the reference decoder.
 
 ### Inside MCV2.java
 
