@@ -1,61 +1,86 @@
-# MCV2 reference
+# MCV2 version 3 reference
 
-The Python reference encoder and decoder of MCV2, the parts of it mcav needs, kept so that mcav's MCV2 fixtures and
-checks do not depend on the research repository they came from. Every file is byte for byte the file of the gpu-codec
-repository at commit `85445433aeb9f8a35a5ce528d47d8829976d1401` (2026-09-25, "Final report: converged by owner
-decision 6 after round 19"), the commit mcav's MCV2 port is pinned to; none is changed.
+This is the normative Python reference for MCV2 v3, together with the specification in
+[docs/mcv2.md](../../docs/mcv2.md). It was written from the specification, independently of
+mcav's Java code. It validates and decodes frames, serializes supplied block trees, and
+implements six-bit transport pages. It contains no encoder or search code.
 
-It is the normative definition of the format ([docs/mcv2.md](../../docs/mcv2.md#the-bitstream) writes it down), the
-oracle mcav's Java decoder and encoder are proven bit-exact against, and what `tools/mcv2/fixtures.py` regenerates the
-test fixtures with ([the conformance fixtures](../mcv2/README.md#conformance-fixtures)). The tools in `tools/mcv2` put this
-folder on Python's path themselves.
+Use Python 3.12 or newer and `pip install -r tools/mcv2-reference/requirements.txt`.
+The reference needs only numpy (pinned to 2.5.3); the adjacent shader and screenshot tools
+also use moderngl 5.12.0 and Pillow 12.3.0. From the repository root:
 
-## What is here, and why only this
+```sh
+python -m unittest discover -s tools/mcv2-reference/tests
+python tools/mcv2/fixtures.py mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2 all
+```
 
-`mcvideo/` is the import closure of what the tools use - `format`, `v2` (the tree syntax and `TreeEncoder`),
-`compact`, `pattern`, `decoder`, `encoder` (`Settings`), `transport` (pages) - computed with Python's `modulefinder`
-from the tools' imports: those modules and the ones they import, `pixels`, `rdo`, `codebooks` and `repack`, and the
-package's `__init__`. Regenerating every committed fixture with it reproduces them byte for byte, which shows nothing
-else is needed. The research repository's other modules (its benchmark sources, metrics, the GPU harness, palette
-experiments, the command line), its scripts, tests and 93 GB of data are research tooling and are left out.
+Add `tools/mcv2-reference` to `PYTHONPATH` to import the package:
 
-`research_artifacts/residual_books.bin` is the immutable residual codebook (2,048 bytes: a 64x16 signed-byte VQ book,
-then two 64x8 product books), which `codebooks.py` reads from this folder and checks against
-`residual_books.sha256`; `residual_books.json` records how it was trained (seed 19781, procedural sources, 18,000
-samples, 16 iterations). mcav's decoder reads the same bytes from
-`mcav-bukkit/src/main/resources/me/brandonli/mcav/bukkit/media/mcv2/residual_books.bin`; `fixtures.py` refuses to run if
-the two copies differ.
+```python
+from mcvideo.format import SOLID
+from mcvideo.v3 import Node, pack_frame, parse_frame
+from mcvideo.decoder import decode, Decoder
+from mcvideo.transport import make_pages, Assembler
+
+wire = pack_frame(1, 1, 9, 9, True, (0, 0, 0), {0: Node(SOLID, record=bytes([10, 20, 30]))})
+assert decode(wire).tolist() == [[[10, 20, 30]]]
+```
+
+## Public API
+
+- `format.py` defines header offsets, mode and compact class numbers, bounds and transport constants.
+- `v3.py`: `Node(mode, q=0, record=b"", children=())`, `parse_frame(data: bytes) -> Frame`,
+  `pack_frame(width, height, frame_id, reference_id, keyframe, default_color, roots,
+  endpoint_table=None, selector_tables=None) -> bytes`, and `expand_endpoints(pair: bytes) -> bytes`.
+  `roots` maps superblock index to `Node`; missing entries mean SKIP. SPLIT nodes have four
+  children in top-left, top-right, bottom-left, bottom-right order. Records are whole bytes;
+  PATTERN records always contain six RGB bytes followed by the whole selector word.
+  Endpoint tables are sequences of four-byte RGB565 pairs. Selector tables map 8, 16 or 32 to
+  sequences of whole selector words. Each PATTERN value must match a supplied table entry
+  exactly (endpoints after RGB565 expansion). The writer replaces those values with indexes.
+  Table order and unused entries are preserved; there is no automatic table selection or quantization.
+- `Frame` exposes header fields, `leaves`, `masks`, `directory`, `level_counts`, `descriptors`,
+  `walk`, `table_counts` (P, c8, c16, c32), raw `endpoint_table`, `selector_tables`, and `roots`.
+  Parsed roots contain whole PATTERN records and can be passed back to `pack_frame` with the
+  parsed tables for a byte-identical round trip. Leaves have `x`, `y`, `size`, `mode`, `q`,
+  `offset`, `record` and `descriptor_index`. Present leaves are in level order, followed by
+  absent superblocks in raster order; absent leaves have `offset = descriptor_index = None`.
+- `decoder.py`: `decode(data: bytes, reference: np.ndarray | None = None,
+  reference_id: int | None = None) -> np.ndarray` returns height × width × 3 uint8 RGB.
+  A P frame requires both the matching id and a uint8 reference of the same dimensions.
+  `Decoder().accept(data) -> np.ndarray` retains one previous picture and applies the u32
+  half-range rule. Invalid, old or missing-reference frames raise `ValueError` and preserve
+  state; a newer keyframe restores playback. A newer P frame can reference the held picture
+  across an id gap. Returned pictures can be edited without changing the held reference.
+- `transport.py`: `PAGE_HEADER` is a `struct.Struct`;
+  `page_capacity(symbol_bits=6) -> int`, `make_pages(frame_data, stream_id=1, symbol_bits=6)
+  -> list[bytes]`, `read_page(symbols, symbol_bits=6) -> Page`,
+  `wire_bytes(pages, full_maps=False, packet_overhead=18) -> int`, and
+  `Assembler(stream_id=1, symbol_bits=6).push(symbols) -> bytes | None`.
+  Only six-bit symbols are accepted. Page symbols are values 0–63 with exact symbol length;
+  add four for map colours and pad map updates to whole 128-colour rows with colour four.
+  `read_page` takes the unpadded symbol sequence. `to_symbols(data, symbol_bits=6)` and
+  `from_symbols(symbols, symbol_bits, byte_count)` expose the LSB-first packing.
+  Assembly validates CRCs, metadata agreement and complete frame syntax, retaining at most
+  four pending frames; it does not advance decoder state.
+
+## Tests and file hashes
+
+The tests include literal wire bytes, hand-computed expected pixels, every validation rule,
+serializer/tree round trips, frame and id bounds, and page corruption/reassembly. The malformed
+vectors in `tests/rejection_cases.py` also supply the public rejected-frame fixture catalog.
+All source and test files and the pinned requirements are listed below; this README is excluded
+from its own manifest.
 
 | file | bytes | SHA-256 |
 |---|---:|---|
-| `mcvideo/__init__.py` | 83 | `6cbea603d400f306d36dfc76b27a1daa8669288b9b99a49aab44c2d0dab7e882` |
-| `mcvideo/codebooks.py` | 1,272 | `4f9742ab8775a6c689217dcf8e2488cb3a01e02d230e707f4523208804a1e4c7` |
-| `mcvideo/compact.py` | 9,290 | `c180a953ed1ac31bddd72f4ce22991c4d0d999e20883047c43013f890fa278d1` |
-| `mcvideo/decoder.py` | 6,187 | `6a2ba1e837b27c2fe6218d5dc173cce9f861522a36ae80c9957158f8f4a818b4` |
-| `mcvideo/encoder.py` | 20,308 | `7549086195aae3c69ca0d2b01b31e155cdfddda1f154a2b10b33472e2098501e` |
-| `mcvideo/format.py` | 15,702 | `8e16a9b2b23a84f5504b3d394603b1eabbadce6f2191f1bdae7c82c59390a2df` |
-| `mcvideo/pattern.py` | 4,710 | `57297ba2518ef764e9b4ed932fbab4c139bb15212dc866a8618546d55a0582af` |
-| `mcvideo/pixels.py` | 6,803 | `48f911950fec54cc1b02371cf488ed64d232f6e43cbfee9d4f7f6915db27b7d2` |
-| `mcvideo/rdo.py` | 9,131 | `123b432dc6be62dbfb37c76daf7b996627e2c34db0a3e5991afdfd22380a5601` |
-| `mcvideo/repack.py` | 4,034 | `3636eeb0fae70970798db1d79a25aa1a1358273307c896a9145614a53ec9ecf6` |
-| `mcvideo/transport.py` | 7,680 | `f5bd69b854235d15071fb7a1229f788253375b4bd35ce9d3adc274e49c4dc0a0` |
-| `mcvideo/v2.py` | 76,919 | `3a7681ace9cc21b42287f233bcfa03597b22c7753543f05e4160efb3676b832d` |
-| `research_artifacts/residual_books.bin` | 2,048 | `1737842f5fbaa3e23777a04b6869a2bbd7d088c40efd1a8d237d756458c3e788` |
-| `research_artifacts/residual_books.sha256` | 65 | `f46fdcf4269185baa4722ed653eb61b8cea4f2dde616bba5874a511109cc02df` |
-| `research_artifacts/residual_books.json` | 532 | `42ad08824ff6a443ca20ef725b08aeff686d219e746920aa50cc0f2891b278ca` |
-
-## Use
-
-Python 3.12 or newer and `pip install -r tools/mcv2-reference/requirements.txt` (pinned: the versions the fixtures
-were last regenerated with). The reference was written to be read, not to be fast: it decodes a 1080p frame in
-seconds and encodes one in minutes (172 s for a frame of the shipped profile).
-
-```
-python tools/mcv2/fixtures.py mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2
-```
-
-## Changing it
-
-Do not. It is the definition mcav is proven against; a change here would change what "bit-exact" means for every
-fixture. A format change starts in mcav's Java port and its spec, and a new reference, if there ever is one, replaces
-this folder as a whole with its own commit named here.
+| `mcvideo/__init__.py` | 822 | `f25bfd3cdfbb172eaf31e0fd90ba062ef0f30f9aef5e04807734565d4c68e03c` |
+| `mcvideo/decoder.py` | 5,804 | `5f2e7f5c0877cc0c7d7a165eaad663caed4888bcfdae2fa0a36294e607df4bf6` |
+| `mcvideo/format.py` | 1,843 | `f28ec26c06e18668bf113cb35ccb3a5543e7ccbed9cecaa2901d690b3844b9c3` |
+| `mcvideo/transport.py` | 6,385 | `36d445e28a90564e17c893ec2991f55db16497c97560711facf3412ba740949b` |
+| `mcvideo/v3.py` | 16,123 | `e80f6e12a433d11c87c21ab957137e0fdefb350edfe56a4a85b03aae81878027` |
+| `requirements.txt` | 883 | `c4f288cc61d58c292c943c07dbe3b4e233aac528db5a9d91866704469ed4ea24` |
+| `tests/rejection_cases.py` | 8,092 | `ee18c42e14b25f395aad4a1f08ed78c7544b4d94b767d2b139e3122b642db8e7` |
+| `tests/test_decoder.py` | 10,701 | `e796e118e21ad4ab9db2ba96e27b19ffe7e295d058bdc0d01f1eee2c578c8a11` |
+| `tests/test_format.py` | 7,980 | `fc7aaf4271d99df742663f7aa7476c36e7e5fb26cbb6f0d6ebc18623de04e808` |
+| `tests/test_transport.py` | 7,246 | `bc31f8e5606baf78cb09708369c963c5ca362fcd3f9df1e69677fd697e23810f` |
