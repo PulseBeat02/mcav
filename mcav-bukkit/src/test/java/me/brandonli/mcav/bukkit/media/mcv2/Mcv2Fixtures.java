@@ -37,7 +37,7 @@ import java.util.TreeMap;
 /**
  * The committed MCV2 conformance fixtures: research archives (a little-endian u32 length before every frame) and the
  * per-frame SHA-256 digests of the reference decoder's RGB output, produced outside the tests by
- * {@code tools/mcv2/conformance_digests.py} and {@code tools/mcv2/edge_streams.py} with the Python reference.
+ * {@code mcv2_tools.py fixtures} and {@code mcv2_tools.py edge_streams} with the Python reference.
  */
 public final class Mcv2Fixtures {
 

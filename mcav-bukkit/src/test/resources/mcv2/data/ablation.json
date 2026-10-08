@@ -1,7 +1,7 @@
 {
- "description": "MCV2 with one feature turned off at a time, against the full encoder, on the two sources of codec_curves.json, and what the features MCV2 no longer has were worth when they were measured. Each curve is six lambdas; every point is one tools/mcv2/rate_quality.py encode with tools/mcv2/Mcv2Bench.java at the DEFAULT preset, scored with libvmaf the way codec_curves.json scores MCV2. bd_rate is the BD-rate on zlib_mbps, the rate after Minecraft's packet compression, of each curve against its baseline (tools/mcv2/bd_rate.py): the extra rate MCV2 needs at the same VMAF without the feature.",
- "method": "A feature was turned off with a switch in a scratch copy of MCV2.java that is not part of MCAV (the split decision of the tree search, the motion search's vector, and the COMPACT, PALETTE and PATTERN candidates of the leaf search), or with Mcv2Bench's key=1. The writer-only variants re-write the encoder's own frames with tools/mcv2-reference and page and deflate them exactly as Mcv2Bench does, so the pictures and their VMAF are the same. With nothing turned off, the scratch encoder writes the same bytes as MCAV's.",
- "command": "python3 tools/mcv2/rate_quality.py --classpath CLASSPATH --main Mcv2Bench --source SRC --frames N --fps 30 --lambdas LAMBDAS --ffmpeg FFMPEG --out OUT -- profile=DEFAULT threads=12 budget=true verify=false [key=1]; proxy30: N=30, LAMBDAS=19.0449229,33.670698488,65.255994022,137.730758207,254.48409453,500; gameplay30: N=60, LAMBDAS=30,65.255994022,137.730758207,260,400,900; FFMPEG is ffmpeg 7.0.2 with libvmaf",
+ "description": "MCV2 with one feature turned off at a time, against the full encoder, on the two sources of codec_curves.json, and what the features MCV2 no longer has were worth when they were measured. Each curve is six lambdas; every point is one mcav-bukkit/src/test/python/mcv2_tools.py rate_quality encode with Mcv2Tools bench at the DEFAULT preset, scored with libvmaf the way codec_curves.json scores MCV2. bd_rate is the BD-rate on zlib_mbps, the rate after Minecraft's packet compression, of each curve against its baseline (mcav-bukkit/src/test/python/mcv2_tools.py bd_rate): the extra rate MCV2 needs at the same VMAF without the feature.",
+ "method": "A feature was turned off with a switch in a scratch copy of MCV2.java that is not part of MCAV (the split decision of the tree search, the motion search's vector, and the COMPACT, PALETTE and PATTERN candidates of the leaf search), or with Mcv2Tools bench's key=1. The writer-only variants re-write the encoder's own frames with mcav-bukkit/src/test/python/mcv2_reference.py and page and deflate them exactly as Mcv2Tools bench does, so the pictures and their VMAF are the same. With nothing turned off, the scratch encoder writes the same bytes as MCAV's.",
+ "command": "python3 mcav-bukkit/src/test/python/mcv2_tools.py rate_quality --classpath CLASSPATH --main me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools --source SRC --frames N --fps 30 --lambdas LAMBDAS --ffmpeg FFMPEG --out OUT -- profile=DEFAULT threads=12 budget=true verify=false [key=1]; proxy30: N=30, LAMBDAS=19.0449229,33.670698488,65.255994022,137.730758207,254.48409453,500; gameplay30: N=60, LAMBDAS=30,65.255994022,137.730758207,260,400,900; FFMPEG is ffmpeg 7.0.2 with libvmaf",
  "sources": {
   "proxy30": {
    "what": "the 1080p30 Minecraft proxy, 30 frames",
@@ -614,7 +614,7 @@
   {
    "id": "temporal",
    "name": "Prediction from the previous frame",
-   "what": "every frame a keyframe (Mcv2Bench key=1)",
+   "what": "every frame a keyframe (Mcv2Tools bench key=1)",
    "bd_rate": {
     "proxy30": 96.39,
     "gameplay30": 57.49,

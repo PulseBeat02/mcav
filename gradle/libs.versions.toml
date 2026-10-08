@@ -151,6 +151,8 @@ xz = { module = "org.tukaani:xz", version.ref = "xz" }
 vernacular = { module = "com.shinyhut:vernacular", version.ref = "vernacular" }
 lwjgl = { module = "org.lwjgl:lwjgl", version.ref = "lwjgl" }
 lwjgl-opengl = { module = "org.lwjgl:lwjgl-opengl", version.ref = "lwjgl" }
+lwjgl-shaderc = { module = "org.lwjgl:lwjgl-shaderc", version.ref = "lwjgl" }
+lwjgl-spvc = { module = "org.lwjgl:lwjgl-spvc", version.ref = "lwjgl" }
 lwjgl-glfw = { module = "org.lwjgl:lwjgl-glfw", version.ref = "lwjgl" }
 voicechat-api = { module = "de.maxhenkel.voicechat:voicechat-api", version.ref = "voicechat-api" }
 

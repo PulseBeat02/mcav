@@ -1,7 +1,23 @@
+# This file is part of mcav, a media playback library for Java
+# Copyright (C) Brandon Li <https://brandonli.me/>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """Checks the exit codes of shader_timing.py without a GPU: its main() runs on a fake GL context, with a fake post chain
 that decodes as each test says, so what the run counts as a failure is tested on any machine.
 
-    python tools/mcv2/shader_timing_test.py
+    python -m unittest discover -s mcav-bukkit/src/test/python -p test_shader_timing.py
 
 Needs numpy, as shader_timing does; moderngl and the reference's make_pages are replaced.
 """
@@ -17,8 +33,7 @@ from io import StringIO
 from pathlib import Path
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import shader_timing  # noqa: E402
+import mcv2_tools as shader_timing  # noqa: E402
 
 
 def frame(keyframe, version=3):
@@ -76,19 +91,19 @@ def run(*options, missed=(), again=(), changed=(), version=3):
     context = types.SimpleNamespace(info={"GL_RENDERER": "fake", "GL_VERSION": "3.3"})
     moderngl = types.ModuleType("moderngl")
     moderngl.create_standalone_context = lambda **_: context
-    transport = types.ModuleType("mcvideo.transport")
+    transport = types.ModuleType("mcv2_reference")
     transport.make_pages = lambda data, stream_id, rows: [data]
     reference = types.ModuleType("mcvideo")
     reference.transport = transport
-    modules = {"moderngl": moderngl, "mcvideo": reference, "mcvideo.transport": transport}
+    modules = {"moderngl": moderngl, "mcvideo": reference, "mcv2_reference": transport}
     chain = type("Chain", (FakeChain,), dict(missed=frozenset(missed), again=frozenset(again), changed=frozenset(changed)))
     argv = ["shader_timing.py", "stream.mcs", *options]
-    with mock.patch.dict(sys.modules, modules), mock.patch.object(sys, "argv", argv), \
-            mock.patch.object(shader_timing, "TimedChain", chain), \
-            mock.patch.object(shader_timing.shader_check, "frames", lambda stream: [frame(True, version), frame(False, version)]), \
+    with mock.patch.dict(sys.modules, modules), mock.patch.object(sys, "argv", argv),\
+            mock.patch.object(shader_timing, "TimedShaderChain", chain),\
+            mock.patch.object(shader_timing, "shader_check_frames", lambda stream: [frame(True, version), frame(False, version)]),\
             redirect_stdout(StringIO()), redirect_stderr(StringIO()):
         try:
-            shader_timing.main()
+            shader_timing.shader_timing_main()
         except SystemExit as exit:
             return exit.code
     return 0
@@ -127,7 +142,7 @@ class TimerAccountingTest(unittest.TestCase):
             def __exit__(self, *unused):
                 pass
 
-        chain = object.__new__(shader_timing.TimedChain)
+        chain = object.__new__(shader_timing.TimedShaderChain)
         chain.context = types.SimpleNamespace(query=lambda **_: Query())
         chain.queries = {}
         chain.warm = lambda: None

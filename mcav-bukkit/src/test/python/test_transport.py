@@ -21,13 +21,13 @@ import unittest
 import zlib
 
 from rejection_cases import changed
-from mcvideo import format as fmt
-from mcvideo.transport import Assembler, PAGE_HEADER, from_symbols, make_pages, page_capacity, read_page, to_symbols, wire_bytes
-from mcvideo.v3 import Node, pack_frame
+import mcv2_reference as reference_format
+from mcv2_reference import Assembler, PAGE_HEADER, from_symbols, make_pages, page_capacity, read_page, to_symbols, wire_bytes
+from mcv2_reference import Node, pack_frame
 
 
 def large_frame(frame_id=0):
-    return pack_frame(3200, 32, frame_id, frame_id, {i: Node(fmt.PALETTE, record=bytes(134)) for i in range(100)})
+    return pack_frame(3200, 32, frame_id, frame_id, {index: Node(reference_format.PALETTE, record=bytes(134)) for index in range(100)})
 
 
 def page_bytes(symbols):
@@ -54,7 +54,7 @@ class TransportTest(unittest.TestCase):
                     function(*args)
 
     def test_page_header_crc_and_wire_model(self):
-        frame = pack_frame(1, 1, 9, 9, {0: Node(fmt.SOLID, record=b'\xab\xcd\xef')})
+        frame = pack_frame(1, 1, 9, 9, {0: Node(reference_format.SOLID, record=b'\xab\xcd\xef')})
         pages = make_pages(frame, 7)
         self.assertEqual(12256, page_capacity())
         self.assertEqual(32, PAGE_HEADER.size)
@@ -97,7 +97,7 @@ class TransportTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 read_page(symbols)
         # 80 bytes are 106 symbols and 4 bits: the last symbol has two padding bits.
-        symbols = bytearray(make_pages(pack_frame(1, 1, 0, 0, {0: Node(fmt.SOLID, record=bytes(3))}))[0])
+        symbols = bytearray(make_pages(pack_frame(1, 1, 0, 0, {0: Node(reference_format.SOLID, record=bytes(3))}))[0])
         symbols[-1] |= 32
         with self.assertRaisesRegex(ValueError, 'padding'):
             read_page(bytes(symbols))

@@ -20,40 +20,39 @@ import sys
 import unittest
 from pathlib import Path
 
-import numpy as np
+import numpy
 
 ROOT = Path(__file__).resolve().parents[4]
-sys.path.insert(0, str(ROOT / 'tools/mcv2'))
-import strip_check
+import mcv2_tools as strip_check
 import tables
-from mcvideo.transport import make_pages
-from mcvideo.v3 import pack_frame
+from mcv2_reference import make_pages
+from mcv2_reference import pack_frame
 
 
 class StripTest(unittest.TestCase):
     def test_rgb_strip_returns_the_exact_six_bit_symbols(self):
         frame = pack_frame(1, 1, 7, 7, {})
         symbols = make_pages(frame, 5)[0]
-        padded = np.zeros(16384, np.uint32)
-        padded[:len(symbols)] = np.frombuffer(symbols, np.uint8)
+        padded = numpy.zeros(16384, numpy.uint32)
+        padded[:len(symbols)] = numpy.frombuffer(symbols, numpy.uint8)
         groups = padded.reshape(-1, 4)
         words = groups[:, 0] | groups[:, 1] << 6 | groups[:, 2] << 12 | groups[:, 3] << 18
-        image = np.stack((words & 255, words >> 8 & 255, words >> 16), axis=1).astype(np.uint8).reshape(32, 128, 3)
-        actual = strip_check.page_symbols(image, 0, 32)
-        self.assertEqual(padded.astype(np.uint8).tobytes(), actual.tobytes())
-        page = strip_check.read_strip_page(actual)
+        image = numpy.stack((words & 255, words >> 8 & 255, words >> 16), axis=1).astype(numpy.uint8).reshape(32, 128, 3)
+        actual = strip_check.strip_check_page_symbols(image, 0, 32)
+        self.assertEqual(padded.astype(numpy.uint8).tobytes(), actual.tobytes())
+        page = strip_check.strip_check_read_strip_page(actual)
         self.assertEqual(frame, page.payload)
         self.assertEqual((5, 7, 6), (page.stream_id, page.frame_id, page.symbol_bits))
 
     def test_invalid_and_truncated_strip_pages_are_rejected(self):
-        for symbols in (np.zeros(0, np.uint8), np.zeros(42, np.uint8), np.zeros(16384, np.uint8)):
+        for symbols in (numpy.zeros(0, numpy.uint8), numpy.zeros(42, numpy.uint8), numpy.zeros(16384, numpy.uint8)):
             with self.assertRaises(ValueError):
-                strip_check.read_strip_page(symbols)
+                strip_check.strip_check_read_strip_page(symbols)
         frame = pack_frame(1, 1, 0, 0, {})
-        damaged = np.frombuffer(make_pages(frame)[0], np.uint8).copy()
+        damaged = numpy.frombuffer(make_pages(frame)[0], numpy.uint8).copy()
         damaged[50] ^= 1
         with self.assertRaisesRegex(ValueError, 'CRC'):
-            strip_check.read_strip_page(damaged)
+            strip_check.strip_check_read_strip_page(damaged)
 
 
 class FittingTablesTest(unittest.TestCase):
@@ -63,8 +62,8 @@ class FittingTablesTest(unittest.TestCase):
 
     def test_grid_fit_recovers_hand_computed_nodes(self):
         # A linear node ramp, with the endpoint-clamped eight-pixel interpolation of §8.
-        samples = np.array([-3, -2.75, -2.25, -1.75, -1.25, -0.75, -0.25, 0], np.float32)
-        np.testing.assert_allclose([-3, -2, -1, 0], tables.fitting_matrix(8, 4) @ samples, rtol=0, atol=3e-7)
+        samples = numpy.array([-3, -2.75, -2.25, -1.75, -1.25, -0.75, -0.25, 0], numpy.float32)
+        numpy.testing.assert_allclose([-3, -2, -1, 0], tables.fitting_matrix(8, 4) @ samples, rtol=0, atol=3e-7)
 
 
 if __name__ == '__main__':

@@ -1,3 +1,19 @@
+# This file is part of mcav, a media playback library for Java
+# Copyright (C) Brandon Li <https://brandonli.me/>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """Exact event matching for the MCV2 latency report, without JFR or a client."""
 
 import json
@@ -9,8 +25,7 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "tools/mcv2"))
-import latency
+import mcv2_tools as latency
 
 
 def event(frame, arrived, sent, sent_to=1):
@@ -24,9 +39,9 @@ class LatencyTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory, "report.json")
             arguments = ["latency.py", "unused.jfr", "unused.nut", "--json", str(output)]
-            with patch.object(sys, "argv", arguments), patch.object(latency, "events", return_value=[event(0, 0, 100), later]), \
-                    patch.object(latency, "captures", return_value=[(200, 7), (210, 7)]), redirect_stdout(StringIO()):
-                latency.main()
+            with patch.object(sys, "argv", arguments), patch.object(latency, "latency_events", return_value=[event(0, 0, 100), later]),\
+                    patch.object(latency, "latency_captures", return_value=[(200, 7), (210, 7)]), redirect_stdout(StringIO()):
+                latency.latency_main()
             return json.loads(output.read_text())
 
     def test_repeated_number_uses_a_frame_sent_before_capture(self):
