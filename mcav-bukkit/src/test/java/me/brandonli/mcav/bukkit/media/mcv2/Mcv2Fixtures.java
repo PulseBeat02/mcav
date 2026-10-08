@@ -42,7 +42,7 @@ import java.util.TreeMap;
 public final class Mcv2Fixtures {
 
   /** The resource folder of the fixtures. */
-  public static final String ROOT = "/me/brandonli/mcav/bukkit/media/mcv2/";
+  public static final String ROOT = "/mcv2/";
 
   private Mcv2Fixtures() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");

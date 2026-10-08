@@ -71,7 +71,7 @@ class FixtureCoverageTest(unittest.TestCase):
                     self.assertIn((size, orientation, bytes([axis]) * (size // 8)), patterns)
 
     def test_committed_edge_streams_equal_the_deterministic_serializer_output(self):
-        root = ROOT / 'mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2/edge'
+        root = ROOT / 'mcav-bukkit/src/test/resources/mcv2/edge'
         self.assertEqual(set(self.streams), {path.name for path in root.glob('*.mcs')})
         for name, frames in self.streams.items():
             with self.subTest(stream=name):
@@ -139,7 +139,7 @@ class FixtureToolTest(unittest.TestCase):
                 fixtures.encoder(root)
 
     def test_committed_pages_declare_edge_fallback_and_exactly_four_frames(self):
-        root = ROOT / 'mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2'
+        root = ROOT / 'mcav-bukkit/src/test/resources/mcv2'
         table = json.loads((root / 'conformance/pages.json').read_text())
         self.assertEqual(6, table['symbol_bits'])
         self.assertEqual(4, len(table['frames']))

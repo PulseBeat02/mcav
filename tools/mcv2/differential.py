@@ -36,7 +36,7 @@ from mcvideo.decoder import Decoder
 from edge_streams import random_stream
 from fixtures import archive, frames
 
-DEFAULT_CORPUS = Path(__file__).resolve().parents[2] / 'mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2/conformance'
+DEFAULT_CORPUS = Path(__file__).resolve().parents[2] / 'mcav-bukkit/src/test/resources/mcv2/conformance'
 
 
 def mutant(original, randomizer):
