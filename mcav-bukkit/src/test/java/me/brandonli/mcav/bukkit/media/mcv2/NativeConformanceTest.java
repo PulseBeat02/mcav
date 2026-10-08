@@ -87,6 +87,26 @@ final class NativeConformanceTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("levels")
+  void encodesEverySourceFixtureAsJavaDoes(final Level level) {
+    final byte[] source = Mcv2Fixtures.read("encoder/crop-320x180x4.rgb");
+    final int frameBytes = WIDTH * HEIGHT * 3;
+    assertEquals(4 * frameBytes, source.length);
+    for (final Settings settings : List.of(Settings.DEFAULT, Settings.FAST)) {
+      for (int threads = 1; threads <= 4; threads++) {
+        final MCV2 java = NativeTesting.encoder(settings, threads, true, NativeTesting.javaFactory());
+        final MCV2 other = NativeTesting.encoder(settings, threads, true, NativeTesting.factory(level));
+        for (int frameIndex = 0; frameIndex < 4; frameIndex++) {
+          final byte[] rgb = Arrays.copyOfRange(source, frameIndex * frameBytes, (frameIndex + 1) * frameBytes);
+          final String context = settings + " frame " + frameIndex + " threads " + threads + " level " + level;
+          assertArrayEquals(java.encode(rgb, WIDTH, HEIGHT, frameIndex), other.encode(rgb, WIDTH, HEIGHT, frameIndex), context);
+          assertArrayEquals(java.getReference(), other.getReference(), context);
+        }
+      }
+    }
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @MethodSource("levels")
   void pinsTheOutputOfTheLiveProfiles(final Level level) {
     final byte[] source = Mcv2Fixtures.read("encoder/crop-320x180x4.rgb");
     final int frameBytes = WIDTH * HEIGHT * 3;
