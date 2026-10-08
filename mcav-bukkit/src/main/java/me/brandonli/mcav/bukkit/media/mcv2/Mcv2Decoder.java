@@ -49,9 +49,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>Pictures are row-major RGB, three bytes per pixel. The decoder has no state and is thread-safe.
  *
  * <p>The caller owns decoded arrays, reference arrays and workers. References are read synchronously and
- * never modified by the decoder; keep them stable until decoding returns. When supplying a reusable output array,
- * it must not alias the reference of a P frame or any buffer another decode is reading. Output contents may be
- * partially overwritten if decoding fails. Custom worker pools are not shut down by decoding.
+ * never modified by the decoder; keep them stable until decoding returns. A reusable output array may be the reference
+ * of a P frame itself, which the decoder then reads from a copy, but not a buffer another decode is reading. Output
+ * contents may be partially overwritten if decoding fails. Custom worker pools are not shut down by decoding.
  */
 public final class Mcv2Decoder {
 
