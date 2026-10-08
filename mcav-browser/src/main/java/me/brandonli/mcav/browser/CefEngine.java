@@ -62,6 +62,7 @@ final class CefEngine implements HelperEngine {
 
   private static final long STOP_TIMEOUT_MILLIS = 10_000L;
   private static final long SCRIPT_TIMEOUT_MILLIS = 5_000L;
+  // A DevTools client can lose every answer; a replacement client can receive them.
   private static final int PLACING_ATTEMPTS = 2;
   private static final String NOT_CONFIRMED = "not confirmed";
   private static final String CHROMIUM_THREAD = "mcav-browser-chromium";

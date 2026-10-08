@@ -227,6 +227,7 @@ final class NetworkGuard implements Closeable {
    * @param client the client
    */
   private void serve(final Socket client) {
+    // Each expired handshake gets its own thread because a busy common pool must not delay closing it.
     final Executor later = CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS, task ->
       Thread.ofVirtual().name("mcav-browser-guard-deadline").start(task)
     );

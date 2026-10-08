@@ -90,6 +90,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   // to START_TIMEOUT_MILLIS; guarded by itself, so no interrupt reaches the thread once its start is over
   private final Object starter;
   private @Nullable Thread starting;
+  // Guarded by starter; the starting thread clears the interrupt sent by release().
   private boolean startInterrupted;
   private final LogBudget dropReports;
   private volatile @Nullable BrowserSession session;
@@ -157,6 +158,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       this.starting = caller;
     }
     try {
+      // Check after start becomes interruptible, so release either finds this start or is observed here.
       final boolean idle = !this.released.get() && this.state.get() != State.PLAYING;
       return idle && this.startSession(source);
     } catch (final PlayerException failure) {
@@ -194,6 +196,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       this::report
     );
     this.state.set(State.PLAYING);
+    // An earlier helper exit must fail startup even if it preceded session ownership.
     listener.setSession(started);
     final boolean playing = this.state.get() == State.PLAYING;
     if (playing) {

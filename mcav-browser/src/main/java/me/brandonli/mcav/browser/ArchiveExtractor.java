@@ -188,6 +188,7 @@ final class ArchiveExtractor {
     } catch (final InvalidPathException exception) {
       throw new IOException("The archive entry name is not allowed: " + name, exception);
     }
+    // Windows drive-relative names have a root without being absolute.
     if (relative.getRoot() != null) {
       throw new IOException("The archive entry name is absolute: " + name);
     }
@@ -291,6 +292,7 @@ final class ArchiveExtractor {
 
         @Override
         public FileVisitResult visitFile(final Path file, final BasicFileAttributes attributes) {
+          // A link has no permissions of its own; changing them would modify its target.
           if (!attributes.isSymbolicLink()) {
             takeWriteAway(file);
           }

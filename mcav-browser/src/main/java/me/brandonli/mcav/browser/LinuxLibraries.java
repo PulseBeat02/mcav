@@ -114,6 +114,7 @@ final class LinuxLibraries {
 
   private static final String LIBRARIES_MISSING = "The server lacks {}, which the browser gets from {}";
 
+  // Every copy of mcav in this JVM shares this monitor.
   @VisibleForTesting
   static final Object INSTALL_LOCK = "the installation of the Linux libraries of mcav";
 
@@ -293,6 +294,7 @@ final class LinuxLibraries {
     final Path installation = this.folder.resolve(name);
     final Path marker = installation.resolve(INSTALL_MARKER);
     if (Files.isRegularFile(marker)) {
+      // Earlier installations retained their umask permissions.
       ArchiveExtractor.tighten(this.folder);
       return installation;
     }

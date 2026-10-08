@@ -690,6 +690,7 @@ final class HelperSession implements BrowserSession {
       }
       case HelperProtocol.LOAD_ERROR -> {
         final String text = message.getText();
+        // The helper is untrusted, so the server must check the address again.
         final String url = AddressText.describe(message.getUrl());
         final int code = message.getNumber();
         this.logBudget.log(() -> LOGGER.warn(PAGE_LOAD_FAILED, url, text, code), HelperSession::logSkipped);

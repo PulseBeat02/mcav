@@ -248,6 +248,7 @@ final class Landlock {
       final Object result = function.invokeWithArguments(arguments);
       return ((Number) result).longValue();
     } catch (final Throwable failure) {
+      // Check VM errors here because ThrowableUtils is absent from the helper class path.
       if (failure instanceof final VirtualMachineError fatal) {
         throw fatal;
       }

@@ -183,6 +183,7 @@ final class JcefNatives {
     final Path installation = this.folder.resolve(name);
     final Path marker = installation.resolve(INSTALL_MARKER);
     if (Files.isRegularFile(marker)) {
+      // Earlier installations retained their umask permissions.
       ArchiveExtractor.tighten(this.folder);
       return installation;
     }
