@@ -289,7 +289,9 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
   private static void closeQuietly(final FileChannel channel) {
     try {
       channel.close();
-    } catch (final IOException exception) {}
+    } catch (final IOException exception) {
+      // The channel is read-only, so a failed close cannot lose written data.
+    }
   }
 
   private void respondWithStatus(final ChannelHandlerContext context, final String status) {
