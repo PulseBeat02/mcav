@@ -1,3 +1,4 @@
+; The test switches a 1000 Hz tone and the screen together. Build: nasm -f bin toggle.asm -o toggle.img
 ; Keep the first character changing: QEMU slows idle VNC refreshes, delaying picture without delaying sound.
 bits 16
 org 0x7c00

@@ -1,3 +1,4 @@
+; PIT divisor 1193 gives 1193182/1193 = 1000.15 Hz, matching the test tone.
 bits 16
 org 0x7c00
 start:
