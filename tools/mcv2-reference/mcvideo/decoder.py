@@ -1,154 +1,113 @@
-"""Transactional CPU reference decoder. This is a testing tool, not a client mod."""
+# This file is part of mcav, a media playback library for Java
+# Copyright (C) Brandon Li <https://brandonli.me/>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Bit-exact v3 reconstruction and the transactional stream receiver (§§2, 8)."""
 
 import numpy as np
 
-from .format import (
-    DEFAULT_SOLID,
-    KEYFRAME,
-    MAX_FRAME_BYTES,
-    MODE_INTRA,
-    MODE_MOTION,
-    MODE_PALETTE,
-    MODE_RESIDUAL,
-    MODE_SOLID,
-    is_residual,
-    parse_frame,
-    reduced_grids,
-)
-from .pixels import expand_grid, prediction, rgb8, to_rgb, unblock
+from . import format as fmt
+from .v3 import Frame, _whole_pattern, parse_frame
 
 
-def decode(
-    data: bytes, reference: np.ndarray | None = None, reference_id: int | None = None
-) -> np.ndarray:
-    """Decode a complete frame, rejecting invalid metadata before any work.
-
-    P frames require an exact ID and dimensions. A caller should retain its last
-    displayed frame on ValueError; this pure function never changes reference state.
-    """
-    frame = parse_frame(data)
-    if data[:4] == b"MCV2":
-        from .v2 import decode_frame
-
-        return decode_frame(frame, reference, reference_id)
-    return decode_legacy(frame, reference, reference_id)
+def _signed(value: int, bits: int = 8) -> int:
+    return value - (1 << bits) if value & (1 << (bits - 1)) else value
 
 
-def decode_legacy(frame, reference=None, reference_id=None):
-    """Reconstruct validated uniform leaves; also used by the mixed-size oracle."""
-    data = frame.data
-    if not frame.flags & KEYFRAME:
-        if (
-            reference_id != frame.reference_id
-            or reference is None
-            or reference.shape != (frame.height, frame.width, 3)
-            or reference.dtype != np.uint8
-        ):
-            raise ValueError("reference frame mismatch")
-    count, block_size = len(frame.descriptors), frame.block_size
-    output = np.zeros((count, block_size, block_size, 3), np.float32)
-    words = np.array(frame.descriptors, np.uint32)
-    modes, quantizers = (words >> 24) & 15, words >> 28
-    offsets = words & MAX_FRAME_BYTES
-    residual_modes = np.array([is_residual(int(mode)) for mode in modes])
-    if frame.flags & DEFAULT_SOLID:
-        output[modes == 0] = frame.default_color
-    motion = np.tile([frame.global_x, frame.global_y], (count, 1)).astype(np.int32)
-    for index in np.flatnonzero((modes == MODE_MOTION) | residual_modes):
-        offset = int(offsets[index])
-        motion[index] += np.frombuffer(data, np.int8, 2, offset).astype(np.int32)
-    if not frame.flags & KEYFRAME:
-        predicted = prediction(reference, block_size, motion)
-        temporal = (modes < MODE_SOLID) | residual_modes
-        output[temporal] = predicted[temporal]
-    for mode in range(MODE_SOLID, 16):
-        indices = np.flatnonzero(modes == mode)
-        if not len(indices):
-            continue
-        if mode == MODE_SOLID:
-            for index in indices:
-                output[index] = np.frombuffer(data, np.uint8, 3, int(offsets[index]))
-        elif mode == MODE_PALETTE:
-            for index in indices:
-                offset = int(offsets[index])
-                colors = np.frombuffer(data, np.uint8, 6, offset).reshape(2, 3)
-                selectors = np.unpackbits(
-                    np.frombuffer(
-                        data, np.uint8, block_size * block_size // 8, offset + 6
-                    ),
-                    bitorder="little",
-                ).reshape(block_size, block_size)
-                output[index] = colors[selectors]
-        elif mode >= 12:
-            residual = is_residual(mode)
-            luma_size, chroma_size = reduced_grids(mode)
-            luma_grids, chroma_grids = [], []
-            for index in indices:
-                offset = int(offsets[index]) + (2 if residual else 0)
-                luma_grids.append(
-                    np.frombuffer(
-                        data, np.int8 if residual else np.uint8, luma_size**2, offset
-                    ).reshape(luma_size, luma_size, 1)
-                )
-                chroma_grids.append(
-                    np.frombuffer(
-                        data, np.int8, 2 * chroma_size**2, offset + luma_size**2
-                    ).reshape(chroma_size, chroma_size, 2)
-                )
-            color = np.concatenate(
-                (
-                    expand_grid(np.array(luma_grids, np.float32), block_size),
-                    expand_grid(np.array(chroma_grids, np.float32), block_size),
-                ),
-                axis=-1,
-            )
-            if residual:
-                output[indices] += to_rgb(
-                    color * (1 << quantizers[indices])[:, None, None, None]
-                )
+def _prediction(reference: np.ndarray, x: int, y: int, size: int, dx: int, dy: int) -> np.ndarray:
+    height, width = reference.shape[:2]
+    xs = np.clip(np.arange(size) + x + dx, 0, width - 1)
+    ys = np.clip(np.arange(size) + y + dy, 0, height - 1)
+    return reference[ys[:, None], xs]
+
+
+def _grid(body: bytes, size: int) -> np.ndarray:
+    packed = np.frombuffer(body[:8], np.uint8)
+    nibbles = np.stack((packed & 15, packed >> 4), axis=1).astype(np.int32).ravel()
+    nodes = np.where(nibbles >= 8, nibbles - 16, nibbles).reshape(4, 4)
+    # Dyadic fractions keep the specification's interpolation and final rounding exact.
+    t = np.clip((np.arange(size) + 0.5) * 4 / size - 0.5, 0, 3)
+    lower = t.astype(np.int32)
+    upper = np.minimum(lower + 1, 3)
+    fraction = t - lower
+    horizontal = nodes[:, lower] * (1 - fraction) + nodes[:, upper] * fraction
+    return horizontal[lower] * (1 - fraction[:, None]) + horizontal[upper] * fraction[:, None]
+
+
+def _decode(frame: Frame, reference: np.ndarray | None, reference_id: int | None) -> np.ndarray:
+    if not frame.keyframe:
+        if reference is None or reference_id != frame.reference_id:
+            raise ValueError("missing or mismatched reference id")
+        if reference.shape != (frame.height, frame.width, 3) or reference.dtype != np.uint8:
+            raise ValueError("reference must be a matching height x width x 3 uint8 picture")
+    picture = np.empty((frame.height, frame.width, 3), np.uint8)
+    for leaf in frame.leaves:
+        x, y, size, mode, record = leaf.x, leaf.y, leaf.size, leaf.mode, leaf.record
+        if mode == fmt.SKIP:
+            block = (np.broadcast_to(np.array(frame.default_color, np.uint8), (size, size, 3))
+                     if frame.keyframe else _prediction(reference, x, y, size, 0, 0))
+        elif mode == fmt.SOLID:
+            block = np.broadcast_to(np.frombuffer(record, np.uint8), (size, size, 3))
+        elif mode in (fmt.PALETTE, fmt.PATTERN):
+            if mode == fmt.PATTERN:
+                record = _whole_pattern(record, size, frame.endpoint_table, frame.selector_tables)
+                axis = np.unpackbits(np.frombuffer(record[7:], np.uint8), bitorder="little")
+                selectors = np.broadcast_to(axis[None, :] if record[6] == 0 else axis[:, None], (size, size))
             else:
-                output[indices] = to_rgb(color)
+                selectors = np.unpackbits(np.frombuffer(record[6:], np.uint8), bitorder="little").reshape(size, size)
+            colors = np.frombuffer(record[:6], np.uint8).reshape(2, 3)
+            block = colors[selectors]
+        elif mode == fmt.MOTION:
+            block = _prediction(reference, x, y, size, _signed(record[0]), _signed(record[1]))
         else:
-            residual = mode >= MODE_RESIDUAL
-            grid_size = 1 << (mode - (MODE_RESIDUAL if residual else MODE_INTRA))
-            grids = np.stack(
-                [
-                    np.frombuffer(
-                        data,
-                        np.int8 if residual else np.uint8,
-                        3 * grid_size * grid_size,
-                        int(offsets[index]) + (2 if residual else 0),
-                    ).reshape(grid_size, grid_size, 3)
-                    for index in indices
-                ]
-            ).astype(np.float32)
-            if residual:
-                grids *= (1 << quantizers[indices])[:, None, None, None]
-                output[indices] += to_rgb(expand_grid(grids, block_size))
-            else:
-                output[indices] = expand_grid(grids, block_size)
-    return rgb8(unblock(output, frame.width, frame.height))
+            kind, form = record[0] & 15, record[0] >> 4
+            dx = dy = 0
+            if form == 1:
+                dx, dy = _signed(record[1] & 15, 4), _signed(record[1] >> 4, 4)
+            elif form == 2:
+                dx, dy = _signed(record[1]), _signed(record[2])
+            body = record[1 + form:]
+            prediction = _prediction(reference, x, y, size, dx, dy).astype(np.float64)
+            luma = _signed(body[0]) if kind == fmt.DC else _grid(body, size)
+            co, cg = (_signed(body[8]), _signed(body[9])) if kind == fmt.GRID else (0, 0)
+            residual = np.stack(np.broadcast_arrays(luma + co - cg, luma + cg, luma - co - cg), axis=-1)
+            block = np.clip(np.floor(prediction + (1 << leaf.q) * residual + 0.5), 0, 255).astype(np.uint8)
+        shown_width, shown_height = min(size, frame.width - x), min(size, frame.height - y)
+        if shown_width > 0 and shown_height > 0:
+            picture[y:y + shown_height, x:x + shown_width] = block[:shown_height, :shown_width]
+    return picture
+
+
+def decode(data: bytes, reference: np.ndarray | None = None, reference_id: int | None = None) -> np.ndarray:
+    """Decode a validated frame, requiring the exact reference picture for a P frame."""
+    return _decode(parse_frame(data), reference, reference_id)
 
 
 class Decoder:
-    """Reference state machine: freeze on loss, resume on a newer keyframe.
-
-    Unsigned frame ordering uses the half-range rule; no jump of 2^31 frames is
-    allowed. Stream changes require a fresh Decoder and matching Assembler.
-    """
+    """Keep the last committed picture on every error; accept only newer u32 ids."""
 
     def __init__(self):
         self.reference: np.ndarray | None = None
         self.frame_id: int | None = None
 
     def accept(self, data: bytes) -> np.ndarray:
-        """Atomically commit a newer decoded frame or raise without mutation."""
         frame = parse_frame(data)
-        if (
-            self.frame_id is not None
-            and not 0 < ((frame.frame_id - self.frame_id) & 0xFFFFFFFF) < 0x80000000
-        ):
-            raise ValueError("stale or ambiguous frame number")
-        result = decode(data, self.reference, self.frame_id)
-        self.reference, self.frame_id = result, frame.frame_id
-        return result
+        if self.frame_id is not None and not 0 < (frame.frame_id - self.frame_id) & fmt.ID_MASK < fmt.ID_HALF_RANGE:
+            raise ValueError("frame id is not newer under the half-range rule")
+        picture = _decode(frame, self.reference, self.frame_id)
+        # A caller may edit the returned picture without changing future predictions.
+        self.reference = picture.copy()
+        self.frame_id = frame.frame_id
+        return picture
