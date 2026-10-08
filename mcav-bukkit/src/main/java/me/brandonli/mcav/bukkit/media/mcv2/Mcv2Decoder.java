@@ -29,51 +29,28 @@ public final class Mcv2Decoder {
   public static final int MAX_FRAME_BYTES = 131071;
   /** Largest width or height in pixels. */
   public static final int MAX_DIMENSION = 4096;
-  /** Little-endian MCV2 magic word. */
   static final int MAGIC = 0x3256434D;
-  /** Accepted format version. */
   static final int VERSION = 3;
-  /** Superblock side in pixels. */
   static final int ROOT_SIZE = 32;
-  /** Smallest leaf side in pixels. */
   static final int SMALLEST_BLOCK = 8;
-  /** Number of tree levels. */
   static final int BLOCK_SIZES = 3;
-  /** RGB channels per pixel. */
   static final int CHANNELS = 3;
-  /** Largest channel value. */
   static final int MAX_CHANNEL = 255;
-  /** Children of a split node. */
   static final int QUARTERS = 4;
-  /** Superblocks per presence mask. */
   static final int GROUP_ROOTS = 32;
-  /** Presence masks per directory entry. */
   static final int CHECKPOINT_GROUPS = 8;
-  /** Descriptors per walk checkpoint. */
   static final int WALK_SPAN = 8;
-  /** Black keyframe leaf or co-located prediction leaf. */
   static final int MODE_SKIP = 0;
-  /** Whole-pixel translated prediction leaf. */
   static final int MODE_MOTION = 1;
-  /** Single-colour leaf. */
   static final int MODE_SOLID = 2;
-  /** Two-colour leaf with one selector per pixel. */
   static final int MODE_PALETTE = 3;
-  /** Two-colour leaf with selectors repeating along one axis. */
   static final int MODE_PATTERN = 4;
-  /** Motion prediction plus a compact residual. */
   static final int MODE_COMPACT = 5;
-  /** Four-child tree node. */
   static final int MODE_SPLIT = 6;
-  /** Descriptor bits holding the mode. */
   static final int MODE_MASK = 31;
-  /** First descriptor bit holding the quantizer. */
   static final int QUANTIZER_SHIFT = 5;
-  /** Largest wire quantizer exponent. */
   static final int MAX_QUANTIZER = 2;
-  /** Fixed whole-pixel vector and luma grid record length. */
   static final int COMPACT_BYTES = 10;
-  /** Header byte offset of width and height. */
   static final int DIMENSIONS_OFFSET = 8;
   /** Header byte offset of the frame id. */
   public static final int FRAME_ID_OFFSET = 12;
@@ -102,7 +79,7 @@ public final class Mcv2Decoder {
    * @param size square side, 8, 16 or 32 pixels
    * @param mode leaf mode, SKIP through COMPACT
    * @param quantizer residual scale exponent, zero for other modes
-   * @param offset record byte offset; an absent root has no record
+   * @param offset record byte offset, or -1 for an absent root
    */
   record Leaf(int left, int top, int size, int mode, int quantizer, int offset) {}
 
@@ -183,20 +160,10 @@ public final class Mcv2Decoder {
       return this.keyframe;
     }
 
-    /**
-     * Returns byte offset immediately after the index.
-     *
-     * @return byte offset immediately after the index
-     */
     int getPayloadStart() {
       return this.payloadStart;
     }
 
-    /**
-     * Returns number of leaves, including absent roots and off-picture leaves.
-     *
-     * @return number of leaves, including absent roots and off-picture leaves
-     */
     int getLeafCount() {
       return this.leaves.length / LEAF_INTS;
     }
@@ -614,10 +581,11 @@ public final class Mcv2Decoder {
           }
           if (mode == MODE_MOTION || mode == MODE_COMPACT || (mode == MODE_SKIP && !this.frame.keyframe)) {
             final int source = (sourceRow + Math.min(Math.max(column + motionX, 0), this.frame.width - 1)) * CHANNELS;
-            int luma = 0;
-            if (mode == MODE_COMPACT) {
-              luma = this.rows[lower * size + localColumn] * (2 * size - weight) + this.rows[upper * size + localColumn] * weight;
+            if (mode != MODE_COMPACT) {
+              System.arraycopy(this.reference, source, this.output, target, CHANNELS);
+              continue;
             }
+            final int luma = this.rows[lower * size + localColumn] * (2 * size - weight) + this.rows[upper * size + localColumn] * weight;
             this.output[target] = (byte) round((this.reference[source] & 0xFF) * scale + (luma << quantizer), shift);
             this.output[target + 1] = (byte) round((this.reference[source + 1] & 0xFF) * scale + (luma << quantizer), shift);
             this.output[target + 2] = (byte) round((this.reference[source + 2] & 0xFF) * scale + (luma << quantizer), shift);

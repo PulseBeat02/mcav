@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -100,6 +101,31 @@ final class MCV2PipelineTest {
       return stream;
     } finally {
       verifier.shutdown();
+    }
+  }
+
+  @Test
+  void aFailedSearchDoesNotAdvanceMotionHistory() throws ReflectiveOperationException {
+    final MCV2 encoder = new MCV2(Settings.DEFAULT, POOL, 1, true);
+    final MCV2 control = new MCV2(Settings.DEFAULT, POOL, 1, true);
+    final Field factory = MCV2.class.getDeclaredField("kernels");
+    factory.setAccessible(true);
+    final Object original = factory.get(encoder);
+    factory.set(
+      encoder,
+      (Supplier<?>) () -> {
+        throw new IllegalStateException("search failed");
+      }
+    );
+    final byte[] failed = new byte[32 * 32 * 3];
+    Arrays.fill(failed, (byte) 255);
+    assertThrows(IllegalStateException.class, () -> encoder.begin(failed, 32, 32, 0));
+    factory.set(encoder, original);
+    for (int frame = 0; frame < 3; frame++) {
+      final byte[] source = new byte[failed.length];
+      assertArrayEquals(control.encode(source, 32, 32, frame), encoder.encode(source, 32, 32, frame));
+      assertEquals(control.getStats().lambda(), encoder.getStats().lambda());
+      assertArrayEquals(control.getReference(), encoder.getReference());
     }
   }
 

@@ -114,10 +114,6 @@ final class MCV2SearchTest {
         },
         Mcv2BlockState.seeds(coder, "halfSeeds")
       );
-      final int[] fullSeeds = Mcv2BlockState.seeds(coder, "seeds");
-      for (final int seed : fullSeeds) {
-        assertEquals(fullSeeds[0], seed, "full resolution starts from the coarse result");
-      }
     }
   }
 

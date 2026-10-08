@@ -64,16 +64,47 @@ public final class Mcv2Trees {
       );
     }
 
+    @Override
+    public boolean equals(final @Nullable Object other) {
+      if (
+        !(other instanceof final Node node) ||
+        this.getMode() != node.getMode() ||
+        this.getQuantizer() != node.getQuantizer() ||
+        !Arrays.equals(this.getRecord(), node.getRecord())
+      ) {
+        return false;
+      }
+      if (this.isSplit()) {
+        for (int child = 0; child < 4; child++) {
+          if (!this.getChild(child).equals(node.getChild(child))) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      int hash = Objects.hash(this.getMode(), this.getQuantizer(), Arrays.hashCode(this.getRecord()));
+      if (this.isSplit()) {
+        for (int child = 0; child < 4; child++) {
+          hash = 31 * hash + this.getChild(child).hashCode();
+        }
+      }
+      return hash;
+    }
+
     public int getMode() {
-      return (int) invoke(TREE, this.value, "getMode", new Class<?>[0]);
+      return (int) Mcv2Internals.field(TREE, this.value, "mode");
     }
 
     public int getQuantizer() {
-      return (int) invoke(TREE, this.value, "getQuantizer", new Class<?>[0]);
+      return (int) Mcv2Internals.field(TREE, this.value, "quantizer");
     }
 
     public byte[] getRecord() {
-      return ((byte[]) invoke(TREE, this.value, "record", new Class<?>[0])).clone();
+      return ((byte[]) Mcv2Internals.field(TREE, this.value, "record")).clone();
     }
 
     public boolean isSplit() {
@@ -188,7 +219,7 @@ public final class Mcv2Trees {
       final int at = leaf.offset();
       final Node node;
       final int length = Mcv2Decoder.recordSize(mode, leaf.size());
-      node = Node.leaf(mode, leaf.quantizer(), Arrays.copyOfRange(data, at, at + length));
+      node = Node.leaf(mode, leaf.quantizer(), length == 0 ? new byte[0] : Arrays.copyOfRange(data, at, at + length));
       leaves.put(position(leaf.left(), leaf.top(), leaf.size()), node);
     }
     final List<Node> roots = new ArrayList<>();

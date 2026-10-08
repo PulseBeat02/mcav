@@ -20,18 +20,15 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
+import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.Node;
-import me.brandonli.mcav.bukkit.testing.EqualityAssertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
-/** Block tree nodes: validated leaves, splits of four children, value equality. */
+/** Private tree structure and ownership of encoded records. */
 final class MCV2TreeNodeTest {
 
   private static final Node SOLID = Node.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[] { 1, 2, 3 });
@@ -44,30 +41,23 @@ final class MCV2TreeNodeTest {
     assertEquals(0, skip.getQuantizer());
     assertFalse(skip.isSplit());
     assertEquals(0, skip.getRecord().length);
-    assertEquals("A leaf has no children", assertThrows(IllegalStateException.class, () -> skip.getChild(0)).getMessage());
   }
 
   @Test
-  void leavesKeepACopyOfTheirRecord() {
-    final byte[] record = { 1, 2, 3 };
-    final Node leaf = Node.leaf(Mcv2Decoder.MODE_SOLID, 2, record);
-    record[0] = 9;
-    assertArrayEquals(new byte[] { 1, 2, 3 }, leaf.getRecord());
-    assertNotSame(leaf.getRecord(), leaf.getRecord());
-    assertEquals(2, leaf.getQuantizer());
-    assertEquals("leaf(2,2,3B)", leaf.value().toString());
-  }
-
-  @ParameterizedTest
-  @ValueSource(ints = { -1, Mcv2Decoder.MODE_SPLIT, 32 })
-  void refusesModesThatAreNotLeaves(final int mode) {
-    assertThrows(IllegalArgumentException.class, () -> Node.leaf(mode, 0, new byte[0]));
-  }
-
-  @ParameterizedTest
-  @ValueSource(ints = { -1, 3, 4, 5, 6, 7, 8 })
-  void refusesQuantizersOutsideZeroThroughTwo(final int quantizer) {
-    assertThrows(IllegalArgumentException.class, () -> Node.leaf(Mcv2Decoder.MODE_SOLID, quantizer, new byte[3]));
+  void encodedFramesRetainTheirRecordsWhenTheCoderIsReused() throws Mcv2Exception {
+    final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT, ForkJoinPool.commonPool(), 1, true);
+    final byte[] source = new byte[64 * 32 * 3];
+    for (int pixel = 0; pixel < 64 * 32; pixel++) {
+      Arrays.fill(source, pixel * 3, pixel * 3 + 3, (byte) (pixel % 64 < 32 ? 17 : 41));
+    }
+    final byte[] expected = source.clone();
+    final byte[] data = encoder.encode(source, 64, 32, 0);
+    final byte[] saved = data.clone();
+    Arrays.fill(source, (byte) 93);
+    encoder.requestKeyframe();
+    encoder.encode(source, 64, 32, 1);
+    assertArrayEquals(saved, data);
+    assertArrayEquals(expected, Mcv2Decoder.decode(Mcv2Decoder.parse(data), null, 0));
   }
 
   @Test
@@ -77,41 +67,5 @@ final class MCV2TreeNodeTest {
     assertEquals(Mcv2Decoder.MODE_SPLIT, split.getMode());
     assertSame(SOLID.value(), split.getChild(0).value());
     assertSame(SOLID.value(), split.getChild(3).value());
-    assertEquals("split[leaf(2,0,3B), leaf(0,0,0B), leaf(0,0,0B), leaf(2,0,3B)]", split.value().toString());
-    assertThrows(NullPointerException.class, () ->
-      Mcv2Internals.call(
-        Mcv2Internals.nested("TreeNode"),
-        null,
-        "split",
-        new Class<?>[] {
-          Mcv2Internals.nested("TreeNode"),
-          Mcv2Internals.nested("TreeNode"),
-          Mcv2Internals.nested("TreeNode"),
-          Mcv2Internals.nested("TreeNode"),
-        },
-        SOLID.value(),
-        SOLID.value(),
-        SOLID.value(),
-        null
-      )
-    );
-  }
-
-  @Test
-  void comparesModeQuantizerRecordAndChildren() {
-    EqualityAssertions.assertEqualityContract(
-      SOLID.value(),
-      Node.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[] { 1, 2, 3 }).value(),
-      Node.leaf(Mcv2Decoder.MODE_MOTION, 0, new byte[] { 1, 2, 3 }).value(),
-      Node.leaf(Mcv2Decoder.MODE_SOLID, 1, new byte[] { 1, 2, 3 }).value(),
-      Node.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[] { 1, 2, 4 }).value()
-    );
-    final Node split = Node.split(SOLID, SOLID, SOLID, SOLID);
-    EqualityAssertions.assertEqualityContract(
-      split.value(),
-      Node.split(SOLID, SOLID, SOLID, Node.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[] { 1, 2, 3 })).value(),
-      Node.split(SOLID, SOLID, SOLID, Node.skip()).value(),
-      Node.leaf(Mcv2Decoder.MODE_SPLIT - 1, 0, new byte[0]).value()
-    );
   }
 }

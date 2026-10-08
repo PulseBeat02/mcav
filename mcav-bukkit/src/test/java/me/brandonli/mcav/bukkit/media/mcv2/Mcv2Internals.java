@@ -107,10 +107,10 @@ final class Mcv2Internals {
   static final class Workers {
 
     private static final Class<?> TYPE = nested("Workers");
-    static final Workers SEQUENTIAL = new Workers(null, 1);
+    static final Workers SEQUENTIAL = new Workers(new ForkJoinPool(1), 1);
     private final Object value;
 
-    Workers(final @Nullable ForkJoinPool pool, final int threads) {
+    Workers(final ForkJoinPool pool, final int threads) {
       this.value = construct(TYPE, new Class<?>[] { ForkJoinPool.class, int.class }, pool, threads);
     }
 

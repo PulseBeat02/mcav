@@ -20,7 +20,6 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -55,19 +54,6 @@ final class MCV2PatternRewriteTest {
     );
   }
 
-  private static Node rewrite(final Node node, final int size) {
-    return new Node(
-      Mcv2Internals.invoke(
-        MCV2.class,
-        null,
-        "withPatterns",
-        new Class<?>[] { Mcv2Internals.nested("TreeNode"), int.class },
-        node.value(),
-        size
-      )
-    );
-  }
-
   @Test
   void findsTheRepeatingAxisRowsFirst() {
     final byte[] record = new byte[8];
@@ -82,15 +68,54 @@ final class MCV2PatternRewriteTest {
   }
 
   @Test
-  void rewritesOnlyRepeatingPalettes() {
-    final Node checker = Node.leaf(Mcv2Decoder.MODE_PALETTE, 0, palette((column, row) -> (column + row) & 1));
-    assertSame(checker.value(), rewrite(checker, 8).value());
-    final Node solid = Mcv2Trees.solid(1, 1, 1);
-    assertSame(solid.value(), rewrite(solid, 8).value());
-    final Node stripes = Node.leaf(Mcv2Decoder.MODE_PALETTE, 0, palette((column, row) -> row & 1));
-    final Node expected = Mcv2Trees.pattern(8, ENDPOINTS, 1, 0xaa);
-    assertEquals(expected, rewrite(stripes, 8));
-    assertEquals(Node.split(expected, solid, checker, expected), rewrite(Node.split(stripes, solid, checker, stripes), 16));
+  void encodesRepeatingSelectorsAsPatternsAtEveryLeafSize() throws Mcv2Exception {
+    for (final int size : new int[] { 8, 16, 32 }) {
+      for (final int orientation : new int[] { 0, 1 }) {
+        final byte[] palette = new byte[Mcv2Decoder.recordSize(Mcv2Decoder.MODE_PALETTE, size)];
+        System.arraycopy(ENDPOINTS, 0, palette, 0, ENDPOINTS.length);
+        final byte[] expected = new byte[Mcv2Decoder.patternSize(size)];
+        System.arraycopy(ENDPOINTS, 0, expected, 0, ENDPOINTS.length);
+        expected[6] = (byte) orientation;
+        for (int axis = 0; axis < size / 8; axis++) {
+          expected[7 + axis] = (byte) (0xA5 ^ (axis * 37));
+        }
+        for (int row = 0; row < size; row++) {
+          for (int column = 0; column < size; column++) {
+            final int axis = orientation == 0 ? column : row;
+            final int bit = (expected[7 + axis / 8] >> (axis % 8)) & 1;
+            final int pixel = row * size + column;
+            palette[6 + pixel / 8] |= (byte) (bit << (pixel % 8));
+          }
+        }
+        final byte[] output = new byte[expected.length];
+        assertTrue(
+          (boolean) Mcv2Internals.invoke(
+            MCV2.class,
+            null,
+            "patternRecord",
+            new Class<?>[] { byte[].class, int.class, byte[].class },
+            palette,
+            size,
+            output
+          )
+        );
+        assertArrayEquals(expected, output);
+        final byte[] source = new byte[size * size * 3];
+        for (int pixel = 0; pixel < size * size; pixel++) {
+          final int color = (palette[6 + pixel / 8] >> (pixel % 8)) & 1;
+          System.arraycopy(ENDPOINTS, color * 3, source, pixel * 3, 3);
+        }
+        for (final double lambda : new double[] { 0, 1e-300, 60, 72 }) {
+          final Mcv2BlockState state = new Mcv2BlockState(source, new byte[0], size, size, true, false, lambda, null);
+          state.code(size, 0, 0, 0, 0, Mcv2BlockState.NO_VECTOR);
+          assertEquals(Mcv2Decoder.MODE_PATTERN, state.mode(0, 0));
+          final byte[] record = state.record(0, 0);
+          final Node leaf = Node.leaf(Mcv2Decoder.MODE_PATTERN, 0, record);
+          final Node root = size == 32 ? leaf : size == 16 ? Mcv2Trees.split(leaf) : Mcv2Trees.split(Mcv2Trees.split(leaf));
+          assertArrayEquals(source, Mcv2Decoder.decode(Mcv2Decoder.parse(Mcv2Trees.keyframe(size, size, root)), null, 0));
+        }
+      }
+    }
   }
 
   @Test
