@@ -1,6 +1,3 @@
-// Start and Stop of the audio player page. The page's own callbacks are read from page.tsx, their types stripped, and
-// run against fake sockets, sound processors, audio contexts and timers: the page has no other seam, and a copy of its
-// logic would test the copy.
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {stripTypeScriptTypes} from 'node:module';
@@ -11,7 +8,6 @@ const PAGE = new URL('../src/app/page.tsx', import.meta.url);
 const CALLBACKS = ['animateVisualizer', 'attemptReconnect', 'stopStream', 'connectWebSocket', 'handleStart', 'handleStop'];
 const CLOSED = 3;
 
-// the index just past the bracket that closes the one at index, skipping strings, templates and comments
 function skipBalanced(source, index) {
     const closing = {'(': ')', '{': '}', '[': ']'};
     const expected = [closing[source[index]]];
@@ -63,7 +59,6 @@ function skipTemplate(source, index) {
     return at + 1;
 }
 
-// the declarations `const name = useCallback(...);` of the page's callbacks, as JavaScript
 function pageCallbacks() {
     const source = readFileSync(PAGE, 'utf8');
     const declarations = CALLBACKS.map(name => {
@@ -108,7 +103,6 @@ function loadPage(permission = 'granted') {
         send() {
         }
 
-        // what the server and the browser report
         opened() {
             this.readyState = FakeSocket.OPEN;
             this.onopen?.();
@@ -213,7 +207,6 @@ function loadPage(permission = 'granted') {
         stopHeartbeat: noop,
     });
     const page = vm.runInContext(pageCallbacks(), context, {filename: PAGE.pathname});
-    // the page keeps its connect function in this ref for the reconnect timer
     context.connectRef.current = page.connectWebSocket;
     return {
         ...page, sockets, processors, contexts, state,
@@ -225,7 +218,6 @@ function loadPage(permission = 'granted') {
             animations.clear();
             due.forEach(callback => callback());
         },
-        // runs the timers due now, then the ones they started, as time passes
         runTimers() {
             for (let round = 0; round < 10 && timers.size > 0; round++) {
                 const due = [...timers.entries()];
@@ -238,7 +230,6 @@ function loadPage(permission = 'granted') {
     };
 }
 
-// lets the promises of the audio context settle
 const settle = () => new Promise(resolve => setImmediate(resolve));
 
 test('a second Start before the first stream connected opens no second stream', () => {
@@ -275,7 +266,6 @@ test('the late close of a stopped stream does not start a second one next to the
     page.runTimers();
     const second = page.sockets[1];
     second.opened();
-    // the browser reports the end of the stopped socket only now
     first.closed();
     page.runTimers();
     assert.equal(page.sockets.length, 2, 'no socket besides the new one');
@@ -290,7 +280,6 @@ test('a Stop during a reconnect lets Start be pressed again', () => {
     page.handleStart();
     page.runTimers();
     page.sockets[0].opened();
-    // the server goes away, and the page tries again
     page.sockets[0].closed();
     page.runTimers();
     assert.equal(page.state.loading, true, 'connecting again');

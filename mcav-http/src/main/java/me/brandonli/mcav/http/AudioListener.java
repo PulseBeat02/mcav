@@ -160,8 +160,6 @@ final class AudioListener {
     if (!this.sending) {
       return false;
     }
-    // takeNext starts the clock under this lock right before it hands the chunk to the write, so a write that never
-    // returns is measured from the moment it began
     final long now = this.nanoClock.getAsLong();
     final long elapsed = now - this.sendStartNanos;
     return elapsed > this.sendTimeLimitNanos;
@@ -230,9 +228,7 @@ final class AudioListener {
   private static void closeQuietly(final WebSocketSession session, final CloseStatus status) {
     try {
       session.close(status);
-    } catch (final IOException | RuntimeException exception) {
-      // the connection is already gone
-    }
+    } catch (final IOException | RuntimeException exception) {}
   }
 
   private void sendPending() {

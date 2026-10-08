@@ -25,12 +25,7 @@ interface PCMProcessorOptions {
     audioCtx?: AudioContext;
 }
 
-// a tenth of a second of sound is buffered before the first chunk plays, and kept ahead of the clock after running dry,
-// so chunks that arrive a little late still play in turn
 const CUSHION_SECONDS = 0.1;
-// sound queued further ahead of the clock than this would play late for good, such as sound that arrived while the
-// context did not play yet or in a burst after a stalled connection: it is dropped, and the page starts again from the
-// clock
 const MAX_LEAD_SECONDS = 0.5;
 
 class PCMProcessor {
@@ -44,7 +39,6 @@ class PCMProcessor {
     private hue: number = 0;
     public gainNode: GainNode;
     private startTime: number;
-    // the clock of the context when sound was last scheduled
     private scheduledAt: number = -1;
     private processingTimestamp: number;
     private maxBufferSize: number = 480000;
@@ -152,8 +146,6 @@ class PCMProcessor {
         if (late) {
             this.stopQueued();
         }
-        // after running dry or dropping what was late, restart slightly in the future so the next chunks can queue up
-        // behind this one
         const underrun = late || this.startTime < now;
         if (underrun) {
             this.startTime = now + CUSHION_SECONDS;
@@ -166,7 +158,6 @@ class PCMProcessor {
                 audioData[i] = this.samples[offset];
                 offset += channels;
             }
-            // chunks play back to back without gaps, so only a restart after silence needs a fade-in against clicks
             if (underrun) {
                 const fade = Math.min(64, length);
                 for (let i = 0; i < fade; i++) {
@@ -185,7 +176,6 @@ class PCMProcessor {
         bufferSource.start(this.startTime);
         this.startTime += audioBuffer.duration;
         this.scheduledAt = now;
-        // keep an incomplete trailing frame so the channels stay aligned
         this.samples = this.samples.slice(length * channels);
     }
 
@@ -355,14 +345,12 @@ export default function AudioStreamPlayer() {
     const titleRef = useRef<HTMLHeadingElement>(null);
     const titleWrapperRef = useRef<HTMLDivElement>(null);
     const placeholderRef = useRef<HTMLDivElement>(null);
-    // the thumbnail that failed to load; a new thumbnail is tried again without resetting any state
     const [failedThumbnail, setFailedThumbnail] = useState<string | undefined>(undefined);
     const mediaInfoRequestRef = useRef<Promise<MediaInfo> | null>(null);
 
     const maxReconnectAttempts = 5;
 
     const requestMediaInfo = useCallback((): Promise<MediaInfo> => {
-        // Initial loading and refreshes share the same pending response from a slow server.
         if (!mediaInfoRequestRef.current) {
             mediaInfoRequestRef.current = loadMediaInfo().finally(() => {
                 mediaInfoRequestRef.current = null;
@@ -373,7 +361,6 @@ export default function AudioStreamPlayer() {
 
     const fetchMediaInfo = useCallback(async () => {
         const info = await requestMediaInfo();
-        // An unchanged answer keeps the current object, avoiding a render on every refresh.
         setMediaInfo(previous => sameMediaInfo(previous, info) ? previous : info);
     }, [requestMediaInfo]);
 
@@ -417,7 +404,6 @@ export default function AudioStreamPlayer() {
             }
 
             const {smoothedData, hue} = processor.getVisualizerData();
-            // the canvas follows the size of its container, so the geometry is read every frame
             const width = canvas.width;
             const height = canvas.height;
             const centerY = height / 2;
@@ -545,7 +531,6 @@ export default function AudioStreamPlayer() {
         stopHeartbeat();
 
         setIsConnected(false);
-        // the closed socket's own close no longer reaches the page, so a stop during a reconnect ends its loading here
         setIsLoading(false);
         updateStatus('Disconnected');
 
@@ -575,7 +560,6 @@ export default function AudioStreamPlayer() {
             pcmProcessorRef.current = null;
         }
 
-        // a connection that has not started yet is replaced, not joined by a second one
         if (connectTimeoutRef.current) {
             clearTimeout(connectTimeoutRef.current);
         }
@@ -687,13 +671,11 @@ export default function AudioStreamPlayer() {
         }, 100);
     }, [startMetadataRefresh, startHeartbeat, stopHeartbeat, animateVisualizer, attemptReconnect, updateStatus, stopStream]);
 
-    // the reconnect timer calls the connect function through this ref, so it always runs the current one
     useEffect(() => {
         connectRef.current = connectWebSocket;
     }, [connectWebSocket]);
 
     const handleStart = useCallback(() => {
-        // one stream at a time: a second Start before the first one connected opened a second stream next to it
         if (shouldReconnectRef.current) {
             return;
         }
@@ -731,7 +713,6 @@ export default function AudioStreamPlayer() {
                 if (audioContextRef.current?.state === 'running') {
                     connectWebSocket();
                 } else {
-                    // no sound allowed yet, so no stream: Start may be pressed again
                     shouldReconnectRef.current = false;
                     setIsLoading(false);
                 }

@@ -82,9 +82,6 @@ public final class HttpResultImpl implements HttpResult {
 
   private volatile MediaInfo currentMedia;
   private volatile @Nullable ConfigurableApplicationContext context;
-  // false only while the server is stopped. stop() clears it before it disconnects the listeners, so a handshake
-  // that finishes during the shutdown sees it and hands its own listener back instead of leaving a sender thread
-  // parked forever on a queue nothing will ever signal again
   private volatile boolean acceptingListeners;
 
   /**
@@ -261,8 +258,6 @@ public final class HttpResultImpl implements HttpResult {
   @Override
   public void stop() {
     synchronized (this.lifecycleLock) {
-      // cleared first and unconditionally: stopping always means no new listeners, and a handshake that finishes
-      // during the shutdown must see this before disconnectListeners() empties the map
       this.acceptingListeners = false;
       final ConfigurableApplicationContext current = this.context;
       this.disconnectListeners();
@@ -384,9 +379,7 @@ public final class HttpResultImpl implements HttpResult {
   private static void closeQuietly(final WebSocketSession session) {
     try {
       session.close(CloseStatus.GOING_AWAY);
-    } catch (final IOException | RuntimeException exception) {
-      // the browser is already gone, which is the outcome this method wants anyway
-    }
+    } catch (final IOException | RuntimeException exception) {}
   }
 
   /**
@@ -448,7 +441,6 @@ public final class HttpResultImpl implements HttpResult {
       return false;
     }
 
-    // the page decodes little-endian 16-bit stereo, which is exactly the format of the pipeline
     final byte[] bytes = copyRemaining(samples);
     final Collection<AudioListener> connected = this.listeners.values();
     for (final AudioListener listener : connected) {
