@@ -113,10 +113,12 @@ final class CefEngine implements HelperEngine {
     final List<String> switches = new ArrayList<>();
     switches.add("--disable-gpu");
     switches.add("--disable-gpu-compositing");
-    // the page's sound reaches the server through PageAudio, never the speakers of the server; as in a desktop
-    // browser, a page may play sound only once a player clicked the screen, which reaches it as a real click, unless
-    // the options let it play right away (CEF's own default)
+    // the page's sound reaches the server through PageAudio, never the speakers of the server, and it plays on
+    // Chromium's own clock instead of a sound device of the server, which may run slow or stall (as a virtual machine's
+    // does) and so starve the capture; as in a desktop browser, a page may play sound only once a player clicked the
+    // screen, which reaches it as a real click, unless the options let it play right away (CEF's own default)
     switches.add("--mute-audio");
+    switches.add("--disable-audio-output");
     final boolean allowsAutoplay = configuration.isAutoplay();
     switches.add("--autoplay-policy=" + (allowsAutoplay ? "no-user-gesture-required" : "document-user-activation-required"));
     switches.add("--hide-scrollbars");
