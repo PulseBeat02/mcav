@@ -302,7 +302,6 @@ public final class MapUtils {
       this.clearFrames(frameBlock);
       final Location frameLocation = frameBlock.getLocation();
       final ItemFrame frame = this.world.spawn(frameLocation, ItemFrame.class);
-      // The supporting block lies ahead of the builder; the frame faces back toward the builder.
       frame.setFacingDirection(this.outward);
 
       final ItemStack item = getMapFromID(map);
