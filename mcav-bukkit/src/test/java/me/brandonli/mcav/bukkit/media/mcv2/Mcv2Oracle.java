@@ -53,7 +53,7 @@ final class Mcv2Oracle {
 
   static void predicted(final int[] prediction, final int size, final int[] out) {
     for (int sample = 0; sample < size * size * 3; sample++) {
-      out[sample] = rgb8(prediction[sample] * 0.25);
+      out[sample] = rgb8(prediction[sample]);
     }
   }
 
@@ -69,9 +69,9 @@ final class Mcv2Oracle {
       for (int column = 0; column < size; column++) {
         final double luma = interpolate(nodes, 0, 1, 4, size, column, row);
         final int at = (row * size + column) * 3;
-        out[at] = rgb8(prediction[at] * 0.25 + step * luma);
-        out[at + 1] = rgb8(prediction[at + 1] * 0.25 + step * luma);
-        out[at + 2] = rgb8(prediction[at + 2] * 0.25 + step * luma);
+        out[at] = rgb8(prediction[at] + step * luma);
+        out[at + 1] = rgb8(prediction[at + 1] + step * luma);
+        out[at + 2] = rgb8(prediction[at + 2] + step * luma);
       }
     }
   }

@@ -53,14 +53,13 @@ final class MCV2KernelPropertyTest {
     return record;
   }
 
-  /** Four times a predicted channel: a whole channel from 0 to 255, biased to the ends. */
   private static int[] prediction(final Random random, final int size) {
     final int[] prediction = new int[size * size * 3];
     for (int index = 0; index < prediction.length; index++) {
       prediction[index] = switch (random.nextInt(3)) {
         case 0 -> 0;
-        case 1 -> 1020;
-        default -> 4 * random.nextInt(256);
+        case 1 -> 255;
+        default -> random.nextInt(256);
       };
     }
     return prediction;
@@ -86,8 +85,8 @@ final class MCV2KernelPropertyTest {
     record[1] = 0;
     final byte[] reference = new byte[prediction.length];
     for (int index = 0; index < reference.length; index++) {
-      reference[index] = (byte) (prediction[index] / 4);
-      prediction[index] = (reference[index] & 255) * 4;
+      reference[index] = (byte) prediction[index];
+      prediction[index] = reference[index] & 255;
     }
     final int[] wholeExpected = new int[prediction.length];
     Mcv2Oracle.compact(prediction, record, quantizer, size, wholeExpected);
@@ -99,7 +98,7 @@ final class MCV2KernelPropertyTest {
   }
 
   @Property(seed = SEED, tries = 200)
-  void predictionsRoundLikeTheOracle(@ForAll @IntRange(min = 0, max = 2) final int sizeIndex, @ForAll final long seed) {
+  void predictionsMatchTheOracle(@ForAll @IntRange(min = 0, max = 2) final int sizeIndex, @ForAll final long seed) {
     final int size = SIZES[sizeIndex];
     final int[] prediction = prediction(new Random(seed), size);
     final int[] expected = new int[size * size * 3];
@@ -175,7 +174,7 @@ final class MCV2KernelPropertyTest {
     final Kernel run = switch (kernel) {
       case 0 -> (kernels, out) -> kernels.predicted(prediction, size, out);
       case 1 -> (kernels, out) -> kernels.solid(color, size, out);
-      case 2 -> (kernels, out) -> kernels.palette(record, 0, size, out);
+      case 2 -> (kernels, out) -> kernels.palette(record, size, out);
       default -> (kernels, out) -> kernels.compact(prediction, record, quantizer, size, out);
     };
     assertMeasured(random, size, run);

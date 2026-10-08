@@ -50,7 +50,7 @@ final class MCV2FitsTest {
   @Test
   void targetsLumaWithoutChromaResiduals() {
     final float[] target = new float[2];
-    Mcv2Internals.javaKernels().residualTarget(new int[] { 40, 60, 80, 9, 2, 3 }, new int[] { 0, 1020, 512, 36, 8, 12 }, 2, target);
+    Mcv2Internals.javaKernels().residualTarget(new int[] { 40, 60, 80, 9, 2, 3 }, new int[] { 0, 255, 128, 9, 2, 3 }, 2, target);
     assertEquals(-99.5f, target[0]);
     assertEquals(0, target[1]);
   }

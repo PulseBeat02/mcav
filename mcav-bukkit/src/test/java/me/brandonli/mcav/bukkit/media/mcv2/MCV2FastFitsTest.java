@@ -37,9 +37,9 @@ final class MCV2FastFitsTest {
       source[pixel * 3 + 1] = bright ? 210 : 20;
       source[pixel * 3 + 2] = bright ? 220 : 30;
     }
-    final float[] endpoints = new float[6];
+    final int[] endpoints = new int[6];
     Mcv2Internals.javaKernels().cluster(source, size, endpoints);
-    assertArrayEquals(new float[] { 10, 20, 30, 200, 210, 220 }, endpoints);
+    assertArrayEquals(new int[] { 10, 20, 30, 200, 210, 220 }, endpoints);
   }
 
   @Test
@@ -47,8 +47,8 @@ final class MCV2FastFitsTest {
     // one colour everywhere: both seeds are that colour, every pixel joins the first, the second keeps its seed
     final int[] source = new int[8 * 8 * 3];
     Arrays.fill(source, 77);
-    final float[] endpoints = new float[6];
+    final int[] endpoints = new int[6];
     Mcv2Internals.javaKernels().cluster(source, 8, endpoints);
-    assertArrayEquals(new float[] { 77, 77, 77, 77, 77, 77 }, endpoints);
+    assertArrayEquals(new int[] { 77, 77, 77, 77, 77, 77 }, endpoints);
   }
 }

@@ -207,7 +207,7 @@ void run(const std::vector<Level> &levels, int trials) {
       const int32_t size = 8 << random.range(0, 2);
       const size_t channels = (size_t)size * size * 3;
       const std::vector<int32_t> source = random.ints(channels, 0, 255);
-      const std::vector<int32_t> prediction = random.ints(channels, 0, 1020);
+      const std::vector<int32_t> prediction = random.ints(channels, 0, 255);
       const double rate = random.range(0, 100000) / 7.0;
       const double limit = random.range(0, 3) == 0 ? INFINITY : rate + random.range(0, size * size * 3000);
       for (const Level &level : levels) {
@@ -225,9 +225,8 @@ void run(const std::vector<Level> &levels, int trials) {
           measured = level.solid(inputs.range(0, 0xFFFFFF), size, out.data(), source.data(), rate, limit);
           break;
         case 2: {
-          const int32_t offset = inputs.range(0, 3);
-          const std::vector<int8_t> record = inputs.bytes(offset + 6 + size * size / 8);
-          measured = level.palette(record.data(), offset, size, out.data(), source.data(), rate, limit);
+          const std::vector<int8_t> record = inputs.bytes(6 + size * size / 8);
+          measured = level.palette(record.data(), size, out.data(), source.data(), rate, limit);
           break;
         }
         case 3: {
@@ -262,8 +261,8 @@ void run(const std::vector<Level> &levels, int trials) {
               value = (int32_t)inputs.next();
             }
           }
-          floats.assign(6, 0);
-          level.cluster(block.data(), size, floats.data());
+          ints.assign(6, 0);
+          level.cluster(block.data(), size, ints.data());
           break;
         }
         case 7:

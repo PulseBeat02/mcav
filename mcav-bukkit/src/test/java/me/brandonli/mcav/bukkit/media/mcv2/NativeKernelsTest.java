@@ -111,9 +111,7 @@ final class NativeKernelsTest {
     kernels.start(small, 0, 1);
     refused(() -> kernels.solid(0, 8, block));
     kernels.start(block, 0, 1);
-    // records too short, or read from before their start
-    refused(() -> kernels.palette(record, -1, 8, block));
-    refused(() -> kernels.palette(record, 64 - 13, 8, block));
+    refused(() -> kernels.palette(new byte[13], 8, block));
     refused(() -> kernels.compact(small, record, 0, 8, block));
     refused(() -> kernels.compact(block, new byte[9], 0, 8, block));
     // pictures, and coordinates whose sums could overflow
@@ -129,13 +127,13 @@ final class NativeKernelsTest {
     refused(() -> kernels.predict(picture, 16, 16, 0, 0, 8, 0, -(1 << 21), block));
     refused(() -> kernels.fit(new float[63], 8, floats));
     refused(() -> kernels.fit(floats, 8, new float[3]));
-    refused(() -> kernels.cluster(block, 8, new float[5]));
-    refused(() -> kernels.finish(block, -1, new float[6], new int[6], new byte[64]));
-    refused(() -> kernels.finish(new int[32 * 32 * 3 + 3], 32 * 32 + 1, new float[6], new int[6], new byte[1025]));
-    refused(() -> kernels.finish(small, 64, new float[6], new int[6], new byte[64]));
-    refused(() -> kernels.finish(block, 64, new float[6], new int[6], new byte[63]));
-    refused(() -> kernels.finishPattern(small, 8, new float[6], new int[6], new byte[64]));
-    refused(() -> kernels.finishPattern(block, 8, new float[6], new int[6], new byte[63]));
+    refused(() -> kernels.cluster(block, 8, new int[5]));
+    refused(() -> kernels.finishPalette(block, -1, new int[6], new int[6], new byte[64]));
+    refused(() -> kernels.finishPalette(new int[32 * 32 * 3 + 3], 32 * 32 + 1, new int[6], new int[6], new byte[1025]));
+    refused(() -> kernels.finishPalette(small, 64, new int[6], new int[6], new byte[64]));
+    refused(() -> kernels.finishPalette(block, 64, new int[6], new int[6], new byte[63]));
+    refused(() -> kernels.finishPattern(small, 8, new int[6], new int[6], new byte[64]));
+    refused(() -> kernels.finishPattern(block, 8, new int[6], new int[6], new byte[63]));
     // the motion search's picture, block and range
     refused(() -> kernels.seeded(picture, 17, 16, block, 0, 0, 8, 4, new int[0]));
     refused(() -> kernels.seeded(picture, 16, 16, small, 0, 0, 8, 4, new int[0]));
@@ -176,16 +174,16 @@ final class NativeKernelsTest {
     kernels.start(big, 0, 1);
     // a size that is no block size
     refused(() -> kernels.solid(0, 12, big));
-    refused(() -> kernels.palette(record, 0, 12, big));
+    refused(() -> kernels.palette(record, 12, big));
     refused(() -> kernels.compact(big, record, 0, 12, big));
     refused(() -> kernels.predict(picture, 16, 16, 0, 0, 12, 0, 0, big));
     refused(() -> kernels.fit(floats, 12, floats));
-    refused(() -> kernels.cluster(big, 12, new float[6]));
-    refused(() -> kernels.finishPattern(big, 12, new float[6], new int[6], new byte[1024]));
+    refused(() -> kernels.cluster(big, 12, new int[6]));
+    refused(() -> kernels.finishPattern(big, 12, new int[6], new int[6], new byte[1024]));
     refused(() -> kernels.seeded(picture, 16, 16, big, 0, 0, 12, 4, new int[0]));
     refused(() -> kernels.loadSource(picture, 16, 16, 0, 0, 12, big));
     // Sources one value short must be rejected before dispatch.
-    refused(() -> kernels.cluster(small, 8, new float[6]));
+    refused(() -> kernels.cluster(small, 8, new int[6]));
     // Outputs one value short must be rejected before dispatch.
     refused(() -> kernels.fit(floats, 8, new float[15]));
     refused(() -> kernels.residualTarget(small, block, 64, floats));
@@ -207,8 +205,8 @@ final class NativeKernelsTest {
     failed(() -> kernels.predict(picture, 16, 16, -(1 << 20), 1 << 20, 8, -(1 << 20), 1 << 20, block));
     failed(() -> kernels.seeded(picture, 16, 16, block, 0, 0, 8, 0, new int[0]));
     failed(() -> kernels.seeded(picture, 16, 16, block, 0, 0, 8, 1 << 20, new int[0]));
-    failed(() -> kernels.finish(big, 0, new float[6], new int[6], new byte[0]));
-    failed(() -> kernels.finish(big, 32 * 32, new float[6], new int[6], new byte[32 * 32]));
+    failed(() -> kernels.finishPalette(big, 0, new int[6], new int[6], new byte[0]));
+    failed(() -> kernels.finishPalette(big, 32 * 32, new int[6], new int[6], new byte[32 * 32]));
     failed(() -> kernels.halve(new int[2 * 2 * 3], 2, new int[3]));
     failed(() -> kernels.halve(big, 32, new int[16 * 16 * 3]));
     failed(() -> kernels.residualTarget(big, big, 0, floats));
@@ -225,13 +223,13 @@ final class NativeKernelsTest {
     kernels.start(block, 0, 1);
     failed(() -> kernels.predicted(block, 8, block));
     failed(() -> kernels.solid(0, 8, block));
-    failed(() -> kernels.palette(record, 0, 8, block));
+    failed(() -> kernels.palette(record, 8, block));
     failed(() -> kernels.compact(block, record, 0, 8, block));
     failed(() -> kernels.predict(picture, 16, 16, 0, 0, 8, 0, 0, block));
     failed(() -> kernels.fit(floats, 8, floats));
-    failed(() -> kernels.cluster(block, 8, new float[6]));
-    failed(() -> kernels.finish(block, 64, new float[6], new int[6], new byte[64]));
-    failed(() -> kernels.finishPattern(block, 8, new float[6], new int[6], new byte[64]));
+    failed(() -> kernels.cluster(block, 8, new int[6]));
+    failed(() -> kernels.finishPalette(block, 64, new int[6], new int[6], new byte[64]));
+    failed(() -> kernels.finishPattern(block, 8, new int[6], new int[6], new byte[64]));
     failed(() -> kernels.seeded(picture, 16, 16, block, 0, 0, 8, 4, new int[0]));
     failed(() -> kernels.loadSource(picture, 16, 16, 0, 0, 8, block));
     failed(() -> kernels.halve(block, 8, new int[4 * 4 * 3]));
@@ -290,8 +288,8 @@ final class NativeKernelsTest {
   void refusesShortPaletteColorArraysBeforeDispatch() {
     final NativeKernels kernels = failing();
     final int[] block = new int[8 * 8 * 3];
-    refused(() -> kernels.finish(block, 64, new float[6], new int[5], new byte[64]));
-    refused(() -> kernels.finishPattern(block, 8, new float[6], new int[5], new byte[64]));
+    refused(() -> kernels.finishPalette(block, 64, new int[6], new int[5], new byte[64]));
+    refused(() -> kernels.finishPattern(block, 8, new int[6], new int[5], new byte[64]));
   }
 
   @Test
@@ -299,7 +297,7 @@ final class NativeKernelsTest {
     final int[] source = new int[8 * 8 * 3];
     final int[] prediction = new int[source.length];
     Arrays.fill(source, 128);
-    Arrays.fill(prediction, 512);
+    Arrays.fill(prediction, 128);
     final byte[] record = new byte[10];
     Arrays.fill(record, (byte) 0xdd);
     record[0] = 127;
@@ -329,11 +327,11 @@ final class NativeKernelsTest {
         expected[pixel] = 127.5f;
       } else if (pixel % 3 == 1) {
         source[at] = 255;
-        Arrays.fill(prediction, at, at + 3, 1020);
+        Arrays.fill(prediction, at, at + 3, 255);
         expected[pixel] = -191.25f;
       } else {
         source[at + 2] = 255;
-        prediction[at + 2] = 1020;
+        prediction[at + 2] = 255;
       }
     }
     expected[17] = 999;
@@ -342,6 +340,41 @@ final class NativeKernelsTest {
       Arrays.fill(actual, 999);
       NativeTesting.kernels(level).residualTarget(source, prediction, 17, actual);
       assertArrayEquals(expected, actual, level.symbol());
+    }
+  }
+
+  @Test
+  void predictsUnscaledBytesAndKeepsIntegerPaletteMeans() {
+    for (final Level level : NativeTesting.levels()) {
+      final NativeKernels kernels = NativeTesting.kernels(level);
+      final byte[] reference = new byte[8 * 8 * 3];
+      final int[] expected = new int[reference.length];
+      for (int index = 0; index < reference.length; index++) {
+        expected[index] = (index * 37) & 255;
+        reference[index] = (byte) expected[index];
+      }
+      final int[] prediction = new int[reference.length];
+      kernels.predict(reference, 8, 8, 0, 0, 8, 0, 0, prediction);
+      assertArrayEquals(expected, prediction, level.symbol());
+      final int[] actual = new int[reference.length];
+      kernels.start(expected, 0, Double.POSITIVE_INFINITY);
+      assertTrue(kernels.predicted(prediction, 8, actual));
+      assertArrayEquals(expected, actual, level.symbol());
+      assertEquals(0, kernels.distortion());
+      kernels.predict(new byte[] { 0, 127, -1 }, 1, 1, 0, 0, 8, -128, 127, prediction);
+      for (int pixel = 0; pixel < 64; pixel++) {
+        assertEquals(0, prediction[pixel * 3]);
+        assertEquals(127, prediction[pixel * 3 + 1]);
+        assertEquals(255, prediction[pixel * 3 + 2]);
+      }
+      final int[] source = new int[8 * 8 * 3];
+      final int[] values = { 0, 1, 250, 255 };
+      for (int pixel = 0; pixel < 64; pixel++) {
+        Arrays.fill(source, pixel * 3, pixel * 3 + 3, values[pixel % values.length]);
+      }
+      final int[] endpoints = new int[6];
+      kernels.cluster(source, 8, endpoints);
+      assertArrayEquals(new int[] { 1, 1, 1, 253, 253, 253 }, endpoints, level.symbol());
     }
   }
 }
