@@ -49,12 +49,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>The pack overrides the core text shaders, which draw maps, so the maps that carry pages and anchors are moved into
  * a strip at the top of the screen: each screen owns a run of page slots there, found by the stream id its pages and
  * anchors carry, and an anchor descriptor row after the slots. It replaces the entity outline post chain with, for
- * every screen, passes that read its part of the strip, check every page's CRC, decode the frame with the gpu-codec
- * fragment decoder into a persistent picture, keep the last keyframe as a second reference, and draw the picture onto
- * the screen's wall. The pass sources are fixed; what depends on the screens is generated: each screen's copy of its
- * passes, with its video size, page slots and place in the strip, the table of the screens' streams, the outline
- * colour of the page frames, the map colours of the transport alphabet (from this server's map palette, which is the
- * client's), and the residual books (from the same bytes the Java decoder uses).
+ * every screen, passes that read its part of the strip, check every page's CRC, decode the v3 frame into one persistent
+ * picture, and draw the picture onto the screen's wall. The pass sources are fixed; what depends on the screens is
+ * generated: each screen's copy of its passes, with its video size, page slots and place in the strip, the table of the
+ * screens' streams, the outline
+ * colour of the page frames, and the map colours of the transport alphabet (from this server's map palette, which is
+ * the client's). All decoding logic is in one shader include; pass files only select its stage.
  *
  * <p>Writing performs synchronous resource reads and archive creation. Run it off the main thread with stable
  * configuration inputs, and keep the resulting file available for the chosen hosting strategy.
@@ -64,7 +64,7 @@ public final class Mcv2Pack {
   /** The resource pack format of Minecraft 26.3. */
   public static final int PACK_FORMAT = 97;
 
-  /** The gpu-codec commit whose decoder the pack carries. */
+  /** The gpu-codec revision from which the decoder originated. */
   public static final String CODEC_COMMIT = "85445433aeb9f8a35a5ce528d47d8829976d1401";
 
   /**
@@ -95,12 +95,7 @@ public final class Mcv2Pack {
   private static final List<String> FILES = List.of(
     "assets/minecraft/shaders/core/text.vsh",
     "assets/minecraft/shaders/core/text.fsh",
-    INCLUDE + "mcv2_codec.glsl",
-    INCLUDE + "mcv2_crc.glsl",
-    INCLUDE + "mcv2_slots.glsl",
-    INCLUDE + "mcv2_strip.glsl",
-    INCLUDE + "mcv2_symbols.glsl",
-    POST + "mcv2_keyframe.fsh",
+    INCLUDE + "mcv2.glsl",
     POST + "mcv2_state.fsh",
     POST + "mcv2_copy.fsh",
     POST + "mcv2_outline.fsh"
@@ -126,7 +121,7 @@ public final class Mcv2Pack {
   private static final int CRC_CHUNKS = 64;
 
   /** The facts of a frame the resolve pass keeps in the row after its cells, one texel each. */
-  private static final int FRAME_FACTS = 6;
+  private static final int FRAME_FACTS = 3;
 
   /** The pages target's texels per page slot. */
   private static final int PAGE_TEXELS = 4;
@@ -136,9 +131,6 @@ public final class Mcv2Pack {
 
   /** The resolve pass works on cells of 8x8 pixels, the smallest leaf. */
   private static final int CELL_PIXELS = Mcv2Format.SMALLEST_BLOCK;
-
-  /** The residual books' words per line of the generated include. */
-  private static final int WORDS_PER_LINE = 8;
 
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
@@ -197,7 +189,6 @@ public final class Mcv2Pack {
     pack.data(POST_CHAIN, postChain(screens).getBytes(StandardCharsets.UTF_8));
     pack.data(INCLUDE + "mcv2_config.glsl", config(screens, showsDebugView).getBytes(StandardCharsets.UTF_8));
     pack.data(INCLUDE + "mcv2_alphabet.glsl", alphabet(palette()).getBytes(StandardCharsets.UTF_8));
-    pack.data(INCLUDE + "mcv2_books.glsl", books(ResidualBooks.bytes()).getBytes(StandardCharsets.UTF_8));
     pack.data("mcav_mcv2.json", manifest(screens).getBytes(StandardCharsets.UTF_8));
     pack.zip(zip);
   }
@@ -440,34 +431,6 @@ public final class Mcv2Pack {
   }
 
   /**
-   * The residual books as the shader reads them: 512 little-endian words.
-   *
-   * @param books the 2,048 bytes of the books
-   * @return the include
-   */
-  static String books(final byte[] books) {
-    final StringBuilder table = new StringBuilder();
-    final int words = books.length / Integer.BYTES;
-    for (int word = 0; word < words; word++) {
-      final long value = Mcv2Format.u32(books, word * Integer.BYTES);
-      table
-        .append(word % WORDS_PER_LINE == 0 ? "    " : " ")
-        .append(String.format(Locale.ROOT, "0x%08Xu", value))
-        .append(word < words - 1 ? "," : "");
-      if (word % WORDS_PER_LINE == WORDS_PER_LINE - 1) {
-        table.append('\n');
-      }
-    }
-    return guarded(
-      "MCAV_MCV2_BOOKS_GLSL",
-      "// Generated by mcav: the MCV2 residual books, four bytes to a word.\n" +
-        "const uint MCV2_BOOKS[512] = uint[512](\n" +
-        table +
-        ");\n"
-    );
-  }
-
-  /**
    * Wraps a generated include in its guard: Minecraft compiles the pack's shaders with shaderc, which inserts an
    * include each time a shader or another include names it.
    */
@@ -482,6 +445,7 @@ public final class Mcv2Pack {
   private static String manifest(final List<Mcv2Configuration> screens) {
     final JsonObject manifest = new JsonObject();
     manifest.addProperty("codec", "MCV2");
+    manifest.addProperty("version", 3);
     manifest.addProperty("gpu_codec_commit", CODEC_COMMIT);
     final JsonArray list = new JsonArray();
     for (final Mcv2Configuration configuration : screens) {
