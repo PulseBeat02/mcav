@@ -56,6 +56,17 @@ configurations.matching { it.name.endsWith("Classpath") }.configureEach {
     }
 }
 
+val nativeResources = configurations.create("mcv2NativeResources") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+dependencies {
+    add(nativeResources.name, project(path = ":mcav-bukkit", configuration = "mcv2NativeResources"))
+}
+tasks.shadowJar {
+    from(nativeResources)
+}
+
 tasks.assemble {
     dependsOn(tasks.shadowJar)
 }

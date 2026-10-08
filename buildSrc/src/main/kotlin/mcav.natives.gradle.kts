@@ -79,6 +79,15 @@ sourceSets.main {
     resources.srcDir(buildMcv2Natives)
 }
 
+val nativeResources = configurations.create("mcv2NativeResources") {
+    isCanBeConsumed = true
+    isCanBeResolved = false
+}
+artifacts.add(nativeResources.name, buildMcv2Natives.flatMap { it.outputDirectory }) {
+    builtBy(buildMcv2Natives)
+    type = "directory"
+}
+
 tasks.register<Exec>("formatMcv2Natives") {
     group = "formatting"
     description = "Formats the MCV2 native sources with clang-format ${libs.versionOf("clang-format")}"
