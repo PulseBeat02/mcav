@@ -142,9 +142,7 @@ public class MapConfiguration {
    */
   public static final class MapResultBuilder extends Builder<MapResultBuilder> {
 
-    MapResultBuilder() {
-      // created through MapConfiguration.builder()
-    }
+    MapResultBuilder() {}
 
     /**
      * Returns this builder with its concrete type.
@@ -303,7 +301,6 @@ public class MapConfiguration {
       return new MapConfiguration(this, configuredViewers, widthResolution, heightResolution);
     }
 
-    // a resolution of 0 stands for the native resolution of the maps
     private static int resolveResolution(final int configuredResolution, final int maps) {
       if (configuredResolution > 0) {
         return configuredResolution;

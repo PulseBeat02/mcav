@@ -121,7 +121,6 @@ public final class ChatUtils {
       appendRow(builder, data, character, width, row);
     }
     final String text = builder.toString();
-    // the text always holds at least one color code, and only null or empty text converts to null
     final Component component = CraftChatMessage.fromStringOrNull(text, true);
     return Objects.requireNonNull(component, "Text with color codes always converts to a component");
   }

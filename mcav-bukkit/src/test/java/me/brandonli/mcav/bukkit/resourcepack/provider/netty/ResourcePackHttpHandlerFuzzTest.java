@@ -86,7 +86,6 @@ final class ResourcePackHttpHandlerFuzzTest {
       if (!channel.isOpen()) {
         break;
       }
-      // a read of a connection always carries bytes
       if (read.length == 0) {
         continue;
       }

@@ -149,7 +149,6 @@ final class CompressedMapResultPropertyTest {
       return;
     }
 
-    // the picture stops changing: repeat the last frame until nothing is sent any more
     int quietFrames = 0;
     int extraFrames = 0;
     final int frameLimit = MAX_QUIET_FRAMES * (scenario.getMapCount() * 65) + MAX_QUIET_FRAMES;

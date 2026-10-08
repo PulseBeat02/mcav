@@ -91,9 +91,7 @@ final class ResourcePackFuzzTest {
         } else {
           pack.external(name, TEXT);
         }
-      } catch (final IllegalArgumentException refused) {
-        // refusing is always allowed; what was accepted is checked below
-      }
+      } catch (final IllegalArgumentException refused) {}
     }
 
     final Path zipped = Files.createTempFile(WORK, "pack", ".zip");

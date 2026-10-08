@@ -143,7 +143,6 @@ public class MCPackHosting implements WebsiteHosting {
       return;
     }
 
-    // the pack is read once, so the uploaded bytes always match the hash the download URL is derived from
     final byte[] pack = this.readZip();
     final String hash = hash(pack, HASH_ALGORITHM);
 
@@ -200,7 +199,6 @@ public class MCPackHosting implements WebsiteHosting {
     return uploadedUrl;
   }
 
-  // a cache entry that is not even a valid URI is as useless as a download that is gone
   private static boolean isAvailable(final String url) {
     final URI uri;
     try {
@@ -295,7 +293,6 @@ public class MCPackHosting implements WebsiteHosting {
 
   @VisibleForTesting
   String createMultipartHead(final String boundary) {
-    // the pack was read as a regular file, and the path of a regular file always ends with a file name
     final Path zipFileName = this.zip.getFileName();
     final Path fileNamePath = Objects.requireNonNull(zipFileName, "The resource pack has no file name");
     final String fileName = fileNamePath.toString();
@@ -341,12 +338,10 @@ public class MCPackHosting implements WebsiteHosting {
       final Map<String, String> cache = gson.fromJson(reader, CACHE_TYPE);
       return copyCache(cache);
     } catch (final IOException | JsonSyntaxException exception) {
-      // a corrupt cache only costs one extra upload
       return new HashMap<>();
     }
   }
 
-  // an empty cache file parses as null
   private static Map<String, String> copyCache(final @Nullable Map<String, String> cache) {
     if (cache == null) {
       return new HashMap<>();
@@ -360,7 +355,6 @@ public class MCPackHosting implements WebsiteHosting {
     try (final Writer writer = Files.newBufferedWriter(cacheFile)) {
       gson.toJson(cache, CACHE_TYPE, writer);
     } catch (final IOException exception) {
-      // the upload itself succeeded, a missing cache entry only costs one extra upload on the next start
       LOGGER.warn(UPLOAD_CACHE_NOT_WRITTEN, cacheFile, exception);
     }
   }

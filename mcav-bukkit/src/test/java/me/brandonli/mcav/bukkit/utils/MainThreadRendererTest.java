@@ -61,7 +61,6 @@ final class MainThreadRendererTest {
 
   @Test
   void keepsApplyingFramesForARendererThatDoesNotOverrideOnTick() {
-    // every renderer of this module overrides onTick, so without this the default body is never executed
     final PlainRenderer renderer = new PlainRenderer();
     renderer.startRendering();
     renderer.submit("frame");
