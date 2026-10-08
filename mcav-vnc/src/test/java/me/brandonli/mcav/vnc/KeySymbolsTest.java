@@ -80,7 +80,6 @@ final class KeySymbolsTest {
     final boolean readerIsClosed = reader.isClosed();
     assertTrue(readerIsClosed);
 
-    // the table is shared by every player, so it must not be changeable
     final Consumer<Map<String, Integer>> addEntry = table -> table.put("B", 0x42);
     assertThrows(UnsupportedOperationException.class, () -> addEntry.accept(symbols));
   }

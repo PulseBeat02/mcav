@@ -54,7 +54,6 @@ public final class EqualityAssertions {
     Preconditions.checkNotNull(equalValue, "Equal value must not be null");
     Preconditions.checkNotNull(differentValues, "Different values must not be null");
 
-    // every pair, including each value with itself, covers reflexivity and symmetry
     final List<Object> equalValues = List.of(value, equalValue);
     for (final Object left : equalValues) {
       for (final Object right : equalValues) {

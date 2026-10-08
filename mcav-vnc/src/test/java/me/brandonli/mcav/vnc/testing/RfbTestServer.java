@@ -298,7 +298,6 @@ public final class RfbTestServer implements AutoCloseable {
         }
         this.serve(client);
       } catch (final IOException | GeneralSecurityException exception) {
-        // the client went away or the server was closed
       } finally {
         this.output = null;
       }
@@ -526,9 +525,7 @@ public final class RfbTestServer implements AutoCloseable {
           this.pendingRequests--;
           this.writeUpdate(currentOutput);
         }
-      } catch (final IOException exception) {
-        // the client went away
-      }
+      } catch (final IOException exception) {}
     }
   }
 
@@ -554,11 +551,8 @@ public final class RfbTestServer implements AutoCloseable {
   private static void drain(final InputStream input) {
     final OutputStream discarded = OutputStream.nullOutputStream();
     try {
-      // discard until the client hangs up
       input.transferTo(discarded);
-    } catch (final IOException exception) {
-      // the client hung up
-    }
+    } catch (final IOException exception) {}
   }
 
   /**

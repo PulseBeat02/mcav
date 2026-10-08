@@ -67,8 +67,6 @@ final class RfbGuardFuzzTest {
       while (data.remainingBytes() > 0) {
         session.server(data.consumeBytes(data.consumeInt(1, MAX_CHUNK)));
       }
-    } catch (final IOException refused) {
-      // the one failure the guard may report
-    }
+    } catch (final IOException refused) {}
   }
 }

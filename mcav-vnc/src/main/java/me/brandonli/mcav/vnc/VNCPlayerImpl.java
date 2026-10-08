@@ -92,8 +92,6 @@ public final class VNCPlayerImpl implements VNCPlayer {
   private final AtomicReference<@Nullable BufferedImage> latestFrame;
 
   private volatile @Nullable Session session;
-  // volatile like its siblings session and source: written under the lock, but read without it by
-  // getConnectedClient() on the input path
   private volatile @Nullable VernacularClient client;
   private @Nullable Thread renderThread;
   private volatile @Nullable VNCSource source;
@@ -187,7 +185,6 @@ public final class VNCPlayerImpl implements VNCPlayer {
   }
 
   private void resetForNewSession(final VNCSource source) {
-    // the client and render thread of a session whose connection failed are still around
     this.stopClient();
     this.stopRenderThread();
 
@@ -204,7 +201,6 @@ public final class VNCPlayerImpl implements VNCPlayer {
   private void launchSession(final VNCSource source) {
     final Session created = new Session();
 
-    // the thread exists before the session so screen updates can wake it; it starts once the session is up
     final Thread renderWorker = new Thread(() -> this.render(source, created), "mcav-vnc-render");
     renderWorker.setDaemon(true);
 
@@ -230,8 +226,6 @@ public final class VNCPlayerImpl implements VNCPlayer {
     final VernacularConfig config = this.createConfig(source, created, renderWorker);
     final VernacularClient vncClient = this.clientFactory.apply(config);
     final Socket socket = this.connect(source);
-    // the handshake runs on this thread, under the player's lock: a server that accepts the connection and never answers
-    // would hold both forever, and release() with them, so the connection is closed once the deadline passes
     final AtomicBoolean expired = new AtomicBoolean();
     final CompletableFuture<Void> deadline = CompletableFuture.runAsync(
       () -> {
@@ -264,7 +258,6 @@ public final class VNCPlayerImpl implements VNCPlayer {
     return vncClient;
   }
 
-  // a deadline that ran out closed the connection, which is the reason, whatever the client made of the closed socket
   private String startFailure(final VNCSource source, final boolean timedOut, final @Nullable String message) {
     final String reason = timedOut ? "the server did not finish the handshake within " + this.handshakeTimeoutMillis + " ms" : message;
     return "Failed to start the VNC session with " + source + ": " + reason;
@@ -291,9 +284,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
   private static void closeQuietly(final Socket socket) {
     try {
       socket.close();
-    } catch (final IOException exception) {
-      // nothing more can be done with a socket that refuses to close
-    }
+    } catch (final IOException exception) {}
   }
 
   private VernacularConfig createConfig(final VNCSource source, final Session created, final Thread renderWorker) {
@@ -337,7 +328,6 @@ public final class VNCPlayerImpl implements VNCPlayer {
         return;
       }
 
-      // The first update may arrive during the handshake; the renderer picks it up once it starts.
       this.latestFrame.set(frame);
     }
     LockSupport.unpark(renderWorker);
@@ -349,7 +339,6 @@ public final class VNCPlayerImpl implements VNCPlayer {
       return;
     }
 
-    // errors of a session that already ended, such as those caused by a release, are not reported
     final boolean wasAlive = failed.end();
     if (wasAlive) {
       this.report("The VNC connection failed", error);
@@ -374,7 +363,6 @@ public final class VNCPlayerImpl implements VNCPlayer {
         metadata = OriginalVideoMetadata.of(width, height, frameRate);
       }
 
-      // the metadata is created together with the resize filter
       final OriginalVideoMetadata current = Objects.requireNonNull(metadata, "Metadata must exist with the filter");
       synchronized (this.deliveryLock) {
         // A callback can restart playback before it returns; the replacement must deliver after that callback.
@@ -397,7 +385,6 @@ public final class VNCPlayerImpl implements VNCPlayer {
     return sizeOrFallback(configuredHeight, screenUpdateHeight);
   }
 
-  // a configured size of 0 keeps the size of the remote screen
   private static int sizeOrFallback(final int configuredSize, final int fallbackSize) {
     if (configuredSize > 0) {
       return configuredSize;
@@ -658,12 +645,10 @@ public final class VNCPlayerImpl implements VNCPlayer {
   }
 
   private int[] translateCoordinates(final int frameX, final int frameY) {
-    // input is only forwarded while connected, and the source is set before the connection is made
     final VNCSource current = Objects.requireNonNull(this.source, "Source must be set while connected");
     final int targetWidth = this.remoteWidth;
     final int targetHeight = this.remoteHeight;
 
-    // the remote size is unknown until the first screen update arrives
     final int smallerSide = Math.min(targetWidth, targetHeight);
     if (smallerSide <= 0) {
       final int untranslatedX = Math.max(0, frameX);

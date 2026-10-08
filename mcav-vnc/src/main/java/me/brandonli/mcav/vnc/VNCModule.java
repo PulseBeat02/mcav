@@ -28,25 +28,19 @@ public final class VNCModule implements MCAVModule {
   /**
    * Constructs the module. The module loader creates it for you.
    */
-  public VNCModule() {
-    // stateless
-  }
+  public VNCModule() {}
 
   /**
    * Starts the module; no resources are allocated. Players connect independently.
    */
   @Override
-  public void start() {
-    // nothing to prepare
-  }
+  public void start() {}
 
   /**
    * Stops the module; no players are released. Call {@link VNCPlayer#release()} on each owned player.
    */
   @Override
-  public void stop() {
-    // nothing to release
-  }
+  public void stop() {}
 
   /**
    * Gets the module identifier.

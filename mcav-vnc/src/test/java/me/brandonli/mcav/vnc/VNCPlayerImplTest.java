@@ -199,7 +199,6 @@ final class VNCPlayerImplTest {
     final float frameRate = metadata.getVideoFrameRate();
     final RecordedFrame frame = new RecordedFrame(width, height, rgb, metadataWidth, metadataHeight, frameRate);
     this.frames.add(frame);
-    // Recording metadata and pixels does not modify the input frame.
     return false;
   }
 
@@ -357,7 +356,6 @@ final class VNCPlayerImplTest {
     player.sendMouseEvent(MouseClick.LEFT, 50, 25);
     player.sendMouseEvent(MouseClick.RIGHT, 1000, -5);
 
-    // a move is one event, and each click is a move, a press and a release
     Await.until("seven pointer events arrive", () -> server.getPointerCount() >= 7);
     final List<RfbTestServer.ReceivedPointer> pointers = server.getPointers();
     final int count = pointers.size();
@@ -423,7 +421,6 @@ final class VNCPlayerImplTest {
   }
 
   private void assertNoBlueFramesArrive(final RfbTestServer server) {
-    // frames already handed to the render thread may still arrive, so the color change marks the pause
     server.setColor(BLUE);
     final int sentBefore = server.getUpdatesSent();
     Await.until("the server sends more updates", () -> server.getUpdatesSent() > sentBefore + 5);
@@ -473,7 +470,6 @@ final class VNCPlayerImplTest {
     final VNCSource source = source(listening, 0, 0);
     player.start(source);
 
-    // the positive control: input reaches the client while the player plays
     player.moveMouse(2, 3);
     verify(client).moveMouse(2, 3);
 
@@ -612,7 +608,6 @@ final class VNCPlayerImplTest {
     final String message = this.errorMessages.getFirst();
     final Throwable error = this.errors.getFirst();
     assertEquals("The VNC connection failed", message);
-    // the guard refuses a message type the client could not decode before the client reads it
     final UnexpectedVncException failure = assertInstanceOf(UnexpectedVncException.class, error);
     final Throwable cause = failure.getCause();
     final IOException refused = assertInstanceOf(IOException.class, cause);
@@ -678,7 +673,6 @@ final class VNCPlayerImplTest {
     final boolean playing = player.isPlaying();
     assertTrue(interrupted);
     assertFalse(playing);
-    // the release must not sit out the two second join timeout once the caller is interrupted
     assertTrue(elapsedMillis < 1_500L, () -> "release took " + elapsedMillis + " ms");
   }
 
@@ -1121,7 +1115,6 @@ final class VNCPlayerImplTest {
     final boolean playingAgain = player.isPlaying();
     assertTrue(restarted);
     assertTrue(playingAgain);
-    // the failed client is stopped before the new session starts
     final InOrder order = inOrder(client);
     order.verify(client).start(any(Socket.class));
     order.verify(client).stop();
@@ -1171,7 +1164,6 @@ final class VNCPlayerImplTest {
     final ServerSocket listening = this.listeningSocket();
     final VernacularClient client = mock(VernacularClient.class);
     final AtomicReference<VernacularConfig> config = new AtomicReference<>();
-    // a screen that never changes sends a single update, which may come before the start returns
     doAnswer(_ -> {
       final BufferedImage screen = image(4, 4, RED);
       pushScreen(config, screen);
@@ -1209,7 +1201,6 @@ final class VNCPlayerImplTest {
   private boolean startWithLateError(final VNCSource source, final int attempt) {
     final VernacularClient client = mock(VernacularClient.class);
     final AtomicReference<VernacularConfig> config = new AtomicReference<>();
-    // the error arrives a little later on every attempt, so some fall right after the handshake finishes
     final long delayNanos = TimeUnit.MICROSECONDS.toNanos(attempt * 25L);
     final UnknownMessageTypeException failure = new UnknownMessageTypeException(attempt);
     doAnswer(_ -> {
@@ -1447,7 +1438,6 @@ final class VNCPlayerImplTest {
     player.start(source);
     pushAndAwaitBusyRenderThread(config, entered);
 
-    // the render thread is held inside the first frame, so it cannot take this update before the pause
     final BufferedImage waiting = image(4, 4, GREEN);
     pushScreen(config, waiting);
     final boolean pendingBeforePause = player.hasPendingFrame();
@@ -1479,15 +1469,11 @@ final class VNCPlayerImplTest {
     pushScreen(config, waiting);
     final UnknownMessageTypeException failure = new UnknownMessageTypeException(9);
     pushError(config, failure);
-    // the render thread of the ended session leaves the update alone, because it checks the session before it takes
-    // the next one; waiting for it to stop leaves the new session with the only render thread
     proceed.countDown();
     Await.until("the render thread of the session that ended stops", () -> !endingRenderThread.isAlive());
     final boolean pendingAfterTheSessionEnded = player.hasPendingFrame();
 
     final boolean restarted = player.start(source);
-    // the render thread of the new session parks as soon as it finds nothing to render, so an update left over from
-    // the session that ended would have been rendered before it parks
     Await.until("the render thread of the new session waits for an update", VNCPlayerImplTest::anyRenderThreadWaitsForAnUpdate);
     final boolean pending = player.hasPendingFrame();
     final boolean stale = this.containsFrame(GREEN);
@@ -2056,7 +2042,6 @@ final class VNCPlayerImplTest {
 
   @Test
   void givesUpOnAServerThatNeverAnswersItsHandshake() throws IOException {
-    // a server that accepts the connection and never sends its version
     final ServerSocket silent = this.listeningSocket();
     final VNCPlayerImpl player = this.track(new VNCPlayerImpl(VernacularClient::new, Socket::new, TimeUnit.MILLISECONDS.toNanos(10), 500));
     final VNCSource source = source(silent, 0, 0);
@@ -2064,7 +2049,6 @@ final class VNCPlayerImplTest {
       assertThrows(PlayerException.class, () -> player.start(source))
     );
     assertTrue(failure.getMessage().endsWith(": the server did not finish the handshake within 500 ms"), failure.getMessage());
-    // the lock is free again: release does not wait for the silent server
     assertTimeoutPreemptively(Duration.ofSeconds(5), player::release);
   }
 
@@ -2089,8 +2073,6 @@ final class VNCPlayerImplTest {
       new VNCPlayerImpl(VernacularClient::new, SlowToClose::new, TimeUnit.MILLISECONDS.toNanos(10), 500)
     );
     final VNCSource source = source(silent, 0, 0);
-    // the handshake fails on the closed socket, and the start calls the deadline off, while the deadline's close has not
-    // returned
     final PlayerException failure = assertTimeoutPreemptively(Duration.ofSeconds(15), () ->
       assertThrows(PlayerException.class, () -> player.start(source))
     );
@@ -2102,7 +2084,6 @@ final class VNCPlayerImplTest {
     final RfbTestServer answering = this.server(64, 48);
     final VNCPlayerImpl player = this.track(new VNCPlayerImpl(VernacularClient::new, Socket::new, TimeUnit.MILLISECONDS.toNanos(10), 300));
     assertTrue(player.start(source(answering, 64, 48)));
-    // the deadline was called off: the connection outlives it, three times over
     assertFalse(answering.getDisconnected().await(900, TimeUnit.MILLISECONDS), "the deadline closed an established session");
     assertEquals(1, answering.getConnections());
   }
