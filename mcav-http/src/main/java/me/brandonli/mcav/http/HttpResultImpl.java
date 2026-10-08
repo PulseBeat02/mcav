@@ -379,7 +379,9 @@ public final class HttpResultImpl implements HttpResult {
   private static void closeQuietly(final WebSocketSession session) {
     try {
       session.close(CloseStatus.GOING_AWAY);
-    } catch (final IOException | RuntimeException exception) {}
+    } catch (final IOException | RuntimeException exception) {
+      // the browser is already gone, which is the outcome this method wants anyway
+    }
   }
 
   /**

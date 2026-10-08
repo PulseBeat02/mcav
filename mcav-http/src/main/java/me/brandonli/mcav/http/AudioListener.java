@@ -228,7 +228,9 @@ final class AudioListener {
   private static void closeQuietly(final WebSocketSession session, final CloseStatus status) {
     try {
       session.close(status);
-    } catch (final IOException | RuntimeException exception) {}
+    } catch (final IOException | RuntimeException exception) {
+      // the connection is already gone
+    }
   }
 
   private void sendPending() {
