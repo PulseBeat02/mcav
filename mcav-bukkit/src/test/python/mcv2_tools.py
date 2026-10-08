@@ -2641,8 +2641,8 @@ def main():
     if len(sys.argv) < 2 or sys.argv[1] not in commands:
         raise SystemExit("Usage: mcv2_tools.py <" + "|".join(commands) + "> [arguments]")
     command = sys.argv.pop(1)
-    commands[command]()
+    return commands[command]()
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
