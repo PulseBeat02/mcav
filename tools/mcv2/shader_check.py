@@ -1,13 +1,13 @@
 """Run the MCV2 resource pack's post passes outside Minecraft and compare every picture with the reference decoder.
 
     python tools/mcv2/shader_check.py <stream.mcs> [<stream.mcs> ...] [--slots N] [--drop K] [--backend egl|glx]
-        [--pack DIR] [--spirv CLASSPATH] [--second-screen]
+        [--pack DIR] [--spirv CLASSPATH] [--second-screen] [--restart-check]
 
 Run with a Python that has numpy and moderngl. The OpenGL 3.3 context is the one moderngl finds: set DISPLAY to an
 X server for GLX (Xvfb gives Mesa's llvmpipe, the renderer of a headless client) or leave it unset for EGL on a render
 node. The shaders are read from mcav-bukkit's pack sources with their #include directives resolved (and
 gl_VertexIndex, the Vulkan name Minecraft 26.3's compiler takes, read as gl_VertexID), and the generated includes
-(configuration, residual books) are produced the way the pack builder produces them. With --spirv CLASSPATH the passes
+(configuration and per-screen constants) are produced the way the pack builder produces them. With --spirv CLASSPATH the passes
 run the pack as Minecraft 26.3 compiles it instead: tools/mcv2/Mcv2ShaderCompile.java, run with the LWJGL jars on
 CLASSPATH, takes every pass through shaderc and SPIR-V back into GLSL 330, which is what the game's OpenGL backend
 hands the driver.
@@ -37,8 +37,6 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 PACK = ROOT / "mcav-bukkit/src/main/resources/mcav/mcv2/pack"
-CHAIN = ROOT / "mcav-bukkit/src/main/resources/mcav/mcv2/chain.json"
-BOOKS = ROOT / "mcav-bukkit/src/main/resources/me/brandonli/mcav/bukkit/media/mcv2/residual_books.bin"
 SCREEN = (1920, 1080)
 STREAM_ID = 7
 # the screen of the pack the streams play on: the only one, or with --second-screen the second of two, after a first
@@ -68,8 +66,8 @@ def frames(path):
 
 
 def cells_width(width):
-    """The resolve pass's columns, as Mcv2Pack.cellsWidth: one per 8 pixels, and room for the frame's 6 facts."""
-    return max((width + 7) // 8, 6)
+    """The resolve pass's columns, as Mcv2Pack.cellsWidth: one per 8 pixels."""
+    return (width + 7) // 8
 
 
 def cells_height(height):
@@ -95,7 +93,8 @@ def placeholders(width, height, slots):
 def post_chain(width, height, slots):
     """The pack's post chain for one screen, as Mcv2Pack.postChain assembles it from the template: the screen's
     decoding passes, its drawing passes, then the outline's."""
-    text = CHAIN.read_text().replace("@S@", str(SCREEN_INDEX))
+    template_path = PACK.parent / "chain.json"
+    text = template_path.read_text().replace("@S@", str(SCREEN_INDEX))
     for name, value in placeholders(width, height, slots).items():
         text = text.replace("@%s@" % name, str(value))
     template = json.loads(text)
@@ -135,9 +134,6 @@ def screens_config(slots):
 
 def generated(width, height, slots):
     """The generated includes, as the pack builder writes them."""
-    books = BOOKS.read_bytes()
-    words = [struct.unpack_from("<I", books, offset)[0] for offset in range(0, len(books), 4)]
-    rows = ",\n".join("    " + ", ".join("0x%08Xu" % word for word in words[start : start + 8]) for start in range(0, len(words), 8))
     return {
         "mcav:mcv2_config.glsl": "\n".join(screens_config(slots) + [
             "const bool MCV2_DEBUG_VIEW = false;",
@@ -158,7 +154,6 @@ def generated(width, height, slots):
             "const int MCV2_DEBUG_TOP = 0;",
             "",
         ]),
-        "mcav:mcv2_books.glsl": "const uint MCV2_BOOKS[512] = uint[512](\n" + rows + "\n);\n",
     }
 
 
@@ -221,7 +216,7 @@ class Chain:
         self.compiled = None
 
     def target(self, name):
-        """A target by the short name shader_check has always used: previous, key, status, ... of the one screen."""
+        """A target by the short name shader_check has always used: previous, status, ... of the one screen."""
         return self.targets[name if ":" in name else "mcav:mcv2_%s_%d" % (name, SCREEN_INDEX)]
 
     def program(self, name, vertex="minecraft:core/screenquad"):
@@ -327,15 +322,56 @@ def page_number(page):
     return value
 
 
+def check_restart(context, slots, classpath=None):
+    """Known pictures and decisions: a restarted keyframe can move backwards, P frames cannot."""
+    from mcvideo.format import SOLID
+    from mcvideo.transport import make_pages
+    from mcvideo.v3 import Node, pack_frame
+
+    red, green, blue = (201, 19, 31), (7, 231, 49), (23, 57, 211)
+    cases = [
+        (100, 100, blue, True, blue),
+        (7, 7, red, True, red),
+        (7, 7, green, False, red),
+        (6, 7, green, False, red),
+        (0x80000007, 7, green, False, red),
+        (8, 100, green, False, red),
+        (8, 7, green, True, green),
+        (0, 0, blue, True, blue),
+        (1, 0, red, True, red),
+    ]
+    chain = Chain(context, 32, 32, slots)
+    if classpath:
+        chain.compiled = compile_via_spirv(chain.includes, classpath)
+    failures = committed = 0
+    held_id = None
+    for index, (frame_id, reference_id, color, should_decode, expected_color) in enumerate(cases):
+        data = pack_frame(32, 32, frame_id, reference_id, {0: Node(SOLID, record=bytes(color))})
+        chain.show(make_pages(data, STREAM_ID, 6))
+        did, picture = chain.frame()
+        if should_decode:
+            held_id = frame_id
+            committed += 1
+        state = struct.unpack("<4I", chain.target("state").read())
+        expected = np.full((32, 32, 3), expected_color, np.uint8)
+        if did != should_decode or not np.array_equal(picture, expected) or state[1] != held_id or state[3] != committed:
+            failures += 1
+            print("  restart case %d (id %d): decoded %s, expected %s; held id %d, expected %d; commits %d, expected %d" % (
+                index, frame_id, did, should_decode, state[1], held_id, state[3], committed))
+    print("keyframe restart: %d checks, %d wrong" % (len(cases), failures))
+    return failures
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("streams", nargs="+")
     parser.add_argument("--slots", type=int, default=4)
     parser.add_argument("--drop", type=int, default=0)
     parser.add_argument("--backend", choices=("egl", "glx"), default=None)
-    parser.add_argument("--pack", type=Path, help="another pack source folder (default: mcav-bukkit's)")
+    parser.add_argument("--pack", type=Path, help="another pack source folder with its sibling chain.json")
     parser.add_argument("--spirv", metavar="CLASSPATH", help="compile the passes as Minecraft 26.3 does, with these LWJGL jars")
     parser.add_argument("--second-screen", action="store_true", help="play on the second screen of a two-screen pack")
+    parser.add_argument("--restart-check", action="store_true", help="also check keyframe restart and P-frame ordering")
     arguments = parser.parse_args()
     if arguments.second_screen:
         global SCREEN_INDEX, FIRST_SLOT
@@ -353,15 +389,14 @@ def main():
     failures = 0
     for stream in arguments.streams:
         chain = None
-        # the client model: the pictures the chain decoded, by id, and the two references it holds
-        pictures = {}
-        last_id = key_id = None
+        # The pack holds one picture; a different keyframe id may restart the sender.
+        last_id = None
         shown = None
         decoded = skipped = wrong = 0
         for index, frame in enumerate(frames(stream)):
             width, height = struct.unpack_from("<HH", frame, 8)
             frame_id, reference_id = struct.unpack_from("<II", frame, 12)
-            keyframe = struct.unpack_from("<I", frame, 4)[0] >> 16 & 1 == 1
+            keyframe = frame_id == reference_id
             if chain is None:
                 chain = Chain(context, width, height, arguments.slots)
                 if arguments.spirv:
@@ -371,7 +406,10 @@ def main():
             pages = make_pages(frame, STREAM_ID, 6)
             # a frame with more pages than the screen has slots is never sent (Mcv2Channel.send refuses it), so the
             # client never has it to decode
-            decodable = (keyframe or reference_id in (last_id, key_id)) and len(pages) <= arguments.slots
+            delta = None if last_id is None else (frame_id - last_id) & 0xFFFFFFFF
+            newer = delta is None or delta > 0 and (keyframe or delta < 0x80000000)
+            decodable = (newer and (keyframe or reference_id == last_id)
+                         and (width, height) == (chain.width, chain.height) and len(pages) <= arguments.slots)
             chain.show(pages[: arguments.slots])
             did, picture = chain.frame()
             if did != decodable:
@@ -380,10 +418,9 @@ def main():
                 continue
             if did:
                 decoded += 1
-                expected = decode(frame, None if keyframe else pictures[reference_id], reference_id)
-                pictures[frame_id] = shown = expected
+                expected = decode(frame, None if keyframe else shown, last_id)
+                shown = expected
                 last_id = frame_id
-                key_id = frame_id if keyframe else key_id
                 if not np.array_equal(picture, expected):
                     wrong += 1
                     difference = np.abs(picture.astype(int) - expected.astype(int))
@@ -396,6 +433,8 @@ def main():
                     print("  frame %d was skipped but the picture changed" % index)
         print("%s: %d frames decoded, %d skipped, %d wrong" % (Path(stream).name, decoded, skipped, wrong))
         failures += wrong
+    if arguments.restart_check:
+        failures += check_restart(context, arguments.slots, arguments.spirv)
     sys.exit(1 if failures else 0)
 
 

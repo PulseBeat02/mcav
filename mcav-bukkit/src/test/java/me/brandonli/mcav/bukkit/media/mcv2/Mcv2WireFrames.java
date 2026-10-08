@@ -55,7 +55,7 @@ final class Mcv2WireFrames {
     final int roots = ((width + 31) / 32) * ((height + 31) / 32);
     final int groups = (roots + 31) / 32;
     final int checkpoints = (groups + 7) / 8;
-    final int countsAt = 32 + 4 * (groups + checkpoints);
+    final int countsAt = 20 + 4 * (groups + checkpoints);
     final int walksAt = countsAt + 12 + descriptors.length;
     final int start = walksAt + 4 * ((descriptors.length + 7) / 8);
     int length = start;
@@ -65,18 +65,15 @@ final class Mcv2WireFrames {
     final byte[] data = new byte[length];
     put(data, 0, 0x3256434D, 4);
     data[4] = 3;
-    data[5] = (byte) (keyframe ? 1 : 0);
     put(data, 8, width, 2);
     put(data, 10, height, 2);
     put(data, 12, 1, 4);
     put(data, 16, keyframe ? 1 : 0, 4);
-    put(data, 20, start, 4);
-    put(data, 24, length, 4);
     for (int index = 0; index < levels[0]; index++) {
-      data[32 + index / 8] |= (byte) (1 << (index % 8));
+      data[20 + index / 8] |= (byte) (1 << (index % 8));
     }
     for (int index = 0; index < checkpoints; index++) {
-      put(data, 32 + groups * 4 + index * 4, Math.min(levels[0], index * 256), 4);
+      put(data, 20 + groups * 4 + index * 4, Math.min(levels[0], index * 256), 4);
     }
     for (int index = 0; index < 3; index++) {
       put(data, countsAt + 4 * index, levels[index], 4);

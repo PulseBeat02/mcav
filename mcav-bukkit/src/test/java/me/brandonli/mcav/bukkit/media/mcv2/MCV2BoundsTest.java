@@ -40,10 +40,10 @@ final class MCV2BoundsTest {
         final int groups = (roots + 31) / 32;
         final int directory = (groups + 7) / 8;
         final int walk = (roots + 7) / 8;
-        final int solidBytes = 32 + 4 * groups + 4 * directory + 12 + roots + 4 * walk + 3 * roots;
+        final int solidBytes = 20 + 4 * groups + 4 * directory + 12 + roots + 4 * walk + 3 * roots;
         assertTrue(solidBytes <= 131071);
-        final int skipBytes = 32 + 4 * groups + 4 * directory + 12;
-        assertTrue(skipBytes <= 2348);
+        final int skipBytes = 20 + 4 * groups + 4 * directory + 12;
+        assertTrue(skipBytes <= 2336);
       }
     }
   }
@@ -65,12 +65,12 @@ final class MCV2BoundsTest {
     encoder.setFrameBudget(1);
     encoder.setFrameLimit(1);
     final byte[] first = encoder.encode(picture, width, height, 0);
-    assertTrue(first.length <= 131071);
+    assertEquals(76064, first.length);
     assertEquals(72 * 16, encoder.getStats().lambda());
     assertEquals(128 * 128, Mcv2Decoder.parse(first).getLeafCount());
     assertArrayEquals(picture, encoder.getReference());
     final byte[] next = encoder.encode(picture, width, height, 1);
-    assertEquals(2348, next.length);
+    assertEquals(2336, next.length);
     assertEquals(0, Mcv2Decoder.parse(next).getReferenceId());
     assertArrayEquals(picture, encoder.getReference());
   }

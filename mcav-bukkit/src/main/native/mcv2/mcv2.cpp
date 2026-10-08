@@ -18,10 +18,11 @@
 
 // The native pixel kernels of MCV2's encoder (MCV2.java), in one file: the C interface, the vector types of every
 // dispatch level, the kernels written once over them, their exports, and the CPU detection. Every kernel computes
-// exactly what the Java kernel of the same name in MCV2.java computes, operation for operation: integer arithmetic wraps
-// as Java's does, and floating-point values are computed in the same precision and order, since -ffp-contract=off keeps
-// the compiler from fusing a product into a sum. Java validates every size, offset and array length before a call: a
-// kernel reads and writes only inside the arrays it is given, allocates nothing, and keeps no state between calls.
+// exactly what the Java kernel of the same name in MCV2.java computes, operation for operation: integer arithmetic
+// wraps as Java's does, and floating-point values are computed in the same precision and order, since -ffp-contract=off
+// keeps the compiler from fusing a product into a sum. Java validates every size, offset and array length before a
+// call: a kernel reads and writes only inside the arrays it is given, allocates nothing, and keeps no state between
+// calls.
 //
 // A level's translation unit (level_<level>.cpp, the build glue build.sh compiles with that level's flags) defines
 // exactly one MCV2_SIMD_<LEVEL> and MCV2_PREFIX(name), and includes this file; the scalar unit also defines MCV2_CPU,
@@ -38,7 +39,7 @@
 #endif
 
 // The version of this interface: Java refuses a library whose version differs from the one it was written for.
-#define MCV2_ABI 3
+#define MCV2_ABI 4
 
 // The dispatch levels, as bits of mcv2_cpu_levels().
 #define MCV2_LEVEL_SCALAR 1
@@ -56,9 +57,6 @@
 // The kernels of one level: X(return type, name, parameters). The scored reconstructions return the block's
 // distortion once every row is measured, or -1 at the first row after which the candidate can no longer be cheaper
 // than the limit, where Java's measure stops.
-// The kernels of one level: X(return type, name, parameters). The scored reconstructions return the block's
-// distortion once every row is measured, or -1 at the first row after which the candidate can no longer be cheaper
-// than the limit, where Java's measure stops.
 #define MCV2_KERNELS(X)                                                                                                \
   X(int64_t, predicted,                                                                                                \
     (const int32_t *prediction, int32_t size, int32_t *out, const int32_t *source, double rate, double limit))         \
@@ -67,14 +65,12 @@
     (const int8_t *record, int32_t offset, int32_t size, int32_t *out, const int32_t *source, double rate,             \
      double limit))                                                                                                    \
   X(int64_t, compact,                                                                                                  \
-    (const int32_t *prediction, const int8_t *record, int32_t body, int32_t kind, int32_t q, int32_t size,             \
-     int32_t *out, const int32_t *source, double rate, double limit))                                                  \
+    (const int32_t *prediction, const int8_t *record, int32_t q, int32_t size, int32_t *out, const int32_t *source,    \
+     double rate, double limit))                                                                                       \
   X(void, predict,                                                                                                     \
     (const uint8_t *reference, int32_t width, int32_t height, int32_t x, int32_t y, int32_t size, int32_t mx,          \
      int32_t my, int32_t *out))                                                                                        \
-  X(void, fit,                                                                                                         \
-    (const float *values, int32_t offset, int32_t stride, int32_t size, const float *matrix, float *out,               \
-     int32_t out_offset, int32_t out_stride))                                                                          \
+  X(void, fit, (const float *values, int32_t size, const float *matrix, float *out))                                   \
   X(void, cluster, (const int32_t *source, int32_t size, float *endpoints))                                            \
   X(void, assign, (const int32_t *source, int32_t count, const int32_t *colors, int8_t *selectors))                    \
   X(int32_t, assign_pattern, (const int32_t *source, int32_t size, const int32_t *colors, int8_t *selectors))          \
@@ -84,8 +80,7 @@
   X(void, load_source,                                                                                                 \
     (const uint8_t *image, int32_t width, int32_t height, int32_t x, int32_t y, int32_t size, int32_t *source))        \
   X(void, halve, (const int32_t *block, int32_t size, int32_t *out))                                                   \
-  X(void, ycocg, (const int32_t *source, int32_t count, float *out))                                                   \
-  X(void, residual_target, (const float *ycocg, const int32_t *prediction, int32_t count, float *target))
+  X(void, residual_target, (const int32_t *source, const int32_t *prediction, int32_t count, float *target))
 
 extern "C" {
 // The dispatch levels this CPU runs, as a bit set of MCV2_LEVEL_*: scalar always, the others only where the CPU and
@@ -211,27 +206,15 @@ inline int32_t sad4(uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_
   return sum;
 }
 
-// N float lanes, as many as VI's, and their bits as a VI for load3 and store3.
+// Float lanes match the integer lanes for residual conversion.
 struct VF {
   float v;
   static VF set1(float x) { return {x}; }
   static VF from(VI a) { return {(float)a.v}; }
-  static VF bits(VI a) {
-    VF f;
-    memcpy(&f.v, &a.v, sizeof(f.v));
-    return f;
-  }
-  VI bits() const {
-    VI a;
-    memcpy(&a.v, &v, sizeof(v));
-    return a;
-  }
   friend VF operator+(VF a, VF b) { return {a.v + b.v}; }
   friend VF operator-(VF a, VF b) { return {a.v - b.v}; }
   friend VF operator*(VF a, VF b) { return {a.v * b.v}; }
-  friend VF operator-(VF a) { return {-a.v}; }
-  // all ones where a < b, else zero; false where either is NaN
-  static VI less(VF a, VF b) { return {a.v < b.v ? -1 : 0}; }
+  void store(float *p) const { p[0] = v; }
 };
 
 // N double lanes: a fit keeps one output's sum in each lane, so no sum is ever reordered.
@@ -240,8 +223,6 @@ struct VD {
   double v;
   static VD set1(double x) { return {x}; }
   static VD loadf(const float *p) { return {(double)p[0]}; }
-  // lane k from p[offsets[k]]
-  static VD gatherf(const float *p, const int32_t *offsets) { return {(double)p[offsets[0]]}; }
   friend VD operator+(VD a, VD b) { return {a.v + b.v}; }
   friend VD operator*(VD a, VD b) { return {a.v * b.v}; }
   void store(double *p) const { p[0] = v; }
@@ -382,13 +363,10 @@ struct VF {
   __m128 v;
   static VF set1(float x) { return {_mm_set1_ps(x)}; }
   static VF from(VI a) { return {_mm_cvtepi32_ps(a.v)}; }
-  static VF bits(VI a) { return {_mm_castsi128_ps(a.v)}; }
-  VI bits() const { return {_mm_castps_si128(v)}; }
   friend VF operator+(VF a, VF b) { return {_mm_add_ps(a.v, b.v)}; }
   friend VF operator-(VF a, VF b) { return {_mm_sub_ps(a.v, b.v)}; }
   friend VF operator*(VF a, VF b) { return {_mm_mul_ps(a.v, b.v)}; }
-  friend VF operator-(VF a) { return {_mm_xor_ps(a.v, _mm_set1_ps(-0.0f))}; }
-  static VI less(VF a, VF b) { return {_mm_castps_si128(_mm_cmplt_ps(a.v, b.v))}; }
+  void store(float *p) const { _mm_storeu_ps(p, v); }
 };
 
 struct VD {
@@ -399,9 +377,6 @@ struct VD {
     int64_t pair;
     memcpy(&pair, p, sizeof(pair));
     return {_mm_cvtps_pd(_mm_castsi128_ps(_mm_cvtsi64_si128(pair)))};
-  }
-  static VD gatherf(const float *p, const int32_t *offsets) {
-    return {_mm_set_pd((double)p[offsets[1]], (double)p[offsets[0]])};
   }
   friend VD operator+(VD a, VD b) { return {_mm_add_pd(a.v, b.v)}; }
   friend VD operator*(VD a, VD b) { return {_mm_mul_pd(a.v, b.v)}; }
@@ -491,13 +466,10 @@ struct VF {
   __m256 v;
   static VF set1(float x) { return {_mm256_set1_ps(x)}; }
   static VF from(VI a) { return {_mm256_cvtepi32_ps(a.v)}; }
-  static VF bits(VI a) { return {_mm256_castsi256_ps(a.v)}; }
-  VI bits() const { return {_mm256_castps_si256(v)}; }
   friend VF operator+(VF a, VF b) { return {_mm256_add_ps(a.v, b.v)}; }
   friend VF operator-(VF a, VF b) { return {_mm256_sub_ps(a.v, b.v)}; }
   friend VF operator*(VF a, VF b) { return {_mm256_mul_ps(a.v, b.v)}; }
-  friend VF operator-(VF a) { return {_mm256_xor_ps(a.v, _mm256_set1_ps(-0.0f))}; }
-  static VI less(VF a, VF b) { return {_mm256_castps_si256(_mm256_cmp_ps(a.v, b.v, _CMP_LT_OQ))}; }
+  void store(float *p) const { _mm256_storeu_ps(p, v); }
 };
 
 struct VD {
@@ -505,10 +477,6 @@ struct VD {
   __m256d v;
   static VD set1(double x) { return {_mm256_set1_pd(x)}; }
   static VD loadf(const float *p) { return {_mm256_cvtps_pd(_mm_loadu_ps(p))}; }
-  // four loads: a hardware gather is slower on every AVX2 CPU tried
-  static VD gatherf(const float *p, const int32_t *offsets) {
-    return {_mm256_cvtps_pd(_mm_setr_ps(p[offsets[0]], p[offsets[1]], p[offsets[2]], p[offsets[3]]))};
-  }
   friend VD operator+(VD a, VD b) { return {_mm256_add_pd(a.v, b.v)}; }
   friend VD operator*(VD a, VD b) { return {_mm256_mul_pd(a.v, b.v)}; }
   void store(double *p) const { _mm256_storeu_pd(p, v); }
@@ -516,9 +484,9 @@ struct VD {
 
 #elif defined(MCV2_SIMD_AVX512)
 
-// 16 lanes; a block narrower than 16 pixels goes to the AVX2 kernels (exports.inc), so every row a kernel steps through
-// is whole vectors. Only CPUs with the Ice Lake feature set run it (cpu.cpp), never the ones that slow down at 512
-// bits.
+// 16 lanes; a block narrower than 16 pixels goes to the AVX2 kernels through the exported wrappers, so every row a
+// kernel steps through is whole vectors. Only CPUs with the Ice Lake feature set run it, never the ones that slow down
+// at 512 bits.
 inline int32_t sad4(uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_t *s) {
   const __m128i sad =
       _mm_sad_epu8(_mm_setr_epi32((int32_t)a, (int32_t)b, (int32_t)c, (int32_t)d), _mm_loadu_si128((const __m128i *)s));
@@ -610,13 +578,10 @@ struct VF {
   __m512 v;
   static VF set1(float x) { return {_mm512_set1_ps(x)}; }
   static VF from(VI a) { return {_mm512_cvtepi32_ps(a.v)}; }
-  static VF bits(VI a) { return {_mm512_castsi512_ps(a.v)}; }
-  VI bits() const { return {_mm512_castps_si512(v)}; }
   friend VF operator+(VF a, VF b) { return {_mm512_add_ps(a.v, b.v)}; }
   friend VF operator-(VF a, VF b) { return {_mm512_sub_ps(a.v, b.v)}; }
   friend VF operator*(VF a, VF b) { return {_mm512_mul_ps(a.v, b.v)}; }
-  friend VF operator-(VF a) { return {_mm512_xor_ps(a.v, _mm512_set1_ps(-0.0f))}; }
-  static VI less(VF a, VF b) { return {_mm512_movm_epi32(_mm512_cmp_ps_mask(a.v, b.v, _CMP_LT_OQ))}; }
+  void store(float *p) const { _mm512_storeu_ps(p, v); }
 };
 
 struct VD {
@@ -624,10 +589,6 @@ struct VD {
   __m512d v;
   static VD set1(double x) { return {_mm512_set1_pd(x)}; }
   static VD loadf(const float *p) { return {_mm512_cvtps_pd(_mm256_loadu_ps(p))}; }
-  static VD gatherf(const float *p, const int32_t *offsets) {
-    return {_mm512_cvtps_pd(_mm256_setr_ps(p[offsets[0]], p[offsets[1]], p[offsets[2]], p[offsets[3]], p[offsets[4]],
-                                           p[offsets[5]], p[offsets[6]], p[offsets[7]]))};
-  }
   friend VD operator+(VD a, VD b) { return {_mm512_add_pd(a.v, b.v)}; }
   friend VD operator*(VD a, VD b) { return {_mm512_mul_pd(a.v, b.v)}; }
   void store(double *p) const { _mm512_storeu_pd(p, v); }
@@ -699,13 +660,10 @@ struct VF {
   float32x4_t v;
   static VF set1(float x) { return {vdupq_n_f32(x)}; }
   static VF from(VI a) { return {vcvtq_f32_s32(a.v)}; }
-  static VF bits(VI a) { return {vreinterpretq_f32_s32(a.v)}; }
-  VI bits() const { return {vreinterpretq_s32_f32(v)}; }
   friend VF operator+(VF a, VF b) { return {vaddq_f32(a.v, b.v)}; }
   friend VF operator-(VF a, VF b) { return {vsubq_f32(a.v, b.v)}; }
   friend VF operator*(VF a, VF b) { return {vmulq_f32(a.v, b.v)}; }
-  friend VF operator-(VF a) { return {vnegq_f32(a.v)}; }
-  static VI less(VF a, VF b) { return {vreinterpretq_s32_u32(vcltq_f32(a.v, b.v))}; }
+  void store(float *p) const { vst1q_f32(p, v); }
 };
 
 struct VD {
@@ -713,10 +671,6 @@ struct VD {
   float64x2_t v;
   static VD set1(double x) { return {vdupq_n_f64(x)}; }
   static VD loadf(const float *p) { return {vcvt_f64_f32(vld1_f32(p))}; }
-  static VD gatherf(const float *p, const int32_t *offsets) {
-    const double lanes[2] = {(double)p[offsets[0]], (double)p[offsets[1]]};
-    return {vld1q_f64(lanes)};
-  }
   friend VD operator+(VD a, VD b) { return {vaddq_f64(a.v, b.v)}; }
   friend VD operator*(VD a, VD b) { return {vmulq_f64(a.v, b.v)}; }
   void store(double *p) const { vst1q_f64(p, v); }
@@ -725,7 +679,7 @@ struct VD {
 #elif defined(MCV2_SIMD_SVE256) || defined(MCV2_SIMD_SVE512)
 
 // SVE at one vector length, fixed when the unit is compiled (-msve-vector-bits): the dispatch runs a unit only on a CPU
-// whose vector length is exactly that (svcntb, cpu.cpp). The 512-bit unit hands blocks narrower than 16 pixels to NEON.
+// whose vector length is exactly that (svcntb). The 512-bit unit hands blocks narrower than 16 pixels to NEON.
 #if defined(MCV2_SIMD_SVE256)
 #define MCV2_SVE_BITS 256
 #else
@@ -793,15 +747,10 @@ struct VF {
   sve_f32 v;
   static VF set1(float x) { return {svdup_n_f32(x)}; }
   static VF from(VI a) { return {svcvt_f32_s32_x(svptrue_b32(), a.v)}; }
-  static VF bits(VI a) { return {svreinterpret_f32_s32(a.v)}; }
-  VI bits() const { return {svreinterpret_s32_f32(v)}; }
   friend VF operator+(VF a, VF b) { return {svadd_f32_x(svptrue_b32(), a.v, b.v)}; }
   friend VF operator-(VF a, VF b) { return {svsub_f32_x(svptrue_b32(), a.v, b.v)}; }
   friend VF operator*(VF a, VF b) { return {svmul_f32_x(svptrue_b32(), a.v, b.v)}; }
-  friend VF operator-(VF a) { return {svneg_f32_x(svptrue_b32(), a.v)}; }
-  static VI less(VF a, VF b) {
-    return {svsel_s32(svcmplt_f32(svptrue_b32(), a.v, b.v), svdup_n_s32(-1), svdup_n_s32(0))};
-  }
+  void store(float *p) const { svst1_f32(svptrue_b32(), p, v); }
 };
 
 struct VD {
@@ -811,11 +760,6 @@ struct VD {
   // each float into the low half of a 64-bit lane, where the conversion reads it
   static VD loadf(const float *p) {
     const sve_u64 words = svld1uw_u64(svptrue_b64(), (const uint32_t *)p);
-    return {svcvt_f64_f32_x(svptrue_b64(), svreinterpret_f32_u64(words))};
-  }
-  static VD gatherf(const float *p, const int32_t *offsets) {
-    const svint64_t index = svld1sw_s64(svptrue_b64(), offsets);
-    const sve_u64 words = svld1uw_gather_s64index_u64(svptrue_b64(), (const uint32_t *)p, index);
     return {svcvt_f64_f32_x(svptrue_b64(), svreinterpret_f32_u64(words))};
   }
   friend VD operator+(VD a, VD b) { return {svadd_f64_x(svptrue_b64(), a.v, b.v)}; }
@@ -828,7 +772,7 @@ struct VD {
 } // namespace
 } // namespace mcv2
 
-// The kernels of one dispatch level, written once over the level's VI and VD from simd.hpp. Each is the Java method
+// The kernels of one dispatch level, written once over the level's VI and VD. Each is the Java method
 // named in its comment, operation for operation: integer arithmetic wraps as Java's does, and floating-point values
 // are computed in the same precision and order, since -ffp-contract=off keeps the compiler from fusing a product into
 // a sum. Everything here has internal linkage, so the levels' copies never meet at link time.
@@ -843,14 +787,8 @@ constexpr int32_t ROOT_SIZE = 32;
 constexpr int32_t BLOCK_SIZES = 3;
 constexpr int32_t SELECTORS_AT = 6;
 constexpr double DISTORTION_SCALE = 96.0;
-constexpr int32_t PREDICTION_SCALE = 4;
-constexpr int32_t PREDICTION_SHIFT = 2;
 constexpr int32_t NIBBLE_BITS = 4;
 constexpr int32_t NIBBLE_MASK = 15;
-
-// the compact classes (Mcv2Decoder.COMPACT_*): one luma offset, the 4x4 nibble grid with a chroma pair, without one
-constexpr int32_t DC = 0;
-constexpr int32_t GRID_YC = 1;
 
 inline int32_t log2i(int32_t v) { return __builtin_ctz((unsigned)v); }
 inline int32_t size_index(int32_t size) { return log2i(size) - 3; }
@@ -933,7 +871,8 @@ inline void horizontal(const int32_t *nodes, int32_t size, int32_t *rows) {
     const int32_t at = j * size;
     for (int32_t x = 0; x < size; x++) {
       const int32_t w = a.weight[x];
-      rows[at + x] = wrap_add(wrap_mul(nodes[j * GRID + a.lower[x]], span - w), wrap_mul(nodes[j * GRID + a.upper[x]], w));
+      rows[at + x] =
+          wrap_add(wrap_mul(nodes[j * GRID + a.lower[x]], span - w), wrap_mul(nodes[j * GRID + a.upper[x]], w));
     }
   }
 }
@@ -1004,42 +943,18 @@ int64_t palette(const int8_t *record, int32_t offset, int32_t size, int32_t *out
   return m.distortion;
 }
 
-// MCV2.JavaKernels.compact: the DC class, and the 4x4 nibble grid with or without a chroma pair, on a four-times
-// prediction
-int64_t compact(const int32_t *prediction, const int8_t *record, int32_t body, int32_t kind, int32_t q, int32_t size,
-                int32_t *out, Measure m) {
-  if (kind == DC) {
-    const VI dc = VI::set1(wrap_mul(shl(record[body], q), PREDICTION_SCALE));
-    const int32_t n = size * CHANNELS;
-    for (int32_t y = 0; y < size; y++) {
-      const int32_t from = y * n;
-      for (int32_t i = from; i < from + n; i += VI::N) {
-        round(VI::load(prediction + i) + dc, PREDICTION_SHIFT).store(out + i);
-      }
-      if (!row(m, out, from, size)) {
-        return -1;
-      }
-    }
-    return m.distortion;
-  }
+int64_t compact(const int32_t *prediction, const int8_t *record, int32_t q, int32_t size, int32_t *out, Measure m) {
   int32_t nodes[GRID * GRID];
   for (int32_t i = 0; i < GRID * GRID; i++) {
-    const int32_t packed = (uint8_t)record[body + i / 2];
+    const int32_t packed = (uint8_t)record[2 + i / 2];
     const int32_t nibble = (packed >> ((i % 2) * NIBBLE_BITS)) & NIBBLE_MASK;
     // Mcv2Decoder's signed 4-bit value
     nodes[i] = nibble >= 8 ? nibble - 16 : nibble;
   }
   int32_t rows0[GRID * ROOT_SIZE];
   horizontal(nodes, size, rows0);
-  const int32_t co = kind == GRID_YC ? record[body + 8] : 0;
-  const int32_t cg = kind == GRID_YC ? record[body + 9] : 0;
   const int32_t shift = shift_of(size);
   const VI quarter = VI::set1(size * size);
-  const int32_t scale = PREDICTION_SCALE * size * size;
-  // with no chroma these are zero, and the sums are those of Java's luma-only path
-  const VI red = VI::set1(shl(wrap_mul(co - cg, scale), q));
-  const VI green = VI::set1(shl(wrap_mul(cg, scale), q));
-  const VI blue = VI::set1(shl(wrap_mul(-(co + cg), scale), q));
   int32_t luma[ROOT_SIZE];
   for (int32_t y = 0; y < size; y++) {
     vertical(rows0, size, y, luma);
@@ -1048,8 +963,8 @@ int64_t compact(const int32_t *prediction, const int8_t *record, int32_t body, i
       const VI ys = VI::load(luma + x).shl(q);
       VI pr, pg, pb;
       VI::load3(prediction + from + x * CHANNELS, pr, pg, pb);
-      VI::store3(out + from + x * CHANNELS, round(pr * quarter + ys + red, shift),
-                 round(pg * quarter + ys + green, shift), round(pb * quarter + ys + blue, shift));
+      VI::store3(out + from + x * CHANNELS, round(pr * quarter + ys, shift), round(pg * quarter + ys, shift),
+                 round(pb * quarter + ys, shift));
     }
     if (!row(m, out, from, size)) {
       return -1;
@@ -1089,13 +1004,12 @@ void predict(const uint8_t *reference, int32_t width, int32_t height, int32_t x,
 
 // MCV2.fitGrid: out[i][j] = sum over y, x of M[i][y] v[y][x] M[j][x], every sum in Java's order. The first pass, the
 // heavy one, keeps one row's sum per lane: it reads the channel transposed, so a lane's next value is contiguous.
-void fit(const float *values, int32_t offset, int32_t stride, int32_t size, const float *matrix, float *out,
-         int32_t out_offset, int32_t out_stride) {
+void fit(const float *values, int32_t size, const float *matrix, float *out) {
   const int32_t grid = GRID;
   float plane[ROOT_SIZE * ROOT_SIZE];
   for (int32_t y = 0; y < size; y++) {
     for (int32_t x = 0; x < size; x++) {
-      plane[x * size + y] = values[offset + (y * size + x) * stride];
+      plane[x * size + y] = values[y * size + x];
     }
   }
   double scratch[ROOT_SIZE * GRID];
@@ -1142,7 +1056,7 @@ void fit(const float *values, int32_t offset, int32_t stride, int32_t size, cons
       for (int32_t y = 0; y < size; y++) {
         sum += (double)matrix[i * size + y] * scratch[y * grid + j];
       }
-      out[out_offset + (i * grid + j) * out_stride] = (float)sum;
+      out[i * grid + j] = (float)sum;
     }
   }
 }
@@ -1346,7 +1260,8 @@ void cluster(const int32_t *source, int32_t size, float *endpoints) {
   }
 }
 
-// MCV2.finishPalette after the rounding of the endpoints: every pixel takes the strictly nearer endpoint, else the first
+// MCV2.finishPalette after the rounding of the endpoints: every pixel takes the strictly nearer endpoint, else the
+// first
 void assign(const int32_t *source, int32_t count, const int32_t *colors, int8_t *selectors) {
   const VI r0 = VI::set1(colors[0]);
   const VI g0 = VI::set1(colors[1]);
@@ -1551,8 +1466,8 @@ int32_t seeded(const uint8_t *reference, int32_t width, int32_t height, const in
   return pack(vx, vy);
 }
 
-// MCV2.JavaKernels.loadSource of a superblock: the block's channels, the picture's last row and column repeated past its
-// edges
+// MCV2.JavaKernels.loadSource of a superblock: the block's channels, the picture's last row and column repeated past
+// its edges
 void load_source(const uint8_t *image, int32_t width, int32_t height, int32_t x, int32_t y, int32_t size,
                  int32_t *source) {
   for (int32_t py = 0; py < size; py++) {
@@ -1615,53 +1530,28 @@ void halve(const int32_t *block, int32_t size, int32_t *out) {
   }
 }
 
-// MCV2.JavaKernels.ycocg: the YCoCg of the source
-void ycocg(const int32_t *source, int32_t count, float *out) {
+void residual_target(const int32_t *source, const int32_t *prediction, int32_t count, float *target) {
   const VF quarter = VF::set1(0.25f);
-  const VF half = VF::set1(0.5f);
-  int32_t i = 0;
-  for (; i + VI::N <= count; i += VI::N) {
-    VI r, g, b;
-    VI::load3(source + i * CHANNELS, r, g, b);
-    const VF luma = VF::from(r + g.shl(1) + b) * quarter;
-    // Java's -r + 2 g - b, as ints wrap alike in either order
-    VI::store3((int32_t *)(out + i * CHANNELS), luma.bits(), (VF::from(r - b) * half).bits(),
-               (VF::from(g.shl(1) - r - b) * quarter).bits());
-  }
-  for (; i < count; i++) {
-    const int32_t r = source[i * CHANNELS];
-    const int32_t g = source[i * CHANNELS + 1];
-    const int32_t b = source[i * CHANNELS + 2];
-    out[i * CHANNELS] = (float)(r + 2 * g + b) * 0.25f;
-    out[i * CHANNELS + 1] = (float)(r - b) * 0.5f;
-    out[i * CHANNELS + 2] = (float)(-r + 2 * g - b) * 0.25f;
-  }
-}
-
-// MCV2.JavaKernels.residualTarget: the YCoCg source less the YCoCg of a four-times prediction
-void residual_target(const float *ycocg_source, const int32_t *prediction, int32_t count, float *target) {
-  const VF quarter = VF::set1(0.25f);
-  const VF half = VF::set1(0.5f);
   const VF two = VF::set1(2.0f);
   int32_t i = 0;
   for (; i + VI::N <= count; i += VI::N) {
-    VI sy, sco, scg;
-    VI::load3((const int32_t *)(ycocg_source + i * CHANNELS), sy, sco, scg);
+    VI sr, sg, sb;
+    VI::load3(source + i * CHANNELS, sr, sg, sb);
+    const VF luma = VF::from(sr + sg.shl(1) + sb) * quarter;
     VI pr, pg, pb;
     VI::load3(prediction + i * CHANNELS, pr, pg, pb);
     const VF r = VF::from(pr) * quarter;
     const VF g = VF::from(pg) * quarter;
     const VF b = VF::from(pb) * quarter;
-    VI::store3((int32_t *)(target + i * CHANNELS), (VF::bits(sy) - ((r + two * g) + b) * quarter).bits(),
-               (VF::bits(sco) - (r - b) * half).bits(), (VF::bits(scg) - ((-r + two * g) - b) * quarter).bits());
+    (luma - ((r + two * g) + b) * quarter).store(target + i);
   }
   for (; i < count; i++) {
-    const float r = (float)prediction[i * CHANNELS] * 0.25f;
-    const float g = (float)prediction[i * CHANNELS + 1] * 0.25f;
-    const float b = (float)prediction[i * CHANNELS + 2] * 0.25f;
-    target[i * CHANNELS] = ycocg_source[i * CHANNELS] - (r + 2 * g + b) * 0.25f;
-    target[i * CHANNELS + 1] = ycocg_source[i * CHANNELS + 1] - (r - b) * 0.5f;
-    target[i * CHANNELS + 2] = ycocg_source[i * CHANNELS + 2] - (-r + 2 * g - b) * 0.25f;
+    const int32_t at = i * CHANNELS;
+    const float luma = (float)(source[at] + 2 * source[at + 1] + source[at + 2]) * 0.25f;
+    const float r = (float)prediction[at] * 0.25f;
+    const float g = (float)prediction[at + 1] * 0.25f;
+    const float b = (float)prediction[at + 2] * 0.25f;
+    target[i] = luma - (r + 2 * g + b) * 0.25f;
   }
 }
 
@@ -1669,7 +1559,7 @@ void residual_target(const float *ycocg_source, const int32_t *prediction, int32
 } // namespace mcv2
 
 // The exported kernels of one level, after its translation unit defined MCV2_PREFIX(name). The
-// declarations come from the one list in mcv2_kernels.h, so a definition that strays from it does not compile.
+// declarations come from the MCV2_KERNELS list above, so a definition that strays from it does not compile.
 //
 // A level whose vectors are wider than a narrow block defines MCV2_NARROW(name), a narrower level's kernel that the
 // same CPU runs, and MCV2_NARROW_BELOW: a kernel given a block of fewer pixels a side hands it to that level, so every
@@ -1697,8 +1587,7 @@ MCV2_KERNELS(MCV2_DECLARE_NARROW)
 // is slower than a narrower one (NatBench): MCV2_<KERNEL>_TO(name) names that level's kernel and MCV2_<KERNEL>_AT the
 // size. Every level computes the same numbers, so the result does not change.
 #if defined(MCV2_FIT_TO)
-MCV2_EXPORT void MCV2_FIT_TO(fit)(const float *values, int32_t offset, int32_t stride, int32_t size, const float *matrix,
-                                  float *out, int32_t out_offset, int32_t out_stride);
+MCV2_EXPORT void MCV2_FIT_TO(fit)(const float *values, int32_t size, const float *matrix, float *out);
 #endif
 
 int64_t MCV2_PREFIX(predicted)(const int32_t *prediction, int32_t size, int32_t *out, const int32_t *source,
@@ -1719,10 +1608,10 @@ int64_t MCV2_PREFIX(palette)(const int8_t *record, int32_t offset, int32_t size,
   return mcv2::palette(record, offset, size, out, {source, rate, limit, 0});
 }
 
-int64_t MCV2_PREFIX(compact)(const int32_t *prediction, const int8_t *record, int32_t body, int32_t kind, int32_t q,
-                             int32_t size, int32_t *out, const int32_t *source, double rate, double limit) {
-  MCV2_HAND_OFF(compact, prediction, record, body, kind, q, size, out, source, rate, limit)
-  return mcv2::compact(prediction, record, body, kind, q, size, out, {source, rate, limit, 0});
+int64_t MCV2_PREFIX(compact)(const int32_t *prediction, const int8_t *record, int32_t q, int32_t size, int32_t *out,
+                             const int32_t *source, double rate, double limit) {
+  MCV2_HAND_OFF(compact, prediction, record, q, size, out, source, rate, limit)
+  return mcv2::compact(prediction, record, q, size, out, {source, rate, limit, 0});
 }
 
 void MCV2_PREFIX(predict)(const uint8_t *reference, int32_t width, int32_t height, int32_t x, int32_t y, int32_t size,
@@ -1731,15 +1620,14 @@ void MCV2_PREFIX(predict)(const uint8_t *reference, int32_t width, int32_t heigh
   mcv2::predict(reference, width, height, x, y, size, mx, my, out);
 }
 
-void MCV2_PREFIX(fit)(const float *values, int32_t offset, int32_t stride, int32_t size, const float *matrix,
-                      float *out, int32_t out_offset, int32_t out_stride) {
-  MCV2_HAND_OFF(fit, values, offset, stride, size, matrix, out, out_offset, out_stride)
+void MCV2_PREFIX(fit)(const float *values, int32_t size, const float *matrix, float *out) {
+  MCV2_HAND_OFF(fit, values, size, matrix, out)
 #if defined(MCV2_FIT_TO)
   if (size == MCV2_FIT_AT) {
-    return MCV2_FIT_TO(fit)(values, offset, stride, size, matrix, out, out_offset, out_stride);
+    return MCV2_FIT_TO(fit)(values, size, matrix, out);
   }
 #endif
-  mcv2::fit(values, offset, stride, size, matrix, out, out_offset, out_stride);
+  mcv2::fit(values, size, matrix, out);
 }
 
 void MCV2_PREFIX(cluster)(const int32_t *source, int32_t size, float *endpoints) {
@@ -1775,14 +1663,9 @@ void MCV2_PREFIX(halve)(const int32_t *block, int32_t size, int32_t *out) {
   mcv2::halve(block, size, out);
 }
 
-void MCV2_PREFIX(ycocg)(const int32_t *source, int32_t count, float *out) {
-  mcv2::ycocg(source, count, out);
+void MCV2_PREFIX(residual_target)(const int32_t *source, const int32_t *prediction, int32_t count, float *target) {
+  mcv2::residual_target(source, prediction, count, target);
 }
-
-void MCV2_PREFIX(residual_target)(const float *ycocg, const int32_t *prediction, int32_t count, float *target) {
-  mcv2::residual_target(ycocg, prediction, count, target);
-}
-
 }
 
 #if defined(MCV2_CPU)

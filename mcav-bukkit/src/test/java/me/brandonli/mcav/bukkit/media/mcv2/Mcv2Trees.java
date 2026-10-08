@@ -187,26 +187,8 @@ public final class Mcv2Trees {
       final int mode = leaf.mode();
       final int at = leaf.offset();
       final Node node;
-      if (mode == Mcv2Decoder.MODE_SKIP && frame.isKeyframe()) {
-        final int color = frame.getDefaultColor();
-        node = solid(color >> 16, color >> 8, color);
-      } else {
-        final int length;
-        if (mode == Mcv2Decoder.MODE_COMPACT) {
-          final int control = data[at] & 255;
-          length =
-            1 +
-            (control >> 4) +
-            switch (control & 15) {
-              case 0 -> 1;
-              case 1 -> 10;
-              default -> 8;
-            };
-        } else {
-          length = Mcv2Decoder.recordSize(mode, leaf.size());
-        }
-        node = Node.leaf(mode, leaf.quantizer(), Arrays.copyOfRange(data, at, at + length));
-      }
+      final int length = Mcv2Decoder.recordSize(mode, leaf.size());
+      node = Node.leaf(mode, leaf.quantizer(), Arrays.copyOfRange(data, at, at + length));
       leaves.put(position(leaf.left(), leaf.top(), leaf.size()), node);
     }
     final List<Node> roots = new ArrayList<>();

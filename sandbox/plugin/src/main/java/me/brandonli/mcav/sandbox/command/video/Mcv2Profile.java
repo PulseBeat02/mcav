@@ -23,15 +23,12 @@ import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 public enum Mcv2Profile {
   /** Normal live thresholds. */
   DEFAULT,
-  /** Normal thresholds on quiet pictures and fast thresholds while the source moves. */
-  ADAPTIVE,
   /** Faster thresholds for screens that cannot keep up. */
   FAST;
 
   public Settings getSettings() {
     return switch (this) {
       case DEFAULT -> Settings.DEFAULT;
-      case ADAPTIVE -> Settings.ADAPTIVE;
       case FAST -> Settings.FAST;
     };
   }

@@ -19,8 +19,6 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
@@ -107,59 +105,27 @@ final class MCV2MotionLambdaTest {
   }
 
   @Test
-  void averagesTheMotionOfConsecutiveFramesAndStartsOverAtACut() {
+  void averagesTheMotionOfConsecutiveFramesAndStartsOverAtANewSize() {
     final MotionLambda motion = new MotionLambda();
     assertEquals(BASE, motion.lambda(BASE));
     final byte[] still = corners(10, 20, 30, 40);
     // ten grey levels brighter: 40 luma, 360 once blurred, 10 in luma units
     final byte[] brighter = corners(20, 30, 40, 50);
     // the first frame has nothing to be compared with
-    motion.observe(still, 5, 5, false, Workers.SEQUENTIAL);
+    motion.observe(still, 5, 5, Workers.SEQUENTIAL);
     assertEquals(BASE, motion.lambda(BASE));
-    motion.observe(brighter, 5, 5, false, Workers.SEQUENTIAL);
+    motion.observe(brighter, 5, 5, Workers.SEQUENTIAL);
     assertEquals(BASE * MotionLambda.raise(10), motion.lambda(BASE));
     // an unchanged frame moves the average a sixteenth of the way to no motion
-    motion.observe(brighter, 5, 5, false, Workers.SEQUENTIAL);
+    motion.observe(brighter, 5, 5, Workers.SEQUENTIAL);
     assertEquals(BASE * MotionLambda.raise(10 - 10 * MotionLambda.SMOOTHING), motion.lambda(BASE));
-    // a scene cut starts over at the profile's lambda
-    motion.observe(still, 5, 5, true, Workers.SEQUENTIAL);
-    assertEquals(BASE, motion.lambda(BASE));
-    motion.observe(brighter, 5, 5, false, Workers.SEQUENTIAL);
-    assertEquals(BASE * MotionLambda.raise(10), motion.lambda(BASE));
     // and so does another height, or another width
-    motion.observe(new byte[5 * 9 * 3], 5, 9, false, Workers.SEQUENTIAL);
+    motion.observe(new byte[5 * 9 * 3], 5, 9, Workers.SEQUENTIAL);
     assertEquals(BASE, motion.lambda(BASE));
-    motion.observe(still, 5, 5, false, Workers.SEQUENTIAL);
-    motion.observe(brighter, 5, 5, false, Workers.SEQUENTIAL);
+    motion.observe(still, 5, 5, Workers.SEQUENTIAL);
+    motion.observe(brighter, 5, 5, Workers.SEQUENTIAL);
     assertEquals(BASE * MotionLambda.raise(10), motion.lambda(BASE));
-    motion.observe(new byte[9 * 5 * 3], 9, 5, false, Workers.SEQUENTIAL);
+    motion.observe(new byte[9 * 5 * 3], 9, 5, Workers.SEQUENTIAL);
     assertEquals(BASE, motion.lambda(BASE));
-  }
-
-  @Test
-  void tellsAnAdaptiveProfileWhetherItsSourceMovesWithHysteresis() {
-    final MotionLambda motion = new MotionLambda();
-    // before any measurement, as between the thresholds, it keeps what it did
-    assertFalse(motion.moving(false, 8, 6));
-    assertTrue(motion.moving(true, 8, 6));
-    assertTrue(Double.isNaN(motion.average()));
-    final byte[] still = corners(10, 20, 30, 40);
-    motion.observe(still, 5, 5, false, Workers.SEQUENTIAL);
-    // ten grey levels brighter: an average of 10, above entering
-    motion.observe(corners(20, 30, 40, 50), 5, 5, false, Workers.SEQUENTIAL);
-    assertEquals(10, motion.average());
-    assertTrue(motion.moving(false, 8, 6));
-    // unchanged frames bring the average down a sixteenth of the way each: below 8 after four frames, below 6 after
-    // eight, and only then is the source calm
-    boolean moving = true;
-    for (int frame = 1; frame <= 9; frame++) {
-      motion.observe(corners(20, 30, 40, 50), 5, 5, false, Workers.SEQUENTIAL);
-      moving = motion.moving(moving, 8, 6);
-      assertEquals(frame < 8, moving, "frame " + frame);
-    }
-    // between the thresholds a calm source stays calm
-    assertFalse(MotionLambda.moving(7, false, 8, 6));
-    assertTrue(MotionLambda.moving(7, true, 8, 6));
-    assertFalse(MotionLambda.moving(Double.NaN, false, 8, 6));
   }
 }

@@ -49,12 +49,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>The pack overrides the core text shaders, which draw maps, so the maps that carry pages and anchors are moved into
  * a strip at the top of the screen: each screen owns a run of page slots there, found by the stream id its pages and
  * anchors carry, and an anchor descriptor row after the slots. It replaces the entity outline post chain with, for
- * every screen, passes that read its part of the strip, check every page's CRC, decode the frame with the gpu-codec
- * fragment decoder into a persistent picture, keep the last keyframe as a second reference, and draw the picture onto
- * the screen's wall. The pass sources are fixed; what depends on the screens is generated: each screen's copy of its
- * passes, with its video size, page slots and place in the strip, the table of the screens' streams, the outline
- * colour of the page frames, the map colours of the transport alphabet (from this server's map palette, which is the
- * client's).
+ * every screen, passes that read its part of the strip, check every page's CRC, decode the v3 frame into one persistent
+ * picture, and draw the picture onto the screen's wall. The pass sources are fixed; what depends on the screens is
+ * generated: each screen's copy of its passes, with its video size, page slots and place in the strip, the table of the
+ * screens' streams, the outline colour of the page frames, and the map colours of the transport alphabet (from this
+ * server's map palette, which is the client's). All decoding logic is in one shader include; pass files only select its stage.
  *
  * <p>Writing performs synchronous resource reads and archive creation. Run it off the main thread with stable
  * configuration inputs, and keep the resulting file available for the chosen hosting strategy.
@@ -64,7 +63,7 @@ public final class Mcv2Pack {
   /** The resource pack format of Minecraft 26.3. */
   public static final int PACK_FORMAT = 97;
 
-  /** The gpu-codec commit whose decoder the pack carries. */
+  /** The gpu-codec revision from which the decoder originated. */
   public static final String CODEC_COMMIT = "85445433aeb9f8a35a5ce528d47d8829976d1401";
 
   /**
@@ -95,12 +94,7 @@ public final class Mcv2Pack {
   private static final List<String> FILES = List.of(
     "assets/minecraft/shaders/core/text.vsh",
     "assets/minecraft/shaders/core/text.fsh",
-    INCLUDE + "mcv2_codec.glsl",
-    INCLUDE + "mcv2_crc.glsl",
-    INCLUDE + "mcv2_slots.glsl",
-    INCLUDE + "mcv2_strip.glsl",
-    INCLUDE + "mcv2_symbols.glsl",
-    POST + "mcv2_keyframe.fsh",
+    INCLUDE + "mcv2.glsl",
     POST + "mcv2_state.fsh",
     POST + "mcv2_copy.fsh",
     POST + "mcv2_outline.fsh"
@@ -124,9 +118,6 @@ public final class Mcv2Pack {
 
   /** The chunks of 192 bytes the CRC pass splits each page slot's 12,288 strip bytes into. */
   private static final int CRC_CHUNKS = 64;
-
-  /** The facts of a frame the resolve pass keeps in the row after its cells, one texel each. */
-  private static final int FRAME_FACTS = 6;
 
   /** The pages target's texels per page slot. */
   private static final int PAGE_TEXELS = 4;
@@ -303,9 +294,9 @@ public final class Mcv2Pack {
     return (bytes / TEXEL_BYTES + BYTES_WIDTH - 1) / BYTES_WIDTH;
   }
 
-  /** The resolve pass's columns: one per 8 pixels of the video, and room for the frame's facts. */
+  /** The resolve pass's columns: one per 8 pixels of the video; the frame row's one texel fits any width. */
   static int cellsWidth(final Mcv2Configuration configuration) {
-    return Math.max((configuration.getVideoWidth() + CELL_PIXELS - 1) / CELL_PIXELS, FRAME_FACTS);
+    return (configuration.getVideoWidth() + CELL_PIXELS - 1) / CELL_PIXELS;
   }
 
   /** The resolve pass's rows of cells, one per 8 pixels of the video; its frame row follows them. */
@@ -450,6 +441,7 @@ public final class Mcv2Pack {
   private static String manifest(final List<Mcv2Configuration> screens) {
     final JsonObject manifest = new JsonObject();
     manifest.addProperty("codec", "MCV2");
+    manifest.addProperty("version", 3);
     manifest.addProperty("gpu_codec_commit", CODEC_COMMIT);
     final JsonArray list = new JsonArray();
     for (final Mcv2Configuration configuration : screens) {

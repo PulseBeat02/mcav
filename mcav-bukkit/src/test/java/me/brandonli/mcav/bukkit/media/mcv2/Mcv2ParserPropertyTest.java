@@ -188,30 +188,19 @@ final class Mcv2ParserPropertyTest {
   void randomFramesParseOrAreRejected(
     @ForAll @IntRange(min = 1, max = 200) final int width,
     @ForAll @IntRange(min = 1, max = 130) final int height,
-    @ForAll @IntRange(min = 0, max = Mcv2Decoder.KEYFRAME) final int flags,
-    @ForAll @IntRange(min = 0, max = 64) final int startOffset,
+    @ForAll final boolean isKeyframe,
     @ForAll @Size(max = 4096) final byte[] body,
     @ForAll final long seed
   ) {
     final Random random = new Random(seed);
     final byte[] bytes = new byte[Mcv2Decoder.HEADER_BYTES + body.length];
     System.arraycopy(body, 0, bytes, Mcv2Decoder.HEADER_BYTES, body.length);
-    final boolean isKeyframe = (flags & Mcv2Decoder.KEYFRAME) != 0;
     final long frameId = random.nextInt(1000) + 1L;
     Mcv2Decoder.putU32(bytes, 0, Mcv2Decoder.MAGIC);
     bytes[4] = Mcv2Decoder.VERSION;
-    bytes[5] = (byte) flags;
     Mcv2Decoder.putU32(bytes, 8, ((long) height << 16) | width);
     Mcv2Decoder.putU32(bytes, 12, frameId);
     Mcv2Decoder.putU32(bytes, 16, isKeyframe ? frameId : frameId - 1);
-    Mcv2Decoder.putU32(bytes, 20, Math.min(bytes.length, Mcv2Decoder.HEADER_BYTES + startOffset));
-    Mcv2Decoder.putU32(bytes, 24, bytes.length);
-    if (isKeyframe) {
-      final int color = random.nextInt(0x1000000);
-      bytes[28] = (byte) (color >> 16);
-      bytes[29] = (byte) (color >> 8);
-      bytes[30] = (byte) color;
-    }
     parseAndDecode(bytes);
   }
 

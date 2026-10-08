@@ -122,7 +122,7 @@ final class NativeConformanceTest {
 
   private static void reencode(final Level level, final String stream) throws Mcv2Exception {
     final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read(stream));
-    for (final Settings settings : List.of(Settings.DEFAULT, Settings.FAST, Settings.ADAPTIVE)) {
+    for (final Settings settings : List.of(Settings.DEFAULT, Settings.FAST)) {
       final Mcv2Receiver receiver = new Mcv2Receiver();
       final MCV2 java = NativeTesting.encoder(settings, 2, true, NativeTesting.javaFactory());
       final MCV2 other = NativeTesting.encoder(settings, 3, true, NativeTesting.factory(level));

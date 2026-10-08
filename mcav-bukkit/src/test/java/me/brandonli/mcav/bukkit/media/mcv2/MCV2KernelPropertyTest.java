@@ -28,12 +28,7 @@ import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.constraints.IntRange;
 
-/**
- * The integer kernels of {@link Mcv2Decoder} against their floating-point oracle, the form the conformance streams
- * verified: for every leaf size, kept compact class and every quantizer the format allows (0 to 7, beyond the 3 and 4
- * the encoder uses), and for records and predictions drawn with half of their values at the extremes of their range,
- * where a rounding float operation would show first, both must produce the same pixels.
- */
+/** Integer kernels match an independent floating-point oracle, including saturated channels and signed node extrema. */
 final class MCV2KernelPropertyTest {
 
   private static final String SEED = "20260925";
@@ -74,32 +69,29 @@ final class MCV2KernelPropertyTest {
   @Property(seed = SEED, tries = 1600)
   void compactRecordsMatchTheOracle(
     @ForAll @IntRange(min = 0, max = 2) final int sizeIndex,
-    @ForAll @IntRange(min = 0, max = 2) final int kind,
-    @ForAll @IntRange(min = 0, max = 7) final int quantizer,
+    @ForAll @IntRange(min = 0, max = 2) final int quantizer,
     @ForAll final long seed
   ) throws Mcv2Exception {
     final int size = SIZES[sizeIndex];
     final Random random = new Random(seed);
-    final byte[] record = record(random, 18);
+    final byte[] record = record(random, 10);
     final int[] prediction = prediction(random, size);
     final int[] expected = new int[size * size * 3];
     final int[] actual = new int[size * size * 3];
-    Mcv2Oracle.compact(prediction, record, 0, kind, quantizer, size, expected);
+    Mcv2Oracle.compact(prediction, record, quantizer, size, expected);
     final Kernels kernels = Mcv2Internals.javaKernels();
     kernels.start(new int[actual.length], 0, Double.POSITIVE_INFINITY);
-    assertTrue(kernels.compact(prediction, record, 0, kind, quantizer, size, actual));
-    final int bytes = kind == 0 ? 1 : kind == 1 ? 10 : 8;
-    final byte[] wireRecord = new byte[1 + bytes];
-    wireRecord[0] = (byte) kind;
-    System.arraycopy(record, 0, wireRecord, 1, bytes);
+    assertTrue(kernels.compact(prediction, record, quantizer, size, actual));
+    record[0] = 0;
+    record[1] = 0;
     final byte[] reference = new byte[prediction.length];
     for (int index = 0; index < reference.length; index++) {
       reference[index] = (byte) (prediction[index] / 4);
       prediction[index] = (reference[index] & 255) * 4;
     }
     final int[] wholeExpected = new int[prediction.length];
-    Mcv2Oracle.compact(prediction, record, 0, kind, quantizer, size, wholeExpected);
-    final byte[] decoded = Mcv2Decoder.decode(Mcv2WireFrames.block(size, 5, quantizer, wireRecord, false), reference, 0);
+    Mcv2Oracle.compact(prediction, record, quantizer, size, wholeExpected);
+    final byte[] decoded = Mcv2Decoder.decode(Mcv2WireFrames.block(size, 5, quantizer, record, false), reference, 0);
     for (int index = 0; index < decoded.length; index++) {
       assertEquals(wholeExpected[index], decoded[index] & 255);
     }
@@ -171,8 +163,8 @@ final class MCV2KernelPropertyTest {
   @Property(seed = SEED, tries = 300)
   void measuredKernelsStopOnlyWhenTheyCannotWin(
     @ForAll @IntRange(min = 0, max = 2) final int sizeIndex,
-    @ForAll @IntRange(min = 0, max = 5) final int kernel,
-    @ForAll @IntRange(min = 0, max = 3) final int quantizer,
+    @ForAll @IntRange(min = 0, max = 3) final int kernel,
+    @ForAll @IntRange(min = 0, max = 2) final int quantizer,
     @ForAll final long seed
   ) {
     final int size = SIZES[sizeIndex];
@@ -184,7 +176,7 @@ final class MCV2KernelPropertyTest {
       case 0 -> (kernels, out) -> kernels.predicted(prediction, size, out);
       case 1 -> (kernels, out) -> kernels.solid(color, size, out);
       case 2 -> (kernels, out) -> kernels.palette(record, 0, size, out);
-      default -> (kernels, out) -> kernels.compact(prediction, record, 0, kernel - 3, quantizer, size, out);
+      default -> (kernels, out) -> kernels.compact(prediction, record, quantizer, size, out);
     };
     assertMeasured(random, size, run);
   }

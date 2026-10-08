@@ -36,14 +36,23 @@ final class Mcv2ProfileTest {
   @Test
   void namesTheEncoderSettings() {
     assertEquals(Settings.DEFAULT, Mcv2Profile.DEFAULT.getSettings());
-    assertEquals(Settings.ADAPTIVE, Mcv2Profile.ADAPTIVE.getSettings());
     assertEquals(Settings.FAST, Mcv2Profile.FAST.getSettings());
-    assertEquals(List.of(Mcv2Profile.DEFAULT, Mcv2Profile.ADAPTIVE, Mcv2Profile.FAST), List.of(Mcv2Profile.values()));
+    assertEquals(List.of(Mcv2Profile.DEFAULT, Mcv2Profile.FAST), List.of(Mcv2Profile.values()));
   }
 
   @Test
   void refusesRemovedProfiles() {
-    for (final String old : List.of("SHIP", "LOW", "KEYFRAME", "INTRA", "LIVE", "LIVE_ADAPTIVE", "LIVE_FAST", "LIVE_KEYFRAME")) {
+    for (final String old : List.of(
+      "ADAPTIVE",
+      "SHIP",
+      "LOW",
+      "KEYFRAME",
+      "INTRA",
+      "LIVE",
+      "LIVE_ADAPTIVE",
+      "LIVE_FAST",
+      "LIVE_KEYFRAME"
+    )) {
       assertThrows(IllegalArgumentException.class, () -> Mcv2Profile.valueOf(old));
     }
   }
@@ -52,16 +61,15 @@ final class Mcv2ProfileTest {
   void commandErrorsListTheValidProfiles() {
     final CommandContext<Object> context = mock();
     final EnumParser<Object, Mcv2Profile> parser = new EnumParser<>(Mcv2Profile.class);
-    for (final String old : List.of("SHIP", "LIVE")) {
+    for (final String old : List.of("ADAPTIVE", "SHIP", "LIVE")) {
       final EnumParseException failure = assertInstanceOf(
         EnumParseException.class,
         parser.parse(context, CommandInput.of(old)).failure().orElseThrow()
       );
       assertEquals(CaptionVariable.of("input", old), failure.captionVariables()[0]);
-      assertEquals(CaptionVariable.of("acceptableValues", "default, adaptive, fast"), failure.captionVariables()[1]);
+      assertEquals(CaptionVariable.of("acceptableValues", "default, fast"), failure.captionVariables()[1]);
     }
     assertEquals(Mcv2Profile.DEFAULT, parser.parse(context, CommandInput.of("DEFAULT")).parsedValue().orElseThrow());
-    assertEquals(Mcv2Profile.ADAPTIVE, parser.parse(context, CommandInput.of("adaptive")).parsedValue().orElseThrow());
     assertEquals(Mcv2Profile.FAST, parser.parse(context, CommandInput.of("FAST")).parsedValue().orElseThrow());
   }
 }

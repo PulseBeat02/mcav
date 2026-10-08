@@ -56,8 +56,8 @@ def _decode(frame: Frame, reference: np.ndarray | None, reference_id: int | None
     for leaf in frame.leaves:
         x, y, size, mode, record = leaf.x, leaf.y, leaf.size, leaf.mode, leaf.record
         if mode == fmt.SKIP:
-            block = (np.broadcast_to(np.array(frame.default_color, np.uint8), (size, size, 3))
-                     if frame.keyframe else _prediction(reference, x, y, size, 0, 0))
+            block = (np.zeros((size, size, 3), np.uint8) if frame.keyframe
+                     else _prediction(reference, x, y, size, 0, 0))
         elif mode == fmt.SOLID:
             block = np.broadcast_to(np.frombuffer(record, np.uint8), (size, size, 3))
         elif mode in (fmt.PALETTE, fmt.PATTERN):
@@ -71,17 +71,8 @@ def _decode(frame: Frame, reference: np.ndarray | None, reference_id: int | None
         elif mode == fmt.MOTION:
             block = _prediction(reference, x, y, size, _signed(record[0]), _signed(record[1]))
         else:
-            kind, form = record[0] & 15, record[0] >> 4
-            dx = dy = 0
-            if form == 1:
-                dx, dy = _signed(record[1] & 15, 4), _signed(record[1] >> 4, 4)
-            elif form == 2:
-                dx, dy = _signed(record[1]), _signed(record[2])
-            body = record[1 + form:]
-            prediction = _prediction(reference, x, y, size, dx, dy).astype(np.float64)
-            luma = _signed(body[0]) if kind == fmt.DC else _grid(body, size)
-            co, cg = (_signed(body[8]), _signed(body[9])) if kind == fmt.GRID else (0, 0)
-            residual = np.stack(np.broadcast_arrays(luma + co - cg, luma + cg, luma - co - cg), axis=-1)
+            prediction = _prediction(reference, x, y, size, _signed(record[0]), _signed(record[1])).astype(np.float64)
+            residual = _grid(record[2:], size)[..., None]
             block = np.clip(np.floor(prediction + (1 << leaf.q) * residual + 0.5), 0, 255).astype(np.uint8)
         shown_width, shown_height = min(size, frame.width - x), min(size, frame.height - y)
         if shown_width > 0 and shown_height > 0:

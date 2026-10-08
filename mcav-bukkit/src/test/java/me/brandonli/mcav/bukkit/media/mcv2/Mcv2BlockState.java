@@ -154,15 +154,7 @@ final class Mcv2BlockState {
     return (int[]) Mcv2Internals.field(CODER, coder, field);
   }
 
-  static int neededQuantizer(final int kind, final float[] fit, final int values) {
-    return (int) Mcv2Internals.invoke(
-      MCV2.class,
-      null,
-      "neededQuantizer",
-      new Class<?>[] { int.class, float[].class, int.class },
-      kind,
-      fit,
-      values
-    );
+  static int neededQuantizer(final float[] fit) {
+    return (int) Mcv2Internals.invoke(MCV2.class, null, "neededQuantizer", new Class<?>[] { float[].class }, fit);
   }
 }

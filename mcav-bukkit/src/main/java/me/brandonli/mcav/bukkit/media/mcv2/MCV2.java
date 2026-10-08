@@ -24,15 +24,11 @@ import static java.lang.foreign.ValueLayout.JAVA_LONG;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.BLOCK_SIZES;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CHANNELS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CHECKPOINT_GROUPS;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.COMPACT_DC;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.COMPACT_GRID;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.COMPACT_GRID_Y;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.DEFAULT_COLOR_OFFSET;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.COMPACT_BYTES;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.DIMENSIONS_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.FRAME_ID_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.GROUP_ROOTS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.HEADER_BYTES;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.KEYFRAME;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MAGIC;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MAX_CHANNEL;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MAX_DIMENSION;
@@ -47,17 +43,13 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_PATTERN;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SKIP;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SOLID;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SPLIT;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.PAYLOAD_START_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.QUANTIZER_SHIFT;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.QUARTERS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.REFERENCE_ID_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.ROOT_SIZE;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.SMALLEST_BLOCK;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.TOTAL_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.VERSION;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.WALK_SPAN;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.compactX;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.compactY;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.follows;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.patternSize;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putU16;
@@ -73,6 +65,7 @@ import java.io.UncheckedIOException;
 import java.lang.foreign.Arena;
 import java.lang.foreign.FunctionDescriptor;
 import java.lang.foreign.Linker;
+import java.lang.foreign.MemoryLayout;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SymbolLookup;
 import java.lang.invoke.MethodHandle;
@@ -85,7 +78,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -116,32 +108,25 @@ public final class MCV2 {
    * Controls the live search without changing the version 3 syntax.
    *
    * @param lambda finite, nonnegative cost of a coded bit relative to distortion
-   * @param keyInterval maximum number of frames between periodic keyframes, at least one
    * @param fast whether to use the fast search thresholds
-   * @param adaptive whether motion may select the fast thresholds and scale lambda by 55/72
    */
-  public record Settings(double lambda, int keyInterval, boolean fast, boolean adaptive) {
+  public record Settings(double lambda, boolean fast) {
     /**
      * Normal live thresholds, lambda 72 and a keyframe interval of 120.
      */
-    public static final Settings DEFAULT = new Settings(72, 120, false, false);
+    public static final Settings DEFAULT = new Settings(72, false);
     /**
      * Fast live thresholds, lambda 55 and a keyframe interval of 120.
      */
-    public static final Settings FAST = new Settings(55, 120, true, false);
-    /**
-     * Normal settings that switch to fast thresholds while the source moves.
-     */
-    public static final Settings ADAPTIVE = new Settings(72, 120, false, true);
+    public static final Settings FAST = new Settings(55, true);
 
     /**
-     * Validates the rate cost and keyframe interval.
+     * Validates the rate cost.
      *
-     * @throws IllegalArgumentException if lambda is negative or nonfinite, or the interval is not positive
+     * @throws IllegalArgumentException if lambda is negative or nonfinite
      */
     public Settings {
       Preconditions.checkArgument(lambda >= 0 && Double.isFinite(lambda), "Lambda must be finite and non-negative");
-      Preconditions.checkArgument(keyInterval > 0, "Key interval must be positive");
     }
 
     /**
@@ -152,7 +137,7 @@ public final class MCV2 {
      * @throws IllegalArgumentException if value is negative or nonfinite
      */
     public Settings withLambda(final double value) {
-      return new Settings(value, this.keyInterval, this.fast, this.adaptive);
+      return new Settings(value, this.fast);
     }
   }
 
@@ -250,11 +235,6 @@ public final class MCV2 {
   private static final String STOPPED = "The encoder stopped after a frame failed its verification";
   private static final int LIMIT_RETRIES = 4;
   private static final int MOTION_RANGE = 24;
-  private static final double SCENE_THRESHOLD = 45;
-  private static final int SCENE_SAMPLE_STEP = 4;
-  private static final int SCENE_SAMPLE_START = SCENE_SAMPLE_STEP / 2;
-  private static final double ADAPTIVE_ENTER = 8;
-  private static final double ADAPTIVE_LEAVE = 6;
   private static final int NORMAL_SKIP_BITS = 28;
   private static final int FAST_SKIP_BITS = 60;
   private static final int ROOT_SPLIT_BITS = 150;
@@ -262,6 +242,7 @@ public final class MCV2 {
   private static final int FAST_FINE_SPLIT_BITS = 600;
   private static final int NORMAL_STEADY_SPLIT_BITS = 450;
   private static final int FAST_STEADY_SPLIT_BITS = 900;
+  private static final int KEY_INTERVAL = 120;
   private static final double INDEX_BITS = 12;
   private static final double DISTORTION_SCALE = 96.0;
   private static final int OUTSIDE_BITS = 56;
@@ -269,7 +250,7 @@ public final class MCV2 {
   private static final int GRID_NODES = GRID * GRID;
   private static final int MAX_RECORD = 134;
   private static final int NO_VECTOR = 0x80008000;
-  private static final int COARSEST_QUANTIZER = 4;
+  private static final int COARSEST_QUANTIZER = 2;
   private static final int PALETTE_COLORS = 2;
   private static final byte[] NONE = new byte[0];
   private Settings settings;
@@ -289,7 +270,6 @@ public final class MCV2 {
   private final ArrayDeque<BlockCoder[]> idleCoders = new ArrayDeque<>();
   private final List<BlockCoder[]> busyCoders = new ArrayList<>();
   private final MotionLambda motionLambda = new MotionLambda();
-  private boolean moving;
   private volatile @Nullable Stats stats;
   private volatile boolean failed;
   private @Nullable Pending newer;
@@ -311,7 +291,7 @@ public final class MCV2 {
     this.workers = new Workers(Preconditions.checkNotNull(pool, "Pool must not be null"), threads);
     this.shouldVerify = verify;
     this.kernels = Natives.resolved().factory();
-    this.framesSinceKey = settings.keyInterval();
+    this.framesSinceKey = KEY_INTERVAL;
   }
 
   /**
@@ -423,16 +403,12 @@ public final class MCV2 {
     Preconditions.checkArgument(this.lastFrameId < 0 || follows(frameId, this.lastFrameId), "Stale or ambiguous frame number");
     final long started = System.nanoTime();
     final byte[] previous = this.reference;
-    final boolean predictable =
-      previous != null && width == this.width && height == this.height && this.framesSinceKey < this.settings.keyInterval();
-    this.moving = this.motionLambda.moving(this.moving, ADAPTIVE_ENTER, ADAPTIVE_LEAVE);
-    final boolean adaptiveFast = this.settings.adaptive() && this.moving;
-    final boolean fast = this.settings.fast() || adaptiveFast;
-    final double base = adaptiveFast ? fastLambda(this.settings.lambda()) : this.settings.lambda();
+    final boolean predictable = previous != null && width == this.width && height == this.height && this.framesSinceKey < KEY_INTERVAL;
+    final boolean fast = this.settings.fast();
+    final double base = this.settings.lambda();
     double lambda = Math.min(this.motionLambda.lambda(base), Double.MAX_VALUE);
-    final boolean cut = predictable && sceneCut(rgb, Preconditions.checkNotNull(previous), width, height, this.workers);
-    final boolean keyframe = !predictable || cut;
-    this.motionLambda.observe(rgb, width, height, cut, this.workers);
+    final boolean keyframe = !predictable;
+    this.motionLambda.observe(rgb, width, height, this.workers);
     final byte[] predictFrom = keyframe ? NONE : Preconditions.checkNotNull(previous);
     final long predictsId = keyframe ? frameId : this.referenceId;
     Buffers buffers = this.buffers;
@@ -568,41 +544,6 @@ public final class MCV2 {
   }
 
   // Frame analysis keeps source motion independent of reconstruction quality.
-  private static double fastLambda(final double lambda) {
-    final double scaled = (lambda * 55) / 72;
-    return Double.isFinite(scaled) ? scaled : lambda * (55.0 / 72);
-  }
-
-  private static boolean sceneCut(final byte[] source, final byte[] reference, final int width, final int height, final Workers workers) {
-    final int columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
-    final int superblocks = columns * ((height + ROOT_SIZE - 1) / ROOT_SIZE);
-    final long[] changes = new long[superblocks];
-    workers.forEach(
-      superblocks,
-      () -> changes,
-      (partial, index) -> {
-        final int left = (index % columns) * ROOT_SIZE;
-        final int top = (index / columns) * ROOT_SIZE;
-        long change = 0;
-        for (int row = SCENE_SAMPLE_START; row < ROOT_SIZE; row += SCENE_SAMPLE_STEP) {
-          final int sourceRow = Math.min(top + row, height - 1);
-          for (int column = SCENE_SAMPLE_START; column < ROOT_SIZE; column += SCENE_SAMPLE_STEP) {
-            final int sourceColumn = Math.min(left + column, width - 1);
-            final int at = (sourceRow * width + sourceColumn) * CHANNELS;
-            final int luma = (source[at] & 255) + 2 * (source[at + 1] & 255) + (source[at + 2] & 255);
-            final int predicted = (reference[at] & 255) + 2 * (reference[at + 1] & 255) + (reference[at + 2] & 255);
-            change += Math.abs(luma - predicted);
-          }
-        }
-        partial[index] = change;
-      }
-    );
-    long change = 0;
-    for (final long value : changes) {
-      change += value;
-    }
-    return (double) change / (superblocks * 64L * 4) > SCENE_THRESHOLD;
-  }
 
   private static final class MotionLambda {
 
@@ -640,17 +581,6 @@ public final class MCV2 {
       return base * raise(this.motion);
     }
 
-    boolean moving(final boolean was, final double enter, final double leave) {
-      return moving(this.average(), was, enter, leave);
-    }
-
-    static boolean moving(final double motion, final boolean was, final double enter, final double leave) {
-      if (motion > enter) {
-        return true;
-      }
-      return was && !(motion < leave);
-    }
-
     static double raise(final double motion) {
       if (!(motion > KNEE)) {
         return 1;
@@ -658,7 +588,7 @@ public final class MCV2 {
       return Math.min(MAX_RAISE, Math.pow(motion / KNEE, EXPONENT));
     }
 
-    void observe(final byte[] rgb, final int width, final int height, final boolean startsOver, final Workers workers) {
+    void observe(final byte[] rgb, final int width, final int height, final Workers workers) {
       final int columns = (width + SAMPLING - 1) / SAMPLING;
       final int rows = (height + SAMPLING - 1) / SAMPLING;
       if (this.across.length != columns * rows) {
@@ -666,7 +596,7 @@ public final class MCV2 {
         this.spare = new int[columns * rows];
       }
       final int[] current = blurredLuma(rgb, width, height, workers, this.across, this.spare);
-      if (startsOver || columns != this.columns || rows != this.rows) {
+      if (columns != this.columns || rows != this.rows) {
         this.motion = Double.NaN;
       } else {
         this.add(temporalInformation(current, this.previous, workers));
@@ -679,10 +609,6 @@ public final class MCV2 {
 
     void add(final double information) {
       this.motion = Double.isNaN(this.motion) ? information : this.motion + SMOOTHING * (information - this.motion);
-    }
-
-    double average() {
-      return this.motion;
     }
 
     static int[] blurredLuma(
@@ -1152,7 +1078,8 @@ public final class MCV2 {
     }
     final int at = block * recordSize(MODE_PALETTE, size);
     final byte[] record = Arrays.copyOfRange(frame.buffers.records[level], at, at + (frame.buffers.lengths[level][block] & 255));
-    final TreeNode leaf = TreeNode.leaf(frame.buffers.modes[level][block], frame.buffers.quantizers[level][block], record);
+    final int mode = frame.buffers.modes[level][block];
+    final TreeNode leaf = mode == MODE_SKIP ? TreeNode.skip() : TreeNode.leaf(mode, frame.buffers.quantizers[level][block], record);
     if (level == BLOCK_SIZES - 1) {
       leaves.add(new ChosenLeaf(left, top, size, level));
       return new Choice(leaf, cost);
@@ -1217,7 +1144,6 @@ public final class MCV2 {
     private final int size;
     private final int count;
     private final int[] source;
-    private final float[] ycocg;
     private final float[] target;
     private final int[] zeroPrediction;
     private final int[] localPrediction;
@@ -1226,8 +1152,7 @@ public final class MCV2 {
     private final Kernels kernels;
     private final byte[] record = new byte[MAX_RECORD];
     private final byte[] palette = new byte[MAX_RECORD];
-    private final float[] fit = new float[GRID_NODES + 2];
-    private final float[] lumaGrid = new float[GRID_NODES];
+    private final float[] fit = new float[GRID_NODES];
     private final int[] colors = new int[2 * CHANNELS];
     private final byte[] selectors;
     private final int[] seeds = new int[6];
@@ -1236,7 +1161,6 @@ public final class MCV2 {
     private final int[] halfSource;
     private final int[] quarterSource;
     private final float[] clusters = new float[2 * CHANNELS];
-    private final float[] means = new float[CHANNELS];
     private int level;
     private int block;
     private double rate;
@@ -1247,8 +1171,6 @@ public final class MCV2 {
     private int top;
     private int localVector = NO_VECTOR;
     private boolean clustered;
-    private boolean meansLoaded;
-    private boolean gridLoaded;
 
     private BlockCoder(final FrameState frame, final int size, final Kernels kernels) {
       this.frame = frame;
@@ -1256,8 +1178,7 @@ public final class MCV2 {
       this.count = size * size;
       this.kernels = kernels;
       this.source = new int[this.count * CHANNELS];
-      this.ycocg = new float[this.count * CHANNELS];
-      this.target = new float[this.count * CHANNELS];
+      this.target = new float[this.count];
       this.zeroPrediction = new int[this.count * CHANNELS];
       this.localPrediction = new int[this.count * CHANNELS];
       this.recon = new int[this.count * CHANNELS];
@@ -1531,90 +1452,23 @@ public final class MCV2 {
     }
 
     private void compact(final boolean local) {
-      final int[] prediction = local ? this.localPrediction : this.zeroPrediction;
-      final int deltaX = local ? motionX(this.localVector) : 0;
-      final int deltaY = local ? motionY(this.localVector) : 0;
-      final int form = deltaX == 0 && deltaY == 0 ? 0 : deltaX >= -8 && deltaX <= 7 && deltaY >= -8 && deltaY <= 7 ? 1 : 2;
-      boolean targeted = false;
-      for (int kind = COMPACT_DC; kind <= COMPACT_GRID_Y; kind++) {
-        final int length = 1 + form + (kind == COMPACT_DC ? 1 : kind == COMPACT_GRID ? 10 : 8);
-        if (!this.eligible(length)) {
-          continue;
-        }
-        if (!targeted) {
-          this.kernels.ycocg(this.source, this.count, this.ycocg);
-          this.kernels.residualTarget(this.ycocg, prediction, this.count, this.target);
-          this.meansLoaded = false;
-          this.gridLoaded = false;
-          targeted = true;
-        }
-        final int values = this.compactFit(kind);
-        final int quantizer = neededQuantizer(kind, this.fit, values);
-        final int body = 1 + form;
-        this.record[0] = (byte) (kind | (form << 4));
-        if (form == 1) {
-          this.record[1] = (byte) ((deltaX & 15) | ((deltaY & 15) << 4));
-        } else if (form == 2) {
-          this.record[1] = (byte) deltaX;
-          this.record[2] = (byte) deltaY;
-        }
-        this.compactBody(kind, quantizer, body);
-        if (this.kernels.compact(prediction, this.record, body, kind, quantizer, this.size, this.recon)) {
-          this.score(MODE_COMPACT, quantizer, length);
-        }
-      }
-    }
-
-    private int compactFit(final int kind) {
-      if (kind == COMPACT_DC) {
-        this.fit[0] = this.mean(0);
-        return 1;
-      }
-      if (!this.gridLoaded) {
-        this.kernels.fit(this.target, 0, CHANNELS, this.size, this.lumaGrid, 0, 1);
-        this.gridLoaded = true;
-      }
-      System.arraycopy(this.lumaGrid, 0, this.fit, 0, GRID_NODES);
-      if (kind == COMPACT_GRID_Y) {
-        return GRID_NODES;
-      }
-      this.fit[GRID_NODES] = this.mean(1);
-      this.fit[GRID_NODES + 1] = this.mean(2);
-      return GRID_NODES + 2;
-    }
-
-    private float mean(final int channel) {
-      if (!this.meansLoaded) {
-        double luma = 0;
-        double orange = 0;
-        double green = 0;
-        for (int offset = 0; offset < this.target.length; offset += CHANNELS) {
-          luma += this.target[offset];
-          orange += this.target[offset + 1];
-          green += this.target[offset + 2];
-        }
-        this.means[0] = (float) (luma / this.count);
-        this.means[1] = (float) (orange / this.count);
-        this.means[2] = (float) (green / this.count);
-        this.meansLoaded = true;
-      }
-      return this.means[channel];
-    }
-
-    private void compactBody(final int kind, final int quantizer, final int body) {
-      final int step = 1 << quantizer;
-      if (kind == COMPACT_DC) {
-        this.record[body] = (byte) quantize(this.fit[0], step, -128, 127);
+      if (!this.eligible(COMPACT_BYTES)) {
         return;
       }
+      final int[] prediction = local ? this.localPrediction : this.zeroPrediction;
+      this.kernels.residualTarget(this.source, prediction, this.count, this.target);
+      this.kernels.fit(this.target, this.size, this.fit);
+      final int quantizer = neededQuantizer(this.fit);
+      this.record[0] = (byte) (local ? motionX(this.localVector) : 0);
+      this.record[1] = (byte) (local ? motionY(this.localVector) : 0);
+      final int step = 1 << quantizer;
       for (int index = 0; index < GRID_NODES / 2; index++) {
-        final int low = quantize(this.fit[2 * index], step, -8, 7) & 15;
-        final int high = quantize(this.fit[2 * index + 1], step, -8, 7) & 15;
-        this.record[body + index] = (byte) (low | (high << 4));
+        final int low = quantize(this.fit[2 * index], step) & 15;
+        final int high = quantize(this.fit[2 * index + 1], step) & 15;
+        this.record[2 + index] = (byte) (low | (high << 4));
       }
-      if (kind == COMPACT_GRID) {
-        this.record[body + 8] = (byte) quantize(this.fit[GRID_NODES], step, -128, 127);
-        this.record[body + 9] = (byte) quantize(this.fit[GRID_NODES + 1], step, -128, 127);
+      if (this.kernels.compact(prediction, this.record, quantizer, this.size, this.recon)) {
+        this.score(MODE_COMPACT, quantizer, COMPACT_BYTES);
       }
     }
   }
@@ -1746,19 +1600,18 @@ public final class MCV2 {
     return (int) Math.floor(Math.min(Math.max(value, 0), MAX_CHANNEL) + 0.5f);
   }
 
-  private static int quantize(final float value, final int step, final int low, final int high) {
+  private static int quantize(final float value, final int step) {
     final float scaled = (float) Math.floor(value / step + 0.5f);
-    return (int) Math.min(Math.max(scaled, low), high);
+    return (int) Math.min(Math.max(scaled, -8), 7);
   }
 
-  private static int neededQuantizer(final int kind, final float[] fit, final int values) {
+  private static int neededQuantizer(final float[] fit) {
     for (int quantizer = 0; quantizer < COARSEST_QUANTIZER; quantizer++) {
       final int step = 1 << quantizer;
       boolean fits = true;
-      for (int index = 0; index < values && fits; index++) {
-        final boolean nibble = kind != COMPACT_DC && index < GRID_NODES;
+      for (int index = 0; index < GRID_NODES && fits; index++) {
         final float value = (float) Math.floor(fit[index] / step + 0.5f);
-        fits = value >= (nibble ? -8 : -128) && value <= (nibble ? 7 : 127);
+        fits = value >= -8 && value <= 7;
       }
       if (fits) {
         return quantizer;
@@ -1819,22 +1672,13 @@ public final class MCV2 {
     return matrices;
   }
 
-  private static void fitGrid(
-    final float[] values,
-    final int offset,
-    final int stride,
-    final int size,
-    final double[] scratch,
-    final float[] out,
-    final int outOffset,
-    final int outStride
-  ) {
+  private static void fitGrid(final float[] values, final int size, final double[] scratch, final float[] out) {
     final float[] matrix = FITTING_MATRICES[sizeIndex(size)];
     for (int row = 0; row < size; row++) {
       for (int nodeColumn = 0; nodeColumn < GRID; nodeColumn++) {
         double sum = 0;
         for (int column = 0; column < size; column++) {
-          sum += (double) values[offset + (row * size + column) * stride] * matrix[nodeColumn * size + column];
+          sum += (double) values[row * size + column] * matrix[nodeColumn * size + column];
         }
         scratch[row * GRID + nodeColumn] = sum;
       }
@@ -1845,14 +1689,12 @@ public final class MCV2 {
         for (int row = 0; row < size; row++) {
           sum += matrix[nodeRow * size + row] * scratch[row * GRID + nodeColumn];
         }
-        out[outOffset + (nodeRow * GRID + nodeColumn) * outStride] = (float) sum;
+        out[nodeRow * GRID + nodeColumn] = (float) sum;
       }
     }
   }
 
   // Pixel kernels share reusable scratch; native implementations use this same contract.
-  // Native kernels: the same operations in the library the jar ships, checked against its SHA-256, bound by FFM and fed
-  // only arrays and offsets checked here first; the Java kernels run wherever it does not load.
 
   /** The system property that turns the native kernels on ({@code auto}) or off ({@code off}) over the configuration. */
   public static final String NATIVE_PROPERTY = "mcv2.native";
@@ -1866,17 +1708,17 @@ public final class MCV2 {
   /** The SHA-256 of each platform's library in the jar, which must match before it is loaded. */
   static final Map<String, String> NATIVE_DIGESTS = Map.of(
     "linux-aarch64",
-    "b0acda1a76705898c2584944436f3a0494fc12c863c6fd6240b7343ea2f4717f",
+    "33365a8bb464277fa83181915deddaddb426e82fc48468273ebcd392b2a571d8",
     "linux-x86_64",
-    "3b1c58a1ca4a1129a7b60462b59d90b0a2342ac3d974a7d5b9e4fa99900862e3",
+    "632790b31e5b91ed82f30d7778f8081fc2f139ca236a6db2b6836f9c85a5c9af",
     "macos-aarch64",
-    "37587337e916a51651ca55c0c1a818314bd3befe3fbe362ab5b6283106056c65",
+    "fb556ff54e25fdb1936fa30ec19fe30d38d168bbdb7ea06239c7068cea712fd1",
     "macos-x86_64",
-    "331c30ebffb8407635623e7ff78151c9e576a15e9b3558d5fa714785d04d28da",
+    "4b28e289ed7b9e4cd06a7780302ee9efa4ec25ceb33da341cc02320d618af5fa",
     "windows-aarch64",
-    "7da535d8b5e948f36ac8703019a5fe116b66ee3a15ef664c493283dcf80238eb",
+    "ffa95a2e725c911cd35a33eb8ba4b504cd377488a2962226e48010b80e1229f7",
     "windows-x86_64",
-    "7a478ea9eec75c919d7b520c2bb7361dccb0963cd8ac959aeda1dcadd47e2e30"
+    "d38a6a609966c4ff574f6a270ec066a5b23e381197135d7758d94605d0303736"
   );
 
   /** The dispatch levels of the library, as bits of its {@code mcv2_cpu_levels} and in its symbols' names. */
@@ -1909,14 +1751,7 @@ public final class MCV2 {
     }
   }
 
-  /**
-   * Which kernels the encoders use.
-   *
-   * @param binding     the native kernels' binding, or null for the Java kernels
-   * @param levels      the levels the processor runs, as the library's bits, or 0 without a library
-   * @param description what is active and why, as logged
-   * @param failed      whether a library should have loaded and did not
-   */
+  /** A null binding selects Java; failed marks an unexpected fallback. */
   record Resolution(@Nullable Binding binding, int levels, String description, boolean failed) {
     private static final Supplier<Kernels> JAVA = JavaKernels::new;
 
@@ -1930,13 +1765,12 @@ public final class MCV2 {
     }
   }
 
-  /** The library's loader: it decides once, at the first encoder, what runs. */
   static final class Natives {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MCV2.class);
 
     /** The library interface these bindings are written for, {@code MCV2_ABI}. */
-    static final int ABI = 3;
+    static final int ABI = 4;
 
     /** The system property naming the highest level to use, for measurements. */
     private static final String LEVEL_PROPERTY = "mcv2.native.level";
@@ -1978,6 +1812,7 @@ public final class MCV2 {
     }
 
     static synchronized void install(final Path folder, final String mode) {
+      Preconditions.checkNotNull(mode, "Native mode must not be null");
       Preconditions.checkArgument(NATIVE_AUTO.equals(mode) || NATIVE_OFF.equals(mode), "The MCV2 native mode must be auto or off");
       directory = Preconditions.checkNotNull(folder, "Native folder must not be null");
       configured = mode;
@@ -2069,7 +1904,6 @@ public final class MCV2 {
       return load(platform, digest, bytes, folder, highest);
     }
 
-    // loads only the library the jar ships, checked against the digest compiled in
     @SuppressWarnings("restricted")
     static Resolution load(
       final String platform,
@@ -2116,7 +1950,6 @@ public final class MCV2 {
       return file;
     }
 
-    // the queries and levels of the checked library the loader just loaded
     @SuppressWarnings("restricted")
     static Resolution bind(final SymbolLookup library, final String platform, final @Nullable String highest, final int expected) {
       final Linker linker = Linker.nativeLinker();
@@ -2172,55 +2005,17 @@ public final class MCV2 {
     }
   }
 
-  /** The downcalls of one level of a checked library. */
   static final class Binding {
 
     private static final Linker.Option CRITICAL = Linker.Option.critical(true);
 
-    private static final FunctionDescriptor SCORED_PREDICTION = FunctionDescriptor.of(
-      JAVA_LONG,
-      ADDRESS,
-      JAVA_INT,
-      ADDRESS,
-      ADDRESS,
-      JAVA_DOUBLE,
-      JAVA_DOUBLE
-    );
+    private static final FunctionDescriptor SCORED_PREDICTION = scored(ADDRESS, JAVA_INT);
 
-    private static final FunctionDescriptor SCORED_SOLID = FunctionDescriptor.of(
-      JAVA_LONG,
-      JAVA_INT,
-      JAVA_INT,
-      ADDRESS,
-      ADDRESS,
-      JAVA_DOUBLE,
-      JAVA_DOUBLE
-    );
+    private static final FunctionDescriptor SCORED_SOLID = scored(JAVA_INT, JAVA_INT);
 
-    private static final FunctionDescriptor SCORED_PALETTE = FunctionDescriptor.of(
-      JAVA_LONG,
-      ADDRESS,
-      JAVA_INT,
-      JAVA_INT,
-      ADDRESS,
-      ADDRESS,
-      JAVA_DOUBLE,
-      JAVA_DOUBLE
-    );
+    private static final FunctionDescriptor SCORED_PALETTE = scored(ADDRESS, JAVA_INT, JAVA_INT);
 
-    private static final FunctionDescriptor SCORED_COMPACT = FunctionDescriptor.of(
-      JAVA_LONG,
-      ADDRESS,
-      ADDRESS,
-      JAVA_INT,
-      JAVA_INT,
-      JAVA_INT,
-      JAVA_INT,
-      ADDRESS,
-      ADDRESS,
-      JAVA_DOUBLE,
-      JAVA_DOUBLE
-    );
+    private static final FunctionDescriptor SCORED_COMPACT = scored(ADDRESS, ADDRESS, JAVA_INT, JAVA_INT);
 
     private static final FunctionDescriptor PREDICT = FunctionDescriptor.ofVoid(
       ADDRESS,
@@ -2234,16 +2029,7 @@ public final class MCV2 {
       ADDRESS
     );
 
-    private static final FunctionDescriptor FIT = FunctionDescriptor.ofVoid(
-      ADDRESS,
-      JAVA_INT,
-      JAVA_INT,
-      JAVA_INT,
-      ADDRESS,
-      ADDRESS,
-      JAVA_INT,
-      JAVA_INT
-    );
+    private static final FunctionDescriptor FIT = FunctionDescriptor.ofVoid(ADDRESS, JAVA_INT, ADDRESS, ADDRESS);
 
     private static final FunctionDescriptor BLOCK_TO_ARRAY = FunctionDescriptor.ofVoid(ADDRESS, JAVA_INT, ADDRESS);
 
@@ -2275,8 +2061,6 @@ public final class MCV2 {
       ADDRESS
     );
 
-    private static final FunctionDescriptor YCOCG = FunctionDescriptor.ofVoid(ADDRESS, JAVA_INT, ADDRESS);
-
     private static final FunctionDescriptor RESIDUAL_TARGET = FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, JAVA_INT, ADDRESS);
 
     private final Level level;
@@ -2305,9 +2089,11 @@ public final class MCV2 {
 
     private final MethodHandle halve;
 
-    private final MethodHandle ycocg;
-
     private final MethodHandle residualTarget;
+
+    private static FunctionDescriptor scored(final MemoryLayout... inputs) {
+      return FunctionDescriptor.of(JAVA_LONG, inputs).appendArgumentLayouts(ADDRESS, ADDRESS, JAVA_DOUBLE, JAVA_DOUBLE);
+    }
 
     Binding(final Level level, final BiFunction<String, FunctionDescriptor, MethodHandle> handle) {
       this.level = level;
@@ -2323,7 +2109,6 @@ public final class MCV2 {
       this.seeded = handle.apply("seeded", SEEDED);
       this.loadSource = handle.apply("load_source", LOAD_SOURCE);
       this.halve = handle.apply("halve", BLOCK_TO_ARRAY);
-      this.ycocg = handle.apply("ycocg", YCOCG);
       this.residualTarget = handle.apply("residual_target", RESIDUAL_TARGET);
     }
 
@@ -2494,27 +2279,16 @@ public final class MCV2 {
     }
 
     @Override
-    public boolean compact(
-      final int[] prediction,
-      final byte[] record,
-      final int body,
-      final int kind,
-      final int quantizer,
-      final int size,
-      final int[] out
-    ) {
-      Preconditions.checkArgument(kind >= COMPACT_DC && kind <= COMPACT_GRID_Y, "Invalid compact class");
+    public boolean compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] out) {
       Preconditions.checkArgument(quantizer >= 0 && quantizer <= MAX_QUANTIZER, "Invalid quantizer");
       this.checkScored(size, out);
       checkBlock(prediction.length, size);
-      checkRange(record.length, body, kind == COMPACT_DC ? 1 : kind == COMPACT_GRID ? 10 : 8);
+      checkRange(record.length, 0, COMPACT_BYTES);
       try {
         return this.finished(
           (long) this.binding.compact.invokeExact(
             of(prediction),
             of(record),
-            body,
-            kind,
             quantizer,
             size,
             of(out),
@@ -2555,31 +2329,12 @@ public final class MCV2 {
     }
 
     @Override
-    public void fit(
-      final float[] values,
-      final int offset,
-      final int stride,
-      final int size,
-      final float[] out,
-      final int outOffset,
-      final int outStride
-    ) {
+    public void fit(final float[] values, final int size, final float[] out) {
       checkSize(size);
-      Preconditions.checkArgument(stride > 0 && stride <= CHANNELS, "Invalid stride");
-      checkRange(values.length, offset, (size * (long) size - 1) * stride + 1);
-      Preconditions.checkArgument(outStride > 0, "Invalid stride");
-      checkRange(out.length, outOffset, (GRID_NODES - 1L) * outStride + 1);
+      checkRange(values.length, 0, size * (long) size);
+      checkRange(out.length, 0, GRID_NODES);
       try {
-        this.binding.fit.invokeExact(
-          of(values),
-          offset,
-          stride,
-          size,
-          of(FITTING_MATRICES[sizeIndex(size)]),
-          of(out),
-          outOffset,
-          outStride
-        );
+        this.binding.fit.invokeExact(of(values), size, of(FITTING_MATRICES[sizeIndex(size)]), of(out));
       } catch (final Throwable failure) {
         throw new IllegalStateException(CALL_FAILED, failure);
       }
@@ -2697,25 +2452,13 @@ public final class MCV2 {
     }
 
     @Override
-    public void ycocg(final int[] source, final int count, final float[] out) {
+    public void residualTarget(final int[] source, final int[] prediction, final int count, final float[] target) {
       Preconditions.checkArgument(count >= 0 && count <= ROOT_SIZE * ROOT_SIZE, "Invalid pixel count");
       checkRange(source.length, 0, count * (long) CHANNELS);
-      checkRange(out.length, 0, count * (long) CHANNELS);
-      try {
-        this.binding.ycocg.invokeExact(of(source), count, of(out));
-      } catch (final Throwable failure) {
-        throw new IllegalStateException(CALL_FAILED, failure);
-      }
-    }
-
-    @Override
-    public void residualTarget(final float[] ycocg, final int[] prediction, final int count, final float[] target) {
-      Preconditions.checkArgument(count >= 0 && count <= ROOT_SIZE * ROOT_SIZE, "Invalid pixel count");
-      checkRange(ycocg.length, 0, count * (long) CHANNELS);
       checkRange(prediction.length, 0, count * (long) CHANNELS);
-      checkRange(target.length, 0, count * (long) CHANNELS);
+      checkRange(target.length, 0, count);
       try {
-        this.binding.residualTarget.invokeExact(of(ycocg), of(prediction), count, of(target));
+        this.binding.residualTarget.invokeExact(of(source), of(prediction), count, of(target));
       } catch (final Throwable failure) {
         throw new IllegalStateException(CALL_FAILED, failure);
       }
@@ -2728,17 +2471,16 @@ public final class MCV2 {
     boolean predicted(int[] prediction, int size, int[] out);
     boolean solid(int color, int size, int[] out);
     boolean palette(byte[] record, int offset, int size, int[] out);
-    boolean compact(int[] prediction, byte[] record, int body, int kind, int quantizer, int size, int[] out);
+    boolean compact(int[] prediction, byte[] record, int quantizer, int size, int[] out);
     void predict(byte[] reference, int width, int height, int left, int top, int size, int motionX, int motionY, int[] out);
-    void fit(float[] values, int offset, int stride, int size, float[] out, int outOffset, int outStride);
+    void fit(float[] values, int size, float[] out);
     void cluster(int[] source, int size, float[] endpoints);
     void finish(int[] source, int count, float[] endpoints, int[] colors, byte[] selectors);
     boolean finishPattern(int[] source, int size, float[] endpoints, int[] colors, byte[] selectors);
     int seeded(byte[] reference, int width, int height, int[] source, int left, int top, int size, int range, int[] seeds);
     void loadSource(byte[] image, int width, int height, int left, int top, int size, int[] source);
     void halve(int[] block, int size, int[] out);
-    void ycocg(int[] source, int count, float[] out);
-    void residualTarget(float[] ycocg, int[] prediction, int count, float[] target);
+    void residualTarget(int[] source, int[] prediction, int count, float[] target);
 
     default void forgetArrays() {}
   }
@@ -2777,10 +2519,6 @@ public final class MCV2 {
     final int orange = red - blue;
     final int chromaGreen = 2 * green - red - blue;
     return 4 * (luma * luma + orange * orange) + chromaGreen * chromaGreen;
-  }
-
-  private static int roundChannel(final int value, final int shift) {
-    return Math.min(Math.max((value + (1 << (shift - 1))) >> shift, 0), MAX_CHANNEL);
   }
 
   private static final class JavaKernels implements Kernels {
@@ -2855,67 +2593,23 @@ public final class MCV2 {
     }
 
     @Override
-    public boolean compact(
-      final int[] prediction,
-      final byte[] record,
-      final int body,
-      final int kind,
-      final int quantizer,
-      final int size,
-      final int[] out
-    ) {
-      if (kind == COMPACT_DC) {
-        final int delta = (record[body] << quantizer) * 4;
-        for (int row = 0; row < size; row++) {
-          final int from = row * size * CHANNELS;
-          for (int offset = from; offset < from + size * CHANNELS; offset++) {
-            out[offset] = roundChannel(prediction[offset] + delta, 2);
-          }
-          if (!this.score.row(out, from, size)) {
-            return false;
-          }
-        }
-        return true;
-      }
+    public boolean compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] out) {
       for (int index = 0; index < GRID_NODES; index++) {
-        this.nodes[index] = signed((record[body + index / 2] & 255) >> ((index % 2) * 4), 4);
+        this.nodes[index] = signed((record[2 + index / 2] & 255) >> ((index % 2) * 4), 4);
       }
       this.horizontal(size);
-      final int orange = kind == COMPACT_GRID ? record[body + 8] : 0;
-      final int chromaGreen = kind == COMPACT_GRID ? record[body + 9] : 0;
       final int shift = 2 * (Integer.numberOfTrailingZeros(size) + 1);
       final int quarter = size * size;
-      final int scale = 4 * quarter;
-      final int red = ((orange - chromaGreen) * scale) << quantizer;
-      final int green = (chromaGreen * scale) << quantizer;
-      final int blue = (-(orange + chromaGreen) * scale) << quantizer;
-      if (orange == 0 && chromaGreen == 0) {
-        final int half = 1 << (shift - 1);
-        for (int row = 0; row < size; row++) {
-          this.vertical(size, row);
-          final int from = row * size * CHANNELS;
-          for (int column = 0; column < size; column++) {
-            final int at = from + column * CHANNELS;
-            final int scaled = (this.line[column] << quantizer) + half;
-            out[at] = Math.min(Math.max((prediction[at] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
-            out[at + 1] = Math.min(Math.max((prediction[at + 1] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
-            out[at + 2] = Math.min(Math.max((prediction[at + 2] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
-          }
-          if (!this.score.row(out, from, size)) {
-            return false;
-          }
-        }
-        return true;
-      }
+      final int half = 1 << (shift - 1);
       for (int row = 0; row < size; row++) {
         this.vertical(size, row);
         final int from = row * size * CHANNELS;
         for (int column = 0; column < size; column++) {
           final int at = from + column * CHANNELS;
-          final int scaled = this.line[column] << quantizer;
-          out[at] = roundChannel(prediction[at] * quarter + scaled + red, shift);
-          out[at + 1] = roundChannel(prediction[at + 1] * quarter + scaled + green, shift);
-          out[at + 2] = roundChannel(prediction[at + 2] * quarter + scaled + blue, shift);
+          final int scaled = (this.line[column] << quantizer) + half;
+          out[at] = Math.min(Math.max((prediction[at] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
+          out[at + 1] = Math.min(Math.max((prediction[at + 1] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
+          out[at + 2] = Math.min(Math.max((prediction[at + 2] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
         }
         if (!this.score.row(out, from, size)) {
           return false;
@@ -2988,16 +2682,8 @@ public final class MCV2 {
     }
 
     @Override
-    public void fit(
-      final float[] values,
-      final int offset,
-      final int stride,
-      final int size,
-      final float[] out,
-      final int outOffset,
-      final int outStride
-    ) {
-      fitGrid(values, offset, stride, size, this.fitScratch, out, outOffset, outStride);
+    public void fit(final float[] values, final int size, final float[] out) {
+      fitGrid(values, size, this.fitScratch, out);
     }
 
     @Override
@@ -3059,26 +2745,14 @@ public final class MCV2 {
     }
 
     @Override
-    public void ycocg(final int[] source, final int count, final float[] out) {
-      for (int offset = 0; offset < count * CHANNELS; offset += CHANNELS) {
-        final int red = source[offset];
-        final int green = source[offset + 1];
-        final int blue = source[offset + 2];
-        out[offset] = (red + 2 * green + blue) * 0.25f;
-        out[offset + 1] = (red - blue) * 0.5f;
-        out[offset + 2] = (-red + 2 * green - blue) * 0.25f;
-      }
-    }
-
-    @Override
-    public void residualTarget(final float[] ycocg, final int[] prediction, final int count, final float[] target) {
-      for (int offset = 0; offset < count * CHANNELS; offset += CHANNELS) {
+    public void residualTarget(final int[] source, final int[] prediction, final int count, final float[] target) {
+      for (int pixel = 0; pixel < count; pixel++) {
+        final int offset = pixel * CHANNELS;
+        final float luma = (source[offset] + 2 * source[offset + 1] + source[offset + 2]) * 0.25f;
         final float red = prediction[offset] * 0.25f;
         final float green = prediction[offset + 1] * 0.25f;
         final float blue = prediction[offset + 2] * 0.25f;
-        target[offset] = ycocg[offset] - (red + 2 * green + blue) * 0.25f;
-        target[offset + 1] = ycocg[offset + 1] - (red - blue) * 0.5f;
-        target[offset + 2] = ycocg[offset + 2] - (-red + 2 * green - blue) * 0.25f;
+        target[pixel] = luma - (red + 2 * green + blue) * 0.25f;
       }
     }
   }
@@ -3121,7 +2795,7 @@ public final class MCV2 {
     }
   }
 
-  // The writer stores level-order records and omits roots filled by the default prediction.
+  // The writer stores level-order records and omits unchanged predicted roots.
   private static byte @Nullable [] write(
     final int width,
     final int height,
@@ -3134,22 +2808,10 @@ public final class MCV2 {
     Preconditions.checkArgument(width >= 1 && width <= MAX_DIMENSION && height >= 1 && height <= MAX_DIMENSION, "Invalid dimensions");
     final int columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
     Preconditions.checkArgument(input.size() == columns * ((height + ROOT_SIZE - 1) / ROOT_SIZE), "Wrong root count");
-    final Map<Integer, Integer> colors = new LinkedHashMap<>();
     for (final TreeNode root : input) {
-      validateTree(root, ROOT_SIZE, keyframe, colors);
+      validateTree(root, ROOT_SIZE, keyframe);
     }
-    int defaultColor = 0;
-    int most = -1;
-    for (final Map.Entry<Integer, Integer> entry : colors.entrySet()) {
-      if (entry.getValue() > most) {
-        most = entry.getValue();
-        defaultColor = entry.getKey();
-      }
-    }
-    final List<TreeNode> roots = new ArrayList<>(input.size());
-    for (final TreeNode root : input) {
-      roots.add(keyframe ? rewriteDefault(root, defaultColor) : root);
-    }
+    final List<TreeNode> roots = input;
     final List<TreeNode> flat = new ArrayList<>();
     final int[] levels = new int[BLOCK_SIZES];
     List<TreeNode> level = new ArrayList<>();
@@ -3186,17 +2848,11 @@ public final class MCV2 {
     }
     final byte[] data = new byte[length];
     putU32(data, 0, MAGIC);
-    data[4] = VERSION;
-    data[5] = (byte) (keyframe ? KEYFRAME : 0);
+    putU32(data, 4, VERSION);
     putU16(data, DIMENSIONS_OFFSET, width);
     putU16(data, DIMENSIONS_OFFSET + Short.BYTES, height);
     putU32(data, FRAME_ID_OFFSET, frameId);
     putU32(data, REFERENCE_ID_OFFSET, referenceId);
-    putU32(data, PAYLOAD_START_OFFSET, start);
-    putU32(data, TOTAL_OFFSET, length);
-    if (keyframe) {
-      putColor(data, DEFAULT_COLOR_OFFSET, defaultColor);
-    }
     int seen = 0;
     for (int group = 0; group < groups; group++) {
       long mask = 0;
@@ -3234,21 +2890,11 @@ public final class MCV2 {
     return data;
   }
 
-  private static int color(final byte[] data, final int at) {
-    return ((data[at] & 255) << 16) | ((data[at + 1] & 255) << 8) | (data[at + 2] & 255);
-  }
-
-  private static void putColor(final byte[] data, final int at, final int color) {
-    data[at] = (byte) (color >> 16);
-    data[at + 1] = (byte) (color >> 8);
-    data[at + 2] = (byte) color;
-  }
-
-  private static void validateTree(final TreeNode node, final int size, final boolean keyframe, final Map<Integer, Integer> colors) {
+  private static void validateTree(final TreeNode node, final int size, final boolean keyframe) {
     if (node.isSplit()) {
       Preconditions.checkArgument(size > SMALLEST_BLOCK, "Split below the bounded depth");
       for (int corner = 0; corner < QUARTERS; corner++) {
-        validateTree(node.getChild(corner), size / 2, keyframe, colors);
+        validateTree(node.getChild(corner), size / 2, keyframe);
       }
       return;
     }
@@ -3260,35 +2906,11 @@ public final class MCV2 {
       "The tree does not serialize to a valid frame: temporal keyframe leaf"
     );
     final byte[] record = node.record();
-    final int length;
-    if (mode == MODE_COMPACT) {
-      Preconditions.checkArgument(record.length > 0, "Empty compact record");
-      final int kind = record[0] & 15;
-      final int form = (record[0] & 255) >> 4;
-      Preconditions.checkArgument(kind <= COMPACT_GRID_Y && form <= 2, "Invalid compact control");
-      length = 1 + form + (kind == COMPACT_DC ? 1 : kind == COMPACT_GRID ? 10 : 8);
-    } else {
-      length = recordSize(mode, size);
-    }
+    final int length = recordSize(mode, size);
     Preconditions.checkArgument(record.length == length, "Record length disagrees with its mode");
     if (mode == MODE_PATTERN) {
       Preconditions.checkArgument((record[2 * CHANNELS] & 255) <= 1, "Invalid pattern orientation");
     }
-    if (keyframe && mode == MODE_SOLID) {
-      colors.merge(color(record, 0), 1, Integer::sum);
-    }
-  }
-
-  private static TreeNode rewriteDefault(final TreeNode node, final int defaultColor) {
-    if (node.isSplit()) {
-      return TreeNode.split(
-        rewriteDefault(node.getChild(0), defaultColor),
-        rewriteDefault(node.getChild(1), defaultColor),
-        rewriteDefault(node.getChild(2), defaultColor),
-        rewriteDefault(node.getChild(3), defaultColor)
-      );
-    }
-    return node.getMode() == MODE_SOLID && color(node.record(), 0) == defaultColor ? TreeNode.skip() : node;
   }
 
   private static boolean patternRecord(final byte[] paletteRecord, final int size, final byte[] patternOutput) {
@@ -3457,12 +3079,7 @@ public final class MCV2 {
     }
     final byte[] record = node.record();
     final int mode = node.getMode();
-    final int vector =
-      mode == MODE_MOTION
-        ? packMotion(record[0], record[1])
-        : mode == MODE_COMPACT
-          ? packMotion(compactX(record, 0), compactY(record, 0))
-          : 0;
+    final int vector = mode == MODE_MOTION || mode == MODE_COMPACT ? packMotion(record[0], record[1]) : 0;
     final int columns = (width + SMALLEST_BLOCK - 1) / SMALLEST_BLOCK;
     for (int row = top; row < Math.min(top + size, height); row += SMALLEST_BLOCK) {
       for (int column = left; column < Math.min(left + size, width); column += SMALLEST_BLOCK) {

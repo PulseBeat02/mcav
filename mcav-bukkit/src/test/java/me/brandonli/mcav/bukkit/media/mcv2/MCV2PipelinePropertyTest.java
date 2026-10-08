@@ -28,27 +28,32 @@ import net.jqwik.api.constraints.IntRange;
 /**
  * Pipelining is the same encoder called in another order: frame N verified on another thread while frame N+1 is
  * searched gives, byte for byte, the stream one frame at a time gives, for any picture size, pan, live profile and
- * keyframe interval.
+ * keyframe request cadence.
  */
 final class MCV2PipelinePropertyTest {
 
   private static final String SEED = "20260927";
 
-  private static final List<Settings> PROFILES = List.of(Settings.DEFAULT, Settings.FAST, Settings.ADAPTIVE, Settings.FAST.withLambda(110));
+  private static final List<Settings> PROFILES = List.of(
+    Settings.DEFAULT,
+    Settings.FAST,
+    Settings.DEFAULT.withLambda(110),
+    Settings.FAST.withLambda(110)
+  );
 
   @Property(seed = SEED, tries = 40)
   boolean pipelinesToTheSameStream(
     @ForAll @IntRange(min = 0, max = 3) final int profile,
-    @ForAll @IntRange(min = 1, max = 4) final int keyInterval,
+    @ForAll @IntRange(min = 1, max = 4) final int requestEvery,
     @ForAll @IntRange(min = 8, max = 120) final int width,
     @ForAll @IntRange(min = 8, max = 90) final int height,
     @ForAll @IntRange(min = 2, max = 6) final int frames,
     @ForAll @IntRange(min = -5, max = 5) final int panPerFrame
   ) throws InterruptedException, ExecutionException {
     final Settings preset = PROFILES.get(profile);
-    final Settings settings = new Settings(preset.lambda(), keyInterval, preset.fast(), preset.adaptive());
-    final List<byte[]> one = MCV2PipelineTest.sequential(settings, width, height, frames, panPerFrame);
-    final List<byte[]> two = MCV2PipelineTest.pipelined(settings, width, height, frames, panPerFrame);
+    final Settings settings = preset;
+    final List<byte[]> one = MCV2PipelineTest.sequential(settings, width, height, frames, panPerFrame, requestEvery);
+    final List<byte[]> two = MCV2PipelineTest.pipelined(settings, width, height, frames, panPerFrame, requestEvery);
     for (int frameIndex = 0; frameIndex < one.size(); frameIndex++) {
       if (!Arrays.equals(one.get(frameIndex), two.get(frameIndex))) {
         return false;

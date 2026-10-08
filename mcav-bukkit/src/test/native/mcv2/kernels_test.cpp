@@ -16,16 +16,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The standalone test of the MCV2 native kernels, outside any JVM: every kernel, on inputs from a fixed pseudo-random
-// sequence in the ranges the encoder gives it, at every level this CPU runs, must write exactly what the scalar level
-// writes, and the scalar level's outputs fold into one digest per kernel. The JVM tests prove the scalar level equal to
-// Java on x86-64, so an equal digest from another platform's library proves it equal to Java too; that is how the
-// linux-aarch64 library is checked, under qemu-user. Built two ways (run-native-tests.sh): with the level sources
-// linked in (-DMCV2_TEST_DIRECT), under AddressSanitizer and UndefinedBehaviorSanitizer or for llvm-cov coverage; or
-// against a shipped library, loaded with dlopen from the path given as the first argument. Under an emulator of a
-// given CPU (Intel SDE, qemu) the last argument names the level the dispatcher must take there.
+// The standalone test of the MCV2 native kernels, outside any JVM: every
+// kernel, on inputs from a fixed pseudo-random sequence in the ranges the
+// encoder gives it, at every level this CPU runs, must write exactly what the
+// scalar level writes, and the scalar level's outputs fold into one digest per
+// kernel. The JVM tests prove the scalar level equal to Java on x86-64, so an
+// equal digest from another platform's library proves it equal to Java too;
+// that is how the linux-aarch64 library is checked, under qemu-user. Built two
+// ways (run-native-tests.sh): with the level sources linked in
+// (-DMCV2_TEST_DIRECT), under AddressSanitizer and UndefinedBehaviorSanitizer
+// or for llvm-cov coverage; or against a shipped library, loaded with dlopen
+// from the path given as the first argument. Under an emulator of a given CPU
+// (Intel SDE, qemu) the last argument names the level the dispatcher must take
+// there.
 //
-//   kernels_test [library] [expect=level]    exits 0 when every level agrees, printing the digests
+//   kernels_test [library] [expect=level]    exits 0 when every level agrees,
+//   printing the digests
 
 #include <math.h>
 #include <stdint.h>
@@ -89,7 +95,8 @@ MCV2_DECLARE_LEVEL(sve512)
 namespace {
 #endif
 
-// every level with its bit, the most preferred of an architecture last: the dispatcher takes the last one it runs
+// every level with its bit, the most preferred of an architecture last: the
+// dispatcher takes the last one it runs
 constexpr struct {
   const char *name;
   int32_t bit;
@@ -97,7 +104,8 @@ constexpr struct {
              {"avx2", MCV2_LEVEL_AVX2},     {"avx512", MCV2_LEVEL_AVX512}, {"neon", MCV2_LEVEL_NEON},
              {"sve256", MCV2_LEVEL_SVE256}, {"sve512", MCV2_LEVEL_SVE512}};
 
-// what Java passes in: the kernel's AT_HWCAP, which tells an AArch64 library whether SVE is there
+// what Java passes in: the kernel's AT_HWCAP, which tells an AArch64 library
+// whether SVE is there
 int64_t hwcap() {
 #if defined(__aarch64__) && defined(__linux__)
   return (int64_t)getauxval(AT_HWCAP);
@@ -185,14 +193,14 @@ void report(bool equal, const char *kernel, const Level &level, int trial) {
   }
 }
 
-
-// runs every kernel TRIALS times on every level, comparing with the first (scalar) level
+// runs every kernel TRIALS times on every level, comparing with the first
+// (scalar) level
 void run(const std::vector<Level> &levels, int trials) {
   const Level &scalar = levels[0];
-  const char *names[] = {"predicted", "solid",   "palette", "compact",     "predict", "fit",   "cluster",
-                         "assign",    "pattern", "seeded",  "load_source", "halve",   "ycocg", "residual_target"};
+  const char *names[] = {"predicted", "solid",  "palette",     "compact", "predict",        "fit", "cluster", "assign",
+                         "pattern",   "seeded", "load_source", "halve",   "residual_target"};
   Digest total;
-  for (int kernel = 0; kernel < 14; kernel++) {
+  for (int kernel = 0; kernel < 13; kernel++) {
     Random random{0x6D637632ull * (kernel + 1)};
     Digest digest;
     for (int trial = 0; trial < trials; trial++) {
@@ -223,11 +231,9 @@ void run(const std::vector<Level> &levels, int trials) {
           break;
         }
         case 3: {
-          const int32_t kind = inputs.range(0, 2);
-          const int32_t q = inputs.range(0, 7);
-          const std::vector<int8_t> record = inputs.bytes(13);
-          measured =
-              level.compact(prediction.data(), record.data(), 1, kind, q, size, out.data(), source.data(), rate, limit);
+          const int32_t q = inputs.range(0, 2);
+          const std::vector<int8_t> record = inputs.bytes(10);
+          measured = level.compact(prediction.data(), record.data(), q, size, out.data(), source.data(), rate, limit);
           break;
         }
         case 4: {
@@ -239,15 +245,15 @@ void run(const std::vector<Level> &levels, int trials) {
           break;
         }
         case 5: {
-          const int32_t stride = inputs.range(0, 1) ? 3 : 1;
-          const std::vector<float> values = inputs.floats((size_t)size * size * stride);
+          const std::vector<float> values = inputs.floats((size_t)size * size);
           const std::vector<float> matrix = inputs.floats((size_t)4 * size);
           floats.assign(16, 0);
-          level.fit(values.data(), 0, stride, size, matrix.data(), floats.data(), 0, 1);
+          level.fit(values.data(), size, matrix.data(), floats.data());
           break;
         }
         case 6: {
-          // sometimes nearly flat, so the clusters meet ties and empty sides; now and then any int, whose sums overflow
+          // sometimes nearly flat, so the clusters meet ties and empty sides;
+          // now and then any int, whose sums overflow
           const int32_t low = inputs.range(0, 255);
           const int32_t spread = inputs.range(0, 1) ? 8 : 255;
           std::vector<int32_t> block = inputs.ints(channels, low, low + spread > 255 ? 255 : low + spread);
@@ -279,14 +285,15 @@ void run(const std::vector<Level> &levels, int trials) {
           for (auto &seed : seeds) {
             seed = (int32_t)((uint32_t)inputs.range(-40, 40) << 16) | (inputs.range(-40, 40) & 0xFFFF);
           }
-          // now and then a source channel that is no byte, which the search must cost as ints
+          // now and then a source channel that is no byte, which the search
+          // must cost as ints
           std::vector<int32_t> block = source;
           if (inputs.range(0, 7) == 0) {
             block[inputs.range(0, (int32_t)block.size() - 1)] = (int32_t)inputs.next();
           }
-          measured = level.seeded(reference.data(), width, height, block.data(), inputs.range(0, width - 1),
-                                  inputs.range(0, height - 1), size, inputs.range(0, 24), seeds.data(),
-                                  (int32_t)seeds.size());
+          measured =
+              level.seeded(reference.data(), width, height, block.data(), inputs.range(0, width - 1),
+                           inputs.range(0, height - 1), size, inputs.range(0, 24), seeds.data(), (int32_t)seeds.size());
           break;
         }
         case 10: {
@@ -300,18 +307,15 @@ void run(const std::vector<Level> &levels, int trials) {
         case 11:
           level.halve(source.data(), size, out.data());
           break;
-        case 12:
-          floats = inputs.floats(channels);
-          level.ycocg(source.data(), size * size, floats.data());
-          break;
         default: {
-          const std::vector<float> ycocg = inputs.floats(channels);
-          floats = inputs.floats(channels);
-          level.residual_target(ycocg.data(), prediction.data(), size * size, floats.data());
+          const int32_t count = inputs.range(0, size * size);
+          floats = inputs.floats((size_t)count + 2);
+          level.residual_target(source.data(), prediction.data(), count, floats.data());
           break;
         }
         }
-        // the scalar level's outputs are the reference: fold them into the digest, compare every other level's
+        // the scalar level's outputs are the reference: fold them into the
+        // digest, compare every other level's
         static std::vector<int32_t> reference_out;
         static std::vector<int32_t> reference_ints;
         static std::vector<float> reference_floats;
@@ -334,7 +338,8 @@ void run(const std::vector<Level> &levels, int trials) {
                  names[kernel], level, trial);
         }
       }
-      // every level drew the same inputs from a copy; the next trial's start one step on
+      // every level drew the same inputs from a copy; the next trial's start
+      // one step on
       random.next();
     }
     printf("%-16s %016llx\n", names[kernel], (unsigned long long)digest.value);
@@ -358,7 +363,8 @@ const char *best(int32_t available) {
 
 int main(int argc, char **argv) {
   std::vector<Level> levels;
-  // an optional last argument expect=<level>: the level the dispatcher must take on this CPU (or emulator)
+  // an optional last argument expect=<level>: the level the dispatcher must
+  // take on this CPU (or emulator)
   const char *expected = nullptr;
   if (argc > 1 && strncmp(argv[argc - 1], "expect=", 7) == 0) {
     expected = argv[--argc] + 7;

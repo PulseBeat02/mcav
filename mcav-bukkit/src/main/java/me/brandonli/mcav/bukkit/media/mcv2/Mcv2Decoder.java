@@ -24,7 +24,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class Mcv2Decoder {
 
   /** Fixed frame header size in bytes. */
-  public static final int HEADER_BYTES = 32;
+  public static final int HEADER_BYTES = 20;
   /** Largest accepted frame length in bytes. */
   public static final int MAX_FRAME_BYTES = 131071;
   /** Largest width or height in pixels. */
@@ -51,9 +51,7 @@ public final class Mcv2Decoder {
   public static final int CHECKPOINT_GROUPS = 8;
   /** Descriptors per walk checkpoint. */
   public static final int WALK_SPAN = 8;
-  /** Independent-frame header flag. */
-  public static final int KEYFRAME = 1;
-  /** Default-colour or co-located prediction leaf. */
+  /** Black keyframe leaf or co-located prediction leaf. */
   public static final int MODE_SKIP = 0;
   /** Whole-pixel translated prediction leaf. */
   public static final int MODE_MOTION = 1;
@@ -72,25 +70,15 @@ public final class Mcv2Decoder {
   /** First descriptor bit holding the quantizer. */
   public static final int QUANTIZER_SHIFT = 5;
   /** Largest wire quantizer exponent. */
-  public static final int MAX_QUANTIZER = 7;
-  /** Constant luma residual class. */
-  public static final int COMPACT_DC = 0;
-  /** Four-by-four luma grid with constant chroma. */
-  public static final int COMPACT_GRID = 1;
-  /** Four-by-four luma grid without chroma. */
-  public static final int COMPACT_GRID_Y = 2;
+  public static final int MAX_QUANTIZER = 2;
+  /** Fixed whole-pixel vector and luma grid record length. */
+  public static final int COMPACT_BYTES = 10;
   /** Header byte offset of width and height. */
   public static final int DIMENSIONS_OFFSET = 8;
   /** Header byte offset of the frame id. */
   public static final int FRAME_ID_OFFSET = 12;
   /** Header byte offset of the reference id. */
   public static final int REFERENCE_ID_OFFSET = 16;
-  /** Header byte offset of the first-record address. */
-  public static final int PAYLOAD_START_OFFSET = 20;
-  /** Header byte offset of the total frame length. */
-  public static final int TOTAL_OFFSET = 24;
-  /** Header byte offset of the default RGB colour. */
-  public static final int DEFAULT_COLOR_OFFSET = 28;
   /** Largest unsigned 32-bit value. */
   public static final long MAX_U32 = 0xFFFFFFFFL;
 
@@ -98,7 +86,6 @@ public final class Mcv2Decoder {
   private static final int POSITION_INTS = 3;
   private static final int CURSOR_BITS = 17;
   private static final int GRID = 4;
-  private static final int[] COMPACT_BYTES = { 1, 10, 8 };
   private static final byte[] NO_REFERENCE = new byte[0];
 
   private Mcv2Decoder() {
@@ -127,7 +114,6 @@ public final class Mcv2Decoder {
     private final long referenceId;
     private final boolean keyframe;
     private final int payloadStart;
-    private final int defaultColor;
     private final int[] leaves;
 
     private Frame(final Parser parser, final int[] leaves) {
@@ -138,7 +124,6 @@ public final class Mcv2Decoder {
       this.referenceId = u32(this.data, REFERENCE_ID_OFFSET);
       this.keyframe = parser.keyframe;
       this.payloadStart = parser.start;
-      this.defaultColor = rgb(this.data, DEFAULT_COLOR_OFFSET);
       this.leaves = leaves;
     }
 
@@ -206,15 +191,6 @@ public final class Mcv2Decoder {
     }
 
     /**
-     * Returns default keyframe colour as 0xRRGGBB; zero on P frames.
-     *
-     * @return default keyframe colour as 0xRRGGBB; zero on P frames
-     */
-    public int getDefaultColor() {
-      return this.defaultColor;
-    }
-
-    /**
      * Returns number of leaves, including absent roots and off-picture leaves.
      *
      * @return number of leaves, including absent roots and off-picture leaves
@@ -267,26 +243,16 @@ public final class Mcv2Decoder {
       throw new Mcv2Exception("Invalid frame length");
     }
     final byte[] data = bytes.clone();
-    if (data[4] != VERSION) {
+    if (u32(data, 4) != VERSION) {
       throw new Mcv2Exception("Not an MCV2 version 3 frame");
-    }
-    if ((data[5] & ~KEYFRAME) != 0 || data[6] != 0 || data[7] != 0 || data[31] != 0 || u32(data, TOTAL_OFFSET) != data.length) {
-      throw new Mcv2Exception("Invalid frame header");
     }
     final int width = u16(data, DIMENSIONS_OFFSET);
     final int height = u16(data, DIMENSIONS_OFFSET + Short.BYTES);
     if (width < 1 || width > MAX_DIMENSION || height < 1 || height > MAX_DIMENSION) {
       throw new Mcv2Exception("Invalid dimensions");
     }
-    final boolean keyframe = (data[5] & KEYFRAME) != 0;
-    if (keyframe != (u32(data, FRAME_ID_OFFSET) == u32(data, REFERENCE_ID_OFFSET)) || (!keyframe && rgb(data, DEFAULT_COLOR_OFFSET) != 0)) {
-      throw new Mcv2Exception("Invalid reference metadata or default color");
-    }
-    final long start = u32(data, PAYLOAD_START_OFFSET);
-    if (start < HEADER_BYTES || start > data.length) {
-      throw new Mcv2Exception("Invalid payload start");
-    }
-    return new Parser(data, width, height, keyframe, (int) start).parse();
+    final boolean keyframe = u32(data, FRAME_ID_OFFSET) == u32(data, REFERENCE_ID_OFFSET);
+    return new Parser(data, width, height, keyframe).parse();
   }
 
   private static final class Parser {
@@ -295,16 +261,15 @@ public final class Mcv2Decoder {
     private final int width;
     private final int height;
     private final boolean keyframe;
-    private final int start;
+    private int start;
     private final int columns;
     private final int roots;
 
-    private Parser(final byte[] data, final int width, final int height, final boolean keyframe, final int start) {
+    private Parser(final byte[] data, final int width, final int height, final boolean keyframe) {
       this.data = data;
       this.width = width;
       this.height = height;
       this.keyframe = keyframe;
-      this.start = start;
       this.columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
       this.roots = this.columns * ((height + ROOT_SIZE - 1) / ROOT_SIZE);
     }
@@ -314,7 +279,7 @@ public final class Mcv2Decoder {
       final int checkpoints = (groups + CHECKPOINT_GROUPS - 1) / CHECKPOINT_GROUPS;
       final int countsAt = HEADER_BYTES + (groups + checkpoints) * Integer.BYTES;
       final int descriptorsAt = countsAt + BLOCK_SIZES * Integer.BYTES;
-      if (descriptorsAt > this.start) {
+      if (descriptorsAt > this.data.length) {
         throw new Mcv2Exception("Truncated index");
       }
       // Unsigned counts stay wide until their sum and the whole index fit inside the input.
@@ -322,9 +287,11 @@ public final class Mcv2Decoder {
       final long levelOne = u32(this.data, countsAt + Integer.BYTES);
       final long levelTwo = u32(this.data, countsAt + 2 * Integer.BYTES);
       final long count = levelZero + levelOne + levelTwo;
-      if (descriptorsAt + count + ((count + WALK_SPAN - 1) / WALK_SPAN) * Integer.BYTES != this.start) {
+      final long start = descriptorsAt + count + ((count + WALK_SPAN - 1) / WALK_SPAN) * Integer.BYTES;
+      if (start > this.data.length) {
         throw new Mcv2Exception("Invalid index length");
       }
+      this.start = (int) start;
       final int descriptors = (int) count;
       final int firstChildren = (int) levelZero;
       final int lastLevel = (int) (levelZero + levelOne);
@@ -337,7 +304,10 @@ public final class Mcv2Decoder {
         final int mode = descriptor & MODE_MASK;
         final int quantizer = descriptor >> QUANTIZER_SHIFT;
         if (
-          mode > MODE_SPLIT || (quantizer != 0 && mode != MODE_COMPACT) || (this.keyframe && (mode == MODE_MOTION || mode == MODE_COMPACT))
+          mode > MODE_SPLIT ||
+          quantizer > MAX_QUANTIZER ||
+          (quantizer != 0 && mode != MODE_COMPACT) ||
+          (this.keyframe && (mode == MODE_MOTION || mode == MODE_COMPACT))
         ) {
           throw new Mcv2Exception("Invalid descriptor");
         }
@@ -432,23 +402,7 @@ public final class Mcv2Decoder {
     }
 
     private int recordLength(final int mode, final int size, final int offset, final int end) throws Mcv2Exception {
-      final int length;
-      if (mode == MODE_COMPACT) {
-        if (offset >= end) {
-          throw new Mcv2Exception("Truncated compact control");
-        }
-        final int control = this.data[offset] & 0xFF;
-        final int kind = control & 15;
-        final int form = control >> 4;
-        if (kind > COMPACT_GRID_Y || form > 2) {
-          throw new Mcv2Exception("Invalid compact control");
-        }
-        length = 1 + form + COMPACT_BYTES[kind];
-      } else if (mode == MODE_PATTERN) {
-        length = patternSize(size);
-      } else {
-        length = recordSize(mode, size);
-      }
+      final int length = recordSize(mode, size);
       if (length > end - offset) {
         throw new Mcv2Exception("Truncated record");
       }
@@ -610,14 +564,10 @@ public final class Mcv2Decoder {
       final byte[] data = this.frame.data;
       int motionX = 0;
       int motionY = 0;
-      int color0 = this.frame.defaultColor;
+      int color0 = 0;
       int color1 = 0;
       int word = 0;
       int orientation = 0;
-      int kind = COMPACT_DC;
-      int body = 0;
-      int orange = 0;
-      int green = 0;
       if (mode == MODE_SOLID || mode == MODE_PALETTE) {
         color0 = rgb(data, offset);
         if (mode == MODE_PALETTE) {
@@ -633,21 +583,12 @@ public final class Mcv2Decoder {
         motionX = data[offset];
         motionY = data[offset + 1];
       } else if (mode == MODE_COMPACT) {
-        kind = data[offset] & 15;
-        final int form = (data[offset] & 0xFF) >> 4;
-        motionX = compactX(data, offset);
-        motionY = compactY(data, offset);
-        body = offset + 1 + form;
-        if (kind != COMPACT_DC) {
-          for (int node = 0; node < GRID * GRID; node++) {
-            this.nodes[node] = signed((data[body + node / 2] & 0xFF) >> ((node % 2) * 4), 4);
-          }
-          horizontal(this.nodes, size, this.rows);
-          if (kind == COMPACT_GRID) {
-            orange = data[body + 8];
-            green = data[body + 9];
-          }
+        motionX = data[offset];
+        motionY = data[offset + 1];
+        for (int node = 0; node < GRID * GRID; node++) {
+          this.nodes[node] = signed((data[offset + 2 + node / 2] & 0xFF) >> ((node % 2) * 4), 4);
         }
+        horizontal(this.nodes, size, this.rows);
       }
       final int scale = 4 * size * size;
       final int shift = 2 * (Integer.numberOfTrailingZeros(size) + 1);
@@ -673,23 +614,11 @@ public final class Mcv2Decoder {
             final int source = (sourceRow + Math.min(Math.max(column + motionX, 0), this.frame.width - 1)) * CHANNELS;
             int luma = 0;
             if (mode == MODE_COMPACT) {
-              luma =
-                kind == COMPACT_DC
-                  ? data[body] * scale
-                  : this.rows[lower * size + localColumn] * (2 * size - weight) + this.rows[upper * size + localColumn] * weight;
+              luma = this.rows[lower * size + localColumn] * (2 * size - weight) + this.rows[upper * size + localColumn] * weight;
             }
-            this.output[target] = (byte) round(
-              (this.reference[source] & 0xFF) * scale + ((luma + (orange - green) * scale) << quantizer),
-              shift
-            );
-            this.output[target + 1] = (byte) round(
-              (this.reference[source + 1] & 0xFF) * scale + ((luma + green * scale) << quantizer),
-              shift
-            );
-            this.output[target + 2] = (byte) round(
-              (this.reference[source + 2] & 0xFF) * scale + ((luma - (orange + green) * scale) << quantizer),
-              shift
-            );
+            this.output[target] = (byte) round((this.reference[source] & 0xFF) * scale + (luma << quantizer), shift);
+            this.output[target + 1] = (byte) round((this.reference[source + 1] & 0xFF) * scale + (luma << quantizer), shift);
+            this.output[target + 2] = (byte) round((this.reference[source + 2] & 0xFF) * scale + (luma << quantizer), shift);
           } else {
             this.output[target] = (byte) (color >> 16);
             this.output[target + 1] = (byte) (color >> 8);
@@ -828,45 +757,20 @@ public final class Mcv2Decoder {
   /**
    * Returns a fixed-length record size.
    *
-   * @param mode SKIP, MOTION, SOLID, PALETTE, PATTERN or SPLIT
+   * @param mode SKIP, MOTION, SOLID, PALETTE, PATTERN, COMPACT or SPLIT
    * @param size 8, 16 or 32 pixels
    * @return record length in bytes; zero for SKIP and SPLIT
-   * @throws IllegalArgumentException if mode is COMPACT or invalid
+   * @throws IllegalArgumentException if mode is invalid
    */
   public static int recordSize(final int mode, final int size) {
     return switch (mode) {
       case MODE_SKIP, MODE_SPLIT -> 0;
       case MODE_MOTION -> 2;
+      case MODE_COMPACT -> COMPACT_BYTES;
       case MODE_SOLID -> CHANNELS;
       case MODE_PALETTE -> 2 * CHANNELS + (size * size) / Byte.SIZE;
       case MODE_PATTERN -> patternSize(size);
-      default -> throw new IllegalArgumentException("Variable or invalid record mode");
+      default -> throw new IllegalArgumentException("Invalid record mode");
     };
-  }
-
-  /**
-   * Reads the horizontal vector of a validated compact record.
-   *
-   * @param data validated frame bytes
-   * @param offset record byte offset
-   * @return signed whole-pixel displacement
-   * @throws IndexOutOfBoundsException if the record lies outside data
-   */
-  public static int compactX(final byte[] data, final int offset) {
-    final int form = (data[offset] & 0xFF) >> 4;
-    return form == 1 ? signed(data[offset + 1] & 15, 4) : form == 2 ? data[offset + 1] : 0;
-  }
-
-  /**
-   * Reads the vertical vector of a validated compact record.
-   *
-   * @param data validated frame bytes
-   * @param offset record byte offset
-   * @return signed whole-pixel displacement
-   * @throws IndexOutOfBoundsException if the record lies outside data
-   */
-  public static int compactY(final byte[] data, final int offset) {
-    final int form = (data[offset] & 0xFF) >> 4;
-    return form == 1 ? signed((data[offset + 1] & 0xFF) >> 4, 4) : form == 2 ? data[offset + 2] : 0;
   }
 }

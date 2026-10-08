@@ -74,10 +74,14 @@ final class NativeKernelsPropertyTest {
     final int width = 40 + random.nextInt(60);
     final int height = 30 + random.nextInt(50);
     final int panPerFrame = random.nextInt(7) - 3;
-    final Settings settings = new Settings(search.lambda(), 3, search.fast(), search.adaptive());
+    final Settings settings = search;
     final MCV2 java = NativeTesting.encoder(settings, 2, true, NativeTesting.javaFactory());
     final MCV2 other = NativeTesting.encoder(settings, 2, true, NativeTesting.factory(level));
     for (int frameNumber = 0; frameNumber < 4; frameNumber++) {
+      if (frameNumber == 3) {
+        java.requestKeyframe();
+        other.requestKeyframe();
+      }
       final byte[] picture = Mcv2Pictures.scene(width, height, frameNumber + random.nextInt(3), panPerFrame);
       if (!Arrays.equals(java.encode(picture, width, height, frameNumber), other.encode(picture, width, height, frameNumber))) {
         throw new AssertionError("frame " + frameNumber + " differs at " + level);
@@ -88,6 +92,6 @@ final class NativeKernelsPropertyTest {
 
   @Provide
   Arbitrary<Settings> searches() {
-    return Arbitraries.of(Settings.DEFAULT, Settings.FAST, Settings.ADAPTIVE);
+    return Arbitraries.of(Settings.DEFAULT, Settings.FAST);
   }
 }

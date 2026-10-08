@@ -33,9 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class KernelDifferential {
 
   /** The kernels one comparison chooses from. */
-  static final int KERNELS = 14;
-
-  private static final int[] COMPACT_CLASSES = { Mcv2Decoder.COMPACT_DC, Mcv2Decoder.COMPACT_GRID, Mcv2Decoder.COMPACT_GRID_Y };
+  static final int KERNELS = 13;
 
   /** The widest values a {@link Values} can draw: the range's size must fit an int. */
   private static final int EXTREME_LOW = -(1 << 30) + 1;
@@ -196,13 +194,11 @@ final class KernelDifferential {
         finishedOther = other.palette(record, offset, size, actual);
       }
       default -> {
-        final int kind = COMPACT_CLASSES[random.next(0, COMPACT_CLASSES.length - 1)];
-        name = "compact " + kind;
-        final int quantizer = random.next(0, 7);
-        final int body = random.next(0, 2);
-        final byte[] record = random.bytes(body + (kind == Mcv2Decoder.COMPACT_DC ? 1 : kind == Mcv2Decoder.COMPACT_GRID ? 10 : 8));
-        finishedJava = java.compact(prediction, record, body, kind, quantizer, size, expected);
-        finishedOther = other.compact(prediction, record, body, kind, quantizer, size, actual);
+        name = "compact";
+        final int quantizer = random.next(0, 2);
+        final byte[] record = random.bytes(Mcv2Decoder.COMPACT_BYTES);
+        finishedJava = java.compact(prediction, record, quantizer, size, expected);
+        finishedOther = other.compact(prediction, record, quantizer, size, actual);
       }
     }
     if (finishedJava != finishedOther) {
@@ -254,16 +250,11 @@ final class KernelDifferential {
   }
 
   private static @Nullable String fit(final Values random, final Kernels java, final Kernels other, final int size) {
-    final int grid = 4;
-    final int stride = random.next(0, 1) == 0 ? 1 : 3;
-    final int offset = stride == 3 ? random.next(0, 2) : 0;
-    final float[] values = floats(random, size * size * stride + offset);
-    final int outOffset = random.next(0, 2);
-    final int outStride = random.next(1, 2);
-    final float[] expected = new float[outOffset + grid * grid * outStride];
-    final float[] actual = new float[expected.length];
-    java.fit(values, offset, stride, size, expected, outOffset, outStride);
-    other.fit(values, offset, stride, size, actual, outOffset, outStride);
+    final float[] values = floats(random, size * size);
+    final float[] expected = floats(random, 18);
+    final float[] actual = expected.clone();
+    java.fit(values, size, expected);
+    other.fit(values, size, actual);
     return unless(same(expected, actual), "fit");
   }
 
@@ -374,20 +365,13 @@ final class KernelDifferential {
         other.halve(source, size, actual);
         yield unless(Arrays.equals(expected, actual), "halve");
       }
-      case 12 -> {
-        final float[] expected = floats(random, channels);
-        final float[] actual = expected.clone();
-        java.ycocg(source, count, expected);
-        other.ycocg(source, count, actual);
-        yield unless(same(expected, actual), "ycocg");
-      }
       default -> {
-        final float[] ycocg = floats(random, channels);
+        final int pixels = random.next(0, count);
         final int[] prediction = ints(random, channels, 0, 1020);
-        final float[] expected = floats(random, channels);
+        final float[] expected = floats(random, count + 2);
         final float[] actual = expected.clone();
-        java.residualTarget(ycocg, prediction, count, expected);
-        other.residualTarget(ycocg, prediction, count, actual);
+        java.residualTarget(source, prediction, pixels, expected);
+        other.residualTarget(source, prediction, pixels, actual);
         yield unless(same(expected, actual), "residualTarget");
       }
     };

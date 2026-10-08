@@ -26,7 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.Random;
@@ -41,18 +40,15 @@ final class MCV2Test {
       final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT, pool, 1, true);
       final byte[] picture = { 10, 20, 30 };
       final byte[] expected = HexFormat.of().parseHex(
-        "4d4356320301000001000100010000000100000034000000340000000a141e00" + "0000000000000000000000000000000000000000"
+        "4d43563203000000010001000100000001000000" + "0100000000000000010000000000000000000000" + "02000000000a141e"
       );
       assertArrayEquals(expected, encoder.encode(picture, 1, 1, 1));
-      final byte[] predicted = expected.clone();
-      predicted[5] = 0;
-      predicted[12] = 2;
-      predicted[28] = 0;
-      predicted[29] = 0;
-      predicted[30] = 0;
+      final byte[] predicted = HexFormat.of().parseHex(
+        "4d43563203000000010001000200000001000000" + "0000000000000000000000000000000000000000"
+      );
       assertArrayEquals(predicted, encoder.encode(picture, 1, 1, 2));
       assertArrayEquals(picture, Mcv2Decoder.decode(predicted, picture, 1));
-      assertEquals(52, encoder.getStats().bytes());
+      assertEquals(40, encoder.getStats().bytes());
       assertFalse(encoder.getStats().keyframe());
       assertEquals(72, encoder.getStats().lambda());
     }
@@ -61,7 +57,7 @@ final class MCV2Test {
   @Test
   void reconstructionEqualsDecodeForEveryPresetAndOddSize() throws Mcv2Exception {
     final Random random = new Random(0x4D435632);
-    for (final MCV2.Settings settings : new MCV2.Settings[] { MCV2.Settings.DEFAULT, MCV2.Settings.FAST, MCV2.Settings.ADAPTIVE }) {
+    for (final MCV2.Settings settings : new MCV2.Settings[] { MCV2.Settings.DEFAULT, MCV2.Settings.FAST }) {
       try (final ForkJoinPool pool = new ForkJoinPool(4)) {
         final MCV2 encoder = new MCV2(settings, pool, 4, true);
         byte[] reference = null;
@@ -93,7 +89,7 @@ final class MCV2Test {
         source[index][channel]++;
       }
     }
-    for (final MCV2.Settings settings : new MCV2.Settings[] { MCV2.Settings.DEFAULT, MCV2.Settings.FAST, MCV2.Settings.ADAPTIVE }) {
+    for (final MCV2.Settings settings : new MCV2.Settings[] { MCV2.Settings.DEFAULT, MCV2.Settings.FAST }) {
       final byte[][] golden = new byte[source.length][];
       for (int threads = 1; threads <= 4; threads++) {
         try (final ForkJoinPool pool = new ForkJoinPool(threads)) {
@@ -147,44 +143,47 @@ final class MCV2Test {
       for (int pixel = 0; pixel < 32 * 32; pixel++) {
         assertEquals(31, decoded[pixel * 3]);
       }
-      assertEquals(52, first.length);
+      assertEquals(48, first.length);
       source[0] = 10;
-      assertEquals(52, encoder.encode(source, 32, 32, 1).length);
+      assertEquals(40, encoder.encode(source, 32, 32, 1).length);
       assertArrayEquals(decoded, encoder.getReference());
     }
   }
 
   @Test
-  void keyframesFollowRequestsSizesIntervalsCutsAndWrappedIds() throws Mcv2Exception {
+  void keyframesFollowRequestsSizesIntervalsAndWrappedIds() throws Mcv2Exception {
     try (final ForkJoinPool pool = new ForkJoinPool(1)) {
-      final MCV2 encoder = new MCV2(new MCV2.Settings(72, 3, false, false), pool, 1, true);
+      final MCV2 encoder = new MCV2(new MCV2.Settings(72, false), pool, 1, true);
       final byte[] black = new byte[3];
       assertTrue(Mcv2Decoder.parse(encoder.encode(black, 1, 1, 0xFFFFFFFEL)).isKeyframe());
       assertFalse(Mcv2Decoder.parse(encoder.encode(black, 1, 1, 0xFFFFFFFFL)).isKeyframe());
       assertFalse(Mcv2Decoder.parse(encoder.encode(black, 1, 1, 0)).isKeyframe());
-      assertTrue(Mcv2Decoder.parse(encoder.encode(black, 1, 1, 1)).isKeyframe());
+      for (int id = 1; id <= 117; id++) {
+        assertFalse(Mcv2Decoder.parse(encoder.encode(black, 1, 1, id)).isKeyframe());
+      }
+      assertTrue(Mcv2Decoder.parse(encoder.encode(black, 1, 1, 118)).isKeyframe());
       encoder.requestKeyframe();
-      assertTrue(Mcv2Decoder.parse(encoder.encode(black, 1, 1, 2)).isKeyframe());
-      assertTrue(Mcv2Decoder.parse(encoder.encode(new byte[6], 2, 1, 3)).isKeyframe());
+      assertTrue(Mcv2Decoder.parse(encoder.encode(black, 1, 1, 119)).isKeyframe());
+      assertTrue(Mcv2Decoder.parse(encoder.encode(new byte[6], 2, 1, 120)).isKeyframe());
       final byte[] white = new byte[6];
       Arrays.fill(white, (byte) 255);
-      assertTrue(Mcv2Decoder.parse(encoder.encode(white, 2, 1, 4)).isKeyframe());
-      assertThrows(IllegalArgumentException.class, () -> encoder.encode(white, 2, 1, 4));
-      assertThrows(IllegalArgumentException.class, () -> encoder.encode(white, 2, 1, 0x80000004L));
+      assertFalse(Mcv2Decoder.parse(encoder.encode(white, 2, 1, 121)).isKeyframe());
+      assertThrows(IllegalArgumentException.class, () -> encoder.encode(white, 2, 1, 121));
+      assertThrows(IllegalArgumentException.class, () -> encoder.encode(white, 2, 1, 0x80000079L));
     }
   }
 
   @Test
-  void switchingSettingsKeepsTheReferenceAndAdaptiveUsesSourceMotion() throws Mcv2Exception {
+  void switchingSettingsKeepsTheReferenceAndMotionLambda() throws Mcv2Exception {
     try (final ForkJoinPool pool = new ForkJoinPool(1)) {
-      final MCV2 encoder = new MCV2(MCV2.Settings.ADAPTIVE, pool, 1, true);
+      final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT, pool, 1, true);
       final byte[] source = new byte[32 * 32 * 3];
       encoder.encode(source, 32, 32, 0);
       Arrays.fill(source, (byte) 10);
       encoder.encode(source, 32, 32, 1);
       Arrays.fill(source, (byte) 20);
       encoder.encode(source, 32, 32, 2);
-      final double raised = 55 * Math.pow(10 / 4.6, 0.79);
+      final double raised = 72 * Math.pow(10 / 4.6, 0.79);
       assertEquals(raised, encoder.getStats().lambda());
       encoder.switchTo(MCV2.Settings.FAST.withLambda(30));
       assertEquals(MCV2.Settings.FAST.withLambda(30), encoder.getSettings());
@@ -235,24 +234,11 @@ final class MCV2Test {
   }
 
   @Test
-  void retainsTheJavaOnlyNativeConfigurationApi() {
-    final Path folder = Path.of("build", "mcv2-native-config-test");
-    MCV2.installNatives(folder, "off");
-    assertEquals("Java", MCV2.describeNatives());
-    MCV2.installNatives(folder, "auto");
-    assertEquals("Java", MCV2.describeNatives());
-    assertThrows(IllegalArgumentException.class, () -> MCV2.installNatives(folder, "other"));
-    assertThrows(NullPointerException.class, () -> MCV2.installNatives(null, "off"));
-    assertThrows(NullPointerException.class, () -> MCV2.installNatives(folder, null));
-  }
-
-  @Test
   void checksSettingsInputsAndReferenceOwnership() {
     try (final ForkJoinPool pool = new ForkJoinPool(1)) {
-      assertThrows(IllegalArgumentException.class, () -> new MCV2.Settings(-1, 1, false, false));
-      assertThrows(IllegalArgumentException.class, () -> new MCV2.Settings(Double.NaN, 1, false, false));
-      assertThrows(IllegalArgumentException.class, () -> new MCV2.Settings(Double.POSITIVE_INFINITY, 1, false, false));
-      assertThrows(IllegalArgumentException.class, () -> new MCV2.Settings(1, 0, false, false));
+      assertThrows(IllegalArgumentException.class, () -> new MCV2.Settings(-1, false));
+      assertThrows(IllegalArgumentException.class, () -> new MCV2.Settings(Double.NaN, false));
+      assertThrows(IllegalArgumentException.class, () -> new MCV2.Settings(Double.POSITIVE_INFINITY, false));
       assertThrows(IllegalArgumentException.class, () -> new MCV2(MCV2.Settings.DEFAULT, pool, 0, false));
       assertThrows(NullPointerException.class, () -> new MCV2(null, pool, 1, false));
       assertThrows(NullPointerException.class, () -> new MCV2(MCV2.Settings.DEFAULT, null, 1, false));

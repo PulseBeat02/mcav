@@ -137,40 +137,22 @@ final class Mcv2Internals {
     }
 
     double average() {
-      return (double) invoke(TYPE, this.value, "average", new Class<?>[0]);
+      return (double) field(TYPE, this.value, "motion");
     }
 
     void add(final double motion) {
       call(TYPE, this.value, "add", new Class<?>[] { double.class }, motion);
     }
 
-    boolean moving(final boolean was, final double enter, final double leave) {
-      return (boolean) invoke(TYPE, this.value, "moving", new Class<?>[] { boolean.class, double.class, double.class }, was, enter, leave);
-    }
-
-    static boolean moving(final double motion, final boolean was, final double enter, final double leave) {
-      return (boolean) invoke(
-        TYPE,
-        null,
-        "moving",
-        new Class<?>[] { double.class, boolean.class, double.class, double.class },
-        motion,
-        was,
-        enter,
-        leave
-      );
-    }
-
-    void observe(final byte[] rgb, final int width, final int height, final boolean cut, final Workers workers) {
+    void observe(final byte[] rgb, final int width, final int height, final Workers workers) {
       call(
         TYPE,
         this.value,
         "observe",
-        new Class<?>[] { byte[].class, int.class, int.class, boolean.class, Workers.TYPE },
+        new Class<?>[] { byte[].class, int.class, int.class, Workers.TYPE },
         rgb,
         width,
         height,
-        cut,
         workers.value
       );
     }
@@ -220,17 +202,16 @@ final class Mcv2Internals {
     boolean predicted(int[] prediction, int size, int[] out);
     boolean solid(int color, int size, int[] out);
     boolean palette(byte[] record, int offset, int size, int[] out);
-    boolean compact(int[] prediction, byte[] record, int body, int kind, int quantizer, int size, int[] out);
+    boolean compact(int[] prediction, byte[] record, int quantizer, int size, int[] out);
     void predict(byte[] reference, int width, int height, int left, int top, int size, int motionX, int motionY, int[] out);
-    void fit(float[] values, int offset, int stride, int size, float[] out, int outOffset, int outStride);
+    void fit(float[] values, int size, float[] out);
     void cluster(int[] source, int size, float[] endpoints);
     void finish(int[] source, int count, float[] endpoints, int[] colors, byte[] selectors);
     boolean finishPattern(int[] source, int size, float[] endpoints, int[] colors, byte[] selectors);
     int seeded(byte[] reference, int width, int height, int[] source, int left, int top, int size, int range, int[] seeds);
     void loadSource(byte[] image, int width, int height, int left, int top, int size, int[] source);
     void halve(int[] block, int size, int[] out);
-    void ycocg(int[] source, int count, float[] out);
-    void residualTarget(float[] ycocg, int[] prediction, int count, float[] target);
+    void residualTarget(int[] source, int[] prediction, int count, float[] target);
 
     default void forgetArrays() {}
   }

@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.Node;
 import org.junit.jupiter.api.Test;
@@ -42,12 +43,12 @@ final class Mcv2ParserRulesTest {
       final int height = Mcv2Decoder.u16(frame, 10);
       final int roots = ((width + 31) / 32) * ((height + 31) / 32);
       final int groups = (roots + 31) / 32;
-      final int counts = 32 + 4 * (groups + (groups + 7) / 8);
+      final int counts = 20 + 4 * (groups + (groups + 7) / 8);
       final int descriptors = (int) (Mcv2Decoder.u32(frame, counts) +
         Mcv2Decoder.u32(frame, counts + 4) +
         Mcv2Decoder.u32(frame, counts + 8));
       final int walk = counts + 12 + descriptors;
-      return new Layout(counts, counts + 12, walk, (int) Mcv2Decoder.u32(frame, 20));
+      return new Layout(counts, counts + 12, walk, walk + 4 * ((descriptors + 7) / 8));
     }
   }
 
@@ -111,27 +112,26 @@ final class Mcv2ParserRulesTest {
     final byte[] frame = Mcv2Trees.write(32 * 33, 32 * 9, 1, 0, false, roots);
     assertEquals(33 * 9, Mcv2Decoder.parse(frame).getLeafCount());
     final int groups = (33 * 9 + 31) / 32;
-    assertEquals(37, Mcv2Decoder.u32(frame, 32 + groups * 4 + 4));
-    assertEquals("Invalid directory checkpoint", message(withWord(frame, 32 + groups * 4 + 4, 0)));
+    assertEquals(37, Mcv2Decoder.u32(frame, 20 + groups * 4 + 4));
+    assertEquals("Invalid directory checkpoint", message(withWord(frame, 20 + groups * 4 + 4, 0)));
   }
 
   @Test
-  void refusesAChildQuartetThatRunsIntoThePayload() throws Mcv2Exception {
+  void refusesAnIndexThatCannotContainItsChildQuartet() throws Mcv2Exception {
     final Node quartet = Node.split(motion(1, 1), motion(2, 2), motion(3, 3), motion(4, 4));
     final byte[] frame = predicted(32, 32, quartet);
     Mcv2Decoder.parse(frame);
     final Layout layout = Layout.of(frame);
     assertEquals(Mcv2Decoder.MODE_SPLIT, frame[layout.plane()]);
     assertEquals(5, layout.walk() - layout.plane());
-    assertEquals("Invalid index length", message(withWord(frame, 20, layout.start() - 1)));
-    assertEquals("Truncated index", message(withWord(frame, 20, layout.start() - 11)));
+    assertEquals("Invalid index length", message(withWord(frame, layout.counts() + 4, 40)));
+    assertEquals("Truncated index", message(Arrays.copyOf(frame, layout.counts() + 11)));
   }
 
   @Test
   void refusesTemporalLeavesInAKeyframe() {
-    for (final Node node : List.of(motion(1, 1), Node.leaf(Mcv2Decoder.MODE_COMPACT, 0, new byte[] { 0, 5 }))) {
+    for (final Node node : List.of(motion(1, 1), Node.leaf(Mcv2Decoder.MODE_COMPACT, 0, new byte[10]))) {
       final byte[] frame = predicted(32, 32, node);
-      frame[5] = 1;
       Mcv2Decoder.putU32(frame, 16, 1);
       assertEquals("Invalid descriptor", message(frame));
     }

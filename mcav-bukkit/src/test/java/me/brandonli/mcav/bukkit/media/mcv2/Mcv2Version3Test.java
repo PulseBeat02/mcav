@@ -23,6 +23,7 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2WireFrames.put;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2WireFrames.read;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,9 +47,21 @@ final class Mcv2Version3Test {
   }
 
   @Test
+  void determinesKeyframesFromExactlyTheTwoIds() throws Mcv2Exception {
+    final byte[] data = block(32, 0, 0, new byte[0], false);
+    assertFalse(Mcv2Decoder.parse(data).isKeyframe());
+    for (final long id : new long[] { 0, 1, 0xFFFFFFFFL }) {
+      put(data, 12, id, 4);
+      put(data, 16, id, 4);
+      assertTrue(Mcv2Decoder.parse(data).isKeyframe());
+      assertArrayEquals(new byte[32 * 32 * 3], Mcv2Decoder.decode(data, null, 0));
+    }
+  }
+
+  @Test
   void validatesEveryHeaderField() {
     final byte[] valid = block(32, 0, 0, new byte[0], true);
-    for (final int offset : new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 16, 20, 24, 31 }) {
+    for (final int offset : new int[] { 0, 1, 2, 3, 4, 5, 6, 7 }) {
       final byte[] bad = valid.clone();
       bad[offset] ^= 2;
       assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad), "offset " + offset);
@@ -69,39 +82,29 @@ final class Mcv2Version3Test {
     final byte[] valid = block(8, 3, 0, new byte[14], true);
     for (int length = 0; length < valid.length; length++) {
       final byte[] bad = Arrays.copyOf(valid, length);
-      if (length >= 32) {
-        put(bad, 24, length, 4);
-      }
       assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad));
     }
     final byte[] extra = Arrays.copyOf(valid, valid.length + 1);
-    put(extra, 24, extra.length, 4);
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(extra));
   }
 
   @Test
-  void validatesReferenceMetadataAndTemporalKeyframeModes() {
+  void validatesTemporalKeyframeModes() {
     for (final int mode : new int[] { 1, 5 }) {
       final byte[] bad = block(32, mode, 0, new byte[] { 0, 0 }, true);
       assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad));
     }
-    final byte[] predicted = block(32, 0, 0, new byte[0], false);
-    predicted[28] = 1;
-    assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(predicted));
-    predicted[28] = 0;
-    predicted[16] = predicted[12];
-    assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(predicted));
   }
 
   @Test
-  void validatesMasksDirectoryCountsAndPayloadStart() {
+  void validatesMasksDirectoryAndCounts() {
     final byte[] valid = block(32, 0, 0, new byte[0], true);
-    for (final int offset : new int[] { 32, 36, 40, 44, 48, 20 }) {
+    for (final int offset : new int[] { 20, 24, 28, 32, 36 }) {
       final byte[] bad = valid.clone();
       bad[offset]++;
       assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad), "offset " + offset);
     }
-    for (final int offset : new int[] { 20, 40, 44, 48 }) {
+    for (final int offset : new int[] { 28, 32, 36 }) {
       final byte[] bad = valid.clone();
       put(bad, offset, 0xFFFFFFFFL, 4);
       assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad));
@@ -115,14 +118,15 @@ final class Mcv2Version3Test {
       final int quantizer = descriptor >> 5;
       final int length = switch (mode) {
         case 0 -> 0;
-        case 1, 5 -> 2;
+        case 1 -> 2;
+        case 5 -> 10;
         case 2 -> 3;
         case 3 -> 134;
         case 4 -> 11;
         default -> 0;
       };
       final byte[] data = block(32, mode, quantizer, new byte[length], false);
-      if (mode <= 5 && (quantizer == 0 || mode == 5)) {
+      if (mode <= 5 && (quantizer == 0 || (mode == 5 && quantizer <= 2))) {
         Mcv2Decoder.parse(data);
       } else {
         assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(data));
@@ -133,38 +137,21 @@ final class Mcv2Version3Test {
   @Test
   void validatesLevelCountsAndNoSplitBelowEight() {
     final byte[] data = block(8, 0, 0, new byte[0], true);
-    data[52 + 5] = 6;
+    data[40 + 5] = 6;
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(data));
-    data[52 + 5] = 0;
-    data[52] = 0;
+    data[40 + 5] = 0;
+    data[40] = 0;
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(data));
   }
 
   @Test
   void validatesWalkCursorAndSplitCount() {
     final byte[] valid = block(8, 2, 0, new byte[] { 1, 2, 3 }, true);
-    for (final int walk : new int[] { 61, 65 }) {
+    for (final int walk : new int[] { 49, 53 }) {
       for (final int value : new int[] { 1, 1 << 17 }) {
         final byte[] bad = valid.clone();
         put(bad, walk, read(bad, walk) ^ value, 4);
         assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad));
-      }
-    }
-  }
-
-  @Test
-  void validatesCompactClassAndFormButAcceptsNonminimalMotion() throws Mcv2Exception {
-    for (int control = 0; control < 256; control++) {
-      final int kind = control & 15;
-      final int form = control >> 4;
-      final int length = 1 + form + (kind == 0 ? 1 : kind == 1 ? 10 : 8);
-      final byte[] record = new byte[length];
-      record[0] = (byte) control;
-      final byte[] data = block(32, 5, 7, record, false);
-      if (kind <= 2 && form <= 2) {
-        Mcv2Decoder.parse(data);
-      } else {
-        assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(data));
       }
     }
   }
@@ -193,7 +180,7 @@ final class Mcv2Version3Test {
   }
 
   @Test
-  void decodesSolidPaletteAndKeyframeDefaultExactly() throws Mcv2Exception {
+  void decodesSolidPaletteAndBlackKeyframeSkipsExactly() throws Mcv2Exception {
     final byte[] solid = Mcv2Decoder.decode(block(8, 2, 0, new byte[] { 10, 20, 30 }, true), null, 0);
     for (int offset = 0; offset < solid.length; offset += 3) {
       assertArrayEquals(new byte[] { 10, 20, 30 }, Arrays.copyOfRange(solid, offset, offset + 3));
@@ -212,19 +199,17 @@ final class Mcv2Version3Test {
     pixel(picture, 8, 7, 0, 40, 50, 60);
     pixel(picture, 8, 0, 1, 10, 20, 30);
     final byte[] skipped = frame(3, 2, true, new byte[0], new byte[0][], new int[3]);
-    skipped[28] = 10;
-    skipped[29] = 20;
-    skipped[30] = 30;
-    assertArrayEquals(Arrays.copyOf(solid, 18), Mcv2Decoder.decode(skipped, null, 0));
+    assertArrayEquals(new byte[18], Mcv2Decoder.decode(skipped, null, 0));
+    assertArrayEquals(new byte[8 * 8 * 3], Mcv2Decoder.decode(block(8, 0, 0, new byte[0], true), null, 0));
   }
 
   @Test
-  void predictsWholePixelMotionWithClampedEdgesAndSignedNibbles() throws Mcv2Exception {
+  void predictsWholePixelMotionWithClampedEdgesAndSignedVectors() throws Mcv2Exception {
     final byte[] reference = new byte[8 * 8 * 3];
     for (int index = 0; index < reference.length; index++) {
       reference[index] = (byte) index;
     }
-    for (final byte[] record : new byte[][] { { -1, 1 }, { 0x10, 0x1F, 0 }, { 0x20, -1, 1, 0 } }) {
+    for (final byte[] record : new byte[][] { { -1, 1 }, { -1, 1, 0, 0, 0, 0, 0, 0, 0, 0 } }) {
       final byte[] decoded = Mcv2Decoder.decode(block(8, record.length == 2 ? 1 : 5, 0, record, false), reference, 0);
       pixel(decoded, 8, 0, 0, 24, 25, 26);
       pixel(decoded, 8, 7, 7, 186, 187, 188);
@@ -233,36 +218,35 @@ final class Mcv2Version3Test {
   }
 
   @Test
-  void interpolatesSignedGridNodesRoundsTiesUpAndAppliesChroma() throws Mcv2Exception {
+  void interpolatesSignedGridNodesAndRoundsTiesUp() throws Mcv2Exception {
     for (final int size : new int[] { 8, 16, 32 }) {
       final byte[] reference = new byte[size * size * 3];
       Arrays.fill(reference, (byte) 100);
-      // A horizontal plane: nodes [-8, -4, 0, 4] repeated in every row.
-      final byte[] record = { 1, (byte) 0xC8, 0x40, (byte) 0xC8, 0x40, (byte) 0xC8, 0x40, (byte) 0xC8, 0x40, 3, -2 };
+      // Nodes [-8, -4, 0, 4] form a horizontal plane at all four rows.
+      final byte[] record = { 0, 0, (byte) 0xC8, 0x40, (byte) 0xC8, 0x40, (byte) 0xC8, 0x40, (byte) 0xC8, 0x40 };
       final byte[] picture = Mcv2Decoder.decode(block(size, 5, 0, record, false), reference, 0);
-      pixel(picture, size, 0, 0, 97, 90, 91);
-      pixel(picture, size, size - 1, size - 1, 109, 102, 103);
-      // At p=size/4 - 1, t=.5 - 2/size; Y=-6 - 8/size, exactly.
+      pixel(picture, size, 0, 0, 92, 92, 92);
+      pixel(picture, size, size - 1, size - 1, 104, 104, 104);
+      // At p=size/4 - 1, t=.5 - 2/size, so Y=-6 - 8/size.
       final int roundedLuma = (int) Math.floor(-6.0 - 8.0 / size + 0.5);
-      pixel(picture, size, size / 4 - 1, 0, 105 + roundedLuma, 98 + roundedLuma, 99 + roundedLuma);
-      final byte[] luma = Arrays.copyOf(record, 9);
-      luma[0] = 2;
-      final byte[] gray = Mcv2Decoder.decode(block(size, 5, 0, luma, false), reference, 0);
-      pixel(gray, size, 0, 0, 92, 92, 92);
-      pixel(gray, size, size - 1, size - 1, 104, 104, 104);
+      pixel(picture, size, size / 4 - 1, 0, 100 + roundedLuma, 100 + roundedLuma, 100 + roundedLuma);
     }
   }
 
   @Test
   void appliesAllQuantizersAndSaturatesPositiveAndNegativeResiduals() throws Mcv2Exception {
     final byte[] reference = new byte[8 * 8 * 3];
-    Arrays.fill(reference, (byte) 100);
-    for (int quantizer = 0; quantizer < 8; quantizer++) {
-      for (final int delta : new int[] { -128, -1, 0, 1, 127 }) {
-        final int value = Math.min(255, Math.max(0, 100 + (delta << quantizer)));
-        final byte[] decoded = Mcv2Decoder.decode(block(8, 5, quantizer, new byte[] { 0, (byte) delta }, false), reference, 0);
-        pixel(decoded, 8, 0, 0, value, value, value);
-        pixel(decoded, 8, 7, 7, value, value, value);
+    for (final int base : new int[] { 0, 6, 100, 250, 255 }) {
+      Arrays.fill(reference, (byte) base);
+      for (int quantizer = 0; quantizer <= 2; quantizer++) {
+        for (final int delta : new int[] { -8, -1, 0, 1, 7 }) {
+          final int value = Math.min(255, Math.max(0, base + (delta << quantizer)));
+          final byte[] record = new byte[10];
+          Arrays.fill(record, 2, 10, (byte) ((delta & 15) * 17));
+          final byte[] decoded = Mcv2Decoder.decode(block(8, 5, quantizer, record, false), reference, 0);
+          pixel(decoded, 8, 0, 0, value, value, value);
+          pixel(decoded, 8, 7, 7, value, value, value);
+        }
       }
     }
   }
@@ -273,7 +257,7 @@ final class Mcv2Version3Test {
     put(data, 8, 1, 2);
     put(data, 10, 1, 2);
     assertArrayEquals(new byte[] { 10, 20, 30 }, Mcv2Decoder.decode(data, null, 0));
-    data[54] = 31;
+    data[42] = 31;
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(data));
   }
 
@@ -313,7 +297,6 @@ final class Mcv2Version3Test {
     assertEquals(8, frame.getHeight());
     assertEquals(1, frame.getFrameId());
     assertEquals(0, frame.getReferenceId());
-    assertEquals(0, frame.getDefaultColor());
     assertEquals(7, frame.getLeafCount());
     assertEquals(16, frame.getLeaf(0).size());
     assertThrows(IndexOutOfBoundsException.class, () -> frame.getLeaf(-1));
@@ -324,7 +307,7 @@ final class Mcv2Version3Test {
     final byte[] data = frame(4096, 4096, true, new byte[0], new byte[0][], new int[3]);
     final Mcv2Decoder.Frame parsed = Mcv2Decoder.parse(data);
     assertEquals(16384, parsed.getLeafCount());
-    assertEquals(2348, parsed.getPayloadStart());
+    assertEquals(2336, parsed.getPayloadStart());
   }
 
   @Test
@@ -333,14 +316,12 @@ final class Mcv2Version3Test {
     for (int iteration = 0; iteration < 10000; iteration++) {
       final byte[] data = new byte[random.nextInt(512)];
       random.nextBytes(data);
-      if (data.length >= 32 && iteration % 2 == 0) {
+      if (data.length >= 20 && iteration % 2 == 0) {
         put(data, 0, 0x3256434D, 4);
         data[4] = 3;
         data[5] = 0;
         data[6] = 0;
         data[7] = 0;
-        data[31] = 0;
-        put(data, 24, data.length, 4);
       }
       try {
         Mcv2Decoder.parse(data);

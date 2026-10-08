@@ -29,7 +29,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Arrays;
 import java.util.Objects;
 import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
@@ -167,9 +166,13 @@ final class MCV2FrameTest {
   void startsAgainWithAKeyframeWhenPredictionCannotWork() {
     final byte[] picture = texture(64, 32, 2);
     // the key interval
-    final MCV2 interval = encoder(new Settings(72, 1, false, false));
-    interval.encode(picture, 64, 32, 0);
-    assertTrue(keyframeAfter(interval, picture, 64, 32));
+    final MCV2 interval = encoder(new Settings(72, false));
+    for (int id = 0; id < 120; id++) {
+      interval.encode(picture, 64, 32, id);
+      assertEquals(id == 0, interval.getStats().keyframe());
+    }
+    interval.encode(picture, 64, 32, 120);
+    assertTrue(interval.getStats().keyframe());
     // a new width or height
     final MCV2 wider = encoder(Settings.DEFAULT);
     wider.encode(picture, 64, 32, 0);
@@ -177,12 +180,6 @@ final class MCV2FrameTest {
     final MCV2 taller = encoder(Settings.DEFAULT);
     taller.encode(picture, 64, 32, 0);
     assertTrue(keyframeAfter(taller, texture(64, 64, 2), 64, 64));
-    // a scene cut: the mean luma change after prediction is far above the threshold
-    final MCV2 cut = encoder(Settings.DEFAULT);
-    cut.encode(picture, 64, 32, 0);
-    final byte[] white = new byte[picture.length];
-    Arrays.fill(white, (byte) 255);
-    assertTrue(keyframeAfter(cut, white, 64, 32));
   }
 
   @Test
@@ -223,7 +220,7 @@ final class MCV2FrameTest {
   }
 
   @Test
-  void raisesTheLambdaOfFastMotionAndStartsOverAtASceneCut() throws Mcv2Exception {
+  void raisesTheLambdaOfFastMotion() throws Mcv2Exception {
     final Settings settings = Settings.DEFAULT;
     // noise that changes from frame to frame but no movement keeps the profile's lambda, which is all a search without
     // the motion's lambda uses
@@ -231,14 +228,6 @@ final class MCV2FrameTest {
     // a fast pan raises it
     final MCV2 pan = play(settings, 100, 70, 6, 9);
     assertTrue(pan.getStats().lambda() > 72);
-    // the frame after a scene cut is back at the profile's lambda
-    final byte[] inverted = new byte[100 * 70 * 3];
-    // A white scene guarantees a cut at zero motion regardless of the previous palette fit.
-    Arrays.fill(inverted, (byte) 255);
-    pan.encode(inverted, 100, 70, 6);
-    assertTrue(pan.getStats().keyframe());
-    pan.encode(inverted, 100, 70, 7);
-    assertEquals(72, pan.getStats().lambda());
   }
 
   @Test
@@ -249,16 +238,16 @@ final class MCV2FrameTest {
   }
 
   @Test
-  void startsAgainAfterASceneCutAndASizeChange() throws Mcv2Exception {
+  void startsAgainAfterASizeChange() throws Mcv2Exception {
     final MCV2 encoder = new MCV2(Settings.DEFAULT, POOL, 2, true);
     final Client client = new Client();
-    encoder.encode(scene(64, 64, 0, 0), 64, 64, 0);
+    client.decode(encoder.encode(scene(64, 64, 0, 0), 64, 64, 0));
     final byte[] inverted = scene(64, 64, 0, 0);
     for (int index = 0; index < inverted.length; index++) {
       inverted[index] = (byte) (255 - (inverted[index] & 0xFF));
     }
-    client.decode(encoder.encode(inverted, 64, 64, 1));
-    assertTrue(encoder.getStats().keyframe());
+    assertArrayEquals(client.decode(encoder.encode(inverted, 64, 64, 1)), encoder.getReference());
+    assertFalse(encoder.getStats().keyframe());
     final byte[] resized = encoder.encode(scene(96, 32, 2, 0), 96, 32, 2);
     assertArrayEquals(client.decode(resized), encoder.getReference());
     assertTrue(encoder.getStats().keyframe());
@@ -311,7 +300,6 @@ final class MCV2FrameTest {
   void switchesLiveProfilesWithoutAKeyframe() throws Mcv2Exception {
     final MCV2 encoder = new MCV2(Settings.DEFAULT, POOL, 2, true);
     final Client client = new Client();
-    // Without global compensation, keep the pan below the zero-motion scene-cut threshold.
     for (int frameNumber = 0; frameNumber < 8; frameNumber++) {
       if (frameNumber == 3) {
         encoder.switchTo(Settings.FAST);

@@ -42,8 +42,7 @@ final class MCV2BlockCoderTest {
 
   @Test
   void aPerfectResidualEndsTheLadder() {
-    // a uniform brightness step: the one-node residual grid is perfect at the finest quantizer, then the one-byte DC
-    // class is perfect for less, and nothing after it can be cheaper
+    // Sixteen luma levels require q=2 and sixteen nodes of four.
     final byte[] reference = reference(40, 200);
     final byte[] source = reference.clone();
     for (int index = 0; index < source.length; index++) {
@@ -53,73 +52,31 @@ final class MCV2BlockCoderTest {
     {
       assertEquals(0, job.distortion(2, 0));
       assertEquals(Mcv2Decoder.MODE_COMPACT, job.mode(2, 0));
-      assertEquals(0, job.quantizer(2, 0));
-      assertArrayEquals(new byte[] { 0, 16 }, job.record(2, 0));
-    }
-  }
-
-  @Test
-  void aPerfectReducedResidualEndsTheLadder() {
-    // a bump on a 4x4 luma grid: the full 4x4 residual grid and the reduced Y4C1 residual are perfect at the finest
-    // quantizer, and the 4x4 nibble class is perfect at the coarsest for fewer bytes still
-    final float[] nodes = new float[16];
-    nodes[5] = 96;
-    nodes[6] = 96;
-    nodes[9] = 96;
-    nodes[10] = 96;
-    final byte[] reference = reference(40, 150);
-    final byte[] source = reference.clone();
-    for (int row = 0; row < 8; row++) {
-      for (int column = 0; column < 8; column++) {
-        final double bump = Mcv2Oracle.interpolate(nodes, 0, 1, 4, 8, column, row);
-        assertEquals(Math.rint(bump), bump);
-        for (int channel = 0; channel < 3; channel++) {
-          final int at = (row * 8 + column) * 3 + channel;
-          source[at] = (byte) ((source[at] & 0xFF) + (int) bump);
-        }
-      }
-    }
-    final Mcv2BlockState job = code(source, reference);
-    {
-      assertEquals(0, job.distortion(2, 0));
-      assertEquals(Mcv2Decoder.MODE_COMPACT, job.mode(2, 0));
-      assertEquals(4, job.quantizer(2, 0));
-      assertEquals(Mcv2Decoder.COMPACT_GRID_Y, job.record(2, 0)[0]);
+      assertEquals(2, job.quantizer(2, 0));
+      assertArrayEquals(new byte[] { 0, 0, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44, 0x44 }, job.record(2, 0));
     }
   }
 
   @Test
   void needsTheFinestQuantizerThatHoldsTheFittedValues() {
-    final float[] fit = new float[18];
+    final float[] fit = new float[16];
     // the sixteen luma nibbles of the 4x4 grid classes hold -8 to 7 steps
     fit[0] = 7;
-    assertEquals(0, Mcv2BlockState.neededQuantizer(Mcv2Decoder.COMPACT_GRID_Y, fit, 16));
+    assertEquals(0, Mcv2BlockState.neededQuantizer(fit));
     fit[0] = -8.5f;
-    assertEquals(0, Mcv2BlockState.neededQuantizer(Mcv2Decoder.COMPACT_GRID_Y, fit, 16));
+    assertEquals(0, Mcv2BlockState.neededQuantizer(fit));
     fit[0] = -8.6f;
-    assertEquals(1, Mcv2BlockState.neededQuantizer(Mcv2Decoder.COMPACT_GRID_Y, fit, 16));
+    assertEquals(1, Mcv2BlockState.neededQuantizer(fit));
     fit[0] = 7.5f;
-    assertEquals(1, Mcv2BlockState.neededQuantizer(Mcv2Decoder.COMPACT_GRID_Y, fit, 16));
-    fit[0] = 59.9f;
-    assertEquals(3, Mcv2BlockState.neededQuantizer(Mcv2Decoder.COMPACT_GRID_Y, fit, 16));
-    // 60 is 7.5 steps of 8, which rounds to 8: no quantizer holds it, so the coarsest is needed
-    fit[0] = 60;
-    assertEquals(4, Mcv2BlockState.neededQuantizer(Mcv2Decoder.COMPACT_GRID_Y, fit, 16));
-    // after the nibbles, the chroma pair holds -128 to 127 steps like every value of the other classes
-    fit[0] = 0;
-    fit[16] = 127;
-    assertEquals(0, Mcv2BlockState.neededQuantizer(Mcv2Decoder.COMPACT_GRID, fit, 18));
-    fit[16] = 128;
-    assertEquals(1, Mcv2BlockState.neededQuantizer(Mcv2Decoder.COMPACT_GRID, fit, 18));
-    assertEquals(0, Mcv2BlockState.neededQuantizer(Mcv2Decoder.COMPACT_GRID, fit, 16));
-    final float[] dc = { -128 };
-    assertEquals(0, Mcv2BlockState.neededQuantizer(Mcv2Decoder.COMPACT_DC, dc, 1));
-    dc[0] = -129;
-    assertEquals(1, Mcv2BlockState.neededQuantizer(Mcv2Decoder.COMPACT_DC, dc, 1));
-    dc[0] = 1019;
-    assertEquals(3, Mcv2BlockState.neededQuantizer(Mcv2Decoder.COMPACT_DC, dc, 1));
-    dc[0] = 1020;
-    assertEquals(4, Mcv2BlockState.neededQuantizer(Mcv2Decoder.COMPACT_DC, dc, 1));
+    assertEquals(1, Mcv2BlockState.neededQuantizer(fit));
+    fit[0] = 14.9f;
+    assertEquals(1, Mcv2BlockState.neededQuantizer(fit));
+    fit[0] = 15;
+    assertEquals(2, Mcv2BlockState.neededQuantizer(fit));
+    fit[0] = 1000;
+    assertEquals(2, Mcv2BlockState.neededQuantizer(fit));
+    fit[0] = -1000;
+    assertEquals(2, Mcv2BlockState.neededQuantizer(fit));
   }
 
   @Test

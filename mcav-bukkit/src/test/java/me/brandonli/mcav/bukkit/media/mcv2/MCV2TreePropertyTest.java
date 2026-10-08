@@ -44,7 +44,7 @@ final class MCV2TreePropertyTest {
     assertEquals(roots, Mcv2Trees.read(parsed));
     assertArrayEquals(data, Mcv2Trees.write(width, height, 2, 1, false, Mcv2Trees.read(parsed)));
     final int groups = (roots.size() + 31) / 32;
-    final int counts = 32 + 4 * (groups + (groups + 7) / 8);
+    final int counts = 20 + 4 * (groups + (groups + 7) / 8);
     final int descriptors = (int) (Mcv2Decoder.u32(data, counts) + Mcv2Decoder.u32(data, counts + 4) + Mcv2Decoder.u32(data, counts + 8));
     final int walk = counts + 12 + descriptors;
     int splits = 0;
@@ -63,25 +63,9 @@ final class MCV2TreePropertyTest {
       } else {
         final Mcv2Decoder.Leaf value = parsed.getLeaf(leaf++);
         assertEquals(parsed.getPayloadStart() + cursor, value.offset());
-        cursor += length(data, value);
+        cursor += Mcv2Decoder.recordSize(value.mode(), value.size());
       }
     }
-  }
-
-  private static int length(final byte[] data, final Mcv2Decoder.Leaf leaf) {
-    if (leaf.mode() == 5) {
-      final int control = data[leaf.offset()] & 255;
-      return (
-        1 +
-        (control >> 4) +
-        switch (control & 15) {
-          case 0 -> 1;
-          case 1 -> 10;
-          default -> 8;
-        }
-      );
-    }
-    return Mcv2Decoder.recordSize(leaf.mode(), leaf.size());
   }
 
   static Node tree(final Random random, final int size) {
@@ -89,15 +73,9 @@ final class MCV2TreePropertyTest {
       return Node.split(tree(random, size / 2), tree(random, size / 2), tree(random, size / 2), tree(random, size / 2));
     }
     final int mode = random.nextInt(6);
-    final int quantizer = mode == 5 ? random.nextInt(8) : 0;
+    final int quantizer = mode == 5 ? random.nextInt(3) : 0;
     final byte[] record;
-    if (mode == 5) {
-      final int kind = random.nextInt(3);
-      final int form = random.nextInt(3);
-      record = new byte[1 + form + (kind == 0 ? 1 : kind == 1 ? 10 : 8)];
-      random.nextBytes(record);
-      record[0] = (byte) (kind | (form << 4));
-    } else if (mode == 4) {
+    if (mode == 4) {
       record = new byte[7 + size / 8];
       random.nextBytes(record);
       record[6] &= 1;

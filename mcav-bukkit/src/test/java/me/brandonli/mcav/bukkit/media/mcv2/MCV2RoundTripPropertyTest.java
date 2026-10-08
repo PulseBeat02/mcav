@@ -43,12 +43,7 @@ final class MCV2RoundTripPropertyTest {
 
   private static final ForkJoinPool POOL = ForkJoinPool.commonPool();
 
-  private static final List<Settings> PROFILES = List.of(
-    new Settings(72, 1, false, false),
-    Settings.ADAPTIVE,
-    Settings.DEFAULT,
-    Settings.FAST
-  );
+  private static final List<Settings> PROFILES = List.of(new Settings(72, false), Settings.FAST, Settings.DEFAULT, Settings.FAST);
 
   /** A picture of flat rectangles, noise and ramps, the kinds of content different leaf modes win on. */
   private static byte[] picture(final Random random, final int width, final int height) {
@@ -118,6 +113,9 @@ final class MCV2RoundTripPropertyTest {
     final Mcv2Receiver client = new Mcv2Receiver();
     byte[] rgb = picture(random, width, height);
     for (int frame = 0; frame < 4; frame++) {
+      if (profile < 2) {
+        encoder.requestKeyframe();
+      }
       final byte[] data = encoder.encode(rgb, width, height, frame);
       assertArrayEquals(encoder.getReference(), client.accept(data));
       rgb = next(random, rgb, width, height);

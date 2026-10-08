@@ -22,15 +22,15 @@ from mcvideo.v3 import Node, pack_frame, parse_frame
 from mcvideo.decoder import decode, Decoder
 from mcvideo.transport import make_pages, Assembler
 
-wire = pack_frame(1, 1, 9, 9, True, (0, 0, 0), {0: Node(SOLID, record=bytes([10, 20, 30]))})
+wire = pack_frame(1, 1, 9, 9, {0: Node(SOLID, record=bytes([10, 20, 30]))})
 assert decode(wire).tolist() == [[[10, 20, 30]]]
 ```
 
 ## Public API
 
-- `format.py` defines header offsets, mode and compact class numbers, bounds and transport constants.
+- `format.py` defines header offsets, mode numbers, bounds and transport constants.
 - `v3.py`: `Node(mode, q=0, record=b"", children=())`, `parse_frame(data: bytes) -> Frame` and
-  `pack_frame(width, height, frame_id, reference_id, keyframe, default_color, roots) -> bytes`.
+  `pack_frame(width, height, frame_id, reference_id, roots) -> bytes` (a keyframe has equal ids).
   `roots` maps superblock index to `Node`; missing entries mean SKIP. SPLIT nodes have four
   children in top-left, top-right, bottom-left, bottom-right order. Records are whole bytes;
   a PATTERN record is six RGB bytes, an orientation byte (0 or 1) and the `size / 8` axis bytes.
@@ -69,12 +69,12 @@ from its own manifest.
 | file | bytes | SHA-256 |
 |---|---:|---|
 | `mcvideo/__init__.py` | 822 | `f25bfd3cdfbb172eaf31e0fd90ba062ef0f30f9aef5e04807734565d4c68e03c` |
-| `mcvideo/decoder.py` | 5,689 | `598982ba28da2fa1b8c5c8f867db64480d2ec9d2021f9cdadfbbf3484a0292a1` |
-| `mcvideo/format.py` | 1,819 | `4cdf26dc1c45c2af6aada9e0d0ffbd713d8f178fc6a64816b3e2df5182b22e64` |
-| `mcvideo/transport.py` | 6,385 | `36d445e28a90564e17c893ec2991f55db16497c97560711facf3412ba740949b` |
-| `mcvideo/v3.py` | 11,587 | `70f57ad0a8d83345233f2c9383a3bd2cc054eb21f91d86d1319bc1ff9c37a7c8` |
+| `mcvideo/decoder.py` | 5,154 | `11b5a014be36ec54715adede6d23e31e0141dc4921b3d9d25178f0f2787cfa67` |
+| `mcvideo/format.py` | 1,634 | `2df5ea30a9aac95f5d6322e91410a2baa4879f8d61c846ce2edbbac8228a59a0` |
+| `mcvideo/transport.py` | 6,415 | `7a76c678f0a14dc97fc617690890302d93f8f4c4f9d9fd98905a0b63cd202734` |
+| `mcvideo/v3.py` | 10,140 | `de09c123804eb86756ef2f5355fc008a569a61782f51609e025094635c70c8b6` |
 | `requirements.txt` | 883 | `c4f288cc61d58c292c943c07dbe3b4e233aac528db5a9d91866704469ed4ea24` |
-| `tests/rejection_cases.py` | 7,582 | `a46288649f5da7d089439f60d8baaba7054fac2969a868662ebd40063efb0d53` |
-| `tests/test_decoder.py` | 10,240 | `0169fc91fb7c5d2468b996a200b4981133c423b96e4b9cae2ecd5a6d4bfb40d7` |
-| `tests/test_format.py` | 6,787 | `811008d6075fd61125e048e9354d984f549926a7a7fb0471feca9323dfed2ad0` |
-| `tests/test_transport.py` | 7,366 | `27f1c810fd739b1e58365987d2357f220f4e28103d6b0252c3b40c591b3ad0cf` |
+| `tests/rejection_cases.py` | 6,416 | `16348d6d034fb5e296f749d96a6400205788e080d6cc71d92cbc1add9bd0c03b` |
+| `tests/test_decoder.py` | 10,191 | `7e139ac24e65ad759966d6406b719ea61c012edbd0e7a07fcedb56b6aca916f0` |
+| `tests/test_format.py` | 6,570 | `88dfb2f239315236636af2ec0ed30017811bba0d72b0e0bbca6be548f71612b1` |
+| `tests/test_transport.py` | 7,278 | `c2de145b44da0acbbd8e102ece602792ad36a8b3fc5863606d52b57303db8936` |

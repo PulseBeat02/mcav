@@ -50,12 +50,12 @@ final class MCV2TreeNodeTest {
   @Test
   void leavesKeepACopyOfTheirRecord() {
     final byte[] record = { 1, 2, 3 };
-    final Node leaf = Node.leaf(Mcv2Decoder.MODE_SOLID, 5, record);
+    final Node leaf = Node.leaf(Mcv2Decoder.MODE_SOLID, 2, record);
     record[0] = 9;
     assertArrayEquals(new byte[] { 1, 2, 3 }, leaf.getRecord());
     assertNotSame(leaf.getRecord(), leaf.getRecord());
-    assertEquals(5, leaf.getQ());
-    assertEquals("leaf(2,5,3B)", leaf.value().toString());
+    assertEquals(2, leaf.getQ());
+    assertEquals("leaf(2,2,3B)", leaf.value().toString());
   }
 
   @ParameterizedTest
@@ -65,8 +65,8 @@ final class MCV2TreeNodeTest {
   }
 
   @ParameterizedTest
-  @ValueSource(ints = { -1, 8 })
-  void refusesQuantizersOutsideThreeBits(final int quantizer) {
+  @ValueSource(ints = { -1, 3, 4, 5, 6, 7, 8 })
+  void refusesQuantizersOutsideZeroThroughTwo(final int quantizer) {
     assertThrows(IllegalArgumentException.class, () -> Node.leaf(Mcv2Decoder.MODE_SOLID, quantizer, new byte[3]));
   }
 

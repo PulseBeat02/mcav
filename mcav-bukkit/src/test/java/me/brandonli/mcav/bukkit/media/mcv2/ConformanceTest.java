@@ -38,8 +38,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * produced, compared by SHA-256.
  *
  * <p>The {@code conformance} streams are real crops encoded with the v3 live encoder; each is at most 1 MB. The {@code edge} streams are
- * random trees built with the reference's own serializer to reach every leaf mode, every compact class, quantizers up
- * to 7, cropped edges and the derived index. Old v2 frames belong to the rejection corpus.
+ * random trees built with the reference's own serializer to reach every leaf mode, quantizers 0..2, cropped edges and the derived index. Old v2 frames belong to the rejection corpus.
  */
 final class ConformanceTest {
 

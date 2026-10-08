@@ -353,6 +353,9 @@ final class Mcv2NativesTest {
     assertTrue(MCV2.describeNatives().startsWith("Java, "));
     assertEquals(NativeTesting.expected(), Natives.resolved().failed());
     assertThrows(IllegalArgumentException.class, () -> Natives.install(this.folder, "sometimes"));
+    assertThrows(NullPointerException.class, () -> MCV2.installNatives(null, MCV2.NATIVE_OFF));
+    assertThrows(NullPointerException.class, () -> MCV2.installNatives(this.folder, null));
+    assertThrows(IllegalArgumentException.class, () -> MCV2.installNatives(this.folder, "other"));
   }
 
   @Test

@@ -36,8 +36,7 @@ def at_size(node, size):
 def frame(node=None, width=3, height=2, key=True, frame_id=0, reference_id=None, size=32):
     if reference_id is None:
         reference_id = frame_id if key else (frame_id - 1) & 0xFFFFFFFF
-    return pack_frame(width, height, frame_id, reference_id, key, (11, 22, 33) if key else (0, 0, 0),
-                      {} if node is None else {0: at_size(node, size)})
+    return pack_frame(width, height, frame_id, reference_id, {} if node is None else {0: at_size(node, size)})
 
 
 def gray(values):
@@ -45,10 +44,9 @@ def gray(values):
 
 
 class ReconstructionTest(unittest.TestCase):
-    def test_default_solid_and_present_skip(self):
-        expected = np.array([[[11, 22, 33]] * 3] * 2, np.uint8)
+    def test_keyframe_absent_and_skip_are_black_and_solid(self):
         for node in (None, Node(fmt.SKIP)):
-            np.testing.assert_array_equal(expected, decode(frame(node)))
+            np.testing.assert_array_equal(np.zeros((2, 3, 3), np.uint8), decode(frame(node)))
         np.testing.assert_array_equal(np.array([[[4, 5, 6]] * 3] * 2, np.uint8),
                                       decode(frame(Node(fmt.SOLID, record=b'\4\5\6'))))
 
@@ -80,51 +78,50 @@ class ReconstructionTest(unittest.TestCase):
             np.testing.assert_array_equal(gray(expected), decode(frame(Node(fmt.MOTION, record=record), key=False, frame_id=1), reference, 0))
         np.testing.assert_array_equal(reference, decode(frame(key=False, frame_id=1), reference, 0))
 
-    def test_compact_motion_forms(self):
+    def test_compact_vector_sign_and_clamping(self):
         reference = gray([[1, 2, 3], [4, 5, 6]])
-        for prefix, expected in [(b'\x00', [[1, 2, 3], [4, 5, 6]]),
-                                 (b'\x10\xf1', [[2, 3, 3], [2, 3, 3]]),
-                                 (b'\x10\x78', [[4, 4, 4], [4, 4, 4]]),
-                                 (b'\x20\x7f\x80', [[3, 3, 3], [3, 3, 3]])]:
-            data = frame(Node(fmt.COMPACT, record=prefix + b'\0'), key=False, frame_id=1)
+        for vector, expected in [(b'\0\0', [[1, 2, 3], [4, 5, 6]]),
+                                 (b'\1\xff', [[2, 3, 3], [2, 3, 3]]),
+                                 (b'\xf8\x07', [[4, 4, 4], [4, 4, 4]]),
+                                 (b'\x7f\x80', [[3, 3, 3], [3, 3, 3]])]:
+            data = frame(Node(fmt.COMPACT, record=vector + bytes(8)), key=False, frame_id=1)
             np.testing.assert_array_equal(gray(expected), decode(data, reference, 0))
 
-    def test_dc_quantizers_and_clipping(self):
-        for residual, expected in [(1, [129, 130, 132, 136, 144, 160, 192, 255]),
-                                   (255, [127, 126, 124, 120, 112, 96, 64, 0])]:
+    def test_quantizers_and_clipping(self):
+        for nodes, expected in [(0x11, [129, 130, 132]), (0x88, [120, 112, 96])]:
             for q, value in enumerate(expected):
-                data = frame(Node(fmt.COMPACT, q, bytes([0, residual])), width=1, height=1, key=False, frame_id=1)
+                data = frame(Node(fmt.COMPACT, q, b'\0\0' + bytes([nodes] * 8)), width=1, height=1, key=False, frame_id=1)
                 np.testing.assert_array_equal(np.array([[[value] * 3]], np.uint8), decode(data, np.full((1, 1, 3), 128, np.uint8), 0))
-        for residual, expected in [(128, 0), (127, 255)]:
-            data = frame(Node(fmt.COMPACT, 7, bytes([0, residual])), width=1, height=1, key=False, frame_id=1)
-            np.testing.assert_array_equal(np.array([[[expected] * 3]], np.uint8), decode(data, np.full((1, 1, 3), 128, np.uint8), 0))
+        for nodes, pixel, expected in [(0x77, 250, 255), (0x88, 5, 0)]:
+            data = frame(Node(fmt.COMPACT, 2, b'\0\0' + bytes([nodes] * 8)), width=1, height=1, key=False, frame_id=1)
+            np.testing.assert_array_equal(np.array([[[expected] * 3]], np.uint8), decode(data, np.full((1, 1, 3), pixel, np.uint8), 0))
 
-    def test_grid_16_q2_exact_pixels(self):
-        # Every row has luma nodes -2,-1,0,1, with Co=2, Cg=-1.
-        record = b'\x01' + bytes.fromhex('fe10fe10fe10fe10') + b'\2\xff'
+    def test_grid_16_q2_exact_pixels_on_every_channel(self):
+        # Every row has luma nodes -2,-1,0,1; the same luma is added to red, green and blue.
+        record = b'\0\0' + bytes.fromhex('fe10fe10fe10fe10')
         data = frame(Node(fmt.COMPACT, 2, record), width=16, height=16, size=16, key=False, frame_id=1)
-        expected_row = [[104, 108, 128], [104, 108, 128], [105, 109, 129], [106, 110, 130],
-                        [107, 111, 131], [108, 112, 132], [109, 113, 133], [110, 114, 134],
-                        [111, 115, 135], [112, 116, 136], [113, 117, 137], [114, 118, 138],
-                        [115, 119, 139], [116, 120, 140], [116, 120, 140], [116, 120, 140]]
+        expected_row = [[92, 112, 132], [92, 112, 132], [93, 113, 133], [94, 114, 134],
+                        [95, 115, 135], [96, 116, 136], [97, 117, 137], [98, 118, 138],
+                        [99, 119, 139], [100, 120, 140], [101, 121, 141], [102, 122, 142],
+                        [103, 123, 143], [104, 124, 144], [104, 124, 144], [104, 124, 144]]
         reference = np.broadcast_to(np.array([100, 120, 140], np.uint8), (16, 16, 3)).copy()
         np.testing.assert_array_equal(np.array([expected_row] * 16, np.uint8), decode(data, reference, 0))
 
     def test_grid_y_bilinear_both_axes_and_round_half_up(self):
-        record = b'\x02' + bytes.fromhex('ed0ffe100f211032')
+        record = b'\0\0' + bytes.fromhex('ed0ffe100f211032')
         data = frame(Node(fmt.COMPACT, record=record), width=8, height=8, size=8, key=False, frame_id=1)
         expected = [[97, 97, 98, 98, 99, 99, 100, 100], [97, 98, 98, 99, 99, 100, 100, 100],
                     [98, 98, 99, 99, 100, 100, 101, 101], [98, 99, 99, 100, 100, 101, 101, 101],
                     [99, 99, 100, 100, 101, 101, 102, 102], [99, 100, 100, 101, 101, 102, 102, 102],
                     [100, 100, 101, 101, 102, 102, 103, 103], [100, 100, 101, 101, 102, 102, 103, 103]]
         np.testing.assert_array_equal(gray(expected), decode(data, np.full((8, 8, 3), 100, np.uint8), 0))
-        impulse = frame(Node(fmt.COMPACT, record=b'\2\7' + bytes(7)), width=8, height=8, size=8, key=False, frame_id=1)
+        impulse = frame(Node(fmt.COMPACT, record=b'\0\0\7' + bytes(7)), width=8, height=8, size=8, key=False, frame_id=1)
         expected = [[7, 5, 2, 0, 0, 0, 0, 0], [5, 4, 1, 0, 0, 0, 0, 0], [2, 1, 0, 0, 0, 0, 0, 0]] + [[0] * 8] * 5
         np.testing.assert_array_equal(gray(expected), decode(impulse, np.zeros((8, 8, 3), np.uint8), 0))
 
     def test_leaves_read_only_the_reference_and_crop_whole_blocks(self):
         node = Node(fmt.SPLIT, children=(Node(fmt.SOLID, record=bytes([200] * 3)), Node(fmt.MOTION, record=b'\xf0\0'),
-                                       Node(fmt.SKIP), Node(fmt.COMPACT, record=b'\0\1')))
+                                       Node(fmt.SKIP), Node(fmt.COMPACT, record=b'\0\0' + b'\x11' * 8)))
         data = frame(node, width=17, height=17, key=False, frame_id=1)
         expected = np.full((17, 17, 3), 10, np.uint8)
         expected[:16, :16] = 200
@@ -163,7 +160,7 @@ class StreamTest(unittest.TestCase):
 
     def test_half_range_wraparound_and_caller_edits(self):
         decoder = Decoder()
-        first = decoder.accept(frame(frame_id=0xFFFFFFFE))
+        first = decoder.accept(frame(Node(fmt.SOLID, record=bytes([11, 22, 33])), frame_id=0xFFFFFFFE))
         first[:] = 0
         expected = np.array([[[11, 22, 33]] * 3] * 2, np.uint8)
         np.testing.assert_array_equal(expected, decoder.accept(frame(key=False, frame_id=0, reference_id=0xFFFFFFFE)))

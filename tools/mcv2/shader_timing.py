@@ -1,7 +1,7 @@
 """Time every pass of the MCV2 resource pack's post chain with GPU timer queries (GL_TIME_ELAPSED).
 
     python tools/mcv2/shader_timing.py <stream.mcs> [<stream.mcs> ...] [--backend egl|glx] [--slots N] [--rounds R]
-        [--repeats K] [--json OUT] [--pack DIR]
+        [--repeats K] [--json OUT] [--pack DIR] [--reference DIR] [--spirv CLASSPATH]
 
 The chain is the one the client runs on every rendered frame: the pack's post chain (entity_outline.json) pass for
 pass, as shader_check runs it - mcav's passes with their own shaders and Minecraft's blits as texel copies of the same
@@ -67,7 +67,7 @@ class TimedChain(shader_check.Chain):
         super().show(pages)
         # the anchor descriptor row after the last slot, so the screen pass casts its rays
         rows = (4096 + shader_check.SCREEN[0] - 1) // shader_check.SCREEN[0]
-        row = shader_check.SCREEN[1] - 1 - self.slots * rows
+        row = shader_check.SCREEN[1] - 1 - (shader_check.FIRST_SLOT + self.slots) * rows - shader_check.SCREEN_INDEX
         self.main.write(descriptor_row(shader_check.SCREEN[0]).tobytes(), viewport=(0, row, shader_check.SCREEN[0], 1))
 
     def warm(self):
@@ -82,7 +82,14 @@ class TimedChain(shader_check.Chain):
         self.warm()
         times = {}
         for name, program, inputs, output in self.steps():
-            query = self.queries.setdefault(name, self.context.query(time=True))
+            if name.startswith("blit "):
+                self.draw(program, inputs, output)
+                continue
+            if name == "mcv2_copy":
+                name += " -> " + output.split(":")[-1].removeprefix("mcv2_")
+            if name not in self.queries:
+                self.queries[name] = self.context.query(time=True)
+            query = self.queries[name]
             count = repeats if name == "mcv2_decode" else 1
             with query:
                 for _ in range(count):
@@ -109,14 +116,16 @@ def main():
     parser.add_argument("--rounds", type=int, default=3)
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--json", type=Path)
-    parser.add_argument("--pack", type=Path, help="another pack source folder (default: mcav-bukkit's)")
+    parser.add_argument("--pack", type=Path, help="another pack source folder, with its sibling chain.json")
+    parser.add_argument("--reference", type=Path, help="reference package root for an archived v2 baseline")
+    parser.add_argument("--spirv", metavar="CLASSPATH", help="compile passes through Minecraft 26.3's shader compiler")
     arguments = parser.parse_args()
     # the first round only warms the GPU up, so one round would time nothing
     if arguments.rounds < 2 or arguments.repeats < 1 or arguments.slots < 1:
         parser.error("need at least two rounds, one repeat and one page slot")
     if arguments.pack:
         shader_check.PACK = arguments.pack
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "mcv2-reference"))
+    sys.path.insert(0, str(arguments.reference or Path(__file__).resolve().parents[1] / "mcv2-reference"))
     import moderngl
     from mcvideo.transport import make_pages
 
@@ -133,7 +142,9 @@ def main():
         width, height = struct.unpack_from("<HH", frames[0], 8)
         chain = TimedChain(context, width, height, arguments.slots)
         pages = [make_pages(frame, shader_check.STREAM_ID, 6) for frame in frames]
-        keyframes = [struct.unpack_from("<I", frame, 4)[0] >> 16 & 1 == 1 for frame in frames]
+        keyframes = [frame[12:16] == frame[16:20] if frame[4] == 3 else bool(frame[6] & 1) for frame in frames]
+        if arguments.spirv:
+            chain.compiled = shader_check.compile_via_spirv(chain.includes, arguments.spirv)
         first_pictures = None
         new_key, new_p, idle = [], [], []
         mismatches = 0

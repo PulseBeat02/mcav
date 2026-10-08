@@ -18,8 +18,6 @@
 package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.keyframe;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.motion;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.predicted;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.solid;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.split;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -67,7 +65,6 @@ final class Mcv2ParserTest {
     assertEquals(0, parsed.getFrameId());
     assertEquals(0, parsed.getReferenceId());
     assertTrue(parsed.isKeyframe());
-    assertEquals(0x010203, parsed.getDefaultColor());
     assertEquals(frame.length, parsed.getData().length);
     assertArrayEquals(frame, parsed.getData());
     assertNotSame(parsed.getData(), parsed.getData());
@@ -76,9 +73,9 @@ final class Mcv2ParserTest {
     for (int leafIndex = 0; leafIndex < parsed.getLeafCount(); leafIndex++) {
       leaves.add(parsed.getLeaf(leafIndex));
     }
-    // level order: the second root's four palettes first; the default-coloured first root is left out of the index
-    assertEquals(new Mcv2Decoder.Leaf(32, 0, 16, Mcv2Decoder.MODE_PALETTE, 0, parsed.getPayloadStart()), leaves.get(0));
-    assertEquals(new Mcv2Decoder.Leaf(0, 0, 32, Mcv2Decoder.MODE_SKIP, 0, 0), leaves.get(4));
+    // The solid root precedes the second root's four palette children in level order.
+    assertEquals(new Mcv2Decoder.Leaf(32, 0, 16, Mcv2Decoder.MODE_PALETTE, 0, parsed.getPayloadStart() + 3), leaves.get(1));
+    assertEquals(new Mcv2Decoder.Leaf(0, 0, 32, Mcv2Decoder.MODE_SOLID, 0, parsed.getPayloadStart()), leaves.get(0));
     assertThrows(IndexOutOfBoundsException.class, () -> parsed.getLeaf(5));
   }
 
@@ -86,8 +83,8 @@ final class Mcv2ParserTest {
   void copiesTheInputSoTheCallerMayReuseIt() throws Mcv2Exception {
     final byte[] frame = keyframe(8, 8, solid(9, 9, 9));
     final Mcv2Decoder.Frame parsed = Mcv2Decoder.parse(frame);
-    frame[40] = 1;
-    assertEquals(0, parsed.getData()[40]);
+    frame[12] = 1;
+    assertEquals(0, parsed.getData()[12]);
   }
 
   @Test
@@ -102,7 +99,7 @@ final class Mcv2ParserTest {
   @Test
   void rejectsFramesOfTheWrongLength() {
     final byte[] frame = keyframe(8, 8, solid(1, 1, 1));
-    assertEquals("Invalid frame length", message(Arrays.copyOf(frame, 31)));
+    assertEquals("Invalid frame length", message(Arrays.copyOf(frame, 19)));
     final byte[] huge = new byte[Mcv2Decoder.MAX_FRAME_BYTES + 1];
     System.arraycopy(frame, 0, huge, 0, 4);
     assertEquals("Invalid frame length", message(huge));
@@ -121,22 +118,15 @@ final class Mcv2ParserTest {
 
   static Stream<Arguments> headerRules() {
     final byte[] key = keyframe(40, 40, solid(1, 2, 3), solid(4, 5, 6), solid(1, 2, 3), solid(7, 8, 9));
-    final byte[] motion = predicted(40, 40, motion(1, 1), motion(1, 1), motion(1, 1), motion(1, 1));
     return Stream.of(
       Arguments.of(withWord(key, 4, 0x0104), "Not an MCV2 version 3 frame"),
-      Arguments.of(withWord(key, 4, 0x0303), "Invalid frame header"),
-      Arguments.of(withWord(key, 4, 0x010103), "Invalid frame header"),
-      Arguments.of(withWord(key, 28, 0x01000000), "Invalid frame header"),
+      Arguments.of(withWord(key, 4, 0x0303), "Not an MCV2 version 3 frame"),
+      Arguments.of(withWord(key, 4, 0x010103), "Not an MCV2 version 3 frame"),
+      Arguments.of(withWord(key, 4, 0x01000003), "Not an MCV2 version 3 frame"),
       Arguments.of(withWord(key, 8, 40L << 16), "Invalid dimensions"),
       Arguments.of(withWord(key, 8, 4097 | (40L << 16)), "Invalid dimensions"),
       Arguments.of(withWord(key, 8, 40), "Invalid dimensions"),
-      Arguments.of(withWord(key, 8, 40 | (4097L << 16)), "Invalid dimensions"),
-      Arguments.of(withWord(key, 24, key.length + 1L), "Invalid frame header"),
-      Arguments.of(withWord(key, 20, 31), "Invalid payload start"),
-      Arguments.of(withWord(key, 20, key.length + 1L), "Invalid payload start"),
-      Arguments.of(withWord(key, 16, 5), "Invalid reference metadata or default color"),
-      Arguments.of(withWord(motion, 16, 1), "Invalid reference metadata or default color"),
-      Arguments.of(withWord(motion, 28, 1), "Invalid reference metadata or default color")
+      Arguments.of(withWord(key, 8, 40 | (4097L << 16)), "Invalid dimensions")
     );
   }
 
