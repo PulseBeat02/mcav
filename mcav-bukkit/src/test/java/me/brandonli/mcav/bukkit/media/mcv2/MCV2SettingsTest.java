@@ -17,28 +17,24 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.util.Arrays;
-import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import org.junit.jupiter.api.Test;
 
 final class MCV2SettingsTest {
 
   @Test
-  void keepsTheThreeLivePresetsAsData() {
-    assertEquals(new Settings(72, 120, false, false), Settings.DEFAULT);
-    assertEquals(new Settings(55, 120, true, false), Settings.FAST);
-    assertEquals(new Settings(72, 120, false, true), Settings.ADAPTIVE);
+  void keepsTheTwoLivePresetsAsData() {
+    assertEquals(new Settings(72, false), Settings.DEFAULT);
+    assertEquals(new Settings(55, true), Settings.FAST);
   }
 
   @Test
   void copiesWithOneValueChanged() {
-    final Settings settings = new Settings(72, 1, true, true);
-    assertEquals(new Settings(0, 1, true, true), settings.withLambda(0));
+    final Settings settings = new Settings(72, true);
+    assertEquals(new Settings(0, true), settings.withLambda(0));
   }
 
   @Test
@@ -46,26 +42,5 @@ final class MCV2SettingsTest {
     assertThrows(IllegalArgumentException.class, () -> Settings.DEFAULT.withLambda(-1));
     assertThrows(IllegalArgumentException.class, () -> Settings.DEFAULT.withLambda(Double.POSITIVE_INFINITY));
     assertThrows(IllegalArgumentException.class, () -> Settings.DEFAULT.withLambda(Double.NaN));
-    assertThrows(IllegalArgumentException.class, () -> new Settings(1, 0, false, false));
-  }
-
-  @Test
-  void codesAnAdaptiveProfileAsTheSearchOfItsMotion() {
-    for (final double lambda : new double[] { 72, 137.730758207 }) {
-      final MCV2 calm = new MCV2(Settings.ADAPTIVE.withLambda(lambda), ForkJoinPool.commonPool(), 2, true);
-      final MCV2 normal = new MCV2(Settings.DEFAULT.withLambda(lambda), ForkJoinPool.commonPool(), 2, true);
-      final MCV2 moving = new MCV2(Settings.ADAPTIVE.withLambda(lambda), ForkJoinPool.commonPool(), 2, true);
-      final MCV2 switched = new MCV2(Settings.DEFAULT.withLambda(lambda), ForkJoinPool.commonPool(), 2, true);
-      for (int frame = 0; frame < 6; frame++) {
-        final byte[] still = new byte[96 * 64 * 3];
-        assertArrayEquals(normal.encode(still, 96, 64, frame), calm.encode(still, 96, 64, frame));
-        final byte[] picture = new byte[still.length];
-        Arrays.fill(picture, (byte) (10 * frame));
-        if (frame == 2) {
-          switched.switchTo(Settings.FAST.withLambda((lambda * 55) / 72));
-        }
-        assertArrayEquals(switched.encode(picture, 96, 64, frame), moving.encode(picture, 96, 64, frame), "frame " + frame);
-      }
-    }
   }
 }

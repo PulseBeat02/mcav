@@ -60,8 +60,8 @@ import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
  *
  * <p>Arguments, all {@code key=value}: {@code source}, {@code width}, {@code height}, {@code frames}, {@code warm}
  * (frames left out of the times), {@code loop} ({@code none}, {@code wrap} or {@code pingpong} over the source's
- * frames), {@code fps} (for the rates), {@code threads}, {@code profile} ({@code DEFAULT}, {@code FAST},
- * {@code ADAPTIVE}), {@code lambda}, {@code key} (keyframe interval; 1 makes every frame a keyframe),
+ * frames), {@code fps} (for the rates), {@code threads}, {@code profile} ({@code DEFAULT}, {@code FAST}),
+ * {@code lambda}, {@code key} (1 requests a keyframe before every encode),
  * {@code budget} (encode inside a {@link Pool}, as a screen and a pre-encode do), {@code verify},
  * {@code framebudget} (milliseconds, see {@link MCV2#setFrameBudget}), {@code out} (write the archive)
  * and {@code decoded} (write the pictures).
@@ -159,14 +159,10 @@ public final class Mcv2Bench {
     Settings settings = switch (profile.toUpperCase(Locale.ROOT)) {
       case "DEFAULT" -> Settings.DEFAULT;
       case "FAST" -> Settings.FAST;
-      case "ADAPTIVE" -> Settings.ADAPTIVE;
-      default -> throw new IllegalArgumentException("Unknown profile " + profile + "; valid profiles: DEFAULT, FAST, ADAPTIVE");
+      default -> throw new IllegalArgumentException("Unknown profile " + profile + "; valid profiles: DEFAULT, FAST");
     };
     if (options.containsKey("lambda")) {
       settings = settings.withLambda(Double.parseDouble(options.get("lambda")));
-    }
-    if (options.containsKey("key")) {
-      settings = new Settings(settings.lambda(), Integer.parseInt(options.get("key")), settings.fast(), settings.adaptive());
     }
     return settings;
   }
@@ -203,6 +199,7 @@ public final class Mcv2Bench {
         final long allocatedBefore = threadBean.getTotalThreadAllocatedBytes();
         final long startNanos = System.nanoTime();
         final long frameId = frameIndex;
+        if (options.getOrDefault("key", "0").equals("1")) { encoder.requestKeyframe(); }
         final byte[] predictFrom = encoder.getReference();
         final byte[] data = inBudget ? budget.run(() -> encoder.encode(rgb, width, height, frameId)) : encoder.encode(rgb, width, height, frameId);
         measured.times[frameIndex] = System.nanoTime() - startNanos;

@@ -61,8 +61,7 @@ public final class Mcv2GenerateFixtures {
       generate(sources, fixtures, pool, "proxy-default.mcs", "proxy", Settings.DEFAULT, 320, 180, 8, digests, pages);
       generate(sources, fixtures, pool, "gameplay-default.mcs", "gameplay", Settings.DEFAULT, 320, 180, 8, digests, pages);
       generate(sources, fixtures, pool, "gameplay-fast.mcs", "gameplay", Settings.FAST, 320, 180, 8, digests, pages);
-      generate(sources, fixtures, pool, "gameplay-adaptive.mcs", "gameplay", Settings.ADAPTIVE, 320, 180, 24, digests, pages);
-      generate(sources, fixtures, pool, "proxy-keyframes.mcs", "proxy", new Settings(72, 1, false, false), 320, 180, 4, digests, pages);
+      generate(sources, fixtures, pool, "proxy-keyframes.mcs", "proxy", Settings.DEFAULT, 320, 180, 4, digests, pages);
       generate(sources, fixtures, pool, "proxy-odd.mcs", "proxy", Settings.DEFAULT, 319, 179, 6, digests, pages);
       golden(fixtures, pool, Settings.DEFAULT, "crop-default.mcs");
       golden(fixtures, pool, Settings.FAST, "crop-fast.mcs");
@@ -83,6 +82,7 @@ public final class Mcv2GenerateFixtures {
     try (final RandomAccessFile input = new RandomAccessFile(sources.resolve(raw).toFile(), "r")) {
       for (int id = 0; id < count; id++) {
         crop(input, id, rgb, width, height);
+        if (name.equals("proxy-keyframes.mcs")) { encoder.requestKeyframe(); }
         final byte[] data = encoder.encode(rgb, width, height, id);
         if (archive.size() + Integer.BYTES + data.length > MAX_ARCHIVE_BYTES) { break; }
         frame(archive, data);

@@ -156,7 +156,7 @@ final class Mcv2ConfigurationTest {
       .pageMap(50)
       .pageSlots(2)
       .streamId(Mcv2Configuration.MAX_STREAM_ID)
-      .settings(Settings.ADAPTIVE)
+      .settings(Settings.DEFAULT)
       .outlineColor(NamedTextColor.AQUA)
       .backlogLimit(0)
       .unsentLimit(0)
@@ -166,7 +166,7 @@ final class Mcv2ConfigurationTest {
     assertEquals(50, configuration.getPageMap());
     assertEquals(2, configuration.getPageSlots());
     assertEquals(Mcv2Configuration.MAX_STREAM_ID, configuration.getStreamId());
-    assertEquals(Settings.ADAPTIVE, configuration.getSettings());
+    assertEquals(Settings.DEFAULT, configuration.getSettings());
     assertEquals(NamedTextColor.AQUA, configuration.getOutlineColor());
     assertEquals(0, configuration.getBacklogLimit());
     assertEquals(0, configuration.getUnsentLimit());

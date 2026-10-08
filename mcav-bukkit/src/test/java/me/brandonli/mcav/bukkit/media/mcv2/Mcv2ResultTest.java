@@ -1294,9 +1294,6 @@ final class Mcv2ResultTest {
     final Mcv2Result live = this.result(packScreen(Settings.DEFAULT), null);
     live.pace();
     assertEquals(new Mcv2Pacer.Preset("DEFAULT", 1), live.getRung().preset());
-    final Mcv2Result adaptive = this.result(packScreen(Settings.ADAPTIVE), null);
-    adaptive.pace();
-    assertEquals(new Mcv2Pacer.Preset("ADAPTIVE", 0.95), adaptive.getRung().preset());
     // The fastest preset has no faster search to step through.
     final Mcv2Result fastest = this.result(packScreen(Settings.FAST), null);
     fastest.pace();

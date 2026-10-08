@@ -47,24 +47,43 @@ final class MCV2PipelineTest {
   private static final String STOPPED = "The encoder stopped after a frame failed its verification";
 
   /** Encodes a panning scene one frame at a time. */
-  static List<byte[]> sequential(final Settings settings, final int width, final int height, final int frames, final int panPerFrame) {
+  static List<byte[]> sequential(
+    final Settings settings,
+    final int width,
+    final int height,
+    final int frames,
+    final int panPerFrame,
+    final int requestEvery
+  ) {
     final MCV2 encoder = new MCV2(settings, POOL, 2, true);
     final List<byte[]> stream = new ArrayList<>();
     for (int frameNumber = 0; frameNumber < frames; frameNumber++) {
+      if (requestEvery > 0 && frameNumber % requestEvery == 0) {
+        encoder.requestKeyframe();
+      }
       stream.add(encoder.encode(Mcv2Pictures.scene(width, height, frameNumber, panPerFrame), width, height, frameNumber));
     }
     return stream;
   }
 
   /** Encodes the same scene pipelined: frame N is verified on another thread while frame N+1 is searched. */
-  static List<byte[]> pipelined(final Settings settings, final int width, final int height, final int frames, final int panPerFrame)
-    throws InterruptedException, ExecutionException {
+  static List<byte[]> pipelined(
+    final Settings settings,
+    final int width,
+    final int height,
+    final int frames,
+    final int panPerFrame,
+    final int requestEvery
+  ) throws InterruptedException, ExecutionException {
     final MCV2 encoder = new MCV2(settings, POOL, 2, true);
     final ExecutorService verifier = Executors.newSingleThreadExecutor();
     try {
       final List<byte[]> stream = new ArrayList<>();
       Future<MCV2.Encoded> verifying = null;
       for (int frameNumber = 0; frameNumber < frames; frameNumber++) {
+        if (requestEvery > 0 && frameNumber % requestEvery == 0) {
+          encoder.requestKeyframe();
+        }
         final MCV2.Pending pending = encoder.begin(Mcv2Pictures.scene(width, height, frameNumber, panPerFrame), width, height, frameNumber);
         if (verifying != null) {
           stream.add(verifying.get().getData());
@@ -82,20 +101,16 @@ final class MCV2PipelineTest {
 
   @Test
   void pipelinesToTheStreamItEncodesOneFrameAtATime() throws InterruptedException, ExecutionException, Mcv2Exception {
-    final List<Settings> profiles = List.of(
-      Settings.DEFAULT,
-      Settings.FAST,
-      Settings.ADAPTIVE,
-      new Settings(55, 3, true, false),
-      new Settings(72, 1, false, false)
-    );
+    final List<Settings> profiles = List.of(Settings.DEFAULT, Settings.FAST);
     for (final Settings settings : profiles) {
-      final List<byte[]> one = sequential(settings, 100, 70, 7, 3);
-      final List<byte[]> two = pipelined(settings, 100, 70, 7, 3);
-      final Mcv2Receiver client = new Mcv2Receiver();
-      for (int frameIndex = 0; frameIndex < one.size(); frameIndex++) {
-        assertArrayEquals(one.get(frameIndex), two.get(frameIndex), settings + " frame " + frameIndex);
-        client.accept(two.get(frameIndex));
+      for (final int requestEvery : new int[] { 0, 1, 3 }) {
+        final List<byte[]> one = sequential(settings, 100, 70, 7, 3, requestEvery);
+        final List<byte[]> two = pipelined(settings, 100, 70, 7, 3, requestEvery);
+        final Mcv2Receiver client = new Mcv2Receiver();
+        for (int frameIndex = 0; frameIndex < one.size(); frameIndex++) {
+          assertArrayEquals(one.get(frameIndex), two.get(frameIndex), settings + " frame " + frameIndex);
+          client.accept(two.get(frameIndex));
+        }
       }
     }
   }

@@ -104,7 +104,7 @@ final class VideoMcv2CommandTest {
       resolution,
       wall,
       map,
-      Mcv2Profile.ADAPTIVE,
+      Mcv2Profile.DEFAULT,
       DitheringArgument.FILTER_LITE,
       "",
       "clip.mp4",
@@ -121,7 +121,7 @@ final class VideoMcv2CommandTest {
         eq(Pair.pair(5, 3)),
         eq(Pair.pair(640, 384)),
         eq(20),
-        eq(Settings.ADAPTIVE),
+        eq(Settings.DEFAULT),
         eq(List.of(this.viewer))
       )
     ).thenReturn(configuration);

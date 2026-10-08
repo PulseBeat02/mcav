@@ -137,28 +137,11 @@ final class Mcv2Internals {
     }
 
     double average() {
-      return (double) invoke(TYPE, this.value, "average", new Class<?>[0]);
+      return (double) field(TYPE, this.value, "motion");
     }
 
     void add(final double motion) {
       call(TYPE, this.value, "add", new Class<?>[] { double.class }, motion);
-    }
-
-    boolean moving(final boolean was, final double enter, final double leave) {
-      return (boolean) invoke(TYPE, this.value, "moving", new Class<?>[] { boolean.class, double.class, double.class }, was, enter, leave);
-    }
-
-    static boolean moving(final double motion, final boolean was, final double enter, final double leave) {
-      return (boolean) invoke(
-        TYPE,
-        null,
-        "moving",
-        new Class<?>[] { double.class, boolean.class, double.class, double.class },
-        motion,
-        was,
-        enter,
-        leave
-      );
     }
 
     void observe(final byte[] rgb, final int width, final int height, final boolean cut, final Workers workers) {

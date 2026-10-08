@@ -167,9 +167,13 @@ final class MCV2FrameTest {
   void startsAgainWithAKeyframeWhenPredictionCannotWork() {
     final byte[] picture = texture(64, 32, 2);
     // the key interval
-    final MCV2 interval = encoder(new Settings(72, 1, false, false));
-    interval.encode(picture, 64, 32, 0);
-    assertTrue(keyframeAfter(interval, picture, 64, 32));
+    final MCV2 interval = encoder(new Settings(72, false));
+    for (int id = 0; id < 120; id++) {
+      interval.encode(picture, 64, 32, id);
+      assertEquals(id == 0, interval.getStats().keyframe());
+    }
+    interval.encode(picture, 64, 32, 120);
+    assertTrue(interval.getStats().keyframe());
     // a new width or height
     final MCV2 wider = encoder(Settings.DEFAULT);
     wider.encode(picture, 64, 32, 0);

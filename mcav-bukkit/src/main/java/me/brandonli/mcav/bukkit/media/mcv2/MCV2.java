@@ -95,32 +95,25 @@ public final class MCV2 {
    * Controls the live search without changing the version 3 syntax.
    *
    * @param lambda finite, nonnegative cost of a coded bit relative to distortion
-   * @param keyInterval maximum number of frames between periodic keyframes, at least one
    * @param fast whether to use the fast search thresholds
-   * @param adaptive whether motion may select the fast thresholds and scale lambda by 55/72
    */
-  public record Settings(double lambda, int keyInterval, boolean fast, boolean adaptive) {
+  public record Settings(double lambda, boolean fast) {
     /**
      * Normal live thresholds, lambda 72 and a keyframe interval of 120.
      */
-    public static final Settings DEFAULT = new Settings(72, 120, false, false);
+    public static final Settings DEFAULT = new Settings(72, false);
     /**
      * Fast live thresholds, lambda 55 and a keyframe interval of 120.
      */
-    public static final Settings FAST = new Settings(55, 120, true, false);
-    /**
-     * Normal settings that switch to fast thresholds while the source moves.
-     */
-    public static final Settings ADAPTIVE = new Settings(72, 120, false, true);
+    public static final Settings FAST = new Settings(55, true);
 
     /**
-     * Validates the rate cost and keyframe interval.
+     * Validates the rate cost.
      *
-     * @throws IllegalArgumentException if lambda is negative or nonfinite, or the interval is not positive
+     * @throws IllegalArgumentException if lambda is negative or nonfinite
      */
     public Settings {
       Preconditions.checkArgument(lambda >= 0 && Double.isFinite(lambda), "Lambda must be finite and non-negative");
-      Preconditions.checkArgument(keyInterval > 0, "Key interval must be positive");
     }
 
     /**
@@ -131,7 +124,7 @@ public final class MCV2 {
      * @throws IllegalArgumentException if value is negative or nonfinite
      */
     public Settings withLambda(final double value) {
-      return new Settings(value, this.keyInterval, this.fast, this.adaptive);
+      return new Settings(value, this.fast);
     }
   }
 
@@ -232,8 +225,6 @@ public final class MCV2 {
   private static final double SCENE_THRESHOLD = 45;
   private static final int SCENE_SAMPLE_STEP = 4;
   private static final int SCENE_SAMPLE_START = SCENE_SAMPLE_STEP / 2;
-  private static final double ADAPTIVE_ENTER = 8;
-  private static final double ADAPTIVE_LEAVE = 6;
   private static final int NORMAL_SKIP_BITS = 28;
   private static final int FAST_SKIP_BITS = 60;
   private static final int ROOT_SPLIT_BITS = 150;
@@ -241,6 +232,7 @@ public final class MCV2 {
   private static final int FAST_FINE_SPLIT_BITS = 600;
   private static final int NORMAL_STEADY_SPLIT_BITS = 450;
   private static final int FAST_STEADY_SPLIT_BITS = 900;
+  private static final int KEY_INTERVAL = 120;
   private static final double INDEX_BITS = 12;
   private static final double DISTORTION_SCALE = 96.0;
   private static final int OUTSIDE_BITS = 56;
@@ -268,7 +260,6 @@ public final class MCV2 {
   private final ArrayDeque<BlockCoder[]> idleCoders = new ArrayDeque<>();
   private final List<BlockCoder[]> busyCoders = new ArrayList<>();
   private final MotionLambda motionLambda = new MotionLambda();
-  private boolean moving;
   private volatile @Nullable Stats stats;
   private volatile boolean failed;
   private @Nullable Pending newer;
@@ -290,7 +281,7 @@ public final class MCV2 {
     this.workers = new Workers(Preconditions.checkNotNull(pool, "Pool must not be null"), threads);
     this.shouldVerify = verify;
     this.kernels = JavaKernels::new;
-    this.framesSinceKey = settings.keyInterval();
+    this.framesSinceKey = KEY_INTERVAL;
   }
 
   /**
@@ -402,12 +393,9 @@ public final class MCV2 {
     Preconditions.checkArgument(this.lastFrameId < 0 || follows(frameId, this.lastFrameId), "Stale or ambiguous frame number");
     final long started = System.nanoTime();
     final byte[] previous = this.reference;
-    final boolean predictable =
-      previous != null && width == this.width && height == this.height && this.framesSinceKey < this.settings.keyInterval();
-    this.moving = this.motionLambda.moving(this.moving, ADAPTIVE_ENTER, ADAPTIVE_LEAVE);
-    final boolean adaptiveFast = this.settings.adaptive() && this.moving;
-    final boolean fast = this.settings.fast() || adaptiveFast;
-    final double base = adaptiveFast ? fastLambda(this.settings.lambda()) : this.settings.lambda();
+    final boolean predictable = previous != null && width == this.width && height == this.height && this.framesSinceKey < KEY_INTERVAL;
+    final boolean fast = this.settings.fast();
+    final double base = this.settings.lambda();
     double lambda = Math.min(this.motionLambda.lambda(base), Double.MAX_VALUE);
     final boolean cut = predictable && sceneCut(rgb, Preconditions.checkNotNull(previous), width, height, this.workers);
     final boolean keyframe = !predictable || cut;
@@ -545,10 +533,6 @@ public final class MCV2 {
   }
 
   // Frame analysis keeps source motion independent of reconstruction quality.
-  private static double fastLambda(final double lambda) {
-    final double scaled = (lambda * 55) / 72;
-    return Double.isFinite(scaled) ? scaled : lambda * (55.0 / 72);
-  }
 
   private static boolean sceneCut(final byte[] source, final byte[] reference, final int width, final int height, final Workers workers) {
     final int columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
@@ -617,17 +601,6 @@ public final class MCV2 {
       return base * raise(this.motion);
     }
 
-    boolean moving(final boolean was, final double enter, final double leave) {
-      return moving(this.average(), was, enter, leave);
-    }
-
-    static boolean moving(final double motion, final boolean was, final double enter, final double leave) {
-      if (motion > enter) {
-        return true;
-      }
-      return was && !(motion < leave);
-    }
-
     static double raise(final double motion) {
       if (!(motion > KNEE)) {
         return 1;
@@ -656,10 +629,6 @@ public final class MCV2 {
 
     void add(final double information) {
       this.motion = Double.isNaN(this.motion) ? information : this.motion + SMOOTHING * (information - this.motion);
-    }
-
-    double average() {
-      return this.motion;
     }
 
     static int[] blurredLuma(

@@ -114,7 +114,7 @@ final class Mcv2SupportTest {
   }
 
   private Mcv2Configuration configure(final int map) {
-    return this.support.configure(this.sender, Pair.pair(5, 3), Pair.pair(640, 384), map, Settings.ADAPTIVE, List.of(this.viewer));
+    return this.support.configure(this.sender, Pair.pair(5, 3), Pair.pair(640, 384), map, Settings.DEFAULT, List.of(this.viewer));
   }
 
   private @Nullable Mcv2Configuration configure(final int columns, final int rows, final int width, final int height) {
@@ -123,7 +123,7 @@ final class Mcv2SupportTest {
       Pair.pair(columns, rows),
       Pair.pair(width, height),
       20,
-      Settings.ADAPTIVE,
+      Settings.DEFAULT,
       List.of(this.viewer)
     );
   }
@@ -158,7 +158,7 @@ final class Mcv2SupportTest {
     assertEquals(3, configuration.getRows());
     assertEquals(640, configuration.getVideoWidth());
     assertEquals(384, configuration.getVideoHeight());
-    assertEquals(Settings.ADAPTIVE, configuration.getSettings());
+    assertEquals(Settings.DEFAULT, configuration.getSettings());
     assertEquals(List.of(this.viewer), List.copyOf(configuration.getViewers()));
     assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, configuration.getBacklogLimit());
     assertEquals(Mcv2Configuration.MAX_PAGE_SLOTS, configuration.getPageSlots());

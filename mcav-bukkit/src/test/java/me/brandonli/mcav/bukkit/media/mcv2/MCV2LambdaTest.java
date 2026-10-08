@@ -18,7 +18,6 @@
 package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.ForkJoinPool;
@@ -47,23 +46,6 @@ final class MCV2LambdaTest {
       encoder.setFrameLimit(1);
       final byte[] frame = assertDoesNotThrow(() -> encoder.encode(new byte[] { 10, 20, 30 }, 1, 1, 0));
       assertTrue(frame.length > 0);
-    }
-  }
-
-  @Test
-  void scalingALargeFiniteLambdaKeepsAFiniteAdaptiveCost() throws ReflectiveOperationException {
-    final var scale = MCV2.class.getDeclaredMethod("fastLambda", double.class);
-    scale.setAccessible(true);
-    assertEquals(1e307 * (55.0 / 72.0), (double) scale.invoke(null, 1e307));
-    final Settings settings = Settings.ADAPTIVE.withLambda(1e307);
-    try (final ForkJoinPool pool = new ForkJoinPool(1)) {
-      final MCV2 encoder = new MCV2(settings, pool, 1, true);
-      for (int id = 0; id < 12; id++) {
-        final byte[] picture = Mcv2Pictures.scene(96, 64, id, 13);
-        final int frameId = id;
-        assertDoesNotThrow(() -> encoder.encode(picture, 96, 64, frameId));
-        assertTrue(Double.isFinite(encoder.getStats().lambda()));
-      }
     }
   }
 }

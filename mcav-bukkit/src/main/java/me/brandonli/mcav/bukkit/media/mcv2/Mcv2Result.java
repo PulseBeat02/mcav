@@ -78,7 +78,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A {@link Mcv2Pacer} keeps the screen within what its budget sustains: when the frames take longer than the video
  * gives them, it first searches less hard, down the preset ladder from the screen's settings
- * ({@code DEFAULT} or {@code ADAPTIVE}, then {@code FAST}), the
+ * ({@code DEFAULT}, then {@code FAST}), the
  * live presets one encoder that switches between them without a keyframe, the exhaustive search an encoder of its own
  * whose first frame is a keyframe; then it encodes fewer frames, down to {@link Mcv2Pacer#MIN_FPS} a second,
  * then shows a smaller video when the owner offers smaller sizes ({@link #setSmallerSizes}: each size has its own pack),
@@ -133,8 +133,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   /** Relative costs used to predict the next preset before it has a measured sample. */
   private static final double DEFAULT_COST = 1;
-
-  private static final double ADAPTIVE_COST = 0.95;
 
   private static final double FAST_COST = 0.9;
 
@@ -450,7 +448,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       return List.of(settings);
     }
     final double lambda = settings.lambda() * (55.0 / 72);
-    return List.of(settings, new Settings(lambda, settings.keyInterval(), true, false));
+    return List.of(settings, new Settings(lambda, true));
   }
 
   /** The pacer's presets of a ladder: one without a name when there is nothing to step through. */
@@ -470,7 +468,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (settings.fast()) {
       return new Mcv2Pacer.Preset("FAST", FAST_COST);
     }
-    return settings.adaptive() ? new Mcv2Pacer.Preset("ADAPTIVE", ADAPTIVE_COST) : new Mcv2Pacer.Preset("DEFAULT", DEFAULT_COST);
+    return new Mcv2Pacer.Preset("DEFAULT", DEFAULT_COST);
   }
 
   private static MapConfiguration fallbackConfiguration(final Mcv2Configuration configuration, final Set<UUID> viewers) {
