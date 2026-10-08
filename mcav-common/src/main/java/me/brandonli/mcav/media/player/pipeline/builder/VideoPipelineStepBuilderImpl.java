@@ -26,9 +26,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class VideoPipelineStepBuilderImpl extends VideoPipelineStepBuilder {
 
-  VideoPipelineStepBuilderImpl() {
-    // nothing else to set up
-  }
+  VideoPipelineStepBuilderImpl() {}
 
   /**
    * Creates a video step that applies a filter and continues with the next step.

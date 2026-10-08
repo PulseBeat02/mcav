@@ -28,9 +28,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class Thumbnail {
 
-  Thumbnail() {
-    // populated by Gson
-  }
+  Thumbnail() {}
 
   /** The URL of the image. */
   public @Nullable String url;

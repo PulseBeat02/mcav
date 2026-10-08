@@ -66,7 +66,6 @@ final class IrisShaders {
           ? new Mcv2Report(true, ShaderPack.IN_USE, this.decodesUnderShaders.getAsBoolean())
           : new Mcv2Report(true, ShaderPack.NONE, false);
       } catch (final LinkageError missing) {
-        // an Iris built without the API, or with another version of it, never gains it while the game runs
         this.apiMissing = true;
       }
     }

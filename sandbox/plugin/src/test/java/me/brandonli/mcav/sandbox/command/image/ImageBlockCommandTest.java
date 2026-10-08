@@ -79,7 +79,6 @@ final class ImageBlockCommandTest {
     when(this.selector.values()).thenReturn(selected);
     this.sender = mock(CommandSender.class);
 
-    // a player always stands in a world, and the renderers refuse positions without one
     final FakeWorld world = new FakeWorld();
     this.location = world.location(1.0, 64.0, 2.0);
   }

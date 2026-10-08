@@ -169,7 +169,6 @@ final class CommandTaskTest {
   @Test
   @EnabledOnOs({ OS.LINUX, OS.MAC })
   void outputThatCannotBeReadEndsTheProgramsThatOutlivedIt() throws IOException, InterruptedException {
-    // a shell that starts a long sleep, says its process id and ends a second later, while the sleep goes on
     final Process shell = new ProcessBuilder("sh", "-c", "sleep 60 & echo $!; sleep 1").start();
     final String line;
     try (final BufferedReader output = new BufferedReader(new InputStreamReader(shell.getInputStream(), StandardCharsets.US_ASCII))) {

@@ -40,9 +40,7 @@ public final class SVCModule implements MCAVModule {
   /**
    * Constructs the module. The module loader creates it for you.
    */
-  public SVCModule() {
-    // the API is injected later
-  }
+  public SVCModule() {}
 
   /**
    * Hands the Simple Voice Chat server API to the library. Call it from the {@code initialize} method of your
@@ -85,9 +83,7 @@ public final class SVCModule implements MCAVModule {
    * chat plugin calls {@link #inject(VoicechatServerApi)}.
    */
   @Override
-  public void start() {
-    // nothing to prepare until the API is injected
-  }
+  public void start() {}
 
   /**
    * Stops the module and forgets the injected voice chat API, so filters can no longer be created or started until

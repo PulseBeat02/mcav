@@ -28,9 +28,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class Fragment {
 
-  Fragment() {
-    // populated by Gson
-  }
+  Fragment() {}
 
   /** The URL of the fragment, or null if yt-dlp did not report one. */
   public @Nullable String url;

@@ -79,7 +79,6 @@ final class PlatformTest {
 
   @Test
   void describesTheRunningSystemLikeJna() {
-    // JNA detects the platform on its own to load its native library, so it is an independent witness
     final Platform current = Platform.getCurrentPlatform();
     final OS os = current.getOS();
     final Arch arch = current.getArch();

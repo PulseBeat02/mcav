@@ -47,7 +47,6 @@ import org.junit.jupiter.api.io.TempDir;
  */
 final class QemuProcessRecordsTest {
 
-  // a process id no system hands out, for a server that is gone
   private static final long GONE = Long.MAX_VALUE;
 
   @TempDir
@@ -74,7 +73,6 @@ final class QemuProcessRecordsTest {
     // JVM startup diagnostics are separate from the fixture's readiness protocol.
     final Process process = new ProcessBuilder(command).redirectError(Redirect.INHERIT).start();
     this.children.add(process);
-    // a JVM that printed has its shutdown hook in place
     final byte[] ready = process.getInputStream().readNBytes(5);
     assertEquals("ready", new String(ready, StandardCharsets.US_ASCII));
     return process;
@@ -104,7 +102,6 @@ final class QemuProcessRecordsTest {
     return new QemuProcessRecords(folder, owner, ProcessHandle::of, Duration.ofMillis(500));
   }
 
-  // a server that recorded its QEMU and was killed since
   private static ProcessHandle goneServer() {
     final ProcessHandle owner = mock(ProcessHandle.class);
     final ProcessHandle.Info info = mock(ProcessHandle.Info.class);
@@ -177,7 +174,6 @@ final class QemuProcessRecordsTest {
     final Instant started = qemu.toHandle().info().startInstant().orElseThrow();
     final Path record = this.recordOf(qemu.pid());
     Files.createDirectories(record.getParent());
-    // the id of the recording server now belongs to this JVM, which started at another instant
     final long reused = ProcessHandle.current().pid();
     Files.writeString(record, started + "\n" + reused + "\n2001-01-01T00:00:00Z\n");
 
@@ -192,7 +188,6 @@ final class QemuProcessRecordsTest {
     final Process other = this.child(false);
     final Path record = this.recordOf(other.pid());
     Files.createDirectories(record.getParent());
-    // the recorded QEMU started at another instant, so this is another process with its id
     Files.writeString(record, "2001-01-01T00:00:00Z\n" + GONE + "\n2001-01-01T00:00:00Z\n");
 
     final int stopped = this.records(ProcessHandle.current()).reap();
@@ -212,7 +207,6 @@ final class QemuProcessRecordsTest {
     Files.writeString(unnamed, "2001-01-01T00:00:00Z\n1\n2001-01-01T00:00:00Z\n");
     final Path shortRecord = folder.resolve("13.qemu");
     Files.writeString(shortRecord, "2001-01-01T00:00:00Z\n");
-    // a folder with the name of a record cannot be read as one, and is left for whoever made it
     final Path unreadable = folder.resolve("14.qemu");
     Files.createDirectories(unreadable.resolve("inside"));
     final Process qemu = this.child(false);
@@ -259,7 +253,6 @@ final class QemuProcessRecordsTest {
     when(info.startInstant()).thenReturn(Optional.empty());
     this.records(ProcessHandle.current()).add(unknown);
     assertFalse(Files.exists(this.recordOf(42L)), "it could not be told from a later process with its id");
-    // nor is any process of a server whose own start is unknown
     final Process qemu = this.child(false);
     this.records(unknown).add(qemu.toHandle());
     assertFalse(Files.exists(this.recordOf(qemu.pid())));

@@ -32,7 +32,5 @@ public abstract class VideoPipelineStepBuilder
   /**
    * Constructs an empty builder.
    */
-  protected VideoPipelineStepBuilder() {
-    // nothing else to set up
-  }
+  protected VideoPipelineStepBuilder() {}
 }

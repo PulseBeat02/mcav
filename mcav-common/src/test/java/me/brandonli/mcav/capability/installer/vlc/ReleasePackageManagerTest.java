@@ -52,7 +52,6 @@ final class ReleasePackageManagerTest {
     final List<Download> linux = downloadsFor(OS.LINUX, Arch.X86, Bits.BITS_64);
     assertEquals(1, linux.size());
     final Download appImage = linux.getFirst();
-    // a dated release, which never changes, not the weekly tag "continuous" of the publisher's account
     assertEquals(
       "https://github.com/ivan-hc/VLC-appimage/releases/download/20261001-112729/VLC-media-player_3.0.23_2-16-archimage5.0-x86_64.AppImage",
       appImage.getUrl()

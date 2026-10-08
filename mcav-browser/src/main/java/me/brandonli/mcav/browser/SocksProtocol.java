@@ -155,7 +155,6 @@ final class SocksProtocol {
    */
   private static String readIpv6Literal(final String text) throws ProtocolException {
     try {
-      // InetAddress reads an IPv6 literal in brackets too
       final InetAddress address = InetAddress.ofLiteral(text);
       return address.getHostAddress();
     } catch (final IllegalArgumentException exception) {

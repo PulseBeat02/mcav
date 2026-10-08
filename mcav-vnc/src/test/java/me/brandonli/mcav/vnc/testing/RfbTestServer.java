@@ -554,7 +554,6 @@ public final class RfbTestServer implements AutoCloseable {
   private static void drain(final InputStream input) {
     final OutputStream discarded = OutputStream.nullOutputStream();
     try {
-      // discard until the client hangs up
       input.transferTo(discarded);
     } catch (final IOException exception) {
       // the client hung up

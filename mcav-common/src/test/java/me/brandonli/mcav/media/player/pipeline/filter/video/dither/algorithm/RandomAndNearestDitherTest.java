@@ -172,7 +172,6 @@ final class RandomAndNearestDitherTest {
   void xoroshiroScalesItsDoublesToTheWidthOfTheRange() {
     final XoroshiroRandomProvider provider = new XoroshiroRandomProvider(42L);
     final double scaled = provider.nextDouble(0.0, 4.0);
-    // the first output of seed 42 has the unit value 8119767394961995 / 2^53, see the reference test below
     final double unit = 8119767394961995L / (double) (1L << 53);
     final double expected = unit * 4.0;
     assertEquals(expected, scaled, 1.0e-12, "the unit value is multiplied by the width of the range, not divided by it");
@@ -337,7 +336,6 @@ final class RandomAndNearestDitherTest {
     final XoroshiroRandomProvider provider = new XoroshiroRandomProvider(3L);
     final double upper = Math.nextUp(1.0);
     final double value = provider.nextDouble(1.0, upper);
-    // There is exactly one representable double in [1, nextUp(1)): 1 itself.
     assertEquals(1.0, value);
   }
 

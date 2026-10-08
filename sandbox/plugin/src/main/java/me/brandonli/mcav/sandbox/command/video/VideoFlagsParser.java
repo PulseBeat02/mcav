@@ -44,7 +44,6 @@ public final class VideoFlagsParser {
   private static final char ESCAPE = '\\';
   private static final char CLOSING_BRACE = '}';
   private static final Pattern UNESCAPED_COMMA = Pattern.compile("(?<!\\\\),");
-  // keeps empty options, including a trailing one, which appendOption skips
   private static final Splitter OPTION_SPLITTER = Splitter.on(UNESCAPED_COMMA);
 
   /**
@@ -92,9 +91,7 @@ public final class VideoFlagsParser {
   /**
    * Constructs the parser, which keeps no state and can be shared.
    */
-  public VideoFlagsParser() {
-    // stateless
-  }
+  public VideoFlagsParser() {}
 
   /**
    * Extracts the yt-dlp arguments from the flags.
@@ -174,7 +171,6 @@ public final class VideoFlagsParser {
     return -1;
   }
 
-  // the characters that end a line, which a backslash never escapes
   private static boolean isLineTerminator(final char character) {
     return character == '\n' || character == '\r' || character == '\u0085' || character == '\u2028' || character == '\u2029';
   }

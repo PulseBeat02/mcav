@@ -41,7 +41,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class SourceUtils {
 
   private static final Set<String> MEDIA_EXTENSIONS = Set.of(
-    // video containers
     "mp4",
     "m4v",
     "mkv",
@@ -63,10 +62,8 @@ public final class SourceUtils {
     "ogv",
     "3gp",
     "3g2",
-    // streaming manifests
     "m3u8",
     "mpd",
-    // audio
     "ogg",
     "oga",
     "mka",
@@ -82,7 +79,6 @@ public final class SourceUtils {
     "opus",
     "wma",
     "amr",
-    // images
     "gif",
     "png",
     "apng",

@@ -101,7 +101,6 @@ final class DependencyLoaderTest {
     assertDoesNotThrow(() -> loader.loadModules());
     // OpenCV's own pool would outlive every player, a thread per processor but one, named after the first caller
     assertEquals(1, opencv_core.getNumThreads());
-    // the setting belongs to the process and outlives a test, so the loader must set it, not find it set already
     opencv_core.setNumThreads(5);
     assertDoesNotThrow(() -> loader.loadModules());
     assertEquals(1, opencv_core.getNumThreads(), "loading the natives sets OpenCV's threads");
@@ -178,7 +177,6 @@ final class DependencyLoaderTest {
 
   @Test
   void toleratesTheMissingDeviceLibraryAgainWhenFFmpegIsLoadedASecondTime() {
-    // a plugin disabled and enabled again loads FFmpeg twice in one JVM: the second load finds the class failed
     final AtomicInteger configured = new AtomicInteger();
     final Runnable loader = FailingDeviceLibrary::touch;
     assertDoesNotThrow(() -> DependencyLoader.loadFFmpeg(loader, configured::incrementAndGet));
@@ -190,7 +188,6 @@ final class DependencyLoaderTest {
 
   @Test
   void toleratesTheDeviceClassThatFailedBeforeWithoutItsCause() {
-    // the JVM names the first failure only while it keeps it; the class alone says which library failed
     final NoClassDefFoundError deviceClass = new NoClassDefFoundError("Could not initialize class org.bytedeco.ffmpeg.global.avdevice");
     final AtomicBoolean configured = new AtomicBoolean();
     assertDoesNotThrow(() ->
@@ -349,7 +346,6 @@ final class DependencyLoaderTest {
     assertFalse(loader.hasCapability(Capability.VLC));
     assertFalse(loader.hasCapability(Capability.YT_DLP));
     assertFalse(loader.hasCapability(Capability.FACE_DETECTION));
-    // the next installation, after a release, succeeds
     loader.installVLC(() -> Optional.of(Path.of("vlc")));
     loader.installYTDLP(installer);
     loader.loadFaceDetection(() -> {});

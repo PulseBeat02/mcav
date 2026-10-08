@@ -117,7 +117,6 @@ class HelperProtocolTest {
   @Test
   void aLoadErrorMustBeExactlyAsLongAsItsStrings() throws IOException {
     final byte[] valid = bytes(out -> HelperProtocol.writeLoadError(out, 1, "a", "b"));
-    // announce one byte more than the strings hold, and pad it
     final byte[] padded = Arrays.copyOf(valid, valid.length + 1);
     padded[4] = (byte) (padded[4] + 1);
     assertThrows(ProtocolException.class, () -> read(padded));
@@ -190,7 +189,6 @@ class HelperProtocolTest {
     assertThrows(ProtocolException.class, () -> read(frame(10, 10, 9, 0, 2, 1, 8)));
     assertThrows(ProtocolException.class, () -> read(frame(10, 10, 0, 9, 1, 2, 8)));
     assertThrows(ProtocolException.class, () -> read(frame(10, 10, 65_535, 0, 1, 1, 4)));
-    // a region that ends exactly at the edge is inside
     assertEquals(HelperProtocol.FRAME, read(frame(10, 10, 9, 9, 1, 1, 4)).getType());
   }
 
@@ -340,7 +338,6 @@ class HelperProtocolTest {
     largest[largest.length - 1] = 5;
     assertArrayEquals(largest, read(bytes(out -> HelperProtocol.writeAudio(out, largest, largest.length))).getSamples());
     assertArrayEquals(new byte[0], read(bytes(HelperProtocol::writeClose)).getSamples(), "other messages carry no sound");
-    // nothing, less than nothing, half a frame, more than the buffer holds, and more than a message may hold
     assertSoundRefused(new byte[8], 0);
     assertSoundRefused(new byte[8], -4);
     assertSoundRefused(new byte[8], 6);
@@ -434,7 +431,6 @@ class HelperProtocolTest {
   void longTextsAreCutAtACharacterBoundary() {
     final String ascii = "a".repeat(HelperProtocol.MAX_TEXT_BYTES + 10);
     assertEquals(HelperProtocol.MAX_TEXT_BYTES, HelperProtocol.encode(ascii).length);
-    // a three byte character straddles the limit, so it is left out entirely
     final String straddling = "a".repeat(HelperProtocol.MAX_TEXT_BYTES - 1) + "☃";
     final byte[] cut = HelperProtocol.encode(straddling);
     assertEquals(HelperProtocol.MAX_TEXT_BYTES - 1, cut.length);
@@ -461,8 +457,6 @@ class HelperProtocolTest {
     assertEquals(List.of("hello"), HelperProtocol.split("hello"));
     assertEquals(List.of("a".repeat(max)), HelperProtocol.split("a".repeat(max)));
     assertEquals(List.of("a".repeat(max), "a"), HelperProtocol.split("a".repeat(max + 1)));
-    // two, three and four bytes per character: no character is cut, no part is too long, nothing is lost
-    // the first characters of two, three and four bytes are counted right too
     for (final String character : new String[] { "\u0080", "\u00e9", "\u0800", "\u20ac", "\uD800\uDC00", "\uD83D\uDE00" }) {
       final String text = character.repeat(max);
       final List<String> parts = HelperProtocol.split(text);

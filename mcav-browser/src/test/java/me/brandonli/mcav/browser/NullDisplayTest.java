@@ -213,7 +213,6 @@ class NullDisplayTest {
     assertThrows(ProtocolException.class, () ->
       NullDisplay.serve(new ByteArrayInputStream(longData), new ByteArrayOutputStream(), COOKIE, new NullDisplay.Atoms())
     );
-    // the longest authorization is read, and then only refused for its value
     final byte[] longest = setup(ByteOrder.LITTLE_ENDIAN, 11, "x".repeat(256), new byte[256]);
     final ProtocolException value = assertThrows(ProtocolException.class, () ->
       NullDisplay.serve(new ByteArrayInputStream(longest), new ByteArrayOutputStream(), COOKIE, new NullDisplay.Atoms())
@@ -376,7 +375,6 @@ class NullDisplayTest {
       }
       clients.removeFirst().close();
       Await.until("the client that left is gone", () -> display.countClients() == NullDisplay.MAX_CONNECTIONS - 1);
-      // its place is given back right after it is no longer counted
       Thread.sleep(200L);
       try (final Socket next = introduce(loopback, port, cookie)) {
         assertTrue(internsAnAtom(next), "one try is enough, with no client refused before");
@@ -414,7 +412,6 @@ class NullDisplayTest {
     final byte[] huge = { 43, 0, 1, 64 };
     final ProtocolException tooLong = assertThrows(ProtocolException.class, () -> converse(huge));
     assertEquals("A request of 16385 units is outside 1 to 16384", tooLong.getMessage());
-    // the longest request is read whole
     final byte[] longest = new byte[NullDisplay.MAX_REQUEST_UNITS * 4];
     longest[0] = 127;
     longest[2] = 0;
@@ -557,7 +554,6 @@ class NullDisplayTest {
         }
       }
       assertEquals(NullDisplay.MAX_CONNECTIONS, served.size(), "one client more than the limit is ended");
-      // a client that leaves frees its place
       served.getFirst().close();
       Await.until("a place for another client", () -> {
         try (final Socket next = introduce(loopback, port, cookie)) {
@@ -590,7 +586,6 @@ class NullDisplayTest {
       try (final Socket introduced = introduce(loopback, port, cookieOf(authority))) {
         assertTrue(internsAnAtom(introduced), "the client with the cookie is served");
       }
-      // it took the place of the oldest client that never introduced itself, and of that one only
       assertEnded(silent.getFirst().getInputStream());
       final Socket second = silent.get(1);
       second.setSoTimeout(300);
@@ -618,18 +613,15 @@ class NullDisplayTest {
       try (final Socket refused = new Socket(loopback, port)) {
         refused.setSoTimeout(10_000);
         refused.getOutputStream().write(setup(new byte[NullDisplay.COOKIE_BYTES]));
-        // the display read the whole setup, then says why it refuses the client before it ends the connection
         final byte[] answer = refused.getInputStream().readAllBytes();
         assertTrue(answer.length >= 8, "the refusal arrives");
         assertEquals(0, answer[0], "an X11 setup that failed");
         assertTrue(new String(answer, StandardCharsets.US_ASCII).contains("the cookie of the display is missing"));
       }
-      // the display counts a client until it has also left the queue of clients that have not introduced themselves
       Await.until("the refused client is gone", () -> display.countClients() == NullDisplay.MAX_PENDING - 1);
       try (final Socket introduced = introduce(loopback, port, cookieOf(authority))) {
         assertTrue(internsAnAtom(introduced), "the client with the cookie is served");
       }
-      // the refused client no longer waits in the queue, so the newcomer fit without ending the oldest waiting client
       final Socket oldest = silent.getFirst();
       oldest.setSoTimeout(300);
       assertThrows(SocketTimeoutException.class, () -> oldest.getInputStream().read(), "the oldest client still waits");
@@ -658,7 +650,6 @@ class NullDisplayTest {
         final Socket newcomer = new Socket(loopback, port);
         newcomer.setSoTimeout(10_000);
         silent.add(newcomer);
-        // the queue holds 254 + 1 waiting clients and the second client while it introduces itself: none too many
         try (final Socket second = introduce(loopback, port, cookieOf(authority))) {
           assertTrue(internsAnAtom(second), "the second client with the cookie is served");
         }
@@ -807,7 +798,6 @@ class NullDisplayTest {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
       try (final Socket broken = new Socket(InetAddress.getLoopbackAddress(), port)) {
         broken.setSoTimeout(10_000);
-        // neither byte order of X11
         broken.getOutputStream().write(new byte[] { 'X', 0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
         assertEquals(-1, broken.getInputStream().read(), "the display ends the connection");
       }
@@ -820,7 +810,6 @@ class NullDisplayTest {
         new DataInputStream(next.getInputStream()).readFully(accepted);
         assertEquals(1, accepted[0], "the display still takes clients");
       }
-      // a client that leaves between requests ends its connection normally
       Await.until("the client is gone", () -> display.countClients() == 0);
     }
   }
@@ -843,7 +832,6 @@ class NullDisplayTest {
         final DataInputStream in = new DataInputStream(introduced.getInputStream());
         in.readFully(new byte[NullDisplay.createSetupReply(ByteOrder.LITTLE_ENDIAN).limit()]);
         assertEquals(-1, silent.getInputStream().read(), "the display ends a connection that never introduced itself");
-        // three times the time of the setup, which no longer applies
         Thread.sleep(600L);
         introduced.getOutputStream().write(internAtom(ByteOrder.LITTLE_ENDIAN, "CLIPBOARD"));
         final byte[] atom = new byte[32];

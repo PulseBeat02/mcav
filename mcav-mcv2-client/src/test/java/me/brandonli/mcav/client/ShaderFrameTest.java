@@ -87,7 +87,6 @@ final class ShaderFrameTest {
     assertTrue(frame.isEmpty());
     assertTrue(frame.pages().isEmpty());
     assertNull(frame.projection());
-    // the colours of an anchor stay known from frame to frame
     frame.posed("anchor", 4, 5, 6);
     assertArrayEquals(
       new float[] { 4, 5, 6 },

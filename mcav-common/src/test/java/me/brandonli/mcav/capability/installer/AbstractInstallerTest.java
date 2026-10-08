@@ -333,8 +333,6 @@ final class AbstractInstallerTest {
   void downloadsOnlyOnceWhenCalledConcurrently() throws Exception {
     final CountDownLatch releaseResponse = new CountDownLatch(1);
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      // the response is held back until the download is running, so the other threads really call download() while
-      // the first download is still in progress
       server.respondWhenOpened(TOOL_PATH, 200, PROGRAM, releaseResponse);
       final TestInstaller installer = this.installerDownloadingFrom(server, TOOL_PATH, PROGRAM_HASH);
       final Path expected = installer.getDefaultPath();

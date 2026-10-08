@@ -200,8 +200,6 @@ public final class MapUtils {
     if (!alongX && !alongZ) {
       return;
     }
-    // the maps up to the last id are created before the first block is placed, so an id too far past the maps of
-    // the world changes nothing in it
     final int lastMapId = (int) lastMap;
     findOrCreateMap(lastMapId);
 
@@ -304,7 +302,6 @@ public final class MapUtils {
       this.clearFrames(frameBlock);
       final Location frameLocation = frameBlock.getLocation();
       final ItemFrame frame = this.world.spawn(frameLocation, ItemFrame.class);
-      // The supporting block lies ahead of the builder; the frame faces back toward the builder.
       frame.setFacingDirection(this.outward);
 
       final ItemStack item = getMapFromID(map);

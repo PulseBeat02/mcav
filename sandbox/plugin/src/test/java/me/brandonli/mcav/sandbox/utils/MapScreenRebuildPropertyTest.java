@@ -292,7 +292,6 @@ final class MapScreenRebuildPropertyTest {
             keep.add(entity);
           }
           case NEIGHBOUR_FRAME -> {
-            // the block above the top of the wall is never part of it
             final Location above = world.location(blockX + 0.5, 64 + this.height + 0.5, blockZ + 0.5);
             final ItemFrame frame = world.addFrame(above, obstacle.facing);
             keep.add(frame);

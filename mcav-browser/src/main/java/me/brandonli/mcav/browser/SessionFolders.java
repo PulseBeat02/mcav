@@ -151,7 +151,6 @@ final class SessionFolders {
     return removed;
   }
 
-  // a folder of another user, or one without a readable record, is left alone
   private boolean isStale(final Path folder) {
     final Path record = folder.resolve(OWNER_FILE);
     final List<String> lines;
@@ -182,7 +181,6 @@ final class SessionFolders {
   private boolean isOwnFolder(final Path folder) throws IOException {
     final boolean posix = folder.getFileSystem().supportedFileAttributeViews().contains("posix");
     if (!posix) {
-      // Windows, whose temporary folder of a user is that user's own
       return true;
     }
     final Optional<String> user = this.owner.info().user();

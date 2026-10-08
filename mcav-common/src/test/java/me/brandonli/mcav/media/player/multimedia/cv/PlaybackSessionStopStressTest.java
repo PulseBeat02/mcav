@@ -149,7 +149,6 @@ final class PlaybackSessionStopStressTest {
         System::nanoTime
       );
       session.start();
-      // one frame is shown, four wait in the queue, and the decoder waits for room for the sixth
       final int remainingSteps = WAITING_DECODER_FRAMES - 6;
       Polling.awaitCondition("the decoder waits for room", TIMEOUT, () -> grabber.getRemainingSteps() == remainingSteps);
       LockSupport.parkNanos(WAITING_DECODER_SETTLE_NANOS);

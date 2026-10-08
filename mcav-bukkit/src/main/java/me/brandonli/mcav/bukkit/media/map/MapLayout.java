@@ -259,7 +259,6 @@ public final class MapLayout {
     final int regionWidth = region.getWidth();
     final int regionHeight = region.getHeight();
 
-    // the region lies inside the map, so none of these sums can overflow
     final boolean insideHorizontally = left >= regionX && width > 0 && width <= regionX + regionWidth - left;
     final boolean insideVertically = top >= regionY && height > 0 && height <= regionY + regionHeight - top;
     Preconditions.checkArgument(

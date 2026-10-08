@@ -218,7 +218,6 @@ final class AbstractImageCommandTest {
     try (final ImageBuffer image = this.verifyShown()) {
       assertEquals(4, image.getWidth());
       assertEquals(2, image.getHeight());
-      // the picture is black but for its red top-left corner, so inverted its bottom-right corner is white
       final int[] pixels = image.getPixels();
       assertEquals(0xffffff, pixels[pixels.length - 1] & 0xffffff);
     }
@@ -447,7 +446,6 @@ final class AbstractImageCommandTest {
       verify(image, never()).release();
       this.manager.shutdown();
       verify(image, times(1)).release();
-      // Even if the accepted task runs after shutdown instead of being discarded, it cannot revive the image.
       TestServer.runPendingTasks();
       verify(image, times(1)).release();
       this.assertNothingShown();

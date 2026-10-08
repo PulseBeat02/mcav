@@ -70,7 +70,6 @@ final class MessageTest {
   }
 
   private static Component buildWithUrl(final LocaleTools.UniComponent<?> message) throws ReflectiveOperationException {
-    // the type of the argument is not known here, so the message is built through its erased method
     final Method build = LocaleTools.UniComponent.class.getMethod("build", Object.class);
     final Object built = build.invoke(message, "https://example.com/");
     final Component component = assertInstanceOf(Component.class, built);

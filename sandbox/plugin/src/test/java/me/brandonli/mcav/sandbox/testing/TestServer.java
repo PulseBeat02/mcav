@@ -80,7 +80,6 @@ public final class TestServer {
     Mockito.reset(SERVER);
     PENDING_TASKS.clear();
     final Thread mainThread = Thread.currentThread();
-    // threads do not override equals, so this asks whether the caller is the very main thread
     when(SERVER.isPrimaryThread()).thenAnswer(_ -> {
       final Thread current = Thread.currentThread();
       return mainThread.equals(current);
@@ -156,7 +155,6 @@ public final class TestServer {
    */
   public static void ensureInstalled() {
     final Server installed = Bukkit.getServer();
-    // the equals of a Mockito mock compares the very instance
     final boolean testServerInstalled = Objects.equals(installed, SERVER);
     Preconditions.checkState(testServerInstalled, "Bukkit has a server that is not the test server");
   }

@@ -199,7 +199,6 @@ public final class DeltaMapEncoder {
     final int mapCount = this.layout.getMapCount();
     final List<MapTilePatch> patches = new ArrayList<>();
     for (int map = 0; map < mapCount; map++) {
-      // only maps the image covers are ever sent, so a synced map never has an empty region
       if (!this.synced[map]) {
         continue;
       }

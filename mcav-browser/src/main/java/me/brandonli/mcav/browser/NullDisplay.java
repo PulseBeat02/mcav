@@ -111,7 +111,6 @@ final class NullDisplay implements AutoCloseable {
    */
   static final int COOKIE_BYTES = 16;
 
-  // the X11 codes of requests, replies and errors this display uses
   static final int CREATE_WINDOW = 1;
   static final int GET_WINDOW_ATTRIBUTES = 3;
   static final int GET_GEOMETRY = 14;
@@ -326,7 +325,6 @@ final class NullDisplay implements AutoCloseable {
     final List<ServerSocket> unusable = new ArrayList<>();
     try {
       while (unusable.size() < 64) {
-        // this constructor closes the socket itself when it cannot bind
         final ServerSocket candidate = new ServerSocket(0, MAX_CONNECTIONS, loopback);
         if (usable.test(candidate.getLocalPort())) {
           return candidate;
@@ -444,7 +442,6 @@ final class NullDisplay implements AutoCloseable {
       try {
         client = this.server.accept();
       } catch (final IOException exception) {
-        // the display was closed
         return;
       }
       this.clients.add(client);
@@ -452,7 +449,6 @@ final class NullDisplay implements AutoCloseable {
       if (evicted != null) {
         closeQuietly(evicted);
       }
-      // a client waits in a read most of its time, so each gets a virtual thread
       Thread.ofVirtual()
         .name("mcav-browser-null-display-client")
         .start(() -> this.serve(client));
@@ -480,7 +476,6 @@ final class NullDisplay implements AutoCloseable {
       final OutputStream out = new BufferedOutputStream(client.getOutputStream());
       final ByteOrder order = readSetup(in, out, this.cookie);
       this.introduced(client);
-      // only a client with the cookie takes a slot, and one more than the slots ends here
       slot = this.slots.tryAcquire();
       if (slot) {
         client.setSoTimeout(0);
@@ -566,7 +561,7 @@ final class NullDisplay implements AutoCloseable {
     final byte[] name = readPadded(in, nameLength);
     final byte[] presented = readPadded(in, dataLength);
     final boolean named = COOKIE_NAME.equals(new String(name, StandardCharsets.US_ASCII));
-    // compared in constant time, as a client that guesses learns nothing from how long the answer takes
+    // Compare in constant time so response timing cannot reveal the cookie.
     final boolean matches = MessageDigest.isEqual(presented, cookie);
     if (major != 11 || !named || !matches) {
       final String reason = major != 11 ? "only X11 is spoken here" : "the cookie of the display is missing";

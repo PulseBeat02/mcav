@@ -106,7 +106,6 @@ final class PlaybackSessionFailureTest {
   }
 
   private static void awaitNaturalEnd(final PlaybackSession session) throws InterruptedException {
-    // running stays true until stop(), so this requires every decoder and renderer to have exited on its own.
     Polling.awaitCondition("all session workers exited naturally", TIMEOUT, () -> !session.isActive());
   }
 
@@ -498,7 +497,6 @@ final class PlaybackSessionFailureTest {
     );
     try {
       playback.start();
-      // Wait for actual decoder close and renderer uncaught dispatch, not merely the session's stopped flag.
       Polling.awaitCondition("failed renderer and producer terminate", TIMEOUT, () -> video.isClosed() && uncaught.get() != null);
       final Throwable observed = reported.get();
       final Throwable escaped = uncaught.get();

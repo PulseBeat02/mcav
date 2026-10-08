@@ -43,7 +43,6 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class SessionFoldersTest {
 
-  // a process id no system hands out, for a server that is gone
   private static final long GONE = Long.MAX_VALUE;
 
   @TempDir
@@ -80,7 +79,6 @@ class SessionFoldersTest {
 
   @Test
   void aServerWhoseIdAnotherProcessTookIsGone() throws IOException {
-    // the id of the server now belongs to this JVM, which started at another instant
     final long reused = ProcessHandle.current().pid();
     final Path folder = this.folderOf(server(reused, Optional.of(Instant.parse("2001-01-01T00:00:00Z"))));
     assertEquals(1, SessionFolders.ofThisServer().removeStale(this.temporary));
@@ -95,7 +93,6 @@ class SessionFoldersTest {
     Files.writeString(garbage.resolve(SessionFolders.OWNER_FILE), "not\na record\n");
     final Path truncated = Files.createDirectory(this.temporary.resolve(SessionFolders.PREFIX + "truncated"));
     Files.writeString(truncated.resolve(SessionFolders.OWNER_FILE), GONE + "\n");
-    // a record this user may not read, as a folder of another user would be
     final Path unreadable = Files.createDirectory(this.temporary.resolve(SessionFolders.PREFIX + "unreadable"));
     final Path record = Files.writeString(unreadable.resolve(SessionFolders.OWNER_FILE), GONE + "\n2001-01-01T00:00:00Z\n");
     final boolean posix = record.getFileSystem().supportedFileAttributeViews().contains("posix");
@@ -104,7 +101,6 @@ class SessionFoldersTest {
     }
     final Path other = Files.createDirectory(this.temporary.resolve("other-folder"));
     Files.writeString(other.resolve(SessionFolders.OWNER_FILE), GONE + "\n2001-01-01T00:00:00Z\n");
-    // asked before the folder may be removed with its record
     final boolean readable = Files.isReadable(record);
 
     final int removed = SessionFolders.ofThisServer().removeStale(this.temporary);
@@ -117,8 +113,6 @@ class SessionFoldersTest {
 
   @Test
   void aFolderOfAnotherUserIsLeftAloneEvenIfItsRecordNamesAServerThatIsGone() throws IOException {
-    // another user of the machine may make a folder of that name in a shared temporary folder, readable and with a
-    // record, and swap what is inside it while it is deleted
     final Path planted = this.folderOf(server(GONE, Optional.of(Instant.parse("2026-10-05T00:00:00Z"))));
     final ProcessHandle serverOfAnotherUser = server(ProcessHandle.current().pid(), ProcessHandle.current().info().startInstant());
     when(serverOfAnotherUser.info().user()).thenReturn(Optional.of("not-" + Files.getOwner(planted).getName()));
@@ -131,7 +125,6 @@ class SessionFoldersTest {
       assertTrue(Files.exists(planted.resolve("Cookies")), "only folders of the server's own user are removed");
       assertEquals(1, SessionFolders.ofThisServer().removeStale(this.temporary));
     } else {
-      // Windows, whose temporary folder of a user is that user's own: no owner is asked
       assertEquals(1, new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(this.temporary));
       assertFalse(Files.exists(planted));
     }

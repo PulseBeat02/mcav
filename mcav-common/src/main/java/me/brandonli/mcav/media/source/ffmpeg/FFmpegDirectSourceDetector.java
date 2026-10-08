@@ -31,9 +31,7 @@ public class FFmpegDirectSourceDetector implements SourceDetector<FFmpegDirectSo
   /**
    * Constructs a new detector.
    */
-  public FFmpegDirectSourceDetector() {
-    // stateless
-  }
+  public FFmpegDirectSourceDetector() {}
 
   /**
    * {@inheritDoc}

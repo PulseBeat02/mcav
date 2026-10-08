@@ -47,7 +47,6 @@ final class QemuHardwareValues {
   private static final Pattern GUEST_NAME = Pattern.compile("[A-Za-z0-9 ._-]{0,64}");
   private static final Pattern ACCELERATOR = Pattern.compile("[a-z]{3,4}");
 
-  // properties of -machine that change the emulated hardware and never name a file
   private static final Map<String, Pattern> MACHINE_PROPERTIES = Map.ofEntries(
     Map.entry("type", WORD),
     Map.entry("accel", Pattern.compile("[a-z]{3,4}(:[a-z]{3,4}){0,3}")),
@@ -127,7 +126,6 @@ final class QemuHardwareValues {
     Pattern.compile("none|slew")
   );
   private static final Pattern CPU_FEATURE = Pattern.compile("[+-][A-Za-z0-9._-]{1,64}|[A-Za-z0-9._-]{1,64}=[A-Za-z0-9._-]{1,64}");
-  // the properties through which QEMU reads or writes a file or routes sound; no CPU has them, and none passes as one
   private static final Set<String> FILE_PROPERTIES = Set.of(
     "dumpdtb",
     "dtb",
@@ -139,8 +137,6 @@ final class QemuHardwareValues {
     "memory-backend",
     "pcspk-audiodev"
   );
-  // the properties of -drive besides file=, whose image the command resolves in the image folder: how the drive is
-  // attached, cached and reported; everything else, such as another driver or a property of another node, is refused
   private static final Map<String, Pattern> DRIVE_PROPERTIES = Map.ofEntries(
     Map.entry("format", Pattern.compile("raw|qcow2|vmdk|vdi|vhdx|vpc")),
     Map.entry("if", Pattern.compile("ide|scsi|sd|floppy|pflash|virtio|none")),
@@ -221,7 +217,6 @@ final class QemuHardwareValues {
       case 'T' -> 40;
       default -> 20;
     };
-    // a number of at most nine digits shifted by at most 40 bits fits a long unless it is beyond 2^63 bytes
     return number > Long.MAX_VALUE >> shift ? Long.MAX_VALUE : number << shift;
   }
 
@@ -262,7 +257,6 @@ final class QemuHardwareValues {
     final Map<String, Pattern> properties
   ) {
     for (final String part : parts) {
-      // every part is a property with a value, named in the list of the option
       final List<String> nameAndValue = PROPERTY.splitToList(part);
       final Pattern form = nameAndValue.size() == 2 ? properties.get(nameAndValue.getFirst()) : null;
       if (form == null) {
@@ -276,7 +270,6 @@ final class QemuHardwareValues {
     require("cpu", value, WORD.matcher(model).matches());
     for (final String feature : features) {
       require("cpu", value, CPU_FEATURE.matcher(feature).matches());
-      // a switch such as +avx2 has no value; a property may not use the name of one that reaches a file
       if (feature.contains("=")) {
         final String property = PROPERTY.splitToList(feature).getFirst();
         require("cpu", value, !FILE_PROPERTIES.contains(property));

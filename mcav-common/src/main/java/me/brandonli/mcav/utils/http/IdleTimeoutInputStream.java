@@ -87,7 +87,6 @@ final class IdleTimeoutInputStream extends InputStream {
       pending.cancel(true);
       this.delegate.close();
       final long timeoutMillis = this.idleTimeout.toMillis();
-      // neither exception has a constructor that takes a cause, so it is attached after
       final HttpTimeoutException timedOut = new HttpTimeoutException("No data was received for " + timeoutMillis + " ms");
       timedOut.initCause(exception);
       throw timedOut;

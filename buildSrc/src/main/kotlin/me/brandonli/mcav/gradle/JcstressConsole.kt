@@ -12,7 +12,6 @@ object JcstressConsole {
 
     private const val SKIPPED_MESSAGE = "jcstress skipped %d test(s), which failed their sanity check and never ran: %s"
 
-    // the summary of a run lists every test with its result, such as "..... [SKIPPED] me.brandonli.SomeRace"
     private val skippedLine = Regex("""\[SKIPPED]\s+(\S+)""")
 
     /**
@@ -63,7 +62,6 @@ object JcstressConsole {
             this.file.flush()
         }
 
-        // the build's console stays open for everything after the run
         override fun close() {
             this.console.flush()
             this.file.close()

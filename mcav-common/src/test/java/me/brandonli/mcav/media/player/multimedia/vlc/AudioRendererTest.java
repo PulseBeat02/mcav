@@ -213,7 +213,6 @@ final class AudioRendererTest {
 
   @Test
   void dropsSamplesWithoutAPipeline() throws Exception {
-    // the slot has no pipeline when the samples arrive; samples queued anyway would reach the recorder afterwards
     final BlockingQueue<Short> firstSamples = new LinkedBlockingQueue<>();
     final AudioFilter recorder = firstSampleRecorder(firstSamples);
     final AudioPipelineStep recording = AudioPipelineStep.of(recorder);
@@ -383,7 +382,6 @@ final class AudioRendererTest {
     final VideoPlayerMultiplexer failingOwner = mock(VideoPlayerMultiplexer.class);
     final BiConsumer<String, Throwable> handler = reportingHandler(reported);
     when(failingOwner.getExceptionHandler()).thenReturn(handler);
-    // VLC's thread looks the pipeline up first, then the render thread fails to, then both succeed
     when(failingOwner.getAudioAttachableCallback()).thenReturn(callback).thenThrow(failure).thenReturn(callback);
     return failingOwner;
   }

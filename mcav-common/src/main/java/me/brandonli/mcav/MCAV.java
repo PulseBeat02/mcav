@@ -63,7 +63,6 @@ public final class MCAV implements MCAVApi {
   private final Object lifecycleLock;
   private final NativeHeapTrimmer trimmer;
 
-  // written under the lifecycle lock and read without it, so it is volatile
   private volatile @Nullable BackgroundInstallation background;
 
   MCAV() {
@@ -136,12 +135,11 @@ public final class MCAV implements MCAVApi {
   @Override
   public void install(final Class<?>... modules) {
     Preconditions.checkNotNull(modules, "Modules must not be null");
-    // claimed atomically, so two threads installing at the same time cannot both run the installation
     final boolean claimed = this.installing.compareAndSet(false, true);
     if (!claimed) {
       throw new MCAVLoadingException("MCAV has already been installed");
     }
-    // release() takes the same lock, so it waits until the modules have been started or the installation failed
+    // release() takes this lock and must wait for startup or installation failure.
     synchronized (this.lifecycleLock) {
       this.runInstallation(modules);
       final BackgroundInstallation installation = new BackgroundInstallation(this.dependencyLoader, this.guard);
@@ -158,7 +156,6 @@ public final class MCAV implements MCAVApi {
     try {
       all.join();
     } catch (final CompletionException exception) {
-      // every step has finished once join() throws, so no module can still be starting
       this.moduleLoader.shutdownModules();
       this.installing.set(false);
       final Throwable cause = exception.getCause();
@@ -171,7 +168,6 @@ public final class MCAV implements MCAVApi {
   private void loadNatives() {
     this.dependencyLoader.loadModules();
     loadPalette();
-    // the ImageIO disk cache only slows down the many small images the library decodes
     ImageIO.setUseCache(false);
   }
 

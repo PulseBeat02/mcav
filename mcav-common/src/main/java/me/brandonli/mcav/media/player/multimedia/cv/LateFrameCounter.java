@@ -69,7 +69,6 @@ final class LateFrameCounter {
    * @param late            whether the frame came too late and was dropped
    */
   void count(final long timestampMicros, final boolean late) {
-    // a jump back in the timestamps, as some live streams make, starts counting anew
     if (!this.counting || timestampMicros < this.windowStartMicros) {
       this.counting = true;
       this.reported = false;

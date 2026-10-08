@@ -359,7 +359,6 @@ final class PlaybackSession {
         ThrowableUtils.throwIfFatal(exception);
         this.report("Failed to start the audio source", exception);
       } finally {
-        // No audio decoder exists on this path. Only stop() can have queued a marker already, so no wait is needed.
         this.audioQueue.offer(END_OF_AUDIO);
       }
       return;
@@ -617,7 +616,7 @@ final class PlaybackSession {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
     } finally {
-      // a decoder that raced the end may have queued one more frame
+      // A decoder racing the end may have queued one more frame.
       final List<DecodedVideoFrame> leftovers = new ArrayList<>();
       this.videoQueue.drainTo(leftovers);
       leftovers.forEach(PlaybackSession::releaseImage);
@@ -728,7 +727,6 @@ final class PlaybackSession {
     final OriginalAudioMetadata metadata = this.audioMetadata;
     try {
       synchronized (this.audioCallback) {
-        // Audio and video remain independent, while successive sessions share each delivery boundary.
         if (this.running.get()) {
           first.processAll(samples, metadata);
         }
@@ -892,7 +890,7 @@ final class PlaybackSession {
       return;
     }
     this.interruptThreadsExcept(currentThread);
-    // a renderer that stopped the session itself is not interrupted, so it finishes through its end marker
+    // A renderer that stops its own session finishes through this marker instead of an interrupt.
     replaceWithEndMarker(this.videoQueue, END_OF_VIDEO, PlaybackSession::releaseImage);
     replaceWithEndMarker(this.audioQueue, END_OF_AUDIO, PlaybackSession::discardChunk);
     this.joinThreadsExcept(currentThread);
@@ -927,9 +925,7 @@ final class PlaybackSession {
     }
   }
 
-  private static void discardChunk(final DecodedAudioChunk chunk) {
-    // audio chunks live on the heap, so the garbage collector takes care of them
-  }
+  private static void discardChunk(final DecodedAudioChunk chunk) {}
 
   /**
    * Replaces everything in a queue with the end marker. A decoder that is still running may refill the queue
@@ -966,7 +962,6 @@ final class PlaybackSession {
       grabber.close();
     } catch (final FrameGrabber.Exception | RuntimeException | Error exception) {
       ThrowableUtils.throwIfFatal(exception);
-      // the grabber is being discarded, nothing can be done about a recoverable failed close
     }
   }
 }

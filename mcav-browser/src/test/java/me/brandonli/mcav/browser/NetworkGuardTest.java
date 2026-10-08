@@ -321,7 +321,6 @@ class NetworkGuardTest {
     final Socket client = this.client(guard);
     final OutputStream out = client.getOutputStream();
     final int port = this.echo.getLocalPort();
-    // a complete greeting and request, every pause shorter than the timeout, the whole handshake far longer
     final byte[] handshake = { 5, 1, 0, 5, 1, 0, 1, 127, 0, 0, 1, (byte) (port >> 8), (byte) port };
     try {
       for (final byte value : handshake) {
@@ -332,12 +331,9 @@ class NetworkGuardTest {
     } catch (final SocketException closed) {
       // the guard closed the connection while the client still wrote
     }
-    // the answer to the greeting may come before the end; a relayed connection would never end and time out instead
     final InputStream in = client.getInputStream();
     try {
-      while (in.read() >= 0) {
-        // skip the answer to the greeting
-      }
+      while (in.read() >= 0) {}
     } catch (final SocketException reset) {
       // a guard that closed with unread bytes resets the connection
     }
@@ -366,7 +362,6 @@ class NetworkGuardTest {
       final byte[] bye = new byte[3];
       new DataInputStream(client.getInputStream()).readFully(bye);
       assertArrayEquals("bye".getBytes(StandardCharsets.US_ASCII), bye);
-      // the target closed its connection, so the guard closes the client's
       assertEnded(client);
       target.get(5, TimeUnit.SECONDS);
     }
@@ -384,7 +379,6 @@ class NetworkGuardTest {
   void aClientTurnedAwayIsDisconnected() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
     final Socket client = this.client(guard);
-    // a greeting that offers only authentication by user name and password
     assertArrayEquals(new byte[] { 5, (byte) 0xFF }, exchange(client, new byte[] { 5, 1, 2 }, 2));
     assertEnded(client);
   }
@@ -392,7 +386,6 @@ class NetworkGuardTest {
   @Test
   void theSlotOfAConnectionIsFreedWhenItEnds() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
-    // more connections one after the other than the guard holds at once
     for (int count = 0; count < NetworkGuard.MAX_CONNECTIONS + 44; count++) {
       new Socket(LOOPBACK, guard.getPort()).close();
     }
@@ -444,7 +437,6 @@ class NetworkGuardTest {
     assertTrue(this.notices.getFirst().startsWith("The network guard stopped: "), this.notices.getFirst());
   }
 
-  // a network whose translator has the prefix 2a01:4f8:1:2:3:4::/96: 2a01:4f8:1:2:3:4:a00:1 is 10.0.0.1
   private static final class TranslatingResolver implements NetworkGuard.Resolver {
 
     private final AtomicInteger questions = new AtomicInteger();

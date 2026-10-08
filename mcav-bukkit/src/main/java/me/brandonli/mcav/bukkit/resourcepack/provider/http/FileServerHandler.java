@@ -280,19 +280,17 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
     }
 
     final DefaultFileRegion region = new DefaultFileRegion(channel, 0, fileLength);
-    // a connection that cannot take the headers is closed at once; the body write then fails and releases the file
     final ChannelFuture headersFuture = context.write(headers);
     headersFuture.addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
     final ChannelFuture bodyFuture = context.writeAndFlush(region);
     bodyFuture.addListener(ChannelFutureListener.CLOSE);
   }
 
-  // the file was only read, so a failure to close it loses nothing
   private static void closeQuietly(final FileChannel channel) {
     try {
       channel.close();
     } catch (final IOException exception) {
-      // nothing to do
+      // The channel is read-only, so a failed close cannot lose written data.
     }
   }
 

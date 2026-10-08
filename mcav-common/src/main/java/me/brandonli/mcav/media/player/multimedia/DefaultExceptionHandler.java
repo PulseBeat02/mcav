@@ -30,7 +30,6 @@ public final class DefaultExceptionHandler implements ExceptionHandler {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DefaultExceptionHandler.class);
 
-  // the message is the failing player's own description of what failed
   private static final String FAILURE = "{}";
 
   private volatile BiConsumer<String, Throwable> handler;

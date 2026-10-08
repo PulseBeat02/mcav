@@ -360,7 +360,6 @@ public final class BlockRenderer extends MainThreadRenderer<BlockData[]> {
   }
 
   private Map<Position, BlockData> createOriginalBlockMap(final Position[] currentPositions) {
-    // the original blocks are always captured together with the positions
     final BlockData[] original = Objects.requireNonNull(this.originalBlocks, "Original blocks were not captured");
     return createBlockMap(currentPositions, original);
   }

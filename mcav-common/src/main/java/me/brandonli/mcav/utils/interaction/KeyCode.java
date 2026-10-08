@@ -30,7 +30,7 @@ public enum KeyCode {
   /** Represents a null or undefined key. */
   NULL('\uE000'),
   /** Represents the Cancel key (typically mapped to Break or Ctrl+Break). */
-  CANCEL('\uE001'), // ^break
+  CANCEL('\uE001'),
   /** Represents the Help key. */
   HELP('\uE002'),
   /** Represents the Backspace key. */
@@ -94,7 +94,6 @@ public enum KeyCode {
   /** Represents the Equals key. */
   EQUALS('\uE019'),
 
-  // Number pad keys
   /** Represents the number pad 0 key. */
   NUMPAD0('\uE01A'),
   /** Represents the number pad 1 key. */
@@ -128,7 +127,6 @@ public enum KeyCode {
   /** Represents the number pad divide key. */
   DIVIDE('\uE029'),
 
-  // Function keys
   /** Represents the F1 function key. */
   F1('\uE031'),
   /** Represents the F2 function key. */

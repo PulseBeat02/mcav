@@ -457,7 +457,6 @@ final class HttpResultImplTest {
     http.addListener(broken);
     final ByteBuffer samples = ByteBuffer.allocate(4);
     http.applyFilter(samples, this.metadata);
-    // the listener is removed before the thread that closes its session starts
     verifyClosed(broken, CloseStatus.SESSION_NOT_RELIABLE);
     final int count = http.getListenerCount();
     assertEquals(0, count);

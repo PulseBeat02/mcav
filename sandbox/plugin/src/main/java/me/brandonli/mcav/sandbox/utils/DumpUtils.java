@@ -66,15 +66,9 @@ public final class DumpUtils {
   private static final String REDACTED = "<redacted>";
   private static final String REDACTED_ADDRESS = "<redacted-address>";
   private static final Pattern WORD = Pattern.compile("\\S+");
-  // the address of a player, as the server logs it when they join or leave, with or without its port
   private static final Pattern IPV4_ADDRESS = Pattern.compile("\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b(?::\\d{1,5})?");
-  // the bracketed form the server logs an IPv6 address in, such as /[::1]:25565, and never a time of day; a link-local
-  // address carries its zone after a percent sign, such as /[fe80:0:0:0:0:0:0:1%eth0]:25565
   private static final Pattern IPV6_ADDRESS = Pattern.compile("/\\[[0-9A-Fa-f:.]+(?:%[^\\]\\s]+)?](?::\\d{1,5})?");
-  // what a player typed after a command of another plugin, which may be their password
   private static final Pattern OTHER_COMMAND = Pattern.compile("(issued server command: /)([^\\s]+)(\\s.*)?$");
-  // an address with a host, such as a page of the browser or a video: its user name and password (group 2) and its
-  // query or fragment (group 4) often carry secrets, such as the signature of a link or the code of a login
   private static final Pattern WEB_ADDRESS = Pattern.compile("\\b([A-Za-z][A-Za-z0-9+.-]*://)([^\\s/?#]*@)?([^\\s?#]*)([?#]\\S*)?");
   private static final String OWN_COMMAND_PREFIX = "mcav";
   private static final long MEGABYTE = 1024L * 1024L;
@@ -361,7 +355,6 @@ public final class DumpUtils {
     }
     final String name = matcher.group(2);
     final String arguments = matcher.group(3);
-    // group 2 always takes part in a match, group 3 only when the command has arguments
     final String commandName = Objects.requireNonNull(name);
     final boolean own = commandName.equalsIgnoreCase(OWN_COMMAND_PREFIX);
     if (own || arguments == null || arguments.isBlank()) {

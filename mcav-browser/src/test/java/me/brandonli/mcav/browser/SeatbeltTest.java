@@ -57,7 +57,6 @@ class SeatbeltTest {
   @Test
   void aProfileHidesTheFoldersAndLetsOnlyTheWritablePathsChange(@TempDir final Path folder) throws IOException {
     final String profile;
-    // the paths as macOS writes them, also where the tests run on Windows, whose paths have backslashes
     try (final FileSystem mac = FileSystems.newFileSystem(folder.resolve("paths.zip"), Map.of("create", "true"))) {
       profile = Seatbelt.profile(
         List.of(mac.getPath("/server"), mac.getPath("/Users/owner")),

@@ -177,7 +177,6 @@ final class DiscordPlayerImplTest {
       samples.putShort((short) (index * 3 - 1000));
     }
     samples.flip();
-    // the pipeline carries little-endian samples even in a buffer left at the Java default of big-endian
     samples.order(ByteOrder.BIG_ENDIAN);
 
     player.applyFilter(samples, this.metadata);

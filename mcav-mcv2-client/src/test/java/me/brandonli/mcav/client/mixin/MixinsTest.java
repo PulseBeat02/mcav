@@ -41,7 +41,6 @@ final class MixinsTest {
     final PoseStack pose = new PoseStack();
     try (final MockedStatic<Mcv2Shaders> shaders = mockStatic(Mcv2Shaders.class)) {
       final MapRendererMixin mixin = new MapRendererMixin() {};
-      // the map id and data are handed on unread
       mixin.mcav$extracted(null, null, state, new CallbackInfo("extractRenderState", false));
       shaders.verify(() -> Mcv2Shaders.extracted(state, null));
       mixin.mcav$posed(state, pose, mock(SubmitNodeCollector.class), true, 15, new CallbackInfo("render", false));

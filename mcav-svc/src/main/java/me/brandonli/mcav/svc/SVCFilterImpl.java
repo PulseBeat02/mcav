@@ -53,7 +53,7 @@ public final class SVCFilterImpl implements SVCFilter {
    */
   private static final int FRAME_SAMPLES = 960;
 
-  private static final int MAX_QUEUED_FRAMES = 25; // half a second
+  private static final int MAX_QUEUED_FRAMES = 25;
   private static final short[] SILENCE = new short[FRAME_SAMPLES];
 
   private final float distance;
@@ -72,7 +72,6 @@ public final class SVCFilterImpl implements SVCFilter {
    * @throws IllegalStateException if the voice chat API was not injected into {@link SVCModule}
    */
   SVCFilterImpl(final float distance, final Object[] entities) {
-    // fail early when the API is missing instead of on the first samples
     SVCModule.requireVoiceChatApi();
     this.distance = distance;
     this.entities = entities.clone();
@@ -98,9 +97,7 @@ public final class SVCFilterImpl implements SVCFilter {
     try {
       this.createSpeakers(api);
     } catch (final RuntimeException | Error exception) {
-      // voice chat is third-party code that loads the native Opus codec, so it can fail with a LinkageError as well;
-      // the speakers that already play are stopped for any recoverable failure, so a later start does not add them a
-      // second time, and the failure is rethrown unchanged
+      // Voice chat loads native Opus code, so cleanup must also handle LinkageError.
       ThrowableUtils.throwIfFatal(exception);
       this.stopSpeakers(exception);
       throw exception;
@@ -133,8 +130,7 @@ public final class SVCFilterImpl implements SVCFilter {
       speaker.setPlayer(player);
       player.startPlaying();
     } catch (final RuntimeException | Error exception) {
-      // creating or starting the player runs third-party code that can fail with a LinkageError as well; the speaker
-      // is not listed yet, so its encoder and player are released here before the failure is rethrown unchanged
+      // Third-party player creation/start can throw LinkageError before the speaker is registered.
       ThrowableUtils.throwIfFatal(exception);
       speaker.stop(exception);
       throw exception;
@@ -271,7 +267,6 @@ public final class SVCFilterImpl implements SVCFilter {
     private final OpusEncoder encoder;
     private final Deque<short[]> frames;
 
-    // null only until voice chat has created the player of this speaker, never null again afterwards
     private @MonotonicNonNull AudioPlayer player;
 
     Speaker(final OpusEncoder encoder) {
@@ -309,7 +304,6 @@ public final class SVCFilterImpl implements SVCFilter {
       }
     }
 
-    // the player is missing when voice chat failed to create it
     @Nullable Throwable stop(final @Nullable Throwable initialFailure) {
       synchronized (this.frames) {
         this.frames.clear();

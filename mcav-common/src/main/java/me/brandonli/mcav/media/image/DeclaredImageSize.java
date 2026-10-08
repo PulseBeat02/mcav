@@ -122,7 +122,7 @@ final class DeclaredImageSize {
   private static void checkLimit(final Size size, final long limit) {
     final long width = size.width();
     final long height = size.height();
-    // width * height > limit, without the product overflowing
+    // Test width * height > limit without overflowing the product.
     final boolean tooLarge = width > limit / height;
     if (tooLarge) {
       throw new IllegalArgumentException(String.format(TOO_LARGE, width, height, limit));
@@ -357,7 +357,6 @@ final class DeclaredImageSize {
         case "WIDTH" -> width = width < 0 ? decimal(value) : -2;
         case "HEIGHT" -> height = height < 0 ? decimal(value) : -2;
         case "DEPTH", "MAXVAL", "TUPLTYPE" -> {
-          // the format of the samples, not their number
         }
         default -> {
           return null;

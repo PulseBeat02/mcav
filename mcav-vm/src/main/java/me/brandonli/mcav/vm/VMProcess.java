@@ -106,10 +106,8 @@ final class VMProcess {
   private static final String SECRET_NOT_DELETED = "The password file of the virtual machine could not be deleted: {}";
   private static final String LOCALHOST = "127.0.0.1";
   private static final Set<String> MACHINE_OPTIONS = Set.of("machine", "M");
-  // the options with which a configuration chooses the network of the guest; -nodefaults leaves out QEMU's own
   private static final List<String> NETWORK_OPTIONS = List.of("nic", "netdev", "net", "nodefaults");
   private static final String RESTRICTED_NETWORK = "user,restrict=on";
-  // QEMU listens on the IPv4 loopback address, which is parsed from the literal rather than looked up
   static final InetAddress LOOPBACK = InetAddress.ofLiteral(LOCALHOST);
   private static final long START_TIMEOUT_MILLIS = 60_000L;
   private static final long POLL_MILLIS = 100L;
@@ -133,7 +131,6 @@ final class VMProcess {
   private final String password;
   private final Deque<String> outputTail;
 
-  // written while starting and stopping, but read from other threads through isRunning()/liveness checks
   private volatile @Nullable Process process;
   private volatile @Nullable Thread drainThread;
 
@@ -275,7 +272,6 @@ final class VMProcess {
     try {
       this.launchMachine(folder.resolve(PASSWORD_FILE));
     } finally {
-      // QEMU has read the password once its display accepts connections, or it failed to start
       deleteSecret(folder);
     }
   }
@@ -447,7 +443,6 @@ final class VMProcess {
    */
   @VisibleForTesting
   static boolean mentionsAccelerator(final @Nullable String reason, final String accelerator) {
-    // the failures of launch always carry a message
     final String message = Objects.requireNonNullElse(reason, "");
     final String lower = message.toLowerCase(Locale.ROOT);
     return lower.contains(accelerator) || lower.contains("accel") || lower.contains("hypervisor") || lower.contains("virtualization");
@@ -645,7 +640,6 @@ final class VMProcess {
 
   private void drain(final InputStream stream) {
     final StringBuilder line = new StringBuilder();
-    // a reader decodes characters whose bytes arrive in different reads
     try (final Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
       final char[] characters = new char[4096];
       int count;
@@ -656,7 +650,6 @@ final class VMProcess {
       // the process is gone, nothing more to read
     }
 
-    // the last line may lack a line break, or be cut off when the stream fails
     final String last = line.toString();
     this.remember(last);
   }
@@ -746,7 +739,6 @@ final class VMProcess {
     }
 
     final int exitCode = started.exitValue();
-    // the reason QEMU exited is in its last output, which the drain thread may still be reading
     this.awaitOutput();
     final String output = this.getOutputTail();
     this.process = null;
@@ -944,8 +936,6 @@ final class VMProcess {
      *
      * @param process the process
      */
-    default void ended(final Process process) {
-      // a launcher that keeps nothing about its processes has nothing to forget
-    }
+    default void ended(final Process process) {}
   }
 }

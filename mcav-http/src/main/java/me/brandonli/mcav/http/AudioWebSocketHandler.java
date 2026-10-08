@@ -58,9 +58,7 @@ final class AudioWebSocketHandler extends BinaryWebSocketHandler {
    * @param message the ignored message
    */
   @Override
-  protected void handleTextMessage(final @NonNull WebSocketSession session, final @NonNull TextMessage message) {
-    // browsers only receive
-  }
+  protected void handleTextMessage(final @NonNull WebSocketSession session, final @NonNull TextMessage message) {}
 
   /**
    * Forgets a browser that disconnected, so no more samples are queued for it.

@@ -38,8 +38,6 @@ final class ZipEntryIntegrityExceptionTest {
 
   @Test
   void extendsRuntimeExceptionDirectlyRatherThanAnIoFailure() {
-    // a direct subclass of RuntimeException is neither an Error nor an UncheckedIOException, so an unsafe archive is
-    // recoverable and can be told apart from one that cannot be read
     final Class<ZipEntryIntegrityException> type = ZipEntryIntegrityException.class;
     final Class<? super ZipEntryIntegrityException> superclass = type.getSuperclass();
     assertEquals(RuntimeException.class, superclass);

@@ -73,7 +73,6 @@ final class Mcv2MapsTest {
 
   @Test
   void theChecksumIsTheSumOfTheSevenFieldsInSixBits() {
-    // the fields add up to 381: only the low six bits, 61, are the checksum
     final int[] symbols = MapFixtures.anchorSymbols(63, 63, 63, 63, 3, 4095);
     assertEquals(61, symbols[15]);
     assertTrue(Mcv2Maps.isAnchor(MapFixtures.colours(symbols)));

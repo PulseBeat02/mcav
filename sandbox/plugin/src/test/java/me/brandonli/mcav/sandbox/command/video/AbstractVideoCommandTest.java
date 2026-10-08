@@ -546,8 +546,6 @@ final class AbstractVideoCommandTest {
     "tcp://127.0.0.1:25575, https://cdn.example.com/audio",
   })
   void refusesStreamsOfAWebPageThatAreNotOnTheWeb(final String videoStream, final String audioStream) throws IOException {
-    // the page, not the player, chooses the stream URLs yt-dlp reports, and FFmpeg would open the server's files or
-    // connect to its own services for any other scheme
     final URLParseDump resolved = new URLParseDump();
     when(this.parser.parse(any(UriSource.class))).thenReturn(resolved);
     final UriSource videoStreamSource = UriSource.uri(URI.create(videoStream));
@@ -599,7 +597,6 @@ final class AbstractVideoCommandTest {
     when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenAnswer(_ -> !cancelled.get());
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
-    // The second check happens after source detection but before display/audio/player allocation.
     final AtomicInteger checks = new AtomicInteger();
     Mockito.doAnswer(_ -> {
       if (checks.incrementAndGet() == 2) {

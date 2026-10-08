@@ -54,7 +54,6 @@ final class AddressTextPropertyTest {
       .map(path -> "/" + path);
   }
 
-  // the secrets are written with characters the host and the path never hold, so finding one in the text is a leak
   @Provide
   Arbitrary<String> secrets() {
     return Arbitraries.strings().withChars("ABCDEFGHIJKLMNOPQRSTUVWXYZ=&%+").ofMinLength(1).ofMaxLength(60);

@@ -135,7 +135,6 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
 
   private void dispatch(final ChannelHandlerContext context, final ByteBuf data, final RequestType type) {
     if (type == RequestType.INCOMPLETE) {
-      // not enough bytes to decide yet, wait for the next read
       return;
     }
 
@@ -246,7 +245,6 @@ final class ResourcePackHttpHandler extends ChannelInboundHandlerAdapter {
     }
 
     final ChunkedStream content = new ChunkedStream(new ByteArrayInputStream(body), CHUNK_BYTES);
-    // a connection that cannot take the headers is closed at once; the content write then fails and is closed
     final ChannelFuture headersFuture = context.write(headers);
     headersFuture.addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
     final ChannelFuture contentFuture = context.writeAndFlush(content);

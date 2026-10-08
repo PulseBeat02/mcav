@@ -73,7 +73,6 @@ object JavaSource {
             }
         }
 
-        // a string or character literal ends at its quote, or at the end of the line if it lacks one
         private fun literal(quote: Char) {
             when (source[index]) {
                 '\\' -> literalCharacters(2)
@@ -97,7 +96,6 @@ object JavaSource {
             }
         }
 
-        // replaces the next characters with spaces, keeping the line breaks
         private fun blank(length: Int) {
             val end = minOf(index + length, source.length)
             while (index < end) {

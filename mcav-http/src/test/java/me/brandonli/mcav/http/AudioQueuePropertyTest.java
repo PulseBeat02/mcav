@@ -134,7 +134,6 @@ final class AudioQueuePropertyTest {
     final int limit = buffer.limit();
     try {
       final boolean changed = result.applyFilter(buffer, metadata);
-      // the pipeline may reuse its buffer as soon as the call returns
       Samples.overwrite(buffer);
 
       assertFalse(changed, "the samples are only read");

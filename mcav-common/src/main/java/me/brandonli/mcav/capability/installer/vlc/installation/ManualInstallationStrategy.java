@@ -41,7 +41,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public abstract class ManualInstallationStrategy implements InstallationStrategy {
 
   private static final int MAX_SEARCH_DEPTH = 8;
-  // extracting the AppImage or copying VLC.app takes seconds; a tool that hangs, such as a stuck hdiutil, is killed
   private static final Duration TOOL_TIMEOUT = Duration.ofMinutes(10);
   private static final ProcessRunner COMMAND_RUNNER = ManualInstallationStrategy::runCommand;
 

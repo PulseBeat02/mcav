@@ -75,7 +75,6 @@ final class DitheringArgumentTest {
   @Test
   @Order(0)
   void createsTheSharedAlgorithmOfAnArgumentOnItsFirstUse() {
-    // this test runs before every other one, so the algorithm of the argument is not cached yet
     final DitheringArgument argument = DitheringArgument.CLUSTERED_DOT_4X4_LIGHT;
     final DitherAlgorithm first = argument.createAlgorithm();
     final DitherAlgorithm second = argument.createAlgorithm();
@@ -92,8 +91,6 @@ final class DitheringArgumentTest {
     final Thread firstThread;
     final Thread secondThread;
 
-    // both threads find no algorithm and wait for the lock held here, so one of them finds the algorithm the other
-    // created once it gets the lock
     synchronized (argument) {
       firstThread = startCreating(argument, first);
       secondThread = startCreating(argument, second);

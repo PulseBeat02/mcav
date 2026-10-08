@@ -22,7 +22,6 @@ object JcstressBudget {
 
     private class Preset(val forks: Int, val stressMultiplier: Int, val iterations: Int)
 
-    // the forks, the stress fork multiplier and the iterations of jcstress's modes, as its source defines them
     private val presets = mapOf(
         "sanity" to Preset(1, 1, 1),
         "quick" to Preset(1, 1, 5),
@@ -47,7 +46,6 @@ object JcstressBudget {
         }
     }
 
-    // a test's line is JCTEST, the length of the class name, an S and the class name
     private fun testName(line: String): String {
         val lengthEnd = line.indexOf('S', TEST_LINE.length)
         val length = line.substring(TEST_LINE.length, lengthEnd).toInt()

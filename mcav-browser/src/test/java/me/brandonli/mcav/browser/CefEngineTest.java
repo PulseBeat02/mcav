@@ -119,9 +119,7 @@ class CefEngineTest {
         List.of("--disable-gpu", "--mute-audio", "--disable-extensions", "--deny-permission-prompts", "--site-per-process")
       )
     );
-    // the page's sound plays on Chromium's own clock, not on a sound device of the server, which may run slow or stall
     assertTrue(switches.contains("--disable-audio-output"), "the page's sound is not paced by a sound device");
-    // a page plays sound once a player clicked it, as in a desktop browser; CEF's own default lets it play at once
     assertTrue(switches.contains("--autoplay-policy=document-user-activation-required"));
     final List<String> autoplaySwitches = CefEngine.createSwitches(configuration(false, true), false, false, 0, null);
     assertTrue(autoplaySwitches.contains("--autoplay-policy=no-user-gesture-required"));
@@ -248,7 +246,6 @@ class CefEngineTest {
     final CompletableFuture<String> failed = CompletableFuture.failedFuture(new IllegalStateException("closed"));
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(failed);
     CefEngine.openPage(browser, "https://example.com/", 1_000L, audio, notices::add);
-    // the second attempt, and then the load
     EventQueue.invokeAndWait(() -> {});
     EventQueue.invokeAndWait(() -> {});
     final List<DevToolsInput.DevToolsCall> calls = DevToolsInput.openWindowsInPlace();
@@ -260,7 +257,6 @@ class CefEngineTest {
     order.verify(devTools).executeDevToolsMethod("Runtime.addBinding", "{\"name\":\"__mcavAudio\"}");
     order.verify(devTools).executeDevToolsMethod(DevToolsInput.ADD_SCRIPT_METHOD, PageAudio.install().get(2).getParameters());
     order.verify(browser).loadURL("https://example.com/");
-    // the calls failed twice, the second time through a new client, so the page loads without the confirmation
     verify(devTools).close();
     verify(devTools, times(10)).executeDevToolsMethod(anyString(), anyString());
     assertEquals(List.of("The scripts of the page were not confirmed in 2 attempts; it loads anyway"), notices);
@@ -304,7 +300,6 @@ class CefEngineTest {
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(slow);
     final List<String> notices = new CopyOnWriteArrayList<>();
     CefEngine.openPage(browser, "https://example.com/slow", 60_000L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
-    // a slow machine can take more than a second to answer, and the page still waits for its scripts
     Thread.sleep(1_500L);
     EventQueue.invokeAndWait(() -> {});
     verify(browser, never()).loadURL(anyString());
@@ -322,7 +317,6 @@ class CefEngineTest {
     final CompletableFuture<String> lost = new CompletableFuture<>();
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(lost);
     final List<String> notices = new CopyOnWriteArrayList<>();
-    // a second, so a slow machine does not reach it before the check that nothing loaded yet
     CefEngine.openPage(browser, "https://example.com/lost", 1_000L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
     verify(browser, never()).loadURL(anyString());
     Await.until("the page loaded after the timeout", () -> {
@@ -362,7 +356,6 @@ class CefEngineTest {
         .anyMatch(call -> call.getMethod().getName().equals("loadURL"));
     });
     verify(browser, never()).reload();
-    // the answer arrives after all, as it does late on a busy machine: the scripts are in place for a new document
     late.complete("{}");
     EventQueue.invokeAndWait(() -> {});
     final InOrder order = inOrder(browser);
@@ -439,7 +432,6 @@ class CefEngineTest {
   void anEngineThatNeverStartedIgnoresInputAndStops() throws Exception {
     final List<Throwable> failures = new CopyOnWriteArrayList<>();
     final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
-    // a failure on the event thread reaches the default handler
     Thread.setDefaultUncaughtExceptionHandler((thread, failure) -> {
       if (thread.getName().startsWith("AWT-EventQueue")) {
         failures.add(failure);
@@ -449,9 +441,7 @@ class CefEngineTest {
       final CefEngine engine = new CefEngine();
       engine.dispatch(DevToolsInput.pressKey("Enter"));
       engine.stop();
-      // whatever was sent to the event thread before has run once this has
       EventQueue.invokeAndWait(() -> {});
-      // other tests' helpers may still write their last words, so only this engine's are looked for
       assertFalse(errors.text().contains("Failed to shut CEF down"), errors.text());
     } finally {
       Thread.setDefaultUncaughtExceptionHandler(previous);

@@ -1,11 +1,3 @@
-# Every version the build uses: the libraries, the Gradle plugins, and the tools the build downloads or pins (the Java
-# toolchain, Node.js and prettier for Spotless, PIT, the Checker Framework, the Paper dev bundle, clang-format for the
-# MCV2 natives, and the plugins the development server downloads). Build scripts name them as libs.<alias>; the
-# convention plugins in buildSrc look them up by alias. Three versions live elsewhere because they must: the Gradle
-# wrapper's (gradle/wrapper/gradle-wrapper.properties), the toolchain resolver plugin's (the plugins block of
-# settings.gradle.kts runs before any version catalog exists), and Zig's for the MCV2 natives (their build.sh, which the
-# natives' SOURCES manifest hashes).
-
 [versions]
 java = "25"
 uv = "0.12.23"
@@ -15,7 +7,7 @@ docs-matplotlib = "3.11.2"
 docs-numpy = "2.5.3"
 docs-sphinx-design = "0.7.0"
 minecraft = "26.3"
-# Paper 26.3 has only alpha builds (2026-09-27); the newest is pinned
+# Paper 26.3 is pinned to an alpha release.
 paper = "26.3.build.49-alpha"
 paperweight = "2.0.0-beta.24"
 node = "24.21.0"
@@ -52,8 +44,7 @@ netty = "4.2.18.Final"
 maven-resolver = "2.0.23"
 jda = "6.7.0"
 spring-boot = "4.1.1"
-# Spring Boot 4.1.1 brings Tomcat 11.0.24, Jackson 3.1.5 and JDA Jackson 2.22.2, all with known vulnerabilities; the
-# releases that fix them, declared directly by mcav-http and mcav-jda so Maven consumers also receive them
+# Security overrides: Tomcat GHSA-9xv2-5v5q-p794; Jackson CVE-2026-89425 / CVE-2026-89407.
 tomcat = "11.0.25"
 jackson = "3.1.7"
 jackson2 = "2.22.3"
@@ -70,13 +61,9 @@ bstats = "3.2.1"
 shadow = "9.6.1"
 run-paper = "3.1.0"
 resource-factory = "1.4.0"
-# the plugins the development server (./gradlew :sandbox:plugin:runServer) downloads
 voicechat-plugin = "bukkit-2.6.24"
 spark = "1.10.187"
 spark-build = "539"
-# the MCV2 client mod (mcav-mcv2-client): Minecraft 26.3's client jar, named by its SHA-1 on Mojang's download server,
-# the loaders and APIs it is built against, and the libraries the client loads with it, as 26.3's version manifest names
-# them (client-*: a minecraft-* name would turn the version alias minecraft above into a group)
 client-jar = "e877b6a07acd633fb3bb475002175cec036e7b87"
 fabric-loader = "0.19.5"
 fabric-api-base = "2.0.6+fcdff87f5d"
@@ -87,9 +74,7 @@ neoforge-loader = "12.0.8"
 neoforge-bus = "8.0.5"
 neoforge-mergetool = "2.0.7"
 iris = "1.11.7+26.3-fabric"
-# the Mixin of Fabric Loader 0.19.5, whose annotations NeoForge's Mixin reads the same
 sponge-mixin = "0.17.4+mixin.0.8.7"
-# what NeoForge 26.3 names a mod's version with
 neoforge-maven-artifact = "3.9.16"
 client-netty = "4.2.16.Final"
 client-brigadier = "1.3.11"
@@ -106,7 +91,6 @@ client-jspecify = "1.0.0"
 client-jtracy = "1.14.38"
 
 [libraries]
-# checks and tests
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
@@ -119,7 +103,6 @@ jcstress-core = { module = "org.openjdk.jcstress:jcstress-core", version.ref = "
 jimfs = { module = "com.google.jimfs:jimfs", version.ref = "jimfs" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4j" }
 
-# the libraries of the modules
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
@@ -154,7 +137,6 @@ lwjgl-opengl = { module = "org.lwjgl:lwjgl-opengl", version.ref = "lwjgl" }
 lwjgl-glfw = { module = "org.lwjgl:lwjgl-glfw", version.ref = "lwjgl" }
 voicechat-api = { module = "de.maxhenkel.voicechat:voicechat-api", version.ref = "voicechat-api" }
 
-# the sandbox plugin
 paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
 gremlin-runtime = { module = "xyz.jpenilla:gremlin-runtime", version.ref = "gremlin" }
 cloud-core = { module = "org.incendo:cloud-core", version.ref = "cloud" }
@@ -164,7 +146,6 @@ cloud-minecraft-extras = { module = "org.incendo:cloud-minecraft-extras", versio
 commodore = { module = "me.lucko:commodore", version.ref = "commodore" }
 bstats-bukkit = { module = "org.bstats:bstats-bukkit", version.ref = "bstats" }
 
-# the MCV2 client mod; NeoForge's own jar is its "universal" one and mergetool's the "api" one, chosen in the build script
 minecraft-client = { module = "net.minecraft:client", version.ref = "client-jar" }
 fabric-loader = { module = "net.fabricmc:fabric-loader", version.ref = "fabric-loader" }
 fabric-api-base = { module = "net.fabricmc.fabric-api:fabric-api-base", version.ref = "fabric-api-base" }
@@ -198,12 +179,9 @@ minecraft-jtracy = { module = "com.mojang:jtracy", version.ref = "client-jtracy"
 testing = ["junit-jupiter", "mockito-core", "mockito-junit-jupiter", "jqwik", "jazzer-junit"]
 jna = ["jna", "jna-platform"]
 spring-boot-web = ["spring-boot-starter-web", "spring-boot-starter-websocket"]
-# the Java classes of JavaCV and its FFmpeg and OpenCV presets, without the native libraries of every platform
 javacv-classes = ["javacv", "javacpp", "ffmpeg", "opencv"]
 lwjgl-opengl = ["lwjgl", "lwjgl-opengl"]
 cloud = ["cloud-core", "cloud-annotations", "cloud-paper", "cloud-minecraft-extras"]
-# what the MCV2 client mod compiles against, besides NeoForge's and mergetool's jars: the client, the loaders, their
-# APIs and Iris, with the libraries their signatures name, and SLF4J, which the repository's Checker Framework stubs name
 mcv2-client = [
     "minecraft-client",
     "fabric-loader",
@@ -221,7 +199,6 @@ mcv2-client = [
     "minecraft-jspecify",
     "minecraft-slf4j-api",
 ]
-# the rest of the libraries the client's own classes load, which the tests of the mod create and mock
 minecraft-client-libraries = [
     "minecraft-netty-transport",
     "minecraft-netty-codec-base",
@@ -239,7 +216,6 @@ minecraft-client-libraries = [
 ]
 
 [plugins]
-# applied by the convention plugins in buildSrc, which put them on the build's class path
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
 checker-framework = { id = "org.checkerframework", version.ref = "checker-framework-gradle" }
 node = { id = "com.github.node-gradle.node", version.ref = "node-gradle" }
@@ -250,5 +226,4 @@ run-paper = { id = "xyz.jpenilla.run-paper", version.ref = "run-paper" }
 resource-factory-paper = { id = "xyz.jpenilla.resource-factory-paper-convention", version.ref = "resource-factory" }
 gremlin = { id = "xyz.jpenilla.gremlin-gradle", version.ref = "gremlin" }
 javacpp-platform = { id = "org.bytedeco.gradle-javacpp-platform", version.ref = "javacpp-platform-gradle" }
-# applied by mcav-bukkit alone
 paperweight-userdev = { id = "io.papermc.paperweight.userdev", version.ref = "paperweight" }

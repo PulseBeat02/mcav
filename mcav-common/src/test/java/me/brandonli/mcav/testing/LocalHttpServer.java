@@ -263,7 +263,6 @@ public final class LocalHttpServer implements AutoCloseable {
     output.write(response.body);
     output.flush();
     final boolean closed = this.awaitClose();
-    // fewer bytes than announced were written, which is the point of a stalling response; close() drops the connection
     exchange.close();
     if (!closed) {
       throw new IOException("The stalling response gave up because the server was not closed within " + MAX_WAIT_SECONDS + " s");
@@ -281,7 +280,6 @@ public final class LocalHttpServer implements AutoCloseable {
         }
       }
     } catch (final InterruptedException exception) {
-      // closing the server interrupts its handlers
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
     }

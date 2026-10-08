@@ -56,7 +56,6 @@ final class ArgumentUtilsPropertyTest {
     final IntegerArbitrary integers = Arbitraries.integers();
     final Arbitrary<String> numbers = integers.map(String::valueOf);
     final Arbitrary<String> pairs = numbers.flatMap(width -> numbers.map(height -> width + "x" + height));
-    // sizes around both bounds, where an off-by-one or a loosened limit shows
     final Arbitrary<Integer> nearWalls = nearBound(ArgumentUtils.MAX_SCREEN_SIDE);
     final Arbitrary<Integer> nearSides = nearBound(ArgumentUtils.MAX_SIDE);
     final Arbitrary<Integer> near = Arbitraries.oneOf(nearWalls, nearSides);

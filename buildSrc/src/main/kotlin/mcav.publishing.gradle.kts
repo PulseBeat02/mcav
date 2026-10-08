@@ -1,8 +1,3 @@
-// Publishes a module as me.brandonli:<module>, with its sources and Javadoc, to the snapshot repository of mcav and to
-// the folder the end-to-end test of the sandbox plugin serves to its server. The snapshot repository reads its
-// credentials from the Gradle properties brandonliUsername and brandonliPassword. `mcavPublishing` changes what a module
-// publishes.
-
 import info.solidsoft.gradle.pitest.PitestPluginExtension
 import me.brandonli.mcav.gradle.McavPublishingExtension
 
@@ -45,7 +40,7 @@ publishing {
     }
 }
 
-// what is published depends on the module's settings, so the publication is made once its build script has run
+// Module scripts choose the bundled jar; publishing earlier silently selects the plain artifact.
 afterEvaluate {
     publishing.publications.create<MavenPublication>("maven") {
         groupId = "me.brandonli"
@@ -79,7 +74,6 @@ afterEvaluate {
             suppressAllPomMetadataWarnings()
         }
     }
-    // Gradle stores -D options as Test.systemProperties, so PIT needs its own copy for the forked test JVMs.
     val generatedPom = tasks.named<GenerateMavenPom>("generatePomFileForMavenPublication")
     val publishedPom = "-Dmcav.published.pom=" + generatedPom.get().destination.absolutePath
     tasks.named<Test>("test") {

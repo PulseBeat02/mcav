@@ -61,14 +61,12 @@ public final class YTDLPParserImpl implements YTDLPParser {
   private static final String END_OF_OPTIONS = "--";
   private static final int FIXED_ARGUMENTS = 9;
   private static final Set<String> WEB_SCHEMES = Set.of("http", "https");
-  // resolving a page takes a few seconds; a yt-dlp stuck on an unresponsive site must not block its caller forever
   private static final Duration TIMEOUT = Duration.ofMinutes(2);
 
   private final ExecutableLocator locator;
   private final Function<String[], CommandTask> taskFactory;
 
   YTDLPParserImpl() {
-    // use YTDLPParser.simple()
     this(YTDLPParserImpl::installYtdlp, CommandTask::new);
   }
 
@@ -108,7 +106,6 @@ public final class YTDLPParserImpl implements YTDLPParser {
   private static Path installYtdlp() throws IOException {
     final CapabilityGuard guard = CapabilityGuard.shared();
     guard.checkNotPreparing(Capability.YT_DLP);
-    // the installer is shared with the rest of the library, so concurrent parses download yt-dlp at most once
     final YTDLPInstaller installer = YTDLPInstaller.shared();
     return installer.download(true);
   }
@@ -171,8 +168,6 @@ public final class YTDLPParserImpl implements YTDLPParser {
     try {
       dump = gson.fromJson(json, URLParseDump.class);
     } catch (final JsonSyntaxException | NumberFormatException exception) {
-      // also thrown for text after the document and for values that do not fit their field, except text in a decimal
-      // field, which Gson reports with a NumberFormatException of its own
       throw new YTDLPParseException("yt-dlp printed invalid metadata for " + url, exception);
     }
     if (dump == null) {

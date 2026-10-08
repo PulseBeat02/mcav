@@ -149,7 +149,6 @@ final class MatImageBufferTest {
       assertEquals(0xFFFF0000, red);
     }
     final IllegalArgumentException empty = assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.bytes(new byte[0]));
-    // no bytes are refused as such, before the size check could refuse them as no image
     assertEquals("Encoded image must not be empty", empty.getMessage());
     assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.bytes(new byte[] { 1, 2, 3 }));
     assertThrowsWhileOpening(NullPointerException.class, () -> ImageBuffer.bytes(null));
@@ -218,8 +217,6 @@ final class MatImageBufferTest {
 
   @Test
   void refusesAHeaderThatDeclaresAHugeSizeForItsSize() {
-    // a PNG signature and header for 65535 by 65535 pixels with no picture after it: OpenCV would allocate ~12 GiB of
-    // BGR first, so the limit has to be what refuses it
     final byte[] header = new byte[] {
       (byte) 0x89,
       'P',
@@ -266,7 +263,6 @@ final class MatImageBufferTest {
 
   @Test
   void refusesAnImageWhosePictureIsMissingAfterAValidHeader() throws IOException {
-    // the header passes the size check, so it is OpenCV that finds nothing to decode
     final byte[] headerOnly = "P6\n4 4\n255\n".getBytes(StandardCharsets.US_ASCII);
     final IllegalArgumentException fromBytes = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
       ImageBuffer.bytes(headerOnly)
@@ -357,8 +353,6 @@ final class MatImageBufferTest {
 
   @Test
   void convertsSingleChannelMatsOfOtherDepthsToColor() {
-    // a single channel matrix that also has to be converted to eight bits must still end up with three channels:
-    // dropping the color conversion would leave one channel behind and the pixels would be read as garbage
     final Scalar bright = new Scalar(25_700.0);
     final Mat sixteenBitGray = new Mat(2, 2, opencv_core.CV_16UC1, bright);
     try (final ImageBuffer fromSixteenBitGray = ImageBuffer.mat(sixteenBitGray)) {
@@ -419,7 +413,6 @@ final class MatImageBufferTest {
       final Mat own = buffer.getMat();
       final Scalar white = new Scalar(255.0, 255.0, 255.0, 0.0);
       final Mat other = new Mat(2, 2, opencv_core.CV_8UC3, white);
-      // the header of the matrix stays where it is, but it now shares the pixels of the other matrix
       own.put(other);
       other.release();
       final int[] after = image.getPixels();
@@ -643,7 +636,6 @@ final class MatImageBufferTest {
       final int pixel = converted.getRGB(2, 1);
       final BufferedImage sameSize = new BufferedImage(3, 2, BufferedImage.TYPE_INT_RGB);
       sameSize.setRGB(0, 0, 0xFF123456);
-      // the cache is filled first, so replacing the content of the same matrix has to invalidate it
       image.getPixels();
       image.setAsBufferedImage(sameSize);
       final int replaced = argbAt(image, 0, 0);
@@ -675,7 +667,6 @@ final class MatImageBufferTest {
   @Test
   void setsAndGetsSinglePixels() {
     try (final ImageBuffer image = Images.solid(3, 3, 0xFF000000)) {
-      // the pixels are read first, so the cache exists and setting a pixel has to invalidate it
       final int black = argbAt(image, 1, 1);
       image.setPixel(1, 1, new double[] { 300.0, -5.0, 127.6 });
       image.setPixel(2, 2, new double[] { 10.0 });
@@ -703,7 +694,6 @@ final class MatImageBufferTest {
     try (final ImageBuffer image = Images.solid(2, 2, 0xFF000000)) {
       final ByteBuffer sameSize = ByteBuffer.allocate(2 * 2 * 3);
       sameSize.put(0, (byte) 7);
-      // the cache is filled first, so writing into the same matrix has to invalidate it
       image.getPixels();
       image.updateData(sameSize, 2, 2);
       final int position = sameSize.position();
@@ -950,9 +940,7 @@ final class MatImageBufferTest {
     throw new IllegalStateException("The transformation failed");
   }
 
-  private static void leaveTargetEmpty() {
-    // writes nothing into the target
-  }
+  private static void leaveTargetEmpty() {}
 
   @Test
   void convertsResultsToBgrAndNeverKeepsAMatrixTheResultShares() {

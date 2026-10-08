@@ -124,7 +124,6 @@ final class FileServerHandlerFuzzTest {
     final List<Object> answered = new ArrayList<>();
     for (int index = 0; index < request.reads.size() && channel.isOpen(); index++) {
       final byte[] read = request.reads.get(index);
-      // a read of a connection always carries bytes
       if (read.length > 0) {
         final ByteBuf buffer = Unpooled.copiedBuffer(read);
         sent.add(buffer);
@@ -169,7 +168,6 @@ final class FileServerHandlerFuzzTest {
     final FileChannel fileChannel = FileChannel.open(path, StandardOpenOption.READ);
     opened.add(fileChannel);
     if (mode == OpenMode.CANNOT_TELL_SIZE) {
-      // a closed channel throws on size()
       fileChannel.close();
     }
     return fileChannel;
@@ -325,7 +323,6 @@ final class FileServerHandlerFuzzTest {
       return new Request(stream, reads);
     }
 
-    // an input too short for its header reads as zeros there, so every input is a request
     private static int byteAt(final byte[] input, final int index) {
       return index >= 2 && index < input.length ? input[index] & 0xFF : 0;
     }

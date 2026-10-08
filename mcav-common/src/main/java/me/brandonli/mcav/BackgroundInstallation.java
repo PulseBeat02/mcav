@@ -157,7 +157,6 @@ final class BackgroundInstallation {
       step.run();
       return true;
     } catch (final RuntimeException exception) {
-      // the loader reports every expected failure itself, so only a bug of the step gets here
       final String name = capability.getDisplayName();
       this.logger.warn(PREPARATION_FAILED, name, exception);
       return false;

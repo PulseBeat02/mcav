@@ -63,7 +63,6 @@ final class TransportStripTest {
     final int[] symbols = MapFixtures.pageSymbols(9, 1);
     final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(MapFixtures.colours(symbols)), List.of(), IDENTITY, PROJECTION);
     final byte[] expected = new byte[27 * WIDTH * TransportStrip.CHANNELS];
-    // screen 1's page 1 is slot 4, from row 20
     final int first = 4 * 5 * WIDTH;
     for (int pixel = 0; pixel < PackLayout.PAGE_PIXELS; pixel++) {
       final int word = symbols[4 * pixel] | (symbols[4 * pixel + 1] << 6) | (symbols[4 * pixel + 2] << 12) | (symbols[4 * pixel + 3] << 18);
@@ -87,7 +86,6 @@ final class TransportStripTest {
     final byte[] colours = MapFixtures.colours(symbols);
     colours[41] = 3;
     final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(colours), List.of(), IDENTITY, PROJECTION);
-    // pixel 10 holds symbols 40 to 43
     final int word = symbols[40] | (symbols[42] << 12) | (symbols[43] << 18);
     assertEquals(word & 0xFF, strip[40] & 0xFF);
     assertEquals((word >> 8) & 0xFF, strip[41] & 0xFF);

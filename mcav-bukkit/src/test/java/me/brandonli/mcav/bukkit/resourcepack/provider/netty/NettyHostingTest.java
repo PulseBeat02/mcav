@@ -203,8 +203,6 @@ final class NettyHostingTest {
 
   @Test
   void givesEveryInstanceItsOwnPipelineName() {
-    // a Netty pipeline rejects two handlers of the same name. With a shared constant, a second running instance
-    // threw inside the channel initializer, which kills every new player connection.
     final NettyHosting first = new NettyHosting(this.zip);
     final NettyHosting second = new NettyHosting(this.zip);
 
@@ -246,7 +244,6 @@ final class NettyHostingTest {
 
       assertArrayEquals(PACK, bodyBytes);
       files.verify(() -> Files.readAllBytes(this.zip), times(1));
-      // the Netty thread only asks whether the file changed; the bytes came from the read that start() did
       files.verify(() -> Files.readAttributes(this.zip, BasicFileAttributes.class), times(2));
     } finally {
       hosting.shutdown();

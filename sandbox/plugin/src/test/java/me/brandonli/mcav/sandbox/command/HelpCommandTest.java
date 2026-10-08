@@ -73,11 +73,9 @@ final class HelpCommandTest {
     parser.parse(dump);
     this.sender = mock(CommandSender.class);
     when(this.sender.hasPermission(anyString())).thenReturn(true);
-    // the help sends some lines as builders; the real default method turns them into components
     doCallRealMethod().when(this.sender).sendMessage(any(ComponentLike.class));
   }
 
-  // the help shows descriptions when the mouse hovers over a command, so the hover texts are included
   private static void appendText(final Component component, final StringBuilder text) {
     final String plain = Components.plain(component);
     text.append(plain);

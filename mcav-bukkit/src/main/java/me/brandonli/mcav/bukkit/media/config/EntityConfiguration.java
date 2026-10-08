@@ -105,9 +105,7 @@ public class EntityConfiguration {
    */
   public static final class EntityResultBuilder extends Builder<EntityResultBuilder> {
 
-    EntityResultBuilder() {
-      // created through EntityConfiguration.builder()
-    }
+    EntityResultBuilder() {}
 
     /**
      * Returns this builder with its concrete type.
@@ -145,9 +143,7 @@ public class EntityConfiguration {
     private int entityHeight;
     private @MonotonicNonNull Location position;
 
-    Builder() {
-      // only subclassed inside this class
-    }
+    Builder() {}
 
     /**
      * Returns this builder with its concrete type, so the setters can be chained.

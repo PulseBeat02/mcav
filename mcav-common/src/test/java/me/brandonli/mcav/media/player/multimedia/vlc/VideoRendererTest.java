@@ -248,7 +248,6 @@ final class VideoRendererTest {
 
   @Test
   void dropsFramesWithoutAPipeline() throws Exception {
-    // the slot has no pipeline when the frame arrives; a frame queued anyway would reach the recorder afterwards
     final VideoFilter recorder = VlcTestFrames.recorder(this.frames);
     final VideoPipelineStep recording = VideoPipelineStep.of(recorder);
     final VideoAttachableCallback callback = mock(VideoAttachableCallback.class);
@@ -324,7 +323,6 @@ final class VideoRendererTest {
     }
     this.renderer.setPaused(false);
     proceed.countDown();
-    // a frame displayed after the pause is rendered, so once it arrived the dropped frame would have arrived before it
     this.display(1, 1, BLUE);
     awaitSize(rendered, 2);
     final List<Integer> expected = List.of(RED, BLUE);

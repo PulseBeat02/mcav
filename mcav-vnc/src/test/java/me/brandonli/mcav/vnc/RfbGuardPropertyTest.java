@@ -94,7 +94,6 @@ final class RfbGuardPropertyTest {
         default -> out.writeBytes(framebufferUpdate(random));
       }
     }
-    // a message after the run shows the guard ended where the run ends
     out.writeBytes(new byte[] { 2 });
     return out.toByteArray();
   }

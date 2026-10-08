@@ -108,7 +108,6 @@ final class HelperProcesses {
       generation++;
       running = new ArrayList<>(SESSIONS);
     }
-    // every helper ends, also when the listener of one fails; the first failure is thrown afterwards
     RuntimeException failure = null;
     for (final HelperSession session : running) {
       try {

@@ -97,7 +97,6 @@ final class ManualInstallationStrategyTest {
 
   @Test
   void findsFilesAtMostEightLevelsBelowTheSearchedDirectory() throws IOException {
-    // the file name is the eighth level below the searched directory, seven directories deep
     final Path eightDeep = nest(this.temp, 7);
     final Path other = this.temp.resolve("other");
     final Path nineDeep = nest(other, 7);
@@ -174,7 +173,6 @@ final class ManualInstallationStrategyTest {
   void runsToolsAsChildProcesses() throws IOException {
     final VLCInstaller installer = VLCInstaller.create(this.temp);
     final TestStrategy strategy = new TestStrategy(installer);
-    // the marker is written with a relative path, so it lands in the working directory the tool was started in
     final Path workingDirectory = createDirectory(this.temp, "work");
     final Path marker = workingDirectory.resolve("marker.txt");
     final Path markerElsewhere = this.temp.resolve("marker.txt");

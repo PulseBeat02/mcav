@@ -150,7 +150,6 @@ final class SeatbeltLibrary implements AutoCloseable {
     this.arena.close();
   }
 
-  // sandbox_init: takes the text of a profile, its flags and where the reason of a refusal goes
   private int init(final MemorySegment profile, final long given, final MemorySegment error) {
     this.profiles.add(profile.reinterpret(Long.MAX_VALUE).getString(0));
     this.flags.add(given);
@@ -158,7 +157,6 @@ final class SeatbeltLibrary implements AutoCloseable {
     return this.answer;
   }
 
-  // sandbox_free_error: takes back the reason
   private void freeError(final MemorySegment error) {
     this.freed.add(error.address());
   }
