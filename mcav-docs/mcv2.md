@@ -1028,13 +1028,14 @@ keyframes** (0.0 % on these clips: a cut is just a P frame of new pictures now),
 change: 0.2 %), its two shorter ways of **storing the vector** (no vector at all, or two 4-bit numbers: 0.6 % each, so
 the vector is always two bytes and the record always ten), and the `ADAPTIVE` **preset** (-0.1 %: it saved nothing).
 With them, the header lost every field a decoder can work out for itself and went from 32 bytes to 20. Two options
-cost rate but stayed, because the speed test needs them: the `FAST` preset (7.4 % more rate than `DEFAULT`) keeps 1080p
+cost rate but stayed, because the speed test needs them: the `FAST` preset (6.2 % more rate than `DEFAULT` on average:
+13.6 % more on the proxy, 1.2 % less on gameplay) keeps 1080p
 gameplay inside its time on a busy machine, and rate control by motion (1.1 % more rate) keeps the encoder 40 % faster
-on gameplay. Together, these last removals cost @@A1-TOTAL@@.
+on gameplay. Together, these last removals cost 1.7 % on average: 4.9 % more on gameplay, mostly the cap on the quantizer, and 1.5 % less on the proxy, where the shorter COMPACT record more than pays for what went.
 
 What does all that removal cost on the wire? Against the old MCV2's live search, the one its screens used, the
-simplified MCV2 needs 17.6 % more rate on the proxy and 0.3 % more on gameplay for the same VMAF; against its slow
-search for files, 27.5 % and 14.4 % more. In exchange, it is a much smaller program, which [Part 10](#part-10-the-code)
+simplified MCV2 needs 16.4 % more rate on the proxy and 5.8 % more on gameplay for the same VMAF; against its slow
+search for files, 26.0 % and 22.9 % more. In exchange, it is a much smaller program, which [Part 10](#part-10-the-code)
 measures.
 
 ## Part 12: Results
@@ -1056,8 +1057,8 @@ Here is what one viewer's connection carries for 1080p at 30 frames a second, af
 
 | Clip | MCV2, `DEFAULT` | Dithered maps under the default budget | Dithered maps, every change sent |
 |---|---|---|---|
-| Minecraft proxy | 2.11 Mbit/s, VMAF 75.7 | 10.4 Mbit/s, VMAF 33.4 | 125.5 Mbit/s, VMAF 96.9 |
-| Minecraft gameplay | 9.22 Mbit/s, VMAF 75.6 | 10.9 Mbit/s, VMAF 10.9 | 178.3 Mbit/s, VMAF 99.5 |
+| Minecraft proxy | 2.08 Mbit/s, VMAF 75.6 | 10.4 Mbit/s, VMAF 33.4 | 125.5 Mbit/s, VMAF 96.9 |
+| Minecraft gameplay | 9.32 Mbit/s, VMAF 73.8 | 10.9 Mbit/s, VMAF 10.9 | 178.3 Mbit/s, VMAF 99.5 |
 
 The dithered wall under a budget never shows a whole frame, which is why its VMAF is so low; sending every change
 shows the video well, but at a rate no server can give each player.
@@ -1074,21 +1075,21 @@ The same curves as numbers: the rate each codec needs, in Mbit/s, to reach a VMA
 | VMAF | MCV2 | H.264 | VP9 | AV1 |
 |---:|---:|---:|---:|---:|
 | **Minecraft proxy** | | | | |
-| 70 | 1.58 | 1.98 | 0.35 | 0.38 |
-| 75 | 2.06 | 2.18 | 0.51 | 0.51 |
-| 80 | 3.08 | 2.47 | 0.72 | 0.70 |
-| 85 | 5.88 | 3.19 | 1.22 | 1.07 |
-| 90 | 12.17 | 4.97 | 2.44 | 2.09 |
+| 70 | 1.54 | 1.98 | 0.35 | 0.38 |
+| 75 | 2.03 | 2.18 | 0.51 | 0.51 |
+| 80 | 3.10 | 2.47 | 0.72 | 0.70 |
+| 85 | 5.96 | 3.19 | 1.22 | 1.07 |
+| 90 | 12.59 | 4.97 | 2.44 | 2.09 |
 | **Minecraft gameplay** | | | | |
-| 70 | 7.30 | 3.14 | 1.83 | 1.62 |
-| 75 | 9.01 | 3.58 | 2.25 | 2.02 |
-| 80 | 11.19 | 4.20 | 2.79 | 2.51 |
-| 85 | 13.79 | 4.93 | 3.44 | 3.13 |
-| 90 | 17.28 | 5.78 | 4.34 | 3.99 |
+| 70 | 7.92 | 3.14 | 1.83 | 1.62 |
+| 75 | 9.81 | 3.58 | 2.25 | 2.02 |
+| 80 | 12.13 | 4.20 | 2.79 | 2.51 |
+| 85 | 14.75 | 4.93 | 3.44 | 3.13 |
+| 90 | 18.23 | 5.78 | 4.34 | 3.99 |
 
-As BD-rates over the range of quality both cover: on the proxy, MCV2 needs 3.7 % more than H.264 and about 4.7 times
-the rate of VP9 and AV1 (+365 % and +381 %); on gameplay, 2.2 times H.264 (+122 %) and 4.3 and 4.7 times VP9 and AV1
-(+327 % and +370 %).
+As BD-rates over the range of quality both cover: on the proxy, MCV2 needs 3.6 % more than H.264 and about 4.7 times
+the rate of VP9 and AV1 (+362 % and +376 %); on gameplay, 2.4 times H.264 (+135 %) and 4.6 and 5.0 times VP9 and AV1
+(+358 % and +404 %).
 
 So MCV2 loses, and by a lot against the modern codecs. That's expected, and it's the price of where it runs. H.264,
 VP9 and AV1 use transforms, dozens of prediction modes, motion in fractions of a pixel, loop filters and an arithmetic
@@ -1106,17 +1107,21 @@ proxy, the kind of flat, blocky picture Minecraft is full of, it keeps up with H
 
 | Feature turned off | Minecraft proxy | Minecraft gameplay | Average |
 |---|---:|---:|---:|
-| Prediction from the previous frame (every frame a keyframe) | +89.3 % | +63.7 % | +76.5 % |
-| 16x16 and 8x8 leaves (only 32x32 leaves) | +101.0 % | +12.4 % | +56.7 % |
-| Palettes | +15.9 % | +46.9 % | +31.4 % |
-| Derived offsets (a stored address in every descriptor instead) | +18.0 % | +18.4 % | +18.2 % |
-| Compact residuals | +15.9 % | +20.5 % | +18.2 % |
-| Local motion (no motion vectors) | +23.2 % | +8.3 % | +15.7 % |
-| Patterns | +12.9 % | +1.2 % | +7.0 % |
+| Palettes | +26.0 % | +151.0 % | +88.5 % |
+| Prediction from the previous frame (every frame a keyframe) | +96.4 % | +57.5 % | +76.9 % |
+| 16x16 and 8x8 leaves (only 32x32 leaves) | +90.7 % | +7.2 % | +49.0 % |
+| Solid leaves | +24.4 % | +23.1 % | +23.7 % |
+| Local motion (no motion vectors) | +28.0 % | +14.6 % | +21.3 % |
+| Derived offsets (a stored address in every descriptor instead) | +18.3 % | +19.0 % | +18.7 % |
+| Compact residuals | +18.5 % | +15.8 % | +17.2 % |
+| Compact quantizers 1 and 2 (every correction at q = 0) | +11.8 % | +13.6 % | +12.7 % |
+| Motion leaves (COMPACT still uses the found vector) | +12.9 % | +2.1 % | +7.5 % |
+| Patterns | +11.4 % | +0.5 % | +5.9 % |
 
-Every tool earns its place: the weakest, patterns, still saves 7 % on average, mostly on the proxy, where blocks and
-fences make stripes everywhere. Prediction from the previous frame is worth the most, which is no surprise: most of a
-video is the same as the frame before it.
+Every tool earns its place: the weakest, patterns, still saves 5.9 % on average, nearly all of it on the proxy, where
+blocks and fences make stripes everywhere. Palettes are worth the most on gameplay, where a moving picture that the
+last frame can't predict well enough is cheapest to draw again from two colours; prediction from the previous frame is
+worth the most on the proxy, which is no surprise: most of a video is the same as the frame before it.
 
 ### What It Costs to Decode
 
