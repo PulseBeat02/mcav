@@ -1031,13 +1031,14 @@ at a time, then together, because some of them stand in for each other. These we
 keyframe's most common solid colour, sent once in the header so its squares could be skips: 0.0 %), **scene-cut
 keyframes** (0.0 % on these clips: a cut is just a P frame of new pictures now), COMPACT's **quantizers above 2**
 (2.7 %), two of COMPACT's three **classes** (one brightness value for the whole block: 0.0 %; a grid with a colour
-change: 0.2 %), its two shorter ways of **storing the vector** (no vector at all, or two 4-bit numbers: 0.6 % each, so
-the vector is always two bytes and the record always ten), and the `ADAPTIVE` **preset** (-0.1 %: it saved nothing).
-With them, the header lost every field a decoder can work out for itself and went from 32 bytes to 20. Two options
-cost rate but stayed, because the speed test needs them: the `FAST` preset (6.2 % more rate than `DEFAULT` on average:
-13.6 % more on the proxy, 1.2 % less on gameplay) keeps 1080p
-gameplay inside its time on a busy machine, and rate control by motion (1.1 % more rate) keeps the encoder 40 % faster
-on gameplay. Together, these last removals cost 1.7 % on average: 4.9 % more on gameplay, mostly the cap on the quantizer, and 1.5 % less on the proxy, where the shorter COMPACT record more than pays for what went.
+change: 0.2 %), its two shorter ways of **storing the vector** (two 4-bit numbers: 0.6 %, and no vector at all, once
+those were gone: 1.1 %, so the vector is always two bytes and the record always ten), and the `ADAPTIVE` **preset**
+(-0.1 %: it saved nothing). With them, the header lost every field a decoder can work out for itself and went from 32
+bytes to 20. Two options cost rate but stayed, because the speed test needs them: the `FAST` preset (6.2 % more rate
+than `DEFAULT` on average: 13.6 % more on the proxy, 1.2 % less on gameplay) keeps 1080p gameplay inside its time on a
+busy machine, and rate control by motion (1.1 % more rate) keeps the encoder 40 % faster on gameplay. Together, these
+last removals cost 1.7 % on average: 4.9 % more on gameplay, mostly the cap on the quantizer, and 1.5 % less on the
+proxy, where the shorter COMPACT record more than pays for what went.
 
 What does all that removal cost on the wire? Against the old MCV2's live search, the one its screens used, the
 simplified MCV2 needs 16.4 % more rate on the proxy and 5.8 % more on gameplay for the same VMAF; against its slow
