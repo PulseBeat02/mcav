@@ -125,10 +125,16 @@ class SessionFoldersTest {
     final ProcessHandle serverOfNoKnownUser = server(ProcessHandle.current().pid(), ProcessHandle.current().info().startInstant());
     when(serverOfNoKnownUser.info().user()).thenReturn(Optional.empty());
 
-    assertEquals(0, new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(this.temporary));
-    assertEquals(0, new SessionFolders(serverOfNoKnownUser, ProcessHandle::of).removeStale(this.temporary));
-    assertTrue(Files.exists(planted.resolve("Cookies")), "only folders of the server's own user are removed");
-    assertEquals(1, SessionFolders.ofThisServer().removeStale(this.temporary));
+    if (planted.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+      assertEquals(0, new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(this.temporary));
+      assertEquals(0, new SessionFolders(serverOfNoKnownUser, ProcessHandle::of).removeStale(this.temporary));
+      assertTrue(Files.exists(planted.resolve("Cookies")), "only folders of the server's own user are removed");
+      assertEquals(1, SessionFolders.ofThisServer().removeStale(this.temporary));
+    } else {
+      // Windows, whose temporary folder of a user is that user's own: no owner is asked
+      assertEquals(1, new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(this.temporary));
+      assertFalse(Files.exists(planted));
+    }
   }
 
   @Test
