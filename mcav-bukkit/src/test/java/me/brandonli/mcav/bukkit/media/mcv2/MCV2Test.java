@@ -41,18 +41,15 @@ final class MCV2Test {
       final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT, pool, 1, true);
       final byte[] picture = { 10, 20, 30 };
       final byte[] expected = HexFormat.of().parseHex(
-        "4d4356320301000001000100010000000100000034000000340000000a141e00" + "0000000000000000000000000000000000000000"
+        "4d43563203000000010001000100000001000000" + "0100000000000000010000000000000000000000" + "02000000000a141e"
       );
       assertArrayEquals(expected, encoder.encode(picture, 1, 1, 1));
-      final byte[] predicted = expected.clone();
-      predicted[5] = 0;
-      predicted[12] = 2;
-      predicted[28] = 0;
-      predicted[29] = 0;
-      predicted[30] = 0;
+      final byte[] predicted = HexFormat.of().parseHex(
+        "4d43563203000000010001000200000001000000" + "0000000000000000000000000000000000000000"
+      );
       assertArrayEquals(predicted, encoder.encode(picture, 1, 1, 2));
       assertArrayEquals(picture, Mcv2Decoder.decode(predicted, picture, 1));
-      assertEquals(52, encoder.getStats().bytes());
+      assertEquals(40, encoder.getStats().bytes());
       assertFalse(encoder.getStats().keyframe());
       assertEquals(72, encoder.getStats().lambda());
     }
@@ -147,9 +144,9 @@ final class MCV2Test {
       for (int pixel = 0; pixel < 32 * 32; pixel++) {
         assertEquals(31, decoded[pixel * 3]);
       }
-      assertEquals(52, first.length);
+      assertEquals(48, first.length);
       source[0] = 10;
-      assertEquals(52, encoder.encode(source, 32, 32, 1).length);
+      assertEquals(40, encoder.encode(source, 32, 32, 1).length);
       assertArrayEquals(decoded, encoder.getReference());
     }
   }

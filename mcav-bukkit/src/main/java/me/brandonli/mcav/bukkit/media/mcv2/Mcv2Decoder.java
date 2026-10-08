@@ -24,7 +24,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class Mcv2Decoder {
 
   /** Fixed frame header size in bytes. */
-  public static final int HEADER_BYTES = 32;
+  public static final int HEADER_BYTES = 20;
   /** Largest accepted frame length in bytes. */
   public static final int MAX_FRAME_BYTES = 131071;
   /** Largest width or height in pixels. */
@@ -51,9 +51,7 @@ public final class Mcv2Decoder {
   public static final int CHECKPOINT_GROUPS = 8;
   /** Descriptors per walk checkpoint. */
   public static final int WALK_SPAN = 8;
-  /** Independent-frame header flag. */
-  public static final int KEYFRAME = 1;
-  /** Default-colour or co-located prediction leaf. */
+  /** Black keyframe leaf or co-located prediction leaf. */
   public static final int MODE_SKIP = 0;
   /** Whole-pixel translated prediction leaf. */
   public static final int MODE_MOTION = 1;
@@ -85,12 +83,6 @@ public final class Mcv2Decoder {
   public static final int FRAME_ID_OFFSET = 12;
   /** Header byte offset of the reference id. */
   public static final int REFERENCE_ID_OFFSET = 16;
-  /** Header byte offset of the first-record address. */
-  public static final int PAYLOAD_START_OFFSET = 20;
-  /** Header byte offset of the total frame length. */
-  public static final int TOTAL_OFFSET = 24;
-  /** Header byte offset of the default RGB colour. */
-  public static final int DEFAULT_COLOR_OFFSET = 28;
   /** Largest unsigned 32-bit value. */
   public static final long MAX_U32 = 0xFFFFFFFFL;
 
@@ -127,7 +119,6 @@ public final class Mcv2Decoder {
     private final long referenceId;
     private final boolean keyframe;
     private final int payloadStart;
-    private final int defaultColor;
     private final int[] leaves;
 
     private Frame(final Parser parser, final int[] leaves) {
@@ -138,7 +129,6 @@ public final class Mcv2Decoder {
       this.referenceId = u32(this.data, REFERENCE_ID_OFFSET);
       this.keyframe = parser.keyframe;
       this.payloadStart = parser.start;
-      this.defaultColor = rgb(this.data, DEFAULT_COLOR_OFFSET);
       this.leaves = leaves;
     }
 
@@ -206,15 +196,6 @@ public final class Mcv2Decoder {
     }
 
     /**
-     * Returns default keyframe colour as 0xRRGGBB; zero on P frames.
-     *
-     * @return default keyframe colour as 0xRRGGBB; zero on P frames
-     */
-    public int getDefaultColor() {
-      return this.defaultColor;
-    }
-
-    /**
      * Returns number of leaves, including absent roots and off-picture leaves.
      *
      * @return number of leaves, including absent roots and off-picture leaves
@@ -267,26 +248,16 @@ public final class Mcv2Decoder {
       throw new Mcv2Exception("Invalid frame length");
     }
     final byte[] data = bytes.clone();
-    if (data[4] != VERSION) {
+    if (u32(data, 4) != VERSION) {
       throw new Mcv2Exception("Not an MCV2 version 3 frame");
-    }
-    if ((data[5] & ~KEYFRAME) != 0 || data[6] != 0 || data[7] != 0 || data[31] != 0 || u32(data, TOTAL_OFFSET) != data.length) {
-      throw new Mcv2Exception("Invalid frame header");
     }
     final int width = u16(data, DIMENSIONS_OFFSET);
     final int height = u16(data, DIMENSIONS_OFFSET + Short.BYTES);
     if (width < 1 || width > MAX_DIMENSION || height < 1 || height > MAX_DIMENSION) {
       throw new Mcv2Exception("Invalid dimensions");
     }
-    final boolean keyframe = (data[5] & KEYFRAME) != 0;
-    if (keyframe != (u32(data, FRAME_ID_OFFSET) == u32(data, REFERENCE_ID_OFFSET)) || (!keyframe && rgb(data, DEFAULT_COLOR_OFFSET) != 0)) {
-      throw new Mcv2Exception("Invalid reference metadata or default color");
-    }
-    final long start = u32(data, PAYLOAD_START_OFFSET);
-    if (start < HEADER_BYTES || start > data.length) {
-      throw new Mcv2Exception("Invalid payload start");
-    }
-    return new Parser(data, width, height, keyframe, (int) start).parse();
+    final boolean keyframe = u32(data, FRAME_ID_OFFSET) == u32(data, REFERENCE_ID_OFFSET);
+    return new Parser(data, width, height, keyframe).parse();
   }
 
   private static final class Parser {
@@ -295,16 +266,15 @@ public final class Mcv2Decoder {
     private final int width;
     private final int height;
     private final boolean keyframe;
-    private final int start;
+    private int start;
     private final int columns;
     private final int roots;
 
-    private Parser(final byte[] data, final int width, final int height, final boolean keyframe, final int start) {
+    private Parser(final byte[] data, final int width, final int height, final boolean keyframe) {
       this.data = data;
       this.width = width;
       this.height = height;
       this.keyframe = keyframe;
-      this.start = start;
       this.columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
       this.roots = this.columns * ((height + ROOT_SIZE - 1) / ROOT_SIZE);
     }
@@ -314,7 +284,7 @@ public final class Mcv2Decoder {
       final int checkpoints = (groups + CHECKPOINT_GROUPS - 1) / CHECKPOINT_GROUPS;
       final int countsAt = HEADER_BYTES + (groups + checkpoints) * Integer.BYTES;
       final int descriptorsAt = countsAt + BLOCK_SIZES * Integer.BYTES;
-      if (descriptorsAt > this.start) {
+      if (descriptorsAt > this.data.length) {
         throw new Mcv2Exception("Truncated index");
       }
       // Unsigned counts stay wide until their sum and the whole index fit inside the input.
@@ -322,9 +292,11 @@ public final class Mcv2Decoder {
       final long levelOne = u32(this.data, countsAt + Integer.BYTES);
       final long levelTwo = u32(this.data, countsAt + 2 * Integer.BYTES);
       final long count = levelZero + levelOne + levelTwo;
-      if (descriptorsAt + count + ((count + WALK_SPAN - 1) / WALK_SPAN) * Integer.BYTES != this.start) {
+      final long start = descriptorsAt + count + ((count + WALK_SPAN - 1) / WALK_SPAN) * Integer.BYTES;
+      if (start > this.data.length) {
         throw new Mcv2Exception("Invalid index length");
       }
+      this.start = (int) start;
       final int descriptors = (int) count;
       final int firstChildren = (int) levelZero;
       final int lastLevel = (int) (levelZero + levelOne);
@@ -610,7 +582,7 @@ public final class Mcv2Decoder {
       final byte[] data = this.frame.data;
       int motionX = 0;
       int motionY = 0;
-      int color0 = this.frame.defaultColor;
+      int color0 = 0;
       int color1 = 0;
       int word = 0;
       int orientation = 0;

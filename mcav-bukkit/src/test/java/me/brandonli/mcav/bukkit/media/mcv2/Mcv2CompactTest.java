@@ -55,7 +55,6 @@ final class Mcv2CompactTest {
         final byte[] data = Mcv2WireFrames.block(32, 5, 0, record, false);
         assertEquals(record.length, data.length - Mcv2Decoder.parse(data).getLeaf(0).offset());
         final byte[] shortFrame = Arrays.copyOf(data, data.length - 1);
-        Mcv2Decoder.putU32(shortFrame, 24, shortFrame.length);
         assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(shortFrame));
       }
     }

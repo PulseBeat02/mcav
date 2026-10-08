@@ -44,7 +44,7 @@ final class MCV2TreePropertyTest {
     assertEquals(roots, Mcv2Trees.read(parsed));
     assertArrayEquals(data, Mcv2Trees.write(width, height, 2, 1, false, Mcv2Trees.read(parsed)));
     final int groups = (roots.size() + 31) / 32;
-    final int counts = 32 + 4 * (groups + (groups + 7) / 8);
+    final int counts = 20 + 4 * (groups + (groups + 7) / 8);
     final int descriptors = (int) (Mcv2Decoder.u32(data, counts) + Mcv2Decoder.u32(data, counts + 4) + Mcv2Decoder.u32(data, counts + 8));
     final int walk = counts + 12 + descriptors;
     int splits = 0;

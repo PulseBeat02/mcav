@@ -23,12 +23,10 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CHECKPOINT_GROUPS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.COMPACT_DC;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.COMPACT_GRID;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.COMPACT_GRID_Y;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.DEFAULT_COLOR_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.DIMENSIONS_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.FRAME_ID_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.GROUP_ROOTS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.HEADER_BYTES;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.KEYFRAME;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MAGIC;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MAX_CHANNEL;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MAX_DIMENSION;
@@ -43,13 +41,11 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_PATTERN;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SKIP;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SOLID;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SPLIT;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.PAYLOAD_START_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.QUANTIZER_SHIFT;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.QUARTERS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.REFERENCE_ID_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.ROOT_SIZE;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.SMALLEST_BLOCK;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.TOTAL_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.VERSION;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.WALK_SPAN;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.compactX;
@@ -67,9 +63,7 @@ import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -1063,7 +1057,8 @@ public final class MCV2 {
     }
     final int at = block * recordSize(MODE_PALETTE, size);
     final byte[] record = Arrays.copyOfRange(frame.buffers.records[level], at, at + (frame.buffers.lengths[level][block] & 255));
-    final TreeNode leaf = TreeNode.leaf(frame.buffers.modes[level][block], frame.buffers.quantizers[level][block], record);
+    final int mode = frame.buffers.modes[level][block];
+    final TreeNode leaf = mode == MODE_SKIP ? TreeNode.skip() : TreeNode.leaf(mode, frame.buffers.quantizers[level][block], record);
     if (level == BLOCK_SIZES - 1) {
       leaves.add(new ChosenLeaf(left, top, size, level));
       return new Choice(leaf, cost);
@@ -2161,7 +2156,7 @@ public final class MCV2 {
     }
   }
 
-  // The writer stores level-order records and omits roots filled by the default prediction.
+  // The writer stores level-order records and omits unchanged predicted roots.
   private static byte @Nullable [] write(
     final int width,
     final int height,
@@ -2174,22 +2169,10 @@ public final class MCV2 {
     Preconditions.checkArgument(width >= 1 && width <= MAX_DIMENSION && height >= 1 && height <= MAX_DIMENSION, "Invalid dimensions");
     final int columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
     Preconditions.checkArgument(input.size() == columns * ((height + ROOT_SIZE - 1) / ROOT_SIZE), "Wrong root count");
-    final Map<Integer, Integer> colors = new LinkedHashMap<>();
     for (final TreeNode root : input) {
-      validateTree(root, ROOT_SIZE, keyframe, colors);
+      validateTree(root, ROOT_SIZE, keyframe);
     }
-    int defaultColor = 0;
-    int most = -1;
-    for (final Map.Entry<Integer, Integer> entry : colors.entrySet()) {
-      if (entry.getValue() > most) {
-        most = entry.getValue();
-        defaultColor = entry.getKey();
-      }
-    }
-    final List<TreeNode> roots = new ArrayList<>(input.size());
-    for (final TreeNode root : input) {
-      roots.add(keyframe ? rewriteDefault(root, defaultColor) : root);
-    }
+    final List<TreeNode> roots = input;
     final List<TreeNode> flat = new ArrayList<>();
     final int[] levels = new int[BLOCK_SIZES];
     List<TreeNode> level = new ArrayList<>();
@@ -2226,17 +2209,11 @@ public final class MCV2 {
     }
     final byte[] data = new byte[length];
     putU32(data, 0, MAGIC);
-    data[4] = VERSION;
-    data[5] = (byte) (keyframe ? KEYFRAME : 0);
+    putU32(data, 4, VERSION);
     putU16(data, DIMENSIONS_OFFSET, width);
     putU16(data, DIMENSIONS_OFFSET + Short.BYTES, height);
     putU32(data, FRAME_ID_OFFSET, frameId);
     putU32(data, REFERENCE_ID_OFFSET, referenceId);
-    putU32(data, PAYLOAD_START_OFFSET, start);
-    putU32(data, TOTAL_OFFSET, length);
-    if (keyframe) {
-      putColor(data, DEFAULT_COLOR_OFFSET, defaultColor);
-    }
     int seen = 0;
     for (int group = 0; group < groups; group++) {
       long mask = 0;
@@ -2274,21 +2251,11 @@ public final class MCV2 {
     return data;
   }
 
-  private static int color(final byte[] data, final int at) {
-    return ((data[at] & 255) << 16) | ((data[at + 1] & 255) << 8) | (data[at + 2] & 255);
-  }
-
-  private static void putColor(final byte[] data, final int at, final int color) {
-    data[at] = (byte) (color >> 16);
-    data[at + 1] = (byte) (color >> 8);
-    data[at + 2] = (byte) color;
-  }
-
-  private static void validateTree(final TreeNode node, final int size, final boolean keyframe, final Map<Integer, Integer> colors) {
+  private static void validateTree(final TreeNode node, final int size, final boolean keyframe) {
     if (node.isSplit()) {
       Preconditions.checkArgument(size > SMALLEST_BLOCK, "Split below the bounded depth");
       for (int corner = 0; corner < QUARTERS; corner++) {
-        validateTree(node.getChild(corner), size / 2, keyframe, colors);
+        validateTree(node.getChild(corner), size / 2, keyframe);
       }
       return;
     }
@@ -2314,21 +2281,6 @@ public final class MCV2 {
     if (mode == MODE_PATTERN) {
       Preconditions.checkArgument((record[2 * CHANNELS] & 255) <= 1, "Invalid pattern orientation");
     }
-    if (keyframe && mode == MODE_SOLID) {
-      colors.merge(color(record, 0), 1, Integer::sum);
-    }
-  }
-
-  private static TreeNode rewriteDefault(final TreeNode node, final int defaultColor) {
-    if (node.isSplit()) {
-      return TreeNode.split(
-        rewriteDefault(node.getChild(0), defaultColor),
-        rewriteDefault(node.getChild(1), defaultColor),
-        rewriteDefault(node.getChild(2), defaultColor),
-        rewriteDefault(node.getChild(3), defaultColor)
-      );
-    }
-    return node.getMode() == MODE_SOLID && color(node.record(), 0) == defaultColor ? TreeNode.skip() : node;
   }
 
   private static boolean patternRecord(final byte[] paletteRecord, final int size, final byte[] patternOutput) {

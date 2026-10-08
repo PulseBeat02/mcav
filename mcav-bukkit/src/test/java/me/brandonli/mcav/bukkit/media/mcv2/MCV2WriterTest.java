@@ -104,10 +104,11 @@ final class MCV2WriterTest {
   @Test
   void writesNoDescriptorsForAbsentRoots() throws Mcv2Exception {
     final byte[] skipped = predicted(64, 32, Node.skip(), Node.skip());
-    assertEquals(52, skipped.length);
+    assertEquals(40, skipped.length);
     assertEquals(2, Mcv2Decoder.parse(skipped).getLeafCount());
     final byte[] uniform = keyframe(64, 32, solid(3, 3, 3), solid(3, 3, 3));
     assertEquals(52, uniform.length);
+    assertEquals(3, Mcv2Decoder.u32(uniform, 20));
     assertEquals(List.of(solid(3, 3, 3), solid(3, 3, 3)), Mcv2Trees.read(Mcv2Decoder.parse(uniform)));
   }
 }

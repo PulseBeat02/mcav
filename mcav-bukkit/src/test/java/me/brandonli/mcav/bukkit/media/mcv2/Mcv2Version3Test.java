@@ -23,6 +23,7 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2WireFrames.put;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2WireFrames.read;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -46,9 +47,21 @@ final class Mcv2Version3Test {
   }
 
   @Test
+  void determinesKeyframesFromExactlyTheTwoIds() throws Mcv2Exception {
+    final byte[] data = block(32, 0, 0, new byte[0], false);
+    assertFalse(Mcv2Decoder.parse(data).isKeyframe());
+    for (final long id : new long[] { 0, 1, 0xFFFFFFFFL }) {
+      put(data, 12, id, 4);
+      put(data, 16, id, 4);
+      assertTrue(Mcv2Decoder.parse(data).isKeyframe());
+      assertArrayEquals(new byte[32 * 32 * 3], Mcv2Decoder.decode(data, null, 0));
+    }
+  }
+
+  @Test
   void validatesEveryHeaderField() {
     final byte[] valid = block(32, 0, 0, new byte[0], true);
-    for (final int offset : new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 16, 20, 24, 31 }) {
+    for (final int offset : new int[] { 0, 1, 2, 3, 4, 5, 6, 7 }) {
       final byte[] bad = valid.clone();
       bad[offset] ^= 2;
       assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad), "offset " + offset);
@@ -69,39 +82,29 @@ final class Mcv2Version3Test {
     final byte[] valid = block(8, 3, 0, new byte[14], true);
     for (int length = 0; length < valid.length; length++) {
       final byte[] bad = Arrays.copyOf(valid, length);
-      if (length >= 32) {
-        put(bad, 24, length, 4);
-      }
       assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad));
     }
     final byte[] extra = Arrays.copyOf(valid, valid.length + 1);
-    put(extra, 24, extra.length, 4);
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(extra));
   }
 
   @Test
-  void validatesReferenceMetadataAndTemporalKeyframeModes() {
+  void validatesTemporalKeyframeModes() {
     for (final int mode : new int[] { 1, 5 }) {
       final byte[] bad = block(32, mode, 0, new byte[] { 0, 0 }, true);
       assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad));
     }
-    final byte[] predicted = block(32, 0, 0, new byte[0], false);
-    predicted[28] = 1;
-    assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(predicted));
-    predicted[28] = 0;
-    predicted[16] = predicted[12];
-    assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(predicted));
   }
 
   @Test
-  void validatesMasksDirectoryCountsAndPayloadStart() {
+  void validatesMasksDirectoryAndCounts() {
     final byte[] valid = block(32, 0, 0, new byte[0], true);
-    for (final int offset : new int[] { 32, 36, 40, 44, 48, 20 }) {
+    for (final int offset : new int[] { 20, 24, 28, 32, 36 }) {
       final byte[] bad = valid.clone();
       bad[offset]++;
       assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad), "offset " + offset);
     }
-    for (final int offset : new int[] { 20, 40, 44, 48 }) {
+    for (final int offset : new int[] { 28, 32, 36 }) {
       final byte[] bad = valid.clone();
       put(bad, offset, 0xFFFFFFFFL, 4);
       assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad));
@@ -133,17 +136,17 @@ final class Mcv2Version3Test {
   @Test
   void validatesLevelCountsAndNoSplitBelowEight() {
     final byte[] data = block(8, 0, 0, new byte[0], true);
-    data[52 + 5] = 6;
+    data[40 + 5] = 6;
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(data));
-    data[52 + 5] = 0;
-    data[52] = 0;
+    data[40 + 5] = 0;
+    data[40] = 0;
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(data));
   }
 
   @Test
   void validatesWalkCursorAndSplitCount() {
     final byte[] valid = block(8, 2, 0, new byte[] { 1, 2, 3 }, true);
-    for (final int walk : new int[] { 61, 65 }) {
+    for (final int walk : new int[] { 49, 53 }) {
       for (final int value : new int[] { 1, 1 << 17 }) {
         final byte[] bad = valid.clone();
         put(bad, walk, read(bad, walk) ^ value, 4);
@@ -193,7 +196,7 @@ final class Mcv2Version3Test {
   }
 
   @Test
-  void decodesSolidPaletteAndKeyframeDefaultExactly() throws Mcv2Exception {
+  void decodesSolidPaletteAndBlackKeyframeSkipsExactly() throws Mcv2Exception {
     final byte[] solid = Mcv2Decoder.decode(block(8, 2, 0, new byte[] { 10, 20, 30 }, true), null, 0);
     for (int offset = 0; offset < solid.length; offset += 3) {
       assertArrayEquals(new byte[] { 10, 20, 30 }, Arrays.copyOfRange(solid, offset, offset + 3));
@@ -212,10 +215,8 @@ final class Mcv2Version3Test {
     pixel(picture, 8, 7, 0, 40, 50, 60);
     pixel(picture, 8, 0, 1, 10, 20, 30);
     final byte[] skipped = frame(3, 2, true, new byte[0], new byte[0][], new int[3]);
-    skipped[28] = 10;
-    skipped[29] = 20;
-    skipped[30] = 30;
-    assertArrayEquals(Arrays.copyOf(solid, 18), Mcv2Decoder.decode(skipped, null, 0));
+    assertArrayEquals(new byte[18], Mcv2Decoder.decode(skipped, null, 0));
+    assertArrayEquals(new byte[8 * 8 * 3], Mcv2Decoder.decode(block(8, 0, 0, new byte[0], true), null, 0));
   }
 
   @Test
@@ -273,7 +274,7 @@ final class Mcv2Version3Test {
     put(data, 8, 1, 2);
     put(data, 10, 1, 2);
     assertArrayEquals(new byte[] { 10, 20, 30 }, Mcv2Decoder.decode(data, null, 0));
-    data[54] = 31;
+    data[42] = 31;
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(data));
   }
 
@@ -313,7 +314,6 @@ final class Mcv2Version3Test {
     assertEquals(8, frame.getHeight());
     assertEquals(1, frame.getFrameId());
     assertEquals(0, frame.getReferenceId());
-    assertEquals(0, frame.getDefaultColor());
     assertEquals(7, frame.getLeafCount());
     assertEquals(16, frame.getLeaf(0).size());
     assertThrows(IndexOutOfBoundsException.class, () -> frame.getLeaf(-1));
@@ -324,7 +324,7 @@ final class Mcv2Version3Test {
     final byte[] data = frame(4096, 4096, true, new byte[0], new byte[0][], new int[3]);
     final Mcv2Decoder.Frame parsed = Mcv2Decoder.parse(data);
     assertEquals(16384, parsed.getLeafCount());
-    assertEquals(2348, parsed.getPayloadStart());
+    assertEquals(2336, parsed.getPayloadStart());
   }
 
   @Test
@@ -333,14 +333,12 @@ final class Mcv2Version3Test {
     for (int iteration = 0; iteration < 10000; iteration++) {
       final byte[] data = new byte[random.nextInt(512)];
       random.nextBytes(data);
-      if (data.length >= 32 && iteration % 2 == 0) {
+      if (data.length >= 20 && iteration % 2 == 0) {
         put(data, 0, 0x3256434D, 4);
         data[4] = 3;
         data[5] = 0;
         data[6] = 0;
         data[7] = 0;
-        data[31] = 0;
-        put(data, 24, data.length, 4);
       }
       try {
         Mcv2Decoder.parse(data);

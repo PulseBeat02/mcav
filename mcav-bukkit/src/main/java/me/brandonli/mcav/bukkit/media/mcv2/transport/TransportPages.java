@@ -290,7 +290,7 @@ public final class TransportPages {
       Mcv2Decoder.u32(header, MAGIC_OFFSET) != MAGIC ||
       header[VERSION_OFFSET] != VERSION ||
       Byte.toUnsignedInt(header[SYMBOL_BITS_OFFSET]) != symbolBits ||
-      Mcv2Decoder.u16(header, TYPE_OFFSET) > Mcv2Decoder.KEYFRAME
+      Mcv2Decoder.u16(header, TYPE_OFFSET) > 1
     ) {
       throw new Mcv2Exception("Unsupported page header");
     }
