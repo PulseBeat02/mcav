@@ -594,10 +594,9 @@ public final class Mcv2Decoder {
       final int shift = 2 * (Integer.numberOfTrailingZeros(size) + 1);
       for (int row = firstRow; row < lastRow; row++) {
         final int localRow = row - top;
-        final int position = Math.min(Math.max((2 * localRow + 1) * GRID - size, 0), (GRID - 1) * 2 * size);
-        final int lower = position / (2 * size);
-        final int upper = Math.min(lower + 1, GRID - 1);
-        final int weight = position % (2 * size);
+        final int lower = GRID_LOWER[sizeIndex(size)][localRow];
+        final int upper = GRID_UPPER[sizeIndex(size)][localRow];
+        final int weight = GRID_WEIGHTS[sizeIndex(size)][localRow];
         final int sourceRow = Math.min(Math.max(row + motionY, 0), this.frame.height - 1) * this.frame.width;
         for (int column = left; column < right; column++) {
           final int localColumn = column - left;
@@ -629,20 +628,40 @@ public final class Mcv2Decoder {
     }
   }
 
-  private static void horizontal(final int[] nodes, final int size, final int[] rows) {
-    final int span = 2 * size;
-    for (int row = 0; row < GRID; row++) {
-      for (int column = 0; column < size; column++) {
-        final int position = Math.min(Math.max((2 * column + 1) * GRID - size, 0), (GRID - 1) * span);
-        final int lower = position / span;
-        final int upper = Math.min(lower + 1, GRID - 1);
-        final int weight = position % span;
-        rows[row * size + column] = nodes[row * GRID + lower] * (span - weight) + nodes[row * GRID + upper] * weight;
+  static final int[][] GRID_LOWER = new int[BLOCK_SIZES][];
+  static final int[][] GRID_UPPER = new int[BLOCK_SIZES][];
+  static final int[][] GRID_WEIGHTS = new int[BLOCK_SIZES][];
+
+  static {
+    for (int index = 0; index < BLOCK_SIZES; index++) {
+      final int size = SMALLEST_BLOCK << index;
+      final int span = 2 * size;
+      GRID_LOWER[index] = new int[size];
+      GRID_UPPER[index] = new int[size];
+      GRID_WEIGHTS[index] = new int[size];
+      for (int pixel = 0; pixel < size; pixel++) {
+        final int position = Math.min(Math.max((2 * pixel + 1) * GRID - size, 0), (GRID - 1) * span);
+        GRID_LOWER[index][pixel] = position / span;
+        GRID_UPPER[index][pixel] = Math.min(position / span + 1, GRID - 1);
+        GRID_WEIGHTS[index][pixel] = position % span;
       }
     }
   }
 
-  private static int round(final int value, final int shift) {
+  static void horizontal(final int[] nodes, final int size, final int[] rows) {
+    final int[] lower = GRID_LOWER[sizeIndex(size)];
+    final int[] upper = GRID_UPPER[sizeIndex(size)];
+    final int[] weights = GRID_WEIGHTS[sizeIndex(size)];
+    final int span = 2 * size;
+    for (int row = 0; row < GRID; row++) {
+      for (int column = 0; column < size; column++) {
+        final int weight = weights[column];
+        rows[row * size + column] = nodes[row * GRID + lower[column]] * (span - weight) + nodes[row * GRID + upper[column]] * weight;
+      }
+    }
+  }
+
+  static int round(final int value, final int shift) {
     return Math.min(Math.max((value + (1 << (shift - 1))) >> shift, 0), MAX_CHANNEL);
   }
 

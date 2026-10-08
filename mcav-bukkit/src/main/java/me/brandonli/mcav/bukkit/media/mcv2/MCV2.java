@@ -27,6 +27,9 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CHECKPOINT_GROUPS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.COMPACT_BYTES;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.DIMENSIONS_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.FRAME_ID_OFFSET;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.GRID_LOWER;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.GRID_UPPER;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.GRID_WEIGHTS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.GROUP_ROOTS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.HEADER_BYTES;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MAGIC;
@@ -51,10 +54,12 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.SMALLEST_BLOCK;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.VERSION;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.WALK_SPAN;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.follows;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.horizontal;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.patternSize;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putU16;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putU32;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.recordSize;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.round;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.signed;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.sizeIndex;
 
@@ -1480,82 +1485,6 @@ public final class MCV2 {
   private static final int SAMPLED_SIZE = 16;
   private static final float[][] FITTING_MATRICES = fittingMatrices();
 
-  private static void cluster(final int[] source, final int size, final long[] sums, final float[] endpoints) {
-    final int step = size >= SAMPLED_SIZE ? 2 : 1;
-    int low = 0;
-    int high = 0;
-    int lowLuma = Integer.MAX_VALUE;
-    int highLuma = Integer.MIN_VALUE;
-    for (int row = 0; row < size; row += step) {
-      for (int column = 0; column < size; column += step) {
-        final int at = (row * size + column) * CHANNELS;
-        final int luma = source[at] + 2 * source[at + 1] + source[at + 2];
-        if (luma < lowLuma) {
-          lowLuma = luma;
-          low = at;
-        }
-        if (luma > highLuma) {
-          highLuma = luma;
-          high = at;
-        }
-      }
-    }
-    for (int channel = 0; channel < CHANNELS; channel++) {
-      endpoints[channel] = source[low + channel];
-      endpoints[CHANNELS + channel] = source[high + channel];
-    }
-    for (int iteration = 0; iteration < ITERATIONS; iteration++) {
-      final int firstRed = (int) endpoints[0];
-      final int firstGreen = (int) endpoints[1];
-      final int firstBlue = (int) endpoints[2];
-      final int secondRed = (int) endpoints[3];
-      final int secondGreen = (int) endpoints[4];
-      final int secondBlue = (int) endpoints[5];
-      Arrays.fill(sums, 0, CLUSTER_SUMS, 0);
-      for (int row = 0; row < size; row += step) {
-        for (int column = 0; column < size; column += step) {
-          final int at = (row * size + column) * CHANNELS;
-          final int red = source[at];
-          final int green = source[at + 1];
-          final int blue = source[at + 2];
-          final int firstDistance =
-            (red - firstRed) * (red - firstRed) + (green - firstGreen) * (green - firstGreen) + (blue - firstBlue) * (blue - firstBlue);
-          final int secondDistance =
-            (red - secondRed) * (red - secondRed) +
-            (green - secondGreen) * (green - secondGreen) +
-            (blue - secondBlue) * (blue - secondBlue);
-          final int nearest = secondDistance < firstDistance ? 1 : 0;
-          sums[nearest * CHANNELS] += red;
-          sums[nearest * CHANNELS + 1] += green;
-          sums[nearest * CHANNELS + 2] += blue;
-          sums[COUNTS + nearest]++;
-        }
-      }
-      for (int endpoint = 0; endpoint < PALETTE_COLORS; endpoint++) {
-        final long members = sums[COUNTS + endpoint];
-        if (members > 0) {
-          for (int channel = 0; channel < CHANNELS; channel++) {
-            final long mean = (sums[endpoint * CHANNELS + channel] + members / 2) / members;
-            endpoints[endpoint * CHANNELS + channel] = mean;
-          }
-        }
-      }
-    }
-  }
-
-  private static void finishPalette(
-    final int[] source,
-    final int count,
-    final float[] endpoints,
-    final int[] colors,
-    final byte[] selectors
-  ) {
-    roundPalette(endpoints, colors);
-    for (int pixel = 0; pixel < count; pixel++) {
-      selectors[pixel] = nearest(source, pixel, colors);
-    }
-  }
-
   private static void roundPalette(final float[] endpoints, final int[] colors) {
     for (int index = 0; index < PALETTE_COLORS * CHANNELS; index++) {
       colors[index] = rgb8(endpoints[index]);
@@ -1575,34 +1504,17 @@ public final class MCV2 {
     return (byte) (secondDistance < firstDistance ? 1 : 0);
   }
 
-  private static boolean finishPattern(
-    final int[] source,
-    final int size,
-    final float[] endpoints,
-    final int[] colors,
-    final byte[] selectors
-  ) {
-    roundPalette(endpoints, colors);
-    boolean columns = true;
-    boolean rows = true;
-    for (int row = 0; row < size && (columns || rows); row++) {
-      for (int column = 0; column < size; column++) {
-        final int pixel = row * size + column;
-        selectors[pixel] = nearest(source, pixel, colors);
-        columns &= selectors[pixel] == selectors[column];
-        rows &= selectors[pixel] == selectors[row * size];
-      }
-    }
-    return columns || rows;
-  }
-
   private static int rgb8(final float value) {
     return (int) Math.floor(Math.min(Math.max(value, 0), MAX_CHANNEL) + 0.5f);
   }
 
   private static int quantize(final float value, final int step) {
-    final float scaled = (float) Math.floor(value / step + 0.5f);
+    final float scaled = quantizedValue(value, step);
     return (int) Math.min(Math.max(scaled, -8), 7);
+  }
+
+  private static float quantizedValue(final float value, final int step) {
+    return (float) Math.floor(value / step + 0.5f);
   }
 
   private static int neededQuantizer(final float[] fit) {
@@ -1610,7 +1522,7 @@ public final class MCV2 {
       final int step = 1 << quantizer;
       boolean fits = true;
       for (int index = 0; index < GRID_NODES && fits; index++) {
-        final float value = (float) Math.floor(fit[index] / step + 0.5f);
+        final float value = quantizedValue(fit[index], step);
         fits = value >= -8 && value <= 7;
       }
       if (fits) {
@@ -1670,28 +1582,6 @@ public final class MCV2 {
       matrices[index] = matrix;
     }
     return matrices;
-  }
-
-  private static void fitGrid(final float[] values, final int size, final double[] scratch, final float[] out) {
-    final float[] matrix = FITTING_MATRICES[sizeIndex(size)];
-    for (int row = 0; row < size; row++) {
-      for (int nodeColumn = 0; nodeColumn < GRID; nodeColumn++) {
-        double sum = 0;
-        for (int column = 0; column < size; column++) {
-          sum += (double) values[row * size + column] * matrix[nodeColumn * size + column];
-        }
-        scratch[row * GRID + nodeColumn] = sum;
-      }
-    }
-    for (int nodeRow = 0; nodeRow < GRID; nodeRow++) {
-      for (int nodeColumn = 0; nodeColumn < GRID; nodeColumn++) {
-        double sum = 0;
-        for (int row = 0; row < size; row++) {
-          sum += matrix[nodeRow * size + row] * scratch[row * GRID + nodeColumn];
-        }
-        out[nodeRow * GRID + nodeColumn] = (float) sum;
-      }
-    }
   }
 
   // Pixel kernels share reusable scratch; native implementations use this same contract.
@@ -2597,39 +2487,24 @@ public final class MCV2 {
       for (int index = 0; index < GRID_NODES; index++) {
         this.nodes[index] = signed((record[2 + index / 2] & 255) >> ((index % 2) * 4), 4);
       }
-      this.horizontal(size);
+      horizontal(this.nodes, size, this.rows);
       final int shift = 2 * (Integer.numberOfTrailingZeros(size) + 1);
       final int quarter = size * size;
-      final int half = 1 << (shift - 1);
       for (int row = 0; row < size; row++) {
         this.vertical(size, row);
         final int from = row * size * CHANNELS;
         for (int column = 0; column < size; column++) {
           final int at = from + column * CHANNELS;
-          final int scaled = (this.line[column] << quantizer) + half;
-          out[at] = Math.min(Math.max((prediction[at] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
-          out[at + 1] = Math.min(Math.max((prediction[at + 1] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
-          out[at + 2] = Math.min(Math.max((prediction[at + 2] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
+          final int scaled = this.line[column] << quantizer;
+          out[at] = round(prediction[at] * quarter + scaled, shift);
+          out[at + 1] = round(prediction[at + 1] * quarter + scaled, shift);
+          out[at + 2] = round(prediction[at + 2] * quarter + scaled, shift);
         }
         if (!this.score.row(out, from, size)) {
           return false;
         }
       }
       return true;
-    }
-
-    private void horizontal(final int size) {
-      final int[] lower = GRID_LOWER[sizeIndex(size)];
-      final int[] upper = GRID_UPPER[sizeIndex(size)];
-      final int[] weights = GRID_WEIGHTS[sizeIndex(size)];
-      final int span = 2 * size;
-      for (int row = 0; row < GRID; row++) {
-        for (int column = 0; column < size; column++) {
-          final int weight = weights[column];
-          this.rows[row * size + column] =
-            this.nodes[row * GRID + lower[column]] * (span - weight) + this.nodes[row * GRID + upper[column]] * weight;
-        }
-      }
     }
 
     private void vertical(final int size, final int row) {
@@ -2683,22 +2558,113 @@ public final class MCV2 {
 
     @Override
     public void fit(final float[] values, final int size, final float[] out) {
-      fitGrid(values, size, this.fitScratch, out);
+      final float[] matrix = FITTING_MATRICES[sizeIndex(size)];
+      for (int row = 0; row < size; row++) {
+        for (int nodeColumn = 0; nodeColumn < GRID; nodeColumn++) {
+          double sum = 0;
+          for (int column = 0; column < size; column++) {
+            sum += (double) values[row * size + column] * matrix[nodeColumn * size + column];
+          }
+          this.fitScratch[row * GRID + nodeColumn] = sum;
+        }
+      }
+      for (int nodeRow = 0; nodeRow < GRID; nodeRow++) {
+        for (int nodeColumn = 0; nodeColumn < GRID; nodeColumn++) {
+          double sum = 0;
+          for (int row = 0; row < size; row++) {
+            sum += matrix[nodeRow * size + row] * this.fitScratch[row * GRID + nodeColumn];
+          }
+          out[nodeRow * GRID + nodeColumn] = (float) sum;
+        }
+      }
     }
 
     @Override
     public void cluster(final int[] source, final int size, final float[] endpoints) {
-      MCV2.cluster(source, size, this.clusterScratch, endpoints);
+      final int step = size >= SAMPLED_SIZE ? 2 : 1;
+      int low = 0;
+      int high = 0;
+      int lowLuma = Integer.MAX_VALUE;
+      int highLuma = Integer.MIN_VALUE;
+      for (int row = 0; row < size; row += step) {
+        for (int column = 0; column < size; column += step) {
+          final int at = (row * size + column) * CHANNELS;
+          final int luma = source[at] + 2 * source[at + 1] + source[at + 2];
+          if (luma < lowLuma) {
+            lowLuma = luma;
+            low = at;
+          }
+          if (luma > highLuma) {
+            highLuma = luma;
+            high = at;
+          }
+        }
+      }
+      for (int channel = 0; channel < CHANNELS; channel++) {
+        endpoints[channel] = source[low + channel];
+        endpoints[CHANNELS + channel] = source[high + channel];
+      }
+      for (int iteration = 0; iteration < ITERATIONS; iteration++) {
+        final int firstRed = (int) endpoints[0];
+        final int firstGreen = (int) endpoints[1];
+        final int firstBlue = (int) endpoints[2];
+        final int secondRed = (int) endpoints[3];
+        final int secondGreen = (int) endpoints[4];
+        final int secondBlue = (int) endpoints[5];
+        Arrays.fill(this.clusterScratch, 0, CLUSTER_SUMS, 0);
+        for (int row = 0; row < size; row += step) {
+          for (int column = 0; column < size; column += step) {
+            final int at = (row * size + column) * CHANNELS;
+            final int red = source[at];
+            final int green = source[at + 1];
+            final int blue = source[at + 2];
+            final int firstDistance =
+              (red - firstRed) * (red - firstRed) + (green - firstGreen) * (green - firstGreen) + (blue - firstBlue) * (blue - firstBlue);
+            final int secondDistance =
+              (red - secondRed) * (red - secondRed) +
+              (green - secondGreen) * (green - secondGreen) +
+              (blue - secondBlue) * (blue - secondBlue);
+            final int nearest = secondDistance < firstDistance ? 1 : 0;
+            this.clusterScratch[nearest * CHANNELS] += red;
+            this.clusterScratch[nearest * CHANNELS + 1] += green;
+            this.clusterScratch[nearest * CHANNELS + 2] += blue;
+            this.clusterScratch[COUNTS + nearest]++;
+          }
+        }
+        for (int endpoint = 0; endpoint < PALETTE_COLORS; endpoint++) {
+          final long members = this.clusterScratch[COUNTS + endpoint];
+          if (members > 0) {
+            for (int channel = 0; channel < CHANNELS; channel++) {
+              final long mean = (this.clusterScratch[endpoint * CHANNELS + channel] + members / 2) / members;
+              endpoints[endpoint * CHANNELS + channel] = mean;
+            }
+          }
+        }
+      }
     }
 
     @Override
     public void finish(final int[] source, final int count, final float[] endpoints, final int[] colors, final byte[] selectors) {
-      finishPalette(source, count, endpoints, colors, selectors);
+      roundPalette(endpoints, colors);
+      for (int pixel = 0; pixel < count; pixel++) {
+        selectors[pixel] = nearest(source, pixel, colors);
+      }
     }
 
     @Override
     public boolean finishPattern(final int[] source, final int size, final float[] endpoints, final int[] colors, final byte[] selectors) {
-      return MCV2.finishPattern(source, size, endpoints, colors, selectors);
+      roundPalette(endpoints, colors);
+      boolean columns = true;
+      boolean rows = true;
+      for (int row = 0; row < size && (columns || rows); row++) {
+        for (int column = 0; column < size; column++) {
+          final int pixel = row * size + column;
+          selectors[pixel] = nearest(source, pixel, colors);
+          columns &= selectors[pixel] == selectors[column];
+          rows &= selectors[pixel] == selectors[row * size];
+        }
+      }
+      return columns || rows;
     }
 
     @Override
@@ -2718,7 +2684,21 @@ public final class MCV2 {
 
     @Override
     public void halve(final int[] block, final int size, final int[] out) {
-      halveBlock(block, size, out);
+      final int half = size / 2;
+      final int rowLength = size * CHANNELS;
+      for (int row = 0; row < half; row++) {
+        for (int column = 0; column < half; column++) {
+          final int at = (2 * row * size + 2 * column) * CHANNELS;
+          for (int channel = 0; channel < CHANNELS; channel++) {
+            final int sum =
+              block[at + channel] +
+              block[at + CHANNELS + channel] +
+              block[at + rowLength + channel] +
+              block[at + rowLength + CHANNELS + channel];
+            out[(row * half + column) * CHANNELS + channel] = (sum + 2) >> 2;
+          }
+        }
+      }
     }
 
     @Override
@@ -2753,44 +2733,6 @@ public final class MCV2 {
         final float green = prediction[offset + 1] * 0.25f;
         final float blue = prediction[offset + 2] * 0.25f;
         target[pixel] = luma - (red + 2 * green + blue) * 0.25f;
-      }
-    }
-  }
-
-  private static final int[][] GRID_LOWER = new int[BLOCK_SIZES][];
-  private static final int[][] GRID_UPPER = new int[BLOCK_SIZES][];
-  private static final int[][] GRID_WEIGHTS = new int[BLOCK_SIZES][];
-
-  static {
-    for (int index = 0; index < BLOCK_SIZES; index++) {
-      final int size = SMALLEST_BLOCK << index;
-      final int span = 2 * size;
-      GRID_LOWER[index] = new int[size];
-      GRID_UPPER[index] = new int[size];
-      GRID_WEIGHTS[index] = new int[size];
-      for (int pixel = 0; pixel < size; pixel++) {
-        final int position = Math.min(Math.max((2 * pixel + 1) * GRID - size, 0), (GRID - 1) * span);
-        GRID_LOWER[index][pixel] = position / span;
-        GRID_UPPER[index][pixel] = Math.min(position / span + 1, GRID - 1);
-        GRID_WEIGHTS[index][pixel] = position % span;
-      }
-    }
-  }
-
-  private static void halveBlock(final int[] block, final int size, final int[] out) {
-    final int half = size / 2;
-    final int rowLength = size * CHANNELS;
-    for (int row = 0; row < half; row++) {
-      for (int column = 0; column < half; column++) {
-        final int at = (2 * row * size + 2 * column) * CHANNELS;
-        for (int channel = 0; channel < CHANNELS; channel++) {
-          final int sum =
-            block[at + channel] +
-            block[at + CHANNELS + channel] +
-            block[at + rowLength + channel] +
-            block[at + rowLength + CHANNELS + channel];
-          out[(row * half + column) * CHANNELS + channel] = (sum + 2) >> 2;
-        }
       }
     }
   }
