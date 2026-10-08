@@ -75,29 +75,29 @@ class FixtureCoverageTest(unittest.TestCase):
         self.assertEqual(set(self.streams), {path.name for path in root.glob('*.mcs')})
         for name, frames in self.streams.items():
             with self.subTest(stream=name):
-                self.assertEqual((root / name).read_bytes(), edge_streams.edge_streams_archive(frames))
+                self.assertEqual((root / name).read_bytes(), edge_streams.archive_bytes(frames))
 
     def test_random_streams_are_reproducible_and_decodable(self):
         left = edge_streams.edge_streams_random_stream(random.Random(57))
         right = edge_streams.edge_streams_random_stream(random.Random(57))
         self.assertEqual(left, right)
-        self.assertEqual(6, len(fixtures.fixtures_digests(fixtures.fixtures_archive(left))))
+        self.assertEqual(6, len(fixtures.fixtures_digests(fixtures.archive_bytes(left))))
 
 
 class FixtureToolTest(unittest.TestCase):
     def test_archive_round_trip_and_truncations(self):
         values = [b'abcd', b'', b'MCV2']
-        self.assertEqual(values, list(fixtures.fixtures_frames(fixtures.fixtures_archive(values))))
+        self.assertEqual(values, list(fixtures.archive_frames(fixtures.archive_bytes(values))))
         for raw in (b'\1', b'\1\0', b'\1\0\0', b'\2\0\0\0a'):
             with self.subTest(raw=raw), self.assertRaises(ValueError):
-                list(fixtures.fixtures_frames(raw))
+                list(fixtures.archive_frames(raw))
 
     def test_conformance_skips_v2_and_checks_v3_without_touching_streams(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             output = root / 'conformance'
             output.mkdir()
-            old_stream = fixtures.fixtures_archive([b'MCV2\2' + bytes(27)])
+            old_stream = fixtures.archive_bytes([b'MCV2\2' + bytes(27)])
             old_digests = '{"old.mcs": {"unchanged": true}}\n'
             (output / 'old.mcs').write_bytes(old_stream)
             (output / 'digests.json').write_text(old_digests)
@@ -107,7 +107,7 @@ class FixtureToolTest(unittest.TestCase):
             self.assertIn('skip non-v3 stream:', messages.getvalue())
             self.assertEqual(old_digests, (output / 'digests.json').read_text())
             data = pack_frame(1, 1, 3, 3, {0: Node(reference_format.SOLID, record=bytes([10, 20, 30]))})
-            v3 = fixtures.fixtures_archive([data])
+            v3 = fixtures.archive_bytes([data])
             (output / 'new.mcs').write_bytes(v3)
             with redirect_stderr(StringIO()):
                 fixtures.fixtures_conformance(root)
@@ -128,13 +128,13 @@ class FixtureToolTest(unittest.TestCase):
             root = Path(directory)
             output = root / 'encoder'
             output.mkdir()
-            data = fixtures.fixtures_archive([pack_frame(1, 1, 0, 0, {0: Node(reference_format.SOLID, record=bytes([1, 2, 3]))})])
+            data = fixtures.archive_bytes([pack_frame(1, 1, 0, 0, {0: Node(reference_format.SOLID, record=bytes([1, 2, 3]))})])
             golden = output / 'golden.mcs'
             golden.write_bytes(data)
             with redirect_stderr(StringIO()):
                 fixtures.fixtures_encoder(root)
             self.assertEqual(data, golden.read_bytes())
-            golden.write_bytes(fixtures.fixtures_archive([pack_frame(1, 1, 1, 0, {})]))
+            golden.write_bytes(fixtures.archive_bytes([pack_frame(1, 1, 1, 0, {})]))
             with self.assertRaisesRegex(ValueError, 'reference'):
                 fixtures.fixtures_encoder(root)
 

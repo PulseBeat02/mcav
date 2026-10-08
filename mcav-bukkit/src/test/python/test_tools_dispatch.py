@@ -27,7 +27,6 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import numpy
-from PIL import Image
 
 import mcv2_tools
 
@@ -65,11 +64,25 @@ class StripCommandTest(unittest.TestCase):
 
 class ChartCommandTest(unittest.TestCase):
     def test_chart_command_reproduces_the_committed_pixels(self):
+        try:
+            import matplotlib
+            from matplotlib import font_manager
+        except ImportError:
+            self.skipTest("Chart pixels require matplotlib 3.11.2 and the resolved Liberation Sans font; matplotlib is unavailable")
+        font_path = font_manager.findfont(font_manager.FontProperties(family=mcv2_tools.charts_FONT))
+        font = font_manager.FontProperties(fname=font_path).get_name()
+        if matplotlib.__version__ != "3.11.2" or font != "Liberation Sans":
+            self.skipTest(
+                f"Chart pixels require matplotlib 3.11.2 and the resolved Liberation Sans font; "
+                f"found matplotlib {matplotlib.__version__} and {font}"
+            )
+        from PIL import Image
+
         root = Path(__file__).resolve().parents[4]
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
             with patch.object(sys, "argv", ["mcv2_tools.py", "charts"]), \
-                    patch.object(mcv2_tools, "charts_IMAGES", output):
+                    patch.object(mcv2_tools, "IMAGES", output):
                 mcv2_tools.main()
             for name in ("codecs", "features"):
                 with self.subTest(figure=name), \

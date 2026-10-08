@@ -100,7 +100,7 @@ def run(*options, missed=(), again=(), changed=(), version=3):
     argv = ["shader_timing.py", "stream.mcs", *options]
     with mock.patch.dict(sys.modules, modules), mock.patch.object(sys, "argv", argv),\
             mock.patch.object(shader_timing, "TimedShaderChain", chain),\
-            mock.patch.object(shader_timing, "shader_check_frames", lambda stream: [frame(True, version), frame(False, version)]),\
+            mock.patch.object(shader_timing, "read_archive", lambda stream: [frame(True, version), frame(False, version)]),\
             redirect_stdout(StringIO()), redirect_stderr(StringIO()):
         try:
             shader_timing.shader_timing_main()

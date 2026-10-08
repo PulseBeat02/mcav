@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parents[4]
 import mcv2_tools as differential
 import mcv2_reference as reference_format
 from mcv2_reference import Node, pack_frame
-from mcv2_tools import fixtures_archive as archive
+from mcv2_tools import archive_bytes as archive
 
 
 class DifferentialTest(unittest.TestCase):

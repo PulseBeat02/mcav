@@ -33,14 +33,8 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as pyplot
 import mcv2_reference as reference
 import numpy
-from matplotlib.patches import Patch, Rectangle
-from matplotlib.ticker import FixedLocator, FuncFormatter, NullLocator
 from mcv2_reference import (
     PAGE_HEADER,
     PAGE_SYMBOLS,
@@ -54,7 +48,6 @@ from mcv2_reference import (
     read_page,
     wire_bytes,
 )
-from PIL import Image
 
 
 def bd_rate(reference, test):
@@ -147,9 +140,13 @@ codec_curves_CODECS = {
         ],
     },
 }
-codec_curves_VMAF_FILTER = (
-    "[0:v]format=yuv420p[ref];[1:v]format=yuv420p[dis];[dis][ref]libvmaf=n_threads=8:log_fmt=json:log_path={log}"
-)
+def vmaf_filter(log, threads=8):
+    return (
+        "[0:v]format=yuv420p[ref];[1:v]format=yuv420p[dis];"
+        f"[dis][ref]libvmaf=n_threads={threads}:log_fmt=json:log_path={log}"
+    )
+
+
 codec_curves_VERSION_PATTERNS = {
     "x264": re.compile(b"x264 - core \\d+ r\\d+ \\w+"),
     "vp9": re.compile("\\[libvpx-vp9 @ [^\\]]+\\] (v\\d[^\\s]*)"),
@@ -262,7 +259,7 @@ def codec_curves_point(arguments, codec, quality, folder):
         *codec_curves_raw(arguments.source, *size),
         *codec_curves_raw(decoded, *size),
         "-lavfi",
-        codec_curves_VMAF_FILTER.format(log=log),
+        vmaf_filter(log),
         "-f",
         "null",
         "-",
@@ -524,10 +521,7 @@ def capture_check_vmaf(ffmpeg, reference, captured, width, height):
             "-i",
             str(path),
         ]
-        graph = (
-            "[0:v]format=yuv420p[ref];[1:v]format=yuv420p[dis];[dis][ref]libvmaf=n_threads=8:log_fmt=json:log_path="
-            + str(log)
-        )
+        graph = vmaf_filter(log)
         subprocess.run(
             [
                 ffmpeg,
@@ -551,6 +545,8 @@ def capture_check_vmaf(ffmpeg, reference, captured, width, height):
 
 
 def capture_check_main():
+    from PIL import Image
+
     parser = argparse.ArgumentParser()
     parser.add_argument("reference")
     parser.add_argument("width", type=int)
@@ -831,10 +827,6 @@ def edge_streams_build_streams(seed=edge_streams_DEFAULT_SEED):
     return streams
 
 
-def edge_streams_archive(frames):
-    return b"".join((struct.pack("<I", len(frame)) + frame for frame in frames))
-
-
 def edge_streams_generate(output, seed=edge_streams_DEFAULT_SEED):
     output.mkdir(parents=True, exist_ok=True)
     streams = edge_streams_build_streams(seed)
@@ -845,7 +837,7 @@ def edge_streams_generate(output, seed=edge_streams_DEFAULT_SEED):
     for name, frames in streams.items():
         decoder = Decoder()
         digests[name] = [hashlib.sha256(decoder.accept(data).tobytes()).hexdigest() for data in frames]
-        output.joinpath(name).write_bytes(edge_streams_archive(frames))
+        output.joinpath(name).write_bytes(archive_bytes(frames))
     output.joinpath("digests.json").write_text(json.dumps(digests, indent=1) + "\n")
     from rejection_cases import rejected_frames
 
@@ -873,7 +865,7 @@ def edge_streams_main():
 fixtures_PREFIX_LIMIT = 1000000
 
 
-def fixtures_frames(data):
+def archive_frames(data):
     offset = 0
     while offset < len(data):
         if offset + 4 > len(data):
@@ -886,13 +878,17 @@ def fixtures_frames(data):
         offset += length
 
 
-def fixtures_archive(chunks):
+def archive_bytes(chunks):
     return b"".join((struct.pack("<I", len(chunk)) + chunk for chunk in chunks))
+
+
+def read_archive(path):
+    return archive_frames(Path(path).read_bytes())
 
 
 def fixtures_digests(data):
     decoder = Decoder()
-    return [hashlib.sha256(decoder.accept(frame).tobytes()).hexdigest() for frame in fixtures_frames(data)]
+    return [hashlib.sha256(decoder.accept(frame).tobytes()).hexdigest() for frame in archive_frames(data)]
 
 
 def fixtures_write_json(path, value):
@@ -902,7 +898,7 @@ def fixtures_write_json(path, value):
 
 def fixtures_v3_stream(path):
     data = path.read_bytes()
-    kept = list(fixtures_frames(data))
+    kept = list(archive_frames(data))
     if not kept:
         raise ValueError(f"{path}: empty archive")
     if kept[0][:5] != b"MCV2\x03":
@@ -948,13 +944,13 @@ def fixtures_pages(root):
     else:
         source = "edge streams (no committed v3 conformance streams)"
         cases = [
-            (f"edge/{name}.mcs", index, list(fixtures_frames((root / "edge" / f"{name}.mcs").read_bytes()))[index])
+            (f"edge/{name}.mcs", index, list(archive_frames((root / "edge" / f"{name}.mcs").read_bytes()))[index])
             for name, index in [("edge-modes", 0), ("edge-modes", 1), ("edge-tiny", 0), ("edge-long-walk", 1)]
         ]
     for name, index in (("edge-directory", 2), ("edge-length-limit", 0)):
         path = root / "edge" / f"{name}.mcs"
         if path.exists():
-            cases.append((f"edge/{name}.mcs", index, list(fixtures_frames(path.read_bytes()))[index]))
+            cases.append((f"edge/{name}.mcs", index, list(archive_frames(path.read_bytes()))[index]))
     if len(cases) > 4 and source == "committed v3 conformance streams":
         source = "committed v3 conformance and edge streams"
     entries = []
@@ -1036,7 +1032,7 @@ def differential_build_archives(arguments):
         raise ValueError(f"no committed conformance archives in {arguments.corpus}")
     for index in range(arguments.conformance):
         path = corpus[index % len(corpus)]
-        chunks = list(fixtures_frames(path.read_bytes()))
+        chunks = list(archive_frames(path.read_bytes()))
         if not chunks:
             raise ValueError(f"empty conformance archive: {path}")
         archives[f"conformance-{index:04d}-{path.stem}"] = chunks
@@ -1073,7 +1069,7 @@ def differential_run(arguments):
     paths = {}
     for name, chunks in archives.items():
         paths[name] = output / "archives" / f"{name}.mcs"
-        paths[name].write_bytes(fixtures_archive(chunks))
+        paths[name].write_bytes(archive_bytes(chunks))
     expected = {name: differential_reference_tokens(chunks) for name, chunks in archives.items()}
     java = subprocess.run(
         [arguments.java, "-cp", arguments.classpath, "me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools", "digests"]
@@ -1121,7 +1117,7 @@ def rate_quality_vmaf(ffmpeg, source, decoded, width, height, frames, fps):
     with tempfile.TemporaryDirectory() as folder:
         log = os.path.join(folder, "vmaf.json")
         raw = ["-f", "rawvideo", "-pixel_format", "rgb24", "-video_size", f"{width}x{height}", "-framerate", str(fps)]
-        graph = f"[0:v]format=yuv420p[ref];[1:v]format=yuv420p[dis];[dis][ref]libvmaf=n_threads={os.cpu_count()}:log_fmt=json:log_path={log}"
+        graph = vmaf_filter(log, os.cpu_count())
         subprocess.run(
             [
                 ffmpeg,
@@ -1212,15 +1208,6 @@ shader_check_SCREEN_INDEX = 0
 shader_check_FIRST_SLOT = 0
 shader_check_IDLE_SLOTS = 8
 shader_check_VERTEX = "#version 330\n#extension GL_ARB_separate_shader_objects : require\nlayout(location = 0) out vec2 texCoord;\nvoid main() {\n    vec2 uv = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);\n    gl_Position = vec4(uv * vec2(2, 2) + vec2(-1, -1), 0, 1);\n    texCoord = uv;\n}\n"
-
-
-def shader_check_frames(path):
-    data = Path(path).read_bytes()
-    offset = 0
-    while offset < len(data):
-        length = struct.unpack_from("<I", data, offset)[0]
-        yield data[offset + 4 : offset + 4 + length]
-        offset += 4 + length
 
 
 def shader_check_cells_width(width):
@@ -1558,7 +1545,7 @@ def shader_check_main():
         last_id = None
         shown = None
         decoded = skipped = wrong = 0
-        for index, frame in enumerate(shader_check_frames(stream)):
+        for index, frame in enumerate(read_archive(stream)):
             width, height = struct.unpack_from("<HH", frame, 8)
             frame_id, reference_id = struct.unpack_from("<II", frame, 12)
             keyframe = frame_id == reference_id
@@ -1722,7 +1709,7 @@ def shader_timing_main():
     )
     failures = 0
     for stream in arguments.streams:
-        frames = list(shader_check_frames(stream))
+        frames = list(read_archive(stream))
         width, height = struct.unpack_from("<HH", frames[0], 8)
         chain = TimedShaderChain(context, width, height, arguments.slots)
         pages = [make_pages(frame, shader_check_STREAM_ID, 6) for frame in frames]
@@ -1809,6 +1796,8 @@ def strip_check_read_strip_page(symbols):
 
 
 def strip_check_main():
+    from PIL import Image
+
     parser = argparse.ArgumentParser()
     parser.add_argument("captures", type=Path)
     parser.add_argument("--slots", type=int, required=True)
@@ -2141,7 +2130,7 @@ def latency_main():
 
 
 charts_DATA = Path(__file__).resolve().parents[1] / "resources/mcv2/data"
-charts_IMAGES = Path(__file__).resolve().parents[4] / "mcav-docs" / "images" / "mcv2"
+IMAGES = Path(__file__).resolve().parents[4] / "mcav-docs" / "images" / "mcv2"
 charts_SURFACE = "#ffffff"
 charts_INK = "#0b0b0b"
 charts_SECONDARY = "#52514e"
@@ -2159,7 +2148,17 @@ charts_LEVELS = (70, 75, 80, 85, 90)
 charts_TICKS = (0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50)
 
 
+def figure_pyplot():
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as pyplot
+
+    return pyplot
+
+
 def charts_style():
+    pyplot = figure_pyplot()
     pyplot.rcParams.update(
         {
             "font.family": charts_FONT,
@@ -2197,6 +2196,9 @@ def charts_rate_at(points, level):
 
 
 def charts_draw_codecs(data):
+    from matplotlib.ticker import FixedLocator, FuncFormatter, NullLocator
+
+    pyplot = figure_pyplot()
     figure, axes = pyplot.subplots(2, 1, figsize=(8, 9.6), sharex=True)
     for axis, (source, title) in zip(axes, charts_SOURCES):
         for codec, name, colour, marker in charts_CODECS:
@@ -2241,13 +2243,13 @@ def charts_draw_codecs(data):
     handles, labels = axes[0].get_legend_handles_labels()
     figure.legend(handles, labels, loc="lower center", ncol=4, frameon=False, fontsize=10)
     figure.tight_layout(rect=(0, 0.04, 1, 1))
-    figure.savefig(charts_IMAGES / "codecs.png", dpi=120, facecolor=charts_SURFACE)
+    figure.savefig(IMAGES / "codecs.png", dpi=120, facecolor=charts_SURFACE)
     pyplot.close(figure)
 
 
-def charts_ablation_rates(ablation, kind="features"):
+def charts_ablation_rates(ablation):
     results = []
-    for feature in ablation.get(kind, []):
+    for feature in ablation.get("features", []):
         row = {"id": feature["id"], "name": feature["name"]}
         for source, _ in charts_SOURCES:
             baseline = [(point["zlib_mbps"], point["vmaf_mean"]) for point in ablation["baseline"][source]]
@@ -2258,6 +2260,7 @@ def charts_ablation_rates(ablation, kind="features"):
 
 
 def charts_draw_features(rows):
+    pyplot = figure_pyplot()
     rows = sorted(rows, key=lambda row: row["gameplay30"][0] + row["proxy30"][0])
     values = [row[source][0] for row in rows for source, _ in charts_SOURCES]
     ordered = sorted(values, reverse=True)
@@ -2292,7 +2295,7 @@ def charts_draw_features(rows):
         axis.spines[side].set_visible(False)
     axis.legend(loc="lower right", frameon=False, fontsize=10)
     figure.tight_layout()
-    figure.savefig(charts_IMAGES / "features.png", dpi=120, facecolor=charts_SURFACE)
+    figure.savefig(IMAGES / "features.png", dpi=120, facecolor=charts_SURFACE)
     pyplot.close(figure)
 
 
@@ -2346,7 +2349,7 @@ def charts_main():
     arguments = parser.parse_args()
     logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
     charts_style()
-    charts_IMAGES.mkdir(parents=True, exist_ok=True)
+    IMAGES.mkdir(parents=True, exist_ok=True)
     data = json.loads((charts_DATA / "codec_curves.json").read_text())
     charts_draw_codecs(data)
     ablation_file = charts_DATA / "ablation.json"
@@ -2358,7 +2361,6 @@ def charts_main():
         charts_print_tables(data, rows, ablation.get("removed", []))
 
 
-samples_IMAGES = Path(__file__).resolve().parents[4] / "mcav-docs" / "images" / "mcv2"
 samples_MODES = [
     (reference.SKIP, "SKIP", "#e4e3df"),
     (reference.MOTION, "MOTION", "#2a78d6"),
@@ -2369,18 +2371,9 @@ samples_MODES = [
 ]
 
 
-def samples_frames_of(path):
-    data = Path(path).read_bytes()
-    at = 0
-    while at < len(data):
-        length = struct.unpack_from("<I", data, at)[0]
-        yield data[at + 4 : at + 4 + length]
-        at += 4 + length
-
-
 def samples_decoded(path, wanted):
     decoder, found = (Decoder(), {})
-    for index, data in enumerate(samples_frames_of(path)):
+    for index, data in enumerate(read_archive(path)):
         picture = decoder.accept(data)
         if index in wanted:
             found[index] = (parse_frame(data), picture.copy())
@@ -2418,6 +2411,9 @@ def samples_finish(axis, title):
 
 
 def samples_draw_tree(arguments):
+    from matplotlib.patches import Patch, Rectangle
+
+    pyplot = figure_pyplot()
     numbers = [int(value) for value in arguments.frames.split(",")]
     frames = samples_decoded(arguments.archive, set(numbers))
     pixel_x, pixel_y, width, height = crop = samples_crop_of(arguments.crop)
@@ -2451,7 +2447,7 @@ def samples_draw_tree(arguments):
     columns = min(len(samples_MODES), 3 * len(numbers))
     figure.legend(handles=handles, loc="lower center", ncol=columns, frameon=False, fontsize=9.5)
     figure.tight_layout(rect=(0, 0.05 * len(samples_MODES) / columns, 1, 1), h_pad=2)
-    figure.savefig(samples_IMAGES / arguments.out, dpi=120, facecolor=charts_SURFACE)
+    figure.savefig(IMAGES / arguments.out, dpi=120, facecolor=charts_SURFACE)
     pyplot.close(figure)
     for number in numbers:
         frame = frames[number][0]
@@ -2478,6 +2474,7 @@ def samples_bits_of(leaf):
 
 
 def samples_draw_leaves(arguments):
+    pyplot = figure_pyplot()
     frame, picture = samples_decoded(arguments.archive, {arguments.frame})[arguments.frame]
     width, height = arguments.size
     source = samples_source_frame(arguments.source, arguments.frame, width, height)
@@ -2521,12 +2518,12 @@ def samples_draw_leaves(arguments):
         samples_finish(row[3], f"decoded: {len(leaf.record)} bytes")
         print(f"{name} {size}x{size} at ({leaf.pixel_x}, {leaf.pixel_y}) colours {colours} record {leaf.record.hex()}")
     figure.tight_layout()
-    figure.savefig(samples_IMAGES / "leaves.png", dpi=120, facecolor=charts_SURFACE)
+    figure.savefig(IMAGES / "leaves.png", dpi=120, facecolor=charts_SURFACE)
     pyplot.close(figure)
 
 
 def samples_print_bytes(arguments):
-    data = list(samples_frames_of(arguments.archive))[arguments.frame]
+    data = list(read_archive(arguments.archive))[arguments.frame]
     frame = parse_frame(data)
     groups = len(frame.masks)
     parts = [("header", 0, reference.HEADER_BYTES)]
@@ -2582,9 +2579,10 @@ def samples_main():
     dump.add_argument("archive")
     dump.add_argument("--frame", type=int, default=0)
     arguments = parser.parse_args()
-    logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
-    charts_style()
-    samples_IMAGES.mkdir(parents=True, exist_ok=True)
+    if arguments.command != "bytes":
+        logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
+        charts_style()
+        IMAGES.mkdir(parents=True, exist_ok=True)
     {"tree": samples_draw_tree, "leaves": samples_draw_leaves, "bytes": samples_print_bytes}[arguments.command](
         arguments
     )
