@@ -64,8 +64,8 @@ final class Mcv2ToolsTest {
         "out=" + archive
       );
       assertArrayEquals(Mcv2Fixtures.read("encoder/crop-default.mcs"), Files.readAllBytes(archive));
-      final String[] lines = output.strip().split("\\R");
-      final JsonObject result = JsonParser.parseString(lines[lines.length - 1]).getAsJsonObject();
+      final List<String> lines = output.lines().toList();
+      final JsonObject result = JsonParser.parseString(lines.getLast()).getAsJsonObject();
       assertEquals(4, result.get("frames").getAsInt());
       assertEquals(3, result.get("warm").getAsInt());
       assertEquals(1, result.get("keyframes").getAsInt());

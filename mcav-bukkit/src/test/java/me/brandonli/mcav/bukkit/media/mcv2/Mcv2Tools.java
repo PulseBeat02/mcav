@@ -18,9 +18,9 @@
 package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static org.lwjgl.system.MemoryStack.stackPush;
-import static org.lwjgl.util.shaderc.Shaderc.*;
+import org.lwjgl.util.shaderc.Shaderc;
 import static org.lwjgl.util.spvc.Spv.SpvDecorationLocation;
-import static org.lwjgl.util.spvc.Spvc.*;
+import org.lwjgl.util.spvc.Spvc;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -142,9 +142,13 @@ public final class Mcv2Tools {
         encoder.setFrameBudget((long) (Double.parseDouble(options.get("framebudget")) * NANOS_PER_MILLISECOND));
       }
       final Measurement measured = encode(options, source, width, height, frames, budget, encoder);
-      System.gc();
-      final long heapAfter = usedHeap();
-      Reference.reachabilityFence(encoder);
+      final long heapAfter;
+      try {
+        System.gc();
+        heapAfter = usedHeap();
+      } finally {
+        Reference.reachabilityFence(encoder);
+      }
       budget.close();
       report(measured, frames, warm, fps, threads, (heapAfter - heapBefore) / BYTES_PER_MEGABYTE);
     } finally {
@@ -610,22 +614,22 @@ public final class Mcv2Tools {
     final Path target
   ) throws IOException {
     final String text = Files.readString(source);
-    final long compiler = shaderc_compiler_initialize();
-    final long options = shaderc_compile_options_initialize();
+    final long compiler = Shaderc.shaderc_compiler_initialize();
+    final long options = Shaderc.shaderc_compile_options_initialize();
     try {
-      shaderc_compile_options_set_target_env(options, shaderc_target_env_vulkan, VULKAN_1_2);
-      shaderc_compile_options_set_auto_bind_uniforms(options, true);
-      shaderc_compile_options_set_preserve_bindings(options, false);
-      shaderc_compile_options_set_generate_debug_info(options);
-      shaderc_compile_options_set_optimization_level(options, shaderc_optimization_level_zero);
+      Shaderc.shaderc_compile_options_set_target_env(options, Shaderc.shaderc_target_env_vulkan, VULKAN_1_2);
+      Shaderc.shaderc_compile_options_set_auto_bind_uniforms(options, true);
+      Shaderc.shaderc_compile_options_set_preserve_bindings(options, false);
+      Shaderc.shaderc_compile_options_set_generate_debug_info(options);
+      Shaderc.shaderc_compile_options_set_optimization_level(options, Shaderc.shaderc_optimization_level_zero);
       for (final Map.Entry<String, String> macro : RENDERER_MACROS.entrySet()) {
-        shaderc_compile_options_add_macro_definition(options, macro.getKey(), macro.getValue());
+        Shaderc.shaderc_compile_options_add_macro_definition(options, macro.getKey(), macro.getValue());
       }
       for (final Map.Entry<String, String> define : defines.entrySet()) {
-        shaderc_compile_options_add_macro_definition(options, define.getKey(), define.getValue());
+        Shaderc.shaderc_compile_options_add_macro_definition(options, define.getKey(), define.getValue());
       }
       final List<ByteBuffer> keep = new ArrayList<>();
-      shaderc_compile_options_set_include_callbacks(
+      Shaderc.shaderc_compile_options_set_include_callbacks(
         options,
         ShadercIncludeResolve.create((user, requested, type, requesting, depth) ->
           include(pack, generated, vanilla, MemoryUtil.memUTF8(requested), keep)
@@ -633,22 +637,22 @@ public final class Mcv2Tools {
         ShadercIncludeResultRelease.create((user, result) -> {}),
         0L
       );
-      final int kind = stage.equals("vsh") ? shaderc_vertex_shader : shaderc_fragment_shader;
-      final long result = shaderc_compile_into_spv(compiler, text, kind, source.getFileName().toString(), "main", options);
-      if (shaderc_result_get_compilation_status(result) != shaderc_compilation_status_success) {
-        System.out.println("FAIL " + target.getFileName() + ": " + shaderc_result_get_error_message(result));
-        shaderc_result_release(result);
+      final int kind = stage.equals("vsh") ? Shaderc.shaderc_vertex_shader : Shaderc.shaderc_fragment_shader;
+      final long result = Shaderc.shaderc_compile_into_spv(compiler, text, kind, source.getFileName().toString(), "main", options);
+      if (Shaderc.shaderc_result_get_compilation_status(result) != Shaderc.shaderc_compilation_status_success) {
+        System.out.println("FAIL " + target.getFileName() + ": " + Shaderc.shaderc_result_get_error_message(result));
+        Shaderc.shaderc_result_release(result);
         return 1;
       }
-      final ByteBuffer spirv = shaderc_result_get_bytes(result);
-      final String glsl = crossCompile(spirv, kind == shaderc_vertex_shader);
-      shaderc_result_release(result);
+      final ByteBuffer spirv = Shaderc.shaderc_result_get_bytes(result);
+      final String glsl = crossCompile(spirv, kind == Shaderc.shaderc_vertex_shader);
+      Shaderc.shaderc_result_release(result);
       Files.writeString(target, glsl);
       System.out.println("ok   " + target.getFileName());
       return 0;
     } finally {
-      shaderc_compile_options_release(options);
-      shaderc_compiler_release(compiler);
+      Shaderc.shaderc_compile_options_release(options);
+      Shaderc.shaderc_compiler_release(compiler);
     }
   }
 
@@ -687,39 +691,39 @@ public final class Mcv2Tools {
   private static String crossCompile(final ByteBuffer spirv, final boolean vertex) {
     try (MemoryStack stack = stackPush()) {
       final PointerBuffer pointer = stack.callocPointer(1);
-      check(spvc_context_create(pointer), "context");
+      check(Spvc.spvc_context_create(pointer), "context");
       final long context = pointer.get(0);
       try {
-        check(spvc_context_parse_spirv(context, spirv.asIntBuffer(), spirv.remaining() / 4, pointer), "parse");
+        check(Spvc.spvc_context_parse_spirv(context, spirv.asIntBuffer(), spirv.remaining() / 4, pointer), "parse");
         final long intermediateRepresentation = pointer.get(0);
         check(
-          spvc_context_create_compiler(context, SPVC_BACKEND_GLSL, intermediateRepresentation, SPVC_CAPTURE_MODE_TAKE_OWNERSHIP, pointer),
+          Spvc.spvc_context_create_compiler(context, Spvc.SPVC_BACKEND_GLSL, intermediateRepresentation, Spvc.SPVC_CAPTURE_MODE_TAKE_OWNERSHIP, pointer),
           "compiler"
         );
         final long compiler = pointer.get(0);
-        spvc_compiler_create_compiler_options(compiler, pointer);
+        Spvc.spvc_compiler_create_compiler_options(compiler, pointer);
         final long options = pointer.get(0);
-        spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_GLSL_VERSION, 330);
-        spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_ENABLE_420PACK_EXTENSION, false);
-        spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_EMIT_PUSH_CONSTANT_AS_UNIFORM_BUFFER, true);
+        Spvc.spvc_compiler_options_set_uint(options, Spvc.SPVC_COMPILER_OPTION_GLSL_VERSION, 330);
+        Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_GLSL_ENABLE_420PACK_EXTENSION, false);
+        Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_GLSL_EMIT_PUSH_CONSTANT_AS_UNIFORM_BUFFER, true);
         // the game sets this to whether the device has shader draw parameters; no shader here reads gl_InstanceIndex
-        spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_SUPPORT_NONZERO_BASE_INSTANCE, false);
-        spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_FORCE_ZERO_INITIALIZED_VARIABLES, true);
-        spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_FLATTEN_MULTIDIMENSIONAL_ARRAYS, true);
-        check(spvc_compiler_create_shader_resources(compiler, pointer), "resources");
+        Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_GLSL_SUPPORT_NONZERO_BASE_INSTANCE, false);
+        Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_FORCE_ZERO_INITIALIZED_VARIABLES, true);
+        Spvc.spvc_compiler_options_set_bool(options, Spvc.SPVC_COMPILER_OPTION_FLATTEN_MULTIDIMENSIONAL_ARRAYS, true);
+        check(Spvc.spvc_compiler_create_shader_resources(compiler, pointer), "resources");
         final long resources = pointer.get(0);
         // without separate shader objects the stages link by name, so the game names every stage input and output
         // after its location
-        final int attributes = vertex ? SPVC_RESOURCE_TYPE_STAGE_INPUT : SPVC_RESOURCE_TYPE_STAGE_OUTPUT;
-        final int varyings = vertex ? SPVC_RESOURCE_TYPE_STAGE_OUTPUT : SPVC_RESOURCE_TYPE_STAGE_INPUT;
+        final int attributes = vertex ? Spvc.SPVC_RESOURCE_TYPE_STAGE_INPUT : Spvc.SPVC_RESOURCE_TYPE_STAGE_OUTPUT;
+        final int varyings = vertex ? Spvc.SPVC_RESOURCE_TYPE_STAGE_OUTPUT : Spvc.SPVC_RESOURCE_TYPE_STAGE_INPUT;
         renameByLocation(compiler, resources, attributes, vertex ? "_vert_input_%02d" : "_frag_output_%02d");
         renameByLocation(compiler, resources, varyings, "_interface_variable_%02d");
-        spvc_compiler_install_compiler_options(compiler, options);
+        Spvc.spvc_compiler_install_compiler_options(compiler, options);
         final PointerBuffer source = stack.callocPointer(1);
-        check(spvc_compiler_compile(compiler, source), "compile");
+        check(Spvc.spvc_compiler_compile(compiler, source), "compile");
         return MemoryUtil.memUTF8(source.get(0));
       } finally {
-        spvc_context_destroy(context);
+        Spvc.spvc_context_destroy(context);
       }
     }
   }
@@ -728,16 +732,16 @@ public final class Mcv2Tools {
     try (MemoryStack stack = stackPush()) {
       final PointerBuffer list = stack.callocPointer(1);
       final PointerBuffer count = stack.callocPointer(1);
-      check(spvc_resources_get_resource_list_for_type(resources, type, list, count), "interface");
+      check(Spvc.spvc_resources_get_resource_list_for_type(resources, type, list, count), "interface");
       for (final SpvcReflectedResource variable : SpvcReflectedResource.create(list.get(0), (int) count.get(0))) {
-        final int location = spvc_compiler_get_decoration(compiler, variable.id(), SpvDecorationLocation);
-        spvc_compiler_set_name(compiler, variable.id(), String.format(Locale.ROOT, format, location));
+        final int location = Spvc.spvc_compiler_get_decoration(compiler, variable.id(), SpvDecorationLocation);
+        Spvc.spvc_compiler_set_name(compiler, variable.id(), String.format(Locale.ROOT, format, location));
       }
     }
   }
 
   private static void check(final int result, final String step) {
-    if (result != SPVC_SUCCESS) {
+    if (result != Spvc.SPVC_SUCCESS) {
       throw new IllegalStateException("SPIRV-Cross failed at " + step + ": " + result);
     }
   }
