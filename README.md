@@ -126,6 +126,11 @@ tests would have run shows up as gaps, so on such a machine build with `-Pmcav.c
 [CONTRIBUTING.md](CONTRIBUTING.md) describes the tests, the coverage lint, the property, fuzz and concurrency tests,
 mutation testing and the end-to-end test of the plugin.
 
+`build` also builds the documentation into `mcav-docs/build/html` (open `index.html`); `./gradlew :mcav-docs:build`
+builds only the documentation. No Python is needed either: Gradle downloads uv, checks it against a pinned SHA-256,
+and with it installs the pinned Python and the hash-locked packages of `mcav-docs/requirements.lock` into
+`mcav-docs/build`.
+
 ---
 
 ### Contributing

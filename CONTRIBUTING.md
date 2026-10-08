@@ -7,6 +7,23 @@ to follow the following guidelines:
 - Code quality (follow OOP, avoid DRY code, etc.)
 - Code formatting (run `./gradlew spotlessApply`, which adds the license header and formats the code with prettier-java)
 
+## Documentation
+
+The documentation is the Jupyter Book in `mcav-docs`. `./gradlew :mcav-docs:build` builds it into
+`mcav-docs/build/html` (open `index.html`), and `./gradlew build` builds it too. Gradle downloads uv, checks it against
+the SHA-256 in `buildSrc/src/main/resources/uv-checksums.properties`, and with it installs the Python of
+`gradle/libs.versions.toml` and the packages of `mcav-docs/requirements.lock`, each checked against its hash, all into
+`mcav-docs/build`. Set `UV=/path/to/uv` to use an installed uv of the same version instead. Jupyter Book runs with
+`--warningiserror`, so a Sphinx warning fails the build. Downloading uv and Python needs GitHub, and the packages need
+PyPI.
+
+To change a documentation package or the Python, change its version in `gradle/libs.versions.toml`, run
+`./gradlew :mcav-docs:lockDocsRequirements`, which writes `mcav-docs/requirements.lock` with every package pinned and
+hashed, and commit both; the build fails while the lock pins other versions than the catalog. Read the Docs installs
+the same lock through `mcav-docs/requirements.txt`, so the Python of `.readthedocs.yaml` stays at the minor version of
+`docs-python`. To update uv, copy the SHA-256 of each archive from the `.sha256` files of its GitHub release into
+`uv-checksums.properties`.
+
 ## Tests
 
 Every module stays at 100% line and branch coverage on a machine where every test can run, and tests check the behavior
