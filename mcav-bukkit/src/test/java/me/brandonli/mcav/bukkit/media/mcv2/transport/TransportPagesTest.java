@@ -235,11 +235,6 @@ final class TransportPagesTest {
   }
 
   @Test
-  void refusesASymbolWidthOtherThanSixBeforeReadingTheFrame() {
-    // as with the stream id, the arguments are checked first: these bytes are no frame either
-  }
-
-  @Test
   void everyPageNamesTheFrameItsFrameIsPredictedFrom() throws Mcv2Exception {
     final Node root = Mcv2Trees.motion(1, 1);
     final byte[] frame = Mcv2Trees.write(32, 32, 5, 4, false, List.of(root));
