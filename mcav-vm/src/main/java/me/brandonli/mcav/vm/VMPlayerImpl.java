@@ -71,7 +71,6 @@ public final class VMPlayerImpl implements VMPlayer {
   private final AtomicBoolean running;
   private final AtomicBoolean released;
 
-  // written under the lock but read without it by isActive(), so the read must not see a stale reference
   private volatile @Nullable VMProcess process;
   private volatile @Nullable DelayedAudioOutput audioOutput;
   private volatile @Nullable VMAudioClient audioClient;
@@ -342,7 +341,6 @@ public final class VMPlayerImpl implements VMPlayer {
       final boolean paused = active && this.vncPlayer.pause();
       final DelayedAudioOutput output = this.audioOutput;
       if (paused && output != null) {
-        // the sound of a paused machine is dropped, so it does not play late after the resume
         output.pause();
       }
       return paused;
@@ -406,13 +404,11 @@ public final class VMPlayerImpl implements VMPlayer {
 
   @Override
   public AudioAttachableCallback getAudioAttachableCallback() {
-    // the output looks the pipeline up for every chunk, so pipelines attached while running take effect
     return this.audioCallback;
   }
 
   @Override
   public VideoAttachableCallback getVideoAttachableCallback() {
-    // the VNC player looks the pipeline up for every frame, so pipelines attached while running take effect
     return this.vncPlayer.getVideoAttachableCallback();
   }
 

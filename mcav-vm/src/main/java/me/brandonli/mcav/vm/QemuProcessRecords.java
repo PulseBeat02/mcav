@@ -55,7 +55,6 @@ final class QemuProcessRecords {
   private static final String NOT_READ = "The records of QEMU processes in {} could not be read";
   private static final String RECORD_NOT_READ = "The record {} of a QEMU process could not be read";
   private static final String SUFFIX = ".qemu";
-  // as long as a release waits for QEMU before it kills it
   private static final Duration STOP_TIMEOUT = Duration.ofSeconds(10);
 
   private final Path folder;
@@ -152,7 +151,6 @@ final class QemuProcessRecords {
     return stopped;
   }
 
-  // one record that cannot be read or deleted does not keep the others from being reaped
   private int reapRecord(final Path record) {
     try {
       return this.reapOne(record);
@@ -165,7 +163,6 @@ final class QemuProcessRecords {
   private int reapOne(final Path record) throws IOException {
     final Optional<ProcessRecord> parsed = parse(record);
     if (parsed.isPresent() && this.isRunning(parsed.get().ownerPid(), parsed.get().ownerStarted())) {
-      // the JVM that started it still runs, and releases it itself
       return 0;
     }
     int stopped = 0;
@@ -215,7 +212,6 @@ final class QemuProcessRecords {
       final Instant ownerStarted = Instant.parse(lines.get(2));
       return Optional.of(new ProcessRecord(pid, started, ownerPid, ownerStarted));
     } catch (final NumberFormatException | DateTimeParseException | IndexOutOfBoundsException exception) {
-      // not a record this class wrote: deleted like the record of a process that ended
       return Optional.empty();
     }
   }

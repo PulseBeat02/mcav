@@ -109,14 +109,12 @@ final class VMProcessTest {
     return socket;
   }
 
-  // a running QEMU opens its VNC display, which a fake process does through the launcher
   private void openDisplay() throws IOException {
     if (this.display == null) {
       this.display = this.listen(this.port);
     }
   }
 
-  // the folder of the password file of every start; a start deletes it again once QEMU read the password
   private Path secretFolder() throws IOException {
     final Path folder = this.directory.resolve("secret");
     return Files.createDirectories(folder);
@@ -158,7 +156,6 @@ final class VMProcessTest {
       }
       return started;
     };
-    // an architecture without sound, so these tests see the display options alone; the sound has tests of its own
     return new VMProcess(
       settings,
       VMPlayer.Architecture.AARCH64,
@@ -292,7 +289,6 @@ final class VMProcessTest {
     final VMProcess process = this.reachable(OS.WINDOWS, failed, failedAgain);
     final PlayerException exception = assertThrows(PlayerException.class, process::start);
     final String message = exception.getMessage();
-    // only the output of the attempt that failed last explains the failure
     assertEquals("QEMU exited with code 2: could not open disk image alpine.qcow2", message);
   }
 
@@ -311,7 +307,6 @@ final class VMProcessTest {
 
   @Test
   void waitsForTheOutputThatExplainsTheExit() {
-    // the output arrives after QEMU exited, as it does when the pipe is read more slowly than QEMU dies
     final InputStream late = new DelayedStream("WHPX: No accelerator found\n", 300L);
     final FakeProcess failed = FakeProcess.running(late);
     failed.exit(1);
@@ -434,7 +429,6 @@ final class VMProcessTest {
 
   @Test
   void theDisplayAsksForAPasswordOnlyTheServerKnows() throws IOException {
-    // without one, any process of the server's machine could watch, drive and hear the guest
     final List<String> secrets = new CopyOnWriteArrayList<>();
     final VMSettings settings = this.reachableSettings();
     final VMProcess.Launcher launcher = command -> {
@@ -484,7 +478,6 @@ final class VMProcessTest {
     final String secondPassword = second.getPassword();
     assertTrue(firstPassword.matches("[A-Za-z0-9]{8}"), firstPassword);
     assertTrue(secondPassword.matches("[A-Za-z0-9]{8}"), secondPassword);
-    // two equal passwords of 62^8 have a chance of 1 in 2*10^14
     assertFalse(firstPassword.equals(secondPassword), "random passwords");
   }
 
@@ -496,7 +489,6 @@ final class VMProcessTest {
     final Path windows = VMProcess.createSecretFolder(this.directory, false);
     assertTrue(Files.isDirectory(windows));
     assertFalse(posix.equals(windows), "a folder of its own for every start");
-    // the default file system makes temporary folders private on its own, other POSIX file systems do not
     final Map<String, String> posixZip = Map.of("create", "true", "enablePosixFileAttributes", "true");
     try (final FileSystem zipped = FileSystems.newFileSystem(this.directory.resolve("folders.zip"), posixZip)) {
       final Path zippedFolder = VMProcess.createSecretFolder(zipped.getPath("/"), true);
@@ -600,7 +592,6 @@ final class VMProcessTest {
 
   @Test
   void aPasswordFolderThatCannotBeDeletedLeavesTheMachineRunning() throws IOException {
-    // something else put a file into the folder, so it is not empty: the start succeeds and only warns
     final VMSettings settings = this.reachableSettings();
     final Path folder = this.directory.resolve("secret");
     final VMProcess.Launcher launcher = command -> {
@@ -631,7 +622,6 @@ final class VMProcessTest {
 
   @Test
   void aMachineThatChoseNoNetworkGetsOneThatReachesNeitherTheServerNorTheInternet() {
-    // QEMU's own default network would let the guest reach every service of the server's loopback address
     final VMSettings settings = new VMSettings(5907, 64, 48, 10);
     final VMConfiguration configuration = VMConfiguration.builder();
     final List<String> command = this.commandWithoutAccelerator(settings, configuration);
@@ -744,7 +734,6 @@ final class VMProcessTest {
     final VMConfiguration q35 = VMConfiguration.builder();
     q35.machine("q35,accel=tcg");
     final List<String> command = this.x86Command(q35);
-    // QEMU merges every -machine option, so the machine of the configuration keeps its value
     assertTrue(command.containsAll(List.of("-machine", "q35,accel=tcg")), command::toString);
     final int speaker = command.indexOf("pcspk-audiodev=mcav-audio");
     assertEquals("-machine", command.get(speaker - 1), command::toString);
@@ -764,7 +753,6 @@ final class VMProcessTest {
     final List<String> command = this.x86Command(microvm);
     assertFalse(command.contains("-audiodev"), command::toString);
     assertTrue(command.contains("127.0.0.1:3,share=force-shared,password-secret=mcav-vnc-password"), command::toString);
-    // the type named last wins, as in QEMU
     final VMConfiguration twice = VMConfiguration.builder();
     twice.machine("type=pc,type=microvm,usb=off");
     assertFalse(this.x86Command(twice).contains("-audiodev"));
@@ -794,7 +782,6 @@ final class VMProcessTest {
     final List<String> command = this.x86Command(named);
     assertTrue(command.containsAll(List.of("-name", "-machine")), command::toString);
     assertEquals("-machine", command.get(command.indexOf("pcspk-audiodev=mcav-audio") - 1), command::toString);
-    // nor the machine: the option after such a value is not read as the machine, which keeps its sound
     final VMConfiguration followed = VMConfiguration.builder();
     followed.machine("q35");
     followed.option("name", "-M");
@@ -825,7 +812,6 @@ final class VMProcessTest {
     both.option("M", "microvm");
     both.repeatable("machine", "usb=on");
     assertEquals("microvm", VMProcess.machineType(both));
-    // the spellings mix in the order of the arguments, as QEMU reads them
     final VMConfiguration aliases = VMConfiguration.builder();
     aliases.option("M", "q35");
     aliases.machine("microvm");
@@ -837,7 +823,6 @@ final class VMProcessTest {
     final VMConfiguration empty = VMConfiguration.builder();
     empty.machine(",usb=on");
     assertEquals("", VMProcess.machineType(empty));
-    // only option names are read: another option's value that looks like a machine option is that option's value
     for (final String lookalike : List.of("-M", "-machine")) {
       final VMConfiguration valued = VMConfiguration.builder();
       valued.machine("q35");
@@ -1260,7 +1245,6 @@ final class VMProcessTest {
       stopping.start();
       awaitOutputJoin(stopping);
       stopping.interrupt();
-      // Observe a fresh timed join with the interrupt cleared: the catch ran and cleanup resumed its wait.
       awaitOutputJoin(stopping);
       assertEquals(1, returned.getCount(), "interruption must not abandon the live output reader");
       finish.countDown();
@@ -1339,7 +1323,6 @@ final class VMProcessTest {
 
   @Test
   void failsWhenQemuExitsRightAfterItsDisplayOpens() {
-    // another program answers on the port, and QEMU, which could not open its display there, exits
     final FakeProcess qemu = FakeProcess.running("Failed to start VNC server: address in use\n");
     qemu.exitingWhenWaitedOn(1);
     final VMProcess process = this.reachable(OS.FREEBSD, qemu);

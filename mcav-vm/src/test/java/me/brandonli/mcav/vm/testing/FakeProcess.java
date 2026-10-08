@@ -199,7 +199,6 @@ public final class FakeProcess extends Process {
     if (codeOnWait >= 0) {
       this.exit(codeOnWait);
     }
-    // waits are capped so tests of long timeouts stay fast
     final long requested = unit.toMillis(timeout);
     final long wait = Math.min(requested, LONGEST_WAIT_MILLIS);
     return this.exited.await(wait, TimeUnit.MILLISECONDS);
