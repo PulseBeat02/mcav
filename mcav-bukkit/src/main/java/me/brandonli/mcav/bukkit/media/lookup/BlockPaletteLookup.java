@@ -133,7 +133,9 @@ public final class BlockPaletteLookup {
       DITHERING = createDithering(materials);
     }
 
-    private static void initialize() {}
+    private static void initialize() {
+      // Calling any static method triggers the class initialization above.
+    }
 
     private static Map<Integer, BlockData> createBlockData(final Map<Integer, Material> materials) {
       final Map<Integer, BlockData> blockData = new HashMap<>();
