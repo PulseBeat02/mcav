@@ -97,7 +97,9 @@ class NetworkGuardTest {
   private void echo(final Socket socket) {
     try (socket; final InputStream in = socket.getInputStream(); final OutputStream out = socket.getOutputStream()) {
       in.transferTo(out);
-    } catch (final IOException exception) {}
+    } catch (final IOException exception) {
+      // the guard closed the connection
+    }
     this.echoEnded.incrementAndGet();
   }
 
@@ -326,7 +328,9 @@ class NetworkGuardTest {
         out.flush();
         Thread.sleep(150L);
       }
-    } catch (final SocketException closed) {}
+    } catch (final SocketException closed) {
+      // the guard closed the connection while the client still wrote
+    }
     final InputStream in = client.getInputStream();
     try {
       while (in.read() >= 0) {}

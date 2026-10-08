@@ -252,7 +252,9 @@ public final class BrowserHelper {
     try {
       final char[] buffer = new char[256];
       while (standardInput.read(buffer) >= 0) {}
-    } catch (final IOException exception) {}
+    } catch (final IOException exception) {
+      // a broken input means the server is gone as well
+    }
     this.stop("the standard input ended");
     try {
       Thread.sleep(this.stopDeadlineMillis);

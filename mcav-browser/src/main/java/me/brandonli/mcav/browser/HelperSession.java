@@ -812,7 +812,9 @@ final class HelperSession implements BrowserSession {
         }
         count = reader.read(characters);
       }
-    } catch (final IOException exception) {}
+    } catch (final IOException exception) {
+      // the helper is gone
+    }
     this.remember(line.toString());
   }
 

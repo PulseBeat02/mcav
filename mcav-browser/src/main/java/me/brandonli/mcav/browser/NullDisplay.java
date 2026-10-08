@@ -482,6 +482,7 @@ final class NullDisplay implements AutoCloseable {
         serveRequests(in, out, order, this.atoms);
       }
     } catch (final IOException exception) {
+      // the client went away or broke the protocol; either way its connection ends
     } finally {
       this.introduced(client);
       this.clients.remove(client);
