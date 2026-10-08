@@ -299,9 +299,10 @@ class ArchiveExtractorTest {
     final Path file = Files.writeString(this.target.resolve("file.txt"), "file");
     ArchiveExtractor.tighten(file);
     ArchiveExtractor.tighten(this.target.resolve("missing"));
+    // tighten reaches takeWriteAway only where the file system has POSIX permissions
+    assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
     // a path that is gone by the time its permissions are changed is logged, not thrown
     ArchiveExtractor.takeWriteAway(this.target.resolve("gone"));
-    assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
     final Path closed = Files.createDirectories(this.target.resolve("closed"));
     Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("-wx------"));
     try {
