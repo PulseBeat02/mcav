@@ -66,7 +66,7 @@ final class SVCFilterImplTest {
 
   private static final int FRAME_SAMPLES = 960;
   private static final int MAX_FRAMES = 25;
-  private static final int CONCURRENT_FRAMES = MAX_FRAMES - 5; // fewer than the queue holds, so none is dropped
+  private static final int CONCURRENT_FRAMES = MAX_FRAMES - 5;
 
   private final SVCModule module = new SVCModule();
   private final VoicechatServerApi api = Mockito.mock(VoicechatServerApi.class);
