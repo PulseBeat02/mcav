@@ -54,4 +54,20 @@ final class MCV2FitsTest {
     assertEquals(-99.5f, target[0]);
     assertEquals(0, target[1]);
   }
+
+  @Test
+  void recoversAnEndpointClampedLinearRamp() {
+    final float[] samples = { -3, -2.75f, -2.25f, -1.75f, -1.25f, -0.75f, -0.25f, 0 };
+    final float[] values = new float[8 * 8];
+    for (int row = 0; row < 8; row++) {
+      System.arraycopy(samples, 0, values, row * 8, 8);
+    }
+    final float[] fitted = new float[16];
+    Mcv2Internals.javaKernels().fit(values, 8, fitted);
+    for (int row = 0; row < 4; row++) {
+      for (int column = 0; column < 4; column++) {
+        assertEquals(column - 3, fitted[row * 4 + column], 3e-7, "row " + row + " column " + column);
+      }
+    }
+  }
 }
