@@ -94,17 +94,17 @@ Here is a list of all the modules that are included in MCAV
 
 | Module           | Description                                                                                                                                                  |
 |------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `sandbox:plugin` | A Paper 26.3 plugin for Minecraft servers that utilizes all the features of MCAV.                                                                            |
+| `mcav-plugin`    | A Paper 26.3 plugin for Minecraft servers that utilizes all the features of MCAV.                                                                            |
 | `mcav-common`    | The core library for multimedia functionality: the FFmpeg, VLC, OpenCV and capture device players, pipelines and filters, dithering, yt-dlp, and audio and FFmpeg utilities. |
 | `mcav-bukkit`    | A Bukkit-specific module for Minecraft plugins: video and images on maps, blocks, entities, the scoreboard and chat, audio resource packs, and the MCV2 codec. |
 | `mcav-installer` | A simple installer for installing and injecting required libraries across all different modules of MCAV.                                                     |
-| `mcav-jda`       | A module integrating with the [Java Discord API](https://github.com/discord-jda/JDA) to play audio in Discord voice channels.                                |
+| `mcav-discord`   | A module integrating with the [Java Discord API](https://github.com/discord-jda/JDA) to play audio in Discord voice channels.                                |
 | `mcav-http`      | A module with [Spring Boot](https://spring.io/) back-end and [Typescript](https://www.typescriptlang.org/) front-end to stream PCM audio to an HTTP website. |
 | `mcav-vm`        | A module integrating with [QEMU](https://www.qemu.org/) to run virtual machines, with their display and their sound.                                         |
 | `mcav-vnc`       | A module interacting with VNC servers to capture video and control remote desktops.                                                                          |
 | `mcav-browser`   | A module using [JCEF](https://github.com/chromiumembedded/java-cef), an embedded Chromium, to stream web pages and their sound, with no JVM options.         |
 | `mcav-lwjgl`     | A module using [LWJGL](https://www.lwjgl.org/) to provide OpenGL support for rendering video and images.                                                     |
-| `mcav-svc`       | A module using [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) to serve audio.                                                            |
+| `mcav-voicechat` | A module using [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) to serve audio.                                                            |
 | `mcav-jcstress`  | Concurrency tests of MCAV on OpenJDK's [jcstress](https://github.com/openjdk/jcstress) harness; a test module, not published.                                 |
 
 ---
@@ -117,13 +117,14 @@ cd mcav
 ./gradlew build
 ```
 
-The plugin jar is `sandbox/plugin/build/libs/mcav-sandbox-1.0.0-v26.3-all.jar`. Gradle itself runs on any JDK 17 or
+The plugin jar is `mcav-plugin/build/libs/mcav-plugin-1.0.0-v26.3-all.jar`. Gradle itself runs on any JDK 17 or
 newer; the Java 25 toolchain MCAV compiles with is downloaded by Gradle when the machine has none, and so is the
 Node.js that the code formatter and the web page of `mcav-http` use. Gradle also downloads Zig 0.16.0 from
 ziglang.org, verifies its pinned SHA-256, and compiles MCV2's six native libraries from
 `mcav-bukkit/src/main/native/mcv2`. No C/C++ compiler needs to be installed; `ZIG=/path/to/zig` can override the download.
 The compiler is cached in `mcav-bukkit/build/tools/zig`, and unchanged native builds are up to date. A failed download
-or compilation fails the build. No credentials are needed, except to publish. The
+or compilation fails the build. No credentials are needed, except to publish the library modules with
+`./gradlew publishLibraries`. The
 project builds on any one of Windows, macOS or Linux: the tests that need another operating system, or a program the
 machine lacks (VLC, QEMU, a display), skip themselves. `build` also enforces the coverage lint, on which the code those
 tests would have run shows up as gaps, so on such a machine build with `-Pmcav.coverage=false`.

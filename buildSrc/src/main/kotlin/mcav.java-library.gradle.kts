@@ -91,6 +91,7 @@ tasks.processResources {
 }
 
 fun stubsArgument(): List<String> {
-    val folders = listOf(project.file("checker-framework"), rootProject.file("checker-framework")).filter { it.isDirectory }
+    val stubs = rootProject.file("gradle/checker-framework")
+    val folders = listOf(stubs.resolve(project.name), stubs.resolve("shared")).filter { it.isDirectory }
     return if (folders.isEmpty()) emptyList() else listOf("-Astubs=" + folders.joinToString(File.pathSeparator))
 }

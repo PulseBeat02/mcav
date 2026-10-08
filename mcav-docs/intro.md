@@ -28,10 +28,10 @@ to play back videos like the following. For Minecraft, MCAV even comes with its 
 | `mcav-bukkit` | Video and images in Minecraft: on [maps](bukkit/map.md), blocks, entities, the scoreboard and chat, [audio resource packs](bukkit/resourcepack.md), and [MCV2](bukkit/mcv2.md) |
 | `mcav-browser` | Web pages and their sound through [JCEF](library/browser.md), an embedded Chromium downloaded on the first start: no Selenium, Playwright, ChromeDriver or installed browser, and no JVM options |
 | `mcav-vm`, `mcav-vnc` | [Virtual machines](library/vm.md) with QEMU, with their sound, and [VNC desktops](library/vnc.md) |
-| `mcav-http`, `mcav-jda`, `mcav-svc` | Audio to [web browsers](library/http.md), [Discord](library/jda.md) and [Simple Voice Chat](library/voice.md) |
+| `mcav-http`, `mcav-discord`, `mcav-voicechat` | Audio to [web browsers](library/http.md), [Discord](library/discord.md) and [Simple Voice Chat](library/voicechat.md) |
 | `mcav-lwjgl` | Video in [OpenGL textures](library/lwjgl.md) |
 | `mcav-installer` | Downloads the modules at run time for [plugins](library/installer.md) |
-| `sandbox:plugin` | The [MCAV plugin](plugin/plugin.md) for Paper, which uses all of the above |
+| `mcav-plugin` | The [MCAV plugin](plugin/plugin.md) for Paper, which uses all of the above |
 | `mcav-jcstress` | Concurrency tests on OpenJDK's jcstress harness ([building MCAV](library/compile.md)); a test module, not published |
 
 MCAV requires Java 25, and runs on Windows (x86-64), macOS (x86-64 and Apple silicon) and Linux (x86-64 and ARM64),

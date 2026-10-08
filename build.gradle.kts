@@ -27,7 +27,7 @@ spotless {
                     ".editorconfig",
                     ".gitattributes",
                     ".gitignore",
-                    "checker-framework/*.astub",
+                    "gradle/checker-framework/**/*.astub",
                     "buildSrc/**/*.kt",
                     "buildSrc/**/*.kts",
                     "mcav-docs/**/*.md",
@@ -38,6 +38,7 @@ spotless {
                     "buildSrc/src/main/resources/uv-checksums.properties",
                     ".github/**/*.md",
                     ".github/**/*.yml",
+                    ".github/**/*.json",
                     "mcav-http/mcav-website/src/**/*.ts",
                     "mcav-http/mcav-website/src/**/*.tsx",
                     "mcav-http/mcav-website/src/**/*.css",
@@ -51,4 +52,23 @@ spotless {
         trimTrailingWhitespace()
         endWithNewline()
     }
+}
+
+tasks.register("publishLibraries") {
+    description = "Publishes the library modules to the snapshot repository and to build/e2e-repository"
+    group = "publishing"
+    dependsOn(
+        listOf(
+            "mcav-browser",
+            "mcav-bukkit",
+            "mcav-common",
+            "mcav-discord",
+            "mcav-http",
+            "mcav-installer",
+            "mcav-lwjgl",
+            "mcav-vm",
+            "mcav-vnc",
+            "mcav-voicechat"
+        ).map { ":$it:publish" }
+    )
 }

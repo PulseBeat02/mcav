@@ -74,9 +74,9 @@ entity and scoreboard results of `mcav-bukkit` ([Bukkit integration](../bukkit/b
 |---|---|---|
 | `VolumeFilter` | `mcav-common` | Multiplies every sample by a volume from 0 to 2 (`VolumeFilter.MAX_VOLUME`), clipped; `setVolume` may be called from any thread while it runs |
 | `DirectAudioOutput` | `mcav-common` | Plays through the default sound device of the machine; its `start()` throws a `PlayerException` where there is none |
-| `DiscordPlayer` | `mcav-jda` | Sends to a Discord voice channel ([JDA module](jda.md)) |
+| `DiscordPlayer` | `mcav-discord` | Sends to a Discord voice channel ([Discord module](discord.md)) |
 | `HttpResult` | `mcav-http` | Streams to web browsers ([HTTP module](http.md)) |
-| `SVCFilter` | `mcav-svc` | Plays through Simple Voice Chat ([SVC module](voice.md)) |
+| `SVCFilter` | `mcav-voicechat` | Plays through Simple Voice Chat ([Voice Chat module](voicechat.md)) |
 
 A `VolumeFilter` before an output turns the output down or up; one filter in front of several outputs sets them all:
 

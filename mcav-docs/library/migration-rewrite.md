@@ -31,6 +31,14 @@ classes, not independent problems; one class can have several changed members.
 These are existing rewrite changes. Bundled third-party classes are outside these counts. Compatibility of compiled
 calls does not guarantee unchanged behavior or dependencies.
 
+Since that comparison, two modules have new names, and every one of their classes moved to a new package. Change the
+dependency, the imports and the installer's `Artifact` constant:
+
+| May 2026 snapshot | Current |
+| --- | --- |
+| `me.brandonli:mcav-jda`, package `me.brandonli.mcav.jda`, `Artifact.JDA` | `me.brandonli:mcav-discord`, package `me.brandonli.mcav.discord`, `Artifact.DISCORD` |
+| `me.brandonli:mcav-svc`, package `me.brandonli.mcav.svc`, `Artifact.SVC` | `me.brandonli:mcav-voicechat`, package `me.brandonli.mcav.voicechat`, `Artifact.VOICECHAT` |
+
 ## Browser players
 
 The browser backend is now embedded Chromium through JCEF, in a helper process. The Selenium and Playwright player

@@ -103,16 +103,25 @@ same JVM options as the tests of the module and honors `-Pmcav.testJavaHome`.
 
 ## End-to-End Test
 
-`./gradlew :sandbox:plugin:e2eTest -Pmcav.e2e=true -Pmcav.acceptMinecraftEula=true` runs the sandbox plugin on a real,
+`./gradlew :mcav-plugin:e2eTest -Pmcav.e2e=true -Pmcav.acceptMinecraftEula=true` runs the sandbox plugin on a real,
 headless Paper 26.3 server together with Simple Voice Chat, exactly as on a production server:
 
 - The modules of this build are published into `build/e2e-repository`, and the server downloads them from there
   instead of the published snapshots, together with every other library of the plugin, the JavaCV natives, VLC and
   yt-dlp. The test needs the internet, and the first run takes a few minutes.
-- Paper and Simple Voice Chat are downloaded once into `sandbox/plugin/build/e2e-cache` and checked against their
+- Paper and Simple Voice Chat are downloaded once into `mcav-plugin/build/e2e-cache` and checked against their
   SHA-256 and SHA-512 hashes.
 - The server runs without a display, with the audio web page and Simple Voice Chat audio turned on, on free ports.
   The test runs console commands, requests the media information from the web page, stops the server and fails on
   any error in the server log.
 - Running a Minecraft server means accepting the [Minecraft EULA](https://aka.ms/MinecraftEULA), which is what
   `-Pmcav.acceptMinecraftEula=true` does; without it, the test is skipped.
+
+## Publishing
+
+`./gradlew publishLibraries` publishes the ten library modules, `mcav-browser`, `mcav-bukkit`, `mcav-common`,
+`mcav-discord`, `mcav-http`, `mcav-installer`, `mcav-lwjgl`, `mcav-vm`, `mcav-vnc` and `mcav-voicechat`, as
+`me.brandonli:<module>:1.0.0-SNAPSHOT` to the snapshot repository `https://repo.brandonli.me/snapshots`, and into
+`build/e2e-repository`. It needs the credentials of that repository as the Gradle properties `brandonliUsername` and
+`brandonliPassword`, for example in `~/.gradle/gradle.properties`. The plugin, the mod, the documentation and
+`mcav-jcstress` are not published.

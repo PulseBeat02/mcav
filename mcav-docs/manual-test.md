@@ -28,8 +28,8 @@ Host devbox-mc
 ## 2. Start the sandbox server on the devbox
 
 ```sh
-cd sandbox/plugin
-../../gradlew runServer
+cd mcav-plugin
+../gradlew runServer
 ```
 
 The first start takes several minutes: it downloads Paper, then the plugin asks Gremlin to download the mcav
@@ -42,13 +42,13 @@ modules, the JavaCV natives, VLC and yt-dlp. Wait for `Done (…)! For help, typ
 >
 > ```sh
 > # from the repository root, build and publish before starting either server:
-> ./gradlew :sandbox:plugin:shadowJar -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
+> ./gradlew :mcav-plugin:shadowJar -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
 > python3 -m http.server 8765 --bind 127.0.0.1 --directory build/e2e-repository
 > # then, from the repository root in a second shell:
-> ./gradlew :sandbox:plugin:runServer -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
+> ./gradlew :mcav-plugin:runServer -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
 > ```
 >
-> The port is baked into the plugin's `mcav/sandbox/dependencies.txt` as the first repository, so the server asks it first. You
+> The port is baked into the plugin's `mcav/plugin/dependencies.txt` as the first repository, so the server asks it first. You
 > can confirm it worked: the request log of that little HTTP server must show `mcav-bukkit-1.0.0-<timestamp>.jar`
 > being fetched. This is the same mechanism the `e2eTest` task uses.
 
@@ -115,7 +115,7 @@ with the video; a successful connection alone does not verify synchronization.
 
 ## 6. Capturing client-side errors
 
-The server log is `sandbox/plugin/run/logs/latest.log`. The client's own log is the one that shows rendering and
+The server log is `mcav-plugin/run/logs/latest.log`. The client's own log is the one that shows rendering and
 protocol problems, and it is not on the devbox:
 
 - **Vanilla launcher:** `.minecraft/logs/latest.log` (Windows `%APPDATA%\.minecraft\logs\latest.log`, macOS

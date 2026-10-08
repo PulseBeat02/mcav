@@ -43,12 +43,12 @@ final class ArtifactTest {
     }
     final List<String> expected = List.of(
       "mcav-common",
-      "mcav-jda",
+      "mcav-discord",
       "mcav-http",
       "mcav-browser",
       "mcav-vm",
       "mcav-vnc",
-      "mcav-svc",
+      "mcav-voicechat",
       "mcav-lwjgl",
       "mcav-bukkit"
     );
