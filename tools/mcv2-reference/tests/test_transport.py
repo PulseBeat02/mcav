@@ -27,8 +27,7 @@ from mcvideo.v3 import Node, pack_frame
 
 
 def large_frame(frame_id=0):
-    return pack_frame(3200, 32, frame_id, frame_id, True, (0, 0, 0),
-                      {i: Node(fmt.PALETTE, record=bytes(134)) for i in range(100)})
+    return pack_frame(3200, 32, frame_id, frame_id, {i: Node(fmt.PALETTE, record=bytes(134)) for i in range(100)})
 
 
 def page_bytes(symbols):
@@ -55,17 +54,17 @@ class TransportTest(unittest.TestCase):
                     function(*args)
 
     def test_page_header_crc_and_wire_model(self):
-        frame = pack_frame(1, 1, 9, 9, True, (16, 32, 48), {0: Node(fmt.SOLID, record=b'\xab\xcd\xef')})
+        frame = pack_frame(1, 1, 9, 9, {0: Node(fmt.SOLID, record=b'\xab\xcd\xef')})
         pages = make_pages(frame, 7)
         self.assertEqual(12256, page_capacity())
         self.assertEqual(32, PAGE_HEADER.size)
-        self.assertEqual([123], [len(page) for page in pages])
+        self.assertEqual([107], [len(page) for page in pages])
         raw = page_bytes(pages[0])
-        expected_header = bytes.fromhex('4d43503101060100 07000000 09000000 00000100 09000000 3c000000 00000000')
+        expected_header = bytes.fromhex('4d43503101060100 07000000 09000000 00000100 09000000 30000000 00000000')
         self.assertEqual(expected_header[:28], raw[:28])
         self.assertEqual(zlib.crc32(expected_header + frame), struct.unpack_from('<I', raw, 28)[0])
         self.assertEqual(frame, raw[32:])
-        self.assertEqual((7, 9, 0, 1, 9, 60, 1, 6), tuple(getattr(read_page(pages[0]), field) for field in
+        self.assertEqual((7, 9, 0, 1, 9, 48, 1, 6), tuple(getattr(read_page(pages[0]), field) for field in
                          ('stream_id', 'frame_id', 'number', 'count', 'reference_id', 'frame_bytes', 'flags', 'symbol_bits')))
         self.assertEqual(146, wire_bytes(pages))
         self.assertEqual(16402, wire_bytes(pages, full_maps=True))
@@ -90,15 +89,15 @@ class TransportTest(unittest.TestCase):
     def test_metadata_alphabet_and_padding_rejections(self):
         raw = page_bytes(make_pages(large_frame())[0])
         mutations = [(0, ord('X'), 'B'), (4, 2, 'B'), (5, 7, 'B'), (6, 2, 'H'), (16, 2, 'H'),
-                     (18, 3, 'H'), (24, 31, 'I'), (24, 131072, 'I')]
+                     (18, 3, 'H'), (24, 19, 'I'), (24, 131072, 'I')]
         for offset, value, code in mutations:
             with self.subTest(offset=offset), self.assertRaises(ValueError):
                 read_page(to_symbols(with_crc(changed(raw, offset, value, code))))
         for symbols in (b'', bytes(42), bytes(16385), make_pages(large_frame())[0][:-1]):
             with self.assertRaises(ValueError):
                 read_page(symbols)
-        # 92 bytes are 122 symbols and 4 bits: the last symbol has two padding bits.
-        symbols = bytearray(make_pages(pack_frame(1, 1, 0, 0, True, (0, 0, 0), {0: Node(fmt.SOLID, record=bytes(3))}))[0])
+        # 80 bytes are 106 symbols and 4 bits: the last symbol has two padding bits.
+        symbols = bytearray(make_pages(pack_frame(1, 1, 0, 0, {0: Node(fmt.SOLID, record=bytes(3))}))[0])
         symbols[-1] |= 32
         with self.assertRaisesRegex(ValueError, 'padding'):
             read_page(bytes(symbols))
@@ -126,18 +125,18 @@ class TransportTest(unittest.TestCase):
         self.assertNotIn(4, assembler.pending)
 
     def test_complete_frame_validation_and_identity(self):
-        frame = pack_frame(1, 1, 0, 0, True, (0, 0, 0), {})
+        frame = pack_frame(1, 1, 0, 0, {})
         raw = page_bytes(make_pages(frame)[0])
         for offset, value in ((12, 1), (20, 1), (6, 0)):
             with self.subTest(offset=offset), self.assertRaisesRegex(ValueError, 'identity mismatch'):
                 Assembler().push(to_symbols(with_crc(changed(raw, offset, value))))
-        invalid = with_crc(changed(raw, 32 + 31, 1))
-        with self.assertRaisesRegex(ValueError, 'reserved header'):
+        invalid = with_crc(changed(raw, 32 + 5, 1))
+        with self.assertRaisesRegex(ValueError, 'not an MCV2 version 3'):
             Assembler().push(to_symbols(invalid))
-        # A page may hold 32 bytes even though those bytes cannot hold a complete v3 index.
-        header = PAGE_HEADER.pack(b'MCP1', 1, 6, 1, 1, 0, 0, 1, 0, 32, 0)
-        symbols = to_symbols(with_crc(header + bytes(32)))
-        self.assertEqual(32, read_page(symbols).frame_bytes)
+        # A page may hold 20 bytes even though those bytes cannot hold a complete v3 index.
+        header = PAGE_HEADER.pack(b'MCP1', 1, 6, 1, 1, 0, 0, 1, 0, 20, 0)
+        symbols = to_symbols(with_crc(header + bytes(20)))
+        self.assertEqual(20, read_page(symbols).frame_bytes)
         with self.assertRaises(ValueError):
             Assembler().push(symbols)
 

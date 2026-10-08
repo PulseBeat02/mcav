@@ -23,10 +23,12 @@ import shader_timing  # noqa: E402
 
 def frame(keyframe, version=3):
     """The header of a 64x32 frame, which is all shader_timing reads of a frame itself."""
+    if version == 3:
+        return struct.pack("<4sIHHII", b"MCV2", 3, 64, 32, 1 if keyframe else 2, 1)
     data = bytearray(32)
     data[:4] = b"MCV2"
     data[4] = version
-    data[5 if version == 3 else 6] = int(keyframe)
+    data[6] = int(keyframe)
     struct.pack_into("<HH", data, 8, 64, 32)
     return bytes(data)
 
@@ -143,7 +145,7 @@ class TimerAccountingTest(unittest.TestCase):
         self.assertEqual(4.0, sum(times.values()))
         self.assertEqual(["mcav:mcv2_previous_0", "mcav:mcv2_state_0", "minecraft:entity_outline"], drawn)
 
-    def test_version_three_flags_classify_keyframes_and_p_frames_separately(self):
+    def test_version_three_ids_classify_keyframes_and_p_frames_separately(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "timings.json"
             self.assertEqual(0, run("--json", str(path)))

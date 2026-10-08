@@ -142,7 +142,7 @@ def main():
         width, height = struct.unpack_from("<HH", frames[0], 8)
         chain = TimedChain(context, width, height, arguments.slots)
         pages = [make_pages(frame, shader_check.STREAM_ID, 6) for frame in frames]
-        keyframes = [bool(frame[5 if frame[4] == 3 else 6] & 1) for frame in frames]
+        keyframes = [frame[12:16] == frame[16:20] if frame[4] == 3 else bool(frame[6] & 1) for frame in frames]
         if arguments.spirv:
             chain.compiled = shader_check.compile_via_spirv(chain.includes, arguments.spirv)
         first_pictures = None

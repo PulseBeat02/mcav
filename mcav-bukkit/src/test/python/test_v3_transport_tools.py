@@ -32,7 +32,7 @@ from mcvideo.v3 import pack_frame
 
 class StripTest(unittest.TestCase):
     def test_rgb_strip_returns_the_exact_six_bit_symbols(self):
-        frame = pack_frame(1, 1, 7, 7, True, (1, 2, 3), {})
+        frame = pack_frame(1, 1, 7, 7, {})
         symbols = make_pages(frame, 5)[0]
         padded = np.zeros(16384, np.uint32)
         padded[:len(symbols)] = np.frombuffer(symbols, np.uint8)
@@ -49,7 +49,7 @@ class StripTest(unittest.TestCase):
         for symbols in (np.zeros(0, np.uint8), np.zeros(42, np.uint8), np.zeros(16384, np.uint8)):
             with self.assertRaises(ValueError):
                 strip_check.read_strip_page(symbols)
-        frame = pack_frame(1, 1, 0, 0, True, (0, 0, 0), {})
+        frame = pack_frame(1, 1, 0, 0, {})
         damaged = np.frombuffer(make_pages(frame)[0], np.uint8).copy()
         damaged[50] ^= 1
         with self.assertRaisesRegex(ValueError, 'CRC'):

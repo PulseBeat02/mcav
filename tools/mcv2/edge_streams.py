@@ -38,10 +38,8 @@ def rbytes(randomizer, count):
     return bytes(randomizer.randrange(256) for _ in range(count))
 
 
-def compact_record(randomizer, kind=None, form=None):
-    kind = randomizer.randrange(3) if kind is None else kind
-    form = randomizer.randrange(3) if form is None else form
-    return bytes([kind | form << 4]) + rbytes(randomizer, form + fmt.BODY_BYTES[kind])
+def compact_record(randomizer):
+    return rbytes(randomizer, fmt.COMPACT_BYTES)
 
 
 def pattern_record(randomizer, size):
@@ -61,7 +59,7 @@ def leaf(randomizer, size, keyframe, mode=None):
         return Node(mode, record=rbytes(randomizer, 6 + size * size // 8))
     if mode == fmt.PATTERN:
         return Node(mode, record=pattern_record(randomizer, size))
-    return Node(fmt.COMPACT, randomizer.randrange(8), compact_record(randomizer))
+    return Node(fmt.COMPACT, randomizer.randrange(fmt.MAX_QUANTIZER + 1), compact_record(randomizer))
 
 
 def tree(randomizer, size, keyframe, split_chance=0.65):
@@ -78,8 +76,7 @@ def random_stream(randomizer, width=None, height=None, frame_count=6):
     for frame_id in range(frame_count):
         keyframe = frame_id == 0 or randomizer.random() < 0.2
         roots = {i: tree(randomizer, 32, keyframe) for i in range(count) if randomizer.random() > 0.2}
-        stream.append(pack_frame(width, height, frame_id, frame_id if keyframe else frame_id - 1, keyframe,
-                                 tuple(rbytes(randomizer, 3)) if keyframe else (0, 0, 0), roots))
+        stream.append(pack_frame(width, height, frame_id, frame_id if keyframe else frame_id - 1, roots))
     return stream
 
 
@@ -94,16 +91,15 @@ def mode_stream(randomizer):
     nodes = []
     for size in (8, 16, 32):
         nodes.extend(repeated(leaf(randomizer, size, False, mode), size) for mode in range(fmt.COMPACT))
-        for kind in range(3):
-            for form in range(3):
-                for q in range(8):
-                    nodes.append(repeated(Node(fmt.COMPACT, q, compact_record(randomizer, kind, form)), size))
+        for q in range(fmt.MAX_QUANTIZER + 1):
+            for vector, luma in ((b'\0\0', rbytes(randomizer, 8)), (b'\x80\x7f', bytes([0x77]) * 8),
+                                 (b'\x7f\x80', bytes([0x88]) * 8), (rbytes(randomizer, 2), rbytes(randomizer, 8))):
+                nodes.append(repeated(Node(fmt.COMPACT, q, vector + luma), size))
     height = (len(nodes) + 15) // 16 * 32
     key_roots = {i: repeated(leaf(randomizer, size, True, mode), size)
                  for i, (size, mode) in enumerate((size, mode) for size in (8, 16, 32)
                                                    for mode in (fmt.SKIP, fmt.SOLID, fmt.PALETTE, fmt.PATTERN))}
-    return [pack_frame(512, height, 0, 0, True, (47, 91, 133), key_roots),
-            pack_frame(512, height, 1, 0, False, (0, 0, 0), dict(enumerate(nodes)))]
+    return [pack_frame(512, height, 0, 0, key_roots), pack_frame(512, height, 1, 0, dict(enumerate(nodes)))]
 
 
 def pattern_stream(randomizer):
@@ -118,7 +114,7 @@ def pattern_stream(randomizer):
                 index += 1
     swapped = {i: Node(fmt.SKIP) if i % 3 == 0 else repeated(Node(fmt.PATTERN, record=pattern_record(randomizer, 8)), 8)
                for i in roots}
-    return [pack_frame(256, 96, 0, 0, True, (5, 6, 7), roots), pack_frame(256, 96, 1, 0, False, (0, 0, 0), swapped)]
+    return [pack_frame(256, 96, 0, 0, roots), pack_frame(256, 96, 1, 0, swapped)]
 
 
 def build_streams(seed=DEFAULT_SEED):
@@ -127,27 +123,25 @@ def build_streams(seed=DEFAULT_SEED):
     for name, width, height in [('tiny', 1, 1), ('vertical', 1, 97), ('horizontal', 97, 1), ('cropped', 97, 65),
                                 ('directory', 4096, 65)]:
         streams[f'edge-{name}.mcs'] = random_stream(randomizer, width, height)
-    streams['edge-absent.mcs'] = [pack_frame(33, 17, 0, 0, True, (21, 45, 89), {}),
-                                 pack_frame(33, 17, 1, 0, False, (0, 0, 0), {})]
-    motion = [pack_frame(33, 17, 0, 0, True, (4, 50, 150), {0: Node(fmt.SOLID, record=b'\xff\x80\0')})]
+    streams['edge-absent.mcs'] = [pack_frame(33, 17, 0, 0, {}), pack_frame(33, 17, 1, 0, {})]
+    motion = [pack_frame(33, 17, 0, 0, {0: Node(fmt.SOLID, record=b'\xff\x80\0'), 1: Node(fmt.SOLID, record=b'\4\x32\x96')})]
     for index, vector in enumerate((b'\x80\x7f', b'\x7f\x80', b'\x80\x80', b'\x7f\x7f'), 1):
-        motion.append(pack_frame(33, 17, index, index - 1, False, (0, 0, 0),
+        motion.append(pack_frame(33, 17, index, index - 1,
                                  {0: Node(fmt.MOTION, record=vector),
-                                  1: repeated(Node(fmt.COMPACT, 2, b'\x20' + vector + b'\0'), 8)}))
+                                  1: repeated(Node(fmt.COMPACT, 2, vector + bytes(8)), 8)}))
     streams['edge-motion.mcs'] = motion
     long_roots = {i: Node(fmt.SPLIT, children=tuple(Node(fmt.SPLIT, children=tuple(
-        Node(fmt.COMPACT, (i + j) % 8, compact_record(randomizer, 1, 2 if j % 4 else j % 3))
+        Node(fmt.COMPACT, (i + j) % (fmt.MAX_QUANTIZER + 1), compact_record(randomizer))
         for j in range(4))) for _ in range(4))) for i in range(440)}
-    streams['edge-long-walk.mcs'] = [pack_frame(1024, 448, 0, 0, True, (101, 123, 145), {}),
-                                    pack_frame(1024, 448, 1, 0, False, (0, 0, 0), long_roots)]
+    streams['edge-long-walk.mcs'] = [pack_frame(1024, 448, 0, 0, {}), pack_frame(1024, 448, 1, 0, long_roots)]
     roots = {i: repeated(Node(fmt.SKIP), 8) for i in range(4086)}
-    streams['edge-max-splits.mcs'] = [pack_frame(4096, 4096, 0, 0, True, (7, 11, 13), roots)]
+    streams['edge-max-splits.mcs'] = [pack_frame(4096, 4096, 0, 0, roots)]
     roots = {i: Node(fmt.PALETTE, record=rbytes(randomizer, 134)) for i in range(965)}
     roots[965] = Node(fmt.PATTERN, record=pattern_record(randomizer, 32))
-    roots.update({i: Node(fmt.SOLID, record=rbytes(randomizer, 3)) for i in range(966, 991)})
-    streams['edge-length-limit.mcs'] = [pack_frame(1024, 1024, 0, 0, True, (0, 0, 0), roots)]
+    roots.update({i: Node(fmt.SOLID, record=rbytes(randomizer, 3)) for i in range(966, 993)})
+    streams['edge-length-limit.mcs'] = [pack_frame(1024, 1024, 0, 0, roots)]
     streams['edge-wrap.mcs'] = [pack_frame(1, 1, frame_id, frame_id if index == 0 else frame_id - 1 & fmt.ID_MASK,
-                                          index == 0, (27, 64, 128) if index == 0 else (0, 0, 0), {})
+                                          {0: Node(fmt.SOLID, record=b'\x1b\x40\x80')} if index == 0 else {})
                                for index, frame_id in enumerate((0xFFFFFFFE, 0xFFFFFFFF, 0, 1))]
     return streams
 
