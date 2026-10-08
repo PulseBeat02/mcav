@@ -26,9 +26,7 @@ package me.brandonli.mcav.json.ytdlp.format;
  */
 public class Heatmap {
 
-  Heatmap() {
-    // populated by Gson
-  }
+  Heatmap() {}
 
   /** Where the entry starts, in seconds from the start of the video. */
   public double start_time;

@@ -145,9 +145,7 @@ final class ScriptedFrameGrabber extends FrameGrabber {
   }
 
   @Override
-  public void trigger() {
-    // nothing to trigger
-  }
+  public void trigger() {}
 
   /**
    * Plays the script up to its next frame.

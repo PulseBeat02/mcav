@@ -255,7 +255,6 @@ final class FFmpegPlayerTest {
   private static void assertPausingHoldsTheFrames(final FFmpegPlayer player, final AtomicInteger frames) throws InterruptedException {
     final boolean paused = player.pause();
     assertTrue(paused);
-    // the frame that was being rendered when pausing may still arrive, so the count is taken once it settled
     Thread.sleep(200);
     final int pausedAt = frames.get();
     Thread.sleep(500);
@@ -282,7 +281,6 @@ final class FFmpegPlayerTest {
     final AudioFilter audioCounter = countingBytes(audioBytes);
     attach(player, (_, _) -> frames.incrementAndGet() > 0, audioCounter);
 
-    // the video has no audio track, so every sample must come from the separate audio file
     final Path silent = TestMedia.silentVideo();
     final Path sound = TestMedia.audio(2.0);
     final Source video = file(silent);

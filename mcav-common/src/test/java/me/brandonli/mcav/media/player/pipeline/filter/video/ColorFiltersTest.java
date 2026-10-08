@@ -219,8 +219,6 @@ final class ColorFiltersTest {
       final int neighbor = pixelAt(image, 1, 2);
       final int distant = pixelAt(image, 0, 0);
       assertTrue(modified);
-      // Radius one includes the center and four axial neighbors. Huge sigmas make
-      // the five weights equal at byte precision: one red 100 / five samples = 20.
       assertEquals(0xFF140000, center);
       assertEquals(0xFF140000, neighbor);
       assertEquals(0xFF000000, distant);

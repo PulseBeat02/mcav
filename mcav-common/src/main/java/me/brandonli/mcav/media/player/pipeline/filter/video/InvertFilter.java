@@ -28,9 +28,7 @@ public class InvertFilter extends MatVideoFilter {
   /**
    * Constructs a new invert filter.
    */
-  public InvertFilter() {
-    // stateless
-  }
+  public InvertFilter() {}
 
   /**
    * Inverts every channel of the frame in place.

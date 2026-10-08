@@ -299,7 +299,6 @@ final class PlaybackSessionTest {
   void theThreadsOfASessionAreDaemonsWhateverThreadStartsIt() throws Exception {
     final PlaybackSession session = this.session(threePicturesWithSound(), 0L, true);
     final AtomicReference<Exception> failure = new AtomicReference<>();
-    // a thread that is no daemon, as a server's main thread: what it starts is no daemon unless made so
     final Thread starter = Thread.ofPlatform()
       .daemon(false)
       .start(() -> {
@@ -560,7 +559,6 @@ final class PlaybackSessionTest {
 
   @Test
   void doesNotCopyPicturesWhileNoPipelineIsAttached() throws Exception {
-    // the rows of this frame are shorter than its width, so copying its picture would fail
     final Frame unreadable = ScriptedFrameGrabber.video(0L);
     unreadable.imageStride = 3;
     final Frame last = ScriptedFrameGrabber.video(400_000L);
@@ -637,7 +635,6 @@ final class PlaybackSessionTest {
   void pacesFramesWithoutTimestampsByTheFrameRate() throws Exception {
     final AtomicInteger frames = new AtomicInteger();
     this.onVideo((_, _) -> frames.incrementAndGet() > 0);
-    // the video reader of OpenCV stamps every frame with zero
     final List<Object> script = frames(5, 0L);
     final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(4, 2, false, script);
     grabber.setFrameRate(10.0);
@@ -693,7 +690,6 @@ final class PlaybackSessionTest {
     final VideoFilter counter = (_, _) -> frames.incrementAndGet() > 0;
     final VideoPipelineStep counting = VideoPipelineStep.of(counter);
     final VideoAttachableCallback detaching = mock(VideoAttachableCallback.class);
-    // the decoder still sees the pipeline, but the renderer finds it detached
     when(detaching.retrieve()).thenReturn(counting).thenReturn(VideoPipelineStep.NO_OP);
     final ScriptedFrameGrabber grabber = videoAt(FRAME_MICROS);
     final PlaybackSession session = this.sessionWithVideoCallback(grabber, detaching);
@@ -722,8 +718,6 @@ final class PlaybackSessionTest {
 
   @Test
   void dropsFramesThatAreTooLate() throws Exception {
-    // the session runs on a clock only the filter moves, so the first frame is exactly on time and the others are
-    // late by exactly the time the filter took, whatever the load of the machine
     final AtomicLong now = new AtomicLong();
     final AtomicInteger frames = new AtomicInteger();
     this.onVideo((_, _) -> {
@@ -769,7 +763,6 @@ final class PlaybackSessionTest {
     final ScriptedFrameGrabber grabber = videoAt(0L, FRAME_MICROS);
     final PlaybackSession session = this.session(grabber, 0L, true);
     session.start();
-    // once the decoder is done, both frames wait in the queue, and only the pause keeps them from being shown
     awaitCondition("the decoder queued every frame", grabber::isClosed);
 
     final int whilePaused = frames.get();
@@ -843,7 +836,6 @@ final class PlaybackSessionTest {
     session.start();
     final boolean rendered = rendering.await(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
     assertTrue(rendered);
-    // one frame is rendered, four wait in the queue, and the decoder blocks on the sixth
     awaitCondition("the queue is full", () -> grabber.getRemainingSteps() == 14);
 
     final long stopStart = System.nanoTime();
@@ -912,7 +904,6 @@ final class PlaybackSessionTest {
     final AtomicLong stopNanos = new AtomicLong(-1L);
     final VideoFilter stopping = stoppingItsOwnSession(holder, frames, stopNanos);
     this.onVideo(stopping);
-    // the decoder is stuck after the first picture, so the session stopping itself waits for it
     final Frame picture = ScriptedFrameGrabber.video(0L);
     final ScriptedFrameGrabber.Delay stuck = new ScriptedFrameGrabber.Delay(1_000L);
     final ScriptedFrameGrabber grabber = ScriptedFrameGrabber.of(picture, stuck);
@@ -1065,7 +1056,6 @@ final class PlaybackSessionTest {
     final Frame firstSound = ScriptedFrameGrabber.audio(0L);
     final Frame laterSound = ScriptedFrameGrabber.audio(500_000L);
     final ScriptedFrameGrabber grabber = ScriptedFrameGrabber.of(firstSound, laterSound);
-    // with a lead of 400 ms, the chunk due 500 ms after the first one goes to the pipeline about 100 ms after it
     final PlaybackSession session = this.sessionWithAudioLead(grabber);
     session.start();
     awaitEnd(session);
@@ -1149,7 +1139,6 @@ final class PlaybackSessionTest {
     final DecodedVideoFrame frame = frameWithPicture();
     final MatImageBuffer picture = frame.getImage();
     final AtomicReference<DecodedVideoFrame> taken = new AtomicReference<>();
-    // the renderer takes the frame between the put of the decoder and its look at the running flag
     final BooleanSupplier renderedThenStopped = () -> {
       final DecodedVideoFrame polled = queue.poll();
       taken.set(polled);
@@ -1258,7 +1247,6 @@ final class PlaybackSessionTest {
       renderer.interrupt();
       return true;
     });
-    // more chunks than the queue holds, so a decoder nobody takes chunks from waits for room
     final List<Object> sounds = new ArrayList<>();
     for (int index = 0; index < 100; index++) {
       final Frame sound = ScriptedFrameGrabber.audio(0L);
@@ -1315,8 +1303,6 @@ final class PlaybackSessionTest {
     final List<String> reports = Collections.synchronizedList(new ArrayList<>());
     final List<Object> script = frames(320, FRAME_MICROS);
     final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(4, 2, false, script);
-    // a lag below zero drops every frame as late, and at a thousand times the speed the ten seconds of video pass in
-    // ten milliseconds, whatever the load of the machine
     final PlaybackSession session = new PlaybackSession(
       factoryOf(grabber),
       null,

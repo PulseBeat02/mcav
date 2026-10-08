@@ -29,8 +29,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public abstract class AbstractAttachableCallback<T> implements AttachableCallback<T> {
 
   private final T fallback;
-  // the attached value, or null while nothing is attached; whether something is attached never depends on how the
-  // attached value compares to the fallback
   private final AtomicReference<@Nullable T> attached;
 
   /**

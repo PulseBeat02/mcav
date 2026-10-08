@@ -47,7 +47,6 @@ public interface DitherPalette {
    * Builds the default map palette ahead of time, so the first dithering operation does not pay for it.
    */
   static void init() {
-    // touching the palette forces the class initialization that builds its lookup tables
     Objects.requireNonNull(DEFAULT_MAP_PALETTE, "Map palette");
   }
 

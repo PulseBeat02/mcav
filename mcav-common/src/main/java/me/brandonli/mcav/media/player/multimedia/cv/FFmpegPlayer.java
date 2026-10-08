@@ -32,9 +32,7 @@ public class FFmpegPlayer extends AbstractVideoPlayerCV {
   /**
    * Constructs a new FFmpeg player.
    */
-  public FFmpegPlayer() {
-    // configured by the base class
-  }
+  public FFmpegPlayer() {}
 
   /**
    * Creates an FFmpeg grabber for a resource, which the player configures and starts.

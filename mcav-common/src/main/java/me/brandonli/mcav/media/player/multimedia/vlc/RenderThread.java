@@ -111,7 +111,6 @@ final class RenderThread {
     final Thread caller = Thread.currentThread();
     final boolean isTargetThread = caller.equals(target);
     if (isTargetThread) {
-      // a pipeline that stops the playback from its own render thread cannot wait for itself
       return;
     }
     try {

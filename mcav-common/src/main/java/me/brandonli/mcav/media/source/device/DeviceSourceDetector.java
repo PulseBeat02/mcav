@@ -29,9 +29,7 @@ public class DeviceSourceDetector implements SourceDetector<DeviceSource> {
   /**
    * Constructs a new detector.
    */
-  public DeviceSourceDetector() {
-    // stateless
-  }
+  public DeviceSourceDetector() {}
 
   /**
    * {@inheritDoc}

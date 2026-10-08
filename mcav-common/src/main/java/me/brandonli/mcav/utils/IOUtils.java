@@ -142,9 +142,7 @@ public final class IOUtils {
     for (int port = firstPort; port <= lastPort; port++) {
       try (final ServerSocket socket = new ServerSocket(port)) {
         return socket.getLocalPort();
-      } catch (final IOException exception) {
-        // the port is in use, try the next one
-      }
+      } catch (final IOException exception) {}
     }
     final String message = String.format(
       Locale.getDefault(Locale.Category.FORMAT),
@@ -394,7 +392,6 @@ public final class IOUtils {
     try {
       return MessageDigest.getInstance(algorithm);
     } catch (final NoSuchAlgorithmException exception) {
-      // every Java runtime is required to provide SHA-1 and SHA-256, so only a wrong name gets here
       throw new IllegalStateException("The Java runtime does not provide " + algorithm, exception);
     }
   }
@@ -696,7 +693,6 @@ public final class IOUtils {
     try {
       resolved = destination.resolve(name);
     } catch (final InvalidPathException exception) {
-      // a name this file system cannot hold, such as one with a NUL character, is as unsafe as one that escapes
       final String message = "Zip entry has a name that is not a path of this system: %s".formatted(name);
       final ZipEntryIntegrityException refused = new ZipEntryIntegrityException(message);
       refused.initCause(exception);

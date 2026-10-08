@@ -64,7 +64,6 @@ final class VolumeFilterTest {
     filter.setVolume(0.5);
     final ByteBuffer buffer = samples((short) 100, (short) -7, (short) 3, (short) 0);
     assertTrue(filter.applyFilter(buffer, METADATA));
-    // -3.5 and 1.5 round half up
     assertArrayEquals(new short[] { 50, -3, 2, 0 }, read(buffer));
     assertEquals(0, buffer.position());
     filter.setVolume(0);

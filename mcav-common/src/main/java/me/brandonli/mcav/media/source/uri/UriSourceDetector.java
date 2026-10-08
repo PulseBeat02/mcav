@@ -30,9 +30,7 @@ public class UriSourceDetector implements SourceDetector<UriSource> {
   /**
    * Constructs a new detector.
    */
-  public UriSourceDetector() {
-    // stateless
-  }
+  public UriSourceDetector() {}
 
   /**
    * {@inheritDoc}

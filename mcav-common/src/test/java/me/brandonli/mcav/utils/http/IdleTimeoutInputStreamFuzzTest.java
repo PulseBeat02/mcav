@@ -68,7 +68,6 @@ final class IdleTimeoutInputStreamFuzzTest {
         assertTrue(withinRange, () -> count + " bytes for a request of " + length);
         received.write(buffer, offset, count);
       }
-      // whatever the caller asked for so far, the rest of the source still arrives
       final byte[] rest = stream.readAllBytes();
       received.write(rest);
     }

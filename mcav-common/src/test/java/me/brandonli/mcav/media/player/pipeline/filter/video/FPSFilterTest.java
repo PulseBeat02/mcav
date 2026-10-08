@@ -38,7 +38,6 @@ final class FPSFilterTest {
   void defaultConstructorUsesTheMonotonicNanosecondClock() throws ReflectiveOperationException {
     final long before = System.nanoTime();
     final FPSFilter filter = new FPSFilter();
-    // Observe the default clock directly so this wiring check needs no elapsed-time deadline.
     final Field clockField = FPSFilter.class.getDeclaredField("clock");
     clockField.setAccessible(true);
     final LongSupplier clock = (LongSupplier) clockField.get(filter);

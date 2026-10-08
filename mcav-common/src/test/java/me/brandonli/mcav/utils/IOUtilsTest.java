@@ -302,7 +302,6 @@ final class IOUtilsTest {
 
   @Test
   void reportsResourcesThatCannotBeFound() {
-    // String is loaded by the bootstrap class loader, which the resource lookup cannot use
     assertThrows(UncheckedIOException.class, () -> IOUtils.getResourceAsInputStream("installers/empty.json", String.class));
     assertThrows(UncheckedIOException.class, () -> IOUtils.getResourceAsInputStream("installers/missing.json"));
     assertThrows(UncheckedIOException.class, () -> IOUtils.getResourceAsStreamReader("installers/missing.json"));
@@ -331,7 +330,6 @@ final class IOUtilsTest {
 
   @Test
   void refusesADirectoryEntryThatCarriesData() throws IOException {
-    // inflating it would go unmeasured: the size budgets count the files written
     final Path archive = this.writeZip("folder/", "x".repeat(1 << 16));
     final Path destination = this.directory.resolve("extracted");
     final ZipEntryIntegrityException refused = assertThrows(ZipEntryIntegrityException.class, () -> IOUtils.unzip(archive, destination));

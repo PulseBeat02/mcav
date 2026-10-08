@@ -1,6 +1,4 @@
 <?xml version="1.0"?>
-<!-- A Haar cascade whose only weak classifier always votes 1, which never reaches the stage threshold of 2, so no
-     window is ever accepted. -->
 <opencv_storage>
 <cascade type_id="opencv-cascade-classifier"><stageType>BOOST</stageType>
   <featureType>HAAR</featureType>
