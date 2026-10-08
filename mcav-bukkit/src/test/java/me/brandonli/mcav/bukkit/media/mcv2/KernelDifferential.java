@@ -25,7 +25,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * One kernel, run by two sets of kernels on the same inputs: the differential test of the native kernels against the
  * Java ones, which the property test drives from seeds and the fuzz test from fuzzed bytes. Every kernel gets inputs
- * in the ranges the encoder gives it - channels 0 to 255, four-times predictions 0 to 1020, any record bytes, blocks of
+ * in the ranges the encoder gives it - channels 0 to 255, predictions 0 to 255, any record bytes, blocks of
  * every size, the compact grid, limits that stop a candidate part way, pictures whose edges a block or a motion
  * vector crosses - and now and then values far outside a picture's, whose sums overflow an int in the clusterings and
  * that are no bytes in the motion search; every output, integer or floating-point, must be identical to the bit.
@@ -163,7 +163,7 @@ final class KernelDifferential {
     final int channels
   ) {
     final int[] source = ints(random, channels, 0, 255);
-    final int[] prediction = ints(random, channels, 0, 1020);
+    final int[] prediction = ints(random, channels, 0, 255);
     final double rate = random.next(0, 100_000) / 7.0;
     // an infinite limit, or one some candidates cross part way through the block
     final double limit = random.next(0, 3) == 0 ? Double.POSITIVE_INFINITY : rate + random.next(0, size * size * 3000);
@@ -188,10 +188,9 @@ final class KernelDifferential {
       }
       case 2 -> {
         name = "palette";
-        final int offset = random.next(0, 3);
-        final byte[] record = random.bytes(offset + 6 + (size * size) / 8 + random.next(0, 2));
-        finishedJava = java.palette(record, offset, size, expected);
-        finishedOther = other.palette(record, offset, size, actual);
+        final byte[] record = random.bytes(6 + (size * size) / 8 + random.next(0, 2));
+        finishedJava = java.palette(record, size, expected);
+        finishedOther = other.palette(record, size, actual);
       }
       default -> {
         name = "compact";
@@ -270,11 +269,11 @@ final class KernelDifferential {
       random.next(0, 7) == 0
         ? ints(random, channels, EXTREME_LOW, EXTREME_HIGH)
         : ints(random, channels, low, Math.min(255, low + (random.next(0, 1) == 0 ? 8 : 255)));
-    final float[] expected = new float[6];
-    final float[] actual = new float[6];
+    final int[] expected = new int[6];
+    final int[] actual = new int[6];
     java.cluster(source, size, expected);
     other.cluster(source, size, actual);
-    return unless(same(expected, actual), "cluster");
+    return unless(Arrays.equals(expected, actual), "cluster");
   }
 
   private static @Nullable String palettes(
@@ -292,18 +291,18 @@ final class KernelDifferential {
         System.arraycopy(source, 0, source, row * size * 3, size * 3);
       }
     }
-    final float[] endpoints = new float[6];
+    final int[] endpoints = new int[6];
     for (int index = 0; index < endpoints.length; index++) {
-      endpoints[index] = random.next(-2000, 257_000) / 1000.0f;
+      endpoints[index] = random.next(0, 255);
     }
     final int[] expectedColors = new int[6];
     final int[] actualColors = new int[6];
     final byte[] expected = new byte[size * size];
     final byte[] actual = new byte[size * size];
     if (kernel == 7) {
-      java.finish(source, size * size, endpoints, expectedColors, expected);
-      other.finish(source, size * size, endpoints, actualColors, actual);
-      return unless(Arrays.equals(expectedColors, actualColors) && Arrays.equals(expected, actual), "finish");
+      java.finishPalette(source, size * size, endpoints, expectedColors, expected);
+      other.finishPalette(source, size * size, endpoints, actualColors, actual);
+      return unless(Arrays.equals(expectedColors, actualColors) && Arrays.equals(expected, actual), "finishPalette");
     }
     final boolean held = java.finishPattern(source, size, endpoints, expectedColors, expected);
     final boolean holds = other.finishPattern(source, size, endpoints, actualColors, actual);
@@ -367,7 +366,7 @@ final class KernelDifferential {
       }
       default -> {
         final int pixels = random.next(0, count);
-        final int[] prediction = ints(random, channels, 0, 1020);
+        final int[] prediction = ints(random, channels, 0, 255);
         final float[] expected = floats(random, count + 2);
         final float[] actual = expected.clone();
         java.residualTarget(source, prediction, pixels, expected);

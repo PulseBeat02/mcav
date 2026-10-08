@@ -26,8 +26,8 @@ final class MCV2ReconstructionTest {
 
   @Test
   void roundsHalvesUpAndClamps() {
-    for (final float[] sample : new float[][] { { -3, 0 }, { 300, 255 }, { 1.5f, 2 }, { 2.5f, 3 }, { 2.49f, 2 } }) {
-      assertEquals((int) sample[1], Mcv2Internals.invoke(MCV2.class, null, "rgb8", new Class<?>[] { float.class }, sample[0]));
+    for (final int[] sample : new int[][] { { -768, 0 }, { 76800, 255 }, { 384, 2 }, { 640, 3 }, { 637, 2 } }) {
+      assertEquals(sample[1], Mcv2Decoder.round(sample[0], 8));
     }
   }
 
@@ -37,13 +37,13 @@ final class MCV2ReconstructionTest {
     final Kernels kernels = Mcv2Internals.javaKernels();
     final int[] out = new int[8 * 8 * 3];
     kernels.predict(reference, 2, 2, 0, 0, 8, 1, 1, out);
-    assertEquals(4 * 120, out[0]);
+    assertEquals(120, out[0]);
     kernels.predict(reference, 2, 2, 0, 0, 8, 1, 0, out);
-    assertEquals(4 * 40, out[0]);
+    assertEquals(40, out[0]);
     kernels.predict(reference, 2, 2, 0, 0, 8, 0, 1, out);
-    assertEquals(4 * 80, out[0]);
+    assertEquals(80, out[0]);
     kernels.predict(reference, 2, 2, 0, 0, 8, -5, -5, out);
     assertEquals(0, out[0]);
-    assertEquals(4 * 120, out[(7 * 8 + 7) * 3]);
+    assertEquals(120, out[(7 * 8 + 7) * 3]);
   }
 }

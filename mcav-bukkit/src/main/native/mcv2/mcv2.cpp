@@ -39,7 +39,7 @@
 #endif
 
 // The version of this interface: Java refuses a library whose version differs from the one it was written for.
-#define MCV2_ABI 4
+#define MCV2_ABI 5
 
 // The dispatch levels, as bits of mcv2_cpu_levels().
 #define MCV2_LEVEL_SCALAR 1
@@ -62,8 +62,7 @@
     (const int32_t *prediction, int32_t size, int32_t *out, const int32_t *source, double rate, double limit))         \
   X(int64_t, solid, (int32_t color, int32_t size, int32_t * out, const int32_t *source, double rate, double limit))    \
   X(int64_t, palette,                                                                                                  \
-    (const int8_t *record, int32_t offset, int32_t size, int32_t *out, const int32_t *source, double rate,             \
-     double limit))                                                                                                    \
+    (const int8_t *record, int32_t size, int32_t *out, const int32_t *source, double rate, double limit))              \
   X(int64_t, compact,                                                                                                  \
     (const int32_t *prediction, const int8_t *record, int32_t q, int32_t size, int32_t *out, const int32_t *source,    \
      double rate, double limit))                                                                                       \
@@ -71,7 +70,7 @@
     (const uint8_t *reference, int32_t width, int32_t height, int32_t x, int32_t y, int32_t size, int32_t mx,          \
      int32_t my, int32_t *out))                                                                                        \
   X(void, fit, (const float *values, int32_t size, const float *matrix, float *out))                                   \
-  X(void, cluster, (const int32_t *source, int32_t size, float *endpoints))                                            \
+  X(void, cluster, (const int32_t *source, int32_t size, int32_t *endpoints))                                          \
   X(void, assign, (const int32_t *source, int32_t count, const int32_t *colors, int8_t *selectors))                    \
   X(int32_t, assign_pattern, (const int32_t *source, int32_t size, const int32_t *colors, int8_t *selectors))          \
   X(int32_t, seeded,                                                                                                   \
@@ -830,7 +829,6 @@ constexpr Axes AXES = make_axes();
 
 inline int32_t shift_of(int32_t size) { return 2 * (log2i(size) + 1); }
 
-// MCV2.roundChannel: floor(clamp(value / 2^shift, 0, 255) + 0.5) of an exact fixed-point value
 inline VI round(VI value, int32_t shift) {
   return VI::min(VI::max((value + VI::set1(1 << (shift - 1))).sar(shift), VI::zero()), VI::set1(MAX_CHANNEL));
 }
@@ -889,19 +887,18 @@ inline void vertical(const int32_t *rows, int32_t size, int32_t y, int32_t *line
   }
 }
 
-// MCV2.JavaKernels.predicted: a four-times prediction back to whole channels
-int64_t predicted(const int32_t *prediction, int32_t size, int32_t *out, Measure m) {
-  const int32_t n = size * CHANNELS;
-  for (int32_t y = 0; y < size; y++) {
-    const int32_t from = y * n;
-    for (int32_t i = from; i < from + n; i += VI::N) {
-      VI::load(prediction + i).sar(2).store(out + i);
+int64_t predicted(const int32_t *prediction, int32_t size, int32_t *out, Measure measure) {
+  const int32_t row_length = size * CHANNELS;
+  for (int32_t row_index = 0; row_index < size; row_index++) {
+    const int32_t from = row_index * row_length;
+    for (int32_t offset = from; offset < from + row_length; offset += VI::N) {
+      VI::load(prediction + offset).store(out + offset);
     }
-    if (!row(m, out, from, size)) {
+    if (!row(measure, out, from, size)) {
       return -1;
     }
   }
-  return m.distortion;
+  return measure.distortion;
 }
 
 // MCV2.JavaKernels.solid
@@ -921,89 +918,87 @@ int64_t solid(int32_t color, int32_t size, int32_t *out, Measure m) {
   return m.distortion;
 }
 
-// MCV2.JavaKernels.palette: two RGB endpoints, then one selector bit per pixel
-int64_t palette(const int8_t *record, int32_t offset, int32_t size, int32_t *out, Measure m) {
-  const int8_t *c = record + offset;
-  const VI r0 = VI::set1((uint8_t)c[0]);
-  const VI g0 = VI::set1((uint8_t)c[1]);
-  const VI b0 = VI::set1((uint8_t)c[2]);
-  const VI dr = VI::set1((uint8_t)c[3] - (uint8_t)c[0]);
-  const VI dg = VI::set1((uint8_t)c[4] - (uint8_t)c[1]);
-  const VI db = VI::set1((uint8_t)c[5] - (uint8_t)c[2]);
-  for (int32_t y = 0; y < size; y++) {
-    for (int32_t x = 0; x < size; x += VI::N) {
-      const int32_t i = y * size + x;
-      const VI bit = VI::bits(c + SELECTORS_AT, i);
-      VI::store3(out + i * CHANNELS, r0 + (dr & bit), g0 + (dg & bit), b0 + (db & bit));
+int64_t palette(const int8_t *record, int32_t size, int32_t *out, Measure measure) {
+  const VI first_red = VI::set1((uint8_t)record[0]);
+  const VI first_green = VI::set1((uint8_t)record[1]);
+  const VI first_blue = VI::set1((uint8_t)record[2]);
+  const VI red_delta = VI::set1((uint8_t)record[3] - (uint8_t)record[0]);
+  const VI green_delta = VI::set1((uint8_t)record[4] - (uint8_t)record[1]);
+  const VI blue_delta = VI::set1((uint8_t)record[5] - (uint8_t)record[2]);
+  for (int32_t row_index = 0; row_index < size; row_index++) {
+    for (int32_t column = 0; column < size; column += VI::N) {
+      const int32_t pixel = row_index * size + column;
+      const VI bit = VI::bits(record + SELECTORS_AT, pixel);
+      VI::store3(out + pixel * CHANNELS, first_red + (red_delta & bit), first_green + (green_delta & bit),
+                 first_blue + (blue_delta & bit));
     }
-    if (!row(m, out, y * size * CHANNELS, size)) {
+    if (!row(measure, out, row_index * size * CHANNELS, size)) {
       return -1;
     }
   }
-  return m.distortion;
+  return measure.distortion;
 }
 
-int64_t compact(const int32_t *prediction, const int8_t *record, int32_t q, int32_t size, int32_t *out, Measure m) {
+int64_t compact(const int32_t *prediction, const int8_t *record, int32_t quantizer, int32_t size, int32_t *out,
+                Measure measure) {
   int32_t nodes[GRID * GRID];
-  for (int32_t i = 0; i < GRID * GRID; i++) {
-    const int32_t packed = (uint8_t)record[2 + i / 2];
-    const int32_t nibble = (packed >> ((i % 2) * NIBBLE_BITS)) & NIBBLE_MASK;
+  for (int32_t index = 0; index < GRID * GRID; index++) {
+    const int32_t packed = (uint8_t)record[2 + index / 2];
+    const int32_t nibble = (packed >> ((index % 2) * NIBBLE_BITS)) & NIBBLE_MASK;
     // Mcv2Decoder's signed 4-bit value
-    nodes[i] = nibble >= 8 ? nibble - 16 : nibble;
+    nodes[index] = nibble >= 8 ? nibble - 16 : nibble;
   }
-  int32_t rows0[GRID * ROOT_SIZE];
-  horizontal(nodes, size, rows0);
+  int32_t rows[GRID * ROOT_SIZE];
+  horizontal(nodes, size, rows);
   const int32_t shift = shift_of(size);
-  const VI quarter = VI::set1(size * size);
+  const VI scale = VI::set1(4 * size * size);
   int32_t luma[ROOT_SIZE];
-  for (int32_t y = 0; y < size; y++) {
-    vertical(rows0, size, y, luma);
-    const int32_t from = y * size * CHANNELS;
-    for (int32_t x = 0; x < size; x += VI::N) {
-      const VI ys = VI::load(luma + x).shl(q);
-      VI pr, pg, pb;
-      VI::load3(prediction + from + x * CHANNELS, pr, pg, pb);
-      VI::store3(out + from + x * CHANNELS, round(pr * quarter + ys, shift), round(pg * quarter + ys, shift),
-                 round(pb * quarter + ys, shift));
+  for (int32_t row_index = 0; row_index < size; row_index++) {
+    vertical(rows, size, row_index, luma);
+    const int32_t from = row_index * size * CHANNELS;
+    for (int32_t column = 0; column < size; column += VI::N) {
+      const VI residual = VI::load(luma + column).shl(quantizer);
+      VI predicted_red, predicted_green, predicted_blue;
+      VI::load3(prediction + from + column * CHANNELS, predicted_red, predicted_green, predicted_blue);
+      VI::store3(out + from + column * CHANNELS, round(predicted_red * scale + residual, shift),
+                 round(predicted_green * scale + residual, shift), round(predicted_blue * scale + residual, shift));
     }
-    if (!row(m, out, from, size)) {
+    if (!row(measure, out, from, size)) {
       return -1;
     }
   }
-  return m.distortion;
+  return measure.distortion;
 }
 
-// MCV2.JavaKernels.predict: four times each channel of a block moved by whole pixels, coordinates clamped
-void predict(const uint8_t *reference, int32_t width, int32_t height, int32_t x, int32_t y, int32_t size, int32_t mx,
-             int32_t my, int32_t *out) {
-  const int32_t left = x + mx;
-  const int32_t top = y + my;
-  const int32_t n = size * CHANNELS;
+void predict(const uint8_t *reference, int32_t width, int32_t height, int32_t block_left, int32_t block_top,
+             int32_t size, int32_t motion_x, int32_t motion_y, int32_t *out) {
+  const int32_t left = block_left + motion_x;
+  const int32_t top = block_top + motion_y;
+  const int32_t row_length = size * CHANNELS;
   if (left >= 0 && top >= 0 && left + size <= width && top + size <= height) {
-    for (int32_t py = 0; py < size; py++) {
-      const uint8_t *a = reference + ((int64_t)(top + py) * width + left) * CHANNELS;
-      int32_t *o = out + py * n;
-      for (int32_t i = 0; i < n; i += VI::N) {
-        VI::loadu8(a + i).shl(2).store(o + i);
+    for (int32_t row_index = 0; row_index < size; row_index++) {
+      const uint8_t *source = reference + ((int64_t)(top + row_index) * width + left) * CHANNELS;
+      int32_t *target = out + row_index * row_length;
+      for (int32_t offset = 0; offset < row_length; offset += VI::N) {
+        VI::loadu8(source + offset).store(target + offset);
       }
     }
     return;
   }
-  for (int32_t py = 0; py < size; py++) {
-    const int32_t sy = clamp32(top + py, 0, height - 1);
-    for (int32_t px = 0; px < size; px++) {
-      const int32_t sx = clamp32(left + px, 0, width - 1);
-      const uint8_t *a = reference + ((int64_t)sy * width + sx) * CHANNELS;
-      int32_t *o = out + (py * size + px) * CHANNELS;
-      for (int32_t c = 0; c < CHANNELS; c++) {
-        o[c] = 4 * a[c];
+  for (int32_t row_index = 0; row_index < size; row_index++) {
+    const int32_t source_row = clamp32(top + row_index, 0, height - 1);
+    for (int32_t column = 0; column < size; column++) {
+      const int32_t source_column = clamp32(left + column, 0, width - 1);
+      const uint8_t *source = reference + ((int64_t)source_row * width + source_column) * CHANNELS;
+      int32_t *target = out + (row_index * size + column) * CHANNELS;
+      for (int32_t channel = 0; channel < CHANNELS; channel++) {
+        target[channel] = source[channel];
       }
     }
   }
 }
 
-// MCV2.fitGrid: out[i][j] = sum over y, x of M[i][y] v[y][x] M[j][x], every sum in Java's order. The first pass, the
-// heavy one, keeps one row's sum per lane: it reads the channel transposed, so a lane's next value is contiguous.
+// Keep Java's summation order: each lane accumulates one transposed row so its next value is contiguous.
 void fit(const float *values, int32_t size, const float *matrix, float *out) {
   const int32_t grid = GRID;
   float plane[ROOT_SIZE * ROOT_SIZE];
@@ -1061,20 +1056,6 @@ void fit(const float *values, int32_t size, const float *matrix, float *out) {
   }
 }
 
-// Java's (int) of a float: 0 for NaN, the nearest end beyond the int range, else truncated
-inline int32_t java_int(float value) {
-  if (value != value) {
-    return 0;
-  }
-  if (value >= 2147483648.0f) {
-    return INT32_MAX;
-  }
-  if (value <= -2147483648.0f) {
-    return INT32_MIN;
-  }
-  return (int32_t)value;
-}
-
 // whether count values between low and high sum in int lanes, and the lanes to their total, without overflowing, so
 // they sum as Java's longs do
 inline bool lanes_fit(int32_t low, int32_t high, int32_t count) {
@@ -1082,94 +1063,97 @@ inline bool lanes_fit(int32_t low, int32_t high, int32_t count) {
   return largest * ((int64_t)count + VI::N) <= INT32_MAX;
 }
 
-// one of MCV2.cluster's Lloyd iterations, one pixel at a time, in longs as Java sums
-void cluster_pixels(const int32_t *source, int32_t size, int32_t step, float *endpoints) {
-  const int32_t r0 = java_int(endpoints[0]);
-  const int32_t g0 = java_int(endpoints[1]);
-  const int32_t b0 = java_int(endpoints[2]);
-  const int32_t r1 = java_int(endpoints[3]);
-  const int32_t g1 = java_int(endpoints[4]);
-  const int32_t b1 = java_int(endpoints[5]);
+void cluster_pixels(const int32_t *source, int32_t size, int32_t step, int32_t *endpoints) {
+  const int32_t first_red = endpoints[0];
+  const int32_t first_green = endpoints[1];
+  const int32_t first_blue = endpoints[2];
+  const int32_t second_red = endpoints[3];
+  const int32_t second_green = endpoints[4];
+  const int32_t second_blue = endpoints[5];
   int64_t sums[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-  for (int32_t y = 0; y < size; y += step) {
-    for (int32_t x = 0; x < size; x += step) {
-      const int32_t at = (y * size + x) * CHANNELS;
-      const int32_t r = source[at];
-      const int32_t g = source[at + 1];
-      const int32_t b = source[at + 2];
-      const int32_t e0 =
-          wrap_add(wrap_add(wrap_mul(wrap_sub(r, r0), wrap_sub(r, r0)), wrap_mul(wrap_sub(g, g0), wrap_sub(g, g0))),
-                   wrap_mul(wrap_sub(b, b0), wrap_sub(b, b0)));
-      const int32_t e1 =
-          wrap_add(wrap_add(wrap_mul(wrap_sub(r, r1), wrap_sub(r, r1)), wrap_mul(wrap_sub(g, g1), wrap_sub(g, g1))),
-                   wrap_mul(wrap_sub(b, b1), wrap_sub(b, b1)));
-      const int32_t k = e1 < e0 ? 1 : 0;
-      sums[k * CHANNELS] += r;
-      sums[k * CHANNELS + 1] += g;
-      sums[k * CHANNELS + 2] += b;
-      sums[6 + k]++;
+  for (int32_t row_index = 0; row_index < size; row_index += step) {
+    for (int32_t column = 0; column < size; column += step) {
+      const int32_t at = (row_index * size + column) * CHANNELS;
+      const int32_t red = source[at];
+      const int32_t green = source[at + 1];
+      const int32_t blue = source[at + 2];
+      const int32_t first_distance =
+          wrap_add(wrap_add(wrap_mul(wrap_sub(red, first_red), wrap_sub(red, first_red)),
+                            wrap_mul(wrap_sub(green, first_green), wrap_sub(green, first_green))),
+                   wrap_mul(wrap_sub(blue, first_blue), wrap_sub(blue, first_blue)));
+      const int32_t second_distance =
+          wrap_add(wrap_add(wrap_mul(wrap_sub(red, second_red), wrap_sub(red, second_red)),
+                            wrap_mul(wrap_sub(green, second_green), wrap_sub(green, second_green))),
+                   wrap_mul(wrap_sub(blue, second_blue), wrap_sub(blue, second_blue)));
+      const int32_t endpoint = second_distance < first_distance ? 1 : 0;
+      sums[endpoint * CHANNELS] += red;
+      sums[endpoint * CHANNELS + 1] += green;
+      sums[endpoint * CHANNELS + 2] += blue;
+      sums[6 + endpoint]++;
     }
   }
-  for (int32_t k = 0; k < 2; k++) {
-    const int64_t n = sums[6 + k];
-    if (n > 0) {
-      for (int32_t c = 0; c < CHANNELS; c++) {
-        endpoints[k * CHANNELS + c] = (float)((sums[k * CHANNELS + c] + n / 2) / n);
+  for (int32_t endpoint = 0; endpoint < 2; endpoint++) {
+    const int64_t members = sums[6 + endpoint];
+    if (members > 0) {
+      for (int32_t channel = 0; channel < CHANNELS; channel++) {
+        endpoints[endpoint * CHANNELS + channel] =
+            (int32_t)((sums[endpoint * CHANNELS + channel] + members / 2) / members);
       }
     }
   }
 }
 
-// one of MCV2.cluster's Lloyd iterations, N pixels at a time, summing in int lanes whose sums cannot overflow;
-// every STEP-th pixel of every STEP-th row
-template <int STEP> void cluster_lanes(const int32_t *source, int32_t size, float *endpoints) {
+template <int STEP> void cluster_lanes(const int32_t *source, int32_t size, int32_t *endpoints) {
   const int32_t pixels = (size / STEP) * (size / STEP);
-  const VI r0 = VI::set1(java_int(endpoints[0]));
-  const VI g0 = VI::set1(java_int(endpoints[1]));
-  const VI b0 = VI::set1(java_int(endpoints[2]));
-  const VI r1 = VI::set1(java_int(endpoints[3]));
-  const VI g1 = VI::set1(java_int(endpoints[4]));
-  const VI b1 = VI::set1(java_int(endpoints[5]));
+  const VI first_red = VI::set1(endpoints[0]);
+  const VI first_green = VI::set1(endpoints[1]);
+  const VI first_blue = VI::set1(endpoints[2]);
+  const VI second_red = VI::set1(endpoints[3]);
+  const VI second_green = VI::set1(endpoints[4]);
+  const VI second_blue = VI::set1(endpoints[5]);
   // the pixels nearer endpoint 1 in lanes, and all of them: endpoint 0 has the difference
-  VI near_r = VI::zero();
-  VI near_g = VI::zero();
-  VI near_b = VI::zero();
-  VI near_n = VI::zero();
-  VI all_r = VI::zero();
-  VI all_g = VI::zero();
-  VI all_b = VI::zero();
-  for (int32_t y = 0; y < size; y += STEP) {
-    for (int32_t x = 0; x < size; x += STEP * VI::N) {
-      VI r, g, b;
-      VI::load3(source + (y * size + x) * CHANNELS, r, g, b);
+  VI near_red = VI::zero();
+  VI near_green = VI::zero();
+  VI near_blue = VI::zero();
+  VI near_count = VI::zero();
+  VI all_red = VI::zero();
+  VI all_green = VI::zero();
+  VI all_blue = VI::zero();
+  for (int32_t row_index = 0; row_index < size; row_index += STEP) {
+    for (int32_t column = 0; column < size; column += STEP * VI::N) {
+      VI red, green, blue;
+      VI::load3(source + (row_index * size + column) * CHANNELS, red, green, blue);
       if (STEP == 2) {
-        VI r2, g2, b2;
-        VI::load3(source + (y * size + x + VI::N) * CHANNELS, r2, g2, b2);
-        r = VI::evens(r, r2);
-        g = VI::evens(g, g2);
-        b = VI::evens(b, b2);
+        VI next_red, next_green, next_blue;
+        VI::load3(source + (row_index * size + column + VI::N) * CHANNELS, next_red, next_green, next_blue);
+        red = VI::evens(red, next_red);
+        green = VI::evens(green, next_green);
+        blue = VI::evens(blue, next_blue);
       }
-      const VI e0 = (r - r0) * (r - r0) + (g - g0) * (g - g0) + (b - b0) * (b - b0);
-      const VI e1 = (r - r1) * (r - r1) + (g - g1) * (g - g1) + (b - b1) * (b - b1);
-      const VI nearer = VI::less(e1, e0);
-      near_r = near_r + (r & nearer);
-      near_g = near_g + (g & nearer);
-      near_b = near_b + (b & nearer);
-      near_n = near_n - nearer;
-      all_r = all_r + r;
-      all_g = all_g + g;
-      all_b = all_b + b;
+      const VI first_distance = (red - first_red) * (red - first_red) + (green - first_green) * (green - first_green) +
+                                (blue - first_blue) * (blue - first_blue);
+      const VI second_distance = (red - second_red) * (red - second_red) +
+                                 (green - second_green) * (green - second_green) +
+                                 (blue - second_blue) * (blue - second_blue);
+      const VI nearer = VI::less(second_distance, first_distance);
+      near_red = near_red + (red & nearer);
+      near_green = near_green + (green & nearer);
+      near_blue = near_blue + (blue & nearer);
+      near_count = near_count - nearer;
+      all_red = all_red + red;
+      all_green = all_green + green;
+      all_blue = all_blue + blue;
     }
   }
-  const int64_t counts[2] = {pixels - near_n.sum(), near_n.sum()};
-  const int64_t near[CHANNELS] = {near_r.sum(), near_g.sum(), near_b.sum()};
-  const int64_t all[CHANNELS] = {all_r.sum(), all_g.sum(), all_b.sum()};
-  for (int32_t k = 0; k < 2; k++) {
-    const int64_t n = counts[k];
-    if (n > 0) {
-      for (int32_t c = 0; c < CHANNELS; c++) {
-        const int64_t sum = k == 1 ? near[c] : all[c] - near[c];
-        endpoints[k * CHANNELS + c] = (float)((sum + n / 2) / n);
+  const int64_t counts[2] = {pixels - near_count.sum(), near_count.sum()};
+  const int64_t near[CHANNELS] = {near_red.sum(), near_green.sum(), near_blue.sum()};
+  const int64_t all[CHANNELS] = {all_red.sum(), all_green.sum(), all_blue.sum()};
+  for (int32_t endpoint = 0; endpoint < 2; endpoint++) {
+    const int64_t members = counts[endpoint];
+    if (members > 0) {
+      for (int32_t channel = 0; channel < CHANNELS; channel++) {
+        const int64_t sum = endpoint == 1 ? near[channel] : all[channel] - near[channel];
+        endpoints[endpoint * CHANNELS + channel] = (int32_t)((sum + members / 2) / members);
       }
     }
   }
@@ -1178,27 +1162,27 @@ template <int STEP> void cluster_lanes(const int32_t *source, int32_t size, floa
 // MCV2.cluster's starting endpoints, the sampled pixels of least and greatest luma (the first of each in raster
 // order), N at a time: each lane keeps its own and the offset of its first, then the lanes are compared; returns the
 // values or'ed together, which bound them all where none is negative
-template <int STEP> int32_t cluster_extrema(const int32_t *source, int32_t size, float *endpoints) {
+template <int STEP> int32_t cluster_extrema(const int32_t *source, int32_t size, int32_t *endpoints) {
   VI low_lanes = VI::set1(INT32_MAX);
   VI high_lanes = VI::set1(INT32_MIN);
   VI low_at = VI::zero();
   VI high_at = VI::zero();
   VI ored = VI::zero();
   const VI across = VI::iota() * VI::set1(STEP * CHANNELS);
-  for (int32_t y = 0; y < size; y += STEP) {
-    for (int32_t x = 0; x < size; x += STEP * VI::N) {
-      VI r, g, b;
-      VI::load3(source + (y * size + x) * CHANNELS, r, g, b);
+  for (int32_t row_index = 0; row_index < size; row_index += STEP) {
+    for (int32_t column = 0; column < size; column += STEP * VI::N) {
+      VI red, green, blue;
+      VI::load3(source + (row_index * size + column) * CHANNELS, red, green, blue);
       if (STEP == 2) {
-        VI r2, g2, b2;
-        VI::load3(source + (y * size + x + VI::N) * CHANNELS, r2, g2, b2);
-        r = VI::evens(r, r2);
-        g = VI::evens(g, g2);
-        b = VI::evens(b, b2);
+        VI next_red, next_green, next_blue;
+        VI::load3(source + (row_index * size + column + VI::N) * CHANNELS, next_red, next_green, next_blue);
+        red = VI::evens(red, next_red);
+        green = VI::evens(green, next_green);
+        blue = VI::evens(blue, next_blue);
       }
-      ored = ored | r | g | b;
-      const VI luma = r + g + g + b;
-      const VI at = VI::set1((y * size + x) * CHANNELS) + across;
+      ored = ored | red | green | blue;
+      const VI luma = red + green + green + blue;
+      const VI at = VI::set1((row_index * size + column) * CHANNELS) + across;
       const VI lower = VI::less(luma, low_lanes);
       low_lanes = low_lanes + ((luma - low_lanes) & lower);
       low_at = low_at + ((at - low_at) & lower);
@@ -1222,26 +1206,25 @@ template <int STEP> int32_t cluster_extrema(const int32_t *source, int32_t size,
   int32_t low_luma = INT32_MAX;
   int32_t high_luma = INT32_MIN;
   int32_t all = 0;
-  for (int32_t k = 0; k < VI::N; k++) {
-    if (lows[k] < low_luma || (lows[k] == low_luma && lows_at[k] < low)) {
-      low_luma = lows[k];
-      low = lows_at[k];
+  for (int32_t lane = 0; lane < VI::N; lane++) {
+    if (lows[lane] < low_luma || (lows[lane] == low_luma && lows_at[lane] < low)) {
+      low_luma = lows[lane];
+      low = lows_at[lane];
     }
-    if (highs[k] > high_luma || (highs[k] == high_luma && highs_at[k] < high)) {
-      high_luma = highs[k];
-      high = highs_at[k];
+    if (highs[lane] > high_luma || (highs[lane] == high_luma && highs_at[lane] < high)) {
+      high_luma = highs[lane];
+      high = highs_at[lane];
     }
-    all |= values[k];
+    all |= values[lane];
   }
-  for (int32_t c = 0; c < CHANNELS; c++) {
-    endpoints[c] = (float)source[low + c];
-    endpoints[CHANNELS + c] = (float)source[high + c];
+  for (int32_t channel = 0; channel < CHANNELS; channel++) {
+    endpoints[channel] = source[low + channel];
+    endpoints[CHANNELS + channel] = source[high + channel];
   }
   return all;
 }
 
-// MCV2.cluster: two colours by two integer Lloyd iterations on every other pixel of blocks of 16 and more
-void cluster(const int32_t *source, int32_t size, float *endpoints) {
+void cluster(const int32_t *source, int32_t size, int32_t *endpoints) {
   const int32_t step = size >= 16 ? 2 : 1;
   const int32_t all =
       step == 2 ? cluster_extrema<2>(source, size, endpoints) : cluster_extrema<1>(source, size, endpoints);
@@ -1260,8 +1243,6 @@ void cluster(const int32_t *source, int32_t size, float *endpoints) {
   }
 }
 
-// MCV2.finishPalette after the rounding of the endpoints: every pixel takes the strictly nearer endpoint, else the
-// first
 void assign(const int32_t *source, int32_t count, const int32_t *colors, int8_t *selectors) {
   const VI r0 = VI::set1(colors[0]);
   const VI g0 = VI::set1(colors[1]);
@@ -1293,8 +1274,6 @@ void assign(const int32_t *source, int32_t count, const int32_t *colors, int8_t 
   }
 }
 
-// MCV2.finishPattern after the rounding: the selectors row by row, stopping at the first row after which they
-// repeat along neither axis; whether they do
 int32_t assign_pattern(const int32_t *source, int32_t size, const int32_t *colors, int8_t *selectors) {
   bool columns = true;
   bool rows = true;
@@ -1318,19 +1297,18 @@ inline int32_t pack(int32_t x, int32_t y) { return shl(x, 16) | (y & 0xFFFF); }
 inline int32_t unpack_x(int32_t vector) { return vector >> 16; }
 inline int32_t unpack_y(int32_t vector) { return (int16_t)vector; }
 
-// MCV2.motionCost where the samples lie in the picture. source4 holds four times the source's sixteen samples, row by
-// row.
-int64_t inside(const uint8_t *reference, int32_t width, const int32_t *source4, int32_t x, int32_t y,
-               const int32_t *samples, int32_t mx, int32_t my) {
+int64_t inside(const uint8_t *reference, int32_t width, const int32_t *source_samples, int32_t block_left,
+               int32_t block_top, const int32_t *samples, int32_t motion_x, int32_t motion_y) {
   int64_t sum = 0;
-  for (int32_t j = 0; j < 4; j++) {
-    const uint8_t *line = reference + ((int64_t)(y + samples[j] + my) * width + x + mx) * CHANNELS;
-    const int32_t *t = source4 + j * 4 * CHANNELS;
-    for (int32_t i = 0; i < 4; i++) {
-      const uint8_t *a = line + samples[i] * CHANNELS;
-      for (int32_t c = 0; c < CHANNELS; c++) {
+  for (int32_t sample_row = 0; sample_row < 4; sample_row++) {
+    const uint8_t *line =
+        reference + ((int64_t)(block_top + samples[sample_row] + motion_y) * width + block_left + motion_x) * CHANNELS;
+    const int32_t *source_row = source_samples + sample_row * 4 * CHANNELS;
+    for (int32_t sample_column = 0; sample_column < 4; sample_column++) {
+      const uint8_t *reference_pixel = line + samples[sample_column] * CHANNELS;
+      for (int32_t channel = 0; channel < CHANNELS; channel++) {
         // Math.abs of an int, which leaves Integer.MIN_VALUE negative
-        const int32_t difference = wrap_sub(4 * a[c], t[i * CHANNELS + c]);
+        const int32_t difference = wrap_sub(reference_pixel[channel], source_row[sample_column * CHANNELS + channel]);
         sum += difference < 0 ? wrap_sub(0, difference) : difference;
       }
     }
@@ -1338,40 +1316,40 @@ int64_t inside(const uint8_t *reference, int32_t width, const int32_t *source4, 
   return sum;
 }
 
-// inside where the source's samples are bytes: four times the sum of absolute differences of the bytes, four pixels of
-// a row at a time; bytes holds each sampled row's pixels as words, the top byte zero
-int64_t inside_bytes(const uint8_t *reference, int32_t width, const uint8_t *bytes, int32_t x, int32_t y,
-                     const int32_t *samples, int32_t mx, int32_t my) {
+int64_t inside_bytes(const uint8_t *reference, int32_t width, const uint8_t *bytes, int32_t block_left,
+                     int32_t block_top, const int32_t *samples, int32_t motion_x, int32_t motion_y) {
   int32_t sum = 0;
-  for (int32_t j = 0; j < 4; j++) {
-    const uint8_t *line = reference + ((int64_t)(y + samples[j] + my) * width + x + mx) * CHANNELS;
+  for (int32_t sample_row = 0; sample_row < 4; sample_row++) {
+    const uint8_t *line =
+        reference + ((int64_t)(block_top + samples[sample_row] + motion_y) * width + block_left + motion_x) * CHANNELS;
     sum += sad4(pixel_word(line + samples[0] * CHANNELS), pixel_word(line + samples[1] * CHANNELS),
-                pixel_word(line + samples[2] * CHANNELS), pixel_word(line + samples[3] * CHANNELS), bytes + 16 * j);
+                pixel_word(line + samples[2] * CHANNELS), pixel_word(line + samples[3] * CHANNELS),
+                bytes + 16 * sample_row);
   }
-  return 4 * (int64_t)sum;
+  return sum;
 }
 
-// MCV2.motionCost: four times the sum of absolute differences on the sixteen samples of a block moved by whole pixels,
-// coordinates clamped; bytes, where not null, the samples as bytes for inside_bytes
-int64_t cost(const uint8_t *reference, int32_t width, int32_t height, const int32_t *source4, const uint8_t *bytes,
-             int32_t x, int32_t y, const int32_t *samples, int32_t mx, int32_t my) {
-  const int32_t left = x + samples[0] + mx;
-  const int32_t right = x + samples[3] + mx;
-  const int32_t top = y + samples[0] + my;
-  const int32_t bottom = y + samples[3] + my;
+int64_t cost(const uint8_t *reference, int32_t width, int32_t height, const int32_t *source_samples,
+             const uint8_t *bytes, int32_t block_left, int32_t block_top, const int32_t *samples, int32_t motion_x,
+             int32_t motion_y) {
+  const int32_t left = block_left + samples[0] + motion_x;
+  const int32_t right = block_left + samples[3] + motion_x;
+  const int32_t top = block_top + samples[0] + motion_y;
+  const int32_t bottom = block_top + samples[3] + motion_y;
   if (left >= 0 && top >= 0 && right < width && bottom < height) {
-    return bytes != nullptr ? inside_bytes(reference, width, bytes, x, y, samples, mx, my)
-                            : inside(reference, width, source4, x, y, samples, mx, my);
+    return bytes != nullptr
+               ? inside_bytes(reference, width, bytes, block_left, block_top, samples, motion_x, motion_y)
+               : inside(reference, width, source_samples, block_left, block_top, samples, motion_x, motion_y);
   }
   int64_t sum = 0;
-  for (int32_t j = 0; j < 4; j++) {
-    const int32_t row_at = clamp32(y + samples[j] + my, 0, height - 1);
-    for (int32_t i = 0; i < 4; i++) {
-      const int32_t column = clamp32(x + samples[i] + mx, 0, width - 1);
-      const uint8_t *a = reference + ((int64_t)row_at * width + column) * CHANNELS;
-      const int32_t *t = source4 + (j * 4 + i) * CHANNELS;
-      for (int32_t c = 0; c < CHANNELS; c++) {
-        const int32_t difference = wrap_sub(4 * a[c], t[c]);
+  for (int32_t sample_row = 0; sample_row < 4; sample_row++) {
+    const int32_t row_at = clamp32(block_top + samples[sample_row] + motion_y, 0, height - 1);
+    for (int32_t sample_column = 0; sample_column < 4; sample_column++) {
+      const int32_t column = clamp32(block_left + samples[sample_column] + motion_x, 0, width - 1);
+      const uint8_t *reference_pixel = reference + ((int64_t)row_at * width + column) * CHANNELS;
+      const int32_t *source_row = source_samples + (sample_row * 4 + sample_column) * CHANNELS;
+      for (int32_t channel = 0; channel < CHANNELS; channel++) {
+        const int32_t difference = wrap_sub(reference_pixel[channel], source_row[channel]);
         sum += difference < 0 ? wrap_sub(0, difference) : difference;
       }
     }
@@ -1405,65 +1383,65 @@ struct Measured {
 
 // MCV2.seededMotion: the best of no motion and the seeds, then one-pixel steps to the best of four neighbours while one
 // is better; a vector replaces the best only when strictly better
-int32_t seeded(const uint8_t *reference, int32_t width, int32_t height, const int32_t *source, int32_t x, int32_t y,
-               int32_t size, int32_t range, const int32_t *seeds, int32_t seed_count) {
+int32_t seeded(const uint8_t *reference, int32_t width, int32_t height, const int32_t *source, int32_t block_left,
+               int32_t block_top, int32_t size, int32_t range, const int32_t *seeds, int32_t seed_count) {
   const int32_t samples[4] = {sample(size, 0), sample(size, 1), sample(size, 2), sample(size, 3)};
-  int32_t source4[16 * CHANNELS];
-  // the samples as bytes too, where they are bytes: four times a byte's difference cannot wrap, so the sums of the
-  // bytes' absolute differences are the same costs
+  int32_t source_samples[16 * CHANNELS];
   uint8_t sampled[4 * 16] = {0};
   bool bytes = true;
-  for (int32_t j = 0; j < 4; j++) {
-    for (int32_t i = 0; i < 4; i++) {
-      for (int32_t c = 0; c < CHANNELS; c++) {
-        const int32_t value = source[(samples[j] * size + samples[i]) * CHANNELS + c];
-        source4[(j * 4 + i) * CHANNELS + c] = wrap_mul(4, value);
+  for (int32_t sample_row = 0; sample_row < 4; sample_row++) {
+    for (int32_t sample_column = 0; sample_column < 4; sample_column++) {
+      for (int32_t channel = 0; channel < CHANNELS; channel++) {
+        const int32_t value = source[(samples[sample_row] * size + samples[sample_column]) * CHANNELS + channel];
+        source_samples[(sample_row * 4 + sample_column) * CHANNELS + channel] = value;
         bytes &= (uint32_t)value <= 255;
-        sampled[16 * j + 4 * i + c] = (uint8_t)value;
+        sampled[16 * sample_row + 4 * sample_column + channel] = (uint8_t)value;
       }
     }
   }
   const uint8_t *packed = bytes ? sampled : nullptr;
   Measured measured;
-  int32_t vx = 0;
-  int32_t vy = 0;
-  int64_t best = cost(reference, width, height, source4, packed, x, y, samples, vx, vy);
-  measured.add(vx, vy);
-  for (int32_t k = 0; k < seed_count; k++) {
-    const int32_t sx = clamp32(unpack_x(seeds[k]), -range, range);
-    const int32_t sy = clamp32(unpack_y(seeds[k]), -range, range);
-    if (!measured.contains(sx, sy)) {
-      measured.add(sx, sy);
-      const int64_t error = cost(reference, width, height, source4, packed, x, y, samples, sx, sy);
+  int32_t best_x = 0;
+  int32_t best_y = 0;
+  int64_t best = cost(reference, width, height, source_samples, packed, block_left, block_top, samples, best_x, best_y);
+  measured.add(best_x, best_y);
+  for (int32_t seed_index = 0; seed_index < seed_count; seed_index++) {
+    const int32_t seed_x = clamp32(unpack_x(seeds[seed_index]), -range, range);
+    const int32_t seed_y = clamp32(unpack_y(seeds[seed_index]), -range, range);
+    if (!measured.contains(seed_x, seed_y)) {
+      measured.add(seed_x, seed_y);
+      const int64_t error =
+          cost(reference, width, height, source_samples, packed, block_left, block_top, samples, seed_x, seed_y);
       if (error < best) {
         best = error;
-        vx = sx;
-        vy = sy;
+        best_x = seed_x;
+        best_y = seed_y;
       }
     }
   }
   for (int32_t steps = 0; steps < 2 * range; steps++) {
-    const int32_t cx = vx;
-    const int32_t cy = vy;
-    for (int32_t d = 0; d < 4; d++) {
-      const int32_t hx = clamp32(cx + DIRECTIONS[d][0], -range, range);
-      const int32_t hy = clamp32(cy + DIRECTIONS[d][1], -range, range);
-      if (measured.contains(hx, hy)) {
+    const int32_t center_x = best_x;
+    const int32_t center_y = best_y;
+    for (int32_t direction = 0; direction < 4; direction++) {
+      const int32_t candidate_x = clamp32(center_x + DIRECTIONS[direction][0], -range, range);
+      const int32_t candidate_y = clamp32(center_y + DIRECTIONS[direction][1], -range, range);
+      if (measured.contains(candidate_x, candidate_y)) {
         continue;
       }
-      measured.add(hx, hy);
-      const int64_t error = cost(reference, width, height, source4, packed, x, y, samples, hx, hy);
+      measured.add(candidate_x, candidate_y);
+      const int64_t error = cost(reference, width, height, source_samples, packed, block_left, block_top, samples,
+                                 candidate_x, candidate_y);
       if (error < best) {
         best = error;
-        vx = hx;
-        vy = hy;
+        best_x = candidate_x;
+        best_y = candidate_y;
       }
     }
-    if (vx == cx && vy == cy) {
+    if (best_x == center_x && best_y == center_y) {
       break;
     }
   }
-  return pack(vx, vy);
+  return pack(best_x, best_y);
 }
 
 // MCV2.JavaKernels.loadSource of a superblock: the block's channels, the picture's last row and column repeated past
@@ -1490,7 +1468,6 @@ void load_source(const uint8_t *image, int32_t width, int32_t height, int32_t x,
   }
 }
 
-// MCV2.halveBlock: each pixel the rounded mean of a 2x2 square
 // the pairs of rows summed, then the even pixels and the odd ones, whose wrapping sums are Java's in any order: two
 // vectors of a row pair at a time
 template <class V> void halve_lanes(const int32_t *block, int32_t size, int32_t *out) {
@@ -1533,25 +1510,25 @@ void halve(const int32_t *block, int32_t size, int32_t *out) {
 void residual_target(const int32_t *source, const int32_t *prediction, int32_t count, float *target) {
   const VF quarter = VF::set1(0.25f);
   const VF two = VF::set1(2.0f);
-  int32_t i = 0;
-  for (; i + VI::N <= count; i += VI::N) {
-    VI sr, sg, sb;
-    VI::load3(source + i * CHANNELS, sr, sg, sb);
-    const VF luma = VF::from(sr + sg.shl(1) + sb) * quarter;
-    VI pr, pg, pb;
-    VI::load3(prediction + i * CHANNELS, pr, pg, pb);
-    const VF r = VF::from(pr) * quarter;
-    const VF g = VF::from(pg) * quarter;
-    const VF b = VF::from(pb) * quarter;
-    (luma - ((r + two * g) + b) * quarter).store(target + i);
+  int32_t pixel = 0;
+  for (; pixel + VI::N <= count; pixel += VI::N) {
+    VI source_red, source_green, source_blue;
+    VI::load3(source + pixel * CHANNELS, source_red, source_green, source_blue);
+    const VF luma = VF::from(source_red + source_green.shl(1) + source_blue) * quarter;
+    VI predicted_red, predicted_green, predicted_blue;
+    VI::load3(prediction + pixel * CHANNELS, predicted_red, predicted_green, predicted_blue);
+    const VF red = VF::from(predicted_red);
+    const VF green = VF::from(predicted_green);
+    const VF blue = VF::from(predicted_blue);
+    (luma - ((red + two * green) + blue) * quarter).store(target + pixel);
   }
-  for (; i < count; i++) {
-    const int32_t at = i * CHANNELS;
+  for (; pixel < count; pixel++) {
+    const int32_t at = pixel * CHANNELS;
     const float luma = (float)(source[at] + 2 * source[at + 1] + source[at + 2]) * 0.25f;
-    const float r = (float)prediction[at] * 0.25f;
-    const float g = (float)prediction[at + 1] * 0.25f;
-    const float b = (float)prediction[at + 2] * 0.25f;
-    target[i] = luma - (r + 2 * g + b) * 0.25f;
+    const float red = (float)prediction[at];
+    const float green = (float)prediction[at + 1];
+    const float blue = (float)prediction[at + 2];
+    target[pixel] = luma - (red + 2 * green + blue) * 0.25f;
   }
 }
 
@@ -1602,10 +1579,10 @@ int64_t MCV2_PREFIX(solid)(int32_t color, int32_t size, int32_t *out, const int3
   return mcv2::solid(color, size, out, {source, rate, limit, 0});
 }
 
-int64_t MCV2_PREFIX(palette)(const int8_t *record, int32_t offset, int32_t size, int32_t *out, const int32_t *source,
-                             double rate, double limit) {
-  MCV2_HAND_OFF(palette, record, offset, size, out, source, rate, limit)
-  return mcv2::palette(record, offset, size, out, {source, rate, limit, 0});
+int64_t MCV2_PREFIX(palette)(const int8_t *record, int32_t size, int32_t *out, const int32_t *source, double rate,
+                             double limit) {
+  MCV2_HAND_OFF(palette, record, size, out, source, rate, limit)
+  return mcv2::palette(record, size, out, {source, rate, limit, 0});
 }
 
 int64_t MCV2_PREFIX(compact)(const int32_t *prediction, const int8_t *record, int32_t q, int32_t size, int32_t *out,
@@ -1630,7 +1607,7 @@ void MCV2_PREFIX(fit)(const float *values, int32_t size, const float *matrix, fl
   mcv2::fit(values, size, matrix, out);
 }
 
-void MCV2_PREFIX(cluster)(const int32_t *source, int32_t size, float *endpoints) {
+void MCV2_PREFIX(cluster)(const int32_t *source, int32_t size, int32_t *endpoints) {
   // every other pixel of a block of 16 or more, two vectors of a row at a time
   MCV2_HAND_OFF_BELOW(2 * MCV2_NARROW_BELOW, cluster, source, size, endpoints)
   mcv2::cluster(source, size, endpoints);

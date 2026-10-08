@@ -30,9 +30,9 @@ final class MCV2PaletteFitTest {
     for (int pixel = 0; pixel < 64; pixel++) {
       System.arraycopy(source, (pixel % count) * 3, tile, pixel * 3, 3);
     }
-    final float[] endpoints = new float[6];
+    final int[] endpoints = new int[6];
     Mcv2Internals.javaKernels().cluster(tile, 8, endpoints);
-    Mcv2Internals.javaKernels().finish(source, count, endpoints, colors, selectors);
+    Mcv2Internals.javaKernels().finishPalette(source, count, endpoints, colors, selectors);
   }
 
   private static int[] block(final int[]... pixels) {
@@ -105,13 +105,13 @@ final class MCV2PaletteFitTest {
           System.arraycopy(bright ? light : dark, 0, source, (row * size + column) * 3, 3);
         }
       }
-      final float[] endpoints = new float[6];
+      final int[] endpoints = new int[6];
       Mcv2Internals.javaKernels().cluster(source, size, endpoints);
       final int[] colors = new int[6];
       final byte[] selectors = new byte[size * size];
       final int[] plainColors = new int[6];
       final byte[] plain = new byte[size * size];
-      Mcv2Internals.javaKernels().finish(source, size * size, endpoints, plainColors, plain);
+      Mcv2Internals.javaKernels().finishPalette(source, size * size, endpoints, plainColors, plain);
       final boolean pattern = Mcv2Internals.javaKernels().finishPattern(source, size, endpoints, colors, selectors);
       assertArrayEquals(plainColors, colors);
       if (kind < 2) {
