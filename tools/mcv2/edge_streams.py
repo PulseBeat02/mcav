@@ -1,18 +1,22 @@
-"""Generate MCV2 edge-case conformance streams with the reference serializer and decoder.
+# This file is part of mcav, a media playback library for Java
+# Copyright (C) Brandon Li <https://brandonli.me/>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-Run with a Python that has numpy; the reference is the one in tools/mcv2-reference:
+"""Build reproducible v3 edge streams from block trees and a §9 rejection catalog."""
 
-    python tools/mcv2/edge_streams.py <output directory> [seed]
-
-Every stream is built with the reference's own `v2.pack_frame`, from random block trees that cover every leaf mode,
-every compact class and motion form, quantizers up to 7, frames whose edges crop partial blocks, and every index form
-(derived offsets with all tables, stored short and wide indexes, sparse children, immediate motion, the wide
-fallback). The reference decoder decodes each stream; the per-frame SHA-256 of its RGB output goes into
-`digests.json` next to the streams. A second group of frames uses syntax mcav deliberately does not implement (MCV1,
-the coarse palettes of round 3, the motion table of round 15): the reference accepts them and `rejected.json` lists
-them so the Java tests can prove they are rejected. Streams are research archives: u32 length, then the frame.
-"""
-
+import argparse
 import hashlib
 import json
 import random
@@ -20,176 +24,182 @@ import struct
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "mcv2-reference"))
+REFERENCE = Path(__file__).resolve().parents[1] / 'mcv2-reference'
+sys.path.insert(0, str(REFERENCE))
 
-import numpy as np  # noqa: E402
-from mcvideo import format as fmt  # noqa: E402
-from mcvideo.compact import BODY_BYTES, COMPACT  # noqa: E402
-from mcvideo.decoder import Decoder  # noqa: E402
-from mcvideo.pattern import PATTERN_PALETTE  # noqa: E402
-from mcvideo.v2 import SPLIT, Node, pack_frame  # noqa: E402
+from mcvideo import format as fmt
+from mcvideo.decoder import Decoder
+from mcvideo.v3 import Node, expand_endpoints, pack_frame, parse_frame
 
-OUT = Path(sys.argv[1])
-SEED = int(sys.argv[2]) if len(sys.argv) > 2 else 20260925
-RANDOM = random.Random(SEED)
+DEFAULT_SEED = 20261008
 
 
-def rbytes(count, low=0, high=255):
-    return bytes(RANDOM.randint(low, high) for _ in range(count))
+def rbytes(randomizer, count):
+    return bytes(randomizer.randrange(256) for _ in range(count))
 
 
-def compact_record(quantizer):
-    kind = RANDOM.choice(range(9))
-    if kind == 7:
-        quantizer = 0
-    form = RANDOM.choice((0, 1, 2))
-    prefix = b"" if form == 0 else (rbytes(1) if form == 1 else bytes([RANDOM.randint(0, 255), RANDOM.randint(0, 255)]))
-    body = bytearray(rbytes(BODY_BYTES[kind]))
-    if kind == 5:
-        body[-1] &= 63
-    if kind == 6:
-        body[-1] &= 15
-    if kind == 7:
-        body[0] = RANDOM.randint(0, 64) - 32 & 255
-    return quantizer, bytes([kind | form << 4]) + prefix + bytes(body)
+def compact_record(randomizer, kind=None, form=None):
+    kind = randomizer.randrange(3) if kind is None else kind
+    form = randomizer.randrange(3) if form is None else form
+    return bytes([kind | form << 4]) + rbytes(randomizer, form + fmt.BODY_BYTES[kind])
 
 
-def safe565(pair):
-    """Endpoints whose low bits replicate their high bits, so they survive the RGB565 round trip exactly."""
-    return bytes(value & 0xF8 | value >> 5 if index % 3 != 1 else value & 0xFC | value >> 6 for index, value in enumerate(pair))
+def tables(randomizer):
+    pairs = tuple(sorted({rbytes(randomizer, 4) for _ in range(4)}))
+    words = {size: tuple(sorted({bytes([orientation]) + rbytes(randomizer, size // 8)
+                                for orientation in (0, 1)})) for size in (8, 16, 32)}
+    return pairs, words
 
 
-WORDS = {size: [bytes([RANDOM.randint(0, 1)]) + rbytes(size // 8) for _ in range(3)] for size in (8, 16, 32)}
+def leaf(randomizer, size, keyframe, pairs, words, mode=None):
+    modes = (fmt.SKIP, fmt.SOLID, fmt.PALETTE, fmt.PATTERN) if keyframe else tuple(range(fmt.SPLIT))
+    mode = randomizer.choice(modes) if mode is None else mode
+    if mode == fmt.SKIP:
+        return Node(mode)
+    if mode == fmt.MOTION:
+        return Node(mode, record=rbytes(randomizer, 2))
+    if mode == fmt.SOLID:
+        return Node(mode, record=rbytes(randomizer, 3))
+    if mode == fmt.PALETTE:
+        return Node(mode, record=rbytes(randomizer, 6 + size * size // 8))
+    if mode == fmt.PATTERN:
+        return Node(mode, record=expand_endpoints(randomizer.choice(pairs)) + randomizer.choice(words[size]))
+    return Node(fmt.COMPACT, randomizer.randrange(8), compact_record(randomizer))
 
 
-def pattern_record(size):
-    word = RANDOM.choice(WORDS[size]) if RANDOM.random() < 0.8 else bytes([RANDOM.randint(0, 1)]) + rbytes(size // 8)
-    return rbytes(6) + word
+def tree(randomizer, size, keyframe, pairs, words, split_chance=0.65):
+    if size > 8 and randomizer.random() < split_chance:
+        return Node(fmt.SPLIT, children=tuple(tree(randomizer, size // 2, keyframe, pairs, words, split_chance)
+                                             for _ in range(4)))
+    return leaf(randomizer, size, keyframe, pairs, words)
 
 
-BIAS = {"skip": 0.0, "pattern": 0.0}
+def random_stream(randomizer, width=None, height=None, frame_count=6):
+    width = randomizer.randint(1, 200) if width is None else width
+    height = randomizer.randint(1, 130) if height is None else height
+    count = ((width + 31) // 32) * ((height + 31) // 32)
+    stream = []
+    for frame_id in range(frame_count):
+        keyframe = frame_id == 0 or randomizer.random() < 0.2
+        pairs, words = tables(randomizer)
+        table_mask = randomizer.randrange(16)
+        roots = {i: tree(randomizer, 32, keyframe, pairs, words) for i in range(count) if randomizer.random() > 0.2}
+        stream.append(pack_frame(width, height, frame_id, frame_id if keyframe else frame_id - 1, keyframe,
+                                 tuple(rbytes(randomizer, 3)) if keyframe else (0, 0, 0), roots,
+                                 pairs if table_mask & 1 else None,
+                                 {size: words[size] for index, size in enumerate((8, 16, 32)) if table_mask >> (index + 1) & 1}))
+    return stream
 
 
-def leaf(size, key, pattern_endpoints=None, coarse=False):
-    """A random valid leaf of this size; temporal modes only on P frames."""
-    if not key and RANDOM.random() < BIAS["skip"]:
-        return Node(0)
-    if RANDOM.random() < BIAS["pattern"]:
-        return Node(PATTERN_PALETTE, 0, pattern_record(size) if not coarse else safe565(rbytes(6)) + pattern_record(size)[6:])
-    modes = [2, 3, 4, 5, 6, 7, 12, 14, PATTERN_PALETTE]
-    if not key:
-        modes += [0, 1, 8, 9, 10, 11, 13, 15, COMPACT, COMPACT, COMPACT]
-    mode = RANDOM.choice(modes)
-    quantizer = RANDOM.randint(0, 7) if fmt.is_residual(mode) else 0
-    if mode == COMPACT:
-        quantizer, record = compact_record(RANDOM.randint(0, 7))
-        return Node(mode, quantizer, record)
-    if mode == PATTERN_PALETTE:
-        record = pattern_record(size)
-        if pattern_endpoints and RANDOM.random() < 0.7:
-            record = RANDOM.choice(pattern_endpoints) + record[6:]
-        if coarse:
-            record = safe565(record[:6]) + record[6:]
-        return Node(mode, 0, record)
-    if mode == 0:
-        return Node(0)
-    return Node(mode, quantizer, rbytes(fmt.record_size(mode, size)))
+def repeated(node, size):
+    while size < 32:
+        node = Node(fmt.SPLIT, children=(node,) * 4)
+        size *= 2
+    return node
 
 
-def tree(size, key, split_chance, endpoints, coarse):
-    if size > 8 and RANDOM.random() < split_chance:
-        return Node(SPLIT, children=tuple(tree(size // 2, key, split_chance * 0.7, endpoints, coarse) for _ in range(4)))
-    return leaf(size, key, endpoints, coarse)
+def mode_stream(randomizer):
+    pairs, words = tables(randomizer)
+    nodes = []
+    for size in (8, 16, 32):
+        nodes.extend(repeated(leaf(randomizer, size, False, pairs, words, mode), size) for mode in range(fmt.COMPACT))
+        for kind in range(3):
+            for form in range(3):
+                for q in range(8):
+                    nodes.append(repeated(Node(fmt.COMPACT, q, compact_record(randomizer, kind, form)), size))
+    height = (len(nodes) + 15) // 16 * 32
+    key_roots = {i: repeated(leaf(randomizer, size, True, pairs, words, mode), size)
+                 for i, (size, mode) in enumerate((size, mode) for size in (8, 16, 32)
+                                                   for mode in (fmt.SKIP, fmt.SOLID, fmt.PALETTE, fmt.PATTERN))}
+    return [pack_frame(512, height, 0, 0, True, (47, 91, 133), key_roots),
+            pack_frame(512, height, 1, 0, False, (0, 0, 0), dict(enumerate(nodes)))]
 
 
-FAILURES = []
+def table_stream(randomizer):
+    pairs, words = tables(randomizer)
+    frames = []
+    for mask in range(16):
+        roots = {i: repeated(Node(fmt.PATTERN, record=expand_endpoints(pairs[i % len(pairs)]) + words[size][mask % 2]), size)
+                 for i, size in enumerate((8, 16, 32))}
+        frames.append(pack_frame(96, 32, mask, mask, True, (0, 0, 0), roots, pairs if mask & 1 else None,
+                                 {size: words[size] for index, size in enumerate((8, 16, 32)) if mask >> (index + 1) & 1}))
+    pairs = tuple(struct.pack('<HH', i, 65535 - i) for i in range(255))
+    words = {size: tuple(bytes([i % 2, i]) + bytes(size // 8 - 1) for i in range(255)) for size in (8, 16, 32)}
+    roots = {i: repeated(Node(fmt.PATTERN, record=expand_endpoints(pairs[254]) + words[size][254]), size)
+             for i, size in enumerate((8, 16, 32))}
+    frames.append(pack_frame(96, 32, 16, 16, True, (0, 0, 0), roots, pairs, words))
+    return frames
 
 
-def frame(width, height, frame_id, reference_id, key, split_chance, options, motion=None):
-    """A random frame; a tree the reference serializer cannot write is recorded and drawn again."""
-    for _ in range(100):
+def build_streams(seed=DEFAULT_SEED):
+    randomizer = random.Random(seed)
+    streams = {'edge-modes.mcs': mode_stream(randomizer), 'edge-tables.mcs': table_stream(randomizer)}
+    for name, width, height in [('tiny', 1, 1), ('vertical', 1, 97), ('horizontal', 97, 1), ('cropped', 97, 65),
+                                ('directory', 4096, 65)]:
+        streams[f'edge-{name}.mcs'] = random_stream(randomizer, width, height)
+    streams['edge-absent.mcs'] = [pack_frame(33, 17, 0, 0, True, (21, 45, 89), {}),
+                                 pack_frame(33, 17, 1, 0, False, (0, 0, 0), {})]
+    motion = [pack_frame(33, 17, 0, 0, True, (4, 50, 150), {0: Node(fmt.SOLID, record=b'\xff\x80\0')})]
+    for index, vector in enumerate((b'\x80\x7f', b'\x7f\x80', b'\x80\x80', b'\x7f\x7f'), 1):
+        motion.append(pack_frame(33, 17, index, index - 1, False, (0, 0, 0),
+                                 {0: Node(fmt.MOTION, record=vector),
+                                  1: repeated(Node(fmt.COMPACT, 2, b'\x20' + vector + b'\0'), 8)}))
+    streams['edge-motion.mcs'] = motion
+    long_roots = {i: Node(fmt.SPLIT, children=tuple(Node(fmt.SPLIT, children=tuple(
+        Node(fmt.COMPACT, (i + j) % 8, compact_record(randomizer, 1, 2 if j % 4 else j % 3))
+        for j in range(4))) for _ in range(4))) for i in range(440)}
+    streams['edge-long-walk.mcs'] = [pack_frame(1024, 448, 0, 0, True, (101, 123, 145), {}),
+                                    pack_frame(1024, 448, 1, 0, False, (0, 0, 0), long_roots)]
+    roots = {i: repeated(Node(fmt.SKIP), 8) for i in range(4086)}
+    streams['edge-max-splits.mcs'] = [pack_frame(4096, 4096, 0, 0, True, (7, 11, 13), roots)]
+    roots = {i: Node(fmt.PALETTE, record=rbytes(randomizer, 134)) for i in range(965)}
+    roots[965] = Node(fmt.SOLID, record=b'\x24\x48\x72')
+    streams['edge-length-limit.mcs'] = [pack_frame(1024, 1024, 0, 0, True, (0, 0, 0), roots,
+                                                [struct.pack('<I', i) for i in range(29)])]
+    streams['edge-wrap.mcs'] = [pack_frame(1, 1, frame_id, frame_id if index == 0 else frame_id - 1 & fmt.ID_MASK,
+                                          index == 0, (27, 64, 128) if index == 0 else (0, 0, 0), {})
+                               for index, frame_id in enumerate((0xFFFFFFFE, 0xFFFFFFFF, 0, 1))]
+    return streams
+
+
+def archive(frames):
+    return b''.join(struct.pack('<I', len(frame)) + frame for frame in frames)
+
+
+def generate(output, seed=DEFAULT_SEED):
+    output.mkdir(parents=True, exist_ok=True)
+    streams = build_streams(seed)
+    for old in output.glob('edge-*.mcs'):
+        if old.name not in streams:
+            old.unlink()
+    digests = {}
+    for name, frames in streams.items():
+        decoder = Decoder()
+        digests[name] = [hashlib.sha256(decoder.accept(data).tobytes()).hexdigest() for data in frames]
+        output.joinpath(name).write_bytes(archive(frames))
+    output.joinpath('digests.json').write_text(json.dumps(digests, indent=1) + '\n')
+    sys.path.insert(0, str(REFERENCE / 'tests'))
+    from rejection_cases import rejected_frames
+    rejected = rejected_frames()
+    for name, case in rejected.items():
         try:
-            return frame_once(width, height, frame_id, reference_id, key, split_chance, options, motion)
+            parse_frame(bytes.fromhex(case['frame']))
         except ValueError as error:
-            FAILURES.append(str(error))
-    raise RuntimeError("no writable tree found")
-
-
-def frame_once(width, height, frame_id, reference_id, key, split_chance, options, motion=None):
-    coarse = bool(options.get("endpoint_565"))
-    endpoints = [rbytes(6) for _ in range(3)]
-    roots = [
-        tree(32, key, split_chance, endpoints, coarse)
-        for _ in range(((width + 31) // 32) * ((height + 31) // 32))
-    ]
-    if motion is None:
-        motion = (0, 0) if key else (RANDOM.randint(-40, 40), RANDOM.randint(-40, 40))
-    return pack_frame(width, height, frame_id, reference_id, key, motion, roots, **options)
-
-
-DERIVED = dict(short_index=True, sparse_children=True, immediate_motion=True, derived_directory=True,
-               derived_offsets=True, packed_symbols=True, two_level_walk=True, endpoint_table=True, selector_table=True)
-STREAMS = {
-    "edge-derived-patterns.mcs": (160, 96, 0.7, dict(DERIVED, endpoint_565=True), dict(pattern=0.6)),
-    "edge-stored-short-sparse.mcs": (160, 96, 0.4, dict(short_index=True, sparse_children=True, immediate_motion=True, derived_directory=True), dict(skip=0.6)),
-    "edge-stored-short-groups.mcs": (160, 96, 0.4, dict(short_index=True, immediate_motion=True), dict(skip=0.6)),
-    "edge-stored-wide-sparse.mcs": (160, 96, 0.4, dict(immediate_motion=True), dict(skip=0.6)),
-    "edge-stored-wide-directory-sparse.mcs": (160, 96, 0.4, dict(derived_directory=True), dict(skip=0.6)),
-    "edge-derived-tables.mcs": (72, 40, 0.5, DERIVED, {}),
-    "edge-derived-565.mcs": (72, 40, 0.5, dict(DERIVED, endpoint_565=True), {}),
-    "edge-derived-plain.mcs": (97, 65, 0.6, dict(derived_directory=True, derived_offsets=True), {}),
-    "edge-stored-short.mcs": (72, 40, 0.5, dict(short_index=True, sparse_children=True, immediate_motion=True, derived_directory=True), {}),
-    "edge-stored-short-dense.mcs": (40, 33, 0.9, dict(short_index=True), {}),
-    "edge-stored-wide.mcs": (72, 40, 0.5, dict(immediate_motion=True), {}),
-    "edge-stored-wide-directory.mcs": (100, 70, 0.3, dict(derived_directory=True), {}),
-    "edge-tiny.mcs": (1, 1, 0.0, DERIVED, {}),
-}
-
-
-def write_archive(path, frames):
-    path.write_bytes(b"".join(struct.pack("<I", len(frame)) + frame for frame in frames))
+            if case['reason'] not in str(error):
+                raise ValueError(f'{name}: expected {case["reason"]!r}, got {str(error)!r}') from error
+        else:
+            raise ValueError(f'{name}: rejected fixture was accepted')
+    output.joinpath('rejected.json').write_text(json.dumps(rejected, indent=1) + '\n')
+    print(json.dumps({'streams': len(streams), 'frames': sum(map(len, streams.values())), 'rejected': len(rejected)}))
 
 
 def main():
-    OUT.mkdir(parents=True, exist_ok=True)
-    digests = {}
-    for name, (width, height, split, options, bias) in STREAMS.items():
-        BIAS.update(skip=bias.get("skip", 0.0), pattern=bias.get("pattern", 0.0))
-        frames = []
-        for frame_id in range(6):
-            key = frame_id in (0, 4)
-            reference = frame_id if key else frame_id - 1
-            frames.append(frame(width, height, frame_id, reference, key, split, options))
-        decoder = Decoder()
-        digests[name] = [hashlib.sha256(decoder.accept(frame_data).tobytes()).hexdigest() for frame_data in frames]
-        write_archive(OUT / name, frames)
-    # a frame too large for the derived form and the short index: the reference falls back to wide descriptors
-    grid8 = Node(SPLIT, children=tuple(Node(SPLIT, children=tuple(Node(7, 0, rbytes(192)) for _ in range(4))) for _ in range(4)))
-    big = pack_frame(256, 256, 0, 0, True, (0, 0), [grid8] * 64, **DERIVED)
-    assert not (fmt.parse_frame(big).flags & 8), "expected the wide fallback"
-    sizes = [big]
-    decoder = Decoder()
-    digests["edge-wide-fallback.mcs"] = [hashlib.sha256(decoder.accept(big).tobytes()).hexdigest()]
-    write_archive(OUT / "edge-wide-fallback.mcs", sizes)
-    (OUT / "digests.json").write_text(json.dumps(digests, indent=1) + "\n")
-    rejected = {}
-    mcv1 = bytes.fromhex(
-        "4d435631" "01020100" "01000100" "09000000" "09000000" "00000000"
-        "01000000" "34000000" "37000000" "00000000" "00000000" "00000000"
-        "34000002" "102030"
-    )
-    rejected["mcv1-hand-example"] = mcv1.hex()
-    coarse = pack_frame(64, 32, 0, 0, True, (0, 0), [Node(21, 0, rbytes(6 + 32)), Node(22, 0, rbytes(6 + 8))])
-    rejected["round3-coarse-palettes"] = coarse.hex()
-    motion_roots = [Node(SPLIT, children=tuple(Node(1, 0, bytes([2, 254])) for _ in range(4))) for _ in range(2)]
-    table = pack_frame(64, 32, 1, 0, False, (0, 0), motion_roots, derived_directory=True, derived_offsets=True, motion_table=True)
-    rejected["round15-motion-table"] = table.hex()
-    for name, value in rejected.items():
-        fmt.parse_frame(bytes.fromhex(value))  # the reference accepts every one of them
-    (OUT / "rejected.json").write_text(json.dumps(rejected, indent=1) + "\n")
-    print(json.dumps({stream_name: len(frame_digests) for stream_name, frame_digests in digests.items()}))
-    print("reference serializer failures (redrawn):", sorted(set(FAILURES)), len(FAILURES))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('output', type=Path)
+    parser.add_argument('seed', nargs='?', type=int, default=DEFAULT_SEED)
+    arguments = parser.parse_args()
+    generate(arguments.output, arguments.seed)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

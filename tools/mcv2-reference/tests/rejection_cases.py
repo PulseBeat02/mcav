@@ -50,8 +50,12 @@ def rejected_frames():
     add('oversize-frame', bytes(131072), '9.1', 'frame length')
     add('bad-magic', b'ABCD' + empty[4:], '9.1', 'not an MCV2')
     add('unknown-version', changed(empty, 4, 4), '9.1', 'not an MCV2')
-    add('mcv1', b'MCV1' + empty[4:], '9.1', 'version 1 is no longer supported')
-    add('version-2', changed(empty, 4, 2), '9.1', 'version 2 is no longer supported')
+    add('mcv1', bytes.fromhex(
+        '4d4356310102010001000100090000000900000000000000010000003400000037000000'
+        '00000000000000000000000034000002102030'), '9.1', 'version 1 is no longer supported')
+    add('version-2', bytes.fromhex(
+        '4d4356320205730001000100000000000000000000000000010000004500000075000000000000000000000000000000010000000000000001000000'
+        '0000010600000000003224e3e9bafb4931c49e41fca6fb71c25d4744121177650106704ecf2c3e8fa04eaa462d163cd0d18bc59cbc0fbaead8'), '9.1', 'version 2 is no longer supported')
     for bit in range(1, 8):
         add(f'reserved-flag-{bit}', changed(empty, 5, 1 | 1 << bit), '9.1', 'reserved flags')
     for offset in (6, 7, 31):

@@ -80,7 +80,7 @@ from its own manifest.
 | `mcvideo/transport.py` | 6,385 | `36d445e28a90564e17c893ec2991f55db16497c97560711facf3412ba740949b` |
 | `mcvideo/v3.py` | 16,123 | `e80f6e12a433d11c87c21ab957137e0fdefb350edfe56a4a85b03aae81878027` |
 | `requirements.txt` | 883 | `c4f288cc61d58c292c943c07dbe3b4e233aac528db5a9d91866704469ed4ea24` |
-| `tests/rejection_cases.py` | 8,092 | `ee18c42e14b25f395aad4a1f08ed78c7544b4d94b767d2b139e3122b642db8e7` |
+| `tests/rejection_cases.py` | 8,471 | `6afbd56f4a24f3063cc6f52b6103f96ba6101a9b2dbf3a658a7971d0b7bef437` |
 | `tests/test_decoder.py` | 10,701 | `e796e118e21ad4ab9db2ba96e27b19ffe7e295d058bdc0d01f1eee2c578c8a11` |
 | `tests/test_format.py` | 7,980 | `fc7aaf4271d99df742663f7aa7476c36e7e5fb26cbb6f0d6ebc18623de04e808` |
 | `tests/test_transport.py` | 7,246 | `bc31f8e5606baf78cb09708369c963c5ca362fcd3f9df1e69677fd697e23810f` |
