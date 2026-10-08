@@ -1,4 +1,4 @@
-"""Draws the sample pictures of docs/mcv2.md from real MCV2 streams, and prints the annotated bytes of a frame.
+"""Draws the sample pictures of mcav-docs/mcv2.md from real MCV2 streams, and prints the annotated bytes of a frame.
 
     python tools/mcv2/figures/samples.py tree ARCHIVE --frames 0,12 --crop 896,128,576,324 [--out tree.png]
     python tools/mcv2/figures/samples.py leaves ARCHIVE SOURCE --frame 0 --crop 896,128,576,324
@@ -10,7 +10,7 @@ bytes), a SOURCE the raw RGB24 video it encoded; --size gives their size when it
 decoded with the reference decoder in tools/mcv2-reference, frame by frame from the start of the stream. tree.png
 outlines every leaf of the cropped region and colours it by mode, leaves.png blows up the biggest palette and pattern
 leaves there, quality.png puts the source next to the same frame of each archive. Needs numpy and matplotlib
-(docs/requirements.txt).
+(mcav-docs/requirements.txt).
 """
 
 import argparse
@@ -28,7 +28,7 @@ from matplotlib.patches import Patch, Rectangle  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 TOOLS = HERE.parent
-IMAGES = TOOLS.parent.parent / "docs" / "images" / "mcv2"
+IMAGES = TOOLS.parent.parent / "mcav-docs" / "images" / "mcv2"
 sys.path.insert(0, str(TOOLS.parent / "mcv2-reference"))
 
 from mcvideo import format as fmt  # noqa: E402

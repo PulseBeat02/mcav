@@ -112,7 +112,7 @@ gradle-app.setting
 # Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
 !gradle-wrapper.jar
 
-/docs/_build
+/mcav-docs/_build
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -123,7 +123,7 @@ __pycache__/
 *.so
 
 # auto-generated Sphinx api docs
-/docs/generated
+/mcav-docs/generated
 
 # Distribution / packaging
 .Python
@@ -187,7 +187,7 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+mcav-docs/_build/
 
 # PyBuilder
 target/

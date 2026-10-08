@@ -9,7 +9,7 @@ the frontier's libvmaf filter (both inputs converted to yuv420p, the default vma
 per-frame minimum) and the frontier's RGB PSNR. A compressed file is never fed to libvmaf. The rate is the container's
 size over the clip's duration: it charges none of the map transport that an MCV2 map rate charges.
 
-The measurements of docs/mcv2.md used ffmpeg 7.0.2 (a static build with libvmaf, libx264, libvpx-vp9 and libaom),
+The measurements of mcav-docs/mcv2.md used ffmpeg 7.0.2 (a static build with libvmaf, libx264, libvpx-vp9 and libaom),
 the ffmpeg the frontier scored with. The output records every command with the placeholders $FFMPEG, $SRC, ENCODED
 and DECODED instead of local paths. Points already in the output file are kept, so a run can be resumed; a run that
 names a source measured before with other content is refused, as its points would mix with the earlier ones.
