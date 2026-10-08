@@ -96,6 +96,9 @@ final class Mcv2ReceiverTest {
     final byte[] wrongShape = Mcv2Trees.write(16, 8, 1, 0, false, List.of(motion(0, 0)));
     assertEquals("Reference frame dimensions mismatch", assertThrows(Mcv2Exception.class, () -> receiver.accept(wrongShape)).getMessage());
     assertEquals(0, receiver.getFrameId());
+    final byte[] wrongHeight = Mcv2Trees.write(8, 8, 1, 0, false, List.of(motion(0, 0)));
+    assertEquals("Reference frame dimensions mismatch", assertThrows(Mcv2Exception.class, () -> receiver.accept(wrongHeight)).getMessage());
+    assertEquals(0, receiver.getFrameId());
     assertDoesNotThrow(() -> receiver.accept(Mcv2Trees.write(8, 16, 1, 0, false, List.of(motion(0, 0)))));
   }
 }

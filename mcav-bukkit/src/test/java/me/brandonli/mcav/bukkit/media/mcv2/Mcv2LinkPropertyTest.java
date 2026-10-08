@@ -48,7 +48,7 @@ final class Mcv2LinkPropertyTest {
   }
 
   /**
-   * Simulates an encoder with either reference policy and a client model, and checks that every frame sent is one
+   * Offers previous-frame and stale keyframe references to a one-picture client model, and checks that every frame sent is one
    * the client could decode, that nothing is sent while the backlog is over the limit (twice it for a keyframe), and
    * that the backlog is what was sent and not yet written.
    */
@@ -59,9 +59,8 @@ final class Mcv2LinkPropertyTest {
     @ForAll final boolean fromKeyframe
   ) {
     final Mcv2Link link = new Mcv2Link(limit);
-    // the client: the last frame it decoded and the last keyframe it decoded, as its status pass keeps them
+    // The client holds only the last decoded picture.
     long clientLast = -1;
-    long clientKey = -1;
     long lastKey = -1;
     long outstanding = 0;
     final List<Long> inFlight = new ArrayList<>();
@@ -84,16 +83,13 @@ final class Mcv2LinkPropertyTest {
       final boolean sent = link.offer(id, reference, isKeyframe, step.bytes());
       if (sent) {
         // the client must hold the frame's reference, and the connection must have been at or under the limit
-        if (over || !(isKeyframe || reference == clientLast || reference == clientKey)) {
+        if (over || !(isKeyframe || reference == clientLast)) {
           return false;
         }
         clientLast = id;
-        if (isKeyframe) {
-          clientKey = id;
-        }
         outstanding += step.bytes();
         inFlight.add((long) step.bytes());
-      } else if (!over && (isKeyframe || reference == clientLast || reference == clientKey)) {
+      } else if (!over && (isKeyframe || reference == clientLast)) {
         // a frame the viewer could take and decode is never held back
         return false;
       }

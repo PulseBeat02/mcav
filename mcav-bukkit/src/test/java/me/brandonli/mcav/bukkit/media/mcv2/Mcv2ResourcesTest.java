@@ -19,6 +19,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -54,9 +55,17 @@ final class Mcv2ResourcesTest {
   }
 
   @Test
-  void loadsAndChecksTheBooks() {
-    final byte[] books = Mcv2Resources.load("residual_books.bin", ResidualBooks.SHA256, ResidualBooks.BYTES);
-    assertArrayEquals(ResidualBooks.bytes(), books);
+  void loadsVerifiedResourcesIntoCallerOwnedArrays() {
+    final String digest = "a372bc23542153ec59637f4fa7665427974d2f0685a72f7df893039913a32eae";
+    final byte[] first = Mcv2Resources.load("encoder/crop-default.mcs", digest, 3276);
+    final byte[] second = Mcv2Resources.load("encoder/crop-default.mcs", digest, 3276);
+    assertEquals(3276, first.length);
+    assertArrayEquals(first, second);
+    assertNotSame(first, second);
+    assertEquals('M', first[4]);
+    assertEquals('C', first[5]);
+    assertEquals('V', first[6]);
+    assertEquals('2', first[7]);
   }
 
   @Test

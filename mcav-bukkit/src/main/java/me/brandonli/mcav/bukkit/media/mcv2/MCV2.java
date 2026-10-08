@@ -112,23 +112,64 @@ import org.slf4j.LoggerFactory;
 public final class MCV2 {
 
   // Public API owns stream state; begin and finish may overlap by one frame.
+  /**
+   * Controls the live search without changing the version 3 syntax.
+   *
+   * @param lambda finite, nonnegative cost of a coded bit relative to distortion
+   * @param keyInterval maximum number of frames between periodic keyframes, at least one
+   * @param fast whether to use the fast search thresholds
+   * @param adaptive whether motion may select the fast thresholds and scale lambda by 55/72
+   */
   public record Settings(double lambda, int keyInterval, boolean fast, boolean adaptive) {
+    /**
+     * Normal live thresholds, lambda 72 and a keyframe interval of 120.
+     */
     public static final Settings DEFAULT = new Settings(72, 120, false, false);
+    /**
+     * Fast live thresholds, lambda 55 and a keyframe interval of 120.
+     */
     public static final Settings FAST = new Settings(55, 120, true, false);
+    /**
+     * Normal settings that switch to fast thresholds while the source moves.
+     */
     public static final Settings ADAPTIVE = new Settings(72, 120, false, true);
 
+    /**
+     * Validates the rate cost and keyframe interval.
+     *
+     * @throws IllegalArgumentException if lambda is negative or nonfinite, or the interval is not positive
+     */
     public Settings {
       Preconditions.checkArgument(lambda >= 0 && Double.isFinite(lambda), "Lambda must be finite and non-negative");
       Preconditions.checkArgument(keyInterval > 0, "Key interval must be positive");
     }
 
+    /**
+     * Copies these settings with another rate cost.
+     *
+     * @param value finite, nonnegative lambda
+     * @return the copied settings
+     * @throws IllegalArgumentException if value is negative or nonfinite
+     */
     public Settings withLambda(final double value) {
       return new Settings(value, this.keyInterval, this.fast, this.adaptive);
     }
   }
 
+  /**
+   * Measurements of the most recently finished frame.
+   *
+   * @param bytes encoded frame length
+   * @param keyframe whether the frame decodes independently
+   * @param leaves number of chosen leaves, including absent roots
+   * @param nanoseconds elapsed search and writing time
+   * @param lambda effective lambda, including motion adjustment and any size retries
+   */
   public record Stats(int bytes, boolean keyframe, int leaves, long nanoseconds, double lambda) {}
 
+  /**
+   * A finished frame whose bytes and measurements are ready for transmission.
+   */
   public static final class Encoded {
 
     private final byte[] data;
@@ -139,15 +180,28 @@ public final class MCV2 {
       this.stats = stats;
     }
 
+    /**
+     * Returns the encoded bytes, whose ownership transfers to the caller.
+     *
+     * @return the complete version 3 frame
+     */
     public byte[] getData() {
       return this.data;
     }
 
+    /**
+     * Returns the measurements of this frame.
+     *
+     * @return the frame statistics
+     */
     public Stats getStats() {
       return this.stats;
     }
   }
 
+  /**
+   * A searched frame awaiting ordered verification by its owning encoder.
+   */
   public static final class Pending {
 
     private final MCV2 owner;
@@ -183,6 +237,11 @@ public final class MCV2 {
       this.nanoseconds = nanoseconds;
     }
 
+    /**
+     * Reports whether this pending frame decodes independently.
+     *
+     * @return whether the frame is a keyframe
+     */
     public boolean isKeyframe() {
       return this.keyframe;
     }
@@ -192,6 +251,17 @@ public final class MCV2 {
   private static final int LIMIT_RETRIES = 4;
   private static final int MOTION_RANGE = 24;
   private static final double SCENE_THRESHOLD = 45;
+  private static final int SCENE_SAMPLE_STEP = 4;
+  private static final int SCENE_SAMPLE_START = SCENE_SAMPLE_STEP / 2;
+  private static final double ADAPTIVE_ENTER = 8;
+  private static final double ADAPTIVE_LEAVE = 6;
+  private static final int NORMAL_SKIP_BITS = 28;
+  private static final int FAST_SKIP_BITS = 60;
+  private static final int ROOT_SPLIT_BITS = 150;
+  private static final int NORMAL_FINE_SPLIT_BITS = 300;
+  private static final int FAST_FINE_SPLIT_BITS = 600;
+  private static final int NORMAL_STEADY_SPLIT_BITS = 450;
+  private static final int FAST_STEADY_SPLIT_BITS = 900;
   private static final double INDEX_BITS = 12;
   private static final double DISTORTION_SCALE = 96.0;
   private static final int OUTSIDE_BITS = 56;
@@ -226,6 +296,16 @@ public final class MCV2 {
   private @Nullable Pending older;
   private final Supplier<Kernels> kernels;
 
+  /**
+   * Creates an encoder for one stream on a caller-owned pool.
+   *
+   * @param settings initial live search settings
+   * @param pool worker pool, retained but never shut down by this encoder
+   * @param threads maximum concurrent workers, at least one
+   * @param verify whether finish checks every reconstructed pixel with Mcv2Decoder
+   * @throws NullPointerException if settings or pool is null
+   * @throws IllegalArgumentException if threads is less than one
+   */
   public MCV2(final Settings settings, final ForkJoinPool pool, final int threads, final boolean verify) {
     this.settings = Preconditions.checkNotNull(settings, "Settings must not be null");
     this.workers = new Workers(Preconditions.checkNotNull(pool, "Pool must not be null"), threads);
@@ -234,41 +314,105 @@ public final class MCV2 {
     this.framesSinceKey = settings.keyInterval();
   }
 
+  /**
+   * Limits search time per frame; later roots use their cheapest candidate.
+   *
+   * @param nanoseconds nonnegative budget, or zero for unlimited time
+   * @throws IllegalArgumentException if the budget is negative
+   */
   public void setFrameBudget(final long nanoseconds) {
     Preconditions.checkArgument(nanoseconds >= 0, "The frame budget must not be negative");
     this.frameBudget = nanoseconds;
   }
 
+  /**
+   * Sets the desired byte limit used for lambda retries and trivial-frame fallback.
+   * The trivial keyframe may exceed a limit smaller than its required mean-colour roots;
+   * every result remains within the format's 131,071-byte bound.
+   *
+   * @param bytes nonnegative desired limit, or zero for the format maximum
+   * @throws IllegalArgumentException if bytes is negative
+   */
   public void setFrameLimit(final int bytes) {
     Preconditions.checkArgument(bytes >= 0, "The frame limit must not be negative");
     this.frameLimit = bytes;
   }
 
+  /**
+   * Requests an independent picture on the next begin call.
+   */
   public void requestKeyframe() {
     this.framesSinceKey = Integer.MAX_VALUE;
   }
 
+  /**
+   * Changes settings for the next frame while retaining prediction history.
+   *
+   * @param next the new settings
+   * @throws NullPointerException if next is null
+   */
   public void switchTo(final Settings next) {
     this.settings = Preconditions.checkNotNull(next, "Settings must not be null");
   }
 
+  /**
+   * Returns the settings used by the next frame.
+   *
+   * @return current settings
+   */
   public Settings getSettings() {
     return this.settings;
   }
 
+  /**
+   * Returns the last completed frame's measurements.
+   *
+   * @return statistics, or null before the first finish
+   */
   public @Nullable Stats getStats() {
     return this.stats;
   }
 
+  /**
+   * Copies the latest reconstruction, including a frame still awaiting finish.
+   *
+   * @return row-major RGB24 reference, or null before the first begin
+   */
   public byte @Nullable [] getReference() {
     final byte[] previous = this.reference;
     return previous == null ? null : previous.clone();
   }
 
+  /**
+   * Searches, writes and finishes one frame synchronously.
+   *
+   * @param rgb row-major RGB24 source, exactly width times height times three bytes
+   * @param width picture width, 1 through 4096
+   * @param height picture height, 1 through 4096
+   * @param frameId unsigned 32-bit id strictly following the last id modulo 2^32
+   * @throws NullPointerException if rgb is null
+   * @throws IllegalArgumentException if dimensions, input length or frame id are invalid
+   * @throws IllegalStateException if the encoder stopped or pending frames prevent this operation
+   * @return a complete version 3 frame
+   */
   public byte[] encode(final byte[] rgb, final int width, final int height, final long frameId) {
     return this.finish(this.begin(rgb, width, height, frameId)).getData();
   }
 
+  /**
+   * Searches and writes the next frame, assembling its prediction reference before returning.
+   * Calls to begin are serial; finish of the preceding frame may overlap one begin.
+   * At most two unfinished frames may exist and they must finish in order.
+   *
+   * @param rgb row-major RGB24 source, exactly width times height times three bytes
+   * @param width picture width, 1 through 4096
+   * @param height picture height, 1 through 4096
+   * @param frameId unsigned 32-bit id strictly following the last id modulo 2^32
+   * @throws NullPointerException if rgb is null
+   * @throws IllegalArgumentException if dimensions, input length or frame id are invalid
+   * @throws IllegalStateException if the encoder stopped or pending frames prevent this operation
+   * @return the pending frame to finish exactly once
+   */
   public Pending begin(final byte[] rgb, final int width, final int height, final long frameId) {
     Preconditions.checkState(!this.failed, STOPPED);
     Preconditions.checkState(this.older == null || this.older.finished, "Two frames are in flight already");
@@ -281,7 +425,7 @@ public final class MCV2 {
     final byte[] previous = this.reference;
     final boolean predictable =
       previous != null && width == this.width && height == this.height && this.framesSinceKey < this.settings.keyInterval();
-    this.moving = this.motionLambda.moving(this.moving, 8, 6);
+    this.moving = this.motionLambda.moving(this.moving, ADAPTIVE_ENTER, ADAPTIVE_LEAVE);
     final boolean adaptiveFast = this.settings.adaptive() && this.moving;
     final boolean fast = this.settings.fast() || adaptiveFast;
     final double base = adaptiveFast ? fastLambda(this.settings.lambda()) : this.settings.lambda();
@@ -362,16 +506,22 @@ public final class MCV2 {
     return pending;
   }
 
+  /**
+   * Verifies and publishes a pending frame. A verification failure permanently stops this encoder.
+   *
+   * @param pending an unfinished frame from this encoder, in begin order
+   * @return the finished frame and statistics
+   * @throws NullPointerException if pending is null
+   * @throws IllegalArgumentException if another encoder owns pending
+   * @throws IllegalStateException if order is wrong, pending is finished, or verification fails
+   */
   @SuppressWarnings("ReferenceEquality")
   public Encoded finish(final Pending pending) {
     Preconditions.checkNotNull(pending, "Frame must not be null");
     Preconditions.checkState(!this.failed, STOPPED);
     Preconditions.checkArgument(pending.owner == this, "The pending frame belongs to another encoder");
     Preconditions.checkState(!pending.finished, "The frame is finished already");
-    Preconditions.checkState(
-      pending == this.older || (pending == this.newer && (this.older == null || this.older.finished)),
-      "Finish frames in creation order"
-    );
+    Preconditions.checkState(this.older == null || this.older.finished || pending == this.older, "Finish frames in creation order");
     final long started = System.nanoTime();
     if (this.shouldVerify) {
       try {
@@ -434,9 +584,9 @@ public final class MCV2 {
         final int left = (index % columns) * ROOT_SIZE;
         final int top = (index / columns) * ROOT_SIZE;
         long change = 0;
-        for (int row = 2; row < ROOT_SIZE; row += 4) {
+        for (int row = SCENE_SAMPLE_START; row < ROOT_SIZE; row += SCENE_SAMPLE_STEP) {
           final int sourceRow = Math.min(top + row, height - 1);
-          for (int column = 2; column < ROOT_SIZE; column += 4) {
+          for (int column = SCENE_SAMPLE_START; column < ROOT_SIZE; column += SCENE_SAMPLE_STEP) {
             final int sourceColumn = Math.min(left + column, width - 1);
             final int at = (sourceRow * width + sourceColumn) * CHANNELS;
             final int luma = (source[at] & 255) + 2 * (source[at + 1] & 255) + (source[at + 2] & 255);
@@ -906,8 +1056,12 @@ public final class MCV2 {
     final int[] leafCounts = new int[buffers.roots];
     final int[] motion = new int[((frame.width + 7) / 8) * ((frame.height + 7) / 8)];
     final boolean[] splits = new boolean[buffers.roots];
-    final double[] thresholds = { 150 * frame.lambda, (frame.fast ? 600 : 300) * frame.lambda, 0 };
-    final double steady = (frame.fast ? 900 : 450) * frame.lambda;
+    final double[] thresholds = {
+      ROOT_SPLIT_BITS * frame.lambda,
+      (frame.fast ? FAST_FINE_SPLIT_BITS : NORMAL_FINE_SPLIT_BITS) * frame.lambda,
+      0,
+    };
+    final double steady = (frame.fast ? FAST_STEADY_SPLIT_BITS : NORMAL_STEADY_SPLIT_BITS) * frame.lambda;
     try {
       this.workers.forEach(
         buffers.roots,
@@ -1093,7 +1247,6 @@ public final class MCV2 {
     private int top;
     private int localVector = NO_VECTOR;
     private boolean clustered;
-    private boolean ycocgLoaded;
     private boolean meansLoaded;
     private boolean gridLoaded;
 
@@ -1120,7 +1273,6 @@ public final class MCV2 {
       this.left = left;
       this.top = top;
       this.clustered = false;
-      this.ycocgLoaded = false;
       this.skipped = false;
       this.localVector = NO_VECTOR;
       this.loadSource();
@@ -1143,20 +1295,21 @@ public final class MCV2 {
         this.eligible(0);
         this.kernels.predicted(this.zeroPrediction, this.size, this.recon);
         this.score(MODE_SKIP, 0, 0);
-        final long skipDistortion = this.kernels.distortion();
-        if (this.hurried || this.cost() <= (this.frame.fast ? 60 : 28) * this.frame.lambda) {
+        if (this.hurried || this.cost() <= (this.frame.fast ? FAST_SKIP_BITS : NORMAL_SKIP_BITS) * this.frame.lambda) {
           this.skipped = true;
           return;
         }
         this.localVector = this.size < 16 && parent != NO_VECTOR ? parent : this.searchMotion(parent);
         this.predict(this.localVector, this.localPrediction);
         boolean closer = false;
-        if (this.localVector != 0 && this.eligible(2)) {
+        if (this.localVector != 0) {
+          // Surviving the SKIP bound already pays for MOTION's two bytes.
+          this.eligible(2);
           this.record[0] = (byte) motionX(this.localVector);
           this.record[1] = (byte) motionY(this.localVector);
           if (this.kernels.predicted(this.localPrediction, this.size, this.recon)) {
             this.score(MODE_MOTION, 0, 2);
-            closer = this.kernels.distortion() < skipDistortion;
+            closer = true;
           }
         }
         this.compact(closer);
@@ -1185,10 +1338,9 @@ public final class MCV2 {
     private void score(final int mode, final int quantizer, final int length) {
       final long distortion = this.kernels.distortion();
       final double cost = Math.min(distortion / DISTORTION_SCALE + this.rate, Double.MAX_VALUE);
-      if (cost < this.cost()) {
-        System.arraycopy(this.recon, 0, this.best, 0, this.recon.length);
-        this.frame.set(this.level, this.block, cost, mode, quantizer, this.record, length, distortion);
-      }
+      // A completed kernel has already beaten the incumbent at this rate.
+      System.arraycopy(this.recon, 0, this.best, 0, this.recon.length);
+      this.frame.set(this.level, this.block, cost, mode, quantizer, this.record, length, distortion);
     }
 
     private void loadSource() {
@@ -1390,10 +1542,7 @@ public final class MCV2 {
           continue;
         }
         if (!targeted) {
-          if (!this.ycocgLoaded) {
-            this.kernels.ycocg(this.source, this.count, this.ycocg);
-            this.ycocgLoaded = true;
-          }
+          this.kernels.ycocg(this.source, this.count, this.ycocg);
           this.kernels.residualTarget(this.ycocg, prediction, this.count, this.target);
           this.meansLoaded = false;
           this.gridLoaded = false;
@@ -2981,11 +3130,13 @@ public final class MCV2 {
     final long frameId,
     final long referenceId
   ) {
+    Preconditions.checkNotNull(input, "Roots must not be null");
+    Preconditions.checkArgument(width >= 1 && width <= MAX_DIMENSION && height >= 1 && height <= MAX_DIMENSION, "Invalid dimensions");
+    final int columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
+    Preconditions.checkArgument(input.size() == columns * ((height + ROOT_SIZE - 1) / ROOT_SIZE), "Wrong root count");
     final Map<Integer, Integer> colors = new LinkedHashMap<>();
-    if (keyframe) {
-      for (final TreeNode root : input) {
-        countSolids(root, colors);
-      }
+    for (final TreeNode root : input) {
+      validateTree(root, ROOT_SIZE, keyframe, colors);
     }
     int defaultColor = 0;
     int most = -1;
@@ -3093,13 +3244,38 @@ public final class MCV2 {
     data[at + 2] = (byte) color;
   }
 
-  private static void countSolids(final TreeNode node, final Map<Integer, Integer> counts) {
+  private static void validateTree(final TreeNode node, final int size, final boolean keyframe, final Map<Integer, Integer> colors) {
     if (node.isSplit()) {
+      Preconditions.checkArgument(size > SMALLEST_BLOCK, "Split below the bounded depth");
       for (int corner = 0; corner < QUARTERS; corner++) {
-        countSolids(node.getChild(corner), counts);
+        validateTree(node.getChild(corner), size / 2, keyframe, colors);
       }
-    } else if (node.getMode() == MODE_SOLID) {
-      counts.merge(color(node.record(), 0), 1, Integer::sum);
+      return;
+    }
+    final int mode = node.getMode();
+    Preconditions.checkArgument(mode <= MODE_COMPACT, "Illegal leaf mode %s", mode);
+    Preconditions.checkArgument(mode == MODE_COMPACT || node.getQ() == 0, "Quantizer on a mode without one");
+    Preconditions.checkArgument(
+      !keyframe || (mode != MODE_MOTION && mode != MODE_COMPACT),
+      "The tree does not serialize to a valid frame: temporal keyframe leaf"
+    );
+    final byte[] record = node.record();
+    final int length;
+    if (mode == MODE_COMPACT) {
+      Preconditions.checkArgument(record.length > 0, "Empty compact record");
+      final int kind = record[0] & 15;
+      final int form = (record[0] & 255) >> 4;
+      Preconditions.checkArgument(kind <= COMPACT_GRID_Y && form <= 2, "Invalid compact control");
+      length = 1 + form + (kind == COMPACT_DC ? 1 : kind == COMPACT_GRID ? 10 : 8);
+    } else {
+      length = recordSize(mode, size);
+    }
+    Preconditions.checkArgument(record.length == length, "Record length disagrees with its mode");
+    if (mode == MODE_PATTERN) {
+      Preconditions.checkArgument((record[2 * CHANNELS] & 255) <= 1, "Invalid pattern orientation");
+    }
+    if (keyframe && mode == MODE_SOLID) {
+      colors.merge(color(record, 0), 1, Integer::sum);
     }
   }
 
@@ -3386,8 +3562,14 @@ public final class MCV2 {
     }
   }
 
+  /**
+   * A shared, bounded CPU budget for encoders and synchronous encoding jobs.
+   */
   public static final class Pool implements AutoCloseable {
 
+    /**
+     * Maximum explicitly configured worker count.
+     */
     public static final int MAX_THREADS = 256;
 
     private static final long KEEP_ALIVE_SECONDS = 30;
@@ -3406,6 +3588,12 @@ public final class MCV2 {
 
     private final int threads;
 
+    /**
+     * Creates low-priority daemon workers that share one concurrency limit.
+     *
+     * @param threads worker count, 1 through MAX_THREADS
+     * @throws IllegalArgumentException if threads is outside that range
+     */
     public Pool(final int threads) {
       Preconditions.checkArgument(threads >= 1 && threads <= MAX_THREADS, "Threads must be 1 to %s", MAX_THREADS);
       this.threads = threads;
@@ -3433,10 +3621,21 @@ public final class MCV2 {
       return group;
     }
 
+    /**
+     * Chooses half the available processors, with at least one worker.
+     *
+     * @param processors available processor count
+     * @return default worker count
+     */
     public static int defaultThreads(final int processors) {
       return Math.max(1, processors / 2);
     }
 
+    /**
+     * Gets the lazily created application-wide pool.
+     *
+     * @return the current shared pool
+     */
     public static synchronized Pool shared() {
       final Pool current = shared;
       if (current != null) {
@@ -3448,6 +3647,12 @@ public final class MCV2 {
       return created;
     }
 
+    /**
+     * Sets the worker count for the next shared pool, leaving existing encoders on their pool.
+     *
+     * @param threads worker count, or zero to use the processor-based default
+     * @throws IllegalArgumentException if threads is negative or exceeds MAX_THREADS
+     */
     public static synchronized void setSharedThreads(final int threads) {
       Preconditions.checkArgument(threads >= 0 && threads <= MAX_THREADS, "Threads must be 0 to %s", MAX_THREADS);
       if (threads != sharedThreads) {
@@ -3456,14 +3661,37 @@ public final class MCV2 {
       }
     }
 
+    /**
+     * Returns this pool's concurrency limit.
+     *
+     * @return configured workers
+     */
     public int getThreads() {
       return this.threads;
     }
 
+    /**
+     * Creates a stream encoder sharing this pool's worker budget.
+     *
+     * @param settings live search settings
+     * @param shouldVerify whether finish verifies reconstruction
+     * @return a new stream encoder
+     * @throws NullPointerException if settings is null
+     */
     public MCV2 encoder(final Settings settings, final boolean shouldVerify) {
       return new MCV2(settings, this.pool, this.threads, shouldVerify);
     }
 
+    /**
+     * Runs a job within the shared worker budget and propagates its failures.
+     *
+     * @param task encoding job
+     * @param <T> result type
+     * @return the job result
+     * @throws InterruptedException if interrupted before or while awaiting the job
+     * @throws NullPointerException if task is null
+     * @throws IllegalStateException if the job throws a checked exception
+     */
     public <T> T run(final Callable<T> task) throws InterruptedException {
       Preconditions.checkNotNull(task, "Task must not be null");
 
@@ -3492,6 +3720,9 @@ public final class MCV2 {
       LOGGER.error(THREAD_FAILED, thread.getName(), exception);
     }
 
+    /**
+     * Stops this pool and requests cancellation of its outstanding jobs.
+     */
     @Override
     public void close() {
       this.pool.shutdownNow();

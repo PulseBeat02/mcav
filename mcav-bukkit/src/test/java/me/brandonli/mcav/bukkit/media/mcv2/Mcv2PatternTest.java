@@ -27,8 +27,8 @@ final class Mcv2PatternTest {
 
   private static final byte[] INLINE = { 1, 2, 3, 4, 5, 6, 0, (byte) 0b1010_0101 };
 
-  private static int colorAt(final byte[] picture, final int width, final int x, final int y) {
-    final int at = (y * width + x) * 3;
+  private static int colorAt(final byte[] picture, final int width, final int column, final int row) {
+    final int at = (row * width + column) * 3;
     return ((picture[at] & 255) << 16) | ((picture[at + 1] & 255) << 8) | (picture[at + 2] & 255);
   }
 
@@ -38,9 +38,9 @@ final class Mcv2PatternTest {
     final byte[] picture = Mcv2Decoder.decode(data, null, 0);
     assertEquals(0x040506, colorAt(picture, 8, 0, 7));
     assertEquals(0x010203, colorAt(picture, 8, 1, 0));
-    for (int y = 0; y < 8; y++) {
-      for (int x = 0; x < 8; x++) {
-        assertEquals(((INLINE[7] >> x) & 1) == 0 ? 0x010203 : 0x040506, colorAt(picture, 8, x, y));
+    for (int row = 0; row < 8; row++) {
+      for (int column = 0; column < 8; column++) {
+        assertEquals(((INLINE[7] >> column) & 1) == 0 ? 0x010203 : 0x040506, colorAt(picture, 8, column, row));
       }
     }
   }

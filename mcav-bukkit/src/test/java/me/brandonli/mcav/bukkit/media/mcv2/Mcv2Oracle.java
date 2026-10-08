@@ -34,11 +34,11 @@ final class Mcv2Oracle {
     final int stride,
     final int grid,
     final int size,
-    final int x,
-    final int y
+    final int column,
+    final int row
   ) {
-    final double tx = Math.min(grid - 1, Math.max(0, ((x + 0.5) * grid) / size - 0.5));
-    final double ty = Math.min(grid - 1, Math.max(0, ((y + 0.5) * grid) / size - 0.5));
+    final double tx = Math.min(grid - 1, Math.max(0, ((column + 0.5) * grid) / size - 0.5));
+    final double ty = Math.min(grid - 1, Math.max(0, ((row + 0.5) * grid) / size - 0.5));
     final int x0 = (int) tx;
     final int y0 = (int) ty;
     final int x1 = Math.min(x0 + 1, grid - 1);
@@ -76,10 +76,10 @@ final class Mcv2Oracle {
     final int co = kind == 1 ? record[body + 8] : 0;
     final int cg = kind == 1 ? record[body + 9] : 0;
     final int step = 1 << quantizer;
-    for (int y = 0; y < size; y++) {
-      for (int x = 0; x < size; x++) {
-        final double luma = kind == 0 ? record[body] : interpolate(nodes, 0, 1, 4, size, x, y);
-        final int at = (y * size + x) * 3;
+    for (int row = 0; row < size; row++) {
+      for (int column = 0; column < size; column++) {
+        final double luma = kind == 0 ? record[body] : interpolate(nodes, 0, 1, 4, size, column, row);
+        final int at = (row * size + column) * 3;
         out[at] = rgb8(prediction[at] * 0.25 + step * (luma + co - cg));
         out[at + 1] = rgb8(prediction[at + 1] * 0.25 + step * (luma + cg));
         out[at + 2] = rgb8(prediction[at + 2] * 0.25 + step * (luma - co - cg));

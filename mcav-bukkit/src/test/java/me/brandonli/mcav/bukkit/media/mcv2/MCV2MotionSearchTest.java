@@ -34,8 +34,8 @@ final class MCV2MotionSearchTest {
     final int[][] vectors = { { 0, 0 }, { 5, -3 }, { -7, 12 }, { -32768, 32767 }, { 32767, -32768 } };
     for (final int[] vector : vectors) {
       final int packed = pack(vector[0], vector[1]);
-      assertEquals(vector[0], x(packed));
-      assertEquals(vector[1], y(packed));
+      assertEquals(vector[0], motionX(packed));
+      assertEquals(vector[1], motionY(packed));
     }
   }
 
@@ -74,15 +74,15 @@ final class MCV2MotionSearchTest {
     return source;
   }
 
-  private static int pack(final int x, final int y) {
-    return (int) Mcv2Internals.invoke(MCV2.class, null, "packMotion", new Class<?>[] { int.class, int.class }, x, y);
+  private static int pack(final int motionX, final int motionY) {
+    return (int) Mcv2Internals.invoke(MCV2.class, null, "packMotion", new Class<?>[] { int.class, int.class }, motionX, motionY);
   }
 
-  private static int x(final int vector) {
+  private static int motionX(final int vector) {
     return (int) Mcv2Internals.invoke(MCV2.class, null, "motionX", new Class<?>[] { int.class }, vector);
   }
 
-  private static int y(final int vector) {
+  private static int motionY(final int vector) {
     return (int) Mcv2Internals.invoke(MCV2.class, null, "motionY", new Class<?>[] { int.class }, vector);
   }
 

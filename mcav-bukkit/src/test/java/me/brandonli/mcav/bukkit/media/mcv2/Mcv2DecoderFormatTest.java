@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_COMPACT;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_MOTION;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_PALETTE;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.MODE_SKIP;
@@ -30,6 +31,7 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.u16;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.u32;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
@@ -61,6 +63,16 @@ final class Mcv2DecoderFormatTest {
     assertEquals(3, recordSize(MODE_SOLID, 8));
     assertEquals(6 + 128, recordSize(MODE_PALETTE, 32));
     assertEquals(6 + 8, recordSize(MODE_PALETTE, 8));
+    assertThrows(IllegalArgumentException.class, () -> recordSize(MODE_COMPACT, 8));
+    assertThrows(IllegalArgumentException.class, () -> recordSize(-1, 8));
+    assertThrows(IllegalArgumentException.class, () -> recordSize(7, 32));
+  }
+
+  @Test
+  void acceptsOnlyTheThreeLeafSizes() {
+    for (int size = -1; size <= 64; size++) {
+      assertEquals(size == 8 || size == 16 || size == 32, Mcv2Decoder.isBlockSize(size));
+    }
   }
 
   @Test

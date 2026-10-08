@@ -103,7 +103,7 @@ final class Mcv2PackTest {
     }
     // eleven shared files, the screen's ten passes and its include, the chain, the shared includes, the manifest, the
     // metadata
-    assertEquals(28, entries.size());
+    assertEquals(27, entries.size());
     final JsonObject meta = JsonParser.parseString(entries.get("pack.mcmeta")).getAsJsonObject().getAsJsonObject("pack");
     assertEquals(Mcv2Pack.PACK_FORMAT, meta.get("pack_format").getAsInt());
     assertEquals("mcav MCV2 decoder, 1 screen: 320x180", meta.get("description").getAsString());
@@ -173,7 +173,7 @@ final class Mcv2PackTest {
     final Path zip = this.directory.resolve("screens.zip");
     Mcv2Pack.write(List.of(small, large), false, zip);
     final Map<String, String> entries = read(zip);
-    assertEquals(39, entries.size());
+    assertEquals(38, entries.size());
     final String config = entries.get("assets/mcav/shaders/include/mcv2_config.glsl");
     assertTrue(config.contains("const int MCV2_SCREENS = 2;"), config);
     assertTrue(config.contains("const int MCV2_TOTAL_SLOTS = 10;"), config);

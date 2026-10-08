@@ -155,4 +155,18 @@ final class MCV2VerificationTest {
       assertThrows(IllegalStateException.class, () -> encoder.begin(picture, 32, 32, 2)).getMessage()
     );
   }
+
+  @Test
+  void reportsAFrameTheParserRejects() throws ReflectiveOperationException {
+    final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT, ForkJoinPool.commonPool(), 1, true);
+    final MCV2.Pending pending = encoder.begin(new byte[3], 1, 1, 0);
+    final Field data = MCV2.Pending.class.getDeclaredField("data");
+    data.setAccessible(true);
+    ((byte[]) data.get(pending))[0] = 0;
+    final IllegalStateException error = assertThrows(IllegalStateException.class, () -> encoder.finish(pending));
+    assertEquals("The encoder wrote a frame the decoder rejects", error.getMessage());
+    assertInstanceOf(Mcv2Exception.class, error.getCause());
+    assertEquals("Not an MCV2 frame", error.getCause().getMessage());
+    assertThrows(IllegalStateException.class, () -> encoder.encode(new byte[3], 1, 1, 1));
+  }
 }

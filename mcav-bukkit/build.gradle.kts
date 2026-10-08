@@ -17,11 +17,6 @@ mcavPublishing {
     gradleModuleMetadata = false
 }
 
-// published API: the leaf's accessors are x(), y() and q(), so their names stay until a release may change them
-tasks.variableNames {
-    publishedNames.addAll(listOf("x", "y", "q").map { "me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frame.Leaf#$it" })
-}
-
 // The MCV2 live encoder's native kernels (src/main/native/mcv2) are built once and committed as resources, with the
 // SHA-256 of each library compiled into Mcv2Natives, so no default task needs a C/C++ toolchain. With
 // -Pmcav.natives=build, buildMcv2Natives rebuilds them with the Zig that build.sh pins (ZIG=/path/to/zig) and

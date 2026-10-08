@@ -54,7 +54,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * the screen's wall. The pass sources are fixed; what depends on the screens is generated: each screen's copy of its
  * passes, with its video size, page slots and place in the strip, the table of the screens' streams, the outline
  * colour of the page frames, the map colours of the transport alphabet (from this server's map palette, which is the
- * client's), and the residual books (from the same bytes the Java decoder uses).
+ * client's).
  *
  * <p>Writing performs synchronous resource reads and archive creation. Run it off the main thread with stable
  * configuration inputs, and keep the resulting file available for the chosen hosting strategy.
@@ -136,8 +136,6 @@ public final class Mcv2Pack {
 
   /** The resolve pass works on cells of 8x8 pixels, the smallest leaf. */
   private static final int CELL_PIXELS = Mcv2Decoder.SMALLEST_BLOCK;
-
-  /** The residual books' words per line of the generated include. */
 
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
