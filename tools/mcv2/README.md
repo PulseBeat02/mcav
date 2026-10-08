@@ -3,12 +3,13 @@
 Scripts that tie mcav's MCV2 port to its reference, and the lab tools of the in-game proofs. None of them runs during
 the build: the Java tests read only the fixtures committed under
 `mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2`. The Python scripts import the reference from
-`tools/mcv2-reference` (the research's reference code at commit `85445433aeb9f8a35a5ce528d47d8829976d1401`, unchanged)
+`tools/mcv2-reference` (the independent normative version-3 parser, serializer and decoder)
 and need the versions pinned in `tools/mcv2-reference/requirements.txt`: numpy, moderngl for the shader checks, Pillow
 for the capture checks.
 
-The scripts' own tests are in `mcav-bukkit/src/test/python`: which unsupported syntax `differential.py` may exempt,
-how `capture_check.py` counts pictures that repeat, and how `latency.py` matches its events. Like the scripts, they are
+The scripts' own tests are in `mcav-bukkit/src/test/python`: strict differential agreement, v3 fixture coverage and
+regeneration, six-bit strip extraction, fitting tables, how `capture_check.py` counts pictures that repeat, and how
+`latency.py` matches its events. Like the scripts, they are
 not part of the build; run them from the repository root with the same requirements:
 
 ```
@@ -17,21 +18,21 @@ python -m unittest discover -s mcav-bukkit/src/test/python
 
 | script | what it does |
 |---|---|
-| `fixtures.py <fixture root> [conformance\|edge\|pages\|encoder\|all] [--source RGB]` | regenerates every MCV2 test fixture with the reference; on the committed fixtures it reproduces them byte for byte ([conformance fixtures](#conformance-fixtures)) |
-| `tables.py [--check]` | regenerates (or checks) the tables `mcav-bukkit` loads at run time: the grid fitting matrices from the reference's `pixels.fitting_matrix`, and the residual books |
-| `edge_streams.py <out> [seed]` | the edge-case streams: every leaf mode, compact class, motion form and index form, built with the reference serializer and decoded by the reference decoder, plus the syntax mcav refuses (`rejected.json`) |
+| `fixtures.py <fixture root> [conformance\|edge\|pages\|encoder\|all]` | regenerates v3 edge streams, reference RGB digests and six-bit page vectors; validates Java golden encoder streams without rewriting them; skips non-v3 committed streams by name ([conformance fixtures](#conformance-fixtures)) |
+| `tables.py [--check]` | regenerates or checks `fitting_matrices.bin` using the specified interpolation and numpy least-squares fits; preserves the resource layout, including unused grid slots; no residual books and no dependency on a reference encoder |
+| `edge_streams.py <out> [seed]` | builds v3 streams through the independent serializer: every leaf size/mode, compact class/form/q, all table states, cropped and extreme dimensions, long walks, length and id bounds; writes exact RGB digests and the frames every decoder must reject (`rejected.json`) |
 | `shader_check.py <streams...> [--slots N] [--drop K] [--backend egl\|glx] [--pack DIR] [--spirv CLASSPATH] [--second-screen]` | runs the v3 pack chain and compares every decoded picture byte for byte with `mcvideo.decoder.decode(data, reference, reference_id)`. The receiver holds one picture, checks wrap-aware frame ids, and retains its picture when a reference or page is missing. Run every v3 edge and conformance stream on Intel EGL and llvmpipe GLX, each directly and through the 26.3 compiler (`--spirv`); also run `--drop 7` on two conformance streams. An alternate source pack requires its own sibling `chain.json` |
 | `Mcv2ShaderCompile.java <pack> <generated includes> <out> [--vanilla DIR] [--post-only]` | compiles every stage the pack takes part in the way Minecraft 26.3's OpenGL backend does outside its shader debug mode: GLSL through shaderc into SPIR-V for Vulkan 1.2 (uniforms bound automatically, debug info, `#include <namespace:path>` resolved, the renderer's macros defined), then through SPIRV-Cross back into GLSL 330 with the game's options (no separate shader objects, stage inputs and outputs named after their locations, variables zero-initialised); the text shaders with every define set the game uses for text (world, grayscale, see-through, GUI, the three improved-transparency stages, those also with the depth-invariance workaround; `--vanilla` names an extracted 26.3 client jar for Minecraft's own includes), and every post pass. Samplers keep their GLSL names, where the game names them after their binding, so `shader_check.py` can bind them. Run with a JDK and the LWJGL 3.4.3 jars of the 26.3 client (`lwjgl`, `lwjgl-shaderc`, `lwjgl-spvc` and their natives) on the class path; the exit code counts the stages that failed |
 | `strip_fit_check.py [--backend egl\|glx] [--spirv CLASSPATH]` | runs the post chain as `shader_check.py` does on screens too small for the transport strip (one screen of eight slots at 160x90 and 64x400) over a random scene, and checks that the chain leaves the scene exactly as it is and decodes nothing, and that at 854x480, where the strip fits, it is still covered with the scene row below it; supports the same Minecraft compilation path as shader_check; run with the other shader checks before a commit that touches the pack |
 | `shader_timing.py <streams...> [--backend egl\|glx] [--slots N] [--rounds R] [--repeats K] [--pack DIR] [--reference DIR] [--spirv CLASSPATH] [--json OUT]` | times every mcav pass with GL_TIME_ELAPSED for new video and repeated pages, with a wall screen in view. Each copy target has its own timing; the total includes all copies and excludes vanilla outline passes. For a v2 baseline, copy the old pack and its sibling chain.json, retain its generated books include, and point `--reference` at an archived v2 Python package. V3 flags are byte 5; v2 baseline flags are byte 6. Warm-up rounds are excluded; a missed, repeated, or nondeterministic decode fails the run |
 | `shader_timing_test.py` | checks shader_timing.py's exit codes without a GPU: its main() runs on a fake GL context with a fake post chain, so a frame not decoded, decoded again or decoded to another picture fails the run (exit 1), and a run that would time nothing is refused (exit 2); also checks v3 frame classification and exact accounting of repeated copy passes; needs numpy only |
-| `differential.py <mcav-bukkit classpath> [--streams N] [--encoded N] [--mutants N] [--seed S] [--out DIR]` | the differential test of addendum 4: generates archives (random block trees through the reference serializer at random sizes and index forms, reference-encoder streams of random moving pictures, and a mutated copy of each with bytes changed or a frame cut short), decodes every frame with the reference decoder and with mcav's (`Mcv2Digests.java`), and compares the per-frame digests; the only allowed difference is syntax mcav refuses as unsupported. Writes `summary.json`, exits non-zero on a disagreement |
+| `differential.py <mcav-bukkit classpath> [--streams N] [--conformance N] [--corpus DIR] [--mutants N] [--seed S] [--out DIR] [--java JAVA]` | compares random serialized trees, committed conformance streams and mutated/truncated copies with the Python and Java decoders; every frame must agree on rejection or RGB digest, including frames after a disagreement. Defaults: 200 random streams, 40 conformance samples, one mutation of each. Writes all disagreements to `summary.json`, exits nonzero on any difference or launcher failure |
 | `Mcv2Bench.java key=value...` | the encoder benchmark behind the report's encode times: encodes a raw RGB source with a profile (or a custom live search), leaves out the warm-up frames, and prints one JSON line - mean/p50/p95/max ms per frame, CPU and bytes allocated per frame, keyframes, map and zlib rates, PSNR. Compile with a JDK against mcav-bukkit, run on the JVM being measured (the report: Temurin 25); its Javadoc has the arguments and an example |
-| `Mcv2Digests.java <archive>...` | prints, per archive, the SHA-256 of every frame mcav's receiver decodes, or `reject` / `unsupported`; run with a JDK, `java -cp <classes>:<resources>:<guava> tools/mcv2/Mcv2Digests.java` |
+| `Mcv2Digests.java <archive>...` | prints the SHA-256 of each frame decoded by mcav's receiver or `reject`; run with a JDK, `java -cp <classes>:<resources>:<guava> tools/mcv2/Mcv2Digests.java`. The differential comparison accepts no unsupported-syntax exemption |
 | `counter_video.py <clip.rgb> <w> <h> <fps> <seconds> <out.mp4>` | a test video whose frames carry their own number in the first 24 blocks of their top row (the pixels the `Mcv2Frame` flight recorder event fingerprints), played forward and backward from a raw clip |
 | `latency.py <server.jfr> <capture.nut> [--json OUT]` | end-to-end numbers of a run from the server's `Mcv2Frame` events and an x11grab capture of the client's debug view: frames encoded, sent, held back and displayed, displayed fps, backlog, and the glass-to-glass latency of every displayed frame |
-| `capture_check.py <reference.rgb> <w> <h> <captures> [--top ROWS] [--vmaf FFMPEG]` | compares screenshots of a client running the pack's debug view (server started with `-Dmcav.mcv2.debugView=true`) with the reference decode: which frames were seen byte for byte, and PSNR, SSIM and VMAF |
-| `strip_check.py <captures> --slots N --video-width W` | reads the rest of the debug view in the same screenshots: every slot of the transport strip, validated by the reference's `read_page` (header, extent, CRC32), the anchor descriptor row, and the status squares right of the picture (one exact colour each, slot squares in agreement with the pages of the same capture, no red decision, a decoded-frame counter that never goes down); one JSON summary line, exit code 1 on any failure |
+| `capture_check.py <reference.rgb> <w> <h> <captures> [--top ROWS] [--vmaf FFMPEG]` | compares screenshots of the pack's debug view with raw RGB from `mcvideo.decoder.decode` for the same v3 stream: distinct pictures seen byte for byte, PSNR, SSIM and VMAF; identical reference pictures stay indistinguishable |
+| `strip_check.py <captures> --slots N --video-width W` | extracts six-bit symbols from the debug strip, removes map row padding and validates each exact page through the v3 reference transport; checks anchors and status squares, reports a JSON summary and exits nonzero on failures |
 
 The scripts that measure the curves of [docs/mcv2.md](../../docs/mcv2.md) and draw its pictures:
 
@@ -47,55 +48,42 @@ The scripts that measure the curves of [docs/mcv2.md](../../docs/mcv2.md) and dr
 
 ## Conformance fixtures
 
-How mcav proves that its MCV2 implementation - the Java decoder and encoder in `mcav-bukkit`, the native kernels and
-the resource pack's shaders - equals the reference, which test vectors that takes, and how to regenerate them.
+The independent Python reference in `tools/mcv2-reference` defines MCV2 version 3 together with
+[docs/mcv2.md](../../docs/mcv2.md). Its README lists source/test SHA-256 hashes, the public API and pinned requirements.
+The fixture root is `mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2`.
+Archives (`.mcs`) contain repeated little-endian u32 frame lengths followed by the frame bytes, matching
+`Mcv2FileEncoder`.
 
-The oracle is the Python reference in `tools/mcv2-reference` (its README lists every file with its SHA-256 and the
-pinned Python requirements). The vectors are all under
-`mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2` (8.9 MB in all), written by the reference itself
-unless marked otherwise:
+| path | contents and writer | regeneration |
+|---|---|---|
+| `edge/*.mcs` | 13 deterministic streams, 64 frames, built by the Python serializer from block trees. Covers all six leaf modes at 32/16/8 pixels; all compact classes, forms and q=0–7; all 16 endpoint/selector table-state combinations and 255-entry tables; 1×N/N×1/cropped pictures; all-absent and default-colour frames; clamped s8 motion; long compact walks; over 20,000 split prefixes; the 131,071-byte limit; u32 id wrap | `edge` |
+| `edge/digests.json` | SHA-256 of the Python decoder's RGB output for every edge frame | `edge` |
+| `edge/rejected.json` | 127 frames refused by every decoder: each entry has hex `frame`, specification `rule` and expected error `reason`. Covers every §9 rule, valid old MCV1/v2 examples, and malformed off-picture leaves and unused tables | `edge` |
+| `conformance/*.mcs` | Java-written v3 streams, each within 1,000,000 bytes: DEFAULT proxy/gameplay, FAST, ADAPTIVE, keyframes only and a cropped size. The reference never rewrites these streams | Java encoder |
+| `conformance/digests.json` | stream size/count and SHA-256 of every frame's independently decoded RGB | `conformance` |
+| `conformance/pages.json` | six-bit pages, stream id 7, for four frames. Includes source archive/index, each page's symbol digest and length, and wire sizes for rows/full maps. The `source` field names committed v3 conformance streams or the edge fallback when none exist | `pages` |
+| `encoder/*.rgb`, `encoder/*.mcs` | committed source crop and Java encoder's DEFAULT/FAST golden streams, used for thread-count and Java/native determinism checks | Java encoder; `encoder` only checks that the v3 archives decode |
+| `FrameParserFuzzTestInputs/`, `transport/`, `encode/` | existing fuzz inputs, retained as rejection/decoding inputs | retained independently of the generator |
 
-| path | what | size | read by |
-|---|---|---:|---|
-| `conformance/*.mcs` | 12 streams of the 1080p60 rate and quality ladders and the two shipped 1080p30 streams (`ship`, `low_bandwidth`): 724 frames. The three streams over 1 MB are kept as their longest whole-frame prefix within 1,000,000 bytes, which starts at the keyframe: `quality85` 41 of 60 frames, `rate12` 53 of 60, `rate20` 30 of 60 | 7.6 MB | `ConformanceTest`, `Mcv2DecoderTest`, `FrameWriterConformanceTest`, `Mcv2ParserPropertyTest`, `PageAssemblerTest` |
-| `conformance/digests.json` | per stream: the frame count and size, those of the full stream it was cut from, and the SHA-256 of the reference decoder's RGB output for every frame | 54 KB | `ConformanceTest` |
-| `conformance/pages.json` | the reference's map pages (stream id 7) of four frames at 6, 7 and 8 bits: the SHA-256 and length of every page's symbols, and the wire model with and without whole maps | 6 KB | `TransportPagesTest` |
-| `edge/*.mcs`, `edge/digests.json` | 14 edge-case streams, 79 frames, built from random block trees with the reference's own serializer (`edge_streams.py`): every leaf mode, compact class, motion form and index form, quantizers up to 7, edges crossing blocks | 329 KB | `ConformanceTest`, `FrameWriterConformanceTest`, `FrameMutationTest`, `Mcv2ParserPropertyTest`, `NativeConformanceTest` |
-| `edge/rejected.json` | three frames of syntax the reference accepts and mcav refuses on purpose (MCV1, the coarse palettes of modes 21 and 22, the motion table of flag 256), which must fail as unsupported | | `ConformanceTest` |
-| `encoder/crop-320x180x4.rgb` | four frames of the 1080p30 source, cropped at (1472, 360) | 691 KB | `EncoderConformanceTest`, `NativeConformanceTest` |
-| `encoder/crop-ship.mcs`, `crop-low.mcs` | the reference encoder's streams of that crop at both shipped lambdas, which mcav's encoder must reproduce byte for byte, on one to four threads | 4 KB | `EncoderConformanceTest`, `NativeConformanceTest` |
-| `FrameParserFuzzTestInputs/`, `transport/`, `encode/` | Jazzer seed corpora of the fuzz tests; not reference output | 189 KB | the `*FuzzTest` classes |
+The edge folder is 826,065 bytes, including JSON catalogs; the edge-derived pages manifest is 1,756 bytes.
+Non-v3 conformance and golden encoder archives are printed by name and skipped. Their bytes and existing digests
+are preserved until replaced with Java-written v3 streams. A v3 stream containing any invalid frame still fails.
 
-What they prove:
+Run from the repository root with the pinned requirements:
 
-- **Decoder, bit-exact.** Every committed frame decodes to the reference's RGB output (SHA-256 per frame). Syntax mcav
-  refuses is refused as unsupported, never misread. Every committed frame's block tree also serializes back to the same
-  bytes (`FrameWriterConformanceTest`).
-- **Encoder, byte-identical.** The `ship` and `low_bandwidth` profiles write the reference's bytes: in JUnit on the
-  crop, and on the whole 30-frame source, where both archives equal the reference encoder's streams (SHA-256
-  `6fc68739...` for `ship`, 321,250 bytes; the check needs the source, see `EncoderConformanceTest`). Through the
-  native kernels, at every SIMD level the processor runs, the search writes the same bytes and every edge picture
-  re-encodes as with the Java kernels (`NativeConformanceTest`).
-- **Transport, bit-exact.** Every page of `pages.json`, CRC included.
-- **Beyond the corpus.** `differential.py` decodes generated streams with both decoders frame by frame: random block
-  trees, reference-encoder streams on random pictures, and mutated copies of both.
-- **The resource pack.** `shader_check.py` runs the pack's post chain outside Minecraft, pass for pass, and compares
-  every picture with the reference decoder, plain and compiled the way Minecraft 26.3 compiles it (`--spirv`);
-  `capture_check.py` and `strip_check.py` do the same with screenshots of the real client.
-
-To regenerate them, with the pinned requirements of `tools/mcv2-reference/requirements.txt`:
-
-```
-python tools/mcv2/fixtures.py mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2 [conformance|edge|pages|encoder|all]
+```sh
+python -m unittest discover -s tools/mcv2-reference/tests
+python -m unittest discover -s mcav-bukkit/src/test/python
+python tools/mcv2/fixtures.py mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2 all
 ```
 
-- `conformance` recomputes `digests.json` from the committed streams (and checks that each is a keyframe-first prefix
-  within the size limit); the full-stream counts are carried over, since the full streams are not here.
-- `edge` rebuilds the edge streams, their digests and `rejected.json` from a fixed seed.
-- `pages` recomputes `pages.json` from the committed streams.
-- `encoder` re-encodes the committed crop at both lambdas; `--source <raw 1920x1080 RGB>` cuts the crop again from the
-  30-frame 1080p30 source (SHA-256 `acf2ab47e7d36aeefc53e0781d7b3934eb468efcbed610ddd6479aa5aece05bd`), which is not
-  part of mcav.
+The final argument can be `conformance`, `edge`, `pages` or `encoder`. `conformance` recomputes v3 digests and
+checks the keyframe-first and archive-length rules. `edge` rebuilds the streams and catalogs from a fixed seed,
+and verifies each rejection's reason. `pages` uses the first four available v3 conformance frames (cycling if fewer
+than four exist), or four edge frames. `encoder` never encodes or writes files. Running `all` twice reproduces
+these committed fixtures byte for byte.
 
-Rerunning all four steps on the committed fixtures reproduces them byte for byte. The script refuses to run if the
-reference's residual books and mcav's (`residual_books.bin` in `mcav-bukkit`'s resources) differ.
+`differential.py` keeps both receivers' stream state and compares every result, even after a prior disagreement.
+There is no Python encoder and no unsupported-syntax exemption. Its default corpus is `conformance/`; both its
+original streams and mutated copies are checked, including old-version inputs which both v3 decoders must reject.
+The resource pack and capture checks use the same reference reconstruction and six-bit transport APIs.

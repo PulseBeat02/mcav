@@ -1,4 +1,20 @@
-"""Compare pictures captured from a client with the MCV2 pack's debug view against the reference decode.
+# This file is part of mcav, a media playback library for Java
+# Copyright (C) Brandon Li <https://brandonli.me/>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+"""Compare pictures captured from a client with the MCV2 pack's debug view against the v3 reference decode.
 
     python tools/mcv2/capture_check.py <reference.rgb> <width> <height> <captures folder> [--top ROWS] [--vmaf FFMPEG]
 
@@ -6,7 +22,7 @@ The server runs with -Dmcav.mcv2.debugView=true, so the pack draws the decoded p
 corner of the screen, starting below the transport strip (--top: page slots times ceil(4096 / screen width), plus one
 descriptor row; 13 rows at 1920 wide with four slots). The captures are screenshots of the whole screen, for example
 ffmpeg's x11grab at two per second while a stream plays slowly with /mcav mcv2 play, so every frame of the stream is
-on screen for several captures. The reference is the reference decoder's pictures of the same stream, raw RGB, one
+on screen for several captures. The reference is mcvideo.decoder.decode's pictures of the same v3 stream, raw RGB, one
 after another.
 
 Every capture is matched with the reference frame it equals byte for byte; a capture that equals none is matched with

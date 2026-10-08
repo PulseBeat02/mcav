@@ -1,65 +1,57 @@
-"""Regenerate the MCV2 test fixtures of mcav-bukkit with the reference in tools/mcv2-reference.
+# This file is part of mcav, a media playback library for Java
+# Copyright (C) Brandon Li <https://brandonli.me/>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-    python tools/mcv2/fixtures.py <fixture root> [conformance|edge|pages|encoder|all] [--source RGB]
+"""Regenerate v3 reference fixtures; read but never rewrite Java conformance/golden streams.
 
-The fixture root is mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2. Run it with a Python that has
-numpy (tools/mcv2-reference/requirements.txt). Every fixture the Java tests read is written by the reference itself:
-
-  conformance/  the twelve round-19 sample streams and the two shipped 1080p30 streams of the research repository at
-                the pinned commit, a stream over 1,000,000 bytes cut to its longest whole-frame prefix within that size,
-                which starts with the stream's keyframe. The streams are the test vectors and are kept as committed: the
-                research data they were cut from is not part of mcav. digests.json holds the reference decoder's
-                per-frame SHA-256 of the RGB output of each stream, recomputed here, and the frame count and size of
-                the full stream each was cut from, carried over.
-  edge/         edge-case streams from tools/mcv2/edge_streams.py, with their digests and the rejected syntax.
-  pages.json    the reference's map pages (stream id 7, 6, 7 and 8 bits) of four frames: the SHA-256 of every page's
-                symbols, their lengths and the wire model with and without whole maps.
-  encoder/      a 320x180 crop of four frames of the 1080p30 source at (1472, 360), kept as committed unless --source
-                names that source (raw 1920x1080 RGB), and the reference encoder's streams of it at both shipped
-                lambdas.
-
-Rerunning it on the committed fixtures reproduces them byte for byte.
+Archives contain repeated little-endian u32 lengths followed by that many frame bytes.
+Version-2 conformance and encoder streams are left untouched until replaced by Java output.
 """
 
 import argparse
 import hashlib
 import json
 import struct
-import subprocess
 import sys
 from pathlib import Path
 
-PARSER = argparse.ArgumentParser()
-PARSER.add_argument("root", type=Path)
-PARSER.add_argument("what", nargs="?", default="all", choices=("conformance", "edge", "pages", "encoder", "all"))
-PARSER.add_argument("--source", type=Path, help="the raw 1920x1080 RGB source to cut the encoder crop from")
-ARGS = PARSER.parse_args()
-ROOT, WHAT, SOURCE = ARGS.root, ARGS.what, ARGS.source
 REPOSITORY = Path(__file__).resolve().parents[2]
-REFERENCE = REPOSITORY / "tools/mcv2-reference"
-sys.path.insert(0, str(REFERENCE))
+sys.path.insert(0, str(REPOSITORY / 'tools/mcv2-reference'))
 
-import numpy as np  # noqa: E402
-from mcvideo import format as fmt  # noqa: E402
-from mcvideo.decoder import Decoder  # noqa: E402
-from mcvideo.transport import make_pages, wire_bytes  # noqa: E402
+from mcvideo.decoder import Decoder
+from mcvideo.transport import make_pages, wire_bytes
+from mcvideo.v3 import parse_frame
 
 PREFIX_LIMIT = 1_000_000
-SHIPPED = ("p30r19-compact_final-65p255994", "p30r19-compact_final-137p730758")
-LAMBDAS = {"ship": 65.255994022, "low": 137.730758207}
-BOOKS = REPOSITORY / "mcav-bukkit/src/main/resources/me/brandonli/mcav/bukkit/media/mcv2/residual_books.bin"
 
 
 def frames(data):
     offset = 0
     while offset < len(data):
-        length = struct.unpack_from("<I", data, offset)[0]
-        yield data[offset + 4 : offset + 4 + length]
-        offset += 4 + length
+        if offset + 4 > len(data):
+            raise ValueError('truncated archive length')
+        length = struct.unpack_from('<I', data, offset)[0]
+        offset += 4
+        if offset + length > len(data):
+            raise ValueError('truncated archive frame')
+        yield data[offset:offset + length]
+        offset += length
 
 
 def archive(chunks):
-    return b"".join(struct.pack("<I", len(chunk)) + chunk for chunk in chunks)
+    return b''.join(struct.pack('<I', len(chunk)) + chunk for chunk in chunks)
 
 
 def digests(data):
@@ -68,86 +60,88 @@ def digests(data):
 
 
 def write_json(path, value):
-    path.write_text(json.dumps(value, indent=1) + "\n")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value, indent=1) + '\n')
 
 
-def conformance():
-    out = ROOT / "conformance"
-    committed = json.loads((out / "digests.json").read_text())
-    names = sorted(path.name for path in out.glob("round19-*.mcs")) + [name + ".mcs" for name in SHIPPED]
-    table = {}
-    for name in names:
-        data = (out / name).read_bytes()
-        kept = list(frames(data))
-        if len(data) > PREFIX_LIMIT or not fmt.parse_frame(kept[0]).flags & fmt.KEYFRAME:
-            raise ValueError(name + " is not a prefix within the limit that starts with a keyframe")
-        table[name] = {
-            "frames": len(kept),
-            "of": committed[name]["of"],
-            "bytes": len(data),
-            "full_stream_bytes": committed[name]["full_stream_bytes"],
-            "sha256_per_frame": digests(data),
-        }
-        print(name, len(kept), "frames", file=sys.stderr)
-    write_json(out / "digests.json", table)
+def v3_stream(path):
+    data = path.read_bytes()
+    kept = list(frames(data))
+    if not kept:
+        raise ValueError(f'{path}: empty archive')
+    if kept[0][:5] != b'MCV2\x03':
+        print(f'skip non-v3 stream: {path}', file=sys.stderr)
+        return None
+    return data, kept
 
 
-def edge():
-    script = Path(__file__).with_name("edge_streams.py")
-    subprocess.run([sys.executable, str(script), str(ROOT / "edge")], check=True)
+def conformance(root):
+    output = root / 'conformance'
+    path = output / 'digests.json'
+    table = json.loads(path.read_text()) if path.exists() else {}
+    updated = False
+    for stream in sorted(output.glob('*.mcs')):
+        result = v3_stream(stream)
+        if result is None:
+            continue
+        data, kept = result
+        if len(data) > PREFIX_LIMIT or not parse_frame(kept[0]).keyframe:
+            raise ValueError(f'{stream}: conformance must start with a keyframe and fit within {PREFIX_LIMIT} bytes')
+        table[stream.name] = dict(frames=len(kept), bytes=len(data), sha256_per_frame=digests(data))
+        updated = True
+        print(f'{stream.name}: {len(kept)} v3 frames checked', file=sys.stderr)
+    if updated:
+        write_json(path, table)
 
 
-def pages():
-    cases = [
-        ("conformance/p30r19-compact_final-65p255994.mcs", 0),
-        ("conformance/p30r19-compact_final-65p255994.mcs", 1),
-        ("edge/edge-tiny.mcs", 0),
-        ("edge/edge-wide-fallback.mcs", 0),
-    ]
-    table = {}
-    for stream, index in cases:
-        frame = list(frames((ROOT / stream).read_bytes()))[index]
-        for bits in (6, 7, 8):
-            symbols = make_pages(frame, 7, bits)
-            table[f"{stream}#{index}@{bits}"] = {
-                "pages": [hashlib.sha256(page).hexdigest() for page in symbols],
-                "lengths": [len(page) for page in symbols],
-                "wire": wire_bytes(symbols),
-                "wire_full": wire_bytes(symbols, full_maps=True),
-            }
-    write_json(ROOT / "conformance/pages.json", table)
+def edge(root):
+    from edge_streams import generate
+    generate(root / 'edge')
 
 
-def encoder():
-    from mcvideo.encoder import Settings
-    from mcvideo.v2 import TreeEncoder, TreeSettings
-
-    out = ROOT / "encoder"
-    out.mkdir(parents=True, exist_ok=True)
-    if SOURCE is not None:
-        source = np.fromfile(SOURCE, np.uint8).reshape(-1, 1080, 1920, 3)
-        (out / "crop-320x180x4.rgb").write_bytes(np.ascontiguousarray(source[:4, 360:540, 1472:1792]).tobytes())
-    crop = np.fromfile(out / "crop-320x180x4.rgb", np.uint8).reshape(4, 180, 320, 3)
-    for name, lam in LAMBDAS.items():
-        # the round-19 settings of the shipped 1080p30 profiles; only the lambda differs between them
-        settings = Settings(
-            block_size=32, lambda_value=lam, motion_range=24, half_pixel=True, global_motion=True, compare_global=True,
-            palette=True, reduced_chroma=True, sparse=True, default_solid=True, grids=(1, 2, 4, 8), key_interval=60,
-            scene_threshold=45.0,
-        )
-        tree = TreeSettings(
-            adaptive=True, short_index=True, palette_patterns=True, pattern_rdo=True, sparse_children=True,
-            residual_classes=(0, 1, 2, 3, 4, 8), wire_rdo=False, symbol_bits=6, perceptual=False, immediate_motion=True,
-            derived_directory=True, derived_offsets=True, matched_cost_model=True, packed_symbols=True,
-            two_level_walk=True, endpoint_table=True, selector_table=True, endpoint_565=True,
-        )
-        coder = TreeEncoder(settings, tree)
-        (out / f"crop-{name}.mcs").write_bytes(archive(coder.encode(frame, frame_number) for frame_number, frame in enumerate(crop)))
+def pages(root):
+    cases = []
+    for stream in sorted((root / 'conformance').glob('*.mcs')):
+        result = v3_stream(stream)
+        if result is not None:
+            cases.extend((str(stream.relative_to(root)), index, frame) for index, frame in enumerate(result[1]))
+    if cases:
+        source = 'committed v3 conformance streams'
+        cases = [cases[index % len(cases)] for index in range(4)]
+    else:
+        source = 'edge streams (no committed v3 conformance streams)'
+        cases = [(f'edge/{name}.mcs', index, list(frames((root / 'edge' / f'{name}.mcs').read_bytes()))[index])
+                 for name, index in [('edge-modes', 0), ('edge-modes', 1), ('edge-tiny', 0), ('edge-long-walk', 1)]]
+    entries = []
+    for stream, index, frame in cases:
+        symbols = make_pages(frame, 7)
+        entries.append(dict(stream=stream, frame=index, pages=[hashlib.sha256(page).hexdigest() for page in symbols],
+                            lengths=[len(page) for page in symbols], wire=wire_bytes(symbols),
+                            wire_full=wire_bytes(symbols, full_maps=True)))
+    write_json(root / 'conformance/pages.json', dict(source=source, stream_id=7, symbol_bits=6, frames=entries))
 
 
-# the reference reads its residual books from its own folder; mcav's decoder reads the resource, and both must agree
-if (REFERENCE / "research_artifacts/residual_books.bin").read_bytes() != BOOKS.read_bytes():
-    raise ValueError("the residual books of tools/mcv2-reference differ from " + str(BOOKS))
-STEPS = {"conformance": conformance, "edge": edge, "pages": pages, "encoder": encoder}
-for step in STEPS if WHAT == "all" else [WHAT]:
-    STEPS[step]()
+def encoder(root):
+    checked = 0
+    for stream in sorted((root / 'encoder').glob('*.mcs')):
+        result = v3_stream(stream)
+        if result is None:
+            continue
+        decoded = digests(result[0])
+        checked += 1
+        print(f'{stream.name}: {len(decoded)} golden v3 frames decoded', file=sys.stderr)
+    print(f'encoder: {checked} committed v3 golden streams checked; files unchanged', file=sys.stderr)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('root', type=Path)
+    parser.add_argument('what', nargs='?', default='all', choices=('conformance', 'edge', 'pages', 'encoder', 'all'))
+    arguments = parser.parse_args()
+    steps = dict(conformance=conformance, edge=edge, pages=pages, encoder=encoder)
+    for step in steps if arguments.what == 'all' else [arguments.what]:
+        steps[step](arguments.root)
+
+
+if __name__ == '__main__':
+    main()
