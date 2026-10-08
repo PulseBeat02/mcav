@@ -28,26 +28,20 @@ public final class JDAModule implements MCAVModule {
   /**
    * Constructs the module. The module loader creates it for you.
    */
-  public JDAModule() {
-    // stateless
-  }
+  public JDAModule() {}
 
   /**
    * Starts the module. Nothing is prepared here, because the bot is logged in by your code and every
    * {@link DiscordPlayer} is created with {@link DiscordPlayer#voice(net.dv8tion.jda.api.JDA)}.
    */
   @Override
-  public void start() {
-    // nothing to prepare
-  }
+  public void start() {}
 
   /**
    * Stops the module. Nothing is released here, because the bot and its voice connections belong to your code.
    */
   @Override
-  public void stop() {
-    // nothing to release
-  }
+  public void stop() {}
 
   /**
    * Gets the name of the module.
