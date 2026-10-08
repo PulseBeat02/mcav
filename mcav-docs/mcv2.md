@@ -1595,7 +1595,7 @@ The measurements behind every chart are in `mcav-bukkit/src/test/resources/mcv2/
 MCV2's tools live in mcav-bukkit's test sources. The independent Python implementation is
 `mcav-bukkit/src/test/python/mcv2_reference.py`; it implements the format, serializer, decoder and six-bit transport
 without calling Java. All Python tool commands use `mcav-bukkit/src/test/python/mcv2_tools.py` followed by a
-subcommand. Use Python 3.12 or newer with numpy 2.5.3, Pillow 12.3.0, moderngl 5.12.0 and matplotlib for figures.
+subcommand. Use Python 3.12 or newer with numpy 2.5.3, Pillow 12.3.0, moderngl 5.12.0 and matplotlib 3.11.2 for figures.
 The Java commands share `me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools`. Its shaderc and SPIRV-Cross dependencies,
 including the current platform's LWJGL natives, are test dependencies and are absent from the plugin's runtime.
 
@@ -1649,7 +1649,7 @@ The fixture root contains `conformance/`, `edge/`, `encoder/`, the measured curv
 sources in `figures/`. Jazzer's `*FuzzTestInputs/` directories stay beneath the fuzz tests' Java package paths because
 Jazzer discovers their seeds there. The resource pack and chain template live under `mcav/mcv2/` in main resources.
 
-Render the diagrams and charts with Graphviz and Python:
+Render the diagrams and charts with Graphviz 14.1.2 and Python:
 
 ```sh
 for diagram in decode overview transport; do
