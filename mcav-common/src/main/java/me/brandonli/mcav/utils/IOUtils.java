@@ -82,7 +82,6 @@ public final class IOUtils {
    */
   public static final long MAX_IMAGE_BYTES = 64L * 1024L * 1024L;
 
-  private static final String INSTALLER_RESOURCE_FOLDER = "installers/";
   private static final long MAX_ZIP_ENTRY_SIZE = 512L * 1024L * 1024L;
   private static final long MAX_ZIP_TOTAL_SIZE = 2L * 1024L * 1024L * 1024L;
   private static final int COPY_BUFFER_SIZE = 64 * 1024;
@@ -484,18 +483,17 @@ public final class IOUtils {
   }
 
   /**
-   * Reads the download list of an installer from the {@code installers} resource folder.
+   * Reads the download list of an installer from a classpath resource.
    *
-   * @param resourcePath the name of the JSON resource, such as {@code yt-dlp.json}
+   * @param resourcePath the full path from the classpath root, such as {@code mcav/common/installers/yt-dlp.json}
    * @return the downloads described by the resource
    * @throws UncheckedIOException if the resource is missing or not valid JSON
    * @throws NullPointerException if {@code resourcePath} is null
    */
   public static Download[] readDownloadsFromJsonResource(final String resourcePath) {
     Preconditions.checkNotNull(resourcePath, "Resource path must not be null");
-    final String installerJson = INSTALLER_RESOURCE_FOLDER + resourcePath;
     final Download[] downloads;
-    try (final Reader reader = getResourceAsStreamReader(installerJson)) {
+    try (final Reader reader = getResourceAsStreamReader(resourcePath)) {
       downloads = parseDownloads(reader);
     } catch (final IOException exception) {
       final String message = exception.getMessage();

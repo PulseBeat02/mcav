@@ -80,7 +80,7 @@ final class YTDLPInstallerTest {
 
   @Test
   void pinsEveryBundledDownloadToRelease20260819() {
-    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("yt-dlp.json");
+    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("mcav/common/installers/yt-dlp.json");
     assertEquals(8, downloads.length);
     for (final Download download : downloads) {
       final String url = download.getUrl();
@@ -96,7 +96,7 @@ final class YTDLPInstallerTest {
 
   @Test
   void bundlesOneDownloadPerPlatform() {
-    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("yt-dlp.json");
+    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("mcav/common/installers/yt-dlp.json");
     final Set<Platform> platforms = new HashSet<>();
     for (final Download download : downloads) {
       final Platform platform = download.getPlatform();
@@ -133,7 +133,7 @@ final class YTDLPInstallerTest {
   }
 
   private static Download findBundledDownload(final Platform platform) {
-    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("yt-dlp.json");
+    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("mcav/common/installers/yt-dlp.json");
     for (final Download download : downloads) {
       final Platform downloadPlatform = download.getPlatform();
       final boolean matches = downloadPlatform.equals(platform);

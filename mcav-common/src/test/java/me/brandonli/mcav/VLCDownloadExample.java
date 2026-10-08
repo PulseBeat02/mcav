@@ -29,7 +29,7 @@ public final class VLCDownloadExample {
   private VLCDownloadExample() {}
 
   static void main() {
-    final Download[] downloads = ReleasePackageManager.readVLCDownloadsFromJsonResource("vlc.json");
+    final Download[] downloads = ReleasePackageManager.readVLCDownloadsFromJsonResource("mcav/common/installers/vlc.json");
     for (final Download download : downloads) {
       final Platform platform = download.getPlatform();
       final String url = download.getUrl();

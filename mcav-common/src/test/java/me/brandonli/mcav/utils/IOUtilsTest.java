@@ -269,8 +269,8 @@ final class IOUtilsTest {
 
   @Test
   void readsDownloadListsFromResources() {
-    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("sample.json");
-    final Download[] none = IOUtils.readDownloadsFromJsonResource("empty.json");
+    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("installers/sample.json");
+    final Download[] none = IOUtils.readDownloadsFromJsonResource("installers/empty.json");
     final Download linux = downloads[0];
     final Platform platform = linux.getPlatform();
     final Platform expectedPlatform = Platform.ofPlatform(OS.LINUX, Arch.X86, Bits.BITS_64);
@@ -279,8 +279,8 @@ final class IOUtilsTest {
     assertEquals(0, none.length);
     assertEquals(expectedPlatform, platform);
     assertEquals("https://example.com/tool-linux", url);
-    assertThrows(UncheckedIOException.class, () -> IOUtils.readDownloadsFromJsonResource("invalid.json"));
-    assertThrows(UncheckedIOException.class, () -> IOUtils.readDownloadsFromJsonResource("missing.json"));
+    assertThrows(UncheckedIOException.class, () -> IOUtils.readDownloadsFromJsonResource("installers/invalid.json"));
+    assertThrows(UncheckedIOException.class, () -> IOUtils.readDownloadsFromJsonResource("installers/missing.json"));
     assertThrows(NullPointerException.class, () -> IOUtils.readDownloadsFromJsonResource(null));
   }
 

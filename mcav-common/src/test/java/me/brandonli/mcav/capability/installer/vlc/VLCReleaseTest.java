@@ -67,7 +67,7 @@ final class VLCReleaseTest {
 
   @Test
   void bundledHashesMatchTheChecksumsVideoLanPublishesNextToEveryDownload() throws IOException, InterruptedException {
-    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("vlc.json");
+    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("mcav/common/installers/vlc.json");
     try (final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()) {
       for (final Download download : downloads) {
         final String url = download.getUrl();
