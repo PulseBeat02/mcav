@@ -262,7 +262,9 @@ final class NetworkGuard implements Closeable {
         this.sockets.remove(target);
         closeQuietly(target);
       }
-    } catch (final IOException exception) {}
+    } catch (final IOException exception) {
+      // the client broke the protocol, took too long, or went away
+    }
   }
 
   /**
@@ -343,7 +345,9 @@ final class NetworkGuard implements Closeable {
         out.write(buffer, 0, count);
         count = in.read(buffer);
       }
-    } catch (final IOException exception) {}
+    } catch (final IOException exception) {
+      // one side ended
+    }
   }
 
   /**
@@ -372,7 +376,9 @@ final class NetworkGuard implements Closeable {
   static void closeQuietly(final Closeable closeable) {
     try {
       closeable.close();
-    } catch (final IOException exception) {}
+    } catch (final IOException exception) {
+      // already gone
+    }
   }
 
   /**

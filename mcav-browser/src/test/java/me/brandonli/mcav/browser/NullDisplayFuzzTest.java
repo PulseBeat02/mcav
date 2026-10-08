@@ -45,7 +45,9 @@ final class NullDisplayFuzzTest {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     try {
       NullDisplay.serve(new ByteArrayInputStream(stream.toByteArray()), output, COOKIE, new NullDisplay.Atoms());
-    } catch (final IOException ended) {}
+    } catch (final IOException ended) {
+      // a request the display does not accept ends the connection
+    }
     final long largestReply = 32L + 4L * NullDisplay.MAX_REQUEST_UNITS;
     final long bound = 1_000L + (input.length / 4L + 1L) * largestReply;
     assertTrue(output.size() <= bound, output.size() + " bytes answered to " + input.length);
@@ -55,6 +57,8 @@ final class NullDisplayFuzzTest {
   void everySetupIsAcceptedOrRefused(final byte[] input) {
     try {
       NullDisplay.serve(new ByteArrayInputStream(input), new ByteArrayOutputStream(), COOKIE, new NullDisplay.Atoms());
-    } catch (final IOException refused) {}
+    } catch (final IOException refused) {
+      // not a setup with the cookie
+    }
   }
 }

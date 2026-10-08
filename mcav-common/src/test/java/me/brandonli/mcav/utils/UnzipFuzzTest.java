@@ -69,7 +69,9 @@ final class UnzipFuzzTest {
     final List<Path> before = listTree(scope);
     try {
       IOUtils.unzip(archive, destination);
-    } catch (final UncheckedIOException | ZipEntryIntegrityException refused) {}
+    } catch (final UncheckedIOException | ZipEntryIntegrityException refused) {
+      // a broken or unsafe archive; what matters is where anything was written
+    }
     final List<Path> after = listTree(scope);
     final Stream<Path> created = after.stream();
     final Stream<Path> escaped = created.filter(path -> !before.contains(path) && !path.startsWith(destination));

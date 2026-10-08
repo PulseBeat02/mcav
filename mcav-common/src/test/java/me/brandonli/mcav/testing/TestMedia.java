@@ -94,7 +94,9 @@ public final class TestMedia {
       for (final Path path : ordered) {
         Files.deleteIfExists(path);
       }
-    } catch (final IOException exception) {}
+    } catch (final IOException exception) {
+      // leftovers in the temporary directory are harmless
+    }
   }
 
   /**

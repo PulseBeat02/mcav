@@ -648,7 +648,9 @@ final class LinuxLibraries {
             matches.add(entry);
           }
         }
-      } catch (final IOException exception) {}
+      } catch (final IOException exception) {
+        // an include of a folder that is not there includes nothing
+      }
       Collections.sort(matches);
     }
     return matches;

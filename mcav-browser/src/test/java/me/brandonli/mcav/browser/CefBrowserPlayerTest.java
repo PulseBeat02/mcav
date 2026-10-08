@@ -463,7 +463,9 @@ class CefBrowserPlayerTest {
       final Future<Boolean> leftInterrupted = starter.submit(() -> {
         try {
           late.start(SOURCE);
-        } catch (final IllegalStateException failure) {}
+        } catch (final IllegalStateException failure) {
+          // the helper's own failure, which the start passes on
+        }
         return Thread.currentThread().isInterrupted();
       });
       assertTrue(opening.await(5, TimeUnit.SECONDS), "the helper factory must be entered before release");

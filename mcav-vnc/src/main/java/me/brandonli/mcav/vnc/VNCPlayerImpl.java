@@ -284,7 +284,9 @@ public final class VNCPlayerImpl implements VNCPlayer {
   private static void closeQuietly(final Socket socket) {
     try {
       socket.close();
-    } catch (final IOException exception) {}
+    } catch (final IOException exception) {
+      // nothing more can be done with a socket that refuses to close
+    }
   }
 
   private VernacularConfig createConfig(final VNCSource source, final Session created, final Thread renderWorker) {

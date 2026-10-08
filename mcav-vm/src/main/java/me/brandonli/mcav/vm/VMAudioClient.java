@@ -216,7 +216,9 @@ final class VMAudioClient implements Closeable {
   static void closeQuietly(final Closeable closeable) {
     try {
       closeable.close();
-    } catch (final IOException exception) {}
+    } catch (final IOException exception) {
+      // the connection is gone either way
+    }
   }
 
   /**

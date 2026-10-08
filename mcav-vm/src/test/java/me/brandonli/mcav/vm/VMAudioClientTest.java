@@ -283,6 +283,7 @@ class VMAudioClientTest {
         Thread.sleep(1_000L);
       }
     } catch (final IOException exception) {
+      // the client gave up and closed the connection
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
     }
@@ -327,6 +328,7 @@ class VMAudioClientTest {
               socket.close();
             }
           } catch (final IOException exception) {
+            // the test ended
           } catch (final InterruptedException exception) {
             Thread.currentThread().interrupt();
           }
