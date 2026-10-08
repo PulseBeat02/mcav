@@ -27,6 +27,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.interaction.VncAllowList;
@@ -106,11 +107,7 @@ public final class PluginDataConfigurationMapper {
   private static final String INVALID_REFUSED_HOST = "Ignoring an entry of {} that is not a host name or address: {}";
   private static final String INVALID_THREADS = "Invalid {} {}, using half the processors";
 
-  private static final String NATIVE_AUTO = "auto";
-
-  private static final String NATIVE_OFF = "off";
-
-  private static final String INVALID_NATIVE = "Invalid {} {}, using " + NATIVE_AUTO;
+  private static final String INVALID_NATIVE = "Invalid {} {}, using " + MCV2.NATIVE_AUTO;
 
   private static final String INVALID_CHOICE = "Invalid {} {}, using {}";
 
@@ -151,7 +148,7 @@ public final class PluginDataConfigurationMapper {
 
   private int mcv2EncoderThreads;
 
-  private String mcv2Native = NATIVE_AUTO;
+  private String mcv2Native = MCV2.NATIVE_AUTO;
 
   private MapCodec mcv2DefaultCodec = MapCodec.DITHER;
 
@@ -286,12 +283,12 @@ public final class PluginDataConfigurationMapper {
   private static String readNative(final FileConfiguration config) {
     // YAML reads an unquoted off as false, and on as true
     if (config.isBoolean(MCV2_NATIVE)) {
-      return config.getBoolean(MCV2_NATIVE) ? NATIVE_AUTO : NATIVE_OFF;
+      return config.getBoolean(MCV2_NATIVE) ? MCV2.NATIVE_AUTO : MCV2.NATIVE_OFF;
     }
-    final String mode = getString(config, MCV2_NATIVE, NATIVE_AUTO);
-    if (!mode.equals(NATIVE_AUTO) && !mode.equals(NATIVE_OFF)) {
+    final String mode = getString(config, MCV2_NATIVE, MCV2.NATIVE_AUTO);
+    if (!mode.equals(MCV2.NATIVE_AUTO) && !mode.equals(MCV2.NATIVE_OFF)) {
       LOGGER.warn(INVALID_NATIVE, MCV2_NATIVE, mode);
-      return NATIVE_AUTO;
+      return MCV2.NATIVE_AUTO;
     }
     return mode;
   }

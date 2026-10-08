@@ -135,7 +135,7 @@ public final class TransportPage {
   /**
    * Gets the number of useful bits per symbol.
    *
-   * @return 6, 7 or 8
+   * @return 6
    */
   public int getSymbolBits() {
     return this.symbolBits;

@@ -68,8 +68,8 @@ public final class Mcv2Trees {
       return (int) invoke(TREE, this.value, "getMode", new Class<?>[0]);
     }
 
-    public int getQ() {
-      return (int) invoke(TREE, this.value, "getQ", new Class<?>[0]);
+    public int getQuantizer() {
+      return (int) invoke(TREE, this.value, "getQuantizer", new Class<?>[0]);
     }
 
     public byte[] getRecord() {

@@ -52,6 +52,13 @@ final class Mcv2ParserTest {
   }
 
   @Test
+  void absentRootsHaveNoRecordOffset() throws Mcv2Exception {
+    final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(Mcv2Trees.predicted(1, 1, Node.skip()));
+    assertEquals(1, frame.getLeafCount());
+    assertEquals(-1, frame.getLeaf(0).offset());
+  }
+
+  @Test
   void isAUtilityClass() throws ReflectiveOperationException {
     UtilityClassAssertions.assertNotInstantiable(Mcv2Decoder.class);
   }

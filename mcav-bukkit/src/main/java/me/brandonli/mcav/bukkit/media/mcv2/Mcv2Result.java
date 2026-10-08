@@ -78,9 +78,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A {@link Mcv2Pacer} keeps the screen within what its budget sustains: when the frames take longer than the video
  * gives them, it first searches less hard, down the preset ladder from the screen's settings
- * ({@code DEFAULT}, then {@code FAST}), the
- * live presets one encoder that switches between them without a keyframe, the exhaustive search an encoder of its own
- * whose first frame is a keyframe; then it encodes fewer frames, down to {@link Mcv2Pacer#MIN_FPS} a second,
+ * ({@code DEFAULT}, then {@code FAST}) on one encoder that switches without a keyframe; then it encodes fewer frames, down to {@link Mcv2Pacer#MIN_FPS} a second,
  * then shows a smaller video when the owner offers smaller sizes ({@link #setSmallerSizes}: each size has its own pack),
  * and when even that is too much, every viewer is shown the dithered maps, which need no encoder, until a later try
  * finds room again. Every step is logged, a step down as a warning, and handed to the
@@ -131,7 +129,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** The frames a screen may take at once after a pause: more than one, so a frame arriving early is not lost, fewer than two. */
   private static final double FRAME_CREDIT_CAP = 1.5;
 
-  /** Relative costs used to predict the next preset before it has a measured sample. */
   private static final double DEFAULT_COST = 1;
 
   private static final double FAST_COST = 0.9;

@@ -237,7 +237,7 @@ final class TransportPagesTest {
 
   @Test
   void everyPageNamesTheFrameItsFrameIsPredictedFrom() throws Mcv2Exception {
-    final Node root = Node.leaf(Mcv2Decoder.MODE_MOTION, 0, new byte[] { 1, 1 });
+    final Node root = Mcv2Trees.motion(1, 1);
     final byte[] frame = Mcv2Trees.write(32, 32, 5, 4, false, List.of(root));
     for (final byte[] page : TransportPages.makePages(frame, 7, 6)) {
       final TransportPage read = TransportPages.readPage(page, 6);

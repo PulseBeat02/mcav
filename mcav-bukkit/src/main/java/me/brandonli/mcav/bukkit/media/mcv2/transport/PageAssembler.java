@@ -50,8 +50,8 @@ public final class PageAssembler {
    * Constructs a new assembler.
    *
    * @param streamId the unsigned 32-bit stream id to accept, from 0 through 4,294,967,295; not checked here
-   * @param symbolBits the negotiated width, 6, 7 or 8 bits per symbol
-   * @throws IllegalArgumentException if the symbol width is not 6, 7 or 8
+   * @param symbolBits the negotiated width, 6 bits per symbol
+   * @throws IllegalArgumentException if the symbol width is not 6
    */
   public PageAssembler(final long streamId, final int symbolBits) {
     TransportPages.checkSymbolBits(symbolBits);

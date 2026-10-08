@@ -41,7 +41,7 @@ final class MCV2TreeNodeTest {
     final Node skip = Node.skip();
     assertSame(skip.value(), Node.skip().value());
     assertEquals(Mcv2Decoder.MODE_SKIP, skip.getMode());
-    assertEquals(0, skip.getQ());
+    assertEquals(0, skip.getQuantizer());
     assertFalse(skip.isSplit());
     assertEquals(0, skip.getRecord().length);
     assertEquals("A leaf has no children", assertThrows(IllegalStateException.class, () -> skip.getChild(0)).getMessage());
@@ -54,7 +54,7 @@ final class MCV2TreeNodeTest {
     record[0] = 9;
     assertArrayEquals(new byte[] { 1, 2, 3 }, leaf.getRecord());
     assertNotSame(leaf.getRecord(), leaf.getRecord());
-    assertEquals(2, leaf.getQ());
+    assertEquals(2, leaf.getQuantizer());
     assertEquals("leaf(2,2,3B)", leaf.value().toString());
   }
 

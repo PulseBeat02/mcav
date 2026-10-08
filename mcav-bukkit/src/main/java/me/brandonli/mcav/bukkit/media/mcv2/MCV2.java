@@ -25,6 +25,7 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.BLOCK_SIZES;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CHANNELS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CHECKPOINT_GROUPS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.COMPACT_BYTES;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CURSOR_BITS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.DIMENSIONS_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.FRAME_ID_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.GROUP_ROOTS;
@@ -691,7 +692,7 @@ public final class MCV2 {
     }
   }
 
-  // Motion search preserves the seeded diamond and the reference pyramid.
+  // Seeded diamond motion search and reference pyramid.
   private static final int[][] DIRECTIONS = { { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 } };
   private static final int SAMPLED = 4;
   private static final int[][] SAMPLES = { { 1, 3, 5, 7 }, { 2, 6, 10, 14 }, { 4, 12, 20, 28 } };
@@ -839,7 +840,7 @@ public final class MCV2 {
     return out;
   }
 
-  // Block search keeps the first strictly cheapest candidate and bounded top-down splits.
+  // Block candidates and bounded top-down splitting.
   private static final class Buffers {
 
     private final int width;
@@ -1154,7 +1155,7 @@ public final class MCV2 {
     private final float[] target;
     private final int[] zeroPrediction;
     private final int[] localPrediction;
-    private final int[] recon;
+    private final int[] reconstruction;
     private final int[] best;
     private final Kernels kernels;
     private final byte[] record = new byte[MAX_RECORD];
@@ -1188,7 +1189,7 @@ public final class MCV2 {
       this.target = new float[this.count];
       this.zeroPrediction = new int[this.count * CHANNELS];
       this.localPrediction = new int[this.count * CHANNELS];
-      this.recon = new int[this.count * CHANNELS];
+      this.reconstruction = new int[this.count * CHANNELS];
       this.best = new int[this.count * CHANNELS];
       this.selectors = new byte[this.count];
       this.halfSource = new int[((size * size) / 4) * CHANNELS];
@@ -1221,7 +1222,7 @@ public final class MCV2 {
       if (!this.frame.keyframe) {
         this.predict(0, this.zeroPrediction);
         this.eligible(0);
-        this.kernels.predicted(this.zeroPrediction, this.size, this.recon);
+        this.kernels.predicted(this.zeroPrediction, this.size, this.reconstruction);
         this.score(MODE_SKIP, 0, 0);
         if (this.hurried || this.cost() <= (this.frame.fast ? FAST_SKIP_BITS : NORMAL_SKIP_BITS) * this.frame.lambda) {
           this.skipped = true;
@@ -1235,7 +1236,7 @@ public final class MCV2 {
           this.eligible(2);
           this.record[0] = (byte) motionX(this.localVector);
           this.record[1] = (byte) motionY(this.localVector);
-          if (this.kernels.predicted(this.localPrediction, this.size, this.recon)) {
+          if (this.kernels.predicted(this.localPrediction, this.size, this.reconstruction)) {
             this.score(MODE_MOTION, 0, 2);
             closer = true;
           }
@@ -1267,7 +1268,7 @@ public final class MCV2 {
       final long distortion = this.kernels.distortion();
       final double cost = Math.min(distortion / DISTORTION_SCALE + this.rate, Double.MAX_VALUE);
       // A completed kernel has already beaten the incumbent at this rate.
-      System.arraycopy(this.recon, 0, this.best, 0, this.recon.length);
+      System.arraycopy(this.reconstruction, 0, this.best, 0, this.reconstruction.length);
       this.frame.set(this.level, this.block, cost, mode, quantizer, this.record, length, distortion);
     }
 
@@ -1416,7 +1417,7 @@ public final class MCV2 {
       this.record[0] = (byte) red;
       this.record[1] = (byte) green;
       this.record[2] = (byte) blue;
-      if (this.kernels.solid((red << 16) | (green << 8) | blue, this.size, this.recon)) {
+      if (this.kernels.solid((red << 16) | (green << 8) | blue, this.size, this.reconstruction)) {
         this.score(MODE_SOLID, 0, CHANNELS);
       }
     }
@@ -1438,7 +1439,7 @@ public final class MCV2 {
       }
       this.kernels.finish(this.source, this.count, this.endpoints(), this.colors, this.selectors);
       this.writePalette(this.record);
-      if (this.kernels.palette(this.record, 0, this.size, this.recon)) {
+      if (this.kernels.palette(this.record, 0, this.size, this.reconstruction)) {
         this.score(MODE_PALETTE, 0, length);
       }
     }
@@ -1453,7 +1454,7 @@ public final class MCV2 {
       }
       this.writePalette(this.palette);
       patternRecord(this.palette, this.size, this.record);
-      if (this.kernels.palette(this.palette, 0, this.size, this.recon)) {
+      if (this.kernels.palette(this.palette, 0, this.size, this.reconstruction)) {
         this.score(MODE_PATTERN, 0, length);
       }
     }
@@ -1474,13 +1475,13 @@ public final class MCV2 {
         final int high = quantize(this.fit[2 * index + 1], step) & 15;
         this.record[2 + index] = (byte) (low | (high << 4));
       }
-      if (this.kernels.compact(prediction, this.record, quantizer, this.size, this.recon)) {
+      if (this.kernels.compact(prediction, this.record, quantizer, this.size, this.reconstruction)) {
         this.score(MODE_COMPACT, quantizer, COMPACT_BYTES);
       }
     }
   }
 
-  // Fits preserve the live palette iterations and separable least squares.
+  // Palette fitting and separable least squares.
   private static final int CLUSTER_SUMS = 8;
   private static final int COUNTS = 6;
   private static final int ITERATIONS = 2;
@@ -2883,9 +2884,9 @@ public final class MCV2 {
     for (int index = 0; index < flat.size(); index++) {
       final TreeNode node = flat.get(index);
       if (index % WALK_SPAN == 0) {
-        putU32(data, walksAt + (index / WALK_SPAN) * Integer.BYTES, cursor | ((long) splits << 17));
+        putU32(data, walksAt + (index / WALK_SPAN) * Integer.BYTES, cursor | ((long) splits << CURSOR_BITS));
       }
-      data[descriptorsAt + index] = (byte) (node.getMode() | (node.getQ() << QUANTIZER_SHIFT));
+      data[descriptorsAt + index] = (byte) (node.getMode() | (node.getQuantizer() << QUANTIZER_SHIFT));
       if (node.isSplit()) {
         splits++;
         continue;
@@ -2907,7 +2908,7 @@ public final class MCV2 {
     }
     final int mode = node.getMode();
     Preconditions.checkArgument(mode <= MODE_COMPACT, "Illegal leaf mode %s", mode);
-    Preconditions.checkArgument(mode == MODE_COMPACT || node.getQ() == 0, "Quantizer on a mode without one");
+    Preconditions.checkArgument(mode == MODE_COMPACT || node.getQuantizer() == 0, "Quantizer on a mode without one");
     Preconditions.checkArgument(
       !keyframe || (mode != MODE_MOTION && mode != MODE_COMPACT),
       "The tree does not serialize to a valid frame: temporal keyframe leaf"
@@ -3011,7 +3012,7 @@ public final class MCV2 {
       return this.mode;
     }
 
-    private int getQ() {
+    private int getQuantizer() {
       return this.quantizer;
     }
 
@@ -3343,7 +3344,7 @@ public final class MCV2 {
       }
     }
 
-    static void uncaught(final Thread thread, final Throwable exception) {
+    private static void uncaught(final Thread thread, final Throwable exception) {
       LOGGER.error(THREAD_FAILED, thread.getName(), exception);
     }
 
