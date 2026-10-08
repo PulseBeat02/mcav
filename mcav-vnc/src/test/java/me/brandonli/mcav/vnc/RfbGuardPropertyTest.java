@@ -78,7 +78,9 @@ final class RfbGuardPropertyTest {
     session.handshake(8, NONE, SIDE, SIDE);
     try {
       session.server(messages);
-    } catch (final IOException refused) {}
+    } catch (final IOException refused) {
+      // the one failure the guard may report
+    }
   }
 
   /** A run of valid server messages, each type and encoding the client decodes. */
