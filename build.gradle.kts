@@ -37,6 +37,8 @@ spotless {
                     "mcav-docs/**/*.yml",
                     "mcav-docs/**/*.py",
                     "mcav-docs/**/*.txt",
+                    "mcav-docs/*.gradle.kts",
+                    "buildSrc/src/main/resources/uv-checksums.properties",
                     ".github/**/*.md",
                     ".github/**/*.yml",
                     "mcav-http/mcav-website/src/**/*.ts",

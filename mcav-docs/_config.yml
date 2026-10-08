@@ -2,6 +2,8 @@ title: MCAV Documentation
 author: PulseBeat_02
 copyright: "2026"
 logo: images/logo.png
+exclude_patterns:
+  - build
 
 execute:
   execute_notebooks: force
