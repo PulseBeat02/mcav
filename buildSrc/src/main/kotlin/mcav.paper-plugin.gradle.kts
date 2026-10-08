@@ -84,6 +84,14 @@ sourceSets.main {
     resources.srcDir(requiredModuleClasses)
 }
 
+val dependencyManifestPath = "mcav/sandbox/dependencies.txt"
+tasks.processResources {
+    inputs.property("dependencyManifestPath", dependencyManifestPath)
+    filesMatching("dependencies.txt") {
+        path = dependencyManifestPath
+    }
+}
+
 paperPluginYaml {
     apiVersion = minecraftVersion
 }
