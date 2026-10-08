@@ -163,7 +163,6 @@ final class AudioProviderTest {
     when(this.configuration.isHttpEnabled()).thenReturn(true);
   }
 
-  // an executor that keeps the tasks until runDeferred(), like a thread that has not got to them yet
   private void startInTheBackground() {
     final ExecutorService executor = mock(ExecutorService.class);
     doAnswer(invocation -> {
@@ -439,7 +438,6 @@ final class AudioProviderTest {
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
     final AudioFilter sound = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
-    // the machine took the outputs over: the speakers of the video stop, and its filter falls silent
     verify(videoSpeakers).release();
     final ByteBuffer samples = ByteBuffer.allocate(4);
     final OriginalAudioMetadata metadata = OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1);
@@ -447,13 +445,11 @@ final class AudioProviderTest {
     verify(videoSpeakers, never()).applyFilter(any(), any());
     assertPlaysInto(machineSpeakers, sound);
     assertFalse(sound.applyFilter(ByteBuffer.allocate(8), metadata), "what the output answers comes back");
-    // the real factory creates fresh speakers on every request, including the same source
     final AudioFilter replacement = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
     verify(machineSpeakers).release();
     verify(replacementSpeakers, never()).release();
     assertFalse(sound.applyFilter(samples, metadata));
     assertPlaysInto(replacementSpeakers, replacement);
-    // releasing the video leaves the machine playing; releasing the machine lets go of the outputs
     this.provider.releaseAudioFilter();
     verify(replacementSpeakers, never()).release();
     this.provider.releaseAudioFilter(new Object());
@@ -489,7 +485,6 @@ final class AudioProviderTest {
     this.provider.constructFilter(AudioArgument.DISCORD_BOT, mock(URLParseDump.class), this.players, machine);
     this.provider.releaseAudioFilter(machine);
     assertPlaysInto(this.discord, video);
-    // the video, the machine, and the video again
     verify(this.audioManager, times(3)).openAudioConnection(this.channel);
     verify(this.discord, times(2)).setCurrentMedia(this.dump);
   }
@@ -531,12 +526,10 @@ final class AudioProviderTest {
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.HTTP_SERVER, mock(URLParseDump.class), this.players, machine);
-    // the bot lost the right to join its channel meanwhile
     doThrow(new IllegalStateException("Missing permission VOICE_CONNECT")).when(this.audioManager).openAudioConnection(this.channel);
     this.provider.releaseAudioFilter(machine);
     assertFalse(video.applyFilter(ByteBuffer.allocate(4), OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1)));
     verify(this.httpServer).setCurrentMedia(MediaInfo.EMPTY);
-    // the video gave the outputs up with the failure; its own release later finds them free
     this.provider.releaseAudioFilter();
     verify(this.httpServer, times(2)).setCurrentMedia(MediaInfo.EMPTY);
   }
@@ -545,7 +538,6 @@ final class AudioProviderTest {
   void aTakeoverThatFailsLeavesTheSourceBeforePlayingThroughItsSpeakers() {
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
-    // the machine chose the bot, which is not ready, so it cannot take the outputs over
     final IllegalStateException failure = assertThrows(IllegalStateException.class, () ->
       this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players, machine)
     );
@@ -564,7 +556,6 @@ final class AudioProviderTest {
     final AudioFilter sound = this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players, machine);
     verify(this.voiceChatFilter).release();
     assertPlaysInto(this.httpServer, sound);
-    // the stopped speakers are no output of the machine's: its release does not stop them again
     this.provider.releaseAudioFilter(machine);
     verify(this.voiceChatFilter, times(1)).release();
   }
@@ -576,14 +567,11 @@ final class AudioProviderTest {
     this.provider.initialize();
     final Object machine = new Object();
     final Object browser = new Object();
-    // the video chose the web page, then the bot: its second choice replaced the first
     this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
-    // the bot lost the right to join its channel meanwhile, so the video gives the outputs up
     doThrow(new IllegalStateException("Missing permission VOICE_CONNECT")).when(this.audioManager).openAudioConnection(this.channel);
     this.provider.releaseAudioFilter(machine);
-    // a browser that plays and is released later hands the web page back to no one
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, browser);
     this.provider.releaseAudioFilter(browser);
     verify(this.httpServer, times(1)).setCurrentMedia(this.dump);
@@ -597,7 +585,6 @@ final class AudioProviderTest {
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
     this.provider.shutdown();
-    // a machine whose release ends after the shutdown: the video it took the outputs from no longer waits for them
     this.provider.releaseAudioFilter(machine);
     verify(lateSpeakers, never()).start();
     this.svcFilters.verify(() -> SVCFilter.svc(this.players), times(2));

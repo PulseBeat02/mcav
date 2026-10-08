@@ -55,7 +55,6 @@ final class LoaderUtils {
     }
   }
 
-  // the path is normalized so that the same jar always gets the same class path entry
   private static URL toUrl(final Path jar) {
     final Path absolute = jar.toAbsolutePath();
     final Path normalized = absolute.normalize();

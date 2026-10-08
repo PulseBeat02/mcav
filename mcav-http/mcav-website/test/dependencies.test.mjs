@@ -1,5 +1,3 @@
-// The website's dependencies are what its export ships, and third-party-notices.mjs lists every one of them in the
-// jar's notices: so each must be imported by the website's code, or be a peer dependency of a package that is.
 import assert from 'node:assert/strict';
 import {readdirSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';

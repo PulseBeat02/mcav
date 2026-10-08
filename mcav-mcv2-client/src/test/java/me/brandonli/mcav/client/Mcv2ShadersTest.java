@@ -65,7 +65,6 @@ final class Mcv2ShadersTest {
 
   @BeforeAll
   static void bootstrap() {
-    // a map's data needs the game's registries
     SharedConstants.tryDetectVersion();
     Bootstrap.bootStrap();
   }
@@ -123,7 +122,6 @@ final class Mcv2ShadersTest {
     try (final MockedStatic<IrisApi> iris = mockStatic(IrisApi.class)) {
       iris.when(IrisApi::getInstance).thenReturn(api);
       assertTrue(hooked(Mcv2Shaders.start(Optional.of("1.11.7+mc26.3"))));
-      // the tested Iris is asked whether it draws its shadow pass, another one not at all
       verify(api).isRenderingShadowPass();
       assertFalse(hooked(Mcv2Shaders.start(Optional.of("1.11.8+mc26.3"))));
       assertFalse(hooked(Mcv2Shaders.start(Optional.empty())));
@@ -150,7 +148,6 @@ final class Mcv2ShadersTest {
     final GameRenderer gameRenderer = mock(GameRenderer.class);
     final RenderTarget main = mock(RenderTarget.class);
     when(gameRenderer.mainRenderTarget()).thenReturn(main);
-    // a final field, which a mock leaves unset
     final Field field = Minecraft.class.getField("gameRenderer");
     field.setAccessible(true);
     field.set(minecraft, gameRenderer);

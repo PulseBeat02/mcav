@@ -204,7 +204,6 @@ public final class PacketUtils {
     Preconditions.checkNotNull(player, "Player must not be null");
     Preconditions.checkArgument(bytes > 0, "Bytes must be positive");
     final CachedConnection cached = PLAYER_CONNECTIONS.get(player);
-    // a game connection's network connection is only missing where there is no network, as in tests
     final Connection connection = cached == null ? null : cached.listener().connection;
     final Channel channel = connection == null ? null : connection.channel;
     return channel != null && channel.config().setOption(EpollChannelOption.TCP_NOTSENT_LOWAT, (long) bytes);
@@ -227,7 +226,6 @@ public final class PacketUtils {
   private static void addPlayerConnection(final Player player, final @Nullable CachedConnection previous) {
     final CraftPlayer craftPlayer = (CraftPlayer) player;
     final ServerPlayer handle = craftPlayer.getHandle();
-    // online and joining players were placed into the world, which always assigns their connection first
     final ServerGamePacketListenerImpl connection = handle.connection;
     final UUID uuid = player.getUniqueId();
     final Object identity = previous != null && connection.equals(previous.listener()) ? previous.identity() : new Object();

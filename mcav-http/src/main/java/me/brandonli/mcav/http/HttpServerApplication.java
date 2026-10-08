@@ -33,9 +33,7 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 @EnableWebSocket
 class HttpServerApplication {
 
-  HttpServerApplication() {
-    // configuration only
-  }
+  HttpServerApplication() {}
 
   @Bean
   AudioWebSocketHandler audioWebSocketHandler(final HttpResultImpl result) {

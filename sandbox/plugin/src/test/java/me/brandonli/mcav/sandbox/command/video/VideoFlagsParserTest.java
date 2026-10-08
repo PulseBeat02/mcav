@@ -83,7 +83,6 @@ final class VideoFlagsParserTest {
   @ValueSource(strings = { "--yt-dlp{=best}", "--yt-dlp{  = best}", "--yt-dlp{format=best,=value}" })
   void rejectsEmptyOptionNames(final String flags) {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> this.parser.parseYTDLPFlags(flags));
-    // not read as a switch named "=best", which would be refused as an unsupported option
     assertEquals("yt-dlp option name must not be empty", exception.getMessage());
   }
 

@@ -85,7 +85,6 @@ public class BufferFormatDetachRace {
       outcome.r1 = format.getWidth();
       outcome.r2 = format.getHeight();
     } catch (final IllegalArgumentException emptyBuffer) {
-      // vlcj refuses a buffer of 0x0 as soon as it is created, inside the callback of VLC: that is how the bug shows
       outcome.r1 = 0;
       outcome.r2 = 0;
     }

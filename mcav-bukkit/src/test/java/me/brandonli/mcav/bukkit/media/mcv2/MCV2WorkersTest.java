@@ -196,8 +196,8 @@ final class MCV2WorkersTest {
   }
 
   @Test
-  void runsOnTheCallingThreadWithoutAPool() {
-    final Workers workers = new Workers(null, 6);
+  void runsOnTheCallingThreadWithOneWorker() {
+    final Workers workers = new Workers(ForkJoinPool.commonPool(), 1);
     assertEquals(1, workers.threads());
     final Thread caller = Thread.currentThread();
     workers.forEach(3, () -> caller, (thread, _) -> assertEquals(thread, Thread.currentThread()));
@@ -205,6 +205,6 @@ final class MCV2WorkersTest {
 
   @Test
   void refusesNoThreads() {
-    assertThrows(IllegalArgumentException.class, () -> new Workers(null, 0));
+    assertThrows(IllegalArgumentException.class, () -> new Workers(ForkJoinPool.commonPool(), 0));
   }
 }

@@ -134,7 +134,6 @@ final class OpenCvPlayersTest {
   private static int[] playTestVideo(final Dimension size) throws InterruptedException {
     final AtomicInteger frames = new AtomicInteger();
     final AtomicInteger width = new AtomicInteger();
-    // a player that never drops a frame as late, so how many frames arrive does not depend on the load of the machine
     final OpenCVPlayer player = new OpenCVPlayer();
     player.neverDropLateFrames();
     final VideoFilter counter = (image, _) -> {

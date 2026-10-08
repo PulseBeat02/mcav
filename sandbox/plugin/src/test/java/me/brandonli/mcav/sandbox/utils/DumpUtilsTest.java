@@ -313,7 +313,6 @@ final class DumpUtilsTest {
     final long reportedMax = readNumber(dump, "Max Memory (MB)");
     final long uptime = readNumber(dump, "Uptime (ms)");
     assertEquals(expectedMax, reportedMax);
-    // the free memory never exceeds the heap the JVM holds, and that never exceeds the heap it may grow to
     assertTrue(free <= total, "free memory of " + free + " MB above the total of " + total + " MB");
     assertTrue(total <= expectedMax, "total memory of " + total + " MB above the maximum of " + expectedMax + " MB");
     assertTrue(beforeDump > 0, "the fixture has a nonzero uptime");

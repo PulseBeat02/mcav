@@ -108,11 +108,8 @@ class AddressPolicyTest {
 
   @Test
   void onlyTheExactPrefixesCarryAnIpv4Address() {
-    // 0:0:1::808:808 is neither mapped nor translated
     assertFalse(AddressPolicy.isPublicIpv6(new byte[] { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8 }));
-    // 64:ff9b:0:1::808:808 is not translated either
     assertFalse(AddressPolicy.isPublicIpv6(new byte[] { 0, 0x64, (byte) 0xFF, (byte) 0x9B, 0, 0, 0, 1, 0, 0, 0, 0, 8, 8, 8, 8 }));
-    // 64:ff9b::1:0:808:808
     assertFalse(AddressPolicy.isPublicIpv6(new byte[] { 0, 0x64, (byte) 0xFF, (byte) 0x9B, 0, 0, 0, 0, 0, 0, 0, 1, 8, 8, 8, 8 }));
   }
 
@@ -165,18 +162,15 @@ class AddressPolicyTest {
   void aNetworkWithoutTranslationHasNoPrefix() throws UnknownHostException {
     assertEquals(0, AddressPolicy.findTranslationPrefixes(addresses("192.0.0.170", "192.0.0.171")).size());
     assertEquals(0, AddressPolicy.findTranslationPrefixes(addresses("2a01:4f8:1:2:3:4:5:6", "2a01:4f8:1:2:3:4:c000:ac")).size());
-    // the byte RFC 6052 keeps zero is 1: no prefix of 64 bits, and no other length finds 192.0.0.170
     assertEquals(0, AddressPolicy.findTranslationPrefixes(addresses("2a01:4f8:1:2:1c0:0:aa00:0")).size());
   }
 
   @Test
   void onlyAPrefixInGlobalUnicastOrWellKnownNat64SpaceTranslates() throws UnknownHostException {
-    // link-local, unique local, multicast, documentation and 6to4 prefixes, as a forged answer might hold them
     for (final String forged : new String[] { "fe80::c000:aa", "fd00::c000:aa", "ff02::c000:aa", "2001:db8::c000:aa", "2002::c000:aa" }) {
       assertEquals(List.of(), AddressPolicy.findTranslationPrefixes(addresses(forged)), forged);
     }
     assertFalse(isPublic("fe80::808:808", AddressPolicy.findTranslationPrefixes(addresses("fe80::c000:aa"))));
-    // the local-use prefix of RFC 8215 is a prefix a network may use
     final List<AddressPolicy.TranslationPrefix> local = AddressPolicy.findTranslationPrefixes(addresses("64:ff9b:1::c000:aa"));
     assertEquals(1, local.size());
     assertTrue(isPublic("64:ff9b:1::808:808", local));
@@ -189,7 +183,6 @@ class AddressPolicyTest {
       addresses("2a01:4f8:c000:aa::", "2a01:4f8:1:2:3:4:c000:aa")
     );
     assertEquals(2, nested.size());
-    // inside both: 8.8.8.8 after 96 bits, but 0.1.0.2 after 32 bits
     assertFalse(isPublic("2a01:4f8:1:2:3:4:808:808", nested));
     final List<AddressPolicy.TranslationPrefix> separate = AddressPolicy.findTranslationPrefixes(
       addresses("2a01:4f8:1:2:3:4:c000:aa", "2a01:4f9:1:2:3:4:c000:aa")

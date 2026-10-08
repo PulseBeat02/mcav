@@ -109,7 +109,6 @@ final class MCPackHostingTest {
       this.service.close();
     } finally {
       System.setProperty("user.home", this.previousHome);
-      // clears the flag as well, so a failed test cannot leave later tests interrupted
       final boolean leftInterrupted = Thread.interrupted();
       assertFalse(leftInterrupted, "no test leaves the interrupt flag set");
     }
@@ -345,7 +344,6 @@ final class MCPackHostingTest {
     }
   }
 
-  // keeps the upload open until the test has checked the interrupted client
   private static void awaitRelease(final CountDownLatch release) {
     try {
       final boolean released = release.await(10, TimeUnit.SECONDS);

@@ -58,6 +58,7 @@ final class MCV2PoolTest {
     assertEquals(1, Pool.defaultThreads(3));
     assertEquals(2, Pool.defaultThreads(4));
     assertEquals(6, Pool.defaultThreads(12));
+    assertEquals(256, Pool.defaultThreads(768));
     assertThrows(IllegalArgumentException.class, () -> new Pool(0));
     assertThrows(IllegalArgumentException.class, () -> new Pool(Pool.MAX_THREADS + 1));
   }
@@ -210,7 +211,8 @@ final class MCV2PoolTest {
       assertInstanceOf(IOException.class, wrapped.getCause());
       assertTrue(isOrWraps(wrapped.getCause(), checked));
       // a thread that dies outside any task is logged; the pool starts another
-      Pool.uncaught(Thread.currentThread(), new IllegalStateException("outside a task"));
+      final ForkJoinPool workers = (ForkJoinPool) Mcv2Internals.field(Pool.class, pool, "pool");
+      workers.getUncaughtExceptionHandler().uncaughtException(Thread.currentThread(), new IllegalStateException("outside a task"));
       assertThrows(NullPointerException.class, () -> pool.run(null));
     }
   }

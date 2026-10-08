@@ -284,7 +284,6 @@ final class FileServerHandlerTest {
   void answersARequestWhoseHeadersEndInAReadThatPassesTheLimit() throws IOException {
     final EmbeddedChannel channel = createChannel(this.pack);
     final String request = "GET /pack.zip HTTP/1.1\r\nHost: localhost\r\n\r\n";
-    // the bytes after the headers arrive in the same read, which takes it past the limit of the headers
     final String afterHeaders = "a".repeat(8192);
 
     writeRequest(channel, request + afterHeaders);

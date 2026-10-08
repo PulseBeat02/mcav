@@ -41,8 +41,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 final class LocalMavenRepositoryServer implements AutoCloseable {
 
-  // the build lists the repository as http://127.0.0.1:<port>/, so the server binds exactly that IPv4 address, parsed
-  // from the literal rather than looked up
   private static final InetAddress LOOPBACK_ADDRESS = InetAddress.ofLiteral("127.0.0.1");
   private static final int HTTP_OK = 200;
   private static final int HTTP_NOT_FOUND = 404;

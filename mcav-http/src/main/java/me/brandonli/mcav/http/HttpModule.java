@@ -28,27 +28,21 @@ public final class HttpModule implements MCAVModule {
   /**
    * Constructs the module. The module loader creates it for you.
    */
-  public HttpModule() {
-    // stateless
-  }
+  public HttpModule() {}
 
   /**
    * Starts the module. Nothing is prepared here, because every {@link HttpResult} starts its own web server with
    * {@link HttpResult#start()}.
    */
   @Override
-  public void start() {
-    // servers are started individually
-  }
+  public void start() {}
 
   /**
    * Stops the module. Nothing is released here, because every {@link HttpResult} stops its own web server with
    * {@link HttpResult#stop()}.
    */
   @Override
-  public void stop() {
-    // servers are stopped individually
-  }
+  public void stop() {}
 
   /**
    * Gets the name of the module.

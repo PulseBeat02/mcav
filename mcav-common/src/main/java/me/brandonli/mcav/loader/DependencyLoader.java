@@ -71,9 +71,7 @@ public final class DependencyLoader {
   private static final String YTDLP_READY = "yt-dlp ready in {} ms";
   private static final String YTDLP_UNAVAILABLE = "yt-dlp could not be installed, URL parsing cannot be used: {}";
   private static final String JNI_AVDEVICE = "jniavdevice";
-  // the class of the device library, which a second load names without the library when the first failure is not kept
   private static final String AVDEVICE_CLASS = "org.bytedeco.ffmpeg.global.avdevice";
-  // only the modules the filters use are loaded up front; JavaCPP loads any other module on first use
   private static final List<Class<?>> OPENCV_MODULES = List.of(opencv_core.class, opencv_imgproc.class, opencv_imgcodecs.class);
   private static final String FACE_DETECTION = "Face detection";
   private static final String PATHS_FIRST_PROPERTY = "org.bytedeco.javacpp.pathsFirst";
@@ -210,7 +208,6 @@ public final class DependencyLoader {
     // the object detection natives link OpenCV's GUI module, which needs GTK 2 on Linux; servers often lack it, and
     // only face detection needs these natives, so everything else keeps working without them
     final boolean available = loadOptionalModule(objectDetectionLoader, FACE_DETECTION);
-    // a later load that succeeds, after a release and a new installation, makes the feature available again
     if (available) {
       this.capabilities.add(Capability.FACE_DETECTION);
     } else {
@@ -296,14 +293,11 @@ public final class DependencyLoader {
     final long start = System.currentTimeMillis();
     try {
       starter.start();
-      // a preparation that succeeds after one that failed, after a release, makes VLC available again
       this.recordPreparation(Capability.VLC, preparation, true);
       final long end = System.currentTimeMillis();
       final long elapsed = end - start;
       this.logger.info(VLC_READY, elapsed);
     } catch (final IOException | RuntimeException | LinkageError exception) {
-      // every mcav failure is a RuntimeException, and LinkageError covers VLC natives that cannot be linked; other
-      // errors, such as an OutOfMemoryError, are not a reason to run without VLC and must reach the caller
       this.recordPreparation(Capability.VLC, preparation, false);
       final boolean cancelled = this.logCancellation(Capability.VLC);
       if (!cancelled) {
@@ -392,7 +386,6 @@ public final class DependencyLoader {
       final long elapsed = end - start;
       this.logger.info(YTDLP_READY, elapsed);
     } catch (final IOException | RuntimeException exception) {
-      // an installer reports unchecked failures, such as a cache folder that cannot be created, as RuntimeExceptions
       this.recordPreparation(Capability.YT_DLP, preparation, false);
       final boolean cancelled = this.logCancellation(Capability.YT_DLP);
       if (!cancelled) {

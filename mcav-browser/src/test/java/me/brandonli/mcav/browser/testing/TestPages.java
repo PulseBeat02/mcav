@@ -89,8 +89,6 @@ public final class TestPages implements AutoCloseable {
    */
   public static final int TOGGLE_MILLIS = 400;
 
-  // a 1000 Hz oscillator that plays once the page may: after the first click on it, which resumes its context; the
-  // page reports every state its context takes, so a test that hears nothing can tell why
   private static final String TONE_SCRIPT = String.format(
     Locale.ROOT,
     """
@@ -121,8 +119,6 @@ public final class TestPages implements AutoCloseable {
     TONE_AMPLITUDE
   );
 
-  // the tone of TONE_SCRIPT on a page that first wraps everything of Web Audio that a capture could call, keeps every
-  // script processor it sees, reports how many, and feeds each one samples of its own, without waiting for a click
   private static final String WRAPPED_TONE_SCRIPT = String.format(
     Locale.ROOT,
     """
@@ -183,7 +179,6 @@ public final class TestPages implements AutoCloseable {
     TONE_AMPLITUDE
   );
 
-  // an audio element that plays the tone at the volume and muting of the address, from the first click
   private static final String ELEMENT_SCRIPT = """
   <audio id="tone" src="/tone.wav" loop></audio>
   <script>
@@ -197,7 +192,6 @@ public final class TestPages implements AutoCloseable {
   </script>
   """;
 
-  // from the first click, the picture turns white and the tone plays at once, and both stop at once, in turns
   private static final String TOGGLE_SCRIPT = String.format(
     Locale.ROOT,
     """
@@ -601,7 +595,6 @@ public final class TestPages implements AutoCloseable {
     if (query == null) {
       return parameters;
     }
-    // a limit of -1 keeps every pair, including empty ones, which are skipped below like any pair without a name
     final String[] pairs = query.split("&", -1);
     for (final String pair : pairs) {
       final int separator = pair.indexOf('=');

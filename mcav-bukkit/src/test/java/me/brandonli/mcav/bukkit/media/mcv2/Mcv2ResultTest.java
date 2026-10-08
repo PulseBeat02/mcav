@@ -1290,6 +1290,17 @@ final class Mcv2ResultTest {
   }
 
   @Test
+  void scalesANonPresetLambdaAndStopsAtFast() {
+    final Settings settings = new Settings(60, false);
+    final Settings fast = new Settings(45.833333333333336, true);
+    assertEquals(
+      List.of(settings, fast),
+      Mcv2Internals.call(Mcv2Result.class, null, "ladder", new Class<?>[] { Settings.class }, settings)
+    );
+    assertEquals(List.of(fast), Mcv2Internals.call(Mcv2Result.class, null, "ladder", new Class<?>[] { Settings.class }, fast));
+  }
+
+  @Test
   void namesThePresetsOfItsLadder() {
     final Mcv2Result live = this.result(packScreen(Settings.DEFAULT), null);
     live.pace();

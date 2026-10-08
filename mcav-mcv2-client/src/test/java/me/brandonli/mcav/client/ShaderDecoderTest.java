@@ -117,7 +117,6 @@ final class ShaderDecoderTest {
     decoder.rendered(this.allocator, this.camera);
     final ArgumentCaptor<byte[]> strip = ArgumentCaptor.forClass(byte[].class);
     verify(this.output).decode(strip.capture(), eq(ROWS), same(this.allocator));
-    // the map's corner is its pose's origin, 0.01 in front of the frame
     final StripAnchor anchor = StripAnchor.of(ANCHOR, 1F, 2F, -0.01F + 3F);
     assertArrayEquals(TransportStrip.build(LAYOUT, 854, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), strip.getValue());
     assertTrue(decoder.decodesUnderShaders());
@@ -134,7 +133,6 @@ final class ShaderDecoderTest {
     final PoseStack other = new PoseStack();
     other.translate(9F, 9F, 9F);
     final Object elsewhere = PoseStack.Pose.class.getMethod("pose").invoke(other.last());
-    // Iris's hand projection, before the level's; the level's; then Iris's shadow projection
     decoder.projected(elsewhere);
     decoder.projecting();
     decoder.projected(projection());
@@ -144,7 +142,6 @@ final class ShaderDecoderTest {
     verify(this.output).decode(strip.capture(), eq(ROWS), same(this.allocator));
     final StripAnchor anchor = StripAnchor.of(ANCHOR, 1F, 2F, -0.01F + 3F);
     assertArrayEquals(TransportStrip.build(LAYOUT, 854, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), strip.getValue());
-    // without the game's word, no projection is the level's: the frame is left alone
     final ShaderDecoder unmarked = this.decoder(true, 854, 480);
     unmarked.extracted("page", PAGE);
     unmarked.extracted("anchor", ANCHOR);
@@ -160,7 +157,6 @@ final class ShaderDecoderTest {
     final ShaderDecoder decoder = this.decoder(true, 854, 480);
     decoder.extracted("page", PAGE);
     decoder.extracted("anchor", ANCHOR);
-    // the shadow pass poses the anchor from the sun's view, here before the camera's pass does
     this.shadowPass.set(true);
     final PoseStack sun = new PoseStack();
     sun.translate(50F, 60F, 70F);
@@ -216,7 +212,6 @@ final class ShaderDecoderTest {
     frame(decoder);
     decoder.rendered(this.allocator, this.camera);
     this.shaderPack.set(true);
-    // the frame's maps were used up even though nothing was decoded
     decoder.projecting();
     decoder.projected(projection());
     decoder.rendered(this.allocator, this.camera);
@@ -239,7 +234,6 @@ final class ShaderDecoderTest {
 
   @Test
   void needsAWindowWideEnoughForADescriptorAndHighEnoughForTheStrip() throws ReflectiveOperationException {
-    // the pack's chain covers the strip with the scene row below it, so a window of the strip's height has no room
     for (final int[] size : List.of(new int[] { 63, 4096 }, new int[] { 854, ROWS - 1 }, new int[] { 854, ROWS })) {
       final ShaderDecoder decoder = this.decoder(true, size[0], size[1]);
       frame(decoder);

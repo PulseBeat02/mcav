@@ -25,8 +25,6 @@ dependencies {
     testImplementation(gradleTestKit())
 }
 
-// The coverage plugin is also applied by its functional test, a build without the version catalog, so the JaCoCo
-// version is compiled into the plugin from the catalog.
 val catalogVersions = layout.buildDirectory.dir("generated/sources/catalog/kotlin")
 val jacocoVersion = libs.versions.jacoco.get()
 val generateCatalogVersions = tasks.register("generateCatalogVersions") {
@@ -57,6 +55,5 @@ tasks.test {
     useJUnitPlatform()
 }
 
-// a plugin the convention plugins apply is a library of this build, found through the marker artifact of its id
 fun plugin(plugin: Provider<PluginDependency>): Provider<String> =
     plugin.map { "${it.pluginId}:${it.pluginId}.gradle.plugin:${it.version}" }

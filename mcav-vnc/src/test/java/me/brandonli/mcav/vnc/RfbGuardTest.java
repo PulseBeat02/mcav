@@ -147,7 +147,6 @@ final class RfbGuardTest {
     session.server(version(8));
     session.client(version(8));
     session.server(new byte[] { 1, NONE });
-    // type 0, RFB's invalid type, is a choice the client made, not the absence of one
     session.client(new byte[] { 0 });
     assertRefused(session, unsigned32(0), "security type 0");
   }
@@ -245,7 +244,6 @@ final class RfbGuardTest {
     session.client(version(3));
     session.server(unsigned32(NONE));
     session.client(new byte[] { 1 });
-    // only the length arrives: the guard refuses it before the client could allocate the name
     final byte[] header = concat(unsigned16(SIDE), unsigned16(SIDE), RfbSession.pixelFormat(32), unsigned32(RfbGuard.MAX_NAME + 1L));
     assertRefused(session, header, "desktop name");
   }
@@ -332,7 +330,6 @@ final class RfbGuardTest {
   @Test
   void framesEveryKindOfHextileTile() throws IOException {
     final RfbSession session = connected();
-    // a 20x17 rectangle is four tiles: 16x16, 4x16, 16x1 and 4x1
     final byte[] raw = concat(new byte[] { 1 }, pixels(16 * 16 * 4));
     final byte[] colours = new byte[] { 2 | 4, 0, 0, 0, 0, 0, 0, 0, 0 };
     final byte[] coloured = concat(new byte[] { 8 | 16, 1 }, pixels(4 + 2));
@@ -410,7 +407,6 @@ final class RfbGuardTest {
   @Test
   void followsEveryMessageTheClientSends() throws IOException {
     final RfbSession session = connected();
-    // a list of encodings split across writes
     session.client(concat(new byte[] { 2, 0 }, unsigned16(2), unsigned32(0)));
     session.client(unsigned32(1));
     session.client(concat(new byte[] { 2, 0 }, unsigned16(0)));
@@ -420,7 +416,6 @@ final class RfbGuardTest {
     session.client(concat(new byte[] { 6, 0, 0, 0 }, unsigned32(2), new byte[] { 'h', 'i' }));
     session.client(concat(new byte[] { 6, 0, 0, 0 }, unsigned32(0)));
     session.client(setPixelFormat(16));
-    // two bytes a pixel now
     session.server(concat(update(1), rectangle(0, 0, 2, 2, 0), pixels(2 * 2 * 2)));
     session.client(setPixelFormat(8));
     session.server(concat(update(1), rectangle(0, 0, 2, 2, 0), pixels(2 * 2)));
@@ -432,7 +427,6 @@ final class RfbGuardTest {
     final RfbSession session = connected();
     session.client(new byte[] { 99, 1, 2, 3 });
     session.client(setPixelFormat(8));
-    // the pixel format after the unknown message was not read: four bytes a pixel still
     session.server(concat(update(1), rectangle(0, 0, 1, 1, 0), pixels(4)));
     assertAtAMessage(session);
   }

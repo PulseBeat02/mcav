@@ -36,7 +36,7 @@ final class MCV2BlockCoderTest {
 
   private static Mcv2BlockState code(final byte[] source, final byte[] reference) {
     final Mcv2BlockState job = new Mcv2BlockState(source, reference, 8, 8, false, false, 65.255994022, null);
-    job.code(8, 2, 0, 0, 0, Mcv2BlockState.NO_VECTOR);
+    job.code(8, 2, 0, 0, 0, 0);
     return job;
   }
 
@@ -137,13 +137,23 @@ final class MCV2BlockCoderTest {
   }
 
   @Test
-  void aBlockWithoutAParentSearchesFromItsOwnSeeds() {
-    final byte[] source = new byte[32 * 32 * 3];
-    new Random(658).nextBytes(source);
-    final Mcv2BlockState job = new Mcv2BlockState(source, source.clone(), 32, 32, false, false, 0, null);
-    final Object coder = job.code(8, 2, 5, 8, 8, Mcv2BlockState.NO_VECTOR);
-    Mcv2Internals.call(coder.getClass(), coder, "searchMotion", new Class<?>[] { int.class }, Mcv2BlockState.NO_VECTOR);
-    // A still picture has its uniquely perfect sample match at zero displacement.
-    assertEquals(0, Mcv2Internals.invoke(coder.getClass(), coder, "searchMotion", new Class<?>[] { int.class }, Mcv2BlockState.NO_VECTOR));
+  void largerBlocksSearchForTheirOwnMotion() {
+    final byte[] reference = new byte[32 * 32 * 3];
+    final Random random = new Random(658);
+    for (int index = 0; index < reference.length; index++) {
+      reference[index] = (byte) (40 + random.nextInt(160));
+    }
+    final byte[] source = reference.clone();
+    for (int index = 0; index < source.length; index++) {
+      source[index] = (byte) (source[index] + 16);
+    }
+    for (final int size : new int[] { 16, 32 }) {
+      final Mcv2BlockState job = new Mcv2BlockState(source, reference, 32, 32, false, false, 65.255994022, null);
+      final int level = size == 16 ? 1 : 0;
+      final int parent = size == 16 ? -4 << 16 : Mcv2BlockState.NO_VECTOR;
+      final Object coder = job.code(size, level, 0, 0, 0, parent);
+      assertEquals(0, Mcv2BlockState.localVector(coder));
+      assertEquals(Mcv2Decoder.MODE_COMPACT, job.mode(level, 0));
+    }
   }
 }

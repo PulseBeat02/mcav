@@ -31,7 +31,6 @@ final class WallPictureTest {
   void aStretchedPictureScalesTheWallToTheSource() {
     final WallPicture picture = WallPicture.of(10, 6, 1280, 720, true);
     assertArrayEquals(new int[] { 640, 360 }, picture.toSource(640, 384));
-    // the bottom row of the wall is the bottom row of the source: 48 pixels lower than the wall pixel was sent
     assertArrayEquals(new int[] { 1279, 719 }, picture.toSource(1279, 767));
     assertArrayEquals(new int[] { 0, 0 }, picture.toSource(0, 0));
   }
@@ -39,7 +38,6 @@ final class WallPictureTest {
   @Test
   void aCentredPictureShiftsByItsBorderAndHasNoPixelThere() {
     final WallPicture picture = WallPicture.of(10, 6, 1280, 720, false);
-    // a 24-pixel border above and below the 720 rows
     assertArrayEquals(new int[] { 640, 360 }, picture.toSource(640, 384));
     assertArrayEquals(new int[] { 100, 0 }, picture.toSource(100, 24));
     assertArrayEquals(new int[] { 100, 719 }, picture.toSource(100, 743));
@@ -50,7 +48,6 @@ final class WallPictureTest {
   @Test
   void aCentredPictureLargerThanTheWallIsCutOffEquallyOnEachSide() {
     final WallPicture picture = WallPicture.of(10, 6, 1920, 1080, false);
-    // 320 columns and 156 rows of the source are off each side of the wall
     assertArrayEquals(new int[] { 320, 156 }, picture.toSource(0, 0));
     assertArrayEquals(new int[] { 1599, 923 }, picture.toSource(1279, 767));
   }

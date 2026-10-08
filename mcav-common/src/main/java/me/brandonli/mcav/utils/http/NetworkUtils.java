@@ -54,7 +54,6 @@ public final class NetworkUtils {
   public static final URI DEFAULT_ADDRESS_SERVICE = URI.create("https://ipv4.icanhazip.com/");
 
   private static final Duration TIMEOUT = Duration.ofSeconds(5);
-  // an address is a few dozen characters; an answer longer than this is none, and is not read to its end
   private static final long MAX_ADDRESS_ANSWER_BYTES = 256;
   private static final int HTTP_OK = 200;
 

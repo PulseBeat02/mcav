@@ -103,7 +103,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
       return;
     }
     if (bufferWidth != this.width || bufferHeight != this.height) {
-      // a paint of another size belongs to a resize this compositor does not do
       return;
     }
     final Rectangle pageBounds = new Rectangle(0, 0, this.width, this.height);
@@ -156,7 +155,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
    */
   @Override
   public synchronized void onPopupShow(final boolean isShown) {
-    // a popup is shown by its first paint
     if (!isShown) {
       this.hidePopup();
     }
@@ -169,7 +167,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
    */
   @Override
   public synchronized void onPopupSize(final Rectangle bounds) {
-    // a popup that moves or changes its size is drawn again by its next paint
     this.hidePopup();
     this.popupBounds = new Rectangle(bounds);
   }

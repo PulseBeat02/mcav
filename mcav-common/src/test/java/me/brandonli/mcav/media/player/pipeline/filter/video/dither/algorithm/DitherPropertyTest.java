@@ -174,7 +174,6 @@ final class DitherPropertyTest {
     final int[] mirrored = mirror(image, ditherCase.getWidth());
 
     assertDithersIntoThePalette(ditherCase, image);
-    // mirrored, every row is scanned in the other direction over the same pixels
     assertDithersIntoThePalette(ditherCase, mirrored);
   }
 

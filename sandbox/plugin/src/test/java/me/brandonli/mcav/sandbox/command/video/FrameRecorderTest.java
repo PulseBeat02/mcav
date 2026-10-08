@@ -52,7 +52,6 @@ final class FrameRecorderTest {
     final FrameRecorder recorder = new FrameRecorder(file);
     recorder.accept(new byte[] { 7 });
     Files.delete(file);
-    // a recording that failed once is over, whatever happens to the file after
     recorder.accept(new byte[] { 8 });
     assertFalse(Files.exists(file));
     assertThrows(NullPointerException.class, () -> new FrameRecorder(null));

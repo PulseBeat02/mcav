@@ -29,52 +29,29 @@ public final class Mcv2Decoder {
   public static final int MAX_FRAME_BYTES = 131071;
   /** Largest width or height in pixels. */
   public static final int MAX_DIMENSION = 4096;
-  /** Little-endian MCV2 magic word. */
-  public static final int MAGIC = 0x3256434D;
-  /** Accepted format version. */
-  public static final int VERSION = 3;
-  /** Superblock side in pixels. */
-  public static final int ROOT_SIZE = 32;
-  /** Smallest leaf side in pixels. */
-  public static final int SMALLEST_BLOCK = 8;
-  /** Number of tree levels. */
-  public static final int BLOCK_SIZES = 3;
-  /** RGB channels per pixel. */
-  public static final int CHANNELS = 3;
-  /** Largest channel value. */
-  public static final int MAX_CHANNEL = 255;
-  /** Children of a split node. */
-  public static final int QUARTERS = 4;
-  /** Superblocks per presence mask. */
-  public static final int GROUP_ROOTS = 32;
-  /** Presence masks per directory entry. */
-  public static final int CHECKPOINT_GROUPS = 8;
-  /** Descriptors per walk checkpoint. */
-  public static final int WALK_SPAN = 8;
-  /** Black keyframe leaf or co-located prediction leaf. */
-  public static final int MODE_SKIP = 0;
-  /** Whole-pixel translated prediction leaf. */
-  public static final int MODE_MOTION = 1;
-  /** Single-colour leaf. */
-  public static final int MODE_SOLID = 2;
-  /** Two-colour leaf with one selector per pixel. */
-  public static final int MODE_PALETTE = 3;
-  /** Two-colour leaf with selectors repeating along one axis. */
-  public static final int MODE_PATTERN = 4;
-  /** Motion prediction plus a compact residual. */
-  public static final int MODE_COMPACT = 5;
-  /** Four-child tree node. */
-  public static final int MODE_SPLIT = 6;
-  /** Descriptor bits holding the mode. */
-  public static final int MODE_MASK = 31;
-  /** First descriptor bit holding the quantizer. */
-  public static final int QUANTIZER_SHIFT = 5;
-  /** Largest wire quantizer exponent. */
-  public static final int MAX_QUANTIZER = 2;
-  /** Fixed whole-pixel vector and luma grid record length. */
-  public static final int COMPACT_BYTES = 10;
-  /** Header byte offset of width and height. */
-  public static final int DIMENSIONS_OFFSET = 8;
+  static final int MAGIC = 0x3256434D;
+  static final int VERSION = 3;
+  static final int ROOT_SIZE = 32;
+  static final int SMALLEST_BLOCK = 8;
+  static final int BLOCK_SIZES = 3;
+  static final int CHANNELS = 3;
+  static final int MAX_CHANNEL = 255;
+  static final int QUARTERS = 4;
+  static final int GROUP_ROOTS = 32;
+  static final int CHECKPOINT_GROUPS = 8;
+  static final int WALK_SPAN = 8;
+  static final int MODE_SKIP = 0;
+  static final int MODE_MOTION = 1;
+  static final int MODE_SOLID = 2;
+  static final int MODE_PALETTE = 3;
+  static final int MODE_PATTERN = 4;
+  static final int MODE_COMPACT = 5;
+  static final int MODE_SPLIT = 6;
+  static final int MODE_MASK = 31;
+  static final int QUANTIZER_SHIFT = 5;
+  static final int MAX_QUANTIZER = 2;
+  static final int COMPACT_BYTES = 10;
+  static final int DIMENSIONS_OFFSET = 8;
   /** Header byte offset of the frame id. */
   public static final int FRAME_ID_OFFSET = 12;
   /** Header byte offset of the reference id. */
@@ -82,9 +59,11 @@ public final class Mcv2Decoder {
   /** Largest unsigned 32-bit value. */
   public static final long MAX_U32 = 0xFFFFFFFFL;
 
+  private static final long LEGACY_MAGIC = 0x3156434D;
+  private static final int LEGACY_VERSION = 2;
   private static final int LEAF_INTS = 6;
   private static final int POSITION_INTS = 3;
-  private static final int CURSOR_BITS = 17;
+  static final int CURSOR_BITS = 17;
   private static final int GRID = 4;
   private static final byte[] NO_REFERENCE = new byte[0];
 
@@ -100,9 +79,9 @@ public final class Mcv2Decoder {
    * @param size square side, 8, 16 or 32 pixels
    * @param mode leaf mode, SKIP through COMPACT
    * @param quantizer residual scale exponent, zero for other modes
-   * @param offset record byte offset; an absent root has no record
+   * @param offset record byte offset, or -1 for an absent root
    */
-  public record Leaf(int left, int top, int size, int mode, int quantizer, int offset) {}
+  record Leaf(int left, int top, int size, int mode, int quantizer, int offset) {}
 
   /** A complete validated frame. Accessors copy mutable data. */
   public static final class Frame {
@@ -181,32 +160,22 @@ public final class Mcv2Decoder {
       return this.keyframe;
     }
 
-    /**
-     * Returns byte offset immediately after the index.
-     *
-     * @return byte offset immediately after the index
-     */
-    public int getPayloadStart() {
+    int getPayloadStart() {
       return this.payloadStart;
     }
 
-    /**
-     * Returns number of leaves, including absent roots and off-picture leaves.
-     *
-     * @return number of leaves, including absent roots and off-picture leaves
-     */
-    public int getLeafCount() {
+    int getLeafCount() {
       return this.leaves.length / LEAF_INTS;
     }
 
     /**
-     * Returns one leaf in root order, visiting split children in raster order.
+     * Returns one leaf in level order, followed by absent roots in raster order.
      *
      * @param index zero-based leaf index
      * @return immutable leaf metadata
      * @throws IndexOutOfBoundsException if the index is outside the leaf array
      */
-    public Leaf getLeaf(final int index) {
+    Leaf getLeaf(final int index) {
       Preconditions.checkElementIndex(index, this.getLeafCount(), "Leaf index");
       final int at = index * LEAF_INTS;
       return new Leaf(
@@ -230,13 +199,13 @@ public final class Mcv2Decoder {
    */
   public static Frame parse(final byte[] bytes) throws Mcv2Exception {
     Preconditions.checkNotNull(bytes, "Frame bytes must not be null");
-    if (bytes.length >= Integer.BYTES && u32(bytes, 0) == 0x3156434D) {
+    if (bytes.length >= Integer.BYTES && u32(bytes, 0) == LEGACY_MAGIC) {
       throw new Mcv2Exception("MCV1 version 1 is no longer supported; re-encode as MCV2 version 3");
     }
     if (bytes.length < Integer.BYTES || u32(bytes, 0) != MAGIC) {
       throw new Mcv2Exception("Not an MCV2 frame");
     }
-    if (bytes.length > Integer.BYTES && bytes[4] == 2) {
+    if (bytes.length > Integer.BYTES && bytes[4] == LEGACY_VERSION) {
       throw new Mcv2Exception("MCV2 version 2 is no longer supported; re-encode as version 3");
     }
     if (bytes.length < HEADER_BYTES || bytes.length > MAX_FRAME_BYTES) {
@@ -360,7 +329,7 @@ public final class Mcv2Decoder {
         final int at = index * POSITION_INTS;
         final int offset = this.start + cursor;
         final int size = positions[at + 2];
-        cursor += this.recordLength(mode, size, offset, payloadEnd);
+        cursor += this.recordLength(mode, size, offset);
         leaf(leaves, leaf++, positions[at], positions[at + 1], size, mode, descriptor >> QUANTIZER_SHIFT, offset);
       }
       if (this.start + cursor != payloadEnd) {
@@ -371,7 +340,7 @@ public final class Mcv2Decoder {
         if (listed < present.length && present[listed] == root) {
           listed++;
         } else {
-          leaf(leaves, leaf++, (root % this.columns) * ROOT_SIZE, (root / this.columns) * ROOT_SIZE, ROOT_SIZE, MODE_SKIP, 0, 0);
+          leaf(leaves, leaf++, (root % this.columns) * ROOT_SIZE, (root / this.columns) * ROOT_SIZE, ROOT_SIZE, MODE_SKIP, 0, -1);
         }
       }
       return new Frame(this, leaves);
@@ -401,9 +370,9 @@ public final class Mcv2Decoder {
       return present;
     }
 
-    private int recordLength(final int mode, final int size, final int offset, final int end) throws Mcv2Exception {
+    private int recordLength(final int mode, final int size, final int offset) throws Mcv2Exception {
       final int length = recordSize(mode, size);
-      if (length > end - offset) {
+      if (length > this.data.length - offset) {
         throw new Mcv2Exception("Truncated record");
       }
       if (mode == MODE_PATTERN && (this.data[offset + 2 * CHANNELS] & 0xFF) > 1) {
@@ -500,7 +469,7 @@ public final class Mcv2Decoder {
    * @throws IllegalArgumentException if output size, row bounds or reference aliasing is invalid
    * @throws Mcv2Exception if the required reference is missing or has the wrong id or byte length
    */
-  public static void decodeRows(
+  static void decodeRows(
     final Frame frame,
     final byte @Nullable [] reference,
     final long referenceId,
@@ -611,10 +580,11 @@ public final class Mcv2Decoder {
           }
           if (mode == MODE_MOTION || mode == MODE_COMPACT || (mode == MODE_SKIP && !this.frame.keyframe)) {
             final int source = (sourceRow + Math.min(Math.max(column + motionX, 0), this.frame.width - 1)) * CHANNELS;
-            int luma = 0;
-            if (mode == MODE_COMPACT) {
-              luma = this.rows[lower * size + localColumn] * (2 * size - weight) + this.rows[upper * size + localColumn] * weight;
+            if (mode != MODE_COMPACT) {
+              System.arraycopy(this.reference, source, this.output, target, CHANNELS);
+              continue;
             }
+            final int luma = this.rows[lower * size + localColumn] * (2 * size - weight) + this.rows[upper * size + localColumn] * weight;
             this.output[target] = (byte) round((this.reference[source] & 0xFF) * scale + (luma << quantizer), shift);
             this.output[target + 1] = (byte) round((this.reference[source + 1] & 0xFF) * scale + (luma << quantizer), shift);
             this.output[target + 2] = (byte) round((this.reference[source + 2] & 0xFF) * scale + (luma << quantizer), shift);
@@ -727,7 +697,7 @@ public final class Mcv2Decoder {
    * @param last last committed frame id
    * @return whether the forward distance is strictly between zero and 2^31
    */
-  public static boolean follows(final long id, final long last) {
+  static boolean follows(final long id, final long last) {
     final long distance = (id - last) & MAX_U32;
     return distance != 0 && distance < 1L << 31;
   }
@@ -738,7 +708,7 @@ public final class Mcv2Decoder {
    * @param size side in pixels
    * @return whether size is 8, 16 or 32
    */
-  public static boolean isBlockSize(final int size) {
+  static boolean isBlockSize(final int size) {
     return size == SMALLEST_BLOCK || size == 2 * SMALLEST_BLOCK || size == ROOT_SIZE;
   }
 
@@ -748,7 +718,7 @@ public final class Mcv2Decoder {
    * @param size 8, 16 or 32 pixels
    * @return 0, 1 or 2 respectively
    */
-  public static int sizeIndex(final int size) {
+  static int sizeIndex(final int size) {
     return Integer.numberOfTrailingZeros(size) - 3;
   }
 
@@ -759,7 +729,7 @@ public final class Mcv2Decoder {
    * @param bits signed field width, 1 through 32
    * @return sign-extended value
    */
-  public static int signed(final int value, final int bits) {
+  static int signed(final int value, final int bits) {
     return (value << (Integer.SIZE - bits)) >> (Integer.SIZE - bits);
   }
 
@@ -769,7 +739,7 @@ public final class Mcv2Decoder {
    * @param size 8, 16 or 32 pixels
    * @return record length in bytes
    */
-  public static int patternSize(final int size) {
+  static int patternSize(final int size) {
     return 2 * CHANNELS + 1 + size / Byte.SIZE;
   }
 
@@ -781,7 +751,7 @@ public final class Mcv2Decoder {
    * @return record length in bytes; zero for SKIP and SPLIT
    * @throws IllegalArgumentException if mode is invalid
    */
-  public static int recordSize(final int mode, final int size) {
+  static int recordSize(final int mode, final int size) {
     return switch (mode) {
       case MODE_SKIP, MODE_SPLIT -> 0;
       case MODE_MOTION -> 2;

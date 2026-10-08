@@ -76,7 +76,6 @@ final class LateFrameCounterTest {
 
   @Test
   void dropsOfHalfTheFramesAreNoReason() {
-    // twenty-two frames, the last at ten seconds, every other one late
     for (int frame = 0; frame <= 21; frame++) {
       final boolean late = frame % 2 == 0;
       this.counter.count((frame * 10 * SECOND_MICROS) / 21, late);
@@ -87,7 +86,6 @@ final class LateFrameCounterTest {
 
   @Test
   void aStretchCountsOnlyItsOwnFrames() {
-    // ten seconds play well, then the source falls behind
     this.everySecond(0, 10, false);
     this.everySecond(11, 20, true);
 
@@ -114,7 +112,6 @@ final class LateFrameCounterTest {
   @Test
   void aJumpBackInTheTimestampsStartsCountingAnew() {
     this.everySecond(0, 10, true);
-    // the stream starts its timestamps again at zero, which begins a new stretch that may be reported at once
     this.everySecond(0, 10, true);
 
     assertEquals(List.of("11 of 11", "11 of 11"), this.reports);

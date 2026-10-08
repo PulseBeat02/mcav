@@ -57,7 +57,6 @@ abstract class CoverageLintTask : DefaultTask() {
         val sources = sourceDirectory.get().asFile
         val gaps = CoverageReport.findGaps(report.singleFile, sources, exceptions)
         gaps.forEach { gap -> logger.error(GAP, gap) }
-        // an entry that matches no uncovered line must be removed, so the list never hides new gaps
         val staleExceptions = exceptions.filterNot { it.used }
         staleExceptions.forEach { exception ->
             logger.error(STALE_EXCEPTION, exceptionFile, exception.path, exception.sourceLine)

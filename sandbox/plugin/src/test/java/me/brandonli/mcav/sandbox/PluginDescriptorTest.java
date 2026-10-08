@@ -51,7 +51,6 @@ final class PluginDescriptorTest {
   @Test
   void theDescriptorDeclaresEveryPermissionTheCommandsCheckForOperatorsAndNoOther()
     throws IOException, URISyntaxException, InvalidConfigurationException {
-    // the names of permissions hold dots, which are not a path here
     final YamlConfiguration descriptor = new YamlConfiguration();
     descriptor.options().pathSeparator('/');
     try (final InputStream in = PluginDescriptorTest.class.getResourceAsStream("/paper-plugin.yml")) {
@@ -63,7 +62,6 @@ final class PluginDescriptorTest {
     assertNotNull(permissions, "the descriptor declares permissions");
     final Set<String> declared = new TreeSet<>(permissions.getKeys(false));
     assertEquals(checkedPermissions(), declared);
-    // a permission without a default of its own gets the one of the plugin
     final String pluginDefault = descriptor.getString("default-permission");
     for (final String name : declared) {
       assertEquals("op", permissions.getString(name + "/default", pluginDefault), name + " is for operators until granted");

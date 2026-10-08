@@ -66,7 +66,6 @@ final class LinuxLibrariesFuzzTest {
   );
   private static final long MAX_FILE_BYTES = 1024;
   private static final int MAX_ENTRIES = 32;
-  // the lightest preset: the stream only has to be valid, and the heavier ones take most of every run
   private static final int XZ_PRESET = 0;
 
   @FuzzTest(maxDuration = "30s")
@@ -89,7 +88,6 @@ final class LinuxLibrariesFuzzTest {
         LinuxLibraries.extract(file, PINNED, target, MAX_FILE_BYTES, MAX_ENTRIES);
         extracted = true;
       } catch (final IOException refused) {
-        // not a package, or one breaking a rule; what was written so far is checked all the same
         extracted = false;
       }
       check(root, file, target, extracted);

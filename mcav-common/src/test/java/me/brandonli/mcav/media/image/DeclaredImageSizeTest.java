@@ -108,7 +108,6 @@ final class DeclaredImageSizeTest {
     return size == null ? "none" : size.width() + "x" + size.height();
   }
 
-  // an uncompressed 3 by 2 RGB TIFF, classic or BigTIFF, in either byte order
   private static byte[] tiff(final boolean little, final boolean big) {
     final int entrySize = big ? 20 : 12;
     final int countSize = big ? 8 : 2;
@@ -173,7 +172,6 @@ final class DeclaredImageSizeTest {
     assertEquals(sizeOf(decoded), sizeOf(declared), name);
     final long pixels = decoded.width() * decoded.height();
     assertDoesNotThrow(() -> DeclaredImageSize.checkBytes(encoded, pixels), name);
-    // a limit of 0 turns the check off, so a single pixel has no limit below it to refuse it
     final long below = Math.max(1, pixels - 1);
     final boolean refusedBelow = pixels > 1;
     assertEquals(refusedBelow, refuses(encoded, below), name);
@@ -259,9 +257,6 @@ final class DeclaredImageSizeTest {
       assertTrue(opencv_imgcodecs.imencode(".jpg", picture, output));
       final byte[] jpeg = new byte[(int) output.limit()];
       output.get(jpeg);
-      // FF 00 right after the start of the image: libjpeg's next_marker drops a stuffed zero and finds the picture's
-      // own markers; read as a marker, its "length" would be those markers' first two bytes, and would lead past the
-      // picture's end to a frame of one pixel put there
       final int decoy = 4 + (((jpeg[2] & 0xFF) << 8) | (jpeg[3] & 0xFF));
       final byte[] frame = bytes(0xFF, 0xC0, be(17, 2), 8, be(1, 2), be(1, 2), 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1);
       final byte[] crafted = new byte[decoy + frame.length];
@@ -347,7 +342,6 @@ final class DeclaredImageSizeTest {
       Arguments.of("bmp", bytes("BM", new byte[12], le(40, 4), le(30000, 4), le(20000, 4)), 30000, 20000),
       Arguments.of("top-down bmp", bytes("BM", new byte[12], le(124, 4), le(30000, 4), le(-20000, 4)), 30000, 20000),
       Arguments.of("os/2 bmp", bytes("BM", new byte[12], le(12, 4), le(65535, 2), le(300, 2)), 65535, 300),
-      // OpenCV refuses the least height outright; read as its magnitude, it is refused by any limit too
       Arguments.of("bmp of the least height", bytes("BM", new byte[12], le(40, 4), le(5, 4), le(Integer.MIN_VALUE, 4)), 5, 2147483648L),
       Arguments.of("gif89a", bytes("GIF89a", le(65535, 2), le(32768, 2)), 65535, 32768),
       Arguments.of("gif87a", bytes("GIF87a", le(5, 2), le(7, 2)), 5, 7),
@@ -625,7 +619,6 @@ final class DeclaredImageSizeTest {
       refused.getMessage()
     );
     assertDoesNotThrow(() -> DeclaredImageSize.checkBytes(header, 600_000_000));
-    // a product that does not fit a long is still compared without overflowing
     final byte[] huge = bytes(0x89, "PNG\r\n", 0x1A, "\n", be(13, 4), "IHDR", be(4294967295L, 4), be(4294967295L, 4));
     assertThrows(IllegalArgumentException.class, () -> DeclaredImageSize.checkBytes(huge, Long.MAX_VALUE));
   }

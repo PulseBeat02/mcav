@@ -111,7 +111,6 @@ final class ExecutableFinderTest {
     acl.setAcl(entries);
   }
 
-  // a root folder without etc, opt or usr, so no fixed folder of the operating system is found
   private Path emptyRoot() {
     return this.directory.resolve("empty-root");
   }
@@ -210,7 +209,6 @@ final class ExecutableFinderTest {
 
   @Test
   void findsOnlyFilesWithAnExecutableExtensionOnWindows() throws IOException {
-    // a file without an extension, or with another one, could be planted to run in place of the real program
     final Path bare = this.createProgram("planted", "qemu");
     this.createProgram("planted", "qemu.txt");
     final Path named = this.createProgram("planted", "named.EXE");
@@ -253,7 +251,6 @@ final class ExecutableFinderTest {
     final Path program = this.createProgram("valid", "tool");
     final Path folder = program.getParent();
     final String validFolder = folder.toString();
-    // a NUL character is not allowed in a path on any operating system
     final String path = String.join(File.pathSeparator, "", "  ", "bro\0ken", validFolder);
     final ExecutableFinder finder = this.finder(OS.LINUX, path);
     final Optional<Path> found = finder.find("tool");
@@ -499,7 +496,6 @@ final class ExecutableFinderTest {
     final Path etc = root.resolve("etc");
     Files.createDirectories(etc);
     final Path invalid = etc.resolve("paths");
-    // bytes that are not UTF-8 make reading the file fail
     Files.write(invalid, new byte[] { (byte) 0xC3, (byte) 0x28, '\n' });
     final Map<String, String> environment = Map.of("PATH", "");
     final ExecutableFinder unreadable = new ExecutableFinder(OS.MAC, environment, root);
@@ -515,7 +511,6 @@ final class ExecutableFinderTest {
   void findsProgramsWithTheRealEnvironment() {
     final ExecutableFinder finder = new ExecutableFinder();
     final OS os = OSUtils.getOS();
-    // the command interpreter of the operating system is always installed and on the PATH
     final String shell = os == OS.WINDOWS ? "cmd" : "sh";
     final Optional<Path> found = finder.find(shell);
     final Optional<Path> missing = finder.find("mcav-program-that-does-not-exist");
@@ -530,7 +525,6 @@ final class ExecutableFinderTest {
     final ExecutableFinder finder = this.finderWithoutPath(OS.LINUX);
     assertThrows(NullPointerException.class, () -> finder.find(null));
     final IllegalArgumentException blank = assertThrows(IllegalArgumentException.class, () -> finder.find(" "));
-    // the blank name is refused by the precondition, not by a file system that dislikes the path
     final String message = blank.getMessage();
     assertEquals("Name must not be blank", message);
   }

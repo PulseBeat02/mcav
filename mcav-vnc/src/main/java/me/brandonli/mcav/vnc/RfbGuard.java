@@ -73,7 +73,6 @@ final class RfbGuard {
 
   private final ClientParser client = new ClientParser();
 
-  // what the client's bytes decided, read by the server's parser; -1 until known
   private int minorVersion = -1;
 
   private int securityType = -1;
@@ -173,7 +172,6 @@ final class RfbGuard {
 
     @Override
     public long skip(final long count) throws IOException {
-      // every byte must pass the parser, so a skip reads
       final byte[] buffer = new byte[(int) Math.min(Math.max(count, 0), 8192)];
       return Math.max(this.read(buffer, 0, buffer.length), 0);
     }
@@ -330,7 +328,6 @@ final class RfbGuard {
     }
 
     private int collect(final byte[] buffer, final int at) throws IOException {
-      // a list of security types may be longer than the field; its types are only counted
       if (this.have < this.field.length) {
         this.field[this.have] = buffer[at];
       }
@@ -420,7 +417,6 @@ final class RfbGuard {
       if (!text.startsWith("RFB 003.") || text.charAt(VERSION_BYTES - 1) != '\n') {
         throw violation("a protocol version other than 3.x");
       }
-      // the security part depends on the version the client answers with
       this.mode = Mode.AWAIT_VERSION;
     }
 
@@ -605,7 +601,6 @@ final class RfbGuard {
       this.tileFlags = flags;
       final int colours = ((flags & TILE_BACKGROUND) != 0 ? pixel : 0) + ((flags & TILE_FOREGROUND) != 0 ? pixel : 0);
       if ((flags & TILE_SUBRECTANGLES) != 0) {
-        // the tile's colours come before its count of subrectangles
         this.skip(colours, Then.STATE, Server.SUBRECTANGLES);
         return;
       }
@@ -632,7 +627,6 @@ final class RfbGuard {
   private enum ClientMode {
     FIELD,
     SKIP,
-    // after a message the client should not send: its bytes are not followed any further
     UNTRACKED,
   }
 
@@ -703,7 +697,6 @@ final class RfbGuard {
 
     private int collect(final byte[] buffer, final int at) {
       if (this.state == Client.HANDSHAKE && this.need == 0) {
-        // the response to the server's challenge, whose length the security type decides, then the initialization
         this.need = this.response() + CLIENT_INIT;
       }
       if (this.have < this.field.length) {

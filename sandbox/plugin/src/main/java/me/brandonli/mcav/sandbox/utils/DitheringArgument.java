@@ -592,9 +592,7 @@ public enum DitheringArgument {
     return this.getSharedAlgorithm();
   }
 
-  // reads without locking once the algorithm exists; the first threads to ask for it wait for the lock of the constant,
-  // so the algorithm is created at most once and every thread gets the same instance. The constant is the lock rather
-  // than a private object, so that a test can hold it and force two threads into the race on purpose.
+  // Lock the enum constant so tests can force concurrent lazy initialization by holding it.
   private DitherAlgorithm getSharedAlgorithm() {
     final DitherAlgorithm existing = SharedAlgorithms.ALGORITHMS.get(this);
     if (existing != null) {

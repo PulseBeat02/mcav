@@ -92,7 +92,6 @@ final class AudioListenerFuzzTest {
                 queuedBytes -= dropped.length;
               }
               if (inFlight == null) {
-                // the idle sender takes the oldest chunk and starts writing it
                 gate.awaitWrite();
                 inFlight = queued.removeFirst();
                 queuedBytes -= inFlight.length;
@@ -198,7 +197,6 @@ final class AudioListenerFuzzTest {
           yield null;
         }
         case "hashCode" -> System.identityHashCode(proxy);
-        // the listener never compares sessions
         case "equals" -> false;
         case "toString" -> "GatedSession";
         default -> throw new UnsupportedOperationException("The listener does not call " + name);

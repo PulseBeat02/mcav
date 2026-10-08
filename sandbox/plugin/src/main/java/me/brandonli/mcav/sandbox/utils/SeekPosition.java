@@ -58,7 +58,6 @@ public record SeekPosition(boolean relative, long millis) {
     if (!matcher.matches()) {
       return null;
     }
-    // the sign and the seconds take part in every match, the other groups only when they were typed
     final String sign = Objects.requireNonNull(matcher.group(1));
     final String hours = matcher.group(2);
     final String minutes = matcher.group(3);
@@ -66,7 +65,6 @@ public record SeekPosition(boolean relative, long millis) {
     final String fraction = matcher.group(5);
     final long secondCount = Long.parseLong(seconds);
     final long minuteCount = minutes == null ? 0 : Long.parseLong(minutes);
-    // after a colon a count carries into the next unit, so it must stay below it
     if ((minutes != null && secondCount >= SECONDS_PER_MINUTE) || (hours != null && minuteCount >= MINUTES_PER_HOUR)) {
       return null;
     }

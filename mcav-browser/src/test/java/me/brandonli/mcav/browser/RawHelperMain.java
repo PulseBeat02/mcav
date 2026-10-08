@@ -96,9 +96,7 @@ public final class RawHelperMain {
       System.exit(4);
     }
     if (configuration.getUrl().getPath().equals("/silent")) {
-      while (input.read() >= 0) {
-        // the server gives up on this helper by closing its input
-      }
+      while (input.read() >= 0) {}
       System.exit(0);
     }
     if (configuration.getUrl().getPath().equals("/silent-stubborn")) {
@@ -140,7 +138,6 @@ public final class RawHelperMain {
           channel.close();
         }
         if (path.equals("/deaf")) {
-          // the server can no longer write to this helper, while the helper keeps its own side open
           channel.shutdownInput();
         }
         if (path.equals("/chatty")) {
@@ -171,7 +168,6 @@ public final class RawHelperMain {
         HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
         HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
         HelperProtocol.writeLoading(out, false);
-        // the load errors come first, so the budget of the log passes some of them
         for (int count = 0; count < NOISY_LOAD_ERRORS; count++) {
           HelperProtocol.writeLoadError(out, -2, "noise", "https://example.com/noise/" + count + "?token=secret");
         }
@@ -179,12 +175,10 @@ public final class RawHelperMain {
           HelperProtocol.writeText(out, HelperProtocol.NOTICE, "noise " + count);
         }
         out.flush();
-        // a notice after the budget refilled, which the server logs after the number of those it did not
         sleep();
         sleep();
         sleep();
         HelperProtocol.writeText(out, HelperProtocol.NOTICE, "noise after a pause");
-        // the sound arrives after everything above, so a test knows the server read it all
         HelperProtocol.writeAudio(out, new byte[HelperProtocol.AUDIO_FRAME_BYTES], HelperProtocol.AUDIO_FRAME_BYTES);
       }
       case "/full-page" -> {
@@ -214,9 +208,7 @@ public final class RawHelperMain {
       default -> throw new IllegalArgumentException("Unknown scenario " + path);
     }
     out.flush();
-    while (input.read() >= 0) {
-      // wait until the server is done with this helper
-    }
+    while (input.read() >= 0) {}
     channel.close();
   }
 
@@ -230,7 +222,6 @@ public final class RawHelperMain {
     final Thread watcher = new Thread(() -> {
       try {
         awaitTheEnd(input);
-        // after the server listed the processes of this helper, while it waits for it to stop
         Thread.sleep(2_000L);
         startChild();
       } catch (final IOException exception) {
@@ -271,9 +262,7 @@ public final class RawHelperMain {
   }
 
   private static void awaitTheEnd(final BufferedReader input) throws IOException {
-    while (input.read() >= 0) {
-      // the server is still using this helper
-    }
+    while (input.read() >= 0) {}
   }
 
   private static void sleep() {

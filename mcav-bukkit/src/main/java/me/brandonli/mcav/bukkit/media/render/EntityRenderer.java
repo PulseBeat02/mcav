@@ -64,7 +64,6 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
   private final Set<UUID> shownTo;
 
   private @Nullable TextDisplay entity;
-  // the text of the last frame, for a display that comes back after its chunk unloaded; read on the main thread only
   private @Nullable Component lastText;
 
   /**

@@ -54,8 +54,6 @@ final class VNCSourceTest {
 
   @Test
   void avoidsAConstantHashAcrossRepresentativeSourceKeys() {
-    // This is a minimum performance policy for hash-based collections, not an equals-contract requirement.
-    // It permits collisions and does not prescribe an algorithm or pairwise distinct hashes.
     final Set<Integer> hashes = new HashSet<>();
     for (int index = 0; index < 64; index++) {
       final VNCSource.Builder builder = fullBuilder();

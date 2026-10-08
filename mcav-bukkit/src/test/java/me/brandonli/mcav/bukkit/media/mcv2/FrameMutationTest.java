@@ -33,7 +33,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * Every single-byte corruption of valid frames of every index form, deterministically: the parser accepts the result
  * or throws {@link Mcv2Exception}, never anything else, and an accepted frame decodes without failing, against a
  * matching reference when it is a P frame. The frames are the first keyframe and P frame of each committed edge
- * stream, which together use every index form and table the format has; every byte of the first 4 KB, where headers
+ * stream, which together use every v3 mode, compact quantizer and boundary geometry; every byte of the first 4 KB, where headers
  * and indexes live, is corrupted, and every 61st byte after it.
  */
 final class FrameMutationTest {
@@ -47,9 +47,11 @@ final class FrameMutationTest {
 
   static Stream<Arguments> frames() {
     final List<Arguments> arguments = new ArrayList<>();
-    for (final String stream : Mcv2Fixtures.digests("conformance").keySet()) {
-      final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/" + stream));
-      arguments.add(Arguments.of(stream, frames.get(0), frames.size() > 1 ? frames.get(1) : frames.get(0)));
+    for (final String folder : List.of("conformance", "edge")) {
+      for (final String stream : Mcv2Fixtures.digests(folder).keySet()) {
+        final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read(folder + "/" + stream));
+        arguments.add(Arguments.of(stream, frames.get(0), frames.size() > 1 ? frames.get(1) : frames.get(0)));
+      }
     }
     return arguments.stream();
   }

@@ -122,7 +122,6 @@ final class MapLayoutPropertyTest {
     @ForAll @IntRange(min = 0, max = 4095) final int overshoot
   ) {
     final int mapCount = columns * rows;
-    // a single map may start at every id, so there is nothing to refuse
     Assume.that(mapCount > 1);
     final long lastAllowedStart = (long) Integer.MAX_VALUE - mapCount + 1;
     final long overshootingStart = Math.min(Integer.MAX_VALUE, lastAllowedStart + 1 + overshoot);

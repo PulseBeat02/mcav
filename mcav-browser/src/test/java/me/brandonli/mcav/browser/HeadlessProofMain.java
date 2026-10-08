@@ -55,7 +55,6 @@ public final class HeadlessProofMain {
    */
   static final String PASSED = "HEADLESS PROOF PASSED";
 
-  // GraalVM's JDK starts every JVM with these options for its compiler; they are not options of the server
   private static final List<String> GRAALVM_DEFAULTS = List.of(
     "-XX:ThreadPriorityPolicy=1",
     "-XX:+UnlockExperimentalVMOptions",
@@ -109,7 +108,6 @@ public final class HeadlessProofMain {
     check(System.getenv("DISPLAY") == null && System.getenv("WAYLAND_DISPLAY") == null, "there is no display");
     final List<String> xServers = findXServers();
     System.out.println("X servers running: " + xServers);
-    // a dry run on a development machine may see the X servers of others, which the browser does not use
     final boolean local = "1".equals(System.getenv("MCAV_PROOF_LOCAL"));
     check(xServers.isEmpty() || local, "no X server runs");
     final HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), 0), 0);
@@ -136,7 +134,6 @@ public final class HeadlessProofMain {
     final long start = System.nanoTime();
     final MCAVApi api = MCAV.api();
     api.install(BrowserModule.class);
-    // the page is served on this machine, which the browser reaches only with private networks allowed
     final BrowserPlayer player = BrowserPlayer.create(BrowserOptions.builder().privateNetworks(true).build());
     final AtomicReference<int[]> last = new AtomicReference<>();
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();

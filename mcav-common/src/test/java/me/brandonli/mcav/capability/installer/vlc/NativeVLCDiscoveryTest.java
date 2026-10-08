@@ -53,7 +53,6 @@ final class NativeVLCDiscoveryTest {
 
   @AfterEach
   void restoreVlcjState() throws ReflectiveOperationException {
-    // other tests of this JVM see vlcj exactly as it was before this test
     final Field alreadyFound = alreadyFoundField();
     alreadyFound.setBoolean(null, this.previouslyFound);
   }

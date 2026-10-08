@@ -61,7 +61,6 @@ public final class TestMedia {
    */
   public static final int VIDEO_SECONDS = 5;
 
-  // FFmpeg arguments are written as space-separated text; none of them contains a space
   private static final String TEST_PATTERN_INPUT =
     "-f lavfi -i testsrc=size=" + VIDEO_WIDTH + "x" + VIDEO_HEIGHT + ":rate=" + VIDEO_FRAME_RATE;
   private static final String MPEG4_VIDEO_OUTPUT = "-c:v mpeg4 -q:v 4 -pix_fmt yuv420p";

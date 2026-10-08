@@ -28,9 +28,7 @@ public abstract class VideoHologram implements Hologram {
 
   private @Nullable TextDisplay display;
 
-  VideoHologram() {
-    // only subclassed inside this package
-  }
+  VideoHologram() {}
 
   /**
    * Removes the display entity from the world.

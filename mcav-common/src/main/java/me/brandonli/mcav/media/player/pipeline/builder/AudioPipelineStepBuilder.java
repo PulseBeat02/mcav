@@ -32,7 +32,5 @@ public abstract class AudioPipelineStepBuilder
   /**
    * Constructs an empty builder.
    */
-  protected AudioPipelineStepBuilder() {
-    // nothing else to set up
-  }
+  protected AudioPipelineStepBuilder() {}
 }

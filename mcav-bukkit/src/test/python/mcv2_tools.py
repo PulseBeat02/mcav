@@ -951,6 +951,12 @@ def fixtures_pages(root):
             (f"edge/{name}.mcs", index, list(fixtures_frames((root / "edge" / f"{name}.mcs").read_bytes()))[index])
             for name, index in [("edge-modes", 0), ("edge-modes", 1), ("edge-tiny", 0), ("edge-long-walk", 1)]
         ]
+    for name, index in (("edge-directory", 2), ("edge-length-limit", 0)):
+        path = root / "edge" / f"{name}.mcs"
+        if path.exists():
+            cases.append((f"edge/{name}.mcs", index, list(fixtures_frames(path.read_bytes()))[index]))
+    if len(cases) > 4 and source == "committed v3 conformance streams":
+        source = "committed v3 conformance and edge streams"
     entries = []
     for stream, index, frame in cases:
         symbols = make_pages(frame, 7)

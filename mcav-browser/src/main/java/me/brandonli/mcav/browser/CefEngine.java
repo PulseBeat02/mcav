@@ -61,11 +61,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class CefEngine implements HelperEngine {
 
   private static final long STOP_TIMEOUT_MILLIS = 10_000L;
-  // the answers to the calls that place the scripts of a page arrive at once, but a slow or busy machine takes seconds
   private static final long SCRIPT_TIMEOUT_MILLIS = 5_000L;
-  // a DevTools client can lose every answer, and a new one gets them, so the scripts are placed twice at most
+  // A DevTools client can lose every answer; a replacement client can receive them.
   private static final int PLACING_ATTEMPTS = 2;
-  // what the placing of the scripts completes with when no answer arrived in time, which no JSON answer can be
   private static final String NOT_CONFIRMED = "not confirmed";
   private static final String CHROMIUM_THREAD = "mcav-browser-chromium";
 
@@ -201,7 +199,6 @@ final class CefEngine implements HelperEngine {
     builder.setSkipInstallation(true);
     builder.setProgressHandler((state, percent) -> {});
     final int guardPort = this.startGuard(configuration, events);
-    // the authority file lies in the folder of the session, next to the socket, where the server told X clients
     final Path authority = configuration.getSocket().resolveSibling(NullDisplay.AUTHORITY_FILE);
     final NullDisplay startedDisplay = startDisplay(isLinux, authority);
     this.display = startedDisplay;
@@ -236,7 +233,6 @@ final class CefEngine implements HelperEngine {
     try {
       future.get();
     } catch (final ExecutionException exception) {
-      // a task throws an exception or an error, never anything else
       final Throwable cause = Objects.requireNonNullElse(exception.getCause(), exception);
       if (cause instanceof final Error error) {
         throw error;
@@ -266,7 +262,6 @@ final class CefEngine implements HelperEngine {
     browserSettings.windowless_frame_rate = configuration.getFrameRate();
     final int width = configuration.getWidth();
     final int height = configuration.getHeight();
-    // the browser starts on the empty document and loads the page once it is prepared, see openPage
     final McavOffscreenBrowser createdBrowser = new McavOffscreenBrowser(
       createdClient,
       NavigationPolicy.BLANK,
@@ -282,8 +277,6 @@ final class CefEngine implements HelperEngine {
     });
   }
 
-  // the page reaches the network through a guard that keeps it off private networks, unless those are allowed; the
-  // port of the guard, or 0 without one
   private int startGuard(final HelperConfiguration configuration, final HelperEvents events) throws IOException {
     if (configuration.isPrivateNetworks()) {
       return 0;
@@ -430,7 +423,6 @@ final class CefEngine implements HelperEngine {
       final String method = call.getMethod();
       final String parameters = call.getParameters();
       final CompletableFuture<String> result = devTools.executeDevToolsMethod(method, parameters);
-      // input needs no answer; a failed call is written to the log of the helper
       result.exceptionally(CefEngine::logFailedCall);
     }
   }

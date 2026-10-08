@@ -615,7 +615,6 @@ final class CompressedMapResultTest {
       result.process(image, this.algorithm);
     }
     this.viewers.remove(FIRST);
-    // This whole-map frame has no connected configured viewer; its untouched corners must not become owned.
     this.nextFrame = MapPackets.pattern(128 * 128, 11);
     try (final ImageBuffer image = Images.solid(128, 128, 0xFF000000)) {
       result.process(image, this.algorithm);
@@ -828,8 +827,6 @@ final class CompressedMapResultTest {
 
   @Test
   void showsASecondVideoAfterItWasReleasedAndStartedAgain() {
-    // every other result of this module can be started again; this one latched `released` for good, so a reused
-    // result silently rendered nothing at all for the second video
     final MapConfiguration configuration = this.createConfiguration(2, 1, false);
     final CompressedMapResult result = new CompressedMapResult(configuration, 1 << 20);
     this.nextFrame = MapPackets.pattern(256 * 128, 4);

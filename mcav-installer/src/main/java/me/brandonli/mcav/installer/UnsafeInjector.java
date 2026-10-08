@@ -136,7 +136,6 @@ final class UnsafeInjector extends URLClassLoaderInjector {
         final Class<?> unsafeType = Class.forName(className);
         final Field instanceField = unsafeType.getDeclaredField("theUnsafe");
         instanceField.setAccessible(true);
-        // theUnsafe is static, so the field is read without an owner
         final Object instance = instanceField.get(null);
         if (instance == null) {
           return null;
@@ -195,10 +194,8 @@ final class UnsafeInjector extends URLClassLoaderInjector {
       } catch (final NoSuchFieldException exception) {
         throw new JarInjectorException("This Java version has no field " + name + " in " + typeName, exception);
       } catch (final JarInjectorException exception) {
-        // thrown above for a field that holds null, so it is passed on as it is
         throw exception;
       } catch (final VirtualMachineError fatal) {
-        // an error of the virtual machine is no failure of this strategy, so it must not be hidden behind one
         throw fatal;
       } catch (final Throwable throwable) {
         // Unsafe is an unsupported API that can fail in any other way on a new Java version, a LinkageError included,

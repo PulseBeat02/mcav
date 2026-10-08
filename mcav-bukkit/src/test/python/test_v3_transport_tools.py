@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Six-bit strip extraction and the remaining fitting-table generator."""
+"""Six-bit strip extraction."""
 
 import sys
 import unittest
@@ -24,7 +24,6 @@ import numpy
 
 ROOT = Path(__file__).resolve().parents[4]
 import mcv2_tools as strip_check
-import tables
 from mcv2_reference import make_pages
 from mcv2_reference import pack_frame
 
@@ -53,17 +52,6 @@ class StripTest(unittest.TestCase):
         damaged[50] ^= 1
         with self.assertRaisesRegex(ValueError, 'CRC'):
             strip_check.strip_check_read_strip_page(damaged)
-
-
-class FittingTablesTest(unittest.TestCase):
-    def test_existing_matrix_resource_remains_byte_exact(self):
-        self.assertEqual(3360, len(tables.fitting_matrices()))
-        self.assertEqual((tables.RESOURCES / 'fitting_matrices.bin').read_bytes(), tables.fitting_matrices())
-
-    def test_grid_fit_recovers_hand_computed_nodes(self):
-        # A linear node ramp, with the endpoint-clamped eight-pixel interpolation of §8.
-        samples = numpy.array([-3, -2.75, -2.25, -1.75, -1.25, -0.75, -0.25, 0], numpy.float32)
-        numpy.testing.assert_allclose([-3, -2, -1, 0], tables.fitting_matrix(8, 4) @ samples, rtol=0, atol=3e-7)
 
 
 if __name__ == '__main__':

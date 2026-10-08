@@ -191,7 +191,6 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));
       return;
     }
-    // without an error the loader always returns an image
     final ImageBuffer loaded = Objects.requireNonNull(image);
     final boolean retained = this.manager.retainLoaded(generation, loaded);
     if (!retained) {

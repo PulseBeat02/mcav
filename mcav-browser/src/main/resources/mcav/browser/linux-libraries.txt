@@ -1,13 +1,4 @@
-# The shared libraries the browser helper needs on Linux that a server may lack, from Debian 11 (bullseye), built for
-# glibc 2.31: the final point release (pool/main, frozen in archive.debian.org) and, where Debian's long-term support
-# fixed a package, its last security update (pool/updates/main, from Debian's snapshot archive until
-# archive.debian.org holds it). A server only uses the ones it lacks. Derived by mcav-features-logs/headless/bundle.py
-# and pins.py from what libcef.so, libjcef.so, jcef_helper and the JDK's libjawt.so need; update it with the CEF
-# natives.
-#
-# platform package version sha256 bytes pool-path soname=path-in-package... (the first soname decides for its package)
-#
-# host platform soname... : what the bundled libraries and libcef need that every server is expected to have
+# Debian 11/glibc 2.31 ABI; update these archived packages with the CEF natives.
 host linux-amd64 libblkid.so.1 libbrotlicommon.so.1 libbrotlidec.so.1 libbsd.so.0 libcom_err.so.2 libexpat.so.1 libfontconfig.so.1 libfreetype.so.6 libgmp.so.10 libmd.so.0 libmount.so.1 libp11-kit.so.0 libpcre2-8.so.0 libpng16.so.16 libselinux.so.1 libsystemd.so.0 libtasn1.so.6 libudev.so.1 libuuid.so.1 libz.so.1
 host linux-arm64 libblkid.so.1 libbrotlicommon.so.1 libbrotlidec.so.1 libbsd.so.0 libcom_err.so.2 libexpat.so.1 libfontconfig.so.1 libfreetype.so.6 libgmp.so.10 libmd.so.0 libmount.so.1 libp11-kit.so.0 libpcre2-8.so.0 libpng16.so.16 libselinux.so.1 libsystemd.so.0 libtasn1.so.6 libudev.so.1 libuuid.so.1 libz.so.1
 linux-amd64 libasound2 1.2.4-1.1+deb11u1 a689b0b4bd50f40141ccb0079e1d51b02b38da2d59d9228728c4adeaf75b490d 356788 pool/updates/main/a/alsa-lib/libasound2_1.2.4-1.1+deb11u1_amd64.deb libasound.so.2=usr/lib/x86_64-linux-gnu/libasound.so.2.0.0

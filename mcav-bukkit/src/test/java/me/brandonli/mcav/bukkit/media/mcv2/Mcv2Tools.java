@@ -243,7 +243,7 @@ public final class Mcv2Tools {
           measured.keyframes++;
         }
         measured.logical += data.length;
-        final List<byte[]> pages = TransportPages.makePages(data, STREAM_ID, MapAlphabet.SYMBOL_BITS);
+        final List<byte[]> pages = TransportPages.makePages(data, STREAM_ID);
         measured.wire += TransportPages.wireBytes(pages, false, TransportPages.PACKET_OVERHEAD);
         measured.zlib += zlibBytes(pages, deflater, buffer);
         final byte[] picture = decoded(data, predictFrom);
@@ -468,7 +468,7 @@ public final class Mcv2Tools {
         }
         hashes.add(sha256(picture));
         if (name.equals("proxy-default.mcs") && id < 4) {
-          final List<byte[]> symbols = TransportPages.makePages(data, 7, 6);
+          final List<byte[]> symbols = TransportPages.makePages(data, 7);
           final List<String> pageHashes = new ArrayList<>();
           for (final byte[] page : symbols) {
             pageHashes.add(sha256(page));

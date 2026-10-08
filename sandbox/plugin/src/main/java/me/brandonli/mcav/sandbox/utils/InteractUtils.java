@@ -239,7 +239,6 @@ public final class InteractUtils {
     final String screen = targetData.get(Keys.SCREEN_KEY, PersistentDataType.STRING);
     final World world = player.getWorld();
     final Set<ItemFrame> wallFrames = new HashSet<>();
-    // the block of a frame is only queued when the frame is found for the first time, so the search ends
     final Queue<Block> pending = new ArrayDeque<>();
     pending.add(targetBlock);
     while (!pending.isEmpty()) {

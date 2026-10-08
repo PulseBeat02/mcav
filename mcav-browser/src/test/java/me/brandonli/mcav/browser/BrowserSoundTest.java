@@ -53,7 +53,6 @@ class BrowserSoundTest {
 
   private static final int WIDTH = 320;
   private static final int HEIGHT = 240;
-  // the length of a window of the tone check, 5 ms
   private static final int WINDOW_FRAMES = AudioFilter.SAMPLE_RATE / 200;
   private static final BrowserOptions LOCAL = BrowserOptions.builder().privateNetworks(true).build();
 
@@ -178,13 +177,11 @@ class BrowserSoundTest {
     final Recording recording = Recording.attach(player);
     assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1)));
     Await.until("the page reported its size", () -> this.pages.count("size") > 0);
-    // the oscillator runs from the start, but a page may play sound only once someone clicked it
     Thread.sleep(2_000L);
     assertEquals(0, recording.size(), "no sound before the first click");
     this.startClicking(player);
     this.awaitSound(recording, 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "two seconds of sound");
     final short[] left = recording.left();
-    // the last second, after the tone started
     final int start = left.length - AudioFilter.SAMPLE_RATE;
     final double frequency = zeroCrossings(left, start) / 2.0;
     final double level = meanLevel(left, start);
@@ -200,7 +197,6 @@ class BrowserSoundTest {
     );
     assertTrue(Math.abs(frequency - TestPages.TONE_HERTZ) < 20, "the tone has " + frequency + " Hz");
     assertTrue(held > ((AudioFilter.SAMPLE_RATE / WINDOW_FRAMES) * 9) / 10, "the tone holds in " + held + " windows");
-    // a sine of amplitude a has a mean level of 2a/pi of full scale
     final double expected = (2 * TestPages.TONE_AMPLITUDE * Short.MAX_VALUE) / Math.PI;
     assertTrue(Math.abs(level - expected) < expected * 0.1, "the tone plays at its own level, " + level);
   }
@@ -229,7 +225,6 @@ class BrowserSoundTest {
     assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone-wrapped"), WIDTH, HEIGHT, 1)));
     Await.until("the page reported what its wrappers saw", () -> this.pages.count("taps") > 0);
     assertEquals(0, this.pages.getEvents("taps").getFirst().getX(), "no node of the capture passed the page's wrappers");
-    // the page forges samples every 50 ms for whatever it found
     Thread.sleep(2_000L);
     assertEquals(0, recording.size(), "no sound before the first click, neither played nor forged");
     this.startClicking(player);
@@ -244,7 +239,6 @@ class BrowserSoundTest {
     final BrowserPlayer player = this.player(BrowserOptions.builder().privateNetworks(true).autoplay(true).build());
     final Recording recording = Recording.attach(player);
     assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1)));
-    // as long as the tone test waits: the first sound of a helper can take a while on a busy or slow machine
     this.awaitSound(recording, AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "a second of sound nobody clicked for");
     assertEquals(0, this.pages.count("mousedown"), "nobody clicked the page");
   }
@@ -286,7 +280,6 @@ class BrowserSoundTest {
         final int windows = left.length / WINDOW_FRAMES;
         for (int window = 0; window < windows; window++) {
           final boolean hasTone = toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > 0.5;
-          // the samples of a chunk played before it arrived, the last one just now
           final long end = (long) (window + 1) * WINDOW_FRAMES;
           final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
           sound.add(new long[] { arrival - before, hasTone ? 1 : 0 });
@@ -304,13 +297,11 @@ class BrowserSoundTest {
     );
     this.startAndClick(player, "/av-sync");
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(90);
-    // 40 s of turns, 50 of them on
     while (onsets(picture).size() < 50) {
       assertTrue(System.nanoTime() < deadline, "the page turned on " + onsets(picture).size() + " times");
       Thread.sleep(100L);
     }
     player.release();
-    // the page turns on every two toggles, so the sound within one toggle of a turn belongs to it
     final long matchWindow = TimeUnit.MILLISECONDS.toNanos(TestPages.TOGGLE_MILLIS);
     final SyncJudgement judgement = SyncJudgement.of(onsets(picture), onsets(sound), matchWindow);
     final List<Double> offsets = judgement.offsets();
@@ -336,10 +327,7 @@ class BrowserSoundTest {
     // ITU-R BT.1359: sound may lead the picture by 90 ms and lag it by 185 ms before viewers find it unacceptable
     final long acceptable = judgement.within(-90, 185);
     System.out.printf(Locale.ROOT, "A/V sync: %d of %d within ITU-R BT.1359 acceptability [-90, +185] ms%n", acceptable, changes);
-    // every change of the picture counts: one without sound near it is a change out of sync
     assertTrue(offsets.size() >= Math.ceil(changes * 0.9), "matched " + offsets.size() + " of " + changes + " changes of the picture");
-    // the target of the review of the A/V sync: 95% of the changes within [-40, +80] ms, sound late rather than early;
-    // the sound of a page arrives after its picture, so no hold can bring the two closer
     final double middle = median(sorted);
     assertTrue(middle >= -40 && middle <= 80, "the sound and the picture arrive together in the middle: " + middle);
     assertTrue(within >= Math.ceil(changes * 0.95), within + " of " + changes + " changes are within the target");
@@ -384,7 +372,6 @@ class BrowserSoundTest {
 
   @Test
   void theSyncOracleCountsAChangeWithoutItsSoundAsOutOfSync() {
-    // 50 changes of the picture, 800 ms apart; the sound of 10 of them 20 ms late, of the other 40 300 ms late
     final List<Long> picture = new ArrayList<>();
     final List<Long> sound = new ArrayList<>();
     for (int change = 0; change < 50; change++) {
@@ -395,7 +382,6 @@ class BrowserSoundTest {
     final SyncJudgement late = SyncJudgement.of(picture, sound, TimeUnit.MILLISECONDS.toNanos(400));
     assertEquals(50, late.changes());
     assertTrue(late.within(-90, 185) < Math.ceil(late.changes() * 0.9), "40 of 50 changes 300 ms late are not in sync");
-    // and the same changes with their sound 20 ms late are
     final List<Long> onTime = picture
       .stream()
       .map(shown -> shown + TimeUnit.MILLISECONDS.toNanos(20))
@@ -457,7 +443,6 @@ class BrowserSoundTest {
       return 0;
     }
     final double power = previous * previous + beforePrevious * beforePrevious - coefficient * previous * beforePrevious;
-    // a sine of the tone gives power = energy * length / 2
     return Math.min(1, power / ((energy * length) / 2));
   }
 

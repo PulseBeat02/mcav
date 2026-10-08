@@ -9,9 +9,7 @@ dependencies {
     compileOnlyApi(project(":mcav-common"))
     testImplementation(project(":mcav-common"))
     testImplementation(libs.slf4j.simple)
-    // Maven consumers do not inherit transitive version constraints from this library's dependencyManagement.
     api(libs.tomcat.embed.core) {
-        // Spring already supplies jakarta.annotation-api; keep its exclusion of Tomcat's duplicate annotation classes.
         exclude(group = "org.apache.tomcat", module = "tomcat-annotations-api")
     }
     api(libs.tomcat.embed.el)

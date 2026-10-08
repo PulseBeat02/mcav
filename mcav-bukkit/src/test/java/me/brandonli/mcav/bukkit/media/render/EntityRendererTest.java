@@ -137,8 +137,6 @@ final class EntityRendererTest {
 
   @Test
   void showsTheDisplayToAViewerWhoComesOnlineAfterTheSpawn() {
-    // the display is spawned with setVisibleByDefault(false), so a player sees it only after an explicit
-    // showEntity, and that is per session: a viewer who was offline at spawn, or who relogged, is shown it again
     final EntityConfiguration configuration = this.createConfiguration(this.position);
     final EntityRenderer renderer = new EntityRenderer(configuration);
     final Component text = Component.literal("frame");
@@ -338,7 +336,6 @@ final class EntityRendererTest {
     renderer.apply(text);
     final CraftTextDisplay discarded = this.world.getSpawnedDisplays().getFirst();
     final World configuredWorld = this.world.getWorld();
-    // the chunk unloads with every viewer gone, and no frame follows: a still image
     when(discarded.isValid()).thenReturn(false);
     renderer.onTick();
     assertEquals(1, this.world.getSpawnedDisplays().size(), "not while the chunk is unloaded");
@@ -352,7 +349,6 @@ final class EntityRendererTest {
     final net.minecraft.world.entity.Display.TextDisplay handle = respawned.getHandle(); // fqn: Display is imported as org.bukkit.entity.Display
     verify(handle).setText(text);
     verify(this.viewer).showEntity(this.server.getPlugin(), respawned);
-    // once hidden, nothing comes back
     renderer.hide();
     when(respawned.isValid()).thenReturn(false);
     renderer.onTick();
@@ -372,8 +368,6 @@ final class EntityRendererTest {
     renderer.onTick();
     final CraftTextDisplay respawned = this.world.getSpawnedDisplays().get(1);
     assertTrue(this.viewer.canSee(respawned));
-    // respawned the moment its chunk loaded again, the display stops being tracked before the viewer saw it, and
-    // Paper takes the viewer's grant back
     this.server.endTracking(respawned);
     renderer.onTick();
     assertTrue(this.viewer.canSee(respawned), "the viewer is shown the display again");
@@ -406,9 +400,6 @@ final class EntityRendererTest {
 
   @Test
   void asksAboutTheChunkThatHoldsANegativeBlockPosition() {
-    // the shared fixture sits at x = 1, z = 3, whose chunk is (0, 0) under every plausible arithmetic, so it cannot
-    // tell a floor from a truncation. A negative x can: -17 >> 4 is -2, while -17 / 16 truncates toward zero and
-    // gives -1, which is the chunk next door.
     final World configuredWorld = this.world.getWorld();
     final Location negative = new Location(configuredWorld, -17, 70, 35);
     final EntityConfiguration configuration = this.createConfiguration(negative);

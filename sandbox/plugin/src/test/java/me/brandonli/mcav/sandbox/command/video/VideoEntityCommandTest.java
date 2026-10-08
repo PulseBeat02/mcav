@@ -95,7 +95,6 @@ final class VideoEntityCommandTest {
     this.viewer = UUID.randomUUID();
     this.selector = mockSelector(this.viewer);
     this.sender = mock(CommandSender.class);
-    // a player always stands in a world, and the renderers refuse positions without one
     final FakeWorld world = new FakeWorld();
     this.location = world.location(0.0, 80.0, 0.0);
   }

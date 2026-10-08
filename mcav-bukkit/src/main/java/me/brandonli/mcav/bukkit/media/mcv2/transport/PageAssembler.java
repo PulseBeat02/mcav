@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2.transport;
 
+import com.google.common.base.Preconditions;
 import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -42,21 +43,18 @@ public final class PageAssembler {
 
   private final long streamId;
 
-  private final int symbolBits;
-
   private final Map<Long, Map<Integer, TransportPage>> pending = new LinkedHashMap<>();
 
   /**
    * Constructs a new assembler.
    *
    * @param streamId the unsigned 32-bit stream id to accept, from 0 through 4,294,967,295; not checked here
-   * @param symbolBits the negotiated width, 6, 7 or 8 bits per symbol
-   * @throws IllegalArgumentException if the symbol width is not 6, 7 or 8
+   * @param symbolBits the negotiated width, 6 bits per symbol
+   * @throws IllegalArgumentException if the symbol width is not 6
    */
   public PageAssembler(final long streamId, final int symbolBits) {
-    TransportPages.checkSymbolBits(symbolBits);
+    Preconditions.checkArgument(symbolBits == MapAlphabet.SYMBOL_BITS, "Unsupported symbol width: %s", symbolBits);
     this.streamId = streamId;
-    this.symbolBits = symbolBits;
   }
 
   /**
@@ -73,7 +71,7 @@ public final class PageAssembler {
    * @throws NullPointerException if the symbol array is null
    */
   public byte @Nullable [] push(final byte[] symbols) throws Mcv2Exception {
-    final TransportPage page = TransportPages.readPage(symbols, this.symbolBits);
+    final TransportPage page = TransportPages.readPage(symbols);
     if (page.getStreamId() != this.streamId) {
       throw new Mcv2Exception("Wrong stream");
     }

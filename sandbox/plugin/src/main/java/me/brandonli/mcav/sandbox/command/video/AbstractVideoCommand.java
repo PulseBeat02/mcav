@@ -351,7 +351,6 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
       return;
     }
 
-    // without an error the worker always reports whether the video started
     final boolean playing = Boolean.TRUE.equals(started);
     if (!playing) {
       final Component message = Message.UNSUPPORTED_MRL.build();
@@ -452,7 +451,6 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     return preparing ? Message.YTDLP_PREPARING.build() : null;
   }
 
-  // runs on the worker thread
   private boolean startPlayer(final PlaybackRequest request, final long generation) {
     this.manager.checkStart();
     final String mrl = request.getMrl();

@@ -34,7 +34,6 @@ final class JulLogger extends LegacyAbstractLogger {
   @Serial
   private static final long serialVersionUID = 1L;
 
-  // restored by name: SLF4J's loggers resolve to the logger of their name when they are read back
   private final transient Logger logger;
 
   /**

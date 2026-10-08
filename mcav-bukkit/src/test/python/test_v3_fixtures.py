@@ -18,6 +18,7 @@
 
 import hashlib
 import json
+import shutil
 import random
 import struct
 import sys
@@ -137,15 +138,24 @@ class FixtureToolTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'reference'):
                 fixtures.fixtures_encoder(root)
 
-    def test_committed_pages_declare_edge_fallback_and_exactly_four_frames(self):
+    def test_committed_pages_cover_conformance_and_multi_page_edges(self):
         root = ROOT / 'mcav-bukkit/src/test/resources/mcv2'
         table = json.loads((root / 'conformance/pages.json').read_text())
         self.assertEqual(6, table['symbol_bits'])
-        self.assertEqual(4, len(table['frames']))
-        if table['source'].startswith('edge'):
-            self.assertTrue(all(entry['stream'].startswith('edge/') for entry in table['frames']))
-        else:
-            self.assertTrue(all(entry['stream'].startswith('conformance/') for entry in table['frames']))
+        self.assertEqual(6, len(table['frames']))
+        self.assertEqual({1, 2, 11}, {len(entry['pages']) for entry in table['frames']})
+        self.assertEqual({'conformance', 'edge'}, {entry['stream'].split('/')[0] for entry in table['frames']})
+
+
+    def test_regenerated_pages_match_all_committed_vectors_byte_for_byte(self):
+        root = ROOT / 'mcav-bukkit/src/test/resources/mcv2'
+        expected = (root / 'conformance/pages.json').read_bytes()
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            for name in ('conformance', 'edge'):
+                shutil.copytree(root / name, output / name)
+            fixtures.fixtures_pages(output)
+            self.assertEqual(expected, (output / 'conformance/pages.json').read_bytes())
 
 
 if __name__ == '__main__':

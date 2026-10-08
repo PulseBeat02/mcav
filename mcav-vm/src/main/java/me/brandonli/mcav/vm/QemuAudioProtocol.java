@@ -157,7 +157,6 @@ final class QemuAudioProtocol {
     boolean withoutAuthentication = false;
     boolean withPassword = false;
     for (int index = 0; index < count; index++) {
-      // every offered type is read, so the stream stays in step whichever comes first
       final int type = in.readUnsignedByte();
       withoutAuthentication = withoutAuthentication || type == SECURITY_NONE;
       withPassword = withPassword || type == SECURITY_VNC;

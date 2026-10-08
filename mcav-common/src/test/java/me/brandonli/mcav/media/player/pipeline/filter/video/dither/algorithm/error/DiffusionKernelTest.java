@@ -106,7 +106,6 @@ final class DiffusionKernelTest {
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel("x", 1, new int[0][]));
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel("x", 1, new int[][] { { 1, 0 } }));
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel("x", 1, new int[][] { { 0, -1, 1 } }));
-    // a tap of a previous row is refused even when its column offset alone would look like a later pixel
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel("x", 1, new int[][] { { 1, -1, 1 } }));
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel("x", 1, new int[][] { { 0, 0, 1 } }));
     assertThrows(IllegalArgumentException.class, () -> new DiffusionKernel("x", 1, new int[][] { { -1, 0, 1 } }));

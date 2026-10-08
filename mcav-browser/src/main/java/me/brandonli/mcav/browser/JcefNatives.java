@@ -183,7 +183,7 @@ final class JcefNatives {
     final Path installation = this.folder.resolve(name);
     final Path marker = installation.resolve(INSTALL_MARKER);
     if (Files.isRegularFile(marker)) {
-      // an installation of an earlier version kept the permissions its umask gave
+      // Earlier installations retained their umask permissions.
       ArchiveExtractor.tighten(this.folder);
       return installation;
     }
@@ -194,7 +194,6 @@ final class JcefNatives {
         final FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
         final FileLock lock = lock(channel)
       ) {
-        // another process may have installed the natives while this one waited for the lock
         if (!Files.isRegularFile(marker)) {
           this.installLocked(identifier, sha256, size, installation);
         }

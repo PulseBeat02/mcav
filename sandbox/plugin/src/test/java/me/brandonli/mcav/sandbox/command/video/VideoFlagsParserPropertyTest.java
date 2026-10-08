@@ -75,8 +75,6 @@ final class VideoFlagsParserPropertyTest {
     final ListArbitrary<String> fewOptions = options.ofMaxSize(5);
     final Arbitrary<String> joined = fewOptions.map(list -> String.join(",", list));
     final Arbitrary<String> wrapped = joined.map(content -> "--yt-dlp{" + content + "}");
-    // well-formed options of accepted names, so that what decides is the values, which a player controls most freely;
-    // values often start with a dash, which yt-dlp would read as an option of its own
     final Arbitrary<String> dashed = pieces.map(piece -> "-" + piece);
     final Arbitrary<String> values = Arbitraries.oneOf(pieces, dashed);
     final Combinators.Combinator2<String, String> acceptedParts = Combinators.combine(names, values);
@@ -139,7 +137,6 @@ final class VideoFlagsParserPropertyTest {
     final StringArbitrary valueCharacters = strings.withChars("abc01=,}{\\/. ");
     final StringArbitrary values = valueCharacters.ofMinLength(1);
     final StringArbitrary shortValues = values.ofMaxLength(10);
-    // the escapes cover commas and closing braces; a backslash right before either, or at the end, has no spelling
     final Arbitrary<String> expressibleValues = shortValues.filter(value -> {
       final String trimmed = value.strip();
       final boolean escapable = !value.contains("\\,") && !value.contains("\\}") && !value.endsWith("\\");

@@ -147,8 +147,6 @@ public final class ModuleLoader {
     try {
       module.stop();
     } catch (final RuntimeException | Error stopFailure) {
-      // a module is foreign code, so a failed stop must not replace the start failure; only a virtual machine error,
-      // which no module can cause or recover from, is too severe to be attached
       ThrowableUtils.throwIfFatal(stopFailure);
       LOGGER.error(STOP_AFTER_FAILED_START_FAILED, moduleName, stopFailure);
       final Equivalence<Object> identity = Equivalence.identity();
@@ -165,8 +163,6 @@ public final class ModuleLoader {
       final Object instance = constructor.invoke();
       return (MCAVModule) instance;
     } catch (final Throwable throwable) {
-      // invoking a method handle throws Throwable, so everything a constructor throws becomes a module failure except a
-      // virtual machine error, which must reach the caller unwrapped
       ThrowableUtils.throwIfFatal(throwable);
       final String name = moduleClass.getSimpleName();
       final String reason = throwable.getMessage();
@@ -188,8 +184,6 @@ public final class ModuleLoader {
       try {
         module.stop();
       } catch (final RuntimeException | Error exception) {
-        // one broken module, even one failing an assertion or a native call, must not keep the others running; only a
-        // virtual machine error stops the shutdown, because nothing can be released reliably after it
         ThrowableUtils.throwIfFatal(exception);
         LOGGER.error(STOP_FAILED, moduleName, exception);
       }

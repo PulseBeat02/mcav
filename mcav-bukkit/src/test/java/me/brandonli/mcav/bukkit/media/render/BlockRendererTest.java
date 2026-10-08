@@ -76,7 +76,6 @@ final class BlockRendererTest {
     this.viewer = this.server.addPlayer(VIEWER);
     this.server.injectModule();
     this.world = FakeWorld.create();
-    // the wall goes only to viewers in its world
     this.world.enter(this.viewer);
     final List<UUID> initialViewers = List.of(VIEWER, OFFLINE);
     this.viewers = new CopyOnWriteArrayList<>(initialViewers);
@@ -537,7 +536,6 @@ final class BlockRendererTest {
     this.runTicksUntilTheFullResendIsDue();
     renderer.hide();
     this.server.runTasks();
-    // the wall's blocks have no world, so a viewer in another world would see them at the same coordinates there
     verify(elsewhere, never()).sendMultiBlockChange(any());
     captureChanges(this.viewer, 4);
   }
@@ -552,7 +550,6 @@ final class BlockRendererTest {
     when(this.viewer.getWorld()).thenReturn(nether);
     renderer.render(imageWithOneMagentaBlock());
     this.server.runTasks();
-    // nothing goes to the nether, not even the original blocks
     captureChanges(this.viewer, 1);
     this.world.enter(this.viewer);
     this.server.runTasks();

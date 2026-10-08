@@ -42,9 +42,7 @@ public abstract class MatVideoFilter implements VideoFilter {
   /**
    * Constructs a new filter.
    */
-  protected MatVideoFilter() {
-    // stateless base class
-  }
+  protected MatVideoFilter() {}
 
   /**
    * Applies the filter to a frame. Frames backed by OpenCV are modified in place through
