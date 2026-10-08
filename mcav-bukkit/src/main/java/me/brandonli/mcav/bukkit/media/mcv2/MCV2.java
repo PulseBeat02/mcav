@@ -100,7 +100,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The version 3 live encoder. Each instance encodes one stream on a caller-owned pool. */
+/**
+ * The version 3 live encoder. Each instance encodes one stream on a caller-owned pool.
+ * Calls to begin and calls to finish must each be serial; one begin may overlap the preceding finish.
+ * Settings changes and keyframe requests may come from another thread.
+ */
 public final class MCV2 {
 
   // Public API owns stream state; begin and finish may overlap by one frame.
@@ -253,13 +257,14 @@ public final class MCV2 {
   private static final int COARSEST_QUANTIZER = 2;
   private static final int PALETTE_COLORS = 2;
   private static final byte[] NONE = new byte[0];
-  private Settings settings;
+  private volatile Settings settings;
+  private final AtomicBoolean keyframeRequested = new AtomicBoolean();
+  private byte[] verificationPicture = NONE;
   private final Workers workers;
   private final boolean shouldVerify;
   private long frameBudget;
   private int frameLimit;
   private byte @Nullable [] reference;
-  private long referenceId;
   private int width;
   private int height;
   private long lastFrameId = -1;
@@ -322,7 +327,7 @@ public final class MCV2 {
    * Requests an independent picture on the next begin call.
    */
   public void requestKeyframe() {
-    this.framesSinceKey = Integer.MAX_VALUE;
+    this.keyframeRequested.set(true);
   }
 
   /**
@@ -403,14 +408,16 @@ public final class MCV2 {
     Preconditions.checkArgument(this.lastFrameId < 0 || follows(frameId, this.lastFrameId), "Stale or ambiguous frame number");
     final long started = System.nanoTime();
     final byte[] previous = this.reference;
-    final boolean predictable = previous != null && width == this.width && height == this.height && this.framesSinceKey < KEY_INTERVAL;
-    final boolean fast = this.settings.fast();
-    final double base = this.settings.lambda();
+    final boolean requested = this.keyframeRequested.getAndSet(false);
+    final boolean predictable =
+      !requested && previous != null && width == this.width && height == this.height && this.framesSinceKey < KEY_INTERVAL;
+    final Settings settings = this.settings;
+    final boolean fast = settings.fast();
+    final double base = settings.lambda();
     double lambda = Math.min(this.motionLambda.lambda(base), Double.MAX_VALUE);
     final boolean keyframe = !predictable;
-    this.motionLambda.observe(rgb, width, height, this.workers);
     final byte[] predictFrom = keyframe ? NONE : Preconditions.checkNotNull(previous);
-    final long predictsId = keyframe ? frameId : this.referenceId;
+    final long predictsId = keyframe ? frameId : this.lastFrameId;
     Buffers buffers = this.buffers;
     if (buffers == null || buffers.width != width || buffers.height != height) {
       buffers = new Buffers(width, height);
@@ -445,7 +452,7 @@ public final class MCV2 {
     SearchResult searched = this.search(frame, before, started, false);
     byte[] data = write(width, height, keyframe, searched.roots, frameId, predictsId);
     final int limit = this.frameLimit == 0 ? MAX_FRAME_BYTES : Math.min(this.frameLimit, MAX_FRAME_BYTES);
-    for (int retry = 0; (data == null || data.length > limit) && retry < LIMIT_RETRIES; retry++) {
+    for (int retry = 0; (data == null || data.length > limit) && lambda > 0 && retry < LIMIT_RETRIES; retry++) {
       lambda = Math.min(lambda * 2, Double.MAX_VALUE);
       frame.lambda = lambda;
       searched = this.search(frame, before, started, false);
@@ -469,8 +476,8 @@ public final class MCV2 {
       lambda,
       System.nanoTime() - started
     );
+    this.motionLambda.observe(rgb, width, height, this.workers);
     this.reference = picture;
-    this.referenceId = frameId;
     this.motion = searched.motion;
     this.splitBefore = searched.splits;
     this.width = width;
@@ -3091,7 +3098,10 @@ public final class MCV2 {
   private void verify(final Pending pending) {
     try {
       final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(pending.data);
-      final byte[] decoded = new byte[pending.picture.length];
+      if (this.verificationPicture.length != pending.picture.length) {
+        this.verificationPicture = new byte[pending.picture.length];
+      }
+      final byte[] decoded = this.verificationPicture;
       final int bands = (frame.getHeight() + ROOT_SIZE - 1) / ROOT_SIZE;
       final AtomicReference<@Nullable Mcv2Exception> failure = new AtomicReference<>();
       final AtomicBoolean same = new AtomicBoolean(true);
@@ -3244,8 +3254,8 @@ public final class MCV2 {
      * @param processors available processor count
      * @return default worker count
      */
-    public static int defaultThreads(final int processors) {
-      return Math.max(1, processors / 2);
+    static int defaultThreads(final int processors) {
+      return Math.min(MAX_THREADS, Math.max(1, processors / 2));
     }
 
     /**

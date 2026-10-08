@@ -58,6 +58,7 @@ final class MCV2PoolTest {
     assertEquals(1, Pool.defaultThreads(3));
     assertEquals(2, Pool.defaultThreads(4));
     assertEquals(6, Pool.defaultThreads(12));
+    assertEquals(256, Pool.defaultThreads(768));
     assertThrows(IllegalArgumentException.class, () -> new Pool(0));
     assertThrows(IllegalArgumentException.class, () -> new Pool(Pool.MAX_THREADS + 1));
   }

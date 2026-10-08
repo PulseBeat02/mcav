@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.reflect.Field;
@@ -34,6 +36,20 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.Node;
 import org.junit.jupiter.api.Test;
 
 final class MCV2VerificationTest {
+
+  @Test
+  void reusesVerificationStorageUntilThePictureSizeChanges() throws ReflectiveOperationException {
+    final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT, ForkJoinPool.commonPool(), 3, true);
+    final Field storage = MCV2.class.getDeclaredField("verificationPicture");
+    storage.setAccessible(true);
+    encoder.encode(new byte[32 * 32 * 3], 32, 32, 0);
+    final Object first = storage.get(encoder);
+    encoder.encode(Mcv2Pictures.scene(32, 32, 1, 3), 32, 32, 1);
+    assertSame(first, storage.get(encoder));
+    encoder.encode(new byte[3], 1, 1, 2);
+    assertNotSame(first, storage.get(encoder));
+    assertEquals(3, ((byte[]) storage.get(encoder)).length);
+  }
 
   @Test
   void checksTheWholeConformanceAndEdgeCorpusIncludingUnusedCompactClasses() throws Mcv2Exception {

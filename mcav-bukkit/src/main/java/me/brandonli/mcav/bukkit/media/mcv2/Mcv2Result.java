@@ -447,7 +447,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (settings.fast()) {
       return List.of(settings);
     }
-    final double lambda = settings.lambda() * (55.0 / 72);
+    final double lambda = (settings.lambda() * Settings.FAST.lambda()) / Settings.DEFAULT.lambda();
     return List.of(settings, new Settings(lambda, true));
   }
 

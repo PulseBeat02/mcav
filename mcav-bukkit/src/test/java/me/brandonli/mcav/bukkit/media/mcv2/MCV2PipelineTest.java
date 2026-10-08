@@ -24,13 +24,17 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import org.junit.jupiter.api.Test;
 
@@ -96,6 +100,48 @@ final class MCV2PipelineTest {
       return stream;
     } finally {
       verifier.shutdown();
+    }
+  }
+
+  @Test
+  void retainsRequestsAndSettingsChangedDuringBegin() throws Exception {
+    final MCV2 encoder = new MCV2(Settings.DEFAULT, POOL, 1, true);
+    final Field factory = MCV2.class.getDeclaredField("kernels");
+    factory.setAccessible(true);
+    final Supplier<?> original = (Supplier<?>) factory.get(encoder);
+    final CountDownLatch searching = new CountDownLatch(1);
+    final CountDownLatch resume = new CountDownLatch(1);
+    factory.set(
+      encoder,
+      (Supplier<?>) () -> {
+        searching.countDown();
+        try {
+          assertTrue(resume.await(30, TimeUnit.SECONDS));
+        } catch (final InterruptedException exception) {
+          Thread.currentThread().interrupt();
+          throw new AssertionError(exception);
+        }
+        return original.get();
+      }
+    );
+    try (final ExecutorService caller = Executors.newSingleThreadExecutor()) {
+      final Future<MCV2.Pending> first = caller.submit(() -> encoder.begin(new byte[3], 1, 1, 0));
+      try {
+        assertTrue(searching.await(30, TimeUnit.SECONDS));
+        encoder.requestKeyframe();
+        encoder.switchTo(Settings.FAST);
+      } finally {
+        resume.countDown();
+      }
+      assertEquals(72, encoder.finish(first.get()).getStats().lambda());
+      final MCV2.Pending requested = encoder.begin(new byte[3], 1, 1, 1);
+      assertTrue(requested.isKeyframe());
+      assertEquals(55, encoder.finish(requested).getStats().lambda());
+      for (int frameId = 2; frameId <= 121; frameId++) {
+        final MCV2.Pending pending = encoder.begin(new byte[3], 1, 1, frameId);
+        assertEquals(frameId == 121, pending.isKeyframe());
+        encoder.finish(pending);
+      }
     }
   }
 
