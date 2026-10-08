@@ -93,12 +93,7 @@ __pycache__/
 
 *.so
 
-<<<<<<< HEAD
-# auto-generated Sphinx api docs
 /mcav-docs/generated
-=======
-/docs/generated
->>>>>>> mcv2/simplify-comments
 
 .Python
 build/
@@ -151,12 +146,7 @@ instance/
 
 .scrapy
 
-<<<<<<< HEAD
-# Sphinx documentation
 mcav-docs/_build/
-=======
-docs/_build/
->>>>>>> mcv2/simplify-comments
 
 target/
 

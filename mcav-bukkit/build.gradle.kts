@@ -17,18 +17,6 @@ mcavPublishing {
     gradleModuleMetadata = false
 }
 
-<<<<<<< HEAD
-// The MCV2 live encoder's native kernels (src/main/native/mcv2) are built once and committed as resources, with the
-// SHA-256 of each library compiled into Mcv2Natives, so no default task needs a C/C++ toolchain. With
-// -Pmcav.natives=build, buildMcv2Natives rebuilds them with the Zig that build.sh pins (ZIG=/path/to/zig) and
-// formatMcv2Natives formats their sources (CLANG_FORMAT=/path/to/clang-format); after a rebuild, the digests the build
-// writes into SHA256SUMS go into Mcv2Natives.DIGESTS, which Mcv2NativesTest checks.
-=======
-tasks.variableNames {
-    publishedNames.addAll(listOf("x", "y", "q").map { "me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frame.Leaf#$it" })
-}
-
->>>>>>> mcv2/simplify-comments
 val nativeSources = layout.projectDirectory.dir("src/main/native/mcv2")
 val buildsNatives = providers.gradleProperty("mcav.natives").map { it == "build" }.getOrElse(false)
 val clangFormat = "\"\${CLANG_FORMAT:-clang-format}\""
