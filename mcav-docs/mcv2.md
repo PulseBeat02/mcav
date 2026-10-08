@@ -1094,7 +1094,7 @@ The same curves as numbers: the rate each codec needs, in Mbit/s, to reach a VMA
 | 85 | 14.75 | 4.93 | 3.44 | 3.13 |
 | 90 | 18.23 | 5.78 | 4.34 | 3.99 |
 
-As BD-rates over the range of quality both cover: on the proxy, MCV2 needs 3.6 % more than H.264 and about 4.7 times
+As BD-rates over the range of quality both cover: on the proxy, MCV2 needs 3.6 % more than H.264 and 4.6 and 4.8 times
 the rate of VP9 and AV1 (+362 % and +376 %); on gameplay, 2.4 times H.264 (+135 %) and 4.6 and 5.0 times VP9 and AV1
 (+358 % and +404 %).
 
@@ -1116,7 +1116,7 @@ proxy, the kind of flat, blocky picture Minecraft is full of, it keeps up with H
 |---|---:|---:|---:|
 | Palettes | +26.0 % | +151.0 % | +88.5 % |
 | Prediction from the previous frame (every frame a keyframe) | +96.4 % | +57.5 % | +76.9 % |
-| 16x16 and 8x8 leaves (only 32x32 leaves) | +90.7 % | +7.2 % | +49.0 % |
+| 16x16 and 8x8 leaves (only 32x32 leaves) | +90.7 % | +7.2 % | +48.9 % |
 | Solid leaves | +24.4 % | +23.1 % | +23.7 % |
 | Local motion (no motion vectors) | +28.0 % | +14.6 % | +21.3 % |
 | Derived offsets (a stored address in every descriptor instead) | +18.3 % | +19.0 % | +18.7 % |
