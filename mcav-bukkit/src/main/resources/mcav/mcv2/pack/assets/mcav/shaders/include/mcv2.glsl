@@ -348,7 +348,7 @@ void main() {
 }
 #endif
 
-// Frame decision: all pages must agree, pass CRC, and name a newer frame with the held reference.
+// Frame decision: complete CRC-correct pages, keyframe restart, or a newer P frame with the held reference.
 
 #ifdef MCV2_PASS_STATUS
 bool mcv2HeaderValid(uint frameId, uint referenceId, uint type);
@@ -385,7 +385,8 @@ void main() {
     bool previousValid = (mcv2Bytes(StateSampler, 0).x & 1u) != 0u;
     uint lastId = mcv2Word(StateSampler, 1);
     uint delta = frameId - lastId;
-    bool newer = !previousValid || (delta > 0u && delta < 0x80000000u);
+    // A keyframe can restart the sender without a resource reload.
+    bool newer = !previousValid || (delta > 0u && (keyframe || delta < 0x80000000u));
     bool fromPrevious = previousValid && referenceId == lastId;
     DataBytes = int(total);
     bool decode = valid && newer && (keyframe || fromPrevious)
