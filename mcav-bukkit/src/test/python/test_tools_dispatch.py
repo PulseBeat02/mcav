@@ -14,17 +14,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""The consolidated command must preserve a failed strip check's process status."""
+"""Consolidated commands preserve process status and rendered figures."""
 
 import json
 import sys
+import tempfile
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import numpy
+from PIL import Image
 
 import mcv2_tools
 
@@ -58,6 +61,21 @@ class StripCommandTest(unittest.TestCase):
         self.assertEqual(0, status)
         self.assertEqual([], result["failures"])
         self.assertEqual(6, result["checks"])
+
+
+class ChartCommandTest(unittest.TestCase):
+    def test_chart_command_reproduces_the_committed_pixels(self):
+        root = Path(__file__).resolve().parents[4]
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            with patch.object(sys, "argv", ["mcv2_tools.py", "charts"]), \
+                    patch.object(mcv2_tools, "charts_IMAGES", output):
+                mcv2_tools.main()
+            for name in ("codecs", "features"):
+                with self.subTest(figure=name), \
+                        Image.open(root / "mcav-docs/images/mcv2" / f"{name}.png") as expected, \
+                        Image.open(output / f"{name}.png") as actual:
+                    numpy.testing.assert_array_equal(numpy.array(expected), numpy.array(actual))
 
 
 if __name__ == "__main__":

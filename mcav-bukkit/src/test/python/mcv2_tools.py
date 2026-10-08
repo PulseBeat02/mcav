@@ -2232,7 +2232,7 @@ def charts_draw_codecs(data):
         axis.set_xlabel("Rate on the wire, Mbit/s (log scale)", color=charts_SECONDARY)
         axis.grid(True, color=charts_GRID, linewidth=0.6, zorder=0)
         axis.set_ylim(20, 102)
-        axis.margins(pixel_x=0.18)
+        axis.margins(x=0.18)
         for side in ("top", "right"):
             axis.spines[side].set_visible(False)
     for axis in axes:
