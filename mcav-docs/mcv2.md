@@ -1630,7 +1630,7 @@ Use `natives=off` for the Java comparison. The `mcv2.native` system property sti
 | Java `generate-fixtures` | `SOURCE_FOLDER FIXTURE_FOLDER`; regenerate Java conformance and encoder archives from the two 1920x1080 RGB sources |
 | Java `shader-compile` | `PACK GENERATED_INCLUDES OUTPUT [--vanilla EXTRACTED_CLIENT] [--post-only]`; Minecraft's shaderc/SPIRV-Cross compilation path |
 | Python `fixtures` | `ROOT [conformance\|edge\|pages\|encoder\|all]`; regenerate independent digests, pages and edge streams; validate encoder archives |
-| Python `edge_streams` | `OUTPUT [--seed SEED]`; deterministic independent serializer coverage |
+| Python `edge_streams` | `OUTPUT [SEED]`; deterministic independent serializer coverage |
 | Python `differential` | `CLASSPATH [--streams N] [--conformance N] [--mutants N] [--corpus DIR] [--seed SEED] [--out DIR] [--java JAVA]`; compare rejection and picture digests for every frame |
 | Python `rate_quality` | `--classpath CP --source RGB --frames N --fps FPS --lambdas L1,L2,... --ffmpeg FFMPEG --out JSON -- profile=DEFAULT ...`; run `Mcv2Tools bench` and score its pictures |
 | Python `codec_curves` | `--ffmpeg FFMPEG --source RGB --name NAME --width W --height H --frames N --fps FPS --qualities CRF... --out JSON`; resumable H.264/VP9/AV1 curves |
@@ -1657,6 +1657,8 @@ for diagram in decode overview transport; do
     -o "mcav-docs/images/mcv2/$diagram.png"
 done
 python "$MCV2_PY" charts --tables
+java --enable-native-access=ALL-UNNAMED -cp "$MCV2_CP" "$MCV2_MAIN" bench \
+  source=gameplay.rgb width=1920 height=1080 frames=13 profile=DEFAULT lambda=260 out=gameplay.mcs
 python "$MCV2_PY" samples tree gameplay.mcs --frames 0,12 --crop 896,128,576,324
 python "$MCV2_PY" samples leaves gameplay.mcs gameplay.rgb --frame 0 --crop 896,128,576,324
 python "$MCV2_PY" samples bytes gameplay.mcs --frame 0
