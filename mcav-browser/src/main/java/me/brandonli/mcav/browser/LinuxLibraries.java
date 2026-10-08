@@ -77,7 +77,7 @@ final class LinuxLibraries {
   /**
    * The resource that pins the packages.
    */
-  private static final String RESOURCE = "linux-libraries.txt";
+  private static final String RESOURCE = "mcav/browser/linux-libraries.txt";
 
   /**
    * The marker file of a complete installation.
@@ -229,7 +229,7 @@ final class LinuxLibraries {
   }
 
   /**
-   * Reads the pins of the resource next to this class.
+   * Reads the bundled pins from {@code mcav/browser/linux-libraries.txt}.
    *
    * @param loader the class loader of this class
    * @return the lines
@@ -237,15 +237,14 @@ final class LinuxLibraries {
    */
   @VisibleForTesting
   static List<String> readResource(final ClassLoader loader) {
-    final String name = "me/brandonli/mcav/browser/" + RESOURCE;
-    try (final InputStream stream = loader.getResourceAsStream(name)) {
+    try (final InputStream stream = loader.getResourceAsStream(RESOURCE)) {
       if (stream == null) {
-        throw new IllegalStateException("The resource " + name + " is missing");
+        throw new IllegalStateException("The resource " + RESOURCE + " is missing");
       }
       final BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
       return reader.lines().toList();
     } catch (final IOException | UncheckedIOException exception) {
-      throw new IllegalStateException("The resource " + name + " cannot be read", exception);
+      throw new IllegalStateException("The resource " + RESOURCE + " cannot be read", exception);
     }
   }
 

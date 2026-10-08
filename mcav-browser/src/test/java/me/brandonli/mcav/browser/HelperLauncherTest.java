@@ -168,8 +168,8 @@ class HelperLauncherTest {
   void aClassLoadedFromTheNetworkCannotBeAHelperClassPath() throws Exception {
     final String name = Loaded.class.getName();
     final byte[] bytes;
-    try (final InputStream in = Loaded.class.getResourceAsStream("HelperLauncherTest$Loaded.class")) {
-      bytes = in.readAllBytes();
+    try (final InputStream input = Loaded.class.getResourceAsStream("/" + name.replace('.', '/') + ".class")) {
+      bytes = input.readAllBytes();
     }
     final URL remote = URI.create("http://example.com/remote.jar").toURL();
     final CodeSource source = new CodeSource(remote, (Certificate[]) null);

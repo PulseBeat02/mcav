@@ -250,7 +250,7 @@ class LinuxLibrariesTest {
   void aResourceThatIsMissingOrUnreadableIsABrokenBuild() {
     final ClassLoader empty = new ClassLoader(null) {};
     final IllegalStateException missing = assertThrows(IllegalStateException.class, () -> LinuxLibraries.readResource(empty));
-    assertEquals("The resource me/brandonli/mcav/browser/linux-libraries.txt is missing", missing.getMessage());
+    assertEquals("The resource mcav/browser/linux-libraries.txt is missing", missing.getMessage());
     final ClassLoader broken = new ClassLoader(null) {
       @Override
       public InputStream getResourceAsStream(final String name) {

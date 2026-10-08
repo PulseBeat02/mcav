@@ -36,7 +36,7 @@ final class ScriptAssertions {
 
   static void execute(final String resource, final String script) throws IOException, InterruptedException {
     final String fixture;
-    try (final InputStream input = Objects.requireNonNull(ScriptAssertions.class.getResourceAsStream(resource))) {
+    try (final InputStream input = Objects.requireNonNull(ScriptAssertions.class.getResourceAsStream("/scripts/" + resource))) {
       fixture = new String(input.readAllBytes(), StandardCharsets.UTF_8);
     }
     final String program = fixture.replace("SCRIPT_UNDER_TEST", DevToolsInput.quote(script));
