@@ -16,7 +16,6 @@ class JcstressBudgetTest {
 
     @Test
     fun splitsHalfOfTheBudgetOverTheIterationsOfEveryRun() {
-        // 9 tests x 14 configurations x 2 forks = 252 runs, 2 at once: 252 s of JVM starts leave 48 s of the 300 s half
         assertEquals(76L, JcstressBudget.iterationMillis("quick", 10, 9, 4))
     }
 
@@ -28,7 +27,6 @@ class JcstressBudgetTest {
 
     @Test
     fun runsOneRunAtATimeOnASingleCpu() {
-        // 1 test x 14 configurations x (1 + 5) forks = 84 runs: 168 s of starts leave 132 s for 420 iterations
         assertEquals(314L, JcstressBudget.iterationMillis("default", 10, 1, 1))
     }
 

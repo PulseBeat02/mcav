@@ -11,7 +11,6 @@ data class QualifiedName(val line: Int, val name: String)
  */
 object QualifiedNames {
 
-    // the first segment of every package this repository's code imports from, and the other common ones
     private val ROOTS = listOf("java", "javax", "jakarta", "jdk", "sun", "com", "org", "net", "io", "me", "uk", "de", "xyz", "it", "dev", "info")
 
     private val NAME = Regex("(?<![\\w.$])((?:${ROOTS.joinToString("|")})\\.(?:[a-z_][a-z0-9_]*\\.)+[A-Z][\\w$]*)")

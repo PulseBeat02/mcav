@@ -1,8 +1,3 @@
-// Publishes a module as me.brandonli:<module>, with its sources and Javadoc, to the snapshot repository of mcav and to
-// the folder the end-to-end test of the sandbox plugin serves to its server. The snapshot repository reads its
-// credentials from the Gradle properties brandonliUsername and brandonliPassword. `mcavPublishing` changes what a module
-// publishes.
-
 import info.solidsoft.gradle.pitest.PitestPluginExtension
 import me.brandonli.mcav.gradle.McavPublishingExtension
 
@@ -45,7 +40,6 @@ publishing {
     }
 }
 
-// what is published depends on the module's settings, so the publication is made once its build script has run
 afterEvaluate {
     publishing.publications.create<MavenPublication>("maven") {
         groupId = "me.brandonli"

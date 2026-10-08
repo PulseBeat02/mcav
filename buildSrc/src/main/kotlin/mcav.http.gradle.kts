@@ -1,6 +1,3 @@
-// The HTTP module serves the website of the audio web player from its jar: the build makes the website with npm and runs
-// its tests, and the module's notice tests read the jar the build made.
-
 import me.brandonli.mcav.gradle.isWindows
 
 plugins {
@@ -8,8 +5,7 @@ plugins {
     id("mcav.publishing")
 }
 
-// The website of the audio web player (mcav-website, Next.js) is built with the npm of the Node.js the build downloads
-// and served from the jar's static folder. npm's shebang looks node up on the PATH, so that Node.js comes first there.
+// npm's shebang finds Node on PATH, so the pinned executable must come first.
 val npm = node.resolvedNodeDir.get().file(if (isWindows) "npm.cmd" else "bin/npm").asFile
 val npmPath = npm.parentFile.absolutePath + File.pathSeparator + System.getenv("PATH")
 
@@ -20,12 +16,10 @@ val npmProjectInstall = tasks.register<Exec>("npmProjectInstall") {
     workingDir = file("mcav-website")
     executable = npm.absolutePath
     environment("PATH", npmPath)
-    // installs exactly what package-lock.json lists, so every machine builds the same website
     args("ci")
     inputs.file("mcav-website/package.json")
     inputs.file("mcav-website/package-lock.json")
-    // npm's installation receipt tells a clean install without hashing tens of thousands of dependency files; use
-    // --rerun-tasks to repair a dependency folder changed outside npm
+    // npm's receipt avoids hashing node_modules; use --rerun-tasks after changes outside npm.
     outputs.file("mcav-website/node_modules/.package-lock.json")
 }
 
@@ -50,7 +44,6 @@ val buildWebsite = tasks.register<Exec>("buildWebsite") {
     outputs.cacheIf { false }
 }
 
-// the tests of the website's own code, on the same Node.js; they need none of its npm dependencies
 val testWebsite = tasks.register<Exec>("testWebsite") {
     group = "verification"
     description = "Run the tests of the website"
@@ -62,7 +55,6 @@ val testWebsite = tasks.register<Exec>("testWebsite") {
     inputs.dir("mcav-website/src")
     inputs.dir("mcav-website/test")
     inputs.file("mcav-website/package.json")
-    // npm leaves nothing behind, so a marker tells a later build that these inputs passed
     val passed = layout.buildDirectory.file("website-tests/passed")
     outputs.file(passed)
     doLast {
@@ -86,8 +78,6 @@ tasks.named<Jar>("sourcesJar") {
     }
 }
 
-// the notice tests read the jar the build made, with the website and its npm notices in it, and so do PIT's runs of
-// them: Gradle keeps a -D among the test task's system properties, which PIT is not given
 val builtJar = "-Dmcav.http.jar=" + layout.buildDirectory.file("libs/mcav-http.jar").get().asFile.absolutePath
 tasks.test {
     dependsOn(tasks.jar)

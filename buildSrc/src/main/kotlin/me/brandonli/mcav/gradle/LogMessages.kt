@@ -43,7 +43,6 @@ object LogMessages {
         return !CONSTANT.matches(message.text.trim()) || arguments.any { it.joinsStrings() }
     }
 
-    // the arguments of the call whose opening parenthesis ends just before start, split at its top-level commas
     private fun arguments(source: String, code: String, start: Int): List<Argument> {
         val arguments = mutableListOf<Argument>()
         var depth = 0
@@ -69,10 +68,8 @@ object LogMessages {
 
     private fun lineOf(source: String, offset: Int): Int = source.substring(0, offset).count { it == '\n' } + 1
 
-    // one argument of a call, as written and with its comments and literals masked
     private class Argument(val text: String, private val code: String) {
 
-        // a + outside of any parentheses of the argument, where a string literal is outside of them too
         fun joinsStrings(): Boolean {
             var depth = 0
             var plus = false
