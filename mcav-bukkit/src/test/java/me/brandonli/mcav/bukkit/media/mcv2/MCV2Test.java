@@ -26,7 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.Random;
@@ -232,18 +231,6 @@ final class MCV2Test {
       assertThrows(IllegalStateException.class, () -> encoder.begin(new byte[3], 1, 1, 2));
       assertNull(encoder.getStats());
     }
-  }
-
-  @Test
-  void retainsTheJavaOnlyNativeConfigurationApi() {
-    final Path folder = Path.of("build", "mcv2-native-config-test");
-    MCV2.installNatives(folder, "off");
-    assertEquals("Java", MCV2.describeNatives());
-    MCV2.installNatives(folder, "auto");
-    assertEquals("Java", MCV2.describeNatives());
-    assertThrows(IllegalArgumentException.class, () -> MCV2.installNatives(folder, "other"));
-    assertThrows(NullPointerException.class, () -> MCV2.installNatives(null, "off"));
-    assertThrows(NullPointerException.class, () -> MCV2.installNatives(folder, null));
   }
 
   @Test

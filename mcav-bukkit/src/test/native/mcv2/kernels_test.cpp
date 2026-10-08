@@ -16,16 +16,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The standalone test of the MCV2 native kernels, outside any JVM: every kernel, on inputs from a fixed pseudo-random
-// sequence in the ranges the encoder gives it, at every level this CPU runs, must write exactly what the scalar level
-// writes, and the scalar level's outputs fold into one digest per kernel. The JVM tests prove the scalar level equal to
-// Java on x86-64, so an equal digest from another platform's library proves it equal to Java too; that is how the
-// linux-aarch64 library is checked, under qemu-user. Built two ways (run-native-tests.sh): with the level sources
-// linked in (-DMCV2_TEST_DIRECT), under AddressSanitizer and UndefinedBehaviorSanitizer or for llvm-cov coverage; or
-// against a shipped library, loaded with dlopen from the path given as the first argument. Under an emulator of a
-// given CPU (Intel SDE, qemu) the last argument names the level the dispatcher must take there.
+// The standalone test of the MCV2 native kernels, outside any JVM: every
+// kernel, on inputs from a fixed pseudo-random sequence in the ranges the
+// encoder gives it, at every level this CPU runs, must write exactly what the
+// scalar level writes, and the scalar level's outputs fold into one digest per
+// kernel. The JVM tests prove the scalar level equal to Java on x86-64, so an
+// equal digest from another platform's library proves it equal to Java too;
+// that is how the linux-aarch64 library is checked, under qemu-user. Built two
+// ways (run-native-tests.sh): with the level sources linked in
+// (-DMCV2_TEST_DIRECT), under AddressSanitizer and UndefinedBehaviorSanitizer
+// or for llvm-cov coverage; or against a shipped library, loaded with dlopen
+// from the path given as the first argument. Under an emulator of a given CPU
+// (Intel SDE, qemu) the last argument names the level the dispatcher must take
+// there.
 //
-//   kernels_test [library] [expect=level]    exits 0 when every level agrees, printing the digests
+//   kernels_test [library] [expect=level]    exits 0 when every level agrees,
+//   printing the digests
 
 #include <math.h>
 #include <stdint.h>
@@ -34,7 +40,8 @@
 
 #include <vector>
 
-#include "mcv2_kernels.h"
+#define MCV2_DECLARATIONS_ONLY
+#include "mcv2.cpp"
 
 #ifndef MCV2_TEST_DIRECT
 #include <dlfcn.h>
@@ -88,7 +95,8 @@ MCV2_DECLARE_LEVEL(sve512)
 namespace {
 #endif
 
-// every level with its bit, the most preferred of an architecture last: the dispatcher takes the last one it runs
+// every level with its bit, the most preferred of an architecture last: the
+// dispatcher takes the last one it runs
 constexpr struct {
   const char *name;
   int32_t bit;
@@ -96,7 +104,8 @@ constexpr struct {
              {"avx2", MCV2_LEVEL_AVX2},     {"avx512", MCV2_LEVEL_AVX512}, {"neon", MCV2_LEVEL_NEON},
              {"sve256", MCV2_LEVEL_SVE256}, {"sve512", MCV2_LEVEL_SVE512}};
 
-// what Java passes in: the kernel's AT_HWCAP, which tells an AArch64 library whether SVE is there
+// what Java passes in: the kernel's AT_HWCAP, which tells an AArch64 library
+// whether SVE is there
 int64_t hwcap() {
 #if defined(__aarch64__) && defined(__linux__)
   return (int64_t)getauxval(AT_HWCAP);
@@ -184,87 +193,14 @@ void report(bool equal, const char *kernel, const Level &level, int trial) {
   }
 }
 
-constexpr int32_t KINDS[] = {0, 1, 2, 3, 4, 8};
-
-// Build the expected picture with the existing scalar kernels, then require both equality and corruption detection.
-int32_t verification_case(Random &inputs, const Level &scalar, const Level &level, int32_t size, int trial) {
-  const int32_t count = inputs.range(1, 7);
-  const int32_t first = inputs.range(0, 2);
-  const int32_t width = count * size - inputs.range(0, size - 1);
-  const int32_t height = size - inputs.range(0, size - 1);
-  const std::vector<uint8_t> reference = inputs.ubytes((size_t)width * height * 3);
-  std::vector<uint8_t> picture(reference.size(), 0);
-  std::vector<int32_t> leaves((size_t)(first + count + 1) * 10, 0);
-  const std::vector<int8_t> records = inputs.bytes((size_t)(first + count + 1) * 256);
-  std::vector<int32_t> prediction((size_t)size * size * 3, 0);
-  std::vector<int32_t> block(prediction.size(), 0);
-  const std::vector<int32_t> source(prediction.size(), 0);
-  for (int32_t index = first; index < first + count; index++) {
-    int32_t *leaf = leaves.data() + index * 10;
-    leaf[0] = (index - first) * size;
-    leaf[1] = 0;
-    leaf[2] = inputs.range(0, 7);
-    leaf[3] = inputs.range(0, 7);
-    leaf[4] = index * 256;
-    leaf[5] = inputs.range(-40, 40);
-    leaf[6] = inputs.range(-40, 40);
-    leaf[7] = leaf[2] == 7 ? KINDS[inputs.range(0, 5)] : 1 << inputs.range(0, 3);
-    leaf[8] = 1 << inputs.range(0, 3);
-    leaf[9] = inputs.range(0, 0xFFFFFF);
-    scalar.predict(reference.data(), width, height, leaf[0], leaf[1], size, leaf[5], leaf[6], prediction.data());
-    switch (leaf[2]) {
-    case 0:
-      scalar.predicted(prediction.data(), size, block.data(), source.data(), 0, INFINITY);
-      break;
-    case 1:
-      scalar.solid(leaf[9], size, block.data(), source.data(), 0, INFINITY);
-      break;
-    case 2:
-      scalar.palette(records.data(), leaf[4], size, block.data(), source.data(), 0, INFINITY);
-      break;
-    case 3:
-      scalar.intra_grid(records.data(), leaf[4], leaf[7], size, block.data(), source.data(), 0, INFINITY);
-      break;
-    case 4:
-      scalar.residual_grid(prediction.data(), records.data(), leaf[4], leaf[7], leaf[3], size, block.data(),
-                           source.data(), 0, INFINITY);
-      break;
-    case 5:
-    case 6:
-      scalar.reduced(prediction.data(), leaf[2] == 5, records.data(), leaf[4], leaf[7], leaf[8], leaf[3], size,
-                     block.data(), source.data(), 0, INFINITY);
-      break;
-    default:
-      scalar.compact(prediction.data(), records.data(), leaf[4], leaf[7], leaf[3], size, block.data(), source.data(), 0,
-                     INFINITY);
-    }
-    const int32_t columns = width - leaf[0] < size ? width - leaf[0] : size;
-    for (int32_t y = 0; y < height; y++) {
-      for (int32_t x = 0; x < columns * 3; x++) {
-        picture[((size_t)y * width + leaf[0]) * 3 + x] = (uint8_t)block[(size_t)y * size * 3 + x];
-      }
-    }
-  }
-  const bool changed = (trial & 1) != 0;
-  if (changed) {
-    picture[inputs.range(0, (int32_t)picture.size() - 1)] ^= 1;
-  }
-  const int32_t result =
-      level.verify(reference.data(), picture.data(), width, height, leaves.data(), first, count, size, records.data());
-  report(result == (changed ? 0 : 1), "verify expected match", level, trial);
-  return result;
-}
-
-// runs every kernel TRIALS times on every level, comparing with the first (scalar) level
+// runs every kernel TRIALS times on every level, comparing with the first
+// (scalar) level
 void run(const std::vector<Level> &levels, int trials) {
   const Level &scalar = levels[0];
-  const char *names[] = {"predicted",     "solid",       "palette",         "intra_grid", "residual_grid",
-                         "reduced",       "compact",     "predict",         "fit",        "cell_sums",
-                         "luma_residual", "cluster",     "palette_cluster", "assign",     "assign_pattern",
-                         "seeded",        "load_source", "halve",           "ycocg",      "residual_target",
-                         "cell_means",    "verify"};
+  const char *names[] = {"predicted", "solid",  "palette",     "compact", "predict",        "fit", "cluster", "assign",
+                         "pattern",   "seeded", "load_source", "halve",   "residual_target"};
   Digest total;
-  for (int kernel = 0; kernel < 22; kernel++) {
+  for (int kernel = 0; kernel < 13; kernel++) {
     Random random{0x6D637632ull * (kernel + 1)};
     Digest digest;
     for (int trial = 0; trial < trials; trial++) {
@@ -295,38 +231,12 @@ void run(const std::vector<Level> &levels, int trials) {
           break;
         }
         case 3: {
-          const int32_t grid = 1 << inputs.range(0, 3);
-          const std::vector<int8_t> record = inputs.bytes(3 * grid * grid);
-          measured = level.intra_grid(record.data(), 0, grid, size, out.data(), source.data(), rate, limit);
+          const int32_t q = inputs.range(0, 2);
+          const std::vector<int8_t> record = inputs.bytes(10);
+          measured = level.compact(prediction.data(), record.data(), q, size, out.data(), source.data(), rate, limit);
           break;
         }
         case 4: {
-          const int32_t grid = 1 << inputs.range(0, 3);
-          const int32_t q = inputs.range(0, 4);
-          const std::vector<int8_t> record = inputs.bytes(3 * grid * grid);
-          measured = level.residual_grid(prediction.data(), record.data(), 0, grid, q, size, out.data(), source.data(),
-                                         rate, limit);
-          break;
-        }
-        case 5: {
-          const int32_t luma = 1 << inputs.range(0, 3);
-          const int32_t chroma = 1 << inputs.range(0, 2);
-          const int32_t q = inputs.range(0, 4);
-          const int32_t intra = inputs.range(0, 1);
-          const std::vector<int8_t> record = inputs.bytes(luma * luma + 2 * chroma * chroma);
-          measured = level.reduced(intra ? nullptr : prediction.data(), intra, record.data(), 0, luma, chroma, q, size,
-                                   out.data(), source.data(), rate, limit);
-          break;
-        }
-        case 6: {
-          const int32_t kind = KINDS[inputs.range(0, 5)];
-          const int32_t q = inputs.range(0, 4);
-          const std::vector<int8_t> record = inputs.bytes(20);
-          measured =
-              level.compact(prediction.data(), record.data(), 0, kind, q, size, out.data(), source.data(), rate, limit);
-          break;
-        }
-        case 7: {
           const int32_t width = inputs.range(1, 80);
           const int32_t height = inputs.range(1, 60);
           const std::vector<uint8_t> reference = inputs.ubytes((size_t)width * height * 3);
@@ -334,26 +244,16 @@ void run(const std::vector<Level> &levels, int trials) {
                         size, inputs.range(-40, 40), inputs.range(-40, 40), out.data());
           break;
         }
-        case 8: {
-          const int32_t grid = 1 << inputs.range(0, 3);
-          const int32_t stride = inputs.range(0, 1) ? 3 : 1;
-          const std::vector<float> values = inputs.floats((size_t)size * size * stride);
-          const std::vector<float> matrix = inputs.floats((size_t)grid * size);
-          floats.assign((size_t)grid * grid, 0);
-          level.fit(values.data(), 0, stride, size, grid, matrix.data(), floats.data(), 0, 1);
+        case 5: {
+          const std::vector<float> values = inputs.floats((size_t)size * size);
+          const std::vector<float> matrix = inputs.floats((size_t)4 * size);
+          floats.assign(16, 0);
+          level.fit(values.data(), size, matrix.data(), floats.data());
           break;
         }
-        case 9:
-          ints.assign(48, 0);
-          level.cell_sums(source.data(), size, ints.data());
-          break;
-        case 10:
-          floats.assign(16, 0);
-          level.luma_residual(source.data(), prediction.data(), size, floats.data());
-          break;
-        case 11:
-        case 12: {
-          // sometimes nearly flat, so the clusters meet ties and empty sides; now and then any int, whose sums overflow
+        case 6: {
+          // sometimes nearly flat, so the clusters meet ties and empty sides;
+          // now and then any int, whose sums overflow
           const int32_t low = inputs.range(0, 255);
           const int32_t spread = inputs.range(0, 1) ? 8 : 255;
           std::vector<int32_t> block = inputs.ints(channels, low, low + spread > 255 ? 255 : low + spread);
@@ -363,25 +263,21 @@ void run(const std::vector<Level> &levels, int trials) {
             }
           }
           floats.assign(6, 0);
-          if (kernel == 11) {
-            level.cluster(block.data(), size, floats.data());
-          } else {
-            level.palette_cluster(block.data(), size * size, floats.data());
-          }
+          level.cluster(block.data(), size, floats.data());
           break;
         }
-        case 13:
-        case 14: {
+        case 7:
+        case 8: {
           const std::vector<int32_t> colors = inputs.ints(6, 0, 255);
           bytes.assign((size_t)size * size, 0);
-          if (kernel == 13) {
+          if (kernel == 7) {
             level.assign(source.data(), size * size, colors.data(), bytes.data());
           } else {
             measured = level.assign_pattern(source.data(), size, colors.data(), bytes.data());
           }
           break;
         }
-        case 15: {
+        case 9: {
           const int32_t width = inputs.range(1, 120);
           const int32_t height = inputs.range(1, 90);
           const std::vector<uint8_t> reference = inputs.ubytes((size_t)width * height * 3);
@@ -389,17 +285,18 @@ void run(const std::vector<Level> &levels, int trials) {
           for (auto &seed : seeds) {
             seed = (int32_t)((uint32_t)inputs.range(-40, 40) << 16) | (inputs.range(-40, 40) & 0xFFFF);
           }
-          // now and then a source channel that is no byte, which the search must cost as ints
+          // now and then a source channel that is no byte, which the search
+          // must cost as ints
           std::vector<int32_t> block = source;
           if (inputs.range(0, 7) == 0) {
             block[inputs.range(0, (int32_t)block.size() - 1)] = (int32_t)inputs.next();
           }
-          measured = level.seeded(reference.data(), width, height, block.data(), inputs.range(0, width - 1),
-                                  inputs.range(0, height - 1), size, inputs.range(-10, 10), inputs.range(-10, 10),
-                                  inputs.range(0, 24), inputs.range(0, 1), seeds.data(), (int32_t)seeds.size());
+          measured =
+              level.seeded(reference.data(), width, height, block.data(), inputs.range(0, width - 1),
+                           inputs.range(0, height - 1), size, inputs.range(0, 24), seeds.data(), (int32_t)seeds.size());
           break;
         }
-        case 16: {
+        case 10: {
           const int32_t width = inputs.range(1, 70);
           const int32_t height = inputs.range(1, 70);
           const std::vector<uint8_t> image = inputs.ubytes((size_t)width * height * 3);
@@ -407,31 +304,18 @@ void run(const std::vector<Level> &levels, int trials) {
                             out.data());
           break;
         }
-        case 17:
+        case 11:
           level.halve(source.data(), size, out.data());
           break;
-        case 18:
-          floats = inputs.floats(channels);
-          level.ycocg(source.data(), size * size, inputs.range(0, 1), floats.data());
-          break;
-        case 19: {
-          const std::vector<float> ycocg = inputs.floats(channels);
-          floats = inputs.floats(channels);
-          level.residual_target(ycocg.data(), prediction.data(), size * size, inputs.range(0, 1), floats.data());
+        default: {
+          const int32_t count = inputs.range(0, size * size);
+          floats = inputs.floats((size_t)count + 2);
+          level.residual_target(source.data(), prediction.data(), count, floats.data());
           break;
         }
-        case 20: {
-          const std::vector<float> target = inputs.floats(channels);
-          const int32_t grid = 1 << inputs.range(0, 3);
-          floats.assign(1 + (size_t)grid * grid * 2, 0);
-          level.cell_means(target.data(), size, inputs.range(0, 2), grid, floats.data(), 1, 2);
-          break;
         }
-        default:
-          measured = verification_case(inputs, scalar, level, size, trial);
-          break;
-        }
-        // the scalar level's outputs are the reference: fold them into the digest, compare every other level's
+        // the scalar level's outputs are the reference: fold them into the
+        // digest, compare every other level's
         static std::vector<int32_t> reference_out;
         static std::vector<int32_t> reference_ints;
         static std::vector<float> reference_floats;
@@ -454,7 +338,8 @@ void run(const std::vector<Level> &levels, int trials) {
                  names[kernel], level, trial);
         }
       }
-      // every level drew the same inputs from a copy; the next trial's start one step on
+      // every level drew the same inputs from a copy; the next trial's start
+      // one step on
       random.next();
     }
     printf("%-16s %016llx\n", names[kernel], (unsigned long long)digest.value);
@@ -478,7 +363,8 @@ const char *best(int32_t available) {
 
 int main(int argc, char **argv) {
   std::vector<Level> levels;
-  // an optional last argument expect=<level>: the level the dispatcher must take on this CPU (or emulator)
+  // an optional last argument expect=<level>: the level the dispatcher must
+  // take on this CPU (or emulator)
   const char *expected = nullptr;
   if (argc > 1 && strncmp(argv[argc - 1], "expect=", 7) == 0) {
     expected = argv[--argc] + 7;

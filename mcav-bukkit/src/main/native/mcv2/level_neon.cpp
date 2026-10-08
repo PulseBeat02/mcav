@@ -16,9 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The neon dispatch level.
+// The neon level of the kernels in mcv2.cpp, compiled by build.sh with its own flags.
 #define MCV2_SIMD_NEON
-#include "kernels.hpp"
-#include "mcv2_kernels.h"
 #define MCV2_PREFIX(name) mcv2_neon_##name
-#include "exports.inc"
+#include "mcv2.cpp"
