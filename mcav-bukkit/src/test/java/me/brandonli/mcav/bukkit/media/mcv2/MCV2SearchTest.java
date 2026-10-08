@@ -28,8 +28,8 @@ import org.junit.jupiter.api.Test;
 
 final class MCV2SearchTest {
 
-  private static int vector(final int x, final int y) {
-    return (x << 16) | (y & 65535);
+  private static int vector(final int motionX, final int motionY) {
+    return (motionX << 16) | (motionY & 65535);
   }
 
   private static void fillMotion(

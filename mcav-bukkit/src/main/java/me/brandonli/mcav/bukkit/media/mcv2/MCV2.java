@@ -500,10 +500,7 @@ public final class MCV2 {
     Preconditions.checkState(!this.failed, STOPPED);
     Preconditions.checkArgument(pending.owner == this, "The pending frame belongs to another encoder");
     Preconditions.checkState(!pending.finished, "The frame is finished already");
-    Preconditions.checkState(
-      pending == this.older || (pending == this.newer && (this.older == null || this.older.finished)),
-      "Finish frames in creation order"
-    );
+    Preconditions.checkState(this.older == null || this.older.finished || pending == this.older, "Finish frames in creation order");
     final long started = System.nanoTime();
     if (this.shouldVerify) {
       try {
@@ -531,6 +528,7 @@ public final class MCV2 {
    * @param folder library extraction directory
    * @param mode requested native mode
    * @throws NullPointerException if either argument is null
+   * @throws IllegalArgumentException if mode is neither auto nor off
    */
   public static void installNatives(final Path folder, final String mode) {
     Preconditions.checkNotNull(folder, "Native folder must not be null");
@@ -1226,7 +1224,6 @@ public final class MCV2 {
     private int top;
     private int localVector = NO_VECTOR;
     private boolean clustered;
-    private boolean ycocgLoaded;
     private boolean meansLoaded;
     private boolean gridLoaded;
 
@@ -1253,7 +1250,6 @@ public final class MCV2 {
       this.left = left;
       this.top = top;
       this.clustered = false;
-      this.ycocgLoaded = false;
       this.skipped = false;
       this.localVector = NO_VECTOR;
       this.loadSource();
@@ -1276,7 +1272,6 @@ public final class MCV2 {
         this.eligible(0);
         this.kernels.predicted(this.zeroPrediction, this.size, this.recon);
         this.score(MODE_SKIP, 0, 0);
-        final long skipDistortion = this.kernels.distortion();
         if (this.hurried || this.cost() <= (this.frame.fast ? FAST_SKIP_BITS : NORMAL_SKIP_BITS) * this.frame.lambda) {
           this.skipped = true;
           return;
@@ -1284,12 +1279,14 @@ public final class MCV2 {
         this.localVector = this.size < 16 && parent != NO_VECTOR ? parent : this.searchMotion(parent);
         this.predict(this.localVector, this.localPrediction);
         boolean closer = false;
-        if (this.localVector != 0 && this.eligible(2)) {
+        if (this.localVector != 0) {
+          // Surviving the SKIP bound already pays for MOTION's two bytes.
+          this.eligible(2);
           this.record[0] = (byte) motionX(this.localVector);
           this.record[1] = (byte) motionY(this.localVector);
           if (this.kernels.predicted(this.localPrediction, this.size, this.recon)) {
             this.score(MODE_MOTION, 0, 2);
-            closer = this.kernels.distortion() < skipDistortion;
+            closer = true;
           }
         }
         this.compact(closer);
@@ -1318,10 +1315,9 @@ public final class MCV2 {
     private void score(final int mode, final int quantizer, final int length) {
       final long distortion = this.kernels.distortion();
       final double cost = Math.min(distortion / DISTORTION_SCALE + this.rate, Double.MAX_VALUE);
-      if (cost < this.cost()) {
-        System.arraycopy(this.recon, 0, this.best, 0, this.recon.length);
-        this.frame.set(this.level, this.block, cost, mode, quantizer, this.record, length, distortion);
-      }
+      // A completed kernel has already beaten the incumbent at this rate.
+      System.arraycopy(this.recon, 0, this.best, 0, this.recon.length);
+      this.frame.set(this.level, this.block, cost, mode, quantizer, this.record, length, distortion);
     }
 
     private void loadSource() {
@@ -1523,10 +1519,7 @@ public final class MCV2 {
           continue;
         }
         if (!targeted) {
-          if (!this.ycocgLoaded) {
-            this.kernels.ycocg(this.source, this.count, this.ycocg);
-            this.ycocgLoaded = true;
-          }
+          this.kernels.ycocg(this.source, this.count, this.ycocg);
           this.kernels.residualTarget(this.ycocg, prediction, this.count, this.target);
           this.meansLoaded = false;
           this.gridLoaded = false;
@@ -2366,7 +2359,7 @@ public final class MCV2 {
       return;
     }
     final int mode = node.getMode();
-    Preconditions.checkArgument(mode >= MODE_SKIP && mode <= MODE_COMPACT, "Illegal leaf mode %s", mode);
+    Preconditions.checkArgument(mode <= MODE_COMPACT, "Illegal leaf mode %s", mode);
     Preconditions.checkArgument(mode == MODE_COMPACT || node.getQ() == 0, "Quantizer on a mode without one");
     Preconditions.checkArgument(
       !keyframe || (mode != MODE_MOTION && mode != MODE_COMPACT),

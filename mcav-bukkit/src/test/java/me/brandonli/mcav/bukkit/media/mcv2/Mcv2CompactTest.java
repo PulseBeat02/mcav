@@ -32,14 +32,14 @@ final class Mcv2CompactTest {
       { 0x11, (byte) 0xF9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
       { 0x22, (byte) 0x80, 127, 0, 0, 0, 0, 0, 0, 0, 0 },
     };
-    final int[] x = { 0, -7, -128 };
-    final int[] y = { 0, -1, 127 };
+    final int[] motionX = { 0, -7, -128 };
+    final int[] motionY = { 0, -1, 127 };
     for (int form = 0; form < records.length; form++) {
       final byte[] data = Mcv2WireFrames.block(32, 5, 7, records[form], false);
       final Mcv2Decoder.Frame parsed = Mcv2Decoder.parse(data);
       final int offset = parsed.getLeaf(0).offset();
-      assertEquals(x[form], Mcv2Decoder.compactX(data, offset));
-      assertEquals(y[form], Mcv2Decoder.compactY(data, offset));
+      assertEquals(motionX[form], Mcv2Decoder.compactX(data, offset));
+      assertEquals(motionY[form], Mcv2Decoder.compactY(data, offset));
       assertEquals(form, (data[offset] & 255) >> 4);
       assertEquals(records[form].length, data.length - offset);
     }

@@ -49,8 +49,19 @@ public final class Mcv2Trees {
       return new Node(invoke(TREE, null, "skip", new Class<?>[0]));
     }
 
-    public static Node split(final Node a, final Node b, final Node c, final Node d) {
-      return new Node(invoke(TREE, null, "split", new Class<?>[] { TREE, TREE, TREE, TREE }, a.value, b.value, c.value, d.value));
+    public static Node split(final Node topLeft, final Node topRight, final Node bottomLeft, final Node bottomRight) {
+      return new Node(
+        invoke(
+          TREE,
+          null,
+          "split",
+          new Class<?>[] { TREE, TREE, TREE, TREE },
+          topLeft.value,
+          topRight.value,
+          bottomLeft.value,
+          bottomRight.value
+        )
+      );
     }
 
     public int getMode() {
@@ -164,8 +175,8 @@ public final class Mcv2Trees {
     return keyframe(320, 320, repeat(Node.leaf(Mcv2Decoder.MODE_PALETTE, 0, record), 100));
   }
 
-  private static long position(final int x, final int y, final int size) {
-    return ((long) size << 32) | ((long) y << 16) | x;
+  private static long position(final int left, final int top, final int size) {
+    return ((long) size << 32) | ((long) top << 16) | left;
   }
 
   public static List<Node> read(final Mcv2Decoder.Frame frame) {
@@ -199,16 +210,16 @@ public final class Mcv2Trees {
       leaves.put(position(leaf.left(), leaf.top(), leaf.size()), node);
     }
     final List<Node> roots = new ArrayList<>();
-    for (int y = 0; y < frame.getHeight(); y += 32) {
-      for (int x = 0; x < frame.getWidth(); x += 32) {
-        roots.add(read(leaves, x, y, 32));
+    for (int top = 0; top < frame.getHeight(); top += 32) {
+      for (int left = 0; left < frame.getWidth(); left += 32) {
+        roots.add(read(leaves, left, top, 32));
       }
     }
     return roots;
   }
 
-  private static Node read(final Map<Long, Node> leaves, final int x, final int y, final int size) {
-    final Node leaf = leaves.get(position(x, y, size));
+  private static Node read(final Map<Long, Node> leaves, final int left, final int top, final int size) {
+    final Node leaf = leaves.get(position(left, top, size));
     if (leaf != null) {
       return leaf;
     }
@@ -217,10 +228,10 @@ public final class Mcv2Trees {
     }
     final int half = size / 2;
     return Node.split(
-      read(leaves, x, y, half),
-      read(leaves, x + half, y, half),
-      read(leaves, x, y + half, half),
-      read(leaves, x + half, y + half, half)
+      read(leaves, left, top, half),
+      read(leaves, left + half, top, half),
+      read(leaves, left, top + half, half),
+      read(leaves, left + half, top + half, half)
     );
   }
 }

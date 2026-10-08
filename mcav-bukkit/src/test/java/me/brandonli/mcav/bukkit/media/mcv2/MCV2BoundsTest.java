@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.Node;
 import org.junit.jupiter.api.Test;
@@ -72,6 +73,44 @@ final class MCV2BoundsTest {
     assertEquals(2348, next.length);
     assertEquals(0, Mcv2Decoder.parse(next).getReferenceId());
     assertArrayEquals(picture, encoder.getReference());
+  }
+
+  @Test
+  void fallsBackWhenEveryRetryExceedsTheFormatByteLimit() throws Mcv2Exception {
+    final int width = 1024;
+    final byte[] picture = new byte[width * width * 3];
+    new Random(0x131071).nextBytes(picture);
+    final byte[] expected = new byte[picture.length];
+    for (int top = 0; top < width; top += 32) {
+      for (int left = 0; left < width; left += 32) {
+        for (int channel = 0; channel < 3; channel++) {
+          int sum = 0;
+          for (int row = top; row < top + 32; row++) {
+            for (int column = left; column < left + 32; column++) {
+              sum += picture[(row * width + column) * 3 + channel] & 255;
+            }
+          }
+          final byte mean = (byte) ((sum + 512) / 1024);
+          for (int row = top; row < top + 32; row++) {
+            for (int column = left; column < left + 32; column++) {
+              expected[(row * width + column) * 3 + channel] = mean;
+            }
+          }
+        }
+      }
+    }
+    // Zero lambda keeps all retries equally detailed, forcing the format-bound fallback.
+    final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT.withLambda(0), ForkJoinPool.commonPool(), 4, true);
+    final byte[] data = encoder.encode(picture, width, width, 0);
+    final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(data);
+    assertTrue(data.length <= 131071);
+    assertEquals(0, encoder.getStats().lambda());
+    assertEquals(32 * 32, frame.getLeafCount());
+    for (int index = 0; index < frame.getLeafCount(); index++) {
+      assertEquals(32, frame.getLeaf(index).size());
+    }
+    assertArrayEquals(expected, encoder.getReference());
+    assertArrayEquals(expected, Mcv2Decoder.decode(frame, null, 0));
   }
 
   @Test

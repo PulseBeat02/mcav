@@ -514,7 +514,9 @@ final class Mcv2PlayCommandTest {
     final int threads = Pool.shared().getThreads();
     assertEquals(
       text(
-        Message.MCV2_ENCODE_START.build("clip.mp4 into " + output + " at 16x16 with the live profile, on " + threads + " encoder threads")
+        Message.MCV2_ENCODE_START.build(
+          "clip.mp4 into " + output + " at 16x16 with the default profile, on " + threads + " encoder threads"
+        )
       ),
       told.getFirst()
     );

@@ -115,8 +115,8 @@ final class Mcv2BlockState {
     return coder;
   }
 
-  int previousMotion(final int x, final int y) {
-    return (int) Mcv2Internals.invoke(FRAME, this.frame, "previousMotion", new Class<?>[] { int.class, int.class }, x, y);
+  int previousMotion(final int left, final int top) {
+    return (int) Mcv2Internals.invoke(FRAME, this.frame, "previousMotion", new Class<?>[] { int.class, int.class }, left, top);
   }
 
   int mode(final int level, final int block) {
