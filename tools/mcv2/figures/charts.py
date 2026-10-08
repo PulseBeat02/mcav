@@ -1,13 +1,13 @@
-"""Draws the charts of docs/mcv2.md from the measurements in tools/mcv2/data, and prints the tables the article quotes.
+"""Draws the charts of mcav-docs/mcv2.md from the measurements in tools/mcv2/data, and prints the tables the article quotes.
 
-    python tools/mcv2/figures/charts.py            # draws docs/images/mcv2/codecs.png and features.png
+    python tools/mcv2/figures/charts.py            # draws mcav-docs/images/mcv2/codecs.png and features.png
     python tools/mcv2/figures/charts.py --tables   # also prints the article's tables in Markdown
 
 Every rate is what crosses the network: MCV2's map packets after Minecraft's zlib (the zlib rate of
 tools/mcv2/Mcv2Bench.java), and the encoded file of H.264, VP9 and AV1. codecs.png is rate against VMAF on the two
 sources of data/codec_curves.json; features.png is the extra rate MCV2 needs without each of its features, the BD-rate
 of each curve of data/ablation.json against its baseline. The tables add what the features MCV2 no longer has were
-worth when they were measured (data/ablation.json's "removed"). Needs numpy and matplotlib (docs/requirements.txt).
+worth when they were measured (data/ablation.json's "removed"). Needs numpy and matplotlib (mcav-docs/requirements.txt).
 """
 
 import argparse
@@ -26,7 +26,7 @@ from matplotlib.ticker import FixedLocator, FuncFormatter, NullLocator  # noqa: 
 HERE = Path(__file__).resolve().parent
 TOOLS = HERE.parent
 DATA = TOOLS / "data"
-IMAGES = TOOLS.parent.parent / "docs" / "images" / "mcv2"
+IMAGES = TOOLS.parent.parent / "mcav-docs" / "images" / "mcv2"
 
 sys.path.insert(0, str(TOOLS))
 
@@ -220,7 +220,7 @@ def print_tables(data, rows, removed):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--tables", action="store_true", help="print the tables of docs/mcv2.md")
+    parser.add_argument("--tables", action="store_true", help="print the tables of mcav-docs/mcv2.md")
     arguments = parser.parse_args()
     # the fonts missing on a platform are skipped; say nothing about them
     logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)

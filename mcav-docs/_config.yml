@@ -1,0 +1,41 @@
+title: MCAV Documentation
+author: PulseBeat_02
+copyright: "2026"
+logo: images/logo.png
+exclude_patterns:
+  - build
+
+execute:
+  execute_notebooks: force
+
+latex:
+  latex_documents:
+    targetname: book.tex
+
+bibtex_bibfiles:
+  - references.bib
+
+repository:
+  url: https://github.com/PulseBeat02/mcav
+  path_to_book: mcav-docs
+  branch: master
+
+html:
+  favicon: images/favicon.ico
+  use_issues_button: true
+  use_repository_button: true
+
+sphinx:
+  config:
+    myst_heading_anchors: 3
+    mathjax3_config:
+      tex:
+        macros:
+          "N": "\\mathbb{N}"
+          "floor": [ "\\lfloor#1\\rfloor", 1 ]
+          "bmat": [ "\\left[\\begin{array}" ]
+          "emat": [ "\\end{array}\\right]" ]
+
+  extra_extensions:
+    - sphinx.ext.intersphinx
+    - sphinx_design

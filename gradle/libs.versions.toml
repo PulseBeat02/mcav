@@ -8,6 +8,12 @@
 
 [versions]
 java = "25"
+uv = "0.12.23"
+docs-python = "3.13.16"
+docs-jupyter-book = "1.0.4.post1"
+docs-matplotlib = "3.11.2"
+docs-numpy = "2.5.3"
+docs-sphinx-design = "0.7.0"
 minecraft = "26.3"
 # Paper 26.3 has only alpha builds (2026-09-27); the newest is pinned
 paper = "26.3.build.49-alpha"

@@ -13,6 +13,7 @@ rootProject.name = "mcav"
 
 include(
     "mcav-common",
+    "mcav-docs",
     "mcav-bukkit",
     "mcav-installer",
     "mcav-jda",
