@@ -130,7 +130,9 @@ final class FakeVncServer implements AutoCloseable {
       final PixelFormat format = new PixelFormat();
       writeServerInit(out);
       this.serveMessages(in, out, format);
-    } catch (final IOException | GeneralSecurityException disconnected) {}
+    } catch (final IOException | GeneralSecurityException disconnected) {
+      // the client left, or sent what this server does not speak
+    }
   }
 
   private boolean authenticate(final DataInputStream in, final DataOutputStream out) throws IOException, GeneralSecurityException {
