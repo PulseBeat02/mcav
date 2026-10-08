@@ -351,6 +351,7 @@ final class InstallationManager implements AutoCloseable {
     if (!inside) {
       throw new IOException("The jar " + groupId + ":" + artifactId + " (" + fileName + ") would be copied outside " + target);
     }
+    // A path starts with itself; empty, dot and parent elements must not resolve the jar to a directory.
     final Path destinationName = normalizedDestination.getFileName();
     final String name = destinationName == null ? "" : destinationName.toString();
     final boolean isTarget = normalizedDestination.equals(normalizedTarget);
