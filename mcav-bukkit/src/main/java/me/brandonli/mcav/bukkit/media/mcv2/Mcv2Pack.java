@@ -121,7 +121,7 @@ public final class Mcv2Pack {
   private static final int CRC_CHUNKS = 64;
 
   /** The facts of a frame the resolve pass keeps in the row after its cells, one texel each. */
-  private static final int FRAME_FACTS = 6;
+  private static final int FRAME_FACTS = 3;
 
   /** The pages target's texels per page slot. */
   private static final int PAGE_TEXELS = 4;

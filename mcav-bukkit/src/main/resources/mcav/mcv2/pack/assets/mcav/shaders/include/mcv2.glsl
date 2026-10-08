@@ -404,7 +404,7 @@ void main() {
 }
 #endif
 
-// Frame header and index: presence masks, directory, level counts, flat walk checkpoints, and table counts.
+// Frame header and index: presence masks, directory, level counts and flat walk checkpoints.
 
 #if defined(MCV2_PASS_STATUS) || defined(MCV2_PASS_RESOLVE)
 struct Mcv2Frame {
@@ -416,9 +416,6 @@ struct Mcv2Frame {
     int n0;
     int n1;
     int descriptors;
-    int endpointBase;
-    int selectorBase;
-    uint counts;
 };
 
 bool mcv2FrameIndex(out Mcv2Frame frame) {
@@ -438,21 +435,14 @@ bool mcv2FrameIndex(out Mcv2Frame frame) {
     frame.descriptors = int(n0 + n1 + n2);
     frame.descriptorBase = levels + 12;
     frame.walkBase = frame.descriptorBase + frame.descriptors;
-    int countsAt = frame.walkBase + 4 * ((frame.descriptors + 7) / 8);
-    if (!mcv2Range(countsAt, 4) || payload != uint(countsAt + 4)) return false;
-    frame.payloadStart = int(payload);
-    frame.counts = mcv2ReadWord(countsAt);
-    int pairs = int(frame.counts & 255u);
-    int c8 = int((frame.counts >> 8u) & 255u);
-    int c16 = int((frame.counts >> 16u) & 255u);
-    int c32 = int(frame.counts >> 24u);
-    frame.endpointBase = DataBytes - 4 * pairs;
-    frame.selectorBase = frame.endpointBase - (2 * c8 + 3 * c16 + 5 * c32);
-    if (frame.selectorBase < frame.payloadStart || mcv2ReadWord(directory) != 0u) return false;
+    int indexEnd = frame.walkBase + 4 * ((frame.descriptors + 7) / 8);
+    if (!mcv2Range(indexEnd, 0) || payload != uint(indexEnd)) return false;
+    frame.payloadStart = indexEnd;
+    if (mcv2ReadWord(directory) != 0u) return false;
     if (frame.descriptors > 0 && mcv2ReadWord(frame.walkBase) != 0u) return false;
     uint last = mcv2ReadWord(MCV2_HEADER_BYTES + 4 * (frame.groups - 1));
     if ((roots & 31) != 0 && (last >> uint(roots & 31)) != 0u) return false;
-    return frame.descriptors != 0 || frame.selectorBase == frame.payloadStart;
+    return frame.descriptors != 0 || frame.payloadStart == DataBytes;
 }
 
 bool mcv2HeaderValid(uint frameId, uint referenceId, uint type) {
@@ -485,10 +475,6 @@ uint mcv2Popcount(uint value) {
     return (value * 0x01010101u) >> 24u;
 }
 
-int mcv2SelectorCount(uint counts, int size) {
-    return int((counts >> uint(size == 8 ? 8 : size == 16 ? 16 : 24)) & 255u);
-}
-
 int mcv2RecordBytes(Mcv2Frame frame, uint descriptor, int size, int at) {
     uint mode = descriptor & 31u;
     if (mode > MCV2_SPLIT || (mode != MCV2_COMPACT && descriptor >> 5u != 0u)) return -1;
@@ -498,9 +484,8 @@ int mcv2RecordBytes(Mcv2Frame frame, uint descriptor, int size, int at) {
     if (mode == MCV2_MOTION) return 2;
     if (mode == MCV2_SOLID) return 3;
     if (mode == MCV2_PALETTE) return 6 + size * size / 8;
-    if (mode == MCV2_PATTERN)
-        return ((frame.counts & 255u) > 0u ? 1 : 6) + (mcv2SelectorCount(frame.counts, size) > 0 ? 1 : 1 + size / 8);
-    if (at < frame.payloadStart || at >= frame.selectorBase) return -1;
+    if (mode == MCV2_PATTERN) return 7 + size / 8;
+    if (at < frame.payloadStart || at >= DataBytes) return -1;
     uint control = mcv2ReadByte(at);
     int kind = int(control & 15u), form = int(control >> 4u);
     if (kind > 2 || form > 2) return -1;
@@ -522,7 +507,7 @@ bool mcv2Walk(Mcv2Frame frame, int descriptor, out int cursor, out int splits) {
         cursor += bytes;
         splits += (value & 31u) == MCV2_SPLIT ? 1 : 0;
     }
-    return cursor <= frame.selectorBase - frame.payloadStart && splits <= descriptor;
+    return cursor <= DataBytes - frame.payloadStart && splits <= descriptor;
 }
 
 uint mcv2Resolve(ivec2 pixel, Mcv2Frame frame) {
@@ -549,7 +534,7 @@ uint mcv2Resolve(ivec2 pixel, Mcv2Frame frame) {
         uint mode = value & 31u;
         int offset = frame.payloadStart + cursor;
         int bytes = mcv2RecordBytes(frame, value, size, offset);
-        if (bytes < 0 || bytes > frame.selectorBase - offset) return MCV2_CELL_INVALID;
+        if (bytes < 0 || bytes > DataBytes - offset) return MCV2_CELL_INVALID;
         if (mode == MCV2_SPLIT) {
             size /= 2;
             ivec2 quadrant = (pixel / size) & ivec2(1);
@@ -581,10 +566,7 @@ void main() {
     if (cell.y == MCV2_CELLS_HEIGHT) {
         if (cell.x == 0) word = 0x80000000u | (frame.keyframe ? MCV2_KEYFRAME : 0u);
         if (cell.x == 1) word = uint(frame.payloadStart);
-        if (cell.x == 2) word = uint(frame.endpointBase);
-        if (cell.x == 3) word = uint(frame.selectorBase);
-        if (cell.x == 4) word = frame.counts;
-        if (cell.x == 5) word = mcv2ReadWord(28);
+        if (cell.x == 2) word = mcv2ReadWord(28);
     } else if (cell.x * 8 < MCV2_VIDEO_WIDTH) {
         word = mcv2Resolve(cell * 8, frame);
     }
@@ -600,7 +582,6 @@ uniform sampler2D CellsSampler;
 layout(location = 0) out vec2 texCoord;
 layout(location = 1) flat out uvec4 DecodeStatus;
 layout(location = 2) flat out uvec4 DecodeFrame;
-layout(location = 3) flat out uvec4 DecodeTables;
 
 uint mcv2FrameFact(int x) {
     return mcv2TexelWord(texelFetch(CellsSampler, ivec2(x, MCV2_CELLS_HEIGHT), 0));
@@ -611,9 +592,8 @@ void main() {
     gl_Position = vec4(uv * 2.0 - 1.0, 0.0, 1.0);
     texCoord = uv;
     DecodeStatus = uvec4(texelFetch(StatusSampler, ivec2(0, 0), 0) * 255.0 + 0.5);
-    DecodeFrame = uvec4(mcv2FrameFact(0), mcv2FrameFact(5),
+    DecodeFrame = uvec4(mcv2FrameFact(0), mcv2FrameFact(2),
         mcv2TexelWord(texelFetch(StatusSampler, ivec2(2, 0), 0)), mcv2FrameFact(1));
-    DecodeTables = uvec4(mcv2FrameFact(2), mcv2FrameFact(3), mcv2FrameFact(4), 0u);
 }
 #endif
 
@@ -622,21 +602,11 @@ uniform sampler2D CellsSampler;
 uniform sampler2D PreviousSampler;
 layout(location = 1) flat in uvec4 DecodeStatus;
 layout(location = 2) flat in uvec4 DecodeFrame;
-layout(location = 3) flat in uvec4 DecodeTables;
 layout(location = 0) out vec4 fragColor;
 
 vec3 mcv2Predict(ivec2 pixel, ivec2 motion) {
     ivec2 at = clamp(pixel + motion, ivec2(0), ivec2(MCV2_VIDEO_WIDTH, MCV2_VIDEO_HEIGHT) - 1);
     return floor(texelFetch(PreviousSampler, at, 0).rgb * 255.0 + 0.5);
-}
-
-vec3 mcv2Rgb565(int offset) {
-    uvec4 first = mcv2ReadTexel(offset);
-    int lane = offset & 3;
-    uint high = lane == 3 ? mcv2ReadTexel(offset + 1).r : first[lane + 1];
-    uint value = first[lane] | (high << 8u);
-    uint r = value >> 11u, g = (value >> 5u) & 63u, b = value & 31u;
-    return vec3((r << 3u) | (r >> 2u), (g << 2u) | (g >> 4u), (b << 3u) | (b >> 2u));
 }
 
 float mcv2CompactNode(int offset, ivec2 node) {
@@ -673,24 +643,11 @@ vec3 mcv2Compact(int offset, uint q, ivec2 pixel, int size) {
 }
 
 vec3 mcv2Pattern(int offset, ivec2 pixel, int size) {
-    uint counts = DecodeTables.z;
-    int pairs = int(counts & 255u), c8 = int((counts >> 8u) & 255u), c16 = int((counts >> 16u) & 255u);
-    int slots = size == 8 ? c8 : size == 16 ? c16 : int(counts >> 24u);
-    int word = offset + (pairs > 0 ? 1 : 6);
-    if (slots > 0) {
-        int entry = int(mcv2ReadByte(word));
-        if (entry >= slots) return mcv2Predict(pixel, ivec2(0));
-        int skip = size == 8 ? 0 : size == 16 ? c8 * 2 : c8 * 2 + c16 * 3;
-        word = int(DecodeTables.y) + skip + entry * (1 + size / 8);
-    }
-    uint orientation = mcv2ReadByte(word);
+    uint orientation = mcv2ReadByte(offset + 6);
     if (orientation > 1u) return mcv2Predict(pixel, ivec2(0));
     int axis = (orientation == 0u ? pixel.x : pixel.y) % size;
-    int selector = int((mcv2ReadByte(word + 1 + axis / 8) >> uint(axis & 7)) & 1u);
-    if (pairs == 0) return mcv2ReadRgb(offset + selector * 3);
-    int pair = int(mcv2ReadByte(offset));
-    if (pair >= pairs) return mcv2Predict(pixel, ivec2(0));
-    return mcv2Rgb565(int(DecodeTables.x) + pair * 4 + selector * 2);
+    int selector = int((mcv2ReadByte(offset + 7 + axis / 8) >> uint(axis & 7)) & 1u);
+    return mcv2ReadRgb(offset + selector * 3);
 }
 
 vec3 mcv2Decode(ivec2 pixel) {

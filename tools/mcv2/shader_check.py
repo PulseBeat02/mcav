@@ -66,8 +66,8 @@ def frames(path):
 
 
 def cells_width(width):
-    """The resolve pass's columns, as Mcv2Pack.cellsWidth: one per 8 pixels, and room for the frame's 6 facts."""
-    return max((width + 7) // 8, 6)
+    """The resolve pass's columns, as Mcv2Pack.cellsWidth: one per 8 pixels, and room for the frame's 3 facts."""
+    return max((width + 7) // 8, 3)
 
 
 def cells_height(height):
