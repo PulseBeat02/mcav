@@ -1120,7 +1120,7 @@ public final class MCV2 {
           this.skipped = true;
           return;
         }
-        this.localVector = this.size == SMALLEST_BLOCK && parent != NO_VECTOR ? parent : this.searchMotion(parent);
+        this.localVector = this.size == SMALLEST_BLOCK ? parent : this.searchMotion(parent);
         this.predict(this.localVector, this.localPrediction);
         boolean closer = false;
         if (this.localVector != 0) {
@@ -1225,11 +1225,7 @@ public final class MCV2 {
       this.seeds[3] = frame.previousMotion(this.left + half, this.top - 1);
       this.seeds[4] = frame.previousMotion(this.left + half, this.top + this.size);
       this.seeds[5] = parent == NO_VECTOR ? this.seeds[0] : parent;
-      int[] seeds = this.seeds;
-      if (this.size > SMALLEST_BLOCK) {
-        this.coarseSeed[0] = this.coarseMotion(2);
-        seeds = this.coarseSeed;
-      }
+      this.coarseSeed[0] = this.coarseMotion(2);
       return this.kernels.seeded(
         frame.reference,
         frame.width,
@@ -1239,7 +1235,7 @@ public final class MCV2 {
         this.top,
         this.size,
         MOTION_RANGE,
-        seeds
+        this.coarseSeed
       );
     }
 
