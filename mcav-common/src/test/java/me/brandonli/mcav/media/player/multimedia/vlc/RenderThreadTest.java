@@ -199,7 +199,9 @@ final class RenderThreadTest {
       while (release.getCount() > 0) {
         try {
           release.await();
-        } catch (final InterruptedException exception) {}
+        } catch (final InterruptedException exception) {
+          // Simulate a renderer that does not stop when interrupted.
+        }
       }
       throw new InterruptedException("released");
     };

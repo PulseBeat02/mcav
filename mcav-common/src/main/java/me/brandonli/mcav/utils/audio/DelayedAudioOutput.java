@@ -363,7 +363,9 @@ public final class DelayedAudioOutput implements AutoCloseable {
         this.process(next);
         next = this.take();
       }
-    } catch (final InterruptedException exception) {}
+    } catch (final InterruptedException exception) {
+      // nothing interrupts the thread but a test; it ends like a closed output
+    }
   }
 
   private void process(final ByteBuffer samples) {

@@ -142,7 +142,9 @@ public final class IOUtils {
     for (int port = firstPort; port <= lastPort; port++) {
       try (final ServerSocket socket = new ServerSocket(port)) {
         return socket.getLocalPort();
-      } catch (final IOException exception) {}
+      } catch (final IOException exception) {
+        // the port is in use, try the next one
+      }
     }
     final String message = String.format(
       Locale.getDefault(Locale.Category.FORMAT),

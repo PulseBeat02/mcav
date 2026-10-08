@@ -119,7 +119,9 @@ final class OpenCvPlayersTest {
   private static void releaseQuietly(final OpenCVFrameGrabber grabber) {
     try {
       grabber.release();
-    } catch (final FrameGrabber.Exception failure) {}
+    } catch (final FrameGrabber.Exception failure) {
+      // a grabber that never opened has nothing to release
+    }
   }
 
   /**

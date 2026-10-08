@@ -303,7 +303,9 @@ public abstract class AbstractVideoPlayerCV implements VideoPlayerMultiplexer {
   private static void closeQuietly(final FrameGrabber grabber) {
     try {
       grabber.close();
-    } catch (final FrameGrabber.Exception | RuntimeException exception) {}
+    } catch (final FrameGrabber.Exception | RuntimeException exception) {
+      // the grabber failed already, the failure to close it adds nothing
+    }
   }
 
   /**
