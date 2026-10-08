@@ -1,5 +1,5 @@
 {
- "source": "committed v3 conformance streams",
+ "source": "committed v3 conformance and edge streams",
  "stream_id": 7,
  "symbol_bits": 6,
  "frames": [
@@ -50,6 +50,52 @@
    ],
    "wire": 6418,
    "wire_full": 16402
+  },
+  {
+   "stream": "edge/edge-directory.mcs",
+   "frame": 2,
+   "pages": [
+    "f4dba13769c3df95cbc70bfd4cb2253cb0a0a0a666600b2690760de8d56c4b43",
+    "2b9692d24dc6f5071f4cef48294d01cb12d3cc787e8b4d5ac0c6777b626a98d9"
+   ],
+   "lengths": [
+    16384,
+    13362
+   ],
+   "wire": 29860,
+   "wire_full": 32804
+  },
+  {
+   "stream": "edge/edge-length-limit.mcs",
+   "frame": 0,
+   "pages": [
+    "951b02c4f59655ba1141166eb7a0ec1d1095c63abac9a114a8cc0790ebe44d99",
+    "b34aab50b5bdd68e0b944e8d2eccf218cf1aa1e920fc20867c162f27b4be2699",
+    "ea1b45036c32b79ce3a40fce5c862051a84e0e058e01b92c6be6d600fcc6dd06",
+    "c24342bd172e7ca567f1c2acf9775ddc1a82dbb8660faef627c4973ad3d6ea9b",
+    "1fe1fc0775d9bbb915c7cecc2d7f536675e20a67bdc448d9930740ddcfaea568",
+    "fdfc7f1b2d8570269eb7efc8bdea4eb5b51479269d4f1c347436f9c4492d3579",
+    "0e44eea6e8eaf107cb4cc7e2b0ae09ad7f1a4f370e348ccfab9c61fc9f8bf277",
+    "7520b68857030efeebe1e06dfa0fc6345d7c69fdb0a98672b82eae90ecbf1d8d",
+    "818dcf530436d8da5afc8378ff1f95ff2bb04cd251f60515471a774c0810ed60",
+    "9bc3fddf6da2adc6f19f8026104ad557c18542cb38c3c8eff7c72c4b4b3b0930",
+    "ec65ce99558efbcb927c962e60c8c7c659c850b74f982f861e1f7fd5c4e82ade"
+   ],
+   "lengths": [
+    16384,
+    16384,
+    16384,
+    16384,
+    16384,
+    16384,
+    16384,
+    16384,
+    16384,
+    16384,
+    11391
+   ],
+   "wire": 175430,
+   "wire_full": 180422
   }
  ]
 }

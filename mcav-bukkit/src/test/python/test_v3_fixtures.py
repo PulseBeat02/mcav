@@ -138,15 +138,13 @@ class FixtureToolTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'reference'):
                 fixtures.encoder(root)
 
-    def test_committed_pages_declare_edge_fallback_and_exactly_four_frames(self):
+    def test_committed_pages_cover_conformance_and_multi_page_edges(self):
         root = ROOT / 'mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2'
         table = json.loads((root / 'conformance/pages.json').read_text())
         self.assertEqual(6, table['symbol_bits'])
-        self.assertEqual(4, len(table['frames']))
-        if table['source'].startswith('edge'):
-            self.assertTrue(all(entry['stream'].startswith('edge/') for entry in table['frames']))
-        else:
-            self.assertTrue(all(entry['stream'].startswith('conformance/') for entry in table['frames']))
+        self.assertEqual(6, len(table['frames']))
+        self.assertEqual({1, 2, 11}, {len(entry['pages']) for entry in table['frames']})
+        self.assertEqual({'conformance', 'edge'}, {entry['stream'].split('/')[0] for entry in table['frames']})
 
 
 if __name__ == '__main__':

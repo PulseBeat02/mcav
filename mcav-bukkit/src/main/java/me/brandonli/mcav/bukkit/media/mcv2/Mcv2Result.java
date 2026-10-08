@@ -42,7 +42,6 @@ import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
-import me.brandonli.mcav.bukkit.media.mcv2.transport.MapAlphabet;
 import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -891,7 +890,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       encoder.requestKeyframe();
     }
     // no frame may take more pages than the screen has slots: one that would is searched again at a higher lambda
-    encoder.setFrameLimit(current.configuration().getPageSlots() * TransportPages.capacity(MapAlphabet.SYMBOL_BITS));
+    encoder.setFrameLimit(current.configuration().getPageSlots() * TransportPages.capacity());
     final int width = arrival.width;
     final int height = arrival.height;
     final Pipeline running;

@@ -20,7 +20,6 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -53,7 +52,7 @@ final class Mcv2ParserPropertyTest {
 
   private static final String SEED = "20260926";
 
-  /** Keyframes and P frames of the v3 conformance streams, plus a synthetic two-page frame. */
+  /** Keyframes and P frames of the v3 conformance and edge streams, plus a synthetic two-page frame. */
   private static final List<byte[]> FRAMES = frames();
 
   /** Values the bounds checks of the header and the index turn on. */
@@ -82,9 +81,11 @@ final class Mcv2ParserPropertyTest {
 
   private static List<byte[]> frames() {
     final List<byte[]> frames = new ArrayList<>();
-    for (final String stream : Mcv2Fixtures.digests("conformance").keySet()) {
-      final List<byte[]> all = Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/" + stream));
-      frames.addAll(all.subList(0, Math.min(2, all.size())));
+    for (final String folder : List.of("conformance", "edge")) {
+      for (final String stream : Mcv2Fixtures.digests(folder).keySet()) {
+        final List<byte[]> all = Mcv2Fixtures.frames(Mcv2Fixtures.read(folder + "/" + stream));
+        frames.addAll(folder.equals("edge") ? all : all.subList(0, Math.min(2, all.size())));
+      }
     }
     frames.add(Mcv2Trees.twoPages());
     return List.copyOf(frames);
@@ -205,14 +206,8 @@ final class Mcv2ParserPropertyTest {
   }
 
   @Property(seed = SEED, tries = 300)
-  void symbolsCarryAnyBytesExactly(@ForAll @Size(max = 2000) final byte[] data, @ForAll @IntRange(min = 6, max = 8) final int symbolBits)
-    throws Mcv2Exception {
-    if (symbolBits != 6) {
-      assertThrows(IllegalArgumentException.class, () -> TransportPages.toSymbols(data, symbolBits));
-      assertThrows(Mcv2Exception.class, () -> TransportPages.fromSymbols(new byte[0], symbolBits, 0));
-      return;
-    }
-    assertArrayEquals(data, TransportPages.fromSymbols(TransportPages.toSymbols(data, symbolBits), symbolBits, data.length));
+  void symbolsCarryAnyBytesExactly(@ForAll @Size(max = 2000) final byte[] data) throws Mcv2Exception {
+    assertArrayEquals(data, TransportPages.fromSymbols(TransportPages.toSymbols(data), data.length));
   }
 
   /**
@@ -229,10 +224,10 @@ final class Mcv2ParserPropertyTest {
     final int symbolBits = 6;
     final byte[] frame = FRAMES.get(index % FRAMES.size());
     final Mcv2Decoder.Frame parsed = Mcv2Decoder.parse(frame);
-    final List<byte[]> pages = TransportPages.makePages(frame, stream, symbolBits);
+    final List<byte[]> pages = TransportPages.makePages(frame, stream);
     final ByteArrayOutputStream payloads = new ByteArrayOutputStream();
     for (int number = 0; number < pages.size(); number++) {
-      final TransportPage page = TransportPages.readPage(pages.get(number), symbolBits);
+      final TransportPage page = TransportPages.readPage(pages.get(number));
       assertEquals(stream, page.getStreamId());
       assertEquals(parsed.getFrameId(), page.getFrameId());
       assertEquals(parsed.getReferenceId(), page.getReferenceId());

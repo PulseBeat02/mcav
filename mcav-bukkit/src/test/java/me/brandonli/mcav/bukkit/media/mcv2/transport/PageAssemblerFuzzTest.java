@@ -33,13 +33,13 @@ import java.util.Map;
 import java.util.Set;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Fixtures;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees;
 import org.junit.jupiter.api.Tag;
 
 /**
- * Fuzzes the page assembler with the traffic a viewer's client could see: the pages of six real frames (the first
- * two pages long) in any order and repeated, pages with one symbol changed, pages cut short and pages of another
- * stream. The first input byte picks the symbol width; after it, every four bytes are one step: what to do, which frame,
+ * Fuzzes the page assembler with a two-page keyframe and five real stream frames (a keyframe and four P frames),
+ * reordered, repeated, corrupted, truncated or from another stream. The first input byte is reserved; after it, every four bytes are one step: what to do, which frame,
  * which of its pages, and an argument. A model of the assembler (frames pending by id, the oldest evicted beyond
  * {@link PageAssembler#MAX_PENDING}) says what every step must return: a changed, short or foreign page is always
  * rejected and changes nothing, and an intact page returns its frame, byte for byte, exactly when it completes it.
@@ -51,27 +51,28 @@ final class PageAssemblerFuzzTest {
 
   private static final List<byte[]> FRAMES = frames();
 
-  /** The pages of every frame at each symbol width minus six, of the stream and of another one. */
-  private static final List<List<List<byte[]>>> PAGES = List.of(pages(6, STREAM), pages(6, STREAM), pages(6, STREAM));
+  private static final List<List<byte[]>> PAGES = pages(STREAM);
 
-  private static final List<List<List<byte[]>>> FOREIGN = List.of(pages(6, STREAM + 1), pages(6, STREAM + 1), pages(6, STREAM + 1));
+  private static final List<List<byte[]>> FOREIGN = pages(STREAM + 1);
 
   private static List<byte[]> frames() {
     final List<byte[]> frames = new ArrayList<>();
-    for (int id = 0; id < 6; id++) {
-      final byte[] frame = id == 0 ? Mcv2Trees.twoPages() : Mcv2Trees.tiny();
-      Mcv2Decoder.putU32(frame, 12, id);
-      Mcv2Decoder.putU32(frame, 16, id);
+    frames.add(Mcv2Trees.twoPages());
+    final List<byte[]> source = Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/proxy-default.mcs"));
+    for (int index = 0; index < 5; index++) {
+      final byte[] frame = source.get(index).clone();
+      Mcv2Decoder.putU32(frame, 12, index + 1);
+      Mcv2Decoder.putU32(frame, 16, index == 0 ? 1 : index);
       frames.add(frame);
     }
     return frames;
   }
 
-  private static List<List<byte[]>> pages(final int symbolBits, final long stream) {
+  private static List<List<byte[]>> pages(final long stream) {
     final List<List<byte[]>> pages = new ArrayList<>();
     try {
       for (final byte[] frame : FRAMES) {
-        pages.add(TransportPages.makePages(frame, stream, symbolBits));
+        pages.add(TransportPages.makePages(frame, stream));
       }
     } catch (final Mcv2Exception exception) {
       throw new AssertionError(exception);
@@ -90,7 +91,7 @@ final class PageAssemblerFuzzTest {
     for (int step = 1; step + 3 < data.length; step += 4) {
       final int action = data[step] & 0xFF;
       final int index = (data[step + 1] & 0xFF) % FRAMES.size();
-      final List<byte[]> frame = PAGES.get((data[0] & 0xFF) % 3).get(index);
+      final List<byte[]> frame = PAGES.get(index);
       final int number = (data[step + 2] & 0xFF) % frame.size();
       final int argument = data[step + 3] & 0xFF;
       final byte[] page = frame.get(number);
@@ -123,9 +124,7 @@ final class PageAssemblerFuzzTest {
           assertThrows(Mcv2Exception.class, () -> assembler.push(cut));
         }
         default -> {
-          final byte[] foreign = FOREIGN.get((data[0] & 0xFF) % 3)
-            .get(index)
-            .get(number);
+          final byte[] foreign = FOREIGN.get(index).get(number);
           assertThrows(Mcv2Exception.class, () -> assembler.push(foreign));
         }
       }

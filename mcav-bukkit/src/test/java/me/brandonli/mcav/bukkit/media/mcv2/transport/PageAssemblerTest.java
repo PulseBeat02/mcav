@@ -44,7 +44,7 @@ final class PageAssemblerTest {
 
   private static List<byte[]> pages(final byte[] frame) {
     try {
-      return TransportPages.makePages(frame, 3, 6);
+      return TransportPages.makePages(frame, 3);
     } catch (final Mcv2Exception exception) {
       throw new AssertionError(exception);
     }
@@ -57,7 +57,7 @@ final class PageAssemblerTest {
   /** A copy of a page with one header field changed and its CRC recomputed, so only the assembler's rules object. */
   private static byte[] rewritten(final byte[] page, final int offset, final long value) {
     try {
-      final byte[] raw = TransportPages.fromSymbols(page, 6, (page.length * 6) / 8);
+      final byte[] raw = TransportPages.fromSymbols(page, (page.length * 6) / 8);
       if (offset == 6 || offset == 16 || offset == 18) {
         Mcv2Decoder.putU16(raw, offset, (int) value);
       } else {
@@ -67,7 +67,7 @@ final class PageAssemblerTest {
       final CRC32 crc = new CRC32();
       crc.update(raw);
       Mcv2Decoder.putU32(raw, 28, crc.getValue());
-      return TransportPages.toSymbols(raw, 6);
+      return TransportPages.toSymbols(raw);
     } catch (final Mcv2Exception exception) {
       throw new AssertionError(exception);
     }
