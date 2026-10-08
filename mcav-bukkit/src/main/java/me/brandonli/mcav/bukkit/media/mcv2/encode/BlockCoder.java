@@ -489,6 +489,10 @@ final class BlockCoder {
       this.pattern(false);
       this.pattern(true);
     }
+    if (!temporal && frame.cost(0, level)[block] == Double.POSITIVE_INFINITY) {
+      // a search whose keyframe modes coded nothing here still codes the block: one solid colour, as when hurried
+      this.solid();
+    }
     if (closer) {
       // one prediction only, measured above: the local one where local motion measured closer than SKIP
       return;
