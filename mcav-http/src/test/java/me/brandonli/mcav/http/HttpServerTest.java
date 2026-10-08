@@ -386,7 +386,7 @@ final class HttpServerTest {
   private static void assertServesTheBundledPage(final HttpResultImpl http) throws Exception {
     final HttpResponse<String> page = get(http, "/");
     final String body = page.body();
-    assertTrue(body.contains("bundled test page"), "the bundled page is served from classpath:/static/");
+    assertTrue(body.contains("bundled test page"), "the bundled page is served from classpath:/mcav/http/website/");
   }
 
   private static void assertStopsWithGoingAway(final HttpResultImpl http, final int port) throws Exception {

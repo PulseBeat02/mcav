@@ -245,7 +245,7 @@ public final class HttpResultImpl implements HttpResult {
   @VisibleForTesting
   static String staticLocation(final @Nullable Path directory) {
     if (directory == null) {
-      return "classpath:/static/";
+      return "classpath:/mcav/http/website/";
     }
     final Path absolute = directory.toAbsolutePath();
     final URI location = absolute.toUri();
