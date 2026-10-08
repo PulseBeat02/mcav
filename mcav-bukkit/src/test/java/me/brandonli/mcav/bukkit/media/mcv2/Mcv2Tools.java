@@ -612,7 +612,7 @@ public final class Mcv2Tools {
     final String text = Files.readString(source);
     final long compiler = shaderc_compiler_initialize();
     final long options = shaderc_compile_options_initialize();
-    try (MemoryStack stack = stackPush()) {
+    try {
       shaderc_compile_options_set_target_env(options, shaderc_target_env_vulkan, VULKAN_1_2);
       shaderc_compile_options_set_auto_bind_uniforms(options, true);
       shaderc_compile_options_set_preserve_bindings(options, false);
