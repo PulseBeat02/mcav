@@ -17,6 +17,10 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import static java.lang.foreign.ValueLayout.ADDRESS;
+import static java.lang.foreign.ValueLayout.JAVA_DOUBLE;
+import static java.lang.foreign.ValueLayout.JAVA_INT;
+import static java.lang.foreign.ValueLayout.JAVA_LONG;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.BLOCK_SIZES;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CHANNELS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CHECKPOINT_GROUPS;
@@ -63,12 +67,27 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.signed;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.sizeIndex;
 
 import com.google.common.base.Preconditions;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.lang.foreign.Arena;
+import java.lang.foreign.FunctionDescriptor;
+import java.lang.foreign.Linker;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.SymbolLookup;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Callable;
@@ -80,6 +99,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.ObjIntConsumer;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
@@ -209,7 +230,7 @@ public final class MCV2 {
     this.settings = Preconditions.checkNotNull(settings, "Settings must not be null");
     this.workers = new Workers(Preconditions.checkNotNull(pool, "Pool must not be null"), threads);
     this.shouldVerify = verify;
-    this.kernels = JavaKernels::new;
+    this.kernels = Natives.resolved().factory();
     this.framesSinceKey = settings.keyInterval();
   }
 
@@ -372,13 +393,28 @@ public final class MCV2 {
     return new Encoded(pending.data, result);
   }
 
+  /**
+   * Gives the native kernels a folder to extract their library into and the configured mode; a plugin calls this once
+   * as it starts. Which kernels run is decided at the next encoder; existing encoders keep theirs, and a library already
+   * loaded stays loaded.
+   *
+   * @param folder the folder, such as the plugin's data folder (hosted servers often mount {@code /tmp} without
+   *               execution); created if missing
+   * @param mode   {@code auto} or {@code off}; the system property {@value #NATIVE_PROPERTY} wins over it
+   * @throws IllegalArgumentException if the mode is neither
+   */
   public static void installNatives(final Path folder, final String mode) {
-    Preconditions.checkNotNull(folder, "Native folder must not be null");
-    Preconditions.checkArgument(mode.equals("auto") || mode.equals("off"), "Native mode must be auto or off");
+    Natives.install(folder, mode);
   }
 
+  /**
+   * Tells which kernels the encoders use and why, deciding it if no encoder has yet: for example
+   * {@code native avx2 (linux-x86_64)} or {@code Java, turned off by mcv2.native=off}.
+   *
+   * @return the description, as logged
+   */
   public static String describeNatives() {
-    return "Java";
+    return Natives.resolved().description();
   }
 
   // Frame analysis keeps source motion independent of reconstruction quality.
@@ -1666,6 +1702,877 @@ public final class MCV2 {
   }
 
   // Pixel kernels share reusable scratch; native implementations use this same contract.
+  // Native kernels: the same operations in the library the jar ships, checked against its SHA-256, bound by FFM and fed
+  // only arrays and offsets checked here first; the Java kernels run wherever it does not load.
+
+  /** The system property that turns the native kernels on ({@code auto}) or off ({@code off}) over the configuration. */
+  public static final String NATIVE_PROPERTY = "mcv2.native";
+
+  /** Uses the native kernels where a library loads: the default. */
+  public static final String NATIVE_AUTO = "auto";
+
+  /** Always runs the Java kernels. */
+  public static final String NATIVE_OFF = "off";
+
+  /** The SHA-256 of each platform's library in the jar, which must match before it is loaded. */
+  static final Map<String, String> NATIVE_DIGESTS = Map.of(
+    "linux-aarch64",
+    "b0acda1a76705898c2584944436f3a0494fc12c863c6fd6240b7343ea2f4717f",
+    "linux-x86_64",
+    "3b1c58a1ca4a1129a7b60462b59d90b0a2342ac3d974a7d5b9e4fa99900862e3",
+    "macos-aarch64",
+    "37587337e916a51651ca55c0c1a818314bd3befe3fbe362ab5b6283106056c65",
+    "macos-x86_64",
+    "331c30ebffb8407635623e7ff78151c9e576a15e9b3558d5fa714785d04d28da",
+    "windows-aarch64",
+    "7da535d8b5e948f36ac8703019a5fe116b66ee3a15ef664c493283dcf80238eb",
+    "windows-x86_64",
+    "7a478ea9eec75c919d7b520c2bb7361dccb0963cd8ac959aeda1dcadd47e2e30"
+  );
+
+  /** The dispatch levels of the library, as bits of its {@code mcv2_cpu_levels} and in its symbols' names. */
+  enum Level {
+    SCALAR(1, "scalar"),
+    SSE2(16, "sse2"),
+    SSE41(2, "sse41"),
+    AVX2(4, "avx2"),
+    /** The AVX-512 of Ice Lake and later: F, DQ, BW, VL, VBMI, VBMI2, VNNI and BITALG. */
+    AVX512(32, "avx512"),
+    NEON(8, "neon"),
+    SVE256(64, "sve256"),
+    SVE512(128, "sve512");
+
+    private final int bit;
+
+    private final String symbol;
+
+    Level(final int bit, final String symbol) {
+      this.bit = bit;
+      this.symbol = symbol;
+    }
+
+    boolean in(final int levels) {
+      return (levels & this.bit) != 0;
+    }
+
+    String symbol() {
+      return this.symbol;
+    }
+  }
+
+  /**
+   * Which kernels the encoders use.
+   *
+   * @param binding     the native kernels' binding, or null for the Java kernels
+   * @param levels      the levels the processor runs, as the library's bits, or 0 without a library
+   * @param description what is active and why, as logged
+   * @param failed      whether a library should have loaded and did not
+   */
+  record Resolution(@Nullable Binding binding, int levels, String description, boolean failed) {
+    private static final Supplier<Kernels> JAVA = JavaKernels::new;
+
+    private Supplier<Kernels> factory() {
+      final Binding bound = this.binding;
+      return bound == null ? JAVA : () -> new NativeKernels(bound);
+    }
+
+    static Resolution java(final String reason, final boolean failed) {
+      return new Resolution(null, 0, "Java, " + reason, failed);
+    }
+  }
+
+  /** The library's loader: it decides once, at the first encoder, what runs. */
+  static final class Natives {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MCV2.class);
+
+    /** The library interface these bindings are written for, {@code MCV2_ABI}. */
+    static final int ABI = 3;
+
+    /** The system property naming the highest level to use, for measurements. */
+    private static final String LEVEL_PROPERTY = "mcv2.native.level";
+
+    /** Where Linux gives a process its auxiliary vector, which holds the processor's features. */
+    private static final Path AUXV = Path.of("/proc/self/auxv");
+
+    /** The auxiliary vector's entry of the processor's features, {@code AT_HWCAP}. */
+    private static final long AT_HWCAP = 16;
+
+    /** Each architecture's widest level first; scalar runs only when asked for, as every processor runs SSE2 or NEON. */
+    private static final Level[] PREFERENCE = {
+      Level.AVX512,
+      Level.AVX2,
+      Level.SSE41,
+      Level.SSE2,
+      Level.SVE512,
+      Level.SVE256,
+      Level.NEON,
+      Level.SCALAR,
+    };
+
+    private static final FunctionDescriptor QUERY = FunctionDescriptor.of(JAVA_INT);
+
+    private static final FunctionDescriptor LEVELS = FunctionDescriptor.of(JAVA_INT, JAVA_LONG);
+
+    private static final String ACTIVE = "MCV2 kernels: {}";
+
+    private static final String FAILED = "MCV2 native kernels did not load, so the Java kernels run: {}";
+
+    private static @Nullable Path directory;
+
+    private static String configured = NATIVE_AUTO;
+
+    private static @Nullable Resolution resolution;
+
+    private Natives() {
+      throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    }
+
+    static synchronized void install(final Path folder, final String mode) {
+      Preconditions.checkArgument(NATIVE_AUTO.equals(mode) || NATIVE_OFF.equals(mode), "The MCV2 native mode must be auto or off");
+      directory = Preconditions.checkNotNull(folder, "Native folder must not be null");
+      configured = mode;
+      resolution = null;
+    }
+
+    static synchronized Resolution resolved() {
+      Resolution current = resolution;
+      if (current == null) {
+        current = resolve(
+          System.getProperty(NATIVE_PROPERTY, configured),
+          platform(System.getProperty("os.name", ""), System.getProperty("os.arch", "")),
+          directory,
+          platform -> read(MCV2.class.getResourceAsStream("natives/" + platform + "/" + libraryName(platform))),
+          System.getProperty(LEVEL_PROPERTY)
+        );
+        if (current.failed()) {
+          LOGGER.warn(FAILED, current.description());
+        }
+        LOGGER.info(ACTIVE, current.description());
+        resolution = current;
+      }
+      return current;
+    }
+
+    static @Nullable String platform(final String osName, final String osArch) {
+      final String name = osName.toLowerCase(Locale.ROOT);
+      final String os;
+      if (name.startsWith("linux")) {
+        os = "linux";
+      } else if (name.startsWith("windows")) {
+        os = "windows";
+      } else if (name.startsWith("mac")) {
+        os = "macos";
+      } else {
+        return null;
+      }
+      return switch (osArch.toLowerCase(Locale.ROOT)) {
+        case "amd64", "x86_64" -> os + "-x86_64";
+        case "aarch64", "arm64" -> os + "-aarch64";
+        default -> null;
+      };
+    }
+
+    static String libraryName(final String platform) {
+      if (platform.startsWith("windows")) {
+        return "mcv2kernels.dll";
+      }
+      return platform.startsWith("macos") ? "libmcv2kernels.dylib" : "libmcv2kernels.so";
+    }
+
+    static byte @Nullable [] read(final @Nullable InputStream stream) {
+      if (stream == null) {
+        return null;
+      }
+      try (stream) {
+        return stream.readAllBytes();
+      } catch (final IOException exception) {
+        throw new UncheckedIOException(exception);
+      }
+    }
+
+    static Resolution resolve(
+      final String mode,
+      final @Nullable String platform,
+      final @Nullable Path folder,
+      final Function<String, byte @Nullable []> resources,
+      final @Nullable String highest
+    ) {
+      if (NATIVE_OFF.equals(mode)) {
+        return Resolution.java("turned off by " + NATIVE_PROPERTY + "=" + NATIVE_OFF, false);
+      }
+      if (!NATIVE_AUTO.equals(mode)) {
+        return Resolution.java("unknown mode " + NATIVE_PROPERTY + "=" + mode, true);
+      }
+      if (platform == null) {
+        return Resolution.java("no library for this operating system and processor", false);
+      }
+      final String digest = NATIVE_DIGESTS.get(platform);
+      final byte[] bytes;
+      try {
+        bytes = digest == null ? null : resources.apply(platform);
+      } catch (final UncheckedIOException exception) {
+        return Resolution.java("the library could not be read: " + exception, true);
+      }
+      if (digest == null || bytes == null) {
+        return Resolution.java("no library for " + platform, false);
+      }
+      return load(platform, digest, bytes, folder, highest);
+    }
+
+    // loads only the library the jar ships, checked against the digest compiled in
+    @SuppressWarnings("restricted")
+    static Resolution load(
+      final String platform,
+      final String digest,
+      final byte[] bytes,
+      final @Nullable Path folder,
+      final @Nullable String highest
+    ) {
+      if (!digest.equals(Mcv2Resources.sha256(bytes))) {
+        return Resolution.java("the library for " + platform + " does not match its SHA-256", true);
+      }
+      if (folder == null) {
+        return Resolution.java("no folder was given to extract the library into", true);
+      }
+      final Path file;
+      try {
+        file = extract(folder, "mcv2kernels-" + digest + "-" + libraryName(platform), bytes, digest);
+      } catch (final IOException exception) {
+        return Resolution.java("the library could not be extracted: " + exception, true);
+      }
+      final SymbolLookup library;
+      try {
+        library = SymbolLookup.libraryLookup(file, Arena.global());
+      } catch (final IllegalCallerException | IllegalArgumentException exception) {
+        return Resolution.java("the library could not be loaded: " + exception, true);
+      }
+      return bind(library, platform, highest, ABI);
+    }
+
+    static Path extract(final Path folder, final String name, final byte[] bytes, final String digest) throws IOException {
+      Files.createDirectories(folder);
+      final Path file = folder.resolve(name);
+      if (Files.isRegularFile(file) && digest.equals(Mcv2Resources.sha256(Files.readAllBytes(file)))) {
+        return file;
+      }
+      // written beside it and moved into place, so no reader ever sees a partial library
+      final Path partial = Files.createTempFile(folder, name, ".partial");
+      try {
+        Files.write(partial, bytes);
+        Files.move(partial, file, StandardCopyOption.ATOMIC_MOVE);
+      } finally {
+        Files.deleteIfExists(partial);
+      }
+      return file;
+    }
+
+    // the queries and levels of the checked library the loader just loaded
+    @SuppressWarnings("restricted")
+    static Resolution bind(final SymbolLookup library, final String platform, final @Nullable String highest, final int expected) {
+      final Linker linker = Linker.nativeLinker();
+      try {
+        final int abi = (int) linker.downcallHandle(library.findOrThrow("mcv2_abi"), QUERY).invokeExact();
+        if (abi != expected) {
+          return Resolution.java("the library's interface " + abi + " is not " + expected, true);
+        }
+        // an AArch64 library cannot ask the kernel whether SVE may run, as it imports nothing
+        final long features = platform.startsWith("linux") ? hwcap(AUXV) : 0;
+        final MethodHandle cpuLevels = MethodHandles.insertArguments(
+          linker.downcallHandle(library.findOrThrow("mcv2_cpu_levels"), LEVELS),
+          0,
+          features
+        );
+        final int levels = (int) cpuLevels.invokeExact();
+        final Level level = level(levels, highest);
+        return new Resolution(Binding.of(library, level), levels, "native " + level.symbol() + " (" + platform + ")", false);
+      } catch (final Throwable exception) {
+        // a missing symbol, or a JVM that refuses native access
+        return Resolution.java("the library could not be bound: " + exception, true);
+      }
+    }
+
+    static long hwcap(final Path auxv) {
+      final byte[] bytes;
+      try {
+        bytes = Files.readAllBytes(auxv);
+      } catch (final IOException exception) {
+        return 0;
+      }
+      // pairs of a type and a value, in machine words
+      final ByteBuffer entries = ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder());
+      while (entries.remaining() >= 2 * Long.BYTES) {
+        final long type = entries.getLong();
+        final long value = entries.getLong();
+        if (type == AT_HWCAP) {
+          return value;
+        }
+      }
+      return 0;
+    }
+
+    static Level level(final int levels, final @Nullable String highest) {
+      boolean allowed = highest == null;
+      for (final Level level : PREFERENCE) {
+        allowed |= level.symbol().equals(highest);
+        if (allowed && level.in(levels)) {
+          return level;
+        }
+      }
+      return Level.SCALAR;
+    }
+  }
+
+  /** The downcalls of one level of a checked library. */
+  static final class Binding {
+
+    private static final Linker.Option CRITICAL = Linker.Option.critical(true);
+
+    private static final FunctionDescriptor SCORED_PREDICTION = FunctionDescriptor.of(
+      JAVA_LONG,
+      ADDRESS,
+      JAVA_INT,
+      ADDRESS,
+      ADDRESS,
+      JAVA_DOUBLE,
+      JAVA_DOUBLE
+    );
+
+    private static final FunctionDescriptor SCORED_SOLID = FunctionDescriptor.of(
+      JAVA_LONG,
+      JAVA_INT,
+      JAVA_INT,
+      ADDRESS,
+      ADDRESS,
+      JAVA_DOUBLE,
+      JAVA_DOUBLE
+    );
+
+    private static final FunctionDescriptor SCORED_PALETTE = FunctionDescriptor.of(
+      JAVA_LONG,
+      ADDRESS,
+      JAVA_INT,
+      JAVA_INT,
+      ADDRESS,
+      ADDRESS,
+      JAVA_DOUBLE,
+      JAVA_DOUBLE
+    );
+
+    private static final FunctionDescriptor SCORED_COMPACT = FunctionDescriptor.of(
+      JAVA_LONG,
+      ADDRESS,
+      ADDRESS,
+      JAVA_INT,
+      JAVA_INT,
+      JAVA_INT,
+      JAVA_INT,
+      ADDRESS,
+      ADDRESS,
+      JAVA_DOUBLE,
+      JAVA_DOUBLE
+    );
+
+    private static final FunctionDescriptor PREDICT = FunctionDescriptor.ofVoid(
+      ADDRESS,
+      JAVA_INT,
+      JAVA_INT,
+      JAVA_INT,
+      JAVA_INT,
+      JAVA_INT,
+      JAVA_INT,
+      JAVA_INT,
+      ADDRESS
+    );
+
+    private static final FunctionDescriptor FIT = FunctionDescriptor.ofVoid(
+      ADDRESS,
+      JAVA_INT,
+      JAVA_INT,
+      JAVA_INT,
+      ADDRESS,
+      ADDRESS,
+      JAVA_INT,
+      JAVA_INT
+    );
+
+    private static final FunctionDescriptor BLOCK_TO_ARRAY = FunctionDescriptor.ofVoid(ADDRESS, JAVA_INT, ADDRESS);
+
+    private static final FunctionDescriptor ASSIGN = FunctionDescriptor.ofVoid(ADDRESS, JAVA_INT, ADDRESS, ADDRESS);
+
+    private static final FunctionDescriptor ASSIGN_PATTERN = FunctionDescriptor.of(JAVA_INT, ADDRESS, JAVA_INT, ADDRESS, ADDRESS);
+
+    private static final FunctionDescriptor SEEDED = FunctionDescriptor.of(
+      JAVA_INT,
+      ADDRESS,
+      JAVA_INT,
+      JAVA_INT,
+      ADDRESS,
+      JAVA_INT,
+      JAVA_INT,
+      JAVA_INT,
+      JAVA_INT,
+      ADDRESS,
+      JAVA_INT
+    );
+
+    private static final FunctionDescriptor LOAD_SOURCE = FunctionDescriptor.ofVoid(
+      ADDRESS,
+      JAVA_INT,
+      JAVA_INT,
+      JAVA_INT,
+      JAVA_INT,
+      JAVA_INT,
+      ADDRESS
+    );
+
+    private static final FunctionDescriptor YCOCG = FunctionDescriptor.ofVoid(ADDRESS, JAVA_INT, ADDRESS);
+
+    private static final FunctionDescriptor RESIDUAL_TARGET = FunctionDescriptor.ofVoid(ADDRESS, ADDRESS, JAVA_INT, ADDRESS);
+
+    private final Level level;
+
+    private final MethodHandle predicted;
+
+    private final MethodHandle solid;
+
+    private final MethodHandle palette;
+
+    private final MethodHandle compact;
+
+    private final MethodHandle predict;
+
+    private final MethodHandle fit;
+
+    private final MethodHandle cluster;
+
+    private final MethodHandle assign;
+
+    private final MethodHandle assignPattern;
+
+    private final MethodHandle seeded;
+
+    private final MethodHandle loadSource;
+
+    private final MethodHandle halve;
+
+    private final MethodHandle ycocg;
+
+    private final MethodHandle residualTarget;
+
+    Binding(final Level level, final BiFunction<String, FunctionDescriptor, MethodHandle> handle) {
+      this.level = level;
+      this.predicted = handle.apply("predicted", SCORED_PREDICTION);
+      this.solid = handle.apply("solid", SCORED_SOLID);
+      this.palette = handle.apply("palette", SCORED_PALETTE);
+      this.compact = handle.apply("compact", SCORED_COMPACT);
+      this.predict = handle.apply("predict", PREDICT);
+      this.fit = handle.apply("fit", FIT);
+      this.cluster = handle.apply("cluster", BLOCK_TO_ARRAY);
+      this.assign = handle.apply("assign", ASSIGN);
+      this.assignPattern = handle.apply("assign_pattern", ASSIGN_PATTERN);
+      this.seeded = handle.apply("seeded", SEEDED);
+      this.loadSource = handle.apply("load_source", LOAD_SOURCE);
+      this.halve = handle.apply("halve", BLOCK_TO_ARRAY);
+      this.ycocg = handle.apply("ycocg", YCOCG);
+      this.residualTarget = handle.apply("residual_target", RESIDUAL_TARGET);
+    }
+
+    // the downcalls are the accelerator itself, and Natives only binds a library it checked
+    @SuppressWarnings("restricted")
+    static Binding of(final SymbolLookup library, final Level level) {
+      final Linker linker = Linker.nativeLinker();
+      return new Binding(level, (name, descriptor) ->
+        linker.downcallHandle(library.findOrThrow("mcv2_" + level.symbol() + "_" + name), descriptor, CRITICAL)
+      );
+    }
+
+    Level level() {
+      return this.level;
+    }
+  }
+
+  /**
+   * The kernels in the native library, at one level. Calls use the Java arrays themselves ({@link Linker.Option#critical}),
+   * without native allocation, after every size, span and offset is checked here.
+   */
+  private static final class NativeKernels implements Kernels {
+
+    private static final int MAX_COORDINATE = 1 << 20;
+
+    private static final int SELECTORS_AT = PALETTE_COLORS * CHANNELS;
+
+    private static final String CALL_FAILED = "MCV2 native kernel failed";
+
+    private static final int SEGMENTS = 256;
+
+    private final Binding binding;
+
+    private int[] source = new int[0];
+
+    private double rate;
+
+    private double limit;
+
+    private long distortion;
+
+    private final Object[] cachedArrays = new Object[SEGMENTS];
+
+    private final MemorySegment[] cachedSegments = new MemorySegment[SEGMENTS];
+
+    NativeKernels(final Binding binding) {
+      this.binding = binding;
+    }
+
+    // a segment wraps one array, so a coder's few arrays are wrapped once and found again by identity
+    private MemorySegment of(final int[] array) {
+      final int slot = slot(array);
+      return this.remembers(slot, array) ? this.cachedSegments[slot] : this.remember(slot, array, MemorySegment.ofArray(array));
+    }
+
+    private MemorySegment of(final byte[] array) {
+      final int slot = slot(array);
+      return this.remembers(slot, array) ? this.cachedSegments[slot] : this.remember(slot, array, MemorySegment.ofArray(array));
+    }
+
+    private MemorySegment of(final float[] array) {
+      final int slot = slot(array);
+      return this.remembers(slot, array) ? this.cachedSegments[slot] : this.remember(slot, array, MemorySegment.ofArray(array));
+    }
+
+    @SuppressWarnings("ReferenceEquality")
+    private boolean remembers(final int slot, final Object array) {
+      return this.cachedArrays[slot] == array;
+    }
+
+    private static int slot(final Object array) {
+      return System.identityHashCode(array) & (SEGMENTS - 1);
+    }
+
+    private MemorySegment remember(final int slot, final Object array, final MemorySegment segment) {
+      this.cachedArrays[slot] = array;
+      this.cachedSegments[slot] = segment;
+      return segment;
+    }
+
+    @Override
+    public void forgetArrays() {
+      Arrays.fill(this.cachedArrays, null);
+      Arrays.fill(this.cachedSegments, null);
+    }
+
+    private static void checkSize(final int size) {
+      Preconditions.checkArgument(size == SMALLEST_BLOCK || size == 2 * SMALLEST_BLOCK || size == ROOT_SIZE, "Invalid block size");
+    }
+
+    private static void checkRange(final int length, final int offset, final long count) {
+      Preconditions.checkArgument(offset >= 0 && offset <= length - count, "Array too short");
+    }
+
+    private static void checkBlock(final int length, final int size) {
+      checkRange(length, 0, size * (long) size * CHANNELS);
+    }
+
+    private static void checkPicture(final int length, final int width, final int height) {
+      Preconditions.checkArgument(width >= 1 && width <= MAX_DIMENSION && height >= 1 && height <= MAX_DIMENSION, "Invalid picture size");
+      checkRange(length, 0, width * (long) height * CHANNELS);
+    }
+
+    private static void checkCoordinate(final int value) {
+      Preconditions.checkArgument(value >= -MAX_COORDINATE && value <= MAX_COORDINATE, "Coordinate out of range");
+    }
+
+    private void checkScored(final int size, final int[] out) {
+      checkSize(size);
+      checkBlock(out.length, size);
+      checkBlock(this.source.length, size);
+    }
+
+    private boolean finished(final long measured) {
+      if (measured < 0) {
+        return false;
+      }
+      this.distortion = measured;
+      return true;
+    }
+
+    @Override
+    public void start(final int[] source, final double rate, final double limit) {
+      this.source = source;
+      this.rate = rate;
+      this.limit = limit;
+    }
+
+    @Override
+    public long distortion() {
+      return this.distortion;
+    }
+
+    @Override
+    public boolean predicted(final int[] prediction, final int size, final int[] out) {
+      this.checkScored(size, out);
+      checkBlock(prediction.length, size);
+      try {
+        return this.finished(
+          (long) this.binding.predicted.invokeExact(of(prediction), size, of(out), of(this.source), this.rate, this.limit)
+        );
+      } catch (final Throwable failure) {
+        throw new IllegalStateException(CALL_FAILED, failure);
+      }
+    }
+
+    @Override
+    public boolean solid(final int color, final int size, final int[] out) {
+      this.checkScored(size, out);
+      try {
+        return this.finished((long) this.binding.solid.invokeExact(color, size, of(out), of(this.source), this.rate, this.limit));
+      } catch (final Throwable failure) {
+        throw new IllegalStateException(CALL_FAILED, failure);
+      }
+    }
+
+    @Override
+    public boolean palette(final byte[] record, final int offset, final int size, final int[] out) {
+      this.checkScored(size, out);
+      checkRange(record.length, offset, SELECTORS_AT + (size * (long) size) / Byte.SIZE);
+      try {
+        return this.finished(
+          (long) this.binding.palette.invokeExact(of(record), offset, size, of(out), of(this.source), this.rate, this.limit)
+        );
+      } catch (final Throwable failure) {
+        throw new IllegalStateException(CALL_FAILED, failure);
+      }
+    }
+
+    @Override
+    public boolean compact(
+      final int[] prediction,
+      final byte[] record,
+      final int body,
+      final int kind,
+      final int quantizer,
+      final int size,
+      final int[] out
+    ) {
+      Preconditions.checkArgument(kind >= COMPACT_DC && kind <= COMPACT_GRID_Y, "Invalid compact class");
+      Preconditions.checkArgument(quantizer >= 0 && quantizer <= MAX_QUANTIZER, "Invalid quantizer");
+      this.checkScored(size, out);
+      checkBlock(prediction.length, size);
+      checkRange(record.length, body, kind == COMPACT_DC ? 1 : kind == COMPACT_GRID ? 10 : 8);
+      try {
+        return this.finished(
+          (long) this.binding.compact.invokeExact(
+            of(prediction),
+            of(record),
+            body,
+            kind,
+            quantizer,
+            size,
+            of(out),
+            of(this.source),
+            this.rate,
+            this.limit
+          )
+        );
+      } catch (final Throwable failure) {
+        throw new IllegalStateException(CALL_FAILED, failure);
+      }
+    }
+
+    @Override
+    public void predict(
+      final byte[] reference,
+      final int width,
+      final int height,
+      final int left,
+      final int top,
+      final int size,
+      final int motionX,
+      final int motionY,
+      final int[] out
+    ) {
+      checkPicture(reference.length, width, height);
+      checkSize(size);
+      checkBlock(out.length, size);
+      checkCoordinate(left);
+      checkCoordinate(top);
+      checkCoordinate(motionX);
+      checkCoordinate(motionY);
+      try {
+        this.binding.predict.invokeExact(of(reference), width, height, left, top, size, motionX, motionY, of(out));
+      } catch (final Throwable failure) {
+        throw new IllegalStateException(CALL_FAILED, failure);
+      }
+    }
+
+    @Override
+    public void fit(
+      final float[] values,
+      final int offset,
+      final int stride,
+      final int size,
+      final float[] out,
+      final int outOffset,
+      final int outStride
+    ) {
+      checkSize(size);
+      Preconditions.checkArgument(stride > 0 && stride <= CHANNELS, "Invalid stride");
+      checkRange(values.length, offset, (size * (long) size - 1) * stride + 1);
+      Preconditions.checkArgument(outStride > 0, "Invalid stride");
+      checkRange(out.length, outOffset, (GRID_NODES - 1L) * outStride + 1);
+      try {
+        this.binding.fit.invokeExact(
+          of(values),
+          offset,
+          stride,
+          size,
+          of(FITTING_MATRICES[sizeIndex(size)]),
+          of(out),
+          outOffset,
+          outStride
+        );
+      } catch (final Throwable failure) {
+        throw new IllegalStateException(CALL_FAILED, failure);
+      }
+    }
+
+    @Override
+    public void cluster(final int[] source, final int size, final float[] endpoints) {
+      checkSize(size);
+      checkBlock(source.length, size);
+      checkRange(endpoints.length, 0, PALETTE_COLORS * CHANNELS);
+      try {
+        this.binding.cluster.invokeExact(of(source), size, of(endpoints));
+      } catch (final Throwable failure) {
+        throw new IllegalStateException(CALL_FAILED, failure);
+      }
+    }
+
+    @Override
+    public void finish(final int[] source, final int count, final float[] endpoints, final int[] colors, final byte[] selectors) {
+      Preconditions.checkArgument(count >= 0 && count <= ROOT_SIZE * ROOT_SIZE, "Invalid pixel count");
+      checkRange(source.length, 0, count * (long) CHANNELS);
+      checkRange(selectors.length, 0, count);
+      checkRange(colors.length, 0, PALETTE_COLORS * CHANNELS);
+      roundPalette(endpoints, colors);
+      try {
+        this.binding.assign.invokeExact(of(source), count, of(colors), of(selectors));
+      } catch (final Throwable failure) {
+        throw new IllegalStateException(CALL_FAILED, failure);
+      }
+    }
+
+    @Override
+    public boolean finishPattern(final int[] source, final int size, final float[] endpoints, final int[] colors, final byte[] selectors) {
+      checkSize(size);
+      checkBlock(source.length, size);
+      checkRange(selectors.length, 0, size * (long) size);
+      checkRange(colors.length, 0, PALETTE_COLORS * CHANNELS);
+      roundPalette(endpoints, colors);
+      try {
+        return (int) this.binding.assignPattern.invokeExact(of(source), size, of(colors), of(selectors)) != 0;
+      } catch (final Throwable failure) {
+        throw new IllegalStateException(CALL_FAILED, failure);
+      }
+    }
+
+    @Override
+    public int seeded(
+      final byte[] reference,
+      final int width,
+      final int height,
+      final int[] source,
+      final int left,
+      final int top,
+      final int size,
+      final int range,
+      final int[] seeds
+    ) {
+      checkPicture(reference.length, width, height);
+      checkSize(size);
+      checkBlock(source.length, size);
+      checkCoordinate(left);
+      checkCoordinate(top);
+      Preconditions.checkArgument(range >= 0 && range <= MAX_COORDINATE, "Invalid range");
+      try {
+        return (int) this.binding.seeded.invokeExact(
+          of(reference),
+          width,
+          height,
+          of(source),
+          left,
+          top,
+          size,
+          range,
+          of(seeds),
+          seeds.length
+        );
+      } catch (final Throwable failure) {
+        throw new IllegalStateException(CALL_FAILED, failure);
+      }
+    }
+
+    @Override
+    public void loadSource(
+      final byte[] image,
+      final int width,
+      final int height,
+      final int left,
+      final int top,
+      final int size,
+      final int[] source
+    ) {
+      checkPicture(image.length, width, height);
+      checkSize(size);
+      checkBlock(source.length, size);
+      Preconditions.checkArgument(left >= 0 && left < width && top >= 0 && top < height, "Block outside the picture");
+      try {
+        this.binding.loadSource.invokeExact(of(image), width, height, left, top, size, of(source));
+      } catch (final Throwable failure) {
+        throw new IllegalStateException(CALL_FAILED, failure);
+      }
+    }
+
+    @Override
+    public void halve(final int[] block, final int size, final int[] out) {
+      // the vector loops step two vectors of pixels at a time, which a power of two either fills or is too small for (the
+      // one lane loop): another size would run past the end of a row, and of the arrays
+      Preconditions.checkArgument(size >= 2 && size <= ROOT_SIZE && Integer.bitCount(size) == 1, "Invalid block size");
+      checkBlock(block.length, size);
+      checkBlock(out.length, size / 2);
+      try {
+        this.binding.halve.invokeExact(of(block), size, of(out));
+      } catch (final Throwable failure) {
+        throw new IllegalStateException(CALL_FAILED, failure);
+      }
+    }
+
+    @Override
+    public void ycocg(final int[] source, final int count, final float[] out) {
+      Preconditions.checkArgument(count >= 0 && count <= ROOT_SIZE * ROOT_SIZE, "Invalid pixel count");
+      checkRange(source.length, 0, count * (long) CHANNELS);
+      checkRange(out.length, 0, count * (long) CHANNELS);
+      try {
+        this.binding.ycocg.invokeExact(of(source), count, of(out));
+      } catch (final Throwable failure) {
+        throw new IllegalStateException(CALL_FAILED, failure);
+      }
+    }
+
+    @Override
+    public void residualTarget(final float[] ycocg, final int[] prediction, final int count, final float[] target) {
+      Preconditions.checkArgument(count >= 0 && count <= ROOT_SIZE * ROOT_SIZE, "Invalid pixel count");
+      checkRange(ycocg.length, 0, count * (long) CHANNELS);
+      checkRange(prediction.length, 0, count * (long) CHANNELS);
+      checkRange(target.length, 0, count * (long) CHANNELS);
+      try {
+        this.binding.residualTarget.invokeExact(of(ycocg), of(prediction), count, of(target));
+      } catch (final Throwable failure) {
+        throw new IllegalStateException(CALL_FAILED, failure);
+      }
+    }
+  }
+
   private interface Kernels {
     void start(int[] source, double rate, double limit);
     long distortion();
