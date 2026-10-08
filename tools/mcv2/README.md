@@ -41,10 +41,14 @@ The scripts that measure the curves of [docs/mcv2.md](../../docs/mcv2.md) and dr
 | `codec_curves.py --ffmpeg FFMPEG --source SRC --name NAME ... --out data/codec_curves.json` | the rate-VMAF points of H.264, VP9 and AV1 on a raw RGB source, every encode decoded back to RGB and scored the way MCV2 is; resumable (`test_codec_curves.py` checks the resuming, `python -m unittest tools/mcv2/test_codec_curves.py`) |
 | `DitherBench.java key=value...` | what MCAV's dithered maps send and show on the same sources: map rate, zlib rate and the pictures a viewer's maps show, for VMAF |
 | `figures/charts.py [--tables]` | draws `docs/images/mcv2/codecs.png` and `features.png` from `data/codec_curves.json` and `data/ablation.json`, and prints the article's tables |
+| `figures/samples.py tree\|leaves\|quality\|bytes ...` | draws the article's sample pictures from real streams (`tree.png`, `frame.png`: every leaf outlined and coloured by mode; `leaves.png`: a palette and a pattern leaf blown up; `quality.png`: one frame at several rates) with the reference decoder, and prints a frame's bytes field by field; its docstring has the arguments |
 | `figures/render.sh` | renders the article's diagrams from the Graphviz sources next to it |
 
-`data/codec_curves.json` holds every point of the codec comparison with its settings and commands, and
-`data/ablation.json` the curves of the encoder with each feature turned off, with how they were measured.
+`data/codec_curves.json` holds every point of the codec comparison with its settings and commands (version 2's MCV2
+curves are kept under `mcv2_version2` and `mcv2_version2_live`), and
+`data/ablation.json` the curves of the encoder with each feature turned off, with how they were measured, and what the
+features MCV2 no longer has were worth when they were measured; `data/ablation-v2.json` is the same measurement for
+version 2 of MCV2, before it was simplified.
 
 ## Conformance fixtures
 
