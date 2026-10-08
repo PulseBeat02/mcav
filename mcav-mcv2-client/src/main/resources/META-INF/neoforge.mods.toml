@@ -8,8 +8,11 @@ version = "${version}"
 displayName = "MCAV MCV2 Client"
 authors = "Brandon Li"
 description = '''
-Tells MCAV servers whether Iris draws a shader pack, which keeps MCV2 screens from decoding, so they show you the dithered maps while one is on.
+Decodes MCAV's MCV2 screens under Iris 1.11.7 shader packs. With another Iris version it tells MCAV servers that a shader pack is on, so they show you the dithered maps while it is.
 '''
+
+[[mixins]]
+config = "mcav-mcv2.mixins.json"
 
 [[dependencies.mcav_mcv2]]
 modId = "neoforge"

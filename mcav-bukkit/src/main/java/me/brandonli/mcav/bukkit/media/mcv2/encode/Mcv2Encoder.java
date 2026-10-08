@@ -643,8 +643,11 @@ public final class Mcv2Encoder {
           FrameWriter.Options.production(coarse)
         );
         final byte[] picture = decodeChosen(data, predictFrom, this.referenceId, this.workers);
-        final double cost =
-          trialError(rgb, picture, width, height) / Reconstruction.DISTORTION_SCALE + settings.lambda() * Byte.SIZE * data.length;
+        // a lambda so large that the cost overflows still lets a trial win, at the largest finite cost
+        final double cost = Math.min(
+          trialError(rgb, picture, width, height) / Reconstruction.DISTORTION_SCALE + settings.lambda() * Byte.SIZE * data.length,
+          Double.MAX_VALUE
+        );
         if (cost < bestCost) {
           bestCost = cost;
           best = data;
@@ -666,7 +669,10 @@ public final class Mcv2Encoder {
       for (int retry = 0; this.frameLimit > 0 && best.length > this.frameLimit && retry < LIMIT_RETRIES; retry++) {
         this.splitBefore = history == null ? null : history.clone();
         searched = new FrameJob(
-          searched.settings().withLambda(searched.settings().lambda() * 2),
+          // the largest finite lambda is the last a retry can double to
+          searched
+            .settings()
+            .withLambda(Math.min(searched.settings().lambda() * 2, Double.MAX_VALUE)),
           rgb,
           predictFrom,
           width,

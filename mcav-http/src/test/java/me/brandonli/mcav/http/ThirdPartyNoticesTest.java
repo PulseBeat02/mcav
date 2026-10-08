@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.http;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -48,8 +49,12 @@ final class ThirdPartyNoticesTest {
   @Test
   void theWebPageShipsTheNoticesOfItsNpmPackages() throws IOException {
     final String notices = read("static/THIRD-PARTY-NOTICES.txt");
-    for (final String component : new String[] { "react@", "react-dom@", "next@", "@mui/material@", "howler@" }) {
+    for (final String component : new String[] { "react@", "react-dom@", "next@", "scheduler@", "styled-jsx@" }) {
       assertTrue(notices.contains("\n" + component), component + " is named");
+    }
+    // packages the page never imports ship nothing, so the notices do not name them
+    for (final String unused : new String[] { "@mui/material@", "@emotion/react@", "howler@", "@fontsource/roboto@" }) {
+      assertFalse(notices.contains("\n" + unused), unused + " is not named");
     }
     assertTrue(notices.contains("Permission is hereby granted"), "the MIT notice itself, not only the name of the licence");
   }

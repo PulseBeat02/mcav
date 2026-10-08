@@ -19,7 +19,7 @@ package me.brandonli.mcav.client;
 
 /**
  * What the mod tells the server: version 1 of a report is four bytes, the version, 1 if Iris is installed, the shader
- * pack's code, and 1 if MCV2 decodes under the shader pack, which it never does yet.
+ * pack's code, and 1 if MCV2 decodes under the shader pack in use.
  *
  * @param irisPresent         whether Iris is installed
  * @param shaderPack          what Iris says of its shader pack

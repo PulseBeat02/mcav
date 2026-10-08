@@ -61,6 +61,30 @@ class DifferentialTest(unittest.TestCase):
         self.assertEqual(0, status)
         self.assertEqual(1, result["counts"]["unsupported_skipped"])
 
+    def test_a_motion_table_is_an_explicit_exemption(self):
+        # a table no leaf names, so the flag alone makes the frame round-15 syntax
+        serializer = sys.modules[differential.pack_frame.__module__]
+        with patch.object(serializer, "motion_table_for", return_value=(b"\x01\x02",)):
+            frame = differential.pack_frame(8, 8, 0, 0, True, (0, 0), [differential.Node(2, record=b"\x11\x22\x33")],
+                                            derived_offsets=True, motion_table=True)
+        status, result = self.report([self.solid(), frame, self.solid()], ["0" * 64, "unsupported", "reject"])
+        self.assertEqual(0, status)
+        self.assertEqual(1, result["counts"]["decoded"])
+        self.assertEqual(2, result["counts"]["unsupported_skipped"])
+
+    def test_a_nonzero_derived_split_quantizer_is_an_explicit_exemption(self):
+        leaves = tuple(differential.Node(2, record=bytes([shade] * 3)) for shade in (10, 60, 110, 160))
+        root = differential.Node(differential.SPLIT, children=leaves)
+        frame = bytearray(differential.pack_frame(32, 32, 0, 0, True, (0, 0), [root], derived_offsets=True))
+        # one root: its descriptors follow the header, one presence group with its checkpoint, and the level counts
+        split = 48 + 4 + 4 + 6
+        self.assertEqual(differential.SPLIT, frame[split])
+        frame[split] |= 1 << 5
+        status, result = self.report([self.solid(), bytes(frame), self.solid()], ["0" * 64, "unsupported", "reject"])
+        self.assertEqual(0, status)
+        self.assertEqual(1, result["counts"]["decoded"])
+        self.assertEqual(2, result["counts"]["unsupported_skipped"])
+
 
 if __name__ == "__main__":
     unittest.main()

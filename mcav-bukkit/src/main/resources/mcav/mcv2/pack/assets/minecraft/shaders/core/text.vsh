@@ -84,6 +84,9 @@ void main() {
         return;
     }
     int width = int(ScreenSize.x);
+    if (!mcv2StripFits(ivec2(ScreenSize))) {
+        return;
+    }
     int pageScreen = mcv2PageScreen(Sampler0);
     if (pageScreen >= 0) {
         // the page number, header bytes 16 and 17

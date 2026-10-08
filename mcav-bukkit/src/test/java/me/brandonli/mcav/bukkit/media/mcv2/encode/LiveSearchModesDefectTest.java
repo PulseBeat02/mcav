@@ -21,13 +21,11 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.ForkJoinPool;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /** Records whether an admitted live search can actually encode its first keyframe. */
 final class LiveSearchModesDefectTest {
 
-  @Disabled("OPEN defect: DR-034 admitted mode masks cannot encode their first keyframe")
   @Test
   void anAdmittedSearchCanEncodeItsFirstKeyframe() {
     final LiveSearch search = new LiveSearch(8, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, false, 8, true, 0, 0, false);

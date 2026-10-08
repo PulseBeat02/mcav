@@ -8,7 +8,7 @@ reads `1.0.0-SNAPSHOT`.
 
 Use modules from the same build. In particular, building the sandbox plugin from this source tree does not update the
 public snapshot repository. Its loader checks that the downloaded modules contain the classes the plugin needs and
-refuses modules that are too old. The [end-to-end build](../mcv2-testing.md) uses a local repository to test the plugin
+refuses modules that are too old. The [end-to-end build](../manual-test.md#2-start-the-sandbox-server-on-the-devbox) uses a local repository to test the plugin
 with its own modules. A distributable plugin needs matching modules available from its dependency repositories.
 
 The release check compared all ten published modules with japicmp 0.26.2, including public and protected members and

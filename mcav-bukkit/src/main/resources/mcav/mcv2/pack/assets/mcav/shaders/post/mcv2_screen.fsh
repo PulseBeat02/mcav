@@ -44,8 +44,9 @@ void main() {
     ivec2 pixel = ivec2(gl_FragCoord.xy);
     int fromTop = size.y - 1 - pixel.y;
     int strip = mcv2StripRows(size.x);
-    // the strip shows the scene row below it, with that row's depth; the debug view leaves the strip as it is
-    ivec2 source = fromTop < strip && !MCV2_DEBUG_VIEW ? mcv2FromTop(size, pixel.x, strip) : pixel;
+    // the strip shows the scene row below it, with that row's depth; the debug view leaves the strip as it is, and a
+    // screen too small for the strip has none
+    ivec2 source = fromTop < strip && mcv2StripFits(size) && !MCV2_DEBUG_VIEW ? mcv2FromTop(size, pixel.x, strip) : pixel;
     vec4 scene = texelFetch(MainSampler, source, 0);
     fragColor = scene;
     int debugRow = fromTop - strip - MCV2_DEBUG_TOP;

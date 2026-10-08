@@ -191,9 +191,10 @@ final class HelperLauncher {
   }
 
   /**
-   * Builds the environment of a helper: the kept variables of the server, and on Linux the authority file of the
-   * helper's null display, which X clients read, the folder of the session as the temporary folder and the folder of
-   * user data, and the libraries the server lacks. No display of the server is passed on.
+   * Builds the environment of a helper: the kept variables of the server, on Linux the authority file of the helper's
+   * null display, which X clients read, the folder of the session as the temporary folder and the folder of user data,
+   * and the libraries the server lacks, and on macOS the folder of the session as the temporary folder. No display of
+   * the server is passed on.
    *
    * @param folder    the private folder of the session
    * @param libraries the folder of the libraries the server lacks on Linux, or null
@@ -208,6 +209,12 @@ final class HelperLauncher {
       // confined Chromium may write
       kept.put("TMPDIR", folder.toString());
       kept.put("XDG_DATA_HOME", folder.toString());
+    }
+    if (this.os == OS.MAC) {
+      // Chromium writes temporary files as it starts, where a confined Chromium may write: MAC_CHROMIUM_TMPDIR is the
+      // temporary folder Chromium asks for first on macOS
+      kept.put("TMPDIR", folder.toString());
+      kept.put("MAC_CHROMIUM_TMPDIR", folder.toString());
     }
     if (libraries != null) {
       kept.put("LD_LIBRARY_PATH", libraries.toString());

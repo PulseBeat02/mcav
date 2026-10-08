@@ -5,9 +5,9 @@ checks do not depend on the research repository they came from. Every file is by
 repository at commit `85445433aeb9f8a35a5ce528d47d8829976d1401` (2026-09-25, "Final report: converged by owner
 decision 6 after round 19"), the commit mcav's MCV2 port is pinned to; none is changed.
 
-It is the normative definition of the format ([docs/mcv2/format.md](../../docs/mcv2/format.md) writes it down), the
+It is the normative definition of the format ([docs/mcv2.md](../../docs/mcv2.md#the-bitstream) writes it down), the
 oracle mcav's Java decoder and encoder are proven bit-exact against, and what `tools/mcv2/fixtures.py` regenerates the
-test fixtures with ([docs/mcv2/conformance.md](../../docs/mcv2/conformance.md)). The tools in `tools/mcv2` put this
+test fixtures with ([the conformance fixtures](../mcv2/README.md#conformance-fixtures)). The tools in `tools/mcv2` put this
 folder on Python's path themselves.
 
 ## What is here, and why only this

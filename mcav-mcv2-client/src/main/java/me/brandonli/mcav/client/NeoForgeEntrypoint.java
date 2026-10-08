@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.client;
 
+import java.util.Optional;
 import java.util.function.LongSupplier;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -47,12 +48,16 @@ public final class NeoForgeEntrypoint {
    * @param modBus the mod's event bus
    */
   public NeoForgeEntrypoint(final IEventBus modBus) {
-    this(modBus, NeoForge.EVENT_BUS, ModList.get().isLoaded(IrisShaders.MOD_ID), System::nanoTime);
+    this(modBus, NeoForge.EVENT_BUS, irisVersion(ModList.get()), System::nanoTime);
   }
 
-  NeoForgeEntrypoint(final IEventBus modBus, final IEventBus gameBus, final boolean irisInstalled, final LongSupplier clock) {
+  NeoForgeEntrypoint(final IEventBus modBus, final IEventBus gameBus, final Optional<String> irisVersion, final LongSupplier clock) {
     final NeoForgeChannel channel = new NeoForgeChannel();
-    final Mcv2Reporter reporter = new Mcv2Reporter(new IrisShaders(irisInstalled), channel, clock);
+    final Mcv2Reporter reporter = new Mcv2Reporter(
+      new IrisShaders(irisVersion.isPresent(), Mcv2Shaders.start(irisVersion)),
+      channel,
+      clock
+    );
     // optional, so the client still joins servers without the channel, which are all servers but MCAV's; the server of
     // a single-player world has no MCV2 screens, and its handler drops the reports
     modBus.addListener(RegisterPayloadHandlersEvent.class, event ->
@@ -67,5 +72,10 @@ public final class NeoForgeEntrypoint {
     });
     gameBus.addListener(ClientPlayerNetworkEvent.LoggingOut.class, _ -> channel.close());
     gameBus.addListener(ClientTickEvent.Post.class, _ -> reporter.tick());
+  }
+
+  /** The version of the Iris NeoForge loaded, empty without Iris. */
+  static Optional<String> irisVersion(final ModList mods) {
+    return mods.getModContainerById(IrisShaders.MOD_ID).map(iris -> iris.getModInfo().getVersion().toString());
   }
 }

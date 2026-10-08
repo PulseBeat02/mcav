@@ -13,7 +13,7 @@ own, so a crashing page never takes the server with it.
 The arguments are the viewers, the size of the page in pixels (at most 4096 on a side), how many painted frames make
 one frame on the wall (1 streams every change), the wall's size and first map id, the dithering algorithm, the audio
 output, and the address, which must be a full `http` or `https` URL and takes the rest of the line. Add `--codec mcv2`
-at the end for a sharper picture ([Using MCV2](../mcv2/using.md)). One browser runs at a time; `/mcav browser release`
+at the end for a sharper picture ([MCV2 on Maps](../bukkit/mcv2.md)). One browser runs at a time; `/mcav browser release`
 closes it.
 
 ## The First Start Downloads Chromium
@@ -58,11 +58,12 @@ instead.
 
 A page is untrusted content, and the browser runs without Chromium's sandbox, which JCEF cannot use, so MCAV limits it:
 
-- **Confined on Linux.** Chromium's processes cannot read the server's folder, the home folder or the temporary
-  folder, apart from what the browser needs there, and they change files only in the folder of their browser. So a
-  page that exploits a flaw of Chromium cannot read your `config.yml` or change the server's files. It needs Linux
-  5.13 or later (Landlock); on Windows, macOS and older kernels the browser runs as before, and the server log says
-  `Chromium runs without confinement` with the reason. `browser.confine-chromium: false` turns it off.
+- **Confined on Linux and macOS.** Chromium's processes cannot read the server's folder, the home folder or the
+  temporary folder, apart from what the browser needs there, and they change files only in the folder of their
+  browser. So a page that exploits a flaw of Chromium cannot read your `config.yml` or change the server's files. It
+  needs Linux 5.13 or later (Landlock) or macOS (Seatbelt); on Windows and older Linux kernels the browser runs as
+  before, and the server log says `Chromium runs without confinement` with the reason. `browser.confine-chromium:
+  false` turns it off.
 
 - **Only the public internet.** Every connection goes through a guard that refuses loopback, private, link-local (such
   as a cloud server's metadata service) and every other special address, also when a public name resolves to one, and

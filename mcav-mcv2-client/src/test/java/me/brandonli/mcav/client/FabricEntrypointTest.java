@@ -18,12 +18,14 @@
 package me.brandonli.mcav.client;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -32,7 +34,11 @@ import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.ModContainer;
+import net.fabricmc.loader.api.Version;
+import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -59,7 +65,7 @@ final class FabricEntrypointTest {
     final AtomicLong clock = new AtomicLong();
     try (final MockedStatic<ClientPlayNetworking> networking = mockStatic(ClientPlayNetworking.class)) {
       networking.when(() -> ClientPlayNetworking.canSend(Mcv2Payload.TYPE)).thenReturn(true);
-      new FabricEntrypoint(payloads, joins, ticks, false, clock::get).onInitializeClient();
+      new FabricEntrypoint(payloads, joins, ticks, Optional.empty(), clock::get).onInitializeClient();
       verify(payloads).register(Mcv2Payload.TYPE, Mcv2Payload.CODEC);
 
       ticks.invoker().onEndTick(null);
@@ -78,13 +84,27 @@ final class FabricEntrypointTest {
   }
 
   @Test
-  void theEntryPointFabricCallsAsksFabricForIris() {
+  void theEntryPointFabricCallsAsksFabricForTheVersionOfIris() {
     final FabricLoader loader = mock(FabricLoader.class);
+    final ModContainer iris = mock(ModContainer.class);
+    final ModMetadata metadata = mock(ModMetadata.class);
+    final Version version = mock(Version.class);
+    when(iris.getMetadata()).thenReturn(metadata);
+    when(metadata.getVersion()).thenReturn(version);
+    when(version.getFriendlyString()).thenReturn("1.11.7+mc26.3");
     try (final MockedStatic<FabricLoader> loaders = mockStatic(FabricLoader.class)) {
       loaders.when(FabricLoader::getInstance).thenReturn(loader);
-      when(loader.isModLoaded(IrisShaders.MOD_ID)).thenReturn(true);
+      when(loader.getModContainer(IrisShaders.MOD_ID)).thenReturn(Optional.of(iris));
       new FabricEntrypoint();
-      verify(loader).isModLoaded("iris");
+      verify(loader).getModContainer("iris");
     }
+    assertEquals(Optional.of("1.11.7+mc26.3"), FabricEntrypoint.irisVersion(loader));
+    when(loader.getModContainer(IrisShaders.MOD_ID)).thenReturn(Optional.empty());
+    assertEquals(Optional.empty(), FabricEntrypoint.irisVersion(loader));
+  }
+
+  @AfterEach
+  void uninstall() {
+    ShaderDecoder.install(Optional.empty());
   }
 }

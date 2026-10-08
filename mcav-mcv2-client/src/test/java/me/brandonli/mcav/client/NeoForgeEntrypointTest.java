@@ -18,8 +18,11 @@
 package me.brandonli.mcav.client;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
@@ -27,12 +30,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import net.minecraft.network.Connection;
 import net.minecraft.network.ConnectionProtocol;
 import net.neoforged.bus.api.Event;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
@@ -41,6 +46,9 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadHandler;
 import net.neoforged.neoforge.network.registration.NetworkRegistry;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import net.neoforged.neoforgespi.language.IModInfo;
+import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -61,7 +69,7 @@ final class NeoForgeEntrypointTest {
 
   @Test
   void registersAnOptionalPayloadWhoseServerHandlerDropsIt() {
-    new NeoForgeEntrypoint(this.modBus, this.gameBus, false, System::nanoTime);
+    new NeoForgeEntrypoint(this.modBus, this.gameBus, Optional.empty(), System::nanoTime);
     final RegisterPayloadHandlersEvent event = mock(RegisterPayloadHandlersEvent.class);
     final PayloadRegistrar registrar = mock(PayloadRegistrar.class);
     when(event.registrar(NeoForgeEntrypoint.PROTOCOL)).thenReturn(registrar);
@@ -79,7 +87,7 @@ final class NeoForgeEntrypointTest {
   @Test
   void reportsOnTheTicksOfASessionTheServerOfWhichHasTheChannel() {
     final AtomicLong clock = new AtomicLong();
-    new NeoForgeEntrypoint(this.modBus, this.gameBus, false, clock::get);
+    new NeoForgeEntrypoint(this.modBus, this.gameBus, Optional.empty(), clock::get);
     final Consumer<ClientPlayerNetworkEvent.LoggingIn> loggingIn = listener(this.gameBus, ClientPlayerNetworkEvent.LoggingIn.class);
     final Consumer<ClientPlayerNetworkEvent.LoggingOut> loggingOut = listener(this.gameBus, ClientPlayerNetworkEvent.LoggingOut.class);
     final Consumer<ClientTickEvent.Post> ticks = listener(this.gameBus, ClientTickEvent.Post.class);
@@ -117,14 +125,28 @@ final class NeoForgeEntrypointTest {
     }
   }
 
+  @AfterEach
+  void uninstall() {
+    ShaderDecoder.install(Optional.empty());
+  }
+
   @Test
-  void theEntryPointNeoForgeCallsAsksNeoForgeForIris() {
+  void theEntryPointNeoForgeCallsAsksNeoForgeForTheVersionOfIris() {
     final ModList mods = mock(ModList.class);
+    final ModContainer iris = mock(ModContainer.class);
+    final IModInfo info = mock(IModInfo.class);
+    doReturn(Optional.of(iris)).when(mods).getModContainerById("iris");
+    when(iris.getModInfo()).thenReturn(info);
+    when(info.getVersion()).thenReturn(new DefaultArtifactVersion("1.11.7+mc26.3"));
     try (final MockedStatic<ModList> modLists = mockStatic(ModList.class)) {
       modLists.when(ModList::get).thenReturn(mods);
       new NeoForgeEntrypoint(this.modBus);
-      verify(mods).isLoaded("iris");
+      verify(mods).getModContainerById("iris");
       verify(this.modBus).addListener(eq(RegisterPayloadHandlersEvent.class), any());
     }
+    assertTrue(ShaderDecoder.current().isPresent(), "the decoder the mixins report to");
+    assertEquals(Optional.of("1.11.7+mc26.3"), NeoForgeEntrypoint.irisVersion(mods));
+    doReturn(Optional.empty()).when(mods).getModContainerById("iris");
+    assertEquals(Optional.empty(), NeoForgeEntrypoint.irisVersion(mods));
   }
 }

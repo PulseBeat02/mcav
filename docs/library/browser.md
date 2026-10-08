@@ -123,13 +123,14 @@ and keys for a moment right after a page appears.
 A page is untrusted content, and the browser runs without Chromium's sandbox, which JCEF cannot use. MCAV limits what
 a page can do instead:
 
-- On Linux 5.13 and later, Chromium is confined with Landlock, the kernel's sandbox for unprivileged processes: the
-  helper starts Chromium on a thread that restricts itself first, so every thread and process of Chromium is
-  restricted too. They cannot read the server's working folder, the home folder of the server's user or the server's
-  temporary folder, apart from Java, CEF, the libraries and class path of the helper and the folder of the session;
-  they change files only in the folder of the session (which is also their temporary folder), the devices and the
-  process folder. The helper's own threads, the network guard among them, are not restricted. The log of the server
-  says whether Chromium runs confined; on Windows, macOS and older kernels it runs as before.
+- On Linux 5.13 and later and on macOS, Chromium is confined. Its processes cannot read the server's working folder,
+  the home folder of the server's user or the server's temporary folder, apart from Java, CEF, the libraries and class
+  path of the helper and the folder of the session; they change files only in the folder of the session (which is
+  also their temporary folder) and the devices (on Linux the process folder too). On Linux it is Landlock, the
+  kernel's sandbox for unprivileged processes: the helper starts Chromium on a thread that restricts itself first, so
+  every thread and process of Chromium is restricted too, while the helper's own threads, the network guard among
+  them, are not. On macOS it is Seatbelt, the sandbox Chromium itself uses there, and it holds for the whole helper.
+  The log of the server says whether Chromium runs confined; on Windows and older Linux kernels it runs as before.
   `BrowserOptions.builder().confinement(false)` turns it off, for a page that needs something it hides. As Chromium
   binds a socket in the folder of the session, the temporary folder of the server (`java.io.tmpdir`) may have at most
   47 characters on Linux; a browser in a longer one is refused with that reason.
@@ -183,7 +184,9 @@ as 16-bit little-endian stereo samples at 48 kHz, like the sound of every MCAV p
 JCEF has no way to hand over Chromium's own audio, so a script that MCAV adds to every document before the page's own
 scripts does it: every Web Audio context of a document is one context at 48 kHz, audio and video elements play into it
 at their own volume, and its samples go to the helper. A page that asks for another sample rate therefore gets
-48 kHz, and a page that closes a context closes it for all of its parts, which get a new one when they make one. Nothing plays on the speakers of the machine. As in a desktop
+48 kHz, and a page that closes a context closes it for all of its parts, which get a new one when they make one.
+Nothing plays on the speakers of the machine, and the sound runs on Chromium's own clock rather than on a sound device
+of the machine, which may run slow or stall, as the one of a virtual machine can. As in a desktop
 browser, a page may play sound only once someone clicked or typed into it, such as with `sendMouseEvent`; the helper
 holds the sound of every page back until a press of a mouse button or a key on that page as well, so a page plays
 nothing before anyone touched it even if it works around Chromium's rule; a press on one page does not count for the

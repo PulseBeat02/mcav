@@ -8,7 +8,7 @@ sandbox plugin that demonstrates what the MCAV library can do.
 The MCAV plugin is a Paper plugin that displays images, videos, web pages, virtual machines and VNC desktops in
 Minecraft, with their sound. It is designed to be a fun and experimental plugin that showcases the capabilities of the
 MCAV library. The [tutorial](tutorial.md) sets it up step by step; [videos and images](video.md),
-[web browsers](browser.md), [virtual machines](vm.md), [VNC desktops](vnc.md) and [MCV2](../mcv2/using.md) explain each
+[web browsers](browser.md), [virtual machines](vm.md), [VNC desktops](vnc.md) and [MCV2](../bukkit/mcv2.md) explain each
 feature as a server owner uses it.
 
 ## Installing the Plugin

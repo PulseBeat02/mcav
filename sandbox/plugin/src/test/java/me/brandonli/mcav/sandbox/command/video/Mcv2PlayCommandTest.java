@@ -54,6 +54,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
@@ -428,6 +429,59 @@ final class Mcv2PlayCommandTest {
     }
   }
 
+  /**
+   * A video whose reads drop the thread's interrupt, as code that swallows one does: its first read waits until the
+   * encode was cancelled, and it has a few frames, so an encode that misses the cancel ends as done.
+   */
+  private static final class DropsInterrupts implements Mcv2FileEncoder.FrameReader {
+
+    private final CountDownLatch cancelled;
+
+    private int read;
+
+    private volatile boolean dropped;
+
+    DropsInterrupts(final CountDownLatch cancelled) {
+      this.cancelled = cancelled;
+    }
+
+    @Override
+    public boolean read(final byte[] rgb) {
+      if (this.read == 0) {
+        Uninterruptibles.awaitUninterruptibly(this.cancelled);
+      }
+      if (Thread.interrupted()) {
+        this.dropped = true;
+      }
+      Arrays.fill(rgb, (byte) (this.read * 40));
+      return this.read++ < 3;
+    }
+
+    @Override
+    public void close() {
+      // nothing to release
+    }
+  }
+
+  /** A video whose every read waits until the encode's thread is interrupted. */
+  private static final class WaitsForInterrupt implements Mcv2FileEncoder.FrameReader {
+
+    @Override
+    public boolean read(final byte[] rgb) {
+      try {
+        new CountDownLatch(1).await();
+      } catch (final InterruptedException exception) {
+        Thread.currentThread().interrupt();
+      }
+      return true;
+    }
+
+    @Override
+    public void close() {
+      // nothing to release
+    }
+  }
+
   private static String text(final Component component) {
     return PlainTextComponentSerializer.plainText().serialize(component);
   }
@@ -622,6 +676,43 @@ final class Mcv2PlayCommandTest {
     // a size that is not one is refused before anything starts
     this.command.encode(this.sender, "clip.mp4", "long.mcs", "big", Mcv2Profile.LIVE);
     assertSame(thread, this.command.getEncoding());
+  }
+
+  @Test
+  void aCancelStopsTheEncodeEvenWhenItsVideoDropsTheInterrupt() throws Exception {
+    final CountDownLatch cancelled = new CountDownLatch(1);
+    final DropsInterrupts frames = new DropsInterrupts(cancelled);
+    this.command.setOpener((_, _, _) -> frames);
+    this.command.encode(this.sender, "long.mp4", "long.mcs", "16x16", Mcv2Profile.LIVE);
+    final Thread thread = Objects.requireNonNull(this.command.getEncoding());
+    this.command.cancel(this.sender);
+    cancelled.countDown();
+    thread.join(TimeUnit.SECONDS.toMillis(60));
+    assertFalse(thread.isAlive());
+    assertTrue(frames.dropped, "the video dropped the cancel's interrupt");
+    verify(this.sender).sendMessage(Message.MCV2_ENCODE_CANCELLED.build());
+    assertFalse(Files.exists(this.streams.resolve("long.mcs")));
+    assertFalse(Files.exists(this.streams.resolve("long.mcs.part")));
+  }
+
+  @Test
+  void aCancelStopsTheEncodeEvenWhenOpeningTheVideoDropsTheInterrupt() throws Exception {
+    final CountDownLatch cancelled = new CountDownLatch(1);
+    final AtomicBoolean dropped = new AtomicBoolean();
+    this.command.setOpener((_, _, _) -> {
+      Uninterruptibles.awaitUninterruptibly(cancelled);
+      dropped.set(Thread.interrupted());
+      return new WaitsForInterrupt();
+    });
+    this.command.encode(this.sender, "long.mp4", "long.mcs", "16x16", Mcv2Profile.LIVE);
+    final Thread thread = Objects.requireNonNull(this.command.getEncoding());
+    this.command.cancel(this.sender);
+    cancelled.countDown();
+    thread.join(TimeUnit.SECONDS.toMillis(60));
+    assertFalse(thread.isAlive(), "the encode waits for a frame though it was cancelled");
+    assertTrue(dropped.get(), "opening the video dropped the cancel's interrupt");
+    verify(this.sender).sendMessage(Message.MCV2_ENCODE_CANCELLED.build());
+    assertFalse(Files.exists(this.streams.resolve("long.mcs.part")));
   }
 
   @Test

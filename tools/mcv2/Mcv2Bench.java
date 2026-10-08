@@ -32,6 +32,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.zip.Deflater;
+import me.brandonli.mcav.bukkit.media.mcv2.FrameParser;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frame;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.mcv2.encode.LiveSearch;
@@ -43,7 +47,8 @@ import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
  * The encoder benchmark behind every encode time in the MCV2 report: encodes the frames of a raw RGB source (row-major,
  * 8-bit RGB, frame after frame) with a profile and prints one JSON line - the time per frame after the warm-up frames
  * (mean, p50, p95, max), the process CPU time per frame, the bytes allocated per frame, keyframes, the map rate and the
- * zlib rate (every page deflated as a map packet), the PSNR - so the JIT is warm and the first frames are discarded, as
+ * zlib rate (every page deflated as a map packet), the PSNR of the pictures a client decodes (every frame goes through
+ * mcav's decoder, from the reference it predicts from) - so the JIT is warm and the first frames are discarded, as
  * addendum 5 asks. It is not a build or CI task.
  *
  * <p>Compile with a JDK and run on the JVM to measure (the report used Temurin 25), for example:
@@ -233,6 +238,7 @@ public final class Mcv2Bench {
         final long allocatedBefore = threadBean.getTotalThreadAllocatedBytes();
         final long startNanos = System.nanoTime();
         final long frameId = frameIndex;
+        final byte[] predictFrom = encoder.getReference();
         final byte[] data = inBudget ? budget.run(() -> encoder.encode(rgb, width, height, frameId)) : encoder.encode(rgb, width, height, frameId);
         measured.times[frameIndex] = System.nanoTime() - startNanos;
         measured.cpu[frameIndex] = system.getProcessCpuTime() - cpuBefore;
@@ -244,7 +250,7 @@ public final class Mcv2Bench {
         final List<byte[]> pages = TransportPages.makePages(data, STREAM_ID, MapAlphabet.SYMBOL_BITS);
         measured.wire += TransportPages.wireBytes(pages, false, TransportPages.PACKET_OVERHEAD);
         measured.zlib += zlibBytes(pages, deflater, buffer);
-        final byte[] picture = encoder.getReference();
+        final byte[] picture = decoded(data, predictFrom);
         final double mse = squaredError(rgb, picture) / (double) rgb.length;
         measured.psnrSum += mse == 0 ? EXACT_PSNR : psnr(mse);
         measured.mseSum += mse;
@@ -258,6 +264,15 @@ public final class Mcv2Bench {
       }
     }
     return measured;
+  }
+
+  /**
+   * The picture a client decodes from a frame, which predicts from the picture the encoder held as its reference before
+   * it: under {@code reference=keyframe} that is the last keyframe, not the frame before.
+   */
+  private static byte[] decoded(final byte[] data, final byte[] predictFrom) throws Mcv2Exception {
+    final Mcv2Frame frame = FrameParser.parse(data);
+    return Mcv2Decoder.decode(frame, predictFrom, frame.getReferenceId());
   }
 
   /** The source frame of an encoded frame: the frames in order, over again, or forward and back. */

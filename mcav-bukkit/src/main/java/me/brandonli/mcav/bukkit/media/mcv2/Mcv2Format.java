@@ -22,7 +22,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
  *
  * <p>The normative definition is the Python reference decoder of the gpu-codec research repository at commit
  * {@code 85445433aeb9f8a35a5ce528d47d8829976d1401} ({@code mcvideo/format.py}, {@code v2.py}, {@code compact.py},
- * {@code pattern.py}, {@code decoder.py}), kept unchanged in {@code tools/mcv2-reference}; {@code docs/mcv2/format.md}
+ * {@code pattern.py}, {@code decoder.py}), kept unchanged in {@code tools/mcv2-reference}; {@code docs/mcv2.md}
  * writes it down. All multi-byte integers are little-endian.
  *
  * <p>These low-level arithmetic and byte-access helpers assume their documented ranges; they do not validate

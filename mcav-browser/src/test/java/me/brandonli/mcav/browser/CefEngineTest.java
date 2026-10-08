@@ -119,6 +119,8 @@ class CefEngineTest {
         List.of("--disable-gpu", "--mute-audio", "--disable-extensions", "--deny-permission-prompts", "--site-per-process")
       )
     );
+    // the page's sound plays on Chromium's own clock, not on a sound device of the server, which may run slow or stall
+    assertTrue(switches.contains("--disable-audio-output"), "the page's sound is not paced by a sound device");
     // a page plays sound once a player clicked it, as in a desktop browser; CEF's own default lets it play at once
     assertTrue(switches.contains("--autoplay-policy=document-user-activation-required"));
     final List<String> autoplaySwitches = CefEngine.createSwitches(configuration(false, true), false, false, 0, null);

@@ -24,7 +24,7 @@ void main() {
     ivec2 size = textureSize(MainSampler, 0);
     ivec2 texel = ivec2(gl_FragCoord.xy);
     int offset = (texel.y * MCV2_BYTES_WIDTH + texel.x) * 4;
-    if (offset + 3 >= MCV2_PAGE_SLOTS * MCV2_PAGE_CAPACITY) {
+    if (offset + 3 >= MCV2_PAGE_SLOTS * MCV2_PAGE_CAPACITY || !mcv2StripFits(size)) {
         fragColor = vec4(0.0);
         return;
     }

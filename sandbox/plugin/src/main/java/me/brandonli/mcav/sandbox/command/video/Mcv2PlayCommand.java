@@ -32,6 +32,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.LongConsumer;
 import me.brandonli.mcav.bukkit.media.mcv2.FrameParser;
@@ -106,7 +107,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   private Mcv2PackServer.@Nullable Lease lease;
 
-  private @Nullable Thread encoding;
+  private @Nullable FileEncode encoding;
 
   /** Reads stream files, one at a time, so that commands given quickly one after another hold one file at a time. */
   private final ExecutorService reads;
@@ -132,6 +133,51 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
      * @throws IOException if the file cannot be opened
      */
     Mcv2FileEncoder.FrameReader open(Path video, int width, int height) throws IOException;
+  }
+
+  /**
+   * A file encode: its thread, and whether it was asked to stop.
+   *
+   * @param thread  the thread that encodes
+   * @param stopped whether a cancel or the plugin stopping asked it to stop
+   */
+  private record FileEncode(Thread thread, AtomicBoolean stopped) {
+    /** Asks the encode to stop. */
+    void stop() {
+      this.stopped.set(true);
+      this.thread.interrupt();
+    }
+  }
+
+  /**
+   * The frames of an encode that may be asked to stop. A stop interrupts the encode's thread, and the encoder ends at
+   * that interrupt, but code that runs on the thread may clear it before the encoder looks: an agent that instruments
+   * classes as the thread loads them did. So once a stop was asked, the thread is interrupted again before and after
+   * every read, and the encoder ends by the next frame.
+   *
+   * @param frames  the video's frames
+   * @param stopped whether the encode was asked to stop
+   */
+  private record StoppableFrames(Mcv2FileEncoder.FrameReader frames, AtomicBoolean stopped) implements Mcv2FileEncoder.FrameReader {
+    @Override
+    public boolean read(final byte[] rgb) throws IOException {
+      // before, so a read that waits is interrupted
+      this.interruptIfStopped();
+      final boolean more = this.frames.read(rgb);
+      this.interruptIfStopped();
+      return more;
+    }
+
+    @Override
+    public void close() throws IOException {
+      this.frames.close();
+    }
+
+    private void interruptIfStopped() {
+      if (this.stopped.get()) {
+        Thread.currentThread().interrupt();
+      }
+    }
   }
 
   /**
@@ -360,8 +406,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final EncoderPool budget = EncoderPool.shared();
     final Opener open = this.opener;
     synchronized (this) {
-      final Thread running = this.encoding;
-      if (running != null && running.isAlive()) {
+      final FileEncode running = this.encoding;
+      if (running != null && running.thread().isAlive()) {
         sender.sendMessage(Message.MCV2_ENCODE_BUSY.build());
         return;
       }
@@ -379,10 +425,13 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
           )
         )
       );
-      this.encoding = Thread.ofPlatform()
+      final AtomicBoolean stopped = new AtomicBoolean();
+      final Opener stoppable = (video, frameWidth, frameHeight) -> new StoppableFrames(open.open(video, frameWidth, frameHeight), stopped);
+      final Thread thread = Thread.ofPlatform()
         .daemon()
         .name("mcav-mcv2-file-encode")
-        .start(() -> encodeFile(sender, open, source, target, width, height, profile, budget, PROGRESS_NANOS));
+        .start(() -> encodeFile(sender, stoppable, source, target, width, height, profile, budget, PROGRESS_NANOS));
+      this.encoding = new FileEncode(thread, stopped);
     }
   }
 
@@ -499,7 +548,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * @return the thread, also while a cancelled encode cleans up, or null if none was started
    */
   synchronized @Nullable Thread getEncoding() {
-    return this.encoding;
+    final FileEncode current = this.encoding;
+    return current == null ? null : current.thread();
   }
 
   /**
@@ -513,18 +563,18 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   @Permission("mcav.command.mcv2.encode")
   @CommandDescription("mcav.command.mcv2.cancel.info")
   public void cancel(final CommandSender sender) {
-    final Thread running;
+    final FileEncode running;
     // the encode stays the running one until its thread ends: a new encode before then would write the same partial
     // file the cancelled one deletes as it ends
     synchronized (this) {
       running = this.encoding;
     }
-    if (running == null || !running.isAlive()) {
+    if (running == null || !running.thread().isAlive()) {
       sender.sendMessage(Message.MCV2_ENCODE_NONE.build());
       return;
     }
     // the encode tells its sender that it stopped
-    running.interrupt();
+    running.stop();
   }
 
   /**
@@ -535,13 +585,13 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     this.loads++;
     this.reads.shutdownNow();
     this.stop();
-    final Thread running;
+    final FileEncode running;
     synchronized (this) {
       running = this.encoding;
       this.encoding = null;
     }
     if (running != null) {
-      running.interrupt();
+      running.stop();
     }
   }
 

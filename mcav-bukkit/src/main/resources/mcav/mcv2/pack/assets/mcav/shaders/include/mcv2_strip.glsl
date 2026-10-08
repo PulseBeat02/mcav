@@ -32,6 +32,13 @@ int mcv2StripRows(int width) {
     return mcv2DescriptorRowOf(width, MCV2_SCREENS);
 }
 
+// Whether the strip fits on a screen of a size with a row of the scene below it. A window too small for it, with many
+// screens or slots, shows no MCV2 picture: the text shaders leave the pages and anchors where they hang, and the post
+// chain neither reads the strip nor covers it, so the scene stays as it is.
+bool mcv2StripFits(ivec2 size) {
+    return mcv2StripRows(size.x) < size.y;
+}
+
 // The texel of a screen-sized target at a row counted from the top.
 ivec2 mcv2FromTop(ivec2 size, int x, int row) {
     return ivec2(x, size.y - 1 - row);

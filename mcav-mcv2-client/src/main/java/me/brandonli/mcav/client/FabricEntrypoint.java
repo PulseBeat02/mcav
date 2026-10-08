@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.client;
 
+import java.util.Optional;
 import java.util.function.LongSupplier;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -39,7 +40,7 @@ public final class FabricEntrypoint implements ClientModInitializer {
 
   private final Event<ClientTickEvents.EndTick> ticks;
 
-  private final boolean irisInstalled;
+  private final Optional<String> irisVersion;
 
   private final LongSupplier clock;
 
@@ -51,7 +52,7 @@ public final class FabricEntrypoint implements ClientModInitializer {
       PayloadTypeRegistry.serverboundPlay(),
       ClientPlayConnectionEvents.JOIN,
       ClientTickEvents.END_CLIENT_TICK,
-      FabricLoader.getInstance().isModLoaded(IrisShaders.MOD_ID),
+      irisVersion(FabricLoader.getInstance()),
       System::nanoTime
     );
   }
@@ -60,20 +61,26 @@ public final class FabricEntrypoint implements ClientModInitializer {
     final PayloadTypeRegistry<RegistryFriendlyByteBuf> payloads,
     final Event<ClientPlayConnectionEvents.Join> joins,
     final Event<ClientTickEvents.EndTick> ticks,
-    final boolean irisInstalled,
+    final Optional<String> irisVersion,
     final LongSupplier clock
   ) {
     this.payloads = payloads;
     this.joins = joins;
     this.ticks = ticks;
-    this.irisInstalled = irisInstalled;
+    this.irisVersion = irisVersion;
     this.clock = clock;
+  }
+
+  /** The version of the Iris Fabric loaded, empty without Iris. */
+  static Optional<String> irisVersion(final FabricLoader loader) {
+    return loader.getModContainer(IrisShaders.MOD_ID).map(iris -> iris.getMetadata().getVersion().getFriendlyString());
   }
 
   @Override
   public void onInitializeClient() {
     this.payloads.register(Mcv2Payload.TYPE, Mcv2Payload.CODEC);
-    final Mcv2Reporter reporter = new Mcv2Reporter(new IrisShaders(this.irisInstalled), new FabricChannel(), this.clock);
+    final IrisShaders iris = new IrisShaders(this.irisVersion.isPresent(), Mcv2Shaders.start(this.irisVersion));
+    final Mcv2Reporter reporter = new Mcv2Reporter(iris, new FabricChannel(), this.clock);
     this.joins.register((_, _, _) -> reporter.reset());
     this.ticks.register(_ -> reporter.tick());
   }

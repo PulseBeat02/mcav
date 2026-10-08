@@ -156,11 +156,11 @@ browser:
   # Default is false
   autoplay-sound: false
 
-  # Whether Chromium is confined, on Linux 5.13 or later: its processes cannot read the server's folder, the home
-  # folder or the temporary folder, apart from what the browser needs there, and they change files only in the folder
-  # of their browser. A page that exploits a flaw of Chromium then cannot read this file or change the server's files.
-  # Elsewhere the browser runs as before, and the server log says so. Turn it off only if a page needs something it
-  # hides, such as fonts in the home folder.
+  # Whether Chromium is confined, on Linux 5.13 or later and on macOS: its processes cannot read the server's folder,
+  # the home folder or the temporary folder, apart from what the browser needs there, and they change files only in
+  # the folder of their browser. A page that exploits a flaw of Chromium then cannot read this file or change the
+  # server's files. Elsewhere (Windows) the browser runs as before, and the server log says so. Turn it off only if a
+  # page needs something it hides, such as fonts in the home folder.
   # Default is true
   confine-chromium: true
 

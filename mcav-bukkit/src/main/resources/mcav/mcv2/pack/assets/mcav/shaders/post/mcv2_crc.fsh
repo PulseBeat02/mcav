@@ -18,6 +18,10 @@ layout(location = 0) out vec4 fragColor;
 
 void main() {
     ivec2 size = textureSize(MainSampler, 0);
+    if (!mcv2StripFits(size)) {
+        fragColor = vec4(0.0);
+        return;
+    }
     int x = int(gl_FragCoord.x);
     int page = x / MCV2_CRC_CHUNKS;
     int first = (x % MCV2_CRC_CHUNKS) * MCV2_CRC_CHUNK_BYTES;

@@ -23,19 +23,28 @@ import java.lang.foreign.FunctionDescriptor;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /** Records the open SIMD input-domain finding without loading or calling a native library. */
 final class NativeHalveDomainDefectTest {
 
-  @Disabled("OPEN defect: DR-031 unsupported SIMD rows reach native dispatch")
   @Test
   void unsupportedSimdRowsAreRefusedBeforeNativeDispatch() {
     final NativeKernels kernels = new NativeKernels(
       new NativeKernels.Binding(NativeKernels.Level.AVX2, (_, descriptor) -> failingBoundary(descriptor))
     );
     assertThrows(IllegalArgumentException.class, () -> kernels.halve(new int[18 * 18 * 3], 18, new int[9 * 9 * 3]));
+    // every even size that is no power of two leaves a part of a row to a vector loop of some level
+    for (int size = 6; size < 32; size += 2) {
+      if (Integer.bitCount(size) != 1) {
+        final int refused = size;
+        assertThrows(
+          IllegalArgumentException.class,
+          () -> kernels.halve(new int[refused * refused * 3], refused, new int[(refused / 2) * (refused / 2) * 3]),
+          () -> "size " + refused
+        );
+      }
+    }
   }
 
   private static MethodHandle failingBoundary(final FunctionDescriptor descriptor) {

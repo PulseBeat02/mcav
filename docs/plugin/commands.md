@@ -102,7 +102,8 @@ With `mcv2`:
 - The viewers are offered MCAV's MCV2 resource pack, one pack that decodes every MCV2 screen of the server. It is
   optional and replaces no other pack: a player who declines it sees the dithered maps and is not asked again while
   online. Until a player's client has loaded it, that player sees the dithered maps, and so does a player whose
-  [MCV2 client mod](../mcv2/client-mod.md) reports Iris shaders on, until they turn them off.
+  [MCV2 client mod](../bukkit/mcv2.md#the-client-mod-for-iris-shader-players) reports Iris shaders on that it can't
+  decode under (an Iris other than 1.11.7), until they turn them off.
 - Loading the pack reloads the client's resources, a hitch of a second or more. The pack changes only when a screen of
   a video size it does not decode yet starts, and a minute after a screen stopped, when its size leaves the pack (the
   pack itself, once no screen plays); a new screen of the same size within that minute reloads nothing. It decodes up

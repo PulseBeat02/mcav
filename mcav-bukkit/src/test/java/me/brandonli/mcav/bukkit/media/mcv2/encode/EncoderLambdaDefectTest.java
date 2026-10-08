@@ -22,13 +22,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.ForkJoinPool;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 /** Records the usable-cost boundary of finite lambdas admitted by the settings. */
 final class EncoderLambdaDefectTest {
 
-  @Disabled("OPEN defect: DR-035 admitted finite lambda leaves no keyframe candidate")
   @Test
   void anAdmittedFiniteLambdaStillSelectsAKeyframe() {
     final EncoderSettings settings = EncoderSettings.SHIP.withLambda(Double.MAX_VALUE);
@@ -39,7 +37,18 @@ final class EncoderLambdaDefectTest {
     }
   }
 
-  @Disabled("OPEN defect: DR-035 adaptive lambda scaling overflows before division")
+  @Test
+  void aLiveSearchRedoneForItsFrameLimitAtTheLargestLambdaStillEncodes() {
+    final EncoderSettings settings = EncoderSettings.LIVE.withLambda(Double.MAX_VALUE);
+    try (final ForkJoinPool pool = new ForkJoinPool(1)) {
+      final Mcv2Encoder encoder = new Mcv2Encoder(settings, pool, 1, true, JavaKernels.FACTORY);
+      // a limit no frame meets, so every retry doubles the lambda
+      encoder.setFrameLimit(1);
+      final byte[] frame = assertDoesNotThrow(() -> encoder.encode(new byte[] { 10, 20, 30 }, 1, 1, 0));
+      assertTrue(frame.length > 0);
+    }
+  }
+
   @Test
   void scalingALargeFiniteLambdaKeepsAFiniteAdaptiveCost() {
     final EncoderSettings settings = EncoderSettings.LIVE.withLambda(1e307);

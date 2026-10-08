@@ -958,7 +958,9 @@ final class NativeKernels extends Kernels {
 
   @Override
   void halve(final int[] block, final int size, final int[] out) {
-    Preconditions.checkArgument(size >= 2 && size <= ROOT_SIZE && size % 2 == 0, "Invalid block size");
+    // the vector loops step two vectors of pixels at a time, which a power of two either fills or is too small for (the
+    // one lane loop): another size would run past the end of a row, and of the arrays (DR-031)
+    Preconditions.checkArgument(size >= 2 && size <= ROOT_SIZE && Integer.bitCount(size) == 1, "Invalid block size");
     checkBlock(block.length, size);
     checkBlock(out.length, size / 2);
     try {

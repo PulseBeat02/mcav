@@ -104,10 +104,12 @@ class SessionFoldersTest {
     }
     final Path other = Files.createDirectory(this.temporary.resolve("other-folder"));
     Files.writeString(other.resolve(SessionFolders.OWNER_FILE), GONE + "\n2001-01-01T00:00:00Z\n");
+    // asked before the folder may be removed with its record
+    final boolean readable = Files.isReadable(record);
 
     final int removed = SessionFolders.ofThisServer().removeStale(this.temporary);
 
-    assertEquals(Files.isReadable(record) ? 1 : 0, removed, "a user who may read every file reads the record");
+    assertEquals(readable ? 1 : 0, removed, "a user who may read every file reads the record");
     for (final Path kept : List.of(unnamed, garbage, truncated, other)) {
       assertTrue(Files.exists(kept), kept.toString());
     }
@@ -123,10 +125,16 @@ class SessionFoldersTest {
     final ProcessHandle serverOfNoKnownUser = server(ProcessHandle.current().pid(), ProcessHandle.current().info().startInstant());
     when(serverOfNoKnownUser.info().user()).thenReturn(Optional.empty());
 
-    assertEquals(0, new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(this.temporary));
-    assertEquals(0, new SessionFolders(serverOfNoKnownUser, ProcessHandle::of).removeStale(this.temporary));
-    assertTrue(Files.exists(planted.resolve("Cookies")), "only folders of the server's own user are removed");
-    assertEquals(1, SessionFolders.ofThisServer().removeStale(this.temporary));
+    if (planted.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+      assertEquals(0, new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(this.temporary));
+      assertEquals(0, new SessionFolders(serverOfNoKnownUser, ProcessHandle::of).removeStale(this.temporary));
+      assertTrue(Files.exists(planted.resolve("Cookies")), "only folders of the server's own user are removed");
+      assertEquals(1, SessionFolders.ofThisServer().removeStale(this.temporary));
+    } else {
+      // Windows, whose temporary folder of a user is that user's own: no owner is asked
+      assertEquals(1, new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(this.temporary));
+      assertFalse(Files.exists(planted));
+    }
   }
 
   @Test

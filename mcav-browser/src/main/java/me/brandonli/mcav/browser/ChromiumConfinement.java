@@ -32,13 +32,15 @@ import java.util.stream.Stream;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Confines Chromium on Linux. JCEF cannot run Chromium with Chromium's own sandbox, so a page that exploits a flaw of
- * Chromium's renderer would run code as the user of the server. The helper therefore starts Chromium on a thread that
- * restricts itself with Landlock first, and with it every thread and process Chromium starts: they cannot read the
- * server's folder, the home folder of its user or the temporary folder of the server, apart from what the browser needs
- * there (Java, CEF, the libraries and class path of the helper, and the folder of the session), and they change files
- * only in the folder of the session, the devices and the process folder. The other threads of the helper, among them
- * the network guard and the null display, are not restricted.
+ * Confines Chromium on Linux and macOS. JCEF cannot run Chromium with Chromium's own sandbox (its native library always
+ * turns it off), so a page that exploits a flaw of Chromium's renderer would run code as the user of the server. The
+ * helper therefore restricts Chromium before starting it: Chromium's processes cannot read the server's folder, the
+ * home folder of its user or the temporary folder of the server, apart from what the browser needs there (Java, CEF,
+ * the libraries and class path of the helper, and the folder of the session), and they change files only in the folder
+ * of the session and the devices (and on Linux the process folder). On Linux the thread that starts Chromium restricts
+ * itself with Landlock, and with it every thread and process Chromium starts, while the other threads of the helper,
+ * among them the network guard and the null display, stay free. On macOS Seatbelt restricts the whole helper process,
+ * whose other threads read and change nothing more than Chromium does.
  */
 final class ChromiumConfinement {
 
@@ -46,7 +48,7 @@ final class ChromiumConfinement {
     "Chromium runs confined: it cannot read the server's folder, the home folder or the temporary folder, and it " +
     "writes only into the folder of its session";
   static final String NOT_ASKED = "Chromium runs without confinement, as the options of the browser allow";
-  static final String NOT_LINUX = "Chromium runs without confinement: MCAV confines it on Linux only";
+  static final String NOT_SUPPORTED = "Chromium runs without confinement: MCAV confines it on Linux and macOS only";
   private static final String UNAVAILABLE = "Chromium runs without confinement: ";
   private static final Path ROOT = Path.of("/");
   private static final Path DEVICES = Path.of("/dev");
@@ -58,38 +60,40 @@ final class ChromiumConfinement {
   }
 
   /**
-   * Confines the calling thread, and everything it starts afterwards, for the helper of a configuration, if the
-   * configuration asks for it and the kernel can.
+   * Confines Chromium for the helper of a configuration, if the configuration asks for it and the system can: on Linux
+   * the calling thread and everything it starts afterwards, on macOS the whole process.
    *
    * @param configuration the configuration of the helper
    * @param isLinux       whether the helper runs on Linux
+   * @param isMac         whether the helper runs on macOS
    * @return what happened, for the log of the server
-   * @throws IOException if the kernel refused the confinement
+   * @throws IOException if the system refused the confinement
    */
-  static String confine(final HelperConfiguration configuration, final boolean isLinux) throws IOException {
-    return confine(configuration, isLinux, Landlock::version);
+  static String confine(final HelperConfiguration configuration, final boolean isLinux, final boolean isMac) throws IOException {
+    return confine(configuration, isLinux, isMac, Landlock::version, Seatbelt.ofSystem());
   }
 
   /**
-   * Confines the calling thread as {@link #confine(HelperConfiguration, boolean)} does.
+   * Confines Chromium as {@link #confine(HelperConfiguration, boolean, boolean)} does.
    *
    * @param configuration the configuration of the helper
    * @param isLinux       whether the helper runs on Linux
+   * @param isMac         whether the helper runs on macOS
    * @param version       asks the kernel for its version of Landlock
+   * @param seatbelt      the sandbox of macOS
    * @return what happened, for the log of the server
-   * @throws IOException if the kernel refused the confinement
+   * @throws IOException if the system refused the confinement
    */
   @VisibleForTesting
-  static String confine(final HelperConfiguration configuration, final boolean isLinux, final IntSupplier version) throws IOException {
+  static String confine(
+    final HelperConfiguration configuration,
+    final boolean isLinux,
+    final boolean isMac,
+    final IntSupplier version,
+    final Seatbelt seatbelt
+  ) throws IOException {
     if (!configuration.isConfined()) {
       return NOT_ASKED;
-    }
-    if (!isLinux) {
-      return NOT_LINUX;
-    }
-    final int available = version.getAsInt();
-    if (available < 1) {
-      return UNAVAILABLE + Landlock.describeMissing(available);
     }
     final Path session = parentOf(configuration.getSocket());
     final Path home = Path.of(System.getProperty("user.home"));
@@ -99,10 +103,45 @@ final class ChromiumConfinement {
     readable.add(configuration.getNatives());
     readable.addAll(pathsOf(System.getProperty("java.class.path")));
     readable.addAll(agentsOf(ManagementFactory.getRuntimeMXBean().getInputArguments()));
+    if (isMac) {
+      if (!seatbelt.isAvailable()) {
+        return UNAVAILABLE + Seatbelt.MISSING;
+      }
+      // Seatbelt matches the paths files really have, such as /private/var for /var
+      seatbelt.restrictProcess(Seatbelt.profile(realPaths(hidden), realPaths(readable), realPaths(List.of(session, DEVICES))));
+      return CONFINED;
+    }
+    if (!isLinux) {
+      return NOT_SUPPORTED;
+    }
+    final int available = version.getAsInt();
+    if (available < 1) {
+      return UNAVAILABLE + Landlock.describeMissing(available);
+    }
     readable.addAll(linkedFiles(pathsOf(System.getenv("LD_LIBRARY_PATH"))));
     final List<Path> writable = List.of(session, DEVICES, PROCESSES);
     Landlock.restrictThread(available, rules(ROOT, hidden, readable, writable));
     return CONFINED;
+  }
+
+  /**
+   * Resolves paths as the file system names them: links and relative parts resolved where the path exists, and an
+   * absolute path otherwise.
+   *
+   * @param paths the paths
+   * @return the real paths
+   */
+  @VisibleForTesting
+  static List<Path> realPaths(final List<Path> paths) {
+    final List<Path> real = new ArrayList<>();
+    for (final Path path : paths) {
+      try {
+        real.add(path.toRealPath());
+      } catch (final IOException missing) {
+        real.add(path.toAbsolutePath().normalize());
+      }
+    }
+    return real;
   }
 
   /**

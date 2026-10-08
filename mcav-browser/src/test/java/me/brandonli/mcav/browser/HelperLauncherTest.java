@@ -126,6 +126,11 @@ class HelperLauncherTest {
       ),
       linux.createEnvironment(this.folder, libraries)
     );
+    // on macOS too, where Chromium writes its temporary files at start and a confined Chromium may write only there
+    assertEquals(
+      Map.of("PATH", "/usr/bin", "TMPDIR", session, "MAC_CHROMIUM_TMPDIR", session),
+      launcher(OS.MAC, server).createEnvironment(this.folder, null)
+    );
     assertEquals(Map.of("PATH", "/usr/bin", "TMPDIR", "/var/tmp"), launcher(OS.WINDOWS, server).createEnvironment(this.folder, null));
     assertEquals(OS.LINUX, linux.getOs());
     assertEquals(5_000L, linux.getStartTimeoutMillis());

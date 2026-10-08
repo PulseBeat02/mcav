@@ -35,11 +35,11 @@ import java.util.List;
  * container the guard cannot see the public address of the machine the container runs on, which reaches the
  * services that listen on every interface of that machine: name it in {@link Builder#refusedHosts(Collection)}.
  *
- * <p>On Linux, Chromium is confined, by default: its processes cannot read the server's folder, the home folder of the
- * server's user or the server's temporary folder, apart from what the browser needs there, and they change files only
- * in the folder of their session. A page that exploits a flaw of Chromium then cannot read the server's configuration
- * or change its files. The confinement needs Landlock, which Linux has since 5.13; elsewhere, and on an older kernel,
- * the browser runs as before and the server log says so.
+ * <p>On Linux and macOS, Chromium is confined, by default: its processes cannot read the server's folder, the home
+ * folder of the server's user or the server's temporary folder, apart from what the browser needs there, and they
+ * change files only in the folder of their session. A page that exploits a flaw of Chromium then cannot read the
+ * server's configuration or change its files. The confinement needs Landlock, which Linux has since 5.13, or Seatbelt
+ * on macOS; on Windows, and on an older Linux kernel, the browser runs as before and the server log says so.
  *
  * <pre>{@code
  *   final BrowserOptions options = BrowserOptions.builder().frameRate(30).build();
@@ -220,10 +220,10 @@ public final class BrowserOptions {
     }
 
     /**
-     * Confines Chromium on Linux, or lets it run as before. On by default: Chromium's processes then cannot read the
-     * server's folder, the home folder of the server's user or the server's temporary folder, apart from Java, CEF and
-     * the folder of their session, and they change files only in the folder of their session. Turn it off only if a
-     * page needs something it hides, such as fonts in the home folder.
+     * Confines Chromium on Linux and macOS, or lets it run as before. On by default: Chromium's processes then cannot
+     * read the server's folder, the home folder of the server's user or the server's temporary folder, apart from Java,
+     * CEF and the folder of their session, and they change files only in the folder of their session. Turn it off only
+     * if a page needs something it hides, such as fonts in the home folder.
      *
      * @param confined true to confine Chromium where the system can
      * @return this builder

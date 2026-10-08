@@ -70,7 +70,8 @@ import me.brandonli.mcav.bukkit.media.mcv2.CompactRecord;
  * @param modes          the leaf modes tried in P frames besides SKIP, as a bit set of mode numbers
  *                       ({@code 1 << MODE_SOLID} and so on)
  * @param smallModes     the leaf modes tried at the 16- and 8-pixel blocks of P frames, a subset of {@code modes}
- * @param keyModes       the leaf modes tried in keyframes, as a bit set; only intra modes apply
+ * @param keyModes       the leaf modes tried in keyframes, as a bit set; only intra modes apply, and a block none of them
+ *                       codes is one solid colour
  * @param compactClasses the compact classes tried when compact records are, as a bit set of class numbers
  * @param quantizers     the quantizers tried by residual and compact records, as a bit set, or {@link #FROM_LAMBDA} for
  *                       the one {@link #quantizer(double)} derives from lambda
@@ -325,7 +326,8 @@ public record LiveSearch(
    * @param modes the leaf modes tried in P frames besides SKIP, as a bit set of mode numbers
    *                       ({@code 1 << MODE_SOLID} and so on)
    * @param smallModes the leaf modes tried at the 16- and 8-pixel blocks of P frames, a subset of {@code modes}
-   * @param keyModes the leaf modes tried in keyframes, as a bit set; only intra modes apply
+   * @param keyModes the leaf modes tried in keyframes, as a bit set; only intra modes apply, and a block none of them codes
+   *                 is one solid colour
    * @param compactClasses the compact classes tried when compact records are, as a bit set of class numbers
    * @param quantizers the quantizers tried by residual and compact records, as a bit set, or {@link #FROM_LAMBDA} for
    *                       the one {@link #quantizer(double)} derives from lambda

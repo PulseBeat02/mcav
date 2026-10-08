@@ -996,11 +996,14 @@ class HelperSessionTest {
   void aTemporaryFolderTooLongForChromiumsSocketIsRefusedOnLinuxWithTheReason() {
     // the longest temporary folder, 47 characters: Chromium's socket path has 107, the most a path may have
     HelperSession.requireShortEnough(OS.LINUX, Path.of("/" + "t".repeat(46), "mcavb-12345678"));
-    final Path tooLong = Path.of("/" + "t".repeat(47), "mcavb-12345678");
+    // the message names the folder as the system writes its path, which on Windows, where the tests run too, starts
+    // with a backslash
+    final Path folder = Path.of("/" + "t".repeat(47));
+    final Path tooLong = folder.resolve("mcavb-12345678");
     final PlayerException refused = assertThrows(PlayerException.class, () -> HelperSession.requireShortEnough(OS.LINUX, tooLong));
     assertEquals(
-      "The temporary folder /" +
-        "t".repeat(47) +
+      "The temporary folder " +
+        folder +
         " is too long for the browser: on Linux it may have at most 47 characters, so start the server with a shorter" +
         " java.io.tmpdir, such as /tmp",
       refused.getMessage()

@@ -44,6 +44,11 @@ mat4 mcv2Projection(ivec2 size, int row) {
 
 void main() {
     ivec2 size = textureSize(MainSampler, 0);
+    if (!mcv2StripFits(size)) {
+        // no strip, so no descriptor: the screen is not in view
+        fragColor = vec4(0.0);
+        return;
+    }
     int x = int(gl_FragCoord.x);
     int row = mcv2DescriptorRow(size.x);
     if (x >= MCV2_VIEW_FLOATS) {
