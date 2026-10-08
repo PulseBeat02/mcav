@@ -90,7 +90,7 @@ public final class Mcv2GenerateFixtures {
         if (!Arrays.equals(picture, encoder.getReference())) { throw new IllegalStateException("Reference differs for " + name + " frame " + id); }
         hashes.add(sha256(picture));
         if (name.equals("proxy-default.mcs") && id < 4) {
-          final List<byte[]> symbols = TransportPages.makePages(data, 7, 6);
+          final List<byte[]> symbols = TransportPages.makePages(data, 7);
           final List<String> pageHashes = new ArrayList<>();
           for (final byte[] page : symbols) { pageHashes.add(sha256(page)); }
           final Map<String, Object> expected = new LinkedHashMap<>();

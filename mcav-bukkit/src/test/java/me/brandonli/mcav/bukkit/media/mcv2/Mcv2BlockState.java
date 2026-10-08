@@ -18,6 +18,8 @@
 package me.brandonli.mcav.bukkit.media.mcv2;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Internals.Workers;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -29,6 +31,10 @@ final class Mcv2BlockState {
   private static final Class<?> CODER = Mcv2Internals.nested("BlockCoder");
   static final int NO_VECTOR = (int) Mcv2Internals.field(MCV2.class, null, "NO_VECTOR");
   private final Object buffers;
+
+  private record Block(int level, int index) {}
+
+  private final Map<Block, Object> coders = new HashMap<>();
   private final Object frame;
 
   Mcv2BlockState(
@@ -42,9 +48,6 @@ final class Mcv2BlockState {
     final int @Nullable [] previous
   ) {
     this.buffers = Mcv2Internals.construct(BUFFERS, new Class<?>[] { int.class, int.class }, width, height);
-    for (final double[] costs : (double[][]) Mcv2Internals.field(BUFFERS, this.buffers, "costs")) {
-      Arrays.fill(costs, Double.POSITIVE_INFINITY);
-    }
     if (!keyframe) {
       final byte[] half = (byte[]) Mcv2Internals.field(BUFFERS, this.buffers, "half");
       final byte[] quarter = (byte[]) Mcv2Internals.field(BUFFERS, this.buffers, "quarter");
@@ -72,14 +75,14 @@ final class Mcv2BlockState {
       keyframe,
       fast,
       lambda,
-      previous,
+      previous == null ? new int[((width + 7) / 8) * ((height + 7) / 8)] : previous,
       this.buffers,
       new byte[source.length]
     );
   }
 
   static byte[] half(final byte[] picture, final int width, final int height, final byte[] out) {
-    return (byte[]) Mcv2Internals.invoke(
+    Mcv2Internals.call(
       MCV2.class,
       null,
       "half",
@@ -90,6 +93,7 @@ final class Mcv2BlockState {
       Mcv2Internals.field(Workers.class, Workers.SEQUENTIAL, "value"),
       out
     );
+    return out;
   }
 
   Object code(final int size, final int level, final int block, final int left, final int top, final int parent) {
@@ -101,17 +105,8 @@ final class Mcv2BlockState {
       size,
       kernels
     );
-    Mcv2Internals.call(
-      CODER,
-      coder,
-      "code",
-      new Class<?>[] { int.class, int.class, int.class, int.class, int.class },
-      level,
-      block,
-      left,
-      top,
-      parent
-    );
+    Mcv2Internals.call(CODER, coder, "code", new Class<?>[] { int.class, int.class, int.class }, left, top, parent);
+    this.coders.put(new Block(level, block), coder);
     return coder;
   }
 
@@ -119,27 +114,38 @@ final class Mcv2BlockState {
     return (int) Mcv2Internals.invoke(FRAME, this.frame, "previousMotion", new Class<?>[] { int.class, int.class }, left, top);
   }
 
+  private Object coder(final int level, final int block) {
+    return this.coders.get(new Block(level, block));
+  }
+
   int mode(final int level, final int block) {
-    return ((byte[][]) Mcv2Internals.field(BUFFERS, this.buffers, "modes"))[level][block];
+    return (int) Mcv2Internals.field(CODER, this.coder(level, block), "mode");
   }
 
   int quantizer(final int level, final int block) {
-    return ((byte[][]) Mcv2Internals.field(BUFFERS, this.buffers, "quantizers"))[level][block];
+    return (int) Mcv2Internals.field(CODER, this.coder(level, block), "quantizer");
   }
 
   long distortion(final int level, final int block) {
-    return ((long[][]) Mcv2Internals.field(BUFFERS, this.buffers, "distortions"))[level][block];
+    final Object coder = this.coder(level, block);
+    final int[] source = (int[]) Mcv2Internals.field(CODER, coder, "source");
+    final int[] best = (int[]) Mcv2Internals.field(CODER, coder, "best");
+    final byte[] picture = new byte[source.length];
+    final byte[] reconstruction = new byte[source.length];
+    for (int index = 0; index < source.length; index++) {
+      picture[index] = (byte) source[index];
+      reconstruction[index] = (byte) best[index];
+    }
+    return MCV2SearchPropertyTest.distortion(picture, reconstruction);
   }
 
   double cost(final int level, final int block) {
-    return ((double[][]) Mcv2Internals.field(BUFFERS, this.buffers, "costs"))[level][block];
+    return (double) Mcv2Internals.field(CODER, this.coder(level, block), "bestCost");
   }
 
   byte[] record(final int level, final int block) {
-    final int stride = Mcv2Decoder.recordSize(Mcv2Decoder.MODE_PALETTE, 32 >> level);
-    final byte[] records = ((byte[][]) Mcv2Internals.field(BUFFERS, this.buffers, "records"))[level];
-    final int length = ((byte[][]) Mcv2Internals.field(BUFFERS, this.buffers, "lengths"))[level][block] & 255;
-    return Arrays.copyOfRange(records, block * stride, block * stride + length);
+    final Object coder = this.coder(level, block);
+    return Arrays.copyOf((byte[]) Mcv2Internals.field(CODER, coder, "bestRecord"), (int) Mcv2Internals.field(CODER, coder, "length"));
   }
 
   static int localVector(final Object coder) {

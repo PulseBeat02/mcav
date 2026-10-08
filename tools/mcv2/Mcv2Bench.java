@@ -209,7 +209,7 @@ public final class Mcv2Bench {
           measured.keyframes++;
         }
         measured.logical += data.length;
-        final List<byte[]> pages = TransportPages.makePages(data, STREAM_ID, MapAlphabet.SYMBOL_BITS);
+        final List<byte[]> pages = TransportPages.makePages(data, STREAM_ID);
         measured.wire += TransportPages.wireBytes(pages, false, TransportPages.PACKET_OVERHEAD);
         measured.zlib += zlibBytes(pages, deflater, buffer);
         final byte[] picture = decoded(data, predictFrom);

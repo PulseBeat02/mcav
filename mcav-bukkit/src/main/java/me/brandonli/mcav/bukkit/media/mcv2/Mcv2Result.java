@@ -42,7 +42,6 @@ import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
-import me.brandonli.mcav.bukkit.media.mcv2.transport.MapAlphabet;
 import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.image.ImageBuffer;
@@ -78,9 +77,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A {@link Mcv2Pacer} keeps the screen within what its budget sustains: when the frames take longer than the video
  * gives them, it first searches less hard, down the preset ladder from the screen's settings
- * ({@code DEFAULT}, then {@code FAST}), the
- * live presets one encoder that switches between them without a keyframe, the exhaustive search an encoder of its own
- * whose first frame is a keyframe; then it encodes fewer frames, down to {@link Mcv2Pacer#MIN_FPS} a second,
+ * ({@code DEFAULT}, then {@code FAST}) on one encoder that switches without a keyframe; then it encodes fewer frames, down to {@link Mcv2Pacer#MIN_FPS} a second,
  * then shows a smaller video when the owner offers smaller sizes ({@link #setSmallerSizes}: each size has its own pack),
  * and when even that is too much, every viewer is shown the dithered maps, which need no encoder, until a later try
  * finds room again. Every step is logged, a step down as a warning, and handed to the
@@ -131,7 +128,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** The frames a screen may take at once after a pause: more than one, so a frame arriving early is not lost, fewer than two. */
   private static final double FRAME_CREDIT_CAP = 1.5;
 
-  /** Relative costs used to predict the next preset before it has a measured sample. */
   private static final double DEFAULT_COST = 1;
 
   private static final double FAST_COST = 0.9;
@@ -447,7 +443,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (settings.fast()) {
       return List.of(settings);
     }
-    final double lambda = settings.lambda() * (55.0 / 72);
+    final double lambda = (settings.lambda() * Settings.FAST.lambda()) / Settings.DEFAULT.lambda();
     return List.of(settings, new Settings(lambda, true));
   }
 
@@ -894,7 +890,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       encoder.requestKeyframe();
     }
     // no frame may take more pages than the screen has slots: one that would is searched again at a higher lambda
-    encoder.setFrameLimit(current.configuration().getPageSlots() * TransportPages.capacity(MapAlphabet.SYMBOL_BITS));
+    encoder.setFrameLimit(current.configuration().getPageSlots() * TransportPages.capacity());
     final int width = arrival.width;
     final int height = arrival.height;
     final Pipeline running;

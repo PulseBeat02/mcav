@@ -78,7 +78,6 @@ public final class MCAVSandbox extends JavaPlugin {
 
   private static final String ENCODER_SHARE = "MCV2 encoders share {} of {} processors";
 
-  /** The folder of the data folder the native kernels' library is extracted into. */
   private static final String ENCODER_KERNELS = "MCV2 kernels: {}";
 
   private static final String NATIVES_FOLDER = "natives";

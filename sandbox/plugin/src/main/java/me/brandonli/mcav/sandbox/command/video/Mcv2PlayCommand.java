@@ -372,7 +372,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * @param file       the path of the video file on the server
    * @param output     the stream file to write, in the plugin's {@code mcv2} folder, replaced when it exists
    * @param resolution the video size as {@code <width>x<height>}
-   * @param profile    the encoder profile, usually {@code ship}
+   * @param profile    the encoder profile, {@code DEFAULT} or {@code FAST}
    */
   @Command("mcav mcv2 encode <file> <output> <resolution> <profile>")
   @Permission("mcav.command.mcv2.encode")

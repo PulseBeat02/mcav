@@ -290,7 +290,7 @@ public final class Mcv2Pack {
 
   /** The rows of the bytes target: four bytes to a texel, enough for every byte of the page slots. */
   private static int bytesHeight(final Mcv2Configuration configuration) {
-    final int bytes = configuration.getPageSlots() * TransportPages.capacity(MapAlphabet.SYMBOL_BITS);
+    final int bytes = configuration.getPageSlots() * TransportPages.capacity();
     return (bytes / TEXEL_BYTES + BYTES_WIDTH - 1) / BYTES_WIDTH;
   }
 

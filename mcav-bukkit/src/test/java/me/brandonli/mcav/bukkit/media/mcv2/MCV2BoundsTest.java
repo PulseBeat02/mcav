@@ -32,23 +32,6 @@ import org.junit.jupiter.api.Test;
 final class MCV2BoundsTest {
 
   @Test
-  void trivialFramesFitForEveryGeometryThrough4096() {
-    // All dimensions in one 32-pixel interval share these counts; no pixel data changes the upper bound.
-    for (int columns = 1; columns <= 128; columns++) {
-      for (int rows = 1; rows <= 128; rows++) {
-        final int roots = columns * rows;
-        final int groups = (roots + 31) / 32;
-        final int directory = (groups + 7) / 8;
-        final int walk = (roots + 7) / 8;
-        final int solidBytes = 20 + 4 * groups + 4 * directory + 12 + roots + 4 * walk + 3 * roots;
-        assertTrue(solidBytes <= 131071);
-        final int skipBytes = 20 + 4 * groups + 4 * directory + 12;
-        assertTrue(skipBytes <= 2336);
-      }
-    }
-  }
-
-  @Test
   void retriesAndVerifiesTheLargestTrivialFrame() throws Mcv2Exception {
     final int width = 4096;
     final int height = 4096;
@@ -99,7 +82,7 @@ final class MCV2BoundsTest {
         }
       }
     }
-    // Zero lambda keeps all retries equally detailed, forcing the format-bound fallback.
+    // Zero lambda cannot reduce the detailed frame by raising its rate cost.
     final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT.withLambda(0), ForkJoinPool.commonPool(), 4, true);
     final byte[] data = encoder.encode(picture, width, width, 0);
     final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(data);

@@ -452,7 +452,7 @@ public final class Mcv2Channel {
     final List<byte[]> pages;
     try {
       header = Mcv2Decoder.parse(frame);
-      pages = TransportPages.makePages(frame, this.configuration.getStreamId(), MapAlphabet.SYMBOL_BITS);
+      pages = TransportPages.makePages(header, this.configuration.getStreamId());
     } catch (final Mcv2Exception exception) {
       throw new IllegalArgumentException("Not a valid MCV2 frame: " + exception.getMessage(), exception);
     }

@@ -110,7 +110,7 @@ public final class Mcv2Pacer {
   /**
    * A preset of the ladder: how hard the screen's encoder searches.
    *
-   * @param name the preset's name in messages, for example {@code live-fast}; empty for the one preset of a screen that
+   * @param name the preset's name in messages, for example {@code FAST}; empty for the one preset of a screen that
    *             does not step through presets
    * @param cost its encode time relative to the other presets of the ladder, which the pacer's predictions scale by
    */
@@ -190,7 +190,7 @@ public final class Mcv2Pacer {
      * Describes the rung for a message.
      *
      * @param videoFps the video's frames per second
-     * @return for example {@code 1920x1080 at 30 fps}, {@code 1920x1080 at 30 fps with the live-fast search} on a
+     * @return for example {@code 1920x1080 at 30 fps}, {@code 1920x1080 at 30 fps with the FAST search} on a
      *         ladder of presets, or {@code the dithered maps}
      */
     public String describe(final double videoFps) {

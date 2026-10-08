@@ -20,10 +20,12 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -38,6 +40,23 @@ final class MCV2GoldenTest {
   private static final int WIDTH = 320;
 
   private static final int HEIGHT = 180;
+
+  @Test
+  void pinsEightFramesOfThePanningScene() {
+    final List<Settings> settings = List.of(Settings.DEFAULT, Settings.FAST);
+    final List<String> expected = List.of(
+      "65221d9c66059ed6c8178572845687f9548a42235223ca65d6d6f0d29ff38cad",
+      "3b87eeea72858c4fe9160be1a7acc1fb6670bc0b7fe47bd8cfae346e70813d83"
+    );
+    for (int preset = 0; preset < settings.size(); preset++) {
+      final MCV2 encoder = new MCV2(settings.get(preset), ForkJoinPool.commonPool(), 3, true);
+      final ByteArrayOutputStream stream = new ByteArrayOutputStream();
+      for (int frame = 0; frame < 8; frame++) {
+        stream.writeBytes(encoder.encode(Mcv2Pictures.scene(96, 64, frame, 2), 96, 64, frame));
+      }
+      assertEquals(expected.get(preset), Mcv2Fixtures.sha256(stream.toByteArray()));
+    }
+  }
 
   @ParameterizedTest(name = "{0} with {1} threads, verify {2}")
   @CsvSource({
