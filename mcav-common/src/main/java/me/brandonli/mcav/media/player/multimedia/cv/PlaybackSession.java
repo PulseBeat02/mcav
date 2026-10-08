@@ -616,6 +616,7 @@ final class PlaybackSession {
       final Thread currentThread = Thread.currentThread();
       currentThread.interrupt();
     } finally {
+      // A decoder racing the end may have queued one more frame.
       final List<DecodedVideoFrame> leftovers = new ArrayList<>();
       this.videoQueue.drainTo(leftovers);
       leftovers.forEach(PlaybackSession::releaseImage);
@@ -726,7 +727,6 @@ final class PlaybackSession {
     final OriginalAudioMetadata metadata = this.audioMetadata;
     try {
       synchronized (this.audioCallback) {
-        // Audio and video remain independent, while successive sessions share each delivery boundary.
         if (this.running.get()) {
           first.processAll(samples, metadata);
         }
@@ -890,6 +890,7 @@ final class PlaybackSession {
       return;
     }
     this.interruptThreadsExcept(currentThread);
+    // A renderer that stops its own session finishes through this marker instead of an interrupt.
     replaceWithEndMarker(this.videoQueue, END_OF_VIDEO, PlaybackSession::releaseImage);
     replaceWithEndMarker(this.audioQueue, END_OF_AUDIO, PlaybackSession::discardChunk);
     this.joinThreadsExcept(currentThread);

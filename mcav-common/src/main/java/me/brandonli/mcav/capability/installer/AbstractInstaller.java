@@ -70,7 +70,9 @@ public abstract class AbstractInstaller implements Installer {
   private final Path folder;
   private final String name;
   private final Supplier<Download[]> downloadSupplier;
+  // Hold this throughout installation to prevent duplicate downloads.
   private final Object installLock;
+  // Lock only download resolution so installation does not block getUrl() or isSupported().
   private final Object downloadLock;
 
   private boolean downloadResolved;

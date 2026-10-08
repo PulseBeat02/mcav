@@ -139,6 +139,7 @@ public final class MCAV implements MCAVApi {
     if (!claimed) {
       throw new MCAVLoadingException("MCAV has already been installed");
     }
+    // release() takes this lock and must wait for startup or installation failure.
     synchronized (this.lifecycleLock) {
       this.runInstallation(modules);
       final BackgroundInstallation installation = new BackgroundInstallation(this.dependencyLoader, this.guard);
