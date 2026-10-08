@@ -75,10 +75,8 @@ final class ReflectiveInjector extends URLClassLoaderInjector {
     try {
       this.addUrl.invoke(loader, url);
     } catch (final RuntimeException | Error exception) {
-      // unchecked failures of addURL, every Error included, reach the caller unchanged, so none is hidden or wrapped
       throw exception;
     } catch (final Throwable throwable) {
-      // invoke declares Throwable, so only checked exceptions get here; they mean that the jar cannot be added
       final String message = throwable.getMessage();
       throw new JarInjectorException("Failed to add " + url + ": " + message, throwable);
     }

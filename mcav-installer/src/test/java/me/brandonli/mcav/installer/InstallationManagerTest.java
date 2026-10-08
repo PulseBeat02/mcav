@@ -455,7 +455,6 @@ final class InstallationManagerTest {
     assertEquals(expectedNames, obsoleteNames);
     for (final String name : expectedNames) {
       final Path file = this.folder.resolve(name);
-      // a malformed escape, which Properties.load rejects, shows that the files are never parsed
       Files.writeString(file, "me.test\\:app\\:1.0=\\uZZZZ\n");
     }
 
@@ -583,7 +582,6 @@ final class InstallationManagerTest {
   @CsvSource({ "'', '', ''", "., ., .", "group, artifact, ..", "group, artifact, ''", "group, artifact, nested/inner.jar" })
   void refusesCoordinatesThatWouldNotPutTheJarUnderItsOwnName(final String groupId, final String artifactId, final String fileName) {
     final Path target = this.directory.resolve("target");
-    // a root has no file name at all
     final Path root = this.directory.getRoot();
 
     assertThrows(IOException.class, () -> InstallationManager.destinationOf(target, groupId, artifactId, fileName));

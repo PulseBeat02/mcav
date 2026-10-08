@@ -113,7 +113,6 @@ final class ThirdPartyNoticesTest {
       final byte[] bytes = license.getBytes(StandardCharsets.UTF_8);
       final byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
       final String actual = HexFormat.of().formatHex(digest);
-      // The upstream licence, including its copyright and disclaimer, must survive packaging without truncation.
       assertEquals("337e92fd361effe495d03978a34a3cd44681a63b8329adfd99c8996b306b2a8c", actual);
     }
   }

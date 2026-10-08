@@ -61,14 +61,10 @@ final class JulServiceProviderTest {
     }
 
     @Override
-    public void flush() {
-      // the records are kept in memory
-    }
+    public void flush() {}
 
     @Override
-    public void close() {
-      // nothing to release
-    }
+    public void close() {}
   };
 
   private final Logger jul = Logger.getLogger(NAME);
@@ -128,13 +124,11 @@ final class JulServiceProviderTest {
     assertEquals("installer", marker.getName());
     assertInstanceOf(NOPMDCAdapter.class, provider.getMDCAdapter());
     assertEquals(JulServiceProvider.API_VERSION, provider.getRequestedApiVersion());
-    // the class SLF4J's helpers skip when they look for the caller
     assertEquals(JulLogger.class.getName(), new JulLogger(NAME).getFullyQualifiedCallerName());
   }
 
   @Test
   void theJarOfTheInstallerHandsItsMessagesToJavaUtilLogging() throws Exception {
-    // the jar's SLF4J lives under the installer's own package names and finds the provider through its own service file
     final String path = System.getProperty("mcav.installer.jar");
     assertNotNull(path, "the build passes the jar it built");
     final URL[] jar = { Path.of(path).toUri().toURL() };
