@@ -50,8 +50,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * a strip at the top of the screen: each screen owns a run of page slots there, found by the stream id its pages and
  * anchors carry, and an anchor descriptor row after the slots. It replaces the entity outline post chain with, for
  * every screen, passes that read its part of the strip, check every page's CRC, decode the v3 frame into one persistent
- * picture, and draw the picture onto the screen's wall. The pass sources are fixed; what depends on the screens is generated: each screen's copy of its
- * passes, with its video size, page slots and place in the strip, the table of the screens' streams, the outline
+ * picture, and draw the picture onto the screen's wall. The pass sources are fixed; what depends on the screens is
+ * generated: each screen's copy of its passes, with its video size, page slots and place in the strip, the table of the
+ * screens' streams, the outline
  * colour of the page frames, and the map colours of the transport alphabet (from this server's map palette, which is
  * the client's). All decoding logic is in one shader include; pass files only select its stage.
  *
