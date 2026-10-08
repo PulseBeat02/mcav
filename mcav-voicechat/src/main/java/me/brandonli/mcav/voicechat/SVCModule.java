@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.svc;
+package me.brandonli.mcav.voicechat;
 
 import com.google.common.base.Preconditions;
 import de.maxhenkel.voicechat.api.VoicechatServerApi;

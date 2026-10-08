@@ -23,7 +23,7 @@ import de.maxhenkel.voicechat.api.VoicechatPlugin;
 import de.maxhenkel.voicechat.api.VoicechatServerApi;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.plugin.MCAVSandbox;
-import me.brandonli.mcav.svc.SVCModule;
+import me.brandonli.mcav.voicechat.SVCModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

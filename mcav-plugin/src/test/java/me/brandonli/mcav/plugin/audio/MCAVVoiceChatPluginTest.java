@@ -26,7 +26,7 @@ import static org.mockito.Mockito.when;
 import de.maxhenkel.voicechat.api.VoicechatServerApi;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.plugin.MCAVSandbox;
-import me.brandonli.mcav.svc.SVCModule;
+import me.brandonli.mcav.voicechat.SVCModule;
 import org.junit.jupiter.api.Test;
 
 /**

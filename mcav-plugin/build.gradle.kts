@@ -18,7 +18,7 @@ dependencies {
     runtimeDownload("me.brandonli:mcav-vm:${rootProject.version}")
     runtimeDownload("me.brandonli:mcav-vnc:${rootProject.version}")
     runtimeDownload("me.brandonli:mcav-browser:${rootProject.version}")
-    implementation("me.brandonli:mcav-svc:${rootProject.version}")
+    implementation("me.brandonli:mcav-voicechat:${rootProject.version}")
     runtimeDownload(libs.bundles.cloud)
     runtimeDownload(libs.commodore)
     runtimeDownload(libs.bstats.bukkit)

@@ -22,7 +22,7 @@ include(
     "mcav-vnc",
     "mcav-vm",
     "mcav-lwjgl",
-    "mcav-svc",
+    "mcav-voicechat",
     "mcav-mod",
     "mcav-jcstress",
     "mcav-plugin",

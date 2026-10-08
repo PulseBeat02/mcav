@@ -244,7 +244,7 @@ final class MCAVLoaderTest {
     assertTrue(required.contains("me/brandonli/mcav/bukkit/media/mcv2/Mcv2PackServer"), "the plugin starts MCV2 screens");
     assertTrue(required.contains("me/brandonli/mcav/MCAV"));
     assertFalse(required.stream().anyMatch(name -> name.startsWith("me/brandonli/mcav/plugin/")), "the plugin's own classes");
-    assertFalse(required.stream().anyMatch(name -> name.startsWith("me/brandonli/mcav/svc/")), "a module shaded into the plugin");
+    assertFalse(required.stream().anyMatch(name -> name.startsWith("me/brandonli/mcav/voicechat/")), "a module shaded into the plugin");
   }
 
   @Test

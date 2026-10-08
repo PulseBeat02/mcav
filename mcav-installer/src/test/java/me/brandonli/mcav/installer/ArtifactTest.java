@@ -48,7 +48,7 @@ final class ArtifactTest {
       "mcav-browser",
       "mcav-vm",
       "mcav-vnc",
-      "mcav-svc",
+      "mcav-voicechat",
       "mcav-lwjgl",
       "mcav-bukkit"
     );

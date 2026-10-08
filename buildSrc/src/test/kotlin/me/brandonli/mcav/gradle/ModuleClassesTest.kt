@@ -70,7 +70,7 @@ class ModuleClassesTest {
             classBytes(
                 "me/brandonli/mcav/plugin/MCAVSandbox",
                 "me/brandonli/mcav/MCAV",
-                "me/brandonli/mcav/svc/SVCFilter",
+                "me/brandonli/mcav/voicechat/SVCFilter",
                 "me/brandonli/mcav/bukkit/media/mcv2/Mcv2PackServer"
             )
         )

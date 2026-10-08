@@ -49,7 +49,7 @@ public enum Artifact {
   /**
    * Positional audio through Simple Voice Chat.
    */
-  SVC("mcav-svc"),
+  VOICECHAT("mcav-voicechat"),
   /**
    * OpenGL texture output through LWJGL.
    */

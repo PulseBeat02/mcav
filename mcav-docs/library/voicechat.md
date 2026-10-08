@@ -1,11 +1,11 @@
-# SVC Module
+# Voice Chat Module
 
 MCAV provides a module that plays audio through [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat).
-Add the `mcav-svc` module to your project.
+Add the `mcav-voicechat` module to your project.
 
 ```kotlin
 dependencies {
-    implementation("me.brandonli:mcav-svc:1.0.0-SNAPSHOT")
+    implementation("me.brandonli:mcav-voicechat:1.0.0-SNAPSHOT")
 }
 ```
 

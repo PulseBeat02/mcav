@@ -104,7 +104,7 @@ Here is a list of all the modules that are included in MCAV
 | `mcav-vnc`       | A module interacting with VNC servers to capture video and control remote desktops.                                                                          |
 | `mcav-browser`   | A module using [JCEF](https://github.com/chromiumembedded/java-cef), an embedded Chromium, to stream web pages and their sound, with no JVM options.         |
 | `mcav-lwjgl`     | A module using [LWJGL](https://www.lwjgl.org/) to provide OpenGL support for rendering video and images.                                                     |
-| `mcav-svc`       | A module using [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) to serve audio.                                                            |
+| `mcav-voicechat` | A module using [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) to serve audio.                                                            |
 | `mcav-jcstress`  | Concurrency tests of MCAV on OpenJDK's [jcstress](https://github.com/openjdk/jcstress) harness; a test module, not published.                                 |
 
 ---

@@ -55,7 +55,7 @@ import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.testing.StandardErrorCapture;
 import me.brandonli.mcav.plugin.testing.TestServer;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
-import me.brandonli.mcav.svc.SVCFilter;
+import me.brandonli.mcav.voicechat.SVCFilter;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Guild;
