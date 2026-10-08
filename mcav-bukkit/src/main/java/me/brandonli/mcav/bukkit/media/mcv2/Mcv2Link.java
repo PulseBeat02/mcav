@@ -24,18 +24,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * One viewer's side of an MCV2 stream: which frames the viewer can decode, and how much video its connection has not
  * yet written.
  *
- * <p>A screen's stream is encoded once for all its viewers, so a viewer whose connection cannot keep up must not hold
- * the others back, nor let a growing backlog of video delay its own game packets. A frame therefore reaches a viewer
- * only when both hold: the viewer can decode it - it is a keyframe, or a P frame whose reference is the last frame or
- * the last keyframe the viewer was sent, which are the pictures its client holds - and the video handed to the
- * viewer's connection and not yet written is at most the backlog limit, or {@link #KEYFRAME_ALLOWANCE} times it for a
- * keyframe. A keyframe is where a viewer who missed frames starts over, and missing one costs the frames up to the
- * next: every P frame after it when P frames predict from it, and when each predicts from the frame before, the P
- * frames that follow a held one wait for a keyframe anyway. A viewer over the limit misses frames until one it can
- * decode comes with its backlog under the limit again: the next frame when P frames predict from the last keyframe,
- * the next keyframe when each predicts from the frame before. Its client keeps the last picture it decoded meanwhile.
- * No frame whose reference the viewer lacks is ever sent: its client could not decode it anyway, and it would only
- * add to the backlog.
+ * <p>A screen is encoded once for all viewers. Each viewer receives a keyframe or a P frame referencing
+ * the last frame it was sent, provided its pending video bytes are within the backlog limit. Keyframes
+ * have {@link #KEYFRAME_ALLOWANCE} times that allowance. After missing a frame, a viewer waits for a
+ * decodable keyframe and keeps displaying its previous picture meanwhile.
  *
  * <p>Offers come from the thread that sends frames, one at a time; writes complete on the connection's thread.
  */
@@ -52,8 +44,6 @@ public final class Mcv2Link {
   private final AtomicLong backlog = new AtomicLong();
 
   private long lastFrame = NONE;
-
-  private long lastKeyframe = NONE;
 
   private long sent;
 
@@ -74,15 +64,14 @@ public final class Mcv2Link {
   }
 
   /**
-   * Checks whether the viewer's client could decode a frame: a keyframe, or a P frame predicting from the last frame
-   * or the last keyframe the viewer was sent.
+   * Checks whether a frame is independent or predicts from the last frame this viewer was sent.
    *
    * @param isKeyframe  whether the frame is a keyframe
    * @param referenceId the id of the frame a P frame predicts from
    * @return true if the viewer holds what the frame needs
    */
   public synchronized boolean canDecode(final boolean isKeyframe, final long referenceId) {
-    return isKeyframe || (referenceId != NONE && (referenceId == this.lastFrame || referenceId == this.lastKeyframe));
+    return isKeyframe || (referenceId != NONE && referenceId == this.lastFrame);
   }
 
   /**
@@ -111,9 +100,6 @@ public final class Mcv2Link {
       return false;
     }
     this.lastFrame = frameId;
-    if (isKeyframe) {
-      this.lastKeyframe = frameId;
-    }
     this.backlog.addAndGet(bytes);
     this.sent++;
     return true;

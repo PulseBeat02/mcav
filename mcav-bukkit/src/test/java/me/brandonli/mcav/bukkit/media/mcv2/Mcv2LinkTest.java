@@ -60,16 +60,16 @@ final class Mcv2LinkTest {
   }
 
   @Test
-  void resumesAtTheNextFrameWhenFramesPredictFromTheKeyframe() {
-    final Mcv2Link link = new Mcv2Link(100);
-    assertTrue(link.offer(10, 10, true, 90));
-    assertTrue(link.offer(11, 10, false, 90));
-    assertFalse(link.offer(12, 10, false, 90));
-    link.written(180);
-    // the keyframe is still held, so the next frame decodes
-    assertTrue(link.offer(13, 10, false, 90));
-    assertEquals(1, link.getBehind());
-    assertEquals(0, link.getUndecodable());
+  void refusesAnOlderKeyframeAfterSendingAPredictedFrame() {
+    final Mcv2Link link = new Mcv2Link(1000);
+    assertTrue(link.offer(10, 10, true, 1));
+    assertTrue(link.offer(11, 10, false, 1));
+    assertFalse(link.canDecode(false, 10));
+    assertFalse(link.offer(12, 10, false, 1));
+    assertTrue(link.canDecode(false, 11));
+    assertTrue(link.offer(13, 11, false, 1));
+    assertEquals(1, link.getUndecodable());
+    assertEquals(3, link.getSent());
   }
 
   @Test

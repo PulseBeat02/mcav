@@ -233,7 +233,7 @@ public final class Mcv2Bench {
 
   /**
    * The picture a client decodes from a frame, which predicts from the picture the encoder held as its reference before
-   * it: under {@code reference=keyframe} that is the last keyframe, not the frame before.
+   * it: the immediately preceding reconstructed frame.
    */
   private static byte[] decoded(final byte[] data, final byte[] predictFrom) throws Mcv2Exception {
     final Frame frame = Mcv2Decoder.parse(data);
