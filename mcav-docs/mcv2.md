@@ -1268,8 +1268,8 @@ maps, and with the shaders off the video again, without rejoining. Vanilla, Sodi
 show MCV2 and need no mod.
 
 The mod is for Minecraft 26.3, on Fabric (Loader 0.19.5 or newer, with Fabric API) or NeoForge (26.3.0.43-beta or
-newer), with or without Iris. Build it with `./gradlew :mcav-mcv2-client:assemble` and put
-`mcav-mcv2-client/build/libs/mcav-mcv2-client-fabric.jar` or `mcav-mcv2-client-neoforge.jar` into the client's `mods`
+newer), with or without Iris. Build it with `./gradlew :mcav-mod:assemble` and put
+`mcav-mod/build/libs/mcav-mod-fabric.jar` or `mcav-mod-neoforge.jar` into the client's `mods`
 folder; it isn't published anywhere yet. It talks on one plugin channel, `mcav:mcv2`, which carries nothing else, and
 only to a server that registered it. A report is four bytes:
 

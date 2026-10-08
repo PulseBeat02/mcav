@@ -23,7 +23,7 @@ include(
     "mcav-vm",
     "mcav-lwjgl",
     "mcav-svc",
-    "mcav-mcv2-client",
+    "mcav-mod",
     "mcav-jcstress",
     "mcav-plugin",
 )

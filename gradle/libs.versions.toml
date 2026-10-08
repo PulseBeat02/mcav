@@ -182,7 +182,7 @@ spring-boot-web = ["spring-boot-starter-web", "spring-boot-starter-websocket"]
 javacv-classes = ["javacv", "javacpp", "ffmpeg", "opencv"]
 lwjgl-opengl = ["lwjgl", "lwjgl-opengl"]
 cloud = ["cloud-core", "cloud-annotations", "cloud-paper", "cloud-minecraft-extras"]
-mcv2-client = [
+mod = [
     "minecraft-client",
     "fabric-loader",
     "fabric-api-base",

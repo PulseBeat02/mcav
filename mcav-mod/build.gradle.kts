@@ -1,12 +1,12 @@
 plugins {
-    id("mcav.mcv2-client")
+    id("mcav.mod")
 }
 
 dependencies {
-    compileOnly(libs.bundles.mcv2.client)
+    compileOnly(libs.bundles.mod)
     compileOnly(variantOf(libs.neoforge.core) { classifier("universal") })
     compileOnly(variantOf(libs.neoforge.mergetool) { classifier("api") })
-    testImplementation(libs.bundles.mcv2.client)
+    testImplementation(libs.bundles.mod)
     testImplementation(variantOf(libs.neoforge.core) { classifier("universal") })
     testImplementation(variantOf(libs.neoforge.mergetool) { classifier("api") })
     testImplementation(libs.bundles.minecraft.client.libraries)
