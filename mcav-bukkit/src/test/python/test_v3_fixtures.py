@@ -40,14 +40,13 @@ class FixtureCoverageTest(unittest.TestCase):
     def setUpClass(cls):
         cls.streams = edge_streams.build_streams()
 
-    def test_every_leaf_size_class_form_quantizer_and_table_state(self):
-        modes, compacts, table_states, dimensions = set(), set(), set(), set()
+    def test_every_leaf_size_class_form_quantizer_and_pattern_axis(self):
+        modes, compacts, dimensions = set(), set(), set()
         max_cursor = max_splits = max_length = 0
         for frames in self.streams.values():
             for data in frames:
                 frame = parse_frame(data)
                 dimensions.add((frame.width, frame.height))
-                table_states.add(tuple(bool(count) for count in frame.table_counts))
                 max_length = max(max_length, frame.total)
                 for checkpoint in frame.walk:
                     max_cursor = max(max_cursor, checkpoint & 131071)
@@ -59,14 +58,16 @@ class FixtureCoverageTest(unittest.TestCase):
         self.assertEqual({(mode, size) for mode in range(6) for size in (8, 16, 32)}, modes)
         self.assertEqual({(size, q, kind, form) for size in (8, 16, 32) for q in range(8)
                           for kind in range(3) for form in range(3)}, compacts)
-        self.assertEqual({tuple(bool(mask >> bit & 1) for bit in range(4)) for mask in range(16)}, table_states)
         self.assertTrue({(1, 1), (1, 97), (97, 1), (97, 65), (4096, 4096)} <= dimensions)
         self.assertGreater(max_cursor, 128000)
         self.assertGreater(max_splits, 20000)
         self.assertEqual(131071, max_length)
-        table = parse_frame(self.streams['edge-tables.mcs'][-1])
-        self.assertEqual((255, 255, 255, 255), table.table_counts)
-        self.assertEqual({b'\xfe\xfe'}, {leaf.record for leaf in table.leaves})
+        patterns = {(leaf.size, leaf.record[6], leaf.record[7:]) for leaf in
+                    parse_frame(self.streams['edge-patterns.mcs'][0]).leaves}
+        for size in (8, 16, 32):
+            for orientation in (0, 1):
+                for axis in (0, 255, 0xA5):
+                    self.assertIn((size, orientation, bytes([axis]) * (size // 8)), patterns)
 
     def test_committed_edge_streams_equal_the_deterministic_serializer_output(self):
         root = ROOT / 'mcav-bukkit/src/test/resources/me/brandonli/mcav/bukkit/media/mcv2/edge'

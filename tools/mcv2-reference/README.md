@@ -29,20 +29,14 @@ assert decode(wire).tolist() == [[[10, 20, 30]]]
 ## Public API
 
 - `format.py` defines header offsets, mode and compact class numbers, bounds and transport constants.
-- `v3.py`: `Node(mode, q=0, record=b"", children=())`, `parse_frame(data: bytes) -> Frame`,
-  `pack_frame(width, height, frame_id, reference_id, keyframe, default_color, roots,
-  endpoint_table=None, selector_tables=None) -> bytes`, and `expand_endpoints(pair: bytes) -> bytes`.
+- `v3.py`: `Node(mode, q=0, record=b"", children=())`, `parse_frame(data: bytes) -> Frame` and
+  `pack_frame(width, height, frame_id, reference_id, keyframe, default_color, roots) -> bytes`.
   `roots` maps superblock index to `Node`; missing entries mean SKIP. SPLIT nodes have four
   children in top-left, top-right, bottom-left, bottom-right order. Records are whole bytes;
-  PATTERN records always contain six RGB bytes followed by the whole selector word.
-  Endpoint tables are sequences of four-byte RGB565 pairs. Selector tables map 8, 16 or 32 to
-  sequences of whole selector words. Each PATTERN value must match a supplied table entry
-  exactly (endpoints after RGB565 expansion). The writer replaces those values with indexes.
-  Table order and unused entries are preserved; there is no automatic table selection or quantization.
+  a PATTERN record is six RGB bytes, an orientation byte (0 or 1) and the `size / 8` axis bytes.
 - `Frame` exposes header fields, `leaves`, `masks`, `directory`, `level_counts`, `descriptors`,
-  `walk`, `table_counts` (P, c8, c16, c32), raw `endpoint_table`, `selector_tables`, and `roots`.
-  Parsed roots contain whole PATTERN records and can be passed back to `pack_frame` with the
-  parsed tables for a byte-identical round trip. Leaves have `x`, `y`, `size`, `mode`, `q`,
+  `walk` and `roots`. Parsed roots can be passed back to `pack_frame` for a byte-identical round
+  trip. Leaves have `x`, `y`, `size`, `mode`, `q`,
   `offset`, `record` and `descriptor_index`. Present leaves are in level order, followed by
   absent superblocks in raster order; absent leaves have `offset = descriptor_index = None`.
 - `decoder.py`: `decode(data: bytes, reference: np.ndarray | None = None,
@@ -75,12 +69,12 @@ from its own manifest.
 | file | bytes | SHA-256 |
 |---|---:|---|
 | `mcvideo/__init__.py` | 822 | `f25bfd3cdfbb172eaf31e0fd90ba062ef0f30f9aef5e04807734565d4c68e03c` |
-| `mcvideo/decoder.py` | 5,804 | `5f2e7f5c0877cc0c7d7a165eaad663caed4888bcfdae2fa0a36294e607df4bf6` |
-| `mcvideo/format.py` | 1,843 | `f28ec26c06e18668bf113cb35ccb3a5543e7ccbed9cecaa2901d690b3844b9c3` |
+| `mcvideo/decoder.py` | 5,689 | `598982ba28da2fa1b8c5c8f867db64480d2ec9d2021f9cdadfbbf3484a0292a1` |
+| `mcvideo/format.py` | 1,819 | `4cdf26dc1c45c2af6aada9e0d0ffbd713d8f178fc6a64816b3e2df5182b22e64` |
 | `mcvideo/transport.py` | 6,385 | `36d445e28a90564e17c893ec2991f55db16497c97560711facf3412ba740949b` |
-| `mcvideo/v3.py` | 16,123 | `e80f6e12a433d11c87c21ab957137e0fdefb350edfe56a4a85b03aae81878027` |
+| `mcvideo/v3.py` | 11,587 | `70f57ad0a8d83345233f2c9383a3bd2cc054eb21f91d86d1319bc1ff9c37a7c8` |
 | `requirements.txt` | 883 | `c4f288cc61d58c292c943c07dbe3b4e233aac528db5a9d91866704469ed4ea24` |
-| `tests/rejection_cases.py` | 8,471 | `6afbd56f4a24f3063cc6f52b6103f96ba6101a9b2dbf3a658a7971d0b7bef437` |
-| `tests/test_decoder.py` | 10,701 | `e796e118e21ad4ab9db2ba96e27b19ffe7e295d058bdc0d01f1eee2c578c8a11` |
-| `tests/test_format.py` | 7,980 | `fc7aaf4271d99df742663f7aa7476c36e7e5fb26cbb6f0d6ebc18623de04e808` |
-| `tests/test_transport.py` | 7,246 | `bc31f8e5606baf78cb09708369c963c5ca362fcd3f9df1e69677fd697e23810f` |
+| `tests/rejection_cases.py` | 7,582 | `a46288649f5da7d089439f60d8baaba7054fac2969a868662ebd40063efb0d53` |
+| `tests/test_decoder.py` | 10,240 | `0169fc91fb7c5d2468b996a200b4981133c423b96e4b9cae2ecd5a6d4bfb40d7` |
+| `tests/test_format.py` | 6,787 | `811008d6075fd61125e048e9354d984f549926a7a7fb0471feca9323dfed2ad0` |
+| `tests/test_transport.py` | 7,366 | `27f1c810fd739b1e58365987d2357f220f4e28103d6b0252c3b40c591b3ad0cf` |

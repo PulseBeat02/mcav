@@ -19,7 +19,7 @@
 import numpy as np
 
 from . import format as fmt
-from .v3 import Frame, _whole_pattern, parse_frame
+from .v3 import Frame, parse_frame
 
 
 def _signed(value: int, bits: int = 8) -> int:
@@ -62,7 +62,6 @@ def _decode(frame: Frame, reference: np.ndarray | None, reference_id: int | None
             block = np.broadcast_to(np.frombuffer(record, np.uint8), (size, size, 3))
         elif mode in (fmt.PALETTE, fmt.PATTERN):
             if mode == fmt.PATTERN:
-                record = _whole_pattern(record, size, frame.endpoint_table, frame.selector_tables)
                 axis = np.unpackbits(np.frombuffer(record[7:], np.uint8), bitorder="little")
                 selectors = np.broadcast_to(axis[None, :] if record[6] == 0 else axis[:, None], (size, size))
             else:

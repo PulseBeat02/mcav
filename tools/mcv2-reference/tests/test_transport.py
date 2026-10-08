@@ -59,13 +59,13 @@ class TransportTest(unittest.TestCase):
         pages = make_pages(frame, 7)
         self.assertEqual(12256, page_capacity())
         self.assertEqual(32, PAGE_HEADER.size)
-        self.assertEqual([128], [len(page) for page in pages])
+        self.assertEqual([123], [len(page) for page in pages])
         raw = page_bytes(pages[0])
-        expected_header = bytes.fromhex('4d43503101060100 07000000 09000000 00000100 09000000 40000000 00000000')
+        expected_header = bytes.fromhex('4d43503101060100 07000000 09000000 00000100 09000000 3c000000 00000000')
         self.assertEqual(expected_header[:28], raw[:28])
         self.assertEqual(zlib.crc32(expected_header + frame), struct.unpack_from('<I', raw, 28)[0])
         self.assertEqual(frame, raw[32:])
-        self.assertEqual((7, 9, 0, 1, 9, 64, 1, 6), tuple(getattr(read_page(pages[0]), field) for field in
+        self.assertEqual((7, 9, 0, 1, 9, 60, 1, 6), tuple(getattr(read_page(pages[0]), field) for field in
                          ('stream_id', 'frame_id', 'number', 'count', 'reference_id', 'frame_bytes', 'flags', 'symbol_bits')))
         self.assertEqual(146, wire_bytes(pages))
         self.assertEqual(16402, wire_bytes(pages, full_maps=True))
@@ -97,7 +97,8 @@ class TransportTest(unittest.TestCase):
         for symbols in (b'', bytes(42), bytes(16385), make_pages(large_frame())[0][:-1]):
             with self.assertRaises(ValueError):
                 read_page(symbols)
-        symbols = bytearray(make_pages(pack_frame(1, 1, 0, 0, True, (0, 0, 0), {}))[0])
+        # 92 bytes are 122 symbols and 4 bits: the last symbol has two padding bits.
+        symbols = bytearray(make_pages(pack_frame(1, 1, 0, 0, True, (0, 0, 0), {0: Node(fmt.SOLID, record=bytes(3))}))[0])
         symbols[-1] |= 32
         with self.assertRaisesRegex(ValueError, 'padding'):
             read_page(bytes(symbols))

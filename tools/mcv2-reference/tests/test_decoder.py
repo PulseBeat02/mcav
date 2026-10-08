@@ -33,11 +33,11 @@ def at_size(node, size):
     return node
 
 
-def frame(node=None, width=3, height=2, key=True, frame_id=0, reference_id=None, size=32, **tables):
+def frame(node=None, width=3, height=2, key=True, frame_id=0, reference_id=None, size=32):
     if reference_id is None:
         reference_id = frame_id if key else (frame_id - 1) & 0xFFFFFFFF
     return pack_frame(width, height, frame_id, reference_id, key, (11, 22, 33) if key else (0, 0, 0),
-                      {} if node is None else {0: at_size(node, size)}, **tables)
+                      {} if node is None else {0: at_size(node, size)})
 
 
 def gray(values):
@@ -61,22 +61,16 @@ class ReconstructionTest(unittest.TestCase):
                                  [[1, 2, 3], [91, 92, 93], [1, 2, 3]]], np.uint8)
             np.testing.assert_array_equal(expected, decode(frame(node, size=size)))
 
-    def test_pattern_axes_and_each_table_state_at_all_sizes(self):
-        pair = bytes.fromhex('a308dd43')
-        # 0x08a3 = (1,5,3); 0x43dd = (8,30,29) in RGB565.
-        colors = bytes([8, 20, 24, 66, 121, 239])
+    def test_pattern_axes_at_all_sizes_keep_full_precision(self):
+        colors = bytes([9, 21, 25, 67, 122, 238])
         for size in (8, 16, 32):
             for orientation in (0, 1):
-                word = bytes([orientation, 0b00000101]) + bytes(size // 8 - 1)
-                node = Node(fmt.PATTERN, record=colors + word)
-                expected = np.array(([[[66, 121, 239], [8, 20, 24], [66, 121, 239]]] * 2
+                node = Node(fmt.PATTERN, record=colors + bytes([orientation, 0b00000101]) + bytes(size // 8 - 1))
+                expected = np.array(([[[67, 122, 238], [9, 21, 25], [67, 122, 238]]] * 2
                                      if orientation == 0 else
-                                     [[[66, 121, 239]] * 3, [[8, 20, 24]] * 3]), np.uint8)
-                for endpoints in (None, [pair]):
-                    for selectors in (None, {size: [word]}):
-                        with self.subTest(size=size, orientation=orientation, endpoints=bool(endpoints), selectors=bool(selectors)):
-                            np.testing.assert_array_equal(expected, decode(frame(node, size=size, endpoint_table=endpoints,
-                                                                                selector_tables=selectors)))
+                                     [[[67, 122, 238]] * 3, [[9, 21, 25]] * 3]), np.uint8)
+                with self.subTest(size=size, orientation=orientation):
+                    np.testing.assert_array_equal(expected, decode(frame(node, size=size)))
 
     def test_whole_pixel_motion_sign_and_clamping(self):
         reference = gray([[1, 2, 3], [4, 5, 6]])
