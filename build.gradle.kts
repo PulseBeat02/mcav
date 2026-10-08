@@ -27,7 +27,7 @@ spotless {
                     ".editorconfig",
                     ".gitattributes",
                     ".gitignore",
-                    "checker-framework/*.astub",
+                    "gradle/checker-framework/**/*.astub",
                     "buildSrc/**/*.kt",
                     "buildSrc/**/*.kts",
                     "mcav-docs/**/*.md",

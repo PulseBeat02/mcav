@@ -40,7 +40,6 @@ spotless {
             "src/**/*.yaml",
             "src/**/*.properties",
             "src/**/*.astub",
-            "checker-framework/**/*.astub",
             "coverage-exceptions.txt",
             "*.md"
         )
