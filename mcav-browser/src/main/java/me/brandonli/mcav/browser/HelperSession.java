@@ -153,7 +153,6 @@ final class HelperSession implements BrowserSession {
   private final Object deliveryLock;
   private final Set<StartEvent> startEvents;
   private final LogBudget logBudget;
-  // until the threads start, they are a thread that never runs, which close() joins at once
   private volatile Thread reader = NOT_STARTED;
   private volatile Thread delivery = NOT_STARTED;
   private volatile Thread drain = NOT_STARTED;
@@ -324,7 +323,6 @@ final class HelperSession implements BrowserSession {
     );
   }
 
-  // the helper reads its configuration as the first line of its standard input, which stays open for the session
   private static Writer sendConfiguration(final Process process, final HelperConfiguration configuration) throws IOException {
     final OutputStream processInput = process.getOutputStream();
     final Writer standardInput = new OutputStreamWriter(processInput, StandardCharsets.UTF_8);
@@ -344,12 +342,10 @@ final class HelperSession implements BrowserSession {
       closeQuietly(pendingChannel);
     }
     if (session != null) {
-      // the session owns the process and the folder, and closes them once
       session.close();
       return;
     }
     if (process != null) {
-      // the end of its input tells the helper to stop at once, instead of after the timeout of stopProcess
       closeQuietly(process.getOutputStream());
       stopProcess(process);
     }
@@ -390,7 +386,6 @@ final class HelperSession implements BrowserSession {
         final Path candidate = temporary.resolve(names.get());
         try {
           final Path folder = Files.createDirectory(candidate, attributes);
-          // a later start of the module removes it if this server is killed
           SessionFolders.ofThisServer().record(folder);
           return folder;
         } catch (final FileAlreadyExistsException taken) {
@@ -580,9 +575,7 @@ final class HelperSession implements BrowserSession {
       thread.interrupt();
       throw new PlayerException("Interrupted while starting the browser", exception);
     } catch (final ExecutionException exception) {
-      // the start only ever fails with a cause
       final Throwable cause = Objects.requireNonNull(exception.getCause(), "A failed start has a cause");
-      // a helper that crashed says why only in its output, such as the check of Chromium that failed
       final String tail = this.getOutputTail();
       if (!tail.isEmpty()) {
         LOGGER.warn(HELPER_OUTPUT_BEFORE_FAILURE, System.lineSeparator(), tail);
@@ -603,7 +596,6 @@ final class HelperSession implements BrowserSession {
   @VisibleForTesting
   void read(final DataInputStream in, final byte[] token) {
     final byte[][] buffer = { new byte[0] };
-    // a region is never larger than the page, so a helper cannot make the server hold more than one page of pixels
     final int pageBytes = this.canvas.getWidth() * this.canvas.getHeight() * HelperProtocol.PIXEL_BYTES;
     try {
       final HelperMessage hello = HelperProtocol.read(in, size -> NO_PIXELS);
@@ -611,7 +603,6 @@ final class HelperSession implements BrowserSession {
       while (true) {
         final HelperMessage message = HelperProtocol.read(in, size -> {
           if (size > pageBytes) {
-            // too small, so the protocol refuses the frame before any pixel is read
             return NO_PIXELS;
           }
           if (buffer[0].length < size) {
@@ -699,7 +690,6 @@ final class HelperSession implements BrowserSession {
       }
       case HelperProtocol.LOAD_ERROR -> {
         final String text = message.getText();
-        // the helper describes the address already; a helper is not trusted to, so the server does it again
         final String url = AddressText.describe(message.getUrl());
         final int code = message.getNumber();
         this.logBudget.log(() -> LOGGER.warn(PAGE_LOAD_FAILED, url, text, code), HelperSession::logSkipped);
@@ -764,11 +754,9 @@ final class HelperSession implements BrowserSession {
       if (this.closing.get()) {
         return;
       }
-      // a new picture starts the repeats over; a repeat only happens while some are left
       repeatsLeft = fresh ? SETTLED_REPEATS : repeatsLeft - 1;
       final ImageBuffer frame = this.canvas.snapshot();
       if (frame == null) {
-        // the canvas was closed under a delivery that outlived the close of the session
         return;
       }
       this.listener.onFrame(frame);
@@ -824,9 +812,7 @@ final class HelperSession implements BrowserSession {
         }
         count = reader.read(characters);
       }
-    } catch (final IOException exception) {
-      // the helper is gone
-    }
+    } catch (final IOException exception) {}
     this.remember(line.toString());
   }
 
@@ -864,7 +850,6 @@ final class HelperSession implements BrowserSession {
     try {
       this.end(reason, null);
     } finally {
-      // a listener that fails when it hears of the end must not keep the helper running
       this.close();
     }
   }
@@ -904,7 +889,6 @@ final class HelperSession implements BrowserSession {
    */
   @Override
   public boolean sendKey(final int action, final String value) {
-    // a text longer than one message goes as several, in order
     final List<String> parts = HelperProtocol.split(value);
     return this.send(out -> {
       for (final String part : parts) {
@@ -1002,7 +986,6 @@ final class HelperSession implements BrowserSession {
       final boolean exited = process.waitFor(STOP_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
       if (!exited) {
         LOGGER.warn(HELPER_KILLED, STOP_TIMEOUT_MILLIS);
-        // the helper may have started more processes while it did not stop
         try (final Stream<ProcessHandle> later = process.descendants()) {
           later.forEach(descendants::add);
         }
@@ -1023,7 +1006,6 @@ final class HelperSession implements BrowserSession {
 
   private static void join(final Thread thread) {
     final Thread caller = Thread.currentThread();
-    // a session thread that closes its own session cannot wait for itself; threads compare by identity
     if (thread.equals(caller)) {
       return;
     }

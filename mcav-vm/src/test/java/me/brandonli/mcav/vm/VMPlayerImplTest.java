@@ -96,7 +96,6 @@ final class VMPlayerImplTest {
   private final List<InetSocketAddress> audioAddresses = new CopyOnWriteArrayList<>();
   private final List<String> audioPasswords = new CopyOnWriteArrayList<>();
   private final VMAudioClient audioClient = mock(VMAudioClient.class);
-  // a machine of the mocked QEMU has no sound unless a test says so, and then this connects to it
   private final VMPlayerImpl.AudioConnector audio = (address, password, sink, failures) -> {
     this.audioAddresses.add(address);
     this.audioPasswords.add(password);
@@ -229,7 +228,6 @@ final class VMPlayerImplTest {
     final VMAudioClient.Sink sink = this.sinks.getFirst();
     sink.accept(new byte[8], 8);
     waitUntil(() -> heard.size() == 1);
-    // the guest stopped playing, and QEMU sends nothing until it plays again
     sink.quiet();
     waitUntil(() -> heard.size() >= 2);
     assertEquals(3840, heard.get(1), "20 ms of silence after the sound");
@@ -277,7 +275,6 @@ final class VMPlayerImplTest {
     player.getAudioAttachableCallback().attach(AudioPipelineStep.of((samples, metadata) -> heard.add(samples.remaining())));
     final CompletableFuture<Boolean> pausing = CompletableFuture.supplyAsync(player::pause);
     assertTrue(insidePause.await(10, TimeUnit.SECONDS));
-    // the picture is being paused while another thread resumes; without one lock the sound would end up paused
     final CompletableFuture<Boolean> resuming = CompletableFuture.supplyAsync(player::resume);
     Thread.sleep(200L);
     finishPause.countDown();
@@ -455,7 +452,6 @@ final class VMPlayerImplTest {
     assertTrue(started);
     assertTrue(playingBefore);
 
-    // the guest shut down, so QEMU exited on its own
     when(exited.isAlive()).thenReturn(false);
     this.assertIgnoresInputAndPlayback(player);
 
@@ -469,7 +465,6 @@ final class VMPlayerImplTest {
     final boolean playingAgain = player.isPlaying();
     assertTrue(restarted);
     assertTrue(playingAgain);
-    // the exited process is cleaned up before the new one starts
     final InOrder order = inOrder(exited, next);
     order.verify(exited).start();
     order.verify(exited).shutdown();
@@ -954,7 +949,6 @@ final class VMPlayerImplTest {
     try {
       player.setExceptionHandler((message, error) -> errors.add(message + ": " + error));
       startTinyMachine(player);
-      // a pipeline attached while the machine runs must receive its frames
       attachRecorder(player, sizes);
       awaitFirstFrame(sizes, errors);
 
@@ -998,7 +992,6 @@ final class VMPlayerImplTest {
       final int height = image.getHeight();
       final int[] size = { width, height };
       sizes.add(size);
-      // Displaying or recording the frame leaves its pixels unchanged.
       return false;
     };
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();

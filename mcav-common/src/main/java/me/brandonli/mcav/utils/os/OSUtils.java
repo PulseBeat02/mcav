@@ -72,7 +72,6 @@ public final class OSUtils {
     if (osName.contains("linux")) {
       return OS.LINUX;
     }
-    // OpenBSD, NetBSD, Solaris, AIX and the like: Linux binaries do not run there
     return OS.OTHER;
   }
 
@@ -81,12 +80,10 @@ public final class OSUtils {
     if (isArm) {
       return Arch.ARM;
     }
-    // x86, i386 to i686, x86_64 and amd64
     final boolean isX86 = osArch.contains("86") || osArch.equals("amd64");
     if (isX86) {
       return Arch.X86;
     }
-    // riscv64, ppc64le, s390x, loongarch64 and the like: x86 binaries do not run there
     return Arch.OTHER;
   }
 

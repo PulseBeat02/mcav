@@ -194,8 +194,6 @@ final class AudioListenerTest {
 
     final int pending = listener.getPendingChunkCount();
     assertEquals(1, pending);
-    // Observe the actual synchronization resource without replacing it or changing listener state. A retained
-    // reentrant hold is invisible to later calls on this thread but permanently blocks every other producer.
     final Field field = AudioListener.class.getDeclaredField("lock");
     field.setAccessible(true);
     final ReentrantLock lock = (ReentrantLock) field.get(listener);
@@ -318,8 +316,6 @@ final class AudioListenerTest {
     this.blockTheFirstSend();
     final long limitMillis = 50L;
     final long limitNanos = TimeUnit.MILLISECONDS.toNanos(limitMillis);
-    // the sender reads the clock when it takes the chunk, and the next offer finds the write running a nanosecond
-    // longer than the limit
     final LongSupplier clock = scriptedClock(0L, limitNanos + 1);
     final AudioListener listener = this.createListener(limitMillis, 1024, clock);
     listener.start();
@@ -340,7 +336,6 @@ final class AudioListenerTest {
     final byte[] first = chunk(10, 1);
     listener.offer(first);
     this.awaitFirstSend();
-    // the queue holds exactly the limit afterwards, which is still within it, so nothing is dropped
     final byte[] second = chunk(100, 2);
     final byte[] third = chunk(100, 3);
     listener.offer(second);
@@ -357,7 +352,6 @@ final class AudioListenerTest {
     this.blockTheFirstSend();
     final long limitMillis = 50L;
     final long limitNanos = TimeUnit.MILLISECONDS.toNanos(limitMillis);
-    // the sender reads the clock when it takes the chunk, and the next offer reads it again to time the write
     final LongSupplier clock = scriptedClock(0L, limitNanos);
     final AudioListener listener = this.createListener(limitMillis, 1024, clock);
     listener.start();
@@ -436,14 +430,12 @@ final class AudioListenerTest {
     assertTrue(virtual);
     assertEquals("mcav-http-listener-listener-1", name);
 
-    // the sender is only waiting for a chunk once it wrote one, so the first chunk is sent before it is stopped
     final byte[] first = chunk(10, 1);
     listener.offer(first);
     final byte[] firstSent = this.nextSent();
     assertArrayEquals(first, firstSent);
     awaitWaiting(sender);
 
-    // the sender waits for a chunk, so stopping has to wake it; otherwise it would wait forever
     listener.stop();
     sender.join(TIMEOUT_MILLIS);
     final boolean alive = sender.isAlive();

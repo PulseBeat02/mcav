@@ -98,9 +98,7 @@ final class YTDLPParserFuzzTest {
       assertTrue(strategy.accepts().test(format), "a strategy picks only a stream it accepts");
       try {
         format.toUriSource();
-      } catch (final IllegalStateException | IllegalArgumentException refused) {
-        // a stream without a URL, or with one that is no URI, as documented
-      }
+      } catch (final IllegalStateException | IllegalArgumentException refused) {}
     }
   }
 

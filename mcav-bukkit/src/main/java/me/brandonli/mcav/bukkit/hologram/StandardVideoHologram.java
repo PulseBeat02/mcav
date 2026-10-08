@@ -100,7 +100,6 @@ public class StandardVideoHologram extends VideoHologram {
     this.setDisplay(entity);
     this.metadataText = metadata;
 
-    // yt-dlp can report a fraction of a second, which still has to be played, so the duration is rounded up
     final double wholeSeconds = Math.ceil(dump.duration);
     this.durationSeconds = Math.max(0, (int) wholeSeconds);
     this.currentSecond = 0;

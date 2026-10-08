@@ -126,7 +126,6 @@ final class CaptureDevicesTest {
 
   @Test
   void triesDevicesOnlyWhereTheSystemDoesNotListThem() {
-    // grabbers that never start, whatever cameras the machine running the tests has
     final FrameGrabber.Exception noCamera = new FrameGrabber.Exception("no camera");
     try (
       final MockedStatic<OSUtils> systems = Mockito.mockStatic(OSUtils.class);

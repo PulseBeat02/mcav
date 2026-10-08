@@ -108,7 +108,6 @@ class LinuxLibrariesTest {
         tar.closeArchiveEntry();
       }
       for (final Map.Entry<String, String> link : links.entrySet()) {
-        // a target that starts with "=" makes a hard link, any other a symbolic one
         final boolean hard = link.getValue().startsWith("=");
         final TarArchiveEntry entry = new TarArchiveEntry(
           prefix + link.getKey(),
@@ -314,11 +313,9 @@ class LinuxLibrariesTest {
     assertArrayEquals("the library".getBytes(StandardCharsets.US_ASCII), Files.readAllBytes(library));
     if (library.getFileSystem().supportedFileAttributeViews().contains("posix")) {
       assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(library));
-      // the folders are the owner's to write alone, whatever the umask, as the libraries in them are loaded
       assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(installation));
       assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(this.folder.resolve("cache")));
     }
-    // installed once: another start finds the installation and downloads nothing
     assertEquals(installation, libraries.install("linux-amd64"));
     assertEquals(1, this.downloads.size());
     try (final Stream<Path> left = Files.list(this.folder.resolve("cache"))) {
@@ -332,7 +329,6 @@ class LinuxLibrariesTest {
     final byte[] deb = testPackage();
     final LinuxLibraries libraries = this.installer(deb, List.of("https://mirror.test/debian/"), List.of(pin(deb)));
     final Path installation = libraries.install("linux-amd64");
-    // as an earlier version left them under a umask of 0002
     final Path cache = this.folder.resolve("cache");
     final Path library = installation.resolve("libmcavtest.so.1");
     Files.setPosixFilePermissions(cache, PosixFilePermissions.fromString("rwxrwxr-x"));
@@ -418,7 +414,6 @@ class LinuxLibrariesTest {
       )
     );
     assertEquals("The package full.deb has more than 1 entries", entries.getMessage());
-    // exactly at the limits is fine
     LinuxLibraries.extract(large, wanted, Files.createDirectory(this.folder.resolve("e")), 11, 1);
   }
 
@@ -437,7 +432,6 @@ class LinuxLibrariesTest {
 
   @Test
   void aPackageCompressedWithTheStrongestCompressionOfDpkgIsRead() throws IOException {
-    // xz -9, the strongest preset dpkg-deb compresses with, reads with a dictionary of 64 MiB
     final byte[] strongest = withDictionary(testPackage(), DICTIONARY_64_MIB);
     final Path deb = Files.write(this.folder.resolve("strongest.deb"), strongest);
     final Path target = Files.createDirectory(this.folder.resolve("strongest"));
@@ -506,7 +500,6 @@ class LinuxLibrariesTest {
       "# the loader\ninclude /etc/ld.so.conf.d/*.conf\n/opt/game/lib # after\nhwcap 0 nosegneg\n\ninclude /missing/*.conf\n"
     );
     Files.writeString(configuration.resolve("a.conf"), "/usr/local/lib\n");
-    // a file that includes itself ends at the depth limit
     Files.writeString(configuration.resolve("b.conf"), "include /etc/ld.so.conf.d/b.conf\n/opt/deep\n");
     Files.writeString(configuration.resolve("c.txt"), "/not/included\n");
     final List<Path> folders = LinuxLibraries.hostFolders(root, "linux-amd64");
@@ -606,7 +599,6 @@ class LinuxLibrariesTest {
           throw new UncheckedIOException(exception);
         }
       });
-      // the installer found nothing installed and waits for the lock, while another process finishes the installation
       Await.until("the installer waits for the lock", () -> installer.get() != null && installer.get().getState() == Thread.State.BLOCKED);
       Files.createDirectories(installation);
       Files.writeString(installation.resolve(LinuxLibraries.INSTALL_MARKER), "done");
@@ -621,7 +613,6 @@ class LinuxLibrariesTest {
     Files.writeString(configurationDirectory.resolve("a.conf"), "/opt/a");
     Files.writeString(configurationDirectory.resolve("b.txt"), "/opt/b");
     assertEquals(List.of(configurationDirectory.resolve("a.conf")), LinuxLibraries.glob(this.folder, "etc/ld.so.conf.d/*.conf"));
-    // a pattern without a folder is read in the root; a folder or the root itself holds no library
     Files.writeString(this.folder.resolve("top.conf"), "/opt/top");
     assertEquals(List.of(this.folder.resolve("top.conf")), LinuxLibraries.glob(this.folder, "*.conf"));
     assertEquals(List.of(), LinuxLibraries.glob(this.folder, "/"));
@@ -643,7 +634,6 @@ class LinuxLibrariesTest {
     assertFalse(LinuxLibraries.isBuiltFor(Files.write(folder.resolve("text.so"), notElf), "linux-amd64"), "no ELF file");
     assertFalse(LinuxLibraries.isBuiltFor(Files.write(folder.resolve("short.so"), new byte[19]), "linux-amd64"), "too short");
     assertFalse(LinuxLibraries.isBuiltFor(folder.resolve("missing.so"), "linux-amd64"), "no file");
-    // a 32-bit copy in an earlier folder of the loader does not hide a missing 64-bit one
     final Path i386 = Files.createDirectories(this.folder.resolve("i386"));
     Files.write(i386.resolve("libX11.so.6"), elf(1, 1, 3));
     assertFalse(LinuxLibraries.isPresent("libX11.so.6", List.of(i386), "linux-amd64"));
@@ -666,7 +656,6 @@ class LinuxLibrariesTest {
     final byte[] deb = testPackage();
     final LinuxLibraries libraries = this.installer(deb, List.of("https://mirror.test/debian/"), List.of(pin(deb)));
     final String name = "debian-11-linux-amd64-" + LinuxLibraries.fingerprint(libraries.getPins("linux-amd64"));
-    // a crash before the marker was written left the folder of the installation behind
     final Path unfinished = Files.createDirectories(this.folder.resolve("cache").resolve(name));
     Files.writeString(unfinished.resolve("left-over"), "partial");
     final Path installation = libraries.install("linux-amd64");
@@ -693,7 +682,6 @@ class LinuxLibrariesTest {
     final Path root = this.folder.resolve("sorted-root");
     final Path configuration = Files.createDirectories(root.resolve("etc/ld.so.conf.d"));
     Files.writeString(root.resolve("etc/ld.so.conf"), "include /etc/ld.so.conf.d/*.conf\n");
-    // created out of order, so the order of the folder's entries is not that of the names
     final List<String> names = List.of("zeta", "alpha", "mike", "delta", "kilo", "bravo", "yankee", "echo");
     for (final String name : names) {
       Files.writeString(configuration.resolve(name + ".conf"), "/opt/" + name + "\n");

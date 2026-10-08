@@ -64,14 +64,11 @@ public final class OrderedDither extends AbstractDitherAlgorithm implements Baye
     this.offsets = new int[this.patternHeight][this.patternWidth];
     for (int row = 0; row < this.patternHeight; row++) {
       for (int column = 0; column < this.patternWidth; column++) {
-        // no channel moves more than 255 either way; an offset of a large strength rounded to the end of the int range,
-        // where adding it to a channel wrapped a brightening offset round to black
         this.offsets[row][column] = Math.clamp(Math.round(matrix[row][column] * spread), -255, 255);
       }
     }
   }
 
-  // the average step between palette colors per channel, assuming the colors fill the RGB cube evenly
   private static float computeSpread(final int levels) {
     final int usableLevels = Math.max(1, levels);
     final double colorsPerAxis = Math.cbrt(usableLevels);

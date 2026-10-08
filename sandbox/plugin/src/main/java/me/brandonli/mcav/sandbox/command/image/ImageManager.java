@@ -159,7 +159,6 @@ public final class ImageManager {
     scheduler.runTask(this.plugin, this::releaseNow);
   }
 
-  // every part is forgotten before it is released, so a failure never releases it twice
   private void releaseNow() {
     final DisplayableImage display = this.image;
     final Image shown = this.currentImage;

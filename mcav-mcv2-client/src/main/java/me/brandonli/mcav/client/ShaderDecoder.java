@@ -144,7 +144,6 @@ final class ShaderDecoder {
    */
   void posed(final Object texture, final PoseStack.Pose pose) {
     this.hooks |= POSED;
-    // a decoder of another Iris never decodes, and only the tested one is asked about its shadow pass
     if (!this.testedIris || this.shadowPass.getAsBoolean()) {
       return;
     }
@@ -191,8 +190,6 @@ final class ShaderDecoder {
         return;
       }
       final int width = this.output.width();
-      // a window too narrow for a descriptor row, or too low for the strip and the scene row the pack's chain covers it
-      // with, has no room for MCV2, as without shaders
       if (width < TransportStrip.DESCRIPTOR_PIXELS || pack.get().stripRows(width) >= this.output.height()) {
         return;
       }

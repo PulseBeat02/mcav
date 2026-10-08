@@ -94,7 +94,5 @@ public final class JulServiceProvider implements SLF4JServiceProvider {
    * Prepares nothing: the factories are ready once the provider is constructed.
    */
   @Override
-  public void initialize() {
-    // java.util.logging needs no setup
-  }
+  public void initialize() {}
 }

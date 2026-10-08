@@ -54,10 +54,8 @@ final class VLCPlaybackProbe {
 
   private static final int FRAMES = 20;
 
-  // half a second of 48 kHz stereo 16-bit sound
   private static final long AUDIO_BYTES = 96_000L;
 
-  // well past the playback timeout: a probe still running then is stuck, and its threads say where
   private static final Duration STUCK = Duration.ofMinutes(3);
 
   private static final int STUCK_EXIT = 3;
@@ -84,7 +82,6 @@ final class VLCPlaybackProbe {
     System.out.println("libvlc " + version + " loaded from " + loaded.orElseThrow());
     final AtomicInteger frames = new AtomicInteger();
     final AtomicLong audioBytes = new AtomicLong();
-    // each step is printed before it runs, so a probe that stops shows where
     System.out.println("step: creating the player");
     final VideoPlayerMultiplexer player = VideoPlayer.vlc();
     player.setExceptionHandler((message, error) -> System.out.println("player error: " + message + " " + error));

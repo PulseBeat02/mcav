@@ -244,10 +244,8 @@ final class PacketUtilsTest {
   void capsTheUnsentBytesOfAConnectionThatTakesTheOption() throws ReflectiveOperationException {
     this.server.addPlayer(FIRST);
     this.server.injectModule();
-    // a player who is not online, and one whose game connection has no network connection
     assertFalse(PacketUtils.limitUnsent(SECOND, 1024));
     assertFalse(PacketUtils.limitUnsent(FIRST, 1024));
-    // a network connection that is not open yet, one on a transport without the option, and one with it
     final Connection connection = connection();
     final Field field = ServerCommonPacketListenerImpl.class.getDeclaredField("connection");
     field.setAccessible(true);

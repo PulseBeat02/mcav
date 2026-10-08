@@ -1,5 +1,3 @@
-// Script fixtures use the same pinned Node executable as formatting, including in PIT child JVMs.
-
 import me.brandonli.mcav.gradle.isWindows
 
 plugins {

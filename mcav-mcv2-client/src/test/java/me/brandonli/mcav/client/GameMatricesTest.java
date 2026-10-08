@@ -60,9 +60,7 @@ final class GameMatricesTest {
   void aGameWithoutTheseMembersOrWhoseMembersCannotBeReadHasNoReader() {
     assertTrue(GameMatrices.find(PoseStack.Pose.class, "matrix", CameraRenderState.class, "viewRotationMatrix").isEmpty());
     assertTrue(GameMatrices.find(PoseStack.Pose.class, "pose", CameraRenderState.class, "rotationMatrix").isEmpty());
-    // a method of strings, which a pose is not
     assertTrue(GameMatrices.find(String.class, "length", CameraRenderState.class, "viewRotationMatrix").isEmpty());
-    // a field of another class
     assertTrue(GameMatrices.find(PoseStack.Pose.class, "pose", Members.class, "matrix").isEmpty());
     assertTrue(GameMatrices.find().isPresent());
   }
@@ -130,7 +128,6 @@ final class GameMatricesTest {
 
     public final Object matrix = new Object();
 
-    // read by reflection only, where its access fails
     @SuppressWarnings("unused")
     private final Object secret = new Object();
 

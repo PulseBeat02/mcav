@@ -90,7 +90,6 @@ final class DumpRedactionPropertyTest {
 
   @Provide
   Arbitrary<String> secrets() {
-    // written with characters no host, path or message of these lines holds, so finding one after redaction is a leak
     final StringArbitrary strings = Arbitraries.strings();
     final StringArbitrary secretCharacters = strings.withChars("QJVXZ=&%+");
     return secretCharacters.ofMinLength(1).ofMaxLength(40);

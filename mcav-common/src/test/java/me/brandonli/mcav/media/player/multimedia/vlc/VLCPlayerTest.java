@@ -366,7 +366,6 @@ final class VLCPlayerTest {
     final int references = this.references();
     verify(mediaPlayer).release();
     assertEquals(0, references);
-    // the render threads were interrupted but not awaited
     VLCPlaybackTest.awaitNoPlaybackThreads();
   }
 

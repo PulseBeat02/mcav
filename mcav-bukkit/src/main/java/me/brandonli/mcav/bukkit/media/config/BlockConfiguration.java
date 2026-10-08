@@ -93,9 +93,7 @@ public class BlockConfiguration {
    */
   public static final class BlockResultBuilder extends Builder<BlockResultBuilder> {
 
-    BlockResultBuilder() {
-      // created through BlockConfiguration.builder()
-    }
+    BlockResultBuilder() {}
 
     /**
      * Returns this builder with its concrete type.
@@ -132,9 +130,7 @@ public class BlockConfiguration {
     private int blockHeight;
     private @MonotonicNonNull Location position;
 
-    Builder() {
-      // only subclassed inside this class
-    }
+    Builder() {}
 
     /**
      * Returns this builder with its concrete type, so the setters can be chained.

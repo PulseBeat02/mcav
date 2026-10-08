@@ -50,9 +50,7 @@ public final class BukkitModule implements MCAVModule {
 
   private static volatile @Nullable Plugin injectedPlugin;
 
-  BukkitModule() {
-    // created through MCAVApi#install
-  }
+  BukkitModule() {}
 
   /**
    * Injects the plugin used for registering listeners and scheduling tasks, and builds all lookup tables. Call

@@ -89,9 +89,7 @@ public class ChatConfiguration {
    */
   public static final class ChatResultBuilder extends Builder<ChatResultBuilder> {
 
-    ChatResultBuilder() {
-      // created through ChatConfiguration.builder()
-    }
+    ChatResultBuilder() {}
 
     /**
      * Returns this builder with its concrete type.
@@ -128,9 +126,7 @@ public class ChatConfiguration {
     private int chatWidth;
     private int chatHeight;
 
-    Builder() {
-      // only subclassed inside this class
-    }
+    Builder() {}
 
     /**
      * Returns this builder with its concrete type, so the setters can be chained.

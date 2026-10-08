@@ -93,9 +93,7 @@ public class ScoreboardConfiguration {
    */
   public static final class ScoreboardResultBuilder extends Builder<ScoreboardResultBuilder> {
 
-    ScoreboardResultBuilder() {
-      // created through ScoreboardConfiguration.builder()
-    }
+    ScoreboardResultBuilder() {}
 
     /**
      * Returns this builder with its concrete type.
@@ -132,9 +130,7 @@ public class ScoreboardConfiguration {
     private int lines;
     private int width;
 
-    Builder() {
-      // only subclassed inside this class
-    }
+    Builder() {}
 
     /**
      * Returns this builder with its concrete type, so the setters can be chained.

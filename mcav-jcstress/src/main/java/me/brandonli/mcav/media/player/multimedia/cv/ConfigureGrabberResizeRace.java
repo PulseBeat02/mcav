@@ -106,19 +106,13 @@ public class ConfigureGrabberResizeRace {
   private static final class IdleGrabber extends FrameGrabber {
 
     @Override
-    public void start() {
-      // nothing to open
-    }
+    public void start() {}
 
     @Override
-    public void stop() {
-      // nothing to close
-    }
+    public void stop() {}
 
     @Override
-    public void trigger() {
-      // nothing to trigger
-    }
+    public void trigger() {}
 
     @Override
     public Frame grab() {
@@ -126,8 +120,6 @@ public class ConfigureGrabberResizeRace {
     }
 
     @Override
-    public void release() {
-      // nothing to release
-    }
+    public void release() {}
   }
 }

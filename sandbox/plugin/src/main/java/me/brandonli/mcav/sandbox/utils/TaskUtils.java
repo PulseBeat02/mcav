@@ -98,10 +98,7 @@ public final class TaskUtils {
   ) {
     Preconditions.checkNotNull(future, "Future must not be null");
     Preconditions.checkNotNull(callback, "Callback must not be null");
-    // the handled future carries no value of its own, so nothing can read a result that only exists to satisfy the
-    // signatures of handle and exceptionally
     final CompletableFuture<@Nullable Void> handled = future.handle((result, error) -> runCallback(callback, result, error));
-    // exceptionally observes a failure of the callback; the future it returns only repeats the logged outcome
     handled.exceptionally(TaskUtils::logCallbackFailure);
   }
 

@@ -502,7 +502,6 @@ final class AudioResamplerTest {
 
   @Test
   void aConversionFfmpegCannotSetUpIsReported() {
-    // FFmpeg refuses to build a filter for a ratio of rates this extreme
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
       AudioResampler.create(48_000_000, 1, SampleFormat.SIGNED_16_BIT, 1, 1, SampleFormat.SIGNED_16_BIT)
     );

@@ -230,7 +230,6 @@ public class GLTextureFilter implements FunctionalVideoFilter {
       if (!this.dirty) {
         return false;
       }
-      // the staged frame becomes the front buffer, and the player copies the next frame into the other one
       pixels = this.backBuffer;
       this.backBuffer = this.frontBuffer;
       this.frontBuffer = pixels;

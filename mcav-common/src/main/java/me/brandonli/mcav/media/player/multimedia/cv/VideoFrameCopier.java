@@ -94,7 +94,6 @@ final class VideoFrameCopier {
       }
       return this.scale(frame, pooled, targetWidth, targetHeight);
     } catch (final RuntimeException exception) {
-      // a frame the decoder gave us in a shape we cannot read must not cost the pool one of its images
       if (pooled != null) {
         this.pool.recycle(pooled);
       }
@@ -152,7 +151,6 @@ final class VideoFrameCopier {
         return resize(decoded, pooled, width, height);
       }
     }
-    // the pixels are not 8-bit BGR rows in native memory, so FramePixels copies and validates them instead
     final int frameWidth = frame.imageWidth;
     final int frameHeight = frame.imageHeight;
     final MatImageBuffer source = fill(this.unscaled, frame, frameWidth, frameHeight);

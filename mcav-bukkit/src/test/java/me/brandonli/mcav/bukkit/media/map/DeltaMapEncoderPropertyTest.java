@@ -180,7 +180,6 @@ final class DeltaMapEncoderPropertyTest {
     }
     final long sent = bytes;
     final int mapCount = maps.size();
-    // the most urgent map is sent even when it alone exceeds the budget, and then it is the only one
     final boolean withinBudget = sent <= budget || mapCount == 1;
     assertTrue(withinBudget, () -> sent + " bytes over " + mapCount + " maps in one frame, budget " + budget);
   }
@@ -293,7 +292,6 @@ final class DeltaMapEncoderPropertyTest {
       }
     }
 
-    // a size of 1 means one pixel, anything else a share of the image
     private static int scale(final int size, final int imageSize) {
       final int scaled = (size * imageSize) / 1000;
       return size == 1 ? 1 : Math.max(1, scaled);

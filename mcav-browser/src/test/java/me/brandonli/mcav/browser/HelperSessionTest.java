@@ -164,7 +164,6 @@ class HelperSessionTest {
 
   @Test
   void anInterruptedStartStopsWaitingForTheHelperAtOnce() throws IOException {
-    // a helper that is alive and never connects, and a wait that the release of the player interrupts
     final Process alive = mock(Process.class);
     when(alive.isAlive()).thenReturn(true);
     try (final ServerSocketChannel server = ServerSocketChannel.open()) {
@@ -195,12 +194,9 @@ class HelperSessionTest {
       .lines()
       .filter(line -> line.contains("Browser: noise ") || line.contains("could not load https://example.com/noise/"))
       .count();
-    // the reports arrive within a moment, and the budget passes one more line per second after its burst
     final int sent = RawHelperMain.NOISY_NOTICES + RawHelperMain.NOISY_LOAD_ERRORS;
     assertTrue(reports >= LogBudget.BURST && reports <= LogBudget.BURST + 5, "logged " + reports + " of " + sent + " reports");
-    // the helper is not trusted to hide the secrets of an address; the server hides them again
     assertFalse(log.contains("token=secret"), log);
-    // a moment later the budget passes a line again, after the number of those it did not
     assertTrue(log.contains("more notices of the page were not logged"), log);
     assertTrue(log.contains("Browser: noise after a pause"), log);
   }
@@ -234,7 +230,6 @@ class HelperSessionTest {
 
   @Test
   void theSoundOfThePageCrossesTheProtocolInOrderAndOnlyThroughItsBinding() throws Exception {
-    // a page that may play right away; otherwise its sound would wait for a click
     final BrowserOptions autoplay = BrowserOptions.builder().autoplay(true).build();
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/sound", autoplay);
     Await.until("the sound", () -> this.listener.sound.size() == ScriptedEngine.SOUND_CHUNKS);
@@ -246,7 +241,6 @@ class HelperSessionTest {
         assertEquals(0, samples[index + 1]);
       }
     }
-    // the calls of another binding were dropped in the helper; nothing else arrives
     Thread.sleep(HelperSession.REPEAT_DELAY_MILLIS * 2);
     assertEquals(ScriptedEngine.SOUND_CHUNKS, this.listener.sound.size());
     session.close();
@@ -262,7 +256,6 @@ class HelperSessionTest {
     assertTrue(session.sendMouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 1, 0, 1, 0, 0)));
     Await.until("the sound after the press", () -> !this.listener.sound.isEmpty());
     Thread.sleep(HelperSession.REPEAT_DELAY_MILLIS * 2);
-    // the chunk of the start and the one of the move were held back; the one of the press, the second call, passed
     assertEquals(1, this.listener.sound.size());
     assertEquals(2, this.listener.sound.getFirst()[0]);
   }
@@ -274,7 +267,6 @@ class HelperSessionTest {
     Await.until("the repeats of the settled page", () -> this.listener.frames.size() >= expected);
     Thread.sleep(HelperSession.REPEAT_DELAY_MILLIS * 4);
     assertEquals(expected, this.listener.frames.size(), "the repeats stop");
-    // every repeat waits the repeat delay, so the last one comes that many delays after the picture itself
     final long spanNanos = this.listener.frameNanos.get(expected - 1) - this.listener.frameNanos.get(0);
     final long leastNanos = TimeUnit.MILLISECONDS.toNanos(HelperSession.SETTLED_REPEATS * HelperSession.REPEAT_DELAY_MILLIS);
     assertTrue(spanNanos >= leastNanos, "the repeats came within " + TimeUnit.NANOSECONDS.toMillis(spanNanos) + " ms");
@@ -338,7 +330,6 @@ class HelperSessionTest {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
     Await.until("the first frame", () -> !this.listener.frames.isEmpty());
     final Thread delivery = session.getThreads().get(1);
-    // the last picture is handed over again every 50 ms for two seconds, and the thread waits in between
     Await.until("the delivery thread waits for the next repeat", () -> delivery.getState() == Thread.State.TIMED_WAITING);
   }
 
@@ -394,7 +385,6 @@ class HelperSessionTest {
       1_000L
     );
     final ProcessBuilder builder = HelperSession.createProcessBuilder(launcher, this.directory, null);
-    // the test JVM has variables of its own, which the helper must not inherit
     assertEquals(launcher.createEnvironment(this.directory, null), builder.environment());
     assertEquals(this.directory.toFile(), builder.directory());
     assertTrue(builder.redirectErrorStream());
@@ -403,7 +393,6 @@ class HelperSessionTest {
   @Test
   void theOutputOfARunningHelperIsReadWhateverItsSize() {
     final HelperSession session = this.open(RawHelperMain.class.getName(), "/chatty");
-    // far more than a pipe holds: a helper whose output nobody reads blocks before its last line
     Await.until("the last line of the helper", () -> session.getOutputTail().contains(RawHelperMain.CHATTY_END));
     assertTrue(session.isAlive());
   }
@@ -435,8 +424,6 @@ class HelperSessionTest {
   @Test
   @EnabledOnOs(org.junit.jupiter.api.condition.OS.LINUX) // fqn: OS is imported as me.brandonli.mcav.utils.os.OS
   void inputThatCannotBeWrittenEndsTheSession() {
-    // the helper keeps its connection but reads no more, so Linux refuses to write to it (EPIPE); input goes on until
-    // then, since the helper shuts its side a moment after it showed the page
     final HelperSession session = this.open(RawHelperMain.class.getName(), "/deaf");
     Await.until("the end of the session", () -> {
       session.sendKey(HelperProtocol.KEY_TYPE, "lost");
@@ -456,7 +443,6 @@ class HelperSessionTest {
       }
       return !started.isEmpty();
     });
-    // the helper itself exits when its input ends; its process outlives it unless the session kills it
     session.close();
     Await.until("no process the helper started is left", () -> started.stream().noneMatch(ProcessHandle::isAlive));
   }
@@ -471,7 +457,6 @@ class HelperSessionTest {
       HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, parent)
     );
     assertEquals("The browser helper did not connect in time", failure.getMessage());
-    // the helper ignores the end of its input, so only a kill ends it; its display ends with it
     assertEquals(Set.of(), newSince(before));
     try (final Stream<Path> left = Files.list(parent)) {
       assertEquals(List.of(), left.toList());
@@ -540,7 +525,6 @@ class HelperSessionTest {
       HelperSession.open(broken, NATIVES, source, BrowserOptions.DEFAULT, this.listener, this.directory)
     );
     assertTrue(failure.getMessage().startsWith("The browser helper could not be started"), failure.getMessage());
-    // the display that was started for the helper ends, and the folder of the session goes
     assertEquals(Set.of(), newSince(before));
     try (final Stream<Path> left = Files.list(this.directory)) {
       assertEquals(List.of(), left.toList());
@@ -657,7 +641,6 @@ class HelperSessionTest {
   @Test
   void aRegionLargerThanThePageIsRefusedBeforeItsPixelsAreRead() {
     final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/oversized", 60_000L);
-    // a 5x3 region for a 4x3 page: 60 bytes where at most 48 fit
     assertTrue(failure.getMessage().contains("A frame of 60 bytes arrived where no frame of that size is expected"), failure.getMessage());
   }
 
@@ -665,7 +648,6 @@ class HelperSessionTest {
   void aTextLongerThanOneMessageArrivesWhole() {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
     Await.until("the first frame", () -> !this.listener.blues().isEmpty());
-    // A full 16-bit counter distinguishes all 10000 calls from a missing 8192-call message.
     assertTrue(session.sendKey(HelperProtocol.KEY_TYPE, "a".repeat(5_000)));
     Await.until("every character typed", () -> this.listener.inputCounts().contains(10_000));
     assertEquals(10_000, this.listener.inputCounts().getLast());
@@ -677,7 +659,6 @@ class HelperSessionTest {
     final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/silent", 1_000L);
     assertTrue(failure.getMessage().contains("The browser helper did not connect in time"), failure.getMessage());
     final long seconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start);
-    // the end of its input stops it, instead of the ten seconds it would be given to stop by itself
     assertTrue(seconds < 8, "the failed start took " + seconds + " s");
   }
 
@@ -731,9 +712,7 @@ class HelperSessionTest {
       }
 
       @Override
-      public void onAudio(final byte[] samples) {
-        // the page of this test plays nothing
-      }
+      public void onAudio(final byte[] samples) {}
 
       @Override
       public void onEnded(final String reason, final Throwable cause) {
@@ -773,7 +752,6 @@ class HelperSessionTest {
     );
     final Path started = gate.resolveSibling(gate.getFileName() + GatedHelperMain.STARTED_SUFFIX);
     try {
-      // the server waits for the helper to connect, past every check before it
       Await.until("the helper runs", () -> Files.exists(started));
       HelperProcesses.closeAll();
       Files.createFile(gate);
@@ -806,7 +784,6 @@ class HelperSessionTest {
     );
     final Path started = gate.resolveSibling(gate.getFileName() + GatedHelperMain.STARTED_SUFFIX);
     Await.until("the helper runs", () -> Files.exists(started));
-    // a plugin disable and enable while the browser starts: the start belongs to the plugin that was disabled
     HelperProcesses.closeAll();
     HelperProcesses.open();
     Files.createFile(gate);
@@ -843,7 +820,6 @@ class HelperSessionTest {
   void inputForAHelperThatHungUpEndsTheSessionOnce() {
     final HelperSession session = this.open(RawHelperMain.class.getName(), "/hang-up");
     Await.until("the end of the connection", () -> !this.listener.ended.isEmpty());
-    // the connection is gone, so the input cannot be written, which is another end nobody hears of
     assertTrue(session.sendKey(HelperProtocol.KEY_TYPE, "late"));
     Await.until("the input was tried", () -> session.getHandledInput() == 1);
     assertEquals(List.of("The browser helper closed the connection"), this.listener.ended);
@@ -854,7 +830,6 @@ class HelperSessionTest {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/fail");
     Await.until("the end of the session", () -> !this.listener.ended.isEmpty());
     Await.until("the helper exited", () -> !session.isAlive());
-    // the connection ended after the failure, which is a second end nobody hears of
     assertEquals(List.of("The browser failed: scripted renderer crash"), this.listener.ended);
   }
 
@@ -873,7 +848,6 @@ class HelperSessionTest {
 
       @Override
       public void onEnded(final String reason, final Throwable cause) {
-        // called on the reader thread, which cannot wait for itself
         self.get().close();
         closed.countDown();
       }
@@ -955,7 +929,6 @@ class HelperSessionTest {
     final Path folder = HelperSession.createFolder(this.directory);
     assertTrue(Files.isDirectory(folder));
     if (this.directory.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-      // the server's user alone may enter it, whatever the umask
       assertEquals(PosixFilePermissions.fromString("rwx------"), Files.getPosixFilePermissions(folder));
     }
     final Path zip = this.directory.resolve("folders.zip");
@@ -977,7 +950,6 @@ class HelperSessionTest {
     Files.createDirectory(this.directory.resolve("mcavb-taken"));
     final Iterator<String> names = List.of("mcavb-taken", "mcavb-free").iterator();
     assertEquals(this.directory.resolve("mcavb-free"), HelperSession.createFolder(this.directory, names::next));
-    // a hundred names are drawn at most, and the hundredth may be the free one
     final AtomicInteger drawn = new AtomicInteger();
     final Path last = HelperSession.createFolder(this.directory, () -> drawn.incrementAndGet() < 100 ? "mcavb-taken" : "mcavb-last");
     assertEquals(this.directory.resolve("mcavb-last"), last);
@@ -996,8 +968,6 @@ class HelperSessionTest {
   void aTemporaryFolderTooLongForChromiumsSocketIsRefusedOnLinuxWithTheReason() {
     // the longest temporary folder, 47 characters: Chromium's socket path has 107, the most a path may have
     HelperSession.requireShortEnough(OS.LINUX, Path.of("/" + "t".repeat(46), "mcavb-12345678"));
-    // the message names the folder as the system writes its path, which on Windows, where the tests run too, starts
-    // with a backslash
     final Path folder = Path.of("/" + "t".repeat(47));
     final Path tooLong = folder.resolve("mcavb-12345678");
     final PlayerException refused = assertThrows(PlayerException.class, () -> HelperSession.requireShortEnough(OS.LINUX, tooLong));
@@ -1008,14 +978,12 @@ class HelperSessionTest {
         " java.io.tmpdir, such as /tmp",
       refused.getMessage()
     );
-    // elsewhere, Chromium's socket does not lie in the folder of the session
     HelperSession.requireShortEnough(OS.WINDOWS, tooLong);
   }
 
   @Test
   @EnabledOnOs(org.junit.jupiter.api.condition.OS.LINUX) // fqn: OS is imported as me.brandonli.mcav.utils.os.OS
   void aHelperIsNotStartedInATemporaryFolderTooLongForChromiumAndItsFolderIsRemoved() throws IOException {
-    // long enough for Chromium's socket to be too long, short enough for the server's own socket
     final Path temporary = Files.createDirectories(this.directory.resolve("t".repeat(70 - this.directory.toString().length())));
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
     final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), 60_000L, OS.LINUX);
@@ -1032,7 +1000,6 @@ class HelperSessionTest {
   void aSocketPathThatIsTakenCannotBeBound() throws IOException {
     final Path taken = Files.createFile(this.directory.resolve("s"));
     assertThrows(IOException.class, () -> HelperSession.bind(taken).close());
-    // the socket that could not be bound is closed
     OpenFiles.leaveNoneOpen("a failed bind", () -> assertThrows(IOException.class, () -> HelperSession.bind(taken).close()));
   }
 
@@ -1081,9 +1048,7 @@ class HelperSessionTest {
      * @throws java.io.IOException if the input fails
      */
     public static void main(final String[] args) throws IOException {
-      while (System.in.read() >= 0) {
-        // never connect
-      }
+      while (System.in.read() >= 0) {}
     }
   }
 

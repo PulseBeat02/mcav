@@ -54,8 +54,6 @@ final class YTDLPParseExceptionTest {
     final YTDLPParseException exception = new YTDLPParseException("failure");
     final Class<?> superclass = YTDLPParseException.class.getSuperclass();
     assertInstanceOf(RuntimeException.class, exception, "a failing URL is recoverable, so it is no Error");
-    // a direct subclass of RuntimeException is no IllegalArgumentException: a well-formed URL can fail too, and
-    // callers catch both types in one clause
     assertEquals(RuntimeException.class, superclass);
   }
 }

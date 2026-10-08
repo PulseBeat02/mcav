@@ -33,9 +33,7 @@ public class VideoInputPlayer extends AbstractVideoPlayerCV {
   /**
    * Constructs a new capture device player.
    */
-  public VideoInputPlayer() {
-    // configured by the base class
-  }
+  public VideoInputPlayer() {}
 
   /**
    * Creates an OpenCV grabber for the capture device with the given index, which the player configures and starts.

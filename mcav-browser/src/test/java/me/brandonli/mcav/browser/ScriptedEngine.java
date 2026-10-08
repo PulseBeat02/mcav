@@ -93,7 +93,6 @@ final class ScriptedEngine implements HelperEngine {
       case "/unlinked" -> throw new UnsatisfiedLinkError("scripted missing native library");
       case "/exit" -> System.exit(3);
       case "/never" -> {
-        // nothing is ever reported
       }
       case "/load-error" -> {
         events.onReady("scripted");

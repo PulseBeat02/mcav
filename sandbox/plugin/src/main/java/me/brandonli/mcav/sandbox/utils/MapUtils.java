@@ -200,8 +200,6 @@ public final class MapUtils {
     if (!alongX && !alongZ) {
       return;
     }
-    // the maps up to the last id are created before the first block is placed, so an id too far past the maps of
-    // the world changes nothing in it
     final int lastMapId = (int) lastMap;
     findOrCreateMap(lastMapId);
 

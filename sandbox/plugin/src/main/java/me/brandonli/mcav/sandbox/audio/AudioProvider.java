@@ -77,9 +77,7 @@ public final class AudioProvider {
 
   private static final long STARTUP_STOP_TIMEOUT_SECONDS = 10L;
 
-  // the source a video plays as, as there is one video at a time
   private static final Object VIDEO = new Object();
-  // sources are told apart by identity
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
 
   private final PluginDataConfigurationMapper configuration;
@@ -92,8 +90,6 @@ public final class AudioProvider {
   private volatile @Nullable HttpResult httpServer;
   private volatile @Nullable SVCFilter voiceChatFilter;
   private boolean stopped;
-  // the outputs play one source at a time, a video or a virtual machine; the newest takes them over, and when it is
-  // released they go back to the one it took them from, if that one still plays
   private final Object outputLock;
   private final Deque<Claim> claims;
   private volatile @Nullable Claim owner;
@@ -178,7 +174,6 @@ public final class AudioProvider {
         this.httpServer = server;
       }
     }
-    // the plugin was disabled while the server started
     if (!accepted) {
       server.stop();
       return;
@@ -203,13 +198,11 @@ public final class AudioProvider {
   }
 
   private static JDA createJDA(final String token) {
-    // a light bot only needs voice states to join a channel; building it starts the login in the background
     final JDABuilder builder = JDABuilder.createLight(token, GatewayIntent.GUILD_VOICE_STATES);
     builder.enableCache(CacheFlag.VOICE_STATE);
     return builder.build();
   }
 
-  // runs on the startup thread
   private static DiscordConnection connectDiscord(final JDA bot, final String guildId, final String channelId) {
     try {
       bot.awaitReady();
@@ -237,7 +230,6 @@ public final class AudioProvider {
       return;
     }
     synchronized (this.lock) {
-      // the bot was shut down with the plugin while it connected, so the connection is dropped
       if (!this.stopped) {
         this.discord = connection;
       }
@@ -254,7 +246,6 @@ public final class AudioProvider {
         this.jda = null;
       }
     }
-    // a bot that is no longer current was already shut down with the plugin
     if (current) {
       bot.shutdownNow();
     }
@@ -366,15 +357,12 @@ public final class AudioProvider {
       this.claims.push(claim);
       this.owner = claim;
       if (previousSpeakers != null) {
-        // the bot and the web page play the new source from now on
         this.retireSpeakers(previousSpeakers);
       }
       return (samples, metadata) -> this.owner == claim && claim.output.applyFilter(samples, metadata);
     }
   }
 
-  // stops the speakers of the source another source took the outputs from; identity is the point, as the field still
-  // holds them unless the new source's own speakers replaced them
   @SuppressWarnings("ReferenceEquality")
   private void retireSpeakers(final SVCFilter speakers) {
     if (this.voiceChatFilter == speakers) {
@@ -443,7 +431,6 @@ public final class AudioProvider {
       this.claims.removeIf(held -> IDENTITY.equivalent(held.source, source));
       final Claim current = this.owner;
       if (current != null && !IDENTITY.equivalent(current.source, source)) {
-        // another source plays through the outputs; this one no longer waits to have them back
         return;
       }
       this.owner = null;
@@ -456,7 +443,6 @@ public final class AudioProvider {
         previous.output = this.connect(previous);
         this.owner = previous;
       } catch (final RuntimeException unavailable) {
-        // the output the source played through cannot take it back, such as a bot that lost the right to join
         this.claims.remove(previous);
         LOGGER.warn(HAND_BACK_FAILED, unavailable);
       }
@@ -542,7 +528,6 @@ public final class AudioProvider {
     private final AudioArgument argument;
     private final URLParseDump dump;
     private final Object[] players;
-    // the speakers of Simple Voice Chat are made again when the source gets the outputs back
     private volatile AudioFilter output;
 
     private Claim(final Object source, final AudioArgument argument, final URLParseDump dump, final Object[] players) {

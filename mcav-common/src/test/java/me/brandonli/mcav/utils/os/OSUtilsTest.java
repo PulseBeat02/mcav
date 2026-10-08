@@ -88,7 +88,6 @@ final class OSUtilsTest {
 
   @Test
   void agreesWithJnaAboutTheRunningSystem() {
-    // JNA detects the platform on its own to load its native library, so it is an independent witness
     final OS os = OSUtils.getOS();
     final Arch arch = OSUtils.getArch();
     final Bits bits = OSUtils.getBits();

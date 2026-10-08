@@ -73,7 +73,6 @@ final class RfbGuard {
 
   private final ClientParser client = new ClientParser();
 
-  // what the client's bytes decided, read by the server's parser; -1 until known
   private int minorVersion = -1;
 
   private int securityType = -1;
@@ -173,7 +172,6 @@ final class RfbGuard {
 
     @Override
     public long skip(final long count) throws IOException {
-      // every byte must pass the parser, so a skip reads
       final byte[] buffer = new byte[(int) Math.min(Math.max(count, 0), 8192)];
       return Math.max(this.read(buffer, 0, buffer.length), 0);
     }
@@ -218,28 +216,21 @@ final class RfbGuard {
     VERSION(VERSION_BYTES),
     SECURITY_TYPE(Integer.BYTES),
     SECURITY_COUNT(1),
-    // one byte per type: the count read before it gives the real length
     SECURITY_TYPES(1),
     REASON_LENGTH(Integer.BYTES),
     CHALLENGE(16),
     // MS-Logon II: the generator, the modulus and the server's public key
     LOGON_KEYS(24),
     RESULT(Integer.BYTES),
-    // the framebuffer's size, its pixel format and the length of its name
     INIT(24),
     MESSAGE(1),
-    // padding and the number of rectangles
     UPDATE(3),
-    // position, size and encoding
     RECTANGLE(12),
-    // the number of subrectangles, then the background pixel
     RRE(Integer.BYTES),
     TILE(1),
     SUBRECTANGLES(1),
     ZLIB_LENGTH(Integer.BYTES),
-    // padding, the first colour and the number of colours
     COLOURS(5),
-    // padding and the length of the text
     TEXT(7);
 
     private final int bytes;
@@ -330,7 +321,6 @@ final class RfbGuard {
     }
 
     private int collect(final byte[] buffer, final int at) throws IOException {
-      // a list of security types may be longer than the field; its types are only counted
       if (this.have < this.field.length) {
         this.field[this.have] = buffer[at];
       }
@@ -420,7 +410,6 @@ final class RfbGuard {
       if (!text.startsWith("RFB 003.") || text.charAt(VERSION_BYTES - 1) != '\n') {
         throw violation("a protocol version other than 3.x");
       }
-      // the security part depends on the version the client answers with
       this.mode = Mode.AWAIT_VERSION;
     }
 
@@ -605,7 +594,6 @@ final class RfbGuard {
       this.tileFlags = flags;
       final int colours = ((flags & TILE_BACKGROUND) != 0 ? pixel : 0) + ((flags & TILE_FOREGROUND) != 0 ? pixel : 0);
       if ((flags & TILE_SUBRECTANGLES) != 0) {
-        // the tile's colours come before its count of subrectangles
         this.skip(colours, Then.STATE, Server.SUBRECTANGLES);
         return;
       }
@@ -632,7 +620,6 @@ final class RfbGuard {
   private enum ClientMode {
     FIELD,
     SKIP,
-    // after a message the client should not send: its bytes are not followed any further
     UNTRACKED,
   }
 
@@ -703,7 +690,6 @@ final class RfbGuard {
 
     private int collect(final byte[] buffer, final int at) {
       if (this.state == Client.HANDSHAKE && this.need == 0) {
-        // the response to the server's challenge, whose length the security type decides, then the initialization
         this.need = this.response() + CLIENT_INIT;
       }
       if (this.have < this.field.length) {
@@ -785,7 +771,6 @@ final class RfbGuard {
     private void body() {
       switch (this.type) {
         case SET_PIXEL_FORMAT -> {
-          // three bytes of padding, then the pixel format, whose first byte is its bits per pixel
           final int bits = unsigned8(this.field, 3);
           if (bits == 8 || bits == 16 || bits == 32) {
             RfbGuard.this.clientBytesPerPixel = bits / 8;

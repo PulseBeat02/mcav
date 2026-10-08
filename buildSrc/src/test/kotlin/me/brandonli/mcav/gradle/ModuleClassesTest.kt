@@ -75,7 +75,6 @@ class ModuleClassesTest {
             )
         )
         val modules = listOf(jar("mcav-common.jar", "me/brandonli/mcav/MCAV"), jar("mcav-bukkit.jar", "me/brandonli/mcav/bukkit/media/mcv2/Mcv2PackServer"))
-        // the plugin's own classes and a module shaded into it are no downloaded module's
         assertEquals(
             listOf("me/brandonli/mcav/MCAV", "me/brandonli/mcav/bukkit/media/mcv2/Mcv2PackServer"),
             ModuleClasses.required(listOf(plugin, folder.resolve("absent").toFile()), modules).toList()

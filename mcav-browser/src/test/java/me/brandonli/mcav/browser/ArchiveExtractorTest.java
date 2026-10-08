@@ -130,7 +130,6 @@ class ArchiveExtractorTest {
     final InputStream archive = new Archive().folder("locales").file("swiftshader/deeper/libvk.so", 0755, "vk").finish();
     new ArchiveExtractor().extract(archive, this.target);
     final Set<PosixFilePermission> owner = PosixFilePermissions.fromString("rwxr-xr-x");
-    // a folder of the archive, and the folders a file needs; a umask such as 0002 would make them writable by the group
     assertEquals(owner, Files.getPosixFilePermissions(this.target.resolve("locales")));
     assertEquals(owner, Files.getPosixFilePermissions(this.target.resolve("swiftshader")));
     assertEquals(owner, Files.getPosixFilePermissions(this.target.resolve("swiftshader/deeper")));
@@ -188,7 +187,6 @@ class ArchiveExtractorTest {
   void entryNamesAreResolvedStrictly() throws IOException {
     final Path root = this.target.toRealPath();
     assertEquals(root.resolve("a/b"), ArchiveExtractor.resolve(root, "a/b"));
-    // a name that climbs, even back into the folder, is refused
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "a/../b"));
     assertEquals(root, ArchiveExtractor.resolve(root, "./"));
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, ""));
@@ -207,7 +205,6 @@ class ArchiveExtractorTest {
       Files.createSymbolicLink(root.resolve("link"), outside);
       final IOException failure = assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "link/file"));
       assertEquals("The archive entry name passes a link: link/file", failure.getMessage());
-      // every folder on the way is checked, not only the last one
       assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "link/deeper/file"));
     } catch (final UnsupportedOperationException | IOException exception) {
       assumeTrue(false, "symbolic links are not available: " + exception);
@@ -236,7 +233,6 @@ class ArchiveExtractorTest {
     final InputStream archive = new Archive().file("a", 0644, "12345").file("b", 0644, "678").finish();
     final IOException failure = assertThrows(IOException.class, () -> new ArchiveExtractor(10, 7).extract(archive, this.target));
     assertEquals("The archive extracts to more than the allowed size", failure.getMessage());
-    // exactly the limit is fine
     new ArchiveExtractor(10, 8).extract(new Archive().file("c", 0644, "12345").file("d", 0644, "678").finish(), this.target);
   }
 
@@ -299,9 +295,7 @@ class ArchiveExtractorTest {
     final Path file = Files.writeString(this.target.resolve("file.txt"), "file");
     ArchiveExtractor.tighten(file);
     ArchiveExtractor.tighten(this.target.resolve("missing"));
-    // tighten reaches takeWriteAway only where the file system has POSIX permissions
     assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
-    // a path that is gone by the time its permissions are changed is logged, not thrown
     ArchiveExtractor.takeWriteAway(this.target.resolve("gone"));
     final Path closed = Files.createDirectories(this.target.resolve("closed"));
     Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("-wx------"));

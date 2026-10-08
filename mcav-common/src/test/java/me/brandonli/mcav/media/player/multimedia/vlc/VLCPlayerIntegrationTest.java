@@ -237,7 +237,6 @@ final class VLCPlayerIntegrationTest {
     final boolean pausedAgain = this.player.pause();
     assertTrue(paused);
     assertFalse(pausedAgain, "already paused");
-    // neither frames nor samples arrive while paused
     this.awaitSilence();
 
     final int pausedFrames = this.frames.get();
@@ -271,7 +270,6 @@ final class VLCPlayerIntegrationTest {
     final long seekedAt = System.nanoTime();
     final boolean seeked = this.player.seek(4_000L);
     assertTrue(seeked);
-    // the video ends about a second after the seek, so frames stop arriving long before the remaining four seconds
     final QuietPeriod quiet = new QuietPeriod(this.frames::get, 700L);
     Polling.awaitCondition("frames stopped arriving after the seek", TIMEOUT, quiet::hasElapsed);
 
@@ -294,7 +292,6 @@ final class VLCPlayerIntegrationTest {
 
   @Test
   void takesTheAudioFromASeparateSource() throws Exception {
-    // the video has no audio track, so every sample must come from the separate audio file
     final Path silent = TestMedia.silentVideo();
     final Path sound = TestMedia.audio(2.0);
     final Source video = FileSource.path(silent);

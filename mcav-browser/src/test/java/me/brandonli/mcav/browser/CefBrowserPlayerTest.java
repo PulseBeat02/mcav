@@ -71,7 +71,6 @@ class CefBrowserPlayerTest {
   private final List<ImageBuffer> processed = new ArrayList<>();
   private BrowserSession.Listener listener;
   private RuntimeException startFailure;
-  // the clock of the budget of the reports, which only the tests move
   private final AtomicLong now = new AtomicLong();
 
   private final CefBrowserPlayer player = new CefBrowserPlayer(
@@ -178,7 +177,6 @@ class CefBrowserPlayerTest {
     Await.until("the sound of the page", () -> heard.size() == 1);
     assertArrayEquals(new byte[] { 1, 0, 1, 0 }, heard.getFirst());
     assertTrue(this.player.release());
-    // a released player has no output, and sound of a session that is over is dropped
     first.onAudio(new byte[] { 2, 0, 2, 0 });
     this.player.deliverAudio(this.sessions.getFirst(), new byte[] { 3, 0, 3, 0 });
     Thread.sleep(CefBrowserPlayer.MAX_QUEUED_AUDIO_MILLIS * 2L);
@@ -189,7 +187,6 @@ class CefBrowserPlayerTest {
   void soundBeforeTheSessionIsThePlayersOrOfAnOldSessionIsDropped() throws InterruptedException {
     final List<byte[]> heard = this.attachSoundRecorder();
     final CefBrowserPlayer early = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
-      // the helper plays sound during the start, before the session is the player's
       sessionListener.onAudio(new byte[] { 9, 0, 9, 0 });
       this.listener = sessionListener;
       final FakeSession session = new FakeSession();
@@ -246,7 +243,6 @@ class CefBrowserPlayerTest {
   @Test
   void aReleaseStopsAStartInProgressInsteadOfWaitingForIt() throws Exception {
     final CountDownLatch opening = new CountDownLatch(1);
-    // a helper that takes its time to show the page, as the first start after a download can, up to three minutes
     final CefBrowserPlayer slow = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
       opening.countDown();
       try {
@@ -271,7 +267,6 @@ class CefBrowserPlayerTest {
       assertFalse(started.get(5, TimeUnit.SECONDS), "the start of a released player fails");
       assertFalse(slow.isPlaying());
       assertFalse(leftInterrupted.get(), "the release's interrupt is the player's own, not left to the thread that called start");
-      // the start the release stopped took that interrupt back; a later start does not take its caller's own
       Thread.currentThread().interrupt();
       try {
         assertFalse(slow.start(SOURCE), "a released player never starts");
@@ -291,7 +286,6 @@ class CefBrowserPlayerTest {
     final CefBrowserPlayer player = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
       final FakeSession session = new FakeSession();
       if (opened.isEmpty()) {
-        // the helper ends after it showed the page, before the player took the session
         sessionListener.onEnded("The browser helper exited", new IllegalStateException("exit 1"));
       }
       opened.add(session);
@@ -337,11 +331,9 @@ class CefBrowserPlayerTest {
     final BrowserSession.Listener ended = this.listener;
     ended.onEnded("gone", new IllegalStateException("crash"));
     Await.until("the audio thread of the failed session ended", () -> before.containsAll(audioThreads()));
-    // sound the helper sent before it went is not played after the failure was reported
     ended.onAudio(new byte[] { 6, 0, 6, 0 });
     this.player.deliverAudio(this.sessions.getFirst(), new byte[] { 7, 0, 7, 0 });
     assertEquals(List.of(), heard);
-    // an end while the session starts fails the start and leaves no thread either
     final CefBrowserPlayer early = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
       sessionListener.onEnded("The browser helper exited", new IllegalStateException("exit 1"));
       return new FakeSession();
@@ -390,7 +382,6 @@ class CefBrowserPlayerTest {
     first.onEnded("gone", new IllegalStateException("crash"));
     assertFalse(this.player.isPlaying());
     assertEquals(List.of("gone: crash"), this.reports);
-    // a failed player starts again with a new session, closing the failed one
     assertTrue(this.player.start(SOURCE));
     assertEquals(1, this.sessions.getFirst().closed);
     first.onFrame(frame());
@@ -472,13 +463,10 @@ class CefBrowserPlayerTest {
       final Future<Boolean> leftInterrupted = starter.submit(() -> {
         try {
           late.start(SOURCE);
-        } catch (final IllegalStateException failure) {
-          // the helper's own failure, which the start passes on
-        }
+        } catch (final IllegalStateException failure) {}
         return Thread.currentThread().isInterrupted();
       });
       assertTrue(opening.await(5, TimeUnit.SECONDS), "the helper factory must be entered before release");
-      // the release interrupts the start, then waits for it to end and closes what it opened
       assertTrue(assertTimeoutPreemptively(Duration.ofSeconds(5), late::release));
       final boolean left = leftInterrupted.get(5, TimeUnit.SECONDS);
       assertFalse(late.isPlaying(), "a released player plays nothing");
@@ -521,13 +509,11 @@ class CefBrowserPlayerTest {
 
   @Test
   void aStartThatEndsWellDespiteTheReleaseTakesItsInterruptBack() throws Exception {
-    // the helper connected in time: the start returns as if nothing happened, and the release closes the session
     assertFalse(leftInterruptedByAStartThat(FakeSession::new), "the release's interrupt is the player's own");
   }
 
   @Test
   void aStartThatFailsAnotherWayAfterTheReleaseTakesItsInterruptBack() throws Exception {
-    // the helper fails with an error of its own, which the start does not take for a stop by the release
     assertFalse(
       leftInterruptedByAStartThat(() -> {
         throw new IllegalStateException("the helper broke");
@@ -552,7 +538,6 @@ class CefBrowserPlayerTest {
   @Test
   void aCallerInterruptedBeforeAReleaseStopsItsStartKeepsItsInterrupt() {
     final AtomicReference<CefBrowserPlayer> self = new AtomicReference<>();
-    // the release comes while the helper starts, on the starting thread itself, so the order is certain
     final CefBrowserPlayer releasing = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> {
       assertTrue(self.get().release());
       throw new PlayerException("Interrupted while starting the browser");
@@ -656,7 +641,7 @@ class CefBrowserPlayerTest {
         "Browser input queue is full: The browser input backlog is full"
       ),
       this.reports
-    ); // a hold moves the pointer first and then presses: two more drops
+    );
     this.player.sendMouseEvent(MouseClick.HOLD, 1, 1);
     assertEquals(4, this.reports.size(), this.reports.toString());
   }
@@ -776,7 +761,6 @@ class CefBrowserPlayerTest {
   void aPlayerReleasedOnAnotherThreadCanBeUsedOnThisOne() {
     assertTrue(this.player.start(SOURCE));
     CompletableFuture.runAsync(() -> assertTrue(this.player.release())).join();
-    // the release gave its lock back, so a start elsewhere answers at once
     assertTimeoutPreemptively(Duration.ofSeconds(5), () -> assertFalse(this.player.start(SOURCE)));
   }
 

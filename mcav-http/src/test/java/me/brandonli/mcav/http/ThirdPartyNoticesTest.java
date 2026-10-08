@@ -52,7 +52,6 @@ final class ThirdPartyNoticesTest {
     for (final String component : new String[] { "react@", "react-dom@", "next@", "scheduler@", "styled-jsx@" }) {
       assertTrue(notices.contains("\n" + component), component + " is named");
     }
-    // packages the page never imports ship nothing, so the notices do not name them
     for (final String unused : new String[] { "@mui/material@", "@emotion/react@", "howler@", "@fontsource/roboto@" }) {
       assertFalse(notices.contains("\n" + unused), unused + " is not named");
     }

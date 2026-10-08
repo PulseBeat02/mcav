@@ -37,9 +37,7 @@ public final class OpenCVPlayer extends AbstractVideoPlayerCV {
   /**
    * Constructs a new OpenCV player.
    */
-  public OpenCVPlayer() {
-    // configured by the base class
-  }
+  public OpenCVPlayer() {}
 
   /**
    * Creates the grabber for a resource, which the player configures and starts: the reader of OpenCV where its build

@@ -289,7 +289,6 @@ public final class FakeServer implements AutoCloseable {
     })
       .when(connection)
       .send(any(Packet.class));
-    // a packet sent with a listener is written only when the test says so, like a connection that has not caught up
     doAnswer(invocation -> {
       final Packet<?> packet = invocation.getArgument(0);
       packets.add(packet);

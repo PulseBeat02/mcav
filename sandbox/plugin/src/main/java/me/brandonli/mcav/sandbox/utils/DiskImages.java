@@ -85,7 +85,6 @@ public final class DiskImages {
     try {
       return folder.resolve(image);
     } catch (final RuntimeException invalidPath) {
-      // an image name the file system cannot represent at all, such as a NUL byte on Linux
       final String message = "The disk image %s is not a valid file name".formatted(image);
       throw new IllegalArgumentException(message, invalidPath);
     }

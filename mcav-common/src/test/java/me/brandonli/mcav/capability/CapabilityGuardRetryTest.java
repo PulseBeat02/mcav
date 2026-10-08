@@ -30,7 +30,6 @@ final class CapabilityGuardRetryTest {
     guard.markPrepared(Capability.VLC, false);
     Mockito.doAnswer(invocation -> {
       invocation.callRealMethod();
-      // A retry starts after the first state observation; neither state permits using VLC.
       guard.markPreparing(Capability.VLC);
       return null;
     })

@@ -460,8 +460,6 @@ final class ImagePlayerTest {
     final AtomicInteger consumed = new AtomicInteger();
     final ImagePlayer player = ImagePlayer.player();
     attach(player, (_, _) -> consumed.incrementAndGet() > 0);
-    // one frame every ten seconds, so a release that never wakes the thread leaves it parked far beyond the two
-    // seconds a release waits for it
     final FrameSource slow = solidFrames(2, 2, 0.1f);
 
     final boolean started = player.start(slow);

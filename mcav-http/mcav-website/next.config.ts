@@ -3,7 +3,6 @@ import {readdirSync, readFileSync, statSync} from "node:fs";
 import {join, relative, sep} from "node:path";
 import type {NextConfig} from "next";
 
-// What the build reads: the inputs Gradle's buildWebsite task declares.
 const SOURCES = [
     "src",
     "public",

@@ -180,7 +180,6 @@ final class VMConfigurationTest {
     final String memory = configuration.get("m");
     assertTrue(hasCdrom);
     assertTrue(hasSnapshot);
-    // a repeatable option is set once it has a value, so the player sees a tablet the configuration added
     assertTrue(hasDevice);
     assertFalse(hasMemory);
     assertEquals("alpine.iso", cdrom);

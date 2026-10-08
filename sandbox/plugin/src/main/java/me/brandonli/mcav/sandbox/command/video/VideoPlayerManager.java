@@ -213,7 +213,6 @@ public final class VideoPlayerManager {
     }
   }
 
-  // Called after the shared status claim; that claim stays held until the worker finishes, including cancellation.
   long beginStart() {
     synchronized (this.lifecycle) {
       if (this.closed) {
@@ -293,7 +292,6 @@ public final class VideoPlayerManager {
   public void startFilter(final FunctionalVideoFilter output) {
     final long expected;
     synchronized (this.lifecycle) {
-      // Startup has the shared claim, so no newer request can publish until this worker completes.
       this.filter = output;
       this.checkStartLocked();
       expected = this.startGeneration;
@@ -308,7 +306,6 @@ public final class VideoPlayerManager {
     }
   }
 
-  // a display released or replaced since it was scheduled is not started any more
   private void startIfCurrent(final long expected, final FunctionalVideoFilter output) {
     final boolean current;
     synchronized (this.lifecycle) {

@@ -65,7 +65,6 @@ class BrowserModuleTest {
   @Test
   void startingRemovesTheFolderOfASessionWhoseServerWasKilled(@TempDir final Path temporary) throws IOException {
     final Path stale = Files.createDirectory(temporary.resolve(SessionFolders.PREFIX + "stale"));
-    // a server no system hands this id out to
     Files.writeString(stale.resolve(SessionFolders.OWNER_FILE), Long.MAX_VALUE + "\n2026-10-05T00:00:00Z\n", StandardCharsets.US_ASCII);
     final Path live = HelperSession.createFolder(temporary);
     assertTrue(Files.isRegularFile(live.resolve(SessionFolders.OWNER_FILE)), "a new folder names its server");

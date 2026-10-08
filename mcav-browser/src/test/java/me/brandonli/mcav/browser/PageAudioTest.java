@@ -85,11 +85,9 @@ class PageAudioTest {
     final String silence = call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[4]), "1");
     final String other = call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 2, 0, 0, 0 }), "2");
     audio.onEvent(PageAudio.BINDING_EVENT, sound);
-    // the frame's pause passes, so the server keeps its timing
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLIS - 1));
     audio.onEvent(PageAudio.BINDING_EVENT, silence);
     assertEquals(List.of((byte) 1, (byte) 0), passed);
-    // but the quiet moment counts from its last sound, not from its silence
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(1));
     audio.onEvent(PageAudio.BINDING_EVENT, other);
     assertEquals(List.of((byte) 1, (byte) 0, (byte) 2), passed, "another frame speaks after the quiet moment");
@@ -117,7 +115,6 @@ class PageAudioTest {
     assertNull(PageAudio.parse(PageAudio.BINDING_EVENT, call(FRAMES).replace("}", ",\"more\":1}")), "another field");
     final String unterminated = "{\"name\":\"" + PageAudio.BINDING + "\",\"payload\":\"" + encoded;
     assertNull(PageAudio.parse(PageAudio.BINDING_EVENT, unterminated), "no end of the payload");
-    // a page that writes a quote into its payload gets it escaped, and a backslash is no Base64
     assertNull(PageAudio.parse(PageAudio.BINDING_EVENT, call(PageAudio.BINDING, "AAAA\\\"AAAA", "7")), "an escaped quote");
     assertNull(PageAudio.parse(PageAudio.BINDING_EVENT, call(PageAudio.BINDING, "AAAA AAAA", "7")), "not Base64");
   }
@@ -129,10 +126,8 @@ class PageAudioTest {
     final byte[] largest = new byte[HelperProtocol.MAX_AUDIO_BYTES];
     largest[largest.length - 1] = 9;
     assertArrayEquals(largest, samplesOf(PageAudio.parse(PageAudio.BINDING_EVENT, call(largest))));
-    // refused for the length of its text alone, which is longer than that of any sound within the limit
     assertNull(PageAudio.parse(PageAudio.BINDING_EVENT, call(new byte[HelperProtocol.MAX_AUDIO_BYTES + 4])), "a frame more");
     assertNull(PageAudio.parse(PageAudio.BINDING_EVENT, call(new byte[HelperProtocol.MAX_AUDIO_BYTES + 8])), "longer still");
-    // within the length of the largest sound, but more bytes than a message holds: refused once decoded
     final String longest = "A".repeat(87_384);
     assertNull(PageAudio.parse(PageAudio.BINDING_EVENT, call(PageAudio.BINDING, longest, "7")), "65538 bytes");
   }
@@ -147,15 +142,12 @@ class PageAudioTest {
     for (int count = 0; count < 6; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, event);
     }
-    // 2 s are 384000 bytes: five chunks of 65536 fit, the sixth does not
     assertEquals(5, passed.size());
-    // 56320 bytes are left; a quarter second adds half a second of sound, 96000 bytes, which two more chunks fit
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(250));
     for (int count = 0; count < 3; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, event);
     }
     assertEquals(7, passed.size());
-    // a long quiet time refills no more than the budget; a clock that goes back refills nothing
     now.addAndGet(TimeUnit.DAYS.toNanos(365));
     for (int count = 0; count < 6; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, event);
@@ -164,7 +156,6 @@ class PageAudioTest {
     now.addAndGet(-TimeUnit.SECONDS.toNanos(10));
     audio.onEvent(PageAudio.BINDING_EVENT, event);
     assertEquals(12, passed.size());
-    // what is not sound costs nothing
     now.addAndGet(TimeUnit.SECONDS.toNanos(1));
     audio.onEvent(PageAudio.BINDING_EVENT, "{}");
     for (int count = 0; count < 6; count++) {
@@ -205,12 +196,10 @@ class PageAudioTest {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }
     assertEquals(5, passed.size());
-    // 56320 bytes are left: the sixth is refused for its length, with one look at the clock for the budget
     looks.set(0);
     audio.onEvent(PageAudio.BINDING_EVENT, largest);
     assertEquals(1, looks.get(), "the budget alone was looked at");
     assertEquals(5, passed.size());
-    // a call that fits is decoded and then taken, which looks at the clock again
     looks.set(0);
     audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[4_000]));
     assertEquals(2, looks.get());
@@ -226,9 +215,7 @@ class PageAudioTest {
     for (int count = 0; count < 5; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }
-    // the 56320 bytes left of the budget, which leaves nothing
     audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[56_320]));
-    // 170664063 ns refill 65535 bytes: the length of the largest call says 65527 bytes at least, its sound is 65536
     now.addAndGet(170_664_063L);
     assertTrue(PageAudio.leastBytes(largest) <= 65_535);
     audio.onEvent(PageAudio.BINDING_EVENT, largest);
@@ -241,15 +228,12 @@ class PageAudioTest {
     final AtomicLong now = new AtomicLong();
     final List<Integer> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples.length), now::get);
-    // one context throughout, whose id is as long as an id can be, so the length of a call tells its sound exactly
     final String context = "-1234567890";
     final String largest = call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[HelperProtocol.MAX_AUDIO_BYTES]), context);
     for (int count = 0; count < 5; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }
     audio.onEvent(PageAudio.BINDING_EVENT, call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[56_320]), context));
-    // 10417 ns refill 4 bytes; a frame of sound says from its length alone that it holds 4 bytes at least, which is
-    // what is left
     now.addAndGet(10_417L);
     final String frame = call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[4]), context);
     assertEquals(4, PageAudio.leastBytes(frame));
@@ -269,8 +253,6 @@ class PageAudioTest {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }
     audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[56_320]));
-    // every look at the clock now finds 10417 ns more, 4 bytes of budget: the look before decoding leaves 4 bytes,
-    // and the look when the sound is taken 8, which two frames need
     step.set(10_417L);
     audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[8]));
     assertEquals(List.of(65_536, 65_536, 65_536, 65_536, 65_536, 56_320, 8), passed);

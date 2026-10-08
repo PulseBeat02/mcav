@@ -30,9 +30,7 @@ public class ZeroFilter extends MatVideoFilter {
   /**
    * Constructs a new zero filter.
    */
-  public ZeroFilter() {
-    // stateless
-  }
+  public ZeroFilter() {}
 
   /**
    * Sets every pixel of the frame to black in place.

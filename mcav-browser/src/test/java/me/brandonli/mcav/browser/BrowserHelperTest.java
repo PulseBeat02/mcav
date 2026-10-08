@@ -135,7 +135,6 @@ class BrowserHelperTest {
     helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 1, HelperProtocol.BUTTON_LEFT, 1, 0, 0)));
     reporter.onAudio(chunk);
     assertEquals(message, sent.size(), "a press lets the sound of the page pass");
-    // the page moves on, by a link or by itself, to a page nobody touched
     reporter.onPageStart();
     reporter.onAudio(chunk);
     assertEquals(message, sent.size(), "the new page plays nothing before a press on it");
@@ -364,9 +363,7 @@ class BrowserHelperTest {
         }
 
         @Override
-        public void close() {
-          // nothing to close
-        }
+        public void close() {}
       }
     );
     assertEquals("the standard input ended", helper.getStopReason());
@@ -485,7 +482,6 @@ class BrowserHelperTest {
       BrowserHelper.runFromInput(new BufferedReader(new StringReader("garbage\n")), new ScriptedEngine(), BrowserHelperTest::neverHalts)
     );
     final String line = this.configuration("/page").toLine() + "\n";
-    // nothing listens on the socket, so the helper cannot connect
     assertEquals(
       1,
       BrowserHelper.runFromInput(new BufferedReader(new StringReader(line)), new ScriptedEngine(), BrowserHelperTest::neverHalts)
@@ -537,25 +533,19 @@ class BrowserHelperTest {
         final McavOffscreenBrowser.PaintListener painter,
         final HelperEvents events
       ) throws InterruptedException {
-        // CEF that never finishes its initialization
         release.await();
       }
 
       @Override
-      public void dispatch(final List<DevToolsInput.DevToolsCall> calls) {
-        // no page to send input to
-      }
+      public void dispatch(final List<DevToolsInput.DevToolsCall> calls) {}
 
       @Override
-      public void stop() {
-        // nothing started
-      }
+      public void stop() {}
     };
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), hanging, status -> halted.countDown(), 200L);
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
       peer.readUntil(HelperProtocol.HELLO);
-      // the server dies: its end of the standard input closes
       this.standardInput.close();
       assertTrue(halted.await(30, TimeUnit.SECONDS), "the helper halts although its browser never started");
     } finally {
@@ -671,7 +661,6 @@ class BrowserHelperTest {
     }
     final PageCompositor compositor = helper.getCompositor();
     final byte[] buffer = new byte[compositor.getPageBytes()];
-    // a closed picture answers at once, with nothing; an open one would wait for damage
     final long start = System.nanoTime();
     assertNull(compositor.takeDamage(buffer, 10_000L));
     assertTrue(System.nanoTime() - start < TimeUnit.SECONDS.toNanos(5), "the picture of the page is still open");

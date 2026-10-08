@@ -205,8 +205,6 @@ final class HelperLauncher {
     if (this.os == OS.LINUX) {
       final Path authority = authorityOf(folder);
       kept.put("XAUTHORITY", authority.toString());
-      // Chromium keeps its temporary files, its shared memory among them, and its certificate database where a
-      // confined Chromium may write
       kept.put("TMPDIR", folder.toString());
       kept.put("XDG_DATA_HOME", folder.toString());
     }

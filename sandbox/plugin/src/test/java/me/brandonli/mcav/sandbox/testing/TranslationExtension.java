@@ -51,9 +51,7 @@ public final class TranslationExtension implements BeforeAllCallback {
   /**
    * Constructs the extension. JUnit creates it for you.
    */
-  public TranslationExtension() {
-    // stateless
-  }
+  public TranslationExtension() {}
 
   /**
    * Loads the messages before the first test class runs; later calls do nothing.
@@ -105,7 +103,6 @@ public final class TranslationExtension implements BeforeAllCallback {
     }
   }
 
-  // files registered later are deleted first, so the folder is registered before what it contains
   private static void deleteOnExit(final Path folder) {
     final Path localeFolder = folder.resolve("locale");
     final Path messages = localeFolder.resolve("mcav_en_us.properties");

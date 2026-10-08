@@ -76,10 +76,7 @@ public final class BrowserHelper {
   private final PageCompositor compositor;
   private final CountDownLatch stopped;
   private final AtomicReference<String> stopReason;
-  // the mouse buttons the page sees held; only the thread that reads the commands of the server touches them
   private int heldButtons;
-  // whether a player pressed a mouse button or a key on the page shown now, after which its sound may reach the server;
-  // a new page starts without, as a document does in Chromium
   private volatile boolean activated;
 
   /**
@@ -121,7 +118,6 @@ public final class BrowserHelper {
    * @param args the non-null launch arguments, ignored; the configuration comes from standard input
    */
   public static void main(final String[] args) {
-    // JCEF writes progress to the standard output; the server reads both outputs as the log of the helper
     final PrintStream errors = System.err;
     System.setOut(errors);
     final InputStream standardInput = System.in;
@@ -255,21 +251,15 @@ public final class BrowserHelper {
   void watchInput(final Reader standardInput) {
     try {
       final char[] buffer = new char[256];
-      while (standardInput.read(buffer) >= 0) {
-        // nothing is expected after the configuration line
-      }
-    } catch (final IOException exception) {
-      // a broken input means the server is gone as well
-    }
+      while (standardInput.read(buffer) >= 0) {}
+    } catch (final IOException exception) {}
     this.stop("the standard input ended");
     try {
       Thread.sleep(this.stopDeadlineMillis);
     } catch (final InterruptedException exception) {
-      // nothing interrupts this thread but a test; the helper still must not outlive the server
       final Thread thread = Thread.currentThread();
       thread.interrupt();
     }
-    // still running: the browser hangs in its start or its shutdown, or a shutdown hook of the JVM does
     System.err.println("The browser helper did not stop within " + this.stopDeadlineMillis + " ms and halts");
     this.halter.halt(EXIT_FAILURE);
   }

@@ -236,7 +236,6 @@ class VMAudioClientTest {
       assertEquals(List.of("sound 4", "quiet"), heard, "the end of the guest's sound, after its samples");
       assertTrue(client.getReader() != null);
     }
-    // a sink that keeps no time ignores the end
     final VMAudioClient.Sink plain = (samples, length) -> {};
     plain.quiet();
   }
@@ -250,7 +249,6 @@ class VMAudioClientTest {
         streams.out().write(new byte[] { (byte) 255, 1, 0, 1 });
         QemuAudioProtocolTest.writeData(streams.out(), new byte[] { 1, 2, 3, 4 });
         streams.out().flush();
-        // the client closes the connection once its sink failed
         assertEquals(-1, streams.in().read());
       } catch (final IOException exception) {
         throw new UncheckedIOException(exception);
@@ -285,7 +283,6 @@ class VMAudioClientTest {
         Thread.sleep(1_000L);
       }
     } catch (final IOException exception) {
-      // the client gave up and closed the connection
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
     }
@@ -319,7 +316,6 @@ class VMAudioClientTest {
   void theHandshakeDeadlineHoldsWhileTheCommonPoolIsBusy() throws Exception {
     final CountDownLatch release = occupyTheCommonPool();
     try {
-      // a server that accepts the connection and never says a word, on a thread of its own
       final Thread server = Thread.ofPlatform()
         .daemon()
         .start(() -> {
@@ -331,7 +327,6 @@ class VMAudioClientTest {
               socket.close();
             }
           } catch (final IOException exception) {
-            // the test ended
           } catch (final InterruptedException exception) {
             Thread.currentThread().interrupt();
           }
@@ -439,7 +434,6 @@ class VMAudioClientTest {
         throw new UncheckedIOException(exception);
       }
     });
-    // a client that knows the password answers the challenge instead, see theSoundOfTheGuestReachesTheSink...
     final ProtocolException failure = assertThrows(ProtocolException.class, () ->
       VMAudioClient.connect(this.address(), "", (samples, length) -> {}, (message, cause) -> {})
     );

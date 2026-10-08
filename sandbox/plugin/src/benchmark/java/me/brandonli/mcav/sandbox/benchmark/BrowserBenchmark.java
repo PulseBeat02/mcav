@@ -66,7 +66,6 @@ public final class BrowserBenchmark {
   private static final long FULL_TIMEOUT_MILLIS = 3_000L;
   private static final long START_TIMEOUT_MILLIS = 120_000L;
   private static final int MAP_ID = 0;
-  // exact colors of the map palette, so dithering maps every pixel of a solid page to one index
   private static final List<String> LATENCY_COLORS = List.of("#dc0000", "#7fb238", "#c7c7c7", "#f7e9a3");
 
   private BrowserBenchmark() {
@@ -118,7 +117,6 @@ public final class BrowserBenchmark {
    * @return the factory of its players
    */
   private static Supplier<BrowserPlayer> backends(final String backend) {
-    // the benchmark pages are served on this machine, which the browser reaches only with private networks allowed
     final BrowserOptions local = BrowserOptions.builder().privateNetworks(true).build();
     return switch (backend) {
       case "jcef" -> () -> BrowserPlayer.create(local);

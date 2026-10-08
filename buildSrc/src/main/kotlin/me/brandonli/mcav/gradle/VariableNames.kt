@@ -67,7 +67,6 @@ object VariableNames {
 
     private fun find(files: List<JavaFileObject>): Map<URI, List<UndescriptiveName>> {
         val compiler = ToolProvider.getSystemJavaCompiler()
-        // parsed only: the names are all in the syntax tree, so no class path is needed
         val task = compiler.getTask(null, null, { }, listOf("-proc:none"), null, files) as JavacTask
         val positions = Trees.instance(task).sourcePositions
         return task.parse().associate { unit -> unit.sourceFile.toUri() to Scanner(unit, positions).names() }
@@ -112,7 +111,6 @@ object VariableNames {
             }
         }
 
-        // the enclosing types, outermost first, as a qualified name: package.Outer.Inner
         private fun owner(): String {
             val types = generateSequence(currentPath) { it.parentPath }
                 .map { it.leaf }

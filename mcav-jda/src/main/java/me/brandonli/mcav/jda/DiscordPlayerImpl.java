@@ -56,7 +56,7 @@ public final class DiscordPlayerImpl implements DiscordPlayer {
    */
   private static final String ELLIPSIS = "…";
 
-  private static final int MAX_QUEUED_FRAMES = 150; // three seconds
+  private static final int MAX_QUEUED_FRAMES = 150;
   private static final int FRAME_MILLIS = 20;
 
   private final JDA jda;

@@ -34,9 +34,7 @@ public class TransposeFilter extends MatVideoFilter {
   /**
    * Constructs a new transpose filter.
    */
-  public TransposeFilter() {
-    // stateless
-  }
+  public TransposeFilter() {}
 
   /**
    * Transposes the frame into its spare matrix, which then becomes the matrix of the frame with the width and the

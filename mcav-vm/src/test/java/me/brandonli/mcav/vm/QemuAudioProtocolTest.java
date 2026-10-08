@@ -108,7 +108,6 @@ class QemuAudioProtocolTest {
     final boolean authenticates = QemuAudioProtocol.negotiateSecurity(input(new byte[] { 2, 2, 1 }), new DataOutputStream(chosen), "");
     assertFalse(authenticates, "without a password there is no challenge to answer");
     assertArrayEquals(new byte[] { 1 }, chosen.toByteArray());
-    // a server that offers no authentication first and more after it: every type is read
     final DataInputStream offers = input(new byte[] { 3, 1, 2, 16, 42 });
     QemuAudioProtocol.negotiateSecurity(offers, new DataOutputStream(new ByteArrayOutputStream()), "");
     assertEquals(42, offers.readUnsignedByte(), "the stream stays in step");
@@ -129,16 +128,13 @@ class QemuAudioProtocolTest {
 
   @Test
   void theClientAnswersThePasswordChallengeOfADisplayWithAPassword() throws IOException {
-    // the display of a machine asks for its password (VNC authentication), and offers nothing else
     final ByteArrayOutputStream chosen = new ByteArrayOutputStream();
     final boolean authenticates = QemuAudioProtocol.negotiateSecurity(input(new byte[] { 1, 2 }), new DataOutputStream(chosen), "Pa55word");
     assertTrue(authenticates);
     assertArrayEquals(new byte[] { 2 }, chosen.toByteArray());
-    // with a password, VNC authentication wins over none, whatever the order
     final ByteArrayOutputStream preferred = new ByteArrayOutputStream();
     assertTrue(QemuAudioProtocol.negotiateSecurity(input(new byte[] { 2, 1, 2 }), new DataOutputStream(preferred), "Pa55word"));
     assertArrayEquals(new byte[] { 2 }, preferred.toByteArray());
-    // a known password is no reason to authenticate with a server that does not ask for it
     final ByteArrayOutputStream open = new ByteArrayOutputStream();
     assertFalse(QemuAudioProtocol.negotiateSecurity(input(new byte[] { 1, 1 }), new DataOutputStream(open), "Pa55word"));
     assertArrayEquals(new byte[] { 1 }, open.toByteArray());
@@ -146,7 +142,6 @@ class QemuAudioProtocolTest {
     for (int index = 0; index < challenge.length; index++) {
       challenge[index] = (byte) (index * 37 + 11);
     }
-    // eight characters, fewer (padded with zeros), and more (the first eight count), against Vernacular's answers
     for (final String password : List.of("Pa55word", "pw", "a much longer password")) {
       final ByteArrayOutputStream answer = new ByteArrayOutputStream();
       QemuAudioProtocol.answerChallenge(input(challenge), new DataOutputStream(answer), password);

@@ -385,7 +385,6 @@ final class VideoPlayerManagerTest {
     final BlockingQueue<Runnable> tasks = interceptMainThreadTasks();
     final Future<?> release = this.releaseOnTheWorker();
     final Runnable accepted = awaitMainThreadTask(tasks);
-    // Models Paper cancelling the accepted task during disable. The manager must retain and complete its cleanup.
     this.manager.shutdown();
     release.get(10, TimeUnit.SECONDS);
     verify(this.filter, times(1)).release();

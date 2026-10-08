@@ -67,7 +67,6 @@ import org.junit.jupiter.api.io.TempDir;
 class JcefNativesTest {
 
   private static final String REPOSITORY = "https://repository.test/me/friwi/";
-  // the size a test pins for its natives jar, which the fake downloaders here do not need
   private static final long PINNED_SIZE = 200_000_000L;
 
   @TempDir
@@ -139,7 +138,6 @@ class JcefNativesTest {
 
   @Test
   void everyCopyOfMcavInTheJvmSharesTheLockOfTheInstallation() throws Exception {
-    // two plugins that each shade mcav load it in class loaders of their own
     final String[] entries = System.getProperty("java.class.path").split(Pattern.quote(File.pathSeparator), -1);
     final URL[] urls = new URL[entries.length];
     for (int index = 0; index < entries.length; index++) {
@@ -186,7 +184,6 @@ class JcefNativesTest {
     final Path installation = this.natives(nativesJar(true), cache).install("linux-amd64", "pinned", PINNED_SIZE);
     assertEquals(cache.resolve("jcef-" + JcefNatives.JCEFMAVEN_VERSION + "-linux-amd64"), installation);
     if (cache.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-      // the folders above the installation, the lock file's included, are created by the installer too
       assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(cache));
       assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(cache.getParent()));
     }
@@ -200,7 +197,6 @@ class JcefNativesTest {
     assertEquals("native", Files.readString(installation.resolve("libjcef.so")));
     assertTrue(Files.isRegularFile(installation.resolve(JcefNatives.INSTALL_MARKER)));
     if (installation.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-      // only the owner may replace the native code, whatever the umask
       assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(installation));
     }
     assertEquals(
@@ -220,7 +216,6 @@ class JcefNativesTest {
     assumeTrue(this.folder.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
     final JcefNatives natives = this.natives(nativesJar(true));
     final Path installation = natives.install("linux-amd64", "pinned", PINNED_SIZE);
-    // as an earlier version left them under a umask of 0002
     final Path library = installation.resolve("libjcef.so");
     final Path marker = installation.resolve(JcefNatives.INSTALL_MARKER);
     Files.setPosixFilePermissions(this.folder, PosixFilePermissions.fromString("rwxrwxr-x"));
@@ -248,7 +243,6 @@ class JcefNativesTest {
       new ArchiveExtractor()
     );
     natives.install(JcefNatives.NativePlatform.MACOS_ARM64);
-    // the pinned size bounds the download, so a mirror cannot fill the disk before the hash tells
     final JcefNatives.NativePlatform mac = JcefNatives.NativePlatform.MACOS_ARM64;
     assertEquals(List.of(mac.getSha256() + " " + mac.getSize()), hashes);
     assertTrue(Files.isDirectory(this.folder.resolve("jcef-" + JcefNatives.JCEFMAVEN_VERSION + "-macosx-arm64")));
@@ -357,7 +351,6 @@ class JcefNativesTest {
     assertTrue(JcefNatives.isSupported(OS.MAC, Arch.ARM, Bits.BITS_64));
     assertFalse(JcefNatives.isSupported(OS.LINUX, Arch.X86, Bits.BITS_32), "no 32-bit builds");
     assertFalse(JcefNatives.isSupported(OS.FREEBSD, Arch.X86, Bits.BITS_64));
-    // the machine of the tests runs the browser
     assertTrue(JcefNatives.isSupported());
     assertTrue(BrowserPlayer.isSupported());
     assertTrue(new BrowserModule().isSupported());

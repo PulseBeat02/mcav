@@ -42,7 +42,6 @@ public final class NoFlagsServerMain {
    */
   static final String PASSED = "NO-FLAGS PROOF PASSED";
 
-  // GraalVM's JDK starts every JVM with these options for its compiler; they are not options of the server
   private static final List<String> GRAALVM_DEFAULTS = List.of(
     "-XX:ThreadPriorityPolicy=1",
     "-XX:+UnlockExperimentalVMOptions",
@@ -75,7 +74,6 @@ public final class NoFlagsServerMain {
     for (int round = 1; round <= 2; round++) {
       final MCAVApi api = MCAV.api();
       api.install(BrowserModule.class);
-      // the page is served on this machine, which the browser reaches only with private networks allowed
       final BrowserPlayer player = BrowserPlayer.create(BrowserOptions.builder().privateNetworks(true).build());
       final Frames frames = Frames.attach(player.getVideoAttachableCallback());
       check(player.start(BrowserSource.uri(page, 320, 240, 1)), "the browser starts");

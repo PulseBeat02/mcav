@@ -1,6 +1,4 @@
 <?xml version="1.0"?>
-<!-- A Haar cascade whose only weak classifier always votes 1, which clears the stage threshold of -1, so every
-     window is accepted. Used to test code that reacts to detections without needing a real face image. -->
 <opencv_storage>
 <cascade type_id="opencv-cascade-classifier"><stageType>BOOST</stageType>
   <featureType>HAAR</featureType>

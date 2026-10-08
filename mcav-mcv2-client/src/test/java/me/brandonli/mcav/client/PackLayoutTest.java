@@ -56,7 +56,6 @@ final class PackLayoutTest {
     assertEquals(0, layout.screenOf(7));
     assertEquals(1, layout.screenOf(4_294_967_295L));
     assertEquals(PackLayout.NO_SCREEN, layout.screenOf(8));
-    // 854 pixels a row: a page of 4096 pixels fills 5 rows, and two descriptor rows follow the five slots
     assertEquals(27, layout.stripRows(854));
   }
 

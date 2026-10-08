@@ -122,7 +122,6 @@ final class DeclaredImageSize {
   private static void checkLimit(final Size size, final long limit) {
     final long width = size.width();
     final long height = size.height();
-    // width * height > limit, without the product overflowing
     final boolean tooLarge = width > limit / height;
     if (tooLarge) {
       throw new IllegalArgumentException(String.format(TOO_LARGE, width, height, limit));
@@ -252,7 +251,6 @@ final class DeclaredImageSize {
       if (standalone) {
         continue;
       }
-      // a second start of the image, the end of the image, the start of a scan before a frame or the end of the bytes
       final boolean noFrame = code < 0 || code == 0xD8 || code == 0xD9 || code == 0xDA;
       final long length = header.be(position, 2);
       if (noFrame || length < 2) {
@@ -357,7 +355,6 @@ final class DeclaredImageSize {
         case "WIDTH" -> width = width < 0 ? decimal(value) : -2;
         case "HEIGHT" -> height = height < 0 ? decimal(value) : -2;
         case "DEPTH", "MAXVAL", "TUPLTYPE" -> {
-          // the format of the samples, not their number
         }
         default -> {
           return null;

@@ -217,13 +217,11 @@ final class OrderedDitherTest {
     final int[][] thresholds = { { Integer.MIN_VALUE, 0, Integer.MAX_VALUE } };
     final PixelMapper mapper = PixelMapper.ofPixelMapper(thresholds, 1.0f);
     final float[][] matrix = mapper.getMatrix();
-    // There are 2^32 ranks. The middle rank is 2^31, so its centered offset is exactly 2^-33.
     assertArrayEquals(new float[] { -0.5f, 0x1.0p-33f, 0.5f }, matrix[0]);
   }
 
   @Test
   void aLargeStrengthPushesEveryPixelAllTheWayItsOffsetPoints() {
-    // the 2x2 pattern's offsets are -0.375 and 0.125 over 0.375 and -0.125, here times a strength of 10^30
     final PixelMapper strong = PixelMapper.ofPixelMapper(BayerDither.NORMAL_2X2, 1e30f);
     final OrderedDither dither = new OrderedDither(DitherPalette.colors(0x000000, 0xFFFFFF), strong);
     final int[] gray = new int[4];
@@ -296,7 +294,6 @@ final class OrderedDitherTest {
     final int[] pixels = { 0xFF5A5A5A, 0xFF5A5A5A, 0xFF5A5A5A, 0xFF5A5A5A };
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, 2, 2)) {
       final byte[] actual = dither.ditherIntoBytes(image);
-      // Gray90 plus [-76,25,76,-25] gives [14,115,166,65]. Only the third is white.
       assertArrayEquals(new byte[] { 0, 0, 1, 0 }, actual);
     }
   }
@@ -309,8 +306,6 @@ final class OrderedDitherTest {
     Arrays.fill(pixels, 0xFF6E6E6E);
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, 2, 2)) {
       final byte[] indices = dither.ditherIntoBytes(image);
-      // two colors are 256 / cbrt(2) = 203 apart, so the offsets of the 2x2 matrix are -76, 25, 76 and -25, which
-      // turn a gray of 110 into 34, 135, 186 and 85
       assertArrayEquals(new byte[] { 0, 1, 1, 0 }, indices);
     }
   }
@@ -324,9 +319,6 @@ final class OrderedDitherTest {
 
   @Test
   void theBayerConstantsAreExactlyTheMatricesOfTheRecursion() {
-    // an even ranking is not enough to identify a Bayer matrix: a transpose, a rotation or any permutation of the
-    // cells ranks just as evenly. The published matrix is the one the recursion M2n = [[4M, 4M+2], [4M+3, 4M+1]]
-    // builds, so the constants are pinned to this class's own generator, one-based to match their MAX values.
     final ThresholdMatrix generatedTwo = oneBasedBayerMatrix(2);
     final ThresholdMatrix generatedFour = oneBasedBayerMatrix(4);
     final ThresholdMatrix generatedEight = oneBasedBayerMatrix(8);

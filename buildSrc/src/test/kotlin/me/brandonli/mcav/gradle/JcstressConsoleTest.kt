@@ -15,7 +15,6 @@ class JcstressConsoleTest {
     @TempDir
     lateinit var directory: Path
 
-    // the summary of a run of jcstress 0.16 whose test could not be created
     private val summary = listOf(
         "RUN RESULTS:",
         "  Interesting tests: No matches.",

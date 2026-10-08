@@ -52,7 +52,6 @@ public interface HttpHosting extends PackHosting {
   default String getRawUrl() {
     final String hostName = this.getHostName();
     final int port = this.getPort();
-    // an IPv6 address needs square brackets before the colon of the port, or the URL cannot be parsed at all
     final String host = NetworkUtils.formatHostForUrl(hostName);
     return HOST_URL.formatted(host, port);
   }

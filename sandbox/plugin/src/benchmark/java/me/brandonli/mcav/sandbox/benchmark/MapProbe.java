@@ -55,7 +55,6 @@ final class MapProbe implements DitherResultStep {
     this.lastPatchNanos = new AtomicLong(System.nanoTime());
     final Runtime runtime = Runtime.getRuntime();
     final int processors = runtime.availableProcessors();
-    // the parallelism of CompressedMapResult's dither pool
     final int parallelism = Math.max(1, processors / 2 - 1);
     this.ditherPool = new ForkJoinPool(parallelism);
   }
@@ -110,9 +109,7 @@ final class MapProbe implements DitherResultStep {
   }
 
   @Override
-  public void start() {
-    // nothing to prepare: the patches are inspected, not sent
-  }
+  public void start() {}
 
   @Override
   public void release() {
@@ -218,8 +215,6 @@ final class MapProbe implements DitherResultStep {
           this.first.countDown();
         }
       }
-      // the whole page is on the wall once 90% of its pixels showed the color; the rest may be dithered to a neighbor
-      // color when a backend delivers the color slightly off, as a JPEG does
       if (this.firstNanos != 0L && this.fullNanos == 0L && this.covered.cardinality() >= this.pixels * 0.9) {
         this.fullNanos = now;
         this.done.countDown();

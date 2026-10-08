@@ -1,8 +1,3 @@
-// Writes the notices of the npm packages the website's export ships: every package of package-lock.json that is
-// neither a development dependency nor an optional build tool (sharp's image binaries), with the license text and
-// copyright notice its package carries, as MIT, BSD, ISC and Apache-2.0 require of copies.
-//
-//   node third-party-notices.mjs <output file>
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 

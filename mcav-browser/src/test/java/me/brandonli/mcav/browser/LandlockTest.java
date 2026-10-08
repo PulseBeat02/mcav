@@ -50,8 +50,6 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class LandlockTest {
 
-  // the rights by their bits: execute 0, write a file 1, read a file 2, read a folder 3, ... refer 13, truncate 14,
-  // control a device 15
   private static final long READ_FOLDER = 0b1101;
   private static final long READ_FILE = 0b101;
 
@@ -68,7 +66,6 @@ class LandlockTest {
   void readsTheAnswerOfTheKernel() {
     assertEquals(4, Landlock.versionOf(4, 0));
     assertEquals(-38, Landlock.versionOf(-1, 38));
-    // the error number is read only when the call failed: what a call that succeeded left there is no answer
     assertEquals(0, Landlock.versionOf(0, 38));
     assertEquals(3, Landlock.versionOf(3, 38));
   }
@@ -102,11 +99,8 @@ class LandlockTest {
     final long all = Landlock.handledRights(5);
     assertEquals(READ_FOLDER, Landlock.rightsOf(new Landlock.Rule(path, false), true, all));
     assertEquals(READ_FILE, Landlock.rightsOf(new Landlock.Rule(path, false), false, all));
-    // every right but making devices
     assertEquals(0xFFFF & ~(1L << 6) & ~(1L << 11), Landlock.rightsOf(new Landlock.Rule(path, true), true, all));
-    // a file: execute, write, read, truncate, control a device
     assertEquals(0b1100_0000_0000_0111, Landlock.rightsOf(new Landlock.Rule(path, true), false, all));
-    // the first version knows neither refer, truncate nor device control
     assertEquals(0x1FFF & ~(1L << 6) & ~(1L << 11), Landlock.rightsOf(new Landlock.Rule(path, true), true, Landlock.handledRights(1)));
   }
 
@@ -169,7 +163,6 @@ class LandlockTest {
   @EnabledOnOs(OS.LINUX)
   void rightsTheKernelDoesNotKnowAreRefusedWithItsErrorNumber() throws InterruptedException {
     final int version = availableVersion();
-    // the fifth version handles device control, which older kernels refuse to handle
     assumeTrue(version < 5, () -> "this kernel knows every right of the fifth version: " + version);
     final Throwable failure = onThread(() -> Landlock.restrictThread(5, List.of()));
     assertInstanceOf(IOException.class, failure);
@@ -189,7 +182,6 @@ class LandlockTest {
     final List<Landlock.Rule> rules = new ArrayList<>(
       ChromiumConfinement.rules(Path.of("/"), List.of(hidden), List.of(granted), List.of(writable))
     );
-    // a path deleted before the restriction is left out
     rules.add(new Landlock.Rule(this.folder.resolve("deleted"), false));
     final List<String> seen = new ArrayList<>();
     final Throwable failure = onThread(() -> {

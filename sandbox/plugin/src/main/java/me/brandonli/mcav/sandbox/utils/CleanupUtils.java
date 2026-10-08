@@ -58,7 +58,6 @@ public final class CleanupUtils {
     }
   }
 
-  // the first failure is the one rethrown; a later one is suppressed by it, unless it is that same failure again
   private static Throwable combine(final @Nullable Throwable first, final Throwable next) {
     if (first == null) {
       return next;

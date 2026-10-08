@@ -66,9 +66,7 @@ final class ArchiveExtractorFuzzTest {
       final Path target = Files.createDirectory(root.resolve("target"));
       try {
         new ArchiveExtractor(MAX_ENTRIES, MAX_BYTES).extract(new ByteArrayInputStream(compressed.toByteArray()), target);
-      } catch (final IOException refused) {
-        // malformed or breaking a rule; what was written so far is checked all the same
-      }
+      } catch (final IOException refused) {}
       check(root, target);
       checkWholeFileSystem(root.resolve("observed.zip"), compressed.toByteArray());
     } finally {
@@ -89,9 +87,7 @@ final class ArchiveExtractorFuzzTest {
       }
       try {
         new ArchiveExtractor(MAX_ENTRIES, MAX_BYTES).extract(new ByteArrayInputStream(archive), target);
-      } catch (final IOException refused) {
-        // A refused archive must preserve the surrounding file system too.
-      }
+      } catch (final IOException refused) {}
       check(root, target);
       try (final Stream<Path> paths = Files.walk(scope)) {
         final List<Path> outside = paths.filter(path -> !before.contains(path) && !path.startsWith(target)).toList();

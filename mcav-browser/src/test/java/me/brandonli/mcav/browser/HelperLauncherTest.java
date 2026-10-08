@@ -61,7 +61,6 @@ class HelperLauncherTest {
   private static final Path JAVA = Path.of("/opt/java/bin/java");
   private static final List<Path> CLASS_PATH = List.of(Path.of("/libs/mcav-browser.jar"), Path.of("/libs/jcef-api.jar"));
   private static final String BROWSER_PACKAGE = "me/brandonli/mcav/browser/";
-  // the class in a descriptor: Lme/brandonli/mcav/Foo; (arrays and generics add nothing a class entry lacks)
   private static final Pattern DESCRIBED_TYPE = Pattern.compile("L([^;<]+)[;<]");
 
   @TempDir
@@ -103,8 +102,6 @@ class HelperLauncherTest {
     );
     final HelperLauncher linux = launcher(OS.LINUX, server);
     final Path authority = this.folder.resolve(NullDisplay.AUTHORITY_FILE);
-    // on Linux, the temporary folder and the folder of user data are the folder of the session, the only one a
-    // confined Chromium may write
     final String session = this.folder.toString();
     assertEquals(
       Map.of("PATH", "/usr/bin", "XAUTHORITY", authority.toString(), "TMPDIR", session, "XDG_DATA_HOME", session),
@@ -126,7 +123,6 @@ class HelperLauncherTest {
       ),
       linux.createEnvironment(this.folder, libraries)
     );
-    // on macOS too, where Chromium writes its temporary files at start and a confined Chromium may write only there
     assertEquals(
       Map.of("PATH", "/usr/bin", "TMPDIR", session, "MAC_CHROMIUM_TMPDIR", session),
       launcher(OS.MAC, server).createEnvironment(this.folder, null)

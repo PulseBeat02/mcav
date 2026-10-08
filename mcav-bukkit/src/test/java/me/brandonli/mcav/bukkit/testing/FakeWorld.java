@@ -51,7 +51,6 @@ public final class FakeWorld {
 
   private FakeWorld() {
     this.world = mock(World.class);
-    // renderers tell their world from a player's other worlds by its id
     when(this.world.getUID()).thenReturn(UUID.randomUUID());
     this.spawnedDisplays = new CopyOnWriteArrayList<>();
     this.spawnLocations = new CopyOnWriteArrayList<>();

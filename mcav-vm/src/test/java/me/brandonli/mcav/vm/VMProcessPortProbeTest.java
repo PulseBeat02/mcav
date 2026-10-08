@@ -57,7 +57,6 @@ final class VMProcessPortProbeTest {
           doAnswer(_ -> {
             reuseAtBind.set(delegate.getReuseAddress());
             reachedBind.set(true);
-            // Do not bind a real service or launch QEMU: observe the kernel-backed option immediately before bind.
             throw stopped;
           })
             .when(socket)

@@ -96,8 +96,6 @@ public final class JukeBoxListener implements Listener {
   @EventHandler(priority = EventPriority.HIGHEST)
   public void onJukeboxInteract(final PlayerInteractEvent event) {
     Preconditions.checkNotNull(event, "Event must not be null");
-    // a use of the jukebox that another plugin denied, such as a region's protection, starts nothing with the player's
-    // permissions
     if (event.useInteractedBlock() == Event.Result.DENY) {
       return;
     }
@@ -113,7 +111,6 @@ public final class JukeBoxListener implements Listener {
     final Player player = event.getPlayer();
     final String playerName = player.getName();
     final Path absolute = image.toAbsolutePath();
-    // the disc plays without sound: which audio output is ready is up to the operator, who can start it by hand
     final String command = "mcav vm create %s 640x640 30 5x5 0 FILTER_LITE X86_64 NONE -cdrom \"%s\" -m 2048M".formatted(
       playerName,
       absolute

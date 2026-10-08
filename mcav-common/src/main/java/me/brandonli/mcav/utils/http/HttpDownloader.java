@@ -92,7 +92,6 @@ public final class HttpDownloader {
   private static final int HTTP_REQUEST_TIMEOUT = 408;
   private static final int HTTP_TOO_MANY_REQUESTS = 429;
   private static final int HTTP_SERVER_ERROR = 500;
-  // a fixed number of locks, so the locks of finished downloads never pile up; equal paths share a stripe
   private static final int TARGET_LOCK_STRIPES = 64;
   private static final Striped<Lock> TARGET_LOCKS = Striped.lock(TARGET_LOCK_STRIPES);
 
@@ -201,7 +200,6 @@ public final class HttpDownloader {
    */
   @VisibleForTesting
   static boolean isSameOrigin(final URI first, final URI second) {
-    // the URI of a download was checked to name a scheme and a host
     final String scheme = Objects.requireNonNull(first.getScheme());
     final String host = Objects.requireNonNull(first.getHost());
     return scheme.equalsIgnoreCase(second.getScheme()) && host.equalsIgnoreCase(second.getHost()) && portOf(first) == portOf(second);
@@ -386,7 +384,6 @@ public final class HttpDownloader {
     final Path partFile = Files.createTempFile(parent, partPrefix, PART_SUFFIX);
     try {
       downloadWithRetries(uri, partFile, expectedSha256, retryDelay, idleTimeout, maxBytes, pinnedDeadline);
-      // a failed move is a problem of the file system, not of the network, so the download is not repeated
       moveIntoPlace(partFile, target);
     } finally {
       Files.deleteIfExists(partFile);
@@ -460,11 +457,9 @@ public final class HttpDownloader {
     if (exception instanceof ChecksumMismatchException) {
       return false;
     }
-    // the same bytes would arrive again, so a download that is too large stays too large
     if (exception instanceof DownloadTooLargeException) {
       return false;
     }
-    // a mirror that redirects elsewhere or trickles does so again: the caller tries the next one instead
     if (exception instanceof RedirectRefusedException || exception instanceof DownloadTooSlowException) {
       return false;
     }
@@ -548,7 +543,6 @@ public final class HttpDownloader {
     try {
       return MessageDigest.getInstance(algorithm);
     } catch (final NoSuchAlgorithmException exception) {
-      // every Java runtime is required to provide SHA-256, so only a wrong name gets here
       throw new IOException(algorithm + " is not available", exception);
     }
   }

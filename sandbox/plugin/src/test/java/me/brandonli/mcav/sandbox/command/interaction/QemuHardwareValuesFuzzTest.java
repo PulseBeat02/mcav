@@ -60,8 +60,6 @@ final class QemuHardwareValuesFuzzTest {
       return;
     }
     assertFalse(value.indexOf('/') >= 0 || value.indexOf('\\') >= 0, () -> "-" + option + " accepted a path: " + value);
-    // every file property takes a value, and properties are told apart by their whole name: a name that only contains
-    // that of a file property is another one, which QEMU refuses as unknown
     for (final String part : value.split(",", -1)) {
       final int equals = part.indexOf('=');
       if (equals > 0) {

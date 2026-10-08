@@ -317,8 +317,6 @@ final class ErrorDiffusionDitherTest {
     final ErrorDiffusionDither dither = build(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, 4, 1)) {
       final byte[] indices = dither.ditherIntoBytes(image);
-      // 128 becomes white with an error of -127; 128 - 7/16 * 127 = 73 becomes black with an error of 73;
-      // 128 + 7/16 * 73 = 159 becomes white with an error of -96; 128 - 7/16 * 96 = 86 becomes black
       assertArrayEquals(new byte[] { 1, 0, 1, 0 }, indices);
     }
   }
@@ -332,9 +330,6 @@ final class ErrorDiffusionDitherTest {
     final ErrorDiffusionDither dither = build(ErrorDiffusionDitherBuilder.Algorithm.FLOYD_STEINBERG);
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, 3, 2)) {
       final byte[] indices = dither.ditherIntoBytes(image);
-      // the black first row leaves 22, 31 and 23 for the second row, which starts on the right: 128 + 23 = 151
-      // becomes white with an error of -104, so the middle pixel gets 90 + 31 - 45 = 76 and stays black; scanning
-      // the second row from the left would make the middle pixel white instead
       assertArrayEquals(new byte[] { 0, 0, 0, 0, 0, 1 }, indices);
     }
   }

@@ -205,7 +205,6 @@ public final class MatImageBuffer implements ImageBuffer {
     // matrices compare by the address of their native header, so only a newly converted matrix differs
     final boolean converted = !eightBit.equals(source);
     if (channels == CHANNELS && converted) {
-      // converting the depth already produced a new continuous BGR matrix, so a second copy is not needed
       return eightBit;
     }
     final Mat bgr = new Mat();
