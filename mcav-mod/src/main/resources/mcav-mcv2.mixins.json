@@ -1,7 +1,7 @@
 {
   "required": false,
   "minVersion": "0.8",
-  "package": "me.brandonli.mcav.client.mixin",
+  "package": "me.brandonli.mcav.mod.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": ["GameRendererMixin", "LevelRendererMixin", "MapRendererMixin", "ProjectionMatrixBufferMixin"],
   "injectors": {

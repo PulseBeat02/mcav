@@ -11,7 +11,7 @@
   "license": "GPL-3.0-or-later",
   "environment": "client",
   "entrypoints": {
-    "client": ["me.brandonli.mcav.client.FabricEntrypoint"]
+    "client": ["me.brandonli.mcav.mod.FabricEntrypoint"]
   },
   "mixins": ["mcav-mcv2.mixins.json"],
   "depends": {
