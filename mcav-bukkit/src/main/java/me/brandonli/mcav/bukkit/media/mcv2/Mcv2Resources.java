@@ -36,9 +36,9 @@ public final class Mcv2Resources {
   }
 
   /**
-   * Loads and checks one resource of this package.
+   * Loads and checks one classpath resource.
    *
-   * @param name the non-null classpath name, relative to this package unless it begins with a slash
+   * @param name the non-null full classpath name, with an optional leading slash
    * @param sha256 the expected lowercase hexadecimal SHA-256
    * @param length the nonnegative expected length in bytes; a negative value fails the length check
    * @return a newly read caller-owned array; the resource stream has been closed
@@ -47,7 +47,8 @@ public final class Mcv2Resources {
    * @throws NullPointerException if the resource name is null
    */
   public static byte[] load(final String name, final String sha256, final int length) {
-    return verify(read(Mcv2Resources.class.getResourceAsStream(name), name), sha256, length, name);
+    final String resource = name.startsWith("/") ? name.substring(1) : name;
+    return verify(read(Mcv2Resources.class.getResourceAsStream("/" + resource), name), sha256, length, name);
   }
 
   /**

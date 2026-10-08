@@ -253,7 +253,7 @@ maps, 135 × 16,384 = 2,211,840 bytes of map colours for one frame.
 MCAV has always played video on maps by **dithering**: turning every frame into the nearest map colours, mixing
 neighbouring pixels of different colours where no map colour is close enough, and sending the map colours that changed
 since the last frame. Every client can show that without any help. But the numbers are bad. Here is what dithered maps
-send at 1080p and 30 fps, after Minecraft's own packet compression, with VMAF (measured with `tools/mcv2/DitherBench.java`;
+send at 1080p and 30 fps, after Minecraft's own packet compression, with VMAF (measured with `the archived DitherBench benchmark (before this cleanup)`;
 the clips are described in [The Test Clips](#the-test-clips)):
 
 | Content | Under the plugin's default budget (128 KiB per frame and viewer) | Every change sent |
@@ -337,7 +337,7 @@ Here is the whole trip of one frame, in five steps. The rest of the page goes th
 ## Part 6: The MCV2 Format, Piece by Piece
 
 This part is the full specification of an MCV2 frame, version 3: enough to write your own decoder. The normative
-definition is this text together with the independent Python reference decoder in `tools/mcv2-reference`; MCAV's Java
+definition is this text together with the independent Python reference decoder in `mcav-bukkit/src/test/python/mcv2_reference.py`; MCAV's Java
 decoder (`Mcv2Decoder`) and the resource pack's shader decode every test frame to exactly the same pictures.
 
 A few conventions first. All numbers are whole numbers. A number of more than one byte is stored with its lowest byte
@@ -891,7 +891,7 @@ it's right. You don't need any of it to use MCV2, but it's the map you'd want be
 | The decoder the players use | `mcv2.glsl`, plus a few-line stub per pass | GLSL |
 | Pages on maps | the `transport` package | Java |
 | Screens, viewers, pacing and the resource pack | the rest of `me.brandonli.mcav.bukkit.media.mcv2` | Java |
-| The reference decoder of the specification | `tools/mcv2-reference` | Python |
+| The reference decoder of the specification | `mcav-bukkit/src/test/python/mcv2_reference.py` | Python |
 
 The encoder and the server's decoder are in `mcav-bukkit`; nothing of MCV2 is in `mcav-common`. GLSL, the **OpenGL
 Shading Language**, is the language GPU programs are written in; it looks like C.
@@ -1597,4 +1597,78 @@ decoder the class `Mcv2Decoder`, both in `me.brandonli.mcav.bukkit.media.mcv2`, 
 - [PIT](https://pitest.org/), the mutation tester, and [jqwik](https://jqwik.net/), the property-test engine, of MCAV's
   tests
 
-The measurements behind every chart are in `tools/mcv2/data`, and `tools/mcv2/figures` draws the pictures again.
+The measurements behind every chart are in `mcav-bukkit/src/test/resources/mcv2/data`, and the `charts` subcommand draws the charts again.
+
+### Reproducing the Measurements and Figures
+
+MCV2's tools live in mcav-bukkit's test sources. The independent Python implementation is
+`mcav-bukkit/src/test/python/mcv2_reference.py`; it implements the format, serializer, decoder and six-bit transport
+without calling Java. All Python tool commands use `mcav-bukkit/src/test/python/mcv2_tools.py` followed by a
+subcommand. Use Python 3.12 or newer with numpy 2.5.3, Pillow 12.3.0, moderngl 5.12.0 and matplotlib 3.11.2 for figures.
+The Java commands share `me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools`. Its shaderc and SPIRV-Cross dependencies,
+including the current platform's LWJGL natives, are test dependencies and are absent from the plugin's runtime.
+
+From the repository root:
+
+```sh
+./gradlew :mcav-bukkit:writeMcv2ToolsClasspath
+MCV2_CP=$(cat mcav-bukkit/build/mcv2-tools-classpath.txt)
+MCV2_MAIN=me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools
+MCV2_PY=mcav-bukkit/src/test/python/mcv2_tools.py
+MCV2_FIXTURES=mcav-bukkit/src/test/resources/mcv2
+java --enable-native-access=ALL-UNNAMED -cp "$MCV2_CP" "$MCV2_MAIN" bench \
+  source=proxy.rgb width=1920 height=1080 frames=60 warm=10 fps=30 threads=12 \
+  profile=DEFAULT budget=true verify=true natives=auto out=proxy.mcs decoded=proxy-decoded.rgb
+java -cp "$MCV2_CP" "$MCV2_MAIN" digests proxy.mcs
+python "$MCV2_PY" differential "$MCV2_CP" --out build/mcv2-differential
+python -m unittest discover -s mcav-bukkit/src/test/python
+python "$MCV2_PY" fixtures "$MCV2_FIXTURES" all
+```
+
+The benchmark accepts the same `key=value` options: `source`, `width`, `height`, `frames`, `warm`, `fps`, `threads`,
+`profile=DEFAULT|FAST`, `lambda`, `loop=none|wrap|pingpong`, `key=1` to request every frame as a keyframe,
+`budget=true|false`, `verify=true|false`, `framebudget` in milliseconds, `out` and `decoded`.
+`natives=auto|off` defaults to `auto`: it extracts and installs the kernels in a temporary directory and reports
+`MCV2.describeNatives()` in the additional `natives` field of its JSON line. Every previous JSON field is retained.
+Use `natives=off` for the Java comparison. The `mcv2.native` system property still overrides the option.
+
+| Subcommand | Arguments and purpose |
+|---|---|
+| Java `bench` | `key=value...`; archive, decoded pictures, rates and encode timings |
+| Java `digests` | `[--rgb FILE] ARCHIVE...`; one SHA-256 or rejection token per frame |
+| Java `generate-fixtures` | `SOURCE_FOLDER FIXTURE_FOLDER`; regenerate Java conformance and encoder archives from the two 1920x1080 RGB sources |
+| Java `shader-compile` | `PACK GENERATED_INCLUDES OUTPUT [--vanilla EXTRACTED_CLIENT] [--post-only]`; Minecraft's shaderc/SPIRV-Cross compilation path |
+| Python `fixtures` | `ROOT [conformance\|edge\|pages\|encoder\|all]`; regenerate independent digests, pages and edge streams; validate encoder archives |
+| Python `edge_streams` | `OUTPUT [SEED]`; deterministic independent serializer coverage |
+| Python `differential` | `CLASSPATH [--streams N] [--conformance N] [--mutants N] [--corpus DIR] [--seed SEED] [--out DIR] [--java JAVA]`; compare rejection and picture digests for every frame |
+| Python `rate_quality` | `--classpath CP --source RGB --frames N --fps FPS --lambdas L1,L2,... --ffmpeg FFMPEG --out JSON -- profile=DEFAULT ...`; run `Mcv2Tools bench` and score its pictures |
+| Python `codec_curves` | `--ffmpeg FFMPEG --source RGB --name NAME --width W --height H --frames N --fps FPS --qualities CRF... --out JSON`; resumable H.264/VP9/AV1 curves |
+| Python `bd_rate` | `REFERENCE_JSON TEST_JSON [--metric vmaf_mean] [--rate map_mbps]`; compare rate-quality curves |
+| Python `shader_check` | `ARCHIVE... [--slots N] [--drop N] [--backend egl\|glx] [--pack DIR] [--spirv CP] [--second-screen] [--restart-check]`; exact pack/reference picture comparison |
+| Python `shader_timing` | `ARCHIVE... [--backend egl\|glx] [--slots N] [--rounds N] [--repeats N] [--pack DIR] [--reference DIR] [--spirv CP] [--json FILE]`; GPU pass timings and deterministic decode checks; `--reference` supports an archived v2 package |
+| Python `strip_fit_check` | `[--backend egl\|glx] [--spirv CP]`; verify screens too small for the transport strip |
+| Python `strip_check` | `CAPTURES --slots N --video-width W`; six-bit strip page, anchor and status validation |
+| Python `capture_check` | `REFERENCE_RGB W H CAPTURES [--top ROWS] [--vmaf FFMPEG]`; distinct pictures, PSNR, SSIM and VMAF |
+| Python `counter_video` | `RGB W H FPS SECONDS OUTPUT [--ffmpeg FFMPEG]`; stamp frame counters into a clip |
+| Python `latency` | `SERVER_JFR CAPTURE_NUT [--top ROWS] [--json FILE] [--jfr JFR]`; match server events to displayed pictures |
+| Python `charts` | `[--tables]`; render `codecs.png` and `features.png`, and print the article's tables |
+| Python `samples` | `[--size WxH] tree\|leaves\|bytes ...`; inspect real frames and render the sample figures |
+
+The fixture root contains `conformance/`, `edge/`, `encoder/`, the measured curves in `data/`, and the three Graphviz
+sources in `figures/`. Jazzer's `*FuzzTestInputs/` directories stay beneath the fuzz tests' Java package paths because
+Jazzer discovers their seeds there. The resource pack and chain template live under `mcav/mcv2/` in main resources.
+
+Render the diagrams and charts with Graphviz 14.1.2 and Python:
+
+```sh
+for diagram in decode overview transport; do
+  dot -Gdpi=110 -Tpng "mcav-bukkit/src/test/resources/mcv2/figures/$diagram.dot" \
+    -o "mcav-docs/images/mcv2/$diagram.png"
+done
+python "$MCV2_PY" charts --tables
+java --enable-native-access=ALL-UNNAMED -cp "$MCV2_CP" "$MCV2_MAIN" bench \
+  source=gameplay.rgb width=1920 height=1080 frames=13 profile=DEFAULT lambda=260 out=gameplay.mcs
+python "$MCV2_PY" samples tree gameplay.mcs --frames 0,12 --crop 896,128,576,324
+python "$MCV2_PY" samples leaves gameplay.mcs gameplay.rgb --frame 0 --crop 896,128,576,324
+python "$MCV2_PY" samples bytes gameplay.mcs --frame 0
+```

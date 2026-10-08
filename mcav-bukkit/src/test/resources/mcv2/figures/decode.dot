@@ -1,0 +1,46 @@
+/*
+ * This file is part of mcav, a media playback library for Java
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+digraph decode {
+  rankdir=TB;
+  bgcolor="white";
+  pad=0.25;
+  nodesep=0.4;
+  ranksep=0.3;
+  splines=ortho;
+  node [shape=box, style="filled", fillcolor="#d5e8d4", color="#82b366", fontname="Liberation Sans", fontsize=12, fontcolor="black", margin="0.14,0.09", penwidth=1.2];
+  edge [color="black", arrowsize=0.75, penwidth=1.0, fontname="Liberation Sans", fontsize=11, fontcolor="black"];
+
+  glow [label="A glowing page frame is drawn,\nso the outline post chain runs", fillcolor="#fff2cc", color="#d6b656"];
+  pages [label="Read the strip back into bytes,\ncheck every page's CRC32"];
+  decide [shape=diamond, label="A complete new frame:\na keyframe, or a P frame\nof the held picture?", fillcolor="#f8cecc", color="#b85450", margin="0.04,0.04"];
+  copy [label="Copy the last picture"];
+  resolve [label="Resolve: one fragment\nper 8x8 cell finds its leaf"];
+  decode [label="Decode: one fragment\nper pixel"];
+  keep [label="Keep it in a persistent target\nfor the next frame to predict from"];
+  screen [label="Ray-cast the wall onto the screen,\ndepth-tested against the world"];
+  outline [label="Remove the page frames' glow"];
+  shown [label="Picture on the wall", fillcolor="#fff2cc", color="#d6b656"];
+
+  glow -> pages -> decide;
+  decide -> copy [xlabel="no"];
+  decide -> resolve [xlabel="yes"];
+  resolve -> decode -> keep -> screen;
+  copy -> screen;
+  screen -> outline -> shown;
+}

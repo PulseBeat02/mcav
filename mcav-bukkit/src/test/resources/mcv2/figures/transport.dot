@@ -1,0 +1,57 @@
+/*
+ * This file is part of mcav, a media playback library for Java
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+digraph transport {
+  rankdir=TB;
+  bgcolor="white";
+  pad=0.25;
+  nodesep=0.7;
+  ranksep=0.4;
+  splines=ortho;
+  newrank=true;
+  node [shape=box, style="filled", fillcolor="#dae8fc", color="#6c8ebf", fontname="Liberation Sans", fontsize=12, fontcolor="black", margin="0.14,0.09", penwidth=1.2];
+  edge [color="black", arrowsize=0.75, penwidth=1.0, fontname="Liberation Sans", fontsize=11, fontcolor="black"];
+
+  subgraph cluster_server {
+    label="Server"; labeljust=l;
+    fontname="Liberation Sans"; fontsize=12;
+    style="dashed"; color="#6c8ebf";
+    frame [label="Frame bytes", fillcolor="#fff2cc", color="#d6b656"];
+    pages [label="Pages of 12,256 bytes\n+ 32-byte header\n+ CRC32"];
+    symbols [label="Six-bit symbols\n(16,384 = one map)"];
+    colours [label="Map colours\n4 to 67"];
+    bundle [label="One bundle of\nmap packets"];
+    frame -> pages -> symbols -> colours -> bundle;
+  }
+
+  subgraph cluster_client {
+    label="Client"; labeljust=l;
+    fontname="Liberation Sans"; fontsize=12;
+    style="dashed"; color="#82b366";
+    strip [label="Strip on the screen", fillcolor="#d5e8d4", color="#82b366"];
+    check [shape=diamond, label="Every page\nthere, CRC ok?", fillcolor="#f8cecc", color="#b85450", margin="0.04,0.04"];
+    decoder [label="Decoder", fillcolor="#fff2cc", color="#d6b656"];
+    keep [label="Keep the last picture", fillcolor="#d5e8d4", color="#82b366"];
+    strip -> check;
+    check -> decoder [xlabel="yes"];
+    check -> keep [xlabel="no"];
+  }
+
+  {rank=same; bundle; strip;}
+  bundle -> strip [xlabel="zlib,\nTCP"];
+}

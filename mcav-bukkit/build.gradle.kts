@@ -1,5 +1,6 @@
 plugins {
     id("mcav.module")
+    id("mcav.mcv2-tools")
     id("mcav.natives")
     id("mcav.publishing")
     alias(libs.plugins.paperweight.userdev)

@@ -1,3 +1,19 @@
+# This file is part of mcav, a media playback library for Java
+# Copyright (C) Brandon Li <https://brandonli.me/>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """Capture coverage distinguishes pictures from indistinguishable frame occurrences."""
 
 import json
@@ -9,11 +25,10 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-import numpy as np
+import numpy
 from PIL import Image
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "tools/mcv2"))
-import capture_check
+import mcv2_tools as capture_check
 
 
 class CaptureCheckTest(unittest.TestCase):
@@ -29,11 +44,11 @@ class CaptureCheckTest(unittest.TestCase):
             arguments = ["capture_check.py", str(reference), str(width), str(height), str(root), "--top", "0"]
             output = StringIO()
             with patch.object(sys, "argv", arguments), redirect_stdout(output), self.assertRaises(SystemExit) as ended:
-                capture_check.main()
+                capture_check.capture_check_main()
             return ended.exception.code, json.loads(output.getvalue().splitlines()[-1]), output.getvalue()
 
     def test_identical_reference_frames_do_not_create_unmatchable_missing_pictures(self):
-        picture = np.full((8, 8, 3), 37, np.uint8)
+        picture = numpy.full((8, 8, 3), 37, numpy.uint8)
         status, result, text = self.report([picture, picture], [picture, picture])
         self.assertEqual(0, status)
         self.assertEqual(2, result["exact_captures"])
@@ -44,14 +59,14 @@ class CaptureCheckTest(unittest.TestCase):
         self.assertIn("indistinguishable", text)
 
     def test_a_missing_distinct_picture_still_fails(self):
-        first = np.full((8, 8, 3), 37, np.uint8)
-        second = np.full((8, 8, 3), 92, np.uint8)
+        first = numpy.full((8, 8, 3), 37, numpy.uint8)
+        second = numpy.full((8, 8, 3), 92, numpy.uint8)
         status, result, _ = self.report([first, first, second], [first, first])
         self.assertEqual(1, status)
         self.assertEqual(2, result["exact_captures"])
 
     def test_visible_cropping_can_make_different_frames_indistinguishable(self):
-        first = np.full((16, 8, 3), 37, np.uint8)
+        first = numpy.full((16, 8, 3), 37, numpy.uint8)
         second = first.copy()
         second[8:] = 92
         status, result, _ = self.report([first, second], [first[:8], second[:8]])

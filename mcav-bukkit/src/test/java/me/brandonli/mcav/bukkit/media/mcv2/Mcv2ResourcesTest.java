@@ -57,8 +57,8 @@ final class Mcv2ResourcesTest {
   @Test
   void loadsVerifiedResourcesIntoCallerOwnedArrays() {
     final String digest = "d99bb5ffa817142cd902aeedaf1f1e36ab87e334b3812bfe6a79a61a8b2b6a5f";
-    final byte[] first = Mcv2Resources.load("encoder/crop-default.mcs", digest, 3177);
-    final byte[] second = Mcv2Resources.load("encoder/crop-default.mcs", digest, 3177);
+    final byte[] first = Mcv2Resources.load("/mcv2/encoder/crop-default.mcs", digest, 3177);
+    final byte[] second = Mcv2Resources.load("mcv2/encoder/crop-default.mcs", digest, 3177);
     assertEquals(3177, first.length);
     assertArrayEquals(first, second);
     assertNotSame(first, second);
@@ -71,9 +71,9 @@ final class Mcv2ResourcesTest {
   @Test
   void refusesAMissingResource() {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      Mcv2Resources.load("missing.bin", EMPTY_SHA256, 0)
+      Mcv2Resources.load("/mcav/mcv2/missing.bin", EMPTY_SHA256, 0)
     );
-    assertEquals("Missing MCV2 resource missing.bin", exception.getMessage());
+    assertEquals("Missing MCV2 resource /mcav/mcv2/missing.bin", exception.getMessage());
   }
 
   @Test
