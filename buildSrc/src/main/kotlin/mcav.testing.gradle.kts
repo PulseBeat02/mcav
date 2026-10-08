@@ -25,7 +25,6 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     failOnNoDiscoveredTests = false
     maxHeapSize = "2g"
-    // Mockito changes the boot classpath, disabling CDS; Paper libraries still access memory through Unsafe.
     jvmArgs(
         "--enable-native-access=ALL-UNNAMED",
         "-XX:+EnableDynamicAgentLoading",
@@ -42,7 +41,6 @@ tasks.withType<Test>().configureEach {
 }
 
 tasks.test {
-    // Jazzer puts an agent into the JVM that runs the fuzz tests, so they run in `fuzzTest` alone
     useJUnitPlatform {
         excludeTags("fuzz")
     }
@@ -61,7 +59,6 @@ val propertyTest = tasks.register<Test>("propertyTest") {
     mustRunAfter(tasks.test)
 }
 
-// Jazzer requires one JVM per fuzz class; clock-dependent fuzzing cannot reuse cached results.
 val fuzzTest = tasks.register<Test>("fuzzTest") {
     description = "Replays the committed fuzz inputs of this module, and fuzzes every fuzz test with -Pfuzz.seconds=<n>"
     group = "verification"
@@ -70,7 +67,6 @@ val fuzzTest = tasks.register<Test>("fuzzTest") {
     useJUnitPlatform {
         includeTags("fuzz")
     }
-    // JUnit forks a JVM per scanned class to explore it, so only the fuzz test classes are scanned
     include("**/*FuzzTest.class")
     inputs.files(layout.projectDirectory.dir("src/test/resources"))
         .withPropertyName("fuzzInputs")
@@ -78,19 +74,15 @@ val fuzzTest = tasks.register<Test>("fuzzTest") {
     inputs.property("fuzzSeconds", fuzzSeconds)
     outputs.dir(layout.buildDirectory.dir("jazzer")).withPropertyName("jazzerDirectory")
     outputs.cacheIf("only the replay of the committed inputs is deterministic") { fuzzSeconds == 0 }
-    // relative, so the cache key does not depend on where the project lives; the JVM runs in the project folder
     systemProperty("jazzer.internal.basedir", "build/jazzer")
     systemProperty("junit.jupiter.execution.timeout.testtemplate.method.default", "30s")
-    // a small heap turns an allocation sized from untrusted input into an OutOfMemoryError, which Jazzer reports
     maxHeapSize = "1g"
     if (fuzzSeconds > 0) {
         environment("JAZZER_FUZZ", "1")
         systemProperty("jazzer.max_duration", "${fuzzSeconds}s")
-        // JUnit times out the whole fuzz run; libFuzzer must apply this timeout to each input instead.
         systemProperty("junit.jupiter.execution.timeout.mode", "disabled")
         forkEvery = 1
         outputs.upToDateWhen { false }
-        // Gradle cannot attribute Jazzer's stderr to a test; log starts to identify the following progress.
         testLogging {
             events("started", "failed", "skipped")
         }

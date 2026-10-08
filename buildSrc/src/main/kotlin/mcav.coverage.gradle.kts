@@ -29,7 +29,6 @@ val coverageLint = tasks.register<CoverageLintTask>("coverageLint") {
     report.from(layout.buildDirectory.file("reports/jacoco/test/jacocoTestReport.xml"))
     sourceDirectory = layout.projectDirectory.dir("src/main/java")
     exceptionsFile.from(layout.projectDirectory.file("coverage-exceptions.txt"))
-    // Gradle keeps --tests separate from public include patterns; only this task's filter may disable its lint.
     testsFiltered = testTask.map {
         val filter = it.filter as DefaultTestFilter
         filter.commandLineIncludePatterns.isNotEmpty() || filter.includePatterns.isNotEmpty() ||

@@ -66,11 +66,9 @@ java {
 tasks.withType<JavaCompile>().configureEach {
     options.release = javaRelease
     options.encoding = "UTF-8"
-    // Checker Framework reads annotations without claiming them, triggering javac processing notes.
     options.compilerArgs.addAll(listOf("-parameters", "-Xlint:all", "-Xlint:-processing", "-Werror"))
     options.isFork = true
     options.forkOptions.memoryMaximumSize = "4g"
-    // Missing Checker Framework export: https://github.com/typetools/checker-framework/issues/7241
     options.forkOptions.jvmArgumentProviders.add(CommandLineArgumentProvider {
         listOf("--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED")
     })
@@ -84,7 +82,6 @@ checkerFramework {
     version = libs.versionOf("checker-framework")
     checkers = listOf("org.checkerframework.checker.nullness.NullnessChecker")
     excludeTests = true
-    // Checker wall-clock warnings fail under -Werror on loaded hosts; allow ten minutes before reporting a stall.
     extraJavacArgs = stubsArgument() + "-AslowTypecheckingSeconds=600"
 }
 
@@ -93,7 +90,6 @@ tasks.processResources {
     filteringCharset = "UTF-8"
 }
 
-// javac keeps only the last occurrence of a repeated -A option.
 fun stubsArgument(): List<String> {
     val folders = listOf(project.file("checker-framework"), rootProject.file("checker-framework")).filter { it.isDirectory }
     return if (folders.isEmpty()) emptyList() else listOf("-Astubs=" + folders.joinToString(File.pathSeparator))

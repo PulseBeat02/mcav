@@ -21,7 +21,6 @@ fun lwjglNatives(): String? {
     val x64 = arch == "amd64" || arch == "x86_64"
     val arm64 = arch == "aarch64" || arch == "arm64"
     return when {
-        // "darwin" contains "win", so macOS is recognized first
         os.contains("mac") || os.contains("darwin") -> when {
             arm64 -> "natives-macos-arm64"
             x64 -> "natives-macos"

@@ -73,7 +73,6 @@ afterEvaluate {
             suppressAllPomMetadataWarnings()
         }
     }
-    // Gradle stores -D options as Test.systemProperties, so PIT needs its own copy for the forked test JVMs.
     val generatedPom = tasks.named<GenerateMavenPom>("generatePomFileForMavenPublication")
     val publishedPom = "-Dmcav.published.pom=" + generatedPom.get().destination.absolutePath
     tasks.named<Test>("test") {

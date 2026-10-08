@@ -5,7 +5,6 @@ plugins {
     id("mcav.publishing")
 }
 
-// npm's shebang finds Node on PATH, so the pinned executable must come first.
 val npm = node.resolvedNodeDir.get().file(if (isWindows) "npm.cmd" else "bin/npm").asFile
 val npmPath = npm.parentFile.absolutePath + File.pathSeparator + System.getenv("PATH")
 
@@ -19,7 +18,6 @@ val npmProjectInstall = tasks.register<Exec>("npmProjectInstall") {
     args("ci")
     inputs.file("mcav-website/package.json")
     inputs.file("mcav-website/package-lock.json")
-    // npm's receipt avoids hashing node_modules; use --rerun-tasks after changes outside npm.
     outputs.file("mcav-website/node_modules/.package-lock.json")
 }
 

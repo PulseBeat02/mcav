@@ -6,7 +6,6 @@ plugins {
 }
 
 dependencies {
-    // Exclude unused JavaCV platform natives: they would add over a gigabyte to the jcstress jar.
     implementation(project(":mcav-common")) {
         exclude(group = "org.bytedeco")
     }

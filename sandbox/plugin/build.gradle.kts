@@ -27,9 +27,6 @@ dependencies {
     testImplementation(libs.slf4j.simple)
 }
 
-// The browser benchmark measures how many frames per second a browser backend brings onto a wall of maps and how long
-// a page change takes to reach the map encoder, through the pipeline of /mcav browser create. It is run by hand, never
-// by the build: ./gradlew :sandbox:plugin:browserBenchmark -Pbenchmark.backend=<backend> -Pbenchmark.output=<file>
 val benchmark = sourceSets.create("benchmark")
 
 configurations.named(benchmark.implementationConfigurationName) {
@@ -66,8 +63,6 @@ paperPluginYaml {
     loader = "me.brandonli.mcav.sandbox.MCAVLoader"
     main = "me.brandonli.mcav.sandbox.MCAVSandbox"
     dependencies.server("voicechat", PaperPluginYaml.Load.BEFORE, false)
-    // every permission the commands check, so that permission plugins can list them; each is for operators until
-    // granted, and PluginDescriptorTest keeps the list equal to the commands' @Permission annotations
     defaultPermission = Permission.Default.OP
     permissions {
         register("mcav.command.help") { description = "Shows the commands of MCAV and what they do" }

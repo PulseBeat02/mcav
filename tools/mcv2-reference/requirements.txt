@@ -1,5 +1,3 @@
-# The reference itself needs numpy only; the shader and capture checks in tools/mcv2 also need moderngl and Pillow.
-# These are the versions every committed MCV2 fixture was regenerated and checked with, byte for byte.
 numpy==2.5.3
 moderngl==5.12.0
 Pillow==12.3.0
