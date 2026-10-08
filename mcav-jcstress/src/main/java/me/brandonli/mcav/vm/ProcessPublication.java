@@ -108,9 +108,7 @@ public class ProcessPublication {
     }
 
     @Override
-    public void destroy() {
-      // nothing runs
-    }
+    public void destroy() {}
 
     @Override
     public boolean isAlive() {
