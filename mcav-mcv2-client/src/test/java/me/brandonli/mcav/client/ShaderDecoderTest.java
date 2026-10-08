@@ -239,13 +239,14 @@ final class ShaderDecoderTest {
 
   @Test
   void needsAWindowWideEnoughForADescriptorAndHighEnoughForTheStrip() throws ReflectiveOperationException {
-    for (final int[] size : List.of(new int[] { 63, 4096 }, new int[] { 854, ROWS - 1 })) {
+    // the pack's chain covers the strip with the scene row below it, so a window of the strip's height has no room
+    for (final int[] size : List.of(new int[] { 63, 4096 }, new int[] { 854, ROWS - 1 }, new int[] { 854, ROWS })) {
       final ShaderDecoder decoder = this.decoder(true, size[0], size[1]);
       frame(decoder);
       decoder.rendered(this.allocator, this.camera);
     }
     verify(this.output, never()).decode(any(), anyInt(), any());
-    final ShaderDecoder fits = this.decoder(true, 854, ROWS);
+    final ShaderDecoder fits = this.decoder(true, 854, ROWS + 1);
     frame(fits);
     fits.rendered(this.allocator, this.camera);
     verify(this.output).decode(any(), eq(ROWS), same(this.allocator));

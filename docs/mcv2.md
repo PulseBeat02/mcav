@@ -681,7 +681,9 @@ configuration, hosting the pack, the client mod for Iris shader players and the 
   GPUs, Windows and macOS clients, and the Vulkan backend were never tested.
 - **The top of the screen.** While a page frame is in view, the strip takes the top rows of the screen (41 rows in an
   854x480 window with one screen of eight slots, 25 at 1080p), and the chain covers them with the scene row just below,
-  so a detailed sky or ceiling smears there.
+  so a detailed sky or ceiling smears there. A window lower than the strip shows no MCV2 picture and leaves the view as
+  it is: the strip grows with the screens and slots playing, and eight screens of eight slots take 456 rows at
+  640x360.
 - **Missed frames.** A client that renders fewer frames than the video has misses frames, and under the default
   prediction a missed frame is repaired only by the next keyframe.
 - **Sound.** The audio web page keeps a tenth of a second of sound buffered, so its sound comes 0.1 to 0.15 s after

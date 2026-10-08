@@ -28,6 +28,11 @@ uint mcv2PageWord(ivec2 size, int page, int b) {
 
 void main() {
     ivec2 size = textureSize(MainSampler, 0);
+    if (!mcv2StripFits(size)) {
+        // no strip, so no page: every slot invalid
+        fragColor = vec4(0.0);
+        return;
+    }
     int x = int(gl_FragCoord.x);
     int page = x / 4;
     int field = x % 4;
