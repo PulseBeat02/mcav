@@ -17,23 +17,15 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import java.util.Arrays;
 import java.util.List;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Internals.MotionLambda;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Internals.Workers;
 import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.constraints.DoubleRange;
 import net.jqwik.api.constraints.IntRange;
 import net.jqwik.api.constraints.Size;
 
-/**
- * The lambda of live frames from their motion is stable: it stays between the profile's lambda and four times it,
- * steady motion gives a steady lambda, a change of motion moves it toward its new value without overshooting or
- * turning back, more motion never gives a lower lambda, and a new scene starts at the profile's lambda. An adaptive
- * profile's choice of search switches only where the average motion leaves the band between its two thresholds, and
- * never back and forth while it stays inside.
- */
+/** Motion smoothing converges monotonically and more motion never lowers lambda. */
 final class MCV2MotionLambdaPropertyTest {
 
   private static final String SEED = "20260927";
@@ -100,21 +92,5 @@ final class MCV2MotionLambdaPropertyTest {
     @ForAll @DoubleRange(min = 0, max = 200) final double otherLambda
   ) {
     return MotionLambda.raise(Math.min(oneLambda, otherLambda)) <= MotionLambda.raise(Math.max(oneLambda, otherLambda));
-  }
-
-  @Property(seed = SEED, tries = 200)
-  boolean startsANewSceneAtTheProfilesLambda(
-    @ForAll @Size(min = 1, max = 20) final List<@IntRange(min = 0, max = 255) Integer> greys,
-    @ForAll @IntRange(min = 1, max = 40) final int width,
-    @ForAll @IntRange(min = 1, max = 40) final int height
-  ) {
-    final MotionLambda motion = new MotionLambda();
-    for (final int grey : greys) {
-      final byte[] rgb = new byte[width * height * 3];
-      Arrays.fill(rgb, (byte) grey);
-      motion.observe(rgb, width, height, false, Workers.SEQUENTIAL);
-    }
-    motion.observe(new byte[width * height * 3], width, height, true, Workers.SEQUENTIAL);
-    return motion.lambda(BASE) == BASE;
   }
 }

@@ -105,32 +105,27 @@ final class MCV2MotionLambdaTest {
   }
 
   @Test
-  void averagesTheMotionOfConsecutiveFramesAndStartsOverAtACut() {
+  void averagesTheMotionOfConsecutiveFramesAndStartsOverAtANewSize() {
     final MotionLambda motion = new MotionLambda();
     assertEquals(BASE, motion.lambda(BASE));
     final byte[] still = corners(10, 20, 30, 40);
     // ten grey levels brighter: 40 luma, 360 once blurred, 10 in luma units
     final byte[] brighter = corners(20, 30, 40, 50);
     // the first frame has nothing to be compared with
-    motion.observe(still, 5, 5, false, Workers.SEQUENTIAL);
+    motion.observe(still, 5, 5, Workers.SEQUENTIAL);
     assertEquals(BASE, motion.lambda(BASE));
-    motion.observe(brighter, 5, 5, false, Workers.SEQUENTIAL);
+    motion.observe(brighter, 5, 5, Workers.SEQUENTIAL);
     assertEquals(BASE * MotionLambda.raise(10), motion.lambda(BASE));
     // an unchanged frame moves the average a sixteenth of the way to no motion
-    motion.observe(brighter, 5, 5, false, Workers.SEQUENTIAL);
+    motion.observe(brighter, 5, 5, Workers.SEQUENTIAL);
     assertEquals(BASE * MotionLambda.raise(10 - 10 * MotionLambda.SMOOTHING), motion.lambda(BASE));
-    // a scene cut starts over at the profile's lambda
-    motion.observe(still, 5, 5, true, Workers.SEQUENTIAL);
-    assertEquals(BASE, motion.lambda(BASE));
-    motion.observe(brighter, 5, 5, false, Workers.SEQUENTIAL);
-    assertEquals(BASE * MotionLambda.raise(10), motion.lambda(BASE));
     // and so does another height, or another width
-    motion.observe(new byte[5 * 9 * 3], 5, 9, false, Workers.SEQUENTIAL);
+    motion.observe(new byte[5 * 9 * 3], 5, 9, Workers.SEQUENTIAL);
     assertEquals(BASE, motion.lambda(BASE));
-    motion.observe(still, 5, 5, false, Workers.SEQUENTIAL);
-    motion.observe(brighter, 5, 5, false, Workers.SEQUENTIAL);
+    motion.observe(still, 5, 5, Workers.SEQUENTIAL);
+    motion.observe(brighter, 5, 5, Workers.SEQUENTIAL);
     assertEquals(BASE * MotionLambda.raise(10), motion.lambda(BASE));
-    motion.observe(new byte[9 * 5 * 3], 9, 5, false, Workers.SEQUENTIAL);
+    motion.observe(new byte[9 * 5 * 3], 9, 5, Workers.SEQUENTIAL);
     assertEquals(BASE, motion.lambda(BASE));
   }
 }

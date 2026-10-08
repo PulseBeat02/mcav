@@ -155,7 +155,7 @@ final class MCV2Test {
   }
 
   @Test
-  void keyframesFollowRequestsSizesIntervalsCutsAndWrappedIds() throws Mcv2Exception {
+  void keyframesFollowRequestsSizesIntervalsAndWrappedIds() throws Mcv2Exception {
     try (final ForkJoinPool pool = new ForkJoinPool(1)) {
       final MCV2 encoder = new MCV2(new MCV2.Settings(72, false), pool, 1, true);
       final byte[] black = new byte[3];
@@ -171,7 +171,7 @@ final class MCV2Test {
       assertTrue(Mcv2Decoder.parse(encoder.encode(new byte[6], 2, 1, 120)).isKeyframe());
       final byte[] white = new byte[6];
       Arrays.fill(white, (byte) 255);
-      assertTrue(Mcv2Decoder.parse(encoder.encode(white, 2, 1, 121)).isKeyframe());
+      assertFalse(Mcv2Decoder.parse(encoder.encode(white, 2, 1, 121)).isKeyframe());
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(white, 2, 1, 121));
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(white, 2, 1, 0x80000079L));
     }

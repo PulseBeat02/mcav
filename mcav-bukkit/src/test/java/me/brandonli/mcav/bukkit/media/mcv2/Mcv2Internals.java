@@ -144,16 +144,15 @@ final class Mcv2Internals {
       call(TYPE, this.value, "add", new Class<?>[] { double.class }, motion);
     }
 
-    void observe(final byte[] rgb, final int width, final int height, final boolean cut, final Workers workers) {
+    void observe(final byte[] rgb, final int width, final int height, final Workers workers) {
       call(
         TYPE,
         this.value,
         "observe",
-        new Class<?>[] { byte[].class, int.class, int.class, boolean.class, Workers.TYPE },
+        new Class<?>[] { byte[].class, int.class, int.class, Workers.TYPE },
         rgb,
         width,
         height,
-        cut,
         workers.value
       );
     }

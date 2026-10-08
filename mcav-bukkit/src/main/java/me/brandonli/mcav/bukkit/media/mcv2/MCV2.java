@@ -222,9 +222,6 @@ public final class MCV2 {
   private static final String STOPPED = "The encoder stopped after a frame failed its verification";
   private static final int LIMIT_RETRIES = 4;
   private static final int MOTION_RANGE = 24;
-  private static final double SCENE_THRESHOLD = 45;
-  private static final int SCENE_SAMPLE_STEP = 4;
-  private static final int SCENE_SAMPLE_START = SCENE_SAMPLE_STEP / 2;
   private static final int NORMAL_SKIP_BITS = 28;
   private static final int FAST_SKIP_BITS = 60;
   private static final int ROOT_SPLIT_BITS = 150;
@@ -397,9 +394,8 @@ public final class MCV2 {
     final boolean fast = this.settings.fast();
     final double base = this.settings.lambda();
     double lambda = Math.min(this.motionLambda.lambda(base), Double.MAX_VALUE);
-    final boolean cut = predictable && sceneCut(rgb, Preconditions.checkNotNull(previous), width, height, this.workers);
-    final boolean keyframe = !predictable || cut;
-    this.motionLambda.observe(rgb, width, height, cut, this.workers);
+    final boolean keyframe = !predictable;
+    this.motionLambda.observe(rgb, width, height, this.workers);
     final byte[] predictFrom = keyframe ? NONE : Preconditions.checkNotNull(previous);
     final long predictsId = keyframe ? frameId : this.referenceId;
     Buffers buffers = this.buffers;
@@ -534,37 +530,6 @@ public final class MCV2 {
 
   // Frame analysis keeps source motion independent of reconstruction quality.
 
-  private static boolean sceneCut(final byte[] source, final byte[] reference, final int width, final int height, final Workers workers) {
-    final int columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
-    final int superblocks = columns * ((height + ROOT_SIZE - 1) / ROOT_SIZE);
-    final long[] changes = new long[superblocks];
-    workers.forEach(
-      superblocks,
-      () -> changes,
-      (partial, index) -> {
-        final int left = (index % columns) * ROOT_SIZE;
-        final int top = (index / columns) * ROOT_SIZE;
-        long change = 0;
-        for (int row = SCENE_SAMPLE_START; row < ROOT_SIZE; row += SCENE_SAMPLE_STEP) {
-          final int sourceRow = Math.min(top + row, height - 1);
-          for (int column = SCENE_SAMPLE_START; column < ROOT_SIZE; column += SCENE_SAMPLE_STEP) {
-            final int sourceColumn = Math.min(left + column, width - 1);
-            final int at = (sourceRow * width + sourceColumn) * CHANNELS;
-            final int luma = (source[at] & 255) + 2 * (source[at + 1] & 255) + (source[at + 2] & 255);
-            final int predicted = (reference[at] & 255) + 2 * (reference[at + 1] & 255) + (reference[at + 2] & 255);
-            change += Math.abs(luma - predicted);
-          }
-        }
-        partial[index] = change;
-      }
-    );
-    long change = 0;
-    for (final long value : changes) {
-      change += value;
-    }
-    return (double) change / (superblocks * 64L * 4) > SCENE_THRESHOLD;
-  }
-
   private static final class MotionLambda {
 
     static final double KNEE = 4.6;
@@ -608,7 +573,7 @@ public final class MCV2 {
       return Math.min(MAX_RAISE, Math.pow(motion / KNEE, EXPONENT));
     }
 
-    void observe(final byte[] rgb, final int width, final int height, final boolean startsOver, final Workers workers) {
+    void observe(final byte[] rgb, final int width, final int height, final Workers workers) {
       final int columns = (width + SAMPLING - 1) / SAMPLING;
       final int rows = (height + SAMPLING - 1) / SAMPLING;
       if (this.across.length != columns * rows) {
@@ -616,7 +581,7 @@ public final class MCV2 {
         this.spare = new int[columns * rows];
       }
       final int[] current = blurredLuma(rgb, width, height, workers, this.across, this.spare);
-      if (startsOver || columns != this.columns || rows != this.rows) {
+      if (columns != this.columns || rows != this.rows) {
         this.motion = Double.NaN;
       } else {
         this.add(temporalInformation(current, this.previous, workers));
