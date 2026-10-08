@@ -27,14 +27,12 @@ import java.util.HexFormat;
 import java.util.List;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Receiver;
-import me.brandonli.mcav.bukkit.media.mcv2.UnsupportedSyntaxException;
 
 /**
  * Decodes research archives (a little-endian u32 length before every frame) with mcav's MCV2 receiver, which commits
  * a frame only when it is valid and newer, like the reference decoder's {@code Decoder.accept}. For every archive it
  * prints one line: the archive's path, then one token per frame - the SHA-256 of the decoded RGB picture, {@code reject}
- * for a frame the receiver refuses (its state stays as it was), or {@code unsupported} for syntax mcav deliberately does
- * not implement - and {@code truncated} if the archive ends inside a frame. tools/mcv2/differential.py compares these
+ * for a frame the receiver refuses (its state stays as it was) - and {@code truncated} if the archive ends inside a frame. tools/mcv2/differential.py compares these
  * lines with the reference decoder's.
  *
  * <p>With {@code --rgb <file>} first, every picture decoded is also written to that file, raw RGB one after another:
@@ -51,8 +49,6 @@ public final class Mcv2Digests {
   private static final int LENGTH_BYTES = 4;
 
   private static final String TRUNCATED = "truncated";
-
-  private static final String UNSUPPORTED = "unsupported";
 
   private static final String REJECTED = "reject";
 
@@ -102,8 +98,7 @@ public final class Mcv2Digests {
     final byte[] picture;
     try {
       picture = receiver.accept(frame);
-    } catch (final UnsupportedSyntaxException unsupported) {
-      return UNSUPPORTED;
+
     } catch (final Mcv2Exception rejected) {
       return REJECTED;
     }

@@ -63,10 +63,8 @@ import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
 import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.LiveSearch;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.Mcv2Encoder;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.Images;
 import me.brandonli.mcav.bukkit.testing.LogCapture;
@@ -140,7 +138,7 @@ final class Mcv2ResultTest {
       .video(64, 32)
       .pageMap(500)
       // one preset, so the pacer steps only frame rates and sizes; the tests of the preset ladder give their own
-      .settings(EncoderSettings.LIVE_FAST)
+      .settings(Settings.FAST)
       // every frame the tests give is the screen's; the rate is tested on its own
       .maxFrameRate(0)
       .build();
@@ -359,9 +357,9 @@ final class Mcv2ResultTest {
       .maxFrameRate(0)
       .build();
     final Mcv2Result result = this.result(narrow, null);
-    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    final MCV2 encoder = mock(MCV2.class);
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenReturn(Mcv2ChannelTest.large());
-    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, true, 0, 0, 0, 1, 1, 72));
+    when(encoder.getStats()).thenReturn(new MCV2.Stats(1, true, 1, 1, 72));
     result.getChannel().requestKeyframe();
     final List<byte[]> heard = new ArrayList<>();
     result.setFrameListener(heard::add);
@@ -376,7 +374,7 @@ final class Mcv2ResultTest {
   void anEncodeLoopThatFindsNoPipelineEndsAtOnce() throws InterruptedException {
     final Mcv2Result result = this.result(this.configuration, null);
     // the screen's thread of a start that a release overtook finds no pipeline to stop
-    assertTimeoutPreemptively(Duration.ofSeconds(10), () -> result.encodeLoop(mock(Mcv2Encoder.class)));
+    assertTimeoutPreemptively(Duration.ofSeconds(10), () -> result.encodeLoop(mock(MCV2.class)));
     assertNull(result.take());
   }
 
@@ -386,7 +384,7 @@ final class Mcv2ResultTest {
     // not started: nothing to wait for
     assertNull(result.take());
     result.start();
-    final Thread waiter = new Thread(() -> result.encodeLoop(mock(Mcv2Encoder.class)));
+    final Thread waiter = new Thread(() -> result.encodeLoop(mock(MCV2.class)));
     waiter.start();
     waiter.interrupt();
     waiter.join(TimeUnit.SECONDS.toMillis(10));
@@ -401,7 +399,7 @@ final class Mcv2ResultTest {
    *
    * @return how many frames were encoded
    */
-  private int play(final Mcv2Result result, final AtomicLong clock, final Mcv2Encoder encoder, final ImageBuffer frame, final int frames)
+  private int play(final Mcv2Result result, final AtomicLong clock, final MCV2 encoder, final ImageBuffer frame, final int frames)
     throws InterruptedException {
     int encoded = 0;
     for (int frameNumber = 0; frameNumber < frames; frameNumber++) {
@@ -431,7 +429,7 @@ final class Mcv2ResultTest {
       .video(64, 32)
       .pageMap(500)
       // one preset, so the pacer steps the frame rate and the size, which this is about
-      .settings(EncoderSettings.LIVE_FAST)
+      .settings(Settings.FAST)
       .maxFrameRate(0)
       .build();
     final Mcv2Result result = new Mcv2Result(
@@ -447,12 +445,12 @@ final class Mcv2ResultTest {
     result.pace();
     assertEquals(new Mcv2Pacer.Rung(64, 32, 1), result.getRung());
     final AtomicLong encodeNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
-    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    final MCV2 encoder = mock(MCV2.class);
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
       clock.addAndGet(encodeNanos.get());
       return Mcv2ChannelTest.keyframe();
     });
-    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
+    when(encoder.getStats()).thenReturn(new MCV2.Stats(1, false, 1, 1, 72));
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     // the viewer with the pack is shown the screen, dithered for until then, then every frame is encoded while 5 ms
     // fit a frame's 16.7 ms
@@ -502,7 +500,7 @@ final class Mcv2ResultTest {
       .video(64, 32)
       .pageMap(500)
       // one preset, so the pacer steps the frame rate and the size, which this is about
-      .settings(EncoderSettings.LIVE_FAST)
+      .settings(Settings.FAST)
       .maxFrameRate(0)
       .build();
     final Mcv2Result result = new Mcv2Result(
@@ -524,14 +522,14 @@ final class Mcv2ResultTest {
     // an encode takes 100 ms at 64x32 and a quarter of that at 32x16
     final AtomicLong fullNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
     final List<Integer> widths = new ArrayList<>();
-    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    final MCV2 encoder = mock(MCV2.class);
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(invocation -> {
       final int width = invocation.getArgument(1);
       widths.add(width);
       clock.addAndGet((fullNanos.get() * width * (int) invocation.getArgument(2)) / (64 * 32));
       return Mcv2ChannelTest.keyframe();
     });
-    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
+    when(encoder.getStats()).thenReturn(new MCV2.Stats(1, false, 1, 1, 72));
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
@@ -578,12 +576,12 @@ final class Mcv2ResultTest {
       Runnable::run
     );
     result.pace();
-    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    final MCV2 encoder = mock(MCV2.class);
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
       clock.addAndGet(TimeUnit.SECONDS.toNanos(2));
       return Mcv2ChannelTest.keyframe();
     });
-    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
+    when(encoder.getStats()).thenReturn(new MCV2.Stats(1, false, 1, 1, 72));
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
@@ -594,7 +592,7 @@ final class Mcv2ResultTest {
 
   @Test
   void encodesInTheBudgetItIsGiven() throws InterruptedException {
-    try (final EncoderPool budget = new EncoderPool(1)) {
+    try (final Pool budget = new Pool(1)) {
       final Mcv2Configuration own = Mcv2Configuration.builder()
         .viewers(List.of(WITH_PACK))
         .origin(new Location(mock(World.class), 0, 64, 0))
@@ -608,7 +606,7 @@ final class Mcv2ResultTest {
         .maxFrameRate(0)
         .build();
       assertSame(budget, own.getEncoderPool());
-      assertSame(EncoderPool.shared(), this.configuration.getEncoderPool());
+      assertSame(Pool.shared(), this.configuration.getEncoderPool());
       final Mcv2Result result = this.result(own, null);
       result.start();
       final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
@@ -701,8 +699,8 @@ final class Mcv2ResultTest {
   @Test
   void countsTheKeyframesItSent() {
     final Mcv2Result.Statistics statistics = new Mcv2Result.Statistics();
-    statistics.add(new Mcv2Encoder.Stats(10, true, 0, 0, 0, 1, 5, 72), 128);
-    statistics.add(new Mcv2Encoder.Stats(20, false, 0, 0, 0, 1, 7, 72), 256);
+    statistics.add(new MCV2.Stats(10, true, 1, 5, 72), 128);
+    statistics.add(new MCV2.Stats(20, false, 1, 7, 72), 256);
     assertEquals(2, statistics.getFrames());
     assertEquals(1, statistics.getKeyframes());
   }
@@ -889,9 +887,9 @@ final class Mcv2ResultTest {
   void endsItsThreadsBeforeReleaseReturns() throws Exception {
     final Set<Thread> before = Set.copyOf(Thread.getAllStackTraces().keySet());
     final CountDownLatch encoding = new CountDownLatch(1);
-    final Mcv2Encoder slow = mock(Mcv2Encoder.class);
-    when(slow.getSettings()).thenReturn(EncoderSettings.LIVE_FAST);
-    final Mcv2Encoder.Pending pending = mock(Mcv2Encoder.Pending.class);
+    final MCV2 slow = mock(MCV2.class);
+    when(slow.getSettings()).thenReturn(Settings.FAST);
+    final MCV2.Pending pending = mock(MCV2.Pending.class);
     when(slow.begin(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
       encoding.countDown();
       // a search does not stop at an interrupt: it runs to its end
@@ -901,11 +899,11 @@ final class Mcv2ResultTest {
       }
       return pending;
     });
-    final Mcv2Encoder.Encoded encoded = mock(Mcv2Encoder.Encoded.class);
+    final MCV2.Encoded encoded = mock(MCV2.Encoded.class);
     when(encoded.getData()).thenReturn(Mcv2ChannelTest.keyframe());
-    when(encoded.getStats()).thenReturn(new Mcv2Encoder.Stats(1, true, 0, 0, 0, 1, 1, 72));
+    when(encoded.getStats()).thenReturn(new MCV2.Stats(1, true, 1, 1, 72));
     when(slow.finish(pending)).thenReturn(encoded);
-    final EncoderPool budget = mock(EncoderPool.class);
+    final Pool budget = mock(Pool.class);
     when(budget.encoder(any(), anyBoolean())).thenReturn(slow);
     when(budget.run(any())).thenAnswer(invocation -> invocation.<Callable<?>>getArgument(0).call());
     final Mcv2Configuration own = Mcv2Configuration.builder()
@@ -963,12 +961,12 @@ final class Mcv2ResultTest {
     );
     result.pace();
     final AtomicLong encodeNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
-    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    final MCV2 encoder = mock(MCV2.class);
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
       clock.addAndGet(encodeNanos.get());
       return Mcv2ChannelTest.keyframe();
     });
-    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
+    when(encoder.getStats()).thenReturn(new MCV2.Stats(1, false, 1, 1, 72));
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
@@ -1017,7 +1015,7 @@ final class Mcv2ResultTest {
       .rows(1)
       .video(64, 32)
       .pageMap(500)
-      .settings(EncoderSettings.LIVE_FAST)
+      .settings(Settings.FAST)
       .maxFrameRate(0)
       .build();
     final Mcv2Result result = new Mcv2Result(
@@ -1031,12 +1029,12 @@ final class Mcv2ResultTest {
     // opened as start opens it, without the threads: the test hands the frames to the encoder itself
     result.getChannel().open();
     final AtomicLong encodeNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
-    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    final MCV2 encoder = mock(MCV2.class);
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
       clock.addAndGet(encodeNanos.get());
       return Mcv2ChannelTest.keyframe();
     });
-    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
+    when(encoder.getStats()).thenReturn(new MCV2.Stats(1, false, 1, 1, 72));
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
@@ -1093,7 +1091,7 @@ final class Mcv2ResultTest {
       .columns(1)
       .rows(1)
       .pageMap(500)
-      .backlogLimit(400)
+      .backlogLimit(200)
       .unsentLimit(0)
       .maxFrameRate(0)
       .build();
@@ -1108,14 +1106,14 @@ final class Mcv2ResultTest {
       Mcv2ChannelTest.frame(3, 2, false),
       Mcv2ChannelTest.frame(4, 4, true)
     );
-    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    final MCV2 encoder = mock(MCV2.class);
     try (final Recording recording = new Recording()) {
       recording.enable("me.brandonli.mcav.Mcv2Frame");
       recording.start();
       for (int id = 0; id < frames.size(); id++) {
         final byte[] frame = frames.get(id);
         when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenReturn(frame);
-        when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(frame.length, id == 0 || id == 4, 0, 0, 0, 1, 1, 72));
+        when(encoder.getStats()).thenReturn(new MCV2.Stats(frame.length, id == 0 || id == 4, 1, 1, 72));
         if (id == 3) {
           this.server.completeWrites(WITH_PACK);
         }
@@ -1155,7 +1153,7 @@ final class Mcv2ResultTest {
   }
 
   /** A screen of one map for the viewer with the pack, at 64x32, with the given encoder settings. */
-  private static Mcv2Configuration packScreen(final EncoderSettings settings) {
+  private static Mcv2Configuration packScreen(final Settings settings) {
     return Mcv2Configuration.builder()
       .viewers(List.of(WITH_PACK))
       .origin(new Location(mock(World.class), 0, 64, 0))
@@ -1174,24 +1172,18 @@ final class Mcv2ResultTest {
    * Makes mock encoders of a screen: each frame begins, and finishes - once the gate is open - with a keyframe's bytes,
    * or fails its verification.
    */
-  private static Function<EncoderSettings, Mcv2Encoder> mockEncoders(
-    final List<Mcv2Encoder> made,
-    final boolean failing,
-    final CountDownLatch gate
-  ) {
+  private static Function<Settings, MCV2> mockEncoders(final List<MCV2> made, final boolean failing, final CountDownLatch gate) {
     return settings -> {
-      final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
-      // the first encoder reports the exhaustive search's settings, so the first frame of the screen's live settings
-      // makes an encoder of its own, after draining
-      when(encoder.getSettings()).thenReturn(made.isEmpty() ? EncoderSettings.SHIP : settings);
-      final Mcv2Encoder.Pending pending = mock(Mcv2Encoder.Pending.class);
+      final MCV2 encoder = mock(MCV2.class);
+      when(encoder.getSettings()).thenReturn(settings);
+      final MCV2.Pending pending = mock(MCV2.Pending.class);
       when(encoder.begin(any(), anyInt(), anyInt(), anyLong())).thenReturn(pending);
       if (failing) {
         when(encoder.finish(pending)).thenThrow(new IllegalStateException("MCV2 live picture and decoded picture disagree"));
       } else {
-        final Mcv2Encoder.Encoded encoded = mock(Mcv2Encoder.Encoded.class);
+        final MCV2.Encoded encoded = mock(MCV2.Encoded.class);
         when(encoded.getData()).thenReturn(Mcv2ChannelTest.keyframe());
-        when(encoded.getStats()).thenReturn(new Mcv2Encoder.Stats(1, true, 0, 0, 0, 1, 1, 55));
+        when(encoded.getStats()).thenReturn(new MCV2.Stats(1, true, 1, 1, 55));
         when(encoder.finish(pending)).thenAnswer(_ -> {
           gate.await();
           return encoded;
@@ -1203,7 +1195,7 @@ final class Mcv2ResultTest {
   }
 
   /** Waits until the screen's thread has made the given number of encoders. */
-  private static void awaitEncoders(final List<Mcv2Encoder> made, final int count) throws InterruptedException {
+  private static void awaitEncoders(final List<MCV2> made, final int count) throws InterruptedException {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
     while (made.size() < count && System.nanoTime() < deadline) {
       Thread.sleep(10);
@@ -1213,8 +1205,8 @@ final class Mcv2ResultTest {
 
   @Test
   void searchesTheNextFrameWhileTheSenderVerifiesTheLast() throws InterruptedException {
-    final Mcv2Configuration fast = packScreen(EncoderSettings.LIVE_FAST);
-    final List<Mcv2Encoder> made = new CopyOnWriteArrayList<>();
+    final Mcv2Configuration fast = packScreen(Settings.FAST);
+    final List<MCV2> made = new CopyOnWriteArrayList<>();
     final CountDownLatch gate = new CountDownLatch(1);
     final Mcv2Result result = new Mcv2Result(
       fast,
@@ -1229,9 +1221,9 @@ final class Mcv2ResultTest {
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
     result.applyFilter(frame, this.metadata);
-    awaitEncoders(made, 2);
+    awaitEncoders(made, 1);
     // the sender holds the first frame: a drain waits for it
-    verify(made.get(1), timeout(TimeUnit.SECONDS.toMillis(10))).finish(any());
+    verify(made.getFirst(), timeout(TimeUnit.SECONDS.toMillis(10))).finish(any());
     final Thread drainer = new Thread(() -> {
       try {
         result.drain();
@@ -1250,18 +1242,17 @@ final class Mcv2ResultTest {
       result.applyFilter(frame, this.metadata);
       awaitFrames(result, frameNumber);
     }
-    // the first frame's encoder was replaced once the pipeline was empty; its replacement began and finished the rest
-    assertEquals(2, made.size());
-    verify(made.getFirst(), never()).begin(any(), anyInt(), anyInt(), anyLong());
-    verify(made.get(1), times(3)).finish(any());
+    assertEquals(1, made.size());
+    verify(made.getFirst(), times(3)).begin(any(), anyInt(), anyInt(), anyLong());
+    verify(made.getFirst(), times(3)).finish(any());
     result.drain();
     result.release();
   }
 
   @Test
   void stopsTheScreenWhenAFrameFailsItsVerification() throws InterruptedException {
-    final Mcv2Configuration fast = packScreen(EncoderSettings.LIVE_FAST);
-    final List<Mcv2Encoder> made = new CopyOnWriteArrayList<>();
+    final Mcv2Configuration fast = packScreen(Settings.FAST);
+    final List<MCV2> made = new CopyOnWriteArrayList<>();
     final Mcv2Result result = new Mcv2Result(
       fast,
       new Mcv2Channel(fast, this.viewers, this.screen),
@@ -1275,8 +1266,8 @@ final class Mcv2ResultTest {
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
     result.applyFilter(frame, this.metadata);
-    awaitEncoders(made, 2);
-    verify(made.get(1), timeout(TimeUnit.SECONDS.toMillis(10))).finish(any());
+    awaitEncoders(made, 1);
+    verify(made.getFirst(), timeout(TimeUnit.SECONDS.toMillis(10))).finish(any());
     // the screen searches the next frame while the sender verifies the last, so frames are handed over only once the
     // failed verification has stopped the screen, which also ends a drain: right after finish was called, a frame could
     // still be searched on a loaded machine
@@ -1293,44 +1284,34 @@ final class Mcv2ResultTest {
     // the failure stops the screen's thread too: no later frame begins, and nothing was sent
     result.applyFilter(frame, this.metadata);
     result.applyFilter(frame, this.metadata);
-    verify(made.get(1), Mockito.after(500).times(1)).begin(any(), anyInt(), anyInt(), anyLong());
+    verify(made.getFirst(), Mockito.after(500).times(1)).begin(any(), anyInt(), anyInt(), anyLong());
     assertEquals(0, result.getStatistics().getFrames());
     result.release();
   }
 
   @Test
   void namesThePresetsOfItsLadder() {
-    final Mcv2Result exhaustive = this.result(packScreen(EncoderSettings.SHIP), null);
-    exhaustive.pace();
-    assertEquals("exhaustive", exhaustive.getRung().preset().name());
-    final Mcv2Result live = this.result(packScreen(EncoderSettings.LIVE), null);
+    final Mcv2Result live = this.result(packScreen(Settings.DEFAULT), null);
     live.pace();
-    assertEquals(new Mcv2Pacer.Preset("live", 1), live.getRung().preset());
-    final Mcv2Result adaptive = this.result(packScreen(EncoderSettings.LIVE_ADAPTIVE), null);
-    adaptive.pace();
-    assertEquals(new Mcv2Pacer.Preset("adaptive", 0.95), adaptive.getRung().preset());
-    // the fastest preset, and a search off the ladder, have nothing to step through
-    final Mcv2Result fastest = this.result(packScreen(EncoderSettings.LIVE_FAST), null);
+    assertEquals(new Mcv2Pacer.Preset("DEFAULT", 1), live.getRung().preset());
+    // The fastest preset has no faster search to step through.
+    final Mcv2Result fastest = this.result(packScreen(Settings.FAST), null);
     fastest.pace();
     assertEquals(new Mcv2Pacer.Rung(64, 32, 1), fastest.getRung());
-    final Mcv2Result exact = this.result(packScreen(EncoderSettings.LIVE.withLive(LiveSearch.EXACT)), null);
-    exact.pace();
-    assertEquals(new Mcv2Pacer.Rung(64, 32, 1), exact.getRung());
   }
 
   /**
    * An encoder that codes with the settings it was made with or last switched to, its frames taking the clock's time:
-   * the live search's frame the given nanoseconds, the faster searches three quarters of it, the exhaustive search twenty
-   * times as much.
+   * the normal thresholds take the given nanoseconds and the fast thresholds take three quarters of it.
    */
-  private static Mcv2Encoder timedEncoder(
-    final EncoderSettings settings,
+  private static MCV2 timedEncoder(
+    final Settings settings,
     final AtomicLong clock,
     final AtomicLong encodeNanos,
-    final List<EncoderSettings> switched
+    final List<Settings> switched
   ) {
-    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
-    final AtomicReference<EncoderSettings> current = new AtomicReference<>(settings);
+    final MCV2 encoder = mock(MCV2.class);
+    final AtomicReference<Settings> current = new AtomicReference<>(settings);
     when(encoder.getSettings()).thenAnswer(_ -> current.get());
     doAnswer(invocation -> {
       current.set(invocation.getArgument(0));
@@ -1340,22 +1321,22 @@ final class Mcv2ResultTest {
       .when(encoder)
       .switchTo(any());
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
-      final EncoderSettings now = current.get();
-      final long share = now.live() == null ? 80 : now.equals(EncoderSettings.LIVE) ? 4 : 3;
+      final Settings now = current.get();
+      final long share = now.fast() ? 3 : 4;
       clock.addAndGet((encodeNanos.get() * share) / 4);
       return Mcv2ChannelTest.keyframe();
     });
-    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
+    when(encoder.getStats()).thenReturn(new MCV2.Stats(1, false, 1, 1, 72));
     return encoder;
   }
 
   @Test
   void stepsDownTheLivePresetsWithOneEncoder() throws InterruptedException {
     final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
-    final Mcv2Configuration live = packScreen(EncoderSettings.LIVE);
+    final Mcv2Configuration live = packScreen(Settings.DEFAULT);
     final AtomicLong encodeNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
-    final List<Mcv2Encoder> made = new ArrayList<>();
-    final List<EncoderSettings> switched = new ArrayList<>();
+    final List<MCV2> made = new ArrayList<>();
+    final List<Settings> switched = new ArrayList<>();
     final Mcv2Result result = new Mcv2Result(
       live,
       new Mcv2Channel(live, this.viewers, this.screen),
@@ -1363,7 +1344,7 @@ final class Mcv2ResultTest {
       clock::get,
       Runnable::run,
       settings -> {
-        final Mcv2Encoder encoder = timedEncoder(settings, clock, encodeNanos, switched);
+        final MCV2 encoder = timedEncoder(settings, clock, encodeNanos, switched);
         made.add(encoder);
         return encoder;
       }
@@ -1374,82 +1355,31 @@ final class Mcv2ResultTest {
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
-    // the first frame makes the encoder of the screen's settings, the top of its ladder, and the next ones keep it
-    final Mcv2Encoder exhaustive = mock(Mcv2Encoder.class);
-    when(exhaustive.getSettings()).thenReturn(EncoderSettings.SHIP);
-    Mcv2Encoder encoder = this.playSwitching(result, clock, exhaustive, frame, 300);
+    final MCV2 first = timedEncoder(Settings.DEFAULT, clock, encodeNanos, switched);
+    made.add(first);
+    MCV2 encoder = this.playSwitching(result, clock, first, frame, 300);
     assertEquals(1, made.size());
-    assertEquals(EncoderSettings.LIVE, made.getFirst().getSettings());
-    // at 18 ms a frame of the 16.7 a frame has, the adaptive preset's predicted 17.1 ms does not fit and the live-fast
-    // search's 16.2 ms does: the same encoder switches to it, without a keyframe, and every frame is still encoded
+    assertEquals(Settings.DEFAULT, made.getFirst().getSettings());
+    // FAST is estimated at 16.2 ms, inside the 16.7 ms frame interval.
     encodeNanos.set(TimeUnit.MILLISECONDS.toNanos(18));
     encoder = this.playSwitching(result, clock, encoder, frame, 120);
     assertEquals(1, changes.size());
     assertEquals(
-      "MCV2 screen steps down to 64x32 at 60 fps with the live-fast search: encoding 64x32 with the live search takes 18.0 ms" +
+      "MCV2 screen steps down to 64x32 at 60 fps with the FAST search: encoding 64x32 with the DEFAULT search takes 18.0 ms" +
         " per frame, more than the 16.7 ms a frame has at 60 fps with the encoder threads it has",
       changes.getFirst().describe()
     );
     assertEquals(1, made.size());
-    assertEquals(List.of(EncoderSettings.LIVE_FAST), switched);
+    assertEquals(List.of(Settings.FAST), switched);
     verify(made.getFirst(), Mockito.atLeast(150)).encode(any(), anyInt(), anyInt(), anyLong());
-    // once the budget frees, the screen climbs back, the same encoder switching: to the adaptive preset while the live
-    // search it left is kept off for a while, then to the live search
+    // Once the budget frees, the same encoder returns to DEFAULT.
     encodeNanos.set(TimeUnit.MILLISECONDS.toNanos(5));
     this.playSwitching(result, clock, encoder, frame, 30 * 60);
-    assertEquals(3, changes.size());
+    assertEquals(2, changes.size());
     assertFalse(changes.get(1).down());
-    assertFalse(changes.get(2).down());
     assertEquals(1, made.size());
-    assertEquals(List.of(EncoderSettings.LIVE_FAST, EncoderSettings.LIVE_ADAPTIVE, EncoderSettings.LIVE), switched);
-    assertEquals(new Mcv2Pacer.Preset("live", 1), result.getRung().preset());
-  }
-
-  @Test
-  void stepsBetweenTheExhaustiveAndTheLiveSearchWithAnEncoderEach() throws InterruptedException {
-    final AtomicLong clock = new AtomicLong(TimeUnit.SECONDS.toNanos(1));
-    final Mcv2Configuration ship = packScreen(EncoderSettings.SHIP);
-    final AtomicLong encodeNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(1));
-    final List<Mcv2Encoder> made = new ArrayList<>();
-    final List<EncoderSettings> switched = new ArrayList<>();
-    final Mcv2Result result = new Mcv2Result(
-      ship,
-      new Mcv2Channel(ship, this.viewers, this.screen),
-      this.algorithm,
-      clock::get,
-      Runnable::run,
-      settings -> {
-        final Mcv2Encoder encoder = timedEncoder(settings, clock, encodeNanos, switched);
-        made.add(encoder);
-        return encoder;
-      }
-    );
-    result.pace();
-    final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
-    result.applyFilter(frame, this.metadata);
-    this.server.runTasks();
-    final Mcv2Encoder first = mock(Mcv2Encoder.class);
-    when(first.getSettings()).thenReturn(EncoderSettings.LIVE_FAST);
-    // the exhaustive search keeps up at 10 ms a frame while the pacer starts; at 20 ms it does not, and the live search
-    // gets an encoder of its own
-    encodeNanos.set(TimeUnit.MICROSECONDS.toNanos(500));
-    Mcv2Encoder encoder = this.playSwitching(result, clock, first, frame, 300);
-    assertEquals(EncoderSettings.SHIP, encoder.getSettings());
-    encodeNanos.set(TimeUnit.MILLISECONDS.toNanos(1));
-    encoder = this.playSwitching(result, clock, encoder, frame, 120);
-    assertEquals(EncoderSettings.SHIP.faster(), encoder.getSettings());
-    // at half a millisecond a live frame, the exhaustive search's predicted 10 ms fits again, with an encoder of its own
-    encodeNanos.set(TimeUnit.MICROSECONDS.toNanos(500));
-    encoder = this.playSwitching(result, clock, encoder, frame, 30 * 60);
-    assertEquals(EncoderSettings.SHIP, encoder.getSettings());
-    assertEquals(
-      List.of(EncoderSettings.SHIP, EncoderSettings.SHIP.faster(), EncoderSettings.SHIP),
-      made
-        .stream()
-        .map(created -> created.getSettings())
-        .toList()
-    );
-    assertEquals(List.of(), switched);
+    assertEquals(List.of(Settings.FAST, Settings.DEFAULT), switched);
+    assertEquals(new Mcv2Pacer.Preset("DEFAULT", 1), result.getRung().preset());
   }
 
   /**
@@ -1458,20 +1388,15 @@ final class Mcv2ResultTest {
    *
    * @return the encoder of the last frame
    */
-  private Mcv2Encoder playSwitching(
-    final Mcv2Result result,
-    final AtomicLong clock,
-    final Mcv2Encoder first,
-    final ImageBuffer frame,
-    final int frames
-  ) throws InterruptedException {
-    Mcv2Encoder encoder = first;
+  private MCV2 playSwitching(final Mcv2Result result, final AtomicLong clock, final MCV2 first, final ImageBuffer frame, final int frames)
+    throws InterruptedException {
+    MCV2 encoder = first;
     for (int frameNumber = 0; frameNumber < frames; frameNumber++) {
       final long arrival = clock.addAndGet(16_666_667L);
       result.applyFilter(frame, this.metadata);
       final Mcv2Result.Arrival handed = result.poll();
       if (handed != null) {
-        final EncoderSettings settings = result.settingsFor(handed);
+        final Settings settings = result.settingsFor(handed);
         if (!settings.equals(encoder.getSettings())) {
           encoder = result.encoderFor(settings, encoder);
         }
@@ -1495,7 +1420,7 @@ final class Mcv2ResultTest {
       .video(64, 32)
       .pageMap(500)
       // one preset, so the pacer steps the frame rate and the size, which this is about
-      .settings(EncoderSettings.LIVE_FAST)
+      .settings(Settings.FAST)
       .maxFrameRate(0)
       .build();
     final Mcv2Result result = new Mcv2Result(
@@ -1507,12 +1432,12 @@ final class Mcv2ResultTest {
     );
     result.pace();
     final AtomicLong encodeNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
-    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
+    final MCV2 encoder = mock(MCV2.class);
     when(encoder.encode(any(), anyInt(), anyInt(), anyLong())).thenAnswer(_ -> {
       clock.addAndGet(encodeNanos.get());
       return Mcv2ChannelTest.keyframe();
     });
-    when(encoder.getStats()).thenReturn(new Mcv2Encoder.Stats(1, false, 0, 0, 0, 1, 1, 72));
+    when(encoder.getStats()).thenReturn(new MCV2.Stats(1, false, 1, 1, 72));
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
@@ -1597,10 +1522,10 @@ final class Mcv2ResultTest {
   @Test
   void anEncoderThatFailsStopsTheScreenAndItsSender() throws InterruptedException {
     final Set<Thread> before = Set.copyOf(Thread.getAllStackTraces().keySet());
-    final Mcv2Encoder failing = mock(Mcv2Encoder.class);
-    when(failing.getSettings()).thenReturn(EncoderSettings.LIVE_FAST);
+    final MCV2 failing = mock(MCV2.class);
+    when(failing.getSettings()).thenReturn(Settings.FAST);
     when(failing.begin(any(), anyInt(), anyInt(), anyLong())).thenThrow(new IllegalArgumentException("a size the codec cannot carry"));
-    final Mcv2Configuration fast = packScreen(EncoderSettings.LIVE_FAST);
+    final Mcv2Configuration fast = packScreen(Settings.FAST);
     final Mcv2Result result = new Mcv2Result(
       fast,
       new Mcv2Channel(fast, this.viewers, this.screen),
@@ -1743,13 +1668,13 @@ final class Mcv2ResultTest {
 
   @Test
   void aSenderThatFailsStopsTheScreenWhileItsThreadCannotBeInterrupted() throws InterruptedException {
-    final Mcv2Configuration fast = packScreen(EncoderSettings.LIVE_FAST);
+    final Mcv2Configuration fast = packScreen(Settings.FAST);
     final CountDownLatch inSecondFrame = new CountDownLatch(1);
     final CountDownLatch secondFrameMayGoOn = new CountDownLatch(1);
     final CountDownLatch firstFrameMayFail = new CountDownLatch(1);
-    final Mcv2Encoder encoder = mock(Mcv2Encoder.class);
-    when(encoder.getSettings()).thenReturn(EncoderSettings.LIVE_FAST);
-    final Mcv2Encoder.Pending first = mock(Mcv2Encoder.Pending.class);
+    final MCV2 encoder = mock(MCV2.class);
+    when(encoder.getSettings()).thenReturn(Settings.FAST);
+    final MCV2.Pending first = mock(MCV2.Pending.class);
     when(encoder.begin(any(), anyInt(), anyInt(), anyLong())).thenReturn(first);
     final AtomicInteger frames = new AtomicInteger();
     doAnswer(_ -> {

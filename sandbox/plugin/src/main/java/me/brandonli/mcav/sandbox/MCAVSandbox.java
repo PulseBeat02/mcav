@@ -22,8 +22,8 @@ import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.browser.BrowserModule;
 import me.brandonli.mcav.bukkit.BukkitModule;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.Mcv2Natives;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
 import me.brandonli.mcav.bukkit.utils.versioning.ServerEnvironment;
 import me.brandonli.mcav.bukkit.utils.versioning.UnsupportedServerVersionException;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
@@ -79,6 +79,8 @@ public final class MCAVSandbox extends JavaPlugin {
   private static final String ENCODER_SHARE = "MCV2 encoders share {} of {} processors";
 
   /** The folder of the data folder the native kernels' library is extracted into. */
+  private static final String ENCODER_KERNELS = "MCV2 kernels: {}";
+
   private static final String NATIVES_FOLDER = "natives";
 
   private @MonotonicNonNull ComponentLogger logger;
@@ -196,12 +198,12 @@ public final class MCAVSandbox extends JavaPlugin {
     mapper.deserialize();
     this.configurationMapper = mapper;
     // one encoder budget for every MCV2 screen of the server
-    EncoderPool.setSharedThreads(mapper.getMcv2EncoderThreads());
+    Pool.setSharedThreads(mapper.getMcv2EncoderThreads());
     final int processors = Runtime.getRuntime().availableProcessors();
-    this.requireLogger().info(ENCODER_SHARE, EncoderPool.shared().getThreads(), processors);
+    this.requireLogger().info(ENCODER_SHARE, Pool.shared().getThreads(), processors);
     // the native kernels extract into the data folder, never /tmp; installing them decides which kernels run and logs it
-    Mcv2Natives.install(this.getDataFolder().toPath().resolve(NATIVES_FOLDER), mapper.getMcv2Native());
-    Mcv2Natives.describe();
+    MCV2.installNatives(this.getDataFolder().toPath().resolve(NATIVES_FOLDER), mapper.getMcv2Native());
+    this.requireLogger().info(ENCODER_KERNELS, MCV2.describeNatives());
   }
 
   private void loadManagers() {

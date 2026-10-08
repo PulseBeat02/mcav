@@ -38,8 +38,8 @@ import java.util.List;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.MapDisplaySettings;
@@ -232,7 +232,7 @@ final class ImageMapCommandTest {
     );
     assertEquals(List.of(this.viewer), List.copyOf(settings.viewers()));
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
-    when(this.support.configure(this.sender, Pair.pair(3, 2), resolution, MAP_ID, EncoderSettings.LIVE, settings.viewers())).thenReturn(
+    when(this.support.configure(this.sender, Pair.pair(3, 2), resolution, MAP_ID, Settings.DEFAULT, settings.viewers())).thenReturn(
       configuration
     );
     final Mcv2Output output = mock(Mcv2Output.class);

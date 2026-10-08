@@ -26,8 +26,8 @@ import static org.mockito.Mockito.mock;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -67,7 +67,7 @@ final class Mcv2ConfigurationTest {
     assertEquals(Mcv2Configuration.DEFAULT_PAGE_MAP, configuration.getPageMap());
     assertEquals(Mcv2Configuration.MAX_PAGE_SLOTS, configuration.getPageSlots());
     assertEquals(1, configuration.getStreamId());
-    assertEquals(EncoderSettings.LIVE, configuration.getSettings());
+    assertEquals(Settings.DEFAULT, configuration.getSettings());
     assertEquals(NamedTextColor.DARK_PURPLE, configuration.getOutlineColor());
     assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, configuration.getBacklogLimit());
     assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, configuration.getUnsentLimit());
@@ -76,13 +76,13 @@ final class Mcv2ConfigurationTest {
 
   @Test
   void copiesItselfAtAnotherVideoSize() {
-    try (final EncoderPool budget = new EncoderPool(1)) {
+    try (final Pool budget = new Pool(1)) {
       final Mcv2Configuration original = complete()
         .video(320, 180)
         .pageSlots(2)
         .streamId(7)
         .firstFrameId(99)
-        .settings(EncoderSettings.LIVE)
+        .settings(Settings.DEFAULT)
         .outlineColor(NamedTextColor.AQUA)
         .backlogLimit(1000)
         .unsentLimit(2000)
@@ -101,13 +101,13 @@ final class Mcv2ConfigurationTest {
       assertEquals(2, smaller.getPageSlots());
       assertEquals(7, smaller.getStreamId());
       assertEquals(99, smaller.getFirstFrameId());
-      assertEquals(EncoderSettings.LIVE, smaller.getSettings());
+      assertEquals(Settings.DEFAULT, smaller.getSettings());
       assertEquals(NamedTextColor.AQUA, smaller.getOutlineColor());
       assertEquals(1000, smaller.getBacklogLimit());
       assertEquals(2000, smaller.getUnsentLimit());
       assertSame(budget, smaller.getEncoderPool());
       // without a budget of its own, the copy uses the server's too
-      assertSame(EncoderPool.shared(), complete().build().withVideo(64, 64).getEncoderPool());
+      assertSame(Pool.shared(), complete().build().withVideo(64, 64).getEncoderPool());
       assertThrows(IllegalArgumentException.class, () -> original.withVideo(0, 90));
       assertThrows(IllegalArgumentException.class, () -> original.withVideo(160, 0));
       assertThrows(IllegalArgumentException.class, () -> original.withVideo(5000, 90));
@@ -135,10 +135,10 @@ final class Mcv2ConfigurationTest {
   @Test
   void copiesItselfWithTheStreamASlotGaveIt() {
     final Mcv2Configuration original = complete().video(320, 180).streamId(7).build();
-    final Mcv2Configuration slotted = original.withSlot(3, Mcv2Configuration.DEFAULT_PAGE_MAP + 16, Mcv2Format.MAX_U32);
+    final Mcv2Configuration slotted = original.withSlot(3, Mcv2Configuration.DEFAULT_PAGE_MAP + 16, Mcv2Decoder.MAX_U32);
     assertEquals(3, slotted.getStreamId());
     assertEquals(Mcv2Configuration.DEFAULT_PAGE_MAP + 16, slotted.getPageMap());
-    assertEquals(Mcv2Format.MAX_U32, slotted.getFirstFrameId());
+    assertEquals(Mcv2Decoder.MAX_U32, slotted.getFirstFrameId());
     assertEquals(320, slotted.getVideoWidth());
     assertSame(original.getViewers(), slotted.getViewers());
     assertEquals(0, original.getFirstFrameId());
@@ -146,7 +146,7 @@ final class Mcv2ConfigurationTest {
       original.withSlot(Mcv2Configuration.MAX_STREAM_ID + 1, Mcv2Configuration.DEFAULT_PAGE_MAP, 0)
     );
     assertThrows(IllegalArgumentException.class, () -> original.withSlot(1, Mcv2Configuration.DEFAULT_PAGE_MAP, -1));
-    assertThrows(IllegalArgumentException.class, () -> original.withSlot(1, Mcv2Configuration.DEFAULT_PAGE_MAP, Mcv2Format.MAX_U32 + 1));
+    assertThrows(IllegalArgumentException.class, () -> original.withSlot(1, Mcv2Configuration.DEFAULT_PAGE_MAP, Mcv2Decoder.MAX_U32 + 1));
   }
 
   @Test
@@ -156,7 +156,7 @@ final class Mcv2ConfigurationTest {
       .pageMap(50)
       .pageSlots(2)
       .streamId(Mcv2Configuration.MAX_STREAM_ID)
-      .settings(EncoderSettings.LOW_BANDWIDTH)
+      .settings(Settings.DEFAULT)
       .outlineColor(NamedTextColor.AQUA)
       .backlogLimit(0)
       .unsentLimit(0)
@@ -166,7 +166,7 @@ final class Mcv2ConfigurationTest {
     assertEquals(50, configuration.getPageMap());
     assertEquals(2, configuration.getPageSlots());
     assertEquals(Mcv2Configuration.MAX_STREAM_ID, configuration.getStreamId());
-    assertEquals(EncoderSettings.LOW_BANDWIDTH, configuration.getSettings());
+    assertEquals(Settings.DEFAULT, configuration.getSettings());
     assertEquals(NamedTextColor.AQUA, configuration.getOutlineColor());
     assertEquals(0, configuration.getBacklogLimit());
     assertEquals(0, configuration.getUnsentLimit());

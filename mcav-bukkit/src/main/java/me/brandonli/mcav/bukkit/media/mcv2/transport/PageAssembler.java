@@ -22,9 +22,9 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import me.brandonli.mcav.bukkit.media.mcv2.FrameParser;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.Frame;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frame;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -116,8 +116,10 @@ public final class PageAssembler {
     }
     this.pending.remove(frameId);
     final byte[] data = frame.toByteArray();
-    final Mcv2Frame parsed = FrameParser.parse(data);
-    if (parsed.getFrameId() != frameId || parsed.getReferenceId() != page.getReferenceId() || (parsed.getFlags() & 1) != page.getFlags()) {
+    final Frame parsed = Mcv2Decoder.parse(data);
+    if (
+      parsed.getFrameId() != frameId || parsed.getReferenceId() != page.getReferenceId() || (parsed.isKeyframe() ? 1 : 0) != page.getFlags()
+    ) {
       throw new Mcv2Exception("Frame and page identity mismatch");
     }
     return data;

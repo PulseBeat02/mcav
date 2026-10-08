@@ -40,8 +40,8 @@ class FixtureCoverageTest(unittest.TestCase):
     def setUpClass(cls):
         cls.streams = edge_streams.build_streams()
 
-    def test_every_leaf_size_class_form_quantizer_and_pattern_axis(self):
-        modes, compacts, dimensions = set(), set(), set()
+    def test_every_leaf_size_quantizer_vector_extreme_and_pattern_axis(self):
+        modes, compacts, vectors, dimensions = set(), set(), set(), set()
         max_cursor = max_splits = max_length = 0
         for frames in self.streams.values():
             for data in frames:
@@ -54,10 +54,11 @@ class FixtureCoverageTest(unittest.TestCase):
                 for leaf in frame.leaves:
                     modes.add((leaf.mode, leaf.size))
                     if leaf.mode == fmt.COMPACT:
-                        compacts.add((leaf.size, leaf.q, leaf.record[0] & 15, leaf.record[0] >> 4))
+                        compacts.add((leaf.size, leaf.q))
+                        vectors.add(leaf.record[:2])
         self.assertEqual({(mode, size) for mode in range(6) for size in (8, 16, 32)}, modes)
-        self.assertEqual({(size, q, kind, form) for size in (8, 16, 32) for q in range(8)
-                          for kind in range(3) for form in range(3)}, compacts)
+        self.assertEqual({(size, q) for size in (8, 16, 32) for q in range(3)}, compacts)
+        self.assertTrue({b'\0\0', b'\x80\x7f', b'\x7f\x80', b'\x80\x80', b'\x7f\x7f'} <= vectors)
         self.assertTrue({(1, 1), (1, 97), (97, 1), (97, 65), (4096, 4096)} <= dimensions)
         self.assertGreater(max_cursor, 128000)
         self.assertGreater(max_splits, 20000)
@@ -105,7 +106,7 @@ class FixtureToolTest(unittest.TestCase):
                 fixtures.conformance(root)
             self.assertIn('skip non-v3 stream:', messages.getvalue())
             self.assertEqual(old_digests, (output / 'digests.json').read_text())
-            data = pack_frame(1, 1, 3, 3, True, (10, 20, 30), {})
+            data = pack_frame(1, 1, 3, 3, {0: Node(fmt.SOLID, record=bytes([10, 20, 30]))})
             v3 = fixtures.archive([data])
             (output / 'new.mcs').write_bytes(v3)
             with redirect_stderr(StringIO()):
@@ -127,13 +128,13 @@ class FixtureToolTest(unittest.TestCase):
             root = Path(directory)
             output = root / 'encoder'
             output.mkdir()
-            data = fixtures.archive([pack_frame(1, 1, 0, 0, True, (1, 2, 3), {})])
+            data = fixtures.archive([pack_frame(1, 1, 0, 0, {0: Node(fmt.SOLID, record=bytes([1, 2, 3]))})])
             golden = output / 'golden.mcs'
             golden.write_bytes(data)
             with redirect_stderr(StringIO()):
                 fixtures.encoder(root)
             self.assertEqual(data, golden.read_bytes())
-            golden.write_bytes(fixtures.archive([pack_frame(1, 1, 1, 0, False, (0, 0, 0), {})]))
+            golden.write_bytes(fixtures.archive([pack_frame(1, 1, 1, 0, {})]))
             with self.assertRaisesRegex(ValueError, 'reference'):
                 fixtures.encoder(root)
 

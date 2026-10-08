@@ -25,7 +25,7 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.Images;
 import me.brandonli.mcav.bukkit.testing.MapPackets;
@@ -87,7 +87,7 @@ final class Mcv2ResultReleaseTest {
       .rows(2)
       .video(64, 32)
       .pageMap(500)
-      .settings(EncoderSettings.LIVE_FAST)
+      .settings(Settings.FAST)
       .maxFrameRate(0)
       .build();
     final Mcv2Result result = new Mcv2Result(

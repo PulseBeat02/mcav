@@ -25,12 +25,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.function.Function;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.utils.DitheringArgument;
@@ -154,7 +154,7 @@ public final class Mcv2Support {
     final Pair<Integer, Integer> blocks,
     final Pair<Integer, Integer> resolution,
     final int mapId,
-    final EncoderSettings settings,
+    final Settings settings,
     final Collection<UUID> viewers
   ) {
     // the library refuses such a screen with an exception, which no command expects
@@ -184,7 +184,7 @@ public final class Mcv2Support {
 
   private static boolean fitsMcv2(final Pair<Integer, Integer> blocks, final Pair<Integer, Integer> resolution) {
     final boolean maps = blocks.getFirst() <= Mcv2Configuration.MAX_SIDE && blocks.getSecond() <= Mcv2Configuration.MAX_SIDE;
-    final boolean pixels = resolution.getFirst() <= Mcv2Format.MAX_DIMENSION && resolution.getSecond() <= Mcv2Format.MAX_DIMENSION;
+    final boolean pixels = resolution.getFirst() <= Mcv2Decoder.MAX_DIMENSION && resolution.getSecond() <= Mcv2Decoder.MAX_DIMENSION;
     return maps && pixels;
   }
 

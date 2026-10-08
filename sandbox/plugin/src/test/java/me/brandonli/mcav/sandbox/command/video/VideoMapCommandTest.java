@@ -38,8 +38,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
@@ -318,7 +318,7 @@ final class VideoMapCommandTest {
   void encodesTheVideoWithMcv2WhenTheFlagSaysSo() {
     final Mcv2Configuration wall = mock(Mcv2Configuration.class);
     when(
-      this.support.configure(eq(this.sender), eq(Pair.pair(5, 3)), eq(Pair.pair(640, 384)), eq(20), eq(EncoderSettings.LIVE), any())
+      this.support.configure(eq(this.sender), eq(Pair.pair(5, 3)), eq(Pair.pair(640, 384)), eq(20), eq(Settings.DEFAULT), any())
     ).thenReturn(wall);
     this.playWithCodec("640x384", MapCodec.MCV2);
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
@@ -354,7 +354,7 @@ final class VideoMapCommandTest {
   void theConfiguredCodecAppliesWithoutTheFlag() {
     when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.MCV2);
     this.playWithCodec("640x384", null);
-    verify(this.support).configure(eq(this.sender), eq(Pair.pair(5, 3)), eq(Pair.pair(640, 384)), eq(20), eq(EncoderSettings.LIVE), any());
+    verify(this.support).configure(eq(this.sender), eq(Pair.pair(5, 3)), eq(Pair.pair(640, 384)), eq(20), eq(Settings.DEFAULT), any());
   }
 
   @Test

@@ -21,8 +21,8 @@ import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
@@ -139,7 +139,7 @@ public final class VideoMapCommand extends AbstractVideoCommand {
         return;
       }
       final Mcv2Support support = this.plugin.getMcv2Support();
-      final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, EncoderSettings.LIVE, players);
+      final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, Settings.DEFAULT, players);
       // a wall no frame holds, which the sender was told, is dithered
       if (configuration != null) {
         configurationProvider = _ -> new VideoMcv2Command.Mcv2Settings(configuration, ditheringAlgorithm, sender);
