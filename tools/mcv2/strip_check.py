@@ -1,3 +1,19 @@
+# This file is part of mcav, a media playback library for Java
+# Copyright (C) Brandon Li <https://brandonli.me/>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """Check the transport strip and the status squares in pictures captured from a client with the MCV2 pack's debug view.
 
     python tools/mcv2/strip_check.py <captures folder> --slots N --video-width W
@@ -28,8 +44,12 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-PAGE_PIXELS = 4096
-HEADER_SYMBOLS = 43
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "mcv2-reference"))
+from mcvideo.format import PAGE_SYMBOLS, SYMBOL_BITS
+from mcvideo.transport import PAGE_HEADER, page_capacity, read_page
+
+PAGE_PIXELS = PAGE_SYMBOLS // 4
+HEADER_SYMBOLS = (PAGE_HEADER.size * 8 + SYMBOL_BITS - 1) // SYMBOL_BITS
 SQUARE = 20
 STEP = 24
 GREEN, RED, BLUE = (0, 255, 0), (255, 0, 0), (0, 0, 255)
@@ -41,6 +61,18 @@ def page_symbols(screen, slot, rows):
     pixels = screen[slot * rows : (slot + 1) * rows].reshape(-1, 3)[:PAGE_PIXELS].astype(np.uint32)
     bits = pixels[:, 0] | pixels[:, 1] << 8 | pixels[:, 2] << 16
     return np.stack([bits >> shift & 63 for shift in (0, 6, 12, 18)], axis=1).astype(np.uint8).ravel()
+
+
+def read_strip_page(symbols):
+    """Remove map row padding before validating the exact six-bit page extent."""
+    if len(symbols) < HEADER_SYMBOLS:
+        raise ValueError("truncated strip page header")
+    bits = ((symbols[:HEADER_SYMBOLS, None] >> np.arange(SYMBOL_BITS)) & 1).astype(np.uint8).ravel()
+    fields = PAGE_HEADER.unpack(np.packbits(bits[:PAGE_HEADER.size * 8], bitorder="little").tobytes())
+    number, total = fields[6], fields[9]
+    size = min(page_capacity(), max(total - number * page_capacity(), 0))
+    length = ((PAGE_HEADER.size + size) * 8 + SYMBOL_BITS - 1) // SYMBOL_BITS
+    return read_page(symbols[:length].tobytes())
 
 
 def main():
@@ -55,20 +87,6 @@ def main():
     parser.add_argument("--debug-top", type=int, default=0)
     arguments = parser.parse_args()
     total_slots = arguments.total_slots if arguments.total_slots is not None else arguments.slots
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "mcv2-reference"))
-    from mcvideo.transport import PAGE_HEADER, page_capacity, read_page
-
-    capacity = page_capacity(6)
-
-    def extent(symbols):
-        """The symbols up to the page's end, from the frame size and page number in its header: read_page takes a
-        page exactly as long as its bytes."""
-        bits = ((symbols[:HEADER_SYMBOLS, None] >> np.arange(6)) & 1).astype(np.uint8).ravel()
-        fields = PAGE_HEADER.unpack(np.packbits(bits[: PAGE_HEADER.size * 8], bitorder="little").tobytes())
-        number, total = fields[6], fields[9]
-        size = min(capacity, max(total - number * capacity, 0))
-        return symbols[: -(-(PAGE_HEADER.size + size) * 8 // 6)].tobytes()
-
     captures = sorted(arguments.captures.glob("*.png"))
     # a folder without captures checked nothing, which must not read as a pass
     if not captures:
@@ -83,7 +101,7 @@ def main():
         pages = {}
         for slot in range(arguments.slots):
             try:
-                page = read_page(extent(page_symbols(screen, arguments.first_slot + slot, rows)), 6)
+                page = read_strip_page(page_symbols(screen, arguments.first_slot + slot, rows))
                 pages[slot] = True
                 valid[slot] += 1
                 frames.add((page.frame_id, page.number))

@@ -6,7 +6,8 @@
 Every rate is what crosses the network: MCV2's map packets after Minecraft's zlib (the zlib rate of
 tools/mcv2/Mcv2Bench.java), and the encoded file of H.264, VP9 and AV1. codecs.png is rate against VMAF on the two
 sources of data/codec_curves.json; features.png is the extra rate MCV2 needs without each of its features, the BD-rate
-of each curve of data/ablation.json against its baseline. Needs numpy and matplotlib (docs/requirements.txt).
+of each curve of data/ablation.json against its baseline. The tables add what the features MCV2 no longer has were
+worth when they were measured (data/ablation.json's "removed"). Needs numpy and matplotlib (docs/requirements.txt).
 """
 
 import argparse
@@ -181,7 +182,7 @@ def signed(value):
     return "0.0%" if text in ("+0.0%", "-0.0%") else text
 
 
-def print_tables(data, rows, variants):
+def print_tables(data, rows, removed):
     print("Rate on the wire (Mbit/s) for the same VMAF mean, log-linear between measured points:\n")
     print("| VMAF mean | " + " | ".join(name for _, name, _, _ in CODECS) + " |")
     print("|---:|" + "---:|" * len(CODECS))
@@ -208,9 +209,13 @@ def print_tables(data, rows, variants):
         for row in sorted(rows, key=lambda row: -(row["gameplay30"][0] + row["proxy30"][0])):
             cells = [f"{signed(row[source][0])} ({row[source][1]:.0f}-{row[source][2]:.0f})" for source, _ in SOURCES]
             print(f"| {row['name']} | " + " | ".join(cells) + " |")
-    for row in variants:
-        cells = [f"{title} {signed(row[source][0])} (VMAF {row[source][1]:.0f}-{row[source][2]:.0f})" for source, title in SOURCES]
-        print(f"\n{row['name']}, against the full encoder: " + "; ".join(cells))
+    if removed:
+        print("\nWhat each feature MCV2 no longer has was worth (BD-rate when it was measured):\n")
+        print("| Feature | " + " | ".join(title for _, title in SOURCES) + " | Mean |")
+        print("|---|" + "---:|" * (len(SOURCES) + 1))
+        for row in sorted(removed, key=lambda row: -row["bd_rate"]["mean"]):
+            cells = [signed(row["bd_rate"][source]) for source, _ in SOURCES]
+            print(f"| {row['name']} | " + " | ".join(cells) + f" | {signed(row['bd_rate']['mean'])} |")
 
 
 def main():
@@ -229,7 +234,7 @@ def main():
     if rows:
         draw_features(rows)
     if arguments.tables:
-        print_tables(data, rows, ablation_rates(ablation, "variants"))
+        print_tables(data, rows, ablation.get("removed", []))
 
 
 if __name__ == "__main__":
