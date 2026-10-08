@@ -28,13 +28,17 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import me.brandonli.mcav.browser.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Tests {@link Seatbelt}: the profile it writes, and its calls of the library, which here reach stand-ins written in
@@ -51,12 +55,16 @@ class SeatbeltTest {
   }
 
   @Test
-  void aProfileHidesTheFoldersAndLetsOnlyTheWritablePathsChange() {
-    final String profile = Seatbelt.profile(
-      List.of(Path.of("/server"), Path.of("/Users/owner")),
-      List.of(Path.of("/Users/owner/.mcav/natives"), Path.of("/Users/owner/helper.jar")),
-      List.of(Path.of("/private/var/folders/session"), Path.of("/dev"))
-    );
+  void aProfileHidesTheFoldersAndLetsOnlyTheWritablePathsChange(@TempDir final Path folder) throws IOException {
+    final String profile;
+    // the paths as macOS writes them, also where the tests run on Windows, whose paths have backslashes
+    try (final FileSystem mac = FileSystems.newFileSystem(folder.resolve("paths.zip"), Map.of("create", "true"))) {
+      profile = Seatbelt.profile(
+        List.of(mac.getPath("/server"), mac.getPath("/Users/owner")),
+        List.of(mac.getPath("/Users/owner/.mcav/natives"), mac.getPath("/Users/owner/helper.jar")),
+        List.of(mac.getPath("/private/var/folders/session"), mac.getPath("/dev"))
+      );
+    }
     assertEquals(
       PROFILE +
         "(deny file-read-data (subpath \"/server\") (subpath \"/Users/owner\"))\n" +
