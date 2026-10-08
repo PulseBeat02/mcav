@@ -1138,14 +1138,15 @@ streams; the times are the mean GPU time per rendered frame:
 
 | Rendered frame | Minecraft proxy | Minecraft gameplay |
 |---|---:|---:|
-| brings a new P frame | 5.3 ms | 6.0 ms |
-| brings a new keyframe | 5.1 ms | 5.9 ms |
-| brings no new video | 4.3 ms | 4.4 ms |
+| brings a new P frame | 5.3 ms | 5.9 ms |
+| brings a new keyframe | 5.5 ms | 5.4 ms |
+| brings no new video | 4.4 ms | 4.5 ms |
 
 The decode itself runs once per video frame; on the rendered frames in between, the chain copies the held picture and
 draws it. A game running at 60 frames a second has 16.7 ms for each, so MCV2 takes about a third of that on this GPU,
-and much less on any dedicated graphics card. For comparison, the old MCV2's pack took 6.8, 7.7 and 5.2 ms on the same
-proxy content and 7.9, 8.7 and 5.5 ms on the same gameplay content: the simpler format decodes 18 to 34 % faster. A UHD
+and much less on any dedicated graphics card. For comparison, the old MCV2's pack took 7.0, 7.8 and 5.5 ms on the same
+proxy content and 7.6, 8.4 and 5.2 ms on the same gameplay content, decoding the streams of its live search, and 7.2,
+7.9 and 5.8 ms on the proxy streams of its slow search for files. The simpler format decodes 13 to 35 % faster. A UHD
 630 is the only GPU I measured.
 
 ### What It Costs to Encode
