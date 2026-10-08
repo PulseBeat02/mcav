@@ -48,7 +48,7 @@ final class ThirdPartyNoticesTest {
 
   @Test
   void theWebPageShipsTheNoticesOfItsNpmPackages() throws IOException {
-    final String notices = read("static/THIRD-PARTY-NOTICES.txt");
+    final String notices = read("mcav/http/website/THIRD-PARTY-NOTICES.txt");
     for (final String component : new String[] { "react@", "react-dom@", "next@", "scheduler@", "styled-jsx@" }) {
       assertTrue(notices.contains("\n" + component), component + " is named");
     }

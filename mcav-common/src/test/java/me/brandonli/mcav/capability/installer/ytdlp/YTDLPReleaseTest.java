@@ -64,7 +64,7 @@ final class YTDLPReleaseTest {
   @Test
   void bundledHashesMatchTheChecksumsPublishedWithTheRelease() throws IOException, InterruptedException {
     final Map<String, String> published = downloadChecksums();
-    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("yt-dlp.json");
+    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("mcav/common/installers/yt-dlp.json");
     for (final Download download : downloads) {
       final String url = download.getUrl();
       final String fileName = IOUtils.getFileNameFromUrl(url);

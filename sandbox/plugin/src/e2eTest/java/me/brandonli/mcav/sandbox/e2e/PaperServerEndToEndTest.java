@@ -174,7 +174,7 @@ final class PaperServerEndToEndTest {
   private static void assertCurrentModuleJars(final Path serverDirectory, final Path pluginJar) throws IOException {
     final String manifest;
     try (final ZipFile plugin = new ZipFile(pluginJar.toFile())) {
-      final ZipEntry entry = plugin.getEntry("dependencies.txt");
+      final ZipEntry entry = plugin.getEntry("mcav/sandbox/dependencies.txt");
       assertNotNull(entry, "the plugin must carry the dependency hashes produced by this build");
       try (final InputStream input = plugin.getInputStream(entry)) {
         final byte[] bytes = input.readAllBytes();
@@ -220,7 +220,7 @@ final class PaperServerEndToEndTest {
 
   /**
    * Serves the repository the build published the modules into, on the port the build wrote into
-   * {@code dependencies.txt} as the first repository, so the server downloads the modules of this build.
+   * {@code mcav/sandbox/dependencies.txt} as the first repository, so the server downloads the modules of this build.
    */
   private static LocalMavenRepositoryServer startRepository() throws IOException {
     final Path repositoryDirectory = requirePath("mcav.e2e.repositoryDirectory");
@@ -536,7 +536,7 @@ final class PaperServerEndToEndTest {
   }
 
   private static void copyResource(final String name, final Path folder) throws IOException {
-    try (final InputStream resource = PaperServerEndToEndTest.class.getResourceAsStream(name)) {
+    try (final InputStream resource = PaperServerEndToEndTest.class.getResourceAsStream("/media/" + name)) {
       Files.copy(Objects.requireNonNull(resource, name), folder.resolve(name));
     }
   }

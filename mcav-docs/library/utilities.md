@@ -16,6 +16,13 @@ A filter returns whether it changed the samples. The filters on this page only r
 the pipeline passes the samples on to the next step either way.
 ```
 
+## Reading Bundled Installer Lists
+
+`IOUtils.readDownloadsFromJsonResource` and `ReleasePackageManager.readVLCDownloadsFromJsonResource` take a full
+path from the classpath root, without a leading slash. The bundled lists are `mcav/common/installers/vlc.json` and
+`mcav/common/installers/yt-dlp.json`. Custom lists can live at any full classpath path, such as
+`installers/custom.json`.
+
 ## Mono Downmixing
 
 `MonoDownmixer` in `me.brandonli.mcav.utils.audio` mixes the stereo samples of a pipeline down to mono for outputs

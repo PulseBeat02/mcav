@@ -200,7 +200,7 @@ final class HttpResultImplTest {
   @Test
   void resolvesTheStaticLocationOfThePage() throws IOException {
     final String bundled = HttpResultImpl.staticLocation(null);
-    assertEquals("classpath:/static/", bundled);
+    assertEquals("classpath:/mcav/http/website/", bundled);
 
     final Path existing = this.directory.resolve("out");
     Files.createDirectory(existing);

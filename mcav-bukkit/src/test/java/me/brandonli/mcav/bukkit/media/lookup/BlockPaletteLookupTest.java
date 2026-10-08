@@ -78,7 +78,7 @@ final class BlockPaletteLookupTest {
 
   @Test
   void resolvesEveryBlockOfTheBundledPalette() {
-    final Reader reader = IOUtils.getResourceAsStreamReader("blocks.json");
+    final Reader reader = IOUtils.getResourceAsStreamReader("mcav/bukkit/blocks.json");
     final Map<String, int[]> palette = BlockPaletteLookup.parsePalette(reader);
     final Set<Map.Entry<String, int[]>> entries = palette.entrySet();
 

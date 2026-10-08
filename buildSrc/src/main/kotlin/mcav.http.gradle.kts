@@ -8,8 +8,6 @@ plugins {
     id("mcav.publishing")
 }
 
-// The website of the audio web player (mcav-website, Next.js) is built with the npm of the Node.js the build downloads
-// and served from the jar's static folder. npm's shebang looks node up on the PATH, so that Node.js comes first there.
 val npm = node.resolvedNodeDir.get().file(if (isWindows) "npm.cmd" else "bin/npm").asFile
 val npmPath = npm.parentFile.absolutePath + File.pathSeparator + System.getenv("PATH")
 
@@ -76,13 +74,19 @@ tasks.check {
 
 tasks.jar {
     from(buildWebsite) {
-        into("static")
+        into("mcav/http/website")
+    }
+}
+
+tasks.processTestResources {
+    filesMatching("website/**") {
+        path = "mcav/http/$path"
     }
 }
 
 tasks.named<Jar>("sourcesJar") {
     from(buildWebsite) {
-        into("static")
+        into("mcav/http/website")
     }
 }
 

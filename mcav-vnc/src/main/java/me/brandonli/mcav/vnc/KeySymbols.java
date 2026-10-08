@@ -37,7 +37,7 @@ import me.brandonli.mcav.utils.IOUtils;
  */
 final class KeySymbols {
 
-  private static final String RESOURCE = "keysyms.json";
+  private static final String RESOURCE = "mcav/vnc/keysyms.json";
   private static final Map<String, Integer> SYMBOLS = load();
 
   private KeySymbols() {

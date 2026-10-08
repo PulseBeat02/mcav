@@ -36,7 +36,7 @@ import me.brandonli.mcav.utils.os.Platform;
 
 /**
  * Installs <a href="https://github.com/yt-dlp/yt-dlp">yt-dlp</a>, which the library uses to resolve stream URLs
- * of websites such as YouTube. The download links are read from the {@code installers/yt-dlp.json} resource, which
+ * of websites such as YouTube. The download links are read from the {@code mcav/common/installers/yt-dlp.json} resource, which
  * pins one release of yt-dlp and the SHA-256 hash of every file, so a download that does not match is rejected.
  *
  * <p>yt-dlp ships most platforms as one standalone executable, which is used as downloaded. 32-bit ARM Linux is only
@@ -54,7 +54,7 @@ import me.brandonli.mcav.utils.os.Platform;
 public final class YTDLPInstaller extends AbstractInstaller {
 
   private static final String NAME = "yt-dlp";
-  private static final String DOWNLOADS_RESOURCE = "yt-dlp.json";
+  private static final String DOWNLOADS_RESOURCE = "mcav/common/installers/yt-dlp.json";
   private static final Download[] DOWNLOADS = IOUtils.readDownloadsFromJsonResource(DOWNLOADS_RESOURCE);
   private static final String ZIP_SUFFIX = ".zip";
   private static final String UNPACKED_FOLDER = "yt-dlp-unpacked";

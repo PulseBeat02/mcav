@@ -390,7 +390,7 @@ final class VLCInstallerTest {
 
   @Test
   void bundlesVerifiedDownloadsOfTheAdvertisedVersion() {
-    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("vlc.json");
+    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("mcav/common/installers/vlc.json");
     final String versionDirectory = "/" + VLCInstaller.VERSION + "/";
     assertTrue(downloads.length > 0);
     for (final Download download : downloads) {

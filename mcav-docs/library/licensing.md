@@ -29,4 +29,4 @@ Respect all the licenses of the libraries used in MCAV, and ensure that your pro
 The table names the main libraries only. Most MCAV jars bundle no third-party code; their dependencies come with their
 own licences. `mcav-installer` bundles the Maven resolver, `mcav-http` the npm packages of its audio web page, and the
 sandbox plugin two small libraries: `THIRD-PARTY-NOTICES.md` in the repository, and in `META-INF/` of every jar, lists
-them with their licences, and `mcav-http`'s `static/THIRD-PARTY-NOTICES.txt` carries the notice of every npm package.
+them with their licences, and `mcav-http`'s `mcav/http/website/THIRD-PARTY-NOTICES.txt` carries the notice of every npm package.

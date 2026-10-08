@@ -32,13 +32,13 @@ import java.util.TreeMap;
 import javax.imageio.ImageIO;
 
 /**
- * Regenerates {@code blocks.json}, the average color of every block texture, from the textures in
+ * Regenerates {@code mcav/bukkit/blocks.json}, the average color of every block texture, from the textures in
  * {@code src/test/resources/colored-blocks}. Run it from the root of the repository.
  */
 public final class AverageColorCalculator {
 
   private static final Path TEXTURES = Path.of("mcav-bukkit/src/test/resources/colored-blocks");
-  private static final Path OUTPUT = Path.of("mcav-bukkit/src/main/resources/blocks.json");
+  private static final Path OUTPUT = Path.of("mcav-bukkit/src/main/resources/mcav/bukkit/blocks.json");
   private static final String PNG_EXTENSION = ".png";
   private static final int RED_INDEX = 0;
   private static final int GREEN_INDEX = 1;
@@ -50,7 +50,7 @@ public final class AverageColorCalculator {
   }
 
   /**
-   * Writes the average color of every block texture to {@code blocks.json}.
+   * Writes the average color of every block texture to {@code mcav/bukkit/blocks.json}.
    *
    * @throws IOException if a texture cannot be read or the output cannot be written
    */

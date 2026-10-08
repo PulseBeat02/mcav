@@ -49,8 +49,8 @@ import org.opentest4j.AssertionFailedError;
 
 /**
  * Runs real QEMU guests and listens to them through the audio pipeline of the player. The guests are boot sectors
- * whose sources lie next to them: {@code beep.asm} plays a 1000 Hz tone on the PC speaker, and {@code toggle.asm}
- * switches that tone and a red screen on and off together at irregular times, so the sound can be matched with the
+ * in {@code /guests/}, whose sources lie next to them: {@code beep.asm} plays a 1000 Hz tone on the PC speaker, and
+ * {@code toggle.asm} switches that tone and a red screen on and off together at irregular times, so the sound can be matched with the
  * picture. Skipped where QEMU for x86-64 is not installed; the matching times real events, so it only runs with
  * {@code -Pmcav.syncMeasurement=true}.
  */
@@ -73,7 +73,7 @@ final class VMSoundTest {
 
   private Path bootSector(final String name) throws IOException {
     final Path image = this.directory.resolve(name);
-    try (final InputStream resource = Objects.requireNonNull(VMSoundTest.class.getResourceAsStream(name), name)) {
+    try (final InputStream resource = Objects.requireNonNull(VMSoundTest.class.getResourceAsStream("/guests/" + name), name)) {
       Files.copy(resource, image);
     }
     return image;

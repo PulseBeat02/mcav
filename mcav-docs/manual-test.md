@@ -48,7 +48,7 @@ modules, the JavaCV natives, VLC and yt-dlp. Wait for `Done (…)! For help, typ
 > ./gradlew :sandbox:plugin:runServer -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
 > ```
 >
-> The port is baked into the plugin's `dependencies.txt` as the first repository, so the server asks it first. You
+> The port is baked into the plugin's `mcav/sandbox/dependencies.txt` as the first repository, so the server asks it first. You
 > can confirm it worked: the request log of that little HTTP server must show `mcav-bukkit-1.0.0-<timestamp>.jar`
 > being fetched. This is the same mechanism the `e2eTest` task uses.
 
