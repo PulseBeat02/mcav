@@ -174,7 +174,7 @@ final class PaperServerEndToEndTest {
   private static void assertCurrentModuleJars(final Path serverDirectory, final Path pluginJar) throws IOException {
     final String manifest;
     try (final ZipFile plugin = new ZipFile(pluginJar.toFile())) {
-      final ZipEntry entry = plugin.getEntry("mcav/sandbox/dependencies.txt");
+      final ZipEntry entry = plugin.getEntry("mcav/plugin/dependencies.txt");
       assertNotNull(entry, "the plugin must carry the dependency hashes produced by this build");
       try (final InputStream input = plugin.getInputStream(entry)) {
         final byte[] bytes = input.readAllBytes();
@@ -220,7 +220,7 @@ final class PaperServerEndToEndTest {
 
   /**
    * Serves the repository the build published the modules into, on the port the build wrote into
-   * {@code mcav/sandbox/dependencies.txt} as the first repository, so the server downloads the modules of this build.
+   * {@code mcav/plugin/dependencies.txt} as the first repository, so the server downloads the modules of this build.
    */
   private static LocalMavenRepositoryServer startRepository() throws IOException {
     final Path repositoryDirectory = requirePath("mcav.e2e.repositoryDirectory");
@@ -518,7 +518,7 @@ final class PaperServerEndToEndTest {
 
     final Path pluginsDirectory = serverDirectory.resolve("plugins");
     Files.createDirectories(pluginsDirectory);
-    final Path installedPlugin = pluginsDirectory.resolve("mcav-sandbox.jar");
+    final Path installedPlugin = pluginsDirectory.resolve("mcav-plugin.jar");
     Files.copy(pluginJar, installedPlugin);
     final Path installedVoiceChat = pluginsDirectory.resolve(VOICE_CHAT.fileName);
     Files.copy(voiceChatJar, installedVoiceChat);

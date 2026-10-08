@@ -31,7 +31,7 @@ to play back videos like the following. For Minecraft, MCAV even comes with its 
 | `mcav-http`, `mcav-jda`, `mcav-svc` | Audio to [web browsers](library/http.md), [Discord](library/jda.md) and [Simple Voice Chat](library/voice.md) |
 | `mcav-lwjgl` | Video in [OpenGL textures](library/lwjgl.md) |
 | `mcav-installer` | Downloads the modules at run time for [plugins](library/installer.md) |
-| `sandbox:plugin` | The [MCAV plugin](plugin/plugin.md) for Paper, which uses all of the above |
+| `mcav-plugin` | The [MCAV plugin](plugin/plugin.md) for Paper, which uses all of the above |
 | `mcav-jcstress` | Concurrency tests on OpenJDK's jcstress harness ([building MCAV](library/compile.md)); a test module, not published |
 
 MCAV requires Java 25, and runs on Windows (x86-64), macOS (x86-64 and Apple silicon) and Linux (x86-64 and ARM64),

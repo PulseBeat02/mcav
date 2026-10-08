@@ -91,7 +91,7 @@ public final class TranslationExtension implements BeforeAllCallback {
 
   private static Path createTemporaryFolder() {
     try {
-      final Path folder = Files.createTempDirectory("mcav-sandbox-messages");
+      final Path folder = Files.createTempDirectory("mcav-plugin-messages");
       final Path locale = Files.createDirectories(folder.resolve("locale"));
       Files.writeString(
         locale.resolve("mcav_en_us.properties"),

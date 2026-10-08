@@ -49,7 +49,7 @@ import xyz.jpenilla.gremlin.runtime.platformsupport.PaperClasspathAppender;
 
 /**
  * Downloads the libraries of the plugin before it is loaded and puts them on its classpath. The libraries are
- * listed in the {@code mcav/sandbox/dependencies.txt} that Gremlin generates at build time, and are cached in
+ * listed in the {@code mcav/plugin/dependencies.txt} that Gremlin generates at build time, and are cached in
  * {@code libraries/mcav}.
  *
  * <p>The modules of mcav the server downloads are snapshots, published apart from the plugin: modules older than the
@@ -62,7 +62,7 @@ public final class MCAVLoader implements PluginLoader {
   /** The classes of the downloaded modules that the plugin's code uses, one internal name per line, from the build. */
   static final String REQUIRED_CLASSES = "META-INF/mcav/required-classes.txt";
 
-  private static final String DEPENDENCIES_RESOURCE = "mcav/sandbox/dependencies.txt";
+  private static final String DEPENDENCIES_RESOURCE = "mcav/plugin/dependencies.txt";
 
   private static final String CLASS_SUFFIX = ".class";
 
@@ -162,7 +162,7 @@ public final class MCAVLoader implements PluginLoader {
   }
 
   /**
-   * Resolves the libraries listed in {@code mcav/sandbox/dependencies.txt}, downloading those missing from the cache folder,
+   * Resolves the libraries listed in {@code mcav/plugin/dependencies.txt}, downloading those missing from the cache folder,
    * checks that the downloaded modules are not older than the plugin, adds them to the classpath of the plugin, and
    * removes cached files that are no longer listed. Paper calls this once, before the plugin class is loaded.
    *

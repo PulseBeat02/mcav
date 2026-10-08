@@ -104,10 +104,6 @@ paperPluginYaml {
     }
 }
 
-tasks.shadowJar {
-    archiveBaseName = "mcav-sandbox"
-}
-
 tasks.runServer {
     systemProperty("net.kyori.adventure.text.warnWhenLegacyFormattingDetected", false)
     downloadPlugins {

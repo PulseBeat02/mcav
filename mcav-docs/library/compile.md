@@ -14,7 +14,7 @@ cd mcav
 ./gradlew build
 ```
 
-- Profit! If you are looking for the plugin jar, it will be located in the `/sandbox/plugin/build/libs` directory. Use the jar
+- Profit! If you are looking for the plugin jar, it will be located in the `/mcav-plugin/build/libs` directory. Use the jar
 with the "-all" suffix for the plugin.
 
 ## Build Options

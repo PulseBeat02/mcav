@@ -90,7 +90,7 @@ final class MCAVLoaderTest {
   @Test
   void readsTheBundledDependencyManifest() {
     final ClassLoader loader = MCAVLoader.class.getClassLoader();
-    final DependencySet bundled = DependencySet.readFromClasspathResource(loader, "mcav/sandbox/dependencies.txt");
+    final DependencySet bundled = DependencySet.readFromClasspathResource(loader, "mcav/plugin/dependencies.txt");
     final Dependency common = bundled
       .dependencies()
       .stream()
@@ -113,7 +113,7 @@ final class MCAVLoaderTest {
     final DependencySet set = dependencies(List.of(dependency));
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
-      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq("mcav/sandbox/dependencies.txt"))).thenReturn(set);
+      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq("mcav/plugin/dependencies.txt"))).thenReturn(set);
       final MCAVLoader loader = new MCAVLoader(this.cache, List.of());
       loader.classloader(builder);
     }
@@ -153,7 +153,7 @@ final class MCAVLoaderTest {
     final DependencySet set = dependencies(listed);
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
-      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq("mcav/sandbox/dependencies.txt"))).thenReturn(set);
+      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq("mcav/plugin/dependencies.txt"))).thenReturn(set);
       final MCAVLoader loader = new MCAVLoader(this.cache, List.of());
       loader.classloader(builder);
     }
@@ -171,7 +171,7 @@ final class MCAVLoaderTest {
     final DependencySet set = dependencies(List.of());
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
-      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq("mcav/sandbox/dependencies.txt"))).thenReturn(set);
+      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq("mcav/plugin/dependencies.txt"))).thenReturn(set);
       final MCAVLoader loader = new MCAVLoader(this.cache, List.of());
       loader.classloader(builder);
     }
@@ -231,7 +231,7 @@ final class MCAVLoaderTest {
     final DependencySet set = dependencies(List.of(dependency));
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
-      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq("mcav/sandbox/dependencies.txt"))).thenReturn(set);
+      sets.when(() -> DependencySet.readFromClasspathResource(any(ClassLoader.class), eq("mcav/plugin/dependencies.txt"))).thenReturn(set);
       final MCAVLoader loader = new MCAVLoader(this.cache, List.of("me/brandonli/mcav/bukkit/media/mcv2/Mcv2Result"));
       assertThrows(IllegalStateException.class, () -> loader.classloader(builder));
     }

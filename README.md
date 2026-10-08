@@ -94,7 +94,7 @@ Here is a list of all the modules that are included in MCAV
 
 | Module           | Description                                                                                                                                                  |
 |------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `sandbox:plugin` | A Paper 26.3 plugin for Minecraft servers that utilizes all the features of MCAV.                                                                            |
+| `mcav-plugin`    | A Paper 26.3 plugin for Minecraft servers that utilizes all the features of MCAV.                                                                            |
 | `mcav-common`    | The core library for multimedia functionality: the FFmpeg, VLC, OpenCV and capture device players, pipelines and filters, dithering, yt-dlp, and audio and FFmpeg utilities. |
 | `mcav-bukkit`    | A Bukkit-specific module for Minecraft plugins: video and images on maps, blocks, entities, the scoreboard and chat, audio resource packs, and the MCV2 codec. |
 | `mcav-installer` | A simple installer for installing and injecting required libraries across all different modules of MCAV.                                                     |
@@ -117,7 +117,7 @@ cd mcav
 ./gradlew build
 ```
 
-The plugin jar is `sandbox/plugin/build/libs/mcav-sandbox-1.0.0-v26.3-all.jar`. Gradle itself runs on any JDK 17 or
+The plugin jar is `mcav-plugin/build/libs/mcav-plugin-1.0.0-v26.3-all.jar`. Gradle itself runs on any JDK 17 or
 newer; the Java 25 toolchain MCAV compiles with is downloaded by Gradle when the machine has none, and so is the
 Node.js that the code formatter and the web page of `mcav-http` use. No credentials are needed, except to publish. The
 project builds on any one of Windows, macOS or Linux: the tests that need another operating system, or a program the

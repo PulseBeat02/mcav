@@ -68,7 +68,7 @@ sourceSets.main {
     resources.srcDir(requiredModuleClasses)
 }
 
-val dependencyManifestPath = "mcav/sandbox/dependencies.txt"
+val dependencyManifestPath = "mcav/plugin/dependencies.txt"
 tasks.processResources {
     inputs.property("dependencyManifestPath", dependencyManifestPath)
     filesMatching("dependencies.txt") {

@@ -30,7 +30,7 @@ import java.util.stream.Stream;
  * Keeps the libraries the plugin downloads between test runs, so only the first run downloads them. The cached
  * libraries are moved into the library folder of the server before it starts, and moved back once it has stopped,
  * with whatever the server downloaded or removed since. The plugin still checks the SHA-256 hash of every cached
- * library against its {@code mcav/sandbox/dependencies.txt}, and downloads a library again when the hash does not match.
+ * library against its {@code mcav/plugin/dependencies.txt}, and downloads a library again when the hash does not match.
  */
 final class LibraryCache implements AutoCloseable {
 
