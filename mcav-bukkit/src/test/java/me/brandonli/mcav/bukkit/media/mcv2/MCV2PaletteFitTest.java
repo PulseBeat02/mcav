@@ -25,14 +25,14 @@ import org.junit.jupiter.api.Test;
 /** The two-colour palette fit. */
 final class MCV2PaletteFitTest {
 
-  private static void fit(final int[] source, final int count, final boolean quantized, final int[] colors, final byte[] selectors) {
+  private static void fit(final int[] source, final int count, final int[] colors, final byte[] selectors) {
     final int[] tile = new int[8 * 8 * 3];
     for (int pixel = 0; pixel < 64; pixel++) {
       System.arraycopy(source, (pixel % count) * 3, tile, pixel * 3, 3);
     }
     final float[] endpoints = new float[6];
     Mcv2Internals.javaKernels().cluster(tile, 8, endpoints);
-    Mcv2Internals.javaKernels().finish(source, count, endpoints, quantized, colors, selectors);
+    Mcv2Internals.javaKernels().finish(source, count, endpoints, colors, selectors);
   }
 
   private static int[] block(final int[]... pixels) {
@@ -50,7 +50,7 @@ final class MCV2PaletteFitTest {
     final int[] source = block(light, dark, dark, light, light, dark, light, light);
     final int[] colors = new int[6];
     final byte[] selectors = new byte[8];
-    fit(source, 8, false, colors, selectors);
+    fit(source, 8, colors, selectors);
     assertArrayEquals(new int[] { 10, 20, 30, 200, 210, 220 }, colors);
     assertArrayEquals(new byte[] { 1, 0, 0, 1, 1, 0, 1, 1 }, selectors);
   }
@@ -60,7 +60,7 @@ final class MCV2PaletteFitTest {
     final int[] source = block(new int[] { 0, 0, 0 }, new int[] { 1, 1, 1 }, new int[] { 250, 250, 250 }, new int[] { 255, 255, 255 });
     final int[] colors = new int[6];
     final byte[] selectors = new byte[4];
-    fit(source, 4, false, colors, selectors);
+    fit(source, 4, colors, selectors);
     assertArrayEquals(new int[] { 1, 1, 1, 253, 253, 253 }, colors);
     assertArrayEquals(new byte[] { 0, 0, 1, 1 }, selectors);
   }
@@ -72,7 +72,7 @@ final class MCV2PaletteFitTest {
     final int[] source = block(new int[] { 100, 50, 0 }, new int[] { 0, 50, 100 }, new int[] { 50, 50, 50 }, new int[] { 50, 50, 50 });
     final int[] colors = new int[6];
     final byte[] selectors = new byte[4];
-    fit(source, 4, false, colors, selectors);
+    fit(source, 4, colors, selectors);
     assertArrayEquals(new int[] { 33, 50, 67, 100, 50, 0 }, colors);
     assertArrayEquals(new byte[] { 1, 0, 0, 0 }, selectors);
   }
@@ -81,29 +81,9 @@ final class MCV2PaletteFitTest {
   void fitsAUniformBlockWithOneColour() {
     final int[] colors = new int[6];
     final byte[] selectors = new byte[2];
-    fit(block(new int[] { 7, 8, 9 }, new int[] { 7, 8, 9 }), 2, false, colors, selectors);
+    fit(block(new int[] { 7, 8, 9 }, new int[] { 7, 8, 9 }), 2, colors, selectors);
     assertArrayEquals(new int[] { 7, 8, 9, 7, 8, 9 }, colors);
     assertArrayEquals(new byte[] { 0, 0 }, selectors);
-  }
-
-  @Test
-  void quantizesTheEndpointsToRgb565() {
-    final int[] source = block(new int[] { 13, 130, 77 }, new int[] { 13, 130, 77 }, new int[] { 201, 7, 250 }, new int[] { 201, 7, 250 });
-    final int[] colors = new int[6];
-    final byte[] selectors = new byte[4];
-    fit(source, 4, true, colors, selectors);
-    for (int endpoint = 0; endpoint < 2; endpoint++) {
-      final int redBits = colors[endpoint * 3] >> 3;
-      final int greenBits = colors[endpoint * 3 + 1] >> 2;
-      final int blueBits = colors[endpoint * 3 + 2] >> 3;
-      final int packed = (redBits << 11) | (greenBits << 5) | blueBits;
-      assertEquals(
-        (colors[endpoint * 3] << 16) | (colors[endpoint * 3 + 1] << 8) | colors[endpoint * 3 + 2],
-        Mcv2Decoder.unpack565(packed & 0xFF, packed >> 8)
-      );
-    }
-    assertArrayEquals(new int[] { 8, 130, 74, 206, 4, 255 }, colors);
-    assertArrayEquals(new byte[] { 0, 0, 1, 1 }, selectors);
   }
 
   /** The pattern assignment agrees with the plain one whenever the selectors repeat along an axis, and says when not. */
@@ -131,8 +111,8 @@ final class MCV2PaletteFitTest {
       final byte[] selectors = new byte[size * size];
       final int[] plainColors = new int[6];
       final byte[] plain = new byte[size * size];
-      Mcv2Internals.javaKernels().finish(source, size * size, endpoints, true, plainColors, plain);
-      final boolean pattern = Mcv2Internals.javaKernels().finishPattern(source, size, endpoints, true, colors, selectors);
+      Mcv2Internals.javaKernels().finish(source, size * size, endpoints, plainColors, plain);
+      final boolean pattern = Mcv2Internals.javaKernels().finishPattern(source, size, endpoints, colors, selectors);
       assertArrayEquals(plainColors, colors);
       if (kind < 2) {
         assertEquals(true, pattern);

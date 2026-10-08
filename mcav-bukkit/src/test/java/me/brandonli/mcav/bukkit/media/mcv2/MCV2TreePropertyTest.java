@@ -63,12 +63,12 @@ final class MCV2TreePropertyTest {
       } else {
         final Mcv2Decoder.Leaf value = parsed.getLeaf(leaf++);
         assertEquals(parsed.getPayloadStart() + cursor, value.offset());
-        cursor += length(data, value, parsed);
+        cursor += length(data, value);
       }
     }
   }
 
-  private static int length(final byte[] data, final Mcv2Decoder.Leaf leaf, final Mcv2Decoder.Frame frame) {
+  private static int length(final byte[] data, final Mcv2Decoder.Leaf leaf) {
     if (leaf.mode() == 5) {
       final int control = data[leaf.offset()] & 255;
       return (
@@ -80,9 +80,6 @@ final class MCV2TreePropertyTest {
           default -> 8;
         }
       );
-    }
-    if (leaf.mode() == 4) {
-      return Mcv2Decoder.patternSize(leaf.size(), frame.getEndpointTable().length != 0, frame.getSelectorTable(leaf.size()).length != 0);
     }
     return Mcv2Decoder.recordSize(leaf.mode(), leaf.size());
   }

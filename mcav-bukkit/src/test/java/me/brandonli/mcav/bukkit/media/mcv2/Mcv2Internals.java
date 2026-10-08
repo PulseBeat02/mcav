@@ -224,8 +224,8 @@ final class Mcv2Internals {
     void predict(byte[] reference, int width, int height, int left, int top, int size, int motionX, int motionY, int[] out);
     void fit(float[] values, int offset, int stride, int size, float[] out, int outOffset, int outStride);
     void cluster(int[] source, int size, float[] endpoints);
-    void finish(int[] source, int count, float[] endpoints, boolean shouldQuantize, int[] colors, byte[] selectors);
-    boolean finishPattern(int[] source, int size, float[] endpoints, boolean shouldQuantize, int[] colors, byte[] selectors);
+    void finish(int[] source, int count, float[] endpoints, int[] colors, byte[] selectors);
+    boolean finishPattern(int[] source, int size, float[] endpoints, int[] colors, byte[] selectors);
     int seeded(byte[] reference, int width, int height, int[] source, int left, int top, int size, int range, int[] seeds);
     void loadSource(byte[] image, int width, int height, int left, int top, int size, int[] source);
     void halve(int[] block, int size, int[] out);

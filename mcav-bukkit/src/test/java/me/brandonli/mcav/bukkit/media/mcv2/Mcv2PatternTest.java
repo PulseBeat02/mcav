@@ -46,43 +46,11 @@ final class Mcv2PatternTest {
   }
 
   @Test
-  void resolvesTablesAlongRows() throws Mcv2Exception {
-    final byte[] endpoints = { 0, 0, -1, -1, 0, (byte) 248, 31, 0 };
-    final byte[][] words = { {}, { 0, 0, 1, 1, 1, 0 }, {} };
-    final byte[] data = Mcv2WireFrames.frame(
-      16,
-      16,
-      true,
-      new byte[] { 6, 4, 0, 0, 0 },
-      Mcv2WireFrames.records(5, 1, new byte[] { 1, 1 }),
-      new int[] { 1, 4, 0 },
-      endpoints,
-      words
-    );
-    final byte[] picture = Mcv2Decoder.decode(data, null, 0);
-    assertEquals(0x0000FF, colorAt(picture, 16, 5, 0));
-    assertEquals(0xFF0000, colorAt(picture, 16, 0, 1));
-  }
-
-  @Test
   void rejectsBrokenRecords() {
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(Mcv2WireFrames.block(8, 4, 0, Arrays.copyOf(INLINE, 7), true)));
     final byte[] orientation = INLINE.clone();
     orientation[6] = 2;
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(Mcv2WireFrames.block(8, 4, 0, orientation, true)));
-    for (final byte[] record : new byte[][] { { 2, 0 }, { 0, 3 } }) {
-      final byte[] data = Mcv2WireFrames.frame(
-        32,
-        32,
-        true,
-        new byte[] { 4 },
-        new byte[][] { record },
-        new int[] { 1, 0, 0 },
-        new byte[4],
-        new byte[][] { {}, {}, { 0, 1, 2, 3, 4 } }
-      );
-      assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(data));
-    }
   }
 
   @Test

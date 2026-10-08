@@ -28,7 +28,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
@@ -59,9 +58,14 @@ final class TransportPagesTest {
     final String text = new String(Mcv2Fixtures.read("conformance/pages.json"), StandardCharsets.UTF_8);
     final JsonObject root = JsonParser.parseString(text).getAsJsonObject();
     final List<Arguments> arguments = new ArrayList<>();
-    for (final Map.Entry<String, JsonElement> entry : root.entrySet()) {
-      arguments.add(Arguments.of(entry.getKey(), entry.getValue().getAsJsonObject()));
+    assertEquals(7, root.get("stream_id").getAsInt());
+    assertEquals(6, root.get("symbol_bits").getAsInt());
+    for (final JsonElement entry : root.getAsJsonArray("frames")) {
+      final JsonObject expected = entry.getAsJsonObject();
+      final String name = expected.get("stream").getAsString() + "#" + expected.get("frame").getAsInt() + "@6";
+      arguments.add(Arguments.of(name, expected));
     }
+    assertEquals(4, arguments.size());
     return arguments.stream();
   }
 

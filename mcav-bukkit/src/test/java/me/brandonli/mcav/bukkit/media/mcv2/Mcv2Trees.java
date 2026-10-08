@@ -179,29 +179,6 @@ public final class Mcv2Trees {
       if (mode == Mcv2Decoder.MODE_SKIP && frame.isKeyframe()) {
         final int color = frame.getDefaultColor();
         node = solid(color >> 16, color >> 8, color);
-      } else if (mode == Mcv2Decoder.MODE_PATTERN) {
-        final byte[] pairs = frame.getEndpointTable();
-        final byte[] words = frame.getSelectorTable(leaf.size());
-        final byte[] record = new byte[7 + leaf.size() / 8];
-        if (pairs.length == 0) {
-          System.arraycopy(data, at, record, 0, 6);
-        } else {
-          final int entry = (data[at] & 255) * 4;
-          for (int endpoint = 0; endpoint < 2; endpoint++) {
-            final int color = Mcv2Decoder.unpack565(pairs[entry + endpoint * 2], pairs[entry + endpoint * 2 + 1]);
-            record[endpoint * 3] = (byte) (color >> 16);
-            record[endpoint * 3 + 1] = (byte) (color >> 8);
-            record[endpoint * 3 + 2] = (byte) color;
-          }
-        }
-        final int selector = at + (pairs.length == 0 ? 6 : 1);
-        final int wordBytes = 1 + leaf.size() / 8;
-        if (words.length == 0) {
-          System.arraycopy(data, selector, record, 6, wordBytes);
-        } else {
-          System.arraycopy(words, (data[selector] & 255) * wordBytes, record, 6, wordBytes);
-        }
-        node = Node.leaf(mode, 0, record);
       } else {
         final int length;
         if (mode == Mcv2Decoder.MODE_COMPACT) {

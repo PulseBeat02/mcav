@@ -15,18 +15,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package me.brandonli.mcav.bukkit.media.mcv2.encode;
+package me.brandonli.mcav.bukkit.media.mcv2;
 
-import com.code_intelligence.jazzer.api.FuzzedDataProvider;
-import com.code_intelligence.jazzer.junit.FuzzTest;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
-import org.junit.jupiter.api.Tag;
+import net.jqwik.api.ForAll;
+import net.jqwik.api.Property;
 
-@Tag("fuzz")
-final class FrameVerificationFuzzTest {
+final class MCV2VerificationPropertyTest {
 
-  @FuzzTest(maxDuration = "30s")
-  void agreesWithTheReferenceDecoderOnRandomTrees(final FuzzedDataProvider data) throws Mcv2Exception {
-    FrameVerificationTest.compareRandom(data.consumeLong());
+  @Property(seed = "20261003", tries = 1000)
+  void matchesTheReferenceDecoderAndFindsAlteredPixelsAtEveryLevel(@ForAll final long seed) throws Mcv2Exception {
+    MCV2VerificationTest.compareRandom(seed);
   }
 }

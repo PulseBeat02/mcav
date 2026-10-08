@@ -34,9 +34,7 @@ final class Mcv2WireFrames {
       keyframe,
       descriptors,
       records(descriptors.length, size == 32 ? 0 : size == 16 ? 1 : 5, record),
-      size == 32 ? new int[] { 1, 0, 0 } : size == 16 ? new int[] { 1, 4, 0 } : new int[] { 1, 4, 4 },
-      new byte[0],
-      new byte[][] { {}, {}, {} }
+      size == 32 ? new int[] { 1, 0, 0 } : size == 16 ? new int[] { 1, 4, 0 } : new int[] { 1, 4, 4 }
     );
   }
 
@@ -52,22 +50,17 @@ final class Mcv2WireFrames {
     final boolean keyframe,
     final byte[] descriptors,
     final byte[][] records,
-    final int[] levels,
-    final byte[] endpoints,
-    final byte[][] words
+    final int[] levels
   ) {
     final int roots = ((width + 31) / 32) * ((height + 31) / 32);
     final int groups = (roots + 31) / 32;
     final int checkpoints = (groups + 7) / 8;
     final int countsAt = 32 + 4 * (groups + checkpoints);
     final int walksAt = countsAt + 12 + descriptors.length;
-    final int start = walksAt + 4 * ((descriptors.length + 7) / 8) + 4;
-    int length = start + endpoints.length;
+    final int start = walksAt + 4 * ((descriptors.length + 7) / 8);
+    int length = start;
     for (final byte[] record : records) {
       length += record.length;
-    }
-    for (final byte[] table : words) {
-      length += table.length;
     }
     final byte[] data = new byte[length];
     put(data, 0, 0x3256434D, 4);
@@ -101,14 +94,6 @@ final class Mcv2WireFrames {
         splits++;
       }
     }
-    data[start - 4] = (byte) (endpoints.length / 4);
-    int tableAt = start + cursor;
-    for (int index = 0; index < 3; index++) {
-      data[start - 3 + index] = (byte) (words[index].length / (1 + (1 << index)));
-      System.arraycopy(words[index], 0, data, tableAt, words[index].length);
-      tableAt += words[index].length;
-    }
-    System.arraycopy(endpoints, 0, data, tableAt, endpoints.length);
     return data;
   }
 

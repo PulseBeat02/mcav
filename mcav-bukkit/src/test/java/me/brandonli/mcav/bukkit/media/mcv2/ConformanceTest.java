@@ -18,7 +18,6 @@
 package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.gson.JsonElement;
@@ -40,7 +39,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  *
  * <p>The {@code conformance} streams are real crops encoded with the v3 live encoder; each is at most 1 MB. The {@code edge} streams are
  * random trees built with the reference's own serializer to reach every leaf mode, every compact class, quantizers up
- * to 7, cropped edges and the derived index. Legacy v2 fixtures are refused.
+ * to 7, cropped edges and the derived index. Old v2 frames belong to the rejection corpus.
  */
 final class ConformanceTest {
 
@@ -62,10 +61,6 @@ final class ConformanceTest {
     final Mcv2Receiver receiver = new Mcv2Receiver();
     for (int frameIndex = 0; frameIndex < frames.size(); frameIndex++) {
       final byte[] data = frames.get(frameIndex);
-      if (data[4] != Mcv2Decoder.VERSION) {
-        assertThrows(Mcv2Exception.class, () -> receiver.accept(data), "v2 fixtures are refused");
-        continue;
-      }
       final byte[] picture = receiver.accept(data);
       assertEquals(digests.get(frameIndex), Mcv2Fixtures.sha256(picture), "frame " + frameIndex);
     }
@@ -76,9 +71,9 @@ final class ConformanceTest {
     final JsonObject root = JsonParser.parseString(text).getAsJsonObject();
     final List<Arguments> arguments = new ArrayList<>();
     for (final Map.Entry<String, JsonElement> entry : root.entrySet()) {
-      arguments.add(Arguments.of(entry.getKey(), HexFormat.of().parseHex(entry.getValue().getAsString())));
+      arguments.add(Arguments.of(entry.getKey(), HexFormat.of().parseHex(entry.getValue().getAsJsonObject().get("frame").getAsString())));
     }
-    assertFalse(arguments.isEmpty());
+    assertEquals(116, arguments.size());
     return arguments.stream();
   }
 

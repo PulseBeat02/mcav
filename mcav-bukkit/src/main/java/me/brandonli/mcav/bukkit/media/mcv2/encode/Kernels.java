@@ -22,12 +22,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The pixel kernels one block coder reconstructs, measures, fits and searches with: the Java ones ({@link JavaKernels})
- * or a native library's ({@link NativeKernels}), which compute the same values. The decisions stay with the coder; a
+ *. The decisions stay with the coder; a
  * kernel only does the arithmetic of one block. The scored reconstructions measure the block against the source,
  * rate and limit of the last {@link #start}, and stop at the first row after which the candidate can no longer be
  * cheaper than the limit. An instance belongs to one coder and one thread.
  */
-abstract sealed class Kernels permits JavaKernels, NativeKernels {
+abstract sealed class Kernels permits JavaKernels {
 
   /** Compares a bounded group of validated leaves with the expected picture. */
   abstract boolean verify(FrameVerification frame, byte[] reference, byte[] picture, int group);

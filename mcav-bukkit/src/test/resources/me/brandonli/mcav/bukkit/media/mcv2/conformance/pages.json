@@ -1,73 +1,55 @@
 {
- "source": "edge streams (no committed v3 conformance streams)",
+ "source": "committed v3 conformance streams",
  "stream_id": 7,
  "symbol_bits": 6,
  "frames": [
   {
-   "stream": "edge/edge-modes.mcs",
+   "stream": "conformance/gameplay-adaptive.mcs",
    "frame": 0,
    "pages": [
-    "58200bcbc7c6b65290826f5f148d55eee865cef14c6d081bad4d56af8de0fcd0"
+    "2ce8370ee91954fbbd4cfece6bcf33e2498df3d3bb3c2745abe041fc0eac008d"
    ],
    "lengths": [
-    1366
+    11282
    ],
-   "wire": 1426,
+   "wire": 11410,
    "wire_full": 16402
   },
   {
-   "stream": "edge/edge-modes.mcs",
+   "stream": "conformance/gameplay-adaptive.mcs",
    "frame": 1,
    "pages": [
-    "2e908bd8aee8b8fa41b71d78475a4c3fc0e380fb0ec06511accac67ebb3aea78",
-    "d9f9493dc9bcb38f6d8054359b6cfd922680085fea8b91856c0728ab35a93d0a"
+    "28aee1644856115b08dc71ada4bad7ac1140365715094afc619ee845f94aa55b"
    ],
    "lengths": [
-    16384,
-    5820
+    8854
    ],
-   "wire": 22308,
-   "wire_full": 32804
-  },
-  {
-   "stream": "edge/edge-tiny.mcs",
-   "frame": 0,
-   "pages": [
-    "747e251741a3b144b495fd592ca427b2b5f6891963502498a3812555b312591e"
-   ],
-   "lengths": [
-    208
-   ],
-   "wire": 274,
+   "wire": 8978,
    "wire_full": 16402
   },
   {
-   "stream": "edge/edge-long-walk.mcs",
-   "frame": 1,
+   "stream": "conformance/gameplay-adaptive.mcs",
+   "frame": 2,
    "pages": [
-    "e55848bffb0a35a42e8c0c973b8200dce5ee5bb5aec100f1ce56b8dcb41ec22a",
-    "ebe9ef0d8d4fc01711af037990a788c987977f60e530003c7eb283e39d3b034a",
-    "66c8ed4461605d6c6b5173f00cc4d7b5bc291deffa81ce57ea92648ff41aaa5f",
-    "5e3e17d638bda83f6b46e9c84083ad0b89fa6caddb185eceda788e6fea551980",
-    "c4d2b8c66047a8de103d90050d276ee136f85fa8bf1f479f884def45aa96002c",
-    "c8a0fa89bd71ab60828be3f720d9e4e3d8b327a0b7fde204d8e5e3877bd6d411",
-    "946a628dd4a9d032505483cf95a6ef9392d9b7612647c41eb2fd991244f6ef28",
-    "dbe3fbc9b99b4468605617a8e57eeb0ecfbb113d3af315114257323c03e41f1f",
-    "8c474260dc2cfc9878a4d742fb391d733d90f2dea005514d14f3f00cab6813f0"
+    "292c956fc31d49264635d1bf829aceef7be7a39cfb2d9342cfcb82cd423a9404"
    ],
    "lengths": [
-    16384,
-    16384,
-    16384,
-    16384,
-    16384,
-    16384,
-    16384,
-    16384,
-    5270
+    8494
    ],
-   "wire": 136610,
-   "wire_full": 147618
+   "wire": 8594,
+   "wire_full": 16402
+  },
+  {
+   "stream": "conformance/gameplay-adaptive.mcs",
+   "frame": 3,
+   "pages": [
+    "dcc08e3833cc6cb5e6f11734dd12f737f3593d74db3754d02543b4f1f064903d"
+   ],
+   "lengths": [
+    8024
+   ],
+   "wire": 8082,
+   "wire_full": 16402
   }
  ]
 }

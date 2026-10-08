@@ -292,7 +292,7 @@ public final class Mcv2Encoder {
    * @throws IllegalArgumentException if threads is nonpositive
    */
   public Mcv2Encoder(final EncoderSettings settings, final ForkJoinPool pool, final int threads, final boolean shouldVerify) {
-    this(settings, pool, threads, shouldVerify, settings.live() == null ? JavaKernels.FACTORY : Mcv2Natives.factory());
+    this(settings, pool, threads, shouldVerify, JavaKernels.FACTORY);
   }
 
   /**

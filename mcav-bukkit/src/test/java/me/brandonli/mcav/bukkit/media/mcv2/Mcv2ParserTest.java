@@ -19,7 +19,6 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.keyframe;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.motion;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.pattern;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.predicted;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.solid;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.split;
@@ -47,8 +46,6 @@ import org.junit.jupiter.params.provider.MethodSource;
  * {@link Mcv2Exception} and nothing else.
  */
 final class Mcv2ParserTest {
-
-  private static final byte[] ENDPOINTS = { 0, 0, 0, (byte) 255, (byte) 255, (byte) 255 };
 
   private static byte[] palette() {
     final byte[] record = new byte[38];
@@ -91,21 +88,6 @@ final class Mcv2ParserTest {
     final Mcv2Decoder.Frame parsed = Mcv2Decoder.parse(frame);
     frame[40] = 1;
     assertEquals(0, parsed.getData()[40]);
-  }
-
-  @Test
-  void exposesCopiesOfTheTables() throws Mcv2Exception {
-    final Node patterns = split(pattern(16, ENDPOINTS, 0, 0x5A));
-    final Mcv2Decoder.Frame parsed = Mcv2Decoder.parse(keyframe(64, 32, split(split(pattern(8, ENDPOINTS, 1, 0x3C))), patterns));
-    final byte[] endpoints = parsed.getEndpointTable();
-    assertArrayEquals(new byte[] { 0, 0, -1, -1 }, endpoints);
-    assertNotSame(endpoints, parsed.getEndpointTable());
-    assertArrayEquals(new byte[] { 1, 0x3C }, parsed.getSelectorTable(8));
-    assertArrayEquals(new byte[0], parsed.getSelectorTable(32));
-    assertThrows(IllegalArgumentException.class, () -> parsed.getSelectorTable(4));
-    final Mcv2Decoder.Frame plain = Mcv2Decoder.parse(keyframe(8, 8, solid(1, 1, 1)));
-    assertArrayEquals(new byte[0], plain.getEndpointTable());
-    assertArrayEquals(new byte[0], plain.getSelectorTable(8));
   }
 
   @Test

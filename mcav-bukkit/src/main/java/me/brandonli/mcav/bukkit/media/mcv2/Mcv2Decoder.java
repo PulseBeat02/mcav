@@ -18,10 +18,6 @@
 package me.brandonli.mcav.bukkit.media.mcv2;
 
 import com.google.common.base.Preconditions;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicReferenceArray;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Validates and decodes MCV2 version 3. Parsed frames own their bytes and are immutable. */
@@ -89,10 +85,6 @@ public final class Mcv2Decoder {
     private final int payloadStart;
     private final int defaultColor;
     private final int[] leaves;
-    private final int endpointCount;
-    private final int endpointsAt;
-    private final int[] selectorCounts;
-    private final int[] selectorsAt;
 
     private Frame(final Parser parser, final int[] leaves) {
       this.data = parser.data;
@@ -104,10 +96,6 @@ public final class Mcv2Decoder {
       this.payloadStart = parser.start;
       this.defaultColor = rgb(this.data, DEFAULT_COLOR_OFFSET);
       this.leaves = leaves;
-      this.endpointCount = parser.endpointCount;
-      this.endpointsAt = parser.endpointsAt;
-      this.selectorCounts = parser.selectorCounts;
-      this.selectorsAt = parser.selectorsAt;
     }
 
     public byte[] getData() {
@@ -158,17 +146,6 @@ public final class Mcv2Decoder {
         this.leaves[at + 5]
       );
     }
-
-    public byte[] getEndpointTable() {
-      return Arrays.copyOfRange(this.data, this.endpointsAt, this.data.length);
-    }
-
-    public byte[] getSelectorTable(final int size) {
-      Preconditions.checkArgument(isBlockSize(size), "Invalid leaf size %s", size);
-      final int index = sizeIndex(size);
-      final int start = this.selectorsAt[index];
-      return Arrays.copyOfRange(this.data, start, start + this.selectorCounts[index] * (1 + size / Byte.SIZE));
-    }
   }
 
   /** Parses an owned copy, rejecting all versions other than version 3. */
@@ -218,10 +195,6 @@ public final class Mcv2Decoder {
     private final int start;
     private final int columns;
     private final int roots;
-    private int endpointCount;
-    private int endpointsAt;
-    private final int[] selectorCounts = new int[BLOCK_SIZES];
-    private final int[] selectorsAt = new int[BLOCK_SIZES];
 
     private Parser(final byte[] data, final int width, final int height, final boolean keyframe, final int start) {
       this.data = data;
@@ -238,7 +211,7 @@ public final class Mcv2Decoder {
       final int checkpoints = (groups + CHECKPOINT_GROUPS - 1) / CHECKPOINT_GROUPS;
       final int countsAt = HEADER_BYTES + (groups + checkpoints) * Integer.BYTES;
       final int descriptorsAt = countsAt + BLOCK_SIZES * Integer.BYTES;
-      if (descriptorsAt + Integer.BYTES > this.start) {
+      if (descriptorsAt > this.start) {
         throw new Mcv2Exception("Truncated index");
       }
       // Unsigned counts stay wide until their sum and the whole index fit inside the input.
@@ -246,15 +219,13 @@ public final class Mcv2Decoder {
       final long levelOne = u32(this.data, countsAt + Integer.BYTES);
       final long levelTwo = u32(this.data, countsAt + 2 * Integer.BYTES);
       final long count = levelZero + levelOne + levelTwo;
-      if (descriptorsAt + count + ((count + WALK_SPAN - 1) / WALK_SPAN) * Integer.BYTES + Integer.BYTES != this.start) {
+      if (descriptorsAt + count + ((count + WALK_SPAN - 1) / WALK_SPAN) * Integer.BYTES != this.start) {
         throw new Mcv2Exception("Invalid index length");
       }
       final int descriptors = (int) count;
       final int firstChildren = (int) levelZero;
       final int lastLevel = (int) (levelZero + levelOne);
       final int walksAt = descriptorsAt + descriptors;
-      final int tablesAt = this.start - Integer.BYTES;
-      this.readTables(tablesAt);
       final int[] present = this.readDirectory(groups, firstChildren);
       int splits = 0;
       int firstSplits = 0;
@@ -299,7 +270,7 @@ public final class Mcv2Decoder {
       int leaf = 0;
       int cursor = 0;
       splits = 0;
-      final int payloadEnd = this.selectorsAt[0];
+      final int payloadEnd = this.data.length;
       for (int index = 0; index < descriptors; index++) {
         if (
           index % WALK_SPAN == 0 &&
@@ -320,7 +291,7 @@ public final class Mcv2Decoder {
         leaf(leaves, leaf++, positions[at], positions[at + 1], size, mode, descriptor >> QUANTIZER_SHIFT, offset);
       }
       if (this.start + cursor != payloadEnd) {
-        throw new Mcv2Exception("Records do not end at the tables");
+        throw new Mcv2Exception("Records do not end at the frame end");
       }
       int listed = 0;
       for (int root = 0; root < this.roots; root++) {
@@ -357,27 +328,6 @@ public final class Mcv2Decoder {
       return present;
     }
 
-    private void readTables(final int countsAt) throws Mcv2Exception {
-      this.endpointCount = this.data[countsAt] & 0xFF;
-      this.endpointsAt = this.data.length - this.endpointCount * Integer.BYTES;
-      int tableBytes = 0;
-      for (int index = 0; index < BLOCK_SIZES; index++) {
-        this.selectorCounts[index] = this.data[countsAt + 1 + index] & 0xFF;
-        tableBytes += this.selectorCounts[index] * (1 + (SMALLEST_BLOCK << index) / Byte.SIZE);
-      }
-      int at = this.endpointsAt - tableBytes;
-      if (at < this.start) {
-        throw new Mcv2Exception("Truncated tables");
-      }
-      distinct(this.data, this.endpointsAt, this.endpointCount, Integer.BYTES, false);
-      for (int index = 0; index < BLOCK_SIZES; index++) {
-        final int entry = 1 + (SMALLEST_BLOCK << index) / Byte.SIZE;
-        this.selectorsAt[index] = at;
-        distinct(this.data, at, this.selectorCounts[index], entry, true);
-        at += this.selectorCounts[index] * entry;
-      }
-    }
-
     private int recordLength(final int mode, final int size, final int offset, final int end) throws Mcv2Exception {
       final int length;
       if (mode == MODE_COMPACT) {
@@ -392,43 +342,17 @@ public final class Mcv2Decoder {
         }
         length = 1 + form + COMPACT_BYTES[kind];
       } else if (mode == MODE_PATTERN) {
-        length = patternSize(size, this.endpointCount > 0, this.selectorCounts[sizeIndex(size)] > 0);
+        length = patternSize(size);
       } else {
         length = recordSize(mode, size);
       }
       if (length > end - offset) {
         throw new Mcv2Exception("Truncated record");
       }
-      if (mode == MODE_PATTERN) {
-        final boolean tabledEndpoints = this.endpointCount > 0;
-        if (tabledEndpoints && (this.data[offset] & 0xFF) >= this.endpointCount) {
-          throw new Mcv2Exception("Endpoint index outside table");
-        }
-        final int word = offset + (tabledEndpoints ? 1 : 2 * CHANNELS);
-        final int words = this.selectorCounts[sizeIndex(size)];
-        if (words > 0 ? (this.data[word] & 0xFF) >= words : (this.data[word] & 0xFF) > 1) {
-          throw new Mcv2Exception("Invalid pattern selector");
-        }
+      if (mode == MODE_PATTERN && (this.data[offset + 2 * CHANNELS] & 0xFF) > 1) {
+        throw new Mcv2Exception("Invalid pattern selector");
       }
       return length;
-    }
-  }
-
-  private static void distinct(final byte[] data, final int start, final int count, final int entry, final boolean selectors)
-    throws Mcv2Exception {
-    final Set<Long> seen = new HashSet<>();
-    for (int index = 0; index < count; index++) {
-      final int at = start + index * entry;
-      if (selectors && (data[at] & 0xFF) > 1) {
-        throw new Mcv2Exception("Invalid table orientation");
-      }
-      long word = 0;
-      for (int offset = 0; offset < entry; offset++) {
-        word |= (data[at + offset] & 0xFFL) << (offset * Byte.SIZE);
-      }
-      if (!seen.add(word)) {
-        throw new Mcv2Exception("Duplicate table entry");
-      }
     }
   }
 
@@ -460,12 +384,12 @@ public final class Mcv2Decoder {
 
   // Temporary adapters keep callers compiling while the encoder is migrated in the following commit.
   public static byte[] decode(final Mcv2Frame frame, final byte @Nullable [] reference, final long referenceId) throws Mcv2Exception {
-    return Legacy.decode(frame, reference, referenceId);
+    return decode(parse(frame.getData()), reference, referenceId);
   }
 
   public static byte[] decode(final Mcv2Frame frame, final byte @Nullable [] reference, final long referenceId, final Workers workers)
     throws Mcv2Exception {
-    return Legacy.decode(frame, reference, referenceId, workers);
+    return decode(parse(frame.getData()), reference, referenceId);
   }
 
   public static byte[] decode(
@@ -475,7 +399,12 @@ public final class Mcv2Decoder {
     final Workers workers,
     final byte @Nullable [] output
   ) throws Mcv2Exception {
-    return Legacy.decode(frame, reference, referenceId, workers, output);
+    final Frame parsed = parse(frame.getData());
+    if (output == null) {
+      return decode(parsed, reference, referenceId);
+    }
+    decode(parsed, reference, referenceId, output);
+    return output;
   }
 
   public static byte[] decode(final byte[] bytes, final byte @Nullable [] reference, final long referenceId) throws Mcv2Exception {
@@ -574,20 +503,9 @@ public final class Mcv2Decoder {
           color1 = rgb(data, offset + CHANNELS);
         }
       } else if (mode == MODE_PATTERN) {
-        final boolean tabled = this.frame.endpointCount > 0;
-        if (tabled) {
-          final int pair = this.frame.endpointsAt + (data[offset] & 0xFF) * Integer.BYTES;
-          color0 = unpack565(data[pair], data[pair + 1]);
-          color1 = unpack565(data[pair + 2], data[pair + 3]);
-        } else {
-          color0 = rgb(data, offset);
-          color1 = rgb(data, offset + CHANNELS);
-        }
-        word = offset + (tabled ? 1 : 2 * CHANNELS);
-        final int index = sizeIndex(size);
-        if (this.frame.selectorCounts[index] > 0) {
-          word = this.frame.selectorsAt[index] + (data[word] & 0xFF) * (1 + size / Byte.SIZE);
-        }
+        color0 = rgb(data, offset);
+        color1 = rgb(data, offset + CHANNELS);
+        word = offset + 2 * CHANNELS;
         orientation = data[word];
         word++;
       } else if (mode == MODE_MOTION) {
@@ -718,8 +636,8 @@ public final class Mcv2Decoder {
     return (value << (Integer.SIZE - bits)) >> (Integer.SIZE - bits);
   }
 
-  public static int patternSize(final int size, final boolean endpoints, final boolean selectors) {
-    return (endpoints ? 1 : 2 * CHANNELS) + (selectors ? 1 : 1 + size / Byte.SIZE);
+  public static int patternSize(final int size) {
+    return 2 * CHANNELS + 1 + size / Byte.SIZE;
   }
 
   public static int recordSize(final int mode, final int size) {
@@ -728,6 +646,7 @@ public final class Mcv2Decoder {
       case MODE_MOTION -> 2;
       case MODE_SOLID -> CHANNELS;
       case MODE_PALETTE -> 2 * CHANNELS + (size * size) / Byte.SIZE;
+      case MODE_PATTERN -> patternSize(size);
       default -> throw new IllegalArgumentException("Variable or invalid record mode");
     };
   }
@@ -740,260 +659,5 @@ public final class Mcv2Decoder {
   public static int compactY(final byte[] data, final int offset) {
     final int form = (data[offset] & 0xFF) >> 4;
     return form == 1 ? signed((data[offset + 1] & 0xFF) >> 4, 4) : form == 2 ? data[offset + 2] : 0;
-  }
-
-  public static int pack565(final int red, final int green, final int blue) {
-    return ((red >> 3) << 11) | ((green >> 2) << 5) | (blue >> 3);
-  }
-
-  public static int unpack565(final int low, final int high) {
-    final int value = (low & 0xFF) | ((high & 0xFF) << 8);
-    final int red = value >> 11;
-    final int green = (value >> 5) & 63;
-    final int blue = value & 31;
-    return (((red << 3) | (red >> 2)) << 16) | (((green << 2) | (green >> 4)) << 8) | (blue << 3) | (blue >> 2);
-  }
-
-  private static final class Legacy {
-
-    /** Leaves decoded by one worker at a time. */
-    private static final int GROUP = 256;
-
-    private Legacy() {
-      throw new UnsupportedOperationException("Utility class cannot be instantiated");
-    }
-
-    /**
-     * Decodes a validated frame on the calling thread.
-     *
-     * @param frame       the frame
-     * @param reference   the previous decoded picture, required for a P frame and ignored for a keyframe
-     * @param referenceId the id of that picture
-     * @return the decoded picture, {@code width * height * 3} bytes
-     * @throws Mcv2Exception if the frame is a P frame and the reference is missing, has the wrong size, or has another id
-     * @throws NullPointerException if frame is null
-     */
-    private static byte[] decode(final Mcv2Frame frame, final byte @Nullable [] reference, final long referenceId) throws Mcv2Exception {
-      return decode(frame, reference, referenceId, Workers.SEQUENTIAL);
-    }
-
-    /**
-     * Decodes a validated frame. Every leaf covers its own pixels, so groups of leaves are decoded on the workers, each
-     * with its own scratch space; the picture is the same for any number of workers.
-     *
-     * @param frame       the frame
-     * @param reference   the previous decoded picture, required for a P frame and ignored for a keyframe
-     * @param referenceId the id of that picture
-     * @param workers     the workers
-     * @return the decoded picture, {@code width * height * 3} bytes
-     * @throws Mcv2Exception if the frame is a P frame and the reference is missing, has the wrong size, or has another id
-     * @throws NullPointerException if frame or workers is null
-     */
-    private static byte[] decode(final Mcv2Frame frame, final byte @Nullable [] reference, final long referenceId, final Workers workers)
-      throws Mcv2Exception {
-      return decode(frame, reference, referenceId, workers, null);
-    }
-
-    /**
-     * Decodes a validated frame into a picture the caller may reuse from frame to frame, when it has the frame's size;
-     * a valid frame's leaves cover every pixel, so nothing of the picture before is left. The picture may be the
-     * reference itself, which a P frame then reads from a copy.
-     *
-     * @param frame       the frame
-     * @param reference   the previous decoded picture, required for a P frame and ignored for a keyframe
-     * @param referenceId the id of that picture
-     * @param workers     the workers
-     * @param into        the picture to decode into, or null or one of another size for a new one
-     * @return the decoded picture: {@code into} when it had the size, else a new one of {@code width * height * 3} bytes
-     * @throws Mcv2Exception if the frame is a P frame and the reference is missing, has the wrong size, or has another id
-     * @throws NullPointerException if {@code frame} or {@code workers} is null
-     */
-    private static byte[] decode(
-      final Mcv2Frame frame,
-      final byte @Nullable [] reference,
-      final long referenceId,
-      final Workers workers,
-      final byte @Nullable [] into
-    ) throws Mcv2Exception {
-      Preconditions.checkNotNull(frame, "Frame must not be null");
-      Preconditions.checkNotNull(workers, "Workers must not be null");
-      final int width = frame.getWidth();
-      final int height = frame.getHeight();
-      final byte[] referencePicture;
-      if (frame.isKeyframe()) {
-        referencePicture = new byte[0];
-      } else {
-        if (reference == null || referenceId != frame.getReferenceId() || reference.length != width * height * Mcv2Format.CHANNELS) {
-          throw new Mcv2Exception("Reference frame mismatch");
-        }
-        // a caller may decode into the picture it passes as the reference, but the leaves read the reference's pixels
-        // after other leaves wrote theirs, so the reference is read from a copy then
-        referencePicture = isSamePicture(reference, into) ? reference.clone() : reference;
-      }
-      final byte[] output =
-        into != null && into.length == width * height * Mcv2Format.CHANNELS ? into : new byte[width * height * Mcv2Format.CHANNELS];
-      final int[] leaves = frame.leafArray();
-      final int count = leaves.length / Mcv2Frame.LEAF_INTS;
-      final int groups = (count + GROUP - 1) / GROUP;
-      final AtomicReferenceArray<@Nullable Mcv2Exception> failures = new AtomicReferenceArray<>(groups);
-      workers.forEach(
-        groups,
-        () -> new LegacyContext(frame, referencePicture, output),
-        (context, group) -> {
-          final int end = Math.min(count, (group + 1) * GROUP) * Mcv2Frame.LEAF_INTS;
-          try {
-            for (int leafOffset = group * GROUP * Mcv2Frame.LEAF_INTS; leafOffset < end; leafOffset += Mcv2Frame.LEAF_INTS) {
-              context.leaf(
-                leaves[leafOffset + Mcv2Frame.LEAF_X],
-                leaves[leafOffset + Mcv2Frame.LEAF_Y],
-                leaves[leafOffset + Mcv2Frame.LEAF_SIZE],
-                leaves[leafOffset + Mcv2Frame.LEAF_MODE],
-                leaves[leafOffset + Mcv2Frame.LEAF_Q],
-                leaves[leafOffset + Mcv2Frame.LEAF_OFFSET]
-              );
-            }
-          } catch (final Mcv2Exception exception) {
-            failures.set(group, exception);
-          }
-        }
-      );
-      // the failure a sequential decode would meet first
-      for (int group = 0; group < groups; group++) {
-        final Mcv2Exception failure = failures.get(group);
-        if (failure != null) {
-          throw failure;
-        }
-      }
-      return output;
-    }
-
-    /** The state of one decode: the frame, the reference and the output picture. */
-    private static final class LegacyContext {
-
-      private final Mcv2Frame frame;
-
-      private final byte[] data;
-
-      private final byte[] reference;
-
-      private final byte[] output;
-
-      private final int width;
-
-      private final int height;
-
-      private final Reconstruction.Scratch scratch = new Reconstruction.Scratch();
-
-      private final int[] prediction = new int[Mcv2Format.ROOT_SIZE * Mcv2Format.ROOT_SIZE * Mcv2Format.CHANNELS];
-
-      private final int[] block = new int[Mcv2Format.ROOT_SIZE * Mcv2Format.ROOT_SIZE * Mcv2Format.CHANNELS];
-
-      private LegacyContext(final Mcv2Frame frame, final byte[] reference, final byte[] output) {
-        this.frame = frame;
-        this.data = frame.data();
-        this.reference = reference;
-        this.output = output;
-        this.width = frame.getWidth();
-        this.height = frame.getHeight();
-      }
-
-      private void predict(final int blockLeft, final int blockTop, final int size, final int motionX, final int motionY) {
-        Reconstruction.predict(this.reference, this.width, this.height, blockLeft, blockTop, size, motionX, motionY, this.prediction);
-      }
-
-      void leaf(final int left, final int top, final int size, final int mode, final int quantizer, final int offset) throws Mcv2Exception {
-        if (left >= this.width || top >= this.height) {
-          return;
-        }
-        final int globalX = this.frame.getGlobalX();
-        final int globalY = this.frame.getGlobalY();
-        final byte[] data = this.data;
-        final int[] out = this.block;
-        switch (mode) {
-          case Mcv2Format.MODE_SKIP -> {
-            if (this.frame.isKeyframe()) {
-              Reconstruction.solid(this.frame.getDefaultColor(), size, out);
-            } else {
-              this.predict(left, top, size, globalX, globalY);
-              Reconstruction.predicted(this.prediction, size, out);
-            }
-          }
-          case Mcv2Format.MODE_MOTION -> {
-            this.predict(left, top, size, globalX + data[offset], globalY + data[offset + 1]);
-            Reconstruction.predicted(this.prediction, size, out);
-          }
-          case Mcv2Format.MODE_IMMEDIATE_MOTION -> {
-            this.predict(left, top, size, globalX + (byte) offset, globalY + (byte) (offset >> Byte.SIZE));
-            Reconstruction.predicted(this.prediction, size, out);
-          }
-          case Mcv2Format.MODE_SOLID -> Reconstruction.solid(
-            ((data[offset] & 0xFF) << 16) | ((data[offset + 1] & 0xFF) << 8) | (data[offset + 2] & 0xFF),
-            size,
-            out
-          );
-          case Mcv2Format.MODE_PALETTE -> Reconstruction.palette(data, offset, size, out);
-          case Mcv2Format.MODE_PATTERN -> Reconstruction.pattern(
-            PatternRecord.expand(data, offset, size, this.frame.endpointTable(), this.frame.selectorTable(size)),
-            size,
-            out
-          );
-          case Mcv2Format.MODE_COMPACT -> {
-            final CompactRecord record = CompactRecord.parse(data, offset, quantizer);
-            this.predict(left, top, size, globalX + record.dx(), globalY + record.dy());
-            Reconstruction.compact(this.prediction, data, record.bodyOffset(), record.kind(), quantizer, size, this.scratch, out);
-          }
-          default -> {
-            if (mode >= Mcv2Format.MODE_INTRA_Y4C1) {
-              final boolean residual = Mcv2Format.isResidual(mode);
-              if (residual) {
-                this.predict(left, top, size, globalX + data[offset], globalY + data[offset + 1]);
-              }
-              Reconstruction.reduced(
-                residual ? this.prediction : null,
-                data,
-                offset + (residual ? 2 : 0),
-                Mcv2Format.lumaGrid(mode),
-                Mcv2Format.chromaGrid(mode),
-                quantizer,
-                size,
-                this.scratch,
-                out
-              );
-            } else if (mode >= Mcv2Format.MODE_RESIDUAL) {
-              this.predict(left, top, size, globalX + data[offset], globalY + data[offset + 1]);
-              Reconstruction.residualGrid(
-                this.prediction,
-                data,
-                offset + 2,
-                1 << (mode - Mcv2Format.MODE_RESIDUAL),
-                quantizer,
-                size,
-                this.scratch,
-                out
-              );
-            } else {
-              Reconstruction.intraGrid(data, offset, 1 << (mode - Mcv2Format.MODE_INTRA), size, this.scratch, out);
-            }
-          }
-        }
-        final int right = Math.min(left + size, this.width);
-        final int bottom = Math.min(top + size, this.height);
-        for (int row = top; row < bottom; row++) {
-          for (int column = left; column < right; column++) {
-            final int from = ((row - top) * size + (column - left)) * Mcv2Format.CHANNELS;
-            final int to = (row * this.width + column) * Mcv2Format.CHANNELS;
-            this.output[to] = (byte) out[from];
-            this.output[to + 1] = (byte) out[from + 1];
-            this.output[to + 2] = (byte) out[from + 2];
-          }
-        }
-      }
-    }
-
-    /** Whether the picture decoded into is the reference itself: identity is the point, as only then is a copy needed. */
-    @SuppressWarnings("ReferenceEquality")
-    private static boolean isSamePicture(final byte[] reference, final byte @Nullable [] into) {
-      return reference == into;
-    }
   }
 }

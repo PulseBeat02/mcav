@@ -232,10 +232,9 @@ final class MCV2FrameTest {
     final MCV2 pan = play(settings, 100, 70, 6, 9);
     assertTrue(pan.getStats().lambda() > 72);
     // the frame after a scene cut is back at the profile's lambda
-    final byte[] inverted = scene(100, 70, 6, 9);
-    for (int index = 0; index < inverted.length; index++) {
-      inverted[index] = (byte) (255 - (inverted[index] & 0xFF));
-    }
+    final byte[] inverted = new byte[100 * 70 * 3];
+    // A white scene guarantees a cut at zero motion regardless of the previous palette fit.
+    Arrays.fill(inverted, (byte) 255);
     pan.encode(inverted, 100, 70, 6);
     assertTrue(pan.getStats().keyframe());
     pan.encode(inverted, 100, 70, 7);

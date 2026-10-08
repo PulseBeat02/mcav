@@ -129,16 +129,7 @@ final class Mcv2DecoderTest {
     final byte[][] records = new byte[count][3];
     records[1] = new byte[] { 15, 0 };
     records[290] = new byte[] { 0 };
-    final byte[] frame = Mcv2WireFrames.frame(
-      4096,
-      96,
-      false,
-      descriptors,
-      records,
-      new int[] { count, 0, 0 },
-      new byte[0],
-      new byte[][] { {}, {}, {} }
-    );
+    final byte[] frame = Mcv2WireFrames.frame(4096, 96, false, descriptors, records, new int[] { count, 0, 0 });
     assertEquals("Invalid compact control", assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(frame)).getMessage());
   }
 

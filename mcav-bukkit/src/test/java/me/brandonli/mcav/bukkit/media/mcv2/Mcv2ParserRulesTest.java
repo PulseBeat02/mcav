@@ -36,7 +36,7 @@ final class Mcv2ParserRulesTest {
   private static final byte[] ENDPOINTS = { 0, 0, 0, -1, -1, -1 };
   private static final byte[] OTHER_ENDPOINTS = { -1, 0, 0, 0, 0, -1 };
 
-  private record Layout(int counts, int plane, int walk, int head, int start) {
+  private record Layout(int counts, int plane, int walk, int start) {
     private static Layout of(final byte[] frame) {
       final int width = Mcv2Decoder.u16(frame, 8);
       final int height = Mcv2Decoder.u16(frame, 10);
@@ -47,7 +47,7 @@ final class Mcv2ParserRulesTest {
         Mcv2Decoder.u32(frame, counts + 4) +
         Mcv2Decoder.u32(frame, counts + 8));
       final int walk = counts + 12 + descriptors;
-      return new Layout(counts, counts + 12, walk, walk + 4 * ((descriptors + 7) / 8), (int) Mcv2Decoder.u32(frame, 20));
+      return new Layout(counts, counts + 12, walk, (int) Mcv2Decoder.u32(frame, 20));
     }
   }
 
@@ -55,7 +55,7 @@ final class Mcv2ParserRulesTest {
     return split(split(pattern(8, ENDPOINTS, 1, 0x3C)));
   }
 
-  private static byte[] tabled() {
+  private static byte[] patterns() {
     return keyframe(64, 32, patterns8(), split(split(pattern(8, OTHER_ENDPOINTS, 1, 0x3C))));
   }
 
@@ -77,13 +77,9 @@ final class Mcv2ParserRulesTest {
 
   @Test
   void theDerivedFixturesHaveTheExpectedShape() throws Mcv2Exception {
-    final byte[] frame = tabled();
+    final byte[] frame = patterns();
     final Layout layout = Layout.of(frame);
-    assertEquals(2, frame[layout.head()]);
-    assertEquals(1, frame[layout.head() + 1]);
-    assertEquals(0, frame[layout.head() + 2]);
-    assertEquals(0, frame[layout.head() + 3]);
-    assertEquals(6 * 4, layout.head() - layout.walk());
+    assertEquals(6 * 4, layout.start() - layout.walk());
     assertEquals(32, Mcv2Decoder.parse(frame).getLeafCount());
   }
 
@@ -104,48 +100,6 @@ final class Mcv2ParserRulesTest {
     for (int mode = 7; mode < 32; mode++) {
       assertEquals("Invalid descriptor", message(withByte(frame, descriptor, mode)));
     }
-  }
-
-  @Test
-  void refusesBrokenTableCounts() {
-    final byte[] frame = tabled();
-    final Layout layout = Layout.of(frame);
-    assertEquals("Invalid index length", message(withWord(frame, 20, layout.head())));
-    assertEquals("Invalid table orientation", message(withByte(frame, layout.head(), 0)));
-    assertEquals("Truncated tables", message(withByte(frame, layout.head(), 255)));
-    assertEquals("Invalid index length", message(withWord(frame, 20, layout.head() + 2)));
-    assertEquals("Truncated record", message(withByte(frame, layout.head() + 2, 1)));
-    assertEquals("Invalid walk checkpoint", message(withByte(frame, layout.head() + 1, 0)));
-  }
-
-  @Test
-  void refusesATruncatedSelectorTable() {
-    final Node[] leaves = new Node[16];
-    for (int index = 0; index < leaves.length; index++) {
-      leaves[index] = pattern(8, new byte[] { (byte) index, 1, 2, 3, 4, 5 }, 0, 0x0F);
-    }
-    final Node[] quarters = new Node[4];
-    for (int index = 0; index < quarters.length; index++) {
-      quarters[index] = Node.split(leaves[index * 4], leaves[index * 4 + 1], leaves[index * 4 + 2], leaves[index * 4 + 3]);
-    }
-    final byte[] frame = keyframe(32, 32, Node.split(quarters[0], quarters[1], quarters[2], quarters[3]));
-    final int counts = Layout.of(frame).head();
-    assertEquals(0, frame[counts]);
-    assertEquals(1, frame[counts + 1]);
-    assertEquals("Truncated tables", message(withByte(frame, counts + 1, 255)));
-  }
-
-  @Test
-  void refusesRepeatedTableEntries() {
-    final byte[] frame = tabled();
-    final byte[] endpoints = frame.clone();
-    System.arraycopy(frame, frame.length - 8, endpoints, frame.length - 4, 4);
-    assertEquals("Duplicate table entry", message(endpoints));
-    final byte[] words = keyframe(64, 32, patterns8(), split(split(pattern(8, ENDPOINTS, 1, 0x3D))));
-    final byte[] repeated = words.clone();
-    final int wordsAt = words.length - 4 - 4;
-    System.arraycopy(words, wordsAt, repeated, wordsAt + 2, 2);
-    assertEquals("Duplicate table entry", message(repeated));
   }
 
   @Test

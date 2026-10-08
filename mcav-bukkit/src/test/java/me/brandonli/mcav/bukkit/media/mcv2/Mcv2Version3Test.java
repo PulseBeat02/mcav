@@ -21,7 +21,6 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2WireFrames.block;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2WireFrames.frame;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2WireFrames.put;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2WireFrames.read;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2WireFrames.records;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -171,52 +170,7 @@ final class Mcv2Version3Test {
   }
 
   @Test
-  void validatesUnusedTableOrientationsDuplicatesAndIndexes() throws Mcv2Exception {
-    final byte[] pattern = { 0, 0 };
-    final byte[][] words = { { 0, 85 }, {}, {} };
-    final byte[] endpoints = { 0, (byte) 248, 31, 0 };
-    final byte[] valid = frame(
-      8,
-      8,
-      true,
-      new byte[] { 6, 6, 0, 0, 0, 4, 0, 0, 0 },
-      records(9, 5, pattern),
-      new int[] { 1, 4, 4 },
-      endpoints,
-      words
-    );
-    Mcv2Decoder.parse(valid);
-    final int payload = (int) read(valid, 20);
-    for (final int offset : new int[] { payload, payload + 1, valid.length - 6 }) {
-      final byte[] bad = valid.clone();
-      bad[offset] = 2;
-      assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad));
-    }
-    assertThrows(Mcv2Exception.class, () ->
-      Mcv2Decoder.parse(
-        frame(8, 8, true, new byte[] { 0 }, records(1, 0, new byte[0]), new int[] { 1, 0, 0 }, new byte[8], new byte[][] { {}, {}, {} })
-      )
-    );
-    assertThrows(Mcv2Exception.class, () ->
-      Mcv2Decoder.parse(
-        frame(
-          8,
-          8,
-          true,
-          new byte[] { 0 },
-          records(1, 0, new byte[0]),
-          new int[] { 1, 0, 0 },
-          new byte[0],
-          new byte[][] { { 1, 0, 1, 0 }, {}, {} }
-        )
-      )
-    );
-    // Tables need not be used, and a present root may explicitly SKIP.
-    Mcv2Decoder.parse(frame(8, 8, true, new byte[] { 0 }, records(1, 0, new byte[0]), new int[] { 1, 0, 0 }, endpoints, words));
-  }
-
-  @Test
-  void decodesPatternTablesAndRawSelectorsForAllSizes() throws Mcv2Exception {
+  void decodesPatternSelectorsForAllSizes() throws Mcv2Exception {
     for (final int size : new int[] { 8, 16, 32 }) {
       for (int orientation = 0; orientation < 2; orientation++) {
         final byte[] record = new byte[7 + size / 8];
@@ -236,20 +190,6 @@ final class Mcv2Version3Test {
         assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(block(size, 4, 0, record, true)));
       }
     }
-    final byte[][] words = { { 0, 85 }, {}, {} };
-    final byte[] data = frame(
-      8,
-      8,
-      true,
-      new byte[] { 6, 6, 0, 0, 0, 4, 0, 0, 0 },
-      records(9, 5, new byte[] { 0, 0 }),
-      new int[] { 1, 4, 4 },
-      new byte[] { 0, (byte) 248, 31, 0 },
-      words
-    );
-    final byte[] decoded = Mcv2Decoder.decode(data, null, 0);
-    pixel(decoded, 8, 0, 0, 0, 0, 255);
-    pixel(decoded, 8, 1, 0, 255, 0, 0);
   }
 
   @Test
@@ -271,7 +211,7 @@ final class Mcv2Version3Test {
     pixel(picture, 8, 1, 0, 10, 20, 30);
     pixel(picture, 8, 7, 0, 40, 50, 60);
     pixel(picture, 8, 0, 1, 10, 20, 30);
-    final byte[] skipped = frame(3, 2, true, new byte[0], new byte[0][], new int[3], new byte[0], new byte[][] { {}, {}, {} });
+    final byte[] skipped = frame(3, 2, true, new byte[0], new byte[0][], new int[3]);
     skipped[28] = 10;
     skipped[29] = 20;
     skipped[30] = 30;
@@ -376,18 +316,15 @@ final class Mcv2Version3Test {
     assertEquals(0, frame.getDefaultColor());
     assertEquals(7, frame.getLeafCount());
     assertEquals(16, frame.getLeaf(0).size());
-    assertEquals(0, frame.getEndpointTable().length);
-    assertEquals(0, frame.getSelectorTable(8).length);
     assertThrows(IndexOutOfBoundsException.class, () -> frame.getLeaf(-1));
-    assertThrows(IllegalArgumentException.class, () -> frame.getSelectorTable(4));
   }
 
   @Test
   void acceptsMaximumDimensionsWithAllRootsAbsent() throws Mcv2Exception {
-    final byte[] data = frame(4096, 4096, true, new byte[0], new byte[0][], new int[3], new byte[0], new byte[][] { {}, {}, {} });
+    final byte[] data = frame(4096, 4096, true, new byte[0], new byte[0][], new int[3]);
     final Mcv2Decoder.Frame parsed = Mcv2Decoder.parse(data);
     assertEquals(16384, parsed.getLeafCount());
-    assertEquals(2352, parsed.getPayloadStart());
+    assertEquals(2348, parsed.getPayloadStart());
   }
 
   @Test

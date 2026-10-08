@@ -55,14 +55,12 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.WALK_SPAN;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.compactX;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.compactY;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.follows;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.pack565;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.patternSize;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putU16;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putU32;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.recordSize;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.signed;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.sizeIndex;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.unpack565;
 
 import com.google.common.base.Preconditions;
 import java.nio.file.Path;
@@ -1322,7 +1320,7 @@ public final class MCV2 {
       if (!this.eligible(length)) {
         return;
       }
-      this.kernels.finish(this.source, this.count, this.endpoints(), false, this.colors, this.selectors);
+      this.kernels.finish(this.source, this.count, this.endpoints(), this.colors, this.selectors);
       this.writePalette(this.record);
       if (this.kernels.palette(this.record, 0, this.size, this.recon)) {
         this.score(MODE_PALETTE, 0, length);
@@ -1330,11 +1328,11 @@ public final class MCV2 {
     }
 
     private void pattern() {
-      final int length = patternSize(this.size, false, false);
+      final int length = patternSize(this.size);
       if (!this.eligible(length)) {
         return;
       }
-      if (!this.kernels.finishPattern(this.source, this.size, this.endpoints(), true, this.colors, this.selectors)) {
+      if (!this.kernels.finishPattern(this.source, this.size, this.endpoints(), this.colors, this.selectors)) {
         return;
       }
       this.writePalette(this.palette);
@@ -1510,29 +1508,18 @@ public final class MCV2 {
     final int[] source,
     final int count,
     final float[] endpoints,
-    final boolean shouldQuantize,
     final int[] colors,
     final byte[] selectors
   ) {
-    roundPalette(endpoints, shouldQuantize, colors);
+    roundPalette(endpoints, colors);
     for (int pixel = 0; pixel < count; pixel++) {
       selectors[pixel] = nearest(source, pixel, colors);
     }
   }
 
-  private static void roundPalette(final float[] endpoints, final boolean shouldQuantize, final int[] colors) {
+  private static void roundPalette(final float[] endpoints, final int[] colors) {
     for (int index = 0; index < PALETTE_COLORS * CHANNELS; index++) {
       colors[index] = rgb8(endpoints[index]);
-    }
-    if (shouldQuantize) {
-      for (int endpoint = 0; endpoint < PALETTE_COLORS; endpoint++) {
-        final int at = endpoint * CHANNELS;
-        final int value = pack565(colors[at], colors[at + 1], colors[at + 2]);
-        final int packed = unpack565(value & 0xFF, value >> Byte.SIZE);
-        colors[at] = (packed >> 16) & 0xFF;
-        colors[at + 1] = (packed >> 8) & 0xFF;
-        colors[at + 2] = packed & 0xFF;
-      }
     }
   }
 
@@ -1553,11 +1540,10 @@ public final class MCV2 {
     final int[] source,
     final int size,
     final float[] endpoints,
-    final boolean shouldQuantize,
     final int[] colors,
     final byte[] selectors
   ) {
-    roundPalette(endpoints, shouldQuantize, colors);
+    roundPalette(endpoints, colors);
     boolean columns = true;
     boolean rows = true;
     for (int row = 0; row < size && (columns || rows); row++) {
@@ -1690,8 +1676,8 @@ public final class MCV2 {
     void predict(byte[] reference, int width, int height, int left, int top, int size, int motionX, int motionY, int[] out);
     void fit(float[] values, int offset, int stride, int size, float[] out, int outOffset, int outStride);
     void cluster(int[] source, int size, float[] endpoints);
-    void finish(int[] source, int count, float[] endpoints, boolean shouldQuantize, int[] colors, byte[] selectors);
-    boolean finishPattern(int[] source, int size, float[] endpoints, boolean shouldQuantize, int[] colors, byte[] selectors);
+    void finish(int[] source, int count, float[] endpoints, int[] colors, byte[] selectors);
+    boolean finishPattern(int[] source, int size, float[] endpoints, int[] colors, byte[] selectors);
     int seeded(byte[] reference, int width, int height, int[] source, int left, int top, int size, int range, int[] seeds);
     void loadSource(byte[] image, int width, int height, int left, int top, int size, int[] source);
     void halve(int[] block, int size, int[] out);
@@ -1964,27 +1950,13 @@ public final class MCV2 {
     }
 
     @Override
-    public void finish(
-      final int[] source,
-      final int count,
-      final float[] endpoints,
-      final boolean shouldQuantize,
-      final int[] colors,
-      final byte[] selectors
-    ) {
-      finishPalette(source, count, endpoints, shouldQuantize, colors, selectors);
+    public void finish(final int[] source, final int count, final float[] endpoints, final int[] colors, final byte[] selectors) {
+      finishPalette(source, count, endpoints, colors, selectors);
     }
 
     @Override
-    public boolean finishPattern(
-      final int[] source,
-      final int size,
-      final float[] endpoints,
-      final boolean shouldQuantize,
-      final int[] colors,
-      final byte[] selectors
-    ) {
-      return MCV2.finishPattern(source, size, endpoints, shouldQuantize, colors, selectors);
+    public boolean finishPattern(final int[] source, final int size, final float[] endpoints, final int[] colors, final byte[] selectors) {
+      return MCV2.finishPattern(source, size, endpoints, colors, selectors);
     }
 
     @Override
@@ -2093,7 +2065,7 @@ public final class MCV2 {
     }
   }
 
-  // The writer emits one level-order index and tables when repeated records pay for them.
+  // The writer stores level-order records and omits roots filled by the default prediction.
   private static byte @Nullable [] write(
     final int width,
     final int height,
@@ -2121,7 +2093,6 @@ public final class MCV2 {
       roots.add(keyframe ? rewriteDefault(root, defaultColor) : root);
     }
     final List<TreeNode> flat = new ArrayList<>();
-    final List<Integer> sizes = new ArrayList<>();
     final int[] levels = new int[BLOCK_SIZES];
     List<TreeNode> level = new ArrayList<>();
     for (final TreeNode root : roots) {
@@ -2134,7 +2105,6 @@ public final class MCV2 {
       final List<TreeNode> children = new ArrayList<>();
       for (final TreeNode node : level) {
         flat.add(node);
-        sizes.add(ROOT_SIZE >> depth);
         if (node.isSplit()) {
           for (int corner = 0; corner < QUARTERS; corner++) {
             children.add(node.getChild(corner));
@@ -2143,24 +2113,15 @@ public final class MCV2 {
       }
       level = children;
     }
-    final Map<Long, Integer> endpoints = endpointTable(flat);
-    final List<Map<Long, Integer>> words = selectorTables(flat, sizes);
     final int groups = (roots.size() + GROUP_ROOTS - 1) / GROUP_ROOTS;
     final int checkpoints = (groups + CHECKPOINT_GROUPS - 1) / CHECKPOINT_GROUPS;
     final int countsAt = HEADER_BYTES + (groups + checkpoints) * Integer.BYTES;
     final int descriptorsAt = countsAt + BLOCK_SIZES * Integer.BYTES;
     final int walksAt = descriptorsAt + flat.size();
-    final int start = walksAt + ((flat.size() + WALK_SPAN - 1) / WALK_SPAN) * Integer.BYTES + Integer.BYTES;
-    int length = start + endpoints.size() * Integer.BYTES;
-    for (int index = 0; index < BLOCK_SIZES; index++) {
-      length += words.get(index).size() * (1 + (SMALLEST_BLOCK << index) / Byte.SIZE);
-    }
-    for (int index = 0; index < flat.size(); index++) {
-      final TreeNode node = flat.get(index);
-      length +=
-        node.getMode() == MODE_PATTERN
-          ? patternSize(sizes.get(index), !endpoints.isEmpty(), !words.get(sizeIndex(sizes.get(index))).isEmpty())
-          : node.record().length;
+    final int start = walksAt + ((flat.size() + WALK_SPAN - 1) / WALK_SPAN) * Integer.BYTES;
+    int length = start;
+    for (final TreeNode node : flat) {
+      length += node.record().length;
     }
     if (length > MAX_FRAME_BYTES) {
       return null;
@@ -2196,15 +2157,10 @@ public final class MCV2 {
     for (int index = 0; index < BLOCK_SIZES; index++) {
       putU32(data, countsAt + index * Integer.BYTES, levels[index]);
     }
-    data[start - Integer.BYTES] = (byte) endpoints.size();
-    for (int index = 0; index < BLOCK_SIZES; index++) {
-      data[start - BLOCK_SIZES + index] = (byte) words.get(index).size();
-    }
     int cursor = 0;
     int splits = 0;
     for (int index = 0; index < flat.size(); index++) {
       final TreeNode node = flat.get(index);
-      final int size = sizes.get(index);
       if (index % WALK_SPAN == 0) {
         putU32(data, walksAt + (index / WALK_SPAN) * Integer.BYTES, cursor | ((long) splits << 17));
       }
@@ -2214,95 +2170,10 @@ public final class MCV2 {
         continue;
       }
       final byte[] record = node.record();
-      if (node.getMode() == MODE_PATTERN) {
-        if (endpoints.isEmpty()) {
-          System.arraycopy(record, 0, data, start + cursor, 2 * CHANNELS);
-          cursor += 2 * CHANNELS;
-        } else {
-          data[start + cursor++] = (byte) (int) Preconditions.checkNotNull(endpoints.get(bytesKey(record, 0, 2 * CHANNELS)));
-        }
-        final Map<Long, Integer> table = words.get(sizeIndex(size));
-        if (table.isEmpty()) {
-          System.arraycopy(record, 2 * CHANNELS, data, start + cursor, 1 + size / Byte.SIZE);
-          cursor += 1 + size / Byte.SIZE;
-        } else {
-          data[start + cursor++] = (byte) (int) Preconditions.checkNotNull(table.get(bytesKey(record, 2 * CHANNELS, 1 + size / Byte.SIZE)));
-        }
-      } else {
-        System.arraycopy(record, 0, data, start + cursor, record.length);
-        cursor += record.length;
-      }
-    }
-    int at = start + cursor;
-    for (int index = 0; index < BLOCK_SIZES; index++) {
-      final int entry = 1 + (SMALLEST_BLOCK << index) / Byte.SIZE;
-      for (final long word : words.get(index).keySet()) {
-        for (int offset = 0; offset < entry; offset++) {
-          data[at++] = (byte) (word >>> (offset * Byte.SIZE));
-        }
-      }
-    }
-    for (final long pair : endpoints.keySet()) {
-      for (int endpoint = 0; endpoint < PALETTE_COLORS; endpoint++) {
-        final long color = pair >>> (endpoint * CHANNELS * Byte.SIZE);
-        putU16(data, at, pack565((int) color & 255, (int) (color >> 8) & 255, (int) (color >> 16) & 255));
-        at += Short.BYTES;
-      }
+      System.arraycopy(record, 0, data, start + cursor, record.length);
+      cursor += record.length;
     }
     return data;
-  }
-
-  private static Map<Long, Integer> endpointTable(final List<TreeNode> flat) {
-    final Map<Long, Integer> counts = new LinkedHashMap<>();
-    int uses = 0;
-    for (final TreeNode node : flat) {
-      if (node.getMode() != MODE_PATTERN) {
-        continue;
-      }
-      final byte[] record = node.record();
-      // Palettes rewritten as patterns may still have full RGB endpoints, which a 565 table cannot preserve.
-      for (int at = 0; at < PALETTE_COLORS * CHANNELS; at += CHANNELS) {
-        final int packed = pack565(record[at] & 255, record[at + 1] & 255, record[at + 2] & 255);
-        if (unpack565(packed & 255, packed >> Byte.SIZE) != color(record, at)) {
-          return Map.of();
-        }
-      }
-      counts.putIfAbsent(bytesKey(record, 0, 2 * CHANNELS), counts.size());
-      uses++;
-    }
-    return counts.size() <= 255 && uses * 5 > counts.size() * Integer.BYTES ? counts : Map.of();
-  }
-
-  private static List<Map<Long, Integer>> selectorTables(final List<TreeNode> flat, final List<Integer> sizes) {
-    final List<Map<Long, Integer>> tables = new ArrayList<>(List.of(new LinkedHashMap<>(), new LinkedHashMap<>(), new LinkedHashMap<>()));
-    final int[] uses = new int[BLOCK_SIZES];
-    for (int index = 0; index < flat.size(); index++) {
-      final TreeNode node = flat.get(index);
-      if (node.getMode() != MODE_PATTERN) {
-        continue;
-      }
-      final int size = sizes.get(index);
-      final int which = sizeIndex(size);
-      final Map<Long, Integer> table = tables.get(which);
-      table.putIfAbsent(bytesKey(node.record(), 2 * CHANNELS, 1 + size / Byte.SIZE), table.size());
-      uses[which]++;
-    }
-    for (int index = 0; index < BLOCK_SIZES; index++) {
-      final int entry = 1 + (SMALLEST_BLOCK << index) / Byte.SIZE;
-      final int count = tables.get(index).size();
-      if (count > 255 || uses[index] * (entry - 1) <= count * entry) {
-        tables.set(index, Map.of());
-      }
-    }
-    return tables;
-  }
-
-  private static long bytesKey(final byte[] data, final int at, final int length) {
-    long key = 0;
-    for (int index = 0; index < length; index++) {
-      key |= (data[at + index] & 255L) << (Byte.SIZE * index);
-    }
-    return key;
   }
 
   private static int color(final byte[] data, final int at) {
@@ -2378,7 +2249,7 @@ public final class MCV2 {
       );
     }
     if (node.getMode() == MODE_PALETTE) {
-      final byte[] patternOutput = new byte[patternSize(size, false, false)];
+      final byte[] patternOutput = new byte[patternSize(size)];
       if (patternRecord(node.record(), size, patternOutput)) {
         return TreeNode.leaf(MODE_PATTERN, 0, patternOutput);
       }

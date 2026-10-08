@@ -28,7 +28,6 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.recordSize;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.signed;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.u16;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.u32;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.unpack565;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -66,38 +65,18 @@ final class Mcv2DecoderFormatTest {
 
   @Test
   void sizesPatternRecords() {
-    assertEquals(6 + 1 + 1, patternSize(8, false, false));
-    assertEquals(6 + 1 + 4, patternSize(32, false, false));
-    assertEquals(1 + 1 + 2, patternSize(16, true, false));
-    assertEquals(6 + 1, patternSize(32, false, true));
-    assertEquals(2, patternSize(8, true, true));
+    assertEquals(6 + 1 + 1, patternSize(8));
+    assertEquals(6 + 1 + 4, patternSize(32));
+    assertEquals(6 + 1 + 2, patternSize(16));
   }
 
   @Test
   void sizesTheWalkRegion() throws Mcv2Exception {
     for (int descriptors = 0; descriptors < 40; descriptors++) {
       final byte[] modes = new byte[descriptors];
-      final byte[] frame = Mcv2WireFrames.frame(
-        1280,
-        32,
-        true,
-        modes,
-        new byte[descriptors][0],
-        new int[] { descriptors, 0, 0 },
-        new byte[0],
-        new byte[][] { {}, {}, {} }
-      );
-      assertEquals(32 + 8 + 4 + 12 + descriptors + 4 * ((descriptors + 7) / 8) + 4, Mcv2Decoder.parse(frame).getPayloadStart());
+      final byte[] frame = Mcv2WireFrames.frame(1280, 32, true, modes, new byte[descriptors][0], new int[] { descriptors, 0, 0 });
+      assertEquals(32 + 8 + 4 + 12 + descriptors + 4 * ((descriptors + 7) / 8), Mcv2Decoder.parse(frame).getPayloadStart());
     }
-  }
-
-  @Test
-  void expandsRgb565ByReplicatingTheHighBits() {
-    assertEquals(0xFFFFFF, unpack565(0xFF, 0xFF));
-    assertEquals(0x000000, unpack565(0, 0));
-    // red 10101, green 101010, blue 01010
-    final int value = 0b10101_101010_01010;
-    assertEquals(0xADAA52, unpack565(value & 0xFF, value >> 8));
   }
 
   @Test
