@@ -29,7 +29,7 @@ sys.path.insert(0, str(REFERENCE))
 
 from mcvideo import format as fmt
 from mcvideo.decoder import Decoder
-from mcvideo.v3 import Node, expand_endpoints, pack_frame, parse_frame
+from mcvideo.v3 import Node, pack_frame, parse_frame
 
 DEFAULT_SEED = 20261008
 
@@ -44,14 +44,11 @@ def compact_record(randomizer, kind=None, form=None):
     return bytes([kind | form << 4]) + rbytes(randomizer, form + fmt.BODY_BYTES[kind])
 
 
-def tables(randomizer):
-    pairs = tuple(sorted({rbytes(randomizer, 4) for _ in range(4)}))
-    words = {size: tuple(sorted({bytes([orientation]) + rbytes(randomizer, size // 8)
-                                for orientation in (0, 1)})) for size in (8, 16, 32)}
-    return pairs, words
+def pattern_record(randomizer, size):
+    return rbytes(randomizer, 6) + bytes([randomizer.randrange(2)]) + rbytes(randomizer, size // 8)
 
 
-def leaf(randomizer, size, keyframe, pairs, words, mode=None):
+def leaf(randomizer, size, keyframe, mode=None):
     modes = (fmt.SKIP, fmt.SOLID, fmt.PALETTE, fmt.PATTERN) if keyframe else tuple(range(fmt.SPLIT))
     mode = randomizer.choice(modes) if mode is None else mode
     if mode == fmt.SKIP:
@@ -63,15 +60,14 @@ def leaf(randomizer, size, keyframe, pairs, words, mode=None):
     if mode == fmt.PALETTE:
         return Node(mode, record=rbytes(randomizer, 6 + size * size // 8))
     if mode == fmt.PATTERN:
-        return Node(mode, record=expand_endpoints(randomizer.choice(pairs)) + randomizer.choice(words[size]))
+        return Node(mode, record=pattern_record(randomizer, size))
     return Node(fmt.COMPACT, randomizer.randrange(8), compact_record(randomizer))
 
 
-def tree(randomizer, size, keyframe, pairs, words, split_chance=0.65):
+def tree(randomizer, size, keyframe, split_chance=0.65):
     if size > 8 and randomizer.random() < split_chance:
-        return Node(fmt.SPLIT, children=tuple(tree(randomizer, size // 2, keyframe, pairs, words, split_chance)
-                                             for _ in range(4)))
-    return leaf(randomizer, size, keyframe, pairs, words)
+        return Node(fmt.SPLIT, children=tuple(tree(randomizer, size // 2, keyframe, split_chance) for _ in range(4)))
+    return leaf(randomizer, size, keyframe)
 
 
 def random_stream(randomizer, width=None, height=None, frame_count=6):
@@ -81,13 +77,9 @@ def random_stream(randomizer, width=None, height=None, frame_count=6):
     stream = []
     for frame_id in range(frame_count):
         keyframe = frame_id == 0 or randomizer.random() < 0.2
-        pairs, words = tables(randomizer)
-        table_mask = randomizer.randrange(16)
-        roots = {i: tree(randomizer, 32, keyframe, pairs, words) for i in range(count) if randomizer.random() > 0.2}
+        roots = {i: tree(randomizer, 32, keyframe) for i in range(count) if randomizer.random() > 0.2}
         stream.append(pack_frame(width, height, frame_id, frame_id if keyframe else frame_id - 1, keyframe,
-                                 tuple(rbytes(randomizer, 3)) if keyframe else (0, 0, 0), roots,
-                                 pairs if table_mask & 1 else None,
-                                 {size: words[size] for index, size in enumerate((8, 16, 32)) if table_mask >> (index + 1) & 1}))
+                                 tuple(rbytes(randomizer, 3)) if keyframe else (0, 0, 0), roots))
     return stream
 
 
@@ -99,41 +91,39 @@ def repeated(node, size):
 
 
 def mode_stream(randomizer):
-    pairs, words = tables(randomizer)
     nodes = []
     for size in (8, 16, 32):
-        nodes.extend(repeated(leaf(randomizer, size, False, pairs, words, mode), size) for mode in range(fmt.COMPACT))
+        nodes.extend(repeated(leaf(randomizer, size, False, mode), size) for mode in range(fmt.COMPACT))
         for kind in range(3):
             for form in range(3):
                 for q in range(8):
                     nodes.append(repeated(Node(fmt.COMPACT, q, compact_record(randomizer, kind, form)), size))
     height = (len(nodes) + 15) // 16 * 32
-    key_roots = {i: repeated(leaf(randomizer, size, True, pairs, words, mode), size)
+    key_roots = {i: repeated(leaf(randomizer, size, True, mode), size)
                  for i, (size, mode) in enumerate((size, mode) for size in (8, 16, 32)
                                                    for mode in (fmt.SKIP, fmt.SOLID, fmt.PALETTE, fmt.PATTERN))}
     return [pack_frame(512, height, 0, 0, True, (47, 91, 133), key_roots),
             pack_frame(512, height, 1, 0, False, (0, 0, 0), dict(enumerate(nodes)))]
 
 
-def table_stream(randomizer):
-    pairs, words = tables(randomizer)
-    frames = []
-    for mask in range(16):
-        roots = {i: repeated(Node(fmt.PATTERN, record=expand_endpoints(pairs[i % len(pairs)]) + words[size][mask % 2]), size)
-                 for i, size in enumerate((8, 16, 32))}
-        frames.append(pack_frame(96, 32, mask, mask, True, (0, 0, 0), roots, pairs if mask & 1 else None,
-                                 {size: words[size] for index, size in enumerate((8, 16, 32)) if mask >> (index + 1) & 1}))
-    pairs = tuple(struct.pack('<HH', i, 65535 - i) for i in range(255))
-    words = {size: tuple(bytes([i % 2, i]) + bytes(size // 8 - 1) for i in range(255)) for size in (8, 16, 32)}
-    roots = {i: repeated(Node(fmt.PATTERN, record=expand_endpoints(pairs[254]) + words[size][254]), size)
-             for i, size in enumerate((8, 16, 32))}
-    frames.append(pack_frame(96, 32, 16, 16, True, (0, 0, 0), roots, pairs, words))
-    return frames
+def pattern_stream(randomizer):
+    """Every size, orientation and axis extreme, with endpoints no 5- or 6-bit channel could carry."""
+    endpoints = (bytes([1, 254, 3, 255, 0, 129]), bytes([127, 128, 77, 2, 253, 250]))
+    roots, index = {}, 0
+    for size in (8, 16, 32):
+        for orientation in (0, 1):
+            for axis in (bytes(size // 8), bytes([255]) * (size // 8), bytes([0xA5]) * (size // 8),
+                         rbytes(randomizer, size // 8)):
+                roots[index] = repeated(Node(fmt.PATTERN, record=endpoints[index % 2] + bytes([orientation]) + axis), size)
+                index += 1
+    swapped = {i: Node(fmt.SKIP) if i % 3 == 0 else repeated(Node(fmt.PATTERN, record=pattern_record(randomizer, 8)), 8)
+               for i in roots}
+    return [pack_frame(256, 96, 0, 0, True, (5, 6, 7), roots), pack_frame(256, 96, 1, 0, False, (0, 0, 0), swapped)]
 
 
 def build_streams(seed=DEFAULT_SEED):
     randomizer = random.Random(seed)
-    streams = {'edge-modes.mcs': mode_stream(randomizer), 'edge-tables.mcs': table_stream(randomizer)}
+    streams = {'edge-modes.mcs': mode_stream(randomizer), 'edge-patterns.mcs': pattern_stream(randomizer)}
     for name, width, height in [('tiny', 1, 1), ('vertical', 1, 97), ('horizontal', 97, 1), ('cropped', 97, 65),
                                 ('directory', 4096, 65)]:
         streams[f'edge-{name}.mcs'] = random_stream(randomizer, width, height)
@@ -153,9 +143,9 @@ def build_streams(seed=DEFAULT_SEED):
     roots = {i: repeated(Node(fmt.SKIP), 8) for i in range(4086)}
     streams['edge-max-splits.mcs'] = [pack_frame(4096, 4096, 0, 0, True, (7, 11, 13), roots)]
     roots = {i: Node(fmt.PALETTE, record=rbytes(randomizer, 134)) for i in range(965)}
-    roots[965] = Node(fmt.SOLID, record=b'\x24\x48\x72')
-    streams['edge-length-limit.mcs'] = [pack_frame(1024, 1024, 0, 0, True, (0, 0, 0), roots,
-                                                [struct.pack('<I', i) for i in range(29)])]
+    roots[965] = Node(fmt.PATTERN, record=pattern_record(randomizer, 32))
+    roots.update({i: Node(fmt.SOLID, record=rbytes(randomizer, 3)) for i in range(966, 991)})
+    streams['edge-length-limit.mcs'] = [pack_frame(1024, 1024, 0, 0, True, (0, 0, 0), roots)]
     streams['edge-wrap.mcs'] = [pack_frame(1, 1, frame_id, frame_id if index == 0 else frame_id - 1 & fmt.ID_MASK,
                                           index == 0, (27, 64, 128) if index == 0 else (0, 0, 0), {})
                                for index, frame_id in enumerate((0xFFFFFFFE, 0xFFFFFFFF, 0, 1))]

@@ -17,26 +17,25 @@
 """Specification validation and serializer tests, including literal wire examples."""
 
 import random
-import struct
 import unittest
 
 from rejection_cases import changed, rejected_frames
 from mcvideo import format as fmt
-from mcvideo.v3 import Node, expand_endpoints, pack_frame, parse_frame
+from mcvideo.v3 import Node, pack_frame, parse_frame
 
 
 class FormatTest(unittest.TestCase):
     def test_literal_frame_layout(self):
         expected = bytes.fromhex(
-            '4d43563203010000 01000100 09000000 09000000 3d000000 40000000 10203000'
-            '01000000 00000000 01000000 00000000 00000000 02 00000000 00000000 abcdef')
+            '4d43563203010000 01000100 09000000 09000000 39000000 3c000000 10203000'
+            '01000000 00000000 01000000 00000000 00000000 02 00000000 abcdef')
         actual = pack_frame(1, 1, 9, 9, True, (16, 32, 48), {0: Node(fmt.SOLID, record=b'\xab\xcd\xef')})
         self.assertEqual(expected, actual)
         frame = parse_frame(expected)
-        self.assertEqual((1, 1, 9, 9, True, (16, 32, 48), 61, 64),
+        self.assertEqual((1, 1, 9, 9, True, (16, 32, 48), 57, 60),
                          (frame.width, frame.height, frame.frame_id, frame.reference_id, frame.keyframe,
                           frame.default_color, frame.payload_start, frame.total))
-        self.assertEqual((0, 0, 32, fmt.SOLID, 0, 61),
+        self.assertEqual((0, 0, 32, fmt.SOLID, 0, 57),
                          (frame.leaves[0].x, frame.leaves[0].y, frame.leaves[0].size,
                           frame.leaves[0].mode, frame.leaves[0].q, frame.leaves[0].offset))
 
@@ -61,32 +60,29 @@ class FormatTest(unittest.TestCase):
                          [(leaf.x, leaf.y, leaf.size) for leaf in frame.leaves])
         self.assertEqual(roots, frame.roots)
 
-    def test_serializer_round_trips_with_every_table_combination(self):
+    def test_serializer_round_trips_whole_patterns_at_every_size(self):
         randomizer = random.Random(1541)
-        pairs = (bytes.fromhex('00f8e007'), bytes.fromhex('1f00ffff'))
-        for table_mask in range(16):
-            selectors = {size: (bytes([size % 2]) + bytes([0xA5] * (size // 8)),) for size in (8, 16, 32)}
-            def tree(size):
-                if size > 8 and randomizer.random() < 0.8:
-                    return Node(fmt.SPLIT, children=tuple(tree(size // 2) for _ in range(4)))
-                return Node(fmt.PATTERN, record=expand_endpoints(randomizer.choice(pairs)) + selectors[size][0])
-            roots = {0: tree(32), 2: tree(32), 3: Node(fmt.SKIP)}
-            tables = {size: selectors[size] for index, size in enumerate((8, 16, 32)) if table_mask >> (index + 1) & 1}
-            endpoints = pairs if table_mask & 1 else ()
-            data = pack_frame(51, 35, 44, 44, True, (9, 8, 7), roots, endpoints, tables)
+        def leaf(size):
+            return Node(fmt.PATTERN, record=bytes(randomizer.randrange(256) for _ in range(6))
+                        + bytes([randomizer.randrange(2)]) + bytes(randomizer.randrange(256) for _ in range(size // 8)))
+        def tree(size):
+            if size > 8 and randomizer.random() < 0.8:
+                return Node(fmt.SPLIT, children=tuple(tree(size // 2) for _ in range(4)))
+            return leaf(size)
+        for _ in range(16):
+            roots = {0: tree(32), 1: leaf(32), 2: tree(32), 3: Node(fmt.SKIP)}
+            data = pack_frame(51, 35, 44, 44, True, (9, 8, 7), roots)
             frame = parse_frame(data)
             self.assertEqual(roots, frame.roots)
-            self.assertEqual(endpoints, frame.endpoint_table)
+            self.assertEqual(len(data), frame.payload_start + sum(len(leaf.record) for leaf in frame.leaves))
             self.assertEqual(data, pack_frame(frame.width, frame.height, frame.frame_id, frame.reference_id,
-                                             frame.keyframe, frame.default_color, frame.roots,
-                                             frame.endpoint_table, frame.selector_tables))
+                                             frame.keyframe, frame.default_color, frame.roots))
 
-    def test_unused_tables_present_skips_and_nonminimal_motion_are_valid(self):
+    def test_present_skips_and_nonminimal_motion_are_valid(self):
         for form in range(3):
             frame = parse_frame(pack_frame(1, 1, 1, 0, False, (0, 0, 0),
-                                {0: Node(fmt.COMPACT, 7, bytes([form << 4]) + bytes(form + 1))},
-                                [bytes(4)], {8: [bytes(2)], 16: [bytes(3)], 32: [bytes(5)]}))
-            self.assertEqual((1, 1, 1, 1), frame.table_counts)
+                                {0: Node(fmt.COMPACT, 7, bytes([form << 4]) + bytes(form + 1))}))
+            self.assertEqual(form + 2, len(frame.leaves[0].record))
         frame = parse_frame(pack_frame(1, 1, 0, 0, True, (0, 0, 0), {0: Node(fmt.SKIP)}))
         self.assertEqual({0: Node(fmt.SKIP)}, frame.roots)
 
@@ -99,20 +95,21 @@ class FormatTest(unittest.TestCase):
 
     def test_inclusive_frame_length_limit(self):
         roots = {i: Node(fmt.PALETTE, record=bytes(134)) for i in range(965)}
-        roots[965] = Node(fmt.SOLID, record=bytes(3))
-        data = pack_frame(1024, 1024, 0, 0, True, (0, 0, 0), roots,
-                          endpoint_table=[struct.pack('<I', i) for i in range(29)])
+        roots[965] = Node(fmt.PATTERN, record=bytes(11))
+        roots.update({i: Node(fmt.SOLID, record=bytes(3)) for i in range(966, 991)})
+        data = pack_frame(1024, 1024, 0, 0, True, (0, 0, 0), roots)
         self.assertEqual(131071, len(data))
         self.assertEqual(131071, parse_frame(data).total)
         with self.assertRaisesRegex(ValueError, 'frame length'):
             parse_frame(data + b'\0')
+        roots[991] = Node(fmt.SOLID, record=bytes(3))
         with self.assertRaisesRegex(ValueError, 'length limit'):
-            pack_frame(1024, 1024, 0, 0, True, (0, 0, 0), roots,
-                       endpoint_table=[struct.pack('<I', i) for i in range(30)])
+            pack_frame(1024, 1024, 0, 0, True, (0, 0, 0), roots)
 
-    def test_serializer_refuses_invalid_trees_and_tables(self):
+    def test_serializer_refuses_invalid_trees(self):
         bad = [Node(fmt.SPLIT), Node(fmt.SKIP, 1), Node(fmt.SKIP, record=b'x'), Node(fmt.SOLID, record=b'x'),
-               Node(fmt.COMPACT, record=b'\0'), Node(fmt.PATTERN, record=bytes(2)),
+               Node(fmt.COMPACT, record=b'\0'), Node(fmt.PATTERN, record=bytes(2)), Node(fmt.PATTERN, record=bytes(12)),
+               Node(fmt.PATTERN, record=bytes(6) + b'\2' + bytes(4)),
                Node(fmt.SKIP, children=(Node(fmt.SKIP),)), Node(31)]
         split8 = Node(fmt.SPLIT, children=(Node(fmt.SKIP),) * 4)
         for _ in range(2):
@@ -121,17 +118,6 @@ class FormatTest(unittest.TestCase):
         for node in bad:
             with self.subTest(node=node), self.assertRaises(ValueError):
                 pack_frame(32, 32, 1, 0, False, (0, 0, 0), {0: node})
-        for options in ({'endpoint_table': [bytes(4)] * 2}, {'endpoint_table': [bytes(3)]},
-                        {'selector_tables': {8: [bytes(2)] * 2}}, {'selector_tables': {16: [b'\2\0\0']}},
-                        {'selector_tables': {4: []}}, {'endpoint_table': [bytes(4)] * 256}):
-            with self.subTest(options=options), self.assertRaises(ValueError):
-                pack_frame(1, 1, 0, 0, True, (0, 0, 0), {}, **options)
-        with self.assertRaisesRegex(ValueError, 'endpoints missing'):
-            pack_frame(1, 1, 0, 0, True, (0, 0, 0), {0: Node(fmt.PATTERN, record=b'abcdef' + bytes(5))}, [bytes(4)])
-        with self.assertRaisesRegex(ValueError, 'selector missing'):
-            pack_frame(1, 1, 0, 0, True, (0, 0, 0), {0: Node(fmt.PATTERN, record=bytes(11))},
-                       selector_tables={32: [b'\1' + bytes(4)]})
-
 
 if __name__ == '__main__':
     unittest.main()

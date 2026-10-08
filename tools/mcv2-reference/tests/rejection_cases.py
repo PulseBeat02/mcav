@@ -70,7 +70,7 @@ def rejected_frames():
     pframe = frame(key=False)
     for channel in range(3):
         add(f'pframe-default-{channel}', changed(pframe, 28 + channel, 1), '9.2', 'default colour')
-    for length in (32, 36, 40, 44, 52, 55):
+    for length in (32, 36, 40, 44, 48, 51):
         add(f'truncated-index-{length}', resized(empty[:length]), '9.3', 'truncated index')
     for delta in (-1, 1):
         add(f'payload-start-{delta}', changed(solid, 20, parse_frame(solid).payload_start + delta, 'I'), '9.3', 'payload start')
@@ -92,7 +92,7 @@ def rejected_frames():
         struct.pack_into('<I', data, at, value - (1 << 17))
     cases['n2-children']['frame'] = data.hex()
     add('split-at-level-2', changed(deep, 57, fmt.SPLIT), '9.3', 'SPLIT in level 2')
-    add('truncated-descriptor-walk', resized(solid[:58]), '9.3', 'truncated descriptors')
+    add('truncated-descriptor-walk', resized(solid[:56]), '9.3', 'truncated descriptors')
     add('walk-zero', changed(solid, 53, 1, 'I'), '9.4', 'walk checkpoint')
     long = frame(Node(fmt.SPLIT, children=(Node(fmt.SPLIT, children=(Node(fmt.SOLID, record=bytes(3)),) * 4),) * 4))
     at = 52 + 21 + 4
@@ -120,23 +120,10 @@ def rejected_frames():
         add(f'compact-form-{form}', changed(compact, offset, form << 4), '9.5', 'motion form')
     pattern = frame(Node(fmt.PATTERN, record=bytes(11)))
     add('pattern-orientation', changed(pattern, parse_frame(pattern).payload_start + 6, 2), '9.5', 'PATTERN orientation')
-    tabled = frame(Node(fmt.PATTERN, record=bytes(11)), endpoint_table=[bytes(4)], selector_tables={32: [bytes(5)]})
-    offset = parse_frame(tabled).payload_start
-    add('endpoint-index', changed(tabled, offset, 1), '9.5', 'endpoint index')
-    add('selector-index', changed(tabled, offset + 1, 1), '9.5', 'selector index')
-    for size in (8, 16, 32):
-        table = frame(selector_tables={size: [bytes(1 + size // 8)]})
-        add(f'table-orientation-{size}', changed(table, parse_frame(table).payload_start, 2), '9.5', 'table orientation')
     offscreen = frame(Node(fmt.SPLIT, children=(Node(fmt.SKIP), Node(fmt.SKIP), Node(fmt.SKIP), Node(fmt.PATTERN, record=bytes(9)))))
     add('off-picture-orientation', changed(offscreen, parse_frame(offscreen).payload_start + 6, 2), '9.5', 'PATTERN orientation')
+    eight = frame(Node(fmt.SPLIT, children=(Node(fmt.SPLIT, children=(Node(fmt.PATTERN, record=bytes(8)),)
+                                                     + (Node(fmt.SKIP),) * 3),) + (Node(fmt.SKIP),) * 3))
+    add('pattern-orientation-8', changed(eight, parse_frame(eight).payload_start + 6, 255), '9.5', 'PATTERN orientation')
     add('payload-gap', resized(solid + b'\0'), '9.6', 'records do not end')
-    add('tables-overlap-index', changed(empty, 52, 255), '9.6', 'tables overlap')
-    add('truncated-endpoint-tail', resized(tabled[:-1]), '9.6', 'record exceeds')
-    add('gap-before-tables', resized(tabled[:offset + 2] + b'\0' + tabled[offset + 2:]), '9.6', 'records do not end')
-    table = frame(endpoint_table=[bytes(4), b'\1\0\0\0'])
-    add('duplicate-endpoints', table[:-4] + bytes(4), '9.6', 'duplicate endpoint')
-    for size in (8, 16, 32):
-        length = 1 + size // 8
-        table = frame(selector_tables={size: [bytes(length), b'\1' + bytes(length - 1)]})
-        add(f'duplicate-selector-{size}', table[:-length] + bytes(length), '9.6', 'duplicate selector')
     return cases
