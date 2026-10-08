@@ -646,7 +646,9 @@ final class VMProcess {
       while ((count = reader.read(characters)) >= 0) {
         this.collectLines(characters, count, line);
       }
-    } catch (final IOException exception) {}
+    } catch (final IOException exception) {
+      // the process is gone, nothing more to read
+    }
 
     final String last = line.toString();
     this.remember(last);

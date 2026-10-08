@@ -59,6 +59,8 @@ final class QemuAudioProtocolFuzzTest {
         final int length = message.getLength();
         assertTrue(length >= 0 && length <= QemuAudioProtocol.MAX_AUDIO_BYTES && length % FRAME == 0, () -> "length " + length);
       }
-    } catch (final IOException refused) {}
+    } catch (final IOException refused) {
+      // malformed, cut short, or not expected: the connection ends
+    }
   }
 }
