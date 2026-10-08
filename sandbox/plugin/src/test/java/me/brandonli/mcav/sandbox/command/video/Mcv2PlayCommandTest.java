@@ -59,13 +59,13 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2FileEncoder;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.Mcv2FileEncoder;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.listener.OnlinePlayers;
 import me.brandonli.mcav.sandbox.locale.Message;
@@ -507,11 +507,11 @@ final class Mcv2PlayCommandTest {
       opened.add(video + " " + width + "x" + height);
       return frames;
     });
-    this.command.encode(this.sender, "clip.mp4", "clip.mcs", "16x16", Mcv2Profile.LIVE);
+    this.command.encode(this.sender, "clip.mp4", "clip.mcs", "16x16", Mcv2Profile.DEFAULT);
     final List<String> told = this.finish();
     assertEquals(List.of("clip.mp4 16x16"), opened);
     assertEquals(2, told.size());
-    final int threads = EncoderPool.shared().getThreads();
+    final int threads = Pool.shared().getThreads();
     assertEquals(
       text(
         Message.MCV2_ENCODE_START.build("clip.mp4 into " + output + " at 16x16 with the live profile, on " + threads + " encoder threads")
@@ -524,7 +524,7 @@ final class Mcv2PlayCommandTest {
     assertFalse(Files.exists(this.streams.resolve("clip.mcs.part")));
     // the encode is over: the next one may start, and cancelling after it finished finds nothing to stop
     this.command.setOpener((_, _, _) -> new SolidFrames(1, new CountDownLatch(0)));
-    this.command.encode(this.sender, "next.mp4", "next.mcs", "16x16", Mcv2Profile.LIVE);
+    this.command.encode(this.sender, "next.mp4", "next.mcs", "16x16", Mcv2Profile.DEFAULT);
     this.finish();
     this.command.cancel(this.sender);
     verify(this.sender).sendMessage(Message.MCV2_ENCODE_NONE.build());
@@ -541,8 +541,8 @@ final class Mcv2PlayCommandTest {
       output,
       16,
       16,
-      Mcv2Profile.LIVE,
-      EncoderPool.shared(),
+      Mcv2Profile.DEFAULT,
+      Pool.shared(),
       0
     );
     final List<String> told = this.finish();
@@ -560,8 +560,8 @@ final class Mcv2PlayCommandTest {
       output,
       16,
       16,
-      Mcv2Profile.LIVE,
-      EncoderPool.shared(),
+      Mcv2Profile.DEFAULT,
+      Pool.shared(),
       0
     );
     Mcv2PlayCommand.encodeFile(
@@ -571,8 +571,8 @@ final class Mcv2PlayCommandTest {
       this.folder.resolve("missing").resolve("out.mcs"),
       16,
       16,
-      Mcv2Profile.LIVE,
-      EncoderPool.shared(),
+      Mcv2Profile.DEFAULT,
+      Pool.shared(),
       0
     );
     // a stream whose unfinished file is a folder that cannot be written, nor removed afterwards
@@ -585,8 +585,8 @@ final class Mcv2PlayCommandTest {
       blocked,
       16,
       16,
-      Mcv2Profile.LIVE,
-      EncoderPool.shared(),
+      Mcv2Profile.DEFAULT,
+      Pool.shared(),
       0
     );
     final List<String> failures = this.finish();
@@ -604,7 +604,7 @@ final class Mcv2PlayCommandTest {
     when(opener.open(any(), anyInt(), anyInt())).thenThrow(new IOException("unexpected open"));
     this.command.setOpener(opener);
     try {
-      this.command.encode(this.sender, "clip.mp4", "limit.mcs", dimensions, Mcv2Profile.LIVE);
+      this.command.encode(this.sender, "clip.mp4", "limit.mcs", dimensions, Mcv2Profile.DEFAULT);
       assertNull(this.command.getEncoding(), "invalid codec dimensions cannot start a worker");
       Mockito.verifyNoInteractions(opener);
       verify(this.sender).sendMessage(Message.UNSUPPORTED_DIMENSION.build());
@@ -620,7 +620,7 @@ final class Mcv2PlayCommandTest {
     final Mcv2FileEncoder.FrameReader frames = mock(Mcv2FileEncoder.FrameReader.class);
     when(frames.read(any(byte[].class))).thenReturn(true, false);
     this.command.setOpener((_, _, _) -> frames);
-    this.command.encode(this.sender, "clip.mp4", "limit.mcs", dimensions, Mcv2Profile.LIVE);
+    this.command.encode(this.sender, "clip.mp4", "limit.mcs", dimensions, Mcv2Profile.DEFAULT);
     this.finish();
     assertEquals(1, Mcv2PlayCommand.read(this.streams.resolve("limit.mcs")).size());
     verify(frames).close();
@@ -641,8 +641,8 @@ final class Mcv2PlayCommandTest {
         target,
         16,
         16,
-        Mcv2Profile.LIVE,
-        EncoderPool.shared(),
+        Mcv2Profile.DEFAULT,
+        Pool.shared(),
         0
       )
     );
@@ -657,10 +657,10 @@ final class Mcv2PlayCommandTest {
     final SolidFrames frames = new SolidFrames(1000, release);
     this.command.setOpener((_, _, _) -> frames);
     final Path output = this.streams.resolve("long.mcs");
-    this.command.encode(this.sender, "long.mp4", "long.mcs", "16x16", Mcv2Profile.LIVE);
+    this.command.encode(this.sender, "long.mp4", "long.mcs", "16x16", Mcv2Profile.DEFAULT);
     final Thread thread = this.command.getEncoding();
     // a second encode while the first runs is refused
-    this.command.encode(this.sender, "other.mp4", "other.mcs", "16x16", Mcv2Profile.LIVE);
+    this.command.encode(this.sender, "other.mp4", "other.mcs", "16x16", Mcv2Profile.DEFAULT);
     verify(this.sender).sendMessage(Message.MCV2_ENCODE_BUSY.build());
     this.command.cancel(this.sender);
     assertSame(thread, this.command.getEncoding(), "the cancelled encode is the running one until its thread ends");
@@ -674,7 +674,7 @@ final class Mcv2PlayCommandTest {
     this.command.cancel(this.sender);
     verify(this.sender).sendMessage(Message.MCV2_ENCODE_NONE.build());
     // a size that is not one is refused before anything starts
-    this.command.encode(this.sender, "clip.mp4", "long.mcs", "big", Mcv2Profile.LIVE);
+    this.command.encode(this.sender, "clip.mp4", "long.mcs", "big", Mcv2Profile.DEFAULT);
     assertSame(thread, this.command.getEncoding());
   }
 
@@ -683,7 +683,7 @@ final class Mcv2PlayCommandTest {
     final CountDownLatch cancelled = new CountDownLatch(1);
     final DropsInterrupts frames = new DropsInterrupts(cancelled);
     this.command.setOpener((_, _, _) -> frames);
-    this.command.encode(this.sender, "long.mp4", "long.mcs", "16x16", Mcv2Profile.LIVE);
+    this.command.encode(this.sender, "long.mp4", "long.mcs", "16x16", Mcv2Profile.DEFAULT);
     final Thread thread = Objects.requireNonNull(this.command.getEncoding());
     this.command.cancel(this.sender);
     cancelled.countDown();
@@ -704,7 +704,7 @@ final class Mcv2PlayCommandTest {
       dropped.set(Thread.interrupted());
       return new WaitsForInterrupt();
     });
-    this.command.encode(this.sender, "long.mp4", "long.mcs", "16x16", Mcv2Profile.LIVE);
+    this.command.encode(this.sender, "long.mp4", "long.mcs", "16x16", Mcv2Profile.DEFAULT);
     final Thread thread = Objects.requireNonNull(this.command.getEncoding());
     this.command.cancel(this.sender);
     cancelled.countDown();
@@ -726,20 +726,20 @@ final class Mcv2PlayCommandTest {
   void aNewEncodeWaitsUntilACancelledOneHasEnded() throws Exception {
     final CountDownLatch mayClose = new CountDownLatch(1);
     this.command.setOpener((_, _, _) -> new SlowToClose(mayClose));
-    this.command.encode(this.sender, "long.mp4", "long.mcs", "16x16", Mcv2Profile.LIVE);
+    this.command.encode(this.sender, "long.mp4", "long.mcs", "16x16", Mcv2Profile.DEFAULT);
     final Thread cancelled = Objects.requireNonNull(this.command.getEncoding());
     this.command.cancel(this.sender);
     // the cancelled encode still lets go of its video, and deletes long.mcs.part once it has
     final CountDownLatch released = new CountDownLatch(0);
     this.command.setOpener((_, _, _) -> new SolidFrames(2, released));
-    this.command.encode(this.sender, "again.mp4", "long.mcs", "16x16", Mcv2Profile.LIVE);
+    this.command.encode(this.sender, "again.mp4", "long.mcs", "16x16", Mcv2Profile.DEFAULT);
     verify(this.sender).sendMessage(Message.MCV2_ENCODE_BUSY.build());
     assertSame(cancelled, this.command.getEncoding());
     mayClose.countDown();
     cancelled.join(TimeUnit.SECONDS.toMillis(60));
     assertFalse(cancelled.isAlive());
     // once it has ended, the same file is encoded and kept
-    this.command.encode(this.sender, "again.mp4", "long.mcs", "16x16", Mcv2Profile.LIVE);
+    this.command.encode(this.sender, "again.mp4", "long.mcs", "16x16", Mcv2Profile.DEFAULT);
     final Thread again = Objects.requireNonNull(this.command.getEncoding());
     again.join(TimeUnit.SECONDS.toMillis(60));
     assertTrue(Files.exists(this.streams.resolve("long.mcs")));
@@ -770,8 +770,8 @@ final class Mcv2PlayCommandTest {
       target,
       16,
       16,
-      Mcv2Profile.LIVE,
-      EncoderPool.shared(),
+      Mcv2Profile.DEFAULT,
+      Pool.shared(),
       0
     );
     assertTrue(this.finish().getLast().startsWith("The MCV2 encode failed: "));
@@ -802,8 +802,8 @@ final class Mcv2PlayCommandTest {
       output,
       320,
       180,
-      Mcv2Profile.LIVE,
-      EncoderPool.shared(),
+      Mcv2Profile.DEFAULT,
+      Pool.shared(),
       0
     );
     final double took = (System.nanoTime() - started) / 1e6;
@@ -825,7 +825,7 @@ final class Mcv2PlayCommandTest {
   void stopsTheEncodeWhenThePluginStops() throws Exception {
     final SolidFrames frames = new SolidFrames(1000, new CountDownLatch(1));
     this.command.setOpener((_, _, _) -> frames);
-    this.command.encode(this.sender, "long.mp4", "long.mcs", "16x16", Mcv2Profile.LIVE);
+    this.command.encode(this.sender, "long.mp4", "long.mcs", "16x16", Mcv2Profile.DEFAULT);
     final Thread thread = Objects.requireNonNull(this.command.getEncoding());
     this.command.shutdown();
     thread.join(TimeUnit.SECONDS.toMillis(60));
@@ -860,7 +860,7 @@ final class Mcv2PlayCommandTest {
     this.command.stream(this.sender, this.selector, "5x3", 20, 60, "../stream.mcs");
     this.runHandedOver();
     verify(this.packs, never()).open(any());
-    this.command.encode(this.sender, "clip.mp4", "../../escape.mcs", "16x16", Mcv2Profile.LIVE);
+    this.command.encode(this.sender, "clip.mp4", "../../escape.mcs", "16x16", Mcv2Profile.DEFAULT);
     assertNull(this.command.getEncoding());
     final List<String> told = this.finish();
     assertEquals(3, told.size());
@@ -904,7 +904,7 @@ final class Mcv2PlayCommandTest {
       assertThrows(IOException.class, () -> Mcv2PlayCommand.read(truncatedFrame, 4)).getMessage()
     );
     // the shortest frame is its header, and a file of one takes exactly its size
-    final byte[] shortest = record(Mcv2Format.HEADER_BYTES);
+    final byte[] shortest = record(Mcv2Decoder.HEADER_BYTES);
     assertEquals(1, Mcv2PlayCommand.read(Files.write(this.folder.resolve("d.mcs"), shortest), shortest.length).size());
     // after a first frame: three bytes are no length, a length past the end no frame
     final Path shortTail = Files.write(this.folder.resolve("e.mcs"), concat(shortest, new byte[] { 1, 0, 0 }));
@@ -918,13 +918,13 @@ final class Mcv2PlayCommandTest {
     final Path empties = Files.write(this.folder.resolve("i.mcs"), concat(shortest, new byte[] { 0, 0, 0, 0 }));
     assertEquals("Invalid MCV2 frame length: 0", assertThrows(IOException.class, () -> Mcv2PlayCommand.read(empties)).getMessage());
     // and one longer than a frame may be
-    final Path huge = Files.write(this.folder.resolve("j.mcs"), record(Mcv2Format.MAX_FRAME_BYTES + 1));
+    final Path huge = Files.write(this.folder.resolve("j.mcs"), record(Mcv2Decoder.MAX_FRAME_BYTES + 1));
     assertEquals(
-      "Invalid MCV2 frame length: " + (Mcv2Format.MAX_FRAME_BYTES + 1),
+      "Invalid MCV2 frame length: " + (Mcv2Decoder.MAX_FRAME_BYTES + 1),
       assertThrows(IOException.class, () -> Mcv2PlayCommand.read(huge)).getMessage()
     );
     // while the longest a frame may be is one
-    final byte[] longest = record(Mcv2Format.MAX_FRAME_BYTES);
+    final byte[] longest = record(Mcv2Decoder.MAX_FRAME_BYTES);
     assertEquals(1, Mcv2PlayCommand.read(Files.write(this.folder.resolve("k.mcs"), longest)).size());
     // every byte of the length counts, little-endian: 16 bytes follow, fewer than any of these lengths
     for (int high = 1; high < 4; high++) {

@@ -29,10 +29,11 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ForkJoinPool;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.FrameWriter;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.TreeNode;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -42,14 +43,14 @@ final class Mcv2PlaybackTest {
   private Mcv2Channel channel;
 
   static List<byte[]> stream() {
-    final FrameWriter.Options options = FrameWriter.Options.production(false);
-    final TreeNode solid = TreeNode.leaf(Mcv2Format.MODE_SOLID, 0, new byte[] { 1, 2, 3 });
-    final TreeNode motion = TreeNode.leaf(Mcv2Format.MODE_MOTION, 0, new byte[] { 1, 1 });
-    return List.of(
-      FrameWriter.write(32, 32, 0, 0, true, 0, 0, List.of(solid), options),
-      FrameWriter.write(32, 32, 1, 0, false, 0, 0, List.of(motion), options),
-      FrameWriter.write(32, 32, 2, 1, false, 0, 0, List.of(motion), options)
-    );
+    final MCV2 encoder = new MCV2(Settings.DEFAULT, ForkJoinPool.commonPool(), 1, true);
+    final byte[] rgb = new byte[32 * 32 * 3];
+    for (int at = 0; at < rgb.length; at += 3) {
+      rgb[at] = 1;
+      rgb[at + 1] = 2;
+      rgb[at + 2] = 3;
+    }
+    return List.of(encoder.encode(rgb, 32, 32, 0), encoder.encode(rgb, 32, 32, 1), encoder.encode(rgb, 32, 32, 2));
   }
 
   @BeforeEach
@@ -62,7 +63,7 @@ final class Mcv2PlaybackTest {
     verify(this.channel, times(times)).send(frames.capture());
     final List<byte[]> all = frames.getAllValues();
     final byte[] last = all.getLast();
-    return new long[] { Mcv2Format.u32(last, 12), Mcv2Format.u32(last, 16) };
+    return new long[] { Mcv2Decoder.u32(last, 12), Mcv2Decoder.u32(last, 16) };
   }
 
   @Test
@@ -110,15 +111,15 @@ final class Mcv2PlaybackTest {
   @Test
   void numbersItsFramesFromTheFirstFrameIdOfItsSlotAcrossTheWrap() {
     when(this.channel.getRecipients()).thenReturn(Set.of(UUID.randomUUID()));
-    final Mcv2Playback playback = new Mcv2Playback(this.channel, stream(), Mcv2Format.MAX_U32 - 1);
+    final Mcv2Playback playback = new Mcv2Playback(this.channel, stream(), Mcv2Decoder.MAX_U32 - 1);
     playback.run();
-    assertEquals(Mcv2Format.MAX_U32 - 1, this.sent(1)[0]);
+    assertEquals(Mcv2Decoder.MAX_U32 - 1, this.sent(1)[0]);
     playback.run();
-    assertEquals(Mcv2Format.MAX_U32, this.sent(2)[0]);
+    assertEquals(Mcv2Decoder.MAX_U32, this.sent(2)[0]);
     playback.run();
     final long[] third = this.sent(3);
     assertEquals(0, third[0], "the ids wrap like the clients' unsigned 32-bit sequence");
-    assertEquals(Mcv2Format.MAX_U32, third[1]);
+    assertEquals(Mcv2Decoder.MAX_U32, third[1]);
   }
 
   @Test

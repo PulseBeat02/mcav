@@ -39,10 +39,16 @@ final class MCV2Test {
     try (final ForkJoinPool pool = new ForkJoinPool(1)) {
       final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT, pool, 1, true);
       final byte[] picture = { 10, 20, 30 };
-      final byte[] expected = HexFormat.of().parseHex("4d4356320301000001000100010000000100000038000000380000000a141e00" + "000000000000000000000000000000000000000000000000");
+      final byte[] expected = HexFormat.of().parseHex(
+        "4d4356320301000001000100010000000100000038000000380000000a141e00" + "000000000000000000000000000000000000000000000000"
+      );
       assertArrayEquals(expected, encoder.encode(picture, 1, 1, 1));
       final byte[] predicted = expected.clone();
-      predicted[5] = 0; predicted[12] = 2; predicted[28] = 0; predicted[29] = 0; predicted[30] = 0;
+      predicted[5] = 0;
+      predicted[12] = 2;
+      predicted[28] = 0;
+      predicted[29] = 0;
+      predicted[30] = 0;
       assertArrayEquals(predicted, encoder.encode(picture, 1, 1, 2));
       assertArrayEquals(picture, Mcv2Decoder.decode(predicted, picture, 1));
       assertEquals(56, encoder.getStats().bytes());
@@ -67,7 +73,9 @@ final class MCV2Test {
           assertArrayEquals(reference, encoder.getReference());
           assertEquals(index, frame.getFrameId());
           assertTrue(data.length <= Mcv2Decoder.MAX_FRAME_BYTES);
-          if (!frame.isKeyframe()) { assertEquals(index - 1, frame.getReferenceId()); }
+          if (!frame.isKeyframe()) {
+            assertEquals(index - 1, frame.getReferenceId());
+          }
         }
       }
     }
@@ -80,7 +88,9 @@ final class MCV2Test {
     random.nextBytes(source[0]);
     for (int index = 1; index < source.length; index++) {
       System.arraycopy(source[index - 1], 0, source[index], 0, source[index].length);
-      for (int channel = 0; channel < source[index].length; channel += 19) { source[index][channel]++; }
+      for (int channel = 0; channel < source[index].length; channel += 19) {
+        source[index][channel]++;
+      }
     }
     for (final MCV2.Settings settings : new MCV2.Settings[] { MCV2.Settings.DEFAULT, MCV2.Settings.FAST, MCV2.Settings.ADAPTIVE }) {
       final byte[][] golden = new byte[source.length][];
@@ -89,8 +99,11 @@ final class MCV2Test {
           final MCV2 encoder = new MCV2(settings, pool, threads, true);
           for (int index = 0; index < source.length; index++) {
             final byte[] actual = encoder.encode(source[index], 128, 96, index);
-            if (threads == 1) { golden[index] = actual; }
-            else { assertArrayEquals(golden[index], actual); }
+            if (threads == 1) {
+              golden[index] = actual;
+            } else {
+              assertArrayEquals(golden[index], actual);
+            }
           }
         }
       }
@@ -106,7 +119,9 @@ final class MCV2Test {
       encoder.setFrameLimit(56);
       final byte[] first = encoder.encode(source, 63, 65, 0);
       final Mcv2Decoder.Frame parsed = Mcv2Decoder.parse(first);
-      for (int index = 0; index < parsed.getLeafCount(); index++) { assertEquals(32, parsed.getLeaf(index).size()); }
+      for (int index = 0; index < parsed.getLeafCount(); index++) {
+        assertEquals(32, parsed.getLeaf(index).size());
+      }
       assertTrue(first.length <= Mcv2Decoder.MAX_FRAME_BYTES);
       final byte[] reference = encoder.getReference();
       source[0]++;
@@ -123,10 +138,14 @@ final class MCV2Test {
       final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT, pool, 2, true);
       encoder.setFrameBudget(1);
       final byte[] source = new byte[32 * 32 * 3];
-      for (int pixel = 0; pixel < 32 * 32; pixel++) { source[pixel * 3] = (byte) (pixel % 32 * 2); }
+      for (int pixel = 0; pixel < 32 * 32; pixel++) {
+        source[pixel * 3] = (byte) ((pixel % 32) * 2);
+      }
       final byte[] first = encoder.encode(source, 32, 32, 0);
       final byte[] decoded = Mcv2Decoder.decode(first, null, 0);
-      for (int pixel = 0; pixel < 32 * 32; pixel++) { assertEquals(31, decoded[pixel * 3]); }
+      for (int pixel = 0; pixel < 32 * 32; pixel++) {
+        assertEquals(31, decoded[pixel * 3]);
+      }
       assertEquals(56, first.length);
       source[0] = 10;
       assertEquals(56, encoder.encode(source, 32, 32, 1).length);
@@ -146,7 +165,8 @@ final class MCV2Test {
       encoder.requestKeyframe();
       assertTrue(Mcv2Decoder.parse(encoder.encode(black, 1, 1, 2)).isKeyframe());
       assertTrue(Mcv2Decoder.parse(encoder.encode(new byte[6], 2, 1, 3)).isKeyframe());
-      final byte[] white = new byte[6]; Arrays.fill(white, (byte) 255);
+      final byte[] white = new byte[6];
+      Arrays.fill(white, (byte) 255);
       assertTrue(Mcv2Decoder.parse(encoder.encode(white, 2, 1, 4)).isKeyframe());
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(white, 2, 1, 4));
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(white, 2, 1, 0x80000004L));
@@ -159,14 +179,17 @@ final class MCV2Test {
       final MCV2 encoder = new MCV2(MCV2.Settings.ADAPTIVE, pool, 1, true);
       final byte[] source = new byte[32 * 32 * 3];
       encoder.encode(source, 32, 32, 0);
-      Arrays.fill(source, (byte) 10); encoder.encode(source, 32, 32, 1);
-      Arrays.fill(source, (byte) 20); encoder.encode(source, 32, 32, 2);
+      Arrays.fill(source, (byte) 10);
+      encoder.encode(source, 32, 32, 1);
+      Arrays.fill(source, (byte) 20);
+      encoder.encode(source, 32, 32, 2);
       final double raised = 55 * Math.pow(10 / 4.6, 0.79);
       assertEquals(raised, encoder.getStats().lambda());
       encoder.switchTo(MCV2.Settings.FAST.withLambda(30));
       assertEquals(MCV2.Settings.FAST.withLambda(30), encoder.getSettings());
       final Mcv2Decoder.Frame next = Mcv2Decoder.parse(encoder.encode(source, 32, 32, 3));
-      assertFalse(next.isKeyframe()); assertEquals(2, next.getReferenceId());
+      assertFalse(next.isKeyframe());
+      assertEquals(2, next.getReferenceId());
       assertEquals(30 * Math.pow(10 / 4.6, 0.79), encoder.getStats().lambda());
     }
   }
@@ -178,7 +201,9 @@ final class MCV2Test {
       final MCV2 pipelined = new MCV2(MCV2.Settings.DEFAULT, pool, 2, true);
       final byte[][] source = new byte[3][32 * 32 * 3];
       final Random random = new Random(171);
-      for (final byte[] picture : source) { random.nextBytes(picture); }
+      for (final byte[] picture : source) {
+        random.nextBytes(picture);
+      }
       final MCV2.Pending first = pipelined.begin(source[0], 32, 32, 0);
       final MCV2.Pending second = pipelined.begin(source[1], 32, 32, 1);
       assertThrows(IllegalStateException.class, () -> pipelined.begin(source[2], 32, 32, 2));
@@ -219,7 +244,8 @@ final class MCV2Test {
       assertThrows(NullPointerException.class, () -> new MCV2(null, pool, 1, false));
       assertThrows(NullPointerException.class, () -> new MCV2(MCV2.Settings.DEFAULT, null, 1, false));
       final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT, pool, 1, false);
-      assertNull(encoder.getReference()); assertNull(encoder.getStats());
+      assertNull(encoder.getReference());
+      assertNull(encoder.getStats());
       assertThrows(IllegalArgumentException.class, () -> encoder.setFrameBudget(-1));
       assertThrows(IllegalArgumentException.class, () -> encoder.setFrameLimit(-1));
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[3], 0, 1, 0));
@@ -231,7 +257,9 @@ final class MCV2Test {
       assertThrows(NullPointerException.class, () -> encoder.switchTo(null));
       assertThrows(NullPointerException.class, () -> encoder.finish(null));
       encoder.encode(new byte[3], 1, 1, 0);
-      final byte[] reference = encoder.getReference(); assertNotNull(reference); reference[0] = 42;
+      final byte[] reference = encoder.getReference();
+      assertNotNull(reference);
+      reference[0] = 42;
       assertArrayEquals(new byte[3], encoder.getReference());
     }
   }

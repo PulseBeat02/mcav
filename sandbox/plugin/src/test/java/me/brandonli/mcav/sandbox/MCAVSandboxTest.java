@@ -53,8 +53,8 @@ import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
 import me.brandonli.mcav.browser.BrowserModule;
 import me.brandonli.mcav.bukkit.BukkitModule;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.Mcv2Natives;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
 import me.brandonli.mcav.bukkit.utils.versioning.ServerEnvironment;
 import me.brandonli.mcav.bukkit.utils.versioning.UnsupportedServerVersionException;
 import me.brandonli.mcav.sandbox.audio.AudioProvider;
@@ -296,11 +296,11 @@ final class MCAVSandboxTest {
     Files.writeString(this.folder.resolve("config.yml"), defaults.replace("  encoder-threads: 0\n", "  encoder-threads: 3\n"));
     try {
       this.sandbox.onEnable();
-      assertEquals(3, EncoderPool.shared().getThreads());
+      assertEquals(3, Pool.shared().getThreads());
       verify(this.logger).info("MCV2 encoders share {} of {} processors", 3, Runtime.getRuntime().availableProcessors());
       this.sandbox.onDisable();
     } finally {
-      EncoderPool.setSharedThreads(0);
+      Pool.setSharedThreads(0);
     }
   }
 
@@ -314,10 +314,10 @@ final class MCAVSandboxTest {
     Files.writeString(this.folder.resolve("config.yml"), defaults.replace("  native: auto\n", "  native: \"off\"\n"));
     try {
       this.sandbox.onEnable();
-      assertEquals("Java, turned off by mcv2.native=off", Mcv2Natives.describe());
+      assertEquals("Java", MCV2.describeNatives());
       this.sandbox.onDisable();
     } finally {
-      Mcv2Natives.install(this.folder.resolve("natives"), Mcv2Natives.AUTO);
+      MCV2.installNatives(this.folder.resolve("natives"), "auto");
     }
   }
 

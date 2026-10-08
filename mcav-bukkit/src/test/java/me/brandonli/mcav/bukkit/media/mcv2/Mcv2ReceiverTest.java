@@ -17,10 +17,8 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.DERIVED;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.SHORT;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.motion;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.solid;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.motion;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.solid;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,14 +26,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Arrays;
 import java.util.List;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.FrameWriter;
 import org.junit.jupiter.api.Test;
 
 /** The receiver's state machine: commit only newer frames, keep the state on every failure, and wrap ids. */
 final class Mcv2ReceiverTest {
 
   private static byte[] keyframeWithId(final long id, final int gray) {
-    return FrameWriter.write(4, 4, id, id, true, 0, 0, List.of(solid(gray, gray, gray)), DERIVED);
+    return Mcv2Trees.write(4, 4, id, id, true, List.of(solid(gray, gray, gray)));
   }
 
   @Test
@@ -77,18 +74,28 @@ final class Mcv2ReceiverTest {
   void keepsItsStateWhenAFrameFails() throws Mcv2Exception {
     final Mcv2Receiver receiver = new Mcv2Receiver();
     receiver.accept(keyframeWithId(1, 3));
-    final byte[] orphan = FrameWriter.write(4, 4, 2, 7, false, 0, 0, List.of(motion(0, 0)), SHORT);
+    final byte[] orphan = Mcv2Trees.write(4, 4, 2, 7, false, List.of(motion(0, 0)));
     assertThrows(Mcv2Exception.class, () -> receiver.accept(orphan));
     assertEquals(1, receiver.getFrameId());
     final byte[] expected = new byte[4 * 4 * 3];
     Arrays.fill(expected, (byte) 3);
-    final byte[] next = FrameWriter.write(4, 4, 2, 1, false, 0, 0, List.of(motion(0, 0)), SHORT);
+    final byte[] next = Mcv2Trees.write(4, 4, 2, 1, false, List.of(motion(0, 0)));
     assertArrayEquals(expected, assertDoesNotThrow(() -> receiver.accept(next)));
     assertEquals(2, receiver.getFrameId());
-    final byte[] anotherOrphan = FrameWriter.write(4, 4, 3, 8, false, 0, 0, List.of(motion(0, 0)), SHORT);
+    final byte[] anotherOrphan = Mcv2Trees.write(4, 4, 3, 8, false, List.of(motion(0, 0)));
     assertThrows(Mcv2Exception.class, () -> receiver.accept(anotherOrphan));
-    final byte[] retry = FrameWriter.write(4, 4, 3, 2, false, 0, 0, List.of(motion(0, 0)), SHORT);
+    final byte[] retry = Mcv2Trees.write(4, 4, 3, 2, false, List.of(motion(0, 0)));
     assertArrayEquals(expected, assertDoesNotThrow(() -> receiver.accept(retry)));
     assertEquals(3, receiver.getFrameId());
+  }
+
+  @Test
+  void rejectsAReferenceWithTheSamePixelCountButDifferentDimensions() throws Mcv2Exception {
+    final Mcv2Receiver receiver = new Mcv2Receiver();
+    receiver.accept(Mcv2Trees.write(8, 16, 0, 0, true, List.of(solid(1, 2, 3))));
+    final byte[] wrongShape = Mcv2Trees.write(16, 8, 1, 0, false, List.of(motion(0, 0)));
+    assertEquals("Reference frame dimensions mismatch", assertThrows(Mcv2Exception.class, () -> receiver.accept(wrongShape)).getMessage());
+    assertEquals(0, receiver.getFrameId());
+    assertDoesNotThrow(() -> receiver.accept(Mcv2Trees.write(8, 16, 1, 0, false, List.of(motion(0, 0)))));
   }
 }

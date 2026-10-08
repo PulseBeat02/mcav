@@ -35,12 +35,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Pacer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 import me.brandonli.mcav.sandbox.locale.Message;
 import me.brandonli.mcav.sandbox.testing.TestServer;
@@ -114,14 +114,7 @@ final class Mcv2SupportTest {
   }
 
   private Mcv2Configuration configure(final int map) {
-    return this.support.configure(
-      this.sender,
-      Pair.pair(5, 3),
-      Pair.pair(640, 384),
-      map,
-      EncoderSettings.LOW_BANDWIDTH,
-      List.of(this.viewer)
-    );
+    return this.support.configure(this.sender, Pair.pair(5, 3), Pair.pair(640, 384), map, Settings.ADAPTIVE, List.of(this.viewer));
   }
 
   private @Nullable Mcv2Configuration configure(final int columns, final int rows, final int width, final int height) {
@@ -130,7 +123,7 @@ final class Mcv2SupportTest {
       Pair.pair(columns, rows),
       Pair.pair(width, height),
       20,
-      EncoderSettings.LOW_BANDWIDTH,
+      Settings.ADAPTIVE,
       List.of(this.viewer)
     );
   }
@@ -165,7 +158,7 @@ final class Mcv2SupportTest {
     assertEquals(3, configuration.getRows());
     assertEquals(640, configuration.getVideoWidth());
     assertEquals(384, configuration.getVideoHeight());
-    assertEquals(EncoderSettings.LOW_BANDWIDTH, configuration.getSettings());
+    assertEquals(Settings.ADAPTIVE, configuration.getSettings());
     assertEquals(List.of(this.viewer), List.copyOf(configuration.getViewers()));
     assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, configuration.getBacklogLimit());
     assertEquals(Mcv2Configuration.MAX_PAGE_SLOTS, configuration.getPageSlots());

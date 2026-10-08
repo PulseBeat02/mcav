@@ -18,43 +18,50 @@
 package me.brandonli.mcav.sandbox.command.video;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
 
 import java.util.List;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
+import org.incendo.cloud.caption.CaptionVariable;
+import org.incendo.cloud.context.CommandContext;
+import org.incendo.cloud.context.CommandInput;
+import org.incendo.cloud.parser.standard.EnumParser;
+import org.incendo.cloud.parser.standard.EnumParser.EnumParseException;
 import org.junit.jupiter.api.Test;
 
 final class Mcv2ProfileTest {
 
   @Test
   void namesTheEncoderSettings() {
-    assertEquals(EncoderSettings.SHIP, Mcv2Profile.SHIP.getSettings());
-    assertEquals(EncoderSettings.LOW_BANDWIDTH, Mcv2Profile.LOW.getSettings());
-    assertEquals(EncoderSettings.ReferencePolicy.LAST_KEYFRAME, Mcv2Profile.KEYFRAME.getSettings().reference());
-    assertEquals(EncoderSettings.SHIP.lambda(), Mcv2Profile.KEYFRAME.getSettings().lambda());
-    assertEquals(1, Mcv2Profile.INTRA.getSettings().keyInterval());
-    assertEquals(EncoderSettings.LIVE, Mcv2Profile.LIVE.getSettings());
-    assertEquals(EncoderSettings.LIVE_ADAPTIVE, Mcv2Profile.LIVE_ADAPTIVE.getSettings());
-    assertEquals(EncoderSettings.LIVE_FAST, Mcv2Profile.LIVE_FAST.getSettings());
-    assertEquals(EncoderSettings.ReferencePolicy.LAST_KEYFRAME, Mcv2Profile.LIVE_KEYFRAME.getSettings().reference());
-    assertEquals(EncoderSettings.LIVE.live(), Mcv2Profile.LIVE_KEYFRAME.getSettings().live());
+    assertEquals(Settings.DEFAULT, Mcv2Profile.DEFAULT.getSettings());
+    assertEquals(Settings.ADAPTIVE, Mcv2Profile.ADAPTIVE.getSettings());
+    assertEquals(Settings.FAST, Mcv2Profile.FAST.getSettings());
+    assertEquals(List.of(Mcv2Profile.DEFAULT, Mcv2Profile.ADAPTIVE, Mcv2Profile.FAST), List.of(Mcv2Profile.values()));
   }
 
-  /**
-   * The encoder matches the reference encoder byte for byte at the two lambdas EncoderConformanceTest pins, and only
-   * there: at another lambda a node at a rounding tie may quantize one step apart, which is valid MCV2 but no longer the
-   * reference's stream. So a profile with the reference's exhaustive search and a new lambda needs its own conformance
-   * check before it ships.
-   */
   @Test
-  void everyProfileOfTheReferenceSearchUsesALambdaTheConformanceTestPins() {
-    final List<Double> pinned = List.of(EncoderSettings.SHIP.lambda(), EncoderSettings.LOW_BANDWIDTH.lambda());
-    for (final Mcv2Profile profile : Mcv2Profile.values()) {
-      final EncoderSettings settings = profile.getSettings();
-      final boolean referenceSearch = settings.live() == null;
-      if (referenceSearch) {
-        assertTrue(pinned.contains(settings.lambda()), profile + " codes at lambda " + settings.lambda());
-      }
+  void refusesRemovedProfiles() {
+    for (final String old : List.of("SHIP", "LOW", "KEYFRAME", "INTRA", "LIVE", "LIVE_ADAPTIVE", "LIVE_FAST", "LIVE_KEYFRAME")) {
+      assertThrows(IllegalArgumentException.class, () -> Mcv2Profile.valueOf(old));
     }
+  }
+
+  @Test
+  void commandErrorsListTheValidProfiles() {
+    final CommandContext<Object> context = mock();
+    final EnumParser<Object, Mcv2Profile> parser = new EnumParser<>(Mcv2Profile.class);
+    for (final String old : List.of("SHIP", "LIVE")) {
+      final EnumParseException failure = assertInstanceOf(
+        EnumParseException.class,
+        parser.parse(context, CommandInput.of(old)).failure().orElseThrow()
+      );
+      assertEquals(CaptionVariable.of("input", old), failure.captionVariables()[0]);
+      assertEquals(CaptionVariable.of("acceptableValues", "default, adaptive, fast"), failure.captionVariables()[1]);
+    }
+    assertEquals(Mcv2Profile.DEFAULT, parser.parse(context, CommandInput.of("DEFAULT")).parsedValue().orElseThrow());
+    assertEquals(Mcv2Profile.ADAPTIVE, parser.parse(context, CommandInput.of("adaptive")).parsedValue().orElseThrow());
+    assertEquals(Mcv2Profile.FAST, parser.parse(context, CommandInput.of("FAST")).parsedValue().orElseThrow());
   }
 }

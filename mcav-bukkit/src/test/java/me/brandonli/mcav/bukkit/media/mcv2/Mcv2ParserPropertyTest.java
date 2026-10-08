@@ -20,6 +20,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -52,7 +53,7 @@ final class Mcv2ParserPropertyTest {
 
   private static final String SEED = "20260926";
 
-  /** The first keyframe and P frame of every edge stream, the two-page keyframe of the ship stream and the wide fallback. */
+  /** Keyframes and P frames of the v3 conformance streams, plus a synthetic two-page frame. */
   private static final List<byte[]> FRAMES = frames();
 
   /** Values the bounds checks of the header and the index turn on. */
@@ -70,6 +71,8 @@ final class Mcv2ParserPropertyTest {
     0x8000,
     0xFFFF,
     0x10000,
+    0x1FFFF,
+    0x20000,
     0xFFFFFF,
     0x1000000,
     0x7FFFFFFFL,
@@ -79,11 +82,11 @@ final class Mcv2ParserPropertyTest {
 
   private static List<byte[]> frames() {
     final List<byte[]> frames = new ArrayList<>();
-    for (final String stream : Mcv2Fixtures.digests("edge").keySet()) {
-      final List<byte[]> all = Mcv2Fixtures.frames(Mcv2Fixtures.read("edge/" + stream));
+    for (final String stream : Mcv2Fixtures.digests("conformance").keySet()) {
+      final List<byte[]> all = Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/" + stream));
       frames.addAll(all.subList(0, Math.min(2, all.size())));
     }
-    frames.add(Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/p30r19-compact_final-65p255994.mcs")).get(0));
+    frames.add(Mcv2Trees.twoPages());
     return List.copyOf(frames);
   }
 
@@ -113,15 +116,15 @@ final class Mcv2ParserPropertyTest {
           }
         }
         case 1 -> {
-          // one of the twelve header words, set to a value a bounds check turns on
+          // one of the header or initial index words, set to a value a bounds check turns on
           final int offset = 4 * (mutation.position() % 12);
           if (offset + 4 <= length) {
-            Mcv2Format.putU32(bytes, offset, EDGES[Math.floorMod(value, EDGES.length)]);
+            Mcv2Decoder.putU32(bytes, offset, EDGES[Math.floorMod(value, EDGES.length)]);
           }
         }
         case 2 -> {
           if (position + 2 <= length) {
-            Mcv2Format.putU16(bytes, position, value & 0xFFFF);
+            Mcv2Decoder.putU16(bytes, position, value & 0xFFFF);
           }
         }
         case 3 -> bytes = Arrays.copyOf(bytes, position);
@@ -149,9 +152,9 @@ final class Mcv2ParserPropertyTest {
 
   /** Parses and decodes, accepting only a picture of the frame's size or the declared exception. */
   private static void parseAndDecode(final byte[] bytes) {
-    final Mcv2Frame frame;
+    final Mcv2Decoder.Frame frame;
     try {
-      frame = FrameParser.parse(bytes);
+      frame = Mcv2Decoder.parse(bytes);
     } catch (final Mcv2Exception rejected) {
       return;
     }
@@ -185,32 +188,41 @@ final class Mcv2ParserPropertyTest {
   void randomFramesParseOrAreRejected(
     @ForAll @IntRange(min = 1, max = 200) final int width,
     @ForAll @IntRange(min = 1, max = 130) final int height,
-    @ForAll @IntRange(min = 0, max = Mcv2Format.ALL_FLAGS) final int flags,
+    @ForAll @IntRange(min = 0, max = Mcv2Decoder.KEYFRAME) final int flags,
     @ForAll @IntRange(min = 0, max = 64) final int startOffset,
     @ForAll @Size(max = 4096) final byte[] body,
     @ForAll final long seed
   ) {
     final Random random = new Random(seed);
-    final byte[] bytes = new byte[Mcv2Format.HEADER_BYTES + body.length];
-    System.arraycopy(body, 0, bytes, Mcv2Format.HEADER_BYTES, body.length);
-    final boolean isKeyframe = (flags & Mcv2Format.KEYFRAME) != 0;
+    final byte[] bytes = new byte[Mcv2Decoder.HEADER_BYTES + body.length];
+    System.arraycopy(body, 0, bytes, Mcv2Decoder.HEADER_BYTES, body.length);
+    final boolean isKeyframe = (flags & Mcv2Decoder.KEYFRAME) != 0;
     final long frameId = random.nextInt(1000) + 1L;
-    Mcv2Format.putU32(bytes, 0, Mcv2Format.MAGIC);
-    Mcv2Format.putU32(bytes, 4, ((long) flags << 16) | Mcv2Format.CONFIGURATION);
-    Mcv2Format.putU32(bytes, 8, ((long) height << 16) | width);
-    Mcv2Format.putU32(bytes, 12, frameId);
-    Mcv2Format.putU32(bytes, 16, isKeyframe ? frameId : frameId - 1);
-    Mcv2Format.putU32(bytes, 20, isKeyframe ? 0 : random.nextInt() & 0xFFFFFFFFL);
-    Mcv2Format.putU32(bytes, 24, (long) ((width + 31) / 32) * ((height + 31) / 32));
-    Mcv2Format.putU32(bytes, 28, Math.min(bytes.length, Mcv2Format.HEADER_BYTES + startOffset));
-    Mcv2Format.putU32(bytes, 32, bytes.length);
-    Mcv2Format.putU32(bytes, 36, (flags & Mcv2Format.DEFAULT_SOLID) != 0 ? random.nextInt(0x1000000) : 0);
+    Mcv2Decoder.putU32(bytes, 0, Mcv2Decoder.MAGIC);
+    bytes[4] = Mcv2Decoder.VERSION;
+    bytes[5] = (byte) flags;
+    Mcv2Decoder.putU32(bytes, 8, ((long) height << 16) | width);
+    Mcv2Decoder.putU32(bytes, 12, frameId);
+    Mcv2Decoder.putU32(bytes, 16, isKeyframe ? frameId : frameId - 1);
+    Mcv2Decoder.putU32(bytes, 20, Math.min(bytes.length, Mcv2Decoder.HEADER_BYTES + startOffset));
+    Mcv2Decoder.putU32(bytes, 24, bytes.length);
+    if (isKeyframe) {
+      final int color = random.nextInt(0x1000000);
+      bytes[28] = (byte) (color >> 16);
+      bytes[29] = (byte) (color >> 8);
+      bytes[30] = (byte) color;
+    }
     parseAndDecode(bytes);
   }
 
   @Property(seed = SEED, tries = 300)
   void symbolsCarryAnyBytesExactly(@ForAll @Size(max = 2000) final byte[] data, @ForAll @IntRange(min = 6, max = 8) final int symbolBits)
     throws Mcv2Exception {
+    if (symbolBits != 6) {
+      assertThrows(IllegalArgumentException.class, () -> TransportPages.toSymbols(data, symbolBits));
+      assertThrows(Mcv2Exception.class, () -> TransportPages.fromSymbols(new byte[0], symbolBits, 0));
+      return;
+    }
     assertArrayEquals(data, TransportPages.fromSymbols(TransportPages.toSymbols(data, symbolBits), symbolBits, data.length));
   }
 
@@ -222,12 +234,12 @@ final class Mcv2ParserPropertyTest {
   @Property(seed = SEED, tries = 300)
   void pagesCarryTheirFrameInAnyOrder(
     @ForAll @IntRange(min = 0, max = 1000) final int index,
-    @ForAll @IntRange(min = 6, max = 8) final int symbolBits,
     @ForAll @LongRange(min = 0, max = 0xFFFFFFFFL) final long stream,
     @ForAll final long seed
   ) throws Mcv2Exception {
+    final int symbolBits = 6;
     final byte[] frame = FRAMES.get(index % FRAMES.size());
-    final Mcv2Frame parsed = FrameParser.parse(frame);
+    final Mcv2Decoder.Frame parsed = Mcv2Decoder.parse(frame);
     final List<byte[]> pages = TransportPages.makePages(frame, stream, symbolBits);
     final ByteArrayOutputStream payloads = new ByteArrayOutputStream();
     for (int number = 0; number < pages.size(); number++) {

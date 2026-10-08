@@ -50,8 +50,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
@@ -1172,9 +1172,7 @@ final class AbstractInteractiveCommandTest {
     final Mcv2Support support = mock(Mcv2Support.class);
     when(this.plugin.getMcv2Support()).thenReturn(support);
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
-    when(support.configure(sender, Pair.pair(4, 3), Pair.pair(512, 384), 7, EncoderSettings.LIVE, List.of(viewer))).thenReturn(
-      configuration
-    );
+    when(support.configure(sender, Pair.pair(4, 3), Pair.pair(512, 384), 7, Settings.DEFAULT, List.of(viewer))).thenReturn(configuration);
     final Mcv2Output output = mock(Mcv2Output.class);
     when(support.output(sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(output);
     try (final MockedConstruction<CompressedMapResult> maps = Mockito.mockConstruction(CompressedMapResult.class)) {
@@ -1646,9 +1644,7 @@ final class AbstractInteractiveCommandTest {
     final Mcv2Support support = mock(Mcv2Support.class);
     when(this.plugin.getMcv2Support()).thenReturn(support);
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
-    when(support.configure(sender, Pair.pair(4, 3), Pair.pair(1024, 768), 7, EncoderSettings.LIVE, List.of(viewer))).thenReturn(
-      configuration
-    );
+    when(support.configure(sender, Pair.pair(4, 3), Pair.pair(1024, 768), 7, Settings.DEFAULT, List.of(viewer))).thenReturn(configuration);
     when(support.output(sender, configuration, DitheringArgument.NEAREST_COLOR)).thenReturn(mock(Mcv2Output.class));
     final MultiplePlayerSelector viewers = mockViewers(viewer);
     this.command.createScreen(

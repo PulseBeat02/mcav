@@ -47,8 +47,8 @@ final class FrameMutationTest {
 
   static Stream<Arguments> frames() {
     final List<Arguments> arguments = new ArrayList<>();
-    for (final String stream : Mcv2Fixtures.digests("edge").keySet()) {
-      final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read("edge/" + stream));
+    for (final String stream : Mcv2Fixtures.digests("conformance").keySet()) {
+      final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/" + stream));
       arguments.add(Arguments.of(stream, frames.get(0), frames.size() > 1 ? frames.get(1) : frames.get(0)));
     }
     return arguments.stream();
@@ -57,7 +57,7 @@ final class FrameMutationTest {
   @ParameterizedTest(name = "{0}")
   @MethodSource("frames")
   void everyCorruptionIsAcceptedOrDeclared(final String stream, final byte[] keyframe, final byte[] next) throws Mcv2Exception {
-    final Mcv2Frame reference = FrameParser.parse(keyframe);
+    final Mcv2Decoder.Frame reference = Mcv2Decoder.parse(keyframe);
     final byte[] picture = Mcv2Decoder.decode(reference, null, 0);
     int accepted = 0;
     int rejected = 0;
@@ -66,9 +66,9 @@ final class FrameMutationTest {
         for (final int mask : MASKS) {
           final byte[] corrupted = frame.clone();
           corrupted[offset] ^= (byte) mask;
-          final Mcv2Frame parsed;
+          final Mcv2Decoder.Frame parsed;
           try {
-            parsed = FrameParser.parse(corrupted);
+            parsed = Mcv2Decoder.parse(corrupted);
           } catch (final Mcv2Exception expected) {
             rejected++;
             continue;
@@ -84,16 +84,16 @@ final class FrameMutationTest {
 
   @Test
   void checksAReferenceMismatchThroughTheDecoder() throws Mcv2Exception {
-    final List<byte[]> stream = Mcv2Fixtures.frames(Mcv2Fixtures.read("edge/edge-derived-plain.mcs"));
-    final Mcv2Frame keyframe = FrameParser.parse(stream.getFirst());
+    final List<byte[]> stream = Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/proxy-default.mcs"));
+    final Mcv2Decoder.Frame keyframe = Mcv2Decoder.parse(stream.getFirst());
     final byte[] reference = Mcv2Decoder.decode(keyframe, null, 0);
-    final Mcv2Frame interFrame = FrameParser.parse(stream.get(1));
+    final Mcv2Decoder.Frame interFrame = Mcv2Decoder.parse(stream.get(1));
     assertTrue(!interFrame.isKeyframe(), "the fixture contains an inter frame");
     final long wrongReference = interFrame.getReferenceId() + 1;
     decodeAgainst(interFrame, reference, wrongReference);
   }
 
-  private static void decodeAgainst(final Mcv2Frame parsed, final byte[] picture, final long id) throws Mcv2Exception {
+  private static void decodeAgainst(final Mcv2Decoder.Frame parsed, final byte[] picture, final long id) throws Mcv2Exception {
     final int expectedLength = parsed.getWidth() * parsed.getHeight() * 3;
     if (!parsed.isKeyframe() && (parsed.getReferenceId() != id || expectedLength != picture.length)) {
       final Mcv2Exception mismatch = assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.decode(parsed, picture, id));

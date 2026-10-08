@@ -34,9 +34,9 @@ final class FrameParserFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
   void decodesOrRejectsAnyFrame(final byte[] data) {
-    final Mcv2Frame frame;
+    final Mcv2Decoder.Frame frame;
     try {
-      frame = FrameParser.parse(data);
+      frame = Mcv2Decoder.parse(data);
     } catch (final Mcv2Exception rejected) {
       return;
     }

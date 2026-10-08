@@ -21,10 +21,9 @@ import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.CRC32;
-import me.brandonli.mcav.bukkit.media.mcv2.FrameParser;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.Frame;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frame;
 
 /**
  * The map-page transport of MCV2 frames, bit-exact with the reference's {@code transport.py}.
@@ -33,7 +32,7 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frame;
  * ({@code <4sBBHIIHHIII}: magic {@code MCP1}, version 1, useful symbol bits, frame type, stream id, frame id, page
  * number, page count, reference id, frame length, CRC32 of the header with a zero CRC field followed by the payload),
  * then carries the frame bytes from {@code number * capacity}. Header and payload bytes are expanded least significant
- * bit first and regrouped into symbols of 6, 7 or 8 bits, least significant bit first; the last symbol is zero-filled.
+ * bit first and regrouped into symbols of 6 bits, least significant bit first; the last symbol is zero-filled.
  *
  * <p>The CRC detects corruption; it is not authentication.
  *
@@ -59,9 +58,7 @@ public final class TransportPages {
 
   private static final int VERSION = 1;
 
-  private static final int MIN_SYMBOL_BITS = 6;
-
-  private static final int MAX_SYMBOL_BITS = 8;
+  private static final int SYMBOL_BITS = 6;
 
   private static final int MAGIC_OFFSET = 0;
 
@@ -90,7 +87,7 @@ public final class TransportPages {
   }
 
   private static boolean isSymbolWidth(final int symbolBits) {
-    return symbolBits >= MIN_SYMBOL_BITS && symbolBits <= MAX_SYMBOL_BITS;
+    return symbolBits == SYMBOL_BITS;
   }
 
   static void checkSymbolBits(final int symbolBits) {
@@ -105,9 +102,9 @@ public final class TransportPages {
   /**
    * The payload capacity of one page, after its header.
    *
-   * @param symbolBits the useful bits per symbol, 6, 7 or 8
-   * @return the capacity in logical bytes: 12,256, 14,304 or 16,352
-   * @throws IllegalArgumentException if the symbol width is not 6, 7 or 8
+   * @param symbolBits the useful bits per symbol, 6
+   * @return the capacity in logical bytes: 12,256
+   * @throws IllegalArgumentException if the symbol width is not 6
    */
   public static int capacity(final int symbolBits) {
     checkSymbolBits(symbolBits);
@@ -117,11 +114,11 @@ public final class TransportPages {
   /**
    * The number of pages a frame of some length needs.
    *
-   * @param frameBytes the nonnegative frame length in bytes, within {@link Mcv2Format#MAX_FRAME_BYTES};
+   * @param frameBytes the nonnegative frame length in bytes, within {@link Mcv2Decoder#MAX_FRAME_BYTES};
    *                   this helper does not validate the length
    * @param symbolBits the useful bits per symbol
    * @return the page count
-   * @throws IllegalArgumentException if the symbol width is not 6, 7 or 8
+   * @throws IllegalArgumentException if the symbol width is not 6
    */
   public static int pageCount(final int frameBytes, final int symbolBits) {
     final int capacity = capacity(symbolBits);
@@ -132,9 +129,9 @@ public final class TransportPages {
    * Packs bytes into symbols, least significant bit first, zero-filling the last symbol.
    *
    * @param data       the bytes
-   * @param symbolBits the bits per symbol, 6, 7 or 8
+   * @param symbolBits the bits per symbol, 6
    * @return one symbol per byte of the result
-   * @throws IllegalArgumentException if the symbol width is not 6, 7 or 8
+   * @throws IllegalArgumentException if the symbol width is not 6
    * @throws NullPointerException if {@code data} is null
    */
   public static byte[] toSymbols(final byte[] data, final int symbolBits) {
@@ -203,7 +200,7 @@ public final class TransportPages {
    *
    * @param frame      the frame bytes
    * @param streamId   the unsigned 32-bit stream id
-   * @param symbolBits the useful bits per symbol, 6, 7 or 8
+   * @param symbolBits the useful bits per symbol, 6
    * @return the pages, each as its symbols
    * @throws Mcv2Exception if the bytes are not a valid frame
    * @throws IllegalArgumentException if the stream id is outside unsigned 32-bit range or the symbol width is invalid
@@ -211,9 +208,9 @@ public final class TransportPages {
    */
   public static List<byte[]> makePages(final byte[] frame, final long streamId, final int symbolBits) throws Mcv2Exception {
     Preconditions.checkNotNull(frame, "Frame must not be null");
-    Preconditions.checkArgument(streamId >= 0 && streamId <= Mcv2Format.MAX_U32, "Stream id must be an unsigned 32-bit value");
+    Preconditions.checkArgument(streamId >= 0 && streamId <= Mcv2Decoder.MAX_U32, "Stream id must be an unsigned 32-bit value");
     checkSymbolBits(symbolBits);
-    final Mcv2Frame parsed = FrameParser.parse(frame);
+    final Frame parsed = Mcv2Decoder.parse(frame);
     final int capacity = capacity(symbolBits);
     final int count = pageCount(frame.length, symbolBits);
     final List<byte[]> pages = new ArrayList<>(count);
@@ -221,20 +218,20 @@ public final class TransportPages {
       final int from = number * capacity;
       final int length = Math.min(capacity, frame.length - from);
       final byte[] page = new byte[HEADER_BYTES + length];
-      Mcv2Format.putU32(page, MAGIC_OFFSET, MAGIC);
+      Mcv2Decoder.putU32(page, MAGIC_OFFSET, MAGIC);
       page[VERSION_OFFSET] = VERSION;
       page[SYMBOL_BITS_OFFSET] = (byte) symbolBits;
-      Mcv2Format.putU16(page, TYPE_OFFSET, parsed.getFlags() & Mcv2Format.KEYFRAME);
-      Mcv2Format.putU32(page, STREAM_OFFSET, streamId);
-      Mcv2Format.putU32(page, FRAME_OFFSET, parsed.getFrameId());
-      Mcv2Format.putU16(page, NUMBER_OFFSET, number);
-      Mcv2Format.putU16(page, COUNT_OFFSET, count);
-      Mcv2Format.putU32(page, REFERENCE_OFFSET, parsed.getReferenceId());
-      Mcv2Format.putU32(page, LENGTH_OFFSET, frame.length);
+      Mcv2Decoder.putU16(page, TYPE_OFFSET, parsed.isKeyframe() ? 1 : 0);
+      Mcv2Decoder.putU32(page, STREAM_OFFSET, streamId);
+      Mcv2Decoder.putU32(page, FRAME_OFFSET, parsed.getFrameId());
+      Mcv2Decoder.putU16(page, NUMBER_OFFSET, number);
+      Mcv2Decoder.putU16(page, COUNT_OFFSET, count);
+      Mcv2Decoder.putU32(page, REFERENCE_OFFSET, parsed.getReferenceId());
+      Mcv2Decoder.putU32(page, LENGTH_OFFSET, frame.length);
       System.arraycopy(frame, from, page, HEADER_BYTES, length);
       final CRC32 crc = new CRC32();
       crc.update(page);
-      Mcv2Format.putU32(page, CRC_OFFSET, crc.getValue());
+      Mcv2Decoder.putU32(page, CRC_OFFSET, crc.getValue());
       pages.add(toSymbols(page, symbolBits));
     }
     return pages;
@@ -290,18 +287,21 @@ public final class TransportPages {
   private static int checkHeader(final byte[] header, final int symbolBits) throws Mcv2Exception {
     final int capacity = capacity(symbolBits);
     if (
-      Mcv2Format.u32(header, MAGIC_OFFSET) != MAGIC ||
+      Mcv2Decoder.u32(header, MAGIC_OFFSET) != MAGIC ||
       header[VERSION_OFFSET] != VERSION ||
       Byte.toUnsignedInt(header[SYMBOL_BITS_OFFSET]) != symbolBits ||
-      Mcv2Format.u16(header, TYPE_OFFSET) > Mcv2Format.KEYFRAME
+      Mcv2Decoder.u16(header, TYPE_OFFSET) > Mcv2Decoder.KEYFRAME
     ) {
       throw new Mcv2Exception("Unsupported page header");
     }
-    final long total = Mcv2Format.u32(header, LENGTH_OFFSET);
-    final int number = Mcv2Format.u16(header, NUMBER_OFFSET);
-    final int count = Mcv2Format.u16(header, COUNT_OFFSET);
+    final long total = Mcv2Decoder.u32(header, LENGTH_OFFSET);
+    final int number = Mcv2Decoder.u16(header, NUMBER_OFFSET);
+    final int count = Mcv2Decoder.u16(header, COUNT_OFFSET);
     if (
-      total < Mcv2Format.HEADER_BYTES || total > Mcv2Format.MAX_FRAME_BYTES || count != (total + capacity - 1) / capacity || number >= count
+      total < Mcv2Decoder.HEADER_BYTES ||
+      total > Mcv2Decoder.MAX_FRAME_BYTES ||
+      count != (total + capacity - 1) / capacity ||
+      number >= count
     ) {
       throw new Mcv2Exception("Invalid page metadata");
     }
@@ -322,8 +322,8 @@ public final class TransportPages {
     final byte[] header = readHeader(symbols, symbolBits);
     final int size = checkHeader(header, symbolBits);
     final byte[] raw = fromSymbols(symbols, symbolBits, HEADER_BYTES + size);
-    final long stored = Mcv2Format.u32(raw, CRC_OFFSET);
-    Mcv2Format.putU32(raw, CRC_OFFSET, 0);
+    final long stored = Mcv2Decoder.u32(raw, CRC_OFFSET);
+    Mcv2Decoder.putU32(raw, CRC_OFFSET, 0);
     final CRC32 crc = new CRC32();
     crc.update(raw);
     if (crc.getValue() != stored) {
@@ -332,13 +332,13 @@ public final class TransportPages {
     final byte[] payload = new byte[size];
     System.arraycopy(raw, HEADER_BYTES, payload, 0, size);
     return new TransportPage(
-      Mcv2Format.u32(raw, STREAM_OFFSET),
-      Mcv2Format.u32(raw, FRAME_OFFSET),
-      Mcv2Format.u16(raw, NUMBER_OFFSET),
-      Mcv2Format.u16(raw, COUNT_OFFSET),
-      Mcv2Format.u32(raw, REFERENCE_OFFSET),
-      (int) Mcv2Format.u32(raw, LENGTH_OFFSET),
-      Mcv2Format.u16(raw, TYPE_OFFSET),
+      Mcv2Decoder.u32(raw, STREAM_OFFSET),
+      Mcv2Decoder.u32(raw, FRAME_OFFSET),
+      Mcv2Decoder.u16(raw, NUMBER_OFFSET),
+      Mcv2Decoder.u16(raw, COUNT_OFFSET),
+      Mcv2Decoder.u32(raw, REFERENCE_OFFSET),
+      (int) Mcv2Decoder.u32(raw, LENGTH_OFFSET),
+      Mcv2Decoder.u16(raw, TYPE_OFFSET),
       symbolBits,
       payload
     );

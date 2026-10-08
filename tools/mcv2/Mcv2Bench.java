@@ -32,14 +32,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.zip.Deflater;
-import me.brandonli.mcav.bukkit.media.mcv2.FrameParser;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frame;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.LiveSearch;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.Mcv2Encoder;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.Frame;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2;
 import me.brandonli.mcav.bukkit.media.mcv2.transport.MapAlphabet;
 import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
 
@@ -57,20 +55,16 @@ import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
  * javac -cp mcav-bukkit/build/libs/mcav-bukkit-*.jar -d build/bench tools/mcv2/Mcv2Bench.java
  * java -XX:ActiveProcessorCount=12 -Xmx3g -cp build/bench:mcav-bukkit/build/libs/mcav-bukkit-*.jar:guava.jar:slf4j-api.jar \
  *   Mcv2Bench source=proxy_1920x1080_60.rgb width=1920 height=1080 frames=660 warm=60 loop=pingpong fps=60 threads=12 \
- *   profile=live budget=true verify=true
+ *   profile=DEFAULT budget=true verify=true
  * </pre>
  *
  * <p>Arguments, all {@code key=value}: {@code source}, {@code width}, {@code height}, {@code frames}, {@code warm}
  * (frames left out of the times), {@code loop} ({@code none}, {@code wrap} or {@code pingpong} over the source's
- * frames), {@code fps} (for the rates), {@code threads}, {@code profile} ({@code ship}, {@code low}, {@code live},
- * {@code live-fast}), {@code lambda}, {@code key} (keyframe interval), {@code reference} ({@code previous} or
- * {@code keyframe}), {@code budget} (encode inside an {@link EncoderPool}, as an MCV2 screen and a pre-encode do),
- * {@code verify}, {@code framebudget} (milliseconds, see {@link Mcv2Encoder#setFrameBudget}), {@code out} (write the
- * archive) and {@code decoded} (write the pictures). For a live search other than the profile's: {@code search=custom}
- * with {@code smallest}, {@code skip}, {@code split}, {@code steady}, {@code fine}, {@code good}, {@code gate},
- * {@code modes}, {@code smallmodes}, {@code keymodes}, {@code classes}, {@code q}, {@code seeded}, {@code searchblock},
- * {@code coarse}, {@code fast}, {@code splitabove} and {@code motionlambda} (see {@link LiveSearch}; mode sets as
- * comma-separated mode numbers, {@code all}, or {@code lambda} for the quantizer from lambda).
+ * frames), {@code fps} (for the rates), {@code threads}, {@code profile} ({@code DEFAULT}, {@code FAST},
+ * {@code ADAPTIVE}), {@code lambda}, {@code key} (keyframe interval; 1 makes every frame a keyframe),
+ * {@code budget} (encode inside a {@link Pool}, as a screen and a pre-encode do), {@code verify},
+ * {@code framebudget} (milliseconds, see {@link MCV2#setFrameBudget}), {@code out} (write the archive)
+ * and {@code decoded} (write the pictures).
  */
 public final class Mcv2Bench {
 
@@ -134,8 +128,8 @@ public final class Mcv2Bench {
     // the heap an encoder keeps: used heap after a full collection with the encoder alive, less before it existed
     System.gc();
     final long heapBefore = usedHeap();
-    final EncoderPool budget = new EncoderPool(threads);
-    final Mcv2Encoder encoder = budget.encoder(settings(options), Boolean.parseBoolean(options.getOrDefault("verify", "false")));
+    final Pool budget = new Pool(threads);
+    final MCV2 encoder = budget.encoder(settings(options), Boolean.parseBoolean(options.getOrDefault("verify", "false")));
     if (options.containsKey("framebudget")) {
       encoder.setFrameBudget((long) (Double.parseDouble(options.get("framebudget")) * NANOS_PER_MILLISECOND));
     }
@@ -160,50 +154,21 @@ public final class Mcv2Bench {
     return Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
   }
 
-  private static EncoderSettings settings(final Map<String, String> options) {
-    EncoderSettings settings = switch (options.getOrDefault("profile", "ship")) {
-      case "low" -> EncoderSettings.LOW_BANDWIDTH;
-      case "live" -> EncoderSettings.LIVE;
-      case "live-fast" -> EncoderSettings.LIVE_FAST;
-      default -> EncoderSettings.SHIP;
+  private static Settings settings(final Map<String, String> options) {
+    final String profile = options.getOrDefault("profile", "DEFAULT");
+    Settings settings = switch (profile.toUpperCase(Locale.ROOT)) {
+      case "DEFAULT" -> Settings.DEFAULT;
+      case "FAST" -> Settings.FAST;
+      case "ADAPTIVE" -> Settings.ADAPTIVE;
+      default -> throw new IllegalArgumentException("Unknown profile " + profile + "; valid profiles: DEFAULT, FAST, ADAPTIVE");
     };
     if (options.containsKey("lambda")) {
       settings = settings.withLambda(Double.parseDouble(options.get("lambda")));
     }
     if (options.containsKey("key")) {
-      settings = settings.withKeyInterval(Integer.parseInt(options.get("key")));
-    }
-    if (options.getOrDefault("reference", "previous").equals("keyframe")) {
-      settings = settings.withReference(EncoderSettings.ReferencePolicy.LAST_KEYFRAME);
-    }
-    if (options.getOrDefault("search", "profile").equals("custom")) {
-      settings = settings.withLive(customSearch(options));
+      settings = new Settings(settings.lambda(), Integer.parseInt(options.get("key")), settings.fast(), settings.adaptive());
     }
     return settings;
-  }
-
-  private static LiveSearch customSearch(final Map<String, String> options) {
-    final int modes = parseSet(options.getOrDefault("modes", "all"), LiveSearch.ALL_MODES);
-    return new LiveSearch(
-      Integer.parseInt(options.getOrDefault("smallest", "8")),
-      Double.parseDouble(options.getOrDefault("skip", "26.5")),
-      Double.parseDouble(options.getOrDefault("split", "52.5")),
-      Double.parseDouble(options.getOrDefault("steady", options.getOrDefault("split", "52.5"))),
-      Double.parseDouble(options.getOrDefault("fine", options.getOrDefault("split", "52.5"))),
-      Double.parseDouble(options.getOrDefault("good", "0")),
-      Double.parseDouble(options.getOrDefault("gate", "0")),
-      modes,
-      options.containsKey("smallmodes") ? parseSet(options.get("smallmodes"), LiveSearch.ALL_MODES) : modes,
-      parseSet(options.getOrDefault("keymodes", "all"), LiveSearch.ALL_MODES),
-      parseSet(options.getOrDefault("classes", "all"), LiveSearch.ALL_CLASSES),
-      parseSet(options.getOrDefault("q", "all"), LiveSearch.ALL_QUANTIZERS),
-      Boolean.parseBoolean(options.getOrDefault("seeded", "false")),
-      Integer.parseInt(options.getOrDefault("searchblock", "8")),
-      Boolean.parseBoolean(options.getOrDefault("coarse", "false")),
-      Integer.parseInt(options.getOrDefault("fast", "0")),
-      Double.parseDouble(options.getOrDefault("splitabove", "0")),
-      Boolean.parseBoolean(options.getOrDefault("motionlambda", "false"))
-    );
   }
 
   /** Encodes the frames, writing the archive and the pictures when asked, and measures every frame. */
@@ -213,8 +178,8 @@ public final class Mcv2Bench {
     final int width,
     final int height,
     final int frames,
-    final EncoderPool budget,
-    final Mcv2Encoder encoder
+    final Pool budget,
+    final MCV2 encoder
   ) throws Exception {
     final long frameBytes = (long) width * height * 3;
     final int sourceFrames = (int) (Files.size(source) / frameBytes);
@@ -271,7 +236,7 @@ public final class Mcv2Bench {
    * it: under {@code reference=keyframe} that is the last keyframe, not the frame before.
    */
   private static byte[] decoded(final byte[] data, final byte[] predictFrom) throws Mcv2Exception {
-    final Mcv2Frame frame = FrameParser.parse(data);
+    final Frame frame = Mcv2Decoder.parse(data);
     return Mcv2Decoder.decode(frame, predictFrom, frame.getReferenceId());
   }
 
@@ -358,19 +323,4 @@ public final class Mcv2Bench {
     return bytes * Byte.SIZE / seconds / BITS_PER_MEGABIT;
   }
 
-  private static int parseSet(final String text, final int all) {
-    if (text.equals("all")) {
-      return all;
-    }
-    if (text.equals("lambda")) {
-      return LiveSearch.FROM_LAMBDA;
-    }
-    int set = 0;
-    for (final String part : text.split(",")) {
-      if (!part.isBlank()) {
-        set |= 1 << Integer.parseInt(part.trim());
-      }
-    }
-    return set;
-  }
 }

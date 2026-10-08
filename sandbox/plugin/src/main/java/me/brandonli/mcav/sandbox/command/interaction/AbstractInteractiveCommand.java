@@ -33,8 +33,8 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
@@ -431,7 +431,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
     if (settings.getCodec() == MapCodec.MCV2) {
       final Mcv2Support support = this.plugin.getMcv2Support();
       final CommandSender sender = settings.getSender();
-      final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, EncoderSettings.LIVE, players);
+      final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, Settings.DEFAULT, players);
       final Mcv2Output output = configuration == null ? null : support.output(sender, configuration, dithering);
       if (output != null) {
         return output;

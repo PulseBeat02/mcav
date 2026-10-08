@@ -34,8 +34,8 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
@@ -104,7 +104,7 @@ final class VideoMcv2CommandTest {
       resolution,
       wall,
       map,
-      Mcv2Profile.LOW,
+      Mcv2Profile.ADAPTIVE,
       DitheringArgument.FILTER_LITE,
       "",
       "clip.mp4",
@@ -121,7 +121,7 @@ final class VideoMcv2CommandTest {
         eq(Pair.pair(5, 3)),
         eq(Pair.pair(640, 384)),
         eq(20),
-        eq(EncoderSettings.LOW_BANDWIDTH),
+        eq(Settings.ADAPTIVE),
         eq(List.of(this.viewer))
       )
     ).thenReturn(configuration);

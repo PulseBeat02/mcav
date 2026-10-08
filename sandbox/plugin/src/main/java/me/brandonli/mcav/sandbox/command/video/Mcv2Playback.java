@@ -20,7 +20,7 @@ package me.brandonli.mcav.sandbox.command.video;
 import com.google.common.base.Preconditions;
 import java.util.List;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Channel;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
 
 /**
  * Plays an encoded MCV2 stream on a screen, one frame per run, looping. A stream cannot make a keyframe on request, so
@@ -55,7 +55,7 @@ final class Mcv2Playback implements Runnable {
     this.frames = List.copyOf(frames);
     long highest = 0;
     for (final byte[] frame : this.frames) {
-      highest = Math.max(highest, Mcv2Format.u32(frame, Mcv2Format.FRAME_ID_OFFSET));
+      highest = Math.max(highest, Mcv2Decoder.u32(frame, Mcv2Decoder.FRAME_ID_OFFSET));
     }
     this.span = highest + 1;
     this.offset = firstFrameId;
@@ -85,12 +85,12 @@ final class Mcv2Playback implements Runnable {
   /** A copy of a frame with its frame and reference ids shifted by the current offset. */
   private byte[] shifted(final byte[] frame) {
     final byte[] copy = frame.clone();
-    shift(copy, Mcv2Format.FRAME_ID_OFFSET);
-    shift(copy, Mcv2Format.REFERENCE_ID_OFFSET);
+    shift(copy, Mcv2Decoder.FRAME_ID_OFFSET);
+    shift(copy, Mcv2Decoder.REFERENCE_ID_OFFSET);
     return copy;
   }
 
   private void shift(final byte[] frame, final int field) {
-    Mcv2Format.putU32(frame, field, (Mcv2Format.u32(frame, field) + this.offset) & Mcv2Format.MAX_U32);
+    Mcv2Decoder.putU32(frame, field, (Mcv2Decoder.u32(frame, field) + this.offset) & Mcv2Decoder.MAX_U32);
   }
 }

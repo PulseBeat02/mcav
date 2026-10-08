@@ -44,8 +44,7 @@ import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
 import me.brandonli.mcav.bukkit.media.map.MapTilePatch;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.FrameWriter;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.TreeNode;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.Node;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.MapPackets;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
@@ -109,50 +108,23 @@ final class Mcv2ChannelTest {
   }
 
   static byte[] keyframe() {
-    return FrameWriter.write(
-      32,
-      32,
-      0,
-      0,
-      true,
-      0,
-      0,
-      List.of(TreeNode.leaf(Mcv2Format.MODE_SOLID, 0, new byte[] { 1, 2, 3 })),
-      FrameWriter.Options.production(false)
-    );
+    return Mcv2Trees.write(32, 32, 0, 0, true, List.of(Node.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[] { 1, 2, 3 })));
   }
 
   static byte[] predicted() {
-    return FrameWriter.write(
-      32,
-      32,
-      1,
-      0,
-      false,
-      0,
-      0,
-      List.of(TreeNode.leaf(Mcv2Format.MODE_MOTION, 0, new byte[] { 1, 1 })),
-      FrameWriter.Options.production(false)
-    );
+    return Mcv2Trees.write(32, 32, 1, 0, false, List.of(Node.leaf(Mcv2Decoder.MODE_MOTION, 0, new byte[] { 1, 1 })));
   }
 
   /** A frame of the 32x32 test video: one solid root in a keyframe, one motion root in a P frame. */
   static byte[] frame(final long id, final long reference, final boolean isKeyframe) {
-    final TreeNode root = isKeyframe
-      ? TreeNode.leaf(Mcv2Format.MODE_SOLID, 0, new byte[] { 1, 2, 3 })
-      : TreeNode.leaf(Mcv2Format.MODE_MOTION, 0, new byte[] { 1, 1 });
-    return FrameWriter.write(32, 32, id, reference, isKeyframe, 0, 0, List.of(root), FrameWriter.Options.production(false));
+    final Node root = isKeyframe
+      ? Node.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[] { 1, 2, 3 })
+      : Node.leaf(Mcv2Decoder.MODE_MOTION, 0, new byte[] { 1, 1 });
+    return Mcv2Trees.write(32, 32, id, reference, isKeyframe, List.of(root));
   }
 
-  /** A keyframe of two pages: 64 roots of 192-byte intra grids. */
   static byte[] large() {
-    final List<TreeNode> roots = new ArrayList<>();
-    for (int index = 0; index < 64; index++) {
-      final byte[] grid = new byte[192];
-      grid[0] = (byte) index;
-      roots.add(TreeNode.leaf(Mcv2Format.MODE_INTRA + 3, 0, grid));
-    }
-    return FrameWriter.write(256, 256, 0, 0, true, 0, 0, roots, FrameWriter.Options.production(false));
+    return Mcv2Trees.twoPages();
   }
 
   @Test

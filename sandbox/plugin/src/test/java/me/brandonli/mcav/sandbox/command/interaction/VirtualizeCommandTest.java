@@ -40,7 +40,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.RejectedExecutionException;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
@@ -278,7 +278,7 @@ final class VirtualizeCommandTest {
     this.create("640x480", "5x4", "-m 2048M --codec MCV2");
 
     // the screen asked for MCV2, which found no wall here and dithers
-    verify(support).configure(eq(this.sender), eq(Pair.pair(5, 4)), eq(Pair.pair(640, 480)), eq(0), eq(EncoderSettings.LIVE), any());
+    verify(support).configure(eq(this.sender), eq(Pair.pair(5, 4)), eq(Pair.pair(640, 480)), eq(0), eq(Settings.DEFAULT), any());
     final ArgumentCaptor<VMConfiguration> configurations = ArgumentCaptor.forClass(VMConfiguration.class);
     verify(this.machine).startAsync(any(VMSettings.class), eq(VMPlayer.Architecture.X86_64), configurations.capture(), any());
     assertEquals(List.of("-m", "2048M"), configurations.getValue().getArguments());

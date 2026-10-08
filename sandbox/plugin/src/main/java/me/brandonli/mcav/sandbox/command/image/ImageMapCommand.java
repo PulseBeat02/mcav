@@ -22,8 +22,8 @@ import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.MapDisplaySettings;
@@ -224,7 +224,7 @@ public final class ImageMapCommand extends AbstractImageCommand {
       settings.blocks(),
       settings.resolution(),
       settings.mapId(),
-      EncoderSettings.LIVE,
+      Settings.DEFAULT,
       settings.viewers()
     );
     if (configuration == null) {

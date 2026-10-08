@@ -24,9 +24,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.zip.CRC32;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Fixtures;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees;
 import org.junit.jupiter.api.Tag;
 
 /**
@@ -45,13 +45,13 @@ final class PageCrcFuzzTest {
   private static final long STREAM = 7;
 
   private static final List<byte[]> FRAMES = List.of(
-    Mcv2Fixtures.frames(Mcv2Fixtures.read("edge/edge-tiny.mcs")).get(0),
-    Mcv2Fixtures.frames(Mcv2Fixtures.read("edge/edge-derived-plain.mcs")).get(1),
-    Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/p30r19-compact_final-65p255994.mcs")).get(0)
+    Mcv2Trees.tiny(),
+    Mcv2Trees.predicted(4, 4, Mcv2Trees.motion(-1, 1)),
+    Mcv2Trees.twoPages()
   );
 
   /** The pages of the frames, by symbol width minus six. */
-  private static final List<List<byte[]>> PAGES = List.of(pages(6), pages(7), pages(8));
+  private static final List<List<byte[]>> PAGES = List.of(pages(6), pages(6), pages(6));
 
   private static List<byte[]> pages(final int symbolBits) {
     final List<byte[]> pages = new ArrayList<>();
@@ -90,20 +90,20 @@ final class PageCrcFuzzTest {
   private static byte[] rebuild(final TransportPage page) {
     final byte[] payload = page.getPayload();
     final byte[] raw = new byte[TransportPages.HEADER_BYTES + payload.length];
-    Mcv2Format.putU32(raw, 0, TransportPages.MAGIC);
+    Mcv2Decoder.putU32(raw, 0, TransportPages.MAGIC);
     raw[4] = 1;
     raw[5] = (byte) page.getSymbolBits();
-    Mcv2Format.putU16(raw, 6, page.getFlags());
-    Mcv2Format.putU32(raw, 8, page.getStreamId());
-    Mcv2Format.putU32(raw, 12, page.getFrameId());
-    Mcv2Format.putU16(raw, 16, page.getNumber());
-    Mcv2Format.putU16(raw, 18, page.getCount());
-    Mcv2Format.putU32(raw, 20, page.getReferenceId());
-    Mcv2Format.putU32(raw, 24, page.getFrameBytes());
+    Mcv2Decoder.putU16(raw, 6, page.getFlags());
+    Mcv2Decoder.putU32(raw, 8, page.getStreamId());
+    Mcv2Decoder.putU32(raw, 12, page.getFrameId());
+    Mcv2Decoder.putU16(raw, 16, page.getNumber());
+    Mcv2Decoder.putU16(raw, 18, page.getCount());
+    Mcv2Decoder.putU32(raw, 20, page.getReferenceId());
+    Mcv2Decoder.putU32(raw, 24, page.getFrameBytes());
     System.arraycopy(payload, 0, raw, TransportPages.HEADER_BYTES, payload.length);
     final CRC32 crc = new CRC32();
     crc.update(raw);
-    Mcv2Format.putU32(raw, 28, crc.getValue());
+    Mcv2Decoder.putU32(raw, 28, crc.getValue());
     return TransportPages.toSymbols(raw, page.getSymbolBits());
   }
 }

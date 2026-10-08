@@ -33,6 +33,7 @@ import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
 import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
 import me.brandonli.mcav.bukkit.media.map.MapTilePatch;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.Frame;
 import me.brandonli.mcav.bukkit.media.mcv2.transport.MapAlphabet;
 import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
@@ -447,10 +448,10 @@ public final class Mcv2Channel {
    */
   public int send(final byte[] frame) {
     Preconditions.checkNotNull(frame, "Frame must not be null");
-    final Mcv2Frame header;
+    final Frame header;
     final List<byte[]> pages;
     try {
-      header = FrameParser.parse(frame);
+      header = Mcv2Decoder.parse(frame);
       pages = TransportPages.makePages(frame, this.configuration.getStreamId(), MapAlphabet.SYMBOL_BITS);
     } catch (final Mcv2Exception exception) {
       throw new IllegalArgumentException("Not a valid MCV2 frame: " + exception.getMessage(), exception);

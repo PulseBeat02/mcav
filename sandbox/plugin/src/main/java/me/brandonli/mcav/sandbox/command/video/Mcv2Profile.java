@@ -17,61 +17,22 @@
  */
 package me.brandonli.mcav.sandbox.command.video;
 
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 
-/**
- * The MCV2 encoder profiles the sandbox offers.
- */
+/** The version 3 encoder presets offered by the sandbox. */
 public enum Mcv2Profile {
-  /** The shipped profile: previous-frame prediction at lambda 65.256, 3.46 map Mbps at 1080p30. */
-  SHIP,
-  /** The low-bandwidth profile: lambda 137.731, 2.12 map Mbps at 1080p30. */
-  LOW,
-  /**
-   * P frames predict from the last keyframe only, so a viewer who misses frames recovers with the next frame instead
-   * of the next keyframe; about 73% more bandwidth for the same quality.
-   */
-  KEYFRAME,
-  /** Every frame is a keyframe, so no viewer ever depends on a frame it missed; about 144% more bandwidth. */
-  INTRA,
-  /**
-   * The live profile and the default of a screen: the search made for encoding as the video plays, previous-frame
-   * prediction, the same bitstream as the others; a screen that falls behind steps to {@link #LIVE_ADAPTIVE}, then to
-   * {@link #LIVE_FAST}, then lowers its frame rate or resolution.
-   */
-  LIVE,
-  /**
-   * The {@link #LIVE} search while the picture is quiet and the {@link #LIVE_FAST} one once it moves, which keeps a
-   * 1080p30 frame of gameplay in time with fewer encoder threads than {@link #LIVE} needs.
-   */
-  LIVE_ADAPTIVE,
-  /**
-   * The fastest live profile: a faster search than {@link #LIVE}'s for somewhat more bandwidth at the same quality, which
-   * a screen that cannot keep up steps down to.
-   */
-  LIVE_FAST,
-  /**
-   * The live profile predicting from the last keyframe, for viewers whose clients draw fewer frames per second than
-   * the video has: a client decodes at most one video frame per frame it draws, and a frame it missed is the
-   * reference of the next one under previous-frame prediction.
-   */
-  LIVE_KEYFRAME;
+  /** Normal live thresholds. */
+  DEFAULT,
+  /** Normal thresholds on quiet pictures and fast thresholds while the source moves. */
+  ADAPTIVE,
+  /** Faster thresholds for screens that cannot keep up. */
+  FAST;
 
-  /**
-   * Gets the encoder settings of the profile.
-   *
-   * @return the settings
-   */
-  public EncoderSettings getSettings() {
+  public Settings getSettings() {
     return switch (this) {
-      case SHIP -> EncoderSettings.SHIP;
-      case LOW -> EncoderSettings.LOW_BANDWIDTH;
-      case KEYFRAME -> EncoderSettings.SHIP.withReference(EncoderSettings.ReferencePolicy.LAST_KEYFRAME);
-      case INTRA -> EncoderSettings.SHIP.withKeyInterval(1);
-      case LIVE -> EncoderSettings.LIVE;
-      case LIVE_ADAPTIVE -> EncoderSettings.LIVE_ADAPTIVE;
-      case LIVE_FAST -> EncoderSettings.LIVE_FAST;
-      case LIVE_KEYFRAME -> EncoderSettings.LIVE.withReference(EncoderSettings.ReferencePolicy.LAST_KEYFRAME);
+      case DEFAULT -> Settings.DEFAULT;
+      case ADAPTIVE -> Settings.ADAPTIVE;
+      case FAST -> Settings.FAST;
     };
   }
 }

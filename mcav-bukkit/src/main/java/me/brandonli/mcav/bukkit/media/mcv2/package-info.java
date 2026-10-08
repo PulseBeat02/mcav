@@ -18,7 +18,7 @@
 /**
  * Validates and decodes MCV2 frames, builds shader resource packs and delivers live video to Bukkit map screens.
  *
- * <p>For raw data, parse a complete frame with {@link me.brandonli.mcav.bukkit.media.mcv2.FrameParser} and decode
+ * <p>For raw data, parse a complete frame with {@link me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder} and decode
  * it with the required RGB reference. Immutable parsed frames may be shared; receivers, pacing state and stream
  * encoders need serialized access. Decoder output arrays and borrowed references have explicit ownership rules.
  *

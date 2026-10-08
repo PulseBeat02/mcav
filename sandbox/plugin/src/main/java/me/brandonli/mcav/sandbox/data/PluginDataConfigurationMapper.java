@@ -27,8 +27,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.Mcv2Natives;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
 import me.brandonli.mcav.sandbox.MCAVSandbox;
 import me.brandonli.mcav.sandbox.command.interaction.VncAllowList;
 import me.brandonli.mcav.sandbox.locale.Locale;
@@ -107,7 +106,11 @@ public final class PluginDataConfigurationMapper {
   private static final String INVALID_REFUSED_HOST = "Ignoring an entry of {} that is not a host name or address: {}";
   private static final String INVALID_THREADS = "Invalid {} {}, using half the processors";
 
-  private static final String INVALID_NATIVE = "Invalid {} {}, using " + Mcv2Natives.AUTO;
+  private static final String NATIVE_AUTO = "auto";
+
+  private static final String NATIVE_OFF = "off";
+
+  private static final String INVALID_NATIVE = "Invalid {} {}, using " + NATIVE_AUTO;
 
   private static final String INVALID_CHOICE = "Invalid {} {}, using {}";
 
@@ -148,7 +151,7 @@ public final class PluginDataConfigurationMapper {
 
   private int mcv2EncoderThreads;
 
-  private String mcv2Native = Mcv2Natives.AUTO;
+  private String mcv2Native = NATIVE_AUTO;
 
   private MapCodec mcv2DefaultCodec = MapCodec.DITHER;
 
@@ -273,7 +276,7 @@ public final class PluginDataConfigurationMapper {
   private static int readEncoderThreads(final FileConfiguration config) {
     // only a YAML int is taken, as for a port
     final Object value = config.get(MCV2_ENCODER_THREADS, 0);
-    if (!(value instanceof final Integer threads) || threads < 0 || threads > EncoderPool.MAX_THREADS) {
+    if (!(value instanceof final Integer threads) || threads < 0 || threads > Pool.MAX_THREADS) {
       LOGGER.warn(INVALID_THREADS, MCV2_ENCODER_THREADS, value);
       return 0;
     }
@@ -283,12 +286,12 @@ public final class PluginDataConfigurationMapper {
   private static String readNative(final FileConfiguration config) {
     // YAML reads an unquoted off as false, and on as true
     if (config.isBoolean(MCV2_NATIVE)) {
-      return config.getBoolean(MCV2_NATIVE) ? Mcv2Natives.AUTO : Mcv2Natives.OFF;
+      return config.getBoolean(MCV2_NATIVE) ? NATIVE_AUTO : NATIVE_OFF;
     }
-    final String mode = getString(config, MCV2_NATIVE, Mcv2Natives.AUTO);
-    if (!mode.equals(Mcv2Natives.AUTO) && !mode.equals(Mcv2Natives.OFF)) {
+    final String mode = getString(config, MCV2_NATIVE, NATIVE_AUTO);
+    if (!mode.equals(NATIVE_AUTO) && !mode.equals(NATIVE_OFF)) {
       LOGGER.warn(INVALID_NATIVE, MCV2_NATIVE, mode);
-      return Mcv2Natives.AUTO;
+      return NATIVE_AUTO;
     }
     return mode;
   }
@@ -529,7 +532,7 @@ public final class PluginDataConfigurationMapper {
   /**
    * Gets whether the live encoders use the native kernels where they load.
    *
-   * @return {@link Mcv2Natives#AUTO} or {@link Mcv2Natives#OFF}
+   * @return {@code auto} or {@code off}
    */
   public synchronized String getMcv2Native() {
     return this.mcv2Native;

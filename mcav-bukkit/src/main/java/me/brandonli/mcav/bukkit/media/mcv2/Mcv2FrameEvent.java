@@ -99,13 +99,13 @@ final class Mcv2FrameEvent extends Event {
   static String fingerprint(final byte[] rgb, final int width, final int height) {
     final StringBuilder builder = new StringBuilder(2 * FINGERPRINT_PIXELS);
     // the centre of each of the first superblocks of the top row
-    final int centre = Mcv2Format.ROOT_SIZE / 2;
+    final int centre = Mcv2Decoder.ROOT_SIZE / 2;
     for (
       int superblockIndex = 0;
-      superblockIndex < FINGERPRINT_PIXELS && centre + Mcv2Format.ROOT_SIZE * superblockIndex < width && height > centre;
+      superblockIndex < FINGERPRINT_PIXELS && centre + Mcv2Decoder.ROOT_SIZE * superblockIndex < width && height > centre;
       superblockIndex++
     ) {
-      final int at = (centre * width + centre + Mcv2Format.ROOT_SIZE * superblockIndex) * Mcv2Format.CHANNELS;
+      final int at = (centre * width + centre + Mcv2Decoder.ROOT_SIZE * superblockIndex) * Mcv2Decoder.CHANNELS;
       final int luma = ((rgb[at] & 0xFF) + 2 * (rgb[at + 1] & 0xFF) + (rgb[at + 2] & 0xFF)) / 4;
       builder.append(HexFormat.of().toHexDigits((byte) luma));
     }

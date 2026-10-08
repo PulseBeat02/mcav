@@ -38,10 +38,9 @@ import org.junit.jupiter.params.provider.MethodSource;
  * Decoder conformance: every frame of the committed streams decodes to exactly the RGB the Python reference decoder
  * produced, compared by SHA-256.
  *
- * <p>The {@code conformance} streams are the last kept frontier round (round 19) and the two shipped 1080p30 streams;
- * streams over 1 MB are committed as a prefix of whole frames from the first keyframe. The {@code edge} streams are
+ * <p>The {@code conformance} streams are real crops encoded with the v3 live encoder; each is at most 1 MB. The {@code edge} streams are
  * random trees built with the reference's own serializer to reach every leaf mode, every compact class, quantizers up
- * to 7, cropped edges and every index form.
+ * to 7, cropped edges and the derived index. Legacy v2 fixtures are refused.
  */
 final class ConformanceTest {
 
@@ -62,7 +61,12 @@ final class ConformanceTest {
     assertEquals(digests.size(), frames.size(), "frame count");
     final Mcv2Receiver receiver = new Mcv2Receiver();
     for (int frameIndex = 0; frameIndex < frames.size(); frameIndex++) {
-      final byte[] picture = receiver.accept(frames.get(frameIndex));
+      final byte[] data = frames.get(frameIndex);
+      if (data[4] != Mcv2Decoder.VERSION) {
+        assertThrows(Mcv2Exception.class, () -> receiver.accept(data), "v2 fixtures are refused");
+        continue;
+      }
+      final byte[] picture = receiver.accept(data);
       assertEquals(digests.get(frameIndex), Mcv2Fixtures.sha256(picture), "frame " + frameIndex);
     }
   }
@@ -78,10 +82,10 @@ final class ConformanceTest {
     return arguments.stream();
   }
 
-  /** MCV1 and the syntax of the reverted rounds 3 and 15, all accepted by the reference, are refused on purpose. */
+  /** Every invalid frame in the reference rejection corpus is refused. */
   @ParameterizedTest(name = "{0}")
   @MethodSource("rejected")
   void rejectsSyntaxThatIsNotPorted(final String name, final byte[] frame) {
-    assertThrows(UnsupportedSyntaxException.class, () -> FrameParser.parse(frame), name);
+    assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(frame), name);
   }
 }

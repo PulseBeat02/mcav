@@ -65,7 +65,6 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.sizeIndex;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.unpack565;
 
 import com.google.common.base.Preconditions;
-import java.io.ByteArrayOutputStream;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -92,29 +91,46 @@ import org.slf4j.LoggerFactory;
 
 /** The version 3 live encoder. Each instance encodes one stream on a caller-owned pool. */
 public final class MCV2 {
+
   // Public API owns stream state; begin and finish may overlap by one frame.
   public record Settings(double lambda, int keyInterval, boolean fast, boolean adaptive) {
     public static final Settings DEFAULT = new Settings(72, 120, false, false);
     public static final Settings FAST = new Settings(55, 120, true, false);
     public static final Settings ADAPTIVE = new Settings(72, 120, false, true);
+
     public Settings {
       Preconditions.checkArgument(lambda >= 0 && Double.isFinite(lambda), "Lambda must be finite and non-negative");
       Preconditions.checkArgument(keyInterval > 0, "Key interval must be positive");
     }
-    public Settings withLambda(final double value) { return new Settings(value, this.keyInterval, this.fast, this.adaptive); }
+
+    public Settings withLambda(final double value) {
+      return new Settings(value, this.keyInterval, this.fast, this.adaptive);
+    }
   }
 
   public record Stats(int bytes, boolean keyframe, int leaves, long nanoseconds, double lambda) {}
 
   public static final class Encoded {
+
     private final byte[] data;
     private final Stats stats;
-    private Encoded(final byte[] data, final Stats stats) { this.data = data; this.stats = stats; }
-    public byte[] getData() { return this.data; }
-    public Stats getStats() { return this.stats; }
+
+    private Encoded(final byte[] data, final Stats stats) {
+      this.data = data;
+      this.stats = stats;
+    }
+
+    public byte[] getData() {
+      return this.data;
+    }
+
+    public Stats getStats() {
+      return this.stats;
+    }
   }
 
   public static final class Pending {
+
     private final MCV2 owner;
     private final byte[] data;
     private final byte[] picture;
@@ -125,7 +141,18 @@ public final class MCV2 {
     private final double lambda;
     private final long nanoseconds;
     private volatile boolean finished;
-    private Pending(final MCV2 owner, final byte[] data, final byte[] picture, final byte[] predictFrom, final long referenceId, final boolean keyframe, final int leaves, final double lambda, final long nanoseconds) {
+
+    private Pending(
+      final MCV2 owner,
+      final byte[] data,
+      final byte[] picture,
+      final byte[] predictFrom,
+      final long referenceId,
+      final boolean keyframe,
+      final int leaves,
+      final double lambda,
+      final long nanoseconds
+    ) {
       this.owner = owner;
       this.data = data;
       this.picture = picture;
@@ -136,14 +163,17 @@ public final class MCV2 {
       this.lambda = lambda;
       this.nanoseconds = nanoseconds;
     }
-    public boolean isKeyframe() { return this.keyframe; }
+
+    public boolean isKeyframe() {
+      return this.keyframe;
+    }
   }
 
   private static final String STOPPED = "The encoder stopped after a frame failed its verification";
   private static final int LIMIT_RETRIES = 4;
   private static final int MOTION_RANGE = 24;
   private static final double SCENE_THRESHOLD = 45;
-  private static final double INDEX_BITS = 10.5;
+  private static final double INDEX_BITS = 12;
   private static final double DISTORTION_SCALE = 96.0;
   private static final int OUTSIDE_BITS = 56;
   private static final int GRID = 4;
@@ -189,15 +219,32 @@ public final class MCV2 {
     Preconditions.checkArgument(nanoseconds >= 0, "The frame budget must not be negative");
     this.frameBudget = nanoseconds;
   }
+
   public void setFrameLimit(final int bytes) {
     Preconditions.checkArgument(bytes >= 0, "The frame limit must not be negative");
     this.frameLimit = bytes;
   }
-  public void requestKeyframe() { this.framesSinceKey = Integer.MAX_VALUE; }
-  public void switchTo(final Settings next) { this.settings = Preconditions.checkNotNull(next, "Settings must not be null"); }
-  public Settings getSettings() { return this.settings; }
-  public @Nullable Stats getStats() { return this.stats; }
-  public byte @Nullable [] getReference() { final byte[] previous = this.reference; return previous == null ? null : previous.clone(); }
+
+  public void requestKeyframe() {
+    this.framesSinceKey = Integer.MAX_VALUE;
+  }
+
+  public void switchTo(final Settings next) {
+    this.settings = Preconditions.checkNotNull(next, "Settings must not be null");
+  }
+
+  public Settings getSettings() {
+    return this.settings;
+  }
+
+  public @Nullable Stats getStats() {
+    return this.stats;
+  }
+
+  public byte @Nullable [] getReference() {
+    final byte[] previous = this.reference;
+    return previous == null ? null : previous.clone();
+  }
 
   public byte[] encode(final byte[] rgb, final int width, final int height, final long frameId) {
     return this.finish(this.begin(rgb, width, height, frameId)).getData();
@@ -213,7 +260,8 @@ public final class MCV2 {
     Preconditions.checkArgument(this.lastFrameId < 0 || follows(frameId, this.lastFrameId), "Stale or ambiguous frame number");
     final long started = System.nanoTime();
     final byte[] previous = this.reference;
-    final boolean predictable = previous != null && width == this.width && height == this.height && this.framesSinceKey < this.settings.keyInterval();
+    final boolean predictable =
+      previous != null && width == this.width && height == this.height && this.framesSinceKey < this.settings.keyInterval();
     this.moving = this.motionLambda.moving(this.moving, 8, 6);
     final boolean adaptiveFast = this.settings.adaptive() && this.moving;
     final boolean fast = this.settings.fast() || adaptiveFast;
@@ -231,27 +279,57 @@ public final class MCV2 {
     }
     if (!keyframe) {
       half(predictFrom, width, height, this.workers, buffers.half);
-      if (!fast) { half(buffers.half, (width + 1) / 2, (height + 1) / 2, this.workers, buffers.quarter); }
+      if (!fast) {
+        half(buffers.half, (width + 1) / 2, (height + 1) / 2, this.workers, buffers.quarter);
+      }
     }
     final Pending verifying = this.newer;
-    final byte[] picture = buffers.spare(predictFrom, verifying == null ? NONE : verifying.picture, verifying == null ? NONE : verifying.predictFrom);
+    final byte[] picture = buffers.spare(
+      predictFrom,
+      verifying == null ? NONE : verifying.picture,
+      verifying == null ? NONE : verifying.predictFrom
+    );
     final boolean[] history = this.splitBefore == null ? new boolean[buffers.roots] : this.splitBefore;
     final boolean[] before = history.length == buffers.roots ? history : new boolean[buffers.roots];
-    final FrameState frame = new FrameState(rgb, predictFrom, width, height, keyframe, fast, lambda, keyframe ? null : this.motion, buffers, picture);
+    final FrameState frame = new FrameState(
+      rgb,
+      predictFrom,
+      width,
+      height,
+      keyframe,
+      fast,
+      lambda,
+      keyframe ? null : this.motion,
+      buffers,
+      picture
+    );
     SearchResult searched = this.search(frame, before, started, false);
-    byte[] data = write(frame, searched.roots, frameId, predictsId);
+    byte[] data = write(width, height, keyframe, searched.roots, frameId, predictsId);
     final int limit = this.frameLimit == 0 ? MAX_FRAME_BYTES : Math.min(this.frameLimit, MAX_FRAME_BYTES);
     for (int retry = 0; (data == null || data.length > limit) && retry < LIMIT_RETRIES; retry++) {
       lambda = Math.min(lambda * 2, Double.MAX_VALUE);
       frame.lambda = lambda;
       searched = this.search(frame, before, started, false);
-      data = write(frame, searched.roots, frameId, predictsId);
+      data = write(width, height, keyframe, searched.roots, frameId, predictsId);
     }
     if (data == null || data.length > limit) {
       searched = this.search(frame, before, started, true);
-      data = Preconditions.checkNotNull(write(frame, searched.roots, frameId, predictsId), "Trivial frame exceeds the format bound");
+      data = Preconditions.checkNotNull(
+        write(width, height, keyframe, searched.roots, frameId, predictsId),
+        "Trivial frame exceeds the format bound"
+      );
     }
-    final Pending pending = new Pending(this, data, picture, predictFrom, predictsId, keyframe, searched.leaves, lambda, System.nanoTime() - started);
+    final Pending pending = new Pending(
+      this,
+      data,
+      picture,
+      predictFrom,
+      predictsId,
+      keyframe,
+      searched.leaves,
+      lambda,
+      System.nanoTime() - started
+    );
     this.reference = picture;
     this.referenceId = frameId;
     this.motion = searched.motion;
@@ -271,14 +349,27 @@ public final class MCV2 {
     Preconditions.checkState(!this.failed, STOPPED);
     Preconditions.checkArgument(pending.owner == this, "The pending frame belongs to another encoder");
     Preconditions.checkState(!pending.finished, "The frame is finished already");
-    Preconditions.checkState(pending == this.older || (pending == this.newer && (this.older == null || this.older.finished)), "Finish frames in creation order");
+    Preconditions.checkState(
+      pending == this.older || (pending == this.newer && (this.older == null || this.older.finished)),
+      "Finish frames in creation order"
+    );
     final long started = System.nanoTime();
     if (this.shouldVerify) {
-      try { this.verify(pending); }
-      catch (final RuntimeException exception) { this.failed = true; throw exception; }
+      try {
+        this.verify(pending);
+      } catch (final RuntimeException exception) {
+        this.failed = true;
+        throw exception;
+      }
     }
     pending.finished = true;
-    final Stats result = new Stats(pending.data.length, pending.keyframe, pending.leaves, pending.nanoseconds + System.nanoTime() - started, pending.lambda);
+    final Stats result = new Stats(
+      pending.data.length,
+      pending.keyframe,
+      pending.leaves,
+      pending.nanoseconds + System.nanoTime() - started,
+      pending.lambda
+    );
     this.stats = result;
     return new Encoded(pending.data, result);
   }
@@ -287,12 +378,14 @@ public final class MCV2 {
     Preconditions.checkNotNull(folder, "Native folder must not be null");
     Preconditions.checkArgument(mode.equals("auto") || mode.equals("off"), "Native mode must be auto or off");
   }
-  public static String describeNatives() { return "Java"; }
 
+  public static String describeNatives() {
+    return "Java";
+  }
 
-// Frame analysis keeps source motion independent of reconstruction quality.
+  // Frame analysis keeps source motion independent of reconstruction quality.
   private static double fastLambda(final double lambda) {
-    final double scaled = lambda * 55 / 72;
+    final double scaled = (lambda * 55) / 72;
     return Double.isFinite(scaled) ? scaled : lambda * (55.0 / 72);
   }
 
@@ -300,191 +393,204 @@ public final class MCV2 {
     final int columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
     final int superblocks = columns * ((height + ROOT_SIZE - 1) / ROOT_SIZE);
     final long[] changes = new long[superblocks];
-    workers.forEach(superblocks, () -> changes, (partial, index) -> {
-      final int left = index % columns * ROOT_SIZE;
-      final int top = index / columns * ROOT_SIZE;
-      long change = 0;
-      for (int row = 2; row < ROOT_SIZE; row += 4) {
-        final int sourceRow = Math.min(top + row, height - 1);
-        for (int column = 2; column < ROOT_SIZE; column += 4) {
-          final int sourceColumn = Math.min(left + column, width - 1);
-          final int at = (sourceRow * width + sourceColumn) * CHANNELS;
-          final int luma = (source[at] & 255) + 2 * (source[at + 1] & 255) + (source[at + 2] & 255);
-          final int predicted = (reference[at] & 255) + 2 * (reference[at + 1] & 255) + (reference[at + 2] & 255);
-          change += Math.abs(luma - predicted);
+    workers.forEach(
+      superblocks,
+      () -> changes,
+      (partial, index) -> {
+        final int left = (index % columns) * ROOT_SIZE;
+        final int top = (index / columns) * ROOT_SIZE;
+        long change = 0;
+        for (int row = 2; row < ROOT_SIZE; row += 4) {
+          final int sourceRow = Math.min(top + row, height - 1);
+          for (int column = 2; column < ROOT_SIZE; column += 4) {
+            final int sourceColumn = Math.min(left + column, width - 1);
+            final int at = (sourceRow * width + sourceColumn) * CHANNELS;
+            final int luma = (source[at] & 255) + 2 * (source[at + 1] & 255) + (source[at + 2] & 255);
+            final int predicted = (reference[at] & 255) + 2 * (reference[at + 1] & 255) + (reference[at + 2] & 255);
+            change += Math.abs(luma - predicted);
+          }
         }
+        partial[index] = change;
       }
-      partial[index] = change;
-    });
+    );
     long change = 0;
-    for (final long value : changes) { change += value; }
+    for (final long value : changes) {
+      change += value;
+    }
     return (double) change / (superblocks * 64L * 4) > SCENE_THRESHOLD;
   }
 
+  private static final class MotionLambda {
 
-private static final class MotionLambda {
+    static final double KNEE = 4.6;
 
+    static final double EXPONENT = 0.79;
 
-  static final double KNEE = 4.6;
+    static final double MAX_RAISE = 4.0;
 
-  static final double EXPONENT = 0.79;
+    static final double SMOOTHING = 1.0 / 16;
 
-  static final double MAX_RAISE = 4.0;
+    private static final int SAMPLING = 4;
 
-  static final double SMOOTHING = 1.0 / 16;
+    private static final int BAND_ROWS = 16;
 
-  private static final int SAMPLING = 4;
+    private static final int BAND_SAMPLES = 16_384;
 
-  private static final int BAND_ROWS = 16;
+    private static final int BOX_AREA = 9;
 
-  private static final int BAND_SAMPLES = 16_384;
+    private static final int LUMA_SCALE = 4;
 
-  private static final int BOX_AREA = 9;
+    private int[] previous = new int[0];
 
-  private static final int LUMA_SCALE = 4;
+    private int[] spare = new int[0];
 
-  private int[] previous = new int[0];
+    private int[] across = new int[0];
 
-  private int[] spare = new int[0];
+    private int columns;
 
-  private int[] across = new int[0];
+    private int rows;
 
-  private int columns;
+    private double motion = Double.NaN;
 
-  private int rows;
-
-  private double motion = Double.NaN;
-
-  double lambda(final double base) {
-    return base * raise(this.motion);
-  }
-
-  boolean moving(final boolean was, final double enter, final double leave) {
-    return moving(this.motion, was, enter, leave);
-  }
-
-  static boolean moving(final double motion, final boolean was, final double enter, final double leave) {
-    if (motion > enter) {
-      return true;
+    double lambda(final double base) {
+      return base * raise(this.motion);
     }
-    return was && !(motion < leave);
-  }
 
-  static double raise(final double motion) {
-    if (!(motion > KNEE)) {
-      return 1;
+    boolean moving(final boolean was, final double enter, final double leave) {
+      return moving(this.average(), was, enter, leave);
     }
-    return Math.min(MAX_RAISE, Math.pow(motion / KNEE, EXPONENT));
-  }
 
-  void observe(final byte[] rgb, final int width, final int height, final boolean startsOver, final Workers workers) {
-    final int columns = (width + SAMPLING - 1) / SAMPLING;
-    final int rows = (height + SAMPLING - 1) / SAMPLING;
-    if (this.across.length != columns * rows) {
-      this.across = new int[columns * rows];
-      this.spare = new int[columns * rows];
+    static boolean moving(final double motion, final boolean was, final double enter, final double leave) {
+      if (motion > enter) {
+        return true;
+      }
+      return was && !(motion < leave);
     }
-    final int[] current = blurredLuma(rgb, width, height, workers, this.across, this.spare);
-    if (startsOver || columns != this.columns || rows != this.rows) {
-      this.motion = Double.NaN;
-    } else {
-      this.add(temporalInformation(current, this.previous, workers));
+
+    static double raise(final double motion) {
+      if (!(motion > KNEE)) {
+        return 1;
+      }
+      return Math.min(MAX_RAISE, Math.pow(motion / KNEE, EXPONENT));
     }
-    this.spare = this.previous.length == current.length ? this.previous : new int[current.length];
-    this.previous = current;
-    this.columns = columns;
-    this.rows = rows;
-  }
 
-  void add(final double information) {
-    this.motion = Double.isNaN(this.motion) ? information : this.motion + SMOOTHING * (information - this.motion);
-  }
+    void observe(final byte[] rgb, final int width, final int height, final boolean startsOver, final Workers workers) {
+      final int columns = (width + SAMPLING - 1) / SAMPLING;
+      final int rows = (height + SAMPLING - 1) / SAMPLING;
+      if (this.across.length != columns * rows) {
+        this.across = new int[columns * rows];
+        this.spare = new int[columns * rows];
+      }
+      final int[] current = blurredLuma(rgb, width, height, workers, this.across, this.spare);
+      if (startsOver || columns != this.columns || rows != this.rows) {
+        this.motion = Double.NaN;
+      } else {
+        this.add(temporalInformation(current, this.previous, workers));
+      }
+      this.spare = this.previous.length == current.length ? this.previous : new int[current.length];
+      this.previous = current;
+      this.columns = columns;
+      this.rows = rows;
+    }
 
-  double average() {
-    return this.motion;
-  }
+    void add(final double information) {
+      this.motion = Double.isNaN(this.motion) ? information : this.motion + SMOOTHING * (information - this.motion);
+    }
 
-  static int[] blurredLuma(
-    final byte[] rgb,
-    final int width,
-    final int height,
-    final Workers workers,
-    final int[] across,
-    final int[] blurred
-  ) {
-    final int columns = (width + SAMPLING - 1) / SAMPLING;
-    final int rows = (height + SAMPLING - 1) / SAMPLING;
-    final int bands = (rows + BAND_ROWS - 1) / BAND_ROWS;
+    double average() {
+      return this.motion;
+    }
 
-    workers.forEach(
-      bands,
-      () -> across,
-      (sums, band) -> {
-        for (int row = band * BAND_ROWS; row < Math.min(rows, (band + 1) * BAND_ROWS); row++) {
-          final int line = row * SAMPLING * width;
-          int left = luma(rgb, line);
-          int middle = left;
-          for (int column = 0; column < columns; column++) {
-            final int right = column + 1 < columns ? luma(rgb, line + (column + 1) * SAMPLING) : middle;
-            sums[row * columns + column] = left + middle + right;
-            left = middle;
-            middle = right;
+    static int[] blurredLuma(
+      final byte[] rgb,
+      final int width,
+      final int height,
+      final Workers workers,
+      final int[] across,
+      final int[] blurred
+    ) {
+      final int columns = (width + SAMPLING - 1) / SAMPLING;
+      final int rows = (height + SAMPLING - 1) / SAMPLING;
+      final int bands = (rows + BAND_ROWS - 1) / BAND_ROWS;
+
+      workers.forEach(
+        bands,
+        () -> across,
+        (sums, band) -> {
+          for (int row = band * BAND_ROWS; row < Math.min(rows, (band + 1) * BAND_ROWS); row++) {
+            final int line = row * SAMPLING * width;
+            int left = luma(rgb, line);
+            int middle = left;
+            for (int column = 0; column < columns; column++) {
+              final int right = column + 1 < columns ? luma(rgb, line + (column + 1) * SAMPLING) : middle;
+              sums[row * columns + column] = left + middle + right;
+              left = middle;
+              middle = right;
+            }
           }
         }
-      }
-    );
-    workers.forEach(
-      bands,
-      () -> blurred,
-      (out, band) -> {
-        for (int row = band * BAND_ROWS; row < Math.min(rows, (band + 1) * BAND_ROWS); row++) {
-          final int above = Math.max(row - 1, 0) * columns;
-          final int at = row * columns;
-          final int below = Math.min(row + 1, rows - 1) * columns;
-          for (int column = 0; column < columns; column++) {
-            out[at + column] = across[above + column] + across[at + column] + across[below + column];
+      );
+      workers.forEach(
+        bands,
+        () -> blurred,
+        (out, band) -> {
+          for (int row = band * BAND_ROWS; row < Math.min(rows, (band + 1) * BAND_ROWS); row++) {
+            final int above = Math.max(row - 1, 0) * columns;
+            final int at = row * columns;
+            final int below = Math.min(row + 1, rows - 1) * columns;
+            for (int column = 0; column < columns; column++) {
+              out[at + column] = across[above + column] + across[at + column] + across[below + column];
+            }
           }
         }
-      }
-    );
-    return blurred;
-  }
-
-  private static int luma(final byte[] rgb, final int pixel) {
-    final int at = pixel * CHANNELS;
-    return (rgb[at] & 0xFF) + 2 * (rgb[at + 1] & 0xFF) + (rgb[at + 2] & 0xFF);
-  }
-
-  static double temporalInformation(final int[] current, final int[] previous, final Workers workers) {
-    final int bands = (current.length + BAND_SAMPLES - 1) / BAND_SAMPLES;
-    final long[] sums = new long[bands];
-    workers.forEach(
-      bands,
-      () -> sums,
-      (partial, band) -> {
-        long sum = 0;
-        for (int sample = band * BAND_SAMPLES; sample < Math.min(current.length, (band + 1) * BAND_SAMPLES); sample++) {
-          sum += Math.abs(current[sample] - previous[sample]);
-        }
-        partial[band] = sum;
-      }
-    );
-    long sum = 0;
-    for (final long partial : sums) {
-      sum += partial;
+      );
+      return blurred;
     }
-    return (double) sum / ((long) current.length * LUMA_SCALE * BOX_AREA);
+
+    private static int luma(final byte[] rgb, final int pixel) {
+      final int at = pixel * CHANNELS;
+      return (rgb[at] & 0xFF) + 2 * (rgb[at + 1] & 0xFF) + (rgb[at + 2] & 0xFF);
+    }
+
+    static double temporalInformation(final int[] current, final int[] previous, final Workers workers) {
+      final int bands = (current.length + BAND_SAMPLES - 1) / BAND_SAMPLES;
+      final long[] sums = new long[bands];
+      workers.forEach(
+        bands,
+        () -> sums,
+        (partial, band) -> {
+          long sum = 0;
+          for (int sample = band * BAND_SAMPLES; sample < Math.min(current.length, (band + 1) * BAND_SAMPLES); sample++) {
+            sum += Math.abs(current[sample] - previous[sample]);
+          }
+          partial[band] = sum;
+        }
+      );
+      long sum = 0;
+      for (final long partial : sums) {
+        sum += partial;
+      }
+      return (double) sum / ((long) current.length * LUMA_SCALE * BOX_AREA);
+    }
   }
 
-}
-
-// Motion search preserves the seeded diamond and the reference pyramid.
+  // Motion search preserves the seeded diamond and the reference pyramid.
   private static final int[][] DIRECTIONS = { { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 } };
   private static final int SAMPLED = 4;
   private static final int[][] SAMPLES = { { 1, 3, 5, 7 }, { 2, 6, 10, 14 }, { 4, 12, 20, 28 } };
-  private static int packMotion(final int vectorX, final int vectorY) { return vectorX << 16 | vectorY & 65535; }
-  private static int motionX(final int vector) { return vector >> 16; }
-  private static int motionY(final int vector) { return (short) vector; }
+
+  private static int packMotion(final int vectorX, final int vectorY) {
+    return (vectorX << 16) | (vectorY & 65535);
+  }
+
+  private static int motionX(final int vector) {
+    return vector >> 16;
+  }
+
+  private static int motionY(final int vector) {
+    return (short) vector;
+  }
+
   private static int seededMotion(
     final byte[] reference,
     final int width,
@@ -543,7 +649,19 @@ private static final class MotionLambda {
     }
     return packMotion(bestX, bestY);
   }
-  private static long motionCost(final byte[] reference, final int width, final int height, final int[] source, final int blockLeft, final int blockTop, final int size, final int[] samples, final int motionX, final int motionY) {
+
+  private static long motionCost(
+    final byte[] reference,
+    final int width,
+    final int height,
+    final int[] source,
+    final int blockLeft,
+    final int blockTop,
+    final int size,
+    final int[] samples,
+    final int motionX,
+    final int motionY
+  ) {
     final int left = blockLeft + samples[0] + motionX;
     final int right = blockLeft + samples[SAMPLED - 1] + motionX;
     final int top = blockTop + samples[0] + motionY;
@@ -577,6 +695,7 @@ private static final class MotionLambda {
     }
     return sum;
   }
+
   private static byte[] half(final byte[] picture, final int width, final int height, final Workers workers, final byte[] out) {
     final int halfWidth = (width + 1) / 2;
     final int halfHeight = (height + 1) / 2;
@@ -603,8 +722,9 @@ private static final class MotionLambda {
     return out;
   }
 
-// Block search keeps the first strictly cheapest candidate and bounded top-down splits.
+  // Block search keeps the first strictly cheapest candidate and bounded top-down splits.
   private static final class Buffers {
+
     private final int width;
     private final int height;
     private final int roots;
@@ -647,13 +767,16 @@ private static final class MotionLambda {
     private byte[] spare(final byte[] reference, final byte[] verifying, final byte[] verifyingReference) {
       for (int index = 0; index < this.pictures.length - 1; index++) {
         final byte[] picture = this.pictures[index];
-        if (picture != reference && picture != verifying && picture != verifyingReference) { return picture; }
+        if (picture != reference && picture != verifying && picture != verifyingReference) {
+          return picture;
+        }
       }
       return this.pictures[this.pictures.length - 1];
     }
   }
 
   private static final class FrameState {
+
     private final byte[] source;
     private final byte[] reference;
     private final int width;
@@ -665,7 +788,18 @@ private static final class MotionLambda {
     private final Buffers buffers;
     private final byte[] picture;
 
-    private FrameState(final byte[] source, final byte[] reference, final int width, final int height, final boolean keyframe, final boolean fast, final double lambda, final int @Nullable [] previousMotion, final Buffers buffers, final byte[] picture) {
+    private FrameState(
+      final byte[] source,
+      final byte[] reference,
+      final int width,
+      final int height,
+      final boolean keyframe,
+      final boolean fast,
+      final double lambda,
+      final int @Nullable [] previousMotion,
+      final Buffers buffers,
+      final byte[] picture
+    ) {
       this.source = source;
       this.reference = reference;
       this.width = width;
@@ -680,13 +814,24 @@ private static final class MotionLambda {
 
     private int previousMotion(final int column, final int row) {
       final int[] field = this.previousMotion;
-      if (field == null) { return 0; }
+      if (field == null) {
+        return 0;
+      }
       final int cellColumn = Math.min(Math.max(column, 0), this.width - 1) / SMALLEST_BLOCK;
       final int cellRow = Math.min(Math.max(row, 0), this.height - 1) / SMALLEST_BLOCK;
       return field[cellRow * ((this.width + SMALLEST_BLOCK - 1) / SMALLEST_BLOCK) + cellColumn];
     }
 
-    private void set(final int level, final int block, final double cost, final int mode, final int quantizer, final byte[] record, final int length, final long distortion) {
+    private void set(
+      final int level,
+      final int block,
+      final double cost,
+      final int mode,
+      final int quantizer,
+      final byte[] record,
+      final int length,
+      final long distortion
+    ) {
       final Buffers buffers = this.buffers;
       buffers.costs[level][block] = cost;
       buffers.modes[level][block] = (byte) mode;
@@ -698,13 +843,30 @@ private static final class MotionLambda {
     }
   }
 
-  private record SearchResult(List<TreeNode> roots, int leaves, int[] motion, boolean[] splits) {}
+  private static final class SearchResult {
+
+    private final List<TreeNode> roots;
+    private final int leaves;
+    private final int[] motion;
+    private final boolean[] splits;
+
+    private SearchResult(final List<TreeNode> roots, final int leaves, final int[] motion, final boolean[] splits) {
+      this.roots = roots;
+      this.leaves = leaves;
+      this.motion = motion;
+      this.splits = splits;
+    }
+  }
+
   private record ChosenLeaf(int left, int top, int size, int level) {}
+
   private record Choice(TreeNode node, double cost) {}
 
   private SearchResult search(final FrameState frame, final boolean[] before, final long started, final boolean trivial) {
     final Buffers buffers = frame.buffers;
-    for (final double[] costs : buffers.costs) { Arrays.fill(costs, Double.POSITIVE_INFINITY); }
+    for (final double[] costs : buffers.costs) {
+      Arrays.fill(costs, Double.POSITIVE_INFINITY);
+    }
     final int columns = buffers.columns[0];
     final TreeNode[] roots = new TreeNode[buffers.roots];
     final int[] leafCounts = new int[buffers.roots];
@@ -713,49 +875,93 @@ private static final class MotionLambda {
     final double[] thresholds = { 150 * frame.lambda, (frame.fast ? 600 : 300) * frame.lambda, 0 };
     final double steady = (frame.fast ? 900 : 450) * frame.lambda;
     try {
-      this.workers.forEach(buffers.roots, () -> this.coders(frame), (coders, index) -> {
-        final int left = index % columns * ROOT_SIZE;
-        final int top = index / columns * ROOT_SIZE;
-        final double threshold = !frame.keyframe && !before[index] ? steady : thresholds[0];
-        final boolean late = trivial || (this.frameBudget > 0 && System.nanoTime() - started >= this.frameBudget);
-        for (final BlockCoder coder : coders) { coder.hurried = late; }
-        descend(frame, coders, 0, left, top, NO_VECTOR, threshold, thresholds);
-        final List<ChosenLeaf> chosen = new ArrayList<>();
-        final TreeNode root = Preconditions.checkNotNull(choose(frame, left, top, 0, chosen)).node();
-        roots[index] = withPatterns(root, ROOT_SIZE);
-        splits[index] = root.isSplit();
-        fillMotion(motion, frame.width, frame.height, root, left, top, ROOT_SIZE);
-        for (final ChosenLeaf leaf : chosen) { assemble(frame, leaf); }
-        leafCounts[index] = chosen.size();
-      });
-    } finally { this.releaseCoders(); }
+      this.workers.forEach(
+        buffers.roots,
+        () -> this.coders(frame),
+        (coders, index) -> {
+          final int left = (index % columns) * ROOT_SIZE;
+          final int top = (index / columns) * ROOT_SIZE;
+          final double threshold = !frame.keyframe && !before[index] ? steady : thresholds[0];
+          final boolean late = trivial || (this.frameBudget > 0 && System.nanoTime() - started >= this.frameBudget);
+          for (final BlockCoder coder : coders) {
+            coder.hurried = late;
+          }
+          descend(frame, coders, 0, left, top, NO_VECTOR, threshold, thresholds);
+          final List<ChosenLeaf> chosen = new ArrayList<>();
+          final TreeNode root = Preconditions.checkNotNull(choose(frame, left, top, 0, chosen)).node();
+          roots[index] = withPatterns(root, ROOT_SIZE);
+          splits[index] = root.isSplit();
+          fillMotion(motion, frame.width, frame.height, root, left, top, ROOT_SIZE);
+          for (final ChosenLeaf leaf : chosen) {
+            assemble(frame, leaf);
+          }
+          leafCounts[index] = chosen.size();
+        }
+      );
+    } finally {
+      this.releaseCoders();
+    }
     int leaves = 0;
-    for (final int count : leafCounts) { leaves += count; }
+    for (final int count : leafCounts) {
+      leaves += count;
+    }
     return new SearchResult(List.of(roots), leaves, motion, splits);
   }
 
-  private static double descend(final FrameState frame, final BlockCoder[] coders, final int level, final int left, final int top, final int parent, final double threshold, final double[] thresholds) {
-    if (left >= frame.width || top >= frame.height) { return frame.lambda * OUTSIDE_BITS; }
+  private static double descend(
+    final FrameState frame,
+    final BlockCoder[] coders,
+    final int level,
+    final int left,
+    final int top,
+    final int parent,
+    final double threshold,
+    final double[] thresholds
+  ) {
+    if (left >= frame.width || top >= frame.height) {
+      return frame.lambda * OUTSIDE_BITS;
+    }
     final int size = ROOT_SIZE >> level;
-    final int block = top / size * frame.buffers.columns[level] + left / size;
+    final int block = (top / size) * frame.buffers.columns[level] + left / size;
     final BlockCoder coder = coders[level];
     coder.code(level, block, left, top, parent);
     final double cost = frame.buffers.costs[level][block];
-    if (level == BLOCK_SIZES - 1 || coder.skipped || cost <= threshold) { return cost; }
+    if (level == BLOCK_SIZES - 1 || coder.skipped || cost <= threshold) {
+      return cost;
+    }
     final int half = size / 2;
     double splitCost = frame.lambda * INDEX_BITS;
     for (int corner = 0; corner < QUARTERS && splitCost < cost; corner++) {
-      splitCost += descend(frame, coders, level + 1, left + corner % 2 * half, top + corner / 2 * half, coder.localVector, thresholds[level + 1], thresholds);
+      splitCost += descend(
+        frame,
+        coders,
+        level + 1,
+        left + (corner % 2) * half,
+        top + (corner / 2) * half,
+        coder.localVector,
+        thresholds[level + 1],
+        thresholds
+      );
     }
     return Math.min(cost, splitCost);
   }
 
-  private static @Nullable Choice choose(final FrameState frame, final int left, final int top, final int level, final List<ChosenLeaf> leaves) {
-    if (left >= frame.width || top >= frame.height) { return new Choice(TreeNode.leaf(MODE_SOLID, 0, new byte[CHANNELS]), frame.lambda * OUTSIDE_BITS); }
+  private static @Nullable Choice choose(
+    final FrameState frame,
+    final int left,
+    final int top,
+    final int level,
+    final List<ChosenLeaf> leaves
+  ) {
+    if (left >= frame.width || top >= frame.height) {
+      return new Choice(TreeNode.leaf(MODE_SOLID, 0, new byte[CHANNELS]), frame.lambda * OUTSIDE_BITS);
+    }
     final int size = ROOT_SIZE >> level;
-    final int block = top / size * frame.buffers.columns[level] + left / size;
+    final int block = (top / size) * frame.buffers.columns[level] + left / size;
     final double cost = frame.buffers.costs[level][block];
-    if (cost == Double.POSITIVE_INFINITY) { return null; }
+    if (cost == Double.POSITIVE_INFINITY) {
+      return null;
+    }
     final int at = block * recordSize(MODE_PALETTE, size);
     final byte[] record = Arrays.copyOfRange(frame.buffers.records[level], at, at + (frame.buffers.lengths[level][block] & 255));
     final TreeNode leaf = TreeNode.leaf(frame.buffers.modes[level][block], frame.buffers.quantizers[level][block], record);
@@ -768,8 +974,11 @@ private static final class MotionLambda {
     final int half = size / 2;
     double splitCost = frame.lambda * INDEX_BITS;
     for (int corner = 0; corner < QUARTERS; corner++) {
-      final Choice child = choose(frame, left + corner % 2 * half, top + corner / 2 * half, level + 1, childLeaves);
-      if (child == null) { splitCost = Double.POSITIVE_INFINITY; break; }
+      final Choice child = choose(frame, left + (corner % 2) * half, top + (corner / 2) * half, level + 1, childLeaves);
+      if (child == null) {
+        splitCost = Double.POSITIVE_INFINITY;
+        break;
+      }
       children[corner] = child;
       splitCost += child.cost();
     }
@@ -786,19 +995,28 @@ private static final class MotionLambda {
     synchronized (this.idleCoders) {
       coders = this.idleCoders.poll();
       if (coders == null) {
-        coders = new BlockCoder[] { new BlockCoder(frame, ROOT_SIZE, this.kernels.get()), new BlockCoder(frame, ROOT_SIZE / 2, this.kernels.get()), new BlockCoder(frame, SMALLEST_BLOCK, this.kernels.get()) };
-        coders[1].root = coders[0]; coders[2].root = coders[0];
+        coders = new BlockCoder[] {
+          new BlockCoder(frame, ROOT_SIZE, this.kernels.get()),
+          new BlockCoder(frame, ROOT_SIZE / 2, this.kernels.get()),
+          new BlockCoder(frame, SMALLEST_BLOCK, this.kernels.get()),
+        };
+        coders[1].root = coders[0];
+        coders[2].root = coders[0];
       }
       this.busyCoders.add(coders);
     }
-    for (final BlockCoder coder : coders) { coder.frame = frame; }
+    for (final BlockCoder coder : coders) {
+      coder.frame = frame;
+    }
     return coders;
   }
 
   private void releaseCoders() {
     synchronized (this.idleCoders) {
       for (final BlockCoder[] coders : this.busyCoders) {
-        for (final BlockCoder coder : coders) { coder.kernels.forgetArrays(); }
+        for (final BlockCoder coder : coders) {
+          coder.kernels.forgetArrays();
+        }
       }
       this.idleCoders.addAll(this.busyCoders);
       this.busyCoders.clear();
@@ -806,6 +1024,7 @@ private static final class MotionLambda {
   }
 
   private static final class BlockCoder {
+
     private FrameState frame;
     private final int size;
     private final int count;
@@ -845,16 +1064,31 @@ private static final class MotionLambda {
     private boolean gridLoaded;
 
     private BlockCoder(final FrameState frame, final int size, final Kernels kernels) {
-      this.frame = frame; this.size = size; this.count = size * size; this.kernels = kernels;
-      this.source = new int[this.count * CHANNELS]; this.ycocg = new float[this.count * CHANNELS]; this.target = new float[this.count * CHANNELS];
-      this.zeroPrediction = new int[this.count * CHANNELS]; this.localPrediction = new int[this.count * CHANNELS];
-      this.recon = new int[this.count * CHANNELS]; this.best = new int[this.count * CHANNELS]; this.selectors = new byte[this.count];
-      this.halfSource = new int[size * size / 4 * CHANNELS]; this.quarterSource = new int[size * size / 16 * CHANNELS];
+      this.frame = frame;
+      this.size = size;
+      this.count = size * size;
+      this.kernels = kernels;
+      this.source = new int[this.count * CHANNELS];
+      this.ycocg = new float[this.count * CHANNELS];
+      this.target = new float[this.count * CHANNELS];
+      this.zeroPrediction = new int[this.count * CHANNELS];
+      this.localPrediction = new int[this.count * CHANNELS];
+      this.recon = new int[this.count * CHANNELS];
+      this.best = new int[this.count * CHANNELS];
+      this.selectors = new byte[this.count];
+      this.halfSource = new int[((size * size) / 4) * CHANNELS];
+      this.quarterSource = new int[((size * size) / 16) * CHANNELS];
     }
 
     private void code(final int level, final int block, final int left, final int top, final int parent) {
-      this.level = level; this.block = block; this.left = left; this.top = top;
-      this.clustered = false; this.ycocgLoaded = false; this.skipped = false; this.localVector = NO_VECTOR;
+      this.level = level;
+      this.block = block;
+      this.left = left;
+      this.top = top;
+      this.clustered = false;
+      this.ycocgLoaded = false;
+      this.skipped = false;
+      this.localVector = NO_VECTOR;
       this.loadSource();
       this.evaluate(parent);
       final byte[] picture = this.frame.buffers.levels[level];
@@ -863,25 +1097,29 @@ private static final class MotionLambda {
       for (int row = 0; row < bottom; row++) {
         final int from = row * this.size * CHANNELS;
         final int to = ((top + row) * this.frame.width + left) * CHANNELS;
-        for (int offset = 0; offset < right * CHANNELS; offset++) { picture[to + offset] = (byte) this.best[from + offset]; }
+        for (int offset = 0; offset < right * CHANNELS; offset++) {
+          picture[to + offset] = (byte) this.best[from + offset];
+        }
       }
     }
 
     private void evaluate(final int parent) {
       if (!this.frame.keyframe) {
         this.predict(0, this.zeroPrediction);
-        this.eligible(MODE_SKIP, 0);
+        this.eligible(0);
         this.kernels.predicted(this.zeroPrediction, this.size, this.recon);
         this.score(MODE_SKIP, 0, 0);
         final long skipDistortion = this.kernels.distortion();
-        if (this.hurried || this.cost() <= (this.frame.fast ? 60 : 26.5) * this.frame.lambda) {
-          this.skipped = true; return;
+        if (this.hurried || this.cost() <= (this.frame.fast ? 60 : 28) * this.frame.lambda) {
+          this.skipped = true;
+          return;
         }
         this.localVector = this.size < 16 && parent != NO_VECTOR ? parent : this.searchMotion(parent);
         this.predict(this.localVector, this.localPrediction);
         boolean closer = false;
-        if (this.localVector != 0 && this.eligible(MODE_MOTION, 2)) {
-          this.record[0] = (byte) motionX(this.localVector); this.record[1] = (byte) motionY(this.localVector);
+        if (this.localVector != 0 && this.eligible(2)) {
+          this.record[0] = (byte) motionX(this.localVector);
+          this.record[1] = (byte) motionY(this.localVector);
           if (this.kernels.predicted(this.localPrediction, this.size, this.recon)) {
             this.score(MODE_MOTION, 0, 2);
             closer = this.kernels.distortion() < skipDistortion;
@@ -890,15 +1128,21 @@ private static final class MotionLambda {
         this.compact(closer);
       }
       this.solid();
-      if (this.hurried) { this.skipped = true; return; }
+      if (this.hurried) {
+        this.skipped = true;
+        return;
+      }
       this.palette();
       this.pattern();
     }
 
-    private double cost() { return this.frame.buffers.costs[this.level][this.block]; }
+    private double cost() {
+      return this.frame.buffers.costs[this.level][this.block];
+    }
 
-    private boolean eligible(final int mode, final int length) {
-      this.rate = Math.min(this.frame.lambda * (length * Byte.SIZE + INDEX_BITS), Double.MAX_VALUE);
+    private boolean eligible(final int length) {
+      final double bits = length == 0 && this.size == ROOT_SIZE ? 1 : INDEX_BITS;
+      this.rate = Math.min(this.frame.lambda * (length * Byte.SIZE + bits), Double.MAX_VALUE);
       final double best = this.cost();
       this.kernels.start(this.source, this.rate, best);
       return best > this.rate;
@@ -918,20 +1162,47 @@ private static final class MotionLambda {
       if (parent != null) {
         final int rowLength = this.size * CHANNELS;
         for (int row = 0; row < this.size; row++) {
-          System.arraycopy(parent.source, ((this.top - parent.top + row) * ROOT_SIZE + this.left - parent.left) * CHANNELS, this.source, row * rowLength, rowLength);
+          System.arraycopy(
+            parent.source,
+            ((this.top - parent.top + row) * ROOT_SIZE + this.left - parent.left) * CHANNELS,
+            this.source,
+            row * rowLength,
+            rowLength
+          );
         }
-      } else { this.kernels.loadSource(this.frame.source, this.frame.width, this.frame.height, this.left, this.top, this.size, this.source); }
+      } else {
+        this.kernels.loadSource(this.frame.source, this.frame.width, this.frame.height, this.left, this.top, this.size, this.source);
+      }
     }
 
     private void predict(final int vector, final int[] out) {
       final BlockCoder parent = this.root;
-      final int[] from = parent == null ? null : vector == 0 ? parent.zeroPrediction : vector == parent.localVector ? parent.localPrediction : null;
+      final int[] from =
+        parent == null ? null : vector == 0 ? parent.zeroPrediction : vector == parent.localVector ? parent.localPrediction : null;
       if (parent != null && from != null) {
         final int rowLength = this.size * CHANNELS;
         for (int row = 0; row < this.size; row++) {
-          System.arraycopy(from, ((this.top - parent.top + row) * ROOT_SIZE + this.left - parent.left) * CHANNELS, out, row * rowLength, rowLength);
+          System.arraycopy(
+            from,
+            ((this.top - parent.top + row) * ROOT_SIZE + this.left - parent.left) * CHANNELS,
+            out,
+            row * rowLength,
+            rowLength
+          );
         }
-      } else { this.kernels.predict(this.frame.reference, this.frame.width, this.frame.height, this.left, this.top, this.size, motionX(vector), motionY(vector), out); }
+      } else {
+        this.kernels.predict(
+          this.frame.reference,
+          this.frame.width,
+          this.frame.height,
+          this.left,
+          this.top,
+          this.size,
+          motionX(vector),
+          motionY(vector),
+          out
+        );
+      }
     }
 
     private int searchMotion(final int parent) {
@@ -943,70 +1214,134 @@ private static final class MotionLambda {
       this.seeds[3] = frame.previousMotion(this.left + half, this.top - 1);
       this.seeds[4] = frame.previousMotion(this.left + half, this.top + this.size);
       this.seeds[5] = parent == NO_VECTOR ? this.seeds[0] : parent;
-      if (this.size >= 16) { Arrays.fill(this.seeds, this.halfMotion()); }
-      return this.kernels.seeded(frame.reference, frame.width, frame.height, this.source, this.left, this.top, this.size, MOTION_RANGE, this.seeds);
+      if (this.size >= 16) {
+        Arrays.fill(this.seeds, this.halfMotion());
+      }
+      return this.kernels.seeded(
+        frame.reference,
+        frame.width,
+        frame.height,
+        this.source,
+        this.left,
+        this.top,
+        this.size,
+        MOTION_RANGE,
+        this.seeds
+      );
     }
 
     private int halfMotion() {
       final FrameState frame = this.frame;
       this.kernels.halve(this.source, this.size, this.halfSource);
-      if (!frame.fast && this.size == ROOT_SIZE) { Arrays.fill(this.halfSeeds, this.quarterMotion()); }
-      else {
-        for (int index = 0; index < this.seeds.length; index++) { this.halfSeeds[index] = packMotion(motionX(this.seeds[index]) / 2, motionY(this.seeds[index]) / 2); }
+      if (!frame.fast && this.size == ROOT_SIZE) {
+        Arrays.fill(this.halfSeeds, this.quarterMotion());
+      } else {
+        for (int index = 0; index < this.seeds.length; index++) {
+          this.halfSeeds[index] = packMotion(motionX(this.seeds[index]) / 2, motionY(this.seeds[index]) / 2);
+        }
       }
-      final int coarse = this.kernels.seeded(frame.buffers.half, (frame.width + 1) / 2, (frame.height + 1) / 2, this.halfSource, this.left / 2, this.top / 2, this.size / 2, MOTION_RANGE / 2, this.halfSeeds);
+      final int coarse = this.kernels.seeded(
+        frame.buffers.half,
+        (frame.width + 1) / 2,
+        (frame.height + 1) / 2,
+        this.halfSource,
+        this.left / 2,
+        this.top / 2,
+        this.size / 2,
+        MOTION_RANGE / 2,
+        this.halfSeeds
+      );
       return packMotion(motionX(coarse) * 2, motionY(coarse) * 2);
     }
 
     private int quarterMotion() {
       final FrameState frame = this.frame;
       this.kernels.halve(this.halfSource, this.size / 2, this.quarterSource);
-      for (int index = 0; index < this.seeds.length; index++) { this.quarterSeeds[index] = packMotion(motionX(this.seeds[index]) / 4, motionY(this.seeds[index]) / 4); }
+      for (int index = 0; index < this.seeds.length; index++) {
+        this.quarterSeeds[index] = packMotion(motionX(this.seeds[index]) / 4, motionY(this.seeds[index]) / 4);
+      }
       final int halfWidth = (frame.width + 1) / 2;
       final int halfHeight = (frame.height + 1) / 2;
-      final int coarse = this.kernels.seeded(frame.buffers.quarter, (halfWidth + 1) / 2, (halfHeight + 1) / 2, this.quarterSource, this.left / 4, this.top / 4, this.size / 4, MOTION_RANGE / 4, this.quarterSeeds);
+      final int coarse = this.kernels.seeded(
+        frame.buffers.quarter,
+        (halfWidth + 1) / 2,
+        (halfHeight + 1) / 2,
+        this.quarterSource,
+        this.left / 4,
+        this.top / 4,
+        this.size / 4,
+        MOTION_RANGE / 4,
+        this.quarterSeeds
+      );
       return packMotion(motionX(coarse) * 2, motionY(coarse) * 2);
     }
 
     private float[] endpoints() {
-      if (!this.clustered) { this.kernels.cluster(this.source, this.size, this.clusters); this.clustered = true; }
+      if (!this.clustered) {
+        this.kernels.cluster(this.source, this.size, this.clusters);
+        this.clustered = true;
+      }
       return this.clusters;
     }
 
     private void solid() {
-      if (!this.eligible(MODE_SOLID, CHANNELS)) { return; }
-      long redSum = 0, greenSum = 0, blueSum = 0;
+      if (!this.eligible(CHANNELS)) {
+        return;
+      }
+      long redSum = 0;
+      long greenSum = 0;
+      long blueSum = 0;
       for (int pixel = 0; pixel < this.count; pixel++) {
-        redSum += this.source[pixel * CHANNELS]; greenSum += this.source[pixel * CHANNELS + 1]; blueSum += this.source[pixel * CHANNELS + 2];
+        redSum += this.source[pixel * CHANNELS];
+        greenSum += this.source[pixel * CHANNELS + 1];
+        blueSum += this.source[pixel * CHANNELS + 2];
       }
       final int red = (int) Math.floor((double) redSum / this.count + 0.5);
       final int green = (int) Math.floor((double) greenSum / this.count + 0.5);
       final int blue = (int) Math.floor((double) blueSum / this.count + 0.5);
-      this.record[0] = (byte) red; this.record[1] = (byte) green; this.record[2] = (byte) blue;
-      if (this.kernels.solid(red << 16 | green << 8 | blue, this.size, this.recon)) { this.score(MODE_SOLID, 0, CHANNELS); }
+      this.record[0] = (byte) red;
+      this.record[1] = (byte) green;
+      this.record[2] = (byte) blue;
+      if (this.kernels.solid((red << 16) | (green << 8) | blue, this.size, this.recon)) {
+        this.score(MODE_SOLID, 0, CHANNELS);
+      }
     }
 
     private void writePalette(final byte[] target) {
-      for (int index = 0; index < 2 * CHANNELS; index++) { target[index] = (byte) this.colors[index]; }
+      for (int index = 0; index < 2 * CHANNELS; index++) {
+        target[index] = (byte) this.colors[index];
+      }
       Arrays.fill(target, 2 * CHANNELS, 2 * CHANNELS + this.count / Byte.SIZE, (byte) 0);
-      for (int pixel = 0; pixel < this.count; pixel++) { target[2 * CHANNELS + pixel / Byte.SIZE] |= (byte) (this.selectors[pixel] << pixel % Byte.SIZE); }
+      for (int pixel = 0; pixel < this.count; pixel++) {
+        target[2 * CHANNELS + pixel / Byte.SIZE] |= (byte) (this.selectors[pixel] << (pixel % Byte.SIZE));
+      }
     }
 
     private void palette() {
       final int length = recordSize(MODE_PALETTE, this.size);
-      if (!this.eligible(MODE_PALETTE, length)) { return; }
+      if (!this.eligible(length)) {
+        return;
+      }
       this.kernels.finish(this.source, this.count, this.endpoints(), false, this.colors, this.selectors);
       this.writePalette(this.record);
-      if (this.kernels.palette(this.record, 0, this.size, this.recon)) { this.score(MODE_PALETTE, 0, length); }
+      if (this.kernels.palette(this.record, 0, this.size, this.recon)) {
+        this.score(MODE_PALETTE, 0, length);
+      }
     }
 
     private void pattern() {
       final int length = patternSize(this.size, false, false);
-      if (!this.eligible(MODE_PATTERN, length)) { return; }
-      if (!this.kernels.finishPattern(this.source, this.size, this.endpoints(), true, this.colors, this.selectors)) { return; }
+      if (!this.eligible(length)) {
+        return;
+      }
+      if (!this.kernels.finishPattern(this.source, this.size, this.endpoints(), true, this.colors, this.selectors)) {
+        return;
+      }
       this.writePalette(this.palette);
       patternRecord(this.palette, this.size, this.record);
-      if (this.kernels.palette(this.palette, 0, this.size, this.recon)) { this.score(MODE_PATTERN, 0, length); }
+      if (this.kernels.palette(this.palette, 0, this.size, this.recon)) {
+        this.score(MODE_PATTERN, 0, length);
+      }
     }
 
     private void compact(final boolean local) {
@@ -1017,37 +1352,67 @@ private static final class MotionLambda {
       boolean targeted = false;
       for (int kind = COMPACT_DC; kind <= COMPACT_GRID_Y; kind++) {
         final int length = 1 + form + (kind == COMPACT_DC ? 1 : kind == COMPACT_GRID ? 10 : 8);
-        if (!this.eligible(MODE_COMPACT, length)) { continue; }
+        if (!this.eligible(length)) {
+          continue;
+        }
         if (!targeted) {
-          if (!this.ycocgLoaded) { this.kernels.ycocg(this.source, this.count, this.ycocg); this.ycocgLoaded = true; }
+          if (!this.ycocgLoaded) {
+            this.kernels.ycocg(this.source, this.count, this.ycocg);
+            this.ycocgLoaded = true;
+          }
           this.kernels.residualTarget(this.ycocg, prediction, this.count, this.target);
-          this.meansLoaded = false; this.gridLoaded = false; targeted = true;
+          this.meansLoaded = false;
+          this.gridLoaded = false;
+          targeted = true;
         }
         final int values = this.compactFit(kind);
         final int quantizer = neededQuantizer(kind, this.fit, values);
         final int body = 1 + form;
-        this.record[0] = (byte) (kind | form << 4);
-        if (form == 1) { this.record[1] = (byte) (deltaX & 15 | (deltaY & 15) << 4); }
-        else if (form == 2) { this.record[1] = (byte) deltaX; this.record[2] = (byte) deltaY; }
+        this.record[0] = (byte) (kind | (form << 4));
+        if (form == 1) {
+          this.record[1] = (byte) ((deltaX & 15) | ((deltaY & 15) << 4));
+        } else if (form == 2) {
+          this.record[1] = (byte) deltaX;
+          this.record[2] = (byte) deltaY;
+        }
         this.compactBody(kind, quantizer, body);
-        if (this.kernels.compact(prediction, this.record, body, kind, quantizer, this.size, this.recon)) { this.score(MODE_COMPACT, quantizer, length); }
+        if (this.kernels.compact(prediction, this.record, body, kind, quantizer, this.size, this.recon)) {
+          this.score(MODE_COMPACT, quantizer, length);
+        }
       }
     }
 
     private int compactFit(final int kind) {
-      if (kind == COMPACT_DC) { this.fit[0] = this.mean(0); return 1; }
-      if (!this.gridLoaded) { this.kernels.fit(this.target, 0, CHANNELS, this.size, this.lumaGrid, 0, 1); this.gridLoaded = true; }
+      if (kind == COMPACT_DC) {
+        this.fit[0] = this.mean(0);
+        return 1;
+      }
+      if (!this.gridLoaded) {
+        this.kernels.fit(this.target, 0, CHANNELS, this.size, this.lumaGrid, 0, 1);
+        this.gridLoaded = true;
+      }
       System.arraycopy(this.lumaGrid, 0, this.fit, 0, GRID_NODES);
-      if (kind == COMPACT_GRID_Y) { return GRID_NODES; }
-      this.fit[GRID_NODES] = this.mean(1); this.fit[GRID_NODES + 1] = this.mean(2);
+      if (kind == COMPACT_GRID_Y) {
+        return GRID_NODES;
+      }
+      this.fit[GRID_NODES] = this.mean(1);
+      this.fit[GRID_NODES + 1] = this.mean(2);
       return GRID_NODES + 2;
     }
 
     private float mean(final int channel) {
       if (!this.meansLoaded) {
-        double luma = 0, orange = 0, green = 0;
-        for (int offset = 0; offset < this.target.length; offset += CHANNELS) { luma += this.target[offset]; orange += this.target[offset + 1]; green += this.target[offset + 2]; }
-        this.means[0] = (float) (luma / this.count); this.means[1] = (float) (orange / this.count); this.means[2] = (float) (green / this.count);
+        double luma = 0;
+        double orange = 0;
+        double green = 0;
+        for (int offset = 0; offset < this.target.length; offset += CHANNELS) {
+          luma += this.target[offset];
+          orange += this.target[offset + 1];
+          green += this.target[offset + 2];
+        }
+        this.means[0] = (float) (luma / this.count);
+        this.means[1] = (float) (orange / this.count);
+        this.means[2] = (float) (green / this.count);
         this.meansLoaded = true;
       }
       return this.means[channel];
@@ -1055,11 +1420,14 @@ private static final class MotionLambda {
 
     private void compactBody(final int kind, final int quantizer, final int body) {
       final int step = 1 << quantizer;
-      if (kind == COMPACT_DC) { this.record[body] = (byte) quantize(this.fit[0], step, -128, 127); return; }
+      if (kind == COMPACT_DC) {
+        this.record[body] = (byte) quantize(this.fit[0], step, -128, 127);
+        return;
+      }
       for (int index = 0; index < GRID_NODES / 2; index++) {
         final int low = quantize(this.fit[2 * index], step, -8, 7) & 15;
         final int high = quantize(this.fit[2 * index + 1], step, -8, 7) & 15;
-        this.record[body + index] = (byte) (low | high << 4);
+        this.record[body + index] = (byte) (low | (high << 4));
       }
       if (kind == COMPACT_GRID) {
         this.record[body + 8] = (byte) quantize(this.fit[GRID_NODES], step, -128, 127);
@@ -1068,13 +1436,13 @@ private static final class MotionLambda {
     }
   }
 
-
-// Fits preserve the live palette iterations and separable least squares.
+  // Fits preserve the live palette iterations and separable least squares.
   private static final int CLUSTER_SUMS = 8;
   private static final int COUNTS = 6;
   private static final int ITERATIONS = 2;
   private static final int SAMPLED_SIZE = 16;
   private static final float[][] FITTING_MATRICES = fittingMatrices();
+
   private static void cluster(final int[] source, final int size, final long[] sums, final float[] endpoints) {
     final int step = size >= SAMPLED_SIZE ? 2 : 1;
     int low = 0;
@@ -1130,7 +1498,6 @@ private static final class MotionLambda {
         final long members = sums[COUNTS + endpoint];
         if (members > 0) {
           for (int channel = 0; channel < CHANNELS; channel++) {
-
             final long mean = (sums[endpoint * CHANNELS + channel] + members / 2) / members;
             endpoints[endpoint * CHANNELS + channel] = mean;
           }
@@ -1138,6 +1505,7 @@ private static final class MotionLambda {
       }
     }
   }
+
   private static void finishPalette(
     final int[] source,
     final int count,
@@ -1151,6 +1519,7 @@ private static final class MotionLambda {
       selectors[pixel] = nearest(source, pixel, colors);
     }
   }
+
   private static void roundPalette(final float[] endpoints, final boolean shouldQuantize, final int[] colors) {
     for (int index = 0; index < PALETTE_COLORS * CHANNELS; index++) {
       colors[index] = rgb8(endpoints[index]);
@@ -1166,6 +1535,7 @@ private static final class MotionLambda {
       }
     }
   }
+
   private static byte nearest(final int[] source, final int pixel, final int[] colors) {
     final int at = pixel * CHANNELS;
     final int firstRedDelta = source[at] - colors[0];
@@ -1178,6 +1548,7 @@ private static final class MotionLambda {
     final int secondDistance = secondRedDelta * secondRedDelta + secondGreenDelta * secondGreenDelta + secondBlueDelta * secondBlueDelta;
     return (byte) (secondDistance < firstDistance ? 1 : 0);
   }
+
   private static boolean finishPattern(
     final int[] source,
     final int size,
@@ -1199,11 +1570,16 @@ private static final class MotionLambda {
     }
     return columns || rows;
   }
-  private static int rgb8(final float value) { return (int) Math.floor(Math.min(Math.max(value, 0), MAX_CHANNEL) + 0.5f); }
+
+  private static int rgb8(final float value) {
+    return (int) Math.floor(Math.min(Math.max(value, 0), MAX_CHANNEL) + 0.5f);
+  }
+
   private static int quantize(final float value, final int step, final int low, final int high) {
     final float scaled = (float) Math.floor(value / step + 0.5f);
     return (int) Math.min(Math.max(scaled, low), high);
   }
+
   private static int neededQuantizer(final int kind, final float[] fit, final int values) {
     for (int quantizer = 0; quantizer < COARSEST_QUANTIZER; quantizer++) {
       final int step = 1 << quantizer;
@@ -1213,7 +1589,9 @@ private static final class MotionLambda {
         final float value = (float) Math.floor(fit[index] / step + 0.5f);
         fits = value >= (nibble ? -8 : -128) && value <= (nibble ? 7 : 127);
       }
-      if (fits) { return quantizer; }
+      if (fits) {
+        return quantizer;
+      }
     }
     return COARSEST_QUANTIZER;
   }
@@ -1224,7 +1602,7 @@ private static final class MotionLambda {
       final int size = SMALLEST_BLOCK << index;
       final double[][] basis = new double[size][GRID];
       for (int pixel = 0; pixel < size; pixel++) {
-        final double position = Math.min(Math.max((pixel + 0.5) * GRID / size - 0.5, 0), GRID - 1);
+        final double position = Math.min(Math.max(((pixel + 0.5) * GRID) / size - 0.5, 0), GRID - 1);
         final int lower = (int) position;
         final int upper = Math.min(lower + 1, GRID - 1);
         basis[pixel][lower] += 1 - (position - lower);
@@ -1233,25 +1611,35 @@ private static final class MotionLambda {
       final double[][] inverse = new double[GRID][2 * GRID];
       for (int row = 0; row < GRID; row++) {
         for (int column = 0; column < GRID; column++) {
-          for (int pixel = 0; pixel < size; pixel++) { inverse[row][column] += basis[pixel][row] * basis[pixel][column]; }
+          for (int pixel = 0; pixel < size; pixel++) {
+            inverse[row][column] += basis[pixel][row] * basis[pixel][column];
+          }
         }
         inverse[row][GRID + row] = 1;
       }
       // The clamped interpolation basis has independent columns, so its Gram matrix is positive definite.
       for (int pivot = 0; pivot < GRID; pivot++) {
         final double scale = inverse[pivot][pivot];
-        for (int column = 0; column < 2 * GRID; column++) { inverse[pivot][column] /= scale; }
+        for (int column = 0; column < 2 * GRID; column++) {
+          inverse[pivot][column] /= scale;
+        }
         for (int row = 0; row < GRID; row++) {
-          if (row == pivot) { continue; }
+          if (row == pivot) {
+            continue;
+          }
           final double factor = inverse[row][pivot];
-          for (int column = 0; column < 2 * GRID; column++) { inverse[row][column] -= factor * inverse[pivot][column]; }
+          for (int column = 0; column < 2 * GRID; column++) {
+            inverse[row][column] -= factor * inverse[pivot][column];
+          }
         }
       }
       final float[] matrix = new float[GRID * size];
       for (int node = 0; node < GRID; node++) {
         for (int pixel = 0; pixel < size; pixel++) {
           double value = 0;
-          for (int column = 0; column < GRID; column++) { value += inverse[node][GRID + column] * basis[pixel][column]; }
+          for (int column = 0; column < GRID; column++) {
+            value += inverse[node][GRID + column] * basis[pixel][column];
+          }
           matrix[node * size + pixel] = (float) value;
         }
       }
@@ -1259,6 +1647,7 @@ private static final class MotionLambda {
     }
     return matrices;
   }
+
   private static void fitGrid(
     final float[] values,
     final int offset,
@@ -1290,7 +1679,7 @@ private static final class MotionLambda {
     }
   }
 
-// Pixel kernels share reusable scratch; native implementations use this same contract.
+  // Pixel kernels share reusable scratch; native implementations use this same contract.
   private interface Kernels {
     void start(int[] source, double rate, double limit);
     long distortion();
@@ -1308,22 +1697,33 @@ private static final class MotionLambda {
     void halve(int[] block, int size, int[] out);
     void ycocg(int[] source, int count, float[] out);
     void residualTarget(float[] ycocg, int[] prediction, int count, float[] target);
+
     default void forgetArrays() {}
   }
 
   private static final class Score {
+
     private int[] source = new int[0];
     private double rate;
     private double limit;
     private long distortion;
+
     private void start(final int[] source, final double rate, final double limit) {
-      this.source = source; this.rate = rate; this.limit = limit; this.distortion = 0;
+      this.source = source;
+      this.rate = rate;
+      this.limit = limit;
+      this.distortion = 0;
     }
+
     private boolean row(final int[] out, final int from, final int pixels) {
       int sum = 0;
       final int end = from + pixels * CHANNELS;
       for (int offset = from; offset < end; offset += CHANNELS) {
-        sum += pixelError(this.source[offset] - out[offset], this.source[offset + 1] - out[offset + 1], this.source[offset + 2] - out[offset + 2]);
+        sum += pixelError(
+          this.source[offset] - out[offset],
+          this.source[offset + 1] - out[offset + 1],
+          this.source[offset + 2] - out[offset + 2]
+        );
       }
       this.distortion += sum;
       return this.distortion / DISTORTION_SCALE + this.rate < this.limit;
@@ -1342,65 +1742,102 @@ private static final class MotionLambda {
   }
 
   private static final class JavaKernels implements Kernels {
+
     private final Score score = new Score();
     private final int[] nodes = new int[GRID_NODES];
     private final int[] rows = new int[GRID * ROOT_SIZE];
     private final int[] line = new int[ROOT_SIZE];
     private final double[] fitScratch = new double[ROOT_SIZE * GRID];
     private final long[] clusterScratch = new long[CLUSTER_SUMS];
-    @Override public void start(final int[] source, final double rate, final double limit) { this.score.start(source, rate, limit); }
-    @Override public long distortion() { return this.score.distortion; }
 
-    @Override public boolean predicted(final int[] prediction, final int size, final int[] out) {
+    @Override
+    public void start(final int[] source, final double rate, final double limit) {
+      this.score.start(source, rate, limit);
+    }
+
+    @Override
+    public long distortion() {
+      return this.score.distortion;
+    }
+
+    @Override
+    public boolean predicted(final int[] prediction, final int size, final int[] out) {
       final int rowLength = size * CHANNELS;
       for (int row = 0; row < size; row++) {
         final int from = row * rowLength;
-        for (int offset = from; offset < from + rowLength; offset++) { out[offset] = prediction[offset] >> 2; }
-        if (!this.score.row(out, from, size)) { return false; }
+        for (int offset = from; offset < from + rowLength; offset++) {
+          out[offset] = prediction[offset] >> 2;
+        }
+        if (!this.score.row(out, from, size)) {
+          return false;
+        }
       }
       return true;
     }
 
-    @Override public boolean solid(final int color, final int size, final int[] out) {
-      final int red = color >> 16 & 255;
-      final int green = color >> 8 & 255;
+    @Override
+    public boolean solid(final int color, final int size, final int[] out) {
+      final int red = (color >> 16) & 255;
+      final int green = (color >> 8) & 255;
       final int blue = color & 255;
       for (int row = 0; row < size; row++) {
         final int from = row * size * CHANNELS;
         for (int column = 0; column < size; column++) {
-          out[from + column * CHANNELS] = red; out[from + column * CHANNELS + 1] = green; out[from + column * CHANNELS + 2] = blue;
+          out[from + column * CHANNELS] = red;
+          out[from + column * CHANNELS + 1] = green;
+          out[from + column * CHANNELS + 2] = blue;
         }
-        if (!this.score.row(out, from, size)) { return false; }
+        if (!this.score.row(out, from, size)) {
+          return false;
+        }
       }
       return true;
     }
 
-    @Override public boolean palette(final byte[] record, final int offset, final int size, final int[] out) {
+    @Override
+    public boolean palette(final byte[] record, final int offset, final int size, final int[] out) {
       for (int row = 0; row < size; row++) {
         for (int column = 0; column < size; column++) {
           final int pixel = row * size + column;
-          final int bit = record[offset + 2 * CHANNELS + pixel / Byte.SIZE] >> pixel % Byte.SIZE & 1;
+          final int bit = (record[offset + 2 * CHANNELS + pixel / Byte.SIZE] >> (pixel % Byte.SIZE)) & 1;
           final int at = offset + bit * CHANNELS;
           out[pixel * CHANNELS] = record[at] & 255;
           out[pixel * CHANNELS + 1] = record[at + 1] & 255;
           out[pixel * CHANNELS + 2] = record[at + 2] & 255;
         }
-        if (!this.score.row(out, row * size * CHANNELS, size)) { return false; }
+        if (!this.score.row(out, row * size * CHANNELS, size)) {
+          return false;
+        }
       }
       return true;
     }
 
-    @Override public boolean compact(final int[] prediction, final byte[] record, final int body, final int kind, final int quantizer, final int size, final int[] out) {
+    @Override
+    public boolean compact(
+      final int[] prediction,
+      final byte[] record,
+      final int body,
+      final int kind,
+      final int quantizer,
+      final int size,
+      final int[] out
+    ) {
       if (kind == COMPACT_DC) {
         final int delta = (record[body] << quantizer) * 4;
         for (int row = 0; row < size; row++) {
           final int from = row * size * CHANNELS;
-          for (int offset = from; offset < from + size * CHANNELS; offset++) { out[offset] = roundChannel(prediction[offset] + delta, 2); }
-          if (!this.score.row(out, from, size)) { return false; }
+          for (int offset = from; offset < from + size * CHANNELS; offset++) {
+            out[offset] = roundChannel(prediction[offset] + delta, 2);
+          }
+          if (!this.score.row(out, from, size)) {
+            return false;
+          }
         }
         return true;
       }
-      for (int index = 0; index < GRID_NODES; index++) { this.nodes[index] = signed((record[body + index / 2] & 255) >> (index % 2 * 4), 4); }
+      for (int index = 0; index < GRID_NODES; index++) {
+        this.nodes[index] = signed((record[body + index / 2] & 255) >> ((index % 2) * 4), 4);
+      }
       this.horizontal(size);
       final int orange = kind == COMPACT_GRID ? record[body + 8] : 0;
       final int chromaGreen = kind == COMPACT_GRID ? record[body + 9] : 0;
@@ -1422,7 +1859,9 @@ private static final class MotionLambda {
             out[at + 1] = Math.min(Math.max((prediction[at + 1] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
             out[at + 2] = Math.min(Math.max((prediction[at + 2] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
           }
-          if (!this.score.row(out, from, size)) { return false; }
+          if (!this.score.row(out, from, size)) {
+            return false;
+          }
         }
         return true;
       }
@@ -1436,7 +1875,9 @@ private static final class MotionLambda {
           out[at + 1] = roundChannel(prediction[at + 1] * quarter + scaled + green, shift);
           out[at + 2] = roundChannel(prediction[at + 2] * quarter + scaled + blue, shift);
         }
-        if (!this.score.row(out, from, size)) { return false; }
+        if (!this.score.row(out, from, size)) {
+          return false;
+        }
       }
       return true;
     }
@@ -1449,7 +1890,8 @@ private static final class MotionLambda {
       for (int row = 0; row < GRID; row++) {
         for (int column = 0; column < size; column++) {
           final int weight = weights[column];
-          this.rows[row * size + column] = this.nodes[row * GRID + lower[column]] * (span - weight) + this.nodes[row * GRID + upper[column]] * weight;
+          this.rows[row * size + column] =
+            this.nodes[row * GRID + lower[column]] * (span - weight) + this.nodes[row * GRID + upper[column]] * weight;
         }
       }
     }
@@ -1460,10 +1902,23 @@ private static final class MotionLambda {
       final int bottom = GRID_UPPER[index][row] * size;
       final int below = GRID_WEIGHTS[index][row];
       final int above = 2 * size - below;
-      for (int column = 0; column < size; column++) { this.line[column] = this.rows[top + column] * above + this.rows[bottom + column] * below; }
+      for (int column = 0; column < size; column++) {
+        this.line[column] = this.rows[top + column] * above + this.rows[bottom + column] * below;
+      }
     }
 
-    @Override public void predict(final byte[] reference, final int width, final int height, final int blockLeft, final int blockTop, final int size, final int motionX, final int motionY, final int[] out) {
+    @Override
+    public void predict(
+      final byte[] reference,
+      final int width,
+      final int height,
+      final int blockLeft,
+      final int blockTop,
+      final int size,
+      final int motionX,
+      final int motionY,
+      final int[] out
+    ) {
       final int left = blockLeft + motionX;
       final int top = blockTop + motionY;
       if (left >= 0 && top >= 0 && left + size <= width && top + size <= height) {
@@ -1471,7 +1926,9 @@ private static final class MotionLambda {
         for (int row = 0; row < size; row++) {
           final int from = ((top + row) * width + left) * CHANNELS;
           final int to = row * rowLength;
-          for (int offset = 0; offset < rowLength; offset++) { out[to + offset] = 4 * (reference[from + offset] & 255); }
+          for (int offset = 0; offset < rowLength; offset++) {
+            out[to + offset] = 4 * (reference[from + offset] & 255);
+          }
         }
         return;
       }
@@ -1481,40 +1938,112 @@ private static final class MotionLambda {
           final int sourceColumn = Math.min(Math.max(left + column, 0), width - 1);
           final int from = (sourceRow * width + sourceColumn) * CHANNELS;
           final int to = (row * size + column) * CHANNELS;
-          for (int channel = 0; channel < CHANNELS; channel++) { out[to + channel] = 4 * (reference[from + channel] & 255); }
+          for (int channel = 0; channel < CHANNELS; channel++) {
+            out[to + channel] = 4 * (reference[from + channel] & 255);
+          }
         }
       }
     }
 
-    @Override public void fit(final float[] values, final int offset, final int stride, final int size, final float[] out, final int outOffset, final int outStride) { fitGrid(values, offset, stride, size, this.fitScratch, out, outOffset, outStride); }
-    @Override public void cluster(final int[] source, final int size, final float[] endpoints) { MCV2.cluster(source, size, this.clusterScratch, endpoints); }
-    @Override public void finish(final int[] source, final int count, final float[] endpoints, final boolean shouldQuantize, final int[] colors, final byte[] selectors) { finishPalette(source, count, endpoints, shouldQuantize, colors, selectors); }
-    @Override public boolean finishPattern(final int[] source, final int size, final float[] endpoints, final boolean shouldQuantize, final int[] colors, final byte[] selectors) { return MCV2.finishPattern(source, size, endpoints, shouldQuantize, colors, selectors); }
-    @Override public int seeded(final byte[] reference, final int width, final int height, final int[] source, final int left, final int top, final int size, final int range, final int[] seeds) { return seededMotion(reference, width, height, source, left, top, size, range, seeds); }
-    @Override public void halve(final int[] block, final int size, final int[] out) { halveBlock(block, size, out); }
+    @Override
+    public void fit(
+      final float[] values,
+      final int offset,
+      final int stride,
+      final int size,
+      final float[] out,
+      final int outOffset,
+      final int outStride
+    ) {
+      fitGrid(values, offset, stride, size, this.fitScratch, out, outOffset, outStride);
+    }
 
-    @Override public void loadSource(final byte[] image, final int width, final int height, final int blockLeft, final int blockTop, final int size, final int[] source) {
+    @Override
+    public void cluster(final int[] source, final int size, final float[] endpoints) {
+      MCV2.cluster(source, size, this.clusterScratch, endpoints);
+    }
+
+    @Override
+    public void finish(
+      final int[] source,
+      final int count,
+      final float[] endpoints,
+      final boolean shouldQuantize,
+      final int[] colors,
+      final byte[] selectors
+    ) {
+      finishPalette(source, count, endpoints, shouldQuantize, colors, selectors);
+    }
+
+    @Override
+    public boolean finishPattern(
+      final int[] source,
+      final int size,
+      final float[] endpoints,
+      final boolean shouldQuantize,
+      final int[] colors,
+      final byte[] selectors
+    ) {
+      return MCV2.finishPattern(source, size, endpoints, shouldQuantize, colors, selectors);
+    }
+
+    @Override
+    public int seeded(
+      final byte[] reference,
+      final int width,
+      final int height,
+      final int[] source,
+      final int left,
+      final int top,
+      final int size,
+      final int range,
+      final int[] seeds
+    ) {
+      return seededMotion(reference, width, height, source, left, top, size, range, seeds);
+    }
+
+    @Override
+    public void halve(final int[] block, final int size, final int[] out) {
+      halveBlock(block, size, out);
+    }
+
+    @Override
+    public void loadSource(
+      final byte[] image,
+      final int width,
+      final int height,
+      final int blockLeft,
+      final int blockTop,
+      final int size,
+      final int[] source
+    ) {
       for (int row = 0; row < size; row++) {
         final int sourceRow = Math.min(blockTop + row, height - 1);
         for (int column = 0; column < size; column++) {
           final int sourceColumn = Math.min(blockLeft + column, width - 1);
           final int from = (sourceRow * width + sourceColumn) * CHANNELS;
           final int to = (row * size + column) * CHANNELS;
-          source[to] = image[from] & 255; source[to + 1] = image[from + 1] & 255; source[to + 2] = image[from + 2] & 255;
+          source[to] = image[from] & 255;
+          source[to + 1] = image[from + 1] & 255;
+          source[to + 2] = image[from + 2] & 255;
         }
       }
     }
 
-    @Override public void ycocg(final int[] source, final int count, final float[] out) {
+    @Override
+    public void ycocg(final int[] source, final int count, final float[] out) {
       for (int offset = 0; offset < count * CHANNELS; offset += CHANNELS) {
-        final int red = source[offset]; final int green = source[offset + 1]; final int blue = source[offset + 2];
+        final int red = source[offset];
+        final int green = source[offset + 1];
+        final int blue = source[offset + 2];
         out[offset] = (red + 2 * green + blue) * 0.25f;
         out[offset + 1] = (red - blue) * 0.5f;
         out[offset + 2] = (-red + 2 * green - blue) * 0.25f;
       }
     }
 
-    @Override public void residualTarget(final float[] ycocg, final int[] prediction, final int count, final float[] target) {
+    @Override
+    public void residualTarget(final float[] ycocg, final int[] prediction, final int count, final float[] target) {
       for (int offset = 0; offset < count * CHANNELS; offset += CHANNELS) {
         final float red = prediction[offset] * 0.25f;
         final float green = prediction[offset + 1] * 0.25f;
@@ -1529,11 +2058,14 @@ private static final class MotionLambda {
   private static final int[][] GRID_LOWER = new int[BLOCK_SIZES][];
   private static final int[][] GRID_UPPER = new int[BLOCK_SIZES][];
   private static final int[][] GRID_WEIGHTS = new int[BLOCK_SIZES][];
+
   static {
     for (int index = 0; index < BLOCK_SIZES; index++) {
       final int size = SMALLEST_BLOCK << index;
       final int span = 2 * size;
-      GRID_LOWER[index] = new int[size]; GRID_UPPER[index] = new int[size]; GRID_WEIGHTS[index] = new int[size];
+      GRID_LOWER[index] = new int[size];
+      GRID_UPPER[index] = new int[size];
+      GRID_WEIGHTS[index] = new int[size];
       for (int pixel = 0; pixel < size; pixel++) {
         final int position = Math.min(Math.max((2 * pixel + 1) * GRID - size, 0), (GRID - 1) * span);
         GRID_LOWER[index][pixel] = position / span;
@@ -1561,28 +2093,53 @@ private static final class MotionLambda {
     }
   }
 
-// The writer emits one level-order index and tables when repeated records pay for them.
-  private static byte @Nullable [] write(final FrameState frame, final List<TreeNode> input, final long frameId, final long referenceId) {
+  // The writer emits one level-order index and tables when repeated records pay for them.
+  private static byte @Nullable [] write(
+    final int width,
+    final int height,
+    final boolean keyframe,
+    final List<TreeNode> input,
+    final long frameId,
+    final long referenceId
+  ) {
     final Map<Integer, Integer> colors = new LinkedHashMap<>();
-    if (frame.keyframe) { for (final TreeNode root : input) { countSolids(root, colors); } }
+    if (keyframe) {
+      for (final TreeNode root : input) {
+        countSolids(root, colors);
+      }
+    }
     int defaultColor = 0;
     int most = -1;
     for (final Map.Entry<Integer, Integer> entry : colors.entrySet()) {
-      if (entry.getValue() > most) { most = entry.getValue(); defaultColor = entry.getKey(); }
+      if (entry.getValue() > most) {
+        most = entry.getValue();
+        defaultColor = entry.getKey();
+      }
     }
     final List<TreeNode> roots = new ArrayList<>(input.size());
-    for (final TreeNode root : input) { roots.add(frame.keyframe ? rewriteDefault(root, defaultColor) : root); }
+    for (final TreeNode root : input) {
+      roots.add(keyframe ? rewriteDefault(root, defaultColor) : root);
+    }
     final List<TreeNode> flat = new ArrayList<>();
     final List<Integer> sizes = new ArrayList<>();
     final int[] levels = new int[BLOCK_SIZES];
     List<TreeNode> level = new ArrayList<>();
-    for (final TreeNode root : roots) { if (root.getMode() != MODE_SKIP) { level.add(root); } }
+    for (final TreeNode root : roots) {
+      if (root.getMode() != MODE_SKIP) {
+        level.add(root);
+      }
+    }
     for (int depth = 0; depth < BLOCK_SIZES; depth++) {
       levels[depth] = level.size();
       final List<TreeNode> children = new ArrayList<>();
       for (final TreeNode node : level) {
-        flat.add(node); sizes.add(ROOT_SIZE >> depth);
-        if (node.isSplit()) { for (int corner = 0; corner < QUARTERS; corner++) { children.add(node.getChild(corner)); } }
+        flat.add(node);
+        sizes.add(ROOT_SIZE >> depth);
+        if (node.isSplit()) {
+          for (int corner = 0; corner < QUARTERS; corner++) {
+            children.add(node.getChild(corner));
+          }
+        }
       }
       level = children;
     }
@@ -1595,54 +2152,94 @@ private static final class MotionLambda {
     final int walksAt = descriptorsAt + flat.size();
     final int start = walksAt + ((flat.size() + WALK_SPAN - 1) / WALK_SPAN) * Integer.BYTES + Integer.BYTES;
     int length = start + endpoints.size() * Integer.BYTES;
-    for (int index = 0; index < BLOCK_SIZES; index++) { length += words.get(index).size() * (1 + (SMALLEST_BLOCK << index) / Byte.SIZE); }
+    for (int index = 0; index < BLOCK_SIZES; index++) {
+      length += words.get(index).size() * (1 + (SMALLEST_BLOCK << index) / Byte.SIZE);
+    }
     for (int index = 0; index < flat.size(); index++) {
       final TreeNode node = flat.get(index);
-      length += node.getMode() == MODE_PATTERN ? patternSize(sizes.get(index), !endpoints.isEmpty(), !words.get(sizeIndex(sizes.get(index))).isEmpty()) : node.record().length;
+      length +=
+        node.getMode() == MODE_PATTERN
+          ? patternSize(sizes.get(index), !endpoints.isEmpty(), !words.get(sizeIndex(sizes.get(index))).isEmpty())
+          : node.record().length;
     }
-    if (length > MAX_FRAME_BYTES) { return null; }
+    if (length > MAX_FRAME_BYTES) {
+      return null;
+    }
     final byte[] data = new byte[length];
-    putU32(data, 0, MAGIC); data[4] = VERSION; data[5] = (byte) (frame.keyframe ? KEYFRAME : 0);
-    putU16(data, DIMENSIONS_OFFSET, frame.width); putU16(data, DIMENSIONS_OFFSET + Short.BYTES, frame.height);
-    putU32(data, FRAME_ID_OFFSET, frameId); putU32(data, REFERENCE_ID_OFFSET, referenceId);
-    putU32(data, PAYLOAD_START_OFFSET, start); putU32(data, TOTAL_OFFSET, length);
-    if (frame.keyframe) { putColor(data, DEFAULT_COLOR_OFFSET, defaultColor); }
+    putU32(data, 0, MAGIC);
+    data[4] = VERSION;
+    data[5] = (byte) (keyframe ? KEYFRAME : 0);
+    putU16(data, DIMENSIONS_OFFSET, width);
+    putU16(data, DIMENSIONS_OFFSET + Short.BYTES, height);
+    putU32(data, FRAME_ID_OFFSET, frameId);
+    putU32(data, REFERENCE_ID_OFFSET, referenceId);
+    putU32(data, PAYLOAD_START_OFFSET, start);
+    putU32(data, TOTAL_OFFSET, length);
+    if (keyframe) {
+      putColor(data, DEFAULT_COLOR_OFFSET, defaultColor);
+    }
     int seen = 0;
     for (int group = 0; group < groups; group++) {
       long mask = 0;
       final int from = group * GROUP_ROOTS;
-      for (int index = from; index < Math.min(roots.size(), from + GROUP_ROOTS); index++) { if (roots.get(index).getMode() != MODE_SKIP) { mask |= 1L << (index - from); } }
+      for (int index = from; index < Math.min(roots.size(), from + GROUP_ROOTS); index++) {
+        if (roots.get(index).getMode() != MODE_SKIP) {
+          mask |= 1L << (index - from);
+        }
+      }
       putU32(data, HEADER_BYTES + group * Integer.BYTES, mask);
-      if (group % CHECKPOINT_GROUPS == 0) { putU32(data, HEADER_BYTES + (groups + group / CHECKPOINT_GROUPS) * Integer.BYTES, seen); }
+      if (group % CHECKPOINT_GROUPS == 0) {
+        putU32(data, HEADER_BYTES + (groups + group / CHECKPOINT_GROUPS) * Integer.BYTES, seen);
+      }
       seen += Long.bitCount(mask);
     }
-    for (int index = 0; index < BLOCK_SIZES; index++) { putU32(data, countsAt + index * Integer.BYTES, levels[index]); }
+    for (int index = 0; index < BLOCK_SIZES; index++) {
+      putU32(data, countsAt + index * Integer.BYTES, levels[index]);
+    }
     data[start - Integer.BYTES] = (byte) endpoints.size();
-    for (int index = 0; index < BLOCK_SIZES; index++) { data[start - BLOCK_SIZES + index] = (byte) words.get(index).size(); }
+    for (int index = 0; index < BLOCK_SIZES; index++) {
+      data[start - BLOCK_SIZES + index] = (byte) words.get(index).size();
+    }
     int cursor = 0;
     int splits = 0;
     for (int index = 0; index < flat.size(); index++) {
       final TreeNode node = flat.get(index);
       final int size = sizes.get(index);
-      if (index % WALK_SPAN == 0) { putU32(data, walksAt + index / WALK_SPAN * Integer.BYTES, cursor | (long) splits << 17); }
-      data[descriptorsAt + index] = (byte) (node.getMode() | node.getQ() << QUANTIZER_SHIFT);
-      if (node.isSplit()) { splits++; continue; }
+      if (index % WALK_SPAN == 0) {
+        putU32(data, walksAt + (index / WALK_SPAN) * Integer.BYTES, cursor | ((long) splits << 17));
+      }
+      data[descriptorsAt + index] = (byte) (node.getMode() | (node.getQ() << QUANTIZER_SHIFT));
+      if (node.isSplit()) {
+        splits++;
+        continue;
+      }
       final byte[] record = node.record();
       if (node.getMode() == MODE_PATTERN) {
-        if (endpoints.isEmpty()) { System.arraycopy(record, 0, data, start + cursor, 2 * CHANNELS); cursor += 2 * CHANNELS; }
-        else { data[start + cursor++] = (byte) (int) Preconditions.checkNotNull(endpoints.get(bytesKey(record, 0, 2 * CHANNELS))); }
+        if (endpoints.isEmpty()) {
+          System.arraycopy(record, 0, data, start + cursor, 2 * CHANNELS);
+          cursor += 2 * CHANNELS;
+        } else {
+          data[start + cursor++] = (byte) (int) Preconditions.checkNotNull(endpoints.get(bytesKey(record, 0, 2 * CHANNELS)));
+        }
         final Map<Long, Integer> table = words.get(sizeIndex(size));
         if (table.isEmpty()) {
           System.arraycopy(record, 2 * CHANNELS, data, start + cursor, 1 + size / Byte.SIZE);
           cursor += 1 + size / Byte.SIZE;
-        } else { data[start + cursor++] = (byte) (int) Preconditions.checkNotNull(table.get(bytesKey(record, 2 * CHANNELS, 1 + size / Byte.SIZE))); }
-      } else { System.arraycopy(record, 0, data, start + cursor, record.length); cursor += record.length; }
+        } else {
+          data[start + cursor++] = (byte) (int) Preconditions.checkNotNull(table.get(bytesKey(record, 2 * CHANNELS, 1 + size / Byte.SIZE)));
+        }
+      } else {
+        System.arraycopy(record, 0, data, start + cursor, record.length);
+        cursor += record.length;
+      }
     }
     int at = start + cursor;
     for (int index = 0; index < BLOCK_SIZES; index++) {
       final int entry = 1 + (SMALLEST_BLOCK << index) / Byte.SIZE;
       for (final long word : words.get(index).keySet()) {
-        for (int offset = 0; offset < entry; offset++) { data[at++] = (byte) (word >>> (offset * Byte.SIZE)); }
+        for (int offset = 0; offset < entry; offset++) {
+          data[at++] = (byte) (word >>> (offset * Byte.SIZE));
+        }
       }
     }
     for (final long pair : endpoints.keySet()) {
@@ -1659,14 +2256,19 @@ private static final class MotionLambda {
     final Map<Long, Integer> counts = new LinkedHashMap<>();
     int uses = 0;
     for (final TreeNode node : flat) {
-      if (node.getMode() != MODE_PATTERN) { continue; }
+      if (node.getMode() != MODE_PATTERN) {
+        continue;
+      }
       final byte[] record = node.record();
       // Palettes rewritten as patterns may still have full RGB endpoints, which a 565 table cannot preserve.
       for (int at = 0; at < PALETTE_COLORS * CHANNELS; at += CHANNELS) {
         final int packed = pack565(record[at] & 255, record[at + 1] & 255, record[at + 2] & 255);
-        if (unpack565(packed & 255, packed >> Byte.SIZE) != color(record, at)) { return Map.of(); }
+        if (unpack565(packed & 255, packed >> Byte.SIZE) != color(record, at)) {
+          return Map.of();
+        }
       }
-      counts.putIfAbsent(bytesKey(record, 0, 2 * CHANNELS), counts.size()); uses++;
+      counts.putIfAbsent(bytesKey(record, 0, 2 * CHANNELS), counts.size());
+      uses++;
     }
     return counts.size() <= 255 && uses * 5 > counts.size() * Integer.BYTES ? counts : Map.of();
   }
@@ -1676,168 +2278,203 @@ private static final class MotionLambda {
     final int[] uses = new int[BLOCK_SIZES];
     for (int index = 0; index < flat.size(); index++) {
       final TreeNode node = flat.get(index);
-      if (node.getMode() != MODE_PATTERN) { continue; }
+      if (node.getMode() != MODE_PATTERN) {
+        continue;
+      }
       final int size = sizes.get(index);
       final int which = sizeIndex(size);
       final Map<Long, Integer> table = tables.get(which);
-      table.putIfAbsent(bytesKey(node.record(), 2 * CHANNELS, 1 + size / Byte.SIZE), table.size()); uses[which]++;
+      table.putIfAbsent(bytesKey(node.record(), 2 * CHANNELS, 1 + size / Byte.SIZE), table.size());
+      uses[which]++;
     }
     for (int index = 0; index < BLOCK_SIZES; index++) {
       final int entry = 1 + (SMALLEST_BLOCK << index) / Byte.SIZE;
       final int count = tables.get(index).size();
-      if (count > 255 || uses[index] * (entry - 1) <= count * entry) { tables.set(index, Map.of()); }
+      if (count > 255 || uses[index] * (entry - 1) <= count * entry) {
+        tables.set(index, Map.of());
+      }
     }
     return tables;
   }
 
   private static long bytesKey(final byte[] data, final int at, final int length) {
     long key = 0;
-    for (int index = 0; index < length; index++) { key |= (data[at + index] & 255L) << (Byte.SIZE * index); }
+    for (int index = 0; index < length; index++) {
+      key |= (data[at + index] & 255L) << (Byte.SIZE * index);
+    }
     return key;
   }
-  private static int color(final byte[] data, final int at) { return (data[at] & 255) << 16 | (data[at + 1] & 255) << 8 | data[at + 2] & 255; }
-  private static void putColor(final byte[] data, final int at, final int color) { data[at] = (byte) (color >> 16); data[at + 1] = (byte) (color >> 8); data[at + 2] = (byte) color; }
+
+  private static int color(final byte[] data, final int at) {
+    return ((data[at] & 255) << 16) | ((data[at + 1] & 255) << 8) | (data[at + 2] & 255);
+  }
+
+  private static void putColor(final byte[] data, final int at, final int color) {
+    data[at] = (byte) (color >> 16);
+    data[at + 1] = (byte) (color >> 8);
+    data[at + 2] = (byte) color;
+  }
 
   private static void countSolids(final TreeNode node, final Map<Integer, Integer> counts) {
-    if (node.isSplit()) { for (int corner = 0; corner < QUARTERS; corner++) { countSolids(node.getChild(corner), counts); } }
-    else if (node.getMode() == MODE_SOLID) { counts.merge(color(node.record(), 0), 1, Integer::sum); }
+    if (node.isSplit()) {
+      for (int corner = 0; corner < QUARTERS; corner++) {
+        countSolids(node.getChild(corner), counts);
+      }
+    } else if (node.getMode() == MODE_SOLID) {
+      counts.merge(color(node.record(), 0), 1, Integer::sum);
+    }
   }
 
   private static TreeNode rewriteDefault(final TreeNode node, final int defaultColor) {
-    if (node.isSplit()) { return TreeNode.split(rewriteDefault(node.getChild(0), defaultColor), rewriteDefault(node.getChild(1), defaultColor), rewriteDefault(node.getChild(2), defaultColor), rewriteDefault(node.getChild(3), defaultColor)); }
+    if (node.isSplit()) {
+      return TreeNode.split(
+        rewriteDefault(node.getChild(0), defaultColor),
+        rewriteDefault(node.getChild(1), defaultColor),
+        rewriteDefault(node.getChild(2), defaultColor),
+        rewriteDefault(node.getChild(3), defaultColor)
+      );
+    }
     return node.getMode() == MODE_SOLID && color(node.record(), 0) == defaultColor ? TreeNode.skip() : node;
   }
 
-  private static boolean patternRecord(final byte[] record, final int size, final byte[] pattern) {
+  private static boolean patternRecord(final byte[] paletteRecord, final int size, final byte[] patternOutput) {
     for (int orientation = 0; orientation < 2; orientation++) {
       boolean repeats = true;
       for (int row = 0; row < size && repeats; row++) {
         for (int column = 0; column < size; column++) {
-          final int axis = orientation == 0 ? paletteBit(record, column) : paletteBit(record, row * size);
-          if (paletteBit(record, row * size + column) != axis) { repeats = false; break; }
+          final int axis = orientation == 0 ? paletteBit(paletteRecord, column) : paletteBit(paletteRecord, row * size);
+          if (paletteBit(paletteRecord, row * size + column) != axis) {
+            repeats = false;
+            break;
+          }
         }
       }
       if (repeats) {
-        System.arraycopy(record, 0, pattern, 0, 2 * CHANNELS);
-        pattern[2 * CHANNELS] = (byte) orientation;
+        System.arraycopy(paletteRecord, 0, patternOutput, 0, 2 * CHANNELS);
+        patternOutput[2 * CHANNELS] = (byte) orientation;
         final int at = 2 * CHANNELS + 1;
-        Arrays.fill(pattern, at, at + size / Byte.SIZE, (byte) 0);
+        Arrays.fill(patternOutput, at, at + size / Byte.SIZE, (byte) 0);
         for (int position = 0; position < size; position++) {
-          final int value = orientation == 0 ? paletteBit(record, position) : paletteBit(record, position * size);
-          pattern[at + position / Byte.SIZE] |= (byte) (value << position % Byte.SIZE);
+          final int value = orientation == 0 ? paletteBit(paletteRecord, position) : paletteBit(paletteRecord, position * size);
+          patternOutput[at + position / Byte.SIZE] |= (byte) (value << (position % Byte.SIZE));
         }
         return true;
       }
     }
     return false;
   }
-  private static int paletteBit(final byte[] record, final int index) { return record[2 * CHANNELS + index / Byte.SIZE] >> index % Byte.SIZE & 1; }
+
+  private static int paletteBit(final byte[] paletteRecord, final int index) {
+    return (paletteRecord[2 * CHANNELS + index / Byte.SIZE] >> (index % Byte.SIZE)) & 1;
+  }
 
   private static TreeNode withPatterns(final TreeNode node, final int size) {
-    if (node.isSplit()) { return TreeNode.split(withPatterns(node.getChild(0), size / 2), withPatterns(node.getChild(1), size / 2), withPatterns(node.getChild(2), size / 2), withPatterns(node.getChild(3), size / 2)); }
+    if (node.isSplit()) {
+      return TreeNode.split(
+        withPatterns(node.getChild(0), size / 2),
+        withPatterns(node.getChild(1), size / 2),
+        withPatterns(node.getChild(2), size / 2),
+        withPatterns(node.getChild(3), size / 2)
+      );
+    }
     if (node.getMode() == MODE_PALETTE) {
-      final byte[] pattern = new byte[patternSize(size, false, false)];
-      if (patternRecord(node.record(), size, pattern)) { return TreeNode.leaf(MODE_PATTERN, 0, pattern); }
+      final byte[] patternOutput = new byte[patternSize(size, false, false)];
+      if (patternRecord(node.record(), size, patternOutput)) {
+        return TreeNode.leaf(MODE_PATTERN, 0, patternOutput);
+      }
     }
     return node;
   }
 
-private static final class TreeNode {
+  private static final class TreeNode {
 
+    private static final TreeNode SKIP = new TreeNode(MODE_SKIP, 0, new byte[0], null);
 
-  private static final TreeNode SKIP = new TreeNode(MODE_SKIP, 0, new byte[0], null);
+    private final int mode;
 
-  private final int mode;
+    private final int quantizer;
 
-  private final int quantizer;
+    private final byte[] record;
 
-  private final byte[] record;
+    private final TreeNode @Nullable [] children;
 
-  private final TreeNode @Nullable [] children;
-
-  private TreeNode(final int mode, final int quantizer, final byte[] record, final TreeNode @Nullable [] children) {
-    this.mode = mode;
-    this.quantizer = quantizer;
-    this.record = record;
-    this.children = children;
-  }
-
-  private static TreeNode skip() {
-    return SKIP;
-  }
-
-  private static TreeNode leaf(final int mode, final int quantizer, final byte[] record) {
-    Preconditions.checkNotNull(record, "Record must not be null");
-    Preconditions.checkArgument(mode != MODE_SPLIT && mode >= 0 && mode <= MODE_MASK, "Invalid leaf mode %s", mode);
-    Preconditions.checkArgument(quantizer >= 0 && quantizer <= MAX_QUANTIZER, "Invalid quantizer %s", quantizer);
-    return new TreeNode(mode, quantizer, record.clone(), null);
-  }
-
-  private static TreeNode split(final TreeNode topLeft, final TreeNode topRight, final TreeNode bottomLeft, final TreeNode bottomRight) {
-    Preconditions.checkNotNull(topLeft, "Children must not be null");
-    Preconditions.checkNotNull(topRight, "Children must not be null");
-    Preconditions.checkNotNull(bottomLeft, "Children must not be null");
-    Preconditions.checkNotNull(bottomRight, "Children must not be null");
-    return new TreeNode(MODE_SPLIT, 0, new byte[0], new TreeNode[] { topLeft, topRight, bottomLeft, bottomRight });
-  }
-
-  private int getMode() {
-    return this.mode;
-  }
-
-  private int getQ() {
-    return this.quantizer;
-  }
-
-  private boolean isSplit() {
-    return this.children != null;
-  }
-
-  private byte[] getRecord() {
-    return this.record.clone();
-  }
-
-  byte[] record() {
-    return this.record;
-  }
-
-  private TreeNode getChild(final int index) {
-    final TreeNode[] nodes = this.children;
-    if (nodes == null) {
-      throw new IllegalStateException("A leaf has no children");
+    private TreeNode(final int mode, final int quantizer, final byte[] record, final TreeNode @Nullable [] children) {
+      this.mode = mode;
+      this.quantizer = quantizer;
+      this.record = record;
+      this.children = children;
     }
-    return nodes[index];
-  }
 
-  @Override
-  public boolean equals(final @Nullable Object other) {
-    if (!(other instanceof final TreeNode node)) {
-      return false;
+    private static TreeNode skip() {
+      return SKIP;
     }
-    return (
-      this.mode == node.mode &&
-      this.quantizer == node.quantizer &&
-      Arrays.equals(this.record, node.record) &&
-      Arrays.equals(this.children, node.children)
-    );
+
+    private static TreeNode leaf(final int mode, final int quantizer, final byte[] record) {
+      Preconditions.checkNotNull(record, "Record must not be null");
+      Preconditions.checkArgument(mode != MODE_SPLIT && mode >= 0 && mode <= MODE_MASK, "Invalid leaf mode %s", mode);
+      Preconditions.checkArgument(quantizer >= 0 && quantizer <= MAX_QUANTIZER, "Invalid quantizer %s", quantizer);
+      return new TreeNode(mode, quantizer, record.clone(), null);
+    }
+
+    private static TreeNode split(final TreeNode topLeft, final TreeNode topRight, final TreeNode bottomLeft, final TreeNode bottomRight) {
+      Preconditions.checkNotNull(topLeft, "Children must not be null");
+      Preconditions.checkNotNull(topRight, "Children must not be null");
+      Preconditions.checkNotNull(bottomLeft, "Children must not be null");
+      Preconditions.checkNotNull(bottomRight, "Children must not be null");
+      return new TreeNode(MODE_SPLIT, 0, new byte[0], new TreeNode[] { topLeft, topRight, bottomLeft, bottomRight });
+    }
+
+    private int getMode() {
+      return this.mode;
+    }
+
+    private int getQ() {
+      return this.quantizer;
+    }
+
+    private boolean isSplit() {
+      return this.children != null;
+    }
+
+    private byte[] record() {
+      return this.record;
+    }
+
+    private TreeNode getChild(final int index) {
+      final TreeNode[] nodes = this.children;
+      if (nodes == null) {
+        throw new IllegalStateException("A leaf has no children");
+      }
+      return nodes[index];
+    }
+
+    @Override
+    public boolean equals(final @Nullable Object other) {
+      if (!(other instanceof final TreeNode node)) {
+        return false;
+      }
+      return (
+        this.mode == node.mode &&
+        this.quantizer == node.quantizer &&
+        Arrays.equals(this.record, node.record) &&
+        Arrays.equals(this.children, node.children)
+      );
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(this.mode, this.quantizer, Arrays.hashCode(this.record), Arrays.hashCode(this.children));
+    }
+
+    @Override
+    public String toString() {
+      return this.isSplit()
+        ? "split" + Arrays.toString(this.children)
+        : "leaf(" + this.mode + "," + this.quantizer + "," + this.record.length + "B)";
+    }
   }
 
-  @Override
-  public int hashCode() {
-    return Objects.hash(this.mode, this.quantizer, Arrays.hashCode(this.record), Arrays.hashCode(this.children));
-  }
-
-  @Override
-  public String toString() {
-    return this.isSplit()
-      ? "split" + Arrays.toString(this.children)
-      : "leaf(" + this.mode + "," + this.quantizer + "," + this.record.length + "B)";
-  }
-
-}
-
-
-// Chosen reconstructions become the reference, and verification checks the written bytes.
+  // Chosen reconstructions become the reference, and verification checks the written bytes.
   private static void assemble(final FrameState frame, final ChosenLeaf leaf) {
     final byte[] source = frame.buffers.levels[leaf.level()];
     final int right = Math.min(leaf.left() + leaf.size(), frame.width);
@@ -1848,18 +2485,35 @@ private static final class TreeNode {
     }
   }
 
-  private static void fillMotion(final int[] field, final int width, final int height, final TreeNode node, final int left, final int top, final int size) {
+  private static void fillMotion(
+    final int[] field,
+    final int width,
+    final int height,
+    final TreeNode node,
+    final int left,
+    final int top,
+    final int size
+  ) {
     if (node.isSplit()) {
       final int half = size / 2;
-      for (int corner = 0; corner < QUARTERS; corner++) { fillMotion(field, width, height, node.getChild(corner), left + corner % 2 * half, top + corner / 2 * half, half); }
+      for (int corner = 0; corner < QUARTERS; corner++) {
+        fillMotion(field, width, height, node.getChild(corner), left + (corner % 2) * half, top + (corner / 2) * half, half);
+      }
       return;
     }
     final byte[] record = node.record();
     final int mode = node.getMode();
-    final int vector = mode == MODE_MOTION ? packMotion(record[0], record[1]) : mode == MODE_COMPACT ? packMotion(compactX(record, 0), compactY(record, 0)) : 0;
+    final int vector =
+      mode == MODE_MOTION
+        ? packMotion(record[0], record[1])
+        : mode == MODE_COMPACT
+          ? packMotion(compactX(record, 0), compactY(record, 0))
+          : 0;
     final int columns = (width + SMALLEST_BLOCK - 1) / SMALLEST_BLOCK;
     for (int row = top; row < Math.min(top + size, height); row += SMALLEST_BLOCK) {
-      for (int column = left; column < Math.min(left + size, width); column += SMALLEST_BLOCK) { field[row / SMALLEST_BLOCK * columns + column / SMALLEST_BLOCK] = vector; }
+      for (int column = left; column < Math.min(left + size, width); column += SMALLEST_BLOCK) {
+        field[(row / SMALLEST_BLOCK) * columns + column / SMALLEST_BLOCK] = vector;
+      }
     }
   }
 
@@ -1870,204 +2524,199 @@ private static final class TreeNode {
       final int bands = (frame.getHeight() + ROOT_SIZE - 1) / ROOT_SIZE;
       final AtomicReference<@Nullable Mcv2Exception> failure = new AtomicReference<>();
       final AtomicBoolean same = new AtomicBoolean(true);
-      this.workers.forEach(bands, () -> decoded, (picture, band) -> {
-        final int from = band * ROOT_SIZE;
-        final int to = Math.min(frame.getHeight(), from + ROOT_SIZE);
-        try { Mcv2Decoder.decodeRows(frame, pending.predictFrom, pending.referenceId, picture, from, to); }
-        catch (final Mcv2Exception exception) { failure.compareAndSet(null, exception); return; }
-        final int first = from * frame.getWidth() * CHANNELS;
-        final int last = to * frame.getWidth() * CHANNELS;
-        if (!Arrays.equals(picture, first, last, pending.picture, first, last)) { same.set(false); }
-      });
+      this.workers.forEach(
+        bands,
+        () -> decoded,
+        (picture, band) -> {
+          final int from = band * ROOT_SIZE;
+          final int to = Math.min(frame.getHeight(), from + ROOT_SIZE);
+          try {
+            Mcv2Decoder.decodeRows(frame, pending.predictFrom, pending.referenceId, picture, from, to);
+          } catch (final Mcv2Exception exception) {
+            failure.compareAndSet(null, exception);
+            return;
+          }
+          final int first = from * frame.getWidth() * CHANNELS;
+          final int last = to * frame.getWidth() * CHANNELS;
+          if (!Arrays.equals(picture, first, last, pending.picture, first, last)) {
+            same.set(false);
+          }
+        }
+      );
       final Mcv2Exception error = failure.get();
-      if (error != null) { throw error; }
-      Preconditions.checkState(same.get(), "MCV2 live picture and decoded picture disagree");
-    } catch (final Mcv2Exception exception) { throw new IllegalStateException("The encoder wrote a frame the decoder rejects", exception); }
-  }
-
-
-// Workers share a bounded CPU pool across screens and finish all callbacks before returning.
-private static final class Workers {
-
-
-  private static final Workers SEQUENTIAL = new Workers(null, 1);
-
-  private final @Nullable ForkJoinPool pool;
-
-  private final int threads;
-
-  private Workers(final @Nullable ForkJoinPool pool, final int threads) {
-    Preconditions.checkArgument(threads >= 1, "At least one thread is needed");
-    this.pool = pool;
-    this.threads = threads;
-  }
-
-  private int threads() {
-    return this.pool == null ? 1 : this.threads;
-  }
-
-  private <T> void forEach(final int count, final Supplier<T> scratch, final ObjIntConsumer<T> body) {
-    final ForkJoinPool target = this.pool;
-    final int workers = Math.min(this.threads(), count);
-    if (target == null || workers <= 1) {
-      final T state = scratch.get();
-      for (int index = 0; index < count; index++) {
-        body.accept(state, index);
-      }
-      return;
-    }
-    final AtomicInteger next = new AtomicInteger();
-    final AtomicReference<@Nullable Throwable> failure = new AtomicReference<>();
-    target
-      .submit(() ->
-        IntStream.range(0, workers)
-          .parallel()
-          .forEach(_ -> {
-            try {
-              final T state = scratch.get();
-              for (int index = next.getAndIncrement(); index < count; index = next.getAndIncrement()) {
-                body.accept(state, index);
-              }
-            } catch (final RuntimeException | Error exception) {
-
-              failure.compareAndSet(null, exception);
-            }
-          })
-      )
-      .join();
-    final Throwable reported = failure.get();
-    if (reported instanceof final RuntimeException exception) {
-      throw exception;
-    }
-    if (reported instanceof final Error error) {
-      throw error;
-    }
-  }
-
-}
-public static final class Pool implements AutoCloseable {
-
-
-  public static final int MAX_THREADS = 256;
-
-  private static final long KEEP_ALIVE_SECONDS = 30;
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(Pool.class);
-
-  private static final String THREAD_FAILED = "MCV2 encoder thread {} failed";
-
-  private static final ThreadGroup GROUP = lowPriorityGroup();
-
-  private static @Nullable Pool shared;
-
-  private static int sharedThreads;
-
-  private final ForkJoinPool pool;
-
-  private final int threads;
-
-  public Pool(final int threads) {
-    Preconditions.checkArgument(threads >= 1 && threads <= MAX_THREADS, "Threads must be 1 to %s", MAX_THREADS);
-    this.threads = threads;
-    final AtomicInteger created = new AtomicInteger();
-    final ForkJoinPool.ForkJoinWorkerThreadFactory factory = forkJoinPool -> {
-      final ForkJoinWorkerThread thread = new EncoderThread(forkJoinPool);
-      thread.setName("mcav-mcv2-encoder-" + created.incrementAndGet());
-      thread.setDaemon(true);
-      return thread;
-    };
-
-    this.pool = new ForkJoinPool(
-      threads,
-      factory,
-      Pool::uncaught,
-      false,
-      0,
-      threads,
-      1,
-      _ -> true,
-      KEEP_ALIVE_SECONDS,
-      TimeUnit.SECONDS
-    );
-  }
-
-  private static final class EncoderThread extends ForkJoinWorkerThread {
-
-    private EncoderThread(final ForkJoinPool pool) {
-      super(GROUP, pool, false);
-    }
-  }
-
-  private static ThreadGroup lowPriorityGroup() {
-    final ThreadGroup group = new ThreadGroup("mcav-mcv2-encoders");
-    group.setMaxPriority(Thread.MIN_PRIORITY);
-    return group;
-  }
-
-  public static int defaultThreads(final int processors) {
-    return Math.max(1, processors / 2);
-  }
-
-  public static synchronized Pool shared() {
-    final Pool current = shared;
-    if (current != null) {
-      return current;
-    }
-    final int size = sharedThreads > 0 ? sharedThreads : defaultThreads(Runtime.getRuntime().availableProcessors());
-    final Pool created = new Pool(size);
-    shared = created;
-    return created;
-  }
-
-  public static synchronized void setSharedThreads(final int threads) {
-    Preconditions.checkArgument(threads >= 0 && threads <= MAX_THREADS, "Threads must be 0 to %s", MAX_THREADS);
-    if (threads != sharedThreads) {
-      sharedThreads = threads;
-      shared = null;
-    }
-  }
-
-  public int getThreads() {
-    return this.threads;
-  }
-
-  public MCV2 encoder(final Settings settings, final boolean shouldVerify) {
-    return new MCV2(settings, this.pool, this.threads, shouldVerify);
-  }
-
-  public <T> T run(final Callable<T> task) throws InterruptedException {
-    Preconditions.checkNotNull(task, "Task must not be null");
-
-    if (Thread.interrupted()) {
-      throw new InterruptedException("Interrupted before the task started");
-    }
-    final ForkJoinTask<T> job = this.pool.submit(task);
-    try {
-      return job.get();
-    } catch (final InterruptedException exception) {
-      job.cancel(true);
-      throw exception;
-    } catch (final ExecutionException exception) {
-
-      final Throwable cause = exception.getCause();
-      if (cause instanceof final RuntimeException runtime) {
-        throw runtime;
-      }
-      if (cause instanceof final Error error) {
+      if (error != null) {
         throw error;
       }
-      throw new IllegalStateException("An encode failed", cause);
+      Preconditions.checkState(same.get(), "MCV2 live picture and decoded picture disagree");
+    } catch (final Mcv2Exception exception) {
+      throw new IllegalStateException("The encoder wrote a frame the decoder rejects", exception);
     }
   }
 
-  static void uncaught(final Thread thread, final Throwable exception) {
-    LOGGER.error(THREAD_FAILED, thread.getName(), exception);
+  // Workers share a bounded CPU pool across screens and finish all callbacks before returning.
+  private static final class Workers {
+
+    private final @Nullable ForkJoinPool pool;
+
+    private final int threads;
+
+    private Workers(final @Nullable ForkJoinPool pool, final int threads) {
+      Preconditions.checkArgument(threads >= 1, "At least one thread is needed");
+      this.pool = pool;
+      this.threads = threads;
+    }
+
+    private int threads() {
+      return this.pool == null ? 1 : this.threads;
+    }
+
+    private <T> void forEach(final int count, final Supplier<T> scratch, final ObjIntConsumer<T> body) {
+      final ForkJoinPool target = this.pool;
+      final int workers = Math.min(this.threads(), count);
+      if (target == null || workers <= 1) {
+        final T state = scratch.get();
+        for (int index = 0; index < count; index++) {
+          body.accept(state, index);
+        }
+        return;
+      }
+      final AtomicInteger next = new AtomicInteger();
+      final AtomicReference<@Nullable Throwable> failure = new AtomicReference<>();
+      target
+        .submit(() ->
+          IntStream.range(0, workers)
+            .parallel()
+            .forEach(_ -> {
+              try {
+                final T state = scratch.get();
+                for (int index = next.getAndIncrement(); index < count; index = next.getAndIncrement()) {
+                  body.accept(state, index);
+                }
+              } catch (final RuntimeException | Error exception) {
+                failure.compareAndSet(null, exception);
+              }
+            })
+        )
+        .join();
+      final Throwable reported = failure.get();
+      if (reported instanceof final RuntimeException exception) {
+        throw exception;
+      }
+      if (reported instanceof final Error error) {
+        throw error;
+      }
+    }
   }
 
-  @Override
-  public void close() {
-    this.pool.shutdownNow();
-  }
+  public static final class Pool implements AutoCloseable {
 
-}
+    public static final int MAX_THREADS = 256;
+
+    private static final long KEEP_ALIVE_SECONDS = 30;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Pool.class);
+
+    private static final String THREAD_FAILED = "MCV2 encoder thread {} failed";
+
+    private static final ThreadGroup GROUP = lowPriorityGroup();
+
+    private static @Nullable Pool shared;
+
+    private static int sharedThreads;
+
+    private final ForkJoinPool pool;
+
+    private final int threads;
+
+    public Pool(final int threads) {
+      Preconditions.checkArgument(threads >= 1 && threads <= MAX_THREADS, "Threads must be 1 to %s", MAX_THREADS);
+      this.threads = threads;
+      final AtomicInteger created = new AtomicInteger();
+      final ForkJoinPool.ForkJoinWorkerThreadFactory factory = forkJoinPool -> {
+        final ForkJoinWorkerThread thread = new EncoderThread(forkJoinPool);
+        thread.setName("mcav-mcv2-encoder-" + created.incrementAndGet());
+        thread.setDaemon(true);
+        return thread;
+      };
+
+      this.pool = new ForkJoinPool(threads, factory, Pool::uncaught, false, 0, threads, 1, _ -> true, KEEP_ALIVE_SECONDS, TimeUnit.SECONDS);
+    }
+
+    private static final class EncoderThread extends ForkJoinWorkerThread {
+
+      private EncoderThread(final ForkJoinPool pool) {
+        super(GROUP, pool, false);
+      }
+    }
+
+    private static ThreadGroup lowPriorityGroup() {
+      final ThreadGroup group = new ThreadGroup("mcav-mcv2-encoders");
+      group.setMaxPriority(Thread.MIN_PRIORITY);
+      return group;
+    }
+
+    public static int defaultThreads(final int processors) {
+      return Math.max(1, processors / 2);
+    }
+
+    public static synchronized Pool shared() {
+      final Pool current = shared;
+      if (current != null) {
+        return current;
+      }
+      final int size = sharedThreads > 0 ? sharedThreads : defaultThreads(Runtime.getRuntime().availableProcessors());
+      final Pool created = new Pool(size);
+      shared = created;
+      return created;
+    }
+
+    public static synchronized void setSharedThreads(final int threads) {
+      Preconditions.checkArgument(threads >= 0 && threads <= MAX_THREADS, "Threads must be 0 to %s", MAX_THREADS);
+      if (threads != sharedThreads) {
+        sharedThreads = threads;
+        shared = null;
+      }
+    }
+
+    public int getThreads() {
+      return this.threads;
+    }
+
+    public MCV2 encoder(final Settings settings, final boolean shouldVerify) {
+      return new MCV2(settings, this.pool, this.threads, shouldVerify);
+    }
+
+    public <T> T run(final Callable<T> task) throws InterruptedException {
+      Preconditions.checkNotNull(task, "Task must not be null");
+
+      if (Thread.interrupted()) {
+        throw new InterruptedException("Interrupted before the task started");
+      }
+      final ForkJoinTask<T> job = this.pool.submit(task);
+      try {
+        return job.get();
+      } catch (final InterruptedException exception) {
+        job.cancel(true);
+        throw exception;
+      } catch (final ExecutionException exception) {
+        final Throwable cause = exception.getCause();
+        if (cause instanceof final RuntimeException runtime) {
+          throw runtime;
+        }
+        if (cause instanceof final Error error) {
+          throw error;
+        }
+        throw new IllegalStateException("An encode failed", cause);
+      }
+    }
+
+    static void uncaught(final Thread thread, final Throwable exception) {
+      LOGGER.error(THREAD_FAILED, thread.getName(), exception);
+    }
+
+    @Override
+    public void close() {
+      this.pool.shutdownNow();
+    }
+  }
 }

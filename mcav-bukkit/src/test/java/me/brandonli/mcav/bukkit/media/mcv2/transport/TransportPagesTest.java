@@ -32,11 +32,11 @@ import java.util.Map;
 import java.util.Random;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Fixtures;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.FrameWriter;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.TreeNode;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.Node;
 import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -46,7 +46,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * The map-page transport: pages identical to the reference's {@code make_pages} (compared by SHA-256 of every page's
- * symbols at 6, 7 and 8 bits), symbol packing, and every rule {@code read_page} enforces.
+ * symbols at 6 bits), symbol packing, and every rule {@code read_page} enforces.
  */
 final class TransportPagesTest {
 
@@ -97,8 +97,8 @@ final class TransportPagesTest {
   @Test
   void knowsThePageCapacities() {
     assertEquals(12256, TransportPages.capacity(6));
-    assertEquals(14304, TransportPages.capacity(7));
-    assertEquals(16352, TransportPages.capacity(8));
+    assertThrows(IllegalArgumentException.class, () -> TransportPages.capacity(7));
+    assertThrows(IllegalArgumentException.class, () -> TransportPages.capacity(8));
     assertEquals(1, TransportPages.pageCount(12256, 6));
     assertEquals(2, TransportPages.pageCount(12257, 6));
     assertThrows(IllegalArgumentException.class, () -> TransportPages.capacity(5));
@@ -107,13 +107,14 @@ final class TransportPagesTest {
 
   @Test
   void packsSymbolsLeastSignificantBitFirst() throws Mcv2Exception {
-    // the format's own example: A5 is 37, 2 at six bits and 37, 1 at seven
+    // A5 has low six bits 37 and high two bits 2.
     assertArrayEquals(new byte[] { 37, 2 }, TransportPages.toSymbols(new byte[] { (byte) 0xA5 }, 6));
-    assertArrayEquals(new byte[] { 37, 1 }, TransportPages.toSymbols(new byte[] { (byte) 0xA5 }, 7));
-    assertArrayEquals(new byte[] { (byte) 0xA5 }, TransportPages.toSymbols(new byte[] { (byte) 0xA5 }, 8));
+    assertThrows(IllegalArgumentException.class, () -> TransportPages.toSymbols(new byte[] { (byte) 0xA5 }, 7));
+    assertThrows(IllegalArgumentException.class, () -> TransportPages.toSymbols(new byte[] { (byte) 0xA5 }, 8));
     assertArrayEquals(new byte[0], TransportPages.toSymbols(new byte[0], 6));
     final Random random = new Random(20260925);
-    for (final int bits : new int[] { 6, 7, 8 }) {
+    for (int trial = 0; trial < 3; trial++) {
+      final int bits = 6;
       final byte[] data = new byte[1 + random.nextInt(300)];
       random.nextBytes(data);
       assertArrayEquals(data, TransportPages.fromSymbols(TransportPages.toSymbols(data, bits), bits, data.length));
@@ -138,7 +139,7 @@ final class TransportPagesTest {
   }
 
   private static byte[] page() throws Mcv2Exception {
-    final byte[] frame = Mcv2Fixtures.frames(Mcv2Fixtures.read("edge/edge-tiny.mcs")).get(0);
+    final byte[] frame = Mcv2Trees.tiny();
     return TransportPages.makePages(frame, 7, 6).get(0);
   }
 
@@ -222,16 +223,18 @@ final class TransportPagesTest {
   }
 
   @Test
-  void refusesASymbolWidthOutsideSixToEightBeforeReadingTheFrame() {
+  void refusesASymbolWidthOtherThanSixBeforeReadingTheFrame() {
     // as with the stream id, the arguments are checked first: these bytes are no frame either
     assertThrows(IllegalArgumentException.class, () -> TransportPages.makePages(new byte[48], 1, 5));
     assertThrows(IllegalArgumentException.class, () -> TransportPages.makePages(new byte[48], 1, 9));
+    assertThrows(IllegalArgumentException.class, () -> TransportPages.makePages(new byte[48], 1, 7));
+    assertThrows(IllegalArgumentException.class, () -> TransportPages.makePages(new byte[48], 1, 8));
   }
 
   @Test
   void everyPageNamesTheFrameItsFrameIsPredictedFrom() throws Mcv2Exception {
-    final TreeNode root = TreeNode.leaf(Mcv2Format.MODE_MOTION, 0, new byte[] { 1, 1 });
-    final byte[] frame = FrameWriter.write(32, 32, 5, 4, false, 0, 0, List.of(root), FrameWriter.Options.production(false));
+    final Node root = Node.leaf(Mcv2Decoder.MODE_MOTION, 0, new byte[] { 1, 1 });
+    final byte[] frame = Mcv2Trees.write(32, 32, 5, 4, false, List.of(root));
     for (final byte[] page : TransportPages.makePages(frame, 7, 6)) {
       final TransportPage read = TransportPages.readPage(page, 6);
       assertEquals(5, read.getFrameId());
@@ -246,24 +249,24 @@ final class TransportPagesTest {
    */
   private static byte[] pageOfFrame(final long frameBytes, final int number, final int count, final int size) {
     final byte[] raw = new byte[TransportPages.HEADER_BYTES + size];
-    Mcv2Format.putU32(raw, 0, TransportPages.MAGIC);
+    Mcv2Decoder.putU32(raw, 0, TransportPages.MAGIC);
     raw[4] = 1;
     raw[5] = 6;
-    Mcv2Format.putU16(raw, 16, number);
-    Mcv2Format.putU16(raw, 18, count);
-    Mcv2Format.putU32(raw, 24, frameBytes);
+    Mcv2Decoder.putU16(raw, 16, number);
+    Mcv2Decoder.putU16(raw, 18, count);
+    Mcv2Decoder.putU32(raw, 24, frameBytes);
     final CRC32 crc = new CRC32();
     crc.update(raw);
-    Mcv2Format.putU32(raw, 28, crc.getValue());
+    Mcv2Decoder.putU32(raw, 28, crc.getValue());
     return TransportPages.toSymbols(raw, 6);
   }
 
   @Test
   void readsThePagesOfTheSmallestAndTheLargestFrames() throws Mcv2Exception {
-    // a frame is at least its 48-byte header
-    assertEquals(48, TransportPages.readPage(pageOfFrame(48, 0, 1, 48), 6).getFrameBytes());
-    // the largest frame, 16,777,215 bytes, takes 1,369 six-bit pages of 12,256 bytes; the last carries the other 11,007
-    assertEquals(11_007, TransportPages.readPage(pageOfFrame(16_777_215, 1368, 1369, 11_007), 6).getPayload().length);
+    assertEquals(32, TransportPages.readPage(pageOfFrame(32, 0, 1, 32), 6).getFrameBytes());
+    assertEquals(8511, TransportPages.readPage(pageOfFrame(131071, 10, 11, 8511), 6).getPayload().length);
+    assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(pageOfFrame(31, 0, 1, 31), 6));
+    assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(pageOfFrame(131072, 10, 11, 8512), 6));
   }
 
   @Test

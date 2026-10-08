@@ -40,10 +40,8 @@ import java.util.function.LongSupplier;
 import me.brandonli.mcav.bukkit.BukkitModule;
 import me.brandonli.mcav.bukkit.media.config.MapConfiguration;
 import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.LiveSearch;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.Mcv2Encoder;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.transport.MapAlphabet;
 import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
@@ -68,19 +66,19 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Frames are encoded inside the screen's encoder budget ({@link Mcv2Configuration#getEncoderPool()}), which every
  * screen of the server shares unless it was given its own, in two steps: the screen's thread searches and writes a frame
- * ({@link Mcv2Encoder#begin}), then hands it to the screen's sender thread, which verifies it ({@link Mcv2Encoder#finish})
+ * ({@link MCV2#begin}), then hands it to the screen's sender thread, which verifies it ({@link MCV2#finish})
  * and sends it while the next frame is searched: one frame is in flight at most, and a frame is sent only once
  * verified. A frame that fails its verification stops the screen. A keyframe the channel asks for while a frame is in
  * flight comes with the frame after it; another preset begins only after the frame in flight is sent. The screen's
  * threads only wait for the budget. When the encoder is slower than the video, frames that arrive while it works
  * replace each other and only the newest is encoded, which the encoder's previous-frame reference allows. The encoder
- * bounds every frame to what the screen's page slots carry ({@link Mcv2Encoder#setFrameLimit}): a frame that would take
+ * bounds every frame to what the screen's page slots carry ({@link MCV2#setFrameLimit}): a frame that would take
  * more pages is searched again at a higher lambda. One that still has more pages than the screen has slots is not sent,
  * and the next is a keyframe.
  *
  * <p>A {@link Mcv2Pacer} keeps the screen within what its budget sustains: when the frames take longer than the video
  * gives them, it first searches less hard, down the preset ladder from the screen's settings
- * ({@link EncoderSettings#faster()}: the exhaustive search, {@code live}, {@code adaptive}, {@code live-fast}), the
+ * ({@code DEFAULT} or {@code ADAPTIVE}, then {@code FAST}), the
  * live presets one encoder that switches between them without a keyframe, the exhaustive search an encoder of its own
  * whose first frame is a keyframe; then it encodes fewer frames, down to {@link Mcv2Pacer#MIN_FPS} a second,
  * then shows a smaller video when the owner offers smaller sizes ({@link #setSmallerSizes}: each size has its own pack),
@@ -133,19 +131,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** The frames a screen may take at once after a pause: more than one, so a frame arriving early is not lost, fewer than two. */
   private static final double FRAME_CREDIT_CAP = 1.5;
 
-  /**
-   * The time a frame of each search of the preset ladder takes relative to the live search's, as the pacer measures it
-   * (wall time in the budget, 1080p30, 12 threads, native kernels): the exhaustive search takes 570-800 ms where live
-   * takes 21-43 ms, and live-fast 0.88 (gameplay) to 0.94 (quiet content) of live's time; the adaptive profile takes
-   * live's on calm pictures and live-fast's in motion.
-   */
-  private static final double EXHAUSTIVE_COST = 20;
-
-  private static final double LIVE_COST = 1;
+  /** Relative costs used to predict the next preset before it has a measured sample. */
+  private static final double DEFAULT_COST = 1;
 
   private static final double ADAPTIVE_COST = 0.95;
 
-  private static final double LIVE_FAST_COST = 0.9;
+  private static final double FAST_COST = 0.9;
 
   private final Mcv2Configuration requested;
 
@@ -176,13 +167,13 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private long lastFallbackRefresh;
 
   /** The settings the screen steps down through, from the ones it was asked for: each a faster search. */
-  private final List<EncoderSettings> ladder;
+  private final List<Settings> ladder;
 
   /** The pacer's preset of each of those settings, in the same order. */
   private final List<Mcv2Pacer.Preset> presets;
 
   /** Makes the encoder of a preset in the screen's encoder budget. */
-  private final Function<EncoderSettings, Mcv2Encoder> encoders;
+  private final Function<Settings, MCV2> encoders;
 
   // the newest frame the video handed over, until the screen's thread takes it
   private final Mcv2LatestFrame<Arrival> pending;
@@ -262,23 +253,23 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /** A frame searched and written, on its way to the sender, which verifies and sends it. */
-  private record Handoff(Mcv2Encoder encoder, Mcv2Encoder.Pending pending, long frameId, Arrival source) {}
+  private record Handoff(MCV2 encoder, MCV2.Pending pending, long frameId, Arrival source) {}
 
   /** The budget a started result encodes in, and where its screen's thread hands frames to its sender. */
-  private record Pipeline(EncoderPool budget, BlockingQueue<Handoff> queue) {}
+  private record Pipeline(Pool budget, BlockingQueue<Handoff> queue) {}
 
   /** An encoded frame on its way to the viewers, with its encoder statistics and where it came from. */
   private static final class Delivery {
 
     private final byte[] frame;
 
-    private final Mcv2Encoder.Stats stats;
+    private final MCV2.Stats stats;
 
     private final long frameId;
 
     private final Arrival source;
 
-    private Delivery(final byte[] frame, final Mcv2Encoder.Stats stats, final long frameId, final Arrival source) {
+    private Delivery(final byte[] frame, final MCV2.Stats stats, final long frameId, final Arrival source) {
       this.frame = frame;
       this.stats = stats;
       this.frameId = frameId;
@@ -310,7 +301,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       // one per result
     }
 
-    synchronized void add(final Mcv2Encoder.Stats stats, final int mapColors) {
+    synchronized void add(final MCV2.Stats stats, final int mapColors) {
       this.frames++;
       this.keyframes += stats.keyframe() ? 1 : 0;
       this.bytes += stats.bytes();
@@ -423,7 +414,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final @Nullable DitherAlgorithm fallbackAlgorithm,
     final LongSupplier clock,
     final @Nullable Executor dithering,
-    final Function<EncoderSettings, Mcv2Encoder> encoders
+    final Function<Settings, MCV2> encoders
   ) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null");
     Preconditions.checkNotNull(channel, "Channel must not be null");
@@ -454,36 +445,32 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   }
 
   /** The settings a screen steps down through: the ones it was asked for, then each faster search's. */
-  private static List<EncoderSettings> ladder(final EncoderSettings settings) {
-    final List<EncoderSettings> ladder = new ArrayList<>();
-    for (EncoderSettings rung = settings; rung != null; rung = rung.faster()) {
-      ladder.add(rung);
+  private static List<Settings> ladder(final Settings settings) {
+    if (settings.fast()) {
+      return List.of(settings);
     }
-    return List.copyOf(ladder);
+    final double lambda = settings.lambda() * (55.0 / 72);
+    return List.of(settings, new Settings(lambda, settings.keyInterval(), true, false));
   }
 
   /** The pacer's presets of a ladder: one without a name when there is nothing to step through. */
-  private static List<Mcv2Pacer.Preset> presets(final List<EncoderSettings> ladder) {
+  private static List<Mcv2Pacer.Preset> presets(final List<Settings> ladder) {
     if (ladder.size() == 1) {
       return List.of(Mcv2Pacer.Preset.ONLY);
     }
     final List<Mcv2Pacer.Preset> presets = new ArrayList<>();
-    for (final EncoderSettings settings : ladder) {
+    for (final Settings settings : ladder) {
       presets.add(preset(settings));
     }
     return List.copyOf(presets);
   }
 
-  /** The pacer's preset of a rung of the ladder, which {@link EncoderSettings#faster()} walks. */
-  private static Mcv2Pacer.Preset preset(final EncoderSettings settings) {
-    final LiveSearch search = settings.live();
-    if (search == null) {
-      return new Mcv2Pacer.Preset("exhaustive", EXHAUSTIVE_COST);
+  /** The cost estimate of each search threshold set. */
+  private static Mcv2Pacer.Preset preset(final Settings settings) {
+    if (settings.fast()) {
+      return new Mcv2Pacer.Preset("FAST", FAST_COST);
     }
-    if (settings.adaptive() != null) {
-      return new Mcv2Pacer.Preset("adaptive", ADAPTIVE_COST);
-    }
-    return LiveSearch.LIVE.equals(search) ? new Mcv2Pacer.Preset("live", LIVE_COST) : new Mcv2Pacer.Preset("live-fast", LIVE_FAST_COST);
+    return settings.adaptive() ? new Mcv2Pacer.Preset("ADAPTIVE", ADAPTIVE_COST) : new Mcv2Pacer.Preset("DEFAULT", DEFAULT_COST);
   }
 
   private static MapConfiguration fallbackConfiguration(final Mcv2Configuration configuration, final Set<UUID> viewers) {
@@ -598,8 +585,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (dithered != null) {
       dithered.result().start();
     }
-    final EncoderPool encoderPool = this.requested.getEncoderPool();
-    final Mcv2Encoder encoder = this.encoders.apply(this.ladder.getFirst());
+    final Pool encoderPool = this.requested.getEncoderPool();
+    final MCV2 encoder = this.encoders.apply(this.ladder.getFirst());
     // the screen's own thread only hands frames to the budget and waits for them
     final Thread thread = Thread.ofPlatform()
       .daemon()
@@ -745,9 +732,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * @return the RGB bytes
    */
   static byte[] rgb(final ByteBuffer bgr, final int pixels) {
-    final byte[] rgb = new byte[pixels * Mcv2Format.CHANNELS];
+    final byte[] rgb = new byte[pixels * Mcv2Decoder.CHANNELS];
     bgr.get(bgr.position(), rgb);
-    for (int at = 0; at < rgb.length; at += Mcv2Format.CHANNELS) {
+    for (int at = 0; at < rgb.length; at += Mcv2Decoder.CHANNELS) {
       final byte blue = rgb[at];
       rgb[at] = rgb[at + 2];
       rgb[at + 2] = blue;
@@ -811,23 +798,23 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    *
    * @param first the encoder of the screen's settings, the top of its ladder
    */
-  void encodeLoop(final Mcv2Encoder first) {
+  void encodeLoop(final MCV2 first) {
     final Pipeline own;
     synchronized (this.lock) {
       own = this.pipeline;
     }
     long frameId = this.requested.getFirstFrameId();
-    Mcv2Encoder encoder = first;
+    MCV2 encoder = first;
     try {
       for (Arrival arrival = this.take(); arrival != null; arrival = this.take()) {
-        final EncoderSettings settings = this.settingsFor(arrival);
+        final Settings settings = this.settingsFor(arrival);
         if (!settings.equals(encoder.getSettings())) {
           // the frame in flight goes out first, searched as it was begun
           this.drain();
           encoder = this.encoderFor(settings, encoder);
         }
         this.send(encoder, arrival, frameId);
-        frameId = (frameId + 1) & Mcv2Format.MAX_U32;
+        frameId = (frameId + 1) & Mcv2Decoder.MAX_U32;
       }
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
@@ -846,25 +833,20 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * @param arrival the frame
    * @return the settings
    */
-  EncoderSettings settingsFor(final Arrival arrival) {
+  Settings settingsFor(final Arrival arrival) {
     return this.ladder.get(this.presets.indexOf(arrival.preset));
   }
 
   /**
-   * Gets the encoder of another preset: between live presets the same encoder, switched without a keyframe (every live
-   * search writes the same format from the same pictures); to or from the exhaustive search a new one, whose first
-   * frame is a keyframe.
+   * Switches the search thresholds while retaining the stream history and pending verification.
    *
    * @param settings the preset's settings
    * @param encoder  the encoder of the frame before, whose frames are all sent
    * @return the encoder of the next frame
    */
-  Mcv2Encoder encoderFor(final EncoderSettings settings, final Mcv2Encoder encoder) {
-    if (settings.live() != null && encoder.getSettings().live() != null) {
-      encoder.switchTo(settings);
-      return encoder;
-    }
-    return this.encoders.apply(settings);
+  MCV2 encoderFor(final Settings settings, final MCV2 encoder) {
+    encoder.switchTo(settings);
+    return encoder;
   }
 
   /** Starts pacing the screen's frames from the top of its ladder, which {@link #start()} does. */
@@ -908,7 +890,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    * @param frameId the frame's id
    * @throws InterruptedException if the thread is interrupted while it waits for the sender to take the frame
    */
-  void send(final Mcv2Encoder encoder, final Arrival arrival, final long frameId) throws InterruptedException {
+  void send(final MCV2 encoder, final Arrival arrival, final long frameId) throws InterruptedException {
     final Screen current = this.screen;
     if (current.channel().takeKeyframeRequest()) {
       encoder.requestKeyframe();
@@ -926,11 +908,11 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     Delivery delivery = null;
     if (running == null) {
       final byte[] frame = encoder.encode(arrival.rgb, width, height, frameId);
-      final Mcv2Encoder.Stats stats = Preconditions.checkNotNull(encoder.getStats());
+      final MCV2.Stats stats = Preconditions.checkNotNull(encoder.getStats());
       isKeyframe = stats.keyframe();
       delivery = new Delivery(frame, stats, frameId, arrival);
     } else {
-      final Mcv2Encoder.Pending pending = running.budget().run(() -> encoder.begin(arrival.rgb, width, height, frameId));
+      final MCV2.Pending pending = running.budget().run(() -> encoder.begin(arrival.rgb, width, height, frameId));
       isKeyframe = pending.isKeyframe();
       // counted before the hand-off: once the sender has the frame, a drain waits for it
       synchronized (this.lock) {
@@ -1013,7 +995,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     try {
       while (true) {
         final Handoff handoff = running.queue().take();
-        final Mcv2Encoder.Encoded encoded = running.budget().run(() -> handoff.encoder().finish(handoff.pending()));
+        final MCV2.Encoded encoded = running.budget().run(() -> handoff.encoder().finish(handoff.pending()));
         this.deliver(new Delivery(encoded.getData(), encoded.getStats(), handoff.frameId(), handoff.source()));
         synchronized (this.lock) {
           this.delivered++;
@@ -1035,7 +1017,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private void deliver(final Delivery delivery) {
     final byte[] frame = delivery.frame;
     final long frameId = delivery.frameId;
-    final Mcv2Encoder.Stats stats = delivery.stats;
+    final MCV2.Stats stats = delivery.stats;
     final Mcv2FrameEvent event = new Mcv2FrameEvent();
     final boolean recorded = event.isEnabled();
     final long[] before = recorded ? this.linkCounts() : new long[LINK_COUNTS];

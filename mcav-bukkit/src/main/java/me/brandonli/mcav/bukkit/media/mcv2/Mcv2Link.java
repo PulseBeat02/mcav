@@ -100,7 +100,7 @@ public final class Mcv2Link {
    * @throws IllegalArgumentException if frameId is outside unsigned 32-bit range or bytes is negative
    */
   public synchronized boolean offer(final long frameId, final long referenceId, final boolean isKeyframe, final long bytes) {
-    Preconditions.checkArgument(frameId >= 0 && frameId <= Mcv2Format.MAX_U32, "Frame id must be an unsigned 32-bit value");
+    Preconditions.checkArgument(frameId >= 0 && frameId <= Mcv2Decoder.MAX_U32, "Frame id must be an unsigned 32-bit value");
     Preconditions.checkArgument(bytes >= 0, "Bytes must not be negative");
     if (this.backlog.get() > (isKeyframe ? allowance(this.limit) : this.limit)) {
       this.behind++;

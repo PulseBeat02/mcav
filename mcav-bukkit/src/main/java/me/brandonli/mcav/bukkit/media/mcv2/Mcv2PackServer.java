@@ -369,7 +369,7 @@ public final class Mcv2PackServer {
         String.format(Locale.getDefault(Locale.Category.FORMAT), "Every one of the %d MCV2 slots plays a screen", Mcv2Pack.MAX_SCREENS)
       );
     }
-    final Lease lease = new Lease(requested, (this.millis.getAsLong() / FRAME_ID_MILLIS) & Mcv2Format.MAX_U32, slot);
+    final Lease lease = new Lease(requested, (this.millis.getAsLong() / FRAME_ID_MILLIS) & Mcv2Decoder.MAX_U32, slot);
     slot.holder = lease;
     this.leases.add(lease);
     Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), () -> this.offerViewers(lease));
