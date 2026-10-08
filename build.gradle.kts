@@ -38,6 +38,7 @@ spotless {
                     "buildSrc/src/main/resources/uv-checksums.properties",
                     ".github/**/*.md",
                     ".github/**/*.yml",
+                    ".github/**/*.json",
                     "mcav-http/mcav-website/src/**/*.ts",
                     "mcav-http/mcav-website/src/**/*.tsx",
                     "mcav-http/mcav-website/src/**/*.css",
