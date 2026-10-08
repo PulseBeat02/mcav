@@ -83,18 +83,20 @@ class ChromiumConfinementTest {
 
   @Test
   void everythingButTheHiddenFoldersMayBeReadAndOnlyTheWritableOnesChanged() throws IOException {
-    final Path system = Files.createDirectories(this.folder.resolve("system"));
-    final Path homes = Files.createDirectories(this.folder.resolve("home"));
+    // the walk sees the real paths of files, which the temporary folder of macOS is not (/var links to /private/var)
+    final Path root = this.folder.toRealPath();
+    final Path system = Files.createDirectories(root.resolve("system"));
+    final Path homes = Files.createDirectories(root.resolve("home"));
     final Path home = Files.createDirectories(homes.resolve("user"));
     final Path otherHome = Files.createDirectories(homes.resolve("other"));
-    final Path file = Files.writeString(this.folder.resolve("file.txt"), "file");
+    final Path file = Files.writeString(root.resolve("file.txt"), "file");
     // a link into a hidden folder is no way in
-    Files.createSymbolicLink(this.folder.resolve("link"), home);
+    Files.createSymbolicLink(root.resolve("link"), home);
     final Path natives = home.resolve("natives");
-    final Path session = this.folder.resolve("session");
+    final Path session = root.resolve("session");
     // the root itself is never hidden, and a folder that does not exist hides nothing
-    final List<Path> hidden = List.of(home, this.folder, this.folder.resolve("missing"));
-    final List<Landlock.Rule> rules = ChromiumConfinement.rules(this.folder, hidden, List.of(natives), List.of(session));
+    final List<Path> hidden = List.of(home, root, root.resolve("missing"));
+    final List<Landlock.Rule> rules = ChromiumConfinement.rules(root, hidden, List.of(natives), List.of(session));
     assertEquals(
       List.of(
         new Landlock.Rule(file, false),
@@ -109,23 +111,27 @@ class ChromiumConfinementTest {
 
   @Test
   void aHiddenFolderIsFoundByItsRealPath() throws IOException {
-    final Path real = Files.createDirectories(this.folder.resolve("real"));
-    final Path kept = Files.createDirectories(this.folder.resolve("kept"));
-    final Path alias = Files.createSymbolicLink(this.folder.resolve("alias"), real);
-    final List<Landlock.Rule> rules = ChromiumConfinement.rules(this.folder, List.of(alias), List.of(), List.of());
+    // the walk sees the real paths of files, which the temporary folder of macOS is not (/var links to /private/var)
+    final Path root = this.folder.toRealPath();
+    final Path real = Files.createDirectories(root.resolve("real"));
+    final Path kept = Files.createDirectories(root.resolve("kept"));
+    final Path alias = Files.createSymbolicLink(root.resolve("alias"), real);
+    final List<Landlock.Rule> rules = ChromiumConfinement.rules(root, List.of(alias), List.of(), List.of());
     assertEquals(List.of(new Landlock.Rule(kept, false)), rules);
   }
 
   @Test
   @EnabledOnOs({ OS.LINUX, OS.MAC })
   void aFolderThatCannotBeListedGivesNothingBeneathIt() throws IOException {
-    final Path closed = Files.createDirectories(this.folder.resolve("closed"));
+    // the walk sees the real paths of files, which the temporary folder of macOS is not (/var links to /private/var)
+    final Path root = this.folder.toRealPath();
+    final Path closed = Files.createDirectories(root.resolve("closed"));
     final Path hidden = Files.createDirectories(closed.resolve("hidden"));
     Files.createDirectories(closed.resolve("beside"));
     Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("-wx------"));
     try {
       assumeTrue(!Files.isReadable(closed), "the user may read every folder");
-      assertEquals(List.of(), ChromiumConfinement.rules(this.folder, List.of(hidden), List.of(), List.of()));
+      assertEquals(List.of(), ChromiumConfinement.rules(root, List.of(hidden), List.of(), List.of()));
     } finally {
       Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("rwx------"));
     }
