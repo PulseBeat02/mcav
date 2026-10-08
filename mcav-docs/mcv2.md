@@ -898,7 +898,19 @@ Shading Language**, is the language GPU programs are written in; it looks like C
 
 ### How Big It Is
 
-@@SIZE-TABLE@@
+I counted every line, including blank lines and comments. Here is what I ended up with.
+
+| Part | Version 2 (lines) | Version 3 (lines) |
+|---|---:|---:|
+| Encoder (Java) | 10,116 | 3,095 |
+| Vector loops (C++) | 2,960 | 1,917 |
+| Server decoder (Java) | 3,892 | 765 |
+| Players' decoder (GLSL) | 2,397 | 1,376 |
+| Pages on maps (Java) | 792 | 778 |
+| Screens, viewers, pacing and the resource pack (Java) | 6,126 | 6,205 |
+| Tests (Java) | 19,178 | 17,308 |
+| Reference decoder (Python) | 4,010 | 507 |
+| Tools (Java and Python) | 3,445 | 3,370 |
 
 ### Inside MCV2.java
 
