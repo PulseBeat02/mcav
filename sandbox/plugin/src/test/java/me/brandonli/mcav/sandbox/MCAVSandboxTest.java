@@ -314,7 +314,7 @@ final class MCAVSandboxTest {
     Files.writeString(this.folder.resolve("config.yml"), defaults.replace("  native: auto\n", "  native: \"off\"\n"));
     try {
       this.sandbox.onEnable();
-      assertEquals("Java", MCV2.describeNatives());
+      assertEquals("Java, turned off by mcv2.native=off", MCV2.describeNatives());
       this.sandbox.onDisable();
     } finally {
       MCV2.installNatives(this.folder.resolve("natives"), "auto");
