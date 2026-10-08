@@ -7,7 +7,7 @@ Run with a Python that has numpy and moderngl. The OpenGL 3.3 context is the one
 X server for GLX (Xvfb gives Mesa's llvmpipe, the renderer of a headless client) or leave it unset for EGL on a render
 node. The shaders are read from mcav-bukkit's pack sources with their #include directives resolved (and
 gl_VertexIndex, the Vulkan name Minecraft 26.3's compiler takes, read as gl_VertexID), and the generated includes
-(configuration, residual books) are produced the way the pack builder produces them. With --spirv CLASSPATH the passes
+(configuration and per-screen constants) are produced the way the pack builder produces them. With --spirv CLASSPATH the passes
 run the pack as Minecraft 26.3 compiles it instead: tools/mcv2/Mcv2ShaderCompile.java, run with the LWJGL jars on
 CLASSPATH, takes every pass through shaderc and SPIR-V back into GLSL 330, which is what the game's OpenGL backend
 hands the driver.
@@ -37,8 +37,6 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 PACK = ROOT / "mcav-bukkit/src/main/resources/mcav/mcv2/pack"
-CHAIN = ROOT / "mcav-bukkit/src/main/resources/mcav/mcv2/chain.json"
-BOOKS = ROOT / "mcav-bukkit/src/main/resources/me/brandonli/mcav/bukkit/media/mcv2/residual_books.bin"
 SCREEN = (1920, 1080)
 STREAM_ID = 7
 # the screen of the pack the streams play on: the only one, or with --second-screen the second of two, after a first
@@ -95,7 +93,8 @@ def placeholders(width, height, slots):
 def post_chain(width, height, slots):
     """The pack's post chain for one screen, as Mcv2Pack.postChain assembles it from the template: the screen's
     decoding passes, its drawing passes, then the outline's."""
-    text = CHAIN.read_text().replace("@S@", str(SCREEN_INDEX))
+    template_path = PACK.parent / "chain.json"
+    text = template_path.read_text().replace("@S@", str(SCREEN_INDEX))
     for name, value in placeholders(width, height, slots).items():
         text = text.replace("@%s@" % name, str(value))
     template = json.loads(text)
@@ -135,9 +134,6 @@ def screens_config(slots):
 
 def generated(width, height, slots):
     """The generated includes, as the pack builder writes them."""
-    books = BOOKS.read_bytes()
-    words = [struct.unpack_from("<I", books, offset)[0] for offset in range(0, len(books), 4)]
-    rows = ",\n".join("    " + ", ".join("0x%08Xu" % word for word in words[start : start + 8]) for start in range(0, len(words), 8))
     return {
         "mcav:mcv2_config.glsl": "\n".join(screens_config(slots) + [
             "const bool MCV2_DEBUG_VIEW = false;",
@@ -158,7 +154,6 @@ def generated(width, height, slots):
             "const int MCV2_DEBUG_TOP = 0;",
             "",
         ]),
-        "mcav:mcv2_books.glsl": "const uint MCV2_BOOKS[512] = uint[512](\n" + rows + "\n);\n",
     }
 
 
@@ -221,7 +216,7 @@ class Chain:
         self.compiled = None
 
     def target(self, name):
-        """A target by the short name shader_check has always used: previous, key, status, ... of the one screen."""
+        """A target by the short name shader_check has always used: previous, status, ... of the one screen."""
         return self.targets[name if ":" in name else "mcav:mcv2_%s_%d" % (name, SCREEN_INDEX)]
 
     def program(self, name, vertex="minecraft:core/screenquad"):
@@ -333,7 +328,7 @@ def main():
     parser.add_argument("--slots", type=int, default=4)
     parser.add_argument("--drop", type=int, default=0)
     parser.add_argument("--backend", choices=("egl", "glx"), default=None)
-    parser.add_argument("--pack", type=Path, help="another pack source folder (default: mcav-bukkit's)")
+    parser.add_argument("--pack", type=Path, help="another pack source folder with its sibling chain.json")
     parser.add_argument("--spirv", metavar="CLASSPATH", help="compile the passes as Minecraft 26.3 does, with these LWJGL jars")
     parser.add_argument("--second-screen", action="store_true", help="play on the second screen of a two-screen pack")
     arguments = parser.parse_args()
@@ -353,15 +348,14 @@ def main():
     failures = 0
     for stream in arguments.streams:
         chain = None
-        # the client model: the pictures the chain decoded, by id, and the two references it holds
-        pictures = {}
-        last_id = key_id = None
+        # The receiver holds exactly one picture and commits only newer frame ids.
+        last_id = None
         shown = None
         decoded = skipped = wrong = 0
         for index, frame in enumerate(frames(stream)):
             width, height = struct.unpack_from("<HH", frame, 8)
             frame_id, reference_id = struct.unpack_from("<II", frame, 12)
-            keyframe = struct.unpack_from("<I", frame, 4)[0] >> 16 & 1 == 1
+            keyframe = frame[5] & 1 == 1
             if chain is None:
                 chain = Chain(context, width, height, arguments.slots)
                 if arguments.spirv:
@@ -371,7 +365,9 @@ def main():
             pages = make_pages(frame, STREAM_ID, 6)
             # a frame with more pages than the screen has slots is never sent (Mcv2Channel.send refuses it), so the
             # client never has it to decode
-            decodable = (keyframe or reference_id in (last_id, key_id)) and len(pages) <= arguments.slots
+            newer = last_id is None or 0 < ((frame_id - last_id) & 0xFFFFFFFF) < 0x80000000
+            decodable = (newer and (keyframe or reference_id == last_id)
+                         and (width, height) == (chain.width, chain.height) and len(pages) <= arguments.slots)
             chain.show(pages[: arguments.slots])
             did, picture = chain.frame()
             if did != decodable:
@@ -380,10 +376,9 @@ def main():
                 continue
             if did:
                 decoded += 1
-                expected = decode(frame, None if keyframe else pictures[reference_id], reference_id)
-                pictures[frame_id] = shown = expected
+                expected = decode(frame, None if keyframe else shown, last_id)
+                shown = expected
                 last_id = frame_id
-                key_id = frame_id if keyframe else key_id
                 if not np.array_equal(picture, expected):
                     wrong += 1
                     difference = np.abs(picture.astype(int) - expected.astype(int))

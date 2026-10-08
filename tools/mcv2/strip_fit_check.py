@@ -23,11 +23,13 @@ VIDEO = (64, 64)
 SLOTS = 8
 
 
-def frame(context, screen):
+def frame(context, screen, spirv=None):
     """One frame of the chain on a screen of a size, over a random scene: the scene, the screen after, and whether
     a frame was decoded."""
     shader_check.SCREEN = screen
     chain = shader_check.Chain(context, VIDEO[0], VIDEO[1], SLOTS)
+    if spirv:
+        chain.compiled = shader_check.compile_via_spirv(chain.includes, spirv)
     scene = np.random.default_rng(7).integers(0, 256, (screen[1], screen[0], 4), dtype=np.uint8)
     scene[..., 3] = 255
     chain.main.write(scene.tobytes())
@@ -37,13 +39,14 @@ def frame(context, screen):
 
 
 def strip_rows(width):
-    """The strip's rows on a screen of a width, as mcv2_strip.glsl counts them for one screen."""
+    """The strip's rows on a screen of a width, as mcv2.glsl counts them for one screen."""
     return SLOTS * ((4096 + width - 1) // width) + 1
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--backend", choices=("egl", "glx"), default=None)
+    parser.add_argument("--spirv", metavar="CLASSPATH", help="compile passes as Minecraft 26.3 does")
     arguments = parser.parse_args()
     import moderngl
 
@@ -52,7 +55,7 @@ def main():
     failures = []
     for screen in ((160, 90), (64, 400)):
         assert strip_rows(screen[0]) >= screen[1], screen
-        scene, after, decoded = frame(context, screen)
+        scene, after, decoded = frame(context, screen, arguments.spirv)
         changed = int(np.count_nonzero(np.any(after != scene, axis=2)))
         if changed:
             failures.append("%dx%d, where the strip does not fit: %d pixels of the scene changed" % (screen + (changed,)))
@@ -60,7 +63,7 @@ def main():
             failures.append("%dx%d, where the strip does not fit: a frame was decoded" % screen)
     screen = (854, 480)
     rows = strip_rows(screen[0])
-    scene, after, _ = frame(context, screen)
+    scene, after, _ = frame(context, screen, arguments.spirv)
     # rows of the targets count from the bottom: the strip is the top rows, covered with the scene row below it
     below = screen[1] - 1 - rows
     if not np.array_equal(after[: below + 1], scene[: below + 1]):

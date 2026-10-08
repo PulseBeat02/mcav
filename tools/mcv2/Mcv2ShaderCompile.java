@@ -54,7 +54,7 @@ import org.lwjgl.util.spvc.SpvcReflectedResource;
  * natives) on the class path:
  * {@code java -cp <jars> tools/mcv2/Mcv2ShaderCompile.java <pack folder> <generated includes folder> <output folder>
  * [--vanilla <extracted 26.3 client jar>] [--post-only]}. The generated includes (mcv2_config, mcv2_alphabet,
- * mcv2_books) are read from the second folder, as Mcv2Pack writes them; the text shaders include Minecraft's own
+ * mcv2_screen) are read from the second folder, as Mcv2Pack writes them; the text shaders include Minecraft's own
  * includes, read from the extracted client jar. Each stage's GLSL is written to the output folder; the exit code is
  * the number of stages that failed.
  */
