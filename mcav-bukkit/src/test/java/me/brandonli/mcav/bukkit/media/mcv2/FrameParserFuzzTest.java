@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Tag;
  * is pointed at: whatever the bytes, parsing either succeeds or throws {@link Mcv2Exception}, and a frame that parses
  * decodes against a reference picture of its size to a picture of its size or throws that exception - never an
  * unchecked exception, an out-of-bounds read or a hang. The seeds are the first keyframe and P frame of every committed
- * edge stream, which together use every index form and table the format has, and the frames of the syntax mcav refuses.
+ * edge stream, which together use every v3 mode, compact quantizer and boundary geometry, and the frames of the syntax mcav refuses.
  */
 @Tag("fuzz")
 final class FrameParserFuzzTest {

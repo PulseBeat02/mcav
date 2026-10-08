@@ -52,7 +52,7 @@ final class MCV2FrameTest {
   }
 
   private static MCV2 encoder(final Settings settings) {
-    return new MCV2(settings, POOL, 2, true);
+    return new MCV2(settings, POOL, 3, true);
   }
 
   private static byte[] scene(final int width, final int height, final int frame, final int pan) {
@@ -76,6 +76,10 @@ final class MCV2FrameTest {
       final byte[] data = encoder.encode(scene(width, height, index, pan), width, height, index);
       assertArrayEquals(client.decode(data), encoder.getReference());
       assertEquals(index, Mcv2Decoder.parse(data).getFrameId());
+      assertEquals(data.length, Objects.requireNonNull(encoder.getStats()).bytes());
+      assertEquals(index == 0, encoder.getStats().keyframe());
+      assertTrue(encoder.getStats().leaves() > 0);
+      assertTrue(encoder.getStats().nanoseconds() > 0);
     }
     return encoder;
   }
@@ -307,7 +311,7 @@ final class MCV2FrameTest {
       } else if (frameNumber == 6) {
         encoder.switchTo(Settings.DEFAULT);
       }
-      final byte[] data = encoder.encode(scene(96, 64, frameNumber, 1), 96, 64, frameNumber);
+      final byte[] data = encoder.encode(scene(96, 64, frameNumber, 3), 96, 64, frameNumber);
       assertEquals(frameNumber == 0, Objects.requireNonNull(encoder.getStats()).keyframe(), "frame " + frameNumber);
       assertArrayEquals(client.decode(data), encoder.getReference(), "frame " + frameNumber);
     }

@@ -38,8 +38,7 @@ import org.junit.jupiter.api.Tag;
  * on several workers, writing into the picture it predicts from, decodes the same pictures as well.
  *
  * <p>An input is a research archive: every frame is preceded by its length as four little-endian bytes, cut short where
- * the input ends. The seeds are the first frames of every committed edge stream, which together use every index form
- * and table the format has, and the six frames of the tiny stream in their order.
+ * the input ends. The seeds are the first frames of every committed edge stream, which together use every v3 mode and boundary geometry, and the six frames of the tiny stream in their order.
  */
 @Tag("fuzz")
 final class Mcv2ReceiverFuzzTest {

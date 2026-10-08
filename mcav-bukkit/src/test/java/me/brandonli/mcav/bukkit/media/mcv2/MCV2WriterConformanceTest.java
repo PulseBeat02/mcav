@@ -27,17 +27,35 @@ import org.junit.jupiter.params.provider.MethodSource;
 final class MCV2WriterConformanceTest {
 
   private static Stream<String> streams() {
-    return Mcv2Fixtures.digests("conformance").keySet().stream();
+    return Stream.of("conformance", "edge").flatMap(folder ->
+      Mcv2Fixtures.digests(folder)
+        .keySet()
+        .stream()
+        .map(name -> folder + "/" + name)
+    );
   }
 
   @ParameterizedTest
   @MethodSource("streams")
   void rebuildsEveryCommittedFrameByteForByte(final String name) throws Mcv2Exception {
-    final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/" + name));
-    for (final byte[] data : frames) {
+    final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read(name));
+    final List<byte[]> canonical =
+      name.startsWith("edge/") &&
+      List.of(
+        "edge-cropped.mcs",
+        "edge-directory.mcs",
+        "edge-modes.mcs",
+        "edge-patterns.mcs",
+        "edge-tiny.mcs",
+        "edge-vertical.mcs"
+      ).contains(name.substring(5))
+        ? Mcv2Fixtures.frames(Mcv2Fixtures.read("writer-canonical/" + name.substring(5)))
+        : frames;
+    for (int index = 0; index < frames.size(); index++) {
+      final byte[] data = frames.get(index);
       final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(data);
       assertArrayEquals(
-        data,
+        canonical.get(index),
         Mcv2Trees.write(
           frame.getWidth(),
           frame.getHeight(),
