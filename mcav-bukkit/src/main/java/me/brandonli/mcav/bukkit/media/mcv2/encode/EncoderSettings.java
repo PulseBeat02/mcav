@@ -267,7 +267,8 @@ public record EncoderSettings(
   }
 
   /**
-   * Copies these settings with another lambda.
+   * Copies these settings with another lambda. Any finite one works: where a lambda so large makes a cost overflow, the
+   * encoder counts the largest finite cost instead.
    *
    * @param value the lambda
    * @return the new settings
@@ -348,11 +349,13 @@ public record EncoderSettings(
     if (second != null) {
       return this.frame(true);
     }
-    return LiveSearch.LIVE.equals(search)
-      ? this.withAdaptive(
-          new Adaptive(LiveSearch.LIVE_FAST, (this.lambda * LIVE_FAST_LAMBDA) / LIVE_LAMBDA, ADAPTIVE_ENTER, ADAPTIVE_LEAVE)
-        )
-      : null;
+    if (!LiveSearch.LIVE.equals(search)) {
+      return null;
+    }
+    final double scaled = (this.lambda * LIVE_FAST_LAMBDA) / LIVE_LAMBDA;
+    // a lambda so large that the product overflows is scaled by the ratio instead, which only rounds differently
+    final double fastLambda = Double.isFinite(scaled) ? scaled : this.lambda * (LIVE_FAST_LAMBDA / LIVE_LAMBDA);
+    return this.withAdaptive(new Adaptive(LiveSearch.LIVE_FAST, fastLambda, ADAPTIVE_ENTER, ADAPTIVE_LEAVE));
   }
 
   /**

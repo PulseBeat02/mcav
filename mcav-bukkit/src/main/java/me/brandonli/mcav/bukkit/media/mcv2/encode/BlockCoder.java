@@ -819,7 +819,9 @@ final class BlockCoder {
   private boolean eligible(final int mode, final int length, final int mask) {
     final FrameJob frame = this.job;
     final double bits = mode == MODE_SKIP && this.size == ROOT_SIZE ? 1.0 : INDEX_BITS;
-    this.rate = frame.settings().lambda() * (length * Byte.SIZE + bits);
+    // a lambda so large that the rate overflows still lets a candidate win, at the largest finite cost: an infinite
+    // one is what a block nobody evaluated costs
+    this.rate = Math.min(frame.settings().lambda() * (length * Byte.SIZE + bits), Double.MAX_VALUE);
     // the candidate must be cheaper than the dearest trial it belongs to; the kernel stops measuring once it cannot be
     double dearest = Double.NEGATIVE_INFINITY;
     for (int trial = 0; trial < frame.trialCount(); trial++) {
