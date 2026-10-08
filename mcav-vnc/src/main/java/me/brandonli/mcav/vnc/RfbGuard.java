@@ -216,21 +216,28 @@ final class RfbGuard {
     VERSION(VERSION_BYTES),
     SECURITY_TYPE(Integer.BYTES),
     SECURITY_COUNT(1),
+    // one byte per type: the count read before it gives the real length
     SECURITY_TYPES(1),
     REASON_LENGTH(Integer.BYTES),
     CHALLENGE(16),
     // MS-Logon II: the generator, the modulus and the server's public key
     LOGON_KEYS(24),
     RESULT(Integer.BYTES),
+    // the framebuffer's size, its pixel format and the length of its name
     INIT(24),
     MESSAGE(1),
+    // padding and the number of rectangles
     UPDATE(3),
+    // position, size and encoding
     RECTANGLE(12),
+    // the number of subrectangles, then the background pixel
     RRE(Integer.BYTES),
     TILE(1),
     SUBRECTANGLES(1),
     ZLIB_LENGTH(Integer.BYTES),
+    // padding, the first colour and the number of colours
     COLOURS(5),
+    // padding and the length of the text
     TEXT(7);
 
     private final int bytes;
@@ -771,6 +778,7 @@ final class RfbGuard {
     private void body() {
       switch (this.type) {
         case SET_PIXEL_FORMAT -> {
+          // three bytes of padding, then the pixel format, whose first byte is its bits per pixel
           final int bits = unsigned8(this.field, 3);
           if (bits == 8 || bits == 16 || bits == 32) {
             RfbGuard.this.clientBytesPerPixel = bits / 8;

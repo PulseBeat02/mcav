@@ -226,6 +226,7 @@ public final class VNCPlayerImpl implements VNCPlayer {
     final VernacularConfig config = this.createConfig(source, created, renderWorker);
     final VernacularClient vncClient = this.clientFactory.apply(config);
     final Socket socket = this.connect(source);
+    // The handshake holds the player lock; its deadline also prevents release() from waiting forever.
     final AtomicBoolean expired = new AtomicBoolean();
     final CompletableFuture<Void> deadline = CompletableFuture.runAsync(
       () -> {
