@@ -24,7 +24,6 @@ dependencies {
     testImplementation(gradleTestKit())
 }
 
-// Functional tests apply this plugin without a catalog, so its JaCoCo version must be compiled in.
 val catalogVersions = layout.buildDirectory.dir("generated/sources/catalog/kotlin")
 val jacocoVersion = libs.versions.jacoco.get()
 val generateCatalogVersions = tasks.register("generateCatalogVersions") {

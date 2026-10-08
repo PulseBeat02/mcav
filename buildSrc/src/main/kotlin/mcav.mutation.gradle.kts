@@ -16,7 +16,6 @@ pitest {
     timeoutConstInMillis = 4000
     outputFormats = setOf("HTML", "XML")
     timestampedReports = false
-    // Mapping a task provider here would run the unit suite and coverage report before PIT.
     jvmArgs = provider { tasks.getByName<Test>("test").jvmArgs.orEmpty() }
     val testJavaHome = providers.gradleProperty("mcav.testJavaHome")
     if (testJavaHome.isPresent) {

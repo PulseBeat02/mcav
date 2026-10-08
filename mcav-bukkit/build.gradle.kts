@@ -38,7 +38,6 @@ tasks.register<Exec>("formatMcv2Natives") {
     group = "formatting"
     onlyIf("-Pmcav.natives=build asks for the native kernels to be formatted") { buildsNatives }
     workingDir = nativeSources.asFile
-    // the .inc files are C++, which clang-format does not know from their extension
     commandLine(
         "bash",
         "-c",

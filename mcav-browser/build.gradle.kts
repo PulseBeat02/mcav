@@ -17,12 +17,10 @@ dependencies {
     testRuntimeOnly(libs.slf4j.simple)
 }
 
-// CEF helpers load unmutated classes, so their integration tests cannot exercise PIT mutants.
 pitest {
     excludedGroups = setOf("cef")
 }
 
-// Helper JVMs write coverage here; cache it with test results and remove stale files before reruns.
 val helperCoverage = layout.buildDirectory.file("jacoco/helper.exec")
 
 tasks.test {

@@ -9,9 +9,7 @@ dependencies {
     compileOnlyApi(project(":mcav-common"))
     testImplementation(project(":mcav-common"))
     testImplementation(libs.slf4j.simple)
-    // Maven consumers need direct security pins: Jackson CVE-2026-89425 / CVE-2026-89407; Tomcat GHSA-9xv2-5v5q-p794.
     api(libs.tomcat.embed.core) {
-        // Spring already supplies jakarta.annotation-api; keep its exclusion of Tomcat's duplicate annotation classes.
         exclude(group = "org.apache.tomcat", module = "tomcat-annotations-api")
     }
     api(libs.tomcat.embed.el)

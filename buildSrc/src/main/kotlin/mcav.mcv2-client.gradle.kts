@@ -17,7 +17,6 @@ repositories {
         forRepository {
             maven("https://maven.neoforged.net/releases") {
                 name = "NeoForged"
-                // the jars alone: NeoForge's Gradle metadata describes the variants ModDevGradle sets up, not a library
                 metadataSources {
                     artifact()
                 }

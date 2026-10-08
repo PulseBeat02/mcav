@@ -1,5 +1,3 @@
-// A distinct license name preserves dependency licenses already stored at META-INF/LICENSE in shadow jars.
-
 plugins {
     java
 }

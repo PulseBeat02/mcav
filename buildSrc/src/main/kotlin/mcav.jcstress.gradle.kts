@@ -13,7 +13,6 @@ dependencies {
     annotationProcessor(libs.libraryOf("jcstress-core"))
 }
 
-// jcstress-generated harnesses violate javac lint and Checker Framework nullness rules.
 checkerFramework {
     skipCheckerFramework = true
 }
@@ -25,7 +24,6 @@ tasks.named<JavaCompile>("compileJava") {
     }
 }
 
-// jcstress forks this jar; its generated META-INF/TestList must take precedence over dependency copies.
 val jcstressJar = tasks.register<Jar>("jcstressJar") {
     description = "Packs the jcstress tests with everything they run"
     group = "build"
@@ -42,7 +40,7 @@ val jcstressJar = tasks.register<Jar>("jcstressJar") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-// Sanity mode is too short to expose these races; quick mode exposed them in every measured fork.
+// Sanity mode missed races that quick mode exposed.
 val ITERATION_TIME = "jcstress: {} tests in {} mode within {} minutes: {} ms per iteration"
 val mode = providers.gradleProperty("jcstress.mode").getOrElse("quick")
 val budgetMinutes = providers.gradleProperty("jcstress.timeBudgetMinutes").map { it.toInt() }

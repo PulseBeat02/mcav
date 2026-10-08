@@ -29,7 +29,6 @@ configurations.testImplementation {
     extendsFrom(configurations.compileOnly.get())
 }
 
-// the server records the hashes of the snapshots it downloads, which must be current
 configurations.runtimeDownload {
     resolutionStrategy.cacheChangingModulesFor(0, "seconds")
 }
@@ -87,7 +86,6 @@ tasks.withType<AbstractRun>().configureEach {
 
 val endToEnd = providers.gradleProperty("mcav.e2e").map { it.toBoolean() }.getOrElse(false)
 val endToEndRepository = rootProject.layout.buildDirectory.dir("e2e-repository").get().asFile
-// Gremlin's HTTP client cannot read a folder; the end-to-end test serves the repository on this port.
 val endToEndPort = if (endToEnd) {
     providers.gradleProperty("mcav.e2e.repositoryPort").orNull?.toInt() ?: ServerSocket(0).use { it.localPort }
 } else {

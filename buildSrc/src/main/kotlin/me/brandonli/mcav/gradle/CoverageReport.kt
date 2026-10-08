@@ -112,7 +112,6 @@ object CoverageReport {
         return when {
             coveredInstructions == 0 && missedInstructions > 0 -> "line is not covered by any test"
             missedBranches > 0 -> "$missedBranches of ${missedBranches + coveredBranches} branches are not covered by any test"
-            // JaCoCo can mark a lambda's declaration line covered without invoking its body; instruction gaps still matter.
             missedInstructions > 0 -> "$missedInstructions of ${missedInstructions + coveredInstructions} instructions on this line are not covered by any test"
             else -> null
         }

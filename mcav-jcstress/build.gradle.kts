@@ -6,7 +6,6 @@ plugins {
 }
 
 dependencies {
-    // Exclude unused JavaCV platform natives: they would add over a gigabyte to the jcstress jar.
     implementation(project(":mcav-common")) {
         exclude(group = "org.bytedeco")
     }
@@ -19,6 +18,7 @@ dependencies {
     implementation(project(":mcav-vm")) {
         exclude(group = "org.bytedeco")
     }
+    // Keep Minecraft's runtime out of the standalone map/screen stress harness.
     implementation(project(":mcav-bukkit")) {
         isTransitive = false
     }

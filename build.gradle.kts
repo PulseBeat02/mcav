@@ -12,7 +12,6 @@ repositories {
 
 spotless {
     format("repository") {
-        // targetExclude walks a second tree and can race with Node writes in build/node_modules ("Could not read path").
         target(
             fileTree(rootDir) {
                 include(
