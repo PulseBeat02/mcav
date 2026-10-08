@@ -2243,11 +2243,13 @@ public final class MCV2 {
     final long frameId,
     final long referenceId
   ) {
+    Preconditions.checkNotNull(input, "Roots must not be null");
+    Preconditions.checkArgument(width >= 1 && width <= MAX_DIMENSION && height >= 1 && height <= MAX_DIMENSION, "Invalid dimensions");
+    final int columns = (width + ROOT_SIZE - 1) / ROOT_SIZE;
+    Preconditions.checkArgument(input.size() == columns * ((height + ROOT_SIZE - 1) / ROOT_SIZE), "Wrong root count");
     final Map<Integer, Integer> colors = new LinkedHashMap<>();
-    if (keyframe) {
-      for (final TreeNode root : input) {
-        countSolids(root, colors);
-      }
+    for (final TreeNode root : input) {
+      validateTree(root, ROOT_SIZE, keyframe, colors);
     }
     int defaultColor = 0;
     int most = -1;
@@ -2355,13 +2357,38 @@ public final class MCV2 {
     data[at + 2] = (byte) color;
   }
 
-  private static void countSolids(final TreeNode node, final Map<Integer, Integer> counts) {
+  private static void validateTree(final TreeNode node, final int size, final boolean keyframe, final Map<Integer, Integer> colors) {
     if (node.isSplit()) {
+      Preconditions.checkArgument(size > SMALLEST_BLOCK, "Split below the bounded depth");
       for (int corner = 0; corner < QUARTERS; corner++) {
-        countSolids(node.getChild(corner), counts);
+        validateTree(node.getChild(corner), size / 2, keyframe, colors);
       }
-    } else if (node.getMode() == MODE_SOLID) {
-      counts.merge(color(node.record(), 0), 1, Integer::sum);
+      return;
+    }
+    final int mode = node.getMode();
+    Preconditions.checkArgument(mode >= MODE_SKIP && mode <= MODE_COMPACT, "Illegal leaf mode %s", mode);
+    Preconditions.checkArgument(mode == MODE_COMPACT || node.getQ() == 0, "Quantizer on a mode without one");
+    Preconditions.checkArgument(
+      !keyframe || (mode != MODE_MOTION && mode != MODE_COMPACT),
+      "The tree does not serialize to a valid frame: temporal keyframe leaf"
+    );
+    final byte[] record = node.record();
+    final int length;
+    if (mode == MODE_COMPACT) {
+      Preconditions.checkArgument(record.length > 0, "Empty compact record");
+      final int kind = record[0] & 15;
+      final int form = (record[0] & 255) >> 4;
+      Preconditions.checkArgument(kind <= COMPACT_GRID_Y && form <= 2, "Invalid compact control");
+      length = 1 + form + (kind == COMPACT_DC ? 1 : kind == COMPACT_GRID ? 10 : 8);
+    } else {
+      length = recordSize(mode, size);
+    }
+    Preconditions.checkArgument(record.length == length, "Record length disagrees with its mode");
+    if (mode == MODE_PATTERN) {
+      Preconditions.checkArgument((record[2 * CHANNELS] & 255) <= 1, "Invalid pattern orientation");
+    }
+    if (keyframe && mode == MODE_SOLID) {
+      colors.merge(color(record, 0), 1, Integer::sum);
     }
   }
 

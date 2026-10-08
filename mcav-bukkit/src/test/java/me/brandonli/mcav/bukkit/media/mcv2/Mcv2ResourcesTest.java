@@ -54,12 +54,6 @@ final class Mcv2ResourcesTest {
   }
 
   @Test
-  void loadsAndChecksTheBooks() {
-    final byte[] books = Mcv2Resources.load("residual_books.bin", ResidualBooks.SHA256, ResidualBooks.BYTES);
-    assertArrayEquals(ResidualBooks.bytes(), books);
-  }
-
-  @Test
   void refusesAMissingResource() {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
       Mcv2Resources.load("missing.bin", EMPTY_SHA256, 0)

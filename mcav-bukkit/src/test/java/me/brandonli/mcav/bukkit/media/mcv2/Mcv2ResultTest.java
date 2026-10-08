@@ -1091,7 +1091,7 @@ final class Mcv2ResultTest {
       .columns(1)
       .rows(1)
       .pageMap(500)
-      .backlogLimit(400)
+      .backlogLimit(200)
       .unsentLimit(0)
       .maxFrameRate(0)
       .build();

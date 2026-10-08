@@ -72,7 +72,7 @@ public final class Mcv2Fixtures {
     final List<byte[]> frames = new ArrayList<>();
     int offset = 0;
     while (offset < archive.length) {
-      final int length = (int) Mcv2Format.u32(archive, offset);
+      final int length = (int) Mcv2Decoder.u32(archive, offset);
       frames.add(Arrays.copyOfRange(archive, offset + 4, offset + 4 + length));
       offset += 4 + length;
     }

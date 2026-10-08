@@ -23,40 +23,75 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /** Validates and decodes MCV2 version 3. Parsed frames own their bytes and are immutable. */
 public final class Mcv2Decoder {
 
+  /** Fixed frame header size in bytes. */
   public static final int HEADER_BYTES = 32;
+  /** Largest accepted frame length in bytes. */
   public static final int MAX_FRAME_BYTES = 131071;
+  /** Largest width or height in pixels. */
   public static final int MAX_DIMENSION = 4096;
+  /** Little-endian MCV2 magic word. */
   public static final int MAGIC = 0x3256434D;
+  /** Accepted format version. */
   public static final int VERSION = 3;
+  /** Superblock side in pixels. */
   public static final int ROOT_SIZE = 32;
+  /** Smallest leaf side in pixels. */
   public static final int SMALLEST_BLOCK = 8;
+  /** Number of tree levels. */
   public static final int BLOCK_SIZES = 3;
+  /** RGB channels per pixel. */
   public static final int CHANNELS = 3;
+  /** Largest channel value. */
   public static final int MAX_CHANNEL = 255;
+  /** Children of a split node. */
   public static final int QUARTERS = 4;
+  /** Superblocks per presence mask. */
   public static final int GROUP_ROOTS = 32;
+  /** Presence masks per directory entry. */
   public static final int CHECKPOINT_GROUPS = 8;
+  /** Descriptors per walk checkpoint. */
   public static final int WALK_SPAN = 8;
+  /** Independent-frame header flag. */
   public static final int KEYFRAME = 1;
+  /** Default-colour or co-located prediction leaf. */
   public static final int MODE_SKIP = 0;
+  /** Whole-pixel translated prediction leaf. */
   public static final int MODE_MOTION = 1;
+  /** Single-colour leaf. */
   public static final int MODE_SOLID = 2;
+  /** Two-colour leaf with one selector per pixel. */
   public static final int MODE_PALETTE = 3;
+  /** Two-colour leaf with selectors repeating along one axis. */
   public static final int MODE_PATTERN = 4;
+  /** Motion prediction plus a compact residual. */
   public static final int MODE_COMPACT = 5;
+  /** Four-child tree node. */
   public static final int MODE_SPLIT = 6;
+  /** Descriptor bits holding the mode. */
   public static final int MODE_MASK = 31;
+  /** First descriptor bit holding the quantizer. */
   public static final int QUANTIZER_SHIFT = 5;
+  /** Largest wire quantizer exponent. */
   public static final int MAX_QUANTIZER = 7;
+  /** Constant luma residual class. */
   public static final int COMPACT_DC = 0;
+  /** Four-by-four luma grid with constant chroma. */
   public static final int COMPACT_GRID = 1;
+  /** Four-by-four luma grid without chroma. */
   public static final int COMPACT_GRID_Y = 2;
+  /** Header byte offset of width and height. */
   public static final int DIMENSIONS_OFFSET = 8;
+  /** Header byte offset of the frame id. */
   public static final int FRAME_ID_OFFSET = 12;
+  /** Header byte offset of the reference id. */
   public static final int REFERENCE_ID_OFFSET = 16;
+  /** Header byte offset of the first-record address. */
   public static final int PAYLOAD_START_OFFSET = 20;
+  /** Header byte offset of the total frame length. */
   public static final int TOTAL_OFFSET = 24;
+  /** Header byte offset of the default RGB colour. */
   public static final int DEFAULT_COLOR_OFFSET = 28;
+  /** Largest unsigned 32-bit value. */
   public static final long MAX_U32 = 0xFFFFFFFFL;
 
   private static final int LEAF_INTS = 6;
@@ -70,7 +105,16 @@ public final class Mcv2Decoder {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  /** A validated leaf, including its position outside the visible picture. */
+  /**
+   * A validated leaf, including its position outside the visible picture.
+   *
+   * @param left horizontal origin in pixels
+   * @param top vertical origin in pixels
+   * @param size square side, 8, 16 or 32 pixels
+   * @param mode leaf mode, SKIP through COMPACT
+   * @param quantizer residual scale exponent, zero for other modes
+   * @param offset record byte offset; an absent root has no record
+   */
   public record Leaf(int left, int top, int size, int mode, int quantizer, int offset) {}
 
   /** A complete validated frame. Accessors copy mutable data. */
@@ -98,42 +142,94 @@ public final class Mcv2Decoder {
       this.leaves = leaves;
     }
 
+    /**
+     * Returns an independent copy of the frame bytes.
+     *
+     * @return an independent copy of the frame bytes
+     */
     public byte[] getData() {
       return this.data.clone();
     }
 
+    /**
+     * Returns picture width in pixels.
+     *
+     * @return picture width in pixels
+     */
     public int getWidth() {
       return this.width;
     }
 
+    /**
+     * Returns picture height in pixels.
+     *
+     * @return picture height in pixels
+     */
     public int getHeight() {
       return this.height;
     }
 
+    /**
+     * Returns unsigned 32-bit frame id.
+     *
+     * @return unsigned 32-bit frame id
+     */
     public long getFrameId() {
       return this.frameId;
     }
 
+    /**
+     * Returns unsigned 32-bit reference id.
+     *
+     * @return unsigned 32-bit reference id
+     */
     public long getReferenceId() {
       return this.referenceId;
     }
 
+    /**
+     * Returns whether the picture is independent of any reference.
+     *
+     * @return whether the picture is independent of any reference
+     */
     public boolean isKeyframe() {
       return this.keyframe;
     }
 
+    /**
+     * Returns byte offset immediately after the index.
+     *
+     * @return byte offset immediately after the index
+     */
     public int getPayloadStart() {
       return this.payloadStart;
     }
 
+    /**
+     * Returns default keyframe colour as 0xRRGGBB; zero on P frames.
+     *
+     * @return default keyframe colour as 0xRRGGBB; zero on P frames
+     */
     public int getDefaultColor() {
       return this.defaultColor;
     }
 
+    /**
+     * Returns number of leaves, including absent roots and off-picture leaves.
+     *
+     * @return number of leaves, including absent roots and off-picture leaves
+     */
     public int getLeafCount() {
       return this.leaves.length / LEAF_INTS;
     }
 
+    /**
+     * Returns one leaf in root order, visiting split children in raster order.
+     *
+     * @param index zero-based leaf index
+     * @return immutable leaf metadata
+     * @throws IndexOutOfBoundsException if the index is outside the leaf array
+     */
     public Leaf getLeaf(final int index) {
       Preconditions.checkElementIndex(index, this.getLeafCount(), "Leaf index");
       final int at = index * LEAF_INTS;
@@ -148,7 +244,14 @@ public final class Mcv2Decoder {
     }
   }
 
-  /** Parses an owned copy, rejecting all versions other than version 3. */
+  /**
+   * Validates every header, tree, checkpoint and record before retaining an owned copy.
+   *
+   * @param bytes one complete frame
+   * @return immutable validated frame
+   * @throws NullPointerException if bytes is null
+   * @throws Mcv2Exception if any version 3 validation rule fails, including unsupported older versions
+   */
   public static Frame parse(final byte[] bytes) throws Mcv2Exception {
     Preconditions.checkNotNull(bytes, "Frame bytes must not be null");
     if (bytes.length >= Integer.BYTES && u32(bytes, 0) == 0x3156434D) {
@@ -382,49 +485,67 @@ public final class Mcv2Decoder {
     leaves[at + 5] = offset;
   }
 
-  // Temporary adapters keep callers compiling while the encoder is migrated in the following commit.
-  public static byte[] decode(final Mcv2Frame frame, final byte @Nullable [] reference, final long referenceId) throws Mcv2Exception {
-    return decode(parse(frame.getData()), reference, referenceId);
-  }
-
-  public static byte[] decode(final Mcv2Frame frame, final byte @Nullable [] reference, final long referenceId, final Workers workers)
-    throws Mcv2Exception {
-    return decode(parse(frame.getData()), reference, referenceId);
-  }
-
-  public static byte[] decode(
-    final Mcv2Frame frame,
-    final byte @Nullable [] reference,
-    final long referenceId,
-    final Workers workers,
-    final byte @Nullable [] output
-  ) throws Mcv2Exception {
-    final Frame parsed = parse(frame.getData());
-    if (output == null) {
-      return decode(parsed, reference, referenceId);
-    }
-    decode(parsed, reference, referenceId, output);
-    return output;
-  }
-
+  /**
+   * Parses and reconstructs a complete frame.
+   *
+   * @param bytes complete encoded frame
+   * @param reference previous RGB24 picture; may be null for keyframes
+   * @param referenceId id of that picture; ignored for keyframes
+   * @return newly allocated RGB24 picture
+   * @throws NullPointerException if bytes is null
+   * @throws Mcv2Exception if syntax or reference validation fails
+   */
   public static byte[] decode(final byte[] bytes, final byte @Nullable [] reference, final long referenceId) throws Mcv2Exception {
     return decode(parse(bytes), reference, referenceId);
   }
 
+  /**
+   * Reconstructs a validated frame into a new RGB24 array.
+   *
+   * @param frame validated frame
+   * @param reference previous RGB24 picture; may be null for keyframes
+   * @param referenceId id of that picture; ignored for keyframes
+   * @return newly allocated RGB24 picture
+   * @throws NullPointerException if frame is null
+   * @throws Mcv2Exception if the required reference is missing or has the wrong id or byte length
+   */
   public static byte[] decode(final Frame frame, final byte @Nullable [] reference, final long referenceId) throws Mcv2Exception {
     final byte[] output = new byte[frame.width * frame.height * CHANNELS];
     decode(frame, reference, referenceId, output);
     return output;
   }
 
-  /** Decodes into exactly one picture. Aliasing the reference is supported through an owned snapshot. */
+  /**
+   * Reconstructs a complete frame. An output alias of the reference uses an owned snapshot.
+   *
+   * @param frame validated frame
+   * @param reference previous RGB24 picture; may be null for keyframes
+   * @param referenceId id of that picture; ignored for keyframes
+   * @param output array of exactly width * height * 3 bytes
+   * @throws NullPointerException if frame or output is null
+   * @throws IllegalArgumentException if output has the wrong length
+   * @throws Mcv2Exception if the required reference is missing or has the wrong id or byte length
+   */
   public static void decode(final Frame frame, final byte @Nullable [] reference, final long referenceId, final byte[] output)
     throws Mcv2Exception {
     final byte[] prediction = reference(frame, reference, referenceId);
     decodeRows(frame, samePicture(prediction, output) ? prediction.clone() : prediction, referenceId, output, 0, frame.height);
   }
 
-  /** Decodes a disjoint row range into a caller's array; the reference must remain stable and must not alias output. */
+  /**
+   * Decodes a row range, leaving other rows unchanged. Disjoint ranges may run concurrently;
+   * the reference must remain stable and must not alias output.
+   *
+   * @param frame validated frame
+   * @param reference previous RGB24 picture; may be null for keyframes
+   * @param referenceId id of that picture; ignored for keyframes
+   * @param output array of exactly width * height * 3 bytes
+   * @param fromRow first row, inclusive
+   * @param toRow last row, exclusive
+   * @throws NullPointerException if frame or output is null
+   * @throws IllegalArgumentException if output size, row bounds or reference aliasing is invalid
+   * @throws Mcv2Exception if the required reference is missing or has the wrong id or byte length
+   */
   public static void decodeRows(
     final Frame frame,
     final byte @Nullable [] reference,
@@ -600,46 +721,118 @@ public final class Mcv2Decoder {
     return ((data[at] & 0xFF) << 16) | ((data[at + 1] & 0xFF) << 8) | (data[at + 2] & 0xFF);
   }
 
+  /**
+   * Reads an unsigned little-endian 16-bit integer.
+   *
+   * @param data source bytes
+   * @param at first byte offset
+   * @return unsigned value
+   * @throws IndexOutOfBoundsException if either byte lies outside data
+   */
   public static int u16(final byte[] data, final int at) {
     return (data[at] & 0xFF) | ((data[at + 1] & 0xFF) << 8);
   }
 
+  /**
+   * Reads an unsigned little-endian 32-bit integer.
+   *
+   * @param data source bytes
+   * @param at first byte offset
+   * @return unsigned value
+   * @throws IndexOutOfBoundsException if any byte lies outside data
+   */
   public static long u32(final byte[] data, final int at) {
     return (data[at] & 0xFFL) | ((data[at + 1] & 0xFFL) << 8) | ((data[at + 2] & 0xFFL) << 16) | ((data[at + 3] & 0xFFL) << 24);
   }
 
+  /**
+   * Writes the low 16 bits in little-endian order.
+   *
+   * @param data destination bytes
+   * @param at first byte offset
+   * @param value value to write
+   * @throws IndexOutOfBoundsException if either byte lies outside data
+   */
   public static void putU16(final byte[] data, final int at, final int value) {
     data[at] = (byte) value;
     data[at + 1] = (byte) (value >>> 8);
   }
 
+  /**
+   * Writes the low 32 bits in little-endian order.
+   *
+   * @param data destination bytes
+   * @param at first byte offset
+   * @param value value to write
+   * @throws IndexOutOfBoundsException if any byte lies outside data
+   */
   public static void putU32(final byte[] data, final int at, final long value) {
     for (int index = 0; index < Integer.BYTES; index++) {
       data[at + index] = (byte) (value >>> (index * Byte.SIZE));
     }
   }
 
+  /**
+   * Compares frame ids using unsigned 32-bit wraparound.
+   *
+   * @param id candidate frame id
+   * @param last last committed frame id
+   * @return whether the forward distance is strictly between zero and 2^31
+   */
   public static boolean follows(final long id, final long last) {
     final long distance = (id - last) & MAX_U32;
     return distance != 0 && distance < 1L << 31;
   }
 
+  /**
+   * Checks the supported square leaf sizes.
+   *
+   * @param size side in pixels
+   * @return whether size is 8, 16 or 32
+   */
   public static boolean isBlockSize(final int size) {
     return size == SMALLEST_BLOCK || size == 2 * SMALLEST_BLOCK || size == ROOT_SIZE;
   }
 
+  /**
+   * Maps a supported leaf size to its fitting-array index.
+   *
+   * @param size 8, 16 or 32 pixels
+   * @return 0, 1 or 2 respectively
+   */
   public static int sizeIndex(final int size) {
     return Integer.numberOfTrailingZeros(size) - 3;
   }
 
+  /**
+   * Sign-extends the low bits of an integer.
+   *
+   * @param value packed integer
+   * @param bits signed field width, 1 through 32
+   * @return sign-extended value
+   */
   public static int signed(final int value, final int bits) {
     return (value << (Integer.SIZE - bits)) >> (Integer.SIZE - bits);
   }
 
+  /**
+   * Returns the full pattern record length.
+   *
+   * @param size 8, 16 or 32 pixels
+   * @return record length in bytes
+   */
   public static int patternSize(final int size) {
     return 2 * CHANNELS + 1 + size / Byte.SIZE;
   }
 
+  /**
+   * Returns a fixed-length record size.
+   *
+   * @param mode SKIP, MOTION, SOLID, PALETTE, PATTERN or SPLIT
+   * @param size 8, 16 or 32 pixels
+   * @return record length in bytes; zero for SKIP and SPLIT
+   * @throws IllegalArgumentException if mode is COMPACT or invalid
+   */
   public static int recordSize(final int mode, final int size) {
     return switch (mode) {
       case MODE_SKIP, MODE_SPLIT -> 0;
@@ -651,11 +844,27 @@ public final class Mcv2Decoder {
     };
   }
 
+  /**
+   * Reads the horizontal vector of a validated compact record.
+   *
+   * @param data validated frame bytes
+   * @param offset record byte offset
+   * @return signed whole-pixel displacement
+   * @throws IndexOutOfBoundsException if the record lies outside data
+   */
   public static int compactX(final byte[] data, final int offset) {
     final int form = (data[offset] & 0xFF) >> 4;
     return form == 1 ? signed(data[offset + 1] & 15, 4) : form == 2 ? data[offset + 1] : 0;
   }
 
+  /**
+   * Reads the vertical vector of a validated compact record.
+   *
+   * @param data validated frame bytes
+   * @param offset record byte offset
+   * @return signed whole-pixel displacement
+   * @throws IndexOutOfBoundsException if the record lies outside data
+   */
   public static int compactY(final byte[] data, final int offset) {
     final int form = (data[offset] & 0xFF) >> 4;
     return form == 1 ? signed((data[offset + 1] & 0xFF) >> 4, 4) : form == 2 ? data[offset + 2] : 0;
