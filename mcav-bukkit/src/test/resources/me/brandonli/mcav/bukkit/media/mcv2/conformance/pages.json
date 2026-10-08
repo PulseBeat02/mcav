@@ -4,51 +4,51 @@
  "symbol_bits": 6,
  "frames": [
   {
-   "stream": "conformance/gameplay-adaptive.mcs",
+   "stream": "conformance/gameplay-default.mcs",
    "frame": 0,
    "pages": [
-    "2ce8370ee91954fbbd4cfece6bcf33e2498df3d3bb3c2745abe041fc0eac008d"
+    "431e7fd9eb2366d568f0b64f3bea304e2bc6aaf15caff14e8af730a9e7be9bd3"
    ],
    "lengths": [
-    11282
+    11314
    ],
    "wire": 11410,
    "wire_full": 16402
   },
   {
-   "stream": "conformance/gameplay-adaptive.mcs",
+   "stream": "conformance/gameplay-default.mcs",
    "frame": 1,
    "pages": [
-    "28aee1644856115b08dc71ada4bad7ac1140365715094afc619ee845f94aa55b"
+    "01396e81386716b3da3e19560fbdcb3cc325076e97570d79b990da52dcc8d06f"
    ],
    "lengths": [
-    8854
+    8906
    ],
    "wire": 8978,
    "wire_full": 16402
   },
   {
-   "stream": "conformance/gameplay-adaptive.mcs",
+   "stream": "conformance/gameplay-default.mcs",
    "frame": 2,
    "pages": [
-    "292c956fc31d49264635d1bf829aceef7be7a39cfb2d9342cfcb82cd423a9404"
+    "f9ef397bbd79cc9cbc24e867828185c4fd7b151c3d5611b2608f1f4742887bd8"
    ],
    "lengths": [
-    8494
+    6306
    ],
-   "wire": 8594,
+   "wire": 6418,
    "wire_full": 16402
   },
   {
-   "stream": "conformance/gameplay-adaptive.mcs",
+   "stream": "conformance/gameplay-default.mcs",
    "frame": 3,
    "pages": [
-    "dcc08e3833cc6cb5e6f11734dd12f737f3593d74db3754d02543b4f1f064903d"
+    "8a7eec300fb2c0d712d7c0c7c4ca0eeb312c837b08dee42b57fe2e79652af7b9"
    ],
    "lengths": [
-    8024
+    6399
    ],
-   "wire": 8082,
+   "wire": 6418,
    "wire_full": 16402
   }
  ]

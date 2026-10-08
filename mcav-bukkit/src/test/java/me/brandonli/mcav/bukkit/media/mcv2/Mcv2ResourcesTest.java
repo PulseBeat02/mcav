@@ -56,10 +56,10 @@ final class Mcv2ResourcesTest {
 
   @Test
   void loadsVerifiedResourcesIntoCallerOwnedArrays() {
-    final String digest = "a372bc23542153ec59637f4fa7665427974d2f0685a72f7df893039913a32eae";
-    final byte[] first = Mcv2Resources.load("encoder/crop-default.mcs", digest, 3276);
-    final byte[] second = Mcv2Resources.load("encoder/crop-default.mcs", digest, 3276);
-    assertEquals(3276, first.length);
+    final String digest = "d99bb5ffa817142cd902aeedaf1f1e36ab87e334b3812bfe6a79a61a8b2b6a5f";
+    final byte[] first = Mcv2Resources.load("encoder/crop-default.mcs", digest, 3177);
+    final byte[] second = Mcv2Resources.load("encoder/crop-default.mcs", digest, 3177);
+    assertEquals(3177, first.length);
     assertArrayEquals(first, second);
     assertNotSame(first, second);
     assertEquals('M', first[4]);

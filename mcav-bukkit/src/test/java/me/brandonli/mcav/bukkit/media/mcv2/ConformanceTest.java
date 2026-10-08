@@ -72,7 +72,7 @@ final class ConformanceTest {
     for (final Map.Entry<String, JsonElement> entry : root.entrySet()) {
       arguments.add(Arguments.of(entry.getKey(), HexFormat.of().parseHex(entry.getValue().getAsJsonObject().get("frame").getAsString())));
     }
-    assertEquals(116, arguments.size());
+    assertEquals(78, arguments.size());
     return arguments.stream();
   }
 

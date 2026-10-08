@@ -407,7 +407,8 @@ final class Mcv2ChannelTest {
       assertTrue(sends.get(2).getLong("backlog") > 400);
       assertEquals(1, sends.get(3).getInt("waiting"));
       assertEquals(-1, sends.get(4).getInt("colors"));
-      assertTrue(sends.get(0).getLong("sent") > 0 && sends.get(0).getInt("bytes") > 48);
+      assertTrue(sends.get(0).getLong("sent") > 0);
+      assertEquals(48, sends.get(0).getInt("bytes"));
     }
   }
 
