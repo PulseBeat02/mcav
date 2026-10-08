@@ -22,11 +22,11 @@
  },
  "ffmpeg": "ffmpeg version 7.0.2-static https://johnvansickle.com/ffmpeg/  Copyright (c) 2000-2024 the FFmpeg developers",
  "vmaf_method": "the frontier's filter: both raw RGB24 inputs converted to yuv420p, [dis][ref]libvmaf with the default vmaf_v0.6.1 model; the pooled mean and the per-frame minimum; the distorted pictures decoded to raw RGB24 first",
- "codec_method": "mcav-bukkit/src/test/python/mcv2_tools.py codec_curves: each codec's constant-quality mode at the listed CRF, from raw RGB24 into yuv420p, decoded back to raw RGB24 with -fps_mode passthrough, then scored; container_mbps is the file's size over the clip's duration",
- "mcv2_method": "mcav-bukkit/src/test/python/mcv2_tools.py rate_quality --main me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools (Mcv2Tools bench) with profile=DEFAULT threads=12 budget=true verify=false at each lambda: MCV2's encoder at its DEFAULT preset (only the lambda changes), 'decoded' pictures scored with the frontier's filter; map_mbps is the transport's charge (rows x 128 + 18 bytes a page), zlib_mbps deflates every page's map colours at zlib's default level and adds the 18-byte envelope",
- "mcv2_command": "python3 mcav-bukkit/src/test/python/mcv2_tools.py rate_quality --classpath CLASSPATH --main me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools --source $SRC --frames N --fps 30 --lambdas L1,L2,... --ffmpeg $FFMPEG --out points.json -- profile=DEFAULT threads=12 budget=true verify=false",
- "dither_method": "the archived DitherBench benchmark (before this cleanup): every frame dithered with mcav's DitherAlgorithm and sent by DeltaMapEncoder (what CompressedMapResult sends a viewer who watches from the start) within its budget per frame (131072 bytes, the plugin's default, or 0: every change); 600 frames, the source looped forward and back, the first 120 (the wall filling) left out; map_mbps counts every patch's colours plus MapLayout.PATCH_OVERHEAD (16 bytes), zlib_mbps the colours deflated at zlib's default level plus the same overhead; vmaf compares the pictures the viewer's maps show with the source frames they belong to; algorithm filter_lite is DitherAlgorithm.filterLite(), temporal is DitherAlgorithm.temporalFloydSteinberg()",
- "dither_command": "Historical DitherBench.java (revision 0558ed3e8): source=$SRC width=1920 height=1080 frames=600 warm=120 fps=30 loop=pingpong algorithm=filter_lite budget=131072 decoded=dithered.rgb reference=reference.rgb; the recorded measurements are retained.",
+ "codec_method": "Former tools/mcv2/codec_curves.py: each codec's constant-quality mode at the listed CRF, from raw RGB24 into yuv420p, decoded back to raw RGB24 with -fps_mode passthrough, then scored; container_mbps is the file's size over the clip's duration",
+ "mcv2_method": "Historical tools (Java kernels, equivalent to natives=off): tools/mcv2/rate_quality.py --main Mcv2Bench (tools/mcv2/Mcv2Bench.java) with profile=DEFAULT threads=12 budget=true verify=false at each lambda: MCV2's encoder at its DEFAULT preset (only the lambda changes), 'decoded' pictures scored with the frontier's filter; map_mbps is the transport's charge (rows x 128 + 18 bytes a page), zlib_mbps deflates every page's map colours at zlib's default level and adds the 18-byte envelope",
+ "mcv2_command": "Historical tools (Java kernels, equivalent to natives=off): python3 tools/mcv2/rate_quality.py --classpath CLASSPATH --main Mcv2Bench --source $SRC --frames N --fps 30 --lambdas L1,L2,... --ffmpeg $FFMPEG --out points.json -- profile=DEFAULT threads=12 budget=true verify=false",
+ "dither_method": "Former tools/mcv2/DitherBench.java: every frame dithered with mcav's DitherAlgorithm and sent by DeltaMapEncoder (what CompressedMapResult sends a viewer who watches from the start) within its budget per frame (131072 bytes, the plugin's default, or 0: every change); 600 frames, the source looped forward and back, the first 120 (the wall filling) left out; map_mbps counts every patch's colours plus MapLayout.PATCH_OVERHEAD (16 bytes), zlib_mbps the colours deflated at zlib's default level plus the same overhead; vmaf compares the pictures the viewer's maps show with the source frames they belong to; algorithm filter_lite is DitherAlgorithm.filterLite(), temporal is DitherAlgorithm.temporalFloydSteinberg()",
+ "dither_command": "Former tools/mcv2/DitherBench.java: javac -cp CLASSPATH -d build/bench tools/mcv2/DitherBench.java; java -cp build/bench:CLASSPATH DitherBench source=$SRC width=1920 height=1080 frames=600 warm=120 fps=30 loop=pingpong algorithm=filter_lite budget=131072 decoded=dithered.rgb reference=reference.rgb",
  "codecs": [
   {
    "source": "gameplay30",
@@ -6229,7 +6229,7 @@
    "vmaf_min": 36.166389
   }
  ],
- "mcv2_version2_method": "mcav-bukkit/src/test/python/mcv2_tools.py rate_quality --main me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools (Mcv2Tools bench) with profile=ship threads=12 budget=true verify=false at each lambda: version 2 of MCV2 (the code before it was simplified) with the reference search of its shipped profiles (only the lambda changes), 'decoded' pictures scored with the frontier's filter; map_mbps is the transport's charge (rows x 128 + 18 bytes a page), zlib_mbps deflates every page's map colours at zlib's default level and adds the 18-byte envelope",
+ "mcv2_version2_method": "Historical tools (Java kernels, equivalent to natives=off): tools/mcv2/rate_quality.py --main Mcv2Bench (tools/mcv2/Mcv2Bench.java) with profile=ship threads=12 budget=true verify=false at each lambda: version 2 of MCV2 (the code before it was simplified) with the reference search of its shipped profiles (only the lambda changes), 'decoded' pictures scored with the frontier's filter; map_mbps is the transport's charge (rows x 128 + 18 bytes a page), zlib_mbps deflates every page's map colours at zlib's default level and adds the 18-byte envelope",
  "mcv2_version2_live": [
   {
    "source": "proxy30",
@@ -6857,7 +6857,7 @@
    "vmaf_min": 14.284036
   }
  ],
- "mcv2_version2_live_method": "the same for version 2 of MCV2 (the code before it was simplified) at its live profile (profile=live), the live search MCV2's DEFAULT preset descends from",
+ "mcv2_version2_live_method": "the same for version 2 of MCV2 (the code before it was simplified) at its live profile (profile=live), the live search MCV2's DEFAULT preset descends from; historical Java kernels, equivalent to natives=off",
  "mcv2_fast": [
   {
    "source": "proxy30",
@@ -7485,5 +7485,5 @@
    "vmaf_min": 18.011835
   }
  ],
- "mcv2_fast_method": "mcav-bukkit/src/test/python/mcv2_tools.py rate_quality --main me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools (Mcv2Tools bench) with profile=FAST threads=12 budget=true verify=false at each lambda: MCV2's encoder at its FAST preset (only the lambda changes), 'decoded' pictures scored with the frontier's filter; map_mbps is the transport's charge (rows x 128 + 18 bytes a page), zlib_mbps deflates every page's map colours at zlib's default level and adds the 18-byte envelope"
+ "mcv2_fast_method": "Historical tools (Java kernels, equivalent to natives=off): tools/mcv2/rate_quality.py --main Mcv2Bench (tools/mcv2/Mcv2Bench.java) with profile=FAST threads=12 budget=true verify=false at each lambda: MCV2's encoder at its FAST preset (only the lambda changes), 'decoded' pictures scored with the frontier's filter; map_mbps is the transport's charge (rows x 128 + 18 bytes a page), zlib_mbps deflates every page's map colours at zlib's default level and adds the 18-byte envelope"
 }
