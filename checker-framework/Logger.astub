@@ -2,7 +2,6 @@ package org.slf4j;
 
 import org.checkerframework.checker.nullness.qual.*;
 
-// SLF4J renders null arguments as "null", so message arguments may be nullable.
 public interface Logger {
   void trace(String format, @Nullable Object arg);
   void trace(String format, @Nullable Object arg1, @Nullable Object arg2);

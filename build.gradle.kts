@@ -10,11 +10,9 @@ repositories {
     mavenCentral()
 }
 
-// the modules format their own sources; this formats the files of the repository around them
 spotless {
     format("repository") {
-        // one tree whose excludes are part of it, so its walk skips those folders: targetExclude would walk a second tree
-        // of every build and node_modules folder while nodeSetup and npm write into them ("Could not read path")
+        // targetExclude walks a second tree and can race with Node writes in build/node_modules ("Could not read path").
         target(
             fileTree(rootDir) {
                 include(
