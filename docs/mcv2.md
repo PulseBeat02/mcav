@@ -323,7 +323,7 @@ Here is the whole trip of one frame, in five steps. The rest of the page goes th
    the picture, finds the cheapest way to describe it: skip it (it's the same as last frame), move it, paint it with
    one colour, two colours or a pattern, or correct a prediction with a small residual. It can cut a square into four
    16x16 squares, and those into 8x8 ones, wherever smaller pieces pay for themselves.
-2. **Write.** The choices are written into the frame's bytes: a 32-byte header, an index that lets every pixel find its
+2. **Write.** The choices are written into the frame's bytes: a 20-byte header, an index that lets every pixel find its
    own data, and the data itself.
 3. **Send.** The frame is cut into **pages** of up to 12,256 bytes, each with a 32-byte header and a checksum. Every
    page becomes one 128x128 map, six bits per map pixel. The pages of a frame go out together as map packets, and
@@ -347,22 +347,21 @@ is a position in the frame's bytes, counted from 0. `0x` in front of a number me
 
 ### The Frame Header
 
-Every frame starts with 32 bytes:
+Every frame starts with 20 bytes:
 
 | Offset | Size | Field | What it holds |
 |---:|---:|---|---|
 | 0 | 4 | magic | the letters `MCV2` (the number `0x3256434D`), so a decoder knows what it's looking at |
-| 4 | 1 | version | 3 |
-| 5 | 1 | flags | bit 0: this is a keyframe; the other bits are zero |
-| 6 | 2 | reserved | zero |
+| 4 | 4 | version | 3 |
 | 8 | 2 | width | the picture's width in pixels, 1 to 4096 |
 | 10 | 2 | height | the picture's height, 1 to 4096 |
 | 12 | 4 | frame id | this frame's number |
 | 16 | 4 | reference id | the frame a P frame predicts from; a keyframe repeats its own id here |
-| 20 | 4 | payload start | where the leaf data begins |
-| 24 | 4 | total | the frame's length in bytes, at most 131,071 |
-| 28 | 3 | default colour | red, green, blue: what a keyframe's skipped squares show; zero in a P frame |
-| 31 | 1 | zero | zero |
+
+That's all. A frame is a keyframe exactly when its reference id equals its frame id, so no flag says it. The frame's
+length is the length of whatever carries it (the pages it arrived in, or a file's length prefix), at most 131,071
+bytes, and where the leaf data begins follows from the index, so the header doesn't store those either. Every field
+starts at a multiple of its own size, so a decoder reads each one in a single step.
 
 A frame of an older version (`MCV1`, or `MCV2` with version 2) is refused with a message that says so.
 
@@ -391,7 +390,7 @@ quiet area, one 32x32 leaf covers 1,024 pixels; around a busy edge, the encoder 
 bottom: every leaf coloured by its mode. In the keyframe (left), the sky and the dark mass of leaves are mostly SOLID
 leaves, big ones in the sky, and where the trees meet the sky the squares are split smaller and many become palettes.
 Twelve frames later (right), the camera has turned: most squares are unchanged (SKIP), moved copies of the last
-picture (MOTION) or corrected ones (COMPACT), and only the detail coming into view gets palettes and patterns. The whole keyframe is 60,950 bytes in 6,471 leaves; the P frame 27,074 bytes in 3,090.*
+picture (MOTION) or corrected ones (COMPACT), and only the detail coming into view gets palettes and patterns. The whole keyframe is 61,275 bytes in 6,471 leaves; the P frame 27,501 bytes in 3,345.*
 
 ### The Leaf Types
 
@@ -400,16 +399,17 @@ six leaf modes; `s` is the leaf's size (32, 16 or 8):
 
 | Mode | Name | Record | Allowed in | What the decoder draws |
 |---:|---|---|---|---|
-| 0 | SKIP | nothing | every frame | P frame: the same pixels as the reference. Keyframe: the default colour |
+| 0 | SKIP | nothing | every frame | P frame: the same pixels as the reference. Keyframe: black |
 | 1 | MOTION | 2 bytes | P frames | the reference, moved |
 | 2 | SOLID | 3 bytes | every frame | one colour |
 | 3 | PALETTE | 6 + s²/8 bytes | every frame | two colours, a bit per pixel says which |
 | 4 | PATTERN | 7 + s/8 bytes | every frame | two colours in stripes |
-| 5 | COMPACT | 2 to 13 bytes | P frames | the reference, moved, plus a small correction |
+| 5 | COMPACT | 10 bytes | P frames | the reference, moved, plus a small correction |
 | 6 | SPLIT | (no record) | 32- and 16-pixel squares | four smaller squares |
 
 **SKIP** costs nothing but its place in the tree. In a P frame, a skipped square shows exactly what the same square
-showed in the reference: on a still picture, almost every square is a SKIP.
+showed in the reference: on a still picture, almost every square is a SKIP. A keyframe has no reference, so there a
+skipped square is black (MCAV's encoder never writes one: a keyframe describes every square).
 
 **MOTION** is two signed bytes, `dx` and `dy`: pixel (X, Y) of the leaf shows the reference's pixel at (X + dx, Y + dy).
 If that lands outside the picture, the nearest edge pixel is used (in maths, the coordinate is **clamped** into the
@@ -436,25 +436,12 @@ for 256 pixels.*
 
 **COMPACT** is a correction on top of a moved copy of the reference: "take this block from the last frame, moved by
 (dx, dy), and make it a little brighter at the top left". It's how MCV2 handles things that move and change a bit at
-the same time. Its first byte, the **control byte**, holds the **class** in its low four bits and the **motion form**
-in its high four bits. The form says how the vector is stored: form 0 has no vector bytes (the vector is (0, 0)),
-form 1 one byte (dx in its low four bits and dy in its high four bits, each s4, -8 to 7 pixels), form 2 two signed
-bytes. Then come the correction's bytes:
-
-| Class | Name | Bytes | What they hold |
-|---:|---|---:|---|
-| 0 | DC | 1 | one signed brightness change for the whole block |
-| 1 | GRID | 10 | 16 brightness changes on a 4x4 grid (s4, two to a byte) and two colour changes |
-| 2 | GRID_Y | 8 | 16 brightness changes on a 4x4 grid, no colour change |
-
-The 4x4 grid is spread smoothly over the whole leaf, whatever its size (the next section has the exact rule), so 16
-numbers describe a gentle change across an 8x8 or a 32x32 block. The descriptor's **quantizer** `q` (0 to 7, below)
-scales the correction by 2^q: q = 0 means steps of 1, q = 3 steps of 8.
-
-COMPACT works in a colour space called **YCoCg** instead of RGB: Y is the brightness, and Co and Cg say how orange or
-green the colour leans. Brightness changes far more than colour in real pictures, so a correction is mostly a Y grid
-with one Co and one Cg for the whole block. The conversion back to RGB is three additions:
-R = Y + Co - Cg, G = Y + Cg, B = Y - Co - Cg.
+the same time. Its record is always 10 bytes: dx and dy as two signed bytes, like MOTION's, and then 16 brightness
+changes on a 4x4 grid, s4 values, two to a byte. The grid is spread smoothly over the whole leaf, whatever its size
+(the next section has the exact rule), so 16 numbers describe a gentle change across an 8x8 or a 32x32 block. The same
+change is added to red, green and blue, so the block gets brighter or darker without changing its colour: brightness
+changes far more than colour in real pictures. The descriptor's **quantizer** `q` (0, 1 or 2, below) scales the
+correction by 2^q: q = 0 means steps of 1, q = 2 steps of 4.
 
 ### Reconstruction: The Exact Rules
 
@@ -463,24 +450,22 @@ leaf. To decode bit for bit the same pictures as every other MCV2 decoder, follo
 
 - **Prediction** (SKIP in a P frame, MOTION, COMPACT): pixel (X, Y) with vector (dx, dy) takes the reference's pixel at
   (clamp(X + dx, 0, w - 1), clamp(Y + dy, 0, h - 1)), each colour channel a whole number from 0 to 255.
-- **The grid** (COMPACT classes 1 and 2): node n of the 4x4 grid is in row n div 4, column n mod 4; node 2j is the low
-  four bits of byte j and node 2j + 1 the high four bits, read as s4. For a pixel at position p (0 to s - 1) along one
+- **The grid** (COMPACT): node n of the 4x4 grid is in row n div 4, column n mod 4; node 2j is the low four bits of
+  the record's byte 2 + j and node 2j + 1 the high four bits, read as s4. For a pixel at position p (0 to s - 1) along one
   side of the leaf, take t = (p + 0.5) × 4 / s - 0.5, clamped to 0 to 3; i0 = the whole part of t, i1 = min(i0 + 1, 3),
   f = t - i0. Do that for x and for y, and blend the four nodes around the pixel: Y = (1 - fy) × ((1 - fx) × N[iy0][ix0]
   + fx × N[iy0][ix1]) + fy × ((1 - fx) × N[iy1][ix0] + fx × N[iy1][ix1]). This is called **bilinear interpolation**.
-  For DC, Y is just the one number, and for GRID_Y and DC, Co = Cg = 0.
-- **The colour**: each channel becomes v = P + 2^q × r, with P the prediction and r = Y + Co - Cg for red, Y + Cg for
-  green, Y - Co - Cg for blue; the output is v rounded to the nearest whole number, halves rounded up
-  (floor(v + 0.5)), then clamped to 0 to 255.
+- **The colour**: each of red, green and blue becomes v = P + 2^q × Y, with P that channel of the prediction; the
+  output is v rounded to the nearest whole number, halves rounded up (floor(v + 0.5)), then clamped to 0 to 255.
 - **Why it's exact**: f is always a multiple of 1/(2s), so every Y is a multiple of 1/(4s²) (at most 1/4,096), and no
   value needs more than 21 significant bits: a GPU's 32-bit floating point numbers hold every value exactly, and a
   program working in whole numbers can multiply everything by 4s² and never round at all.
 
-A worked example. A 16x16 GRID leaf, q = 2, every row of nodes is -2, -1, 0, 1, Co = 2, Cg = -1, over a reference
-pixel (100, 120, 140). For the pixel at x = 2: t = (2 + 0.5) × 4 / 16 - 0.5 = 0.125, so i0 = 0, i1 = 1, f = 0.125, and
-Y = 0.875 × (-2) + 0.125 × (-1) = -1.875 (every row is the same, so y doesn't matter). Red: r = -1.875 + 2 + 1 = 1.125,
-v = 100 + 4 × 1.125 = 104.5, which rounds up to 105. Green: r = -1.875 - 1 = -2.875, v = 120 - 11.5 = 108.5, so 109.
-Blue: r = -1.875 - 2 + 1 = -2.875, v = 140 - 11.5 = 128.5, so 129. The pixel is (105, 109, 129).
+A worked example. A 16x16 COMPACT leaf with the vector (0, 0), q = 2, and every row of nodes -2, -1, 0, 1, over a
+reference pixel (100, 120, 140). For the pixel at x = 2: t = (2 + 0.5) × 4 / 16 - 0.5 = 0.125, so i0 = 0, i1 = 1,
+f = 0.125, and Y = 0.875 × (-2) + 0.125 × (-1) = -1.875 (every row is the same, so y doesn't matter). Every channel
+gets 4 × (-1.875) = -7.5: red 100 - 7.5 = 92.5, which rounds up to 93; green 112.5, so 113; blue 132.5, so 133. The
+pixel is (93, 113, 133).
 
 ### The Index: How One Pixel Finds Its Leaf
 
@@ -501,11 +486,11 @@ C = ceil(G / 8), and D descriptors in all (below), it is:
 | descriptors | D | one byte per square, in level order |
 | walk checkpoints | 4 × ceil(D / 8) | one 32-bit number per eight descriptors |
 
-and the header's payload start must point exactly at the end of it: 32 + 4G + 4C + 12 + D + 4 × ceil(D / 8). Then come
-the leaf records, one after another with no gaps, and the last one ends exactly at the end of the frame.
+and the leaf records begin right after it, at 20 + 4G + 4C + 12 + D + 4 × ceil(D / 8) (the **payload start**), one
+after another with no gaps; the last one ends exactly at the end of the frame.
 
 **Presence.** A superblock whose bit is 0 isn't stored at all: it's one 32x32 SKIP. On a still picture most bits are 0,
-and a whole 1080p P frame where nothing moved is just the header and a 300-byte index: 332 bytes. To find where a present superblock's
+and a whole 1080p P frame where nothing moved is just the header and a 300-byte index: 320 bytes. To find where a present superblock's
 descriptor is, count how many present superblocks come before it: the directory gives the count up to the start of its
 group of eight, then add the number of 1 bits (the **popcount**) of at most seven whole masks, and of the bits of its
 own mask below its bit. Counting the 1 bits of a 32-bit number takes the shader a handful of operations (a classic
@@ -523,8 +508,7 @@ total length of the records before it (for where its record starts). Counting fr
 every eighth descriptor has a **checkpoint**: one 32-bit number holding the record bytes before it (the **cursor**, in
 the low 17 bits) and the splits before it (in the high 15 bits). From the checkpoint just before it, a pixel walks
 over at most seven descriptors, adding up their record lengths and counting their splits. A record's length always
-follows from its mode and its size, and for COMPACT from its own control byte, so the walk never has to read more
-than one byte per descriptor (two for a COMPACT). Since a frame is at most 131,071 bytes, the cursor
+follows from its mode and its size alone, so the walk reads one byte per descriptor: the descriptor itself. Since a frame is at most 131,071 bytes, the cursor
 always fits in 17 bits, and there are always fewer than 32,768 splits.
 
 Here's a worked example: a 96x64 picture with 6 superblocks (3 columns, 2 rows). Superblocks 0, 2, 3 and 5 are present,
@@ -539,19 +523,19 @@ bottom right child is split again, so n1 = 4 and n2 = 4: twelve descriptors, two
 | 3 | superblock 5 | SOLID | 3 | |
 | 4 | 16x16 at (64, 0) | PALETTE | 38 | |
 | 5 | 16x16 at (80, 0) | SOLID | 3 | |
-| 6 | 16x16 at (64, 16) | COMPACT, form 1, class 0 | 3 | |
+| 6 | 16x16 at (64, 16) | COMPACT | 10 | |
 | 7 | 16x16 at (80, 16) | SPLIT | 0 | |
-| 8 | 8x8 at (80, 16) | SOLID | 3 | 1: cursor 52, splits 2 |
+| 8 | 8x8 at (80, 16) | SOLID | 3 | 1: cursor 59, splits 2 |
 | 9 | 8x8 at (88, 16) | ... | | |
 
 Which leaf covers the pixel (80, 20)? Its superblock is column 80 / 32 = 2, row 20 / 32 = 0, so number 2. Bit 2 of the
 mask is set, so it's present, and the bits below it (bit 0 only) count 1: descriptor 1. Walk from checkpoint 0 over
 descriptor 0 (3 bytes): cursor 3, splits 0. Descriptor 1 is a SPLIT, so its children start at n0 + 4 × 0 = 4; the pixel
 is in the right half (80 - 64 = 16, not below 16) and the bottom half (20 ≥ 16) of the superblock, child 3: descriptor
-7. Walk from checkpoint 0 again, over descriptors 0 to 6: cursor 3 + 0 + 2 + 3 + 38 + 3 + 3 = 52, splits 1 (descriptor
+7. Walk from checkpoint 0 again, over descriptors 0 to 6: cursor 3 + 0 + 2 + 3 + 38 + 3 + 10 = 59, splits 1 (descriptor
 1). Descriptor 7 is a SPLIT too, so its children start at 4 + 4 × 1 = 8, and the pixel is in its top left quarter:
-descriptor 8. Its checkpoint (number 1) already holds cursor 52 and splits 2, and descriptor 8 is a SOLID leaf whose
-three bytes start at payload start + 52. Three levels, a handful of additions. No pixel ever needs more than three
+descriptor 8. Its checkpoint (number 1) already holds cursor 59 and splits 2, and descriptor 8 is a SOLID leaf whose
+three bytes start at payload start + 59. Three levels, a handful of additions. No pixel ever needs more than three
 rounds of at most seven steps, whatever the frame holds.
 
 ### Validation: Never Trust the Bytes
@@ -559,16 +543,14 @@ rounds of at most seven steps, whatever the frame holds.
 A decoder must assume a frame could be broken or even malicious, so it checks everything before using it, and never
 reads outside the frame. MCAV's Java decoder and the Python reference accept a frame if and only if all of these hold:
 
-- the length is 32 to 131,071 bytes, the magic and version are right, the reserved bits and bytes are zero, the total
-  field is the real length, and the width and height are 1 to 4,096;
-- a keyframe's reference id equals its frame id, a P frame's doesn't, and a P frame's default colour is zero;
-- the index fits in the frame and ends exactly at the payload start; every directory entry is the right count; no mask
+- the length is 20 to 131,071 bytes, the magic is right, the version is 3, and the width and height are 1 to 4,096;
+- the index fits in the frame; every directory entry is the right count; no mask
   bit is set past the last superblock; n0 equals the number of present superblocks, n1 is four times the splits of
   level 0, n2 four times those of level 1, and level 2 has no split;
 - every walk checkpoint holds exactly the right cursor and split count;
 - every descriptor has a mode that exists and is allowed there (no MOTION or COMPACT in a keyframe, no SPLIT at 8
-  pixels), q is zero unless the mode is COMPACT, every record lies inside the record area, a COMPACT's class and form
-  are at most 2, and a PATTERN's orientation byte is 0 or 1;
+  pixels), q is zero unless the mode is COMPACT and at most 2 for a COMPACT, every record lies inside the frame, and
+  a PATTERN's orientation byte is 0 or 1;
 - the records end exactly at the end of the frame.
 
 Everything that rule doesn't forbid is allowed, even when MCAV's encoder never writes it, like a present superblock
@@ -576,53 +558,50 @@ that is a SKIP anyway.
 
 ### A Real Frame, Byte by Byte
 
-Here is a whole frame, all 73 bytes of it: the first frame MCAV's encoder writes, at the `DEFAULT` preset, for a
+Here is a whole frame, all 71 bytes of it: the first frame MCAV's encoder writes, at the `DEFAULT` preset, for a
 64x32 piece of sky at the edge of a cloud, cut out of the gameplay clip. Two superblocks, side by side.
 
-![The 73-byte frame: its picture with every leaf outlined, and its leaves by mode](images/mcv2/frame.png)
+![The 71-byte frame: its picture with every leaf outlined, and its leaves by mode](images/mcv2/frame.png)
 
-*The left superblock isn't stored at all; the right one is split into four 16x16 leaves: a SKIP, a SOLID, a SKIP and
-a PATTERN. In a keyframe, a SKIP shows the default colour.*
+*The left superblock is one SOLID leaf; the right one is split into four 16x16 leaves: three SOLIDs and a PATTERN.*
 
 ```text
 offset  bytes
-     0  4d 43 56 32 03 01 00 00 40 00 20 00 00 00 00 00
-    16  00 00 00 00 3d 00 00 00 49 00 00 00 91 b2 fa 00
-    32  02 00 00 00 00 00 00 00 01 00 00 00 04 00 00 00
-    48  00 00 00 00 06 00 02 00 04 00 00 00 00 97 b6 f9
-    64  92 b3 fa bc ce f6 00 f0 ff
+     0  4d 43 56 32 03 00 00 00 40 00 20 00 00 00 00 00
+    16  00 00 00 00 03 00 00 00 00 00 00 00 02 00 00 00
+    32  04 00 00 00 00 00 00 00 02 06 02 02 02 04 00 00
+    48  00 00 91 b2 fa 91 b2 fa 97 b6 f9 91 b2 fa 92 b3
+    64  fa bc ce f6 00 f0 ff
 ```
 
 | Offset | Bytes | Field | Value |
 |---:|---|---|---|
 | 0 | `4d 43 56 32` | magic | the letters `MCV2` |
-| 4 | `03` | version | 3 |
-| 5 | `01` | flags | a keyframe |
-| 6 | `00 00` | reserved | |
+| 4 | `03 00 00 00` | version | 3 |
 | 8 | `40 00` | width | 0x0040 = 64 |
 | 10 | `20 00` | height | 0x0020 = 32 |
 | 12 | `00 00 00 00` | frame id | 0 |
-| 16 | `00 00 00 00` | reference id | 0, its own id: it's a keyframe |
-| 20 | `3d 00 00 00` | payload start | 0x3d = 61 |
-| 24 | `49 00 00 00` | total | 0x49 = 73 |
-| 28 | `91 b2 fa` | default colour | (145, 178, 250), the sky |
-| 31 | `00` | zero | |
-| 32 | `02 00 00 00` | presence mask | bit 1 is set: superblock 1 is present, superblock 0 isn't |
-| 36 | `00 00 00 00` | directory | no present superblocks before the first group |
-| 40 | `01 00 00 00` `04 00 00 00` `00 00 00 00` | level counts | n0 = 1, n1 = 4, n2 = 0 |
-| 52 | `06` | descriptor 0 | SPLIT: superblock 1 becomes four 16x16 squares |
-| 53 | `00 02 00 04` | descriptors 1 to 4 | SKIP, SOLID, SKIP, PATTERN, in the order top left, top right, bottom left, bottom right |
-| 57 | `00 00 00 00` | walk checkpoint 0 | cursor 0, splits 0 |
-| 61 | `97 b6 f9` | the SOLID's record | (151, 182, 249) |
-| 64 | `92 b3 fa bc ce f6 00 f0 ff` | the PATTERN's record | colours (146, 179, 250) and (188, 206, 246), orientation 0, and the column bits `f0 ff` |
+| 16 | `00 00 00 00` | reference id | 0, its own id: so it's a keyframe |
+| 20 | `03 00 00 00` | presence mask | bits 0 and 1 are set: both superblocks are present |
+| 24 | `00 00 00 00` | directory | no present superblocks before the first group |
+| 28 | `02 00 00 00` `04 00 00 00` `00 00 00 00` | level counts | n0 = 2, n1 = 4, n2 = 0 |
+| 40 | `02` | descriptor 0 | SOLID: superblock 0 is one colour |
+| 41 | `06` | descriptor 1 | SPLIT: superblock 1 becomes four 16x16 squares |
+| 42 | `02 02 02 04` | descriptors 2 to 5 | SOLID, SOLID, SOLID, PATTERN, in the order top left, top right, bottom left, bottom right |
+| 46 | `00 00 00 00` | walk checkpoint 0 | cursor 0, splits 0 |
+| 50 | `91 b2 fa` | superblock 0's SOLID | (145, 178, 250), the sky |
+| 53 | `91 b2 fa` | the top left SOLID | the same sky |
+| 56 | `97 b6 f9` | the top right SOLID | (151, 182, 249) |
+| 59 | `91 b2 fa` | the bottom left SOLID | the sky again |
+| 62 | `92 b3 fa bc ce f6 00 f0 ff` | the PATTERN | colours (146, 179, 250) and (188, 206, 246), orientation 0, and the column bits `f0 ff` |
 
-Check the payload start: 32 for the header, 4 for one mask, 4 for one directory entry, 12 for the counts, 5
-descriptors and 4 for one walk checkpoint make 61. The records follow: 3 bytes of SOLID and 9 of PATTERN, 7 + 16/8,
-end at 73, the total. The pattern's orientation 0 means its bits go across, one per column: `0xf0` is 11110000 in
-binary, so read from bit 0, columns 0 to 3 get colour 0 and columns 4 to 7 colour 1, and `0xff` gives columns 8 to 15
-colour 1. That's the darker blue strip on the left of the bottom right square: the edge of the cloud. The left
-superblock and the two skipped squares show the default colour, because this is a keyframe: in a P frame, they would
-show the reference picture.
+Check where the records start: 20 for the header, 4 for one mask, 4 for one directory entry, 12 for the counts, 6
+descriptors and 4 for one walk checkpoint make 50. The records follow: four SOLIDs of 3 bytes and a PATTERN of 9, 7 +
+16/8, ending at 71, the frame's length. The pattern's orientation 0 means its bits go across, one per column: `0xf0`
+is 11110000 in binary, so read from bit 0, columns 0 to 3 get colour 0 and columns 4 to 7 colour 1, and `0xff` gives
+columns 8 to 15 colour 1. That's the darker blue strip on the left of the bottom right square: the edge of the cloud.
+A keyframe has no picture to fall back on, so it describes every square, even plain sky; in a P frame, the squares
+that didn't change would be SKIPs and cost nothing but their place in the tree.
 
 ## Part 7: Pages on Maps
 
@@ -761,11 +740,9 @@ time.
 
 A frame becomes a **keyframe** when there's nothing to predict from: the first frame, a frame of a new size, a viewer
 who just started watching and holds no picture yet (the screen asks for a keyframe then), and every 120th frame (four
-seconds at 30 fps), so a viewer who missed something never waits longer than that. It also becomes a keyframe at a
-**scene cut**: when the video jumps to something completely different, predicting from the last picture is worse than
-starting over. The encoder spots that by comparing the new frame with the last decoded picture: if the average
-brightness difference per pixel is above a threshold, it's a cut. Every other frame is a P frame that predicts from the
-frame just before it.
+seconds at 30 fps), so a viewer who missed something never waits longer than that. Every other frame is a P frame
+that predicts from the frame just before it, even across a cut to a completely different picture: there the P frame
+simply uses SOLID, PALETTE and PATTERN leaves like a keyframe would.
 
 ### Motion Search
 
@@ -790,8 +767,8 @@ are whole pixels.
 
 For every square, the encoder tries ways to code it, called **candidates**, and keeps the cheapest. In a P frame they
 are: SKIP; MOTION with the vector it found; SOLID with the square's average colour; PALETTE with two colours that suit
-it; PATTERN, when the palette's bits repeat along one direction; and COMPACT with each of its three classes, on top of
-whichever prediction is closer, the one at (0, 0) or the one with the found vector. In a keyframe, only SOLID, PALETTE
+it; PATTERN, when the palette's bits repeat along one direction; and COMPACT, on top of whichever prediction is
+closer, the one at (0, 0) or the one with the found vector. In a keyframe, only SOLID, PALETTE
 and PATTERN can be used.
 
 To compare candidates fairly, each one is drawn exactly the way the decoder will draw it, and given a **cost**:
@@ -807,8 +784,9 @@ To compare candidates fairly, each one is drawn exactly the way the decoder will
 - **λ, lambda**, is the price of one bit, in units of squared error. MCAV's default is 72.
 
 The cheapest candidate wins; on a tie, the first one tried. With λ = 72, spending one more byte has to remove more than
-8 × 72 = 576 of squared error to be worth it: a 16x16 square where every brightness value is 1.5 off the source has an
-error of 256 × 1.5² × 4 = 2,304 in luma alone, so a 2-byte correction that fixes it is well worth its 1,152.
+8 × 72 = 576 of squared error to be worth it: a 32x32 square whose brightness is 2 off the source everywhere has an
+error of 1,024 × 2² × 4 = 16,384 in luma alone, so a 10-byte COMPACT that fixes it, at 72 × (80 + 12) = 6,624, is well
+worth it.
 
 ### How the Pieces Are Fitted
 
@@ -818,10 +796,12 @@ error of 256 × 1.5² × 4 = 2,304 in luma alone, so a 2-byte correction that fi
 - **Patterns**: when every row of a palette's bits is the same (or every column), the same two colours and bits are
   written as a pattern instead: the same pixels in fewer bytes.
 - **COMPACT grids**: the 16 grid values are fitted by **least squares**: the encoder solves, exactly, for the 16 numbers
-  whose interpolated surface is as close as possible to the difference between the source and the prediction. (A fixed
+  whose interpolated surface is as close as possible to the brightness difference, Y = (R + 2G + B) / 4, between the
+  source and the prediction. (A fixed
   "pseudo-inverse" matrix per leaf size, 4 rows of s numbers, applied to the rows of differences and then to the
-  columns, turns them into the best grid values, so this is a few multiplications per pixel.) Then it picks the smallest quantizer whose steps can hold the fitted values without
-  clipping them, from q = 0 to 4.
+  columns, turns them into the best grid values, so this is a few multiplications per pixel.) Then it picks the
+  smallest quantizer whose steps can hold the fitted values without clipping them, from q = 0 to 2, and clips at
+  q = 2 when even that can't.
 
 ### The Tree, From the Top
 
@@ -843,15 +823,14 @@ to at most four times. On quiet content it changes nothing.
 
 ### Presets
 
-A **preset** is a named set of settings. MCAV has three:
+A **preset** is a named set of settings. MCAV has two:
 
 | Preset | λ | What it's for |
 |---|---:|---|
 | `DEFAULT` | 72 | everything: the best picture for its bits, and fast enough for 1080p30 on a 12-thread machine |
 | `FAST` | 55 | slower machines: it takes SKIP more readily (below 60 × λ) and splits less (450 → 900, 300 → 600), and starts its motion search at half size |
-| `ADAPTIVE` | 72 | busy content on a small budget: `DEFAULT` on calm pictures, `FAST`'s search and a λ of 55/72 of the base while the picture moves a lot |
 
-A screen whose encoder can't keep up steps down by itself: from `DEFAULT` or `ADAPTIVE` to `FAST`, then fewer frames a
+A screen whose encoder can't keep up steps down by itself: from `DEFAULT` to `FAST`, then fewer frames a
 second, then a smaller video, and at worst the dithered maps.
 
 ### Staying Inside the Page Slots
@@ -859,16 +838,15 @@ second, then a smaller video, and at worst the dithered maps.
 A frame must fit the screen's page slots (98,048 bytes for eight), and a frame can never be more than 131,071 bytes.
 When a frame comes out too big, which happens with keyframes of busy pictures, the encoder searches it again with twice
 the λ, up to four times. If it's still too big, it writes the simplest frame there is: a P frame with nothing changed,
-or a keyframe of one solid 32x32 leaf per superblock, which even at 4096x4096 is at most 76,076 bytes (the header, a
+or a keyframe of one solid 32x32 leaf per superblock, which even at 4096x4096 is at most 76,064 bytes (the header, a
 26,892-byte index and 49,152 bytes of colours). Live screens can also
 give the encoder a time budget per frame: when it runs out, the superblocks not yet searched get the cheapest choice
 (SKIP, or a solid colour in a keyframe), and the next frames fix them.
 
 ### Writing the Frame
 
-With every leaf chosen, the encoder writes the bytes: the header, the index and the records. On a keyframe, the most
-common SOLID colour becomes the **default colour**: those leaves become free SKIPs, and superblocks made only of them
-aren't stored at all.
+With every leaf chosen, the encoder writes the bytes: the header, the index and the records. A superblock that is
+one SKIP leaf isn't stored at all (its presence bit is 0); in a keyframe every superblock is stored.
 
 ### The Closed Loop
 
@@ -924,14 +902,13 @@ says what it is for:
 1. **The public API and the encoder's state**: the presets (`MCV2.Settings`), the shared thread budget
    (`MCV2.Pool`), and `encode`, or `begin` and `finish` for a screen that wants to overlap one frame's encode with the
    last one's check.
-2. **Frame analysis**: keyframe or P frame, scene cuts, how much the picture moves (for rate control by motion), and
-   the `ADAPTIVE` preset's switch.
+2. **Frame analysis**: keyframe or P frame, and how much the picture moves (for rate control by motion).
 3. **Motion search**: the quarter- and half-size copies of the picture and the seeded search on each of them.
 4. **Block search**: the candidates of every square, their costs, the tree from the top down, and the time budget.
 5. **Fits**: palette colours, patterns, and the least-squares fit of the compact grids with their quantizer.
 6. **Kernels**: the small loops that do almost all the arithmetic, in Java, and the binding that calls the native
    library instead when it loads.
-7. **The writer**: the index, the default colour, and the simplest frame there is, for when nothing else fits.
+7. **The writer**: the index, and the simplest frame there is, for when nothing else fits.
 8. **The reference**: putting the chosen leaves together into the picture the next frame predicts from, and checking
    it against the decoder.
 9. **Workers**: the threads, and how a frame's superblocks are shared out among them.
@@ -951,8 +928,8 @@ and a broken or malicious frame can't make it more. [Results](#what-it-costs-to-
 
 **Encoding is linear too, with a much bigger constant.** For each 32x32 superblock, the encoder looks at the square
 itself and, where splitting may pay, its four 16x16 and sixteen 8x8 squares: at most 21 squares covering each pixel at
-most three times. Each square tries at most eight candidates (SKIP, MOTION, SOLID, PALETTE, PATTERN, and the three
-compact classes), and each candidate costs work proportional to the square's pixels. The motion search is the
+most three times. Each square tries at most six candidates (SKIP, MOTION, SOLID, PALETTE, PATTERN and COMPACT), and
+each candidate costs work proportional to the square's pixels. The motion search is the
 expensive part: for every square of 16 pixels or more, it measures a few dozen vectors on the quarter- and half-size
 pictures and walks from the best seeds at full size, on a sample of the square's pixels. All of that is a fixed amount
 of work per pixel, so the encoder is linear too. And the worst case is rare: many superblocks stop at their first
@@ -1042,6 +1019,18 @@ tables; on its own, that rounding saved 2.3 % (3.6 % on the proxy, 1.0 % on game
 together, the two cost 5.5 % (9.5 % on the proxy and 1.4 % on gameplay); measured one at a time, as every other tool
 was, each saves less than 5 %. Every tool MCV2 has now saves more than 5 % on average: the chart in
 [Results](#how-much-each-feature-saves) shows how much.
+
+Last, I went over every option the codec still had, the small switches inside the tools that stayed, the same way: one
+at a time, then together, because some of them stand in for each other. These went: the **default colour** (a
+keyframe's most common solid colour, sent once in the header so its squares could be skips: 0.0 %), **scene-cut
+keyframes** (0.0 % on these clips: a cut is just a P frame of new pictures now), COMPACT's **quantizers above 2**
+(2.7 %), two of COMPACT's three **classes** (one brightness value for the whole block: 0.0 %; a grid with a colour
+change: 0.2 %), its two shorter ways of **storing the vector** (no vector at all, or two 4-bit numbers: 0.6 % each, so
+the vector is always two bytes and the record always ten), and the `ADAPTIVE` **preset** (-0.1 %: it saved nothing).
+With them, the header lost every field a decoder can work out for itself and went from 32 bytes to 20. Two options
+cost rate but stayed, because the speed test needs them: the `FAST` preset (7.4 % more rate than `DEFAULT`) keeps 1080p
+gameplay inside its time on a busy machine, and rate control by motion (1.1 % more rate) keeps the encoder 40 % faster
+on gameplay. Together, these last removals cost @@A1-TOTAL@@.
 
 What does all that removal cost on the wire? Against the old MCV2's live search, the one its screens used, the
 simplified MCV2 needs 17.6 % more rate on the proxy and 0.3 % more on gameplay for the same VMAF; against its slow
@@ -1200,13 +1189,12 @@ a player without the pack sees nothing new on the wall.
 | Your source | Preset | Why |
 |---|---|---|
 | Anything: a browser, a VM, a VNC desktop, a stream, a camera, a video file | `DEFAULT` (chosen for you) | The best picture per bit. A screen that can't keep up steps down by itself to `FAST`, fewer frames or a smaller size |
-| Fast gameplay or a busy picture on a small encoder budget | `ADAPTIVE` | Switches to the faster search while the picture moves |
 | A server that can't keep up with `DEFAULT` at all | `FAST` | The fastest search |
 
 `/mcav video mcv2` picks the preset per screen:
 
 ```text
-/mcav video mcv2 @a FFMPEG NONE 1920x1080 15x9 0 ADAPTIVE NEAREST_COLOR "" /path/to/video.mp4
+/mcav video mcv2 @a FFMPEG NONE 1920x1080 15x9 0 FAST NEAREST_COLOR "" /path/to/video.mp4
 ```
 
 Pre-encoding a file runs in the same encoder budget, on a thread of its own, never on the server tick, and reports its
@@ -1439,7 +1427,7 @@ settings matter:
 
 | Setting | Default | What it does |
 |---|---|---|
-| `settings(MCV2.Settings)` | `MCV2.Settings.DEFAULT` | The preset: `DEFAULT`, `ADAPTIVE` or `FAST` ([presets](#presets)) |
+| `settings(MCV2.Settings)` | `MCV2.Settings.DEFAULT` | The preset: `DEFAULT` or `FAST` ([presets](#presets)) |
 | `video(width, height)` | the wall's native size, 128 pixels per map | The resolution of the video, up to 4096 on a side; the pack scales it to the wall |
 | `pageSlots(n)` | 8, or one per map of a smaller wall | How many pages a frame may have (8 carry 98,048 bytes); the encoder keeps every frame inside them |
 | `maxFrameRate(fps)` | 30 | Sources that paint faster, such as a browser, are thinned to it: a client decodes at most one frame per frame it draws |
@@ -1518,7 +1506,6 @@ decoder the class `Mcv2Decoder`, both in `me.brandonli.mcav.bukkit.media.mcv2`, 
 | COMPACT | MCV2's leaf mode for a moved copy of the held picture plus a small correction |
 | CRC32 | a 32-bit checksum that changes with almost any damage to the bytes it's computed from |
 | decoder | the program that turns a stream back into pictures |
-| default colour | the colour a keyframe's skipped squares show |
 | descriptor | one byte per square of the block tree: its mode and quantizer |
 | directory | the counts of present superblocks before every eighth group of them |
 | distortion | how different a decoded picture is from the original |
