@@ -7,6 +7,14 @@ the build: the Java tests read only the fixtures committed under
 and need the versions pinned in `tools/mcv2-reference/requirements.txt`: numpy, moderngl for the shader checks, Pillow
 for the capture checks.
 
+The scripts' own tests are in `mcav-bukkit/src/test/python`: which unsupported syntax `differential.py` may exempt,
+how `capture_check.py` counts pictures that repeat, and how `latency.py` matches its events. Like the scripts, they are
+not part of the build; run them from the repository root with the same requirements:
+
+```
+python -m unittest discover -s mcav-bukkit/src/test/python
+```
+
 | script | what it does |
 |---|---|
 | `fixtures.py <fixture root> [conformance\|edge\|pages\|encoder\|all] [--source RGB]` | regenerates every MCV2 test fixture with the reference; on the committed fixtures it reproduces them byte for byte ([conformance fixtures](#conformance-fixtures)) |
