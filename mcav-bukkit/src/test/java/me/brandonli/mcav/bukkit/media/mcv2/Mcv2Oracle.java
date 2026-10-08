@@ -57,32 +57,21 @@ final class Mcv2Oracle {
     }
   }
 
-  static void compact(
-    final int[] prediction,
-    final byte[] record,
-    final int body,
-    final int kind,
-    final int quantizer,
-    final int size,
-    final int[] out
-  ) {
+  static void compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] out) {
     final float[] nodes = new float[16];
-    if (kind != 0) {
-      for (int node = 0; node < 16; node++) {
-        final int nibble = ((record[body + node / 2] & 255) >> (4 * (node % 2))) & 15;
-        nodes[node] = nibble >= 8 ? nibble - 16 : nibble;
-      }
+    for (int node = 0; node < 16; node++) {
+      final int nibble = ((record[2 + node / 2] & 255) >> (4 * (node % 2))) & 15;
+      nodes[node] = nibble >= 8 ? nibble - 16 : nibble;
     }
-    final int co = kind == 1 ? record[body + 8] : 0;
-    final int cg = kind == 1 ? record[body + 9] : 0;
+
     final int step = 1 << quantizer;
     for (int row = 0; row < size; row++) {
       for (int column = 0; column < size; column++) {
-        final double luma = kind == 0 ? record[body] : interpolate(nodes, 0, 1, 4, size, column, row);
+        final double luma = interpolate(nodes, 0, 1, 4, size, column, row);
         final int at = (row * size + column) * 3;
-        out[at] = rgb8(prediction[at] * 0.25 + step * (luma + co - cg));
-        out[at + 1] = rgb8(prediction[at + 1] * 0.25 + step * (luma + cg));
-        out[at + 2] = rgb8(prediction[at + 2] * 0.25 + step * (luma - co - cg));
+        out[at] = rgb8(prediction[at] * 0.25 + step * luma);
+        out[at + 1] = rgb8(prediction[at + 1] * 0.25 + step * luma);
+        out[at + 2] = rgb8(prediction[at + 2] * 0.25 + step * luma);
       }
     }
   }

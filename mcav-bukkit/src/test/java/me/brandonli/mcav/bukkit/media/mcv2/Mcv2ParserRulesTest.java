@@ -130,7 +130,7 @@ final class Mcv2ParserRulesTest {
 
   @Test
   void refusesTemporalLeavesInAKeyframe() {
-    for (final Node node : List.of(motion(1, 1), Node.leaf(Mcv2Decoder.MODE_COMPACT, 0, new byte[] { 0, 5 }))) {
+    for (final Node node : List.of(motion(1, 1), Node.leaf(Mcv2Decoder.MODE_COMPACT, 0, new byte[10]))) {
       final byte[] frame = predicted(32, 32, node);
       Mcv2Decoder.putU32(frame, 16, 1);
       assertEquals("Invalid descriptor", message(frame));

@@ -32,19 +32,26 @@ final class MCV2FitsTest {
         for (int nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
           nodes[nodeIndex] = ((nodeIndex * 37) % 11) - 5;
         }
-        // the field sits in the second of three interleaved channels
-        final float[] values = new float[size * size * 3];
+        final float[] values = new float[size * size];
         for (int row = 0; row < size; row++) {
           for (int column = 0; column < size; column++) {
-            values[(row * size + column) * 3 + 1] = (float) Mcv2Oracle.interpolate(nodes, 0, 1, grid, size, column, row);
+            values[row * size + column] = (float) Mcv2Oracle.interpolate(nodes, 0, 1, grid, size, column, row);
           }
         }
-        final float[] fitted = new float[grid * grid * 2];
-        Mcv2Internals.javaKernels().fit(values, 1, 3, size, fitted, 1, 2);
+        final float[] fitted = new float[grid * grid];
+        Mcv2Internals.javaKernels().fit(values, size, fitted);
         for (int nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
-          assertEquals(nodes[nodeIndex], fitted[nodeIndex * 2 + 1], 1e-3, "size " + size + " grid " + grid + " node " + nodeIndex);
+          assertEquals(nodes[nodeIndex], fitted[nodeIndex], 1e-3, "size " + size + " grid " + grid + " node " + nodeIndex);
         }
       }
     }
+  }
+
+  @Test
+  void targetsLumaWithoutChromaResiduals() {
+    final float[] target = new float[2];
+    Mcv2Internals.javaKernels().residualTarget(new int[] { 40, 60, 80, 9, 2, 3 }, new int[] { 0, 1020, 512, 36, 8, 12 }, 2, target);
+    assertEquals(-99.5f, target[0]);
+    assertEquals(0, target[1]);
   }
 }

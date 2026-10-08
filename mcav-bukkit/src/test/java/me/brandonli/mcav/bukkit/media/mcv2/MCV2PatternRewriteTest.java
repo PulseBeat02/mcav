@@ -94,7 +94,7 @@ final class MCV2PatternRewriteTest {
   }
 
   @Test
-  void rebuildsKeyframeDefaultsAndPatterns() throws Mcv2Exception {
+  void rebuildsKeyframeSolidsAndPatterns() throws Mcv2Exception {
     final Node patterns = Mcv2Trees.split(Mcv2Trees.pattern(16, ENDPOINTS, 1, 0x5a));
     final byte[] data = Mcv2Trees.keyframe(64, 32, Mcv2Trees.solid(4, 5, 6), patterns);
     assertEquals(List.of(Mcv2Trees.solid(4, 5, 6), patterns), Mcv2Trees.read(Mcv2Decoder.parse(data)));
@@ -102,7 +102,7 @@ final class MCV2PatternRewriteTest {
 
   @Test
   void rebuildsMotionSkipsAndCompactRecords() throws Mcv2Exception {
-    final Node compact = Node.leaf(Mcv2Decoder.MODE_COMPACT, 3, new byte[] { 0, 5 });
+    final Node compact = Node.leaf(Mcv2Decoder.MODE_COMPACT, 2, new byte[] { 0, 0, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55 });
     final Node split = Node.split(compact, Node.skip(), Mcv2Trees.motion(1, 1), compact);
     final byte[] data = Mcv2Trees.predicted(96, 32, Mcv2Trees.motion(-2, 3), Node.skip(), split);
     assertEquals(List.of(Mcv2Trees.motion(-2, 3), Node.skip(), split), Mcv2Trees.read(Mcv2Decoder.parse(data)));

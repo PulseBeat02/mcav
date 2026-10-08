@@ -71,7 +71,7 @@ final class MCV2WriterTest {
 
   @Test
   void refusesATreeThatDoesNotSerializeToAValidFrame() {
-    for (final Node temporal : List.of(Mcv2Trees.motion(1, 1), Node.leaf(Mcv2Decoder.MODE_COMPACT, 0, new byte[] { 0, 1 }))) {
+    for (final Node temporal : List.of(Mcv2Trees.motion(1, 1), Node.leaf(Mcv2Decoder.MODE_COMPACT, 0, new byte[10]))) {
       final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> keyframe(32, 32, temporal));
       assertTrue(exception.getMessage().startsWith("The tree does not serialize to a valid frame"));
     }
@@ -87,18 +87,18 @@ final class MCV2WriterTest {
   void acceptsAQuantizerOnlyWhereTheModeHasOne() throws Mcv2Exception {
     for (final Node node : List.of(
       Node.leaf(Mcv2Decoder.MODE_MOTION, 1, new byte[] { 1, 1 }),
-      Node.leaf(Mcv2Decoder.MODE_SOLID, 7, new byte[3])
+      Node.leaf(Mcv2Decoder.MODE_SOLID, 2, new byte[3])
     )) {
       assertEquals(
         "Quantizer on a mode without one",
         assertThrows(IllegalArgumentException.class, () -> predicted(32, 32, node)).getMessage()
       );
     }
-    final Node coarse = Node.leaf(Mcv2Decoder.MODE_COMPACT, 7, new byte[] { 0, 1 });
-    final Node compact = Node.leaf(Mcv2Decoder.MODE_COMPACT, 4, new byte[] { 0, 5 });
+    final Node coarse = Node.leaf(Mcv2Decoder.MODE_COMPACT, 2, new byte[10]);
+    final Node compact = Node.leaf(Mcv2Decoder.MODE_COMPACT, 1, new byte[10]);
     final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(predicted(64, 32, coarse, compact));
-    assertEquals(7, frame.getLeaf(0).quantizer());
-    assertEquals(4, frame.getLeaf(1).quantizer());
+    assertEquals(2, frame.getLeaf(0).quantizer());
+    assertEquals(1, frame.getLeaf(1).quantizer());
   }
 
   @Test

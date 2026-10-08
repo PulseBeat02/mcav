@@ -202,17 +202,16 @@ final class Mcv2Internals {
     boolean predicted(int[] prediction, int size, int[] out);
     boolean solid(int color, int size, int[] out);
     boolean palette(byte[] record, int offset, int size, int[] out);
-    boolean compact(int[] prediction, byte[] record, int body, int kind, int quantizer, int size, int[] out);
+    boolean compact(int[] prediction, byte[] record, int quantizer, int size, int[] out);
     void predict(byte[] reference, int width, int height, int left, int top, int size, int motionX, int motionY, int[] out);
-    void fit(float[] values, int offset, int stride, int size, float[] out, int outOffset, int outStride);
+    void fit(float[] values, int size, float[] out);
     void cluster(int[] source, int size, float[] endpoints);
     void finish(int[] source, int count, float[] endpoints, int[] colors, byte[] selectors);
     boolean finishPattern(int[] source, int size, float[] endpoints, int[] colors, byte[] selectors);
     int seeded(byte[] reference, int width, int height, int[] source, int left, int top, int size, int range, int[] seeds);
     void loadSource(byte[] image, int width, int height, int left, int top, int size, int[] source);
     void halve(int[] block, int size, int[] out);
-    void ycocg(int[] source, int count, float[] out);
-    void residualTarget(float[] ycocg, int[] prediction, int count, float[] target);
+    void residualTarget(int[] source, int[] prediction, int count, float[] target);
 
     default void forgetArrays() {}
   }

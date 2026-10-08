@@ -63,7 +63,9 @@ final class Mcv2DecoderFormatTest {
     assertEquals(3, recordSize(MODE_SOLID, 8));
     assertEquals(6 + 128, recordSize(MODE_PALETTE, 32));
     assertEquals(6 + 8, recordSize(MODE_PALETTE, 8));
-    assertThrows(IllegalArgumentException.class, () -> recordSize(MODE_COMPACT, 8));
+    assertEquals(10, recordSize(MODE_COMPACT, 8));
+    assertEquals(10, recordSize(MODE_COMPACT, 16));
+    assertEquals(10, recordSize(MODE_COMPACT, 32));
     assertThrows(IllegalArgumentException.class, () -> recordSize(-1, 8));
     assertThrows(IllegalArgumentException.class, () -> recordSize(7, 32));
   }
@@ -87,7 +89,7 @@ final class Mcv2DecoderFormatTest {
     for (int descriptors = 0; descriptors < 40; descriptors++) {
       final byte[] modes = new byte[descriptors];
       final byte[] frame = Mcv2WireFrames.frame(1280, 32, true, modes, new byte[descriptors][0], new int[] { descriptors, 0, 0 });
-      assertEquals(32 + 8 + 4 + 12 + descriptors + 4 * ((descriptors + 7) / 8), Mcv2Decoder.parse(frame).getPayloadStart());
+      assertEquals(20 + 8 + 4 + 12 + descriptors + 4 * ((descriptors + 7) / 8), Mcv2Decoder.parse(frame).getPayloadStart());
     }
   }
 

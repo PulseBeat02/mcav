@@ -20,9 +20,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.BLOCK_SIZES;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CHANNELS;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.CHECKPOINT_GROUPS;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.COMPACT_DC;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.COMPACT_GRID;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.COMPACT_GRID_Y;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.COMPACT_BYTES;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.DIMENSIONS_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.FRAME_ID_OFFSET;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.GROUP_ROOTS;
@@ -48,8 +46,6 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.ROOT_SIZE;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.SMALLEST_BLOCK;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.VERSION;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.WALK_SPAN;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.compactX;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.compactY;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.follows;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.patternSize;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putU16;
@@ -231,7 +227,7 @@ public final class MCV2 {
   private static final int GRID_NODES = GRID * GRID;
   private static final int MAX_RECORD = 134;
   private static final int NO_VECTOR = 0x80008000;
-  private static final int COARSEST_QUANTIZER = 4;
+  private static final int COARSEST_QUANTIZER = 2;
   private static final int PALETTE_COLORS = 2;
   private static final byte[] NONE = new byte[0];
   private Settings settings;
@@ -1123,7 +1119,6 @@ public final class MCV2 {
     private final int size;
     private final int count;
     private final int[] source;
-    private final float[] ycocg;
     private final float[] target;
     private final int[] zeroPrediction;
     private final int[] localPrediction;
@@ -1132,8 +1127,7 @@ public final class MCV2 {
     private final Kernels kernels;
     private final byte[] record = new byte[MAX_RECORD];
     private final byte[] palette = new byte[MAX_RECORD];
-    private final float[] fit = new float[GRID_NODES + 2];
-    private final float[] lumaGrid = new float[GRID_NODES];
+    private final float[] fit = new float[GRID_NODES];
     private final int[] colors = new int[2 * CHANNELS];
     private final byte[] selectors;
     private final int[] seeds = new int[6];
@@ -1142,7 +1136,6 @@ public final class MCV2 {
     private final int[] halfSource;
     private final int[] quarterSource;
     private final float[] clusters = new float[2 * CHANNELS];
-    private final float[] means = new float[CHANNELS];
     private int level;
     private int block;
     private double rate;
@@ -1153,8 +1146,6 @@ public final class MCV2 {
     private int top;
     private int localVector = NO_VECTOR;
     private boolean clustered;
-    private boolean meansLoaded;
-    private boolean gridLoaded;
 
     private BlockCoder(final FrameState frame, final int size, final Kernels kernels) {
       this.frame = frame;
@@ -1162,8 +1153,7 @@ public final class MCV2 {
       this.count = size * size;
       this.kernels = kernels;
       this.source = new int[this.count * CHANNELS];
-      this.ycocg = new float[this.count * CHANNELS];
-      this.target = new float[this.count * CHANNELS];
+      this.target = new float[this.count];
       this.zeroPrediction = new int[this.count * CHANNELS];
       this.localPrediction = new int[this.count * CHANNELS];
       this.recon = new int[this.count * CHANNELS];
@@ -1437,90 +1427,23 @@ public final class MCV2 {
     }
 
     private void compact(final boolean local) {
-      final int[] prediction = local ? this.localPrediction : this.zeroPrediction;
-      final int deltaX = local ? motionX(this.localVector) : 0;
-      final int deltaY = local ? motionY(this.localVector) : 0;
-      final int form = deltaX == 0 && deltaY == 0 ? 0 : deltaX >= -8 && deltaX <= 7 && deltaY >= -8 && deltaY <= 7 ? 1 : 2;
-      boolean targeted = false;
-      for (int kind = COMPACT_DC; kind <= COMPACT_GRID_Y; kind++) {
-        final int length = 1 + form + (kind == COMPACT_DC ? 1 : kind == COMPACT_GRID ? 10 : 8);
-        if (!this.eligible(length)) {
-          continue;
-        }
-        if (!targeted) {
-          this.kernels.ycocg(this.source, this.count, this.ycocg);
-          this.kernels.residualTarget(this.ycocg, prediction, this.count, this.target);
-          this.meansLoaded = false;
-          this.gridLoaded = false;
-          targeted = true;
-        }
-        final int values = this.compactFit(kind);
-        final int quantizer = neededQuantizer(kind, this.fit, values);
-        final int body = 1 + form;
-        this.record[0] = (byte) (kind | (form << 4));
-        if (form == 1) {
-          this.record[1] = (byte) ((deltaX & 15) | ((deltaY & 15) << 4));
-        } else if (form == 2) {
-          this.record[1] = (byte) deltaX;
-          this.record[2] = (byte) deltaY;
-        }
-        this.compactBody(kind, quantizer, body);
-        if (this.kernels.compact(prediction, this.record, body, kind, quantizer, this.size, this.recon)) {
-          this.score(MODE_COMPACT, quantizer, length);
-        }
-      }
-    }
-
-    private int compactFit(final int kind) {
-      if (kind == COMPACT_DC) {
-        this.fit[0] = this.mean(0);
-        return 1;
-      }
-      if (!this.gridLoaded) {
-        this.kernels.fit(this.target, 0, CHANNELS, this.size, this.lumaGrid, 0, 1);
-        this.gridLoaded = true;
-      }
-      System.arraycopy(this.lumaGrid, 0, this.fit, 0, GRID_NODES);
-      if (kind == COMPACT_GRID_Y) {
-        return GRID_NODES;
-      }
-      this.fit[GRID_NODES] = this.mean(1);
-      this.fit[GRID_NODES + 1] = this.mean(2);
-      return GRID_NODES + 2;
-    }
-
-    private float mean(final int channel) {
-      if (!this.meansLoaded) {
-        double luma = 0;
-        double orange = 0;
-        double green = 0;
-        for (int offset = 0; offset < this.target.length; offset += CHANNELS) {
-          luma += this.target[offset];
-          orange += this.target[offset + 1];
-          green += this.target[offset + 2];
-        }
-        this.means[0] = (float) (luma / this.count);
-        this.means[1] = (float) (orange / this.count);
-        this.means[2] = (float) (green / this.count);
-        this.meansLoaded = true;
-      }
-      return this.means[channel];
-    }
-
-    private void compactBody(final int kind, final int quantizer, final int body) {
-      final int step = 1 << quantizer;
-      if (kind == COMPACT_DC) {
-        this.record[body] = (byte) quantize(this.fit[0], step, -128, 127);
+      if (!this.eligible(COMPACT_BYTES)) {
         return;
       }
+      final int[] prediction = local ? this.localPrediction : this.zeroPrediction;
+      this.kernels.residualTarget(this.source, prediction, this.count, this.target);
+      this.kernels.fit(this.target, this.size, this.fit);
+      final int quantizer = neededQuantizer(this.fit);
+      this.record[0] = (byte) (local ? motionX(this.localVector) : 0);
+      this.record[1] = (byte) (local ? motionY(this.localVector) : 0);
+      final int step = 1 << quantizer;
       for (int index = 0; index < GRID_NODES / 2; index++) {
-        final int low = quantize(this.fit[2 * index], step, -8, 7) & 15;
-        final int high = quantize(this.fit[2 * index + 1], step, -8, 7) & 15;
-        this.record[body + index] = (byte) (low | (high << 4));
+        final int low = quantize(this.fit[2 * index], step) & 15;
+        final int high = quantize(this.fit[2 * index + 1], step) & 15;
+        this.record[2 + index] = (byte) (low | (high << 4));
       }
-      if (kind == COMPACT_GRID) {
-        this.record[body + 8] = (byte) quantize(this.fit[GRID_NODES], step, -128, 127);
-        this.record[body + 9] = (byte) quantize(this.fit[GRID_NODES + 1], step, -128, 127);
+      if (this.kernels.compact(prediction, this.record, quantizer, this.size, this.recon)) {
+        this.score(MODE_COMPACT, quantizer, COMPACT_BYTES);
       }
     }
   }
@@ -1652,19 +1575,18 @@ public final class MCV2 {
     return (int) Math.floor(Math.min(Math.max(value, 0), MAX_CHANNEL) + 0.5f);
   }
 
-  private static int quantize(final float value, final int step, final int low, final int high) {
+  private static int quantize(final float value, final int step) {
     final float scaled = (float) Math.floor(value / step + 0.5f);
-    return (int) Math.min(Math.max(scaled, low), high);
+    return (int) Math.min(Math.max(scaled, -8), 7);
   }
 
-  private static int neededQuantizer(final int kind, final float[] fit, final int values) {
+  private static int neededQuantizer(final float[] fit) {
     for (int quantizer = 0; quantizer < COARSEST_QUANTIZER; quantizer++) {
       final int step = 1 << quantizer;
       boolean fits = true;
-      for (int index = 0; index < values && fits; index++) {
-        final boolean nibble = kind != COMPACT_DC && index < GRID_NODES;
+      for (int index = 0; index < GRID_NODES && fits; index++) {
         final float value = (float) Math.floor(fit[index] / step + 0.5f);
-        fits = value >= (nibble ? -8 : -128) && value <= (nibble ? 7 : 127);
+        fits = value >= -8 && value <= 7;
       }
       if (fits) {
         return quantizer;
@@ -1725,22 +1647,13 @@ public final class MCV2 {
     return matrices;
   }
 
-  private static void fitGrid(
-    final float[] values,
-    final int offset,
-    final int stride,
-    final int size,
-    final double[] scratch,
-    final float[] out,
-    final int outOffset,
-    final int outStride
-  ) {
+  private static void fitGrid(final float[] values, final int size, final double[] scratch, final float[] out) {
     final float[] matrix = FITTING_MATRICES[sizeIndex(size)];
     for (int row = 0; row < size; row++) {
       for (int nodeColumn = 0; nodeColumn < GRID; nodeColumn++) {
         double sum = 0;
         for (int column = 0; column < size; column++) {
-          sum += (double) values[offset + (row * size + column) * stride] * matrix[nodeColumn * size + column];
+          sum += (double) values[row * size + column] * matrix[nodeColumn * size + column];
         }
         scratch[row * GRID + nodeColumn] = sum;
       }
@@ -1751,7 +1664,7 @@ public final class MCV2 {
         for (int row = 0; row < size; row++) {
           sum += matrix[nodeRow * size + row] * scratch[row * GRID + nodeColumn];
         }
-        out[outOffset + (nodeRow * GRID + nodeColumn) * outStride] = (float) sum;
+        out[nodeRow * GRID + nodeColumn] = (float) sum;
       }
     }
   }
@@ -1763,17 +1676,16 @@ public final class MCV2 {
     boolean predicted(int[] prediction, int size, int[] out);
     boolean solid(int color, int size, int[] out);
     boolean palette(byte[] record, int offset, int size, int[] out);
-    boolean compact(int[] prediction, byte[] record, int body, int kind, int quantizer, int size, int[] out);
+    boolean compact(int[] prediction, byte[] record, int quantizer, int size, int[] out);
     void predict(byte[] reference, int width, int height, int left, int top, int size, int motionX, int motionY, int[] out);
-    void fit(float[] values, int offset, int stride, int size, float[] out, int outOffset, int outStride);
+    void fit(float[] values, int size, float[] out);
     void cluster(int[] source, int size, float[] endpoints);
     void finish(int[] source, int count, float[] endpoints, int[] colors, byte[] selectors);
     boolean finishPattern(int[] source, int size, float[] endpoints, int[] colors, byte[] selectors);
     int seeded(byte[] reference, int width, int height, int[] source, int left, int top, int size, int range, int[] seeds);
     void loadSource(byte[] image, int width, int height, int left, int top, int size, int[] source);
     void halve(int[] block, int size, int[] out);
-    void ycocg(int[] source, int count, float[] out);
-    void residualTarget(float[] ycocg, int[] prediction, int count, float[] target);
+    void residualTarget(int[] source, int[] prediction, int count, float[] target);
 
     default void forgetArrays() {}
   }
@@ -1812,10 +1724,6 @@ public final class MCV2 {
     final int orange = red - blue;
     final int chromaGreen = 2 * green - red - blue;
     return 4 * (luma * luma + orange * orange) + chromaGreen * chromaGreen;
-  }
-
-  private static int roundChannel(final int value, final int shift) {
-    return Math.min(Math.max((value + (1 << (shift - 1))) >> shift, 0), MAX_CHANNEL);
   }
 
   private static final class JavaKernels implements Kernels {
@@ -1890,67 +1798,23 @@ public final class MCV2 {
     }
 
     @Override
-    public boolean compact(
-      final int[] prediction,
-      final byte[] record,
-      final int body,
-      final int kind,
-      final int quantizer,
-      final int size,
-      final int[] out
-    ) {
-      if (kind == COMPACT_DC) {
-        final int delta = (record[body] << quantizer) * 4;
-        for (int row = 0; row < size; row++) {
-          final int from = row * size * CHANNELS;
-          for (int offset = from; offset < from + size * CHANNELS; offset++) {
-            out[offset] = roundChannel(prediction[offset] + delta, 2);
-          }
-          if (!this.score.row(out, from, size)) {
-            return false;
-          }
-        }
-        return true;
-      }
+    public boolean compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] out) {
       for (int index = 0; index < GRID_NODES; index++) {
-        this.nodes[index] = signed((record[body + index / 2] & 255) >> ((index % 2) * 4), 4);
+        this.nodes[index] = signed((record[2 + index / 2] & 255) >> ((index % 2) * 4), 4);
       }
       this.horizontal(size);
-      final int orange = kind == COMPACT_GRID ? record[body + 8] : 0;
-      final int chromaGreen = kind == COMPACT_GRID ? record[body + 9] : 0;
       final int shift = 2 * (Integer.numberOfTrailingZeros(size) + 1);
       final int quarter = size * size;
-      final int scale = 4 * quarter;
-      final int red = ((orange - chromaGreen) * scale) << quantizer;
-      final int green = (chromaGreen * scale) << quantizer;
-      final int blue = (-(orange + chromaGreen) * scale) << quantizer;
-      if (orange == 0 && chromaGreen == 0) {
-        final int half = 1 << (shift - 1);
-        for (int row = 0; row < size; row++) {
-          this.vertical(size, row);
-          final int from = row * size * CHANNELS;
-          for (int column = 0; column < size; column++) {
-            final int at = from + column * CHANNELS;
-            final int scaled = (this.line[column] << quantizer) + half;
-            out[at] = Math.min(Math.max((prediction[at] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
-            out[at + 1] = Math.min(Math.max((prediction[at + 1] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
-            out[at + 2] = Math.min(Math.max((prediction[at + 2] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
-          }
-          if (!this.score.row(out, from, size)) {
-            return false;
-          }
-        }
-        return true;
-      }
+      final int half = 1 << (shift - 1);
       for (int row = 0; row < size; row++) {
         this.vertical(size, row);
         final int from = row * size * CHANNELS;
         for (int column = 0; column < size; column++) {
           final int at = from + column * CHANNELS;
-          final int scaled = this.line[column] << quantizer;
-          out[at] = roundChannel(prediction[at] * quarter + scaled + red, shift);
-          out[at + 1] = roundChannel(prediction[at + 1] * quarter + scaled + green, shift);
-          out[at + 2] = roundChannel(prediction[at + 2] * quarter + scaled + blue, shift);
+          final int scaled = (this.line[column] << quantizer) + half;
+          out[at] = Math.min(Math.max((prediction[at] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
+          out[at + 1] = Math.min(Math.max((prediction[at + 1] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
+          out[at + 2] = Math.min(Math.max((prediction[at + 2] * quarter + scaled) >> shift, 0), MAX_CHANNEL);
         }
         if (!this.score.row(out, from, size)) {
           return false;
@@ -2023,16 +1887,8 @@ public final class MCV2 {
     }
 
     @Override
-    public void fit(
-      final float[] values,
-      final int offset,
-      final int stride,
-      final int size,
-      final float[] out,
-      final int outOffset,
-      final int outStride
-    ) {
-      fitGrid(values, offset, stride, size, this.fitScratch, out, outOffset, outStride);
+    public void fit(final float[] values, final int size, final float[] out) {
+      fitGrid(values, size, this.fitScratch, out);
     }
 
     @Override
@@ -2094,26 +1950,14 @@ public final class MCV2 {
     }
 
     @Override
-    public void ycocg(final int[] source, final int count, final float[] out) {
-      for (int offset = 0; offset < count * CHANNELS; offset += CHANNELS) {
-        final int red = source[offset];
-        final int green = source[offset + 1];
-        final int blue = source[offset + 2];
-        out[offset] = (red + 2 * green + blue) * 0.25f;
-        out[offset + 1] = (red - blue) * 0.5f;
-        out[offset + 2] = (-red + 2 * green - blue) * 0.25f;
-      }
-    }
-
-    @Override
-    public void residualTarget(final float[] ycocg, final int[] prediction, final int count, final float[] target) {
-      for (int offset = 0; offset < count * CHANNELS; offset += CHANNELS) {
+    public void residualTarget(final int[] source, final int[] prediction, final int count, final float[] target) {
+      for (int pixel = 0; pixel < count; pixel++) {
+        final int offset = pixel * CHANNELS;
+        final float luma = (source[offset] + 2 * source[offset + 1] + source[offset + 2]) * 0.25f;
         final float red = prediction[offset] * 0.25f;
         final float green = prediction[offset + 1] * 0.25f;
         final float blue = prediction[offset + 2] * 0.25f;
-        target[offset] = ycocg[offset] - (red + 2 * green + blue) * 0.25f;
-        target[offset + 1] = ycocg[offset + 1] - (red - blue) * 0.5f;
-        target[offset + 2] = ycocg[offset + 2] - (-red + 2 * green - blue) * 0.25f;
+        target[pixel] = luma - (red + 2 * green + blue) * 0.25f;
       }
     }
   }
@@ -2267,16 +2111,7 @@ public final class MCV2 {
       "The tree does not serialize to a valid frame: temporal keyframe leaf"
     );
     final byte[] record = node.record();
-    final int length;
-    if (mode == MODE_COMPACT) {
-      Preconditions.checkArgument(record.length > 0, "Empty compact record");
-      final int kind = record[0] & 15;
-      final int form = (record[0] & 255) >> 4;
-      Preconditions.checkArgument(kind <= COMPACT_GRID_Y && form <= 2, "Invalid compact control");
-      length = 1 + form + (kind == COMPACT_DC ? 1 : kind == COMPACT_GRID ? 10 : 8);
-    } else {
-      length = recordSize(mode, size);
-    }
+    final int length = recordSize(mode, size);
     Preconditions.checkArgument(record.length == length, "Record length disagrees with its mode");
     if (mode == MODE_PATTERN) {
       Preconditions.checkArgument((record[2 * CHANNELS] & 255) <= 1, "Invalid pattern orientation");
@@ -2449,12 +2284,7 @@ public final class MCV2 {
     }
     final byte[] record = node.record();
     final int mode = node.getMode();
-    final int vector =
-      mode == MODE_MOTION
-        ? packMotion(record[0], record[1])
-        : mode == MODE_COMPACT
-          ? packMotion(compactX(record, 0), compactY(record, 0))
-          : 0;
+    final int vector = mode == MODE_MOTION || mode == MODE_COMPACT ? packMotion(record[0], record[1]) : 0;
     final int columns = (width + SMALLEST_BLOCK - 1) / SMALLEST_BLOCK;
     for (int row = top; row < Math.min(top + size, height); row += SMALLEST_BLOCK) {
       for (int column = left; column < Math.min(left + size, width); column += SMALLEST_BLOCK) {

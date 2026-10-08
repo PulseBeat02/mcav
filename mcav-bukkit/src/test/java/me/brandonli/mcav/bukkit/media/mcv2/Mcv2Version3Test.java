@@ -118,14 +118,15 @@ final class Mcv2Version3Test {
       final int quantizer = descriptor >> 5;
       final int length = switch (mode) {
         case 0 -> 0;
-        case 1, 5 -> 2;
+        case 1 -> 2;
+        case 5 -> 10;
         case 2 -> 3;
         case 3 -> 134;
         case 4 -> 11;
         default -> 0;
       };
       final byte[] data = block(32, mode, quantizer, new byte[length], false);
-      if (mode <= 5 && (quantizer == 0 || mode == 5)) {
+      if (mode <= 5 && (quantizer == 0 || (mode == 5 && quantizer <= 2))) {
         Mcv2Decoder.parse(data);
       } else {
         assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(data));
@@ -151,23 +152,6 @@ final class Mcv2Version3Test {
         final byte[] bad = valid.clone();
         put(bad, walk, read(bad, walk) ^ value, 4);
         assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(bad));
-      }
-    }
-  }
-
-  @Test
-  void validatesCompactClassAndFormButAcceptsNonminimalMotion() throws Mcv2Exception {
-    for (int control = 0; control < 256; control++) {
-      final int kind = control & 15;
-      final int form = control >> 4;
-      final int length = 1 + form + (kind == 0 ? 1 : kind == 1 ? 10 : 8);
-      final byte[] record = new byte[length];
-      record[0] = (byte) control;
-      final byte[] data = block(32, 5, 7, record, false);
-      if (kind <= 2 && form <= 2) {
-        Mcv2Decoder.parse(data);
-      } else {
-        assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(data));
       }
     }
   }
@@ -220,12 +204,12 @@ final class Mcv2Version3Test {
   }
 
   @Test
-  void predictsWholePixelMotionWithClampedEdgesAndSignedNibbles() throws Mcv2Exception {
+  void predictsWholePixelMotionWithClampedEdgesAndSignedVectors() throws Mcv2Exception {
     final byte[] reference = new byte[8 * 8 * 3];
     for (int index = 0; index < reference.length; index++) {
       reference[index] = (byte) index;
     }
-    for (final byte[] record : new byte[][] { { -1, 1 }, { 0x10, 0x1F, 0 }, { 0x20, -1, 1, 0 } }) {
+    for (final byte[] record : new byte[][] { { -1, 1 }, { -1, 1, 0, 0, 0, 0, 0, 0, 0, 0 } }) {
       final byte[] decoded = Mcv2Decoder.decode(block(8, record.length == 2 ? 1 : 5, 0, record, false), reference, 0);
       pixel(decoded, 8, 0, 0, 24, 25, 26);
       pixel(decoded, 8, 7, 7, 186, 187, 188);
@@ -234,36 +218,35 @@ final class Mcv2Version3Test {
   }
 
   @Test
-  void interpolatesSignedGridNodesRoundsTiesUpAndAppliesChroma() throws Mcv2Exception {
+  void interpolatesSignedGridNodesAndRoundsTiesUp() throws Mcv2Exception {
     for (final int size : new int[] { 8, 16, 32 }) {
       final byte[] reference = new byte[size * size * 3];
       Arrays.fill(reference, (byte) 100);
-      // A horizontal plane: nodes [-8, -4, 0, 4] repeated in every row.
-      final byte[] record = { 1, (byte) 0xC8, 0x40, (byte) 0xC8, 0x40, (byte) 0xC8, 0x40, (byte) 0xC8, 0x40, 3, -2 };
+      // Nodes [-8, -4, 0, 4] form a horizontal plane at all four rows.
+      final byte[] record = { 0, 0, (byte) 0xC8, 0x40, (byte) 0xC8, 0x40, (byte) 0xC8, 0x40, (byte) 0xC8, 0x40 };
       final byte[] picture = Mcv2Decoder.decode(block(size, 5, 0, record, false), reference, 0);
-      pixel(picture, size, 0, 0, 97, 90, 91);
-      pixel(picture, size, size - 1, size - 1, 109, 102, 103);
-      // At p=size/4 - 1, t=.5 - 2/size; Y=-6 - 8/size, exactly.
+      pixel(picture, size, 0, 0, 92, 92, 92);
+      pixel(picture, size, size - 1, size - 1, 104, 104, 104);
+      // At p=size/4 - 1, t=.5 - 2/size, so Y=-6 - 8/size.
       final int roundedLuma = (int) Math.floor(-6.0 - 8.0 / size + 0.5);
-      pixel(picture, size, size / 4 - 1, 0, 105 + roundedLuma, 98 + roundedLuma, 99 + roundedLuma);
-      final byte[] luma = Arrays.copyOf(record, 9);
-      luma[0] = 2;
-      final byte[] gray = Mcv2Decoder.decode(block(size, 5, 0, luma, false), reference, 0);
-      pixel(gray, size, 0, 0, 92, 92, 92);
-      pixel(gray, size, size - 1, size - 1, 104, 104, 104);
+      pixel(picture, size, size / 4 - 1, 0, 100 + roundedLuma, 100 + roundedLuma, 100 + roundedLuma);
     }
   }
 
   @Test
   void appliesAllQuantizersAndSaturatesPositiveAndNegativeResiduals() throws Mcv2Exception {
     final byte[] reference = new byte[8 * 8 * 3];
-    Arrays.fill(reference, (byte) 100);
-    for (int quantizer = 0; quantizer < 8; quantizer++) {
-      for (final int delta : new int[] { -128, -1, 0, 1, 127 }) {
-        final int value = Math.min(255, Math.max(0, 100 + (delta << quantizer)));
-        final byte[] decoded = Mcv2Decoder.decode(block(8, 5, quantizer, new byte[] { 0, (byte) delta }, false), reference, 0);
-        pixel(decoded, 8, 0, 0, value, value, value);
-        pixel(decoded, 8, 7, 7, value, value, value);
+    for (final int base : new int[] { 0, 6, 100, 250, 255 }) {
+      Arrays.fill(reference, (byte) base);
+      for (int quantizer = 0; quantizer <= 2; quantizer++) {
+        for (final int delta : new int[] { -8, -1, 0, 1, 7 }) {
+          final int value = Math.min(255, Math.max(0, base + (delta << quantizer)));
+          final byte[] record = new byte[10];
+          Arrays.fill(record, 2, 10, (byte) ((delta & 15) * 17));
+          final byte[] decoded = Mcv2Decoder.decode(block(8, 5, quantizer, record, false), reference, 0);
+          pixel(decoded, 8, 0, 0, value, value, value);
+          pixel(decoded, 8, 7, 7, value, value, value);
+        }
       }
     }
   }

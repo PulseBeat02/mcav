@@ -70,13 +70,9 @@ public final class Mcv2Decoder {
   /** First descriptor bit holding the quantizer. */
   public static final int QUANTIZER_SHIFT = 5;
   /** Largest wire quantizer exponent. */
-  public static final int MAX_QUANTIZER = 7;
-  /** Constant luma residual class. */
-  public static final int COMPACT_DC = 0;
-  /** Four-by-four luma grid with constant chroma. */
-  public static final int COMPACT_GRID = 1;
-  /** Four-by-four luma grid without chroma. */
-  public static final int COMPACT_GRID_Y = 2;
+  public static final int MAX_QUANTIZER = 2;
+  /** Fixed whole-pixel vector and luma grid record length. */
+  public static final int COMPACT_BYTES = 10;
   /** Header byte offset of width and height. */
   public static final int DIMENSIONS_OFFSET = 8;
   /** Header byte offset of the frame id. */
@@ -90,7 +86,6 @@ public final class Mcv2Decoder {
   private static final int POSITION_INTS = 3;
   private static final int CURSOR_BITS = 17;
   private static final int GRID = 4;
-  private static final int[] COMPACT_BYTES = { 1, 10, 8 };
   private static final byte[] NO_REFERENCE = new byte[0];
 
   private Mcv2Decoder() {
@@ -309,7 +304,10 @@ public final class Mcv2Decoder {
         final int mode = descriptor & MODE_MASK;
         final int quantizer = descriptor >> QUANTIZER_SHIFT;
         if (
-          mode > MODE_SPLIT || (quantizer != 0 && mode != MODE_COMPACT) || (this.keyframe && (mode == MODE_MOTION || mode == MODE_COMPACT))
+          mode > MODE_SPLIT ||
+          quantizer > MAX_QUANTIZER ||
+          (quantizer != 0 && mode != MODE_COMPACT) ||
+          (this.keyframe && (mode == MODE_MOTION || mode == MODE_COMPACT))
         ) {
           throw new Mcv2Exception("Invalid descriptor");
         }
@@ -404,23 +402,7 @@ public final class Mcv2Decoder {
     }
 
     private int recordLength(final int mode, final int size, final int offset, final int end) throws Mcv2Exception {
-      final int length;
-      if (mode == MODE_COMPACT) {
-        if (offset >= end) {
-          throw new Mcv2Exception("Truncated compact control");
-        }
-        final int control = this.data[offset] & 0xFF;
-        final int kind = control & 15;
-        final int form = control >> 4;
-        if (kind > COMPACT_GRID_Y || form > 2) {
-          throw new Mcv2Exception("Invalid compact control");
-        }
-        length = 1 + form + COMPACT_BYTES[kind];
-      } else if (mode == MODE_PATTERN) {
-        length = patternSize(size);
-      } else {
-        length = recordSize(mode, size);
-      }
+      final int length = recordSize(mode, size);
       if (length > end - offset) {
         throw new Mcv2Exception("Truncated record");
       }
@@ -586,10 +568,6 @@ public final class Mcv2Decoder {
       int color1 = 0;
       int word = 0;
       int orientation = 0;
-      int kind = COMPACT_DC;
-      int body = 0;
-      int orange = 0;
-      int green = 0;
       if (mode == MODE_SOLID || mode == MODE_PALETTE) {
         color0 = rgb(data, offset);
         if (mode == MODE_PALETTE) {
@@ -605,21 +583,12 @@ public final class Mcv2Decoder {
         motionX = data[offset];
         motionY = data[offset + 1];
       } else if (mode == MODE_COMPACT) {
-        kind = data[offset] & 15;
-        final int form = (data[offset] & 0xFF) >> 4;
-        motionX = compactX(data, offset);
-        motionY = compactY(data, offset);
-        body = offset + 1 + form;
-        if (kind != COMPACT_DC) {
-          for (int node = 0; node < GRID * GRID; node++) {
-            this.nodes[node] = signed((data[body + node / 2] & 0xFF) >> ((node % 2) * 4), 4);
-          }
-          horizontal(this.nodes, size, this.rows);
-          if (kind == COMPACT_GRID) {
-            orange = data[body + 8];
-            green = data[body + 9];
-          }
+        motionX = data[offset];
+        motionY = data[offset + 1];
+        for (int node = 0; node < GRID * GRID; node++) {
+          this.nodes[node] = signed((data[offset + 2 + node / 2] & 0xFF) >> ((node % 2) * 4), 4);
         }
+        horizontal(this.nodes, size, this.rows);
       }
       final int scale = 4 * size * size;
       final int shift = 2 * (Integer.numberOfTrailingZeros(size) + 1);
@@ -645,23 +614,11 @@ public final class Mcv2Decoder {
             final int source = (sourceRow + Math.min(Math.max(column + motionX, 0), this.frame.width - 1)) * CHANNELS;
             int luma = 0;
             if (mode == MODE_COMPACT) {
-              luma =
-                kind == COMPACT_DC
-                  ? data[body] * scale
-                  : this.rows[lower * size + localColumn] * (2 * size - weight) + this.rows[upper * size + localColumn] * weight;
+              luma = this.rows[lower * size + localColumn] * (2 * size - weight) + this.rows[upper * size + localColumn] * weight;
             }
-            this.output[target] = (byte) round(
-              (this.reference[source] & 0xFF) * scale + ((luma + (orange - green) * scale) << quantizer),
-              shift
-            );
-            this.output[target + 1] = (byte) round(
-              (this.reference[source + 1] & 0xFF) * scale + ((luma + green * scale) << quantizer),
-              shift
-            );
-            this.output[target + 2] = (byte) round(
-              (this.reference[source + 2] & 0xFF) * scale + ((luma - (orange + green) * scale) << quantizer),
-              shift
-            );
+            this.output[target] = (byte) round((this.reference[source] & 0xFF) * scale + (luma << quantizer), shift);
+            this.output[target + 1] = (byte) round((this.reference[source + 1] & 0xFF) * scale + (luma << quantizer), shift);
+            this.output[target + 2] = (byte) round((this.reference[source + 2] & 0xFF) * scale + (luma << quantizer), shift);
           } else {
             this.output[target] = (byte) (color >> 16);
             this.output[target + 1] = (byte) (color >> 8);
@@ -800,45 +757,20 @@ public final class Mcv2Decoder {
   /**
    * Returns a fixed-length record size.
    *
-   * @param mode SKIP, MOTION, SOLID, PALETTE, PATTERN or SPLIT
+   * @param mode SKIP, MOTION, SOLID, PALETTE, PATTERN, COMPACT or SPLIT
    * @param size 8, 16 or 32 pixels
    * @return record length in bytes; zero for SKIP and SPLIT
-   * @throws IllegalArgumentException if mode is COMPACT or invalid
+   * @throws IllegalArgumentException if mode is invalid
    */
   public static int recordSize(final int mode, final int size) {
     return switch (mode) {
       case MODE_SKIP, MODE_SPLIT -> 0;
       case MODE_MOTION -> 2;
+      case MODE_COMPACT -> COMPACT_BYTES;
       case MODE_SOLID -> CHANNELS;
       case MODE_PALETTE -> 2 * CHANNELS + (size * size) / Byte.SIZE;
       case MODE_PATTERN -> patternSize(size);
-      default -> throw new IllegalArgumentException("Variable or invalid record mode");
+      default -> throw new IllegalArgumentException("Invalid record mode");
     };
-  }
-
-  /**
-   * Reads the horizontal vector of a validated compact record.
-   *
-   * @param data validated frame bytes
-   * @param offset record byte offset
-   * @return signed whole-pixel displacement
-   * @throws IndexOutOfBoundsException if the record lies outside data
-   */
-  public static int compactX(final byte[] data, final int offset) {
-    final int form = (data[offset] & 0xFF) >> 4;
-    return form == 1 ? signed(data[offset + 1] & 15, 4) : form == 2 ? data[offset + 1] : 0;
-  }
-
-  /**
-   * Reads the vertical vector of a validated compact record.
-   *
-   * @param data validated frame bytes
-   * @param offset record byte offset
-   * @return signed whole-pixel displacement
-   * @throws IndexOutOfBoundsException if the record lies outside data
-   */
-  public static int compactY(final byte[] data, final int offset) {
-    final int form = (data[offset] & 0xFF) >> 4;
-    return form == 1 ? signed((data[offset + 1] & 0xFF) >> 4, 4) : form == 2 ? data[offset + 2] : 0;
   }
 }

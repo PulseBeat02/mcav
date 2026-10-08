@@ -124,13 +124,14 @@ final class Mcv2DecoderTest {
     final int count = 300;
     final byte[] descriptors = new byte[count];
     Arrays.fill(descriptors, (byte) Mcv2Decoder.MODE_SOLID);
-    descriptors[1] = Mcv2Decoder.MODE_COMPACT;
+    descriptors[1] = Mcv2Decoder.MODE_PATTERN;
     descriptors[290] = Mcv2Decoder.MODE_COMPACT;
     final byte[][] records = new byte[count][3];
-    records[1] = new byte[] { 15, 0 };
+    records[1] = new byte[11];
+    records[1][6] = 2;
     records[290] = new byte[] { 0 };
     final byte[] frame = Mcv2WireFrames.frame(4096, 96, false, descriptors, records, new int[] { count, 0, 0 });
-    assertEquals("Invalid compact control", assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(frame)).getMessage());
+    assertEquals("Invalid pattern selector", assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(frame)).getMessage());
   }
 
   @Test

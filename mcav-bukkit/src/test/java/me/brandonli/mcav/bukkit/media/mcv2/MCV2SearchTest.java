@@ -62,9 +62,9 @@ final class MCV2SearchTest {
       Node.skip(),
       Mcv2Trees.solid(1, 2, 3),
       Mcv2Trees.motion(3, -4),
-      Node.leaf(Mcv2Decoder.MODE_COMPACT, 0, new byte[] { 0, 1 }),
-      Node.leaf(Mcv2Decoder.MODE_COMPACT, 0, new byte[] { 0x10, (byte) 0xe2, 1 }),
-      Node.leaf(Mcv2Decoder.MODE_COMPACT, 0, new byte[] { 0x20, 20, -30, 1 }),
+      Node.leaf(Mcv2Decoder.MODE_COMPACT, 0, new byte[] { 0, 0, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11 }),
+      Node.leaf(Mcv2Decoder.MODE_COMPACT, 0, new byte[] { 2, -2, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11 }),
+      Node.leaf(Mcv2Decoder.MODE_COMPACT, 0, new byte[] { 20, -30, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11 }),
     };
     final int[] expected = { 0, 0, vector(3, -4), 0, vector(2, -2), vector(20, -30) };
     for (int index = 0; index < nodes.length; index++) {

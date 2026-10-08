@@ -267,9 +267,9 @@ final class TransportPagesTest {
 
   @Test
   void readsThePagesOfTheSmallestAndTheLargestFrames() throws Mcv2Exception {
-    assertEquals(32, TransportPages.readPage(pageOfFrame(32, 0, 1, 32), 6).getFrameBytes());
+    assertEquals(20, TransportPages.readPage(pageOfFrame(20, 0, 1, 20), 6).getFrameBytes());
     assertEquals(8511, TransportPages.readPage(pageOfFrame(131071, 10, 11, 8511), 6).getPayload().length);
-    assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(pageOfFrame(31, 0, 1, 31), 6));
+    assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(pageOfFrame(19, 0, 1, 19), 6));
     assertThrows(Mcv2Exception.class, () -> TransportPages.readPage(pageOfFrame(131072, 10, 11, 8512), 6));
   }
 

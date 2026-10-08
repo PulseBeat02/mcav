@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -26,51 +27,39 @@ import org.junit.jupiter.api.Test;
 final class Mcv2CompactTest {
 
   @Test
-  void parsesTheThreeMotionForms() throws Mcv2Exception {
-    final byte[][] records = {
-      { 0, 5 },
-      { 0x11, (byte) 0xF9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-      { 0x22, (byte) 0x80, 127, 0, 0, 0, 0, 0, 0, 0, 0 },
-    };
-    final int[] motionX = { 0, -7, -128 };
-    final int[] motionY = { 0, -1, 127 };
-    for (int form = 0; form < records.length; form++) {
-      final byte[] data = Mcv2WireFrames.block(32, 5, 7, records[form], false);
-      final Mcv2Decoder.Frame parsed = Mcv2Decoder.parse(data);
-      final int offset = parsed.getLeaf(0).offset();
-      assertEquals(motionX[form], Mcv2Decoder.compactX(data, offset));
-      assertEquals(motionY[form], Mcv2Decoder.compactY(data, offset));
-      assertEquals(form, (data[offset] & 255) >> 4);
-      assertEquals(records[form].length, data.length - offset);
-    }
-  }
-
-  @Test
-  void knowsEveryBodyLength() throws Mcv2Exception {
-    final int[] expected = { 1, 10, 8 };
-    for (int kind = 0; kind < expected.length; kind++) {
-      for (int form = 0; form < 3; form++) {
-        final byte[] record = new byte[1 + form + expected[kind]];
-        record[0] = (byte) (kind | (form << 4));
-        final byte[] data = Mcv2WireFrames.block(32, 5, 0, record, false);
-        assertEquals(record.length, data.length - Mcv2Decoder.parse(data).getLeaf(0).offset());
-        final byte[] shortFrame = Arrays.copyOf(data, data.length - 1);
-        assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(shortFrame));
+  void storesBothWholePixelVectorsInEveryTenByteRecord() throws Mcv2Exception {
+    for (final int dx : new int[] { -128, -7, 0, 7, 127 }) {
+      for (final int dy : new int[] { -128, -1, 0, 7, 127 }) {
+        final byte[] record = { (byte) dx, (byte) dy, -128, 127, -1, 0, 0x18, 0x72, 0x4E, 0x5A };
+        final byte[] data = Mcv2WireFrames.block(32, 5, 2, record, false);
+        final int offset = Mcv2Decoder.parse(data).getLeaf(0).offset();
+        assertEquals(dx, data[offset]);
+        assertEquals(dy, data[offset + 1]);
+        assertEquals(10, data.length - offset);
+        assertArrayEquals(record, Arrays.copyOfRange(data, offset, data.length));
       }
     }
   }
 
   @Test
-  void rejectsBrokenRecords() {
-    for (int control = 0; control < 256; control++) {
-      if ((control & 15) <= 2 && control >> 4 <= 2) {
-        continue;
+  void requiresExactlyTenBytesForEveryBlockSize() throws Mcv2Exception {
+    for (final int size : new int[] { 8, 16, 32 }) {
+      for (int length = 0; length <= 20; length++) {
+        final byte[] data = Mcv2WireFrames.block(size, 5, 0, new byte[length], false);
+        if (length == 10) {
+          assertEquals(10, data.length - Mcv2Decoder.parse(data).getPayloadStart());
+        } else {
+          assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(data));
+        }
       }
-      final byte[] record = new byte[13];
-      record[0] = (byte) control;
-      assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(Mcv2WireFrames.block(32, 5, 0, record, false)));
     }
-    assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(Mcv2WireFrames.block(32, 5, 0, new byte[0], false)));
-    assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(Mcv2WireFrames.block(32, 5, 0, new byte[] { 1, 0 }, false)));
+  }
+
+  @Test
+  void refusesEveryQuantizerAboveTwo() {
+    for (int quantizer = 3; quantizer < 8; quantizer++) {
+      final byte[] data = Mcv2WireFrames.block(32, 5, quantizer, new byte[10], false);
+      assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(data));
+    }
   }
 }
