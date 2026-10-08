@@ -47,6 +47,7 @@ Click to watch a demo video above.
 
 | What | Needs |
 |------|-------|
+| Building from source | A JDK 17 or newer to run Gradle, and network access; Gradle downloads the build tools |
 | Library and plugin | Java 25 or newer |
 | Minecraft | Paper 26.3, for the plugin and `mcav-bukkit`. Paper 26.3 has only **alpha** builds as of 2026-09-27; MCAV is built and tested against build 49 |
 | Platforms | Windows (x86-64), macOS (x86-64 and Apple silicon), and Linux (x86-64 and ARM64): FFmpeg and OpenCV are bundled for these, and their natives are extracted into the JavaCPP cache of the user |
@@ -71,79 +72,108 @@ viewer at 30 fps after Minecraft's compression, and the wall still falls behind 
 codec for Minecraft: the server encodes the video and sends it as the colours of a few hidden maps, and a resource pack
 decodes it on the player's GPU, in full colour, at the resolution you choose. The client needs no mod.
 
-| At 1080p, 30 fps | Rate on the wire, after Minecraft's compression | VMAF mean |
+| At 1080p, 30 fps | Rate on the wire, after Minecraft's zlib compression | VMAF mean |
 |------------------|-------------------------------------------------|-----------|
 | Dithered maps, the default budget | 10.4 Mbit/s | 33.4: the wall never shows a whole frame |
-| MCV2, its `DEFAULT` preset | 2.11 Mbit/s | 75.7 |
-| MCV2, its `DEFAULT` preset, real Minecraft gameplay | 9.22 Mbit/s | 75.6 |
+| MCV2, its `DEFAULT` preset | 2.08 Mbit/s | 75.6 |
+| MCV2, its `DEFAULT` preset, real Minecraft gameplay | 9.32 Mbit/s | 73.8 |
 
 The first two rows are measured on a procedural Minecraft test clip, which flatters MCV2; the last on real gameplay.
+
+MCV2 uses one encoder class, `MCV2.java`, and one decoder shader, `mcv2.glsl`. The presets are `DEFAULT` and `FAST`.
+Its benchmark, fixture, digest and shader tools live in `mcav-bukkit`'s test sources: `Mcv2Tools.java`,
+`mcv2_tools.py` and the independent reference decoder, `mcv2_reference.py`.
+
 Live sources (browsers, virtual machines, VNC desktops, streams, cameras, and video files by default) share a
-configurable CPU budget. Throughput depends on the source, encoder preset and available CPU; 1080p30 is a measured
-workload, not a guarantee for every six-core server. A screen that cannot keep up steps down on its own, or you can
-pre-encode a file. Players without the pack keep the dithered maps. Turn it on with `--codec mcv2` on any command that
-draws on a wall of maps, or with `mcv2.default-codec: mcv2` in `config.yml`. The
-[MCV2 article](https://mcav.readthedocs.io/en/latest/mcv2.html) explains how it works, what it costs, and how it
+configurable CPU budget. Throughput depends on the source, encoder preset and available CPU. A screen that cannot keep
+up steps down on its own, or you can pre-encode a file. Players without the pack keep the dithered maps.
+Turn it on with `--codec mcv2` on any command that draws on a wall of maps, or with
+`mcv2.default-codec: mcv2` in `config.yml`. The
+[MCV2 article](mcav-docs/mcv2.md) explains how it works, its measured rates, quality and speed, and how it
 compares with H.264, VP9 and AV1.
 
 ---
 
 ### Modules
 
-Here is a list of all the modules that are included in MCAV
+Here is a list of all the modules that are included in MCAV.
 
-| Module           | Description                                                                                                                                                  |
-|------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `sandbox:plugin` | A Paper 26.3 plugin for Minecraft servers that utilizes all the features of MCAV.                                                                            |
-| `mcav-common`    | The core library for multimedia functionality: the FFmpeg, VLC, OpenCV and capture device players, pipelines and filters, dithering, yt-dlp, and audio and FFmpeg utilities. |
-| `mcav-bukkit`    | A Bukkit-specific module for Minecraft plugins: video and images on maps, blocks, entities, the scoreboard and chat, audio resource packs, and the MCV2 codec. |
-| `mcav-installer` | A simple installer for installing and injecting required libraries across all different modules of MCAV.                                                     |
-| `mcav-jda`       | A module integrating with the [Java Discord API](https://github.com/discord-jda/JDA) to play audio in Discord voice channels.                                |
-| `mcav-http`      | A module with [Spring Boot](https://spring.io/) back-end and [Typescript](https://www.typescriptlang.org/) front-end to stream PCM audio to an HTTP website. |
-| `mcav-vm`        | A module integrating with [QEMU](https://www.qemu.org/) to run virtual machines, with their display and their sound.                                         |
-| `mcav-vnc`       | A module interacting with VNC servers to capture video and control remote desktops.                                                                          |
-| `mcav-browser`   | A module using [JCEF](https://github.com/chromiumembedded/java-cef), an embedded Chromium, to stream web pages and their sound, with no JVM options.         |
-| `mcav-lwjgl`     | A module using [LWJGL](https://www.lwjgl.org/) to provide OpenGL support for rendering video and images.                                                     |
-| `mcav-svc`       | A module using [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) to serve audio.                                                            |
-| `mcav-jcstress`  | Concurrency tests of MCAV on OpenJDK's [jcstress](https://github.com/openjdk/jcstress) harness; a test module, not published.                                 |
+| Module | Description |
+|--------|-------------|
+| [mcav-common](mcav-docs/library/instance.md) | The core library for players, pipelines, filters, dithering, yt-dlp, and audio and FFmpeg utilities. |
+| [mcav-docs](mcav-docs/intro.md) | The documentation and tutorials, built with Sphinx and Jupyter Book. |
+| [mcav-bukkit](mcav-docs/bukkit/bukkit.md) | Video and images in Minecraft, audio resource packs, and the MCV2 codec. |
+| [mcav-installer](mcav-docs/library/installer.md) | Downloads and loads the libraries each module needs. |
+| [mcav-discord](mcav-docs/library/discord.md) | Audio in Discord voice channels through the Java Discord API. |
+| [mcav-http](mcav-docs/library/http.md) | Streams PCM audio to a web page, with a Spring Boot back-end and a Typescript front-end. |
+| [mcav-browser](mcav-docs/library/browser.md) | Web pages and their sound through embedded Chromium, with no JVM options. |
+| [mcav-vnc](mcav-docs/library/vnc.md) | Captures video and controls remote VNC desktops. |
+| [mcav-vm](mcav-docs/library/vm.md) | Runs QEMU virtual machines with their display and sound. |
+| [mcav-lwjgl](mcav-docs/library/lwjgl.md) | Video and images in OpenGL textures through LWJGL. |
+| [mcav-voicechat](mcav-docs/library/voicechat.md) | Audio through Simple Voice Chat. |
+| [mcav-mod](mcav-docs/mcv2.md#the-client-mod-for-iris-shader-players) | The optional Fabric and NeoForge client mod for MCV2 with Iris shaders. |
+| [mcav-jcstress](mcav-docs/library/compile.md) | Concurrency tests on OpenJDK's jcstress harness; this module is not published. |
+| [mcav-plugin](mcav-docs/plugin/plugin.md) | A Paper 26.3 plugin that uses the features of MCAV. |
 
 ---
 
 ### Building from Source
 
+Clone the repository. A clean build needs a JDK 17 or newer and network access. Run these commands from its root:
+
 ```bash
-git clone https://github.com/PulseBeat02/mcav.git
-cd mcav
 ./gradlew build
+./gradlew :mcav-docs:build
 ```
 
-The plugin jar is `sandbox/plugin/build/libs/mcav-sandbox-1.0.0-v26.3-all.jar`. Gradle itself runs on any JDK 17 or
-newer; the Java 25 toolchain MCAV compiles with is downloaded by Gradle when the machine has none, and so is the
-Node.js that the code formatter and the web page of `mcav-http` use. Gradle also downloads Zig 0.16.0 from
-ziglang.org, verifies its pinned SHA-256, and compiles MCV2's six native libraries from
-`mcav-bukkit/src/main/native/mcv2`. No C/C++ compiler needs to be installed; `ZIG=/path/to/zig` can override the download.
-The compiler is cached in `mcav-bukkit/build/tools/zig`, and unchanged native builds are up to date. A failed download
-or compilation fails the build. No credentials are needed, except to publish. The
-project builds on any one of Windows, macOS or Linux: the tests that need another operating system, or a program the
-machine lacks (VLC, QEMU, a display), skip themselves. `build` also enforces the coverage lint, on which the code those
-tests would have run shows up as gaps, so on such a machine build with `-Pmcav.coverage=false`.
+The plugin jar is `mcav-plugin/build/libs/mcav-plugin-<version>-all.jar`. Gradle downloads the Java 25 toolchain
+through foojay when the machine has none, and the Node.js used by the formatter and the web page of `mcav-http`.
+It downloads Zig 0.16.0, verifies its pinned SHA-256, and compiles MCV2's six native libraries from
+`mcav-bukkit/src/main/native/mcv2`. It also downloads checksum-verified uv, which installs the pinned Python and the
+hash-locked documentation packages. These tools need no separate installation. `build` writes the documentation to
+`mcav-docs/build/html`; the second command builds only the documentation. Open `index.html` to read it.
+
+The project builds on Windows, macOS or Linux. Tests that need another operating system or a program the machine
+lacks skip themselves. `build` also enforces the coverage lint, where those skipped tests leave gaps. On such a
+machine, use:
+
+```bash
+./gradlew build -Pmcav.coverage=false
+```
+
+The Python codec tests and the native formatter run separately:
+
+```bash
+python3 -m unittest discover -s mcav-bukkit/src/test/python
+./gradlew :mcav-bukkit:formatMcv2Natives
+```
+
+The Python tests need Python 3.12 or newer with numpy, Pillow, moderngl and matplotlib. The formatter needs clang-format 18.1.8;
+`CLANG_FORMAT` can name its executable. Neither is needed for the default build. The
+[MCV2 tools](mcav-docs/mcv2.md#reproducing-the-measurements-and-figures) describe the other codec checks.
+
+Check the task plans for publishing the library modules and for the plugin's end-to-end test:
+
+```bash
+./gradlew publishLibraries --dry-run
+./gradlew :mcav-plugin:e2eTest -Pmcav.e2e=true -Pmcav.acceptMinecraftEula=true --dry-run
+```
+
+Remove `--dry-run` to run either task. Publishing needs repository credentials. The end-to-end test downloads and
+starts Paper and Simple Voice Chat; its EULA flag accepts the [Minecraft EULA](https://aka.ms/MinecraftEULA).
 [CONTRIBUTING.md](CONTRIBUTING.md) describes the tests, the coverage lint, the property, fuzz and concurrency tests,
 mutation testing and the end-to-end test of the plugin.
-
-`build` also builds the documentation into `mcav-docs/build/html` (open `index.html`); `./gradlew :mcav-docs:build`
-builds only the documentation. No Python is needed either: Gradle downloads uv, checks it against a pinned SHA-256,
-and with it installs the pinned Python and the hash-locked packages of `mcav-docs/requirements.lock` into
-`mcav-docs/build`.
 
 ---
 
 ### Contributing
 
 MCAV is looking for contributors to help improve the library and plugin. We need
+
 - Web Developers (Typescript, React, NextJS) to help improve the front-end of the HTTP module.
 - Back-end Developers (Java, Spring Boot) to help improve the back-end of the HTTP module.
 - Java Developers to help improve the core library.
-- Bukkit Developers to help improve the Bukkit module and the sandbox plugin.
+- Bukkit Developers to help improve the Bukkit module and the MCAV plugin.
 - Writers to help improve the documentation and tutorials.
 - Testers to help test the library and plugin.
 - Content Creators to help promote the library and plugin.
