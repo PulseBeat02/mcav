@@ -16,9 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The sve256 dispatch level.
+// The sve256 level of the kernels in mcv2.cpp, compiled by build.sh with its own flags.
 #define MCV2_SIMD_SVE256
-#include "kernels.hpp"
-#include "mcv2_kernels.h"
 #define MCV2_PREFIX(name) mcv2_sve256_##name
-#include "exports.inc"
+#include "mcv2.cpp"

@@ -35,7 +35,7 @@ set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
 sources=$here/../../../main/native/mcv2
-libraries=$here/../../../main/resources/me/brandonli/mcav/bukkit/media/mcv2/encode/natives
+libraries=$here/../../../main/resources/me/brandonli/mcav/bukkit/media/mcv2/natives
 work=${WORK:-$(mktemp -d)}
 clang=${CLANG:-clang++}
 llvm=${LLVM_BIN:-/usr/lib/llvm-18/bin}
@@ -52,8 +52,8 @@ sanitize=(-O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omi
 aarch64=(--target=aarch64-linux-gnu --sysroot="$sysroot" -fuse-ld=lld -Wno-unused-command-line-argument)
 # the level units and their flags, as build.sh compiles them
 avx512="-mavx512f -mavx512dq -mavx512bw -mavx512vl -mavx512vbmi -mavx512vbmi2 -mavx512vnni -mavx512bitalg"
-x86_units=(cpu level_scalar level_sse2 level_sse41:-msse4.1 level_avx2:-mavx2 "level_avx512:$avx512")
-arm_units=(cpu level_scalar level_neon "level_sve256:-march=armv8-a+sve -msve-vector-bits=256"
+x86_units=(level_scalar level_sse2 level_sse41:-msse4.1 level_avx2:-mavx2 "level_avx512:$avx512")
+arm_units=(level_scalar level_neon "level_sve256:-march=armv8-a+sve -msve-vector-bits=256"
   "level_sve512:-march=armv8-a+sve -msve-vector-bits=512")
 # the emulated CPUs and the level the dispatcher must take on each
 sde_cpus=(spr:avx512 icx:avx512 skx:avx2 hsw:avx2 mrm:sse2)
@@ -146,7 +146,7 @@ echo "== coverage (llvm-cov)"
 direct covered x86_units -O1 -fprofile-instr-generate -fcoverage-mapping
 LLVM_PROFILE_FILE="$work/kernels-%p.profraw" "$sde" -icx -- "$work/covered" > /dev/null
 "$llvm/llvm-profdata" merge -o "$work/kernels.profdata" "$work"/kernels-*.profraw
-"$llvm/llvm-cov" report "$work/covered" -instr-profile="$work/kernels.profdata" "$sources"/*.cpp "$sources"/*.hpp
+"$llvm/llvm-cov" report "$work/covered" -instr-profile="$work/kernels.profdata" "$sources"/*.cpp
 
 echo "== the shipped libraries"
 for target in x86_64 aarch64; do
