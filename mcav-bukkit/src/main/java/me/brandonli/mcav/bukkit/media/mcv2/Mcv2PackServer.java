@@ -298,7 +298,7 @@ public final class Mcv2PackServer {
     this.onOffered = onOffered;
     this.writer = writer;
     this.millis = millis;
-    // no pack is served yet, so no client reports a status for this id
+
     this.viewers = new Mcv2Viewers(NO_PACK, onRefused);
     this.nobody = new Mcv2Viewers(NO_PACK, onRefused);
     this.slots = new ArrayList<>();
@@ -360,7 +360,6 @@ public final class Mcv2PackServer {
     final boolean sameColour = this.slots.isEmpty() || this.slots.getFirst().template.getOutlineColor().equals(requested.getOutlineColor());
     Preconditions.checkArgument(sameColour || this.leases.isEmpty(), "The screens of a pack share one outline colour");
     if (!sameColour) {
-      // no screen plays: the free slots give way to a pack in the new colour
       this.slots.clear();
     }
     final Slot slot = this.acquire(requested);
@@ -380,7 +379,6 @@ public final class Mcv2PackServer {
   private synchronized void offerViewers(final Lease lease) {
     final Published pack = this.current;
     if (lease.closed || pack == null || pack.generation() != this.generation.get()) {
-      // a closed screen watches nothing, and the changed pack is offered to every viewer once it is hosted
       return;
     }
     for (final UUID viewer : lease.requested.getViewers()) {
@@ -422,12 +420,11 @@ public final class Mcv2PackServer {
       }
     }
     if (spareOfThatSize != null) {
-      // the size a playing screen left: the pack has it, so it stays as it is
       spareOfThatSize.spareOf = null;
       return spareOfThatSize;
     }
-    // every slot costs every viewer rows of the strip at the top of their screen (mcav-soak D1: 328 of 480 rows), so a
-    // free slot of another size is reshaped before the pack grows, and a playing screen's spare only in a full pack
+    // Every allocated slot consumes strip rows on every viewer's screen.
+
     final Slot changed;
     if (oldestFree != null) {
       changed = oldestFree;
@@ -480,7 +477,6 @@ public final class Mcv2PackServer {
     }
     final Plugin plugin = BukkitModule.getPlugin();
     if (!plugin.isEnabled()) {
-      // a plugin being disabled schedules nothing; its pack server is shut down next
       return;
     }
     this.trimming = true;
@@ -553,7 +549,6 @@ public final class Mcv2PackServer {
   /** Writes, hashes and hosts a pack, on the writer thread, then serves it on the main thread. */
   private void write(final int wanted, final List<Mcv2Configuration> screens) {
     if (this.stopped || wanted != this.generation.get()) {
-      // a newer pack was asked for before this one was written, or nothing is served any more
       return;
     }
     final String description = describe(screens);
@@ -583,7 +578,7 @@ public final class Mcv2PackServer {
   private PackHosting host(final Path zip) {
     final PackHosting host = this.hosting.apply(zip);
     if (host instanceof HttpHosting) {
-      // an HTTP server binds its port, which the hosting of the pack before still holds
+      // The previous HTTP host still holds the port.
       this.stopRunning();
     }
     host.start();
@@ -720,7 +715,7 @@ public final class Mcv2PackServer {
 
   private void retire(final Published published) {
     final PackHosting host = published.hosting();
-    // an HTTP hosting was stopped already for the one after it
+
     if (this.running.remove(host)) {
       host.shutdown();
       deleteQuietly(host.getZip());
@@ -822,7 +817,7 @@ public final class Mcv2PackServer {
     try {
       Files.deleteIfExists(file);
     } catch (final IOException exception) {
-      // the next start clears the folder
+      // Startup clears this folder if deletion fails.
     }
   }
 
@@ -893,7 +888,6 @@ public final class Mcv2PackServer {
             slot = left;
           } else {
             if (left != null) {
-              // the size before the one it leaves now is any screen's again
               Mcv2PackServer.this.free(left);
             }
             this.spare = null;
@@ -905,15 +899,14 @@ public final class Mcv2PackServer {
           }
           slot.spareOf = null;
           slot.holder = this;
-          // the size it leaves stays its own while it plays, so stepping back changes nothing
+          // Retain the previous slot so stepping back needs no pack reload.
           this.playing.holder = null;
           this.playing.spareOf = this;
           this.playing.released = ++Mcv2PackServer.this.releases;
           this.spare = this.playing;
           this.playing = slot;
         }
-        // the page maps count from the screen's own first page map: a result asks with the configuration its slot gave
-        // it, whose page map already has that slot's offset
+
         return new Mcv2Channel(
           resized.withSlot(this.playing.streamId, pageMapOf(this.requested, this.playing), this.firstFrameId),
           Mcv2PackServer.this.viewers

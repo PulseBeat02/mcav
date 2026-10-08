@@ -103,7 +103,7 @@ public final class PageAssembler {
     if (parts.size() != page.getCount()) {
       return null;
     }
-    // every page number is below the count and the count agrees across pages, so the numbers are exactly 0..count-1
+    // Distinct validated page numbers filling the count cover exactly 0..count-1.
     final TransportPage[] ordered = new TransportPage[page.getCount()];
     for (final TransportPage part : parts.values()) {
       ordered[part.getNumber()] = part;

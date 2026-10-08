@@ -143,7 +143,6 @@ public final class Mcv2Screen {
     final BlockFace back = this.configuration.getFacing().getOppositeFace();
     for (int row = 0; row < this.configuration.getRows(); row++) {
       for (int column = 0; column < this.configuration.getColumns(); column++) {
-        // two blocks behind the frame's block: past the wall block the frame hangs on
         final Location behind = origin
           .clone()
           .add(right.getModX() * column + back.getModX() * 2, -row, right.getModZ() * column + back.getModZ() * 2);
@@ -284,7 +283,7 @@ public final class Mcv2Screen {
         symbols[at + 4] = (byte) facing;
         symbols[at + 5] = (byte) streamLow;
         symbols[at + 6] = (byte) streamHigh;
-        // a check symbol: the sum of the others in the six-bit alphabet
+
         symbols[at + 7] = (byte) ((column + row + columns + rows + facing + streamLow + streamHigh) % MapAlphabet.SIZE);
         final int mapId = this.configuration.getMap() + row * columns + column;
         patches.add(new MapTilePatch(mapId, 0, 0, MapLayout.MAP_SIZE, 1, MapAlphabet.toMapColors(symbols)));

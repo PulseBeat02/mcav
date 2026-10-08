@@ -44,9 +44,7 @@ public final class Mcv2Receiver {
   /**
    * Constructs a receiver that holds no frame yet, so it accepts a keyframe first.
    */
-  public Mcv2Receiver() {
-    // the first accepted frame sets the state
-  }
+  public Mcv2Receiver() {}
 
   /**
    * Validates, decodes and commits a frame.

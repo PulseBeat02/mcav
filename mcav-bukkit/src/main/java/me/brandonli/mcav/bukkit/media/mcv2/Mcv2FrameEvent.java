@@ -98,7 +98,7 @@ final class Mcv2FrameEvent extends Event {
    */
   static String fingerprint(final byte[] rgb, final int width, final int height) {
     final StringBuilder builder = new StringBuilder(2 * FINGERPRINT_PIXELS);
-    // the centre of each of the first superblocks of the top row
+
     final int centre = Mcv2Decoder.ROOT_SIZE / 2;
     for (
       int superblockIndex = 0;

@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 final class Mcv2KeyframeRequest {
 
-  // taken in one step: a request set between a separate read and clear was lost until the next periodic keyframe
+  // Separate reads and clears can lose a concurrent request.
   private final AtomicBoolean requested;
 
   /**

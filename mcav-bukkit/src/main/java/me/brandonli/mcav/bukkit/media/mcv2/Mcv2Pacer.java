@@ -395,7 +395,7 @@ public final class Mcv2Pacer {
     if (this.firstArrival == NEVER) {
       this.firstArrival = now;
     }
-    // on the dithered maps the frames come as fast as the dithering allows, which is not the video's rate
+    // Dithering throughput does not measure the video's frame rate.
     if (this.lastArrival != NEVER && now > this.lastArrival && !this.getRung().isDithered()) {
       final double interval = now - this.lastArrival;
       this.videoInterval = Double.isNaN(this.videoInterval) ? interval : this.videoInterval + SMOOTHING * (interval - this.videoInterval);
@@ -454,9 +454,8 @@ public final class Mcv2Pacer {
       return null;
     }
     this.overSince = NEVER;
-    // a rung that held as long as the wait a failed try of it would get next ends the waits that failed tries left
-    // behind; ending them once it held UP_SECONDS undid the doubling, and a screen whose better rung failed again soon
-    // after it climbed back went to and fro every 20 to 90 seconds (mcav-soak D7: 2,255 rung changes in 25 hours)
+    // Resetting backoff before the next retry interval permits repeated rung oscillation.
+
     final long held = now - this.settledSince;
     if (held >= seconds(Math.max(UP_SECONDS, this.blockSeconds[this.current]))) {
       this.blockSeconds[this.current] = BLOCK_SECONDS;
@@ -480,8 +479,7 @@ public final class Mcv2Pacer {
     this.blockedUntil[left] = now + seconds(this.blockSeconds[left]);
     this.blockSeconds[left] = Math.min(MAX_RETRY_SECONDS, this.blockSeconds[left] * 2);
     final int encoded = this.encodedRungs();
-    // the first rung below that fits with room - a faster preset of the same frames only has to keep up - else the
-    // first that keeps up at all, before the dithered maps
+
     final Rung from = this.getRung();
     for (final double share : new double[] { FIT, HIGH }) {
       for (int next = this.current + 1; next < encoded; next++) {
@@ -493,7 +491,6 @@ public final class Mcv2Pacer {
       }
     }
     if (encoded == this.ladder.size()) {
-      // no dithered maps to fall back to: the lowest encoded rung is the floor
       final int lowest = this.lowestEncoded();
       this.overSince = NEVER;
       return lowest > this.current ? this.move(lowest, true, this.smoothed, frameMs) : null;

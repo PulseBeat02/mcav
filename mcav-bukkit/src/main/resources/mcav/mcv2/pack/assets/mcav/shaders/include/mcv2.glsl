@@ -19,8 +19,6 @@
 #ifndef MCAV_MCV2_GLSL
 #define MCAV_MCV2_GLSL
 
-// Format constants: v3 frames, six-bit pages, and the smallest independently resolved cell.
-
 const int MCV2_PAGE_PIXELS = 4096;
 const int MCV2_PAGE_HEADER = 32;
 const int MCV2_PAGE_CAPACITY = 12256;
@@ -39,41 +37,30 @@ const uint MCV2_SPLIT = 6u;
 const uint MCV2_CELL_INVALID = 0xffffffffu;
 const uint MCV2_CELL_OFFSET = 0x1ffffu;
 
-// Strip and byte reads: exact UNORM8 recovery, with every frame access bounded by its length.
-
 int mcv2RowsPerPage(int width) {
     return (MCV2_PAGE_PIXELS + width - 1) / width;
 }
 
-// The first row of slot s, counted from the top.
 int mcv2SlotRow(int width, int slot) {
     return slot * mcv2RowsPerPage(width);
 }
 
-// The anchor descriptor row of a screen of the pack.
 int mcv2DescriptorRowOf(int width, int screen) {
     return mcv2SlotRow(width, MCV2_TOTAL_SLOTS) + screen;
 }
 
-// Rows of the screen the strip covers, counted from the top.
 int mcv2StripRows(int width) {
     return mcv2DescriptorRowOf(width, MCV2_SCREENS);
 }
 
-// Whether the strip fits on a screen of a size with a row of the scene below it. A window too small for it, with many
-// screens or slots, shows no MCV2 picture: the text shaders leave the pages and anchors where they hang, and the post
-// chain neither reads the strip nor covers it, so the scene stays as it is.
 bool mcv2StripFits(ivec2 size) {
     return mcv2StripRows(size.x) < size.y;
 }
 
-// The texel of a screen-sized target at a row counted from the top.
 ivec2 mcv2FromTop(ivec2 size, int x, int row) {
     return ivec2(x, size.y - 1 - row);
 }
 
-// A UNORM8 channel back to its byte: value * 255 + 0.5 lies in [k + 0.5 - 2^-16, k + 0.5 + 2^-16] for byte k, and the
-// conversion to an integer drops the fraction, which is floor for a positive value, one instruction fewer.
 uint mcv2Unorm(float value) {
     return uint(value * 255.0 + 0.5);
 }
@@ -92,14 +79,13 @@ uint mcv2TexelWord(vec4 texel) {
 }
 
 #if defined(MCV2_PASS_BYTES) || defined(MCV2_PASS_CRC) || defined(MCV2_PASS_PAGES) || defined(MCV2_PASS_VIEW)
-// Where byte b (0..12287) of the screen's page p lies: the texel of the screen and the colour channel.
+
 ivec3 mcv2PageByteAt(ivec2 size, int p, int b) {
     int pixel = b / 3;
     int row = mcv2SlotRow(size.x, MCV2_FIRST_SLOT + p) + pixel / size.x;
     return ivec3(mcv2FromTop(size, pixel % size.x, row), b % 3);
 }
 
-// The screen's anchor descriptor row.
 int mcv2DescriptorRow(int width) {
     return mcv2DescriptorRowOf(width, MCV2_SCREEN_INDEX);
 }
@@ -175,11 +161,8 @@ void main() {
 }
 #endif
 
-// Page headers and CRC32: parallel 192-byte checksums combine into each complete page checksum.
-
 #if defined(MCV2_PASS_CRC) || defined(MCV2_PASS_PAGES)
-// CRC-32 (IEEE 802.3, reflected, polynomial 0xEDB88320), the checksum of every MCV2 transport page, byte by byte
-// through the standard 256-entry table.
+
 const uint MCV2_CRC_TABLE[256] = uint[256](
     0x00000000u, 0x77073096u, 0xEE0E612Cu, 0x990951BAu, 0x076DC419u, 0x706AF48Fu,
     0xE963A535u, 0x9E6495A3u, 0x0EDB8832u, 0x79DCB8A4u, 0xE0D5E91Eu, 0x97D2D988u,
@@ -230,10 +213,8 @@ uint mcv2CrcUpdate(uint crc, uint value) {
     return MCV2_CRC_TABLE[(crc ^ value) & 255u] ^ (crc >> 8u);
 }
 
-// A page's CRC in parallel: every 192-byte chunk of the page's strip area (64 pixels of three bytes) is run through
-// the table from zero by its own fragment, and the chunks are chained with the register's advance over 192 zero
-// bytes, which is linear: advance(s) = XOR of MCV2_CRC_SHIFT[j] over the set bits j of s. The chained result is the
-// byte-by-byte CRC exactly, since each table step is linear in the register and the data.
+// Linear CRC advancement makes zero-initialized chunk checksums compose exactly.
+
 const int MCV2_CRC_CHUNK_BYTES = 192;
 const int MCV2_CRC_CHUNKS = 64;
 const uint MCV2_CRC_SHIFT[32] = uint[32](
@@ -300,7 +281,7 @@ uint mcv2PageWord(ivec2 size, int page, int b) {
 void main() {
     ivec2 size = textureSize(MainSampler, 0);
     if (!mcv2StripFits(size)) {
-        // no strip, so no page: every slot invalid
+
         fragColor = vec4(0.0);
         return;
     }
@@ -331,7 +312,7 @@ void main() {
         && count == (total + capacity - 1u) / capacity;
     if (valid) {
         int length = MCV2_PAGE_HEADER + int(min(capacity, total - number * capacity));
-        // the whole chunks from the CRC pass, chained; then the bytes of the last, partial chunk one by one
+
         int chunks = length / MCV2_CRC_CHUNK_BYTES;
         uint crc = 0xFFFFFFFFu;
         for (int c = 0; c < MCV2_CRC_CHUNKS; ++c) {
@@ -339,7 +320,7 @@ void main() {
             crc = mcv2CrcShift(crc) ^ mcv2TexelWord(texelFetch(CrcSampler, ivec2(page * MCV2_CRC_CHUNKS + c, 0), 0));
         }
         for (int b = chunks * MCV2_CRC_CHUNK_BYTES; b < length; ++b) {
-            // the CRC covers the header with its own field zeroed
+
             crc = mcv2CrcUpdate(crc, b >= 28 && b < 32 ? 0u : mcv2PageByte(size, page, b));
         }
         valid = ~crc == mcv2PageWord(size, page, 28);
@@ -347,8 +328,6 @@ void main() {
     fragColor = mcv2Texel(uvec4(valid ? 1u : 0u, type, count & 255u, 255u));
 }
 #endif
-
-// Frame decision: complete CRC-correct pages, keyframe restart, or a newer P frame with the held reference.
 
 #ifdef MCV2_PASS_STATUS
 bool mcv2HeaderValid(uint frameId, uint referenceId, uint type);
@@ -404,8 +383,6 @@ void main() {
 }
 #endif
 
-// Frame header and index: presence masks, directory, level counts and flat walk checkpoints.
-
 #if defined(MCV2_PASS_STATUS) || defined(MCV2_PASS_RESOLVE)
 struct Mcv2Frame {
     bool keyframe;
@@ -456,8 +433,6 @@ bool mcv2HeaderValid(uint frameId, uint referenceId, uint type) {
     return mcv2FrameIndex(frame);
 }
 #endif
-
-// Cell resolution: at most three levels, seven descriptor steps per walk, and seven whole-mask popcounts.
 
 #ifdef MCV2_PASS_RESOLVE
 uniform sampler2D StatusSampler;
@@ -533,7 +508,7 @@ uint mcv2Resolve(ivec2 pixel, Mcv2Frame frame) {
             descriptor = uint(frame.n0 + 4 * splits + 2 * quadrant.y + quadrant.x);
             continue;
         }
-        // Most P-frame pixels need no payload fetch: carry motion bytes directly in their cell.
+
         uint record = mode == MCV2_SKIP ? 0u : mode == MCV2_MOTION
             ? mcv2ReadByte(offset) | (mcv2ReadByte(offset + 1) << 8u) : uint(offset);
         return record | (uint(level) << 22u) | (value << 24u);
@@ -563,8 +538,6 @@ void main() {
     fragColor = mcv2WordTexel(word);
 }
 #endif
-
-// Reconstruction: whole-pixel prediction and v3 leaf records, with exact compact-grid rounding.
 
 #ifdef MCV2_PASS_DECODE_VERTEX
 uniform sampler2D StatusSampler;
@@ -660,8 +633,6 @@ void main() {
 }
 #endif
 
-// Picture retention: one previous picture and its id survive rendered frames without decodable video.
-
 #ifdef MCV2_PASS_STATE
 uniform sampler2D StateSampler;
 uniform sampler2D StatusSampler;
@@ -699,8 +670,6 @@ void main() {
 }
 #endif
 
-// View and wall drawing: preserve anchor projection, depth testing, strip covering, and the debug view.
-
 #ifdef MCV2_PASS_VIEW
 uniform sampler2D MainSampler;
 uniform sampler2D StateSampler;
@@ -708,8 +677,8 @@ uniform sampler2D StateSampler;
 layout(location = 0) out vec4 fragColor;
 
 const int MCV2_VIEW_FLOATS = 3;
-// how far past the corners' box a pixel may still meet the screen: the box is built from float projections of the
-// corners, and a pixel whose ray meets the screen lies within rounding of the corners' convex hull
+// Projected-corner rounding requires a margin around the screen's convex hull.
+
 const int MCV2_VIEW_MARGIN = 2;
 
 ivec3 mcv2DescriptorBytes(ivec2 size, int row, int x) {
@@ -733,7 +702,7 @@ mat4 mcv2Projection(ivec2 size, int row) {
 void main() {
     ivec2 size = textureSize(MainSampler, 0);
     if (!mcv2StripFits(size)) {
-        // no strip, so no descriptor: the screen is not in view
+
         fragColor = vec4(0.0);
         return;
     }
@@ -745,7 +714,7 @@ void main() {
     }
     bool shown = (uint(texelFetch(StateSampler, ivec2(0, 0), 0).x * 255.0 + 0.5) & 1u) != 0u;
     bool present = mcv2DescriptorBytes(size, row, 0) == ivec3(0x4D, 0x43, 0x56) && mcv2DescriptorBytes(size, row, 1).r == 0xA1;
-    // the corners of the screen, projected to pixels
+
     vec3 topLeft = vec3(mcv2DescriptorFloat(size, row, 0), mcv2DescriptorFloat(size, row, 1), mcv2DescriptorFloat(size, row, 2));
     vec3 right = vec3(mcv2DescriptorFloat(size, row, 4), mcv2DescriptorFloat(size, row, 5), mcv2DescriptorFloat(size, row, 6));
     vec3 down = vec3(mcv2DescriptorFloat(size, row, 8), mcv2DescriptorFloat(size, row, 9), mcv2DescriptorFloat(size, row, 10));
@@ -762,7 +731,7 @@ void main() {
         low = min(low, pixel);
         high = max(high, pixel);
     }
-    // a box too far out to be one is not trusted either
+
     front = front && all(greaterThan(low, vec2(-65536.0))) && all(lessThan(high, vec2(65536.0)));
     ivec2 first = clamp(ivec2(floor(low)) - MCV2_VIEW_MARGIN, ivec2(0), size - 1);
     ivec2 last = clamp(ivec2(ceil(high)) + MCV2_VIEW_MARGIN, ivec2(0), size - 1);
@@ -802,7 +771,7 @@ void main() {
     gl_Position = vec4(uv * vec2(2, 2) + vec2(-1, -1), 0, 1);
     texCoord = uv;
     ScreenView = uvec4(mcv2View(0), mcv2View(1), mcv2View(2), 0u);
-    // the corner with the width in cells, the cell to the right with the height in cells, the cell down
+
     ScreenTopLeft = vec4(mcv2DescriptorFloat(0), mcv2DescriptorFloat(1), mcv2DescriptorFloat(2), mcv2DescriptorFloat(3));
     ScreenRight = vec4(mcv2DescriptorFloat(4), mcv2DescriptorFloat(5), mcv2DescriptorFloat(6), mcv2DescriptorFloat(7));
     ScreenDown = vec4(mcv2DescriptorFloat(8), mcv2DescriptorFloat(9), mcv2DescriptorFloat(10), 0.0);
@@ -826,7 +795,6 @@ uniform sampler2D PagesSampler;
 uniform sampler2D StatusSampler;
 uniform sampler2D ViewSampler;
 
-// what the vertex shader read once for all pixels: the view pass's flags and box, the screen and the projection
 layout(location = 1) flat in uvec4 ScreenView;
 layout(location = 2) flat in vec4 ScreenTopLeft;
 layout(location = 3) flat in vec4 ScreenRight;
@@ -838,7 +806,6 @@ layout(location = 8) flat in vec4 ScreenProjection3;
 
 layout(location = 0) out vec4 fragColor;
 
-// The picture's pixel at a position counted from its top-left corner; row y of the picture is row y of the target.
 vec4 mcv2Picture(ivec2 position) {
     return vec4(texelFetch(PictureSampler, position, 0).rgb, 1.0);
 }
@@ -848,8 +815,7 @@ void main() {
     ivec2 pixel = ivec2(gl_FragCoord.xy);
     int fromTop = size.y - 1 - pixel.y;
     int strip = mcv2StripRows(size.x);
-    // the strip shows the scene row below it, with that row's depth; the debug view leaves the strip as it is, and a
-    // screen too small for the strip has none
+
     ivec2 source = fromTop < strip && mcv2StripFits(size) && !MCV2_DEBUG_VIEW ? mcv2FromTop(size, pixel.x, strip) : pixel;
     vec4 scene = texelFetch(MainSampler, source, 0);
     fragColor = scene;
@@ -886,8 +852,7 @@ void main() {
     if ((view & 2u) == 0u) {
         return;
     }
-    // outside the box of pixels the screen can cover, the scene stays; the box is exact up to a margin wider than
-    // any rounding of the corners it was built from
+
     if ((view & 4u) != 0u) {
         uint first = ScreenView.y;
         uint last = ScreenView.z;
@@ -900,7 +865,7 @@ void main() {
     vec3 down = ScreenDown.xyz;
     vec2 cells = vec2(ScreenTopLeft.w, ScreenRight.w);
     mat4 projection = mat4(ScreenProjection0, ScreenProjection1, ScreenProjection2, ScreenProjection3);
-    // the view ray through this pixel, and where it meets the screen's plane
+
     vec2 ndc = (vec2(pixel) + 0.5) / vec2(size) * 2.0 - 1.0;
     vec4 far = inverse(projection) * vec4(ndc, 0.5, 1.0);
     vec3 direction = far.xyz / far.w;
@@ -918,10 +883,10 @@ void main() {
     }
     vec4 clip = projection * vec4(hit, 1.0);
     float depth = clip.z / clip.w;
-    // depth is zero-to-one where the projection's depth row says so, otherwise it comes from -1..1
+    // Projection depth may use zero-to-one or negative-one-to-one clip coordinates.
     float planeDepth = abs(projection[2][2]) < 0.5 ? depth : depth * 0.5 + 0.5;
     float sceneDepth = texelFetch(MainDepthSampler, source, 0).r;
-    // reversed depth: larger is nearer, and the scene wins only where it is in front of the screen
+    // Minecraft uses reversed depth: larger values are nearer.
     if (sceneDepth > planeDepth * 1.00001) {
         return;
     }
@@ -929,8 +894,6 @@ void main() {
     fragColor = mcv2Picture(min(ivec2(floor(uv * vec2(video))), video - 1));
 }
 #endif
-
-// Outline removal: hide the transport frames while preserving every other outline.
 
 #ifdef MCV2_PASS_OUTLINE
 uniform sampler2D OutlineSampler;
@@ -944,14 +907,8 @@ void main() {
 }
 #endif
 
-// Text hooks: relocate page maps into the strip and carry anchor geometry through vanilla text rendering.
-
 #if defined(MCV2_PASS_TEXT_VERTEX) || defined(MCV2_PASS_TEXT_FRAGMENT)
-// Reading MCV2 symbols out of map textures. Symbol s is sent as map colour s + 4, and the client uploads each map
-// colour as one exact RGB texel, listed in MCV2_ALPHABET (generated from the server's map palette, which is the
-// client's). Requires mcv2_alphabet.glsl and mcv2_config.glsl.
 
-// The symbol a map texel carries, or -1 for a colour outside the alphabet.
 int mcv2Symbol(vec4 texel) {
     ivec3 c = ivec3(texel.rgb * 255.0 + 0.5);
     for (int s = 0; s < 64; ++s) {
@@ -966,7 +923,6 @@ int mcv2SymbolAt(sampler2D map, int index) {
     return mcv2Symbol(texelFetch(map, ivec2(index % 128, index / 128), 0));
 }
 
-// Bits [bit, bit + width) of a page's symbol stream, least significant first, width at most 16.
 int mcv2PageBits(sampler2D map, int bit, int width) {
     int value = 0;
     for (int i = 0; i < width; ++i) {
@@ -977,7 +933,6 @@ int mcv2PageBits(sampler2D map, int bit, int width) {
     return value;
 }
 
-// The screen of the pack whose stream id this is, or -1.
 int mcv2ScreenOf(uint stream) {
     for (int screen = 0; screen < MCV2_SCREENS; ++screen) {
         if (MCV2_SCREEN_STREAMS[screen] == stream) {
@@ -987,8 +942,6 @@ int mcv2ScreenOf(uint stream) {
     return -1;
 }
 
-// The screen whose transport page a map is, or -1: a page's first seven symbols spell the fixed six-bit page prefix
-// ("MCP1", version 1, six bits), and its header names the stream, which names the screen.
 int mcv2PageScreen(sampler2D map) {
     if (mcv2SymbolAt(map, 0) != 13 || mcv2SymbolAt(map, 1) != 13 || mcv2SymbolAt(map, 2) != 4
         || mcv2SymbolAt(map, 3) != 20 || mcv2SymbolAt(map, 4) != 49 || mcv2SymbolAt(map, 5) != 4
@@ -999,9 +952,6 @@ int mcv2PageScreen(sampler2D map) {
     return mcv2ScreenOf(stream);
 }
 
-// An anchor map marks where a screen is: a signature, then its column and row in the screen, the screen's size in
-// maps, the facing of its frame, the screen's stream id in two symbols, low first, and a checksum, one symbol each in
-// the first row.
 bool mcv2IsAnchor(sampler2D map) {
     return mcv2SymbolAt(map, 0) == 21 && mcv2SymbolAt(map, 1) == 3 && mcv2SymbolAt(map, 2) == 58
         && mcv2SymbolAt(map, 3) == 44 && mcv2SymbolAt(map, 4) == 9 && mcv2SymbolAt(map, 5) == 37
@@ -1010,20 +960,18 @@ bool mcv2IsAnchor(sampler2D map) {
 #endif
 
 #ifdef MCV2_PASS_TEXT_VERTEX
-// 0 for ordinary text, 1 for a transport page, 2 for an anchor
+
 layout(location = 4) flat out int mcv2Kind;
 layout(location = 5) flat out int mcv2Slot;
 layout(location = 6) flat out vec4 mcv2A;
 layout(location = 7) flat out vec4 mcv2B;
 layout(location = 8) flat out vec4 mcv2C;
-// the projection matrix by columns: a flat mat4 varying crashes Mesa's llvmpipe here
+// Mesa llvmpipe crashes with a flat mat4 varying; pass the columns separately.
 layout(location = 9) flat out vec4 mcv2P0;
 layout(location = 10) flat out vec4 mcv2P1;
 layout(location = 11) flat out vec4 mcv2P2;
 layout(location = 12) flat out vec4 mcv2P3;
 
-// Places a quad's corner, given by its texture coordinate, on the screen rectangle from the top-left pixel (x0, y0)
-// counted from the top to (x1, y1), in front of everything drawn so far.
 vec4 mcv2Place(vec2 uv, float x0, float y0, float x1, float y1) {
     vec2 size = ScreenSize;
     float left = x0 / size.x * 2.0 - 1.0;
@@ -1053,7 +1001,7 @@ void mcv2TextVertex() {
     }
     int pageScreen = mcv2PageScreen(Sampler0);
     if (pageScreen >= 0) {
-        // the page number, header bytes 16 and 17
+
         int page = mcv2PageBits(Sampler0, 128, 16);
         if (page < MCV2_SCREEN_SLOTS[pageScreen]) {
             int slot = MCV2_SCREEN_FIRST_SLOTS[pageScreen] + page;
@@ -1081,8 +1029,7 @@ void mcv2TextVertex() {
     if (anchorScreen < 0) {
         return;
     }
-    // one block along the map's right and down edges in world space; frames hang on vertical walls, and facing
-    // counts the directions the map's right edge can point to: east, south, west, north
+
     vec3 right = facing == 0 ? vec3(1.0, 0.0, 0.0) : facing == 1 ? vec3(0.0, 0.0, 1.0)
         : facing == 2 ? vec3(-1.0, 0.0, 0.0) : vec3(0.0, 0.0, -1.0);
     vec3 down = vec3(0.0, -1.0, 0.0);
@@ -1117,8 +1064,7 @@ layout(location = 11) flat in vec4 mcv2P2;
 layout(location = 12) flat in vec4 mcv2P3;
 
 #if !defined(OIT_ALPHA_ONLY) && !defined(OIT_ACCUMULATE)
-// The 28 floats of the descriptor: the screen's top-left corner, right and down vectors with its size and the
-// anchor's cell, then the projection matrix.
+
 float mcv2DescriptorFloat(int index) {
     if (index < 12) {
         vec4 v = index < 4 ? mcv2A : index < 8 ? mcv2B : mcv2C;
@@ -1130,7 +1076,7 @@ float mcv2DescriptorFloat(int index) {
 }
 
 void mcv2WritePage() {
-    // alpha 1, so the translucent blend stores the bytes exactly
+    // Alpha 1 prevents translucent blending from changing the page bytes.
     int width = int(ScreenSize.x);
     int row = int(ScreenSize.y) - 1 - int(gl_FragCoord.y) - mcv2SlotRow(width, mcv2Slot);
     int pixel = row * width + int(gl_FragCoord.x);
@@ -1163,8 +1109,8 @@ void mcv2WriteDescriptor() {
 bool mcv2TextFragment() {
     if (mcv2Kind != 0) {
         #if defined(OIT_ALPHA_ONLY) || defined(OIT_ACCUMULATE)
-        // with improved transparency, text is drawn into the transparency targets, where a page's bytes cannot reach
-        // the screen unchanged
+        // Improved transparency redirects text to targets that cannot carry exact page bytes.
+
         discard;
         #else
         if (mcv2Kind == 1) {

@@ -203,7 +203,7 @@ public final class Mcv2FileEncoder {
     try {
       grabber.close();
     } catch (final FrameGrabber.Exception exception) {
-      // nothing was read from it; the failure to open is what is reported
+      // Preserve the failure to open the input.
     }
   }
 

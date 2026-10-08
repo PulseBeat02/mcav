@@ -116,7 +116,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class MCV2 {
 
-  // Public API owns stream state; begin and finish may overlap by one frame.
+  // Public API and stream state.
   /**
    * Controls the live search without changing the version 3 syntax.
    *
@@ -546,7 +546,7 @@ public final class MCV2 {
     return Natives.resolved().description();
   }
 
-  // Frame analysis keeps source motion independent of reconstruction quality.
+  // Frame analysis for motion-dependent rate control.
 
   private static final class MotionLambda {
 
@@ -675,7 +675,7 @@ public final class MCV2 {
     }
   }
 
-  // Seeded diamond motion search and reference pyramid.
+  // Motion search against the reference pyramid.
   private static final int[][] DIRECTIONS = { { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 } };
   private static final int SAMPLED = 4;
   private static final int[][] SAMPLES = { { 1, 3, 5, 7 }, { 2, 6, 10, 14 }, { 4, 12, 20, 28 } };
@@ -818,7 +818,7 @@ public final class MCV2 {
     });
   }
 
-  // Block candidates and bounded top-down splitting.
+  // Block selection within the frame budget.
   private static final class Buffers {
 
     private final int width;
@@ -1128,7 +1128,7 @@ public final class MCV2 {
         this.predict(this.localVector, this.localPrediction);
         boolean closer = false;
         if (this.localVector != 0) {
-          // Surviving the SKIP bound already pays for MOTION's two bytes.
+          // The SKIP bound already pays for MOTION's two bytes.
           this.eligible(2);
           this.record[0] = (byte) motionX(this.localVector);
           this.record[1] = (byte) motionY(this.localVector);
@@ -1163,7 +1163,7 @@ public final class MCV2 {
     private void score(final int mode, final int quantizer, final int length) {
       final long distortion = this.kernels.distortion();
       final double cost = distortion / DISTORTION_SCALE + this.rate;
-      // A completed kernel has already beaten the incumbent at this rate.
+
       System.arraycopy(this.reconstruction, 0, this.best, 0, this.reconstruction.length);
       this.bestCost = cost;
       this.mode = mode;
@@ -1361,7 +1361,7 @@ public final class MCV2 {
     }
   }
 
-  // Palette fitting and separable least squares.
+  // Palette, pattern and compact-grid fitting.
   private static final int CLUSTER_SUMS = 8;
   private static final int CLUSTER_COUNTS_OFFSET = 6;
   private static final int ITERATIONS = 2;
@@ -1426,7 +1426,7 @@ public final class MCV2 {
         }
         inverse[row][GRID + row] = 1;
       }
-      // The clamped interpolation basis has independent columns, so its Gram matrix is positive definite.
+      // Independent interpolation columns make the Gram matrix positive definite.
       for (int pivot = 0; pivot < GRID; pivot++) {
         final double scale = inverse[pivot][pivot];
         for (int column = 0; column < 2 * GRID; column++) {
@@ -1457,7 +1457,7 @@ public final class MCV2 {
     return matrices;
   }
 
-  // Pixel kernels share reusable scratch; native implementations use this same contract.
+  // Pixel kernels and native-library binding.
 
   /** The system property that turns the native kernels on ({@code auto}) or off ({@code off}) over the configuration. */
   public static final String NATIVE_PROPERTY = "mcv2.native";
@@ -1718,7 +1718,7 @@ public final class MCV2 {
       if (Files.isRegularFile(file) && digest.equals(Mcv2Resources.sha256(Files.readAllBytes(file)))) {
         return file;
       }
-      // written beside it and moved into place, so no reader ever sees a partial library
+      // Atomic replacement prevents concurrent readers from loading a partial library.
       final Path partial = Files.createTempFile(folder, name, ".partial");
       try {
         Files.write(partial, bytes);
@@ -1737,7 +1737,7 @@ public final class MCV2 {
         if (abi != expected) {
           return Resolution.java("the library's interface " + abi + " is not " + expected, true);
         }
-        // an AArch64 library cannot ask the kernel whether SVE may run, as it imports nothing
+        // The dependency-free AArch64 library cannot query the kernel for SVE permission.
         final long features = platform.startsWith("linux") ? hwcap(AUXV) : 0;
         final MethodHandle cpuLevels = MethodHandles.insertArguments(
           linker.downcallHandle(library.findOrThrow("mcv2_cpu_levels"), LEVELS),
@@ -1748,7 +1748,6 @@ public final class MCV2 {
         final Level level = level(levels, highest);
         return new Resolution(Binding.of(library, level), levels, "native " + level.symbol() + " (" + platform + ")", false);
       } catch (final Throwable exception) {
-        // a missing symbol, or a JVM that refuses native access
         return Resolution.java("the library could not be bound: " + exception, true);
       }
     }
@@ -1760,7 +1759,7 @@ public final class MCV2 {
       } catch (final IOException exception) {
         return 0;
       }
-      // pairs of a type and a value, in machine words
+
       final ByteBuffer entries = ByteBuffer.wrap(bytes).order(ByteOrder.nativeOrder());
       while (entries.remaining() >= 2 * Long.BYTES) {
         final long type = entries.getLong();
@@ -1889,7 +1888,6 @@ public final class MCV2 {
       this.residualTarget = handle.apply("residual_target", RESIDUAL_TARGET);
     }
 
-    // the downcalls are the accelerator itself, and Natives only binds a library it checked
     @SuppressWarnings("restricted")
     static Binding of(final SymbolLookup library, final Level level) {
       final Linker linker = Linker.nativeLinker();
@@ -1935,7 +1933,6 @@ public final class MCV2 {
       this.binding = binding;
     }
 
-    // a segment wraps one array, so a coder's few arrays are wrapped once and found again by identity
     private MemorySegment of(final int[] array) {
       final int slot = slot(array);
       return this.remembers(slot, array) ? this.cachedSegments[slot] : this.remember(slot, array, MemorySegment.ofArray(array));
@@ -2214,8 +2211,8 @@ public final class MCV2 {
 
     @Override
     public void halve(final int[] block, final int size, final int[] out) {
-      // the vector loops step two vectors of pixels at a time, which a power of two either fills or is too small for (the
-      // one lane loop): another size would run past the end of a row, and of the arrays
+      // SIMD row steps require power-of-two block sizes to avoid array overruns.
+
       Preconditions.checkArgument(size >= 2 && size <= ROOT_SIZE && Integer.bitCount(size) == 1, "Invalid block size");
       checkBlock(block.length, size);
       checkBlock(out.length, size / 2);
@@ -2620,7 +2617,7 @@ public final class MCV2 {
     }
   }
 
-  // The writer stores level-order records and omits unchanged predicted roots.
+  // Frame serialization in level order.
   private static byte @Nullable [] write(
     final int width,
     final int height,
@@ -2806,6 +2803,7 @@ public final class MCV2 {
     }
   }
 
+  // Reference assembly and reconstruction verification.
   private static void fillMotion(
     final int[] field,
     final int width,
@@ -2868,7 +2866,7 @@ public final class MCV2 {
     }
   }
 
-  // Workers share a bounded CPU pool across screens and finish all callbacks before returning.
+  // Parallel work within the shared CPU pool.
   private static final class Workers {
 
     private final ForkJoinPool pool;

@@ -100,7 +100,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** How long a release waits for the encoding thread to stop. */
   private static final long JOIN_SECONDS = 10;
 
-  // Vanilla can initialize a map after its first fallback snapshot; an unchanged delta stream cannot repair it.
+  // Vanilla can initialize a map after its first snapshot; unchanged deltas cannot repair it.
   private static final long FALLBACK_REFRESH_NANOS = TimeUnit.SECONDS.toNanos(4);
 
   private static final double NANOS_PER_MILLISECOND = 1e6;
@@ -169,7 +169,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   /** Makes the encoder of a preset in the screen's encoder budget. */
   private final Function<Settings, MCV2> encoders;
 
-  // the newest frame the video handed over, until the screen's thread takes it
   private final Mcv2LatestFrame<Arrival> pending;
 
   private boolean running;
@@ -291,9 +290,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
     private long nanoseconds;
 
-    Statistics() {
-      // one per result
-    }
+    Statistics() {}
 
     synchronized void add(final MCV2.Stats stats, final int mapColors) {
       this.frames++;
@@ -472,8 +469,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       .map(configuration.getMap())
       .mapBlockWidth(configuration.getColumns())
       .mapBlockHeight(configuration.getRows())
-      // the pack scales the picture to the wall, so the dithered maps do too: a video larger than the maps would be
-      // cropped to its middle, and a smaller one, such as a pacer rung, drawn small in the middle of the wall
+      // Dithered maps need wall scaling to avoid cropping or centering a smaller video.
+
       .resize(true)
       .viewers(viewers)
       .build();
@@ -581,13 +578,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
     final Pool encoderPool = this.requested.getEncoderPool();
     final MCV2 encoder = this.encoders.apply(this.ladder.getFirst());
-    // the screen's own thread only hands frames to the budget and waits for them
+
     final Thread thread = Thread.ofPlatform()
       .daemon()
       .name("mcav-mcv2-screen")
       .unstarted(() -> this.encodeLoop(encoder));
-    // the frames are verified and sent on their own thread while the next frame is searched: a hand-off, so one frame
-    // is in flight at most, and the search waits for its turn when verifying and sending fall behind
+
     final BlockingQueue<Handoff> queue = new SynchronousQueue<>();
     final Pipeline started = new Pipeline(encoderPool, queue);
     final Thread delivery = Thread.ofPlatform()
@@ -646,7 +642,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       this.announce(tried);
     }
     final Screen current = this.screen;
-    // on the dithered maps every viewer near the wall is dithered for; one too far from it sees no wall on any rung
+
     final Set<UUID> others = everyoneDithered ? current.channel().near(this.requested.getViewers()) : current.channel().update();
     this.fallbackViewers.retainAll(others);
     this.fallbackViewers.addAll(others);
@@ -655,22 +651,21 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (data.getWidth() != width || data.getHeight() != height) {
       new ResizeFilter(width, height).applyFilter(data);
     }
-    // on the dithered maps the pacer encodes no frame
+
     if (encode && !current.channel().getRecipients().isEmpty()) {
-      // straight from the picture's own bytes: its ARGB pixels would be one more full-frame array every frame, at
-      // 1080p 8 MB, which G1 allocates as a humongous object (pass-6 soak O5: 99 % of the collections were for those)
+      // A full-frame ARGB copy at 1080p adds an 8 MB G1 humongous allocation per frame.
+
       final Arrival arrival = new Arrival(rgb(data.getData(), width * height), width, height, System.currentTimeMillis(), preset);
       this.pending.offer(arrival);
     }
     final Fallback dithered = this.fallback;
     if (dithered != null && !others.isEmpty() && this.ditheringBusy.compareAndSet(false, true)) {
-      // the picture hands out a new pixel array whenever it changes (ImageBuffer#getPixels), so the dithering may read
-      // this one after the video moved on, without a copy
+      // ImageBuffer replaces its pixel array, allowing asynchronous reads without a copy.
+
       final int[] argb = data.getPixels();
       try {
         this.dithering.execute(() -> this.dither(dithered, argb, width, height));
       } catch (final RejectedExecutionException released) {
-        // the result was released: the dithered maps are gone
         this.ditheringBusy.set(false);
       }
     }
@@ -803,7 +798,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       for (Arrival arrival = this.take(); arrival != null; arrival = this.take()) {
         final Settings settings = this.settingsFor(arrival);
         if (!settings.equals(encoder.getSettings())) {
-          // the frame in flight goes out first, searched as it was begun
           this.drain();
           encoder = this.encoderFor(settings, encoder);
         }
@@ -813,10 +807,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
     } catch (final RuntimeException failure) {
-      // an encoder that cannot encode the frame, such as one of a size the codec cannot carry
       LOGGER.error(ENCODER_FAILED, failure);
     } finally {
-      // the sender waits for this thread's frames only, so it stops with it
       this.stopPipeline(own);
     }
   }
@@ -889,7 +881,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (current.channel().takeKeyframeRequest()) {
       encoder.requestKeyframe();
     }
-    // no frame may take more pages than the screen has slots: one that would is searched again at a higher lambda
+
     encoder.setFrameLimit(current.configuration().getPageSlots() * TransportPages.capacity());
     final int width = arrival.width;
     final int height = arrival.height;
@@ -908,7 +900,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     } else {
       final MCV2.Pending pending = running.budget().run(() -> encoder.begin(arrival.rgb, width, height, frameId));
       isKeyframe = pending.isKeyframe();
-      // counted before the hand-off: once the sender has the frame, a drain waits for it
+      // Count before handoff so drain cannot overlook a frame the sender already owns.
       synchronized (this.lock) {
         this.handed++;
       }
@@ -940,7 +932,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
    */
   void drain() throws InterruptedException {
     synchronized (this.lock) {
-      // a stopped pipeline sends nothing more, so a frame it was handed will never be delivered
       while (this.running && this.delivered < this.handed) {
         this.lock.wait();
       }
@@ -959,19 +950,18 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final Thread delivery;
     synchronized (this.lock) {
       final Pipeline current = this.pipeline;
-      // each start makes a queue of its own, so a pipeline equals only itself; a thread that ran without one, or ends
-      // after a release or a new start, stops nothing
+
       if (stopped == null || !Objects.equals(stopped, current)) {
         return;
       }
       this.running = false;
       this.pending.close();
       this.lock.notifyAll();
-      // start sets the pipeline and its two threads together, and release clears them together
+
       screenThread = Objects.requireNonNull(this.worker, "A running pipeline has its screen's thread");
       delivery = Objects.requireNonNull(this.sender, "A running pipeline has its sender");
     }
-    // the release joins both threads; here they only learn that the screen stopped
+
     screenThread.interrupt();
     delivery.interrupt();
   }
@@ -1002,7 +992,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       LOGGER.error(SENDER_FAILED, failure);
     } finally {
       this.stopPipeline(running);
-      // also when a release cleared the pipeline first: the screen's thread must not wait for this one
+      // Interrupt even after release clears the pipeline, or the screen thread can wait forever.
       screenThread.interrupt();
     }
   }
@@ -1069,7 +1059,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
     Screen target = current;
     if (size(rung.width(), rung.height()) != size(configuration.getVideoWidth(), configuration.getVideoHeight())) {
-      // closed even after the dithered maps removed its page frames, as it still measured the distances
       current.channel().close();
       this.opened = false;
       final Mcv2Configuration size = this.requested.withVideo(rung.width(), rung.height());
@@ -1118,8 +1107,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     stop(delivery);
     this.screen.channel().close();
     this.opened = false;
-    // the wall's maps of a viewer decoding MCV2 still carry the screen's anchors, over which the client keeps drawing
-    // its last decoded picture: they are cleared too, as the dithered maps clear those of the viewers dithered for
+    // Encoded viewers retain anchor maps, which keep their last decoded picture visible.
+
     final Set<UUID> decoding = new HashSet<>(this.requested.getViewers());
     decoding.removeAll(this.fallbackViewers);
     final int maps = this.requested.getColumns() * this.requested.getRows();

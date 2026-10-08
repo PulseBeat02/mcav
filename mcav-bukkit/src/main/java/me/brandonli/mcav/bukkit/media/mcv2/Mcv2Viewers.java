@@ -70,7 +70,7 @@ public final class Mcv2Viewers {
   private final Consumer<Player> onRefused;
 
   private final Map<UUID, PackState> states;
-  // a client loads the pack anew after its player joined again, or after another pack: each load is a new session
+  // A client reload after reconnecting or another pack requires a new session.
   private final Map<UUID, Long> sessions;
   private final AtomicLong nextSession;
 

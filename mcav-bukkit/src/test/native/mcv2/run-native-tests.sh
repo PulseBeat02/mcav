@@ -16,21 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-# The standalone tests of the MCV2 native kernels (kernels_test.cpp), outside the JVM and outside the Gradle build:
-#   1. every level against the scalar one under AddressSanitizer and UndefinedBehaviorSanitizer: the x86-64 levels this
-#      CPU runs, then all of them, AVX-512 too, under Intel SDE's Ice Lake server; the AArch64 levels under qemu-user on
-#      a Cortex-A72 and at the SVE vector lengths of 16, 32 and 64 bytes. A heap overflow must be caught under each;
-#   2. the same with llvm-cov coverage of the sources, reported per file (reported, not gated); and every level's object,
-#      compiled without inlining, defines no symbol but its own kernels: the levels share type and helper names, and a
-#      shared weak symbol would let the linker run one level's code in another's (an AVX-512 helper in the SSE2 kernels);
-#   3. the shipped Linux libraries: importing nothing, loaded by glibc and by Alpine's musl loader, and on each emulated
-#      CPU the dispatcher must take that CPU's level. Every run's digests must be identical: the JVM tests prove the
-#      x86-64 library equal to Java, so equal digests prove every level on every platform equal to Java as well.
-#
-# Tools, all installed in user space: CLANG (clang++ 18), RESOURCE_DIR (a clang resource folder with the x86-64 and
-# aarch64 sanitizer and profile runtimes), LLVM_BIN (llvm-profdata, llvm-cov, llvm-readelf), ZIG (0.16.0), QEMU_X86_64
-# and QEMU_AARCH64 (qemu-user), SYSROOT_AARCH64 (an aarch64 glibc with its development files), SDE (Intel SDE's sde64,
-# never committed nor shipped) and MUSL_X86_64 and MUSL_AARCH64 (Alpine's ld-musl loaders).
+
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -48,19 +34,18 @@ resource=()
 [ -n "${RESOURCE_DIR:-}" ] && resource=(-resource-dir="$RESOURCE_DIR")
 flags=(-std=c++17 -ffp-contract=off -fwrapv -fno-strict-aliasing -Wall -Wextra -Werror -I"$sources")
 sanitize=(-O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
-# the compiles are given the linker too, which they do not use
+
 aarch64=(--target=aarch64-linux-gnu --sysroot="$sysroot" -fuse-ld=lld -Wno-unused-command-line-argument)
-# the level units and their flags, as build.sh compiles them
+
 avx512="-mavx512f -mavx512dq -mavx512bw -mavx512vl -mavx512vbmi -mavx512vbmi2 -mavx512vnni -mavx512bitalg"
 x86_units=(level_scalar level_sse2 level_sse41:-msse4.1 level_avx2:-mavx2 "level_avx512:$avx512")
 arm_units=(level_scalar level_neon "level_sve256:-march=armv8-a+sve -msve-vector-bits=256"
   "level_sve512:-march=armv8-a+sve -msve-vector-bits=512")
-# the emulated CPUs and the level the dispatcher must take on each
+
 sde_cpus=(spr:avx512 icx:avx512 skx:avx2 hsw:avx2 mrm:sse2)
 arm_cpus=(cortex-a72:neon max,sve-default-vector-length=16:neon max,sve-default-vector-length=32:sve256
   max,sve-default-vector-length=64:sve512)
 
-# direct <name> <units array name> <flags...>: the test with those level sources linked in
 direct() {
   local name=$1
   local -n units=$2
@@ -78,7 +63,6 @@ direct() {
   "$clang" "${resource[@]}" "$@" "${objects[@]}" -o "$work/$name"
 }
 
-# canary <name> <flags...>: a program that reads past a heap block, which the sanitizer must catch
 canary() {
   local name=$1
   shift
@@ -87,7 +71,6 @@ canary() {
   "${clang%++}" "${resource[@]}" "$@" -O1 -fsanitize=address "$work/canary.c" -o "$work/$name"
 }
 
-# caught <command...>: the canary run must fail with the sanitizer's report
 caught() {
   if ASAN_OPTIONS=detect_leaks=0 "$@" > /dev/null 2> "$work/caught.txt" || ! grep -q heap-buffer-overflow "$work/caught.txt"; then
     echo "the sanitizer missed a heap overflow under: $*" >&2
@@ -95,7 +78,6 @@ caught() {
   fi
 }
 
-# agrees <label> <command...>: every level agrees, the dispatcher took the expected level; the digests kept
 agrees() {
   local label=$1
   shift
@@ -120,7 +102,7 @@ for entry in "${arm_cpus[@]}"; do
 done
 
 echo "== symbols"
-# symbols <label> <flags...>: each unit compiled at -O0, where nothing is inlined, defines only mcv2_ symbols
+
 symbols() {
   local label=$1
   shift

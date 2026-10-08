@@ -16,23 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The standalone test of the MCV2 native kernels, outside any JVM: every
-// kernel, on inputs from a fixed pseudo-random sequence in the ranges the
-// encoder gives it, at every level this CPU runs, must write exactly what the
-// scalar level writes, and the scalar level's outputs fold into one digest per
-// kernel. The JVM tests prove the scalar level equal to Java on x86-64, so an
-// equal digest from another platform's library proves it equal to Java too;
-// that is how the linux-aarch64 library is checked, under qemu-user. Built two
-// ways (run-native-tests.sh): with the level sources linked in
-// (-DMCV2_TEST_DIRECT), under AddressSanitizer and UndefinedBehaviorSanitizer
-// or for llvm-cov coverage; or against a shipped library, loaded with dlopen
-// from the path given as the first argument. Under an emulator of a given CPU
-// (Intel SDE, qemu) the last argument names the level the dispatcher must take
-// there.
-//
-//   kernels_test [library] [expect=level]    exits 0 when every level agrees,
-//   printing the digests
-
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -52,7 +35,6 @@
 
 namespace {
 
-// the kernels of one level
 struct Level {
   const char *name;
 #define MCV2_FIELD(type, name, parameters) type(*name) parameters;
@@ -80,7 +62,7 @@ struct Level {
 #define MCV2_ENTRY_neon(type, name, parameters) mcv2_neon_##name,
 #define MCV2_ENTRY_sve256(type, name, parameters) mcv2_sve256_##name,
 #define MCV2_ENTRY_sve512(type, name, parameters) mcv2_sve512_##name,
-} // namespace
+}
 MCV2_DECLARE_LEVEL(scalar)
 #if defined(__x86_64__)
 MCV2_DECLARE_LEVEL(sse2)
@@ -95,8 +77,6 @@ MCV2_DECLARE_LEVEL(sve512)
 namespace {
 #endif
 
-// every level with its bit, the most preferred of an architecture last: the
-// dispatcher takes the last one it runs
 constexpr struct {
   const char *name;
   int32_t bit;
@@ -104,8 +84,6 @@ constexpr struct {
              {"avx2", MCV2_LEVEL_AVX2},     {"avx512", MCV2_LEVEL_AVX512}, {"neon", MCV2_LEVEL_NEON},
              {"sve256", MCV2_LEVEL_SVE256}, {"sve512", MCV2_LEVEL_SVE512}};
 
-// what Java passes in: the kernel's AT_HWCAP, which tells an AArch64 library
-// whether SVE is there
 int64_t hwcap() {
 #if defined(__aarch64__) && defined(__linux__)
   return (int64_t)getauxval(AT_HWCAP);
@@ -114,7 +92,6 @@ int64_t hwcap() {
 #endif
 }
 
-// splitmix64: the same sequence on every platform
 struct Random {
   uint64_t state;
   uint64_t next() {
@@ -145,7 +122,7 @@ struct Random {
     }
     return values;
   }
-  // the fits' values, now and then an extreme one
+
   std::vector<float> floats(size_t count) {
     std::vector<float> values(count);
     for (auto &value : values) {
@@ -167,7 +144,6 @@ struct Random {
   }
 };
 
-// FNV-1a over what the scalar level wrote
 struct Digest {
   uint64_t value = 0xCBF29CE484222325ull;
   void add(const void *data, size_t length) {
@@ -183,7 +159,7 @@ struct Digest {
 int failures = 0;
 
 template <class T> bool same(const std::vector<T> &a, const std::vector<T> &b) {
-  // an empty vector's data may be null, which memcmp must not be given
+  // An empty vector may return null data, which memcmp cannot accept.
   return a.size() == b.size() && (a.empty() || memcmp(a.data(), b.data(), a.size() * sizeof(T)) == 0);
 }
 
@@ -193,8 +169,6 @@ void report(bool equal, const char *kernel, const Level &level, int trial) {
   }
 }
 
-// runs every kernel TRIALS times on every level, comparing with the first
-// (scalar) level
 void run(const std::vector<Level> &levels, int trials) {
   const Level &scalar = levels[0];
   const char *names[] = {"predicted", "solid",  "palette",     "compact", "predict",        "fit", "cluster", "assign",
@@ -251,8 +225,7 @@ void run(const std::vector<Level> &levels, int trials) {
           break;
         }
         case 6: {
-          // sometimes nearly flat, so the clusters meet ties and empty sides;
-          // now and then any int, whose sums overflow
+
           const int32_t low = inputs.range(0, 255);
           const int32_t spread = inputs.range(0, 1) ? 8 : 255;
           std::vector<int32_t> block = inputs.ints(channels, low, low + spread > 255 ? 255 : low + spread);
@@ -284,8 +257,7 @@ void run(const std::vector<Level> &levels, int trials) {
           for (auto &seed : seeds) {
             seed = (int32_t)((uint32_t)inputs.range(-40, 40) << 16) | (inputs.range(-40, 40) & 0xFFFF);
           }
-          // now and then a source channel that is no byte, which the search
-          // must cost as ints
+
           std::vector<int32_t> block = source;
           if (inputs.range(0, 7) == 0) {
             block[inputs.range(0, (int32_t)block.size() - 1)] = (int32_t)inputs.next();
@@ -313,8 +285,7 @@ void run(const std::vector<Level> &levels, int trials) {
           break;
         }
         }
-        // the scalar level's outputs are the reference: fold them into the
-        // digest, compare every other level's
+
         static std::vector<int32_t> reference_out;
         static std::vector<int32_t> reference_ints;
         static std::vector<float> reference_floats;
@@ -337,8 +308,7 @@ void run(const std::vector<Level> &levels, int trials) {
                  names[kernel], level, trial);
         }
       }
-      // every level drew the same inputs from a copy; the next trial's start
-      // one step on
+
       random.next();
     }
     printf("%-16s %016llx\n", names[kernel], (unsigned long long)digest.value);
@@ -347,7 +317,6 @@ void run(const std::vector<Level> &levels, int trials) {
   printf("%-16s %016llx\n", "all", (unsigned long long)total.value);
 }
 
-// the level the dispatcher takes: the last one of KNOWN this CPU runs
 const char *best(int32_t available) {
   const char *name = "none";
   for (const auto &level : KNOWN) {
@@ -358,12 +327,11 @@ const char *best(int32_t available) {
   return name;
 }
 
-} // namespace
+}
 
 int main(int argc, char **argv) {
   std::vector<Level> levels;
-  // an optional last argument expect=<level>: the level the dispatcher must
-  // take on this CPU (or emulator)
+
   const char *expected = nullptr;
   if (argc > 1 && strncmp(argv[argc - 1], "expect=", 7) == 0) {
     expected = argv[--argc] + 7;

@@ -230,8 +230,8 @@ public final class Mcv2Channel {
     if (viewDistance <= 0) {
       return false;
     }
-    // a configuration's origin is in a world (Mcv2Configuration.Builder.origin), and a location whose world unloaded
-    // throws rather than answering null
+    // Bukkit throws if the location's world has unloaded.
+
     final World wall = Objects.requireNonNull(this.configuration.getOrigin().getWorld(), "A screen's origin is in a world");
     if (!wall.getUID().equals(player.getWorld().getUID())) {
       return true;
@@ -269,7 +269,6 @@ public final class Mcv2Channel {
    * @throws IllegalStateException if showing a new viewer requires scheduling before a plugin has been injected
    */
   public Set<UUID> update() {
-    // one view of a collection the caller may change while this runs
     final Set<UUID> selected = new HashSet<>(this.configuration.getViewers());
     this.retireRemoved(selected);
     this.forgetEarlierSessions(selected);
@@ -279,9 +278,8 @@ public final class Mcv2Channel {
     for (final UUID viewer : selected) {
       final Mcv2Link link = this.links.get(viewer);
       if (far.contains(viewer)) {
-        // the client cannot see the wall: nothing is sent, and coming back the viewer is shown the screen anew. The
-        // screen is not hidden meanwhile, as hiding removes the team every screen shown to the viewer shares, but it is
-        // still theirs to retire should they be removed while away
+        // Hiding removes the scoreboard team shared by every screen shown to this viewer.
+
         this.scheduled.remove(viewer);
         if (this.links.remove(viewer) != null) {
           this.away.add(viewer);
@@ -361,27 +359,27 @@ public final class Mcv2Channel {
   /** Shows the screen to a viewer whose pack loaded, then lets the next frame, a keyframe, reach the viewer. */
   void show(final UUID viewer) {
     final Player player = Bukkit.getPlayer(viewer);
-    // a viewer removed from the configuration since the show was scheduled is not shown the screen
+
     if (player == null || !this.canShow(viewer)) {
       this.scheduled.remove(viewer);
       return;
     }
     this.screen.show(player);
-    // the rest of the viewer's video waits where its backlog limit sees it
+
     final int unsent = this.configuration.getUnsentLimit();
     if (unsent > 0) {
       try {
         PacketUtils.limitUnsent(viewer, unsent);
       } catch (final RuntimeException refused) {
-        // the transport may refuse the option, as epoll does for a connection that closed since the show was scheduled
-        // (the player is leaving): the limit only keeps a slow viewer's backlog small, and the screen works without it
+        // A closing epoll connection may reject this optional backlog limit.
+
         LOGGER.debug(UNSENT_LIMIT_REFUSED, viewer, refused);
       }
     }
-    // a viewer shown the screen again starts over: its client holds no picture of this stream yet
+
     final Mcv2Link link = new Mcv2Link(this.configuration.getBacklogLimit());
     this.links.put(viewer, link);
-    // publishing before rechecking lets an overlapping retirement own either the link or its cleanup
+    // Publish before rechecking so an overlapping retirement can own the cleanup.
     if (!this.canShow(viewer)) {
       this.scheduled.remove(viewer);
       if (this.links.remove(viewer, link)) {
@@ -490,7 +488,7 @@ public final class Mcv2Channel {
       final long behind = link.getBehind();
       if (link.offer(header.getFrameId(), header.getReferenceId(), isKeyframe, bytes)) {
         event.sentTo++;
-        // the bundle's bytes leave the backlog once written, or at once for a viewer who left
+
         for (final MapPacketFactory.Bundle bundle : bundles) {
           bundle.send(viewer, () -> link.written(bundle.bytes()));
         }

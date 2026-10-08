@@ -251,7 +251,7 @@ public final class Mcv2Decoder {
       if (descriptorsAt > this.data.length) {
         throw new Mcv2Exception("Truncated index");
       }
-      // Unsigned counts stay wide until their sum and the whole index fit inside the input.
+      // Unsigned counts must fit the input before narrowing to int.
       final long levelZero = u32(this.data, countsAt);
       final long levelOne = u32(this.data, countsAt + Integer.BYTES);
       final long levelTwo = u32(this.data, countsAt + 2 * Integer.BYTES);

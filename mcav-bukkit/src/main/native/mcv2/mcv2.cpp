@@ -16,18 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The native pixel kernels of MCV2's encoder (MCV2.java), in one file: the C interface, the vector types of every
-// dispatch level, the kernels written once over them, their exports, and the CPU detection. Every kernel computes
-// exactly what the Java kernel of the same name in MCV2.java computes, operation for operation: integer arithmetic
-// wraps as Java's does, and floating-point values are computed in the same precision and order, since -ffp-contract=off
-// keeps the compiler from fusing a product into a sum. Java validates every size, offset and array length before a
-// call: a kernel reads and writes only inside the arrays it is given, allocates nothing, and keeps no state between
-// calls.
-//
-// A level's translation unit (level_<level>.cpp, compiled with that level's flags) defines
-// exactly one MCV2_SIMD_<LEVEL> and MCV2_PREFIX(name), and includes this file; the scalar unit also defines MCV2_CPU,
-// which adds the CPU detection. Everything but the exports has internal linkage, so the levels' copies never meet at
-// link time. MCV2_DECLARATIONS_ONLY gives just the interface, for the kernels' standalone test.
+// Floating-point contraction changes Java's rounding; compile with -ffp-contract=off.
 
 #include <stdint.h>
 #include <string.h>
@@ -38,10 +27,8 @@
 #define MCV2_EXPORT __attribute__((visibility("default")))
 #endif
 
-// The version of this interface: Java refuses a library whose version differs from the one it was written for.
 #define MCV2_ABI 5
 
-// The dispatch levels, as bits of mcv2_cpu_levels().
 #define MCV2_LEVEL_SCALAR 1
 #define MCV2_LEVEL_SSE41 2
 #define MCV2_LEVEL_AVX2 4
@@ -51,12 +38,8 @@
 #define MCV2_LEVEL_SVE256 64
 #define MCV2_LEVEL_SVE512 128
 
-// The auxiliary vector's AT_HWCAP bit that says the Linux kernel lets programs run SVE (HWCAP_SVE).
 #define MCV2_HWCAP_SVE (1LL << 22)
 
-// The kernels of one level: X(return type, name, parameters). The scored reconstructions return the block's
-// distortion once every row is measured, or -1 at the first row after which the candidate can no longer be cheaper
-// than the limit, where Java's measure stops.
 #define MCV2_KERNELS(X)                                                                                                \
   X(int64_t, predicted,                                                                                                \
     (const int32_t *prediction, int32_t size, int32_t *out, const int32_t *source, double rate, double limit))         \
@@ -82,25 +65,15 @@
   X(void, residual_target, (const int32_t *source, const int32_t *prediction, int32_t count, float *target))
 
 extern "C" {
-// The dispatch levels this CPU runs, as a bit set of MCV2_LEVEL_*: scalar always, the others only where the CPU and
-// the operating system support their instructions. hwcap is AT_HWCAP of the process's auxiliary vector on Linux, which
-// Java reads (/proc/self/auxv) so the library needs no C library, and 0 elsewhere; on AArch64 its SVE bit decides
-// whether the SVE levels may run, and the vector length which one.
+
+// Java supplies AT_HWCAP because this library imports no C-library functions.
+
 MCV2_EXPORT int32_t mcv2_cpu_levels(int64_t hwcap);
 
-// MCV2_ABI of the library.
 MCV2_EXPORT int32_t mcv2_abi(void);
 }
 
 #if !defined(MCV2_DECLARATIONS_ONLY)
-// The vector types of one dispatch level. A translation unit defines exactly one of MCV2_SIMD_SCALAR, MCV2_SIMD_SSE2,
-// MCV2_SIMD_SSE41, MCV2_SIMD_AVX2, MCV2_SIMD_AVX512, MCV2_SIMD_NEON, MCV2_SIMD_SVE256 or MCV2_SIMD_SVE512 before
-// including this file, and each unit is compiled with its own extensions only, so no instruction can run on a CPU
-// that the dispatch did not find it on.
-//
-// VI holds N int32 lanes with Java's arithmetic: sums and products wrap, shifts to the right are arithmetic. The
-// kernels are written once over VI, so every level runs the same operations on the same values; a level only decides
-// how many pixels one operation covers.
 
 #include <stdint.h>
 #include <string.h>
@@ -123,37 +96,32 @@ static_assert((-7 >> 1) == -4, "right shifts of negative values must be arithmet
 #endif
 
 namespace mcv2 {
-// Every level's types and helpers have the same names, so they must not be visible outside their translation unit: an
-// inline function the compiler keeps out of line would otherwise be one weak symbol for every level, and the linker
-// could give the SSE2 kernels the AVX-512 copy.
+// Internal linkage prevents the linker from substituting another SIMD level's weak helper symbol.
+
 namespace {
 
-// Whether load3 and store3 are shuffles rather than instructions: SSE takes a dozen of them for four pixels, so a
-// kernel that only adds a few values of each pixel (halve) runs faster as plain code there.
+// SSE load/store shuffles cost more than the arithmetic in the halving kernel.
+
 #if defined(MCV2_SIMD_SSE2) || defined(MCV2_SIMD_SSE41)
 constexpr bool SHUFFLED_LOAD3 = true;
 #else
 constexpr bool SHUFFLED_LOAD3 = false;
 #endif
 
-// Java's int arithmetic on one value: wrapping, and arithmetic shifts.
 inline int32_t wrap_add(int32_t a, int32_t b) { return (int32_t)((uint32_t)a + (uint32_t)b); }
 inline int32_t wrap_sub(int32_t a, int32_t b) { return (int32_t)((uint32_t)a - (uint32_t)b); }
 inline int32_t wrap_mul(int32_t a, int32_t b) { return (int32_t)((uint32_t)a * (uint32_t)b); }
 inline int32_t shl(int32_t a, int32_t k) { return (int32_t)((uint32_t)a << (k & 31)); }
 inline int32_t sar(int32_t a, int32_t k) { return a >> (k & 31); }
 
-// A pixel's three bytes as the low bytes of a word, its top byte zero: read byte by byte, so never past the pixel.
 inline uint32_t pixel_word(const uint8_t *p) { return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16; }
 
-// One int lane: the scalar level's VI, and every level's for a kernel whose lanes do not pay there (the compiler then
-// vectorizes the one-lane code itself).
 struct VI1 {
   static constexpr int N = 1;
   int32_t v;
   static VI1 load(const int32_t *p) { return {p[0]}; }
   void store(int32_t *p) const { p[0] = v; }
-  // each lane's low byte, lanes holding 0 or 1
+
   void store_bytes(int8_t *p) const { p[0] = (int8_t)v; }
   static VI1 set1(int32_t x) { return {x}; }
   static VI1 zero() { return {0}; }
@@ -169,7 +137,7 @@ struct VI1 {
   static VI1 min(VI1 a, VI1 b) { return {a.v < b.v ? a.v : b.v}; }
   static VI1 max(VI1 a, VI1 b) { return {a.v > b.v ? a.v : b.v}; }
   static VI1 abs(VI1 a) { return {a.v < 0 ? wrap_sub(0, a.v) : a.v}; }
-  // all ones where a < b, else zero
+
   static VI1 less(VI1 a, VI1 b) { return {a.v < b.v ? -1 : 0}; }
   int32_t sum() const { return v; }
   static void load3(const int32_t *p, VI1 &a, VI1 &b, VI1 &c) {
@@ -182,11 +150,11 @@ struct VI1 {
     p[1] = b.v;
     p[2] = c.v;
   }
-  // all ones in the lanes whose bit is set, the bits of lanes 0.. starting at bit i of the byte array
+
   static VI1 bits(const int8_t *p, int32_t i) { return {((p[i >> 3] >> (i & 7)) & 1) ? -1 : 0}; }
-  // the even lanes of a, then the even lanes of b
+
   static VI1 evens(VI1 a, VI1) { return a; }
-  // the odd lanes of a, then the odd lanes of b
+
   static VI1 odds(VI1, VI1 b) { return b; }
 };
 
@@ -194,7 +162,6 @@ struct VI1 {
 
 using VI = VI1;
 
-// the sum of the absolute differences of the bytes of four words and of sixteen bytes
 inline int32_t sad4(uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_t *s) {
   const uint32_t words[4] = {a, b, c, d};
   int32_t sum = 0;
@@ -205,7 +172,6 @@ inline int32_t sad4(uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_
   return sum;
 }
 
-// Float lanes match the integer lanes for residual conversion.
 struct VF {
   float v;
   static VF set1(float x) { return {x}; }
@@ -216,7 +182,6 @@ struct VF {
   void store(float *p) const { p[0] = v; }
 };
 
-// N double lanes: a fit keeps one output's sum in each lane, so no sum is ever reordered.
 struct VD {
   static constexpr int N = 1;
   double v;
@@ -229,10 +194,7 @@ struct VD {
 
 #elif defined(MCV2_SIMD_SSE41) || defined(MCV2_SIMD_SSE2)
 
-// The five operations SSE4.1 (and SSSE3's abs) added over SSE2, which the SSE2 level computes from SSE2 instructions:
-// the same values, lane for lane.
 #if defined(MCV2_SIMD_SSE41)
-// blendps rather than pblendw: it issues on any vector port, where pblendw competes with the shuffles for one
 template <int M> inline __m128i blend32(__m128i a, __m128i b) {
   return _mm_castps_si128(_mm_blend_ps(_mm_castsi128_ps(a), _mm_castsi128_ps(b), M));
 }
@@ -242,12 +204,12 @@ inline __m128i max32(__m128i a, __m128i b) { return _mm_max_epi32(a, b); }
 inline __m128i abs32(__m128i a) { return _mm_abs_epi32(a); }
 inline __m128i widen8(__m128i bytes) { return _mm_cvtepu8_epi32(bytes); }
 #else
-// the 32-bit lanes whose bit of M is set taken from b, the others from a
+
 template <int M> inline __m128i blend32(__m128i a, __m128i b) {
   const __m128i mask = _mm_setr_epi32((M & 1) ? -1 : 0, (M & 2) ? -1 : 0, (M & 4) ? -1 : 0, (M & 8) ? -1 : 0);
   return _mm_or_si128(_mm_and_si128(mask, b), _mm_andnot_si128(mask, a));
 }
-// the low 32 bits of each product: the same for signed and unsigned operands, as Java's wrapping multiply
+// Signed and unsigned products share the low 32 bits required by Java's wrapping arithmetic.
 inline __m128i mullo32(__m128i a, __m128i b) {
   const __m128i even = _mm_mul_epu32(a, b);
   const __m128i odd = _mm_mul_epu32(_mm_srli_epi64(a, 32), _mm_srli_epi64(b, 32));
@@ -262,7 +224,7 @@ inline __m128i max32(__m128i a, __m128i b) {
   const __m128i greater = _mm_cmpgt_epi32(a, b);
   return _mm_or_si128(_mm_and_si128(greater, a), _mm_andnot_si128(greater, b));
 }
-// (a ^ s) - s with s the sign: the minimum value stays itself, as Java's Math.abs and pabsd
+// Java Math.abs leaves Integer.MIN_VALUE negative.
 inline __m128i abs32(__m128i a) {
   const __m128i sign = _mm_srai_epi32(a, 31);
   return _mm_sub_epi32(_mm_xor_si128(a, sign), sign);
@@ -312,32 +274,31 @@ struct VI {
     s = _mm_add_epi32(s, _mm_shuffle_epi32(s, _MM_SHUFFLE(2, 3, 0, 1)));
     return _mm_cvtsi128_si32(s);
   }
-  // p holds r0 g0 b0 r1 | g1 b1 r2 g2 | b2 r3 g3 b3: each channel takes its lanes from the three vectors by two blends
-  // (lane k is bit k of the blend mask), then one shuffle puts them in pixel order
+
   static void load3(const int32_t *p, VI &a, VI &b, VI &c) {
     const __m128i v0 = _mm_loadu_si128((const __m128i *)p);
     const __m128i v1 = _mm_loadu_si128((const __m128i *)(p + 4));
     const __m128i v2 = _mm_loadu_si128((const __m128i *)(p + 8));
-    // r0 r3 r2 r1
+
     const __m128i r = blend32<0x2>(blend32<0x4>(v0, v1), v2);
-    // g1 g0 g3 g2
+
     const __m128i g = blend32<0x4>(blend32<0x2>(v1, v0), v2);
-    // b2 b1 b0 b3
+
     const __m128i bl = blend32<0x4>(blend32<0x2>(v2, v1), v0);
     a.v = _mm_shuffle_epi32(r, _MM_SHUFFLE(1, 2, 3, 0));
     b.v = _mm_shuffle_epi32(g, _MM_SHUFFLE(2, 3, 0, 1));
     c.v = _mm_shuffle_epi32(bl, _MM_SHUFFLE(3, 0, 1, 2));
   }
   static void store3(int32_t *p, VI a, VI b, VI c) {
-    // v0 = r0 g0 b0 r1
+
     const __m128i v0 = blend32<0x4>(
         blend32<0x2>(_mm_shuffle_epi32(a.v, _MM_SHUFFLE(1, 0, 0, 0)), _mm_shuffle_epi32(b.v, _MM_SHUFFLE(0, 0, 0, 0))),
         _mm_shuffle_epi32(c.v, _MM_SHUFFLE(0, 0, 0, 0)));
-    // v1 = g1 b1 r2 g2
+
     const __m128i v1 = blend32<0x4>(
         blend32<0x2>(_mm_shuffle_epi32(b.v, _MM_SHUFFLE(2, 0, 0, 1)), _mm_shuffle_epi32(c.v, _MM_SHUFFLE(1, 1, 1, 1))),
         _mm_shuffle_epi32(a.v, _MM_SHUFFLE(2, 2, 2, 2)));
-    // v2 = b2 r3 g3 b3
+
     const __m128i v2 = blend32<0x4>(
         blend32<0x2>(_mm_shuffle_epi32(c.v, _MM_SHUFFLE(3, 0, 0, 2)), _mm_shuffle_epi32(a.v, _MM_SHUFFLE(3, 3, 3, 3))),
         _mm_shuffle_epi32(b.v, _MM_SHUFFLE(3, 3, 3, 3)));
@@ -420,18 +381,16 @@ struct VI {
     s = _mm_add_epi32(s, _mm_shuffle_epi32(s, _MM_SHUFFLE(2, 3, 0, 1)));
     return _mm_cvtsi128_si32(s);
   }
-  // p holds r0 g0 b0 r1 g1 b1 r2 g2 | b2 r3 g3 b3 r4 g4 b4 r5 | g5 b5 r6 g6 b6 r7 g7 b7: a channel's eight values lie
-  // in lanes {0,3,6} {1,4,7} {2,5} of the three vectors in some rotation, so two blends gather them into one vector
-  // and a permutation puts them in pixel order
+
   static void load3(const int32_t *p, VI &a, VI &b, VI &c) {
     const __m256i v0 = _mm256_loadu_si256((const __m256i *)p);
     const __m256i v1 = _mm256_loadu_si256((const __m256i *)(p + 8));
     const __m256i v2 = _mm256_loadu_si256((const __m256i *)(p + 16));
-    // r0 r3 r6 r1 r4 r7 r2 r5
+
     const __m256i r = _mm256_blend_epi32(_mm256_blend_epi32(v0, v1, 0x92), v2, 0x24);
-    // g5 g0 g3 g6 g1 g4 g7 g2
+
     const __m256i g = _mm256_blend_epi32(_mm256_blend_epi32(v0, v1, 0x24), v2, 0x49);
-    // b2 b5 b0 b3 b6 b1 b4 b7
+
     const __m256i bl = _mm256_blend_epi32(_mm256_blend_epi32(v0, v1, 0x49), v2, 0x92);
     a.v = _mm256_permutevar8x32_epi32(r, _mm256_setr_epi32(0, 3, 6, 1, 4, 7, 2, 5));
     b.v = _mm256_permutevar8x32_epi32(g, _mm256_setr_epi32(1, 4, 7, 2, 5, 0, 3, 6));
@@ -450,7 +409,7 @@ struct VI {
     const __m256i lanes = _mm256_setr_epi32(1, 2, 4, 8, 16, 32, 64, 128);
     return {_mm256_cmpeq_epi32(_mm256_and_si256(byte, lanes), lanes)};
   }
-  // a0 a2 b0 b2 | a4 a6 b4 b6 within each half, then the halves' 64-bit quarters put in order
+
   static VI evens(VI a, VI b) {
     const __m256 pairs = _mm256_shuffle_ps(_mm256_castsi256_ps(a.v), _mm256_castsi256_ps(b.v), _MM_SHUFFLE(2, 0, 2, 0));
     return {_mm256_permute4x64_epi64(_mm256_castps_si256(pairs), _MM_SHUFFLE(3, 1, 2, 0))};
@@ -483,9 +442,6 @@ struct VD {
 
 #elif defined(MCV2_SIMD_AVX512)
 
-// 16 lanes; a block narrower than 16 pixels goes to the AVX2 kernels through the exported wrappers, so every row a
-// kernel steps through is whole vectors. Only CPUs with the Ice Lake feature set run it, never the ones that slow down
-// at 512 bits.
 inline int32_t sad4(uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_t *s) {
   const __m128i sad =
       _mm_sad_epu8(_mm_setr_epi32((int32_t)a, (int32_t)b, (int32_t)c, (int32_t)d), _mm_loadu_si128((const __m128i *)s));
@@ -514,8 +470,7 @@ struct VI {
   static VI abs(VI a) { return {_mm512_abs_epi32(a.v)}; }
   static VI less(VI a, VI b) { return {_mm512_movm_epi32(_mm512_cmplt_epi32_mask(a.v, b.v))}; }
   int32_t sum() const { return _mm512_reduce_add_epi32(v); }
-  // channel c of pixel k is element 3k + c of the 48 values: the first two vectors give the elements below 32, the
-  // third the rest
+
   static void load3(const int32_t *p, VI &a, VI &b, VI &c) {
     const __m512i v0 = _mm512_loadu_si512(p);
     const __m512i v1 = _mm512_loadu_si512(p + 16);
@@ -529,7 +484,7 @@ struct VI {
     _mm512_storeu_si512(p + 16, scatter(a.v, b.v, c.v, 1));
     _mm512_storeu_si512(p + 32, scatter(a.v, b.v, c.v, 2));
   }
-  // the 16 bits of lanes 0.. from bit i of the byte array, i a multiple of 8
+
   static VI bits(const int8_t *p, int32_t i) {
     const int32_t at = i >> 3;
     const uint32_t word = (uint32_t)(uint8_t)p[at] | ((uint32_t)(uint8_t)p[at + 1] << 8);
@@ -545,9 +500,7 @@ struct VI {
   }
 
 private:
-  // gather[c]: channel c's elements below 32 from the first two vectors, then the rest from the third; scatter[j]:
-  // output vector j's elements from the first two channels, then the third's (element f is channel f % 3 of pixel f /
-  // 3)
+
   alignas(64) static constexpr int32_t GATHER_FIRST[3][16] = {{0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 0, 0, 0, 0, 0},
                                                               {1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 0, 0, 0, 0, 0},
                                                               {2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 0, 0, 0, 0, 0, 0}};
@@ -677,8 +630,8 @@ struct VD {
 
 #elif defined(MCV2_SIMD_SVE256) || defined(MCV2_SIMD_SVE512)
 
-// SVE at one vector length, fixed when the unit is compiled (-msve-vector-bits): the dispatch runs a unit only on a CPU
-// whose vector length is exactly that (svcntb). The 512-bit unit hands blocks narrower than 16 pixels to NEON.
+// Fixed-length SVE code requires the exact vector length selected at dispatch.
+
 #if defined(MCV2_SIMD_SVE256)
 #define MCV2_SVE_BITS 256
 #else
@@ -689,7 +642,6 @@ typedef svuint64_t sve_u64 __attribute__((arm_sve_vector_bits(MCV2_SVE_BITS)));
 typedef svfloat32_t sve_f32 __attribute__((arm_sve_vector_bits(MCV2_SVE_BITS)));
 typedef svfloat64_t sve_f64 __attribute__((arm_sve_vector_bits(MCV2_SVE_BITS)));
 
-// NEON's, which every SVE CPU runs
 inline int32_t sad4(uint32_t a, uint32_t b, uint32_t c, uint32_t d, const uint8_t *s) {
   const uint32_t words[4] = {a, b, c, d};
   return (int32_t)vaddlvq_u8(vabdq_u8(vreinterpretq_u8_u32(vld1q_u32(words)), vld1q_u8(s)));
@@ -718,7 +670,7 @@ struct VI {
   static VI less(VI a, VI b) {
     return {svsel_s32(svcmplt_s32(svptrue_b32(), a.v, b.v), svdup_n_s32(-1), svdup_n_s32(0))};
   }
-  // the 64-bit sum of the lanes, cut to 32 bits: the same as summing them with wrapping, as Java does
+
   int32_t sum() const { return (int32_t)(uint32_t)(uint64_t)svaddv_s32(svptrue_b32(), v); }
   static void load3(const int32_t *p, VI &a, VI &b, VI &c) {
     const svint32x3_t t = svld3_s32(svptrue_b32(), p);
@@ -727,7 +679,7 @@ struct VI {
     c.v = svget3_s32(t, 2);
   }
   static void store3(int32_t *p, VI a, VI b, VI c) { svst3_s32(svptrue_b32(), p, svcreate3_s32(a.v, b.v, c.v)); }
-  // the N bits of lanes 0.. from bit i of the byte array, i a multiple of 8
+
   static VI bits(const int8_t *p, int32_t i) {
     const int32_t at = i >> 3;
     uint32_t word = (uint8_t)p[at];
@@ -756,7 +708,7 @@ struct VD {
   static constexpr int N = MCV2_SVE_BITS / 64;
   sve_f64 v;
   static VD set1(double x) { return {svdup_n_f64(x)}; }
-  // each float into the low half of a 64-bit lane, where the conversion reads it
+
   static VD loadf(const float *p) {
     const sve_u64 words = svld1uw_u64(svptrue_b64(), (const uint32_t *)p);
     return {svcvt_f64_f32_x(svptrue_b64(), svreinterpret_f32_u64(words))};
@@ -768,13 +720,8 @@ struct VD {
 
 #endif
 
-} // namespace
-} // namespace mcv2
-
-// The kernels of one dispatch level, written once over the level's VI and VD. Each is the Java method
-// named in its comment, operation for operation: integer arithmetic wraps as Java's does, and floating-point values
-// are computed in the same precision and order, since -ffp-contract=off keeps the compiler from fusing a product into
-// a sum. Everything here has internal linkage, so the levels' copies never meet at link time.
+}
+}
 
 namespace mcv2 {
 namespace {
@@ -795,8 +742,6 @@ inline int32_t min32(int32_t a, int32_t b) { return a < b ? a : b; }
 inline int32_t max32(int32_t a, int32_t b) { return a > b ? a : b; }
 inline int32_t clamp32(int32_t v, int32_t low, int32_t high) { return min32(max32(v, low), high); }
 
-// the compact grid's interpolation tables (MCV2.GRID_LOWER, GRID_UPPER, GRID_WEIGHTS): for pixel p of a block, the
-// lower and upper node and the distance to the lower one in units of 1 / (2 size)
 struct Axis {
   int32_t lower[ROOT_SIZE];
   int32_t upper[ROOT_SIZE];
@@ -833,7 +778,6 @@ inline VI round(VI value, int32_t shift) {
   return VI::min(VI::max((value + VI::set1(1 << (shift - 1))).sar(shift), VI::zero()), VI::set1(MAX_CHANNEL));
 }
 
-// MCV2.Score: the measure of a reconstruction, row by row
 struct Measure {
   const int32_t *source;
   double rate;
@@ -841,8 +785,6 @@ struct Measure {
   int64_t distortion;
 };
 
-// MCV2.Score.row: adds a row's error; false once the candidate can no longer be cheaper than the limit. The row's sum
-// fits an int as in Java, and integer sums do not depend on their order.
 inline bool row(Measure &m, const int32_t *out, int32_t from, int32_t pixels) {
   VI sum = VI::zero();
   for (int32_t p = 0; p < pixels; p += VI::N) {
@@ -861,7 +803,6 @@ inline bool row(Measure &m, const int32_t *out, int32_t from, int32_t pixels) {
   return (double)m.distortion / DISTORTION_SCALE + m.rate < m.limit;
 }
 
-// MCV2.JavaKernels.horizontal: every row of the 4x4 nodes interpolated across the block's width, times 2 size
 inline void horizontal(const int32_t *nodes, int32_t size, int32_t *rows) {
   const Axis &a = AXES.axes[size_index(size)];
   const int32_t span = 2 * size;
@@ -875,7 +816,6 @@ inline void horizontal(const int32_t *nodes, int32_t size, int32_t *rows) {
   }
 }
 
-// MCV2.JavaKernels.vertical: one row of the interpolated plane, times (2 size)^2
 inline void vertical(const int32_t *rows, int32_t size, int32_t y, int32_t *line) {
   const Axis &a = AXES.axes[size_index(size)];
   const int32_t top = a.lower[y] * size;
@@ -901,7 +841,6 @@ int64_t predicted(const int32_t *prediction, int32_t size, int32_t *out, Measure
   return measure.distortion;
 }
 
-// MCV2.JavaKernels.solid
 int64_t solid(int32_t color, int32_t size, int32_t *out, Measure m) {
   const VI r = VI::set1((color >> 16) & 0xFF);
   const VI g = VI::set1((color >> 8) & 0xFF);
@@ -945,7 +884,7 @@ int64_t compact(const int32_t *prediction, const int8_t *record, int32_t quantiz
   for (int32_t index = 0; index < GRID * GRID; index++) {
     const int32_t packed = (uint8_t)record[2 + index / 2];
     const int32_t nibble = (packed >> ((index % 2) * NIBBLE_BITS)) & NIBBLE_MASK;
-    // Mcv2Decoder's signed 4-bit value
+
     nodes[index] = nibble >= 8 ? nibble - 16 : nibble;
   }
   int32_t rows[GRID * ROOT_SIZE];
@@ -998,7 +937,7 @@ void predict(const uint8_t *reference, int32_t width, int32_t height, int32_t bl
   }
 }
 
-// Keep Java's summation order: each lane accumulates one transposed row so its next value is contiguous.
+// Each lane must retain Java's summation order for bit-exact fits.
 void fit(const float *values, int32_t size, const float *matrix, float *out) {
   const int32_t grid = GRID;
   float plane[ROOT_SIZE * ROOT_SIZE];
@@ -1012,7 +951,7 @@ void fit(const float *values, int32_t size, const float *matrix, float *out) {
   for (int32_t j = 0; j < grid; j++) {
     const float *weights = matrix + j * size;
     int32_t y0 = 0;
-    // four groups of rows at once: their sums are independent, so one goes on while another's addition finishes
+
     for (; y0 + 4 * VD::N <= size; y0 += 4 * VD::N) {
       VD s0 = VD::set1(0.0);
       VD s1 = s0;
@@ -1056,8 +995,6 @@ void fit(const float *values, int32_t size, const float *matrix, float *out) {
   }
 }
 
-// whether count values between low and high sum in int lanes, and the lanes to their total, without overflowing, so
-// they sum as Java's longs do
 inline bool lanes_fit(int32_t low, int32_t high, int32_t count) {
   const int64_t largest = -(int64_t)low > (int64_t)high ? -(int64_t)low : (int64_t)high;
   return largest * ((int64_t)count + VI::N) <= INT32_MAX;
@@ -1111,7 +1048,7 @@ template <int STEP> void cluster_lanes(const int32_t *source, int32_t size, int3
   const VI second_red = VI::set1(endpoints[3]);
   const VI second_green = VI::set1(endpoints[4]);
   const VI second_blue = VI::set1(endpoints[5]);
-  // the pixels nearer endpoint 1 in lanes, and all of them: endpoint 0 has the difference
+
   VI near_red = VI::zero();
   VI near_green = VI::zero();
   VI near_blue = VI::zero();
@@ -1159,9 +1096,6 @@ template <int STEP> void cluster_lanes(const int32_t *source, int32_t size, int3
   }
 }
 
-// MCV2.cluster's starting endpoints, the sampled pixels of least and greatest luma (the first of each in raster
-// order), N at a time: each lane keeps its own and the offset of its first, then the lanes are compared; returns the
-// values or'ed together, which bound them all where none is negative
 template <int STEP> int32_t cluster_extrema(const int32_t *source, int32_t size, int32_t *endpoints) {
   VI low_lanes = VI::set1(INT32_MAX);
   VI high_lanes = VI::set1(INT32_MIN);
@@ -1237,7 +1171,7 @@ void cluster(const int32_t *source, int32_t size, int32_t *endpoints) {
       }
     }
   } else {
-    // values whose sums could overflow an int lane
+
     cluster_pixels(source, size, step, endpoints);
     cluster_pixels(source, size, step, endpoints);
   }
@@ -1288,7 +1222,6 @@ int32_t assign_pattern(const int32_t *source, int32_t size, const int32_t *color
   return columns || rows ? 1 : 0;
 }
 
-// MCV2.SAMPLES: the sampled rows and columns of a block, min(k size / 4 + size / 8, size - 1)
 inline int32_t sample(int32_t size, int32_t k) { return min32((k * size) / 4 + size / 8, size - 1); }
 
 constexpr int32_t DIRECTIONS[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
@@ -1307,7 +1240,7 @@ int64_t inside(const uint8_t *reference, int32_t width, const int32_t *source_sa
     for (int32_t sample_column = 0; sample_column < 4; sample_column++) {
       const uint8_t *reference_pixel = line + samples[sample_column] * CHANNELS;
       for (int32_t channel = 0; channel < CHANNELS; channel++) {
-        // Math.abs of an int, which leaves Integer.MIN_VALUE negative
+
         const int32_t difference = wrap_sub(reference_pixel[channel], source_row[sample_column * CHANNELS + channel]);
         sum += difference < 0 ? wrap_sub(0, difference) : difference;
       }
@@ -1357,13 +1290,11 @@ int64_t cost(const uint8_t *reference, int32_t width, int32_t height, const int3
   return sum;
 }
 
-// The vectors a search has measured: any of them costs at least the best found since, so measuring one again can
-// never replace the best, and a search that skips them decides exactly as MCV2.seededMotion does
 struct Measured {
   static constexpr int32_t CAPACITY = 256;
   int64_t vectors[CAPACITY];
   int32_t count = 0;
-  // both coordinates whole: a packed vector keeps only 16 bits of y
+  // Full coordinates avoid collisions caused by truncating packed motion vectors.
   static int64_t key(int32_t x, int32_t y) { return (int64_t)((uint64_t)(uint32_t)x << 32 | (uint32_t)y); }
   bool contains(int32_t x, int32_t y) const {
     const int64_t vector = key(x, y);
@@ -1381,8 +1312,6 @@ struct Measured {
   }
 };
 
-// MCV2.seededMotion: the best of no motion and the seeds, then one-pixel steps to the best of four neighbours while one
-// is better; a vector replaces the best only when strictly better
 int32_t seeded(const uint8_t *reference, int32_t width, int32_t height, const int32_t *source, int32_t block_left,
                int32_t block_top, int32_t size, int32_t range, const int32_t *seeds, int32_t seed_count) {
   const int32_t samples[4] = {sample(size, 0), sample(size, 1), sample(size, 2), sample(size, 3)};
@@ -1444,8 +1373,6 @@ int32_t seeded(const uint8_t *reference, int32_t width, int32_t height, const in
   return pack(best_x, best_y);
 }
 
-// MCV2.JavaKernels.loadSource of a superblock: the block's channels, the picture's last row and column repeated past
-// its edges
 void load_source(const uint8_t *image, int32_t width, int32_t height, int32_t x, int32_t y, int32_t size,
                  int32_t *source) {
   for (int32_t py = 0; py < size; py++) {
@@ -1468,8 +1395,6 @@ void load_source(const uint8_t *image, int32_t width, int32_t height, int32_t x,
   }
 }
 
-// the pairs of rows summed, then the even pixels and the odd ones, whose wrapping sums are Java's in any order: two
-// vectors of a row pair at a time
 template <class V> void halve_lanes(const int32_t *block, int32_t size, int32_t *out) {
   const int32_t half = size / 2;
   const int32_t row_length = size * CHANNELS;
@@ -1499,7 +1424,7 @@ template <class V> void halve_lanes(const int32_t *block, int32_t size, int32_t 
 }
 
 void halve(const int32_t *block, int32_t size, int32_t *out) {
-  // one lane where the lanes' shuffles cost more than they save, or a row has fewer than two vectors
+
   if (SHUFFLED_LOAD3 || size < 2 * VI::N) {
     halve_lanes<VI1>(block, size, out);
   } else {
@@ -1532,16 +1457,11 @@ void residual_target(const int32_t *source, const int32_t *prediction, int32_t c
   }
 }
 
-} // namespace
-} // namespace mcv2
+}
+}
 
-// The exported kernels of one level, after its translation unit defined MCV2_PREFIX(name). The
-// declarations come from the MCV2_KERNELS list above, so a definition that strays from it does not compile.
-//
-// A level whose vectors are wider than a narrow block defines MCV2_NARROW(name), a narrower level's kernel that the
-// same CPU runs, and MCV2_NARROW_BELOW: a kernel given a block of fewer pixels a side hands it to that level, so every
-// row the wide kernels step through is whole vectors, and a narrow block runs as fast as the narrower level runs it.
-// A kernel that takes two vectors of a row at a time (cluster, halve) hands off below twice that.
+// Narrow blocks require a smaller SIMD level to avoid reading past their rows.
+
 #define MCV2_DECLARE(type, name, parameters) MCV2_EXPORT type MCV2_PREFIX(name) parameters;
 
 extern "C" {
@@ -1560,9 +1480,6 @@ MCV2_KERNELS(MCV2_DECLARE_NARROW)
 #endif
 #define MCV2_HAND_OFF(name, ...) MCV2_HAND_OFF_BELOW(MCV2_NARROW_BELOW, name, __VA_ARGS__)
 
-// A level may also give one kernel's blocks of one size to a narrower level that runs them faster, so no wider level
-// is slower than a narrower one (NatBench): MCV2_<KERNEL>_TO(name) names that level's kernel and MCV2_<KERNEL>_AT the
-// size. Every level computes the same numbers, so the result does not change.
 #if defined(MCV2_FIT_TO)
 MCV2_EXPORT void MCV2_FIT_TO(fit)(const float *values, int32_t size, const float *matrix, float *out);
 #endif
@@ -1608,7 +1525,7 @@ void MCV2_PREFIX(fit)(const float *values, int32_t size, const float *matrix, fl
 }
 
 void MCV2_PREFIX(cluster)(const int32_t *source, int32_t size, int32_t *endpoints) {
-  // every other pixel of a block of 16 or more, two vectors of a row at a time
+  // The sampled clustering kernel consumes two vectors per row.
   MCV2_HAND_OFF_BELOW(2 * MCV2_NARROW_BELOW, cluster, source, size, endpoints)
   mcv2::cluster(source, size, endpoints);
 }
@@ -1635,7 +1552,7 @@ void MCV2_PREFIX(load_source)(const uint8_t *image, int32_t width, int32_t heigh
 }
 
 void MCV2_PREFIX(halve)(const int32_t *block, int32_t size, int32_t *out) {
-  // two vectors of a row at a time
+  // The halving kernel consumes two vectors per row.
   MCV2_HAND_OFF_BELOW(2 * MCV2_NARROW_BELOW, halve, block, size, out)
   mcv2::halve(block, size, out);
 }
@@ -1646,11 +1563,7 @@ void MCV2_PREFIX(residual_target)(const int32_t *source, const int32_t *predicti
 }
 
 #if defined(MCV2_CPU)
-// Which levels this CPU runs. Compiled without any extended instruction set, so it runs on every CPU of its
-// architecture. An x86-64 level needs its instructions (cpuid) and, for AVX2 and AVX-512, the operating system saving
-// their registers (xgetbv); AVX-512 runs only with the Ice Lake feature set, never on the CPUs that slow down at 512
-// bits. On AArch64 NEON is always there, and SVE where the Linux kernel says so in AT_HWCAP, which Java passes in: the
-// vector length then chooses the fixed-length level, and at 128 bits NEON stays.
+
 #if defined(__x86_64__) || defined(_M_X64)
 #include <cpuid.h>
 
@@ -1660,13 +1573,13 @@ constexpr unsigned SSE41_BIT = 1u << 19;
 constexpr unsigned OSXSAVE_BIT = 1u << 27;
 constexpr unsigned AVX_BIT = 1u << 28;
 constexpr unsigned AVX2_BIT = 1u << 5;
-// XCR0: the XMM and YMM state
+
 constexpr unsigned long long YMM_STATE = 0x6;
 #if !defined(__APPLE__)
-// leaf 7: AVX-512 F, DQ, BW and VL in EBX; VBMI, VBMI2, VNNI and BITALG in ECX
+
 constexpr unsigned AVX512_EBX = (1u << 16) | (1u << 17) | (1u << 30) | (1u << 31);
 constexpr unsigned AVX512_ECX = (1u << 1) | (1u << 6) | (1u << 11) | (1u << 12);
-// XCR0: with the XMM and YMM state, the opmask and both halves of the ZMM state
+
 constexpr unsigned long long ZMM_STATE = 0xE6;
 #endif
 
@@ -1677,10 +1590,10 @@ unsigned long long xcr0() {
   return ((unsigned long long)high << 32) | low;
 }
 
-} // namespace
+}
 
 extern "C" int32_t mcv2_cpu_levels(int64_t) {
-  // SSE2 is part of x86-64
+
   int32_t levels = MCV2_LEVEL_SCALAR | MCV2_LEVEL_SSE2;
   unsigned eax;
   unsigned ebx;
@@ -1700,7 +1613,7 @@ extern "C" int32_t mcv2_cpu_levels(int64_t) {
     levels |= MCV2_LEVEL_AVX2;
   }
 #if !defined(__APPLE__)
-  // macOS saves the ZMM state only once a program has used it, so XCR0 cannot tell: macOS stays on AVX2
+  // macOS saves ZMM state lazily, so XCR0 cannot authorize AVX-512.
   if ((state & ZMM_STATE) == ZMM_STATE && (ebx & AVX512_EBX) == AVX512_EBX && (ecx & AVX512_ECX) == AVX512_ECX) {
     levels |= MCV2_LEVEL_AVX512;
   }
@@ -1714,7 +1627,7 @@ extern "C" int32_t mcv2_cpu_levels(int64_t hwcap) {
   int32_t levels = MCV2_LEVEL_SCALAR | MCV2_LEVEL_NEON;
 #if defined(__linux__)
   if (hwcap & MCV2_HWCAP_SVE) {
-    // the vector length in bytes: an SVE instruction, run only where the kernel said SVE is there
+
     unsigned long long bytes;
     __asm__ volatile(".arch_extension sve\n\trdvl %0, #1" : "=r"(bytes));
     if (bytes == 32) {
