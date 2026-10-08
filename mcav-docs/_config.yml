@@ -25,25 +25,6 @@ html:
 
 sphinx:
   config:
-    intersphinx_mapping:
-      ebp:
-        - "https://executablebooks.org/en/latest/"
-        - null
-      myst-parser:
-        - "https://myst-parser.readthedocs.io/en/latest/"
-        - null
-      myst-nb:
-        - "https://myst-nb.readthedocs.io/en/latest/"
-        - null
-      sphinx:
-        - "https://www.sphinx-doc.org/en/master"
-        - null
-      nbformat:
-        - "https://nbformat.readthedocs.io/en/latest"
-        - null
-      sd:
-        - "https://sphinx-design.readthedocs.io/en/latest"
-        - null
     myst_heading_anchors: 3
     mathjax3_config:
       tex:

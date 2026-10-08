@@ -13,7 +13,6 @@ html_sourcelink_suffix = ''
 html_theme = 'sphinx_book_theme'
 html_theme_options = {'search_bar_text': 'Search this book...', 'launch_buttons': {'notebook_interface': 'classic', 'binderhub_url': '', 'jupyterhub_url': '', 'thebe': False, 'colab_url': '', 'deepnote_url': ''}, 'path_to_docs': 'mcav-docs', 'repository_url': 'https://github.com/PulseBeat02/mcav', 'repository_branch': 'master', 'extra_footer': '', 'home_page_in_toc': True, 'announcement': '', 'analytics': {'google_analytics_id': '', 'plausible_analytics_domain': '', 'plausible_analytics_url': 'https://plausible.io/js/script.js'}, 'use_repository_button': True, 'use_edit_page_button': False, 'use_issues_button': True}
 html_title = 'MCAV Documentation'
-intersphinx_mapping = {'ebp': ['https://executablebooks.org/en/latest/', None], 'myst-parser': ['https://myst-parser.readthedocs.io/en/latest/', None], 'myst-nb': ['https://myst-nb.readthedocs.io/en/latest/', None], 'sphinx': ['https://www.sphinx-doc.org/en/master', None], 'nbformat': ['https://nbformat.readthedocs.io/en/latest', None], 'sd': ['https://sphinx-design.readthedocs.io/en/latest', None]}
 latex_engine = 'pdflatex'
 mathjax3_config = {'tex': {'macros': {'N': '\\mathbb{N}', 'floor': ['\\lfloor#1\\rfloor', 1], 'bmat': ['\\left[\\begin{array}'], 'emat': ['\\end{array}\\right]']}}}
 myst_enable_extensions = ['colon_fence', 'dollarmath', 'linkify', 'substitution', 'tasklist']
