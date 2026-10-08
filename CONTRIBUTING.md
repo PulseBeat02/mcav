@@ -68,12 +68,13 @@ source set of their module. `./gradlew check`, and so `./gradlew build`, runs bo
 
 ## The MCV2 Native Libraries
 
-`mcav-bukkit` ships the native kernels of the MCV2 encoder as six committed libraries (Linux, Windows and macOS on
-x86-64 and ARM64), so the build needs no C or C++ toolchain. After changing a source in `mcav-bukkit/src/main/native`,
-rebuild all six with `./gradlew :mcav-bukkit:buildMcv2Natives -Pmcav.natives=build`, which needs
-[Zig](https://ziglang.org/) 0.16.0 (`ZIG=/path/to/zig`), and commit them with the `SHA256SUMS` and `SOURCES` it writes
-and the new digests in `Mcv2Natives.DIGESTS`: the build fails when the sources and the libraries disagree.
-`./gradlew :mcav-bukkit:formatMcv2Natives -Pmcav.natives=build` formats the sources.
+`mcav-bukkit` builds the MCV2 encoder's six native libraries (Linux, Windows and macOS on x86-64 and ARM64) from
+`src/main/native/mcv2` whenever resources are processed. Gradle downloads [Zig](https://ziglang.org/) 0.16.0 and checks
+its pinned SHA-256; no C/C++ toolchain needs to be installed. `ZIG=/path/to/zig` overrides the download with that version.
+`./gradlew :mcav-bukkit:buildMcv2Natives` runs the cacheable task directly; unchanged inputs are up to date. Generated
+libraries and their `SHA256SUMS` and `SOURCES` manifests live under `mcav-bukkit/build/generated/natives/mcav/mcv2/natives`.
+Commit only the sources. The loader checks the generated digests, and the tests compare the source manifest with the
+tree. `./gradlew :mcav-bukkit:formatMcv2Natives` formats the sources with clang-format (`CLANG_FORMAT=/path/to/clang-format`).
 
 ## Static Analysis
 

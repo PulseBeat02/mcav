@@ -40,7 +40,7 @@ warnings.
 | `-Pmcav.networkTests=true` | Also runs the tests that download from the internet, such as the check of the bundled yt-dlp release. |
 | `-Pmcav.syncMeasurement=true` | Also measures how far the sound of a virtual machine drifts from its picture; run it on a quiet machine. |
 | `./gradlew :<module>:pitest` | Runs [PIT](https://pitest.org/) mutation testing on one module, writing its report to `build/reports/pitest`. |
-| `./gradlew :mcav-bukkit:buildMcv2Natives -Pmcav.natives=build` | Rebuilds the six native libraries of the MCV2 encoder with Zig 0.16.0; the normal build uses the committed ones. |
+| `./gradlew :mcav-bukkit:buildMcv2Natives` | Builds the six MCV2 native libraries with Zig 0.16.0, which Gradle downloads and checksum-verifies. Resource processing runs this automatically; unchanged inputs are up to date. |
 
 [CONTRIBUTING.md](https://github.com/PulseBeat02/mcav/blob/master/CONTRIBUTING.md) describes the tests, the coverage
 lint, the property, fuzz and concurrency tests, mutation testing and the end-to-end test of the plugin in more detail.

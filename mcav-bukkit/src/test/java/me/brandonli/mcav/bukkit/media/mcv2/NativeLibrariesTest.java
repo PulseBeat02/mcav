@@ -45,7 +45,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * The committed native libraries, read from their files with no emulator: each is built for its platform's machine and
+ * The generated native libraries, read from their files with no emulator: each is built for its platform's machine and
  * exports exactly the entry points of the levels that platform dispatches to, the Linux ones need no library and leave
  * no symbol undefined, and all of them were built from the sources in the tree.
  */
@@ -57,7 +57,7 @@ final class NativeLibrariesTest {
   /** The formatter's settings, which no library is built from. */
   private static final String FORMAT_SETTINGS = ".clang-format";
 
-  private static final String REBUILD = "rebuild the libraries: ./gradlew :mcav-bukkit:buildMcv2Natives -Pmcav.natives=build";
+  private static final String REBUILD = "rebuild the libraries: ./gradlew :mcav-bukkit:buildMcv2Natives";
 
   /** One entry of the source's kernel list, {@code X(return type, name, parameters)}. */
   private static final Pattern KERNEL = Pattern.compile("\\bX\\(\\s*\\w+\\s*,\\s*(\\w+)\\s*,");
@@ -145,8 +145,8 @@ final class NativeLibrariesTest {
   @Test
   void wasBuiltFromTheSourcesInTheTree() throws IOException {
     final Map<String, String> built = new TreeMap<>();
-    try (final InputStream manifest = MCV2.class.getResourceAsStream("natives/SOURCES")) {
-      assertNotNull(manifest, "no natives/SOURCES: " + REBUILD);
+    try (final InputStream manifest = MCV2.class.getResourceAsStream("/mcav/mcv2/natives/SOURCES")) {
+      assertNotNull(manifest, "no /mcav/mcv2/natives/SOURCES: " + REBUILD);
       for (final String line : new String(manifest.readAllBytes(), StandardCharsets.US_ASCII).lines().toList()) {
         final List<String> fields = Splitter.on(' ').omitEmptyStrings().splitToList(line);
         built.put(fields.get(1), fields.get(0));
@@ -178,7 +178,9 @@ final class NativeLibrariesTest {
   }
 
   private static byte[] library(final String platform) {
-    final byte[] bytes = Natives.read(MCV2.class.getResourceAsStream("natives/" + platform + "/" + Natives.libraryName(platform)));
+    final byte[] bytes = Natives.read(
+      MCV2.class.getResourceAsStream("/mcav/mcv2/natives/" + platform + "/" + Natives.libraryName(platform))
+    );
     assertNotNull(bytes, platform);
     return bytes;
   }

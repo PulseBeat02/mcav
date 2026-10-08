@@ -35,7 +35,7 @@ set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
 sources=$here/../../../main/native/mcv2
-libraries=$here/../../../main/resources/me/brandonli/mcav/bukkit/media/mcv2/natives
+libraries=$here/../../../../build/generated/natives/mcav/mcv2/natives
 work=${WORK:-$(mktemp -d)}
 clang=${CLANG:-clang++}
 llvm=${LLVM_BIN:-/usr/lib/llvm-18/bin}

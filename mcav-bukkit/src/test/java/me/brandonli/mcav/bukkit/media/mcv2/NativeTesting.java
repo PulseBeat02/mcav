@@ -79,7 +79,7 @@ final class NativeTesting {
         MCV2.NATIVE_AUTO,
         Natives.platform(System.getProperty("os.name", ""), System.getProperty("os.arch", "")),
         FOLDER,
-        platform -> Natives.read(MCV2.class.getResourceAsStream("natives/" + platform + "/" + Natives.libraryName(platform))),
+        platform -> Natives.read(MCV2.class.getResourceAsStream("/mcav/mcv2/natives/" + platform + "/" + Natives.libraryName(platform))),
         null
       );
       if (expected() && current.binding() == null) {

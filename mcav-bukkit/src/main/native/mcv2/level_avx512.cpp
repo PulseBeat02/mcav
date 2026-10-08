@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The avx512 level of the kernels in mcv2.cpp, compiled by build.sh with its own flags.
 #define MCV2_SIMD_AVX512
 #define MCV2_PREFIX(name) mcv2_avx512_##name
 #define MCV2_NARROW(name) mcv2_avx2_##name

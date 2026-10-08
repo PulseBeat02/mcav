@@ -119,7 +119,11 @@ cd mcav
 
 The plugin jar is `sandbox/plugin/build/libs/mcav-sandbox-1.0.0-v26.3-all.jar`. Gradle itself runs on any JDK 17 or
 newer; the Java 25 toolchain MCAV compiles with is downloaded by Gradle when the machine has none, and so is the
-Node.js that the code formatter and the web page of `mcav-http` use. No credentials are needed, except to publish. The
+Node.js that the code formatter and the web page of `mcav-http` use. Gradle also downloads Zig 0.16.0 from
+ziglang.org, verifies its pinned SHA-256, and compiles MCV2's six native libraries from
+`mcav-bukkit/src/main/native/mcv2`. No C/C++ compiler needs to be installed; `ZIG=/path/to/zig` can override the download.
+The compiler is cached in `mcav-bukkit/build/tools/zig`, and unchanged native builds are up to date. A failed download
+or compilation fails the build. No credentials are needed, except to publish. The
 project builds on any one of Windows, macOS or Linux: the tests that need another operating system, or a program the
 machine lacks (VLC, QEMU, a display), skip themselves. `build` also enforces the coverage lint, on which the code those
 tests would have run shows up as gaps, so on such a machine build with `-Pmcav.coverage=false`.
