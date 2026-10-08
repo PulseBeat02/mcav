@@ -258,6 +258,7 @@ public final class HttpResultImpl implements HttpResult {
   @Override
   public void stop() {
     synchronized (this.lifecycleLock) {
+      // Clear before disconnectListeners(): a handshake finishing during shutdown must not add a listener.
       this.acceptingListeners = false;
       final ConfigurableApplicationContext current = this.context;
       this.disconnectListeners();
