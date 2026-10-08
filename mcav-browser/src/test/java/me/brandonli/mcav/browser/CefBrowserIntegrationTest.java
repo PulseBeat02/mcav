@@ -23,6 +23,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import java.lang.foreign.FunctionDescriptor;
+import java.lang.foreign.Linker;
+import java.lang.foreign.MemorySegment;
+import java.lang.foreign.ValueLayout;
+import java.lang.invoke.MethodHandle;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +45,8 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 /**
  * Runs the real browser: helper processes with CEF, pages from a local HTTP server, input through the player, and the
@@ -399,5 +406,36 @@ class CefBrowserIntegrationTest {
     // the same player starts again once the module runs again
     final Frames frames = this.start(player, "/second");
     Await.until("the browser shows its page again", () -> frames.lastShows(TestPages.SECOND_COLOR));
+  }
+
+  @Test
+  @EnabledOnOs(OS.MAC)
+  void onMacOsEveryProcessOfChromiumRunsInASandbox() throws Throwable {
+    final BrowserPlayer player = this.player(LOCAL);
+    final Frames frames = this.start(player, "/main");
+    Await.until("a red frame", () -> frames.lastShows(TestPages.MAIN_COLOR));
+    final List<ProcessHandle> chromium;
+    try (final Stream<ProcessHandle> descendants = ProcessHandle.current().descendants()) {
+      chromium = descendants
+        .filter(ProcessHandle::isAlive)
+        .filter(handle -> handle.info().command().orElse("").contains("jcef Helper"))
+        .toList();
+    }
+    assertFalse(chromium.isEmpty(), "Chromium's processes run");
+    for (final ProcessHandle process : chromium) {
+      final String command = process.info().command().orElse("?");
+      assertTrue(isSandboxed(process.pid()), () -> "a process of Chromium runs outside a sandbox: " + command);
+    }
+  }
+
+  // asks macOS whether a process is in a sandbox: sandbox_check of the C library with no operation
+  @SuppressWarnings("restricted")
+  private static boolean isSandboxed(final long pid) throws Throwable {
+    final Linker linker = Linker.nativeLinker();
+    final MethodHandle check = linker.downcallHandle(
+      linker.defaultLookup().findOrThrow("sandbox_check"),
+      FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT)
+    );
+    return (int) check.invokeExact((int) pid, MemorySegment.NULL, 0) != 0;
   }
 }

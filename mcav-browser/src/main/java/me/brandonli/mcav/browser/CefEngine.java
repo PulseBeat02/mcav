@@ -210,11 +210,11 @@ final class CefEngine implements HelperEngine {
     final CefSettings settings = builder.getCefSettings();
     configureSettings(settings, configuration);
     builder.setAppHandler(new StateListener(this.terminated, events));
-    // a confinement holds for the thread that starts Chromium and everything it starts, the AWT event thread, CEF's
-    // threads and Chromium's processes among them, while the helper's own threads stay free: the guard and the display
-    // connect anywhere, and the main thread ends the JVM
+    // on Linux a confinement holds for the thread that starts Chromium and everything it starts, the AWT event thread,
+    // CEF's threads and Chromium's processes among them, while the helper's own threads stay free: the guard and the
+    // display connect anywhere, and the main thread ends the JVM; on macOS it holds for the whole helper
     runOnOwnThread(CHROMIUM_THREAD, () -> {
-      events.onNotice(ChromiumConfinement.confine(configuration, isLinux));
+      events.onNotice(ChromiumConfinement.confine(configuration, isLinux, isMac));
       this.startChromium(builder, configuration, painter, events);
       return null;
     });
