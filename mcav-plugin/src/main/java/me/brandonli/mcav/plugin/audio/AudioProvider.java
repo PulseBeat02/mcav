@@ -1,0 +1,569 @@
+/*
+ * This file is part of mcav, a media playback library for Java
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package me.brandonli.mcav.plugin.audio;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Equivalence;
+import com.google.common.base.Preconditions;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import me.brandonli.mcav.http.HttpResult;
+import me.brandonli.mcav.http.MediaInfo;
+import me.brandonli.mcav.jda.DiscordPlayer;
+import me.brandonli.mcav.json.ytdlp.format.URLParseDump;
+import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
+import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
+import me.brandonli.mcav.plugin.utils.AudioArgument;
+import me.brandonli.mcav.plugin.utils.TaskUtils;
+import me.brandonli.mcav.svc.SVCFilter;
+import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.JDABuilder;
+import net.dv8tion.jda.api.entities.Guild;
+import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
+import net.dv8tion.jda.api.managers.AudioManager;
+import net.dv8tion.jda.api.requests.GatewayIntent;
+import net.dv8tion.jda.api.utils.cache.CacheFlag;
+import org.bukkit.Bukkit;
+import org.bukkit.Server;
+import org.bukkit.plugin.PluginManager;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Creates the audio outputs enabled in the configuration: a Discord bot, the audio web page, and Simple Voice
+ * Chat speakers.
+ *
+ * <p>Logging the bot in and starting the web server take a few seconds, so they start on another thread and the
+ * server does not wait for them. An output can be used once it is ready, see {@link #isDiscordBotReady()} and
+ * {@link #isHttpReady()}; one that fails to start is logged and stays unavailable.
+ */
+public final class AudioProvider {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(AudioProvider.class);
+
+  private static final String WEB_PAGE_FAILED = "The audio web page could not be started, so its audio is not available";
+
+  private static final String WEB_PAGE_AVAILABLE = "The audio web page is available at {}";
+
+  private static final String DISCORD_FAILED = "The Discord bot could not connect, so its audio is not available";
+
+  private static final String HAND_BACK_FAILED = "The audio outputs could not go back to the source that played before";
+
+  private static final String STARTUP_NOT_STOPPED =
+    "Audio startup did not stop within {} seconds; restart the server before enabling MCAV again";
+
+  private static final String STARTUP_WAIT_INTERRUPTED = "Interrupted while waiting for audio startup to stop";
+
+  private static final long STARTUP_STOP_TIMEOUT_SECONDS = 10L;
+
+  private static final Object VIDEO = new Object();
+  private static final Equivalence<Object> IDENTITY = Equivalence.identity();
+
+  private final PluginDataConfigurationMapper configuration;
+  private final MCAVSandbox sandbox;
+  private final ExecutorService startup;
+  private final Object lock;
+
+  private volatile @Nullable JDA jda;
+  private volatile @Nullable DiscordConnection discord;
+  private volatile @Nullable HttpResult httpServer;
+  private volatile @Nullable SVCFilter voiceChatFilter;
+  private boolean stopped;
+  private final Object outputLock;
+  private final Deque<Claim> claims;
+  private volatile @Nullable Claim owner;
+
+  /**
+   * Constructs the provider.
+   *
+   * @param sandbox the plugin, whose configuration must be loaded
+   */
+  public AudioProvider(final MCAVSandbox sandbox) {
+    this(sandbox, Executors.newVirtualThreadPerTaskExecutor());
+  }
+
+  /**
+   * Constructs the provider with the executor that starts the Discord bot and the web server.
+   *
+   * @param sandbox the plugin, whose configuration must be loaded
+   * @param startup the executor, which {@link #shutdown()} shuts down
+   */
+  @VisibleForTesting
+  AudioProvider(final MCAVSandbox sandbox, final ExecutorService startup) {
+    Preconditions.checkNotNull(sandbox, "Plugin must not be null");
+    Preconditions.checkNotNull(startup, "Startup executor must not be null");
+    this.configuration = sandbox.getConfiguration();
+    this.sandbox = sandbox;
+    this.startup = startup;
+    this.lock = new Object();
+    this.outputLock = new Object();
+    this.claims = new ArrayDeque<>();
+  }
+
+  /**
+   * Starts the outputs enabled in the configuration. The Discord bot and the web server start on another thread,
+   * so this returns at once; Simple Voice Chat is registered before it returns.
+   *
+   * @throws MissingVoiceChatException if Simple Voice Chat audio is enabled but the voicechat plugin is not installed
+   */
+  public void initialize() {
+    final boolean discordEnabled = this.configuration.isDiscordBotEnabled();
+    if (discordEnabled) {
+      this.startDiscord();
+    }
+    final boolean httpEnabled = this.configuration.isHttpEnabled();
+    if (httpEnabled) {
+      this.startHttp();
+    }
+    final boolean voiceChatEnabled = this.configuration.isSimpleVoiceChatEnabled();
+    if (voiceChatEnabled) {
+      this.registerVoiceChat();
+    }
+  }
+
+  // Simple Voice Chat offers its service only once the server has loaded, so the plugin registers with it then
+  private void registerVoiceChat() {
+    final Server server = Bukkit.getServer();
+    final PluginManager pluginManager = server.getPluginManager();
+    final boolean installed = pluginManager.isPluginEnabled("voicechat");
+    if (!installed) {
+      throw new MissingVoiceChatException("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed");
+    }
+    final ServerLoadListener listener = new ServerLoadListener(this.sandbox);
+    pluginManager.registerEvents(listener, this.sandbox);
+  }
+
+  private void startHttp() {
+    final String host = this.configuration.getHttpHostName();
+    final int port = this.configuration.getHttpPort();
+    final HttpResult server = HttpResult.http(host, port);
+    final CompletableFuture<Void> start = CompletableFuture.runAsync(server::start, this.startup);
+    TaskUtils.whenComplete(start, (_, error) -> this.onHttpStarted(server, error));
+  }
+
+  private void onHttpStarted(final HttpResult server, final @Nullable Throwable error) {
+    if (error != null) {
+      LOGGER.error(WEB_PAGE_FAILED, error);
+      return;
+    }
+    final boolean accepted;
+    synchronized (this.lock) {
+      accepted = !this.stopped;
+      if (accepted) {
+        this.httpServer = server;
+      }
+    }
+    if (!accepted) {
+      server.stop();
+      return;
+    }
+    final String address = server.getFullUrl();
+    LOGGER.info(WEB_PAGE_AVAILABLE, address);
+  }
+
+  private void startDiscord() {
+    final String token = this.configuration.getDiscordBotToken();
+    final String guildId = this.configuration.getDiscordBotGuildId();
+    final String channelId = this.configuration.getDiscordBotChannelId();
+    final JDA bot = createJDA(token);
+    synchronized (this.lock) {
+      this.jda = bot;
+    }
+    final CompletableFuture<DiscordConnection> login = CompletableFuture.supplyAsync(
+      () -> connectDiscord(bot, guildId, channelId),
+      this.startup
+    );
+    TaskUtils.whenComplete(login, (connection, error) -> this.onDiscordConnected(bot, connection, error));
+  }
+
+  private static JDA createJDA(final String token) {
+    final JDABuilder builder = JDABuilder.createLight(token, GatewayIntent.GUILD_VOICE_STATES);
+    builder.enableCache(CacheFlag.VOICE_STATE);
+    return builder.build();
+  }
+
+  private static DiscordConnection connectDiscord(final JDA bot, final String guildId, final String channelId) {
+    try {
+      bot.awaitReady();
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+      throw new IllegalStateException("Interrupted while logging the Discord bot in", exception);
+    }
+    final Guild guild = bot.getGuildById(guildId);
+    if (guild == null) {
+      throw new IllegalStateException("The Discord bot is not a member of the guild " + guildId);
+    }
+    final VoiceChannel voiceChannel = guild.getVoiceChannelById(channelId);
+    if (voiceChannel == null) {
+      throw new IllegalStateException("The Discord voice channel " + channelId + " does not exist");
+    }
+    final AudioManager audioManager = guild.getAudioManager();
+    final DiscordPlayer player = DiscordPlayer.voice(bot);
+    return new DiscordConnection(voiceChannel, audioManager, player);
+  }
+
+  private void onDiscordConnected(final JDA bot, final @Nullable DiscordConnection connection, final @Nullable Throwable error) {
+    if (error != null) {
+      this.onDiscordFailed(bot, error);
+      return;
+    }
+    synchronized (this.lock) {
+      if (!this.stopped) {
+        this.discord = connection;
+      }
+    }
+  }
+
+  private void onDiscordFailed(final JDA bot, final Throwable error) {
+    LOGGER.error(DISCORD_FAILED, error);
+    final boolean current;
+    synchronized (this.lock) {
+      // JDA does not override equals, so this asks whether the failed bot is still the very instance in use
+      current = bot.equals(this.jda);
+      if (current) {
+        this.jda = null;
+      }
+    }
+    if (current) {
+      bot.shutdownNow();
+    }
+  }
+
+  /**
+   * Gets the link to the Discord voice channel.
+   *
+   * @return the channel URL
+   */
+  public String constructVoiceChannelUrl() {
+    final String guildId = this.configuration.getDiscordBotGuildId();
+    final String channelId = this.configuration.getDiscordBotChannelId();
+    return "https://discord.com/channels/" + guildId + "/" + channelId;
+  }
+
+  /**
+   * Gets the link to the audio web page.
+   *
+   * @return the page URL
+   */
+  public String constructHttpUrl() {
+    final HttpResult server = this.httpServer;
+    if (server != null) {
+      return server.getFullUrl();
+    }
+    final String host = this.configuration.getHttpHostName();
+    final int port = this.configuration.getHttpPort();
+    return "http://" + host + ":" + port + "/";
+  }
+
+  /**
+   * Checks whether the Discord bot is enabled in the configuration.
+   *
+   * @return true if enabled
+   */
+  public boolean isDiscordBotEnabled() {
+    return this.configuration.isDiscordBotEnabled();
+  }
+
+  /**
+   * Checks whether the Discord bot has logged in and found its voice channel, so it can play.
+   *
+   * @return true if ready, false while it starts, after it failed to start, or when it is disabled
+   */
+  public boolean isDiscordBotReady() {
+    return this.discord != null;
+  }
+
+  /**
+   * Checks whether the audio web page is enabled in the configuration.
+   *
+   * @return true if enabled
+   */
+  public boolean isHttpEnabled() {
+    return this.configuration.isHttpEnabled();
+  }
+
+  /**
+   * Checks whether the web server of the audio web page has started, so it can play.
+   *
+   * @return true if ready, false while it starts, after it failed to start, or when it is disabled
+   */
+  public boolean isHttpReady() {
+    return this.httpServer != null;
+  }
+
+  /**
+   * Creates the audio filter of an output for the video.
+   *
+   * @param argument the output chosen in the command
+   * @param dump     information about the media, shown by outputs that display a title
+   * @param players  the players Simple Voice Chat plays from
+   * @return the filter to attach to the audio pipeline
+   * @throws IllegalStateException if the Discord bot or the web page is chosen but not ready
+   */
+  public AudioFilter constructFilter(final AudioArgument argument, final URLParseDump dump, final Object[] players) {
+    return this.constructFilter(argument, dump, players, VIDEO);
+  }
+
+  /**
+   * Creates the audio filter of an output for a source. The outputs play one source at a time: the source takes them
+   * over from any other, whose filter falls silent, and a filter plays only while its source has the outputs. When
+   * the source is released, the outputs go back to the source it took them from, if that one was not released
+   * meanwhile.
+   *
+   * @param argument the output chosen in the command
+   * @param dump     information about the media, shown by outputs that display a title
+   * @param players  the players Simple Voice Chat plays from
+   * @param source   what plays, such as a virtual machine
+   * @return the filter to attach to the audio pipeline
+   * @throws IllegalStateException if the Discord bot or the web page is chosen but not ready
+   */
+  public AudioFilter constructFilter(final AudioArgument argument, final URLParseDump dump, final Object[] players, final Object source) {
+    Preconditions.checkNotNull(argument, "Audio argument must not be null");
+    Preconditions.checkNotNull(dump, "Dump must not be null");
+    Preconditions.checkNotNull(players, "Players must not be null");
+    Preconditions.checkNotNull(source, "Source must not be null");
+    if (argument == AudioArgument.NONE) {
+      return AudioFilter.NO_OP;
+    }
+    synchronized (this.outputLock) {
+      // the speakers of the previous source stop only once the new source has its output, so a takeover that fails,
+      // such as one through a bot that is not ready, leaves the previous source playing
+      final SVCFilter previousSpeakers = this.voiceChatFilter;
+      final Claim claim = new Claim(source, argument, dump, players);
+      claim.output = this.connect(claim);
+      this.claims.removeIf(held -> IDENTITY.equivalent(held.source, source));
+      this.claims.push(claim);
+      this.owner = claim;
+      if (previousSpeakers != null) {
+        this.retireSpeakers(previousSpeakers);
+      }
+      return (samples, metadata) -> this.owner == claim && claim.output.applyFilter(samples, metadata);
+    }
+  }
+
+  @SuppressWarnings("ReferenceEquality")
+  private void retireSpeakers(final SVCFilter speakers) {
+    if (this.voiceChatFilter == speakers) {
+      this.voiceChatFilter = null;
+    }
+    speakers.release();
+  }
+
+  /** Connects the output a source chose to it. */
+  private AudioFilter connect(final Claim claim) {
+    return switch (claim.argument) {
+      case DISCORD_BOT -> this.constructDiscordFilter(claim.dump);
+      case HTTP_SERVER -> this.constructHttpFilter(claim.dump);
+      default -> this.constructSVCFilter(claim.players);
+    };
+  }
+
+  private AudioFilter constructSVCFilter(final Object[] players) {
+    final SVCFilter filter = SVCFilter.svc(players);
+    filter.start();
+    this.voiceChatFilter = filter;
+    return filter;
+  }
+
+  private AudioFilter constructHttpFilter(final URLParseDump dump) {
+    final HttpResult server = this.httpServer;
+    if (server == null) {
+      throw new IllegalStateException("The audio web page is not ready");
+    }
+    server.setCurrentMedia(dump);
+    return server;
+  }
+
+  private AudioFilter constructDiscordFilter(final URLParseDump dump) {
+    final DiscordConnection connection = this.discord;
+    if (connection == null) {
+      throw new IllegalStateException("The Discord bot is not ready");
+    }
+    final VoiceChannel voiceChannel = connection.getChannel();
+    final AudioManager manager = connection.getAudioManager();
+    final DiscordPlayer player = connection.getPlayer();
+    player.flush();
+    manager.setSendingHandler(player);
+    manager.openAudioConnection(voiceChannel);
+    player.setCurrentMedia(dump);
+    return player;
+  }
+
+  /**
+   * Disconnects the outputs from the video, unless a virtual machine plays through them; they go back to the source the
+   * video took them from, if that one still plays.
+   */
+  public void releaseAudioFilter() {
+    this.releaseAudioFilter(VIDEO);
+  }
+
+  /**
+   * Disconnects the outputs from a source that is done, unless another source plays through them; they go back to the
+   * source it took them from, if that one still plays.
+   *
+   * @param source the source that is done, such as a virtual machine
+   */
+  public void releaseAudioFilter(final Object source) {
+    Preconditions.checkNotNull(source, "Source must not be null");
+    synchronized (this.outputLock) {
+      this.claims.removeIf(held -> IDENTITY.equivalent(held.source, source));
+      final Claim current = this.owner;
+      if (current != null && !IDENTITY.equivalent(current.source, source)) {
+        return;
+      }
+      this.owner = null;
+      this.releaseOutputs();
+      final Claim previous = this.claims.peek();
+      if (previous == null) {
+        return;
+      }
+      try {
+        previous.output = this.connect(previous);
+        this.owner = previous;
+      } catch (final RuntimeException unavailable) {
+        this.claims.remove(previous);
+        LOGGER.warn(HAND_BACK_FAILED, unavailable);
+      }
+    }
+  }
+
+  private void releaseOutputs() {
+    final DiscordConnection connection = this.discord;
+    if (connection != null) {
+      final AudioManager manager = connection.getAudioManager();
+      manager.setSendingHandler(null);
+      manager.closeAudioConnection();
+      final DiscordPlayer player = connection.getPlayer();
+      player.flush();
+    }
+    final HttpResult server = this.httpServer;
+    if (server != null) {
+      server.setCurrentMedia(MediaInfo.EMPTY);
+    }
+    this.releaseSpeakers();
+  }
+
+  private void releaseSpeakers() {
+    final SVCFilter speakers = this.voiceChatFilter;
+    if (speakers != null) {
+      speakers.release();
+      this.voiceChatFilter = null;
+    }
+  }
+
+  /**
+   * Stops every output, including those that are still starting.
+   *
+   * <p>Interrupts startup and waits up to ten seconds for its cleanup before Paper closes the library loader.
+   * A startup that does not terminate is reported; an interrupted wait preserves the caller's interrupt flag.
+   */
+  public void shutdown() {
+    synchronized (this.lock) {
+      this.stopped = true;
+    }
+    synchronized (this.outputLock) {
+      this.owner = null;
+      this.claims.clear();
+      this.releaseOutputs();
+    }
+    final HttpResult server;
+    final JDA bot;
+    synchronized (this.lock) {
+      server = this.httpServer;
+      bot = this.jda;
+      this.httpServer = null;
+      this.jda = null;
+      this.discord = null;
+    }
+    if (server != null) {
+      server.stop();
+    }
+    if (bot != null) {
+      bot.shutdown();
+    }
+    this.stopStartup();
+  }
+
+  private void stopStartup() {
+    this.startup.shutdownNow();
+    // Paper closes the library loader after onDisable returns, including jars a startup callback still needs.
+    try {
+      final boolean terminated = this.startup.awaitTermination(STARTUP_STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      if (!terminated) {
+        LOGGER.warn(STARTUP_NOT_STOPPED, STARTUP_STOP_TIMEOUT_SECONDS);
+      }
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+      LOGGER.warn(STARTUP_WAIT_INTERRUPTED);
+    }
+  }
+
+  /** A source's hold on the outputs: the output it chose, what it shows there, and the filter it plays into. */
+  private static final class Claim {
+
+    private final Object source;
+    private final AudioArgument argument;
+    private final URLParseDump dump;
+    private final Object[] players;
+    private volatile AudioFilter output;
+
+    private Claim(final Object source, final AudioArgument argument, final URLParseDump dump, final Object[] players) {
+      this.source = source;
+      this.argument = argument;
+      this.dump = dump;
+      this.players = players;
+      this.output = AudioFilter.NO_OP;
+    }
+  }
+
+  /**
+   * The voice channel the bot plays into, the audio connection of its guild, and the player that sends the audio.
+   */
+  private static final class DiscordConnection {
+
+    private final VoiceChannel channel;
+    private final AudioManager audioManager;
+    private final DiscordPlayer player;
+
+    DiscordConnection(final VoiceChannel channel, final AudioManager audioManager, final DiscordPlayer player) {
+      this.channel = channel;
+      this.audioManager = audioManager;
+      this.player = player;
+    }
+
+    private VoiceChannel getChannel() {
+      return this.channel;
+    }
+
+    private AudioManager getAudioManager() {
+      return this.audioManager;
+    }
+
+    private DiscordPlayer getPlayer() {
+      return this.player;
+    }
+  }
+}

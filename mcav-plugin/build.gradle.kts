@@ -45,7 +45,7 @@ tasks.register<JavaExec>("browserBenchmark") {
     description = "Measures the frame rate and latency of a browser backend: -Pbenchmark.backend=<backend> -Pbenchmark.output=<file>"
     group = "verification"
     classpath = benchmark.runtimeClasspath
-    mainClass = "me.brandonli.mcav.sandbox.benchmark.BrowserBenchmark"
+    mainClass = "me.brandonli.mcav.plugin.benchmark.BrowserBenchmark"
     val backend = providers.gradleProperty("benchmark.backend").orElse("")
     val output = providers.gradleProperty("benchmark.output").orElse(layout.buildDirectory.file("browser-benchmark.md").get().asFile.absolutePath)
     argumentProviders.add(CommandLineArgumentProvider { listOf(backend.get(), output.get()) })
@@ -60,8 +60,8 @@ paperPluginYaml {
     description = "MCAV Sandbox Plugin"
     authors = listOf("PulseBeat_02")
     prefix = "MCAV Sandbox"
-    loader = "me.brandonli.mcav.sandbox.MCAVLoader"
-    main = "me.brandonli.mcav.sandbox.MCAVSandbox"
+    loader = "me.brandonli.mcav.plugin.MCAVLoader"
+    main = "me.brandonli.mcav.plugin.MCAVSandbox"
     dependencies.server("voicechat", PaperPluginYaml.Load.BEFORE, false)
     defaultPermission = Permission.Default.OP
     permissions {

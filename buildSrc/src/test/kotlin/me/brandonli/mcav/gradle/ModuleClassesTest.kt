@@ -65,10 +65,10 @@ class ModuleClassesTest {
     @Test
     fun requiresTheModuleClassesThePluginUsesThatTheDownloadedModulesHold() {
         val plugin = folder.resolve("plugin").toFile()
-        File(plugin, "me/brandonli/mcav/sandbox").mkdirs()
-        File(plugin, "me/brandonli/mcav/sandbox/MCAVSandbox.class").writeBytes(
+        File(plugin, "me/brandonli/mcav/plugin").mkdirs()
+        File(plugin, "me/brandonli/mcav/plugin/MCAVSandbox.class").writeBytes(
             classBytes(
-                "me/brandonli/mcav/sandbox/MCAVSandbox",
+                "me/brandonli/mcav/plugin/MCAVSandbox",
                 "me/brandonli/mcav/MCAV",
                 "me/brandonli/mcav/svc/SVCFilter",
                 "me/brandonli/mcav/bukkit/media/mcv2/Mcv2PackServer"
