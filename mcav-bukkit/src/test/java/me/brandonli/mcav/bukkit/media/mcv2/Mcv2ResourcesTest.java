@@ -73,7 +73,7 @@ final class Mcv2ResourcesTest {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
       Mcv2Resources.load("/mcav/mcv2/missing.bin", EMPTY_SHA256, 0)
     );
-    assertEquals("Missing MCV2 resource missing.bin", exception.getMessage());
+    assertEquals("Missing MCV2 resource /mcav/mcv2/missing.bin", exception.getMessage());
   }
 
   @Test

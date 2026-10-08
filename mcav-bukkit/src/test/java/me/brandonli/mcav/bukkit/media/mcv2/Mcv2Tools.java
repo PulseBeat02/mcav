@@ -18,9 +18,7 @@
 package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static org.lwjgl.system.MemoryStack.stackPush;
-import org.lwjgl.util.shaderc.Shaderc;
 import static org.lwjgl.util.spvc.Spv.SpvDecorationLocation;
-import org.lwjgl.util.spvc.Spvc;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -56,9 +54,11 @@ import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.util.shaderc.Shaderc;
 import org.lwjgl.util.shaderc.ShadercIncludeResolve;
 import org.lwjgl.util.shaderc.ShadercIncludeResult;
 import org.lwjgl.util.shaderc.ShadercIncludeResultRelease;
+import org.lwjgl.util.spvc.Spvc;
 import org.lwjgl.util.spvc.SpvcReflectedResource;
 
 public final class Mcv2Tools {
@@ -697,7 +697,13 @@ public final class Mcv2Tools {
         check(Spvc.spvc_context_parse_spirv(context, spirv.asIntBuffer(), spirv.remaining() / 4, pointer), "parse");
         final long intermediateRepresentation = pointer.get(0);
         check(
-          Spvc.spvc_context_create_compiler(context, Spvc.SPVC_BACKEND_GLSL, intermediateRepresentation, Spvc.SPVC_CAPTURE_MODE_TAKE_OWNERSHIP, pointer),
+          Spvc.spvc_context_create_compiler(
+            context,
+            Spvc.SPVC_BACKEND_GLSL,
+            intermediateRepresentation,
+            Spvc.SPVC_CAPTURE_MODE_TAKE_OWNERSHIP,
+            pointer
+          ),
           "compiler"
         );
         final long compiler = pointer.get(0);
