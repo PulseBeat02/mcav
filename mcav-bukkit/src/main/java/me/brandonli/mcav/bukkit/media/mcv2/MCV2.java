@@ -2076,17 +2076,17 @@ public final class MCV2 {
       Preconditions.checkArgument(size == SMALLEST_BLOCK || size == 2 * SMALLEST_BLOCK || size == ROOT_SIZE, "Invalid block size");
     }
 
-    private static void checkRange(final int length, final int offset, final long count) {
-      Preconditions.checkArgument(offset >= 0 && offset <= length - count, "Array too short");
+    private static void checkLength(final int length, final long count) {
+      Preconditions.checkArgument(length >= count, "Array too short");
     }
 
     private static void checkBlock(final int length, final int size) {
-      checkRange(length, 0, size * (long) size * CHANNELS);
+      checkLength(length, size * (long) size * CHANNELS);
     }
 
     private static void checkPicture(final int length, final int width, final int height) {
       Preconditions.checkArgument(width >= 1 && width <= MAX_DIMENSION && height >= 1 && height <= MAX_DIMENSION, "Invalid picture size");
-      checkRange(length, 0, width * (long) height * CHANNELS);
+      checkLength(length, width * (long) height * CHANNELS);
     }
 
     private static void checkCoordinate(final int value) {
@@ -2145,7 +2145,7 @@ public final class MCV2 {
     @Override
     public boolean palette(final byte[] record, final int size, final int[] out) {
       this.checkScored(size, out);
-      checkRange(record.length, 0, SELECTORS_AT + (size * (long) size) / Byte.SIZE);
+      checkLength(record.length, SELECTORS_AT + (size * (long) size) / Byte.SIZE);
       try {
         return this.finished((long) this.binding.palette.invokeExact(of(record), size, of(out), of(this.source), this.rate, this.limit));
       } catch (final Throwable failure) {
@@ -2158,7 +2158,7 @@ public final class MCV2 {
       Preconditions.checkArgument(quantizer >= 0 && quantizer <= MAX_QUANTIZER, "Invalid quantizer");
       this.checkScored(size, out);
       checkBlock(prediction.length, size);
-      checkRange(record.length, 0, COMPACT_BYTES);
+      checkLength(record.length, COMPACT_BYTES);
       try {
         return this.finished(
           (long) this.binding.compact.invokeExact(
@@ -2206,8 +2206,8 @@ public final class MCV2 {
     @Override
     public void fit(final float[] values, final int size, final float[] out) {
       checkSize(size);
-      checkRange(values.length, 0, size * (long) size);
-      checkRange(out.length, 0, GRID_NODES);
+      checkLength(values.length, size * (long) size);
+      checkLength(out.length, GRID_NODES);
       try {
         this.binding.fit.invokeExact(of(values), size, of(FITTING_MATRICES[sizeIndex(size)]), of(out));
       } catch (final Throwable failure) {
@@ -2219,7 +2219,7 @@ public final class MCV2 {
     public void cluster(final int[] source, final int size, final int[] endpoints) {
       checkSize(size);
       checkBlock(source.length, size);
-      checkRange(endpoints.length, 0, PALETTE_COLORS * CHANNELS);
+      checkLength(endpoints.length, PALETTE_COLORS * CHANNELS);
       try {
         this.binding.cluster.invokeExact(of(source), size, of(endpoints));
       } catch (final Throwable failure) {
@@ -2230,9 +2230,9 @@ public final class MCV2 {
     @Override
     public void finishPalette(final int[] source, final int count, final int[] endpoints, final int[] colors, final byte[] selectors) {
       Preconditions.checkArgument(count >= 0 && count <= ROOT_SIZE * ROOT_SIZE, "Invalid pixel count");
-      checkRange(source.length, 0, count * (long) CHANNELS);
-      checkRange(selectors.length, 0, count);
-      checkRange(colors.length, 0, PALETTE_COLORS * CHANNELS);
+      checkLength(source.length, count * (long) CHANNELS);
+      checkLength(selectors.length, count);
+      checkLength(colors.length, PALETTE_COLORS * CHANNELS);
       System.arraycopy(endpoints, 0, colors, 0, PALETTE_COLORS * CHANNELS);
       try {
         this.binding.assign.invokeExact(of(source), count, of(colors), of(selectors));
@@ -2245,8 +2245,8 @@ public final class MCV2 {
     public boolean finishPattern(final int[] source, final int size, final int[] endpoints, final int[] colors, final byte[] selectors) {
       checkSize(size);
       checkBlock(source.length, size);
-      checkRange(selectors.length, 0, size * (long) size);
-      checkRange(colors.length, 0, PALETTE_COLORS * CHANNELS);
+      checkLength(selectors.length, size * (long) size);
+      checkLength(colors.length, PALETTE_COLORS * CHANNELS);
       System.arraycopy(endpoints, 0, colors, 0, PALETTE_COLORS * CHANNELS);
       try {
         return (int) this.binding.assignPattern.invokeExact(of(source), size, of(colors), of(selectors)) != 0;
@@ -2329,9 +2329,9 @@ public final class MCV2 {
     @Override
     public void residualTarget(final int[] source, final int[] prediction, final int count, final float[] target) {
       Preconditions.checkArgument(count >= 0 && count <= ROOT_SIZE * ROOT_SIZE, "Invalid pixel count");
-      checkRange(source.length, 0, count * (long) CHANNELS);
-      checkRange(prediction.length, 0, count * (long) CHANNELS);
-      checkRange(target.length, 0, count);
+      checkLength(source.length, count * (long) CHANNELS);
+      checkLength(prediction.length, count * (long) CHANNELS);
+      checkLength(target.length, count);
       try {
         this.binding.residualTarget.invokeExact(of(source), of(prediction), count, of(target));
       } catch (final Throwable failure) {
