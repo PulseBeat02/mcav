@@ -83,18 +83,15 @@ class ChromiumConfinementTest {
 
   @Test
   void everythingButTheHiddenFoldersMayBeReadAndOnlyTheWritableOnesChanged() throws IOException {
-    // the walk sees the real paths of files, which the temporary folder of macOS is not (/var links to /private/var)
     final Path root = this.folder.toRealPath();
     final Path system = Files.createDirectories(root.resolve("system"));
     final Path homes = Files.createDirectories(root.resolve("home"));
     final Path home = Files.createDirectories(homes.resolve("user"));
     final Path otherHome = Files.createDirectories(homes.resolve("other"));
     final Path file = Files.writeString(root.resolve("file.txt"), "file");
-    // a link into a hidden folder is no way in
     Files.createSymbolicLink(root.resolve("link"), home);
     final Path natives = home.resolve("natives");
     final Path session = root.resolve("session");
-    // the root itself is never hidden, and a folder that does not exist hides nothing
     final List<Path> hidden = List.of(home, root, root.resolve("missing"));
     final List<Landlock.Rule> rules = ChromiumConfinement.rules(root, hidden, List.of(natives), List.of(session));
     assertEquals(
@@ -111,7 +108,6 @@ class ChromiumConfinementTest {
 
   @Test
   void aHiddenFolderIsFoundByItsRealPath() throws IOException {
-    // the walk sees the real paths of files, which the temporary folder of macOS is not (/var links to /private/var)
     final Path root = this.folder.toRealPath();
     final Path real = Files.createDirectories(root.resolve("real"));
     final Path kept = Files.createDirectories(root.resolve("kept"));
@@ -123,7 +119,6 @@ class ChromiumConfinementTest {
   @Test
   @EnabledOnOs({ OS.LINUX, OS.MAC })
   void aFolderThatCannotBeListedGivesNothingBeneathIt() throws IOException {
-    // the walk sees the real paths of files, which the temporary folder of macOS is not (/var links to /private/var)
     final Path root = this.folder.toRealPath();
     final Path closed = Files.createDirectories(root.resolve("closed"));
     final Path hidden = Files.createDirectories(closed.resolve("hidden"));

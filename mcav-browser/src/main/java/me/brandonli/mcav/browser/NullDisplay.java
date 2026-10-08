@@ -111,7 +111,6 @@ final class NullDisplay implements AutoCloseable {
    */
   static final int COOKIE_BYTES = 16;
 
-  // the X11 codes of requests, replies and errors this display uses
   static final int CREATE_WINDOW = 1;
   static final int GET_WINDOW_ATTRIBUTES = 3;
   static final int GET_GEOMETRY = 14;
@@ -326,7 +325,6 @@ final class NullDisplay implements AutoCloseable {
     final List<ServerSocket> unusable = new ArrayList<>();
     try {
       while (unusable.size() < 64) {
-        // this constructor closes the socket itself when it cannot bind
         final ServerSocket candidate = new ServerSocket(0, MAX_CONNECTIONS, loopback);
         if (usable.test(candidate.getLocalPort())) {
           return candidate;
@@ -444,7 +442,6 @@ final class NullDisplay implements AutoCloseable {
       try {
         client = this.server.accept();
       } catch (final IOException exception) {
-        // the display was closed
         return;
       }
       this.clients.add(client);
@@ -452,7 +449,6 @@ final class NullDisplay implements AutoCloseable {
       if (evicted != null) {
         closeQuietly(evicted);
       }
-      // a client waits in a read most of its time, so each gets a virtual thread
       Thread.ofVirtual()
         .name("mcav-browser-null-display-client")
         .start(() -> this.serve(client));
@@ -480,14 +476,12 @@ final class NullDisplay implements AutoCloseable {
       final OutputStream out = new BufferedOutputStream(client.getOutputStream());
       final ByteOrder order = readSetup(in, out, this.cookie);
       this.introduced(client);
-      // only a client with the cookie takes a slot, and one more than the slots ends here
       slot = this.slots.tryAcquire();
       if (slot) {
         client.setSoTimeout(0);
         serveRequests(in, out, order, this.atoms);
       }
     } catch (final IOException exception) {
-      // the client went away or broke the protocol; either way its connection ends
     } finally {
       this.introduced(client);
       this.clients.remove(client);
@@ -566,7 +560,6 @@ final class NullDisplay implements AutoCloseable {
     final byte[] name = readPadded(in, nameLength);
     final byte[] presented = readPadded(in, dataLength);
     final boolean named = COOKIE_NAME.equals(new String(name, StandardCharsets.US_ASCII));
-    // compared in constant time, as a client that guesses learns nothing from how long the answer takes
     final boolean matches = MessageDigest.isEqual(presented, cookie);
     if (major != 11 || !named || !matches) {
       final String reason = major != 11 ? "only X11 is spoken here" : "the cookie of the display is missing";
@@ -626,8 +619,6 @@ final class NullDisplay implements AutoCloseable {
     reply.putShort((short) 11);
     reply.putShort((short) 0);
     reply.putShort((short) (additional / 4));
-    // release, resource base and mask, motion buffer, vendor length, request length, screens, formats, image order,
-    // bitmap order, scanline unit and pad, keycodes
     reply.putInt(1);
     reply.putInt(0x00400000);
     reply.putInt(0x001FFFFF);
@@ -651,8 +642,6 @@ final class NullDisplay implements AutoCloseable {
       reply.put((byte) 32);
       reply.put(new byte[5]);
     }
-    // the screen: root, colormap, white and black pixels, input masks, size in pixels and millimetres, installed
-    // colormaps, root visual, backing stores, save unders, root depth and two depths
     reply.putInt(ROOT);
     reply.putInt(COLORMAP);
     reply.putInt(0xFFFFFF);
@@ -669,7 +658,6 @@ final class NullDisplay implements AutoCloseable {
     reply.put((byte) 0);
     reply.put((byte) 24);
     reply.put((byte) 2);
-    // depth 24 with one TrueColor visual, then depth 32 without visuals
     reply.put((byte) 24);
     reply.put((byte) 0);
     reply.putShort((short) 1);
@@ -713,15 +701,11 @@ final class NullDisplay implements AutoCloseable {
     return switch (opcode) {
       case INTERN_ATOM -> internAtom(data != 0, request, sequence, order, atoms);
       case GET_ATOM_NAME -> atomName(request, sequence, order, atoms);
-      // no window has properties, so every property is missing: type None, format 0, nothing after, no value
       case GET_PROPERTY -> reply(sequence, order, 0, 0);
-      // no extension is there: present, major opcode, first event and first error all zero
       case QUERY_EXTENSION -> reply(sequence, order, 0, 0);
       case LIST_EXTENSIONS -> reply(sequence, order, 0, 0);
-      // the focus is None, reverting to None
       case GET_INPUT_FOCUS -> reply(sequence, order, 0, 0);
       case GET_KEYBOARD_MAPPING -> keyboardMapping(request, sequence, order);
-      // one key code per modifier, none of them set
       case GET_MODIFIER_MAPPING -> reply(sequence, order, 1, 8);
       case GET_WINDOW_ATTRIBUTES -> windowAttributes(sequence, order);
       case GET_GEOMETRY -> geometry(sequence, order);
@@ -736,7 +720,6 @@ final class NullDisplay implements AutoCloseable {
    */
   private static @Nullable ByteBuffer unanswered(final int opcode, final int sequence, final ByteOrder order) {
     if (opcode >= 128) {
-      // an extension, and none was announced
       return error(BAD_REQUEST, opcode, sequence, order, 0);
     }
     if (REPLYING.contains(opcode)) {
@@ -764,7 +747,6 @@ final class NullDisplay implements AutoCloseable {
     final byte[] name = new byte[length];
     request.get(name);
     final String text = new String(name, StandardCharsets.ISO_8859_1);
-    // a client that only asks whether an atom exists gets None for a new name, which is not interned
     final int atom = onlyIfExists ? atoms.find(text) : atoms.intern(text);
     if (atom == 0 && !onlyIfExists) {
       return error(BAD_ALLOC, INTERN_ATOM, sequence, order, 0);
@@ -791,19 +773,15 @@ final class NullDisplay implements AutoCloseable {
   }
 
   private static ByteBuffer keyboardMapping(final ByteBuffer request, final int sequence, final ByteOrder order) {
-    // the first key code, the count and two unused bytes
     if (request.remaining() < 4) {
       return error(BAD_LENGTH, GET_KEYBOARD_MAPPING, sequence, order, 0);
     }
     request.get();
     final int count = request.get() & 0xFF;
-    // one key symbol per key code, and every one is NoSymbol
     return reply(sequence, order, 1, 4 * count);
   }
 
   private static ByteBuffer windowAttributes(final int sequence, final ByteOrder order) {
-    // backing store NotUseful, the visual, class InputOutput, gravities, planes, pixel, save under, map installed,
-    // map state Unmapped, override redirect, colormap and event masks
     final ByteBuffer reply = reply(sequence, order, 0, 12);
     reply.putInt(8, VISUAL);
     reply.putShort(12, (short) 1);
@@ -812,7 +790,6 @@ final class NullDisplay implements AutoCloseable {
   }
 
   private static ByteBuffer geometry(final int sequence, final ByteOrder order) {
-    // the depth in the second byte, then the root, the position, the size and the border width
     final ByteBuffer reply = reply(sequence, order, 24, 0);
     reply.putInt(8, ROOT);
     reply.putShort(16, (short) SCREEN_WIDTH);
@@ -821,14 +798,12 @@ final class NullDisplay implements AutoCloseable {
   }
 
   private static ByteBuffer tree(final int sequence, final ByteOrder order) {
-    // the root, no parent and no children
     final ByteBuffer reply = reply(sequence, order, 0, 0);
     reply.putInt(8, ROOT);
     return reply;
   }
 
   private static ByteBuffer pointer(final int sequence, final ByteOrder order) {
-    // on this screen, over the root at the origin, with no button held
     final ByteBuffer reply = reply(sequence, order, 1, 0);
     reply.putInt(8, ROOT);
     return reply;

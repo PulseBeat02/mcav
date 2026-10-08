@@ -64,7 +64,6 @@ final class Landlock {
   private static final long MAKE_SOCKET = 1L << 9;
   private static final long MAKE_FIFO = 1L << 10;
   private static final long MAKE_SYMBOLIC_LINK = 1L << 12;
-  // the rights of the first version are its 13 lowest bits; making a device file is among them, and never granted
   private static final long FIRST_VERSION_RIGHTS = (1L << 13) - 1;
   private static final long REFER = 1L << 13;
   private static final long TRUNCATE = 1L << 14;
@@ -249,9 +248,6 @@ final class Landlock {
       final Object result = function.invokeWithArguments(arguments);
       return ((Number) result).longValue();
     } catch (final Throwable failure) {
-      // a function of the C library throws nothing itself: this is the JVM, such as a refused native access; a
-      // virtual machine error, such as running out of memory, is no answer of the call and goes on as it is (checked
-      // here, as mcav-common's ThrowableUtils is not on the helper's class path)
       if (failure instanceof final VirtualMachineError fatal) {
         throw fatal;
       }
@@ -276,7 +272,6 @@ final class Landlock {
     private static final Linker LINKER = Linker.nativeLinker();
     private static final StructLayout STATE = Linker.Option.captureStateLayout();
     private static final VarHandle ERROR = STATE.varHandle(MemoryLayout.PathElement.groupElement("errno"));
-    // the number of the call and four arguments, as many as Landlock's calls take
     private static final MethodHandle SYSCALL = bind(
       "syscall",
       FunctionDescriptor.of(

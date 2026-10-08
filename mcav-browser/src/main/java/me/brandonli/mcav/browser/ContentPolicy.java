@@ -91,8 +91,6 @@ final class ContentPolicy
     this.resourcePolicy = new ResourcePolicy(events);
   }
 
-  // CefLifeSpanHandler
-
   /**
    * Opens the address of a popup in place, if it may be shown, instead of opening a window.
    *
@@ -127,9 +125,7 @@ final class ContentPolicy
    * Does nothing; the browser has no parent window.
    */
   @Override
-  public void onAfterParentChanged(final CefBrowser browser) {
-    // an off-screen browser has no parent
-  }
+  public void onAfterParentChanged(final CefBrowser browser) {}
 
   /**
    * Lets the browser decide, which closes it only when the helper allowed it; a page cannot close its browser.
@@ -145,11 +141,7 @@ final class ContentPolicy
    * Does nothing; the client cleans up after the browser.
    */
   @Override
-  public void onBeforeClose(final CefBrowser browser) {
-    // the client disposes of the browser
-  }
-
-  // CefRequestHandler
+  public void onBeforeClose(final CefBrowser browser) {}
 
   /**
    * Cancels a navigation of the page to an address it may not show, or of a frame to one frames may not show.
@@ -180,7 +172,6 @@ final class ContentPolicy
    */
   @Override
   public boolean onOpenURLFromTab(final CefBrowser browser, final CefFrame frame, final String targetUrl, final boolean isUserGesture) {
-    // like a popup, a new tab needs a click or a key
     if (isUserGesture) {
       this.openInPlace(browser, targetUrl);
     }
@@ -254,8 +245,6 @@ final class ContentPolicy
     this.events.onFailure("The renderer of the page ended: " + status + " (" + errorCode + ")");
   }
 
-  // CefJSDialogHandler
-
   /**
    * Dismisses a JavaScript dialog at once: an alert is confirmed, a confirmation and a prompt are cancelled.
    *
@@ -297,19 +286,13 @@ final class ContentPolicy
    * Does nothing; no dialog is ever shown.
    */
   @Override
-  public void onResetDialogState(final CefBrowser browser) {
-    // no dialog is ever shown
-  }
+  public void onResetDialogState(final CefBrowser browser) {}
 
   /**
    * Does nothing; no dialog is ever shown.
    */
   @Override
-  public void onDialogClosed(final CefBrowser browser) {
-    // no dialog is ever shown
-  }
-
-  // CefDownloadHandler
+  public void onDialogClosed(final CefBrowser browser) {}
 
   /**
    * Refuses a download, which an off-screen browser cancels by default, and paints the view again.
@@ -340,8 +323,6 @@ final class ContentPolicy
     callback.cancel();
   }
 
-  // CefDialogHandler
-
   /**
    * Cancels a file chooser, so a page can neither read nor pick a file of the server.
    *
@@ -362,8 +343,6 @@ final class ContentPolicy
     this.events.onNotice("Refused a file chooser");
     return true;
   }
-
-  // CefContextMenuHandler
 
   /**
    * Removes every entry of the context menu, which could otherwise open developer tools or save files.
@@ -398,18 +377,13 @@ final class ContentPolicy
    * Does nothing, as the menu is empty.
    */
   @Override
-  public void onContextMenuDismissed(final CefBrowser browser, final CefFrame frame) {
-    // the menu is empty
-  }
-
-  // CefLoadHandler
+  public void onContextMenuDismissed(final CefBrowser browser, final CefFrame frame) {}
 
   /**
    * Reports whether the page is loading.
    */
   @Override
   public void onLoadingStateChange(final CefBrowser browser, final boolean isLoading, final boolean canGoBack, final boolean canGoForward) {
-    // the blank document the browser is created with is not the page, nor is the empty address before it
     final String url = browser.getURL();
     if (url != null && !url.isEmpty() && !NavigationPolicy.BLANK.equals(url)) {
       this.events.onLoading(isLoading);
@@ -432,9 +406,7 @@ final class ContentPolicy
    * Does nothing; the load state is reported by {@link #onLoadingStateChange}.
    */
   @Override
-  public void onLoadEnd(final CefBrowser browser, final CefFrame frame, final int httpStatusCode) {
-    // reported by onLoadingStateChange
-  }
+  public void onLoadEnd(final CefBrowser browser, final CefFrame frame, final int httpStatusCode) {}
 
   /**
    * Reports that the page failed to load. Failures of frames inside the page are left to the page, and so is an

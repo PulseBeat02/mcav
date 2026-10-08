@@ -291,12 +291,9 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   private static final int BYTES_PER_SECOND = 48_000 * HelperProtocol.AUDIO_FRAME_BYTES;
   private static final long BUDGET_BYTES = (long) BUDGET_SECONDS_PER_SECOND * BYTES_PER_SECOND;
   private static final String PREFIX = "{\"name\":\"" + BINDING + "\",\"payload\":\"";
-  // the Base64 of the most sound a message holds; a longer payload holds more and is refused before it is decoded
   private static final int MAX_PAYLOAD_CHARS = ((HelperProtocol.MAX_AUDIO_BYTES + 2) / 3) * 4;
-  // what follows the payload: the context of the call, and nothing else
   private static final String CONTEXT_FIELD = "\",\"executionContextId\":";
   private static final Pattern CONTEXT = Pattern.compile(Pattern.quote(CONTEXT_FIELD) + "-?[0-9]{1,10}}");
-  // the most that follows the payload: that field, an id of ten digits with its sign, and the closing brace
   private static final int MAX_TAIL = CONTEXT_FIELD.length() + 12;
 
   private final Consumer<byte[]> sink;
@@ -346,7 +343,6 @@ final class PageAudio implements CefDevToolsClient.EventListener {
    */
   @Override
   public void onEvent(final String method, final String parameters) {
-    // an event with more sound than the budget allows by now is not even decoded
     if (!this.mayTake(leastBytes(parameters))) {
       return;
     }
@@ -365,7 +361,6 @@ final class PageAudio implements CefDevToolsClient.EventListener {
    */
   @VisibleForTesting
   static long leastBytes(final String parameters) {
-    // four characters of Base64 hold three bytes, and the padding of the last group takes two of them at most
     return ((parameters.length() - PREFIX.length() - MAX_TAIL) / 4L) * 3L - 2L;
   }
 
@@ -378,15 +373,12 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     final long now = this.clock.getAsLong();
     final boolean quiet = now - this.spoken >= TimeUnit.MILLISECONDS.toNanos(QUIET_MILLIS);
     if (chunk.context() != this.speaker && !quiet) {
-      // another frame plays; its sound would garble what passes
       return false;
     }
     if (!this.spend(chunk.samples().length, now)) {
       return false;
     }
     this.speaker = chunk.context();
-    // the silence a frame sends after its sound keeps the time of that sound, but does not keep another frame from
-    // taking over once the sound ended
     if (!isSilent(chunk.samples())) {
       this.spoken = now;
     }
@@ -403,7 +395,6 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   }
 
   private void refill(final long now) {
-    // a long quiet time refills the budget, never beyond it, so the elapsed time is capped before it is multiplied
     final long elapsed = Math.min(Math.max(now - this.last, 0L), TimeUnit.SECONDS.toNanos(1));
     this.last = now;
     this.available = Math.min(BUDGET_BYTES, this.available + (elapsed * BUDGET_BYTES) / TimeUnit.SECONDS.toNanos(1));
@@ -441,17 +432,14 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     }
     final byte[] samples;
     try {
-      // a quote the page wrote is escaped with a backslash, which is no Base64
       samples = Base64.getDecoder().decode(parameters.substring(start, end));
     } catch (final IllegalArgumentException exception) {
       return null;
     }
-    // the length of the text leaves at most two bytes past the largest message, so whole frames never exceed it
     final int length = samples.length;
     if (length == 0 || length % HelperProtocol.AUDIO_FRAME_BYTES != 0) {
       return null;
     }
-    // the id of the context is what lies between the name of its field and the closing brace
     final long context = Long.parseLong(parameters.substring(end + CONTEXT_FIELD.length(), parameters.length() - 1));
     return new Chunk(context, samples);
   }

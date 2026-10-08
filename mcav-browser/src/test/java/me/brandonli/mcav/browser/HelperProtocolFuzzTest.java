@@ -52,9 +52,7 @@ final class HelperProtocolFuzzTest {
         });
         check(message);
       }
-    } catch (final IOException | CutShort refused) {
-      // malformed or cut short: the server ends the session
-    }
+    } catch (final IOException | CutShort refused) {}
   }
 
   private static void check(final HelperMessage message) {

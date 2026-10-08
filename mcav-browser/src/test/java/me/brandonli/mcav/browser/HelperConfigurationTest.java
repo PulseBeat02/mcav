@@ -71,7 +71,6 @@ class HelperConfigurationTest {
   void theLongestAddressInCharactersOfThreeBytesSurvivesTheLine() {
     final String start = "https://example.com/";
     final URI longest = URI.create(start + "\u20ac".repeat(BrowserSource.MAX_ADDRESS_LENGTH - start.length()));
-    // and long paths
     final Path path = NATIVES.resolve("p".repeat(255)).resolve("q".repeat(255));
     final HelperConfiguration original = new HelperConfiguration(
       token(),
@@ -267,7 +266,6 @@ class HelperConfigurationTest {
       );
       assertEquals("Not a host name or address: " + host, refused.getMessage());
     }
-    // the largest values are accepted
     new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 4096, 4096, 1000, 60, false, false, false, false, SERVER, List.of());
   }
 

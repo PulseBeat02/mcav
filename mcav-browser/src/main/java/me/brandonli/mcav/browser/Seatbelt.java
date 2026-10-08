@@ -48,7 +48,6 @@ final class Seatbelt {
   private static final String NO_REASON = "no reason given";
   private static final String UNCALLABLE = "The C library could not be called";
   private static final Integer SUCCESS = 0;
-  // the profile is compiled from its text, as sandbox-exec -p does
   private static final long PROFILE_TEXT = 0L;
 
   private final SymbolLookup library;
@@ -129,8 +128,6 @@ final class Seatbelt {
     try {
       return function.invokeWithArguments(arguments);
     } catch (final Throwable failure) {
-      // a function of the C library throws nothing itself: this is the JVM, such as a refused native access; a virtual
-      // machine error, such as running out of memory, is no answer of the call and goes on as it is
       if (failure instanceof final VirtualMachineError fatal) {
         throw fatal;
       }

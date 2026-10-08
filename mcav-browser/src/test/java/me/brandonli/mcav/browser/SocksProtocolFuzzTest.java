@@ -57,8 +57,6 @@ final class SocksProtocolFuzzTest {
           character == ':';
         assertTrue(allowed, () -> "host " + host);
       }
-    } catch (final IOException refused) {
-      // malformed, cut short, or not served: the guard answers or drops the client
-    }
+    } catch (final IOException refused) {}
   }
 }

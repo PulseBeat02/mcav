@@ -42,7 +42,6 @@ final class AddressTextFuzzTest {
     }
     final int user = described.indexOf('@');
     final int separator = described.indexOf("://");
-    // an @ in the authority stands behind the marker; one later belongs to the path
     final int authorityEnd = separator < 0 ? -1 : indexOfAny(described.substring(separator + 3), "/?#");
     if (user >= 0 && separator >= 0 && (authorityEnd < 0 || user < separator + 3 + authorityEnd) && user > separator) {
       assertTrue(described.startsWith(AddressText.HIDDEN + "@", separator + 3), described);

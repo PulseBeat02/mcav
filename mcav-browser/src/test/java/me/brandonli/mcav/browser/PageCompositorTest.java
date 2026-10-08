@@ -82,7 +82,6 @@ class PageCompositorTest {
     final PageCompositor compositor = this.compositor(1);
     assertEquals(WIDTH * HEIGHT * 4, compositor.getPageBytes());
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, buffer(WIDTH, HEIGHT, 9), WIDTH, HEIGHT);
-    // only the painted pixel changed; the damage covers it alone
     final FrameRegion region = take(compositor);
     assertEquals(1, region.getWidth());
     assertEquals(9, pixel(region, 0, 0, 0));
@@ -97,12 +96,10 @@ class PageCompositorTest {
     assertEquals(WIDTH, region.getPageWidth());
     assertEquals(HEIGHT, region.getPageHeight());
     assertEquals(new Rectangle(1, 1, 5, 4), new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight()));
-    // painted pixels carry the buffer, the others inside the union are still white
     assertEquals(7, pixel(region, 1, 1, 0));
     assertEquals(2, pixel(region, 2, 1, 1));
     assertEquals(4, pixel(region, 5, 4, 2));
     assertEquals(255, pixel(region, 3, 2, 0));
-    // everything was taken
     assertNull(compositor.takeDamage(new byte[compositor.getPageBytes()], 0L));
   }
 
@@ -200,11 +197,9 @@ class PageCompositorTest {
     compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 3, 2) }, buffer(3, 2, 200), 3, 2);
     final FrameRegion region = take(compositor);
     assertEquals(new Rectangle(2, 2, 3, 2), new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight()));
-    // the popup's own pixel (1, 1) lands on the page at (3, 3)
     assertEquals(200, pixel(region, 3, 3, 0));
     assertEquals(1, pixel(region, 3, 3, 1));
     assertEquals(1, pixel(region, 3, 3, 2));
-    // a page change under the open popup still shows the popup
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, WIDTH, HEIGHT) }, buffer(WIDTH, HEIGHT, 9), WIDTH, HEIGHT);
     final FrameRegion whole = take(compositor);
     assertEquals(200, pixel(whole, 2, 2, 0));
@@ -235,7 +230,6 @@ class PageCompositorTest {
     final FrameRegion region = take(compositor);
     assertEquals(new Rectangle(1, 1, 2, 2), new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight()));
     assertEquals(1, pixel(region, 1, 1, 0));
-    // hiding a popup that never had a size changes nothing
     final PageCompositor fresh = this.compositor(1);
     fresh.onPopupShow(false);
     assertNull(takeNow(fresh));
@@ -262,7 +256,6 @@ class PageCompositorTest {
     compositor.onPopupSize(new Rectangle(4, 3, 2, 2));
     final FrameRegion region = take(compositor);
     assertEquals(new Rectangle(0, 0, 2, 2), new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight()));
-    // a popup outside the page damages nothing
     compositor.onPopupSize(new Rectangle(100, 100, 2, 2));
     compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, 150), 2, 2);
     compositor.onPopupShow(false);
@@ -285,7 +278,6 @@ class PageCompositorTest {
     assertEquals(new Rectangle(1, 1, 2, 2), new Rectangle(page.getX(), page.getY(), page.getWidth(), page.getHeight()));
   }
 
-  // waits much longer than the test, so only a wake-up ends the wait in time
   private static FrameRegion waitForDamage(final PageCompositor compositor, final byte[] target) {
     try {
       return compositor.takeDamage(target, 60_000L);

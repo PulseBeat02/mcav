@@ -196,7 +196,6 @@ final class NetworkGuard implements Closeable {
       try {
         client = this.server.accept();
       } catch (final IOException exception) {
-        // the guard was closed, or the helper ran out of sockets; either way no page gets past it any more
         if (!this.closed) {
           this.notices.accept("The network guard stopped: " + exception.getMessage());
         }
@@ -228,9 +227,6 @@ final class NetworkGuard implements Closeable {
    * @param client the client
    */
   private void serve(final Socket client) {
-    // a client whose handshake takes too long is closed, however it trickles it; a deadline cancelled in time never
-    // runs, one that runs gets a thread of its own, as the common pool may be busy, and after the handshake the
-    // connection may stay quiet for as long as it likes
     final Executor later = CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS, task ->
       Thread.ofVirtual().name("mcav-browser-guard-deadline").start(task)
     );
@@ -266,9 +262,7 @@ final class NetworkGuard implements Closeable {
         this.sockets.remove(target);
         closeQuietly(target);
       }
-    } catch (final IOException exception) {
-      // the client broke the protocol, took too long, or went away
-    }
+    } catch (final IOException exception) {}
   }
 
   /**
@@ -336,7 +330,6 @@ final class NetworkGuard implements Closeable {
       .name("mcav-browser-guard-upstream")
       .start(() -> {
         pump(fromClient, toTarget);
-        // the client is done: closing the target ends the other direction too
         closeQuietly(target);
       });
     pump(fromTarget, toClient);
@@ -346,14 +339,11 @@ final class NetworkGuard implements Closeable {
     final byte[] buffer = new byte[BUFFER_BYTES];
     try {
       int count = in.read(buffer);
-      // the streams of a socket are not buffered, so every write goes out at once
       while (count >= 0) {
         out.write(buffer, 0, count);
         count = in.read(buffer);
       }
-    } catch (final IOException exception) {
-      // one side ended
-    }
+    } catch (final IOException exception) {}
   }
 
   /**
@@ -382,9 +372,7 @@ final class NetworkGuard implements Closeable {
   static void closeQuietly(final Closeable closeable) {
     try {
       closeable.close();
-    } catch (final IOException exception) {
-      // already gone
-    }
+    } catch (final IOException exception) {}
   }
 
   /**
@@ -477,7 +465,6 @@ final class NetworkGuard implements Closeable {
         final List<AddressPolicy.TranslationPrefix> known = this.getPrefixes();
         isPublic = known != null && AddressPolicy.isPublic(address, known);
       }
-      // only a public address can be refused as the machine's own; the others are refused already
       return isPublic && !this.own.test(address);
     }
 
@@ -495,7 +482,6 @@ final class NetworkGuard implements Closeable {
       try {
         answer = this.resolver.resolve(AddressPolicy.IPV4_ONLY_HOST);
       } catch (final UnknownHostException exception) {
-        // no answer this time; the next IPv6 address asks again
         return null;
       }
       final List<AddressPolicy.TranslationPrefix> found = AddressPolicy.findTranslationPrefixes(answer);

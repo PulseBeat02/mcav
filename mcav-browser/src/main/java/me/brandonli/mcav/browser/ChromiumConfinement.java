@@ -162,7 +162,6 @@ final class ChromiumConfinement {
     final List<Path> hiddenFolders = new ArrayList<>();
     for (final Path folder : hidden) {
       if (Files.exists(folder)) {
-        // the walk below sees each folder by its real path
         final Path real = folder.toRealPath();
         if (!real.equals(root)) {
           hiddenFolders.add(real);
@@ -185,11 +184,9 @@ final class ChromiumConfinement {
     try (final Stream<Path> listing = Files.list(folder)) {
       children = listing.toList();
     } catch (final AccessDeniedException exception) {
-      // what lies in a folder that cannot be listed is not read through it
       return;
     }
     for (final Path child : children) {
-      // a link is read through its target, which a rule of its own covers unless it is hidden
       if (Files.isSymbolicLink(child) || hidden.contains(child)) {
         continue;
       }
