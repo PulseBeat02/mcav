@@ -126,7 +126,6 @@ def _record_length(mode: int, size: int) -> int:
 
 
 def parse_frame(data: bytes) -> Frame:
-    """Accept exactly the syntax of §9; never read a field before checking its extent."""
     if data[:4] == b"MCV1":
         raise ValueError("MCV1 version 1 is no longer supported; re-encode")
     if data[:5] == b"MCV2\x02":
@@ -362,7 +361,6 @@ def _decode(frame: Frame, reference: numpy.ndarray | None, reference_id: int | N
 
 
 def decode(data: bytes, reference: numpy.ndarray | None = None, reference_id: int | None = None) -> numpy.ndarray:
-    """Decode a validated frame, requiring the exact reference picture for a P frame."""
     return _decode(parse_frame(data), reference, reference_id)
 
 
@@ -467,12 +465,10 @@ def read_page(symbols: bytes, symbol_bits: int = 6) -> Page:
 
 
 def wire_bytes(pages: list[bytes], full_maps: bool = False, packet_overhead: int = 18) -> int:
-    """Map colour bytes rounded to 128-colour rows, plus the per-page packet allowance."""
     return sum(((PAGE_SYMBOLS if full_maps else (len(page) + 127) // 128 * 128) + packet_overhead for page in pages))
 
 
 class Assembler:
-    """Keep at most four pending frames; a conflict discards that pending frame."""
 
     def __init__(self, stream_id: int = 1, symbol_bits: int = 6):
         page_capacity(symbol_bits)

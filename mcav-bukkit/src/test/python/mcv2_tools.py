@@ -58,7 +58,6 @@ from PIL import Image
 
 
 def bd_rate(reference, test):
-    """The BD rate of test against reference, each a list of (rate, quality); returns (percent, low, high)."""
     reference_rates = numpy.log([point[0] for point in reference])
     reference_qualities = numpy.array([point[1] for point in reference])
     test_rates = numpy.log([point[0] for point in test])
@@ -382,7 +381,6 @@ counter_video_SYNC = (1, 0, 1, 0)
 
 
 def counter_video_stamp(frame, number):
-    """Writes a frame's number into the blocks of its top row."""
     values = [number >> bit & 1 for bit in range(counter_video_BITS)] + list(counter_video_SYNC)
     for position, value in enumerate(values):
         frame[0:counter_video_BLOCK, position * counter_video_BLOCK : (position + 1) * counter_video_BLOCK] = (
@@ -391,7 +389,6 @@ def counter_video_stamp(frame, number):
 
 
 def counter_video_read(luma):
-    """The number a row of 24 block-centre lumas carries, or None when the sync blocks do not match."""
     bits = [1 if value >= 128 else 0 for value in luma]
     if (
         len(bits) < counter_video_BITS + len(counter_video_SYNC)
@@ -479,7 +476,6 @@ def capture_check_psnr(captured, expected):
 
 
 def capture_check_ssim(captured, expected):
-    """Mean SSIM of the luma planes, 8x8 windows, the usual constants."""
 
     def luma(picture):
         picture = picture.astype(numpy.float64)
@@ -730,7 +726,6 @@ def edge_streams_mode_stream(randomizer):
 
 
 def edge_streams_pattern_stream(randomizer):
-    """Every size, orientation and axis extreme, with endpoints no 5- or 6-bit channel could carry."""
     endpoints = (bytes([1, 254, 3, 255, 0, 129]), bytes([127, 128, 77, 2, 253, 250]))
     roots, index = ({}, 0)
     for size in (8, 16, 32):
@@ -1223,17 +1218,14 @@ def shader_check_frames(path):
 
 
 def shader_check_cells_width(width):
-    """The resolve pass's columns, as Mcv2Pack.cellsWidth: one per 8 pixels."""
     return (width + 7) // 8
 
 
 def shader_check_cells_height(height):
-    """The resolve pass's rows of cells, as Mcv2Pack.cellsHeight; the frame row follows them."""
     return (height + 7) // 8
 
 
 def shader_check_placeholders(width, height, slots):
-    """The target sizes Mcv2Pack.postChain fills into the post chain."""
     capacity = 12256
     return {
         "VIDEO_WIDTH": width,
@@ -1248,8 +1240,6 @@ def shader_check_placeholders(width, height, slots):
 
 
 def shader_check_post_chain(width, height, slots):
-    """The pack's post chain for one screen, as Mcv2Pack.postChain assembles it from the template: the screen's
-    decoding passes, its drawing passes, then the outline's."""
     template_path = shader_check_PACK.parent / "chain.json"
     text = template_path.read_text().replace("@S@", str(shader_check_SCREEN_INDEX))
     for name, value in shader_check_placeholders(width, height, slots).items():
@@ -1264,7 +1254,6 @@ shader_check_BLIT = "#version 330\n#extension GL_ARB_separate_shader_objects : r
 
 
 def shader_check_screens_config(slots):
-    """The table of the pack's screens, as Mcv2Pack.config writes it."""
     if shader_check_SCREEN_INDEX == 0:
         return [
             "const int MCV2_SCREENS = 1;",
@@ -1283,7 +1272,6 @@ def shader_check_screens_config(slots):
 
 
 def shader_check_generated(width, height, slots):
-    """The generated includes, as the pack builder writes them."""
     return {
         "mcav:mcv2_config.glsl": "\n".join(
             shader_check_screens_config(slots)
@@ -1309,7 +1297,6 @@ def shader_check_generated(width, height, slots):
 
 
 def shader_check_resolve(source, includes, seen=None):
-    """Inlines #include <namespace:file> like the client's compiler, once per file."""
     seen = set() if seen is None else seen
 
     def include(match):
@@ -1334,7 +1321,6 @@ def shader_check_desktop(source):
 
 
 class ShaderChain:
-    """The pack's post chain as the client runs it on one rendered frame, with its targets kept between frames."""
 
     def __init__(self, context, width, height, slots):
         self.context = context
@@ -1367,12 +1353,9 @@ class ShaderChain:
         self.compiled = None
 
     def target(self, name):
-        """A target by the short name shader_check has always used: previous, status, ... of the one screen."""
         return self.targets[name if ":" in name else "mcav:mcv2_%s_%d" % (name, shader_check_SCREEN_INDEX)]
 
     def program(self, name, vertex="minecraft:core/screenquad"):
-        """A pass's program: its fragment shader, and its vertex shader when the pass names one of the pack's instead
-        of Minecraft's screen quad, which is VERTEX."""
         key = (name, vertex)
         if key not in self.programs:
             if self.compiled is not None:
@@ -1428,13 +1411,11 @@ class ShaderChain:
         return steps
 
     def reset(self):
-        """A client that has decoded nothing: every persistent target zero."""
         for name in self.persistent:
             texture = self.targets[name]
             texture.write(bytes(texture.width * texture.height * 4))
 
     def show(self, pages):
-        """Writes the pages into the strip as the core text shader does: slot p from row p * rows from the top."""
         screen = numpy.zeros((shader_check_SCREEN[1], shader_check_SCREEN[0], 4), numpy.uint8)
         rows = (4096 + shader_check_SCREEN[0] - 1) // shader_check_SCREEN[0]
         for page in pages:
@@ -1464,7 +1445,6 @@ class ShaderChain:
 
 
 def shader_check_compile_via_spirv(includes, classpath):
-    """Compiles the pack's passes through shaderc and SPIRV-Cross, with this chain's generated includes."""
     work = Path(tempfile.mkdtemp(prefix="mcv2-spirv-"))
     generated = work / "generated"
     generated.mkdir()
@@ -1488,7 +1468,6 @@ def shader_check_compile_via_spirv(includes, classpath):
 
 
 def shader_check_page_number(page):
-    """The page number from a page's six-bit symbols: header bytes 16 and 17, bits 128 to 143."""
     value = 0
     for bit in range(16):
         symbol_bit = 128 + bit
@@ -1638,7 +1617,6 @@ def shader_timing_perspective(fov_y, aspect, near, far):
 
 
 def shader_timing_descriptor_row(width):
-    """The anchor descriptor the text shader writes: magic, then 28 floats, each in two pixels."""
     top_left, right, down, cells = ((-3.0, 1.5, -3.0), (1.0, 0.0, 0.0), (0.0, -1.0, 0.0), (6.0, 3.0))
     floats = [*top_left, cells[0], *right, cells[1], *down, 0.0]
     floats += list(shader_timing_perspective(70.0, 16 / 9, 0.05, 1000.0).reshape(-1))
@@ -1673,8 +1651,6 @@ class TimedShaderChain(ShaderChain):
             self.draw(self.blit, {"In": self.main}, "mcav:mcv2_screen")
 
     def timed_frame(self, repeats):
-        """Runs the chain once, each pass inside its timer query; the decode pass is drawn `repeats` times and its
-        mean kept. Returns whether the frame was decoded and the milliseconds of every pass by name."""
         self.warm()
         times = {}
         for name, program, inputs, output in self.steps():
@@ -1696,7 +1672,6 @@ class TimedShaderChain(ShaderChain):
 
 
 def shader_timing_summarize(samples, names):
-    """Mean, and 95th percentile, of each pass over a list of per-frame dicts."""
     out = {}
     for name in names + ("total",):
         values = numpy.array([sample[name] for sample in samples]) if samples else numpy.zeros(1)
@@ -1811,14 +1786,12 @@ strip_check_DESCRIPTOR = [(77, 67, 86), (161, 0, 0)]
 
 
 def strip_check_page_symbols(screen, slot, rows):
-    """The 16,384 symbols of the page in a slot: its 4,096 pixels row by row from the top of the slot."""
     pixels = screen[slot * rows : (slot + 1) * rows].reshape(-1, 3)[:strip_check_PAGE_PIXELS].astype(numpy.uint32)
     bits = pixels[:, 0] | pixels[:, 1] << 8 | pixels[:, 2] << 16
     return numpy.stack([bits >> shift & 63 for shift in (0, 6, 12, 18)], axis=1).astype(numpy.uint8).ravel()
 
 
 def strip_check_read_strip_page(symbols):
-    """Remove map row padding before validating the exact six-bit page extent."""
     if len(symbols) < strip_check_HEADER_SYMBOLS:
         raise ValueError("truncated strip page header")
     bits = (symbols[:strip_check_HEADER_SYMBOLS, None] >> numpy.arange(SYMBOL_BITS) & 1).astype(numpy.uint8).ravel()
@@ -1936,7 +1909,6 @@ def strip_fit_check_frame(context, screen, spirv=None):
 
 
 def strip_fit_check_strip_rows(width):
-    """The strip's rows on a screen of a width, as mcv2.glsl counts them for one screen."""
     return strip_fit_check_SLOTS * ((4096 + width - 1) // width) + 1
 
 
@@ -1978,14 +1950,12 @@ latency_SAMPLES = counter_video_BITS + len(counter_video_SYNC)
 
 
 def latency_millis(value):
-    """A flight recorder timestamp as milliseconds since the epoch: a number, or an ISO string."""
     if isinstance(value, (int, float)):
         return float(value)
     return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp() * 1000.0
 
 
 def latency_sends(path, jfr, span):
-    """The Mcv2Send events of a recording, in frame order, numbered by id modulo the stream length."""
     output = subprocess.run(
         [jfr, "print", "--json", "--events", "me.brandonli.mcav.Mcv2Send", str(path)],
         check=True,
@@ -2015,7 +1985,6 @@ def latency_sends(path, jfr, span):
 
 
 def latency_events(path, jfr):
-    """The Mcv2Frame events of a recording, in frame order."""
     output = subprocess.run(
         [jfr, "print", "--json", "--events", "me.brandonli.mcav.Mcv2Frame", str(path)],
         check=True,
@@ -2201,7 +2170,6 @@ def charts_style():
 
 
 def charts_curve(data, source, codec):
-    """The (rate, VMAF mean) points of one codec on one source, by rate."""
     if codec == "mcv2":
         points = [(point["zlib_mbps"], point["vmaf_mean"]) for point in data["mcv2"] if point["source"] == source]
     else:
@@ -2214,7 +2182,6 @@ def charts_curve(data, source, codec):
 
 
 def charts_rate_at(points, level):
-    """The rate a curve needs for a VMAF mean, log-linear between the measured points; None outside them."""
     by_quality = sorted(points, key=lambda point: point[1])
     for (low_rate, low), (high_rate, high) in zip(by_quality, by_quality[1:]):
         if low <= level <= high and high > low:
@@ -2273,7 +2240,6 @@ def charts_draw_codecs(data):
 
 
 def charts_ablation_rates(ablation, kind="features"):
-    """The BD-rate (%) on the wire of every turned-off feature (or variant) and source, with the VMAF range it covers."""
     results = []
     for feature in ablation.get(kind, []):
         row = {"id": feature["id"], "name": feature["name"]}
@@ -2325,7 +2291,6 @@ def charts_draw_features(rows):
 
 
 def charts_signed(value):
-    """A BD-rate with its sign, and a plain 0.0% for what rounds to zero."""
     text = f"{value:+.1f}%"
     return "0.0%" if text in ("+0.0%", "-0.0%") else text
 
@@ -2408,7 +2373,6 @@ def samples_frames_of(path):
 
 
 def samples_decoded(path, wanted):
-    """The parsed frames and decoded pictures of the wanted frame numbers."""
     decoder, found = (Decoder(), {})
     for index, data in enumerate(samples_frames_of(path)):
         picture = decoder.accept(data)

@@ -549,8 +549,6 @@ public final class Mcv2Tools {
     "2"
   );
 
-  // the define sets of the text pipelines of RenderPipelines: world text, grayscale, see-through, GUI, and the three
-  // stages of improved transparency, those also as drivers that need explicit depth invariance compile them
   private static final Map<String, Map<String, String>> TEXT_VARIANTS = new LinkedHashMap<>();
 
   static {
