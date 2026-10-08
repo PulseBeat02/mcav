@@ -25,6 +25,14 @@ interface PCMProcessorOptions {
     audioCtx?: AudioContext;
 }
 
+// a tenth of a second of sound is buffered before the first chunk plays, and kept ahead of the clock after running dry,
+// so chunks that arrive a little late still play in turn
+const CUSHION_SECONDS = 0.1;
+// sound queued further ahead of the clock than this would play late for good, such as sound that arrived while the
+// context did not play yet or in a burst after a stalled connection: it is dropped, and the page starts again from the
+// clock
+const MAX_LEAD_SECONDS = 0.5;
+
 class PCMProcessor {
     private options: Required<PCMProcessorOptions>;
     private samples: Float32Array;
@@ -36,6 +44,8 @@ class PCMProcessor {
     private hue: number = 0;
     public gainNode: GainNode;
     private startTime: number;
+    // the clock of the context when sound was last scheduled
+    private scheduledAt: number = -1;
     private processingTimestamp: number;
     private maxBufferSize: number = 480000;
 
@@ -90,7 +100,19 @@ class PCMProcessor {
         newSamples.set(float32Array, this.samples.length);
         this.samples = newSamples;
 
-        if (this.samples.length / this.options.channels > this.options.sampleRate / 10) {
+        const channels = this.options.channels;
+        const cushion = Math.floor(this.options.sampleRate * CUSHION_SECONDS);
+        if (this.audioCtx.state !== 'running' || this.audioCtx.currentTime === this.scheduledAt) {
+            // a context that does not play yet, or whose clock has not moved since sound was last scheduled (Chrome
+            // reports a starting context as running before its audio device runs), keeps only the newest sound, which
+            // plays once it runs; whole frames are dropped, so the channels stay aligned
+            const extraFrames = Math.floor(this.samples.length / channels) - cushion;
+            if (extraFrames > 0) {
+                this.samples = this.samples.slice(extraFrames * channels);
+            }
+            return;
+        }
+        if (this.samples.length / channels > cushion) {
             this.play();
         }
     }
@@ -125,10 +147,16 @@ class PCMProcessor {
         if (length === 0) return;
         const audioBuffer = this.audioCtx.createBuffer(channels, length, this.options.sampleRate);
 
-        // after running dry, restart slightly in the future so the next chunks can queue up behind this one
-        const underrun = this.startTime < this.audioCtx.currentTime;
+        const now = this.audioCtx.currentTime;
+        const late = this.startTime - now > MAX_LEAD_SECONDS;
+        if (late) {
+            this.stopQueued();
+        }
+        // after running dry or dropping what was late, restart slightly in the future so the next chunks can queue up
+        // behind this one
+        const underrun = late || this.startTime < now;
         if (underrun) {
-            this.startTime = this.audioCtx.currentTime + 0.1;
+            this.startTime = now + CUSHION_SECONDS;
         }
 
         for (let channel = 0; channel < channels; channel++) {
@@ -156,8 +184,19 @@ class PCMProcessor {
         };
         bufferSource.start(this.startTime);
         this.startTime += audioBuffer.duration;
+        this.scheduledAt = now;
         // keep an incomplete trailing frame so the channels stay aligned
         this.samples = this.samples.slice(length * channels);
+    }
+
+    private stopQueued(): void {
+        this.activeSources.forEach(source => {
+            try {
+                source.stop(this.audioCtx.currentTime);
+            } catch {
+            }
+        });
+        this.activeSources.clear();
     }
 
     destroy(): void {

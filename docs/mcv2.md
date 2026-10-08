@@ -684,7 +684,10 @@ configuration, hosting the pack, the client mod for Iris shader players and the 
   so a detailed sky or ceiling smears there.
 - **Missed frames.** A client that renders fewer frames than the video has misses frames, and under the default
   prediction a missed frame is repaired only by the next keyframe.
-- **Sound.** MCV2 adds the client's decode time to the picture, and the plugin doesn't delay the sound to match.
+- **Sound.** The audio web page keeps a tenth of a second of sound buffered, so its sound comes 0.1 to 0.15 s after
+  the wall shows the same moment, with MCV2 as with the dithered maps (measured with a client drawing in software and a
+  browser playing into a virtual sound device; a client drawing on a GPU shows the picture sooner). The plugin
+  doesn't delay the picture to match.
 
 ## Sources
 

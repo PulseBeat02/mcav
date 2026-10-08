@@ -204,6 +204,12 @@ never includes it.
 The audio web page listens on all network interfaces of the server; `host-name` only decides the link players are
 sent. On Linux and macOS, ports below 1024 need administrator rights, so keep the port above 1024.
 
+The page keeps a tenth of a second of sound ahead of what it plays, so a short hold-up of the connection does not
+break the sound. Sound that arrives while the browser's audio is still starting, such as for a player who opens the
+page while a video plays, or all at once after a stalled connection, is dropped instead of delaying everything after
+it. Measured with a vanilla client drawing in software and a browser playing into a virtual sound device, the sound
+left the device 0.1 to 0.15 s after the wall showed the same moment.
+
 The Discord bot and the web page start in the background, so they never delay the server start. The console reports
 when each output is ready: `The audio web page is available at <link>` for the web page and
 `Simple Voice Chat audio is ready` for Simple Voice Chat. If the Discord bot or the web page cannot start, the plugin
