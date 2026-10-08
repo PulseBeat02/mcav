@@ -1,4 +1,5 @@
 [versions]
+zig = "0.16.0"
 java = "25"
 uv = "0.12.23"
 docs-python = "3.13.16"

@@ -868,7 +868,12 @@ The few small loops that run billions of times, like "draw this palette leaf and
 motion vector", are also written in C++ with the processor's vector instructions (SSE, AVX2, AVX-512, NEON, SVE), in one
 file compiled for six platforms (Linux, Windows and macOS on x86-64 and ARM64). The encoder uses them when the library
 loads and falls back to the same loops in Java when it doesn't. Both compute exactly the same numbers, so the stream is
-the same either way, which the tests check on every vector instruction set the test machine has.
+the same either way, which the tests check on every vector instruction set the test machine has. Gradle builds all
+six libraries from `mcav-bukkit/src/main/native/mcv2` as part of resource processing, using Zig 0.16.0 downloaded from
+ziglang.org and checked against a pinned SHA-256 (or `ZIG=/path/to/zig`). No separate compiler installation is needed.
+The libraries and their generated `SHA256SUMS` are packaged at `mcav/mcv2/natives/`; the loader checks each library
+against that manifest before loading it. These checks detect corruption, but do not authenticate a jar whose libraries
+and manifest have both been replaced.
 
 ## Part 10: The Code
 

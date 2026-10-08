@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The sve512 level of the kernels in mcv2.cpp, compiled by build.sh with its own flags.
 #define MCV2_SIMD_SVE512
 #define MCV2_PREFIX(name) mcv2_sve512_##name
 #define MCV2_NARROW(name) mcv2_neon_##name

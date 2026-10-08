@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The sse2 level of the kernels in mcv2.cpp, compiled by build.sh with its own flags.
 #define MCV2_SIMD_SSE2
 #define MCV2_PREFIX(name) mcv2_sse2_##name
 #include "mcv2.cpp"
