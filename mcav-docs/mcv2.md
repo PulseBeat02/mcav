@@ -221,18 +221,19 @@ patterns turned off, at six lambdas each.
 
 | λ | Rate with patterns | VMAF | Rate without patterns | VMAF |
 |---:|---:|---:|---:|---:|
-| 19 | 7.74 Mbit/s | 87.1 | 8.63 Mbit/s | 87.2 |
-| 34 | 4.24 Mbit/s | 82.5 | 4.77 Mbit/s | 82.4 |
-| 65 | 2.25 Mbit/s | 76.6 | 2.50 Mbit/s | 74.9 |
-| 138 | 1.43 Mbit/s | 68.2 | 1.53 Mbit/s | 65.8 |
-| 254 | 0.99 Mbit/s | 56.7 | 1.09 Mbit/s | 59.7 |
-| 500 | 0.75 Mbit/s | 51.1 | 0.78 Mbit/s | 50.6 |
+| 19 | 7.72 Mbit/s | 86.9 | 8.57 Mbit/s | 87.0 |
+| 34 | 4.19 Mbit/s | 82.4 | 4.70 Mbit/s | 82.1 |
+| 65 | 2.24 Mbit/s | 76.6 | 2.45 Mbit/s | 75.0 |
+| 138 | 1.40 Mbit/s | 68.3 | 1.48 Mbit/s | 66.5 |
+| 254 | 0.98 Mbit/s | 57.1 | 1.06 Mbit/s | 60.1 |
+| 500 | 0.74 Mbit/s | 52.3 | 0.73 Mbit/s | 50.5 |
 
-You can see that the second column of rates is always higher, but the qualities don't line up exactly, so you can't
-just divide one rate by the other. The BD-rate takes care of that: over the VMAF range both reach, 51 to 87, the curve
-without patterns needs on average 12.9 % more rate for the same quality. So turning patterns off costs **+12.9 %
-BD-rate** on this clip. (Notice the point at λ = 254, where the encoder without patterns happened to land on a higher
-quality: real measurements are a little noisy, and fitting a smooth curve through all six points averages that out.)
+You can see that the second column of rates is higher at every λ but the last, where the quality is lower too. And
+the qualities don't line up exactly, so you can't just divide one rate by the other. The BD-rate takes care of that:
+over the VMAF range both reach, 52 to 87, the curve without patterns needs on average 11.4 % more rate for the same
+quality. So turning patterns off costs **+11.4 % BD-rate** on this clip. (Notice the point at λ = 254, where the
+encoder without patterns happened to land on a higher quality: real measurements are a little noisy, and fitting a
+smooth curve through all six points averages that out.)
 
 ## Part 4: Why Minecraft Maps Need Their Own Codec
 
@@ -1030,13 +1031,14 @@ at a time, then together, because some of them stand in for each other. These we
 keyframe's most common solid colour, sent once in the header so its squares could be skips: 0.0 %), **scene-cut
 keyframes** (0.0 % on these clips: a cut is just a P frame of new pictures now), COMPACT's **quantizers above 2**
 (2.7 %), two of COMPACT's three **classes** (one brightness value for the whole block: 0.0 %; a grid with a colour
-change: 0.2 %), its two shorter ways of **storing the vector** (no vector at all, or two 4-bit numbers: 0.6 % each, so
-the vector is always two bytes and the record always ten), and the `ADAPTIVE` **preset** (-0.1 %: it saved nothing).
-With them, the header lost every field a decoder can work out for itself and went from 32 bytes to 20. Two options
-cost rate but stayed, because the speed test needs them: the `FAST` preset (6.2 % more rate than `DEFAULT` on average:
-13.6 % more on the proxy, 1.2 % less on gameplay) keeps 1080p
-gameplay inside its time on a busy machine, and rate control by motion (1.1 % more rate) keeps the encoder 40 % faster
-on gameplay. Together, these last removals cost 1.7 % on average: 4.9 % more on gameplay, mostly the cap on the quantizer, and 1.5 % less on the proxy, where the shorter COMPACT record more than pays for what went.
+change: 0.2 %), its two shorter ways of **storing the vector** (two 4-bit numbers: 0.6 %, and no vector at all, once
+those were gone: 1.1 %, so the vector is always two bytes and the record always ten), and the `ADAPTIVE` **preset**
+(-0.1 %: it saved nothing). With them, the header lost every field a decoder can work out for itself and went from 32
+bytes to 20. Two options cost rate but stayed, because the speed test needs them: the `FAST` preset (6.2 % more rate
+than `DEFAULT` on average: 13.6 % more on the proxy, 1.2 % less on gameplay) keeps 1080p gameplay inside its time on a
+busy machine, and rate control by motion (1.1 % more rate) keeps the encoder 40 % faster on gameplay. Together, these
+last removals cost 1.7 % on average: 4.9 % more on gameplay, mostly the cap on the quantizer, and 1.5 % less on the
+proxy, where the shorter COMPACT record more than pays for what went.
 
 What does all that removal cost on the wire? Against the old MCV2's live search, the one its screens used, the
 simplified MCV2 needs 16.4 % more rate on the proxy and 5.8 % more on gameplay for the same VMAF; against its slow
@@ -1092,7 +1094,7 @@ The same curves as numbers: the rate each codec needs, in Mbit/s, to reach a VMA
 | 85 | 14.75 | 4.93 | 3.44 | 3.13 |
 | 90 | 18.23 | 5.78 | 4.34 | 3.99 |
 
-As BD-rates over the range of quality both cover: on the proxy, MCV2 needs 3.6 % more than H.264 and about 4.7 times
+As BD-rates over the range of quality both cover: on the proxy, MCV2 needs 3.6 % more than H.264 and 4.6 and 4.8 times
 the rate of VP9 and AV1 (+362 % and +376 %); on gameplay, 2.4 times H.264 (+135 %) and 4.6 and 5.0 times VP9 and AV1
 (+358 % and +404 %).
 
@@ -1114,7 +1116,7 @@ proxy, the kind of flat, blocky picture Minecraft is full of, it keeps up with H
 |---|---:|---:|---:|
 | Palettes | +26.0 % | +151.0 % | +88.5 % |
 | Prediction from the previous frame (every frame a keyframe) | +96.4 % | +57.5 % | +76.9 % |
-| 16x16 and 8x8 leaves (only 32x32 leaves) | +90.7 % | +7.2 % | +49.0 % |
+| 16x16 and 8x8 leaves (only 32x32 leaves) | +90.7 % | +7.2 % | +48.9 % |
 | Solid leaves | +24.4 % | +23.1 % | +23.7 % |
 | Local motion (no motion vectors) | +28.0 % | +14.6 % | +21.3 % |
 | Derived offsets (a stored address in every descriptor instead) | +18.3 % | +19.0 % | +18.7 % |
@@ -1137,14 +1139,15 @@ streams; the times are the mean GPU time per rendered frame:
 
 | Rendered frame | Minecraft proxy | Minecraft gameplay |
 |---|---:|---:|
-| brings a new P frame | 5.3 ms | 6.0 ms |
-| brings a new keyframe | 5.1 ms | 5.9 ms |
-| brings no new video | 4.3 ms | 4.4 ms |
+| brings a new P frame | 5.3 ms | 5.9 ms |
+| brings a new keyframe | 5.5 ms | 5.4 ms |
+| brings no new video | 4.4 ms | 4.5 ms |
 
 The decode itself runs once per video frame; on the rendered frames in between, the chain copies the held picture and
 draws it. A game running at 60 frames a second has 16.7 ms for each, so MCV2 takes about a third of that on this GPU,
-and much less on any dedicated graphics card. For comparison, the old MCV2's pack took 6.8, 7.7 and 5.2 ms on the same
-proxy content and 7.9, 8.7 and 5.5 ms on the same gameplay content: the simpler format decodes 18 to 34 % faster. A UHD
+and much less on any dedicated graphics card. For comparison, the old MCV2's pack took 7.0, 7.8 and 5.5 ms on the same
+proxy content and 7.6, 8.4 and 5.2 ms on the same gameplay content, decoding the streams of its live search, and 7.2,
+7.9 and 5.8 ms on the proxy streams of its slow search for files. The simpler format decodes 13 to 35 % faster. A UHD
 630 is the only GPU I measured.
 
 ### What It Costs to Encode
