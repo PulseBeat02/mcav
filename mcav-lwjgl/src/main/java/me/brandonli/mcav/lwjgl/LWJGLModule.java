@@ -28,26 +28,20 @@ public final class LWJGLModule implements MCAVModule {
   /**
    * Constructs the module. The module loader creates it for you.
    */
-  public LWJGLModule() {
-    // stateless
-  }
+  public LWJGLModule() {}
 
   /**
    * Starts the module. Nothing is prepared here, because every {@link GLTextureFilter} creates its OpenGL resources
    * on the render thread of your application.
    */
   @Override
-  public void start() {
-    // nothing to prepare
-  }
+  public void start() {}
 
   /**
    * Stops the module. Nothing is released here; release every {@link GLTextureFilter} on the render thread instead.
    */
   @Override
-  public void stop() {
-    // nothing to release
-  }
+  public void stop() {}
 
   /**
    * Gets the name of the module.

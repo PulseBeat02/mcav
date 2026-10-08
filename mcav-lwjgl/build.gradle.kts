@@ -8,8 +8,6 @@ dependencies {
     compileOnlyApi(project(":mcav-common"))
     testImplementation(project(":mcav-common"))
     testImplementation(libs.lwjgl.glfw)
-    // the tests render into a hidden GLFW window, which needs the natives of the machine that runs them; on a machine
-    // LWJGL has no natives for, none are added and the tests skip themselves
     lwjglNatives()?.let { natives ->
         listOf(libs.lwjgl.asProvider(), libs.lwjgl.opengl, libs.lwjgl.glfw).forEach { library ->
             testRuntimeOnly(variantOf(library) { classifier(natives) })
@@ -17,7 +15,6 @@ dependencies {
     }
 }
 
-// the classifier of LWJGL's natives for the operating system and processor of this machine, or null if it has none
 fun lwjglNatives(): String? {
     val os = System.getProperty("os.name").lowercase()
     val arch = System.getProperty("os.arch").lowercase()

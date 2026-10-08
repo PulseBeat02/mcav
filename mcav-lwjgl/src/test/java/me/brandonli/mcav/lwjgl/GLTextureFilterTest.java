@@ -83,7 +83,6 @@ final class GLTextureFilterTest {
       GLFW.glfwMakeContextCurrent(window);
       GL.createCapabilities();
     } catch (final IllegalStateException | LinkageError exception) {
-      // missing or wrong natives, no OpenGL library, or GLFW on macOS off the first thread
       abort("OpenGL is not available on this machine: " + exception);
     }
   }
@@ -225,7 +224,6 @@ final class GLTextureFilterTest {
     assertFalse(kept, "the filter only reads the sample, so it reports no change");
   }
 
-  // the frame is released before the upload, since the filter must have copied it already
   private static void stage(final GLTextureFilter filter, final int width, final int height, final int argb) {
     try (final ImageBuffer image = frame(width, height, argb)) {
       apply(filter, image);
@@ -437,7 +435,6 @@ final class GLTextureFilterTest {
   void resizesTheTextureWhenOnlyTheWidthChanges() {
     this.filter.start();
     stageAndUpload(this.filter, 5, 3, 0xFF00FF00);
-    // only the width changes, so the texture is reallocated even though the height still matches
     final boolean uploaded = stageAndUpload(this.filter, 7, 3, 0xFF0000FF);
     final int texture = this.filter.getTextureId();
     final int width = this.filter.getWidth();
@@ -459,7 +456,6 @@ final class GLTextureFilterTest {
     final int boundAfterUpload = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
     final int[] unpackState = readUnpackState();
 
-    // the upload itself ignores the unpack settings of the caller, so the whole frame arrives unshifted
     setUnpackState(4, 0, 0, 0);
     final int texture = this.filter.getTextureId();
     final byte[] pixels = readTexture(texture, 3, 2);
@@ -484,7 +480,6 @@ final class GLTextureFilterTest {
     slow.start();
     stage(slow, 2, 2, 0xFFFF0000);
     this.startThread(() -> stageOnceUploading(slow, uploading, applied));
-    // the player must get its frame in while the render thread is still uploading
     this.startThread(() -> finishUploadOnceApplied(applied, finishUpload));
 
     final long before = System.nanoTime();
@@ -525,7 +520,6 @@ final class GLTextureFilterTest {
     }
   }
 
-  // releases the upload once the player staged its frame, or after five seconds so a failing test does not hang
   private static void finishUploadOnceApplied(final CountDownLatch applied, final CountDownLatch finishUpload) {
     await(applied, 5);
     finishUpload.countDown();
@@ -561,7 +555,6 @@ final class GLTextureFilterTest {
     final ImageBuffer stubbedHeight = heightStubbing.when(truncated);
     stubbedHeight.getHeight();
 
-    // a 4x4 frame needs 48 bytes
     final ByteBuffer data = ByteBuffer.allocateDirect(47);
     final Stubber dataStubbing = doReturn(data);
     final ImageBuffer stubbedData = dataStubbing.when(truncated);
