@@ -243,6 +243,22 @@ final class YTDLPParserImplTest {
   }
 
   @Test
+  void reportsMetadataWhoseDecimalFieldHoldsText() throws IOException {
+    // yt-dlp copies what a site reports, and Gson reads text in a decimal field with a NumberFormatException of its own
+    final YTDLPParseException duration = assertParseFails("{\"id\": \"abc\", \"duration\": \"long\"}");
+    final YTDLPParseException quality = assertParseFails("{\"id\": \"abc\", \"formats\": [{\"quality\": \"high\"}]}");
+    final String expected = "yt-dlp printed invalid metadata for " + URL;
+    final String durationMessage = duration.getMessage();
+    final String qualityMessage = quality.getMessage();
+    final Throwable durationCause = duration.getCause();
+    final Throwable qualityCause = quality.getCause();
+    assertEquals(expected, durationMessage);
+    assertEquals(expected, qualityMessage);
+    assertInstanceOf(NumberFormatException.class, durationCause);
+    assertInstanceOf(NumberFormatException.class, qualityCause);
+  }
+
+  @Test
   void rejectsTextAfterTheDocumentInsteadOfIgnoringIt() throws IOException {
     final YTDLPParseException trailingText = assertParseFails("{\"id\": \"abc\"} unexpected trailing text");
     final YTDLPParseException secondDocument = assertParseFails("{\"id\": \"abc\"} {\"id\": \"def\"}");

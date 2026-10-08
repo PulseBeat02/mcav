@@ -170,8 +170,9 @@ public final class YTDLPParserImpl implements YTDLPParser {
     final URLParseDump dump;
     try {
       dump = gson.fromJson(json, URLParseDump.class);
-    } catch (final JsonSyntaxException exception) {
-      // also thrown for text after the document and for values that do not fit their field
+    } catch (final JsonSyntaxException | NumberFormatException exception) {
+      // also thrown for text after the document and for values that do not fit their field, except text in a decimal
+      // field, which Gson reports with a NumberFormatException of its own
       throw new YTDLPParseException("yt-dlp printed invalid metadata for " + url, exception);
     }
     if (dump == null) {

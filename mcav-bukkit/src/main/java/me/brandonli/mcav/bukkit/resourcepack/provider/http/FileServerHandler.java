@@ -161,16 +161,16 @@ final class FileServerHandler extends ChannelInboundHandlerAdapter {
   }
 
   private void collect(final ChannelHandlerContext context, final ByteBuf buffer, final ByteBuf data) {
+    // only the headers count against the limit, so a read that ends them may carry more, which is never looked at
     final int incoming = data.readableBytes();
     final int available = buffer.maxWritableBytes();
-    if (incoming > available) {
-      this.respondWithStatus(context, "431 Request Header Fields Too Large");
-      return;
-    }
-
-    buffer.writeBytes(data);
+    final int taken = Math.min(incoming, available);
+    buffer.writeBytes(data, taken);
     final int headerEnd = indexOfHeaderEnd(buffer);
     if (headerEnd < 0) {
+      if (data.isReadable()) {
+        this.respondWithStatus(context, "431 Request Header Fields Too Large");
+      }
       return;
     }
 

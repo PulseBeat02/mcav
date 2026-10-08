@@ -132,6 +132,9 @@ final class LinuxLibraries {
   private static final Pattern HASH = Pattern.compile("[0-9a-f]{64}");
   private static final long MAX_FILE_BYTES = 64L * 1024 * 1024;
   private static final int MAX_ENTRIES = 20_000;
+  // xz -9, the strongest preset of dpkg-deb, reads with a dictionary of 64 MiB; a package that asks for far more is
+  // refused before the reader allocates it
+  private static final int MAX_XZ_MEMORY_KIB = 128 * 1024;
   private static final int MAX_INCLUDE_DEPTH = 8;
 
   private final Path folder;
@@ -425,7 +428,10 @@ final class LinuxLibraries {
     while (member != null) {
       if (member.getName().equals(DATA_MEMBER)) {
         // the streams are not closed here: the package closes them all
-        final XZCompressorInputStream decompressed = new XZCompressorInputStream(archive);
+        final XZCompressorInputStream decompressed = XZCompressorInputStream.builder()
+          .setInputStream(archive)
+          .setMemoryLimitKiB(MAX_XZ_MEMORY_KIB)
+          .get();
         final TarArchiveInputStream tar = new TarArchiveInputStream(decompressed);
         extractData(tar, files, target, deb, maxFileBytes, maxEntries);
         return true;

@@ -156,6 +156,19 @@ final class MatImageBufferTest {
   }
 
   @Test
+  void refusesAnImageOfADisabledCodecAsUnsupportedRatherThanCrashing() throws IOException {
+    // the bundled OpenCV is built without the OpenEXR codec, so imdecode/imread raise an OpenCV error for an EXR
+    // image; it is untrusted input, so it must be refused as unsupported, not escape as an unchecked RuntimeException
+    final byte[] exr = { 'v', '/', '1', 0x01 };
+    final Path exrFile = this.directory.resolve("image.exr");
+    Files.write(exrFile, exr);
+    final FileSource fromFile = FileSource.path(exrFile);
+
+    assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.bytes(exr));
+    assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(fromFile));
+  }
+
+  @Test
   void loadsImagesFromFilesAndUris() throws IOException {
     final Path png = TestMedia.png();
     final FileSource file = FileSource.path(png);
