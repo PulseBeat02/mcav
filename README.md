@@ -119,10 +119,11 @@ cd mcav
 
 The plugin jar is `mcav-plugin/build/libs/mcav-plugin-1.0.0-v26.3-all.jar`. Gradle itself runs on any JDK 17 or
 newer; the Java 25 toolchain MCAV compiles with is downloaded by Gradle when the machine has none, and so is the
-Node.js that the code formatter and the web page of `mcav-http` use. No credentials are needed, except to publish. The
-project builds on any one of Windows, macOS or Linux: the tests that need another operating system, or a program the
-machine lacks (VLC, QEMU, a display), skip themselves. `build` also enforces the coverage lint, on which the code those
-tests would have run shows up as gaps, so on such a machine build with `-Pmcav.coverage=false`.
+Node.js that the code formatter and the web page of `mcav-http` use. No credentials are needed, except to publish the
+library modules with `./gradlew publishLibraries`. The project builds on any one of Windows, macOS or Linux: the tests
+that need another operating system, or a program the machine lacks (VLC, QEMU, a display), skip themselves. `build` also
+enforces the coverage lint, on which the code those tests would have run shows up as gaps, so on such a machine build
+with `-Pmcav.coverage=false`.
 [CONTRIBUTING.md](CONTRIBUTING.md) describes the tests, the coverage lint, the property, fuzz and concurrency tests,
 mutation testing and the end-to-end test of the plugin.
 

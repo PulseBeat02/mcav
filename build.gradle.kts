@@ -53,3 +53,22 @@ spotless {
         endWithNewline()
     }
 }
+
+tasks.register("publishLibraries") {
+    description = "Publishes the library modules to the snapshot repository and to build/e2e-repository"
+    group = "publishing"
+    dependsOn(
+        listOf(
+            "mcav-browser",
+            "mcav-bukkit",
+            "mcav-common",
+            "mcav-discord",
+            "mcav-http",
+            "mcav-installer",
+            "mcav-lwjgl",
+            "mcav-vm",
+            "mcav-vnc",
+            "mcav-voicechat"
+        ).map { ":$it:publish" }
+    )
+}

@@ -115,3 +115,12 @@ headless Paper 26.3 server together with Simple Voice Chat, exactly as on a prod
   any error in the server log.
 - Running a Minecraft server means accepting the [Minecraft EULA](https://aka.ms/MinecraftEULA), which is what
   `-Pmcav.acceptMinecraftEula=true` does; without it, the test is skipped.
+
+## Publishing
+
+`./gradlew publishLibraries` publishes the ten library modules, `mcav-browser`, `mcav-bukkit`, `mcav-common`,
+`mcav-discord`, `mcav-http`, `mcav-installer`, `mcav-lwjgl`, `mcav-vm`, `mcav-vnc` and `mcav-voicechat`, as
+`me.brandonli:<module>:1.0.0-SNAPSHOT` to the snapshot repository `https://repo.brandonli.me/snapshots`, and into
+`build/e2e-repository`. It needs the credentials of that repository as the Gradle properties `brandonliUsername` and
+`brandonliPassword`, for example in `~/.gradle/gradle.properties`. The plugin, the mod, the documentation and
+`mcav-jcstress` are not published.
