@@ -81,7 +81,6 @@ final class Mcv2ReporterTest {
   void sendsAChangeThatHeldASecondButNotAShorterOne() {
     this.tickAfter(0);
     this.tickAfter(Mcv2Reporter.STEADY_NANOS);
-    // Iris has no pipeline for a moment while it reloads one
     when(this.shaders.report()).thenReturn(SHADERS_ON);
     this.tickAfter(1);
     when(this.shaders.report()).thenReturn(SHADERS_OFF);

@@ -78,7 +78,6 @@ final class MinecraftStripOutputTest {
 
   @BeforeEach
   void device() {
-    // render targets made on a device that only pretends: every texture a mock
     when(this.device.getDeviceInfo().limits().maxTextureSize()).thenReturn(16_384);
     when(
       this.device.createTexture(ArgumentMatchers.<Supplier<String>>any(), anyInt(), any(), anyInt(), anyInt(), anyInt(), anyInt())
@@ -119,7 +118,6 @@ final class MinecraftStripOutputTest {
     final ArgumentCaptor<ByteBuffer> pixels = ArgumentCaptor.forClass(ByteBuffer.class);
     assertTrue(output.decode(strip(854), 3, this.allocator));
     verify(this.commands).writeToTexture(same(this.mainColour), pixels.capture(), eq(0), eq(0), eq(0), eq(477), eq(854), eq(3));
-    // texture rows count from the bottom: the strip's last row comes first
     final ByteBuffer written = pixels.getValue();
     assertEquals(3 * 854 * 4, written.remaining());
     assertEquals(3, written.get(0));
@@ -132,7 +130,6 @@ final class MinecraftStripOutputTest {
     final TextureTarget outline = (TextureTarget) targets.getValue().entityOutline.get();
     assertEquals(854, outline.width);
     assertEquals(480, outline.height);
-    // the transparent target, written once as zeros, is copied over the outline the chain runs on
     final ArgumentCaptor<ByteBuffer> zeros = ArgumentCaptor.forClass(ByteBuffer.class);
     verify(this.commands).writeToTexture(any(GpuTexture.class), zeros.capture(), eq(0), eq(0), eq(0), eq(0), eq(854), eq(480));
     assertEquals(854 * 480 * 4, zeros.getValue().remaining());
@@ -172,7 +169,6 @@ final class MinecraftStripOutputTest {
     final TextureTarget first = (TextureTarget) targets.getAllValues().get(0).entityOutline.get();
     assertSame(first, targets.getAllValues().get(1).entityOutline.get());
     final GpuTexture firstColour = first.getColorTexture();
-    // a new height, then a new width: new targets each time, the old ones destroyed
     this.main.height = 720;
     output.decode(strip(854), 3, this.allocator);
     this.main.width = 1280;
@@ -193,7 +189,6 @@ final class MinecraftStripOutputTest {
     assertEquals(1280, resized.width);
     assertEquals(720, resized.height);
     verify(firstColour).close();
-    // the outline and the transparent target of each size before the last are destroyed, the last pair kept
     for (int index = 0; index < 4; index++) {
       verify(this.textures.get(index)).close();
     }

@@ -135,7 +135,6 @@ final class TransportStrip {
     final float[] down = transform(viewRotation, 0, -1, 0, 0);
     final float[] floats = new float[FLOATS];
     for (int axis = 0; axis < 3; axis++) {
-      // the map's corner is its tile's; the screen's lies column tiles to the left and row tiles up
       floats[axis] = corner[axis] - anchor.column() * right[axis] - anchor.row() * down[axis];
       floats[4 + axis] = right[axis];
       floats[8 + axis] = down[axis];
