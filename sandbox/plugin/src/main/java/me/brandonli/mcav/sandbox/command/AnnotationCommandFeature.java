@@ -34,13 +34,10 @@ public interface AnnotationCommandFeature {
    */
   default void registerFeature(final AnnotationParser<CommandSender> parser) {
     Preconditions.checkNotNull(parser, "Parser must not be null");
-    // most features need no further setup
   }
 
   /**
    * Releases everything the feature holds.
    */
-  default void shutdown() {
-    // most features hold nothing
-  }
+  default void shutdown() {}
 }

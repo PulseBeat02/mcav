@@ -208,8 +208,6 @@ final class InteractUtilsTest {
   @Test
   void followsTheLineOfSightOfAPlayerLookingDown() {
     this.buildSouthWall();
-    // looking down at 45 degrees, so the ray falls by as much as it travels north: 5.3 blocks over the 5.3 blocks to
-    // the wall, which lands 0.3 of the frame below its top edge
     final Location eye = this.eye(3.3, 69.6, 5.3, LOOK_NORTH, 45.0f);
     when(this.player.getEyeLocation()).thenAnswer(_ -> eye.clone());
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
@@ -296,9 +294,6 @@ final class InteractUtilsTest {
     this.fakeWorld.addFrame(left, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
     final ItemFrame target = this.fakeWorld.addFrame(right, BlockFace.SOUTH, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
     final Block wallBlock = this.fakeWorld.block(1, 64, 7);
-    // yaw 150 looks north-north-west, so the ray travels 0.577 blocks west for every block north: over the 5.3 blocks
-    // to the wall it moves 3.06 west, from x = 4.3 to x = 1.24, which is 0.24 of the frame from its left edge. A frame
-    // that faces south is attached to the north side of its block, so the pixel is not mirrored: 0.24 * 128 = 30
     final Location eye = this.eye(4.3, 64.6, 13.3, 150.0f);
     this.aimAt(target, BlockFace.SOUTH, wallBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
@@ -313,9 +308,6 @@ final class InteractUtilsTest {
     this.fakeWorld.addFrame(left, BlockFace.WEST, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
     final ItemFrame target = this.fakeWorld.addFrame(right, BlockFace.WEST, Keys.MAP_KEY, Keys.LAST_MAP_KEY);
     final Block wallBlock = this.fakeWorld.block(9, 64, 1);
-    // yaw -60 looks east-south-east, so the ray travels 0.577 blocks south for every block east: over the 5.3 blocks
-    // to the wall it moves 3.06 south, from z = -1.5 to z = 1.56, which is 0.56 of the frame from its first edge. A
-    // frame that faces west is attached to the east side of its block, so the pixel is not mirrored: 0.56 * 128 = 71
     final Location eye = this.eye(2.7, 64.6, -1.5, -60.0f);
     this.aimAt(target, BlockFace.WEST, wallBlock, eye);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);

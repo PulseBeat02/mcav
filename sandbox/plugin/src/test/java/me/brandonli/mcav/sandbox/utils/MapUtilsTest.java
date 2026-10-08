@@ -381,7 +381,6 @@ final class MapUtilsTest {
   void removesTheFramesAlreadyHangingWhereTheScreenIsBuilt() {
     final CommandSender console = mock(CommandSender.class);
     final Location location = this.fakeWorld.location(0.5, 64.0, 0.5);
-    // a screen built here earlier: its frame hangs in the very block the new frame needs
     final Location occupied = this.fakeWorld.location(0.5, 64.5, 0.5);
     final ItemFrame existing = this.fakeWorld.addFrame(occupied, BlockFace.SOUTH);
     MapUtils.buildMapScreen(console, location, Material.OBSIDIAN, 1, 1, 0);

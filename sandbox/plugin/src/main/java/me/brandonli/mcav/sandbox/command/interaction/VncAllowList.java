@@ -113,7 +113,6 @@ public record VncAllowList(List<Entry> entries) {
   private static @Nullable String parseHost(final String text) {
     final boolean bracketed = text.startsWith("[") && text.endsWith("]");
     final String host = bracketed ? text.substring(1, text.length() - 1) : text;
-    // an IPv6 address needs its brackets, or its last group would be read as the port
     final boolean address = host.indexOf(':') >= 0;
     final boolean invalid = host.isEmpty() || bracketed != address || host.chars().anyMatch(VncAllowList::isOutsideAHost);
     return invalid ? null : host;
@@ -124,7 +123,6 @@ public record VncAllowList(List<Entry> entries) {
   }
 
   private static int parsePort(final String text) {
-    // never empty: parse refuses a colon at the end
     if (text.length() > 5 || !text.chars().allMatch(Character::isDigit)) {
       return -1;
     }

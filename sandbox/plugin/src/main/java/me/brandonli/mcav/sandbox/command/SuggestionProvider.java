@@ -29,9 +29,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   /**
    * Constructs the provider.
    */
-  public SuggestionProvider() {
-    // stateless
-  }
+  public SuggestionProvider() {}
 
   /**
    * Suggests starting map ids for the {@code <mapId>} argument of {@code /mcav screen} and the map commands. Any id

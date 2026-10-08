@@ -80,7 +80,6 @@ final class ImageEntityCommandTest {
     when(this.selector.values()).thenReturn(selected);
     this.sender = mock(CommandSender.class);
 
-    // a player always stands in a world, and the renderers refuse positions without one
     final FakeWorld world = new FakeWorld();
     this.location = world.location(5.0, 70.0, -5.0);
   }

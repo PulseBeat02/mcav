@@ -160,7 +160,6 @@ final class JukeBoxListenerTest {
   void leavesAUseOfTheJukeboxThatAnotherPluginDeniedAlone() throws IOException {
     this.createImage("alpine.iso");
     final PlayerInteractEvent event = this.interaction(Action.RIGHT_CLICK_BLOCK, Material.JUKEBOX, Material.MUSIC_DISC_CAT, "[alpine.iso]");
-    // a region's protection, for example, denies the player the jukebox
     when(event.useInteractedBlock()).thenReturn(Event.Result.DENY);
     this.assertIgnored(event);
   }
@@ -204,7 +203,6 @@ final class JukeBoxListenerTest {
   @Test
   void decidesAfterThePluginsThatProtectRegions() throws Exception {
     this.createImage("alpine.iso");
-    // a region's protection that denies the jukebox at a high priority, as such plugins decide before the highest
     final RegisteredListener protection = new RegisteredListener(
       new Listener() {},
       (listener, event) -> ((PlayerInteractEvent) event).setUseInteractedBlock(Event.Result.DENY),
@@ -214,7 +212,6 @@ final class JukeBoxListenerTest {
     );
     dispatch(this.discOnJukebox(), protection, this.registered());
     verify(this.player, never()).performCommand(anyString());
-    // where nothing denies it, the disc boots its machine once
     dispatch(this.discOnJukebox(), this.registered());
     verify(this.player, times(1)).performCommand(anyString());
   }

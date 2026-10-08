@@ -202,7 +202,6 @@ final class FilterChainTest {
 
   @Test
   void aFilterIsNamedByWhatComesBeforeItsFirstEqualsSign() {
-    // nothing comes before it here, and no filter has the empty name
     final IllegalArgumentException unnamed = assertThrows(IllegalArgumentException.class, () -> this.parse("=invert"));
     assertTrue(Objects.requireNonNull(unnamed.getMessage()).startsWith("no filter ; "), unnamed.getMessage());
   }
@@ -245,7 +244,6 @@ final class FilterChainTest {
     assertEquals(FilterChain.MAX_LENGTH, longest.length());
     assertEquals(7, this.parse(longest).create().size());
     Files.write(this.overlays.resolve("largest.png"), new byte[(int) FilterChain.MAX_OVERLAY_BYTES]);
-    // its size is checked when the option is read; it is decoded where the pictures are filtered
     assertTrue(!this.parse("overlay=largest").isEmpty());
     assertTrue(FilterChain.NONE.isEmpty());
     assertTrue(!this.parse("grayscale").isEmpty());
@@ -283,7 +281,6 @@ final class FilterChainTest {
     final VideoFilter inside = this.parse("rectangle=25:50:50:25:ffffff").create().getFirst();
     final ImageBuffer framed = picture(40, 40, 0);
     assertTrue(inside.applyFilter(framed));
-    // the outline of x 10 to 29 and y 20 to 29
     for (final int[] white : new int[][] { { 10, 25 }, { 29, 25 }, { 20, 20 }, { 20, 29 } }) {
       assertEquals(0xffffff, framed.getPixels()[white[0] + 40 * white[1]] & 0xffffff, Arrays.toString(white));
     }

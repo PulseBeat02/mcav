@@ -130,9 +130,7 @@ final class FakeVncServer implements AutoCloseable {
       final PixelFormat format = new PixelFormat();
       writeServerInit(out);
       this.serveMessages(in, out, format);
-    } catch (final IOException | GeneralSecurityException disconnected) {
-      // the client left, or sent what this server does not speak
-    }
+    } catch (final IOException | GeneralSecurityException disconnected) {}
   }
 
   private boolean authenticate(final DataInputStream in, final DataOutputStream out) throws IOException, GeneralSecurityException {
@@ -171,7 +169,6 @@ final class FakeVncServer implements AutoCloseable {
   private static void writeServerInit(final DataOutputStream out) throws IOException {
     out.writeShort(WIDTH);
     out.writeShort(HEIGHT);
-    // 32 bits a pixel, depth 24, little-endian, true colour, 255 a channel, red, green and blue from bit 16 down
     out.write(new byte[] { 32, 24, 0, 1, 0, (byte) 255, 0, (byte) 255, 0, (byte) 255, 16, 8, 0, 0, 0, 0 });
     final byte[] name = "mcav e2e desktop".getBytes(StandardCharsets.US_ASCII);
     out.writeInt(name.length);

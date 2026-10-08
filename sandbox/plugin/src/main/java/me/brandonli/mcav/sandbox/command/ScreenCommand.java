@@ -41,9 +41,7 @@ public final class ScreenCommand implements AnnotationCommandFeature {
   /**
    * Constructs the command.
    */
-  public ScreenCommand() {
-    // stateless
-  }
+  public ScreenCommand() {}
 
   /**
    * Handles {@code /mcav screen <blockDimensions> <mapId> <material> <location>}: builds a wall of maps that the
