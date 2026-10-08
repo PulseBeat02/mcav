@@ -209,8 +209,8 @@ def print_bytes(arguments):
     data = list(frames_of(arguments.archive))[arguments.frame]
     frame = parse_frame(data)
     groups = len(frame.masks)
-    parts = [("header", 0, 32)]
-    at = 32
+    parts = [("header", 0, fmt.HEADER_BYTES)]
+    at = fmt.HEADER_BYTES
     for name, length in (("presence masks", 4 * groups), ("directory", 4 * len(frame.directory)),
                          ("level counts", 12), ("descriptors", len(frame.descriptors)),
                          ("walk checkpoints", 4 * len(frame.walk))):
@@ -222,8 +222,7 @@ def print_bytes(arguments):
         for line in range(start, end, 16):
             print(f"  {line:5d}  " + " ".join(f"{value:02x}" for value in data[line:min(line + 16, end)]))
     print(f"width {frame.width} height {frame.height} keyframe {frame.keyframe} frame id {frame.frame_id} "
-          f"reference id {frame.reference_id} payload start {frame.payload_start} total {frame.total} "
-          f"default colour {frame.default_color}")
+          f"reference id {frame.reference_id} payload start {frame.payload_start} length {frame.total}")
     print(f"masks {[hex(mask) for mask in frame.masks]} directory {list(frame.directory)} levels {frame.level_counts} "
           f"walk {[(value & 0x1FFFF, value >> 17) for value in frame.walk]}")
     names = {mode: name for mode, name, _ in MODES}

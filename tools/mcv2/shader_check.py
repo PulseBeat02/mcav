@@ -66,8 +66,8 @@ def frames(path):
 
 
 def cells_width(width):
-    """The resolve pass's columns, as Mcv2Pack.cellsWidth: one per 8 pixels, and room for the frame's 3 facts."""
-    return max((width + 7) // 8, 3)
+    """The resolve pass's columns, as Mcv2Pack.cellsWidth: one per 8 pixels."""
+    return (width + 7) // 8
 
 
 def cells_height(height):
@@ -330,24 +330,23 @@ def check_restart(context, slots, classpath=None):
 
     red, green, blue = (201, 19, 31), (7, 231, 49), (23, 57, 211)
     cases = [
-        (100, 100, True, blue, True, blue),
-        (7, 7, True, red, True, red),
-        (7, 7, True, green, False, red),
-        (6, 7, False, green, False, red),
-        (0x80000007, 7, False, green, False, red),
-        (8, 100, False, green, False, red),
-        (8, 7, False, green, True, green),
-        (0, 0, True, blue, True, blue),
-        (1, 0, False, red, True, red),
+        (100, 100, blue, True, blue),
+        (7, 7, red, True, red),
+        (7, 7, green, False, red),
+        (6, 7, green, False, red),
+        (0x80000007, 7, green, False, red),
+        (8, 100, green, False, red),
+        (8, 7, green, True, green),
+        (0, 0, blue, True, blue),
+        (1, 0, red, True, red),
     ]
     chain = Chain(context, 32, 32, slots)
     if classpath:
         chain.compiled = compile_via_spirv(chain.includes, classpath)
     failures = committed = 0
     held_id = None
-    for index, (frame_id, reference_id, keyframe, color, should_decode, expected_color) in enumerate(cases):
-        data = pack_frame(32, 32, frame_id, reference_id, keyframe,
-                          (0, 0, 0), {0: Node(SOLID, record=bytes(color))})
+    for index, (frame_id, reference_id, color, should_decode, expected_color) in enumerate(cases):
+        data = pack_frame(32, 32, frame_id, reference_id, {0: Node(SOLID, record=bytes(color))})
         chain.show(make_pages(data, STREAM_ID, 6))
         did, picture = chain.frame()
         if should_decode:
@@ -397,7 +396,7 @@ def main():
         for index, frame in enumerate(frames(stream)):
             width, height = struct.unpack_from("<HH", frame, 8)
             frame_id, reference_id = struct.unpack_from("<II", frame, 12)
-            keyframe = frame[5] & 1 == 1
+            keyframe = frame_id == reference_id
             if chain is None:
                 chain = Chain(context, width, height, arguments.slots)
                 if arguments.spirv:

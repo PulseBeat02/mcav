@@ -17,7 +17,7 @@
 """Validated v3 frames and the canonical block-tree serializer (specification §§3-10)."""
 
 import struct
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from . import format as fmt
@@ -52,7 +52,6 @@ class Frame:
     frame_id: int
     reference_id: int
     keyframe: bool
-    default_color: tuple[int, int, int]
     payload_start: int
     total: int
     leaves: tuple[Leaf, ...]
@@ -73,7 +72,7 @@ def _require(condition: bool, message: str) -> None:
         raise ValueError(message)
 
 
-def _record_length(mode: int, size: int, control: int = 0) -> int:
+def _record_length(mode: int, size: int) -> int:
     if mode in (fmt.SKIP, fmt.SPLIT):
         return 0
     if mode == fmt.MOTION:
@@ -84,10 +83,7 @@ def _record_length(mode: int, size: int, control: int = 0) -> int:
         return 6 + size * size // 8
     if mode == fmt.PATTERN:
         return 7 + size // 8
-    kind, form = control & 15, control >> 4
-    _require(kind <= fmt.GRID_Y, "invalid COMPACT class")
-    _require(form <= fmt.MAX_MOTION_FORM, "invalid COMPACT motion form")
-    return 1 + form + fmt.BODY_BYTES[kind]
+    return fmt.COMPACT_BYTES
 
 
 def parse_frame(data: bytes) -> Frame:
@@ -98,24 +94,19 @@ def parse_frame(data: bytes) -> Frame:
         raise ValueError("MCV2 version 2 is no longer supported; re-encode")
     total = len(data)
     _require(fmt.MIN_FRAME_BYTES <= total <= fmt.MAX_FRAME_BYTES, "invalid frame length")
-    magic, version, flags, reserved, width, height, frame_id, reference_id, payload, declared, r, g, b, zero = fmt.HEADER.unpack_from(data)
+    magic, version, width, height, frame_id, reference_id = fmt.HEADER.unpack_from(data)
     _require(magic == fmt.MAGIC and version == fmt.VERSION, "not an MCV2 version 3 frame")
-    _require(flags & ~fmt.KEYFRAME == 0, "reserved flags must be zero")
-    _require(reserved == 0 and zero == 0, "reserved header bytes must be zero")
-    _require(declared == total, "total does not equal frame length")
     _require(1 <= width <= fmt.MAX_DIMENSION and 1 <= height <= fmt.MAX_DIMENSION, "invalid picture dimensions")
-    keyframe = bool(flags & fmt.KEYFRAME)
-    _require((frame_id == reference_id) == keyframe, "invalid frame/reference id relationship")
-    _require(keyframe or (r, g, b) == (0, 0, 0), "P frame default colour must be zero")
+    keyframe = frame_id == reference_id
 
     columns = (width + 31) // 32
     root_count = columns * ((height + 31) // 32)
     groups = (root_count + 31) // 32
     checkpoints = (groups + 7) // 8
-    counts_offset = 32 + 4 * groups + 4 * checkpoints
+    counts_offset = fmt.HEADER_BYTES + 4 * groups + 4 * checkpoints
     _require(counts_offset + 12 <= total, "truncated index")
-    masks = struct.unpack_from(f"<{groups}I", data, 32)
-    directory = struct.unpack_from(f"<{checkpoints}I", data, 32 + 4 * groups)
+    masks = struct.unpack_from(f"<{groups}I", data, fmt.HEADER_BYTES)
+    directory = struct.unpack_from(f"<{checkpoints}I", data, fmt.HEADER_BYTES + 4 * groups)
     _require(masks[-1] >> ((root_count - 1) % 32 + 1) == 0, "presence mask has out-of-picture superblocks")
     present = 0
     for index, mask in enumerate(masks):
@@ -127,12 +118,10 @@ def parse_frame(data: bytes) -> Frame:
     count = n0 + n1 + n2
     walk_count = (count + 7) // 8
     descriptor_offset = counts_offset + 12
-    expected_payload = descriptor_offset + count + 4 * walk_count
-    _require(expected_payload <= total, "truncated descriptors or walk")
-    _require(payload == expected_payload, "payload start does not equal index end")
+    payload = descriptor_offset + count + 4 * walk_count
+    _require(payload <= total, "truncated descriptors or walk")
     descriptors = data[descriptor_offset:descriptor_offset + count]
     walk = struct.unpack_from(f"<{walk_count}I", data, descriptor_offset + count)
-    payload_end = total
 
     offsets, records = [], []
     cursor = splits = splits0 = splits1 = 0
@@ -143,13 +132,12 @@ def parse_frame(data: bytes) -> Frame:
         mode, q = descriptor & 31, descriptor >> 5
         _require(mode <= fmt.SPLIT, "invalid descriptor mode")
         _require(mode == fmt.COMPACT or q == 0, "non-COMPACT quantizer must be zero")
+        _require(q <= fmt.MAX_QUANTIZER, "COMPACT quantizer above 2")
         _require(not keyframe or mode not in (fmt.MOTION, fmt.COMPACT), "temporal mode in keyframe")
         _require(mode != fmt.SPLIT or size != 8, "SPLIT in level 2")
         offset = payload + cursor
-        if mode == fmt.COMPACT:
-            _require(offset < payload_end, "truncated COMPACT control")
-        length = _record_length(mode, size, data[offset] if mode == fmt.COMPACT else 0)
-        _require(offset + length <= payload_end, "record exceeds payload region")
+        length = _record_length(mode, size)
+        _require(offset + length <= total, "record exceeds the frame")
         record = data[offset:offset + length]
         if mode == fmt.PATTERN:
             _require(record[6] <= 1, "invalid PATTERN orientation")
@@ -162,7 +150,7 @@ def parse_frame(data: bytes) -> Frame:
             splits1 += n0 <= index < n0 + n1
     _require(n1 == 4 * splits0, "level 1 count differs from SPLIT children")
     _require(n2 == 4 * splits1, "level 2 count differs from SPLIT children")
-    _require(payload + cursor == payload_end, "records do not end at the end of the frame")
+    _require(payload + cursor == total, "records do not end at the end of the frame")
 
     root_indexes = [i for i in range(root_count) if masks[i // 32] >> (i % 32) & 1]
     coordinates = [(32 * (i % columns), 32 * (i // columns), 32) for i in root_indexes]
@@ -188,16 +176,15 @@ def parse_frame(data: bytes) -> Frame:
         else:
             nodes[index] = Node(mode, q, records[index])
     roots = {root: nodes[index] for index, root in enumerate(root_indexes)}
-    return Frame(width, height, frame_id, reference_id, keyframe, (r, g, b), payload, total, tuple(leaves),
+    return Frame(width, height, frame_id, reference_id, keyframe, payload, total, tuple(leaves),
                  masks, directory, levels, descriptors, walk, roots)
 
 
-def pack_frame(width: int, height: int, frame_id: int, reference_id: int, keyframe: bool,
-               default_color: Sequence[int], roots: Mapping[int, Node]) -> bytes:
-    """Serialize a tree canonically. Absent roots stay absent."""
+def pack_frame(width: int, height: int, frame_id: int, reference_id: int, roots: Mapping[int, Node]) -> bytes:
+    """Serialize a tree canonically. Absent roots stay absent; a frame is a keyframe when its ids are equal."""
     _require(1 <= width <= fmt.MAX_DIMENSION and 1 <= height <= fmt.MAX_DIMENSION, "invalid picture dimensions")
     _require(0 <= frame_id <= fmt.ID_MASK and 0 <= reference_id <= fmt.ID_MASK, "ids must be u32")
-    _require(len(default_color) == 3 and all(0 <= c <= 255 for c in default_color), "invalid default colour")
+    keyframe = frame_id == reference_id
     root_count = ((width + 31) // 32) * ((height + 31) // 32)
     _require(all(isinstance(i, int) and 0 <= i < root_count for i in roots), "root index out of range")
     masks = [0] * ((root_count + 31) // 32)
@@ -216,7 +203,7 @@ def pack_frame(width: int, height: int, frame_id: int, reference_id: int, keyfra
         levels.append(len(current))
         following = []
         for node in current:
-            _require(0 <= node.mode <= fmt.SPLIT and 0 <= node.q <= 7, "invalid node descriptor")
+            _require(0 <= node.mode <= fmt.SPLIT and 0 <= node.q <= fmt.MAX_QUANTIZER, "invalid node descriptor")
             _require(node.mode == fmt.COMPACT or node.q == 0, "non-COMPACT quantizer must be zero")
             _require(not keyframe or node.mode not in (fmt.MOTION, fmt.COMPACT), "temporal mode in keyframe")
             if len(descriptors) % 8 == 0:
@@ -231,19 +218,13 @@ def pack_frame(width: int, height: int, frame_id: int, reference_id: int, keyfra
             record = node.record
             if node.mode == fmt.PATTERN:
                 _require(len(record) == 7 + size // 8 and record[6] <= 1, "invalid PATTERN record")
-            _require(node.mode != fmt.COMPACT or bool(record), "truncated COMPACT control")
-            length = _record_length(node.mode, size, record[0] if node.mode == fmt.COMPACT else 0)
+            length = _record_length(node.mode, size)
             _require(len(record) == length, "invalid leaf record length")
             records.extend(record)
         current = following
         _require(len(records) + len(descriptors) <= fmt.MAX_FRAME_BYTES, "frame exceeds length limit")
     index = (struct.pack(f"<{len(masks)}I", *masks) + struct.pack(f"<{len(directory)}I", *directory)
              + struct.pack("<III", *levels) + descriptors + struct.pack(f"<{len(walk)}I", *walk))
-    payload_start = 32 + len(index)
-    total = payload_start + len(records)
+    total = fmt.HEADER_BYTES + len(index) + len(records)
     _require(total <= fmt.MAX_FRAME_BYTES, "frame exceeds length limit")
-    _require((frame_id == reference_id) == bool(keyframe), "invalid frame/reference id relationship")
-    _require(keyframe or tuple(default_color) == (0, 0, 0), "P frame default colour must be zero")
-    header = fmt.HEADER.pack(fmt.MAGIC, fmt.VERSION, int(bool(keyframe)), 0, width, height, frame_id,
-                             reference_id, payload_start, total, *default_color, 0)
-    return header + index + records
+    return fmt.HEADER.pack(fmt.MAGIC, fmt.VERSION, width, height, frame_id, reference_id) + index + records

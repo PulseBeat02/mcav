@@ -240,10 +240,9 @@ final class Mcv2PackTest {
   }
 
   @Test
-  void leavesRoomForTheFrameFactsInANarrowVideo() {
+  void sizesTheCellsOnePerEightPixels() {
     final Mcv2Configuration narrow = Mcv2ConfigurationTest.complete().video(16, 9).build();
-    // two columns of cells would not hold the frame row's three facts
-    assertEquals(3, Mcv2Pack.cellsWidth(narrow));
+    assertEquals(2, Mcv2Pack.cellsWidth(narrow));
     assertEquals(2, Mcv2Pack.cellsHeight(narrow));
     final Mcv2Configuration wide = Mcv2ConfigurationTest.complete().video(1920, 1080).build();
     assertEquals(240, Mcv2Pack.cellsWidth(wide));

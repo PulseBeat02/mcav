@@ -22,7 +22,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .format import MAX_FRAME_BYTES, MAX_PENDING, PAGE_CAPACITY, PAGE_MAGIC, PAGE_SYMBOLS, SYMBOL_BITS
+from .format import MAX_FRAME_BYTES, MAX_PENDING, MIN_FRAME_BYTES, PAGE_CAPACITY, PAGE_MAGIC, PAGE_SYMBOLS, SYMBOL_BITS
 from .v3 import parse_frame
 
 PAGE_HEADER = struct.Struct("<4sBBHIIHHIII")
@@ -95,7 +95,7 @@ def read_page(symbols: bytes, symbol_bits: int = 6) -> Page:
     magic, version, width, flags, stream, frame, number, count, reference, total, crc = PAGE_HEADER.unpack(header)
     if magic != PAGE_MAGIC or version != 1 or width != 6 or flags > 1:
         raise ValueError("unsupported page header")
-    if not 32 <= total <= MAX_FRAME_BYTES or count != (total + PAGE_CAPACITY - 1) // PAGE_CAPACITY or number >= count:
+    if not MIN_FRAME_BYTES <= total <= MAX_FRAME_BYTES or count != (total + PAGE_CAPACITY - 1) // PAGE_CAPACITY or number >= count:
         raise ValueError("invalid page metadata")
     size = min(PAGE_CAPACITY, total - number * PAGE_CAPACITY)
     raw = from_symbols(symbols, 6, PAGE_HEADER.size + size)

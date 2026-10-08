@@ -31,7 +31,8 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(ROOT / 'tools/mcv2'))
 import differential
-from mcvideo.v3 import pack_frame
+from mcvideo import format as fmt
+from mcvideo.v3 import Node, pack_frame
 from fixtures import archive
 
 
@@ -79,9 +80,9 @@ class DifferentialTest(unittest.TestCase):
         self.assertEqual('b' * 64, failures[0]['reference'])
 
     def test_reference_only_treats_value_error_as_rejection(self):
-        first = pack_frame(1, 1, 0, 0, True, (1, 2, 3), {})
-        skipped = pack_frame(1, 1, 2, 1, False, (0, 0, 0), {})
-        recovery = pack_frame(1, 1, 3, 3, True, (4, 5, 6), {})
+        first = pack_frame(1, 1, 0, 0, {0: Node(fmt.SOLID, record=b'\1\2\3')})
+        skipped = pack_frame(1, 1, 2, 1, {})
+        recovery = pack_frame(1, 1, 3, 3, {0: Node(fmt.SOLID, record=b'\4\5\6')})
         self.assertEqual([hashlib.sha256(b'\1\2\3').hexdigest(), 'reject', 'reject', hashlib.sha256(b'\4\5\6').hexdigest()],
                          differential.reference_tokens([first, b'MCV1', skipped, recovery]))
         with patch.object(differential.Decoder, 'accept', side_effect=RuntimeError('bug')):
@@ -91,7 +92,7 @@ class DifferentialTest(unittest.TestCase):
     def test_random_and_committed_inputs_both_get_mutants(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            original = pack_frame(1, 1, 0, 0, True, (1, 2, 3), {})
+            original = pack_frame(1, 1, 0, 0, {0: Node(fmt.SOLID, record=b'\1\2\3')})
             (root / 'test.mcs').write_bytes(archive([original]))
             arguments = SimpleNamespace(seed=19, streams=2, conformance=2, mutants=2, corpus=root)
             chunks = differential.build_archives(arguments)
