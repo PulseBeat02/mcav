@@ -21,6 +21,7 @@ dependencies {
     implementation(plugin(libs.plugins.javacpp.platform))
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.mockito.core)
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(gradleTestKit())
 }

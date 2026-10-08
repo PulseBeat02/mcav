@@ -24,7 +24,7 @@
 // call: a kernel reads and writes only inside the arrays it is given, allocates nothing, and keeps no state between
 // calls.
 //
-// A level's translation unit (level_<level>.cpp, the build glue build.sh compiles with that level's flags) defines
+// A level's translation unit (level_<level>.cpp, compiled with that level's flags) defines
 // exactly one MCV2_SIMD_<LEVEL> and MCV2_PREFIX(name), and includes this file; the scalar unit also defines MCV2_CPU,
 // which adds the CPU detection. Everything but the exports has internal linkage, so the levels' copies never meet at
 // link time. MCV2_DECLARATIONS_ONLY gives just the interface, for the kernels' standalone test.

@@ -76,12 +76,14 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -99,6 +101,8 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.ObjIntConsumer;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -1584,21 +1588,9 @@ public final class MCV2 {
   /** Always runs the Java kernels. */
   public static final String NATIVE_OFF = "off";
 
-  /** The SHA-256 of each platform's library in the jar, which must match before it is loaded. */
-  static final Map<String, String> NATIVE_DIGESTS = Map.of(
-    "linux-aarch64",
-    "e3fcb31a26eb2e7e22efc64d306d171beef71e08c5507f4f39ffad0e106ef8cd",
-    "linux-x86_64",
-    "57112add37a8ec2950860f13664f536ea2a17c2ae2f652df10007b8e4d013f19",
-    "macos-aarch64",
-    "0ac3eea8d109cd3e312669c66bdbb0b9e3e4420a27b11908bf0e01475afb4f7d",
-    "macos-x86_64",
-    "17ff07a56af4f3a4fc0135817a0e60d6523cfcf4d3ccbce7fe156dc579c77292",
-    "windows-aarch64",
-    "a662f6d9e41fb4655bac3e3a179349a0efa95f008ed005b759baba3a4b59dbaf",
-    "windows-x86_64",
-    "adb38258189d347101a2aa241168a52b6af6dbdbda60d9a93cad5eb9cb6d0eb9"
-  );
+  private static final String NATIVE_RESOURCES = "/mcav/mcv2/natives/";
+
+  static final Map<String, String> NATIVE_DIGESTS = Natives.digests(MCV2.class.getResourceAsStream(NATIVE_RESOURCES + "SHA256SUMS"));
 
   /** The dispatch levels of the library, as bits of its {@code mcv2_cpu_levels} and in its symbols' names. */
   enum Level {
@@ -1647,6 +1639,8 @@ public final class MCV2 {
   static final class Natives {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MCV2.class);
+
+    private static final Pattern DIGEST_ENTRY = Pattern.compile("([0-9a-f]{64})  ((?:linux|macos|windows)-(?:x86_64|aarch64))/(.+)");
 
     /** The library interface these bindings are written for, {@code MCV2_ABI}. */
     static final int ABI = 5;
@@ -1705,7 +1699,7 @@ public final class MCV2 {
           System.getProperty(NATIVE_PROPERTY, configured),
           platform(System.getProperty("os.name", ""), System.getProperty("os.arch", "")),
           directory,
-          platform -> read(MCV2.class.getResourceAsStream("natives/" + platform + "/" + libraryName(platform))),
+          platform -> read(MCV2.class.getResourceAsStream(NATIVE_RESOURCES + platform + "/" + libraryName(platform))),
           System.getProperty(LEVEL_PROPERTY)
         );
         if (current.failed()) {
@@ -1752,6 +1746,32 @@ public final class MCV2 {
       } catch (final IOException exception) {
         throw new UncheckedIOException(exception);
       }
+    }
+
+    static Map<String, String> digests(final @Nullable InputStream stream) {
+      final byte[] bytes;
+      try {
+        bytes = read(stream);
+      } catch (final UncheckedIOException exception) {
+        return Map.of();
+      }
+      if (bytes == null) {
+        return Map.of();
+      }
+      final Map<String, String> digests = new HashMap<>();
+      for (final String line : new String(bytes, StandardCharsets.US_ASCII).lines().toList()) {
+        final Matcher matcher = DIGEST_ENTRY.matcher(line);
+        if (!matcher.matches()) {
+          return Map.of();
+        }
+        final String platform = Preconditions.checkNotNull(matcher.group(2));
+        if (
+          !libraryName(platform).equals(matcher.group(3)) || digests.put(platform, Preconditions.checkNotNull(matcher.group(1))) != null
+        ) {
+          return Map.of();
+        }
+      }
+      return Map.copyOf(digests);
     }
 
     static Resolution resolve(

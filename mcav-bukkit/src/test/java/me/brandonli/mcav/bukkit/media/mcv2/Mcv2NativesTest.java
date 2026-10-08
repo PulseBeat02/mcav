@@ -62,7 +62,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * The loading of the native kernels: which platform names a library, the libraries the jar ships against the digests
- * compiled in, each way a library can fail to load - off, unknown, missing, unreadable, altered, without a folder,
+ * generated with them, each way a library can fail to load - off, unknown, missing, unreadable, altered, without a folder,
  * unextractable, unloadable, the wrong interface, a kernel short - running Java with the reason, the extraction under
  * the digest that a second load reuses, the level chosen, and the path the live encoders take.
  */
@@ -104,7 +104,7 @@ final class Mcv2NativesTest {
   @Test
   void shipsTheLibrariesItsDigestsName() throws IOException {
     final Map<String, String> listed = new HashMap<>();
-    try (final InputStream sums = MCV2.class.getResourceAsStream("natives/SHA256SUMS")) {
+    try (final InputStream sums = MCV2.class.getResourceAsStream("/mcav/mcv2/natives/SHA256SUMS")) {
       assertNotNull(sums);
       for (final String line : new String(sums.readAllBytes(), StandardCharsets.US_ASCII).lines().toList()) {
         final List<String> fields = Splitter.on(' ').omitEmptyStrings().splitToList(line);
@@ -114,7 +114,9 @@ final class Mcv2NativesTest {
     assertEquals(MCV2.NATIVE_DIGESTS, listed);
     for (final Map.Entry<String, String> library : MCV2.NATIVE_DIGESTS.entrySet()) {
       final String platform = library.getKey();
-      final byte[] bytes = Natives.read(MCV2.class.getResourceAsStream("natives/" + platform + "/" + Natives.libraryName(platform)));
+      final byte[] bytes = Natives.read(
+        MCV2.class.getResourceAsStream("/mcav/mcv2/natives/" + platform + "/" + Natives.libraryName(platform))
+      );
       assertNotNull(bytes, platform);
       assertEquals(library.getValue(), Mcv2Resources.sha256(bytes), platform);
       // the one megabyte a native library may take in the jar
@@ -138,6 +140,40 @@ final class Mcv2NativesTest {
       }
     };
     assertThrows(UncheckedIOException.class, () -> Natives.read(failing));
+  }
+
+  @Test
+  void readsGeneratedDigestsAndRefusesMalformedManifests() {
+    final String digest = "a".repeat(64);
+    final String entry = digest + "  linux-x86_64/libmcv2kernels.so\n";
+    assertEquals(Map.of("linux-x86_64", digest), Natives.digests(new ByteArrayInputStream(entry.getBytes(StandardCharsets.US_ASCII))));
+    assertThrows(UnsupportedOperationException.class, () ->
+      Natives.digests(new ByteArrayInputStream(entry.getBytes(StandardCharsets.US_ASCII))).clear()
+    );
+    assertEquals(Map.of(), Natives.digests(null));
+    for (final String invalid : List.of(
+      "",
+      "garbage",
+      "a  linux-x86_64/libmcv2kernels.so",
+      entry + entry,
+      entry + "garbage",
+      digest + "  linux-x86_64/wrong.so",
+      digest + "  linux-ppc64/libmcv2kernels.so"
+    )) {
+      assertEquals(Map.of(), Natives.digests(new ByteArrayInputStream(invalid.getBytes(StandardCharsets.US_ASCII))));
+    }
+    final InputStream failing = new InputStream() {
+      @Override
+      public int read() throws IOException {
+        throw new IOException("unreadable manifest");
+      }
+
+      @Override
+      public int read(final byte[] buffer, final int offset, final int length) throws IOException {
+        throw new IOException("unreadable manifest");
+      }
+    };
+    assertEquals(Map.of(), Natives.digests(failing));
   }
 
   private static byte @Nullable [] unexpected(final String platform) {

@@ -16,7 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The scalar level of the kernels in mcv2.cpp, compiled by build.sh with its own flags.
 #define MCV2_SIMD_SCALAR
 #define MCV2_PREFIX(name) mcv2_scalar_##name
 #define MCV2_CPU
