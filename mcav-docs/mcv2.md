@@ -221,18 +221,19 @@ patterns turned off, at six lambdas each.
 
 | λ | Rate with patterns | VMAF | Rate without patterns | VMAF |
 |---:|---:|---:|---:|---:|
-| 19 | 7.74 Mbit/s | 87.1 | 8.63 Mbit/s | 87.2 |
-| 34 | 4.24 Mbit/s | 82.5 | 4.77 Mbit/s | 82.4 |
-| 65 | 2.25 Mbit/s | 76.6 | 2.50 Mbit/s | 74.9 |
-| 138 | 1.43 Mbit/s | 68.2 | 1.53 Mbit/s | 65.8 |
-| 254 | 0.99 Mbit/s | 56.7 | 1.09 Mbit/s | 59.7 |
-| 500 | 0.75 Mbit/s | 51.1 | 0.78 Mbit/s | 50.6 |
+| 19 | 7.72 Mbit/s | 86.9 | 8.57 Mbit/s | 87.0 |
+| 34 | 4.19 Mbit/s | 82.4 | 4.70 Mbit/s | 82.1 |
+| 65 | 2.24 Mbit/s | 76.6 | 2.45 Mbit/s | 75.0 |
+| 138 | 1.40 Mbit/s | 68.3 | 1.48 Mbit/s | 66.5 |
+| 254 | 0.98 Mbit/s | 57.1 | 1.06 Mbit/s | 60.1 |
+| 500 | 0.74 Mbit/s | 52.3 | 0.73 Mbit/s | 50.5 |
 
-You can see that the second column of rates is always higher, but the qualities don't line up exactly, so you can't
-just divide one rate by the other. The BD-rate takes care of that: over the VMAF range both reach, 51 to 87, the curve
-without patterns needs on average 12.9 % more rate for the same quality. So turning patterns off costs **+12.9 %
-BD-rate** on this clip. (Notice the point at λ = 254, where the encoder without patterns happened to land on a higher
-quality: real measurements are a little noisy, and fitting a smooth curve through all six points averages that out.)
+You can see that the second column of rates is higher at every λ but the last, where the quality is lower too. And
+the qualities don't line up exactly, so you can't just divide one rate by the other. The BD-rate takes care of that:
+over the VMAF range both reach, 52 to 87, the curve without patterns needs on average 11.4 % more rate for the same
+quality. So turning patterns off costs **+11.4 % BD-rate** on this clip. (Notice the point at λ = 254, where the
+encoder without patterns happened to land on a higher quality: real measurements are a little noisy, and fitting a
+smooth curve through all six points averages that out.)
 
 ## Part 4: Why Minecraft Maps Need Their Own Codec
 
