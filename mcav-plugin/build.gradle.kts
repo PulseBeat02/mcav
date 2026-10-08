@@ -12,7 +12,7 @@ dependencies {
     compileOnly(libs.paper.api)
     implementation(libs.gremlin.runtime)
     runtimeDownload("me.brandonli:mcav-bukkit:${rootProject.version}")
-    runtimeDownload("me.brandonli:mcav-jda:${rootProject.version}")
+    runtimeDownload("me.brandonli:mcav-discord:${rootProject.version}")
     runtimeDownload("me.brandonli:mcav-http:${rootProject.version}")
     runtimeDownload("me.brandonli:mcav-common:${rootProject.version}")
     runtimeDownload("me.brandonli:mcav-vm:${rootProject.version}")

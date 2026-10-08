@@ -26,7 +26,7 @@ parts:
       - file: library/browser.md
       - file: library/vnc.md
       - file: library/vm.md
-      - file: library/jda.md
+      - file: library/discord.md
       - file: library/http.md
       - file: library/voicechat.md
       - file: library/lwjgl.md

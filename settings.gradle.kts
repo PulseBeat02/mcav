@@ -16,7 +16,7 @@ include(
     "mcav-docs",
     "mcav-bukkit",
     "mcav-installer",
-    "mcav-jda",
+    "mcav-discord",
     "mcav-http",
     "mcav-browser",
     "mcav-vnc",

@@ -1,11 +1,11 @@
-# JDA Module
+# Discord Module
 
 MCAV provides a module that plays audio into Discord voice channels with the
-[Java Discord API](https://github.com/discord-jda/JDA) (JDA). Add the `mcav-jda` module to your project.
+[Java Discord API](https://github.com/discord-jda/JDA) (JDA). Add the `mcav-discord` module to your project.
 
 ```kotlin
 dependencies {
-    implementation("me.brandonli:mcav-jda:1.0.0-SNAPSHOT")
+    implementation("me.brandonli:mcav-discord:1.0.0-SNAPSHOT")
 }
 ```
 

@@ -29,7 +29,7 @@ public enum Artifact {
   /**
    * Discord voice output through JDA.
    */
-  JDA("mcav-jda"),
+  DISCORD("mcav-discord"),
   /**
    * The web audio player served over HTTP.
    */

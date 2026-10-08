@@ -98,7 +98,7 @@ Here is a list of all the modules that are included in MCAV
 | `mcav-common`    | The core library for multimedia functionality: the FFmpeg, VLC, OpenCV and capture device players, pipelines and filters, dithering, yt-dlp, and audio and FFmpeg utilities. |
 | `mcav-bukkit`    | A Bukkit-specific module for Minecraft plugins: video and images on maps, blocks, entities, the scoreboard and chat, audio resource packs, and the MCV2 codec. |
 | `mcav-installer` | A simple installer for installing and injecting required libraries across all different modules of MCAV.                                                     |
-| `mcav-jda`       | A module integrating with the [Java Discord API](https://github.com/discord-jda/JDA) to play audio in Discord voice channels.                                |
+| `mcav-discord`   | A module integrating with the [Java Discord API](https://github.com/discord-jda/JDA) to play audio in Discord voice channels.                                |
 | `mcav-http`      | A module with [Spring Boot](https://spring.io/) back-end and [Typescript](https://www.typescriptlang.org/) front-end to stream PCM audio to an HTTP website. |
 | `mcav-vm`        | A module integrating with [QEMU](https://www.qemu.org/) to run virtual machines, with their display and their sound.                                         |
 | `mcav-vnc`       | A module interacting with VNC servers to capture video and control remote desktops.                                                                          |

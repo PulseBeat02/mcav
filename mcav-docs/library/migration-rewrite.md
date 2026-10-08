@@ -36,6 +36,7 @@ dependency, the imports and the installer's `Artifact` constant:
 
 | May 2026 snapshot | Current |
 | --- | --- |
+| `me.brandonli:mcav-jda`, package `me.brandonli.mcav.jda`, `Artifact.JDA` | `me.brandonli:mcav-discord`, package `me.brandonli.mcav.discord`, `Artifact.DISCORD` |
 | `me.brandonli:mcav-svc`, package `me.brandonli.mcav.svc`, `Artifact.SVC` | `me.brandonli:mcav-voicechat`, package `me.brandonli.mcav.voicechat`, `Artifact.VOICECHAT` |
 
 ## Browser players
