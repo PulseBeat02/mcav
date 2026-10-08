@@ -74,11 +74,10 @@ decodes it on the player's GPU, in full colour, at the resolution you choose. Th
 | At 1080p, 30 fps | Rate on the wire, after Minecraft's compression | VMAF mean |
 |------------------|-------------------------------------------------|-----------|
 | Dithered maps, the default budget | 10.4 Mbit/s | 33.4: the wall never shows a whole frame |
-| MCV2 `ship`, pre-encoded | 2.21 Mbit/s | 77.9 |
-| MCV2 `live`, the default for live sources | 1.83 Mbit/s | 75.7 |
-| MCV2 `live`, real Minecraft gameplay | 8.3 Mbit/s | 76.1 |
+| MCV2, its `DEFAULT` preset | 2.11 Mbit/s | 75.7 |
+| MCV2, its `DEFAULT` preset, real Minecraft gameplay | 9.22 Mbit/s | 75.6 |
 
-The first three rows are measured on a procedural Minecraft test clip, which flatters MCV2; the last on real gameplay.
+The first two rows are measured on a procedural Minecraft test clip, which flatters MCV2; the last on real gameplay.
 Live sources (browsers, virtual machines, VNC desktops, streams, cameras, and video files by default) share a
 configurable CPU budget. Throughput depends on the source, encoder preset and available CPU; 1080p30 is a measured
 workload, not a guarantee for every six-core server. A screen that cannot keep up steps down on its own, or you can

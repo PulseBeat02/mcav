@@ -25,7 +25,7 @@ sends every frame as a new message as it arrives.
 `FLOYD_STEINBERG_TEMPORAL` keeps unchanged areas identical from frame to frame, so less of the wall has to be sent. A
 wall of maps sends only the parts of each map that changed, at most 128 KiB per frame and viewer; a big picture that
 changes everywhere, such as 1080p video, needs far more than that, so the wall shows each change a few frames late
-([why MCV2 exists](../mcv2.md#why-maps-need-their-own-codec)).
+([why MCV2 exists](../mcv2.md#part-4-why-minecraft-maps-need-their-own-codec)).
 
 ## Players
 

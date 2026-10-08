@@ -94,7 +94,7 @@ A wall of maps shows its picture in one of two ways, chosen per command with the
 argument, for example `/mcav browser create @a 1280x720 1 10x6 0 NEAREST_COLOR NONE https://example.com --codec mcv2`.
 `/mcav vm create` takes it at the very end of its QEMU options, since those start with a dash too:
 `... X86_64 NONE -m 2048M -cdrom "alpine linux.iso" --codec mcv2`. `/mcav video mcv2` always uses MCV2 and chooses its
-encoder profile. The block, chat, entity and scoreboard outputs (and the information hologram) draw no maps, so the
+encoder preset. The block, chat, entity and scoreboard outputs (and the information hologram) draw no maps, so the
 codec does not apply to them.
 
 With `mcv2`:
@@ -102,7 +102,7 @@ With `mcv2`:
 - The viewers are offered MCAV's MCV2 resource pack, one pack that decodes every MCV2 screen of the server. It is
   optional and replaces no other pack: a player who declines it sees the dithered maps and is not asked again while
   online. Until a player's client has loaded it, that player sees the dithered maps, and so does a player whose
-  [MCV2 client mod](../bukkit/mcv2.md#the-client-mod-for-iris-shader-players) reports Iris shaders on that it can't
+  [MCV2 client mod](../mcv2.md#the-client-mod-for-iris-shader-players) reports Iris shaders on that it can't
   decode under (an Iris other than 1.11.7), until they turn them off.
 - Loading the pack reloads the client's resources, a hitch of a second or more. The pack changes only when a screen of
   a video size it does not decode yet starts, and a minute after a screen stopped, when its size leaves the pack (the
@@ -112,8 +112,8 @@ With `mcv2`:
   watches too. Only players who can see the wall are sent its MCV2 stream: one farther away than their view distance,
   or in another world, is sent nothing until they come back. Any other selector means the players it matches when the command runs, who are offered the pack again
   when they join or change world.
-- The picture is encoded as it arrives, with the default live preset `live`, on the encoder threads every MCV2 screen
-  shares (`mcv2.encoder-threads`). When they cannot keep up, the screen steps down to faster presets, then fewer frames
+- The picture is encoded as it arrives, with the `DEFAULT` preset, on the encoder threads every MCV2 screen
+  shares (`mcv2.encoder-threads`). When they cannot keep up, the screen steps down to the `FAST` preset, then fewer frames
   a second, then a smaller video, and at worst the dithered maps; whoever started it is told every step and why.
 - An MCV2 wall can be at most 63 maps on a side, and its resolution at most 4096 pixels on a side, against 64 maps and
   8192 pixels for the dithered maps. A larger one is refused with "MCV2 plays on walls of at most 63 by 63 maps, and
@@ -313,7 +313,7 @@ every device there is.
 | **Permission**                               | `mcav.command.video.mcv2`                                                                                                                  |
 | **Description**                              | Plays a video on a map screen with MCV2, like `/mcav video map ... --codec mcv2`, with the encoder profile of your choice                  |
 | **Arguments**                                |                                                                                                                                            |
-| &nbsp;&nbsp;&nbsp;&nbsp;`profile`            | The encoder profile: `LIVE` (the default of `--codec mcv2`), `LIVE_ADAPTIVE`, `LIVE_FAST` (faster, more bandwidth), `LIVE_KEYFRAME` (for viewers whose clients draw fewer frames than the video has), or the slower `SHIP`, `LOW`, `KEYFRAME` and `INTRA` meant for encoding ahead of time |
+| &nbsp;&nbsp;&nbsp;&nbsp;`profile`            | The encoder preset: `DEFAULT` (the default of `--codec mcv2`), `ADAPTIVE` (the faster search while the picture moves a lot) or `FAST` (the fastest search, for a server that can't keep up; more bandwidth) |
 |                                              | The other arguments are those of `/mcav video map`; the dithering algorithm is for the viewers without the pack                          |
 
 ---
@@ -472,7 +472,7 @@ They have no sound. Stream files live in the plugin's `mcv2` folder; a name that
 | &nbsp;&nbsp;&nbsp;&nbsp;`file`            | The video file on the server                                                                           |
 | &nbsp;&nbsp;&nbsp;&nbsp;`output`          | The stream file to write in the plugin's `mcv2` folder; an existing one is replaced when the encode ends |
 | &nbsp;&nbsp;&nbsp;&nbsp;`resolution`      | The video size in width×height format (example, 1280x720)                                              |
-| &nbsp;&nbsp;&nbsp;&nbsp;`profile`         | The encoder profile, usually `SHIP`, the best quality for its bandwidth, which is far slower than real time |
+| &nbsp;&nbsp;&nbsp;&nbsp;`profile`         | The encoder preset, usually `DEFAULT`, the best picture for its bandwidth; `ADAPTIVE` and `FAST` are faster |
 
 ---
 
