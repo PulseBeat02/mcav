@@ -18,6 +18,14 @@ val jacocoReport = tasks.named<JacocoReport>("jacocoTestReport") {
     }
 }
 
+val instrumentedPackages = listOf("me.brandonli.*")
+
+tasks.withType<Test>().configureEach {
+    extensions.configure<JacocoTaskExtension> {
+        includes = instrumentedPackages
+    }
+}
+
 val testTask = tasks.named<Test>("test") {
     finalizedBy(jacocoReport)
 }
