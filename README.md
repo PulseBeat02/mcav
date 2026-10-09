@@ -85,14 +85,12 @@ Its benchmark, fixture, digest and shader tools live in `mcav-bukkit`'s test sou
 `mcv2_tools.py` and the independent reference decoder, `mcv2_reference.py`.
 
 Live sources (browsers, virtual machines, VNC desktops, streams, cameras, and video files by default) share a
-configurable CPU budget. 1080p30 is a measured workload, not a guarantee for every six-core server.
-Throughput depends on the source, encoder preset and available CPU. A screen that cannot keep
-up steps down on its own, or you can pre-encode a file. Live playback keeps the dithered maps for players without
-the pack. Pre-encoded streams need the pack.
-Turn it on with `--codec mcv2` on any command that draws on a wall of maps, or with
-`mcv2.default-codec: mcv2` in `config.yml`. The
-[MCV2 article](https://mcav.readthedocs.io/en/latest/mcv2.html) explains how it works, its measured rates, quality and speed, and how it
-compares with H.264, VP9 and AV1.
+configurable CPU budget. Throughput depends on the source, encoder preset and available CPU; 1080p30 is a measured
+workload, not a guarantee for every six-core server. A screen that cannot keep up steps down on its own, or you can
+pre-encode a file. Live playback keeps the dithered maps for players without the pack. Pre-encoded streams need the
+pack. Turn it on with `--codec mcv2` on any command that draws on a wall of maps, or with `mcv2.default-codec: mcv2`
+in `config.yml`. The [MCV2 article](https://mcav.readthedocs.io/en/latest/mcv2.html) explains how it works, its
+measured rates, quality and speed, and how it compares with H.264, VP9 and AV1.
 
 ---
 
@@ -121,7 +119,7 @@ Here is a list of all the modules that are included in MCAV.
 
 ### Building from Source
 
-A clean build needs a JDK 17 or newer and network access. Clone the repository and build it:
+A clean build needs a JDK 17 or newer and network access, but no credentials. Clone the repository and build it:
 
 ```bash
 git clone https://github.com/PulseBeat02/mcav.git
@@ -132,15 +130,16 @@ cd mcav
 
 The plugin jar is `mcav-plugin/build/libs/mcav-plugin-<version>-all.jar`. Gradle downloads the Java 25 toolchain
 through foojay when the machine has none, and the Node.js used by the formatter and the web page of `mcav-http`.
-It downloads Zig 0.16.0, verifies its pinned SHA-256, and compiles MCV2's six native libraries from
-`mcav-bukkit/src/main/native/mcv2`. The compiler is cached in `mcav-bukkit/build/tools/zig`;
-`ZIG` can name an installed Zig 0.16.0. Gradle also downloads checksum-verified uv, which installs the pinned Python
-and the hash-locked documentation packages. These tools need no separate installation. `build` writes the documentation
-to `mcav-docs/build/html`; `:mcav-docs:build` builds only the documentation. Open `index.html` to read it.
+It downloads Zig 0.16.0 from ziglang.org, verifies its pinned SHA-256, and compiles MCV2's six native libraries from
+`mcav-bukkit/src/main/native/mcv2`. A failed download or compilation fails the build. The compiler is cached in
+`mcav-bukkit/build/tools/zig`; `ZIG` can name an installed Zig 0.16.0. Gradle also downloads checksum-verified uv,
+which installs the pinned Python and the hash-locked documentation packages. These tools need no separate
+installation. `build` writes the documentation to `mcav-docs/build/html`; `:mcav-docs:build` builds only the
+documentation. Open `index.html` to read it.
 
-The project builds on Windows, macOS or Linux. Tests that need another operating system or a program the machine
-lacks skip themselves. `build` also enforces the coverage lint, where those skipped tests leave gaps. On such a
-machine, use:
+The project builds on Windows, macOS or Linux. Tests that need another operating system, or a program the machine
+lacks (VLC, QEMU, a display), skip themselves. `build` also enforces the coverage lint, where those skipped tests
+leave gaps. On such a machine, use:
 
 ```bash
 ./gradlew build -Pmcav.coverage=false
@@ -153,9 +152,10 @@ python3 -m unittest discover -s mcav-bukkit/src/test/python
 ./gradlew :mcav-bukkit:formatMcv2Natives
 ```
 
-The Python tests need Python 3.12 or newer with numpy, Pillow, moderngl and matplotlib. The formatter needs clang-format 18.1.8;
-`CLANG_FORMAT` can name its executable. Neither is needed for the default build. The
-[MCV2 tools](mcav-docs/mcv2.md#reproducing-the-measurements-and-figures) describe the other codec checks.
+The Python tests need Python 3.12 or newer with numpy, Pillow, moderngl and matplotlib. The formatter needs
+clang-format 18.1.8; `CLANG_FORMAT` can name its executable. Neither is needed for the default build. The
+[MCV2 tools](https://mcav.readthedocs.io/en/latest/mcv2.html#reproducing-the-measurements-and-figures) describe the
+other codec checks.
 
 Check the task plans for publishing the library modules and for the plugin's end-to-end test:
 
@@ -167,7 +167,7 @@ Check the task plans for publishing the library modules and for the plugin's end
 Remove `--dry-run` to run either task. Publishing needs repository credentials. The end-to-end test downloads and
 starts Paper and Simple Voice Chat; its EULA flag accepts the [Minecraft EULA](https://aka.ms/MinecraftEULA).
 [CONTRIBUTING.md](CONTRIBUTING.md) describes the tests, the coverage lint, the property, fuzz and concurrency tests,
-mutation testing and the end-to-end test of the plugin.
+mutation testing, the end-to-end test of the plugin and publishing.
 
 ---
 
