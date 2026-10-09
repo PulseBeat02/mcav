@@ -18,13 +18,13 @@
 /**
  * Sends pipeline audio to Discord voice channels through JDA.
  *
- * <p>Create a {@link me.brandonli.mcav.discord.DiscordPlayer} with
- * {@link me.brandonli.mcav.discord.DiscordPlayer#voice(net.dv8tion.jda.api.JDA)}, attach it as an audio filter and
+ * <p>Create a {@link DiscordPlayer} with
+ * {@link DiscordPlayer#voice(net.dv8tion.jda.api.JDA)}, attach it as an audio filter and
  * register it as the guild's sending handler. JDA pulls complete 20 millisecond PCM frames; slow consumption
- * causes the oldest queued frames to be dropped. See {@link me.brandonli.mcav.discord.DiscordPlayer} for an example.
+ * causes the oldest queued frames to be dropped. See {@link DiscordPlayer} for an example.
  *
  * <p>The caller logs in the bot, opens and closes its voice connection, releases its media player and shuts
- * down JDA. {@link me.brandonli.mcav.discord.JDAModule} registers the backend but owns none of those resources.
+ * down JDA. {@link JDAModule} registers the backend but owns none of those resources.
  * The default player's queue is safe for concurrent producers and JDA's consumer; supplied buffers must remain
  * stable while they are read.
  *
