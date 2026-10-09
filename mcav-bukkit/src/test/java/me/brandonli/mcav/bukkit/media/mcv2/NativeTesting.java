@@ -99,7 +99,7 @@ final class NativeTesting {
     final Resolution resolution = resolution();
     final List<Level> levels = new ArrayList<>();
     for (final Level level : Level.values()) {
-      if (resolution.binding() != null && level.in(resolution.levels())) {
+      if (resolution.binding() != null && level.isIn(resolution.levels())) {
         levels.add(level);
       }
     }

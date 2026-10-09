@@ -1503,7 +1503,7 @@ public final class MCV2 {
       this.symbol = symbol;
     }
 
-    boolean in(final int levels) {
+    boolean isIn(final int levels) {
       return (levels & this.bit) != 0;
     }
 
@@ -1742,7 +1742,7 @@ public final class MCV2 {
           return Resolution.java("the library's interface " + interfaceVersion + " is not " + expected, true);
         }
         // The dependency-free AArch64 library cannot query the kernel for SVE permission.
-        final long features = platform.startsWith("linux") ? hwcap(AUXILIARY_VECTOR_FILE) : 0;
+        final long features = platform.startsWith("linux") ? hardwareCapabilities(AUXILIARY_VECTOR_FILE) : 0;
         final MethodHandle cpuLevels = MethodHandles.insertArguments(
           linker.downcallHandle(library.findOrThrow("mcv2_cpu_levels"), LEVELS),
           0,
@@ -1756,7 +1756,7 @@ public final class MCV2 {
       }
     }
 
-    static long hwcap(final Path auxiliaryVectorFile) {
+    static long hardwareCapabilities(final Path auxiliaryVectorFile) {
       final byte[] bytes;
       try {
         bytes = Files.readAllBytes(auxiliaryVectorFile);
@@ -1779,7 +1779,7 @@ public final class MCV2 {
       boolean allowed = highest == null;
       for (final Level level : PREFERENCE) {
         allowed |= level.symbol().equals(highest);
-        if (allowed && level.in(levels)) {
+        if (allowed && level.isIn(levels)) {
           return level;
         }
       }
