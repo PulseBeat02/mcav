@@ -121,8 +121,8 @@ public final class NetworkUtils {
     );
 
     try (final HttpClient client = createClient(HttpClient.Redirect.NEVER)) {
-      // the request's own timeout ends with the response's headers, so a body that trickles in or never ends held the
-      // caller, the thread that writes the pack, far longer; this deadline covers the body too
+      // the request's own timeout ends with the response's headers, so a body that trickles in or never ends would hold
+      // the caller, the thread that writes the pack, far longer; this deadline covers the body too
       final CompletableFuture<HttpResponse<String>> pending = client.sendAsync(request, bodyHandler);
       try {
         return readAddress(pending.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS));
