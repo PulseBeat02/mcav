@@ -68,7 +68,6 @@
 extern "C" {
 
 // Java supplies AT_HWCAP because this library imports no C-library functions.
-
 MCV2_EXPORT int32_t mcv2_cpu_levels(int64_t kernel_capabilities);
 
 MCV2_EXPORT int32_t mcv2_abi(void);
@@ -98,11 +97,9 @@ static_assert((-7 >> 1) == -4, "right shifts of negative values must be arithmet
 
 namespace mcv2 {
 // Internal linkage prevents the linker from substituting another SIMD level's weak helper symbol.
-
 namespace {
 
 // SSE load/store shuffles cost more than the arithmetic in the halving kernel.
-
 #if defined(MCV2_SIMD_SSE2) || defined(MCV2_SIMD_SSE41)
 constexpr bool SHUFFLED_CHANNEL_LOAD = true;
 #else
@@ -779,7 +776,6 @@ struct DoubleVector {
 #elif defined(MCV2_SIMD_SVE256) || defined(MCV2_SIMD_SVE512)
 
 // Fixed-length SVE code requires the exact vector length selected at dispatch.
-
 #if defined(MCV2_SIMD_SVE256)
 #define MCV2_SVE_BITS 256
 #else
@@ -1685,8 +1681,6 @@ void residual_target(const int32_t *source, const int32_t *prediction, int32_t c
 }
 }
 
-// Narrow blocks require a smaller SIMD level to avoid reading past their rows.
-
 using mcv2::assign;
 using mcv2::assign_pattern;
 using mcv2::cluster;
@@ -1707,6 +1701,7 @@ extern "C" {
 
 MCV2_KERNELS(MCV2_DECLARE)
 
+// Narrow blocks require a smaller SIMD level to avoid reading past their rows.
 #if defined(MCV2_NARROW)
 #define MCV2_DECLARE_NARROW(type, name, parameters) MCV2_EXPORT type MCV2_NARROW(name) parameters;
 MCV2_KERNELS(MCV2_DECLARE_NARROW)
