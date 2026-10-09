@@ -19,6 +19,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 /** The local motion search: its step ladder, and the vectors it finds on smooth pictures. */
@@ -120,6 +121,44 @@ final class MCV2MotionSearchTest {
     // with a range of one pixel the walk takes at most two steps, both improving here
     final int[] near = block(picture(), 32, 32, 16, 1, 1);
     assertEquals(vector(1, 1), seeded(near, 1));
+  }
+
+  private static byte[] sampledCosts(final int[][] costs) {
+    final byte[] reference = new byte[64 * 64 * 3];
+    Arrays.fill(reference, (byte) 120);
+    for (final int sampleRow : new int[] { 4, 12, 20, 28 }) {
+      for (final int sampleColumn : new int[] { 4, 12, 20, 28 }) {
+        for (final int[] cost : costs) {
+          final int pixel = (16 + sampleRow + cost[1]) * 64 + 16 + sampleColumn + cost[0];
+          reference[pixel * 3] = (byte) cost[2];
+          reference[pixel * 3 + 1] = 0;
+          reference[pixel * 3 + 2] = 0;
+        }
+      }
+    }
+    return reference;
+  }
+
+  @Test
+  void usesANonzeroSeedAcrossALocalMinimum() {
+    final byte[] reference = sampledCosts(new int[][] { { 0, 0, 100 }, { 2, 2, 0 } });
+    assertEquals(
+      vector(2, 2),
+      Mcv2Internals.javaKernels().seeded(reference, 64, 64, new int[32 * 32 * 3], 16, 16, 32, 2, new int[] { vector(2, 2) })
+    );
+  }
+
+  @Test
+  void stopsAfterTwiceTheRangeEvenWhenTheNextStepWouldImprove() {
+    final byte[] reference = sampledCosts(new int[][] {
+      { 0, 0, 100 },
+      { -1, 0, 90 },
+      { -2, 0, 80 },
+      { -2, -1, 70 },
+      { -2, -2, 60 },
+      { -1, -2, 50 },
+    });
+    assertEquals(vector(-2, -2), Mcv2Internals.javaKernels().seeded(reference, 64, 64, new int[32 * 32 * 3], 16, 16, 32, 2, new int[0]));
   }
 
   @Test

@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import static java.lang.foreign.ValueLayout.JAVA_INT;
+import static java.lang.foreign.ValueLayout.JAVA_LONG;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -33,7 +35,14 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.lang.foreign.Arena;
+import java.lang.foreign.FunctionDescriptor;
+import java.lang.foreign.Linker;
+import java.lang.foreign.MemorySegment;
 import java.lang.foreign.SymbolLookup;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -49,11 +58,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Level;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Natives;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Resolution;
+import me.brandonli.mcav.bukkit.testing.LogCapture;
 import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -290,6 +301,62 @@ final class Mcv2NativesTest {
     assertEquals(0, Natives.hwcap(without));
     final Path truncated = Files.write(this.folder.resolve("truncated"), Arrays.copyOfRange(vector.array(), 0, 24));
     assertEquals(0, Natives.hwcap(truncated));
+    final ByteBuffer last = ByteBuffer.allocate(16).order(ByteOrder.nativeOrder());
+    last.putLong(16).putLong(0x40_0000L);
+    assertEquals(0x40_0000L, Natives.hwcap(Files.write(this.folder.resolve("last"), last.array())));
+  }
+
+  @Test
+  @SuppressWarnings("restricted")
+  void passesLinuxFeatureBitsToTheNativeLevelQuery() throws ReflectiveOperationException {
+    assumeTrue(NativeTesting.expected(), "no library loads here");
+    final long features = Natives.hwcap(Path.of("/proc/self/auxv"));
+    assumeTrue(features != 0, "Linux must supply processor feature bits");
+    final AtomicLong received = new AtomicLong(-1);
+    final MethodHandle capture = MethodHandles.lookup()
+      .findVirtual(AtomicLong.class, "getAndSet", MethodType.methodType(long.class, long.class))
+      .bindTo(received);
+    final MethodHandle scalar = MethodHandles.dropArguments(MethodHandles.constant(int.class, 1), 0, long.class);
+    final MethodHandle query = MethodHandles.filterReturnValue(capture, scalar);
+    try (final Arena arena = Arena.ofConfined()) {
+      final MemorySegment entry = Linker.nativeLinker().upcallStub(query, FunctionDescriptor.of(JAVA_INT, JAVA_LONG), arena);
+      final SymbolLookup original = NativeTesting.library();
+      final SymbolLookup library = name -> name.equals("mcv2_cpu_levels") ? Optional.of(entry) : original.find(name);
+      assertFalse(Natives.bind(library, "linux-test", null, Natives.ABI).failed());
+      assertEquals(features, received.get());
+      assertFalse(Natives.bind(library, "other-test", null, Natives.ABI).failed());
+      assertEquals(0, received.get());
+    }
+  }
+
+  @Test
+  void warnsOnlyWhenNativeResolutionFails() {
+    Natives.install(this.folder, MCV2.NATIVE_OFF);
+    try (final LogCapture logs = LogCapture.capture(MCV2.class)) {
+      assertFalse(Natives.resolved().failed());
+      assertEquals(
+        List.of("INFO"),
+        logs
+          .getEvents()
+          .stream()
+          .map(event -> event.getLevel().name())
+          .toList()
+      );
+    }
+    System.setProperty(MCV2.NATIVE_PROPERTY, "sometimes");
+    Natives.install(this.folder, MCV2.NATIVE_AUTO);
+    try (final LogCapture logs = LogCapture.capture(MCV2.class)) {
+      assertTrue(Natives.resolved().failed());
+      assertEquals(
+        List.of("WARN", "INFO"),
+        logs
+          .getEvents()
+          .stream()
+          .map(event -> event.getLevel().name())
+          .toList()
+      );
+      assertTrue(logs.getEvents().getFirst().getMessage().contains("MCV2 native kernels did not load"));
+    }
   }
 
   @Test
