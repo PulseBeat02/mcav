@@ -132,11 +132,11 @@ class ReconstructionTest(unittest.TestCase):
 
     def test_missing_wrong_size_wrong_dtype_and_wrong_id_references(self):
         data = frame(key=False, frame_id=1)
-        for reference, ref_id in [(None, 0), (numpy.zeros((2, 3, 3), numpy.uint8), 2),
+        for reference, reference_id in [(None, 0), (numpy.zeros((2, 3, 3), numpy.uint8), 2),
                                   (numpy.zeros((2, 3, 3), numpy.uint8), None), (numpy.zeros((3, 2, 3), numpy.uint8), 0),
                                   (numpy.zeros((2, 3, 3), numpy.int32), 0)]:
             with self.assertRaises(ValueError):
-                decode(data, reference, ref_id)
+                decode(data, reference, reference_id)
 
 
 class StreamTest(unittest.TestCase):
