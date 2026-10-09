@@ -187,10 +187,9 @@ class TimerAccountingTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             package = Path(directory) / "mcvideo"
             package.mkdir()
-            license_header = Path(__file__).read_text().split('"""', 1)[0]
-            (package / "__init__.py").write_text(license_header)
+            (package / "__init__.py").write_text("")
             (package / "transport.py").write_text(
-                license_header + "def make_pages(data, stream_id, symbol_bits):\n"
+                "def make_pages(data, stream_id, symbol_bits):\n"
                 "    return [b'archived-v2:' + bytes((stream_id, symbol_bits)) + data]\n"
             )
             received = []

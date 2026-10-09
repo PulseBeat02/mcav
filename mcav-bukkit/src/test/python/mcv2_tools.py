@@ -82,7 +82,6 @@ def bd_rate_main():
             "needs more rate. Each JSON curve needs at least four points. Exit 1 on invalid curve data; 2 on "
             "invalid options."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("reference")
     parser.add_argument("test")
@@ -238,7 +237,7 @@ def codec_curves_point(arguments, codec, quality, folder):
         encoded,
     ]
     result, encode_seconds = codec_curves_run(encode)
-    decode = [
+    decode_command = [
         arguments.ffmpeg,
         "-hide_banner",
         "-nostdin",
@@ -255,7 +254,7 @@ def codec_curves_point(arguments, codec, quality, folder):
         "rawvideo",
         decoded,
     ]
-    codec_curves_run(decode)
+    codec_curves_run(decode_command)
     frame_bytes = arguments.width * arguments.height * 3
     decoded_frames, remainder = divmod(os.path.getsize(decoded), frame_bytes)
     if remainder or decoded_frames != arguments.frames:
@@ -302,7 +301,7 @@ def codec_curves_point(arguments, codec, quality, folder):
         "library": library,
         "quality": quality,
         "container_bytes": container_bytes,
-        "container_mbps": round(container_bytes * 8 / seconds / 1000000.0, 6),
+        "container_mbps": round(container_bytes * 8 / seconds / 1e6, 6),
         "vmaf_mean": round(vmaf["pooled_metrics"]["vmaf"]["mean"], 6),
         "vmaf_min": round(min(frames), 6),
         "rgb_psnr": round(
@@ -314,7 +313,7 @@ def codec_curves_point(arguments, codec, quality, folder):
         "encode_seconds": round(encode_seconds, 1),
         "commands": {
             "encode": codec_curves_placeholders(encode, names),
-            "decode": codec_curves_placeholders(decode, names),
+            "decode": codec_curves_placeholders(decode_command, names),
             "score": codec_curves_placeholders(score, names),
         },
     }
@@ -346,7 +345,6 @@ def codec_curves_main():
             "with different content. Exit 1 on an encode/score failure; 2 on conflicting source identity or "
             "invalid options."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--ffmpeg", required=True)
     parser.add_argument("--source", required=True)
@@ -426,10 +424,9 @@ def counter_video_main():
     parser = argparse.ArgumentParser(
         description=(
             "Loop an RGB24 clip forward and backward, stamping its frame number into twenty bits plus four sync "
-            "blocks for latency measurements. Write raw RGB or CRF-12 H.264. Exit 1 on input/encode failure; 2 on "
-            "invalid options."
+            "blocks for latency measurements. Write raw RGB or CRF-12 H.264. Exit 1 on input failure; 2 on "
+            "invalid options. Encoded output exits with ffmpeg's status."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("clip")
     parser.add_argument("width", type=int)
@@ -583,9 +580,9 @@ def capture_check_main():
         description=(
             "Match debug-view PNG captures below --top to decoded RGB24 reference pictures; report exact, "
             "ambiguous and nearest matches, PSNR, SSIM and optional VMAF. Identical reference pictures cannot "
-            "distinguish frame occurrences. Exit 1 on input/scoring failure; 2 on invalid options."
+            "distinguish frame occurrences. Exit 1 if any capture is not exact or any distinct picture is never "
+            "seen exactly; 2 on invalid options."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("reference")
     parser.add_argument("width", type=int)
@@ -828,7 +825,7 @@ def edge_streams_build_streams(seed=edge_streams_DEFAULT_SEED):
             0,
             {
                 0: Node(mcv2_reference.SOLID, record=b"\xff\x80\x00"),
-                1: Node(mcv2_reference.SOLID, record=b"\x042\x96"),
+                1: Node(mcv2_reference.SOLID, record=b"\x04\x32\x96"),
             },
         )
     ]
@@ -931,7 +928,6 @@ def edge_streams_main():
             "Build deterministic v3 block-tree archives, RGB digests and a spec section 9 rejection catalog using "
             "the independent serializer. Exit 1 if a generated fixture fails validation; 2 on invalid options."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("output", type=Path)
     parser.add_argument("seed", nargs="?", type=int, default=edge_streams_DEFAULT_SEED)
@@ -939,7 +935,7 @@ def edge_streams_main():
     edge_streams_generate(arguments.output, arguments.seed)
 
 
-fixtures_PREFIX_LIMIT = 1000000
+fixtures_PREFIX_LIMIT = 1_000_000
 
 
 def archive_frames(data):
@@ -1026,14 +1022,14 @@ def fixtures_pages(root):
             (
                 f"edge/{name}.mcs",
                 index,
-                list(archive_frames((root / "edge" / f"{name}.mcs").read_bytes()))[index],
+                list(read_archive(root / "edge" / f"{name}.mcs"))[index],
             )
             for name, index in [("edge-modes", 0), ("edge-modes", 1), ("edge-tiny", 0), ("edge-long-walk", 1)]
         ]
     for name, index in (("edge-directory", 2), ("edge-length-limit", 0)):
         path = root / "edge" / f"{name}.mcs"
         if path.exists():
-            cases.append((f"edge/{name}.mcs", index, list(archive_frames(path.read_bytes()))[index]))
+            cases.append((f"edge/{name}.mcs", index, list(read_archive(path))[index]))
     if len(cases) > 4 and source == "committed v3 conformance streams":
         source = "committed v3 conformance and edge streams"
     entries = []
@@ -1074,7 +1070,6 @@ def fixtures_main():
             "a little-endian u32 length and that many frame bytes. Exit 1 on validation failure; 2 on invalid "
             "options."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("root", type=Path)
     parser.add_argument(
@@ -1132,7 +1127,7 @@ def differential_build_archives(arguments):
         raise ValueError(f"no committed conformance archives in {arguments.corpus}")
     for index in range(arguments.conformance):
         path = corpus[index % len(corpus)]
-        chunks = list(archive_frames(path.read_bytes()))
+        chunks = list(read_archive(path))
         if not chunks:
             raise ValueError(f"empty conformance archive: {path}")
         archives[f"conformance-{index:04d}-{path.stem}"] = chunks
@@ -1209,7 +1204,6 @@ def differential_main():
             "and mutations. Only ValueError counts as a reference rejection. Exit 1 on disagreement or another "
             "reference exception; 2 on a failed Java process or invalid options."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("classpath")
     parser.add_argument("--streams", type=int, default=200, help="random-tree archives")
@@ -1278,7 +1272,6 @@ def rate_quality_main():
             "libvmaf, and write rates, PSNR, timings and VMAF mean/minimum as a JSON curve. Arguments after -- "
             "pass through to the encoder. Exit 1 on benchmark/scoring failure; 2 on invalid options."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--classpath", required=True)
     parser.add_argument("--main", default="me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools")
@@ -1391,7 +1384,14 @@ def shader_check_post_chain(width, height, slots):
     return {"targets": targets, "passes": template["decode"] + template["draw"] + template["tail"]}
 
 
-shader_check_BLIT = "#version 330\n#extension GL_ARB_separate_shader_objects : require\nuniform sampler2D InSampler;\nlayout(location = 0) out vec4 fragColor;\nvoid main() {\n    fragColor = texelFetch(InSampler, ivec2(gl_FragCoord.xy), 0);\n}\n"
+shader_check_BLIT = """#version 330
+#extension GL_ARB_separate_shader_objects : require
+uniform sampler2D InSampler;
+layout(location = 0) out vec4 fragColor;
+void main() {
+    fragColor = texelFetch(InSampler, ivec2(gl_FragCoord.xy), 0);
+}
+"""
 
 
 def shader_check_screens_config(slots):
@@ -1633,7 +1633,7 @@ def shader_check_check_restart(context, slots, classpath=None):
         (7, 7, red, True, red),
         (7, 7, green, False, red),
         (6, 7, green, False, red),
-        (2147483655, 7, green, False, red),
+        (0x80000007, 7, green, False, red),
         (8, 100, green, False, red),
         (8, 7, green, True, green),
         (0, 0, blue, True, blue),
@@ -1676,7 +1676,6 @@ def shader_check_main():
             "Frames with more pages than slots cannot be decoded, as Mcv2Channel.send refuses them. Exit 1 on a "
             "failed check; 2 on invalid options."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("streams", nargs="+")
     parser.add_argument("--slots", type=int, default=4)
@@ -1830,7 +1829,7 @@ class TimedShaderChain(ShaderChain):
             with query:
                 for _ in range(count):
                     self.draw(program, inputs, output)
-            times[name] = query.elapsed / count / 1000000.0
+            times[name] = query.elapsed / count / 1e6
         status = numpy.frombuffer(self.target("status").read(), numpy.uint8)
         return (bool(status[0]), times)
 
@@ -1851,7 +1850,6 @@ def shader_timing_main():
             "frame does not decode on arrival, decodes again from the same pages, or gives different pixels in a "
             "later round; 2 on invalid options. --reference supplies an archived v2 mcvideo package."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("streams", nargs="+")
     parser.add_argument("--backend", choices=("egl", "glx"), default=None)
@@ -1991,16 +1989,27 @@ def strip_check_main():
             "counters in debug-view PNG screenshots. Exit 1 if any check fails; 2 if no PNG screenshots exist or "
             "options are invalid."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("captures", type=Path)
     parser.add_argument("--slots", type=int, required=True)
     parser.add_argument("--video-width", type=int, required=True)
-    parser.add_argument("--screens", type=int, default=1)
-    parser.add_argument("--screen", type=int, default=0)
-    parser.add_argument("--first-slot", type=int, default=0)
-    parser.add_argument("--total-slots", type=int)
-    parser.add_argument("--debug-top", type=int, default=0)
+    parser.add_argument(
+        "--screens", type=int, default=1, help="number of screens sharing the strip (default: 1)"
+    )
+    parser.add_argument(
+        "--screen", type=int, default=0,
+        help="zero-based screen index for its anchor descriptor (default: 0)",
+    )
+    parser.add_argument(
+        "--first-slot", type=int, default=0, help="first global page slot for this screen (default: 0)"
+    )
+    parser.add_argument(
+        "--total-slots", type=int, help="total page slots across all screens (defaults to --slots)"
+    )
+    parser.add_argument(
+        "--debug-top", type=int, default=0,
+        help="rows between the anchor descriptors and debug view (default: 0)",
+    )
     arguments = parser.parse_args()
     from PIL import Image
 
@@ -2112,7 +2121,6 @@ def strip_fit_check_main():
             "Require the pack to preserve the scene when the transport strip cannot fit, and to cover a fitting "
             "strip with the scene row below it. Exit 1 if any check fails; 2 on invalid options."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--backend", choices=("egl", "glx"), default=None)
     parser.add_argument("--spirv", metavar="CLASSPATH", help=SPIRV_HELP)
@@ -2251,6 +2259,7 @@ def latency_captures(path):
         ["ffmpeg", "-nostdin", "-v", "error", "-i", str(path), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
         stdout=subprocess.PIPE,
     ) as decoder:
+        # Drain every frame so ffmpeg cannot block on a full pipe when timestamps run out.
         for index, raw in enumerate(iter(lambda: decoder.stdout.read(size), b"")):
             if index >= len(times) or len(raw) < size:
                 continue
@@ -2273,7 +2282,6 @@ def latency_main():
             "send events and frame ids modulo the archived stream length instead of encoder events. Exit 1 on "
             "input/analysis failure; 2 on invalid options."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("recording")
     parser.add_argument("capture")
@@ -2572,7 +2580,6 @@ def charts_main():
             "tables. Exact pixels require the documented matplotlib/font versions. Exit 1 on data/render failure; "
             "2 on invalid options."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--tables", action="store_true", help="print the tables of mcav-docs/mcv2.md")
     arguments = parser.parse_args()
@@ -2815,7 +2822,6 @@ def samples_main():
             "leaves, or print frame bytes. --size describes the raw source dimensions. Exit 1 on input/render "
             "failure; 2 on invalid options."
         ),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--size", type=lambda text: tuple(int(value) for value in text.split("x")), default=(1920, 1080)

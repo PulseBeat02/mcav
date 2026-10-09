@@ -474,6 +474,7 @@ def read_page(symbols: bytes, symbol_bits: int = 6) -> Page:
     if not 43 <= len(symbols) <= PAGE_SYMBOLS:
         raise ValueError("invalid map page extent")
     values = numpy.frombuffer(symbols[:43], numpy.uint8)
+    # The 43rd symbol also holds the first two payload bits; it is not header padding.
     bits = (values[:, None] >> numpy.arange(6) & 1).astype(numpy.uint8).ravel()
     header = numpy.packbits(bits[:256], bitorder="little").tobytes()
     magic, version, width, flags, stream, frame, number, count, reference, total, crc = PAGE_HEADER.unpack(

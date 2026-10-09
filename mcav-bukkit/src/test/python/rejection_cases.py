@@ -50,7 +50,8 @@ def rejected_frames():
         '00000000000000000000000034000002102030'), '9.1', 'version 1 is no longer supported')
     add('version-2', bytes.fromhex(
         '4d4356320205730001000100000000000000000000000000010000004500000075000000000000000000000000000000010000000000000001000000'
-        '0000010600000000003224e3e9bafb4931c49e41fca6fb71c25d4744121177650106704ecf2c3e8fa04eaa462d163cd0d18bc59cbc0fbaead8'), '9.1', 'version 2 is no longer supported')
+        '0000010600000000003224e3e9bafb4931c49e41fca6fb71c25d4744121177650106704ecf2c3e8fa04eaa462d163cd0d18bc59cbc0fbaead8'),
+        '9.1', 'version 2 is no longer supported')
     for offset in (8, 10):
         for value in (0, 4097):
             add(f'dimension-{offset}-{value}', changed(empty, offset, value, 'H'), '9.1', 'dimensions')
@@ -76,18 +77,35 @@ def rejected_frames():
     add('split-at-level-2', changed(deep, 45, mcv2_reference.SPLIT), '9.3', 'SPLIT in level 2')
     add('truncated-descriptor-walk', solid[:44], '9.3', 'truncated descriptors')
     add('walk-zero', changed(solid, 41, 1, 'I'), '9.4', 'walk checkpoint')
-    long = frame(Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.SOLID, record=bytes(3)),) * 4),) * 4))
+    long = frame(Node(
+        mcv2_reference.SPLIT,
+        children=(Node(
+            mcv2_reference.SPLIT,
+            children=(Node(mcv2_reference.SOLID, record=bytes(3)),) * 4,
+        ),) * 4,
+    ))
     at = 40 + 21 + 4
     checkpoint = struct.unpack_from('<I', long, at)[0]
     add('walk-cursor', changed(long, at, checkpoint + 1, 'I'), '9.4', 'walk checkpoint')
     add('walk-splits', changed(long, at, checkpoint + (1 << 17), 'I'), '9.4', 'walk checkpoint')
     for mode in range(7, 32):
         add(f'invalid-mode-{mode}', changed(solid, 40, mode), '9.5', 'descriptor mode')
-    for mode in (mcv2_reference.SKIP, mcv2_reference.MOTION, mcv2_reference.SOLID, mcv2_reference.PALETTE, mcv2_reference.PATTERN, mcv2_reference.SPLIT):
+    for mode in (
+        mcv2_reference.SKIP,
+        mcv2_reference.MOTION,
+        mcv2_reference.SOLID,
+        mcv2_reference.PALETTE,
+        mcv2_reference.PATTERN,
+        mcv2_reference.SPLIT,
+    ):
         add(f'quantizer-mode-{mode}', changed(solid, 40, mode | 32), '9.5', 'quantizer')
     compact = frame(Node(mcv2_reference.COMPACT, record=bytes(10)), key=False)
     for quantizer in range(3, 8):
-        add(f'compact-quantizer-{quantizer}', changed(compact, 40, mcv2_reference.COMPACT | quantizer << 5), '9.5', 'COMPACT quantizer above 2')
+        add(
+            f'compact-quantizer-{quantizer}',
+            changed(compact, 40, mcv2_reference.COMPACT | quantizer << 5),
+            '9.5', 'COMPACT quantizer above 2',
+        )
     for mode in (mcv2_reference.MOTION, mcv2_reference.COMPACT):
         add(f'keyframe-mode-{mode}', changed(solid, 40, mode), '9.5', 'temporal mode')
     nodes = [Node(mcv2_reference.MOTION, record=bytes(2)), Node(mcv2_reference.SOLID, record=bytes(3)),
@@ -98,7 +116,15 @@ def rejected_frames():
         add(f'truncated-record-{node.mode}', data[:-1], '9.5', 'record exceeds')
     pattern = frame(Node(mcv2_reference.PATTERN, record=bytes(11)))
     add('pattern-orientation', changed(pattern, parse_frame(pattern).payload_start + 6, 2), '9.5', 'PATTERN orientation')
-    offscreen = frame(Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.SKIP), Node(mcv2_reference.SKIP), Node(mcv2_reference.SKIP), Node(mcv2_reference.PATTERN, record=bytes(9)))))
+    offscreen = frame(Node(
+        mcv2_reference.SPLIT,
+        children=(
+            Node(mcv2_reference.SKIP),
+            Node(mcv2_reference.SKIP),
+            Node(mcv2_reference.SKIP),
+            Node(mcv2_reference.PATTERN, record=bytes(9)),
+        ),
+    ))
     add('off-picture-orientation', changed(offscreen, parse_frame(offscreen).payload_start + 6, 2), '9.5', 'PATTERN orientation')
     eight = frame(Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.PATTERN, record=bytes(8)),)
                                                      + (Node(mcv2_reference.SKIP),) * 3),) + (Node(mcv2_reference.SKIP),) * 3))

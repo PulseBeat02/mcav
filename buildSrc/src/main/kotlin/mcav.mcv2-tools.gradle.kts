@@ -36,7 +36,7 @@ dependencies {
     }
 }
 
-tasks.register("writeMcv2ToolsClasspath") {
+val writeToolsClasspath = tasks.register("writeMcv2ToolsClasspath") {
     val output = layout.buildDirectory.file("mcv2-tools-classpath.txt")
     val classpath = sourceSets.test.get().runtimeClasspath
     inputs.files(classpath)
@@ -44,4 +44,8 @@ tasks.register("writeMcv2ToolsClasspath") {
     doLast {
         output.get().asFile.writeText(classpath.asPath)
     }
+}
+
+tasks.test {
+    inputs.files(writeToolsClasspath)
 }
