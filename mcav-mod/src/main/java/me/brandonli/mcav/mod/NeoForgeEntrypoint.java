@@ -29,9 +29,9 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 
 /**
- * The entry point of the MCV2 client mod on NeoForge: it registers the {@code mcav:mcv2} payload, and on every client
- * tick tells the server whether Iris draws a shader pack, so MCV2 screens show this player the dithered maps while one
- * is in use.
+ * The entry point of the MCV2 client mod on NeoForge: it registers the {@code mcav:mcv2} payload, starts the decoder of
+ * MCV2 under shader packs, and on every client tick asks Iris whether it draws a shader pack, so MCV2 screens show this
+ * player the dithered maps only while one is in use that MCV2 does not decode under.
  */
 @Mod(value = NeoForgeEntrypoint.MOD_ID, dist = Dist.CLIENT)
 public final class NeoForgeEntrypoint {
