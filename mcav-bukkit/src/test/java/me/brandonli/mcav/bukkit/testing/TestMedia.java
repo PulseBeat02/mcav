@@ -38,12 +38,12 @@ public final class TestMedia {
   /**
    * The width of the test video.
    */
-  public static final int VIDEO_WIDTH = 320;
+  private static final int VIDEO_WIDTH = 320;
 
   /**
    * The height of the test video.
    */
-  public static final int VIDEO_HEIGHT = 240;
+  private static final int VIDEO_HEIGHT = 240;
 
   /**
    * The frame rate of the test video.
@@ -53,7 +53,7 @@ public final class TestMedia {
   /**
    * The sample rate of the test video's sound.
    */
-  public static final int AUDIO_SAMPLE_RATE = 44_100;
+  private static final int AUDIO_SAMPLE_RATE = 44_100;
 
   /**
    * The length of the test video in seconds.

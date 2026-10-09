@@ -96,7 +96,7 @@ class ReconstructionTest(unittest.TestCase):
             data = frame(Node(mcv2_reference.COMPACT, 2, b'\0\0' + bytes([nodes] * 8)), width=1, height=1, key=False, frame_id=1)
             numpy.testing.assert_array_equal(numpy.array([[[expected] * 3]], numpy.uint8), decode(data, numpy.full((1, 1, 3), pixel, numpy.uint8), 0))
 
-    def test_grid_16_q2_exact_pixels_on_every_channel(self):
+    def test_grid_16_quantizer_2_exact_pixels_on_every_channel(self):
         # Every row has luma nodes -2,-1,0,1; the same luma is added to red, green and blue.
         record = b'\0\0' + bytes.fromhex('fe10fe10fe10fe10')
         data = frame(Node(mcv2_reference.COMPACT, 2, record), width=16, height=16, size=16, key=False, frame_id=1)
@@ -132,11 +132,11 @@ class ReconstructionTest(unittest.TestCase):
 
     def test_missing_wrong_size_wrong_dtype_and_wrong_id_references(self):
         data = frame(key=False, frame_id=1)
-        for reference, ref_id in [(None, 0), (numpy.zeros((2, 3, 3), numpy.uint8), 2),
+        for reference, reference_id in [(None, 0), (numpy.zeros((2, 3, 3), numpy.uint8), 2),
                                   (numpy.zeros((2, 3, 3), numpy.uint8), None), (numpy.zeros((3, 2, 3), numpy.uint8), 0),
                                   (numpy.zeros((2, 3, 3), numpy.int32), 0)]:
             with self.assertRaises(ValueError):
-                decode(data, reference, ref_id)
+                decode(data, reference, reference_id)
 
 
 class StreamTest(unittest.TestCase):

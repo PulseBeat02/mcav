@@ -73,7 +73,6 @@ final class MCV2WorkersTest {
       for (int position = 0; position < counts.length(); position++) {
         assertEquals(1, counts.get(position), "index " + position);
       }
-      // one scratch per worker, and the work ran on the pool, not on the caller
       assertEquals(4, scratches.get());
       assertFalse(threads.contains(Thread.currentThread()));
     } finally {
@@ -90,7 +89,6 @@ final class MCV2WorkersTest {
       new Workers(pool, 8).forEach(2, scratches::incrementAndGet, (_, _) -> calls.incrementAndGet());
       assertEquals(2, calls.get());
       assertEquals(2, scratches.get());
-      // a single item runs on the calling thread
       final Thread caller = Thread.currentThread();
       new Workers(pool, 8).forEach(1, () -> caller, (thread, _) -> assertEquals(thread, Thread.currentThread()));
     } finally {

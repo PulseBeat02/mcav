@@ -47,11 +47,11 @@ class TransportTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 from_symbols(values, 6, 1)
         for width in (0, 5, 7, 8):
-            for function, args in ((page_capacity, (width,)), (make_pages, (large_frame(), 1, width)),
+            for function, arguments in ((page_capacity, (width,)), (make_pages, (large_frame(), 1, width)),
                                    (read_page, (b'', width)), (Assembler, (1, width)), (to_symbols, (b'a', width)),
                                    (from_symbols, (b'', width, 0))):
                 with self.subTest(function=function.__name__, width=width), self.assertRaises(ValueError):
-                    function(*args)
+                    function(*arguments)
 
     def test_page_header_crc_and_wire_model(self):
         frame = pack_frame(1, 1, 9, 9, {0: Node(mcv2_reference.SOLID, record=b'\xab\xcd\xef')})

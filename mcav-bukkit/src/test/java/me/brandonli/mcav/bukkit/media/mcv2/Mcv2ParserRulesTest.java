@@ -77,7 +77,7 @@ final class Mcv2ParserRulesTest {
   }
 
   @Test
-  void theDerivedFixturesHaveTheExpectedShape() throws Mcv2Exception {
+  void thePatternFixtureHasASixWordWalkAndThirtyTwoLeaves() throws Mcv2Exception {
     final byte[] frame = patterns();
     final Layout layout = Layout.of(frame);
     assertEquals(6 * 4, layout.start() - layout.walk());

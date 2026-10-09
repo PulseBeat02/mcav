@@ -77,7 +77,6 @@ final class MCV2MotionLambdaPropertyTest {
     for (int frameNumber = 0; frameNumber < frames; frameNumber++) {
       motion.add(after);
       final double lambda = motion.lambda(BASE);
-      // every step goes the way of the new value, and none passes it
       if ((lambda - previous) * sign < 0 || (target - lambda) * sign < 0) {
         return false;
       }

@@ -35,7 +35,7 @@ import javax.imageio.ImageIO;
  * Regenerates {@code mcav/bukkit/blocks.json}, the average color of every block texture, from the textures in
  * {@code src/test/resources/colored-blocks}. Run it from the root of the repository.
  */
-public final class AverageColorCalculator {
+final class AverageColorCalculator {
 
   private static final Path TEXTURES = Path.of("mcav-bukkit/src/test/resources/colored-blocks");
   private static final Path OUTPUT = Path.of("mcav-bukkit/src/main/resources/mcav/bukkit/blocks.json");

@@ -296,7 +296,7 @@ final class FileServerHandlerFuzzTest {
       this.reads = reads;
     }
 
-    static Request of(final byte[] input, final boolean fillerFirst) {
+    private static Request of(final byte[] input, final boolean fillerFirst) {
       final int splits = (input[1] & 0xFF) % (MAX_SPLITS + 1);
       final int header = 2 + 2 * splits + 3;
       final int fillerLength = ((byteAt(input, header - 3) << 8) | byteAt(input, header - 2)) % (MAX_FILLER + 1);

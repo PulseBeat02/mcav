@@ -70,9 +70,9 @@ def rejected_frames():
     add('n2-children', changed(deep, 41, mcv2_reference.SKIP), '9.3', 'level 2 count')
     # Removing that split also changes the later walk counts; repair those so this isolates n2.
     data = bytearray(bytes.fromhex(cases['n2-children']['frame']))
-    for at in (40 + 21 + 4, 40 + 21 + 8):
-        value = struct.unpack_from('<I', data, at)[0]
-        struct.pack_into('<I', data, at, value - (1 << 17))
+    for offset in (40 + 21 + 4, 40 + 21 + 8):
+        value = struct.unpack_from('<I', data, offset)[0]
+        struct.pack_into('<I', data, offset, value - (1 << 17))
     cases['n2-children']['frame'] = data.hex()
     add('split-at-level-2', changed(deep, 45, mcv2_reference.SPLIT), '9.3', 'SPLIT in level 2')
     add('truncated-descriptor-walk', solid[:44], '9.3', 'truncated descriptors')
@@ -84,10 +84,10 @@ def rejected_frames():
             children=(Node(mcv2_reference.SOLID, record=bytes(3)),) * 4,
         ),) * 4,
     ))
-    at = 40 + 21 + 4
-    checkpoint = struct.unpack_from('<I', long, at)[0]
-    add('walk-cursor', changed(long, at, checkpoint + 1, 'I'), '9.4', 'walk checkpoint')
-    add('walk-splits', changed(long, at, checkpoint + (1 << 17), 'I'), '9.4', 'walk checkpoint')
+    offset = 40 + 21 + 4
+    checkpoint = struct.unpack_from('<I', long, offset)[0]
+    add('walk-cursor', changed(long, offset, checkpoint + 1, 'I'), '9.4', 'walk checkpoint')
+    add('walk-splits', changed(long, offset, checkpoint + (1 << 17), 'I'), '9.4', 'walk checkpoint')
     for mode in range(7, 32):
         add(f'invalid-mode-{mode}', changed(solid, 40, mode), '9.5', 'descriptor mode')
     for mode in (

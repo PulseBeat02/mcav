@@ -66,7 +66,6 @@ final class Mcv2LinkPropertyTest {
     final List<Long> inFlight = new ArrayList<>();
     for (int id = 0; id < steps.size(); id++) {
       final Step step = steps.get(id);
-      // the connection writes some of what it holds, frame by frame
       long budget = step.drained();
       while (!inFlight.isEmpty() && inFlight.get(0) <= budget) {
         final long bytes = inFlight.remove(0);
@@ -82,7 +81,6 @@ final class Mcv2LinkPropertyTest {
       final boolean over = outstanding > (isKeyframe ? Mcv2Link.allowance(limit) : limit);
       final boolean sent = link.offer(id, reference, isKeyframe, step.bytes());
       if (sent) {
-        // the client must hold the frame's reference, and the connection must have been at or under the limit
         if (over || !(isKeyframe || reference == clientLast)) {
           return false;
         }
@@ -90,7 +88,6 @@ final class Mcv2LinkPropertyTest {
         outstanding += step.bytes();
         inFlight.add((long) step.bytes());
       } else if (!over && (isKeyframe || reference == clientLast)) {
-        // a frame the viewer could take and decode is never held back
         return false;
       }
       if (link.getBacklog() != outstanding) {

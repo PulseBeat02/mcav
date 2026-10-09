@@ -42,14 +42,14 @@ final class MCV2SearchPropertyTest {
 
   static long distortion(final byte[] source, final byte[] reference) {
     long sum = 0;
-    for (int at = 0; at < source.length; at += 3) {
-      final long red = (source[at] & 255L) - (reference[at] & 255);
-      final long green = (source[at + 1] & 255L) - (reference[at + 1] & 255);
-      final long blue = (source[at + 2] & 255L) - (reference[at + 2] & 255);
+    for (int offset = 0; offset < source.length; offset += 3) {
+      final long red = (source[offset] & 255L) - (reference[offset] & 255);
+      final long green = (source[offset + 1] & 255L) - (reference[offset + 1] & 255);
+      final long blue = (source[offset + 2] & 255L) - (reference[offset + 2] & 255);
       final long luma = red + 2 * green + blue;
-      final long co = 2 * (red - blue);
-      final long cg = -red + 2 * green - blue;
-      sum += 4 * luma * luma + co * co + cg * cg;
+      final long orange = 2 * (red - blue);
+      final long chromaGreen = -red + 2 * green - blue;
+      sum += 4 * luma * luma + orange * orange + chromaGreen * chromaGreen;
     }
     return sum;
   }

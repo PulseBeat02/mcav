@@ -45,10 +45,10 @@ final class MCV2MotionSearchTest {
     final byte[] rgb = new byte[WIDTH * HEIGHT * 3];
     for (int row = 0; row < HEIGHT; row++) {
       for (int column = 0; column < WIDTH; column++) {
-        final int at = (row * WIDTH + column) * 3;
-        rgb[at] = (byte) (2 * (int) (60 + 50 * Math.sin(column / 9.0) + 10 * Math.cos(row / 13.0)));
-        rgb[at + 1] = (byte) (2 * (int) (60 + 40 * Math.cos(row / 8.0) + 15 * Math.sin(column / 11.0)));
-        rgb[at + 2] = (byte) (2 * (int) (60 + 30 * Math.sin((column + row) / 10.0)));
+        final int offset = (row * WIDTH + column) * 3;
+        rgb[offset] = (byte) (2 * (int) (60 + 50 * Math.sin(column / 9.0) + 10 * Math.cos(row / 13.0)));
+        rgb[offset + 1] = (byte) (2 * (int) (60 + 40 * Math.cos(row / 8.0) + 15 * Math.sin(column / 11.0)));
+        rgb[offset + 2] = (byte) (2 * (int) (60 + 30 * Math.sin((column + row) / 10.0)));
       }
     }
     return rgb;

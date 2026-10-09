@@ -38,7 +38,7 @@ final class Mcv2WireFrames {
     );
   }
 
-  static byte[][] records(final int count, final int index, final byte[] value) {
+  private static byte[][] records(final int count, final int index, final byte[] value) {
     final byte[][] records = new byte[count][0];
     records[index] = value;
     return records;
@@ -94,13 +94,13 @@ final class Mcv2WireFrames {
     return data;
   }
 
-  static void put(final byte[] data, final int at, final long value, final int bytes) {
+  static void put(final byte[] data, final int offset, final long value, final int bytes) {
     for (int index = 0; index < bytes; index++) {
-      data[at + index] = (byte) (value >>> (8 * index));
+      data[offset + index] = (byte) (value >>> (8 * index));
     }
   }
 
-  static long read(final byte[] data, final int at) {
-    return (data[at] & 255L) | ((data[at + 1] & 255L) << 8) | ((data[at + 2] & 255L) << 16) | ((data[at + 3] & 255L) << 24);
+  static long read(final byte[] data, final int offset) {
+    return (data[offset] & 255L) | ((data[offset + 1] & 255L) << 8) | ((data[offset + 2] & 255L) << 16) | ((data[offset + 3] & 255L) << 24);
   }
 }

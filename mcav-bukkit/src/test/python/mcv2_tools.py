@@ -172,7 +172,7 @@ def codec_curves_sha256(path):
     return digest.hexdigest()
 
 
-def codec_curves_raw(path, width, height, fps):
+def codec_curves_raw(path, width, height, frame_rate):
     return [
         "-f",
         "rawvideo",
@@ -181,7 +181,7 @@ def codec_curves_raw(path, width, height, fps):
         "-video_size",
         f"{width}x{height}",
         "-framerate",
-        str(fps),
+        str(frame_rate),
         "-i",
         path,
     ]
@@ -969,7 +969,7 @@ def fixtures_write_json(path, value):
     path.write_text(json.dumps(value, indent=1) + "\n")
 
 
-def fixtures_v3_stream(path):
+def fixtures_version_3_stream(path):
     data = path.read_bytes()
     kept = list(archive_frames(data))
     if not kept:
@@ -986,7 +986,7 @@ def fixtures_conformance(root):
     table = json.loads(path.read_text()) if path.exists() else {}
     updated = False
     for stream in sorted(output.glob("*.mcs")):
-        result = fixtures_v3_stream(stream)
+        result = fixtures_version_3_stream(stream)
         if result is None:
             continue
         data, kept = result
@@ -1008,7 +1008,7 @@ def fixtures_edge(root):
 def fixtures_pages(root):
     cases = []
     for stream in sorted((root / "conformance").glob("*.mcs")):
-        result = fixtures_v3_stream(stream)
+        result = fixtures_version_3_stream(stream)
         if result is not None:
             cases.extend(
                 (str(stream.relative_to(root)), index, frame) for index, frame in enumerate(result[1])
@@ -1053,7 +1053,7 @@ def fixtures_pages(root):
 def fixtures_encoder(root):
     checked = 0
     for stream in sorted((root / "encoder").glob("*.mcs")):
-        result = fixtures_v3_stream(stream)
+        result = fixtures_version_3_stream(stream)
         if result is None:
             continue
         decoded = fixtures_digests(result[0])
@@ -1224,7 +1224,7 @@ def differential_main():
     sys.exit(differential_run(arguments))
 
 
-def rate_quality_vmaf(ffmpeg, source, decoded, width, height, frames, fps):
+def rate_quality_vmaf(ffmpeg, source, decoded, width, height, frames, frame_rate):
     with tempfile.TemporaryDirectory() as folder:
         log = os.path.join(folder, "vmaf.json")
         raw = [
@@ -1235,7 +1235,7 @@ def rate_quality_vmaf(ffmpeg, source, decoded, width, height, frames, fps):
             "-video_size",
             f"{width}x{height}",
             "-framerate",
-            str(fps),
+            str(frame_rate),
         ]
         graph = vmaf_filter(log, os.cpu_count())
         subprocess.run(
@@ -1481,11 +1481,11 @@ class ShaderChain:
         framebuffer.release()
         self.targets = {"minecraft:main": self.main, "minecraft:entity_outline": make(*shader_check_SCREEN)}
         self.persistent = []
-        for name, spec in chain["targets"].items():
+        for name, definition in chain["targets"].items():
             self.targets[name] = make(
-                spec.get("width", shader_check_SCREEN[0]), spec.get("height", shader_check_SCREEN[1])
+                definition.get("width", shader_check_SCREEN[0]), definition.get("height", shader_check_SCREEN[1])
             )
-            if spec.get("persistent"):
+            if definition.get("persistent"):
                 self.persistent.append(name)
         for texture in self.targets.values():
             texture.filter = (context.NEAREST, context.NEAREST)
@@ -1540,7 +1540,7 @@ class ShaderChain:
         """The passes this harness runs, in order: (name, program, inputs, output). Minecraft's own outline passes
         (sobel, box blurs) only touch its outline target and are left out."""
         steps = []
-        for index, step in enumerate(self.passes):
+        for step in self.passes:
             shader = step["fragment_shader"]
             inputs = {}
             for entry in step.get("inputs", []):
@@ -1647,14 +1647,14 @@ def shader_check_check_restart(context, slots, classpath=None):
     for index, (frame_id, reference_id, color, should_decode, expected_color) in enumerate(cases):
         data = pack_frame(32, 32, frame_id, reference_id, {0: Node(SOLID, record=bytes(color))})
         chain.show(make_pages(data, shader_check_STREAM_ID, 6))
-        did, picture = chain.frame()
+        chain_decoded, picture = chain.frame()
         if should_decode:
             held_id = frame_id
             committed += 1
         state = struct.unpack("<4I", chain.target("state").read())
         expected = numpy.full((32, 32, 3), expected_color, numpy.uint8)
         if (
-            did != should_decode
+            chain_decoded != should_decode
             or not numpy.array_equal(picture, expected)
             or state[1] != held_id
             or (state[3] != committed)
@@ -1662,7 +1662,7 @@ def shader_check_check_restart(context, slots, classpath=None):
             failures += 1
             print(
                 "  restart case %d (id %d): decoded %s, expected %s; held id %d, expected %d; commits %d, expected %d"
-                % (index, frame_id, did, should_decode, state[1], held_id, state[3], committed)
+                % (index, frame_id, chain_decoded, should_decode, state[1], held_id, state[3], committed)
             )
     print("keyframe restart: %d checks, %d wrong" % (len(cases), failures))
     return failures
@@ -1729,15 +1729,15 @@ def shader_check_main():
                 and (len(pages) <= arguments.slots)
             )
             chain.show(pages[: arguments.slots])
-            did, picture = chain.frame()
-            if did != decodable:
+            chain_decoded, picture = chain.frame()
+            if chain_decoded != decodable:
                 wrong += 1
                 print(
                     "  frame %d: the chain %s it, the client model %s"
-                    % (index, "decoded" if did else "skipped", "can" if decodable else "cannot")
+                    % (index, "decoded" if chain_decoded else "skipped", "can" if decodable else "cannot")
                 )
                 continue
-            if did:
+            if chain_decoded:
                 decoded += 1
                 expected = decode(frame, None if keyframe else shown, last_id)
                 shown = expected
@@ -1895,7 +1895,7 @@ def shader_timing_main():
         if arguments.spirv:
             chain.compiled = shader_check_compile_via_spirv(chain.includes, arguments.spirv)
         first_pictures = None
-        new_key, new_p, idle = ([], [], [])
+        new_keyframes, new_p_frames, idle = ([], [], [])
         mismatches = 0
         for round_index in range(arguments.rounds):
             chain.reset()
@@ -1913,7 +1913,7 @@ def shader_timing_main():
                     failures += 1
                     print("  frame %d: decoded %s, decoded again %s" % (index, decoded, shown_again))
                 if round_index > 0:
-                    (new_key if keyframes[index] else new_p).append(times)
+                    (new_keyframes if keyframes[index] else new_p_frames).append(times)
                     idle.append(again)
             if first_pictures is None:
                 first_pictures = pictures
@@ -1926,8 +1926,8 @@ def shader_timing_main():
             height=height,
             frames=len(frames),
             mismatches=mismatches,
-            new_keyframe=shader_timing_summarize(new_key, names),
-            new_p=shader_timing_summarize(new_p, names),
+            new_keyframe=shader_timing_summarize(new_keyframes, names),
+            new_p=shader_timing_summarize(new_p_frames, names),
             idle=shader_timing_summarize(idle, names),
         )
         report["streams"][Path(stream).name] = result
@@ -2783,7 +2783,7 @@ def samples_print_bytes(arguments):
     frame = parse_frame(data)
     groups = len(frame.masks)
     parts = [("header", 0, mcv2_reference.HEADER_BYTES)]
-    at = mcv2_reference.HEADER_BYTES
+    offset = mcv2_reference.HEADER_BYTES
     for name, length in (
         ("presence masks", 4 * groups),
         ("directory", 4 * len(frame.directory)),
@@ -2791,9 +2791,9 @@ def samples_print_bytes(arguments):
         ("descriptors", len(frame.descriptors)),
         ("walk checkpoints", 4 * len(frame.walk)),
     ):
-        parts.append((name, at, at + length))
-        at += length
-    parts.append(("records", at, frame.total))
+        parts.append((name, offset, offset + length))
+        offset += length
+    parts.append(("records", offset, frame.total))
     for name, start, end in parts:
         print(f"{name} ({end - start} bytes, offsets {start}-{end - 1}):")
         for line in range(start, end, 16):

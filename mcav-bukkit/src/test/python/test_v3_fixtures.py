@@ -89,7 +89,7 @@ class FixtureToolTest(unittest.TestCase):
             with self.subTest(raw=raw), self.assertRaises(ValueError):
                 list(mcv2_tools.archive_frames(raw))
 
-    def test_conformance_skips_v2_and_checks_v3_without_touching_streams(self):
+    def test_conformance_skips_version_2_and_checks_version_3_without_touching_streams(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             output = root / 'conformance'
@@ -104,8 +104,8 @@ class FixtureToolTest(unittest.TestCase):
             self.assertIn('skip non-v3 stream:', messages.getvalue())
             self.assertEqual(old_digests, (output / 'digests.json').read_text())
             data = pack_frame(1, 1, 3, 3, {0: Node(mcv2_reference.SOLID, record=bytes([10, 20, 30]))})
-            v3 = mcv2_tools.archive_bytes([data])
-            (output / 'new.mcs').write_bytes(v3)
+            archive = mcv2_tools.archive_bytes([data])
+            (output / 'new.mcs').write_bytes(archive)
             with redirect_stderr(StringIO()):
                 mcv2_tools.fixtures_conformance(root)
                 mcv2_tools.fixtures_pages(root)
@@ -113,7 +113,7 @@ class FixtureToolTest(unittest.TestCase):
             self.assertEqual({'unchanged': True}, result['old.mcs'])
             self.assertEqual([hashlib.sha256(bytes([10, 20, 30])).hexdigest()], result['new.mcs']['sha256_per_frame'])
             self.assertEqual(old_stream, (output / 'old.mcs').read_bytes())
-            self.assertEqual(v3, (output / 'new.mcs').read_bytes())
+            self.assertEqual(archive, (output / 'new.mcs').read_bytes())
             pages = json.loads((output / 'pages.json').read_text())
             self.assertEqual('committed v3 conformance streams', pages['source'])
             self.assertEqual(6, pages['symbol_bits'])

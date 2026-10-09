@@ -39,9 +39,9 @@ final class MCV2BoundsTest {
     for (int row = 0; row < height; row++) {
       for (int column = 0; column < width; column++) {
         final int root = (row / 32) * 128 + column / 32;
-        final int at = (row * width + column) * 3;
-        picture[at] = (byte) root;
-        picture[at + 1] = (byte) (root >> 8);
+        final int offset = (row * width + column) * 3;
+        picture[offset] = (byte) root;
+        picture[offset + 1] = (byte) (root >> 8);
       }
     }
     final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT, ForkJoinPool.commonPool(), 4, true);

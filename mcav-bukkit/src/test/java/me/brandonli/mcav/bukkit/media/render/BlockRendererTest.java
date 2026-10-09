@@ -97,7 +97,7 @@ final class BlockRendererTest {
     return builder.build();
   }
 
-  static ImageBuffer solidImage(final int width, final int height, final int rgb) {
+  private static ImageBuffer solidImage(final int width, final int height, final int rgb) {
     final int[] pixels = new int[width * height];
     Arrays.fill(pixels, 0xFF000000 | rgb);
     return ImageBuffer.buffer(pixels, width, height);

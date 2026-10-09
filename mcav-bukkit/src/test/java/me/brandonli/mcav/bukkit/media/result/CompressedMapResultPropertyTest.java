@@ -54,10 +54,9 @@ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
 /**
  * Properties of {@link CompressedMapResult} for sequences of frames whose size changes, while a second viewer comes and
- * goes. Pass 1 listed as an open defect that maps falling out of a shrinking picture kept their stale picture; this
- * states what the viewers must see for every such sequence, checked on the packets they actually receive: once the
- * picture stops changing, every pixel the current frame covers shows that frame, and every other pixel of the grid is
- * transparent or was never sent anything. No pixel keeps the colors of an earlier frame. After a release, every map of
+ * goes, checked on the packets the viewers actually receive: once the picture stops changing, every pixel the current
+ * frame covers shows that frame, and every other pixel of the grid is transparent or was never sent anything. No pixel
+ * keeps the colors of an earlier frame, not even on the maps a shrinking picture leaves. After a release, every map of
  * the grid is transparent.
  */
 final class CompressedMapResultPropertyTest {
@@ -85,7 +84,7 @@ final class CompressedMapResultPropertyTest {
   }
 
   /**
-   * Creates integers in a range from a fresh arbitrary: jqwik 1.9 shares the range between an arbitrary and the ones
+   * Creates integers in a range from a fresh arbitrary: jqwik 1.10 shares the range between an arbitrary and the ones
    * configured from it, so one base configured twice would hand every user the last range.
    */
   private static Arbitrary<Integer> between(final int min, final int max) {
@@ -202,7 +201,7 @@ final class CompressedMapResultPropertyTest {
       when(this.algorithm.ditherIntoBytes(any(ImageBuffer.class))).thenAnswer(_ -> this.nextFrame.clone());
     }
 
-    void process(final CompressedMapResult result, final ResizeScenario scenario, final Step step) {
+    private void process(final CompressedMapResult result, final ResizeScenario scenario, final Step step) {
       final int width = scenario.widthOf(step);
       final int height = scenario.heightOf(step);
       final ImageBuffer samples = mock(ImageBuffer.class);
@@ -340,12 +339,12 @@ final class CompressedMapResultPropertyTest {
       this.connect(FIRST);
     }
 
-    void connect(final UUID uuid) {
+    private void connect(final UUID uuid) {
       final Viewer viewer = new Viewer(uuid, this.scenario.getMapCount());
       this.viewers.add(viewer);
     }
 
-    void disconnect(final UUID uuid) {
+    private void disconnect(final UUID uuid) {
       this.viewers.removeIf(viewer -> viewer.uuid.equals(uuid));
     }
 
@@ -354,7 +353,7 @@ final class CompressedMapResultPropertyTest {
      *
      * @return whether any viewer received anything
      */
-    boolean receive(final FakeServer server) {
+    private boolean receive(final FakeServer server) {
       boolean received = false;
       for (final Viewer viewer : this.viewers) {
         final List<Packet<?>> packets = server.getSentPackets(viewer.uuid);
@@ -426,7 +425,7 @@ final class CompressedMapResultPropertyTest {
       }
     }
 
-    void apply(final Packet<?> packet) {
+    private void apply(final Packet<?> packet) {
       final List<ClientboundMapItemDataPacket> mapPackets = MapPackets.unbundle(packet);
       for (final ClientboundMapItemDataPacket mapPacket : mapPackets) {
         final MapId id = mapPacket.mapId();

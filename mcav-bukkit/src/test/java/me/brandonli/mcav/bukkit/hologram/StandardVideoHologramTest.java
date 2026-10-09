@@ -166,7 +166,7 @@ final class StandardVideoHologramTest {
   }
 
   @Test
-  void basicHologramsShowVideoMetadata() {
+  void basicGivesAStandardVideoHologramThatSpawnsNothingBeforeARequest() {
     final Hologram hologram = Hologram.basic();
     final TextDisplay display = hologram.getDisplay();
     assertInstanceOf(StandardVideoHologram.class, hologram);

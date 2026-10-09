@@ -121,7 +121,6 @@ final class NativeKernelsTest {
     final float[] floats = new float[8 * 8 * 3];
     final byte[] picture = new byte[16 * 16 * 3];
     kernels.start(block, 0, 1);
-    // block sizes and the arrays that hold them
     refused(() -> kernels.predicted(block, 4, block));
     refused(() -> kernels.predicted(block, 12, block));
     refused(() -> kernels.predicted(block, 64, block));
@@ -153,14 +152,12 @@ final class NativeKernelsTest {
     refused(() -> kernels.finishPalette(block, 64, new int[6], new int[6], new byte[63]));
     refused(() -> kernels.finishPattern(small, 8, new int[6], new int[6], new byte[64]));
     refused(() -> kernels.finishPattern(block, 8, new int[6], new int[6], new byte[63]));
-    // the motion search's picture, block and range
     refused(() -> kernels.seeded(picture, 17, 16, block, 0, 0, 8, 4, new int[0]));
     refused(() -> kernels.seeded(picture, 16, 16, small, 0, 0, 8, 4, new int[0]));
     refused(() -> kernels.seeded(picture, 16, 16, block, 1 << 21, 0, 8, 4, new int[0]));
     refused(() -> kernels.seeded(picture, 16, 16, block, 0, 1 << 21, 8, 4, new int[0]));
     refused(() -> kernels.seeded(picture, 16, 16, block, 0, 0, 8, -1, new int[0]));
     refused(() -> kernels.seeded(picture, 16, 16, block, 0, 0, 8, (1 << 20) + 1, new int[0]));
-    // a source block starts inside the picture
     refused(() -> kernels.loadSource(picture, 16, 16, -1, 0, 8, block));
     refused(() -> kernels.loadSource(picture, 16, 16, 16, 0, 8, block));
     refused(() -> kernels.loadSource(picture, 16, 16, 0, -1, 8, block));
@@ -191,7 +188,6 @@ final class NativeKernelsTest {
     final float[] shortFloats = new float[8 * 8 - 1];
     final byte[] picture = new byte[16 * 16 * 3];
     kernels.start(big, 0, 1);
-    // a size that is no block size
     refused(() -> kernels.solid(0, 12, big));
     refused(() -> kernels.palette(record, 12, big));
     refused(() -> kernels.compact(big, record, 0, 12, big));
@@ -201,9 +197,7 @@ final class NativeKernelsTest {
     refused(() -> kernels.finishPattern(big, 12, new int[6], new int[6], new byte[1024]));
     refused(() -> kernels.seeded(picture, 16, 16, big, 0, 0, 12, 4, new int[0]));
     refused(() -> kernels.loadSource(picture, 16, 16, 0, 0, 12, big));
-    // Sources one value short must be rejected before dispatch.
     refused(() -> kernels.cluster(small, 8, new int[6]));
-    // Outputs one value short must be rejected before dispatch.
     refused(() -> kernels.fit(floats, 8, new float[15]));
     refused(() -> kernels.residualTarget(small, block, 64, floats));
     refused(() -> kernels.residualTarget(block, block, 64, shortFloats));
@@ -340,17 +334,17 @@ final class NativeKernelsTest {
     final int[] prediction = new int[source.length];
     final float[] expected = new float[18];
     for (int pixel = 0; pixel < 17; pixel++) {
-      final int at = pixel * 3;
+      final int offset = pixel * 3;
       if (pixel % 3 == 0) {
-        source[at + 1] = 255;
+        source[offset + 1] = 255;
         expected[pixel] = 127.5f;
       } else if (pixel % 3 == 1) {
-        source[at] = 255;
-        Arrays.fill(prediction, at, at + 3, 255);
+        source[offset] = 255;
+        Arrays.fill(prediction, offset, offset + 3, 255);
         expected[pixel] = -191.25f;
       } else {
-        source[at + 2] = 255;
-        prediction[at + 2] = 255;
+        source[offset + 2] = 255;
+        prediction[offset + 2] = 255;
       }
     }
     expected[17] = 999;

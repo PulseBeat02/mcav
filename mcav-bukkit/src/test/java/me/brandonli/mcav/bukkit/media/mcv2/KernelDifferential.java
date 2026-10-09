@@ -86,7 +86,7 @@ final class KernelDifferential {
     };
   }
 
-  private static int[] ints(final Values random, final int count, final int low, final int high) {
+  private static int[] integers(final Values random, final int count, final int low, final int high) {
     final int[] values = new int[count];
     for (int index = 0; index < count; index++) {
       values[index] = random.next(low, high);
@@ -162,8 +162,8 @@ final class KernelDifferential {
     final int size,
     final int channels
   ) {
-    final int[] source = ints(random, channels, 0, 255);
-    final int[] prediction = ints(random, channels, 0, 255);
+    final int[] source = integers(random, channels, 0, 255);
+    final int[] prediction = integers(random, channels, 0, 255);
     final double rate = random.next(0, 100_000) / 7.0;
     // an infinite limit, or one some candidates cross part way through the block
     final double limit = random.next(0, 3) == 0 ? Double.POSITIVE_INFINITY : rate + random.next(0, size * size * 3000);
@@ -267,8 +267,8 @@ final class KernelDifferential {
     final int low = random.next(0, 255);
     final int[] source =
       random.next(0, 7) == 0
-        ? ints(random, channels, EXTREME_LOW, EXTREME_HIGH)
-        : ints(random, channels, low, Math.min(255, low + (random.next(0, 1) == 0 ? 8 : 255)));
+        ? integers(random, channels, EXTREME_LOW, EXTREME_HIGH)
+        : integers(random, channels, low, Math.min(255, low + (random.next(0, 1) == 0 ? 8 : 255)));
     final int[] expected = new int[6];
     final int[] actual = new int[6];
     java.cluster(source, size, expected);
@@ -284,7 +284,7 @@ final class KernelDifferential {
     final int size,
     final int channels
   ) {
-    final int[] source = ints(random, channels, 0, 255);
+    final int[] source = integers(random, channels, 0, 255);
     if (random.next(0, 1) == 0) {
       // every row the first, so a pattern holds
       for (int row = 1; row < size; row++) {
@@ -315,7 +315,7 @@ final class KernelDifferential {
     final byte[] reference = random.bytes(width * height * 3);
     final int blockLeft = random.next(0, width - 1);
     final int blockTop = random.next(0, height - 1);
-    final int[] source = ints(random, channels, 0, 255);
+    final int[] source = integers(random, channels, 0, 255);
     if (random.next(0, 1) == 0) {
       // the block itself, so the search has a place to go
       java.loadSource(reference, width, height, blockLeft, blockTop, size, source);
@@ -343,7 +343,7 @@ final class KernelDifferential {
     final int channels
   ) {
     final int count = size * size;
-    final int[] source = ints(random, channels, 0, 255);
+    final int[] source = integers(random, channels, 0, 255);
     return switch (kernel) {
       case 10 -> {
         final int width = random.next(1, 70);
@@ -366,7 +366,7 @@ final class KernelDifferential {
       }
       default -> {
         final int pixels = random.next(0, count);
-        final int[] prediction = ints(random, channels, 0, 255);
+        final int[] prediction = integers(random, channels, 0, 255);
         final float[] expected = floats(random, count + 2);
         final float[] actual = expected.clone();
         java.residualTarget(source, prediction, pixels, expected);

@@ -43,15 +43,15 @@ final class NativeConformanceTest {
 
   private static final int HEIGHT = 180;
 
-  static Stream<Arguments> levels() {
+  private static Stream<Arguments> levels() {
     return NativeTesting.levels().stream().map(Arguments::of);
   }
 
-  static Stream<Arguments> levelsAndStreams() {
+  private static Stream<Arguments> levelsAndStreams() {
     return streams("edge");
   }
 
-  static Stream<Arguments> levelsAndConformanceStreams() {
+  private static Stream<Arguments> levelsAndConformanceStreams() {
     return streams("conformance");
   }
 

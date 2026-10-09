@@ -39,9 +39,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * The frame parser: valid version 3 frames expose their header and leaves, every header rule is enforced,
- * and whatever a single corrupted byte does to a valid frame, the parser either accepts the frame or throws
- * {@link Mcv2Exception} and nothing else.
+ * The frame parser: valid version 3 frames expose their header and leaves, and every header rule is enforced.
  */
 final class Mcv2ParserTest {
 
@@ -116,14 +114,13 @@ final class Mcv2ParserTest {
   void judgesTheLengthOfBytesThatStartLikeAFrame() {
     final byte[] magic = new byte[Integer.BYTES];
     Mcv2Decoder.putU32(magic, 0, Mcv2Decoder.MAGIC);
-    // the magic alone is a frame too short, not something else
     assertEquals("Invalid frame length", message(magic));
     // the shortest and the longest frames pass the length check and reach the header's
     assertEquals("Not an MCV2 version 3 frame", message(Arrays.copyOf(magic, Mcv2Decoder.HEADER_BYTES)));
     assertEquals("Not an MCV2 version 3 frame", message(Arrays.copyOf(magic, Mcv2Decoder.MAX_FRAME_BYTES)));
   }
 
-  static Stream<Arguments> headerRules() {
+  private static Stream<Arguments> headerRules() {
     final byte[] key = keyframe(40, 40, solid(1, 2, 3), solid(4, 5, 6), solid(1, 2, 3), solid(7, 8, 9));
     return Stream.of(
       Arguments.of(withWord(key, 4, 0x0104), "Not an MCV2 version 3 frame"),
@@ -149,7 +146,7 @@ final class Mcv2ParserTest {
     assertEquals(expected, message(frame));
   }
 
-  static String message(final byte[] frame) {
+  private static String message(final byte[] frame) {
     final Mcv2Exception exception = assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(frame));
     return exception.getMessage();
   }

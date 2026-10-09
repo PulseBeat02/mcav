@@ -340,7 +340,7 @@ final class Mcv2Version3Test {
     final int green,
     final int blue
   ) {
-    final int at = (row * width + column) * 3;
-    assertArrayEquals(new byte[] { (byte) red, (byte) green, (byte) blue }, Arrays.copyOfRange(picture, at, at + 3));
+    final int offset = (row * width + column) * 3;
+    assertArrayEquals(new byte[] { (byte) red, (byte) green, (byte) blue }, Arrays.copyOfRange(picture, offset, offset + 3));
   }
 }

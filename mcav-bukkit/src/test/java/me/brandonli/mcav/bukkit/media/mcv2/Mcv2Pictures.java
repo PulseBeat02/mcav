@@ -19,7 +19,10 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import java.util.Random;
 
-/** Preserves the synthetic panning source of the live-search regression tests. */
+/**
+ * The synthetic scene the encoder tests encode: a flat band, a checkerboard, a ramp and noisy waves, panned sideways a
+ * given number of pixels per frame.
+ */
 final class Mcv2Pictures {
 
   private Mcv2Pictures() {}
@@ -30,7 +33,7 @@ final class Mcv2Pictures {
     for (int row = 0; row < height; row++) {
       for (int column = 0; column < width; column++) {
         final int sourceColumn = column + frame * panPerFrame;
-        final int at = (row * width + column) * 3;
+        final int offset = (row * width + column) * 3;
         final int value;
         if (row < height / 4) {
           value = 90;
@@ -41,9 +44,9 @@ final class Mcv2Pictures {
         } else {
           value = (int) (120 + 60 * Math.sin(sourceColumn / 7.0) * Math.cos(row / 5.0)) + random.nextInt(8);
         }
-        rgb[at] = (byte) value;
-        rgb[at + 1] = (byte) Math.min(255, value + 20);
-        rgb[at + 2] = (byte) Math.max(0, value - 30);
+        rgb[offset] = (byte) value;
+        rgb[offset + 1] = (byte) Math.min(255, value + 20);
+        rgb[offset + 2] = (byte) Math.max(0, value - 30);
       }
     }
     return rgb;

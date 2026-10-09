@@ -81,7 +81,7 @@ final class NativeLibrariesTest {
 
   private static final List<Level> X86_64 = List.of(Level.SCALAR, Level.SSE2, Level.SSE41, Level.AVX2, Level.AVX512);
 
-  /** Apple's x86-64 processors never ran the AVX-512 of Ice Lake the kernels need. */
+  /** macOS saves ZMM state lazily, so XCR0 cannot authorize AVX-512 and the library dispatches to AVX2 at most. */
   private static final List<Level> MACOS_X86_64 = List.of(Level.SCALAR, Level.SSE2, Level.SSE41, Level.AVX2);
 
   /** Only Linux says whether a program may run SVE, and at which vector length. */

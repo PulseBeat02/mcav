@@ -42,7 +42,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  */
 final class ConformanceTest {
 
-  static Stream<Arguments> streams() {
+  private static Stream<Arguments> streams() {
     final List<Arguments> arguments = new ArrayList<>();
     for (final String folder : List.of("conformance", "edge")) {
       for (final Map.Entry<String, List<String>> entry : Mcv2Fixtures.digests(folder).entrySet()) {
@@ -65,7 +65,7 @@ final class ConformanceTest {
     }
   }
 
-  static Stream<Arguments> rejected() {
+  private static Stream<Arguments> rejected() {
     final String text = new String(Mcv2Fixtures.read("edge/rejected.json"), StandardCharsets.UTF_8);
     final JsonObject root = JsonParser.parseString(text).getAsJsonObject();
     final List<Arguments> arguments = new ArrayList<>();
@@ -79,7 +79,7 @@ final class ConformanceTest {
   /** Every invalid frame in the reference rejection corpus is refused. */
   @ParameterizedTest(name = "{0}")
   @MethodSource("rejected")
-  void rejectsSyntaxThatIsNotPorted(final String name, final byte[] frame) {
+  void refusesEveryFrameOfTheRejectionCorpus(final String name, final byte[] frame) {
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(frame), name);
   }
 }

@@ -54,7 +54,7 @@ final class TransportPagesTest {
     UtilityClassAssertions.assertNotInstantiable(TransportPages.class);
   }
 
-  static Stream<Arguments> vectors() {
+  private static Stream<Arguments> vectors() {
     final String text = new String(Mcv2Fixtures.read("conformance/pages.json"), StandardCharsets.UTF_8);
     final JsonObject root = JsonParser.parseString(text).getAsJsonObject();
     final List<Arguments> arguments = new ArrayList<>();
@@ -90,7 +90,6 @@ final class TransportPagesTest {
     }
     assertEquals(expected.get("wire").getAsLong(), TransportPages.wireBytes(pages, false, TransportPages.PACKET_OVERHEAD));
     assertEquals(expected.get("wire_full").getAsLong(), TransportPages.wireBytes(pages, true, TransportPages.PACKET_OVERHEAD));
-    // every page reads back, and the pages reassemble the frame
     final PageAssembler assembler = new PageAssembler(7, bits);
     byte[] assembled = null;
     for (final byte[] page : pages) {

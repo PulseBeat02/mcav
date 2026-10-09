@@ -49,7 +49,7 @@ final class Mcv2ToolsTest {
   }
 
   @Test
-  void benchmarkPreservesGoldenBytesAndReportsTheKernels() throws Exception {
+  void benchmarkWritesTheGoldenStreamAndReportsTheKernels() throws Exception {
     final Path source = folder.resolve("source.rgb");
     Files.write(source, Mcv2Fixtures.read("encoder/crop-320x180x4.rgb"));
     for (final String mode : List.of("off", "auto")) {
@@ -104,7 +104,7 @@ final class Mcv2ToolsTest {
   }
 
   @Test
-  void digestsRetainExactTokensAndRgbOutput() throws Exception {
+  void digestsPrintTheReferenceDigestsAndWriteTheDecodedPictures() throws Exception {
     final Path archive = folder.resolve("stream.mcs");
     final Path pictures = folder.resolve("pictures.rgb");
     Files.write(archive, Mcv2Fixtures.read("conformance/proxy-default.mcs"));

@@ -92,15 +92,14 @@ final class MCV2PaletteFitTest {
     final int size = 8;
     final int[] dark = { 10, 20, 30 };
     final int[] light = { 200, 210, 220 };
-    // columns: every row the same, alternating light and dark; rows: every row one colour
-    for (int kind = 0; kind < 3; kind++) {
+    for (final Layout layout : Layout.values()) {
       final int[] source = new int[size * size * 3];
       for (int row = 0; row < size; row++) {
         for (int column = 0; column < size; column++) {
-          final boolean bright = switch (kind) {
-            case 0 -> (column & 1) == 0;
-            case 1 -> (row & 2) == 0;
-            default -> ((column ^ row) & 1) == 0;
+          final boolean bright = switch (layout) {
+            case STRIPED_COLUMNS -> (column & 1) == 0;
+            case STRIPED_ROWS -> (row & 2) == 0;
+            case CHECKERBOARD -> ((column ^ row) & 1) == 0;
           };
           System.arraycopy(bright ? light : dark, 0, source, (row * size + column) * 3, 3);
         }
@@ -114,13 +113,18 @@ final class MCV2PaletteFitTest {
       Mcv2Internals.javaKernels().finishPalette(source, size * size, endpoints, plainColors, plain);
       final boolean pattern = Mcv2Internals.javaKernels().finishPattern(source, size, endpoints, colors, selectors);
       assertArrayEquals(plainColors, colors);
-      if (kind < 2) {
+      if (layout == Layout.CHECKERBOARD) {
+        assertEquals(false, pattern);
+      } else {
         assertEquals(true, pattern);
         assertArrayEquals(plain, selectors);
-      } else {
-        // a checkerboard repeats along neither axis
-        assertEquals(false, pattern);
       }
     }
+  }
+
+  private enum Layout {
+    STRIPED_COLUMNS,
+    STRIPED_ROWS,
+    CHECKERBOARD,
   }
 }

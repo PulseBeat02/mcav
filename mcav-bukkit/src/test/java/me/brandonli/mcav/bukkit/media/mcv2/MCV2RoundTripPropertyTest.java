@@ -60,10 +60,10 @@ final class MCV2RoundTripPropertyTest {
       final int color = random.nextInt(0x1000000);
       for (int row = top; row < bottom; row++) {
         for (int column = left; column < right; column++) {
-          final int at = (row * width + column) * 3;
+          final int offset = (row * width + column) * 3;
           for (int channel = 0; channel < 3; channel++) {
             final int base = (color >> (8 * channel)) & 0xFF;
-            rgb[at + channel] = (byte) switch (kind) {
+            rgb[offset + channel] = (byte) switch (kind) {
               case 0 -> base;
               case 1 -> (base + (column - left) * 3 + (row - top)) & 0xFF;
               default -> ((column + row) & 1) == 0 ? base : 255 - base;
