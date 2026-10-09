@@ -361,7 +361,7 @@ final class IOUtilsTest {
 
   /**
    * Found by {@code UnzipFuzzTest}: an entry named with a character the file system cannot hold, such as the NUL of the
-   * fuzzer's archive, made {@link java.nio.file.Path#resolve(String)} throw an {@link java.nio.file.InvalidPathException}
+   * fuzzer's archive, made {@link Path#resolve(String)} throw an {@link java.nio.file.InvalidPathException}
    * out of {@link IOUtils#unzip(Path, Path)}, which documents only its own exceptions for a bad archive.
    */
   @Test
