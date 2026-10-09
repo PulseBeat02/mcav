@@ -1192,8 +1192,13 @@ threads (`DEFAULT`, native loops, the median of three timed runs after a warm-up
 ### The Server
 
 Every MCV2 screen of a server shares one encoder budget, half the processors by default, and the encoders never run
-on the server's main thread, which runs the game. @@SERVER-NUMBERS@@ When the encoder can't keep up, the screen steps
-down by itself: the `FAST` preset, fewer frames a second, a smaller video, and at worst the dithered maps.
+on the server's main thread, which runs the game. In a 30-minute test on the i7-8700, a server limited to 4 processors
+(so 2 encoder threads) played a 1920x1080 video at 30 fps on a 15x9 wall to two players, while the two game clients
+ran on the same machine and kept its processors about 90 % busy. The server held 20 ticks a second the whole time: the
+median tick took 2.2 to 2.7 ms and 95 % of ticks less than 8 ms (spark's 10-second and 1-minute windows, every 5
+minutes). When the encoder can't keep up, the screen steps down by itself: the `FAST` preset, fewer frames a second, a
+smaller video, and at worst the dithered maps. In that test it stepped down six times and was back at `DEFAULT` and 30
+fps after 30 to 72 seconds each time.
 
 ## Part 13: Using MCV2
 
