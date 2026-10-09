@@ -415,8 +415,8 @@ skipped square is black (MCAV's encoder never writes one: a keyframe describes e
 
 **MOTION** is two signed bytes, `dx` and `dy`: pixel (X, Y) of the leaf shows the reference's pixel at (X + dx, Y + dy).
 If that lands outside the picture, the nearest edge pixel is used (in maths, the coordinate is **clamped** into the
-picture). So a vector can reach up to 127 pixels in any direction. Vectors are whole pixels: there is no "half a pixel
-to the left".
+picture). So a vector can reach 128 pixels left or up and 127 pixels right or down. Vectors are whole pixels: there
+is no "half a pixel to the left".
 
 **SOLID** is three bytes, red, green and blue, and every pixel of the leaf has that colour.
 
@@ -626,7 +626,7 @@ the frame:
 | 16 | 2 | page number | below the page count |
 | 18 | 2 | page count | how many pages the frame has |
 | 20 | 4 | reference id | the frame's |
-| 24 | 4 | frame length | 32 to 131,071 |
+| 24 | 4 | frame length | 20 to 131,071 |
 | 28 | 4 | CRC32 | a checksum of the header (with this field zero) and the page's slice |
 
 A **CRC32** is a 32-bit checksum: a number computed from the bytes so that almost any damage (a changed bit, a lost
