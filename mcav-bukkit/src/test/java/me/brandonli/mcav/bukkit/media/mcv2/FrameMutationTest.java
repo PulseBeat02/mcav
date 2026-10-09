@@ -32,9 +32,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 /**
  * Every single-byte corruption of valid frames of every index form, deterministically: the parser accepts the result
  * or throws {@link Mcv2Exception}, never anything else, and an accepted frame decodes without failing, against a
- * matching reference when it is a P frame. The frames are the first keyframe and P frame of each committed edge
- * stream, which together use every v3 mode, compact quantizer and boundary geometry; every byte of the first 4 KB, where headers
- * and indexes live, is corrupted, and every 61st byte after it.
+ * matching reference when it is a P frame. The frames are the first keyframe and P frame of each committed
+ * conformance and edge stream, which together use every v3 mode, compact quantizer and boundary geometry; every byte of
+ * the first 4 KB, where headers and indexes live, is corrupted, and every 61st byte after it.
  */
 final class FrameMutationTest {
 

@@ -39,9 +39,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * The frame parser: valid version 3 frames expose their header and leaves, every header rule is enforced,
- * and whatever a single corrupted byte does to a valid frame, the parser either accepts the frame or throws
- * {@link Mcv2Exception} and nothing else.
+ * The frame parser: valid version 3 frames expose their header and leaves, and every header rule is enforced.
  */
 final class Mcv2ParserTest {
 
