@@ -38,7 +38,7 @@ final class Mcv2WireFrames {
     );
   }
 
-  static byte[][] records(final int count, final int index, final byte[] value) {
+  private static byte[][] records(final int count, final int index, final byte[] value) {
     final byte[][] records = new byte[count][0];
     records[index] = value;
     return records;

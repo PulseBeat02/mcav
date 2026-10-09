@@ -111,7 +111,7 @@ final class Mcv2ChannelTest {
     return Mcv2Trees.write(32, 32, 0, 0, true, List.of(Node.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[] { 1, 2, 3 })));
   }
 
-  static byte[] predicted() {
+  private static byte[] predicted() {
     return Mcv2Trees.write(32, 32, 1, 0, false, List.of(Node.leaf(Mcv2Decoder.MODE_MOTION, 0, new byte[] { 1, 1 })));
   }
 

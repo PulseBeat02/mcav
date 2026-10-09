@@ -93,7 +93,7 @@ final class PageAssemblerTest {
     assertThrows(IllegalArgumentException.class, () -> new PageAssembler(1, 9));
   }
 
-  static Stream<Arguments> disagreements() {
+  private static Stream<Arguments> disagreements() {
     return Stream.of(
       Arguments.of("page count", page(1), pages(TINY).get(0)),
       Arguments.of("reference id", page(0), rewritten(page(1), 20, 9)),
@@ -136,7 +136,7 @@ final class PageAssemblerTest {
     assertEquals(3, assembler.getPendingCount());
   }
 
-  static Stream<Arguments> contradictions() {
+  private static Stream<Arguments> contradictions() {
     return Stream.of(Arguments.of("frame id", 12, 9L), Arguments.of("reference id", 20, 9L), Arguments.of("frame type", 6, 0L));
   }
 

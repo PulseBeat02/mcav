@@ -327,7 +327,7 @@ final class DeltaMapEncoderPropertyTest {
       }
     }
 
-    void apply(final MapTilePatch patch) {
+    private void apply(final MapTilePatch patch) {
       final int index = this.indexOf(patch);
       final short[] map = this.maps[index];
       final byte[] colors = patch.getColors();

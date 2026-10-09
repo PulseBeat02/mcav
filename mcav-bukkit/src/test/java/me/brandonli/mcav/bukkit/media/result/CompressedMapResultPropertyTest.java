@@ -202,7 +202,7 @@ final class CompressedMapResultPropertyTest {
       when(this.algorithm.ditherIntoBytes(any(ImageBuffer.class))).thenAnswer(_ -> this.nextFrame.clone());
     }
 
-    void process(final CompressedMapResult result, final ResizeScenario scenario, final Step step) {
+    private void process(final CompressedMapResult result, final ResizeScenario scenario, final Step step) {
       final int width = scenario.widthOf(step);
       final int height = scenario.heightOf(step);
       final ImageBuffer samples = mock(ImageBuffer.class);
@@ -340,12 +340,12 @@ final class CompressedMapResultPropertyTest {
       this.connect(FIRST);
     }
 
-    void connect(final UUID uuid) {
+    private void connect(final UUID uuid) {
       final Viewer viewer = new Viewer(uuid, this.scenario.getMapCount());
       this.viewers.add(viewer);
     }
 
-    void disconnect(final UUID uuid) {
+    private void disconnect(final UUID uuid) {
       this.viewers.removeIf(viewer -> viewer.uuid.equals(uuid));
     }
 
@@ -354,7 +354,7 @@ final class CompressedMapResultPropertyTest {
      *
      * @return whether any viewer received anything
      */
-    boolean receive(final FakeServer server) {
+    private boolean receive(final FakeServer server) {
       boolean received = false;
       for (final Viewer viewer : this.viewers) {
         final List<Packet<?>> packets = server.getSentPackets(viewer.uuid);
@@ -426,7 +426,7 @@ final class CompressedMapResultPropertyTest {
       }
     }
 
-    void apply(final Packet<?> packet) {
+    private void apply(final Packet<?> packet) {
       final List<ClientboundMapItemDataPacket> mapPackets = MapPackets.unbundle(packet);
       for (final ClientboundMapItemDataPacket mapPacket : mapPackets) {
         final MapId id = mapPacket.mapId();

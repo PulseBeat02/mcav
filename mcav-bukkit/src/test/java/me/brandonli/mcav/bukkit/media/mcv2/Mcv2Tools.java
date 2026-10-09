@@ -61,11 +61,11 @@ import org.lwjgl.util.shaderc.ShadercIncludeResultRelease;
 import org.lwjgl.util.spvc.Spvc;
 import org.lwjgl.util.spvc.SpvcReflectedResource;
 
-public final class Mcv2Tools {
+final class Mcv2Tools {
 
   private Mcv2Tools() {}
 
-  public static void main(final String[] arguments) throws Exception {
+  static void main(final String[] arguments) throws Exception {
     if (arguments.length == 0) {
       throw new IllegalArgumentException("Expected bench, digests, generate-fixtures or shader-compile");
     }
@@ -573,7 +573,7 @@ public final class Mcv2Tools {
    * Sampler names stay unchanged so the Python GL harness can bind them; Minecraft renames them to names such as
    * {@code _uniform_00_03}. The command exits with this failure count.
    */
-  static int shaderCompile(final String[] arguments) throws IOException {
+  private static int shaderCompile(final String[] arguments) throws IOException {
     final Path pack = Path.of(arguments[0]);
     final Path generated = Path.of(arguments[1]);
     final Path output = Files.createDirectories(Path.of(arguments[2]));

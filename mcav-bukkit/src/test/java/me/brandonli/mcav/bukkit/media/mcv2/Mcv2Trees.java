@@ -41,15 +41,15 @@ public final class Mcv2Trees {
   }
 
   public record Node(Object value) {
-    public static Node leaf(final int mode, final int quantizer, final byte[] record) {
+    static Node leaf(final int mode, final int quantizer, final byte[] record) {
       return new Node(invoke(TREE, null, "leaf", new Class<?>[] { int.class, int.class, byte[].class }, mode, quantizer, record));
     }
 
-    public static Node skip() {
+    static Node skip() {
       return new Node(invoke(TREE, null, "skip", new Class<?>[0]));
     }
 
-    public static Node split(final Node topLeft, final Node topRight, final Node bottomLeft, final Node bottomRight) {
+    static Node split(final Node topLeft, final Node topRight, final Node bottomLeft, final Node bottomRight) {
       return new Node(
         invoke(
           TREE,
@@ -95,23 +95,23 @@ public final class Mcv2Trees {
       return hash;
     }
 
-    public int getMode() {
+    int getMode() {
       return (int) Mcv2Internals.field(TREE, this.value, "mode");
     }
 
-    public int getQuantizer() {
+    int getQuantizer() {
       return (int) Mcv2Internals.field(TREE, this.value, "quantizer");
     }
 
-    public byte[] getRecord() {
+    byte[] getRecord() {
       return ((byte[]) Mcv2Internals.field(TREE, this.value, "record")).clone();
     }
 
-    public boolean isSplit() {
+    boolean isSplit() {
       return (boolean) invoke(TREE, this.value, "isSplit", new Class<?>[0]);
     }
 
-    public Node getChild(final int index) {
+    Node getChild(final int index) {
       return new Node(invoke(TREE, this.value, "getChild", new Class<?>[] { int.class }, index));
     }
   }
@@ -163,7 +163,7 @@ public final class Mcv2Trees {
     );
   }
 
-  public static Node solid(final int red, final int green, final int blue) {
+  static Node solid(final int red, final int green, final int blue) {
     return Node.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[] { (byte) red, (byte) green, (byte) blue });
   }
 
@@ -171,18 +171,18 @@ public final class Mcv2Trees {
     return Node.leaf(Mcv2Decoder.MODE_MOTION, 0, new byte[] { (byte) dx, (byte) dy });
   }
 
-  public static Node split(final Node node) {
+  static Node split(final Node node) {
     return Node.split(node, node, node, node);
   }
 
-  public static Node pattern(final int size, final byte[] endpoints, final int orientation, final int axisByte) {
+  static Node pattern(final int size, final byte[] endpoints, final int orientation, final int axisByte) {
     final byte[] record = Arrays.copyOf(endpoints, 7 + size / 8);
     record[6] = (byte) orientation;
     Arrays.fill(record, 7, record.length, (byte) axisByte);
     return Node.leaf(Mcv2Decoder.MODE_PATTERN, 0, record);
   }
 
-  public static byte[] keyframe(final int width, final int height, final Node... roots) {
+  static byte[] keyframe(final int width, final int height, final Node... roots) {
     return write(width, height, 0, 0, true, List.of(roots));
   }
 
@@ -190,7 +190,7 @@ public final class Mcv2Trees {
     return write(width, height, 1, 0, false, List.of(roots));
   }
 
-  public static Node[] repeat(final Node node, final int count) {
+  static Node[] repeat(final Node node, final int count) {
     final Node[] nodes = new Node[count];
     Arrays.fill(nodes, node);
     return nodes;
@@ -210,7 +210,7 @@ public final class Mcv2Trees {
     return ((long) size << 32) | ((long) top << 16) | left;
   }
 
-  public static List<Node> read(final Mcv2Decoder.Frame frame) {
+  static List<Node> read(final Mcv2Decoder.Frame frame) {
     final Map<Long, Node> leaves = new HashMap<>();
     final byte[] data = frame.getData();
     for (int index = 0; index < frame.getLeafCount(); index++) {

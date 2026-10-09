@@ -84,7 +84,7 @@ final class MCV2FrameTest {
     return encoder;
   }
 
-  static byte[] texture(final int width, final int height, final int seed) {
+  private static byte[] texture(final int width, final int height, final int seed) {
     final Random random = new Random(seed);
     final byte[] rgb = new byte[width * height * 3];
     for (int row = 0; row < height; row++) {
@@ -325,7 +325,7 @@ final class MCV2FrameTest {
     for (int attempt = 0; attempt < LIMIT_TRIES; attempt++) {
       keyframes[attempt] = new MCV2(Settings.DEFAULT.withLambda(72 << attempt), POOL, 2, false).encode(picture, 96, 64, 0);
     }
-    for (int bound : new int[] { keyframes[0].length, keyframes[0].length - 1, keyframes[2].length, 1 }) {
+    for (final int bound : new int[] { keyframes[0].length, keyframes[0].length - 1, keyframes[2].length, 1 }) {
       int expected = 0;
       while (expected < LIMIT_TRIES - 1 && keyframes[expected].length > bound) {
         expected++;

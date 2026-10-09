@@ -226,7 +226,7 @@ final class MapLayoutPropertyTest {
       this.counts = new int[image.length];
     }
 
-    void add(final MapTilePatch patch) {
+    private void add(final MapTilePatch patch) {
       final int mapId = patch.getMapId();
       final int index = mapId - this.grid.getStartMapId();
       final MapRegion region = this.layout.getRegion(index);

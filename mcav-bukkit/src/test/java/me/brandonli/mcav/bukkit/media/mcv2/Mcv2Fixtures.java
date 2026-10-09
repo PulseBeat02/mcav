@@ -42,7 +42,7 @@ import java.util.TreeMap;
 public final class Mcv2Fixtures {
 
   /** The resource folder of the fixtures. */
-  public static final String ROOT = "/mcv2/";
+  private static final String ROOT = "/mcv2/";
 
   private Mcv2Fixtures() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -85,7 +85,7 @@ public final class Mcv2Fixtures {
    * @param folder {@code conformance} or {@code edge}
    * @return the digests of every stream, by file name
    */
-  public static Map<String, List<String>> digests(final String folder) {
+  static Map<String, List<String>> digests(final String folder) {
     final String text = new String(read(folder + "/digests.json"), StandardCharsets.UTF_8);
     final JsonObject root = JsonParser.parseString(text).getAsJsonObject();
     final Map<String, List<String>> digests = new TreeMap<>();

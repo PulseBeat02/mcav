@@ -64,7 +64,7 @@ public final class MinecraftTestBootstrap implements BeforeAllCallback {
    * Bootstraps the Minecraft registries and initializes the Bukkit classes that read the server, unless that
    * already happened.
    */
-  public static synchronized void bootstrap() {
+  static synchronized void bootstrap() {
     if (bootstrapped) {
       return;
     }

@@ -45,7 +45,7 @@ final class FrameMutationTest {
 
   private static final int STRIDE = 61;
 
-  static Stream<Arguments> frames() {
+  private static Stream<Arguments> frames() {
     final List<Arguments> arguments = new ArrayList<>();
     for (final String folder : List.of("conformance", "edge")) {
       for (final String stream : Mcv2Fixtures.digests(folder).keySet()) {

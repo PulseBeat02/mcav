@@ -573,7 +573,7 @@ final class MCPackHostingTest {
       this.uploadHook = () -> {};
     }
 
-    static PackService start() throws IOException {
+    private static PackService start() throws IOException {
       final InetAddress loopback = InetAddress.getLoopbackAddress();
       final InetSocketAddress address = new InetSocketAddress(loopback, 0);
       final HttpServer httpServer = HttpServer.create(address, 0);

@@ -123,7 +123,7 @@ final class Mcv2ParserTest {
     assertEquals("Not an MCV2 version 3 frame", message(Arrays.copyOf(magic, Mcv2Decoder.MAX_FRAME_BYTES)));
   }
 
-  static Stream<Arguments> headerRules() {
+  private static Stream<Arguments> headerRules() {
     final byte[] key = keyframe(40, 40, solid(1, 2, 3), solid(4, 5, 6), solid(1, 2, 3), solid(7, 8, 9));
     return Stream.of(
       Arguments.of(withWord(key, 4, 0x0104), "Not an MCV2 version 3 frame"),
@@ -149,7 +149,7 @@ final class Mcv2ParserTest {
     assertEquals(expected, message(frame));
   }
 
-  static String message(final byte[] frame) {
+  private static String message(final byte[] frame) {
     final Mcv2Exception exception = assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(frame));
     return exception.getMessage();
   }

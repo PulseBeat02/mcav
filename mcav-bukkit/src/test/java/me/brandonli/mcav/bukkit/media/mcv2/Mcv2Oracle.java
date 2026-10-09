@@ -24,7 +24,7 @@ final class Mcv2Oracle {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  static int rgb8(final double value) {
+  private static int rgb8(final double value) {
     return (int) Math.min(255, Math.max(0, Math.floor(value + 0.5)));
   }
 
