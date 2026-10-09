@@ -480,7 +480,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     private final List<String> extraJvmOptions;
     private @Nullable HelperLauncher launcher;
 
-    DefaultSessionFactory() {
+    private DefaultSessionFactory() {
       this(new JcefNatives(), List.of());
     }
 
@@ -502,8 +502,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
      * @param libraries       installs the libraries a Linux server may lack
      * @param extraJvmOptions options added to the JVM of every helper
      */
-    @VisibleForTesting
-    DefaultSessionFactory(final JcefNatives natives, final LinuxLibraries libraries, final List<String> extraJvmOptions) {
+    private DefaultSessionFactory(final JcefNatives natives, final LinuxLibraries libraries, final List<String> extraJvmOptions) {
       this.natives = natives;
       this.libraries = libraries;
       this.extraJvmOptions = List.copyOf(extraJvmOptions);

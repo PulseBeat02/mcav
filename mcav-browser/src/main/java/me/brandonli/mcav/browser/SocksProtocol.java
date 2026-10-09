@@ -258,7 +258,7 @@ final class SocksProtocol {
      * @param reply   the reply code
      * @param message what was refused
      */
-    Refusal(final int reply, final String message) {
+    private Refusal(final int reply, final String message) {
       super(message);
       this.reply = reply;
     }

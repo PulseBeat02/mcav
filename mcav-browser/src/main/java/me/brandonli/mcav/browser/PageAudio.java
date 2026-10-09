@@ -458,7 +458,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
      * @param context the id of the execution context
      * @param samples 16-bit little-endian stereo samples at 48 kHz, whole frames, which the chunk owns
      */
-    Chunk(final long context, final byte[] samples) {
+    private Chunk(final long context, final byte[] samples) {
       this.context = context;
       this.samples = samples;
     }
