@@ -985,7 +985,8 @@ part is checked against something that was written separately:
   the game itself, screenshots of the decoded picture match the reference decoder's pictures exactly.
 - **Mutation testing.** To check the tests themselves, a tool called PIT makes thousands of small changes to the code,
   one at a time (turns a `<` into a `<=`, deletes a line, returns 0), and runs the tests on each. A good test suite
-  fails on almost every one. @@MUTATION@@
+  fails on almost every one. On MCV2's code PIT makes 3,339 changes and the tests catch 3,277 of them (98 %); every
+  one of the 62 they miss was read and listed with its reason.
 - **Coverage.** Every line and every branch of MCV2's code runs in at least one test.
 
 ## Part 11: What I Took Out, and Why
