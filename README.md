@@ -86,7 +86,8 @@ Its benchmark, fixture, digest and shader tools live in `mcav-bukkit`'s test sou
 
 Live sources (browsers, virtual machines, VNC desktops, streams, cameras, and video files by default) share a
 configurable CPU budget. Throughput depends on the source, encoder preset and available CPU. A screen that cannot keep
-up steps down on its own, or you can pre-encode a file. Players without the pack keep the dithered maps.
+up steps down on its own, or you can pre-encode a file. Live playback keeps the dithered maps for players without
+the pack. Pre-encoded streams need the pack.
 Turn it on with `--codec mcv2` on any command that draws on a wall of maps, or with
 `mcv2.default-codec: mcv2` in `config.yml`. The
 [MCV2 article](mcav-docs/mcv2.md) explains how it works, its measured rates, quality and speed, and how it

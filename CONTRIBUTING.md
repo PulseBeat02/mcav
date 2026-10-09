@@ -31,8 +31,8 @@ the code should have, not whatever it happens to do. When a test fails, fix the 
 
 - `./gradlew coverageLint` runs the tests of every module and prints each line or branch that no test covers as
   `file:line`, failing the build when there is any. Run `./gradlew :<module>:coverageLint` for a single module.
-- `check`, and so `build`, enforces the lint by default. Some tests skip themselves on machines without VLC, Chrome,
-  QEMU, a display or a sound device, and the code they test would show up as gaps there, so on such a machine pass
+- `check`, and so `build`, enforces the lint by default. Some tests skip themselves on machines without VLC, QEMU,
+  a display or a sound device, and the code they test would show up as gaps there, so on such a machine pass
   `-Pmcav.coverage=false`, which turns the gate off; any other value keeps it on.
 - A line that no test can run, such as a constructor only a Minecraft server may call, goes into
   `coverage-exceptions.txt` next to the build file of its module, together with the reason. The lint fails when an
