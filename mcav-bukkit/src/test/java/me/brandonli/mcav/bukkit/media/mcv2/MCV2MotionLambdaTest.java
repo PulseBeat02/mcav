@@ -20,6 +20,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Internals.MotionLambda;
@@ -65,6 +66,20 @@ final class MCV2MotionLambdaTest {
     assertArrayEquals(
       new int[] { 360 },
       MotionLambda.blurredLuma(corners(10, 20, 30, 40), 1, 1, Workers.SEQUENTIAL, new int[1], new int[1])
+    );
+  }
+
+  @Test
+  void includesThePreviousSampleRowInTheBlur() {
+    final byte[] source = new byte[9 * 9 * 3];
+    for (int row = 0; row < 9; row++) {
+      for (int column = 0; column < 9; column++) {
+        Arrays.fill(source, (row * 9 + column) * 3, (row * 9 + column + 1) * 3, (byte) (10 * (row / 4) + column / 4));
+      }
+    }
+    assertArrayEquals(
+      new int[] { 132, 156, 180, 372, 396, 420, 612, 636, 660 },
+      MotionLambda.blurredLuma(source, 9, 9, Workers.SEQUENTIAL, new int[9], new int[9])
     );
   }
 

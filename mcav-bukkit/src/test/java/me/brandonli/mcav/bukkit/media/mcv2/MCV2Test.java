@@ -130,6 +130,32 @@ final class MCV2Test {
   }
 
   @Test
+  void retriesAtMostFourTimesWhenEvenTheTrivialFrameExceedsTheLimit() throws Mcv2Exception {
+    try (final ForkJoinPool pool = new ForkJoinPool(1)) {
+      final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT.withLambda(1), pool, 1, true);
+      encoder.setFrameLimit(40);
+      final byte[] source = { 10, 20, 30 };
+      final byte[] data = encoder.encode(source, 1, 1, 0);
+      assertEquals(16, encoder.getStats().lambda());
+      assertEquals(48, data.length);
+      assertArrayEquals(source, Mcv2Decoder.decode(data, null, 0));
+    }
+  }
+
+  @Test
+  void measuresOnlyTheTimeSpentBeginningAndFinishing() {
+    try (final ForkJoinPool pool = new ForkJoinPool(1)) {
+      final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT, pool, 1, true);
+      final long started = System.nanoTime();
+      final MCV2.Pending pending = encoder.begin(new byte[] { 10, 20, 30 }, 1, 1, 0);
+      final long searched = (long) Mcv2Internals.field(MCV2.Pending.class, pending, "nanoseconds");
+      assertTrue(searched >= 0 && searched <= System.nanoTime() - started);
+      final MCV2.Stats stats = encoder.finish(pending).getStats();
+      assertTrue(stats.nanoseconds() >= searched && stats.nanoseconds() <= System.nanoTime() - started);
+    }
+  }
+
+  @Test
   void exhaustedBudgetUsesMeanSolidsAndThenSkip() throws Mcv2Exception {
     try (final ForkJoinPool pool = new ForkJoinPool(2)) {
       final MCV2 encoder = new MCV2(MCV2.Settings.DEFAULT, pool, 2, true);
@@ -248,14 +274,23 @@ final class MCV2Test {
       assertThrows(IllegalArgumentException.class, () -> encoder.setFrameBudget(-1));
       assertThrows(IllegalArgumentException.class, () -> encoder.setFrameLimit(-1));
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[3], 0, 1, 0));
-      assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[3], 4097, 1, 0));
+      assertEquals(
+        "Invalid dimensions",
+        assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[3], 4097, 1, 0)).getMessage()
+      );
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[2], 1, 1, 0));
+      assertEquals(
+        "Picture size does not match the dimensions",
+        assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[4], 1, 1, 0)).getMessage()
+      );
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[3], 1, 1, -1));
       assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[3], 1, 1, 0x100000000L));
       assertThrows(NullPointerException.class, () -> encoder.encode(null, 1, 1, 0));
       assertThrows(NullPointerException.class, () -> encoder.switchTo(null));
       assertThrows(NullPointerException.class, () -> encoder.finish(null));
       encoder.encode(new byte[3], 1, 1, 0);
+      assertThrows(IllegalArgumentException.class, () -> encoder.begin(new byte[3], 1, 1, 0));
+      assertThrows(IllegalArgumentException.class, () -> encoder.begin(new byte[3], 1, 1, 0x80000000L));
       final byte[] reference = encoder.getReference();
       assertNotNull(reference);
       reference[0] = 42;

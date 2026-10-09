@@ -61,6 +61,9 @@ final class MCV2PoolTest {
     assertEquals(256, Pool.defaultThreads(768));
     assertThrows(IllegalArgumentException.class, () -> new Pool(0));
     assertThrows(IllegalArgumentException.class, () -> new Pool(Pool.MAX_THREADS + 1));
+    try (final Pool largest = new Pool(Pool.MAX_THREADS)) {
+      assertEquals(Pool.MAX_THREADS, largest.getThreads());
+    }
   }
 
   @Test
@@ -274,6 +277,10 @@ final class MCV2PoolTest {
   @Test
   void sharesOneBudgetPerServer() {
     try {
+      Pool.setSharedThreads(Pool.MAX_THREADS);
+      final Pool largest = Pool.shared();
+      assertEquals(Pool.MAX_THREADS, largest.getThreads());
+      largest.close();
       Pool.setSharedThreads(3);
       final Pool shared = Pool.shared();
       assertSame(shared, Pool.shared());

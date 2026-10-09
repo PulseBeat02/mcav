@@ -65,6 +65,7 @@ import jdk.jfr.consumer.RecordingFile;
 import me.brandonli.mcav.bukkit.media.map.MapPacketFactory;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
+import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.Images;
 import me.brandonli.mcav.bukkit.testing.LogCapture;
@@ -365,6 +366,7 @@ final class Mcv2ResultTest {
     result.setFrameListener(heard::add);
     result.send(encoder, new Mcv2Result.Arrival(new byte[128 * 128 * 3], 128, 128, 0, Mcv2Pacer.Preset.ONLY), 0);
     verify(encoder).requestKeyframe();
+    verify(encoder).setFrameLimit(TransportPages.capacity());
     assertEquals(List.of(), heard, "a frame that is not sent is not heard");
     assertEquals(1, result.getStatistics().getDropped());
     assertEquals(0, result.getStatistics().getFrames());

@@ -35,7 +35,10 @@ final class MCV2WriterTest {
   void refusesInvalidDimensionsAndRootCounts() {
     final List<Node> one = List.of(solid(1, 1, 1));
     for (final int[] size : new int[][] { { 0, 32 }, { 4097, 32 }, { 32, 0 }, { 32, 4097 } }) {
-      assertThrows(IllegalArgumentException.class, () -> Mcv2Trees.write(size[0], size[1], 0, 0, true, one));
+      assertEquals(
+        "Invalid dimensions",
+        assertThrows(IllegalArgumentException.class, () -> Mcv2Trees.write(size[0], size[1], 0, 0, true, one)).getMessage()
+      );
     }
     assertThrows(IllegalArgumentException.class, () -> Mcv2Trees.write(64, 32, 0, 0, true, one));
     assertThrows(NullPointerException.class, () ->

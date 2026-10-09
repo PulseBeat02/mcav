@@ -29,6 +29,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Random;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Binding;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Level;
@@ -91,6 +92,24 @@ final class NativeKernelsTest {
     kernels.forgetArrays();
     assertFalse(kernels.keeps(picture));
     assertFalse(kernels.keeps(block));
+  }
+
+  @Test
+  void releasesTheSegmentsThatKeepFrameArraysReachable() {
+    final Class<?> type = Mcv2Internals.nested("NativeKernels");
+    final Object target = Mcv2Internals.construct(
+      type,
+      new Class<?>[] { Binding.class },
+      new Binding(Level.SCALAR, (name, descriptor) -> returning(descriptor, null))
+    );
+    final NativeKernels kernels = NativeTesting.view(target);
+    failed(() -> kernels.predict(new byte[16 * 16 * 3], 16, 16, 0, 0, 8, 0, 0, new int[8 * 8 * 3]));
+    final Object[] segments = (Object[]) Mcv2Internals.field(type, target, "cachedSegments");
+    assertTrue(Arrays.stream(segments).anyMatch(Objects::nonNull));
+    kernels.forgetArrays();
+    for (final Object segment : segments) {
+      assertNull(segment);
+    }
   }
 
   @Test

@@ -94,6 +94,26 @@ final class Mcv2ParserRulesTest {
   }
 
   @Test
+  void refusesASplitAtTheFirstDescriptorOfTheLastLevel() {
+    final byte[] frame = keyframe(32, 32, Node.split(split(Node.skip()), Node.skip(), Node.skip(), Node.skip()));
+    final Layout layout = Layout.of(frame);
+    frame[layout.plane() + 1] = Mcv2Decoder.MODE_SKIP;
+    frame[layout.plane() + 5] = Mcv2Decoder.MODE_SPLIT;
+    assertEquals("Split below the bounded depth", message(frame));
+  }
+
+  @Test
+  void diagnosesMissingPresenceBitsAfterAWholeDirectorySpan() {
+    final List<Node> roots = new ArrayList<>();
+    roots.add(solid(1, 2, 3));
+    for (int root = 1; root < 256; root++) {
+      roots.add(Node.skip());
+    }
+    final byte[] frame = Mcv2Trees.write(4096, 64, 0, 0, true, roots);
+    assertEquals("Presence count differs from level zero", message(withWord(frame, 20, 0)));
+  }
+
+  @Test
   void refusesEveryInvalidLeafModeInTheDerivedForm() throws Mcv2Exception {
     final byte[] frame = predicted(32, 32, motion(1, 1));
     Mcv2Decoder.parse(frame);
