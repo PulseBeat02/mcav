@@ -574,7 +574,7 @@ class NullDisplayTest {
     final Path authority = this.folder.resolve("Xauthority");
     final List<Socket> silent = new ArrayList<>();
     // no setup timeout, so only the eviction this test is about can end a waiting client: on a busy machine the
-    // default's ten seconds passed while the clients connected, and the second client was closed by it
+    // default's ten seconds can pass while the clients connect, and close the second client
     try (final NullDisplay display = NullDisplay.start(authority, 0)) {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
