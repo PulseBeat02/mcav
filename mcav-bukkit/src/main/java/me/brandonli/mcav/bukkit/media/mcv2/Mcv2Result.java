@@ -438,7 +438,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
       .mapBlockWidth(configuration.getColumns())
       .mapBlockHeight(configuration.getRows())
       // Dithered maps need wall scaling to avoid cropping or centering a smaller video.
-
       .resize(true)
       .viewers(viewers)
       .build();
@@ -622,14 +621,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
     if (encode && !current.channel().getRecipients().isEmpty()) {
       // A full-frame ARGB copy at 1080p adds an 8 MB G1 humongous allocation per frame.
-
       final Arrival arrival = new Arrival(rgb(data.getData(), width * height), width, height, System.currentTimeMillis(), preset);
       this.pending.offer(arrival);
     }
     final Fallback dithered = this.fallback;
     if (dithered != null && !others.isEmpty() && this.ditheringBusy.compareAndSet(false, true)) {
       // ImageBuffer replaces its pixel array, allowing asynchronous reads without a copy.
-
       final int[] packedColors = data.getPixels();
       try {
         this.dithering.execute(() -> this.dither(dithered, packedColors, width, height));
@@ -979,7 +976,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     this.screen.channel().close();
     this.opened = false;
     // Encoded viewers retain anchor maps, which keep their last decoded picture visible.
-
     final Set<UUID> decoding = new HashSet<>(this.requested.getViewers());
     decoding.removeAll(this.fallbackViewers);
     final int maps = this.requested.getColumns() * this.requested.getRows();

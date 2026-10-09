@@ -2213,7 +2213,6 @@ public final class MCV2 {
     @Override
     public void halve(final int[] block, final int size, final int[] output) {
       // SIMD row steps require power-of-two block sizes to avoid array overruns.
-
       Preconditions.checkArgument(size >= 2 && size <= ROOT_SIZE && Integer.bitCount(size) == 1, "Invalid block size");
       checkBlock(block.length, size);
       checkBlock(output.length, size / 2);

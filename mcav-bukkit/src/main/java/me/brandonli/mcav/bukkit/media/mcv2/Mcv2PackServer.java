@@ -395,8 +395,7 @@ public final class Mcv2PackServer {
       spareOfThatSize.spareOf = null;
       return spareOfThatSize;
     }
-    // Every allocated slot consumes strip rows on every viewer's screen.
-
+    // Every allocated slot consumes strip rows on every viewer's screen, so a free slot is reshaped before the pack grows.
     final Slot changed;
     if (oldestFree != null) {
       changed = oldestFree;

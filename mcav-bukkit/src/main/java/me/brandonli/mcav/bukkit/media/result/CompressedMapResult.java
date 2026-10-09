@@ -366,8 +366,6 @@ public class CompressedMapResult implements DitherResultStep {
   public void start() {
     this.lock.lock();
     try {
-      // release() leaves the encoder and the viewers cleared, so there is nothing to undo but the latch itself;
-      // without this, process() returned early forever and a reused result rendered nothing at all
       this.released = false;
     } finally {
       this.lock.unlock();
