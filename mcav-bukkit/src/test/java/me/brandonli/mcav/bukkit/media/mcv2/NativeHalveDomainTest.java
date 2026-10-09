@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
  * The vector loops of the native halve kernel need power-of-two blocks, so Java refuses every other size before any
  * native call; checked on a simulated library that fails every call.
  */
-final class NativeHalveDomainDefectTest {
+final class NativeHalveDomainTest {
 
   @Test
   void unsupportedSimdRowsAreRefusedBeforeNativeDispatch() {
