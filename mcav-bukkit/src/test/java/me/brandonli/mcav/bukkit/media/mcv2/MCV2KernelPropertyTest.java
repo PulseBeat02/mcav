@@ -110,13 +110,13 @@ final class MCV2KernelPropertyTest {
     assertArrayEquals(expected, actual);
   }
 
-  /** One kernel call: reconstruct into out, measured by score when it is not null; returns whether it finished. */
+  /** One kernel call: reconstruct into out, measured as the kernels were last started; returns whether it finished. */
   @FunctionalInterface
   private interface Kernel {
     boolean run(Kernels kernels, int[] out);
   }
 
-  /** The source a measure compares with, and the same measure's plain distortion of a reconstruction. */
+  /** The distortion the kernels measure between the source and a reconstruction of it. */
   private static long distortion(final int[] source, final int[] out) {
     long sum = 0;
     for (int offset = 0; offset < source.length; offset += 3) {
@@ -132,8 +132,8 @@ final class MCV2KernelPropertyTest {
   }
 
   /**
-   * A measured kernel reconstructs exactly what the unmeasured one does, and its distortion is the whole block's; it
-   * stops once its cost reaches the limit, and never before the whole block's cost does.
+   * A kernel started the same way reconstructs the same block, and its distortion is the whole block's; it stops once
+   * its cost reaches the limit, and never before the whole block's cost does.
    */
   private static void assertMeasured(final Random random, final int size, final Kernel kernel) {
     final int[] source = new int[size * size * 3];
@@ -142,14 +142,14 @@ final class MCV2KernelPropertyTest {
     }
     final double rate = random.nextInt(4000) / 7.0;
     final Kernels kernels = Mcv2Internals.javaKernels();
-    final int[] plain = new int[source.length];
-    final int[] measured = new int[source.length];
+    final int[] reconstruction = new int[source.length];
+    final int[] repeated = new int[source.length];
     kernels.start(source, rate, Double.POSITIVE_INFINITY);
-    assertTrue(kernel.run(kernels, plain));
+    assertTrue(kernel.run(kernels, reconstruction));
     kernels.start(source, rate, Double.POSITIVE_INFINITY);
-    assertTrue(kernel.run(kernels, measured));
-    assertArrayEquals(plain, measured);
-    final long distortion = distortion(source, plain);
+    assertTrue(kernel.run(kernels, repeated));
+    assertArrayEquals(reconstruction, repeated);
+    final long distortion = distortion(source, reconstruction);
     assertEquals(distortion, kernels.distortion());
     final double cost = distortion / 96.0 + rate;
     kernels.start(source, rate, cost);
