@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
 final class PackLayoutTest {
 
   /** A layout as the server generates it, with the stream ids, slot counts and first slots of its screens. */
-  static String config(final String streams, final String slots, final String firsts, final int screens) {
+  static String packConstants(final String streams, final String slots, final String firsts, final int screens) {
     return String.join(
       "\n",
       "#ifndef MCAV_MCV2_CONFIG_GLSL",
@@ -46,7 +46,7 @@ final class PackLayoutTest {
 
   @Test
   void readsTheScreensTheServerGenerated() {
-    final PackLayout layout = PackLayout.parse(config("7u, 4294967295u", "3, 2", "0, 3", 2)).orElseThrow();
+    final PackLayout layout = PackLayout.parse(packConstants("7u, 4294967295u", "3, 2", "0, 3", 2)).orElseThrow();
     assertEquals(2, layout.screens());
     assertEquals(3, layout.slots(0));
     assertEquals(2, layout.slots(1));
@@ -61,11 +61,11 @@ final class PackLayoutTest {
 
   @Test
   void readsOneScreenOfOneSlotAndEightScreensOfEightSlots() {
-    final PackLayout one = PackLayout.parse(config("0u", "1", "0", 1)).orElseThrow();
+    final PackLayout one = PackLayout.parse(packConstants("0u", "1", "0", 1)).orElseThrow();
     assertEquals(1, one.screens());
     assertEquals(1, one.totalSlots());
     final PackLayout eight = PackLayout.parse(
-      config("1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u", "8, 8, 8, 8, 8, 8, 8, 8", "0, 8, 16, 24, 32, 40, 48, 56", 8)
+      packConstants("1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u", "8, 8, 8, 8, 8, 8, 8, 8", "0, 8, 16, 24, 32, 40, 48, 56", 8)
     ).orElseThrow();
     assertEquals(8, eight.screens());
     assertEquals(56, eight.firstSlot(7));
@@ -83,8 +83,8 @@ final class PackLayoutTest {
 
   @Test
   void anythingTheServerCouldNotHaveGeneratedIsNoLayout() {
-    final String valid = config("7u, 9u", "3, 2", "0, 3", 2);
-    for (final String config : List.of(
+    final String valid = packConstants("7u, 9u", "3, 2", "0, 3", 2);
+    for (final String packConstants : List.of(
       "",
       valid.replace("MCV2_SCREENS = 2;", "MCV2_SCREENS = 0;"),
       valid.replace("MCV2_SCREENS = 2;", "MCV2_SCREENS = 9;"),
@@ -104,7 +104,7 @@ final class PackLayoutTest {
       valid.replace("int[2](0, 3)", "int[2](0, 65)"),
       valid.replace("int MCV2_SCREEN_FIRST_SLOTS", "int MCV2_SCREEN_FIRST")
     )) {
-      assertTrue(PackLayout.parse(config).isEmpty(), config);
+      assertTrue(PackLayout.parse(packConstants).isEmpty(), packConstants);
     }
     assertTrue(PackLayout.parse(valid).isPresent());
   }

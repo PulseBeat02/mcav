@@ -35,7 +35,7 @@ final class Mcv2ReporterTest {
 
   private static final Mcv2Report SHADERS_ON = new Mcv2Report(true, ShaderPack.IN_USE, false);
 
-  private final AtomicLong clock = new AtomicLong(Long.MAX_VALUE - Mcv2Reporter.STEADY_NANOS);
+  private final AtomicLong clock = new AtomicLong(Long.MAX_VALUE - Mcv2Reporter.STEADY_NANOSECONDS);
 
   private final RecordingChannel channel = new RecordingChannel();
 
@@ -51,8 +51,8 @@ final class Mcv2ReporterTest {
   }
 
   /** Ticks once, after a time. */
-  private void tickAfter(final long nanos) {
-    this.clock.addAndGet(nanos);
+  private void tickAfter(final long nanoseconds) {
+    this.clock.addAndGet(nanoseconds);
     this.reporter.tick();
   }
 
@@ -60,7 +60,7 @@ final class Mcv2ReporterTest {
   void asksNothingWhileTheServerDoesNotListen() {
     this.channel.open = false;
     this.tickAfter(0);
-    this.tickAfter(2 * Mcv2Reporter.STEADY_NANOS);
+    this.tickAfter(2 * Mcv2Reporter.STEADY_NANOSECONDS);
     verifyNoInteractions(this.shaders);
     assertEquals(List.of(), this.channel.sent);
   }
@@ -68,11 +68,11 @@ final class Mcv2ReporterTest {
   @Test
   void sendsWhatIrisSaysOnceItHeldASecondAndOnlyOnce() {
     this.tickAfter(0);
-    this.tickAfter(Mcv2Reporter.STEADY_NANOS - 1);
+    this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS - 1);
     assertEquals(List.of(), this.channel.sent);
     this.tickAfter(1);
-    this.tickAfter(Mcv2Reporter.STEADY_NANOS);
-    this.tickAfter(Mcv2Reporter.STEADY_NANOS);
+    this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
+    this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
     assertEquals(1, this.channel.sent.size(), "the server is told once, past the wrap of the clock too");
     assertArrayEquals(SHADERS_OFF.toBytes(), this.channel.sent.getFirst());
   }
@@ -80,16 +80,16 @@ final class Mcv2ReporterTest {
   @Test
   void sendsAChangeThatHeldASecondButNotAShorterOne() {
     this.tickAfter(0);
-    this.tickAfter(Mcv2Reporter.STEADY_NANOS);
+    this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
     when(this.shaders.report()).thenReturn(SHADERS_ON);
     this.tickAfter(1);
     when(this.shaders.report()).thenReturn(SHADERS_OFF);
-    this.tickAfter(Mcv2Reporter.STEADY_NANOS);
+    this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
     assertEquals(1, this.channel.sent.size());
 
     when(this.shaders.report()).thenReturn(SHADERS_ON);
     this.tickAfter(1);
-    this.tickAfter(Mcv2Reporter.STEADY_NANOS - 1);
+    this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS - 1);
     assertEquals(1, this.channel.sent.size());
     this.tickAfter(1);
     assertEquals(2, this.channel.sent.size());
@@ -99,11 +99,11 @@ final class Mcv2ReporterTest {
   @Test
   void tellsTheServerOfANewConnectionAgain() {
     this.tickAfter(0);
-    this.tickAfter(Mcv2Reporter.STEADY_NANOS);
+    this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
     this.reporter.reset();
     this.tickAfter(1);
     assertEquals(1, this.channel.sent.size(), "the new server is told once the report held a second on it");
-    this.tickAfter(Mcv2Reporter.STEADY_NANOS);
+    this.tickAfter(Mcv2Reporter.STEADY_NANOSECONDS);
     assertEquals(2, this.channel.sent.size());
     assertArrayEquals(SHADERS_OFF.toBytes(), this.channel.sent.getLast());
   }

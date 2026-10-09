@@ -37,7 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class ShaderDecoder {
 
   /** How often the pack's layout is read again: a new pack comes with a resource reload, at most every few seconds. */
-  private static final long LAYOUT_NANOS = 1_000_000_000L;
+  private static final long LAYOUT_NANOSECONDS = 1_000_000_000L;
 
   /** The corner of a map as the game draws it, in the map's own space: its top left, just in front of the frame. */
   private static final float MAP_DEPTH = -0.01F;
@@ -61,7 +61,7 @@ final class ShaderDecoder {
 
   private final BooleanSupplier shadowPass;
 
-  private final Supplier<Optional<String>> config;
+  private final Supplier<Optional<String>> packConstants;
 
   private final LongSupplier clock;
 
@@ -88,7 +88,7 @@ final class ShaderDecoder {
    *                        draw in another order, so this stays off for it
    * @param shaderPackInUse whether Iris draws a shader pack now
    * @param shadowPass      whether Iris is drawing its shadow pass, which draws the maps again from the sun's view
-   * @param config          the text of the pack's generated layout, empty while no MCV2 pack is loaded
+   * @param packConstants   the text of the pack's generated layout, empty while no MCV2 pack is loaded
    * @param clock           nanoseconds
    * @param matrices        reads the game's matrices
    * @param output          the game's main target and the pack's chain
@@ -97,7 +97,7 @@ final class ShaderDecoder {
     final boolean testedIris,
     final BooleanSupplier shaderPackInUse,
     final BooleanSupplier shadowPass,
-    final Supplier<Optional<String>> config,
+    final Supplier<Optional<String>> packConstants,
     final LongSupplier clock,
     final GameMatrices matrices,
     final StripOutput output
@@ -105,7 +105,7 @@ final class ShaderDecoder {
     this.testedIris = testedIris;
     this.shaderPackInUse = shaderPackInUse;
     this.shadowPass = shadowPass;
-    this.config = config;
+    this.packConstants = packConstants;
     this.clock = clock;
     this.matrices = matrices;
     this.output = output;
@@ -203,8 +203,8 @@ final class ShaderDecoder {
 
   private Optional<PackLayout> layout() {
     final long now = this.clock.getAsLong();
-    if (!this.layoutKnown || now - this.layoutRead >= LAYOUT_NANOS) {
-      this.layout = this.config.get().flatMap(PackLayout::parse);
+    if (!this.layoutKnown || now - this.layoutRead >= LAYOUT_NANOSECONDS) {
+      this.layout = this.packConstants.get().flatMap(PackLayout::parse);
       this.layoutRead = now;
       this.layoutKnown = true;
     }

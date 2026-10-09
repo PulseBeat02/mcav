@@ -29,7 +29,7 @@ final class TransportStripTest {
   private static final int WIDTH = 854;
 
   /** Five rows a page at 854 pixels: screen 0 owns slots 0 to 2, screen 1 slots 3 and 4, then a descriptor row each. */
-  private static final PackLayout LAYOUT = PackLayout.parse(PackLayoutTest.config("7u, 9u", "3, 2", "0, 3", 2)).orElseThrow();
+  private static final PackLayout LAYOUT = PackLayout.parse(PackLayoutTest.packConstants("7u, 9u", "3, 2", "0, 3", 2)).orElseThrow();
 
   private static final float[] IDENTITY = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 
@@ -73,7 +73,7 @@ final class TransportStripTest {
 
   @Test
   void aPageFindsItsScreenByAllThirtyTwoBitsOfItsStream() {
-    final PackLayout layout = PackLayout.parse(PackLayoutTest.config("4294901767u", "1", "0", 1)).orElseThrow();
+    final PackLayout layout = PackLayout.parse(PackLayoutTest.packConstants("4294901767u", "1", "0", 1)).orElseThrow();
     final int[] symbols = MapFixtures.pageSymbols(0xFFFF_0007L, 0);
     final byte[] strip = TransportStrip.build(layout, WIDTH, List.of(MapFixtures.colours(symbols)), List.of(), IDENTITY, PROJECTION);
     final int word = symbols[0] | (symbols[1] << 6) | (symbols[2] << 12) | (symbols[3] << 18);

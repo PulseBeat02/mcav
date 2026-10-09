@@ -45,7 +45,7 @@ abstract class LevelRendererMixin {
     @Coerce final Object fogColor,
     final boolean renderSky,
     final boolean renderHud,
-    final CallbackInfo info
+    final CallbackInfo callback
   ) {
     Mcv2Shaders.rendered(allocator, camera);
   }

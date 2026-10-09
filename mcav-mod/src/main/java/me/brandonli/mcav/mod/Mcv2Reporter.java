@@ -31,7 +31,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class Mcv2Reporter {
 
   /** How long Iris must say the same before it is reported. */
-  static final long STEADY_NANOS = TimeUnit.SECONDS.toNanos(1);
+  static final long STEADY_NANOSECONDS = TimeUnit.SECONDS.toNanos(1);
 
   private final IrisShaders shaders;
 
@@ -75,7 +75,7 @@ final class Mcv2Reporter {
       this.seen = report;
       this.seenSince = now;
     }
-    if (Objects.equals(this.sent, report) || now - this.seenSince < STEADY_NANOS) {
+    if (Objects.equals(this.sent, report) || now - this.seenSince < STEADY_NANOSECONDS) {
       return;
     }
     this.channel.send(report.toBytes());
