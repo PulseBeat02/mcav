@@ -87,7 +87,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   /** The largest stream file played, one gibibyte: a stream is held in memory while it plays. */
   private static final long MAX_STREAM_BYTES = 1L << 30;
 
-  private static final double NANOS_PER_MILLISECOND = 1e6;
+  private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
 
   private static final double NANOS_PER_SECOND = 1e9;
 
@@ -499,7 +499,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       final long now = System.nanoTime();
       if (now - reported[0] >= interval) {
         reported[0] = now;
-        final double millisPerFrame = (now - started) / NANOS_PER_MILLISECOND / frames;
+        final double millisPerFrame = (now - started) / NANOSECONDS_PER_MILLISECOND / frames;
         sender.sendMessage(
           Message.MCV2_ENCODE_PROGRESS.build(String.format(Locale.ROOT, "%d frames, %.0f ms per frame", frames, millisPerFrame))
         );

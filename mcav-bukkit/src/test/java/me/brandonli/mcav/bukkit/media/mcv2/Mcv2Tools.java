@@ -79,7 +79,7 @@ final class Mcv2Tools {
     }
   }
 
-  private static final double NANOS_PER_MILLISECOND = 1e6;
+  private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
 
   private static final double BYTES_PER_MEGABYTE = 1048576.0;
 
@@ -143,7 +143,7 @@ final class Mcv2Tools {
       final Pool budget = new Pool(threads);
       final MCV2 encoder = budget.encoder(settings(options), Boolean.parseBoolean(options.getOrDefault("verify", "false")));
       if (options.containsKey("framebudget")) {
-        encoder.setFrameBudget((long) (Double.parseDouble(options.get("framebudget")) * NANOS_PER_MILLISECOND));
+        encoder.setFrameBudget((long) (Double.parseDouble(options.get("framebudget")) * NANOSECONDS_PER_MILLISECOND));
       }
       final Measurement measured = encode(options, source, width, height, frames, budget, encoder);
       final long heapAfter;
@@ -328,13 +328,13 @@ final class Mcv2Tools {
       frames,
       warmTimes.length,
       measured.keyframes,
-      Arrays.stream(warmTimes).average().orElse(0) / NANOS_PER_MILLISECOND,
-      sorted[sorted.length / 2] / NANOS_PER_MILLISECOND,
-      sorted[(int) Math.ceil(sorted.length * NINETY_FIFTH_PERCENTILE) - 1] / NANOS_PER_MILLISECOND,
-      sorted[sorted.length - 1] / NANOS_PER_MILLISECOND,
+      Arrays.stream(warmTimes).average().orElse(0) / NANOSECONDS_PER_MILLISECOND,
+      sorted[sorted.length / 2] / NANOSECONDS_PER_MILLISECOND,
+      sorted[(int) Math.ceil(sorted.length * NINETY_FIFTH_PERCENTILE) - 1] / NANOSECONDS_PER_MILLISECOND,
+      sorted[sorted.length - 1] / NANOSECONDS_PER_MILLISECOND,
       Arrays.stream(Arrays.copyOfRange(measured.cpu, from, frames))
         .average()
-        .orElse(0) / NANOS_PER_MILLISECOND,
+        .orElse(0) / NANOSECONDS_PER_MILLISECOND,
       Arrays.stream(Arrays.copyOfRange(measured.allocated, from, frames))
         .average()
         .orElse(0) / BYTES_PER_MEGABYTE,
