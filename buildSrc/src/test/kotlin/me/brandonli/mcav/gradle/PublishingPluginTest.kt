@@ -54,10 +54,12 @@ class PublishingPluginTest {
     @Test
     fun mutationTestJvmCanReadTheGeneratedPublication() {
         prepareProject()
+        val catalog = directory.resolve("gradle/libs.versions.toml").toFile()
+        catalog.parentFile.mkdirs()
+        Path.of("..", "gradle", "libs.versions.toml").toFile().copyTo(catalog)
         directory.resolve("build.gradle").toFile().appendText(
             """
-            apply plugin: 'info.solidsoft.pitest'
-            pitest { jvmArgs = provider { tasks.test.jvmArgs } }
+            apply plugin: 'mcav.mutation'
             tasks.register('readMutationPom', JavaExec) {
                 dependsOn 'classes', 'generatePomFileForMavenPublication'
                 classpath = sourceSets.main.runtimeClasspath

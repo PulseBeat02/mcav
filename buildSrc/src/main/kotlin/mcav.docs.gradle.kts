@@ -16,8 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import java.util.Locale
 import java.util.Properties
+import me.brandonli.mcav.gradle.HostPlatform
 import me.brandonli.mcav.gradle.DocsEnvironment
 import me.brandonli.mcav.gradle.DownloadToolArchive
 import me.brandonli.mcav.gradle.JupyterBook
@@ -30,17 +30,8 @@ plugins {
     base
 }
 
-val operatingSystem = System.getProperty("os.name").lowercase(Locale.ROOT)
-val architecture = when (val hostArchitecture = System.getProperty("os.arch")) {
-    "amd64", "x86_64" -> "x86_64"
-    "aarch64", "arm64" -> "aarch64"
-    else -> hostArchitecture
-}
-val uvTarget = architecture + when {
-    isWindows -> "-pc-windows-msvc"
-    operatingSystem.contains("mac") -> "-apple-darwin"
-    else -> "-unknown-linux-musl"
-}
+val host = HostPlatform.current()
+val uvTarget = host.uvTarget
 val uvArchive = "uv-$uvTarget" + if (isWindows) ".zip" else ".tar.gz"
 val uvPath = if (isWindows) "uv.exe" else "uv-$uvTarget/uv"
 val uvChecksums = Properties().apply {

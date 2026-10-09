@@ -1,4 +1,3 @@
-import info.solidsoft.gradle.pitest.PitestPluginExtension
 import me.brandonli.mcav.gradle.McavPublishingExtension
 
 plugins {
@@ -40,7 +39,6 @@ publishing {
     }
 }
 
-// Module scripts choose the bundled jar; publishing earlier silently selects the plain artifact.
 afterEvaluate {
     publishing.publications.create<MavenPublication>("maven") {
         groupId = "me.brandonli"
@@ -81,9 +79,6 @@ afterEvaluate {
         jvmArgs(publishedPom)
     }
     pluginManager.withPlugin("info.solidsoft.pitest") {
-        extensions.configure<PitestPluginExtension> {
-            jvmArgs.add(publishedPom)
-        }
         tasks.named("pitest") {
             dependsOn(generatedPom)
         }
