@@ -34,6 +34,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
@@ -56,7 +58,11 @@ final class MCV2SearchTest {
     return fixed == null ? System.nanoTime() : fixed.getAsLong();
   }
 
-  private static ClassFileTransformer searchClock(final Class<?> encoderType, final boolean includeBegin) {
+  private static ClassFileTransformer searchClock(
+    final Class<?> encoderType,
+    final boolean includeBegin,
+    final Set<String> clockedMethods
+  ) {
     return new ClassFileTransformer() {
       @Override
       public byte @Nullable [] transform(
@@ -86,6 +92,7 @@ final class MCV2SearchTest {
               if (!methodName.startsWith("lambda$search$") && !(includeBegin && methodName.equals("begin"))) {
                 return visitor;
               }
+              final String clockedMethod = methodName.equals("begin") ? "begin" : "search";
               return new MethodVisitor(Opcodes.ASM9, visitor) {
                 @Override
                 public void visitMethodInsn(
@@ -96,6 +103,7 @@ final class MCV2SearchTest {
                   final boolean isInterface
                 ) {
                   if (owner.equals("java/lang/System") && methodName.equals("nanoTime")) {
+                    clockedMethods.add(clockedMethod);
                     super.visitMethodInsn(opcode, MCV2SearchTest.class.getName().replace('.', '/'), "searchTime", descriptor, isInterface);
                   } else {
                     super.visitMethodInsn(opcode, owner, methodName, descriptor, isInterface);
@@ -115,10 +123,12 @@ final class MCV2SearchTest {
   void usesMeanSolidsAtTheBudgetDeadlineAndSearchesBeforeIt() throws UnmodifiableClassException {
     final Class<?> encoderType = MCV2.class;
     final Instrumentation instrumentation = PremainAttachAccess.getInstrumentation();
-    final ClassFileTransformer clock = searchClock(encoderType, false);
+    final Set<String> clockedMethods = ConcurrentHashMap.newKeySet();
+    final ClassFileTransformer clock = searchClock(encoderType, false, clockedMethods);
     instrumentation.addTransformer(clock, true);
     try {
       instrumentation.retransformClasses(encoderType);
+      assertEquals(Set.of("search"), clockedMethods);
       final byte[] source = new byte[32 * 32 * 3];
       for (int row = 0; row < 32; row++) {
         for (int column = 0; column < 32; column++) {
@@ -168,10 +178,12 @@ final class MCV2SearchTest {
   void fallsBackDirectlyAtZeroLambdaWhenTheFrameExceedsItsLimit() throws UnmodifiableClassException, Mcv2Exception {
     final Class<?> encoderType = MCV2.class;
     final Instrumentation instrumentation = PremainAttachAccess.getInstrumentation();
-    final ClassFileTransformer clock = searchClock(encoderType, true);
+    final Set<String> clockedMethods = ConcurrentHashMap.newKeySet();
+    final ClassFileTransformer clock = searchClock(encoderType, true, clockedMethods);
     instrumentation.addTransformer(clock, true);
     try {
       instrumentation.retransformClasses(encoderType);
+      assertEquals(Set.of("begin", "search"), clockedMethods);
       final long[] instants = { 0, 0, 0, 0, 100 };
       final AtomicInteger readings = new AtomicInteger();
       SEARCH_TIME.set(() -> instants[Math.min(readings.getAndIncrement(), instants.length - 1)]);
