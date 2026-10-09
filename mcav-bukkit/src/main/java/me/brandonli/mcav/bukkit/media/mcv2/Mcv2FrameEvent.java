@@ -27,21 +27,12 @@ import jdk.jfr.Name;
 import jdk.jfr.Timespan;
 import jdk.jfr.Timestamp;
 
-/**
- * One frame of an MCV2 screen for Java Flight Recorder: when it reached the result, how long its encode took, when its
- * pages left for the viewers, and how many viewers took it. It costs nothing unless a recording is running; a server
- * started with {@code -XX:StartFlightRecording} records one per frame, which is how the end-to-end latency, the frames
- * held back per viewer and the backlog are measured. The fingerprint is the luma of 24 pixels of the frame's row 16, one
- * every 32 pixels from x = 16: the centres of the first 24 32-pixel blocks, enough to tell apart frames that carry a
- * block counter there.
- */
 @Name("me.brandonli.mcav.Mcv2Frame")
 @Label("MCV2 Frame")
 @Category({ "mcav", "MCV2" })
 @Description("An encoded MCV2 frame: when it arrived, how long it took, and which viewers it reached")
 final class Mcv2FrameEvent extends Event {
 
-  /** The pixels of the fingerprint. */
   static final int FINGERPRINT_PIXELS = 24;
 
   @Label("Frame Id")
@@ -88,14 +79,6 @@ final class Mcv2FrameEvent extends Event {
   @Label("Fingerprint")
   String fingerprint = "";
 
-  /**
-   * The fingerprint of a frame: two hex digits per sampled pixel.
-   *
-   * @param rgb   the frame, row-major RGB
-   * @param width its width
-   * @param height its height
-   * @return the fingerprint, shorter for a frame narrower than 24 blocks or shorter than 17 rows
-   */
   static String fingerprint(final byte[] rgb, final int width, final int height) {
     final StringBuilder builder = new StringBuilder(2 * FINGERPRINT_PIXELS);
 

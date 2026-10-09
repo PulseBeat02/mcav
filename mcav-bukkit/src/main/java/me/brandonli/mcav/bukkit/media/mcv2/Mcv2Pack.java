@@ -63,7 +63,7 @@ public final class Mcv2Pack {
   /** The resource pack format of Minecraft 26.3. */
   public static final int PACK_FORMAT = 97;
 
-  /** The gpu-codec revision from which the decoder originated. */
+  /** The gpu-codec commit recorded in the pack manifest. */
   public static final String CODEC_COMMIT = "85445433aeb9f8a35a5ce528d47d8829976d1401";
 
   /**
@@ -76,10 +76,8 @@ public final class Mcv2Pack {
 
   private static final String CHAIN_TEMPLATE = "/mcav/mcv2/chain.json";
 
-  /** The rows of the debug view's status squares right of a screen's picture: a picture shorter still takes them. */
   private static final int DEBUG_SQUARES = 24;
 
-  /** The rows the debug view leaves between the pictures of two screens. */
   private static final int DEBUG_GAP = 8;
 
   private static final String POST_CHAIN = "assets/minecraft/post_effect/entity_outline.json";
@@ -88,7 +86,6 @@ public final class Mcv2Pack {
 
   private static final String POST = "assets/mcav/shaders/post/";
 
-  /** The include a screen's passes name, which each screen's copy renames to its own. */
   private static final String SCREEN_INCLUDE = "#include <mcav:mcv2_screen.glsl>";
 
   private static final List<String> FILES = List.of(
@@ -100,7 +97,6 @@ public final class Mcv2Pack {
     POST + "mcv2_outline.fsh"
   );
 
-  /** The passes every screen has its own copy of, in {@code post/s<screen>/}. */
   private static final List<String> SCREEN_FILES = List.of(
     "mcv2_bytes.fsh",
     "mcv2_crc.fsh",
@@ -116,16 +112,12 @@ public final class Mcv2Pack {
 
   private static final int BYTES_WIDTH = 128;
 
-  /** The chunks of 192 bytes the CRC pass splits each page slot's 12,288 strip bytes into. */
   private static final int CRC_CHUNKS = 64;
 
-  /** The pages target's texels per page slot. */
   private static final int PAGE_TEXELS = 4;
 
-  /** The bytes target holds four bytes to a texel. */
   private static final int TEXEL_BYTES = 4;
 
-  /** The resolve pass works on cells of 8x8 pixels, the smallest leaf. */
   private static final int CELL_PIXELS = Mcv2Decoder.SMALLEST_BLOCK;
 
   private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
@@ -198,7 +190,6 @@ public final class Mcv2Pack {
     Preconditions.checkArgument(oneOutline, "The screens of a pack share one outline colour");
   }
 
-  /** The description shown in the client's pack list. */
   static String describe(final List<Mcv2Configuration> screens) {
     final String sizes = screens
       .stream()
@@ -228,23 +219,16 @@ public final class Mcv2Pack {
     }
   }
 
-  /** The include of a screen's constants. */
   private static String screenInclude(final int screen) {
     return "mcv2_screen_" + screen + ".glsl";
   }
 
-  /**
-   * A screen's copy of a pass: the pass with the screen's constants in place of the include every pass names.
-   *
-   * @throws IllegalStateException if the pass names no screen include
-   */
   static String screenCopy(final byte[] source, final int screen) {
     final String text = new String(source, StandardCharsets.UTF_8);
     Preconditions.checkState(text.contains(SCREEN_INCLUDE), "A screen's pass must include mcv2_screen.glsl");
     return text.replace(SCREEN_INCLUDE, "#include <mcav:" + screenInclude(screen) + ">");
   }
 
-  /** The post chain: every screen's decoding passes, then every screen's drawing passes, then the outline's. */
   private static String postChain(final List<Mcv2Configuration> screens) {
     final String template = new String(read(Mcv2Pack.class.getResourceAsStream(CHAIN_TEMPLATE), CHAIN_TEMPLATE), StandardCharsets.UTF_8);
     final JsonObject targets = new JsonObject();
@@ -273,7 +257,6 @@ public final class Mcv2Pack {
     return GSON.toJson(chain);
   }
 
-  /** The chain template with one screen's index and target sizes filled in. */
   private static String fill(final String template, final Mcv2Configuration configuration, final int screen) {
     final int slots = configuration.getPageSlots();
     return template
@@ -288,23 +271,19 @@ public final class Mcv2Pack {
       .replace("@CELLS_HEIGHT@", Integer.toString(cellsHeight(configuration) + 1));
   }
 
-  /** The rows of the bytes target: four bytes to a texel, enough for every byte of the page slots. */
   private static int bytesHeight(final Mcv2Configuration configuration) {
     final int bytes = configuration.getPageSlots() * TransportPages.capacity();
     return (bytes / TEXEL_BYTES + BYTES_WIDTH - 1) / BYTES_WIDTH;
   }
 
-  /** The resolve pass's columns: one per 8 pixels of the video; the frame row's one texel fits any width. */
   static int cellsWidth(final Mcv2Configuration configuration) {
     return (configuration.getVideoWidth() + CELL_PIXELS - 1) / CELL_PIXELS;
   }
 
-  /** The resolve pass's rows of cells, one per 8 pixels of the video; its frame row follows them. */
   static int cellsHeight(final Mcv2Configuration configuration) {
     return (configuration.getVideoHeight() + CELL_PIXELS - 1) / CELL_PIXELS;
   }
 
-  /** The constants every shader of the pack shares: the screens' streams and places in the strip. */
   static String config(final List<Mcv2Configuration> screens, final boolean showsDebugView) {
     final int count = screens.size();
     final int color = screens.getFirst().getOutlineColor().value();
@@ -343,12 +322,6 @@ public final class Mcv2Pack {
     );
   }
 
-  /**
-   * One screen's constants, which its copy of the passes includes.
-   *
-   * @param debugTop the row below the strip where the debug view draws this screen's picture, under the pictures of
-   *                 the screens before it
-   */
   private static String screenConfig(final Mcv2Configuration configuration, final int screen, final int firstSlot, final int debugTop) {
     return guarded(
       "MCAV_MCV2_SCREEN_GLSL",
@@ -371,12 +344,6 @@ public final class Mcv2Pack {
     );
   }
 
-  /**
-   * The RGB the client uploads for each symbol's map colour, from the map palette: symbol s is packed map colour
-   * s + 4.
-   *
-   * @return 64 RGB values
-   */
   static int[] palette() {
     final int[] colors = new int[MapAlphabet.SIZE];
     for (int symbol = 0; symbol < colors.length; symbol++) {
@@ -385,13 +352,6 @@ public final class Mcv2Pack {
     return colors;
   }
 
-  /**
-   * The alphabet table of the shaders.
-   *
-   * @param colors the RGB of every symbol
-   * @return the include
-   * @throws IllegalStateException if two symbols share a colour, so the shader could not tell them apart
-   */
   static String alphabet(final int[] colors) {
     final Set<Integer> seen = new HashSet<>();
     final StringBuilder table = new StringBuilder();
@@ -426,18 +386,11 @@ public final class Mcv2Pack {
     );
   }
 
-  /**
-   * Wraps a generated include in its guard: Minecraft compiles the pack's shaders with shaderc, which inserts an
-   * include each time a shader or another include names it.
-   */
+  // Minecraft's shaderc inserts an include every time it is named, including through another include.
   private static String guarded(final String guard, final String body) {
     return "#ifndef %s\n#define %s\n\n%s\n#endif\n".formatted(guard, guard, body);
   }
 
-  /**
-   * What the pack decodes, for whoever inspects it: only what the pack depends on, so screens encoded with other
-   * profiles share the same pack.
-   */
   private static String manifest(final List<Mcv2Configuration> screens) {
     final JsonObject manifest = new JsonObject();
     manifest.addProperty("codec", "MCV2");

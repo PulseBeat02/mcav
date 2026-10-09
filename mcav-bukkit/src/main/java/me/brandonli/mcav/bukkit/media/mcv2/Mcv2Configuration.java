@@ -60,10 +60,6 @@ public final class Mcv2Configuration {
   /** The largest stream id: an anchor carries it in two six-bit symbols. */
   public static final long MAX_STREAM_ID = 4095;
 
-  /**
-   * The page slots of a screen that configures none, when it has that many maps: all of them, 98 KB a frame. A live
-   * gameplay frame takes 46 KB on average at 60 fps, a keyframe more, which the encoder brings under the slots' bound.
-   */
   private static final int DEFAULT_PAGE_SLOTS = MAX_PAGE_SLOTS;
 
   /**

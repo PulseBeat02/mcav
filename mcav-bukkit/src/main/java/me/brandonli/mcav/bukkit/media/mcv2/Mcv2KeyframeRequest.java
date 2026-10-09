@@ -19,35 +19,19 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Whether the next frame of a channel must be a keyframe. Whoever needs one requests it, such as the main thread when a
- * viewer is shown the screen, and the encoder's thread takes the requests for every frame it encodes.
- */
 final class Mcv2KeyframeRequest {
 
   // Separate reads and clears can lose a concurrent request.
   private final AtomicBoolean requested;
 
-  /**
-   * Creates the requests of a channel, with none waiting.
-   */
   Mcv2KeyframeRequest() {
     this.requested = new AtomicBoolean();
   }
 
-  /**
-   * Asks for the next frame to be a keyframe.
-   */
   void request() {
     this.requested.set(true);
   }
 
-  /**
-   * Takes the requests for the next frame. Every request is taken by exactly one frame: the next one, or the one after
-   * it when the request comes while this frame takes them.
-   *
-   * @return true if the frame should be a keyframe
-   */
   boolean take() {
     return this.requested.getAndSet(false);
   }

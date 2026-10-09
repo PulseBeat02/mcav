@@ -1525,7 +1525,7 @@ void MCV2_PREFIX(fit)(const float *values, int32_t size, const float *matrix, fl
 }
 
 void MCV2_PREFIX(cluster)(const int32_t *source, int32_t size, int32_t *endpoints) {
-  // The sampled clustering kernel consumes two vectors per row.
+  // Blocks narrower than two vectors would make the sampled clustering kernel overread.
   MCV2_HAND_OFF_BELOW(2 * MCV2_NARROW_BELOW, cluster, source, size, endpoints)
   mcv2::cluster(source, size, endpoints);
 }
@@ -1552,7 +1552,7 @@ void MCV2_PREFIX(load_source)(const uint8_t *image, int32_t width, int32_t heigh
 }
 
 void MCV2_PREFIX(halve)(const int32_t *block, int32_t size, int32_t *out) {
-  // The halving kernel consumes two vectors per row.
+  // Blocks narrower than two vectors would make the halving kernel overread.
   MCV2_HAND_OFF_BELOW(2 * MCV2_NARROW_BELOW, halve, block, size, out)
   mcv2::halve(block, size, out);
 }

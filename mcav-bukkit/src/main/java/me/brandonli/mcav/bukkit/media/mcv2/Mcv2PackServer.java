@@ -132,24 +132,15 @@ public final class Mcv2PackServer {
 
   private static final long SHUTDOWN_SECONDS = 10;
 
-  /**
-   * How long the slot of a screen that stopped stays in the pack, free for the next screen of its size, in
-   * milliseconds: a new video on the same wall takes it without a reload, and a strip nobody needs goes after a minute.
-   */
   static final long GRACE_MILLIS = 60_000;
 
   private static final long MILLIS_PER_TICK = 50;
 
-  /** The pack id followed while no pack is served: no client reports a status for it. */
   private static final UUID NO_PACK = new UUID(0, 0);
 
-  /** The page maps every slot of a full pack takes, past a screen's first page map. */
   private static final int PAGE_MAPS = Mcv2Pack.MAX_SCREENS * Mcv2Configuration.MAX_PAGE_SLOTS;
 
-  /**
-   * A hundred frame ids a second, more than any screen sends frames, so a screen that takes over a slot starts ahead of
-   * every frame id the slot's earlier screens sent.
-   */
+  // A reused slot must start ahead of the ids sent by its previous screen.
   private static final long FRAME_ID_MILLIS = 10;
 
   private final Path folder;
@@ -166,7 +157,6 @@ public final class Mcv2PackServer {
 
   private final Mcv2Viewers viewers;
 
-  /** Tracks nobody: the channel of a size no slot was free for, whose viewers all see the dithered maps. */
   private final Mcv2Viewers nobody;
 
   private final List<Slot> slots;
@@ -175,12 +165,10 @@ public final class Mcv2PackServer {
 
   private final Map<UUID, Long> offered;
 
-  /** The hostings started and not stopped yet, which the writer thread starts and stops. */
   private final List<PackHosting> running;
 
   private @Nullable Published current;
 
-  /** The number of the newest pack asked for; a pack asked for with an older number is not written or served. */
   private final AtomicInteger generation;
 
   private boolean flushing;
@@ -193,25 +181,14 @@ public final class Mcv2PackServer {
 
   private @Nullable Listener listener;
 
-  /** What a slot decodes: the pack depends on nothing else of a screen. */
   private record Geometry(int width, int height, int pageSlots) {
     static Geometry of(final Mcv2Configuration configuration) {
       return new Geometry(configuration.getVideoWidth(), configuration.getVideoHeight(), configuration.getPageSlots());
     }
   }
 
-  /**
-   * A pack that is hosted.
-   *
-   * @param generation the number it was asked for with
-   * @param id         its id, derived from its hash
-   * @param hosting    where the players download it
-   * @param request    what the players are sent
-   * @param screens    its slots, for the log
-   */
   private record Published(int generation, UUID id, PackHosting hosting, ResourcePackRequest request, String screens) {}
 
-  /** A slot of the pack: its stream id, what it decodes, and the screen that plays in it. */
   private static final class Slot {
 
     private final long streamId;
@@ -222,13 +199,10 @@ public final class Mcv2PackServer {
 
     private @Nullable Lease holder;
 
-    /** The playing screen that left this slot's size last, which takes it back without a change of the pack. */
     private @Nullable Lease spareOf;
 
-    /** When the slot was left, as a count of every slot left. */
     private long released;
 
-    /** When the slot was left, in the server's milliseconds. */
     private long releasedAt;
 
     private Slot(final long streamId, final Mcv2Configuration configuration) {
@@ -375,7 +349,6 @@ public final class Mcv2PackServer {
     return lease;
   }
 
-  /** Asks the viewers of a screen that just started to load the pack, unless a changed pack is on its way. */
   private synchronized void offerViewers(final Lease lease) {
     final Published pack = this.current;
     if (lease.closed || pack == null || pack.generation() != this.generation.get()) {
@@ -389,15 +362,10 @@ public final class Mcv2PackServer {
     }
   }
 
-  /**
-   * The first page map of a screen in a slot: every slot sends its pages on maps of its own, from the screen's first
-   * page map on, so two screens that play at once never write each other's pages.
-   */
   private static int pageMapOf(final Mcv2Configuration configuration, final Slot slot) {
     return configuration.getPageMap() + (int) (slot.streamId - 1) * Mcv2Configuration.MAX_PAGE_SLOTS;
   }
 
-  /** Finds a slot for a screen, changing the pack if it must; null if every slot plays. */
   private @Nullable Slot acquire(final Mcv2Configuration configuration) {
     final Geometry geometry = Geometry.of(configuration);
     Slot spareOfThatSize = null;
@@ -443,7 +411,6 @@ public final class Mcv2PackServer {
     return changed;
   }
 
-  /** The lowest stream id no slot of the pack has; the pack has fewer than {@link Mcv2Pack#MAX_SCREENS} slots. */
   private long unusedStreamId() {
     long streamId = 1;
     while (this.hasStreamId(streamId)) {
@@ -461,7 +428,6 @@ public final class Mcv2PackServer {
     return false;
   }
 
-  /** Frees a slot a screen left for good: any screen may take it, and it leaves the pack once its grace is over. */
   private void free(final Slot slot) {
     slot.holder = null;
     slot.spareOf = null;
@@ -470,7 +436,6 @@ public final class Mcv2PackServer {
     this.trimLater(GRACE_MILLIS);
   }
 
-  /** Asks for {@link #trim()} after a delay, unless one is asked for already or nothing is served any more. */
   private void trimLater(final long delayMillis) {
     if (this.trimming || this.stopped) {
       return;
@@ -484,10 +449,6 @@ public final class Mcv2PackServer {
     Bukkit.getScheduler().runTaskLater(plugin, this::trim, ticks);
   }
 
-  /**
-   * Takes the slots that were free for their whole grace out of the pack, on the main thread, and asks again for the
-   * slots whose grace is not over yet.
-   */
   private synchronized void trim() {
     this.trimming = false;
     if (this.stopped) {
@@ -517,10 +478,6 @@ public final class Mcv2PackServer {
     }
   }
 
-  /**
-   * Asks for the pack of the slots as they are at the end of the tick, so screens that start together change the pack
-   * once; it is written off the main thread and served once hosted.
-   */
   private void publish() {
     this.generation.incrementAndGet();
     if (!this.flushing) {
@@ -546,7 +503,6 @@ public final class Mcv2PackServer {
     this.writer.execute(() -> this.write(wanted, screens));
   }
 
-  /** Writes, hashes and hosts a pack, on the writer thread, then serves it on the main thread. */
   private void write(final int wanted, final List<Mcv2Configuration> screens) {
     if (this.stopped || wanted != this.generation.get()) {
       return;
@@ -556,6 +512,7 @@ public final class Mcv2PackServer {
     final Published published;
     try {
       Mcv2Pack.write(screens, this.showsDebugView, zip);
+      // The client checks a downloaded pack against its SHA-1.
       final String sha1 = hash(zip, "SHA-1");
       final UUID id = UUID.nameUUIDFromBytes(("mcav-mcv2:" + sha1).getBytes(StandardCharsets.UTF_8));
       final PackHosting host = this.host(zip);
@@ -574,7 +531,6 @@ public final class Mcv2PackServer {
     Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), () -> this.serve(published));
   }
 
-  /** Starts hosting a pack, on the writer thread. */
   private PackHosting host(final Path zip) {
     final PackHosting host = this.hosting.apply(zip);
     if (host instanceof HttpHosting) {
@@ -586,10 +542,6 @@ public final class Mcv2PackServer {
     return host;
   }
 
-  /**
-   * Serves a pack that was hosted, unless a newer one was asked for meanwhile: the players are asked to remove the
-   * pack before, which nobody counts as loaded any more, and the viewers are offered this one.
-   */
   private synchronized void serve(final Published published) {
     if (this.stopped || published.generation() != this.generation.get()) {
       this.retireLater(published);
@@ -613,10 +565,6 @@ public final class Mcv2PackServer {
     }
   }
 
-  /**
-   * Asks every player to remove the pack once it has no slot left: no screen plays, so nobody needs its strip. The
-   * next screen brings a new pack.
-   */
   private void withdraw() {
     final Published old = this.current;
     if (old == null) {
@@ -632,7 +580,6 @@ public final class Mcv2PackServer {
     this.retireLater(old);
   }
 
-  /** Asks a player to load the pack, unless their client already answered for it. */
   private void offer(final Player player, final Published pack) {
     final UUID uuid = player.getUniqueId();
     if (this.viewers.getState(uuid) != null) {
@@ -648,7 +595,6 @@ public final class Mcv2PackServer {
     this.offered.remove(player);
   }
 
-  /** Offers the pack to a player who just joined or changed world, on the next tick, once they are in the world. */
   private void offerLater(final Player player) {
     Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), () -> this.offerIfWatching(player));
   }
@@ -669,12 +615,6 @@ public final class Mcv2PackServer {
     return false;
   }
 
-  /**
-   * Logs how long a client took from the offer to the pack loaded: the download and the reload a new pack costs a
-   * player.
-   *
-   * @return the time in milliseconds, or -1 if the event does not report the served pack loaded after an offer
-   */
   synchronized long handleStatus(final PlayerResourcePackStatusEvent event) {
     final Published pack = this.current;
     if (pack == null || !pack.id().equals(event.getID()) || event.getStatus() != PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) {
@@ -691,10 +631,6 @@ public final class Mcv2PackServer {
     return took;
   }
 
-  /**
-   * Warns a player with a modded client, and the log, that shaders may keep MCV2 from decoding, unless their MCV2 client
-   * mod reported their shaders, which the screens then follow.
-   */
   private void adviseModdedViewer(final Player player) {
     final String brand = player.getClientBrandName();
     if (brand == null || "vanilla".equals(brand) || this.viewers.hasShaderReport(player.getUniqueId())) {
@@ -704,7 +640,6 @@ public final class Mcv2PackServer {
     player.sendMessage(Component.text(MODDED_CLIENT_ADVISORY, NamedTextColor.YELLOW));
   }
 
-  /** Stops hosting a pack that is not served, and deletes it, on the writer thread unless it was shut down. */
   private void retireLater(final Published published) {
     try {
       this.writer.execute(() -> this.retire(published));
@@ -730,7 +665,6 @@ public final class Mcv2PackServer {
     this.running.clear();
   }
 
-  /** Deletes the packs an earlier run left, on the writer thread. */
   private void clearFolder() {
     try {
       Files.createDirectories(this.folder);
@@ -775,7 +709,6 @@ public final class Mcv2PackServer {
     }
   }
 
-  /** The slots of a pack, for the log. */
   static String describe(final List<Mcv2Configuration> screens) {
     return screens
       .stream()
@@ -791,13 +724,6 @@ public final class Mcv2PackServer {
       .collect(Collectors.joining(", ", "slots ", ""));
   }
 
-  /**
-   * The hash of a file; the client checks the pack it downloads against its SHA-1.
-   *
-   * @param file      the file
-   * @param algorithm the digest algorithm
-   * @return the hash as lowercase hexadecimal
-   */
   static String hash(final Path file, final String algorithm) {
     try (final InputStream input = Files.newInputStream(file)) {
       final MessageDigest digest = MessageDigest.getInstance(algorithm);
@@ -849,7 +775,6 @@ public final class Mcv2PackServer {
       this.playing = slot;
     }
 
-    /** The spare it left, unless a new screen took it meanwhile. */
     private @Nullable Slot ownSpare() {
       final Slot left = this.spare;
       return left != null && left.spareOf == this ? left : null;
@@ -899,7 +824,7 @@ public final class Mcv2PackServer {
           }
           slot.spareOf = null;
           slot.holder = this;
-          // Retain the previous slot so stepping back needs no pack reload.
+          // Returning to this size must work without another pack reload.
           this.playing.holder = null;
           this.playing.spareOf = this;
           this.playing.released = ++Mcv2PackServer.this.releases;

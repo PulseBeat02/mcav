@@ -1472,13 +1472,12 @@ public final class MCV2 {
 
   static final Map<String, String> NATIVE_DIGESTS = Natives.digests(MCV2.class.getResourceAsStream(NATIVE_RESOURCES + "SHA256SUMS"));
 
-  /** The dispatch levels of the library, as bits of its {@code mcv2_cpu_levels} and in its symbols' names. */
   enum Level {
     SCALAR(1, "scalar"),
     SSE2(16, "sse2"),
     SSE41(2, "sse41"),
     AVX2(4, "avx2"),
-    /** The AVX-512 of Ice Lake and later: F, DQ, BW, VL, VBMI, VBMI2, VNNI and BITALG. */
+    // This level requires Ice Lake's F, DQ, BW, VL, VBMI, VBMI2, VNNI and BITALG extensions.
     AVX512(32, "avx512"),
     NEON(8, "neon"),
     SVE256(64, "sve256"),
@@ -1502,7 +1501,6 @@ public final class MCV2 {
     }
   }
 
-  /** A null binding selects Java; failed marks an unexpected fallback. */
   record Resolution(@Nullable Binding binding, int levels, String description, boolean failed) {
     private static final Supplier<Kernels> JAVA = JavaKernels::new;
 
@@ -1522,19 +1520,14 @@ public final class MCV2 {
 
     private static final Pattern DIGEST_ENTRY = Pattern.compile("([0-9a-f]{64})  ((?:linux|macos|windows)-(?:x86_64|aarch64))/(.+)");
 
-    /** The library interface these bindings are written for, {@code MCV2_ABI}. */
     static final int ABI = 5;
 
-    /** The system property naming the highest level to use, for measurements. */
     private static final String LEVEL_PROPERTY = "mcv2.native.level";
 
-    /** Where Linux gives a process its auxiliary vector, which holds the processor's features. */
     private static final Path AUXV = Path.of("/proc/self/auxv");
 
-    /** The auxiliary vector's entry of the processor's features, {@code AT_HWCAP}. */
     private static final long AT_HWCAP = 16;
 
-    /** Each architecture's widest level first; scalar runs only when asked for, as every processor runs SSE2 or NEON. */
     private static final Level[] PREFERENCE = {
       Level.AVX512,
       Level.AVX2,
@@ -1901,10 +1894,7 @@ public final class MCV2 {
     }
   }
 
-  /**
-   * The kernels in the native library, at one level. Calls use the Java arrays themselves ({@link Linker.Option#critical}),
-   * without native allocation, after every size, span and offset is checked here.
-   */
+  // Critical downcalls pass the Java arrays to native code unchecked, so every size, span and offset is checked here.
   private static final class NativeKernels implements Kernels {
 
     private static final int MAX_COORDINATE = 1 << 20;
@@ -2983,12 +2973,6 @@ public final class MCV2 {
       return group;
     }
 
-    /**
-     * Chooses half the available processors, bounded to 1 through MAX_THREADS.
-     *
-     * @param processors available processor count
-     * @return default worker count
-     */
     static int defaultThreads(final int processors) {
       return Math.min(MAX_THREADS, Math.max(1, processors / 2));
     }

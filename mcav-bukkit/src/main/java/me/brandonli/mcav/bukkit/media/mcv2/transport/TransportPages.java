@@ -43,7 +43,6 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
  */
 public final class TransportPages {
 
-  /** A map's side, in symbols: the wire model sends whole rows of it. */
   static final int MAP_SIDE = 128;
 
   /** Symbols of one page: a full 128x128 map. */

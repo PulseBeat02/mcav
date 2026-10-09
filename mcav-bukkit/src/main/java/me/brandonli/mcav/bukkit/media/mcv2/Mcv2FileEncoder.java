@@ -174,16 +174,6 @@ public final class Mcv2FileEncoder {
     return open(new FFmpegFrameGrabber(video.toFile()), video.toString(), width, height);
   }
 
-  /**
-   * Starts a grabber that decodes frames scaled to a size into RGB.
-   *
-   * @param grabber the grabber, closed if it cannot start
-   * @param name    what it decodes, for the error message
-   * @param width   the width of the frames
-   * @param height  the height of the frames
-   * @return the frames
-   * @throws IOException if the grabber cannot start
-   */
   static FrameReader open(final FFmpegFrameGrabber grabber, final String name, final int width, final int height) throws IOException {
     grabber.setPixelFormat(avutil.AV_PIX_FMT_RGB24);
     grabber.setImageWidth(width);
@@ -203,11 +193,10 @@ public final class Mcv2FileEncoder {
     try {
       grabber.close();
     } catch (final FrameGrabber.Exception exception) {
-      // Preserve the failure to open the input.
+      // A close failure must not hide the error that prevented opening the input.
     }
   }
 
-  /** The frames an FFmpeg grabber decodes. */
   static final class GrabberReader implements FrameReader {
 
     private final FFmpegFrameGrabber grabber;
@@ -247,14 +236,6 @@ public final class Mcv2FileEncoder {
     }
   }
 
-  /**
-   * Copies a decoded RGB frame's rows, which may be padded, into tightly packed bytes.
-   *
-   * @param frame  the frame
-   * @param rgb    where the pixels go
-   * @param width  the frame's width
-   * @param height the frame's height
-   */
   static void copy(final Frame frame, final byte[] rgb, final int width, final int height) {
     Preconditions.checkState(frame.imageWidth == width && frame.imageHeight == height, "The frame is not %sx%s", width, height);
     final ByteBuffer pixels = ((ByteBuffer) frame.image[0]).duplicate();

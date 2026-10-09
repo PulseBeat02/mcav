@@ -186,12 +186,6 @@ public final class Mcv2Viewers {
     return this.getState(player) == PackState.LOADED && !this.shaderReports.blocksDecoding(player);
   }
 
-  /**
-   * Checks whether a player's MCV2 client mod reported their shader state since they joined.
-   *
-   * @param player the player's UUID
-   * @return true if the server knows the player's shader state from their mod
-   */
   boolean hasShaderReport(final UUID player) {
     return this.shaderReports.hasReported(player);
   }

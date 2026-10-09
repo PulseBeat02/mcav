@@ -97,7 +97,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Mcv2Result.class);
 
-  /** How long a release waits for the encoding thread to stop. */
   private static final long JOIN_SECONDS = 10;
 
   // Vanilla can initialize a map after its first snapshot; unchanged deltas cannot repair it.
@@ -105,7 +104,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private static final double NANOS_PER_MILLISECOND = 1e6;
 
-  /** The link counts {@link #linkCounts} sums, and where each is. */
   private static final int LINK_COUNTS = 3;
 
   private static final int SENT = 0;
@@ -116,7 +114,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private static final String FRAME_TOO_LARGE = "MCV2 frame {} of {} bytes needs more than {} pages; it is not sent";
 
-  /** A pacing step, as the pacer describes it to the pacing listener too. */
   private static final String PACING_STEP = "{}";
 
   private static final String ENCODER_FAILED = "The MCV2 screen stops: encoding a frame failed";
@@ -125,7 +122,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private static final double NANOS_PER_SECOND = 1e9;
 
-  /** The frames a screen may take at once after a pause: more than one, so a frame arriving early is not lost, fewer than two. */
+  // Above one so a frame arriving early is kept, below two so a pause cannot release a burst.
   private static final double FRAME_CREDIT_CAP = 1.5;
 
   private static final double DEFAULT_COST = 1;
@@ -150,23 +147,18 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private final LongSupplier clock;
 
-  /** The screen's frame rate per nanosecond of the clock. */
   private final double framesPerNano;
 
-  /** The frames the screen may take now; one is taken for every frame shown. */
   private double frameCredit = FRAME_CREDIT_CAP;
 
   private long lastFrame = Long.MIN_VALUE;
 
   private long lastFallbackRefresh;
 
-  /** The settings the screen steps down through, from the ones it was asked for: each a faster search. */
   private final List<Settings> ladder;
 
-  /** The pacer's preset of each of those settings, in the same order. */
   private final List<Mcv2Pacer.Preset> presets;
 
-  /** Makes the encoder of a preset in the screen's encoder budget. */
   private final Function<Settings, MCV2> encoders;
 
   private final Mcv2LatestFrame<Arrival> pending;
@@ -177,10 +169,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private @Nullable Thread sender;
 
-  /** The budget the screen encodes in and the hand-off to its sender, while the result runs. */
   private @Nullable Pipeline pipeline;
 
-  /** The frames handed to the sender, and the ones it has verified and sent, for draining the pipeline. */
   private long handed;
 
   private long delivered;
@@ -201,7 +191,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private @Nullable Resizer resizer;
 
-  /** The screen the video is shown on now: its configuration, whose video size may change, and its channel. */
   private record Screen(Mcv2Configuration configuration, Mcv2Channel channel) {}
 
   /**
@@ -220,10 +209,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     Mcv2Channel resize(Mcv2Configuration configuration);
   }
 
-  /** The dithered maps of the viewers without the pack, and how they are dithered. */
   private record Fallback(CompressedMapResult result, DitherAlgorithm algorithm) {}
 
-  /** A frame the video handed over, with the wall-clock time it arrived and the preset of the rung it arrived on. */
   static final class Arrival {
 
     private final byte[] rgb;
@@ -245,13 +232,10 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  /** A frame searched and written, on its way to the sender, which verifies and sends it. */
   private record Handoff(MCV2 encoder, MCV2.Pending pending, long frameId, Arrival source) {}
 
-  /** The budget a started result encodes in, and where its screen's thread hands frames to its sender. */
   private record Pipeline(Pool budget, BlockingQueue<Handoff> queue) {}
 
-  /** An encoded frame on its way to the viewers, with its encoder statistics and where it came from. */
   private static final class Delivery {
 
     private final byte[] frame;
@@ -376,12 +360,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     this(configuration, channel, fallbackAlgorithm, System::nanoTime, null);
   }
 
-  /**
-   * Constructs a result with the clock its pacer reads and the executor that dithers the maps of the viewers without
-   * the pack.
-   *
-   * @param dithering runs the dithering, or null for a thread of the result's own, stopped on release
-   */
   Mcv2Result(
     final Mcv2Configuration configuration,
     final Mcv2Channel channel,
@@ -392,13 +370,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     this(configuration, channel, fallbackAlgorithm, clock, dithering, settings -> configuration.getEncoderPool().encoder(settings, true));
   }
 
-  /**
-   * Constructs a result with the clock its pacer reads, the executor that dithers the maps of the viewers without the
-   * pack, and what makes the encoder of each preset.
-   *
-   * @param dithering runs the dithering, or null for a thread of the result's own, stopped on release
-   * @param encoders  makes the encoder of a preset
-   */
   Mcv2Result(
     final Mcv2Configuration configuration,
     final Mcv2Channel channel,
@@ -435,7 +406,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     this.encoders = encoders;
   }
 
-  /** The settings a screen steps down through: the ones it was asked for, then each faster search's. */
   private static List<Settings> ladder(final Settings settings) {
     if (settings.fast()) {
       return List.of(settings);
@@ -444,7 +414,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     return List.of(settings, new Settings(lambda, true));
   }
 
-  /** The pacer's presets of a ladder: one without a name when there is nothing to step through. */
   private static List<Mcv2Pacer.Preset> presets(final List<Settings> ladder) {
     if (ladder.size() == 1) {
       return List.of(Mcv2Pacer.Preset.ONLY);
@@ -456,7 +425,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     return List.copyOf(presets);
   }
 
-  /** The cost estimate of each search threshold set. */
   private static Mcv2Pacer.Preset preset(final Settings settings) {
     if (settings.fast()) {
       return new Mcv2Pacer.Preset("FAST", FAST_COST);
@@ -672,15 +640,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     return true;
   }
 
-  /**
-   * Whether a frame arriving now is the screen's: a client decodes at most one frame for every frame it draws, and a
-   * frame it never got breaks the frames predicted from it until the next keyframe, so a source faster than the
-   * screen's rate, such as a browser painting at hundreds of frames a second, is thinned to it. A frame is earned every
-   * frame interval, and a few earned while nothing arrived do not add up to a burst.
-   *
-   * @param now the clock, in nanoseconds
-   * @return true if the frame is shown
-   */
+  // A client decodes at most one frame per frame it draws, and a frame it misses breaks the P frames after it.
   boolean takeFrame(final long now) {
     if (this.framesPerNano == 0) {
       return true;
@@ -698,7 +658,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  /** Dithers one frame onto the maps of the viewers without the pack, then lets the next frame be dithered. */
   private void dither(final Fallback dithered, final int[] argb, final int width, final int height) {
     try (final ImageBuffer frame = ImageBuffer.buffer(argb, width, height)) {
       final CompressedMapResult maps = dithered.result();
@@ -713,13 +672,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  /**
-   * Copies the first pixels of a picture's 8-bit BGR bytes into a new array in RGB order.
-   *
-   * @param bgr    the bytes, from the buffer's position on, which is left as it is
-   * @param pixels the number of pixels to copy
-   * @return the RGB bytes
-   */
   static byte[] rgb(final ByteBuffer bgr, final int pixels) {
     final byte[] rgb = new byte[pixels * Mcv2Decoder.CHANNELS];
     bgr.get(bgr.position(), rgb);
@@ -731,7 +683,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     return rgb;
   }
 
-  /** The frames the viewers' links sent, held back for the backlog and held back for a reference, summed. */
   private long[] linkCounts() {
     final long[] counts = new long[LINK_COUNTS];
     for (final Mcv2Link link : this.screen.channel().getLinks().values()) {
@@ -742,7 +693,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     return counts;
   }
 
-  /** Commits a frame's flight recorder event, with what the viewers' links did with it. */
   private void record(final Mcv2FrameEvent event, final Delivery delivery, final int colors, final long[] before) {
     final long[] after = this.linkCounts();
     long backlog = 0;
@@ -764,12 +714,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     event.commit();
   }
 
-  /**
-   * Stops a thread of the result and waits for it: the sender waits for frames and the encoder may wait for the
-   * sender, and both stop on an interrupt. A caller interrupted meanwhile keeps its interrupt.
-   *
-   * @param thread the thread, or null when it was never started
-   */
   private static void stop(final @Nullable Thread thread) {
     if (thread == null) {
       return;
@@ -782,11 +726,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  /**
-   * Encodes frames until the result is released, each with the encoder of the preset of the rung it arrived on.
-   *
-   * @param first the encoder of the screen's settings, the top of its ladder
-   */
   void encodeLoop(final MCV2 first) {
     final Pipeline own;
     synchronized (this.lock) {
@@ -813,29 +752,15 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  /**
-   * Gets the settings of the preset of the rung a frame arrived on.
-   *
-   * @param arrival the frame
-   * @return the settings
-   */
   Settings settingsFor(final Arrival arrival) {
     return this.ladder.get(this.presets.indexOf(arrival.preset));
   }
 
-  /**
-   * Switches the search thresholds while retaining the stream history and pending verification.
-   *
-   * @param settings the preset's settings
-   * @param encoder  the encoder of the frame before, whose frames are all sent
-   * @return the encoder of the next frame
-   */
   MCV2 encoderFor(final Settings settings, final MCV2 encoder) {
     encoder.switchTo(settings);
     return encoder;
   }
 
-  /** Starts pacing the screen's frames from the top of its ladder, which {@link #start()} does. */
   void pace() {
     final List<int[]> sizes = new ArrayList<>();
     sizes.add(new int[] { this.requested.getVideoWidth(), this.requested.getVideoHeight() });
@@ -847,35 +772,14 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  /**
-   * Takes the newest frame that was not encoded yet, without waiting.
-   *
-   * @return the frame, or null if there is none
-   */
   @Nullable Arrival poll() {
     return this.pending.poll();
   }
 
-  /**
-   * Waits for the newest frame that was not encoded yet.
-   *
-   * @return the frame, or null once the result is released
-   * @throws InterruptedException if the thread is interrupted while it waits
-   */
   @Nullable Arrival take() throws InterruptedException {
     return this.pending.take();
   }
 
-  /**
-   * Encodes one frame: searches and writes it, and hands it to the sender thread, which verifies and sends it while the
-   * next frame is searched; when the result was not started, encodes and sends it on this thread. The pacer is told
-   * how long the frame held the pipeline: its search, and the wait for the frame before it to be verified and sent.
-   *
-   * @param encoder the encoder
-   * @param arrival the frame and when it arrived
-   * @param frameId the frame's id
-   * @throws InterruptedException if the thread is interrupted while it waits for the sender to take the frame
-   */
   void send(final MCV2 encoder, final Arrival arrival, final long frameId) throws InterruptedException {
     final Screen current = this.screen;
     if (current.channel().takeKeyframeRequest()) {
@@ -925,11 +829,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  /**
-   * Waits until the sender has verified and sent every frame handed to it.
-   *
-   * @throws InterruptedException if the thread is interrupted while it waits
-   */
   void drain() throws InterruptedException {
     synchronized (this.lock) {
       while (this.running && this.delivered < this.handed) {
@@ -938,13 +837,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  /**
-   * Stops a pipeline from one of its own threads, once that thread ends for any reason: the screen takes no more
-   * frames, a drain waits for nothing, and the other thread, which would otherwise wait for this one forever, is
-   * interrupted. Does nothing once the result was released, or started again with another pipeline.
-   *
-   * @param stopped the pipeline the ending thread belongs to, or null when it ran without one
-   */
   private void stopPipeline(final @Nullable Pipeline stopped) {
     final Thread screenThread;
     final Thread delivery;
@@ -966,15 +858,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     delivery.interrupt();
   }
 
-  /**
-   * Verifies and sends the frames the screen's thread hands over, in order, until the result is released. Anything
-   * that fails here - a frame that fails its verification, a frame listener or a send that throws - stops the screen:
-   * the failure is logged, and the screen's thread, which would otherwise wait forever to hand over its next frame, is
-   * stopped too.
-   *
-   * @param running      the budget, and where the screen's thread hands the frames over
-   * @param screenThread the screen's thread
-   */
   private void deliverLoop(final Pipeline running, final Thread screenThread) {
     try {
       while (true) {
@@ -997,7 +880,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  /** Sends one encoded frame to the viewers and counts it. */
   private void deliver(final Delivery delivery) {
     final byte[] frame = delivery.frame;
     final long frameId = delivery.frameId;
@@ -1021,10 +903,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     this.statistics.add(stats, colors);
   }
 
-  /**
-   * Carries out a step of the pacer, under the lock: on the dithered maps every viewer is dithered for; the screen's
-   * page frames exist in the world, so the main thread brings them in line with the pacer's rung ({@link #sync()}).
-   */
   private void follow(final Mcv2Pacer.Change change) {
     this.ditheredForAll = change.to().isDithered();
     if (this.ditheredForAll) {
@@ -1033,12 +911,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), this::sync);
   }
 
-  /**
-   * Brings the screen in line with the pacer's rung, on the main thread, however many steps came since the last time:
-   * on the dithered maps the page frames go, while the channel still measures who is near the wall; on an encoded rung
-   * of another video size the screen is replaced by one at that size (the owner offers its pack), and the page frames
-   * of an encoded rung are there.
-   */
   void sync() {
     final Mcv2Pacer.Rung rung;
     synchronized (this.lock) {
@@ -1071,7 +943,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  /** Tells the server log and the pacing listener of a step, outside the lock. */
   private void announce(final Mcv2Pacer.Change change) {
     if (change.down()) {
       LOGGER.warn(PACING_STEP, change.describe());
@@ -1123,7 +994,6 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  /** A width and a height in one value, for comparing sizes. */
   private static long size(final int width, final int height) {
     return ((long) width << Integer.SIZE) | height;
   }

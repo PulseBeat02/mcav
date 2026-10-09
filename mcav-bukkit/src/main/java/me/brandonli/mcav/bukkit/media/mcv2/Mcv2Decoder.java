@@ -71,16 +71,6 @@ public final class Mcv2Decoder {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  /**
-   * A validated leaf, including its position outside the visible picture.
-   *
-   * @param left horizontal origin in pixels
-   * @param top vertical origin in pixels
-   * @param size square side, 8, 16 or 32 pixels
-   * @param mode leaf mode, SKIP through COMPACT
-   * @param quantizer residual scale exponent, zero for other modes
-   * @param offset record byte offset, or -1 for an absent root
-   */
   record Leaf(int left, int top, int size, int mode, int quantizer, int offset) {}
 
   /** A complete validated frame. Accessors copy mutable data. */
@@ -168,13 +158,6 @@ public final class Mcv2Decoder {
       return this.leaves.length / LEAF_INTS;
     }
 
-    /**
-     * Returns one leaf in level order, followed by absent roots in raster order.
-     *
-     * @param index zero-based leaf index
-     * @return immutable leaf metadata
-     * @throws IndexOutOfBoundsException if the index is outside the leaf array
-     */
     Leaf getLeaf(final int index) {
       Preconditions.checkElementIndex(index, this.getLeafCount(), "Leaf index");
       final int at = index * LEAF_INTS;
@@ -455,20 +438,6 @@ public final class Mcv2Decoder {
     decodeRows(frame, samePicture(prediction, output) ? prediction.clone() : prediction, referenceId, output, 0, frame.height);
   }
 
-  /**
-   * Decodes a row range, leaving other rows unchanged. Disjoint ranges may run concurrently;
-   * the reference must remain stable and must not alias output.
-   *
-   * @param frame validated frame
-   * @param reference previous RGB24 picture; may be null for keyframes
-   * @param referenceId id of that picture; ignored for keyframes
-   * @param output array of exactly width * height * 3 bytes
-   * @param fromRow first row, inclusive
-   * @param toRow last row, exclusive
-   * @throws NullPointerException if frame or output is null
-   * @throws IllegalArgumentException if output size, row bounds or reference aliasing is invalid
-   * @throws Mcv2Exception if the required reference is missing or has the wrong id or byte length
-   */
   static void decodeRows(
     final Frame frame,
     final byte @Nullable [] reference,
@@ -690,67 +659,27 @@ public final class Mcv2Decoder {
     }
   }
 
-  /**
-   * Compares frame ids using unsigned 32-bit wraparound.
-   *
-   * @param id candidate frame id
-   * @param last last committed frame id
-   * @return whether the forward distance is strictly between zero and 2^31
-   */
   static boolean follows(final long id, final long last) {
     final long distance = (id - last) & MAX_U32;
     return distance != 0 && distance < 1L << 31;
   }
 
-  /**
-   * Checks the supported square leaf sizes.
-   *
-   * @param size side in pixels
-   * @return whether size is 8, 16 or 32
-   */
   static boolean isBlockSize(final int size) {
     return size == SMALLEST_BLOCK || size == 2 * SMALLEST_BLOCK || size == ROOT_SIZE;
   }
 
-  /**
-   * Maps a supported leaf size to its fitting-array index.
-   *
-   * @param size 8, 16 or 32 pixels
-   * @return 0, 1 or 2 respectively
-   */
   static int sizeIndex(final int size) {
     return Integer.numberOfTrailingZeros(size) - 3;
   }
 
-  /**
-   * Sign-extends the low bits of an integer.
-   *
-   * @param value packed integer
-   * @param bits signed field width, 1 through 32
-   * @return sign-extended value
-   */
   static int signed(final int value, final int bits) {
     return (value << (Integer.SIZE - bits)) >> (Integer.SIZE - bits);
   }
 
-  /**
-   * Returns the full pattern record length.
-   *
-   * @param size 8, 16 or 32 pixels
-   * @return record length in bytes
-   */
   static int patternSize(final int size) {
     return 2 * CHANNELS + 1 + size / Byte.SIZE;
   }
 
-  /**
-   * Returns a fixed-length record size.
-   *
-   * @param mode SKIP, MOTION, SOLID, PALETTE, PATTERN, COMPACT or SPLIT
-   * @param size 8, 16 or 32 pixels
-   * @return record length in bytes; zero for SKIP and SPLIT
-   * @throws IllegalArgumentException if mode is invalid
-   */
   static int recordSize(final int mode, final int size) {
     return switch (mode) {
       case MODE_SKIP, MODE_SPLIT -> 0;
