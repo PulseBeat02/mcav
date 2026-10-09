@@ -35,6 +35,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.entity.CraftTextDisplay;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.plugin.Plugin;
@@ -150,7 +151,7 @@ public final class EntityRenderer extends MainThreadRenderer<Component> {
    * Shows the display to every viewer who cannot see it.
    *
    * <p>The entity is spawned with {@code setVisibleByDefault(false)}, so a player only ever sees it after an
-   * explicit {@link Player#showEntity(Plugin, org.bukkit.entity.Entity)}. That grant is per session and per player,
+   * explicit {@link Player#showEntity(Plugin, Entity)}. That grant is per session and per player,
    * and Paper takes it back whenever the entity stops being tracked, which a display respawned as its chunk loads again
    * can do before its viewer ever saw it. So every tick, each online viewer who cannot see the display is shown it: a
    * viewer added to the configuration after the spawn, a viewer who logged out and back in, and a viewer whose grant
