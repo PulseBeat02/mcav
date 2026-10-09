@@ -557,7 +557,7 @@ final class DumpUtilsTest {
   @Test
   void redactsASecretThatHidesInsideAPropertyValue() {
     // the dump goes to a public paste site. sun.java.command holds the whole command line of the program, and no
-    // secret word appears in that property NAME, so redacting by name alone published the secret verbatim.
+    // secret word appears in that property NAME, so redacting by name alone would publish the secret verbatim.
     final String property = "sun.java.command";
     final String previous = System.getProperty(property);
     System.setProperty(property, "paper.jar --api-token=hunter2 --world world");

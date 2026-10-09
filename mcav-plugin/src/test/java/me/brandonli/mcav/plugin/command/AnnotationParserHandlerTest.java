@@ -333,7 +333,6 @@ final class AnnotationParserHandlerTest {
     for (final String syntax : List.of(browser, vm)) {
       final ArgumentParser<CommandSender, ?> audio = this.parserOf(syntax, "audioType");
       final EnumParser<?, ?> outputs = assertInstanceOf(EnumParser.class, audio);
-      // tab completion offers every output, as for the videos
       assertEquals(assertInstanceOf(EnumParser.class, videoAudio).acceptedValues(), outputs.acceptedValues(), syntax);
     }
     final Component description = ((RichDescription) this.commands.command(browser).commandDescription().description()).contents();

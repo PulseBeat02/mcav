@@ -232,7 +232,6 @@ final class Mcv2SupportTest {
       assertSame(slotted, arguments.getFirst().getFirst());
       assertSame(viewers, arguments.getFirst().get(1));
       assertSame(DitheringArgument.NEAREST_COLOR.createAlgorithm(), arguments.getFirst().get(2));
-      // the screen's steps are told to whoever started it
       @SuppressWarnings("unchecked")
       final ArgumentCaptor<Consumer<Mcv2Pacer.Change>> listeners = ArgumentCaptor.forClass(Consumer.class);
       verify(result).setPacingListener(listeners.capture());
@@ -246,7 +245,6 @@ final class Mcv2SupportTest {
       );
       listeners.getValue().accept(change);
       verify(this.sender).sendMessage(Message.MCV2_PACING.build(change.describe()));
-      // the screen may step down to two smaller videos, each in a slot of the pack its lease holds
       @SuppressWarnings("unchecked")
       final ArgumentCaptor<List<int[]>> sizes = ArgumentCaptor.forClass(List.class);
       verify(result).setSmallerSizes(sizes.capture(), any());

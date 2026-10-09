@@ -213,7 +213,6 @@ final class BrowserCommandTest {
     verify(audio).attach(pipelines.capture());
     assertSame(output, pipelines.getValue().getFilter());
     this.command.releaseBrowser(this.sender);
-    // the provider lets go of the outputs only if no video or machine took them over meanwhile
     verify(this.provider).releaseAudioFilter(this.browser);
   }
 
@@ -225,10 +224,8 @@ final class BrowserCommandTest {
     when(this.browser.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
     this.create("1280x720", "5x3", AudioArgument.SIMPLE_VOICE_CHAT, "https://example.com/page");
-    // a disabling plugin hands out its provider no more, and the browser fails to end
     when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available"));
     Mockito.doThrow(new IllegalStateException("release broke")).when(this.browser).release();
-    // the browser stops in the background, where its failure is logged; its sound and frames stop at once
     this.command.releaseBrowser(this.sender);
     verify(this.provider).releaseAudioFilter(this.browser);
     verify(this.callback).detach();
@@ -240,7 +237,6 @@ final class BrowserCommandTest {
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
     this.create("1280x720", "5x3", "https://example.com/page");
     Mockito.doThrow(new IllegalStateException("release broke")).when(this.browser).release();
-    // the plugin disables: the browser stops before the command is shut down
     final IllegalStateException failure = assertThrows(IllegalStateException.class, this.command::shutdown);
     assertEquals("release broke", failure.getMessage());
   }
