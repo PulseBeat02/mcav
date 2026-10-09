@@ -903,18 +903,18 @@ I counted every line, including blank lines and comments.
 
 | Part | Version 2 (lines) | Version 3 (lines) |
 |---|---:|---:|
-| Encoder (Java) | 10,116 | 3,095 |
-| Vector loops (C++) | 2,960 | 1,917 |
-| Server decoder (Java) | 3,892 | 765 |
-| Players' decoder (GLSL) | 2,397 | 1,376 |
-| Pages on maps (Java) | 792 | 778 |
-| Screens, viewers, pacing and the resource pack (Java) | 6,126 | 6,205 |
-| Tests (Java) | 19,178 | 17,308 |
-| Reference decoder (Python) | 4,010 | 507 |
-| Tools (Java and Python) | 3,445 | 3,370 |
-| All of MCV2 | 52,613 | 35,321 |
+| Encoder (Java) | 10,116 | 3,088 |
+| Vector loops (C++) | 2,960 | 2,074 |
+| Server decoder (Java) | 3,892 | 705 |
+| Players' decoder (GLSL) | 2,397 | 1,549 |
+| Pages on maps (Java) | 792 | 776 |
+| Screens, viewers, pacing and the resource pack (Java) | 6,126 | 5,639 |
+| Tests (Java) | 19,178 | 17,959 |
+| Reference decoder (Python) | 4,010 | 546 |
+| Tools (Java and Python) | 3,445 | 3,631 |
+| All of MCV2 | 52,613 | 35,967 |
 
-I got it down from 52,613 to 35,321 lines, mostly by shrinking the encoder and the reference decoder.
+I got it down from 52,613 to 35,967 lines, mostly by shrinking the encoder and the reference decoder.
 
 ### Inside MCV2.java
 
@@ -985,8 +985,8 @@ part is checked against something that was written separately:
   the game itself, screenshots of the decoded picture match the reference decoder's pictures exactly.
 - **Mutation testing.** To check the tests themselves, a tool called PIT makes thousands of small changes to the code,
   one at a time (turns a `<` into a `<=`, deletes a line, returns 0), and runs the tests on each. A good test suite
-  fails on almost every one. On MCV2's code PIT makes 3,339 changes and the tests catch 3,277 of them (98 %); every
-  one of the 62 they miss was read and listed with its reason.
+  fails on almost every one. On MCV2's code PIT makes 3,336 changes and the tests catch 3,275 of them (98 %); every
+  one of the 61 they miss was read and listed with its reason.
 - **Coverage.** Every line and every branch of MCV2's code runs in at least one test.
 
 ## Part 11: What I Took Out, and Why
