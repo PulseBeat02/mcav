@@ -240,8 +240,8 @@ final class Mcv2ResultTest {
   void fingerprintsTheCentresOfTheFirstBlocks() {
     final byte[] rgb = new byte[1024 * 32 * 3];
     // block 1's centre white, the others black
-    final int at = (16 * 1024 + 48) * 3;
-    rgb[at] = rgb[at + 1] = rgb[at + 2] = (byte) 255;
+    final int offset = (16 * 1024 + 48) * 3;
+    rgb[offset] = rgb[offset + 1] = rgb[offset + 2] = (byte) 255;
     final String fingerprint = Mcv2FrameEvent.fingerprint(rgb, 1024, 32);
     assertEquals(2 * Mcv2FrameEvent.FINGERPRINT_PIXELS, fingerprint.length());
     assertEquals("00ff00", fingerprint.substring(0, 6));

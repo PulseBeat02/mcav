@@ -2783,7 +2783,7 @@ def samples_print_bytes(arguments):
     frame = parse_frame(data)
     groups = len(frame.masks)
     parts = [("header", 0, mcv2_reference.HEADER_BYTES)]
-    at = mcv2_reference.HEADER_BYTES
+    offset = mcv2_reference.HEADER_BYTES
     for name, length in (
         ("presence masks", 4 * groups),
         ("directory", 4 * len(frame.directory)),
@@ -2791,9 +2791,9 @@ def samples_print_bytes(arguments):
         ("descriptors", len(frame.descriptors)),
         ("walk checkpoints", 4 * len(frame.walk)),
     ):
-        parts.append((name, at, at + length))
-        at += length
-    parts.append(("records", at, frame.total))
+        parts.append((name, offset, offset + length))
+        offset += length
+    parts.append(("records", offset, frame.total))
     for name, start, end in parts:
         print(f"{name} ({end - start} bytes, offsets {start}-{end - 1}):")
         for line in range(start, end, 16):

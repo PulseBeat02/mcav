@@ -28,8 +28,8 @@ final class Mcv2PatternTest {
   private static final byte[] INLINE = { 1, 2, 3, 4, 5, 6, 0, (byte) 0b1010_0101 };
 
   private static int colorAt(final byte[] picture, final int width, final int column, final int row) {
-    final int at = (row * width + column) * 3;
-    return ((picture[at] & 255) << 16) | ((picture[at + 1] & 255) << 8) | (picture[at + 2] & 255);
+    final int offset = (row * width + column) * 3;
+    return ((picture[offset] & 255) << 16) | ((picture[offset + 1] & 255) << 8) | (picture[offset + 2] & 255);
   }
 
   @Test

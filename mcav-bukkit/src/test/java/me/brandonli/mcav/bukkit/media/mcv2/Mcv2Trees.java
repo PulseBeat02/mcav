@@ -216,10 +216,10 @@ public final class Mcv2Trees {
     for (int index = 0; index < frame.getLeafCount(); index++) {
       final Mcv2Decoder.Leaf leaf = frame.getLeaf(index);
       final int mode = leaf.mode();
-      final int at = leaf.offset();
+      final int offset = leaf.offset();
       final Node node;
       final int length = Mcv2Decoder.recordSize(mode, leaf.size());
-      node = Node.leaf(mode, leaf.quantizer(), length == 0 ? new byte[0] : Arrays.copyOfRange(data, at, at + length));
+      node = Node.leaf(mode, leaf.quantizer(), length == 0 ? new byte[0] : Arrays.copyOfRange(data, offset, offset + length));
       leaves.put(position(leaf.left(), leaf.top(), leaf.size()), node);
     }
     final List<Node> roots = new ArrayList<>();

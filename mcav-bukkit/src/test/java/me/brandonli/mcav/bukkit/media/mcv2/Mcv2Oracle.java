@@ -72,10 +72,10 @@ final class Mcv2Oracle {
     for (int row = 0; row < size; row++) {
       for (int column = 0; column < size; column++) {
         final double luma = interpolate(nodes, 0, 1, 4, size, column, row);
-        final int at = (row * size + column) * 3;
-        out[at] = roundedChannel(prediction[at] + step * luma);
-        out[at + 1] = roundedChannel(prediction[at + 1] + step * luma);
-        out[at + 2] = roundedChannel(prediction[at + 2] + step * luma);
+        final int offset = (row * size + column) * 3;
+        out[offset] = roundedChannel(prediction[offset] + step * luma);
+        out[offset + 1] = roundedChannel(prediction[offset + 1] + step * luma);
+        out[offset + 2] = roundedChannel(prediction[offset + 2] + step * luma);
       }
     }
   }

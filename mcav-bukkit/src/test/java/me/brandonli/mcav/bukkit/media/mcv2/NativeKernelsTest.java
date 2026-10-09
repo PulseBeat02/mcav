@@ -334,17 +334,17 @@ final class NativeKernelsTest {
     final int[] prediction = new int[source.length];
     final float[] expected = new float[18];
     for (int pixel = 0; pixel < 17; pixel++) {
-      final int at = pixel * 3;
+      final int offset = pixel * 3;
       if (pixel % 3 == 0) {
-        source[at + 1] = 255;
+        source[offset + 1] = 255;
         expected[pixel] = 127.5f;
       } else if (pixel % 3 == 1) {
-        source[at] = 255;
-        Arrays.fill(prediction, at, at + 3, 255);
+        source[offset] = 255;
+        Arrays.fill(prediction, offset, offset + 3, 255);
         expected[pixel] = -191.25f;
       } else {
-        source[at + 2] = 255;
-        prediction[at + 2] = 255;
+        source[offset + 2] = 255;
+        prediction[offset + 2] = 255;
       }
     }
     expected[17] = 999;
