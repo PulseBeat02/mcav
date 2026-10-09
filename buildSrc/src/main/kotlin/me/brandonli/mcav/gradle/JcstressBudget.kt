@@ -4,13 +4,6 @@ import java.io.File
 import java.util.zip.ZipFile
 import org.gradle.api.GradleException
 
-/**
- * Turns a time budget into the time of one jcstress iteration, as jcstress has no time budget of its own. A run is
- * made of runs of every test: one per JVM configuration (14 for the two-actor tests here, measured) and fork, where a
- * mode has a number of normal forks and a multiple of that of stress forks. Each run starts a JVM (about 2 s here) and
- * then iterates a number of times; a two-actor run takes two CPUs, so the CPUs run several at once. Half of the budget
- * goes to the iterations, the rest to the JVM starts and to a machine slower than this one.
- */
 object JcstressBudget {
 
     private const val CONFIGURATIONS = 14
@@ -30,13 +23,6 @@ object JcstressBudget {
         "stress" to Preset(10, 10, 50),
     )
 
-    /**
-     * Counts the tests of a jcstress jar, from the list the annotation processor writes.
-     *
-     * @param jar the jar that runs the tests
-     * @param selection the regular expression of `-t` that selects tests, or null for every test
-     * @return the number of tests the run starts
-     */
     fun countTests(jar: File, selection: String?): Int {
         val pattern = selection?.let { Regex(it) }
         ZipFile(jar).use { zip ->
@@ -52,15 +38,6 @@ object JcstressBudget {
         return line.substring(lengthEnd + 1, lengthEnd + 1 + length)
     }
 
-    /**
-     * The time of one iteration that fits a run into a budget.
-     *
-     * @param mode the jcstress mode, such as quick or stress
-     * @param budgetMinutes the minutes the whole run may take
-     * @param testCount the number of tests the run starts
-     * @param cpus the CPUs jcstress may use
-     * @return the milliseconds of one iteration, between 50 ms and 10 s
-     */
     fun iterationMillis(mode: String, budgetMinutes: Int, testCount: Int, cpus: Int): Long {
         val preset = presets[mode] ?: throw GradleException("Unknown jcstress mode $mode")
         val runs = testCount.toLong() * CONFIGURATIONS * (preset.forks + preset.forks * preset.stressMultiplier)
