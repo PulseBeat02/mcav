@@ -17,76 +17,14 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Loads the static data of the MCV2 profile from the classpath and checks it against its SHA-256, so a corrupted or
- * replaced file can never silently change what the codec decodes.
- */
 public final class Mcv2Resources {
 
   private Mcv2Resources() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
-  }
-
-  /**
-   * Loads and checks one classpath resource.
-   *
-   * @param name the non-null full classpath name, with an optional leading slash
-   * @param sha256 the expected lowercase hexadecimal SHA-256
-   * @param length the nonnegative expected length in bytes; a negative value fails the length check
-   * @return a newly read caller-owned array; the resource stream has been closed
-   * @throws IllegalStateException if the resource is missing or does not match
-   * @throws UncheckedIOException  if it cannot be read
-   * @throws NullPointerException if the resource name is null
-   */
-  public static byte[] load(final String name, final String sha256, final int length) {
-    final String resource = name.startsWith("/") ? name.substring(1) : name;
-    return verify(read(Mcv2Resources.class.getResourceAsStream("/" + resource), name), sha256, length, name);
-  }
-
-  /**
-   * Reads a stream completely and closes it.
-   *
-   * @param stream the stream, or null when the resource does not exist
-   * @param name   the resource name, for messages
-   * @return the bytes
-   * @throws IllegalStateException if the stream is null
-   * @throws UncheckedIOException  if reading fails
-   */
-  static byte[] read(final @Nullable InputStream stream, final String name) {
-    if (stream == null) {
-      throw new IllegalStateException("Missing MCV2 resource " + name);
-    }
-    try (stream) {
-      return stream.readAllBytes();
-    } catch (final IOException exception) {
-      throw new UncheckedIOException(exception);
-    }
-  }
-
-  /**
-   * Checks bytes against their expected length and SHA-256.
-   *
-   * @param bytes  the bytes
-   * @param sha256 the expected lowercase hexadecimal SHA-256
-   * @param length the expected length
-   * @param name   the resource name, for messages
-   * @return the same bytes
-   * @throws IllegalStateException if the length or checksum is wrong
-   */
-  static byte[] verify(final byte[] bytes, final String sha256, final int length, final String name) {
-    final String digest = sha256(bytes);
-    if (bytes.length != length || !digest.equals(sha256)) {
-      throw new IllegalStateException("MCV2 resource " + name + " has the wrong length or checksum: " + digest);
-    }
-    return bytes;
   }
 
   /**

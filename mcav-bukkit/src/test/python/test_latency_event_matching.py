@@ -25,7 +25,7 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
-import mcv2_tools as latency
+import mcv2_tools
 
 
 def event(frame, arrived, sent, sent_to=1):
@@ -38,10 +38,10 @@ class LatencyTest(unittest.TestCase):
     def report(self, later):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory, "report.json")
-            arguments = ["latency.py", "unused.jfr", "unused.nut", "--json", str(output)]
-            with patch.object(sys, "argv", arguments), patch.object(latency, "latency_events", return_value=[event(0, 0, 100), later]),\
-                    patch.object(latency, "latency_captures", return_value=[(200, 7), (210, 7)]), redirect_stdout(StringIO()):
-                latency.latency_main()
+            arguments = ["mcv2_tools.py", "unused.jfr", "unused.nut", "--json", str(output)]
+            with patch.object(sys, "argv", arguments), patch.object(mcv2_tools, "latency_events", return_value=[event(0, 0, 100), later]),\
+                    patch.object(mcv2_tools, "latency_captures", return_value=[(200, 7), (210, 7)]), redirect_stdout(StringIO()):
+                mcv2_tools.latency_main()
             return json.loads(output.read_text())
 
     def test_repeated_number_uses_a_frame_sent_before_capture(self):

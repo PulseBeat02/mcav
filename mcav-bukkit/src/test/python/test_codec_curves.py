@@ -18,13 +18,12 @@
 
 import json
 import os
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+import mcv2_tools
 
-import mcv2_tools as codec_curves  # noqa: E402
 
 DOCUMENTED = Path(__file__).resolve().parents[1] / "resources/mcv2/data" / "codec_curves.json"
 
@@ -45,7 +44,7 @@ class ResumeTest(unittest.TestCase):
         documented = json.loads(DOCUMENTED.read_text())
         self.write(documented)
         identity = documented["sources"]["proxy30"]
-        measured = codec_curves.codec_curves_resume(self.out, "proxy30", dict(identity))
+        measured = mcv2_tools.codec_curves_resume(self.out, "proxy30", dict(identity))
         self.assertEqual(documented["codecs"], measured["codecs"])
         self.assertEqual(identity, measured["sources"]["proxy30"])
 
@@ -54,21 +53,21 @@ class ResumeTest(unittest.TestCase):
         self.write(documented)
         other = dict(documented["sources"]["proxy30"], sha256="0" * 64)
         with self.assertRaisesRegex(ValueError, "proxy30 already has measurements of other content"):
-            codec_curves.codec_curves_resume(self.out, "proxy30", other)
+            mcv2_tools.codec_curves_resume(self.out, "proxy30", other)
 
     def test_reads_the_points_of_the_first_runs(self):
         self.write({"sources": {}, "points": [{"source": "a", "codec": "x264", "quality": 20}]})
-        measured = codec_curves.codec_curves_resume(self.out, "a", {"sha256": "1" * 64})
+        measured = mcv2_tools.codec_curves_resume(self.out, "a", {"sha256": "1" * 64})
         self.assertEqual([{"source": "a", "codec": "x264", "quality": 20}], measured["codecs"])
         self.assertNotIn("points", measured)
 
     def test_refuses_an_output_with_both_datasets(self):
         self.write({"sources": {}, "points": [], "codecs": []})
         with self.assertRaisesRegex(ValueError, "both points and codecs"):
-            codec_curves.codec_curves_resume(self.out, "a", {})
+            mcv2_tools.codec_curves_resume(self.out, "a", {})
 
     def test_starts_an_output_that_does_not_exist(self):
-        measured = codec_curves.codec_curves_resume(self.out, "a", {"sha256": "2" * 64})
+        measured = mcv2_tools.codec_curves_resume(self.out, "a", {"sha256": "2" * 64})
         self.assertEqual({"sources": {"a": {"sha256": "2" * 64}}, "codecs": []}, measured)
 
 

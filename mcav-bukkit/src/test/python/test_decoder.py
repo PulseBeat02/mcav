@@ -21,14 +21,14 @@ import unittest
 import numpy
 
 from rejection_cases import changed
-import mcv2_reference as reference_format
+import mcv2_reference
 from mcv2_reference import Decoder, decode
 from mcv2_reference import Node, pack_frame
 
 
 def at_size(node, size):
     while size < 32:
-        node = Node(reference_format.SPLIT, children=(node, Node(reference_format.SKIP), Node(reference_format.SKIP), Node(reference_format.SKIP)))
+        node = Node(mcv2_reference.SPLIT, children=(node, Node(mcv2_reference.SKIP), Node(mcv2_reference.SKIP), Node(mcv2_reference.SKIP)))
         size *= 2
     return node
 
@@ -45,16 +45,16 @@ def gray(values):
 
 class ReconstructionTest(unittest.TestCase):
     def test_keyframe_absent_and_skip_are_black_and_solid(self):
-        for node in (None, Node(reference_format.SKIP)):
+        for node in (None, Node(mcv2_reference.SKIP)):
             numpy.testing.assert_array_equal(numpy.zeros((2, 3, 3), numpy.uint8), decode(frame(node)))
         numpy.testing.assert_array_equal(numpy.array([[[4, 5, 6]] * 3] * 2, numpy.uint8),
-                                      decode(frame(Node(reference_format.SOLID, record=b'\4\5\6'))))
+                                      decode(frame(Node(mcv2_reference.SOLID, record=b'\4\5\6'))))
 
     def test_palette_lsb_first_and_row_major_at_all_sizes(self):
         for size in (8, 16, 32):
             selectors = bytearray(size * size // 8)
             selectors[0], selectors[size // 8] = 0b00000101, 0b00000010
-            node = Node(reference_format.PALETTE, record=bytes([1, 2, 3, 91, 92, 93]) + selectors)
+            node = Node(mcv2_reference.PALETTE, record=bytes([1, 2, 3, 91, 92, 93]) + selectors)
             expected = numpy.array([[[91, 92, 93], [1, 2, 3], [91, 92, 93]],
                                  [[1, 2, 3], [91, 92, 93], [1, 2, 3]]], numpy.uint8)
             numpy.testing.assert_array_equal(expected, decode(frame(node, size=size)))
@@ -63,7 +63,7 @@ class ReconstructionTest(unittest.TestCase):
         colors = bytes([9, 21, 25, 67, 122, 238])
         for size in (8, 16, 32):
             for orientation in (0, 1):
-                node = Node(reference_format.PATTERN, record=colors + bytes([orientation, 0b00000101]) + bytes(size // 8 - 1))
+                node = Node(mcv2_reference.PATTERN, record=colors + bytes([orientation, 0b00000101]) + bytes(size // 8 - 1))
                 expected = numpy.array(([[[67, 122, 238], [9, 21, 25], [67, 122, 238]]] * 2
                                      if orientation == 0 else
                                      [[[67, 122, 238]] * 3, [[9, 21, 25]] * 3]), numpy.uint8)
@@ -75,7 +75,7 @@ class ReconstructionTest(unittest.TestCase):
         cases = [(b'\1\xff', [[2, 3, 3], [2, 3, 3]]), (b'\x80\x7f', [[4, 4, 4], [4, 4, 4]]),
                  (b'\x7f\x80', [[3, 3, 3], [3, 3, 3]]), (b'\2\0', [[3, 3, 3], [6, 6, 6]])]
         for record, expected in cases:
-            numpy.testing.assert_array_equal(gray(expected), decode(frame(Node(reference_format.MOTION, record=record), key=False, frame_id=1), reference, 0))
+            numpy.testing.assert_array_equal(gray(expected), decode(frame(Node(mcv2_reference.MOTION, record=record), key=False, frame_id=1), reference, 0))
         numpy.testing.assert_array_equal(reference, decode(frame(key=False, frame_id=1), reference, 0))
 
     def test_compact_vector_sign_and_clamping(self):
@@ -84,22 +84,22 @@ class ReconstructionTest(unittest.TestCase):
                                  (b'\1\xff', [[2, 3, 3], [2, 3, 3]]),
                                  (b'\xf8\x07', [[4, 4, 4], [4, 4, 4]]),
                                  (b'\x7f\x80', [[3, 3, 3], [3, 3, 3]])]:
-            data = frame(Node(reference_format.COMPACT, record=vector + bytes(8)), key=False, frame_id=1)
+            data = frame(Node(mcv2_reference.COMPACT, record=vector + bytes(8)), key=False, frame_id=1)
             numpy.testing.assert_array_equal(gray(expected), decode(data, reference, 0))
 
     def test_quantizers_and_clipping(self):
         for nodes, expected in [(0x11, [129, 130, 132]), (0x88, [120, 112, 96])]:
             for quantizer, value in enumerate(expected):
-                data = frame(Node(reference_format.COMPACT, quantizer, b'\0\0' + bytes([nodes] * 8)), width=1, height=1, key=False, frame_id=1)
+                data = frame(Node(mcv2_reference.COMPACT, quantizer, b'\0\0' + bytes([nodes] * 8)), width=1, height=1, key=False, frame_id=1)
                 numpy.testing.assert_array_equal(numpy.array([[[value] * 3]], numpy.uint8), decode(data, numpy.full((1, 1, 3), 128, numpy.uint8), 0))
         for nodes, pixel, expected in [(0x77, 250, 255), (0x88, 5, 0)]:
-            data = frame(Node(reference_format.COMPACT, 2, b'\0\0' + bytes([nodes] * 8)), width=1, height=1, key=False, frame_id=1)
+            data = frame(Node(mcv2_reference.COMPACT, 2, b'\0\0' + bytes([nodes] * 8)), width=1, height=1, key=False, frame_id=1)
             numpy.testing.assert_array_equal(numpy.array([[[expected] * 3]], numpy.uint8), decode(data, numpy.full((1, 1, 3), pixel, numpy.uint8), 0))
 
     def test_grid_16_q2_exact_pixels_on_every_channel(self):
         # Every row has luma nodes -2,-1,0,1; the same luma is added to red, green and blue.
         record = b'\0\0' + bytes.fromhex('fe10fe10fe10fe10')
-        data = frame(Node(reference_format.COMPACT, 2, record), width=16, height=16, size=16, key=False, frame_id=1)
+        data = frame(Node(mcv2_reference.COMPACT, 2, record), width=16, height=16, size=16, key=False, frame_id=1)
         expected_row = [[92, 112, 132], [92, 112, 132], [93, 113, 133], [94, 114, 134],
                         [95, 115, 135], [96, 116, 136], [97, 117, 137], [98, 118, 138],
                         [99, 119, 139], [100, 120, 140], [101, 121, 141], [102, 122, 142],
@@ -109,19 +109,19 @@ class ReconstructionTest(unittest.TestCase):
 
     def test_grid_y_bilinear_both_axes_and_round_half_up(self):
         record = b'\0\0' + bytes.fromhex('ed0ffe100f211032')
-        data = frame(Node(reference_format.COMPACT, record=record), width=8, height=8, size=8, key=False, frame_id=1)
+        data = frame(Node(mcv2_reference.COMPACT, record=record), width=8, height=8, size=8, key=False, frame_id=1)
         expected = [[97, 97, 98, 98, 99, 99, 100, 100], [97, 98, 98, 99, 99, 100, 100, 100],
                     [98, 98, 99, 99, 100, 100, 101, 101], [98, 99, 99, 100, 100, 101, 101, 101],
                     [99, 99, 100, 100, 101, 101, 102, 102], [99, 100, 100, 101, 101, 102, 102, 102],
                     [100, 100, 101, 101, 102, 102, 103, 103], [100, 100, 101, 101, 102, 102, 103, 103]]
         numpy.testing.assert_array_equal(gray(expected), decode(data, numpy.full((8, 8, 3), 100, numpy.uint8), 0))
-        impulse = frame(Node(reference_format.COMPACT, record=b'\0\0\7' + bytes(7)), width=8, height=8, size=8, key=False, frame_id=1)
+        impulse = frame(Node(mcv2_reference.COMPACT, record=b'\0\0\7' + bytes(7)), width=8, height=8, size=8, key=False, frame_id=1)
         expected = [[7, 5, 2, 0, 0, 0, 0, 0], [5, 4, 1, 0, 0, 0, 0, 0], [2, 1, 0, 0, 0, 0, 0, 0]] + [[0] * 8] * 5
         numpy.testing.assert_array_equal(gray(expected), decode(impulse, numpy.zeros((8, 8, 3), numpy.uint8), 0))
 
     def test_leaves_read_only_the_reference_and_crop_whole_blocks(self):
-        node = Node(reference_format.SPLIT, children=(Node(reference_format.SOLID, record=bytes([200] * 3)), Node(reference_format.MOTION, record=b'\xf0\0'),
-                                       Node(reference_format.SKIP), Node(reference_format.COMPACT, record=b'\0\0' + b'\x11' * 8)))
+        node = Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.SOLID, record=bytes([200] * 3)), Node(mcv2_reference.MOTION, record=b'\xf0\0'),
+                                       Node(mcv2_reference.SKIP), Node(mcv2_reference.COMPACT, record=b'\0\0' + b'\x11' * 8)))
         data = frame(node, width=17, height=17, key=False, frame_id=1)
         expected = numpy.full((17, 17, 3), 10, numpy.uint8)
         expected[:16, :16] = 200
@@ -151,7 +151,7 @@ class StreamTest(unittest.TestCase):
             self.assertEqual(4, decoder.frame_id)
             numpy.testing.assert_array_equal(first, decoder.reference)
         numpy.testing.assert_array_equal(first, decoder.accept(frame(key=False, frame_id=10, reference_id=4)))
-        recovered = decoder.accept(frame(Node(reference_format.SOLID, record=b'\1\2\3'), frame_id=11))
+        recovered = decoder.accept(frame(Node(mcv2_reference.SOLID, record=b'\1\2\3'), frame_id=11))
         numpy.testing.assert_array_equal(numpy.array([[[1, 2, 3]] * 3] * 2, numpy.uint8), recovered)
         with self.assertRaises(ValueError):
             decoder.accept(frame(width=4, key=False, frame_id=12, reference_id=11))
@@ -160,7 +160,7 @@ class StreamTest(unittest.TestCase):
 
     def test_half_range_wraparound_and_caller_edits(self):
         decoder = Decoder()
-        first = decoder.accept(frame(Node(reference_format.SOLID, record=bytes([11, 22, 33])), frame_id=0xFFFFFFFE))
+        first = decoder.accept(frame(Node(mcv2_reference.SOLID, record=bytes([11, 22, 33])), frame_id=0xFFFFFFFE))
         first[:] = 0
         expected = numpy.array([[[11, 22, 33]] * 3] * 2, numpy.uint8)
         numpy.testing.assert_array_equal(expected, decoder.accept(frame(key=False, frame_id=0, reference_id=0xFFFFFFFE)))
