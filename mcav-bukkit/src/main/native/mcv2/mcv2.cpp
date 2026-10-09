@@ -40,30 +40,32 @@
 
 #define MCV2_HWCAP_SVE (1LL << 22)
 
-#define MCV2_KERNELS(X)                                                                                                \
-  X(int64_t, predicted,                                                                                                \
-    (const int32_t *prediction, int32_t size, int32_t *output, const int32_t *source, double rate, double limit))      \
-  X(int64_t, solid, (int32_t color, int32_t size, int32_t * output, const int32_t *source, double rate, double limit)) \
-  X(int64_t, palette,                                                                                                  \
-    (const int8_t *record, int32_t size, int32_t *output, const int32_t *source, double rate, double limit))           \
-  X(int64_t, compact,                                                                                                  \
-    (const int32_t *prediction, const int8_t *record, int32_t quantizer, int32_t size, int32_t *output,                \
-     const int32_t *source, double rate, double limit))                                                                \
-  X(void, predict,                                                                                                     \
-    (const uint8_t *reference, int32_t width, int32_t height, int32_t horizontal_position, int32_t vertical_position,  \
-     int32_t size, int32_t horizontal_motion, int32_t vertical_motion, int32_t *output))                               \
-  X(void, fit, (const float *values, int32_t size, const float *matrix, float *output))                                \
-  X(void, cluster, (const int32_t *source, int32_t size, int32_t *endpoints))                                          \
-  X(void, assign, (const int32_t *source, int32_t count, const int32_t *colors, int8_t *selectors))                    \
-  X(int32_t, assign_pattern, (const int32_t *source, int32_t size, const int32_t *colors, int8_t *selectors))          \
-  X(int32_t, seeded,                                                                                                   \
-    (const uint8_t *reference, int32_t width, int32_t height, const int32_t *source, int32_t horizontal_position,      \
-     int32_t vertical_position, int32_t size, int32_t range, const int32_t *seeds, int32_t seed_count))                \
-  X(void, load_source,                                                                                                 \
-    (const uint8_t *image, int32_t width, int32_t height, int32_t horizontal_position, int32_t vertical_position,      \
-     int32_t size, int32_t *source))                                                                                   \
-  X(void, halve, (const int32_t *block, int32_t size, int32_t *output))                                                \
-  X(void, residual_target, (const int32_t *source, const int32_t *prediction, int32_t count, float *target))
+#define MCV2_KERNELS(KERNEL)                                                                                           \
+  KERNEL(int64_t, predicted,                                                                                           \
+         (const int32_t *prediction, int32_t size, int32_t *output, const int32_t *source, double rate, double limit)) \
+  KERNEL(int64_t, solid,                                                                                               \
+         (int32_t color, int32_t size, int32_t * output, const int32_t *source, double rate, double limit))            \
+  KERNEL(int64_t, palette,                                                                                             \
+         (const int8_t *record, int32_t size, int32_t *output, const int32_t *source, double rate, double limit))      \
+  KERNEL(int64_t, compact,                                                                                             \
+         (const int32_t *prediction, const int8_t *record, int32_t quantizer, int32_t size, int32_t *output,           \
+          const int32_t *source, double rate, double limit))                                                           \
+  KERNEL(void, predict,                                                                                                \
+         (const uint8_t *reference, int32_t width, int32_t height, int32_t horizontal_position,                        \
+          int32_t vertical_position, int32_t size, int32_t horizontal_motion, int32_t vertical_motion,                 \
+          int32_t *output))                                                                                            \
+  KERNEL(void, fit, (const float *values, int32_t size, const float *matrix, float *output))                           \
+  KERNEL(void, cluster, (const int32_t *source, int32_t size, int32_t *endpoints))                                     \
+  KERNEL(void, assign, (const int32_t *source, int32_t count, const int32_t *colors, int8_t *selectors))               \
+  KERNEL(int32_t, assign_pattern, (const int32_t *source, int32_t size, const int32_t *colors, int8_t *selectors))     \
+  KERNEL(int32_t, seeded,                                                                                              \
+         (const uint8_t *reference, int32_t width, int32_t height, const int32_t *source, int32_t horizontal_position, \
+          int32_t vertical_position, int32_t size, int32_t range, const int32_t *seeds, int32_t seed_count))           \
+  KERNEL(void, load_source,                                                                                            \
+         (const uint8_t *image, int32_t width, int32_t height, int32_t horizontal_position, int32_t vertical_position, \
+          int32_t size, int32_t *source))                                                                              \
+  KERNEL(void, halve, (const int32_t *block, int32_t size, int32_t *output))                                           \
+  KERNEL(void, residual_target, (const int32_t *source, const int32_t *prediction, int32_t count, float *target))
 
 extern "C" {
 
