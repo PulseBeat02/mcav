@@ -21,6 +21,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 
+/** Computes hexadecimal digests for MCV2 resources. */
 public final class Mcv2Resources {
 
   private Mcv2Resources() {

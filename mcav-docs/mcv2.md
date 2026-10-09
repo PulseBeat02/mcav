@@ -1627,12 +1627,11 @@ python -m unittest discover -s mcav-bukkit/src/test/python
 python "$MCV2_PY" fixtures "$MCV2_FIXTURES" all
 ```
 
-The benchmark accepts the same `key=value` options: `source`, `width`, `height`, `frames`, `warm`, `fps`, `threads`,
+The benchmark accepts `key=value` options: `source`, `width`, `height`, `frames`, `warm`, `fps`, `threads`,
 `profile=DEFAULT|FAST`, `lambda`, `loop=none|wrap|pingpong`, `key=1` to request every frame as a keyframe,
 `budget=true|false`, `verify=true|false`, `framebudget` in milliseconds, `out` and `decoded`.
 `natives=auto|off` defaults to `auto`: it extracts and installs the kernels in a temporary directory and reports
-`MCV2.describeNatives()` in the additional `natives` field of its final JSON line (logging may precede it).
-Every previous JSON field is retained.
+`MCV2.describeNatives()` in the `natives` field of its final JSON line (logging may precede it).
 Use `natives=off` for the Java comparison. The `mcv2.native` system property still overrides the option.
 
 | Subcommand | Arguments and purpose |
@@ -1650,7 +1649,7 @@ Use `natives=off` for the Java comparison. The `mcv2.native` system property sti
 | Python `shader_check` | `ARCHIVE... [--slots N] [--drop N] [--backend egl\|glx] [--pack DIR] [--spirv CP] [--second-screen] [--restart-check]`; exact pack/reference picture comparison |
 | Python `shader_timing` | `ARCHIVE... [--backend egl\|glx] [--slots N] [--rounds N] [--repeats N] [--pack DIR] [--reference DIR] [--spirv CP] [--json FILE]`; GPU pass timings and deterministic decode checks; `--reference` supports an archived v2 package |
 | Python `strip_fit_check` | `[--backend egl\|glx] [--spirv CP]`; verify screens too small for the transport strip |
-| Python `strip_check` | `CAPTURES --slots N --video-width W`; six-bit strip page, anchor and status validation |
+| Python `strip_check` | `CAPTURES --slots N --video-width W [--screens N] [--screen INDEX] [--first-slot N] [--total-slots N] [--debug-top ROWS]`; six-bit strip page, anchor and status validation |
 | Python `capture_check` | `REFERENCE_RGB W H CAPTURES [--top ROWS] [--vmaf FFMPEG]`; distinct pictures, PSNR, SSIM and VMAF |
 | Python `counter_video` | `RGB W H FPS SECONDS OUTPUT [--ffmpeg FFMPEG]`; stamp frame counters into a clip |
 | Python `latency` | `SERVER_JFR CAPTURE_NUT [--stream N] [--json FILE] [--jfr JFR]`; match server events to displayed pictures |
@@ -1659,7 +1658,7 @@ Use `natives=off` for the Java comparison. The `mcv2.native` system property sti
 
 `generate-fixtures` needs `proxy30_pp600_1920x1080.rgb` and `gameplay30_pp600_1920x1080.rgb` in
 `SOURCE_FOLDER`, and the existing `encoder/crop-320x180x4.rgb` in `FIXTURE_FOLDER`. It overwrites
-`conformance/digests.json` and `conformance/pages.json` in its older metadata format. Run Python
+`conformance/digests.json` and `conformance/pages.json` in the Java generator's own format. Run Python
 `fixtures FIXTURE_FOLDER all` afterwards to restore the independent digest and page manifests.
 
 The fixture root contains `conformance/`, `edge/`, `encoder/`, `writer-canonical/`, the measured curves in `data/`, and the

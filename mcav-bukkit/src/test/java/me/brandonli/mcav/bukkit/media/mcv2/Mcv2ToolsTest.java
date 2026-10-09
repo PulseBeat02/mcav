@@ -30,6 +30,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Natives;
@@ -156,14 +157,35 @@ final class Mcv2ToolsTest {
       """
     );
     final String[] arguments = { pack.toString(), generated.toString(), output.toString(), "--post-only" };
-    assertEquals(0, Mcv2Tools.shaderCompile(arguments));
+    assertEquals(0, compileShaders(arguments));
     final String glsl = Files.readString(output.resolve("sampler.fsh"));
     assertTrue(glsl.contains("uniform sampler2D Sampler0;"));
     assertFalse(glsl.contains("_uniform_00_03"));
     Files.writeString(post.resolve("invalid.fsh"), "#version 330\nvoid main() { invalid shader; }\n");
-    assertEquals(1, Mcv2Tools.shaderCompile(arguments));
+    assertEquals(1, compileShaders(arguments));
     assertFalse(Files.exists(output.resolve("invalid.fsh")));
     assertEquals(glsl, Files.readString(output.resolve("sampler.fsh")));
+  }
+
+  private static int compileShaders(final String[] arguments) throws Exception {
+    // JaCoCo's synthetic methods on LWJGL interfaces confuse its FFM callback selection.
+    final String executable = System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java";
+    final Path java = Path.of(System.getProperty("java.home"), "bin", executable);
+    final String classpath = Files.readString(Path.of("build", "mcv2-tools-classpath.txt"));
+    final List<String> command = new ArrayList<>(
+      List.of(java.toString(), "--enable-native-access=ALL-UNNAMED", "-cp", classpath, Mcv2Tools.class.getName(), "shader-compile")
+    );
+    command.addAll(Arrays.asList(arguments));
+    final Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+    final String output;
+    try (final var stream = process.getInputStream()) {
+      output = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+    }
+    System.out.print(output);
+    final int failures = process.waitFor();
+    final String summary = failures == 0 ? "every stage compiled" : failures + " stages failed";
+    assertTrue(output.lines().anyMatch(summary::equals), output);
+    return failures;
   }
 
   private static String run(final String... arguments) throws Exception {
