@@ -79,7 +79,7 @@ final class ConformanceTest {
   /** Every invalid frame in the reference rejection corpus is refused. */
   @ParameterizedTest(name = "{0}")
   @MethodSource("rejected")
-  void rejectsSyntaxThatIsNotPorted(final String name, final byte[] frame) {
+  void refusesEveryFrameOfTheRejectionCorpus(final String name, final byte[] frame) {
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(frame), name);
   }
 }
