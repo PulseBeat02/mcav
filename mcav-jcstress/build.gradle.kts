@@ -22,7 +22,7 @@ dependencies {
     implementation(project(":mcav-bukkit")) {
         isTransitive = false
     }
-    implementation(project(":sandbox:plugin")) {
+    implementation(project(":mcav-plugin")) {
         isTransitive = false
     }
 }

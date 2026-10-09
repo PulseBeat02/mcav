@@ -7,7 +7,7 @@ assignees: ''
 ---
 
 **Basic Information**
-MCAV Version: (an exact version, not "latest", for example 1.0.0-SNAPSHOT or the plugin jar name mcav-sandbox-1.0.0-v26.3-all.jar)
+MCAV Version: (an exact version, not "latest", for example 1.0.0-SNAPSHOT or the plugin jar name mcav-plugin-1.0.0-v26.3-all.jar)
 Minecraft Server Version: (for example 26.3)
 Server Software and Build: (for example Paper build 42)
 Java Version: (the output of `java -version`, for example Java 25)

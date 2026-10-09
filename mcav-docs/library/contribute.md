@@ -2,7 +2,7 @@
 
 There are many ways to contribute to the mcav project. Here are some of them:
 
-- Translations for the `mcav-sandbox` plugin
+- Translations for the `mcav-plugin` module
 - Video filters for the `mcav-common` module
 - Audio filters for the `mcav-common` module
 - JavaDocs and documentation improvements

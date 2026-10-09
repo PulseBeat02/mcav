@@ -80,7 +80,9 @@ The formatter is separate from `build` and needs clang-format 18.1.8.
 MCV2's Java tools live in `mcav-bukkit/src/test/java/me/brandonli/mcav/bukkit/media/mcv2/Mcv2Tools.java`.
 Its Python tools and independent reference decoder live in `mcav-bukkit/src/test/python`. Their tests run separately
 with `python3 -m unittest discover -s mcav-bukkit/src/test/python`, using Python 3.12 or newer with numpy, Pillow,
-moderngl and matplotlib. The [MCV2 article](mcav-docs/mcv2.md#reproducing-the-measurements-and-figures) lists the tools and their commands.
+moderngl and matplotlib. The
+[MCV2 article](https://mcav.readthedocs.io/en/latest/mcv2.html#reproducing-the-measurements-and-figures) lists the tools and
+their commands.
 
 ## Static Analysis
 
@@ -122,3 +124,12 @@ headless Paper 26.3 server together with Simple Voice Chat, exactly as on a prod
   any error in the server log.
 - Running a Minecraft server means accepting the [Minecraft EULA](https://aka.ms/MinecraftEULA), which is what
   `-Pmcav.acceptMinecraftEula=true` does; without it, the test is skipped.
+
+## Publishing
+
+`./gradlew publishLibraries` publishes the ten library modules, `mcav-browser`, `mcav-bukkit`, `mcav-common`,
+`mcav-discord`, `mcav-http`, `mcav-installer`, `mcav-lwjgl`, `mcav-vm`, `mcav-vnc` and `mcav-voicechat`, as
+`me.brandonli:<module>:1.0.0-SNAPSHOT` to the snapshot repository `https://repo.brandonli.me/snapshots`, and into
+`build/e2e-repository`. It needs the credentials of that repository as the Gradle properties `brandonliUsername` and
+`brandonliPassword`, for example in `~/.gradle/gradle.properties`. The plugin, the mod, the documentation and
+`mcav-jcstress` are not published.

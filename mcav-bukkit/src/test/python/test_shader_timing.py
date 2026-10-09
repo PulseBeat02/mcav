@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Checks the exit codes of shader_timing.py without a GPU: its main() runs on a fake GL context, with a fake post chain
+"""Checks mcv2_tools shader_timing without a GPU: its main() runs on a fake GL context, with a fake post chain
 that decodes as each test says, so what the run counts as a failure is tested on any machine.
 
     python -m unittest discover -s mcav-bukkit/src/test/python -p test_shader_timing.py
@@ -33,7 +33,7 @@ from io import StringIO
 from pathlib import Path
 from unittest import mock
 
-import mcv2_tools as shader_timing  # noqa: E402
+import mcv2_tools
 
 
 def frame(keyframe, version=3):
@@ -55,6 +55,7 @@ class FakeChain:
     missed = frozenset()
     again = frozenset()
     changed = frozenset()
+    received = None
 
     def __init__(self, context, width, height, slots):
         self.round = -1
@@ -67,7 +68,8 @@ class FakeChain:
         self.first = True
 
     def show(self, pages):
-        pass
+        if self.received is not None:
+            self.received.append(pages)
 
     def timed_frame(self, repeats):
         # each frame is shown twice: with its new pages, which decode it, then with the same pages again
@@ -86,31 +88,36 @@ class FakeChain:
         return types.SimpleNamespace(read=lambda: picture)
 
 
-def run(*options, missed=(), again=(), changed=(), version=3):
+def run(*options, missed=(), again=(), changed=(), version=3, received=None):
     """Runs main() on a stream of a keyframe and a P frame, and returns its exit code; 0 when it returns."""
     context = types.SimpleNamespace(info={"GL_RENDERER": "fake", "GL_VERSION": "3.3"})
     moderngl = types.ModuleType("moderngl")
     moderngl.create_standalone_context = lambda **_: context
-    transport = types.ModuleType("mcv2_reference")
-    transport.make_pages = lambda data, stream_id, rows: [data]
-    reference = types.ModuleType("mcvideo")
-    reference.transport = transport
-    modules = {"moderngl": moderngl, "mcvideo": reference, "mcv2_reference": transport}
-    chain = type("Chain", (FakeChain,), dict(missed=frozenset(missed), again=frozenset(again), changed=frozenset(changed)))
-    argv = ["shader_timing.py", "stream.mcs", *options]
-    with mock.patch.dict(sys.modules, modules), mock.patch.object(sys, "argv", argv),\
-            mock.patch.object(shader_timing, "TimedShaderChain", chain),\
-            mock.patch.object(shader_timing, "shader_check_frames", lambda stream: [frame(True, version), frame(False, version)]),\
-            redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+    chain = type(
+        "Chain",
+        (FakeChain,),
+        dict(missed=frozenset(missed), again=frozenset(again), changed=frozenset(changed), received=received),
+    )
+    argv = ["mcv2_tools.py shader_timing", "stream.mcs", *options]
+    with (
+        mock.patch.dict(sys.modules, {"moderngl": moderngl}),
+        mock.patch.object(sys, "argv", argv),
+        mock.patch.object(mcv2_tools, "make_pages", lambda data, stream_id, symbol_bits: [data]),
+        mock.patch.object(mcv2_tools, "TimedShaderChain", chain),
+        mock.patch.object(
+            mcv2_tools, "read_archive", lambda stream: [frame(True, version), frame(False, version)]
+        ),
+        redirect_stdout(StringIO()),
+        redirect_stderr(StringIO()),
+    ):
         try:
-            shader_timing.shader_timing_main()
+            mcv2_tools.shader_timing_main()
         except SystemExit as exit:
             return exit.code
     return 0
 
 
 class ExitCodeTest(unittest.TestCase):
-
     def test_a_run_whose_frames_all_decode_once_to_the_same_pictures_passes(self):
         self.assertEqual(0, run())
 
@@ -131,7 +138,6 @@ class ExitCodeTest(unittest.TestCase):
 
 
 class TimerAccountingTest(unittest.TestCase):
-
     def test_each_copy_is_counted_and_vanilla_outline_blit_is_not_timed(self):
         class Query:
             elapsed = 2_000_000
@@ -142,7 +148,7 @@ class TimerAccountingTest(unittest.TestCase):
             def __exit__(self, *unused):
                 pass
 
-        chain = object.__new__(shader_timing.TimedShaderChain)
+        chain = object.__new__(mcv2_tools.TimedShaderChain)
         chain.context = types.SimpleNamespace(query=lambda **_: Query())
         chain.queries = {}
         chain.warm = lambda: None
@@ -176,6 +182,26 @@ class TimerAccountingTest(unittest.TestCase):
             stream = json.loads(path.read_text())["streams"]["stream.mcs"]
             self.assertEqual(2, stream["new_keyframe"]["total"]["n"])
             self.assertEqual(2, stream["new_p"]["total"]["n"])
+
+    def test_reference_option_imports_transport_from_the_archived_package_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            package = Path(directory) / "mcvideo"
+            package.mkdir()
+            license_header = Path(__file__).read_text().split('"""', 1)[0]
+            (package / "__init__.py").write_text(license_header)
+            (package / "transport.py").write_text(
+                license_header + "def make_pages(data, stream_id, symbol_bits):\n"
+                "    return [b'archived-v2:' + bytes((stream_id, symbol_bits)) + data]\n"
+            )
+            received = []
+            with mock.patch.object(sys, "path", sys.path.copy()), mock.patch.dict(sys.modules):
+                sys.modules.pop("mcvideo", None)
+                sys.modules.pop("mcvideo.transport", None)
+                self.assertEqual(0, run("--reference", directory, version=2, received=received))
+            expected = [
+                [b"archived-v2:\x07\x06" + frame(keyframe, 2)] for keyframe in (True, True, False, False)
+            ]
+            self.assertEqual(expected * 3, received)
 
 
 if __name__ == "__main__":

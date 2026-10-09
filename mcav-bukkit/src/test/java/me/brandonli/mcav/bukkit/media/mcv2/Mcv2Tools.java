@@ -74,7 +74,7 @@ public final class Mcv2Tools {
       case "bench" -> bench(options);
       case "digests" -> digests(options);
       case "generate-fixtures" -> generateFixtures(options);
-      case "shader-compile" -> shaderCompile(options);
+      case "shader-compile" -> System.exit(shaderCompile(options));
       default -> throw new IllegalArgumentException("Unknown subcommand " + arguments[0]);
     }
   }
@@ -122,9 +122,13 @@ public final class Mcv2Tools {
     }
   }
 
+  /**
+   * Native extraction files are scheduled for deletion at JVM shutdown. On Windows, loaded DLLs and their temporary
+   * directory may remain because the libraries are still open while shutdown hooks run.
+   */
   private static void bench(final String[] arguments) throws Exception {
     final Map<String, String> options = arguments(arguments);
-    final Path nativeFolder = installNatives(options.getOrDefault("natives", "auto"));
+    final Path nativeFolder = installNatives(options.getOrDefault("natives", MCV2.NATIVE_AUTO));
     try {
       final int width = Integer.parseInt(options.getOrDefault("width", "1920"));
       final int height = Integer.parseInt(options.getOrDefault("height", "1080"));
@@ -152,7 +156,6 @@ public final class Mcv2Tools {
       budget.close();
       report(measured, frames, warm, fps, threads, (heapAfter - heapBefore) / BYTES_PER_MEGABYTE);
     } finally {
-      // Windows holds loaded libraries open until this process exits.
       try (final var paths = Files.walk(nativeFolder)) {
         paths.forEach(path -> path.toFile().deleteOnExit());
       }
@@ -160,7 +163,7 @@ public final class Mcv2Tools {
   }
 
   private static Path installNatives(final String mode) throws IOException {
-    if (!mode.equals("auto") && !mode.equals("off")) {
+    if (!mode.equals(MCV2.NATIVE_AUTO) && !mode.equals(MCV2.NATIVE_OFF)) {
       throw new IllegalArgumentException("natives must be auto or off");
     }
     final Path folder = Files.createTempDirectory("mcv2-bench-natives-");
@@ -358,6 +361,10 @@ public final class Mcv2Tools {
 
   private static final String REJECTED = "reject";
 
+  /**
+   * Prints each archive path followed by one lowercase RGB SHA-256 or {@code reject} token per frame. A missing length
+   * prefix or payload emits {@code truncated} and ends that archive. {@code --rgb FILE} concatenates accepted pictures.
+   */
   private static void digests(final String[] arguments) throws Exception {
     final MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
     final boolean rgb = arguments.length >= 2 && arguments[0].equals("--rgb");
@@ -376,7 +383,7 @@ public final class Mcv2Tools {
     final StringBuilder line = new StringBuilder();
     int offset = 0;
     while (offset < archive.length) {
-      final long length = archive.length - offset < LENGTH_BYTES ? -1 : length(archive, offset);
+      final long length = archive.length - offset < LENGTH_BYTES ? -1 : Mcv2Decoder.u32(archive, offset);
       if (length < 0 || length > archive.length - offset - LENGTH_BYTES) {
         line.append(' ').append(TRUNCATED);
         break;
@@ -386,14 +393,6 @@ public final class Mcv2Tools {
       offset += LENGTH_BYTES + (int) length;
     }
     return line.toString();
-  }
-
-  private static long length(final byte[] archive, final int offset) {
-    long length = 0;
-    for (int byteIndex = 0; byteIndex < LENGTH_BYTES; byteIndex++) {
-      length |= (archive[offset + byteIndex] & 0xFFL) << (8 * byteIndex);
-    }
-    return length;
   }
 
   private static String token(final Mcv2Receiver receiver, final byte[] frame, final MessageDigest sha256, final OutputStream pictures)
@@ -412,7 +411,7 @@ public final class Mcv2Tools {
   private static final int SOURCE_HEIGHT = 1080;
   private static final int CHANNELS = 3;
   private static final int MAX_ARCHIVE_BYTES = 1_000_000;
-  private static final Gson JSON = new GsonBuilder().setPrettyPrinting().create();
+  private static final Gson JSON = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
 
   private static void generateFixtures(final String[] arguments) throws Exception {
     final Path sources = Path.of(arguments[0]);
@@ -466,12 +465,12 @@ public final class Mcv2Tools {
         if (!Arrays.equals(picture, encoder.getReference())) {
           throw new IllegalStateException("Reference differs for " + name + " frame " + id);
         }
-        hashes.add(sha256(picture));
+        hashes.add(Mcv2Resources.sha256(picture));
         if (name.equals("proxy-default.mcs") && id < 4) {
           final List<byte[]> symbols = TransportPages.makePages(data, 7);
           final List<String> pageHashes = new ArrayList<>();
           for (final byte[] page : symbols) {
-            pageHashes.add(sha256(page));
+            pageHashes.add(Mcv2Resources.sha256(page));
           }
           final Map<String, Object> expected = new LinkedHashMap<>();
           expected.put("pages", pageHashes);
@@ -523,10 +522,6 @@ public final class Mcv2Tools {
     out.writeBytes(data);
   }
 
-  private static String sha256(final byte[] data) throws Exception {
-    return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(data));
-  }
-
   private static final int VULKAN_1_2 = (1 << 22) | (2 << 12);
 
   // the macros GlslCompiler defines for every shader on a device with a zero-to-one depth range; it also defines
@@ -573,7 +568,12 @@ public final class Mcv2Tools {
     return defines;
   }
 
-  private static void shaderCompile(final String[] arguments) throws IOException {
+  /**
+   * Compiles Minecraft's shader variants through shaderc and SPIRV-Cross, returning the number of failed stages.
+   * Sampler names stay unchanged so the Python GL harness can bind them; Minecraft renames them to names such as
+   * {@code _uniform_00_03}. The command exits with this failure count.
+   */
+  static int shaderCompile(final String[] arguments) throws IOException {
     final Path pack = Path.of(arguments[0]);
     final Path generated = Path.of(arguments[1]);
     final Path output = Files.createDirectories(Path.of(arguments[2]));
@@ -599,7 +599,7 @@ public final class Mcv2Tools {
       }
     }
     System.out.println(failures == 0 ? "every stage compiled" : failures + " stages failed");
-    System.exit(failures);
+    return failures;
   }
 
   private static int compile(

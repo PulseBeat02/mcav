@@ -19,6 +19,7 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,6 +30,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Natives;
 import org.junit.jupiter.api.AfterEach;
@@ -66,6 +68,7 @@ final class Mcv2ToolsTest {
       assertArrayEquals(Mcv2Fixtures.read("encoder/crop-default.mcs"), Files.readAllBytes(archive));
       final List<String> lines = output.lines().toList();
       final JsonObject result = JsonParser.parseString(lines.getLast()).getAsJsonObject();
+      assertFalse(lines.getLast().contains("\\u003d"));
       assertEquals(4, result.get("frames").getAsInt());
       assertEquals(3, result.get("warm").getAsInt());
       assertEquals(1, result.get("keyframes").getAsInt());
@@ -119,6 +122,48 @@ final class Mcv2ToolsTest {
     assertThrows(IllegalArgumentException.class, () -> Mcv2Tools.main(new String[0]));
     assertThrows(IllegalArgumentException.class, () -> Mcv2Tools.main(new String[] { "unknown" }));
     assertThrows(IllegalArgumentException.class, () -> Mcv2Tools.main(new String[] { "bench", "natives=unknown" }));
+  }
+
+  @Test
+  void digestsDistinguishRejectedFramesFromTruncatedArchives() throws Exception {
+    final Path archive = folder.resolve("rejected.mcs");
+    final byte[] frame = Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/proxy-default.mcs")).getFirst();
+    final byte[] stream = new byte[Integer.BYTES + frame.length];
+    Mcv2Decoder.putU32(stream, 0, frame.length);
+    System.arraycopy(frame, 0, stream, Integer.BYTES, frame.length);
+    stream[Integer.BYTES] = 0;
+    Files.write(archive, stream);
+    assertEquals(archive + " reject", run("digests", archive.toString()).strip());
+    for (final byte[] truncated : List.of(new byte[] { 1 }, Arrays.copyOf(stream, stream.length - 1))) {
+      Files.write(archive, truncated);
+      assertEquals(archive + " truncated", run("digests", archive.toString()).strip());
+    }
+  }
+
+  @Test
+  void shaderCompilerPreservesSamplerNamesAndReturnsFailedStageCount() throws Exception {
+    final Path pack = folder.resolve("pack");
+    final Path post = Files.createDirectories(pack.resolve("assets/mcav/shaders/post"));
+    final Path generated = Files.createDirectories(folder.resolve("generated"));
+    final Path output = folder.resolve("compiled");
+    Files.writeString(
+      post.resolve("sampler.fsh"),
+      """
+      #version 330
+      layout(location = 0) out vec4 color;
+      uniform sampler2D Sampler0;
+      void main() { color = texture(Sampler0, vec2(0.5)); }
+      """
+    );
+    final String[] arguments = { pack.toString(), generated.toString(), output.toString(), "--post-only" };
+    assertEquals(0, Mcv2Tools.shaderCompile(arguments));
+    final String glsl = Files.readString(output.resolve("sampler.fsh"));
+    assertTrue(glsl.contains("uniform sampler2D Sampler0;"));
+    assertFalse(glsl.contains("_uniform_00_03"));
+    Files.writeString(post.resolve("invalid.fsh"), "#version 330\nvoid main() { invalid shader; }\n");
+    assertEquals(1, Mcv2Tools.shaderCompile(arguments));
+    assertFalse(Files.exists(output.resolve("invalid.fsh")));
+    assertEquals(glsl, Files.readString(output.resolve("sampler.fsh")));
   }
 
   private static String run(final String... arguments) throws Exception {

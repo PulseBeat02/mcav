@@ -17,10 +17,8 @@
 """Malformed frames shared by the validation tests and the public rejected corpus."""
 
 import struct
-import sys
-from pathlib import Path
 
-import mcv2_reference as reference_format
+import mcv2_reference
 from mcv2_reference import Node, pack_frame, parse_frame
 
 
@@ -40,7 +38,7 @@ def rejected_frames():
         return pack_frame(1, 1, 0 if key else 1, 0, {} if node is None else {0: node})
 
     empty = frame()
-    solid = frame(Node(reference_format.SOLID, record=b'\x10\x20\x30'))
+    solid = frame(Node(mcv2_reference.SOLID, record=b'\x10\x20\x30'))
     add('short-frame', bytes(19), '9.1', 'frame length')
     add('oversize-frame', bytes(131072), '9.1', 'frame length')
     add('bad-magic', b'ABCD' + empty[4:], '9.1', 'not an MCV2')
@@ -60,50 +58,50 @@ def rejected_frames():
         add(f'truncated-index-{length}', empty[:length], '9.3', 'truncated index')
     add('unused-mask-bit', changed(empty, 20, 2, 'I'), '9.3', 'presence mask')
     add('directory-zero', changed(empty, 24, 1, 'I'), '9.3', 'directory prefix')
-    wide = pack_frame(4096, 65, 0, 0, {0: Node(reference_format.SKIP), 256: Node(reference_format.SKIP)})
+    wide = pack_frame(4096, 65, 0, 0, {0: Node(mcv2_reference.SKIP), 256: Node(mcv2_reference.SKIP)})
     add('directory-later-prefix', changed(wide, 20 + 12 * 4 + 4, 0, 'I'), '9.3', 'directory prefix')
     add('n0-popcount', changed(solid, 28, 0, 'I'), '9.3', 'level 0 count')
     add('count-overflow', changed(empty, 32, 0xFFFFFFFF, 'I'), '9.3', 'truncated descriptors')
-    split = Node(reference_format.SPLIT, children=(Node(reference_format.SKIP),) * 4)
+    split = Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.SKIP),) * 4)
     branch = frame(split)
-    add('n1-children', changed(branch, 40, reference_format.SKIP), '9.3', 'level 1 count')
-    deep = frame(Node(reference_format.SPLIT, children=(split,) * 4))
-    add('n2-children', changed(deep, 41, reference_format.SKIP), '9.3', 'level 2 count')
+    add('n1-children', changed(branch, 40, mcv2_reference.SKIP), '9.3', 'level 1 count')
+    deep = frame(Node(mcv2_reference.SPLIT, children=(split,) * 4))
+    add('n2-children', changed(deep, 41, mcv2_reference.SKIP), '9.3', 'level 2 count')
     # Removing that split also changes the later walk counts; repair those so this isolates n2.
     data = bytearray(bytes.fromhex(cases['n2-children']['frame']))
     for at in (40 + 21 + 4, 40 + 21 + 8):
         value = struct.unpack_from('<I', data, at)[0]
         struct.pack_into('<I', data, at, value - (1 << 17))
     cases['n2-children']['frame'] = data.hex()
-    add('split-at-level-2', changed(deep, 45, reference_format.SPLIT), '9.3', 'SPLIT in level 2')
+    add('split-at-level-2', changed(deep, 45, mcv2_reference.SPLIT), '9.3', 'SPLIT in level 2')
     add('truncated-descriptor-walk', solid[:44], '9.3', 'truncated descriptors')
     add('walk-zero', changed(solid, 41, 1, 'I'), '9.4', 'walk checkpoint')
-    long = frame(Node(reference_format.SPLIT, children=(Node(reference_format.SPLIT, children=(Node(reference_format.SOLID, record=bytes(3)),) * 4),) * 4))
+    long = frame(Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.SOLID, record=bytes(3)),) * 4),) * 4))
     at = 40 + 21 + 4
     checkpoint = struct.unpack_from('<I', long, at)[0]
     add('walk-cursor', changed(long, at, checkpoint + 1, 'I'), '9.4', 'walk checkpoint')
     add('walk-splits', changed(long, at, checkpoint + (1 << 17), 'I'), '9.4', 'walk checkpoint')
     for mode in range(7, 32):
         add(f'invalid-mode-{mode}', changed(solid, 40, mode), '9.5', 'descriptor mode')
-    for mode in (reference_format.SKIP, reference_format.MOTION, reference_format.SOLID, reference_format.PALETTE, reference_format.PATTERN, reference_format.SPLIT):
+    for mode in (mcv2_reference.SKIP, mcv2_reference.MOTION, mcv2_reference.SOLID, mcv2_reference.PALETTE, mcv2_reference.PATTERN, mcv2_reference.SPLIT):
         add(f'quantizer-mode-{mode}', changed(solid, 40, mode | 32), '9.5', 'quantizer')
-    compact = frame(Node(reference_format.COMPACT, record=bytes(10)), key=False)
+    compact = frame(Node(mcv2_reference.COMPACT, record=bytes(10)), key=False)
     for quantizer in range(3, 8):
-        add(f'compact-quantizer-{quantizer}', changed(compact, 40, reference_format.COMPACT | quantizer << 5), '9.5', 'COMPACT quantizer above 2')
-    for mode in (reference_format.MOTION, reference_format.COMPACT):
+        add(f'compact-quantizer-{quantizer}', changed(compact, 40, mcv2_reference.COMPACT | quantizer << 5), '9.5', 'COMPACT quantizer above 2')
+    for mode in (mcv2_reference.MOTION, mcv2_reference.COMPACT):
         add(f'keyframe-mode-{mode}', changed(solid, 40, mode), '9.5', 'temporal mode')
-    nodes = [Node(reference_format.MOTION, record=bytes(2)), Node(reference_format.SOLID, record=bytes(3)),
-             Node(reference_format.PALETTE, record=bytes(134)), Node(reference_format.PATTERN, record=bytes(11)),
-             Node(reference_format.COMPACT, record=bytes(10))]
+    nodes = [Node(mcv2_reference.MOTION, record=bytes(2)), Node(mcv2_reference.SOLID, record=bytes(3)),
+             Node(mcv2_reference.PALETTE, record=bytes(134)), Node(mcv2_reference.PATTERN, record=bytes(11)),
+             Node(mcv2_reference.COMPACT, record=bytes(10))]
     for node in nodes:
         data = frame(node, key=False)
         add(f'truncated-record-{node.mode}', data[:-1], '9.5', 'record exceeds')
-    pattern = frame(Node(reference_format.PATTERN, record=bytes(11)))
+    pattern = frame(Node(mcv2_reference.PATTERN, record=bytes(11)))
     add('pattern-orientation', changed(pattern, parse_frame(pattern).payload_start + 6, 2), '9.5', 'PATTERN orientation')
-    offscreen = frame(Node(reference_format.SPLIT, children=(Node(reference_format.SKIP), Node(reference_format.SKIP), Node(reference_format.SKIP), Node(reference_format.PATTERN, record=bytes(9)))))
+    offscreen = frame(Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.SKIP), Node(mcv2_reference.SKIP), Node(mcv2_reference.SKIP), Node(mcv2_reference.PATTERN, record=bytes(9)))))
     add('off-picture-orientation', changed(offscreen, parse_frame(offscreen).payload_start + 6, 2), '9.5', 'PATTERN orientation')
-    eight = frame(Node(reference_format.SPLIT, children=(Node(reference_format.SPLIT, children=(Node(reference_format.PATTERN, record=bytes(8)),)
-                                                     + (Node(reference_format.SKIP),) * 3),) + (Node(reference_format.SKIP),) * 3))
+    eight = frame(Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.SPLIT, children=(Node(mcv2_reference.PATTERN, record=bytes(8)),)
+                                                     + (Node(mcv2_reference.SKIP),) * 3),) + (Node(mcv2_reference.SKIP),) * 3))
     add('pattern-orientation-8', changed(eight, parse_frame(eight).payload_start + 6, 255), '9.5', 'PATTERN orientation')
     add('payload-gap', solid + b'\0', '9.6', 'records do not end')
     return cases

@@ -19,9 +19,9 @@ The MCAV plugin works on **Paper** servers only, not on **Spigot** or **Bukkit**
 2026-09-27; the plugin is built and tested against build 49.
 ```
 
-1) Download the latest JAR from the TeamCity CI page [here](https://ci.brandonli.me/repository/download/mcav_Build/.lastFinished/mcav-sandbox-1.0.0-v26.3-all.jar).
+1) Download the latest JAR from the TeamCity CI page [here](https://ci.brandonli.me/repository/download/mcav_Build/.lastFinished/mcav-plugin-1.0.0-v26.3-all.jar).
    If CI asks you to sign in and you do not have access, [build the plugin from source](../library/compile.md);
-   the jar is `sandbox/plugin/build/libs/mcav-sandbox-1.0.0-v26.3-all.jar`.
+   the jar is `mcav-plugin/build/libs/mcav-plugin-1.0.0-v26.3-all.jar`.
 2) Place the JAR file into the `plugins` folder of your server.
 3) Start the server.
 
@@ -36,7 +36,7 @@ Windows (x86-64). Natives for Android, iOS, and 32-bit systems are left out. The
 separately, about 136 to 163 MiB depending on the platform, the first time a browser starts, and on Linux the libraries it
 needs that the server lacks, about 13 MB; the browser needs no X server and nothing installed. Every file is checked against its
 SHA-256 hash, and later starts reuse the downloaded files. When building the plugin yourself, the list of platforms is the `javacppPlatform` property in
-`sandbox/plugin/gradle.properties`.
+`mcav-plugin/gradle.properties`.
 
 The server finishes starting without waiting for VLC and yt-dlp. When the server has no VLC, the plugin downloads it in
 the background into the MCAV cache folder of the user running the server (`~/.mcav/cache`), without `sudo`; yt-dlp is

@@ -253,8 +253,9 @@ maps, 135 × 16,384 = 2,211,840 bytes of map colours for one frame.
 MCAV has always played video on maps by **dithering**: turning every frame into the nearest map colours, mixing
 neighbouring pixels of different colours where no map colour is close enough, and sending the map colours that changed
 since the last frame. Every client can show that without any help. But the numbers are bad. Here is what dithered maps
-send at 1080p and 30 fps, after Minecraft's own packet compression, with VMAF (measured with `the archived DitherBench benchmark (before this cleanup)`;
-the clips are described in [The Test Clips](#the-test-clips)):
+send at 1080p and 30 fps, after Minecraft's own packet compression, with VMAF (measured with the former
+`tools/mcv2/DitherBench.java`; its exact command is
+`dither_command` in `codec_curves.json`, and the clips are described in [The Test Clips](#the-test-clips)):
 
 | Content | Under the plugin's default budget (128 KiB per frame and viewer) | Every change sent |
 |---|---|---|
@@ -1277,8 +1278,8 @@ maps, and with the shaders off the video again, without rejoining. Vanilla, Sodi
 show MCV2 and need no mod.
 
 The mod is for Minecraft 26.3, on Fabric (Loader 0.19.5 or newer, with Fabric API) or NeoForge (26.3.0.43-beta or
-newer), with or without Iris. Build it with `./gradlew :mcav-mcv2-client:assemble` and put
-`mcav-mcv2-client/build/libs/mcav-mcv2-client-fabric.jar` or `mcav-mcv2-client-neoforge.jar` into the client's `mods`
+newer), with or without Iris. Build it with `./gradlew :mcav-mod:assemble` and put
+`mcav-mod/build/libs/mcav-mod-fabric.jar` or `mcav-mod-neoforge.jar` into the client's `mods`
 folder; it isn't published anywhere yet. It talks on one plugin channel, `mcav:mcv2`, which carries nothing else, and
 only to a server that registered it. A report is four bytes:
 
@@ -1604,7 +1605,8 @@ The measurements behind every chart are in `mcav-bukkit/src/test/resources/mcv2/
 MCV2's tools live in mcav-bukkit's test sources. The independent Python implementation is
 `mcav-bukkit/src/test/python/mcv2_reference.py`; it implements the format, serializer, decoder and six-bit transport
 without calling Java. All Python tool commands use `mcav-bukkit/src/test/python/mcv2_tools.py` followed by a
-subcommand. Use Python 3.12 or newer with numpy 2.5.3, Pillow 12.3.0, moderngl 5.12.0 and matplotlib 3.11.2 for figures.
+subcommand. Use Python 3.12 or newer with numpy 2.5.3, Pillow 12.3.0, moderngl 5.12.0 and matplotlib 3.11.2 with
+Liberation Sans for figures.
 The Java commands share `me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools`. Its shaderc and SPIRV-Cross dependencies,
 including the current platform's LWJGL natives, are test dependencies and are absent from the plugin's runtime.
 
@@ -1629,7 +1631,8 @@ The benchmark accepts the same `key=value` options: `source`, `width`, `height`,
 `profile=DEFAULT|FAST`, `lambda`, `loop=none|wrap|pingpong`, `key=1` to request every frame as a keyframe,
 `budget=true|false`, `verify=true|false`, `framebudget` in milliseconds, `out` and `decoded`.
 `natives=auto|off` defaults to `auto`: it extracts and installs the kernels in a temporary directory and reports
-`MCV2.describeNatives()` in the additional `natives` field of its JSON line. Every previous JSON field is retained.
+`MCV2.describeNatives()` in the additional `natives` field of its final JSON line (logging may precede it).
+Every previous JSON field is retained.
 Use `natives=off` for the Java comparison. The `mcv2.native` system property still overrides the option.
 
 | Subcommand | Arguments and purpose |
@@ -1650,12 +1653,17 @@ Use `natives=off` for the Java comparison. The `mcv2.native` system property sti
 | Python `strip_check` | `CAPTURES --slots N --video-width W`; six-bit strip page, anchor and status validation |
 | Python `capture_check` | `REFERENCE_RGB W H CAPTURES [--top ROWS] [--vmaf FFMPEG]`; distinct pictures, PSNR, SSIM and VMAF |
 | Python `counter_video` | `RGB W H FPS SECONDS OUTPUT [--ffmpeg FFMPEG]`; stamp frame counters into a clip |
-| Python `latency` | `SERVER_JFR CAPTURE_NUT [--top ROWS] [--json FILE] [--jfr JFR]`; match server events to displayed pictures |
+| Python `latency` | `SERVER_JFR CAPTURE_NUT [--stream N] [--json FILE] [--jfr JFR]`; match server events to displayed pictures |
 | Python `charts` | `[--tables]`; render `codecs.png` and `features.png`, and print the article's tables |
 | Python `samples` | `[--size WxH] tree\|leaves\|bytes ...`; inspect real frames and render the sample figures |
 
-The fixture root contains `conformance/`, `edge/`, `encoder/`, the measured curves in `data/`, and the three Graphviz
-sources in `figures/`. Jazzer's `*FuzzTestInputs/` directories stay beneath the fuzz tests' Java package paths because
+`generate-fixtures` needs `proxy30_pp600_1920x1080.rgb` and `gameplay30_pp600_1920x1080.rgb` in
+`SOURCE_FOLDER`, and the existing `encoder/crop-320x180x4.rgb` in `FIXTURE_FOLDER`. It overwrites
+`conformance/digests.json` and `conformance/pages.json` in its older metadata format. Run Python
+`fixtures FIXTURE_FOLDER all` afterwards to restore the independent digest and page manifests.
+
+The fixture root contains `conformance/`, `edge/`, `encoder/`, `writer-canonical/`, the measured curves in `data/`, and the
+three Graphviz sources in `figures/`. Jazzer's `*FuzzTestInputs/` directories stay beneath the fuzz tests' Java package paths because
 Jazzer discovers their seeds there. The resource pack and chain template live under `mcav/mcv2/` in main resources.
 
 Render the diagrams and charts with Graphviz 14.1.2 and Python:
@@ -1671,4 +1679,21 @@ java --enable-native-access=ALL-UNNAMED -cp "$MCV2_CP" "$MCV2_MAIN" bench \
 python "$MCV2_PY" samples tree gameplay.mcs --frames 0,12 --crop 896,128,576,324
 python "$MCV2_PY" samples leaves gameplay.mcs gameplay.rgb --frame 0 --crop 896,128,576,324
 python "$MCV2_PY" samples bytes gameplay.mcs --frame 0
+```
+
+To redraw `frame.png`, put the 71 bytes from [A Real Frame, Byte by Byte](#a-real-frame-byte-by-byte) into a
+one-frame archive, then draw its whole picture:
+
+```sh
+python - <<'PY'
+from pathlib import Path
+import struct
+frame = bytes.fromhex(
+    "4d43563203000000400020000000000000000000030000000000000002000000"
+    "04000000000000000206020202040000000091b2fa91b2fa97b6f991b2fa92b3"
+    "fabccef600f0ff"
+)
+Path("frame.mcs").write_bytes(struct.pack("<I", len(frame)) + frame)
+PY
+python "$MCV2_PY" samples --size 64x32 tree frame.mcs --frames 0 --crop 0,0,64,32 --out frame.png
 ```
