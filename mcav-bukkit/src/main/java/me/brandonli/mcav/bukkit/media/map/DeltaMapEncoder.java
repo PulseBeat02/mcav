@@ -546,7 +546,7 @@ public final class DeltaMapEncoder {
     private final int width;
     private final int height;
 
-    PatchRectangle(final int left, final int top, final int width, final int height) {
+    private PatchRectangle(final int left, final int top, final int width, final int height) {
       this.left = left;
       this.top = top;
       this.width = width;
@@ -557,7 +557,7 @@ public final class DeltaMapEncoder {
      * Clips a rectangle of tiles to the region. The rectangle always overlaps the region, because it only consists
      * of dirty tiles, and a tile only becomes dirty when a pixel inside the region changed.
      */
-    static PatchRectangle clip(final int left, final int top, final int width, final int height, final MapRegion region) {
+    private static PatchRectangle clip(final int left, final int top, final int width, final int height, final MapRegion region) {
       final int regionX = region.getLocalX();
       final int regionY = region.getLocalY();
       final int regionRight = regionX + region.getWidth();
@@ -592,11 +592,11 @@ public final class DeltaMapEncoder {
       return this.top;
     }
 
-    int getWidth() {
+    private int getWidth() {
       return this.width;
     }
 
-    int getHeight() {
+    private int getHeight() {
       return this.height;
     }
 
@@ -615,7 +615,7 @@ public final class DeltaMapEncoder {
     private final int size;
     private final long priority;
 
-    MapCandidate(final int map, final List<MapTilePatch> patches, final int size, final long priority) {
+    private MapCandidate(final int map, final List<MapTilePatch> patches, final int size, final long priority) {
       this.map = map;
       this.patches = patches;
       this.size = size;
