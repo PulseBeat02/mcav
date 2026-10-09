@@ -58,11 +58,11 @@ public final class Mcv2FileEncoder {
     /**
      * Reads the next frame.
      *
-     * @param rgb where the frame's pixels go, three bytes per pixel, row by row
+     * @param pictureBytes where the frame's pixels go, three bytes per pixel, row by row
      * @return false once the video has no more frames
      * @throws IOException if the video cannot be read
      */
-    boolean read(byte[] rgb) throws IOException;
+    boolean read(byte[] pictureBytes) throws IOException;
 
     /**
      * Releases the video.
@@ -101,7 +101,7 @@ public final class Mcv2FileEncoder {
    * @param height the frame height in pixels, 1 through 4096 for encoding
    * @param settings the encoder settings, for example {@link Settings#DEFAULT}
    * @param budget   the encoder budget, usually {@link Pool#shared()}
-   * @param out the caller-owned output, written synchronously without flush or close; failures can leave
+   * @param output the caller-owned output, written synchronously without flush or close; failures can leave
    *            a partial length prefix or frame in the stream
    * @param progress called synchronously on the calling thread after each complete frame write, with
    *                 the cumulative count starting at one; callback failures abort encoding
@@ -112,7 +112,7 @@ public final class Mcv2FileEncoder {
    *    *         dimension/id range
    * @throws ArithmeticException if the RGB allocation size overflows an int
    * @throws java.util.concurrent.RejectedExecutionException if the budget rejects the encoding task
-   * @throws NullPointerException if {@code frames}, {@code settings}, {@code budget}, {@code out} or {@code progress} is null
+   * @throws NullPointerException if {@code frames}, {@code settings}, {@code budget}, {@code output} or {@code progress} is null
    */
   public static Result encode(
     final FrameReader frames,
@@ -120,32 +120,32 @@ public final class Mcv2FileEncoder {
     final int height,
     final Settings settings,
     final Pool budget,
-    final OutputStream out,
+    final OutputStream output,
     final LongConsumer progress
   ) throws IOException, InterruptedException {
     Preconditions.checkNotNull(frames, "Frames must not be null");
     Preconditions.checkArgument(width > 0 && height > 0, "Size must be positive");
     Preconditions.checkNotNull(settings, "Settings must not be null");
     Preconditions.checkNotNull(budget, "Budget must not be null");
-    Preconditions.checkNotNull(out, "Output must not be null");
+    Preconditions.checkNotNull(output, "Output must not be null");
     Preconditions.checkNotNull(progress, "Progress must not be null");
     try (frames) {
       final MCV2 encoder = budget.encoder(settings, false);
-      final byte[] rgb = new byte[Math.multiplyExact(Math.multiplyExact(width, height), Mcv2Decoder.CHANNELS)];
+      final byte[] pictureBytes = new byte[Math.multiplyExact(Math.multiplyExact(width, height), Mcv2Decoder.CHANNELS)];
       final byte[] length = new byte[Integer.BYTES];
       long count = 0;
       long keyframes = 0;
       long bytes = 0;
       long nanoseconds = 0;
-      while (frames.read(rgb)) {
+      while (frames.read(pictureBytes)) {
         final long frameId = count;
         final long started = System.nanoTime();
-        final byte[] frame = budget.run(() -> encoder.encode(rgb, width, height, frameId));
+        final byte[] frame = budget.run(() -> encoder.encode(pictureBytes, width, height, frameId));
         nanoseconds += System.nanoTime() - started;
         keyframes += Preconditions.checkNotNull(encoder.getStats()).keyframe() ? 1 : 0;
         ByteBuffer.wrap(length).order(ByteOrder.LITTLE_ENDIAN).putInt(0, frame.length);
-        out.write(length);
-        out.write(frame);
+        output.write(length);
+        output.write(frame);
         bytes += frame.length;
         count++;
         progress.accept(count);
@@ -174,16 +174,6 @@ public final class Mcv2FileEncoder {
     return open(new FFmpegFrameGrabber(video.toFile()), video.toString(), width, height);
   }
 
-  /**
-   * Starts a grabber that decodes frames scaled to a size into RGB.
-   *
-   * @param grabber the grabber, closed if it cannot start
-   * @param name    what it decodes, for the error message
-   * @param width   the width of the frames
-   * @param height  the height of the frames
-   * @return the frames
-   * @throws IOException if the grabber cannot start
-   */
   static FrameReader open(final FFmpegFrameGrabber grabber, final String name, final int width, final int height) throws IOException {
     grabber.setPixelFormat(avutil.AV_PIX_FMT_RGB24);
     grabber.setImageWidth(width);
@@ -203,11 +193,10 @@ public final class Mcv2FileEncoder {
     try {
       grabber.close();
     } catch (final FrameGrabber.Exception exception) {
-      // nothing was read from it; the failure to open is what is reported
+      // A close failure must not hide the error that prevented opening the input.
     }
   }
 
-  /** The frames an FFmpeg grabber decodes. */
   static final class GrabberReader implements FrameReader {
 
     private final FFmpegFrameGrabber grabber;
@@ -223,7 +212,7 @@ public final class Mcv2FileEncoder {
     }
 
     @Override
-    public boolean read(final byte[] rgb) throws IOException {
+    public boolean read(final byte[] pictureBytes) throws IOException {
       final Frame frame;
       try {
         frame = this.grabber.grabImage();
@@ -233,7 +222,7 @@ public final class Mcv2FileEncoder {
       if (frame == null) {
         return false;
       }
-      copy(frame, rgb, this.width, this.height);
+      copy(frame, pictureBytes, this.width, this.height);
       return true;
     }
 
@@ -247,21 +236,13 @@ public final class Mcv2FileEncoder {
     }
   }
 
-  /**
-   * Copies a decoded RGB frame's rows, which may be padded, into tightly packed bytes.
-   *
-   * @param frame  the frame
-   * @param rgb    where the pixels go
-   * @param width  the frame's width
-   * @param height the frame's height
-   */
-  static void copy(final Frame frame, final byte[] rgb, final int width, final int height) {
+  static void copy(final Frame frame, final byte[] pictureBytes, final int width, final int height) {
     Preconditions.checkState(frame.imageWidth == width && frame.imageHeight == height, "The frame is not %sx%s", width, height);
     final ByteBuffer pixels = ((ByteBuffer) frame.image[0]).duplicate();
     final int rowBytes = width * Mcv2Decoder.CHANNELS;
     for (int row = 0; row < height; row++) {
       pixels.position(row * frame.imageStride);
-      pixels.get(rgb, row * rowBytes, rowBytes);
+      pixels.get(pictureBytes, row * rowBytes, rowBytes);
     }
   }
 }

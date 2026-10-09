@@ -27,7 +27,7 @@ import java.io.Serial;
  * malformed non-null byte input is reported by this exception rather than an out-of-bounds read.
  * API preconditions such as non-null arguments and valid worker lifecycles may still throw unchecked exceptions.
  */
-public class Mcv2Exception extends Exception {
+public final class Mcv2Exception extends Exception {
 
   @Serial
   private static final long serialVersionUID = 4270539862718624891L;

@@ -35,7 +35,7 @@ public final class Mcv2Decoder {
   static final int SMALLEST_BLOCK = 8;
   static final int BLOCK_SIZES = 3;
   static final int CHANNELS = 3;
-  static final int MAX_CHANNEL = 255;
+  private static final int MAX_CHANNEL = 255;
   static final int QUARTERS = 4;
   static final int GROUP_ROOTS = 32;
   static final int CHECKPOINT_GROUPS = 8;
@@ -47,7 +47,7 @@ public final class Mcv2Decoder {
   static final int MODE_PATTERN = 4;
   static final int MODE_COMPACT = 5;
   static final int MODE_SPLIT = 6;
-  static final int MODE_MASK = 31;
+  private static final int MODE_MASK = 31;
   static final int QUANTIZER_SHIFT = 5;
   static final int MAX_QUANTIZER = 2;
   static final int COMPACT_BYTES = 10;
@@ -71,16 +71,6 @@ public final class Mcv2Decoder {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  /**
-   * A validated leaf, including its position outside the visible picture.
-   *
-   * @param left horizontal origin in pixels
-   * @param top vertical origin in pixels
-   * @param size square side, 8, 16 or 32 pixels
-   * @param mode leaf mode, SKIP through COMPACT
-   * @param quantizer residual scale exponent, zero for other modes
-   * @param offset record byte offset, or -1 for an absent root
-   */
   record Leaf(int left, int top, int size, int mode, int quantizer, int offset) {}
 
   /** A complete validated frame. Accessors copy mutable data. */
@@ -168,23 +158,16 @@ public final class Mcv2Decoder {
       return this.leaves.length / LEAF_INTS;
     }
 
-    /**
-     * Returns one leaf in level order, followed by absent roots in raster order.
-     *
-     * @param index zero-based leaf index
-     * @return immutable leaf metadata
-     * @throws IndexOutOfBoundsException if the index is outside the leaf array
-     */
     Leaf getLeaf(final int index) {
       Preconditions.checkElementIndex(index, this.getLeafCount(), "Leaf index");
-      final int at = index * LEAF_INTS;
+      final int arrayOffset = index * LEAF_INTS;
       return new Leaf(
-        this.leaves[at],
-        this.leaves[at + 1],
-        this.leaves[at + 2],
-        this.leaves[at + 3],
-        this.leaves[at + 4],
-        this.leaves[at + 5]
+        this.leaves[arrayOffset],
+        this.leaves[arrayOffset + 1],
+        this.leaves[arrayOffset + 2],
+        this.leaves[arrayOffset + 3],
+        this.leaves[arrayOffset + 4],
+        this.leaves[arrayOffset + 5]
       );
     }
   }
@@ -251,7 +234,7 @@ public final class Mcv2Decoder {
       if (descriptorsAt > this.data.length) {
         throw new Mcv2Exception("Truncated index");
       }
-      // Unsigned counts stay wide until their sum and the whole index fit inside the input.
+      // Unsigned counts must fit the input before narrowing to int.
       final long levelZero = u32(this.data, countsAt);
       final long levelOne = u32(this.data, countsAt + Integer.BYTES);
       final long levelTwo = u32(this.data, countsAt + 2 * Integer.BYTES);
@@ -302,10 +285,16 @@ public final class Mcv2Decoder {
         if ((this.data[descriptorsAt + index] & MODE_MASK) != MODE_SPLIT) {
           continue;
         }
-        final int at = index * POSITION_INTS;
-        final int half = positions[at + 2] / 2;
+        final int arrayOffset = index * POSITION_INTS;
+        final int half = positions[arrayOffset + 2] / 2;
         for (int corner = 0; corner < QUARTERS; corner++) {
-          position(positions, child++, positions[at] + (corner % 2) * half, positions[at + 1] + (corner / 2) * half, half);
+          position(
+            positions,
+            child++,
+            positions[arrayOffset] + (corner % 2) * half,
+            positions[arrayOffset + 1] + (corner / 2) * half,
+            half
+          );
         }
       }
       final int[] leaves = new int[(this.roots + descriptors - firstChildren - splits) * LEAF_INTS];
@@ -326,11 +315,11 @@ public final class Mcv2Decoder {
           splits++;
           continue;
         }
-        final int at = index * POSITION_INTS;
+        final int arrayOffset = index * POSITION_INTS;
         final int offset = this.start + cursor;
-        final int size = positions[at + 2];
+        final int size = positions[arrayOffset + 2];
         cursor += this.recordLength(mode, size, offset);
-        leaf(leaves, leaf++, positions[at], positions[at + 1], size, mode, descriptor >> QUANTIZER_SHIFT, offset);
+        leaf(leaves, leaf++, positions[arrayOffset], positions[arrayOffset + 1], size, mode, descriptor >> QUANTIZER_SHIFT, offset);
       }
       if (this.start + cursor != payloadEnd) {
         throw new Mcv2Exception("Records do not end at the frame end");
@@ -383,10 +372,10 @@ public final class Mcv2Decoder {
   }
 
   private static void position(final int[] positions, final int index, final int left, final int top, final int size) {
-    final int at = index * POSITION_INTS;
-    positions[at] = left;
-    positions[at + 1] = top;
-    positions[at + 2] = size;
+    final int arrayOffset = index * POSITION_INTS;
+    positions[arrayOffset] = left;
+    positions[arrayOffset + 1] = top;
+    positions[arrayOffset + 2] = size;
   }
 
   private static void leaf(
@@ -399,13 +388,13 @@ public final class Mcv2Decoder {
     final int quantizer,
     final int offset
   ) {
-    final int at = index * LEAF_INTS;
-    leaves[at] = left;
-    leaves[at + 1] = top;
-    leaves[at + 2] = size;
-    leaves[at + 3] = mode;
-    leaves[at + 4] = quantizer;
-    leaves[at + 5] = offset;
+    final int arrayOffset = index * LEAF_INTS;
+    leaves[arrayOffset] = left;
+    leaves[arrayOffset + 1] = top;
+    leaves[arrayOffset + 2] = size;
+    leaves[arrayOffset + 3] = mode;
+    leaves[arrayOffset + 4] = quantizer;
+    leaves[arrayOffset + 5] = offset;
   }
 
   /**
@@ -455,20 +444,6 @@ public final class Mcv2Decoder {
     decodeRows(frame, samePicture(prediction, output) ? prediction.clone() : prediction, referenceId, output, 0, frame.height);
   }
 
-  /**
-   * Decodes a row range, leaving other rows unchanged. Disjoint ranges may run concurrently;
-   * the reference must remain stable and must not alias output.
-   *
-   * @param frame validated frame
-   * @param reference previous RGB24 picture; may be null for keyframes
-   * @param referenceId id of that picture; ignored for keyframes
-   * @param output array of exactly width * height * 3 bytes
-   * @param fromRow first row, inclusive
-   * @param toRow last row, exclusive
-   * @throws NullPointerException if frame or output is null
-   * @throws IllegalArgumentException if output size, row bounds or reference aliasing is invalid
-   * @throws Mcv2Exception if the required reference is missing or has the wrong id or byte length
-   */
   static void decodeRows(
     final Frame frame,
     final byte @Nullable [] reference,
@@ -482,8 +457,8 @@ public final class Mcv2Decoder {
     Preconditions.checkArgument(fromRow >= 0 && fromRow <= toRow && toRow <= frame.height, "Invalid row range");
     Preconditions.checkArgument(!samePicture(prediction, output), "Row decoding needs a separate reference");
     final Context context = new Context(frame, prediction, output);
-    for (int at = 0; at < frame.leaves.length; at += LEAF_INTS) {
-      context.leaf(at, fromRow, toRow);
+    for (int arrayOffset = 0; arrayOffset < frame.leaves.length; arrayOffset += LEAF_INTS) {
+      context.leaf(arrayOffset, fromRow, toRow);
     }
   }
 
@@ -516,14 +491,14 @@ public final class Mcv2Decoder {
       this.output = output;
     }
 
-    private void leaf(final int at, final int fromRow, final int toRow) {
+    private void leaf(final int arrayOffset, final int fromRow, final int toRow) {
       final int[] leaves = this.frame.leaves;
-      final int left = leaves[at];
-      final int top = leaves[at + 1];
-      final int size = leaves[at + 2];
-      final int mode = leaves[at + 3];
-      final int quantizer = leaves[at + 4];
-      final int offset = leaves[at + 5];
+      final int left = leaves[arrayOffset];
+      final int top = leaves[arrayOffset + 1];
+      final int size = leaves[arrayOffset + 2];
+      final int mode = leaves[arrayOffset + 3];
+      final int quantizer = leaves[arrayOffset + 4];
+      final int offset = leaves[arrayOffset + 5];
       final int firstRow = Math.max(top, fromRow);
       final int lastRow = Math.min(top + size, toRow);
       final int right = Math.min(left + size, this.frame.width);
@@ -538,13 +513,13 @@ public final class Mcv2Decoder {
       int word = 0;
       int orientation = 0;
       if (mode == MODE_SOLID || mode == MODE_PALETTE) {
-        color0 = rgb(data, offset);
+        color0 = readColor(data, offset);
         if (mode == MODE_PALETTE) {
-          color1 = rgb(data, offset + CHANNELS);
+          color1 = readColor(data, offset + CHANNELS);
         }
       } else if (mode == MODE_PATTERN) {
-        color0 = rgb(data, offset);
-        color1 = rgb(data, offset + CHANNELS);
+        color0 = readColor(data, offset);
+        color1 = readColor(data, offset + CHANNELS);
         word = offset + 2 * CHANNELS;
         orientation = data[word];
         word++;
@@ -635,122 +610,87 @@ public final class Mcv2Decoder {
     return Math.min(Math.max((value + (1 << (shift - 1))) >> shift, 0), MAX_CHANNEL);
   }
 
-  private static int rgb(final byte[] data, final int at) {
-    return ((data[at] & 0xFF) << 16) | ((data[at + 1] & 0xFF) << 8) | (data[at + 2] & 0xFF);
+  private static int readColor(final byte[] data, final int arrayOffset) {
+    return ((data[arrayOffset] & 0xFF) << 16) | ((data[arrayOffset + 1] & 0xFF) << 8) | (data[arrayOffset + 2] & 0xFF);
   }
 
   /**
    * Reads an unsigned little-endian 16-bit integer.
    *
    * @param data source bytes
-   * @param at first byte offset
+   * @param arrayOffset first byte offset
    * @return unsigned value
    * @throws IndexOutOfBoundsException if either byte lies outside data
    */
-  public static int u16(final byte[] data, final int at) {
-    return (data[at] & 0xFF) | ((data[at + 1] & 0xFF) << 8);
+  public static int u16(final byte[] data, final int arrayOffset) {
+    return (data[arrayOffset] & 0xFF) | ((data[arrayOffset + 1] & 0xFF) << 8);
   }
 
   /**
    * Reads an unsigned little-endian 32-bit integer.
    *
    * @param data source bytes
-   * @param at first byte offset
+   * @param arrayOffset first byte offset
    * @return unsigned value
    * @throws IndexOutOfBoundsException if any byte lies outside data
    */
-  public static long u32(final byte[] data, final int at) {
-    return (data[at] & 0xFFL) | ((data[at + 1] & 0xFFL) << 8) | ((data[at + 2] & 0xFFL) << 16) | ((data[at + 3] & 0xFFL) << 24);
+  public static long u32(final byte[] data, final int arrayOffset) {
+    return (
+      (data[arrayOffset] & 0xFFL) |
+      ((data[arrayOffset + 1] & 0xFFL) << 8) |
+      ((data[arrayOffset + 2] & 0xFFL) << 16) |
+      ((data[arrayOffset + 3] & 0xFFL) << 24)
+    );
   }
 
   /**
    * Writes the low 16 bits in little-endian order.
    *
    * @param data destination bytes
-   * @param at first byte offset
+   * @param arrayOffset first byte offset
    * @param value value to write
    * @throws IndexOutOfBoundsException if either byte lies outside data
    */
-  public static void putU16(final byte[] data, final int at, final int value) {
-    data[at] = (byte) value;
-    data[at + 1] = (byte) (value >>> 8);
+  public static void putU16(final byte[] data, final int arrayOffset, final int value) {
+    data[arrayOffset] = (byte) value;
+    data[arrayOffset + 1] = (byte) (value >>> 8);
   }
 
   /**
    * Writes the low 32 bits in little-endian order.
    *
    * @param data destination bytes
-   * @param at first byte offset
+   * @param arrayOffset first byte offset
    * @param value value to write
    * @throws IndexOutOfBoundsException if any byte lies outside data
    */
-  public static void putU32(final byte[] data, final int at, final long value) {
+  public static void putU32(final byte[] data, final int arrayOffset, final long value) {
     for (int index = 0; index < Integer.BYTES; index++) {
-      data[at + index] = (byte) (value >>> (index * Byte.SIZE));
+      data[arrayOffset + index] = (byte) (value >>> (index * Byte.SIZE));
     }
   }
 
-  /**
-   * Compares frame ids using unsigned 32-bit wraparound.
-   *
-   * @param id candidate frame id
-   * @param last last committed frame id
-   * @return whether the forward distance is strictly between zero and 2^31
-   */
-  static boolean follows(final long id, final long last) {
-    final long distance = (id - last) & MAX_U32;
+  static boolean follows(final long nextFrameId, final long lastFrameId) {
+    final long distance = (nextFrameId - lastFrameId) & MAX_U32;
     return distance != 0 && distance < 1L << 31;
   }
 
-  /**
-   * Checks the supported square leaf sizes.
-   *
-   * @param size side in pixels
-   * @return whether size is 8, 16 or 32
-   */
   static boolean isBlockSize(final int size) {
     return size == SMALLEST_BLOCK || size == 2 * SMALLEST_BLOCK || size == ROOT_SIZE;
   }
 
-  /**
-   * Maps a supported leaf size to its fitting-array index.
-   *
-   * @param size 8, 16 or 32 pixels
-   * @return 0, 1 or 2 respectively
-   */
   static int sizeIndex(final int size) {
     return Integer.numberOfTrailingZeros(size) - 3;
   }
 
-  /**
-   * Sign-extends the low bits of an integer.
-   *
-   * @param value packed integer
-   * @param bits signed field width, 1 through 32
-   * @return sign-extended value
-   */
   static int signed(final int value, final int bits) {
     return (value << (Integer.SIZE - bits)) >> (Integer.SIZE - bits);
   }
 
-  /**
-   * Returns the full pattern record length.
-   *
-   * @param size 8, 16 or 32 pixels
-   * @return record length in bytes
-   */
   static int patternSize(final int size) {
     return 2 * CHANNELS + 1 + size / Byte.SIZE;
   }
 
-  /**
-   * Returns a fixed-length record size.
-   *
-   * @param mode SKIP, MOTION, SOLID, PALETTE, PATTERN, COMPACT or SPLIT
-   * @param size 8, 16 or 32 pixels
-   * @return record length in bytes; zero for SKIP and SPLIT
-   * @throws IllegalArgumentException if mode is invalid
-   */
   static int recordSize(final int mode, final int size) {
     return switch (mode) {
       case MODE_SKIP, MODE_SPLIT -> 0;

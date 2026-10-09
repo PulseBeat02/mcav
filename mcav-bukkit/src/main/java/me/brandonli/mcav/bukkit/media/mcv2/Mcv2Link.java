@@ -36,7 +36,6 @@ public final class Mcv2Link {
   /** How many times the backlog limit a keyframe may still go out over. */
   public static final int KEYFRAME_ALLOWANCE = 2;
 
-  /** The id no frame has: frame ids are unsigned 32-bit numbers. */
   private static final long NONE = -1;
 
   private final long limit;
@@ -105,13 +104,6 @@ public final class Mcv2Link {
     return true;
   }
 
-  /**
-   * Gets the backlog a keyframe may still go out over: {@link #KEYFRAME_ALLOWANCE} times the limit, as far as a long
-   * holds it.
-   *
-   * @param limit the backlog limit
-   * @return the keyframes' limit
-   */
   static long allowance(final long limit) {
     return limit > Long.MAX_VALUE / KEYFRAME_ALLOWANCE ? Long.MAX_VALUE : limit * KEYFRAME_ALLOWANCE;
   }

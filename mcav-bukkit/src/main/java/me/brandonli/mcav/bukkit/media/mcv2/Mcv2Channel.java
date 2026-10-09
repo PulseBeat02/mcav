@@ -75,12 +75,10 @@ public final class Mcv2Channel {
   private static final Logger LOGGER = LoggerFactory.getLogger(Mcv2Channel.class);
   private static final String UNSENT_LIMIT_REFUSED = "The connection of viewer {} refused the limit of unsent bytes";
 
-  /** The blocks past their view distance a viewer near the wall may go before the screen stops sending to them. */
-  static final int RANGE_MARGIN = 32;
+  private static final int RANGE_MARGIN = 32;
 
   private static final int CHUNK_BLOCKS = 16;
 
-  /** How often the distances are measured: once a second. */
   private static final long RANGE_TICKS = 20;
 
   private final Mcv2Configuration configuration;
@@ -91,21 +89,16 @@ public final class Mcv2Channel {
 
   private final Set<UUID> scheduled;
 
-  /** The viewers shown the screen, each with its link. */
   private final Map<UUID, Mcv2Link> links;
 
-  /** The viewers shown the screen who lost their link out of sight of the wall: their client still holds the screen. */
   private final Set<UUID> away;
 
-  /** The pack session of each link, as {@link Mcv2Viewers#getSession(UUID)} gave it when the link was first updated. */
   private final Map<UUID, Long> sessions;
 
-  /** The viewers that receive frames as of the last update, with their links. */
   private volatile Map<UUID, Mcv2Link> recipients;
 
   private final Mcv2KeyframeRequest keyframeRequest;
 
-  /** The viewers too far from the wall to see it, as of the last measurement. */
   private volatile Set<UUID> farAway;
 
   private @Nullable BukkitTask ranging;
@@ -182,11 +175,6 @@ public final class Mcv2Channel {
     this.farAway = Set.of();
   }
 
-  /**
-   * Removes the screen's page frames, but keeps measuring the viewers' distances, for the dithered maps that stand in
-   * for the frames meanwhile. {@link #open()} brings the page frames back, and {@link #close()} stops the measuring.
-   * Call on the main thread.
-   */
   void removeFrames() {
     this.screen.remove();
     this.scheduled.clear();
@@ -194,20 +182,12 @@ public final class Mcv2Channel {
     this.recipients = Map.of();
   }
 
-  /**
-   * Gets the viewers near enough to the wall to see it, as of the last measurement: those the dithered maps go to while
-   * they stand in for the frames.
-   *
-   * @param viewers the viewers dithered for
-   * @return those of them not too far from the wall
-   */
   Set<UUID> near(final Collection<UUID> viewers) {
     final Set<UUID> near = new HashSet<>(viewers);
     near.removeAll(this.farAway);
     return near;
   }
 
-  /** Finds the viewers too far from the wall to see it, on the main thread. */
   void measureRange() {
     final Set<UUID> before = this.farAway;
     final Set<UUID> far = new HashSet<>();
@@ -220,18 +200,13 @@ public final class Mcv2Channel {
     this.farAway = Set.copyOf(far);
   }
 
-  /**
-   * Whether a player cannot see the wall: in another world, or farther from it than their view distance; one who could
-   * see it goes out of range only {@value #RANGE_MARGIN} blocks farther. A player whose view distance is not known is
-   * never far away.
-   */
   private boolean isFarAway(final Player player, final boolean wasFarAway) {
     final int viewDistance = player.getViewDistance();
     if (viewDistance <= 0) {
       return false;
     }
-    // a configuration's origin is in a world (Mcv2Configuration.Builder.origin), and a location whose world unloaded
-    // throws rather than answering null
+    // Bukkit throws if the location's world has unloaded.
+
     final World wall = Objects.requireNonNull(this.configuration.getOrigin().getWorld(), "A screen's origin is in a world");
     if (!wall.getUID().equals(player.getWorld().getUID())) {
       return true;
@@ -240,7 +215,6 @@ public final class Mcv2Channel {
     return this.distanceToWall(player.getLocation()) > reach;
   }
 
-  /** The distance from a point to the nearest block of the wall, in blocks. */
   private double distanceToWall(final Location location) {
     final Location origin = this.configuration.getOrigin();
     final BlockFace right = this.configuration.getRight();
@@ -255,7 +229,6 @@ public final class Mcv2Channel {
     return Math.sqrt(outsideX * outsideX + outsideY * outsideY + outsideZ * outsideZ);
   }
 
-  /** How far a coordinate lies outside a range, 0 inside it. */
   private static double outside(final double coordinate, final double low, final double high) {
     return Math.max(0, Math.max(low - coordinate, coordinate - high));
   }
@@ -269,7 +242,6 @@ public final class Mcv2Channel {
    * @throws IllegalStateException if showing a new viewer requires scheduling before a plugin has been injected
    */
   public Set<UUID> update() {
-    // one view of a collection the caller may change while this runs
     final Set<UUID> selected = new HashSet<>(this.configuration.getViewers());
     this.retireRemoved(selected);
     this.forgetEarlierSessions(selected);
@@ -279,9 +251,8 @@ public final class Mcv2Channel {
     for (final UUID viewer : selected) {
       final Mcv2Link link = this.links.get(viewer);
       if (far.contains(viewer)) {
-        // the client cannot see the wall: nothing is sent, and coming back the viewer is shown the screen anew. The
-        // screen is not hidden meanwhile, as hiding removes the team every screen shown to the viewer shares, but it is
-        // still theirs to retire should they be removed while away
+        // Hiding removes the scoreboard team shared by every screen shown to this viewer.
+
         this.scheduled.remove(viewer);
         if (this.links.remove(viewer) != null) {
           this.away.add(viewer);
@@ -305,12 +276,6 @@ public final class Mcv2Channel {
     return others;
   }
 
-  /**
-   * Retires the viewers removed from the configuration: a viewer the screen was still to be shown to is not shown it,
-   * and one shown it loses their link, or their place among those away from the wall, and has the page frames hidden
-   * on the main thread. The removed viewer kept the screen otherwise, frozen on its last frame, and the channel kept
-   * their link.
-   */
   private void retireRemoved(final Set<UUID> selected) {
     this.scheduled.removeIf(viewer -> !selected.contains(viewer));
     final Set<UUID> shown = new HashSet<>(this.links.keySet());
@@ -324,12 +289,6 @@ public final class Mcv2Channel {
     }
   }
 
-  /**
-   * Forgets the link of a viewer whose client loaded the pack anew since the link was made, which happens when the
-   * player left and joined again while no frame came, for example while the video was paused: the new client was never
-   * shown the page frames, which nobody sees by default, so the viewer is shown the screen again. The session of a link
-   * is the one of its first update, as frames go out only from then on.
-   */
   private void forgetEarlierSessions(final Set<UUID> selected) {
     this.sessions.keySet().removeIf(viewer -> !selected.contains(viewer) || !this.links.containsKey(viewer));
     final Set<UUID> linked = new HashSet<>(this.links.keySet());
@@ -344,10 +303,6 @@ public final class Mcv2Channel {
     }
   }
 
-  /**
-   * Hides the screen from a viewer removed from the configuration, unless they were added back since: such a viewer is
-   * scheduled again. A viewer added back is shown the screen by a show scheduled after this hide, which runs after it.
-   */
   private void hide(final UUID viewer) {
     if (this.scheduled.contains(viewer)) {
       return;
@@ -358,30 +313,29 @@ public final class Mcv2Channel {
     }
   }
 
-  /** Shows the screen to a viewer whose pack loaded, then lets the next frame, a keyframe, reach the viewer. */
   void show(final UUID viewer) {
     final Player player = Bukkit.getPlayer(viewer);
-    // a viewer removed from the configuration since the show was scheduled is not shown the screen
+
     if (player == null || !this.canShow(viewer)) {
       this.scheduled.remove(viewer);
       return;
     }
     this.screen.show(player);
-    // the rest of the viewer's video waits where its backlog limit sees it
+
     final int unsent = this.configuration.getUnsentLimit();
     if (unsent > 0) {
       try {
         PacketUtils.limitUnsent(viewer, unsent);
       } catch (final RuntimeException refused) {
-        // the transport may refuse the option, as epoll does for a connection that closed since the show was scheduled
-        // (the player is leaving): the limit only keeps a slow viewer's backlog small, and the screen works without it
+        // A closing epoll connection may reject this optional backlog limit.
+
         LOGGER.debug(UNSENT_LIMIT_REFUSED, viewer, refused);
       }
     }
-    // a viewer shown the screen again starts over: its client holds no picture of this stream yet
+
     final Mcv2Link link = new Mcv2Link(this.configuration.getBacklogLimit());
     this.links.put(viewer, link);
-    // publishing before rechecking lets an overlapping retirement own either the link or its cleanup
+    // Publish before rechecking so an overlapping retirement can own the cleanup.
     if (!this.canShow(viewer)) {
       this.scheduled.remove(viewer);
       if (this.links.remove(viewer, link)) {
@@ -490,7 +444,7 @@ public final class Mcv2Channel {
       final long behind = link.getBehind();
       if (link.offer(header.getFrameId(), header.getReferenceId(), isKeyframe, bytes)) {
         event.sentTo++;
-        // the bundle's bytes leave the backlog once written, or at once for a viewer who left
+
         for (final MapPacketFactory.Bundle bundle : bundles) {
           bundle.send(viewer, () -> link.written(bundle.bytes()));
         }

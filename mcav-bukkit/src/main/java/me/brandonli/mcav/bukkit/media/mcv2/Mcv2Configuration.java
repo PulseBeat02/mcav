@@ -60,10 +60,6 @@ public final class Mcv2Configuration {
   /** The largest stream id: an anchor carries it in two six-bit symbols. */
   public static final long MAX_STREAM_ID = 4095;
 
-  /**
-   * The page slots of a screen that configures none, when it has that many maps: all of them, 98 KB a frame. A live
-   * gameplay frame takes 46 KB on average at 60 fps, a keyframe more, which the encoder brings under the slots' bound.
-   */
   private static final int DEFAULT_PAGE_SLOTS = MAX_PAGE_SLOTS;
 
   /**
@@ -154,7 +150,6 @@ public final class Mcv2Configuration {
     this.unsentLimit = builder.unsentLimit;
   }
 
-  // the size of the video along a side of the wall: the one set, or the wall's own, 128 pixels a map
   private static int videoSize(final int size, final int maps) {
     return size > 0 ? size : MapLayout.MAP_SIZE * maps;
   }
@@ -467,9 +462,7 @@ public final class Mcv2Configuration {
 
     private NamedTextColor outlineColor = NamedTextColor.DARK_PURPLE;
 
-    Builder() {
-      // created through Mcv2Configuration.builder()
-    }
+    private Builder() {}
 
     /**
      * Sets the players who watch the screen. The collection is not copied.
@@ -706,7 +699,7 @@ public final class Mcv2Configuration {
       Preconditions.checkArgument(this.rows >= 1 && this.rows <= MAX_SIDE, "Rows must be 1 to %s", MAX_SIDE);
       Preconditions.checkArgument(this.videoWidth >= 0 && this.videoWidth <= Mcv2Decoder.MAX_DIMENSION, "Video width must be 0 to 4096");
       Preconditions.checkArgument(this.videoHeight >= 0 && this.videoHeight <= Mcv2Decoder.MAX_DIMENSION, "Video height must be 0 to 4096");
-      // the wall's native size, the default, passed here and failed the encoder later, on its first frame
+
       final int width = videoSize(this.videoWidth, this.columns);
       final int height = videoSize(this.videoHeight, this.rows);
       Preconditions.checkArgument(
@@ -733,7 +726,7 @@ public final class Mcv2Configuration {
       Preconditions.checkArgument(this.unsentLimit >= 0, "Unsent limit must not be negative");
       final int maps = this.columns * this.rows;
       final int slots = this.pageSlots > 0 ? this.pageSlots : Math.min(DEFAULT_PAGE_SLOTS, maps);
-      // a slot without a map to hang behind is never shown, so a frame that needs it can never be put together
+      // A slot without a wall map is invisible to the client and prevents frame reassembly.
       Preconditions.checkArgument(
         slots <= maps,
         "A wall of %s maps cannot carry %s page slots: one page frame hangs behind each map",

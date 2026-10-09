@@ -22,15 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the frame parser and the decoder behind it, which read the frames of a stream a server is handed or a file it
- * is pointed at: whatever the bytes, parsing either succeeds or throws {@link Mcv2Exception}, and a frame that parses
- * decodes against a reference picture of its size to a picture of its size or throws that exception - never an
- * unchecked exception, an out-of-bounds read or a hang. The seeds are the first keyframe and P frame of every committed
- * edge stream, which together use every v3 mode, compact quantizer and boundary geometry, and the frames of the syntax mcav refuses.
- */
 @Tag("fuzz")
-final class FrameParserFuzzTest {
+final class Mcv2DecoderFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
   void decodesOrRejectsAnyFrame(final byte[] data) {
@@ -41,7 +34,7 @@ final class FrameParserFuzzTest {
       return;
     }
     final int size = frame.getWidth() * frame.getHeight() * 3;
-    // a reference that is not flat, so motion and residuals read values that differ from pixel to pixel
+    // A nonuniform reference exposes incorrect motion or residual reads.
     final byte[] reference = new byte[size];
     for (int index = 0; index < size; index++) {
       reference[index] = (byte) (index * 37);

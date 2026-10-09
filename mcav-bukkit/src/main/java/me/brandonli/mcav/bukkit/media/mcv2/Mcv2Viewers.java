@@ -70,7 +70,7 @@ public final class Mcv2Viewers {
   private final Consumer<Player> onRefused;
 
   private final Map<UUID, PackState> states;
-  // a client loads the pack anew after its player joined again, or after another pack: each load is a new session
+  // A client reload after reconnecting or another pack requires a new session.
   private final Map<UUID, Long> sessions;
   private final AtomicLong nextSession;
 
@@ -186,12 +186,6 @@ public final class Mcv2Viewers {
     return this.getState(player) == PackState.LOADED && !this.shaderReports.blocksDecoding(player);
   }
 
-  /**
-   * Checks whether a player's MCV2 client mod reported their shader state since they joined.
-   *
-   * @param player the player's UUID
-   * @return true if the server knows the player's shader state from their mod
-   */
   boolean hasShaderReport(final UUID player) {
     return this.shaderReports.hasReported(player);
   }
@@ -215,10 +209,10 @@ public final class Mcv2Viewers {
       return;
     }
     final Player player = event.getPlayer();
-    final UUID uuid = player.getUniqueId();
+    final UUID viewerId = player.getUniqueId();
     switch (event.getStatus()) {
-      case SUCCESSFULLY_LOADED -> this.loaded(uuid);
-      case ACCEPTED, DOWNLOADED -> this.states.put(uuid, PackState.REQUESTED);
+      case SUCCESSFULLY_LOADED -> this.loaded(viewerId);
+      case ACCEPTED, DOWNLOADED -> this.states.put(viewerId, PackState.REQUESTED);
       case DECLINED -> this.refuse(player, PackState.DECLINED);
       default -> this.refuse(player, PackState.REFUSED);
     }
