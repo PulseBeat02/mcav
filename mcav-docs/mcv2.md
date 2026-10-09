@@ -1470,7 +1470,9 @@ smaller video sizes it may step down to.
 #### Pre-Encoding a File
 
 `Mcv2FileEncoder` encodes a video file ahead of time, inside a budget, into a stream of frames, each written as its
-length (a little-endian 32-bit integer) and its bytes:
+length (a little-endian 32-bit integer) and its bytes. Every frame fits the page slots a wall of the video's own size
+has by default (one map for every 128x128 pixels, eight slots at most), because a screen drops a frame that doesn't fit,
+and a stream encoded ahead can't send a fresh keyframe to recover:
 
 ```java
 import java.io.BufferedOutputStream;
