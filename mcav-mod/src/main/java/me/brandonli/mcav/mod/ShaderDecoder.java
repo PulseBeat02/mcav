@@ -40,7 +40,7 @@ final class ShaderDecoder {
   private static final long LAYOUT_NANOS = 1_000_000_000L;
 
   /** The corner of a map as the game draws it, in the map's own space: its top left, just in front of the frame. */
-  static final float MAP_DEPTH = -0.01F;
+  private static final float MAP_DEPTH = -0.01F;
 
   /** The hooks the game calls, one bit each: the decoder works only once the game has called every one of them. */
   private static final int EXTRACTED = 1;

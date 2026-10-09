@@ -30,7 +30,7 @@ final class IrisShaders {
    * The Iris version MCV2 was proven to decode under ({@link ShaderDecoder}): its versions read "1.11.7+mc26.3" on Fabric
    * and NeoForge alike.
    */
-  static final String TESTED_VERSION = "1.11.7";
+  private static final String TESTED_VERSION = "1.11.7";
 
   private final boolean installed;
 

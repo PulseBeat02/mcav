@@ -27,7 +27,7 @@ package me.brandonli.mcav.mod;
  */
 record Mcv2Report(boolean irisPresent, ShaderPack shaderPack, boolean decodesUnderShaders) {
   /** The version of the reports this mod sends. */
-  static final byte VERSION = 1;
+  private static final byte VERSION = 1;
 
   /** The report as it is sent. */
   byte[] toBytes() {
