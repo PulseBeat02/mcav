@@ -28,7 +28,7 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.Frame;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
 
 /**
- * The map-page transport of MCV2 frames, bit-exact with the reference's {@code transport.py}.
+ * The map-page transport of MCV2 frames, bit-exact with the reference's {@code mcv2_reference.py}.
  *
  * <p>A frame is split into pages of at most 16,384 symbols, one map's worth. Each page starts with a 32-byte header
  * ({@code <4sBBHIIHHIII}: magic {@code MCP1}, version 1, useful symbol bits, frame type, stream id, frame id, page

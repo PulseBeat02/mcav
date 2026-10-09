@@ -145,7 +145,7 @@ public final class Mcv2Pack {
    *
    * @param screens        the screens, in the order of their place in the strip; their stream ids must differ, and they
    *                       share the outline colour of the first
-   * @param showsDebugView whether the pack also draws the first screen's decoded picture one to one below the strip, for
+   * @param showsDebugView whether the pack also draws every screen's decoded picture one to one below the strip, for
    *                       testing
    * @param archivePath    where the pack is written, atomically
    * @throws IllegalArgumentException if there are no screens or more than {@link #MAX_SCREENS}, two share a stream

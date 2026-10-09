@@ -63,8 +63,8 @@ public final class Mcv2Configuration {
   private static final int DEFAULT_PAGE_SLOTS = MAX_PAGE_SLOTS;
 
   /**
-   * The most frames a second a screen shows when none is set: the rate whose 1080p gate the default live preset met
-   * (the 1080p60 gate was not met). A client decodes at most one frame for every frame it draws, so a screen faster
+   * The most frames a second a screen shows when none is set: the default live preset keeps up with 1080p video at 30
+   * frames a second, but not at 60. A client decodes at most one frame for every frame it draws, so a screen faster
    * than its viewers' clients leaves them waiting for keyframes.
    */
   public static final double DEFAULT_MAX_FRAME_RATE = 30;

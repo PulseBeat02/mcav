@@ -228,8 +228,8 @@ public final class Mcv2PackServer {
    * @param folder         where the pack is written; files of earlier runs left there are deleted
    * @param hosting        hosts a written pack, for example {@code PackHosting::injector}; called off the main thread, once
    *                       for every change of the pack
-   * @param showsDebugView whether the pack also draws the first slot's decoded picture one to one in the top-left corner,
-   *                       for testing
+   * @param showsDebugView whether the pack also draws every slot's decoded picture one to one below the strip, for
+   *                       testing
    * @param onOffered      called with a player who is about to be asked to load the pack, for example to say why
    * @param onRefused      called with a player whose client declined the pack or failed to load it, who keeps the dithered
    *                       maps

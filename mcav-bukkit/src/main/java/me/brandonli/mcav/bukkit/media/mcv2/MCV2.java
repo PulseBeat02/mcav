@@ -125,11 +125,11 @@ public final class MCV2 {
    */
   public record Settings(double lambda, boolean fast) {
     /**
-     * Normal live thresholds, lambda 72 and a keyframe interval of 120.
+     * Normal live thresholds with lambda 72.
      */
     public static final Settings DEFAULT = new Settings(72, false);
     /**
-     * Fast live thresholds, lambda 55 and a keyframe interval of 120.
+     * Fast live thresholds with lambda 55.
      */
     public static final Settings FAST = new Settings(55, true);
 
