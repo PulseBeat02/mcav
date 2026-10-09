@@ -54,6 +54,10 @@ final class Mcv2ShaderReports implements PluginMessageListener {
 
   private static final String REPORTED = "The MCV2 client mod of {} reports {}: MCV2 screens show them {}";
 
+  private static final String DITHERED_MAPS = "the dithered maps";
+
+  private static final String VIDEO = "the video";
+
   private static final int REPORT_BYTES = 4;
 
   private static final int NO_SHADER_PACK = 0;
@@ -94,7 +98,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
     }
     final Report before = this.reports.put(viewerId, report);
     if (!Objects.equals(before, report)) {
-      LOGGER.info(REPORTED, name, report.describe(), report.blocksDecoding() ? "the dithered maps" : "the video");
+      LOGGER.info(REPORTED, name, report.describe(), report.blocksDecoding() ? DITHERED_MAPS : VIDEO);
     }
   }
 
