@@ -71,7 +71,7 @@ def bd_rate(reference_points, test):
 
 
 def bd_rate_points(path, rate, metric):
-    data = json.load(open(path))
+    data = json.loads(Path(path).read_text())
     return sorted((float(point[rate]), float(point[metric])) for point in data)
 
 
@@ -275,7 +275,7 @@ def codec_curves_point(arguments, codec, quality, folder):
         "-",
     ]
     codec_curves_run(score)
-    vmaf = json.load(open(log))
+    vmaf = json.loads(Path(log).read_text())
     frames = [frame["metrics"]["vmaf"] for frame in vmaf["frames"]]
     if len(frames) != arguments.frames:
         raise RuntimeError(f"{codec} {quality}: libvmaf scored {len(frames)} frames")
@@ -283,7 +283,7 @@ def codec_curves_point(arguments, codec, quality, folder):
     seconds = arguments.frames / arguments.fps
     version = codec_curves_VERSION_PATTERNS[codec]
     if codec == "x264":
-        found = version.search(open(encoded, "rb").read())
+        found = version.search(Path(encoded).read_bytes())
         library = found.group(0).decode() if found else None
     else:
         found = version.search(result.stderr)
@@ -325,7 +325,7 @@ def codec_curves_resume(out, name, identity):
     The curves are kept under "codecs", as in mcav-bukkit/src/test/resources/mcv2/data/codec_curves.json; the first runs wrote them under "points",
     which is read too. A name whose recorded source is other content is refused: its points would mix with this run's.
     """
-    measured = json.load(open(out)) if os.path.exists(out) else {"sources": {}, "codecs": []}
+    measured = json.loads(Path(out).read_text()) if os.path.exists(out) else {"sources": {}, "codecs": []}
     if "points" in measured:
         if "codecs" in measured:
             raise ValueError("%s holds both points and codecs; resolve the two datasets first" % out)
@@ -1261,7 +1261,7 @@ def rate_quality_vmaf(ffmpeg, source, decoded, width, height, frames, frame_rate
             ],
             check=True,
         )
-        scores = [frame["metrics"]["vmaf"] for frame in json.load(open(log))["frames"]]
+        scores = [frame["metrics"]["vmaf"] for frame in json.loads(Path(log).read_text())["frames"]]
         return (sum(scores) / len(scores), min(scores))
 
 
