@@ -253,9 +253,9 @@ maps, 135 × 16,384 = 2,211,840 bytes of map colours for one frame.
 MCAV has always played video on maps by **dithering**: turning every frame into the nearest map colours, mixing
 neighbouring pixels of different colours where no map colour is close enough, and sending the map colours that changed
 since the last frame. Every client can show that without any help. But the numbers are bad. Here is what dithered maps
-send at 1080p and 30 fps, after Minecraft's own packet compression, with VMAF (measured with the former
-`tools/mcv2/DitherBench.java`; its exact command is
-`dither_command` in `codec_curves.json`, and the clips are described in [The Test Clips](#the-test-clips)):
+send at 1080p and 30 fps, after Minecraft's own packet compression, with VMAF. The preserved measurement provenance is
+`mcav-bukkit/src/test/resources/mcv2/data/codec_curves.json`, including the original `dither_command`; the current
+tool dispatcher has no dither-benchmark replacement. The clips are described in [The Test Clips](#the-test-clips):
 
 | Content | Under the plugin's default budget (128 KiB per frame and viewer) | Every change sent |
 |---|---|---|
@@ -1306,8 +1306,9 @@ show MCV2 and need no mod.
 
 The mod is for Minecraft 26.3, on Fabric (Loader 0.19.5 or newer, with Fabric API) or NeoForge (26.3.0.43-beta or
 newer), with or without Iris. Build it with `./gradlew :mcav-mod:assemble` and put
-`mcav-mod/build/libs/mcav-mod-fabric.jar` or `mcav-mod-neoforge.jar` into the client's `mods`
-folder; it isn't published anywhere yet. It talks on one plugin channel, `mcav:mcv2`, which carries nothing else, and
+`mcav-mod/build/libs/mcav-mod-fabric.jar` or `mcav-mod/build/libs/mcav-mod-neoforge.jar` into the client's `mods`
+folder; it isn't published anywhere yet. The plain, Fabric and NeoForge jars include `META-INF/LICENSE-MCAV` and
+`META-INF/THIRD-PARTY-NOTICES.md`. It talks on one plugin channel, `mcav:mcv2`, which carries nothing else, and
 only to a server that registered it. A report is four bytes:
 
 | Byte | Meaning |
@@ -1353,7 +1354,7 @@ burst of 5; a player without the mod sees MCV2 screens as before.
 
 ### In Your Own Plugin
 
-The sandbox plugin's `--codec mcv2` is built from the same API any other plugin can use.
+The MCAV plugin's `--codec mcv2` is built from the same API any other plugin can use.
 
 #### Setting Up Once
 
@@ -1637,25 +1638,29 @@ MCV2's tools live in mcav-bukkit's test sources. The independent Python implemen
 `mcav-bukkit/src/test/python/mcv2_reference.py`; it implements the format, serializer, decoder and six-bit transport
 without calling Java. All Python tool commands use `mcav-bukkit/src/test/python/mcv2_tools.py` followed by a
 subcommand. Use Python 3.12 or newer with numpy 2.5.3, Pillow 12.3.0, moderngl 5.12.0 and matplotlib 3.11.2 with
-Liberation Sans for figures.
+Liberation Sans for figures. Python 3.12 is the supported minimum; select a suitable environment as `python` for
+the commands below. These tools and figure prerequisites are installed separately from Gradle's documentation environment.
 The Java commands share `me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools`. Its shaderc and SPIRV-Cross dependencies,
 including the current platform's LWJGL natives, are test dependencies and are absent from the plugin's runtime.
+Use a Java 25 JDK for `java` and `jfr`, including Java processes started by the Python tools. Gradle's Java toolchain
+does not select the executables on your shell's `PATH`. Media commands also need FFmpeg and ffprobe; VMAF scoring
+needs FFmpeg with libvmaf.
 
 From the repository root:
 
 ```sh
 ./gradlew :mcav-bukkit:writeMcv2ToolsClasspath
-MCV2_CP=$(cat mcav-bukkit/build/mcv2-tools-classpath.txt)
-MCV2_MAIN=me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools
-MCV2_PY=mcav-bukkit/src/test/python/mcv2_tools.py
+MCV2_CLASSPATH=$(cat mcav-bukkit/build/mcv2-tools-classpath.txt)
+MCV2_MAIN_CLASS=me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools
+MCV2_PYTHON_TOOLS=mcav-bukkit/src/test/python/mcv2_tools.py
 MCV2_FIXTURES=mcav-bukkit/src/test/resources/mcv2
-java --enable-native-access=ALL-UNNAMED -cp "$MCV2_CP" "$MCV2_MAIN" bench \
+java --enable-native-access=ALL-UNNAMED -cp "$MCV2_CLASSPATH" "$MCV2_MAIN_CLASS" bench \
   source=proxy.rgb width=1920 height=1080 frames=60 warm=10 fps=30 threads=12 \
   profile=DEFAULT budget=true verify=true natives=auto out=proxy.mcs decoded=proxy-decoded.rgb
-java -cp "$MCV2_CP" "$MCV2_MAIN" digests proxy.mcs
-python "$MCV2_PY" differential "$MCV2_CP" --out build/mcv2-differential
+java -cp "$MCV2_CLASSPATH" "$MCV2_MAIN_CLASS" digests proxy.mcs
+python "$MCV2_PYTHON_TOOLS" differential "$MCV2_CLASSPATH" --out build/mcv2-differential
 python -m unittest discover -s mcav-bukkit/src/test/python
-python "$MCV2_PY" fixtures "$MCV2_FIXTURES" all
+python "$MCV2_PYTHON_TOOLS" fixtures "$MCV2_FIXTURES" all
 ```
 
 The benchmark accepts `key=value` options: `source`, `width`, `height`, `frames`, `warm`, `fps`, `threads`,
@@ -1703,12 +1708,12 @@ for diagram in decode overview transport; do
   dot -Gdpi=110 -Tpng "mcav-bukkit/src/test/resources/mcv2/figures/$diagram.dot" \
     -o "mcav-docs/images/mcv2/$diagram.png"
 done
-python "$MCV2_PY" charts --tables
-java --enable-native-access=ALL-UNNAMED -cp "$MCV2_CP" "$MCV2_MAIN" bench \
+python "$MCV2_PYTHON_TOOLS" charts --tables
+java --enable-native-access=ALL-UNNAMED -cp "$MCV2_CLASSPATH" "$MCV2_MAIN_CLASS" bench \
   source=gameplay.rgb width=1920 height=1080 frames=13 profile=DEFAULT lambda=260 out=gameplay.mcs
-python "$MCV2_PY" samples tree gameplay.mcs --frames 0,12 --crop 896,128,576,324
-python "$MCV2_PY" samples leaves gameplay.mcs gameplay.rgb --frame 0 --crop 896,128,576,324
-python "$MCV2_PY" samples bytes gameplay.mcs --frame 0
+python "$MCV2_PYTHON_TOOLS" samples tree gameplay.mcs --frames 0,12 --crop 896,128,576,324
+python "$MCV2_PYTHON_TOOLS" samples leaves gameplay.mcs gameplay.rgb --frame 0 --crop 896,128,576,324
+python "$MCV2_PYTHON_TOOLS" samples bytes gameplay.mcs --frame 0
 ```
 
 To redraw `frame.png`, put the 71 bytes from [A Real Frame, Byte by Byte](#a-real-frame-byte-by-byte) into a
@@ -1725,5 +1730,5 @@ frame = bytes.fromhex(
 )
 Path("frame.mcs").write_bytes(struct.pack("<I", len(frame)) + frame)
 PY
-python "$MCV2_PY" samples --size 64x32 tree frame.mcs --frames 0 --crop 0,0,64,32 --out frame.png
+python "$MCV2_PYTHON_TOOLS" samples --size 64x32 tree frame.mcs --frames 0 --crop 0,0,64,32 --out frame.png
 ```

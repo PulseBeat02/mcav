@@ -3,7 +3,7 @@
 This is the checklist for seeing mcav play media with your own eyes, with a real Minecraft client, rather than
 trusting the automated tests. It takes about fifteen minutes the first time, and about two minutes afterwards.
 
-You need a Minecraft **26.3** client. The sandbox plugin is built against Paper 26.3, and a 26.3 server refuses
+You need a Minecraft **26.3** client. The MCAV plugin is built against Paper 26.3, and a 26.3 server refuses
 older clients unless you add ViaBackwards, so a client of any other version will simply be rejected at login.
 
 ## 1. Forward the server port to your PC
@@ -27,10 +27,15 @@ Host devbox-mc
 
 ## 2. Start the sandbox server on the devbox
 
+From the repository root:
+
 ```sh
-cd mcav-plugin
-../gradlew runServer
+./gradlew :mcav-plugin:runServer
 ```
+
+The task selects Paper build 49 from the catalog's `paper = "26.3.build.49-alpha"`. run-task verifies the digest
+returned by the Paper API; the repository supplies no expected server digest. It also downloads Simple Voice Chat
+`bukkit-2.6.24` and Spark `1.10.187`/build `539`. Spark uses the existing URL download without a repository-pinned digest.
 
 The first start takes several minutes: it downloads Paper, then the plugin asks Gremlin to download the mcav
 modules, the JavaCV natives, VLC and yt-dlp. Wait for `Done (…)! For help, type "help"` and, just before it,
@@ -38,22 +43,26 @@ modules, the JavaCV natives, VLC and yt-dlp. Wait for `Done (…)! For help, typ
 
 > **Testing your own changes.** `runServer` downloads the **published** `1.0.0-SNAPSHOT` modules, so by default you
 > are not watching your working tree at all. To run the modules of your build, publish them into a local repository
-> and let the server download them from there:
+> and let the server download them from there. From the repository root, build and publish before starting either
+> server, then serve the repository with a separately installed Python 3 (`python3` on `PATH`):
 >
 > ```sh
-> # from the repository root, build and publish before starting either server:
 > ./gradlew :mcav-plugin:shadowJar -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
 > python3 -m http.server 8765 --bind 127.0.0.1 --directory build/e2e-repository
-> # then, from the repository root in a second shell:
+> ```
+>
+> In a second shell at the repository root:
+>
+> ```sh
 > ./gradlew :mcav-plugin:runServer -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
 > ```
 >
 > The port is baked into the plugin's `mcav/plugin/dependencies.txt` as the first repository, so the server asks it first. You
-> can confirm it worked: the request log of that little HTTP server must show `mcav-bukkit-1.0.0-<timestamp>.jar`
+> can confirm it worked: the request log of that little HTTP server must show `mcav-bukkit-1.0.0-SNAPSHOT.jar`
 > being fetched. This is the same mechanism the `e2eTest` task uses.
 
-Let a bot or yourself join without a Mojang account by setting `online-mode=false` in `run/server.properties`
-before starting, and accept the EULA in `run/eula.txt` (`eula=true`).
+Let a bot or yourself join without a Mojang account by setting `online-mode=false` in `mcav-plugin/run/server.properties`
+before starting, and accept the EULA in `mcav-plugin/run/eula.txt` (`eula=true`).
 
 ## 3. Join
 
@@ -89,7 +98,7 @@ mcav video map @a VLC HTTP_SERVER "1920x1080" "15x9" 0 FLOYD_STEINBERG "" "/abso
 > containing spaces. Empty and malformed image sources still report `Invalid MRL!`.
 
 `HTTP_SERVER` audio needs the audio web page, which is off by default: set `enabled: true` under `http-server` in
-`run/plugins/MCAV/config.yml` and restart the server, or the command is refused. At startup the console then prints
+`mcav-plugin/run/plugins/MCAV/config.yml` and restart the server, or the command is refused. At startup the console then prints
 `The audio web page is available at http://localhost:3000/` (port 3000 unless `http-server.port` says otherwise);
 open that page in a browser (forward port 3000 the same way) and press play. Listen for audio and compare its timing
 with the video; a successful connection alone does not verify synchronization.
