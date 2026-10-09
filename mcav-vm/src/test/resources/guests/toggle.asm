@@ -1,5 +1,4 @@
 ; The test switches a 1000 Hz tone and the screen together. Build: nasm -f bin toggle.asm -o toggle.img
-; Keep the first character changing: QEMU slows idle VNC refreshes, delaying picture without delaying sound.
 bits 16
 org 0x7c00
 start:
@@ -23,7 +22,7 @@ start:
     and si, 7
     mov dx, [0x046c]        ; BIOS tick count
 .wait:
-    inc byte [es:0]         ; the first character keeps changing, so QEMU keeps refreshing its display
+    inc byte [es:0]         ; QEMU slows the VNC refreshes of an idle screen, delaying the picture but not the sound
     mov ax, [0x046c]
     sub ax, dx
     cmp al, bl

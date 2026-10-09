@@ -402,8 +402,8 @@ final class VMProcess {
    * @return the values
    */
   private static List<String> machineValues(final VMConfiguration configuration) {
-    // in the order of the arguments QEMU gets: grouped by spelling, -M q35 -machine microvm read as q35 where QEMU runs
-    // microvm; and by option name, as a scan of every argument read -name -M -cpu host as the machine -cpu
+    // in the order of the arguments QEMU gets: grouped by spelling, -M q35 -machine microvm would read as q35 where QEMU
+    // runs microvm; and by option name, as a scan of every argument would read -name -M -cpu host as the machine -cpu
     return configuration.valuesOf(MACHINE_OPTIONS);
   }
 
