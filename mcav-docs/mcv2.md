@@ -1185,7 +1185,9 @@ These are times on a quiet machine; a busy one is slower, so measure your own se
 promise. With the Java loops only, and without checking each frame against the decoder, the same encoder takes
 19.0 ms on the proxy video and 29.4 ms on gameplay with 12 threads: still inside 33 ms, with less room.
 
-**Pre-encoding** a file uses the same search, on the shared encoder threads: @@FILE-SPEED@@
+**Pre-encoding** a file uses the same search, on the shared encoder threads: on the same i7-8700, a 1080p frame
+takes 7.0 ms on average on the proxy video and 10.9 ms on gameplay with 12 threads, 8.1 ms and 11.8 ms with 6
+threads (`DEFAULT`, native loops, the median of three timed runs after a warm-up, not counting reading the frames).
 
 ### The Server
 
@@ -1500,7 +1502,9 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2FileEncoder;
   }
 ```
 
-The last argument hears the number of every frame as it is written. @@FILE-ENCODE-SPEED@@
+The last argument hears the number of every frame as it is written. `Result.millisecondsPerFrame()` gives the mean
+time a frame took: about 7 to 11 ms at 1920x1080 with 12 threads on the i7-8700, so a 30 fps video pre-encodes three
+to almost five times faster than it plays, before the time FFmpeg takes to decode the file.
 
 ```{note}
 MCV2 is part of `mcav-bukkit` only; `mcav-common` holds none of it. The whole encoder is the class `MCV2`, the whole
