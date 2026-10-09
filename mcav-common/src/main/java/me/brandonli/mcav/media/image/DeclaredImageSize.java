@@ -153,10 +153,10 @@ final class DeclaredImageSize {
       return webp;
     }
     if (header.startsWith(0, "Y\u00A6j\u0095")) {
-      return of(header.signedBe32(4), header.signedBe32(8));
+      return of(header.signedBigEndian32(4), header.signedBigEndian32(8));
     }
-    final int kind = header.u8(1);
-    final boolean netpbm = header.u8(0) == 'P' && isSpace(header.u8(2));
+    final int kind = header.unsigned8(1);
+    final boolean netpbm = header.unsigned8(0) == 'P' && isSpace(header.unsigned8(2));
     if (netpbm && kind >= '1' && kind <= '6') {
       return pnm(header);
     }
@@ -170,7 +170,7 @@ final class DeclaredImageSize {
       return tiff(header);
     }
     if (header.startsWith(0, "\u0089PNG\r\n\u001A\n") && header.startsWith(12, "IHDR")) {
-      return of(header.be(16, 4), header.be(20, 4));
+      return of(header.bigEndian(16, 4), header.bigEndian(20, 4));
     }
     return null;
   }
@@ -180,12 +180,12 @@ final class DeclaredImageSize {
    * top-down picture) or, in the 12-byte OS/2 header, as 16-bit values.
    */
   private static @Nullable Size bmp(final Header header) {
-    final long infoSize = header.signedLe32(14);
+    final long infoSize = header.signedLittleEndian32(14);
     if (infoSize >= 36) {
-      return of(header.signedLe32(18), Math.abs(header.signedLe32(22)));
+      return of(header.signedLittleEndian32(18), Math.abs(header.signedLittleEndian32(22)));
     }
     if (infoSize == 12) {
-      return of(header.le(18, 2), header.le(20, 2));
+      return of(header.littleEndian(18, 2), header.littleEndian(20, 2));
     }
     return null;
   }
@@ -197,7 +197,7 @@ final class DeclaredImageSize {
     if (!header.startsWith(0, "GIF87a") && !header.startsWith(0, "GIF89a")) {
       return null;
     }
-    return of(header.le(6, 2), header.le(8, 2));
+    return of(header.littleEndian(6, 2), header.littleEndian(8, 2));
   }
 
   /**
@@ -231,20 +231,20 @@ final class DeclaredImageSize {
   private static @Nullable Size jpeg(final Header header) {
     long position = 2;
     while (true) {
-      int code = header.u8(position);
+      int code = header.unsigned8(position);
       // libjpeg skips whatever is not a marker, then the fill bytes of the marker
       while (code >= 0 && code != 0xFF) {
         position++;
-        code = header.u8(position);
+        code = header.unsigned8(position);
       }
       while (code == 0xFF) {
         position++;
-        code = header.u8(position);
+        code = header.unsigned8(position);
       }
       position++;
       final boolean frame = code >= 0xC0 && code <= 0xCF && code != 0xC4 && code != 0xC8 && code != 0xCC;
       if (frame) {
-        return of(header.be(position + 5, 2), header.be(position + 3, 2));
+        return of(header.bigEndian(position + 5, 2), header.bigEndian(position + 3, 2));
       }
       // FF 00 is a stuffed zero, no marker: libjpeg's next_marker drops it and looks on, as after a marker that stands
       // alone; read as a marker with a length, it would lead the search away from the frame libjpeg reads
@@ -254,7 +254,7 @@ final class DeclaredImageSize {
       }
       // a second start of the image, the end of the image, the start of a scan before a frame or the end of the bytes
       final boolean noFrame = code < 0 || code == 0xD8 || code == 0xD9 || code == 0xDA;
-      final long length = header.be(position, 2);
+      final long length = header.bigEndian(position, 2);
       if (noFrame || length < 2) {
         return null;
       }
@@ -278,20 +278,20 @@ final class DeclaredImageSize {
       return null;
     }
     if (header.startsWith(12, "VP8X")) {
-      final boolean chunk = header.le(16, 4) == 10;
-      return chunk ? of(header.le(24, 3) + 1, header.le(27, 3) + 1) : null;
+      final boolean chunk = header.littleEndian(16, 4) == 10;
+      return chunk ? of(header.littleEndian(24, 3) + 1, header.littleEndian(27, 3) + 1) : null;
     }
     if (header.startsWith(12, "VP8L")) {
       return lossless(header, 20);
     }
-    final boolean keyFrame = (header.u8(20) & 1) == 0;
+    final boolean keyFrame = (header.unsigned8(20) & 1) == 0;
     final boolean lossy = header.startsWith(12, "VP8 ") && keyFrame && header.startsWith(23, "\u009D\u0001*");
-    return lossy ? of(header.le(26, 2) & 0x3FFF, header.le(28, 2) & 0x3FFF) : null;
+    return lossy ? of(header.littleEndian(26, 2) & 0x3FFF, header.littleEndian(28, 2) & 0x3FFF) : null;
   }
 
   private static @Nullable Size lossless(final Header header, final long start) {
-    final long bits = header.le(start + 1, 4);
-    final boolean signature = header.u8(start) == 0x2F && bits >>> 29 == 0;
+    final long bits = header.littleEndian(start + 1, 4);
+    final boolean signature = header.unsigned8(start) == 0x2F && bits >>> 29 == 0;
     return signature ? of((bits & 0x3FFF) + 1, ((bits >>> 14) & 0x3FFF) + 1) : null;
   }
 
@@ -307,16 +307,16 @@ final class DeclaredImageSize {
   }
 
   private static long pnmNumber(final Header header, final long[] position) {
-    int code = header.u8(position[0]++);
+    int code = header.unsigned8(position[0]++);
     while (!isDigit(code)) {
       if (code == '#') {
         do {
-          code = header.u8(position[0]++);
+          code = header.unsigned8(position[0]++);
         } while (code >= 0 && code != '\n' && code != '\r');
-        code = header.u8(position[0]++);
+        code = header.unsigned8(position[0]++);
       } else if (isSpace(code)) {
         while (isSpace(code)) {
-          code = header.u8(position[0]++);
+          code = header.unsigned8(position[0]++);
         }
       } else {
         return -1;
@@ -325,7 +325,7 @@ final class DeclaredImageSize {
     long value = 0;
     while (isDigit(code) && value <= Integer.MAX_VALUE) {
       value = value * 10 + (code - '0');
-      code = header.u8(position[0]++);
+      code = header.unsigned8(position[0]++);
     }
     return value <= Integer.MAX_VALUE ? value : -1;
   }
@@ -370,7 +370,7 @@ final class DeclaredImageSize {
    * {@code atoi} reads them: an optional sign and the digits that start the word.
    */
   private static @Nullable Size pfm(final Header header) {
-    if (header.u8(2) != '\n') {
+    if (header.unsigned8(2) != '\n') {
       return null;
     }
     final long[] position = { 3 };
@@ -383,7 +383,7 @@ final class DeclaredImageSize {
    * A TIFF or BigTIFF: the image width and length tags of the first directory, which is the page OpenCV decodes.
    */
   private static @Nullable Size tiff(final Header header) {
-    final boolean little = header.u8(0) == 'I';
+    final boolean little = header.unsigned8(0) == 'I';
     final long magic = header.number(2, 2, little);
     final boolean big = magic == 43;
     if (magic != 42 && !big) {
@@ -544,25 +544,25 @@ final class DeclaredImageSize {
       return this.segment.byteSize();
     }
 
-    int u8(final long position) {
+    int unsigned8(final long position) {
       final boolean inside = position >= 0 && position < this.segment.byteSize();
       return inside ? Byte.toUnsignedInt(this.segment.get(ValueLayout.JAVA_BYTE, position)) : -1;
     }
 
     boolean startsWith(final long position, final String text) {
       for (int index = 0; index < text.length(); index++) {
-        if (this.u8(position + index) != text.charAt(index)) {
+        if (this.unsigned8(position + index) != text.charAt(index)) {
           return false;
         }
       }
       return true;
     }
 
-    long le(final long position, final int bytes) {
+    long littleEndian(final long position, final int bytes) {
       return this.number(position, bytes, true);
     }
 
-    long be(final long position, final int bytes) {
+    long bigEndian(final long position, final int bytes) {
       return this.number(position, bytes, false);
     }
 
@@ -572,7 +572,7 @@ final class DeclaredImageSize {
     long number(final long position, final int bytes, final boolean little) {
       long value = 0;
       for (int index = 0; index < bytes; index++) {
-        final int code = this.u8(little ? position + bytes - 1 - index : position + index);
+        final int code = this.unsigned8(little ? position + bytes - 1 - index : position + index);
         if (code < 0) {
           return -1;
         }
@@ -581,13 +581,13 @@ final class DeclaredImageSize {
       return value;
     }
 
-    long signedLe32(final long position) {
-      final long value = this.le(position, 4);
+    long signedLittleEndian32(final long position) {
+      final long value = this.littleEndian(position, 4);
       return value < 0 ? Long.MIN_VALUE : (int) value;
     }
 
-    long signedBe32(final long position) {
-      final long value = this.be(position, 4);
+    long signedBigEndian32(final long position) {
+      final long value = this.bigEndian(position, 4);
       return value < 0 ? Long.MIN_VALUE : (int) value;
     }
 
@@ -601,7 +601,7 @@ final class DeclaredImageSize {
       final StringBuilder piece = new StringBuilder();
       int code = 0;
       while (piece.length() < limit && code != '\n') {
-        code = this.u8(position[0]);
+        code = this.unsigned8(position[0]);
         if (code < 0) {
           break;
         }
@@ -619,7 +619,7 @@ final class DeclaredImageSize {
      */
     @Nullable String line(final long[] position, final int limit) {
       final StringBuilder line = new StringBuilder();
-      int code = this.u8(position[0]++);
+      int code = this.unsigned8(position[0]++);
       if (code < 0) {
         return null;
       }
@@ -630,7 +630,7 @@ final class DeclaredImageSize {
         } else {
           longer = true;
         }
-        code = this.u8(position[0]++);
+        code = this.unsigned8(position[0]++);
       }
       final String text = line.toString();
       final boolean comment = text.strip().startsWith("#");
@@ -645,7 +645,7 @@ final class DeclaredImageSize {
     @Nullable String word(final long[] position, final int limit) {
       final StringBuilder word = new StringBuilder();
       while (word.length() < limit) {
-        final int code = this.u8(position[0]++);
+        final int code = this.unsigned8(position[0]++);
         if (code < 0) {
           return null;
         }

@@ -84,7 +84,7 @@ final class DeclaredImageSizeTest {
     return output.toByteArray();
   }
 
-  private static byte[] le(final long value, final int count) {
+  private static byte[] littleEndian(final long value, final int count) {
     final byte[] result = new byte[count];
     for (int index = 0; index < count; index++) {
       result[index] = (byte) (value >>> (8 * index));
@@ -92,7 +92,7 @@ final class DeclaredImageSizeTest {
     return result;
   }
 
-  private static byte[] be(final long value, final int count) {
+  private static byte[] bigEndian(final long value, final int count) {
     final byte[] result = new byte[count];
     for (int index = 0; index < count; index++) {
       result[count - 1 - index] = (byte) (value >>> (8 * index));
@@ -151,7 +151,7 @@ final class DeclaredImageSizeTest {
   }
 
   private static byte[] number(final long value, final int count, final boolean little) {
-    return little ? le(value, count) : be(value, count);
+    return little ? littleEndian(value, count) : bigEndian(value, count);
   }
 
   private static Size decodedByOpenCv(final byte[] encoded) {
@@ -258,7 +258,7 @@ final class DeclaredImageSizeTest {
       final byte[] jpeg = new byte[(int) output.limit()];
       output.get(jpeg);
       final int decoy = 4 + (((jpeg[2] & 0xFF) << 8) | (jpeg[3] & 0xFF));
-      final byte[] frame = bytes(0xFF, 0xC0, be(17, 2), 8, be(1, 2), be(1, 2), 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1);
+      final byte[] frame = bytes(0xFF, 0xC0, bigEndian(17, 2), 8, bigEndian(1, 2), bigEndian(1, 2), 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1);
       final byte[] crafted = new byte[decoy + frame.length];
       System.arraycopy(bytes(0xFF, 0xD8, 0xFF, 0x00), 0, crafted, 0, 4);
       System.arraycopy(jpeg, 2, crafted, 4, jpeg.length - 2);
@@ -315,12 +315,18 @@ final class DeclaredImageSizeTest {
   private static byte[] tiffEntry(final boolean big, final long tag, final long type, final long count, final long value) {
     final int width = type == 3 ? 2 : type == 16 ? 8 : 4;
     final int field = big ? 8 : 4;
-    return bytes(le(tag, 2), le(type, 2), le(count, big ? 8 : 4), le(value, width), new byte[Math.max(0, field - width)]);
+    return bytes(
+      littleEndian(tag, 2),
+      littleEndian(type, 2),
+      littleEndian(count, big ? 8 : 4),
+      littleEndian(value, width),
+      new byte[Math.max(0, field - width)]
+    );
   }
 
   private static byte[] classicTiff(final byte[]... entries) {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    output.writeBytes(bytes("II", le(42, 2), le(8, 4), le(entries.length, 2)));
+    output.writeBytes(bytes("II", littleEndian(42, 2), littleEndian(8, 4), littleEndian(entries.length, 2)));
     for (final byte[] entry : entries) {
       output.writeBytes(entry);
     }
@@ -334,17 +340,27 @@ final class DeclaredImageSizeTest {
   }
 
   private static byte[] lossless(final int width, final int height, final int version) {
-    return le((width - 1) | ((long) (height - 1) << 14) | ((long) version << 29), 4);
+    return littleEndian((width - 1) | ((long) (height - 1) << 14) | ((long) version << 29), 4);
   }
 
   static Stream<Arguments> declaredSizes() {
     return Stream.of(
-      Arguments.of("bmp", bytes("BM", new byte[12], le(40, 4), le(30000, 4), le(20000, 4)), 30000, 20000),
-      Arguments.of("top-down bmp", bytes("BM", new byte[12], le(124, 4), le(30000, 4), le(-20000, 4)), 30000, 20000),
-      Arguments.of("os/2 bmp", bytes("BM", new byte[12], le(12, 4), le(65535, 2), le(300, 2)), 65535, 300),
-      Arguments.of("bmp of the least height", bytes("BM", new byte[12], le(40, 4), le(5, 4), le(Integer.MIN_VALUE, 4)), 5, 2147483648L),
-      Arguments.of("gif89a", bytes("GIF89a", le(65535, 2), le(32768, 2)), 65535, 32768),
-      Arguments.of("gif87a", bytes("GIF87a", le(5, 2), le(7, 2)), 5, 7),
+      Arguments.of("bmp", bytes("BM", new byte[12], littleEndian(40, 4), littleEndian(30000, 4), littleEndian(20000, 4)), 30000, 20000),
+      Arguments.of(
+        "top-down bmp",
+        bytes("BM", new byte[12], littleEndian(124, 4), littleEndian(30000, 4), littleEndian(-20000, 4)),
+        30000,
+        20000
+      ),
+      Arguments.of("os/2 bmp", bytes("BM", new byte[12], littleEndian(12, 4), littleEndian(65535, 2), littleEndian(300, 2)), 65535, 300),
+      Arguments.of(
+        "bmp of the least height",
+        bytes("BM", new byte[12], littleEndian(40, 4), littleEndian(5, 4), littleEndian(Integer.MIN_VALUE, 4)),
+        5,
+        2147483648L
+      ),
+      Arguments.of("gif89a", bytes("GIF89a", littleEndian(65535, 2), littleEndian(32768, 2)), 65535, 32768),
+      Arguments.of("gif87a", bytes("GIF87a", littleEndian(5, 2), littleEndian(7, 2)), 5, 7),
       Arguments.of("radiance", bytes("#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 20000 +X 30000\n"), 30000, 20000),
       Arguments.of("rgbe with a comment and signs", bytes("#?RGBE\n# made by hand\n\n-Y\t+7 +X 5\n"), 5, 7),
       Arguments.of("hdr line longer than a piece", bytes("#?RGBE\n#", "x".repeat(200), "\n\n-Y 2 +X 3\n"), 3, 2),
@@ -352,13 +368,45 @@ final class DeclaredImageSizeTest {
       Arguments.of("hdr piece ending the header", bytes("#?RGBE\n", "F".repeat(127), "\n-Y 4 +X 6\n"), 6, 4),
       Arguments.of(
         "jpeg",
-        bytes(0xFF, 0xD8, 0xFF, 0xE0, be(16, 2), new byte[14], 0xFF, 0xC0, be(17, 2), 8, be(20000, 2), be(30000, 2)),
+        bytes(
+          0xFF,
+          0xD8,
+          0xFF,
+          0xE0,
+          bigEndian(16, 2),
+          new byte[14],
+          0xFF,
+          0xC0,
+          bigEndian(17, 2),
+          8,
+          bigEndian(20000, 2),
+          bigEndian(30000, 2)
+        ),
         30000,
         20000
       ),
       Arguments.of(
         "jpeg with garbage, fill bytes and standalone markers",
-        bytes(0xFF, 0xD8, 0xFF, 0x01, 0x00, 0x12, 0xFF, 0xFF, 0xD0, 0xFF, 0xD7, 0xFF, 0xFF, 0xC2, be(11, 2), 8, be(7, 2), be(5, 2)),
+        bytes(
+          0xFF,
+          0xD8,
+          0xFF,
+          0x01,
+          0x00,
+          0x12,
+          0xFF,
+          0xFF,
+          0xD0,
+          0xFF,
+          0xD7,
+          0xFF,
+          0xFF,
+          0xC2,
+          bigEndian(11, 2),
+          8,
+          bigEndian(7, 2),
+          bigEndian(5, 2)
+        ),
         5,
         7
       ),
@@ -369,63 +417,79 @@ final class DeclaredImageSizeTest {
           0xD8,
           0xFF,
           0xC4,
-          be(3, 2),
+          bigEndian(3, 2),
           0,
           0xFF,
           0xC8,
-          be(2, 2),
+          bigEndian(2, 2),
           0xFF,
           0xCC,
-          be(4, 2),
+          bigEndian(4, 2),
           0,
           0,
           0xFF,
           0xB0,
-          be(2, 2),
+          bigEndian(2, 2),
           0xFF,
           0xE1,
-          be(2, 2),
+          bigEndian(2, 2),
           0xFF,
           0xC1,
-          be(11, 2),
+          bigEndian(11, 2),
           8,
-          be(9, 2),
-          be(4, 2)
+          bigEndian(9, 2),
+          bigEndian(4, 2)
         ),
         4,
         9
       ),
       Arguments.of(
         "extended webp",
-        pad(bytes("RIFF", le(30, 4), "WEBP", "VP8X", le(10, 4), le(16, 4), le(16383, 3), le(9999, 3))),
+        pad(
+          bytes(
+            "RIFF",
+            littleEndian(30, 4),
+            "WEBP",
+            "VP8X",
+            littleEndian(10, 4),
+            littleEndian(16, 4),
+            littleEndian(16383, 3),
+            littleEndian(9999, 3)
+          )
+        ),
         16384,
         10000
       ),
-      Arguments.of("lossless webp", pad(bytes("RIFF", le(30, 4), "WEBP", "VP8L", le(5, 4), 0x2F, lossless(300, 200, 0))), 300, 200),
+      Arguments.of(
+        "lossless webp",
+        pad(bytes("RIFF", littleEndian(30, 4), "WEBP", "VP8L", littleEndian(5, 4), 0x2F, lossless(300, 200, 0))),
+        300,
+        200
+      ),
       Arguments.of("raw lossless webp", pad(bytes(0x2F, lossless(16384, 16384, 0))), 16384, 16384),
       Arguments.of(
         "lossy webp",
         pad(
           bytes(
             "RIFF",
-            le(30, 4),
+            littleEndian(30, 4),
             "WEBP",
             "VP8 ",
-            le(10, 4),
+            littleEndian(10, 4),
             0x10,
             0x02,
             0x00,
             0x9D,
             0x01,
             0x2A,
-            le(0xC000 | 16383, 2),
-            le(0x4000 | 300, 2)
+            littleEndian(0xC000 | 16383, 2),
+            littleEndian(0x4000 | 300, 2)
           )
         ),
         16383,
         300
       ),
-      Arguments.of("sun raster", bytes(0x59, 0xA6, 0x6A, 0x95, be(30000, 4), be(20000, 4)), 30000, 20000),
+      Arguments.of("sun raster", bytes(0x59, 0xA6, 0x6A, 0x95, bigEndian(30000, 4), bigEndian(20000, 4)), 30000, 20000),
       Arguments.of("ppm", bytes("P6\n30000 20000\n255\n"), 30000, 20000),
       Arguments.of("pbm with comments", bytes("P1 # made by hand\r5\t\n 7\n"), 5, 7),
       Arguments.of("pbm with comments on their own lines", bytes("P4\n#one\n#two\n3 4"), 3, 4),
@@ -447,11 +511,21 @@ final class DeclaredImageSizeTest {
         30000,
         20000
       ),
-      Arguments.of("bmp of the shortest info header of 32-bit sizes", bytes("BM", new byte[12], le(36, 4), le(5, 4), le(7, 4)), 5, 7),
-      Arguments.of("jpeg of the last kind of frame", bytes(0xFF, 0xD8, 0xFF, 0xCF, be(17, 2), 8, be(7, 2), be(5, 2)), 5, 7),
+      Arguments.of(
+        "bmp of the shortest info header of 32-bit sizes",
+        bytes("BM", new byte[12], littleEndian(36, 4), littleEndian(5, 4), littleEndian(7, 4)),
+        5,
+        7
+      ),
+      Arguments.of(
+        "jpeg of the last kind of frame",
+        bytes(0xFF, 0xD8, 0xFF, 0xCF, bigEndian(17, 2), 8, bigEndian(7, 2), bigEndian(5, 2)),
+        5,
+        7
+      ),
       Arguments.of(
         "jpeg with a stuffed zero before its frame",
-        bytes(0xFF, 0xD8, 0xFF, 0x00, 0xFF, 0xC0, be(17, 2), 8, be(7, 2), be(5, 2)),
+        bytes(0xFF, 0xD8, 0xFF, 0x00, 0xFF, 0xC0, bigEndian(17, 2), 8, bigEndian(7, 2), bigEndian(5, 2)),
         5,
         7
       ),
@@ -468,9 +542,9 @@ final class DeclaredImageSizeTest {
         "tiff with an entry past its count",
         bytes(
           "II",
-          le(42, 2),
-          le(8, 4),
-          le(2, 2),
+          littleEndian(42, 2),
+          littleEndian(8, 4),
+          littleEndian(2, 2),
           tiffEntry(false, 256, 3, 1, 5),
           tiffEntry(false, 257, 3, 1, 7),
           tiffEntry(false, 256, 3, 1, 9)
@@ -478,7 +552,12 @@ final class DeclaredImageSizeTest {
         5,
         7
       ),
-      Arguments.of("png", bytes(0x89, "PNG\r\n", 0x1A, "\n", be(13, 4), "IHDR", be(4294967295L, 4), be(1, 4)), 4294967295L, 1)
+      Arguments.of(
+        "png",
+        bytes(0x89, "PNG\r\n", 0x1A, "\n", bigEndian(13, 4), "IHDR", bigEndian(4294967295L, 4), bigEndian(1, 4)),
+        4294967295L,
+        1
+      )
     );
   }
 
@@ -495,10 +574,13 @@ final class DeclaredImageSizeTest {
       Arguments.of("unknown bytes", bytes("not an image at all, not one")),
       Arguments.of("jpeg 2000", bytes(0, 0, 0, 0x0C, "jP  \r\n", 0x87, "\n", new byte[20])),
       Arguments.of("openexr", bytes(0x76, 0x2F, 0x31, 0x01, new byte[40])),
-      Arguments.of("bmp with an unknown info header", bytes("BM", new byte[12], le(20, 4), le(5, 4), le(7, 4))),
+      Arguments.of(
+        "bmp with an unknown info header",
+        bytes("BM", new byte[12], littleEndian(20, 4), littleEndian(5, 4), littleEndian(7, 4))
+      ),
       Arguments.of("truncated bmp", bytes("BM", new byte[4])),
-      Arguments.of("bmp without width", bytes("BM", new byte[12], le(40, 4), le(0, 4), le(7, 4))),
-      Arguments.of("gif of another version", bytes("GIF88a", le(5, 2), le(7, 2))),
+      Arguments.of("bmp without width", bytes("BM", new byte[12], littleEndian(40, 4), littleEndian(0, 4), littleEndian(7, 4))),
+      Arguments.of("gif of another version", bytes("GIF88a", littleEndian(5, 2), littleEndian(7, 2))),
       Arguments.of("hdr without the end of its header", bytes("#?RGBE\nFORMAT=32-bit_rle_rgbe\n")),
       Arguments.of("hdr without its resolution", bytes("#?RGBE\n\n")),
       Arguments.of("hdr with another orientation", bytes("#?RGBE\n\n+Y 7 +X 5\n")),
@@ -507,40 +589,66 @@ final class DeclaredImageSizeTest {
       Arguments.of("hdr with a huge number", bytes("#?RGBE\n\n-Y 99999999999 +X 5\n")),
       Arguments.of("hdr with a negative height", bytes("#?RGBE\n\n-Y -7 +X 5\n")),
       Arguments.of("hdr cut by a nul", bytes("#?RGBE\n\n-Y 7", 0, " +X 5\n")),
-      Arguments.of("jpeg ending before a frame", bytes(0xFF, 0xD8, 0xFF, 0xE0, be(4, 2), 0, 0, 0xFF, 0xD9)),
-      Arguments.of("jpeg scan before a frame", bytes(0xFF, 0xD8, 0xFF, 0xDA, be(2, 2))),
+      Arguments.of("jpeg ending before a frame", bytes(0xFF, 0xD8, 0xFF, 0xE0, bigEndian(4, 2), 0, 0, 0xFF, 0xD9)),
+      Arguments.of("jpeg scan before a frame", bytes(0xFF, 0xD8, 0xFF, 0xDA, bigEndian(2, 2))),
       Arguments.of("jpeg starting twice", bytes(0xFF, 0xD8, 0xFF, 0xD8)),
       Arguments.of("jpeg without markers", bytes(0xFF, 0xD8, 0xFF)),
-      Arguments.of("jpeg running into garbage", bytes(0xFF, 0xD8, 0xFF, 0xE0, be(4, 2), 0, 0, 0x12, 0x34)),
-      Arguments.of("jpeg with a short length", bytes(0xFF, 0xD8, 0xFF, 0xE0, be(1, 2))),
+      Arguments.of("jpeg running into garbage", bytes(0xFF, 0xD8, 0xFF, 0xE0, bigEndian(4, 2), 0, 0, 0x12, 0x34)),
+      Arguments.of("jpeg with a short length", bytes(0xFF, 0xD8, 0xFF, 0xE0, bigEndian(1, 2))),
       Arguments.of("jpeg without a length", bytes(0xFF, 0xD8, 0xFF, 0xE0)),
-      Arguments.of("jpeg frame without its size", bytes(0xFF, 0xD8, 0xFF, 0xC0, be(17, 2), 8)),
-      Arguments.of("webp shorter than its signature", bytes("RIFF", le(30, 4), "WEBP", "VP8X", le(10, 4), le(0, 4), le(5, 3), le(5, 3))),
-      Arguments.of("riff of another kind", pad(bytes("RIFF", le(30, 4), "WAVE", "fmt "))),
+      Arguments.of("jpeg frame without its size", bytes(0xFF, 0xD8, 0xFF, 0xC0, bigEndian(17, 2), 8)),
+      Arguments.of(
+        "webp shorter than its signature",
+        bytes("RIFF", littleEndian(30, 4), "WEBP", "VP8X", littleEndian(10, 4), littleEndian(0, 4), littleEndian(5, 3), littleEndian(5, 3))
+      ),
+      Arguments.of("riff of another kind", pad(bytes("RIFF", littleEndian(30, 4), "WAVE", "fmt "))),
       Arguments.of(
         "webp with a broken extended header",
-        pad(bytes("RIFF", le(30, 4), "WEBP", "VP8X", le(9, 4), le(0, 4), le(5, 3), le(5, 3)))
+        pad(
+          bytes("RIFF", littleEndian(30, 4), "WEBP", "VP8X", littleEndian(9, 4), littleEndian(0, 4), littleEndian(5, 3), littleEndian(5, 3))
+        )
       ),
-      Arguments.of("lossless webp of another version", pad(bytes("RIFF", le(30, 4), "WEBP", "VP8L", le(5, 4), 0x2F, lossless(5, 7, 1)))),
-      Arguments.of("lossless webp without its signature", pad(bytes("RIFF", le(30, 4), "WEBP", "VP8L", le(5, 4), 0x2E, lossless(5, 7, 0)))),
+      Arguments.of(
+        "lossless webp of another version",
+        pad(bytes("RIFF", littleEndian(30, 4), "WEBP", "VP8L", littleEndian(5, 4), 0x2F, lossless(5, 7, 1)))
+      ),
+      Arguments.of(
+        "lossless webp without its signature",
+        pad(bytes("RIFF", littleEndian(30, 4), "WEBP", "VP8L", littleEndian(5, 4), 0x2E, lossless(5, 7, 0)))
+      ),
       Arguments.of(
         "webp with another first chunk",
-        pad(bytes("RIFF", le(30, 4), "WEBP", "ALPH", le(10, 4), 0x10, 0x02, 0x00, 0x9D, 0x01, 0x2A))
+        pad(bytes("RIFF", littleEndian(30, 4), "WEBP", "ALPH", littleEndian(10, 4), 0x10, 0x02, 0x00, 0x9D, 0x01, 0x2A))
       ),
       Arguments.of(
         "lossy webp of a later frame",
-        pad(bytes("RIFF", le(30, 4), "WEBP", "VP8 ", le(10, 4), 0x11, 0x02, 0x00, 0x9D, 0x01, 0x2A))
+        pad(bytes("RIFF", littleEndian(30, 4), "WEBP", "VP8 ", littleEndian(10, 4), 0x11, 0x02, 0x00, 0x9D, 0x01, 0x2A))
       ),
       Arguments.of(
         "lossy webp without its start code",
-        pad(bytes("RIFF", le(30, 4), "WEBP", "VP8 ", le(10, 4), 0x10, 0x02, 0x00, 0x9D, 0x01, 0x2B))
+        pad(bytes("RIFF", littleEndian(30, 4), "WEBP", "VP8 ", littleEndian(10, 4), 0x10, 0x02, 0x00, 0x9D, 0x01, 0x2B))
       ),
       Arguments.of(
         "lossy webp of no width",
-        pad(bytes("RIFF", le(30, 4), "WEBP", "VP8 ", le(10, 4), 0x10, 0x02, 0x00, 0x9D, 0x01, 0x2A, le(0xC000, 2)))
+        pad(
+          bytes(
+            "RIFF",
+            littleEndian(30, 4),
+            "WEBP",
+            "VP8 ",
+            littleEndian(10, 4),
+            0x10,
+            0x02,
+            0x00,
+            0x9D,
+            0x01,
+            0x2A,
+            littleEndian(0xC000, 2)
+          )
+        )
       ),
-      Arguments.of("sun raster of a negative width", bytes(0x59, 0xA6, 0x6A, 0x95, be(0x80000000L, 4), be(5, 4))),
-      Arguments.of("truncated sun raster", bytes(0x59, 0xA6, 0x6A, 0x95, be(5, 4))),
+      Arguments.of("sun raster of a negative width", bytes(0x59, 0xA6, 0x6A, 0x95, bigEndian(0x80000000L, 4), bigEndian(5, 4))),
+      Arguments.of("truncated sun raster", bytes(0x59, 0xA6, 0x6A, 0x95, bigEndian(5, 4))),
       Arguments.of("ppm with a letter for a number", bytes("P6\nx 5\n")),
       Arguments.of("ppm with an endless comment", bytes("P6\n# no end")),
       Arguments.of("ppm without its height", bytes("P6\n5")),
@@ -567,9 +675,12 @@ final class DeclaredImageSizeTest {
       Arguments.of("pfm of a width too long for a number", bytes("PF\n", "1".repeat(2048), " 7\n")),
       Arguments.of("pfm of a huge width", bytes("PF\n12345678901 7\n")),
       Arguments.of("pfm of a word for a width", bytes("PF\nabc 7\n")),
-      Arguments.of("tiff of another magic", bytes("II", le(44, 2), le(8, 4), le(0, 2))),
-      Arguments.of("tiff with its directory past the end", bytes("II", le(42, 2), le(4000, 4))),
-      Arguments.of("bigtiff with its directory past any file", bytes("II", le(43, 2), le(8, 2), le(0, 2), le(-1, 8))),
+      Arguments.of("tiff of another magic", bytes("II", littleEndian(44, 2), littleEndian(8, 4), littleEndian(0, 2))),
+      Arguments.of("tiff with its directory past the end", bytes("II", littleEndian(42, 2), littleEndian(4000, 4))),
+      Arguments.of(
+        "bigtiff with its directory past any file",
+        bytes("II", littleEndian(43, 2), littleEndian(8, 2), littleEndian(0, 2), littleEndian(-1, 8))
+      ),
       Arguments.of(
         "tiff with two widths",
         classicTiff(tiffEntry(false, 256, 3, 1, 5), tiffEntry(false, 256, 3, 1, 9), tiffEntry(false, 257, 3, 1, 7))
@@ -586,8 +697,11 @@ final class DeclaredImageSizeTest {
       Arguments.of("pam with a height of 0 and another", bytes("P7\nWIDTH 5\nHEIGHT 0\nHEIGHT 7\nENDHDR\n")),
       Arguments.of("pam with a line one longer than its limit", bytes("P7\nWIDTH", " ".repeat(507), "5\nHEIGHT 7\nENDHDR\n")),
       Arguments.of("hdr with an eleven-digit width", bytes("#?RGBE\n\n-Y 5 +X 21474836470\n")),
-      Arguments.of("png without its header chunk", bytes(0x89, "PNG\r\n", 0x1A, "\n", be(13, 4), "IDAT", be(5, 4), be(7, 4))),
-      Arguments.of("png of no height", bytes(0x89, "PNG\r\n", 0x1A, "\n", be(13, 4), "IHDR", be(5, 4), be(0, 4)))
+      Arguments.of(
+        "png without its header chunk",
+        bytes(0x89, "PNG\r\n", 0x1A, "\n", bigEndian(13, 4), "IDAT", bigEndian(5, 4), bigEndian(7, 4))
+      ),
+      Arguments.of("png of no height", bytes(0x89, "PNG\r\n", 0x1A, "\n", bigEndian(13, 4), "IHDR", bigEndian(5, 4), bigEndian(0, 4)))
     );
   }
 
@@ -604,13 +718,21 @@ final class DeclaredImageSizeTest {
   @Test
   void readsAnEightByteWidthOfABigTiff() {
     final byte[] entries = bytes(tiffEntry(true, 256, 16, 1, 30000), tiffEntry(true, 257, 4, 1, 20000));
-    final byte[] bigTiff = bytes("II", le(43, 2), le(8, 2), le(0, 2), le(16, 8), le(2, 8), entries);
+    final byte[] bigTiff = bytes(
+      "II",
+      littleEndian(43, 2),
+      littleEndian(8, 2),
+      littleEndian(0, 2),
+      littleEndian(16, 8),
+      littleEndian(2, 8),
+      entries
+    );
     assertEquals("30000x20000", sizeOf(read(bigTiff)));
   }
 
   @Test
   void refusesAnImageLargerThanTheLimitWithoutDecodingIt() {
-    final byte[] header = bytes(0x89, "PNG\r\n", 0x1A, "\n", be(13, 4), "IHDR", be(30000, 4), be(20000, 4));
+    final byte[] header = bytes(0x89, "PNG\r\n", 0x1A, "\n", bigEndian(13, 4), "IHDR", bigEndian(30000, 4), bigEndian(20000, 4));
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
       DeclaredImageSize.checkBytes(header, 599_999_999)
     );
@@ -619,7 +741,7 @@ final class DeclaredImageSizeTest {
       refused.getMessage()
     );
     assertDoesNotThrow(() -> DeclaredImageSize.checkBytes(header, 600_000_000));
-    final byte[] huge = bytes(0x89, "PNG\r\n", 0x1A, "\n", be(13, 4), "IHDR", be(4294967295L, 4), be(4294967295L, 4));
+    final byte[] huge = bytes(0x89, "PNG\r\n", 0x1A, "\n", bigEndian(13, 4), "IHDR", bigEndian(4294967295L, 4), bigEndian(4294967295L, 4));
     assertThrows(IllegalArgumentException.class, () -> DeclaredImageSize.checkBytes(huge, Long.MAX_VALUE));
   }
 
@@ -634,7 +756,7 @@ final class DeclaredImageSizeTest {
 
   @Test
   void checksFilesWithoutReadingThemWhole() throws IOException {
-    final byte[] png = bytes(0x89, "PNG\r\n", 0x1A, "\n", be(13, 4), "IHDR", be(16, 4), be(16, 4), new byte[1 << 20]);
+    final byte[] png = bytes(0x89, "PNG\r\n", 0x1A, "\n", bigEndian(13, 4), "IHDR", bigEndian(16, 4), bigEndian(16, 4), new byte[1 << 20]);
     final Path file = this.directory.resolve("large.png");
     Files.write(file, png);
     assertDoesNotThrow(() -> DeclaredImageSize.checkFile(file, 256));
