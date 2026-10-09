@@ -969,7 +969,7 @@ def fixtures_write_json(path, value):
     path.write_text(json.dumps(value, indent=1) + "\n")
 
 
-def fixtures_v3_stream(path):
+def fixtures_version_3_stream(path):
     data = path.read_bytes()
     kept = list(archive_frames(data))
     if not kept:
@@ -986,7 +986,7 @@ def fixtures_conformance(root):
     table = json.loads(path.read_text()) if path.exists() else {}
     updated = False
     for stream in sorted(output.glob("*.mcs")):
-        result = fixtures_v3_stream(stream)
+        result = fixtures_version_3_stream(stream)
         if result is None:
             continue
         data, kept = result
@@ -1008,7 +1008,7 @@ def fixtures_edge(root):
 def fixtures_pages(root):
     cases = []
     for stream in sorted((root / "conformance").glob("*.mcs")):
-        result = fixtures_v3_stream(stream)
+        result = fixtures_version_3_stream(stream)
         if result is not None:
             cases.extend(
                 (str(stream.relative_to(root)), index, frame) for index, frame in enumerate(result[1])
@@ -1053,7 +1053,7 @@ def fixtures_pages(root):
 def fixtures_encoder(root):
     checked = 0
     for stream in sorted((root / "encoder").glob("*.mcs")):
-        result = fixtures_v3_stream(stream)
+        result = fixtures_version_3_stream(stream)
         if result is None:
             continue
         decoded = fixtures_digests(result[0])

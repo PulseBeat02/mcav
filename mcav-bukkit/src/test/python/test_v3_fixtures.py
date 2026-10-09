@@ -89,7 +89,7 @@ class FixtureToolTest(unittest.TestCase):
             with self.subTest(raw=raw), self.assertRaises(ValueError):
                 list(mcv2_tools.archive_frames(raw))
 
-    def test_conformance_skips_v2_and_checks_v3_without_touching_streams(self):
+    def test_conformance_skips_version_2_and_checks_version_3_without_touching_streams(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             output = root / 'conformance'
