@@ -193,3 +193,5 @@ dmypy.json
 logs/
 
 .jqwik-database
+
+/mcav-docs/conf.py

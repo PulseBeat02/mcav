@@ -83,7 +83,7 @@ val buildDocs = tasks.register<JupyterBook>("buildDocs") {
     dependsOn(installEnvironment)
     mustRunAfter("lockDocsRequirements")
     sources.from(fileTree(projectDir) {
-        exclude("build/**", "_build/**", ".jupyter_cache/**", "**/__pycache__/**", "build.gradle.kts", "requirements*")
+        exclude("build/**", "_build/**", ".jupyter_cache/**", "**/__pycache__/**", "build.gradle.kts", "requirements*", "conf.py")
     })
     requirements = requirementsLock
     pythonVersion = libs.versionOf("docs-python")
