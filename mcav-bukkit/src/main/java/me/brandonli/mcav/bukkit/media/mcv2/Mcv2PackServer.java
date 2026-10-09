@@ -132,7 +132,7 @@ public final class Mcv2PackServer {
 
   private static final long SHUTDOWN_SECONDS = 10;
 
-  static final long GRACE_MILLIS = 60_000;
+  private static final long GRACE_MILLIS = 60_000;
 
   private static final long MILLIS_PER_TICK = 50;
 
@@ -182,7 +182,7 @@ public final class Mcv2PackServer {
   private @Nullable Listener listener;
 
   private record Geometry(int width, int height, int pageSlots) {
-    static Geometry of(final Mcv2Configuration configuration) {
+    private static Geometry of(final Mcv2Configuration configuration) {
       return new Geometry(configuration.getVideoWidth(), configuration.getVideoHeight(), configuration.getPageSlots());
     }
   }

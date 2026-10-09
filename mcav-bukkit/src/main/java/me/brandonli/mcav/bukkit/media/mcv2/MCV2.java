@@ -1919,7 +1919,7 @@ public final class MCV2 {
 
     private final MemorySegment[] cachedSegments = new MemorySegment[SEGMENTS];
 
-    NativeKernels(final Binding binding) {
+    private NativeKernels(final Binding binding) {
       this.binding = binding;
     }
 

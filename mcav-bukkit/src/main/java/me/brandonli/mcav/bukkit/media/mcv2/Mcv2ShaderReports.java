@@ -144,11 +144,11 @@ final class Mcv2ShaderReports implements PluginMessageListener {
   }
 
   private record Report(boolean irisPresent, int shaderPack, boolean decodesUnderShaders) {
-    boolean blocksDecoding() {
+    private boolean blocksDecoding() {
       return this.shaderPack == SHADER_PACK_IN_USE && !this.decodesUnderShaders;
     }
 
-    String describe() {
+    private String describe() {
       if (!this.irisPresent) {
         return "no Iris";
       }

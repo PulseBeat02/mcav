@@ -35,7 +35,7 @@ public final class Mcv2Decoder {
   static final int SMALLEST_BLOCK = 8;
   static final int BLOCK_SIZES = 3;
   static final int CHANNELS = 3;
-  static final int MAX_CHANNEL = 255;
+  private static final int MAX_CHANNEL = 255;
   static final int QUARTERS = 4;
   static final int GROUP_ROOTS = 32;
   static final int CHECKPOINT_GROUPS = 8;
@@ -47,7 +47,7 @@ public final class Mcv2Decoder {
   static final int MODE_PATTERN = 4;
   static final int MODE_COMPACT = 5;
   static final int MODE_SPLIT = 6;
-  static final int MODE_MASK = 31;
+  private static final int MODE_MASK = 31;
   static final int QUANTIZER_SHIFT = 5;
   static final int MAX_QUANTIZER = 2;
   static final int COMPACT_BYTES = 10;

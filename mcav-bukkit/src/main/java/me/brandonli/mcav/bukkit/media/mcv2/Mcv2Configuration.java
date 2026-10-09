@@ -462,7 +462,7 @@ public final class Mcv2Configuration {
 
     private NamedTextColor outlineColor = NamedTextColor.DARK_PURPLE;
 
-    Builder() {}
+    private Builder() {}
 
     /**
      * Sets the players who watch the screen. The collection is not copied.

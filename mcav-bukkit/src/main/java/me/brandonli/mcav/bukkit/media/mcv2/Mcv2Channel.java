@@ -75,7 +75,7 @@ public final class Mcv2Channel {
   private static final Logger LOGGER = LoggerFactory.getLogger(Mcv2Channel.class);
   private static final String UNSENT_LIMIT_REFUSED = "The connection of viewer {} refused the limit of unsent bytes";
 
-  static final int RANGE_MARGIN = 32;
+  private static final int RANGE_MARGIN = 32;
 
   private static final int CHUNK_BLOCKS = 16;
 

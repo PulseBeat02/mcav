@@ -165,7 +165,7 @@ public final class Mcv2Pacer {
       return this.isDithered() ? 0 : videoFps / this.divisor;
     }
 
-    long pixels() {
+    private long pixels() {
       return (long) this.width * this.height;
     }
 
