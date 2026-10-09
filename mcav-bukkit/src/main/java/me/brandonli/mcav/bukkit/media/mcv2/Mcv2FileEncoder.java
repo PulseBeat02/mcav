@@ -53,7 +53,7 @@ import org.bytedeco.javacv.FrameGrabber;
  */
 public final class Mcv2FileEncoder {
 
-  private static final double NANOS_PER_MILLISECOND = 1e6;
+  private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
 
   private Mcv2FileEncoder() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -94,7 +94,7 @@ public final class Mcv2FileEncoder {
      * @return milliseconds per frame, 0 without frames
      */
     public double millisecondsPerFrame() {
-      return this.frames == 0 ? 0 : this.nanoseconds / NANOS_PER_MILLISECOND / this.frames;
+      return this.frames == 0 ? 0 : this.nanoseconds / NANOSECONDS_PER_MILLISECOND / this.frames;
     }
   }
 

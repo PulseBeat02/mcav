@@ -177,7 +177,7 @@ final class Mcv2PackTest {
     assertEquals(9, described.get("stream_id").getAsLong());
     // every channel of the outline colour, the red one too
     final Mcv2Configuration purple = Mcv2ConfigurationTest.complete().outlineColor(NamedTextColor.DARK_PURPLE).build();
-    assertTrue(Mcv2Pack.config(List.of(purple), false).contains("const ivec3 MCV2_OUTLINE_COLOR = ivec3(170, 0, 170);"));
+    assertTrue(Mcv2Pack.packConstants(List.of(purple), false).contains("const ivec3 MCV2_OUTLINE_COLOR = ivec3(170, 0, 170);"));
   }
 
   @Test

@@ -519,8 +519,8 @@ public final class Mcv2PackServer {
       final String archiveHash = hash(archivePath, "SHA-1");
       final UUID packId = UUID.nameUUIDFromBytes(("mcav-mcv2:" + archiveHash).getBytes(StandardCharsets.UTF_8));
       final PackHosting host = this.host(archivePath);
-      final ResourcePackInfo info = ResourcePackInfo.resourcePackInfo(packId, URI.create(host.getRawUrl()), archiveHash);
-      final ResourcePackRequest request = ResourcePackRequest.resourcePackRequest().packs(info).required(false).replace(false).build();
+      final ResourcePackInfo pack = ResourcePackInfo.resourcePackInfo(packId, URI.create(host.getRawUrl()), archiveHash);
+      final ResourcePackRequest request = ResourcePackRequest.resourcePackRequest().packs(pack).required(false).replace(false).build();
       published = new Published(wanted, packId, host, request, description);
     } catch (final RuntimeException exception) {
       LOGGER.error(PACK_FAILED, description, exception);

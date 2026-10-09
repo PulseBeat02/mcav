@@ -40,7 +40,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
 
   static final int BURST = 5;
 
-  static final long INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(1);
+  static final long INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(1);
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Mcv2ShaderReports.class);
 
@@ -66,7 +66,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
 
   private static final int SHADER_PACK_UNKNOWN = 2;
 
-  private static final long BURST_NANOSECONDS = (BURST - 1) * INTERVAL_NANOS;
+  private static final long BURST_NANOSECONDS = (BURST - 1) * INTERVAL_NANOSECONDS;
 
   private final LongSupplier clock;
 
@@ -109,7 +109,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
     if (next - now > BURST_NANOSECONDS) {
       return false;
     }
-    this.allowances.put(player, next + INTERVAL_NANOS);
+    this.allowances.put(player, next + INTERVAL_NANOSECONDS);
     return true;
   }
 

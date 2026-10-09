@@ -621,7 +621,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
     if (encode && !current.channel().getRecipients().isEmpty()) {
       // A full-frame ARGB copy at 1080p adds an 8 MB G1 humongous allocation per frame.
-      final Arrival arrival = new Arrival(rgb(data.getData(), width * height), width, height, System.currentTimeMillis(), preset);
+      final Arrival arrival = new Arrival(rgbFromBgr(data.getData(), width * height), width, height, System.currentTimeMillis(), preset);
       this.pending.offer(arrival);
     }
     final Fallback dithered = this.fallback;
@@ -669,7 +669,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  static byte[] rgb(final ByteBuffer sourceBuffer, final int pixels) {
+  static byte[] rgbFromBgr(final ByteBuffer sourceBuffer, final int pixels) {
     final byte[] pictureBytes = new byte[pixels * Mcv2Decoder.CHANNELS];
     sourceBuffer.get(sourceBuffer.position(), pictureBytes);
     for (int pixelOffset = 0; pixelOffset < pictureBytes.length; pixelOffset += Mcv2Decoder.CHANNELS) {

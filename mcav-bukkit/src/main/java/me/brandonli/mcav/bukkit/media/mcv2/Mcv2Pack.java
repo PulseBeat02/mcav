@@ -169,13 +169,13 @@ public final class Mcv2Pack {
       for (final String file : SCREEN_FILES) {
         pack.data(POST + "s" + screen + "/" + file, screenCopy(resource(POST + file), screen).getBytes(StandardCharsets.UTF_8));
       }
-      final String include = screenConfig(configuration, screen, firstSlot, debugTop);
+      final String include = screenConstants(configuration, screen, firstSlot, debugTop);
       pack.data(INCLUDE + screenInclude(screen), include.getBytes(StandardCharsets.UTF_8));
       firstSlot += configuration.getPageSlots();
       debugTop += Math.max(configuration.getVideoHeight(), DEBUG_SQUARES) + DEBUG_GAP;
     }
     pack.data(POST_CHAIN, postChain(screens).getBytes(StandardCharsets.UTF_8));
-    pack.data(INCLUDE + "mcv2_config.glsl", config(screens, showsDebugView).getBytes(StandardCharsets.UTF_8));
+    pack.data(INCLUDE + "mcv2_config.glsl", packConstants(screens, showsDebugView).getBytes(StandardCharsets.UTF_8));
     pack.data(INCLUDE + "mcv2_alphabet.glsl", alphabet(palette()).getBytes(StandardCharsets.UTF_8));
     pack.data("mcav_mcv2.json", manifest(screens).getBytes(StandardCharsets.UTF_8));
     pack.zip(archivePath);
@@ -284,7 +284,7 @@ public final class Mcv2Pack {
     return (configuration.getVideoHeight() + CELL_PIXELS - 1) / CELL_PIXELS;
   }
 
-  static String config(final List<Mcv2Configuration> screens, final boolean showsDebugView) {
+  static String packConstants(final List<Mcv2Configuration> screens, final boolean showsDebugView) {
     final int count = screens.size();
     final int color = screens.getFirst().getOutlineColor().value();
     final StringBuilder streams = new StringBuilder();
@@ -322,7 +322,7 @@ public final class Mcv2Pack {
     );
   }
 
-  private static String screenConfig(final Mcv2Configuration configuration, final int screen, final int firstSlot, final int debugTop) {
+  private static String screenConstants(final Mcv2Configuration configuration, final int screen, final int firstSlot, final int debugTop) {
     return guarded(
       "MCAV_MCV2_SCREEN_GLSL",
       String.join(
