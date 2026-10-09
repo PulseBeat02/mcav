@@ -78,7 +78,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
   public static final int SILENCE_MILLIS = 2_000;
 
   /** How long each chunk of silence is, in milliseconds. */
-  static final int SILENCE_CHUNK_MILLIS = 20;
+  private static final int SILENCE_CHUNK_MILLIS = 20;
 
   private static final int BYTES_PER_MILLISECOND = (AudioFilter.SAMPLE_RATE / 1000) * AudioFilter.FRAME_SIZE;
 

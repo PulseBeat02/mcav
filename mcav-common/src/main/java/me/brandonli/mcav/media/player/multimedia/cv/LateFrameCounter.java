@@ -32,17 +32,17 @@ final class LateFrameCounter {
   /**
    * How much video one count covers, in microseconds.
    */
-  static final long WINDOW_MICROS = 10_000_000L;
+  private static final long WINDOW_MICROS = 10_000_000L;
 
   /**
    * How many frames of a stretch must have been dropped at least to report it.
    */
-  static final int MIN_DROPPED = 10;
+  private static final int MIN_DROPPED = 10;
 
   /**
    * How much video passes at least between two reports, in microseconds.
    */
-  static final long REPORT_INTERVAL_MICROS = 60_000_000L;
+  private static final long REPORT_INTERVAL_MICROS = 60_000_000L;
 
   private final PlaybackSession.LagListener listener;
 

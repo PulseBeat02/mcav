@@ -45,7 +45,7 @@ final class DeclaredImageSize {
   static final String MAX_PIXELS_PROPERTY = "mcav.image.maxPixels";
 
   /** The limit when the property is not set: 8192 by 8192 pixels, 192 MiB of decoded BGR. */
-  static final long DEFAULT_MAX_PIXELS = 1L << 26;
+  private static final long DEFAULT_MAX_PIXELS = 1L << 26;
 
   private static final String UNSUPPORTED_BYTES = "Bytes are not a supported image format";
   private static final String UNSUPPORTED_FILE = "File is not a supported image: %s";

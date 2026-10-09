@@ -66,7 +66,7 @@ public final class YTDLPParserImpl implements YTDLPParser {
   private final ExecutableLocator locator;
   private final Function<String[], CommandTask> taskFactory;
 
-  YTDLPParserImpl() {
+  private YTDLPParserImpl() {
     this(YTDLPParserImpl::installYtdlp, CommandTask::new);
   }
 

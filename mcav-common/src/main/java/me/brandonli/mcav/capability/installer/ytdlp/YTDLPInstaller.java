@@ -64,11 +64,11 @@ public final class YTDLPInstaller extends AbstractInstaller {
     super(folder, NAME, downloads);
   }
 
-  YTDLPInstaller(final Path folder) {
+  private YTDLPInstaller(final Path folder) {
     this(folder, DOWNLOADS);
   }
 
-  YTDLPInstaller() {
+  private YTDLPInstaller() {
     super(NAME, DOWNLOADS);
   }
 

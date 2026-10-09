@@ -65,7 +65,7 @@ public final class MCAV implements MCAVApi {
 
   private volatile @Nullable BackgroundInstallation background;
 
-  MCAV() {
+  private MCAV() {
     final DependencyLoader defaultDependencyLoader = new DependencyLoader();
     final ModuleLoader defaultModuleLoader = new ModuleLoader();
     final CapabilityGuard sharedGuard = CapabilityGuard.shared();
