@@ -47,7 +47,7 @@ final class ArgumentUtilsPropertyTest {
 
   @Provide
   Arbitrary<String> typedSizes() {
-    // every arbitrary starts from a fresh base: jqwik 1.9 shares settings between an arbitrary and those made from it
+    // every arbitrary starts from a fresh base: jqwik 1.10 shares settings between an arbitrary and those made from it
     final StringArbitrary sizeStrings = Arbitraries.strings();
     final StringArbitrary sizeCharacters = sizeStrings.withChars("0123456789x+-X ,.");
     final StringArbitrary shortSizes = sizeCharacters.ofMaxLength(24);
@@ -80,7 +80,7 @@ final class ArgumentUtilsPropertyTest {
   }
 
   /**
-   * Creates sides from nothing to three times a bound, from a fresh arbitrary: jqwik 1.9 shares the range between an
+   * Creates sides from nothing to three times a bound, from a fresh arbitrary: jqwik 1.10 shares the range between an
    * arbitrary and the ones configured from it.
    */
   private static Arbitrary<Integer> nearBound(final int bound) {

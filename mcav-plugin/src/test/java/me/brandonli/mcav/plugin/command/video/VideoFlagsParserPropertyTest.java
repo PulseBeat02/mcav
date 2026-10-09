@@ -63,7 +63,7 @@ final class VideoFlagsParserPropertyTest {
       "-o",
       "format "
     );
-    // every arbitrary starts from a fresh base: jqwik 1.9 shares settings between an arbitrary and those made from it
+    // every arbitrary starts from a fresh base: jqwik 1.10 shares settings between an arbitrary and those made from it
     final StringArbitrary pieceStrings = Arbitraries.strings();
     final StringArbitrary tricky = pieceStrings.withChars("=,}{\\- abcf0\t");
     final StringArbitrary pieces = tricky.ofMaxLength(12);

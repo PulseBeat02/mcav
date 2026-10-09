@@ -69,7 +69,7 @@ final class MapPacketFactoryPropertyTest {
   @Provide
   Arbitrary<Integer> patchCounts() {
     final IntegerArbitrary integers = Arbitraries.integers();
-    // a fresh arbitrary: jqwik 1.9 shares the range between an arbitrary and the ones configured from it
+    // a fresh arbitrary: jqwik 1.10 shares the range between an arbitrary and the ones configured from it
     final Arbitrary<Integer> anyCount = integers.between(0, 3 * BUNDLE_LIMIT + 5);
     final Arbitrary<Integer> aroundLimits = Arbitraries.of(
       0,
