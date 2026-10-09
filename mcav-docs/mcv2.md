@@ -1174,11 +1174,15 @@ decoder, the 95th percentile time to encode a 1080p frame of a video playing at 
 
 | Preset | 12 threads: proxy | 12 threads: gameplay | 6 threads: proxy | 6 threads: gameplay |
 |---|---:|---:|---:|---:|
-@@LIVE-ROWS@@
+| `DEFAULT` | 10.1 ms | 16.4 ms | 13.3 ms | 19.4 ms |
+| `FAST` | 10.5 ms | 14.1 ms | 11.5 ms | 17.3 ms |
 
-A 30 fps frame has 33 ms, so @@LIVE-VERDICT@@ At 60 frames a second, a frame has 16.7 ms: @@LIVE60@@ These are times
-on a quiet machine; a busy one is slower, so measure your own server rather than take them as a promise. With the Java
-loops only, the same encoder takes @@JAVA-ONLY@@.
+A 30 fps frame has 33 ms, so both presets keep up with room to spare, even on gameplay with 6 threads (19.4 ms at
+worst). At 60 frames a second, a frame has 16.7 ms: with `FAST` and 12 threads, the encoder finishes a frame every
+11.6 ms on the proxy video (95th percentile), but only every 18.0 ms on a busy 60 fps gameplay video, a little too slow.
+These are times on a quiet machine; a busy one is slower, so measure your own server rather than take them as a
+promise. With the Java loops only, and without checking each frame against the decoder, the same encoder takes
+19.0 ms on the proxy video and 29.4 ms on gameplay with 12 threads: still inside 33 ms, with less room.
 
 **Pre-encoding** a file uses the same search, on the shared encoder threads: @@FILE-SPEED@@
 
