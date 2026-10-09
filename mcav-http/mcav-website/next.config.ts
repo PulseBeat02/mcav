@@ -15,8 +15,8 @@ const SOURCES = [
 ];
 
 // Next.js names the folder of a build's manifests after its build id, a random one unless told otherwise, so two builds
-// of the same sources made two different jars. An id derived from the sources makes the same website from the same
-// sources, and a changed website still gets a new folder name, which keeps browsers from using stale manifests.
+// of the same sources would make two different jars. An id derived from the sources makes the same website from the
+// same sources, and a changed website still gets a new folder name, which keeps browsers from using stale manifests.
 function sourcesBuildId(): string {
     const files: string[] = [];
     const collect = (path: string): void => {
