@@ -23,7 +23,7 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import org.junit.jupiter.api.Tag;
 
 @Tag("fuzz")
-final class FrameParserFuzzTest {
+final class Mcv2DecoderFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
   void decodesOrRejectsAnyFrame(final byte[] data) {
