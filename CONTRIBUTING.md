@@ -7,29 +7,48 @@ to follow the following guidelines:
 - Code quality (follow OOP, avoid DRY code, etc.)
 - Code formatting (run `./gradlew spotlessApply`, which adds the license header and formats the code with prettier-java)
 
+`./gradlew spotlessRepositoryCheck` checks whitespace in the repository text files, including
+`gradle/libs.versions.toml`, `buildSrc/src/main/resources/zig-checksums.properties` and `mcav-docs/requirements.lock`.
+
 ## Documentation
 
 The documentation is the Jupyter Book in `mcav-docs`. `./gradlew :mcav-docs:build` builds it into
 `mcav-docs/build/html` (open `index.html`), and `./gradlew build` builds it too. Gradle downloads uv, checks it against
 the SHA-256 in `buildSrc/src/main/resources/uv-checksums.properties`, and with it installs the Python of
 `gradle/libs.versions.toml` and the packages of `mcav-docs/requirements.lock`, each checked against its hash, all into
-`mcav-docs/build`. Set `UV=/path/to/uv` to use an installed uv of the same version instead. Jupyter Book runs with
+`mcav-docs/build`. Set `UV=/path/to/uv` to use an installed uv instead. Both
+`./gradlew :mcav-docs:installDocsEnvironment` and `./gradlew :mcav-docs:lockDocsRequirements` reject an executable
+reporting a version other than the catalog's uv 0.12.23. Jupyter Book runs with
 `--warningiserror`, so a Sphinx warning fails the build. Downloading uv and Python needs GitHub, and the packages need
 PyPI.
 
 To change a documentation package or the Python, change its version in `gradle/libs.versions.toml`, run
 `./gradlew :mcav-docs:lockDocsRequirements`, which writes `mcav-docs/requirements.lock` with every package pinned and
 hashed, and commit both; the build fails while the lock pins other versions than the catalog. Read the Docs installs
-the same lock through `mcav-docs/requirements.txt`, so the Python of `.readthedocs.yaml` stays at the minor version of
-`docs-python`. To update uv, copy the SHA-256 of each archive from the `.sha256` files of its GitHub release into
-`uv-checksums.properties`.
+the same lock through `mcav-docs/requirements.txt`. Local builds use `docs-python` 3.13.16; `.readthedocs.yaml`
+selects the minor version 3.13. A buildSrc unit test enforces that minor match, without asserting which patch version
+the provider installs. To update uv, copy the SHA-256 of each archive from the `.sha256` files of its GitHub release
+into `buildSrc/src/main/resources/uv-checksums.properties`.
+
+`mcav-docs/_config.yml` is the authored book configuration. Jupyter Book generates `conf.py` at
+`mcav-docs/build/tmp/buildDocs/book/conf.py` locally; Read the Docs runs `jupyter-book config sphinx mcav-docs/`
+before reading `mcav-docs/conf.py`. Do not edit or commit either generated file.
 
 ## Tests
 
-Every module stays at 100% line and branch coverage on a machine where every test can run, and tests check the behavior
-the code should have, not whatever it happens to do. When a test fails, fix the code if the code is wrong.
+The twelve Java modules using `buildSrc/src/main/kotlin/mcav.module.gradle.kts` are `mcav-common`, `mcav-bukkit`,
+`mcav-installer`, `mcav-discord`, `mcav-http`, `mcav-browser`, `mcav-vnc`, `mcav-vm`, `mcav-lwjgl`, `mcav-voicechat`,
+`mcav-mod` and `mcav-plugin`. They must stay at 100% line and branch coverage on a machine where every test can run,
+and tests check the behavior the code should have, not whatever it happens to do. When a test fails, fix the code if
+the code is wrong. Coverage, property, fuzz and PIT commands below apply to these twelve modules; `<module>` means
+one of their names.
 
-- `./gradlew coverageLint` runs the tests of every module and prints each line or branch that no test covers as
+`mcav-docs` builds the book, and buildSrc has separate bootstrap tests (`./gradlew :buildSrc:test`).
+`mcav-jcstress` uses the Java-library, formatting and lint conventions through
+`buildSrc/src/main/kotlin/mcav.jcstress.gradle.kts`; it skips Checker Framework and removes `-Werror` from
+`compileJava`. It has no module coverage, property, fuzz or PIT tasks.
+
+- `./gradlew coverageLint` runs the tests of these twelve modules and prints each line or branch that no test covers as
   `file:line`, failing the build when there is any. Run `./gradlew :<module>:coverageLint` for a single module.
 - `check`, and so `build`, enforces the lint by default. Some tests skip themselves on machines without VLC, QEMU,
   a display or a sound device, and the code they test would show up as gaps there, so on such a machine pass
@@ -53,7 +72,7 @@ Property tests are [jqwik](https://jqwik.net/) properties in classes named `*Pro
 [Jazzer](https://github.com/CodeIntelligenceTesting/jazzer) fuzz tests in classes named `*FuzzTest`, both in the test
 source set of their module. `./gradlew check`, and so `./gradlew build`, runs both, next to the ordinary tests.
 
-- `./gradlew propertyTest` runs the properties of every module with 200 tries each (`-Pproperty.tries=<n>`); `test`
+- `./gradlew propertyTest` runs the properties of these twelve modules with 200 tries each (`-Pproperty.tries=<n>`); `test`
   runs them too, with 10 tries (`-Pproperty.smokeTries=<n>`). Every property pins its seed, so a run is reproducible
   and a failure reports the seed and the shrunk sample.
 - `./gradlew fuzzTest` replays the committed inputs of every fuzz test, the seed corpus and every crash reproducer in
@@ -71,11 +90,13 @@ source set of their module. `./gradlew check`, and so `./gradlew build`, runs bo
 `mcav-bukkit` builds the MCV2 encoder's six native libraries (Linux, Windows and macOS on x86-64 and ARM64) from
 `src/main/native/mcv2` whenever resources are processed. Gradle downloads [Zig](https://ziglang.org/) 0.16.0 and checks
 its pinned SHA-256; no C/C++ toolchain needs to be installed. `ZIG=/path/to/zig` overrides the download with that version.
+The downloaded compiler is cached in `mcav-bukkit/build/tools/zig/0.16.0`.
 `./gradlew :mcav-bukkit:buildMcv2Natives` runs the cacheable task directly; unchanged inputs are up to date. Generated
 libraries and their `SHA256SUMS` and `SOURCES` manifests live under `mcav-bukkit/build/generated/natives/mcav/mcv2/natives`.
 Commit only the sources. The loader checks the generated digests, and the tests compare the source manifest with the
 tree. `./gradlew :mcav-bukkit:formatMcv2Natives` formats the sources with clang-format (`CLANG_FORMAT=/path/to/clang-format`).
-The formatter is separate from `build` and needs clang-format 18.1.8.
+The formatter is separate from `build` and needs clang-format 18.1.8 on `PATH` when no override is set. It validates
+the reported version before changing any source.
 
 MCV2's Java tools live in `mcav-bukkit/src/test/java/me/brandonli/mcav/bukkit/media/mcv2/Mcv2Tools.java`.
 Its Python tools and independent reference decoder live in `mcav-bukkit/src/test/python`. Their tests run separately
@@ -86,8 +107,9 @@ their commands.
 
 ## Static Analysis
 
-Every compilation runs [Error Prone](https://errorprone.info/) with its default checks, on production and test code,
-next to the Checker Framework's nullness checker on production code. The build must compile without a single warning:
+The Java-library convention runs [Error Prone](https://errorprone.info/) with its default checks on production and
+test code, next to the Checker Framework's nullness checker on production code. The twelve module builds must
+compile without a single warning; the isolated jcstress exceptions are described above:
 fix what Error Prone reports instead of suppressing it. Error Prone also fails the build on the code-quality rules of
 the project that it can check: the most restrictive modifiers (a field that is never reassigned is `final`, a private
 method that uses no instance state is `static`, a utility class has a private constructor), no unused code, constants in
@@ -107,7 +129,9 @@ joins strings with `+`; the message's SLF4J placeholders take the other argument
 `./gradlew :<module>:pitest` runs [PIT](https://pitest.org/) on a module: it changes the compiled code in small ways,
 such as flipping a condition, and reruns the tests to see whether one of them notices. The report is written to
 `build/reports/pitest` of the module. PIT is not part of `check`, because it reruns the tests many times; it uses the
-same JVM options as the tests of the module and honors `-Pmcav.testJavaHome`.
+ordinary `test` task's JVM options and system properties once, including `mcav.networkTests`, `mcav.syncMeasurement`,
+`jqwik.database`, `jqwik.failures.after.default` and the ordinary smoke tries (`jqwik.tries.default`). It honors
+`-Pmcav.testJavaHome`; the property and fuzz tasks keep their separate roles and budgets.
 
 ## End-to-End Test
 
@@ -133,3 +157,6 @@ headless Paper 26.3 server together with Simple Voice Chat, exactly as on a prod
 `build/e2e-repository`. It needs the credentials of that repository as the Gradle properties `brandonliUsername` and
 `brandonliPassword`, for example in `~/.gradle/gradle.properties`. The plugin, the mod, the documentation and
 `mcav-jcstress` are not published.
+
+Library jars retain unversioned filenames, such as `mcav-bukkit/build/libs/mcav-bukkit.jar`; publication coordinates
+use the root project's release base. The plugin derives `1.0.0-v26.3` from that base and the Minecraft version.

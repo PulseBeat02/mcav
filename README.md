@@ -47,11 +47,11 @@ Click to watch a demo video above.
 
 | What | Needs |
 |------|-------|
-| Building from source | A JDK 17 or newer to run Gradle, and network access; Gradle downloads the build tools |
+| Building from source | A JDK 17 or newer to run Gradle, and network access; Gradle downloads the build tools. Full coverage also needs the runtime test prerequisites below |
 | Library and plugin | Java 25 or newer |
 | Minecraft | Paper 26.3, for the plugin and `mcav-bukkit`. Paper 26.3 has only **alpha** builds as of 2026-09-27; MCAV is built and tested against build 49 |
 | Platforms | Windows (x86-64), macOS (x86-64 and Apple silicon), and Linux (x86-64 and ARM64): FFmpeg and OpenCV are bundled for these, and their natives are extracted into the JavaCPP cache of the user |
-| VLC (optional) | Nothing: when the system has none, VLC 3.0.24 is downloaded into the cache folder of the user on Windows and macOS, and on x86-64 Linux, for which VideoLAN publishes no build, a pinned AppImage of Arch Linux's VLC package; elsewhere the system's VLC is used |
+| VLC (optional) | Nothing: when the system has none, VLC 3.0.24 is downloaded into the cache folder of the user on Windows and macOS; on x86-64 Linux, for which VideoLAN publishes no build, a pinned AppImage of Arch Linux's VLC 3.0.23 package; elsewhere the system's VLC is used |
 | yt-dlp (optional) | Nothing: it is downloaded into the cache folder of the user, pinned and checked; its Linux builds need glibc |
 | Web browser | Nothing: MCAV embeds Chromium through JCEF, so there is no Selenium, Playwright, ChromeDriver or installed browser. Chromium (about 136 to 163 MiB) is downloaded on the first browser start, and on Linux the libraries a server lacks (about 13 MB). No X server, no Xvfb and no JVM options; 64-bit Linux, Windows and macOS on x86-64 and ARM64 |
 | Virtual machines | QEMU, installed by you and on the `PATH` |
@@ -119,7 +119,8 @@ Here is a list of all the modules that are included in MCAV.
 
 ### Building from Source
 
-A clean build needs a JDK 17 or newer and network access, but no credentials. Clone the repository and build it:
+Running Gradle needs a JDK 17 or newer and network access, but no credentials. Full coverage also needs a machine
+where all runtime tests can run, as described below. Clone the repository and build it:
 
 ```bash
 git clone https://github.com/PulseBeat02/mcav.git
@@ -132,7 +133,7 @@ The plugin jar is `mcav-plugin/build/libs/mcav-plugin-<version>-all.jar`. Gradle
 through foojay when the machine has none, and the Node.js used by the formatter and the web page of `mcav-http`.
 It downloads Zig 0.16.0 from ziglang.org, verifies its pinned SHA-256, and compiles MCV2's six native libraries from
 `mcav-bukkit/src/main/native/mcv2`. A failed download or compilation fails the build. The compiler is cached in
-`mcav-bukkit/build/tools/zig`; `ZIG` can name an installed Zig 0.16.0. Gradle also downloads checksum-verified uv,
+`mcav-bukkit/build/tools/zig/0.16.0`; `ZIG` can name an installed Zig 0.16.0. Gradle also downloads checksum-verified uv,
 which installs the pinned Python and the hash-locked documentation packages. These tools need no separate
 installation. `build` writes the documentation to `mcav-docs/build/html`; `:mcav-docs:build` builds only the
 documentation. Open `index.html` to read it.
@@ -153,7 +154,8 @@ python3 -m unittest discover -s mcav-bukkit/src/test/python
 ```
 
 The Python tests need Python 3.12 or newer with numpy, Pillow, moderngl and matplotlib. The formatter needs
-clang-format 18.1.8; `CLANG_FORMAT` can name its executable. Neither is needed for the default build. The
+clang-format 18.1.8 on `PATH`, or `CLANG_FORMAT=/path/to/clang-format`; it checks the reported version before changing
+sources. Neither is needed for the default build. The
 [MCV2 tools](https://mcav.readthedocs.io/en/latest/mcv2.html#reproducing-the-measurements-and-figures) describe the
 other codec checks.
 
