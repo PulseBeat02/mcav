@@ -492,7 +492,6 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     );
   }
 
-  // tells the sender how many frames are encoded, at most once an interval
   private static LongConsumer progressReporter(final CommandSender sender, final long started, final long interval) {
     final long[] reported = { started };
     return frames -> {
@@ -681,8 +680,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       if (length > data.length - offset - LENGTH_BYTES) {
         throw new IOException("Truncated frame");
       }
-      // a record no frame can be is refused before it is copied: records of a few bytes each made the copies take
-      // several times the file's size in memory
+      // a record no frame can be is refused before it is copied: records of a few bytes each would make the copies
+      // take several times the file's size in memory
       if (length < Mcv2Decoder.HEADER_BYTES || length > Mcv2Decoder.MAX_FRAME_BYTES) {
         throw new IOException("Invalid MCV2 frame length: " + length);
       }

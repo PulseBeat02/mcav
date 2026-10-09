@@ -28,7 +28,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class Version {
 
-  Version() {}
+  private Version() {}
 
   /** The version of yt-dlp, such as {@code 2026.08.19}. */
   public @Nullable String version;

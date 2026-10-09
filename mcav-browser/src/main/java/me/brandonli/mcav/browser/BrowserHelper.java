@@ -62,6 +62,12 @@ public final class BrowserHelper {
   private static final long TAKE_TIMEOUT_MILLIS = 250L;
   private static final int EXIT_FAILURE = 1;
   private static final int EXIT_BAD_CONFIGURATION = 2;
+  private static final String NO_CONFIGURATION = "The browser helper got no configuration";
+  private static final String INVALID_CONFIGURATION = "The browser helper got an invalid configuration: ";
+  private static final String SERVER_UNREACHABLE = "The browser helper cannot reach the server: ";
+  private static final String HELPER_STOPS = "The browser helper stops: ";
+  private static final String NOT_STOPPED_WITHIN = "The browser helper did not stop within ";
+  private static final String MILLISECONDS_AND_HALTS = " ms and halts";
 
   /**
    * How long the helper may take to stop once its standard input ended, in milliseconds. The server is gone then,
@@ -143,12 +149,12 @@ public final class BrowserHelper {
     try {
       final String line = input.readLine();
       if (line == null) {
-        System.err.println("The browser helper got no configuration");
+        System.err.println(NO_CONFIGURATION);
         return EXIT_BAD_CONFIGURATION;
       }
       configuration = HelperConfiguration.fromLine(line);
     } catch (final IOException | IllegalArgumentException exception) {
-      System.err.println("The browser helper got an invalid configuration: " + exception.getMessage());
+      System.err.println(INVALID_CONFIGURATION + exception.getMessage());
       return EXIT_BAD_CONFIGURATION;
     }
     final BrowserHelper helper = new BrowserHelper(configuration, engine, halter, STOP_DEADLINE_MILLIS);
@@ -200,7 +206,7 @@ public final class BrowserHelper {
       startDaemon("mcav-browser-helper-frames", () -> this.sendFrames(output));
       return this.serve(reporter);
     } catch (final IOException exception) {
-      System.err.println("The browser helper cannot reach the server: " + exception.getMessage());
+      System.err.println(SERVER_UNREACHABLE + exception.getMessage());
       return EXIT_FAILURE;
     }
   }
@@ -209,7 +215,7 @@ public final class BrowserHelper {
     try {
       this.engine.start(this.configuration, this.compositor, reporter);
     } catch (final Exception | LinkageError exception) {
-      // a native library CEF cannot load is a LinkageError, which ended the helper before the server heard why
+      // a native library CEF cannot load is a LinkageError, which would end the helper before the server hears why
       final String message = "The browser could not be started: " + exception;
       reporter.onFailure(message);
     }
@@ -222,7 +228,7 @@ public final class BrowserHelper {
     this.compositor.close();
     this.engine.stop();
     final String reason = this.stopReason.get();
-    System.err.println("The browser helper stops: " + reason);
+    System.err.println(HELPER_STOPS + reason);
     return reporter.hasFailed() ? EXIT_FAILURE : 0;
   }
 
@@ -262,7 +268,7 @@ public final class BrowserHelper {
       final Thread thread = Thread.currentThread();
       thread.interrupt();
     }
-    System.err.println("The browser helper did not stop within " + this.stopDeadlineMillis + " ms and halts");
+    System.err.println(NOT_STOPPED_WITHIN + this.stopDeadlineMillis + MILLISECONDS_AND_HALTS);
     this.halter.halt(EXIT_FAILURE);
   }
 

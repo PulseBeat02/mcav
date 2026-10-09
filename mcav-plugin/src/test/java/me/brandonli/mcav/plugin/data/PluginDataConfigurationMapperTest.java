@@ -113,7 +113,6 @@ final class PluginDataConfigurationMapperTest {
     this.javaPlugin.close();
   }
 
-  // copies the bundled resource like JavaPlugin#saveResource does
   private void saveBundledResources() {
     doAnswer(invocation -> {
       final String name = invocation.getArgument(0);

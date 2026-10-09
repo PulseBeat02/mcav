@@ -261,7 +261,7 @@ final class AddressPolicy {
      * @param address the sixteen bytes of an address inside the prefix
      * @param length  the length of the prefix in bits, a multiple of eight
      */
-    TranslationPrefix(final byte[] address, final int length) {
+    private TranslationPrefix(final byte[] address, final int length) {
       this.bytes = Arrays.copyOf(address, length / Byte.SIZE);
       this.length = length;
     }

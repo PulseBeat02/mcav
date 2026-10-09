@@ -393,7 +393,6 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       final VideoPipelineStep announcement = VideoPipelineStep.of(announceFirstPicture(mapId, mapCount, LOGGER::info));
       final VideoPipelineStep pipeline = VideoPipelineStep.of(announcement, output);
       final Pair<Integer, Integer> resolution = settings.getResolution();
-      // an MCV2 screen stretches the picture over the wall, dithered maps centre it at its own size
       final boolean stretched = output instanceof Mcv2Output;
       final WallPicture picture = WallPicture.of(columns, rows, resolution.getFirst(), resolution.getSecond(), stretched);
       final Screen created = new Screen(output, pipeline, mapId, mapCount, picture);
@@ -469,7 +468,6 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       if (announced.compareAndSet(false, true)) {
         log.accept(message);
       }
-      // it only watches the frame
       return false;
     };
   }

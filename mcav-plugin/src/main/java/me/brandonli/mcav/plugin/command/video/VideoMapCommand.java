@@ -140,7 +140,6 @@ public final class VideoMapCommand extends AbstractVideoCommand {
       }
       final Mcv2Support support = this.plugin.getMcv2Support();
       final Mcv2Configuration configuration = support.configure(sender, blocks, resolution, mapId, Settings.DEFAULT, players);
-      // a wall no frame holds, which the sender was told, is dithered
       if (configuration != null) {
         configurationProvider = _ -> new VideoMcv2Command.Mcv2Settings(configuration, ditheringAlgorithm, sender);
       }

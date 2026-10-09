@@ -103,7 +103,11 @@ final class Screen {
     }
   }
 
-  // Returns whether the worker owns final player cleanup because startup is currently executing.
+  /**
+   * Cancels the start of the player.
+   *
+   * @return whether the start is running, so its worker owns the final cleanup of the player
+   */
   boolean cancel() {
     final CompletableFuture<Boolean> future;
     final boolean running;

@@ -223,7 +223,6 @@ public final class Mcv2Support {
     final Mcv2Configuration slotted = lease.getConfiguration();
     final Mcv2Result result = new Mcv2Result(slotted, this.getViewers(), dithering.createAlgorithm());
     result.setPacingListener(change -> sender.sendMessage(Message.MCV2_PACING.build(change.describe())));
-    // a smaller video before the dithered maps, in a slot of the pack of its own size
     result.setSmallerSizes(smallerSizes(slotted.getVideoWidth(), slotted.getVideoHeight()), lease);
     final String record = System.getProperty(RECORD_PROPERTY);
     if (record != null) {

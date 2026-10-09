@@ -231,7 +231,6 @@ final class AbstractInteractiveCommandTest {
     when(frame.getItem()).thenReturn(item);
   }
 
-  // plain frames hang at the height of the screen frames, so only their position along the wall differs
   private ItemFrame addPlainFrame(final double frameX, final double frameZ) {
     final Location location = this.fakeWorld.location(frameX, 64.5, frameZ);
     return this.fakeWorld.addFrame(location, BlockFace.SOUTH);
@@ -259,7 +258,6 @@ final class AbstractInteractiveCommandTest {
     return new ScreenSettings(mock(CommandSender.class), viewers, blocks, resolution, 7, dithering, MapCodec.DITHER);
   }
 
-  // creates a screen like the commands do, with its maps and dithering mocked
   private Screen createMockedScreen() {
     final UUID viewer = UUID.randomUUID();
     return this.createMockedScreen(wallSettings(viewer, DitheringArgument.NEAREST_COLOR));
@@ -412,7 +410,6 @@ final class AbstractInteractiveCommandTest {
     });
     assertTrue(stopped.await(5, TimeUnit.SECONDS));
     assertNotSame(caller, where.get(), "the calling thread, often the main thread, does not wait");
-    // a failure in the background reaches the log, not the caller
     this.command.releaseInTheBackground(() -> {
       throw new IllegalStateException("release broke");
     });
@@ -727,7 +724,7 @@ final class AbstractInteractiveCommandTest {
     this.createMockedScreen();
     this.command.player = "browser";
     final ItemFrame otherScreen = this.addScreenFrame(0.5, 64.5, 0.0);
-    setMapId(otherScreen, 19); // this command owns7..18, so19 belongs to another screen
+    setMapId(otherScreen, 19); // this command owns 7..18, so 19 belongs to another screen
     final PlayerInteractEntityEvent right = this.rightClick(otherScreen);
     final EntityDamageByEntityEvent left = damage(otherScreen, this.player);
     this.interactions.when(() -> InteractUtils.getBoardCoordinates(this.player, otherScreen)).thenReturn(new int[] { 3, 4 });

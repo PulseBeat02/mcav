@@ -66,6 +66,8 @@ final class CefEngine implements HelperEngine {
   private static final int PLACING_ATTEMPTS = 2;
   private static final String NOT_CONFIRMED = "not confirmed";
   private static final String CHROMIUM_THREAD = "mcav-browser-chromium";
+  private static final String DEVTOOLS_CALL_FAILED = "A DevTools call failed: ";
+  private static final String SHUTDOWN_FAILED = "Failed to shut CEF down: ";
 
   // the features CEF disables itself: CEF passes them in a --disable-features switch before the switches of the helper,
   // and Chromium keeps only the last of several, so the helper's switch repeats them
@@ -435,7 +437,7 @@ final class CefEngine implements HelperEngine {
    */
   @VisibleForTesting
   static String logFailedCall(final Throwable failure) {
-    System.err.println("A DevTools call failed: " + failure);
+    System.err.println(DEVTOOLS_CALL_FAILED + failure);
     return "";
   }
 
@@ -497,7 +499,7 @@ final class CefEngine implements HelperEngine {
       thread.interrupt();
     } catch (final InvocationTargetException exception) {
       final Throwable cause = exception.getCause();
-      System.err.println("Failed to shut CEF down: " + cause);
+      System.err.println(SHUTDOWN_FAILED + cause);
     }
   }
 

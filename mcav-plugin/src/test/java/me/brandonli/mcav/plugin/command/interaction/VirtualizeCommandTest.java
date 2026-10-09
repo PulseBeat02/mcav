@@ -428,10 +428,8 @@ final class VirtualizeCommandTest {
       AudioArgument.SIMPLE_VOICE_CHAT,
       ""
     );
-    // a disabling plugin hands out its provider no more, and QEMU fails to end
     when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available"));
     Mockito.doThrow(new IllegalStateException("release broke")).when(this.machine).release();
-    // QEMU stops in the background, where its failure is logged; its sound and frames stop at once
     this.command.releaseVM(this.sender);
     verify(this.provider).releaseAudioFilter(this.machine);
     verify(this.callback).detach();
@@ -654,7 +652,6 @@ final class VirtualizeCommandTest {
     verify(audio).attach(pipelines.capture());
     assertSame(output, pipelines.getValue().getFilter());
     this.command.releaseVM(this.sender);
-    // the provider lets go of the outputs only if no video or other machine took them over meanwhile
     verify(this.provider).releaseAudioFilter(this.machine);
   }
 

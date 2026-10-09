@@ -287,7 +287,6 @@ final class MCAVSandboxTest {
 
   @Test
   void appliesAndLogsTheMcv2EncoderBudget() throws IOException {
-    // a configured budget of three threads, the rest of the configuration its default
     final String defaults;
     try (final InputStream stream = IOUtils.getResourceAsStream("config.yml")) {
       defaults = new String(stream.readAllBytes(), StandardCharsets.UTF_8);

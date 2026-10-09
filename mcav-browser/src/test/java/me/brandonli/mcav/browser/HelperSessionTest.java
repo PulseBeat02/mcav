@@ -1045,7 +1045,7 @@ class HelperSessionTest {
      * Waits until the standard input ends.
      *
      * @param args ignored
-     * @throws java.io.IOException if the input fails
+     * @throws IOException if the input fails
      */
     public static void main(final String[] args) throws IOException {
       while (System.in.read() >= 0) {}

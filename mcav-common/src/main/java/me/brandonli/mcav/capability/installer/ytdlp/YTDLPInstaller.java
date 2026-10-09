@@ -64,11 +64,11 @@ public final class YTDLPInstaller extends AbstractInstaller {
     super(folder, NAME, downloads);
   }
 
-  YTDLPInstaller(final Path folder) {
+  private YTDLPInstaller(final Path folder) {
     this(folder, DOWNLOADS);
   }
 
-  YTDLPInstaller() {
+  private YTDLPInstaller() {
     super(NAME, DOWNLOADS);
   }
 
@@ -88,7 +88,7 @@ public final class YTDLPInstaller extends AbstractInstaller {
    * Creates an installer that installs yt-dlp into the cache folder of the library, {@code ~/.mcav/cache}.
    *
    * @return the installer
-   * @throws java.io.UncheckedIOException if the default cache folder cannot be created
+   * @throws UncheckedIOException if the default cache folder cannot be created
    */
   public static YTDLPInstaller create() {
     return new YTDLPInstaller();

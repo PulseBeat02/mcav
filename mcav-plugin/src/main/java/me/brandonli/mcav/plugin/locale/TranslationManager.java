@@ -114,7 +114,7 @@ public final class TranslationManager {
    * @param key the key of the message
    * @return the message
    * @throws NullPointerException               if the key is {@code null}
-   * @throws java.util.MissingResourceException if there is no message with the key
+   * @throws MissingResourceException if there is no message with the key
    */
   public String getProperty(final String key) {
     Preconditions.checkNotNull(key, "Key must not be null");
@@ -127,7 +127,7 @@ public final class TranslationManager {
    * @param component the component, whose key names the message and whose arguments fill its placeholders
    * @return the rendered component
    * @throws NullPointerException               if the component is {@code null}
-   * @throws java.util.MissingResourceException if there is no message with the key of the component
+   * @throws MissingResourceException if there is no message with the key of the component
    */
   public Component render(final TranslatableComponent component) {
     Preconditions.checkNotNull(component, "Component must not be null");

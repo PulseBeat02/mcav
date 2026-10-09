@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class Format {
 
-  Format() {}
+  private Format() {}
 
   /** The identifier of the stream on its site, such as {@code 251}, which yt-dlp accepts in its format option. */
   public @Nullable String format_id;

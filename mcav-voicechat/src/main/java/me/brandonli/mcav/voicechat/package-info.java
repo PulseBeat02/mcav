@@ -18,11 +18,11 @@
 /**
  * Outputs positional pipeline audio through Simple Voice Chat.
  *
- * <p>Install {@link me.brandonli.mcav.voicechat.SVCModule} and inject the server's
+ * <p>Install {@link SVCModule} and inject the server's
  * {@link de.maxhenkel.voicechat.api.VoicechatServerApi} before creating an
- * {@link me.brandonli.mcav.voicechat.SVCFilter}. Each supplied platform entity becomes a speaker. The filter downmixes
+ * {@link SVCFilter}. Each supplied platform entity becomes a speaker. The filter downmixes
  * 48 kHz signed 16-bit stereo PCM to mono and queues complete 20 millisecond frames for each speaker.
- * See {@link me.brandonli.mcav.voicechat.SVCFilter} for a pipeline example.
+ * See {@link SVCFilter} for a pipeline example.
  *
  * <p>Start the filter before feeding it, then release it to stop speakers and close their Opus encoders.
  * The caller owns the entities and voice chat API. Module shutdown clears the shared API reference but does

@@ -84,11 +84,11 @@ public final class VLCInstaller extends AbstractInstaller {
     this.legacyInstallationsRemoved = new AtomicBoolean(false);
   }
 
-  VLCInstaller(final Path folder) {
+  private VLCInstaller(final Path folder) {
     this(folder, () -> ReleasePackageManager.readVLCDownloadsFromJsonResource(DOWNLOADS_RESOURCE));
   }
 
-  VLCInstaller() {
+  private VLCInstaller() {
     final Path defaultFolder = AbstractInstaller.getDefaultExecutableFolderPath();
     this(defaultFolder);
   }

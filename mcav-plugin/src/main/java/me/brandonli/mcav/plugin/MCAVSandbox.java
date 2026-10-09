@@ -196,7 +196,6 @@ public final class MCAVSandbox extends JavaPlugin {
     final PluginDataConfigurationMapper mapper = new PluginDataConfigurationMapper(this);
     mapper.deserialize();
     this.configurationMapper = mapper;
-    // one encoder budget for every MCV2 screen of the server
     Pool.setSharedThreads(mapper.getMcv2EncoderThreads());
     final int processors = Runtime.getRuntime().availableProcessors();
     this.requireLogger().info(ENCODER_SHARE, Pool.shared().getThreads(), processors);
@@ -271,7 +270,6 @@ public final class MCAVSandbox extends JavaPlugin {
     );
   }
 
-  // a part the plugin never created, because enabling it failed, has nothing to clean up
   private static <T> Runnable whenPresent(final @Nullable T part, final Consumer<T> cleanup) {
     return () -> {
       if (part != null) {

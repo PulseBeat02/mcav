@@ -29,7 +29,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class HttpHeaders {
 
-  HttpHeaders() {}
+  private HttpHeaders() {}
 
   /** The {@code User-Agent} header, which names the browser yt-dlp pretended to be. */
   @SerializedName("User-Agent")

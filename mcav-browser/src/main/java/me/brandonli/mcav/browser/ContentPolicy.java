@@ -307,8 +307,8 @@ final class ContentPolicy
     final CefBeforeDownloadCallback callback
   ) {
     this.events.onNotice("Refused a download of " + suggestedName);
-    // on macOS the view of a page that started a download while it loaded stayed white after the refusal, until the
-    // page changed
+    // on macOS the view of a page that starts a download while it loads stays white after the refusal, until the page
+    // changes
     if (browser instanceof final McavOffscreenBrowser offscreen) {
       offscreen.repaint();
     }

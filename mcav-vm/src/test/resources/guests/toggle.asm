@@ -1,5 +1,20 @@
+; This file is part of mcav, a media playback library for Java
+; Copyright (C) Brandon Li <https://brandonli.me/>
+;
+; This program is free software: you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation, either version 3 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 ; The test switches a 1000 Hz tone and the screen together. Build: nasm -f bin toggle.asm -o toggle.img
-; Keep the first character changing: QEMU slows idle VNC refreshes, delaying picture without delaying sound.
 bits 16
 org 0x7c00
 start:
@@ -23,7 +38,7 @@ start:
     and si, 7
     mov dx, [0x046c]        ; BIOS tick count
 .wait:
-    inc byte [es:0]         ; the first character keeps changing, so QEMU keeps refreshing its display
+    inc byte [es:0]         ; QEMU slows the VNC refreshes of an idle screen, delaying the picture but not the sound
     mov ax, [0x046c]
     sub ax, dx
     cmp al, bl

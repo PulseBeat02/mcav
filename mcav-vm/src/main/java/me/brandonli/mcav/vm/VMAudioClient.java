@@ -117,7 +117,7 @@ final class VMAudioClient implements Closeable {
    * @param password the password of the display, or an empty string for none
    * @throws IOException if the handshake fails
    */
-  static void handshake(final DataInputStream in, final DataOutputStream out, final String password) throws IOException {
+  private static void handshake(final DataInputStream in, final DataOutputStream out, final String password) throws IOException {
     QemuAudioProtocol.readVersion(in);
     QemuAudioProtocol.writeVersion(out);
     out.flush();

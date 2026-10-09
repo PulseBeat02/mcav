@@ -293,7 +293,7 @@ final class LinuxLibraries {
     final Path installation = this.folder.resolve(name);
     final Path marker = installation.resolve(INSTALL_MARKER);
     if (Files.isRegularFile(marker)) {
-      // Earlier installations retained their umask permissions.
+      // An existing installation may still have the permissions of the umask it was made with.
       ArchiveExtractor.tighten(this.folder);
       return installation;
     }
