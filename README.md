@@ -210,7 +210,7 @@ license. You should license your project under the [GPLv3](https://www.gnu.org/l
 license that is compatible with the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.html) license.
 
 The third-party code that MCAV's jars bundle, with its licences, and what MCAV downloads while it runs, are listed in
-[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), which every MCAV jar carries in `META-INF/`.
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), which the library and plugin jars carry in `META-INF/`.
 
 ---
 
