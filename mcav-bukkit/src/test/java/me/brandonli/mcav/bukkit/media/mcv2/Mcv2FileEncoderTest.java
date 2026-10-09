@@ -34,10 +34,13 @@ import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
+import me.brandonli.mcav.bukkit.media.map.MapLayout;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
+import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
 import me.brandonli.mcav.bukkit.testing.TestMedia;
 import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
@@ -105,6 +108,7 @@ final class Mcv2FileEncoderTest {
     );
     // the same frames, encoded one by one outside any budget, give the same bytes
     final MCV2 alone = new MCV2(Settings.DEFAULT, ForkJoinPool.commonPool(), 1, false);
+    alone.setFrameLimit(TransportPages.capacity());
     try (final Mcv2FileEncoder.FrameReader reader = Mcv2FileEncoder.ffmpeg(video, WIDTH, HEIGHT)) {
       final byte[] rgb = new byte[WIDTH * HEIGHT * 3];
       for (int frameNumber = 0; frameNumber < count; frameNumber++) {
@@ -114,6 +118,55 @@ final class Mcv2FileEncoderTest {
       }
       assertFalse(reader.read(rgb));
     }
+  }
+
+  @Test
+  void keepsEveryFrameSmallEnoughForTheDefaultPageSlotsOfItsWall() throws Exception {
+    final int size = MapLayout.MAP_SIZE;
+    final byte[] noise = new byte[size * size * Mcv2Decoder.CHANNELS];
+    new Random(7).nextBytes(noise);
+    final MCV2 unlimited = new MCV2(Settings.DEFAULT, ForkJoinPool.commonPool(), 1, false);
+    assertTrue(unlimited.encode(noise, size, size, 0).length > TransportPages.capacity());
+    final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    try (final Pool budget = new Pool(1)) {
+      Mcv2FileEncoder.encode(repeating(noise, 2), size, size, Settings.DEFAULT, budget, out, count -> {});
+    }
+    final List<byte[]> frames = frames(out.toByteArray());
+    assertEquals(2, frames.size());
+    for (final byte[] frame : frames) {
+      assertTrue(frame.length <= TransportPages.capacity(), "a frame of " + frame.length + " bytes");
+    }
+    assertEquals(noise.length, Mcv2Decoder.decode(frames.getFirst(), null, 0).length);
+  }
+
+  @Test
+  void limitsFramesToTheDefaultPageSlotsOfAWallOfTheVideosNativeSize() {
+    final int capacity = TransportPages.capacity();
+    assertEquals(capacity, Mcv2FileEncoder.screenFrameLimit(1, 1));
+    assertEquals(capacity, Mcv2FileEncoder.screenFrameLimit(MapLayout.MAP_SIZE, MapLayout.MAP_SIZE));
+    assertEquals(2 * capacity, Mcv2FileEncoder.screenFrameLimit(MapLayout.MAP_SIZE + 1, MapLayout.MAP_SIZE));
+    assertEquals(2 * capacity, Mcv2FileEncoder.screenFrameLimit(MapLayout.MAP_SIZE, MapLayout.MAP_SIZE + 1));
+    assertEquals(7 * capacity, Mcv2FileEncoder.screenFrameLimit(7 * MapLayout.MAP_SIZE, MapLayout.MAP_SIZE));
+    assertEquals(Mcv2Configuration.MAX_PAGE_SLOTS * capacity, Mcv2FileEncoder.screenFrameLimit(1920, 1080));
+  }
+
+  private static Mcv2FileEncoder.FrameReader repeating(final byte[] picture, final int count) {
+    return new Mcv2FileEncoder.FrameReader() {
+      private int read;
+
+      @Override
+      public boolean read(final byte[] pictureBytes) {
+        if (this.read == count) {
+          return false;
+        }
+        System.arraycopy(picture, 0, pictureBytes, 0, picture.length);
+        this.read++;
+        return true;
+      }
+
+      @Override
+      public void close() {}
+    };
   }
 
   @Test

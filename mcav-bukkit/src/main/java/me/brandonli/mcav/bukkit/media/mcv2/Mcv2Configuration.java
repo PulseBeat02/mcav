@@ -283,6 +283,16 @@ public final class Mcv2Configuration {
   }
 
   /**
+   * Gets the page slots a screen has when its configuration names none.
+   *
+   * @param maps the maps of the wall
+   * @return the default page slots of such a wall
+   */
+  static int defaultPageSlots(final int maps) {
+    return Math.min(DEFAULT_PAGE_SLOTS, maps);
+  }
+
+  /**
    * Gets the stream id every page carries; the pack decodes only its own stream.
    *
    * @return the configured stream id, from 0 through {@value #MAX_STREAM_ID}
@@ -725,7 +735,7 @@ public final class Mcv2Configuration {
       Preconditions.checkArgument(this.backlogLimit >= 0, "Backlog limit must not be negative");
       Preconditions.checkArgument(this.unsentLimit >= 0, "Unsent limit must not be negative");
       final int maps = this.columns * this.rows;
-      final int slots = this.pageSlots > 0 ? this.pageSlots : Math.min(DEFAULT_PAGE_SLOTS, maps);
+      final int slots = this.pageSlots > 0 ? this.pageSlots : defaultPageSlots(maps);
       // A slot without a wall map is invisible to the client and prevents frame reassembly.
       Preconditions.checkArgument(
         slots <= maps,

@@ -24,8 +24,10 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.util.function.LongConsumer;
+import me.brandonli.mcav.bukkit.media.map.MapLayout;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
+import me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages;
 import org.bytedeco.ffmpeg.global.avutil;
 import org.bytedeco.ffmpeg.global.swscale;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
@@ -35,7 +37,10 @@ import org.bytedeco.javacv.FrameGrabber;
 /**
  * Encodes a video ahead of time into an MCV2 stream: the path for a server too small to encode a video while it plays.
  * The frames are encoded one after another, each inside an encoder budget ({@link Pool}), the one every screen
- * of the server shares, so encoding a file ahead takes turns with the screens instead of adding threads, so call it from a worker thread, not from the server's main thread.
+ * of the server shares, so encoding a file ahead takes turns with the screens instead of adding threads.
+ *
+ * <p>Every frame fits the default page slots of a wall of the video's native size, one map for each 128 by 128 pixels:
+ * a screen drops a bigger frame, and a stream that was encoded ahead cannot send the keyframe that would follow.
  *
  * <p>The stream is every frame's MCV2 bytes, each preceded by their length as a little-endian 32-bit number, the form
  * a stream is read back in to be played.
@@ -109,7 +114,7 @@ public final class Mcv2FileEncoder {
    * @throws IOException if the reader cannot read or close, or the output cannot be written
    * @throws InterruptedException if the calling thread is interrupted, which stops the encode
    * @throws IllegalArgumentException if a dimension is nonpositive, or an encoded frame exceeds the codec
-   *    *         dimension/id range
+   *         dimension/id range
    * @throws ArithmeticException if the RGB allocation size overflows an int
    * @throws java.util.concurrent.RejectedExecutionException if the budget rejects the encoding task
    * @throws NullPointerException if {@code frames}, {@code settings}, {@code budget}, {@code output} or {@code progress} is null
@@ -131,6 +136,7 @@ public final class Mcv2FileEncoder {
     Preconditions.checkNotNull(progress, "Progress must not be null");
     try (frames) {
       final MCV2 encoder = budget.encoder(settings, false);
+      encoder.setFrameLimit(screenFrameLimit(width, height));
       final byte[] pictureBytes = new byte[Math.multiplyExact(Math.multiplyExact(width, height), Mcv2Decoder.CHANNELS)];
       final byte[] length = new byte[Integer.BYTES];
       long count = 0;
@@ -152,6 +158,18 @@ public final class Mcv2FileEncoder {
       }
       return new Result(count, keyframes, bytes, nanoseconds);
     }
+  }
+
+  /**
+   * Gets the most bytes a frame may have to play on a wall of the video's native size with the default page slots.
+   *
+   * @param width  the video width
+   * @param height the video height
+   * @return the frame limit in bytes
+   */
+  static int screenFrameLimit(final int width, final int height) {
+    final int maps = Math.ceilDiv(width, MapLayout.MAP_SIZE) * Math.ceilDiv(height, MapLayout.MAP_SIZE);
+    return Mcv2Configuration.defaultPageSlots(maps) * TransportPages.capacity();
   }
 
   /**
