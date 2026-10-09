@@ -18,6 +18,7 @@
 
 import java.util.Properties
 import me.brandonli.mcav.gradle.HostPlatform
+import me.brandonli.mcav.gradle.ToolVersions
 import me.brandonli.mcav.gradle.BuildMcv2Natives
 import me.brandonli.mcav.gradle.DownloadToolArchive
 import me.brandonli.mcav.gradle.libs
@@ -79,10 +80,17 @@ artifacts.add(nativeResources.name, buildMcv2Natives.flatMap { it.outputDirector
     type = "directory"
 }
 
+val toolVersions = objects.newInstance<ToolVersions>()
+val clangFormatVersion = libs.versionOf("clang-format")
+val clangFormat = providers.environmentVariable("CLANG_FORMAT").getOrElse("clang-format")
+
 tasks.register<Exec>("formatMcv2Natives") {
     group = "formatting"
-    description = "Formats the MCV2 native sources with clang-format ${libs.versionOf("clang-format")}"
+    description = "Formats the MCV2 native sources with clang-format $clangFormatVersion"
     workingDir = nativeSources.asFile
-    commandLine(listOf(providers.environmentVariable("CLANG_FORMAT").getOrElse("clang-format"), "-i", "--style=file") +
+    doFirst {
+        toolVersions.requireVersion(clangFormat, "clang-format", clangFormatVersion, "clang-format version", nativeSources.asFile)
+    }
+    commandLine(listOf(clangFormat, "-i", "--style=file") +
         fileTree(nativeSources) { include("*.cpp") }.files.sorted().map { it.absolutePath })
 }

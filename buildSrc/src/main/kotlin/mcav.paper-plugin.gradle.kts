@@ -1,4 +1,5 @@
 import java.net.ServerSocket
+import me.brandonli.mcav.gradle.PaperVersion
 import me.brandonli.mcav.gradle.RequiredModuleClassesTask
 import me.brandonli.mcav.gradle.javaLauncher
 import me.brandonli.mcav.gradle.libraryOf
@@ -20,6 +21,7 @@ plugins {
 }
 
 val minecraftVersion = libs.versionOf("minecraft")
+private val paperVersion = PaperVersion.parse(libs.versionOf("paper"))
 version = "${rootProject.version.toString().removeSuffix("-SNAPSHOT")}-v$minecraftVersion"
 
 configurations.compileOnly {
@@ -94,6 +96,7 @@ paperPluginYaml {
 
 tasks.runServer {
     minecraftVersion(minecraftVersion)
+    build(paperVersion.build)
 }
 
 tasks.withType<AbstractRun>().configureEach {
@@ -145,6 +148,8 @@ tasks.register<Test>("e2eTest") {
     val pluginJar = tasks.shadowJar.flatMap { it.archiveFile }
     inputs.file(pluginJar)
     outputs.upToDateWhen { false }
+    systemProperty("mcav.e2e.paperFileName", paperVersion.fileName)
+    systemProperty("mcav.e2e.voiceChatFileName", "voicechat-${libs.versionOf("voicechat-plugin")}.jar")
     systemProperty("mcav.e2e.cacheDirectory", layout.buildDirectory.dir("e2e-cache").get().asFile.absolutePath)
     systemProperty("mcav.e2e.acceptEula", providers.gradleProperty("mcav.acceptMinecraftEula").getOrElse("false"))
     systemProperty("mcav.e2e.repositoryDirectory", endToEndRepository.absolutePath)

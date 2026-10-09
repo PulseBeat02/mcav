@@ -21,6 +21,7 @@ import me.brandonli.mcav.gradle.HostPlatform
 import me.brandonli.mcav.gradle.DocsEnvironment
 import me.brandonli.mcav.gradle.DownloadToolArchive
 import me.brandonli.mcav.gradle.JupyterBook
+import me.brandonli.mcav.gradle.ToolVersions
 import me.brandonli.mcav.gradle.isWindows
 import me.brandonli.mcav.gradle.libs
 import me.brandonli.mcav.gradle.uvEnvironment
@@ -55,6 +56,8 @@ val selectedUv = if (uvOverride.isPresent) {
     downloadUv.flatMap { it.installationDirectory.file(uvPath) }
 }
 
+val toolVersions = objects.newInstance<ToolVersions>()
+val pinnedUvVersion = libs.versionOf("uv")
 val requirementsLock = layout.projectDirectory.file("requirements.lock")
 val documentationRequirements = listOf("jupyter-book", "matplotlib", "numpy", "sphinx-design")
     .associateWith { libs.versionOf("docs-$it") }
@@ -66,7 +69,7 @@ val installEnvironment = tasks.register<DocsEnvironment>("installDocsEnvironment
     description = "Installs the pinned Python and the hash-locked documentation packages"
     mustRunAfter("lockDocsRequirements")
     uvExecutable = selectedUv
-    uvVersion = libs.versionOf("uv")
+    uvVersion = pinnedUvVersion
     pythonVersion = libs.versionOf("docs-python")
     requirements = requirementsLock
     pinnedRequirements = documentationRequirements
@@ -104,6 +107,7 @@ tasks.register<Exec>("lockDocsRequirements") {
     val licenseHeader = rootDir.resolve("HEADER").readLines().drop(1).dropLast(1)
         .joinToString("\n", postfix = "\n\n") { "#" + it.removePrefix(" *").trimEnd() }
     inputs.file(selectedUv)
+    inputs.property("uv", pinnedUvVersion)
     inputs.property("python", pythonVersion)
     inputs.property("requirements", documentationRequirements)
     outputs.file(lock)
@@ -113,6 +117,7 @@ tasks.register<Exec>("lockDocsRequirements") {
         "--default-index", "https://pypi.org/simple", "--output-file", lock, "--quiet")
     environment(uvEnvironment(pythonInstallation.get().asFile, uvCache.get().asFile))
     doFirst {
+        toolVersions.requireVersion(selectedUv.get().asFile, "uv", pinnedUvVersion)
         requirementsInput.writeText(requirementLines)
     }
     doLast {

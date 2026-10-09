@@ -18,7 +18,6 @@
 
 package me.brandonli.mcav.gradle
 
-import java.io.ByteArrayOutputStream
 import java.io.File
 import javax.inject.Inject
 import org.gradle.api.DefaultTask
@@ -89,15 +88,7 @@ abstract class DocsEnvironment : DefaultTask() {
             )
         }
         val uv = uvExecutable.get().asFile
-        val versionOutput = ByteArrayOutputStream()
-        processes.exec {
-            commandLine(uv, "--version")
-            standardOutput = versionOutput
-        }
-        val reported = versionOutput.toString(Charsets.UTF_8).trim()
-        if (reported.split(' ').getOrNull(1) != uvVersion.get()) {
-            throw GradleException("$uv must be uv ${uvVersion.get()}, but it is $reported")
-        }
+        ToolVersions.verify(processes, uv, "uv", uvVersion.get())
         val installation = installationDirectory.get().asFile
         val environment = uvEnvironment(installation, cacheDirectory.get().asFile)
         val virtualEnvironment = installation.resolve("venv")
