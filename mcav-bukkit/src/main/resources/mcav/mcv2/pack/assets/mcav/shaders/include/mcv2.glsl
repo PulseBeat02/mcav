@@ -57,11 +57,11 @@ bool mcv2StripFits(ivec2 size) {
     return mcv2StripRows(size.x) < size.y;
 }
 
-ivec2 mcv2FromTop(ivec2 size, int x, int row) {
-    return ivec2(x, size.y - 1 - row);
+ivec2 mcv2FromTop(ivec2 size, int columnIndex, int row) {
+    return ivec2(columnIndex, size.y - 1 - row);
 }
 
-uint mcv2Unorm(float value) {
+uint mcv2ByteFromChannel(float value) {
     return uint(value * 255.0 + 0.5);
 }
 
@@ -74,16 +74,16 @@ vec4 mcv2WordTexel(uint value) {
 }
 
 uint mcv2TexelWord(vec4 texel) {
-    uvec4 b = uvec4(texel * 255.0 + 0.5);
-    return b.x | (b.y << 8u) | (b.z << 16u) | (b.w << 24u);
+    uvec4 channels = uvec4(texel * 255.0 + 0.5);
+    return channels.x | (channels.y << 8u) | (channels.z << 16u) | (channels.w << 24u);
 }
 
 #if defined(MCV2_PASS_BYTES) || defined(MCV2_PASS_CRC) || defined(MCV2_PASS_PAGES) || defined(MCV2_PASS_VIEW)
 
-ivec3 mcv2PageByteAt(ivec2 size, int p, int b) {
-    int pixel = b / 3;
-    int row = mcv2SlotRow(size.x, MCV2_FIRST_SLOT + p) + pixel / size.x;
-    return ivec3(mcv2FromTop(size, pixel % size.x, row), b % 3);
+ivec3 mcv2PageByteAt(ivec2 size, int pageIndex, int byteIndex) {
+    int pixel = byteIndex / 3;
+    int row = mcv2SlotRow(size.x, MCV2_FIRST_SLOT + pageIndex) + pixel / size.x;
+    return ivec3(mcv2FromTop(size, pixel % size.x, row), byteIndex % 3);
 }
 
 int mcv2DescriptorRow(int width) {
@@ -112,16 +112,16 @@ uint mcv2ReadByte(int offset) {
 
 uint mcv2ReadWord(int offset) {
     if (!mcv2Range(offset, 4)) return 0u;
-    uvec4 lo = mcv2ReadTexel(offset);
-    uint word = lo.x | (lo.y << 8u) | (lo.z << 16u) | (lo.w << 24u);
+    uvec4 firstChannels = mcv2ReadTexel(offset);
+    uint word = firstChannels.x | (firstChannels.y << 8u) | (firstChannels.z << 16u) | (firstChannels.w << 24u);
     uint shift = uint(offset & 3) * 8u;
     if (shift == 0u) return word;
-    uvec4 hi = mcv2ReadTexel((offset & ~3) + 4);
-    uint next = hi.x | (hi.y << 8u) | (hi.z << 16u) | (hi.w << 24u);
+    uvec4 nextChannels = mcv2ReadTexel((offset & ~3) + 4);
+    uint next = nextChannels.x | (nextChannels.y << 8u) | (nextChannels.z << 16u) | (nextChannels.w << 24u);
     return (word >> shift) | (next << (32u - shift));
 }
 
-vec3 mcv2ReadRgb(int offset) {
+vec3 mcv2ReadColor(int offset) {
     if (!mcv2Range(offset, 3)) return vec3(0.0);
     uvec4 first = mcv2ReadTexel(offset);
     int lane = offset & 3;
@@ -144,8 +144,8 @@ layout(location = 0) out vec4 fragColor;
 
 uint mcv2FrameByte(ivec2 size, int offset) {
     int page = offset / MCV2_PAGE_CAPACITY;
-    ivec3 at = mcv2PageByteAt(size, page, MCV2_PAGE_HEADER + offset % MCV2_PAGE_CAPACITY);
-    return mcv2Unorm(texelFetch(MainSampler, at.xy, 0)[at.z]);
+    ivec3 position = mcv2PageByteAt(size, page, MCV2_PAGE_HEADER + offset % MCV2_PAGE_CAPACITY);
+    return mcv2ByteFromChannel(texelFetch(MainSampler, position.xy, 0)[position.z]);
 }
 
 void main() {
@@ -209,8 +209,8 @@ const uint MCV2_CRC_TABLE[256] = uint[256](
     0xB40BBE37u, 0xC30C8EA1u, 0x5A05DF1Bu, 0x2D02EF8Du
 );
 
-uint mcv2CrcUpdate(uint crc, uint value) {
-    return MCV2_CRC_TABLE[(crc ^ value) & 255u] ^ (crc >> 8u);
+uint mcv2UpdateChecksum(uint checksum, uint value) {
+    return MCV2_CRC_TABLE[(checksum ^ value) & 255u] ^ (checksum >> 8u);
 }
 
 // Linear CRC advancement makes zero-initialized chunk checksums compose exactly.
@@ -226,10 +226,10 @@ const uint MCV2_CRC_SHIFT[32] = uint[32](
     0xDCE3E605u, 0x62B6CA4Bu
 );
 
-uint mcv2CrcShift(uint crc) {
+uint mcv2AdvanceChecksum(uint checksum) {
     uint shifted = 0u;
-    for (int j = 0; j < 32; ++j) {
-        shifted ^= MCV2_CRC_SHIFT[j] & (0u - ((crc >> uint(j)) & 1u));
+    for (int bitIndex = 0; bitIndex < 32; ++bitIndex) {
+        shifted ^= MCV2_CRC_SHIFT[bitIndex] & (0u - ((checksum >> uint(bitIndex)) & 1u));
     }
     return shifted;
 }
@@ -246,19 +246,19 @@ void main() {
         fragColor = vec4(0.0);
         return;
     }
-    int x = int(gl_FragCoord.x);
-    int page = x / MCV2_CRC_CHUNKS;
-    int first = (x % MCV2_CRC_CHUNKS) * MCV2_CRC_CHUNK_BYTES;
-    uint crc = 0u;
-    for (int b = first; b < first + MCV2_CRC_CHUNK_BYTES; b += 3) {
-        ivec3 at = mcv2PageByteAt(size, page, b);
-        vec4 texel = texelFetch(MainSampler, at.xy, 0);
-        for (int k = 0; k < 3; ++k) {
-            int offset = b + k;
-            crc = mcv2CrcUpdate(crc, offset >= 28 && offset < 32 ? 0u : mcv2Unorm(texel[k]));
+    int columnIndex = int(gl_FragCoord.x);
+    int page = columnIndex / MCV2_CRC_CHUNKS;
+    int first = (columnIndex % MCV2_CRC_CHUNKS) * MCV2_CRC_CHUNK_BYTES;
+    uint checksum = 0u;
+    for (int byteIndex = first; byteIndex < first + MCV2_CRC_CHUNK_BYTES; byteIndex += 3) {
+        ivec3 position = mcv2PageByteAt(size, page, byteIndex);
+        vec4 texel = texelFetch(MainSampler, position.xy, 0);
+        for (int channelIndex = 0; channelIndex < 3; ++channelIndex) {
+            int offset = byteIndex + channelIndex;
+            checksum = mcv2UpdateChecksum(checksum, offset >= 28 && offset < 32 ? 0u : mcv2ByteFromChannel(texel[channelIndex]));
         }
     }
-    fragColor = mcv2WordTexel(crc);
+    fragColor = mcv2WordTexel(checksum);
 }
 #endif
 
@@ -268,14 +268,14 @@ uniform sampler2D CrcSampler;
 
 layout(location = 0) out vec4 fragColor;
 
-uint mcv2PageByte(ivec2 size, int page, int b) {
-    ivec3 at = mcv2PageByteAt(size, page, b);
-    return mcv2Unorm(texelFetch(MainSampler, at.xy, 0)[at.z]);
+uint mcv2PageByte(ivec2 size, int page, int byteIndex) {
+    ivec3 position = mcv2PageByteAt(size, page, byteIndex);
+    return mcv2ByteFromChannel(texelFetch(MainSampler, position.xy, 0)[position.z]);
 }
 
-uint mcv2PageWord(ivec2 size, int page, int b) {
-    return mcv2PageByte(size, page, b) | (mcv2PageByte(size, page, b + 1) << 8u)
-        | (mcv2PageByte(size, page, b + 2) << 16u) | (mcv2PageByte(size, page, b + 3) << 24u);
+uint mcv2PageWord(ivec2 size, int page, int byteIndex) {
+    return mcv2PageByte(size, page, byteIndex) | (mcv2PageByte(size, page, byteIndex + 1) << 8u)
+        | (mcv2PageByte(size, page, byteIndex + 2) << 16u) | (mcv2PageByte(size, page, byteIndex + 3) << 24u);
 }
 
 void main() {
@@ -285,9 +285,9 @@ void main() {
         fragColor = vec4(0.0);
         return;
     }
-    int x = int(gl_FragCoord.x);
-    int page = x / 4;
-    int field = x % 4;
+    int columnIndex = int(gl_FragCoord.x);
+    int page = columnIndex / 4;
+    int field = columnIndex % 4;
     if (field == 1) {
         fragColor = mcv2WordTexel(mcv2PageWord(size, page, 12));
         return;
@@ -314,16 +314,16 @@ void main() {
         int length = MCV2_PAGE_HEADER + int(min(capacity, total - number * capacity));
 
         int chunks = length / MCV2_CRC_CHUNK_BYTES;
-        uint crc = 0xFFFFFFFFu;
-        for (int c = 0; c < MCV2_CRC_CHUNKS; ++c) {
-            if (c >= chunks) break;
-            crc = mcv2CrcShift(crc) ^ mcv2TexelWord(texelFetch(CrcSampler, ivec2(page * MCV2_CRC_CHUNKS + c, 0), 0));
+        uint checksum = 0xFFFFFFFFu;
+        for (int chunk = 0; chunk < MCV2_CRC_CHUNKS; ++chunk) {
+            if (chunk >= chunks) break;
+            checksum = mcv2AdvanceChecksum(checksum) ^ mcv2TexelWord(texelFetch(CrcSampler, ivec2(page * MCV2_CRC_CHUNKS + chunk, 0), 0));
         }
-        for (int b = chunks * MCV2_CRC_CHUNK_BYTES; b < length; ++b) {
+        for (int byteIndex = chunks * MCV2_CRC_CHUNK_BYTES; byteIndex < length; ++byteIndex) {
 
-            crc = mcv2CrcUpdate(crc, b >= 28 && b < 32 ? 0u : mcv2PageByte(size, page, b));
+            checksum = mcv2UpdateChecksum(checksum, byteIndex >= 28 && byteIndex < 32 ? 0u : mcv2PageByte(size, page, byteIndex));
         }
-        valid = ~crc == mcv2PageWord(size, page, 28);
+        valid = ~checksum == mcv2PageWord(size, page, 28);
     }
     fragColor = mcv2Texel(uvec4(valid ? 1u : 0u, type, count & 255u, 255u));
 }
@@ -337,12 +337,12 @@ uniform sampler2D StateSampler;
 
 layout(location = 0) out vec4 fragColor;
 
-uvec4 mcv2Bytes(sampler2D source, int x) {
-    return uvec4(texelFetch(source, ivec2(x, 0), 0) * 255.0 + 0.5);
+uvec4 mcv2Bytes(sampler2D source, int columnIndex) {
+    return uvec4(texelFetch(source, ivec2(columnIndex, 0), 0) * 255.0 + 0.5);
 }
 
-uint mcv2Word(sampler2D source, int x) {
-    return mcv2TexelWord(texelFetch(source, ivec2(x, 0), 0));
+uint mcv2Word(sampler2D source, int columnIndex) {
+    return mcv2TexelWord(texelFetch(source, ivec2(columnIndex, 0), 0));
 }
 
 void main() {
@@ -370,12 +370,12 @@ void main() {
     DataBytes = int(total);
     bool decode = valid && newer && (keyframe || fromPrevious)
         && mcv2HeaderValid(frameId, referenceId, first.y);
-    int x = int(gl_FragCoord.x);
-    if (x == 0) {
+    int columnIndex = int(gl_FragCoord.x);
+    if (columnIndex == 0) {
         fragColor = mcv2Texel(uvec4(decode ? 1u : 0u, keyframe ? 1u : 0u, 0u, uint(count)));
-    } else if (x == 1) {
+    } else if (columnIndex == 1) {
         fragColor = mcv2WordTexel(frameId);
-    } else if (x == 2) {
+    } else if (columnIndex == 2) {
         fragColor = mcv2WordTexel(total);
     } else {
         fragColor = mcv2WordTexel(referenceId);
@@ -390,8 +390,8 @@ struct Mcv2Frame {
     int groups;
     int descriptorBase;
     int walkBase;
-    int n0;
-    int n1;
+    int rootDescriptors;
+    int childDescriptors;
     int descriptors;
 };
 
@@ -402,13 +402,13 @@ bool mcv2FrameIndex(out Mcv2Frame frame) {
     int directory = MCV2_HEADER_BYTES + 4 * frame.groups;
     int levels = directory + 4 * ((frame.groups + 7) / 8);
     if (!mcv2Range(levels, 12)) return false;
-    uint n0 = mcv2ReadWord(levels);
-    uint n1 = mcv2ReadWord(levels + 4);
-    uint n2 = mcv2ReadWord(levels + 8);
-    if (n0 > uint(roots) || n1 > 4u * n0 || n2 > 4u * n1 || ((n1 | n2) & 3u) != 0u) return false;
-    frame.n0 = int(n0);
-    frame.n1 = int(n1);
-    frame.descriptors = int(n0 + n1 + n2);
+    uint rootDescriptors = mcv2ReadWord(levels);
+    uint childDescriptors = mcv2ReadWord(levels + 4);
+    uint grandchildDescriptors = mcv2ReadWord(levels + 8);
+    if (rootDescriptors > uint(roots) || childDescriptors > 4u * rootDescriptors || grandchildDescriptors > 4u * childDescriptors || ((childDescriptors | grandchildDescriptors) & 3u) != 0u) return false;
+    frame.rootDescriptors = int(rootDescriptors);
+    frame.childDescriptors = int(childDescriptors);
+    frame.descriptors = int(rootDescriptors + childDescriptors + grandchildDescriptors);
     frame.descriptorBase = levels + 12;
     frame.walkBase = frame.descriptorBase + frame.descriptors;
     int indexEnd = frame.walkBase + 4 * ((frame.descriptors + 7) / 8);
@@ -468,7 +468,7 @@ bool mcv2Walk(Mcv2Frame frame, int descriptor, out int cursor, out int splits) {
         int index = anchor + step;
         if (index >= descriptor) break;
         uint value = mcv2ReadByte(frame.descriptorBase + index);
-        int size = index < frame.n0 ? 32 : index < frame.n0 + frame.n1 ? 16 : 8;
+        int size = index < frame.rootDescriptors ? 32 : index < frame.rootDescriptors + frame.childDescriptors ? 16 : 8;
         int bytes = mcv2RecordBytes(frame, value, size);
         if (bytes < 0) return false;
         cursor += bytes;
@@ -492,8 +492,8 @@ uint mcv2Resolve(ivec2 pixel, Mcv2Frame frame) {
     descriptor += mcv2Popcount(mask & ((1u << bit) - 1u));
     int size = 32;
     for (int level = 0; level < 3; ++level) {
-        int first = level == 0 ? 0 : level == 1 ? frame.n0 : frame.n0 + frame.n1;
-        int end = level == 0 ? frame.n0 : level == 1 ? frame.n0 + frame.n1 : frame.descriptors;
+        int first = level == 0 ? 0 : level == 1 ? frame.rootDescriptors : frame.rootDescriptors + frame.childDescriptors;
+        int end = level == 0 ? frame.rootDescriptors : level == 1 ? frame.rootDescriptors + frame.childDescriptors : frame.descriptors;
         if (descriptor < uint(first) || descriptor >= uint(end)) return MCV2_CELL_INVALID;
         int cursor, splits;
         if (!mcv2Walk(frame, int(descriptor), cursor, splits)) return MCV2_CELL_INVALID;
@@ -505,7 +505,7 @@ uint mcv2Resolve(ivec2 pixel, Mcv2Frame frame) {
         if (mode == MCV2_SPLIT) {
             size /= 2;
             ivec2 quadrant = (pixel / size) & ivec2(1);
-            descriptor = uint(frame.n0 + 4 * splits + 2 * quadrant.y + quadrant.x);
+            descriptor = uint(frame.rootDescriptors + 4 * splits + 2 * quadrant.y + quadrant.x);
             continue;
         }
 
@@ -545,15 +545,15 @@ uniform sampler2D CellsSampler;
 layout(location = 1) flat out uvec4 DecodeStatus;
 layout(location = 2) flat out uvec2 DecodeFrame;
 
-uint mcv2FrameFact() {
+uint mcv2FrameFlags() {
     return mcv2TexelWord(texelFetch(CellsSampler, ivec2(0, MCV2_CELLS_HEIGHT), 0));
 }
 
 void main() {
-    vec2 uv = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
-    gl_Position = vec4(uv * 2.0 - 1.0, 0.0, 1.0);
+    vec2 textureCoordinates = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
+    gl_Position = vec4(textureCoordinates * 2.0 - 1.0, 0.0, 1.0);
     DecodeStatus = uvec4(texelFetch(StatusSampler, ivec2(0, 0), 0) * 255.0 + 0.5);
-    DecodeFrame = uvec2(mcv2FrameFact(), mcv2TexelWord(texelFetch(StatusSampler, ivec2(2, 0), 0)));
+    DecodeFrame = uvec2(mcv2FrameFlags(), mcv2TexelWord(texelFetch(StatusSampler, ivec2(2, 0), 0)));
 }
 #endif
 
@@ -565,8 +565,8 @@ layout(location = 2) flat in uvec2 DecodeFrame;
 layout(location = 0) out vec4 fragColor;
 
 vec3 mcv2Predict(ivec2 pixel, ivec2 motion) {
-    ivec2 at = clamp(pixel + motion, ivec2(0), ivec2(MCV2_VIDEO_WIDTH, MCV2_VIDEO_HEIGHT) - 1);
-    return floor(texelFetch(PreviousSampler, at, 0).rgb * 255.0 + 0.5);
+    ivec2 position = clamp(pixel + motion, ivec2(0), ivec2(MCV2_VIDEO_WIDTH, MCV2_VIDEO_HEIGHT) - 1);
+    return floor(texelFetch(PreviousSampler, position, 0).rgb * 255.0 + 0.5);
 }
 
 float mcv2CompactNode(int offset, ivec2 node) {
@@ -584,9 +584,9 @@ float mcv2CompactGrid(int offset, ivec2 local, int size) {
     return mix(top, bottom, fraction.y);
 }
 
-vec3 mcv2Compact(int offset, uint q, ivec2 pixel, int size) {
+vec3 mcv2Compact(int offset, uint quantizer, ivec2 pixel, int size) {
     ivec2 motion = ivec2(mcv2Signed(mcv2ReadByte(offset), 8u), mcv2Signed(mcv2ReadByte(offset + 1), 8u));
-    return mcv2Predict(pixel, motion) + float(1u << q) * mcv2CompactGrid(offset + 2, pixel % size, size);
+    return mcv2Predict(pixel, motion) + float(1u << quantizer) * mcv2CompactGrid(offset + 2, pixel % size, size);
 }
 
 vec3 mcv2Pattern(int offset, ivec2 pixel, int size) {
@@ -594,7 +594,7 @@ vec3 mcv2Pattern(int offset, ivec2 pixel, int size) {
     if (orientation > 1u) return mcv2Predict(pixel, ivec2(0));
     int axis = (orientation == 0u ? pixel.x : pixel.y) % size;
     int selector = int((mcv2ReadByte(offset + 7 + axis / 8) >> uint(axis & 7)) & 1u);
-    return mcv2ReadRgb(offset + selector * 3);
+    return mcv2ReadColor(offset + selector * 3);
 }
 
 vec3 mcv2Decode(ivec2 pixel) {
@@ -607,13 +607,13 @@ vec3 mcv2Decode(ivec2 pixel) {
     DataBytes = int(DecodeFrame.y);
     int offset = int(cell & MCV2_CELL_OFFSET);
     int size = 32 >> int((cell >> 22u) & 3u);
-    if (mode == MCV2_SOLID) return mcv2ReadRgb(offset);
+    if (mode == MCV2_SOLID) return mcv2ReadColor(offset);
     if (mode == MCV2_PALETTE) {
         ivec2 local = pixel % size;
         // Exact float products avoid Intel's GLSL 330 dynamic-shift/multiply miscompile.
         int index = int(float(local.y) * float(size)) + local.x;
         uint selector = (mcv2ReadByte(offset + 6 + index / 8) >> uint(index & 7)) & 1u;
-        return mcv2ReadRgb(offset + int(selector) * 3);
+        return mcv2ReadColor(offset + int(selector) * 3);
     }
     if (mode == MCV2_PATTERN) return mcv2Pattern(offset, pixel, size);
     if (mode == MCV2_COMPACT) return mcv2Compact(offset, cell >> 29u, pixel, size);
@@ -638,19 +638,19 @@ uniform sampler2D StatusSampler;
 layout(location = 0) out vec4 fragColor;
 
 void main() {
-    int x = int(gl_FragCoord.x);
-    vec4 kept = texelFetch(StateSampler, ivec2(x, 0), 0);
+    int columnIndex = int(gl_FragCoord.x);
+    vec4 kept = texelFetch(StateSampler, ivec2(columnIndex, 0), 0);
     uvec4 status = uvec4(texelFetch(StatusSampler, ivec2(0, 0), 0) * 255.0 + 0.5);
     if (status.x != 1u) {
         fragColor = kept;
         return;
     }
     uint frameId = mcv2TexelWord(texelFetch(StatusSampler, ivec2(1, 0), 0));
-    if (x == 0) {
+    if (columnIndex == 0) {
         fragColor = mcv2Texel(uvec4(1u, 0u, 0u, 255u));
-    } else if (x == 1) {
+    } else if (columnIndex == 1) {
         fragColor = mcv2WordTexel(frameId);
-    } else if (x == 2) {
+    } else if (columnIndex == 2) {
         fragColor = vec4(0.0);
     } else {
         fragColor = mcv2WordTexel(mcv2TexelWord(kept) + 1u);
@@ -679,8 +679,8 @@ const int MCV2_VIEW_FLOATS = 3;
 
 const int MCV2_VIEW_MARGIN = 2;
 
-ivec3 mcv2DescriptorBytes(ivec2 size, int row, int x) {
-    return ivec3(texelFetch(MainSampler, mcv2FromTop(size, x, row), 0).rgb * 255.0 + 0.5);
+ivec3 mcv2DescriptorBytes(ivec2 size, int row, int columnIndex) {
+    return ivec3(texelFetch(MainSampler, mcv2FromTop(size, columnIndex, row), 0).rgb * 255.0 + 0.5);
 }
 
 float mcv2DescriptorFloat(ivec2 size, int row, int index) {
@@ -691,8 +691,8 @@ float mcv2DescriptorFloat(ivec2 size, int row, int index) {
 
 mat4 mcv2Projection(ivec2 size, int row) {
     mat4 projection;
-    for (int i = 0; i < 16; ++i) {
-        projection[i / 4][i % 4] = mcv2DescriptorFloat(size, row, 12 + i);
+    for (int index = 0; index < 16; ++index) {
+        projection[index / 4][index % 4] = mcv2DescriptorFloat(size, row, 12 + index);
     }
     return projection;
 }
@@ -704,10 +704,10 @@ void main() {
         fragColor = vec4(0.0);
         return;
     }
-    int x = int(gl_FragCoord.x);
+    int columnIndex = int(gl_FragCoord.x);
     int row = mcv2DescriptorRow(size.x);
-    if (x >= MCV2_VIEW_FLOATS) {
-        fragColor = mcv2WordTexel(floatBitsToUint(mcv2DescriptorFloat(size, row, x - MCV2_VIEW_FLOATS)));
+    if (columnIndex >= MCV2_VIEW_FLOATS) {
+        fragColor = mcv2WordTexel(floatBitsToUint(mcv2DescriptorFloat(size, row, columnIndex - MCV2_VIEW_FLOATS)));
         return;
     }
     bool shown = (uint(texelFetch(StateSampler, ivec2(0, 0), 0).x * 255.0 + 0.5) & 1u) != 0u;
@@ -722,8 +722,8 @@ void main() {
     vec2 low = vec2(1e9);
     vec2 high = vec2(-1e9);
     for (int corner = 0; corner < 4; ++corner) {
-        vec2 at = vec2(corner & 1, corner >> 1) * cells;
-        vec4 clip = projection * vec4(topLeft + right * at.x + down * at.y, 1.0);
+        vec2 position = vec2(corner & 1, corner >> 1) * cells;
+        vec4 clip = projection * vec4(topLeft + right * position.x + down * position.y, 1.0);
         front = front && clip.w > 0.0;
         vec2 pixel = (clip.xy / clip.w + 1.0) * 0.5 * vec2(size) - 0.5;
         low = min(low, pixel);
@@ -733,9 +733,9 @@ void main() {
     front = front && all(greaterThan(low, vec2(-65536.0))) && all(lessThan(high, vec2(65536.0)));
     ivec2 first = clamp(ivec2(floor(low)) - MCV2_VIEW_MARGIN, ivec2(0), size - 1);
     ivec2 last = clamp(ivec2(ceil(high)) + MCV2_VIEW_MARGIN, ivec2(0), size - 1);
-    if (x == 0) {
+    if (columnIndex == 0) {
         fragColor = mcv2WordTexel((shown ? 1u : 0u) | (present ? 2u : 0u) | (front ? 4u : 0u));
-    } else if (x == 1) {
+    } else if (columnIndex == 1) {
         fragColor = mcv2WordTexel(uint(first.x) | (uint(first.y) << 16u));
     } else {
         fragColor = mcv2WordTexel(uint(last.x) | (uint(last.y) << 16u));
@@ -755,8 +755,8 @@ layout(location = 6) flat out vec4 ScreenProjection1;
 layout(location = 7) flat out vec4 ScreenProjection2;
 layout(location = 8) flat out vec4 ScreenProjection3;
 
-uint mcv2View(int x) {
-    return mcv2TexelWord(texelFetch(ViewSampler, ivec2(x, 0), 0));
+uint mcv2View(int columnIndex) {
+    return mcv2TexelWord(texelFetch(ViewSampler, ivec2(columnIndex, 0), 0));
 }
 
 float mcv2DescriptorFloat(int index) {
@@ -764,16 +764,16 @@ float mcv2DescriptorFloat(int index) {
 }
 
 void main() {
-    vec2 uv = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
-    gl_Position = vec4(uv * vec2(2, 2) + vec2(-1, -1), 0, 1);
+    vec2 textureCoordinates = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
+    gl_Position = vec4(textureCoordinates * vec2(2, 2) + vec2(-1, -1), 0, 1);
     ScreenView = uvec4(mcv2View(0), mcv2View(1), mcv2View(2), 0u);
 
     ScreenTopLeft = vec4(mcv2DescriptorFloat(0), mcv2DescriptorFloat(1), mcv2DescriptorFloat(2), mcv2DescriptorFloat(3));
     ScreenRight = vec4(mcv2DescriptorFloat(4), mcv2DescriptorFloat(5), mcv2DescriptorFloat(6), mcv2DescriptorFloat(7));
     ScreenDown = vec4(mcv2DescriptorFloat(8), mcv2DescriptorFloat(9), mcv2DescriptorFloat(10), 0.0);
     mat4 projection;
-    for (int i = 0; i < 16; ++i) {
-        projection[i / 4][i % 4] = mcv2DescriptorFloat(12 + i);
+    for (int index = 0; index < 16; ++index) {
+        projection[index / 4][index % 4] = mcv2DescriptorFloat(12 + index);
     }
     ScreenProjection0 = projection[0];
     ScreenProjection1 = projection[1];
@@ -820,13 +820,13 @@ void main() {
         int square = (pixel.x - MCV2_VIDEO_WIDTH - 8) / 24;
         if ((pixel.x - MCV2_VIDEO_WIDTH - 8) % 24 < 20 && debugRow < 20) {
             if (square < MCV2_PAGE_SLOTS) {
-                bool valid = mcv2Unorm(texelFetch(PagesSampler, ivec2(square * 4, 0), 0).x) == 1u;
+                bool valid = mcv2ByteFromChannel(texelFetch(PagesSampler, ivec2(square * 4, 0), 0).x) == 1u;
                 fragColor = valid ? vec4(0.0, 1.0, 0.0, 1.0) : vec4(1.0, 0.0, 0.0, 1.0);
                 return;
             }
             if (square == MCV2_PAGE_SLOTS) {
                 uvec4 status = uvec4(texelFetch(StatusSampler, ivec2(0, 0), 0) * 255.0 + 0.5);
-                bool valid = mcv2Unorm(texelFetch(PagesSampler, ivec2(0, 0), 0).x) == 1u;
+                bool valid = mcv2ByteFromChannel(texelFetch(PagesSampler, ivec2(0, 0), 0).x) == 1u;
                 fragColor = status.x == 1u ? vec4(0.0, 1.0, 0.0, 1.0) : valid ? vec4(0.0, 0.0, 1.0, 1.0) : vec4(1.0, 0.0, 0.0, 1.0);
                 return;
             }
@@ -862,19 +862,19 @@ void main() {
     vec2 cells = vec2(ScreenTopLeft.w, ScreenRight.w);
     mat4 projection = mat4(ScreenProjection0, ScreenProjection1, ScreenProjection2, ScreenProjection3);
 
-    vec2 ndc = (vec2(pixel) + 0.5) / vec2(size) * 2.0 - 1.0;
-    vec4 far = inverse(projection) * vec4(ndc, 0.5, 1.0);
+    vec2 normalizedCoordinates = (vec2(pixel) + 0.5) / vec2(size) * 2.0 - 1.0;
+    vec4 far = inverse(projection) * vec4(normalizedCoordinates, 0.5, 1.0);
     vec3 direction = far.xyz / far.w;
     vec3 normal = cross(right, down);
     float denominator = dot(direction, normal);
     if (abs(denominator) < 1e-12) {
         return;
     }
-    float t = dot(topLeft, normal) / denominator;
-    vec3 hit = direction * t;
+    float rayDistance = dot(topLeft, normal) / denominator;
+    vec3 hit = direction * rayDistance;
     vec3 local = hit - topLeft;
-    vec2 uv = vec2(dot(local, right) / dot(right, right), dot(local, down) / dot(down, down)) / cells;
-    if (t <= 0.0 || any(lessThan(uv, vec2(0.0))) || any(greaterThanEqual(uv, vec2(1.0)))) {
+    vec2 textureCoordinates = vec2(dot(local, right) / dot(right, right), dot(local, down) / dot(down, down)) / cells;
+    if (rayDistance <= 0.0 || any(lessThan(textureCoordinates, vec2(0.0))) || any(greaterThanEqual(textureCoordinates, vec2(1.0)))) {
         return;
     }
     vec4 clip = projection * vec4(hit, 1.0);
@@ -887,7 +887,7 @@ void main() {
         return;
     }
     ivec2 video = ivec2(MCV2_VIDEO_WIDTH, MCV2_VIDEO_HEIGHT);
-    fragColor = mcv2Picture(min(ivec2(floor(uv * vec2(video))), video - 1));
+    fragColor = mcv2Picture(min(ivec2(floor(textureCoordinates * vec2(video))), video - 1));
 }
 #endif
 
@@ -906,10 +906,10 @@ void main() {
 #if defined(MCV2_PASS_TEXT_VERTEX) || defined(MCV2_PASS_TEXT_FRAGMENT)
 
 int mcv2Symbol(vec4 texel) {
-    ivec3 c = ivec3(texel.rgb * 255.0 + 0.5);
-    for (int s = 0; s < 64; ++s) {
-        if (MCV2_ALPHABET[s] == c) {
-            return s;
+    ivec3 texelColor = ivec3(texel.rgb * 255.0 + 0.5);
+    for (int symbolIndex = 0; symbolIndex < 64; ++symbolIndex) {
+        if (MCV2_ALPHABET[symbolIndex] == texelColor) {
+            return symbolIndex;
         }
     }
     return -1;
@@ -921,10 +921,10 @@ int mcv2SymbolAt(sampler2D map, int index) {
 
 int mcv2PageBits(sampler2D map, int bit, int width) {
     int value = 0;
-    for (int i = 0; i < width; ++i) {
-        int b = bit + i;
-        int symbol = max(mcv2SymbolAt(map, b / 6), 0);
-        value |= ((symbol >> (b % 6)) & 1) << i;
+    for (int index = 0; index < width; ++index) {
+        int bitOffset = bit + index;
+        int symbol = max(mcv2SymbolAt(map, bitOffset / 6), 0);
+        value |= ((symbol >> (bitOffset % 6)) & 1) << index;
     }
     return value;
 }
@@ -959,34 +959,34 @@ bool mcv2IsAnchor(sampler2D map) {
 
 layout(location = 4) flat out int mcv2Kind;
 layout(location = 5) flat out int mcv2Slot;
-layout(location = 6) flat out vec4 mcv2A;
-layout(location = 7) flat out vec4 mcv2B;
-layout(location = 8) flat out vec4 mcv2C;
+layout(location = 6) flat out vec4 mcv2TopLeft;
+layout(location = 7) flat out vec4 mcv2Right;
+layout(location = 8) flat out vec4 mcv2Down;
 // Mesa llvmpipe crashes with a flat mat4 varying; pass the columns separately.
-layout(location = 9) flat out vec4 mcv2P0;
-layout(location = 10) flat out vec4 mcv2P1;
-layout(location = 11) flat out vec4 mcv2P2;
-layout(location = 12) flat out vec4 mcv2P3;
+layout(location = 9) flat out vec4 mcv2ProjectionColumn0;
+layout(location = 10) flat out vec4 mcv2ProjectionColumn1;
+layout(location = 11) flat out vec4 mcv2ProjectionColumn2;
+layout(location = 12) flat out vec4 mcv2ProjectionColumn3;
 
-vec4 mcv2Place(vec2 uv, float x0, float y0, float x1, float y1) {
+vec4 mcv2Place(vec2 textureCoordinates, float leftPixel, float topPixel, float rightPixel, float bottomPixel) {
     vec2 size = ScreenSize;
-    float left = x0 / size.x * 2.0 - 1.0;
-    float right = x1 / size.x * 2.0 - 1.0;
-    float top = 1.0 - y0 / size.y * 2.0;
-    float bottom = 1.0 - y1 / size.y * 2.0;
-    return vec4(mix(left, right, uv.x), mix(top, bottom, uv.y), 0.999, 1.0);
+    float left = leftPixel / size.x * 2.0 - 1.0;
+    float right = rightPixel / size.x * 2.0 - 1.0;
+    float top = 1.0 - topPixel / size.y * 2.0;
+    float bottom = 1.0 - bottomPixel / size.y * 2.0;
+    return vec4(mix(left, right, textureCoordinates.x), mix(top, bottom, textureCoordinates.y), 0.999, 1.0);
 }
 
 void mcv2TextVertex() {
     mcv2Kind = 0;
     mcv2Slot = 0;
-    mcv2A = vec4(0.0);
-    mcv2B = vec4(0.0);
-    mcv2C = vec4(0.0);
-    mcv2P0 = vec4(0.0);
-    mcv2P1 = vec4(0.0);
-    mcv2P2 = vec4(0.0);
-    mcv2P3 = vec4(0.0);
+    mcv2TopLeft = vec4(0.0);
+    mcv2Right = vec4(0.0);
+    mcv2Down = vec4(0.0);
+    mcv2ProjectionColumn0 = vec4(0.0);
+    mcv2ProjectionColumn1 = vec4(0.0);
+    mcv2ProjectionColumn2 = vec4(0.0);
+    mcv2ProjectionColumn3 = vec4(0.0);
 #if !defined(IS_GUI) && !defined(IS_SEE_THROUGH) && !defined(IS_GRAYSCALE)
     if (textureSize(Sampler0, 0) != ivec2(128, 128)) {
         return;
@@ -1030,17 +1030,17 @@ void mcv2TextVertex() {
         : facing == 2 ? vec3(-1.0, 0.0, 0.0) : vec3(0.0, 0.0, -1.0);
     vec3 down = vec3(0.0, -1.0, 0.0);
     vec3 corner = (ModelViewMat * vec4(Position, 1.0)).xyz;
-    vec3 r = (ModelViewMat * vec4(right, 0.0)).xyz;
-    vec3 d = (ModelViewMat * vec4(down, 0.0)).xyz;
-    vec3 tileTopLeft = corner - UV0.x * r - UV0.y * d;
-    vec3 screenTopLeft = tileTopLeft - float(column) * r - float(row) * d;
-    mcv2A = vec4(screenTopLeft, float(columns));
-    mcv2B = vec4(r, float(screenRows));
-    mcv2C = vec4(d, float(column * 64 + row));
-    mcv2P0 = ProjMat[0];
-    mcv2P1 = ProjMat[1];
-    mcv2P2 = ProjMat[2];
-    mcv2P3 = ProjMat[3];
+    vec3 projectedRight = (ModelViewMat * vec4(right, 0.0)).xyz;
+    vec3 projectedDown = (ModelViewMat * vec4(down, 0.0)).xyz;
+    vec3 tileTopLeft = corner - UV0.x * projectedRight - UV0.y * projectedDown;
+    vec3 screenTopLeft = tileTopLeft - float(column) * projectedRight - float(row) * projectedDown;
+    mcv2TopLeft = vec4(screenTopLeft, float(columns));
+    mcv2Right = vec4(projectedRight, float(screenRows));
+    mcv2Down = vec4(projectedDown, float(column * 64 + row));
+    mcv2ProjectionColumn0 = ProjMat[0];
+    mcv2ProjectionColumn1 = ProjMat[1];
+    mcv2ProjectionColumn2 = ProjMat[2];
+    mcv2ProjectionColumn3 = ProjMat[3];
     float descriptor = float(mcv2DescriptorRowOf(width, anchorScreen));
     gl_Position = mcv2Place(UV0, 0.0, descriptor, float(MCV2_DESCRIPTOR_PIXELS), descriptor + 1.0);
     mcv2Kind = 2;
@@ -1051,24 +1051,24 @@ void mcv2TextVertex() {
 #ifdef MCV2_PASS_TEXT_FRAGMENT
 layout(location = 4) flat in int mcv2Kind;
 layout(location = 5) flat in int mcv2Slot;
-layout(location = 6) flat in vec4 mcv2A;
-layout(location = 7) flat in vec4 mcv2B;
-layout(location = 8) flat in vec4 mcv2C;
-layout(location = 9) flat in vec4 mcv2P0;
-layout(location = 10) flat in vec4 mcv2P1;
-layout(location = 11) flat in vec4 mcv2P2;
-layout(location = 12) flat in vec4 mcv2P3;
+layout(location = 6) flat in vec4 mcv2TopLeft;
+layout(location = 7) flat in vec4 mcv2Right;
+layout(location = 8) flat in vec4 mcv2Down;
+layout(location = 9) flat in vec4 mcv2ProjectionColumn0;
+layout(location = 10) flat in vec4 mcv2ProjectionColumn1;
+layout(location = 11) flat in vec4 mcv2ProjectionColumn2;
+layout(location = 12) flat in vec4 mcv2ProjectionColumn3;
 
 #if !defined(OIT_ALPHA_ONLY) && !defined(OIT_ACCUMULATE)
 
 float mcv2DescriptorFloat(int index) {
     if (index < 12) {
-        vec4 v = index < 4 ? mcv2A : index < 8 ? mcv2B : mcv2C;
-        return v[index % 4];
+        vec4 descriptorVector = index < 4 ? mcv2TopLeft : index < 8 ? mcv2Right : mcv2Down;
+        return descriptorVector[index % 4];
     }
-    int m = index - 12;
-    vec4 column = m < 4 ? mcv2P0 : m < 8 ? mcv2P1 : m < 12 ? mcv2P2 : mcv2P3;
-    return column[m % 4];
+    int projectionIndex = index - 12;
+    vec4 column = projectionIndex < 4 ? mcv2ProjectionColumn0 : projectionIndex < 8 ? mcv2ProjectionColumn1 : projectionIndex < 12 ? mcv2ProjectionColumn2 : mcv2ProjectionColumn3;
+    return column[projectionIndex % 4];
 }
 
 void mcv2WritePage() {
@@ -1080,21 +1080,21 @@ void mcv2WritePage() {
         discard;
     }
     uint bits = 0u;
-    for (int i = 0; i < 4; ++i) {
-        bits |= uint(max(mcv2SymbolAt(Sampler0, pixel * 4 + i), 0)) << uint(6 * i);
+    for (int index = 0; index < 4; ++index) {
+        bits |= uint(max(mcv2SymbolAt(Sampler0, pixel * 4 + index), 0)) << uint(6 * index);
     }
     fragColor = mcv2Texel(uvec4(bits & 255u, (bits >> 8u) & 255u, bits >> 16u, 255u));
 }
 
 void mcv2WriteDescriptor() {
-    int x = int(gl_FragCoord.x);
-    if (x == 0) {
+    int columnIndex = int(gl_FragCoord.x);
+    if (columnIndex == 0) {
         fragColor = mcv2Texel(uvec4(0x4Du, 0x43u, 0x56u, 255u));
-    } else if (x == 1) {
+    } else if (columnIndex == 1) {
         fragColor = mcv2Texel(uvec4(0xA1u, 0u, 0u, 255u));
-    } else if ((x - 2) / 2 < 28) {
-        uint bits = floatBitsToUint(mcv2DescriptorFloat((x - 2) / 2));
-        fragColor = x % 2 == 0 ? mcv2Texel(uvec4(bits & 255u, (bits >> 8u) & 255u, (bits >> 16u) & 255u, 255u))
+    } else if ((columnIndex - 2) / 2 < 28) {
+        uint bits = floatBitsToUint(mcv2DescriptorFloat((columnIndex - 2) / 2));
+        fragColor = columnIndex % 2 == 0 ? mcv2Texel(uvec4(bits & 255u, (bits >> 8u) & 255u, (bits >> 16u) & 255u, 255u))
             : mcv2Texel(uvec4(bits >> 24u, 0u, 0u, 255u));
     } else {
         fragColor = mcv2Texel(uvec4(0u, 0u, 0u, 255u));
