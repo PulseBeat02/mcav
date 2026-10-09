@@ -54,6 +54,7 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.VERSION;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.WALK_SPAN;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.follows;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.horizontal;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.isBlockSize;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.patternSize;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putU16;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putU32;
@@ -1971,7 +1972,7 @@ public final class MCV2 {
     }
 
     private static void checkSize(final int size) {
-      Preconditions.checkArgument(size == SMALLEST_BLOCK || size == 2 * SMALLEST_BLOCK || size == ROOT_SIZE, "Invalid block size");
+      Preconditions.checkArgument(isBlockSize(size), "Invalid block size");
     }
 
     private static void checkLength(final int length, final long count) {
