@@ -1540,7 +1540,7 @@ class ShaderChain:
         """The passes this harness runs, in order: (name, program, inputs, output). Minecraft's own outline passes
         (sobel, box blurs) only touch its outline target and are left out."""
         steps = []
-        for index, step in enumerate(self.passes):
+        for step in self.passes:
             shader = step["fragment_shader"]
             inputs = {}
             for entry in step.get("inputs", []):
