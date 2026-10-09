@@ -58,7 +58,7 @@ modules, the JavaCV natives, VLC and yt-dlp. Wait for `Done (…)! For help, typ
 > ```
 >
 > The port is baked into the plugin's `mcav/plugin/dependencies.txt` as the first repository, so the server asks it first. You
-> can confirm it worked: the request log of that little HTTP server must show `mcav-bukkit-1.0.0-SNAPSHOT.jar`
+> can confirm it worked: the request log of that little HTTP server must show `mcav-bukkit-1.0.0-<timestamp>.jar`
 > being fetched. This is the same mechanism the `e2eTest` task uses.
 
 Let a bot or yourself join without a Mojang account by setting `online-mode=false` in `mcav-plugin/run/server.properties`
