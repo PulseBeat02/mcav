@@ -542,20 +542,18 @@ void main() {
 #ifdef MCV2_PASS_DECODE_VERTEX
 uniform sampler2D StatusSampler;
 uniform sampler2D CellsSampler;
-layout(location = 0) out vec2 texCoord;
 layout(location = 1) flat out uvec4 DecodeStatus;
 layout(location = 2) flat out uvec2 DecodeFrame;
 
-uint mcv2FrameFact(int x) {
-    return mcv2TexelWord(texelFetch(CellsSampler, ivec2(x, MCV2_CELLS_HEIGHT), 0));
+uint mcv2FrameFact() {
+    return mcv2TexelWord(texelFetch(CellsSampler, ivec2(0, MCV2_CELLS_HEIGHT), 0));
 }
 
 void main() {
     vec2 uv = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
     gl_Position = vec4(uv * 2.0 - 1.0, 0.0, 1.0);
-    texCoord = uv;
     DecodeStatus = uvec4(texelFetch(StatusSampler, ivec2(0, 0), 0) * 255.0 + 0.5);
-    DecodeFrame = uvec2(mcv2FrameFact(0), mcv2TexelWord(texelFetch(StatusSampler, ivec2(2, 0), 0)));
+    DecodeFrame = uvec2(mcv2FrameFact(), mcv2TexelWord(texelFetch(StatusSampler, ivec2(2, 0), 0)));
 }
 #endif
 
@@ -748,7 +746,6 @@ void main() {
 #ifdef MCV2_PASS_SCREEN_VERTEX
 uniform sampler2D ViewSampler;
 
-layout(location = 0) out vec2 texCoord;
 layout(location = 1) flat out uvec4 ScreenView;
 layout(location = 2) flat out vec4 ScreenTopLeft;
 layout(location = 3) flat out vec4 ScreenRight;
@@ -769,7 +766,6 @@ float mcv2DescriptorFloat(int index) {
 void main() {
     vec2 uv = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
     gl_Position = vec4(uv * vec2(2, 2) + vec2(-1, -1), 0, 1);
-    texCoord = uv;
     ScreenView = uvec4(mcv2View(0), mcv2View(1), mcv2View(2), 0u);
 
     ScreenTopLeft = vec4(mcv2DescriptorFloat(0), mcv2DescriptorFloat(1), mcv2DescriptorFloat(2), mcv2DescriptorFloat(3));
