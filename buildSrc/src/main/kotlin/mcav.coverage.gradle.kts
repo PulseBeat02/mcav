@@ -18,11 +18,11 @@ val jacocoReport = tasks.named<JacocoReport>("jacocoTestReport") {
     }
 }
 
-val instrumentedPackages = listOf("me.brandonli.*")
+val instrumentedClasses = listOf("me.brandonli.*", "org.cef.browser.McavOffscreenBrowser*")
 
 tasks.withType<Test>().configureEach {
     extensions.configure<JacocoTaskExtension> {
-        includes = instrumentedPackages
+        includes = instrumentedClasses
     }
 }
 
