@@ -60,7 +60,7 @@ import xyz.jpenilla.gremlin.runtime.platformsupport.PaperClasspathAppender;
 public final class MCAVLoader implements PluginLoader {
 
   /** The classes of the downloaded modules that the plugin's code uses, one internal name per line, from the build. */
-  static final String REQUIRED_CLASSES = "META-INF/mcav/required-classes.txt";
+  private static final String REQUIRED_CLASSES = "META-INF/mcav/required-classes.txt";
 
   private static final String DEPENDENCIES_RESOURCE = "mcav/plugin/dependencies.txt";
 
