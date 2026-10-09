@@ -33,8 +33,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
@@ -122,21 +122,22 @@ final class Mcv2FileEncoderTest {
 
   @Test
   void keepsEveryFrameSmallEnoughForTheDefaultPageSlotsOfItsWall() throws Exception {
-    final int size = MapLayout.MAP_SIZE;
-    final byte[] noise = new byte[size * size * Mcv2Decoder.CHANNELS];
-    new Random(7).nextBytes(noise);
+    final int width = 8 * MapLayout.MAP_SIZE;
+    final int height = 4 * MapLayout.MAP_SIZE;
+    final int limit = Mcv2Configuration.MAX_PAGE_SLOTS * TransportPages.capacity();
+    final byte[] checkerboard = checkerboard(width, height);
     final MCV2 unlimited = new MCV2(Settings.DEFAULT, ForkJoinPool.commonPool(), 1, false);
-    assertTrue(unlimited.encode(noise, size, size, 0).length > TransportPages.capacity());
+    assertTrue(unlimited.encode(checkerboard, width, height, 0).length > limit);
     final ByteArrayOutputStream out = new ByteArrayOutputStream();
     try (final Pool budget = new Pool(1)) {
-      Mcv2FileEncoder.encode(repeating(noise, 2), size, size, Settings.DEFAULT, budget, out, count -> {});
+      Mcv2FileEncoder.encode(repeating(checkerboard, 2), width, height, Settings.DEFAULT, budget, out, count -> {});
     }
     final List<byte[]> frames = frames(out.toByteArray());
     assertEquals(2, frames.size());
     for (final byte[] frame : frames) {
-      assertTrue(frame.length <= TransportPages.capacity(), "a frame of " + frame.length + " bytes");
+      assertTrue(frame.length <= limit, "a frame of " + frame.length + " bytes");
     }
-    assertEquals(noise.length, Mcv2Decoder.decode(frames.getFirst(), null, 0).length);
+    assertEquals(checkerboard.length, Mcv2Decoder.decode(frames.getFirst(), null, 0).length);
   }
 
   @Test
@@ -148,6 +149,15 @@ final class Mcv2FileEncoderTest {
     assertEquals(2 * capacity, Mcv2FileEncoder.screenFrameLimit(MapLayout.MAP_SIZE, MapLayout.MAP_SIZE + 1));
     assertEquals(7 * capacity, Mcv2FileEncoder.screenFrameLimit(7 * MapLayout.MAP_SIZE, MapLayout.MAP_SIZE));
     assertEquals(Mcv2Configuration.MAX_PAGE_SLOTS * capacity, Mcv2FileEncoder.screenFrameLimit(1920, 1080));
+  }
+
+  private static byte[] checkerboard(final int width, final int height) {
+    final byte[] picture = new byte[width * height * Mcv2Decoder.CHANNELS];
+    for (int pixel = 0; pixel < width * height; pixel++) {
+      final byte shade = (byte) ((((pixel % width) + pixel / width) % 2) * 255);
+      Arrays.fill(picture, pixel * Mcv2Decoder.CHANNELS, (pixel + 1) * Mcv2Decoder.CHANNELS, shade);
+    }
+    return picture;
   }
 
   private static Mcv2FileEncoder.FrameReader repeating(final byte[] picture, final int count) {
