@@ -47,9 +47,9 @@ final class MCV2SearchPropertyTest {
       final long green = (source[at + 1] & 255L) - (reference[at + 1] & 255);
       final long blue = (source[at + 2] & 255L) - (reference[at + 2] & 255);
       final long luma = red + 2 * green + blue;
-      final long co = 2 * (red - blue);
-      final long cg = -red + 2 * green - blue;
-      sum += 4 * luma * luma + co * co + cg * cg;
+      final long orange = 2 * (red - blue);
+      final long chromaGreen = -red + 2 * green - blue;
+      sum += 4 * luma * luma + orange * orange + chromaGreen * chromaGreen;
     }
     return sum;
   }

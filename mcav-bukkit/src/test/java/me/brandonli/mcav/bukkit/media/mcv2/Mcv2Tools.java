@@ -91,7 +91,7 @@ final class Mcv2Tools {
 
   private static final double EXACT_PSNR = 100.0;
 
-  private static final double P95 = 0.95;
+  private static final double NINETY_FIFTH_PERCENTILE = 0.95;
 
   private static final int STREAM_ID = 1;
 
@@ -135,7 +135,7 @@ final class Mcv2Tools {
       final int frames = Integer.parseInt(options.getOrDefault("frames", "60"));
       final int threads = Integer.parseInt(options.getOrDefault("threads", "12"));
       final int warm = Integer.parseInt(options.getOrDefault("warm", "0"));
-      final double fps = Double.parseDouble(options.getOrDefault("fps", "60"));
+      final double frameRate = Double.parseDouble(options.getOrDefault("fps", "60"));
       final Path source = Path.of(options.get("source"));
 
       System.gc();
@@ -154,7 +154,7 @@ final class Mcv2Tools {
         Reference.reachabilityFence(encoder);
       }
       budget.close();
-      report(measured, frames, warm, fps, threads, (heapAfter - heapBefore) / BYTES_PER_MEGABYTE);
+      report(measured, frames, warm, frameRate, threads, (heapAfter - heapBefore) / BYTES_PER_MEGABYTE);
     } finally {
       try (final var paths = Files.walk(nativeFolder)) {
         paths.forEach(path -> path.toFile().deleteOnExit());
@@ -311,7 +311,7 @@ final class Mcv2Tools {
     final Measurement measured,
     final int frames,
     final int warm,
-    final double fps,
+    final double frameRate,
     final int threads,
     final double encoderHeapMegabytes
   ) {
@@ -319,7 +319,7 @@ final class Mcv2Tools {
     final long[] warmTimes = Arrays.copyOfRange(measured.times, from, frames);
     final long[] sorted = warmTimes.clone();
     Arrays.sort(sorted);
-    final double seconds = frames / fps;
+    final double seconds = frames / frameRate;
     System.out.printf(
       Locale.ROOT,
       "{\"frames\":%d,\"warm\":%d,\"keyframes\":%d,\"mean_ms\":%.3f,\"p50_ms\":%.3f,\"p95_ms\":%.3f,\"max_ms\":%.3f,\"cpu_ms\":%.3f," +
@@ -330,7 +330,7 @@ final class Mcv2Tools {
       measured.keyframes,
       Arrays.stream(warmTimes).average().orElse(0) / NANOS_PER_MILLISECOND,
       sorted[sorted.length / 2] / NANOS_PER_MILLISECOND,
-      sorted[(int) Math.ceil(sorted.length * P95) - 1] / NANOS_PER_MILLISECOND,
+      sorted[(int) Math.ceil(sorted.length * NINETY_FIFTH_PERCENTILE) - 1] / NANOS_PER_MILLISECOND,
       sorted[sorted.length - 1] / NANOS_PER_MILLISECOND,
       Arrays.stream(Arrays.copyOfRange(measured.cpu, from, frames))
         .average()
@@ -343,7 +343,7 @@ final class Mcv2Tools {
       megabits(measured.zlib, seconds),
       measured.psnrSum / frames,
       psnr(measured.mseSum / frames),
-      fps,
+      frameRate,
       threads,
       Runtime.getRuntime().availableProcessors(),
       encoderHeapMegabytes,

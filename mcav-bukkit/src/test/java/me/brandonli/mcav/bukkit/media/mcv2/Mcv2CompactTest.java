@@ -28,13 +28,13 @@ final class Mcv2CompactTest {
 
   @Test
   void storesBothWholePixelVectorsInEveryTenByteRecord() throws Mcv2Exception {
-    for (final int dx : new int[] { -128, -7, 0, 7, 127 }) {
-      for (final int dy : new int[] { -128, -1, 0, 7, 127 }) {
-        final byte[] record = { (byte) dx, (byte) dy, -128, 127, -1, 0, 0x18, 0x72, 0x4E, 0x5A };
+    for (final int motionX : new int[] { -128, -7, 0, 7, 127 }) {
+      for (final int motionY : new int[] { -128, -1, 0, 7, 127 }) {
+        final byte[] record = { (byte) motionX, (byte) motionY, -128, 127, -1, 0, 0x18, 0x72, 0x4E, 0x5A };
         final byte[] data = Mcv2WireFrames.block(32, 5, 2, record, false);
         final int offset = Mcv2Decoder.parse(data).getLeaf(0).offset();
-        assertEquals(dx, data[offset]);
-        assertEquals(dy, data[offset + 1]);
+        assertEquals(motionX, data[offset]);
+        assertEquals(motionY, data[offset + 1]);
         assertEquals(10, data.length - offset);
         assertArrayEquals(record, Arrays.copyOfRange(data, offset, data.length));
       }

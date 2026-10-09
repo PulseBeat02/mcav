@@ -24,7 +24,7 @@ final class Mcv2Oracle {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  private static int rgb8(final double value) {
+  private static int roundedChannel(final double value) {
     return (int) Math.min(255, Math.max(0, Math.floor(value + 0.5)));
   }
 
@@ -37,23 +37,27 @@ final class Mcv2Oracle {
     final int column,
     final int row
   ) {
-    final double tx = Math.min(grid - 1, Math.max(0, ((column + 0.5) * grid) / size - 0.5));
-    final double ty = Math.min(grid - 1, Math.max(0, ((row + 0.5) * grid) / size - 0.5));
-    final int x0 = (int) tx;
-    final int y0 = (int) ty;
-    final int x1 = Math.min(x0 + 1, grid - 1);
-    final int y1 = Math.min(y0 + 1, grid - 1);
-    final double fx = tx - x0;
-    final double fy = ty - y0;
+    final double positionX = Math.min(grid - 1, Math.max(0, ((column + 0.5) * grid) / size - 0.5));
+    final double positionY = Math.min(grid - 1, Math.max(0, ((row + 0.5) * grid) / size - 0.5));
+    final int lowerX = (int) positionX;
+    final int lowerY = (int) positionY;
+    final int upperX = Math.min(lowerX + 1, grid - 1);
+    final int upperY = Math.min(lowerY + 1, grid - 1);
+    final double fractionX = positionX - lowerX;
+    final double fractionY = positionY - lowerY;
     return (
-      (1 - fy) * ((1 - fx) * nodes[offset + (y0 * grid + x0) * stride] + fx * nodes[offset + (y0 * grid + x1) * stride]) +
-      fy * ((1 - fx) * nodes[offset + (y1 * grid + x0) * stride] + fx * nodes[offset + (y1 * grid + x1) * stride])
+      (1 - fractionY) *
+        ((1 - fractionX) * nodes[offset + (lowerY * grid + lowerX) * stride] +
+          fractionX * nodes[offset + (lowerY * grid + upperX) * stride]) +
+      fractionY *
+        ((1 - fractionX) * nodes[offset + (upperY * grid + lowerX) * stride] +
+          fractionX * nodes[offset + (upperY * grid + upperX) * stride])
     );
   }
 
   static void predicted(final int[] prediction, final int size, final int[] out) {
     for (int sample = 0; sample < size * size * 3; sample++) {
-      out[sample] = rgb8(prediction[sample]);
+      out[sample] = roundedChannel(prediction[sample]);
     }
   }
 
@@ -69,9 +73,9 @@ final class Mcv2Oracle {
       for (int column = 0; column < size; column++) {
         final double luma = interpolate(nodes, 0, 1, 4, size, column, row);
         final int at = (row * size + column) * 3;
-        out[at] = rgb8(prediction[at] + step * luma);
-        out[at + 1] = rgb8(prediction[at + 1] + step * luma);
-        out[at + 2] = rgb8(prediction[at + 2] + step * luma);
+        out[at] = roundedChannel(prediction[at] + step * luma);
+        out[at + 1] = roundedChannel(prediction[at + 1] + step * luma);
+        out[at + 2] = roundedChannel(prediction[at + 2] + step * luma);
       }
     }
   }

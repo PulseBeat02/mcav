@@ -167,8 +167,8 @@ public final class Mcv2Trees {
     return Node.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[] { (byte) red, (byte) green, (byte) blue });
   }
 
-  public static Node motion(final int dx, final int dy) {
-    return Node.leaf(Mcv2Decoder.MODE_MOTION, 0, new byte[] { (byte) dx, (byte) dy });
+  public static Node motion(final int motionX, final int motionY) {
+    return Node.leaf(Mcv2Decoder.MODE_MOTION, 0, new byte[] { (byte) motionX, (byte) motionY });
   }
 
   static Node split(final Node node) {
