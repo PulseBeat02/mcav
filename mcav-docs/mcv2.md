@@ -1369,14 +1369,15 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 
   // call on the main thread, in onEnable
   public static Mcv2PackServer setUpMcv2(final Path dataFolder) {
-    MCV2.Pool.setSharedThreads(0); // the threads every MCV2 encoder shares; 0 is half the processors
-    MCV2.installNatives(dataFolder.resolve("natives"), "auto"); // or "off" for the Java kernels only
+    MCV2.Pool.setSharedThreads(0);
+    MCV2.installNatives(dataFolder.resolve("natives"), "auto");
 
     final Path packFolder = dataFolder.resolve("mcv2-pack");
+    final boolean debugView = false;
     final Mcv2PackServer packs = new Mcv2PackServer(
       packFolder,
-      PackHosting::injector, // or zip -> PackHosting.http(zip, host, port), or PackHosting::website
-      false, // the debug view
+      PackHosting::injector,
+      debugView,
       player -> player.sendMessage("Load the pack to see the video at its full resolution"),
       player -> player.sendMessage("Without the pack, you see the dithered picture")
     );
@@ -1386,16 +1387,17 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 ```
 
 - **`MCV2.Pool`** is the one encoder budget of the server. Every MCV2 encoder uses `MCV2.Pool.shared()`, so screens
-  share the threads instead of each taking the machine. Half the processors is the default; what that buys is in
-  [What It Costs to Encode](#what-it-costs-to-encode).
+  share the threads instead of each taking the machine. `setSharedThreads(0)` keeps the default, half the processors;
+  what that buys is in [What It Costs to Encode](#what-it-costs-to-encode).
 - **`MCV2.installNatives`** gives the native kernels a folder to extract their library into; `MCV2.describeNatives()`
   returns the line to log, such as `native avx2 (linux-x86_64)`. Use your data folder, not a temporary folder, which
   hosted servers often mount without execution. Without a library for the platform, the Java kernels encode the same
-  stream.
+  stream, and the mode `"off"` instead of `"auto"` turns the native kernels off.
 - **`Mcv2PackServer`** builds and hosts the one resource pack that decodes every MCV2 screen of your plugin, offers it
   to the viewers, and follows who loaded it. Call `shutdown()` in `onDisable`. The injector hosting serves the pack on
-  the Minecraft port and doesn't work behind a proxy such as Velocity; see
-  [hosting resource packs](bukkit/resourcepack.md#hosting-resource-packs).
+  the Minecraft port and doesn't work behind a proxy such as Velocity; `zip -> PackHosting.http(zip, host, port)`
+  serves it from an HTTP server on a port of its own, and `PackHosting::website` uploads it to mc-packs.net (see
+  [hosting resource packs](bukkit/resourcepack.md#hosting-resource-packs)).
 
 #### Showing a Screen
 
@@ -1437,9 +1439,9 @@ import org.bukkit.entity.ItemFrame;
       .video(1920, 1080)
       .settings(MCV2.Settings.DEFAULT)
       .build();
-    final Mcv2PackServer.Lease lease = packs.open(requested); // throws IllegalStateException when every slot plays
+    final Mcv2PackServer.Lease lease = packs.open(requested);
     final Mcv2Configuration configuration = lease.getConfiguration();
-    final DitherAlgorithm fallback = DitherAlgorithm.filterLite(); // for the viewers without the pack
+    final DitherAlgorithm fallback = DitherAlgorithm.filterLite();
     final Mcv2Result result = new Mcv2Result(configuration, packs.getViewers(), fallback);
     try {
       result.start();
@@ -1458,7 +1460,7 @@ import org.bukkit.entity.ItemFrame;
 When the video is over, call `release()` on the result on the main thread, which stops the encoder, removes the page
 frames and clears the dithered maps, and then `close()` on the lease, which gives the screen's slot back to the pack for
 the next screen of its size. Keep the lease for that: `release()` doesn't free the slot, and once all 8 slots are taken
-`open` throws.
+`open` throws an `IllegalStateException`.
 
 `Mcv2Result` resizes every frame to the configured video size and encodes the newest one on the shared budget; frames
 that arrive while it works replace each other, so a slow encoder shows fewer frames instead of falling behind. Viewers
@@ -1501,9 +1503,9 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2FileEncoder;
     final MCV2.Pool budget = MCV2.Pool.shared();
     try (
       Mcv2FileEncoder.FrameReader frames = Mcv2FileEncoder.ffmpeg(video, 1920, 1080);
-      OutputStream out = new BufferedOutputStream(Files.newOutputStream(stream))
+      OutputStream output = new BufferedOutputStream(Files.newOutputStream(stream))
     ) {
-      return Mcv2FileEncoder.encode(frames, 1920, 1080, MCV2.Settings.DEFAULT, budget, out, frame -> {});
+      return Mcv2FileEncoder.encode(frames, 1920, 1080, MCV2.Settings.DEFAULT, budget, output, frame -> {});
     }
   }
 ```
