@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""V3 fixture coverage, archive framing and Java-owned fixture preservation."""
+"""Version 3 fixture coverage, archive framing and Java-owned fixture preservation."""
 
 import hashlib
 import json
