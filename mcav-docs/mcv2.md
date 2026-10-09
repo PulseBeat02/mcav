@@ -1152,7 +1152,7 @@ worth the most on the proxy, which is no surprise: most of a video is the same a
 
 Every rendered frame with an MCV2 screen in view runs the resource pack's post chain, so this is a cost every
 player pays, whether or not their frame brings new video. I measured it pass by pass with GPU timer queries on an
-Intel UHD 630, the integrated GPU of a 2018 desktop processor, running the pack's shaders outside the game on 1080p
+Intel UHD 630, the integrated GPU of a 2017 desktop processor, running the pack's shaders outside the game on 1080p
 streams; the times are the mean GPU time per rendered frame:
 
 | Rendered frame | Minecraft proxy | Minecraft gameplay |
