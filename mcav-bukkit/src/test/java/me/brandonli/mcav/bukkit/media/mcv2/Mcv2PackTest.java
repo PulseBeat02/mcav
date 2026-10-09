@@ -155,12 +155,16 @@ final class Mcv2PackTest {
     assertEquals("mcav:post/s0/mcv2_bytes", passes.get(0).getAsJsonObject().get("fragment_shader").getAsString());
     assertEquals("mcav:post/s0/mcv2_screen", passes.get(10).getAsJsonObject().get("fragment_shader").getAsString());
     assertEquals("mcav:post/mcv2_outline", passes.get(12).getAsJsonObject().get("fragment_shader").getAsString());
+    final String licenseHeader = Files.readString(Path.of("../HEADER"), StandardCharsets.UTF_8);
     for (final String name : entries.keySet()) {
       if (name.startsWith("assets/mcav/shaders/post/")) {
         final String stub = entries.get(name);
-        assertTrue(stub.startsWith("#version 330\n#extension GL_ARB_separate_shader_objects : require\n#define MCV2_PASS_"), name);
+        assertTrue(
+          stub.startsWith(licenseHeader + "\n#version 330\n#extension GL_ARB_separate_shader_objects : require\n#define MCV2_PASS_"),
+          name
+        );
         assertTrue(stub.endsWith("#include <mcav:mcv2.glsl>\n"), name);
-        assertEquals(name.contains("/s0/") ? 6L : 5L, stub.lines().count(), name);
+        assertEquals(name.contains("/s0/") ? 24L : 23L, stub.lines().count(), name);
         assertFalse(stub.contains("void "), name);
       }
     }
