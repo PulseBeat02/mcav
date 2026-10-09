@@ -89,7 +89,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
 
-  private static final double NANOS_PER_SECOND = 1e9;
+  private static final double NANOSECONDS_PER_SECOND = 1e9;
 
   /** A stream file frames each frame with its length, a little-endian 32-bit word. */
   private static final int LENGTH_BYTES = Integer.BYTES;
@@ -485,7 +485,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
           result.frames(),
           result.keyframes(),
           target,
-          (System.nanoTime() - started) / NANOS_PER_SECOND,
+          (System.nanoTime() - started) / NANOSECONDS_PER_SECOND,
           result.millisecondsPerFrame()
         )
       )
