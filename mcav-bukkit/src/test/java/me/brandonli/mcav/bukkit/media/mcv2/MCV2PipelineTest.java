@@ -207,7 +207,6 @@ final class MCV2PipelineTest {
     final MCV2 encoder = new MCV2(Settings.DEFAULT, POOL, 2, true);
     final MCV2.Pending frame = encoder.begin(Mcv2Pictures.scene(64, 64, 0, 2), 64, 64, 0);
     final MCV2.Pending next = encoder.begin(Mcv2Pictures.scene(64, 64, 1, 2), 64, 64, 1);
-    // the picture the search assembled no longer is the one its bytes decode to
     final var picture = MCV2.Pending.class.getDeclaredField("picture");
     picture.setAccessible(true);
     ((byte[]) picture.get(frame))[0] ^= 1;
@@ -259,7 +258,6 @@ final class MCV2PipelineTest {
     }
     keyframes.add(encoder.finish(frames.get(4)).getStats().keyframe());
     assertEquals(List.of(true, false, false, true, false), keyframes);
-    // a frame in flight says what it is before it is verified
     assertTrue(frames.get(3).isKeyframe());
     assertFalse(frames.get(2).isKeyframe());
     final MCV2.Stats last = encoder.getStats();

@@ -178,7 +178,6 @@ final class Mcv2ResultTest {
       this.server.runTasks();
       assertTrue(result.applyFilter(frame, this.metadata));
       awaitFrames(result, 1);
-      // the next frame, of the same size, is a P frame
       result.applyFilter(Images.solid(64, 32, 0xFF336698), this.metadata);
       awaitFrames(result, 2);
       final Mcv2Result.Statistics statistics = result.getStatistics();
@@ -190,7 +189,6 @@ final class Mcv2ResultTest {
       final List<Packet<?>> packets = this.server.getSentPackets(WITH_PACK);
       assertEquals(500, MapPackets.unbundle(packets.getLast()).getFirst().mapId().id());
       assertSame(channel, result.getChannel());
-      // the listener heard both frames sent, a keyframe first
       assertEquals(2, heard.size());
       assertEquals(statistics.getBytes(), heard.getFirst().length + heard.getLast().length);
     } finally {
@@ -262,7 +260,6 @@ final class Mcv2ResultTest {
     final ImageBuffer tall = Images.solid(64, 16, 0xFF000000);
     result.applyFilter(tall, this.metadata);
     assertEquals(32, tall.getHeight());
-    // another width alone is another size too
     final ImageBuffer wider = Images.solid(128, 32, 0xFF000000);
     result.applyFilter(wider, this.metadata);
     assertEquals(64, wider.getWidth());
@@ -312,21 +309,18 @@ final class Mcv2ResultTest {
       .ditherIntoBytes(any());
     final Mcv2Result result = this.result(this.configuration, this.algorithm);
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
-    // the frame is handed over and the video goes on while it is dithered; the frames meanwhile are left out
     assertTrue(result.applyFilter(frame, this.metadata));
     assertTrue(dithering.await(5, TimeUnit.SECONDS));
     assertTrue(result.applyFilter(frame, this.metadata));
     assertTrue(result.applyFilter(frame, this.metadata));
     finish.countDown();
     verify(this.algorithm, timeout(5000).times(1)).ditherIntoBytes(any());
-    // once the dithering is done, the next frame is dithered again
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
     while (Mockito.mockingDetails(this.algorithm).getInvocations().size() < 2 && System.nanoTime() < deadline) {
       result.applyFilter(frame, this.metadata);
       Thread.sleep(10);
     }
     verify(this.algorithm, Mockito.atLeast(2)).ditherIntoBytes(any());
-    // a released result dithers nothing more
     result.release();
     clearInvocations(this.algorithm);
     result.applyFilter(frame, this.metadata);
@@ -383,7 +377,6 @@ final class Mcv2ResultTest {
   @Test
   void stopsWaitingOnceReleasedOrInterrupted() throws InterruptedException {
     final Mcv2Result result = this.result(this.configuration, null);
-    // not started: nothing to wait for
     assertNull(result.take());
     result.start();
     final Thread waiter = new Thread(() -> result.encodeLoop(mock(MCV2.class)));
@@ -392,7 +385,6 @@ final class Mcv2ResultTest {
     waiter.join(TimeUnit.SECONDS.toMillis(10));
     assertTrue(!waiter.isAlive());
     result.release();
-    // a frame handed over after the release is never encoded
     assertNull(result.take());
   }
 
@@ -512,7 +504,6 @@ final class Mcv2ResultTest {
       clock::get,
       Runnable::run
     );
-    // the owner offers a 32x16 screen: its own channel and page frames
     final Mcv2Screen smallScreen = mock(Mcv2Screen.class);
     when(smallScreen.anchors()).thenReturn(List.of());
     final List<Mcv2Configuration> resized = new ArrayList<>();
@@ -521,7 +512,6 @@ final class Mcv2ResultTest {
       return new Mcv2Channel(configuration, this.viewers, configuration.getVideoWidth() == 32 ? smallScreen : this.screen);
     });
     result.pace();
-    // an encode takes 100 ms at 64x32 and a quarter of that at 32x16
     final AtomicLong fullNanos = new AtomicLong(TimeUnit.MILLISECONDS.toNanos(5));
     final List<Integer> widths = new ArrayList<>();
     final MCV2 encoder = mock(MCV2.class);
@@ -546,7 +536,6 @@ final class Mcv2ResultTest {
     assertEquals(1, resized.size());
     assertEquals(32, resized.getFirst().getVideoWidth());
     assertEquals(16, result.getConfiguration().getVideoHeight());
-    // the viewer is shown the smaller screen, and the frames are encoded at its size
     result.applyFilter(Images.solid(64, 32, 0xFF336699), this.metadata);
     this.server.runTasks();
     widths.clear();
@@ -559,7 +548,6 @@ final class Mcv2ResultTest {
     this.server.runTasks();
     verify(smallScreen).remove();
     assertEquals(64, result.getConfiguration().getVideoWidth());
-    // bringing the screen in line again changes nothing, nor does it once the result is released
     result.sync();
     result.release();
     result.sync();
@@ -792,15 +780,12 @@ final class Mcv2ResultTest {
     );
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     result.start();
-    // the first frame is dithered for both viewers, so both have the wall's map
     result.applyFilter(frame, this.metadata);
     final int sent = this.server.getSentPackets(WITHOUT).size();
     result.release();
-    // releasing clears it: one more bundle, of map 100's transparent colours
     final List<Packet<?>> cleared = this.server.getSentPackets(WITHOUT);
     assertEquals(sent + 1, cleared.size());
     MapPackets.assertMapPacket(MapPackets.unbundle(cleared.getLast()).getFirst(), 100, 0, 0, 128, 128, new byte[128 * 128]);
-    // a result started again dithers again
     result.start();
     clearInvocations(this.algorithm);
     result.applyFilter(frame, this.metadata);
@@ -820,7 +805,6 @@ final class Mcv2ResultTest {
       Runnable::run
     );
     result.start();
-    // the first frame dithers for both and shows the screen to the viewer with the pack, who then decodes the second
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
@@ -929,10 +913,8 @@ final class Mcv2ResultTest {
     result.applyFilter(frame, this.metadata);
     assertTrue(encoding.await(5, TimeUnit.SECONDS));
     result.release();
-    // the encode ran to its end before release returned, and the sender stopped too
     assertEquals(Set.of(), threads("mcav-mcv2-screen", before));
     assertEquals(Set.of(), threads("mcav-mcv2-sender", before));
-    // the dithering thread ends once its executor is shut down
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
     while (!threads("mcav-mcv2-dither", before).isEmpty() && System.nanoTime() < deadline) {
       Thread.sleep(10);
@@ -1001,7 +983,6 @@ final class Mcv2ResultTest {
     when(ELSEWHERE.getUID()).thenReturn(UUID.fromString("00000000-0000-0000-0000-00000000b0b0"));
     final UUID far = UUID.fromString("00000000-0000-0000-0000-000000000043");
     final UUID otherWorld = UUID.fromString("00000000-0000-0000-0000-000000000044");
-    // the viewer without the pack stands at the wall, another 400 blocks from it, a third in another world
     final AtomicReference<Location> farPosition = new AtomicReference<>(new Location(WORLD, 400, 64, 0));
     seesSixChunksFrom(Objects.requireNonNull(Bukkit.getPlayer(WITHOUT)), new AtomicReference<>(new Location(WORLD, 0, 64, 5)));
     seesSixChunksFrom(this.server.addPlayer(far), farPosition);
@@ -1054,7 +1035,6 @@ final class Mcv2ResultTest {
     assertTrue(this.server.getSentPackets(WITH_PACK).size() > withPack, "the viewer with the pack is shown the dithered maps");
     assertEquals(List.of(), this.server.getSentPackets(far), "a viewer 400 blocks from the wall cannot see it");
     assertEquals(List.of(), this.server.getSentPackets(otherWorld), "nor one in another world");
-    // one who comes near meanwhile is shown the maps as soon as the distances are measured again
     farPosition.set(new Location(WORLD, 0, 64, 5));
     this.server.runTasks();
     this.play(result, clock, encoder, frame, 1);
@@ -1283,7 +1263,6 @@ final class Mcv2ResultTest {
     drainer.start();
     drainer.join(TimeUnit.SECONDS.toMillis(10));
     assertFalse(drainer.isAlive(), "the failed verification stops the screen");
-    // the failure stops the screen's thread too: no later frame begins, and nothing was sent
     result.applyFilter(frame, this.metadata);
     result.applyFilter(frame, this.metadata);
     verify(made.getFirst(), Mockito.after(500).times(1)).begin(any(), anyInt(), anyInt(), anyLong());
@@ -1385,7 +1364,6 @@ final class Mcv2ResultTest {
     assertEquals(1, made.size());
     assertEquals(List.of(Settings.FAST), switched);
     verify(made.getFirst(), Mockito.atLeast(150)).encode(any(), anyInt(), anyInt(), anyLong());
-    // Once the budget frees, the same encoder returns to DEFAULT.
     encodeNanos.set(TimeUnit.MILLISECONDS.toNanos(5));
     this.playSwitching(result, clock, encoder, frame, 30 * 60);
     assertEquals(2, changes.size());
@@ -1511,7 +1489,6 @@ final class Mcv2ResultTest {
     try (final LogCapture logs = LogCapture.capture(Mcv2Result.class)) {
       result.start();
       result.applyFilter(Images.solid(64, 32, 0xFF336699), this.metadata);
-      // shows the screen to the viewer with the pack: the next frame is sent, and the listener hears it
       this.server.runTasks();
       final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
       for (int shade = 0; hasPipelineThreads(before) && System.nanoTime() < deadline; shade++) {

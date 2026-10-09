@@ -83,8 +83,6 @@ final class MCV2PoolTest {
     try (final Pool pool = new Pool(2)) {
       final Set<Thread> seen = ConcurrentHashMap.newKeySet();
       final AtomicLong total = new AtomicLong();
-      // three encodes at once, each waiting for the parallel loops of its steps, whose items run no loop of their own,
-      // the way an encoder's workers do
       final List<Thread> callers = new ArrayList<>();
       for (int caller = 0; caller < 3; caller++) {
         callers.add(
@@ -116,7 +114,6 @@ final class MCV2PoolTest {
         assertTrue(!caller.isAlive());
       }
       assertEquals(3L * 5 * 16 * 199_990_000L, total.get());
-      // every item ran on one of the budget's two threads, none on a caller or a spare thread
       assertTrue(seen.size() <= 2, "threads used: " + seen.size());
       for (final Thread thread : seen) {
         assertTrue(thread.getName().startsWith("mcav-mcv2-encoder-"), thread.getName());
@@ -213,7 +210,6 @@ final class MCV2PoolTest {
       );
       assertInstanceOf(IOException.class, wrapped.getCause());
       assertTrue(isOrWraps(wrapped.getCause(), checked));
-      // a thread that dies outside any task is logged; the pool starts another
       final ForkJoinPool workers = (ForkJoinPool) Mcv2Internals.field(Pool.class, pool, "pool");
       workers.getUncaughtExceptionHandler().uncaughtException(Thread.currentThread(), new IllegalStateException("outside a task"));
       assertThrows(NullPointerException.class, () -> pool.run(null));
@@ -246,7 +242,6 @@ final class MCV2PoolTest {
       caller.join(TimeUnit.SECONDS.toMillis(30));
       assertTrue(!caller.isAlive());
       assertInstanceOf(InterruptedException.class, thrown.get());
-      // the task is cancelled, which interrupts the budget's thread that runs it
       assertTrue(cancelled.await(30, TimeUnit.SECONDS));
     }
   }
@@ -285,7 +280,6 @@ final class MCV2PoolTest {
       final Pool shared = Pool.shared();
       assertSame(shared, Pool.shared());
       assertEquals(3, shared.getThreads());
-      // the same size keeps the budget; another size replaces it for the encoders created next
       Pool.setSharedThreads(3);
       assertSame(shared, Pool.shared());
       Pool.setSharedThreads(2);

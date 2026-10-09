@@ -142,7 +142,6 @@ final class Mcv2ChannelTest {
     assertFalse(channel.takeKeyframeRequest());
     assertEquals(Set.of(WITHOUT, OFFLINE), channel.update());
     assertEquals(Set.of(LOADED), channel.getRecipients());
-    // a viewer whose pack is gone is shown the dithered maps again, and would be shown the screen anew
     when(this.viewers.isLoaded(LOADED)).thenReturn(false);
     assertEquals(Set.of(LOADED, WITHOUT, OFFLINE), channel.update());
     assertEquals(Set.of(), channel.getRecipients());
@@ -271,7 +270,6 @@ final class Mcv2ChannelTest {
       .runTask(any(Plugin.class), any(Runnable.class));
     channel.update();
     hides.forEach(Runnable::run);
-    // each keeps the screen's team otherwise
     verify(this.screen).hide(this.player);
     verify(this.screen).hide(secondPlayer);
   }
@@ -342,7 +340,6 @@ final class Mcv2ChannelTest {
     channel.update();
     verify(this.screen).show(second);
     channel.send(frame(0, 0, true));
-    // the second viewer's connection writes everything at once; the first's writes nothing
     this.server.completeWrites(other);
     channel.send(frame(1, 0, false));
     this.server.completeWrites(other);
@@ -425,7 +422,6 @@ final class Mcv2ChannelTest {
     assertEquals(0, channel.getLinks().get(LOADED).getBacklog());
     assertEquals(1, channel.getLinks().get(LOADED).getSent());
     assertEquals(0, this.server.completeWrites(LOADED));
-    // a viewer whose pack is gone loses its link
     when(this.viewers.isLoaded(LOADED)).thenReturn(false);
     channel.update();
     assertEquals(Map.of(), channel.getLinks());
@@ -585,7 +581,6 @@ final class Mcv2ChannelTest {
     channel.takeKeyframeRequest();
     assertTrue(channel.send(keyframe()) > 0);
     assertEquals(List.of(), this.server.getSentPackets(LOADED), "400 blocks away with a view distance of 6 chunks");
-    // the viewer walks up to the wall: shown the screen anew, they start on a keyframe
     position.set(new Location(world, 0, 64, 4));
     this.tick(channel);
     assertTrue(channel.takeKeyframeRequest());

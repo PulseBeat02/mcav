@@ -136,7 +136,6 @@ final class MCV2FrameTest {
     assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[8 * 8 * 3], 8, 8, 5));
     assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[8 * 8 * 3], 8, 8, 4));
     assertThrows(IllegalArgumentException.class, () -> encoder.encode(new byte[8 * 8 * 3], 8, 8, 5 + 0x80000000L));
-    // ids wrap around
     final MCV2 wrapping = encoder(Settings.DEFAULT);
     wrapping.encode(new byte[8 * 8 * 3], 8, 8, 0xFFFFFFFFL);
     wrapping.encode(new byte[8 * 8 * 3], 8, 8, 0);
@@ -169,7 +168,6 @@ final class MCV2FrameTest {
   @Test
   void startsAgainWithAKeyframeWhenPredictionCannotWork() {
     final byte[] picture = texture(64, 32, 2);
-    // the key interval
     final MCV2 interval = encoder(new Settings(72, false));
     for (int id = 0; id < 120; id++) {
       interval.encode(picture, 64, 32, id);
@@ -177,7 +175,6 @@ final class MCV2FrameTest {
     }
     interval.encode(picture, 64, 32, 120);
     assertTrue(interval.getStats().keyframe());
-    // a new width or height
     final MCV2 wider = encoder(Settings.DEFAULT);
     wider.encode(picture, 64, 32, 0);
     assertTrue(keyframeAfter(wider, texture(32, 64, 2), 32, 64));
@@ -202,7 +199,6 @@ final class MCV2FrameTest {
     final byte[] picture = texture(40, 20, 5);
     assertArrayEquals(client.decode(encoder.encode(picture, 40, 20, 0)), encoder.getReference());
     assertArrayEquals(client.decode(encoder.encode(panned(picture, 40, 20, 3), 40, 20, 1)), encoder.getReference());
-    // a single pixel
     final MCV2 tiny = encoder(Settings.DEFAULT);
     assertArrayEquals(new Client().decode(tiny.encode(new byte[] { 1, 2, 3 }, 1, 1, 0)), tiny.getReference());
   }
@@ -229,7 +225,6 @@ final class MCV2FrameTest {
     // noise that changes from frame to frame but no movement keeps the profile's lambda, which is all a search without
     // the motion's lambda uses
     assertEquals(72, play(settings, 64, 64, 4, 0).getStats().lambda());
-    // a fast pan raises it
     final MCV2 pan = play(settings, 100, 70, 6, 9);
     assertTrue(pan.getStats().lambda() > 72);
   }
@@ -258,7 +253,6 @@ final class MCV2FrameTest {
     final byte[] next = encoder.encode(scene(96, 32, 3, 0), 96, 32, 3);
     assertArrayEquals(client.decode(next), encoder.getReference());
     assertFalse(encoder.getStats().keyframe());
-    // the same width and another height is another size too
     final byte[] taller = encoder.encode(scene(96, 48, 4, 0), 96, 48, 4);
     assertArrayEquals(client.decode(taller), encoder.getReference());
     assertTrue(encoder.getStats().keyframe());
@@ -288,7 +282,6 @@ final class MCV2FrameTest {
       assertEquals(MODE_SKIP, frame.getLeaf(leafIndex).mode());
     }
     assertArrayEquals(hurried.getReference(), client.decode(next));
-    // a budget no frame reaches changes nothing, and none is the default
     final MCV2 patient = new MCV2(Settings.DEFAULT, POOL, 2, true);
     patient.setFrameBudget(TimeUnit.HOURS.toNanos(1));
     final MCV2 unbounded = new MCV2(Settings.DEFAULT, POOL, 2, true);
@@ -341,13 +334,11 @@ final class MCV2FrameTest {
         assertArrayEquals(trivial.encode(picture, 96, 64, 0), actual, "bound " + bound);
       }
       assertEquals(72 << expected, Objects.requireNonNull(bounded.getStats()).lambda());
-      // the P frame after it: within the bound when some lambda gets it there, and decoded as the encoder chose it
       final Client client = new Client();
       client.decode(actual);
       final byte[] next = bounded.encode(noise(96, 64, 6), 96, 64, 1);
       assertArrayEquals(client.decode(next), bounded.getReference(), "bound " + bound);
     }
-    // no bound: every frame is searched once
     final MCV2 unbounded = new MCV2(Settings.DEFAULT, POOL, 2, false);
     unbounded.setFrameLimit(0);
     assertArrayEquals(keyframes[0], unbounded.encode(picture, 96, 64, 0));

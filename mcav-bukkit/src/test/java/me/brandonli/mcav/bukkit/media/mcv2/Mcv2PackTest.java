@@ -270,7 +270,6 @@ final class Mcv2PackTest {
       "Map colours 9 and another symbol are the same RGB",
       assertThrows(IllegalStateException.class, () -> Mcv2Pack.alphabet(clash)).getMessage()
     );
-    // the whole include of a short table: a comma after every entry but the last
     final String line = System.lineSeparator();
     assertEquals(
       "#ifndef MCAV_MCV2_ALPHABET_GLSL\n#define MCAV_MCV2_ALPHABET_GLSL\n\n" +

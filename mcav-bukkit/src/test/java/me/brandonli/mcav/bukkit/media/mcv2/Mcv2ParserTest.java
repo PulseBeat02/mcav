@@ -116,7 +116,6 @@ final class Mcv2ParserTest {
   void judgesTheLengthOfBytesThatStartLikeAFrame() {
     final byte[] magic = new byte[Integer.BYTES];
     Mcv2Decoder.putU32(magic, 0, Mcv2Decoder.MAGIC);
-    // the magic alone is a frame too short, not something else
     assertEquals("Invalid frame length", message(magic));
     // the shortest and the longest frames pass the length check and reach the header's
     assertEquals("Not an MCV2 version 3 frame", message(Arrays.copyOf(magic, Mcv2Decoder.HEADER_BYTES)));

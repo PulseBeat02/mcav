@@ -158,7 +158,6 @@ final class MCV2VerificationTest {
     encoder.encode(picture, 32, 32, 0);
     final MCV2.Pending pending = encoder.begin(picture, 32, 32, 1);
     assertFalse(pending.isKeyframe());
-    // Fault injection models an internal reference bookkeeping defect without exposing mutable pending state.
     final Field referenceId = MCV2.Pending.class.getDeclaredField("referenceId");
     referenceId.setAccessible(true);
     referenceId.setLong(pending, -1);

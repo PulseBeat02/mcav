@@ -90,7 +90,6 @@ final class TransportPagesTest {
     }
     assertEquals(expected.get("wire").getAsLong(), TransportPages.wireBytes(pages, false, TransportPages.PACKET_OVERHEAD));
     assertEquals(expected.get("wire_full").getAsLong(), TransportPages.wireBytes(pages, true, TransportPages.PACKET_OVERHEAD));
-    // every page reads back, and the pages reassemble the frame
     final PageAssembler assembler = new PageAssembler(7, bits);
     byte[] assembled = null;
     for (final byte[] page : pages) {

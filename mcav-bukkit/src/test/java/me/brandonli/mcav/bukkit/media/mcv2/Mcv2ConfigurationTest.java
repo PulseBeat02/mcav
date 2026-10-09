@@ -106,7 +106,6 @@ final class Mcv2ConfigurationTest {
       assertEquals(1000, smaller.getBacklogLimit());
       assertEquals(2000, smaller.getUnsentLimit());
       assertSame(budget, smaller.getEncoderPool());
-      // without a budget of its own, the copy uses the server's too
       assertSame(Pool.shared(), complete().build().withVideo(64, 64).getEncoderPool());
       assertThrows(IllegalArgumentException.class, () -> original.withVideo(0, 90));
       assertThrows(IllegalArgumentException.class, () -> original.withVideo(160, 0));
@@ -244,7 +243,6 @@ final class Mcv2ConfigurationTest {
 
   @Test
   void acceptsEveryValueAtTheEdgesOfItsRanges() {
-    // the smallest and the largest value of every range, each one step inside the values refused above
     assertEquals(0, complete().map(0).build().getMap());
     assertEquals(1, complete().columns(1).build().getColumns());
     // a side of 63 maps is 8064 pixels at its native size, so it plays a video the codec can take
@@ -262,7 +260,6 @@ final class Mcv2ConfigurationTest {
     assertEquals(Mcv2Configuration.MAX_STREAM_ID, complete().streamId(Mcv2Configuration.MAX_STREAM_ID).build().getStreamId());
     assertEquals(0, complete().backlogLimit(0).build().getBacklogLimit());
     assertEquals(0, complete().unsentLimit(0).build().getUnsentLimit());
-    // the page maps from 0, and up to the last int; the wall's maps up to the last int
     assertEquals(0, complete().pageSlots(4).pageMap(0).build().getPageMap());
     assertEquals(
       Integer.MAX_VALUE - 3,
@@ -287,7 +284,6 @@ final class Mcv2ConfigurationTest {
         .build()
         .getMap()
     );
-    // a copy at the smallest video size, and none below it
     final Mcv2Configuration configuration = complete().build();
     assertEquals(1, configuration.withVideo(1, 1).getVideoWidth());
     assertEquals(1, configuration.withVideo(1, 1).getVideoHeight());
@@ -307,11 +303,9 @@ final class Mcv2ConfigurationTest {
 
   @Test
   void refusesAWallWhoseNativeSizeIsLargerThanTheCodecTakes() {
-    // 33 maps are 4224 pixels at 128 a map
     final IllegalArgumentException wide = assertThrows(IllegalArgumentException.class, () -> complete().columns(33).build());
     assertEquals("A wall of 33 by 3 maps is 4224 by 384 pixels, more than the codec's 4096: set a smaller video size", wide.getMessage());
     assertThrows(IllegalArgumentException.class, () -> complete().rows(33).build());
-    // the same walls with a video size the codec takes, and the largest wall at its native size
     assertEquals(4096, complete().columns(33).video(4096, 0).build().getVideoWidth());
     assertEquals(4096, complete().rows(33).video(0, 4096).build().getVideoHeight());
     assertEquals(4096, complete().columns(32).rows(32).build().getVideoWidth());

@@ -247,16 +247,13 @@ final class Mcv2NativesTest {
     final Path folder = this.folder.resolve("created");
     final Path file = Natives.extract(folder, "library", NOT_A_LIBRARY, digest);
     assertArrayEquals(NOT_A_LIBRARY, Files.readAllBytes(file));
-    // a file already there with the library is kept as it is
     final FileTime longAgo = FileTime.fromMillis(0);
     Files.setLastModifiedTime(file, longAgo);
     assertEquals(file, Natives.extract(folder, "library", NOT_A_LIBRARY, digest));
     assertEquals(longAgo, Files.getLastModifiedTime(file));
-    // anything else is replaced
     Files.writeString(file, "changed");
     Natives.extract(folder, "library", NOT_A_LIBRARY, digest);
     assertArrayEquals(NOT_A_LIBRARY, Files.readAllBytes(file));
-    // a folder in the way stops it, and leaves no partial file behind
     final Path taken = Files.createDirectories(folder.resolve("taken"));
     Files.writeString(taken.resolve("inside"), "keeps the folder non-empty");
     assertThrows(IOException.class, () -> Natives.extract(folder, "taken", NOT_A_LIBRARY, digest));
@@ -418,7 +415,6 @@ final class Mcv2NativesTest {
     );
     assertTrue(unversioned.failed());
     assertTrue(unversioned.description().startsWith("Java, the library could not be bound"));
-    // a library of another interface than the bindings are written for
     final Resolution other = Natives.bind(library, "here", null, Natives.ABI + 1);
     assertTrue(other.failed());
     assertEquals("Java, the library's interface " + Natives.ABI + " is not " + (Natives.ABI + 1), other.description());
@@ -441,17 +437,14 @@ final class Mcv2NativesTest {
       assertTrue(MCV2.describeNatives().startsWith("Java, "), MCV2.describeNatives());
       assertSame(NativeTesting.javaFactory(), NativeTesting.factory(Natives.resolved()));
     }
-    // decided once, until the next install
     assertSame(Natives.resolved(), Natives.resolved());
     Natives.install(this.folder, MCV2.NATIVE_OFF);
     assertEquals("Java, turned off by mcv2.native=off", MCV2.describeNatives());
     assertSame(NativeTesting.javaFactory(), NativeTesting.factory(Natives.resolved()));
-    // the system property wins over the configuration
     System.setProperty(MCV2.NATIVE_PROPERTY, MCV2.NATIVE_OFF);
     Natives.install(this.folder, MCV2.NATIVE_AUTO);
     assertEquals("Java, turned off by mcv2.native=off", MCV2.describeNatives());
     System.clearProperty(MCV2.NATIVE_PROPERTY);
-    // where a library should load, a folder it cannot be extracted into is a failure, logged, and Java runs
     Natives.install(Files.writeString(this.folder.resolve("a file"), "in the way"), MCV2.NATIVE_AUTO);
     assertTrue(MCV2.describeNatives().startsWith("Java, "));
     assertEquals(NativeTesting.expected(), Natives.resolved().failed());

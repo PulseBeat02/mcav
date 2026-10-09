@@ -106,7 +106,6 @@ final class Mcv2FileEncoderTest {
         .mapToLong(frame -> frame.length)
         .sum()
     );
-    // the same frames, encoded one by one outside any budget, give the same bytes
     final MCV2 alone = new MCV2(Settings.DEFAULT, ForkJoinPool.commonPool(), 1, false);
     alone.setFrameLimit(TransportPages.capacity());
     try (final Mcv2FileEncoder.FrameReader reader = Mcv2FileEncoder.ffmpeg(video, WIDTH, HEIGHT)) {
