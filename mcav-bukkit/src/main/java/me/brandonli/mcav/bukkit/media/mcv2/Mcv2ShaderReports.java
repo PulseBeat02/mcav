@@ -62,7 +62,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
 
   private static final int SHADER_PACK_UNKNOWN = 2;
 
-  private static final long BURST_NANOS = (BURST - 1) * INTERVAL_NANOS;
+  private static final long BURST_NANOSECONDS = (BURST - 1) * INTERVAL_NANOS;
 
   private final LongSupplier clock;
 
@@ -83,8 +83,8 @@ final class Mcv2ShaderReports implements PluginMessageListener {
       LOGGER.debug(TOO_LONG, message.length, name, MAX_BYTES);
       return;
     }
-    final UUID uuid = player.getUniqueId();
-    if (!this.admit(uuid)) {
+    final UUID viewerId = player.getUniqueId();
+    if (!this.admit(viewerId)) {
       LOGGER.debug(TOO_OFTEN, name);
       return;
     }
@@ -92,7 +92,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
     if (report == null) {
       return;
     }
-    final Report before = this.reports.put(uuid, report);
+    final Report before = this.reports.put(viewerId, report);
     if (!Objects.equals(before, report)) {
       LOGGER.info(REPORTED, name, report.describe(), report.blocksDecoding() ? "the dithered maps" : "the video");
     }
@@ -102,7 +102,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
     final long now = this.clock.getAsLong();
     final Long room = this.allowances.get(player);
     final long next = room == null || room - now < 0 ? now : room;
-    if (next - now > BURST_NANOS) {
+    if (next - now > BURST_NANOSECONDS) {
       return false;
     }
     this.allowances.put(player, next + INTERVAL_NANOS);

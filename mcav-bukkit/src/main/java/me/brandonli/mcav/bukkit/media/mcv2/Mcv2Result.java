@@ -77,7 +77,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A {@link Mcv2Pacer} keeps the screen within what its budget sustains: when the frames take longer than the video
  * gives them, it first searches less hard, down the preset ladder from the screen's settings
- * ({@code DEFAULT}, then {@code FAST}) on one encoder that switches without a keyframe; then it encodes fewer frames, down to {@link Mcv2Pacer#MIN_FPS} a second,
+ * ({@code DEFAULT}, then {@code FAST}) on one encoder that switches without a keyframe; then it encodes fewer frames, down to {@link Mcv2Pacer#MIN_FRAME_RATE} a second,
  * then shows a smaller video when the owner offers smaller sizes ({@link #setSmallerSizes}: each size has its own pack),
  * and when even that is too much, every viewer is shown the dithered maps, which need no encoder, until a later try
  * finds room again. Every step is logged, a step down as a warning, and handed to the
@@ -100,9 +100,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
   private static final long JOIN_SECONDS = 10;
 
   // Vanilla can initialize a map after its first snapshot; unchanged deltas cannot repair it.
-  private static final long FALLBACK_REFRESH_NANOS = TimeUnit.SECONDS.toNanos(4);
+  private static final long FALLBACK_REFRESH_NANOSECONDS = TimeUnit.SECONDS.toNanos(4);
 
-  private static final double NANOS_PER_MILLISECOND = 1e6;
+  private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
 
   private static final int LINK_COUNTS = 3;
 
@@ -120,7 +120,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private static final String SENDER_FAILED = "The MCV2 screen stops: verifying or sending a frame failed";
 
-  private static final double NANOS_PER_SECOND = 1e9;
+  private static final double NANOSECONDS_PER_SECOND = 1e9;
 
   // Above one so a frame arriving early is kept, below two so a pause cannot release a burst.
   private static final double FRAME_CREDIT_CAP = 1.5;
@@ -147,7 +147,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   private final LongSupplier clock;
 
-  private final double framesPerNano;
+  private final double framesPerNanosecond;
 
   private double frameCredit = FRAME_CREDIT_CAP;
 
@@ -213,7 +213,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   static final class Arrival {
 
-    private final byte[] rgb;
+    private final byte[] pictureBytes;
 
     private final int width;
 
@@ -223,8 +223,8 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
     private final Mcv2Pacer.Preset preset;
 
-    Arrival(final byte[] rgb, final int width, final int height, final long arrived, final Mcv2Pacer.Preset preset) {
-      this.rgb = rgb;
+    Arrival(final byte[] pictureBytes, final int width, final int height, final long arrived, final Mcv2Pacer.Preset preset) {
+      this.pictureBytes = pictureBytes;
       this.width = width;
       this.height = height;
       this.arrived = arrived;
@@ -400,7 +400,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     this.statistics = new Statistics();
     this.clock = clock;
     this.lastFallbackRefresh = clock.getAsLong();
-    this.framesPerNano = configuration.getMaxFrameRate() / NANOS_PER_SECOND;
+    this.framesPerNanosecond = configuration.getMaxFrameRate() / NANOSECONDS_PER_SECOND;
     this.ladder = ladder(configuration.getSettings());
     this.presets = presets(this.ladder);
     this.encoders = encoders;
@@ -630,9 +630,9 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     if (dithered != null && !others.isEmpty() && this.ditheringBusy.compareAndSet(false, true)) {
       // ImageBuffer replaces its pixel array, allowing asynchronous reads without a copy.
 
-      final int[] argb = data.getPixels();
+      final int[] packedColors = data.getPixels();
       try {
-        this.dithering.execute(() -> this.dither(dithered, argb, width, height));
+        this.dithering.execute(() -> this.dither(dithered, packedColors, width, height));
       } catch (final RejectedExecutionException released) {
         this.ditheringBusy.set(false);
       }
@@ -642,12 +642,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
 
   // A client decodes at most one frame per frame it draws, and a frame it misses breaks the P frames after it.
   boolean takeFrame(final long now) {
-    if (this.framesPerNano == 0) {
+    if (this.framesPerNanosecond == 0) {
       return true;
     }
     synchronized (this.lock) {
       if (this.lastFrame != Long.MIN_VALUE) {
-        this.frameCredit = Math.min(FRAME_CREDIT_CAP, this.frameCredit + (now - this.lastFrame) * this.framesPerNano);
+        this.frameCredit = Math.min(FRAME_CREDIT_CAP, this.frameCredit + (now - this.lastFrame) * this.framesPerNanosecond);
       }
       this.lastFrame = now;
       if (this.frameCredit < 1) {
@@ -658,11 +658,11 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  private void dither(final Fallback dithered, final int[] argb, final int width, final int height) {
-    try (final ImageBuffer frame = ImageBuffer.buffer(argb, width, height)) {
+  private void dither(final Fallback dithered, final int[] packedColors, final int width, final int height) {
+    try (final ImageBuffer frame = ImageBuffer.buffer(packedColors, width, height)) {
       final CompressedMapResult maps = dithered.result();
       final long now = this.clock.getAsLong();
-      if (now - this.lastFallbackRefresh >= FALLBACK_REFRESH_NANOS) {
+      if (now - this.lastFallbackRefresh >= FALLBACK_REFRESH_NANOSECONDS) {
         maps.refresh();
         this.lastFallbackRefresh = now;
       }
@@ -672,15 +672,15 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     }
   }
 
-  static byte[] rgb(final ByteBuffer bgr, final int pixels) {
-    final byte[] rgb = new byte[pixels * Mcv2Decoder.CHANNELS];
-    bgr.get(bgr.position(), rgb);
-    for (int at = 0; at < rgb.length; at += Mcv2Decoder.CHANNELS) {
-      final byte blue = rgb[at];
-      rgb[at] = rgb[at + 2];
-      rgb[at + 2] = blue;
+  static byte[] rgb(final ByteBuffer sourceBuffer, final int pixels) {
+    final byte[] pictureBytes = new byte[pixels * Mcv2Decoder.CHANNELS];
+    sourceBuffer.get(sourceBuffer.position(), pictureBytes);
+    for (int pixelOffset = 0; pixelOffset < pictureBytes.length; pixelOffset += Mcv2Decoder.CHANNELS) {
+      final byte blue = pictureBytes[pixelOffset];
+      pictureBytes[pixelOffset] = pictureBytes[pixelOffset + 2];
+      pictureBytes[pixelOffset + 2] = blue;
     }
-    return rgb;
+    return pictureBytes;
   }
 
   private long[] linkCounts() {
@@ -710,7 +710,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     event.behind = (int) (after[BEHIND] - before[BEHIND]);
     event.waiting = (int) (after[UNDECODABLE] - before[UNDECODABLE]);
     event.backlog = backlog;
-    event.fingerprint = Mcv2FrameEvent.fingerprint(delivery.source.rgb, delivery.source.width, delivery.source.height);
+    event.fingerprint = Mcv2FrameEvent.fingerprint(delivery.source.pictureBytes, delivery.source.width, delivery.source.height);
     event.commit();
   }
 
@@ -797,12 +797,12 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     final boolean isKeyframe;
     Delivery delivery = null;
     if (running == null) {
-      final byte[] frame = encoder.encode(arrival.rgb, width, height, frameId);
+      final byte[] frame = encoder.encode(arrival.pictureBytes, width, height, frameId);
       final MCV2.Stats stats = Preconditions.checkNotNull(encoder.getStats());
       isKeyframe = stats.keyframe();
       delivery = new Delivery(frame, stats, frameId, arrival);
     } else {
-      final MCV2.Pending pending = running.budget().run(() -> encoder.begin(arrival.rgb, width, height, frameId));
+      final MCV2.Pending pending = running.budget().run(() -> encoder.begin(arrival.pictureBytes, width, height, frameId));
       isKeyframe = pending.isKeyframe();
       // Count before handoff so drain cannot overlook a frame the sender already owns.
       synchronized (this.lock) {
@@ -815,7 +815,7 @@ public final class Mcv2Result implements FunctionalVideoFilter {
     synchronized (this.lock) {
       final Mcv2Pacer screenPacer = this.pacer;
       if (screenPacer != null) {
-        change = screenPacer.encoded((finished - started) / NANOS_PER_MILLISECOND, isKeyframe, finished);
+        change = screenPacer.encoded((finished - started) / NANOSECONDS_PER_MILLISECOND, isKeyframe, finished);
         if (change != null) {
           this.follow(change);
         }

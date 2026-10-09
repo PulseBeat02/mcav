@@ -381,17 +381,17 @@ public final class MCV2 {
   /**
    * Searches, writes and finishes one frame synchronously.
    *
-   * @param rgb row-major RGB24 source, exactly width times height times three bytes
+   * @param sourcePixels row-major RGB24 source, exactly width times height times three bytes
    * @param width picture width, 1 through 4096
    * @param height picture height, 1 through 4096
    * @param frameId unsigned 32-bit id strictly following the last id modulo 2^32
-   * @throws NullPointerException if rgb is null
+   * @throws NullPointerException if {@code sourcePixels} is null
    * @throws IllegalArgumentException if dimensions, input length or frame id are invalid
    * @throws IllegalStateException if the encoder stopped or pending frames prevent this operation
    * @return a complete version 3 frame
    */
-  public byte[] encode(final byte[] rgb, final int width, final int height, final long frameId) {
-    return this.finish(this.begin(rgb, width, height, frameId)).getData();
+  public byte[] encode(final byte[] sourcePixels, final int width, final int height, final long frameId) {
+    return this.finish(this.begin(sourcePixels, width, height, frameId)).getData();
   }
 
   /**
@@ -399,21 +399,21 @@ public final class MCV2 {
    * Calls to begin are serial; finish of the preceding frame may overlap one begin.
    * At most two unfinished frames may exist and they must finish in order.
    *
-   * @param rgb row-major RGB24 source, exactly width times height times three bytes
+   * @param sourcePixels row-major RGB24 source, exactly width times height times three bytes
    * @param width picture width, 1 through 4096
    * @param height picture height, 1 through 4096
    * @param frameId unsigned 32-bit id strictly following the last id modulo 2^32
-   * @throws NullPointerException if rgb is null
+   * @throws NullPointerException if {@code sourcePixels} is null
    * @throws IllegalArgumentException if dimensions, input length or frame id are invalid
    * @throws IllegalStateException if the encoder stopped or pending frames prevent this operation
    * @return the pending frame to finish exactly once
    */
-  public Pending begin(final byte[] rgb, final int width, final int height, final long frameId) {
+  public Pending begin(final byte[] sourcePixels, final int width, final int height, final long frameId) {
     Preconditions.checkState(!this.failed, STOPPED);
     Preconditions.checkState(this.older == null || this.older.finished, "Two frames are in flight already");
-    Preconditions.checkNotNull(rgb, "Picture must not be null");
+    Preconditions.checkNotNull(sourcePixels, "Picture must not be null");
     Preconditions.checkArgument(width >= 1 && width <= MAX_DIMENSION && height >= 1 && height <= MAX_DIMENSION, "Invalid dimensions");
-    Preconditions.checkArgument(rgb.length == width * height * CHANNELS, "Picture size does not match the dimensions");
+    Preconditions.checkArgument(sourcePixels.length == width * height * CHANNELS, "Picture size does not match the dimensions");
     Preconditions.checkArgument(frameId >= 0 && frameId <= MAX_U32, "Frame id must be an unsigned 32-bit value");
     Preconditions.checkArgument(this.lastFrameId < 0 || follows(frameId, this.lastFrameId), "Stale or ambiguous frame number");
     final long started = System.nanoTime();
@@ -446,7 +446,18 @@ public final class MCV2 {
       verifying == null ? NONE : verifying.predictFrom
     );
     final boolean[] before = keyframe ? NO_SPLITS : Preconditions.checkNotNull(this.splitBefore);
-    final FrameState frame = new FrameState(rgb, predictFrom, width, height, keyframe, fast, lambda, this.motion, buffers, picture);
+    final FrameState frame = new FrameState(
+      sourcePixels,
+      predictFrom,
+      width,
+      height,
+      keyframe,
+      fast,
+      lambda,
+      this.motion,
+      buffers,
+      picture
+    );
     SearchResult searched = this.search(frame, before, started, false);
     byte[] data = write(width, height, keyframe, searched.roots, frameId, predictsId);
     final int limit = this.frameLimit == 0 ? MAX_FRAME_BYTES : Math.min(this.frameLimit, MAX_FRAME_BYTES);
@@ -472,7 +483,7 @@ public final class MCV2 {
       lambda,
       System.nanoTime() - started
     );
-    this.motionLambda.observe(rgb, width, height, this.workers);
+    this.motionLambda.observe(sourcePixels, width, height, this.workers);
     this.reference = picture;
     this.motion = searched.motion;
     this.splitBefore = searched.splits;
@@ -591,14 +602,14 @@ public final class MCV2 {
       return Math.min(MAX_RAISE, Math.pow(motion / KNEE, EXPONENT));
     }
 
-    private void observe(final byte[] rgb, final int width, final int height, final Workers workers) {
+    private void observe(final byte[] sourcePixels, final int width, final int height, final Workers workers) {
       final int columns = (width + SAMPLING - 1) / SAMPLING;
       final int rows = (height + SAMPLING - 1) / SAMPLING;
       if (this.across.length != columns * rows) {
         this.across = new int[columns * rows];
         this.spare = new int[columns * rows];
       }
-      final int[] current = blurredLuma(rgb, width, height, workers, this.across, this.spare);
+      final int[] current = blurredLuma(sourcePixels, width, height, workers, this.across, this.spare);
       if (columns != this.columns || rows != this.rows) {
         this.motion = Double.NaN;
       } else {
@@ -615,7 +626,7 @@ public final class MCV2 {
     }
 
     private static int[] blurredLuma(
-      final byte[] rgb,
+      final byte[] sourcePixels,
       final int width,
       final int height,
       final Workers workers,
@@ -629,10 +640,10 @@ public final class MCV2 {
       workers.forEach(bands, band -> {
         for (int row = band * BAND_ROWS; row < Math.min(rows, (band + 1) * BAND_ROWS); row++) {
           final int line = row * SAMPLING * width;
-          int left = luma(rgb, line);
+          int left = luma(sourcePixels, line);
           int middle = left;
           for (int column = 0; column < columns; column++) {
-            final int right = column + 1 < columns ? luma(rgb, line + (column + 1) * SAMPLING) : middle;
+            final int right = column + 1 < columns ? luma(sourcePixels, line + (column + 1) * SAMPLING) : middle;
             across[row * columns + column] = left + middle + right;
             left = middle;
             middle = right;
@@ -642,19 +653,19 @@ public final class MCV2 {
       workers.forEach(bands, band -> {
         for (int row = band * BAND_ROWS; row < Math.min(rows, (band + 1) * BAND_ROWS); row++) {
           final int above = Math.max(row - 1, 0) * columns;
-          final int at = row * columns;
+          final int arrayOffset = row * columns;
           final int below = Math.min(row + 1, rows - 1) * columns;
           for (int column = 0; column < columns; column++) {
-            blurred[at + column] = across[above + column] + across[at + column] + across[below + column];
+            blurred[arrayOffset + column] = across[above + column] + across[arrayOffset + column] + across[below + column];
           }
         }
       });
       return blurred;
     }
 
-    private static int luma(final byte[] rgb, final int pixel) {
-      final int at = pixel * CHANNELS;
-      return (rgb[at] & 0xFF) + 2 * (rgb[at + 1] & 0xFF) + (rgb[at + 2] & 0xFF);
+    private static int luma(final byte[] sourcePixels, final int pixel) {
+      final int arrayOffset = pixel * CHANNELS;
+      return (sourcePixels[arrayOffset] & 0xFF) + 2 * (sourcePixels[arrayOffset + 1] & 0xFF) + (sourcePixels[arrayOffset + 2] & 0xFF);
     }
 
     private static double temporalInformation(final int[] current, final int[] previous, final Workers workers) {
@@ -773,11 +784,11 @@ public final class MCV2 {
         final int row = (blockTop + samples[sampleRow] + motionY) * width + blockLeft + motionX;
         final int line = samples[sampleRow] * size;
         for (int sampleColumn = 0; sampleColumn < SAMPLED; sampleColumn++) {
-          final int at = (row + samples[sampleColumn]) * CHANNELS;
+          final int arrayOffset = (row + samples[sampleColumn]) * CHANNELS;
           final int target = (line + samples[sampleColumn]) * CHANNELS;
-          sum += Math.abs((reference[at] & 255) - source[target]);
-          sum += Math.abs((reference[at + 1] & 255) - source[target + 1]);
-          sum += Math.abs((reference[at + 2] & 255) - source[target + 2]);
+          sum += Math.abs((reference[arrayOffset] & 255) - source[target]);
+          sum += Math.abs((reference[arrayOffset + 1] & 255) - source[target + 1]);
+          sum += Math.abs((reference[arrayOffset + 2] & 255) - source[target + 2]);
         }
       }
       return sum;
@@ -787,17 +798,17 @@ public final class MCV2 {
       final int row = Math.min(Math.max(blockTop + samples[sampleRow] + motionY, 0), height - 1);
       for (int sampleColumn = 0; sampleColumn < SAMPLED; sampleColumn++) {
         final int column = Math.min(Math.max(blockLeft + samples[sampleColumn] + motionX, 0), width - 1);
-        final int at = (row * width + column) * CHANNELS;
+        final int arrayOffset = (row * width + column) * CHANNELS;
         final int target = (samples[sampleRow] * size + samples[sampleColumn]) * CHANNELS;
         for (int channel = 0; channel < CHANNELS; channel++) {
-          sum += Math.abs((reference[at + channel] & 255) - source[target + channel]);
+          sum += Math.abs((reference[arrayOffset + channel] & 255) - source[target + channel]);
         }
       }
     }
     return sum;
   }
 
-  private static void half(final byte[] picture, final int width, final int height, final Workers workers, final byte[] out) {
+  private static void half(final byte[] picture, final int width, final int height, final Workers workers, final byte[] output) {
     final int halfWidth = (width + 1) / 2;
     final int halfHeight = (height + 1) / 2;
     workers.forEach(halfHeight, row -> {
@@ -812,7 +823,7 @@ public final class MCV2 {
             (picture[(topRow * width + rightColumn) * CHANNELS + channel] & 0xFF) +
             (picture[(bottomRow * width + leftColumn) * CHANNELS + channel] & 0xFF) +
             (picture[(bottomRow * width + rightColumn) * CHANNELS + channel] & 0xFF);
-          out[(row * halfWidth + column) * CHANNELS + channel] = (byte) ((sum + 2) >> 2);
+          output[(row * halfWidth + column) * CHANNELS + channel] = (byte) ((sum + 2) >> 2);
         }
       }
     });
@@ -1107,9 +1118,9 @@ public final class MCV2 {
       final int bottom = Math.min(this.size, this.frame.height - top);
       for (int row = 0; row < bottom; row++) {
         final int from = row * this.size * CHANNELS;
-        final int to = ((top + row) * this.frame.width + left) * CHANNELS;
+        final int destinationOffset = ((top + row) * this.frame.width + left) * CHANNELS;
         for (int offset = 0; offset < right * CHANNELS; offset++) {
-          picture[to + offset] = (byte) this.best[from + offset];
+          picture[destinationOffset + offset] = (byte) this.best[from + offset];
         }
       }
     }
@@ -1190,7 +1201,7 @@ public final class MCV2 {
       }
     }
 
-    private void predict(final int vector, final int[] out) {
+    private void predict(final int vector, final int[] output) {
       final BlockCoder parent = this.root;
       final int[] from =
         parent == null ? null : vector == 0 ? parent.zeroPrediction : vector == parent.localVector ? parent.localPrediction : null;
@@ -1200,7 +1211,7 @@ public final class MCV2 {
           System.arraycopy(
             from,
             ((this.top - parent.top + row) * ROOT_SIZE + this.left - parent.left) * CHANNELS,
-            out,
+            output,
             row * rowLength,
             rowLength
           );
@@ -1215,7 +1226,7 @@ public final class MCV2 {
           this.size,
           motionX(vector),
           motionY(vector),
-          out
+          output
         );
       }
     }
@@ -1369,13 +1380,13 @@ public final class MCV2 {
   private static final float[][] FITTING_MATRICES = fittingMatrices();
 
   private static byte nearest(final int[] source, final int pixel, final int[] colors) {
-    final int at = pixel * CHANNELS;
-    final int firstRedDelta = source[at] - colors[0];
-    final int firstGreenDelta = source[at + 1] - colors[1];
-    final int firstBlueDelta = source[at + 2] - colors[2];
-    final int secondRedDelta = source[at] - colors[3];
-    final int secondGreenDelta = source[at + 1] - colors[4];
-    final int secondBlueDelta = source[at + 2] - colors[5];
+    final int arrayOffset = pixel * CHANNELS;
+    final int firstRedDelta = source[arrayOffset] - colors[0];
+    final int firstGreenDelta = source[arrayOffset + 1] - colors[1];
+    final int firstBlueDelta = source[arrayOffset + 2] - colors[2];
+    final int secondRedDelta = source[arrayOffset] - colors[3];
+    final int secondGreenDelta = source[arrayOffset + 1] - colors[4];
+    final int secondBlueDelta = source[arrayOffset + 2] - colors[5];
     final int firstDistance = firstRedDelta * firstRedDelta + firstGreenDelta * firstGreenDelta + firstBlueDelta * firstBlueDelta;
     final int secondDistance = secondRedDelta * secondRedDelta + secondGreenDelta * secondGreenDelta + secondBlueDelta * secondBlueDelta;
     return (byte) (secondDistance < firstDistance ? 1 : 0);
@@ -1524,9 +1535,9 @@ public final class MCV2 {
 
     private static final String LEVEL_PROPERTY = "mcv2.native.level";
 
-    private static final Path AUXV = Path.of("/proc/self/auxv");
+    private static final Path AUXILIARY_VECTOR_FILE = Path.of("/proc/self/auxv");
 
-    private static final long AT_HWCAP = 16;
+    private static final long HARDWARE_CAPABILITIES_TYPE = 16;
 
     private static final Level[] PREFERENCE = {
       Level.AVX512,
@@ -1584,21 +1595,21 @@ public final class MCV2 {
       return current;
     }
 
-    static @Nullable String platform(final String osName, final String osArch) {
-      final String name = osName.toLowerCase(Locale.ROOT);
-      final String os;
+    static @Nullable String platform(final String operatingSystemName, final String processorArchitecture) {
+      final String name = operatingSystemName.toLowerCase(Locale.ROOT);
+      final String operatingSystem;
       if (name.startsWith("linux")) {
-        os = "linux";
+        operatingSystem = "linux";
       } else if (name.startsWith("windows")) {
-        os = "windows";
+        operatingSystem = "windows";
       } else if (name.startsWith("mac")) {
-        os = "macos";
+        operatingSystem = "macos";
       } else {
         return null;
       }
-      return switch (osArch.toLowerCase(Locale.ROOT)) {
-        case "amd64", "x86_64" -> os + "-x86_64";
-        case "aarch64", "arm64" -> os + "-aarch64";
+      return switch (processorArchitecture.toLowerCase(Locale.ROOT)) {
+        case "amd64", "x86_64" -> operatingSystem + "-x86_64";
+        case "aarch64", "arm64" -> operatingSystem + "-aarch64";
         default -> null;
       };
     }
@@ -1726,12 +1737,12 @@ public final class MCV2 {
     static Resolution bind(final SymbolLookup library, final String platform, final @Nullable String highest, final int expected) {
       final Linker linker = Linker.nativeLinker();
       try {
-        final int abi = (int) linker.downcallHandle(library.findOrThrow("mcv2_abi"), QUERY).invokeExact();
-        if (abi != expected) {
-          return Resolution.java("the library's interface " + abi + " is not " + expected, true);
+        final int interfaceVersion = (int) linker.downcallHandle(library.findOrThrow("mcv2_abi"), QUERY).invokeExact();
+        if (interfaceVersion != expected) {
+          return Resolution.java("the library's interface " + interfaceVersion + " is not " + expected, true);
         }
         // The dependency-free AArch64 library cannot query the kernel for SVE permission.
-        final long features = platform.startsWith("linux") ? hwcap(AUXV) : 0;
+        final long features = platform.startsWith("linux") ? hwcap(AUXILIARY_VECTOR_FILE) : 0;
         final MethodHandle cpuLevels = MethodHandles.insertArguments(
           linker.downcallHandle(library.findOrThrow("mcv2_cpu_levels"), LEVELS),
           0,
@@ -1745,10 +1756,10 @@ public final class MCV2 {
       }
     }
 
-    static long hwcap(final Path auxv) {
+    static long hwcap(final Path auxiliaryVectorFile) {
       final byte[] bytes;
       try {
-        bytes = Files.readAllBytes(auxv);
+        bytes = Files.readAllBytes(auxiliaryVectorFile);
       } catch (final IOException exception) {
         return 0;
       }
@@ -1757,7 +1768,7 @@ public final class MCV2 {
       while (entries.remaining() >= 2 * Long.BYTES) {
         final long type = entries.getLong();
         final long value = entries.getLong();
-        if (type == AT_HWCAP) {
+        if (type == HARDWARE_CAPABILITIES_TYPE) {
           return value;
         }
       }
@@ -1980,9 +1991,9 @@ public final class MCV2 {
       Preconditions.checkArgument(value >= -MAX_COORDINATE && value <= MAX_COORDINATE, "Coordinate out of range");
     }
 
-    private void checkScored(final int size, final int[] out) {
+    private void checkScored(final int size, final int[] output) {
       checkSize(size);
-      checkBlock(out.length, size);
+      checkBlock(output.length, size);
       checkBlock(this.source.length, size);
     }
 
@@ -2007,12 +2018,12 @@ public final class MCV2 {
     }
 
     @Override
-    public boolean predicted(final int[] prediction, final int size, final int[] out) {
-      this.checkScored(size, out);
+    public boolean predicted(final int[] prediction, final int size, final int[] output) {
+      this.checkScored(size, output);
       checkBlock(prediction.length, size);
       try {
         return this.finished(
-          (long) this.binding.predicted.invokeExact(of(prediction), size, of(out), of(this.source), this.rate, this.limit)
+          (long) this.binding.predicted.invokeExact(of(prediction), size, of(output), of(this.source), this.rate, this.limit)
         );
       } catch (final Throwable failure) {
         throw new IllegalStateException(CALL_FAILED, failure);
@@ -2020,30 +2031,30 @@ public final class MCV2 {
     }
 
     @Override
-    public boolean solid(final int color, final int size, final int[] out) {
-      this.checkScored(size, out);
+    public boolean solid(final int color, final int size, final int[] output) {
+      this.checkScored(size, output);
       try {
-        return this.finished((long) this.binding.solid.invokeExact(color, size, of(out), of(this.source), this.rate, this.limit));
+        return this.finished((long) this.binding.solid.invokeExact(color, size, of(output), of(this.source), this.rate, this.limit));
       } catch (final Throwable failure) {
         throw new IllegalStateException(CALL_FAILED, failure);
       }
     }
 
     @Override
-    public boolean palette(final byte[] record, final int size, final int[] out) {
-      this.checkScored(size, out);
+    public boolean palette(final byte[] record, final int size, final int[] output) {
+      this.checkScored(size, output);
       checkLength(record.length, SELECTORS_AT + (size * (long) size) / Byte.SIZE);
       try {
-        return this.finished((long) this.binding.palette.invokeExact(of(record), size, of(out), of(this.source), this.rate, this.limit));
+        return this.finished((long) this.binding.palette.invokeExact(of(record), size, of(output), of(this.source), this.rate, this.limit));
       } catch (final Throwable failure) {
         throw new IllegalStateException(CALL_FAILED, failure);
       }
     }
 
     @Override
-    public boolean compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] out) {
+    public boolean compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] output) {
       Preconditions.checkArgument(quantizer >= 0 && quantizer <= MAX_QUANTIZER, "Invalid quantizer");
-      this.checkScored(size, out);
+      this.checkScored(size, output);
       checkBlock(prediction.length, size);
       checkLength(record.length, COMPACT_BYTES);
       try {
@@ -2053,7 +2064,7 @@ public final class MCV2 {
             of(record),
             quantizer,
             size,
-            of(out),
+            of(output),
             of(this.source),
             this.rate,
             this.limit
@@ -2074,29 +2085,29 @@ public final class MCV2 {
       final int size,
       final int motionX,
       final int motionY,
-      final int[] out
+      final int[] output
     ) {
       checkPicture(reference.length, width, height);
       checkSize(size);
-      checkBlock(out.length, size);
+      checkBlock(output.length, size);
       checkCoordinate(left);
       checkCoordinate(top);
       checkCoordinate(motionX);
       checkCoordinate(motionY);
       try {
-        this.binding.predict.invokeExact(of(reference), width, height, left, top, size, motionX, motionY, of(out));
+        this.binding.predict.invokeExact(of(reference), width, height, left, top, size, motionX, motionY, of(output));
       } catch (final Throwable failure) {
         throw new IllegalStateException(CALL_FAILED, failure);
       }
     }
 
     @Override
-    public void fit(final float[] values, final int size, final float[] out) {
+    public void fit(final float[] values, final int size, final float[] output) {
       checkSize(size);
       checkLength(values.length, size * (long) size);
-      checkLength(out.length, GRID_NODES);
+      checkLength(output.length, GRID_NODES);
       try {
-        this.binding.fit.invokeExact(of(values), size, of(FITTING_MATRICES[sizeIndex(size)]), of(out));
+        this.binding.fit.invokeExact(of(values), size, of(FITTING_MATRICES[sizeIndex(size)]), of(output));
       } catch (final Throwable failure) {
         throw new IllegalStateException(CALL_FAILED, failure);
       }
@@ -2200,14 +2211,14 @@ public final class MCV2 {
     }
 
     @Override
-    public void halve(final int[] block, final int size, final int[] out) {
+    public void halve(final int[] block, final int size, final int[] output) {
       // SIMD row steps require power-of-two block sizes to avoid array overruns.
 
       Preconditions.checkArgument(size >= 2 && size <= ROOT_SIZE && Integer.bitCount(size) == 1, "Invalid block size");
       checkBlock(block.length, size);
-      checkBlock(out.length, size / 2);
+      checkBlock(output.length, size / 2);
       try {
-        this.binding.halve.invokeExact(of(block), size, of(out));
+        this.binding.halve.invokeExact(of(block), size, of(output));
       } catch (final Throwable failure) {
         throw new IllegalStateException(CALL_FAILED, failure);
       }
@@ -2230,18 +2241,18 @@ public final class MCV2 {
   private interface Kernels {
     void start(int[] source, double rate, double limit);
     long distortion();
-    boolean predicted(int[] prediction, int size, int[] out);
-    boolean solid(int color, int size, int[] out);
-    boolean palette(byte[] record, int size, int[] out);
-    boolean compact(int[] prediction, byte[] record, int quantizer, int size, int[] out);
-    void predict(byte[] reference, int width, int height, int left, int top, int size, int motionX, int motionY, int[] out);
-    void fit(float[] values, int size, float[] out);
+    boolean predicted(int[] prediction, int size, int[] output);
+    boolean solid(int color, int size, int[] output);
+    boolean palette(byte[] record, int size, int[] output);
+    boolean compact(int[] prediction, byte[] record, int quantizer, int size, int[] output);
+    void predict(byte[] reference, int width, int height, int left, int top, int size, int motionX, int motionY, int[] output);
+    void fit(float[] values, int size, float[] output);
     void cluster(int[] source, int size, int[] endpoints);
     void finishPalette(int[] source, int count, int[] endpoints, int[] colors, byte[] selectors);
     boolean finishPattern(int[] source, int size, int[] endpoints, int[] colors, byte[] selectors);
     int seeded(byte[] reference, int width, int height, int[] source, int left, int top, int size, int range, int[] seeds);
     void loadSource(byte[] image, int width, int height, int left, int top, int size, int[] source);
-    void halve(int[] block, int size, int[] out);
+    void halve(int[] block, int size, int[] output);
     void residualTarget(int[] source, int[] prediction, int count, float[] target);
 
     default void forgetArrays() {}
@@ -2261,14 +2272,14 @@ public final class MCV2 {
       this.distortion = 0;
     }
 
-    private boolean row(final int[] out, final int from, final int pixels) {
+    private boolean row(final int[] output, final int from, final int pixels) {
       int sum = 0;
       final int end = from + pixels * CHANNELS;
       for (int offset = from; offset < end; offset += CHANNELS) {
         sum += pixelError(
-          this.source[offset] - out[offset],
-          this.source[offset + 1] - out[offset + 1],
-          this.source[offset + 2] - out[offset + 2]
+          this.source[offset] - output[offset],
+          this.source[offset + 1] - output[offset + 1],
+          this.source[offset + 2] - output[offset + 2]
         );
       }
       this.distortion += sum;
@@ -2303,12 +2314,12 @@ public final class MCV2 {
     }
 
     @Override
-    public boolean predicted(final int[] prediction, final int size, final int[] out) {
+    public boolean predicted(final int[] prediction, final int size, final int[] output) {
       final int rowLength = size * CHANNELS;
       for (int row = 0; row < size; row++) {
         final int from = row * rowLength;
-        System.arraycopy(prediction, from, out, from, rowLength);
-        if (!this.score.row(out, from, size)) {
+        System.arraycopy(prediction, from, output, from, rowLength);
+        if (!this.score.row(output, from, size)) {
           return false;
         }
       }
@@ -2316,18 +2327,18 @@ public final class MCV2 {
     }
 
     @Override
-    public boolean solid(final int color, final int size, final int[] out) {
+    public boolean solid(final int color, final int size, final int[] output) {
       final int red = (color >> 16) & 255;
       final int green = (color >> 8) & 255;
       final int blue = color & 255;
       for (int row = 0; row < size; row++) {
         final int from = row * size * CHANNELS;
         for (int column = 0; column < size; column++) {
-          out[from + column * CHANNELS] = red;
-          out[from + column * CHANNELS + 1] = green;
-          out[from + column * CHANNELS + 2] = blue;
+          output[from + column * CHANNELS] = red;
+          output[from + column * CHANNELS + 1] = green;
+          output[from + column * CHANNELS + 2] = blue;
         }
-        if (!this.score.row(out, from, size)) {
+        if (!this.score.row(output, from, size)) {
           return false;
         }
       }
@@ -2335,17 +2346,17 @@ public final class MCV2 {
     }
 
     @Override
-    public boolean palette(final byte[] record, final int size, final int[] out) {
+    public boolean palette(final byte[] record, final int size, final int[] output) {
       for (int row = 0; row < size; row++) {
         for (int column = 0; column < size; column++) {
           final int pixel = row * size + column;
           final int bit = (record[2 * CHANNELS + pixel / Byte.SIZE] >> (pixel % Byte.SIZE)) & 1;
-          final int at = bit * CHANNELS;
-          out[pixel * CHANNELS] = record[at] & 255;
-          out[pixel * CHANNELS + 1] = record[at + 1] & 255;
-          out[pixel * CHANNELS + 2] = record[at + 2] & 255;
+          final int arrayOffset = bit * CHANNELS;
+          output[pixel * CHANNELS] = record[arrayOffset] & 255;
+          output[pixel * CHANNELS + 1] = record[arrayOffset + 1] & 255;
+          output[pixel * CHANNELS + 2] = record[arrayOffset + 2] & 255;
         }
-        if (!this.score.row(out, row * size * CHANNELS, size)) {
+        if (!this.score.row(output, row * size * CHANNELS, size)) {
           return false;
         }
       }
@@ -2353,7 +2364,7 @@ public final class MCV2 {
     }
 
     @Override
-    public boolean compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] out) {
+    public boolean compact(final int[] prediction, final byte[] record, final int quantizer, final int size, final int[] output) {
       for (int index = 0; index < GRID_NODES; index++) {
         this.nodes[index] = signed((record[2 + index / 2] & 255) >> ((index % 2) * 4), 4);
       }
@@ -2364,13 +2375,13 @@ public final class MCV2 {
         this.vertical(size, row);
         final int from = row * size * CHANNELS;
         for (int column = 0; column < size; column++) {
-          final int at = from + column * CHANNELS;
+          final int arrayOffset = from + column * CHANNELS;
           final int scaled = this.line[column] << quantizer;
-          out[at] = round(prediction[at] * scale + scaled, shift);
-          out[at + 1] = round(prediction[at + 1] * scale + scaled, shift);
-          out[at + 2] = round(prediction[at + 2] * scale + scaled, shift);
+          output[arrayOffset] = round(prediction[arrayOffset] * scale + scaled, shift);
+          output[arrayOffset + 1] = round(prediction[arrayOffset + 1] * scale + scaled, shift);
+          output[arrayOffset + 2] = round(prediction[arrayOffset + 2] * scale + scaled, shift);
         }
-        if (!this.score.row(out, from, size)) {
+        if (!this.score.row(output, from, size)) {
           return false;
         }
       }
@@ -2398,7 +2409,7 @@ public final class MCV2 {
       final int size,
       final int motionX,
       final int motionY,
-      final int[] out
+      final int[] output
     ) {
       final int left = blockLeft + motionX;
       final int top = blockTop + motionY;
@@ -2406,9 +2417,9 @@ public final class MCV2 {
         final int rowLength = size * CHANNELS;
         for (int row = 0; row < size; row++) {
           final int from = ((top + row) * width + left) * CHANNELS;
-          final int to = row * rowLength;
+          final int destinationOffset = row * rowLength;
           for (int offset = 0; offset < rowLength; offset++) {
-            out[to + offset] = reference[from + offset] & 255;
+            output[destinationOffset + offset] = reference[from + offset] & 255;
           }
         }
         return;
@@ -2418,16 +2429,16 @@ public final class MCV2 {
         for (int column = 0; column < size; column++) {
           final int sourceColumn = Math.min(Math.max(left + column, 0), width - 1);
           final int from = (sourceRow * width + sourceColumn) * CHANNELS;
-          final int to = (row * size + column) * CHANNELS;
+          final int destinationOffset = (row * size + column) * CHANNELS;
           for (int channel = 0; channel < CHANNELS; channel++) {
-            out[to + channel] = reference[from + channel] & 255;
+            output[destinationOffset + channel] = reference[from + channel] & 255;
           }
         }
       }
     }
 
     @Override
-    public void fit(final float[] values, final int size, final float[] out) {
+    public void fit(final float[] values, final int size, final float[] output) {
       final float[] matrix = FITTING_MATRICES[sizeIndex(size)];
       for (int row = 0; row < size; row++) {
         for (int nodeColumn = 0; nodeColumn < GRID; nodeColumn++) {
@@ -2444,7 +2455,7 @@ public final class MCV2 {
           for (int row = 0; row < size; row++) {
             sum += matrix[nodeRow * size + row] * this.fitScratch[row * GRID + nodeColumn];
           }
-          out[nodeRow * GRID + nodeColumn] = (float) sum;
+          output[nodeRow * GRID + nodeColumn] = (float) sum;
         }
       }
     }
@@ -2458,15 +2469,15 @@ public final class MCV2 {
       int highLuma = Integer.MIN_VALUE;
       for (int row = 0; row < size; row += step) {
         for (int column = 0; column < size; column += step) {
-          final int at = (row * size + column) * CHANNELS;
-          final int luma = source[at] + 2 * source[at + 1] + source[at + 2];
+          final int arrayOffset = (row * size + column) * CHANNELS;
+          final int luma = source[arrayOffset] + 2 * source[arrayOffset + 1] + source[arrayOffset + 2];
           if (luma < lowLuma) {
             lowLuma = luma;
-            low = at;
+            low = arrayOffset;
           }
           if (luma > highLuma) {
             highLuma = luma;
-            high = at;
+            high = arrayOffset;
           }
         }
       }
@@ -2484,10 +2495,10 @@ public final class MCV2 {
         Arrays.fill(this.clusterScratch, 0, CLUSTER_SUMS, 0);
         for (int row = 0; row < size; row += step) {
           for (int column = 0; column < size; column += step) {
-            final int at = (row * size + column) * CHANNELS;
-            final int red = source[at];
-            final int green = source[at + 1];
-            final int blue = source[at + 2];
+            final int arrayOffset = (row * size + column) * CHANNELS;
+            final int red = source[arrayOffset];
+            final int green = source[arrayOffset + 1];
+            final int blue = source[arrayOffset + 2];
             final int firstDistance =
               (red - firstRed) * (red - firstRed) + (green - firstGreen) * (green - firstGreen) + (blue - firstBlue) * (blue - firstBlue);
             final int secondDistance =
@@ -2553,19 +2564,19 @@ public final class MCV2 {
     }
 
     @Override
-    public void halve(final int[] block, final int size, final int[] out) {
+    public void halve(final int[] block, final int size, final int[] output) {
       final int half = size / 2;
       final int rowLength = size * CHANNELS;
       for (int row = 0; row < half; row++) {
         for (int column = 0; column < half; column++) {
-          final int at = (2 * row * size + 2 * column) * CHANNELS;
+          final int arrayOffset = (2 * row * size + 2 * column) * CHANNELS;
           for (int channel = 0; channel < CHANNELS; channel++) {
             final int sum =
-              block[at + channel] +
-              block[at + CHANNELS + channel] +
-              block[at + rowLength + channel] +
-              block[at + rowLength + CHANNELS + channel];
-            out[(row * half + column) * CHANNELS + channel] = (sum + 2) >> 2;
+              block[arrayOffset + channel] +
+              block[arrayOffset + CHANNELS + channel] +
+              block[arrayOffset + rowLength + channel] +
+              block[arrayOffset + rowLength + CHANNELS + channel];
+            output[(row * half + column) * CHANNELS + channel] = (sum + 2) >> 2;
           }
         }
       }
@@ -2586,10 +2597,10 @@ public final class MCV2 {
         for (int column = 0; column < size; column++) {
           final int sourceColumn = Math.min(blockLeft + column, width - 1);
           final int from = (sourceRow * width + sourceColumn) * CHANNELS;
-          final int to = (row * size + column) * CHANNELS;
-          source[to] = image[from] & 255;
-          source[to + 1] = image[from + 1] & 255;
-          source[to + 2] = image[from + 2] & 255;
+          final int destinationOffset = (row * size + column) * CHANNELS;
+          source[destinationOffset] = image[from] & 255;
+          source[destinationOffset + 1] = image[from + 1] & 255;
+          source[destinationOffset + 2] = image[from + 2] & 255;
         }
       }
     }
@@ -2740,11 +2751,11 @@ public final class MCV2 {
       if (repeats) {
         System.arraycopy(paletteRecord, 0, patternOutput, 0, 2 * CHANNELS);
         patternOutput[2 * CHANNELS] = (byte) orientation;
-        final int at = 2 * CHANNELS + 1;
-        Arrays.fill(patternOutput, at, at + size / Byte.SIZE, (byte) 0);
+        final int arrayOffset = 2 * CHANNELS + 1;
+        Arrays.fill(patternOutput, arrayOffset, arrayOffset + size / Byte.SIZE, (byte) 0);
         for (int position = 0; position < size; position++) {
           final int value = orientation == 0 ? paletteBit(paletteRecord, position) : paletteBit(paletteRecord, position * size);
-          patternOutput[at + position / Byte.SIZE] |= (byte) (value << (position % Byte.SIZE));
+          patternOutput[arrayOffset + position / Byte.SIZE] |= (byte) (value << (position % Byte.SIZE));
         }
         return true;
       }
@@ -2877,11 +2888,11 @@ public final class MCV2 {
       this.forEach(count, () -> body, IntConsumer::accept);
     }
 
-    private <T> void forEach(final int count, final Supplier<T> scratch, final ObjIntConsumer<T> body) {
+    private <ScratchType> void forEach(final int count, final Supplier<ScratchType> scratch, final ObjIntConsumer<ScratchType> body) {
       final ForkJoinPool target = this.pool;
       final int workers = Math.min(this.threads(), count);
       if (workers <= 1) {
-        final T state = scratch.get();
+        final ScratchType state = scratch.get();
         for (int index = 0; index < count; index++) {
           body.accept(state, index);
         }
@@ -2895,7 +2906,7 @@ public final class MCV2 {
             .parallel()
             .forEach(_ -> {
               try {
-                final T state = scratch.get();
+                final ScratchType state = scratch.get();
                 for (int index = next.getAndIncrement(); index < count; index = next.getAndIncrement()) {
                   body.accept(state, index);
                 }
@@ -3032,19 +3043,19 @@ public final class MCV2 {
      * Runs a job within the shared worker budget and propagates its failures.
      *
      * @param task encoding job
-     * @param <T> result type
+     * @param <ResultType> result type
      * @return the job result
      * @throws InterruptedException if interrupted before or while awaiting the job
      * @throws NullPointerException if task is null
      * @throws IllegalStateException if the job throws a checked exception
      */
-    public <T> T run(final Callable<T> task) throws InterruptedException {
+    public <ResultType> ResultType run(final Callable<ResultType> task) throws InterruptedException {
       Preconditions.checkNotNull(task, "Task must not be null");
 
       if (Thread.interrupted()) {
         throw new InterruptedException("Interrupted before the task started");
       }
-      final ForkJoinTask<T> job = this.pool.submit(task);
+      final ForkJoinTask<ResultType> job = this.pool.submit(task);
       try {
         return job.get();
       } catch (final InterruptedException exception) {

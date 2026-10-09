@@ -122,18 +122,18 @@ public final class TransportPages {
     final byte[] symbols = new byte[(int) symbolCount(data.length)];
     long buffer = 0;
     int held = 0;
-    int out = 0;
+    int written = 0;
     for (final byte value : data) {
       buffer |= Byte.toUnsignedLong(value) << held;
       held += Byte.SIZE;
       while (held >= SYMBOL_BITS) {
-        symbols[out++] = (byte) (buffer & ((1L << SYMBOL_BITS) - 1));
+        symbols[written++] = (byte) (buffer & ((1L << SYMBOL_BITS) - 1));
         buffer >>>= SYMBOL_BITS;
         held -= SYMBOL_BITS;
       }
     }
     if (held > 0) {
-      symbols[out] = (byte) buffer;
+      symbols[written] = (byte) buffer;
     }
     return symbols;
   }
@@ -155,7 +155,7 @@ public final class TransportPages {
     final byte[] data = new byte[byteCount];
     long buffer = 0;
     int held = 0;
-    int out = 0;
+    int written = 0;
     for (final byte symbol : symbols) {
       final int value = Byte.toUnsignedInt(symbol);
       if (value >= 1 << SYMBOL_BITS) {
@@ -164,7 +164,7 @@ public final class TransportPages {
       buffer |= (long) value << held;
       held += SYMBOL_BITS;
       while (held >= Byte.SIZE) {
-        data[out++] = (byte) buffer;
+        data[written++] = (byte) buffer;
         buffer >>>= Byte.SIZE;
         held -= Byte.SIZE;
       }
@@ -222,9 +222,9 @@ public final class TransportPages {
       Mcv2Decoder.putU32(page, REFERENCE_OFFSET, parsed.getReferenceId());
       Mcv2Decoder.putU32(page, LENGTH_OFFSET, frame.length);
       System.arraycopy(frame, from, page, HEADER_BYTES, length);
-      final CRC32 crc = new CRC32();
-      crc.update(page);
-      Mcv2Decoder.putU32(page, CRC_OFFSET, crc.getValue());
+      final CRC32 checksum = new CRC32();
+      checksum.update(page);
+      Mcv2Decoder.putU32(page, CRC_OFFSET, checksum.getValue());
       pages.add(toSymbols(page));
     }
     return pages;
@@ -257,12 +257,12 @@ public final class TransportPages {
     final byte[] header = new byte[HEADER_BYTES];
     long buffer = 0;
     int held = 0;
-    int out = 0;
+    int written = 0;
     for (int symbolIndex = 0; symbolIndex < headerSymbols; symbolIndex++) {
       buffer |= (long) (symbols[symbolIndex] & ((1 << SYMBOL_BITS) - 1)) << held;
       held += SYMBOL_BITS;
       while (held >= Byte.SIZE) {
-        header[out++] = (byte) buffer;
+        header[written++] = (byte) buffer;
         buffer >>>= Byte.SIZE;
         held -= Byte.SIZE;
       }
@@ -306,24 +306,24 @@ public final class TransportPages {
   public static TransportPage readPage(final byte[] symbols) throws Mcv2Exception {
     final byte[] header = readHeader(symbols);
     final int size = checkHeader(header);
-    final byte[] raw = fromSymbols(symbols, HEADER_BYTES + size);
-    final long stored = Mcv2Decoder.u32(raw, CRC_OFFSET);
-    Mcv2Decoder.putU32(raw, CRC_OFFSET, 0);
-    final CRC32 crc = new CRC32();
-    crc.update(raw);
-    if (crc.getValue() != stored) {
+    final byte[] pageBytes = fromSymbols(symbols, HEADER_BYTES + size);
+    final long stored = Mcv2Decoder.u32(pageBytes, CRC_OFFSET);
+    Mcv2Decoder.putU32(pageBytes, CRC_OFFSET, 0);
+    final CRC32 checksum = new CRC32();
+    checksum.update(pageBytes);
+    if (checksum.getValue() != stored) {
       throw new Mcv2Exception("Page CRC mismatch");
     }
     final byte[] payload = new byte[size];
-    System.arraycopy(raw, HEADER_BYTES, payload, 0, size);
+    System.arraycopy(pageBytes, HEADER_BYTES, payload, 0, size);
     return new TransportPage(
-      Mcv2Decoder.u32(raw, STREAM_OFFSET),
-      Mcv2Decoder.u32(raw, FRAME_OFFSET),
-      Mcv2Decoder.u16(raw, NUMBER_OFFSET),
-      Mcv2Decoder.u16(raw, COUNT_OFFSET),
-      Mcv2Decoder.u32(raw, REFERENCE_OFFSET),
-      (int) Mcv2Decoder.u32(raw, LENGTH_OFFSET),
-      Mcv2Decoder.u16(raw, TYPE_OFFSET),
+      Mcv2Decoder.u32(pageBytes, STREAM_OFFSET),
+      Mcv2Decoder.u32(pageBytes, FRAME_OFFSET),
+      Mcv2Decoder.u16(pageBytes, NUMBER_OFFSET),
+      Mcv2Decoder.u16(pageBytes, COUNT_OFFSET),
+      Mcv2Decoder.u32(pageBytes, REFERENCE_OFFSET),
+      (int) Mcv2Decoder.u32(pageBytes, LENGTH_OFFSET),
+      Mcv2Decoder.u16(pageBytes, TYPE_OFFSET),
       SYMBOL_BITS,
       payload
     );

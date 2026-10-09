@@ -132,16 +132,16 @@ public final class Mcv2PackServer {
 
   private static final long SHUTDOWN_SECONDS = 10;
 
-  private static final long GRACE_MILLIS = 60_000;
+  private static final long GRACE_MILLISECONDS = 60_000;
 
-  private static final long MILLIS_PER_TICK = 50;
+  private static final long MILLISECONDS_PER_TICK = 50;
 
   private static final UUID NO_PACK = new UUID(0, 0);
 
   private static final int PAGE_MAPS = Mcv2Pack.MAX_SCREENS * Mcv2Configuration.MAX_PAGE_SLOTS;
 
   // A reused slot must start ahead of the ids sent by its previous screen.
-  private static final long FRAME_ID_MILLIS = 10;
+  private static final long FRAME_ID_INTERVAL_MILLISECONDS = 10;
 
   private final Path folder;
 
@@ -153,7 +153,7 @@ public final class Mcv2PackServer {
 
   private final ExecutorService writer;
 
-  private final LongSupplier millis;
+  private final LongSupplier millisecondClock;
 
   private final Mcv2Viewers viewers;
 
@@ -187,7 +187,7 @@ public final class Mcv2PackServer {
     }
   }
 
-  private record Published(int generation, UUID id, PackHosting hosting, ResourcePackRequest request, String screens) {}
+  private record Published(int generation, UUID packId, PackHosting hosting, ResourcePackRequest request, String screens) {}
 
   private static final class Slot {
 
@@ -260,7 +260,7 @@ public final class Mcv2PackServer {
     final Consumer<Player> onOffered,
     final Consumer<Player> onRefused,
     final ExecutorService writer,
-    final LongSupplier millis
+    final LongSupplier millisecondClock
   ) {
     Preconditions.checkNotNull(folder, "Folder must not be null");
     Preconditions.checkNotNull(hosting, "Hosting must not be null");
@@ -271,7 +271,7 @@ public final class Mcv2PackServer {
     this.showsDebugView = showsDebugView;
     this.onOffered = onOffered;
     this.writer = writer;
-    this.millis = millis;
+    this.millisecondClock = millisecondClock;
 
     this.viewers = new Mcv2Viewers(NO_PACK, onRefused);
     this.nobody = new Mcv2Viewers(NO_PACK, onRefused);
@@ -342,7 +342,11 @@ public final class Mcv2PackServer {
         String.format(Locale.getDefault(Locale.Category.FORMAT), "Every one of the %d MCV2 slots plays a screen", Mcv2Pack.MAX_SCREENS)
       );
     }
-    final Lease lease = new Lease(requested, (this.millis.getAsLong() / FRAME_ID_MILLIS) & Mcv2Decoder.MAX_U32, slot);
+    final Lease lease = new Lease(
+      requested,
+      (this.millisecondClock.getAsLong() / FRAME_ID_INTERVAL_MILLISECONDS) & Mcv2Decoder.MAX_U32,
+      slot
+    );
     slot.holder = lease;
     this.leases.add(lease);
     Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), () -> this.offerViewers(lease));
@@ -432,11 +436,11 @@ public final class Mcv2PackServer {
     slot.holder = null;
     slot.spareOf = null;
     slot.released = ++this.releases;
-    slot.releasedAt = this.millis.getAsLong();
-    this.trimLater(GRACE_MILLIS);
+    slot.releasedAt = this.millisecondClock.getAsLong();
+    this.trimLater(GRACE_MILLISECONDS);
   }
 
-  private void trimLater(final long delayMillis) {
+  private void trimLater(final long delayMilliseconds) {
     if (this.trimming || this.stopped) {
       return;
     }
@@ -445,7 +449,7 @@ public final class Mcv2PackServer {
       return;
     }
     this.trimming = true;
-    final long ticks = Math.max(1, (delayMillis + MILLIS_PER_TICK - 1) / MILLIS_PER_TICK);
+    final long ticks = Math.max(1, (delayMilliseconds + MILLISECONDS_PER_TICK - 1) / MILLISECONDS_PER_TICK);
     Bukkit.getScheduler().runTaskLater(plugin, this::trim, ticks);
   }
 
@@ -454,7 +458,7 @@ public final class Mcv2PackServer {
     if (this.stopped) {
       return;
     }
-    final long now = this.millis.getAsLong();
+    final long now = this.millisecondClock.getAsLong();
     boolean removed = false;
     long nextDue = Long.MAX_VALUE;
     for (final Iterator<Slot> remaining = this.slots.iterator(); remaining.hasNext(); ) {
@@ -462,7 +466,7 @@ public final class Mcv2PackServer {
       if (!slot.isFree()) {
         continue;
       }
-      final long due = slot.releasedAt + GRACE_MILLIS;
+      final long due = slot.releasedAt + GRACE_MILLISECONDS;
       if (due <= now) {
         remaining.remove();
         removed = true;
@@ -508,20 +512,20 @@ public final class Mcv2PackServer {
       return;
     }
     final String description = describe(screens);
-    final Path zip = this.folder.resolve(FILE_PREFIX + wanted + FILE_SUFFIX);
+    final Path archivePath = this.folder.resolve(FILE_PREFIX + wanted + FILE_SUFFIX);
     final Published published;
     try {
-      Mcv2Pack.write(screens, this.showsDebugView, zip);
+      Mcv2Pack.write(screens, this.showsDebugView, archivePath);
       // The client checks a downloaded pack against its SHA-1.
-      final String sha1 = hash(zip, "SHA-1");
-      final UUID id = UUID.nameUUIDFromBytes(("mcav-mcv2:" + sha1).getBytes(StandardCharsets.UTF_8));
-      final PackHosting host = this.host(zip);
-      final ResourcePackInfo info = ResourcePackInfo.resourcePackInfo(id, URI.create(host.getRawUrl()), sha1);
+      final String archiveHash = hash(archivePath, "SHA-1");
+      final UUID packId = UUID.nameUUIDFromBytes(("mcav-mcv2:" + archiveHash).getBytes(StandardCharsets.UTF_8));
+      final PackHosting host = this.host(archivePath);
+      final ResourcePackInfo info = ResourcePackInfo.resourcePackInfo(packId, URI.create(host.getRawUrl()), archiveHash);
       final ResourcePackRequest request = ResourcePackRequest.resourcePackRequest().packs(info).required(false).replace(false).build();
-      published = new Published(wanted, id, host, request, description);
+      published = new Published(wanted, packId, host, request, description);
     } catch (final RuntimeException exception) {
       LOGGER.error(PACK_FAILED, description, exception);
-      deleteQuietly(zip);
+      deleteQuietly(archivePath);
       return;
     }
     if (this.stopped) {
@@ -531,8 +535,8 @@ public final class Mcv2PackServer {
     Bukkit.getScheduler().runTask(BukkitModule.getPlugin(), () -> this.serve(published));
   }
 
-  private PackHosting host(final Path zip) {
-    final PackHosting host = this.hosting.apply(zip);
+  private PackHosting host(final Path archivePath) {
+    final PackHosting host = this.hosting.apply(archivePath);
     if (host instanceof HttpHosting) {
       // The previous HTTP host still holds the port.
       this.stopRunning();
@@ -547,46 +551,46 @@ public final class Mcv2PackServer {
       this.retireLater(published);
       return;
     }
-    final Published old = this.current;
+    final Published previousPack = this.current;
     this.current = published;
-    this.viewers.retarget(published.id());
+    this.viewers.retarget(published.packId());
     this.offered.clear();
-    LOGGER.info(PACK_SERVED, published.id(), published.screens(), published.request().packs().getFirst().uri());
+    LOGGER.info(PACK_SERVED, published.packId(), published.screens(), published.request().packs().getFirst().uri());
     for (final Player player : Bukkit.getOnlinePlayers()) {
-      if (old != null) {
-        player.removeResourcePacks(old.id());
+      if (previousPack != null) {
+        player.removeResourcePacks(previousPack.packId());
       }
       if (this.isWatching(player.getUniqueId())) {
         this.offer(player, published);
       }
     }
-    if (old != null) {
-      this.retireLater(old);
+    if (previousPack != null) {
+      this.retireLater(previousPack);
     }
   }
 
   private void withdraw() {
-    final Published old = this.current;
-    if (old == null) {
+    final Published previousPack = this.current;
+    if (previousPack == null) {
       return;
     }
     this.current = null;
     this.viewers.retarget(NO_PACK);
     this.offered.clear();
-    LOGGER.info(PACK_WITHDRAWN, old.id());
+    LOGGER.info(PACK_WITHDRAWN, previousPack.packId());
     for (final Player player : Bukkit.getOnlinePlayers()) {
-      player.removeResourcePacks(old.id());
+      player.removeResourcePacks(previousPack.packId());
     }
-    this.retireLater(old);
+    this.retireLater(previousPack);
   }
 
   private void offer(final Player player, final Published pack) {
-    final UUID uuid = player.getUniqueId();
-    if (this.viewers.getState(uuid) != null) {
+    final UUID viewerId = player.getUniqueId();
+    if (this.viewers.getState(viewerId) != null) {
       return;
     }
-    this.viewers.requested(uuid);
-    this.offered.put(uuid, this.millis.getAsLong());
+    this.viewers.requested(viewerId);
+    this.offered.put(viewerId, this.millisecondClock.getAsLong());
     this.onOffered.accept(player);
     player.sendResourcePacks(pack.request());
   }
@@ -617,7 +621,9 @@ public final class Mcv2PackServer {
 
   synchronized long handleStatus(final PlayerResourcePackStatusEvent event) {
     final Published pack = this.current;
-    if (pack == null || !pack.id().equals(event.getID()) || event.getStatus() != PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) {
+    if (
+      pack == null || !pack.packId().equals(event.getID()) || event.getStatus() != PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED
+    ) {
       return -1;
     }
     final Player player = event.getPlayer();
@@ -625,8 +631,8 @@ public final class Mcv2PackServer {
     if (since == null) {
       return -1;
     }
-    final long took = this.millis.getAsLong() - since;
-    LOGGER.info(PACK_LOADED, player.getName(), pack.id(), took);
+    final long took = this.millisecondClock.getAsLong() - since;
+    LOGGER.info(PACK_LOADED, player.getName(), pack.packId(), took);
     this.adviseModdedViewer(player);
     return took;
   }
@@ -668,8 +674,8 @@ public final class Mcv2PackServer {
   private void clearFolder() {
     try {
       Files.createDirectories(this.folder);
-      try (final DirectoryStream<Path> old = Files.newDirectoryStream(this.folder, FILE_PREFIX + "*" + FILE_SUFFIX)) {
-        for (final Path file : old) {
+      try (final DirectoryStream<Path> previousArchives = Files.newDirectoryStream(this.folder, FILE_PREFIX + "*" + FILE_SUFFIX)) {
+        for (final Path file : previousArchives) {
           Files.deleteIfExists(file);
         }
       }

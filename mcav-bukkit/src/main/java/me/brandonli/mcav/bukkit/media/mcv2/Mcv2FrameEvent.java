@@ -79,7 +79,7 @@ final class Mcv2FrameEvent extends Event {
   @Label("Fingerprint")
   String fingerprint = "";
 
-  static String fingerprint(final byte[] rgb, final int width, final int height) {
+  static String fingerprint(final byte[] pictureBytes, final int width, final int height) {
     final StringBuilder builder = new StringBuilder(2 * FINGERPRINT_PIXELS);
 
     final int centre = Mcv2Decoder.ROOT_SIZE / 2;
@@ -88,8 +88,9 @@ final class Mcv2FrameEvent extends Event {
       superblockIndex < FINGERPRINT_PIXELS && centre + Mcv2Decoder.ROOT_SIZE * superblockIndex < width && height > centre;
       superblockIndex++
     ) {
-      final int at = (centre * width + centre + Mcv2Decoder.ROOT_SIZE * superblockIndex) * Mcv2Decoder.CHANNELS;
-      final int luma = ((rgb[at] & 0xFF) + 2 * (rgb[at + 1] & 0xFF) + (rgb[at + 2] & 0xFF)) / 4;
+      final int pixelOffset = (centre * width + centre + Mcv2Decoder.ROOT_SIZE * superblockIndex) * Mcv2Decoder.CHANNELS;
+      final int luma =
+        ((pictureBytes[pixelOffset] & 0xFF) + 2 * (pictureBytes[pixelOffset + 1] & 0xFF) + (pictureBytes[pixelOffset + 2] & 0xFF)) / 4;
       builder.append(HexFormat.of().toHexDigits((byte) luma));
     }
     return builder.toString();

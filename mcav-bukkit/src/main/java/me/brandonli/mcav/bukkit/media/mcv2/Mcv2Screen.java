@@ -258,16 +258,16 @@ public final class Mcv2Screen {
         for (int index = 0; index < SIGNATURE.length; index++) {
           symbols[index] = (byte) SIGNATURE[index];
         }
-        final int at = SIGNATURE.length;
-        symbols[at] = (byte) column;
-        symbols[at + 1] = (byte) row;
-        symbols[at + 2] = (byte) columns;
-        symbols[at + 3] = (byte) rows;
-        symbols[at + 4] = (byte) facing;
-        symbols[at + 5] = (byte) streamLow;
-        symbols[at + 6] = (byte) streamHigh;
+        final int symbolOffset = SIGNATURE.length;
+        symbols[symbolOffset] = (byte) column;
+        symbols[symbolOffset + 1] = (byte) row;
+        symbols[symbolOffset + 2] = (byte) columns;
+        symbols[symbolOffset + 3] = (byte) rows;
+        symbols[symbolOffset + 4] = (byte) facing;
+        symbols[symbolOffset + 5] = (byte) streamLow;
+        symbols[symbolOffset + 6] = (byte) streamHigh;
 
-        symbols[at + 7] = (byte) ((column + row + columns + rows + facing + streamLow + streamHigh) % MapAlphabet.SIZE);
+        symbols[symbolOffset + 7] = (byte) ((column + row + columns + rows + facing + streamLow + streamHigh) % MapAlphabet.SIZE);
         final int mapId = this.configuration.getMap() + row * columns + column;
         patches.add(new MapTilePatch(mapId, 0, 0, MapLayout.MAP_SIZE, 1, MapAlphabet.toMapColors(symbols)));
       }

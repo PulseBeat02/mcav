@@ -20,11 +20,11 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-final class Mcv2LatestFrame<T extends @NonNull Object> {
+final class Mcv2LatestFrame<FrameType extends @NonNull Object> {
 
   private final Object lock;
 
-  private @Nullable T frame;
+  private @Nullable FrameType frame;
 
   private boolean open;
 
@@ -38,7 +38,7 @@ final class Mcv2LatestFrame<T extends @NonNull Object> {
     }
   }
 
-  void offer(final T newest) {
+  void offer(final FrameType newest) {
     synchronized (this.lock) {
       this.frame = newest;
       this.lock.notifyAll();
@@ -51,20 +51,20 @@ final class Mcv2LatestFrame<T extends @NonNull Object> {
     }
   }
 
-  @Nullable T poll() {
+  @Nullable FrameType poll() {
     synchronized (this.lock) {
-      final T taken = this.frame;
+      final FrameType taken = this.frame;
       this.frame = null;
       return taken;
     }
   }
 
-  @Nullable T take() throws InterruptedException {
+  @Nullable FrameType take() throws InterruptedException {
     synchronized (this.lock) {
       while (this.open && this.frame == null) {
         this.lock.wait();
       }
-      final T taken = this.frame;
+      final FrameType taken = this.frame;
       this.frame = null;
       return this.open ? taken : null;
     }

@@ -209,10 +209,10 @@ public final class Mcv2Viewers {
       return;
     }
     final Player player = event.getPlayer();
-    final UUID uuid = player.getUniqueId();
+    final UUID viewerId = player.getUniqueId();
     switch (event.getStatus()) {
-      case SUCCESSFULLY_LOADED -> this.loaded(uuid);
-      case ACCEPTED, DOWNLOADED -> this.states.put(uuid, PackState.REQUESTED);
+      case SUCCESSFULLY_LOADED -> this.loaded(viewerId);
+      case ACCEPTED, DOWNLOADED -> this.states.put(viewerId, PackState.REQUESTED);
       case DECLINED -> this.refuse(player, PackState.DECLINED);
       default -> this.refuse(player, PackState.REFUSED);
     }

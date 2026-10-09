@@ -160,14 +160,14 @@ public final class Mcv2Decoder {
 
     Leaf getLeaf(final int index) {
       Preconditions.checkElementIndex(index, this.getLeafCount(), "Leaf index");
-      final int at = index * LEAF_INTS;
+      final int arrayOffset = index * LEAF_INTS;
       return new Leaf(
-        this.leaves[at],
-        this.leaves[at + 1],
-        this.leaves[at + 2],
-        this.leaves[at + 3],
-        this.leaves[at + 4],
-        this.leaves[at + 5]
+        this.leaves[arrayOffset],
+        this.leaves[arrayOffset + 1],
+        this.leaves[arrayOffset + 2],
+        this.leaves[arrayOffset + 3],
+        this.leaves[arrayOffset + 4],
+        this.leaves[arrayOffset + 5]
       );
     }
   }
@@ -285,10 +285,16 @@ public final class Mcv2Decoder {
         if ((this.data[descriptorsAt + index] & MODE_MASK) != MODE_SPLIT) {
           continue;
         }
-        final int at = index * POSITION_INTS;
-        final int half = positions[at + 2] / 2;
+        final int arrayOffset = index * POSITION_INTS;
+        final int half = positions[arrayOffset + 2] / 2;
         for (int corner = 0; corner < QUARTERS; corner++) {
-          position(positions, child++, positions[at] + (corner % 2) * half, positions[at + 1] + (corner / 2) * half, half);
+          position(
+            positions,
+            child++,
+            positions[arrayOffset] + (corner % 2) * half,
+            positions[arrayOffset + 1] + (corner / 2) * half,
+            half
+          );
         }
       }
       final int[] leaves = new int[(this.roots + descriptors - firstChildren - splits) * LEAF_INTS];
@@ -309,11 +315,11 @@ public final class Mcv2Decoder {
           splits++;
           continue;
         }
-        final int at = index * POSITION_INTS;
+        final int arrayOffset = index * POSITION_INTS;
         final int offset = this.start + cursor;
-        final int size = positions[at + 2];
+        final int size = positions[arrayOffset + 2];
         cursor += this.recordLength(mode, size, offset);
-        leaf(leaves, leaf++, positions[at], positions[at + 1], size, mode, descriptor >> QUANTIZER_SHIFT, offset);
+        leaf(leaves, leaf++, positions[arrayOffset], positions[arrayOffset + 1], size, mode, descriptor >> QUANTIZER_SHIFT, offset);
       }
       if (this.start + cursor != payloadEnd) {
         throw new Mcv2Exception("Records do not end at the frame end");
@@ -366,10 +372,10 @@ public final class Mcv2Decoder {
   }
 
   private static void position(final int[] positions, final int index, final int left, final int top, final int size) {
-    final int at = index * POSITION_INTS;
-    positions[at] = left;
-    positions[at + 1] = top;
-    positions[at + 2] = size;
+    final int arrayOffset = index * POSITION_INTS;
+    positions[arrayOffset] = left;
+    positions[arrayOffset + 1] = top;
+    positions[arrayOffset + 2] = size;
   }
 
   private static void leaf(
@@ -382,13 +388,13 @@ public final class Mcv2Decoder {
     final int quantizer,
     final int offset
   ) {
-    final int at = index * LEAF_INTS;
-    leaves[at] = left;
-    leaves[at + 1] = top;
-    leaves[at + 2] = size;
-    leaves[at + 3] = mode;
-    leaves[at + 4] = quantizer;
-    leaves[at + 5] = offset;
+    final int arrayOffset = index * LEAF_INTS;
+    leaves[arrayOffset] = left;
+    leaves[arrayOffset + 1] = top;
+    leaves[arrayOffset + 2] = size;
+    leaves[arrayOffset + 3] = mode;
+    leaves[arrayOffset + 4] = quantizer;
+    leaves[arrayOffset + 5] = offset;
   }
 
   /**
@@ -451,8 +457,8 @@ public final class Mcv2Decoder {
     Preconditions.checkArgument(fromRow >= 0 && fromRow <= toRow && toRow <= frame.height, "Invalid row range");
     Preconditions.checkArgument(!samePicture(prediction, output), "Row decoding needs a separate reference");
     final Context context = new Context(frame, prediction, output);
-    for (int at = 0; at < frame.leaves.length; at += LEAF_INTS) {
-      context.leaf(at, fromRow, toRow);
+    for (int arrayOffset = 0; arrayOffset < frame.leaves.length; arrayOffset += LEAF_INTS) {
+      context.leaf(arrayOffset, fromRow, toRow);
     }
   }
 
@@ -485,14 +491,14 @@ public final class Mcv2Decoder {
       this.output = output;
     }
 
-    private void leaf(final int at, final int fromRow, final int toRow) {
+    private void leaf(final int arrayOffset, final int fromRow, final int toRow) {
       final int[] leaves = this.frame.leaves;
-      final int left = leaves[at];
-      final int top = leaves[at + 1];
-      final int size = leaves[at + 2];
-      final int mode = leaves[at + 3];
-      final int quantizer = leaves[at + 4];
-      final int offset = leaves[at + 5];
+      final int left = leaves[arrayOffset];
+      final int top = leaves[arrayOffset + 1];
+      final int size = leaves[arrayOffset + 2];
+      final int mode = leaves[arrayOffset + 3];
+      final int quantizer = leaves[arrayOffset + 4];
+      final int offset = leaves[arrayOffset + 5];
       final int firstRow = Math.max(top, fromRow);
       final int lastRow = Math.min(top + size, toRow);
       final int right = Math.min(left + size, this.frame.width);
@@ -507,13 +513,13 @@ public final class Mcv2Decoder {
       int word = 0;
       int orientation = 0;
       if (mode == MODE_SOLID || mode == MODE_PALETTE) {
-        color0 = rgb(data, offset);
+        color0 = readColor(data, offset);
         if (mode == MODE_PALETTE) {
-          color1 = rgb(data, offset + CHANNELS);
+          color1 = readColor(data, offset + CHANNELS);
         }
       } else if (mode == MODE_PATTERN) {
-        color0 = rgb(data, offset);
-        color1 = rgb(data, offset + CHANNELS);
+        color0 = readColor(data, offset);
+        color1 = readColor(data, offset + CHANNELS);
         word = offset + 2 * CHANNELS;
         orientation = data[word];
         word++;
@@ -604,63 +610,68 @@ public final class Mcv2Decoder {
     return Math.min(Math.max((value + (1 << (shift - 1))) >> shift, 0), MAX_CHANNEL);
   }
 
-  private static int rgb(final byte[] data, final int at) {
-    return ((data[at] & 0xFF) << 16) | ((data[at + 1] & 0xFF) << 8) | (data[at + 2] & 0xFF);
+  private static int readColor(final byte[] data, final int arrayOffset) {
+    return ((data[arrayOffset] & 0xFF) << 16) | ((data[arrayOffset + 1] & 0xFF) << 8) | (data[arrayOffset + 2] & 0xFF);
   }
 
   /**
    * Reads an unsigned little-endian 16-bit integer.
    *
    * @param data source bytes
-   * @param at first byte offset
+   * @param arrayOffset first byte offset
    * @return unsigned value
    * @throws IndexOutOfBoundsException if either byte lies outside data
    */
-  public static int u16(final byte[] data, final int at) {
-    return (data[at] & 0xFF) | ((data[at + 1] & 0xFF) << 8);
+  public static int u16(final byte[] data, final int arrayOffset) {
+    return (data[arrayOffset] & 0xFF) | ((data[arrayOffset + 1] & 0xFF) << 8);
   }
 
   /**
    * Reads an unsigned little-endian 32-bit integer.
    *
    * @param data source bytes
-   * @param at first byte offset
+   * @param arrayOffset first byte offset
    * @return unsigned value
    * @throws IndexOutOfBoundsException if any byte lies outside data
    */
-  public static long u32(final byte[] data, final int at) {
-    return (data[at] & 0xFFL) | ((data[at + 1] & 0xFFL) << 8) | ((data[at + 2] & 0xFFL) << 16) | ((data[at + 3] & 0xFFL) << 24);
+  public static long u32(final byte[] data, final int arrayOffset) {
+    return (
+      (data[arrayOffset] & 0xFFL) |
+      ((data[arrayOffset + 1] & 0xFFL) << 8) |
+      ((data[arrayOffset + 2] & 0xFFL) << 16) |
+      ((data[arrayOffset + 3] & 0xFFL) << 24)
+    );
   }
 
   /**
    * Writes the low 16 bits in little-endian order.
    *
    * @param data destination bytes
-   * @param at first byte offset
+   * @param arrayOffset first byte offset
    * @param value value to write
    * @throws IndexOutOfBoundsException if either byte lies outside data
    */
-  public static void putU16(final byte[] data, final int at, final int value) {
-    data[at] = (byte) value;
-    data[at + 1] = (byte) (value >>> 8);
+  public static void putU16(final byte[] data, final int arrayOffset, final int value) {
+    data[arrayOffset] = (byte) value;
+    data[arrayOffset + 1] = (byte) (value >>> 8);
   }
 
   /**
    * Writes the low 32 bits in little-endian order.
    *
    * @param data destination bytes
-   * @param at first byte offset
+   * @param arrayOffset first byte offset
    * @param value value to write
    * @throws IndexOutOfBoundsException if any byte lies outside data
    */
-  public static void putU32(final byte[] data, final int at, final long value) {
+  public static void putU32(final byte[] data, final int arrayOffset, final long value) {
     for (int index = 0; index < Integer.BYTES; index++) {
-      data[at + index] = (byte) (value >>> (index * Byte.SIZE));
+      data[arrayOffset + index] = (byte) (value >>> (index * Byte.SIZE));
     }
   }
 
-  static boolean follows(final long id, final long last) {
-    final long distance = (id - last) & MAX_U32;
+  static boolean follows(final long nextFrameId, final long lastFrameId) {
+    final long distance = (nextFrameId - lastFrameId) & MAX_U32;
     return distance != 0 && distance < 1L << 31;
   }
 

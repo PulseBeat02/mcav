@@ -131,13 +131,13 @@ public final class Mcv2Pack {
    *
    * @param configuration  the screen
    * @param showsDebugView whether the pack also draws the decoded picture one to one below the strip, for testing
-   * @param zip            where the pack is written, atomically
+   * @param archivePath    where the pack is written, atomically
    * @throws UncheckedIOException if the pack cannot be written
-   * @throws NullPointerException if the zip path is null
+   * @throws NullPointerException if {@code configuration} or {@code archivePath} is null
    */
-  public static void write(final Mcv2Configuration configuration, final boolean showsDebugView, final Path zip) {
+  public static void write(final Mcv2Configuration configuration, final boolean showsDebugView, final Path archivePath) {
     Preconditions.checkNotNull(configuration, "Configuration must not be null");
-    write(List.of(configuration), showsDebugView, zip);
+    write(List.of(configuration), showsDebugView, archivePath);
   }
 
   /**
@@ -147,15 +147,15 @@ public final class Mcv2Pack {
    *                       share the outline colour of the first
    * @param showsDebugView whether the pack also draws the first screen's decoded picture one to one below the strip, for
    *                       testing
-   * @param zip            where the pack is written, atomically
+   * @param archivePath    where the pack is written, atomically
    * @throws IllegalArgumentException if there are no screens or more than {@link #MAX_SCREENS}, two share a stream
    *                                  id, or their outline colours differ
    * @throws UncheckedIOException     if the pack cannot be written
-   * @throws NullPointerException if {@code screens} or {@code zip} is null
+   * @throws NullPointerException if {@code screens} or {@code archivePath} is null
    */
-  public static void write(final List<Mcv2Configuration> screens, final boolean showsDebugView, final Path zip) {
+  public static void write(final List<Mcv2Configuration> screens, final boolean showsDebugView, final Path archivePath) {
     Preconditions.checkNotNull(screens, "Screens must not be null");
-    Preconditions.checkNotNull(zip, "Zip must not be null");
+    Preconditions.checkNotNull(archivePath, "Zip must not be null");
     checkScreens(screens);
     final SimpleResourcePack pack = SimpleResourcePack.pack();
     pack.meta(PACK_FORMAT, describe(screens));
@@ -178,7 +178,7 @@ public final class Mcv2Pack {
     pack.data(INCLUDE + "mcv2_config.glsl", config(screens, showsDebugView).getBytes(StandardCharsets.UTF_8));
     pack.data(INCLUDE + "mcv2_alphabet.glsl", alphabet(palette()).getBytes(StandardCharsets.UTF_8));
     pack.data("mcav_mcv2.json", manifest(screens).getBytes(StandardCharsets.UTF_8));
-    pack.zip(zip);
+    pack.zip(archivePath);
   }
 
   private static void checkScreens(final List<Mcv2Configuration> screens) {
