@@ -1,7 +1,5 @@
 plugins {
-    id("mcav.module")
-    id("mcav.publishing")
-    id("mcav.script-testing")
+    id("mcav.browser")
 }
 
 dependencies {
@@ -15,21 +13,4 @@ dependencies {
     compileOnly(libs.osgi.annotation)
     testImplementation(project(":mcav-common"))
     testRuntimeOnly(libs.slf4j.simple)
-}
-
-pitest {
-    excludedGroups = setOf("cef")
-}
-
-val helperCoverage = layout.buildDirectory.file("jacoco/helper.exec")
-
-tasks.test {
-    outputs.file(helperCoverage).withPropertyName("helperCoverage")
-    doFirst {
-        delete(helperCoverage)
-    }
-}
-
-tasks.jacocoTestReport {
-    executionData(helperCoverage)
 }

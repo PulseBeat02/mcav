@@ -1,20 +1,8 @@
 package me.brandonli.mcav.gradle
 
-import org.gradle.api.DefaultTask
-import org.gradle.api.GradleException
-import org.gradle.api.file.ConfigurableFileCollection
-import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.tasks.InputFiles
-import org.gradle.api.tasks.OutputFile
-import org.gradle.api.tasks.PathSensitive
-import org.gradle.api.tasks.PathSensitivity
-import org.gradle.api.tasks.TaskAction
+import java.io.File
 
-/**
- * Fails when a log call writes its message inline instead of naming a constant, and reports each one as
- * `file:line: error: ...`, which IDEs turn into links.
- */
-abstract class LogMessagesTask : DefaultTask() {
+abstract class LogMessagesTask : JavaLintTask() {
 
     private companion object {
         const val INLINE_MESSAGE =
@@ -22,27 +10,17 @@ abstract class LogMessagesTask : DefaultTask() {
                 "with SLF4J placeholders for the arguments and no string concatenation"
     }
 
-    /** The Java sources of every source set of the module. */
-    @get:InputFiles
-    @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val sources: ConfigurableFileCollection
-
-    /** Written when the sources pass, so the task is up to date until one of them changes. */
-    @get:OutputFile
-    abstract val report: RegularFileProperty
-
-    @TaskAction
-    fun check() {
-        var count = 0
-        sources.files.sorted().forEach { file ->
+    override fun findViolations(files: List<File>, reportViolation: (File, Number, List<String>) -> Unit) {
+        files.forEach { file ->
             LogMessages.find(file.readText()).forEach { found ->
-                count++
-                logger.error(INLINE_MESSAGE, file, found.line, found.call)
+                reportViolation(file, found.line, listOf(found.call))
             }
         }
-        if (count > 0) {
-            throw GradleException("$count log calls with an inline message")
-        }
-        report.get().asFile.writeText("no log call with an inline message in ${sources.files.size} files\n")
     }
+
+    override fun diagnosticMessage(): String = INLINE_MESSAGE
+
+    override fun failureMessage(count: Int): String = "$count log calls with an inline message"
+
+    override fun successMessage(fileCount: Int): String = "no log call with an inline message in $fileCount files\n"
 }

@@ -81,15 +81,18 @@ import org.junit.jupiter.api.io.TempDir;
  */
 final class PaperServerEndToEndTest {
 
+  private static final String PAPER_FILE_NAME = Objects.requireNonNull(System.getProperty("mcav.e2e.paperFileName"));
+  private static final String VOICE_CHAT_FILE_NAME = Objects.requireNonNull(System.getProperty("mcav.e2e.voiceChatFileName"));
+
   private static final RemoteFile PAPER = new RemoteFile(
-    "https://fill-data.papermc.io/v1/objects/dd64988a011729e6812f2fff1be32ba5c572ecdc8890e6abc7a56aa91b53f77d/paper-26.3-49.jar",
-    "paper-26.3-49.jar",
+    "https://fill-data.papermc.io/v1/objects/dd64988a011729e6812f2fff1be32ba5c572ecdc8890e6abc7a56aa91b53f77d/" + PAPER_FILE_NAME,
+    PAPER_FILE_NAME,
     "SHA-256",
     "dd64988a011729e6812f2fff1be32ba5c572ecdc8890e6abc7a56aa91b53f77d"
   );
   private static final RemoteFile VOICE_CHAT = new RemoteFile(
-    "https://cdn.modrinth.com/data/9eGKb6K1/versions/EJth3OAr/voicechat-bukkit-2.6.24.jar",
-    "voicechat-bukkit-2.6.24.jar",
+    "https://cdn.modrinth.com/data/9eGKb6K1/versions/EJth3OAr/" + VOICE_CHAT_FILE_NAME,
+    VOICE_CHAT_FILE_NAME,
     "SHA-512",
     "7f1d5765e79cd42616f14f40322d1171a8505e1116dfff71c7bd0e59af9d255c06f70a68a5b622015c0407d40c80e70298c172992007ff339cedcef0116fec42"
   );

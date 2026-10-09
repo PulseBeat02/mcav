@@ -1,5 +1,6 @@
 plugins {
     id("mcav.module")
+    id("mcav.licensing")
 }
 
 repositories {

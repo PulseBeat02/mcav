@@ -54,7 +54,6 @@ class JcstressConsoleTest {
 
     @Test
     fun keepsWhatItShowsAndLeavesTheConsoleOpen() {
-        // a console that knows it was closed: closing a ByteArrayOutputStream does nothing, so it cannot tell
         var closed = false
         val shown = object : ByteArrayOutputStream() {
             override fun close() {

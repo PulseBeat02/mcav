@@ -74,15 +74,20 @@ abstract class JupyterBook : DefaultTask() {
             from(sources)
             into(book)
         }
-        processes.exec {
-            workingDir(staging)
-            commandLine(pythonExecutable.get().asFile, "-c", "from jupyter_book.cli.main import main\nmain()", "build", "book",
-                "--path-output", "site", "--warningiserror", "--keep-going", "--all")
-            environment("PYTHONNOUSERSITE", "1")
-            environment("PYTHONDONTWRITEBYTECODE", "1")
-            environment("PYTHONHASHSEED", "0")
-            environment("MPLCONFIGDIR", staging.resolve("matplotlib").absolutePath)
-            environment("JUPYTER_CONFIG_DIR", staging.resolve("jupyter").absolutePath)
+        val commands = listOf(
+            listOf("config", "sphinx", "book"),
+            listOf("build", "book", "--path-output", "site", "--warningiserror", "--keep-going", "--all")
+        )
+        commands.forEach { arguments ->
+            processes.exec {
+                workingDir(staging)
+                commandLine(listOf(pythonExecutable.get().asFile, "-c", "from jupyter_book.cli.main import main\nmain()") + arguments)
+                environment("PYTHONNOUSERSITE", "1")
+                environment("PYTHONDONTWRITEBYTECODE", "1")
+                environment("PYTHONHASHSEED", "0")
+                environment("MPLCONFIGDIR", staging.resolve("matplotlib").absolutePath)
+                environment("JUPYTER_CONFIG_DIR", staging.resolve("jupyter").absolutePath)
+            }
         }
         files.sync {
             from(staging.resolve("site/_build/html"))

@@ -16,8 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import java.util.Locale
 import java.util.Properties
+import me.brandonli.mcav.gradle.HostPlatform
+import me.brandonli.mcav.gradle.ToolVersions
 import me.brandonli.mcav.gradle.BuildMcv2Natives
 import me.brandonli.mcav.gradle.DownloadToolArchive
 import me.brandonli.mcav.gradle.libs
@@ -27,18 +28,9 @@ plugins {
     java
 }
 
-val operatingSystem = System.getProperty("os.name").lowercase(Locale.ROOT)
-val system = when {
-    operatingSystem.contains("windows") -> "windows"
-    operatingSystem.contains("mac") -> "macos"
-    operatingSystem.contains("linux") -> "linux"
-    else -> operatingSystem
-}
-val architecture = when (val hostArchitecture = System.getProperty("os.arch")) {
-    "amd64", "x86_64" -> "x86_64"
-    "aarch64", "arm64" -> "aarch64"
-    else -> hostArchitecture
-}
+val host = HostPlatform.current()
+val system = host.zigSystem
+val architecture = host.architecture
 val pinnedZigVersion = libs.versionOf("zig")
 val zigFolder = "zig-$architecture-$system-$pinnedZigVersion"
 val zigArchive = zigFolder + if (system == "windows") ".zip" else ".tar.xz"
@@ -88,10 +80,17 @@ artifacts.add(nativeResources.name, buildMcv2Natives.flatMap { it.outputDirector
     type = "directory"
 }
 
+val toolVersions = objects.newInstance<ToolVersions>()
+val clangFormatVersion = libs.versionOf("clang-format")
+val clangFormat = providers.environmentVariable("CLANG_FORMAT").getOrElse("clang-format")
+
 tasks.register<Exec>("formatMcv2Natives") {
     group = "formatting"
-    description = "Formats the MCV2 native sources with clang-format ${libs.versionOf("clang-format")}"
+    description = "Formats the MCV2 native sources with clang-format $clangFormatVersion"
     workingDir = nativeSources.asFile
-    commandLine(listOf(providers.environmentVariable("CLANG_FORMAT").getOrElse("clang-format"), "-i", "--style=file") +
+    doFirst {
+        toolVersions.requireVersion(clangFormat, "clang-format", clangFormatVersion, "clang-format version", nativeSources.asFile)
+    }
+    commandLine(listOf(clangFormat, "-i", "--style=file") +
         fileTree(nativeSources) { include("*.cpp") }.files.sorted().map { it.absolutePath })
 }

@@ -54,10 +54,12 @@ class PublishingPluginTest {
     @Test
     fun mutationTestJvmCanReadTheGeneratedPublication() {
         prepareProject()
+        val catalog = directory.resolve("gradle/libs.versions.toml").toFile()
+        catalog.parentFile.mkdirs()
+        Path.of("..", "gradle", "libs.versions.toml").toFile().copyTo(catalog)
         directory.resolve("build.gradle").toFile().appendText(
             """
-            apply plugin: 'info.solidsoft.pitest'
-            pitest { jvmArgs = provider { tasks.test.jvmArgs } }
+            apply plugin: 'mcav.mutation'
             tasks.register('readMutationPom', JavaExec) {
                 dependsOn 'classes', 'generatePomFileForMavenPublication'
                 classpath = sourceSets.main.runtimeClasspath
@@ -93,10 +95,20 @@ class PublishingPluginTest {
         )
     }
 
+    @Test
+    fun thePublishedGroupFollowsTheRootProjectGroup() {
+        prepareProject()
+        directory.resolve("build.gradle").toFile().appendText("group = 'fixture.changed'\n")
+        run("generatePomFileForMavenPublication")
+        val document = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+            .parse(directory.resolve("build/publications/maven/pom-default.xml").toFile())
+        assertEquals("fixture.changed", document.documentElement.getElementsByTagName("groupId").item(0).textContent)
+    }
+
     private fun prepareProject() {
         val project = directory.toFile()
         project.resolve("settings.gradle").writeText("rootProject.name = 'mcav-fixture'\n")
-        project.resolve("build.gradle").writeText("plugins { id 'mcav.publishing' }\nversion = '1.2.3'\n")
+        project.resolve("build.gradle").writeText("plugins { id 'mcav.publishing' }\ngroup = 'me.brandonli'\nversion = '1.2.3'\n")
         project.resolve("LICENSE").writeText("Fixture license: preserve the complete root file.\n")
         project.resolve("THIRD-PARTY-NOTICES.md").writeText("Fixture notices: preserve the complete root file.\n")
         val source = project.resolve("src/main/java/Example.java")

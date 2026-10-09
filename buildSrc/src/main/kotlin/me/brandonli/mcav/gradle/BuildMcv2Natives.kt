@@ -20,8 +20,6 @@ package me.brandonli.mcav.gradle
 
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.security.MessageDigest
-import java.util.HexFormat
 import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -155,7 +153,7 @@ abstract class BuildMcv2Natives : DefaultTask() {
 
     private fun writeManifest(manifest: File, root: File, files: List<File>) {
         manifest.writeText(files.sortedBy { it.relativeTo(root).invariantSeparatorsPath }.joinToString("", transform = { file ->
-            val digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(file.readBytes()))
+            val digest = ToolDigests.sha256(file)
             "$digest  ${file.relativeTo(root).invariantSeparatorsPath}\n"
         }))
     }

@@ -20,8 +20,6 @@ package me.brandonli.mcav.gradle
 
 import java.io.IOException
 import java.net.URI
-import java.security.MessageDigest
-import java.util.HexFormat
 import javax.inject.Inject
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -78,16 +76,7 @@ abstract class DownloadToolArchive : DefaultTask() {
         } catch (failure: IOException) {
             throw GradleException("Could not download tool archive from $address: ${failure.message}", failure)
         }
-        val digest = MessageDigest.getInstance("SHA-256")
-        archive.inputStream().use { input ->
-            val buffer = ByteArray(65_536)
-            var count = input.read(buffer)
-            while (count >= 0) {
-                digest.update(buffer, 0, count)
-                count = input.read(buffer)
-            }
-        }
-        val actual = HexFormat.of().formatHex(digest.digest())
+        val actual = ToolDigests.sha256(archive)
         if (actual != expected) {
             archive.delete()
             throw GradleException("SHA-256 mismatch for $address: expected $expected, got $actual; archive was not installed")

@@ -12,10 +12,6 @@ tasks.withType<Test>().configureEach {
     jvmArgs("-Dmcav.testNode=${testNode.get().absolutePath}")
 }
 
-pitest {
-    jvmArgs.add(testNode.map { "-Dmcav.testNode=${it.absolutePath}" })
-}
-
 tasks.named("pitest") {
     dependsOn("nodeSetup")
 }

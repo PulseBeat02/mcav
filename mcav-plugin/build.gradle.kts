@@ -1,3 +1,4 @@
+import me.brandonli.mcav.gradle.moduleCoordinate
 import xyz.jpenilla.resourcefactory.bukkit.Permission
 import xyz.jpenilla.resourcefactory.paper.PaperPluginYaml
 
@@ -6,52 +7,23 @@ plugins {
     id("mcav.paper-plugin")
 }
 
-version = "1.0.0-v${libs.versions.minecraft.get()}"
-
 dependencies {
     compileOnly(libs.paper.api)
     implementation(libs.gremlin.runtime)
-    runtimeDownload("me.brandonli:mcav-bukkit:${rootProject.version}")
-    runtimeDownload("me.brandonli:mcav-discord:${rootProject.version}")
-    runtimeDownload("me.brandonli:mcav-http:${rootProject.version}")
-    runtimeDownload("me.brandonli:mcav-common:${rootProject.version}")
-    runtimeDownload("me.brandonli:mcav-vm:${rootProject.version}")
-    runtimeDownload("me.brandonli:mcav-vnc:${rootProject.version}")
-    runtimeDownload("me.brandonli:mcav-browser:${rootProject.version}")
-    implementation("me.brandonli:mcav-voicechat:${rootProject.version}")
+    runtimeDownload(moduleCoordinate("mcav-bukkit"))
+    runtimeDownload(moduleCoordinate("mcav-discord"))
+    runtimeDownload(moduleCoordinate("mcav-http"))
+    runtimeDownload(moduleCoordinate("mcav-common"))
+    runtimeDownload(moduleCoordinate("mcav-vm"))
+    runtimeDownload(moduleCoordinate("mcav-vnc"))
+    runtimeDownload(moduleCoordinate("mcav-browser"))
+    implementation(moduleCoordinate("mcav-voicechat"))
     runtimeDownload(libs.bundles.cloud)
     runtimeDownload(libs.commodore)
     runtimeDownload(libs.bstats.bukkit)
     runtimeDownload(libs.jda)
     testImplementation(libs.voicechat.api)
     testImplementation(libs.slf4j.simple)
-}
-
-val benchmark = sourceSets.create("benchmark")
-
-configurations.named(benchmark.implementationConfigurationName) {
-    extendsFrom(configurations.testImplementation.get())
-}
-
-configurations.named(benchmark.runtimeOnlyConfigurationName) {
-    extendsFrom(configurations.testRuntimeOnly.get())
-}
-
-dependencies {
-    benchmark.implementationConfigurationName(sourceSets.main.get().output)
-}
-
-tasks.register<JavaExec>("browserBenchmark") {
-    description = "Measures the frame rate and latency of a browser backend: -Pbenchmark.backend=<backend> -Pbenchmark.output=<file>"
-    group = "verification"
-    classpath = benchmark.runtimeClasspath
-    mainClass = "me.brandonli.mcav.plugin.benchmark.BrowserBenchmark"
-    val backend = providers.gradleProperty("benchmark.backend").orElse("")
-    val output = providers.gradleProperty("benchmark.output").orElse(layout.buildDirectory.file("browser-benchmark.md").get().asFile.absolutePath)
-    argumentProviders.add(CommandLineArgumentProvider { listOf(backend.get(), output.get()) })
-    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(libs.versions.java.get()) }
-    maxHeapSize = "4g"
-    outputs.upToDateWhen { false }
 }
 
 paperPluginYaml {
@@ -101,14 +73,5 @@ paperPluginYaml {
         register("mcav.command.vnc.create") { description = "Shows the desktop of a VNC server listed in vnc.allowed-hosts on a wall of maps" }
         register("mcav.vnc.release") { description = "Disconnects from the VNC desktop" }
         register("mcav.vnc.interact") { description = "Clicks and types on the VNC desktop: clicks on its screen, and chat with /mcav vnc interact" }
-    }
-}
-
-tasks.runServer {
-    systemProperty("net.kyori.adventure.text.warnWhenLegacyFormattingDetected", false)
-    downloadPlugins {
-        modrinth("simple-voice-chat", libs.versions.voicechat.plugin.get())
-        val spark = libs.versions.spark.asProvider().get()
-        url("https://ci.lucko.me/job/spark/${libs.versions.spark.build.get()}/artifact/spark-bukkit/build/libs/spark-$spark-bukkit.jar")
     }
 }

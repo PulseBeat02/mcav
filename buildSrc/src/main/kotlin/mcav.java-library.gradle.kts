@@ -1,3 +1,5 @@
+import me.brandonli.mcav.gradle.CheckerStubs
+import me.brandonli.mcav.gradle.javaLanguageVersion
 import me.brandonli.mcav.gradle.libraryOf
 import me.brandonli.mcav.gradle.libs
 import me.brandonli.mcav.gradle.versionOf
@@ -60,7 +62,7 @@ dependencies {
 }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(javaRelease)
+    toolchain.languageVersion = javaLanguageVersion()
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -92,6 +94,6 @@ tasks.processResources {
 
 fun stubsArgument(): List<String> {
     val stubs = rootProject.file("gradle/checker-framework")
-    val folders = listOf(stubs.resolve(project.name), stubs.resolve("shared")).filter { it.isDirectory }
+    val folders = CheckerStubs.forProject(stubs, project.name)
     return if (folders.isEmpty()) emptyList() else listOf("-Astubs=" + folders.joinToString(File.pathSeparator))
 }

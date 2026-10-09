@@ -22,31 +22,14 @@ import javax.tools.JavaFileObject
 import javax.tools.SimpleJavaFileObject
 import javax.tools.ToolProvider
 
-/**
- * A variable whose name says nothing: one letter, or one of the short forms a word says better.
- *
- * @property line the line of the declaration
- * @property name the name
- * @property kind what is declared: a field, record component, parameter, lambda or catch parameter, loop variable,
- *   resource, pattern variable or local variable
- * @property member the declaration as `package.Type#name`, how a published name is listed to keep it
- */
 data class UndescriptiveName(val line: Long, val name: String, val kind: String, val member: String)
 
-/**
- * Finds the variables of Java code named by one letter, or by a short form the naming rules spell out (`buf` for
- * buffer, `idx` for index...), in every kind of declaration. The code is parsed with the JDK's own compiler, so every
- * declaration is seen as the compiler sees it; generic type parameters are types, not variables, and `_` names
- * nothing.
- */
 object VariableNames {
 
-    /** Short forms a word says better: the naming rules' list, as whole names. */
     private val ABBREVIATIONS = setOf("buf", "tmp", "cfg", "idx", "cnt", "val", "res", "sb", "ctx", "mgr", "str", "arr", "len", "num")
 
     private const val UNNAMED = "_"
 
-    /** The undescriptive names of one source, for tests. */
     fun find(source: String): List<UndescriptiveName> {
         val file = object : SimpleJavaFileObject(URI.create("string:///Source.java"), JavaFileObject.Kind.SOURCE) {
             override fun getCharContent(ignoreEncodingErrors: Boolean): CharSequence = source
@@ -54,7 +37,6 @@ object VariableNames {
         return find(listOf(file)).values.single()
     }
 
-    /** The undescriptive names of source files, by file. */
     fun findInFiles(files: List<File>): Map<File, List<UndescriptiveName>> {
         val compiler = ToolProvider.getSystemJavaCompiler()
         val fileManager = compiler.getStandardFileManager(null, null, Charsets.UTF_8)

@@ -87,9 +87,6 @@ tasks.test {
     dependsOn(tasks.jar)
     jvmArgs(builtJar)
 }
-pitest {
-    jvmArgs.add(builtJar)
-}
 tasks.named("pitest") {
     dependsOn(tasks.jar)
 }

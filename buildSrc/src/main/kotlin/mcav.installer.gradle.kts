@@ -44,9 +44,6 @@ tasks.test {
     dependsOn(tasks.shadowJar)
     jvmArgs(builtJar)
 }
-pitest {
-    jvmArgs.add(builtJar)
-}
 tasks.named("pitest") {
     dependsOn(tasks.shadowJar)
 }

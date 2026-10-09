@@ -18,22 +18,16 @@
 
 import me.brandonli.mcav.gradle.libraryOf
 import me.brandonli.mcav.gradle.libs
-import me.brandonli.mcav.gradle.lwjglNatives
+import me.brandonli.mcav.gradle.addLwjglTestNatives
 
 plugins {
     java
 }
 
-val nativeClassifier = lwjglNatives()
-
 dependencies {
-    listOf("lwjgl", "lwjgl-shaderc", "lwjgl-spvc").forEach { name ->
-        val library = libs.libraryOf(name)
-        testImplementation(library)
-        nativeClassifier?.let { classifier ->
-            testRuntimeOnly(variantOf(library) { classifier(classifier) })
-        }
-    }
+    val libraries = listOf("lwjgl", "lwjgl-shaderc", "lwjgl-spvc").map { libs.libraryOf(it) }
+    libraries.forEach { testImplementation(it) }
+    addLwjglTestNatives(libraries)
 }
 
 val writeToolsClasspath = tasks.register("writeMcv2ToolsClasspath") {
