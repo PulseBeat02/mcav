@@ -322,9 +322,9 @@ final class Mcv2NativesTest {
       final MemorySegment entry = Linker.nativeLinker().upcallStub(query, FunctionDescriptor.of(JAVA_INT, JAVA_LONG), arena);
       final SymbolLookup original = NativeTesting.library();
       final SymbolLookup library = name -> name.equals("mcv2_cpu_levels") ? Optional.of(entry) : original.find(name);
-      assertFalse(Natives.bind(library, "linux-test", null, Natives.ABI).failed());
+      assertFalse(Natives.bind(library, "linux-test", null, Natives.ABI_VERSION).failed());
       assertEquals(features, received.get());
-      assertFalse(Natives.bind(library, "other-test", null, Natives.ABI).failed());
+      assertFalse(Natives.bind(library, "other-test", null, Natives.ABI_VERSION).failed());
       assertEquals(0, received.get());
     }
   }
@@ -405,28 +405,28 @@ final class Mcv2NativesTest {
     assumeTrue(NativeTesting.expected(), "no library loads here");
     final SymbolLookup library = NativeTesting.library();
     final int levels = NativeTesting.resolution().levels();
-    final Resolution best = Natives.bind(library, "here", null, Natives.ABI);
+    final Resolution best = Natives.bind(library, "here", null, Natives.ABI_VERSION);
     assertEquals(Natives.level(levels, null), Objects.requireNonNull(best.binding()).level());
     assertEquals("native " + Natives.level(levels, null).symbol() + " (here)", best.description());
     assertInstanceOf(Mcv2Internals.nested("NativeKernels"), NativeTesting.factory(best).get());
-    assertEquals(Level.SCALAR, Objects.requireNonNull(Natives.bind(library, "here", "scalar", Natives.ABI).binding()).level());
+    assertEquals(Level.SCALAR, Objects.requireNonNull(Natives.bind(library, "here", "scalar", Natives.ABI_VERSION).binding()).level());
     final Resolution unversioned = Natives.bind(
       name -> name.equals("mcv2_abi") ? Optional.empty() : library.find(name),
       "here",
       null,
-      Natives.ABI
+      Natives.ABI_VERSION
     );
     assertTrue(unversioned.failed());
     assertTrue(unversioned.description().startsWith("Java, the library could not be bound"));
     // a library of another interface than the bindings are written for
-    final Resolution other = Natives.bind(library, "here", null, Natives.ABI + 1);
+    final Resolution other = Natives.bind(library, "here", null, Natives.ABI_VERSION + 1);
     assertTrue(other.failed());
-    assertEquals("Java, the library's interface " + Natives.ABI + " is not " + (Natives.ABI + 1), other.description());
+    assertEquals("Java, the library's interface " + Natives.ABI_VERSION + " is not " + (Natives.ABI_VERSION + 1), other.description());
     final Resolution lacking = Natives.bind(
       name -> name.endsWith("_residual_target") ? Optional.empty() : library.find(name),
       "here",
       null,
-      Natives.ABI
+      Natives.ABI_VERSION
     );
     assertTrue(lacking.failed());
   }

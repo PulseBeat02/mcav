@@ -1531,7 +1531,7 @@ public final class MCV2 {
 
     private static final Pattern DIGEST_ENTRY = Pattern.compile("([0-9a-f]{64})  ((?:linux|macos|windows)-(?:x86_64|aarch64))/(.+)");
 
-    static final int ABI = 5;
+    static final int ABI_VERSION = 5;
 
     private static final String LEVEL_PROPERTY = "mcv2.native.level";
 
@@ -1713,7 +1713,7 @@ public final class MCV2 {
       } catch (final IllegalCallerException | IllegalArgumentException exception) {
         return Resolution.java("the library could not be loaded: " + exception, true);
       }
-      return bind(library, platform, highest, ABI);
+      return bind(library, platform, highest, ABI_VERSION);
     }
 
     static Path extract(final Path folder, final String name, final byte[] bytes, final String digest) throws IOException {
