@@ -214,7 +214,6 @@ uint mcv2UpdateChecksum(uint checksum, uint value) {
 }
 
 // Linear CRC advancement makes zero-initialized chunk checksums compose exactly.
-
 const int MCV2_CRC_CHUNK_BYTES = 192;
 const int MCV2_CRC_CHUNKS = 64;
 const uint MCV2_CRC_SHIFT[32] = uint[32](
@@ -676,7 +675,6 @@ layout(location = 0) out vec4 fragColor;
 
 const int MCV2_VIEW_FLOATS = 3;
 // Projected-corner rounding requires a margin around the screen's convex hull.
-
 const int MCV2_VIEW_MARGIN = 2;
 
 ivec3 mcv2DescriptorBytes(ivec2 size, int row, int columnIndex) {
@@ -1106,7 +1104,6 @@ bool mcv2TextFragment() {
     if (mcv2Kind != 0) {
         #if defined(OIT_ALPHA_ONLY) || defined(OIT_ACCUMULATE)
         // Improved transparency redirects text to targets that cannot carry exact page bytes.
-
         discard;
         #else
         if (mcv2Kind == 1) {

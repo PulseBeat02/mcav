@@ -40,7 +40,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
 
   static final int BURST = 5;
 
-  static final long INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(1);
+  static final long INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(1);
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Mcv2ShaderReports.class);
 
@@ -54,6 +54,10 @@ final class Mcv2ShaderReports implements PluginMessageListener {
 
   private static final String REPORTED = "The MCV2 client mod of {} reports {}: MCV2 screens show them {}";
 
+  private static final String DITHERED_MAPS = "the dithered maps";
+
+  private static final String VIDEO = "the video";
+
   private static final int REPORT_BYTES = 4;
 
   private static final int NO_SHADER_PACK = 0;
@@ -62,7 +66,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
 
   private static final int SHADER_PACK_UNKNOWN = 2;
 
-  private static final long BURST_NANOSECONDS = (BURST - 1) * INTERVAL_NANOS;
+  private static final long BURST_NANOSECONDS = (BURST - 1) * INTERVAL_NANOSECONDS;
 
   private final LongSupplier clock;
 
@@ -94,7 +98,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
     }
     final Report before = this.reports.put(viewerId, report);
     if (!Objects.equals(before, report)) {
-      LOGGER.info(REPORTED, name, report.describe(), report.blocksDecoding() ? "the dithered maps" : "the video");
+      LOGGER.info(REPORTED, name, report.describe(), report.blocksDecoding() ? DITHERED_MAPS : VIDEO);
     }
   }
 
@@ -105,7 +109,7 @@ final class Mcv2ShaderReports implements PluginMessageListener {
     if (next - now > BURST_NANOSECONDS) {
       return false;
     }
-    this.allowances.put(player, next + INTERVAL_NANOS);
+    this.allowances.put(player, next + INTERVAL_NANOSECONDS);
     return true;
   }
 

@@ -23,6 +23,7 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Path;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.LongConsumer;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
@@ -52,7 +53,7 @@ import org.bytedeco.javacv.FrameGrabber;
  */
 public final class Mcv2FileEncoder {
 
-  private static final double NANOS_PER_MILLISECOND = 1e6;
+  private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
 
   private Mcv2FileEncoder() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -93,7 +94,7 @@ public final class Mcv2FileEncoder {
      * @return milliseconds per frame, 0 without frames
      */
     public double millisecondsPerFrame() {
-      return this.frames == 0 ? 0 : this.nanoseconds / NANOS_PER_MILLISECOND / this.frames;
+      return this.frames == 0 ? 0 : this.nanoseconds / NANOSECONDS_PER_MILLISECOND / this.frames;
     }
   }
 
@@ -116,7 +117,7 @@ public final class Mcv2FileEncoder {
    * @throws IllegalArgumentException if a dimension is nonpositive, or an encoded frame exceeds the codec
    *         dimension/id range
    * @throws ArithmeticException if the RGB allocation size overflows an int
-   * @throws java.util.concurrent.RejectedExecutionException if the budget rejects the encoding task
+   * @throws RejectedExecutionException if the budget rejects the encoding task
    * @throws NullPointerException if {@code frames}, {@code settings}, {@code budget}, {@code output} or {@code progress} is null
    */
   public static Result encode(

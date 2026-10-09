@@ -69,7 +69,7 @@ final class FabricEntrypointTest {
       verify(payloads).register(Mcv2Payload.TYPE, Mcv2Payload.CODEC);
 
       ticks.invoker().onEndTick(null);
-      clock.addAndGet(Mcv2Reporter.STEADY_NANOS);
+      clock.addAndGet(Mcv2Reporter.STEADY_NANOSECONDS);
       ticks.invoker().onEndTick(null);
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       networking.verify(() -> ClientPlayNetworking.send(sent.capture()));
@@ -77,7 +77,7 @@ final class FabricEntrypointTest {
 
       joins.invoker().onPlayReady(null, null, null);
       ticks.invoker().onEndTick(null);
-      clock.addAndGet(Mcv2Reporter.STEADY_NANOS);
+      clock.addAndGet(Mcv2Reporter.STEADY_NANOSECONDS);
       ticks.invoker().onEndTick(null);
       networking.verify(() -> ClientPlayNetworking.send(sent.capture()), times(2));
     }

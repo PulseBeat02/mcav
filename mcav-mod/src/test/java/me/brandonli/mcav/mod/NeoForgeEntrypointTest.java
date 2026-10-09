@@ -61,8 +61,8 @@ final class NeoForgeEntrypointTest {
 
   /** The listener the entry point added to a bus for an event. */
   @SuppressWarnings("unchecked")
-  private static <T extends Event> Consumer<T> listener(final IEventBus bus, final Class<T> event) {
-    final ArgumentCaptor<Consumer<T>> listener = ArgumentCaptor.forClass(Consumer.class);
+  private static <EventType extends Event> Consumer<EventType> listener(final IEventBus bus, final Class<EventType> event) {
+    final ArgumentCaptor<Consumer<EventType>> listener = ArgumentCaptor.forClass(Consumer.class);
     verify(bus).addListener(eq(event), listener.capture());
     return listener.getValue();
   }
@@ -105,7 +105,7 @@ final class NeoForgeEntrypointTest {
 
       loggingIn.accept(login);
       ticks.accept(new ClientTickEvent.Post());
-      clock.addAndGet(Mcv2Reporter.STEADY_NANOS);
+      clock.addAndGet(Mcv2Reporter.STEADY_NANOSECONDS);
       ticks.accept(new ClientTickEvent.Post());
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       distributor.verify(() -> ClientPacketDistributor.sendToServer(sent.capture()));
@@ -114,12 +114,12 @@ final class NeoForgeEntrypointTest {
       loggingOut.accept(logout);
       loggingIn.accept(login);
       ticks.accept(new ClientTickEvent.Post());
-      clock.addAndGet(Mcv2Reporter.STEADY_NANOS);
+      clock.addAndGet(Mcv2Reporter.STEADY_NANOSECONDS);
       ticks.accept(new ClientTickEvent.Post());
       distributor.verify(() -> ClientPacketDistributor.sendToServer(any()), times(2));
 
       loggingOut.accept(logout);
-      clock.addAndGet(Mcv2Reporter.STEADY_NANOS);
+      clock.addAndGet(Mcv2Reporter.STEADY_NANOSECONDS);
       ticks.accept(new ClientTickEvent.Post());
       registry.verify(() -> NetworkRegistry.hasChannel(connection, ConnectionProtocol.PLAY, Mcv2Payload.TYPE.id()), times(4));
     }
@@ -134,10 +134,10 @@ final class NeoForgeEntrypointTest {
   void theEntryPointNeoForgeCallsAsksNeoForgeForTheVersionOfIris() {
     final ModList mods = mock(ModList.class);
     final ModContainer iris = mock(ModContainer.class);
-    final IModInfo info = mock(IModInfo.class);
+    final IModInfo irisMetadata = mock(IModInfo.class);
     doReturn(Optional.of(iris)).when(mods).getModContainerById("iris");
-    when(iris.getModInfo()).thenReturn(info);
-    when(info.getVersion()).thenReturn(new DefaultArtifactVersion("1.11.7+mc26.3"));
+    when(iris.getModInfo()).thenReturn(irisMetadata);
+    when(irisMetadata.getVersion()).thenReturn(new DefaultArtifactVersion("1.11.7+mc26.3"));
     try (final MockedStatic<ModList> modLists = mockStatic(ModList.class)) {
       modLists.when(ModList::get).thenReturn(mods);
       new NeoForgeEntrypoint(this.modBus);

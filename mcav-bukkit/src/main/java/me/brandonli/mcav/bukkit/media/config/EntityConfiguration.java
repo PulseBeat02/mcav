@@ -20,6 +20,7 @@ package me.brandonli.mcav.bukkit.media.config;
 import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
+import me.brandonli.mcav.bukkit.media.result.Characters;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -67,7 +68,7 @@ public class EntityConfiguration {
    * Gets the text drawn for every pixel, usually a single character such as {@code █}.
    *
    * @return the pixel text
-   * @see me.brandonli.mcav.bukkit.media.result.Characters
+   * @see Characters
    */
   public String getCharacter() {
     return this.character;

@@ -45,7 +45,7 @@ import org.mockito.ArgumentCaptor;
 
 final class ShaderDecoderTest {
 
-  private static final PackLayout LAYOUT = PackLayout.parse(PackLayoutTest.config("7u", "2", "0", 1)).orElseThrow();
+  private static final PackLayout LAYOUT = PackLayout.parse(PackLayoutTest.packConstants("7u", "2", "0", 1)).orElseThrow();
 
   private static final byte[] PAGE = MapFixtures.colours(MapFixtures.pageSymbols(7, 1));
 
@@ -67,7 +67,9 @@ final class ShaderDecoderTest {
 
   private final AtomicInteger layoutReads = new AtomicInteger();
 
-  private final AtomicReference<Optional<String>> config = new AtomicReference<>(Optional.of(PackLayoutTest.config("7u", "2", "0", 1)));
+  private final AtomicReference<Optional<String>> packConstants = new AtomicReference<>(
+    Optional.of(PackLayoutTest.packConstants("7u", "2", "0", 1))
+  );
 
   private final StripOutput output = mock(StripOutput.class);
 
@@ -84,7 +86,7 @@ final class ShaderDecoderTest {
       this.shadowPass::get,
       () -> {
         this.layoutReads.incrementAndGet();
-        return this.config.get();
+        return this.packConstants.get();
       },
       this.clock::get,
       GameMatrices.find().orElseThrow(),
@@ -221,11 +223,11 @@ final class ShaderDecoderTest {
 
   @Test
   void needsTheLayoutOfAnMcv2Pack() throws ReflectiveOperationException {
-    this.config.set(Optional.empty());
+    this.packConstants.set(Optional.empty());
     final ShaderDecoder decoder = this.decoder(true, 854, 480);
     frame(decoder);
     decoder.rendered(this.allocator, this.camera);
-    this.config.set(Optional.of("// a pack without MCV2 screens"));
+    this.packConstants.set(Optional.of("// a pack without MCV2 screens"));
     this.clock.set(1_000_000_000L);
     frame(decoder);
     decoder.rendered(this.allocator, this.camera);

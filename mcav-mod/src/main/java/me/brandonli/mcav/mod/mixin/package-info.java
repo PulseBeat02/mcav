@@ -16,7 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 /**
- * The mod's mixins. Each only tells {@link me.brandonli.mcav.mod.Mcv2Shaders} what the game draws, and none changes
- * what the game does; Mixin requires them in a package of their own.
+ * The mod's mixins. Each only tells {@link Mcv2Shaders} what the game draws, and none changes what the game does;
+ * Mixin requires them in a package of their own.
  */
 package me.brandonli.mcav.mod.mixin;
+
+import me.brandonli.mcav.mod.Mcv2Shaders;

@@ -228,8 +228,8 @@ public final class Mcv2PackServer {
    * @param folder         where the pack is written; files of earlier runs left there are deleted
    * @param hosting        hosts a written pack, for example {@code PackHosting::injector}; called off the main thread, once
    *                       for every change of the pack
-   * @param showsDebugView whether the pack also draws the first slot's decoded picture one to one in the top-left corner,
-   *                       for testing
+   * @param showsDebugView whether the pack also draws every slot's decoded picture one to one below the strip, for
+   *                       testing
    * @param onOffered      called with a player who is about to be asked to load the pack, for example to say why
    * @param onRefused      called with a player whose client declined the pack or failed to load it, who keeps the dithered
    *                       maps
@@ -395,8 +395,7 @@ public final class Mcv2PackServer {
       spareOfThatSize.spareOf = null;
       return spareOfThatSize;
     }
-    // Every allocated slot consumes strip rows on every viewer's screen.
-
+    // Every allocated slot consumes strip rows on every viewer's screen, so a free slot is reshaped before the pack grows.
     final Slot changed;
     if (oldestFree != null) {
       changed = oldestFree;
@@ -520,8 +519,8 @@ public final class Mcv2PackServer {
       final String archiveHash = hash(archivePath, "SHA-1");
       final UUID packId = UUID.nameUUIDFromBytes(("mcav-mcv2:" + archiveHash).getBytes(StandardCharsets.UTF_8));
       final PackHosting host = this.host(archivePath);
-      final ResourcePackInfo info = ResourcePackInfo.resourcePackInfo(packId, URI.create(host.getRawUrl()), archiveHash);
-      final ResourcePackRequest request = ResourcePackRequest.resourcePackRequest().packs(info).required(false).replace(false).build();
+      final ResourcePackInfo pack = ResourcePackInfo.resourcePackInfo(packId, URI.create(host.getRawUrl()), archiveHash);
+      final ResourcePackRequest request = ResourcePackRequest.resourcePackRequest().packs(pack).required(false).replace(false).build();
       published = new Published(wanted, packId, host, request, description);
     } catch (final RuntimeException exception) {
       LOGGER.error(PACK_FAILED, description, exception);

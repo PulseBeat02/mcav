@@ -59,8 +59,8 @@ final class NativeLibrariesTest {
 
   private static final String REBUILD = "rebuild the libraries: ./gradlew :mcav-bukkit:buildMcv2Natives";
 
-  /** One entry of the source's kernel list, {@code X(return type, name, parameters)}. */
-  private static final Pattern KERNEL = Pattern.compile("\\bX\\(\\s*\\w+\\s*,\\s*(\\w+)\\s*,");
+  /** One entry of the source's kernel list, {@code KERNEL(return type, name, parameters)}. */
+  private static final Pattern KERNEL = Pattern.compile("\\bKERNEL\\(\\s*\\w+\\s*,\\s*(\\w+)\\s*,");
 
   private static final Set<String> QUERIES = Set.of("mcv2_abi", "mcv2_cpu_levels");
 
@@ -167,7 +167,7 @@ final class NativeLibrariesTest {
   /** The kernels every level exports, from the source's list of them. */
   private static List<String> kernels() throws IOException {
     final String header = Files.readString(SOURCES.resolve("mcv2.cpp"), StandardCharsets.US_ASCII);
-    final int start = header.indexOf("#define MCV2_KERNELS(X)");
+    final int start = header.indexOf("#define MCV2_KERNELS(KERNEL)");
     final Matcher matcher = KERNEL.matcher(header.substring(start, header.indexOf("extern \"C\"", start)));
     final List<String> kernels = new ArrayList<>();
     while (matcher.find()) {

@@ -37,7 +37,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class GameMatrices {
 
   /** The floats of a 4x4 matrix. */
-  static final int FLOATS = 16;
+  private static final int FLOATS = 16;
 
   private static final String POSE_METHOD = "pose";
 
@@ -149,7 +149,7 @@ final class GameMatrices {
 
     private int written;
 
-    MatrixFloats() throws IOException {
+    private MatrixFloats() throws IOException {
       super();
     }
 
@@ -161,7 +161,7 @@ final class GameMatrices {
       this.values[this.written++] = value;
     }
 
-    float[] values() throws IOException {
+    private float[] values() throws IOException {
       if (this.written != FLOATS) {
         throw new IOException(NOT_FLOATS);
       }

@@ -282,32 +282,32 @@ final class Mcv2NativesTest {
     assertEquals(Level.SVE512, Natives.level(1 | 8 | 128, null));
     assertEquals(Level.NEON, Natives.level(1 | 8 | 128, "neon"));
     assertEquals(Level.SCALAR, Natives.level(1, null));
-    assertTrue(Level.AVX512.in(iceLake));
-    assertFalse(Level.NEON.in(iceLake));
+    assertTrue(Level.AVX512.isIn(iceLake));
+    assertFalse(Level.NEON.isIn(iceLake));
   }
 
   @Test
   void readsTheProcessorFeaturesLinuxGives() throws IOException {
-    assertEquals(0, Natives.hwcap(this.folder.resolve("missing")));
+    assertEquals(0, Natives.hardwareCapabilities(this.folder.resolve("missing")));
     // AT_PAGESZ, AT_HWCAP, AT_NULL, and the start of another entry
     final ByteBuffer vector = ByteBuffer.allocate(56).order(ByteOrder.nativeOrder());
     vector.putLong(6).putLong(4096).putLong(16).putLong(0x40_0000L).putLong(0).putLong(0).putInt(16);
     final Path given = Files.write(this.folder.resolve("auxv"), vector.array());
-    assertEquals(0x40_0000L, Natives.hwcap(given));
+    assertEquals(0x40_0000L, Natives.hardwareCapabilities(given));
     final Path without = Files.write(this.folder.resolve("without"), Arrays.copyOfRange(vector.array(), 0, 16));
-    assertEquals(0, Natives.hwcap(without));
+    assertEquals(0, Natives.hardwareCapabilities(without));
     final Path truncated = Files.write(this.folder.resolve("truncated"), Arrays.copyOfRange(vector.array(), 0, 24));
-    assertEquals(0, Natives.hwcap(truncated));
+    assertEquals(0, Natives.hardwareCapabilities(truncated));
     final ByteBuffer last = ByteBuffer.allocate(16).order(ByteOrder.nativeOrder());
     last.putLong(16).putLong(0x40_0000L);
-    assertEquals(0x40_0000L, Natives.hwcap(Files.write(this.folder.resolve("last"), last.array())));
+    assertEquals(0x40_0000L, Natives.hardwareCapabilities(Files.write(this.folder.resolve("last"), last.array())));
   }
 
   @Test
   @SuppressWarnings("restricted")
   void passesLinuxFeatureBitsToTheNativeLevelQuery() throws ReflectiveOperationException {
     assumeTrue(NativeTesting.expected(), "no library loads here");
-    final long features = Natives.hwcap(Path.of("/proc/self/auxv"));
+    final long features = Natives.hardwareCapabilities(Path.of("/proc/self/auxv"));
     assumeTrue(features != 0, "Linux must supply processor feature bits");
     final AtomicLong received = new AtomicLong(-1);
     final MethodHandle capture = MethodHandles.lookup()
@@ -319,9 +319,9 @@ final class Mcv2NativesTest {
       final MemorySegment entry = Linker.nativeLinker().upcallStub(query, FunctionDescriptor.of(JAVA_INT, JAVA_LONG), arena);
       final SymbolLookup original = NativeTesting.library();
       final SymbolLookup library = name -> name.equals("mcv2_cpu_levels") ? Optional.of(entry) : original.find(name);
-      assertFalse(Natives.bind(library, "linux-test", null, Natives.ABI).failed());
+      assertFalse(Natives.bind(library, "linux-test", null, Natives.ABI_VERSION).failed());
       assertEquals(features, received.get());
-      assertFalse(Natives.bind(library, "other-test", null, Natives.ABI).failed());
+      assertFalse(Natives.bind(library, "other-test", null, Natives.ABI_VERSION).failed());
       assertEquals(0, received.get());
     }
   }
@@ -375,10 +375,10 @@ final class Mcv2NativesTest {
     }
     final int levels = NativeTesting.resolution().levels();
     final boolean isX86 = flags.contains("sse2");
-    assertTrue(Level.SCALAR.in(levels));
-    assertEquals(isX86, Level.SSE2.in(levels));
-    assertEquals(flags.contains("sse4_1"), Level.SSE41.in(levels));
-    assertEquals(flags.contains("avx2"), Level.AVX2.in(levels));
+    assertTrue(Level.SCALAR.isIn(levels));
+    assertEquals(isX86, Level.SSE2.isIn(levels));
+    assertEquals(flags.contains("sse4_1"), Level.SSE41.isIn(levels));
+    assertEquals(flags.contains("avx2"), Level.AVX2.isIn(levels));
     final List<String> iceLake = List.of(
       "avx512f",
       "avx512dq",
@@ -389,12 +389,12 @@ final class Mcv2NativesTest {
       "avx512_vnni",
       "avx512_bitalg"
     );
-    assertEquals(flags.containsAll(iceLake), Level.AVX512.in(levels));
-    assertEquals(!isX86, Level.NEON.in(levels));
+    assertEquals(flags.containsAll(iceLake), Level.AVX512.isIn(levels));
+    assertEquals(!isX86, Level.NEON.isIn(levels));
     // SVE's vector length is not in /proc/cpuinfo: without SVE neither SVE level runs, with it at most one
-    final boolean sve = Level.SVE256.in(levels) || Level.SVE512.in(levels);
+    final boolean sve = Level.SVE256.isIn(levels) || Level.SVE512.isIn(levels);
     assertTrue(flags.contains("sve") || !sve);
-    assertFalse(Level.SVE256.in(levels) && Level.SVE512.in(levels));
+    assertFalse(Level.SVE256.isIn(levels) && Level.SVE512.isIn(levels));
   }
 
   @Test
@@ -402,27 +402,27 @@ final class Mcv2NativesTest {
     assumeTrue(NativeTesting.expected(), "no library loads here");
     final SymbolLookup library = NativeTesting.library();
     final int levels = NativeTesting.resolution().levels();
-    final Resolution best = Natives.bind(library, "here", null, Natives.ABI);
+    final Resolution best = Natives.bind(library, "here", null, Natives.ABI_VERSION);
     assertEquals(Natives.level(levels, null), Objects.requireNonNull(best.binding()).level());
     assertEquals("native " + Natives.level(levels, null).symbol() + " (here)", best.description());
     assertInstanceOf(Mcv2Internals.nested("NativeKernels"), NativeTesting.factory(best).get());
-    assertEquals(Level.SCALAR, Objects.requireNonNull(Natives.bind(library, "here", "scalar", Natives.ABI).binding()).level());
+    assertEquals(Level.SCALAR, Objects.requireNonNull(Natives.bind(library, "here", "scalar", Natives.ABI_VERSION).binding()).level());
     final Resolution unversioned = Natives.bind(
       name -> name.equals("mcv2_abi") ? Optional.empty() : library.find(name),
       "here",
       null,
-      Natives.ABI
+      Natives.ABI_VERSION
     );
     assertTrue(unversioned.failed());
     assertTrue(unversioned.description().startsWith("Java, the library could not be bound"));
-    final Resolution other = Natives.bind(library, "here", null, Natives.ABI + 1);
+    final Resolution other = Natives.bind(library, "here", null, Natives.ABI_VERSION + 1);
     assertTrue(other.failed());
-    assertEquals("Java, the library's interface " + Natives.ABI + " is not " + (Natives.ABI + 1), other.description());
+    assertEquals("Java, the library's interface " + Natives.ABI_VERSION + " is not " + (Natives.ABI_VERSION + 1), other.description());
     final Resolution lacking = Natives.bind(
       name -> name.endsWith("_residual_target") ? Optional.empty() : library.find(name),
       "here",
       null,
-      Natives.ABI
+      Natives.ABI_VERSION
     );
     assertTrue(lacking.failed());
   }

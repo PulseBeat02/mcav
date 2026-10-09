@@ -54,6 +54,7 @@ import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.VERSION;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.WALK_SPAN;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.follows;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.horizontal;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.isBlockSize;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.patternSize;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putU16;
 import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.putU32;
@@ -125,11 +126,11 @@ public final class MCV2 {
    */
   public record Settings(double lambda, boolean fast) {
     /**
-     * Normal live thresholds, lambda 72 and a keyframe interval of 120.
+     * Normal live thresholds with lambda 72.
      */
     public static final Settings DEFAULT = new Settings(72, false);
     /**
-     * Fast live thresholds, lambda 55 and a keyframe interval of 120.
+     * Fast live thresholds with lambda 55.
      */
     public static final Settings FAST = new Settings(55, true);
 
@@ -1503,7 +1504,7 @@ public final class MCV2 {
       this.symbol = symbol;
     }
 
-    boolean in(final int levels) {
+    boolean isIn(final int levels) {
       return (levels & this.bit) != 0;
     }
 
@@ -1531,7 +1532,7 @@ public final class MCV2 {
 
     private static final Pattern DIGEST_ENTRY = Pattern.compile("([0-9a-f]{64})  ((?:linux|macos|windows)-(?:x86_64|aarch64))/(.+)");
 
-    static final int ABI = 5;
+    static final int ABI_VERSION = 5;
 
     private static final String LEVEL_PROPERTY = "mcv2.native.level";
 
@@ -1713,7 +1714,7 @@ public final class MCV2 {
       } catch (final IllegalCallerException | IllegalArgumentException exception) {
         return Resolution.java("the library could not be loaded: " + exception, true);
       }
-      return bind(library, platform, highest, ABI);
+      return bind(library, platform, highest, ABI_VERSION);
     }
 
     static Path extract(final Path folder, final String name, final byte[] bytes, final String digest) throws IOException {
@@ -1742,7 +1743,7 @@ public final class MCV2 {
           return Resolution.java("the library's interface " + interfaceVersion + " is not " + expected, true);
         }
         // The dependency-free AArch64 library cannot query the kernel for SVE permission.
-        final long features = platform.startsWith("linux") ? hwcap(AUXILIARY_VECTOR_FILE) : 0;
+        final long features = platform.startsWith("linux") ? hardwareCapabilities(AUXILIARY_VECTOR_FILE) : 0;
         final MethodHandle cpuLevels = MethodHandles.insertArguments(
           linker.downcallHandle(library.findOrThrow("mcv2_cpu_levels"), LEVELS),
           0,
@@ -1756,7 +1757,7 @@ public final class MCV2 {
       }
     }
 
-    static long hwcap(final Path auxiliaryVectorFile) {
+    static long hardwareCapabilities(final Path auxiliaryVectorFile) {
       final byte[] bytes;
       try {
         bytes = Files.readAllBytes(auxiliaryVectorFile);
@@ -1779,7 +1780,7 @@ public final class MCV2 {
       boolean allowed = highest == null;
       for (final Level level : PREFERENCE) {
         allowed |= level.symbol().equals(highest);
-        if (allowed && level.in(levels)) {
+        if (allowed && level.isIn(levels)) {
           return level;
         }
       }
@@ -1971,7 +1972,7 @@ public final class MCV2 {
     }
 
     private static void checkSize(final int size) {
-      Preconditions.checkArgument(size == SMALLEST_BLOCK || size == 2 * SMALLEST_BLOCK || size == ROOT_SIZE, "Invalid block size");
+      Preconditions.checkArgument(isBlockSize(size), "Invalid block size");
     }
 
     private static void checkLength(final int length, final long count) {
@@ -2213,7 +2214,6 @@ public final class MCV2 {
     @Override
     public void halve(final int[] block, final int size, final int[] output) {
       // SIMD row steps require power-of-two block sizes to avoid array overruns.
-
       Preconditions.checkArgument(size >= 2 && size <= ROOT_SIZE && Integer.bitCount(size) == 1, "Invalid block size");
       checkBlock(block.length, size);
       checkBlock(output.length, size / 2);

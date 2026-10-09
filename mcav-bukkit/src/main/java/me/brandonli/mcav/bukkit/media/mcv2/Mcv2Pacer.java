@@ -437,7 +437,6 @@ public final class Mcv2Pacer {
     }
     this.overSince = NEVER;
     // Resetting backoff before the next retry interval permits repeated rung oscillation.
-
     final long held = now - this.settledSince;
     if (held >= seconds(Math.max(UP_SECONDS, this.blockSeconds[this.current]))) {
       this.blockSeconds[this.current] = BLOCK_SECONDS;

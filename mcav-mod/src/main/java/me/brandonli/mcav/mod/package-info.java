@@ -17,12 +17,12 @@
  */
 /**
  * The MCV2 client mod. Iris draws a shader pack with its own programs, which replace the shaders of the MCV2 resource
- * pack; with Iris 1.11.7 the mod decodes MCV2 under the shader pack anyway ({@link me.brandonli.mcav.mod.ShaderDecoder},
+ * pack; with Iris 1.11.7 the mod decodes MCV2 under the shader pack anyway ({@link ShaderDecoder},
  * which the mixins of {@code me.brandonli.mcav.mod.mixin} report to). On the {@code mcav:mcv2} plugin channel it tells
  * an MCAV server whether Iris draws a shader pack and whether MCV2 decodes under it, so the server shows this player the
  * dithered maps while it does not. It asks Iris through its public API alone, and works without Iris.
  *
- * <p>{@link me.brandonli.mcav.mod.FabricEntrypoint} and {@link me.brandonli.mcav.mod.NeoForgeEntrypoint} are the
- * entry points of the two loaders; each jar holds one of them and the classes they share.
+ * <p>{@link FabricEntrypoint} and {@link NeoForgeEntrypoint} are the entry points of the two loaders; each jar holds
+ * one of them and the classes they share.
  */
 package me.brandonli.mcav.mod;

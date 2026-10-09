@@ -38,7 +38,7 @@ abstract class GameRendererMixin {
       target = "Lnet/minecraft/client/renderer/ProjectionMatrixBuffer;getBuffer(Lorg/joml/Matrix4f;)Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;"
     )
   )
-  void mcav$projecting(final CallbackInfo info) {
+  void mcav$projecting(final CallbackInfo callback) {
     Mcv2Shaders.projecting();
   }
 }

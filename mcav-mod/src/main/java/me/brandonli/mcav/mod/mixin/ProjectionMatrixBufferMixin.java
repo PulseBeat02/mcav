@@ -35,7 +35,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 abstract class ProjectionMatrixBufferMixin {
 
   @Inject(method = "getBuffer(Lorg/joml/Matrix4f;)Lcom/mojang/renderpearl/api/buffers/GpuBufferSlice;", at = @At("HEAD"))
-  void mcav$projected(@Coerce final Object projection, final CallbackInfoReturnable<GpuBufferSlice> info) {
+  void mcav$projected(@Coerce final Object projection, final CallbackInfoReturnable<GpuBufferSlice> callback) {
     Mcv2Shaders.projected(projection);
   }
 }

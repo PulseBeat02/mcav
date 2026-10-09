@@ -69,11 +69,11 @@ final class PackLayout {
    * Reads the layout the server generated. The pack comes from the server, so anything but a layout the server could
    * have generated is no layout at all.
    *
-   * @param config the text of the pack's {@code mcv2_config.glsl}
+   * @param packConstants the text of the pack's {@code mcv2_config.glsl}
    * @return the layout, or empty when the text does not hold one
    */
-  static Optional<PackLayout> parse(final String config) {
-    final Matcher screens = SCREENS.matcher(config);
+  static Optional<PackLayout> parse(final String packConstants) {
+    final Matcher screens = SCREENS.matcher(packConstants);
     if (!screens.find()) {
       return Optional.empty();
     }
@@ -81,9 +81,9 @@ final class PackLayout {
     if (count < 1 || count > MAX_SCREENS) {
       return Optional.empty();
     }
-    final Optional<long[]> streams = numbers(config, STREAMS, count, UNSIGNED, MAX_STREAM);
-    final Optional<long[]> slots = numbers(config, SLOTS, count, SIGNED, MAX_SLOTS);
-    final Optional<long[]> firstSlots = numbers(config, FIRST_SLOTS, count, SIGNED, MAX_SCREENS * MAX_SLOTS);
+    final Optional<long[]> streams = numbers(packConstants, STREAMS, count, UNSIGNED, MAX_STREAM);
+    final Optional<long[]> slots = numbers(packConstants, SLOTS, count, SIGNED, MAX_SLOTS);
+    final Optional<long[]> firstSlots = numbers(packConstants, FIRST_SLOTS, count, SIGNED, MAX_SCREENS * MAX_SLOTS);
     if (streams.isEmpty() || slots.isEmpty() || firstSlots.isEmpty()) {
       return Optional.empty();
     }
@@ -107,26 +107,26 @@ final class PackLayout {
     this.firstSlots = firstSlots;
   }
 
-  /** The values of a declared list of {@code count} elements, each at most {@code max}; empty when there is none. */
+  /** The values of a declared list of {@code count} elements, each at most {@code maximum}; empty when there is none. */
   private static Optional<long[]> numbers(
-    final String config,
+    final String packConstants,
     final String declaration,
     final int count,
     final String element,
-    final long max
+    final long maximum
   ) {
     final String elements = String.join(SEPARATOR, Collections.nCopies(count, element));
     final Pattern list = Pattern.compile(
       "const " + Pattern.quote(declaration) + "\\[" + count + "] = \\w+\\[" + count + "]\\(" + elements + "\\);"
     );
-    final Matcher matcher = list.matcher(config);
+    final Matcher matcher = list.matcher(packConstants);
     if (!matcher.find()) {
       return Optional.empty();
     }
     final long[] values = new long[count];
     for (int index = 0; index < count; index++) {
       values[index] = Long.parseLong(Objects.requireNonNull(matcher.group(index + 1)));
-      if (values[index] > max) {
+      if (values[index] > maximum) {
         return Optional.empty();
       }
     }

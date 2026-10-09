@@ -34,7 +34,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 abstract class MapRendererMixin {
 
   @Inject(method = "extractRenderState", at = @At("TAIL"))
-  void mcav$extracted(final MapId id, final MapItemSavedData data, final MapRenderState state, final CallbackInfo info) {
+  void mcav$extracted(final MapId id, final MapItemSavedData data, final MapRenderState state, final CallbackInfo callback) {
     Mcv2Shaders.extracted(state, data);
   }
 
@@ -45,7 +45,7 @@ abstract class MapRendererMixin {
     final SubmitNodeCollector collector,
     final boolean inFrame,
     final int light,
-    final CallbackInfo info
+    final CallbackInfo callback
   ) {
     Mcv2Shaders.posed(state, pose);
   }

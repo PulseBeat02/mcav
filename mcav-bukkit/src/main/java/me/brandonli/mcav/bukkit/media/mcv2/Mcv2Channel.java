@@ -206,7 +206,6 @@ public final class Mcv2Channel {
       return false;
     }
     // Bukkit throws if the location's world has unloaded.
-
     final World wall = Objects.requireNonNull(this.configuration.getOrigin().getWorld(), "A screen's origin is in a world");
     if (!wall.getUID().equals(player.getWorld().getUID())) {
       return true;
@@ -251,8 +250,7 @@ public final class Mcv2Channel {
     for (final UUID viewer : selected) {
       final Mcv2Link link = this.links.get(viewer);
       if (far.contains(viewer)) {
-        // Hiding removes the scoreboard team shared by every screen shown to this viewer.
-
+        // Not hidden: hiding removes the scoreboard team shared by every screen shown to this viewer.
         this.scheduled.remove(viewer);
         if (this.links.remove(viewer) != null) {
           this.away.add(viewer);
@@ -328,7 +326,6 @@ public final class Mcv2Channel {
         PacketUtils.limitUnsent(viewer, unsent);
       } catch (final RuntimeException refused) {
         // A closing epoll connection may reject this optional backlog limit.
-
         LOGGER.debug(UNSENT_LIMIT_REFUSED, viewer, refused);
       }
     }
