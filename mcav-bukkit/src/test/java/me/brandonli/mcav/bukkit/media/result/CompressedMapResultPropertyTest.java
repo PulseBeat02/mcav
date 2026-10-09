@@ -54,10 +54,9 @@ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
 /**
  * Properties of {@link CompressedMapResult} for sequences of frames whose size changes, while a second viewer comes and
- * goes. Pass 1 listed as an open defect that maps falling out of a shrinking picture kept their stale picture; this
- * states what the viewers must see for every such sequence, checked on the packets they actually receive: once the
- * picture stops changing, every pixel the current frame covers shows that frame, and every other pixel of the grid is
- * transparent or was never sent anything. No pixel keeps the colors of an earlier frame. After a release, every map of
+ * goes, checked on the packets the viewers actually receive: once the picture stops changing, every pixel the current
+ * frame covers shows that frame, and every other pixel of the grid is transparent or was never sent anything. No pixel
+ * keeps the colors of an earlier frame, not even on the maps a shrinking picture leaves. After a release, every map of
  * the grid is transparent.
  */
 final class CompressedMapResultPropertyTest {

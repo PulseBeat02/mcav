@@ -19,7 +19,10 @@ package me.brandonli.mcav.bukkit.media.mcv2;
 
 import java.util.Random;
 
-/** Preserves the synthetic panning source of the live-search regression tests. */
+/**
+ * The synthetic scene the encoder tests encode: a flat band, a checkerboard, a ramp and noisy waves, panned sideways a
+ * given number of pixels per frame.
+ */
 final class Mcv2Pictures {
 
   private Mcv2Pictures() {}

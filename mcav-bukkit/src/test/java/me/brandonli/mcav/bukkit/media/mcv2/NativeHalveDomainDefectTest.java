@@ -28,7 +28,10 @@ import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Level;
 import me.brandonli.mcav.bukkit.media.mcv2.NativeTesting.NativeKernels;
 import org.junit.jupiter.api.Test;
 
-/** Records the open SIMD input-domain finding without loading or calling a native library. */
+/**
+ * The vector loops of the native halve kernel need power-of-two blocks, so Java refuses every other size before any
+ * native call; checked on a simulated library that fails every call.
+ */
 final class NativeHalveDomainDefectTest {
 
   @Test
