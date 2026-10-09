@@ -16,30 +16,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import me.brandonli.mcav.gradle.addLwjglTestNatives
 import me.brandonli.mcav.gradle.libraryOf
 import me.brandonli.mcav.gradle.libs
-import me.brandonli.mcav.gradle.addLwjglTestNatives
 
 plugins {
-    java
+    id("mcav.module")
+    id("mcav.publishing")
 }
 
 dependencies {
-    val libraries = listOf("lwjgl", "lwjgl-shaderc", "lwjgl-spvc").map { libs.libraryOf(it) }
-    libraries.forEach { testImplementation(it) }
-    addLwjglTestNatives(libraries)
-}
-
-val writeToolsClasspath = tasks.register("writeMcv2ToolsClasspath") {
-    val output = layout.buildDirectory.file("mcv2-tools-classpath.txt")
-    val classpath = sourceSets.test.get().runtimeClasspath
-    inputs.files(classpath)
-    outputs.file(output)
-    doLast {
-        output.get().asFile.writeText(classpath.asPath)
-    }
-}
-
-tasks.test {
-    inputs.files(writeToolsClasspath)
+    addLwjglTestNatives(listOf("lwjgl", "lwjgl-opengl", "lwjgl-glfw").map { libs.libraryOf(it) })
 }

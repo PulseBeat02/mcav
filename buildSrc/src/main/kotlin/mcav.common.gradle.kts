@@ -16,30 +16,33 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import me.brandonli.mcav.gradle.libraryOf
-import me.brandonli.mcav.gradle.libs
-import me.brandonli.mcav.gradle.addLwjglTestNatives
+import org.gradle.api.artifacts.ModuleDependency
 
 plugins {
-    java
+    id("mcav.module")
+    id("mcav.publishing")
 }
 
-dependencies {
-    val libraries = listOf("lwjgl", "lwjgl-shaderc", "lwjgl-spvc").map { libs.libraryOf(it) }
-    libraries.forEach { testImplementation(it) }
-    addLwjglTestNatives(libraries)
-}
+val unusedJavacvPresets = listOf(
+    "flycapture",
+    "libdc1394",
+    "libfreenect",
+    "libfreenect2",
+    "librealsense",
+    "videoinput",
+    "artoolkitplus",
+    "flandmark",
+    "leptonica",
+    "tesseract"
+)
 
-val writeToolsClasspath = tasks.register("writeMcv2ToolsClasspath") {
-    val output = layout.buildDirectory.file("mcv2-tools-classpath.txt")
-    val classpath = sourceSets.test.get().runtimeClasspath
-    inputs.files(classpath)
-    outputs.file(output)
-    doLast {
-        output.get().asFile.writeText(classpath.asPath)
+configurations.api {
+    dependencies.withType<ModuleDependency>().configureEach {
+        if (group == "org.bytedeco" && name == "javacv-platform") {
+            unusedJavacvPresets.forEach { preset ->
+                exclude(group = "org.bytedeco", module = preset)
+                exclude(group = "org.bytedeco", module = "$preset-platform")
+            }
+        }
     }
-}
-
-tasks.test {
-    inputs.files(writeToolsClasspath)
 }

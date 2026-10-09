@@ -16,30 +16,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import me.brandonli.mcav.gradle.libraryOf
-import me.brandonli.mcav.gradle.libs
-import me.brandonli.mcav.gradle.addLwjglTestNatives
+package me.brandonli.mcav.gradle
 
-plugins {
-    java
-}
+import org.gradle.api.Project
+import org.gradle.api.provider.Provider
+import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.jvm.toolchain.JavaLauncher
+import org.gradle.jvm.toolchain.JavaToolchainService
+import org.gradle.jvm.toolchain.JvmVendorSpec
+import org.gradle.kotlin.dsl.getByType
 
-dependencies {
-    val libraries = listOf("lwjgl", "lwjgl-shaderc", "lwjgl-spvc").map { libs.libraryOf(it) }
-    libraries.forEach { testImplementation(it) }
-    addLwjglTestNatives(libraries)
-}
+fun Project.javaLanguageVersion(): JavaLanguageVersion = JavaLanguageVersion.of(libs.versionOf("java"))
 
-val writeToolsClasspath = tasks.register("writeMcv2ToolsClasspath") {
-    val output = layout.buildDirectory.file("mcv2-tools-classpath.txt")
-    val classpath = sourceSets.test.get().runtimeClasspath
-    inputs.files(classpath)
-    outputs.file(output)
-    doLast {
-        output.get().asFile.writeText(classpath.asPath)
+fun Project.javaLauncher(requestedVendor: JvmVendorSpec? = null): Provider<JavaLauncher> =
+    extensions.getByType<JavaToolchainService>().launcherFor {
+        languageVersion.set(javaLanguageVersion())
+        if (requestedVendor != null) vendor.set(requestedVendor)
     }
-}
-
-tasks.test {
-    inputs.files(writeToolsClasspath)
-}

@@ -1,7 +1,4 @@
 plugins {
-    id("mcav.java-library")
-    id("mcav.formatting")
-    id("mcav.lint")
     id("mcav.jcstress")
 }
 
@@ -18,7 +15,6 @@ dependencies {
     implementation(project(":mcav-vm")) {
         exclude(group = "org.bytedeco")
     }
-    // Keep Minecraft's runtime out of the standalone map/screen stress harness.
     implementation(project(":mcav-bukkit")) {
         isTransitive = false
     }

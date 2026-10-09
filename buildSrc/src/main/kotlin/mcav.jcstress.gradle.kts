@@ -6,6 +6,8 @@ import net.ltgt.gradle.errorprone.errorprone
 
 plugins {
     id("mcav.java-library")
+    id("mcav.formatting")
+    id("mcav.lint")
 }
 
 dependencies {

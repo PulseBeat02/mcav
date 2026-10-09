@@ -1,4 +1,5 @@
 import me.brandonli.mcav.gradle.CheckerStubs
+import me.brandonli.mcav.gradle.javaLanguageVersion
 import me.brandonli.mcav.gradle.libraryOf
 import me.brandonli.mcav.gradle.libs
 import me.brandonli.mcav.gradle.versionOf
@@ -61,7 +62,7 @@ dependencies {
 }
 
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(javaRelease)
+    toolchain.languageVersion = javaLanguageVersion()
 }
 
 tasks.withType<JavaCompile>().configureEach {

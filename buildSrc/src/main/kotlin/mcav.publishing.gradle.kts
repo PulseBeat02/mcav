@@ -41,7 +41,7 @@ publishing {
 
 afterEvaluate {
     publishing.publications.create<MavenPublication>("maven") {
-        groupId = "me.brandonli"
+        groupId = rootProject.group.toString()
         artifactId = project.name
         version = rootProject.version.toString()
         pom {

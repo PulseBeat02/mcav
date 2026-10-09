@@ -10,6 +10,7 @@ repositories {
 dependencies {
     implementation(libs.xz)
     implementation(plugin(libs.plugins.spotless))
+    implementation(plugin(libs.plugins.paperweight.userdev))
     implementation(plugin(libs.plugins.checker.framework))
     implementation(plugin(libs.plugins.node))
     implementation(plugin(libs.plugins.errorprone))
