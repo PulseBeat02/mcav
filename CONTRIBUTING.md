@@ -31,8 +31,8 @@ the code should have, not whatever it happens to do. When a test fails, fix the 
 
 - `./gradlew coverageLint` runs the tests of every module and prints each line or branch that no test covers as
   `file:line`, failing the build when there is any. Run `./gradlew :<module>:coverageLint` for a single module.
-- `check`, and so `build`, enforces the lint by default. Some tests skip themselves on machines without VLC, Chrome,
-  QEMU, a display or a sound device, and the code they test would show up as gaps there, so on such a machine pass
+- `check`, and so `build`, enforces the lint by default. Some tests skip themselves on machines without VLC, QEMU,
+  a display or a sound device, and the code they test would show up as gaps there, so on such a machine pass
   `-Pmcav.coverage=false`, which turns the gate off; any other value keeps it on.
 - A line that no test can run, such as a constructor only a Minecraft server may call, goes into
   `coverage-exceptions.txt` next to the build file of its module, together with the reason. The lint fails when an
@@ -75,6 +75,14 @@ its pinned SHA-256; no C/C++ toolchain needs to be installed. `ZIG=/path/to/zig`
 libraries and their `SHA256SUMS` and `SOURCES` manifests live under `mcav-bukkit/build/generated/natives/mcav/mcv2/natives`.
 Commit only the sources. The loader checks the generated digests, and the tests compare the source manifest with the
 tree. `./gradlew :mcav-bukkit:formatMcv2Natives` formats the sources with clang-format (`CLANG_FORMAT=/path/to/clang-format`).
+The formatter is separate from `build` and needs clang-format 18.1.8.
+
+MCV2's Java tools live in `mcav-bukkit/src/test/java/me/brandonli/mcav/bukkit/media/mcv2/Mcv2Tools.java`.
+Its Python tools and independent reference decoder live in `mcav-bukkit/src/test/python`. Their tests run separately
+with `python3 -m unittest discover -s mcav-bukkit/src/test/python`, using Python 3.12 or newer with numpy, Pillow,
+moderngl and matplotlib. The
+[MCV2 article](https://mcav.readthedocs.io/en/latest/mcv2.html#reproducing-the-measurements-and-figures) lists the tools and
+their commands.
 
 ## Static Analysis
 
@@ -103,7 +111,7 @@ same JVM options as the tests of the module and honors `-Pmcav.testJavaHome`.
 
 ## End-to-End Test
 
-`./gradlew :mcav-plugin:e2eTest -Pmcav.e2e=true -Pmcav.acceptMinecraftEula=true` runs the sandbox plugin on a real,
+`./gradlew :mcav-plugin:e2eTest -Pmcav.e2e=true -Pmcav.acceptMinecraftEula=true` runs the MCAV plugin on a real,
 headless Paper 26.3 server together with Simple Voice Chat, exactly as on a production server:
 
 - The modules of this build are published into `build/e2e-repository`, and the server downloads them from there
