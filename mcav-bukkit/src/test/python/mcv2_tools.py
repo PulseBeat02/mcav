@@ -2096,10 +2096,12 @@ strip_fit_check_VIDEO = (64, 64)
 strip_fit_check_SLOTS = 8
 
 
-def strip_fit_check_frame(context, screen, spirv=None):
+def strip_fit_check_frame(context, screen, spirv=None, screen_index=0):
     """Use the same random scene for every size, so strip coverage can be compared exactly."""
-    global shader_check_SCREEN
+    global shader_check_SCREEN, shader_check_SCREEN_INDEX, shader_check_FIRST_SLOT
     shader_check_SCREEN = screen
+    shader_check_SCREEN_INDEX = screen_index
+    shader_check_FIRST_SLOT = shader_check_IDLE_SLOTS if screen_index else 0
     chain = ShaderChain(context, strip_fit_check_VIDEO[0], strip_fit_check_VIDEO[1], strip_fit_check_SLOTS)
     if spirv:
         chain.compiled = shader_check_compile_via_spirv(chain.includes, spirv)
@@ -2119,7 +2121,8 @@ def strip_fit_check_main():
     parser = argparse.ArgumentParser(
         description=(
             "Require the pack to preserve the scene when the transport strip cannot fit, and to cover a fitting "
-            "strip with the scene row below it. Exit 1 if any check fails; 2 on invalid options."
+            "strip with the scene row below it, in the first screen's pass only. Exit 1 if any check fails; "
+            "2 on invalid options."
         ),
     )
     parser.add_argument("--backend", choices=("egl", "glx"), default=None)
@@ -2152,7 +2155,14 @@ def strip_fit_check_main():
         after[below + 1 :], numpy.broadcast_to(scene[below], (rows,) + scene[below].shape)
     ):
         failures.append("854x480: the strip is not covered with the scene row below it")
-    print(json.dumps({"checks": 6, "failures": failures}))
+    # Later screens' passes read what earlier screens drew, so covering the strip again smears their pictures.
+    scene, after, _ = strip_fit_check_frame(context, screen, arguments.spirv, screen_index=1)
+    changed = int(numpy.count_nonzero(numpy.any(after != scene, axis=2)))
+    if changed:
+        failures.append(
+            "854x480, second screen: the screen pass changed %d pixels the first screen's pass drew" % changed
+        )
+    print(json.dumps({"checks": 7, "failures": failures}))
     return 1 if failures else 0
 
 

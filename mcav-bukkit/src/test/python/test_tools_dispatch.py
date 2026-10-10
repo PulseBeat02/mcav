@@ -64,10 +64,10 @@ class HelpCommandTest(unittest.TestCase):
 
 class StripCommandTest(unittest.TestCase):
     def run_command(self, damaged):
-        def frame(context, screen, spirv):
+        def frame(context, screen, spirv, screen_index=0):
             scene = numpy.zeros((screen[1], screen[0], 4), numpy.uint8)
             after = scene.copy()
-            if damaged and screen == (160, 90):
+            if (screen, screen_index) == damaged:
                 after[0, 0, 0] = 1
             return scene, after, False
 
@@ -84,18 +84,27 @@ class StripCommandTest(unittest.TestCase):
         return status, json.loads(output.getvalue().splitlines()[-1])
 
     def test_changed_scene_pixel_fails_the_subcommand(self):
-        status, result = self.run_command(True)
+        status, result = self.run_command(((160, 90), 0))
         self.assertEqual(1, status)
         self.assertEqual(
             ["160x90, where the strip does not fit: 1 pixels of the scene changed"], result["failures"]
         )
-        self.assertEqual(6, result["checks"])
+        self.assertEqual(7, result["checks"])
+
+    def test_second_screen_changing_the_first_screens_pixels_fails_the_subcommand(self):
+        status, result = self.run_command(((854, 480), 1))
+        self.assertEqual(1, status)
+        self.assertEqual(
+            ["854x480, second screen: the screen pass changed 1 pixels the first screen's pass drew"],
+            result["failures"],
+        )
+        self.assertEqual(7, result["checks"])
 
     def test_unchanged_scene_passes_the_subcommand(self):
-        status, result = self.run_command(False)
+        status, result = self.run_command(None)
         self.assertEqual(0, status)
         self.assertEqual([], result["failures"])
-        self.assertEqual(6, result["checks"])
+        self.assertEqual(7, result["checks"])
 
 
 class ChartCommandTest(unittest.TestCase):

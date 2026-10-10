@@ -811,7 +811,8 @@ void main() {
     int strip = mcv2StripRows(size.x);
 
     ivec2 source = fromTop < strip && mcv2StripFits(size) && !MCV2_DEBUG_VIEW ? mcv2FromTop(size, pixel.x, strip) : pixel;
-    vec4 scene = texelFetch(MainSampler, source, 0);
+    // Only the first screen's pass covers the strip: covering it again would smear the earlier screens' pictures.
+    vec4 scene = texelFetch(MainSampler, MCV2_SCREEN_INDEX == 0 ? source : pixel, 0);
     fragColor = scene;
     int debugRow = fromTop - strip - MCV2_DEBUG_TOP;
     if (MCV2_DEBUG_VIEW && debugRow >= 0 && debugRow < 24 && pixel.x >= MCV2_VIDEO_WIDTH + 8) {

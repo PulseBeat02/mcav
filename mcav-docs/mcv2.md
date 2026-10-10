@@ -1533,8 +1533,8 @@ decoder the class `Mcv2Decoder`, both in `me.brandonli.mcav.bukkit.media.mcv2`, 
   tested.
 - **The top of the screen.** While a page frame is in view, the strip takes the top rows of the screen (41 rows in an
   854x480 window with one screen of eight slots, 25 at 1080p), and the chain covers them with the scene row just below,
-  so a detailed sky or ceiling smears there. A window lower than the strip shows no MCV2 picture and leaves the view as
-  it is.
+  so a detailed sky or ceiling smears there; every screen's picture shows over those rows as anywhere else. A window
+  lower than the strip shows no MCV2 picture and leaves the view as it is.
 - **Missed frames.** A client that draws fewer frames than the video has misses frames, and a missed frame is repaired
   only by the next keyframe, at most four seconds later.
 - **Sound.** The audio web page keeps a little sound buffered, so its sound comes a moment after the wall shows the same
@@ -1688,7 +1688,7 @@ Use `natives=off` for the Java comparison. The `mcv2.native` system property sti
 | Python `bd_rate` | `REFERENCE_JSON TEST_JSON [--metric vmaf_mean] [--rate map_mbps]`; compare rate-quality curves |
 | Python `shader_check` | `ARCHIVE... [--slots N] [--drop N] [--backend egl\|glx] [--pack DIR] [--spirv CP] [--second-screen] [--restart-check]`; exact pack/reference picture comparison |
 | Python `shader_timing` | `ARCHIVE... [--backend egl\|glx] [--slots N] [--rounds N] [--repeats N] [--pack DIR] [--reference DIR] [--spirv CP] [--json FILE]`; GPU pass timings and deterministic decode checks; `--reference` supports an archived v2 package |
-| Python `strip_fit_check` | `[--backend egl\|glx] [--spirv CP]`; verify screens too small for the transport strip |
+| Python `strip_fit_check` | `[--backend egl\|glx] [--spirv CP]`; verify screens too small for the transport strip, and that only the first screen's pass covers it |
 | Python `strip_check` | `CAPTURES --slots N --video-width W [--screens N] [--screen INDEX] [--first-slot N] [--total-slots N] [--debug-top ROWS]`; six-bit strip page, anchor and status validation |
 | Python `capture_check` | `REFERENCE_RGB W H CAPTURES [--top ROWS] [--vmaf FFMPEG]`; distinct pictures, PSNR, SSIM and VMAF |
 | Python `counter_video` | `RGB W H FPS SECONDS OUTPUT [--ffmpeg FFMPEG]`; stamp frame counters into a clip |
