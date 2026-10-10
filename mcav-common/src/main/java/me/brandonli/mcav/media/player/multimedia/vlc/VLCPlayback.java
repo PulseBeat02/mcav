@@ -206,7 +206,6 @@ final class VLCPlayback {
 
   private boolean startSeparate(final EmbeddedMediaPlayer separateAudio) {
     final Source audioSource = Objects.requireNonNull(this.audio, "A separate audio player always has an audio source");
-    // VLC opens both sources at the same time, so they share one deadline instead of waiting one after the other
     final long deadlineNanos = this.createOpenDeadline();
     final PlaybackEventListener videoListener = this.listen(this.videoPlayer, this.video);
     final PlaybackEventListener audioListener = this.listen(separateAudio, audioSource);

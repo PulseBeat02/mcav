@@ -1,38 +1,24 @@
+/*
+ * This file is part of mcav, a media playback library for Java
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #version 330
 #extension GL_ARB_separate_shader_objects : require
-
-// Pass 2: the CRC of every 192-byte chunk of every page slot's strip area, from a zero register, one chunk per
-// fragment: the pages pass chains them into each page's CRC instead of one fragment walking all 12,288 bytes of a
-// page. The chunk reads each strip pixel once for its three bytes. The CRC covers the header with its own field
-// (bytes 28 to 31) zeroed.
-
+#define MCV2_PASS_CRC
 #include <mcav:mcv2_config.glsl>
 #include <mcav:mcv2_screen.glsl>
-#include <mcav:mcv2_strip.glsl>
-#include <mcav:mcv2_slots.glsl>
-#include <mcav:mcv2_crc.glsl>
-
-uniform sampler2D MainSampler;
-
-layout(location = 0) out vec4 fragColor;
-
-void main() {
-    ivec2 size = textureSize(MainSampler, 0);
-    if (!mcv2StripFits(size)) {
-        fragColor = vec4(0.0);
-        return;
-    }
-    int x = int(gl_FragCoord.x);
-    int page = x / MCV2_CRC_CHUNKS;
-    int first = (x % MCV2_CRC_CHUNKS) * MCV2_CRC_CHUNK_BYTES;
-    uint crc = 0u;
-    for (int b = first; b < first + MCV2_CRC_CHUNK_BYTES; b += 3) {
-        ivec3 at = mcv2PageByteAt(size, page, b);
-        vec4 texel = texelFetch(MainSampler, at.xy, 0);
-        for (int k = 0; k < 3; ++k) {
-            int offset = b + k;
-            crc = mcv2CrcUpdate(crc, offset >= 28 && offset < 32 ? 0u : mcv2Unorm(texel[k]));
-        }
-    }
-    fragColor = mcv2WordTexel(crc);
-}
+#include <mcav:mcv2.glsl>

@@ -110,7 +110,6 @@ final class YTDLPParserImplTest {
     final UriSource source = source();
     final URLParseDump dump = parser.parse(source, "--cookies-from-browser", "firefox");
     final String executable = EXECUTABLE.toString();
-    // the URL follows "--", so yt-dlp can never read it as an option, and only the first playlist entry is resolved
     final String[] expected = {
       executable,
       "--dump-json",
@@ -244,7 +243,6 @@ final class YTDLPParserImplTest {
 
   @Test
   void reportsMetadataWhoseDecimalFieldHoldsText() throws IOException {
-    // yt-dlp copies what a site reports, and Gson reads text in a decimal field with a NumberFormatException of its own
     final YTDLPParseException duration = assertParseFails("{\"id\": \"abc\", \"duration\": \"long\"}");
     final YTDLPParseException quality = assertParseFails("{\"id\": \"abc\", \"formats\": [{\"quality\": \"high\"}]}");
     final String expected = "yt-dlp printed invalid metadata for " + URL;
@@ -398,7 +396,6 @@ final class YTDLPParserImplTest {
 
   @Test
   void defaultParserRunsTheInstalledExecutable() throws IOException {
-    // the JVM stands in for yt-dlp: it rejects --dump-json, so the default task factory runs a real process that fails
     final String javaHome = System.getProperty("java.home");
     final String launcherName = File.separatorChar == '\\' ? "java.exe" : "java";
     final Path javaPath = Path.of(javaHome, "bin", launcherName);

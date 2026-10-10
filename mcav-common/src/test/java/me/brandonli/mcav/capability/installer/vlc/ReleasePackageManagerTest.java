@@ -40,7 +40,7 @@ import org.mockito.Mockito;
 final class ReleasePackageManagerTest {
 
   private static List<Download> downloadsFor(final OS operatingSystem, final Arch architecture, final Bits bits) {
-    return Arrays.stream(ReleasePackageManager.readVLCDownloadsFromJsonResource("vlc.json"))
+    return Arrays.stream(ReleasePackageManager.readVLCDownloadsFromJsonResource("mcav/common/installers/vlc.json"))
       .filter(download -> download.getPlatform().getOS() == operatingSystem)
       .filter(download -> download.getPlatform().getArch() == architecture)
       .filter(download -> download.getPlatform().getBits() == bits)
@@ -52,7 +52,6 @@ final class ReleasePackageManagerTest {
     final List<Download> linux = downloadsFor(OS.LINUX, Arch.X86, Bits.BITS_64);
     assertEquals(1, linux.size());
     final Download appImage = linux.getFirst();
-    // a dated release, which never changes, not the weekly tag "continuous" of the publisher's account
     assertEquals(
       "https://github.com/ivan-hc/VLC-appimage/releases/download/20261001-112729/VLC-media-player_3.0.23_2-16-archimage5.0-x86_64.AppImage",
       appImage.getUrl()
@@ -63,7 +62,7 @@ final class ReleasePackageManagerTest {
   @Test
   void resolvesTheDownloadsWithoutAskingTheNetwork() {
     try (final MockedStatic<HttpDownloader> downloader = Mockito.mockStatic(HttpDownloader.class)) {
-      final Download[] downloads = ReleasePackageManager.readVLCDownloadsFromJsonResource("vlc.json");
+      final Download[] downloads = ReleasePackageManager.readVLCDownloadsFromJsonResource("mcav/common/installers/vlc.json");
       assertEquals(5, downloads.length, "Windows and macOS, two each, and Linux on x86-64");
       downloader.verifyNoInteractions();
     }
@@ -71,7 +70,7 @@ final class ReleasePackageManagerTest {
 
   @Test
   void verifiesEveryDownloadWithAHash() {
-    for (final Download download : ReleasePackageManager.readVLCDownloadsFromJsonResource("vlc.json")) {
+    for (final Download download : ReleasePackageManager.readVLCDownloadsFromJsonResource("mcav/common/installers/vlc.json")) {
       final String hash = download.getHash();
       assertNotNull(hash, "Every VLC download must be verified with a hash: " + download.getUrl());
       assertTrue(hash.matches("[0-9a-f]{64}"), hash);

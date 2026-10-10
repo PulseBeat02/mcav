@@ -636,7 +636,6 @@ final class ScriptedPlayerTest {
     private void recordCallingThread() {
       final Thread current = Thread.currentThread();
       final String name = current.getName();
-      // separate audio sources are opened by the audio decoding thread of the session, not by the caller
       if (!name.startsWith("mcav-")) {
         this.callingThreads.add(name);
       }

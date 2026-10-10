@@ -109,19 +109,14 @@ final class VLCInstallerTest {
 
   @Test
   void resolvesItsBundledDownloadsWhenNoneWereSupplied() {
-    // the default constructor's supplier is a lambda, and JaCoCo counts its body against the line that declares
-    // it, so a test that never asks for a download leaves that body untested while the line looks covered
     final VLCInstaller installer = VLCInstaller.create(this.folder);
     final Platform platform = Platform.getCurrentPlatform();
     final OS operatingSystem = platform.getOS();
     final String url = installer.getUrl();
 
     final String expectedPrefix = switch (operatingSystem) {
-      // Windows and macOS take the zip and the disk image VideoLAN publishes
       case WINDOWS, MAC -> "https://get.videolan.org/vlc/";
-      // Linux takes an AppImage, because it installs without root
       case LINUX -> "https://github.com/ivan-hc/VLC-appimage/";
-      // no VLC is published for the rest, and an unresolved download answers with an empty URL
       default -> "";
     };
     if (expectedPrefix.isEmpty()) {
@@ -185,7 +180,6 @@ final class VLCInstallerTest {
 
   @Test
   void isSupportedByAnEarlierInstallationWithoutResolvingDownloads() throws IOException {
-    // resolving the Linux downloads asks GitHub, which must not decide whether an installed VLC can be used
     this.createInstalledLibrary();
     final VLCInstaller installer = new VLCInstaller(this.folder, VLCInstallerTest::noDownloadExpected);
     final boolean supported = installer.isSupported();
@@ -255,7 +249,6 @@ final class VLCInstallerTest {
   void neverFollowsLinksWhileDeletingOldInstallations() throws IOException {
     final Path outside = createTree(this.folder, "outside");
     final Path kept = outside.resolve("kept.txt");
-    // the link target must exist, or the check below could never fail
     Files.writeString(kept, "content");
     final Path appLink = this.folder.resolve("VLC.app");
     final Path junest = createTree(this.folder, "vlc-junest");
@@ -390,14 +383,12 @@ final class VLCInstallerTest {
 
   @Test
   void bundlesVerifiedDownloadsOfTheAdvertisedVersion() {
-    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("vlc.json");
+    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("mcav/common/installers/vlc.json");
     final String versionDirectory = "/" + VLCInstaller.VERSION + "/";
     assertTrue(downloads.length > 0);
     for (final Download download : downloads) {
       final String url = download.getUrl();
       final String hash = download.getHash();
-      // VideoLAN publishes no Linux build: Linux takes one pinned AppImage of Arch Linux's VLC package, which has its own
-      // version, and whose release ReleasePackageManagerTest pins
       final boolean linux = download.getPlatform().getOS() == OS.LINUX;
       final boolean advertisedVersion = linux ? url.startsWith(PINNED_APPIMAGES) : url.contains(versionDirectory);
       final boolean secure = url.startsWith("https://");

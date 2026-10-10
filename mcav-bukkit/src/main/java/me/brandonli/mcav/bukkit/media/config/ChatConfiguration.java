@@ -20,6 +20,7 @@ package me.brandonli.mcav.bukkit.media.config;
 import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
+import me.brandonli.mcav.bukkit.media.result.Characters;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 /**
@@ -60,7 +61,7 @@ public class ChatConfiguration {
    * Gets the text drawn for every pixel, usually a single character such as {@code █}.
    *
    * @return the pixel text
-   * @see me.brandonli.mcav.bukkit.media.result.Characters
+   * @see Characters
    */
   public String getCharacter() {
     return this.character;
@@ -89,9 +90,7 @@ public class ChatConfiguration {
    */
   public static final class ChatResultBuilder extends Builder<ChatResultBuilder> {
 
-    ChatResultBuilder() {
-      // created through ChatConfiguration.builder()
-    }
+    ChatResultBuilder() {}
 
     /**
      * Returns this builder with its concrete type.
@@ -128,9 +127,7 @@ public class ChatConfiguration {
     private int chatWidth;
     private int chatHeight;
 
-    Builder() {
-      // only subclassed inside this class
-    }
+    Builder() {}
 
     /**
      * Returns this builder with its concrete type, so the setters can be chained.

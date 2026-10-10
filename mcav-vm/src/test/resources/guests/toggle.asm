@@ -1,0 +1,61 @@
+; This file is part of mcav, a media playback library for Java
+; Copyright (C) Brandon Li <https://brandonli.me/>
+;
+; This program is free software: you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation, either version 3 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+; The test switches a 1000 Hz tone and the screen together. Build: nasm -f bin toggle.asm -o toggle.img
+bits 16
+org 0x7c00
+start:
+    xor ax, ax
+    mov ds, ax
+    mov ss, ax
+    mov sp, 0x7c00
+    mov ax, 0xb800
+    mov es, ax
+    sti
+    mov al, 0xb6            ; PIT channel 2, lobyte/hibyte, square wave
+    out 0x43, al
+    mov ax, 1193
+    out 0x42, al
+    mov al, ah
+    out 0x42, al
+    xor si, si
+.next:
+    mov bl, [waits + si]
+    inc si
+    and si, 7
+    mov dx, [0x046c]        ; BIOS tick count
+.wait:
+    inc byte [es:0]         ; QEMU slows the VNC refreshes of an idle screen, delaying the picture but not the sound
+    mov ax, [0x046c]
+    sub ax, dx
+    cmp al, bl
+    jb .wait
+    in al, 0x61
+    xor al, 0x03            ; switch the speaker gate and data together
+    out 0x61, al
+    test al, 0x03
+    mov ax, 0x0020
+    jz .fill
+    mov ax, 0x4420          ; space on red
+.fill:
+    xor di, di
+    mov cx, 80 * 25
+    rep stosw
+    jmp .next
+waits:
+    db 5, 3, 8, 4, 9, 6, 3, 7
+times 510 - ($ - $$) db 0
+dw 0xaa55

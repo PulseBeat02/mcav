@@ -1,7 +1,3 @@
-// Formats a module: its Java code with prettier-java, which runs on a Node.js the build downloads, and its build script
-// and resources with the whitespace rules. `spotlessApply` formats; `spotlessCheck`, part of `check`, fails on anything
-// unformatted.
-
 import me.brandonli.mcav.gradle.isWindows
 import me.brandonli.mcav.gradle.libs
 import me.brandonli.mcav.gradle.versionOf
@@ -44,7 +40,6 @@ spotless {
             "src/**/*.yaml",
             "src/**/*.properties",
             "src/**/*.astub",
-            "checker-framework/**/*.astub",
             "coverage-exceptions.txt",
             "*.md"
         )

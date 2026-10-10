@@ -119,9 +119,7 @@ public class MapResult implements DitherResultStep {
    * Does nothing, because every frame is sent completely and nothing needs to be prepared.
    */
   @Override
-  public void start() {
-    // nothing needs to be prepared, every frame is sent completely
-  }
+  public void start() {}
 
   /**
    * Clears the maps of every viewer.

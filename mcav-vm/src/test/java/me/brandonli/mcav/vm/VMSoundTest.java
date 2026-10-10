@@ -49,8 +49,8 @@ import org.opentest4j.AssertionFailedError;
 
 /**
  * Runs real QEMU guests and listens to them through the audio pipeline of the player. The guests are boot sectors
- * whose sources lie next to them: {@code beep.asm} plays a 1000 Hz tone on the PC speaker, and {@code toggle.asm}
- * switches that tone and a red screen on and off together at irregular times, so the sound can be matched with the
+ * in {@code /guests/}, whose sources lie next to them: {@code beep.asm} plays a 1000 Hz tone on the PC speaker, and
+ * {@code toggle.asm} switches that tone and a red screen on and off together at irregular times, so the sound can be matched with the
  * picture. Skipped where QEMU for x86-64 is not installed; the matching times real events, so it only runs with
  * {@code -Pmcav.syncMeasurement=true}.
  */
@@ -60,7 +60,6 @@ final class VMSoundTest {
 
   /** The fewest changes of the picture a measurement must match to say anything of the sync. */
   private static final int MIN_MATCHED = 10;
-  // 5 ms of samples, which hold exactly 5 periods of the tone
   private static final int WINDOW_FRAMES = AudioFilter.SAMPLE_RATE / 200;
 
   @TempDir
@@ -73,7 +72,7 @@ final class VMSoundTest {
 
   private Path bootSector(final String name) throws IOException {
     final Path image = this.directory.resolve(name);
-    try (final InputStream resource = Objects.requireNonNull(VMSoundTest.class.getResourceAsStream(name), name)) {
+    try (final InputStream resource = Objects.requireNonNull(VMSoundTest.class.getResourceAsStream("/guests/" + name), name)) {
       Files.copy(resource, image);
     }
     return image;
@@ -125,7 +124,6 @@ final class VMSoundTest {
       return 0;
     }
     final double power = previous * previous + beforePrevious * beforePrevious - coefficient * previous * beforePrevious;
-    // a sine of the tone gives power = energy * length / 2
     return Math.min(1, power / ((energy * length) / 2));
   }
 
@@ -171,7 +169,6 @@ final class VMSoundTest {
       captured = pcm.toByteArray();
     }
     final short[] left = leftChannel(captured);
-    // the last second, after the guest started the tone
     final int start = left.length - AudioFilter.SAMPLE_RATE;
     int crossings = 0;
     for (int index = start + 1; index < left.length; index++) {
@@ -208,7 +205,6 @@ final class VMSoundTest {
         final int windows = left.length / WINDOW_FRAMES;
         for (int window = 0; window < windows; window++) {
           final boolean hasTone = toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > 0.5;
-          // the samples of a chunk played before it arrived, the last one just now
           final long end = (long) (window + 1) * WINDOW_FRAMES;
           final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
           sound.add(new long[] { arrival - before, hasTone ? 1 : 0 });
@@ -233,7 +229,6 @@ final class VMSoundTest {
     } finally {
       player.release();
     }
-    // toggle.asm turns on at least 6 timer ticks (330 ms) apart, so the sound within half of that belongs to a turn
     final long matchWindow = TimeUnit.MILLISECONDS.toNanos(165);
     final SyncJudgement judgement = SyncJudgement.of(onsets(picture), onsets(sound), matchWindow);
     final List<Double> offsets = judgement.offsets();
@@ -271,13 +266,8 @@ final class VMSoundTest {
   private static void assertInSync(final SyncJudgement judgement) {
     final List<Double> offsets = judgement.offsets();
     final int changes = judgement.changes();
-    // the measurement waits for 20 seconds of sound, not for changes of the picture: a few changes, however well they
-    // match, pass every rate below and say nothing of the sync
     assertTrue(offsets.size() >= MIN_MATCHED, "matched " + offsets.size() + " changes of the picture, fewer than " + MIN_MATCHED);
-    // every change of the picture counts: one without sound near it is a change out of sync
     assertTrue(offsets.size() >= Math.ceil(changes * 0.9), "matched " + offsets.size() + " of " + changes + " changes of the picture");
-    // the picture reaches the pipeline late now and then, when QEMU refreshes its VNC display late or the host is busy;
-    // the sound is held so that the two arrive together in the middle, and they must not drift apart
     final List<Double> sorted = new ArrayList<>(offsets);
     Collections.sort(sorted);
     assertTrue(Math.abs(median(sorted)) <= 40, "the sound and the picture arrive together in the middle");
@@ -325,7 +315,6 @@ final class VMSoundTest {
 
   @Test
   void theSyncOracleCountsAChangeWithoutItsSoundAsOutOfSync() {
-    // 50 changes of the picture, 800 ms apart; the sound of 10 of them 20 ms late, of the other 40 300 ms late
     final List<Long> picture = new ArrayList<>();
     final List<Long> sound = new ArrayList<>();
     for (int change = 0; change < 50; change++) {
@@ -336,17 +325,14 @@ final class VMSoundTest {
     final SyncJudgement late = SyncJudgement.of(picture, sound, TimeUnit.MILLISECONDS.toNanos(165));
     assertEquals(50, late.changes());
     assertTrue(late.within(-90, 185) < Math.ceil(late.changes() * 0.9), "40 of 50 changes 300 ms late are not in sync");
-    // and the same changes with their sound 20 ms late are
     final List<Long> onTime = picture
       .stream()
       .map(shown -> shown + TimeUnit.MILLISECONDS.toNanos(20))
       .toList();
     final SyncJudgement inSync = SyncJudgement.of(picture, onTime, TimeUnit.MILLISECONDS.toNanos(165));
     assertEquals(50, inSync.within(-40, 80));
-    // the measurement's verdict on both
     assertInSync(inSync);
     assertThrows(AssertionFailedError.class, () -> assertInSync(late));
-    // two changes in sync, all a picture undersampled for 20 seconds of sound shows, pass every rate but are too few
     final List<Long> twice = List.of(TimeUnit.SECONDS.toNanos(5), TimeUnit.SECONDS.toNanos(15));
     final List<Long> twiceHeard = twice
       .stream()

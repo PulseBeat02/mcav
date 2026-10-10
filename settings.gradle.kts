@@ -13,16 +13,17 @@ rootProject.name = "mcav"
 
 include(
     "mcav-common",
+    "mcav-docs",
     "mcav-bukkit",
     "mcav-installer",
-    "mcav-jda",
+    "mcav-discord",
     "mcav-http",
     "mcav-browser",
     "mcav-vnc",
     "mcav-vm",
     "mcav-lwjgl",
-    "mcav-svc",
-    "mcav-mcv2-client",
+    "mcav-voicechat",
+    "mcav-mod",
     "mcav-jcstress",
-    "sandbox:plugin",
+    "mcav-plugin",
 )

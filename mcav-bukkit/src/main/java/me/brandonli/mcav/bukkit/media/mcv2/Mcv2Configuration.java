@@ -21,8 +21,8 @@ import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderPool;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Pool;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
 import org.bukkit.block.BlockFace;
@@ -60,15 +60,11 @@ public final class Mcv2Configuration {
   /** The largest stream id: an anchor carries it in two six-bit symbols. */
   public static final long MAX_STREAM_ID = 4095;
 
-  /**
-   * The page slots of a screen that configures none, when it has that many maps: all of them, 98 KB a frame. A live
-   * gameplay frame takes 46 KB on average at 60 fps, a keyframe more, which the encoder brings under the slots' bound.
-   */
   private static final int DEFAULT_PAGE_SLOTS = MAX_PAGE_SLOTS;
 
   /**
-   * The most frames a second a screen shows when none is set: the rate whose 1080p gate the default live preset met
-   * (the 1080p60 gate was not met). A client decodes at most one frame for every frame it draws, so a screen faster
+   * The most frames a second a screen shows when none is set: the default live preset keeps up with 1080p video at 30
+   * frames a second, but not at 60. A client decodes at most one frame for every frame it draws, so a screen faster
    * than its viewers' clients leaves them waiting for keyframes.
    */
   public static final double DEFAULT_MAX_FRAME_RATE = 30;
@@ -117,13 +113,13 @@ public final class Mcv2Configuration {
 
   private final double maxFrameRate;
 
-  private final EncoderSettings settings;
+  private final Settings settings;
 
   private final NamedTextColor outlineColor;
 
   private final long backlogLimit;
 
-  private final @Nullable EncoderPool encoderPool;
+  private final @Nullable Pool encoderPool;
 
   private final int unsentLimit;
 
@@ -154,7 +150,6 @@ public final class Mcv2Configuration {
     this.unsentLimit = builder.unsentLimit;
   }
 
-  // the size of the video along a side of the wall: the one set, or the wall's own, 128 pixels a map
   private static int videoSize(final int size, final int maps) {
     return size > 0 ? size : MapLayout.MAP_SIZE * maps;
   }
@@ -288,6 +283,16 @@ public final class Mcv2Configuration {
   }
 
   /**
+   * Gets the page slots a screen has when its configuration names none.
+   *
+   * @param maps the maps of the wall
+   * @return the default page slots of such a wall
+   */
+  static int defaultPageSlots(final int maps) {
+    return Math.min(DEFAULT_PAGE_SLOTS, maps);
+  }
+
+  /**
    * Gets the stream id every page carries; the pack decodes only its own stream.
    *
    * @return the configured stream id, from 0 through {@value #MAX_STREAM_ID}
@@ -301,7 +306,7 @@ public final class Mcv2Configuration {
    *
    * @return the settings
    */
-  public EncoderSettings getSettings() {
+  public Settings getSettings() {
     return this.settings;
   }
 
@@ -374,7 +379,7 @@ public final class Mcv2Configuration {
       .outlineColor(this.outlineColor)
       .backlogLimit(this.backlogLimit)
       .unsentLimit(this.unsentLimit);
-    final EncoderPool pool = this.encoderPool;
+    final Pool pool = this.encoderPool;
     if (pool != null) {
       builder.encoderPool(pool);
     }
@@ -415,9 +420,9 @@ public final class Mcv2Configuration {
    *
    * @return the budget
    */
-  public EncoderPool getEncoderPool() {
-    final EncoderPool pool = this.encoderPool;
-    return pool != null ? pool : EncoderPool.shared();
+  public Pool getEncoderPool() {
+    final Pool pool = this.encoderPool;
+    return pool != null ? pool : Pool.shared();
   }
 
   /**
@@ -459,17 +464,15 @@ public final class Mcv2Configuration {
 
     private long backlogLimit = DEFAULT_BACKLOG_LIMIT;
 
-    private @Nullable EncoderPool encoderPool;
+    private @Nullable Pool encoderPool;
 
     private int unsentLimit = DEFAULT_UNSENT_LIMIT;
 
-    private EncoderSettings settings = EncoderSettings.LIVE;
+    private Settings settings = Settings.DEFAULT;
 
     private NamedTextColor outlineColor = NamedTextColor.DARK_PURPLE;
 
-    Builder() {
-      // created through Mcv2Configuration.builder()
-    }
+    private Builder() {}
 
     /**
      * Sets the players who watch the screen. The collection is not copied.
@@ -623,18 +626,14 @@ public final class Mcv2Configuration {
     }
 
     /**
-     * Sets the encoder profile; defaults to {@link EncoderSettings#LIVE}: a screen encodes a source while it plays, and
-     * live is the slowest rung of the preset ladder that keeps the 95th percentile of a 1080p30 frame under 32 ms with 12
-     * encoder threads of a 6-core server, on quiet content and on gameplay alike. With the default budget of 6 threads
-     * gameplay needs the next rung, {@link EncoderSettings#LIVE_ADAPTIVE}, and no rung encodes 1080p60 frames that fast
-     * there: a screen steps down the ladder, to adaptive, then {@code live-fast}, then fewer frames, when it cannot keep
-     * up ({@link EncoderSettings#faster()}).
+     * Sets the encoder profile; defaults to {@link Settings#DEFAULT}. A screen that falls behind steps to
+     * {@link Settings#FAST}, then lowers its frame rate and video size before using dithered maps.
      *
      * @param settings the settings
      * @return this builder
      * @throws NullPointerException if {@code settings} is null
      */
-    public Builder settings(final EncoderSettings settings) {
+    public Builder settings(final Settings settings) {
       Preconditions.checkNotNull(settings, "Settings must not be null");
       this.settings = settings;
       return this;
@@ -681,14 +680,14 @@ public final class Mcv2Configuration {
     }
 
     /**
-     * Sets the encoder budget the screen encodes in, instead of the server's shared budget, {@link EncoderPool#shared()}.
+     * Sets the encoder budget the screen encodes in, instead of the server's shared budget, {@link Pool#shared()}.
      * Screens that encode at the same time share a budget's threads.
      *
      * @param encoderPool the budget
      * @return this builder
      * @throws NullPointerException if {@code encoderPool} is null
      */
-    public Builder encoderPool(final EncoderPool encoderPool) {
+    public Builder encoderPool(final Pool encoderPool) {
       this.encoderPool = Preconditions.checkNotNull(encoderPool, "Encoder pool must not be null");
       return this;
     }
@@ -708,24 +707,24 @@ public final class Mcv2Configuration {
       Preconditions.checkArgument(this.map >= 0, "Map id must be set and non-negative");
       Preconditions.checkArgument(this.columns >= 1 && this.columns <= MAX_SIDE, "Columns must be 1 to %s", MAX_SIDE);
       Preconditions.checkArgument(this.rows >= 1 && this.rows <= MAX_SIDE, "Rows must be 1 to %s", MAX_SIDE);
-      Preconditions.checkArgument(this.videoWidth >= 0 && this.videoWidth <= Mcv2Format.MAX_DIMENSION, "Video width must be 0 to 4096");
-      Preconditions.checkArgument(this.videoHeight >= 0 && this.videoHeight <= Mcv2Format.MAX_DIMENSION, "Video height must be 0 to 4096");
-      // the wall's native size, the default, passed here and failed the encoder later, on its first frame
+      Preconditions.checkArgument(this.videoWidth >= 0 && this.videoWidth <= Mcv2Decoder.MAX_DIMENSION, "Video width must be 0 to 4096");
+      Preconditions.checkArgument(this.videoHeight >= 0 && this.videoHeight <= Mcv2Decoder.MAX_DIMENSION, "Video height must be 0 to 4096");
+
       final int width = videoSize(this.videoWidth, this.columns);
       final int height = videoSize(this.videoHeight, this.rows);
       Preconditions.checkArgument(
-        width <= Mcv2Format.MAX_DIMENSION && height <= Mcv2Format.MAX_DIMENSION,
+        width <= Mcv2Decoder.MAX_DIMENSION && height <= Mcv2Decoder.MAX_DIMENSION,
         "A wall of %s by %s maps is %s by %s pixels, more than the codec's %s: set a smaller video size",
         this.columns,
         this.rows,
         width,
         height,
-        Mcv2Format.MAX_DIMENSION
+        Mcv2Decoder.MAX_DIMENSION
       );
       Preconditions.checkArgument(this.pageSlots >= 0 && this.pageSlots <= MAX_PAGE_SLOTS, "Page slots must be 0 to %s", MAX_PAGE_SLOTS);
       Preconditions.checkArgument(this.streamId >= 0 && this.streamId <= MAX_STREAM_ID, "Stream id must be 0 to %s", MAX_STREAM_ID);
       Preconditions.checkArgument(
-        this.firstFrameId >= 0 && this.firstFrameId <= Mcv2Format.MAX_U32,
+        this.firstFrameId >= 0 && this.firstFrameId <= Mcv2Decoder.MAX_U32,
         "First frame id must be an unsigned 32-bit value"
       );
       Preconditions.checkArgument(
@@ -736,8 +735,8 @@ public final class Mcv2Configuration {
       Preconditions.checkArgument(this.backlogLimit >= 0, "Backlog limit must not be negative");
       Preconditions.checkArgument(this.unsentLimit >= 0, "Unsent limit must not be negative");
       final int maps = this.columns * this.rows;
-      final int slots = this.pageSlots > 0 ? this.pageSlots : Math.min(DEFAULT_PAGE_SLOTS, maps);
-      // a slot without a map to hang behind is never shown, so a frame that needs it can never be put together
+      final int slots = this.pageSlots > 0 ? this.pageSlots : defaultPageSlots(maps);
+      // A slot without a wall map is invisible to the client and prevents frame reassembly.
       Preconditions.checkArgument(
         slots <= maps,
         "A wall of %s maps cannot carry %s page slots: one page frame hangs behind each map",

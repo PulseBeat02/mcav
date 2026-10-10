@@ -273,9 +273,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    * @param listener ignored
    */
   @Override
-  public void removeOnPaintListener(final Consumer<CefPaintEvent> listener) {
-    // no listener is ever added
-  }
+  public void removeOnPaintListener(final Consumer<CefPaintEvent> listener) {}
 
   /**
    * Ignores the cursor, which is not shown.
@@ -311,9 +309,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    * @param operation the current drag operation
    */
   @Override
-  public void updateDragCursor(final CefBrowser browser, final int operation) {
-    // no drag is ever started
-  }
+  public void updateDragCursor(final CefBrowser browser, final int operation) {}
 
   /**
    * Receives the painted frames of a browser.

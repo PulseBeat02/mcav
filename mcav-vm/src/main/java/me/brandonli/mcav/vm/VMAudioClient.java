@@ -59,7 +59,6 @@ final class VMAudioClient implements Closeable {
     this.in = in;
     this.sink = sink;
     this.failures = failures;
-    // replaced by the running reader once the client exists
     this.reader = new Thread("mcav-vm-audio-not-started");
   }
 
@@ -99,7 +98,6 @@ final class VMAudioClient implements Closeable {
       final OutputStream rawOutput = socket.getOutputStream();
       final DataOutputStream out = new DataOutputStream(new BufferedOutputStream(rawOutput));
       handshake(in, out, password);
-      // afterwards the guest may stay silent for as long as it likes
       deadline.cancel(false);
       final VMAudioClient client = new VMAudioClient(socket, in, sink, failures);
       client.startReading();
@@ -119,7 +117,7 @@ final class VMAudioClient implements Closeable {
    * @param password the password of the display, or an empty string for none
    * @throws IOException if the handshake fails
    */
-  static void handshake(final DataInputStream in, final DataOutputStream out, final String password) throws IOException {
+  private static void handshake(final DataInputStream in, final DataOutputStream out, final String password) throws IOException {
     QemuAudioProtocol.readVersion(in);
     QemuAudioProtocol.writeVersion(out);
     out.flush();
@@ -152,7 +150,6 @@ final class VMAudioClient implements Closeable {
         }
       }
     } catch (final IOException | RuntimeException exception) {
-      // a sink that fails ends the connection like a server that breaks the protocol
       if (!this.closed) {
         closeQuietly(this.socket);
         this.failures.accept("The audio connection of the virtual machine ended", exception);
@@ -240,8 +237,6 @@ final class VMAudioClient implements Closeable {
     /**
      * Learns that the guest stopped playing: nothing arrives until it plays again.
      */
-    default void quiet() {
-      // a sink that does not keep the time of the sound has nothing to do
-    }
+    default void quiet() {}
   }
 }

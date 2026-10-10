@@ -160,7 +160,7 @@ final class DitherPropertyTest {
   }
 
   /**
-   * Creates integers in a range from a fresh arbitrary: jqwik 1.9 shares the range between an arbitrary and the ones
+   * Creates integers in a range from a fresh arbitrary: jqwik 1.10 shares the range between an arbitrary and the ones
    * configured from it, so one base configured twice would hand every user the last range.
    */
   private static Arbitrary<Integer> between(final int min, final int max) {
@@ -174,7 +174,6 @@ final class DitherPropertyTest {
     final int[] mirrored = mirror(image, ditherCase.getWidth());
 
     assertDithersIntoThePalette(ditherCase, image);
-    // mirrored, every row is scanned in the other direction over the same pixels
     assertDithersIntoThePalette(ditherCase, mirrored);
   }
 

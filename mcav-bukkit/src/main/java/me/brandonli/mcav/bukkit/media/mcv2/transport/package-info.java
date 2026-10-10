@@ -18,9 +18,8 @@
 /**
  * Splits validated MCV2 frames into checksummed symbol pages and reassembles out-of-order pages.
  *
- * <p>{@link me.brandonli.mcav.bukkit.media.mcv2.transport.TransportPages} supports six-, seven- and eight-bit
- * symbols; the Minecraft map alphabet uses six-bit symbols. A map carries whole rows, so strip row padding using
- * the useful-symbol count before passing pages to {@link me.brandonli.mcav.bukkit.media.mcv2.transport.PageAssembler}.
+ * <p>{@link TransportPages} supports six-bit symbols; the Minecraft map alphabet uses six-bit symbols. A map carries
+ * whole rows, so strip row padding using the useful-symbol count before passing pages to {@link PageAssembler}.
  * Each assembler belongs to one stream and must be used serially. It holds at most four incomplete frames and
  * does not advance decoder references. CRCs detect corruption and do not authenticate a sender.
  *

@@ -32,11 +32,11 @@ import me.brandonli.mcav.utils.IOUtils;
 /**
  * The key names {@link BrowserPlayer#sendKeyEvent(String)} presses rather than types: the W3C
  * {@code KeyboardEvent.key} values, such as {@code Enter}, {@code Backspace} or {@code ArrowLeft}, listed in the
- * {@code keybinds.json} resource.
+ * {@code mcav/browser/keybinds.json} resource.
  */
 final class SpecialKeys {
 
-  private static final String RESOURCE = "keybinds.json";
+  private static final String RESOURCE = "mcav/browser/keybinds.json";
   private static final Set<String> SPECIAL_KEYS = loadSpecialKeys();
 
   private SpecialKeys() {

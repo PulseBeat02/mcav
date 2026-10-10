@@ -41,8 +41,8 @@ NOTICE files of these components are merged into the jar's `META-INF/NOTICE`, an
 
 ## mcav-http.jar
 
-The audio web page in the jar's `static/` folder is built from npm packages, minified into the page. The jar's
-`static/THIRD-PARTY-NOTICES.txt`, written when the page is built, names every one of them with the licence and
+The audio web page in the jar's `mcav/http/website/` folder is built from npm packages, minified into the page. The jar's
+`mcav/http/website/THIRD-PARTY-NOTICES.txt`, written when the page is built, names every one of them with the licence and
 copyright notice its package carries (MIT, Apache-2.0, BSD, ISC and 0BSD licences).
 
 ## The sandbox plugin jar

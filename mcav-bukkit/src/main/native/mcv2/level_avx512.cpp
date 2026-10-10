@@ -16,12 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The avx512 dispatch level.
 #define MCV2_SIMD_AVX512
-#include "kernels.hpp"
-#include "mcv2_kernels.h"
 #define MCV2_PREFIX(name) mcv2_avx512_##name
-// blocks narrower than a vector go to the avx2 kernels
 #define MCV2_NARROW(name) mcv2_avx2_##name
 #define MCV2_NARROW_BELOW 16
-#include "exports.inc"
+#include "mcv2.cpp"

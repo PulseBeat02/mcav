@@ -319,7 +319,6 @@ public class CompressedMapResult implements DitherResultStep {
     return algorithm.ditherIntoBytes(samples);
   }
 
-  // leaves half of the processors to the server, so the main thread and the network threads can keep up
   private static ForkJoinPool createDitherPool() {
     final Runtime runtime = Runtime.getRuntime();
     final int processors = runtime.availableProcessors();
@@ -329,7 +328,6 @@ public class CompressedMapResult implements DitherResultStep {
     return new ForkJoinPool(parallelism, threadFactory, exceptionHandler, false);
   }
 
-  // exceptions of dither tasks are rethrown to the caller by the pool; anything else that escapes a worker is logged
   private static void logUncaughtException(final Thread thread, final Throwable throwable) {
     final String threadName = thread.getName();
     LOGGER.error(DITHERING_THREAD_FAILED, threadName, throwable);
@@ -368,8 +366,6 @@ public class CompressedMapResult implements DitherResultStep {
   public void start() {
     this.lock.lock();
     try {
-      // release() leaves the encoder and the viewers cleared, so there is nothing to undo but the latch itself;
-      // without this, process() returned early forever and a reused result rendered nothing at all
       this.released = false;
     } finally {
       this.lock.unlock();

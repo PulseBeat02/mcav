@@ -1,14 +1,23 @@
+/*
+ * This file is part of mcav, a media playback library for Java
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #version 330
 #extension GL_ARB_separate_shader_objects : require
-
-// Copies a target into another of the same size, texel for texel. The pack's reference pictures, keyframe and state
-// must not change between two decodes, and Minecraft 26.3's post/blit, which samples with texture() and scales by a
-// colour factor, loses a level here and there on every rendered frame when it copies the video-sized targets.
-
-uniform sampler2D InSampler;
-
-layout(location = 0) out vec4 fragColor;
-
-void main() {
-    fragColor = texelFetch(InSampler, ivec2(gl_FragCoord.xy), 0);
-}
+#define MCV2_PASS_COPY
+#include <mcav:mcv2_config.glsl>
+#include <mcav:mcv2.glsl>

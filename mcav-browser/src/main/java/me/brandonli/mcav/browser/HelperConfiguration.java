@@ -40,9 +40,7 @@ final class HelperConfiguration {
 
   private static final String SEPARATOR = ":";
   private static final int FIELDS = 15;
-  // a host name or an address never holds a comma
   private static final String HOST_SEPARATOR = ",";
-  // the longest line a configuration of the longest address and long paths makes, in three-byte characters and Base64
   private static final int MAX_LINE_CHARACTERS = 1024 * 1024;
   private static final int MAX_FRAME_INTERVAL = 1000;
 

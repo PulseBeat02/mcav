@@ -236,19 +236,13 @@ final class HttpServerTest {
   private static final class MarkerHandler extends Handler {
 
     @Override
-    public void publish(final LogRecord record) {
-      // only marks the configuration
-    }
+    public void publish(final LogRecord record) {}
 
     @Override
-    public void flush() {
-      // nothing buffered
-    }
+    public void flush() {}
 
     @Override
-    public void close() {
-      // nothing to release
-    }
+    public void close() {}
   }
 
   @Test
@@ -386,7 +380,7 @@ final class HttpServerTest {
   private static void assertServesTheBundledPage(final HttpResultImpl http) throws Exception {
     final HttpResponse<String> page = get(http, "/");
     final String body = page.body();
-    assertTrue(body.contains("bundled test page"), "the bundled page is served from classpath:/static/");
+    assertTrue(body.contains("bundled test page"), "the bundled page is served from classpath:/mcav/http/website/");
   }
 
   private static void assertStopsWithGoingAway(final HttpResultImpl http, final int port) throws Exception {
@@ -448,7 +442,6 @@ final class HttpServerTest {
     final HttpResultImpl http = new HttpResultImpl("localhost", 0, null, LOOPBACK);
     http.start();
     try {
-      // the handshake is parked inside addListener, right after it saw the server accepting, until the stop is done
       final CountDownLatch insideHandshake = new CountDownLatch(1);
       final CountDownLatch serverStopped = new CountDownLatch(1);
       final AtomicBoolean firstIdentifier = new AtomicBoolean(true);
@@ -523,7 +516,6 @@ final class HttpServerTest {
 
   @Test
   void asyncStartReportsFailures() {
-    // 192.0.2.1 is TEST-NET-1: never an address of this machine, and parsing it needs no DNS lookup
     final List<String> properties = List.of("server.address=192.0.2.1");
     final HttpResultImpl http = new HttpResultImpl("localhost", 0, null, properties);
     final CompletableFuture<Void> started = http.startAsync();
@@ -606,7 +598,6 @@ final class HttpServerTest {
 
   @Test
   void failsToStartOnABindAddressOfAnotherMachine() throws Exception {
-    // TEST-NET-1 is never assigned to this machine
     final byte[] raw = { (byte) 192, 0, 2, 1 };
     final InetAddress foreign = InetAddress.getByAddress(raw);
     final int port = freePort();
@@ -707,7 +698,6 @@ final class HttpServerTest {
     root.setLevel(Level.CONFIG);
     final HttpResultImpl http = new HttpResultImpl("localhost", 0, pageDirectory, LOOPBACK);
     try {
-      // as in a fresh JVM, where no server set the property yet
       System.clearProperty(property);
       assertStartAndStopKeepTheLogging(http, root);
       final String chosen = System.getProperty(property);

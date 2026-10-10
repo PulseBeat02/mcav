@@ -77,7 +77,7 @@ final class LinuxLibraries {
   /**
    * The resource that pins the packages.
    */
-  private static final String RESOURCE = "linux-libraries.txt";
+  private static final String RESOURCE = "mcav/browser/linux-libraries.txt";
 
   /**
    * The marker file of a complete installation.
@@ -114,7 +114,7 @@ final class LinuxLibraries {
 
   private static final String LIBRARIES_MISSING = "The server lacks {}, which the browser gets from {}";
 
-  // every copy of mcav in this JVM shares this monitor, like the one of the CEF natives
+  // Every copy of mcav in this JVM shares this monitor.
   @VisibleForTesting
   static final Object INSTALL_LOCK = "the installation of the Linux libraries of mcav";
 
@@ -124,7 +124,6 @@ final class LinuxLibraries {
   private static final Pattern PACKAGE_PATH = Pattern.compile("(usr/)?lib/[a-z0-9_-]+/(nss/)?[A-Za-z0-9_+.-]+");
   private static final Pattern POOL_PATH = Pattern.compile("pool/(updates/)?main/[a-z0-9+.-]+/[a-z0-9+.-]+/[A-Za-z0-9_+.:~-]+\\.deb");
   private static final String SECURITY_POOL = "pool/updates/";
-  // the start of an ELF header: its magic, the class (2, 64 bits) and the byte order (1, little-endian)
   private static final byte[] ELF_64_LITTLE_ENDIAN = { 0x7F, 'E', 'L', 'F', 2, 1 };
   private static final int ELF_MACHINE_OFFSET = 18;
   private static final int MACHINE_X86_64 = 62;
@@ -229,7 +228,7 @@ final class LinuxLibraries {
   }
 
   /**
-   * Reads the pins of the resource next to this class.
+   * Reads the bundled pins from {@code mcav/browser/linux-libraries.txt}.
    *
    * @param loader the class loader of this class
    * @return the lines
@@ -237,15 +236,14 @@ final class LinuxLibraries {
    */
   @VisibleForTesting
   static List<String> readResource(final ClassLoader loader) {
-    final String name = "me/brandonli/mcav/browser/" + RESOURCE;
-    try (final InputStream stream = loader.getResourceAsStream(name)) {
+    try (final InputStream stream = loader.getResourceAsStream(RESOURCE)) {
       if (stream == null) {
-        throw new IllegalStateException("The resource " + name + " is missing");
+        throw new IllegalStateException("The resource " + RESOURCE + " is missing");
       }
       final BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
       return reader.lines().toList();
     } catch (final IOException | UncheckedIOException exception) {
-      throw new IllegalStateException("The resource " + name + " cannot be read", exception);
+      throw new IllegalStateException("The resource " + RESOURCE + " cannot be read", exception);
     }
   }
 
@@ -295,7 +293,7 @@ final class LinuxLibraries {
     final Path installation = this.folder.resolve(name);
     final Path marker = installation.resolve(INSTALL_MARKER);
     if (Files.isRegularFile(marker)) {
-      // an installation of an earlier version kept the permissions its umask gave
+      // An existing installation may still have the permissions of the umask it was made with.
       ArchiveExtractor.tighten(this.folder);
       return installation;
     }
@@ -306,7 +304,6 @@ final class LinuxLibraries {
         final FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
         final FileLock lock = JcefNatives.lock(channel)
       ) {
-        // another process may have installed the libraries while this one waited for the lock
         if (!Files.isRegularFile(marker)) {
           this.installLocked(wanted, installation);
         }
@@ -483,7 +480,6 @@ final class LinuxLibraries {
     }
     final FileSystem fileSystem = file.getFileSystem();
     if (fileSystem.supportedFileAttributeViews().contains("posix")) {
-      // readable and loadable by everyone, writable by the owner only, as the libraries of a system are
       Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rwxr-xr-x"));
     }
   }
@@ -609,7 +605,6 @@ final class LinuxLibraries {
     try {
       lines = Files.readAllLines(file, StandardCharsets.UTF_8);
     } catch (final IOException exception) {
-      // a system without the file, or with one that cannot be read, has the default folders only
       return;
     }
     for (final String raw : lines) {
@@ -641,7 +636,6 @@ final class LinuxLibraries {
     final int slash = relative.lastIndexOf('/');
     final String name = relative.substring(slash + 1);
     final List<Path> matches = new ArrayList<>();
-    // a pattern that ends with a slash names a folder, or the root itself, which holds no library
     if (!name.isEmpty()) {
       // the pattern is text, whose wildcards no file system but Linux's allows in a path, so only its folder is
       // resolved; the folder of a name without one is the root, which the empty text resolves to

@@ -65,7 +65,7 @@ public final class VLCInstaller extends AbstractInstaller {
 
   private static final String NAME = "vlc";
 
-  private static final String DOWNLOADS_RESOURCE = "vlc.json";
+  private static final String DOWNLOADS_RESOURCE = "mcav/common/installers/vlc.json";
 
   // earlier versions of the library installed VLC through JuNest on Linux and as a bare VLC.app on macOS
   private static final List<String> LEGACY_DIRECTORIES = List.of("vlc-junest", "VLC.app");
@@ -84,11 +84,11 @@ public final class VLCInstaller extends AbstractInstaller {
     this.legacyInstallationsRemoved = new AtomicBoolean(false);
   }
 
-  VLCInstaller(final Path folder) {
+  private VLCInstaller(final Path folder) {
     this(folder, () -> ReleasePackageManager.readVLCDownloadsFromJsonResource(DOWNLOADS_RESOURCE));
   }
 
-  VLCInstaller() {
+  private VLCInstaller() {
     final Path defaultFolder = AbstractInstaller.getDefaultExecutableFolderPath();
     this(defaultFolder);
   }

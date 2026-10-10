@@ -146,8 +146,6 @@ final class GeometryFiltersTest {
 
   @Test
   void shrinkingEitherAxisAveragesAllThreeSourcePixels() {
-    // Three source pixels [0, 90, 0] average to 30. Linear center sampling
-    // would instead choose 90, so dimensions alone cannot establish correctness.
     for (final boolean horizontal : new boolean[] { true, false }) {
       final int width = horizontal ? 3 : 1;
       final int height = horizontal ? 1 : 3;
@@ -173,7 +171,6 @@ final class GeometryFiltersTest {
         final boolean modified = filter.applyFilter(image);
         final int[] actual = image.getPixels();
         assertTrue(modified);
-        // Source coordinates -0.25, 0.25, 0.75, 1.25 with edge clamping.
         assertArrayEquals(new int[] { 0xFF000000, 0xFF141414, 0xFF3C3C3C, 0xFF505050 }, actual);
       }
     }

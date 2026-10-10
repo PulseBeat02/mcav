@@ -1,52 +1,24 @@
+/*
+ * This file is part of mcav, a media playback library for Java
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #version 330
 #extension GL_ARB_separate_shader_objects : require
-
-// Pass 10's vertex shader: Minecraft's screen quad, and what every pixel of the screen pass shares, read once per
-// vertex instead of once per pixel: the view pass's flags and box, the screen's corner, its cell vectors and its size
-// in cells, and the camera's projection as four flat columns (a flat mat4 varying crashes Mesa's llvmpipe). The
-// fragment shader still inverts the projection itself: an inverse computed here rounds differently on the Intel UHD
-// 630 and would move the screen's edges by a pixel where a ray grazes them.
-
+#define MCV2_PASS_SCREEN_VERTEX
 #include <mcav:mcv2_config.glsl>
 #include <mcav:mcv2_screen.glsl>
-#include <mcav:mcv2_strip.glsl>
-#include <mcav:mcv2_slots.glsl>
-
-uniform sampler2D ViewSampler;
-
-layout(location = 0) out vec2 texCoord;
-layout(location = 1) flat out uvec4 ScreenView;
-layout(location = 2) flat out vec4 ScreenTopLeft;
-layout(location = 3) flat out vec4 ScreenRight;
-layout(location = 4) flat out vec4 ScreenDown;
-layout(location = 5) flat out vec4 ScreenProjection0;
-layout(location = 6) flat out vec4 ScreenProjection1;
-layout(location = 7) flat out vec4 ScreenProjection2;
-layout(location = 8) flat out vec4 ScreenProjection3;
-
-uint mcv2View(int x) {
-    return mcv2TexelWord(texelFetch(ViewSampler, ivec2(x, 0), 0));
-}
-
-float mcv2DescriptorFloat(int index) {
-    return uintBitsToFloat(mcv2View(3 + index));
-}
-
-void main() {
-    vec2 uv = vec2((gl_VertexIndex << 1) & 2, gl_VertexIndex & 2);
-    gl_Position = vec4(uv * vec2(2, 2) + vec2(-1, -1), 0, 1);
-    texCoord = uv;
-    ScreenView = uvec4(mcv2View(0), mcv2View(1), mcv2View(2), 0u);
-    // the corner with the width in cells, the cell to the right with the height in cells, the cell down
-    ScreenTopLeft = vec4(mcv2DescriptorFloat(0), mcv2DescriptorFloat(1), mcv2DescriptorFloat(2), mcv2DescriptorFloat(3));
-    ScreenRight = vec4(mcv2DescriptorFloat(4), mcv2DescriptorFloat(5), mcv2DescriptorFloat(6), mcv2DescriptorFloat(7));
-    ScreenDown = vec4(mcv2DescriptorFloat(8), mcv2DescriptorFloat(9), mcv2DescriptorFloat(10), 0.0);
-    mat4 projection;
-    for (int i = 0; i < 16; ++i) {
-        projection[i / 4][i % 4] = mcv2DescriptorFloat(12 + i);
-    }
-    ScreenProjection0 = projection[0];
-    ScreenProjection1 = projection[1];
-    ScreenProjection2 = projection[2];
-    ScreenProjection3 = projection[3];
-}
+#include <mcav:mcv2.glsl>

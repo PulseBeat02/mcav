@@ -125,9 +125,7 @@ final class MCAVTest {
     }
 
     @Override
-    public void stop() {
-      // nothing to release
-    }
+    public void stop() {}
 
     @Override
     public String getModuleName() {
@@ -153,7 +151,6 @@ final class MCAVTest {
 
   @AfterEach
   void releaseTheLibrary() {
-    // ends the installation threads of every test, even of one that failed
     this.mcav.release();
   }
 
@@ -299,7 +296,6 @@ final class MCAVTest {
 
   @Test
   void reportsProgramsThatCouldNotBePreparedAsUnavailable() throws Exception {
-    // the loader removes the capability of a program whose download failed or whose system is not supported
     this.stubCapability(Capability.VLC, false);
     this.stubCapability(Capability.YT_DLP, false);
     this.mcav.install();
@@ -342,7 +338,6 @@ final class MCAVTest {
     final Stubber stubber = Mockito.doAnswer(blockUntilInterrupted);
     final DependencyLoader stubbed = stubber.when(this.dependencies);
     stubbed.installVLC();
-    // even a loader that reports VLC as available is not believed once the preparation was cancelled
     this.stubCapability(Capability.VLC, true);
     this.mcav.install(TrackedModule.class);
     final boolean started = vlcStarted.await(WAIT_SECONDS, TimeUnit.SECONDS);

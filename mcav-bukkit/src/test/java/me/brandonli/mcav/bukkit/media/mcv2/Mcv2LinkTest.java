@@ -30,7 +30,6 @@ final class Mcv2LinkTest {
   @Test
   void startsWithAKeyframe() {
     final Mcv2Link link = new Mcv2Link(1000);
-    // a viewer that has decoded nothing can only start at a keyframe
     assertFalse(link.canDecode(false, 0));
     // the id no frame has is never a reference, not even before the first frame
     assertFalse(link.canDecode(false, -1));
@@ -60,23 +59,22 @@ final class Mcv2LinkTest {
   }
 
   @Test
-  void resumesAtTheNextFrameWhenFramesPredictFromTheKeyframe() {
-    final Mcv2Link link = new Mcv2Link(100);
-    assertTrue(link.offer(10, 10, true, 90));
-    assertTrue(link.offer(11, 10, false, 90));
-    assertFalse(link.offer(12, 10, false, 90));
-    link.written(180);
-    // the keyframe is still held, so the next frame decodes
-    assertTrue(link.offer(13, 10, false, 90));
-    assertEquals(1, link.getBehind());
-    assertEquals(0, link.getUndecodable());
+  void refusesAnOlderKeyframeAfterSendingAPredictedFrame() {
+    final Mcv2Link link = new Mcv2Link(1000);
+    assertTrue(link.offer(10, 10, true, 1));
+    assertTrue(link.offer(11, 10, false, 1));
+    assertFalse(link.canDecode(false, 10));
+    assertFalse(link.offer(12, 10, false, 1));
+    assertTrue(link.canDecode(false, 11));
+    assertTrue(link.offer(13, 11, false, 1));
+    assertEquals(1, link.getUndecodable());
+    assertEquals(3, link.getSent());
   }
 
   @Test
   void sendsAtTheLimitAndHoldsPastIt() {
     final Mcv2Link link = new Mcv2Link(50);
     assertTrue(link.offer(0, 0, true, 50));
-    // exactly at the limit is not behind
     assertTrue(link.offer(1, 0, false, 1));
     assertFalse(link.offer(2, 1, false, 1));
     // a keyframe still goes out up to twice the limit, the P frames after it only under the limit again
@@ -90,7 +88,6 @@ final class Mcv2LinkTest {
     assertTrue(none.offer(0, 0, true, 5));
     assertFalse(none.offer(1, 0, false, 5));
     assertFalse(none.offer(2, 2, true, 5));
-    // no limit stays no limit for keyframes
     assertEquals(Long.MAX_VALUE, Mcv2Link.allowance(Long.MAX_VALUE));
     assertEquals(Long.MAX_VALUE, Mcv2Link.allowance(Long.MAX_VALUE / 2 + 1));
     assertEquals(Long.MAX_VALUE - 1, Mcv2Link.allowance(Long.MAX_VALUE / 2));
@@ -104,7 +101,6 @@ final class Mcv2LinkTest {
     assertThrows(IllegalArgumentException.class, () -> link.offer(-1, 0, true, 1));
     assertThrows(IllegalArgumentException.class, () -> link.offer(1L << 32, 0, true, 1));
     assertThrows(IllegalArgumentException.class, () -> link.offer(0, 0, true, -1));
-    // the largest frame id is a frame id
     assertTrue(link.offer(0xFFFFFFFFL, 0xFFFFFFFFL, true, 1));
     assertTrue(link.canDecode(false, 0xFFFFFFFFL));
   }

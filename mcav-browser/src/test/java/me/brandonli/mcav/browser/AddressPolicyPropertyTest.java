@@ -43,7 +43,6 @@ final class AddressPolicyPropertyTest {
     return ByteBuffer.allocate(16).putInt(first).putInt(second).putInt(third).putInt(fourth).array();
   }
 
-  // the lengths of RFC 6052; the byte after the first 64 bits stays zero and is skipped
   private static InetAddress translate(final byte[] prefix, final int length, final int ipv4) throws UnknownHostException {
     final byte[] bytes = new byte[16];
     System.arraycopy(prefix, 0, bytes, 0, length / Byte.SIZE);
@@ -65,16 +64,13 @@ final class AddressPolicyPropertyTest {
     @ForAll final int ipv4
   ) throws UnknownHostException {
     final int length = new int[] { 32, 40, 48, 56, 64, 96 }[lengthIndex];
-    // a translator's prefix lies in global unicast space, 2000::/3
     prefix[0] = (byte) (0x20 | (prefix[0] & 0x1F));
     final InetAddress[] answer = { translate(prefix, length, 0xC00000AA), translate(prefix, length, 0xC00000AB) };
     final List<AddressPolicy.TranslationPrefix> prefixes = AddressPolicy.findTranslationPrefixes(answer);
-    // another length finds a prefix only where its own place happens to hold 192.0.0.170 or 192.0.0.171 as well
     if (prefixes.size() == 1) {
       assertEquals(AddressPolicy.isPublicIpv4(ipv4), AddressPolicy.isPublic(translate(prefix, length, ipv4), prefixes));
     }
     final byte[] ordinary = prefix.clone();
-    // 2a00::/8 avoids every reserved subrange while the remaining prefix bits still vary.
     ordinary[0] = 0x2A;
     final InetAddress[] ordinaryAnswer = { translate(ordinary, length, 0xC00000AA), translate(ordinary, length, 0xC00000AB) };
     final List<AddressPolicy.TranslationPrefix> discovered = AddressPolicy.findTranslationPrefixes(ordinaryAnswer);
@@ -92,7 +88,6 @@ final class AddressPolicyPropertyTest {
     @ForAll @IntRange(min = 0, max = 5) final int lengthIndex
   ) throws UnknownHostException {
     final int length = new int[] { 32, 40, 48, 56, 64, 96 }[lengthIndex];
-    // anything but 2000::/3: the top three bits are not 001
     if ((prefix[0] & 0xE0) == 0x20) {
       prefix[0] = (byte) (prefix[0] ^ 0x80);
     }

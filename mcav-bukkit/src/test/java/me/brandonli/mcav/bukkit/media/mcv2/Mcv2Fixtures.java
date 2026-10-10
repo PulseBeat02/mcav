@@ -37,12 +37,12 @@ import java.util.TreeMap;
 /**
  * The committed MCV2 conformance fixtures: research archives (a little-endian u32 length before every frame) and the
  * per-frame SHA-256 digests of the reference decoder's RGB output, produced outside the tests by
- * {@code tools/mcv2/conformance_digests.py} and {@code tools/mcv2/edge_streams.py} with the Python reference.
+ * {@code mcv2_tools.py fixtures} and {@code mcv2_tools.py edge_streams} with the Python reference.
  */
 public final class Mcv2Fixtures {
 
   /** The resource folder of the fixtures. */
-  public static final String ROOT = "/me/brandonli/mcav/bukkit/media/mcv2/";
+  private static final String ROOT = "/mcv2/";
 
   private Mcv2Fixtures() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -72,7 +72,7 @@ public final class Mcv2Fixtures {
     final List<byte[]> frames = new ArrayList<>();
     int offset = 0;
     while (offset < archive.length) {
-      final int length = (int) Mcv2Format.u32(archive, offset);
+      final int length = (int) Mcv2Decoder.u32(archive, offset);
       frames.add(Arrays.copyOfRange(archive, offset + 4, offset + 4 + length));
       offset += 4 + length;
     }
@@ -85,7 +85,7 @@ public final class Mcv2Fixtures {
    * @param folder {@code conformance} or {@code edge}
    * @return the digests of every stream, by file name
    */
-  public static Map<String, List<String>> digests(final String folder) {
+  static Map<String, List<String>> digests(final String folder) {
     final String text = new String(read(folder + "/digests.json"), StandardCharsets.UTF_8);
     final JsonObject root = JsonParser.parseString(text).getAsJsonObject();
     final Map<String, List<String>> digests = new TreeMap<>();

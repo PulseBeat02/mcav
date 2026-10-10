@@ -113,7 +113,6 @@ public final class Frames {
     final int metadataHeight = metadata.getVideoHeight();
     final Frame frame = new Frame(width, height, center, metadataWidth, metadataHeight);
     this.frames.add(frame);
-    // The recorder only reads the input image.
     return false;
   }
 

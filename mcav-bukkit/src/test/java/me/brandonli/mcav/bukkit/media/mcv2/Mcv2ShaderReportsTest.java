@@ -55,7 +55,7 @@ final class Mcv2ShaderReportsTest {
 
   private static final byte[] SHADERS_UNKNOWN = { 1, 1, 2, 0 };
 
-  private final AtomicLong clock = new AtomicLong(Long.MAX_VALUE - 3 * Mcv2ShaderReports.INTERVAL_NANOS);
+  private final AtomicLong clock = new AtomicLong(Long.MAX_VALUE - 3 * Mcv2ShaderReports.INTERVAL_NANOSECONDS);
 
   private Mcv2ShaderReports reports;
 
@@ -83,7 +83,7 @@ final class Mcv2ShaderReportsTest {
 
   /** Sends a report a second after the last, which the rate always allows. */
   private void sendLater(final Player player, final byte[] message) {
-    this.clock.addAndGet(Mcv2ShaderReports.INTERVAL_NANOS);
+    this.clock.addAndGet(Mcv2ShaderReports.INTERVAL_NANOSECONDS);
     this.send(player, message);
   }
 
@@ -210,7 +210,7 @@ final class Mcv2ShaderReportsTest {
     this.send(this.bob, SHADERS_ON);
     assertTrue(this.reports.blocksDecoding(BOB), "the allowance is each player's own");
 
-    this.clock.addAndGet(Mcv2ShaderReports.INTERVAL_NANOS - 1);
+    this.clock.addAndGet(Mcv2ShaderReports.INTERVAL_NANOSECONDS - 1);
     this.send(this.alice, SHADERS_OFF);
     assertTrue(this.reports.blocksDecoding(ALICE), "the allowance refills a second after the report it made room for");
     this.clock.addAndGet(1);
@@ -220,7 +220,7 @@ final class Mcv2ShaderReportsTest {
     assertFalse(this.reports.blocksDecoding(ALICE), "one report a second");
 
     // a player quiet for longer than a burst takes has a whole burst again, and no more, past the clock's wrap too
-    this.clock.addAndGet(2 * Mcv2ShaderReports.BURST * Mcv2ShaderReports.INTERVAL_NANOS);
+    this.clock.addAndGet(2 * Mcv2ShaderReports.BURST * Mcv2ShaderReports.INTERVAL_NANOSECONDS);
     for (int report = 0; report < Mcv2ShaderReports.BURST; report++) {
       this.send(this.alice, report % 2 == 0 ? SHADERS_ON : SHADERS_OFF);
     }

@@ -1,0 +1,55 @@
+/*
+ * This file is part of mcav, a media playback library for Java
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+digraph overview {
+  rankdir=TB;
+  bgcolor="white";
+  pad=0.25;
+  nodesep=1.0;
+  ranksep=0.45;
+  splines=ortho;
+  newrank=true;
+  node [shape=box, style="filled", fillcolor="#dae8fc", color="#6c8ebf", fontname="Liberation Sans", fontsize=12, fontcolor="black", margin="0.14,0.09", penwidth=1.2];
+  edge [color="black", arrowsize=0.75, penwidth=1.0, fontname="Liberation Sans", fontsize=11, fontcolor="black"];
+
+  subgraph cluster_server {
+    label="Minecraft server"; labeljust=l;
+    fontname="Liberation Sans"; fontsize=12;
+    style="dashed"; color="#6c8ebf";
+    source [label="Video frame", fillcolor="#fff2cc", color="#d6b656"];
+    encoder [label="Encoder\n(block tree, motion)"];
+    frame [label="MCV2 frame\n(bytes)", fillcolor="#fff2cc", color="#d6b656"];
+    pages [label="Pages\n(header + CRC32,\nsix-bit symbols)"];
+    packets [label="Map packets\n(one map per page)"];
+    source -> encoder -> frame -> pages -> packets;
+  }
+
+  subgraph cluster_client {
+    label="Vanilla client with the resource pack"; labeljust=l;
+    fontname="Liberation Sans"; fontsize=12;
+    style="dashed"; color="#82b366";
+    maps [label="Map textures", fillcolor="#d5e8d4", color="#82b366"];
+    strip [label="Text shaders move\npage maps into a strip", fillcolor="#d5e8d4", color="#82b366"];
+    chain [label="Post chain decodes,\nkeeps the reference", fillcolor="#d5e8d4", color="#82b366"];
+    screen [label="Picture drawn\nover the wall", fillcolor="#fff2cc", color="#d6b656"];
+    maps -> strip -> chain -> screen;
+  }
+
+  {rank=same; packets; maps;}
+  packets -> maps [xlabel="TCP,\nzlib"];
+}

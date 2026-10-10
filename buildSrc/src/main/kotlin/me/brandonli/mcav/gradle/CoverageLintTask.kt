@@ -12,10 +12,6 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
-/**
- * Reports every line of production code that the tests leave uncovered, as `file:line: warning: reason`, and
- * fails when there is any. Lines listed in `coverage-exceptions.txt` are allowed to stay uncovered.
- */
 abstract class CoverageLintTask : DefaultTask() {
 
     private companion object {
@@ -24,25 +20,20 @@ abstract class CoverageLintTask : DefaultTask() {
         const val STALE_EXCEPTION = "{}: warning: '{} | {}' matches no uncovered line, remove it"
     }
 
-    /** The JaCoCo XML report of the test run. */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val report: ConfigurableFileCollection
 
-    /** The production source directory the report refers to. */
     @get:Internal
     abstract val sourceDirectory: DirectoryProperty
 
-    /** The exceptions file of the project, which may not exist. */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val exceptionsFile: ConfigurableFileCollection
 
-    /** Whether the tests ran with a filter, in which case the report covers only part of the code. */
     @get:Input
     abstract val testsFiltered: Property<Boolean>
 
-    /** The path of the project, for messages; read at configuration time so the task never touches the project. */
     @get:Internal
     abstract val projectPath: Property<String>
 
@@ -57,7 +48,6 @@ abstract class CoverageLintTask : DefaultTask() {
         val sources = sourceDirectory.get().asFile
         val gaps = CoverageReport.findGaps(report.singleFile, sources, exceptions)
         gaps.forEach { gap -> logger.error(GAP, gap) }
-        // an entry that matches no uncovered line must be removed, so the list never hides new gaps
         val staleExceptions = exceptions.filterNot { it.used }
         staleExceptions.forEach { exception ->
             logger.error(STALE_EXCEPTION, exceptionFile, exception.path, exception.sourceLine)

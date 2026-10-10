@@ -64,7 +64,7 @@ public final class MinecraftTestBootstrap implements BeforeAllCallback {
    * Bootstraps the Minecraft registries and initializes the Bukkit classes that read the server, unless that
    * already happened.
    */
-  public static synchronized void bootstrap() {
+  static synchronized void bootstrap() {
     if (bootstrapped) {
       return;
     }
@@ -80,7 +80,6 @@ public final class MinecraftTestBootstrap implements BeforeAllCallback {
         throw new IllegalStateException("The scoreboard criteria were initialized before the bootstrap");
       }
       BlockPaletteLookup.init();
-      // A cold init must build the palette while server access is available, before playback asks for it.
       bukkit.verify(() -> Bukkit.createBlockData(any(Material.class)), Mockito.atLeastOnce());
     }
     bootstrapped = true;

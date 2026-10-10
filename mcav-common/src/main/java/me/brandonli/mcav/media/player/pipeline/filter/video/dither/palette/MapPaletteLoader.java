@@ -33,13 +33,13 @@ import me.brandonli.mcav.utils.IOUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Loads the Minecraft map colors from the {@code palette.json} resource, which lists the RGB components of every
+ * Loads the Minecraft map colors from the {@code mcav/common/palette.json} resource, which lists the RGB components of every
  * map color in index order. The resource is generated from the game and has to be updated when Minecraft adds
  * map colors.
  */
 public final class MapPaletteLoader {
 
-  private static final String PALETTE_RESOURCE = "palette.json";
+  private static final String PALETTE_RESOURCE = "mcav/common/palette.json";
   private static final int OPAQUE = 0xFF << 24;
   private static final int[] COLORS = loadColors(PALETTE_RESOURCE);
 

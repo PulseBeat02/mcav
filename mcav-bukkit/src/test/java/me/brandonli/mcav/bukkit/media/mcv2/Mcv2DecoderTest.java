@@ -17,26 +17,21 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.DERIVED;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.SHORT;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.keyframe;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.motion;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.predicted;
-import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frames.solid;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.keyframe;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.motion;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.predicted;
+import static me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.solid;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.TreeNode;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Internals.Workers;
 import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 
-/** The decoder's contract around the pixel arithmetic: which reference a frame needs, and cropped edges. */
 final class Mcv2DecoderTest {
 
   @Test
@@ -46,26 +41,24 @@ final class Mcv2DecoderTest {
 
   @Test
   void decodesAKeyframeWithoutAReferenceAndCropsItsEdges() throws Mcv2Exception {
-    final byte[] frame = keyframe(3, 2, DERIVED, solid(10, 20, 30));
+    final byte[] frame = keyframe(3, 2, solid(10, 20, 30));
     final byte[] picture = Mcv2Decoder.decode(frame, null, 99);
     assertArrayEquals(new byte[] { 10, 20, 30, 10, 20, 30, 10, 20, 30, 10, 20, 30, 10, 20, 30, 10, 20, 30 }, picture);
-    assertArrayEquals(picture, Mcv2Decoder.decode(FrameParser.parse(frame), new byte[1], 5));
+    assertArrayEquals(picture, Mcv2Decoder.decode(Mcv2Decoder.parse(frame), new byte[1], 5));
   }
 
   @Test
   void decodesIntoAPictureOfTheFramesSize() throws Mcv2Exception {
-    final Mcv2Frame frame = FrameParser.parse(keyframe(3, 2, DERIVED, solid(10, 20, 30)));
+    final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(keyframe(3, 2, solid(10, 20, 30)));
     final byte[] fresh = Mcv2Decoder.decode(frame, null, 0);
-    // a picture of the frame's size is decoded into, whatever it held; any other is left and a new one made
     final byte[] into = new byte[18];
     Arrays.fill(into, (byte) 99);
-    assertSame(into, Mcv2Decoder.decode(frame, null, 0, Workers.SEQUENTIAL, into));
+    Mcv2Decoder.decode(frame, null, 0, into);
     assertArrayEquals(fresh, into);
     final byte[] small = new byte[17];
-    final byte[] made = Mcv2Decoder.decode(frame, null, 0, Workers.SEQUENTIAL, small);
-    assertNotSame(small, made);
-    assertArrayEquals(fresh, made);
-    assertArrayEquals(fresh, Mcv2Decoder.decode(frame, null, 0, Workers.SEQUENTIAL, null));
+    assertThrows(IllegalArgumentException.class, () -> Mcv2Decoder.decode(frame, null, 0, small));
+    assertArrayEquals(new byte[17], small);
+    assertArrayEquals(fresh, Mcv2Decoder.decode(frame, null, 0));
   }
 
   @Test
@@ -74,8 +67,7 @@ final class Mcv2DecoderTest {
     for (int index = 0; index < reference.length; index++) {
       reference[index] = (byte) (index * 10);
     }
-    // global motion of one whole pixel to the right: pixel 0 samples pixel 1, pixel 1 is clamped to itself
-    final byte[] frame = predicted(2, 1, 2, 0, SHORT, TreeNode.skip());
+    final byte[] frame = predicted(2, 1, motion(1, 0));
     assertArrayEquals(new byte[] { 30, 40, 50, 30, 40, 50 }, Mcv2Decoder.decode(frame, reference, 0));
   }
 
@@ -83,18 +75,29 @@ final class Mcv2DecoderTest {
   void decodesTheSamePictureOnAnyNumberOfWorkers() throws Mcv2Exception {
     final String stream = Mcv2Fixtures.digests("conformance").keySet().iterator().next();
     final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/" + stream));
-    final ForkJoinPool pool = new ForkJoinPool(4);
-    try {
-      final Workers workers = new Workers(pool, 4);
+    try (final ForkJoinPool pool = new ForkJoinPool(4)) {
       byte[] reference = null;
       for (final byte[] data : frames) {
-        final Mcv2Frame frame = FrameParser.parse(data);
+        final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(data);
         final byte[] sequential = Mcv2Decoder.decode(frame, reference, frame.getReferenceId());
-        assertArrayEquals(sequential, Mcv2Decoder.decode(frame, reference, frame.getReferenceId(), workers));
+        final byte[] before = reference;
+        for (int count = 1; count <= 4; count++) {
+          final byte[] parallel = new byte[sequential.length];
+          new Workers(pool, count).forEach(
+            frame.getHeight(),
+            () -> parallel,
+            (picture, row) -> {
+              try {
+                Mcv2Decoder.decodeRows(frame, before, frame.getReferenceId(), picture, row, row + 1);
+              } catch (final Mcv2Exception exception) {
+                throw new AssertionError(exception);
+              }
+            }
+          );
+          assertArrayEquals(sequential, parallel);
+        }
         reference = sequential;
       }
-    } finally {
-      pool.shutdownNow();
     }
   }
 
@@ -102,68 +105,38 @@ final class Mcv2DecoderTest {
   void decodesAPFrameIntoThePictureItIsPredictedFrom() throws Mcv2Exception {
     final String stream = Mcv2Fixtures.digests("conformance").keySet().iterator().next();
     final List<byte[]> frames = Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/" + stream));
-    final ForkJoinPool pool = new ForkJoinPool(4);
-    try {
-      for (final Workers workers : List.of(Workers.SEQUENTIAL, new Workers(pool, 4))) {
-        byte[] reference = null;
-        byte[] reused = null;
-        for (int index = 0; index < frames.size(); index++) {
-          final Mcv2Frame frame = FrameParser.parse(frames.get(index));
-          final byte[] fresh = Mcv2Decoder.decode(frame, reference, frame.getReferenceId(), workers);
-          // one picture from frame to frame: the reference of each P frame is the picture it is decoded into
-          reused = Mcv2Decoder.decode(frame, reused, frame.getReferenceId(), workers, reused);
-          assertArrayEquals(fresh, reused, "frame " + index + " of " + stream);
-          reference = fresh;
-        }
+    byte[] reference = null;
+    byte[] reused = null;
+    for (int index = 0; index < frames.size(); index++) {
+      final Mcv2Decoder.Frame frame = Mcv2Decoder.parse(frames.get(index));
+      final byte[] fresh = Mcv2Decoder.decode(frame, reference, frame.getReferenceId());
+      if (reused == null) {
+        reused = new byte[fresh.length];
       }
-    } finally {
-      pool.shutdownNow();
+      Mcv2Decoder.decode(frame, reused, frame.getReferenceId(), reused);
+      assertArrayEquals(fresh, reused, "frame " + index + " of " + stream);
+      reference = fresh;
     }
   }
 
-  /**
-   * A frame the parser would refuse, built directly: 300 compact leaves on a 2400x8 keyframe, where leaf 1 has an
-   * invalid control byte and leaf 290, in another group of leaves, is truncated. Whichever group a worker finishes
-   * first, the decode reports the failure a sequential decode meets first.
-   */
   @Test
-  void reportsTheFirstFailingLeafWhateverTheOrderOfTheWorkers() {
-    final int leaves = 300;
-    final byte[] data = new byte[64];
-    // 0x0F is class 15, which does not exist; the last byte starts a record the frame has no room for
-    data[10] = 0x0F;
-    final int[] array = new int[leaves * Mcv2Frame.LEAF_INTS];
-    for (int leafIndex = 0; leafIndex < leaves; leafIndex++) {
-      final int at = leafIndex * Mcv2Frame.LEAF_INTS;
-      array[at] = leafIndex * 8;
-      array[at + 1] = 0;
-      array[at + 2] = 8;
-      array[at + 3] = leafIndex == 1 || leafIndex == 290 ? Mcv2Format.MODE_COMPACT : Mcv2Format.MODE_SOLID;
-      array[at + 4] = 0;
-      array[at + 5] = leafIndex == 1 ? 10 : leafIndex == 290 ? data.length - 1 : 0;
-    }
-    data[data.length - 1] = 0x03;
-    final Mcv2Frame frame = new Mcv2Frame(
-      data,
-      new Mcv2Frame.Header(leaves * 8, 8, 1, 1, Mcv2Format.KEYFRAME, 0, 0, 48, 0),
-      array,
-      null,
-      null
-    );
-    final ForkJoinPool pool = new ForkJoinPool(4);
-    try {
-      for (final Workers workers : new Workers[] { Workers.SEQUENTIAL, new Workers(pool, 4) }) {
-        final Mcv2Exception failure = assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.decode(frame, null, 0, workers));
-        assertEquals("Invalid compact class or control", failure.getMessage());
-      }
-    } finally {
-      pool.shutdownNow();
-    }
+  void reportsTheFirstFailingLeafBeforeAnyRowsCanDecode() {
+    final int count = 300;
+    final byte[] descriptors = new byte[count];
+    Arrays.fill(descriptors, (byte) Mcv2Decoder.MODE_SOLID);
+    descriptors[1] = Mcv2Decoder.MODE_PATTERN;
+    descriptors[290] = Mcv2Decoder.MODE_COMPACT;
+    final byte[][] records = new byte[count][3];
+    records[1] = new byte[11];
+    records[1][6] = 2;
+    records[290] = new byte[] { 0 };
+    final byte[] frame = Mcv2WireFrames.frame(4096, 96, false, descriptors, records, new int[] { count, 0, 0 });
+    assertEquals("Invalid pattern selector", assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(frame)).getMessage());
   }
 
   @Test
   void refusesAMissingOrMismatchedReference() {
-    final byte[] frame = predicted(2, 1, 0, 0, SHORT, motion(0, 0));
+    final byte[] frame = predicted(2, 1, motion(0, 0));
     assertEquals("Reference frame mismatch", assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.decode(frame, null, 0)).getMessage());
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.decode(frame, new byte[6], 7));
     assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.decode(frame, new byte[5], 0));

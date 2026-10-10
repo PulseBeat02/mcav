@@ -67,7 +67,7 @@ final class ImageBufferPropertyTest {
   }
 
   /**
-   * Creates integers in a range from a fresh arbitrary: jqwik 1.9 shares the range between an arbitrary and the ones
+   * Creates integers in a range from a fresh arbitrary: jqwik 1.10 shares the range between an arbitrary and the ones
    * configured from it, so one base configured twice would hand every user the last range.
    */
   private static Arbitrary<Integer> between(final int min, final int max) {
@@ -90,7 +90,6 @@ final class ImageBufferPropertyTest {
       final byte[] held = readData(buffer);
       assertArrayEquals(bgr, held, "the image holds the bytes between position and limit");
 
-      // copied, not shared: changing the source afterwards does not reach the image
       for (int index = position; index < limit; index++) {
         final byte current = source.get(index);
         source.put(index, (byte) ~current);
@@ -167,7 +166,6 @@ final class ImageBufferPropertyTest {
       final int start = data.position();
       final byte[] written = image.createBgr();
       for (int index = 0; index < written.length; index++) {
-        // every byte changes, so a view that is only a copy of the image cannot pass for the image itself
         written[index] = (byte) ~written[index];
         data.put(start + index, written[index]);
       }

@@ -138,7 +138,6 @@ public final class SwingVideoWindow implements AutoCloseable {
   public VideoFilter asFilter() {
     return (samples, _) -> {
       this.show(samples);
-      // the frame is only read, so the filter reports that it left the samples untouched
       return false;
     };
   }

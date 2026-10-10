@@ -170,7 +170,6 @@ public final class ExecutableFinder {
       case MAC -> this.getMacDirectories();
       case LINUX, FREEBSD -> this.resolveUnder(UNIX_FOLDERS);
       case WINDOWS -> this.getWindowsDirectories();
-      // an unknown operating system has no well-known install folders, so only PATH is searched
       case OTHER -> List.of();
     };
     directories.addAll(fallbacks);
@@ -278,7 +277,6 @@ public final class ExecutableFinder {
     try {
       return Path.of(trimmed);
     } catch (final InvalidPathException exception) {
-      // a broken entry is skipped
       return null;
     }
   }

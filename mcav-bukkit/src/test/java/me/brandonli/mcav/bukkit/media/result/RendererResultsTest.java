@@ -81,7 +81,6 @@ final class RendererResultsTest {
     this.viewer = this.server.addPlayer(VIEWER);
     this.server.injectModule();
     this.world = FakeWorld.create();
-    // a block wall goes only to viewers in its world
     this.world.enter(this.viewer);
     this.metadata = mock(OriginalVideoMetadata.class);
   }

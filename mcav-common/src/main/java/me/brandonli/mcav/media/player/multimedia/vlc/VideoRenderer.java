@@ -80,7 +80,6 @@ final class VideoRenderer implements RenderCallback {
     this.owner = owner;
     this.pendingFrame = new ArrayBlockingQueue<>(1);
     this.sparePixels = new ArrayBlockingQueue<>(SPARE_PIXEL_ARRAYS);
-    // only the video output thread of VLC offers frames, so it can reuse one list for the frames it replaces
     this.replacedFrames = new ArrayList<>(1);
     this.thread = new RenderThread("mcav-vlc-render-video", failure -> reportFailure(owner, "Video rendering failed", failure));
     this.metadata = OriginalVideoMetadata.EMPTY;
@@ -156,9 +155,7 @@ final class VideoRenderer implements RenderCallback {
    * @param mediaPlayer the player that renders
    */
   @Override
-  public void lock(final MediaPlayer mediaPlayer) {
-    // the frame buffer is copied inside display, no locking is needed
-  }
+  public void lock(final MediaPlayer mediaPlayer) {}
 
   /**
    * Copies the visible part of a finished picture and queues it for the render thread, replacing a frame that has
@@ -201,9 +198,7 @@ final class VideoRenderer implements RenderCallback {
    * @param mediaPlayer the player that renders
    */
   @Override
-  public void unlock(final MediaPlayer mediaPlayer) {
-    // nothing to unlock
-  }
+  public void unlock(final MediaPlayer mediaPlayer) {}
 
   private @Nullable DecodedFrame copyVisiblePixels(final ByteBuffer nativeBuffer, final BufferFormat bufferFormat) {
     final int bufferWidth = bufferFormat.getWidth();
@@ -283,7 +278,6 @@ final class VideoRenderer implements RenderCallback {
   }
 
   private void offerLatest(final DecodedFrame frame) {
-    // only the newest frame matters, so an unrendered older one is replaced
     while (!this.pendingFrame.offer(frame)) {
       this.pendingFrame.drainTo(this.replacedFrames);
       for (final DecodedFrame replaced : this.replacedFrames) {

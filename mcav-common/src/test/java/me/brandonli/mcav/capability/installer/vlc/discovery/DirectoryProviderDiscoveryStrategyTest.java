@@ -84,8 +84,6 @@ final class DirectoryProviderDiscoveryStrategyTest {
       AppDirDirectoryProvider.class,
       UserDirConfigFileDiscoveryDirectoryProvider.class
     );
-    // only the well-known system library directories are searched one level deep; every other directory is checked
-    // on its own, which is what keeps discovery from walking whole drives
     final List<Integer> expectedDepths = List.of(0, 0, 1, 0, 0, 0, 0, 0);
     assertEquals(expectedClasses, providerClasses, "every directory provider of vlcj is searched");
     assertEquals(expectedDepths, depths);
@@ -247,8 +245,6 @@ final class DirectoryProviderDiscoveryStrategyTest {
 
   @Test
   void skipsADirectoryAlreadySearchedAtLeastAsDeep() throws IOException {
-    // the child is listed while the root is searched one level deep; the second provider adds the missing core
-    // library right before it is asked, so the child would only be found if it were listed a second time
     final Path root = this.temp.resolve("root");
     final Path child = createDirectory(root, "child");
     createFile(child, "libvlc.dll");
@@ -266,7 +262,6 @@ final class DirectoryProviderDiscoveryStrategyTest {
 
   @Test
   void findsADirectoryThatIsCompleteWhenItIsFirstSearched() throws IOException {
-    // the control for the test above: the same provider alone finds the child
     final Path child = createDirectory(this.temp, "child");
     createFile(child, "libvlc.dll");
     final Path missingCore = child.resolve("libvlccore.dll");
@@ -341,8 +336,6 @@ final class DirectoryProviderDiscoveryStrategyTest {
       final DefaultProviderStrategy strategy = new DefaultProviderStrategy();
       final List<String> directories = strategy.discoveryDirectories();
       final boolean listed = directories.contains(rawLibraries);
-      // only the directories the default providers offer are asserted: which one the strategy then picks depends on
-      // the machine, because a private VLC installation in the cache folder of the user is searched as well
       assertTrue(listed, "the providers of the default constructor read jna.library.path");
     } finally {
       restoreProperty(JNA_LIBRARY_PATH, previous);

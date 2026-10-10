@@ -402,7 +402,6 @@ public final class VMConfiguration {
    */
   public List<String> getArguments() {
     final List<String> arguments = new ArrayList<>();
-    // every option has a value, options without one are flags
     for (final Map.Entry<String, String> entry : this.options.entrySet()) {
       final String key = entry.getKey();
       final String value = entry.getValue();

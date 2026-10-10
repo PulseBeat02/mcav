@@ -35,9 +35,7 @@ public class URLParseDump {
   /**
    * Creates an empty dump in which every field is null or zero. Gson creates dumps this way before it fills them.
    */
-  public URLParseDump() {
-    // populated by Gson
-  }
+  public URLParseDump() {}
 
   /** The identifier of the video on its site, such as the YouTube video ID. */
   public @Nullable String id;

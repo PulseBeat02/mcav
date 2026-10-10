@@ -269,8 +269,8 @@ final class IOUtilsTest {
 
   @Test
   void readsDownloadListsFromResources() {
-    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("sample.json");
-    final Download[] none = IOUtils.readDownloadsFromJsonResource("empty.json");
+    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("installers/sample.json");
+    final Download[] none = IOUtils.readDownloadsFromJsonResource("installers/empty.json");
     final Download linux = downloads[0];
     final Platform platform = linux.getPlatform();
     final Platform expectedPlatform = Platform.ofPlatform(OS.LINUX, Arch.X86, Bits.BITS_64);
@@ -279,8 +279,8 @@ final class IOUtilsTest {
     assertEquals(0, none.length);
     assertEquals(expectedPlatform, platform);
     assertEquals("https://example.com/tool-linux", url);
-    assertThrows(UncheckedIOException.class, () -> IOUtils.readDownloadsFromJsonResource("invalid.json"));
-    assertThrows(UncheckedIOException.class, () -> IOUtils.readDownloadsFromJsonResource("missing.json"));
+    assertThrows(UncheckedIOException.class, () -> IOUtils.readDownloadsFromJsonResource("installers/invalid.json"));
+    assertThrows(UncheckedIOException.class, () -> IOUtils.readDownloadsFromJsonResource("installers/missing.json"));
     assertThrows(NullPointerException.class, () -> IOUtils.readDownloadsFromJsonResource(null));
   }
 
@@ -302,7 +302,6 @@ final class IOUtilsTest {
 
   @Test
   void reportsResourcesThatCannotBeFound() {
-    // String is loaded by the bootstrap class loader, which the resource lookup cannot use
     assertThrows(UncheckedIOException.class, () -> IOUtils.getResourceAsInputStream("installers/empty.json", String.class));
     assertThrows(UncheckedIOException.class, () -> IOUtils.getResourceAsInputStream("installers/missing.json"));
     assertThrows(UncheckedIOException.class, () -> IOUtils.getResourceAsStreamReader("installers/missing.json"));
@@ -331,7 +330,6 @@ final class IOUtilsTest {
 
   @Test
   void refusesADirectoryEntryThatCarriesData() throws IOException {
-    // inflating it would go unmeasured: the size budgets count the files written
     final Path archive = this.writeZip("folder/", "x".repeat(1 << 16));
     final Path destination = this.directory.resolve("extracted");
     final ZipEntryIntegrityException refused = assertThrows(ZipEntryIntegrityException.class, () -> IOUtils.unzip(archive, destination));
@@ -363,7 +361,7 @@ final class IOUtilsTest {
 
   /**
    * Found by {@code UnzipFuzzTest}: an entry named with a character the file system cannot hold, such as the NUL of the
-   * fuzzer's archive, made {@link java.nio.file.Path#resolve(String)} throw an {@link java.nio.file.InvalidPathException}
+   * fuzzer's archive, made {@link Path#resolve(String)} throw an {@link java.nio.file.InvalidPathException}
    * out of {@link IOUtils#unzip(Path, Path)}, which documents only its own exceptions for a bad archive.
    */
   @Test

@@ -343,9 +343,7 @@ final class ResourcePackHttpHandlerTest {
     final ChannelHandlerContext context = mock(ChannelHandlerContext.class);
     final ChannelFuture future = mock(ChannelFuture.class);
     when(context.alloc()).thenReturn(ByteBufAllocator.DEFAULT);
-    // like a real context it has a pipeline, where serving swaps the game's read timeout for the download's
     when(context.pipeline()).thenReturn(mock(ChannelPipeline.class));
-    // like a real channel, every write returns a future
     when(context.write(any())).thenReturn(future);
     when(context.writeAndFlush(any())).thenReturn(future);
     final ByteBuf request = ascii("GET / HTTP/1.1\r\n\r\n");
@@ -416,7 +414,6 @@ final class ResourcePackHttpHandlerTest {
 
   @Test
   void usesAStablePipelineNamePrefix() {
-    // NettyHosting appends its instance number, because a Netty pipeline rejects two handlers of one name
     assertEquals("mcav_resource_pack_http", ResourcePackHttpHandler.NAME);
   }
 
@@ -523,7 +520,6 @@ final class ResourcePackHttpHandlerTest {
 
   @Test
   void aDownloadThatKeepsTakingThePackIsNotCutHoweverLongItTakes() throws IOException {
-    // a pack of 1 MiB, which a client that takes 32 KiB every 30 seconds needs a quarter of an hour for
     final int size = 1 << 20;
     Files.write(this.packPath, new byte[size]);
     final SlowSocket channel = new SlowSocket();
@@ -532,7 +528,6 @@ final class ResourcePackHttpHandlerTest {
     pipeline.addLast(ResourcePackHttpHandler.NAME, new ResourcePackHttpHandler(new ResourcePackFile(this.packPath), "/"));
     pipeline.addLast("timeout", new ReadTimeoutHandler(30));
     writeText(channel, "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n");
-    // four times the stall bound, and the client takes some of the pack all along
     for (int step = 1; step <= 8; step++) {
       channel.advanceTimeBy(30, TimeUnit.SECONDS);
       channel.runScheduledPendingTasks();
@@ -540,7 +535,6 @@ final class ResourcePackHttpHandlerTest {
       channel.take(32 * 1024);
     }
     assertTrue(channel.taken() < size, "the download is still running");
-    // the client stops taking it: closed once the stall bound passed without a chunk taken
     channel.advanceTimeBy(ResourcePackHttpHandler.STALL_SECONDS - 1, TimeUnit.SECONDS);
     channel.runScheduledPendingTasks();
     assertTrue(channel.isOpen());
@@ -553,7 +547,6 @@ final class ResourcePackHttpHandlerTest {
   @Test
   void passesOnTheEventsItDoesNotHandle() {
     final List<Object> events = new ArrayList<>();
-    // a download still running, because a finished one closes the connection
     final EmbeddedChannel channel = this.gameConnection();
     channel.pipeline().addLast(
       "events",
@@ -564,7 +557,6 @@ final class ResourcePackHttpHandlerTest {
         }
       }
     );
-    // before a download, and a reader idle event during one, belong to the handlers after it
     channel.pipeline().fireUserEventTriggered("before");
     writeText(channel, "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n");
     channel.pipeline().fireUserEventTriggered(IdleStateEvent.READER_IDLE_STATE_EVENT);

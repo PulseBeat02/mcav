@@ -60,16 +60,13 @@ final class SpeedResamplerTest {
   void halvesAChunkAtTwiceTheSpeed() {
     final SpeedResampler resampler = new SpeedResampler();
     assertArrayEquals(new short[] { 0, 20, 40, 60 }, left(resampler.resample(frames(0, 8), 2)));
-    // the next chunk goes on two frames after the last frame taken
     assertArrayEquals(new short[] { 80, 100, 120, 140 }, left(resampler.resample(frames(8, 8), 2)));
   }
 
   @Test
   void interpolatesAtHalfTheSpeedAcrossChunks() {
     final SpeedResampler resampler = new SpeedResampler();
-    // before the first chunk the frame before is silence, and the first frame taken is the chunk's first
     assertArrayEquals(new short[] { 0, 5, 10, 15 }, left(resampler.resample(frames(0, 3), 0.5)));
-    // the next chunk starts with the last frame of the chunk before, then half way to its own first frame
     assertArrayEquals(new short[] { 20, 25, 30, 35 }, left(resampler.resample(frames(3, 2), 0.5)));
   }
 

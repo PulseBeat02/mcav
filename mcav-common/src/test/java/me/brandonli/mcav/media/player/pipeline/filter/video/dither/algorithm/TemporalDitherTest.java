@@ -42,7 +42,6 @@ final class TemporalDitherTest {
   private static final int YELLOW = 3;
   private static final int MAGENTA = 4;
   private static final int NO_DIFFUSION = 1_000;
-  // three colors close enough together that a drift within the threshold can point at another color than the nearest
   private static final DitherPalette NEAR_BLACK = DitherPalette.colors(0x000000, 0x141414, 0xFFFFFF);
   private static final int DARKEST = 0;
   private static final int DIM = 1;
@@ -161,8 +160,6 @@ final class TemporalDitherTest {
 
   @Test
   void keptPixelsDiffuseOnlyTheConfiguredShareOfTheirError() {
-    // a dark gray is black, and a gray 96 lighter, within the threshold of 100, keeps the black; at a strength of 0 none
-    // of a kept pixel's error is passed on, which in full would push the pixels after it past the threshold, to white
     final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(DitherTestImages.BLACK_WHITE, 100, 0, 0.0f);
     final byte[] dark = ditherSolid(dither, 0xFF404040);
     final byte[] lighter = ditherSolid(dither, 0xFF606060);
@@ -245,7 +242,6 @@ final class TemporalDitherTest {
       final int[] pixels = new int[16 * 16];
       Arrays.fill(pixels, 0xFF606060);
       dither.dither(pixels, 16);
-      // Each channel differs from black by 96: total error 288. Either setting prevents all diffusion.
       assertArrayEquals(expected, pixels);
     }
   }
@@ -285,8 +281,6 @@ final class TemporalDitherTest {
     final byte[] slightlyBrighter = ditherSolid(dither, 0xFF181818);
     assertAll(white, BRIGHTEST, "the first frame has no previous frame");
     assertAll(black, DARKEST, "a drift of 255 recomputes the color");
-    // the drift of 24 from black is within the threshold, while the drift of 231 from the white of the frame before
-    // that is not, and the nearest color of 0x18 would be 0x14
     assertAll(slightlyBrighter, DARKEST, "the frame before is remembered, not an older one");
   }
 
@@ -310,7 +304,6 @@ final class TemporalDitherTest {
     final byte[] dim = ditherSolid(dither, 0xFF141414);
     final byte[] darker = ditherSolid(dither, 0xFF090909);
     assertAll(dim, DIM, "0x14 is the second color exactly");
-    // 0x14 - 0x09 = 11 on every channel, so the drift is exactly the threshold and the sum of two channels is not
     assertAll(darker, DIM, "a drift of exactly the threshold keeps the previous color");
   }
 
@@ -320,7 +313,6 @@ final class TemporalDitherTest {
     final byte[] black = ditherSolid(dither, 0xFF000000);
     final byte[] slightlyBrighter = ditherSolid(dither, 0xFF0C0C0C);
     assertAll(black, DARKEST, "black is the first color of the palette");
-    // 0x0C drifts 12 from black, within the threshold, although 0x14 is the nearer color
     assertAll(slightlyBrighter, DARKEST, "index 0 is reused like every other index");
   }
 
@@ -328,7 +320,6 @@ final class TemporalDitherTest {
   void diffusesNothingWhenTheErrorIsExactlyTheThreshold() {
     final TemporalDitherAlgorithm atThreshold = new TemporalFloydSteinbergDither(DitherTestImages.BLACK_WHITE, 8, 288, 1.0f);
     final TemporalDitherAlgorithm justBelow = new TemporalFloydSteinbergDither(DitherTestImages.BLACK_WHITE, 8, 287, 1.0f);
-    // a gray of 0x60 is 96 away from black on every channel, so the total error is exactly 288
     final byte[] uniform = ditherSolid(atThreshold, 0xFF606060);
     final byte[] diffused = ditherSolid(justBelow, 0xFF606060);
     final double uniformRatio = DitherTestImages.whiteRatio(uniform);

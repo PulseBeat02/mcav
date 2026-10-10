@@ -91,7 +91,6 @@ final class PlaybackEventListener extends MediaPlayerEventAdapter {
     try {
       this.reportFailure();
     } finally {
-      // the failure is reported before a waiting start returns, so its caller already finds the reason in the handler
       this.settled.countDown();
     }
   }

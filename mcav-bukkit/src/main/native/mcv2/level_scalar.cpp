@@ -16,9 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The scalar dispatch level.
 #define MCV2_SIMD_SCALAR
-#include "kernels.hpp"
-#include "mcv2_kernels.h"
 #define MCV2_PREFIX(name) mcv2_scalar_##name
-#include "exports.inc"
+#define MCV2_CPU
+#include "mcv2.cpp"

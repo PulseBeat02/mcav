@@ -85,13 +85,9 @@ public final class Mcv2Screen {
 
   private static final int[] SIGNATURE = { 21, 3, 58, 44, 9, 37, 60, 17 };
 
-  /** Block coordinates to chunk coordinates: a chunk is 16 blocks wide. */
   private static final int CHUNK_SHIFT = 4;
 
-  /**
-   * How many screens keep each chunk loaded, on the main thread: a plugin holds one ticket per chunk however often it
-   * asks, so two screens in one chunk share it, and it is removed with the last of them.
-   */
+  // Bukkit holds one plugin ticket per chunk, so overlapping screens must share ownership.
   private static final Map<HeldChunk, Integer> HELD_CHUNKS = new HashMap<>();
 
   private final Mcv2Configuration configuration;
@@ -114,16 +110,6 @@ public final class Mcv2Screen {
     this.chunks = new LinkedHashSet<>();
   }
 
-  /**
-   * The page slot behind a map of the wall: the slots in reading order, so the first maps of the wall carry every slot
-   * once; counting the sum of column and row left slots out on walls with fewer columns and rows than slots.
-   *
-   * @param column  the map's column
-   * @param row     the map's row
-   * @param columns the wall's columns
-   * @param slots   the page slots, at most the wall's maps
-   * @return the slot
-   */
   static int slot(final int column, final int row, final int columns, final int slots) {
     return (row * columns + column) % slots;
   }
@@ -143,7 +129,6 @@ public final class Mcv2Screen {
     final BlockFace back = this.configuration.getFacing().getOppositeFace();
     for (int row = 0; row < this.configuration.getRows(); row++) {
       for (int column = 0; column < this.configuration.getColumns(); column++) {
-        // two blocks behind the frame's block: past the wall block the frame hangs on
         final Location behind = origin
           .clone()
           .add(right.getModX() * column + back.getModX() * 2, -row, right.getModZ() * column + back.getModZ() * 2);
@@ -168,7 +153,6 @@ public final class Mcv2Screen {
     }
   }
 
-  /** A filled map item naming a map id, which need not exist on the server. */
   static ItemStack pageItem(final int mapId) {
     final net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(Items.FILLED_MAP); // fqn: Minecraft's ItemStack beside the imported Bukkit one
     stack.set(DataComponents.MAP_ID, new MapId(mapId));
@@ -243,10 +227,8 @@ public final class Mcv2Screen {
     }
   }
 
-  /** A chunk a screen keeps loaded, in chunk coordinates. */
   private record HeldChunk(World world, int chunkX, int chunkZ) {}
 
-  /** The team of the page frames, with the configured colour. */
   PlayerTeam team() {
     final PlayerTeam team = new PlayerTeam(new Scoreboard(), this.teamName);
     final String name = NamedTextColor.NAMES.keyOrThrow(this.configuration.getOutlineColor());
@@ -276,16 +258,16 @@ public final class Mcv2Screen {
         for (int index = 0; index < SIGNATURE.length; index++) {
           symbols[index] = (byte) SIGNATURE[index];
         }
-        final int at = SIGNATURE.length;
-        symbols[at] = (byte) column;
-        symbols[at + 1] = (byte) row;
-        symbols[at + 2] = (byte) columns;
-        symbols[at + 3] = (byte) rows;
-        symbols[at + 4] = (byte) facing;
-        symbols[at + 5] = (byte) streamLow;
-        symbols[at + 6] = (byte) streamHigh;
-        // a check symbol: the sum of the others in the six-bit alphabet
-        symbols[at + 7] = (byte) ((column + row + columns + rows + facing + streamLow + streamHigh) % MapAlphabet.SIZE);
+        final int symbolOffset = SIGNATURE.length;
+        symbols[symbolOffset] = (byte) column;
+        symbols[symbolOffset + 1] = (byte) row;
+        symbols[symbolOffset + 2] = (byte) columns;
+        symbols[symbolOffset + 3] = (byte) rows;
+        symbols[symbolOffset + 4] = (byte) facing;
+        symbols[symbolOffset + 5] = (byte) streamLow;
+        symbols[symbolOffset + 6] = (byte) streamHigh;
+
+        symbols[symbolOffset + 7] = (byte) ((column + row + columns + rows + facing + streamLow + streamHigh) % MapAlphabet.SIZE);
         final int mapId = this.configuration.getMap() + row * columns + column;
         patches.add(new MapTilePatch(mapId, 0, 0, MapLayout.MAP_SIZE, 1, MapAlphabet.toMapColors(symbols)));
       }

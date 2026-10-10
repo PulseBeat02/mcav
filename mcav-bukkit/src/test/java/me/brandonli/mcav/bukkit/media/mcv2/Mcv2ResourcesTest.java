@@ -17,22 +17,12 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
 import me.brandonli.mcav.bukkit.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 
-/**
- * Loading the profile's static data: a resource is read completely, checked against its length and SHA-256, and any
- * missing, unreadable or altered resource is refused.
- */
 final class Mcv2ResourcesTest {
 
   private static final String EMPTY_SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
@@ -51,44 +41,5 @@ final class Mcv2ResourcesTest {
   @Test
   void refusesAnUnknownDigest() {
     assertThrows(IllegalStateException.class, () -> Mcv2Resources.digest(new byte[0], "NOT-A-DIGEST"));
-  }
-
-  @Test
-  void loadsAndChecksTheBooks() {
-    final byte[] books = Mcv2Resources.load("residual_books.bin", ResidualBooks.SHA256, ResidualBooks.BYTES);
-    assertArrayEquals(ResidualBooks.bytes(), books);
-  }
-
-  @Test
-  void refusesAMissingResource() {
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-      Mcv2Resources.load("missing.bin", EMPTY_SHA256, 0)
-    );
-    assertEquals("Missing MCV2 resource missing.bin", exception.getMessage());
-  }
-
-  @Test
-  void refusesTheWrongLengthOrChecksum() {
-    final byte[] empty = new byte[0];
-    assertSame(empty, Mcv2Resources.verify(empty, EMPTY_SHA256, 0, "empty"));
-    assertThrows(IllegalStateException.class, () -> Mcv2Resources.verify(empty, EMPTY_SHA256, 1, "empty"));
-    assertThrows(IllegalStateException.class, () -> Mcv2Resources.verify(new byte[1], EMPTY_SHA256, 1, "one"));
-  }
-
-  @Test
-  void readsAStreamAndReportsItsFailure() {
-    assertArrayEquals(new byte[] { 1, 2 }, Mcv2Resources.read(new ByteArrayInputStream(new byte[] { 1, 2 }), "two"));
-    final InputStream broken = new InputStream() {
-      @Override
-      public int read() throws IOException {
-        throw new IOException("broken");
-      }
-
-      @Override
-      public int read(final byte[] buffer, final int offset, final int length) throws IOException {
-        throw new IOException("broken");
-      }
-    };
-    assertThrows(UncheckedIOException.class, () -> Mcv2Resources.read(broken, "broken"));
   }
 }

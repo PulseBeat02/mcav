@@ -78,7 +78,7 @@ public final class DelayedAudioOutput implements AutoCloseable {
   public static final int SILENCE_MILLIS = 2_000;
 
   /** How long each chunk of silence is, in milliseconds. */
-  static final int SILENCE_CHUNK_MILLIS = 20;
+  private static final int SILENCE_CHUNK_MILLIS = 20;
 
   private static final int BYTES_PER_MILLISECOND = (AudioFilter.SAMPLE_RATE / 1000) * AudioFilter.FRAME_SIZE;
 
@@ -98,7 +98,6 @@ public final class DelayedAudioOutput implements AutoCloseable {
   private int queuedBytes;
   private boolean paused;
   private boolean closed;
-  // when the sound handed over so far ends, played from its handover, and how much silence may still fill a pause
   private long streamEnd;
   private long silenceLeftNanos;
 
@@ -121,7 +120,6 @@ public final class DelayedAudioOutput implements AutoCloseable {
     this.clock = clock;
     this.silenceNanos = TimeUnit.MILLISECONDS.toNanos(silenceMillis);
     this.queue = new ArrayDeque<>();
-    // replaced by the running thread once the output exists
     this.thread = new Thread("mcav-audio-output-not-started");
   }
 
@@ -184,7 +182,6 @@ public final class DelayedAudioOutput implements AutoCloseable {
       maxQueuedMillis,
       delayMillis
     );
-    // a longer queue's size in bytes wraps around to a negative int, which the first chunk then fails on
     Preconditions.checkArgument(
       maxQueuedMillis <= MAX_QUEUED_MILLIS,
       "At most %s ms of sound may wait, but %s ms were asked for",
@@ -222,13 +219,11 @@ public final class DelayedAudioOutput implements AutoCloseable {
     if (this.paused || this.closed || length == 0) {
       return;
     }
-    // a chunk longer than the limit keeps its newest samples, whole frames as the limit is
     final int kept = Math.min(length, this.maxQueuedBytes);
     final ByteBuffer copy = ByteBuffer.allocate(kept).order(ByteOrder.LITTLE_ENDIAN);
     copy.put(samples, length - kept, kept);
     copy.flip();
     final long due = this.clock.getAsLong() + this.delayNanos;
-    // the first samples after the source went quiet end the silence once they are due
     final boolean endsQuiet = this.silenceLeftNanos > 0;
     // Make room before addition so even the largest accepted queue cannot wrap its byte counter.
     while (this.queuedBytes > this.maxQueuedBytes - kept) {
@@ -309,7 +304,6 @@ public final class DelayedAudioOutput implements AutoCloseable {
         final ByteBuffer samples = next.samples();
         this.queuedBytes -= samples.remaining();
         if (next.endsQuiet()) {
-          // the source plays again: a later pause is filled only after it says so
           this.silenceLeftNanos = 0;
         }
         this.streamEnd = Math.max(this.streamEnd, now) + nanosOf(samples.remaining());
@@ -323,7 +317,6 @@ public final class DelayedAudioOutput implements AutoCloseable {
         this.wait();
         continue;
       }
-      // the next chunk, or the next silence once the sound handed over has played
       final long nextDue = next == null ? Long.MAX_VALUE : next.due();
       final long wake = this.silenceLeftNanos > 0 ? Math.min(nextDue, this.streamEnd) : nextDue;
       TimeUnit.NANOSECONDS.timedWait(this, Math.max(1, wake - now));
@@ -349,7 +342,6 @@ public final class DelayedAudioOutput implements AutoCloseable {
     final int bytes =
       ((int) ((nanos * BYTES_PER_MILLISECOND) / TimeUnit.MILLISECONDS.toNanos(1)) / AudioFilter.FRAME_SIZE) * AudioFilter.FRAME_SIZE;
     if (bytes <= 0) {
-      // less than a frame of silence is left, or the next samples are due within one
       if (next == null) {
         this.silenceLeftNanos = 0;
       }
@@ -420,7 +412,6 @@ public final class DelayedAudioOutput implements AutoCloseable {
     } catch (final InterruptedException exception) {
       caller.interrupt();
     }
-    // a pipeline that still holds the thread is asked to let go of it; a thread that ended ignores this
     current.interrupt();
   }
 

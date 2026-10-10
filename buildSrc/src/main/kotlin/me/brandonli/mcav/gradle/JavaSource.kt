@@ -1,20 +1,11 @@
 package me.brandonli.mcav.gradle
 
-/** Reads Java source text without a parser, for the lints of the build. */
 object JavaSource {
 
     private const val TEXT_BLOCK_QUOTES = "\"\"\""
 
-    /**
-     * The source with every comment and every string, character and text block literal replaced by spaces, so each
-     * character of code keeps its offset and line.
-     *
-     * @param source the text of a Java file
-     * @return the masked text, as long as the source
-     */
     fun mask(source: String): String = Masker(source, true).mask()
 
-    /** Replaces comments with spaces while preserving literals, offsets and line breaks. */
     fun withoutComments(source: String): String = Masker(source, false).mask()
 
     private enum class State { CODE, LINE_COMMENT, BLOCK_COMMENT, TEXT_BLOCK, STRING, CHARACTER }
@@ -73,7 +64,6 @@ object JavaSource {
             }
         }
 
-        // a string or character literal ends at its quote, or at the end of the line if it lacks one
         private fun literal(quote: Char) {
             when (source[index]) {
                 '\\' -> literalCharacters(2)
@@ -97,7 +87,6 @@ object JavaSource {
             }
         }
 
-        // replaces the next characters with spaces, keeping the line breaks
         private fun blank(length: Int) {
             val end = minOf(index + length, source.length)
             while (index < end) {

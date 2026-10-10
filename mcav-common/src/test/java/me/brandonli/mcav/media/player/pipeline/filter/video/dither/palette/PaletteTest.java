@@ -49,8 +49,6 @@ final class PaletteTest {
     final DitherPalette palette = DitherPalette.colors(0x000000, 0x0000FF);
     final byte[] lookup = palette.getColorMap();
     final int[] colors = palette.getFullColorMap();
-    // At (R=0,G=2,B=0), black is closer than saturated blue under redmean distance.
-    // Blue=256 is outside the LUT domain and must never overwrite this entry.
     assertEquals(0, lookup[128]);
     assertEquals(0xFF000000, colors[128]);
   }
@@ -64,8 +62,6 @@ final class PaletteTest {
     final int[] pixels = { 0xFF6A6A6A, 0xFF6A6A6A, 0xFF6A6A6A, 0xFF6A6A6A };
     try (final ImageBuffer image = ImageBuffer.buffer(pixels, 2, 2)) {
       final byte[] actual = dither.ditherIntoBytes(image);
-      // Two usable colors give spread 256/cbrt(2), offsets [-76,25,76,-25].
-      // Gray 106 therefore becomes [30,131,182,81], mapping to black/white/white/black.
       assertArrayEquals(new byte[] { 2, 3, 3, 2 }, actual);
     }
   }
@@ -102,19 +98,13 @@ final class PaletteTest {
 
   @Test
   void weighsTheChannelsByTheRedmeanFormula() {
-    // black against (60, 0, 0): the red mean is 30, so red weighs 2 + 30 / 256 = 2.1171875, times 60 squared
     final float red = ColorPalette.perceptualDistance(0, 0, 0, 0x3C0000);
-    // green always weighs 4, times 60 squared
     final float green = ColorPalette.perceptualDistance(0, 0, 0, 0x003C00);
-    // the red mean is 0, so blue weighs 2 + 255 / 256 = 2.99609375, times 60 squared
     final float blue = ColorPalette.perceptualDistance(0, 0, 0, 0x00003C);
-    // (100, 80, 60) against (20, 40, 200): the red mean is 60, so red weighs 2.234375 times 80 squared = 14300,
-    // green 4 times 40 squared = 6400, and blue 2 + 195 / 256 = 2.76171875 times 140 squared = 54129.6875
     final float mixed = ColorPalette.perceptualDistance(100, 80, 60, 0x1428C8);
     assertEquals(7621.875f, red);
     assertEquals(14400.0f, green);
     assertEquals(10785.9375f, blue);
-    // 74829.6875 is exactly representable, and 74829.69 is how a float of that value prints
     assertEquals(74829.69f, mixed);
     assertTrue(red < blue, "the eye is least sensitive to red in a dark color");
     assertTrue(blue < green, "the eye is most sensitive to green");

@@ -95,9 +95,7 @@ public final class VMModule implements MCAVModule {
    * Call {@link VMPlayer#release()} on every owned player before unloading the backend.
    */
   @Override
-  public void stop() {
-    // nothing to release
-  }
+  public void stop() {}
 
   /**
    * Gets the module identifier.

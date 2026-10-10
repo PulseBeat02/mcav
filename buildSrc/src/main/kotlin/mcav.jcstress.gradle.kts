@@ -1,9 +1,3 @@
-// Concurrency tests on jcstress, OpenJDK's harness that races a few actors over shared state millions of times.
-// `./gradlew jcstressTest` runs every test in quick mode, -Pjcstress.tests=<regex> a selection; CI passes
-// -Pjcstress.mode=quick|default|stress and -Pjcstress.timeBudgetMinutes=<n>, and -Pjcstress.cpus=<n> bounds the actors
-// that run at once. A result a test marks FORBIDDEN makes jcstress exit with an error, which fails the task, and so
-// does a test jcstress skipped because it could not even be created.
-
 import me.brandonli.mcav.gradle.JcstressBudget
 import me.brandonli.mcav.gradle.JcstressConsole
 import me.brandonli.mcav.gradle.libraryOf
@@ -12,6 +6,8 @@ import net.ltgt.gradle.errorprone.errorprone
 
 plugins {
     id("mcav.java-library")
+    id("mcav.formatting")
+    id("mcav.lint")
 }
 
 dependencies {
@@ -19,8 +15,6 @@ dependencies {
     annotationProcessor(libs.libraryOf("jcstress-core"))
 }
 
-// The harness jcstress generates from the annotations is compiled with the tests and is not ours: it keeps neither
-// every javac lint nor the nullness the checker wants, as it assigns null to fields the checker considers non-null.
 checkerFramework {
     skipCheckerFramework = true
 }
@@ -32,8 +26,6 @@ tasks.named<JavaCompile>("compileJava") {
     }
 }
 
-// jcstress runs from one jar, which it also puts on the class path of the JVMs it forks. The annotation processor lists
-// the tests in META-INF/TestList of the main output, so that output comes first and duplicates are dropped.
 val jcstressJar = tasks.register<Jar>("jcstressJar") {
     description = "Packs the jcstress tests with everything they run"
     group = "build"
@@ -42,7 +34,6 @@ val jcstressJar = tasks.register<Jar>("jcstressJar") {
         attributes("Main-Class" to "org.openjdk.jcstress.Main")
     }
     from(sourceSets.main.get().output)
-    // resolved when the jar is packed, after the jars of the modules under test were built
     val runtimeClasspath = configurations.runtimeClasspath
     dependsOn(runtimeClasspath)
     from(runtimeClasspath.map { classpath -> classpath.map { if (it.isDirectory) it else zipTree(it) } }) {
@@ -51,9 +42,6 @@ val jcstressJar = tasks.register<Jar>("jcstressJar") {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-// quick takes about a minute and a half per test here and surfaced every race the tests look for in every fork, while
-// sanity is too short to surface a race at all; the CPU count bounds how many actors run at once, so the machine stays
-// usable
 val ITERATION_TIME = "jcstress: {} tests in {} mode within {} minutes: {} ms per iteration"
 val mode = providers.gradleProperty("jcstress.mode").getOrElse("quick")
 val budgetMinutes = providers.gradleProperty("jcstress.timeBudgetMinutes").map { it.toInt() }
@@ -92,6 +80,5 @@ tasks.register<JavaExec>("jcstressTest") {
         standardOutput.close()
         JcstressConsole.checkNoneSkipped(console.get().asFile)
     }
-    // a stress run depends on the scheduling of the machine, so its result is never reused
     outputs.upToDateWhen { false }
 }

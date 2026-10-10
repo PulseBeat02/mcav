@@ -48,7 +48,6 @@ public final class EqualityAssertions {
     Preconditions.checkNotNull(equalValue, "Equal value must not be null");
     Preconditions.checkNotNull(differentValues, "Different values must not be null");
 
-    // the value equals itself and its equal twin, in both directions and with the same hash code
     final int hash = value.hashCode();
     final List<Object> equalValues = List.of(value, equalValue);
     for (final Object candidate : equalValues) {
@@ -58,7 +57,6 @@ public final class EqualityAssertions {
       assertEquals(hash, candidateHash);
     }
 
-    // no value equals null or an object of another type
     final Object unrelated = new Object();
     final List<@Nullable Object> strangers = Arrays.asList(null, unrelated);
     for (final Object stranger : strangers) {

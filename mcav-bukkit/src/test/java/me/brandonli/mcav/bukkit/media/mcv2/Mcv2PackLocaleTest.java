@@ -67,7 +67,7 @@ final class Mcv2PackLocaleTest {
     final Map<String, String> shaders = new HashMap<>();
     try (final ZipFile archive = new ZipFile(zip.toFile())) {
       for (final ZipEntry entry : archive.stream().toList()) {
-        if (entry.getName().endsWith(".glsl")) {
+        if (entry.getName().endsWith(".glsl") || entry.getName().endsWith(".vsh") || entry.getName().endsWith(".fsh")) {
           try (final InputStream input = archive.getInputStream(entry)) {
             shaders.put(entry.getName(), new String(input.readAllBytes(), StandardCharsets.UTF_8));
           }

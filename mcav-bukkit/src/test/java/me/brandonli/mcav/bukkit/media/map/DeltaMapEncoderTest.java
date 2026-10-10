@@ -401,8 +401,6 @@ final class DeltaMapEncoderTest {
     final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, LARGE_BUDGET);
     final byte[] image = MapLayoutTest.createImage(128, 128);
     encoder.encode(image);
-    // a longer image is only noticed by the encoder itself: comparing it against the remembered state reads the
-    // expected number of bytes and finds no difference
     final byte[] tooLong = Arrays.copyOf(image, image.length + 1);
 
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> encoder.encode(tooLong));
@@ -418,8 +416,6 @@ final class DeltaMapEncoderTest {
     final byte[] image = MapLayoutTest.createImage(64, 16);
     encoder.encode(image);
 
-    // the left map changes five pixels and holds back three as noise, the right map changes six, so the right map is
-    // the more urgent one as long as the left map counts neither the noise nor a pixel beyond its tile
     final byte[] leftChange = change(image, 64, 0, 0, 5, 1);
     final byte[] leftNoise = change(leftChange, 64, 16, 0, 3, 1);
     final byte[] changed = change(leftNoise, 64, 32, 0, 6, 1);
@@ -440,7 +436,6 @@ final class DeltaMapEncoderTest {
     final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, LARGE_BUDGET);
     final byte[] image = MapLayoutTest.createImage(100, 50);
     encoder.encode(image);
-    // the image starts at column 14 of the map, so the change covers the first three tiles of the map, not one
     final byte[] changed = change(image, 100, 0, 0, 21, 2);
     final List<MapTilePatch> patches = encoder.encode(changed);
     final MapTilePatch patch = patches.getFirst();
@@ -456,7 +451,6 @@ final class DeltaMapEncoderTest {
     final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, LARGE_BUDGET);
     final byte[] image = MapLayoutTest.createImage(128, 128);
     encoder.encode(image);
-    // a block of two by two tiles, and one tile far away that makes a bounding box around everything too expensive
     final byte[] block = change(image, 128, 0, 0, 32, 32);
     final byte[] changed = change(block, 128, 112, 32, 16, 16);
     final List<MapTilePatch> patches = encoder.encode(changed);
@@ -492,7 +486,6 @@ final class DeltaMapEncoderTest {
     final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, LARGE_BUDGET);
     final byte[] image = MapLayoutTest.createImage(128, 128);
     encoder.encode(image);
-    // two neighboring tiles of the second tile row, and one tile far away, so the merged rectangles beat a bounding box
     final byte[] row = change(image, 128, 0, 16, 32, 16);
     final byte[] changed = change(row, 128, 112, 32, 16, 16);
     final List<MapTilePatch> patches = encoder.encode(changed);
@@ -512,8 +505,6 @@ final class DeltaMapEncoderTest {
     final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, LARGE_BUDGET);
     final byte[] image = MapLayoutTest.createImage(128, 128);
     encoder.encode(image);
-    // the last tile of the first row and the first tile of the second row touch in the tile array but not on the map,
-    // and one tile far away keeps a bounding box around everything from winning
     final byte[] rightEdge = change(image, 128, 112, 0, 16, 16);
     final byte[] nextRow = change(rightEdge, 128, 0, 16, 16, 16);
     final byte[] changed = change(nextRow, 128, 48, 64, 16, 16);
@@ -537,7 +528,6 @@ final class DeltaMapEncoderTest {
     final DeltaMapEncoder encoder = new DeltaMapEncoder(layout, LARGE_BUDGET);
     final byte[] image = MapLayoutTest.createImage(128, 2);
     encoder.encode(image);
-    // three tiles that start at column 16 of the map, whose bounding box is as small as the separate rectangles
     final byte[] firstRow = change(image, 128, 16, 0, 4, 1);
     final byte[] secondRow = change(firstRow, 128, 16, 1, 4, 1);
     final byte[] changed = change(secondRow, 128, 32, 1, 4, 1);

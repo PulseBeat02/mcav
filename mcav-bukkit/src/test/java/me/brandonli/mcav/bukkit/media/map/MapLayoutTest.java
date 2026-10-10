@@ -86,9 +86,6 @@ final class MapLayoutTest {
     final int imageWidth = layout.getImageWidth();
     final int imageHeight = layout.getImageHeight();
     final MapRegion secondRowSecondColumn = layout.getRegion(4);
-    // index 4 alone cannot detect a swapped decomposition: 4 % 3 and 4 / 3 are both 1, so reading the column as
-    // index / columns and the row as index % columns gives the same tile. Indexes 1 and 3 are the ones that tell
-    // a row-major numbering apart from a column-major one.
     final MapRegion firstRowSecondColumn = layout.getRegion(1);
     final MapRegion secondRowFirstColumn = layout.getRegion(3);
 
@@ -203,7 +200,6 @@ final class MapLayoutTest {
 
   @Test
   void rejectsMapCountsThatOverflowEvenWhenTheLastIdFits() {
-    // 65,536 * 32,768 is 2^31 maps: IDs 0 through Integer.MAX_VALUE fit, but an array length does not.
     assertThrows(IllegalArgumentException.class, () -> new MapLayout(0, 65_536, 32_768, 1, 1));
   }
 

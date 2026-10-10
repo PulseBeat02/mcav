@@ -25,9 +25,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.util.List;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Fixtures;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Format;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -37,14 +37,14 @@ import org.junit.jupiter.params.provider.MethodSource;
 final class PageAssemblerTest {
 
   /** A two-page keyframe (frame id 0) at six bits. */
-  private static final byte[] BIG = Mcv2Fixtures.frames(Mcv2Fixtures.read("conformance/p30r19-compact_final-65p255994.mcs")).get(0);
+  private static final byte[] BIG = Mcv2Trees.twoPages();
 
   /** A one-page keyframe, also frame id 0. */
-  private static final byte[] TINY = Mcv2Fixtures.frames(Mcv2Fixtures.read("edge/edge-tiny.mcs")).get(0);
+  private static final byte[] TINY = Mcv2Trees.tiny();
 
   private static List<byte[]> pages(final byte[] frame) {
     try {
-      return TransportPages.makePages(frame, 3, 6);
+      return TransportPages.makePages(frame, 3);
     } catch (final Mcv2Exception exception) {
       throw new AssertionError(exception);
     }
@@ -57,17 +57,17 @@ final class PageAssemblerTest {
   /** A copy of a page with one header field changed and its CRC recomputed, so only the assembler's rules object. */
   private static byte[] rewritten(final byte[] page, final int offset, final long value) {
     try {
-      final byte[] raw = TransportPages.fromSymbols(page, 6, (page.length * 6) / 8);
+      final byte[] raw = TransportPages.fromSymbols(page, (page.length * 6) / 8);
       if (offset == 6 || offset == 16 || offset == 18) {
-        Mcv2Format.putU16(raw, offset, (int) value);
+        Mcv2Decoder.putU16(raw, offset, (int) value);
       } else {
-        Mcv2Format.putU32(raw, offset, value);
+        Mcv2Decoder.putU32(raw, offset, value);
       }
-      Mcv2Format.putU32(raw, 28, 0);
+      Mcv2Decoder.putU32(raw, 28, 0);
       final CRC32 crc = new CRC32();
       crc.update(raw);
-      Mcv2Format.putU32(raw, 28, crc.getValue());
-      return TransportPages.toSymbols(raw, 6);
+      Mcv2Decoder.putU32(raw, 28, crc.getValue());
+      return TransportPages.toSymbols(raw);
     } catch (final Mcv2Exception exception) {
       throw new AssertionError(exception);
     }
@@ -93,7 +93,7 @@ final class PageAssemblerTest {
     assertThrows(IllegalArgumentException.class, () -> new PageAssembler(1, 9));
   }
 
-  static Stream<Arguments> disagreements() {
+  private static Stream<Arguments> disagreements() {
     return Stream.of(
       Arguments.of("page count", page(1), pages(TINY).get(0)),
       Arguments.of("reference id", page(0), rewritten(page(1), 20, 9)),
@@ -136,7 +136,7 @@ final class PageAssemblerTest {
     assertEquals(3, assembler.getPendingCount());
   }
 
-  static Stream<Arguments> contradictions() {
+  private static Stream<Arguments> contradictions() {
     return Stream.of(Arguments.of("frame id", 12, 9L), Arguments.of("reference id", 20, 9L), Arguments.of("frame type", 6, 0L));
   }
 

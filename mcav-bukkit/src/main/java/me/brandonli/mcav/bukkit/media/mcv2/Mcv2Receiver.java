@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2;
 
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.Frame;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -36,12 +37,14 @@ public final class Mcv2Receiver {
 
   private long frameId = -1;
 
+  private int width;
+
+  private int height;
+
   /**
    * Constructs a receiver that holds no frame yet, so it accepts a keyframe first.
    */
-  public Mcv2Receiver() {
-    // the first accepted frame sets the state
-  }
+  public Mcv2Receiver() {}
 
   /**
    * Validates, decodes and commits a frame.
@@ -54,13 +57,18 @@ public final class Mcv2Receiver {
    * @throws NullPointerException if the frame bytes are null
    */
   public byte[] accept(final byte[] data) throws Mcv2Exception {
-    final Mcv2Frame frame = FrameParser.parse(data);
-    if (this.frameId >= 0 && !Mcv2Format.follows(frame.getFrameId(), this.frameId)) {
+    final Frame frame = Mcv2Decoder.parse(data);
+    if (this.frameId >= 0 && !Mcv2Decoder.follows(frame.getFrameId(), this.frameId)) {
       throw new Mcv2Exception("Stale or ambiguous frame number");
+    }
+    if (!frame.isKeyframe() && (frame.getWidth() != this.width || frame.getHeight() != this.height)) {
+      throw new Mcv2Exception("Reference frame dimensions mismatch");
     }
     final byte[] result = Mcv2Decoder.decode(frame, this.reference, this.frameId);
     this.reference = result;
     this.frameId = frame.getFrameId();
+    this.width = frame.getWidth();
+    this.height = frame.getHeight();
     return result;
   }
 

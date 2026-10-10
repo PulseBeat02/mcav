@@ -379,13 +379,11 @@ public abstract class TemporalDitherAlgorithm extends ErrorDiffusionDither imple
     }
 
     private void store(final int pixelIndex, final int row, final byte paletteIndex) {
-      // the warm-up rows above the strip belong to the neighboring strip, so only their errors are kept
       if (row >= this.firstWrittenRow) {
         this.indices[pixelIndex] = paletteIndex;
       }
     }
 
-    // a kept color's error is scaled like a chosen one's: the strength is the share of every error that is diffused
     private void diffuseError(final int wanted, final int chosen, final int column, final int row, final int step) {
       final int errorRed = ErrorRows.red(wanted) - ErrorRows.red(chosen);
       final int errorGreen = ErrorRows.green(wanted) - ErrorRows.green(chosen);

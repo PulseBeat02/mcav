@@ -43,7 +43,7 @@ final class MapLayoutPropertyTest {
   private static final int MAX_IMAGE_SIDE = MAX_SIDE_IN_MAPS * MapLayout.MAP_SIZE + 90;
 
   /**
-   * Creates integers in a range from a fresh arbitrary: jqwik 1.9 shares the range between an arbitrary and the ones
+   * Creates integers in a range from a fresh arbitrary: jqwik 1.10 shares the range between an arbitrary and the ones
    * configured from it, so one base configured twice would hand every user the last range.
    */
   private static Arbitrary<Integer> between(final int min, final int max) {
@@ -122,7 +122,6 @@ final class MapLayoutPropertyTest {
     @ForAll @IntRange(min = 0, max = 4095) final int overshoot
   ) {
     final int mapCount = columns * rows;
-    // a single map may start at every id, so there is nothing to refuse
     Assume.that(mapCount > 1);
     final long lastAllowedStart = (long) Integer.MAX_VALUE - mapCount + 1;
     final long overshootingStart = Math.min(Integer.MAX_VALUE, lastAllowedStart + 1 + overshoot);
@@ -227,7 +226,7 @@ final class MapLayoutPropertyTest {
       this.counts = new int[image.length];
     }
 
-    void add(final MapTilePatch patch) {
+    private void add(final MapTilePatch patch) {
       final int mapId = patch.getMapId();
       final int index = mapId - this.grid.getStartMapId();
       final MapRegion region = this.layout.getRegion(index);

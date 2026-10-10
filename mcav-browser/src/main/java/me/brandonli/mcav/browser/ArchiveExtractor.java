@@ -184,16 +184,14 @@ final class ArchiveExtractor {
     }
     final Path relative;
     try {
-      // refuses a NUL everywhere, and on Windows the characters its file names cannot hold
       relative = root.getFileSystem().getPath(name);
     } catch (final InvalidPathException exception) {
       throw new IOException("The archive entry name is not allowed: " + name, exception);
     }
-    // an absolute name has a root on every system, and so do the drive-relative names of Windows
+    // Windows drive-relative names have a root without being absolute.
     if (relative.getRoot() != null) {
       throw new IOException("The archive entry name is absolute: " + name);
     }
-    // without a root and without "..", the name cannot leave the folder; every folder on the way must be a real one
     Path current = root;
     for (final Path element : relative) {
       if (element.toString().equals("..")) {
@@ -209,7 +207,6 @@ final class ArchiveExtractor {
 
   private static long writeFile(final InputStream tar, final Path destination, final long remaining, final boolean supportsPosix)
     throws IOException {
-    // every entry lies below the root, so it has a parent
     final Path parent = Objects.requireNonNull(destination.getParent(), "An entry lies below the folder");
     createFolders(parent, supportsPosix);
     long written = 0L;
@@ -258,7 +255,6 @@ final class ArchiveExtractor {
   static void createFolders(final Path folder, final boolean supportsPosix) throws IOException {
     final List<Path> missing = new ArrayList<>();
     Path current = folder.toAbsolutePath();
-    // the root of a file system always exists, so the search ends before it runs out of parents
     while (Files.notExists(current, LinkOption.NOFOLLOW_LINKS)) {
       missing.add(current);
       current = Objects.requireNonNull(current.getParent(), "The root of a file system exists");
@@ -296,7 +292,7 @@ final class ArchiveExtractor {
 
         @Override
         public FileVisitResult visitFile(final Path file, final BasicFileAttributes attributes) {
-          // a link has no permissions of its own, and changing them would change those of its target
+          // A link has no permissions of its own; changing them would modify its target.
           if (!attributes.isSymbolicLink()) {
             takeWriteAway(file);
           }
@@ -305,7 +301,6 @@ final class ArchiveExtractor {
 
         @Override
         public FileVisitResult visitFileFailed(final Path file, final IOException exception) {
-          // deleted meanwhile, or a folder its owner may not read
           return FileVisitResult.CONTINUE;
         }
       }
@@ -341,8 +336,6 @@ final class ArchiveExtractor {
     }
 
     @Override
-    public void close() {
-      // the caller closes the stream
-    }
+    public void close() {}
   }
 }

@@ -46,11 +46,9 @@ final class AddressText {
   static String describe(final String address) {
     final int colon = address.indexOf(':');
     if (colon <= 0 || !isScheme(address, colon)) {
-      // no scheme: it is no address at all
       return HIDDEN;
     }
     if (!address.startsWith(AUTHORITY_START, colon)) {
-      // no host: the rest of the address is its content
       return address.substring(0, colon + 1) + HIDDEN;
     }
     final int authorityStart = colon + AUTHORITY_START.length();

@@ -18,7 +18,6 @@
 package me.brandonli.mcav.bukkit.media.mcv2;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.gson.JsonElement;
@@ -38,14 +37,12 @@ import org.junit.jupiter.params.provider.MethodSource;
  * Decoder conformance: every frame of the committed streams decodes to exactly the RGB the Python reference decoder
  * produced, compared by SHA-256.
  *
- * <p>The {@code conformance} streams are the last kept frontier round (round 19) and the two shipped 1080p30 streams;
- * streams over 1 MB are committed as a prefix of whole frames from the first keyframe. The {@code edge} streams are
- * random trees built with the reference's own serializer to reach every leaf mode, every compact class, quantizers up
- * to 7, cropped edges and every index form.
+ * <p>The {@code conformance} streams are real crops encoded with the v3 live encoder; each is at most 1 MB. The {@code edge} streams are
+ * random trees built with the reference's own serializer to reach every leaf mode, quantizers 0..2, cropped edges and the derived index. Old v2 frames belong to the rejection corpus.
  */
 final class ConformanceTest {
 
-  static Stream<Arguments> streams() {
+  private static Stream<Arguments> streams() {
     final List<Arguments> arguments = new ArrayList<>();
     for (final String folder : List.of("conformance", "edge")) {
       for (final Map.Entry<String, List<String>> entry : Mcv2Fixtures.digests(folder).entrySet()) {
@@ -62,26 +59,27 @@ final class ConformanceTest {
     assertEquals(digests.size(), frames.size(), "frame count");
     final Mcv2Receiver receiver = new Mcv2Receiver();
     for (int frameIndex = 0; frameIndex < frames.size(); frameIndex++) {
-      final byte[] picture = receiver.accept(frames.get(frameIndex));
+      final byte[] data = frames.get(frameIndex);
+      final byte[] picture = receiver.accept(data);
       assertEquals(digests.get(frameIndex), Mcv2Fixtures.sha256(picture), "frame " + frameIndex);
     }
   }
 
-  static Stream<Arguments> rejected() {
+  private static Stream<Arguments> rejected() {
     final String text = new String(Mcv2Fixtures.read("edge/rejected.json"), StandardCharsets.UTF_8);
     final JsonObject root = JsonParser.parseString(text).getAsJsonObject();
     final List<Arguments> arguments = new ArrayList<>();
     for (final Map.Entry<String, JsonElement> entry : root.entrySet()) {
-      arguments.add(Arguments.of(entry.getKey(), HexFormat.of().parseHex(entry.getValue().getAsString())));
+      arguments.add(Arguments.of(entry.getKey(), HexFormat.of().parseHex(entry.getValue().getAsJsonObject().get("frame").getAsString())));
     }
-    assertFalse(arguments.isEmpty());
+    assertEquals(78, arguments.size());
     return arguments.stream();
   }
 
-  /** MCV1 and the syntax of the reverted rounds 3 and 15, all accepted by the reference, are refused on purpose. */
+  /** Every invalid frame in the reference rejection corpus is refused. */
   @ParameterizedTest(name = "{0}")
   @MethodSource("rejected")
-  void rejectsSyntaxThatIsNotPorted(final String name, final byte[] frame) {
-    assertThrows(UnsupportedSyntaxException.class, () -> FrameParser.parse(frame), name);
+  void refusesEveryFrameOfTheRejectionCorpus(final String name, final byte[] frame) {
+    assertThrows(Mcv2Exception.class, () -> Mcv2Decoder.parse(frame), name);
   }
 }

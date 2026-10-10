@@ -90,9 +90,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
   // to START_TIMEOUT_MILLIS; guarded by itself, so no interrupt reaches the thread once its start is over
   private final Object starter;
   private @Nullable Thread starting;
-  // whether the release interrupted the start in progress, whose thread then takes that interrupt back; guarded by starter
+  // Guarded by starter; the starting thread clears the interrupt sent by release().
   private boolean startInterrupted;
-  // a player who clicks while the helper does not read its input makes a report for every click
   private final LogBudget dropReports;
   private volatile @Nullable BrowserSession session;
   private volatile @Nullable DelayedAudioOutput audioOutput;
@@ -151,7 +150,6 @@ final class CefBrowserPlayer implements BrowserPlayer {
     }
   }
 
-  // a release while the helper starts interrupts the start, which then fails; the release closes what it had opened
   private boolean startReleasably(final BrowserSource source) {
     final Thread caller = Thread.currentThread();
     // an interrupt the caller had before is its own, even if a release interrupts the start too
@@ -160,7 +158,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       this.starting = caller;
     }
     try {
-      // checked once the start can be interrupted, so a release either finds the start or is seen here
+      // Check after start becomes interruptible, so release either finds this start or is observed here.
       final boolean idle = !this.released.get() && this.state.get() != State.PLAYING;
       return idle && this.startSession(source);
     } catch (final PlayerException failure) {
@@ -176,7 +174,6 @@ final class CefBrowserPlayer implements BrowserPlayer {
         this.startInterrupted = false;
       }
       if (interrupted && !callerInterrupted) {
-        // the interrupt of the release is the player's own, not the caller's
         Thread.interrupted();
       }
     }
@@ -199,7 +196,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       this::report
     );
     this.state.set(State.PLAYING);
-    // an end of the helper that arrived before the session was the player's is passed on now, and fails the start
+    // An earlier helper exit must fail startup even if it preceded session ownership.
     listener.setSession(started);
     final boolean playing = this.state.get() == State.PLAYING;
     if (playing) {
@@ -413,8 +410,6 @@ final class CefBrowserPlayer implements BrowserPlayer {
     }
     final boolean failed = this.state.compareAndSet(State.PLAYING, State.FAILED);
     if (failed) {
-      // the sound of a helper that ended is over, and its thread ends now; the session is closed by the next start or
-      // release, as before
       this.closeAudio();
       this.report(reason, cause);
     }
@@ -485,7 +480,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     private final List<String> extraJvmOptions;
     private @Nullable HelperLauncher launcher;
 
-    DefaultSessionFactory() {
+    private DefaultSessionFactory() {
       this(new JcefNatives(), List.of());
     }
 
@@ -507,8 +502,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
      * @param libraries       installs the libraries a Linux server may lack
      * @param extraJvmOptions options added to the JVM of every helper
      */
-    @VisibleForTesting
-    DefaultSessionFactory(final JcefNatives natives, final LinuxLibraries libraries, final List<String> extraJvmOptions) {
+    private DefaultSessionFactory(final JcefNatives natives, final LinuxLibraries libraries, final List<String> extraJvmOptions) {
       this.natives = natives;
       this.libraries = libraries;
       this.extraJvmOptions = List.copyOf(extraJvmOptions);
@@ -516,7 +510,6 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
     @Override
     public BrowserSession open(final BrowserSource source, final BrowserOptions options, final BrowserSession.Listener listener) {
-      // a stopped module downloads nothing
       HelperProcesses.requireOpen();
       final Path installation;
       final HelperLauncher current;
@@ -608,7 +601,6 @@ final class CefBrowserPlayer implements BrowserPlayer {
     public void onFrame(final ImageBuffer frame) {
       final BrowserSession from = this.owner;
       if (from == null) {
-        // a frame of the start, before the session is the player's; the next frame shows the same page
         frame.close();
         return;
       }
@@ -629,7 +621,6 @@ final class CefBrowserPlayer implements BrowserPlayer {
       synchronized (this) {
         from = this.owner;
         if (from == null) {
-          // the session is still starting; the player hears of the end once the session is its own
           this.earlyEnd = session -> CefBrowserPlayer.this.onEnded(session, reason, cause);
           return;
         }

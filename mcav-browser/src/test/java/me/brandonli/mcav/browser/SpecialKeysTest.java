@@ -54,13 +54,13 @@ class SpecialKeysTest {
   @Test
   void anEmptyListIsRefused() {
     final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(new StringReader("")));
-    assertEquals("The key list resource keybinds.json is empty", failure.getMessage());
+    assertEquals("The key list resource mcav/browser/keybinds.json is empty", failure.getMessage());
   }
 
   @Test
   void anEmptyJsonListIsRefused() {
     final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(new StringReader("[]")));
-    assertEquals("The key list resource keybinds.json is empty", failure.getMessage());
+    assertEquals("The key list resource mcav/browser/keybinds.json is empty", failure.getMessage());
   }
 
   @Test

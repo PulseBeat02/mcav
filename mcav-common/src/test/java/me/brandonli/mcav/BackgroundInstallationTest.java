@@ -363,7 +363,6 @@ final class BackgroundInstallationTest {
   private void blockVlcUninterruptibly(final CountDownLatch vlcStarted, final CountDownLatch finishVlc) {
     final Answer<Void> ignoringInterrupts = _ -> {
       vlcStarted.countDown();
-      // stands in for native code that cannot be interrupted, such as loading libvlc
       final boolean finished = Uninterruptibles.awaitUninterruptibly(finishVlc, WAIT_SECONDS, TimeUnit.SECONDS);
       assertTrue(finished);
       return null;

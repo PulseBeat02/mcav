@@ -132,8 +132,6 @@ final class InstallationPathsPropertyTest {
       assertEquals(List.of(), created, () -> "a refused id created " + created);
       return;
     }
-    // accepted: the folder of the artifact is a folder of exactly that name right below the installation folder, and
-    // nothing else is created outside the local repository
     final List<String> children = listNames(this.folder);
     final boolean ownFolder = children.contains(artifactId);
     assertTrue(ownFolder, () -> "the id '" + artifactId + "' has no folder of its own in " + installed + ": " + children);

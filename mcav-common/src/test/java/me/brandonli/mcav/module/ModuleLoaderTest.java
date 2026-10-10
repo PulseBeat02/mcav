@@ -79,9 +79,7 @@ final class ModuleLoaderTest {
 
   static final class HiddenModule extends RecordingModule {
 
-    private HiddenModule() {
-      // only reachable through the private lookup of the loader
-    }
+    private HiddenModule() {}
   }
 
   static final class FailingStopModule extends RecordingModule {
@@ -293,7 +291,6 @@ final class ModuleLoaderTest {
     private final String name;
 
     ArgumentModule(final String name) {
-      // the only constructor takes an argument, so the loader cannot create this module
       this.name = name;
     }
 

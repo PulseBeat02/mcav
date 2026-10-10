@@ -62,7 +62,6 @@ final class UnzipFuzzTest {
 
   private static void checkExtraction(final Path root, final Path scope, final byte[] archiveBytes) throws IOException {
     final Path archive = root.resolve("archive.zip");
-    // Keep the native-filesystem cases and replay them with the entire ZIP filesystem observable.
     final Path nesting = root.resolve("1/2/3/4/5/6/7/8");
     final Path destination = nesting.resolve("destination");
     Files.createDirectories(nesting);

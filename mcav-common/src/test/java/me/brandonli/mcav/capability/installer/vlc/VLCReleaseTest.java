@@ -52,7 +52,6 @@ final class VLCReleaseTest {
 
   private static final Duration TIMEOUT = Duration.ofMinutes(2);
 
-  // the first run downloads VLC, 60 to 150 MB, and extracts it
   private static final long PLAYBACK_TIMEOUT_MINUTES = 15L;
 
   private static final String CHECKSUM_SUFFIX = ".sha256";
@@ -67,7 +66,7 @@ final class VLCReleaseTest {
 
   @Test
   void bundledHashesMatchTheChecksumsVideoLanPublishesNextToEveryDownload() throws IOException, InterruptedException {
-    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("vlc.json");
+    final Download[] downloads = IOUtils.readDownloadsFromJsonResource("mcav/common/installers/vlc.json");
     try (final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build()) {
       for (final Download download : downloads) {
         final String url = download.getUrl();
@@ -82,7 +81,6 @@ final class VLCReleaseTest {
     final HttpRequest request = HttpRequest.newBuilder(URI.create(url)).timeout(TIMEOUT).build();
     final HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
     assertEquals(HTTP_OK, response.statusCode(), url);
-    // GNU style: <hash>  <file name>
     final String body = response.body().strip();
     return body.split("\\s+", 2)[0];
   }

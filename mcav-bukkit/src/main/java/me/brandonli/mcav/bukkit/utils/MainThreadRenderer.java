@@ -78,15 +78,13 @@ public abstract class MainThreadRenderer<T> {
    * if there was one, was applied. Subclasses can override this method for work that does not depend on new
    * frames, such as updating viewers who just started watching. Does nothing by default.
    */
-  protected void onTick() {
-    // nothing to do by default
-  }
+  protected void onTick() {}
 
   /**
    * Starts applying submitted frames once per server tick. Calling this method again while the renderer is
    * running has no effect. May be called from any thread.
    * @throws IllegalStateException if no plugin has been injected
-   * @throws org.bukkit.plugin.IllegalPluginAccessException if the injected plugin cannot schedule tasks
+   * @throws IllegalPluginAccessException if the injected plugin cannot schedule tasks
    */
   protected synchronized void startRendering() {
     if (this.task != null) {

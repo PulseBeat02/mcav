@@ -117,7 +117,6 @@ final class AudioRenderer extends AudioCallbackAdapter {
     final ByteBuffer nativeBuffer = samples.getByteBuffer(0, length);
     final ByteOrder nativeOrder = ByteOrder.nativeOrder();
     final ByteBuffer copy = copySamples(nativeBuffer, nativeOrder);
-    // when the pipeline is far behind, the oldest chunks are dropped to keep latency bounded
     while (!this.queue.offer(copy)) {
       this.queue.poll();
     }

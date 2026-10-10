@@ -48,7 +48,6 @@ import org.junit.jupiter.api.io.TempDir;
 @Tag("cef")
 class NoFlagsServerTest {
 
-  // the first run on a machine downloads the CEF natives, about 150 MB
   private static final long TIMEOUT_MINUTES = 15L;
   private static final List<String> X_SERVERS = List.of("Xvfb", "Xorg", "X", "Xwayland");
 

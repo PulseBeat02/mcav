@@ -57,10 +57,8 @@ class CefBrowserIntegrationTest {
 
   private static final int WIDTH = 320;
   private static final int HEIGHT = 240;
-  // the test pages are served on this machine, which the browser only reaches with private networks allowed
   private static final BrowserOptions LOCAL = BrowserOptions.builder().privateNetworks(true).build();
 
-  // every test gets its own pages, so events of one test never count for another
   private final TestPages pages = TestPages.start();
   private final List<BrowserPlayer> players = new ArrayList<>();
   private final List<String> failures = new CopyOnWriteArrayList<>();
@@ -105,7 +103,6 @@ class CefBrowserIntegrationTest {
         Thread.onSpinWait();
       }
     }
-    // the release of the probe may still be on its way
     Await.until("the probe released", () -> this.pages.count("mouseup") >= this.pages.count("mousedown"));
     this.pages.clearEvents();
   }
@@ -162,7 +159,6 @@ class CefBrowserIntegrationTest {
     this.start(player, "/main");
     this.awaitInput(player);
     player.sendMouseEvent(MouseClick.LEFT, 100, 50);
-    // a report of a probe click may still arrive, so the click is looked for where it was made
     Await.until("a click", () ->
       this.pages
         .getEvents("click")
@@ -190,7 +186,6 @@ class CefBrowserIntegrationTest {
         .stream()
         .anyMatch(event -> event.getX() == 6)
     );
-    // the move to the release happens while the button is held, which makes it a drag
     final TestPages.PageEvent drag = this.pages
       .getEvents("mousemove")
       .stream()
@@ -376,7 +371,6 @@ class CefBrowserIntegrationTest {
 
   @Test
   void aReleasedBrowserLeavesNoProcessAndANewOneStartsFresh() {
-    // the players share their sessions like the players of a server, which reuse the launcher of the first
     final CefBrowserPlayer.DefaultSessionFactory shared = sessions();
     final BrowserPlayer first = this.player(LOCAL, shared);
     this.start(first, "/main");
@@ -403,7 +397,6 @@ class CefBrowserIntegrationTest {
     } finally {
       module.start();
     }
-    // the same player starts again once the module runs again
     final Frames frames = this.start(player, "/second");
     Await.until("the browser shows its page again", () -> frames.lastShows(TestPages.SECOND_COLOR));
   }
@@ -428,7 +421,6 @@ class CefBrowserIntegrationTest {
     }
   }
 
-  // asks macOS whether a process is in a sandbox: sandbox_check of the C library with no operation
   @SuppressWarnings("restricted")
   private static boolean isSandboxed(final long pid) throws Throwable {
     final Linker linker = Linker.nativeLinker();

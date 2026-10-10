@@ -16,9 +16,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The sse2 dispatch level.
 #define MCV2_SIMD_SSE2
-#include "kernels.hpp"
-#include "mcv2_kernels.h"
 #define MCV2_PREFIX(name) mcv2_sse2_##name
-#include "exports.inc"
+#include "mcv2.cpp"

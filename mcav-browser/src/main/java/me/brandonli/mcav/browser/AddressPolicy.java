@@ -43,7 +43,6 @@ import java.util.List;
  */
 final class AddressPolicy {
 
-  // pairs of a network and its prefix length
   private static final int[][] REFUSED_IPV4 = {
     { 0x00000000, 8 },
     { 0x0A000000, 8 },
@@ -98,7 +97,6 @@ final class AddressPolicy {
     if (address instanceof Inet4Address) {
       return isPublicIpv4(toInt(bytes, 0));
     }
-    // every other address is an IPv6 address of sixteen bytes
     return isPublicIpv6(bytes);
   }
 
@@ -143,7 +141,6 @@ final class AddressPolicy {
         continue;
       }
       for (final int length : TRANSLATION_PREFIX_LENGTHS) {
-        // the byte RFC 6052 keeps zero lies after every prefix up to 64 bits
         final boolean uOctetAfterPrefix = length / Byte.SIZE <= U_OCTET;
         if (uOctetAfterPrefix && bytes[U_OCTET] != 0) {
           continue;
@@ -264,7 +261,7 @@ final class AddressPolicy {
      * @param address the sixteen bytes of an address inside the prefix
      * @param length  the length of the prefix in bits, a multiple of eight
      */
-    TranslationPrefix(final byte[] address, final int length) {
+    private TranslationPrefix(final byte[] address, final int length) {
       this.bytes = Arrays.copyOf(address, length / Byte.SIZE);
       this.length = length;
     }

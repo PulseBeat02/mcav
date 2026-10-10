@@ -39,16 +39,7 @@
       "height": @VIDEO_HEIGHT@,
       "persistent": true
     },
-    "mcav:mcv2_key_@S@": {
-      "width": @VIDEO_WIDTH@,
-      "height": @VIDEO_HEIGHT@,
-      "persistent": true
-    },
     "mcav:mcv2_next_@S@": {
-      "width": @VIDEO_WIDTH@,
-      "height": @VIDEO_HEIGHT@
-    },
-    "mcav:mcv2_key_next_@S@": {
       "width": @VIDEO_WIDTH@,
       "height": @VIDEO_HEIGHT@
     },
@@ -100,6 +91,10 @@
       "fragment_shader": "mcav:post/s@S@/mcv2_status",
       "inputs": [
         {
+          "sampler_name": "Bytes",
+          "target": "mcav:mcv2_bytes_@S@"
+        },
+        {
           "sampler_name": "Pages",
           "target": "mcav:mcv2_pages_@S@"
         },
@@ -121,10 +116,6 @@
         {
           "sampler_name": "Status",
           "target": "mcav:mcv2_status_@S@"
-        },
-        {
-          "sampler_name": "Previous",
-          "target": "mcav:mcv2_previous_@S@"
         }
       ],
       "output": "mcav:mcv2_cells_@S@"
@@ -148,10 +139,6 @@
         {
           "sampler_name": "Previous",
           "target": "mcav:mcv2_previous_@S@"
-        },
-        {
-          "sampler_name": "Key",
-          "target": "mcav:mcv2_key_@S@"
         }
       ],
       "output": "mcav:mcv2_next_@S@"
@@ -166,36 +153,6 @@
         }
       ],
       "output": "mcav:mcv2_previous_@S@"
-    },
-    {
-      "vertex_shader": "minecraft:core/screenquad",
-      "fragment_shader": "mcav:post/mcv2_keyframe",
-      "inputs": [
-        {
-          "sampler_name": "Next",
-          "target": "mcav:mcv2_next_@S@"
-        },
-        {
-          "sampler_name": "Key",
-          "target": "mcav:mcv2_key_@S@"
-        },
-        {
-          "sampler_name": "Status",
-          "target": "mcav:mcv2_status_@S@"
-        }
-      ],
-      "output": "mcav:mcv2_key_next_@S@"
-    },
-    {
-      "vertex_shader": "minecraft:core/screenquad",
-      "fragment_shader": "mcav:post/mcv2_copy",
-      "inputs": [
-        {
-          "sampler_name": "In",
-          "target": "mcav:mcv2_key_next_@S@"
-        }
-      ],
-      "output": "mcav:mcv2_key_@S@"
     },
     {
       "vertex_shader": "minecraft:core/screenquad",

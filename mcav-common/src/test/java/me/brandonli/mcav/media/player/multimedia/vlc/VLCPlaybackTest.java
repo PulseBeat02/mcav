@@ -304,7 +304,6 @@ final class VLCPlaybackTest {
       final EmbeddedMediaPlayer secondPlayer = second.getPlayer();
       verify(secondPlayer, never()).release();
     } finally {
-      // No render threads were started; balance this test's mocked factory reference after the fatal-path check.
       shared.release();
     }
   }
@@ -313,7 +312,6 @@ final class VLCPlaybackTest {
   void theSynchronizerIsADaemonWhateverThreadStartsThePlayback() throws InterruptedException {
     final VLCPlayback playback = VLCPlayback.create(this.owner, this.video, this.audio);
     final AtomicBoolean started = new AtomicBoolean();
-    // a thread that is no daemon, as a server's main thread: what it starts is no daemon unless made so
     final Thread starter = Thread.ofPlatform()
       .daemon(false)
       .start(() -> started.set(playback.start()));

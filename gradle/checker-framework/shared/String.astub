@@ -1,0 +1,9 @@
+package java.lang;
+
+import org.checkerframework.checker.nullness.qual.*;
+
+public final class String {
+  public static String format(String format, @Nullable Object... args);
+  public static String format(java.util.Locale l, String format, @Nullable Object... args);
+  public String formatted(@Nullable Object... args);
+}

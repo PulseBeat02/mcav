@@ -1,126 +1,24 @@
+/*
+ * This file is part of mcav, a media playback library for Java
+ * Copyright (C) Brandon Li <https://brandonli.me/>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #version 330
 #extension GL_ARB_separate_shader_objects : require
-
-// Pass 10: the picture on the screen. Every pixel of the scene is cast onto the plane of the screen the anchors
-// describe; where the ray meets the screen in front of whatever the scene has there, it takes the decoded picture's
-// pixel. The transport strip at the top of the screen is covered with the scene row just below it. With
-// MCV2_DEBUG_VIEW every screen's picture is also drawn one to one below the strip, the screens one under the other
-// from MCV2_DEBUG_TOP, which is how the in-game conformance test captures them, and to the right of each picture one
-// square per page slot (green: a valid page, red: none), one for this frame's decision (green: decoded, blue: nothing
-// new, red: a frame that cannot be decoded) and one per byte of the count of decoded frames.
-
+#define MCV2_PASS_SCREEN
 #include <mcav:mcv2_config.glsl>
 #include <mcav:mcv2_screen.glsl>
-#include <mcav:mcv2_strip.glsl>
-#include <mcav:mcv2_slots.glsl>
-
-uniform sampler2D MainSampler;
-uniform sampler2D MainDepthSampler;
-uniform sampler2D PictureSampler;
-uniform sampler2D StateSampler;
-uniform sampler2D PagesSampler;
-uniform sampler2D StatusSampler;
-uniform sampler2D ViewSampler;
-
-// what the vertex shader read once for all pixels: the view pass's flags and box, the screen and the projection
-layout(location = 1) flat in uvec4 ScreenView;
-layout(location = 2) flat in vec4 ScreenTopLeft;
-layout(location = 3) flat in vec4 ScreenRight;
-layout(location = 4) flat in vec4 ScreenDown;
-layout(location = 5) flat in vec4 ScreenProjection0;
-layout(location = 6) flat in vec4 ScreenProjection1;
-layout(location = 7) flat in vec4 ScreenProjection2;
-layout(location = 8) flat in vec4 ScreenProjection3;
-
-layout(location = 0) out vec4 fragColor;
-
-// The picture's pixel at a position counted from its top-left corner; row y of the picture is row y of the target.
-vec4 mcv2Picture(ivec2 position) {
-    return vec4(texelFetch(PictureSampler, position, 0).rgb, 1.0);
-}
-
-void main() {
-    ivec2 size = textureSize(MainSampler, 0);
-    ivec2 pixel = ivec2(gl_FragCoord.xy);
-    int fromTop = size.y - 1 - pixel.y;
-    int strip = mcv2StripRows(size.x);
-    // the strip shows the scene row below it, with that row's depth; the debug view leaves the strip as it is, and a
-    // screen too small for the strip has none
-    ivec2 source = fromTop < strip && mcv2StripFits(size) && !MCV2_DEBUG_VIEW ? mcv2FromTop(size, pixel.x, strip) : pixel;
-    vec4 scene = texelFetch(MainSampler, source, 0);
-    fragColor = scene;
-    int debugRow = fromTop - strip - MCV2_DEBUG_TOP;
-    if (MCV2_DEBUG_VIEW && debugRow >= 0 && debugRow < 24 && pixel.x >= MCV2_VIDEO_WIDTH + 8) {
-        int square = (pixel.x - MCV2_VIDEO_WIDTH - 8) / 24;
-        if ((pixel.x - MCV2_VIDEO_WIDTH - 8) % 24 < 20 && debugRow < 20) {
-            if (square < MCV2_PAGE_SLOTS) {
-                bool valid = mcv2Unorm(texelFetch(PagesSampler, ivec2(square * 4, 0), 0).x) == 1u;
-                fragColor = valid ? vec4(0.0, 1.0, 0.0, 1.0) : vec4(1.0, 0.0, 0.0, 1.0);
-                return;
-            }
-            if (square == MCV2_PAGE_SLOTS) {
-                uvec4 status = uvec4(texelFetch(StatusSampler, ivec2(0, 0), 0) * 255.0 + 0.5);
-                bool valid = mcv2Unorm(texelFetch(PagesSampler, ivec2(0, 0), 0).x) == 1u;
-                fragColor = status.x == 1u ? vec4(0.0, 1.0, 0.0, 1.0) : valid ? vec4(0.0, 0.0, 1.0, 1.0) : vec4(1.0, 0.0, 0.0, 1.0);
-                return;
-            }
-            if (square <= MCV2_PAGE_SLOTS + 4) {
-                vec4 count = texelFetch(StateSampler, ivec2(3, 0), 0);
-                fragColor = vec4(vec3(count[square - MCV2_PAGE_SLOTS - 1]), 1.0);
-                return;
-            }
-        }
-    }
-    uint view = ScreenView.x;
-    if ((view & 1u) == 0u) {
-        return;
-    }
-    if (MCV2_DEBUG_VIEW && debugRow >= 0 && debugRow < MCV2_VIDEO_HEIGHT && pixel.x < MCV2_VIDEO_WIDTH) {
-        fragColor = mcv2Picture(ivec2(pixel.x, debugRow));
-        return;
-    }
-    if ((view & 2u) == 0u) {
-        return;
-    }
-    // outside the box of pixels the screen can cover, the scene stays; the box is exact up to a margin wider than
-    // any rounding of the corners it was built from
-    if ((view & 4u) != 0u) {
-        uint first = ScreenView.y;
-        uint last = ScreenView.z;
-        if (pixel.x < int(first & 65535u) || pixel.y < int(first >> 16u) || pixel.x > int(last & 65535u) || pixel.y > int(last >> 16u)) {
-            return;
-        }
-    }
-    vec3 topLeft = ScreenTopLeft.xyz;
-    vec3 right = ScreenRight.xyz;
-    vec3 down = ScreenDown.xyz;
-    vec2 cells = vec2(ScreenTopLeft.w, ScreenRight.w);
-    mat4 projection = mat4(ScreenProjection0, ScreenProjection1, ScreenProjection2, ScreenProjection3);
-    // the view ray through this pixel, and where it meets the screen's plane
-    vec2 ndc = (vec2(pixel) + 0.5) / vec2(size) * 2.0 - 1.0;
-    vec4 far = inverse(projection) * vec4(ndc, 0.5, 1.0);
-    vec3 direction = far.xyz / far.w;
-    vec3 normal = cross(right, down);
-    float denominator = dot(direction, normal);
-    if (abs(denominator) < 1e-12) {
-        return;
-    }
-    float t = dot(topLeft, normal) / denominator;
-    vec3 hit = direction * t;
-    vec3 local = hit - topLeft;
-    vec2 uv = vec2(dot(local, right) / dot(right, right), dot(local, down) / dot(down, down)) / cells;
-    if (t <= 0.0 || any(lessThan(uv, vec2(0.0))) || any(greaterThanEqual(uv, vec2(1.0)))) {
-        return;
-    }
-    vec4 clip = projection * vec4(hit, 1.0);
-    float depth = clip.z / clip.w;
-    // depth is zero-to-one where the projection's depth row says so, otherwise it comes from -1..1
-    float planeDepth = abs(projection[2][2]) < 0.5 ? depth : depth * 0.5 + 0.5;
-    float sceneDepth = texelFetch(MainDepthSampler, source, 0).r;
-    // reversed depth: larger is nearer, and the scene wins only where it is in front of the screen
-    if (sceneDepth > planeDepth * 1.00001) {
-        return;
-    }
-    ivec2 video = ivec2(MCV2_VIDEO_WIDTH, MCV2_VIDEO_HEIGHT);
-    fragColor = mcv2Picture(min(ivec2(floor(uv * vec2(video))), video - 1));
-}
+#include <mcav:mcv2.glsl>

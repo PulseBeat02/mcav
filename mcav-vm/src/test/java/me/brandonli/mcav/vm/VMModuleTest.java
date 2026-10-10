@@ -76,7 +76,6 @@ final class VMModuleTest {
 
   @Test
   void stopsTheQemuOfAKilledServerWhenStarted() throws IOException, InterruptedException {
-    // a record of a server that is gone, for a process still running: a sleeping JVM stands in for QEMU
     final String java = ProcessHandle.current().info().command().orElseThrow();
     final Path sleeper = this.directory.resolve("Sleep.java");
     Files.writeString(sleeper, "class Sleep { public static void main(String[] a) throws Exception { Thread.sleep(300_000L); } }");

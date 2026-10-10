@@ -25,7 +25,7 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.EncoderSettings;
+import me.brandonli.mcav.bukkit.media.mcv2.MCV2.Settings;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.Images;
 import me.brandonli.mcav.bukkit.testing.MapPackets;
@@ -77,7 +77,6 @@ final class Mcv2ResultReleaseTest {
       final ImageBuffer image = invocation.getArgument(0);
       return new byte[image.getWidth() * image.getHeight()];
     });
-    // three columns and two rows: six maps, from map 100 on
     final Mcv2Configuration configuration = Mcv2Configuration.builder()
       .viewers(List.of(WITH_PACK, WITHOUT))
       .origin(new Location(mock(World.class), 0, 64, 0))
@@ -87,7 +86,7 @@ final class Mcv2ResultReleaseTest {
       .rows(2)
       .video(64, 32)
       .pageMap(500)
-      .settings(EncoderSettings.LIVE_FAST)
+      .settings(Settings.FAST)
       .maxFrameRate(0)
       .build();
     final Mcv2Result result = new Mcv2Result(
@@ -98,7 +97,6 @@ final class Mcv2ResultReleaseTest {
       Runnable::run
     );
     result.start();
-    // the first frame dithers for both and shows the screen to the viewer with the pack, who then decodes the second
     final ImageBuffer frame = Images.solid(64, 32, 0xFF336699);
     final OriginalVideoMetadata metadata = mock(OriginalVideoMetadata.class);
     result.applyFilter(frame, metadata);

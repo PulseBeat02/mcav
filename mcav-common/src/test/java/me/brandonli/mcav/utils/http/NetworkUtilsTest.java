@@ -60,7 +60,6 @@ final class NetworkUtilsTest {
   @AfterEach
   void stopServer() {
     this.http.close();
-    // clearing the flag keeps a test that failed before clearing its interrupt from breaking the next test
     final boolean leftInterrupted = Thread.interrupted();
     assertFalse(leftInterrupted, "every test clears the interrupt flag it sets");
   }
@@ -129,7 +128,6 @@ final class NetworkUtilsTest {
 
   @Test
   void givesUpOnAnAnswerThatDoesNotEndWithinTheTimeout() {
-    // the headers and the start of the body arrive at once, the rest never: the request's timeout is long over
     this.http.respondStalling("/ip", 200, "203.0".getBytes(StandardCharsets.US_ASCII), 11);
     final URI service = this.http.uri("/ip");
     final Optional<String> address = assertTimeoutPreemptively(Duration.ofSeconds(9), () -> NetworkUtils.lookUpPublicAddress(service));
@@ -282,7 +280,6 @@ final class NetworkUtilsTest {
 
   @Test
   void bracketsIpv6AddressesForTheHostPartOfAUrl() {
-    // http://::1:8080/ cannot be parsed: nothing separates the colons of the address from the colon of the port
     final String loopback = NetworkUtils.formatHostForUrl("::1");
     final String full = NetworkUtils.formatHostForUrl("2001:db8::1");
     final String scoped = NetworkUtils.formatHostForUrl("fe80::1%eth0");

@@ -470,7 +470,6 @@ final class HelperProtocol {
       final int codePoint = text.codePointAt(index);
       final int size = utf8Length(codePoint);
       if (bytes + size > MAX_TEXT_BYTES) {
-        // the part is far longer than a line break, so moving its \r into the next part leaves it not empty
         final boolean isLineBreak = codePoint == '\n' && text.charAt(index - 1) == '\r';
         final int end = isLineBreak ? index - 1 : index;
         parts.add(text.substring(start, end));
@@ -512,7 +511,6 @@ final class HelperProtocol {
       return bytes;
     }
     int end = MAX_TEXT_BYTES;
-    // a continuation byte starts with the bits 10, so the cut moves back to the first byte of its character
     while ((bytes[end] & 0xC0) == 0x80) {
       end--;
     }

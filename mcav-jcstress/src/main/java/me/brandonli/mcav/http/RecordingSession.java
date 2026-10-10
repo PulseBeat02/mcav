@@ -59,7 +59,6 @@ final class RecordingSession implements InvocationHandler {
       case "isOpen" -> true;
       case "close" -> this.recordClose();
       case "hashCode" -> System.identityHashCode(target);
-      // no code under test compares sessions, so equality is never asked for
       case "equals" -> false;
       case "toString" -> "RecordingSession";
       default -> null;

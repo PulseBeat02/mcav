@@ -181,7 +181,6 @@ final class InstallationManager implements AutoCloseable {
     configProperties.put("aether.connector.connectTimeout", connectTimeout);
     configProperties.put("aether.connector.requestTimeout", requestTimeout);
 
-    // the supplier configures the dependency selectors and graph transformers Maven itself uses
     final SessionBuilderSupplier builderSupplier = new SessionBuilderSupplier(system);
     final RepositorySystemSession.SessionBuilder builder = builderSupplier.get();
     builder.withLocalRepositoryBaseDirectories(localRepository);
@@ -245,7 +244,6 @@ final class InstallationManager implements AutoCloseable {
     final List<ArtifactResult> results = result.getArtifactResults();
 
     final List<Artifact> artifacts = new ArrayList<>();
-    // resolveDependencies throws unless every artifact was resolved, so each result has an artifact
     for (final ArtifactResult artifactResult : results) {
       final Artifact resolved = artifactResult.getArtifact();
       final Artifact artifact = Objects.requireNonNull(resolved, "Resolved artifacts are present");
@@ -322,7 +320,6 @@ final class InstallationManager implements AutoCloseable {
     }
 
     final Path parent = destination.getParent();
-    // the destination lies in the artifact folder, so it always has a parent
     final Path directory = Objects.requireNonNull(parent, "Destinations have a parent folder");
     Files.createDirectories(directory);
     final Path partial = destination.resolveSibling(fileName + PART_SUFFIX);
@@ -354,8 +351,7 @@ final class InstallationManager implements AutoCloseable {
     if (!inside) {
       throw new IOException("The jar " + groupId + ":" + artifactId + " (" + fileName + ") would be copied outside " + target);
     }
-    // a path starts with itself, and an empty, . or .. element can make the destination the target folder itself or
-    // a folder in it, so the jar must also end up as a file of its own name
+    // A path starts with itself; empty, dot and parent elements must not resolve the jar to a directory.
     final Path destinationName = normalizedDestination.getFileName();
     final String name = destinationName == null ? "" : destinationName.toString();
     final boolean isTarget = normalizedDestination.equals(normalizedTarget);

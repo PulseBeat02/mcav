@@ -29,7 +29,7 @@ public enum Artifact {
   /**
    * Discord voice output through JDA.
    */
-  JDA("mcav-jda"),
+  DISCORD("mcav-discord"),
   /**
    * The web audio player served over HTTP.
    */
@@ -49,7 +49,7 @@ public enum Artifact {
   /**
    * Positional audio through Simple Voice Chat.
    */
-  SVC("mcav-svc"),
+  VOICECHAT("mcav-voicechat"),
   /**
    * OpenGL texture output through LWJGL.
    */

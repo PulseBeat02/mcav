@@ -22,7 +22,7 @@ import me.brandonli.mcav.capability.installer.Download;
 import me.brandonli.mcav.utils.IOUtils;
 
 /**
- * Resolves the VLC downloads for every platform: the releases listed in the {@code installers/vlc.json} resource, each
+ * Resolves the VLC downloads for every platform: the releases listed in the {@code mcav/common/installers/vlc.json} resource, each
  * with the SHA-256 hash its download is checked against before anything of it runs.
  *
  * <p>Windows and macOS get VLC from videolan.org. VideoLAN publishes no Linux build, so x86-64 Linux gets the AppImage
@@ -40,7 +40,7 @@ public final class ReleasePackageManager {
   /**
    * Reads the VLC downloads from a JSON resource, without asking the network.
    *
-   * @param resourcePath the name of the JSON resource, such as {@code vlc.json}
+   * @param resourcePath the full path from the classpath root, such as {@code mcav/common/installers/vlc.json}
    * @return the downloads for every supported platform
    * @throws NullPointerException if {@code resourcePath} is null
    */

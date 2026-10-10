@@ -82,9 +82,6 @@ public final class HttpResultImpl implements HttpResult {
 
   private volatile MediaInfo currentMedia;
   private volatile @Nullable ConfigurableApplicationContext context;
-  // false only while the server is stopped. stop() clears it before it disconnects the listeners, so a handshake
-  // that finishes during the shutdown sees it and hands its own listener back instead of leaving a sender thread
-  // parked forever on a queue nothing will ever signal again
   private volatile boolean acceptingListeners;
 
   /**
@@ -245,7 +242,7 @@ public final class HttpResultImpl implements HttpResult {
   @VisibleForTesting
   static String staticLocation(final @Nullable Path directory) {
     if (directory == null) {
-      return "classpath:/static/";
+      return "classpath:/mcav/http/website/";
     }
     final Path absolute = directory.toAbsolutePath();
     final URI location = absolute.toUri();
@@ -261,8 +258,7 @@ public final class HttpResultImpl implements HttpResult {
   @Override
   public void stop() {
     synchronized (this.lifecycleLock) {
-      // cleared first and unconditionally: stopping always means no new listeners, and a handshake that finishes
-      // during the shutdown must see this before disconnectListeners() empties the map
+      // Clear before disconnectListeners(): a handshake finishing during shutdown must not add a listener.
       this.acceptingListeners = false;
       final ConfigurableApplicationContext current = this.context;
       this.disconnectListeners();
@@ -448,7 +444,6 @@ public final class HttpResultImpl implements HttpResult {
       return false;
     }
 
-    // the page decodes little-endian 16-bit stereo, which is exactly the format of the pipeline
     final byte[] bytes = copyRemaining(samples);
     final Collection<AudioListener> connected = this.listeners.values();
     for (final AudioListener listener : connected) {

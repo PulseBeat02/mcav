@@ -44,8 +44,7 @@ import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
 import jdk.jfr.consumer.RecordingFile;
 import me.brandonli.mcav.bukkit.media.map.MapTilePatch;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.FrameWriter;
-import me.brandonli.mcav.bukkit.media.mcv2.encode.TreeNode;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Trees.Node;
 import me.brandonli.mcav.bukkit.testing.FakeServer;
 import me.brandonli.mcav.bukkit.testing.MapPackets;
 import me.brandonli.mcav.bukkit.utils.PacketUtils;
@@ -109,50 +108,23 @@ final class Mcv2ChannelTest {
   }
 
   static byte[] keyframe() {
-    return FrameWriter.write(
-      32,
-      32,
-      0,
-      0,
-      true,
-      0,
-      0,
-      List.of(TreeNode.leaf(Mcv2Format.MODE_SOLID, 0, new byte[] { 1, 2, 3 })),
-      FrameWriter.Options.production(false)
-    );
+    return Mcv2Trees.write(32, 32, 0, 0, true, List.of(Node.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[] { 1, 2, 3 })));
   }
 
-  static byte[] predicted() {
-    return FrameWriter.write(
-      32,
-      32,
-      1,
-      0,
-      false,
-      0,
-      0,
-      List.of(TreeNode.leaf(Mcv2Format.MODE_MOTION, 0, new byte[] { 1, 1 })),
-      FrameWriter.Options.production(false)
-    );
+  private static byte[] predicted() {
+    return Mcv2Trees.write(32, 32, 1, 0, false, List.of(Node.leaf(Mcv2Decoder.MODE_MOTION, 0, new byte[] { 1, 1 })));
   }
 
   /** A frame of the 32x32 test video: one solid root in a keyframe, one motion root in a P frame. */
   static byte[] frame(final long id, final long reference, final boolean isKeyframe) {
-    final TreeNode root = isKeyframe
-      ? TreeNode.leaf(Mcv2Format.MODE_SOLID, 0, new byte[] { 1, 2, 3 })
-      : TreeNode.leaf(Mcv2Format.MODE_MOTION, 0, new byte[] { 1, 1 });
-    return FrameWriter.write(32, 32, id, reference, isKeyframe, 0, 0, List.of(root), FrameWriter.Options.production(false));
+    final Node root = isKeyframe
+      ? Node.leaf(Mcv2Decoder.MODE_SOLID, 0, new byte[] { 1, 2, 3 })
+      : Node.leaf(Mcv2Decoder.MODE_MOTION, 0, new byte[] { 1, 1 });
+    return Mcv2Trees.write(32, 32, id, reference, isKeyframe, List.of(root));
   }
 
-  /** A keyframe of two pages: 64 roots of 192-byte intra grids. */
   static byte[] large() {
-    final List<TreeNode> roots = new ArrayList<>();
-    for (int index = 0; index < 64; index++) {
-      final byte[] grid = new byte[192];
-      grid[0] = (byte) index;
-      roots.add(TreeNode.leaf(Mcv2Format.MODE_INTRA + 3, 0, grid));
-    }
-    return FrameWriter.write(256, 256, 0, 0, true, 0, 0, roots, FrameWriter.Options.production(false));
+    return Mcv2Trees.twoPages();
   }
 
   @Test
@@ -170,7 +142,6 @@ final class Mcv2ChannelTest {
     assertFalse(channel.takeKeyframeRequest());
     assertEquals(Set.of(WITHOUT, OFFLINE), channel.update());
     assertEquals(Set.of(LOADED), channel.getRecipients());
-    // a viewer whose pack is gone is shown the dithered maps again, and would be shown the screen anew
     when(this.viewers.isLoaded(LOADED)).thenReturn(false);
     assertEquals(Set.of(LOADED, WITHOUT, OFFLINE), channel.update());
     assertEquals(Set.of(), channel.getRecipients());
@@ -299,7 +270,6 @@ final class Mcv2ChannelTest {
       .runTask(any(Plugin.class), any(Runnable.class));
     channel.update();
     hides.forEach(Runnable::run);
-    // each keeps the screen's team otherwise
     verify(this.screen).hide(this.player);
     verify(this.screen).hide(secondPlayer);
   }
@@ -370,7 +340,6 @@ final class Mcv2ChannelTest {
     channel.update();
     verify(this.screen).show(second);
     channel.send(frame(0, 0, true));
-    // the second viewer's connection writes everything at once; the first's writes nothing
     this.server.completeWrites(other);
     channel.send(frame(1, 0, false));
     this.server.completeWrites(other);
@@ -435,7 +404,8 @@ final class Mcv2ChannelTest {
       assertTrue(sends.get(2).getLong("backlog") > 400);
       assertEquals(1, sends.get(3).getInt("waiting"));
       assertEquals(-1, sends.get(4).getInt("colors"));
-      assertTrue(sends.get(0).getLong("sent") > 0 && sends.get(0).getInt("bytes") > 48);
+      assertTrue(sends.get(0).getLong("sent") > 0);
+      assertEquals(48, sends.get(0).getInt("bytes"));
     }
   }
 
@@ -452,7 +422,6 @@ final class Mcv2ChannelTest {
     assertEquals(0, channel.getLinks().get(LOADED).getBacklog());
     assertEquals(1, channel.getLinks().get(LOADED).getSent());
     assertEquals(0, this.server.completeWrites(LOADED));
-    // a viewer whose pack is gone loses its link
     when(this.viewers.isLoaded(LOADED)).thenReturn(false);
     channel.update();
     assertEquals(Map.of(), channel.getLinks());
@@ -612,7 +581,6 @@ final class Mcv2ChannelTest {
     channel.takeKeyframeRequest();
     assertTrue(channel.send(keyframe()) > 0);
     assertEquals(List.of(), this.server.getSentPackets(LOADED), "400 blocks away with a view distance of 6 chunks");
-    // the viewer walks up to the wall: shown the screen anew, they start on a keyframe
     position.set(new Location(world, 0, 64, 4));
     this.tick(channel);
     assertTrue(channel.takeKeyframeRequest());

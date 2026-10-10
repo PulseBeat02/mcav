@@ -26,9 +26,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class AudioPipelineStepBuilderImpl extends AudioPipelineStepBuilder {
 
-  AudioPipelineStepBuilderImpl() {
-    // nothing else to set up
-  }
+  AudioPipelineStepBuilderImpl() {}
 
   /**
    * Creates an audio step that applies a filter and continues with the next step.

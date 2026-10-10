@@ -39,7 +39,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Converts between colors and blocks.
  *
- * <p>The block palette is loaded from the {@code blocks.json} resource, which maps the names of full blocks to
+ * <p>The block palette is loaded from the {@code mcav/bukkit/blocks.json} resource, which maps the names of full blocks to
  * their average texture color. Most of them are solid, but a few are translucent, such as stained glass. Images are
  * first dithered to the colors of that palette with {@link #getDitheringImpl()}, and every resulting color is then
  * converted back into its block with {@link #getMaterial(int)} or {@link #getBlockData(int)}.
@@ -50,7 +50,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class BlockPaletteLookup {
 
-  private static final String PALETTE_RESOURCE = "blocks.json";
+  private static final String PALETTE_RESOURCE = "mcav/bukkit/blocks.json";
   private static final int RGB_MASK = 0xFFFFFF;
   private static final int RGB_COMPONENTS = 3;
 
@@ -134,7 +134,7 @@ public final class BlockPaletteLookup {
     }
 
     private static void initialize() {
-      // calling any static method triggers the class initialization above
+      // Calling any static method triggers the class initialization above.
     }
 
     private static Map<Integer, BlockData> createBlockData(final Map<Integer, Material> materials) {

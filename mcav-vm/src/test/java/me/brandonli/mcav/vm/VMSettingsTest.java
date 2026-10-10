@@ -98,7 +98,6 @@ final class VMSettingsTest {
   void buildsTheHashCodeFromEveryValueInOrder() {
     final VMSettings settings = VMSettings.of(5901, 640, 480, 30);
     final int hash = settings.hashCode();
-    // ((port * 31 + width) * 31 + height) * 31 + frameRate, so every value changes the hash on its own
     final int expected = ((5901 * 31 + 640) * 31 + 480) * 31 + 30;
     assertEquals(expected, hash);
   }

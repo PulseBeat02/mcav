@@ -16,12 +16,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The sve512 dispatch level.
 #define MCV2_SIMD_SVE512
-#include "kernels.hpp"
-#include "mcv2_kernels.h"
 #define MCV2_PREFIX(name) mcv2_sve512_##name
-// blocks narrower than a vector go to the neon kernels
 #define MCV2_NARROW(name) mcv2_neon_##name
 #define MCV2_NARROW_BELOW 16
-#include "exports.inc"
+#include "mcv2.cpp"

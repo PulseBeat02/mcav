@@ -4,31 +4,14 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 import org.w3c.dom.Element
 
-/**
- * A line of production code that no test can run, such as a constructor only a server may call, together with the
- * reason. Each entry excuses exactly one uncovered line, so an entry for a line such as a closing brace cannot hide
- * other gaps.
- */
 class CoverageException(val path: String, val sourceLine: String, val reason: String) {
-    /** Whether the entry matched an uncovered line of the current report. */
     var used = false
 }
 
-/**
- * Reads `coverage-exceptions.txt`: one entry per line, written as
- * `path below src/main/java | exact source line | reason`, with `#` starting a comment line. The reason
- * must not contain `" | "`.
- */
 object CoverageExceptions {
 
     private const val SEPARATOR = " | "
 
-    /**
-     * Reads the exceptions of a module.
-     *
-     * @param file the exceptions file, which may not exist
-     * @return its entries, in order
-     */
     fun read(file: File): List<CoverageException> {
         if (!file.isFile) {
             return emptyList()
@@ -49,23 +32,10 @@ object CoverageExceptions {
     }
 }
 
-/**
- * Finds the gaps in a JaCoCo XML report. A line is a gap when any of its instructions or branches never runs,
- * including an uncalled lambda body on a line whose other instructions ran.
- */
 object CoverageReport {
 
-    // the report names JaCoCo's DTD, which the parser would otherwise download
     private const val LOAD_EXTERNAL_DTD = "http://apache.org/xml/features/nonvalidating/load-external-dtd"
 
-    /**
-     * Finds the lines of production code that the tests leave uncovered.
-     *
-     * @param report the JaCoCo XML report, which may not exist when no test ran
-     * @param sourceDirectory the production sources the report refers to
-     * @param exceptions the lines allowed to stay uncovered, marked as used when they excuse one
-     * @return each gap as `file:line: warning: reason`
-     */
     fun findGaps(report: File, sourceDirectory: File, exceptions: List<CoverageException>): List<String> {
         if (!report.isFile) {
             val hasSources = sourceDirectory.isDirectory && sourceDirectory.walk().any { it.extension == "java" }
@@ -113,9 +83,6 @@ object CoverageReport {
         return when {
             coveredInstructions == 0 && missedInstructions > 0 -> "line is not covered by any test"
             missedBranches > 0 -> "$missedBranches of ${missedBranches + coveredBranches} branches are not covered by any test"
-            // a line JaCoCo counts as covered can still hold instructions no test ran, which is what a lambda whose
-            // body is never invoked looks like: the body belongs to the line that declares it. Reporting only whole
-            // lines and branches would call such a line covered and hide the untested body.
             missedInstructions > 0 -> "$missedInstructions of ${missedInstructions + coveredInstructions} instructions on this line are not covered by any test"
             else -> null
         }

@@ -17,14 +17,15 @@
  */
 package me.brandonli.mcav.bukkit.media.mcv2.transport;
 
+import com.google.common.base.Preconditions;
 import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import me.brandonli.mcav.bukkit.media.mcv2.FrameParser;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Decoder.Frame;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Exception;
-import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Frame;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -42,21 +43,18 @@ public final class PageAssembler {
 
   private final long streamId;
 
-  private final int symbolBits;
-
   private final Map<Long, Map<Integer, TransportPage>> pending = new LinkedHashMap<>();
 
   /**
    * Constructs a new assembler.
    *
    * @param streamId the unsigned 32-bit stream id to accept, from 0 through 4,294,967,295; not checked here
-   * @param symbolBits the negotiated width, 6, 7 or 8 bits per symbol
-   * @throws IllegalArgumentException if the symbol width is not 6, 7 or 8
+   * @param symbolBits the negotiated width, 6 bits per symbol
+   * @throws IllegalArgumentException if the symbol width is not 6
    */
   public PageAssembler(final long streamId, final int symbolBits) {
-    TransportPages.checkSymbolBits(symbolBits);
+    Preconditions.checkArgument(symbolBits == MapAlphabet.SYMBOL_BITS, "Unsupported symbol width: %s", symbolBits);
     this.streamId = streamId;
-    this.symbolBits = symbolBits;
   }
 
   /**
@@ -73,7 +71,7 @@ public final class PageAssembler {
    * @throws NullPointerException if the symbol array is null
    */
   public byte @Nullable [] push(final byte[] symbols) throws Mcv2Exception {
-    final TransportPage page = TransportPages.readPage(symbols, this.symbolBits);
+    final TransportPage page = TransportPages.readPage(symbols);
     if (page.getStreamId() != this.streamId) {
       throw new Mcv2Exception("Wrong stream");
     }
@@ -105,7 +103,7 @@ public final class PageAssembler {
     if (parts.size() != page.getCount()) {
       return null;
     }
-    // every page number is below the count and the count agrees across pages, so the numbers are exactly 0..count-1
+    // Distinct validated page numbers filling the count cover exactly 0..count-1.
     final TransportPage[] ordered = new TransportPage[page.getCount()];
     for (final TransportPage part : parts.values()) {
       ordered[part.getNumber()] = part;
@@ -116,8 +114,10 @@ public final class PageAssembler {
     }
     this.pending.remove(frameId);
     final byte[] data = frame.toByteArray();
-    final Mcv2Frame parsed = FrameParser.parse(data);
-    if (parsed.getFrameId() != frameId || parsed.getReferenceId() != page.getReferenceId() || (parsed.getFlags() & 1) != page.getFlags()) {
+    final Frame parsed = Mcv2Decoder.parse(data);
+    if (
+      parsed.getFrameId() != frameId || parsed.getReferenceId() != page.getReferenceId() || (parsed.isKeyframe() ? 1 : 0) != page.getFlags()
+    ) {
       throw new Mcv2Exception("Frame and page identity mismatch");
     }
     return data;

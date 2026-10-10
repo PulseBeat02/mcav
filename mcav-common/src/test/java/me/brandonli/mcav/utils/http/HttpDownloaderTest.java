@@ -305,7 +305,6 @@ final class HttpDownloaderTest {
       assertEquals(1, server.getRequestCount("/away"), "not tried again");
       assertEquals(0, other.getRequestCount("/file"), "the other host is never asked");
       assertFalse(Files.exists(away));
-      // a download that is not pinned follows it, as before
       HttpDownloader.download(server.uri("/away"), away, CONTENT_SHA256);
       assertArrayEquals(CONTENT, Files.readAllBytes(away));
     }
@@ -325,7 +324,6 @@ final class HttpDownloaderTest {
       final IOException loop = assertThrows(IOException.class, () -> openAndClosePinned(server.uri("/loop")));
       assertInstanceOf(RedirectRefusedException.class, loop);
       assertEquals(6, server.getRequestCount("/loop"), "the first request and five redirects");
-      // a redirect without a place to go, or a status that is no redirect, is an error of the server
       server.respond("/nowhere", 302, new byte[0]);
       assertEquals(302, assertThrows(HttpStatusException.class, () -> openAndClosePinned(server.uri("/nowhere"))).getStatusCode());
       server.respondRedirect("/choices", 300, "/file");
@@ -350,7 +348,6 @@ final class HttpDownloaderTest {
   @Test
   void aPinnedDownloadThatTricklesIsGivenUpAtItsDeadlineWithoutAnotherAttempt() throws IOException {
     try (final LocalHttpServer server = LocalHttpServer.start()) {
-      // a byte every 50 ms: the 14 bytes take 700 ms, more than the 200 ms the download may take
       server.respondTrickling("/slow", 200, CONTENT, 50);
       final Path slow = this.directory.resolve("slow.bin");
       final Duration deadline = Duration.ofMillis(200);
@@ -377,7 +374,6 @@ final class HttpDownloaderTest {
   void aPinnedDownloadMayTakeAMinuteAndASecondForEvery64KibOfItsSize() {
     assertEquals(Duration.ofMinutes(1), HttpDownloader.pinnedDeadline(1));
     assertEquals(Duration.ofSeconds(62), HttpDownloader.pinnedDeadline(2 * 64 * 1024));
-    // the CEF build of x86-64 Linux, about 200 MB: an hour at the slowest
     assertEquals(Duration.ofSeconds(60 + 3051), HttpDownloader.pinnedDeadline(200_000_000L));
   }
 
@@ -432,7 +428,6 @@ final class HttpDownloaderTest {
       server.respond("/file", 200, CONTENT);
       final URI uri = server.uri("/file");
       final Path destination = this.directory.resolve("file.bin");
-      // a directory left with the fixed temporary name older versions used does not get in the way
       final Path oldPartName = this.directory.resolve("file.bin.part");
       Files.createDirectories(oldPartName);
       HttpDownloader.download(uri, destination, null, NO_DELAY);
@@ -479,7 +474,6 @@ final class HttpDownloaderTest {
     try (final LocalHttpServer server = LocalHttpServer.start()) {
       server.respond("/file", 200, CONTENT);
       final URI uri = server.uri("/file");
-      // a directory that is not empty can never be replaced by the downloaded file
       final Path occupied = this.directory.resolve("occupied");
       Files.createDirectories(occupied);
       final Path keptPath = occupied.resolve("kept.txt");
@@ -525,7 +519,6 @@ final class HttpDownloaderTest {
       server.respondStalling("/slow", 200, CONTENT, announcedLength);
       final URI uri = server.uri("/slow");
       final Path destination = this.directory.resolve("slow.bin");
-      // both are far longer than the test may take, so only the interrupt can end the download
       final Duration longRetryDelay = Duration.ofMinutes(1);
       final Duration longIdleTimeout = Duration.ofMinutes(1);
       final AtomicReference<IOException> failure = new AtomicReference<>();

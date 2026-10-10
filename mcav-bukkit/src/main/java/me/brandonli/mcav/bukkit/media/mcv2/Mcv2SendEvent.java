@@ -25,11 +25,6 @@ import jdk.jfr.Label;
 import jdk.jfr.Name;
 import jdk.jfr.Timestamp;
 
-/**
- * One frame a screen's channel sent, for Java Flight Recorder: its ids, its size, when its pages left, and what the
- * viewers' links did with it. The channel records it for every frame, whether the frame came from the encoder or from a
- * pre-encoded stream; it costs nothing unless a recording is running.
- */
 @Name("me.brandonli.mcav.Mcv2Send")
 @Label("MCV2 Send")
 @Category({ "mcav", "MCV2" })

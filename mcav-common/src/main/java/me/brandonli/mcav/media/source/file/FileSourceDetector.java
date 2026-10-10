@@ -30,9 +30,7 @@ public class FileSourceDetector implements SourceDetector<FileSource> {
   /**
    * Constructs a new detector.
    */
-  public FileSourceDetector() {
-    // stateless
-  }
+  public FileSourceDetector() {}
 
   /**
    * {@inheritDoc}

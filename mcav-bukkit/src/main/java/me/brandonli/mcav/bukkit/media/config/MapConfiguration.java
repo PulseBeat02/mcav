@@ -20,7 +20,9 @@ package me.brandonli.mcav.bukkit.media.config;
 import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.UUID;
+import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.bukkit.media.map.MapLayout;
+import me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
 /**
@@ -142,9 +144,7 @@ public class MapConfiguration {
    */
   public static final class MapResultBuilder extends Builder<MapResultBuilder> {
 
-    MapResultBuilder() {
-      // created through MapConfiguration.builder()
-    }
+    MapResultBuilder() {}
 
     /**
      * Returns this builder with its concrete type.
@@ -199,11 +199,9 @@ public class MapConfiguration {
      * Sets whether frames and images are resized to the configured resolution before they are displayed. Without
      * resizing, images smaller than the maps are centered and larger ones are cropped.
      *
-     * <p>For videos, prefer resizing in the media player with its
-     * {@link me.brandonli.mcav.media.player.attachable.DimensionAttachableCallback}, which is faster because it
-     * happens before any other filter runs. Images shown with
-     * {@link me.brandonli.mcav.bukkit.media.image.DisplayableImage} have no player, so this option is the way to fit
-     * them to the maps.
+     * <p>For videos, prefer resizing in the media player with its {@link DimensionAttachableCallback}, which is faster
+     * because it happens before any other filter runs. Images shown with {@link DisplayableImage} have no player, so
+     * this option is the way to fit them to the maps.
      *
      * @param shouldResize true to resize frames and images, false to show them at their original size
      * @return this builder
@@ -303,7 +301,6 @@ public class MapConfiguration {
       return new MapConfiguration(this, configuredViewers, widthResolution, heightResolution);
     }
 
-    // a resolution of 0 stands for the native resolution of the maps
     private static int resolveResolution(final int configuredResolution, final int maps) {
       if (configuredResolution > 0) {
         return configuredResolution;

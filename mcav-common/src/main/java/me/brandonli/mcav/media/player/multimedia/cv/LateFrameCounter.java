@@ -32,17 +32,17 @@ final class LateFrameCounter {
   /**
    * How much video one count covers, in microseconds.
    */
-  static final long WINDOW_MICROS = 10_000_000L;
+  private static final long WINDOW_MICROS = 10_000_000L;
 
   /**
    * How many frames of a stretch must have been dropped at least to report it.
    */
-  static final int MIN_DROPPED = 10;
+  private static final int MIN_DROPPED = 10;
 
   /**
    * How much video passes at least between two reports, in microseconds.
    */
-  static final long REPORT_INTERVAL_MICROS = 60_000_000L;
+  private static final long REPORT_INTERVAL_MICROS = 60_000_000L;
 
   private final PlaybackSession.LagListener listener;
 
@@ -69,7 +69,6 @@ final class LateFrameCounter {
    * @param late            whether the frame came too late and was dropped
    */
   void count(final long timestampMicros, final boolean late) {
-    // a jump back in the timestamps, as some live streams make, starts counting anew
     if (!this.counting || timestampMicros < this.windowStartMicros) {
       this.counting = true;
       this.reported = false;

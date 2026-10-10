@@ -181,13 +181,10 @@ final class PlaybackClockTest {
     final AtomicLong now = new AtomicLong(1_000_000_000L);
     final PlaybackClock clock = new PlaybackClock(now::get);
     assertEquals(PlaybackClock.NORMAL_SPEED, clock.getSpeed());
-    // before the clock is anchored a speed only applies
     clock.setSpeed(2);
     assertEquals(2, clock.getSpeed());
     assertEquals(1_000_000_000L, clock.dueAt(0L));
-    // a second of media is due half a second later
     assertEquals(1_500_000_000L, clock.dueAt(1_000_000L));
-    // a quarter of a second on, half a second of media has passed, which stays due now at the new speed
     now.set(1_250_000_000L);
     clock.setSpeed(0.5);
     assertEquals(1_250_000_000L, clock.dueAt(500_000L));
@@ -207,8 +204,6 @@ final class PlaybackClockTest {
     assertEquals(100_000_000L, clock.dueAt(0L));
     now.set(350_000_000L);
     clock.setSpeed(0.5);
-    // 0.25 s at double speed was 0.5 s of media, and 0.1 s of media more takes 0.2 s at half speed; both stay within
-    // the two seconds past which the clock would anchor anew
     assertEquals(550_000_000L, clock.dueAt(600_000L));
   }
 
@@ -223,7 +218,6 @@ final class PlaybackClockTest {
     clock.setSpeed(2);
     now.set(1_000_000_000L);
     clock.resume();
-    // 0.4 s of media had passed when the pause began, and the pause lasted 0.6 s
     assertEquals(1_000_000_000L, clock.dueAt(400_000L));
     assertEquals(1_100_000_000L, clock.dueAt(600_000L));
   }
