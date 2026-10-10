@@ -36,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.management.InstanceNotFoundException;
@@ -140,16 +141,33 @@ final class NativeHeapTrimmerTest {
 
   @Test
   void anInterruptedCloseKeepsTheInterruptOfItsCaller() throws InterruptedException {
-    final NativeHeapTrimmer trimmer = new NativeHeapTrimmer(Duration.ofHours(1), () -> {});
-    trimmer.start();
-    final Thread thread = trimmingThread().orElseThrow();
-    final Thread currentThread = Thread.currentThread();
-    currentThread.interrupt();
-    trimmer.close();
-    final boolean interrupted = Thread.interrupted();
+    final CountDownLatch trimStarted = new CountDownLatch(1);
+    final Semaphore trimRelease = new Semaphore(0);
+    final NativeHeapTrimmer trimmer = new NativeHeapTrimmer(SHORT, () -> {
+      trimStarted.countDown();
+      trimRelease.acquireUninterruptibly();
+    });
+    final boolean started;
+    final Thread thread;
+    final boolean interrupted;
+    final boolean aliveAfterClose;
+    try {
+      trimmer.start();
+      started = trimStarted.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      thread = trimmingThread().orElseThrow();
+      final Thread currentThread = Thread.currentThread();
+      currentThread.interrupt();
+      trimmer.close();
+      interrupted = Thread.interrupted();
+      aliveAfterClose = thread.isAlive();
+    } finally {
+      trimRelease.release();
+    }
     thread.join(TimeUnit.SECONDS.toMillis(TIMEOUT_SECONDS));
 
+    assertTrue(started);
     assertTrue(interrupted);
+    assertTrue(aliveAfterClose, "an interrupted close stops waiting for the trimming thread");
     assertFalse(thread.isAlive(), "the trimming thread ends on its interrupt");
   }
 
