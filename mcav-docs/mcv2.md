@@ -909,12 +909,12 @@ I counted every line, including blank lines and comments.
 | Players' decoder (GLSL) | 2,397 | 1,549 |
 | Pages on maps (Java) | 792 | 776 |
 | Screens, viewers, pacing and the resource pack (Java) | 6,126 | 5,639 |
-| Tests (Java) | 19,178 | 17,959 |
+| Tests (Java) | 19,178 | 17,960 |
 | Reference decoder (Python) | 4,010 | 546 |
 | Tools (Java and Python) | 3,445 | 3,631 |
-| All of MCV2 | 52,613 | 35,967 |
+| All of MCV2 | 52,613 | 35,968 |
 
-I got it down from 52,613 to 35,967 lines, mostly by shrinking the encoder and the reference decoder.
+I got it down from 52,613 to 35,968 lines, mostly by shrinking the encoder and the reference decoder.
 
 ### Inside MCV2.java
 
