@@ -402,9 +402,11 @@ final class Mcv2NativesTest {
     assumeTrue(NativeTesting.expected(), "no library loads here");
     final SymbolLookup library = NativeTesting.library();
     final int levels = NativeTesting.resolution().levels();
-    final Resolution best = Natives.bind(library, "here", null, Natives.ABI_VERSION);
+    // The resolution's platform, as bind passes the library the hardware capabilities (SVE's permission) only for Linux
+    final String platform = Objects.requireNonNull(Natives.platform(System.getProperty("os.name", ""), System.getProperty("os.arch", "")));
+    final Resolution best = Natives.bind(library, platform, null, Natives.ABI_VERSION);
     assertEquals(Natives.level(levels, null), Objects.requireNonNull(best.binding()).level());
-    assertEquals("native " + Natives.level(levels, null).symbol() + " (here)", best.description());
+    assertEquals("native " + Natives.level(levels, null).symbol() + " (" + platform + ")", best.description());
     assertInstanceOf(Mcv2Internals.nested("NativeKernels"), NativeTesting.factory(best).get());
     assertEquals(Level.SCALAR, Objects.requireNonNull(Natives.bind(library, "here", "scalar", Natives.ABI_VERSION).binding()).level());
     final Resolution unversioned = Natives.bind(
