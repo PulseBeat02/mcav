@@ -794,7 +794,7 @@ final class Mcv2ResultTest {
   }
 
   @Test
-  void clearsTheWallOfTheViewersWithThePackWhenReleased() {
+  void clearsTheWallOfTheViewersWithThePackWhenReleased() throws InterruptedException {
     // a client with the pack keeps drawing its last decoded picture over a wall whose maps still carry the screen's
     // anchors, so a release clears their maps too, not only the dithered ones
     final Mcv2Result result = new Mcv2Result(
@@ -809,6 +809,7 @@ final class Mcv2ResultTest {
     result.applyFilter(frame, this.metadata);
     this.server.runTasks();
     result.applyFilter(frame, this.metadata);
+    awaitFrames(result, 1);
     assertEquals(Set.of(WITH_PACK), result.getChannel().getRecipients());
     final int withPack = this.server.getSentPackets(WITH_PACK).size();
     final int without = this.server.getSentPackets(WITHOUT).size();
