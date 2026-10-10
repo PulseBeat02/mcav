@@ -483,14 +483,17 @@ final class VMProcessTest {
 
   @Test
   void thePasswordFolderIsOpenOnlyToTheServersUser() throws IOException {
-    final Path posix = VMProcess.createSecretFolder(this.directory, true);
-    final String permissions = PosixFilePermissions.toString(Files.getPosixFilePermissions(posix));
-    assertEquals("rwx------", permissions);
-    final Path windows = VMProcess.createSecretFolder(this.directory, false);
-    assertTrue(Files.isDirectory(windows));
-    assertFalse(posix.equals(windows), "a folder of its own for every start");
     final Map<String, String> posixZip = Map.of("create", "true", "enablePosixFileAttributes", "true");
     try (final FileSystem zipped = FileSystems.newFileSystem(this.directory.resolve("folders.zip"), posixZip)) {
+      // Windows' own file system has no POSIX permissions (VMProcess asks for them only where it has), so there the
+      // POSIX branch makes its folder in the zip file system, which has them
+      final boolean posixHere = this.directory.getFileSystem().supportedFileAttributeViews().contains("posix");
+      final Path posix = VMProcess.createSecretFolder(posixHere ? this.directory : zipped.getPath("/"), true);
+      final String permissions = PosixFilePermissions.toString(Files.getPosixFilePermissions(posix));
+      assertEquals("rwx------", permissions);
+      final Path windows = VMProcess.createSecretFolder(this.directory, false);
+      assertTrue(Files.isDirectory(windows));
+      assertFalse(posix.equals(windows), "a folder of its own for every start");
       final Path zippedFolder = VMProcess.createSecretFolder(zipped.getPath("/"), true);
       assertEquals("rwx------", PosixFilePermissions.toString(Files.getPosixFilePermissions(zippedFolder)));
     }
