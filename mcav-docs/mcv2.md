@@ -729,7 +729,11 @@ that are vanilla's plus the decoder.
 
 **One held picture.** The pack keeps exactly one picture per screen: the last frame it decoded. A client that misses a
 frame (it draws fewer frames a second than the video has, looks away, or reloads its resources) can't decode the P
-frames after it, and keeps the last picture until the next keyframe, at most four seconds later at 30 frames a second.
+frames after it, and keeps the last picture until it draws a frame while a keyframe is the newest frame of the screen.
+A client that draws at least as many frames a second as the video has gets the next keyframe, at most four seconds
+later at 30 frames a second. A slower client gets only the keyframes that one of its frames happens to fall on: each
+keyframe is the newest frame for a thirtieth of a second, so a client drawing a frame every two seconds keeps one
+picture for minutes on average.
 
 ## Part 9: The Encoder
 
@@ -1297,7 +1301,7 @@ into the top rows of the screen and runs the pack's post chain over it. The scre
 Complementary and BSL like they do without them, and a frame without MCV2 maps is left exactly as Iris drew it.
 
 A shader pack costs frames: a client that draws fewer frames a second than the video has misses frames, and every
-missed frame freezes the picture until the next keyframe (see Troubleshooting below).
+missed frame freezes the picture until the client draws a keyframe (see Troubleshooting below).
 
 The mod decodes only under the Iris version it was proven with. With another one, or if the game's code it hooks into
 isn't there, it tells the server instead: while a shader pack is on, every MCV2 screen shows that player the dithered
@@ -1341,8 +1345,9 @@ burst of 5; a player without the mod sees MCV2 screens as before.
   with many screens); or the hidden page frames are out of view: the decoder only runs while one is drawn, so look at
   the wall.
 - **The picture freezes and jumps every few seconds.** The client draws fewer frames a second than the video has, and a
-  missed frame is repaired only by the next keyframe. A faster client fixes it, and so does a lower frame rate for the
-  screen (`maxFrameRate` in the API).
+  missed frame is repaired only by a keyframe the client draws while it is the newest frame, so the slower the client,
+  the more keyframes it misses too: one that draws a frame every few seconds can show the same picture for minutes. A
+  faster client fixes it, and so does a lower frame rate for the screen (`maxFrameRate` in the API).
 - **The pack doesn't download.** Behind Velocity or BungeeCord, set `mcv2.pack.hosting` to `http` with a port the
   players can reach, or to `website`.
 - **The screen steps down.** Its encoder takes longer than the video gives a frame, and the message says by how much.
@@ -1536,7 +1541,9 @@ decoder the class `Mcv2Decoder`, both in `me.brandonli.mcav.bukkit.media.mcv2`, 
   so a detailed sky or ceiling smears there; every screen's picture shows over those rows as anywhere else. A window
   lower than the strip shows no MCV2 picture and leaves the view as it is.
 - **Missed frames.** A client that draws fewer frames than the video has misses frames, and a missed frame is repaired
-  only by the next keyframe, at most four seconds later.
+  only by a keyframe the client draws while it is the newest frame. Keyframes come every four seconds at 30 frames a
+  second, but a slow client draws on few of them: one that draws a frame every two seconds keeps a picture for minutes
+  on average.
 - **Sound.** The audio web page keeps a little sound buffered, so its sound comes a moment after the wall shows the same
   picture, with MCV2 as with the dithered maps. The plugin doesn't delay the picture to match.
 
