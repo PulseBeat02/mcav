@@ -25,11 +25,14 @@ SHA-256 hash pinned in MCAV. Later starts reuse it. The browser runs on 64-bit L
 ARM64 (Windows on ARM64 is supported by the build but untested); anywhere else, and after a failed download, the
 command says the browser cannot run here and the console names the reason.
 
-**Linux servers need no X server, no Xvfb and no packages.** Chromium draws on its headless platform. The libraries it
-links that a server image often lacks (the X11 client libraries, NSS, ALSA and others) are downloaded on the first start
-from Debian 11, only those the server lacks, about **13 MB** into `~/.mcav/cache/jcef-libraries`, each checked against
-a pinned hash, and given to the browser's own process only. This was proven in the images `eclipse-temurin:25-jre`,
-`ghcr.io/pterodactyl/yolks:java_25` and `itzg/minecraft-server:latest`, run as an unprivileged user.
+**Linux servers need a full Java runtime and nothing else: no X server, no Xvfb, no packages.** Chromium draws on its
+headless platform. The libraries it links that a server image often lacks (the X11 client libraries, NSS, ALSA and
+others) are downloaded on the first start from Debian 11, only those the server lacks, about **13 MB** into
+`~/.mcav/cache/jcef-libraries`, each checked against a pinned hash, and given to the browser's own process only. This
+was proven in the images `eclipse-temurin:25-jre`, `ghcr.io/pterodactyl/yolks:java_25` and
+`itzg/minecraft-server:latest`, run as an unprivileged user. Java must be a full runtime: the headless Java packages of
+Debian and Ubuntu (`openjdk-25-jre-headless`) lack the `libjawt.so` that Chromium's Java binding links against, and the
+console then says to install the full package (`openjdk-25-jre`).
 
 ## Clicking and Typing
 

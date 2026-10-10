@@ -571,6 +571,47 @@ class LinuxLibrariesTest {
   }
 
   @Test
+  @EnabledOnOs(org.junit.jupiter.api.condition.OS.LINUX) // fqn: OS is imported as me.brandonli.mcav.utils.os.OS
+  void aHeadlessJavaRuntimeIsRefusedWithWhatToInstall() throws IOException {
+    final byte[] deb = testPackage();
+    final String platform = JcefNatives.detectCurrent().getIdentifier();
+    final LinuxLibraries libraries = this.installer(
+      deb,
+      List.of("https://mirror.test/debian/"),
+      List.of(pin(deb).replace("linux-amd64", platform))
+    );
+    // As Ubuntu's openjdk-25-jre-headless: AWT's headless library, but not libjawt.so, which libjcef.so links against
+    final Path runtime = Files.createDirectories(this.folder.resolve("java-25-openjdk"));
+    final Path lib = Files.createDirectories(runtime.resolve("lib"));
+    Files.write(lib.resolve("libawt_headless.so"), elf(2, 1, 62));
+    final HelperLauncher headless = new HelperLauncher(
+      runtime.resolve("bin").resolve("java"),
+      ScriptedEngine.class.getName(),
+      List.of(),
+      List.of(),
+      OS.LINUX,
+      Map.of(),
+      1_000L
+    );
+    final Path server = Files.createDirectories(this.folder.resolve("server"));
+    final PlayerException refused = assertThrows(BrowserUnavailableException.class, () ->
+      CefBrowserPlayer.DefaultSessionFactory.withLibraries(headless, libraries, server)
+    );
+    assertEquals(
+      "The browser needs the Java runtime's libjawt.so, which " +
+      runtime +
+      " lacks: the headless Java packages of Debian and Ubuntu (openjdk-*-jre-headless) leave it out; install the full" +
+      " package of the same version (openjdk-*-jre), or run the server on a full Java runtime",
+      refused.getMessage()
+    );
+    assertEquals(List.of(), this.downloads, "no library is downloaded for a runtime the browser cannot use");
+    Files.write(lib.resolve("libjawt.so"), elf(2, 1, 62));
+    final Path loader = Files.createDirectories(LinuxLibraries.hostFolders(server, platform).getFirst());
+    Files.write(loader.resolve("libmcavtest.so.1"), elf(2, 1, platform.endsWith("arm64") ? 183 : 62));
+    assertSame(headless, CefBrowserPlayer.DefaultSessionFactory.withLibraries(headless, libraries, server), "a full runtime is used");
+  }
+
+  @Test
   void aPackageWhoseNamesHaveNoPrefixAndThatHoldsFoldersIsRead() throws IOException {
     final Path plain = Files.write(
       this.folder.resolve("plain.deb"),

@@ -547,10 +547,13 @@ final class CefBrowserPlayer implements BrowserPlayer {
      * @param root      the root of the file system of the server
      * @return the launcher that links the libraries into every session, or the launcher itself when the server lacks
      *         none, which downloads nothing then
-     * @throws IOException if the libraries cannot be installed
+     * @throws IOException                 if the libraries cannot be installed
+     * @throws BrowserUnavailableException if the Java runtime of the helpers lacks {@value LinuxLibraries#JAWT}, or the
+     *                                     server lacks a library that mcav does not bring
      */
     @VisibleForTesting
     static HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries, final Path root) throws IOException {
+      LinuxLibraries.requireJawt(base.getJava());
       final JcefNatives.NativePlatform platform = JcefNatives.detectCurrent();
       final String identifier = platform.getIdentifier();
       final List<Path> folders = LinuxLibraries.hostFolders(root, identifier);

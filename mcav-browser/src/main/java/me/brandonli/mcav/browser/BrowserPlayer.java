@@ -35,9 +35,9 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * browser never takes the server with it. Chromium hands every painted frame over as plain pixels, so frames arrive
  * only when the page changes and need no image decoding. The first start on a machine downloads the CEF build for it
  * (about 150 MB, from Maven Central, verified against a pinned hash) into mcav's cache folder. On Linux the browser
- * needs no X server and nothing installed: it draws on Chromium's headless platform, and the first start also downloads
- * the shared libraries CEF needs that the server lacks (about 13 MB of Debian 11 packages, each verified against a
- * pinned hash), which only the browser's own process uses.
+ * needs no X server and nothing installed but a full Java runtime: it draws on Chromium's headless platform, and the
+ * first start also downloads the shared libraries CEF needs that the server lacks (about 13 MB of Debian 11 packages,
+ * each verified against a pinned hash), which only the browser's own process uses.
  *
  * <p>The sound the page plays through Web Audio and its audio and video elements arrives at the audio pipeline (see
  * {@link #getAudioAttachableCallback()}); sound of frames of another site, which Chromium runs in another process, of

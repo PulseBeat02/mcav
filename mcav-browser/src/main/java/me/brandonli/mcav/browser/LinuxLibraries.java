@@ -71,6 +71,10 @@ import org.slf4j.LoggerFactory;
  * named by its soname. For every session, the libraries the server lacks are linked into a folder of the session,
  * which is the helper's {@code LD_LIBRARY_PATH}: the libraries the server has are always its own, so no newer library
  * of the server is ever paired with an older one of the bundle. The pins are in {@value #RESOURCE}.
+ *
+ * <p>{@code libjcef.so} also links against {@value #JAWT} of the Java runtime, which no package can bring, as it
+ * belongs to the build of the runtime; a runtime without it, as the headless Java packages of Debian and Ubuntu are, is
+ * refused with what to install.
  */
 final class LinuxLibraries {
 
@@ -88,6 +92,11 @@ final class LinuxLibraries {
    * The folder of a session the libraries are linked into.
    */
   static final String SESSION_FOLDER = "lib";
+
+  /**
+   * The library of the Java runtime that {@code libjcef.so} links against: the native interface of AWT.
+   */
+  static final String JAWT = "libjawt.so";
 
   /**
    * The mirrors of the Debian archive the packages are tried from, in order; the hash decides whether a package is
@@ -512,6 +521,26 @@ final class LinuxLibraries {
       }
     }
     return missing;
+  }
+
+  /**
+   * Checks that the Java runtime of the helpers has {@value #JAWT}.
+   *
+   * @param java the Java program of the helpers, in the {@code bin} folder of the runtime
+   * @throws BrowserUnavailableException if the runtime lacks it
+   */
+  static void requireJawt(final Path java) {
+    final Path runtime = java.toAbsolutePath().resolveSibling("..").normalize();
+    if (!Files.exists(runtime.resolve("lib").resolve(JAWT))) {
+      throw new BrowserUnavailableException(
+        "The browser needs the Java runtime's " +
+        JAWT +
+        ", which " +
+        runtime +
+        " lacks: the headless Java packages of Debian and Ubuntu (openjdk-*-jre-headless) leave it out; install the full" +
+        " package of the same version (openjdk-*-jre), or run the server on a full Java runtime"
+      );
+    }
   }
 
   /**

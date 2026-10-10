@@ -44,11 +44,11 @@ does a start whose download or check fails, with the reason in its message.
 ### Linux on a stock server
 
 The browser runs on a stock headless Linux server, such as a Minecraft server in a Docker image, with nothing
-installed and no JVM options. Chromium draws on its headless platform, which needs no display server. CEF's Java
-binding still asks for an X display once at the start, for a window of one pixel it never shows; the helper answers
-it itself with a null display: a minimal X11 endpoint inside the helper, on the loopback interface, that only a
-client presenting the helper's random cookie may use, and that answers the handful of questions CEF asks and nothing
-else.
+installed but a full Java runtime (see below) and no JVM options. Chromium draws on its headless platform, which
+needs no display server. CEF's Java binding still asks for an X display once at the start, for a window of one pixel
+it never shows; the helper answers it itself with a null display: a minimal X11 endpoint inside the helper, on the
+loopback interface, that only a client presenting the helper's random cookie may use, and that answers the handful
+of questions CEF asks and nothing else.
 
 Chromium links against libraries a desktop has but a server image often lacks (the X11 client libraries, NSS, ALSA,
 ATK, cups and others). When the server lacks any of them, the first start on Linux downloads them from Debian 11
@@ -61,6 +61,11 @@ library the server lacks, or has only for another architecture, are linked into 
 its helper process gets that folder on its `LD_LIBRARY_PATH`. A few basic libraries (such as zlib, expat, fontconfig
 and freetype) are expected from the server, as every server image tested has them; a server without one of them gets
 a `BrowserUnavailableException` that names it.
+
+The Java runtime must be a full one. `libjcef.so` also links against the runtime's own `libjawt.so`, which no package
+can bring, and the headless Java packages of Debian and Ubuntu (`openjdk-25-jre-headless`) leave it out: on such a
+runtime `start` fails with a `BrowserUnavailableException` that says to install the full package of the same version
+(`openjdk-25-jre`) or to run the server on a full runtime, as in the Docker images below.
 
 Debian 11's long-term support ended in August 2026, so these packages get no more security updates. They stay for
 the servers whose glibc is too old for Debian 12's, but a server that installs the libraries from its own distribution

@@ -262,6 +262,10 @@ final class HelperLauncher {
     return linker == null ? null : linker.link(folder);
   }
 
+  Path getJava() {
+    return this.java;
+  }
+
   long getStartTimeoutMillis() {
     return this.startTimeoutMillis;
   }
