@@ -38,7 +38,7 @@ import org.cef.handler.CefScreenInfo;
  * <p>JCEF's own off-screen browser, {@code CefBrowserOsr}, draws every frame into a JOGL {@code GLCanvas}, which needs
  * a display and the JVM options JOGL requires. The base class of every JCEF browser is package-private, so this class
  * lives in JCEF's package; it must be loaded by the class loader that loaded JCEF, which is the case whenever both
- * are on one class path, as in the helper process of mcav's browser.
+ * are on one class path, as in the helper process of MCAV's browser.
  *
  * <p>Two JCEF defects are worked around here. {@link #getScreenInfo} returns false, because JCEF's native side deletes
  * a JNI reference twice when it returns true; CEF then takes the screen from {@link #getViewRect}. And

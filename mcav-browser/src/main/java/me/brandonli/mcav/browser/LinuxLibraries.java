@@ -64,7 +64,7 @@ import org.slf4j.LoggerFactory;
 // The shared libraries the browser helper needs on Linux that a server may lack. libcef.so needs the X11 client
 // libraries, GLib, NSS, ATK and more at load time, even though CEF draws off-screen and never talks to an X server; the
 // Docker images Minecraft servers run in have few of them, and the operator of a shared host can install nothing. So
-// mcav downloads them once from the main archive of Debian 11, which is frozen, checks every package against its pinned
+// MCAV downloads them once from the main archive of Debian 11, which is frozen, checks every package against its pinned
 // SHA-256 hash, and keeps only the pinned libraries, each as a file named by its soname. For every session, the
 // libraries the server lacks are linked into a folder of the session, which is the helper's LD_LIBRARY_PATH: the
 // libraries the server has are always its own, so no newer library of the server is ever paired with an older one of
@@ -95,7 +95,7 @@ final class LinuxLibraries {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LinuxLibraries.class);
 
-  // Every copy of mcav in this JVM shares this monitor.
+  // Every copy of MCAV in this JVM shares this monitor.
   @VisibleForTesting
   static final Object INSTALL_LOCK = "the installation of the Linux libraries of mcav";
 
@@ -165,7 +165,7 @@ final class LinuxLibraries {
   private final List<Pin> pins;
   private final Map<String, List<String>> hostLibraries;
 
-  // Constructs an installer that uses mcav's cache folder, the Debian mirrors and the pinned packages.
+  // Constructs an installer that uses MCAV's cache folder, the Debian mirrors and the pinned packages.
   LinuxLibraries() {
     this(
       defaultFolder(),

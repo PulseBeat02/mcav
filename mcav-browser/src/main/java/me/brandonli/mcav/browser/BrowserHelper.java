@@ -42,10 +42,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * The browser helper process: the program mcav starts in a JVM of its own to run CEF for one browser.
+ * The browser helper process: the program MCAV starts in a JVM of its own to run CEF for one browser.
  *
  * <p>CEF can start only once in a process and stops for good when it shuts down, so a server that disables and enables
- * mcav could never show a browser again if CEF ran inside it. A crash of Chromium would also take the whole server
+ * MCAV could never show a browser again if CEF ran inside it. A crash of Chromium would also take the whole server
  * with it. So every browser runs in its own helper process, which is started with whatever JVM options CEF needs,
  * while the server itself needs none.
  *

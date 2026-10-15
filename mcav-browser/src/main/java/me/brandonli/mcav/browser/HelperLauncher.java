@@ -39,7 +39,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 // Knows how to start a browser helper process: the Java program of the server, the class path of the helper, the
 // options of its JVM, and the environment it keeps, which on Linux also names the authority file of its null display
-// and the folder of the libraries the server lacks. The class path is taken from where the classes of mcav's browser
+// and the folder of the libraries the server lacks. The class path is taken from where the classes of MCAV's browser
 // module, JCEF and jcefmaven were loaded from, which works whether they are separate jars, as Paper's library loader
 // gives them, or shaded into one plugin jar. Relocating the org.cef or me.friwi packages breaks JCEF's native methods
 // and is not supported. The helper JVM gets the options CEF needs, which the server itself never does: it is headless,

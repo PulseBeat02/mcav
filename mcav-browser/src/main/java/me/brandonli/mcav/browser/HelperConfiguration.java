@@ -31,7 +31,7 @@ import java.util.StringJoiner;
 // server folder it may not read then.
 final class HelperConfiguration {
 
-  // The highest frame rate a browser may paint at, mcav's limit: CEF sets none above its minimum of 1.
+  // The highest frame rate a browser may paint at, MCAV's limit: CEF sets none above its minimum of 1.
   static final int MAXIMUM_FRAME_RATE = 60;
 
   private static final String SEPARATOR = ":";

@@ -46,7 +46,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 // does what NoFlagsServerMain does, with a page it serves itself: install MCAV with the browser module, stream a red
 // page with black text at 320x240, check the center pixel, release MCAV, check that no browser process is left, and all
 // of it twice. It prints PASSED last, or why it failed. MCAV_PROOF_CACHE names a writable folder kept between runs,
-// which becomes the home folder of mcav's cache, as the user of a proof run may have none.
+// which becomes the home folder of MCAV's cache, as the user of a proof run may have none.
 public final class HeadlessProofMain {
 
   static final String PASSED = "HEADLESS PROOF PASSED";

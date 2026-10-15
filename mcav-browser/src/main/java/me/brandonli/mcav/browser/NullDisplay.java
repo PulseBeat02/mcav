@@ -856,7 +856,7 @@ final class NullDisplay implements AutoCloseable {
   }
 
   private static void closeQuietly(final Closeable closeable) {
-    // the helper runs without mcav's other modules, so not HelperSession's, which needs them
+    // the helper runs without MCAV's other modules, so not HelperSession's, which needs them
     NetworkGuard.closeQuietly(closeable);
   }
 

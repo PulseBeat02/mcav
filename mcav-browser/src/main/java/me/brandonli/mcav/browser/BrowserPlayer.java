@@ -31,10 +31,10 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * Streams a web page as video and forwards mouse and keyboard input to it.
  *
  * <p>The page is rendered by Chromium through JCEF, the Java binding of the Chromium Embedded Framework, in a helper
- * process that mcav starts for every started player, so the server's JVM needs no options at all and a crash of the
+ * process that MCAV starts for every started player, so the server's JVM needs no options at all and a crash of the
  * browser never takes the server with it. Chromium hands every painted frame over as plain pixels, so frames arrive
  * only when the page changes and need no image decoding. The first start on a machine downloads the CEF build for it
- * (about 150 MB, from Maven Central, verified against a pinned hash) into mcav's cache folder. On Linux the browser
+ * (about 150 MB, from Maven Central, verified against a pinned hash) into MCAV's cache folder. On Linux the browser
  * needs no X server and nothing installed but a full Java runtime: it draws on Chromium's headless platform, and the
  * first start also downloads the shared libraries CEF needs that the server lacks (about 13 MB of Debian 11 packages,
  * each verified against a pinned hash), which only the browser's own process uses.
@@ -225,9 +225,9 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
 
   /**
    * Returns the slot that holds the audio pipeline the sound of the page is sent through, as 16-bit little-endian stereo
-   * samples at 48 kHz like the sound of every mcav player. As in a desktop browser, a page may play sound only once
+   * samples at 48 kHz like the sound of every MCAV player. As in a desktop browser, a page may play sound only once
    * someone clicked or typed into it, such as a player who clicks the screen, unless {@link BrowserOptions#isAutoplay()};
-   * mcav holds the sound of every page back until a press on that page as well, so a page written to get around the
+   * MCAV holds the sound of every page back until a press on that page as well, so a page written to get around the
    * browser's rule plays nothing earlier. Nothing plays on the server's speakers.
    *
    * @return the audio pipeline slot

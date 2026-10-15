@@ -57,7 +57,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class BrowserOptions {
 
   /**
-   * The highest frame rate a browser may paint at. This is mcav's limit, not CEF's: CEF's frame rate setting has a
+   * The highest frame rate a browser may paint at. This is MCAV's limit, not CEF's: CEF's frame rate setting has a
    * minimum of 1 and a default of 30, and no maximum.
    *
    * @since 1.0.0

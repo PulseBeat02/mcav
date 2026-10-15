@@ -41,8 +41,8 @@ import me.brandonli.mcav.utils.os.OsUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Installs the CEF natives of jcefmaven for this machine into mcav's cache folder (~/.mcav/cache/jcef), the folder
-// mcav's other runtime downloads use, the first time a browser starts. The natives come from Maven Central
+// Installs the CEF natives of jcefmaven for this machine into MCAV's cache folder (~/.mcav/cache/jcef), the folder
+// MCAV's other runtime downloads use, the first time a browser starts. The natives come from Maven Central
 // (me.friwi:jcef-natives-) and are verified against the SHA-256 hash pinned here, which was checked against Central's
 // SHA-1 and the release's PGP signature when it was pinned. jcefmaven's own downloader is never used: it verifies
 // nothing and its extraction does not keep archive entries inside the target folder. The archive is extracted by
@@ -75,8 +75,8 @@ final class JcefNatives {
   private static final String ENCODED_PLUS = "%2B";
 
   private static final long BYTES_PER_MEGABYTE = 1024L * 1024L;
-  // every copy of mcav in this JVM shares this monitor, whatever class loader loaded it: equal string literals are one
-  // object in the whole JVM, and a text without a package name is not renamed when mcav is shaded. So a copy never
+  // every copy of MCAV in this JVM shares this monitor, whatever class loader loaded it: equal string literals are one
+  // object in the whole JVM, and a text without a package name is not renamed when MCAV is shaded. So a copy never
   // opens the lock file while another one holds it, which would release the lock of the process on some systems.
   private static final Object INSTALL_LOCK = "the installation of the CEF natives of mcav";
 
@@ -85,7 +85,7 @@ final class JcefNatives {
   private final String repository;
   private final ArchiveExtractor extractor;
 
-  // Constructs an installer that uses mcav's cache folder and Maven Central.
+  // Constructs an installer that uses MCAV's cache folder and Maven Central.
   JcefNatives() {
     this(defaultFolder(), HttpDownloader::download, REPOSITORY, new ArchiveExtractor());
   }
@@ -271,14 +271,14 @@ final class JcefNatives {
     void download(URI uri, Path destination, String sha256, long size) throws IOException;
   }
 
-  // The platforms jcefmaven publishes natives for that mcav can run a browser on, with the pinned SHA-256 hash and size
+  // The platforms jcefmaven publishes natives for that MCAV can run a browser on, with the pinned SHA-256 hash and size
   // of each natives jar of RELEASE_TAG. The 32-bit builds are left out: Java 25 has no 32-bit Windows port, and Paper
   // does not run on 32-bit ARM.
   enum NativePlatform {
     LINUX_AMD64("linux-amd64", Os.LINUX, Arch.X86, "83f427992cd783fb6f3d499fdf275675187818aa7ca9c4a2a4d43af534a8bdfc", 152_141_475L),
     LINUX_ARM64("linux-arm64", Os.LINUX, Arch.ARM, "a653d2cbdac487663ac52957511c022a6c5dd7bf9c99f79c6d1d732ab4138a24", 167_953_639L),
     WINDOWS_AMD64("windows-amd64", Os.WINDOWS, Arch.X86, "0dc2ce28766d267f551398e24af7a9bec244b888e651bd97a14ac2d128550875", 171_200_308L),
-    // Windows on 64-bit ARM; mcav's browser does not need JOGL, which jcefmaven lacks there.
+    // Windows on 64-bit ARM; MCAV's browser does not need JOGL, which jcefmaven lacks there.
     WINDOWS_ARM64("windows-arm64", Os.WINDOWS, Arch.ARM, "ec77b5798dfb53c4804b69eda5144d31e20e0e17b6291c98f7b4a66533ce6504", 168_690_639L),
     MACOS_AMD64("macosx-amd64", Os.MAC, Arch.X86, "0a49f85ebc8f942fae81bc0120950ce83a629696352338f000856ee72580908a", 153_880_493L),
     MACOS_ARM64("macosx-arm64", Os.MAC, Arch.ARM, "685b27b3dc7f6899a7d4a3a3d58978c95c36ebd1afd571c7027a66fe6f1252a0", 142_331_980L);

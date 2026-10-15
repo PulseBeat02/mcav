@@ -28,9 +28,9 @@ import me.brandonli.mcav.browser.testing.Frames;
 import me.brandonli.mcav.browser.testing.TestPages;
 
 // The server side of NoFlagsServerTest: a JVM started like a Minecraft server on a machine without a display, with no
-// option but -Djava.awt.headless=true, installs mcav with the browser module as a plugin does, streams a page and
+// option but -Djava.awt.headless=true, installs MCAV with the browser module as a plugin does, streams a page and
 // checks the color of the frame, then disables and enables the "plugin" and does it again. The first round releases the
-// player before mcav, as a plugin that cleans up after itself does; the second round leaves the player running, so
+// player before MCAV, as a plugin that cleans up after itself does; the second round leaves the player running, so
 // stopping the module has to end its browser.
 public final class NoFlagsServerMain {
 

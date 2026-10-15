@@ -49,7 +49,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   // origin play into one 48 kHz stereo Web Audio context, whose tap sends 16-bit little-endian PCM, and outputs
   // silence.
   static final String SCRIPT = """
-  // mcav: hands what a document plays to the browser helper, see PageAudio.java. Runs in every document before the
+  // MCAV: hands what a document plays to the browser helper, see PageAudio.java. Runs in every document before the
   // page's own scripts. Without a sound card every Web Audio context and media element runs on a clock of its own, and
   // sound carried between them stutters, so a document has one context: every AudioContext the page makes is the same
   // one, at 48 kHz, and its audio and video elements play into it. A tap on it sends 16-bit little-endian PCM through
@@ -251,7 +251,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       try {
         sourceOf(mixerOf().context, element, false);
       } catch (error) {
-        // the element plays as without mcav
+        // the element plays as without MCAV
       }
     };
     HTMLMediaElement.prototype.play = function play(...args) {

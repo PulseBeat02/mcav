@@ -42,7 +42,7 @@ import org.junit.jupiter.api.io.TempDir;
 // -Djava.awt.headless=true and nothing else, the class path given through the CLASSPATH variable, and without DISPLAY
 // or WAYLAND_DISPLAY, like a headless Minecraft server. No X server can be found on its PATH either, as on a stock
 // server: the browser must need none. It streams a local page, checks the pixels of a frame, and disables and enables
-// mcav in between.
+// MCAV in between.
 @Tag("cef")
 class NoFlagsServerTest {
 
