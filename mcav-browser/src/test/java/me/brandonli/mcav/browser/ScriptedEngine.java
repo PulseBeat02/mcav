@@ -174,6 +174,7 @@ final class ScriptedEngine implements HelperEngine {
       this.calls.add(call.getMethod() + " " + call.getParameters());
     }
     this.paint(this.calls.size());
+
     if (this.soundOnInput) {
       this.events.onAudio(chunk(this.calls.size()));
     }

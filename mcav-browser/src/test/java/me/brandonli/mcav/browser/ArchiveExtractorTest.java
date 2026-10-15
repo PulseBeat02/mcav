@@ -360,6 +360,7 @@ class ArchiveExtractorTest {
 
     InputStream finish() throws IOException {
       this.tar.close();
+
       return new ByteArrayInputStream(this.bytes.toByteArray());
     }
   }

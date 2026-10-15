@@ -292,6 +292,7 @@ class HelperConfigurationTest {
   private static String withValue(final int index, final String value) {
     final String[] parts = parts(configuration(false));
     parts[index] = encode(value);
+
     return String.join(":", parts);
   }
 

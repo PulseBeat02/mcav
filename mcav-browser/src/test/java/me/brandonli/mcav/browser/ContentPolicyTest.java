@@ -61,12 +61,14 @@ class ContentPolicyTest {
   private static CefFrame frame(final boolean main) {
     final CefFrame frame = mock(CefFrame.class);
     when(frame.isMain()).thenReturn(main);
+
     return frame;
   }
 
   private static CefRequest request(final String url) {
     final CefRequest request = mock(CefRequest.class);
     when(request.getURL()).thenReturn(url);
+
     return request;
   }
 

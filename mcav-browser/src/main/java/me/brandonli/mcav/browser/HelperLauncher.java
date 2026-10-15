@@ -176,6 +176,7 @@ final class HelperLauncher {
       final String message = "The browser helper cannot find where %s was loaded from!".formatted(type.getName());
       throw new PlayerException(message);
     }
+
     try {
       return Path.of(location.toURI());
     } catch (final URISyntaxException | IllegalArgumentException | FileSystemNotFoundException exception) {
@@ -208,6 +209,7 @@ final class HelperLauncher {
     }
     command.add(String.join(File.pathSeparator, entries));
     command.add(this.mainClass);
+
     return command;
   }
 

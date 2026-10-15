@@ -62,6 +62,7 @@ class HelperProtocolTest {
     final byte[] token = new byte[HelperProtocol.TOKEN_BYTES];
     Arrays.fill(token, (byte) 7);
     token[0] = 1;
+
     return token;
   }
 

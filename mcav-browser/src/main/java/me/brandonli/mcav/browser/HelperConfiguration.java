@@ -246,6 +246,7 @@ final class HelperConfiguration {
 
   private static boolean parseBoolean(final String value) {
     requireThat(value.equals(TRUE_TEXT) || value.equals(FALSE_TEXT), "Value %s is not a boolean!".formatted(value));
+
     return Boolean.parseBoolean(value);
   }
 

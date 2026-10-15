@@ -190,6 +190,7 @@ final class JcefNatives {
       ArchiveExtractor.tighten(this.folder);
       return installation;
     }
+
     ArchiveExtractor.createFolders(this.folder);
     final Path lockFile = this.folder.resolve(name + LOCK_SUFFIX);
     synchronized (INSTALL_LOCK) {
@@ -270,6 +271,7 @@ final class JcefNatives {
       final String message = "Platform %s %s %s has no CEF build in jcefmaven, so the browser cannot run here!".formatted(os, arch, bits);
       throw new IOException(message);
     }
+
     return platform.get();
   }
 

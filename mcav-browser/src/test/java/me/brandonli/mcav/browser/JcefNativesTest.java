@@ -130,6 +130,7 @@ class JcefNativesTest {
     if (!sha256.equals(PINNED_HASH)) {
       throw new IOException("Checksum mismatch");
     }
+
     try (final OutputStream out = Files.newOutputStream(destination)) {
       out.write(jar);
     }
@@ -149,6 +150,7 @@ class JcefNativesTest {
     final Class<?> natives = Class.forName(JcefNatives.class.getName(), true, loader);
     final Field field = natives.getDeclaredField("INSTALL_LOCK");
     field.setAccessible(true);
+
     return field.get(null);
   }
 
@@ -216,6 +218,7 @@ class JcefNativesTest {
     final Path cache = this.folder.resolve("home/.mcav/cache/jcef");
     final Path installation = this.natives(nativesJar(true), cache).install(PLATFORM, PINNED_HASH, PINNED_SIZE);
     assertEquals(cache.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX), installation);
+
     if (cache.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW)) {
       final Set<PosixFilePermission> cachePermissions = Files.getPosixFilePermissions(cache);
       assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), cachePermissions);
@@ -233,6 +236,7 @@ class JcefNativesTest {
     assertEquals("native", libraryContent);
     final boolean markerPresent = Files.isRegularFile(installation.resolve(JcefNatives.INSTALL_MARKER));
     assertTrue(markerPresent);
+
     if (installation.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW)) {
       final Set<PosixFilePermission> installationPermissions = Files.getPosixFilePermissions(installation);
       assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), installationPermissions);
@@ -405,6 +409,7 @@ class JcefNativesTest {
 
   private Path installRecordingTheCaller(final AtomicReference<Thread> caller, final JcefNatives natives) {
     caller.set(Thread.currentThread());
+
     return install(natives);
   }
 

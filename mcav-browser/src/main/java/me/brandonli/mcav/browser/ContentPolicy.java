@@ -99,6 +99,7 @@ final class ContentPolicy
   @Override
   public boolean onBeforePopup(final CefBrowser browser, final CefFrame frame, final String targetUrl, final String targetFrameName) {
     this.openInPlace(browser, targetUrl);
+
     return true;
   }
 
@@ -216,6 +217,7 @@ final class ContentPolicy
     final CefAuthCallback callback
   ) {
     this.events.onNotice("The login to %s was refused.".formatted(host));
+
     return false;
   }
 
@@ -233,6 +235,7 @@ final class ContentPolicy
   ) {
     final String address = AddressText.describe(requestUrl);
     this.events.onNotice("The invalid certificate of %s was refused.".formatted(address));
+
     return false;
   }
 
@@ -268,6 +271,7 @@ final class ContentPolicy
     callback.Continue(isAlert, "");
     final String address = AddressText.describe(originUrl);
     this.events.onNotice("A JavaScript dialog of %s was dismissed.".formatted(address));
+
     return true;
   }
 
@@ -284,6 +288,7 @@ final class ContentPolicy
     final CefJSDialogCallback callback
   ) {
     callback.Continue(true, "");
+
     return true;
   }
 
@@ -346,6 +351,7 @@ final class ContentPolicy
   ) {
     callback.Cancel();
     this.events.onNotice("Refused a file chooser.");
+
     return true;
   }
 

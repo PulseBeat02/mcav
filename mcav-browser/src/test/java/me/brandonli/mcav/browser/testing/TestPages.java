@@ -211,9 +211,11 @@ public final class TestPages implements AutoCloseable {
       let started = false;
       addEventListener('pointerdown', () => {
         context.resume();
+
         if (started) {
           return;
         }
+
         started = true;
         setInterval(() => {
           on = !on;
@@ -570,6 +572,7 @@ public final class TestPages implements AutoCloseable {
     if (query == null) {
       return parameters;
     }
+
     final String[] pairs = PAIR_SEPARATOR.split(query, -1);
     for (final String pair : pairs) {
       final int separator = pair.indexOf('=');

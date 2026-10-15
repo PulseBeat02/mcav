@@ -79,6 +79,7 @@ class CefBrowserIntegrationTest {
     final CefBrowserPlayer player = new CefBrowserPlayer(options, sessions);
     player.setExceptionHandler((message, error) -> this.failures.add(message + ": " + error.getMessage()));
     this.players.add(player);
+
     return player;
   }
 
@@ -87,6 +88,7 @@ class CefBrowserIntegrationTest {
     final URI page = this.pages.uri(path);
     final boolean started = player.start(BrowserSource.uri(page, WIDTH, HEIGHT, 1));
     assertTrue(started);
+
     return frames;
   }
 

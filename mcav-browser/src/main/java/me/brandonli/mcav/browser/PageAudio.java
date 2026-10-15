@@ -193,6 +193,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
           // a subclass gets a context of its own, whose sound is not captured
           return construct(target, args, newTarget);
         }
+
         return mixerOf().context;
       },
     });
@@ -248,6 +249,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
         if (newTarget === SharedElementSource && element instanceof HTMLMediaElement) {
           return sourceOf(args[0], element, true);
         }
+
         return construct(target, args, newTarget);
       },
     });
@@ -353,6 +355,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     if (!this.mayTake(leastBytes(parameters))) {
       return;
     }
+
     final Chunk chunk = parse(method, parameters);
     if (chunk != null && this.take(chunk)) {
       this.sink.accept(chunk.samples());
@@ -373,6 +376,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
 
   private synchronized boolean mayTake(final long bytes) {
     this.refill(this.clock.getAsLong());
+
     return bytes <= this.available;
   }
 
@@ -382,10 +386,13 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     if (chunk.context() != this.speaker && !quiet) {
       return false;
     }
+
     if (!this.spend(chunk.samples().length, now)) {
       return false;
     }
+
     this.speaker = chunk.context();
+
     if (!isSilent(chunk.samples())) {
       this.spoken = now;
     }
@@ -409,10 +416,13 @@ final class PageAudio implements CefDevToolsClient.EventListener {
 
   private boolean spend(final int bytes, final long now) {
     this.refill(now);
+
     if (bytes > this.available) {
       return false;
     }
+
     this.available -= bytes;
+
     return true;
   }
 
@@ -429,14 +439,17 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     if (!BINDING_EVENT.equals(method) || !parameters.startsWith(PREFIX)) {
       return null;
     }
+
     final int start = PREFIX.length();
     final int end = parameters.indexOf('"', start);
     if (end == -1 || end - start > MAXIMUM_PAYLOAD_CHARACTERS) {
       return null;
     }
+
     if (!CONTEXT.matcher(parameters).region(end, parameters.length()).matches()) {
       return null;
     }
+
     final byte[] samples;
     try {
       samples = Base64.getDecoder().decode(parameters.substring(start, end));
@@ -447,6 +460,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     if (length == 0 || length % HelperProtocol.AUDIO_FRAME_BYTES != 0) {
       return null;
     }
+
     final long context = Long.parseLong(parameters.substring(end + CONTEXT_FIELD.length(), parameters.length() - 1));
     return new Chunk(context, samples);
   }

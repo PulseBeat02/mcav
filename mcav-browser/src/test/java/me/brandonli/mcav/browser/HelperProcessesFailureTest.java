@@ -72,6 +72,7 @@ final class HelperProcessesFailureTest {
 
   private @Nullable Object deregisterAndAnswerNothing(final HelperSession session) {
     HelperProcesses.deregister(session);
+
     return null;
   }
 }

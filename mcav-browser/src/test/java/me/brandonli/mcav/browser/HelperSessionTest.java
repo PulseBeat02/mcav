@@ -134,6 +134,7 @@ class HelperSessionTest {
       this.listener
     );
     this.sessions.add(session);
+
     return session;
   }
 
@@ -144,6 +145,7 @@ class HelperSessionTest {
     final PlayerException failure = assertThrows(PlayerException.class, () -> this.openSession(launcher, source));
     final int helperCount = HelperProcesses.count();
     assertEquals(before, helperCount, "a failed start leaves no session behind");
+
     return failure;
   }
 
@@ -178,6 +180,7 @@ class HelperSessionTest {
     final boolean isUsable = Files.isDirectory(temporaryDirectory) && Files.isWritable(temporaryDirectory);
     final Path parent = isUsable ? Files.createTempDirectory(temporaryDirectory, "m") : Files.createTempDirectory("m");
     this.shortDirectories.add(parent);
+
     return parent;
   }
 
@@ -513,6 +516,7 @@ class HelperSessionTest {
 
   private boolean sendAKeyAndReportTheEnd(final HelperSession session) {
     session.sendKey(HelperProtocol.KEY_TYPE, "lost");
+
     return !this.listener.ended.isEmpty();
   }
 
@@ -558,6 +562,7 @@ class HelperSessionTest {
   private static Set<ProcessHandle> newSince(final Set<ProcessHandle> before) {
     final Set<ProcessHandle> now = new HashSet<>(liveDescendants());
     now.removeAll(before);
+
     return now;
   }
 
@@ -725,6 +730,7 @@ class HelperSessionTest {
   private Path createLibraries(final Path session, final List<Path> linked) throws IOException {
     final Path libraries = Files.createDirectory(session.resolve("lib"));
     linked.add(libraries);
+
     return libraries;
   }
 
@@ -1078,6 +1084,7 @@ class HelperSessionTest {
     final Path folder = HelperSession.createFolder(this.directory);
     final boolean folderCreated = Files.isDirectory(folder);
     assertTrue(folderCreated);
+
     if (this.directory.getFileSystem().supportedFileAttributeViews().contains("posix")) {
       final Set<PosixFilePermission> folderPermissions = Files.getPosixFilePermissions(folder);
       assertEquals(PosixFilePermissions.fromString("rwx------"), folderPermissions);
@@ -1121,6 +1128,7 @@ class HelperSessionTest {
 
   private String drawATakenName(final AtomicInteger drawn) {
     drawn.incrementAndGet();
+
     return "mcavb-taken";
   }
 

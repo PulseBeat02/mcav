@@ -195,6 +195,7 @@ class HelperLauncherTest {
         if (!className.equals(name)) {
           throw new ClassNotFoundException(className);
         }
+
         return this.defineClass(className, bytes, 0, bytes.length, domain);
       }
     };
@@ -279,6 +280,7 @@ class HelperLauncherTest {
     }
     model.fields().forEach(field -> addDescribed(field.fieldType().stringValue(), used));
     model.methods().forEach(method -> addDescribed(method.methodType().stringValue(), used));
+
     return used;
   }
 

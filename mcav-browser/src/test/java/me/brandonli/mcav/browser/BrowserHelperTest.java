@@ -86,6 +86,7 @@ class BrowserHelperTest {
   private static byte[] token() {
     final byte[] token = new byte[HelperProtocol.TOKEN_BYTES];
     token[5] = 5;
+
     return token;
   }
 
@@ -162,6 +163,7 @@ class BrowserHelperTest {
   private static SocketChannel connectTo(final Path socket) throws IOException {
     final SocketChannel channel = SocketChannel.open(StandardProtocolFamily.UNIX);
     channel.connect(UnixDomainSocketAddress.of(socket));
+
     return channel;
   }
 
@@ -175,6 +177,7 @@ class BrowserHelperTest {
   @AfterEach
   void closeServer() throws IOException {
     this.standardInput.close();
+
     if (this.server != null) {
       this.server.close();
     }
@@ -652,6 +655,7 @@ class BrowserHelperTest {
       .daemon(false)
       .name("helper-main")
       .start(() -> result.complete(helper.run(reader, BrowserHelperTest::connectTo)));
+
     return result;
   }
 

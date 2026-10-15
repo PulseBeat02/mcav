@@ -76,6 +76,7 @@ class BrowserSoundTest {
     );
     player.setExceptionHandler((message, error) -> this.failures.add(message + ": " + error.getMessage()));
     this.players.add(player);
+
     return player;
   }
 
@@ -321,6 +322,7 @@ class BrowserSoundTest {
     final int[] pixels = image.getPixels();
     final int center = pixels[(image.getHeight() / 2) * image.getWidth() + image.getWidth() / 2];
     picture.add(new long[] { System.nanoTime(), (center & 0xFF) > 128 ? 1 : 0 });
+
     return false;
   }
 
@@ -399,6 +401,7 @@ class BrowserSoundTest {
     if (energy < length * 100.0 * 100.0) {
       return 0;
     }
+
     final double power = previous * previous + beforePrevious * beforePrevious - coefficient * previous * beforePrevious;
     return Math.min(1, power / ((energy * length) / 2));
   }
@@ -415,6 +418,7 @@ class BrowserSoundTest {
   private static double median(final List<Double> values) {
     final List<Double> sorted = new ArrayList<>(values);
     Collections.sort(sorted);
+
     return sorted.get(sorted.size() / 2);
   }
 
@@ -455,6 +459,7 @@ class BrowserSoundTest {
     static Recording attach(final BrowserPlayer player) {
       final Recording recording = new Recording();
       player.getAudioAttachableCallback().attach(AudioPipelineStep.of(recording::record));
+
       return recording;
     }
 

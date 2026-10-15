@@ -70,6 +70,7 @@ final class SocksProtocol {
     if (count == 0) {
       throw new ProtocolException("The greeting offers no method!");
     }
+
     boolean withoutAuthentication = false;
     for (int index = 0; index < count; index++) {
       final int method = in.readUnsignedByte();
@@ -95,6 +96,7 @@ final class SocksProtocol {
       final String message = "Reserved byte %s of the request must be 0!".formatted(reserved);
       throw new ProtocolException(message);
     }
+
     final int type = in.readUnsignedByte();
     final String host = switch (type) {
       case ADDRESS_IPV4 -> readAddress(in, IPV4_BYTES);
@@ -110,9 +112,11 @@ final class SocksProtocol {
       final String message = "Command %s of the request is not a connection!".formatted(command);
       throw new Refusal(COMMAND_NOT_SUPPORTED, message);
     }
+
     if (port == 0) {
       throw new Refusal(NOT_ALLOWED, "The request asks for port 0!");
     }
+
     return new Request(host, port);
   }
 
@@ -136,6 +140,7 @@ final class SocksProtocol {
     if (length == 0) {
       throw new ProtocolException("The request names an empty host!");
     }
+
     final byte[] bytes = new byte[length];
     in.readFully(bytes);
     for (final byte value : bytes) {
@@ -149,10 +154,12 @@ final class SocksProtocol {
     if (host.indexOf(':') >= 0) {
       return readIpv6Literal(host);
     }
+
     if (host.indexOf('[') >= 0 || host.indexOf(']') >= 0) {
       final String message = "Host name %s of the request holds a bracket!".formatted(host);
       throw new ProtocolException(message);
     }
+
     return host;
   }
 

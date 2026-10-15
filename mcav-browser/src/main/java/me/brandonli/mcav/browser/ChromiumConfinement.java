@@ -97,6 +97,7 @@ final class ChromiumConfinement {
     if (!configuration.isConfined()) {
       return NOT_ASKED;
     }
+
     final Path session = parentOf(configuration.getSocket());
     final Path home = Path.of(System.getProperty("user.home"));
     final List<Path> hidden = List.of(configuration.getServerFolder(), home, parentOf(session));
@@ -105,6 +106,7 @@ final class ChromiumConfinement {
     readable.add(configuration.getNatives());
     readable.addAll(pathsOf(System.getProperty("java.class.path")));
     readable.addAll(agentsOf(ManagementFactory.getRuntimeMXBean().getInputArguments()));
+
     if (isMac) {
       if (!seatbelt.isAvailable()) {
         return UNAVAILABLE.formatted(Seatbelt.MISSING);
@@ -113,17 +115,21 @@ final class ChromiumConfinement {
       seatbelt.restrictProcess(Seatbelt.profile(realPaths(hidden), realPaths(readable), realPaths(List.of(session, DEVICES))));
       return CONFINED;
     }
+
     if (!isLinux) {
       return NOT_SUPPORTED;
     }
+
     final int available = version.getAsInt();
     if (available < 1) {
       final String missing = Landlock.describeMissing(available);
       return UNAVAILABLE.formatted(missing);
     }
+
     readable.addAll(linkedFiles(pathsOf(System.getenv(LIBRARY_PATH_VARIABLE))));
     final List<Path> writable = List.of(session, DEVICES, PROCESSES);
     Landlock.restrictThread(available, rules(ROOT, hidden, readable, writable));
+
     return CONFINED;
   }
 
@@ -227,6 +233,7 @@ final class ChromiumConfinement {
     if (list == null) {
       return paths;
     }
+
     for (final String entry : list.split(File.pathSeparator, -1)) {
       if (!entry.isEmpty()) {
         paths.add(Path.of(entry));

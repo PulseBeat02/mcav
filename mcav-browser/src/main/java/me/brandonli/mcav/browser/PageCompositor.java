@@ -95,9 +95,11 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
       this.paintPopup(buffer, bufferWidth, bufferHeight);
       return;
     }
+
     if (bufferWidth != this.width || bufferHeight != this.height) {
       return;
     }
+
     final Rectangle pageBounds = new Rectangle(0, 0, this.width, this.height);
     for (final Rectangle dirty : dirtyRects) {
       final Rectangle clipped = dirty.intersection(pageBounds);
@@ -117,6 +119,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     if (bounds == null || bounds.width != bufferWidth || bounds.height != bufferHeight) {
       return;
     }
+
     final int bytes = bufferWidth * bufferHeight * HelperProtocol.PIXEL_BYTES;
     final byte[] pixels = new byte[bytes];
     final ByteBuffer source = buffer.duplicate();
@@ -230,6 +233,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
     this.damage = null;
     this.paintsSinceSent = 0;
+
     return new FrameRegion(this.width, this.height, area.x, area.y, area.width, area.height, target);
   }
 

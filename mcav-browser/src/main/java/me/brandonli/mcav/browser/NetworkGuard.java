@@ -146,6 +146,7 @@ final class NetworkGuard implements Closeable {
     final Thread thread = new Thread(guard::acceptConnections, "mcav-browser-guard");
     thread.setDaemon(true);
     thread.start();
+
     return guard;
   }
 
@@ -283,6 +284,7 @@ final class NetworkGuard implements Closeable {
       addresses = this.resolver.resolve(host);
     } catch (final UnknownHostException exception) {
       SocksProtocol.writeReply(out, SocksProtocol.HOST_UNREACHABLE);
+
       return null;
     }
     IOException failure = null;

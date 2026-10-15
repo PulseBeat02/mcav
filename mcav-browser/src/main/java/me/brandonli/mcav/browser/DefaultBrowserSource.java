@@ -90,9 +90,11 @@ final class DefaultBrowserSource implements BrowserSource {
     if (this == other) {
       return true;
     }
+
     if (!(other instanceof final DefaultBrowserSource source)) {
       return false;
     }
+
     return (
       this.uri.equals(source.uri) &&
       this.width == source.width &&

@@ -89,6 +89,7 @@ final class Seatbelt {
       final String message = "The process cannot be restricted, because %s!".formatted(MISSING);
       throw new IOException(message);
     }
+
     final Linker linker = Linker.nativeLinker();
     final MethodHandle sandboxInitCall = linker.downcallHandle(
       init.get(),
@@ -129,6 +130,7 @@ final class Seatbelt {
       if (exception instanceof final VirtualMachineError fatal) {
         throw fatal;
       }
+
       throw new IllegalStateException(UNCALLABLE, exception);
     }
   }
@@ -152,6 +154,7 @@ final class Seatbelt {
     rule(profile, ALLOW_READING, writable);
     profile.append(DENY_WRITING);
     rule(profile, ALLOW_WRITING, writable);
+
     return profile.toString();
   }
 
@@ -159,6 +162,7 @@ final class Seatbelt {
     if (paths.isEmpty()) {
       return;
     }
+
     profile.append('(').append(action);
     for (final Path path : paths) {
       profile.append(" (subpath ").append(quote(path.toString())).append(')');

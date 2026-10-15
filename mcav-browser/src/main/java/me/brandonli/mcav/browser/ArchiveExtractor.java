@@ -196,6 +196,7 @@ final class ArchiveExtractor {
       final String message = NAME_NOT_ALLOWED.formatted(name);
       throw new IOException(message);
     }
+
     final Path relative;
     try {
       relative = root.getFileSystem().getPath(name);
@@ -208,6 +209,7 @@ final class ArchiveExtractor {
       final String message = "Archive entry name %s is absolute!".formatted(name);
       throw new IOException(message);
     }
+
     Path current = root;
     for (final Path element : relative) {
       if (element.toString().equals(PARENT_FOLDER)) {
@@ -283,6 +285,7 @@ final class ArchiveExtractor {
       current = Objects.requireNonNull(current.getParent(), "The root of a file system exists!");
     }
     Files.createDirectories(folder);
+
     if (supportsPosix) {
       for (final Path created : missing) {
         Files.setPosixFilePermissions(created, FOLDER);
@@ -304,12 +307,14 @@ final class ArchiveExtractor {
     if (!fileSystem.supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW) || !Files.isDirectory(folder)) {
       return;
     }
+
     Files.walkFileTree(
       folder,
       new SimpleFileVisitor<>() {
         @Override
         public FileVisitResult preVisitDirectory(final Path directory, final BasicFileAttributes attributes) {
           takeWriteAway(directory);
+
           return FileVisitResult.CONTINUE;
         }
 

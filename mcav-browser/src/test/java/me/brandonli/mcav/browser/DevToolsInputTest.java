@@ -204,6 +204,7 @@ class DevToolsInputTest {
     final Matcher matcher = KEY_FIELD.matcher(call);
     final boolean keyFound = matcher.find();
     assertTrue(keyFound, call);
+
     return matcher.group(1);
   }
 

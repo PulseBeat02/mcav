@@ -124,6 +124,7 @@ final class SessionFolders {
       LOGGER.debug(NOT_RECORDED, folder);
       return;
     }
+
     final String record = this.owner.pid() + RECORD_SEPARATOR + started.get() + RECORD_SEPARATOR;
     try {
       Files.writeString(folder.resolve(OWNER_FILE), record, StandardCharsets.US_ASCII);
@@ -176,6 +177,7 @@ final class SessionFolders {
     if (lines.size() != RECORD_LINES) {
       return false;
     }
+
     final long processId;
     final Instant started;
     try {
@@ -193,6 +195,7 @@ final class SessionFolders {
     if (!posix) {
       return true;
     }
+
     final Optional<String> user = this.owner.info().user();
     final UserPrincipal folderOwner = Files.getOwner(folder, LinkOption.NOFOLLOW_LINKS);
     return user.isPresent() && user.get().equals(folderOwner.getName());

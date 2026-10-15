@@ -99,6 +99,7 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    */
   static BrowserPlayer create(final BrowserOptions options) {
     Preconditions.checkNotNull(options, "Options must not be null!");
+
     return new CefBrowserPlayer(options);
   }
 

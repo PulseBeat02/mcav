@@ -145,6 +145,7 @@ class NetworkGuardTest {
       handshakeTimeoutMilliseconds
     );
     this.closeables.add(guard);
+
     return guard;
   }
 
@@ -156,6 +157,7 @@ class NetworkGuardTest {
     final Socket socket = new Socket(LOOPBACK, guard.getPort());
     socket.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
     this.closeables.add(socket);
+
     return socket;
   }
 
@@ -165,6 +167,7 @@ class NetworkGuardTest {
     out.flush();
     final byte[] answer = new byte[answerBytes];
     new DataInputStream(socket.getInputStream()).readFully(answer);
+
     return answer;
   }
 
@@ -187,6 +190,7 @@ class NetworkGuardTest {
     assertArrayEquals(new byte[] { 5, 0 }, greetingAnswer);
     final byte[] connectAnswer = exchange(client, SocksProtocolTest.domainRequest(SocksProtocol.CONNECT, host, port), REPLY_BYTES);
     assertArrayEquals(SUCCESS, connectAnswer);
+
     return client;
   }
 
@@ -328,6 +332,7 @@ class NetworkGuardTest {
     }
     final boolean allBusy = busy.await(30, TimeUnit.SECONDS);
     assertTrue(allBusy, "every worker of the common pool is busy");
+
     return release;
   }
 
@@ -737,10 +742,13 @@ class NetworkGuardTest {
       if (!host.equals(AddressPolicy.IPV4_ONLY_HOST)) {
         return new InetAddress[] { InetAddress.getByName(TRANSLATED_PRIVATE_IPV6) };
       }
+
       this.questions.incrementAndGet();
+
       if (this.failuresLeft.getAndDecrement() > 0) {
         throw new UnknownHostException(host);
       }
+
       return new InetAddress[] {
         InetAddress.getByName("192.0.0.170"),
         InetAddress.getByName("2a01:4f8:1:2:3:4:c000:aa"),

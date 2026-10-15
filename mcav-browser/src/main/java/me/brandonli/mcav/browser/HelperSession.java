@@ -331,6 +331,7 @@ final class HelperSession implements BrowserSession {
     standardInput.write(configuration.toLine());
     standardInput.write('\n');
     standardInput.flush();
+
     return standardInput;
   }
 
@@ -347,6 +348,7 @@ final class HelperSession implements BrowserSession {
       session.close();
       return;
     }
+
     if (process != null) {
       closeQuietly(process.getOutputStream());
       stopProcess(process);
@@ -416,6 +418,7 @@ final class HelperSession implements BrowserSession {
     final SecureRandom random = new SecureRandom();
     final byte[] token = new byte[HelperProtocol.TOKEN_BYTES];
     random.nextBytes(token);
+
     return token;
   }
 
@@ -464,6 +467,7 @@ final class HelperSession implements BrowserSession {
     environment.putAll(kept);
     builder.directory(folder.toFile());
     builder.redirectErrorStream(true);
+
     return builder;
   }
 
@@ -517,6 +521,7 @@ final class HelperSession implements BrowserSession {
     final Thread thread = new Thread(task, name);
     thread.setDaemon(true);
     thread.start();
+
     return thread;
   }
 
@@ -530,6 +535,7 @@ final class HelperSession implements BrowserSession {
   static Thread createInputThread(final Runnable task) {
     final Thread thread = new Thread(task, "mcav-browser-input");
     thread.setDaemon(true);
+
     return thread;
   }
 
@@ -587,6 +593,7 @@ final class HelperSession implements BrowserSession {
     if (size > pageBytes) {
       return NO_PIXELS;
     }
+
     if (buffer[0].length < size) {
       buffer[0] = new byte[size];
     }
@@ -604,6 +611,7 @@ final class HelperSession implements BrowserSession {
     if (this.closing.get()) {
       return connectionEnd;
     }
+
     final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(EXIT_GRACE_MILLISECONDS);
     while (this.process.isAlive() && System.nanoTime() < deadline) {
       LockSupport.parkNanos(EXIT_POLL_NANOSECONDS);
@@ -611,6 +619,7 @@ final class HelperSession implements BrowserSession {
     if (this.process.isAlive()) {
       return connectionEnd;
     }
+
     return "The browser helper exited with code %s before it was asked to stop!".formatted(this.process.exitValue());
   }
 
@@ -627,10 +636,12 @@ final class HelperSession implements BrowserSession {
     if (type != HelperProtocol.HELLO) {
       throw new ProtocolException("The browser helper did not introduce itself!");
     }
+
     final byte[] presented = hello.getToken();
     if (!MessageDigest.isEqual(presented, token)) {
       throw new ProtocolException("The browser helper presented a wrong session token!");
     }
+
     final int version = hello.getNumber();
     if (version != HelperProtocol.VERSION) {
       final String message = "Protocol version %s of the browser helper differs from version %s of the server!".formatted(
@@ -723,6 +734,7 @@ final class HelperSession implements BrowserSession {
 
   private synchronized void onStartEvent(final StartEvent event) {
     this.startEvents.add(event);
+
     if (this.startEvents.size() == StartEvent.values().length) {
       this.started.complete(null);
     }
@@ -820,6 +832,7 @@ final class HelperSession implements BrowserSession {
     if (line.isBlank()) {
       return;
     }
+
     LOGGER.debug("browser helper: {}", line);
     synchronized (this.outputTail) {
       this.outputTail.addLast(line);
@@ -852,9 +865,11 @@ final class HelperSession implements BrowserSession {
   private void end(final String reason, final @Nullable Throwable cause) {
     final PlayerException failure = this.createEndFailure(reason, cause);
     this.started.completeExceptionally(failure);
+
     if (this.closing.get() || !this.ended.compareAndSet(false, true)) {
       return;
     }
+
     this.listener.onEnded(reason, failure);
   }
 
@@ -900,6 +915,7 @@ final class HelperSession implements BrowserSession {
     if (this.closing.get()) {
       return true;
     }
+
     try {
       this.input.execute(() -> this.write(writer));
       return true;
@@ -928,6 +944,7 @@ final class HelperSession implements BrowserSession {
     if (!this.closing.compareAndSet(false, true)) {
       return;
     }
+
     HelperProcesses.deregister(this);
     this.input.shutdownNow();
     synchronized (this.deliveryLock) {
@@ -984,6 +1001,7 @@ final class HelperSession implements BrowserSession {
     if (thread.equals(caller)) {
       return;
     }
+
     try {
       thread.join(STOP_TIMEOUT_MILLISECONDS);
     } catch (final InterruptedException exception) {

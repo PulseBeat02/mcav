@@ -186,6 +186,7 @@ final class CefEngine implements HelperEngine {
     disabledFeatures.add(NETWORK_TIME_FEATURE);
     disabledFeatures.add(PRECONNECT_TO_SEARCH_FEATURE);
     switches.add(DISABLE_FEATURES_SWITCH + String.join(FEATURE_SEPARATOR, disabledFeatures));
+
     if (!configuration.isJavaScriptJit()) {
       switches.add(JITLESS_SWITCH);
     }
@@ -270,6 +271,7 @@ final class CefEngine implements HelperEngine {
   ) throws Exception {
     events.onNotice(ChromiumConfinement.confine(configuration, isLinux, isMac));
     this.startChromium(builder, configuration, painter, events);
+
     return null;
   }
 
@@ -293,6 +295,7 @@ final class CefEngine implements HelperEngine {
       if (cause instanceof final Error error) {
         throw error;
       }
+
       throw (Exception) cause;
     }
   }
@@ -341,8 +344,10 @@ final class CefEngine implements HelperEngine {
     if (configuration.isPrivateNetworks()) {
       return 0;
     }
+
     final NetworkGuard startedGuard = NetworkGuard.start(events::onNotice, configuration.getRefusedHosts());
     this.guard = startedGuard;
+
     return startedGuard.getPort();
   }
 
@@ -409,6 +414,7 @@ final class CefEngine implements HelperEngine {
       created.loadURL(url);
       return;
     }
+
     devTools.addEventListener(audio);
     final List<DevToolsInput.DevToolsCall> calls = new ArrayList<>(DevToolsInput.openWindowsInPlace());
     calls.addAll(PageAudio.install());
@@ -444,6 +450,7 @@ final class CefEngine implements HelperEngine {
       EventQueue.invokeLater(() -> placeScripts(created, url, timeoutMilliseconds, audio, notices, attempt + 1));
       return;
     }
+
     if (!confirmed) {
       notices.accept("The scripts of the page were not confirmed in %s attempts; it loads anyway.".formatted(attempt));
       final CompletableFuture<String> late = answered.thenApply(lateAnswer -> reloadOnLateAnswer(created, notices, lateAnswer));
@@ -455,6 +462,7 @@ final class CefEngine implements HelperEngine {
   private static String reloadOnLateAnswer(final CefBrowser created, final Consumer<String> notices, final String lateAnswer) {
     notices.accept("The scripts of the page were confirmed late; it loads again.");
     EventQueue.invokeLater(created::reload);
+
     return lateAnswer;
   }
 
@@ -470,6 +478,7 @@ final class CefEngine implements HelperEngine {
     if (current == null) {
       return;
     }
+
     EventQueue.invokeLater(() -> execute(current.getDevToolsClient(), calls));
   }
 
@@ -483,6 +492,7 @@ final class CefEngine implements HelperEngine {
     if (version == null) {
       return UNKNOWN_VERSION;
     }
+
     return version.getCefVersion() + " (Chromium " + version.getChromeVersion() + ")";
   }
 
@@ -496,6 +506,7 @@ final class CefEngine implements HelperEngine {
     if (devTools == null) {
       return;
     }
+
     for (final DevToolsInput.DevToolsCall call : calls) {
       final String method = call.getMethod();
       final String parameters = call.getParameters();
@@ -513,6 +524,7 @@ final class CefEngine implements HelperEngine {
   @VisibleForTesting
   static String logFailedCall(final Throwable failure) {
     System.err.println("A DevTools call failed (%s).".formatted(failure));
+
     return "";
   }
 

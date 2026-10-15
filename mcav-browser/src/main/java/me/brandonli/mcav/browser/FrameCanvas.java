@@ -107,6 +107,7 @@ final class FrameCanvas implements AutoCloseable {
     if (this.closed) {
       return;
     }
+
     this.closed = true;
     this.page.close();
   }

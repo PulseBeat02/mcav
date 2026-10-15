@@ -60,6 +60,7 @@ class PageCompositorTest {
       }
     }
     buffer.flip();
+
     return buffer;
   }
 
@@ -80,6 +81,7 @@ class PageCompositorTest {
     final byte[] target = new byte[compositor.getPageBytes()];
     final FrameRegion region = compositor.takeDamage(target, 0L);
     assertNotNull(region, "damage was due");
+
     return region;
   }
 

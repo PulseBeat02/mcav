@@ -81,6 +81,7 @@ final class SpecialKeys {
    */
   static boolean isSpecialKey(final String text) {
     Preconditions.checkNotNull(text, "Text must not be null!");
+
     return SPECIAL_KEYS.contains(text);
   }
 }

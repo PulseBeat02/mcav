@@ -95,9 +95,11 @@ class CefBrowserPlayerTest {
     if (this.startFailure != null) {
       throw this.startFailure;
     }
+
     this.listener = sessionListener;
     final FakeSession session = new FakeSession();
     this.sessions.add(session);
+
     return session;
   }
 
@@ -110,6 +112,7 @@ class CefBrowserPlayerTest {
 
   private boolean recordFrame(final ImageBuffer samples) {
     this.processed.add(samples);
+
     return false;
   }
 
@@ -120,6 +123,7 @@ class CefBrowserPlayerTest {
   private List<byte[]> attachSoundRecorder() {
     final List<byte[]> heard = new CopyOnWriteArrayList<>();
     this.player.getAudioAttachableCallback().attach(AudioPipelineStep.of((samples, _) -> this.recordSound(heard, samples)));
+
     return heard;
   }
 
@@ -127,6 +131,7 @@ class CefBrowserPlayerTest {
     final byte[] copy = new byte[samples.remaining()];
     samples.get(copy);
     heard.add(copy);
+
     return true;
   }
 
@@ -180,6 +185,7 @@ class CefBrowserPlayerTest {
     this.listener = sessionListener;
     final FakeSession session = new FakeSession();
     this.sessions.add(session);
+
     return session;
   }
 
@@ -224,6 +230,7 @@ class CefBrowserPlayerTest {
 
   private BrowserSession openSessionAfterAFrame(final BrowserSession.Listener sessionListener, final ImageBuffer frame) {
     sessionListener.onFrame(frame);
+
     return new FakeSession();
   }
 
@@ -273,6 +280,7 @@ class CefBrowserPlayerTest {
   private boolean startAndRecordTheInterrupt(final CefBrowserPlayer slow, final AtomicBoolean leftInterrupted) {
     final boolean result = slow.start(SOURCE);
     leftInterrupted.set(Thread.currentThread().isInterrupted());
+
     return result;
   }
 
@@ -302,6 +310,7 @@ class CefBrowserPlayerTest {
       sessionListener.onEnded("The browser helper exited", new IllegalStateException("exit 1"));
     }
     opened.add(session);
+
     return session;
   }
 
@@ -356,6 +365,7 @@ class CefBrowserPlayerTest {
 
   private BrowserSession openSessionThatEnds(final BrowserSession.Listener sessionListener) {
     sessionListener.onEnded("The browser helper exited", new IllegalStateException("exit 1"));
+
     return new FakeSession();
   }
 
@@ -786,6 +796,7 @@ class CefBrowserPlayerTest {
 
   private @Nullable Object queueTheTask(final List<Runnable> queued, final InvocationOnMock invocation) {
     queued.add(invocation.getArgument(0));
+
     return null;
   }
 
@@ -922,12 +933,14 @@ class CefBrowserPlayerTest {
           "," +
           mouse.getDeltaY()
       );
+
       return this.accepting;
     }
 
     @Override
     public boolean sendKey(final int action, final String value) {
       this.sent.add("key " + action + " " + value);
+
       return this.accepting;
     }
 

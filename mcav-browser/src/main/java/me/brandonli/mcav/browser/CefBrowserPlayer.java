@@ -170,6 +170,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       if (this.released.get()) {
         return false;
       }
+
       throw exception;
     } finally {
       final boolean interrupted;
@@ -215,6 +216,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private void closeSession() {
     final BrowserSession current = this.session;
     this.session = null;
+
     if (current != null) {
       current.close();
     }
@@ -224,6 +226,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private void closeAudio() {
     final DelayedAudioOutput output = this.audioOutput;
     this.audioOutput = null;
+
     if (output != null) {
       output.close();
     }
@@ -235,6 +238,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     if (!first) {
       return false;
     }
+
     // a start holds the lock while its helper starts, up to START_TIMEOUT_MILLISECONDS, so it is stopped rather than awaited
     synchronized (this.starter) {
       final Thread thread = this.starting;
@@ -288,6 +292,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     if (current == null) {
       return;
     }
+
     final int[] position = this.clamp(pageX, pageY);
     final int clampedX = Math.clamp(deltaX, Short.MIN_VALUE, Short.MAX_VALUE);
     final int clampedY = Math.clamp(deltaY, Short.MIN_VALUE, Short.MAX_VALUE);
@@ -309,6 +314,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     if (current == null) {
       return;
     }
+
     final int[] position = this.clamp(pageX, pageY);
     final MouseInput input = new MouseInput(action, position[0], position[1], button, clickCount, 0, 0);
     final boolean queued = current.sendMouse(input);
@@ -322,6 +328,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     if (current == null) {
       return;
     }
+
     final boolean isSpecialKey = SpecialKeys.isSpecialKey(text);
     final int action = isSpecialKey ? HelperProtocol.KEY_PRESS : HelperProtocol.KEY_TYPE;
     final boolean queued = current.sendKey(action, text);
@@ -414,6 +421,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     if (!this.isCurrent(from)) {
       return;
     }
+
     final boolean failed = this.state.compareAndSet(State.PLAYING, State.FAILED);
     if (failed) {
       this.closeAudio();
@@ -549,6 +557,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       if (base.getOs() != Os.LINUX) {
         return base;
       }
+
       return withLibraries(base, libraries, ROOT);
     }
 
@@ -575,6 +584,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       if (missing.isEmpty()) {
         return base;
       }
+
       final Path bundle = libraries.install(identifier);
       return base.withLibraries(session -> LinuxLibraries.link(bundle, session, missing));
     }
@@ -621,6 +631,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
         frame.close();
         return;
       }
+
       CefBrowserPlayer.this.deliver(from, this.metadata, frame);
     }
 

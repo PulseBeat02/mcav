@@ -53,6 +53,7 @@ class PageAudioTest {
 
   private static byte[] samplesOf(final PageAudio.Chunk chunk) {
     assertNotNull(chunk);
+
     return chunk.samples();
   }
 
@@ -262,6 +263,7 @@ class PageAudioTest {
 
   private long countLookAndRead(final AtomicInteger looks, final AtomicLong now) {
     looks.incrementAndGet();
+
     return now.get();
   }
 

@@ -84,6 +84,7 @@ class ChromiumConfinementTest {
     final List<Landlock.Rule> sorted = new ArrayList<>(rules.subList(0, rules.size() - given));
     sorted.sort(Comparator.comparing(Landlock.Rule::path));
     sorted.addAll(rules.subList(rules.size() - given, rules.size()));
+
     return sorted;
   }
 

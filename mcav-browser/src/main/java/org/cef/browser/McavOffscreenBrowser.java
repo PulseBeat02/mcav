@@ -132,6 +132,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
     if (this.focused == enable) {
       return;
     }
+
     this.focused = enable;
     super.setFocus(enable);
   }

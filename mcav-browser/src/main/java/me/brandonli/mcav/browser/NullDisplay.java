@@ -445,6 +445,7 @@ final class NullDisplay implements AutoCloseable {
     final SecureRandom random = new SecureRandom();
     final byte[] cookie = new byte[COOKIE_BYTES];
     random.nextBytes(cookie);
+
     return cookie;
   }
 
@@ -489,6 +490,7 @@ final class NullDisplay implements AutoCloseable {
     entry.put(name);
     entry.putShort((short) cookie.length);
     entry.put(cookie);
+
     return entry.array();
   }
 
@@ -639,6 +641,7 @@ final class NullDisplay implements AutoCloseable {
       final String message = "The authorization of the connection setup is longer than %s bytes!".formatted(MAXIMUM_AUTHORIZATION_BYTES);
       throw new ProtocolException(message);
     }
+
     final byte[] name = readPadded(in, nameLength);
     final byte[] presented = readPadded(in, dataLength);
     final boolean named = COOKIE_NAME.equals(new String(name, StandardCharsets.US_ASCII));
@@ -650,8 +653,10 @@ final class NullDisplay implements AutoCloseable {
       final String message = "A client was refused, because %s!".formatted(reason);
       throw new ProtocolException(message);
     }
+
     final ByteBuffer accepted = createSetupReply(order);
     send(output, accepted);
+
     return order;
   }
 
@@ -664,6 +669,7 @@ final class NullDisplay implements AutoCloseable {
     final byte[] value = new byte[length];
     in.readFully(value);
     in.readFully(new byte[pad(length)]);
+
     return value;
   }
 
@@ -764,6 +770,7 @@ final class NullDisplay implements AutoCloseable {
     reply.putShort((short) 0);
     reply.putInt(0);
     reply.flip();
+
     return reply;
   }
 
@@ -816,10 +823,12 @@ final class NullDisplay implements AutoCloseable {
       // an extension, and none was announced
       return error(BAD_REQUEST, opcode, sequence, order, 0);
     }
+
     if (REPLYING.contains(opcode)) {
       // a core request with a reply that is not answered here would wait forever, so it fails
       return error(BAD_IMPLEMENTATION, opcode, sequence, order, 0);
     }
+
     return null;
   }
 
@@ -833,11 +842,14 @@ final class NullDisplay implements AutoCloseable {
     if (request.remaining() < UNIT_BYTES) {
       return error(BAD_LENGTH, INTERN_ATOM, sequence, order, 0);
     }
+
     final int length = request.getShort() & UNSIGNED_SHORT_MASK;
     request.getShort();
+
     if (length > request.remaining()) {
       return error(BAD_LENGTH, INTERN_ATOM, sequence, order, 0);
     }
+
     final byte[] name = new byte[length];
     request.get(name);
     final String text = new String(name, StandardCharsets.ISO_8859_1);
@@ -846,8 +858,10 @@ final class NullDisplay implements AutoCloseable {
     if (atom == 0 && !onlyIfExists) {
       return error(BAD_ALLOC, INTERN_ATOM, sequence, order, 0);
     }
+
     final ByteBuffer reply = reply(sequence, order, 0, 0);
     reply.putInt(REPLY_BODY_OFFSET, atom);
+
     return reply;
   }
 
@@ -855,15 +869,18 @@ final class NullDisplay implements AutoCloseable {
     if (request.remaining() < UNIT_BYTES) {
       return error(BAD_LENGTH, GET_ATOM_NAME, sequence, order, 0);
     }
+
     final int atom = request.getInt();
     final String name = atoms.name(atom);
     if (name == null) {
       return error(BAD_ATOM, GET_ATOM_NAME, sequence, order, atom);
     }
+
     final byte[] bytes = name.getBytes(StandardCharsets.ISO_8859_1);
     final ByteBuffer reply = reply(sequence, order, 0, bytes.length + pad(bytes.length));
     reply.putShort(REPLY_BODY_OFFSET, (short) bytes.length);
     reply.put(MESSAGE_BYTES, bytes);
+
     return reply;
   }
 
@@ -872,6 +889,7 @@ final class NullDisplay implements AutoCloseable {
     if (request.remaining() < UNIT_BYTES) {
       return error(BAD_LENGTH, GET_KEYBOARD_MAPPING, sequence, order, 0);
     }
+
     request.get();
     final int count = request.get() & UNSIGNED_BYTE_MASK;
     // one key symbol per key code, and every one is NoSymbol
@@ -885,6 +903,7 @@ final class NullDisplay implements AutoCloseable {
     reply.putInt(REPLY_BODY_OFFSET, VISUAL);
     reply.putShort(WINDOW_CLASS_OFFSET, (short) INPUT_OUTPUT);
     reply.putInt(WINDOW_COLORMAP_OFFSET, COLORMAP);
+
     return reply;
   }
 
@@ -894,6 +913,7 @@ final class NullDisplay implements AutoCloseable {
     reply.putInt(REPLY_BODY_OFFSET, ROOT);
     reply.putShort(GEOMETRY_WIDTH_OFFSET, (short) SCREEN_WIDTH);
     reply.putShort(GEOMETRY_HEIGHT_OFFSET, (short) SCREEN_HEIGHT);
+
     return reply;
   }
 
@@ -901,6 +921,7 @@ final class NullDisplay implements AutoCloseable {
     // the root, no parent and no children
     final ByteBuffer reply = reply(sequence, order, 0, 0);
     reply.putInt(REPLY_BODY_OFFSET, ROOT);
+
     return reply;
   }
 
@@ -908,6 +929,7 @@ final class NullDisplay implements AutoCloseable {
     // on this screen, over the root at the origin, with no button held
     final ByteBuffer reply = reply(sequence, order, SAME_SCREEN, 0);
     reply.putInt(REPLY_BODY_OFFSET, ROOT);
+
     return reply;
   }
 
@@ -926,6 +948,7 @@ final class NullDisplay implements AutoCloseable {
     reply.put(1, (byte) data);
     reply.putShort(SEQUENCE_OFFSET, (short) sequence);
     reply.putInt(LENGTH_OFFSET, extra / UNIT_BYTES);
+
     return reply;
   }
 
@@ -936,6 +959,7 @@ final class NullDisplay implements AutoCloseable {
     error.putShort(SEQUENCE_OFFSET, (short) sequence);
     error.putInt(ERROR_VALUE_OFFSET, value);
     error.put(ERROR_OPCODE_OFFSET, (byte) opcode);
+
     return error;
   }
 

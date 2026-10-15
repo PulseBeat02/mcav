@@ -71,6 +71,7 @@ final class LinuxLibrariesFuzzTest {
     if (input.length == 0) {
       return;
     }
+
     final byte[] layer = Arrays.copyOfRange(input, 1, input.length);
     final byte[] debianPackage = switch (input[0] & 0b11) {
       case 0 -> layer;

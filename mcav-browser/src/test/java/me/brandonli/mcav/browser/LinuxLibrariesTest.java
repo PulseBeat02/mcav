@@ -181,6 +181,7 @@ class LinuxLibrariesTest {
     header[5] = (byte) order;
     header[18] = (byte) machine;
     header[19] = (byte) (machine >> 8);
+
     return header;
   }
 
@@ -356,6 +357,7 @@ class LinuxLibrariesTest {
     final Path library = installation.resolve(LIBRARY_NAME);
     final byte[] libraryBytes = Files.readAllBytes(library);
     assertArrayEquals("the library".getBytes(StandardCharsets.US_ASCII), libraryBytes);
+
     if (library.getFileSystem().supportedFileAttributeViews().contains("posix")) {
       final Set<PosixFilePermission> libraryPermissions = Files.getPosixFilePermissions(library);
       assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), libraryPermissions);

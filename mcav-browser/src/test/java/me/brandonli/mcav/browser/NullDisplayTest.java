@@ -90,6 +90,7 @@ class NullDisplayTest {
     setup.put(nameBytes);
     setup.position(12 + padded(nameBytes.length));
     setup.put(data);
+
     return setup.array();
   }
 
@@ -107,6 +108,7 @@ class NullDisplayTest {
     request.put((byte) data);
     request.putShort((short) (length / 4));
     request.put(body);
+
     return request.array();
   }
 
@@ -116,6 +118,7 @@ class NullDisplayTest {
     body.putShort((short) bytes.length);
     body.putShort((short) 0);
     body.put(bytes);
+
     return request(order, NullDisplay.INTERN_ATOM, 0, body.array());
   }
 
@@ -598,6 +601,7 @@ class NullDisplayTest {
     client.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
     client.getOutputStream().write(setup(cookie));
     new DataInputStream(client.getInputStream()).readFully(new byte[NullDisplay.createSetupReply(ByteOrder.LITTLE_ENDIAN).limit()]);
+
     return client;
   }
 
@@ -605,6 +609,7 @@ class NullDisplayTest {
     client.getOutputStream().write(internAtom(ByteOrder.LITTLE_ENDIAN, "PRIMARY"));
     final byte[] reply = new byte[32];
     new DataInputStream(client.getInputStream()).readFully(reply);
+
     return reply[0] == 1;
   }
 
@@ -852,6 +857,7 @@ class NullDisplayTest {
 
   private boolean countAndRefuse(final AtomicInteger asked) {
     asked.incrementAndGet();
+
     return false;
   }
 
@@ -860,6 +866,7 @@ class NullDisplayTest {
       refused.add(port);
       return false;
     }
+
     return true;
   }
 

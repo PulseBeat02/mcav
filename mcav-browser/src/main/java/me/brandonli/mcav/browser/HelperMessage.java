@@ -122,6 +122,7 @@ final class HelperMessage {
       final String message = "Message type %s carries no frame!".formatted(this.type);
       throw new IllegalStateException(message);
     }
+
     return current;
   }
 
@@ -137,6 +138,7 @@ final class HelperMessage {
       final String message = "Message type %s carries no mouse input!".formatted(this.type);
       throw new IllegalStateException(message);
     }
+
     return current;
   }
 

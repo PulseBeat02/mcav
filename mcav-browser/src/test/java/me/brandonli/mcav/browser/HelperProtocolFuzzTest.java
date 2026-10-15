@@ -56,6 +56,7 @@ final class HelperProtocolFuzzTest {
     if (size > bytes.length) {
       throw new CutShort();
     }
+
     return new byte[size];
   }
 

@@ -43,6 +43,7 @@ final class PageAudioFuzzTest {
     if (input.length == 0) {
       return;
     }
+
     final String method = (input[0] & 1) == 1 ? PageAudio.BINDING_EVENT : "Runtime.consoleAPICalled";
     final String parameters = new String(input, 1, input.length - 1, StandardCharsets.UTF_8);
     final PageAudio.Chunk chunk = PageAudio.parse(method, parameters);

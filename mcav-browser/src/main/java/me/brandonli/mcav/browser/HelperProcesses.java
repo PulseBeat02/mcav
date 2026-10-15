@@ -62,6 +62,7 @@ final class HelperProcesses {
     if (stopped) {
       throw new PlayerException("The browser module is stopped!");
     }
+
     return generation;
   }
 
@@ -76,7 +77,9 @@ final class HelperProcesses {
     if (stopped || started != generation) {
       return false;
     }
+
     SESSIONS.add(session);
+
     return true;
   }
 
@@ -126,6 +129,7 @@ final class HelperProcesses {
     if (failure == null) {
       return exception;
     }
+
     if (!FAILURE_IDENTITY.equivalent(failure, exception)) {
       failure.addSuppressed(exception);
     }

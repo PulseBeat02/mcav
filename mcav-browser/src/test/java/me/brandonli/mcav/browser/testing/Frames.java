@@ -58,6 +58,7 @@ public final class Frames {
     builder.then(filter);
     final VideoPipelineStep pipeline = builder.build();
     callback.attach(pipeline);
+
     return recorder;
   }
 
@@ -113,6 +114,7 @@ public final class Frames {
     final int metadataHeight = metadata.getVideoHeight();
     final Frame frame = new Frame(width, height, center, metadataWidth, metadataHeight);
     this.frames.add(frame);
+
     return false;
   }
 
@@ -135,6 +137,7 @@ public final class Frames {
     if (copy.isEmpty()) {
       return null;
     }
+
     return copy.getLast();
   }
 
@@ -149,6 +152,7 @@ public final class Frames {
     if (frame == null) {
       throw new AssertionError("No frame was delivered");
     }
+
     return frame;
   }
 
@@ -163,6 +167,7 @@ public final class Frames {
     if (frame == null) {
       return false;
     }
+
     final int center = frame.getCenter();
     return isNear(rgb, center);
   }
@@ -178,6 +183,7 @@ public final class Frames {
     if (all.isEmpty()) {
       return "no frame";
     }
+
     final Frame frame = all.getLast();
     final StringBuilder centers = new StringBuilder();
     int run = 0;

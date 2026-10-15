@@ -97,6 +97,7 @@ public final class HeadlessProofMain {
   private static void run() throws Exception {
     final String cache = System.getenv("MCAV_PROOF_CACHE");
     System.out.println("user.home=" + System.getProperty("user.home") + " MCAV_PROOF_CACHE=" + cache);
+
     if (cache != null) {
       System.setProperty("user.home", Path.of(cache, "home").toString());
     }
@@ -161,6 +162,7 @@ public final class HeadlessProofMain {
     );
     check(frame[0] == 320 && frame[1] == 240, "the frame is 320x240");
     check(countBrowserProcesses() > 0, "the browser runs in processes of its own");
+
     if (round == 1) {
       player.release();
     }
@@ -180,6 +182,7 @@ public final class HeadlessProofMain {
       dark += black ? 1 : 0;
     }
     last.set(new int[] { width, height, pixels[(height / 2) * width + width / 2] & 0xFFFFFF, dark });
+
     return false;
   }
 

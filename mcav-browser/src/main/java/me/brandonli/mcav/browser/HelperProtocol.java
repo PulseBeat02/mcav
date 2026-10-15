@@ -159,6 +159,7 @@ final class HelperProtocol {
       final String message = "Token length %s must be %s bytes!".formatted(token.length, TOKEN_BYTES);
       throw new IllegalArgumentException(message);
     }
+
     out.writeByte(HELLO);
     out.writeInt(TOKEN_BYTES + VERSION_BYTES);
     out.write(token);
@@ -246,6 +247,7 @@ final class HelperProtocol {
       final String message = "Sound of %s bytes cannot be sent!".formatted(length);
       throw new IllegalArgumentException(message);
     }
+
     out.writeByte(AUDIO);
     out.writeInt(length);
     out.write(samples, 0, length);
@@ -348,6 +350,7 @@ final class HelperProtocol {
       final String message = "Loading state %s must be 0 or 1!".formatted(value);
       throw new ProtocolException(message);
     }
+
     return HelperMessage.loading(value == 1);
   }
 
@@ -366,6 +369,7 @@ final class HelperProtocol {
       final String message = "A load error of %s bytes holds %s bytes!".formatted(length, used);
       throw new ProtocolException(message);
     }
+
     final String text = decode(textBytes);
     final String url = decode(urlBytes);
     return HelperMessage.loadError(code, text, url);
@@ -384,21 +388,25 @@ final class HelperProtocol {
     checkSide("page height", pageHeight);
     checkSide("region width", width);
     checkSide("region height", height);
+
     if ((long) left + width > pageWidth || (long) top + height > pageHeight) {
       final String message = "Region %sx%s at %s,%s leaves the %sx%s page!".formatted(width, height, left, top, pageWidth, pageHeight);
       throw new ProtocolException(message);
     }
+
     final long pixelBytes = (long) width * height * PIXEL_BYTES;
     if (FRAME_HEADER_BYTES + pixelBytes != length) {
       final String message = "A frame of %s bytes cannot hold a %sx%s region!".formatted(length, width, height);
       throw new ProtocolException(message);
     }
+
     final int size = (int) pixelBytes;
     final byte[] target = pixels.apply(size);
     if (target.length < size) {
       final String message = "A frame of %s bytes arrived where no frame of that size is expected!".formatted(size);
       throw new ProtocolException(message);
     }
+
     in.readFully(target, 0, size);
     final FrameRegion region = new FrameRegion(pageWidth, pageHeight, left, top, width, height, target);
     return HelperMessage.frame(region);
@@ -406,12 +414,15 @@ final class HelperProtocol {
 
   private static HelperMessage readAudio(final DataInput in, final int length) throws IOException {
     checkLength(AUDIO, length, AUDIO_FRAME_BYTES, MAXIMUM_AUDIO_BYTES);
+
     if (length % AUDIO_FRAME_BYTES != 0) {
       final String message = "Sound of %s bytes does not hold whole frames of %s bytes!".formatted(length, AUDIO_FRAME_BYTES);
       throw new ProtocolException(message);
     }
+
     final byte[] samples = new byte[length];
     in.readFully(samples);
+
     return HelperMessage.audio(samples);
   }
 
@@ -428,14 +439,17 @@ final class HelperProtocol {
       final String message = "Mouse action %s is unknown!".formatted(action);
       throw new ProtocolException(message);
     }
+
     if (button > BUTTON_RIGHT) {
       final String message = "Mouse button %s is unknown!".formatted(button);
       throw new ProtocolException(message);
     }
+
     if (clickCount > MAXIMUM_CLICK_COUNT) {
       final String message = "Click count %s must be at most %s!".formatted(clickCount, MAXIMUM_CLICK_COUNT);
       throw new ProtocolException(message);
     }
+
     final MouseInput input = new MouseInput(action, pageX, pageY, button, clickCount, deltaX, deltaY);
     return HelperMessage.mouse(input);
   }
@@ -447,18 +461,21 @@ final class HelperProtocol {
       final String message = "Key action %s is unknown!".formatted(action);
       throw new ProtocolException(message);
     }
+
     final byte[] bytes = readStringBytes(in);
     final int used = ACTION_BYTES + STRING_LENGTH_BYTES + bytes.length;
     if (used != length) {
       final String message = "A key message of %s bytes holds %s bytes!".formatted(length, used);
       throw new ProtocolException(message);
     }
+
     final String value = decode(bytes);
     return HelperMessage.key(action, value);
   }
 
   private static HelperMessage readClose(final int length) throws IOException {
     expectLength(CLOSE, length, 0);
+
     return HelperMessage.close();
   }
 
@@ -469,6 +486,7 @@ final class HelperProtocol {
       final String message = "A message of %s bytes holds a string of %s bytes!".formatted(length, bytes.length);
       throw new ProtocolException(message);
     }
+
     return decode(bytes);
   }
 
@@ -478,8 +496,10 @@ final class HelperProtocol {
       final String message = "A string of %s bytes must have at most %s bytes!".formatted(length, MAXIMUM_TEXT_BYTES);
       throw new ProtocolException(message);
     }
+
     final byte[] bytes = new byte[length];
     in.readFully(bytes);
+
     return bytes;
   }
 
@@ -514,6 +534,7 @@ final class HelperProtocol {
       index += Character.charCount(codePoint);
     }
     parts.add(text.substring(start));
+
     return parts;
   }
 
@@ -527,9 +548,11 @@ final class HelperProtocol {
     if (codePoint < UTF8_TWO_BYTE_START) {
       return 1;
     }
+
     if (codePoint < UTF8_THREE_BYTE_START) {
       return 2;
     }
+
     return codePoint < UTF8_FOUR_BYTE_START ? 3 : 4;
   }
 
@@ -544,12 +567,14 @@ final class HelperProtocol {
     if (bytes.length <= MAXIMUM_TEXT_BYTES) {
       return bytes;
     }
+
     int end = MAXIMUM_TEXT_BYTES;
     while ((bytes[end] & UTF8_CONTINUATION_MASK) == UTF8_CONTINUATION_BITS) {
       end--;
     }
     final byte[] cut = new byte[end];
     System.arraycopy(bytes, 0, cut, 0, end);
+
     return cut;
   }
 

@@ -63,6 +63,7 @@ class SocksProtocolTest {
     bytes.writeBytes(name);
     bytes.write(port >> 8);
     bytes.write(port & 0xFF);
+
     return bytes.toByteArray();
   }
 

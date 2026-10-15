@@ -50,20 +50,24 @@ final class AddressText {
     if (colon <= 0 || !isScheme(address, colon)) {
       return HIDDEN;
     }
+
     if (!address.startsWith(AUTHORITY_START, colon)) {
       return address.substring(0, colon + 1) + HIDDEN;
     }
+
     final int authorityStart = colon + AUTHORITY_START.length();
     final int authorityEnd = indexOfAny(address, authorityStart, AUTHORITY_ENDS);
     final int user = address.lastIndexOf('@', authorityEnd - 1);
     final StringBuilder text = new StringBuilder(address.length() + HIDDEN.length());
     text.append(address, 0, authorityStart);
+
     if (user >= authorityStart) {
       text.append(HIDDEN).append('@');
     }
     final int hostStart = Math.max(authorityStart, user + 1);
     final int pathEnd = indexOfAny(address, authorityEnd, PATH_ENDS);
     text.append(address, hostStart, pathEnd);
+
     if (pathEnd < address.length()) {
       text.append(address.charAt(pathEnd)).append(HIDDEN);
     }
@@ -82,6 +86,7 @@ final class AddressText {
     if (!isLetter(address.charAt(0))) {
       return false;
     }
+
     for (int index = 1; index < colon; index++) {
       final char character = address.charAt(index);
       final boolean isDigit = character >= '0' && character <= '9';

@@ -78,6 +78,7 @@ public final class BrowserInputExample {
     frame.setLayout(layout);
     frame.add(label, BorderLayout.CENTER);
     frame.setVisible(true);
+
     return label;
   }
 
@@ -86,11 +87,13 @@ public final class BrowserInputExample {
     final FramesPerSecondFilter framesPerSecondFilter = new FramesPerSecondFilter();
     builder.then(framesPerSecondFilter);
     builder.then((samples, _) -> showUnchanged(label, samples));
+
     return builder.build();
   }
 
   private static boolean showUnchanged(final JLabel label, final ImageBuffer samples) {
     show(label, samples);
+
     return false;
   }
 

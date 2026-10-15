@@ -241,6 +241,7 @@ final class Landlock {
       final String message = "Landlock could not %s (error %s)!".formatted(action, error);
       throw new IOException(message);
     }
+
     return result;
   }
 
@@ -262,6 +263,7 @@ final class Landlock {
       if (exception instanceof final VirtualMachineError fatal) {
         throw fatal;
       }
+
       throw new IllegalStateException("The C library could not be called!", exception);
     }
   }
@@ -325,6 +327,7 @@ final class Landlock {
       if (firstVariadic < 0) {
         return LINKER.downcallHandle(function, descriptor, errorNumber);
       }
+
       return LINKER.downcallHandle(function, descriptor, Linker.Option.firstVariadicArg(firstVariadic), errorNumber);
     }
 

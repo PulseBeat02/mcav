@@ -169,6 +169,7 @@ class LandlockTest {
     thread.join(TimeUnit.SECONDS.toMillis(60));
     final boolean ended = !thread.isAlive();
     assertTrue(ended, "the restricted thread ended");
+
     return failure.get();
   }
 
@@ -183,6 +184,7 @@ class LandlockTest {
   private static int availableVersion() {
     final int version = Landlock.version();
     assumeTrue(version >= 1, () -> "this kernel cannot restrict: " + Landlock.describeMissing(version));
+
     return version;
   }
 

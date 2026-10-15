@@ -119,6 +119,7 @@ final class AddressPolicy {
     if (address instanceof Inet4Address) {
       return isPublicIpv4(toInt(bytes, 0));
     }
+
     return isPublicIpv6(bytes);
   }
 
@@ -135,6 +136,7 @@ final class AddressPolicy {
     if (address instanceof Inet4Address) {
       return isPublicIpv4(toInt(bytes, 0));
     }
+
     boolean translated = false;
     for (final TranslationPrefix prefix : prefixes) {
       if (!prefix.contains(bytes)) {
@@ -237,6 +239,7 @@ final class AddressPolicy {
     if (mapped || inNat64Prefix) {
       return isPublicIpv4(toInt(bytes, EMBEDDED_IPV4_OFFSET));
     }
+
     return isGlobalUnicast(first);
   }
 

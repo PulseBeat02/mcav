@@ -139,6 +139,7 @@ final class DevToolsInput {
       if (!(form instanceof HTMLFormElement) || !isActive()) {
         return;
       }
+
       // the target of the button that sends the form wins over the target of the form
       const button = event.submitter;
       if (button instanceof HTMLElement && button.hasAttribute('formtarget')) {
@@ -318,6 +319,7 @@ final class DevToolsInput {
       );
     }
     calls.add(new DevToolsCall(KEY_METHOD, KEY_UP_START + keyFields + "}"));
+
     return calls;
   }
 
@@ -364,6 +366,7 @@ final class DevToolsInput {
     if (codePoint >= 'a' && codePoint <= 'z') {
       return codePoint - 'a' + 'A';
     }
+
     final boolean upperCase = codePoint >= 'A' && codePoint <= 'Z';
     final boolean isDigit = codePoint >= '0' && codePoint <= '9';
     return upperCase || isDigit ? codePoint : 0;
@@ -390,6 +393,7 @@ final class DevToolsInput {
       }
     }
     builder.append('"');
+
     return builder.toString();
   }
 

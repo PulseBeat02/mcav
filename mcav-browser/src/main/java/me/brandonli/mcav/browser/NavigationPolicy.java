@@ -57,6 +57,7 @@ final class NavigationPolicy {
     if (scheme == null || host == null) {
       return false;
     }
+
     final String lowerScheme = scheme.toLowerCase(Locale.ROOT);
     return WEB_SCHEMES.contains(lowerScheme);
   }
@@ -74,6 +75,7 @@ final class NavigationPolicy {
       // itself may also be the empty document, which the browser starts with
       return BLANK.equals(address) || hasScheme(address, WEB_SCHEMES);
     }
+
     final boolean isAboutPage = FRAME_ABOUT_PAGES.contains(address);
     return isAboutPage || hasScheme(address, FRAME_SCHEMES);
   }
@@ -93,6 +95,7 @@ final class NavigationPolicy {
     if (colon <= 0) {
       return false;
     }
+
     final String scheme = address.substring(0, colon);
     final String lowerScheme = scheme.toLowerCase(Locale.ROOT);
     return schemes.contains(lowerScheme);

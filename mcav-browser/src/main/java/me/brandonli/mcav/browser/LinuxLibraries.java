@@ -261,6 +261,7 @@ final class LinuxLibraries {
       final String message = "The pin %s names no platform!".formatted(line);
       throw new IllegalArgumentException(message);
     }
+
     host.put(requireMatch(PLATFORM, fields.get(1), line), requireSonames(fields.subList(HOST_FIRST_SONAME_FIELD, fields.size()), line));
   }
 
@@ -296,6 +297,7 @@ final class LinuxLibraries {
       final String message = "The pin %s has the invalid value %s!".formatted(line, value);
       throw new IllegalArgumentException(message);
     }
+
     return value;
   }
 
@@ -335,6 +337,7 @@ final class LinuxLibraries {
       final String message = "Platform %s has no libraries in mcav!".formatted(platform);
       throw new IOException(message);
     }
+
     final String name = INSTALLATION_PREFIX + platform + NAME_SEPARATOR + fingerprint(wanted);
     final Path installation = this.folder.resolve(name);
     final Path marker = installation.resolve(INSTALL_MARKER);
@@ -343,6 +346,7 @@ final class LinuxLibraries {
       ArchiveExtractor.tighten(this.folder);
       return installation;
     }
+
     ArchiveExtractor.createFolders(this.folder);
     final Path lockFile = this.folder.resolve(name + LOCK_SUFFIX);
     synchronized (INSTALL_LOCK) {
@@ -425,7 +429,9 @@ final class LinuxLibraries {
     if (failure == null) {
       return exception;
     }
+
     failure.addSuppressed(exception);
+
     return failure;
   }
 
@@ -500,6 +506,7 @@ final class LinuxLibraries {
       final String message = "The browser needs %s, which this server lacks and mcav does not bring!".formatted(libraries);
       throw new BrowserUnavailableException(message);
     }
+
     final List<Pin> missing = new ArrayList<>();
     for (final Pin pin : this.getPins(platform)) {
       if (!isPresent(pin.sonames().getFirst(), hostFolders, platform)) {
@@ -586,6 +593,7 @@ final class LinuxLibraries {
     if (read < header.length) {
       return false;
     }
+
     final byte[] start = Arrays.copyOf(header, ELF_64_LITTLE_ENDIAN.length);
     final int machine =
       (header[ELF_MACHINE_OFFSET] & UNSIGNED_BYTE_MASK) | ((header[ELF_MACHINE_OFFSET + 1] & UNSIGNED_BYTE_MASK) << Byte.SIZE);
@@ -618,6 +626,7 @@ final class LinuxLibraries {
     if (depth > MAXIMUM_INCLUDE_DEPTH) {
       return;
     }
+
     final List<String> lines;
     try {
       lines = Files.readAllLines(file, StandardCharsets.UTF_8);
@@ -720,6 +729,7 @@ final class LinuxLibraries {
         final String message = "The pin %s has %s fields instead of at least %s fields!".formatted(line, fields.size(), MINIMUM_PIN_FIELDS);
         throw new IllegalArgumentException(message);
       }
+
       final Map<String, String> files = new LinkedHashMap<>();
       for (final String entry : fields.subList(PIN_FIRST_FILE_FIELD, fields.size())) {
         final int equals = entry.indexOf(SONAME_SEPARATOR);

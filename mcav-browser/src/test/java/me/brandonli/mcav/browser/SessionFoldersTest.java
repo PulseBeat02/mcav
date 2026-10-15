@@ -57,6 +57,7 @@ class SessionFoldersTest {
     when(server.pid()).thenReturn(processId);
     when(server.info()).thenReturn(information);
     when(information.startInstant()).thenReturn(started);
+
     return server;
   }
 
@@ -64,6 +65,7 @@ class SessionFoldersTest {
     final Path folder = Files.createTempDirectory(this.temporary, SessionFolders.PREFIX);
     new SessionFolders(server, ProcessHandle::of).record(folder);
     Files.writeString(folder.resolve("Cookies"), "the page's cookies");
+
     return folder;
   }
 
