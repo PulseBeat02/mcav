@@ -516,11 +516,6 @@ class NullDisplayTest {
     }
   }
 
-  @FunctionalInterface
-  private interface IoSupplier {
-    ByteBuffer get() throws IOException;
-  }
-
   @Test
   void shouldBoundTheAtomsOfADisplayInNumberAndBytes() {
     final NullDisplay.Atoms many = new NullDisplay.Atoms();
@@ -979,5 +974,10 @@ class NullDisplayTest {
         assertEquals(1, responseType, "a reply");
       }
     }
+  }
+
+  @FunctionalInterface
+  private interface IoSupplier {
+    ByteBuffer get() throws IOException;
   }
 }

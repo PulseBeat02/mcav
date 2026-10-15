@@ -75,15 +75,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
   }
 
   /**
-   * Returns the most bytes one region can have.
-   *
-   * @return the size of the whole page in bytes
-   */
-  int getPageBytes() {
-    return this.page.length;
-  }
-
-  /**
    * Copies the painted rectangles of the page or of a popup.
    *
    * @param isPopup      true if the buffer holds a popup widget
@@ -278,6 +269,15 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
   synchronized void close() {
     this.closed = true;
     this.notifyAll();
+  }
+
+  /**
+   * Returns the most bytes one region can have.
+   *
+   * @return the size of the whole page in bytes
+   */
+  int getPageBytes() {
+    return this.page.length;
   }
 
   /**

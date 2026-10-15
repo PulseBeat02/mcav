@@ -125,16 +125,6 @@ final class JcefNatives {
     this.extractor = extractor;
   }
 
-  /**
-   * Returns the folder the natives are installed in, so tests can check the default one.
-   *
-   * @return the folder
-   */
-  @VisibleForTesting
-  Path getFolder() {
-    return this.folder;
-  }
-
   private static Path defaultFolder() {
     final Path cache = IoUtils.getCachedFolder();
     return cache.resolve(CACHE_FOLDER);
@@ -339,6 +329,16 @@ final class JcefNatives {
       final String message = "The natives jar holds no %s archive!".formatted(ARCHIVE_SUFFIX);
       throw new IOException(message);
     }
+  }
+
+  /**
+   * Returns the folder the natives are installed in, so tests can check the default one.
+   *
+   * @return the folder
+   */
+  @VisibleForTesting
+  Path getFolder() {
+    return this.folder;
   }
 
   /**

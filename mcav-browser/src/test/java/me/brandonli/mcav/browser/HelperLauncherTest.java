@@ -179,11 +179,6 @@ class HelperLauncherTest {
     assertTrue(namesTheClass);
   }
 
-  /**
-   * A class for {@link #shouldNotAcceptAClassLoadedFromTheNetworkAsAHelperClassPath()} to load again.
-   */
-  static final class Loaded {}
-
   @Test
   void shouldNotAcceptAClassLoadedFromTheNetworkAsAHelperClassPath() throws Exception {
     final String name = Loaded.class.getName();
@@ -304,4 +299,9 @@ class HelperLauncherTest {
       name.startsWith("me/friwi/jcefmaven/")
     );
   }
+
+  /**
+   * A class for {@link #shouldNotAcceptAClassLoadedFromTheNetworkAsAHelperClassPath()} to load again.
+   */
+  static final class Loaded {}
 }

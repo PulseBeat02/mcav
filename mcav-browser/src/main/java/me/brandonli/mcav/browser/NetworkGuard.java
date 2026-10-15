@@ -181,15 +181,6 @@ final class NetworkGuard implements Closeable {
     return addresses;
   }
 
-  /**
-   * Returns the port the guard listens on.
-   *
-   * @return the port on the loopback interface
-   */
-  int getPort() {
-    return this.server.getLocalPort();
-  }
-
   private void acceptConnections() {
     while (true) {
       final Socket client;
@@ -383,15 +374,6 @@ final class NetworkGuard implements Closeable {
   }
 
   /**
-   * Returns the socket the guard listens on, so tests can break it.
-   *
-   * @return the listening socket
-   */
-  ServerSocket getServer() {
-    return this.server;
-  }
-
-  /**
    * Stops accepting connections and closes every open connection.
    */
   @Override
@@ -427,6 +409,24 @@ final class NetworkGuard implements Closeable {
     } catch (final SocketException exception) {
       return true;
     }
+  }
+
+  /**
+   * Returns the port the guard listens on.
+   *
+   * @return the port on the loopback interface
+   */
+  int getPort() {
+    return this.server.getLocalPort();
+  }
+
+  /**
+   * Returns the socket the guard listens on, so tests can break it.
+   *
+   * @return the listening socket
+   */
+  ServerSocket getServer() {
+    return this.server;
   }
 
   /**

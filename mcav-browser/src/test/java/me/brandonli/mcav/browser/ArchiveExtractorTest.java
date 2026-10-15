@@ -56,53 +56,6 @@ class ArchiveExtractorTest {
   @TempDir
   Path target;
 
-  /**
-   * Builds a gzip-compressed tar archive.
-   */
-  static final class Archive {
-
-    private final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-    private final TarArchiveOutputStream tar;
-
-    Archive() throws IOException {
-      this.tar = new TarArchiveOutputStream(new GzipCompressorOutputStream(this.bytes));
-      this.tar.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
-    }
-
-    Archive file(final String name, final int mode, final String content) throws IOException {
-      final byte[] data = content.getBytes(StandardCharsets.UTF_8);
-      // keep absolute names as they are, which the archive library would otherwise make relative
-      final TarArchiveEntry entry = new TarArchiveEntry(name, true);
-      entry.setMode(mode);
-      entry.setSize(data.length);
-      this.tar.putArchiveEntry(entry);
-      this.tar.write(data);
-      this.tar.closeArchiveEntry();
-      return this;
-    }
-
-    Archive folder(final String name) throws IOException {
-      final TarArchiveEntry entry = new TarArchiveEntry(name.endsWith("/") ? name : name + "/");
-      entry.setMode(0777);
-      this.tar.putArchiveEntry(entry);
-      this.tar.closeArchiveEntry();
-      return this;
-    }
-
-    Archive link(final String name, final String target, final byte type) throws IOException {
-      final TarArchiveEntry entry = new TarArchiveEntry(name, type);
-      entry.setLinkName(target);
-      this.tar.putArchiveEntry(entry);
-      this.tar.closeArchiveEntry();
-      return this;
-    }
-
-    InputStream finish() throws IOException {
-      this.tar.close();
-      return new ByteArrayInputStream(this.bytes.toByteArray());
-    }
-  }
-
   @Test
   void shouldExtractFilesAndFolders() throws IOException {
     final InputStream archive = new Archive()
@@ -361,6 +314,53 @@ class ArchiveExtractorTest {
       ArchiveExtractor.tighten(folder);
       final boolean folderKept = Files.isDirectory(folder);
       assertTrue(folderKept);
+    }
+  }
+
+  /**
+   * Builds a gzip-compressed tar archive.
+   */
+  static final class Archive {
+
+    private final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    private final TarArchiveOutputStream tar;
+
+    Archive() throws IOException {
+      this.tar = new TarArchiveOutputStream(new GzipCompressorOutputStream(this.bytes));
+      this.tar.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
+    }
+
+    Archive file(final String name, final int mode, final String content) throws IOException {
+      final byte[] data = content.getBytes(StandardCharsets.UTF_8);
+      // keep absolute names as they are, which the archive library would otherwise make relative
+      final TarArchiveEntry entry = new TarArchiveEntry(name, true);
+      entry.setMode(mode);
+      entry.setSize(data.length);
+      this.tar.putArchiveEntry(entry);
+      this.tar.write(data);
+      this.tar.closeArchiveEntry();
+      return this;
+    }
+
+    Archive folder(final String name) throws IOException {
+      final TarArchiveEntry entry = new TarArchiveEntry(name.endsWith("/") ? name : name + "/");
+      entry.setMode(0777);
+      this.tar.putArchiveEntry(entry);
+      this.tar.closeArchiveEntry();
+      return this;
+    }
+
+    Archive link(final String name, final String target, final byte type) throws IOException {
+      final TarArchiveEntry entry = new TarArchiveEntry(name, type);
+      entry.setLinkName(target);
+      this.tar.putArchiveEntry(entry);
+      this.tar.closeArchiveEntry();
+      return this;
+    }
+
+    InputStream finish() throws IOException {
+      this.tar.close();
+      return new ByteArrayInputStream(this.bytes.toByteArray());
     }
   }
 }

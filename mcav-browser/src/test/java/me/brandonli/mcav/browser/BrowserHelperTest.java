@@ -180,59 +180,6 @@ class BrowserHelperTest {
     }
   }
 
-  /**
-   * The server side of a connection.
-   */
-  private static final class Peer implements AutoCloseable {
-
-    private final SocketChannel channel;
-    private final DataInputStream in;
-    private final DataOutputStream out;
-
-    Peer(final SocketChannel channel) {
-      this.channel = channel;
-      this.in = new DataInputStream(new BufferedInputStream(Channels.newInputStream(channel)));
-      this.out = new DataOutputStream(new BufferedOutputStream(Channels.newOutputStream(channel)));
-    }
-
-    HelperMessage read() throws IOException {
-      return HelperProtocol.read(this.in, NEW_BUFFER);
-    }
-
-    private HelperMessage readUntil(final int type) throws IOException {
-      HelperMessage message = this.read();
-      while (message.getType() != type) {
-        message = this.read();
-      }
-      return message;
-    }
-
-    private HelperMessage readFrameWithBlue(final int blue) throws IOException {
-      while (true) {
-        final HelperMessage message = this.readUntil(HelperProtocol.FRAME);
-        final byte[] pixels = message.getRegion().getPixels();
-        if ((pixels[0] & 0xFF) == blue) {
-          return message;
-        }
-      }
-    }
-
-    void send(final Writer writer) throws IOException {
-      writer.write(this.out);
-      this.out.flush();
-    }
-
-    @Override
-    public void close() throws IOException {
-      this.channel.close();
-    }
-  }
-
-  @FunctionalInterface
-  private interface Writer {
-    void write(DataOutputStream out) throws IOException;
-  }
-
   @Test
   void shouldIntroduceItselfStreamThePageForwardInputAndStopWhenAsked() throws Exception {
     final ScriptedEngine engine = new ScriptedEngine();
@@ -818,5 +765,58 @@ class BrowserHelperTest {
     };
     final int statusForABrokenInput = BrowserHelper.runFromInput(broken, new ScriptedEngine(), BrowserHelperTest::neverHalts);
     assertEquals(2, statusForABrokenInput);
+  }
+
+  /**
+   * The server side of a connection.
+   */
+  private static final class Peer implements AutoCloseable {
+
+    private final SocketChannel channel;
+    private final DataInputStream in;
+    private final DataOutputStream out;
+
+    Peer(final SocketChannel channel) {
+      this.channel = channel;
+      this.in = new DataInputStream(new BufferedInputStream(Channels.newInputStream(channel)));
+      this.out = new DataOutputStream(new BufferedOutputStream(Channels.newOutputStream(channel)));
+    }
+
+    HelperMessage read() throws IOException {
+      return HelperProtocol.read(this.in, NEW_BUFFER);
+    }
+
+    private HelperMessage readUntil(final int type) throws IOException {
+      HelperMessage message = this.read();
+      while (message.getType() != type) {
+        message = this.read();
+      }
+      return message;
+    }
+
+    private HelperMessage readFrameWithBlue(final int blue) throws IOException {
+      while (true) {
+        final HelperMessage message = this.readUntil(HelperProtocol.FRAME);
+        final byte[] pixels = message.getRegion().getPixels();
+        if ((pixels[0] & 0xFF) == blue) {
+          return message;
+        }
+      }
+    }
+
+    void send(final Writer writer) throws IOException {
+      writer.write(this.out);
+      this.out.flush();
+    }
+
+    @Override
+    public void close() throws IOException {
+      this.channel.close();
+    }
+  }
+
+  @FunctionalInterface
+  private interface Writer {
+    void write(DataOutputStream out) throws IOException;
   }
 }

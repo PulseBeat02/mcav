@@ -488,17 +488,6 @@ final class NullDisplay implements AutoCloseable {
   }
 
   /**
-   * Returns the name of the display, for CEF's {@code --display} switch.
-   *
-   * @return the name, such as {@code 127.0.0.1:26768}
-   */
-  String getDisplay() {
-    final InetAddress address = this.server.getInetAddress();
-    final String host = address.getHostAddress();
-    return host + DISPLAY_SEPARATOR + (this.server.getLocalPort() - X11_BASE_PORT);
-  }
-
-  /**
    * Counts the clients that are connected now.
    *
    * @return the number of clients
@@ -959,6 +948,17 @@ final class NullDisplay implements AutoCloseable {
   private static void closeQuietly(final Closeable closeable) {
     // the helper runs without mcav's other modules, so not HelperSession's, which needs them
     NetworkGuard.closeQuietly(closeable);
+  }
+
+  /**
+   * Returns the name of the display, for CEF's {@code --display} switch.
+   *
+   * @return the name, such as {@code 127.0.0.1:26768}
+   */
+  String getDisplay() {
+    final InetAddress address = this.server.getInetAddress();
+    final String host = address.getHostAddress();
+    return host + DISPLAY_SEPARATOR + (this.server.getLocalPort() - X11_BASE_PORT);
   }
 
   /**

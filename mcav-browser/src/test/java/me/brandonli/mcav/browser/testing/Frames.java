@@ -117,15 +117,6 @@ public final class Frames {
   }
 
   /**
-   * Returns the recorded frames.
-   *
-   * @return a copy of the frames in the order they arrived
-   */
-  public List<Frame> getFrames() {
-    return List.copyOf(this.frames);
-  }
-
-  /**
    * Counts the recorded frames.
    *
    * @return the number of frames
@@ -213,6 +204,15 @@ public final class Frames {
       "; centers in order: " +
       centers
     );
+  }
+
+  /**
+   * Returns the recorded frames.
+   *
+   * @return a copy of the frames in the order they arrived
+   */
+  public List<Frame> getFrames() {
+    return List.copyOf(this.frames);
   }
 
   /**

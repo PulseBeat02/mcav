@@ -111,12 +111,33 @@ final class HelperMessage {
   }
 
   /**
-   * Returns the type of the message, one of the message constants of {@link HelperProtocol}.
+   * Returns the region of a frame.
    *
-   * @return the type
+   * @return the region
+   * @throws IllegalStateException if the message is not a frame
    */
-  int getType() {
-    return this.type;
+  FrameRegion getRegion() {
+    final FrameRegion current = this.region;
+    if (current == null) {
+      final String message = "Message type %s carries no frame!".formatted(this.type);
+      throw new IllegalStateException(message);
+    }
+    return current;
+  }
+
+  /**
+   * Returns the event of mouse input.
+   *
+   * @return the event
+   * @throws IllegalStateException if the message is not mouse input
+   */
+  MouseInput getMouse() {
+    final MouseInput current = this.mouse;
+    if (current == null) {
+      final String message = "Message type %s carries no mouse input!".formatted(this.type);
+      throw new IllegalStateException(message);
+    }
+    return current;
   }
 
   /**
@@ -126,6 +147,15 @@ final class HelperMessage {
    */
   byte[] getToken() {
     return this.token.clone();
+  }
+
+  /**
+   * Returns the type of the message, one of the message constants of {@link HelperProtocol}.
+   *
+   * @return the type
+   */
+  int getType() {
+    return this.type;
   }
 
   /**
@@ -157,41 +187,11 @@ final class HelperMessage {
   }
 
   /**
-   * Returns the region of a frame.
-   *
-   * @return the region
-   * @throws IllegalStateException if the message is not a frame
-   */
-  FrameRegion getRegion() {
-    final FrameRegion current = this.region;
-    if (current == null) {
-      final String message = "Message type %s carries no frame!".formatted(this.type);
-      throw new IllegalStateException(message);
-    }
-    return current;
-  }
-
-  /**
    * Returns the samples of sound, which the receiver owns: they are not copied.
    *
    * @return the samples, or an empty array for other types
    */
   byte[] getSamples() {
     return this.samples;
-  }
-
-  /**
-   * Returns the event of mouse input.
-   *
-   * @return the event
-   * @throws IllegalStateException if the message is not mouse input
-   */
-  MouseInput getMouse() {
-    final MouseInput current = this.mouse;
-    if (current == null) {
-      final String message = "Message type %s carries no mouse input!".formatted(this.type);
-      throw new IllegalStateException(message);
-    }
-    return current;
   }
 }

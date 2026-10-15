@@ -490,32 +490,6 @@ class NetworkGuardTest {
     assertTrue(reportsTheStop, this.notices.getFirst());
   }
 
-  private static final class TranslatingResolver implements NetworkGuard.Resolver {
-
-    private final AtomicInteger questions = new AtomicInteger();
-    private final AtomicInteger failuresLeft;
-
-    TranslatingResolver(final int failures) {
-      this.failuresLeft = new AtomicInteger(failures);
-    }
-
-    @Override
-    public InetAddress[] resolve(final String host) throws UnknownHostException {
-      if (!host.equals(AddressPolicy.IPV4_ONLY_HOST)) {
-        return new InetAddress[] { InetAddress.getByName(TRANSLATED_PRIVATE_IPV6) };
-      }
-      this.questions.incrementAndGet();
-      if (this.failuresLeft.getAndDecrement() > 0) {
-        throw new UnknownHostException(host);
-      }
-      return new InetAddress[] {
-        InetAddress.getByName("192.0.0.170"),
-        InetAddress.getByName("2a01:4f8:1:2:3:4:c000:aa"),
-        InetAddress.getByName("2a01:4f8:1:2:3:4:c000:ab"),
-      };
-    }
-  }
-
   @Test
   void shouldAskForTheNat64PrefixesOnceAnIpv6AddressIsJudged() throws UnknownHostException {
     final TranslatingResolver resolver = new TranslatingResolver(0);
@@ -736,5 +710,31 @@ class NetworkGuardTest {
     });
     final int closeCount = closed.get();
     assertEquals(1, closeCount);
+  }
+
+  private static final class TranslatingResolver implements NetworkGuard.Resolver {
+
+    private final AtomicInteger questions = new AtomicInteger();
+    private final AtomicInteger failuresLeft;
+
+    TranslatingResolver(final int failures) {
+      this.failuresLeft = new AtomicInteger(failures);
+    }
+
+    @Override
+    public InetAddress[] resolve(final String host) throws UnknownHostException {
+      if (!host.equals(AddressPolicy.IPV4_ONLY_HOST)) {
+        return new InetAddress[] { InetAddress.getByName(TRANSLATED_PRIVATE_IPV6) };
+      }
+      this.questions.incrementAndGet();
+      if (this.failuresLeft.getAndDecrement() > 0) {
+        throw new UnknownHostException(host);
+      }
+      return new InetAddress[] {
+        InetAddress.getByName("192.0.0.170"),
+        InetAddress.getByName("2a01:4f8:1:2:3:4:c000:aa"),
+        InetAddress.getByName("2a01:4f8:1:2:3:4:c000:ab"),
+      };
+    }
   }
 }

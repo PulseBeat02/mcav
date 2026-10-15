@@ -105,54 +105,6 @@ class CefBrowserPlayerTest {
     target.getVideoAttachableCallback().attach(pipeline);
   }
 
-  /**
-   * A session that records what the player sends it.
-   */
-  private static final class FakeSession implements BrowserSession {
-
-    final List<String> sent = new ArrayList<>();
-    boolean accepting = true;
-    int requested;
-    int closed;
-
-    @Override
-    public boolean sendMouse(final MouseInput mouse) {
-      this.sent.add(
-        "mouse " +
-          mouse.getAction() +
-          " " +
-          mouse.getX() +
-          "," +
-          mouse.getY() +
-          " b" +
-          mouse.getButton() +
-          " c" +
-          mouse.getClickCount() +
-          " d" +
-          mouse.getDeltaX() +
-          "," +
-          mouse.getDeltaY()
-      );
-      return this.accepting;
-    }
-
-    @Override
-    public boolean sendKey(final int action, final String value) {
-      this.sent.add("key " + action + " " + value);
-      return this.accepting;
-    }
-
-    @Override
-    public void requestFrame() {
-      this.requested++;
-    }
-
-    @Override
-    public void close() {
-      this.closed++;
-    }
-  }
-
   private static ImageBuffer frame() {
     return ImageBuffer.buffer(new int[100 * 50], 100, 50);
   }
@@ -794,35 +746,6 @@ class CefBrowserPlayerTest {
     assertThrows(NullPointerException.class, () -> other.startAsync(SOURCE, null));
   }
 
-  /**
-   * Wraps a picture and remembers whether it was closed.
-   */
-  private static final class ClosingProbe {
-
-    private final AtomicBoolean closed = new AtomicBoolean();
-
-    ImageBuffer wrap(final ImageBuffer real) {
-      return (ImageBuffer) Proxy.newProxyInstance(
-        ImageBuffer.class.getClassLoader(),
-        new Class<?>[] { ImageBuffer.class },
-        (proxy, method, arguments) -> {
-          if (method.getName().equals("close") && method.getParameterCount() == 0) {
-            this.closed.set(true);
-          }
-          try {
-            return method.invoke(real, arguments);
-          } catch (final InvocationTargetException exception) {
-            throw exception.getCause();
-          }
-        }
-      );
-    }
-
-    private boolean isClosed() {
-      return this.closed.get();
-    }
-  }
-
   @Test
   void shouldCloseAPictureOnceThePipelineHasIt() {
     final boolean started = this.player.start(SOURCE);
@@ -921,6 +844,83 @@ class CefBrowserPlayerTest {
       assertFalse(startedAfterRelease);
     } finally {
       executor.shutdownNow();
+    }
+  }
+
+  /**
+   * A session that records what the player sends it.
+   */
+  private static final class FakeSession implements BrowserSession {
+
+    final List<String> sent = new ArrayList<>();
+    boolean accepting = true;
+    int requested;
+    int closed;
+
+    @Override
+    public boolean sendMouse(final MouseInput mouse) {
+      this.sent.add(
+        "mouse " +
+          mouse.getAction() +
+          " " +
+          mouse.getX() +
+          "," +
+          mouse.getY() +
+          " b" +
+          mouse.getButton() +
+          " c" +
+          mouse.getClickCount() +
+          " d" +
+          mouse.getDeltaX() +
+          "," +
+          mouse.getDeltaY()
+      );
+      return this.accepting;
+    }
+
+    @Override
+    public boolean sendKey(final int action, final String value) {
+      this.sent.add("key " + action + " " + value);
+      return this.accepting;
+    }
+
+    @Override
+    public void requestFrame() {
+      this.requested++;
+    }
+
+    @Override
+    public void close() {
+      this.closed++;
+    }
+  }
+
+  /**
+   * Wraps a picture and remembers whether it was closed.
+   */
+  private static final class ClosingProbe {
+
+    private final AtomicBoolean closed = new AtomicBoolean();
+
+    ImageBuffer wrap(final ImageBuffer real) {
+      return (ImageBuffer) Proxy.newProxyInstance(
+        ImageBuffer.class.getClassLoader(),
+        new Class<?>[] { ImageBuffer.class },
+        (proxy, method, arguments) -> {
+          if (method.getName().equals("close") && method.getParameterCount() == 0) {
+            this.closed.set(true);
+          }
+          try {
+            return method.invoke(real, arguments);
+          } catch (final InvocationTargetException exception) {
+            throw exception.getCause();
+          }
+        }
+      );
+    }
+
+    private boolean isClosed() {
+      return this.closed.get();
     }
   }
 }

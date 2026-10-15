@@ -253,16 +253,6 @@ final class LinuxLibraries {
     this.hostLibraries = Map.copyOf(host);
   }
 
-  /**
-   * Returns the folder the libraries are installed in.
-   *
-   * @return the folder
-   */
-  @VisibleForTesting
-  Path getFolder() {
-    return this.folder;
-  }
-
   private static Path defaultFolder() {
     final Path cache = IoUtils.getCachedFolder();
     return cache.resolve(CACHE_FOLDER);
@@ -665,6 +655,16 @@ final class LinuxLibraries {
       Collections.sort(matches);
     }
     return matches;
+  }
+
+  /**
+   * Returns the folder the libraries are installed in.
+   *
+   * @return the folder
+   */
+  @VisibleForTesting
+  Path getFolder() {
+    return this.folder;
   }
 
   /**

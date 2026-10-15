@@ -75,15 +75,6 @@ final class Seatbelt {
   }
 
   /**
-   * Checks whether the library has the functions of the sandbox.
-   *
-   * @return true on macOS
-   */
-  boolean isAvailable() {
-    return this.library.find(SANDBOX_INIT).isPresent() && this.library.find(FREE_ERROR).isPresent();
-  }
-
-  /**
    * Puts the calling process, and every process it starts afterwards, in the sandbox of a profile.
    *
    * @param profile the profile
@@ -184,5 +175,14 @@ final class Seatbelt {
   @VisibleForTesting
   static String quote(final String text) {
     return '"' + text.replace("\\", "\\\\").replace("\"", "\\\"") + '"';
+  }
+
+  /**
+   * Checks whether the library has the functions of the sandbox.
+   *
+   * @return true on macOS
+   */
+  boolean isAvailable() {
+    return this.library.find(SANDBOX_INIT).isPresent() && this.library.find(FREE_ERROR).isPresent();
   }
 }

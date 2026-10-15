@@ -99,6 +99,18 @@ final class FrameCanvas implements AutoCloseable {
     return ImageBuffer.mat(bgr);
   }
 
+  /**
+   * Frees the native memory of the page.
+   */
+  @Override
+  public synchronized void close() {
+    if (this.closed) {
+      return;
+    }
+    this.closed = true;
+    this.page.close();
+  }
+
   int getWidth() {
     return this.width;
   }
@@ -115,17 +127,5 @@ final class FrameCanvas implements AutoCloseable {
   @VisibleForTesting
   Mat getPage() {
     return this.page;
-  }
-
-  /**
-   * Frees the native memory of the page.
-   */
-  @Override
-  public synchronized void close() {
-    if (this.closed) {
-      return;
-    }
-    this.closed = true;
-    this.page.close();
   }
 }

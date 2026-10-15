@@ -254,11 +254,6 @@ final class CefBrowserPlayer implements BrowserPlayer {
   }
 
   @Override
-  public boolean isPlaying() {
-    return this.state.get() == State.PLAYING;
-  }
-
-  @Override
   public void moveMouse(final int pageX, final int pageY) {
     this.sendMouse(HelperProtocol.MOUSE_MOVE, pageX, pageY, HelperProtocol.BUTTON_LEFT, 0);
   }
@@ -439,13 +434,14 @@ final class CefBrowserPlayer implements BrowserPlayer {
   }
 
   @Override
-  public VideoAttachableCallback getVideoAttachableCallback() {
-    return this.videoCallback;
+  public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
+    Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null!");
+    this.exceptionHandler.setExceptionHandler(exceptionHandler);
   }
 
   @Override
-  public AudioAttachableCallback getAudioAttachableCallback() {
-    return this.audioCallback;
+  public boolean isPlaying() {
+    return this.state.get() == State.PLAYING;
   }
 
   @Override
@@ -454,9 +450,13 @@ final class CefBrowserPlayer implements BrowserPlayer {
   }
 
   @Override
-  public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
-    Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null!");
-    this.exceptionHandler.setExceptionHandler(exceptionHandler);
+  public VideoAttachableCallback getVideoAttachableCallback() {
+    return this.videoCallback;
+  }
+
+  @Override
+  public AudioAttachableCallback getAudioAttachableCallback() {
+    return this.audioCallback;
   }
 
   /**

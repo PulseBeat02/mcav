@@ -370,44 +370,6 @@ public final class TestPages implements AutoCloseable {
   }
 
   /**
-   * Sets the hook that runs before {@code /hooked} is answered.
-   *
-   * @param hook the hook
-   */
-  public void setLoadHook(final Runnable hook) {
-    this.loadHook.set(hook);
-  }
-
-  /**
-   * Returns the events the pages reported so far.
-   *
-   * @return a copy of the events in the order they arrived
-   */
-  public List<PageEvent> getEvents() {
-    synchronized (this.events) {
-      return List.copyOf(this.events);
-    }
-  }
-
-  /**
-   * Returns the events of one type the pages reported so far.
-   *
-   * @param type the event type, such as {@code click}
-   * @return a copy of the matching events in the order they arrived
-   */
-  public List<PageEvent> getEvents(final String type) {
-    final List<PageEvent> all = this.getEvents();
-    final List<PageEvent> matching = new ArrayList<>();
-    for (final PageEvent event : all) {
-      final String eventType = event.getType();
-      if (eventType.equals(type)) {
-        matching.add(event);
-      }
-    }
-    return matching;
-  }
-
-  /**
    * Forgets the events the pages reported so far.
    */
   public void clearEvents() {
@@ -616,6 +578,44 @@ public final class TestPages implements AutoCloseable {
   @Override
   public void close() {
     this.server.stop(0);
+  }
+
+  /**
+   * Sets the hook that runs before {@code /hooked} is answered.
+   *
+   * @param hook the hook
+   */
+  public void setLoadHook(final Runnable hook) {
+    this.loadHook.set(hook);
+  }
+
+  /**
+   * Returns the events the pages reported so far.
+   *
+   * @return a copy of the events in the order they arrived
+   */
+  public List<PageEvent> getEvents() {
+    synchronized (this.events) {
+      return List.copyOf(this.events);
+    }
+  }
+
+  /**
+   * Returns the events of one type the pages reported so far.
+   *
+   * @param type the event type, such as {@code click}
+   * @return a copy of the matching events in the order they arrived
+   */
+  public List<PageEvent> getEvents(final String type) {
+    final List<PageEvent> all = this.getEvents();
+    final List<PageEvent> matching = new ArrayList<>();
+    for (final PageEvent event : all) {
+      final String eventType = event.getType();
+      if (eventType.equals(type)) {
+        matching.add(event);
+      }
+    }
+    return matching;
   }
 
   /**

@@ -60,6 +60,15 @@ final class FrameRegion {
     this.pixels = pixels;
   }
 
+  /**
+   * Returns how many bytes of the pixel array belong to the region.
+   *
+   * @return {@code width * height * 4}
+   */
+  int getPixelBytes() {
+    return this.width * this.height * HelperProtocol.PIXEL_BYTES;
+  }
+
   int getPageWidth() {
     return this.pageWidth;
   }
@@ -91,14 +100,5 @@ final class FrameRegion {
    */
   byte[] getPixels() {
     return this.pixels;
-  }
-
-  /**
-   * Returns how many bytes of the pixel array belong to the region.
-   *
-   * @return {@code width * height * 4}
-   */
-  int getPixelBytes() {
-    return this.width * this.height * HelperProtocol.PIXEL_BYTES;
   }
 }

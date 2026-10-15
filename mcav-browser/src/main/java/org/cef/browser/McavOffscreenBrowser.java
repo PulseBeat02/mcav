@@ -88,27 +88,6 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   }
 
   /**
-   * Returns a component that is never shown. JCEF looks up the component of a browser in its focus and close handling,
-   * and this one keeps those paths from failing on a browser that has no window.
-   *
-   * @return the component
-   */
-  @Override
-  public Component getUIComponent() {
-    return DETACHED;
-  }
-
-  /**
-   * Returns this browser, which renders its own frames.
-   *
-   * @return this browser
-   */
-  @Override
-  public CefRenderHandler getRenderHandler() {
-    return this;
-  }
-
-  /**
    * Refuses to open developer tools, which would need a window.
    *
    * @throws UnsupportedOperationException always
@@ -257,17 +236,6 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   }
 
   /**
-   * Refuses paint event listeners; the frames go to the listener given when the browser was constructed.
-   *
-   * @param listener ignored
-   * @throws UnsupportedOperationException always
-   */
-  @Override
-  public void setOnPaintListener(final Consumer<CefPaintEvent> listener) {
-    throw new UnsupportedOperationException("The frames go to the paint listener of the browser!");
-  }
-
-  /**
    * Does nothing, as no paint event listener can be added.
    *
    * @param listener ignored
@@ -310,6 +278,38 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    */
   @Override
   public void updateDragCursor(final CefBrowser browser, final int operation) {}
+
+  /**
+   * Returns a component that is never shown. JCEF looks up the component of a browser in its focus and close handling,
+   * and this one keeps those paths from failing on a browser that has no window.
+   *
+   * @return the component
+   */
+  @Override
+  public Component getUIComponent() {
+    return DETACHED;
+  }
+
+  /**
+   * Returns this browser, which renders its own frames.
+   *
+   * @return this browser
+   */
+  @Override
+  public CefRenderHandler getRenderHandler() {
+    return this;
+  }
+
+  /**
+   * Refuses paint event listeners; the frames go to the listener given when the browser was constructed.
+   *
+   * @param listener ignored
+   * @throws UnsupportedOperationException always
+   */
+  @Override
+  public void setOnPaintListener(final Consumer<CefPaintEvent> listener) {
+    throw new UnsupportedOperationException("The frames go to the paint listener of the browser!");
+  }
 
   /**
    * Receives the painted frames of a browser.

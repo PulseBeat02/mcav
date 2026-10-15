@@ -371,6 +371,16 @@ public final class BrowserHelper {
   }
 
   /**
+   * Returns why the helper stopped.
+   *
+   * @return the reason, or null while it runs
+   */
+  @Nullable String getStopReason() {
+    final String reason = this.stopReason.get();
+    return reason.isEmpty() ? null : reason;
+  }
+
+  /**
    * Returns the compositor that keeps the picture of the page.
    *
    * @return the compositor
@@ -485,15 +495,5 @@ public final class BrowserHelper {
   @FunctionalInterface
   private interface MessageWriter {
     void write(DataOutputStream output) throws IOException;
-  }
-
-  /**
-   * Returns why the helper stopped.
-   *
-   * @return the reason, or null while it runs
-   */
-  @Nullable String getStopReason() {
-    final String reason = this.stopReason.get();
-    return reason.isEmpty() ? null : reason;
   }
 }

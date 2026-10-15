@@ -100,47 +100,6 @@ class BrowserSoundTest {
   }
 
   /**
-   * Records the sound that reaches the audio pipeline of a player.
-   */
-  private static final class Recording {
-
-    private final ByteArrayOutputStream pcm = new ByteArrayOutputStream();
-
-    static Recording attach(final BrowserPlayer player) {
-      final Recording recording = new Recording();
-      player.getAudioAttachableCallback().attach(
-        AudioPipelineStep.of((samples, metadata) -> {
-          final int audioSampleRate = metadata.getAudioSampleRate();
-          assertEquals(AudioFilter.SAMPLE_RATE, audioSampleRate);
-          final int audioChannels = metadata.getAudioChannels();
-          assertEquals(AudioFilter.CHANNELS, audioChannels);
-          final byte[] copy = new byte[samples.remaining()];
-          samples.get(copy);
-          synchronized (recording.pcm) {
-            recording.pcm.writeBytes(copy);
-          }
-          return true;
-        })
-      );
-      return recording;
-    }
-
-    int size() {
-      synchronized (this.pcm) {
-        return this.pcm.size();
-      }
-    }
-
-    short[] left() {
-      final byte[] captured;
-      synchronized (this.pcm) {
-        captured = this.pcm.toByteArray();
-      }
-      return leftChannel(captured);
-    }
-  }
-
-  /**
    * Waits up to 30 s, as long as the first sound of a helper can take on a busy or slow machine, for as many bytes of
    * sound, and fails with what the page reported about its sound.
    *
@@ -363,41 +322,6 @@ class BrowserSoundTest {
     assertTrue(noDrift, "the sound does not drift from the picture");
   }
 
-  /**
-   * What the changes of a picture and of its sound say about their sync. Every change of the picture is matched with
-   * the nearest change of the sound within a window of half the shortest time between two changes of the fixture, and a
-   * change without one counts against every rate: leaving those out before the rates were taken let a stream out of sync
-   * for most of its changes pass on the few that matched (deep review DR-016).
-   *
-   * @param changes the changes of the picture
-   * @param offsets the sound minus the picture of each matched change, in milliseconds, in the order of the picture
-   */
-  record SyncJudgement(int changes, List<Double> offsets) {
-    static SyncJudgement of(final List<Long> pictureOnsets, final List<Long> soundOnsets, final long windowNanoseconds) {
-      final List<Double> offsets = new ArrayList<>();
-      for (final long shown : pictureOnsets) {
-        long nearest = Long.MAX_VALUE;
-        for (final long heard : soundOnsets) {
-          if (Math.abs(heard - shown) < Math.abs(nearest)) {
-            nearest = heard - shown;
-          }
-        }
-        if (Math.abs(nearest) <= windowNanoseconds) {
-          offsets.add(nearest / 1e6);
-        }
-      }
-      return new SyncJudgement(pictureOnsets.size(), List.copyOf(offsets));
-    }
-
-    /** How many changes of the picture had their sound in the range, in milliseconds; a change without sound never. */
-    long within(final double low, final double high) {
-      return this.offsets
-        .stream()
-        .filter(offset -> offset >= low && offset <= high)
-        .count();
-    }
-  }
-
   @Test
   void shouldCountAChangeWithoutItsSoundAsOutOfSyncInTheSyncOracle() {
     final List<Long> picture = new ArrayList<>();
@@ -517,5 +441,81 @@ class BrowserSoundTest {
       }
     }
     return onsets;
+  }
+
+  /**
+   * Records the sound that reaches the audio pipeline of a player.
+   */
+  private static final class Recording {
+
+    private final ByteArrayOutputStream pcm = new ByteArrayOutputStream();
+
+    static Recording attach(final BrowserPlayer player) {
+      final Recording recording = new Recording();
+      player.getAudioAttachableCallback().attach(
+        AudioPipelineStep.of((samples, metadata) -> {
+          final int audioSampleRate = metadata.getAudioSampleRate();
+          assertEquals(AudioFilter.SAMPLE_RATE, audioSampleRate);
+          final int audioChannels = metadata.getAudioChannels();
+          assertEquals(AudioFilter.CHANNELS, audioChannels);
+          final byte[] copy = new byte[samples.remaining()];
+          samples.get(copy);
+          synchronized (recording.pcm) {
+            recording.pcm.writeBytes(copy);
+          }
+          return true;
+        })
+      );
+      return recording;
+    }
+
+    int size() {
+      synchronized (this.pcm) {
+        return this.pcm.size();
+      }
+    }
+
+    short[] left() {
+      final byte[] captured;
+      synchronized (this.pcm) {
+        captured = this.pcm.toByteArray();
+      }
+      return leftChannel(captured);
+    }
+  }
+
+  /**
+   * What the changes of a picture and of its sound say about their sync. Every change of the picture is matched with
+   * the nearest change of the sound within a window of half the shortest time between two changes of the fixture, and a
+   * change without one counts against every rate: leaving those out before the rates were taken let a stream out of sync
+   * for most of its changes pass on the few that matched (deep review DR-016).
+   *
+   * @param changes the changes of the picture
+   * @param offsets the sound minus the picture of each matched change, in milliseconds, in the order of the picture
+   */
+  record SyncJudgement(int changes, List<Double> offsets) {
+    static SyncJudgement of(final List<Long> pictureOnsets, final List<Long> soundOnsets, final long windowNanoseconds) {
+      final List<Double> offsets = new ArrayList<>();
+      for (final long shown : pictureOnsets) {
+        long nearest = Long.MAX_VALUE;
+        for (final long heard : soundOnsets) {
+          if (Math.abs(heard - shown) < Math.abs(nearest)) {
+            nearest = heard - shown;
+          }
+        }
+        if (Math.abs(nearest) <= windowNanoseconds) {
+          offsets.add(nearest / 1e6);
+        }
+      }
+      return new SyncJudgement(pictureOnsets.size(), List.copyOf(offsets));
+    }
+
+    /** How many changes of the picture had their sound in the range, in milliseconds; a change without sound never. */
+    long within(final double low, final double high) {
+      return this.offsets
+        .stream()
+        .filter(offset -> offset >= low && offset <= high)
+        .count();
+    }
   }
 }

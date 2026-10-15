@@ -129,16 +129,6 @@ final class HelperLauncher {
   }
 
   /**
-   * Returns the name of the program of a JVM on an operating system.
-   *
-   * @param os the operating system
-   * @return {@code java.exe} on Windows, {@code java} elsewhere
-   */
-  static String javaExecutable(final Os os) {
-    return os == Os.WINDOWS ? WINDOWS_JAVA_EXECUTABLE : JAVA_EXECUTABLE;
-  }
-
-  /**
    * Creates the launcher of this JVM: its Java program, the class path the browser module was loaded from, and the
    * environment of the server.
    *
@@ -158,6 +148,16 @@ final class HelperLauncher {
     final List<Path> classPath = new ArrayList<>(entries);
     final Map<String, String> environment = System.getenv();
     return new HelperLauncher(java, MAIN_CLASS, classPath, extraJvmOptions, os, environment, startTimeoutMilliseconds);
+  }
+
+  /**
+   * Returns the name of the program of a JVM on an operating system.
+   *
+   * @param os the operating system
+   * @return {@code java.exe} on Windows, {@code java} elsewhere
+   */
+  static String javaExecutable(final Os os) {
+    return os == Os.WINDOWS ? WINDOWS_JAVA_EXECUTABLE : JAVA_EXECUTABLE;
   }
 
   /**

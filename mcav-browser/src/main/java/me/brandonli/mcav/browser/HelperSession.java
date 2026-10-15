@@ -519,57 +519,6 @@ final class HelperSession implements BrowserSession {
     return thread;
   }
 
-  /**
-   * Returns the threads that read the helper's connection, hand over the pictures and keep the helper's output, so tests
-   * can check how they run and that they end.
-   *
-   * @return the reader, delivery and output threads
-   */
-  @VisibleForTesting
-  List<Thread> getThreads() {
-    return List.of(this.reader, this.delivery, this.drain);
-  }
-
-  /**
-   * Returns the private folder of the session, so tests can check that it goes.
-   *
-   * @return the folder
-   */
-  @VisibleForTesting
-  Path getFolder() {
-    return this.folder;
-  }
-
-  /**
-   * Checks whether the connection to the helper is still open.
-   *
-   * @return true while it is open
-   */
-  @VisibleForTesting
-  boolean isConnected() {
-    return this.channel.isOpen();
-  }
-
-  /**
-   * Returns the thread that hands the pictures to the listener, so tests can interrupt it.
-   *
-   * @return the delivery thread
-   */
-  @VisibleForTesting
-  Thread getDeliveryThread() {
-    return this.delivery;
-  }
-
-  /**
-   * Returns the picture of the page, so tests can close it early.
-   *
-   * @return the canvas
-   */
-  @VisibleForTesting
-  FrameCanvas getCanvas() {
-    return this.canvas;
-  }
-
   private void awaitStart(final long deadline, final URI uri) {
     final long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
     try {
@@ -851,17 +800,6 @@ final class HelperSession implements BrowserSession {
   }
 
   /**
-   * Returns the last lines the helper wrote, for error messages.
-   *
-   * @return the lines
-   */
-  String getOutputTail() {
-    synchronized (this.outputTail) {
-      return String.join(System.lineSeparator(), this.outputTail);
-    }
-  }
-
-  /**
    * Ends the session although its player did not ask for it, so the player hears of it as of a failure, and closes
    * it; this happens when the browser module stops.
    *
@@ -948,35 +886,6 @@ final class HelperSession implements BrowserSession {
       final String reason = "Input could not be sent to the browser helper (%s)!".formatted(exception.getMessage());
       this.end(reason, exception);
     }
-  }
-
-  /**
-   * Returns how many input messages the writer thread has handled, sent or failed, so tests can wait for them.
-   *
-   * @return the number of handled messages
-   */
-  @VisibleForTesting
-  long getHandledInput() {
-    return this.input.getCompletedTaskCount();
-  }
-
-  /**
-   * Checks whether the helper process still runs.
-   *
-   * @return true while it runs
-   */
-  boolean isAlive() {
-    return this.process.isAlive();
-  }
-
-  /**
-   * Returns the helper process, for tests that check its processes end.
-   *
-   * @return the process
-   */
-  @VisibleForTesting
-  Process getProcess() {
-    return this.process;
   }
 
   /**
@@ -1073,6 +982,97 @@ final class HelperSession implements BrowserSession {
     } catch (final FileOperationException exception) {
       LOGGER.warn("The folder of the browser session {} could not be removed ({}).", folder, exception.getMessage());
     }
+  }
+
+  /**
+   * Returns the threads that read the helper's connection, hand over the pictures and keep the helper's output, so tests
+   * can check how they run and that they end.
+   *
+   * @return the reader, delivery and output threads
+   */
+  @VisibleForTesting
+  List<Thread> getThreads() {
+    return List.of(this.reader, this.delivery, this.drain);
+  }
+
+  /**
+   * Checks whether the connection to the helper is still open.
+   *
+   * @return true while it is open
+   */
+  @VisibleForTesting
+  boolean isConnected() {
+    return this.channel.isOpen();
+  }
+
+  /**
+   * Returns the last lines the helper wrote, for error messages.
+   *
+   * @return the lines
+   */
+  String getOutputTail() {
+    synchronized (this.outputTail) {
+      return String.join(System.lineSeparator(), this.outputTail);
+    }
+  }
+
+  /**
+   * Returns how many input messages the writer thread has handled, sent or failed, so tests can wait for them.
+   *
+   * @return the number of handled messages
+   */
+  @VisibleForTesting
+  long getHandledInput() {
+    return this.input.getCompletedTaskCount();
+  }
+
+  /**
+   * Checks whether the helper process still runs.
+   *
+   * @return true while it runs
+   */
+  boolean isAlive() {
+    return this.process.isAlive();
+  }
+
+  /**
+   * Returns the private folder of the session, so tests can check that it goes.
+   *
+   * @return the folder
+   */
+  @VisibleForTesting
+  Path getFolder() {
+    return this.folder;
+  }
+
+  /**
+   * Returns the thread that hands the pictures to the listener, so tests can interrupt it.
+   *
+   * @return the delivery thread
+   */
+  @VisibleForTesting
+  Thread getDeliveryThread() {
+    return this.delivery;
+  }
+
+  /**
+   * Returns the picture of the page, so tests can close it early.
+   *
+   * @return the canvas
+   */
+  @VisibleForTesting
+  FrameCanvas getCanvas() {
+    return this.canvas;
+  }
+
+  /**
+   * Returns the helper process, for tests that check its processes end.
+   *
+   * @return the process
+   */
+  @VisibleForTesting
+  Process getProcess() {
+    return this.process;
   }
 
   /**
