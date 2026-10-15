@@ -899,8 +899,8 @@ class HelperSessionTest {
     final Thread starter = new Thread(() -> {
       try {
         HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener);
-      } catch (final PlayerException failure) {
-        thrown.set(failure);
+      } catch (final PlayerException exception) {
+        thrown.set(exception);
         stillInterrupted.set(Thread.currentThread().isInterrupted());
       }
     });

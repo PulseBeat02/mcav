@@ -127,11 +127,11 @@ final class Seatbelt {
   static @Nullable Object call(final MethodHandle function, final Object... arguments) {
     try {
       return function.invokeWithArguments(arguments);
-    } catch (final Throwable failure) {
-      if (failure instanceof final VirtualMachineError fatal) {
+    } catch (final Throwable exception) {
+      if (exception instanceof final VirtualMachineError fatal) {
         throw fatal;
       }
-      throw new IllegalStateException(UNCALLABLE, failure);
+      throw new IllegalStateException(UNCALLABLE, exception);
     }
   }
 

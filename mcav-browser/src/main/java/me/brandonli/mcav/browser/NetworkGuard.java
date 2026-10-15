@@ -246,8 +246,8 @@ final class NetworkGuard implements Closeable {
       final SocksProtocol.Request request;
       try {
         request = SocksProtocol.readRequest(in);
-      } catch (final SocksProtocol.Refusal refusal) {
-        SocksProtocol.writeReply(out, refusal.getReply());
+      } catch (final SocksProtocol.Refusal exception) {
+        SocksProtocol.writeReply(out, exception.getReply());
         return;
       }
       deadline.cancel(false);

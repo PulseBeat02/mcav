@@ -279,8 +279,8 @@ class ChromiumConfinementTest {
         assertThrows(AccessDeniedException.class, () -> Files.readString(cookies, StandardCharsets.UTF_8));
         Files.writeString(session.resolve("profile.txt"), "profile");
         assertThrows(AccessDeniedException.class, () -> Files.writeString(this.folder.resolve("outside.txt"), "outside"));
-      } catch (final Throwable thrown) {
-        failure.set(thrown);
+      } catch (final Throwable exception) {
+        failure.set(exception);
       }
     }, "confinement-test");
     thread.start();

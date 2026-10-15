@@ -85,7 +85,7 @@ final class LinuxLibrariesFuzzTest {
       try {
         LinuxLibraries.extract(file, PINNED, target);
         extracted = true;
-      } catch (final IOException refused) {
+      } catch (final IOException exception) {
         extracted = false;
       }
       check(root, file, target, extracted);

@@ -66,7 +66,7 @@ final class ArchiveExtractorFuzzTest {
       final Path target = Files.createDirectory(root.resolve("target"));
       try {
         new ArchiveExtractor(MAX_ENTRIES, MAX_BYTES).extract(new ByteArrayInputStream(compressed.toByteArray()), target);
-      } catch (final IOException refused) {
+      } catch (final IOException exception) {
         // malformed or breaking a rule; what was written so far is checked all the same
       }
       check(root, target);
@@ -89,7 +89,7 @@ final class ArchiveExtractorFuzzTest {
       }
       try {
         new ArchiveExtractor(MAX_ENTRIES, MAX_BYTES).extract(new ByteArrayInputStream(archive), target);
-      } catch (final IOException refused) {
+      } catch (final IOException exception) {
         // A refused archive must preserve the surrounding file system too.
       }
       check(root, target);

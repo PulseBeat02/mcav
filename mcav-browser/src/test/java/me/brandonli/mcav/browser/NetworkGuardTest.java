@@ -156,7 +156,7 @@ class NetworkGuardTest {
     try {
       final int nextByte = socket.getInputStream().read();
       assertEquals(-1, nextByte);
-    } catch (final SocketException reset) {
+    } catch (final SocketException exception) {
       // a connection the guard closed with unread bytes may be reset instead
     }
   }
@@ -338,13 +338,13 @@ class NetworkGuardTest {
         out.flush();
         Thread.sleep(150L);
       }
-    } catch (final SocketException closed) {
+    } catch (final SocketException exception) {
       // the guard closed the connection while the client still wrote
     }
     final InputStream in = client.getInputStream();
     try {
       while (in.read() >= 0) {}
-    } catch (final SocketException reset) {
+    } catch (final SocketException exception) {
       // a guard that closed with unread bytes resets the connection
     }
     final int echoConnectionCount = this.echoConnections.get();

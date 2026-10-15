@@ -165,8 +165,8 @@ class LandlockTest {
     final Thread thread = new Thread(() -> {
       try {
         task.run();
-      } catch (final Throwable thrown) {
-        failure.set(thrown);
+      } catch (final Throwable exception) {
+        failure.set(exception);
       }
     }, "landlock-test");
     thread.start();

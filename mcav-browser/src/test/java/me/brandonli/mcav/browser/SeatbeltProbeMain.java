@@ -78,8 +78,8 @@ final class SeatbeltProbeMain {
     try {
       Files.readString(file, StandardCharsets.UTF_8);
       return "read";
-    } catch (final IOException failure) {
-      return describe(failure);
+    } catch (final IOException exception) {
+      return describe(exception);
     }
   }
 
@@ -87,8 +87,8 @@ final class SeatbeltProbeMain {
     try {
       Files.writeString(file, "outside", StandardCharsets.UTF_8);
       return "written";
-    } catch (final IOException failure) {
-      return describe(failure);
+    } catch (final IOException exception) {
+      return describe(exception);
     }
   }
 

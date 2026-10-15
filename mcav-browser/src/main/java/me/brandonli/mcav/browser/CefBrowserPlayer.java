@@ -163,11 +163,11 @@ final class CefBrowserPlayer implements BrowserPlayer {
       // Check after start becomes interruptible, so release either finds this start or is observed here.
       final boolean idle = !this.released.get() && this.state.get() != State.PLAYING;
       return idle && this.startSession(source);
-    } catch (final PlayerException failure) {
+    } catch (final PlayerException exception) {
       if (this.released.get()) {
         return false;
       }
-      throw failure;
+      throw exception;
     } finally {
       final boolean interrupted;
       synchronized (this.starter) {

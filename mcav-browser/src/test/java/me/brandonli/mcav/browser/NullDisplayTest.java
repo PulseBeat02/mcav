@@ -590,7 +590,7 @@ class NullDisplayTest {
     try {
       final int nextByte = in.read();
       assertEquals(-1, nextByte);
-    } catch (final SocketException reset) {
+    } catch (final SocketException exception) {
       // a closed connection may be reset instead
     }
   }
@@ -618,7 +618,7 @@ class NullDisplayTest {
   private static boolean isServed(final Socket client) {
     try {
       return internsAnAtom(client);
-    } catch (final IOException ended) {
+    } catch (final IOException exception) {
       return false;
     }
   }
@@ -651,7 +651,7 @@ class NullDisplayTest {
       Await.until("a place for another client", () -> {
         try (final Socket next = introduce(loopback, port, cookie)) {
           return internsAnAtom(next);
-        } catch (final IOException ended) {
+        } catch (final IOException exception) {
           return false;
         }
       });

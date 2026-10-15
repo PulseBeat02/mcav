@@ -258,9 +258,9 @@ final class HelperSession implements BrowserSession {
       closeAfterFailure(session, process, pendingChannel, folder);
       final String message = "The browser helper could not be started (%s)!".formatted(exception.getMessage());
       throw new PlayerException(message, exception);
-    } catch (final RuntimeException | Error failure) {
+    } catch (final RuntimeException | Error exception) {
       closeAfterFailure(session, process, pendingChannel, folder);
-      throw failure;
+      throw exception;
     }
   }
 
@@ -379,7 +379,7 @@ final class HelperSession implements BrowserSession {
           final Path folder = Files.createDirectory(candidate, attributes);
           SessionFolders.ofThisServer().record(folder);
           return folder;
-        } catch (final FileAlreadyExistsException taken) {
+        } catch (final FileAlreadyExistsException exception) {
           LOGGER.debug("The name {} of a browser session's folder is taken, another is drawn.", candidate);
         }
       }

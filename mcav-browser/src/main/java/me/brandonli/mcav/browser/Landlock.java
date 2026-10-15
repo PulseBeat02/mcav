@@ -248,12 +248,12 @@ final class Landlock {
     try {
       final Object result = function.invokeWithArguments(arguments);
       return ((Number) result).longValue();
-    } catch (final Throwable failure) {
+    } catch (final Throwable exception) {
       // Check VM errors here because ThrowableUtils is absent from the helper class path.
-      if (failure instanceof final VirtualMachineError fatal) {
+      if (exception instanceof final VirtualMachineError fatal) {
         throw fatal;
       }
-      throw new IllegalStateException("The C library could not be called!", failure);
+      throw new IllegalStateException("The C library could not be called!", exception);
     }
   }
 

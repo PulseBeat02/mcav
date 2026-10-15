@@ -83,9 +83,9 @@ public final class HeadlessProofMain {
       run();
       System.out.println(PASSED);
       status = 0;
-    } catch (final Exception | Error failure) {
-      failure.printStackTrace(System.out);
-      System.out.println("HEADLESS PROOF FAILED: " + failure);
+    } catch (final Exception | Error exception) {
+      exception.printStackTrace(System.out);
+      System.out.println("HEADLESS PROOF FAILED: " + exception);
     }
     System.out.flush();
     System.exit(status);

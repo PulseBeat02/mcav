@@ -138,7 +138,7 @@ final class ChromiumConfinement {
     for (final Path path : paths) {
       try {
         real.add(path.toRealPath());
-      } catch (final IOException missing) {
+      } catch (final IOException exception) {
         real.add(path.toAbsolutePath().normalize());
       }
     }

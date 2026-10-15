@@ -514,7 +514,7 @@ class CefBrowserPlayerTest {
       final Future<Boolean> leftInterrupted = starter.submit(() -> {
         try {
           late.start(SOURCE);
-        } catch (final IllegalStateException failure) {
+        } catch (final IllegalStateException exception) {
           // the helper's own failure, which the start passes on
         }
         return Thread.currentThread().isInterrupted();
