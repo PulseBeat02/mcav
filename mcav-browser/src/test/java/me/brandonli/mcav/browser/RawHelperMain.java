@@ -104,78 +104,81 @@ public final class RawHelperMain {
     }
     final SocketChannel channel = SocketChannel.open(StandardProtocolFamily.UNIX);
     channel.connect(UnixDomainSocketAddress.of(configuration.getSocket()));
-    final DataOutputStream out = new DataOutputStream(Channels.newOutputStream(channel));
+    final DataOutputStream output = new DataOutputStream(Channels.newOutputStream(channel));
     final String path = configuration.getUrl().getPath();
     final byte[] token = configuration.getToken();
     switch (path) {
       case "/wrong-token" -> {
         token[0] ^= 1;
-        HelperProtocol.writeHello(out, token);
+        HelperProtocol.writeHello(output, token);
       }
       case "/wrong-version" -> {
-        out.writeByte(HelperProtocol.HELLO);
-        out.writeInt(HelperProtocol.TOKEN_BYTES + 2);
-        out.write(token);
-        out.writeShort(HelperProtocol.VERSION + 1);
+        output.writeByte(HelperProtocol.HELLO);
+        output.writeInt(HelperProtocol.TOKEN_BYTES + 2);
+        output.write(token);
+        output.writeShort(HelperProtocol.VERSION + 1);
       }
-      case "/no-hello" -> HelperProtocol.writeText(out, HelperProtocol.NOTICE, "hi");
+      case "/no-hello" -> HelperProtocol.writeText(output, HelperProtocol.NOTICE, "hi");
       case "/server-message" -> {
-        HelperProtocol.writeHello(out, token);
-        HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
-        HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
-        HelperProtocol.writeLoading(out, false);
-        out.flush();
+        HelperProtocol.writeHello(output, token);
+        HelperProtocol.writeText(output, HelperProtocol.READY, "raw");
+        HelperProtocol.writeFrame(output, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
+        HelperProtocol.writeLoading(output, false);
+        output.flush();
         sleep();
-        HelperProtocol.writeClose(out);
+        HelperProtocol.writeClose(output);
       }
       case "/stall", "/stubborn", "/stubborn-child", "/hang-up", "/child", "/chatty", "/exit-later", "/deaf" -> {
-        HelperProtocol.writeHello(out, token);
-        HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
-        HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
-        HelperProtocol.writeLoading(out, false);
-        out.flush();
+        HelperProtocol.writeHello(output, token);
+        HelperProtocol.writeText(output, HelperProtocol.READY, "raw");
+        HelperProtocol.writeFrame(output, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
+        HelperProtocol.writeLoading(output, false);
+        output.flush();
         misbehaveAfterStarting(path, channel, input);
       }
       case "/noisy" -> {
-        HelperProtocol.writeHello(out, token);
-        HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
-        HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
-        HelperProtocol.writeLoading(out, false);
-        writeNoise(out);
-        out.flush();
+        HelperProtocol.writeHello(output, token);
+        HelperProtocol.writeText(output, HelperProtocol.READY, "raw");
+        HelperProtocol.writeFrame(output, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
+        HelperProtocol.writeLoading(output, false);
+        writeNoise(output);
+        output.flush();
         sleep();
         sleep();
         sleep();
-        HelperProtocol.writeText(out, HelperProtocol.NOTICE, "noise after a pause");
-        HelperProtocol.writeAudio(out, new byte[HelperProtocol.AUDIO_FRAME_BYTES], HelperProtocol.AUDIO_FRAME_BYTES);
+        HelperProtocol.writeText(output, HelperProtocol.NOTICE, "noise after a pause");
+        HelperProtocol.writeAudio(output, new byte[HelperProtocol.AUDIO_FRAME_BYTES], HelperProtocol.AUDIO_FRAME_BYTES);
       }
       case "/full-page" -> {
-        HelperProtocol.writeHello(out, token);
-        HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
+        HelperProtocol.writeHello(output, token);
+        HelperProtocol.writeText(output, HelperProtocol.READY, "raw");
         final int width = configuration.getWidth();
         final int height = configuration.getHeight();
         final byte[] pixels = new byte[width * height * 4];
         Arrays.fill(pixels, (byte) 7);
-        HelperProtocol.writeFrame(out, new FrameRegion(width, height, 0, 0, width, height, pixels));
-        HelperProtocol.writeLoading(out, false);
+        HelperProtocol.writeFrame(output, new FrameRegion(width, height, 0, 0, width, height, pixels));
+        HelperProtocol.writeLoading(output, false);
       }
       case "/frame-first" -> HelperProtocol.writeFrame(
-        out,
+        output,
         new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4])
       );
       case "/wrong-page" -> {
-        HelperProtocol.writeHello(out, token);
-        HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth() + 1, configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
+        HelperProtocol.writeHello(output, token);
+        HelperProtocol.writeFrame(
+          output,
+          new FrameRegion(configuration.getWidth() + 1, configuration.getHeight(), 0, 0, 1, 1, new byte[4])
+        );
       }
       case "/oversized" -> {
-        HelperProtocol.writeHello(out, token);
+        HelperProtocol.writeHello(output, token);
         final int width = configuration.getWidth() + 1;
         final int height = configuration.getHeight();
-        HelperProtocol.writeFrame(out, new FrameRegion(width, height, 0, 0, width, height, new byte[width * height * 4]));
+        HelperProtocol.writeFrame(output, new FrameRegion(width, height, 0, 0, width, height, new byte[width * height * 4]));
       }
       default -> throw new IllegalArgumentException("Unknown scenario " + path);
     }
-    out.flush();
+    output.flush();
     while (input.read() >= 0) {}
     channel.close();
   }
@@ -212,12 +215,12 @@ public final class RawHelperMain {
     }
   }
 
-  private static void writeNoise(final DataOutputStream out) throws IOException {
+  private static void writeNoise(final DataOutputStream output) throws IOException {
     for (int count = 0; count < NOISY_LOAD_ERRORS; count++) {
-      HelperProtocol.writeLoadError(out, -2, "noise", "https://example.com/noise/" + count + "?token=secret");
+      HelperProtocol.writeLoadError(output, -2, "noise", "https://example.com/noise/" + count + "?token=secret");
     }
     for (int count = 0; count < NOISY_NOTICES; count++) {
-      HelperProtocol.writeText(out, HelperProtocol.NOTICE, "noise " + count);
+      HelperProtocol.writeText(output, HelperProtocol.NOTICE, "noise " + count);
     }
   }
 

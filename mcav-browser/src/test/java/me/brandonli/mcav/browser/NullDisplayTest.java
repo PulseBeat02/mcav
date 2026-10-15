@@ -562,16 +562,16 @@ class NullDisplayTest {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(matcher.group(1));
       try (final Socket client = new Socket(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), port)) {
         client.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
-        final OutputStream out = client.getOutputStream();
-        out.write(concat(setup(cookie), internAtom(ByteOrder.LITTLE_ENDIAN, "CLIPBOARD")));
-        out.flush();
-        final DataInputStream in = new DataInputStream(client.getInputStream());
+        final OutputStream output = client.getOutputStream();
+        output.write(concat(setup(cookie), internAtom(ByteOrder.LITTLE_ENDIAN, "CLIPBOARD")));
+        output.flush();
+        final DataInputStream input = new DataInputStream(client.getInputStream());
         final byte[] accepted = new byte[NullDisplay.createSetupReply(ByteOrder.LITTLE_ENDIAN).limit()];
-        in.readFully(accepted);
+        input.readFully(accepted);
         final byte status = accepted[0];
         assertEquals(1, status);
         final byte[] atom = new byte[32];
-        in.readFully(atom);
+        input.readFully(atom);
         final int internedAtom = ByteBuffer.wrap(atom).order(ByteOrder.LITTLE_ENDIAN).getInt(8);
         assertEquals(69, internedAtom);
         display.close();
@@ -582,9 +582,9 @@ class NullDisplayTest {
     }
   }
 
-  private static void assertEnded(final InputStream in) throws IOException {
+  private static void assertEnded(final InputStream input) throws IOException {
     try {
-      final int nextByte = in.read();
+      final int nextByte = input.read();
       assertEquals(-1, nextByte);
     } catch (final SocketException exception) {
       // a closed connection may be reset instead
@@ -974,14 +974,14 @@ class NullDisplayTest {
         silent.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         introduced.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         introduced.getOutputStream().write(setup(cookie));
-        final DataInputStream in = new DataInputStream(introduced.getInputStream());
-        in.readFully(new byte[NullDisplay.createSetupReply(ByteOrder.LITTLE_ENDIAN).limit()]);
+        final DataInputStream input = new DataInputStream(introduced.getInputStream());
+        input.readFully(new byte[NullDisplay.createSetupReply(ByteOrder.LITTLE_ENDIAN).limit()]);
         final int nextByte = silent.getInputStream().read();
         assertEquals(-1, nextByte, "the display ends a connection that never introduced itself");
         Thread.sleep(600L);
         introduced.getOutputStream().write(internAtom(ByteOrder.LITTLE_ENDIAN, "CLIPBOARD"));
         final byte[] atom = new byte[32];
-        in.readFully(atom);
+        input.readFully(atom);
         final byte responseType = atom[0];
         assertEquals(1, responseType, "a reply");
       }

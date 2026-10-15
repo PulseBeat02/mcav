@@ -550,14 +550,14 @@ final class NullDisplay implements AutoCloseable {
     boolean slot = false;
     try (client) {
       client.setSoTimeout(this.setupTimeoutMilliseconds);
-      final DataInputStream in = new DataInputStream(new BufferedInputStream(client.getInputStream()));
-      final OutputStream out = new BufferedOutputStream(client.getOutputStream());
-      final ByteOrder order = readSetup(in, out, this.cookie);
+      final DataInputStream input = new DataInputStream(new BufferedInputStream(client.getInputStream()));
+      final OutputStream output = new BufferedOutputStream(client.getOutputStream());
+      final ByteOrder order = readSetup(input, output, this.cookie);
       this.introduced(client);
       slot = this.slots.tryAcquire();
       if (slot) {
         client.setSoTimeout(0);
-        serveRequests(in, out, order, this.atoms);
+        serveRequests(input, output, order, this.atoms);
       }
     } catch (final IOException exception) {
       // the client went away or broke the protocol; either way its connection ends
@@ -573,30 +573,30 @@ final class NullDisplay implements AutoCloseable {
   /**
    * Serves one connection until it ends: the setup, then every request.
    *
-   * @param input  the stream from the client
-   * @param output the stream to the client, flushed after every answer
-   * @param cookie the cookie a client must present
-   * @param atoms  the atoms of the display
+   * @param clientInput the stream from the client
+   * @param output      the stream to the client, flushed after every answer
+   * @param cookie      the cookie a client must present
+   * @param atoms       the atoms of the display
    * @throws IOException if the connection fails, the client breaks the protocol or presents another cookie
    */
   @VisibleForTesting
-  static void serve(final InputStream input, final OutputStream output, final byte[] cookie, final Atoms atoms) throws IOException {
-    final DataInputStream in = new DataInputStream(input);
-    final ByteOrder order = readSetup(in, output, cookie);
-    serveRequests(in, output, order, atoms);
+  static void serve(final InputStream clientInput, final OutputStream output, final byte[] cookie, final Atoms atoms) throws IOException {
+    final DataInputStream input = new DataInputStream(clientInput);
+    final ByteOrder order = readSetup(input, output, cookie);
+    serveRequests(input, output, order, atoms);
   }
 
-  private static void serveRequests(final DataInputStream in, final OutputStream output, final ByteOrder order, final Atoms atoms)
+  private static void serveRequests(final DataInputStream input, final OutputStream output, final ByteOrder order, final Atoms atoms)
     throws IOException {
     int sequence = 0;
     while (true) {
-      final int opcode = in.read();
+      final int opcode = input.read();
       if (opcode < 0) {
         return;
       }
-      final int data = in.readUnsignedByte();
+      final int data = input.readUnsignedByte();
       final byte[] lengthBytes = new byte[Short.BYTES];
-      in.readFully(lengthBytes);
+      input.readFully(lengthBytes);
       final int units = ByteBuffer.wrap(lengthBytes).order(order).getShort() & UNSIGNED_SHORT_MASK;
       if (units == 0 || units > MAXIMUM_REQUEST_UNITS) {
         // no extension is announced, so neither are the long requests of BIG-REQUESTS
@@ -604,7 +604,7 @@ final class NullDisplay implements AutoCloseable {
         throw new ProtocolException(message);
       }
       final byte[] body = new byte[units * UNIT_BYTES - UNIT_BYTES];
-      in.readFully(body);
+      input.readFully(body);
       sequence = (sequence + 1) & UNSIGNED_SHORT_MASK;
       final ByteBuffer request = ByteBuffer.wrap(body).order(order);
       final ByteBuffer answer = answer(opcode, data, request, sequence, order, atoms);
@@ -619,8 +619,8 @@ final class NullDisplay implements AutoCloseable {
    *
    * @return the byte order of the client
    */
-  private static ByteOrder readSetup(final DataInputStream in, final OutputStream output, final byte[] cookie) throws IOException {
-    final int orderByte = in.readUnsignedByte();
+  private static ByteOrder readSetup(final DataInputStream input, final OutputStream output, final byte[] cookie) throws IOException {
+    final int orderByte = input.readUnsignedByte();
     final ByteOrder order = switch (orderByte) {
       case LITTLE_ENDIAN_ORDER -> ByteOrder.LITTLE_ENDIAN;
       case BIG_ENDIAN_ORDER -> ByteOrder.BIG_ENDIAN;
@@ -630,7 +630,7 @@ final class NullDisplay implements AutoCloseable {
       }
     };
     final byte[] head = new byte[SETUP_HEAD_BYTES];
-    in.readFully(head);
+    input.readFully(head);
     final ByteBuffer setup = ByteBuffer.wrap(head).order(order);
     setup.get();
     final int major = setup.getShort() & UNSIGNED_SHORT_MASK;
@@ -642,8 +642,8 @@ final class NullDisplay implements AutoCloseable {
       throw new ProtocolException(message);
     }
 
-    final byte[] name = readPadded(in, nameLength);
-    final byte[] presented = readPadded(in, dataLength);
+    final byte[] name = readPadded(input, nameLength);
+    final byte[] presented = readPadded(input, dataLength);
     final boolean named = COOKIE_NAME.equals(new String(name, StandardCharsets.US_ASCII));
     // Compare in constant time so response timing cannot reveal the cookie.
     final boolean matches = MessageDigest.isEqual(presented, cookie);
@@ -665,10 +665,10 @@ final class NullDisplay implements AutoCloseable {
     output.flush();
   }
 
-  private static byte[] readPadded(final DataInputStream in, final int length) throws IOException {
+  private static byte[] readPadded(final DataInputStream input, final int length) throws IOException {
     final byte[] value = new byte[length];
-    in.readFully(value);
-    in.readFully(new byte[pad(length)]);
+    input.readFully(value);
+    input.readFully(new byte[pad(length)]);
 
     return value;
   }

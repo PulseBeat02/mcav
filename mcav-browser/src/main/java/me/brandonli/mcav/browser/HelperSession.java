@@ -512,8 +512,8 @@ final class HelperSession implements BrowserSession {
     final InputStream processOutput = this.process.getInputStream();
     this.drain = startDaemon("mcav-browser-helper-log", () -> this.drainOutput(processOutput));
     final InputStream rawInput = Channels.newInputStream(this.channel);
-    final DataInputStream in = new DataInputStream(new BufferedInputStream(rawInput, INPUT_BUFFER_BYTES));
-    this.reader = startDaemon("mcav-browser-reader", () -> this.read(in, token));
+    final DataInputStream input = new DataInputStream(new BufferedInputStream(rawInput, INPUT_BUFFER_BYTES));
+    this.reader = startDaemon("mcav-browser-reader", () -> this.read(input, token));
     this.delivery = startDaemon("mcav-browser-frames", this::deliverFrames);
   }
 
@@ -567,18 +567,18 @@ final class HelperSession implements BrowserSession {
   /**
    * Reads the messages of the helper until the connection ends.
    *
-   * @param in    the stream from the helper
+   * @param input    the stream from the helper
    * @param token the session token the helper must present first
    */
   @VisibleForTesting
-  void read(final DataInputStream in, final byte[] token) {
+  void read(final DataInputStream input, final byte[] token) {
     final byte[][] buffer = { new byte[0] };
     final int pageBytes = this.canvas.getWidth() * this.canvas.getHeight() * HelperProtocol.PIXEL_BYTES;
     try {
-      final HelperMessage hello = HelperProtocol.read(in, size -> NO_PIXELS);
+      final HelperMessage hello = HelperProtocol.read(input, size -> NO_PIXELS);
       checkHello(hello, token);
       while (true) {
-        final HelperMessage message = HelperProtocol.read(in, size -> this.choosePixelBuffer(buffer, pageBytes, size));
+        final HelperMessage message = HelperProtocol.read(input, size -> this.choosePixelBuffer(buffer, pageBytes, size));
         this.handle(message);
       }
     } catch (final EOFException exception) {
@@ -889,7 +889,7 @@ final class HelperSession implements BrowserSession {
    */
   @Override
   public boolean sendMouse(final MouseInput mouse) {
-    return this.send(out -> HelperProtocol.writeMouse(out, mouse));
+    return this.send(output -> HelperProtocol.writeMouse(output, mouse));
   }
 
   /**
@@ -902,12 +902,12 @@ final class HelperSession implements BrowserSession {
   @Override
   public boolean sendKey(final int action, final String value) {
     final List<String> parts = HelperProtocol.split(value);
-    return this.send(out -> this.writeKeys(out, action, parts));
+    return this.send(output -> this.writeKeys(output, action, parts));
   }
 
-  private void writeKeys(final DataOutputStream out, final int action, final List<String> parts) throws IOException {
+  private void writeKeys(final DataOutputStream output, final int action, final List<String> parts) throws IOException {
     for (final String part : parts) {
-      HelperProtocol.writeKey(out, action, part);
+      HelperProtocol.writeKey(output, action, part);
     }
   }
 

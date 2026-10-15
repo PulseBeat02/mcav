@@ -206,11 +206,11 @@ class BrowserHelperTest {
       assertEquals(ScriptedEngine.GREEN, greenChannel);
       final int redChannel = region.getPixels()[2] & 0xFF;
       assertEquals(ScriptedEngine.RED, redChannel);
-      peer.send(out -> HelperProtocol.writeKey(out, HelperProtocol.KEY_TYPE, "ab"));
+      peer.send(output -> HelperProtocol.writeKey(output, HelperProtocol.KEY_TYPE, "ab"));
       peer.readFrameWithBlue(4);
       peer.send(this::writeLeftPress);
       peer.readFrameWithBlue(5);
-      peer.send(out -> HelperProtocol.writeKey(out, HelperProtocol.KEY_PRESS, "Enter"));
+      peer.send(output -> HelperProtocol.writeKey(output, HelperProtocol.KEY_PRESS, "Enter"));
       peer.readFrameWithBlue(7);
       final boolean firstCallPressesA = engine
         .getCalls()
@@ -238,8 +238,8 @@ class BrowserHelperTest {
     assertNotNull(compositor);
   }
 
-  private void writeLeftPress(final DataOutputStream out) throws IOException {
-    HelperProtocol.writeMouse(out, new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 2, HelperProtocol.BUTTON_LEFT, 1, 0, 0));
+  private void writeLeftPress(final DataOutputStream output) throws IOException {
+    HelperProtocol.writeMouse(output, new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 2, HelperProtocol.BUTTON_LEFT, 1, 0, 0));
   }
 
   @Test
@@ -278,7 +278,7 @@ class BrowserHelperTest {
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
       peer.readUntil(HelperProtocol.READY);
-      peer.send(out -> HelperProtocol.writeText(out, HelperProtocol.NOTICE, "confused server"));
+      peer.send(output -> HelperProtocol.writeText(output, HelperProtocol.NOTICE, "confused server"));
       final Integer exitStatus = result.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertEquals(0, exitStatus);
     }
@@ -300,9 +300,9 @@ class BrowserHelperTest {
     assertEquals("the connection failed (Message type 99 is unknown!)", stopReason);
   }
 
-  private void writeUnknownCommand(final DataOutputStream out) throws IOException {
-    out.writeByte(99);
-    out.writeInt(0);
+  private void writeUnknownCommand(final DataOutputStream output) throws IOException {
+    output.writeByte(99);
+    output.writeInt(0);
   }
 
   @Test
@@ -311,7 +311,7 @@ class BrowserHelperTest {
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
       peer.readUntil(HelperProtocol.READY);
-      peer.send(out -> HelperProtocol.writeFrame(out, new FrameRegion(4, 3, 0, 0, 2, 2, new byte[16])));
+      peer.send(output -> HelperProtocol.writeFrame(output, new FrameRegion(4, 3, 0, 0, 2, 2, new byte[16])));
       final Integer exitStatus = result.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertEquals(0, exitStatus);
     }
@@ -792,17 +792,17 @@ class BrowserHelperTest {
   private static final class Peer implements AutoCloseable {
 
     private final SocketChannel channel;
-    private final DataInputStream in;
-    private final DataOutputStream out;
+    private final DataInputStream input;
+    private final DataOutputStream output;
 
     Peer(final SocketChannel channel) {
       this.channel = channel;
-      this.in = new DataInputStream(new BufferedInputStream(Channels.newInputStream(channel)));
-      this.out = new DataOutputStream(new BufferedOutputStream(Channels.newOutputStream(channel)));
+      this.input = new DataInputStream(new BufferedInputStream(Channels.newInputStream(channel)));
+      this.output = new DataOutputStream(new BufferedOutputStream(Channels.newOutputStream(channel)));
     }
 
     HelperMessage read() throws IOException {
-      return HelperProtocol.read(this.in, NEW_BUFFER);
+      return HelperProtocol.read(this.input, NEW_BUFFER);
     }
 
     private HelperMessage readUntil(final int type) throws IOException {
@@ -824,8 +824,8 @@ class BrowserHelperTest {
     }
 
     void send(final Writer writer) throws IOException {
-      writer.write(this.out);
-      this.out.flush();
+      writer.write(this.output);
+      this.output.flush();
     }
 
     @Override
@@ -836,6 +836,6 @@ class BrowserHelperTest {
 
   @FunctionalInterface
   private interface Writer {
-    void write(DataOutputStream out) throws IOException;
+    void write(DataOutputStream output) throws IOException;
   }
 }

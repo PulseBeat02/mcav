@@ -150,159 +150,159 @@ final class HelperProtocol {
   /**
    * Writes the first message of a helper.
    *
-   * @param out   the stream
+   * @param output   the stream
    * @param token the session token
    * @throws IOException if the stream fails
    */
-  static void writeHello(final DataOutput out, final byte[] token) throws IOException {
+  static void writeHello(final DataOutput output, final byte[] token) throws IOException {
     if (token.length != TOKEN_BYTES) {
       final String message = "Token length %s must be %s bytes!".formatted(token.length, TOKEN_BYTES);
       throw new IllegalArgumentException(message);
     }
 
-    out.writeByte(HELLO);
-    out.writeInt(TOKEN_BYTES + VERSION_BYTES);
-    out.write(token);
-    out.writeShort(VERSION);
+    output.writeByte(HELLO);
+    output.writeInt(TOKEN_BYTES + VERSION_BYTES);
+    output.write(token);
+    output.writeShort(VERSION);
   }
 
   /**
    * Writes a message that carries one string.
    *
-   * @param out  the stream
+   * @param output  the stream
    * @param type {@link #READY}, {@link #NOTICE} or {@link #FAILURE}
    * @param text the string, cut to {@link #MAXIMUM_TEXT_BYTES} bytes
    * @throws IOException if the stream fails
    */
-  static void writeText(final DataOutput out, final int type, final String text) throws IOException {
+  static void writeText(final DataOutput output, final int type, final String text) throws IOException {
     final byte[] bytes = encode(text);
-    out.writeByte(type);
-    out.writeInt(STRING_LENGTH_BYTES + bytes.length);
-    writeString(out, bytes);
+    output.writeByte(type);
+    output.writeInt(STRING_LENGTH_BYTES + bytes.length);
+    writeString(output, bytes);
   }
 
   /**
    * Writes whether the page is loading.
    *
-   * @param out     the stream
+   * @param output     the stream
    * @param loading true while the page loads
    * @throws IOException if the stream fails
    */
-  static void writeLoading(final DataOutput out, final boolean loading) throws IOException {
-    out.writeByte(LOADING);
-    out.writeInt(LOADING_BYTES);
-    out.writeByte(loading ? 1 : 0);
+  static void writeLoading(final DataOutput output, final boolean loading) throws IOException {
+    output.writeByte(LOADING);
+    output.writeInt(LOADING_BYTES);
+    output.writeByte(loading ? 1 : 0);
   }
 
   /**
    * Writes that the page failed to load.
    *
-   * @param out  the stream
+   * @param output  the stream
    * @param code the network error code of Chromium
    * @param text the description of the error
    * @param url  the address that failed
    * @throws IOException if the stream fails
    */
-  static void writeLoadError(final DataOutput out, final int code, final String text, final String url) throws IOException {
+  static void writeLoadError(final DataOutput output, final int code, final String text, final String url) throws IOException {
     final byte[] textBytes = encode(text);
     final byte[] urlBytes = encode(url);
-    out.writeByte(LOAD_ERROR);
-    out.writeInt(ERROR_CODE_BYTES + STRING_LENGTH_BYTES + textBytes.length + STRING_LENGTH_BYTES + urlBytes.length);
-    out.writeInt(code);
-    writeString(out, textBytes);
-    writeString(out, urlBytes);
+    output.writeByte(LOAD_ERROR);
+    output.writeInt(ERROR_CODE_BYTES + STRING_LENGTH_BYTES + textBytes.length + STRING_LENGTH_BYTES + urlBytes.length);
+    output.writeInt(code);
+    writeString(output, textBytes);
+    writeString(output, urlBytes);
   }
 
   /**
    * Writes a changed region of the page.
    *
-   * @param out    the stream
+   * @param output    the stream
    * @param region the region, whose pixels are written from the start of its array
    * @throws IOException if the stream fails
    */
-  static void writeFrame(final DataOutput out, final FrameRegion region) throws IOException {
+  static void writeFrame(final DataOutput output, final FrameRegion region) throws IOException {
     final int pixelBytes = region.getPixelBytes();
-    out.writeByte(FRAME);
-    out.writeInt(FRAME_HEADER_BYTES + pixelBytes);
-    out.writeShort(region.getPageWidth());
-    out.writeShort(region.getPageHeight());
-    out.writeShort(region.getX());
-    out.writeShort(region.getY());
-    out.writeShort(region.getWidth());
-    out.writeShort(region.getHeight());
+    output.writeByte(FRAME);
+    output.writeInt(FRAME_HEADER_BYTES + pixelBytes);
+    output.writeShort(region.getPageWidth());
+    output.writeShort(region.getPageHeight());
+    output.writeShort(region.getX());
+    output.writeShort(region.getY());
+    output.writeShort(region.getWidth());
+    output.writeShort(region.getHeight());
     final byte[] pixels = region.getPixels();
-    out.write(pixels, 0, pixelBytes);
+    output.write(pixels, 0, pixelBytes);
   }
 
   /**
    * Writes sound of the page.
    *
-   * @param out     the stream
+   * @param output     the stream
    * @param samples the samples, 16-bit little-endian stereo at 48 kHz, from the start of the array
    * @param length  the number of bytes of samples, whole frames and at most {@link #MAXIMUM_AUDIO_BYTES}
    * @throws IOException if the stream fails
    */
-  static void writeAudio(final DataOutput out, final byte[] samples, final int length) throws IOException {
+  static void writeAudio(final DataOutput output, final byte[] samples, final int length) throws IOException {
     if (length <= 0 || length > MAXIMUM_AUDIO_BYTES || length % AUDIO_FRAME_BYTES != 0 || length > samples.length) {
       final String message = "Sound of %s bytes cannot be sent!".formatted(length);
       throw new IllegalArgumentException(message);
     }
 
-    out.writeByte(AUDIO);
-    out.writeInt(length);
-    out.write(samples, 0, length);
+    output.writeByte(AUDIO);
+    output.writeInt(length);
+    output.write(samples, 0, length);
   }
 
   /**
    * Writes mouse input.
    *
-   * @param out   the stream
+   * @param output   the stream
    * @param input the input
    * @throws IOException if the stream fails
    */
-  static void writeMouse(final DataOutput out, final MouseInput input) throws IOException {
-    out.writeByte(MOUSE);
-    out.writeInt(MOUSE_BYTES);
-    out.writeByte(input.getAction());
-    out.writeShort(input.getX());
-    out.writeShort(input.getY());
-    out.writeByte(input.getButton());
-    out.writeByte(input.getClickCount());
-    out.writeShort(input.getDeltaX());
-    out.writeShort(input.getDeltaY());
+  static void writeMouse(final DataOutput output, final MouseInput input) throws IOException {
+    output.writeByte(MOUSE);
+    output.writeInt(MOUSE_BYTES);
+    output.writeByte(input.getAction());
+    output.writeShort(input.getX());
+    output.writeShort(input.getY());
+    output.writeByte(input.getButton());
+    output.writeByte(input.getClickCount());
+    output.writeShort(input.getDeltaX());
+    output.writeShort(input.getDeltaY());
   }
 
   /**
    * Writes keyboard input.
    *
-   * @param out    the stream
+   * @param output    the stream
    * @param action {@link #KEY_PRESS} or {@link #KEY_TYPE}
    * @param value  the key name or the text, cut to {@link #MAXIMUM_TEXT_BYTES} bytes
    * @throws IOException if the stream fails
    */
-  static void writeKey(final DataOutput out, final int action, final String value) throws IOException {
+  static void writeKey(final DataOutput output, final int action, final String value) throws IOException {
     final byte[] bytes = encode(value);
-    out.writeByte(KEY);
-    out.writeInt(ACTION_BYTES + STRING_LENGTH_BYTES + bytes.length);
-    out.writeByte(action);
-    writeString(out, bytes);
+    output.writeByte(KEY);
+    output.writeInt(ACTION_BYTES + STRING_LENGTH_BYTES + bytes.length);
+    output.writeByte(action);
+    writeString(output, bytes);
   }
 
   /**
    * Writes the request to close the browser.
    *
-   * @param out the stream
+   * @param output the stream
    * @throws IOException if the stream fails
    */
-  static void writeClose(final DataOutput out) throws IOException {
-    out.writeByte(CLOSE);
-    out.writeInt(0);
+  static void writeClose(final DataOutput output) throws IOException {
+    output.writeByte(CLOSE);
+    output.writeInt(0);
   }
 
   /**
    * Reads the next message.
    *
-   * @param in     the stream
+   * @param input     the stream
    * @param pixels supplies an array for the pixels of a frame, which may be reused once the message has been handled;
    *               an array shorter than the frame means frames are not expected here, which ends the reading
    * @return the message
@@ -310,18 +310,18 @@ final class HelperProtocol {
    * @throws ProtocolException    if the message breaks a rule of the protocol
    * @throws IOException          if the stream fails
    */
-  static HelperMessage read(final DataInput in, final IntFunction<byte[]> pixels) throws IOException {
-    final int type = in.readUnsignedByte();
-    final int length = in.readInt();
+  static HelperMessage read(final DataInput input, final IntFunction<byte[]> pixels) throws IOException {
+    final int type = input.readUnsignedByte();
+    final int length = input.readInt();
     return switch (type) {
-      case HELLO -> readHello(in, length);
-      case READY, NOTICE, FAILURE -> readTextMessage(in, type, length);
-      case FRAME -> readFrame(in, length, pixels);
-      case AUDIO -> readAudio(in, length);
-      case LOADING -> readLoading(in, length);
-      case LOAD_ERROR -> readLoadError(in, length);
-      case MOUSE -> readMouse(in, length);
-      case KEY -> readKey(in, length);
+      case HELLO -> readHello(input, length);
+      case READY, NOTICE, FAILURE -> readTextMessage(input, type, length);
+      case FRAME -> readFrame(input, length, pixels);
+      case AUDIO -> readAudio(input, length);
+      case LOADING -> readLoading(input, length);
+      case LOAD_ERROR -> readLoadError(input, length);
+      case MOUSE -> readMouse(input, length);
+      case KEY -> readKey(input, length);
       case CLOSE -> readClose(length);
       default -> {
         final String message = "Message type %s is unknown!".formatted(type);
@@ -330,22 +330,22 @@ final class HelperProtocol {
     };
   }
 
-  private static HelperMessage readHello(final DataInput in, final int length) throws IOException {
+  private static HelperMessage readHello(final DataInput input, final int length) throws IOException {
     expectLength(HELLO, length, TOKEN_BYTES + VERSION_BYTES);
     final byte[] token = new byte[TOKEN_BYTES];
-    in.readFully(token);
-    final int version = in.readUnsignedShort();
+    input.readFully(token);
+    final int version = input.readUnsignedShort();
     return HelperMessage.hello(token, version);
   }
 
-  private static HelperMessage readTextMessage(final DataInput in, final int type, final int length) throws IOException {
-    final String text = readSingleString(in, type, length);
+  private static HelperMessage readTextMessage(final DataInput input, final int type, final int length) throws IOException {
+    final String text = readSingleString(input, type, length);
     return HelperMessage.text(type, text);
   }
 
-  private static HelperMessage readLoading(final DataInput in, final int length) throws IOException {
+  private static HelperMessage readLoading(final DataInput input, final int length) throws IOException {
     expectLength(LOADING, length, LOADING_BYTES);
-    final int value = in.readUnsignedByte();
+    final int value = input.readUnsignedByte();
     if (value > 1) {
       final String message = "Loading state %s must be 0 or 1!".formatted(value);
       throw new ProtocolException(message);
@@ -354,16 +354,16 @@ final class HelperProtocol {
     return HelperMessage.loading(value == 1);
   }
 
-  private static HelperMessage readLoadError(final DataInput in, final int length) throws IOException {
+  private static HelperMessage readLoadError(final DataInput input, final int length) throws IOException {
     checkLength(
       LOAD_ERROR,
       length,
       ERROR_CODE_BYTES + STRING_LENGTH_BYTES + STRING_LENGTH_BYTES,
       ERROR_CODE_BYTES + STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES + STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES
     );
-    final int code = in.readInt();
-    final byte[] textBytes = readStringBytes(in);
-    final byte[] urlBytes = readStringBytes(in);
+    final int code = input.readInt();
+    final byte[] textBytes = readStringBytes(input);
+    final byte[] urlBytes = readStringBytes(input);
     final int used = ERROR_CODE_BYTES + STRING_LENGTH_BYTES + textBytes.length + STRING_LENGTH_BYTES + urlBytes.length;
     if (used != length) {
       final String message = "A load error of %s bytes holds %s bytes!".formatted(length, used);
@@ -375,15 +375,15 @@ final class HelperProtocol {
     return HelperMessage.loadError(code, text, url);
   }
 
-  private static HelperMessage readFrame(final DataInput in, final int length, final IntFunction<byte[]> pixels) throws IOException {
+  private static HelperMessage readFrame(final DataInput input, final int length, final IntFunction<byte[]> pixels) throws IOException {
     final long maximum = FRAME_HEADER_BYTES + (long) MAXIMUM_SIDE * MAXIMUM_SIDE * PIXEL_BYTES;
     checkLength(FRAME, length, FRAME_HEADER_BYTES, maximum);
-    final int pageWidth = in.readUnsignedShort();
-    final int pageHeight = in.readUnsignedShort();
-    final int left = in.readUnsignedShort();
-    final int top = in.readUnsignedShort();
-    final int width = in.readUnsignedShort();
-    final int height = in.readUnsignedShort();
+    final int pageWidth = input.readUnsignedShort();
+    final int pageHeight = input.readUnsignedShort();
+    final int left = input.readUnsignedShort();
+    final int top = input.readUnsignedShort();
+    final int width = input.readUnsignedShort();
+    final int height = input.readUnsignedShort();
     checkSide("page width", pageWidth);
     checkSide("page height", pageHeight);
     checkSide("region width", width);
@@ -407,12 +407,12 @@ final class HelperProtocol {
       throw new ProtocolException(message);
     }
 
-    in.readFully(target, 0, size);
+    input.readFully(target, 0, size);
     final FrameRegion region = new FrameRegion(pageWidth, pageHeight, left, top, width, height, target);
     return HelperMessage.frame(region);
   }
 
-  private static HelperMessage readAudio(final DataInput in, final int length) throws IOException {
+  private static HelperMessage readAudio(final DataInput input, final int length) throws IOException {
     checkLength(AUDIO, length, AUDIO_FRAME_BYTES, MAXIMUM_AUDIO_BYTES);
 
     if (length % AUDIO_FRAME_BYTES != 0) {
@@ -421,20 +421,20 @@ final class HelperProtocol {
     }
 
     final byte[] samples = new byte[length];
-    in.readFully(samples);
+    input.readFully(samples);
 
     return HelperMessage.audio(samples);
   }
 
-  private static HelperMessage readMouse(final DataInput in, final int length) throws IOException {
+  private static HelperMessage readMouse(final DataInput input, final int length) throws IOException {
     expectLength(MOUSE, length, MOUSE_BYTES);
-    final int action = in.readUnsignedByte();
-    final int pageX = in.readUnsignedShort();
-    final int pageY = in.readUnsignedShort();
-    final int button = in.readUnsignedByte();
-    final int clickCount = in.readUnsignedByte();
-    final int deltaX = in.readShort();
-    final int deltaY = in.readShort();
+    final int action = input.readUnsignedByte();
+    final int pageX = input.readUnsignedShort();
+    final int pageY = input.readUnsignedShort();
+    final int button = input.readUnsignedByte();
+    final int clickCount = input.readUnsignedByte();
+    final int deltaX = input.readShort();
+    final int deltaY = input.readShort();
     if (action > MOUSE_WHEEL) {
       final String message = "Mouse action %s is unknown!".formatted(action);
       throw new ProtocolException(message);
@@ -450,19 +450,19 @@ final class HelperProtocol {
       throw new ProtocolException(message);
     }
 
-    final MouseInput input = new MouseInput(action, pageX, pageY, button, clickCount, deltaX, deltaY);
-    return HelperMessage.mouse(input);
+    final MouseInput mouseInput = new MouseInput(action, pageX, pageY, button, clickCount, deltaX, deltaY);
+    return HelperMessage.mouse(mouseInput);
   }
 
-  private static HelperMessage readKey(final DataInput in, final int length) throws IOException {
+  private static HelperMessage readKey(final DataInput input, final int length) throws IOException {
     checkLength(KEY, length, ACTION_BYTES + STRING_LENGTH_BYTES, ACTION_BYTES + STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES);
-    final int action = in.readUnsignedByte();
+    final int action = input.readUnsignedByte();
     if (action > KEY_TYPE) {
       final String message = "Key action %s is unknown!".formatted(action);
       throw new ProtocolException(message);
     }
 
-    final byte[] bytes = readStringBytes(in);
+    final byte[] bytes = readStringBytes(input);
     final int used = ACTION_BYTES + STRING_LENGTH_BYTES + bytes.length;
     if (used != length) {
       final String message = "A key message of %s bytes holds %s bytes!".formatted(length, used);
@@ -479,9 +479,9 @@ final class HelperProtocol {
     return HelperMessage.close();
   }
 
-  private static String readSingleString(final DataInput in, final int type, final int length) throws IOException {
+  private static String readSingleString(final DataInput input, final int type, final int length) throws IOException {
     checkLength(type, length, STRING_LENGTH_BYTES, STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES);
-    final byte[] bytes = readStringBytes(in);
+    final byte[] bytes = readStringBytes(input);
     if (STRING_LENGTH_BYTES + bytes.length != length) {
       final String message = "A message of %s bytes holds a string of %s bytes!".formatted(length, bytes.length);
       throw new ProtocolException(message);
@@ -490,22 +490,22 @@ final class HelperProtocol {
     return decode(bytes);
   }
 
-  private static byte[] readStringBytes(final DataInput in) throws IOException {
-    final int length = in.readUnsignedShort();
+  private static byte[] readStringBytes(final DataInput input) throws IOException {
+    final int length = input.readUnsignedShort();
     if (length > MAXIMUM_TEXT_BYTES) {
       final String message = "A string of %s bytes must have at most %s bytes!".formatted(length, MAXIMUM_TEXT_BYTES);
       throw new ProtocolException(message);
     }
 
     final byte[] bytes = new byte[length];
-    in.readFully(bytes);
+    input.readFully(bytes);
 
     return bytes;
   }
 
-  private static void writeString(final DataOutput out, final byte[] bytes) throws IOException {
-    out.writeShort(bytes.length);
-    out.write(bytes);
+  private static void writeString(final DataOutput output, final byte[] bytes) throws IOException {
+    output.writeShort(bytes.length);
+    output.write(bytes);
   }
 
   /**

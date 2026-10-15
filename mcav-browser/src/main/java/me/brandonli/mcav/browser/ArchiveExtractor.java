@@ -82,8 +82,8 @@ final class ArchiveExtractor {
   private static final String POSIX_ATTRIBUTE_VIEW = "posix";
   private static final String PARENT_FOLDER = "..";
 
-  private final int maxEntries;
-  private final long maxTotalBytes;
+  private final int maximumEntries;
+  private final long maximumTotalBytes;
 
   /**
    * Constructs an extractor with the default limits.
@@ -95,13 +95,13 @@ final class ArchiveExtractor {
   /**
    * Constructs an extractor with other limits, so tests can reach them with small archives.
    *
-   * @param maxEntries    the most entries an archive may have
-   * @param maxTotalBytes the most bytes an archive may extract to
+   * @param maximumEntries    the most entries an archive may have
+   * @param maximumTotalBytes the most bytes an archive may extract to
    */
   @VisibleForTesting
-  ArchiveExtractor(final int maxEntries, final long maxTotalBytes) {
-    this.maxEntries = maxEntries;
-    this.maxTotalBytes = maxTotalBytes;
+  ArchiveExtractor(final int maximumEntries, final long maximumTotalBytes) {
+    this.maximumEntries = maximumEntries;
+    this.maximumTotalBytes = maximumTotalBytes;
   }
 
   /**
@@ -141,8 +141,8 @@ final class ArchiveExtractor {
     TarArchiveEntry entry = tar.getNextEntry();
     while (entry != null) {
       entries++;
-      if (entries > this.maxEntries) {
-        final String message = "The archive has more than %s entries!".formatted(this.maxEntries);
+      if (entries > this.maximumEntries) {
+        final String message = "The archive has more than %s entries!".formatted(this.maximumEntries);
         throw new IOException(message);
       }
       // the archive library counts links and special files as files, so they are refused by their type first
@@ -154,7 +154,7 @@ final class ArchiveExtractor {
       if (entry.isDirectory()) {
         createFolders(destination, supportsPosix);
       } else {
-        final long remaining = this.maxTotalBytes - written;
+        final long remaining = this.maximumTotalBytes - written;
         written += writeFile(tar, destination, remaining, supportsPosix);
         this.setFileMode(destination, entry, supportsPosix);
       }
@@ -231,18 +231,18 @@ final class ArchiveExtractor {
     createFolders(parent, supportsPosix);
     final byte[] buffer = new byte[BUFFER_BYTES];
     try (
-      final OutputStream out = Files.newOutputStream(
+      final OutputStream output = Files.newOutputStream(
         destination,
         StandardOpenOption.CREATE_NEW,
         StandardOpenOption.WRITE,
         LinkOption.NOFOLLOW_LINKS
       )
     ) {
-      return copyAtMost(tar, out, buffer, remaining);
+      return copyAtMost(tar, output, buffer, remaining);
     }
   }
 
-  private static long copyAtMost(final InputStream tar, final OutputStream out, final byte[] buffer, final long remaining)
+  private static long copyAtMost(final InputStream tar, final OutputStream output, final byte[] buffer, final long remaining)
     throws IOException {
     long written = 0L;
     int count = tar.read(buffer);
@@ -251,7 +251,7 @@ final class ArchiveExtractor {
       if (written > remaining) {
         throw new IOException("The archive extracts to more than the allowed size!");
       }
-      out.write(buffer, 0, count);
+      output.write(buffer, 0, count);
       count = tar.read(buffer);
     }
     return written;
@@ -359,8 +359,8 @@ final class ArchiveExtractor {
    */
   private static final class NonClosingInputStream extends FilterInputStream {
 
-    NonClosingInputStream(final InputStream in) {
-      super(in);
+    NonClosingInputStream(final InputStream input) {
+      super(input);
     }
 
     @Override

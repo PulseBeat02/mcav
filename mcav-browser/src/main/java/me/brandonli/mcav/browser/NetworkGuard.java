@@ -230,31 +230,31 @@ final class NetworkGuard implements Closeable {
     final CompletableFuture<Void> deadline = CompletableFuture.runAsync(() -> closeQuietly(client), later);
     try {
       final InputStream rawInput = client.getInputStream();
-      final DataInputStream in = new DataInputStream(new BufferedInputStream(rawInput));
+      final DataInputStream input = new DataInputStream(new BufferedInputStream(rawInput));
       final OutputStream rawOutput = client.getOutputStream();
-      final DataOutputStream out = new DataOutputStream(rawOutput);
-      final boolean withoutAuthentication = SocksProtocol.readGreeting(in);
+      final DataOutputStream output = new DataOutputStream(rawOutput);
+      final boolean withoutAuthentication = SocksProtocol.readGreeting(input);
       if (!withoutAuthentication) {
-        SocksProtocol.writeMethod(out, SocksProtocol.NO_ACCEPTABLE_METHOD);
+        SocksProtocol.writeMethod(output, SocksProtocol.NO_ACCEPTABLE_METHOD);
         return;
       }
-      SocksProtocol.writeMethod(out, SocksProtocol.NO_AUTHENTICATION);
+      SocksProtocol.writeMethod(output, SocksProtocol.NO_AUTHENTICATION);
       final SocksProtocol.Request request;
       try {
-        request = SocksProtocol.readRequest(in);
+        request = SocksProtocol.readRequest(input);
       } catch (final SocksProtocol.Refusal exception) {
-        SocksProtocol.writeReply(out, exception.getReply());
+        SocksProtocol.writeReply(output, exception.getReply());
         return;
       }
       deadline.cancel(false);
-      final Socket target = this.open(request, out);
+      final Socket target = this.open(request, output);
       if (target == null) {
         return;
       }
       this.sockets.add(target);
       try {
-        SocksProtocol.writeReply(out, SocksProtocol.SUCCEEDED);
-        relay(in, client, target);
+        SocksProtocol.writeReply(output, SocksProtocol.SUCCEEDED);
+        relay(input, client, target);
       } finally {
         this.sockets.remove(target);
         closeQuietly(target);
@@ -273,17 +273,17 @@ final class NetworkGuard implements Closeable {
    * that fails.
    *
    * @param request the request
-   * @param out     the stream to the client
+   * @param output     the stream to the client
    * @return the connection, or null if the client got a failure as its answer
    * @throws IOException if the answer cannot be sent
    */
-  private @Nullable Socket open(final SocksProtocol.Request request, final DataOutputStream out) throws IOException {
+  private @Nullable Socket open(final SocksProtocol.Request request, final DataOutputStream output) throws IOException {
     final String host = request.getHost();
     final InetAddress[] addresses;
     try {
       addresses = this.resolver.resolve(host);
     } catch (final UnknownHostException exception) {
-      SocksProtocol.writeReply(out, SocksProtocol.HOST_UNREACHABLE);
+      SocksProtocol.writeReply(output, SocksProtocol.HOST_UNREACHABLE);
 
       return null;
     }
@@ -300,10 +300,10 @@ final class NetworkGuard implements Closeable {
     }
     if (failure == null) {
       this.report(host);
-      SocksProtocol.writeReply(out, SocksProtocol.NOT_ALLOWED);
+      SocksProtocol.writeReply(output, SocksProtocol.NOT_ALLOWED);
     } else {
       final boolean refused = failure instanceof ConnectException;
-      SocksProtocol.writeReply(out, refused ? SocksProtocol.CONNECTION_REFUSED : SocksProtocol.HOST_UNREACHABLE);
+      SocksProtocol.writeReply(output, refused ? SocksProtocol.CONNECTION_REFUSED : SocksProtocol.HOST_UNREACHABLE);
     }
     return null;
   }
@@ -341,13 +341,13 @@ final class NetworkGuard implements Closeable {
     closeQuietly(target);
   }
 
-  private static void pump(final InputStream in, final OutputStream out) {
+  private static void pump(final InputStream input, final OutputStream output) {
     final byte[] buffer = new byte[BUFFER_BYTES];
     try {
-      int count = in.read(buffer);
+      int count = input.read(buffer);
       while (count >= 0) {
-        out.write(buffer, 0, count);
-        count = in.read(buffer);
+        output.write(buffer, 0, count);
+        count = input.read(buffer);
       }
     } catch (final IOException exception) {
       // one side ended

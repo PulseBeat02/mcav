@@ -60,20 +60,20 @@ final class SocksProtocol {
   /**
    * Reads the greeting of a client.
    *
-   * @param in the stream from the client
+   * @param input the stream from the client
    * @return true if the client offers to go without authentication
    * @throws IOException if the stream ends or the greeting is malformed
    */
-  static boolean readGreeting(final DataInput in) throws IOException {
-    readVersion(in);
-    final int count = in.readUnsignedByte();
+  static boolean readGreeting(final DataInput input) throws IOException {
+    readVersion(input);
+    final int count = input.readUnsignedByte();
     if (count == 0) {
       throw new ProtocolException("The greeting offers no method!");
     }
 
     boolean withoutAuthentication = false;
     for (int index = 0; index < count; index++) {
-      final int method = in.readUnsignedByte();
+      final int method = input.readUnsignedByte();
       withoutAuthentication = withoutAuthentication || method == NO_AUTHENTICATION;
     }
     return withoutAuthentication;
@@ -82,32 +82,32 @@ final class SocksProtocol {
   /**
    * Reads the request of a client.
    *
-   * @param in the stream from the client
+   * @param input the stream from the client
    * @return the host and port to connect to
    * @throws Refusal     if the request asks for something other than a connection, to an address of an unknown type,
    *                     or to port 0
    * @throws IOException if the stream ends or the request is malformed
    */
-  static Request readRequest(final DataInput in) throws IOException {
-    readVersion(in);
-    final int command = in.readUnsignedByte();
-    final int reserved = in.readUnsignedByte();
+  static Request readRequest(final DataInput input) throws IOException {
+    readVersion(input);
+    final int command = input.readUnsignedByte();
+    final int reserved = input.readUnsignedByte();
     if (reserved != 0) {
       final String message = "Reserved byte %s of the request must be 0!".formatted(reserved);
       throw new ProtocolException(message);
     }
 
-    final int type = in.readUnsignedByte();
+    final int type = input.readUnsignedByte();
     final String host = switch (type) {
-      case ADDRESS_IPV4 -> readAddress(in, IPV4_BYTES);
-      case ADDRESS_IPV6 -> readAddress(in, IPV6_BYTES);
-      case ADDRESS_DOMAIN -> readHostName(in);
+      case ADDRESS_IPV4 -> readAddress(input, IPV4_BYTES);
+      case ADDRESS_IPV6 -> readAddress(input, IPV6_BYTES);
+      case ADDRESS_DOMAIN -> readHostName(input);
       default -> {
         final String message = "Address type %s of the request is not supported!".formatted(type);
         throw new Refusal(ADDRESS_NOT_SUPPORTED, message);
       }
     };
-    final int port = in.readUnsignedShort();
+    final int port = input.readUnsignedShort();
     if (command != CONNECT) {
       final String message = "Command %s of the request is not a connection!".formatted(command);
       throw new Refusal(COMMAND_NOT_SUPPORTED, message);
@@ -120,29 +120,29 @@ final class SocksProtocol {
     return new Request(host, port);
   }
 
-  private static void readVersion(final DataInput in) throws IOException {
-    final int version = in.readUnsignedByte();
+  private static void readVersion(final DataInput input) throws IOException {
+    final int version = input.readUnsignedByte();
     if (version != VERSION) {
       final String message = "SOCKS version %s of the client is not SOCKS 5!".formatted(version);
       throw new ProtocolException(message);
     }
   }
 
-  private static String readAddress(final DataInput in, final int length) throws IOException {
+  private static String readAddress(final DataInput input, final int length) throws IOException {
     final byte[] bytes = new byte[length];
-    in.readFully(bytes);
+    input.readFully(bytes);
     final InetAddress address = InetAddress.getByAddress(bytes);
     return address.getHostAddress();
   }
 
-  private static String readHostName(final DataInput in) throws IOException {
-    final int length = in.readUnsignedByte();
+  private static String readHostName(final DataInput input) throws IOException {
+    final int length = input.readUnsignedByte();
     if (length == 0) {
       throw new ProtocolException("The request names an empty host!");
     }
 
     final byte[] bytes = new byte[length];
-    in.readFully(bytes);
+    input.readFully(bytes);
     for (final byte value : bytes) {
       if (!isHostNameCharacter(value) && value != ':' && value != '[' && value != ']') {
         final String message = "Byte %s is not allowed in the host name of the request!".formatted(value & UNSIGNED_BYTE_MASK);
@@ -198,29 +198,29 @@ final class SocksProtocol {
   /**
    * Answers the greeting with the chosen method.
    *
-   * @param out    the stream to the client
+   * @param output    the stream to the client
    * @param method {@link #NO_AUTHENTICATION} or {@link #NO_ACCEPTABLE_METHOD}
    * @throws IOException if the stream fails
    */
-  static void writeMethod(final DataOutput out, final int method) throws IOException {
-    out.writeByte(VERSION);
-    out.writeByte(method);
+  static void writeMethod(final DataOutput output, final int method) throws IOException {
+    output.writeByte(VERSION);
+    output.writeByte(method);
   }
 
   /**
    * Answers a request. The bound address is left empty, as Chromium does not use it.
    *
-   * @param out   the stream to the client
+   * @param output   the stream to the client
    * @param reply the reply code, such as {@link #SUCCEEDED}
    * @throws IOException if the stream fails
    */
-  static void writeReply(final DataOutput out, final int reply) throws IOException {
-    out.writeByte(VERSION);
-    out.writeByte(reply);
-    out.writeByte(0);
-    out.writeByte(ADDRESS_IPV4);
-    out.writeInt(0);
-    out.writeShort(0);
+  static void writeReply(final DataOutput output, final int reply) throws IOException {
+    output.writeByte(VERSION);
+    output.writeByte(reply);
+    output.writeByte(0);
+    output.writeByte(ADDRESS_IPV4);
+    output.writeInt(0);
+    output.writeShort(0);
   }
 
   /**
