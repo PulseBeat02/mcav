@@ -97,7 +97,7 @@ public interface BrowserSource extends UriSource {
       frameInterval,
       MAXIMUM_FRAME_INTERVAL
     );
-    return new BrowserSourceImpl(uri, width, height, frameInterval);
+    return new DefaultBrowserSource(uri, width, height, frameInterval);
   }
 
   /**

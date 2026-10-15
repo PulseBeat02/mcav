@@ -25,14 +25,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * The default {@link BrowserSource}, created by {@link BrowserSource#uri(URI, int, int, int)} with validated
  * settings. Two sources are equal when every setting is equal.
  */
-public final class BrowserSourceImpl implements BrowserSource {
+final class DefaultBrowserSource implements BrowserSource {
 
   private final URI uri;
   private final int width;
   private final int height;
   private final int frameInterval;
 
-  BrowserSourceImpl(final URI uri, final int width, final int height, final int frameInterval) {
+  DefaultBrowserSource(final URI uri, final int width, final int height, final int frameInterval) {
     this.uri = uri;
     this.width = width;
     this.height = height;
@@ -90,7 +90,7 @@ public final class BrowserSourceImpl implements BrowserSource {
     if (this == other) {
       return true;
     }
-    if (!(other instanceof final BrowserSourceImpl source)) {
+    if (!(other instanceof final DefaultBrowserSource source)) {
       return false;
     }
     return (
