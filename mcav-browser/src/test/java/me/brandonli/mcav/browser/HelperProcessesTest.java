@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import me.brandonli.mcav.browser.testing.UtilityClassAssertions;
-import me.brandonli.mcav.media.player.PlayerException;
 import org.junit.jupiter.api.Test;
 
 class HelperProcessesTest {
@@ -31,7 +30,7 @@ class HelperProcessesTest {
     HelperProcesses.requireOpen();
     HelperProcesses.closeAll();
     try {
-      final PlayerException failure = assertThrows(PlayerException.class, HelperProcesses::requireOpen);
+      final BrowserException failure = assertThrows(BrowserException.class, HelperProcesses::requireOpen);
       final String message = failure.getMessage();
       assertEquals("The browser module is stopped!", message);
     } finally {

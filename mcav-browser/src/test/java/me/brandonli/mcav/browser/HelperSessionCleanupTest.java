@@ -38,7 +38,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
-import me.brandonli.mcav.media.player.PlayerException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -84,7 +83,7 @@ final class HelperSessionCleanupTest {
         final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.openSession(launcher, source, listener));
         assertSame(failure, thrown);
       } else {
-        final PlayerException thrown = assertThrows(PlayerException.class, () -> this.openSession(launcher, source, listener));
+        final BrowserException thrown = assertThrows(BrowserException.class, () -> this.openSession(launcher, source, listener));
         final Throwable cause = thrown.getCause();
         assertSame(failure, cause);
       }

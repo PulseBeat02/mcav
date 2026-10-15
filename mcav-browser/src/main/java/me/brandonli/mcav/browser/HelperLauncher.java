@@ -31,7 +31,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
 import me.friwi.jcefmaven.CefAppBuilder;
@@ -135,7 +134,7 @@ final class HelperLauncher {
    * @param startTimeoutMilliseconds how long a helper may take until the page shows
    * @param extraJvmOptions    options added to the JVM of the helper
    * @return the launcher
-   * @throws PlayerException if a class the helper needs was not loaded from a file
+   * @throws BrowserException if a class the helper needs was not loaded from a file
    */
   static HelperLauncher createDefault(final long startTimeoutMilliseconds, final List<String> extraJvmOptions) {
     final String javaHome = System.getProperty("java.home");
@@ -165,7 +164,7 @@ final class HelperLauncher {
    *
    * @param type the class
    * @return the jar or folder
-   * @throws PlayerException if the class was not loaded from a file
+   * @throws BrowserException if the class was not loaded from a file
    */
   @VisibleForTesting
   static Path locate(final Class<?> type) {
@@ -174,14 +173,14 @@ final class HelperLauncher {
     final URL location = source == null ? null : source.getLocation();
     if (location == null) {
       final String message = "The browser helper cannot find where %s was loaded from!".formatted(type.getName());
-      throw new PlayerException(message);
+      throw new BrowserException(message);
     }
 
     try {
       return Path.of(location.toURI());
     } catch (final URISyntaxException | IllegalArgumentException | FileSystemNotFoundException exception) {
       final String message = "The browser helper cannot use %s as its class path!".formatted(location);
-      throw new PlayerException(message, exception);
+      throw new BrowserException(message, exception);
     }
   }
 

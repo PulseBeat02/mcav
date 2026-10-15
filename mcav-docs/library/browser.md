@@ -94,7 +94,7 @@ release the returned browser when you are done with the page.
     final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
     callback.attach(videoPipelineStep);
 
-    browser.start(source); // throws a PlayerException if the page cannot be shown
+    browser.start(source); // throws a BrowserException if the page cannot be shown
     browser.sendMouseEvent(MouseClick.LEFT, 640, 360);
     browser.sendKeyEvent("hello");
     browser.sendKeyEvent("Enter");

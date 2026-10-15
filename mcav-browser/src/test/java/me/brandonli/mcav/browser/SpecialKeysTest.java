@@ -29,7 +29,6 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.util.Set;
 import me.brandonli.mcav.browser.testing.UtilityClassAssertions;
-import me.brandonli.mcav.media.player.PlayerException;
 import org.junit.jupiter.api.Test;
 
 class SpecialKeysTest {
@@ -56,14 +55,14 @@ class SpecialKeysTest {
 
   @Test
   void shouldRefuseAnEmptyList() {
-    final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(new StringReader("")));
+    final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(new StringReader("")));
     final String message = failure.getMessage();
     assertEquals("The key list resource mcav/browser/keybinds.json is empty!", message);
   }
 
   @Test
   void shouldRefuseAnEmptyJsonList() {
-    final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(new StringReader("[]")));
+    final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(new StringReader("[]")));
     final String message = failure.getMessage();
     assertEquals("The key list resource mcav/browser/keybinds.json is empty!", message);
   }
@@ -76,7 +75,7 @@ class SpecialKeysTest {
         throw new IOException("disk gone");
       }
     };
-    final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(throwing));
+    final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(throwing));
     final String message = failure.getMessage();
     assertEquals("The key list resource could not be read (disk gone)!", message);
     final Throwable cause = failure.getCause();

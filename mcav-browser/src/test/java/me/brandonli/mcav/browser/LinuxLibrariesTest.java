@@ -55,7 +55,6 @@ import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.capability.installer.InstallationException;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.FileOperationException;
 import me.brandonli.mcav.utils.IoUtils;
 import me.brandonli.mcav.utils.os.Os;
@@ -573,7 +572,7 @@ class LinuxLibrariesTest {
     final Path linkTarget = Files.readSymbolicLink(linked.resolve("libmissing.so.1"));
     assertEquals(installation.resolve("libmissing.so.1"), linkTarget);
     final Path bare = Files.createDirectory(this.folder.resolve("bare-host"));
-    final PlayerException lacking = assertThrows(BrowserUnavailableException.class, () -> libraries.findMissing(PLATFORM, List.of(bare)));
+    final BrowserException lacking = assertThrows(BrowserUnavailableException.class, () -> libraries.findMissing(PLATFORM, List.of(bare)));
     final String message = lacking.getMessage();
     assertEquals("The browser needs libz.so.1, which this server lacks and mcav does not bring!", message);
   }
@@ -689,7 +688,7 @@ class LinuxLibrariesTest {
     );
     final Path server = Files.createDirectories(this.folder.resolve("server"));
     final Executable linking = () -> CefBrowserPlayer.DefaultSessionFactory.withLibraries(headless, libraries, server);
-    final PlayerException refused = assertThrows(BrowserUnavailableException.class, linking);
+    final BrowserException refused = assertThrows(BrowserUnavailableException.class, linking);
     final String message = refused.getMessage();
     assertEquals(
       "The browser needs the Java runtime's libjawt.so, which " +

@@ -111,9 +111,9 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * @param source the non-null page address, output dimensions and painted-frame interval
    * @return true if streaming started; false if already playing or released, or if the helper ended
    *         while startup was being handed over to the player (also reported to the exception handler)
-   * @throws me.brandonli.mcav.media.player.PlayerException if the browser cannot be installed or started, or the page
-   *                                                        cannot be loaded, or the browser module is stopped
-   * @throws NullPointerException                           if {@code source} is null
+   * @throws BrowserException     if the browser cannot be installed or started, or the page cannot be loaded, or the
+   *                              browser module is stopped
+   * @throws NullPointerException if {@code source} is null
    */
   boolean start(final BrowserSource source);
 

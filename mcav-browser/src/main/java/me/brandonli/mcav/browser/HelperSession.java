@@ -68,7 +68,6 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.FileOperationException;
 import me.brandonli.mcav.utils.IoUtils;
 import me.brandonli.mcav.utils.os.Os;
@@ -83,7 +82,7 @@ import org.slf4j.LoggerFactory;
  * <p>{@link #open} creates a folder only the server's user can read, binds a Unix-domain socket in it, starts the
  * helper with its configuration on its standard input, and accepts exactly one connection, which must present the
  * random session token first; the socket is then deleted. {@link #open} returns once the page has loaded and its first
- * frame arrived, and fails with a {@link PlayerException} if the helper fails, exits, or takes longer than the start
+ * frame arrived, and fails with a {@link BrowserException} if the helper fails, exits, or takes longer than the start
  * timeout, leaving nothing behind.
  *
  * <p>A reader thread writes every frame region into the {@link FrameCanvas}, and a delivery thread hands the newest
@@ -201,7 +200,7 @@ final class HelperSession implements BrowserSession {
    * @param options  the security profile and frame rate
    * @param listener receives the frames and an unexpected end
    * @return the running session
-   * @throws PlayerException if the browser module is stopped or stops meanwhile, or the helper cannot be started, fails,
+   * @throws BrowserException if the browser module is stopped or stops meanwhile, or the helper cannot be started, fails,
    *                         or does not show the page in time
    */
   static HelperSession open(
@@ -225,7 +224,7 @@ final class HelperSession implements BrowserSession {
    * @param listener  receives the frames and an unexpected end
    * @param temporary the folder the session folder is created in
    * @return the running session
-   * @throws PlayerException as {@link #open(HelperLauncher, Path, BrowserSource, BrowserOptions, Listener)}
+   * @throws BrowserException as {@link #open(HelperLauncher, Path, BrowserSource, BrowserOptions, Listener)}
    */
   @VisibleForTesting
   static HelperSession open(
@@ -259,7 +258,7 @@ final class HelperSession implements BrowserSession {
       session = new HelperSession(folder, process, standardInput, channel, canvas, listener);
       pendingChannel = null;
       if (!HelperProcesses.register(session, generation)) {
-        throw new PlayerException("The browser module was stopped while the browser started!");
+        throw new BrowserException("The browser module was stopped while the browser started!");
       }
       session.startThreads(token);
       session.awaitStart(deadline, uri);
@@ -267,7 +266,7 @@ final class HelperSession implements BrowserSession {
     } catch (final IOException exception) {
       closeAfterFailure(session, process, pendingChannel, folder);
       final String message = "The browser helper could not be started (%s)!".formatted(exception.getMessage());
-      throw new PlayerException(message, exception);
+      throw new BrowserException(message, exception);
     } catch (final RuntimeException | Error exception) {
       closeAfterFailure(session, process, pendingChannel, folder);
       throw exception;
@@ -280,7 +279,7 @@ final class HelperSession implements BrowserSession {
    *
    * @param os     the operating system of the helper
    * @param folder the folder of the session
-   * @throws PlayerException if the path is too long
+   * @throws BrowserException if the path is too long
    */
   @VisibleForTesting
   static void requireShortEnough(final Os os, final Path folder) {
@@ -293,7 +292,7 @@ final class HelperSession implements BrowserSession {
           folder.getParent(),
           longest
         );
-      throw new PlayerException(message);
+      throw new BrowserException(message);
     }
   }
 
@@ -362,7 +361,7 @@ final class HelperSession implements BrowserSession {
    *
    * @param temporary the folder the session folder is created in
    * @return the new folder
-   * @throws PlayerException if the folder cannot be created
+   * @throws BrowserException if the folder cannot be created
    */
   @VisibleForTesting
   static Path createFolder(final Path temporary) {
@@ -376,7 +375,7 @@ final class HelperSession implements BrowserSession {
    * @param temporary the folder the session folder is created in
    * @param names     draws the name of a folder
    * @return the new folder
-   * @throws PlayerException if the folder cannot be created
+   * @throws BrowserException if the folder cannot be created
    */
   @VisibleForTesting
   static Path createFolder(final Path temporary, final Supplier<String> names) {
@@ -389,7 +388,7 @@ final class HelperSession implements BrowserSession {
       return createFolderUnderDrawnName(temporary, names, attributes);
     } catch (final IOException exception) {
       final String message = "The folder of the browser session cannot be created (%s)!".formatted(exception.getMessage());
-      throw new PlayerException(message, exception);
+      throw new BrowserException(message, exception);
     }
   }
 
@@ -488,16 +487,16 @@ final class HelperSession implements BrowserSession {
     while (true) {
       // an interrupted select returns at once without a word, so an interrupt, such as a release's, is checked here
       if (Thread.currentThread().isInterrupted()) {
-        throw new PlayerException("Interrupted while the browser helper connected!");
+        throw new BrowserException("Interrupted while the browser helper connected!");
       }
       final long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
       if (remaining <= 0) {
-        throw new PlayerException("The browser helper did not connect in time!");
+        throw new BrowserException("The browser helper did not connect in time!");
       }
       final boolean alive = process.isAlive();
       if (!alive) {
         final String message = "The browser helper exited with code %s before it connected!".formatted(process.exitValue());
-        throw new PlayerException(message);
+        throw new BrowserException(message);
       }
       selector.select(Math.min(remaining, CONNECT_POLL_MILLISECONDS));
       final SocketChannel channel = server.accept();
@@ -546,7 +545,7 @@ final class HelperSession implements BrowserSession {
     } catch (final InterruptedException exception) {
       final Thread thread = Thread.currentThread();
       thread.interrupt();
-      throw new PlayerException("Interrupted while starting the browser!", exception);
+      throw new BrowserException("Interrupted while starting the browser!", exception);
     } catch (final ExecutionException exception) {
       final Throwable cause = Objects.requireNonNull(exception.getCause(), "A failed start has a cause!");
       final String tail = this.getOutputTail();
@@ -555,12 +554,12 @@ final class HelperSession implements BrowserSession {
       }
       final String address = AddressText.describe(uri.toString());
       final String message = "The browser could not open %s (%s)!".formatted(address, cause.getMessage());
-      throw new PlayerException(message, cause);
+      throw new BrowserException(message, cause);
     } catch (final TimeoutException exception) {
       final String tail = this.getOutputTail();
       final String address = AddressText.describe(uri.toString());
       final String message = "The browser did not show %s in time!%n%s".formatted(address, tail);
-      throw new PlayerException(message, exception);
+      throw new BrowserException(message, exception);
     }
   }
 
@@ -679,7 +678,7 @@ final class HelperSession implements BrowserSession {
         final int code = message.getNumber();
         this.logBudget.log(() -> LOGGER.warn("Page {} failed to load with error {} ({}).", url, text, code), HelperSession::logSkipped);
         final String reason = "The page failed to load with error %s (%s)!".formatted(text, code);
-        final PlayerException failure = new PlayerException(reason);
+        final BrowserException failure = new BrowserException(reason);
         this.started.completeExceptionally(failure);
       }
       case HelperProtocol.NOTICE -> {
@@ -689,7 +688,7 @@ final class HelperSession implements BrowserSession {
       case HelperProtocol.FAILURE -> {
         final String text = message.getText();
         final String reason = "The browser failed (%s)!".formatted(text);
-        final PlayerException failure = new PlayerException(reason);
+        final BrowserException failure = new BrowserException(reason);
         this.started.completeExceptionally(failure);
         this.end(reason, failure);
       }
@@ -864,7 +863,7 @@ final class HelperSession implements BrowserSession {
    * @param cause  the failure, if one
    */
   private void end(final String reason, final @Nullable Throwable cause) {
-    final PlayerException failure = this.createEndFailure(reason, cause);
+    final BrowserException failure = this.createEndFailure(reason, cause);
     this.started.completeExceptionally(failure);
 
     if (this.closing.get() || !this.ended.compareAndSet(false, true)) {
@@ -874,12 +873,12 @@ final class HelperSession implements BrowserSession {
     this.listener.onEnded(reason, failure);
   }
 
-  private PlayerException createEndFailure(final String reason, final @Nullable Throwable cause) {
+  private BrowserException createEndFailure(final String reason, final @Nullable Throwable cause) {
     if (cause == null) {
-      return new PlayerException(reason);
+      return new BrowserException(reason);
     }
 
-    return new PlayerException(reason, cause);
+    return new BrowserException(reason, cause);
   }
 
   /**

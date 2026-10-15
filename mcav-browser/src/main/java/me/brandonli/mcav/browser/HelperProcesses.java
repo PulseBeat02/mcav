@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import me.brandonli.mcav.media.player.PlayerException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -56,11 +55,11 @@ final class HelperProcesses {
    * Checks that sessions may start, before anything is installed or launched for one.
    *
    * @return the generation of the module, which a session that starts now registers with
-   * @throws PlayerException if the browser module has been stopped
+   * @throws BrowserException if the browser module has been stopped
    */
   static synchronized long requireOpen() {
     if (stopped) {
-      throw new PlayerException("The browser module is stopped!");
+      throw new BrowserException("The browser module is stopped!");
     }
 
     return generation;

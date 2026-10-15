@@ -50,7 +50,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.os.Os;
 import org.cef.CefApp;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -174,7 +173,7 @@ class HelperLauncherTest {
     final Path browser = HelperLauncher.locate(BrowserHelper.class);
     final boolean browserLocationExists = Files.exists(browser);
     assertTrue(browserLocationExists, browser.toString());
-    final PlayerException bootstrap = assertThrows(PlayerException.class, () -> HelperLauncher.locate(String.class));
+    final BrowserException bootstrap = assertThrows(BrowserException.class, () -> HelperLauncher.locate(String.class));
     final boolean namesTheClass = bootstrap.getMessage().contains("java.lang.String");
     assertTrue(namesTheClass);
   }
@@ -200,7 +199,7 @@ class HelperLauncherTest {
       }
     };
     final Class<?> remoteClass = loader.loadClass(name);
-    final PlayerException failure = assertThrows(PlayerException.class, () -> HelperLauncher.locate(remoteClass));
+    final BrowserException failure = assertThrows(BrowserException.class, () -> HelperLauncher.locate(remoteClass));
     final boolean namesTheRemoteJar = failure.getMessage().contains("http://example.com/remote.jar");
     assertTrue(namesTheRemoteJar, failure.getMessage());
   }

@@ -40,7 +40,6 @@ import me.brandonli.mcav.browser.testing.Frames;
 import me.brandonli.mcav.browser.testing.HelperCoverage;
 import me.brandonli.mcav.browser.testing.StandardError;
 import me.brandonli.mcav.browser.testing.TestPages;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
@@ -379,7 +378,7 @@ class CefBrowserIntegrationTest {
   void shouldFailTheStartWhenThePageCannotBeLoaded() {
     final BrowserPlayer player = this.player(LOCAL);
     final BrowserSource unreachable = BrowserSource.uri(URI.create("http://mcav-browser-test.invalid/"), WIDTH, HEIGHT, 1);
-    final PlayerException failure = assertThrows(PlayerException.class, () -> player.start(unreachable));
+    final BrowserException failure = assertThrows(BrowserException.class, () -> player.start(unreachable));
     final boolean namesTheLoadError = failure.getMessage().contains("NAME_NOT_RESOLVED") || failure.getMessage().contains("-105");
     assertTrue(namesTheLoadError, failure.getMessage());
     final boolean playing = player.isPlaying();
@@ -390,7 +389,7 @@ class CefBrowserIntegrationTest {
   void shouldRefuseAPageOnThisMachineUnlessPrivateNetworksAreAllowed() {
     final BrowserPlayer player = this.player(BrowserOptions.DEFAULT);
     final BrowserSource local = BrowserSource.uri(this.pages.uri(MAIN_PAGE), WIDTH, HEIGHT, 1);
-    final PlayerException failure = assertThrows(PlayerException.class, () -> player.start(local));
+    final BrowserException failure = assertThrows(BrowserException.class, () -> player.start(local));
     final String message = failure.getMessage();
     final boolean namesTheProxyRefusal = message.contains("SOCKS") || message.contains("PROXY") || message.contains("TUNNEL");
     assertTrue(namesTheProxyRefusal, message);

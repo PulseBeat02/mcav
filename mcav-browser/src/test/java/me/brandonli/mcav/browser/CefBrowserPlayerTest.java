@@ -52,7 +52,6 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
@@ -272,7 +271,7 @@ class CefBrowserPlayerTest {
       new CountDownLatch(1).await();
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
-      throw new PlayerException("Interrupted while starting the browser", exception);
+      throw new BrowserException("Interrupted while starting the browser", exception);
     }
     return new FakeSession();
   }
@@ -447,8 +446,8 @@ class CefBrowserPlayerTest {
 
   @Test
   void shouldLeaveThePlayerIdleAfterAFailedStart() {
-    this.startFailure = new PlayerException("no browser here");
-    assertThrows(PlayerException.class, () -> this.player.start(SOURCE));
+    this.startFailure = new BrowserException("no browser here");
+    assertThrows(BrowserException.class, () -> this.player.start(SOURCE));
     final boolean playing = this.player.isPlaying();
     assertFalse(playing);
     this.startFailure = null;
@@ -473,10 +472,10 @@ class CefBrowserPlayerTest {
 
   @Test
   void shouldKeepTheInterruptOfTheCallerWhenTheStartFails() {
-    this.startFailure = new PlayerException("no browser here");
+    this.startFailure = new BrowserException("no browser here");
     Thread.currentThread().interrupt();
     try {
-      assertThrows(PlayerException.class, () -> this.player.start(SOURCE));
+      assertThrows(BrowserException.class, () -> this.player.start(SOURCE));
       final boolean interrupted = Thread.currentThread().isInterrupted();
       assertTrue(interrupted, "an interrupt of the caller's own is not the player's to take");
     } finally {
@@ -622,7 +621,7 @@ class CefBrowserPlayerTest {
   private BrowserSession releaseAndFailTheStart(final AtomicReference<CefBrowserPlayer> self) {
     final boolean released = self.get().release();
     assertTrue(released);
-    throw new PlayerException("Interrupted while starting the browser");
+    throw new BrowserException("Interrupted while starting the browser");
   }
 
   @Test
@@ -843,7 +842,7 @@ class CefBrowserPlayerTest {
     final CefBrowserPlayer.DefaultSessionFactory factory = new CefBrowserPlayer.DefaultSessionFactory(recording, List.of());
     HelperProcesses.closeAll();
     try {
-      final PlayerException failure = assertThrows(PlayerException.class, () -> this.openWithARecordingListener(factory));
+      final BrowserException failure = assertThrows(BrowserException.class, () -> this.openWithARecordingListener(factory));
       final String message = failure.getMessage();
       assertEquals("The browser module is stopped!", message);
     } finally {
@@ -879,7 +878,7 @@ class CefBrowserPlayerTest {
     );
     final CefBrowserPlayer.DefaultSessionFactory factory = new CefBrowserPlayer.DefaultSessionFactory(broken, List.of());
     final CefBrowserPlayer offline = new CefBrowserPlayer(BrowserOptions.DEFAULT, factory);
-    final PlayerException failure = assertThrows(PlayerException.class, () -> offline.start(SOURCE));
+    final BrowserException failure = assertThrows(BrowserException.class, () -> offline.start(SOURCE));
     final boolean namesTheInstallFailure = failure.getMessage().startsWith("The browser cannot be installed");
     assertTrue(namesTheInstallFailure, failure.getMessage());
     final boolean playing = offline.isPlaying();

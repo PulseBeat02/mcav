@@ -26,7 +26,6 @@ import java.io.Reader;
 import java.lang.reflect.Type;
 import java.util.Set;
 import me.brandonli.mcav.json.GsonProvider;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.IoUtils;
 
 /**
@@ -53,7 +52,7 @@ final class SpecialKeys {
    *
    * @param reader the reader of the list
    * @return the key names
-   * @throws PlayerException if the list is empty or cannot be read
+   * @throws BrowserException if the list is empty or cannot be read
    */
   @VisibleForTesting
   static Set<String> parse(final Reader reader) {
@@ -64,12 +63,12 @@ final class SpecialKeys {
       final Set<String> keys = gson.fromJson(reader, type);
       if (keys == null || keys.isEmpty()) {
         final String message = "The key list resource %s is empty!".formatted(RESOURCE);
-        throw new PlayerException(message);
+        throw new BrowserException(message);
       }
       return Set.copyOf(keys);
     } catch (final IOException exception) {
       final String message = "The key list resource could not be read (%s)!".formatted(exception.getMessage());
-      throw new PlayerException(message, exception);
+      throw new BrowserException(message, exception);
     }
   }
 

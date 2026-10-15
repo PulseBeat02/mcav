@@ -32,7 +32,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.media.player.attachable.AudioAttachableCallback;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.metadata.OriginalVideoMetadata;
@@ -166,7 +165,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       // Check after start becomes interruptible, so release either finds this start or is observed here.
       final boolean idle = !this.released.get() && this.state.get() != State.PLAYING;
       return idle && this.startSession(source);
-    } catch (final PlayerException exception) {
+    } catch (final BrowserException exception) {
       if (this.released.get()) {
         return false;
       }
@@ -488,7 +487,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
      * @param options  the options of the player
      * @param listener receives the frames and an unexpected end
      * @return the session
-     * @throws PlayerException if the browser cannot be started
+     * @throws BrowserException if the browser cannot be started
      */
     BrowserSession open(BrowserSource source, BrowserOptions options, BrowserSession.Listener listener);
   }

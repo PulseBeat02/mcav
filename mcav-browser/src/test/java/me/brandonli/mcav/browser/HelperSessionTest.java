@@ -70,7 +70,6 @@ import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.OpenFiles;
 import me.brandonli.mcav.browser.testing.StandardError;
 import me.brandonli.mcav.media.image.ImageBuffer;
-import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -138,11 +137,11 @@ class HelperSessionTest {
     return session;
   }
 
-  private PlayerException openFails(final String mainClass, final String path, final long timeoutMilliseconds) {
+  private BrowserException openFails(final String mainClass, final String path, final long timeoutMilliseconds) {
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com" + path), 4, 3, 1);
     final int before = HelperProcesses.count();
     final HelperLauncher launcher = launcher(mainClass, timeoutMilliseconds);
-    final PlayerException failure = assertThrows(PlayerException.class, () -> this.openSession(launcher, source));
+    final BrowserException failure = assertThrows(BrowserException.class, () -> this.openSession(launcher, source));
     final int helperCount = HelperProcesses.count();
     assertEquals(before, helperCount, "a failed start leaves no session behind");
 
@@ -198,16 +197,16 @@ class HelperSessionTest {
       server.configureBlocking(false);
       final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
       final Duration timeout = Duration.ofSeconds(10);
-      final PlayerException interrupted = assertTimeoutPreemptively(timeout, () -> this.acceptWhileInterrupted(server, alive, deadline));
+      final BrowserException interrupted = assertTimeoutPreemptively(timeout, () -> this.acceptWhileInterrupted(server, alive, deadline));
       final String message = interrupted.getMessage();
       assertEquals("Interrupted while the browser helper connected!", message);
     }
   }
 
-  private PlayerException acceptWhileInterrupted(final ServerSocketChannel server, final Process alive, final long deadline) {
+  private BrowserException acceptWhileInterrupted(final ServerSocketChannel server, final Process alive, final long deadline) {
     Thread.currentThread().interrupt();
     try {
-      return assertThrows(PlayerException.class, () -> HelperSession.accept(server, alive, deadline));
+      return assertThrows(BrowserException.class, () -> HelperSession.accept(server, alive, deadline));
     } finally {
       Thread.interrupted();
     }
@@ -542,7 +541,7 @@ class HelperSessionTest {
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/silent-stubborn"), 4, 3, 1);
     final HelperLauncher launcher = launcher(RawHelperMain.class.getName(), 1_000L);
     final Path parent = this.shortDirectory();
-    final PlayerException failure = assertThrows(PlayerException.class, () -> this.openSessionIn(launcher, source, parent));
+    final BrowserException failure = assertThrows(BrowserException.class, () -> this.openSessionIn(launcher, source, parent));
     final String message = failure.getMessage();
     assertEquals("The browser helper did not connect in time!", message);
     final Set<ProcessHandle> newProcesses = newSince(before);
@@ -568,14 +567,14 @@ class HelperSessionTest {
 
   @Test
   void shouldFailTheStartWhenThePageFailsToLoad() {
-    final PlayerException failure = this.openFails(ScriptedEngine.class.getName(), "/load-error", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), "/load-error", START_TIMEOUT_MILLISECONDS);
     final boolean reportsTheLoadError = failure.getMessage().contains("ERR_NAME_NOT_RESOLVED (-105)");
     assertTrue(reportsTheLoadError, failure.getMessage());
   }
 
   @Test
   void shouldFailTheStartWhenTheHelperExitsDuringIt() {
-    final PlayerException failure = this.openFails(ScriptedEngine.class.getName(), "/exit", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), "/exit", START_TIMEOUT_MILLISECONDS);
     final boolean reportsTheExit =
       failure.getMessage().contains("exited with code 3") || failure.getMessage().contains("closed the connection");
     assertTrue(reportsTheExit, failure.getMessage());
@@ -583,21 +582,21 @@ class HelperSessionTest {
 
   @Test
   void shouldFailTheStartWhenTheBrowserCannotStart() {
-    final PlayerException failure = this.openFails(ScriptedEngine.class.getName(), "/throw", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), "/throw", START_TIMEOUT_MILLISECONDS);
     final boolean reportsTheStartFailure = failure.getMessage().contains("scripted start failure");
     assertTrue(reportsTheStartFailure, failure.getMessage());
   }
 
   @Test
   void shouldTimeOutWhenTheHelperNeverShowsThePage() {
-    final PlayerException failure = this.openFails(ScriptedEngine.class.getName(), "/never", 3_000L);
+    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), "/never", 3_000L);
     final boolean reportsTheTimeout = failure.getMessage().contains("did not show https://example.com/never in time");
     assertTrue(reportsTheTimeout, failure.getMessage());
   }
 
   @Test
   void shouldTimeOutWhenTheHelperNeverConnects() {
-    final PlayerException failure = this.openFails(SilentMain.class.getName(), PAGE, 2_000L);
+    final BrowserException failure = this.openFails(SilentMain.class.getName(), PAGE, 2_000L);
     final String message = failure.getMessage();
     assertEquals("The browser helper did not connect in time!", message);
   }
@@ -616,7 +615,7 @@ class HelperSessionTest {
     );
     final Path parent = this.shortDirectory();
     final Set<ProcessHandle> before = liveDescendants();
-    final PlayerException failure = assertThrows(PlayerException.class, () -> this.openSessionIn(broken, source, parent));
+    final BrowserException failure = assertThrows(BrowserException.class, () -> this.openSessionIn(broken, source, parent));
     final boolean reportsTheStartFailure = failure.getMessage().startsWith("The browser helper could not be started");
     assertTrue(reportsTheStartFailure, failure.getMessage());
     final Set<ProcessHandle> newProcesses = newSince(before);
@@ -636,14 +635,14 @@ class HelperSessionTest {
 
   @Test
   void shouldRefuseAHelperWithAnotherToken() {
-    final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/wrong-token", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/wrong-token", START_TIMEOUT_MILLISECONDS);
     final boolean reportsTheWrongToken = failure.getMessage().contains("presented a wrong session token");
     assertTrue(reportsTheWrongToken, failure.getMessage());
   }
 
   @Test
   void shouldRefuseAHelperOfAnotherProtocolVersion() {
-    final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/wrong-version", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/wrong-version", START_TIMEOUT_MILLISECONDS);
     final boolean reportsTheProtocolMismatch = failure
       .getMessage()
       .contains("Protocol version 2 of the browser helper differs from version 1 of the server!");
@@ -652,14 +651,14 @@ class HelperSessionTest {
 
   @Test
   void shouldRefuseAHelperThatDoesNotIntroduceItself() {
-    final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/no-hello", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/no-hello", START_TIMEOUT_MILLISECONDS);
     final boolean reportsTheMissingIntroduction = failure.getMessage().contains("did not introduce itself");
     assertTrue(reportsTheMissingIntroduction, failure.getMessage());
   }
 
   @Test
   void shouldRefuseAFrameOfAnotherPage() {
-    final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/wrong-page", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/wrong-page", START_TIMEOUT_MILLISECONDS);
     final boolean reportsTheFrameMismatch = failure.getMessage().contains("A frame of a 5x3 page arrived for a 4x3 page");
     assertTrue(reportsTheFrameMismatch, failure.getMessage());
   }
@@ -698,14 +697,14 @@ class HelperSessionTest {
 
   @Test
   void shouldFailTheStartWhenTheHelperExitsBeforeItConnects() {
-    final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/exit", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/exit", START_TIMEOUT_MILLISECONDS);
     final String message = failure.getMessage();
     assertEquals("The browser helper exited with code 4 before it connected!", message);
   }
 
   @Test
   void shouldRefuseAHelperThatSendsAFrameBeforeItsHello() {
-    final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/frame-first", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/frame-first", START_TIMEOUT_MILLISECONDS);
     final boolean reportsTheEarlyFrame = failure.getMessage().contains("arrived where no frame of that size is expected");
     assertTrue(reportsTheEarlyFrame, failure.getMessage());
   }
@@ -740,7 +739,7 @@ class HelperSessionTest {
     final HelperLauncher launcher = base.withLibraries(_ -> this.failToLinkLibraries());
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
     final Path parent = this.shortDirectory();
-    final PlayerException failure = assertThrows(PlayerException.class, () -> this.openSessionIn(launcher, source, parent));
+    final BrowserException failure = assertThrows(BrowserException.class, () -> this.openSessionIn(launcher, source, parent));
     final String message = failure.getMessage();
     assertEquals("The browser helper could not be started (no space left)!", message);
     try (final Stream<Path> left = Files.list(parent)) {
@@ -755,7 +754,7 @@ class HelperSessionTest {
 
   @Test
   void shouldRefuseARegionLargerThanThePageBeforeItsPixelsAreRead() {
-    final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/oversized", START_TIMEOUT_MILLISECONDS);
+    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/oversized", START_TIMEOUT_MILLISECONDS);
     final boolean reportsTheOversizedFrame = failure
       .getMessage()
       .contains("A frame of 60 bytes arrived where no frame of that size is expected");
@@ -776,7 +775,7 @@ class HelperSessionTest {
   @Test
   void shouldStopAHelperThatNeverConnectsAtOnceWhenItsStartTimesOut() {
     final long start = System.nanoTime();
-    final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/silent", 1_000L);
+    final BrowserException failure = this.openFails(RawHelperMain.class.getName(), "/silent", 1_000L);
     final boolean reportsTheTimeout = failure.getMessage().contains("The browser helper did not connect in time!");
     assertTrue(reportsTheTimeout, failure.getMessage());
     final long seconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start);
@@ -820,7 +819,7 @@ class HelperSessionTest {
   void shouldStartNoHelperWhileTheModuleIsStopped() {
     HelperProcesses.closeAll();
     try {
-      final PlayerException failure = this.openFails(ScriptedEngine.class.getName(), PAGE, START_TIMEOUT_MILLISECONDS);
+      final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), PAGE, START_TIMEOUT_MILLISECONDS);
       final String message = failure.getMessage();
       assertEquals("The browser module is stopped!", message);
     } finally {
@@ -886,7 +885,7 @@ class HelperSessionTest {
       HelperProcesses.closeAll();
       Files.createFile(gate);
       final ExecutionException failure = assertThrows(ExecutionException.class, () -> opening.get(60, TimeUnit.SECONDS));
-      final PlayerException cause = assertInstanceOf(PlayerException.class, failure.getCause());
+      final BrowserException cause = assertInstanceOf(BrowserException.class, failure.getCause());
       final String message = cause.getMessage();
       assertEquals("The browser module was stopped while the browser started!", message);
     } finally {
@@ -922,7 +921,7 @@ class HelperSessionTest {
     HelperProcesses.open();
     Files.createFile(gate);
     final ExecutionException failure = assertThrows(ExecutionException.class, () -> opening.get(60, TimeUnit.SECONDS));
-    final PlayerException cause = assertInstanceOf(PlayerException.class, failure.getCause());
+    final BrowserException cause = assertInstanceOf(BrowserException.class, failure.getCause());
     final String message = cause.getMessage();
     assertEquals("The browser module was stopped while the browser started!", message);
     final int helperCount = HelperProcesses.count();
@@ -956,7 +955,7 @@ class HelperSessionTest {
   ) {
     try {
       HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener);
-    } catch (final PlayerException exception) {
+    } catch (final BrowserException exception) {
       thrown.set(exception);
       stillInterrupted.set(Thread.currentThread().isInterrupted());
     }
@@ -1097,7 +1096,7 @@ class HelperSessionTest {
       assertTrue(plainFolderCreated, "a file system without POSIX permissions gets a plain folder");
     }
     final Path missingParent = this.directory.resolve("missing");
-    final PlayerException missing = assertThrows(PlayerException.class, () -> HelperSession.createFolder(missingParent));
+    final BrowserException missing = assertThrows(BrowserException.class, () -> HelperSession.createFolder(missingParent));
     final boolean reportsTheMissingParent = missing.getMessage().startsWith("The folder of the browser session cannot be created");
     assertTrue(reportsTheMissingParent, missing.getMessage());
   }
@@ -1115,7 +1114,7 @@ class HelperSessionTest {
     final Path last = HelperSession.createFolder(this.directory, () -> drawn.incrementAndGet() < 100 ? "mcavb-taken" : "mcavb-last");
     assertEquals(this.directory.resolve("mcavb-last"), last);
     drawn.set(0);
-    final PlayerException exhausted = assertThrows(PlayerException.class, () -> this.createFolderFromTakenNames(drawn));
+    final BrowserException exhausted = assertThrows(BrowserException.class, () -> this.createFolderFromTakenNames(drawn));
     final boolean reportsEveryNameTaken = exhausted.getMessage().endsWith("(Every name drawn was taken!)!");
     assertTrue(reportsEveryNameTaken, exhausted.getMessage());
     final int drawCount = drawn.get();
@@ -1138,7 +1137,7 @@ class HelperSessionTest {
     HelperSession.requireShortEnough(Os.LINUX, Path.of("/" + "t".repeat(46), "mcavb-12345678"));
     final Path folder = Path.of("/" + "t".repeat(47));
     final Path tooLong = folder.resolve("mcavb-12345678");
-    final PlayerException refused = assertThrows(PlayerException.class, () -> HelperSession.requireShortEnough(Os.LINUX, tooLong));
+    final BrowserException refused = assertThrows(BrowserException.class, () -> HelperSession.requireShortEnough(Os.LINUX, tooLong));
     final String message = refused.getMessage();
     assertEquals(
       "The temporary folder " +
@@ -1156,7 +1155,7 @@ class HelperSessionTest {
     final Path temporary = Files.createDirectories(this.directory.resolve("t".repeat(70 - this.directory.toString().length())));
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
     final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS, Os.LINUX);
-    final PlayerException refused = assertThrows(PlayerException.class, () -> this.openSessionIn(launcher, source, temporary));
+    final BrowserException refused = assertThrows(BrowserException.class, () -> this.openSessionIn(launcher, source, temporary));
     final boolean reportsTheLongFolder = refused.getMessage().startsWith("The temporary folder " + temporary + " is too long");
     assertTrue(reportsTheLongFolder, refused.getMessage());
     try (final Stream<Path> left = Files.list(temporary)) {
