@@ -50,7 +50,8 @@ final class NullDisplayFuzzTest {
     }
     final long largestReply = 32L + 4L * NullDisplay.MAX_REQUEST_UNITS;
     final long bound = 1_000L + (input.length / 4L + 1L) * largestReply;
-    assertTrue(output.size() <= bound, output.size() + " bytes answered to " + input.length);
+    final boolean answerBounded = output.size() <= bound;
+    assertTrue(answerBounded, output.size() + " bytes answered to " + input.length);
   }
 
   @FuzzTest(maxDuration = "30s")

@@ -80,7 +80,8 @@ class BrowserSoundTest {
       player.release();
     }
     this.pages.close();
-    assertEquals(0, HelperProcesses.count());
+    final int processCount = HelperProcesses.count();
+    assertEquals(0, processCount);
     Await.until("every browser process of this test has ended", () -> CefBrowserIntegrationTest.countBrowserProcesses() == 0);
     // a CEF process that lost its parent is no longer below this JVM; they are only told, as other programs may run CEF
     try (final Stream<ProcessHandle> all = ProcessHandle.allProcesses()) {
@@ -106,8 +107,10 @@ class BrowserSoundTest {
       final Recording recording = new Recording();
       player.getAudioAttachableCallback().attach(
         AudioPipelineStep.of((samples, metadata) -> {
-          assertEquals(AudioFilter.SAMPLE_RATE, metadata.getAudioSampleRate());
-          assertEquals(AudioFilter.CHANNELS, metadata.getAudioChannels());
+          final int audioSampleRate = metadata.getAudioSampleRate();
+          assertEquals(AudioFilter.SAMPLE_RATE, audioSampleRate);
+          final int audioChannels = metadata.getAudioChannels();
+          assertEquals(AudioFilter.CHANNELS, audioChannels);
           final byte[] copy = new byte[samples.remaining()];
           samples.get(copy);
           synchronized (recording.pcm) {
@@ -146,8 +149,9 @@ class BrowserSoundTest {
   private void awaitSound(final Recording recording, final int bytes, final String what) throws InterruptedException {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
     while (recording.size() < bytes) {
+      final boolean beforeDeadline = System.nanoTime() < deadline;
       assertTrue(
-        System.nanoTime() < deadline,
+        beforeDeadline,
         () -> what + " arrived, only " + recording.size() + " bytes did; the page reported " + this.soundReports()
       );
       Thread.sleep(50L);
@@ -166,7 +170,8 @@ class BrowserSoundTest {
   }
 
   private void startAndClick(final BrowserPlayer player, final String path) {
-    assertTrue(player.start(BrowserSource.uri(this.pages.uri(path), WIDTH, HEIGHT, 1)));
+    final boolean started = player.start(BrowserSource.uri(this.pages.uri(path), WIDTH, HEIGHT, 1));
+    assertTrue(started);
     Await.until("the page reported its size", () -> this.pages.count("size") > 0);
     this.startClicking(player);
   }
@@ -175,10 +180,12 @@ class BrowserSoundTest {
   void shouldPassTheToneOfAPageToTheAudioPipelineOnceAPlayerClickedIt() throws InterruptedException {
     final BrowserPlayer player = this.player();
     final Recording recording = Recording.attach(player);
-    assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1)));
+    final boolean started = player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1));
+    assertTrue(started);
     Await.until("the page reported its size", () -> this.pages.count("size") > 0);
     Thread.sleep(2_000L);
-    assertEquals(0, recording.size(), "no sound before the first click");
+    final int recordedByteCount = recording.size();
+    assertEquals(0, recordedByteCount, "no sound before the first click");
     this.startClicking(player);
     this.awaitSound(recording, 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "two seconds of sound");
     final short[] left = recording.left();
@@ -195,10 +202,13 @@ class BrowserSoundTest {
       held,
       AudioFilter.SAMPLE_RATE / WINDOW_FRAMES
     );
-    assertTrue(Math.abs(frequency - TestPages.TONE_HERTZ) < 20, "the tone has " + frequency + " Hz");
-    assertTrue(held > ((AudioFilter.SAMPLE_RATE / WINDOW_FRAMES) * 9) / 10, "the tone holds in " + held + " windows");
+    final boolean atTheToneFrequency = Math.abs(frequency - TestPages.TONE_HERTZ) < 20;
+    assertTrue(atTheToneFrequency, "the tone has " + frequency + " Hz");
+    final boolean toneHolds = held > ((AudioFilter.SAMPLE_RATE / WINDOW_FRAMES) * 9) / 10;
+    assertTrue(toneHolds, "the tone holds in " + held + " windows");
     final double expected = (2 * TestPages.TONE_AMPLITUDE * Short.MAX_VALUE) / Math.PI;
-    assertTrue(Math.abs(level - expected) < expected * 0.1, "the tone plays at its own level, " + level);
+    final boolean atItsOwnLevel = Math.abs(level - expected) < expected * 0.1;
+    assertTrue(atItsOwnLevel, "the tone plays at its own level, " + level);
   }
 
   /**
@@ -209,7 +219,8 @@ class BrowserSoundTest {
   private void startClicking(final BrowserPlayer player) {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
     while (this.pages.count("mousedown") == 0) {
-      assertTrue(System.nanoTime() < deadline, "the page never took a click");
+      final boolean beforeDeadline = System.nanoTime() < deadline;
+      assertTrue(beforeDeadline, "the page never took a click");
       player.sendMouseEvent(MouseClick.LEFT, 10, 10);
       final long probeEnd = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(250);
       while (this.pages.count("mousedown") == 0 && System.nanoTime() < probeEnd) {
@@ -222,25 +233,31 @@ class BrowserSoundTest {
   void shouldKeepAPageThatWrapsWebAudioBeforeItsFirstContextFromTheCaptureAndPlayItOnlyAfterAClick() throws InterruptedException {
     final BrowserPlayer player = this.player();
     final Recording recording = Recording.attach(player);
-    assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone-wrapped"), WIDTH, HEIGHT, 1)));
+    final boolean started = player.start(BrowserSource.uri(this.pages.uri("/tone-wrapped"), WIDTH, HEIGHT, 1));
+    assertTrue(started);
     Await.until("the page reported what its wrappers saw", () -> this.pages.count("taps") > 0);
-    assertEquals(0, this.pages.getEvents("taps").getFirst().getX(), "no node of the capture passed the page's wrappers");
+    final int wrappedNodeCount = this.pages.getEvents("taps").getFirst().getX();
+    assertEquals(0, wrappedNodeCount, "no node of the capture passed the page's wrappers");
     Thread.sleep(2_000L);
-    assertEquals(0, recording.size(), "no sound before the first click, neither played nor forged");
+    final int recordedByteCount = recording.size();
+    assertEquals(0, recordedByteCount, "no sound before the first click, neither played nor forged");
     this.startClicking(player);
     this.awaitSound(recording, 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "two seconds of sound");
     final short[] left = recording.left();
     final double frequency = zeroCrossings(left, left.length - AudioFilter.SAMPLE_RATE) / 2.0;
-    assertTrue(Math.abs(frequency - TestPages.TONE_HERTZ) < 20, "after the click the page's own tone plays: " + frequency + " Hz");
+    final boolean atTheToneFrequency = Math.abs(frequency - TestPages.TONE_HERTZ) < 20;
+    assertTrue(atTheToneFrequency, "after the click the page's own tone plays: " + frequency + " Hz");
   }
 
   @Test
   void shouldLetAPagePlayRightAwayWhenTheOptionsAllowIt() throws InterruptedException {
     final BrowserPlayer player = this.player(BrowserOptions.builder().privateNetworks(true).autoplay(true).build());
     final Recording recording = Recording.attach(player);
-    assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1)));
+    final boolean started = player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1));
+    assertTrue(started);
     this.awaitSound(recording, AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "a second of sound nobody clicked for");
-    assertEquals(0, this.pages.count("mousedown"), "nobody clicked the page");
+    final int clickCount = this.pages.count("mousedown");
+    assertEquals(0, clickCount, "nobody clicked the page");
   }
 
   @Test
@@ -255,14 +272,16 @@ class BrowserSoundTest {
     final double level = meanLevel(left, start);
     final double full = (2 * TestPages.TONE_AMPLITUDE * Short.MAX_VALUE) / Math.PI;
     System.out.printf(Locale.ROOT, "an element at half volume: mean level %.0f of %.0f at full volume%n", level, full);
-    assertTrue(Math.abs(level - full / 2) < full * 0.1, "the element plays at half volume, once: " + level);
+    final boolean atHalfVolume = Math.abs(level - full / 2) < full * 0.1;
+    assertTrue(atHalfVolume, "the element plays at half volume, once: " + level);
     half.release();
     this.pages.clearEvents();
     final BrowserPlayer muted = this.player();
     final Recording mutedRecording = Recording.attach(muted);
     this.startAndClick(muted, "/tone-element?muted=1");
     Thread.sleep(3_000L);
-    assertEquals(0, mutedRecording.size(), "a muted element plays nothing");
+    final int mutedByteCount = mutedRecording.size();
+    assertEquals(0, mutedByteCount, "a muted element plays nothing");
   }
 
   @Test
@@ -298,7 +317,8 @@ class BrowserSoundTest {
     this.startAndClick(player, "/av-sync");
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(90);
     while (onsets(picture).size() < 50) {
-      assertTrue(System.nanoTime() < deadline, "the page turned on " + onsets(picture).size() + " times");
+      final boolean beforeDeadline = System.nanoTime() < deadline;
+      assertTrue(beforeDeadline, "the page turned on " + onsets(picture).size() + " times");
       Thread.sleep(100L);
     }
     player.release();
@@ -327,12 +347,17 @@ class BrowserSoundTest {
     // ITU-R BT.1359: sound may lead the picture by 90 ms and lag it by 185 ms before viewers find it unacceptable
     final long acceptable = judgement.within(-90, 185);
     System.out.printf(Locale.ROOT, "A/V sync: %d of %d within ITU-R BT.1359 acceptability [-90, +185] ms%n", acceptable, changes);
-    assertTrue(offsets.size() >= Math.ceil(changes * 0.9), "matched " + offsets.size() + " of " + changes + " changes of the picture");
+    final boolean mostChangesMatched = offsets.size() >= Math.ceil(changes * 0.9);
+    assertTrue(mostChangesMatched, "matched " + offsets.size() + " of " + changes + " changes of the picture");
     final double middle = median(sorted);
-    assertTrue(middle >= -40 && middle <= 80, "the sound and the picture arrive together in the middle: " + middle);
-    assertTrue(within >= Math.ceil(changes * 0.95), within + " of " + changes + " changes are within the target");
-    assertTrue(acceptable >= Math.ceil(changes * 0.9), acceptable + " of " + changes + " changes are in sync");
-    assertTrue(Math.abs(secondHalf - firstHalf) < 25, "the sound does not drift from the picture");
+    final boolean togetherInTheMiddle = middle >= -40 && middle <= 80;
+    assertTrue(togetherInTheMiddle, "the sound and the picture arrive together in the middle: " + middle);
+    final boolean mostChangesWithinTarget = within >= Math.ceil(changes * 0.95);
+    assertTrue(mostChangesWithinTarget, within + " of " + changes + " changes are within the target");
+    final boolean mostChangesAcceptable = acceptable >= Math.ceil(changes * 0.9);
+    assertTrue(mostChangesAcceptable, acceptable + " of " + changes + " changes are in sync");
+    final boolean noDrift = Math.abs(secondHalf - firstHalf) < 25;
+    assertTrue(noDrift, "the sound does not drift from the picture");
   }
 
   /**
@@ -380,14 +405,17 @@ class BrowserSoundTest {
       sound.add(shown + TimeUnit.MILLISECONDS.toNanos(change < 10 ? 20 : 300));
     }
     final SyncJudgement late = SyncJudgement.of(picture, sound, TimeUnit.MILLISECONDS.toNanos(400));
-    assertEquals(50, late.changes());
-    assertTrue(late.within(-90, 185) < Math.ceil(late.changes() * 0.9), "40 of 50 changes 300 ms late are not in sync");
+    final int lateChanges = late.changes();
+    assertEquals(50, lateChanges);
+    final boolean lateOutOfSync = late.within(-90, 185) < Math.ceil(late.changes() * 0.9);
+    assertTrue(lateOutOfSync, "40 of 50 changes 300 ms late are not in sync");
     final List<Long> onTime = picture
       .stream()
       .map(shown -> shown + TimeUnit.MILLISECONDS.toNanos(20))
       .toList();
     final SyncJudgement inSync = SyncJudgement.of(picture, onTime, TimeUnit.MILLISECONDS.toNanos(400));
-    assertEquals(50, inSync.within(-40, 80));
+    final long changesWithinTarget = inSync.within(-40, 80);
+    assertEquals(50, changesWithinTarget);
   }
 
   private static int zeroCrossings(final short[] left, final int start) {

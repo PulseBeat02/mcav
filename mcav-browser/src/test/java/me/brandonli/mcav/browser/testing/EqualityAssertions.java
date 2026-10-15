@@ -44,7 +44,8 @@ public final class EqualityAssertions {
    */
   public static void assertEqualityContract(final Object value, final Object equalValue, final Object... differentValues) {
     final Object[] sameInstance = { value };
-    assertEquals(value, sameInstance[0]);
+    final Object sameValue = sameInstance[0];
+    assertEquals(value, sameValue);
     assertEquals(value, equalValue);
     assertEquals(equalValue, value);
     final int hash = value.hashCode();

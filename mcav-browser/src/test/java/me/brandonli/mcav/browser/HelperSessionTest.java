@@ -43,6 +43,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -72,6 +73,7 @@ import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
@@ -128,7 +130,8 @@ class HelperSessionTest {
     final PlayerException failure = assertThrows(PlayerException.class, () ->
       HelperSession.open(launcher(mainClass, timeoutMillis), NATIVES, source, BrowserOptions.DEFAULT, this.listener)
     );
-    assertEquals(before, HelperProcesses.count(), "a failed start leaves no session behind");
+    final int helperCount = HelperProcesses.count();
+    assertEquals(before, helperCount, "a failed start leaves no session behind");
     return failure;
   }
 
@@ -179,7 +182,8 @@ class HelperSessionTest {
           Thread.interrupted();
         }
       });
-      assertEquals("Interrupted while the browser helper connected", interrupted.getMessage());
+      final String message = interrupted.getMessage();
+      assertEquals("Interrupted while the browser helper connected", message);
     }
   }
 
@@ -196,36 +200,51 @@ class HelperSessionTest {
       .filter(line -> line.contains("Browser: noise ") || line.contains("could not load https://example.com/noise/"))
       .count();
     final int sent = RawHelperMain.NOISY_NOTICES + RawHelperMain.NOISY_LOAD_ERRORS;
-    assertTrue(reports >= LogBudget.BURST && reports <= LogBudget.BURST + 5, "logged " + reports + " of " + sent + " reports");
-    assertFalse(log.contains("token=secret"), log);
-    assertTrue(log.contains("more notices of the page were not logged"), log);
-    assertTrue(log.contains("Browser: noise after a pause"), log);
+    final boolean loggedWithinBudget = reports >= LogBudget.BURST && reports <= LogBudget.BURST + 5;
+    assertTrue(loggedWithinBudget, "logged " + reports + " of " + sent + " reports");
+    final boolean leaksTheToken = log.contains("token=secret");
+    assertFalse(leaksTheToken, log);
+    final boolean reportsTheSkippedNotices = log.contains("more notices of the page were not logged");
+    assertTrue(reportsTheSkippedNotices, log);
+    final boolean logsTheNoiseAfterAPause = log.contains("Browser: noise after a pause");
+    assertTrue(logsTheNoiseAfterAPause, log);
   }
 
   @Test
   void shouldStreamThePageAndCarryInput() throws Exception {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
-    assertTrue(session.isAlive());
-    assertEquals(1, HelperProcesses.count());
+    final boolean sessionAlive = session.isAlive();
+    assertTrue(sessionAlive);
+    final int helperCountWhileOpen = HelperProcesses.count();
+    assertEquals(1, helperCountWhileOpen);
     Await.until("the first frame", () -> !this.listener.blues().isEmpty());
     final ImageBuffer first = this.listener.frames.getFirst();
-    assertEquals(4, first.getWidth());
-    assertEquals(3, first.getHeight());
-    assertEquals(ScriptedEngine.GREEN, first.getData().get(1) & 0xFF);
-    assertEquals(ScriptedEngine.RED, first.getData().get(2) & 0xFF);
-    assertTrue(session.sendKey(HelperProtocol.KEY_TYPE, "ab"));
+    final int width = first.getWidth();
+    assertEquals(4, width);
+    final int height = first.getHeight();
+    assertEquals(3, height);
+    final int greenChannel = first.getData().get(1) & 0xFF;
+    assertEquals(ScriptedEngine.GREEN, greenChannel);
+    final int redChannel = first.getData().get(2) & 0xFF;
+    assertEquals(ScriptedEngine.RED, redChannel);
+    final boolean keyAccepted = session.sendKey(HelperProtocol.KEY_TYPE, "ab");
+    assertTrue(keyAccepted);
     Await.until("the typed text", () -> this.listener.blues().contains(4));
-    assertTrue(session.sendMouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 3, 2, 0, 0, 0, 0)));
+    final boolean mouseAccepted = session.sendMouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 3, 2, 0, 0, 0, 0));
+    assertTrue(mouseAccepted);
     Await.until("the mouse move", () -> this.listener.blues().contains(5));
     final int delivered = this.listener.frames.size();
     session.requestFrame();
     Await.until("the frame sent again", () -> this.listener.frames.size() > delivered);
     final Process process = session.getProcess();
     session.close();
-    assertFalse(process.isAlive());
-    assertEquals(0, HelperProcesses.count());
+    final boolean processAlive = process.isAlive();
+    assertFalse(processAlive);
+    final int helperCountAfterClose = HelperProcesses.count();
+    assertEquals(0, helperCountAfterClose);
     session.close();
-    assertTrue(session.sendKey(HelperProtocol.KEY_TYPE, "ignored"), "input after close is dropped quietly");
+    final boolean keyAfterCloseAccepted = session.sendKey(HelperProtocol.KEY_TYPE, "ignored");
+    assertTrue(keyAfterCloseAccepted, "input after close is dropped quietly");
     assertEquals(List.of(), this.listener.ended);
   }
 
@@ -238,12 +257,15 @@ class HelperSessionTest {
       final byte[] samples = this.listener.sound.get(chunk - 1);
       assertEquals(ScriptedEngine.SOUND_FRAMES * HelperProtocol.AUDIO_FRAME_BYTES, samples.length);
       for (int index = 0; index < samples.length; index += 2) {
-        assertEquals(chunk, samples[index], "the low byte of every sample of chunk " + chunk);
-        assertEquals(0, samples[index + 1]);
+        final byte lowByte = samples[index];
+        assertEquals(chunk, lowByte, "the low byte of every sample of chunk " + chunk);
+        final byte highByte = samples[index + 1];
+        assertEquals(0, highByte);
       }
     }
     Thread.sleep(HelperSession.REPEAT_DELAY_MILLIS * 2);
-    assertEquals(ScriptedEngine.SOUND_CHUNKS, this.listener.sound.size());
+    final int chunkCount = this.listener.sound.size();
+    assertEquals(ScriptedEngine.SOUND_CHUNKS, chunkCount);
     session.close();
     assertEquals(List.of(), this.listener.ended);
   }
@@ -252,13 +274,17 @@ class HelperSessionTest {
   void shouldPassTheSoundOfAPageToTheServerOnlyOnceAPlayerPressedAButtonOrAKey() throws Exception {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/sound-on-input");
     Await.until("the first frame", () -> !this.listener.frames.isEmpty());
-    assertTrue(session.sendMouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, 0, 0, 0, 0)));
+    final boolean moveAccepted = session.sendMouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, 0, 0, 0, 0));
+    assertTrue(moveAccepted);
     Await.until("the mouse move", () -> session.getHandledInput() >= 1);
-    assertTrue(session.sendMouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 1, 0, 1, 0, 0)));
+    final boolean pressAccepted = session.sendMouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 1, 0, 1, 0, 0));
+    assertTrue(pressAccepted);
     Await.until("the sound after the press", () -> !this.listener.sound.isEmpty());
     Thread.sleep(HelperSession.REPEAT_DELAY_MILLIS * 2);
-    assertEquals(1, this.listener.sound.size());
-    assertEquals(2, this.listener.sound.getFirst()[0]);
+    final int chunkCount = this.listener.sound.size();
+    assertEquals(1, chunkCount);
+    final byte firstSoundByte = this.listener.sound.getFirst()[0];
+    assertEquals(2, firstSoundByte);
   }
 
   @Test
@@ -267,10 +293,12 @@ class HelperSessionTest {
     final int expected = 1 + HelperSession.SETTLED_REPEATS;
     Await.until("the repeats of the settled page", () -> this.listener.frames.size() >= expected);
     Thread.sleep(HelperSession.REPEAT_DELAY_MILLIS * 4);
-    assertEquals(expected, this.listener.frames.size(), "the repeats stop");
+    final int frameCount = this.listener.frames.size();
+    assertEquals(expected, frameCount, "the repeats stop");
     final long spanNanos = this.listener.frameNanos.get(expected - 1) - this.listener.frameNanos.get(0);
     final long leastNanos = TimeUnit.MILLISECONDS.toNanos(HelperSession.SETTLED_REPEATS * HelperSession.REPEAT_DELAY_MILLIS);
-    assertTrue(spanNanos >= leastNanos, "the repeats came within " + TimeUnit.NANOSECONDS.toMillis(spanNanos) + " ms");
+    final boolean repeatsSpreadOut = spanNanos >= leastNanos;
+    assertTrue(repeatsSpreadOut, "the repeats came within " + TimeUnit.NANOSECONDS.toMillis(spanNanos) + " ms");
     session.sendKey(HelperProtocol.KEY_TYPE, "a");
     Await.until("the repeats of the changed page", () -> this.listener.frames.size() >= 2 * expected);
     session.close();
@@ -308,7 +336,8 @@ class HelperSessionTest {
       slow
     );
     this.sessions.add(session);
-    assertTrue(entered.await(30, TimeUnit.SECONDS), "a picture is handed over");
+    final boolean deliveryEntered = entered.await(30, TimeUnit.SECONDS);
+    assertTrue(deliveryEntered, "a picture is handed over");
     final Thread delivery = session.getThreads().get(1);
     final Thread closer = Thread.ofPlatform().name("closer").start(session::close);
     try {
@@ -317,13 +346,16 @@ class HelperSessionTest {
           frame -> frame.getClassName().equals(Thread.class.getName()) && frame.getMethodName().equals("join")
         )
       );
-      assertTrue(delivery.isAlive(), "the delivery still hands its picture over");
+      final boolean deliveryStillRunning = delivery.isAlive();
+      assertTrue(deliveryStillRunning, "the delivery still hands its picture over");
     } finally {
       release.countDown();
     }
     closer.join(TimeUnit.SECONDS.toMillis(30));
-    assertFalse(closer.isAlive());
-    assertFalse(delivery.isAlive(), "the close returned only once the delivery ended");
+    final boolean closerAlive = closer.isAlive();
+    assertFalse(closerAlive);
+    final boolean deliveryAlive = delivery.isAlive();
+    assertFalse(deliveryAlive, "the close returned only once the delivery ended");
   }
 
   @Test
@@ -341,28 +373,39 @@ class HelperSessionTest {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
     Await.until("the first frame", () -> !this.listener.frames.isEmpty());
     final List<Thread> threads = session.getThreads();
-    assertEquals(3, threads.size(), "the reader, delivery and output threads");
+    final int threadCount = threads.size();
+    assertEquals(3, threadCount, "the reader, delivery and output threads");
     for (final Thread thread : threads) {
-      assertTrue(thread.isDaemon(), thread.getName() + " would keep the JVM alive");
+      final boolean daemon = thread.isDaemon();
+      assertTrue(daemon, thread.getName() + " would keep the JVM alive");
     }
     final Path folder = session.getFolder();
-    assertTrue(Files.isDirectory(folder), folder.toString());
-    assertTrue(session.isConnected());
+    final boolean folderCreated = Files.isDirectory(folder);
+    assertTrue(folderCreated, folder.toString());
+    final boolean connectedWhileOpen = session.isConnected();
+    assertTrue(connectedWhileOpen);
     session.close();
     for (final Thread thread : threads) {
-      assertFalse(thread.isAlive(), thread.getName() + " still runs after the close");
+      final boolean threadAlive = thread.isAlive();
+      assertFalse(threadAlive, thread.getName() + " still runs after the close");
     }
-    assertFalse(session.isConnected());
-    assertNull(session.getCanvas().snapshot(), "the picture of the page is released");
-    assertFalse(Files.exists(folder), folder.toString());
-    assertFalse(session.isAlive());
+    final boolean connectedAfterClose = session.isConnected();
+    assertFalse(connectedAfterClose);
+    final @Nullable ImageBuffer pictureAfterClose = session.getCanvas().snapshot();
+    assertNull(pictureAfterClose, "the picture of the page is released");
+    final boolean folderLeft = Files.exists(folder);
+    assertFalse(folderLeft, folder.toString());
+    final boolean sessionAlive = session.isAlive();
+    assertFalse(sessionAlive);
   }
 
   @Test
   void shouldNotKeepTheJvmAliveWithTheThreadThatWritesTheInput() {
     final Thread thread = HelperSession.createInputThread(() -> {});
-    assertTrue(thread.isDaemon());
-    assertEquals("mcav-browser-input", thread.getName());
+    final boolean daemon = thread.isDaemon();
+    assertTrue(daemon);
+    final String threadName = thread.getName();
+    assertEquals("mcav-browser-input", threadName);
   }
 
   @Test
@@ -370,8 +413,10 @@ class HelperSessionTest {
     final byte[] first = HelperSession.createToken();
     final byte[] second = HelperSession.createToken();
     assertEquals(HelperProtocol.TOKEN_BYTES, first.length);
-    assertFalse(Arrays.equals(first, second), "two sessions got the same token");
-    assertFalse(Arrays.equals(new byte[HelperProtocol.TOKEN_BYTES], first), "the token is all zeros");
+    final boolean sameToken = Arrays.equals(first, second);
+    assertFalse(sameToken, "two sessions got the same token");
+    final boolean allZeroToken = Arrays.equals(new byte[HelperProtocol.TOKEN_BYTES], first);
+    assertFalse(allZeroToken, "the token is all zeros");
   }
 
   @Test
@@ -386,23 +431,28 @@ class HelperSessionTest {
       1_000L
     );
     final ProcessBuilder builder = HelperSession.createProcessBuilder(launcher, this.directory, null);
-    assertEquals(launcher.createEnvironment(this.directory, null), builder.environment());
-    assertEquals(this.directory.toFile(), builder.directory());
-    assertTrue(builder.redirectErrorStream());
+    final Map<String, String> helperEnvironment = builder.environment();
+    assertEquals(launcher.createEnvironment(this.directory, null), helperEnvironment);
+    final File workingDirectory = builder.directory();
+    assertEquals(this.directory.toFile(), workingDirectory);
+    final boolean errorsMerged = builder.redirectErrorStream();
+    assertTrue(errorsMerged);
   }
 
   @Test
   void shouldReadTheOutputOfARunningHelperWhateverItsSize() {
     final HelperSession session = this.open(RawHelperMain.class.getName(), "/chatty");
     Await.until("the last line of the helper", () -> session.getOutputTail().contains(RawHelperMain.CHATTY_END));
-    assertTrue(session.isAlive());
+    final boolean alive = session.isAlive();
+    assertTrue(alive);
   }
 
   @Test
   void shouldAcceptARegionAsLargeAsThePage() {
     this.open(RawHelperMain.class.getName(), "/full-page");
     Await.until("the first frame", () -> !this.listener.frames.isEmpty());
-    assertEquals(7, blue(this.listener.frames.get(0)));
+    final int firstFrameBlue = blue(this.listener.frames.get(0));
+    assertEquals(7, firstFrameBlue);
     assertEquals(List.of(), this.listener.ended);
   }
 
@@ -417,8 +467,10 @@ class HelperSessionTest {
   void shouldIgnoreInputForAClosedSessionWithoutCallingItDropped() {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
     session.close();
-    assertTrue(session.sendMouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, HelperProtocol.BUTTON_LEFT, 0, 0, 0)));
-    assertTrue(session.sendKey(HelperProtocol.KEY_TYPE, "late"));
+    final boolean mouseAccepted = session.sendMouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, HelperProtocol.BUTTON_LEFT, 0, 0, 0));
+    assertTrue(mouseAccepted);
+    final boolean keyAccepted = session.sendKey(HelperProtocol.KEY_TYPE, "late");
+    assertTrue(keyAccepted);
     assertEquals(List.of(), this.listener.ended);
   }
 
@@ -431,7 +483,8 @@ class HelperSessionTest {
       return !this.listener.ended.isEmpty();
     });
     final String reason = this.listener.ended.get(0);
-    assertTrue(reason.startsWith("Input could not be sent to the browser helper: "), reason);
+    final boolean reportsTheInputFailure = reason.startsWith("Input could not be sent to the browser helper: ");
+    assertTrue(reportsTheInputFailure, reason);
   }
 
   @Test
@@ -457,10 +510,13 @@ class HelperSessionTest {
     final PlayerException failure = assertThrows(PlayerException.class, () ->
       HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, parent)
     );
-    assertEquals("The browser helper did not connect in time", failure.getMessage());
-    assertEquals(Set.of(), newSince(before));
+    final String message = failure.getMessage();
+    assertEquals("The browser helper did not connect in time", message);
+    final Set<ProcessHandle> newProcesses = newSince(before);
+    assertEquals(Set.of(), newProcesses);
     try (final Stream<Path> left = Files.list(parent)) {
-      assertEquals(List.of(), left.toList());
+      final List<Path> remainingFiles = left.toList();
+      assertEquals(List.of(), remainingFiles);
     }
   }
 
@@ -479,34 +535,37 @@ class HelperSessionTest {
   @Test
   void shouldFailTheStartWhenThePageFailsToLoad() {
     final PlayerException failure = this.openFails(ScriptedEngine.class.getName(), "/load-error", 60_000L);
-    assertTrue(failure.getMessage().contains("ERR_NAME_NOT_RESOLVED (-105)"), failure.getMessage());
+    final boolean reportsTheLoadError = failure.getMessage().contains("ERR_NAME_NOT_RESOLVED (-105)");
+    assertTrue(reportsTheLoadError, failure.getMessage());
   }
 
   @Test
   void shouldFailTheStartWhenTheHelperExitsDuringIt() {
     final PlayerException failure = this.openFails(ScriptedEngine.class.getName(), "/exit", 60_000L);
-    assertTrue(
-      failure.getMessage().contains("exited with code 3") || failure.getMessage().contains("closed the connection"),
-      failure.getMessage()
-    );
+    final boolean reportsTheExit =
+      failure.getMessage().contains("exited with code 3") || failure.getMessage().contains("closed the connection");
+    assertTrue(reportsTheExit, failure.getMessage());
   }
 
   @Test
   void shouldFailTheStartWhenTheBrowserCannotStart() {
     final PlayerException failure = this.openFails(ScriptedEngine.class.getName(), "/throw", 60_000L);
-    assertTrue(failure.getMessage().contains("scripted start failure"), failure.getMessage());
+    final boolean reportsTheStartFailure = failure.getMessage().contains("scripted start failure");
+    assertTrue(reportsTheStartFailure, failure.getMessage());
   }
 
   @Test
   void shouldTimeOutWhenTheHelperNeverShowsThePage() {
     final PlayerException failure = this.openFails(ScriptedEngine.class.getName(), "/never", 3_000L);
-    assertTrue(failure.getMessage().contains("did not show https://example.com/never in time"), failure.getMessage());
+    final boolean reportsTheTimeout = failure.getMessage().contains("did not show https://example.com/never in time");
+    assertTrue(reportsTheTimeout, failure.getMessage());
   }
 
   @Test
   void shouldTimeOutWhenTheHelperNeverConnects() {
     final PlayerException failure = this.openFails(SilentMain.class.getName(), "/page", 2_000L);
-    assertEquals("The browser helper did not connect in time", failure.getMessage());
+    final String message = failure.getMessage();
+    assertEquals("The browser helper did not connect in time", message);
   }
 
   @Test
@@ -526,10 +585,13 @@ class HelperSessionTest {
     final PlayerException failure = assertThrows(PlayerException.class, () ->
       HelperSession.open(broken, NATIVES, source, BrowserOptions.DEFAULT, this.listener, parent)
     );
-    assertTrue(failure.getMessage().startsWith("The browser helper could not be started"), failure.getMessage());
-    assertEquals(Set.of(), newSince(before));
+    final boolean reportsTheStartFailure = failure.getMessage().startsWith("The browser helper could not be started");
+    assertTrue(reportsTheStartFailure, failure.getMessage());
+    final Set<ProcessHandle> newProcesses = newSince(before);
+    assertEquals(Set.of(), newProcesses);
     try (final Stream<Path> left = Files.list(parent)) {
-      assertEquals(List.of(), left.toList());
+      final List<Path> remainingFiles = left.toList();
+      assertEquals(List.of(), remainingFiles);
     }
   }
 
@@ -543,35 +605,39 @@ class HelperSessionTest {
   @Test
   void shouldRefuseAHelperWithAnotherToken() {
     final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/wrong-token", 60_000L);
-    assertTrue(failure.getMessage().contains("presented a wrong session token"), failure.getMessage());
+    final boolean reportsTheWrongToken = failure.getMessage().contains("presented a wrong session token");
+    assertTrue(reportsTheWrongToken, failure.getMessage());
   }
 
   @Test
   void shouldRefuseAHelperOfAnotherProtocolVersion() {
     final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/wrong-version", 60_000L);
-    assertTrue(failure.getMessage().contains("speaks protocol 2 instead of 1"), failure.getMessage());
+    final boolean reportsTheProtocolMismatch = failure.getMessage().contains("speaks protocol 2 instead of 1");
+    assertTrue(reportsTheProtocolMismatch, failure.getMessage());
   }
 
   @Test
   void shouldRefuseAHelperThatDoesNotIntroduceItself() {
     final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/no-hello", 60_000L);
-    assertTrue(failure.getMessage().contains("did not introduce itself"), failure.getMessage());
+    final boolean reportsTheMissingIntroduction = failure.getMessage().contains("did not introduce itself");
+    assertTrue(reportsTheMissingIntroduction, failure.getMessage());
   }
 
   @Test
   void shouldRefuseAFrameOfAnotherPage() {
     final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/wrong-page", 60_000L);
-    assertTrue(failure.getMessage().contains("A frame of a 5x3 page arrived for a 4x3 page"), failure.getMessage());
+    final boolean reportsTheFrameMismatch = failure.getMessage().contains("A frame of a 5x3 page arrived for a 4x3 page");
+    assertTrue(reportsTheFrameMismatch, failure.getMessage());
   }
 
   @Test
   void shouldEndTheSessionOnAMessageOnlyTheServerSends() {
     this.open(RawHelperMain.class.getName(), "/server-message");
     Await.until("the end of the session", () -> !this.listener.ended.isEmpty());
-    assertTrue(
-      this.listener.ended.getFirst().contains("sent message type 18, which only the server sends"),
-      this.listener.ended.getFirst()
-    );
+    final boolean reportsTheServerOnlyMessage = this.listener.ended
+      .getFirst()
+      .contains("sent message type 18, which only the server sends");
+    assertTrue(reportsTheServerOnlyMessage, this.listener.ended.getFirst());
   }
 
   @Test
@@ -583,7 +649,8 @@ class HelperSessionTest {
       dropped = !session.sendKey(HelperProtocol.KEY_TYPE, text);
     }
     assertTrue(dropped, "the bounded queue refuses input once the helper stops reading");
-    assertFalse(session.sendMouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, HelperProtocol.BUTTON_LEFT, 0, 0, 0)));
+    final boolean mouseAccepted = session.sendMouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, HelperProtocol.BUTTON_LEFT, 0, 0, 0));
+    assertFalse(mouseAccepted);
   }
 
   @Test
@@ -591,19 +658,22 @@ class HelperSessionTest {
     final HelperSession session = this.open(RawHelperMain.class.getName(), "/stubborn");
     final Process process = session.getProcess();
     session.close();
-    assertFalse(process.isAlive());
+    final boolean alive = process.isAlive();
+    assertFalse(alive);
   }
 
   @Test
   void shouldFailTheStartWhenTheHelperExitsBeforeItConnects() {
     final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/exit", 60_000L);
-    assertEquals("The browser helper exited with code 4 before it connected", failure.getMessage());
+    final String message = failure.getMessage();
+    assertEquals("The browser helper exited with code 4 before it connected", message);
   }
 
   @Test
   void shouldRefuseAHelperThatSendsAFrameBeforeItsHello() {
     final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/frame-first", 60_000L);
-    assertTrue(failure.getMessage().contains("arrived where no frame of that size is expected"), failure.getMessage());
+    final boolean reportsTheEarlyFrame = failure.getMessage().contains("arrived where no frame of that size is expected");
+    assertTrue(reportsTheEarlyFrame, failure.getMessage());
   }
 
   @Test
@@ -619,9 +689,11 @@ class HelperSessionTest {
     this.sessions.add(session);
     Await.until("the first frame", () -> !this.listener.frames.isEmpty());
     assertEquals(List.of(session.getFolder().resolve("lib")), linked);
-    assertTrue(Files.isDirectory(linked.getFirst()));
+    final boolean librariesLinked = Files.isDirectory(linked.getFirst());
+    assertTrue(librariesLinked);
     session.close();
-    assertFalse(Files.exists(linked.getFirst()));
+    final boolean librariesLeft = Files.exists(linked.getFirst());
+    assertFalse(librariesLeft);
   }
 
   @Test
@@ -634,34 +706,43 @@ class HelperSessionTest {
     final PlayerException failure = assertThrows(PlayerException.class, () ->
       HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, parent)
     );
-    assertEquals("The browser helper could not be started: no space left", failure.getMessage());
+    final String message = failure.getMessage();
+    assertEquals("The browser helper could not be started: no space left", message);
     try (final Stream<Path> left = Files.list(parent)) {
-      assertEquals(List.of(), left.toList());
+      final List<Path> remainingFiles = left.toList();
+      assertEquals(List.of(), remainingFiles);
     }
   }
 
   @Test
   void shouldRefuseARegionLargerThanThePageBeforeItsPixelsAreRead() {
     final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/oversized", 60_000L);
-    assertTrue(failure.getMessage().contains("A frame of 60 bytes arrived where no frame of that size is expected"), failure.getMessage());
+    final boolean reportsTheOversizedFrame = failure
+      .getMessage()
+      .contains("A frame of 60 bytes arrived where no frame of that size is expected");
+    assertTrue(reportsTheOversizedFrame, failure.getMessage());
   }
 
   @Test
   void shouldDeliverATextLongerThanOneMessageWhole() {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
     Await.until("the first frame", () -> !this.listener.blues().isEmpty());
-    assertTrue(session.sendKey(HelperProtocol.KEY_TYPE, "a".repeat(5_000)));
+    final boolean textAccepted = session.sendKey(HelperProtocol.KEY_TYPE, "a".repeat(5_000));
+    assertTrue(textAccepted);
     Await.until("every character typed", () -> this.listener.inputCounts().contains(10_000));
-    assertEquals(10_000, this.listener.inputCounts().getLast());
+    final Integer lastInputCount = this.listener.inputCounts().getLast();
+    assertEquals(10_000, lastInputCount);
   }
 
   @Test
   void shouldStopAHelperThatNeverConnectsAtOnceWhenItsStartTimesOut() {
     final long start = System.nanoTime();
     final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/silent", 1_000L);
-    assertTrue(failure.getMessage().contains("The browser helper did not connect in time"), failure.getMessage());
+    final boolean reportsTheTimeout = failure.getMessage().contains("The browser helper did not connect in time");
+    assertTrue(reportsTheTimeout, failure.getMessage());
     final long seconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start);
-    assertTrue(seconds < 8, "the failed start took " + seconds + " s");
+    final boolean stoppedQuickly = seconds < 8;
+    assertTrue(stoppedQuickly, "the failed start took " + seconds + " s");
   }
 
   @Test
@@ -687,8 +768,10 @@ class HelperSessionTest {
       closing.set(false);
       watcher.join();
     }
-    assertFalse(process.isAlive());
-    assertFalse(started.isEmpty(), "the helper started a process while it did not stop");
+    final boolean alive = process.isAlive();
+    assertFalse(alive);
+    final boolean startedNothing = started.isEmpty();
+    assertFalse(startedNothing, "the helper started a process while it did not stop");
     Await.until("no process the helper started is left", () -> started.stream().noneMatch(ProcessHandle::isAlive));
   }
 
@@ -697,11 +780,13 @@ class HelperSessionTest {
     HelperProcesses.closeAll();
     try {
       final PlayerException failure = this.openFails(ScriptedEngine.class.getName(), "/page", 60_000L);
-      assertEquals("The browser module is stopped", failure.getMessage());
+      final String message = failure.getMessage();
+      assertEquals("The browser module is stopped", message);
     } finally {
       HelperProcesses.open();
     }
-    assertTrue(this.open(ScriptedEngine.class.getName(), "/page").isAlive(), "a started module lets helpers start again");
+    final boolean restartedHelperAlive = this.open(ScriptedEngine.class.getName(), "/page").isAlive();
+    assertTrue(restartedHelperAlive, "a started module lets helpers start again");
   }
 
   @Test
@@ -732,11 +817,15 @@ class HelperSessionTest {
     } finally {
       HelperProcesses.open();
     }
-    assertEquals("the listener fails: The browser module was stopped", failure.getMessage());
+    final String message = failure.getMessage();
+    assertEquals("the listener fails: The browser module was stopped", message);
     assertEquals(1, failure.getSuppressed().length, "the failure of the other listener goes along");
-    assertFalse(first.isAlive(), "the first helper ended");
-    assertFalse(second.isAlive(), "the second helper ended");
-    assertEquals(0, HelperProcesses.count());
+    final boolean firstAlive = first.isAlive();
+    assertFalse(firstAlive, "the first helper ended");
+    final boolean secondAlive = second.isAlive();
+    assertFalse(secondAlive, "the second helper ended");
+    final int helperCount = HelperProcesses.count();
+    assertEquals(0, helperCount);
   }
 
   @Test
@@ -759,11 +848,13 @@ class HelperSessionTest {
       Files.createFile(gate);
       final ExecutionException failure = assertThrows(ExecutionException.class, () -> opening.get(60, TimeUnit.SECONDS));
       final PlayerException cause = assertInstanceOf(PlayerException.class, failure.getCause());
-      assertEquals("The browser module was stopped while the browser started", cause.getMessage());
+      final String message = cause.getMessage();
+      assertEquals("The browser module was stopped while the browser started", message);
     } finally {
       HelperProcesses.open();
     }
-    assertEquals(0, HelperProcesses.count());
+    final int helperCount = HelperProcesses.count();
+    assertEquals(0, helperCount);
     Await.until("the helper ended", () ->
       ProcessHandle.current()
         .descendants()
@@ -791,8 +882,10 @@ class HelperSessionTest {
     Files.createFile(gate);
     final ExecutionException failure = assertThrows(ExecutionException.class, () -> opening.get(60, TimeUnit.SECONDS));
     final PlayerException cause = assertInstanceOf(PlayerException.class, failure.getCause());
-    assertEquals("The browser module was stopped while the browser started", cause.getMessage());
-    assertEquals(0, HelperProcesses.count());
+    final String message = cause.getMessage();
+    assertEquals("The browser module was stopped while the browser started", message);
+    final int helperCount = HelperProcesses.count();
+    assertEquals(0, helperCount);
   }
 
   @Test
@@ -813,16 +906,20 @@ class HelperSessionTest {
     Await.until("the helper runs", () -> HelperProcesses.count() == 1);
     starter.interrupt();
     starter.join(30_000L);
-    assertEquals("Interrupted while starting the browser", thrown.get().getMessage());
-    assertTrue(stillInterrupted.get(), "the interrupt is kept");
-    assertEquals(0, HelperProcesses.count());
+    final String message = thrown.get().getMessage();
+    assertEquals("Interrupted while starting the browser", message);
+    final boolean interruptKept = stillInterrupted.get();
+    assertTrue(interruptKept, "the interrupt is kept");
+    final int helperCount = HelperProcesses.count();
+    assertEquals(0, helperCount);
   }
 
   @Test
   void shouldEndTheSessionOnceOnInputForAHelperThatHungUp() {
     final HelperSession session = this.open(RawHelperMain.class.getName(), "/hang-up");
     Await.until("the end of the connection", () -> !this.listener.ended.isEmpty());
-    assertTrue(session.sendKey(HelperProtocol.KEY_TYPE, "late"));
+    final boolean keyAccepted = session.sendKey(HelperProtocol.KEY_TYPE, "late");
+    assertTrue(keyAccepted);
     Await.until("the input was tried", () -> session.getHandledInput() == 1);
     assertEquals(List.of("The browser helper closed the connection"), this.listener.ended);
   }
@@ -864,7 +961,8 @@ class HelperSessionTest {
     );
     self.set(session);
     Await.until("the session closed itself", () -> closed.getCount() == 0);
-    assertFalse(session.isAlive());
+    final boolean alive = session.isAlive();
+    assertFalse(alive);
   }
 
   @Test
@@ -874,12 +972,14 @@ class HelperSessionTest {
     Thread.currentThread().interrupt();
     try {
       session.close();
-      assertTrue(Thread.currentThread().isInterrupted());
+      final boolean interruptKept = Thread.currentThread().isInterrupted();
+      assertTrue(interruptKept);
     } finally {
       Thread.interrupted();
     }
     Await.until("the helper ended", () -> !process.isAlive());
-    assertEquals(0, HelperProcesses.count());
+    final int helperCount = HelperProcesses.count();
+    assertEquals(0, helperCount);
   }
 
   @Test
@@ -888,13 +988,15 @@ class HelperSessionTest {
     final Thread delivery = first.getDeliveryThread();
     delivery.interrupt();
     delivery.join(10_000L);
-    assertFalse(delivery.isAlive());
+    final boolean deliveryAlive = delivery.isAlive();
+    assertFalse(deliveryAlive);
     first.close();
     final HelperSession second = this.open(ScriptedEngine.class.getName(), "/page");
     second.getCanvas().close();
     second.requestFrame();
     second.getDeliveryThread().join(10_000L);
-    assertFalse(second.getDeliveryThread().isAlive(), "a delivery without a picture ends");
+    final boolean secondDeliveryAlive = second.getDeliveryThread().isAlive();
+    assertFalse(secondDeliveryAlive, "a delivery without a picture ends");
   }
 
   @Test
@@ -907,9 +1009,12 @@ class HelperSessionTest {
     output.append("x".repeat(3000));
     session.drainOutput(new ByteArrayInputStream(output.toString().getBytes(StandardCharsets.UTF_8)));
     final List<String> tail = List.of(session.getOutputTail().split(System.lineSeparator()));
-    assertEquals(40, tail.size());
-    assertEquals("line 11", tail.getFirst());
-    assertEquals(1024, tail.getLast().length(), "a line is cut at its limit");
+    final int lineCount = tail.size();
+    assertEquals(40, lineCount);
+    final String firstLine = tail.getFirst();
+    assertEquals("line 11", firstLine);
+    final int lastLineLength = tail.getLast().length();
+    assertEquals(1024, lastLineLength, "a line is cut at its limit");
     session.drainOutput(
       new InputStream() {
         @Override
@@ -929,29 +1034,35 @@ class HelperSessionTest {
   @Test
   void shouldCreateTheFolderOfASessionOnEveryFileSystem() throws IOException {
     final Path folder = HelperSession.createFolder(this.directory);
-    assertTrue(Files.isDirectory(folder));
+    final boolean folderCreated = Files.isDirectory(folder);
+    assertTrue(folderCreated);
     if (this.directory.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-      assertEquals(PosixFilePermissions.fromString("rwx------"), Files.getPosixFilePermissions(folder));
+      final Set<PosixFilePermission> folderPermissions = Files.getPosixFilePermissions(folder);
+      assertEquals(PosixFilePermissions.fromString("rwx------"), folderPermissions);
     }
     final Path zip = this.directory.resolve("folders.zip");
     try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true"))) {
       final Path root = zipped.getPath("/");
       final Path created = HelperSession.createFolder(root);
-      assertTrue(Files.isDirectory(created), "a file system without POSIX permissions gets a plain folder");
+      final boolean plainFolderCreated = Files.isDirectory(created);
+      assertTrue(plainFolderCreated, "a file system without POSIX permissions gets a plain folder");
     }
     final PlayerException missing = assertThrows(PlayerException.class, () ->
       HelperSession.createFolder(this.directory.resolve("missing"))
     );
-    assertTrue(missing.getMessage().startsWith("The folder of the browser session cannot be created"), missing.getMessage());
+    final boolean reportsTheMissingParent = missing.getMessage().startsWith("The folder of the browser session cannot be created");
+    assertTrue(reportsTheMissingParent, missing.getMessage());
   }
 
   @Test
   void shouldGiveASessionFolderAShortRandomNameAndDrawATakenNameAgain() throws IOException {
     final Path folder = HelperSession.createFolder(this.directory);
-    assertTrue(folder.getFileName().toString().matches("mcavb-[a-z0-9]{8}"), folder.toString());
+    final boolean shortRandomName = folder.getFileName().toString().matches("mcavb-[a-z0-9]{8}");
+    assertTrue(shortRandomName, folder.toString());
     Files.createDirectory(this.directory.resolve("mcavb-taken"));
     final Iterator<String> names = List.of("mcavb-taken", "mcavb-free").iterator();
-    assertEquals(this.directory.resolve("mcavb-free"), HelperSession.createFolder(this.directory, names::next));
+    final Path freeFolder = HelperSession.createFolder(this.directory, names::next);
+    assertEquals(this.directory.resolve("mcavb-free"), freeFolder);
     final AtomicInteger drawn = new AtomicInteger();
     final Path last = HelperSession.createFolder(this.directory, () -> drawn.incrementAndGet() < 100 ? "mcavb-taken" : "mcavb-last");
     assertEquals(this.directory.resolve("mcavb-last"), last);
@@ -962,8 +1073,10 @@ class HelperSessionTest {
         return "mcavb-taken";
       })
     );
-    assertTrue(exhausted.getMessage().endsWith("every name drawn was taken"), exhausted.getMessage());
-    assertEquals(100, drawn.get());
+    final boolean reportsEveryNameTaken = exhausted.getMessage().endsWith("every name drawn was taken");
+    assertTrue(reportsEveryNameTaken, exhausted.getMessage());
+    final int drawCount = drawn.get();
+    assertEquals(100, drawCount);
   }
 
   @Test
@@ -973,12 +1086,13 @@ class HelperSessionTest {
     final Path folder = Path.of("/" + "t".repeat(47));
     final Path tooLong = folder.resolve("mcavb-12345678");
     final PlayerException refused = assertThrows(PlayerException.class, () -> HelperSession.requireShortEnough(Os.LINUX, tooLong));
+    final String message = refused.getMessage();
     assertEquals(
       "The temporary folder " +
         folder +
         " is too long for the browser: on Linux it may have at most 47 characters, so start the server with a shorter" +
         " java.io.tmpdir, such as /tmp",
-      refused.getMessage()
+      message
     );
     HelperSession.requireShortEnough(Os.WINDOWS, tooLong);
   }
@@ -992,9 +1106,11 @@ class HelperSessionTest {
     final PlayerException refused = assertThrows(PlayerException.class, () ->
       HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, temporary)
     );
-    assertTrue(refused.getMessage().startsWith("The temporary folder " + temporary + " is too long"), refused.getMessage());
+    final boolean reportsTheLongFolder = refused.getMessage().startsWith("The temporary folder " + temporary + " is too long");
+    assertTrue(reportsTheLongFolder, refused.getMessage());
     try (final Stream<Path> left = Files.list(temporary)) {
-      assertEquals(List.of(), left.toList(), "the folder of the session is removed");
+      final List<Path> remainingFiles = left.toList();
+      assertEquals(List.of(), remainingFiles, "the folder of the session is removed");
     }
   }
 
@@ -1012,14 +1128,16 @@ class HelperSessionTest {
       calls.incrementAndGet();
       throw new IOException("already closed");
     });
-    assertEquals(1, calls.get());
+    final int callCount = calls.get();
+    assertEquals(1, callCount);
     final Path folder = Files.createDirectories(this.directory.resolve("kept").resolve("inner"));
     Files.writeString(folder.resolve("file"), "x");
     final File inner = folder.toFile();
     assumeTrue(inner.setWritable(false) && !Files.isWritable(folder), "the folder can be made read-only");
     try {
       HelperSession.deleteFolder(this.directory.resolve("kept"));
-      assertTrue(Files.exists(folder.resolve("file")), "a folder that cannot be removed stays");
+      final boolean fileKept = Files.exists(folder.resolve("file"));
+      assertTrue(fileKept, "a folder that cannot be removed stays");
     } finally {
       inner.setWritable(true);
     }

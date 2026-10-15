@@ -54,6 +54,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.OpenFiles;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -153,7 +154,8 @@ class NetworkGuardTest {
 
   private static void assertEnded(final Socket socket) throws IOException {
     try {
-      assertEquals(-1, socket.getInputStream().read());
+      final int nextByte = socket.getInputStream().read();
+      assertEquals(-1, nextByte);
     } catch (final SocketException reset) {
       // a connection the guard closed with unread bytes may be reset instead
     }
@@ -161,8 +163,10 @@ class NetworkGuardTest {
 
   private Socket connectThrough(final NetworkGuard guard, final String host, final int port) throws IOException {
     final Socket client = this.client(guard);
-    assertArrayEquals(new byte[] { 5, 0 }, exchange(client, GREETING, 2));
-    assertArrayEquals(SUCCESS, exchange(client, SocksProtocolTest.domainRequest(SocksProtocol.CONNECT, host, port), 10));
+    final byte[] greetingAnswer = exchange(client, GREETING, 2);
+    assertArrayEquals(new byte[] { 5, 0 }, greetingAnswer);
+    final byte[] connectAnswer = exchange(client, SocksProtocolTest.domainRequest(SocksProtocol.CONNECT, host, port), 10);
+    assertArrayEquals(SUCCESS, connectAnswer);
     return client;
   }
 
@@ -171,7 +175,8 @@ class NetworkGuardTest {
     final NetworkGuard guard = this.loopbackGuard();
     final Socket client = this.connectThrough(guard, "echo.test", this.echo.getLocalPort());
     final byte[] hello = "hello through the guard".getBytes(StandardCharsets.UTF_8);
-    assertArrayEquals(hello, exchange(client, hello, hello.length));
+    final byte[] echoed = exchange(client, hello, hello.length);
+    assertArrayEquals(hello, echoed);
     client.close();
     Await.until("the target connection ended", () -> this.echoEnded.get() == 1);
     assertEquals(List.of(), this.notices);
@@ -184,11 +189,13 @@ class NetworkGuardTest {
     exchange(client, GREETING, 2);
     final int port = this.echo.getLocalPort();
     final byte[] request = { 5, 1, 0, 1, 127, 0, 0, 1, (byte) (port >> 8), (byte) port };
-    assertArrayEquals(SUCCESS, exchange(client, request, 10));
+    final byte[] loopbackAnswer = exchange(client, request, 10);
+    assertArrayEquals(SUCCESS, loopbackAnswer);
     final Socket refused = this.client(guard);
     exchange(refused, GREETING, 2);
     final byte[] privateRequest = { 5, 1, 0, 1, 10, 0, 0, 1, 0, 80 };
-    assertArrayEquals(reply(SocksProtocol.NOT_ALLOWED), exchange(refused, privateRequest, 10));
+    final byte[] privateAnswer = exchange(refused, privateRequest, 10);
+    assertArrayEquals(reply(SocksProtocol.NOT_ALLOWED), privateAnswer);
     assertEnded(refused);
   }
 
@@ -202,7 +209,8 @@ class NetworkGuardTest {
       assertArrayEquals(reply(SocksProtocol.NOT_ALLOWED), answer);
     }
     assertEquals(List.of("Refused a connection to router.private.test, which is not a public address"), this.notices);
-    assertEquals(0, this.echoConnections.get());
+    final int echoConnectionCount = this.echoConnections.get();
+    assertEquals(0, echoConnectionCount);
   }
 
   @Test
@@ -210,7 +218,8 @@ class NetworkGuardTest {
     final NetworkGuard guard = this.loopbackGuard();
     final Socket client = this.connectThrough(guard, "mixed.test", this.echo.getLocalPort());
     final byte[] ping = { 42 };
-    assertArrayEquals(ping, exchange(client, ping, 1));
+    final byte[] echoed = exchange(client, ping, 1);
+    assertArrayEquals(ping, echoed);
   }
 
   @Test
@@ -222,7 +231,8 @@ class NetworkGuardTest {
       exchange(client, SocksProtocolTest.domainRequest(SocksProtocol.CONNECT, "h" + host + ".private.test", 80), 10);
       client.close();
     }
-    assertEquals(NetworkGuard.MAX_REPORTED_HOSTS, this.notices.size());
+    final int noticeCount = this.notices.size();
+    assertEquals(NetworkGuard.MAX_REPORTED_HOSTS, noticeCount);
   }
 
   @Test
@@ -234,13 +244,12 @@ class NetworkGuardTest {
     final NetworkGuard guard = this.loopbackGuard();
     final Socket refused = this.client(guard);
     exchange(refused, GREETING, 2);
-    assertArrayEquals(
-      reply(SocksProtocol.CONNECTION_REFUSED),
-      exchange(refused, SocksProtocolTest.domainRequest(1, "echo.test", closedPort), 10)
-    );
+    final byte[] refusedAnswer = exchange(refused, SocksProtocolTest.domainRequest(1, "echo.test", closedPort), 10);
+    assertArrayEquals(reply(SocksProtocol.CONNECTION_REFUSED), refusedAnswer);
     final Socket missing = this.client(guard);
     exchange(missing, GREETING, 2);
-    assertArrayEquals(reply(SocksProtocol.HOST_UNREACHABLE), exchange(missing, SocksProtocolTest.domainRequest(1, "missing.test", 80), 10));
+    final byte[] missingAnswer = exchange(missing, SocksProtocolTest.domainRequest(1, "missing.test", 80), 10);
+    assertArrayEquals(reply(SocksProtocol.HOST_UNREACHABLE), missingAnswer);
     final NetworkGuard slow = this.guard(
       InetAddress::isLoopbackAddress,
       address -> {
@@ -250,21 +259,21 @@ class NetworkGuardTest {
     );
     final Socket timedOut = this.client(slow);
     exchange(timedOut, GREETING, 2);
-    assertArrayEquals(reply(SocksProtocol.HOST_UNREACHABLE), exchange(timedOut, SocksProtocolTest.domainRequest(1, "echo.test", 80), 10));
+    final byte[] timedOutAnswer = exchange(timedOut, SocksProtocolTest.domainRequest(1, "echo.test", 80), 10);
+    assertArrayEquals(reply(SocksProtocol.HOST_UNREACHABLE), timedOutAnswer);
   }
 
   @Test
   void shouldTurnAwayClientsThatDoNotSpeakTheProtocol() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
     final Socket withPassword = this.client(guard);
-    assertArrayEquals(new byte[] { 5, (byte) 0xFF }, exchange(withPassword, new byte[] { 5, 1, 2 }, 2));
+    final byte[] passwordAnswer = exchange(withPassword, new byte[] { 5, 1, 2 }, 2);
+    assertArrayEquals(new byte[] { 5, (byte) 0xFF }, passwordAnswer);
     assertEnded(withPassword);
     final Socket binding = this.client(guard);
     exchange(binding, GREETING, 2);
-    assertArrayEquals(
-      reply(SocksProtocol.COMMAND_NOT_SUPPORTED),
-      exchange(binding, SocksProtocolTest.domainRequest(2, "echo.test", 80), 10)
-    );
+    final byte[] bindAnswer = exchange(binding, SocksProtocolTest.domainRequest(2, "echo.test", 80), 10);
+    assertArrayEquals(reply(SocksProtocol.COMMAND_NOT_SUPPORTED), bindAnswer);
     final Socket socks4 = this.client(guard);
     socks4.getOutputStream().write(new byte[] { 4, 1, 0, 80, 127, 0, 0, 1, 0 });
     assertEnded(socks4);
@@ -290,7 +299,8 @@ class NetworkGuardTest {
         }
       });
     }
-    assertTrue(busy.await(30, TimeUnit.SECONDS), "every worker of the common pool is busy");
+    final boolean allBusy = busy.await(30, TimeUnit.SECONDS);
+    assertTrue(allBusy, "every worker of the common pool is busy");
     return release;
   }
 
@@ -337,7 +347,8 @@ class NetworkGuardTest {
     } catch (final SocketException reset) {
       // a guard that closed with unread bytes resets the connection
     }
-    assertEquals(0, this.echoConnections.get(), "the request was never carried out");
+    final int echoConnectionCount = this.echoConnections.get();
+    assertEquals(0, echoConnectionCount, "the request was never carried out");
   }
 
   @Test
@@ -350,7 +361,8 @@ class NetworkGuardTest {
     final Socket extra = this.client(guard);
     assertEnded(extra);
     final Socket first = idle.getFirst();
-    assertArrayEquals(new byte[] { 5, 0 }, exchange(first, GREETING, 2));
+    final byte[] greetingAnswer = exchange(first, GREETING, 2);
+    assertArrayEquals(new byte[] { 5, 0 }, greetingAnswer);
   }
 
   @Test
@@ -379,7 +391,8 @@ class NetworkGuardTest {
   void shouldDisconnectAClientTurnedAway() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
     final Socket client = this.client(guard);
-    assertArrayEquals(new byte[] { 5, (byte) 0xFF }, exchange(client, new byte[] { 5, 1, 2 }, 2));
+    final byte[] passwordAnswer = exchange(client, new byte[] { 5, 1, 2 }, 2);
+    assertArrayEquals(new byte[] { 5, (byte) 0xFF }, passwordAnswer);
     assertEnded(client);
   }
 
@@ -390,7 +403,8 @@ class NetworkGuardTest {
       new Socket(LOOPBACK, guard.getPort()).close();
     }
     final Socket client = this.client(guard);
-    assertArrayEquals(new byte[] { 5, 0 }, exchange(client, GREETING, 2));
+    final byte[] greetingAnswer = exchange(client, GREETING, 2);
+    assertArrayEquals(new byte[] { 5, 0 }, greetingAnswer);
   }
 
   @Test
@@ -401,9 +415,11 @@ class NetworkGuardTest {
       .stream()
       .filter(thread -> thread.getName().equals("mcav-browser-guard"))
       .toList();
-    assertFalse(threads.isEmpty());
+    final boolean empty = threads.isEmpty();
+    assertFalse(empty);
     for (final Thread thread : threads) {
-      assertTrue(thread.isDaemon());
+      final boolean daemon = thread.isDaemon();
+      assertTrue(daemon);
     }
   }
 
@@ -425,7 +441,8 @@ class NetworkGuardTest {
     assertEnded(client);
     Await.until("the target connection ended", () -> this.echoEnded.get() == 1);
     // the socket itself, not a connection attempt: another process of the machine may take the freed port at once
-    assertTrue(guard.getServer().isClosed(), "the guard stopped listening");
+    final boolean closed = guard.getServer().isClosed();
+    assertTrue(closed, "the guard stopped listening");
     assertEquals(List.of(), this.notices);
   }
 
@@ -434,7 +451,8 @@ class NetworkGuardTest {
     final NetworkGuard guard = this.loopbackGuard();
     guard.getServer().close();
     Await.until("the report", () -> !this.notices.isEmpty());
-    assertTrue(this.notices.getFirst().startsWith("The network guard stopped: "), this.notices.getFirst());
+    final boolean reportsTheStop = this.notices.getFirst().startsWith("The network guard stopped: ");
+    assertTrue(reportsTheStop, this.notices.getFirst());
   }
 
   private static final class TranslatingResolver implements NetworkGuard.Resolver {
@@ -467,14 +485,22 @@ class NetworkGuardTest {
   void shouldAskForTheNat64PrefixesOnceAnIpv6AddressIsJudged() throws UnknownHostException {
     final TranslatingResolver resolver = new TranslatingResolver(0);
     final NetworkGuard.PublicAddresses policy = new NetworkGuard.PublicAddresses(resolver);
-    assertTrue(policy.test(InetAddress.getByName("8.8.8.8")));
-    assertFalse(policy.test(InetAddress.getByName("10.0.0.1")));
-    assertEquals(0, resolver.questions.get(), "an IPv4 address needs no prefix");
-    assertFalse(policy.test(InetAddress.getByName("2a01:4f8:1:2:3:4:a00:1")), "10.0.0.1 through the translator");
-    assertTrue(policy.test(InetAddress.getByName("2a01:4f8:1:2:3:4:808:808")), "8.8.8.8 through the translator");
-    assertTrue(policy.test(InetAddress.getByName("2606:4700:4700::1111")));
-    assertFalse(policy.test(InetAddress.getByName("fd00::1")));
-    assertEquals(1, resolver.questions.get(), "the answer is kept");
+    final boolean publicIpv4Allowed = policy.test(InetAddress.getByName("8.8.8.8"));
+    assertTrue(publicIpv4Allowed);
+    final boolean privateIpv4Allowed = policy.test(InetAddress.getByName("10.0.0.1"));
+    assertFalse(privateIpv4Allowed);
+    final int questionsBeforeIpv6 = resolver.questions.get();
+    assertEquals(0, questionsBeforeIpv6, "an IPv4 address needs no prefix");
+    final boolean translatedPrivateAllowed = policy.test(InetAddress.getByName("2a01:4f8:1:2:3:4:a00:1"));
+    assertFalse(translatedPrivateAllowed, "10.0.0.1 through the translator");
+    final boolean translatedPublicAllowed = policy.test(InetAddress.getByName("2a01:4f8:1:2:3:4:808:808"));
+    assertTrue(translatedPublicAllowed, "8.8.8.8 through the translator");
+    final boolean publicIpv6Allowed = policy.test(InetAddress.getByName("2606:4700:4700::1111"));
+    assertTrue(publicIpv6Allowed);
+    final boolean uniqueLocalAllowed = policy.test(InetAddress.getByName("fd00::1"));
+    assertFalse(uniqueLocalAllowed);
+    final int questionCount = resolver.questions.get();
+    assertEquals(1, questionCount, "the answer is kept");
   }
 
   @Test
@@ -482,21 +508,30 @@ class NetworkGuardTest {
     final TranslatingResolver resolver = new TranslatingResolver(1);
     final NetworkGuard.PublicAddresses policy = new NetworkGuard.PublicAddresses(resolver);
     final InetAddress translatedPrivate = InetAddress.getByName("2a01:4f8:1:2:3:4:a00:1");
-    assertNull(policy.getPrefixes(), "no prefixes are known while the resolver fails");
-    assertFalse(policy.test(translatedPrivate));
-    assertFalse(policy.test(translatedPrivate));
-    assertEquals(2, resolver.questions.get());
+    final @Nullable List<AddressPolicy.TranslationPrefix> prefixes = policy.getPrefixes();
+    assertNull(prefixes, "no prefixes are known while the resolver fails");
+    final boolean firstAllowed = policy.test(translatedPrivate);
+    assertFalse(firstAllowed);
+    final boolean secondAllowed = policy.test(translatedPrivate);
+    assertFalse(secondAllowed);
+    final int questionCount = resolver.questions.get();
+    assertEquals(2, questionCount);
   }
 
   @Test
   void shouldRefuseAnIpv6AddressWhileTheNat64PrefixesAreUnknown() throws UnknownHostException {
     final TranslatingResolver resolver = new TranslatingResolver(2);
     final NetworkGuard.PublicAddresses policy = new NetworkGuard.PublicAddresses(resolver);
-    assertFalse(policy.test(InetAddress.getByName("2a01:4f8:1:2:3:4:a00:1")), "10.0.0.1 through the translator");
-    assertFalse(policy.test(InetAddress.getByName("2606:4700:4700::1111")), "any IPv6 address may be translated");
-    assertTrue(policy.test(InetAddress.getByName("8.8.8.8")), "an IPv4 address needs no prefix");
-    assertTrue(policy.test(InetAddress.getByName("2606:4700:4700::1111")), "the resolver answers the third question");
-    assertEquals(3, resolver.questions.get());
+    final boolean translatedPrivateAllowed = policy.test(InetAddress.getByName("2a01:4f8:1:2:3:4:a00:1"));
+    assertFalse(translatedPrivateAllowed, "10.0.0.1 through the translator");
+    final boolean ipv6WithoutPrefixesAllowed = policy.test(InetAddress.getByName("2606:4700:4700::1111"));
+    assertFalse(ipv6WithoutPrefixesAllowed, "any IPv6 address may be translated");
+    final boolean publicIpv4Allowed = policy.test(InetAddress.getByName("8.8.8.8"));
+    assertTrue(publicIpv4Allowed, "an IPv4 address needs no prefix");
+    final boolean ipv6WithPrefixesAllowed = policy.test(InetAddress.getByName("2606:4700:4700::1111"));
+    assertTrue(ipv6WithPrefixesAllowed, "the resolver answers the third question");
+    final int questionCount = resolver.questions.get();
+    assertEquals(3, questionCount);
   }
 
   @Test
@@ -505,28 +540,35 @@ class NetworkGuardTest {
     final InetAddress ownIpv6 = InetAddress.getByName("2606:4700:4700::1111");
     final Set<InetAddress> own = Set.of(ownIpv4, ownIpv6);
     final NetworkGuard.PublicAddresses policy = new NetworkGuard.PublicAddresses(new TranslatingResolver(0), own::contains);
-    assertFalse(policy.test(ownIpv4));
-    assertFalse(policy.test(ownIpv6));
-    assertTrue(policy.test(InetAddress.getByName("1.1.1.1")));
-    assertTrue(policy.test(InetAddress.getByName("2606:4700:4700::1001")));
-    assertFalse(policy.test(InetAddress.getByName("10.0.0.1")), "a private address stays refused");
+    final boolean ownIpv4Allowed = policy.test(ownIpv4);
+    assertFalse(ownIpv4Allowed);
+    final boolean ownIpv6Allowed = policy.test(ownIpv6);
+    assertFalse(ownIpv6Allowed);
+    final boolean publicIpv4Allowed = policy.test(InetAddress.getByName("1.1.1.1"));
+    assertTrue(publicIpv4Allowed);
+    final boolean publicIpv6Allowed = policy.test(InetAddress.getByName("2606:4700:4700::1001"));
+    assertTrue(publicIpv6Allowed);
+    final boolean privateIpv4Allowed = policy.test(InetAddress.getByName("10.0.0.1"));
+    assertFalse(privateIpv4Allowed, "a private address stays refused");
   }
 
   @Test
   void shouldCountAnAddressOfAnInterfaceOfThisMachineAsItsOwn() throws UnknownHostException {
-    assertTrue(NetworkGuard.isOwnAddress(InetAddress.getLoopbackAddress()));
-    assertFalse(NetworkGuard.isOwnAddress(InetAddress.getByName("192.0.2.1")), "an address of the documentation");
+    final boolean loopbackOwn = NetworkGuard.isOwnAddress(InetAddress.getLoopbackAddress());
+    assertTrue(loopbackOwn);
+    final boolean documentationAddressOwn = NetworkGuard.isOwnAddress(InetAddress.getByName("192.0.2.1"));
+    assertFalse(documentationAddressOwn, "an address of the documentation");
   }
 
   @Test
   void shouldCountAnAddressAsOwnWhileTheInterfacesCannotBeListed() throws UnknownHostException {
     final InetAddress address = InetAddress.getByName("192.0.2.1");
-    assertTrue(
-      NetworkGuard.isOwnAddress(address, candidate -> {
-        throw new SocketException("no interfaces");
-      })
-    );
-    assertFalse(NetworkGuard.isOwnAddress(address, candidate -> null));
+    final boolean ownWhenListingFails = NetworkGuard.isOwnAddress(address, candidate -> {
+      throw new SocketException("no interfaces");
+    });
+    assertTrue(ownWhenListingFails);
+    final boolean ownWithoutInterfaces = NetworkGuard.isOwnAddress(address, candidate -> null);
+    assertFalse(ownWithoutInterfaces);
   }
 
   @Test
@@ -588,9 +630,12 @@ class NetworkGuardTest {
     final InetAddress refusedAddress = InetAddress.getByName("203.0.113.5");
     final InetAddress interfaceAddress = InetAddress.getByName("198.51.100.7");
     final Predicate<InetAddress> own = NetworkGuard.ownOrRefused(interfaceAddress::equals, Set.of(refusedAddress));
-    assertTrue(own.test(refusedAddress));
-    assertTrue(own.test(interfaceAddress));
-    assertFalse(own.test(InetAddress.getByName("1.1.1.1")));
+    final boolean refusedAddressOwn = own.test(refusedAddress);
+    assertTrue(refusedAddressOwn);
+    final boolean interfaceAddressOwn = own.test(interfaceAddress);
+    assertTrue(interfaceAddressOwn);
+    final boolean publicAddressOwn = own.test(InetAddress.getByName("1.1.1.1"));
+    assertFalse(publicAddressOwn);
   }
 
   @Test
@@ -623,7 +668,8 @@ class NetworkGuardTest {
     }
     assertThrows(ConnectException.class, () -> NetworkGuard.connect(new InetSocketAddress(LOOPBACK, closedPort)));
     try (final Socket socket = NetworkGuard.connect(new InetSocketAddress(LOOPBACK, this.echo.getLocalPort()))) {
-      assertTrue(socket.isConnected());
+      final boolean connected = socket.isConnected();
+      assertTrue(connected);
     }
 
     final ConnectException refusal = new ConnectException("fixture refused connection");
@@ -632,8 +678,12 @@ class NetworkGuardTest {
         Mockito.doThrow(refusal).when(socket).connect(ArgumentMatchers.any(), ArgumentMatchers.anyInt())
       )
     ) {
-      assertSame(refusal, assertThrows(ConnectException.class, () -> NetworkGuard.connect(new InetSocketAddress(LOOPBACK, closedPort))));
-      assertEquals(1, sockets.constructed().size());
+      final ConnectException thrown = assertThrows(ConnectException.class, () ->
+        NetworkGuard.connect(new InetSocketAddress(LOOPBACK, closedPort))
+      );
+      assertSame(refusal, thrown);
+      final int socketCount = sockets.constructed().size();
+      assertEquals(1, socketCount);
       Mockito.verify(sockets.constructed().getFirst()).close();
     }
   }
@@ -645,6 +695,7 @@ class NetworkGuardTest {
       closed.incrementAndGet();
       throw new IOException("already gone");
     });
-    assertEquals(1, closed.get());
+    final int closeCount = closed.get();
+    assertEquals(1, closeCount);
   }
 }

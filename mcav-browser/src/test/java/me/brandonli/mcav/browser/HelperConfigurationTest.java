@@ -90,7 +90,8 @@ class HelperConfigurationTest {
       List.of()
     );
     final HelperConfiguration read = HelperConfiguration.fromLine(original.toLine());
-    assertEquals(longest, read.getUrl());
+    final URI url = read.getUrl();
+    assertEquals(longest, url);
   }
 
   @Test
@@ -113,29 +114,50 @@ class HelperConfigurationTest {
       List.of("mc.example.com", "203.0.113.5", "2001:db8::1")
     );
     final String line = original.toLine();
-    assertFalse(line.contains("\n"));
+    final boolean breaksTheLine = line.contains("\n");
+    assertFalse(breaksTheLine);
     final HelperConfiguration read = HelperConfiguration.fromLine(line);
-    assertArrayEquals(token(), read.getToken());
-    assertEquals(SOCKET, read.getSocket());
-    assertEquals(NATIVES, read.getNatives());
-    assertEquals(PROFILE, read.getProfile());
-    assertEquals(URI.create("https://example.com/a?b=%20c"), read.getUrl());
-    assertEquals(640, read.getWidth());
-    assertEquals(480, read.getHeight());
-    assertEquals(3, read.getFrameInterval());
-    assertEquals(45, read.getFrameRate());
-    assertTrue(read.isJavaScriptJit());
-    assertTrue(read.isPrivateNetworks());
-    assertTrue(read.isAutoplay());
-    assertTrue(read.isConfined());
-    assertEquals(SERVER, read.getServerFolder());
-    assertEquals(List.of("mc.example.com", "203.0.113.5", "2001:db8::1"), read.getRefusedHosts());
+    final byte[] keptToken = read.getToken();
+    assertArrayEquals(token(), keptToken);
+    final Path socket = read.getSocket();
+    assertEquals(SOCKET, socket);
+    final Path natives = read.getNatives();
+    assertEquals(NATIVES, natives);
+    final Path profile = read.getProfile();
+    assertEquals(PROFILE, profile);
+    final URI url = read.getUrl();
+    assertEquals(URI.create("https://example.com/a?b=%20c"), url);
+    final int width = read.getWidth();
+    assertEquals(640, width);
+    final int height = read.getHeight();
+    assertEquals(480, height);
+    final int frameInterval = read.getFrameInterval();
+    assertEquals(3, frameInterval);
+    final int frameRate = read.getFrameRate();
+    assertEquals(45, frameRate);
+    final boolean keptJavaScriptJit = read.isJavaScriptJit();
+    assertTrue(keptJavaScriptJit);
+    final boolean keptPrivateNetworks = read.isPrivateNetworks();
+    assertTrue(keptPrivateNetworks);
+    final boolean keptAutoplay = read.isAutoplay();
+    assertTrue(keptAutoplay);
+    final boolean keptConfined = read.isConfined();
+    assertTrue(keptConfined);
+    final Path serverFolder = read.getServerFolder();
+    assertEquals(SERVER, serverFolder);
+    final List<String> keptRefusedHosts = read.getRefusedHosts();
+    assertEquals(List.of("mc.example.com", "203.0.113.5", "2001:db8::1"), keptRefusedHosts);
     final HelperConfiguration defaults = HelperConfiguration.fromLine(configuration(false).toLine());
-    assertFalse(defaults.isJavaScriptJit());
-    assertFalse(defaults.isPrivateNetworks());
-    assertFalse(defaults.isAutoplay());
-    assertFalse(defaults.isConfined());
-    assertEquals(List.of(), defaults.getRefusedHosts());
+    final boolean defaultJavaScriptJit = defaults.isJavaScriptJit();
+    assertFalse(defaultJavaScriptJit);
+    final boolean defaultPrivateNetworks = defaults.isPrivateNetworks();
+    assertFalse(defaultPrivateNetworks);
+    final boolean defaultAutoplay = defaults.isAutoplay();
+    assertFalse(defaultAutoplay);
+    final boolean defaultConfined = defaults.isConfined();
+    assertFalse(defaultConfined);
+    final List<String> defaultRefusedHosts = defaults.getRefusedHosts();
+    assertEquals(List.of(), defaultRefusedHosts);
   }
 
   @Test
@@ -159,9 +181,11 @@ class HelperConfigurationTest {
       List.of()
     );
     token[0] = 99;
-    assertEquals(0, configuration.getToken()[0]);
+    final byte firstTokenByte = configuration.getToken()[0];
+    assertEquals(0, firstTokenByte);
     configuration.getToken()[1] = 99;
-    assertEquals(7, configuration.getToken()[1]);
+    final byte secondTokenByte = configuration.getToken()[1];
+    assertEquals(7, secondTokenByte);
   }
 
   @Test
@@ -255,16 +279,19 @@ class HelperConfigurationTest {
     final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, () ->
       new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 61, false, false, false, false, SERVER, List.of())
     );
-    assertEquals("The frame rate must be between 1 and 60 but was 61", tooFast.getMessage());
+    final String tooFastMessage = tooFast.getMessage();
+    assertEquals("The frame rate must be between 1 and 60 but was 61", tooFastMessage);
     final IllegalArgumentException relativeServer = assertThrows(IllegalArgumentException.class, () ->
       new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, true, Path.of("server"), List.of())
     );
-    assertEquals("The server folder path must be absolute: server", relativeServer.getMessage());
+    final String relativeServerMessage = relativeServer.getMessage();
+    assertEquals("The server folder path must be absolute: server", relativeServerMessage);
     for (final String host : List.of("", "two,hosts", "a host")) {
       final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
         new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, true, SERVER, List.of(host))
       );
-      assertEquals("Not a host name or address: " + host, refused.getMessage());
+      final String refusedMessage = refused.getMessage();
+      assertEquals("Not a host name or address: " + host, refusedMessage);
     }
     new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 4096, 4096, 1000, 60, false, false, false, false, SERVER, List.of());
   }
@@ -288,7 +315,8 @@ class HelperConfigurationTest {
     final String[] parts = parts(configuration(false));
     final String missing = String.join(":", Arrays.copyOf(parts, parts.length - 1));
     final IllegalArgumentException tooFew = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(missing));
-    assertEquals("The configuration has 14 values instead of 15", tooFew.getMessage());
+    final String message = tooFew.getMessage();
+    assertEquals("The configuration has 14 values instead of 15", message);
     final String extra = configuration(false).toLine() + ":" + encode("x");
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(extra));
   }
@@ -308,20 +336,24 @@ class HelperConfigurationTest {
     final IllegalArgumentException malformed = assertThrows(IllegalArgumentException.class, () ->
       HelperConfiguration.fromLine(String.join(":", invalidEncoding))
     );
-    assertEquals("Illegal base64 character 21", malformed.getMessage());
+    final String malformedMessage = malformed.getMessage();
+    assertEquals("Illegal base64 character 21", malformedMessage);
     final String tooLong = "A".repeat(1024 * 1024 + 1);
     final IllegalArgumentException longLine = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(tooLong));
-    assertEquals("The configuration line is too long", longLine.getMessage());
+    final String longLineMessage = longLine.getMessage();
+    assertEquals("The configuration line is too long", longLineMessage);
   }
 
   @Test
   void shouldReadALineOfTheLongestLengthAndThenJudgeItByItsValues() {
     final String longest = "x".repeat(1024 * 1024);
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(longest));
-    assertTrue(failure.getMessage().startsWith("The configuration has 1 values instead of "), failure.getMessage());
+    final boolean countsTheValues = failure.getMessage().startsWith("The configuration has 1 values instead of ");
+    assertTrue(countsTheValues, failure.getMessage());
     final IllegalArgumentException tooLong = assertThrows(IllegalArgumentException.class, () ->
       HelperConfiguration.fromLine(longest + "x")
     );
-    assertEquals("The configuration line is too long", tooLong.getMessage());
+    final String message = tooLong.getMessage();
+    assertEquals("The configuration line is too long", message);
   }
 }

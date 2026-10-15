@@ -38,16 +38,19 @@ final class AddressTextFuzzTest {
     final String described = AddressText.describe(address);
     final int mark = indexOfAny(described, "?#");
     if (mark >= 0) {
-      assertEquals(AddressText.HIDDEN, described.substring(mark + 1), described);
+      final String textAfterMark = described.substring(mark + 1);
+      assertEquals(AddressText.HIDDEN, textAfterMark, described);
     }
     final int user = described.indexOf('@');
     final int separator = described.indexOf("://");
     final int authorityEnd = separator < 0 ? -1 : indexOfAny(described.substring(separator + 3), "/?#");
     if (user >= 0 && separator >= 0 && (authorityEnd < 0 || user < separator + 3 + authorityEnd) && user > separator) {
-      assertTrue(described.startsWith(AddressText.HIDDEN + "@", separator + 3), described);
+      final boolean hidesTheUserInformation = described.startsWith(AddressText.HIDDEN + "@", separator + 3);
+      assertTrue(hidesTheUserInformation, described);
     }
     if (separator < 0) {
-      assertTrue(described.endsWith(AddressText.HIDDEN), described);
+      final boolean endsHidden = described.endsWith(AddressText.HIDDEN);
+      assertTrue(endsHidden, described);
     }
   }
 

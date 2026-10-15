@@ -97,7 +97,8 @@ final class ArchiveExtractorFuzzTest {
         final List<Path> outside = paths.filter(path -> !before.contains(path) && !path.startsWith(target)).toList();
         assertEquals(List.of(), outside, "writes above the extraction root remain visible");
       }
-      assertArrayEquals(untouched, Files.readAllBytes(sentinel));
+      final byte[] sentinelBytes = Files.readAllBytes(sentinel);
+      assertArrayEquals(untouched, sentinelBytes);
     }
   }
 
@@ -107,20 +108,25 @@ final class ArchiveExtractorFuzzTest {
       final List<Path> all = paths.toList();
       long bytes = 0L;
       for (final Path path : all) {
-        assertFalse(Files.isSymbolicLink(path), () -> "a link: " + path);
-        assertTrue(path.equals(root) || path.startsWith(target), () -> "outside the target: " + path);
+        final boolean symbolicLink = Files.isSymbolicLink(path);
+        assertFalse(symbolicLink, () -> "a link: " + path);
+        final boolean insideTarget = path.equals(root) || path.startsWith(target);
+        assertTrue(insideTarget, () -> "outside the target: " + path);
         final boolean regular = Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS);
-        assertTrue(regular || Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS), () -> "neither file nor folder: " + path);
+        final boolean fileOrFolder = regular || Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS);
+        assertTrue(fileOrFolder, () -> "neither file nor folder: " + path);
         if (regular) {
           bytes += Files.size(path);
           if (supportsPosix) {
             final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
-            assertFalse(permissions.contains(PosixFilePermission.OTHERS_WRITE), () -> "writable by others: " + path);
+            final boolean writableByOthers = permissions.contains(PosixFilePermission.OTHERS_WRITE);
+            assertFalse(writableByOthers, () -> "writable by others: " + path);
           }
         }
       }
       final long total = bytes;
-      assertTrue(total <= MAX_BYTES, () -> total + " bytes");
+      final boolean withinLimit = total <= MAX_BYTES;
+      assertTrue(withinLimit, () -> total + " bytes");
     } catch (final UncheckedIOException exception) {
       throw exception.getCause();
     }

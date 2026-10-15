@@ -94,6 +94,7 @@ class ChromiumConfinementTest {
     final Path session = root.resolve("session");
     final List<Path> hidden = List.of(home, root, root.resolve("missing"));
     final List<Landlock.Rule> rules = ChromiumConfinement.rules(root, hidden, List.of(natives), List.of(session));
+    final List<Landlock.Rule> walkedRules = walkSorted(rules, 2);
     assertEquals(
       List.of(
         new Landlock.Rule(file, false),
@@ -102,7 +103,7 @@ class ChromiumConfinementTest {
         new Landlock.Rule(natives, false),
         new Landlock.Rule(session, true)
       ),
-      walkSorted(rules, 2)
+      walkedRules
     );
   }
 
@@ -126,7 +127,8 @@ class ChromiumConfinementTest {
     Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("-wx------"));
     try {
       assumeTrue(!Files.isReadable(closed), "the user may read every folder");
-      assertEquals(List.of(), ChromiumConfinement.rules(root, List.of(hidden), List.of(), List.of()));
+      final List<Landlock.Rule> rules = ChromiumConfinement.rules(root, List.of(hidden), List.of(), List.of());
+      assertEquals(List.of(), rules);
     } finally {
       Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("rwx------"));
     }
@@ -134,9 +136,11 @@ class ChromiumConfinementTest {
 
   @Test
   void shouldSplitListsOfPaths() {
-    assertEquals(List.of(), ChromiumConfinement.pathsOf(null));
+    final List<Path> pathsOfNothing = ChromiumConfinement.pathsOf(null);
+    assertEquals(List.of(), pathsOfNothing);
     final String separator = File.pathSeparator;
-    assertEquals(List.of(Path.of("first"), Path.of("second")), ChromiumConfinement.pathsOf("first" + separator + separator + "second"));
+    final List<Path> paths = ChromiumConfinement.pathsOf("first" + separator + separator + "second");
+    assertEquals(List.of(Path.of("first"), Path.of("second")), paths);
   }
 
   @Test
@@ -146,7 +150,8 @@ class ChromiumConfinementTest {
       "-javaagent:/agents/coverage.jar=destfile=/out/helper.exec",
       "-javaagent:/agents/plain.jar"
     );
-    assertEquals(List.of(Path.of("/agents/coverage.jar"), Path.of("/agents/plain.jar")), ChromiumConfinement.agentsOf(arguments));
+    final List<Path> agents = ChromiumConfinement.agentsOf(arguments);
+    assertEquals(List.of(Path.of("/agents/coverage.jar"), Path.of("/agents/plain.jar")), agents);
   }
 
   @Test
@@ -158,7 +163,8 @@ class ChromiumConfinementTest {
     Files.createSymbolicLink(linked.resolve("relative.so"), Path.of("..", "installation", "libnss3.so"));
     Files.writeString(linked.resolve("plain.so"), "not a link");
     final List<Path> targets = ChromiumConfinement.linkedFiles(List.of(linked, this.folder.resolve("missing"), library));
-    assertEquals(List.of(library, linked.resolve(Path.of("..", "installation", "libnss3.so"))), targets.stream().sorted().toList());
+    final List<Path> sortedTargets = targets.stream().sorted().toList();
+    assertEquals(List.of(library, linked.resolve(Path.of("..", "installation", "libnss3.so"))), sortedTargets);
   }
 
   @Test
@@ -166,38 +172,33 @@ class ChromiumConfinementTest {
     final Path server = this.folder.resolve("server");
     try (final SeatbeltLibrary library = SeatbeltLibrary.complete()) {
       final Seatbelt seatbelt = library.seatbelt();
-      assertEquals(
-        ChromiumConfinement.NOT_ASKED,
-        ChromiumConfinement.confine(this.configuration(false, server), true, false, () -> 4, seatbelt)
-      );
-      assertEquals(
-        ChromiumConfinement.NOT_ASKED,
-        ChromiumConfinement.confine(this.configuration(false, server), false, true, () -> 4, seatbelt)
-      );
-      assertEquals(
-        "Chromium runs without confinement: MCAV confines it on Linux and macOS only",
-        ChromiumConfinement.confine(this.configuration(true, server), false, false, () -> 4, seatbelt)
-      );
-      assertEquals(
-        "Chromium runs without confinement: this kernel has no Landlock, which Linux has since 5.13",
-        ChromiumConfinement.confine(this.configuration(true, server), true, false, () -> -38, seatbelt)
-      );
-      assertEquals(List.of(), library.profiles(), "only macOS uses Seatbelt");
+      final String linuxNotAsked = ChromiumConfinement.confine(this.configuration(false, server), true, false, () -> 4, seatbelt);
+      assertEquals(ChromiumConfinement.NOT_ASKED, linuxNotAsked);
+      final String macNotAsked = ChromiumConfinement.confine(this.configuration(false, server), false, true, () -> 4, seatbelt);
+      assertEquals(ChromiumConfinement.NOT_ASKED, macNotAsked);
+      final String otherSystemReason = ChromiumConfinement.confine(this.configuration(true, server), false, false, () -> 4, seatbelt);
+      assertEquals("Chromium runs without confinement: MCAV confines it on Linux and macOS only", otherSystemReason);
+      final String noLandlockReason = ChromiumConfinement.confine(this.configuration(true, server), true, false, () -> -38, seatbelt);
+      assertEquals("Chromium runs without confinement: this kernel has no Landlock, which Linux has since 5.13", noLandlockReason);
+      final List<String> profiles = library.profiles();
+      assertEquals(List.of(), profiles, "only macOS uses Seatbelt");
     }
-    assertEquals(
-      "Chromium runs without confinement: this system has no Seatbelt (sandbox_init)",
-      ChromiumConfinement.confine(this.configuration(true, server), false, true, () -> 4, new Seatbelt(name -> Optional.empty()))
+    final String noSeatbeltReason = ChromiumConfinement.confine(
+      this.configuration(true, server),
+      false,
+      true,
+      () -> 4,
+      new Seatbelt(name -> Optional.empty())
     );
+    assertEquals("Chromium runs without confinement: this system has no Seatbelt (sandbox_init)", noSeatbeltReason);
   }
 
   @Test
   @DisabledOnOs(OS.MAC) // on macOS this would put this JVM in the sandbox
   void shouldLeaveTheHelperAsItIsAndSayWhyOnASystemWithoutSeatbelt() throws IOException {
     final HelperConfiguration configuration = this.configuration(true, this.folder.resolve("server"));
-    assertEquals(
-      "Chromium runs without confinement: this system has no Seatbelt (sandbox_init)",
-      ChromiumConfinement.confine(configuration, false, true)
-    );
+    final String noSeatbeltReason = ChromiumConfinement.confine(configuration, false, true);
+    assertEquals("Chromium runs without confinement: this system has no Seatbelt (sandbox_init)", noSeatbeltReason);
   }
 
   @Test
@@ -212,42 +213,40 @@ class ChromiumConfinementTest {
       profiles = List.copyOf(library.profiles());
     }
     assertEquals(ChromiumConfinement.CONFINED, said);
-    assertEquals(1, profiles.size());
+    final int profileCount = profiles.size();
+    assertEquals(1, profileCount);
     final String profile = profiles.getFirst();
     final String home = Path.of(System.getProperty("user.home")).toRealPath().toString();
     final String temporary = session.getParent().toRealPath().toString();
-    assertTrue(
-      profile.startsWith(
-        "(version 1)\n(allow default)\n(deny file-read-data (subpath " +
-          Seatbelt.quote(server.toRealPath().toString()) +
-          ") (subpath " +
-          Seatbelt.quote(home) +
-          ") (subpath " +
-          Seatbelt.quote(temporary) +
-          "))\n(allow file-read-data (subpath " +
-          Seatbelt.quote(Path.of(System.getProperty("java.home")).toRealPath().toString()) +
-          ") (subpath " +
-          Seatbelt.quote(this.folder.resolve("natives").toAbsolutePath().normalize().toString()) +
-          ")"
-      ),
-      profile
+    final boolean deniesThenAllowsReading = profile.startsWith(
+      "(version 1)\n(allow default)\n(deny file-read-data (subpath " +
+        Seatbelt.quote(server.toRealPath().toString()) +
+        ") (subpath " +
+        Seatbelt.quote(home) +
+        ") (subpath " +
+        Seatbelt.quote(temporary) +
+        "))\n(allow file-read-data (subpath " +
+        Seatbelt.quote(Path.of(System.getProperty("java.home")).toRealPath().toString()) +
+        ") (subpath " +
+        Seatbelt.quote(this.folder.resolve("natives").toAbsolutePath().normalize().toString()) +
+        ")"
     );
-    assertTrue(
-      profile.endsWith(
-        "(deny file-write*)\n(allow file-write* (subpath " +
-          Seatbelt.quote(session.toRealPath().toString()) +
-          ") (subpath " +
-          Seatbelt.quote(
-            ChromiumConfinement.realPaths(List.of(Path.of("/dev")))
-              .getFirst()
-              .toString()
-          ) +
-          "))\n"
-      ),
-      profile
+    assertTrue(deniesThenAllowsReading, profile);
+    final boolean allowsWritingOnlyTheSession = profile.endsWith(
+      "(deny file-write*)\n(allow file-write* (subpath " +
+        Seatbelt.quote(session.toRealPath().toString()) +
+        ") (subpath " +
+        Seatbelt.quote(
+          ChromiumConfinement.realPaths(List.of(Path.of("/dev")))
+            .getFirst()
+            .toString()
+        ) +
+        "))\n"
     );
+    assertTrue(allowsWritingOnlyTheSession, profile);
     for (final Path entry : ChromiumConfinement.realPaths(ChromiumConfinement.pathsOf(System.getProperty("java.class.path")))) {
-      assertTrue(profile.contains("(subpath " + Seatbelt.quote(entry.toString()) + ")"), () -> entry + " may be read");
+      final boolean allowsReadingEntry = profile.contains("(subpath " + Seatbelt.quote(entry.toString()) + ")");
+      assertTrue(allowsReadingEntry, () -> entry + " may be read");
     }
   }
 
@@ -256,10 +255,8 @@ class ChromiumConfinementTest {
     final Path real = Files.createDirectories(this.folder.resolve("real"));
     final Path link = Files.createSymbolicLink(this.folder.resolve("link"), real);
     final Path missing = this.folder.resolve("missing").resolve("..").resolve("gone");
-    assertEquals(
-      List.of(real.toRealPath(), this.folder.resolve("gone").toAbsolutePath()),
-      ChromiumConfinement.realPaths(List.of(link, missing))
-    );
+    final List<Path> resolved = ChromiumConfinement.realPaths(List.of(link, missing));
+    assertEquals(List.of(real.toRealPath(), this.folder.resolve("gone").toAbsolutePath()), resolved);
   }
 
   @Test
@@ -288,11 +285,16 @@ class ChromiumConfinementTest {
     }, "confinement-test");
     thread.start();
     thread.join(TimeUnit.SECONDS.toMillis(60));
-    assertFalse(thread.isAlive());
-    assertNull(failure.get(), () -> "the confined thread failed: " + failure.get());
-    assertEquals(ChromiumConfinement.CONFINED, said.get());
-    assertEquals("profile", Files.readString(session.resolve("profile.txt"), StandardCharsets.UTF_8));
-    assertTrue(Files.isReadable(config), "the other threads are free");
+    final boolean alive = thread.isAlive();
+    assertFalse(alive);
+    final Throwable confinedFailure = failure.get();
+    assertNull(confinedFailure, () -> "the confined thread failed: " + failure.get());
+    final String saidConfinement = said.get();
+    assertEquals(ChromiumConfinement.CONFINED, saidConfinement);
+    final String profileText = Files.readString(session.resolve("profile.txt"), StandardCharsets.UTF_8);
+    assertEquals("profile", profileText);
+    final boolean readable = Files.isReadable(config);
+    assertTrue(readable, "the other threads are free");
   }
 
   @Test
@@ -322,8 +324,14 @@ class ChromiumConfinementTest {
       .redirectErrorStream(true)
       .start();
     final String output = new String(probe.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-    assertTrue(probe.waitFor(60, TimeUnit.SECONDS), output);
-    assertEquals(0, probe.exitValue(), output);
+    final boolean exited = probe.waitFor(60, TimeUnit.SECONDS);
+    assertTrue(exited, output);
+    final int exitCode = probe.exitValue();
+    assertEquals(0, exitCode, output);
+    final List<String> outputLines = output
+      .lines()
+      .filter(line -> !line.startsWith("WARNING"))
+      .toList();
     assertEquals(
       List.of(
         "said " + ChromiumConfinement.CONFINED,
@@ -334,14 +342,14 @@ class ChromiumConfinementTest {
         "started cat: refused",
         "sandboxed: true"
       ),
-      output
-        .lines()
-        .filter(line -> !line.startsWith("WARNING"))
-        .toList(),
+      outputLines,
       output
     );
-    assertEquals("profile", Files.readString(session.resolve("profile.txt"), StandardCharsets.UTF_8));
-    assertFalse(Files.exists(outside));
-    assertTrue(Files.isReadable(config), "this process is free");
+    final String profileText = Files.readString(session.resolve("profile.txt"), StandardCharsets.UTF_8);
+    assertEquals("profile", profileText);
+    final boolean outsideWritten = Files.exists(outside);
+    assertFalse(outsideWritten);
+    final boolean readable = Files.isReadable(config);
+    assertTrue(readable, "this process is free");
   }
 }

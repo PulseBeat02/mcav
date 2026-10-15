@@ -37,10 +37,13 @@ class SpecialKeysTest {
   @Test
   void shouldPressTheW3cKeyNames() {
     for (final String key : new String[] { "Enter", "Backspace", "ArrowLeft", "PageDown", " ", "F12", "MediaPlayPause" }) {
-      assertTrue(SpecialKeys.isSpecialKey(key), key);
+      final boolean namedKeySpecial = SpecialKeys.isSpecialKey(key);
+      assertTrue(namedKeySpecial, key);
     }
-    assertFalse(SpecialKeys.isSpecialKey("enter"));
-    assertFalse(SpecialKeys.isSpecialKey("hello"));
+    final boolean lowerCaseEnterSpecial = SpecialKeys.isSpecialKey("enter");
+    assertFalse(lowerCaseEnterSpecial);
+    final boolean plainWordSpecial = SpecialKeys.isSpecialKey("hello");
+    assertFalse(plainWordSpecial);
     assertThrows(NullPointerException.class, () -> SpecialKeys.isSpecialKey(null));
   }
 
@@ -54,13 +57,15 @@ class SpecialKeysTest {
   @Test
   void shouldRefuseAnEmptyList() {
     final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(new StringReader("")));
-    assertEquals("The key list resource mcav/browser/keybinds.json is empty", failure.getMessage());
+    final String message = failure.getMessage();
+    assertEquals("The key list resource mcav/browser/keybinds.json is empty", message);
   }
 
   @Test
   void shouldRefuseAnEmptyJsonList() {
     final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(new StringReader("[]")));
-    assertEquals("The key list resource mcav/browser/keybinds.json is empty", failure.getMessage());
+    final String message = failure.getMessage();
+    assertEquals("The key list resource mcav/browser/keybinds.json is empty", message);
   }
 
   @Test
@@ -72,8 +77,10 @@ class SpecialKeysTest {
       }
     };
     final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(throwing));
-    assertEquals("Failed to read the key list resource: disk gone", failure.getMessage());
-    assertInstanceOf(IOException.class, failure.getCause());
+    final String message = failure.getMessage();
+    assertEquals("Failed to read the key list resource: disk gone", message);
+    final Throwable cause = failure.getCause();
+    assertInstanceOf(IOException.class, cause);
   }
 
   @Test

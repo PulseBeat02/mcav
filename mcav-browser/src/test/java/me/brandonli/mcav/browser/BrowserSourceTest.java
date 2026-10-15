@@ -33,22 +33,33 @@ class BrowserSourceTest {
   @Test
   void shouldDefaultTo720pEveryFrame() {
     final BrowserSource source = BrowserSource.uri(PAGE);
-    assertEquals(PAGE, source.getUri());
-    assertEquals(BrowserSource.DEFAULT_WIDTH, source.getWidth());
-    assertEquals(BrowserSource.DEFAULT_HEIGHT, source.getHeight());
-    assertEquals(1, source.getFrameInterval());
-    assertEquals("browser", source.getName());
-    assertFalse(source.isDirect());
-    assertEquals(PAGE.toString(), source.getResource());
+    final URI uri = source.getUri();
+    assertEquals(PAGE, uri);
+    final int width = source.getWidth();
+    assertEquals(BrowserSource.DEFAULT_WIDTH, width);
+    final int height = source.getHeight();
+    assertEquals(BrowserSource.DEFAULT_HEIGHT, height);
+    final int frameInterval = source.getFrameInterval();
+    assertEquals(1, frameInterval);
+    final String name = source.getName();
+    assertEquals("browser", name);
+    final boolean direct = source.isDirect();
+    assertFalse(direct);
+    final String resource = source.getResource();
+    assertEquals(PAGE.toString(), resource);
   }
 
   @Test
   void shouldKeepEverySetting() {
     final BrowserSource source = BrowserSource.uri(PAGE, 4096, 1, 1000);
-    assertEquals(4096, source.getWidth());
-    assertEquals(1, source.getHeight());
-    assertEquals(1000, source.getFrameInterval());
-    assertEquals("BrowserSource[https://example.com/, 4096x1, every 1000]", source.toString());
+    final int width = source.getWidth();
+    assertEquals(4096, width);
+    final int height = source.getHeight();
+    assertEquals(1, height);
+    final int frameInterval = source.getFrameInterval();
+    assertEquals(1000, frameInterval);
+    final String description = source.toString();
+    assertEquals("BrowserSource[https://example.com/, 4096x1, every 1000]", description);
   }
 
   @Test
@@ -57,27 +68,32 @@ class BrowserSourceTest {
     final IllegalArgumentException file = assertThrows(IllegalArgumentException.class, () ->
       BrowserSource.uri(URI.create("file:///etc/passwd"))
     );
-    assertEquals("The browser shows http and https addresses only but got file:///etc/passwd", file.getMessage());
+    final String fileMessage = file.getMessage();
+    assertEquals("The browser shows http and https addresses only but got file:///etc/passwd", fileMessage);
     final IllegalArgumentException underscore = assertThrows(IllegalArgumentException.class, () ->
       BrowserSource.uri(URI.create("https://my_site.example.com/"))
     );
+    final String underscoreMessage = underscore.getMessage();
     assertEquals(
       "The address has no host name the browser can check, such as a name with an underscore: https://my_site.example.com/",
-      underscore.getMessage()
+      underscoreMessage
     );
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 0, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 0, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 4097, 1, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 4097, 1));
-    assertEquals(4096, BrowserSource.uri(PAGE, 4096, 4096, 1).getHeight(), "4096 per side is the largest frame, and allowed");
+    final int height = BrowserSource.uri(PAGE, 4096, 4096, 1).getHeight();
+    assertEquals(4096, height, "4096 per side is the largest frame, and allowed");
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 1, 0));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 1, 1001));
     final String start = "https://example.com/";
     final URI longest = URI.create(start + "a".repeat(BrowserSource.MAX_ADDRESS_LENGTH - start.length()));
-    assertEquals(longest, BrowserSource.uri(longest).getUri());
+    final URI longestUri = BrowserSource.uri(longest).getUri();
+    assertEquals(longest, longestUri);
     final URI tooLong = URI.create(longest + "a");
     final IllegalArgumentException length = assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(tooLong));
-    assertEquals("An address has at most 65536 characters but had 65537", length.getMessage());
+    final String message = length.getMessage();
+    assertEquals("An address has at most 65536 characters but had 65537", message);
   }
 
   @Test
@@ -96,7 +112,8 @@ class BrowserSourceTest {
   void shouldHashSourcesThatDifferInASettingDifferently() {
     final BrowserSource first = BrowserSource.uri(PAGE, 640, 480, 1);
     final BrowserSource wider = BrowserSource.uri(PAGE, 641, 480, 1);
-    assertNotEquals(first.hashCode(), wider.hashCode());
+    final int widerHashCode = wider.hashCode();
+    assertNotEquals(first.hashCode(), widerHashCode);
   }
 
   @Test

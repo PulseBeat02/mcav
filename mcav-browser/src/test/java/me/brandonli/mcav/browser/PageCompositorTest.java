@@ -28,6 +28,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
 class PageCompositorTest {
@@ -80,11 +81,14 @@ class PageCompositorTest {
   @Test
   void shouldStartWhiteAndHoldTheWholeViewport() throws InterruptedException {
     final PageCompositor compositor = this.compositor(1);
-    assertEquals(WIDTH * HEIGHT * 4, compositor.getPageBytes());
+    final int pageBytes = compositor.getPageBytes();
+    assertEquals(WIDTH * HEIGHT * 4, pageBytes);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, buffer(WIDTH, HEIGHT, 9), WIDTH, HEIGHT);
     final FrameRegion region = take(compositor);
-    assertEquals(1, region.getWidth());
-    assertEquals(9, pixel(region, 0, 0, 0));
+    final int regionWidth = region.getWidth();
+    assertEquals(1, regionWidth);
+    final int paintedValue = pixel(region, 0, 0, 0);
+    assertEquals(9, paintedValue);
   }
 
   @Test
@@ -93,14 +97,22 @@ class PageCompositorTest {
     final Rectangle[] dirty = { new Rectangle(1, 1, 2, 1), new Rectangle(5, 3, 1, 2) };
     compositor.onPaint(false, dirty, buffer(WIDTH, HEIGHT, 7), WIDTH, HEIGHT);
     final FrameRegion region = take(compositor);
-    assertEquals(WIDTH, region.getPageWidth());
-    assertEquals(HEIGHT, region.getPageHeight());
-    assertEquals(new Rectangle(1, 1, 5, 4), new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight()));
-    assertEquals(7, pixel(region, 1, 1, 0));
-    assertEquals(2, pixel(region, 2, 1, 1));
-    assertEquals(4, pixel(region, 5, 4, 2));
-    assertEquals(255, pixel(region, 3, 2, 0));
-    assertNull(compositor.takeDamage(new byte[compositor.getPageBytes()], 0L));
+    final int pageWidth = region.getPageWidth();
+    assertEquals(WIDTH, pageWidth);
+    final int pageHeight = region.getPageHeight();
+    assertEquals(HEIGHT, pageHeight);
+    final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
+    assertEquals(new Rectangle(1, 1, 5, 4), bounds);
+    final int paintedValue = pixel(region, 1, 1, 0);
+    assertEquals(7, paintedValue);
+    final int column = pixel(region, 2, 1, 1);
+    assertEquals(2, column);
+    final int row = pixel(region, 5, 4, 2);
+    assertEquals(4, row);
+    final int untouchedValue = pixel(region, 3, 2, 0);
+    assertEquals(255, untouchedValue);
+    final @Nullable FrameRegion nextDamage = compositor.takeDamage(new byte[compositor.getPageBytes()], 0L);
+    assertNull(nextDamage);
   }
 
   @Test
@@ -109,7 +121,8 @@ class PageCompositorTest {
     final Rectangle[] dirty = { new Rectangle(-5, -5, 7, 7), new Rectangle(20, 20, 3, 3) };
     compositor.onPaint(false, dirty, buffer(WIDTH, HEIGHT, 3), WIDTH, HEIGHT);
     final FrameRegion region = take(compositor);
-    assertEquals(new Rectangle(0, 0, 2, 2), new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight()));
+    final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
+    assertEquals(new Rectangle(0, 0, 2, 2), bounds);
   }
 
   @Test
@@ -117,7 +130,8 @@ class PageCompositorTest {
     final PageCompositor compositor = this.compositor(1);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(WIDTH + 1, HEIGHT, 1), WIDTH + 1, HEIGHT);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(WIDTH, HEIGHT + 1, 1), WIDTH, HEIGHT + 1);
-    assertNull(takeNow(compositor));
+    final FrameRegion damage = takeNow(compositor);
+    assertNull(damage);
   }
 
   @Test
@@ -126,13 +140,17 @@ class PageCompositorTest {
     final Rectangle[] all = { new Rectangle(0, 0, WIDTH, HEIGHT) };
     compositor.onPaint(false, all, buffer(WIDTH, HEIGHT, 1), WIDTH, HEIGHT);
     compositor.onPaint(false, all, buffer(WIDTH, HEIGHT, 2), WIDTH, HEIGHT);
-    assertNull(takeNow(compositor), "two paints of three");
+    final FrameRegion damageAfterTwoPaints = takeNow(compositor);
+    assertNull(damageAfterTwoPaints, "two paints of three");
     compositor.onPaint(false, all, buffer(WIDTH, HEIGHT, 3), WIDTH, HEIGHT);
-    assertEquals(3, pixel(take(compositor), 0, 0, 0));
+    final int thirdPaintValue = pixel(take(compositor), 0, 0, 0);
+    assertEquals(3, thirdPaintValue);
     compositor.onPaint(false, all, buffer(WIDTH, HEIGHT, 4), WIDTH, HEIGHT);
-    assertNull(takeNow(compositor), "one paint of three, not settled");
+    final FrameRegion damageAfterOnePaint = takeNow(compositor);
+    assertNull(damageAfterOnePaint, "one paint of three, not settled");
     this.clock.addAndGet(TimeUnit.MILLISECONDS.toNanos(100));
-    assertEquals(4, pixel(take(compositor), 0, 0, 0));
+    final int fourthPaintValue = pixel(take(compositor), 0, 0, 0);
+    assertEquals(4, fourthPaintValue);
   }
 
   @Test
@@ -149,8 +167,10 @@ class PageCompositorTest {
     Thread.sleep(50L);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, buffer(WIDTH, HEIGHT, 5), WIDTH, HEIGHT);
     final FrameRegion region = taken.get(10, TimeUnit.SECONDS);
-    assertSame(target, region.getPixels());
-    assertEquals(5, pixel(region, 0, 0, 0));
+    final byte[] pixels = region.getPixels();
+    assertSame(target, pixels);
+    final int paintedValue = pixel(region, 0, 0, 0);
+    assertEquals(5, paintedValue);
   }
 
   @Test
@@ -161,13 +181,15 @@ class PageCompositorTest {
     final FrameRegion region = compositor.takeDamage(new byte[compositor.getPageBytes()], 10_000L);
     final long waited = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
     assertNotNull(region);
-    assertTrue(waited >= 50L, "waited " + waited + " ms for the settle delay");
+    final boolean waitedForSettleDelay = waited >= 50L;
+    assertTrue(waitedForSettleDelay, "waited " + waited + " ms for the settle delay");
   }
 
   @Test
   void shouldTimeOutTakingWithoutDamage() throws InterruptedException {
     final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, 100L, System::nanoTime);
-    assertNull(compositor.takeDamage(new byte[compositor.getPageBytes()], 20L));
+    final @Nullable FrameRegion damage = compositor.takeDamage(new byte[compositor.getPageBytes()], 20L);
+    assertNull(damage);
   }
 
   @Test
@@ -182,9 +204,11 @@ class PageCompositorTest {
     });
     Thread.sleep(50L);
     compositor.close();
-    assertNull(taken.get(10, TimeUnit.SECONDS));
+    final FrameRegion wokenDamage = taken.get(10, TimeUnit.SECONDS);
+    assertNull(wokenDamage);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, buffer(WIDTH, HEIGHT, 1), WIDTH, HEIGHT);
-    assertNull(compositor.takeDamage(new byte[compositor.getPageBytes()], 0L), "a closed compositor hands out nothing");
+    final @Nullable FrameRegion closedDamage = compositor.takeDamage(new byte[compositor.getPageBytes()], 0L);
+    assertNull(closedDamage, "a closed compositor hands out nothing");
   }
 
   @Test
@@ -196,14 +220,20 @@ class PageCompositorTest {
     compositor.onPopupSize(new Rectangle(2, 2, 3, 2));
     compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 3, 2) }, buffer(3, 2, 200), 3, 2);
     final FrameRegion region = take(compositor);
-    assertEquals(new Rectangle(2, 2, 3, 2), new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight()));
-    assertEquals(200, pixel(region, 3, 3, 0));
-    assertEquals(1, pixel(region, 3, 3, 1));
-    assertEquals(1, pixel(region, 3, 3, 2));
+    final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
+    assertEquals(new Rectangle(2, 2, 3, 2), bounds);
+    final int popupValue = pixel(region, 3, 3, 0);
+    assertEquals(200, popupValue);
+    final int popupColumn = pixel(region, 3, 3, 1);
+    assertEquals(1, popupColumn);
+    final int popupRow = pixel(region, 3, 3, 2);
+    assertEquals(1, popupRow);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, WIDTH, HEIGHT) }, buffer(WIDTH, HEIGHT, 9), WIDTH, HEIGHT);
     final FrameRegion whole = take(compositor);
-    assertEquals(200, pixel(whole, 2, 2, 0));
-    assertEquals(9, pixel(whole, 0, 0, 0));
+    final int popupOverPage = pixel(whole, 2, 2, 0);
+    assertEquals(200, popupOverPage);
+    final int pageValue = pixel(whole, 0, 0, 0);
+    assertEquals(9, pageValue);
   }
 
   @Test
@@ -214,8 +244,10 @@ class PageCompositorTest {
     take(compositor);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, buffer(WIDTH, HEIGHT, 7), WIDTH, HEIGHT);
     final FrameRegion region = take(compositor);
-    assertEquals(new Rectangle(0, 0, 1, 1), new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight()));
-    assertEquals(7, pixel(region, 0, 0, 0));
+    final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
+    assertEquals(new Rectangle(0, 0, 1, 1), bounds);
+    final int pageValue = pixel(region, 0, 0, 0);
+    assertEquals(7, pageValue);
   }
 
   @Test
@@ -228,23 +260,29 @@ class PageCompositorTest {
     take(compositor);
     compositor.onPopupShow(false);
     final FrameRegion region = take(compositor);
-    assertEquals(new Rectangle(1, 1, 2, 2), new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight()));
-    assertEquals(1, pixel(region, 1, 1, 0));
+    final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
+    assertEquals(new Rectangle(1, 1, 2, 2), bounds);
+    final int pageValue = pixel(region, 1, 1, 0);
+    assertEquals(1, pageValue);
     final PageCompositor fresh = this.compositor(1);
     fresh.onPopupShow(false);
-    assertNull(takeNow(fresh));
+    final FrameRegion freshDamage = takeNow(fresh);
+    assertNull(freshDamage);
   }
 
   @Test
   void shouldIgnoreAPopupPaintUntilItsSizeIsKnownOrWhenItDoesNotMatch() {
     final PageCompositor compositor = this.compositor(1);
     compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, 150), 2, 2);
-    assertNull(takeNow(compositor), "no size yet");
+    final FrameRegion damageWithoutSize = takeNow(compositor);
+    assertNull(damageWithoutSize, "no size yet");
     compositor.onPopupSize(new Rectangle(0, 0, 3, 3));
     compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, 150), 2, 2);
-    assertNull(takeNow(compositor), "the size does not match");
+    final FrameRegion damageOfOtherSize = takeNow(compositor);
+    assertNull(damageOfOtherSize, "the size does not match");
     compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 3, 2) }, buffer(3, 2, 150), 3, 2);
-    assertNull(takeNow(compositor), "the height does not match");
+    final FrameRegion damageOfOtherHeight = takeNow(compositor);
+    assertNull(damageOfOtherHeight, "the height does not match");
   }
 
   @Test
@@ -255,11 +293,13 @@ class PageCompositorTest {
     take(compositor);
     compositor.onPopupSize(new Rectangle(4, 3, 2, 2));
     final FrameRegion region = take(compositor);
-    assertEquals(new Rectangle(0, 0, 2, 2), new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight()));
+    final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
+    assertEquals(new Rectangle(0, 0, 2, 2), bounds);
     compositor.onPopupSize(new Rectangle(100, 100, 2, 2));
     compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, 150), 2, 2);
     compositor.onPopupShow(false);
-    assertNull(takeNow(compositor));
+    final FrameRegion damage = takeNow(compositor);
+    assertNull(damage);
   }
 
   @Test
@@ -270,12 +310,14 @@ class PageCompositorTest {
     final CompletableFuture<FrameRegion> shown = CompletableFuture.supplyAsync(() -> waitForDamage(compositor, target));
     Thread.sleep(100L);
     compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, 7), 2, 2);
-    assertEquals(7, pixel(shown.get(10, TimeUnit.SECONDS), 1, 1, 0));
+    final int popupValue = pixel(shown.get(10, TimeUnit.SECONDS), 1, 1, 0);
+    assertEquals(7, popupValue);
     final CompletableFuture<FrameRegion> hidden = CompletableFuture.supplyAsync(() -> waitForDamage(compositor, target));
     Thread.sleep(100L);
     compositor.onPopupShow(false);
     final FrameRegion page = hidden.get(10, TimeUnit.SECONDS);
-    assertEquals(new Rectangle(1, 1, 2, 2), new Rectangle(page.getX(), page.getY(), page.getWidth(), page.getHeight()));
+    final Rectangle bounds = new Rectangle(page.getX(), page.getY(), page.getWidth(), page.getHeight());
+    assertEquals(new Rectangle(1, 1, 2, 2), bounds);
   }
 
   private static FrameRegion waitForDamage(final PageCompositor compositor, final byte[] target) {

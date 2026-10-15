@@ -34,6 +34,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import me.brandonli.mcav.browser.testing.UtilityClassAssertions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.EnabledOnOs;
@@ -77,24 +78,28 @@ class SeatbeltTest {
 
   @Test
   void shouldHideNothingAndChangeNothingInAProfileWithoutPaths() {
-    assertEquals(PROFILE + "(deny file-write*)\n", Seatbelt.profile(List.of(), List.of(), List.of()));
+    final String emptyProfile = Seatbelt.profile(List.of(), List.of(), List.of());
+    assertEquals(PROFILE + "(deny file-write*)\n", emptyProfile);
   }
 
   @Test
   void shouldEscapeQuotesAndBackslashesOfAPath() {
-    assertEquals("\"/a \\\"quoted\\\" \\\\ name\"", Seatbelt.quote("/a \"quoted\" \\ name"));
+    final String quotedPath = Seatbelt.quote("/a \"quoted\" \\ name");
+    assertEquals("\"/a \\\"quoted\\\" \\\\ name\"", quotedPath);
   }
 
   @Test
   @DisabledOnOs(OS.MAC)
   void shouldOnlyFindSeatbeltOnMacOs() {
-    assertFalse(Seatbelt.ofSystem().isAvailable());
+    final boolean available = Seatbelt.ofSystem().isAvailable();
+    assertFalse(available);
   }
 
   @Test
   @EnabledOnOs(OS.MAC)
   void shouldFindSeatbeltOnMacOs() {
-    assertTrue(Seatbelt.ofSystem().isAvailable());
+    final boolean available = Seatbelt.ofSystem().isAvailable();
+    assertTrue(available);
   }
 
   @Test
@@ -102,10 +107,13 @@ class SeatbeltTest {
     for (final String only : List.of(SeatbeltLibrary.INIT, SeatbeltLibrary.FREE_ERROR)) {
       try (final SeatbeltLibrary library = new SeatbeltLibrary(only)) {
         final Seatbelt seatbelt = library.seatbelt();
-        assertFalse(seatbelt.isAvailable());
+        final boolean available = seatbelt.isAvailable();
+        assertFalse(available);
         final IOException refused = assertThrows(IOException.class, () -> seatbelt.restrictProcess(PROFILE));
-        assertEquals("this system has no Seatbelt (sandbox_init)", refused.getMessage());
-        assertEquals(List.of(), library.profiles());
+        final String message = refused.getMessage();
+        assertEquals("this system has no Seatbelt (sandbox_init)", message);
+        final List<String> passedProfiles = library.profiles();
+        assertEquals(List.of(), passedProfiles);
       }
     }
   }
@@ -114,11 +122,15 @@ class SeatbeltTest {
   void shouldPassTheProfileToTheLibraryAsTextOnce() throws Exception {
     try (final SeatbeltLibrary library = SeatbeltLibrary.complete()) {
       final Seatbelt seatbelt = library.seatbelt();
-      assertTrue(seatbelt.isAvailable());
+      final boolean available = seatbelt.isAvailable();
+      assertTrue(available);
       seatbelt.restrictProcess(PROFILE + "(deny file-write*)\n");
-      assertEquals(List.of(PROFILE + "(deny file-write*)\n"), library.profiles());
-      assertEquals(List.of(0L), library.flags());
-      assertEquals(List.of(), library.freed());
+      final List<String> passedProfiles = library.profiles();
+      assertEquals(List.of(PROFILE + "(deny file-write*)\n"), passedProfiles);
+      final List<Long> passedFlags = library.flags();
+      assertEquals(List.of(0L), passedFlags);
+      final List<Long> freedAddresses = library.freed();
+      assertEquals(List.of(), freedAddresses);
     }
   }
 
@@ -128,8 +140,10 @@ class SeatbeltTest {
       library.refuse(-1, "unbound variable: subpat");
       final Seatbelt seatbelt = library.seatbelt();
       final IOException refused = assertThrows(IOException.class, () -> seatbelt.restrictProcess("(deny (subpat \"/\"))"));
-      assertEquals("Seatbelt refused the profile: unbound variable: subpat", refused.getMessage());
-      assertEquals(List.of(library.reasonAddress()), library.freed());
+      final String message = refused.getMessage();
+      assertEquals("Seatbelt refused the profile: unbound variable: subpat", message);
+      final List<Long> freedAddresses = library.freed();
+      assertEquals(List.of(library.reasonAddress()), freedAddresses);
     }
   }
 
@@ -139,15 +153,19 @@ class SeatbeltTest {
       library.refuse(1);
       final Seatbelt seatbelt = library.seatbelt();
       final IOException refused = assertThrows(IOException.class, () -> seatbelt.restrictProcess(PROFILE));
-      assertEquals("Seatbelt refused the profile: no reason given", refused.getMessage());
-      assertEquals(List.of(), library.freed());
+      final String message = refused.getMessage();
+      assertEquals("Seatbelt refused the profile: no reason given", message);
+      final List<Long> freedAddresses = library.freed();
+      assertEquals(List.of(), freedAddresses);
     }
   }
 
   @Test
   void shouldPassTheResultOfACallOn() {
-    assertEquals(7, Seatbelt.call(MethodHandles.constant(int.class, 7)));
-    assertNull(Seatbelt.call(MethodHandles.empty(MethodType.methodType(void.class))));
+    final @Nullable Object returnedConstant = Seatbelt.call(MethodHandles.constant(int.class, 7));
+    assertEquals(7, returnedConstant);
+    final @Nullable Object returnedNothing = Seatbelt.call(MethodHandles.empty(MethodType.methodType(void.class)));
+    assertNull(returnedNothing);
   }
 
   @Test
@@ -156,8 +174,10 @@ class SeatbeltTest {
     final MethodHandle throwing = MethodHandles.throwException(int.class, IllegalCallerException.class);
     final MethodHandle call = MethodHandles.insertArguments(throwing, 0, refused);
     final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> Seatbelt.call(call));
-    assertEquals("The C library could not be called", failure.getMessage());
-    assertSame(refused, failure.getCause());
+    final String message = failure.getMessage();
+    assertEquals("The C library could not be called", message);
+    final Throwable cause = failure.getCause();
+    assertSame(refused, cause);
   }
 
   @Test
@@ -165,6 +185,7 @@ class SeatbeltTest {
     final OutOfMemoryError exhausted = new OutOfMemoryError("no memory for the call");
     final MethodHandle throwing = MethodHandles.throwException(int.class, OutOfMemoryError.class);
     final MethodHandle call = MethodHandles.insertArguments(throwing, 0, exhausted);
-    assertSame(exhausted, assertThrows(OutOfMemoryError.class, () -> Seatbelt.call(call)));
+    final OutOfMemoryError thrownError = assertThrows(OutOfMemoryError.class, () -> Seatbelt.call(call));
+    assertSame(exhausted, thrownError);
   }
 }

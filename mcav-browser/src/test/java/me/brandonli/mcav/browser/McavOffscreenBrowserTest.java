@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.nio.ByteBuffer;
@@ -39,6 +40,7 @@ import org.cef.CefBrowserSettings;
 import org.cef.CefClient;
 import org.cef.browser.McavOffscreenBrowser;
 import org.cef.callback.CefDragData;
+import org.cef.handler.CefRenderHandler;
 import org.cef.handler.CefScreenInfo;
 import org.junit.jupiter.api.Test;
 
@@ -69,7 +71,8 @@ class McavOffscreenBrowserTest {
   @Test
   void shouldLeaveTheScreenToCefBecauseJcefDeletesAReferenceTwiceOtherwise() {
     final CefScreenInfo info = new CefScreenInfo();
-    assertFalse(this.browser.getScreenInfo(this.browser, info));
+    final boolean providesScreenInfo = this.browser.getScreenInfo(this.browser, info);
+    assertFalse(providesScreenInfo);
   }
 
   @Test
@@ -96,32 +99,41 @@ class McavOffscreenBrowserTest {
 
   @Test
   void shouldRenderItselfAndHaveADetachedComponent() {
-    assertSame(this.browser, this.browser.getRenderHandler());
+    final CefRenderHandler renderHandler = this.browser.getRenderHandler();
+    assertSame(this.browser, renderHandler);
     final Component component = this.browser.getUIComponent();
     assertNotNull(component);
-    assertNull(component.getParent());
-    assertFalse(component.isDisplayable());
+    final Container parent = component.getParent();
+    assertNull(parent);
+    final boolean displayable = component.isDisplayable();
+    assertFalse(displayable);
   }
 
   @Test
   void shouldPassFocusChangesToCefOnlyWhenTheyChangeSomething() {
-    assertFalse(this.browser.hasFocus());
+    final boolean focusedAtFirst = this.browser.hasFocus();
+    assertFalse(focusedAtFirst);
     this.browser.setFocus(true);
-    assertTrue(this.browser.hasFocus());
+    final boolean focusedAfterFocusing = this.browser.hasFocus();
+    assertTrue(focusedAfterFocusing);
     // JCEF gives a focused browser focus again from inside the focus event; that call must change nothing
     this.browser.setFocus(true);
-    assertTrue(this.browser.hasFocus());
+    final boolean focusedAfterRefocusing = this.browser.hasFocus();
+    assertTrue(focusedAfterRefocusing);
     this.browser.setFocus(false);
-    assertFalse(this.browser.hasFocus());
+    final boolean focusedAfterUnfocusing = this.browser.hasFocus();
+    assertFalse(focusedAfterUnfocusing);
     this.browser.setFocus(false);
-    assertFalse(this.browser.hasFocus());
+    final boolean focusedAfterUnfocusingAgain = this.browser.hasFocus();
+    assertFalse(focusedAfterUnfocusingAgain);
   }
 
   @Test
   void shouldRefuseDeveloperToolsScreenshotsAndPaintListeners() {
     assertThrows(UnsupportedOperationException.class, this.browser::openDevTools);
     final ExecutionException screenshot = assertThrows(ExecutionException.class, () -> this.browser.createScreenshot(true).get());
-    assertInstanceOf(UnsupportedOperationException.class, screenshot.getCause());
+    final Throwable cause = screenshot.getCause();
+    assertInstanceOf(UnsupportedOperationException.class, cause);
     assertThrows(UnsupportedOperationException.class, () -> this.browser.addOnPaintListener(event -> {}));
     assertThrows(UnsupportedOperationException.class, () -> this.browser.setOnPaintListener(event -> {}));
     this.browser.removeOnPaintListener(event -> {});
@@ -129,17 +141,21 @@ class McavOffscreenBrowserTest {
 
   @Test
   void shouldIgnoreTheCursorAndDragAndDrop() {
-    assertTrue(this.browser.onCursorChange(this.browser, 3));
-    assertFalse(this.browser.startDragging(this.browser, mock(CefDragData.class), 1, 2, 3));
+    final boolean cursorChangeHandled = this.browser.onCursorChange(this.browser, 3);
+    assertTrue(cursorChangeHandled);
+    final boolean draggingStarted = this.browser.startDragging(this.browser, mock(CefDragData.class), 1, 2, 3);
+    assertFalse(draggingStarted);
     this.browser.updateDragCursor(this.browser, 1);
-    assertTrue(this.painter.log.isEmpty());
+    final boolean nothingPainted = this.painter.log.isEmpty();
+    assertTrue(nothingPainted);
   }
 
   @Test
   void shouldLeaveTheBrowserUncreatedWhenCreatedWithoutCef() {
     // without the natives JCEF reports the missing native method and returns; nothing is painted
     this.browser.createImmediately();
-    assertTrue(this.painter.log.isEmpty());
+    final boolean nothingPainted = this.painter.log.isEmpty();
+    assertTrue(nothingPainted);
   }
 
   /**

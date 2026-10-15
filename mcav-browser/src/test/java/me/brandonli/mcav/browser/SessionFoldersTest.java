@@ -68,27 +68,33 @@ class SessionFoldersTest {
   void shouldRemoveTheFolderOfAServerThatIsGoneAndKeepThatOfARunningOne() throws IOException {
     final Path gone = this.folderOf(server(GONE, Optional.of(Instant.parse("2026-10-05T00:00:00Z"))));
     final Path running = this.folderOf(ProcessHandle.current());
-    assertEquals(GONE + "\n2026-10-05T00:00:00Z\n", Files.readString(gone.resolve(SessionFolders.OWNER_FILE), StandardCharsets.US_ASCII));
+    final String ownerRecord = Files.readString(gone.resolve(SessionFolders.OWNER_FILE), StandardCharsets.US_ASCII);
+    assertEquals(GONE + "\n2026-10-05T00:00:00Z\n", ownerRecord);
 
     final int removed = SessionFolders.ofThisServer().removeStale(this.temporary);
 
     assertEquals(1, removed);
-    assertFalse(Files.exists(gone), "a killed server left it behind");
-    assertTrue(Files.exists(running.resolve("Cookies")), "this server releases it itself");
+    final boolean goneFolderLeft = Files.exists(gone);
+    assertFalse(goneFolderLeft, "a killed server left it behind");
+    final boolean runningCookiesKept = Files.exists(running.resolve("Cookies"));
+    assertTrue(runningCookiesKept, "this server releases it itself");
   }
 
   @Test
   void shouldTreatAServerWhoseIdAnotherProcessTookAsGone() throws IOException {
     final long reused = ProcessHandle.current().pid();
     final Path folder = this.folderOf(server(reused, Optional.of(Instant.parse("2001-01-01T00:00:00Z"))));
-    assertEquals(1, SessionFolders.ofThisServer().removeStale(this.temporary));
-    assertFalse(Files.exists(folder));
+    final int removedCount = SessionFolders.ofThisServer().removeStale(this.temporary);
+    assertEquals(1, removedCount);
+    final boolean folderLeft = Files.exists(folder);
+    assertFalse(folderLeft);
   }
 
   @Test
   void shouldLeaveAFolderThatNamesNoServerOrNoneThatCanBeReadAlone() throws IOException {
     final Path unnamed = this.folderOf(server(GONE, Optional.empty()));
-    assertFalse(Files.exists(unnamed.resolve(SessionFolders.OWNER_FILE)), "a server of unknown start names nothing");
+    final boolean recordWritten = Files.exists(unnamed.resolve(SessionFolders.OWNER_FILE));
+    assertFalse(recordWritten, "a server of unknown start names nothing");
     final Path garbage = Files.createDirectory(this.temporary.resolve(SessionFolders.PREFIX + "garbage"));
     Files.writeString(garbage.resolve(SessionFolders.OWNER_FILE), "not\na record\n");
     final Path truncated = Files.createDirectory(this.temporary.resolve(SessionFolders.PREFIX + "truncated"));
@@ -107,7 +113,8 @@ class SessionFoldersTest {
 
     assertEquals(readable ? 1 : 0, removed, "a user who may read every file reads the record");
     for (final Path kept : List.of(unnamed, garbage, truncated, other)) {
-      assertTrue(Files.exists(kept), kept.toString());
+      final boolean folderKept = Files.exists(kept);
+      assertTrue(folderKept, kept.toString());
     }
   }
 
@@ -120,13 +127,19 @@ class SessionFoldersTest {
     when(serverOfNoKnownUser.info().user()).thenReturn(Optional.empty());
 
     if (planted.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-      assertEquals(0, new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(this.temporary));
-      assertEquals(0, new SessionFolders(serverOfNoKnownUser, ProcessHandle::of).removeStale(this.temporary));
-      assertTrue(Files.exists(planted.resolve("Cookies")), "only folders of the server's own user are removed");
-      assertEquals(1, SessionFolders.ofThisServer().removeStale(this.temporary));
+      final int removedForAnotherUser = new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(this.temporary);
+      assertEquals(0, removedForAnotherUser);
+      final int removedForNoKnownUser = new SessionFolders(serverOfNoKnownUser, ProcessHandle::of).removeStale(this.temporary);
+      assertEquals(0, removedForNoKnownUser);
+      final boolean cookiesKept = Files.exists(planted.resolve("Cookies"));
+      assertTrue(cookiesKept, "only folders of the server's own user are removed");
+      final int removedForThisServer = SessionFolders.ofThisServer().removeStale(this.temporary);
+      assertEquals(1, removedForThisServer);
     } else {
-      assertEquals(1, new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(this.temporary));
-      assertFalse(Files.exists(planted));
+      final int removedWithoutOwners = new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(this.temporary);
+      assertEquals(1, removedWithoutOwners);
+      final boolean plantedLeft = Files.exists(planted);
+      assertFalse(plantedLeft);
     }
   }
 
@@ -140,20 +153,24 @@ class SessionFoldersTest {
       final Path folder = Files.createDirectory(root.resolve(SessionFolders.PREFIX + "zipped"));
       Files.writeString(folder.resolve(SessionFolders.OWNER_FILE), GONE + "\n2001-01-01T00:00:00Z\n");
 
-      assertEquals(1, new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(root));
-      assertFalse(Files.exists(folder), "as on Windows, whose temporary folder belongs to its user alone");
+      final int removedCount = new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(root);
+      assertEquals(1, removedCount);
+      final boolean folderLeft = Files.exists(folder);
+      assertFalse(folderLeft, "as on Windows, whose temporary folder belongs to its user alone");
     }
   }
 
   @Test
   void shouldOnlyLogATemporaryFolderThatCannotBeListed() {
-    assertEquals(0, SessionFolders.ofThisServer().removeStale(this.temporary.resolve("missing")));
+    final int removedCount = SessionFolders.ofThisServer().removeStale(this.temporary.resolve("missing"));
+    assertEquals(0, removedCount);
   }
 
   @Test
   void shouldLeaveTheFolderUnnamedWhenTheRecordCannotBeWritten() {
     final Path missing = this.temporary.resolve("missing");
     new SessionFolders(ProcessHandle.current(), ProcessHandle::of).record(missing);
-    assertFalse(Files.exists(missing));
+    final boolean folderCreated = Files.exists(missing);
+    assertFalse(folderCreated);
   }
 }

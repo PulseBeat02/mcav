@@ -52,7 +52,8 @@ public final class OpenFiles {
       attempt.run();
     }
     final long left = count(descriptors) - before;
-    assertTrue(left < ATTEMPTS / 2, description + " left " + left + " files open in " + ATTEMPTS + " attempts");
+    final boolean fewLeftOpen = left < ATTEMPTS / 2;
+    assertTrue(fewLeftOpen, description + " left " + left + " files open in " + ATTEMPTS + " attempts");
   }
 
   private static long count(final Path descriptors) {

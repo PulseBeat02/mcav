@@ -37,14 +37,17 @@ final class NavigationPolicyFuzzTest {
     final String address = data.consumeRemainingAsString();
     final String lower = address.toLowerCase(Locale.ROOT);
     if (NavigationPolicy.allowsNavigation(address, true)) {
-      assertTrue(address.equals("about:blank") || lower.startsWith("http:") || lower.startsWith("https:"), address);
+      final boolean documentedPageScheme = address.equals("about:blank") || lower.startsWith("http:") || lower.startsWith("https:");
+      assertTrue(documentedPageScheme, address);
     }
     if (NavigationPolicy.allowsNavigation(address, false)) {
       final boolean isAboutPage = address.equals("about:blank") || address.equals("about:srcdoc");
-      assertTrue(isAboutPage || hasScheme(lower, "http", "https", "data", "blob"), address);
+      final boolean documentedFrameScheme = isAboutPage || hasScheme(lower, "http", "https", "data", "blob");
+      assertTrue(documentedFrameScheme, address);
     }
     if (NavigationPolicy.allowsRequest(address)) {
-      assertTrue(hasScheme(lower, "http", "https", "ws", "wss", "data", "blob"), address);
+      final boolean documentedRequestScheme = hasScheme(lower, "http", "https", "ws", "wss", "data", "blob");
+      assertTrue(documentedRequestScheme, address);
     }
   }
 

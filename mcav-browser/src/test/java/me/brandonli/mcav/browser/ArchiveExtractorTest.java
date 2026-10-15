@@ -105,10 +105,14 @@ class ArchiveExtractorTest {
       .file("nested/deeper/file.txt", 0600, "made its own folders")
       .finish();
     new ArchiveExtractor().extract(archive, this.target);
-    assertEquals("english", Files.readString(this.target.resolve("locales/en-US.pak")));
-    assertEquals("library", Files.readString(this.target.resolve("libcef.so")));
-    assertEquals("made its own folders", Files.readString(this.target.resolve("nested/deeper/file.txt")));
-    assertTrue(Files.isDirectory(this.target.resolve("locales")));
+    final String localeText = Files.readString(this.target.resolve("locales/en-US.pak"));
+    assertEquals("english", localeText);
+    final String libraryText = Files.readString(this.target.resolve("libcef.so"));
+    assertEquals("library", libraryText);
+    final String nestedText = Files.readString(this.target.resolve("nested/deeper/file.txt"));
+    assertEquals("made its own folders", nestedText);
+    final boolean localesExtractedAsFolder = Files.isDirectory(this.target.resolve("locales"));
+    assertTrue(localesExtractedAsFolder);
   }
 
   @Test
@@ -130,18 +134,23 @@ class ArchiveExtractorTest {
     final InputStream archive = new Archive().folder("locales").file("swiftshader/deeper/libvk.so", 0755, "vk").finish();
     new ArchiveExtractor().extract(archive, this.target);
     final Set<PosixFilePermission> owner = PosixFilePermissions.fromString("rwxr-xr-x");
-    assertEquals(owner, Files.getPosixFilePermissions(this.target.resolve("locales")));
-    assertEquals(owner, Files.getPosixFilePermissions(this.target.resolve("swiftshader")));
-    assertEquals(owner, Files.getPosixFilePermissions(this.target.resolve("swiftshader/deeper")));
+    final Set<PosixFilePermission> localesPermissions = Files.getPosixFilePermissions(this.target.resolve("locales"));
+    assertEquals(owner, localesPermissions);
+    final Set<PosixFilePermission> swiftshaderPermissions = Files.getPosixFilePermissions(this.target.resolve("swiftshader"));
+    assertEquals(owner, swiftshaderPermissions);
+    final Set<PosixFilePermission> deeperPermissions = Files.getPosixFilePermissions(this.target.resolve("swiftshader/deeper"));
+    assertEquals(owner, deeperPermissions);
   }
 
   @Test
   void shouldCreateFoldersWithoutPermissionsWhereTheFileSystemHasNone() throws IOException {
     final Path folder = this.target.resolve("a/b");
     ArchiveExtractor.createFolders(folder, false);
-    assertTrue(Files.isDirectory(folder));
+    final boolean folderCreated = Files.isDirectory(folder);
+    assertTrue(folderCreated);
     ArchiveExtractor.createFolders(folder);
-    assertTrue(Files.isDirectory(folder), "an existing folder is left as it is");
+    final boolean folderKept = Files.isDirectory(folder);
+    assertTrue(folderKept, "an existing folder is left as it is");
   }
 
   @Test
@@ -155,14 +164,16 @@ class ArchiveExtractorTest {
       }
     };
     new ArchiveExtractor().extract(tracked, this.target);
-    assertFalse(closed[0]);
+    final boolean streamClosed = closed[0];
+    assertFalse(streamClosed);
   }
 
   @Test
   void shouldRefuseLinksAndSpecialFiles() throws IOException {
     final InputStream symbolic = new Archive().link("current", "../../etc", TarConstants.LF_SYMLINK).finish();
     final IOException symbolicFailure = assertThrows(IOException.class, () -> new ArchiveExtractor().extract(symbolic, this.target));
-    assertEquals("The archive entry current is not a plain file or folder", symbolicFailure.getMessage());
+    final String message = symbolicFailure.getMessage();
+    assertEquals("The archive entry current is not a plain file or folder", message);
     final InputStream hard = new Archive().file("a", 0644, "a").link("b", "a", TarConstants.LF_LINK).finish();
     assertThrows(IOException.class, () -> new ArchiveExtractor().extract(hard, this.target));
     final InputStream fifo = new Archive().link("pipe", "", TarConstants.LF_FIFO).finish();
@@ -171,7 +182,8 @@ class ArchiveExtractorTest {
     assertThrows(IOException.class, () -> new ArchiveExtractor().extract(character, this.target));
     final InputStream block = new Archive().link("disk", "", TarConstants.LF_BLK).finish();
     assertThrows(IOException.class, () -> new ArchiveExtractor().extract(block, this.target));
-    assertFalse(Files.exists(this.target.resolve("current")));
+    final boolean linkWritten = Files.exists(this.target.resolve("current"));
+    assertFalse(linkWritten);
   }
 
   @Test
@@ -180,18 +192,22 @@ class ArchiveExtractorTest {
       final InputStream archive = new Archive().file(name, 0644, "x").finish();
       assertThrows(IOException.class, () -> new ArchiveExtractor().extract(archive, this.target), name);
     }
-    assertFalse(Files.exists(this.target.getParent().resolve("escape.txt")));
+    final boolean escapeWritten = Files.exists(this.target.getParent().resolve("escape.txt"));
+    assertFalse(escapeWritten);
   }
 
   @Test
   void shouldResolveEntryNamesStrictly() throws IOException {
     final Path root = this.target.toRealPath();
-    assertEquals(root.resolve("a/b"), ArchiveExtractor.resolve(root, "a/b"));
+    final Path nestedEntry = ArchiveExtractor.resolve(root, "a/b");
+    assertEquals(root.resolve("a/b"), nestedEntry);
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "a/../b"));
-    assertEquals(root, ArchiveExtractor.resolve(root, "./"));
+    final Path dotSlashEntry = ArchiveExtractor.resolve(root, "./");
+    assertEquals(root, dotSlashEntry);
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, ""));
     final IOException nul = assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "a\u0000b"));
-    assertEquals("The archive entry name is not allowed: a\u0000b", nul.getMessage());
+    final String message = nul.getMessage();
+    assertEquals("The archive entry name is not allowed: a\u0000b", message);
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "a\\b"));
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, ".."));
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, root.resolve("x").toString()));
@@ -204,7 +220,8 @@ class ArchiveExtractorTest {
     try {
       Files.createSymbolicLink(root.resolve("link"), outside);
       final IOException failure = assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "link/file"));
-      assertEquals("The archive entry name passes a link: link/file", failure.getMessage());
+      final String message = failure.getMessage();
+      assertEquals("The archive entry name passes a link: link/file", message);
       assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "link/deeper/file"));
     } catch (final UnsupportedOperationException | IOException exception) {
       assumeTrue(false, "symbolic links are not available: " + exception);
@@ -218,21 +235,24 @@ class ArchiveExtractorTest {
   void shouldExtractTheFilesWithoutPermissionsOnAFileSystemWithoutPosixPermissions() throws IOException {
     final InputStream archive = new Archive().file("libcef.so", 0755, "library").finish();
     new ArchiveExtractor().extract(archive, this.target, false);
-    assertEquals("library", Files.readString(this.target.resolve("libcef.so")));
+    final String libraryText = Files.readString(this.target.resolve("libcef.so"));
+    assertEquals("library", libraryText);
   }
 
   @Test
   void shouldRefuseAnArchiveWithTooManyEntries() throws IOException {
     final InputStream archive = new Archive().file("a", 0644, "a").file("b", 0644, "b").file("c", 0644, "c").finish();
     final IOException failure = assertThrows(IOException.class, () -> new ArchiveExtractor(2, 1000).extract(archive, this.target));
-    assertEquals("The archive has more than 2 entries", failure.getMessage());
+    final String message = failure.getMessage();
+    assertEquals("The archive has more than 2 entries", message);
   }
 
   @Test
   void shouldRefuseAnArchiveThatExtractsToTooManyBytes() throws IOException {
     final InputStream archive = new Archive().file("a", 0644, "12345").file("b", 0644, "678").finish();
     final IOException failure = assertThrows(IOException.class, () -> new ArchiveExtractor(10, 7).extract(archive, this.target));
-    assertEquals("The archive extracts to more than the allowed size", failure.getMessage());
+    final String message = failure.getMessage();
+    assertEquals("The archive extracts to more than the allowed size", message);
     new ArchiveExtractor(10, 8).extract(new Archive().file("c", 0644, "12345").file("d", 0644, "678").finish(), this.target);
   }
 
@@ -241,7 +261,8 @@ class ArchiveExtractorTest {
     Files.writeString(this.target.resolve("a"), "original");
     final InputStream archive = new Archive().file("a", 0644, "replacement").finish();
     assertThrows(IOException.class, () -> new ArchiveExtractor().extract(archive, this.target));
-    assertEquals("original", Files.readString(this.target.resolve("a")));
+    final String originalText = Files.readString(this.target.resolve("a"));
+    assertEquals("original", originalText);
   }
 
   @Test
@@ -254,13 +275,15 @@ class ArchiveExtractorTest {
   void shouldExtractAnArchiveWithExactlyTheLargestNumberOfEntries() throws IOException {
     final InputStream archive = new Archive().file("a", 0644, "a").file("b", 0644, "b").finish();
     new ArchiveExtractor(2, 1000).extract(archive, this.target);
-    assertTrue(Files.isRegularFile(this.target.resolve("b")));
+    final boolean lastEntryExtracted = Files.isRegularFile(this.target.resolve("b"));
+    assertTrue(lastEntryExtracted);
   }
 
   @Test
   void shouldRefuseANameThatStartsWithABackslash() {
     final IOException failure = assertThrows(IOException.class, () -> ArchiveExtractor.resolve(this.target, "\\evil"));
-    assertEquals("The archive entry name is not allowed: \\evil", failure.getMessage());
+    final String message = failure.getMessage();
+    assertEquals("The archive entry name is not allowed: \\evil", message);
   }
 
   @Test
@@ -282,12 +305,18 @@ class ArchiveExtractorTest {
 
     ArchiveExtractor.tighten(installation);
 
-    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(installation));
-    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(inner));
-    assertEquals(PosixFilePermissions.fromString("rw-r--r--"), Files.getPosixFilePermissions(groupWritable));
-    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), Files.getPosixFilePermissions(othersWritable));
-    assertEquals(PosixFilePermissions.fromString("r--------"), Files.getPosixFilePermissions(untouched));
-    assertEquals(PosixFilePermissions.fromString("rw-rw-rw-"), Files.getPosixFilePermissions(outside), "a link's target is not ours");
+    final Set<PosixFilePermission> installationPermissions = Files.getPosixFilePermissions(installation);
+    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), installationPermissions);
+    final Set<PosixFilePermission> innerPermissions = Files.getPosixFilePermissions(inner);
+    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), innerPermissions);
+    final Set<PosixFilePermission> groupWritablePermissions = Files.getPosixFilePermissions(groupWritable);
+    assertEquals(PosixFilePermissions.fromString("rw-r--r--"), groupWritablePermissions);
+    final Set<PosixFilePermission> othersWritablePermissions = Files.getPosixFilePermissions(othersWritable);
+    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), othersWritablePermissions);
+    final Set<PosixFilePermission> untouchedPermissions = Files.getPosixFilePermissions(untouched);
+    assertEquals(PosixFilePermissions.fromString("r--------"), untouchedPermissions);
+    final Set<PosixFilePermission> outsidePermissions = Files.getPosixFilePermissions(outside);
+    assertEquals(PosixFilePermissions.fromString("rw-rw-rw-"), outsidePermissions, "a link's target is not ours");
   }
 
   @Test
@@ -302,7 +331,8 @@ class ArchiveExtractorTest {
     try {
       assumeTrue(!Files.isReadable(closed), "the user may read every folder");
       ArchiveExtractor.tighten(this.target);
-      assertEquals(PosixFilePermissions.fromString("-wx------"), Files.getPosixFilePermissions(closed));
+      final Set<PosixFilePermission> closedPermissions = Files.getPosixFilePermissions(closed);
+      assertEquals(PosixFilePermissions.fromString("-wx------"), closedPermissions);
     } finally {
       Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("rwx------"));
     }
@@ -314,7 +344,8 @@ class ArchiveExtractorTest {
     try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true"))) {
       final Path folder = Files.createDirectories(zipped.getPath("/natives"));
       ArchiveExtractor.tighten(folder);
-      assertTrue(Files.isDirectory(folder));
+      final boolean folderKept = Files.isDirectory(folder);
+      assertTrue(folderKept);
     }
   }
 }

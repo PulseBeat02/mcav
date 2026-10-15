@@ -78,12 +78,14 @@ final class AddressTextTest {
     }
   )
   void shouldDescribeAnAddressWithoutThePartsThatMayHoldSecrets(final String address, final String described) {
-    assertEquals(described, AddressText.describe(address));
+    final String description = AddressText.describe(address);
+    assertEquals(described, description);
   }
 
   @Test
   void shouldHideAnEmptyText() {
-    assertEquals(AddressText.HIDDEN, AddressText.describe(""));
+    final String description = AddressText.describe("");
+    assertEquals(AddressText.HIDDEN, description);
   }
 
   @Test

@@ -68,7 +68,8 @@ final class AddressPolicyPropertyTest {
     final InetAddress[] answer = { translate(prefix, length, 0xC00000AA), translate(prefix, length, 0xC00000AB) };
     final List<AddressPolicy.TranslationPrefix> prefixes = AddressPolicy.findTranslationPrefixes(answer);
     if (prefixes.size() == 1) {
-      assertEquals(AddressPolicy.isPublicIpv4(ipv4), AddressPolicy.isPublic(translate(prefix, length, ipv4), prefixes));
+      final boolean translatedJudgedPublic = AddressPolicy.isPublic(translate(prefix, length, ipv4), prefixes);
+      assertEquals(AddressPolicy.isPublicIpv4(ipv4), translatedJudgedPublic);
     }
     final byte[] ordinary = prefix.clone();
     ordinary[0] = 0x2A;
@@ -78,8 +79,10 @@ final class AddressPolicyPropertyTest {
       .stream()
       .filter(found -> found.getLength() == length && found.contains(ordinary))
       .toList();
-    assertEquals(1, matching.size(), "the generated ordinary prefix is discovered exactly once");
-    assertEquals(AddressPolicy.isPublicIpv4(ipv4), AddressPolicy.isPublic(translate(ordinary, length, ipv4), matching));
+    final int matchingCount = matching.size();
+    assertEquals(1, matchingCount, "the generated ordinary prefix is discovered exactly once");
+    final boolean ordinaryTranslatedJudgedPublic = AddressPolicy.isPublic(translate(ordinary, length, ipv4), matching);
+    assertEquals(AddressPolicy.isPublicIpv4(ipv4), ordinaryTranslatedJudgedPublic);
   }
 
   @Property(seed = SEED, tries = 2000)
@@ -94,15 +97,18 @@ final class AddressPolicyPropertyTest {
     final boolean wellKnown = prefix[0] == 0 && prefix[1] == 0x64 && prefix[2] == (byte) 0xFF && prefix[3] == (byte) 0x9B;
     final InetAddress[] answer = { translate(prefix, length, 0xC00000AA), translate(prefix, length, 0xC00000AB) };
     if (!wellKnown) {
-      assertEquals(List.of(), AddressPolicy.findTranslationPrefixes(answer));
+      final List<AddressPolicy.TranslationPrefix> translationPrefixes = AddressPolicy.findTranslationPrefixes(answer);
+      assertEquals(List.of(), translationPrefixes);
     }
   }
 
   @Property(seed = SEED, tries = 2000)
   void shouldJudgeAnIpv4AddressTheSameMappedOrTranslated(@ForAll final int address) {
     final boolean plain = AddressPolicy.isPublicIpv4(address);
-    assertEquals(plain, AddressPolicy.isPublicIpv6(ipv6(0, 0, 0x0000FFFF, address)), "mapped");
-    assertEquals(plain, AddressPolicy.isPublicIpv6(ipv6(0x0064FF9B, 0, 0, address)), "translated by NAT64");
+    final boolean mappedJudgedPublic = AddressPolicy.isPublicIpv6(ipv6(0, 0, 0x0000FFFF, address));
+    assertEquals(plain, mappedJudgedPublic, "mapped");
+    final boolean translatedJudgedPublic = AddressPolicy.isPublicIpv6(ipv6(0x0064FF9B, 0, 0, address));
+    assertEquals(plain, translatedJudgedPublic, "translated by NAT64");
   }
 
   @Property(seed = SEED, tries = 2000)
@@ -119,7 +125,8 @@ final class AddressPolicyPropertyTest {
         address.isSiteLocalAddress() ||
         address.isMulticastAddress();
       if (local) {
-        assertFalse(AddressPolicy.isPublic(address), address::toString);
+        final boolean judgedPublic = AddressPolicy.isPublic(address);
+        assertFalse(judgedPublic, address::toString);
       }
     }
   }
@@ -134,7 +141,8 @@ final class AddressPolicyPropertyTest {
     final boolean translated = first == 0x0064FF9B && second == 0 && third == 0;
     final boolean inGlobalUnicastRange = (first & 0xE0000000) == 0x20000000;
     if (!inGlobalUnicastRange && !mapped && !translated) {
-      assertFalse(AddressPolicy.isPublicIpv6(bytes));
+      final boolean judgedPublic = AddressPolicy.isPublicIpv6(bytes);
+      assertFalse(judgedPublic);
     }
   }
 }

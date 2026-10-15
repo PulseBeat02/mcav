@@ -53,6 +53,7 @@ import java.util.regex.Pattern;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.os.Os;
 import org.cef.CefApp;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -74,15 +75,23 @@ class HelperLauncherTest {
   void shouldRunTheHelperJvmHeadlessAllowNativesAndKeepItsFilesInTheSession() {
     final Path session = Path.of("/tmp/mcav-browser-1");
     final List<String> command = launcher(Os.LINUX, Map.of()).createCommand(session);
-    assertEquals(JAVA.toString(), command.getFirst());
-    assertTrue(command.contains("-Djava.awt.headless=true"));
-    assertTrue(command.contains("--enable-native-access=ALL-UNNAMED"));
-    assertTrue(command.contains("-XX:+DisableAttachMechanism"));
-    assertTrue(command.contains("-Djava.io.tmpdir=" + session));
-    assertTrue(command.contains("-javaagent:/agent.jar"));
+    final String javaProgram = command.getFirst();
+    assertEquals(JAVA.toString(), javaProgram);
+    final boolean runsHeadless = command.contains("-Djava.awt.headless=true");
+    assertTrue(runsHeadless);
+    final boolean nativeAccessEnabled = command.contains("--enable-native-access=ALL-UNNAMED");
+    assertTrue(nativeAccessEnabled);
+    final boolean attachDisabled = command.contains("-XX:+DisableAttachMechanism");
+    assertTrue(attachDisabled);
+    final boolean temporaryFolderInTheSession = command.contains("-Djava.io.tmpdir=" + session);
+    assertTrue(temporaryFolderInTheSession);
+    final boolean agentPassedOn = command.contains("-javaagent:/agent.jar");
+    assertTrue(agentPassedOn);
     final int classPath = command.indexOf("-cp");
-    assertEquals(Path.of("/libs/mcav-browser.jar") + File.pathSeparator + Path.of("/libs/jcef-api.jar"), command.get(classPath + 1));
-    assertEquals(HelperLauncher.MAIN_CLASS, command.getLast());
+    final String joinedClassPath = command.get(classPath + 1);
+    assertEquals(Path.of("/libs/mcav-browser.jar") + File.pathSeparator + Path.of("/libs/jcef-api.jar"), joinedClassPath);
+    final String mainClass = command.getLast();
+    assertEquals(HelperLauncher.MAIN_CLASS, mainClass);
     assertEquals(BrowserHelper.class.getName(), HelperLauncher.MAIN_CLASS);
   }
 
@@ -103,11 +112,13 @@ class HelperLauncherTest {
     final HelperLauncher linux = launcher(Os.LINUX, server);
     final Path authority = this.folder.resolve(NullDisplay.AUTHORITY_FILE);
     final String session = this.folder.toString();
+    final Map<String, String> linuxEnvironment = linux.createEnvironment(this.folder, null);
     assertEquals(
       Map.of("PATH", "/usr/bin", "XAUTHORITY", authority.toString(), "TMPDIR", session, "XDG_DATA_HOME", session),
-      linux.createEnvironment(this.folder, null)
+      linuxEnvironment
     );
     final Path libraries = this.folder.resolve("lib");
+    final Map<String, String> linuxEnvironmentWithLibraries = linux.createEnvironment(this.folder, libraries);
     assertEquals(
       Map.of(
         "PATH",
@@ -121,38 +132,48 @@ class HelperLauncherTest {
         "LD_LIBRARY_PATH",
         libraries.toString()
       ),
-      linux.createEnvironment(this.folder, libraries)
+      linuxEnvironmentWithLibraries
     );
-    assertEquals(
-      Map.of("PATH", "/usr/bin", "TMPDIR", session, "MAC_CHROMIUM_TMPDIR", session),
-      launcher(Os.MAC, server).createEnvironment(this.folder, null)
-    );
-    assertEquals(Map.of("PATH", "/usr/bin", "TMPDIR", "/var/tmp"), launcher(Os.WINDOWS, server).createEnvironment(this.folder, null));
-    assertEquals(Os.LINUX, linux.getOs());
-    assertEquals(5_000L, linux.getStartTimeoutMillis());
+    final Map<String, String> macEnvironment = launcher(Os.MAC, server).createEnvironment(this.folder, null);
+    assertEquals(Map.of("PATH", "/usr/bin", "TMPDIR", session, "MAC_CHROMIUM_TMPDIR", session), macEnvironment);
+    final Map<String, String> windowsEnvironment = launcher(Os.WINDOWS, server).createEnvironment(this.folder, null);
+    assertEquals(Map.of("PATH", "/usr/bin", "TMPDIR", "/var/tmp"), windowsEnvironment);
+    final Os operatingSystem = linux.getOs();
+    assertEquals(Os.LINUX, operatingSystem);
+    final long startTimeoutMilliseconds = linux.getStartTimeoutMillis();
+    assertEquals(5_000L, startTimeoutMilliseconds);
   }
 
   @Test
   void shouldLinkTheLibrariesOfALauncherIntoEverySession() throws IOException {
     final HelperLauncher plain = launcher(Os.LINUX, Map.of());
-    assertNull(plain.linkLibraries(this.folder));
+    final @Nullable Path plainLibraries = plain.linkLibraries(this.folder);
+    assertNull(plainLibraries);
     final Path linked = this.folder.resolve("lib");
     final HelperLauncher withLibraries = plain.withLibraries(session -> Files.createDirectory(session.resolve("lib")));
-    assertEquals(linked, withLibraries.linkLibraries(this.folder));
-    assertTrue(Files.isDirectory(linked));
-    assertEquals(plain.createCommand(this.folder), withLibraries.createCommand(this.folder));
-    assertEquals(plain.getStartTimeoutMillis(), withLibraries.getStartTimeoutMillis());
-    assertEquals(Os.LINUX, withLibraries.getOs());
+    final @Nullable Path linkedLibraries = withLibraries.linkLibraries(this.folder);
+    assertEquals(linked, linkedLibraries);
+    final boolean linkedFolderExists = Files.isDirectory(linked);
+    assertTrue(linkedFolderExists);
+    final List<String> commandWithLibraries = withLibraries.createCommand(this.folder);
+    assertEquals(plain.createCommand(this.folder), commandWithLibraries);
+    final long startTimeoutMilliseconds = withLibraries.getStartTimeoutMillis();
+    assertEquals(plain.getStartTimeoutMillis(), startTimeoutMilliseconds);
+    final Os operatingSystem = withLibraries.getOs();
+    assertEquals(Os.LINUX, operatingSystem);
   }
 
   @Test
   void shouldLocateClassesByWhereTheyWereLoadedFrom() {
     final Path jcef = HelperLauncher.locate(CefApp.class);
-    assertTrue(jcef.getFileName().toString().startsWith("jcef-api"), jcef.toString());
+    final boolean namedJcefApi = jcef.getFileName().toString().startsWith("jcef-api");
+    assertTrue(namedJcefApi, jcef.toString());
     final Path browser = HelperLauncher.locate(BrowserHelper.class);
-    assertTrue(Files.exists(browser), browser.toString());
+    final boolean browserLocationExists = Files.exists(browser);
+    assertTrue(browserLocationExists, browser.toString());
     final PlayerException bootstrap = assertThrows(PlayerException.class, () -> HelperLauncher.locate(String.class));
-    assertTrue(bootstrap.getMessage().contains("java.lang.String"));
+    final boolean namesTheClass = bootstrap.getMessage().contains("java.lang.String");
+    assertTrue(namesTheClass);
   }
 
   /**
@@ -181,26 +202,35 @@ class HelperLauncherTest {
     };
     final Class<?> remoteClass = loader.loadClass(name);
     final PlayerException failure = assertThrows(PlayerException.class, () -> HelperLauncher.locate(remoteClass));
-    assertTrue(failure.getMessage().contains("http://example.com/remote.jar"), failure.getMessage());
+    final boolean namesTheRemoteJar = failure.getMessage().contains("http://example.com/remote.jar");
+    assertTrue(namesTheRemoteJar, failure.getMessage());
   }
 
   @Test
   void shouldNameTheJvmProgramForItsSystem() {
-    assertEquals("java.exe", HelperLauncher.javaExecutable(Os.WINDOWS));
-    assertEquals("java", HelperLauncher.javaExecutable(Os.LINUX));
-    assertEquals("java", HelperLauncher.javaExecutable(Os.MAC));
+    final String windowsExecutable = HelperLauncher.javaExecutable(Os.WINDOWS);
+    assertEquals("java.exe", windowsExecutable);
+    final String linuxExecutable = HelperLauncher.javaExecutable(Os.LINUX);
+    assertEquals("java", linuxExecutable);
+    final String macExecutable = HelperLauncher.javaExecutable(Os.MAC);
+    assertEquals("java", macExecutable);
   }
 
   @Test
   void shouldUseThisJavaAndTheClassPathOfTheModuleByDefault() {
     final HelperLauncher launcher = HelperLauncher.createDefault(1_000L, List.of());
     final List<String> command = launcher.createCommand(Path.of("/tmp/x"));
-    assertTrue(command.getFirst().startsWith(System.getProperty("java.home")), command.getFirst());
+    final boolean runsThisJava = command.getFirst().startsWith(System.getProperty("java.home"));
+    assertTrue(runsThisJava, command.getFirst());
     final String classPath = command.get(command.indexOf("-cp") + 1);
-    assertTrue(classPath.contains("jcef-api"), classPath);
-    assertTrue(classPath.contains("jcefmaven"), classPath);
-    assertFalse(classPath.contains("jogl"), classPath);
-    assertEquals(1_000L, launcher.getStartTimeoutMillis());
+    final boolean holdsJcefApi = classPath.contains("jcef-api");
+    assertTrue(holdsJcefApi, classPath);
+    final boolean holdsJcefMaven = classPath.contains("jcefmaven");
+    assertTrue(holdsJcefMaven, classPath);
+    final boolean holdsJogl = classPath.contains("jogl");
+    assertFalse(holdsJogl, classPath);
+    final long startTimeoutMilliseconds = launcher.getStartTimeoutMillis();
+    assertEquals(1_000L, startTimeoutMilliseconds);
   }
 
   @Test
@@ -224,7 +254,8 @@ class HelperLauncherTest {
       }
     }
     assertEquals(List.of(), outside);
-    assertTrue(reached.contains(BROWSER_PACKAGE + "NullDisplay"), reached::toString);
+    final boolean reachedNullDisplay = reached.contains(BROWSER_PACKAGE + "NullDisplay");
+    assertTrue(reachedNullDisplay, reached::toString);
   }
 
   private static Set<String> usedClasses(final String name) throws IOException {

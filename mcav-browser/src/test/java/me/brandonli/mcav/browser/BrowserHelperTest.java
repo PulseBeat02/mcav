@@ -60,6 +60,7 @@ import java.util.function.IntFunction;
 import me.brandonli.mcav.browser.testing.OpenFiles;
 import me.brandonli.mcav.browser.testing.StandardError;
 import org.cef.browser.McavOffscreenBrowser;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -112,17 +113,21 @@ class BrowserHelperTest {
     final ByteArrayOutputStream sent = new ByteArrayOutputStream();
     final BrowserHelper.Reporter reporter = helper.new Reporter(new DataOutputStream(sent));
     reporter.onAudio(chunk);
-    assertEquals(0, sent.size(), "no sound before anyone pressed a button or a key");
+    final int soundBytesBeforeAnyPress = sent.size();
+    assertEquals(0, soundBytesBeforeAnyPress, "no sound before anyone pressed a button or a key");
     helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, HelperProtocol.BUTTON_LEFT, 0, 0, 0)));
     reporter.onAudio(chunk);
-    assertEquals(0, sent.size(), "a move presses nothing");
+    final int soundBytesAfterAMove = sent.size();
+    assertEquals(0, soundBytesAfterAMove, "a move presses nothing");
     helper.handleCommand(HelperMessage.key(HelperProtocol.KEY_TYPE, "a"));
     reporter.onAudio(chunk);
-    assertEquals(message, sent.size(), "a key lets the sound pass");
+    final int soundBytesAfterAKey = sent.size();
+    assertEquals(message, soundBytesAfterAKey, "a key lets the sound pass");
     final BrowserHelper autoplayHelper = new BrowserHelper(this.configuration("/page", true), new ScriptedEngine());
     final ByteArrayOutputStream played = new ByteArrayOutputStream();
     autoplayHelper.new Reporter(new DataOutputStream(played)).onAudio(chunk);
-    assertEquals(message, played.size(), "with autoplay the sound passes at once");
+    final int autoplaySoundBytes = played.size();
+    assertEquals(message, autoplaySoundBytes, "with autoplay the sound passes at once");
   }
 
   @Test
@@ -134,13 +139,16 @@ class BrowserHelperTest {
     final BrowserHelper.Reporter reporter = helper.new Reporter(new DataOutputStream(sent));
     helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 1, HelperProtocol.BUTTON_LEFT, 1, 0, 0)));
     reporter.onAudio(chunk);
-    assertEquals(message, sent.size(), "a press lets the sound of the page pass");
+    final int soundBytesAfterAPress = sent.size();
+    assertEquals(message, soundBytesAfterAPress, "a press lets the sound of the page pass");
     reporter.onPageStart();
     reporter.onAudio(chunk);
-    assertEquals(message, sent.size(), "the new page plays nothing before a press on it");
+    final int soundBytesOnTheNewPage = sent.size();
+    assertEquals(message, soundBytesOnTheNewPage, "the new page plays nothing before a press on it");
     helper.handleCommand(HelperMessage.key(HelperProtocol.KEY_PRESS, "Enter"));
     reporter.onAudio(chunk);
-    assertEquals(2 * message, sent.size());
+    final int soundBytesAfterAPressOnTheNewPage = sent.size();
+    assertEquals(2 * message, soundBytesAfterAPressOnTheNewPage);
   }
 
   private static SocketChannel connectTo(final Path socket) throws IOException {
@@ -224,15 +232,22 @@ class BrowserHelperTest {
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
       final HelperMessage hello = peer.read();
-      assertEquals(HelperProtocol.HELLO, hello.getType());
-      assertArrayEquals(token(), hello.getToken());
-      assertEquals("scripted", peer.readUntil(HelperProtocol.READY).getText());
+      final int helloType = hello.getType();
+      assertEquals(HelperProtocol.HELLO, helloType);
+      final byte[] helloToken = hello.getToken();
+      assertArrayEquals(token(), helloToken);
+      final String readyText = peer.readUntil(HelperProtocol.READY).getText();
+      assertEquals("scripted", readyText);
       final HelperMessage first = peer.readFrameWithBlue(0);
       final FrameRegion region = first.getRegion();
-      assertEquals(4, region.getWidth());
-      assertEquals(3, region.getHeight());
-      assertEquals(ScriptedEngine.GREEN, region.getPixels()[1] & 0xFF);
-      assertEquals(ScriptedEngine.RED, region.getPixels()[2] & 0xFF);
+      final int width = region.getWidth();
+      assertEquals(4, width);
+      final int height = region.getHeight();
+      assertEquals(3, height);
+      final int greenChannel = region.getPixels()[1] & 0xFF;
+      assertEquals(ScriptedEngine.GREEN, greenChannel);
+      final int redChannel = region.getPixels()[2] & 0xFF;
+      assertEquals(ScriptedEngine.RED, redChannel);
       peer.send(out -> HelperProtocol.writeKey(out, HelperProtocol.KEY_TYPE, "ab"));
       peer.readFrameWithBlue(4);
       peer.send(out ->
@@ -241,26 +256,30 @@ class BrowserHelperTest {
       peer.readFrameWithBlue(5);
       peer.send(out -> HelperProtocol.writeKey(out, HelperProtocol.KEY_PRESS, "Enter"));
       peer.readFrameWithBlue(7);
-      assertTrue(
-        engine
-          .getCalls()
-          .get(0)
-          .startsWith(DevToolsInput.KEY_METHOD + " {\"type\":\"keyDown\",\"key\":\"a\"")
-      );
-      assertTrue(
-        engine
-          .getCalls()
-          .get(4)
-          .startsWith(DevToolsInput.MOUSE_METHOD + " {\"type\":\"mousePressed\",\"x\":1,\"y\":2")
-      );
-      assertTrue(engine.getCalls().get(5).contains("\"key\":\"Enter\""));
-      assertNull(helper.getStopReason());
+      final boolean firstCallPressesA = engine
+        .getCalls()
+        .get(0)
+        .startsWith(DevToolsInput.KEY_METHOD + " {\"type\":\"keyDown\",\"key\":\"a\"");
+      assertTrue(firstCallPressesA);
+      final boolean fifthCallPressesTheMouse = engine
+        .getCalls()
+        .get(4)
+        .startsWith(DevToolsInput.MOUSE_METHOD + " {\"type\":\"mousePressed\",\"x\":1,\"y\":2");
+      assertTrue(fifthCallPressesTheMouse);
+      final boolean sixthCallPressesEnter = engine.getCalls().get(5).contains("\"key\":\"Enter\"");
+      assertTrue(sixthCallPressesEnter);
+      final @Nullable String stopReasonWhileRunning = helper.getStopReason();
+      assertNull(stopReasonWhileRunning);
       peer.send(HelperProtocol::writeClose);
-      assertEquals(0, result.get(10, TimeUnit.SECONDS));
+      final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
+      assertEquals(0, exitStatus);
     }
-    assertTrue(engine.isStopped());
-    assertEquals("the server asked to close", helper.getStopReason());
-    assertNotNull(helper.getCompositor());
+    final boolean stopped = engine.isStopped();
+    assertTrue(stopped);
+    final @Nullable String stopReason = helper.getStopReason();
+    assertEquals("the server asked to close", stopReason);
+    final PageCompositor compositor = helper.getCompositor();
+    assertNotNull(compositor);
   }
 
   @Test
@@ -271,9 +290,11 @@ class BrowserHelperTest {
       peer.readUntil(HelperProtocol.READY);
       this.standardInput.write("ignored after the configuration\n");
       this.standardInput.close();
-      assertEquals(0, result.get(10, TimeUnit.SECONDS));
+      final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
+      assertEquals(0, exitStatus);
     }
-    assertEquals("the standard input ended", helper.getStopReason());
+    final @Nullable String stopReason = helper.getStopReason();
+    assertEquals("the standard input ended", stopReason);
   }
 
   @Test
@@ -283,12 +304,12 @@ class BrowserHelperTest {
     final Peer peer = new Peer(this.server.accept());
     peer.readUntil(HelperProtocol.READY);
     peer.close();
-    assertEquals(0, result.get(10, TimeUnit.SECONDS));
+    final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
+    assertEquals(0, exitStatus);
     final String reason = helper.getStopReason();
-    assertTrue(
-      reason.equals("the server closed the connection") || reason.startsWith("the connection failed") || reason.startsWith("a "),
-      reason
-    );
+    final boolean knownReason =
+      reason.equals("the server closed the connection") || reason.startsWith("the connection failed") || reason.startsWith("a ");
+    assertTrue(knownReason, reason);
   }
 
   @Test
@@ -298,9 +319,11 @@ class BrowserHelperTest {
     try (final Peer peer = new Peer(this.server.accept())) {
       peer.readUntil(HelperProtocol.READY);
       peer.send(out -> HelperProtocol.writeText(out, HelperProtocol.NOTICE, "confused server"));
-      assertEquals(0, result.get(10, TimeUnit.SECONDS));
+      final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
+      assertEquals(0, exitStatus);
     }
-    assertEquals("the server sent message type 6, which only a helper sends", helper.getStopReason());
+    final @Nullable String stopReason = helper.getStopReason();
+    assertEquals("the server sent message type 6, which only a helper sends", stopReason);
   }
 
   @Test
@@ -313,9 +336,11 @@ class BrowserHelperTest {
         out.writeByte(99);
         out.writeInt(0);
       });
-      assertEquals(0, result.get(10, TimeUnit.SECONDS));
+      final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
+      assertEquals(0, exitStatus);
     }
-    assertEquals("the connection failed: Unknown message type 99", helper.getStopReason());
+    final @Nullable String stopReason = helper.getStopReason();
+    assertEquals("the connection failed: Unknown message type 99", stopReason);
   }
 
   @Test
@@ -325,31 +350,40 @@ class BrowserHelperTest {
     try (final Peer peer = new Peer(this.server.accept())) {
       peer.readUntil(HelperProtocol.READY);
       peer.send(out -> HelperProtocol.writeFrame(out, new FrameRegion(4, 3, 0, 0, 2, 2, new byte[16])));
-      assertEquals(0, result.get(10, TimeUnit.SECONDS));
+      final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
+      assertEquals(0, exitStatus);
     }
-    assertEquals("the connection failed: A frame of 16 bytes arrived where no frame of that size is expected", helper.getStopReason());
+    final @Nullable String stopReason = helper.getStopReason();
+    assertEquals("the connection failed: A frame of 16 bytes arrived where no frame of that size is expected", stopReason);
   }
 
   @Test
   void shouldRememberTheHeldButtonsSoAMoveIsADrag() {
     final ScriptedEngine engine = new ScriptedEngine();
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), engine);
-    assertTrue(
-      helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 5, 5, HelperProtocol.BUTTON_LEFT, 1, 0, 0)))
+    final boolean readsOnAfterThePress = helper.handleCommand(
+      HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 5, 5, HelperProtocol.BUTTON_LEFT, 1, 0, 0))
     );
-    assertTrue(
-      helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 6, 6, HelperProtocol.BUTTON_LEFT, 0, 0, 0)))
+    assertTrue(readsOnAfterThePress);
+    final boolean readsOnAfterTheDrag = helper.handleCommand(
+      HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 6, 6, HelperProtocol.BUTTON_LEFT, 0, 0, 0))
     );
-    assertTrue(
-      helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_RELEASE, 6, 6, HelperProtocol.BUTTON_LEFT, 1, 0, 0)))
+    assertTrue(readsOnAfterTheDrag);
+    final boolean readsOnAfterTheRelease = helper.handleCommand(
+      HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_RELEASE, 6, 6, HelperProtocol.BUTTON_LEFT, 1, 0, 0))
     );
-    assertTrue(
-      helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 7, 7, HelperProtocol.BUTTON_LEFT, 0, 0, 0)))
+    assertTrue(readsOnAfterTheRelease);
+    final boolean readsOnAfterTheMove = helper.handleCommand(
+      HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 7, 7, HelperProtocol.BUTTON_LEFT, 0, 0, 0))
     );
+    assertTrue(readsOnAfterTheMove);
     final List<String> calls = engine.getCalls();
-    assertTrue(calls.get(1).contains("\"buttons\":1,\"button\":\"left\""), calls.get(1));
-    assertTrue(calls.get(2).contains("\"type\":\"mouseReleased\",\"x\":6,\"y\":6,\"buttons\":0"), calls.get(2));
-    assertTrue(calls.get(3).contains("\"buttons\":0,\"button\":\"none\""), calls.get(3));
+    final boolean dragHoldsTheLeftButton = calls.get(1).contains("\"buttons\":1,\"button\":\"left\"");
+    assertTrue(dragHoldsTheLeftButton, calls.get(1));
+    final boolean releaseHoldsNoButton = calls.get(2).contains("\"type\":\"mouseReleased\",\"x\":6,\"y\":6,\"buttons\":0");
+    assertTrue(releaseHoldsNoButton, calls.get(2));
+    final boolean moveHoldsNoButton = calls.get(3).contains("\"buttons\":0,\"button\":\"none\"");
+    assertTrue(moveHoldsNoButton, calls.get(3));
   }
 
   @Test
@@ -366,7 +400,8 @@ class BrowserHelperTest {
         public void close() {}
       }
     );
-    assertEquals("the standard input ended", helper.getStopReason());
+    final @Nullable String stopReason = helper.getStopReason();
+    assertEquals("the standard input ended", stopReason);
   }
 
   @Test
@@ -388,10 +423,14 @@ class BrowserHelperTest {
       running.interrupt();
       running.join(10_000L);
     }
-    assertFalse(running.isAlive(), "the interrupted helper has terminated");
-    assertTrue(engine.isStopped(), "the interrupted helper stops its engine");
-    assertEquals(0, status.get());
-    assertTrue(interrupted.get(), "the interrupt is kept");
+    final boolean alive = running.isAlive();
+    assertFalse(alive, "the interrupted helper has terminated");
+    final boolean stopped = engine.isStopped();
+    assertTrue(stopped, "the interrupted helper stops its engine");
+    final int exitStatus = status.get();
+    assertEquals(0, exitStatus);
+    final boolean interruptKept = interrupted.get();
+    assertTrue(interruptKept, "the interrupt is kept");
   }
 
   @Test
@@ -408,7 +447,8 @@ class BrowserHelperTest {
       }
     );
     helper.sendFrames(broken);
-    assertEquals("a frame could not be sent: connection reset", helper.getStopReason());
+    final @Nullable String stopReason = helper.getStopReason();
+    assertEquals("a frame could not be sent: connection reset", stopReason);
   }
 
   @Test
@@ -422,8 +462,10 @@ class BrowserHelperTest {
     sender.start();
     sender.interrupt();
     sender.join(10_000L);
-    assertTrue(interrupted.get());
-    assertNull(helper.getStopReason(), "an interrupted sender does not stop the helper by itself");
+    final boolean interruptKept = interrupted.get();
+    assertTrue(interruptKept);
+    final @Nullable String stopReason = helper.getStopReason();
+    assertNull(stopReason, "an interrupted sender does not stop the helper by itself");
   }
 
   @Test
@@ -432,8 +474,10 @@ class BrowserHelperTest {
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
       final HelperMessage failure = peer.readUntil(HelperProtocol.FAILURE);
-      assertEquals("The browser could not be started: java.lang.IllegalStateException: scripted start failure", failure.getText());
-      assertEquals(1, result.get(10, TimeUnit.SECONDS));
+      final String failureText = failure.getText();
+      assertEquals("The browser could not be started: java.lang.IllegalStateException: scripted start failure", failureText);
+      final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
+      assertEquals(1, exitStatus);
     }
   }
 
@@ -443,8 +487,10 @@ class BrowserHelperTest {
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
       final HelperMessage failure = peer.readUntil(HelperProtocol.FAILURE);
-      assertEquals("The browser could not be started: java.lang.UnsatisfiedLinkError: scripted missing native library", failure.getText());
-      assertEquals(1, result.get(10, TimeUnit.SECONDS));
+      final String failureText = failure.getText();
+      assertEquals("The browser could not be started: java.lang.UnsatisfiedLinkError: scripted missing native library", failureText);
+      final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
+      assertEquals(1, exitStatus);
     }
   }
 
@@ -453,8 +499,10 @@ class BrowserHelperTest {
     final BrowserHelper helper = new BrowserHelper(this.configuration("/fail"), new ScriptedEngine());
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
-      assertEquals("scripted renderer crash", peer.readUntil(HelperProtocol.FAILURE).getText());
-      assertEquals(1, result.get(10, TimeUnit.SECONDS));
+      final String failureText = peer.readUntil(HelperProtocol.FAILURE).getText();
+      assertEquals("scripted renderer crash", failureText);
+      final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
+      assertEquals(1, exitStatus);
     }
   }
 
@@ -473,19 +521,25 @@ class BrowserHelperTest {
 
   @Test
   void shouldReadTheConfigurationFromTheFirstLine() throws Exception {
-    assertEquals(
-      2,
-      BrowserHelper.runFromInput(new BufferedReader(new StringReader("")), new ScriptedEngine(), BrowserHelperTest::neverHalts)
+    final int statusWithoutInput = BrowserHelper.runFromInput(
+      new BufferedReader(new StringReader("")),
+      new ScriptedEngine(),
+      BrowserHelperTest::neverHalts
     );
-    assertEquals(
-      2,
-      BrowserHelper.runFromInput(new BufferedReader(new StringReader("garbage\n")), new ScriptedEngine(), BrowserHelperTest::neverHalts)
+    assertEquals(2, statusWithoutInput);
+    final int statusForGarbage = BrowserHelper.runFromInput(
+      new BufferedReader(new StringReader("garbage\n")),
+      new ScriptedEngine(),
+      BrowserHelperTest::neverHalts
     );
+    assertEquals(2, statusForGarbage);
     final String line = this.configuration("/page").toLine() + "\n";
-    assertEquals(
-      1,
-      BrowserHelper.runFromInput(new BufferedReader(new StringReader(line)), new ScriptedEngine(), BrowserHelperTest::neverHalts)
+    final int statusForAConfiguration = BrowserHelper.runFromInput(
+      new BufferedReader(new StringReader(line)),
+      new ScriptedEngine(),
+      BrowserHelperTest::neverHalts
     );
+    assertEquals(1, statusForAConfiguration);
   }
 
   @Test
@@ -494,9 +548,11 @@ class BrowserHelperTest {
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine(), status -> halts.add(status), 100L);
     final long start = System.nanoTime();
     helper.watchInput(new StringReader(""));
-    assertTrue(System.nanoTime() - start >= TimeUnit.MILLISECONDS.toNanos(100L), "it waits for the deadline first");
+    final boolean waitedForTheDeadline = System.nanoTime() - start >= TimeUnit.MILLISECONDS.toNanos(100L);
+    assertTrue(waitedForTheDeadline, "it waits for the deadline first");
     assertEquals(List.of(1), halts);
-    assertEquals("the standard input ended", helper.getStopReason());
+    final @Nullable String stopReason = helper.getStopReason();
+    assertEquals("the standard input ended", stopReason);
   }
 
   @Test
@@ -504,7 +560,8 @@ class BrowserHelperTest {
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine(), status -> {}, 10L);
     try (final StandardError errors = new StandardError()) {
       helper.watchInput(new StringReader(""));
-      assertTrue(errors.text().contains("The browser helper did not stop within 10 ms and halts"), errors.text());
+      final boolean reportsTheHalt = errors.text().contains("The browser helper did not stop within 10 ms and halts");
+      assertTrue(reportsTheHalt, errors.text());
     }
   }
 
@@ -515,7 +572,8 @@ class BrowserHelperTest {
     Thread.currentThread().interrupt();
     try {
       helper.watchInput(new StringReader(""));
-      assertTrue(Thread.currentThread().isInterrupted(), "the interrupt is kept");
+      final boolean interruptKept = Thread.currentThread().isInterrupted();
+      assertTrue(interruptKept, "the interrupt is kept");
     } finally {
       Thread.interrupted();
     }
@@ -547,11 +605,13 @@ class BrowserHelperTest {
     try (final Peer peer = new Peer(this.server.accept())) {
       peer.readUntil(HelperProtocol.HELLO);
       this.standardInput.close();
-      assertTrue(halted.await(30, TimeUnit.SECONDS), "the helper halts although its browser never started");
+      final boolean haltedInTime = halted.await(30, TimeUnit.SECONDS);
+      assertTrue(haltedInTime, "the helper halts although its browser never started");
     } finally {
       release.countDown();
     }
-    assertEquals(0, result.get(30, TimeUnit.SECONDS));
+    final Integer exitStatus = result.get(30, TimeUnit.SECONDS);
+    assertEquals(0, exitStatus);
   }
 
   @Test
@@ -562,9 +622,12 @@ class BrowserHelperTest {
       BrowserHelper.runFromInput(new BufferedReader(new StringReader("garbage\n")), new ScriptedEngine(), BrowserHelperTest::neverHalts);
       BrowserHelper.runFromInput(new BufferedReader(new StringReader(unreachable)), new ScriptedEngine(), BrowserHelperTest::neverHalts);
       final String log = errors.text();
-      assertTrue(log.contains("The browser helper got no configuration"), log);
-      assertTrue(log.contains("The browser helper got an invalid configuration: "), log);
-      assertTrue(log.contains("The browser helper cannot reach the server: "), log);
+      final boolean reportsTheMissingConfiguration = log.contains("The browser helper got no configuration");
+      assertTrue(reportsTheMissingConfiguration, log);
+      final boolean reportsTheInvalidConfiguration = log.contains("The browser helper got an invalid configuration: ");
+      assertTrue(reportsTheInvalidConfiguration, log);
+      final boolean reportsTheUnreachableServer = log.contains("The browser helper cannot reach the server: ");
+      assertTrue(reportsTheUnreachableServer, log);
     }
   }
 
@@ -576,9 +639,11 @@ class BrowserHelperTest {
       try (final Peer peer = new Peer(this.server.accept())) {
         peer.readUntil(HelperProtocol.READY);
         peer.send(HelperProtocol::writeClose);
-        assertEquals(0, result.get(10, TimeUnit.SECONDS));
+        final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
+        assertEquals(0, exitStatus);
       }
-      assertTrue(errors.text().contains("The browser helper stops: the server asked to close"), errors.text());
+      final boolean reportsTheStop = errors.text().contains("The browser helper stops: the server asked to close");
+      assertTrue(reportsTheStop, errors.text());
     }
   }
 
@@ -588,8 +653,10 @@ class BrowserHelperTest {
     try (final ServerSocketChannel listening = ServerSocketChannel.open(StandardProtocolFamily.UNIX)) {
       listening.bind(UnixDomainSocketAddress.of(socket));
       try (final SocketChannel channel = BrowserHelper.connect(socket); final SocketChannel accepted = listening.accept()) {
-        assertTrue(channel.isConnected());
-        assertTrue(accepted.isConnected());
+        final boolean channelConnected = channel.isConnected();
+        assertTrue(channelConnected);
+        final boolean acceptedConnected = accepted.isConnected();
+        assertTrue(acceptedConnected);
       }
     }
   }
@@ -627,12 +694,15 @@ class BrowserHelperTest {
         .stream()
         .filter(thread -> thread.getName().startsWith("mcav-browser-helper-"))
         .toList();
-      assertFalse(threads.isEmpty());
+      final boolean noHelperThreads = threads.isEmpty();
+      assertFalse(noHelperThreads);
       for (final Thread thread : threads) {
-        assertTrue(thread.isDaemon(), thread.getName());
+        final boolean daemon = thread.isDaemon();
+        assertTrue(daemon, thread.getName());
       }
       peer.send(HelperProtocol::writeClose);
-      assertEquals(0, result.get(10, TimeUnit.SECONDS));
+      final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
+      assertEquals(0, exitStatus);
     }
   }
 
@@ -640,14 +710,17 @@ class BrowserHelperTest {
   void shouldStopTheHelperAtTheEndOfTheConnection() {
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
     helper.readCommands(new DataInputStream(new ByteArrayInputStream(new byte[0])));
-    assertEquals("the server closed the connection", helper.getStopReason());
+    final @Nullable String stopReason = helper.getStopReason();
+    assertEquals("the server closed the connection", stopReason);
   }
 
   @Test
   void shouldReadNothingMoreAfterACloseOrAMessageOnlyAHelperSends() {
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
-    assertFalse(helper.handleCommand(HelperMessage.close()));
-    assertFalse(helper.handleCommand(HelperMessage.text(HelperProtocol.NOTICE, "confused server")));
+    final boolean readsOnAfterTheClose = helper.handleCommand(HelperMessage.close());
+    assertFalse(readsOnAfterTheClose);
+    final boolean readsOnAfterTheHelperMessage = helper.handleCommand(HelperMessage.text(HelperProtocol.NOTICE, "confused server"));
+    assertFalse(readsOnAfterTheHelperMessage);
   }
 
   @Test
@@ -657,13 +730,16 @@ class BrowserHelperTest {
     try (final Peer peer = new Peer(this.server.accept())) {
       peer.readUntil(HelperProtocol.READY);
       peer.send(HelperProtocol::writeClose);
-      assertEquals(0, result.get(10, TimeUnit.SECONDS));
+      final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
+      assertEquals(0, exitStatus);
     }
     final PageCompositor compositor = helper.getCompositor();
     final byte[] buffer = new byte[compositor.getPageBytes()];
     final long start = System.nanoTime();
-    assertNull(compositor.takeDamage(buffer, 10_000L));
-    assertTrue(System.nanoTime() - start < TimeUnit.SECONDS.toNanos(5), "the picture of the page is still open");
+    final @Nullable FrameRegion damage = compositor.takeDamage(buffer, 10_000L);
+    assertNull(damage);
+    final boolean returnedAtOnce = System.nanoTime() - start < TimeUnit.SECONDS.toNanos(5);
+    assertTrue(returnedAtOnce, "the picture of the page is still open");
     final DataOutputStream unused = new DataOutputStream(OutputStream.nullOutputStream());
     assertTimeoutPreemptively(Duration.ofSeconds(5), () -> helper.sendFrames(unused), "the frames go on after the stop");
   }
@@ -673,11 +749,15 @@ class BrowserHelperTest {
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
-      assertEquals(1, peer.readUntil(HelperProtocol.LOADING).getNumber());
-      assertEquals("scripted notice", peer.readUntil(HelperProtocol.NOTICE).getText());
-      assertEquals(0, peer.readUntil(HelperProtocol.LOADING).getNumber());
+      final int loadingAtTheStart = peer.readUntil(HelperProtocol.LOADING).getNumber();
+      assertEquals(1, loadingAtTheStart);
+      final String noticeText = peer.readUntil(HelperProtocol.NOTICE).getText();
+      assertEquals("scripted notice", noticeText);
+      final int loadingAtTheEnd = peer.readUntil(HelperProtocol.LOADING).getNumber();
+      assertEquals(0, loadingAtTheEnd);
       peer.send(HelperProtocol::writeClose);
-      assertEquals(0, result.get(10, TimeUnit.SECONDS));
+      final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
+      assertEquals(0, exitStatus);
     }
   }
 
@@ -687,11 +767,15 @@ class BrowserHelperTest {
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
       final HelperMessage error = peer.readUntil(HelperProtocol.LOAD_ERROR);
-      assertEquals(-105, error.getNumber());
-      assertEquals("ERR_NAME_NOT_RESOLVED", error.getText());
-      assertEquals("https://example.com/load-error", error.getUrl());
+      final int errorCode = error.getNumber();
+      assertEquals(-105, errorCode);
+      final String errorText = error.getText();
+      assertEquals("ERR_NAME_NOT_RESOLVED", errorText);
+      final String url = error.getUrl();
+      assertEquals("https://example.com/load-error", url);
       peer.send(HelperProtocol::writeClose);
-      assertEquals(0, result.get(10, TimeUnit.SECONDS));
+      final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
+      assertEquals(0, exitStatus);
     }
   }
 
@@ -706,7 +790,8 @@ class BrowserHelperTest {
     };
     final BrowserHelper.Reporter reporter = helper.new Reporter(new DataOutputStream(gone));
     reporter.onNotice("lost");
-    assertEquals("a message could not be sent: the server is gone", helper.getStopReason());
+    final @Nullable String stopReason = helper.getStopReason();
+    assertEquals("a message could not be sent: the server is gone", stopReason);
   }
 
   @Test
@@ -717,6 +802,7 @@ class BrowserHelperTest {
         throw new IOException("closed");
       }
     };
-    assertEquals(2, BrowserHelper.runFromInput(broken, new ScriptedEngine(), BrowserHelperTest::neverHalts));
+    final int statusForABrokenInput = BrowserHelper.runFromInput(broken, new ScriptedEngine(), BrowserHelperTest::neverHalts);
+    assertEquals(2, statusForABrokenInput);
   }
 }

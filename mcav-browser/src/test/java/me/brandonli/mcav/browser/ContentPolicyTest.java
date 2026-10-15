@@ -80,20 +80,23 @@ class ContentPolicyTest {
 
   @Test
   void shouldRefuseAPopupToAnotherScheme() {
-    assertTrue(this.policy.onBeforePopup(this.browser, frame(true), "file:///etc/passwd", ""));
+    final boolean popupCancelled = this.policy.onBeforePopup(this.browser, frame(true), "file:///etc/passwd", "");
+    assertTrue(popupCancelled);
     verify(this.browser, never()).loadURL(ArgumentMatchers.anyString());
     assertEquals(List.of("notice: Refused a new window: file:///etc/passwd"), this.events.log);
   }
 
   @Test
   void shouldOpenALinkForANewTabInPlaceToo() {
-    assertTrue(this.policy.onOpenURLFromTab(this.browser, frame(true), "http://example.com/tab", true));
+    final boolean tabCancelled = this.policy.onOpenURLFromTab(this.browser, frame(true), "http://example.com/tab", true);
+    assertTrue(tabCancelled);
     verify(this.browser).loadURL("http://example.com/tab");
   }
 
   @Test
   void shouldCancelANewTabWithoutAClickOrAKey() {
-    assertTrue(this.policy.onOpenURLFromTab(this.browser, frame(true), "http://example.com/tab", false));
+    final boolean tabCancelled = this.policy.onOpenURLFromTab(this.browser, frame(true), "http://example.com/tab", false);
+    assertTrue(tabCancelled);
     verify(this.browser, never()).loadURL(ArgumentMatchers.anyString());
   }
 
@@ -109,17 +112,29 @@ class ContentPolicyTest {
   @Test
   void shouldLeaveClosingToTheBrowser() {
     when(this.browser.doClose()).thenReturn(true);
-    assertTrue(this.policy.doClose(this.browser));
+    final boolean handledWhenTheBrowserHandles = this.policy.doClose(this.browser);
+    assertTrue(handledWhenTheBrowserHandles);
     when(this.browser.doClose()).thenReturn(false);
-    assertFalse(this.policy.doClose(this.browser));
+    final boolean handledWhenTheBrowserDoesNot = this.policy.doClose(this.browser);
+    assertFalse(handledWhenTheBrowserDoesNot);
   }
 
   @Test
   void shouldFollowTheNavigationPolicyWhenNavigating() {
-    assertFalse(this.policy.onBeforeBrowse(this.browser, frame(true), request("https://example.com/"), true, false));
-    assertTrue(this.policy.onBeforeBrowse(this.browser, frame(true), request("file:///etc/passwd"), false, true));
-    assertFalse(this.policy.onBeforeBrowse(this.browser, frame(false), request("about:blank"), false, false));
-    assertTrue(this.policy.onBeforeBrowse(this.browser, frame(false), request("chrome://settings"), false, false));
+    final boolean httpsCancelled = this.policy.onBeforeBrowse(this.browser, frame(true), request("https://example.com/"), true, false);
+    assertFalse(httpsCancelled);
+    final boolean fileCancelled = this.policy.onBeforeBrowse(this.browser, frame(true), request("file:///etc/passwd"), false, true);
+    assertTrue(fileCancelled);
+    final boolean blankSubframeCancelled = this.policy.onBeforeBrowse(this.browser, frame(false), request("about:blank"), false, false);
+    assertFalse(blankSubframeCancelled);
+    final boolean chromeSubframeCancelled = this.policy.onBeforeBrowse(
+      this.browser,
+      frame(false),
+      request("chrome://settings"),
+      false,
+      false
+    );
+    assertTrue(chromeSubframeCancelled);
     assertEquals(
       List.of("notice: Refused a navigation to file:///etc/passwd", "notice: Refused a navigation to chrome://settings"),
       this.events.log
@@ -128,7 +143,14 @@ class ContentPolicyTest {
 
   @Test
   void shouldNeverReportTheUserTheQueryOrTheFragmentOfAnAddress() {
-    assertTrue(this.policy.onBeforeBrowse(this.browser, frame(true), request("myapp://callback?code=secret"), false, false));
+    final boolean customSchemeCancelled = this.policy.onBeforeBrowse(
+      this.browser,
+      frame(true),
+      request("myapp://callback?code=secret"),
+      false,
+      false
+    );
+    assertTrue(customSchemeCancelled);
     final CefResourceRequestHandler resources = this.policy.getResourceRequestHandler(
       this.browser,
       frame(true),
@@ -138,15 +160,19 @@ class ContentPolicyTest {
       "",
       new BoolRef()
     );
-    assertTrue(resources.onBeforeResourceLoad(this.browser, frame(true), request("ftp://user:password@example.com/file")));
-    assertFalse(
-      this.policy.onCertificateError(
-        this.browser,
-        CefLoadHandler.ErrorCode.ERR_CERT_DATE_INVALID,
-        "https://expired/page#token=secret",
-        mock(CefCallback.class)
-      )
+    final boolean ftpRequestCancelled = resources.onBeforeResourceLoad(
+      this.browser,
+      frame(true),
+      request("ftp://user:password@example.com/file")
     );
+    assertTrue(ftpRequestCancelled);
+    final boolean certificateContinued = this.policy.onCertificateError(
+      this.browser,
+      CefLoadHandler.ErrorCode.ERR_CERT_DATE_INVALID,
+      "https://expired/page#token=secret",
+      mock(CefCallback.class)
+    );
+    assertFalse(certificateContinued);
     this.policy.onLoadError(this.browser, frame(true), CefLoadHandler.ErrorCode.ERR_CONNECTION_REFUSED, "refused", "https://a/?sig=secret");
     assertEquals(
       List.of(
@@ -180,8 +206,10 @@ class ContentPolicyTest {
       new BoolRef()
     );
     assertSame(first, second);
-    assertFalse(first.onBeforeResourceLoad(this.browser, frame(true), request("https://example.com/a.png")));
-    assertTrue(first.onBeforeResourceLoad(this.browser, frame(true), request("file:///home/server/config.yml")));
+    final boolean imageCancelled = first.onBeforeResourceLoad(this.browser, frame(true), request("https://example.com/a.png"));
+    assertFalse(imageCancelled);
+    final boolean fileRequestCancelled = first.onBeforeResourceLoad(this.browser, frame(true), request("file:///home/server/config.yml"));
+    assertTrue(fileRequestCancelled);
     assertEquals(List.of("notice: Refused a request to file:///home/server/config.yml"), this.events.log);
   }
 
@@ -198,19 +226,25 @@ class ContentPolicyTest {
     );
     final BoolRef allow = new BoolRef(true);
     resources.onProtocolExecution(this.browser, frame(true), request("steam://run/1"), allow);
-    assertFalse(allow.get());
+    final boolean executionAllowed = allow.get();
+    assertFalse(executionAllowed);
     assertEquals(List.of("notice: Refused to open steam://run/1 with another program"), this.events.log);
   }
 
   @Test
   void shouldFailTheRequestOnAuthenticationAndBadCertificates() {
     final CefAuthCallback auth = mock(CefAuthCallback.class);
-    assertFalse(this.policy.getAuthCredentials(this.browser, "https://a/", false, "a", 443, "realm", "basic", auth));
+    final boolean credentialsGiven = this.policy.getAuthCredentials(this.browser, "https://a/", false, "a", 443, "realm", "basic", auth);
+    assertFalse(credentialsGiven);
     verifyNoInteractions(auth);
     final CefCallback certificate = mock(CefCallback.class);
-    assertFalse(
-      this.policy.onCertificateError(this.browser, CefLoadHandler.ErrorCode.ERR_CERT_DATE_INVALID, "https://expired/", certificate)
+    final boolean certificateContinued = this.policy.onCertificateError(
+      this.browser,
+      CefLoadHandler.ErrorCode.ERR_CERT_DATE_INVALID,
+      "https://expired/",
+      certificate
     );
+    assertFalse(certificateContinued);
     verifyNoInteractions(certificate);
     assertEquals(List.of("notice: Refused to log in to a", "notice: Refused an invalid certificate of https://expired/"), this.events.log);
   }
@@ -224,48 +258,56 @@ class ContentPolicyTest {
   @Test
   void shouldDismissJavaScriptDialogsAtOnce() {
     final CefJSDialogCallback alert = mock(CefJSDialogCallback.class);
-    assertTrue(
-      this.policy.onJSDialog(this.browser, "https://a/", CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_ALERT, "hi", "", alert, new BoolRef())
+    final boolean alertHandled = this.policy.onJSDialog(
+      this.browser,
+      "https://a/",
+      CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_ALERT,
+      "hi",
+      "",
+      alert,
+      new BoolRef()
     );
+    assertTrue(alertHandled);
     verify(alert).Continue(true, "");
     final CefJSDialogCallback confirm = mock(CefJSDialogCallback.class);
-    assertTrue(
-      this.policy.onJSDialog(
-        this.browser,
-        "https://a/",
-        CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_CONFIRM,
-        "ok?",
-        "",
-        confirm,
-        new BoolRef()
-      )
+    final boolean confirmHandled = this.policy.onJSDialog(
+      this.browser,
+      "https://a/",
+      CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_CONFIRM,
+      "ok?",
+      "",
+      confirm,
+      new BoolRef()
     );
+    assertTrue(confirmHandled);
     verify(confirm).Continue(false, "");
     final CefJSDialogCallback prompt = mock(CefJSDialogCallback.class);
-    assertTrue(
-      this.policy.onJSDialog(
-        this.browser,
-        "https://a/",
-        CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_PROMPT,
-        "name?",
-        "x",
-        prompt,
-        new BoolRef()
-      )
+    final boolean promptHandled = this.policy.onJSDialog(
+      this.browser,
+      "https://a/",
+      CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_PROMPT,
+      "name?",
+      "x",
+      prompt,
+      new BoolRef()
     );
+    assertTrue(promptHandled);
     verify(prompt).Continue(false, "");
     final CefJSDialogCallback unload = mock(CefJSDialogCallback.class);
-    assertTrue(this.policy.onBeforeUnloadDialog(this.browser, "leave?", false, unload));
+    final boolean unloadHandled = this.policy.onBeforeUnloadDialog(this.browser, "leave?", false, unload);
+    assertTrue(unloadHandled);
     verify(unload).Continue(true, "");
     this.policy.onResetDialogState(this.browser);
     this.policy.onDialogClosed(this.browser);
-    assertEquals(3, this.events.log.size());
+    final int eventCount = this.events.log.size();
+    assertEquals(3, eventCount);
   }
 
   @Test
   void shouldRefuseAndCancelDownloads() {
     final CefBeforeDownloadCallback before = mock(CefBeforeDownloadCallback.class);
-    assertFalse(this.policy.onBeforeDownload(this.browser, mock(CefDownloadItem.class), "evil.exe", before));
+    final boolean downloadHandled = this.policy.onBeforeDownload(this.browser, mock(CefDownloadItem.class), "evil.exe", before);
+    assertFalse(downloadHandled);
     verifyNoInteractions(before);
     final CefDownloadItemCallback updated = mock(CefDownloadItemCallback.class);
     this.policy.onDownloadUpdated(this.browser, mock(CefDownloadItem.class), updated);
@@ -313,7 +355,8 @@ class ContentPolicyTest {
     final CefMenuModel model = mock(CefMenuModel.class);
     this.policy.onBeforeContextMenu(this.browser, frame(true), mock(CefContextMenuParams.class), model);
     verify(model).clear();
-    assertFalse(this.policy.onContextMenuCommand(this.browser, frame(true), mock(CefContextMenuParams.class), 1, 0));
+    final boolean commandHandled = this.policy.onContextMenuCommand(this.browser, frame(true), mock(CefContextMenuParams.class), 1, 0);
+    assertFalse(commandHandled);
     this.policy.onContextMenuDismissed(this.browser, frame(true));
   }
 

@@ -105,14 +105,19 @@ final class LinuxLibrariesFuzzTest {
         if (path.equals(root) || path.equals(file) || path.equals(target)) {
           continue;
         }
-        assertEquals(target, path.getParent(), () -> "outside the target or in a folder of its own: " + path);
-        assertTrue(Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS), () -> "not a plain file: " + path);
+        final Path parent = path.getParent();
+        assertEquals(target, parent, () -> "outside the target or in a folder of its own: " + path);
+        final boolean regularFile = Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS);
+        assertTrue(regularFile, () -> "not a plain file: " + path);
         final String name = path.getFileName().toString();
-        assertTrue(PINNED.containsValue(name), () -> "not a pinned library: " + path);
-        assertTrue(Files.size(path) <= MAX_FILE_BYTES, () -> "larger than the limit: " + path);
+        final boolean pinned = PINNED.containsValue(name);
+        assertTrue(pinned, () -> "not a pinned library: " + path);
+        final boolean withinSizeLimit = Files.size(path) <= MAX_FILE_BYTES;
+        assertTrue(withinSizeLimit, () -> "larger than the limit: " + path);
         if (supportsPosix) {
           final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
-          assertFalse(permissions.contains(PosixFilePermission.OTHERS_WRITE), () -> "writable by others: " + path);
+          final boolean writableByOthers = permissions.contains(PosixFilePermission.OTHERS_WRITE);
+          assertFalse(writableByOthers, () -> "writable by others: " + path);
         }
         written.add(name);
       }

@@ -27,6 +27,7 @@ import java.net.ProtocolException;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import me.brandonli.mcav.media.image.ImageBuffer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 
 class FrameCanvasTest {
@@ -55,12 +56,18 @@ class FrameCanvasTest {
   @Test
   void shouldStartWhite() {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3); final ImageBuffer image = snapshot(canvas)) {
-      assertEquals(4, canvas.getWidth());
-      assertEquals(3, canvas.getHeight());
-      assertEquals(4, image.getWidth());
-      assertEquals(3, image.getHeight());
-      assertEquals(255, bgr(image, 3, 2)[0]);
-      assertEquals(255, bgr(image, 3, 2)[2]);
+      final int canvasWidth = canvas.getWidth();
+      assertEquals(4, canvasWidth);
+      final int canvasHeight = canvas.getHeight();
+      assertEquals(3, canvasHeight);
+      final int imageWidth = image.getWidth();
+      assertEquals(4, imageWidth);
+      final int imageHeight = image.getHeight();
+      assertEquals(3, imageHeight);
+      final int cornerBlue = bgr(image, 3, 2)[0];
+      assertEquals(255, cornerBlue);
+      final int cornerRed = bgr(image, 3, 2)[2];
+      assertEquals(255, cornerRed);
     }
   }
 
@@ -70,11 +77,16 @@ class FrameCanvasTest {
       canvas.apply(new FrameRegion(4, 3, 1, 1, 2, 2, bgra(2, 2, 10, 20, 30)));
       try (final ImageBuffer image = snapshot(canvas)) {
         final int[] inside = bgr(image, 2, 2);
-        assertEquals(10, inside[0]);
-        assertEquals(20, inside[1]);
-        assertEquals(30, inside[2]);
-        assertEquals(255, bgr(image, 0, 0)[0]);
-        assertEquals(255, bgr(image, 3, 1)[1]);
+        final int insideBlue = inside[0];
+        assertEquals(10, insideBlue);
+        final int insideGreen = inside[1];
+        assertEquals(20, insideGreen);
+        final int insideRed = inside[2];
+        assertEquals(30, insideRed);
+        final int outsideBlue = bgr(image, 0, 0)[0];
+        assertEquals(255, outsideBlue);
+        final int outsideGreen = bgr(image, 3, 1)[1];
+        assertEquals(255, outsideGreen);
       }
     }
   }
@@ -88,8 +100,10 @@ class FrameCanvasTest {
       longer[2] = 3;
       canvas.apply(new FrameRegion(2, 1, 1, 0, 1, 1, longer));
       try (final ImageBuffer image = snapshot(canvas)) {
-        assertEquals(1, bgr(image, 1, 0)[0]);
-        assertEquals(3, bgr(image, 1, 0)[2]);
+        final int blue = bgr(image, 1, 0)[0];
+        assertEquals(1, blue);
+        final int red = bgr(image, 1, 0)[2];
+        assertEquals(3, red);
       }
     }
   }
@@ -101,7 +115,8 @@ class FrameCanvasTest {
       final ProtocolException height = assertThrows(ProtocolException.class, () ->
         canvas.apply(new FrameRegion(4, 2, 0, 0, 1, 1, new byte[4]))
       );
-      assertTrue(height.getMessage().contains("4x2"));
+      final boolean namesTheOtherSize = height.getMessage().contains("4x2");
+      assertTrue(namesTheOtherSize);
     }
   }
 
@@ -111,7 +126,8 @@ class FrameCanvasTest {
     canvas.close();
     canvas.close();
     canvas.apply(new FrameRegion(2, 2, 0, 0, 1, 1, new byte[4]));
-    assertNull(canvas.snapshot());
+    final @Nullable ImageBuffer picture = canvas.snapshot();
+    assertNull(picture);
   }
 
   @Test
@@ -122,9 +138,12 @@ class FrameCanvasTest {
       System.arraycopy(bgra(2, 1, 40, 50, 60), 0, pixels, 8, 8);
       canvas.apply(new FrameRegion(4, 3, 1, 1, 2, 2, pixels));
       try (final ImageBuffer image = snapshot(canvas)) {
-        assertEquals(10, bgr(image, 1, 1)[0]);
-        assertEquals(40, bgr(image, 1, 2)[0]);
-        assertEquals(60, bgr(image, 2, 2)[2]);
+        final int firstRowBlue = bgr(image, 1, 1)[0];
+        assertEquals(10, firstRowBlue);
+        final int secondRowBlue = bgr(image, 1, 2)[0];
+        assertEquals(40, secondRowBlue);
+        final int secondRowRed = bgr(image, 2, 2)[2];
+        assertEquals(60, secondRowRed);
       }
     }
   }
@@ -132,8 +151,10 @@ class FrameCanvasTest {
   @Test
   void shouldReleaseTheNativePictureOnClose() {
     final FrameCanvas canvas = new FrameCanvas(4, 3);
-    assertFalse(canvas.getPage().isNull());
+    final boolean releasedWhileOpen = canvas.getPage().isNull();
+    assertFalse(releasedWhileOpen);
     canvas.close();
-    assertTrue(canvas.getPage().isNull());
+    final boolean releasedAfterClose = canvas.getPage().isNull();
+    assertTrue(releasedAfterClose);
   }
 }

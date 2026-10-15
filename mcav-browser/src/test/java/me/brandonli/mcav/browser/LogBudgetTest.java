@@ -46,8 +46,10 @@ final class LogBudgetTest {
   @Test
   void shouldPassABurstAtOnceAndNotTheRest() {
     this.lines(LogBudget.BURST + 10);
-    assertEquals(LogBudget.BURST, this.log.size());
-    assertEquals("line " + (LogBudget.BURST - 1), this.log.getLast());
+    final int lineCount = this.log.size();
+    assertEquals(LogBudget.BURST, lineCount);
+    final String lastLine = this.log.getLast();
+    assertEquals("line " + (LogBudget.BURST - 1), lastLine);
   }
 
   @Test
@@ -55,11 +57,13 @@ final class LogBudgetTest {
     this.lines(LogBudget.BURST + 10);
     this.now.addAndGet(LogBudget.REFILL_NANOS - 1);
     this.line("too early");
-    assertEquals(LogBudget.BURST, this.log.size());
+    final int lineCount = this.log.size();
+    assertEquals(LogBudget.BURST, lineCount);
     this.now.addAndGet(1);
     this.line("a second later");
     this.line("too early again");
-    assertEquals(List.of("skipped 11", "a second later"), this.log.subList(LogBudget.BURST, this.log.size()));
+    final List<String> laterLines = this.log.subList(LogBudget.BURST, this.log.size());
+    assertEquals(List.of("skipped 11", "a second later"), laterLines);
   }
 
   @Test
@@ -67,7 +71,8 @@ final class LogBudgetTest {
     this.lines(LogBudget.BURST);
     this.now.addAndGet(LogBudget.REFILL_NANOS * 1_000);
     this.lines(LogBudget.BURST + 1);
-    assertEquals(2 * LogBudget.BURST, this.log.size());
+    final int lineCount = this.log.size();
+    assertEquals(2 * LogBudget.BURST, lineCount);
   }
 
   @Test
@@ -75,6 +80,7 @@ final class LogBudgetTest {
     this.lines(LogBudget.BURST);
     this.now.addAndGet(-5 * LogBudget.REFILL_NANOS);
     this.line("never");
-    assertEquals(LogBudget.BURST, this.log.size());
+    final int lineCount = this.log.size();
+    assertEquals(LogBudget.BURST, lineCount);
   }
 }

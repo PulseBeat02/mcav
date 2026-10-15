@@ -85,9 +85,12 @@ class NoFlagsServerTest {
       final String text = output.toString(StandardCharsets.UTF_8);
       System.out.println(text);
       assertTrue(exited, "the server JVM finished in time");
-      assertEquals(0, process.exitValue(), text);
-      assertTrue(text.contains(NoFlagsServerMain.PASSED), text);
-      assertTrue(text.contains("round 2: disabled, no browser process left"), text);
+      final int exitCode = process.exitValue();
+      assertEquals(0, exitCode, text);
+      final boolean reportsPassed = text.contains(NoFlagsServerMain.PASSED);
+      assertTrue(reportsPassed, text);
+      final boolean reportsTheSecondRound = text.contains("round 2: disabled, no browser process left");
+      assertTrue(reportsTheSecondRound, text);
     }
   }
 
@@ -96,9 +99,11 @@ class NoFlagsServerTest {
     final Path withX = Files.createDirectories(folder.resolve("with-x"));
     final Path plain = Files.createDirectories(folder.resolve("plain"));
     final Path server = Files.createFile(withX.resolve("Xvfb"));
-    assertTrue(server.toFile().setExecutable(true), "the fake X server is executable");
+    final boolean madeExecutable = server.toFile().setExecutable(true);
+    assertTrue(madeExecutable, "the fake X server is executable");
     final String path = String.join(File.pathSeparator, withX.toString(), "", plain.toString());
-    assertEquals(plain.toString(), withoutXServers(path));
+    final String filteredPath = withoutXServers(path);
+    assertEquals(plain.toString(), filteredPath);
   }
 
   /**

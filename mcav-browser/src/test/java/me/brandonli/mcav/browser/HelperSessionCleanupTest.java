@@ -85,19 +85,19 @@ final class HelperSessionCleanupTest {
         });
       final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
       if (unchecked) {
-        assertSame(
-          failure,
-          assertThrows(IllegalStateException.class, () ->
-            HelperSession.open(launcher, this.directory, source, BrowserOptions.DEFAULT, listener, this.directory)
-          )
+        final IllegalStateException uncheckedFailure = assertThrows(IllegalStateException.class, () ->
+          HelperSession.open(launcher, this.directory, source, BrowserOptions.DEFAULT, listener, this.directory)
         );
+        assertSame(failure, uncheckedFailure);
       } else {
         final PlayerException thrown = assertThrows(PlayerException.class, () ->
           HelperSession.open(launcher, this.directory, source, BrowserOptions.DEFAULT, listener, this.directory)
         );
-        assertSame(failure, thrown.getCause());
+        final Throwable cause = thrown.getCause();
+        assertSame(failure, cause);
       }
-      assertFalse(accepted.isOpen(), "an accepted channel has an owner before session construction");
+      final boolean acceptedOpen = accepted.isOpen();
+      assertFalse(acceptedOpen, "an accepted channel has an owner before session construction");
     }
   }
 }

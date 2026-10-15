@@ -48,11 +48,15 @@ final class PageAudioFuzzTest {
     final PageAudio.Chunk chunk = PageAudio.parse(method, parameters);
     if (chunk != null) {
       check(chunk.samples());
-      assertTrue(PageAudio.BINDING_EVENT.equals(method), "only a call of a binding is sound");
-      assertTrue(parameters.startsWith(PREFIX), "only a call of mcav's binding is sound");
+      final boolean fromABinding = PageAudio.BINDING_EVENT.equals(method);
+      assertTrue(fromABinding, "only a call of a binding is sound");
+      final boolean fromOwnBinding = parameters.startsWith(PREFIX);
+      assertTrue(fromOwnBinding, "only a call of mcav's binding is sound");
       final String payload = parameters.substring(PREFIX.length(), parameters.indexOf('"', PREFIX.length()));
-      assertTrue(payload.chars().allMatch(PageAudioFuzzTest::isBase64), "the payload is Base64 and nothing else");
-      assertTrue(PageAudio.leastBytes(parameters) <= chunk.samples().length, "sound is never refused for its length");
+      final boolean base64Only = payload.chars().allMatch(PageAudioFuzzTest::isBase64);
+      assertTrue(base64Only, "the payload is Base64 and nothing else");
+      final boolean longEnough = PageAudio.leastBytes(parameters) <= chunk.samples().length;
+      assertTrue(longEnough, "sound is never refused for its length");
     }
   }
 
@@ -67,19 +71,26 @@ final class PageAudioFuzzTest {
     final String parameters = PREFIX + payload + "\",\"executionContextId\":1}";
     final PageAudio.Chunk chunk = PageAudio.parse(PageAudio.BINDING_EVENT, parameters);
     if (chunk != null) {
-      assertTrue(PageAudio.leastBytes(parameters) <= chunk.samples().length, "sound is never refused for its length");
+      final boolean longEnough = PageAudio.leastBytes(parameters) <= chunk.samples().length;
+      assertTrue(longEnough, "sound is never refused for its length");
       check(chunk.samples());
-      assertTrue(chunk.context() == 1, "the context is the one of the call");
-      assertTrue(payload.chars().allMatch(PageAudioFuzzTest::isBase64), "the payload is Base64 and nothing else");
+      final boolean contextMatches = chunk.context() == 1;
+      assertTrue(contextMatches, "the context is the one of the call");
+      final boolean base64Only = payload.chars().allMatch(PageAudioFuzzTest::isBase64);
+      assertTrue(base64Only, "the payload is Base64 and nothing else");
       final byte[] decoded = Base64.getDecoder().decode(payload);
-      assertTrue(Arrays.equals(chunk.samples(), decoded), "the samples are the payload");
+      final boolean samplesArePayload = Arrays.equals(chunk.samples(), decoded);
+      assertTrue(samplesArePayload, "the samples are the payload");
     }
   }
 
   private static void check(final byte[] samples) {
-    assertTrue(samples.length > 0, "sound is not empty");
-    assertTrue(samples.length <= HelperProtocol.MAX_AUDIO_BYTES, "sound is within the limit of a message");
-    assertTrue(samples.length % HelperProtocol.AUDIO_FRAME_BYTES == 0, "sound holds whole frames");
+    final boolean notEmpty = samples.length > 0;
+    assertTrue(notEmpty, "sound is not empty");
+    final boolean withinMessageLimit = samples.length <= HelperProtocol.MAX_AUDIO_BYTES;
+    assertTrue(withinMessageLimit, "sound is within the limit of a message");
+    final boolean wholeFrames = samples.length % HelperProtocol.AUDIO_FRAME_BYTES == 0;
+    assertTrue(wholeFrames, "sound holds whole frames");
   }
 
   private static boolean isBase64(final int character) {

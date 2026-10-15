@@ -32,7 +32,8 @@ class HelperProcessesTest {
     HelperProcesses.closeAll();
     try {
       final PlayerException failure = assertThrows(PlayerException.class, HelperProcesses::requireOpen);
-      assertEquals("The browser module is stopped", failure.getMessage());
+      final String message = failure.getMessage();
+      assertEquals("The browser module is stopped", message);
     } finally {
       HelperProcesses.open();
     }

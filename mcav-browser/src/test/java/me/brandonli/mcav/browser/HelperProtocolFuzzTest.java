@@ -62,25 +62,36 @@ final class HelperProtocolFuzzTest {
     switch (type) {
       case HelperProtocol.FRAME -> {
         final FrameRegion region = message.getRegion();
-        assertTrue(region.getX() + region.getWidth() <= region.getPageWidth(), "the region fits the page horizontally");
-        assertTrue(region.getY() + region.getHeight() <= region.getPageHeight(), "the region fits the page vertically");
-        assertTrue(region.getWidth() >= 1 && region.getPageWidth() <= HelperProtocol.MAX_SIDE, "the sizes are in range");
-        assertTrue(region.getHeight() >= 1 && region.getHeight() <= HelperProtocol.MAX_SIDE, "the region height is in range");
-        assertTrue(region.getPageHeight() >= 1 && region.getPageHeight() <= HelperProtocol.MAX_SIDE, "the page height is in range");
-        assertTrue(region.getPageWidth() >= 1 && region.getWidth() <= HelperProtocol.MAX_SIDE, "the widths are in range");
+        final boolean fitsHorizontally = region.getX() + region.getWidth() <= region.getPageWidth();
+        assertTrue(fitsHorizontally, "the region fits the page horizontally");
+        final boolean fitsVertically = region.getY() + region.getHeight() <= region.getPageHeight();
+        assertTrue(fitsVertically, "the region fits the page vertically");
+        final boolean sizesInRange = region.getWidth() >= 1 && region.getPageWidth() <= HelperProtocol.MAX_SIDE;
+        assertTrue(sizesInRange, "the sizes are in range");
+        final boolean regionHeightInRange = region.getHeight() >= 1 && region.getHeight() <= HelperProtocol.MAX_SIDE;
+        assertTrue(regionHeightInRange, "the region height is in range");
+        final boolean pageHeightInRange = region.getPageHeight() >= 1 && region.getPageHeight() <= HelperProtocol.MAX_SIDE;
+        assertTrue(pageHeightInRange, "the page height is in range");
+        final boolean widthsInRange = region.getPageWidth() >= 1 && region.getWidth() <= HelperProtocol.MAX_SIDE;
+        assertTrue(widthsInRange, "the widths are in range");
       }
       case HelperProtocol.AUDIO -> {
         final int length = message.getSamples().length;
-        assertTrue(length > 0 && length <= HelperProtocol.MAX_AUDIO_BYTES, "the sound is within its limit");
-        assertTrue(length % HelperProtocol.AUDIO_FRAME_BYTES == 0, "the sound holds whole frames");
+        final boolean soundWithinLimit = length > 0 && length <= HelperProtocol.MAX_AUDIO_BYTES;
+        assertTrue(soundWithinLimit, "the sound is within its limit");
+        final boolean wholeFrames = length % HelperProtocol.AUDIO_FRAME_BYTES == 0;
+        assertTrue(wholeFrames, "the sound holds whole frames");
       }
       case HelperProtocol.READY, HelperProtocol.NOTICE, HelperProtocol.FAILURE, HelperProtocol.KEY -> {
         final int length = message.getText().getBytes(StandardCharsets.UTF_8).length;
-        assertTrue(length <= HelperProtocol.MAX_TEXT_BYTES, "the text is within its limit");
+        final boolean textWithinLimit = length <= HelperProtocol.MAX_TEXT_BYTES;
+        assertTrue(textWithinLimit, "the text is within its limit");
       }
       default -> {
-        assertTrue(type >= HelperProtocol.HELLO && type <= HelperProtocol.CLOSE, () -> "type " + type);
-        assertTrue(Set.of(1, 4, 5, 16, 18).contains(type), () -> "undefined message type " + type);
+        final boolean knownType = type >= HelperProtocol.HELLO && type <= HelperProtocol.CLOSE;
+        assertTrue(knownType, () -> "type " + type);
+        final boolean definedType = Set.of(1, 4, 5, 16, 18).contains(type);
+        assertTrue(definedType, () -> "undefined message type " + type);
       }
     }
   }

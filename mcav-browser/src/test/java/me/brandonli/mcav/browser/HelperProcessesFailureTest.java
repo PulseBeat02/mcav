@@ -53,11 +53,15 @@ final class HelperProcessesFailureTest {
       .when(last)
       .endAndClose(Mockito.anyString());
     try {
-      assertTrue(HelperProcesses.register(first, generation));
-      assertTrue(HelperProcesses.register(second, generation));
-      assertTrue(HelperProcesses.register(last, generation));
+      final boolean firstRegistered = HelperProcesses.register(first, generation);
+      assertTrue(firstRegistered);
+      final boolean secondRegistered = HelperProcesses.register(second, generation);
+      assertTrue(secondRegistered);
+      final boolean lastRegistered = HelperProcesses.register(last, generation);
+      assertTrue(lastRegistered);
       final RuntimeException thrown = assertThrows(RuntimeException.class, HelperProcesses::closeAll);
-      assertEquals(0, HelperProcesses.count(), "every registered helper must be ended");
+      final int helperCount = HelperProcesses.count();
+      assertEquals(0, helperCount, "every registered helper must be ended");
       assertSame(sharedFailure, thrown, "the original listener failure remains the primary failure");
       assertEquals(0, thrown.getSuppressed().length);
       Mockito.verify(last).endAndClose(Mockito.anyString());
