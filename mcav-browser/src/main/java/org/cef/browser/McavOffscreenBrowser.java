@@ -121,7 +121,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
     final CefBrowser_N parent,
     final Point inspectAt
   ) {
-    throw new UnsupportedOperationException("Developer tools are not available in an off-screen browser");
+    throw new UnsupportedOperationException("Developer tools are not available in an off-screen browser!");
   }
 
   /**
@@ -132,7 +132,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    */
   @Override
   public CompletableFuture<BufferedImage> createScreenshot(final boolean nativeResolution) {
-    final UnsupportedOperationException failure = new UnsupportedOperationException("Screenshots are taken from the painted frames");
+    final UnsupportedOperationException failure = new UnsupportedOperationException("Screenshots are taken from the painted frames!");
     return CompletableFuture.failedFuture(failure);
   }
 
@@ -253,7 +253,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    */
   @Override
   public void addOnPaintListener(final Consumer<CefPaintEvent> listener) {
-    throw new UnsupportedOperationException("The frames go to the paint listener of the browser");
+    throw new UnsupportedOperationException("The frames go to the paint listener of the browser!");
   }
 
   /**
@@ -264,7 +264,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    */
   @Override
   public void setOnPaintListener(final Consumer<CefPaintEvent> listener) {
-    throw new UnsupportedOperationException("The frames go to the paint listener of the browser");
+    throw new UnsupportedOperationException("The frames go to the paint listener of the browser!");
   }
 
   /**

@@ -86,10 +86,10 @@ class SocksProtocolTest {
   void shouldRefuseAMalformedGreeting() {
     final ProtocolException version = assertThrows(ProtocolException.class, () -> SocksProtocol.readGreeting(input(4, 1, 0)));
     final String versionMessage = version.getMessage();
-    assertEquals("The client speaks SOCKS 4 instead of SOCKS 5", versionMessage);
+    assertEquals("SOCKS version 4 of the client is not SOCKS 5!", versionMessage);
     final ProtocolException empty = assertThrows(ProtocolException.class, () -> SocksProtocol.readGreeting(input(5, 0)));
     final String emptyMessage = empty.getMessage();
-    assertEquals("The greeting offers no method", emptyMessage);
+    assertEquals("The greeting offers no method!", emptyMessage);
     assertThrows(EOFException.class, () -> SocksProtocol.readGreeting(input(5, 2, 0)));
   }
 
@@ -120,7 +120,7 @@ class SocksProtocolTest {
     final int bindReply = bind.getReply();
     assertEquals(SocksProtocol.COMMAND_NOT_SUPPORTED, bindReply);
     final String bindMessage = bind.getMessage();
-    assertEquals("The request asks for command 2 instead of a connection", bindMessage);
+    assertEquals("Command 2 of the request is not a connection!", bindMessage);
     final SocksProtocol.Refusal portZero = assertThrows(SocksProtocol.Refusal.class, () ->
       request(domainRequest(SocksProtocol.CONNECT, "a.test", 0))
     );
@@ -130,7 +130,7 @@ class SocksProtocolTest {
     final int typeReply = type.getReply();
     assertEquals(SocksProtocol.ADDRESS_NOT_SUPPORTED, typeReply);
     final String typeMessage = type.getMessage();
-    assertEquals("The request names an address of type 9", typeMessage);
+    assertEquals("Address type 9 of the request is not supported!", typeMessage);
   }
 
   @Test
@@ -138,15 +138,15 @@ class SocksProtocolTest {
     assertThrows(ProtocolException.class, () -> SocksProtocol.readRequest(input(4, 1, 0, 1)));
     final ProtocolException reserved = assertThrows(ProtocolException.class, () -> SocksProtocol.readRequest(input(5, 1, 7, 1)));
     final String reservedMessage = reserved.getMessage();
-    assertEquals("The reserved byte of the request is 7", reservedMessage);
+    assertEquals("Reserved byte 7 of the request must be 0!", reservedMessage);
     final ProtocolException empty = assertThrows(ProtocolException.class, () -> SocksProtocol.readRequest(input(5, 1, 0, 3, 0)));
     final String emptyMessage = empty.getMessage();
-    assertEquals("The request names an empty host", emptyMessage);
+    assertEquals("The request names an empty host!", emptyMessage);
     final ProtocolException character = assertThrows(ProtocolException.class, () ->
       request(domainRequest(SocksProtocol.CONNECT, "a b", 80))
     );
     final String characterMessage = character.getMessage();
-    assertEquals("The host name of the request holds the byte 32", characterMessage);
+    assertEquals("Byte 32 is not allowed in the host name of the request!", characterMessage);
     assertThrows(EOFException.class, () -> SocksProtocol.readRequest(input(5, 1, 0, 3, 5, 'a')));
   }
 
@@ -201,7 +201,7 @@ class SocksProtocolTest {
         request(domainRequest(SocksProtocol.CONNECT, host, 443))
       );
       final String message = failure.getMessage();
-      assertEquals("The host name of the request holds a bracket: " + host, message);
+      assertEquals("Host name %s of the request holds a bracket!".formatted(host), message);
     }
   }
 }

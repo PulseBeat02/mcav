@@ -76,9 +76,6 @@ final class JcefNatives {
   static final String INSTALL_MARKER = "install.lock";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JcefNatives.class);
-  private static final String LOCK_RELEASED = "Released the installation lock {} of {}";
-  private static final String DOWNLOADING_NATIVES = "Downloading the CEF natives for {} ({} MB, once)";
-  private static final String NATIVES_INSTALLED = "Installed the CEF natives for {} in {} ms";
   private static final String REPOSITORY = "https://repo.maven.apache.org/maven2/me/friwi/";
   private static final String ARCHIVE_SUFFIX = ".tar.gz";
   // every copy of mcav in this JVM shares this monitor, whatever class loader loaded it: equal string literals are one
@@ -199,7 +196,7 @@ final class JcefNatives {
         if (!Files.isRegularFile(marker)) {
           this.installLocked(identifier, sha256, size, installation);
         }
-        LOGGER.debug(LOCK_RELEASED, lock, name);
+        LOGGER.debug("Installation lock {} of {} was released.", lock, name);
       }
     }
     return installation;
@@ -256,7 +253,8 @@ final class JcefNatives {
   static NativePlatform detectOrFail(final Os os, final Arch arch, final Bits bits) throws IOException {
     final Optional<NativePlatform> platform = detect(os, arch, bits);
     if (platform.isEmpty()) {
-      throw new IOException("jcefmaven has no CEF build for " + os + " " + arch + " " + bits + "; the browser cannot run here");
+      final String message = "Platform %s %s %s has no CEF build in jcefmaven, so the browser cannot run here!".formatted(os, arch, bits);
+      throw new IOException(message);
     }
     return platform.get();
   }
@@ -274,14 +272,14 @@ final class JcefNatives {
     try {
       return channel.lock();
     } catch (final OverlappingFileLockException exception) {
-      throw new IOException("Another copy of mcav in this server is installing the CEF natives; try again once it is done", exception);
+      throw new IOException("Another copy of mcav in this server is installing the CEF natives; try again once it is done!", exception);
     }
   }
 
   private void installLocked(final String identifier, final String sha256, final long size, final Path installation) throws IOException {
     final long start = System.currentTimeMillis();
     final URI uri = this.createUri(identifier);
-    LOGGER.info(DOWNLOADING_NATIVES, identifier, NativePlatform.approximateMegabytes(identifier));
+    LOGGER.info("Downloading the CEF natives for {} ({} MB, once).", identifier, NativePlatform.approximateMegabytes(identifier));
     final Path suffix = Path.of(UUID.randomUUID().toString());
     final Path download = this.folder.resolve(installation.getFileName() + "-" + suffix + ".jar");
     final Path staging = this.folder.resolve(installation.getFileName() + "-" + suffix + ".staging");
@@ -298,7 +296,7 @@ final class JcefNatives {
       IoUtils.deleteRecursively(staging);
     }
     final long elapsed = System.currentTimeMillis() - start;
-    LOGGER.info(NATIVES_INSTALLED, identifier, elapsed);
+    LOGGER.info("Installed the CEF natives for {} in {} ms.", identifier, elapsed);
   }
 
   private URI createUri(final String identifier) {
@@ -323,7 +321,8 @@ final class JcefNatives {
       }
     }
     if (!extracted) {
-      throw new IOException("The natives jar holds no " + ARCHIVE_SUFFIX + " archive");
+      final String message = "The natives jar holds no %s archive!".formatted(ARCHIVE_SUFFIX);
+      throw new IOException(message);
     }
   }
 

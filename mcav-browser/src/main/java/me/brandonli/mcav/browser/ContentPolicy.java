@@ -106,9 +106,11 @@ final class ContentPolicy
     final boolean allowed = NavigationPolicy.allowsNavigation(targetUrl, true);
     if (allowed) {
       browser.loadURL(targetUrl);
-      this.events.onNotice("Opened a new window in place: " + AddressText.describe(targetUrl));
+      final String address = AddressText.describe(targetUrl);
+      this.events.onNotice("Opened the new window %s in place.".formatted(address));
     } else {
-      this.events.onNotice("Refused a new window: " + AddressText.describe(targetUrl));
+      final String address = AddressText.describe(targetUrl);
+      this.events.onNotice("The new window %s was refused.".formatted(address));
     }
   }
 
@@ -160,7 +162,8 @@ final class ContentPolicy
     final boolean mainFrame = frame.isMain();
     final boolean allowed = NavigationPolicy.allowsNavigation(url, mainFrame);
     if (!allowed) {
-      this.events.onNotice("Refused a navigation to " + AddressText.describe(url));
+      final String address = AddressText.describe(url);
+      this.events.onNotice("The navigation to %s was refused.".formatted(address));
     }
     return !allowed;
   }
@@ -212,7 +215,7 @@ final class ContentPolicy
     final String scheme,
     final CefAuthCallback callback
   ) {
-    this.events.onNotice("Refused to log in to " + host);
+    this.events.onNotice("The login to %s was refused.".formatted(host));
     return false;
   }
 
@@ -228,7 +231,8 @@ final class ContentPolicy
     final String requestUrl,
     final CefCallback callback
   ) {
-    this.events.onNotice("Refused an invalid certificate of " + AddressText.describe(requestUrl));
+    final String address = AddressText.describe(requestUrl);
+    this.events.onNotice("The invalid certificate of %s was refused.".formatted(address));
     return false;
   }
 
@@ -242,7 +246,7 @@ final class ContentPolicy
     final int errorCode,
     final String errorString
   ) {
-    this.events.onFailure("The renderer of the page ended: " + status + " (" + errorCode + ")");
+    this.events.onFailure("The renderer of the page ended with status %s (%s)".formatted(status, errorCode));
   }
 
   /**
@@ -262,7 +266,8 @@ final class ContentPolicy
   ) {
     final boolean isAlert = dialogType == CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_ALERT;
     callback.Continue(isAlert, "");
-    this.events.onNotice("Dismissed a JavaScript dialog of " + AddressText.describe(originUrl));
+    final String address = AddressText.describe(originUrl);
+    this.events.onNotice("A JavaScript dialog of %s was dismissed.".formatted(address));
     return true;
   }
 
@@ -306,7 +311,7 @@ final class ContentPolicy
     final String suggestedName,
     final CefBeforeDownloadCallback callback
   ) {
-    this.events.onNotice("Refused a download of " + suggestedName);
+    this.events.onNotice("The download of %s was refused.".formatted(suggestedName));
     // on macOS the view of a page that starts a download while it loads stays white after the refusal, until the page
     // changes
     if (browser instanceof final McavOffscreenBrowser offscreen) {
@@ -340,7 +345,7 @@ final class ContentPolicy
     final CefFileDialogCallback callback
   ) {
     callback.Cancel();
-    this.events.onNotice("Refused a file chooser");
+    this.events.onNotice("Refused a file chooser.");
     return true;
   }
 
@@ -448,7 +453,8 @@ final class ContentPolicy
       final String url = request.getURL();
       final boolean allowed = NavigationPolicy.allowsRequest(url);
       if (!allowed) {
-        this.events.onNotice("Refused a request to " + AddressText.describe(url));
+        final String address = AddressText.describe(url);
+        this.events.onNotice("The request to %s was refused.".formatted(address));
       }
       return !allowed;
     }
@@ -465,7 +471,8 @@ final class ContentPolicy
     ) {
       allowOsExecution.set(false);
       final String url = request.getURL();
-      this.events.onNotice("Refused to open " + AddressText.describe(url) + " with another program");
+      final String address = AddressText.describe(url);
+      this.events.onNotice("Opening %s with another program was refused.".formatted(address));
     }
   }
 }

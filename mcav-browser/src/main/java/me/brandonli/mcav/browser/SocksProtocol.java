@@ -52,7 +52,7 @@ final class SocksProtocol {
   private static final int IPV6_BYTES = 16;
 
   private SocksProtocol() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -66,7 +66,7 @@ final class SocksProtocol {
     readVersion(in);
     final int count = in.readUnsignedByte();
     if (count == 0) {
-      throw new ProtocolException("The greeting offers no method");
+      throw new ProtocolException("The greeting offers no method!");
     }
     boolean withoutAuthentication = false;
     for (int index = 0; index < count; index++) {
@@ -90,21 +90,26 @@ final class SocksProtocol {
     final int command = in.readUnsignedByte();
     final int reserved = in.readUnsignedByte();
     if (reserved != 0) {
-      throw new ProtocolException("The reserved byte of the request is " + reserved);
+      final String message = "Reserved byte %s of the request must be 0!".formatted(reserved);
+      throw new ProtocolException(message);
     }
     final int type = in.readUnsignedByte();
     final String host = switch (type) {
       case ADDRESS_IPV4 -> readAddress(in, IPV4_BYTES);
       case ADDRESS_IPV6 -> readAddress(in, IPV6_BYTES);
       case ADDRESS_DOMAIN -> readHostName(in);
-      default -> throw new Refusal(ADDRESS_NOT_SUPPORTED, "The request names an address of type " + type);
+      default -> {
+        final String message = "Address type %s of the request is not supported!".formatted(type);
+        throw new Refusal(ADDRESS_NOT_SUPPORTED, message);
+      }
     };
     final int port = in.readUnsignedShort();
     if (command != CONNECT) {
-      throw new Refusal(COMMAND_NOT_SUPPORTED, "The request asks for command " + command + " instead of a connection");
+      final String message = "Command %s of the request is not a connection!".formatted(command);
+      throw new Refusal(COMMAND_NOT_SUPPORTED, message);
     }
     if (port == 0) {
-      throw new Refusal(NOT_ALLOWED, "The request asks for port 0");
+      throw new Refusal(NOT_ALLOWED, "The request asks for port 0!");
     }
     return new Request(host, port);
   }
@@ -112,7 +117,8 @@ final class SocksProtocol {
   private static void readVersion(final DataInput in) throws IOException {
     final int version = in.readUnsignedByte();
     if (version != VERSION) {
-      throw new ProtocolException("The client speaks SOCKS " + version + " instead of SOCKS 5");
+      final String message = "SOCKS version %s of the client is not SOCKS 5!".formatted(version);
+      throw new ProtocolException(message);
     }
   }
 
@@ -126,13 +132,14 @@ final class SocksProtocol {
   private static String readHostName(final DataInput in) throws IOException {
     final int length = in.readUnsignedByte();
     if (length == 0) {
-      throw new ProtocolException("The request names an empty host");
+      throw new ProtocolException("The request names an empty host!");
     }
     final byte[] bytes = new byte[length];
     in.readFully(bytes);
     for (final byte value : bytes) {
       if (!isHostNameCharacter(value) && value != ':' && value != '[' && value != ']') {
-        throw new ProtocolException("The host name of the request holds the byte " + (value & 0xFF));
+        final String message = "Byte %s is not allowed in the host name of the request!".formatted(value & 0xFF);
+        throw new ProtocolException(message);
       }
     }
     final String host = new String(bytes, StandardCharsets.US_ASCII);
@@ -141,7 +148,8 @@ final class SocksProtocol {
       return readIpv6Literal(host);
     }
     if (host.indexOf('[') >= 0 || host.indexOf(']') >= 0) {
-      throw new ProtocolException("The host name of the request holds a bracket: " + host);
+      final String message = "Host name %s of the request holds a bracket!".formatted(host);
+      throw new ProtocolException(message);
     }
     return host;
   }
@@ -158,7 +166,8 @@ final class SocksProtocol {
       final InetAddress address = InetAddress.ofLiteral(text);
       return address.getHostAddress();
     } catch (final IllegalArgumentException exception) {
-      final ProtocolException failure = new ProtocolException("The host name of the request is not an IPv6 address: " + text);
+      final String message = "Host name %s of the request is not an IPv6 address!".formatted(text);
+      final ProtocolException failure = new ProtocolException(message);
       failure.initCause(exception);
       throw failure;
     }

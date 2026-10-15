@@ -40,10 +40,10 @@ class HelperMessageTest {
     assertEquals("", url);
     final IllegalStateException noFrame = assertThrows(IllegalStateException.class, close::getRegion);
     final String noFrameMessage = noFrame.getMessage();
-    assertEquals("Message type 18 carries no frame", noFrameMessage);
+    assertEquals("Message type 18 carries no frame!", noFrameMessage);
     final IllegalStateException noMouse = assertThrows(IllegalStateException.class, close::getMouse);
     final String noMouseMessage = noMouse.getMessage();
-    assertEquals("Message type 18 carries no mouse input", noMouseMessage);
+    assertEquals("Message type 18 carries no mouse input!", noMouseMessage);
   }
 
   @Test

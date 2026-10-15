@@ -340,7 +340,7 @@ class BrowserHelperTest {
       assertEquals(0, exitStatus);
     }
     final @Nullable String stopReason = helper.getStopReason();
-    assertEquals("the connection failed: Unknown message type 99", stopReason);
+    assertEquals("the connection failed (Message type 99 is unknown!)", stopReason);
   }
 
   @Test
@@ -354,7 +354,7 @@ class BrowserHelperTest {
       assertEquals(0, exitStatus);
     }
     final @Nullable String stopReason = helper.getStopReason();
-    assertEquals("the connection failed: A frame of 16 bytes arrived where no frame of that size is expected", stopReason);
+    assertEquals("the connection failed (A frame of 16 bytes arrived where no frame of that size is expected!)", stopReason);
   }
 
   @Test
@@ -448,7 +448,7 @@ class BrowserHelperTest {
     );
     helper.sendFrames(broken);
     final @Nullable String stopReason = helper.getStopReason();
-    assertEquals("a frame could not be sent: connection reset", stopReason);
+    assertEquals("a frame could not be sent (connection reset)", stopReason);
   }
 
   @Test
@@ -475,7 +475,7 @@ class BrowserHelperTest {
     try (final Peer peer = new Peer(this.server.accept())) {
       final HelperMessage failure = peer.readUntil(HelperProtocol.FAILURE);
       final String failureText = failure.getText();
-      assertEquals("The browser could not be started: java.lang.IllegalStateException: scripted start failure", failureText);
+      assertEquals("The browser could not be started (java.lang.IllegalStateException: scripted start failure)", failureText);
       final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
       assertEquals(1, exitStatus);
     }
@@ -488,7 +488,7 @@ class BrowserHelperTest {
     try (final Peer peer = new Peer(this.server.accept())) {
       final HelperMessage failure = peer.readUntil(HelperProtocol.FAILURE);
       final String failureText = failure.getText();
-      assertEquals("The browser could not be started: java.lang.UnsatisfiedLinkError: scripted missing native library", failureText);
+      assertEquals("The browser could not be started (java.lang.UnsatisfiedLinkError: scripted missing native library)", failureText);
       final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
       assertEquals(1, exitStatus);
     }
@@ -624,9 +624,9 @@ class BrowserHelperTest {
       final String log = errors.text();
       final boolean reportsTheMissingConfiguration = log.contains("The browser helper got no configuration");
       assertTrue(reportsTheMissingConfiguration, log);
-      final boolean reportsTheInvalidConfiguration = log.contains("The browser helper got an invalid configuration: ");
+      final boolean reportsTheInvalidConfiguration = log.contains("The browser helper got an invalid configuration (");
       assertTrue(reportsTheInvalidConfiguration, log);
-      final boolean reportsTheUnreachableServer = log.contains("The browser helper cannot reach the server: ");
+      final boolean reportsTheUnreachableServer = log.contains("The browser helper cannot reach the server (");
       assertTrue(reportsTheUnreachableServer, log);
     }
   }
@@ -642,7 +642,7 @@ class BrowserHelperTest {
         final Integer exitStatus = result.get(10, TimeUnit.SECONDS);
         assertEquals(0, exitStatus);
       }
-      final boolean reportsTheStop = errors.text().contains("The browser helper stops: the server asked to close");
+      final boolean reportsTheStop = errors.text().contains("The browser helper stops (the server asked to close).");
       assertTrue(reportsTheStop, errors.text());
     }
   }
@@ -791,7 +791,7 @@ class BrowserHelperTest {
     final BrowserHelper.Reporter reporter = helper.new Reporter(new DataOutputStream(gone));
     reporter.onNotice("lost");
     final @Nullable String stopReason = helper.getStopReason();
-    assertEquals("a message could not be sent: the server is gone", stopReason);
+    assertEquals("a message could not be sent (the server is gone)", stopReason);
   }
 
   @Test

@@ -174,9 +174,9 @@ public final class BrowserOptions {
     public Builder frameRate(final int frameRate) {
       Preconditions.checkArgument(
         frameRate >= 1 && frameRate <= MAX_FRAME_RATE,
-        "Frame rate must be between 1 and %s but was %s",
-        MAX_FRAME_RATE,
-        frameRate
+        "Frame rate %s must be between 1 and %s!",
+        frameRate,
+        MAX_FRAME_RATE
       );
       this.frameRate = frameRate;
       return this;
@@ -247,7 +247,7 @@ public final class BrowserOptions {
      */
     public Builder refusedHosts(final Collection<String> refusedHosts) {
       for (final String host : refusedHosts) {
-        Preconditions.checkArgument(HelperConfiguration.isHost(host), "Not a host name or address: '%s'", host);
+        Preconditions.checkArgument(HelperConfiguration.isHost(host), "Host '%s' is not a host name or address!", host);
       }
       this.refusedHosts = List.copyOf(refusedHosts);
       return this;

@@ -173,7 +173,7 @@ class ArchiveExtractorTest {
     final InputStream symbolic = new Archive().link("current", "../../etc", TarConstants.LF_SYMLINK).finish();
     final IOException symbolicFailure = assertThrows(IOException.class, () -> new ArchiveExtractor().extract(symbolic, this.target));
     final String message = symbolicFailure.getMessage();
-    assertEquals("The archive entry current is not a plain file or folder", message);
+    assertEquals("Archive entry current is not a plain file or folder!", message);
     final InputStream hard = new Archive().file("a", 0644, "a").link("b", "a", TarConstants.LF_LINK).finish();
     assertThrows(IOException.class, () -> new ArchiveExtractor().extract(hard, this.target));
     final InputStream fifo = new Archive().link("pipe", "", TarConstants.LF_FIFO).finish();
@@ -207,7 +207,7 @@ class ArchiveExtractorTest {
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, ""));
     final IOException nul = assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "a\u0000b"));
     final String message = nul.getMessage();
-    assertEquals("The archive entry name is not allowed: a\u0000b", message);
+    assertEquals("Archive entry name a\u0000b is not allowed!", message);
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "a\\b"));
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, ".."));
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, root.resolve("x").toString()));
@@ -221,7 +221,7 @@ class ArchiveExtractorTest {
       Files.createSymbolicLink(root.resolve("link"), outside);
       final IOException failure = assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "link/file"));
       final String message = failure.getMessage();
-      assertEquals("The archive entry name passes a link: link/file", message);
+      assertEquals("Archive entry name link/file passes a link!", message);
       assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "link/deeper/file"));
     } catch (final UnsupportedOperationException | IOException exception) {
       assumeTrue(false, "symbolic links are not available: " + exception);
@@ -244,7 +244,7 @@ class ArchiveExtractorTest {
     final InputStream archive = new Archive().file("a", 0644, "a").file("b", 0644, "b").file("c", 0644, "c").finish();
     final IOException failure = assertThrows(IOException.class, () -> new ArchiveExtractor(2, 1000).extract(archive, this.target));
     final String message = failure.getMessage();
-    assertEquals("The archive has more than 2 entries", message);
+    assertEquals("The archive has more than 2 entries!", message);
   }
 
   @Test
@@ -252,7 +252,7 @@ class ArchiveExtractorTest {
     final InputStream archive = new Archive().file("a", 0644, "12345").file("b", 0644, "678").finish();
     final IOException failure = assertThrows(IOException.class, () -> new ArchiveExtractor(10, 7).extract(archive, this.target));
     final String message = failure.getMessage();
-    assertEquals("The archive extracts to more than the allowed size", message);
+    assertEquals("The archive extracts to more than the allowed size!", message);
     new ArchiveExtractor(10, 8).extract(new Archive().file("c", 0644, "12345").file("d", 0644, "678").finish(), this.target);
   }
 
@@ -283,7 +283,7 @@ class ArchiveExtractorTest {
   void shouldRefuseANameThatStartsWithABackslash() {
     final IOException failure = assertThrows(IOException.class, () -> ArchiveExtractor.resolve(this.target, "\\evil"));
     final String message = failure.getMessage();
-    assertEquals("The archive entry name is not allowed: \\evil", message);
+    assertEquals("Archive entry name \\evil is not allowed!", message);
   }
 
   @Test

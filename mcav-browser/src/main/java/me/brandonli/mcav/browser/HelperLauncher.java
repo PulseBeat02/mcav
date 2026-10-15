@@ -154,12 +154,14 @@ final class HelperLauncher {
     final CodeSource source = domain.getCodeSource();
     final URL location = source == null ? null : source.getLocation();
     if (location == null) {
-      throw new PlayerException("The browser helper cannot find where " + type.getName() + " was loaded from");
+      final String message = "The browser helper cannot find where %s was loaded from!".formatted(type.getName());
+      throw new PlayerException(message);
     }
     try {
       return Path.of(location.toURI());
     } catch (final URISyntaxException | IllegalArgumentException | FileSystemNotFoundException exception) {
-      throw new PlayerException("The browser helper cannot use " + location + " as its class path", exception);
+      final String message = "The browser helper cannot use %s as its class path!".formatted(location);
+      throw new PlayerException(message, exception);
     }
   }
 

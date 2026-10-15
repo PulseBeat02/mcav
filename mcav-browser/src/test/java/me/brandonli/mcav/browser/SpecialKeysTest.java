@@ -58,14 +58,14 @@ class SpecialKeysTest {
   void shouldRefuseAnEmptyList() {
     final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(new StringReader("")));
     final String message = failure.getMessage();
-    assertEquals("The key list resource mcav/browser/keybinds.json is empty", message);
+    assertEquals("The key list resource mcav/browser/keybinds.json is empty!", message);
   }
 
   @Test
   void shouldRefuseAnEmptyJsonList() {
     final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(new StringReader("[]")));
     final String message = failure.getMessage();
-    assertEquals("The key list resource mcav/browser/keybinds.json is empty", message);
+    assertEquals("The key list resource mcav/browser/keybinds.json is empty!", message);
   }
 
   @Test
@@ -78,7 +78,7 @@ class SpecialKeysTest {
     };
     final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(throwing));
     final String message = failure.getMessage();
-    assertEquals("Failed to read the key list resource: disk gone", message);
+    assertEquals("The key list resource could not be read (disk gone)!", message);
     final Throwable cause = failure.getCause();
     assertInstanceOf(IOException.class, cause);
   }

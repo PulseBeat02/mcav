@@ -98,7 +98,7 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * @throws NullPointerException if {@code options} is null
    */
   static BrowserPlayer create(final BrowserOptions options) {
-    Preconditions.checkNotNull(options, "Options must not be null");
+    Preconditions.checkNotNull(options, "Options must not be null!");
     return new CefBrowserPlayer(options);
   }
 
@@ -127,8 +127,8 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * @throws NullPointerException if {@code source} or {@code executor} is null
    */
   default CompletableFuture<Boolean> startAsync(final BrowserSource source, final ExecutorService executor) {
-    Preconditions.checkNotNull(source, "Source must not be null");
-    Preconditions.checkNotNull(executor, "Executor must not be null");
+    Preconditions.checkNotNull(source, "Source must not be null!");
+    Preconditions.checkNotNull(executor, "Executor must not be null!");
     return CompletableFuture.supplyAsync(() -> this.start(source), executor);
   }
 
@@ -141,7 +141,7 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * @throws NullPointerException if {@code source} is null
    */
   default CompletableFuture<Boolean> startAsync(final BrowserSource source) {
-    Preconditions.checkNotNull(source, "Source must not be null");
+    Preconditions.checkNotNull(source, "Source must not be null!");
     final ForkJoinPool pool = ForkJoinPool.commonPool();
     return this.startAsync(source, pool);
   }

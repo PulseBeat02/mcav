@@ -83,7 +83,7 @@ final class AddressPolicy {
   private static final int WELL_KNOWN_NAT64 = 0x0064FF9B;
 
   private AddressPolicy() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**

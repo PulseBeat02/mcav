@@ -280,18 +280,18 @@ class HelperConfigurationTest {
       new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 61, false, false, false, false, SERVER, List.of())
     );
     final String tooFastMessage = tooFast.getMessage();
-    assertEquals("The frame rate must be between 1 and 60 but was 61", tooFastMessage);
+    assertEquals("The frame rate 61 must be between 1 and 60!", tooFastMessage);
     final IllegalArgumentException relativeServer = assertThrows(IllegalArgumentException.class, () ->
       new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, true, Path.of("server"), List.of())
     );
     final String relativeServerMessage = relativeServer.getMessage();
-    assertEquals("The server folder path must be absolute: server", relativeServerMessage);
+    assertEquals("The server folder path server must be absolute!", relativeServerMessage);
     for (final String host : List.of("", "two,hosts", "a host")) {
       final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
         new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, true, SERVER, List.of(host))
       );
       final String refusedMessage = refused.getMessage();
-      assertEquals("Not a host name or address: " + host, refusedMessage);
+      assertEquals("Host %s is not a host name or address!".formatted(host), refusedMessage);
     }
     new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 4096, 4096, 1000, 60, false, false, false, false, SERVER, List.of());
   }
@@ -316,7 +316,7 @@ class HelperConfigurationTest {
     final String missing = String.join(":", Arrays.copyOf(parts, parts.length - 1));
     final IllegalArgumentException tooFew = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(missing));
     final String message = tooFew.getMessage();
-    assertEquals("The configuration has 14 values instead of 15", message);
+    assertEquals("The configuration has 14 values instead of 15 values!", message);
     final String extra = configuration(false).toLine() + ":" + encode("x");
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(extra));
   }
@@ -341,7 +341,7 @@ class HelperConfigurationTest {
     final String tooLong = "A".repeat(1024 * 1024 + 1);
     final IllegalArgumentException longLine = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(tooLong));
     final String longLineMessage = longLine.getMessage();
-    assertEquals("The configuration line is too long", longLineMessage);
+    assertEquals("The configuration line is too long!", longLineMessage);
   }
 
   @Test
@@ -354,6 +354,6 @@ class HelperConfigurationTest {
       HelperConfiguration.fromLine(longest + "x")
     );
     final String message = tooLong.getMessage();
-    assertEquals("The configuration line is too long", message);
+    assertEquals("The configuration line is too long!", message);
   }
 }

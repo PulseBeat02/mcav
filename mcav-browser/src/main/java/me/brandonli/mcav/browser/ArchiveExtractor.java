@@ -75,7 +75,7 @@ final class ArchiveExtractor {
   private static final Set<PosixFilePermission> REGULAR = PosixFilePermissions.fromString("rw-r--r--");
   private static final Set<PosixFilePermission> FOLDER = PosixFilePermissions.fromString("rwxr-xr-x");
   private static final Logger LOGGER = LoggerFactory.getLogger(ArchiveExtractor.class);
-  private static final String NOT_TIGHTENED = "The group may still write {} of the browser's installation: {}";
+  private static final String NAME_NOT_ALLOWED = "Archive entry name %s is not allowed!";
   private static final int EXECUTE_BITS = 0111;
   private static final int BUFFER_BYTES = 64 * 1024;
 
@@ -134,11 +134,13 @@ final class ArchiveExtractor {
       while (entry != null) {
         entries++;
         if (entries > this.maxEntries) {
-          throw new IOException("The archive has more than " + this.maxEntries + " entries");
+          final String message = "The archive has more than %s entries!".formatted(this.maxEntries);
+          throw new IOException(message);
         }
         // the archive library counts links and special files as files, so they are refused by their type first
         if (isLinkOrSpecial(entry)) {
-          throw new IOException("The archive entry " + entry.getName() + " is not a plain file or folder");
+          final String message = "Archive entry %s is not a plain file or folder!".formatted(entry.getName());
+          throw new IOException(message);
         }
         final Path destination = resolve(root, entry.getName());
         if (entry.isDirectory()) {
@@ -180,25 +182,30 @@ final class ArchiveExtractor {
   @VisibleForTesting
   static Path resolve(final Path root, final String name) throws IOException {
     if (name.isEmpty() || name.indexOf('\\') >= 0) {
-      throw new IOException("The archive entry name is not allowed: " + name);
+      final String message = NAME_NOT_ALLOWED.formatted(name);
+      throw new IOException(message);
     }
     final Path relative;
     try {
       relative = root.getFileSystem().getPath(name);
     } catch (final InvalidPathException exception) {
-      throw new IOException("The archive entry name is not allowed: " + name, exception);
+      final String message = NAME_NOT_ALLOWED.formatted(name);
+      throw new IOException(message, exception);
     }
     // Windows drive-relative names have a root without being absolute.
     if (relative.getRoot() != null) {
-      throw new IOException("The archive entry name is absolute: " + name);
+      final String message = "Archive entry name %s is absolute!".formatted(name);
+      throw new IOException(message);
     }
     Path current = root;
     for (final Path element : relative) {
       if (element.toString().equals("..")) {
-        throw new IOException("The archive entry name leaves the folder: " + name);
+        final String message = "Archive entry name %s leaves the folder!".formatted(name);
+        throw new IOException(message);
       }
       if (Files.isSymbolicLink(current)) {
-        throw new IOException("The archive entry name passes a link: " + name);
+        final String message = "Archive entry name %s passes a link!".formatted(name);
+        throw new IOException(message);
       }
       current = current.resolve(element);
     }
@@ -207,7 +214,7 @@ final class ArchiveExtractor {
 
   private static long writeFile(final InputStream tar, final Path destination, final long remaining, final boolean supportsPosix)
     throws IOException {
-    final Path parent = Objects.requireNonNull(destination.getParent(), "An entry lies below the folder");
+    final Path parent = Objects.requireNonNull(destination.getParent(), "An entry lies below the folder!");
     createFolders(parent, supportsPosix);
     long written = 0L;
     final byte[] buffer = new byte[BUFFER_BYTES];
@@ -223,7 +230,7 @@ final class ArchiveExtractor {
       while (count >= 0) {
         written += count;
         if (written > remaining) {
-          throw new IOException("The archive extracts to more than the allowed size");
+          throw new IOException("The archive extracts to more than the allowed size!");
         }
         out.write(buffer, 0, count);
         count = tar.read(buffer);
@@ -257,7 +264,7 @@ final class ArchiveExtractor {
     Path current = folder.toAbsolutePath();
     while (Files.notExists(current, LinkOption.NOFOLLOW_LINKS)) {
       missing.add(current);
-      current = Objects.requireNonNull(current.getParent(), "The root of a file system exists");
+      current = Objects.requireNonNull(current.getParent(), "The root of a file system exists!");
     }
     Files.createDirectories(folder);
     if (supportsPosix) {
@@ -322,7 +329,7 @@ final class ArchiveExtractor {
         Files.setPosixFilePermissions(path, permissions);
       }
     } catch (final IOException exception) {
-      LOGGER.warn(NOT_TIGHTENED, path, exception.toString());
+      LOGGER.warn("The group may still write {} of the browser's installation ({}).", path, exception.toString());
     }
   }
 

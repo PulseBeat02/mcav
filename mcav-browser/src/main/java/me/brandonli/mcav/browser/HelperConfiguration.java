@@ -97,15 +97,15 @@ final class HelperConfiguration {
     final Path serverFolder,
     final List<String> refusedHosts
   ) {
-    requireThat(token.length == HelperProtocol.TOKEN_BYTES, "The token must have " + HelperProtocol.TOKEN_BYTES + " bytes");
+    requireThat(token.length == HelperProtocol.TOKEN_BYTES, "The token must have %s bytes!".formatted(HelperProtocol.TOKEN_BYTES));
     requireAbsolute(socket, "socket");
     requireAbsolute(natives, "natives");
     requireAbsolute(profile, "profile");
     requireAbsolute(serverFolder, "server folder");
     for (final String host : refusedHosts) {
-      requireThat(isHost(host), "Not a host name or address: " + host);
+      requireThat(isHost(host), "Host %s is not a host name or address!".formatted(host));
     }
-    requireThat(NavigationPolicy.isWebAddress(url), "The page must be an absolute http or https address: " + url);
+    requireThat(NavigationPolicy.isWebAddress(url), "Page %s must be an absolute http or https address!".formatted(url));
     requireRange(width, 1, HelperProtocol.MAX_SIDE, "width");
     requireRange(height, 1, HelperProtocol.MAX_SIDE, "height");
     requireRange(frameInterval, 1, MAX_FRAME_INTERVAL, "frame interval");
@@ -169,9 +169,9 @@ final class HelperConfiguration {
    * @throws IllegalArgumentException if the line is not a complete, valid configuration
    */
   static HelperConfiguration fromLine(final String line) {
-    requireThat(line.length() <= MAX_LINE_CHARACTERS, "The configuration line is too long");
+    requireThat(line.length() <= MAX_LINE_CHARACTERS, "The configuration line is too long!");
     final String[] parts = line.split(SEPARATOR, -1);
-    requireThat(parts.length == FIELDS, "The configuration has " + parts.length + " values instead of " + FIELDS);
+    requireThat(parts.length == FIELDS, "The configuration has %s values instead of %s values!".formatted(parts.length, FIELDS));
     final Base64.Decoder decoder = Base64.getDecoder();
     final String[] values = new String[parts.length];
     for (int index = 0; index < parts.length; index++) {
@@ -224,19 +224,16 @@ final class HelperConfiguration {
   }
 
   private static boolean parseBoolean(final String value) {
-    requireThat(value.equals("true") || value.equals("false"), "Not a boolean: " + value);
+    requireThat(value.equals("true") || value.equals("false"), "Value %s is not a boolean!".formatted(value));
     return Boolean.parseBoolean(value);
   }
 
   private static void requireAbsolute(final Path path, final String name) {
-    requireThat(path.isAbsolute(), "The " + name + " path must be absolute: " + path);
+    requireThat(path.isAbsolute(), "The %s path %s must be absolute!".formatted(name, path));
   }
 
   private static void requireRange(final int value, final int minimum, final int maximum, final String name) {
-    requireThat(
-      value >= minimum && value <= maximum,
-      "The " + name + " must be between " + minimum + " and " + maximum + " but was " + value
-    );
+    requireThat(value >= minimum && value <= maximum, "The %s %s must be between %s and %s!".formatted(name, value, minimum, maximum));
   }
 
   private static void requireThat(final boolean holds, final String message) {

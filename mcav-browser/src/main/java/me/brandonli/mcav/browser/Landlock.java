@@ -84,7 +84,7 @@ final class Landlock {
     DEVICE_CONTROL;
 
   private Landlock() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -123,7 +123,7 @@ final class Landlock {
     return switch (error) {
       case NO_SUCH_SYSTEM_CALL -> "this kernel has no Landlock, which Linux has since 5.13";
       case NOT_SUPPORTED -> "Landlock is turned off in this kernel (its lsm= boot option)";
-      default -> "Landlock is not available here (error " + error + ")";
+      default -> "Landlock is not available here (error %s)".formatted(error);
     };
   }
 
@@ -211,7 +211,7 @@ final class Landlock {
       beneath.set(ValueLayout.JAVA_LONG_UNALIGNED, 0, rightsOf(rule, isDirectory, handled));
       beneath.set(ValueLayout.JAVA_INT_UNALIGNED, Long.BYTES, (int) descriptor);
       final long added = invoke(Calls.SYSCALL, state, ADD_RULE, ruleset, RULE_PATH_BENEATH, beneath.address(), 0L);
-      check(added, Calls.errorOf(state), "add the rule of " + path);
+      check(added, Calls.errorOf(state), "add the rule of %s".formatted(path));
     } finally {
       invoke(Calls.CLOSE, state, (int) descriptor);
     }
@@ -229,7 +229,8 @@ final class Landlock {
   @VisibleForTesting
   static long check(final long result, final int error, final String action) throws IOException {
     if (result < 0) {
-      throw new IOException("Landlock could not " + action + " (error " + error + ")");
+      final String message = "Landlock could not %s (error %s)!".formatted(action, error);
+      throw new IOException(message);
     }
     return result;
   }
@@ -252,7 +253,7 @@ final class Landlock {
       if (failure instanceof final VirtualMachineError fatal) {
         throw fatal;
       }
-      throw new IllegalStateException("The C library could not be called", failure);
+      throw new IllegalStateException("The C library could not be called!", failure);
     }
   }
 

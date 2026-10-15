@@ -41,7 +41,7 @@ final class HelperProcesses {
   private static long generation;
 
   private HelperProcesses() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -59,7 +59,7 @@ final class HelperProcesses {
    */
   static synchronized long requireOpen() {
     if (stopped) {
-      throw new PlayerException("The browser module is stopped");
+      throw new PlayerException("The browser module is stopped!");
     }
     return generation;
   }
@@ -111,7 +111,7 @@ final class HelperProcesses {
     RuntimeException failure = null;
     for (final HelperSession session : running) {
       try {
-        session.endAndClose("The browser module was stopped");
+        session.endAndClose("The browser module was stopped!");
       } catch (final RuntimeException exception) {
         if (failure == null) {
           failure = exception;

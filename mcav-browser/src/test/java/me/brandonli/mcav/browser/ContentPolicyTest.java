@@ -75,7 +75,7 @@ class ContentPolicyTest {
     final boolean cancelled = this.policy.onBeforePopup(this.browser, frame(true), "https://example.com/popup", "_blank");
     assertTrue(cancelled);
     verify(this.browser).loadURL("https://example.com/popup");
-    assertEquals(List.of("notice: Opened a new window in place: https://example.com/popup"), this.events.log);
+    assertEquals(List.of("notice: Opened the new window https://example.com/popup in place."), this.events.log);
   }
 
   @Test
@@ -83,7 +83,7 @@ class ContentPolicyTest {
     final boolean popupCancelled = this.policy.onBeforePopup(this.browser, frame(true), "file:///etc/passwd", "");
     assertTrue(popupCancelled);
     verify(this.browser, never()).loadURL(ArgumentMatchers.anyString());
-    assertEquals(List.of("notice: Refused a new window: file:///etc/passwd"), this.events.log);
+    assertEquals(List.of("notice: The new window file:///etc/passwd was refused."), this.events.log);
   }
 
   @Test
@@ -136,7 +136,7 @@ class ContentPolicyTest {
     );
     assertTrue(chromeSubframeCancelled);
     assertEquals(
-      List.of("notice: Refused a navigation to file:///etc/passwd", "notice: Refused a navigation to chrome://settings"),
+      List.of("notice: The navigation to file:///etc/passwd was refused.", "notice: The navigation to chrome://settings was refused."),
       this.events.log
     );
   }
@@ -176,9 +176,9 @@ class ContentPolicyTest {
     this.policy.onLoadError(this.browser, frame(true), CefLoadHandler.ErrorCode.ERR_CONNECTION_REFUSED, "refused", "https://a/?sig=secret");
     assertEquals(
       List.of(
-        "notice: Refused a navigation to myapp://callback?<hidden>",
-        "notice: Refused a request to ftp://<hidden>@example.com/file",
-        "notice: Refused an invalid certificate of https://expired/page#<hidden>",
+        "notice: The navigation to myapp://callback?<hidden> was refused.",
+        "notice: The request to ftp://<hidden>@example.com/file was refused.",
+        "notice: The invalid certificate of https://expired/page#<hidden> was refused.",
         "load error: -102 refused https://a/?<hidden>"
       ),
       this.events.log
@@ -210,7 +210,7 @@ class ContentPolicyTest {
     assertFalse(imageCancelled);
     final boolean fileRequestCancelled = first.onBeforeResourceLoad(this.browser, frame(true), request("file:///home/server/config.yml"));
     assertTrue(fileRequestCancelled);
-    assertEquals(List.of("notice: Refused a request to file:///home/server/config.yml"), this.events.log);
+    assertEquals(List.of("notice: The request to file:///home/server/config.yml was refused."), this.events.log);
   }
 
   @Test
@@ -228,7 +228,7 @@ class ContentPolicyTest {
     resources.onProtocolExecution(this.browser, frame(true), request("steam://run/1"), allow);
     final boolean executionAllowed = allow.get();
     assertFalse(executionAllowed);
-    assertEquals(List.of("notice: Refused to open steam://run/1 with another program"), this.events.log);
+    assertEquals(List.of("notice: Opening steam://run/1 with another program was refused."), this.events.log);
   }
 
   @Test
@@ -246,13 +246,16 @@ class ContentPolicyTest {
     );
     assertFalse(certificateContinued);
     verifyNoInteractions(certificate);
-    assertEquals(List.of("notice: Refused to log in to a", "notice: Refused an invalid certificate of https://expired/"), this.events.log);
+    assertEquals(
+      List.of("notice: The login to a was refused.", "notice: The invalid certificate of https://expired/ was refused."),
+      this.events.log
+    );
   }
 
   @Test
   void shouldFailWhenTheRendererCrashes() {
     this.policy.onRenderProcessTerminated(this.browser, CefRequestHandler.TerminationStatus.TS_PROCESS_CRASHED, 11, "segfault");
-    assertEquals(List.of("failure: The renderer of the page ended: TS_PROCESS_CRASHED (11)"), this.events.log);
+    assertEquals(List.of("failure: The renderer of the page ended with status TS_PROCESS_CRASHED (11)"), this.events.log);
   }
 
   @Test
@@ -312,7 +315,7 @@ class ContentPolicyTest {
     final CefDownloadItemCallback updated = mock(CefDownloadItemCallback.class);
     this.policy.onDownloadUpdated(this.browser, mock(CefDownloadItem.class), updated);
     verify(updated).cancel();
-    assertEquals(List.of("notice: Refused a download of evil.exe"), this.events.log);
+    assertEquals(List.of("notice: The download of evil.exe was refused."), this.events.log);
   }
 
   /**
@@ -347,7 +350,7 @@ class ContentPolicyTest {
     );
     assertTrue(handled);
     verify(callback).Cancel();
-    assertEquals(List.of("notice: Refused a file chooser"), this.events.log);
+    assertEquals(List.of("notice: Refused a file chooser."), this.events.log);
   }
 
   @Test

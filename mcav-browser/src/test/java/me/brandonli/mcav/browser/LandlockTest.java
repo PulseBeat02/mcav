@@ -127,7 +127,7 @@ class LandlockTest {
     assertEquals(7, checkedAnswer);
     final IOException failure = assertThrows(IOException.class, () -> Landlock.check(-1, 22, "create a ruleset"));
     final String message = failure.getMessage();
-    assertEquals("Landlock could not create a ruleset (error 22)", message);
+    assertEquals("Landlock could not create a ruleset (error 22)!", message);
   }
 
   @Test
@@ -190,7 +190,7 @@ class LandlockTest {
     final Throwable failure = onThread(() -> Landlock.restrictThread(5, List.of()));
     assertInstanceOf(IOException.class, failure);
     final String message = failure.getMessage();
-    assertEquals("Landlock could not create a ruleset (error 22)", message);
+    assertEquals("Landlock could not create a ruleset (error 22)!", message);
   }
 
   @Test

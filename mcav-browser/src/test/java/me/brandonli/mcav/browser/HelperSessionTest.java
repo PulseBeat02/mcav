@@ -183,7 +183,7 @@ class HelperSessionTest {
         }
       });
       final String message = interrupted.getMessage();
-      assertEquals("Interrupted while the browser helper connected", message);
+      assertEquals("Interrupted while the browser helper connected!", message);
     }
   }
 
@@ -197,7 +197,7 @@ class HelperSessionTest {
     }
     final long reports = log
       .lines()
-      .filter(line -> line.contains("Browser: noise ") || line.contains("could not load https://example.com/noise/"))
+      .filter(line -> line.contains("Browser: noise ") || line.contains("Page https://example.com/noise/"))
       .count();
     final int sent = RawHelperMain.NOISY_NOTICES + RawHelperMain.NOISY_LOAD_ERRORS;
     final boolean loggedWithinBudget = reports >= LogBudget.BURST && reports <= LogBudget.BURST + 5;
@@ -460,7 +460,7 @@ class HelperSessionTest {
   void shouldEndTheSessionWithTheExitCodeOfAHelperThatExitsWhileItRuns() {
     this.open(RawHelperMain.class.getName(), "/exit-later");
     Await.until("the end of the session", () -> !this.listener.ended.isEmpty());
-    assertEquals(List.of("The browser helper exited with code 5"), this.listener.ended);
+    assertEquals(List.of("The browser helper exited with code 5 before it was asked to stop!"), this.listener.ended);
   }
 
   @Test
@@ -483,7 +483,7 @@ class HelperSessionTest {
       return !this.listener.ended.isEmpty();
     });
     final String reason = this.listener.ended.get(0);
-    final boolean reportsTheInputFailure = reason.startsWith("Input could not be sent to the browser helper: ");
+    final boolean reportsTheInputFailure = reason.startsWith("Input could not be sent to the browser helper (");
     assertTrue(reportsTheInputFailure, reason);
   }
 
@@ -511,7 +511,7 @@ class HelperSessionTest {
       HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, parent)
     );
     final String message = failure.getMessage();
-    assertEquals("The browser helper did not connect in time", message);
+    assertEquals("The browser helper did not connect in time!", message);
     final Set<ProcessHandle> newProcesses = newSince(before);
     assertEquals(Set.of(), newProcesses);
     try (final Stream<Path> left = Files.list(parent)) {
@@ -565,7 +565,7 @@ class HelperSessionTest {
   void shouldTimeOutWhenTheHelperNeverConnects() {
     final PlayerException failure = this.openFails(SilentMain.class.getName(), "/page", 2_000L);
     final String message = failure.getMessage();
-    assertEquals("The browser helper did not connect in time", message);
+    assertEquals("The browser helper did not connect in time!", message);
   }
 
   @Test
@@ -599,7 +599,7 @@ class HelperSessionTest {
   void shouldEndTheSessionWhenTheBrowserFailsLater() {
     this.open(ScriptedEngine.class.getName(), "/fail");
     Await.until("the end of the session", () -> !this.listener.ended.isEmpty());
-    assertEquals(List.of("The browser failed: scripted renderer crash"), this.listener.ended);
+    assertEquals(List.of("The browser failed (scripted renderer crash)!"), this.listener.ended);
   }
 
   @Test
@@ -612,7 +612,9 @@ class HelperSessionTest {
   @Test
   void shouldRefuseAHelperOfAnotherProtocolVersion() {
     final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/wrong-version", 60_000L);
-    final boolean reportsTheProtocolMismatch = failure.getMessage().contains("speaks protocol 2 instead of 1");
+    final boolean reportsTheProtocolMismatch = failure
+      .getMessage()
+      .contains("Protocol version 2 of the browser helper differs from version 1 of the server!");
     assertTrue(reportsTheProtocolMismatch, failure.getMessage());
   }
 
@@ -666,7 +668,7 @@ class HelperSessionTest {
   void shouldFailTheStartWhenTheHelperExitsBeforeItConnects() {
     final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/exit", 60_000L);
     final String message = failure.getMessage();
-    assertEquals("The browser helper exited with code 4 before it connected", message);
+    assertEquals("The browser helper exited with code 4 before it connected!", message);
   }
 
   @Test
@@ -707,7 +709,7 @@ class HelperSessionTest {
       HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, parent)
     );
     final String message = failure.getMessage();
-    assertEquals("The browser helper could not be started: no space left", message);
+    assertEquals("The browser helper could not be started (no space left)!", message);
     try (final Stream<Path> left = Files.list(parent)) {
       final List<Path> remainingFiles = left.toList();
       assertEquals(List.of(), remainingFiles);
@@ -738,7 +740,7 @@ class HelperSessionTest {
   void shouldStopAHelperThatNeverConnectsAtOnceWhenItsStartTimesOut() {
     final long start = System.nanoTime();
     final PlayerException failure = this.openFails(RawHelperMain.class.getName(), "/silent", 1_000L);
-    final boolean reportsTheTimeout = failure.getMessage().contains("The browser helper did not connect in time");
+    final boolean reportsTheTimeout = failure.getMessage().contains("The browser helper did not connect in time!");
     assertTrue(reportsTheTimeout, failure.getMessage());
     final long seconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start);
     final boolean stoppedQuickly = seconds < 8;
@@ -781,7 +783,7 @@ class HelperSessionTest {
     try {
       final PlayerException failure = this.openFails(ScriptedEngine.class.getName(), "/page", 60_000L);
       final String message = failure.getMessage();
-      assertEquals("The browser module is stopped", message);
+      assertEquals("The browser module is stopped!", message);
     } finally {
       HelperProcesses.open();
     }
@@ -818,7 +820,7 @@ class HelperSessionTest {
       HelperProcesses.open();
     }
     final String message = failure.getMessage();
-    assertEquals("the listener fails: The browser module was stopped", message);
+    assertEquals("the listener fails: The browser module was stopped!", message);
     assertEquals(1, failure.getSuppressed().length, "the failure of the other listener goes along");
     final boolean firstAlive = first.isAlive();
     assertFalse(firstAlive, "the first helper ended");
@@ -849,7 +851,7 @@ class HelperSessionTest {
       final ExecutionException failure = assertThrows(ExecutionException.class, () -> opening.get(60, TimeUnit.SECONDS));
       final PlayerException cause = assertInstanceOf(PlayerException.class, failure.getCause());
       final String message = cause.getMessage();
-      assertEquals("The browser module was stopped while the browser started", message);
+      assertEquals("The browser module was stopped while the browser started!", message);
     } finally {
       HelperProcesses.open();
     }
@@ -883,7 +885,7 @@ class HelperSessionTest {
     final ExecutionException failure = assertThrows(ExecutionException.class, () -> opening.get(60, TimeUnit.SECONDS));
     final PlayerException cause = assertInstanceOf(PlayerException.class, failure.getCause());
     final String message = cause.getMessage();
-    assertEquals("The browser module was stopped while the browser started", message);
+    assertEquals("The browser module was stopped while the browser started!", message);
     final int helperCount = HelperProcesses.count();
     assertEquals(0, helperCount);
   }
@@ -907,7 +909,7 @@ class HelperSessionTest {
     starter.interrupt();
     starter.join(30_000L);
     final String message = thrown.get().getMessage();
-    assertEquals("Interrupted while starting the browser", message);
+    assertEquals("Interrupted while starting the browser!", message);
     final boolean interruptKept = stillInterrupted.get();
     assertTrue(interruptKept, "the interrupt is kept");
     final int helperCount = HelperProcesses.count();
@@ -921,7 +923,7 @@ class HelperSessionTest {
     final boolean keyAccepted = session.sendKey(HelperProtocol.KEY_TYPE, "late");
     assertTrue(keyAccepted);
     Await.until("the input was tried", () -> session.getHandledInput() == 1);
-    assertEquals(List.of("The browser helper closed the connection"), this.listener.ended);
+    assertEquals(List.of("The browser helper closed the connection!"), this.listener.ended);
   }
 
   @Test
@@ -929,7 +931,7 @@ class HelperSessionTest {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/fail");
     Await.until("the end of the session", () -> !this.listener.ended.isEmpty());
     Await.until("the helper exited", () -> !session.isAlive());
-    assertEquals(List.of("The browser failed: scripted renderer crash"), this.listener.ended);
+    assertEquals(List.of("The browser failed (scripted renderer crash)!"), this.listener.ended);
   }
 
   @Test
@@ -1073,7 +1075,7 @@ class HelperSessionTest {
         return "mcavb-taken";
       })
     );
-    final boolean reportsEveryNameTaken = exhausted.getMessage().endsWith("every name drawn was taken");
+    final boolean reportsEveryNameTaken = exhausted.getMessage().endsWith("(Every name drawn was taken!)!");
     assertTrue(reportsEveryNameTaken, exhausted.getMessage());
     final int drawCount = drawn.get();
     assertEquals(100, drawCount);
@@ -1091,7 +1093,7 @@ class HelperSessionTest {
       "The temporary folder " +
         folder +
         " is too long for the browser: on Linux it may have at most 47 characters, so start the server with a shorter" +
-        " java.io.tmpdir, such as /tmp",
+        " java.io.tmpdir (such as /tmp)!",
       message
     );
     HelperSession.requireShortEnough(Os.WINDOWS, tooLong);

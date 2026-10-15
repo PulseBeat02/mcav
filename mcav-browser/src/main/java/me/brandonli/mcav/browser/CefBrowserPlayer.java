@@ -143,7 +143,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   @Override
   public boolean start(final BrowserSource source) {
-    Preconditions.checkNotNull(source, "Source must not be null");
+    Preconditions.checkNotNull(source, "Source must not be null!");
     this.lock.lock();
     try {
       return this.startReleasably(source);
@@ -262,7 +262,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   @Override
   public void sendMouseEvent(final MouseClick type, final int pageX, final int pageY) {
-    Preconditions.checkNotNull(type, "Mouse click type must not be null");
+    Preconditions.checkNotNull(type, "Mouse click type must not be null!");
     this.moveMouse(pageX, pageY);
     final Runnable input = switch (type) {
       case LEFT -> () -> this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, 1);
@@ -317,7 +317,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   @Override
   public void sendKeyEvent(final String text) {
-    Preconditions.checkNotNull(text, "Text must not be null");
+    Preconditions.checkNotNull(text, "Text must not be null!");
     final BrowserSession current = this.getInputSession();
     if (current == null) {
       return;
@@ -331,8 +331,9 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private void reportIfDropped(final boolean queued) {
     if (!queued) {
       this.dropReports.log(
-        () -> this.report("Browser input queue is full", new RejectedExecutionException("The browser input backlog is full")),
-        dropped -> this.report("Browser input queue is full", new RejectedExecutionException(dropped + " more inputs were dropped"))
+        () -> this.report("Browser input queue is full", new RejectedExecutionException("The browser input backlog is full!")),
+        dropped ->
+          this.report("Browser input queue is full", new RejectedExecutionException("%s more inputs were dropped!".formatted(dropped)))
       );
     }
   }
@@ -451,7 +452,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   @Override
   public void setExceptionHandler(final BiConsumer<String, Throwable> exceptionHandler) {
-    Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null");
+    Preconditions.checkNotNull(exceptionHandler, "Exception handler must not be null!");
     this.exceptionHandler.setExceptionHandler(exceptionHandler);
   }
 
@@ -519,7 +520,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
         installation = this.natives.install();
         current = withLibraries(this.getLauncher(), this.libraries);
       } catch (final IOException | DownloadException | FileOperationException exception) {
-        throw new BrowserUnavailableException("The browser cannot be installed: " + exception.getMessage(), exception);
+        final String message = "The browser cannot be installed (%s)!".formatted(exception.getMessage());
+        throw new BrowserUnavailableException(message, exception);
       }
       return HelperSession.open(current, installation, source, options, listener);
     }

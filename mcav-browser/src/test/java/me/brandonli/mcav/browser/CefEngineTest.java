@@ -282,7 +282,7 @@ class CefEngineTest {
     order.verify(browser).loadURL("https://example.com/");
     verify(devTools).close();
     verify(devTools, times(10)).executeDevToolsMethod(anyString(), anyString());
-    assertEquals(List.of("The scripts of the page were not confirmed in 2 attempts; it loads anyway"), notices);
+    assertEquals(List.of("The scripts of the page were not confirmed in 2 attempts; it loads anyway."), notices);
   }
 
   @Test
@@ -355,7 +355,7 @@ class CefEngineTest {
     });
     verify(browser).loadURL("https://example.com/lost");
     verify(devTools).close();
-    assertEquals(List.of("The scripts of the page were not confirmed in 2 attempts; it loads anyway"), notices);
+    assertEquals(List.of("The scripts of the page were not confirmed in 2 attempts; it loads anyway."), notices);
   }
 
   @Test
@@ -386,8 +386,8 @@ class CefEngineTest {
     order.verify(browser).reload();
     assertEquals(
       List.of(
-        "The scripts of the page were not confirmed in 2 attempts; it loads anyway",
-        "The scripts of the page were confirmed late; it loads again"
+        "The scripts of the page were not confirmed in 2 attempts; it loads anyway.",
+        "The scripts of the page were confirmed late; it loads again."
       ),
       notices
     );
@@ -445,7 +445,7 @@ class CefEngineTest {
       );
       final boolean reportsTheDisposeFailure = errors
         .text()
-        .contains("Failed to shut CEF down: java.lang.IllegalStateException: dispose failed");
+        .contains("Failed to shut CEF down (java.lang.IllegalStateException: dispose failed).");
       assertTrue(reportsTheDisposeFailure, errors.text());
     }
     Thread.currentThread().interrupt();
@@ -485,7 +485,7 @@ class CefEngineTest {
     try (final StandardError errors = new StandardError()) {
       final String fallback = CefEngine.logFailedCall(new IllegalStateException("gone"));
       assertEquals("", fallback);
-      final boolean reportsTheFailedCall = errors.text().contains("A DevTools call failed: java.lang.IllegalStateException: gone");
+      final boolean reportsTheFailedCall = errors.text().contains("A DevTools call failed (java.lang.IllegalStateException: gone).");
       assertTrue(reportsTheFailedCall, errors.text());
     }
   }

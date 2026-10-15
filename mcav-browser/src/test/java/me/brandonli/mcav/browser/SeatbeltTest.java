@@ -111,7 +111,7 @@ class SeatbeltTest {
         assertFalse(available);
         final IOException refused = assertThrows(IOException.class, () -> seatbelt.restrictProcess(PROFILE));
         final String message = refused.getMessage();
-        assertEquals("this system has no Seatbelt (sandbox_init)", message);
+        assertEquals("The process cannot be restricted, because this system has no Seatbelt (sandbox_init)!", message);
         final List<String> passedProfiles = library.profiles();
         assertEquals(List.of(), passedProfiles);
       }
@@ -141,7 +141,7 @@ class SeatbeltTest {
       final Seatbelt seatbelt = library.seatbelt();
       final IOException refused = assertThrows(IOException.class, () -> seatbelt.restrictProcess("(deny (subpat \"/\"))"));
       final String message = refused.getMessage();
-      assertEquals("Seatbelt refused the profile: unbound variable: subpat", message);
+      assertEquals("Seatbelt refused the profile (unbound variable: subpat)!", message);
       final List<Long> freedAddresses = library.freed();
       assertEquals(List.of(library.reasonAddress()), freedAddresses);
     }
@@ -154,7 +154,7 @@ class SeatbeltTest {
       final Seatbelt seatbelt = library.seatbelt();
       final IOException refused = assertThrows(IOException.class, () -> seatbelt.restrictProcess(PROFILE));
       final String message = refused.getMessage();
-      assertEquals("Seatbelt refused the profile: no reason given", message);
+      assertEquals("Seatbelt refused the profile without a reason!", message);
       final List<Long> freedAddresses = library.freed();
       assertEquals(List.of(), freedAddresses);
     }
@@ -175,7 +175,7 @@ class SeatbeltTest {
     final MethodHandle call = MethodHandles.insertArguments(throwing, 0, refused);
     final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> Seatbelt.call(call));
     final String message = failure.getMessage();
-    assertEquals("The C library could not be called", message);
+    assertEquals("The C library could not be called!", message);
     final Throwable cause = failure.getCause();
     assertSame(refused, cause);
   }

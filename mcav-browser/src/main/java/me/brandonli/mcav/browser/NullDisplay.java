@@ -331,7 +331,8 @@ final class NullDisplay implements AutoCloseable {
         }
         unusable.add(candidate);
       }
-      throw new IOException("The system gives out no port of at least " + X11_BASE_PORT + " for the display");
+      final String message = "The system gives out no port of at least %s for the display!".formatted(X11_BASE_PORT);
+      throw new IOException(message);
     } finally {
       for (final ServerSocket socket : unusable) {
         socket.close();
@@ -522,7 +523,8 @@ final class NullDisplay implements AutoCloseable {
       final int units = ByteBuffer.wrap(lengthBytes).order(order).getShort() & 0xFFFF;
       if (units == 0 || units > MAX_REQUEST_UNITS) {
         // no extension is announced, so neither are the long requests of BIG-REQUESTS
-        throw new ProtocolException("A request of " + units + " units is outside 1 to " + MAX_REQUEST_UNITS);
+        final String message = "A request of %s units must have 1 to %s units!".formatted(units, MAX_REQUEST_UNITS);
+        throw new ProtocolException(message);
       }
       final byte[] body = new byte[units * 4 - 4];
       in.readFully(body);
@@ -545,7 +547,10 @@ final class NullDisplay implements AutoCloseable {
     final ByteOrder order = switch (orderByte) {
       case 'l' -> ByteOrder.LITTLE_ENDIAN;
       case 'B' -> ByteOrder.BIG_ENDIAN;
-      default -> throw new ProtocolException("The connection setup names the byte order " + orderByte);
+      default -> {
+        final String message = "Byte order %s of the connection setup is unknown!".formatted(orderByte);
+        throw new ProtocolException(message);
+      }
     };
     final byte[] head = new byte[11];
     in.readFully(head);
@@ -556,7 +561,8 @@ final class NullDisplay implements AutoCloseable {
     final int nameLength = setup.getShort() & 0xFFFF;
     final int dataLength = setup.getShort() & 0xFFFF;
     if (nameLength > MAX_AUTHORIZATION_BYTES || dataLength > MAX_AUTHORIZATION_BYTES) {
-      throw new ProtocolException("The authorization of the connection setup is longer than " + MAX_AUTHORIZATION_BYTES + " bytes");
+      final String message = "The authorization of the connection setup is longer than %s bytes!".formatted(MAX_AUTHORIZATION_BYTES);
+      throw new ProtocolException(message);
     }
     final byte[] name = readPadded(in, nameLength);
     final byte[] presented = readPadded(in, dataLength);
@@ -566,7 +572,8 @@ final class NullDisplay implements AutoCloseable {
     if (major != 11 || !named || !matches) {
       final String reason = major != 11 ? "only X11 is spoken here" : "the cookie of the display is missing";
       writeRefusal(output, order, reason);
-      throw new ProtocolException("A client was refused: " + reason);
+      final String message = "A client was refused, because %s!".formatted(reason);
+      throw new ProtocolException(message);
     }
     final ByteBuffer accepted = createSetupReply(order);
     send(output, accepted);

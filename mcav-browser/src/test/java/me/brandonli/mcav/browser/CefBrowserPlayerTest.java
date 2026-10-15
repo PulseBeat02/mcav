@@ -712,8 +712,8 @@ class CefBrowserPlayerTest {
     this.player.scroll(1, 1, 0, 1);
     assertEquals(
       List.of(
-        "Browser input queue is full: The browser input backlog is full",
-        "Browser input queue is full: The browser input backlog is full"
+        "Browser input queue is full: The browser input backlog is full!",
+        "Browser input queue is full: The browser input backlog is full!"
       ),
       this.reports
     );
@@ -736,8 +736,8 @@ class CefBrowserPlayerTest {
     final List<String> later = this.reports.subList(LogBudget.BURST, this.reports.size());
     assertEquals(
       List.of(
-        "Browser input queue is full: " + (500 - LogBudget.BURST) + " more inputs were dropped",
-        "Browser input queue is full: The browser input backlog is full"
+        "Browser input queue is full: " + (500 - LogBudget.BURST) + " more inputs were dropped!",
+        "Browser input queue is full: The browser input backlog is full!"
       ),
       later
     );
@@ -873,7 +873,7 @@ class CefBrowserPlayerTest {
         factory.open(SOURCE, BrowserOptions.DEFAULT, new HelperSessionTest.RecordingListener())
       );
       final String message = failure.getMessage();
-      assertEquals("The browser module is stopped", message);
+      assertEquals("The browser module is stopped!", message);
     } finally {
       HelperProcesses.open();
     }

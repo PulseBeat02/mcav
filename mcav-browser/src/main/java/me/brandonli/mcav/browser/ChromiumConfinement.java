@@ -46,17 +46,17 @@ final class ChromiumConfinement {
 
   static final String CONFINED =
     "Chromium runs confined: it cannot read the server's folder, the home folder or the temporary folder, and it " +
-    "writes only into the folder of its session";
-  static final String NOT_ASKED = "Chromium runs without confinement, as the options of the browser allow";
-  static final String NOT_SUPPORTED = "Chromium runs without confinement: MCAV confines it on Linux and macOS only";
-  private static final String UNAVAILABLE = "Chromium runs without confinement: ";
+    "writes only into the folder of its session.";
+  static final String NOT_ASKED = "Chromium runs without confinement, as the options of the browser allow.";
+  static final String NOT_SUPPORTED = "Chromium runs without confinement: MCAV confines it on Linux and macOS only.";
+  private static final String UNAVAILABLE = "Chromium runs without confinement: %s.";
   private static final Path ROOT = Path.of("/");
   private static final Path DEVICES = Path.of("/dev");
   private static final Path PROCESSES = Path.of("/proc");
   private static final String AGENT_OPTION = "-javaagent:";
 
   private ChromiumConfinement() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -105,7 +105,7 @@ final class ChromiumConfinement {
     readable.addAll(agentsOf(ManagementFactory.getRuntimeMXBean().getInputArguments()));
     if (isMac) {
       if (!seatbelt.isAvailable()) {
-        return UNAVAILABLE + Seatbelt.MISSING;
+        return UNAVAILABLE.formatted(Seatbelt.MISSING);
       }
       // Seatbelt matches the paths files really have, such as /private/var for /var
       seatbelt.restrictProcess(Seatbelt.profile(realPaths(hidden), realPaths(readable), realPaths(List.of(session, DEVICES))));
@@ -116,7 +116,8 @@ final class ChromiumConfinement {
     }
     final int available = version.getAsInt();
     if (available < 1) {
-      return UNAVAILABLE + Landlock.describeMissing(available);
+      final String missing = Landlock.describeMissing(available);
+      return UNAVAILABLE.formatted(missing);
     }
     readable.addAll(linkedFiles(pathsOf(System.getenv("LD_LIBRARY_PATH"))));
     final List<Path> writable = List.of(session, DEVICES, PROCESSES);

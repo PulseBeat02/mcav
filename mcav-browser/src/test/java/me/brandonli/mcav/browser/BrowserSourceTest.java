@@ -69,13 +69,13 @@ class BrowserSourceTest {
       BrowserSource.uri(URI.create("file:///etc/passwd"))
     );
     final String fileMessage = file.getMessage();
-    assertEquals("The browser shows http and https addresses only but got file:///etc/passwd", fileMessage);
+    assertEquals("Address file:///etc/passwd must be an http or https address for the browser!", fileMessage);
     final IllegalArgumentException underscore = assertThrows(IllegalArgumentException.class, () ->
       BrowserSource.uri(URI.create("https://my_site.example.com/"))
     );
     final String underscoreMessage = underscore.getMessage();
     assertEquals(
-      "The address has no host name the browser can check, such as a name with an underscore: https://my_site.example.com/",
+      "Address https://my_site.example.com/ has no host name the browser can check, such as a name with an underscore!",
       underscoreMessage
     );
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 0, 1, 1));
@@ -93,7 +93,7 @@ class BrowserSourceTest {
     final URI tooLong = URI.create(longest + "a");
     final IllegalArgumentException length = assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(tooLong));
     final String message = length.getMessage();
-    assertEquals("An address has at most 65536 characters but had 65537", message);
+    assertEquals("Address length 65537 must be at most 65536 characters!", message);
   }
 
   @Test

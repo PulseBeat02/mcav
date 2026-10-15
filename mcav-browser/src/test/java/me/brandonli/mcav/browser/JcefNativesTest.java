@@ -330,7 +330,7 @@ class JcefNativesTest {
     final JcefNatives natives = this.natives(nativesJar(false));
     final IOException failure = assertThrows(IOException.class, () -> natives.install("linux-amd64", "pinned", PINNED_SIZE));
     final String message = failure.getMessage();
-    assertEquals("The natives jar holds no .tar.gz archive", message);
+    assertEquals("The natives jar holds no .tar.gz archive!", message);
     final List<String> leftoverNames = this.leftovers();
     assertEquals(List.of(), leftoverNames);
   }
@@ -390,7 +390,7 @@ class JcefNativesTest {
       natives.install(JcefNatives.detectOrFail(Os.FREEBSD, Arch.X86, Bits.BITS_64))
     );
     final String message = failure.getMessage();
-    assertEquals("jcefmaven has no CEF build for FREEBSD X86 BITS_64; the browser cannot run here", message);
+    assertEquals("Platform FREEBSD X86 BITS_64 has no CEF build in jcefmaven, so the browser cannot run here!", message);
     final int downloadCount = this.downloads.get();
     assertEquals(0, downloadCount);
   }
@@ -423,7 +423,7 @@ class JcefNativesTest {
     ) {
       final IOException failure = assertThrows(IOException.class, () -> natives.install("linux-amd64", "pinned", PINNED_SIZE));
       final String message = failure.getMessage();
-      assertEquals("Another copy of mcav in this server is installing the CEF natives; try again once it is done", message);
+      assertEquals("Another copy of mcav in this server is installing the CEF natives; try again once it is done!", message);
       final boolean valid = held.isValid();
       assertTrue(valid);
     }

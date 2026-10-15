@@ -1,2 +1,2 @@
 me/brandonli/mcav/browser/BrowserHelper.java | System.exit(status); | JaCoCo counts a line once the code after it runs, and System.exit never returns; the helper tests run main in child JVMs that end through it
-me/brandonli/mcav/browser/BrowserHelper.java | throw new AssertionError("System.exit returned"); | unreachable after System.exit, which never returns; it only tells the compiler that main ends here
+me/brandonli/mcav/browser/BrowserHelper.java | throw new AssertionError("System.exit returned!"); | unreachable after System.exit, which never returns; it only tells the compiler that main ends here

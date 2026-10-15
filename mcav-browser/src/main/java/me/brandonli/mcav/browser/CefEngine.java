@@ -66,8 +66,6 @@ final class CefEngine implements HelperEngine {
   private static final int PLACING_ATTEMPTS = 2;
   private static final String NOT_CONFIRMED = "not confirmed";
   private static final String CHROMIUM_THREAD = "mcav-browser-chromium";
-  private static final String DEVTOOLS_CALL_FAILED = "A DevTools call failed: ";
-  private static final String SHUTDOWN_FAILED = "Failed to shut CEF down: ";
 
   // the features CEF disables itself: CEF passes them in a --disable-features switch before the switches of the helper,
   // and Chromium keeps only the last of several, so the helper's switch repeats them
@@ -370,9 +368,9 @@ final class CefEngine implements HelperEngine {
         return;
       }
       if (!confirmed) {
-        notices.accept("The scripts of the page were not confirmed in " + attempt + " attempts; it loads anyway");
+        notices.accept("The scripts of the page were not confirmed in %s attempts; it loads anyway.".formatted(attempt));
         final CompletableFuture<String> late = answered.thenApply(lateAnswer -> {
-          notices.accept("The scripts of the page were confirmed late; it loads again");
+          notices.accept("The scripts of the page were confirmed late; it loads again.");
           EventQueue.invokeLater(created::reload);
           return lateAnswer;
         });
@@ -437,7 +435,7 @@ final class CefEngine implements HelperEngine {
    */
   @VisibleForTesting
   static String logFailedCall(final Throwable failure) {
-    System.err.println(DEVTOOLS_CALL_FAILED + failure);
+    System.err.println("A DevTools call failed (%s).".formatted(failure));
     return "";
   }
 
@@ -499,7 +497,7 @@ final class CefEngine implements HelperEngine {
       thread.interrupt();
     } catch (final InvocationTargetException exception) {
       final Throwable cause = exception.getCause();
-      System.err.println(SHUTDOWN_FAILED + cause);
+      System.err.println("Failed to shut CEF down (%s).".formatted(cause));
     }
   }
 

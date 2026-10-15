@@ -196,7 +196,7 @@ class NullDisplayTest {
         NullDisplay.serve(new ByteArrayInputStream(wrong), output, COOKIE, new NullDisplay.Atoms())
       );
       final String wrongCookieMessage = refused.getMessage();
-      assertEquals("A client was refused: the cookie of the display is missing", wrongCookieMessage);
+      assertEquals("A client was refused, because the cookie of the display is missing!", wrongCookieMessage);
       final byte[] answer = output.toByteArray();
       final byte status = answer[0];
       assertEquals(0, status, "failed");
@@ -211,7 +211,7 @@ class NullDisplayTest {
       NullDisplay.serve(new ByteArrayInputStream(tenPointZero), output, COOKIE, new NullDisplay.Atoms())
     );
     final String oldProtocolMessage = oldProtocol.getMessage();
-    assertEquals("A client was refused: only X11 is spoken here", oldProtocolMessage);
+    assertEquals("A client was refused, because only X11 is spoken here!", oldProtocolMessage);
   }
 
   @Test
@@ -222,13 +222,13 @@ class NullDisplayTest {
       NullDisplay.serve(new ByteArrayInputStream(unknownOrder), new ByteArrayOutputStream(), COOKIE, new NullDisplay.Atoms())
     );
     final String orderMessage = order.getMessage();
-    assertEquals("The connection setup names the byte order 120", orderMessage);
+    assertEquals("Byte order 120 of the connection setup is unknown!", orderMessage);
     final byte[] longName = setup(ByteOrder.LITTLE_ENDIAN, 11, "x".repeat(257), new byte[0]);
     final ProtocolException name = assertThrows(ProtocolException.class, () ->
       NullDisplay.serve(new ByteArrayInputStream(longName), new ByteArrayOutputStream(), COOKIE, new NullDisplay.Atoms())
     );
     final String nameMessage = name.getMessage();
-    assertEquals("The authorization of the connection setup is longer than 256 bytes", nameMessage);
+    assertEquals("The authorization of the connection setup is longer than 256 bytes!", nameMessage);
     final byte[] longData = setup(ByteOrder.LITTLE_ENDIAN, 11, COOKIE_NAME, new byte[257]);
     assertThrows(ProtocolException.class, () ->
       NullDisplay.serve(new ByteArrayInputStream(longData), new ByteArrayOutputStream(), COOKIE, new NullDisplay.Atoms())
@@ -238,7 +238,7 @@ class NullDisplayTest {
       NullDisplay.serve(new ByteArrayInputStream(longest), new ByteArrayOutputStream(), COOKIE, new NullDisplay.Atoms())
     );
     final String valueMessage = value.getMessage();
-    assertEquals("A client was refused: the cookie of the display is missing", valueMessage);
+    assertEquals("A client was refused, because the cookie of the display is missing!", valueMessage);
   }
 
   @Test
@@ -489,11 +489,11 @@ class NullDisplayTest {
     final byte[] empty = { 43, 0, 0, 0 };
     final ProtocolException zero = assertThrows(ProtocolException.class, () -> converse(empty));
     final String zeroMessage = zero.getMessage();
-    assertEquals("A request of 0 units is outside 1 to 16384", zeroMessage);
+    assertEquals("A request of 0 units must have 1 to 16384 units!", zeroMessage);
     final byte[] huge = { 43, 0, 1, 64 };
     final ProtocolException tooLong = assertThrows(ProtocolException.class, () -> converse(huge));
     final String tooLongMessage = tooLong.getMessage();
-    assertEquals("A request of 16385 units is outside 1 to 16384", tooLongMessage);
+    assertEquals("A request of 16385 units must have 1 to 16384 units!", tooLongMessage);
     final byte[] longest = new byte[NullDisplay.MAX_REQUEST_UNITS * 4];
     longest[0] = 127;
     longest[2] = 0;
@@ -834,7 +834,7 @@ class NullDisplayTest {
       })
     );
     final String message = none.getMessage();
-    assertEquals("The system gives out no port of at least 6000 for the display", message);
+    assertEquals("The system gives out no port of at least 6000 for the display!", message);
     final int askedPorts = asked.get();
     assertEquals(64, askedPorts, "64 ports are tried");
     final AtomicInteger tries = new AtomicInteger();

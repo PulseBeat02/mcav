@@ -40,7 +40,7 @@ final class SpecialKeys {
   private static final Set<String> SPECIAL_KEYS = loadSpecialKeys();
 
   private SpecialKeys() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   private static Set<String> loadSpecialKeys() {
@@ -63,12 +63,13 @@ final class SpecialKeys {
     try (reader) {
       final Set<String> keys = gson.fromJson(reader, type);
       if (keys == null || keys.isEmpty()) {
-        throw new PlayerException("The key list resource " + RESOURCE + " is empty");
+        final String message = "The key list resource %s is empty!".formatted(RESOURCE);
+        throw new PlayerException(message);
       }
       return Set.copyOf(keys);
     } catch (final IOException exception) {
-      final String message = exception.getMessage();
-      throw new PlayerException("Failed to read the key list resource: " + message, exception);
+      final String message = "The key list resource could not be read (%s)!".formatted(exception.getMessage());
+      throw new PlayerException(message, exception);
     }
   }
 
@@ -79,7 +80,7 @@ final class SpecialKeys {
    * @return true if the text names a key
    */
   static boolean isSpecialKey(final String text) {
-    Preconditions.checkNotNull(text, "Text must not be null");
+    Preconditions.checkNotNull(text, "Text must not be null!");
     return SPECIAL_KEYS.contains(text);
   }
 }

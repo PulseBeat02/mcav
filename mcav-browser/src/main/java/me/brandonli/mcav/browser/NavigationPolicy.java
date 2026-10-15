@@ -41,7 +41,7 @@ final class NavigationPolicy {
   private static final Set<String> REQUEST_SCHEMES = Set.of("http", "https", "ws", "wss", "data", "blob");
 
   private NavigationPolicy() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**

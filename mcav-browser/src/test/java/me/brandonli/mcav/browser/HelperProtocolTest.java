@@ -184,7 +184,7 @@ class HelperProtocolTest {
       HelperProtocol.read(new DataInputStream(new ByteArrayInputStream(data)), size -> new byte[0])
     );
     final String message = failure.getMessage();
-    assertEquals("A frame of 16 bytes arrived where no frame of that size is expected", message);
+    assertEquals("A frame of 16 bytes arrived where no frame of that size is expected!", message);
   }
 
   private static byte[] frame(
@@ -340,13 +340,16 @@ class HelperProtocolTest {
     final int max = HelperProtocol.MAX_TEXT_BYTES;
     final ProtocolException loading = assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.LOADING, new byte[2])));
     final String loadingMessage = loading.getMessage();
-    assertEquals("A message of type 4 has 1 bytes but announced 2", loadingMessage);
+    assertEquals("A message of type 4 has 1 bytes, but 2 bytes were announced!", loadingMessage);
     final ProtocolException loadError = assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.LOAD_ERROR, new byte[3])));
     final String loadErrorMessage = loadError.getMessage();
-    assertEquals("A message of type 5 has 8 to " + (4 + 2 * (2 + max)) + " bytes but announced 3", loadErrorMessage);
+    assertEquals("A message of type 5 has 8 to " + (4 + 2 * (2 + max)) + " bytes, but 3 bytes were announced!", loadErrorMessage);
     final ProtocolException text = assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.READY, new byte[1])));
     final String textMessage = text.getMessage();
-    assertEquals("A message of type " + HelperProtocol.READY + " has 2 to " + (2 + max) + " bytes but announced 1", textMessage);
+    assertEquals(
+      "A message of type " + HelperProtocol.READY + " has 2 to " + (2 + max) + " bytes, but 1 bytes were announced!",
+      textMessage
+    );
   }
 
   @Test
@@ -361,7 +364,7 @@ class HelperProtocolTest {
     });
     final ProtocolException failure = assertThrows(ProtocolException.class, () -> read(padded));
     final String message = failure.getMessage();
-    assertEquals("A key message of 5 bytes holds 4", message);
+    assertEquals("A key message of 5 bytes holds 4 bytes!", message);
   }
 
   @Test
@@ -399,14 +402,14 @@ class HelperProtocolTest {
       bytes(out -> HelperProtocol.writeAudio(out, samples, length))
     );
     final String message = refused.getMessage();
-    assertEquals("Sound of " + length + " bytes cannot be sent", message);
+    assertEquals("Sound of " + length + " bytes cannot be sent!", message);
   }
 
   @Test
   void shouldRefuseSoundThatIsNotWholeFramesOrTooLong() throws IOException {
     final ProtocolException half = assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.AUDIO, new byte[6])));
     final String halfFrameMessage = half.getMessage();
-    assertEquals("Sound of 6 bytes does not hold whole frames of 4 bytes", halfFrameMessage);
+    assertEquals("Sound of 6 bytes does not hold whole frames of 4 bytes!", halfFrameMessage);
     assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.AUDIO, new byte[0])));
     assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.AUDIO, new byte[2])));
     final byte[] tooLong = bytes(out -> {
@@ -415,7 +418,7 @@ class HelperProtocolTest {
     });
     final ProtocolException refused = assertThrows(ProtocolException.class, () -> read(tooLong));
     final String tooLongMessage = refused.getMessage();
-    assertEquals("A message of type 8 has 4 to 65536 bytes but announced 65540", tooLongMessage);
+    assertEquals("A message of type 8 has 4 to 65536 bytes, but 65540 bytes were announced!", tooLongMessage);
   }
 
   @Test

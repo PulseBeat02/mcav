@@ -68,9 +68,7 @@ final class SessionFolders {
   static final String OWNER_FILE = "server";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SessionFolders.class);
-  private static final String REMOVED = "Removed the folder {} of a browser whose server ended without releasing it";
-  private static final String NOT_RECORDED = "The folder of the browser session {} names no server; if this server is killed, it stays";
-  private static final String NOT_LISTED = "The folders of browser sessions in {} could not be listed: {}";
+  private static final String NOT_RECORDED = "The folder of the browser session {} names no server; if this server is killed, it stays.";
 
   private final ProcessHandle owner;
   private final LongFunction<Optional<ProcessHandle>> lookup;
@@ -141,12 +139,12 @@ final class SessionFolders {
       for (final Path folder : folders) {
         if (this.isStale(folder)) {
           HelperSession.deleteFolder(folder);
-          LOGGER.info(REMOVED, folder);
+          LOGGER.debug("Removed the folder {} of a browser whose server ended without releasing it.", folder);
           removed++;
         }
       }
     } catch (final IOException exception) {
-      LOGGER.warn(NOT_LISTED, temporary, exception.toString());
+      LOGGER.warn("The folders of browser sessions in {} could not be listed ({}).", temporary, exception.toString());
     }
     return removed;
   }

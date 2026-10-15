@@ -34,7 +34,7 @@ final class AddressText {
   private static final String AUTHORITY_START = "://";
 
   private AddressText() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**

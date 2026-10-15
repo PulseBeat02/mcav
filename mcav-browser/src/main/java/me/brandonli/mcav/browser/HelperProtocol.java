@@ -132,7 +132,7 @@ final class HelperProtocol {
   private static final int MAX_CLICK_COUNT = 3;
 
   private HelperProtocol() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -144,7 +144,8 @@ final class HelperProtocol {
    */
   static void writeHello(final DataOutput out, final byte[] token) throws IOException {
     if (token.length != TOKEN_BYTES) {
-      throw new IllegalArgumentException("A token has " + TOKEN_BYTES + " bytes but was " + token.length);
+      final String message = "Token length %s must be %s bytes!".formatted(token.length, TOKEN_BYTES);
+      throw new IllegalArgumentException(message);
     }
     out.writeByte(HELLO);
     out.writeInt(TOKEN_BYTES + 2);
@@ -230,7 +231,8 @@ final class HelperProtocol {
    */
   static void writeAudio(final DataOutput out, final byte[] samples, final int length) throws IOException {
     if (length <= 0 || length > MAX_AUDIO_BYTES || length % AUDIO_FRAME_BYTES != 0 || length > samples.length) {
-      throw new IllegalArgumentException("Sound of " + length + " bytes cannot be sent");
+      final String message = "Sound of %s bytes cannot be sent!".formatted(length);
+      throw new IllegalArgumentException(message);
     }
     out.writeByte(AUDIO);
     out.writeInt(length);
@@ -307,7 +309,10 @@ final class HelperProtocol {
       case MOUSE -> readMouse(in, length);
       case KEY -> readKey(in, length);
       case CLOSE -> readClose(length);
-      default -> throw new ProtocolException("Unknown message type " + type);
+      default -> {
+        final String message = "Message type %s is unknown!".formatted(type);
+        throw new ProtocolException(message);
+      }
     };
   }
 
@@ -328,7 +333,8 @@ final class HelperProtocol {
     expectLength(LOADING, length, 1);
     final int value = in.readUnsignedByte();
     if (value > 1) {
-      throw new ProtocolException("The loading state must be 0 or 1 but was " + value);
+      final String message = "Loading state %s must be 0 or 1!".formatted(value);
+      throw new ProtocolException(message);
     }
     return HelperMessage.loading(value == 1);
   }
@@ -340,7 +346,8 @@ final class HelperProtocol {
     final byte[] urlBytes = readStringBytes(in);
     final int used = 4 + 2 + textBytes.length + 2 + urlBytes.length;
     if (used != length) {
-      throw new ProtocolException("A load error of " + length + " bytes holds " + used);
+      final String message = "A load error of %s bytes holds %s bytes!".formatted(length, used);
+      throw new ProtocolException(message);
     }
     final String text = decode(textBytes);
     final String url = decode(urlBytes);
@@ -361,18 +368,19 @@ final class HelperProtocol {
     checkSide("region width", width);
     checkSide("region height", height);
     if ((long) left + width > pageWidth || (long) top + height > pageHeight) {
-      throw new ProtocolException(
-        "The region " + width + "x" + height + " at " + left + "," + top + " leaves the page " + pageWidth + "x" + pageHeight
-      );
+      final String message = "Region %sx%s at %s,%s leaves the %sx%s page!".formatted(width, height, left, top, pageWidth, pageHeight);
+      throw new ProtocolException(message);
     }
     final long pixelBytes = (long) width * height * PIXEL_BYTES;
     if (FRAME_HEADER_BYTES + pixelBytes != length) {
-      throw new ProtocolException("A frame of " + length + " bytes cannot hold a " + width + "x" + height + " region");
+      final String message = "A frame of %s bytes cannot hold a %sx%s region!".formatted(length, width, height);
+      throw new ProtocolException(message);
     }
     final int size = (int) pixelBytes;
     final byte[] target = pixels.apply(size);
     if (target.length < size) {
-      throw new ProtocolException("A frame of " + size + " bytes arrived where no frame of that size is expected");
+      final String message = "A frame of %s bytes arrived where no frame of that size is expected!".formatted(size);
+      throw new ProtocolException(message);
     }
     in.readFully(target, 0, size);
     final FrameRegion region = new FrameRegion(pageWidth, pageHeight, left, top, width, height, target);
@@ -382,7 +390,8 @@ final class HelperProtocol {
   private static HelperMessage readAudio(final DataInput in, final int length) throws IOException {
     checkLength(AUDIO, length, AUDIO_FRAME_BYTES, MAX_AUDIO_BYTES);
     if (length % AUDIO_FRAME_BYTES != 0) {
-      throw new ProtocolException("Sound of " + length + " bytes does not hold whole frames of " + AUDIO_FRAME_BYTES + " bytes");
+      final String message = "Sound of %s bytes does not hold whole frames of %s bytes!".formatted(length, AUDIO_FRAME_BYTES);
+      throw new ProtocolException(message);
     }
     final byte[] samples = new byte[length];
     in.readFully(samples);
@@ -399,13 +408,16 @@ final class HelperProtocol {
     final int deltaX = in.readShort();
     final int deltaY = in.readShort();
     if (action > MOUSE_WHEEL) {
-      throw new ProtocolException("Unknown mouse action " + action);
+      final String message = "Mouse action %s is unknown!".formatted(action);
+      throw new ProtocolException(message);
     }
     if (button > BUTTON_RIGHT) {
-      throw new ProtocolException("Unknown mouse button " + button);
+      final String message = "Mouse button %s is unknown!".formatted(button);
+      throw new ProtocolException(message);
     }
     if (clickCount > MAX_CLICK_COUNT) {
-      throw new ProtocolException("A click counts at most " + MAX_CLICK_COUNT + " but was " + clickCount);
+      final String message = "Click count %s must be at most %s!".formatted(clickCount, MAX_CLICK_COUNT);
+      throw new ProtocolException(message);
     }
     final MouseInput input = new MouseInput(action, pageX, pageY, button, clickCount, deltaX, deltaY);
     return HelperMessage.mouse(input);
@@ -415,11 +427,13 @@ final class HelperProtocol {
     checkLength(KEY, length, 1 + 2, 1 + 2 + MAX_TEXT_BYTES);
     final int action = in.readUnsignedByte();
     if (action > KEY_TYPE) {
-      throw new ProtocolException("Unknown key action " + action);
+      final String message = "Key action %s is unknown!".formatted(action);
+      throw new ProtocolException(message);
     }
     final byte[] bytes = readStringBytes(in);
     if (1 + 2 + bytes.length != length) {
-      throw new ProtocolException("A key message of " + length + " bytes holds " + (1 + 2 + bytes.length));
+      final String message = "A key message of %s bytes holds %s bytes!".formatted(length, 1 + 2 + bytes.length);
+      throw new ProtocolException(message);
     }
     final String value = decode(bytes);
     return HelperMessage.key(action, value);
@@ -434,7 +448,8 @@ final class HelperProtocol {
     checkLength(type, length, 2, 2 + MAX_TEXT_BYTES);
     final byte[] bytes = readStringBytes(in);
     if (2 + bytes.length != length) {
-      throw new ProtocolException("A message of " + length + " bytes holds a string of " + bytes.length);
+      final String message = "A message of %s bytes holds a string of %s bytes!".formatted(length, bytes.length);
+      throw new ProtocolException(message);
     }
     return decode(bytes);
   }
@@ -442,7 +457,8 @@ final class HelperProtocol {
   private static byte[] readStringBytes(final DataInput in) throws IOException {
     final int length = in.readUnsignedShort();
     if (length > MAX_TEXT_BYTES) {
-      throw new ProtocolException("A string has at most " + MAX_TEXT_BYTES + " bytes but had " + length);
+      final String message = "A string of %s bytes must have at most %s bytes!".formatted(length, MAX_TEXT_BYTES);
+      throw new ProtocolException(message);
     }
     final byte[] bytes = new byte[length];
     in.readFully(bytes);
@@ -528,7 +544,7 @@ final class HelperProtocol {
       final CharBuffer decoded = decoder.decode(input);
       return decoded.toString();
     } catch (final CharacterCodingException exception) {
-      final ProtocolException failure = new ProtocolException("A string is not valid UTF-8");
+      final ProtocolException failure = new ProtocolException("A string is not valid UTF-8!");
       failure.initCause(exception);
       throw failure;
     }
@@ -536,21 +552,28 @@ final class HelperProtocol {
 
   private static void expectLength(final int type, final int length, final int expected) throws ProtocolException {
     if (length != expected) {
-      throw new ProtocolException("A message of type " + type + " has " + expected + " bytes but announced " + length);
+      final String message = "A message of type %s has %s bytes, but %s bytes were announced!".formatted(type, expected, length);
+      throw new ProtocolException(message);
     }
   }
 
   private static void checkLength(final int type, final int length, final long minimum, final long maximum) throws ProtocolException {
     if (length < minimum || length > maximum) {
-      throw new ProtocolException(
-        "A message of type " + type + " has " + minimum + " to " + maximum + " bytes but announced " + Integer.toUnsignedString(length)
+      final String announced = Integer.toUnsignedString(length);
+      final String message = "A message of type %s has %s to %s bytes, but %s bytes were announced!".formatted(
+        type,
+        minimum,
+        maximum,
+        announced
       );
+      throw new ProtocolException(message);
     }
   }
 
   private static void checkSide(final String name, final int value) throws ProtocolException {
     if (value < 1 || value > MAX_SIDE) {
-      throw new ProtocolException("The " + name + " must be between 1 and " + MAX_SIDE + " but was " + value);
+      final String message = "The %s %s must be between 1 and %s!".formatted(name, value, MAX_SIDE);
+      throw new ProtocolException(message);
     }
   }
 }

@@ -69,7 +69,7 @@ class BrowserOptionsTest {
     final BrowserOptions.Builder builder = BrowserOptions.builder();
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> builder.refusedHosts(List.of("a b")));
     final String message = refused.getMessage();
-    assertEquals("Not a host name or address: 'a b'", message);
+    assertEquals("Host 'a b' is not a host name or address!", message);
     final int maximumFrameRate = BrowserOptions.builder().frameRate(60).build().getFrameRate();
     assertEquals(60, maximumFrameRate);
   }
@@ -80,6 +80,6 @@ class BrowserOptionsTest {
     assertThrows(IllegalArgumentException.class, () -> builder.frameRate(0));
     final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, () -> builder.frameRate(61));
     final String message = tooFast.getMessage();
-    assertEquals("Frame rate must be between 1 and 60 but was 61", message);
+    assertEquals("Frame rate 61 must be between 1 and 60!", message);
   }
 }

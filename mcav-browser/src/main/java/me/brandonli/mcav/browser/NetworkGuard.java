@@ -175,7 +175,7 @@ final class NetworkGuard implements Closeable {
       try {
         addresses.addAll(Arrays.asList(resolver.resolve(host)));
       } catch (final UnknownHostException exception) {
-        notices.accept("The refused host " + host + " has no address, so pages are not kept from it");
+        notices.accept("The refused host %s has no address, so pages are not kept from it.".formatted(host));
       }
     }
     return addresses;
@@ -197,7 +197,7 @@ final class NetworkGuard implements Closeable {
         client = this.server.accept();
       } catch (final IOException exception) {
         if (!this.closed) {
-          this.notices.accept("The network guard stopped: " + exception.getMessage());
+          this.notices.accept("The network guard stopped (%s).".formatted(exception.getMessage()));
         }
         return;
       }
@@ -313,7 +313,7 @@ final class NetworkGuard implements Closeable {
       first = this.reported.size() < MAX_REPORTED_HOSTS && this.reported.add(host);
     }
     if (first) {
-      this.notices.accept("Refused a connection to " + host + ", which is not a public address");
+      this.notices.accept("The connection to %s was refused, because it is not a public address.".formatted(host));
     }
   }
 

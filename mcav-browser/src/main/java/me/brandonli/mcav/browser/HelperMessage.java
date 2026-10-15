@@ -165,7 +165,8 @@ final class HelperMessage {
   FrameRegion getRegion() {
     final FrameRegion current = this.region;
     if (current == null) {
-      throw new IllegalStateException("Message type " + this.type + " carries no frame");
+      final String message = "Message type %s carries no frame!".formatted(this.type);
+      throw new IllegalStateException(message);
     }
     return current;
   }
@@ -188,7 +189,8 @@ final class HelperMessage {
   MouseInput getMouse() {
     final MouseInput current = this.mouse;
     if (current == null) {
-      throw new IllegalStateException("Message type " + this.type + " carries no mouse input");
+      final String message = "Message type %s carries no mouse input!".formatted(this.type);
+      throw new IllegalStateException(message);
     }
     return current;
   }

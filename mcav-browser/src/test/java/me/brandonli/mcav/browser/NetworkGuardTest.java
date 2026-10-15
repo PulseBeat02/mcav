@@ -208,7 +208,7 @@ class NetworkGuardTest {
       final byte[] answer = exchange(client, SocksProtocolTest.domainRequest(SocksProtocol.CONNECT, "router.private.test", 80), 10);
       assertArrayEquals(reply(SocksProtocol.NOT_ALLOWED), answer);
     }
-    assertEquals(List.of("Refused a connection to router.private.test, which is not a public address"), this.notices);
+    assertEquals(List.of("The connection to router.private.test was refused, because it is not a public address."), this.notices);
     final int echoConnectionCount = this.echoConnections.get();
     assertEquals(0, echoConnectionCount);
   }
@@ -451,7 +451,7 @@ class NetworkGuardTest {
     final NetworkGuard guard = this.loopbackGuard();
     guard.getServer().close();
     Await.until("the report", () -> !this.notices.isEmpty());
-    final boolean reportsTheStop = this.notices.getFirst().startsWith("The network guard stopped: ");
+    final boolean reportsTheStop = this.notices.getFirst().startsWith("The network guard stopped (");
     assertTrue(reportsTheStop, this.notices.getFirst());
   }
 
@@ -587,7 +587,7 @@ class NetworkGuardTest {
     exchange(client, GREETING, 2);
     final byte[] answer = exchange(client, SocksProtocolTest.domainRequest(SocksProtocol.CONNECT, "server.example", 8080), 10);
     assertArrayEquals(reply(SocksProtocol.NOT_ALLOWED), answer);
-    assertEquals(List.of("Refused a connection to server.example, which is not a public address"), this.notices);
+    assertEquals(List.of("The connection to server.example was refused, because it is not a public address."), this.notices);
   }
 
   @Test
@@ -607,7 +607,7 @@ class NetworkGuardTest {
     exchange(client, GREETING, 2);
     final byte[] answer = exchange(client, SocksProtocolTest.domainRequest(SocksProtocol.CONNECT, "internal.test", 80), 10);
     assertArrayEquals(reply(SocksProtocol.NOT_ALLOWED), answer);
-    assertEquals(List.of("Refused a connection to internal.test, which is not a public address"), this.notices);
+    assertEquals(List.of("The connection to internal.test was refused, because it is not a public address."), this.notices);
   }
 
   @Test
@@ -622,7 +622,7 @@ class NetworkGuardTest {
     };
     final Set<InetAddress> refused = NetworkGuard.resolveAll(resolver, List.of("mc.example.com", "missing.example"), this.notices::add);
     assertEquals(Set.of(first, second), refused);
-    assertEquals(List.of("The refused host missing.example has no address, so pages are not kept from it"), this.notices);
+    assertEquals(List.of("The refused host missing.example has no address, so pages are not kept from it."), this.notices);
   }
 
   @Test
@@ -645,7 +645,7 @@ class NetworkGuardTest {
       exchange(client, GREETING, 2);
       final byte[] answer = exchange(client, SocksProtocolTest.domainRequest(SocksProtocol.CONNECT, "8.8.8.8", 53), 10);
       assertArrayEquals(reply(SocksProtocol.NOT_ALLOWED), answer);
-      assertEquals(List.of("Refused a connection to 8.8.8.8, which is not a public address"), this.notices);
+      assertEquals(List.of("The connection to 8.8.8.8 was refused, because it is not a public address."), this.notices);
     }
   }
 
@@ -657,7 +657,7 @@ class NetworkGuardTest {
       final byte[] answer = exchange(client, SocksProtocolTest.domainRequest(1, "localhost", this.echo.getLocalPort()), 10);
       assertArrayEquals(reply(SocksProtocol.NOT_ALLOWED), answer);
     }
-    assertEquals(List.of("Refused a connection to localhost, which is not a public address"), this.notices);
+    assertEquals(List.of("The connection to localhost was refused, because it is not a public address."), this.notices);
   }
 
   @Test

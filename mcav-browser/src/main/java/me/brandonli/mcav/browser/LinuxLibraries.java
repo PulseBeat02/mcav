@@ -113,14 +113,6 @@ final class LinuxLibraries {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LinuxLibraries.class);
 
-  private static final String LOCK_RELEASED = "Released the installation lock {} of {}";
-
-  private static final String DOWNLOADING_LIBRARIES = "Downloading {} Linux libraries for the browser ({} MB, once)";
-
-  private static final String LIBRARIES_INSTALLED = "Installed the Linux libraries of the browser in {}";
-
-  private static final String LIBRARIES_MISSING = "The server lacks {}, which the browser gets from {}";
-
   // Every copy of mcav in this JVM shares this monitor.
   @VisibleForTesting
   static final Object INSTALL_LOCK = "the installation of the Linux libraries of mcav";
@@ -154,7 +146,7 @@ final class LinuxLibraries {
       HttpDownloader::download,
       MIRRORS,
       SECURITY_MIRRORS,
-      readResource(Objects.requireNonNull(LinuxLibraries.class.getClassLoader(), "mcav is not loaded by the boot loader"))
+      readResource(Objects.requireNonNull(LinuxLibraries.class.getClassLoader(), "mcav is not loaded by the boot loader!"))
     );
   }
 
@@ -203,7 +195,8 @@ final class LinuxLibraries {
       final List<String> fields = List.of(trimmed.split(" +"));
       if (fields.getFirst().equals("host")) {
         if (fields.size() < 2) {
-          throw new IllegalArgumentException("The pin " + line + " names no platform");
+          final String message = "The pin %s names no platform!".formatted(line);
+          throw new IllegalArgumentException(message);
         }
         host.put(requireMatch(PLATFORM, fields.get(1), line), requireSonames(fields.subList(2, fields.size()), line));
       } else {
@@ -240,18 +233,21 @@ final class LinuxLibraries {
   static List<String> readResource(final ClassLoader loader) {
     try (final InputStream stream = loader.getResourceAsStream(RESOURCE)) {
       if (stream == null) {
-        throw new IllegalStateException("The resource " + RESOURCE + " is missing");
+        final String message = "The resource %s is missing!".formatted(RESOURCE);
+        throw new IllegalStateException(message);
       }
       final BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
       return reader.lines().toList();
     } catch (final IOException | UncheckedIOException exception) {
-      throw new IllegalStateException("The resource " + RESOURCE + " cannot be read", exception);
+      final String message = "The resource %s cannot be read!".formatted(RESOURCE);
+      throw new IllegalStateException(message, exception);
     }
   }
 
   private static String requireMatch(final Pattern pattern, final String value, final String line) {
     if (!pattern.matcher(value).matches()) {
-      throw new IllegalArgumentException("The pin " + line + " has the invalid value " + value);
+      final String message = "The pin %s has the invalid value %s!".formatted(line, value);
+      throw new IllegalArgumentException(message);
     }
     return value;
   }
@@ -289,7 +285,8 @@ final class LinuxLibraries {
   Path install(final String platform) throws IOException {
     final List<Pin> wanted = this.getPins(platform);
     if (wanted.isEmpty()) {
-      throw new IOException("mcav has no libraries for " + platform);
+      final String message = "Platform %s has no libraries in mcav!".formatted(platform);
+      throw new IOException(message);
     }
     final String name = "debian-11-" + platform + "-" + fingerprint(wanted);
     final Path installation = this.folder.resolve(name);
@@ -309,7 +306,7 @@ final class LinuxLibraries {
         if (!Files.isRegularFile(marker)) {
           this.installLocked(wanted, installation);
         }
-        LOGGER.debug(LOCK_RELEASED, lock, name);
+        LOGGER.debug("Installation lock {} of {} was released.", lock, name);
       }
     }
     return installation;
@@ -335,7 +332,7 @@ final class LinuxLibraries {
     for (final Pin pin : wanted) {
       bytes += pin.size();
     }
-    LOGGER.info(DOWNLOADING_LIBRARIES, wanted.size(), bytes / 1_000_000L);
+    LOGGER.info("Downloading {} Linux libraries for the browser ({} MB, once).", wanted.size(), bytes / 1_000_000L);
     final String suffix = UUID.randomUUID().toString();
     final Path staging = this.folder.resolve(installation.getFileName() + "-" + suffix + ".staging");
     final Path download = this.folder.resolve(installation.getFileName() + "-" + suffix + ".deb");
@@ -353,7 +350,7 @@ final class LinuxLibraries {
       Files.deleteIfExists(download);
       IoUtils.deleteRecursively(staging);
     }
-    LOGGER.info(LIBRARIES_INSTALLED, installation);
+    LOGGER.info("Folder {} now holds the Linux libraries of the browser.", installation);
   }
 
   private void download(final Pin pin, final Path destination) throws IOException {
@@ -373,7 +370,7 @@ final class LinuxLibraries {
         }
       }
     }
-    final String message = "The package " + pin.name() + " could not be downloaded from any mirror";
+    final String message = "The package %s could not be downloaded from any mirror!".formatted(pin.name());
     throw new IOException(message, failure);
   }
 
@@ -412,7 +409,8 @@ final class LinuxLibraries {
       writeLibrary(library, target.resolve(file.getValue()));
     }
     if (!missing.isEmpty()) {
-      throw new IOException("The package " + deb.getFileName() + " holds no " + missing);
+      final String message = "The package %s holds none of %s!".formatted(deb.getFileName(), missing);
+      throw new IOException(message);
     }
   }
 
@@ -443,9 +441,9 @@ final class LinuxLibraries {
       }
     }
     if (!missingHost.isEmpty()) {
-      throw new BrowserUnavailableException(
-        "The browser needs " + String.join(", ", missingHost) + ", which this server lacks and mcav does not bring"
-      );
+      final String libraries = String.join(", ", missingHost);
+      final String message = "The browser needs %s, which this server lacks and mcav does not bring!".formatted(libraries);
+      throw new BrowserUnavailableException(message);
     }
     final List<Pin> missing = new ArrayList<>();
     for (final Pin pin : this.getPins(platform)) {
@@ -465,14 +463,12 @@ final class LinuxLibraries {
   static void requireJawt(final Path java) {
     final Path runtime = java.toAbsolutePath().resolveSibling("..").normalize();
     if (!Files.exists(runtime.resolve("lib").resolve(JAWT))) {
-      throw new BrowserUnavailableException(
-        "The browser needs the Java runtime's " +
-          JAWT +
-          ", which " +
-          runtime +
-          " lacks: the headless Java packages of Debian and Ubuntu (openjdk-*-jre-headless) leave it out; install the full" +
-          " package of the same version (openjdk-*-jre), or run the server on a full Java runtime"
-      );
+      final String message =
+        "The browser needs the Java runtime's %s, which %s lacks: the headless Java packages of Debian and Ubuntu (openjdk-*-jre-headless) leave it out; install the full package of the same version (openjdk-*-jre), or run the server on a full Java runtime!".formatted(
+          JAWT,
+          runtime
+        );
+      throw new BrowserUnavailableException(message);
     }
   }
 
@@ -493,7 +489,7 @@ final class LinuxLibraries {
       for (final String soname : sonames) {
         Files.createSymbolicLink(libraries.resolve(soname), installation.resolve(soname));
       }
-      LOGGER.debug(LIBRARIES_MISSING, sonames, installation);
+      LOGGER.debug("The browser gets {} from {}, as the server lacks them.", sonames, installation);
     }
     return libraries;
   }
@@ -575,7 +571,7 @@ final class LinuxLibraries {
       if (line.startsWith("include ")) {
         final String pattern = line.substring("include ".length()).trim();
         // as glibc does, a relative include lies beside the file that includes it
-        final Path base = pattern.startsWith("/") ? root : Objects.requireNonNull(file.getParent(), "a file lies in a folder");
+        final Path base = pattern.startsWith("/") ? root : Objects.requireNonNull(file.getParent(), "A file lies in a folder!");
         for (final Path included : glob(base, pattern)) {
           readConfiguration(root, included, folders, depth + 1);
         }
@@ -606,7 +602,7 @@ final class LinuxLibraries {
       final PathMatcher matcher = fileSystem.getPathMatcher("glob:" + name);
       try (final DirectoryStream<Path> entries = Files.newDirectoryStream(parent)) {
         for (final Path entry : entries) {
-          final Path entryName = Objects.requireNonNull(entry.getFileName(), "an entry of a folder has a name");
+          final Path entryName = Objects.requireNonNull(entry.getFileName(), "An entry of a folder has a name!");
           if (matcher.matches(entryName)) {
             matches.add(entry);
           }
@@ -641,7 +637,8 @@ final class LinuxLibraries {
      */
     private static Pin parse(final List<String> fields, final String line) {
       if (fields.size() < 7) {
-        throw new IllegalArgumentException("The pin " + line + " has " + fields.size() + " fields instead of at least 7");
+        final String message = "The pin %s has %s fields instead of at least 7 fields!".formatted(line, fields.size());
+        throw new IllegalArgumentException(message);
       }
       final Map<String, String> files = new LinkedHashMap<>();
       for (final String entry : fields.subList(6, fields.size())) {

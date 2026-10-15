@@ -354,13 +354,13 @@ class CefBrowserIntegrationTest {
       assertTrue(filePlaying);
       final boolean downloadPlaying = toDownload.isPlaying();
       assertTrue(downloadPlaying);
-      final String refusal = "Browser: Refused a download of evil.exe";
+      final String refusal = "Browser: The download of evil.exe was refused.";
       Await.until("the real download reaches the refusal handler", () -> reports.text().contains(refusal));
       final List<String> downloadReports = reports
         .text()
         .lines()
-        .filter(line -> line.contains("Browser: Refused a download of "))
-        .map(line -> line.substring(line.indexOf("Browser: Refused a download of ")))
+        .filter(line -> line.contains("Browser: The download of "))
+        .map(line -> line.substring(line.indexOf("Browser: The download of ")))
         .toList();
       assertEquals(List.of(refusal), downloadReports);
     }
@@ -429,7 +429,7 @@ class CefBrowserIntegrationTest {
       assertEquals(0, processCountAfterStop);
       final boolean playing = player.isPlaying();
       assertFalse(playing, "the player knows its browser ended");
-      assertEquals(List.of("The browser module was stopped: The browser module was stopped"), this.failures);
+      assertEquals(List.of("The browser module was stopped!: The browser module was stopped!"), this.failures);
       Await.until("the browser processes ended", () -> countBrowserProcesses() == 0);
     } finally {
       module.start();

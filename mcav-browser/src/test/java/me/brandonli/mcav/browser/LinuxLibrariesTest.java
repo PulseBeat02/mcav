@@ -264,7 +264,7 @@ class LinuxLibrariesTest {
     final ClassLoader empty = new ClassLoader(null) {};
     final IllegalStateException missing = assertThrows(IllegalStateException.class, () -> LinuxLibraries.readResource(empty));
     final String message = missing.getMessage();
-    assertEquals("The resource mcav/browser/linux-libraries.txt is missing", message);
+    assertEquals("The resource mcav/browser/linux-libraries.txt is missing!", message);
     final ClassLoader broken = new ClassLoader(null) {
       @Override
       public InputStream getResourceAsStream(final String name) {
@@ -413,7 +413,7 @@ class LinuxLibrariesTest {
     );
     final IOException failure = assertThrows(IOException.class, () -> none.install("linux-amd64"));
     final String failureMessage = failure.getMessage();
-    assertEquals("The package libmcavtest1 could not be downloaded from any mirror", failureMessage);
+    assertEquals("The package libmcavtest1 could not be downloaded from any mirror!", failureMessage);
     final String firstMirrorMessage = failure.getCause().getMessage();
     assertEquals("down first.test", firstMirrorMessage);
     final String secondMirrorMessage = failure.getCause().getSuppressed()[0].getMessage();
@@ -429,7 +429,7 @@ class LinuxLibrariesTest {
     final LinuxLibraries libraries = new LinuxLibraries(this.folder, (uri, destination, sha256, size) -> {}, List.of(), List.of());
     final IOException failure = assertThrows(IOException.class, () -> libraries.install("linux-riscv64"));
     final String message = failure.getMessage();
-    assertEquals("mcav has no libraries for linux-riscv64", message);
+    assertEquals("Platform linux-riscv64 has no libraries in mcav!", message);
   }
 
   @Test
@@ -446,7 +446,7 @@ class LinuxLibrariesTest {
       LinuxLibraries.extract(linkOnly, wanted, Files.createDirectory(this.folder.resolve("b")))
     );
     final String linkMessage = link.getMessage();
-    assertEquals("The package link.deb holds no [" + LIBRARY + "]", linkMessage);
+    assertEquals("The package link.deb holds none of [%s]!".formatted(LIBRARY), linkMessage);
     final boolean unpackedKept = Files.exists(this.folder.resolve("link.deb.unpacked"));
     assertFalse(unpackedKept, "the unpacked package is removed");
     final Path hardLink = Files.write(this.folder.resolve("hard.deb"), deb(Map.of(), Map.of(LIBRARY, "=elsewhere.so"), "data.tar.xz"));
@@ -531,7 +531,7 @@ class LinuxLibrariesTest {
       libraries.findMissing("linux-amd64", List.of(bare))
     );
     final String message = lacking.getMessage();
-    assertEquals("The browser needs libz.so.1, which this server lacks and mcav does not bring", message);
+    assertEquals("The browser needs libz.so.1, which this server lacks and mcav does not bring!", message);
   }
 
   @Test
@@ -652,7 +652,7 @@ class LinuxLibrariesTest {
       "The browser needs the Java runtime's libjawt.so, which " +
         runtime +
         " lacks: the headless Java packages of Debian and Ubuntu (openjdk-*-jre-headless) leave it out; install the full" +
-        " package of the same version (openjdk-*-jre), or run the server on a full Java runtime",
+        " package of the same version (openjdk-*-jre), or run the server on a full Java runtime!",
       message
     );
     assertEquals(List.of(), this.downloads, "no library is downloaded for a runtime the browser cannot use");

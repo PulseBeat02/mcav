@@ -177,9 +177,9 @@ class ChromiumConfinementTest {
       final String macNotAsked = ChromiumConfinement.confine(this.configuration(false, server), false, true, () -> 4, seatbelt);
       assertEquals(ChromiumConfinement.NOT_ASKED, macNotAsked);
       final String otherSystemReason = ChromiumConfinement.confine(this.configuration(true, server), false, false, () -> 4, seatbelt);
-      assertEquals("Chromium runs without confinement: MCAV confines it on Linux and macOS only", otherSystemReason);
+      assertEquals("Chromium runs without confinement: MCAV confines it on Linux and macOS only.", otherSystemReason);
       final String noLandlockReason = ChromiumConfinement.confine(this.configuration(true, server), true, false, () -> -38, seatbelt);
-      assertEquals("Chromium runs without confinement: this kernel has no Landlock, which Linux has since 5.13", noLandlockReason);
+      assertEquals("Chromium runs without confinement: this kernel has no Landlock, which Linux has since 5.13.", noLandlockReason);
       final List<String> profiles = library.profiles();
       assertEquals(List.of(), profiles, "only macOS uses Seatbelt");
     }
@@ -190,7 +190,7 @@ class ChromiumConfinementTest {
       () -> 4,
       new Seatbelt(name -> Optional.empty())
     );
-    assertEquals("Chromium runs without confinement: this system has no Seatbelt (sandbox_init)", noSeatbeltReason);
+    assertEquals("Chromium runs without confinement: this system has no Seatbelt (sandbox_init).", noSeatbeltReason);
   }
 
   @Test
@@ -198,7 +198,7 @@ class ChromiumConfinementTest {
   void shouldLeaveTheHelperAsItIsAndSayWhyOnASystemWithoutSeatbelt() throws IOException {
     final HelperConfiguration configuration = this.configuration(true, this.folder.resolve("server"));
     final String noSeatbeltReason = ChromiumConfinement.confine(configuration, false, true);
-    assertEquals("Chromium runs without confinement: this system has no Seatbelt (sandbox_init)", noSeatbeltReason);
+    assertEquals("Chromium runs without confinement: this system has no Seatbelt (sandbox_init).", noSeatbeltReason);
   }
 
   @Test

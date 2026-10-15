@@ -44,9 +44,7 @@ final class Seatbelt {
 
   private static final String INIT = "sandbox_init";
   private static final String FREE_ERROR = "sandbox_free_error";
-  private static final String REFUSED = "Seatbelt refused the profile: ";
-  private static final String NO_REASON = "no reason given";
-  private static final String UNCALLABLE = "The C library could not be called";
+  private static final String UNCALLABLE = "The C library could not be called!";
   private static final Integer SUCCESS = 0;
   private static final long PROFILE_TEXT = 0L;
 
@@ -90,7 +88,8 @@ final class Seatbelt {
     final Optional<MemorySegment> init = this.library.find(INIT);
     final Optional<MemorySegment> freeError = this.library.find(FREE_ERROR);
     if (init.isEmpty() || freeError.isEmpty()) {
-      throw new IOException(MISSING);
+      final String message = "The process cannot be restricted, because %s!".formatted(MISSING);
+      throw new IOException(message);
     }
     final Linker linker = Linker.nativeLinker();
     final MethodHandle initCall = linker.downcallHandle(
@@ -106,12 +105,13 @@ final class Seatbelt {
       }
       final MemorySegment message = error.get(ValueLayout.ADDRESS, 0);
       if (message.address() == 0) {
-        throw new IOException(REFUSED + NO_REASON);
+        throw new IOException("Seatbelt refused the profile without a reason!");
       }
       // the library hands over a C string of its own, which is given back to it once read
       final String reason = message.reinterpret(Long.MAX_VALUE).getString(0);
       call(freeCall, message);
-      throw new IOException(REFUSED + reason);
+      final String refusal = "Seatbelt refused the profile (%s)!".formatted(reason);
+      throw new IOException(refusal);
     }
   }
 

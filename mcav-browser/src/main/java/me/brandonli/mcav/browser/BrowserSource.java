@@ -67,35 +67,35 @@ public interface BrowserSource extends UriSource {
    * @throws NullPointerException if {@code uri} is null
    */
   static BrowserSource uri(final URI uri, final int width, final int height, final int frameInterval) {
-    Preconditions.checkNotNull(uri, "URI must not be null");
+    Preconditions.checkNotNull(uri, "URI must not be null!");
     // java.net.URI reads no host from a name with an underscore, which the policy then cannot check; such an address
     // was refused as one that is not http or https
     Preconditions.checkArgument(
       uri.getHost() != null || uri.getRawAuthority() == null,
-      "The address has no host name the browser can check, such as a name with an underscore: %s",
+      "Address %s has no host name the browser can check, such as a name with an underscore!",
       uri
     );
-    Preconditions.checkArgument(NavigationPolicy.isWebAddress(uri), "The browser shows http and https addresses only but got %s", uri);
+    Preconditions.checkArgument(NavigationPolicy.isWebAddress(uri), "Address %s must be an http or https address for the browser!", uri);
     final int length = uri.toString().length();
     Preconditions.checkArgument(
       length <= MAX_ADDRESS_LENGTH,
-      "An address has at most %s characters but had %s",
-      MAX_ADDRESS_LENGTH,
-      length
+      "Address length %s must be at most %s characters!",
+      length,
+      MAX_ADDRESS_LENGTH
     );
-    Preconditions.checkArgument(width > 0 && height > 0, "Frame size must be positive but was %sx%s", width, height);
+    Preconditions.checkArgument(width > 0 && height > 0, "Frame size %sx%s must be positive!", width, height);
     Preconditions.checkArgument(
       width <= MAX_SIDE && height <= MAX_SIDE,
-      "Frame size must be at most %s per side but was %sx%s",
-      MAX_SIDE,
+      "Frame size %sx%s must be at most %s per side!",
       width,
-      height
+      height,
+      MAX_SIDE
     );
     Preconditions.checkArgument(
       frameInterval > 0 && frameInterval <= MAX_FRAME_INTERVAL,
-      "Frame interval must be between 1 and %s but was %s",
-      MAX_FRAME_INTERVAL,
-      frameInterval
+      "Frame interval %s must be between 1 and %s!",
+      frameInterval,
+      MAX_FRAME_INTERVAL
     );
     return new BrowserSourceImpl(uri, width, height, frameInterval);
   }
