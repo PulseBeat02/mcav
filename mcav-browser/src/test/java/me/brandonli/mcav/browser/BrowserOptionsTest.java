@@ -27,11 +27,13 @@ import org.junit.jupiter.api.Test;
 
 class BrowserOptionsTest {
 
+  private static final int MAXIMUM_FRAME_RATE = 60;
+
   @Test
   void shouldSuitUntrustedPagesByDefault() {
     final int frameRate = BrowserOptions.DEFAULT.getFrameRate();
     assertEquals(BrowserOptions.MAXIMUM_FRAME_RATE, frameRate);
-    assertEquals(60, BrowserOptions.MAXIMUM_FRAME_RATE);
+    assertEquals(MAXIMUM_FRAME_RATE, BrowserOptions.MAXIMUM_FRAME_RATE);
     final boolean javaScriptJit = BrowserOptions.DEFAULT.isJavaScriptJit();
     assertFalse(javaScriptJit);
     final boolean privateNetworks = BrowserOptions.DEFAULT.isPrivateNetworks();
@@ -70,8 +72,8 @@ class BrowserOptionsTest {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> builder.refusedHosts(List.of("a b")));
     final String message = refused.getMessage();
     assertEquals("Host 'a b' is not a host name or address!", message);
-    final int maximumFrameRate = BrowserOptions.builder().frameRate(60).build().getFrameRate();
-    assertEquals(60, maximumFrameRate);
+    final int maximumFrameRate = BrowserOptions.builder().frameRate(MAXIMUM_FRAME_RATE).build().getFrameRate();
+    assertEquals(MAXIMUM_FRAME_RATE, maximumFrameRate);
   }
 
   @Test

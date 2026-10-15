@@ -69,6 +69,9 @@ public final class BrowserHelper {
    */
   private static final long STOP_DEADLINE_MILLISECONDS = 20_000L;
 
+  private static final int OUTPUT_BUFFER_BYTES = 1 << 16;
+  private static final int INPUT_BUFFER_CHARACTERS = 256;
+
   private final HelperConfiguration configuration;
   private final HelperEngine engine;
   private final Halter halter;
@@ -191,7 +194,7 @@ public final class BrowserHelper {
     final Path socket = this.configuration.getSocket();
     try (final SocketChannel channel = connector.connect(socket)) {
       final OutputStream rawOutput = Channels.newOutputStream(channel);
-      final DataOutputStream output = new DataOutputStream(new BufferedOutputStream(rawOutput, 1 << 16));
+      final DataOutputStream output = new DataOutputStream(new BufferedOutputStream(rawOutput, OUTPUT_BUFFER_BYTES));
       final InputStream rawInput = Channels.newInputStream(channel);
       final DataInputStream input = new DataInputStream(new BufferedInputStream(rawInput));
       final byte[] token = this.configuration.getToken();
@@ -255,7 +258,7 @@ public final class BrowserHelper {
    */
   void watchInput(final Reader standardInput) {
     try {
-      final char[] buffer = new char[256];
+      final char[] buffer = new char[INPUT_BUFFER_CHARACTERS];
       while (standardInput.read(buffer) >= 0) {}
     } catch (final IOException exception) {
       // a broken input means the server is gone as well

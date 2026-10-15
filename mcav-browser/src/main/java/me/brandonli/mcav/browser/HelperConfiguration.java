@@ -44,6 +44,25 @@ final class HelperConfiguration {
   private static final int MAXIMUM_LINE_CHARACTERS = 1024 * 1024;
   private static final int MAXIMUM_FRAME_INTERVAL = 1000;
 
+  private static final int TOKEN_FIELD = 0;
+  private static final int SOCKET_FIELD = 1;
+  private static final int NATIVES_FIELD = 2;
+  private static final int PROFILE_FIELD = 3;
+  private static final int URL_FIELD = 4;
+  private static final int WIDTH_FIELD = 5;
+  private static final int HEIGHT_FIELD = 6;
+  private static final int FRAME_INTERVAL_FIELD = 7;
+  private static final int FRAME_RATE_FIELD = 8;
+  private static final int JAVA_SCRIPT_JIT_FIELD = 9;
+  private static final int PRIVATE_NETWORKS_FIELD = 10;
+  private static final int AUTOPLAY_FIELD = 11;
+  private static final int CONFINED_FIELD = 12;
+  private static final int SERVER_FOLDER_FIELD = 13;
+  private static final int REFUSED_HOSTS_FIELD = 14;
+
+  private static final String TRUE_TEXT = "true";
+  private static final String FALSE_TEXT = "false";
+
   private final byte[] token;
   private final Path socket;
   private final Path natives;
@@ -179,21 +198,23 @@ final class HelperConfiguration {
       values[index] = new String(bytes, StandardCharsets.UTF_8);
     }
     final HexFormat hexadecimal = HexFormat.of();
-    final byte[] token = hexadecimal.parseHex(values[0]);
-    final Path socket = Path.of(values[1]);
-    final Path natives = Path.of(values[2]);
-    final Path profile = Path.of(values[3]);
-    final URI url = URI.create(values[4]);
-    final int width = Integer.parseInt(values[5]);
-    final int height = Integer.parseInt(values[6]);
-    final int frameInterval = Integer.parseInt(values[7]);
-    final int frameRate = Integer.parseInt(values[8]);
-    final boolean allowsJavaScriptJit = parseBoolean(values[9]);
-    final boolean allowsPrivateNetworks = parseBoolean(values[10]);
-    final boolean allowsAutoplay = parseBoolean(values[11]);
-    final boolean confined = parseBoolean(values[12]);
-    final Path serverFolder = Path.of(values[13]);
-    final List<String> refusedHosts = values[14].isEmpty() ? List.of() : List.of(values[14].split(HOST_SEPARATOR, -1));
+    final byte[] token = hexadecimal.parseHex(values[TOKEN_FIELD]);
+    final Path socket = Path.of(values[SOCKET_FIELD]);
+    final Path natives = Path.of(values[NATIVES_FIELD]);
+    final Path profile = Path.of(values[PROFILE_FIELD]);
+    final URI url = URI.create(values[URL_FIELD]);
+    final int width = Integer.parseInt(values[WIDTH_FIELD]);
+    final int height = Integer.parseInt(values[HEIGHT_FIELD]);
+    final int frameInterval = Integer.parseInt(values[FRAME_INTERVAL_FIELD]);
+    final int frameRate = Integer.parseInt(values[FRAME_RATE_FIELD]);
+    final boolean allowsJavaScriptJit = parseBoolean(values[JAVA_SCRIPT_JIT_FIELD]);
+    final boolean allowsPrivateNetworks = parseBoolean(values[PRIVATE_NETWORKS_FIELD]);
+    final boolean allowsAutoplay = parseBoolean(values[AUTOPLAY_FIELD]);
+    final boolean confined = parseBoolean(values[CONFINED_FIELD]);
+    final Path serverFolder = Path.of(values[SERVER_FOLDER_FIELD]);
+    final List<String> refusedHosts = values[REFUSED_HOSTS_FIELD].isEmpty()
+      ? List.of()
+      : List.of(values[REFUSED_HOSTS_FIELD].split(HOST_SEPARATOR, -1));
     return new HelperConfiguration(
       token,
       socket,
@@ -224,7 +245,7 @@ final class HelperConfiguration {
   }
 
   private static boolean parseBoolean(final String value) {
-    requireThat(value.equals("true") || value.equals("false"), "Value %s is not a boolean!".formatted(value));
+    requireThat(value.equals(TRUE_TEXT) || value.equals(FALSE_TEXT), "Value %s is not a boolean!".formatted(value));
     return Boolean.parseBoolean(value);
   }
 

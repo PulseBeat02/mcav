@@ -65,6 +65,12 @@ class NullDisplayTest {
   private static final byte[] COOKIE = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
   private static final String COOKIE_NAME = "MIT-MAGIC-COOKIE-1";
 
+  private static final String AUTHORITY_FILE = "Xauthority";
+  private static final String DISPLAY_PREFIX = "127.0.0.1:";
+  private static final Pattern DISPLAY_ADDRESS = Pattern.compile("127\\.0\\.0\\.1:(\\d+)");
+
+  private static final int READ_TIMEOUT_MILLISECONDS = 10_000;
+
   @TempDir
   Path folder;
 
@@ -416,7 +422,7 @@ class NullDisplayTest {
 
   @Test
   void shouldServeOnADaemonThreadAndCountItsClients() throws IOException {
-    final Path authority = this.folder.resolve("Xauthority");
+    final Path authority = this.folder.resolve(AUTHORITY_FILE);
     try (final NullDisplay display = NullDisplay.start(authority)) {
       final List<Thread> threads = Thread.getAllStackTraces()
         .keySet()
@@ -427,7 +433,7 @@ class NullDisplayTest {
       assertFalse(empty);
       final boolean allDaemons = threads.stream().allMatch(Thread::isDaemon);
       assertTrue(allDaemons, "the display never keeps the helper alive");
-      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring(DISPLAY_PREFIX.length()));
       try (final Socket client = introduce(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), port, cookieOf(authority))) {
         Await.until("the client is counted", () -> display.countClients() == 1);
         final boolean atomInterned = internsAnAtom(client);
@@ -439,10 +445,10 @@ class NullDisplayTest {
 
   @Test
   void shouldFreeThePlaceOfAClientThatLeavesForTheNextOne() throws IOException, InterruptedException {
-    final Path authority = this.folder.resolve("Xauthority");
+    final Path authority = this.folder.resolve(AUTHORITY_FILE);
     final List<Socket> clients = new ArrayList<>();
     try (final NullDisplay display = NullDisplay.start(authority)) {
-      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring(DISPLAY_PREFIX.length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
       final byte[] cookie = cookieOf(authority);
       for (int count = 0; count < NullDisplay.MAXIMUM_CONNECTIONS; count++) {
@@ -549,7 +555,7 @@ class NullDisplayTest {
 
   @Test
   void shouldServeClientsThatReadTheAuthorityFile() throws IOException {
-    final Path authority = this.folder.resolve("Xauthority");
+    final Path authority = this.folder.resolve(AUTHORITY_FILE);
     final NullDisplay display = NullDisplay.start(authority);
     try {
       if (authority.getFileSystem().supportedFileAttributeViews().contains("posix")) {
@@ -560,12 +566,12 @@ class NullDisplayTest {
       final byte[] cookie = Arrays.copyOfRange(entry, entry.length - NullDisplay.COOKIE_BYTES, entry.length);
       assertArrayEquals(NullDisplay.createAuthorityEntry(cookie), entry);
       final String name = display.getDisplay();
-      final Matcher matcher = Pattern.compile("127\\.0\\.0\\.1:(\\d+)").matcher(name);
+      final Matcher matcher = DISPLAY_ADDRESS.matcher(name);
       final boolean displayNameMatches = matcher.matches();
       assertTrue(displayNameMatches, name);
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(matcher.group(1));
       try (final Socket client = new Socket(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), port)) {
-        client.setSoTimeout(10_000);
+        client.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         final OutputStream out = client.getOutputStream();
         out.write(concat(setup(cookie), internAtom(ByteOrder.LITTLE_ENDIAN, "CLIPBOARD")));
         out.flush();
@@ -602,7 +608,7 @@ class NullDisplayTest {
 
   private static Socket introduce(final InetAddress loopback, final int port, final byte[] cookie) throws IOException {
     final Socket client = new Socket(loopback, port);
-    client.setSoTimeout(10_000);
+    client.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
     client.getOutputStream().write(setup(cookie));
     new DataInputStream(client.getInputStream()).readFully(new byte[NullDisplay.createSetupReply(ByteOrder.LITTLE_ENDIAN).limit()]);
     return client;
@@ -630,10 +636,10 @@ class NullDisplayTest {
    */
   @Test
   void shouldEndClientsWithTheCookieBeyondTheLimitAndFreeThePlaceOfOneThatLeaves() throws IOException {
-    final Path authority = this.folder.resolve("Xauthority");
+    final Path authority = this.folder.resolve(AUTHORITY_FILE);
     final List<Socket> clients = new ArrayList<>();
     try (final NullDisplay display = NullDisplay.start(authority)) {
-      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring(DISPLAY_PREFIX.length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
       final byte[] cookie = cookieOf(authority);
       for (int count = 0; count <= NullDisplay.MAXIMUM_CONNECTIONS; count++) {
@@ -664,16 +670,16 @@ class NullDisplayTest {
 
   @Test
   void shouldNotLetClientsWithoutTheCookieKeepOneThatHasItOut() throws IOException {
-    final Path authority = this.folder.resolve("Xauthority");
+    final Path authority = this.folder.resolve(AUTHORITY_FILE);
     final List<Socket> silent = new ArrayList<>();
     // no setup timeout, so only the eviction this test is about can end a waiting client: on a busy machine the
     // default's ten seconds can pass while the clients connect, and close the second client
     try (final NullDisplay display = NullDisplay.start(authority, 0)) {
-      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring(DISPLAY_PREFIX.length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
       for (int count = 0; count < NullDisplay.MAXIMUM_PENDING; count++) {
         final Socket client = new Socket(loopback, port);
-        client.setSoTimeout(10_000);
+        client.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         silent.add(client);
       }
       try (final Socket introduced = introduce(loopback, port, cookieOf(authority))) {
@@ -693,19 +699,19 @@ class NullDisplayTest {
 
   @Test
   void shouldRemoveAClientRefusedInItsSetupFromTheQueueOfWaitingClients() throws IOException {
-    final Path authority = this.folder.resolve("Xauthority");
+    final Path authority = this.folder.resolve(AUTHORITY_FILE);
     final List<Socket> silent = new ArrayList<>();
     // no setup timeout, as above: only a refusal or an eviction ends a client here
     try (final NullDisplay display = NullDisplay.start(authority, 0)) {
-      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring(DISPLAY_PREFIX.length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
       for (int count = 1; count < NullDisplay.MAXIMUM_PENDING; count++) {
         final Socket client = new Socket(loopback, port);
-        client.setSoTimeout(10_000);
+        client.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         silent.add(client);
       }
       try (final Socket refused = new Socket(loopback, port)) {
-        refused.setSoTimeout(10_000);
+        refused.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         refused.getOutputStream().write(setup(new byte[NullDisplay.COOKIE_BYTES]));
         final byte[] answer = refused.getInputStream().readAllBytes();
         final boolean refusalArrived = answer.length >= 8;
@@ -734,22 +740,22 @@ class NullDisplayTest {
 
   @Test
   void shouldRemoveAServedClientFromTheQueueOfWaitingClients() throws IOException {
-    final Path authority = this.folder.resolve("Xauthority");
+    final Path authority = this.folder.resolve(AUTHORITY_FILE);
     final List<Socket> silent = new ArrayList<>();
     // no setup timeout, as above: only an eviction ends a client here
     try (final NullDisplay display = NullDisplay.start(authority, 0)) {
-      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring(DISPLAY_PREFIX.length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
       for (int count = 2; count < NullDisplay.MAXIMUM_PENDING; count++) {
         final Socket client = new Socket(loopback, port);
-        client.setSoTimeout(10_000);
+        client.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         silent.add(client);
       }
       try (final Socket served = introduce(loopback, port, cookieOf(authority))) {
         final boolean servedInternsAtom = internsAnAtom(served);
         assertTrue(servedInternsAtom, "the client with the cookie is served, and stays");
         final Socket newcomer = new Socket(loopback, port);
-        newcomer.setSoTimeout(10_000);
+        newcomer.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         silent.add(newcomer);
         try (final Socket second = introduce(loopback, port, cookieOf(authority))) {
           final boolean secondInternsAtom = internsAnAtom(second);
@@ -812,7 +818,7 @@ class NullDisplayTest {
 
   @Test
   void shouldNotOverwriteAnAuthorityFileThatExistsAndLeaveNoPortOpen() throws IOException {
-    final Path authority = Files.writeString(this.folder.resolve("Xauthority"), "someone else's");
+    final Path authority = Files.writeString(this.folder.resolve(AUTHORITY_FILE), "someone else's");
     OpenFiles.leaveNoneOpen("a display that cannot write its file", () ->
       assertThrows(IOException.class, () -> NullDisplay.start(authority))
     );
@@ -916,7 +922,7 @@ class NullDisplayTest {
   void shouldNameADisplayForChromiumAndGiveNoDisplayNoName(@TempDir final Path directory) throws IOException {
     final @Nullable String nameOfNone = NullDisplay.nameOf(null);
     assertNull(nameOfNone);
-    try (final NullDisplay display = NullDisplay.start(directory.resolve("Xauthority"))) {
+    try (final NullDisplay display = NullDisplay.start(directory.resolve(AUTHORITY_FILE))) {
       final @Nullable String displayName = NullDisplay.nameOf(display);
       assertEquals(display.getDisplay(), displayName);
     }
@@ -924,18 +930,18 @@ class NullDisplayTest {
 
   @Test
   void shouldEndTheConnectionOfAClientThatBreaksTheProtocolAndKeepTheDisplayForOthers(@TempDir final Path directory) throws IOException {
-    try (final NullDisplay display = NullDisplay.start(directory.resolve("Xauthority"))) {
-      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+    try (final NullDisplay display = NullDisplay.start(directory.resolve(AUTHORITY_FILE))) {
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring(DISPLAY_PREFIX.length()));
       try (final Socket broken = new Socket(InetAddress.getLoopbackAddress(), port)) {
-        broken.setSoTimeout(10_000);
+        broken.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         broken.getOutputStream().write(new byte[] { 'X', 0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0 });
         final int nextByte = broken.getInputStream().read();
         assertEquals(-1, nextByte, "the display ends the connection");
       }
-      final byte[] entry = Files.readAllBytes(directory.resolve("Xauthority"));
+      final byte[] entry = Files.readAllBytes(directory.resolve(AUTHORITY_FILE));
       final byte[] cookie = Arrays.copyOfRange(entry, entry.length - NullDisplay.COOKIE_BYTES, entry.length);
       try (final Socket next = new Socket(InetAddress.getLoopbackAddress(), port)) {
-        next.setSoTimeout(10_000);
+        next.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         next.getOutputStream().write(setup(cookie));
         final byte[] accepted = new byte[NullDisplay.createSetupReply(ByteOrder.LITTLE_ENDIAN).limit()];
         new DataInputStream(next.getInputStream()).readFully(accepted);
@@ -949,17 +955,17 @@ class NullDisplayTest {
   @Test
   void shouldEndTheConnectionOfAClientThatDoesNotIntroduceItselfInTimeAndLetOneThatDidIdle(@TempDir final Path directory)
     throws IOException, InterruptedException {
-    final Path authority = directory.resolve("Xauthority");
+    final Path authority = directory.resolve(AUTHORITY_FILE);
     try (final NullDisplay display = NullDisplay.start(authority, 200)) {
-      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
+      final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring(DISPLAY_PREFIX.length()));
       final byte[] entry = Files.readAllBytes(authority);
       final byte[] cookie = Arrays.copyOfRange(entry, entry.length - NullDisplay.COOKIE_BYTES, entry.length);
       try (
         final Socket silent = new Socket(InetAddress.getLoopbackAddress(), port);
         final Socket introduced = new Socket(InetAddress.getLoopbackAddress(), port)
       ) {
-        silent.setSoTimeout(10_000);
-        introduced.setSoTimeout(10_000);
+        silent.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
+        introduced.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         introduced.getOutputStream().write(setup(cookie));
         final DataInputStream in = new DataInputStream(introduced.getInputStream());
         in.readFully(new byte[NullDisplay.createSetupReply(ByteOrder.LITTLE_ENDIAN).limit()]);

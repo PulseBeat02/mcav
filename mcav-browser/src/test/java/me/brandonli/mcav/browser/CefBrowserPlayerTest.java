@@ -67,6 +67,8 @@ class CefBrowserPlayerTest {
 
   private static final BrowserSource SOURCE = BrowserSource.uri(URI.create("https://example.com/"), 100, 50, 1);
 
+  private static final String END_REASON = "gone";
+
   private final List<FakeSession> sessions = new ArrayList<>();
   private final List<String> reports = new ArrayList<>();
   private final List<ImageBuffer> processed = new ArrayList<>();
@@ -365,7 +367,7 @@ class CefBrowserPlayerTest {
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
     final BrowserSession.Listener ended = this.listener;
-    ended.onEnded("gone", new IllegalStateException("crash"));
+    ended.onEnded(END_REASON, new IllegalStateException("crash"));
     Await.until("the audio thread of the failed session ended", () -> before.containsAll(audioThreads()));
     ended.onAudio(new byte[] { 6, 0, 6, 0 });
     this.player.deliverAudio(this.sessions.getFirst(), new byte[] { 7, 0, 7, 0 });
@@ -418,7 +420,7 @@ class CefBrowserPlayerTest {
   void shouldIgnoreFramesAndEndsOfAReplacedSession() {
     this.player.start(SOURCE);
     final BrowserSession.Listener first = this.listener;
-    first.onEnded("gone", new IllegalStateException("crash"));
+    first.onEnded(END_REASON, new IllegalStateException("crash"));
     final boolean playingAfterEnd = this.player.isPlaying();
     assertFalse(playingAfterEnd);
     assertEquals(List.of("gone: crash"), this.reports);
@@ -438,7 +440,7 @@ class CefBrowserPlayerTest {
   @Test
   void shouldDropAFrameOfTheCurrentSessionAfterItFailed() {
     this.player.start(SOURCE);
-    this.listener.onEnded("gone", new IllegalStateException("crash"));
+    this.listener.onEnded(END_REASON, new IllegalStateException("crash"));
     final ImageBuffer late = frame();
     this.listener.onFrame(late);
     final int processedCount = this.processed.size();
@@ -448,7 +450,7 @@ class CefBrowserPlayerTest {
   @Test
   void shouldReportAnEndOnce() {
     this.player.start(SOURCE);
-    this.listener.onEnded("gone", new IllegalStateException("one"));
+    this.listener.onEnded(END_REASON, new IllegalStateException("one"));
     this.listener.onEnded("gone again", new IllegalStateException("two"));
     assertEquals(List.of("gone: one"), this.reports);
   }
@@ -699,7 +701,7 @@ class CefBrowserPlayerTest {
     this.player.scroll(1, 1, 0, 10);
     this.player.sendKeyEvent("x");
     this.player.start(SOURCE);
-    this.listener.onEnded("gone", new IllegalStateException("crash"));
+    this.listener.onEnded(END_REASON, new IllegalStateException("crash"));
     this.player.sendKeyEvent("x");
     assertEquals(List.of(), this.sessions.getFirst().sent);
   }

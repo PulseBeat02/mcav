@@ -49,6 +49,12 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class ChromiumConfinementTest {
 
+  private static final String SERVER_FOLDER = "server";
+  private static final String MISSING_NAME = "missing";
+
+  private static final Path RELATIVE_LIBRARY = Path.of("..", "installation", "libnss3.so");
+  private static final Path DEVICES = Path.of("/dev");
+
   @TempDir
   private Path folder;
 
@@ -92,7 +98,7 @@ class ChromiumConfinementTest {
     Files.createSymbolicLink(root.resolve("link"), home);
     final Path natives = home.resolve("natives");
     final Path session = root.resolve("session");
-    final List<Path> hidden = List.of(home, root, root.resolve("missing"));
+    final List<Path> hidden = List.of(home, root, root.resolve(MISSING_NAME));
     final List<Landlock.Rule> rules = ChromiumConfinement.rules(root, hidden, List.of(natives), List.of(session));
     final List<Landlock.Rule> walkedRules = walkSorted(rules, 2);
     assertEquals(
@@ -160,16 +166,16 @@ class ChromiumConfinementTest {
     final Path library = Files.writeString(installation.resolve("libnss3.so"), "library");
     final Path linked = Files.createDirectories(this.folder.resolve("libraries"));
     Files.createSymbolicLink(linked.resolve("libnss3.so"), library);
-    Files.createSymbolicLink(linked.resolve("relative.so"), Path.of("..", "installation", "libnss3.so"));
+    Files.createSymbolicLink(linked.resolve("relative.so"), RELATIVE_LIBRARY);
     Files.writeString(linked.resolve("plain.so"), "not a link");
-    final List<Path> targets = ChromiumConfinement.linkedFiles(List.of(linked, this.folder.resolve("missing"), library));
+    final List<Path> targets = ChromiumConfinement.linkedFiles(List.of(linked, this.folder.resolve(MISSING_NAME), library));
     final List<Path> sortedTargets = targets.stream().sorted().toList();
-    assertEquals(List.of(library, linked.resolve(Path.of("..", "installation", "libnss3.so"))), sortedTargets);
+    assertEquals(List.of(library, linked.resolve(RELATIVE_LIBRARY)), sortedTargets);
   }
 
   @Test
   void shouldConfineAHelperOnlyWhenItsOptionsAskOnLinuxWithLandlockAndOnMacOsWithSeatbelt() throws Exception {
-    final Path server = this.folder.resolve("server");
+    final Path server = this.folder.resolve(SERVER_FOLDER);
     try (final SeatbeltLibrary library = SeatbeltLibrary.complete()) {
       final Seatbelt seatbelt = library.seatbelt();
       final String linuxNotAsked = ChromiumConfinement.confine(this.configuration(false, server), true, false, () -> 4, seatbelt);
@@ -196,14 +202,14 @@ class ChromiumConfinementTest {
   @Test
   @DisabledOnOs(OS.MAC) // on macOS this would put this JVM in the sandbox
   void shouldLeaveTheHelperAsItIsAndSayWhyOnASystemWithoutSeatbelt() throws IOException {
-    final HelperConfiguration configuration = this.configuration(true, this.folder.resolve("server"));
+    final HelperConfiguration configuration = this.configuration(true, this.folder.resolve(SERVER_FOLDER));
     final String noSeatbeltReason = ChromiumConfinement.confine(configuration, false, true);
     assertEquals("Chromium runs without confinement: this system has no Seatbelt (sandbox_init).", noSeatbeltReason);
   }
 
   @Test
   void shouldConfineTheWholeHelperWithAProfileOfTheRealPathsOnMacOs() throws Exception {
-    final Path server = Files.createDirectories(this.folder.resolve("server"));
+    final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
     final HelperConfiguration configuration = this.configuration(true, server);
     final Path session = Files.createDirectories(configuration.getSocket().getParent());
     final String said;
@@ -236,11 +242,7 @@ class ChromiumConfinementTest {
       "(deny file-write*)\n(allow file-write* (subpath " +
         Seatbelt.quote(session.toRealPath().toString()) +
         ") (subpath " +
-        Seatbelt.quote(
-          ChromiumConfinement.realPaths(List.of(Path.of("/dev")))
-            .getFirst()
-            .toString()
-        ) +
+        Seatbelt.quote(ChromiumConfinement.realPaths(List.of(DEVICES)).getFirst().toString()) +
         "))\n"
     );
     assertTrue(allowsWritingOnlyTheSession, profile);
@@ -254,7 +256,7 @@ class ChromiumConfinementTest {
   void shouldResolveLinksAndKeepMissingPathsAbsoluteInRealPaths() throws IOException {
     final Path real = Files.createDirectories(this.folder.resolve("real"));
     final Path link = Files.createSymbolicLink(this.folder.resolve("link"), real);
-    final Path missing = this.folder.resolve("missing").resolve("..").resolve("gone");
+    final Path missing = this.folder.resolve(MISSING_NAME).resolve("..").resolve("gone");
     final List<Path> resolved = ChromiumConfinement.realPaths(List.of(link, missing));
     assertEquals(List.of(real.toRealPath(), this.folder.resolve("gone").toAbsolutePath()), resolved);
   }
@@ -264,7 +266,7 @@ class ChromiumConfinementTest {
   void shouldNotLetAConfinedHelperReadTheFolderOfTheServerOrTheTemporaryFolder() throws Exception {
     final int version = Landlock.version();
     assumeTrue(version >= 1, () -> Landlock.describeMissing(version));
-    final Path server = Files.createDirectories(this.folder.resolve("server"));
+    final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
     final Path serverConfiguration = Files.writeString(server.resolve("config.yml"), "token: secret");
     final Path otherSession = Files.createDirectories(this.folder.resolve("tmp").resolve("other-session"));
     final Path cookies = Files.writeString(otherSession.resolve("Cookies"), "cookie");
@@ -300,7 +302,7 @@ class ChromiumConfinementTest {
   @Test
   @EnabledOnOs(OS.MAC)
   void shouldNotLetAConfinedHelperOrWhatItStartsReadTheFolderOfTheServerOrTheTemporaryFolderOnMacOs() throws Exception {
-    final Path server = Files.createDirectories(this.folder.resolve("server"));
+    final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
     final Path serverConfiguration = Files.writeString(server.resolve("config.yml"), "token: secret");
     final Path otherSession = Files.createDirectories(this.folder.resolve("tmp").resolve("other-session"));
     final Path cookies = Files.writeString(otherSession.resolve("Cookies"), "cookie");

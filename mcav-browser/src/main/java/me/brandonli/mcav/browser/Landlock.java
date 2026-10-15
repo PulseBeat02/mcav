@@ -83,6 +83,10 @@ final class Landlock {
     TRUNCATE |
     DEVICE_CONTROL;
 
+  private static final int REFER_VERSION = 2;
+  private static final int TRUNCATE_VERSION = 3;
+  private static final int DEVICE_CONTROL_VERSION = 5;
+
   private Landlock() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -136,13 +140,13 @@ final class Landlock {
   @VisibleForTesting
   static long handledRights(final int version) {
     long rights = FIRST_VERSION_RIGHTS;
-    if (version >= 2) {
+    if (version >= REFER_VERSION) {
       rights |= REFER;
     }
-    if (version >= 3) {
+    if (version >= TRUNCATE_VERSION) {
       rights |= TRUNCATE;
     }
-    if (version >= 5) {
+    if (version >= DEVICE_CONTROL_VERSION) {
       rights |= DEVICE_CONTROL;
     }
     return rights;
@@ -271,9 +275,11 @@ final class Landlock {
    */
   private static final class Calls {
 
+    private static final String ERROR_NUMBER = "errno";
+
     private static final Linker LINKER = Linker.nativeLinker();
     private static final StructLayout STATE = Linker.Option.captureStateLayout();
-    private static final VarHandle ERROR = STATE.varHandle(MemoryLayout.PathElement.groupElement("errno"));
+    private static final VarHandle ERROR = STATE.varHandle(MemoryLayout.PathElement.groupElement(ERROR_NUMBER));
     private static final MethodHandle SYSCALL = bind(
       "syscall",
       FunctionDescriptor.of(
@@ -310,7 +316,7 @@ final class Landlock {
     private static MethodHandle bind(final String name, final FunctionDescriptor descriptor, final int firstVariadic) {
       final SymbolLookup library = LINKER.defaultLookup();
       final MemorySegment function = library.findOrThrow(name);
-      final Linker.Option errorNumber = Linker.Option.captureCallState("errno");
+      final Linker.Option errorNumber = Linker.Option.captureCallState(ERROR_NUMBER);
       if (firstVariadic < 0) {
         return LINKER.downcallHandle(function, descriptor, errorNumber);
       }

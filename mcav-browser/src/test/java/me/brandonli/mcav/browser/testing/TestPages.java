@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 
 /**
  * Web pages on the loopback interface for browser tests.
@@ -88,6 +89,8 @@ public final class TestPages implements AutoCloseable {
    * How long the picture and the sound of {@code /av-sync} stay on and off, in milliseconds.
    */
   public static final int TOGGLE_MILLISECONDS = 400;
+
+  private static final Pattern PAIR_SEPARATOR = Pattern.compile("&");
 
   private static final String TONE_SCRIPT = String.format(
     Locale.ROOT,
@@ -595,7 +598,7 @@ public final class TestPages implements AutoCloseable {
     if (query == null) {
       return parameters;
     }
-    final String[] pairs = query.split("&", -1);
+    final String[] pairs = PAIR_SEPARATOR.split(query, -1);
     for (final String pair : pairs) {
       final int separator = pair.indexOf('=');
       if (separator < 0) {

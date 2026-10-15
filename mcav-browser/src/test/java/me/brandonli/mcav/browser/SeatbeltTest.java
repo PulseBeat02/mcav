@@ -50,6 +50,8 @@ class SeatbeltTest {
 
   private static final String PROFILE = "(version 1)\n(allow default)\n";
 
+  private static final String DENY_WRITING = "(deny file-write*)\n";
+
   @Test
   void shouldNotInstantiateTheProbeOfMacOs() {
     UtilityClassAssertions.assertNotInstantiable(SeatbeltProbeMain.class);
@@ -70,7 +72,7 @@ class SeatbeltTest {
         "(deny file-read-data (subpath \"/server\") (subpath \"/Users/owner\"))\n" +
         "(allow file-read-data (subpath \"/Users/owner/.mcav/natives\") (subpath \"/Users/owner/helper.jar\"))\n" +
         "(allow file-read-data (subpath \"/private/var/folders/session\") (subpath \"/dev\"))\n" +
-        "(deny file-write*)\n" +
+        DENY_WRITING +
         "(allow file-write* (subpath \"/private/var/folders/session\") (subpath \"/dev\"))\n",
       profile
     );
@@ -79,7 +81,7 @@ class SeatbeltTest {
   @Test
   void shouldHideNothingAndChangeNothingInAProfileWithoutPaths() {
     final String emptyProfile = Seatbelt.profile(List.of(), List.of(), List.of());
-    assertEquals(PROFILE + "(deny file-write*)\n", emptyProfile);
+    assertEquals(PROFILE + DENY_WRITING, emptyProfile);
   }
 
   @Test
@@ -124,9 +126,9 @@ class SeatbeltTest {
       final Seatbelt seatbelt = library.seatbelt();
       final boolean available = seatbelt.isAvailable();
       assertTrue(available);
-      seatbelt.restrictProcess(PROFILE + "(deny file-write*)\n");
+      seatbelt.restrictProcess(PROFILE + DENY_WRITING);
       final List<String> passedProfiles = library.profiles();
-      assertEquals(List.of(PROFILE + "(deny file-write*)\n"), passedProfiles);
+      assertEquals(List.of(PROFILE + DENY_WRITING), passedProfiles);
       final List<Long> passedFlags = library.flags();
       assertEquals(List.of(0L), passedFlags);
       final List<Long> freedAddresses = library.freed();

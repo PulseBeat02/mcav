@@ -29,6 +29,8 @@ import java.util.List;
  */
 public final class HelperCoverage {
 
+  private static final Path DESTINATION = Path.of("build", "jacoco", "helper.exec");
+
   private HelperCoverage() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
@@ -41,7 +43,7 @@ public final class HelperCoverage {
   public static List<String> jvmOptions() {
     final RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
     final List<String> arguments = runtime.getInputArguments();
-    final Path destination = Path.of("build", "jacoco", "helper.exec").toAbsolutePath();
+    final Path destination = DESTINATION.toAbsolutePath();
     for (final String argument : arguments) {
       if (argument.startsWith("-javaagent:") && argument.contains("jacocoagent")) {
         final int options = argument.indexOf('=');

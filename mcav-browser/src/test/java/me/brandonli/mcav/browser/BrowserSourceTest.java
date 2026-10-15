@@ -30,6 +30,9 @@ class BrowserSourceTest {
 
   private static final URI PAGE = URI.create("https://example.com/");
 
+  private static final int WIDTH = 640;
+  private static final int HEIGHT = 480;
+
   @Test
   void shouldDefaultTo720pEveryFrame() {
     final BrowserSource source = BrowserSource.uri(PAGE);
@@ -99,26 +102,26 @@ class BrowserSourceTest {
   @Test
   void shouldTreatSourcesWithTheSameSettingsAsEqual() {
     EqualityAssertions.assertEqualityContract(
-      BrowserSource.uri(PAGE, 640, 480, 2),
-      BrowserSource.uri(PAGE, 640, 480, 2),
-      BrowserSource.uri(URI.create("https://example.org/"), 640, 480, 2),
-      BrowserSource.uri(PAGE, 641, 480, 2),
-      BrowserSource.uri(PAGE, 640, 481, 2),
-      BrowserSource.uri(PAGE, 640, 480, 3)
+      BrowserSource.uri(PAGE, WIDTH, HEIGHT, 2),
+      BrowserSource.uri(PAGE, WIDTH, HEIGHT, 2),
+      BrowserSource.uri(URI.create("https://example.org/"), WIDTH, HEIGHT, 2),
+      BrowserSource.uri(PAGE, WIDTH + 1, HEIGHT, 2),
+      BrowserSource.uri(PAGE, WIDTH, HEIGHT + 1, 2),
+      BrowserSource.uri(PAGE, WIDTH, HEIGHT, 3)
     );
   }
 
   @Test
   void shouldHashSourcesThatDifferInASettingDifferently() {
-    final BrowserSource first = BrowserSource.uri(PAGE, 640, 480, 1);
-    final BrowserSource wider = BrowserSource.uri(PAGE, 641, 480, 1);
+    final BrowserSource first = BrowserSource.uri(PAGE, WIDTH, HEIGHT, 1);
+    final BrowserSource wider = BrowserSource.uri(PAGE, WIDTH + 1, HEIGHT, 1);
     final int widerHashCode = wider.hashCode();
     assertNotEquals(first.hashCode(), widerHashCode);
   }
 
   @Test
   void shouldRefuseASideOfZeroForEitherSide() {
-    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 0, 480, 1));
-    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 640, 0, 1));
+    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 0, HEIGHT, 1));
+    assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, WIDTH, 0, 1));
   }
 }

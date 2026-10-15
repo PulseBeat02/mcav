@@ -64,6 +64,9 @@ class HelperLauncherTest {
   private static final String BROWSER_PACKAGE = "me/brandonli/mcav/browser/";
   private static final Pattern DESCRIBED_TYPE = Pattern.compile("L([^;<]+)[;<]");
 
+  private static final Path SESSION_FOLDER = Path.of("/tmp/mcav-browser-1");
+  private static final Path OTHER_SESSION_FOLDER = Path.of("/tmp/x");
+
   @TempDir
   Path folder;
 
@@ -73,7 +76,7 @@ class HelperLauncherTest {
 
   @Test
   void shouldRunTheHelperJvmHeadlessAllowNativesAndKeepItsFilesInTheSession() {
-    final Path session = Path.of("/tmp/mcav-browser-1");
+    final Path session = SESSION_FOLDER;
     final List<String> command = launcher(Os.LINUX, Map.of()).createCommand(session);
     final String javaProgram = command.getFirst();
     assertEquals(JAVA.toString(), javaProgram);
@@ -219,7 +222,7 @@ class HelperLauncherTest {
   @Test
   void shouldUseThisJavaAndTheClassPathOfTheModuleByDefault() {
     final HelperLauncher launcher = HelperLauncher.createDefault(1_000L, List.of());
-    final List<String> command = launcher.createCommand(Path.of("/tmp/x"));
+    final List<String> command = launcher.createCommand(OTHER_SESSION_FOLDER);
     final boolean runsThisJava = command.getFirst().startsWith(System.getProperty("java.home"));
     assertTrue(runsThisJava, command.getFirst());
     final String classPath = command.get(command.indexOf("-cp") + 1);

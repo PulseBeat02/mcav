@@ -48,6 +48,12 @@ final class Seatbelt {
   private static final Integer SUCCESS = 0;
   private static final long PROFILE_TEXT = 0L;
 
+  private static final String PROFILE_START = "(version 1)\n(allow default)\n";
+  private static final String DENY_READING = "deny file-read-data";
+  private static final String ALLOW_READING = "allow file-read-data";
+  private static final String DENY_WRITING = "(deny file-write*)\n";
+  private static final String ALLOW_WRITING = "allow file-write*";
+
   private final SymbolLookup library;
 
   /**
@@ -148,12 +154,12 @@ final class Seatbelt {
    * @return the profile
    */
   static String profile(final List<Path> hidden, final List<Path> readable, final List<Path> writable) {
-    final StringBuilder profile = new StringBuilder("(version 1)\n(allow default)\n");
-    rule(profile, "deny file-read-data", hidden);
-    rule(profile, "allow file-read-data", readable);
-    rule(profile, "allow file-read-data", writable);
-    profile.append("(deny file-write*)\n");
-    rule(profile, "allow file-write*", writable);
+    final StringBuilder profile = new StringBuilder(PROFILE_START);
+    rule(profile, DENY_READING, hidden);
+    rule(profile, ALLOW_READING, readable);
+    rule(profile, ALLOW_READING, writable);
+    profile.append(DENY_WRITING);
+    rule(profile, ALLOW_WRITING, writable);
     return profile.toString();
   }
 

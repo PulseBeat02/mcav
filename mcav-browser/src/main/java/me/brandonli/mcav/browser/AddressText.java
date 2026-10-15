@@ -32,6 +32,8 @@ final class AddressText {
   static final String HIDDEN = "<hidden>";
 
   private static final String AUTHORITY_START = "://";
+  private static final String AUTHORITY_ENDS = "/?#";
+  private static final String PATH_ENDS = "?#";
 
   private AddressText() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
@@ -52,7 +54,7 @@ final class AddressText {
       return address.substring(0, colon + 1) + HIDDEN;
     }
     final int authorityStart = colon + AUTHORITY_START.length();
-    final int authorityEnd = indexOfAny(address, authorityStart, "/?#");
+    final int authorityEnd = indexOfAny(address, authorityStart, AUTHORITY_ENDS);
     final int user = address.lastIndexOf('@', authorityEnd - 1);
     final StringBuilder text = new StringBuilder(address.length() + HIDDEN.length());
     text.append(address, 0, authorityStart);
@@ -60,7 +62,7 @@ final class AddressText {
       text.append(HIDDEN).append('@');
     }
     final int hostStart = Math.max(authorityStart, user + 1);
-    final int pathEnd = indexOfAny(address, authorityEnd, "?#");
+    final int pathEnd = indexOfAny(address, authorityEnd, PATH_ENDS);
     text.append(address, hostStart, pathEnd);
     if (pathEnd < address.length()) {
       text.append(address.charAt(pathEnd)).append(HIDDEN);

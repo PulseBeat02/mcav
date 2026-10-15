@@ -28,13 +28,15 @@ import java.util.List;
  */
 final class ConfinedProbeMain {
 
+  private static final Path ROOT = Path.of("/");
+
   private ConfinedProbeMain() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
   public static void main(final String[] arguments) throws Exception {
     final Path hidden = Path.of(arguments[0]);
-    final List<Landlock.Rule> rules = ChromiumConfinement.rules(Path.of("/"), List.of(hidden), List.of(), List.of());
+    final List<Landlock.Rule> rules = ChromiumConfinement.rules(ROOT, List.of(hidden), List.of(), List.of());
     Landlock.restrictThread(Landlock.version(), rules);
     final Process cat = new ProcessBuilder("cat", arguments[1], "/proc/self/status").redirectErrorStream(true).start();
     final String output = new String(cat.getInputStream().readAllBytes(), StandardCharsets.UTF_8);

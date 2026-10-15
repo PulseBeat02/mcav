@@ -34,6 +34,8 @@ public final class OpenFiles {
 
   private static final int ATTEMPTS = 100;
 
+  private static final Path DESCRIPTORS = Path.of("/proc/self/fd");
+
   private OpenFiles() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
@@ -45,7 +47,7 @@ public final class OpenFiles {
    * @param attempt     the attempt, which must close what it opens
    */
   public static void leaveNoneOpen(final String description, final Runnable attempt) {
-    final Path descriptors = Path.of("/proc/self/fd");
+    final Path descriptors = DESCRIPTORS;
     assumeTrue(Files.isDirectory(descriptors), "this system lists the open files of a process");
     final long before = count(descriptors);
     for (int count = 0; count < ATTEMPTS; count++) {

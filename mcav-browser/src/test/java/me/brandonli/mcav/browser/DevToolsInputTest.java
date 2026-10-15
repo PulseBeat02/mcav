@@ -32,6 +32,8 @@ import org.junit.jupiter.api.Test;
 
 class DevToolsInputTest {
 
+  private static final Pattern KEY_FIELD = Pattern.compile("\"key\":(\"[^\"]*\")");
+
   private static List<String> parameters(final List<DevToolsInput.DevToolsCall> calls) {
     final List<String> parameters = new ArrayList<>();
     for (final DevToolsInput.DevToolsCall call : calls) {
@@ -190,12 +192,11 @@ class DevToolsInputTest {
 
   @Test
   void shouldPressEnterOnceForAWindowsLineBreak() {
-    final Pattern key = Pattern.compile("\"key\":(\"[^\"]*\")");
     final List<String> keys = parameters(DevToolsInput.typeText("a\r\nb\n\r"))
       .stream()
       .filter(call -> call.contains("keyDown"))
       .map(call -> {
-        final Matcher matcher = key.matcher(call);
+        final Matcher matcher = KEY_FIELD.matcher(call);
         final boolean keyFound = matcher.find();
         assertTrue(keyFound, call);
         return matcher.group(1);

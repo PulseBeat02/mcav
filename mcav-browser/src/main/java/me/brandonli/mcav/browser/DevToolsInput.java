@@ -156,6 +156,28 @@ final class DevToolsInput {
 
   // the bits of the buttons in the DevTools "buttons" field, in the order of the button numbers: left, middle, right
   private static final int[] BUTTON_BITS = { 1, 4, 2 };
+
+  private static final String ENTER_KEY = "Enter";
+  private static final String NO_BUTTON = "none";
+
+  private static final String FUNCTION_KEY_PREFIX = "F";
+  private static final int FUNCTION_KEY_COUNT = 24;
+  // F1 has the Windows virtual key code 112, and every next function key the next code
+  private static final int FUNCTION_KEY_CODE_OFFSET = 111;
+
+  private static final String KEY_DOWN_START = "{\"type\":\"keyDown\"";
+  private static final String KEY_UP_START = "{\"type\":\"keyUp\"";
+  private static final String KEY_FIELD = ",\"key\":";
+  private static final String VIRTUAL_KEY_CODE_FIELD = ",\"windowsVirtualKeyCode\":";
+  private static final String TEXT_FIELD = ",\"text\":";
+  private static final String UNMODIFIED_TEXT_FIELD = ",\"unmodifiedText\":";
+
+  // a JSON string literal holds its value between two quotes
+  private static final int QUOTE_CHARACTERS = 2;
+  private static final char FIRST_UNESCAPED_CHARACTER = 0x20;
+  private static final char LINE_SEPARATOR = 0x2028;
+  private static final char PARAGRAPH_SEPARATOR = 0x2029;
+
   private static final Map<String, KeyDefinition> KEYS = createKeys();
 
   private DevToolsInput() {
@@ -164,7 +186,7 @@ final class DevToolsInput {
 
   private static Map<String, KeyDefinition> createKeys() {
     final Map<String, KeyDefinition> keys = new HashMap<>();
-    keys.put("Enter", new KeyDefinition("Enter", 13, "\r"));
+    keys.put(ENTER_KEY, new KeyDefinition(ENTER_KEY, 13, "\r"));
     keys.put("Tab", new KeyDefinition("Tab", 9, ""));
     keys.put(" ", new KeyDefinition("Space", 32, " "));
     keys.put("Backspace", new KeyDefinition("Backspace", 8, ""));
@@ -191,9 +213,9 @@ final class DevToolsInput {
     keys.put("PrintScreen", new KeyDefinition("PrintScreen", 44, ""));
     keys.put("Help", new KeyDefinition("Help", 47, ""));
     keys.put("Clear", new KeyDefinition("NumpadEqual", 12, ""));
-    for (int number = 1; number <= 24; number++) {
-      final String name = "F" + number;
-      keys.put(name, new KeyDefinition(name, 111 + number, ""));
+    for (int number = 1; number <= FUNCTION_KEY_COUNT; number++) {
+      final String name = FUNCTION_KEY_PREFIX + number;
+      keys.put(name, new KeyDefinition(name, FUNCTION_KEY_CODE_OFFSET + number, ""));
     }
     return Map.copyOf(keys);
   }
@@ -251,7 +273,7 @@ final class DevToolsInput {
         return BUTTON_NAMES[button];
       }
     }
-    return "none";
+    return NO_BUTTON;
   }
 
   private static String mouseParameters(final String type, final int pageX, final int pageY, final int held) {
@@ -285,20 +307,17 @@ final class DevToolsInput {
     final String code = definition == null ? "" : ",\"code\":" + quote(definition.getCode());
     final int keyCode = definition == null ? 0 : definition.getKeyCode();
     final String text = definition == null ? "" : definition.getText();
-    final String keyFields = ",\"key\":" + quotedName + code + ",\"windowsVirtualKeyCode\":" + keyCode;
+    final String keyFields = KEY_FIELD + quotedName + code + VIRTUAL_KEY_CODE_FIELD + keyCode;
     final List<DevToolsCall> calls = new ArrayList<>();
     if (text.isEmpty()) {
       calls.add(new DevToolsCall(KEY_METHOD, "{\"type\":\"rawKeyDown\"" + keyFields + "}"));
     } else {
       final String quotedText = quote(text);
       calls.add(
-        new DevToolsCall(
-          KEY_METHOD,
-          "{\"type\":\"keyDown\"" + keyFields + ",\"text\":" + quotedText + ",\"unmodifiedText\":" + quotedText + "}"
-        )
+        new DevToolsCall(KEY_METHOD, KEY_DOWN_START + keyFields + TEXT_FIELD + quotedText + UNMODIFIED_TEXT_FIELD + quotedText + "}")
       );
     }
-    calls.add(new DevToolsCall(KEY_METHOD, "{\"type\":\"keyUp\"" + keyFields + "}"));
+    calls.add(new DevToolsCall(KEY_METHOD, KEY_UP_START + keyFields + "}"));
     return calls;
   }
 
@@ -320,18 +339,16 @@ final class DevToolsInput {
         continue;
       }
       if (codePoint == '\n' || codePoint == '\r') {
-        final List<DevToolsCall> enter = pressKey("Enter");
+        final List<DevToolsCall> enter = pressKey(ENTER_KEY);
         calls.addAll(enter);
         continue;
       }
       final String character = Character.toString(codePoint);
       final String quoted = quote(character);
       final int keyCode = virtualKeyCode(codePoint);
-      final String keyFields = ",\"key\":" + quoted + ",\"windowsVirtualKeyCode\":" + keyCode;
-      calls.add(
-        new DevToolsCall(KEY_METHOD, "{\"type\":\"keyDown\"" + keyFields + ",\"text\":" + quoted + ",\"unmodifiedText\":" + quoted + "}")
-      );
-      calls.add(new DevToolsCall(KEY_METHOD, "{\"type\":\"keyUp\"" + keyFields + "}"));
+      final String keyFields = KEY_FIELD + quoted + VIRTUAL_KEY_CODE_FIELD + keyCode;
+      calls.add(new DevToolsCall(KEY_METHOD, KEY_DOWN_START + keyFields + TEXT_FIELD + quoted + UNMODIFIED_TEXT_FIELD + quoted + "}"));
+      calls.add(new DevToolsCall(KEY_METHOD, KEY_UP_START + keyFields + "}"));
     }
     return calls;
   }
@@ -359,7 +376,7 @@ final class DevToolsInput {
    * @return the literal with its quotes
    */
   static String quote(final String value) {
-    final StringBuilder builder = new StringBuilder(value.length() + 2);
+    final StringBuilder builder = new StringBuilder(value.length() + QUOTE_CHARACTERS);
     builder.append('"');
     for (int index = 0; index < value.length(); index++) {
       final char character = value.charAt(index);
@@ -370,7 +387,7 @@ final class DevToolsInput {
         case '\r' -> builder.append("\\r");
         case '\t' -> builder.append("\\t");
         default -> {
-          if (character < 0x20 || character == 0x2028 || character == 0x2029) {
+          if (character < FIRST_UNESCAPED_CHARACTER || character == LINE_SEPARATOR || character == PARAGRAPH_SEPARATOR) {
             builder.append(String.format(Locale.ROOT, "\\u%04x", (int) character));
           } else {
             builder.append(character);

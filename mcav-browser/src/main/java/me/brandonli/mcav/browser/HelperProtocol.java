@@ -131,6 +131,18 @@ final class HelperProtocol {
   private static final int MOUSE_BYTES = 11;
   private static final int MAXIMUM_CLICK_COUNT = 3;
 
+  private static final int VERSION_BYTES = 2;
+  private static final int STRING_LENGTH_BYTES = 2;
+  private static final int ERROR_CODE_BYTES = 4;
+  private static final int ACTION_BYTES = 1;
+  private static final int LOADING_BYTES = 1;
+
+  private static final int UTF8_TWO_BYTE_START = 0x80;
+  private static final int UTF8_THREE_BYTE_START = 0x800;
+  private static final int UTF8_FOUR_BYTE_START = 0x10000;
+  private static final int UTF8_CONTINUATION_MASK = 0xC0;
+  private static final int UTF8_CONTINUATION_BITS = 0x80;
+
   private HelperProtocol() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -148,7 +160,7 @@ final class HelperProtocol {
       throw new IllegalArgumentException(message);
     }
     out.writeByte(HELLO);
-    out.writeInt(TOKEN_BYTES + 2);
+    out.writeInt(TOKEN_BYTES + VERSION_BYTES);
     out.write(token);
     out.writeShort(VERSION);
   }
@@ -164,7 +176,7 @@ final class HelperProtocol {
   static void writeText(final DataOutput out, final int type, final String text) throws IOException {
     final byte[] bytes = encode(text);
     out.writeByte(type);
-    out.writeInt(2 + bytes.length);
+    out.writeInt(STRING_LENGTH_BYTES + bytes.length);
     writeString(out, bytes);
   }
 
@@ -177,7 +189,7 @@ final class HelperProtocol {
    */
   static void writeLoading(final DataOutput out, final boolean loading) throws IOException {
     out.writeByte(LOADING);
-    out.writeInt(1);
+    out.writeInt(LOADING_BYTES);
     out.writeByte(loading ? 1 : 0);
   }
 
@@ -194,7 +206,7 @@ final class HelperProtocol {
     final byte[] textBytes = encode(text);
     final byte[] urlBytes = encode(url);
     out.writeByte(LOAD_ERROR);
-    out.writeInt(4 + 2 + textBytes.length + 2 + urlBytes.length);
+    out.writeInt(ERROR_CODE_BYTES + STRING_LENGTH_BYTES + textBytes.length + STRING_LENGTH_BYTES + urlBytes.length);
     out.writeInt(code);
     writeString(out, textBytes);
     writeString(out, urlBytes);
@@ -269,7 +281,7 @@ final class HelperProtocol {
   static void writeKey(final DataOutput out, final int action, final String value) throws IOException {
     final byte[] bytes = encode(value);
     out.writeByte(KEY);
-    out.writeInt(1 + 2 + bytes.length);
+    out.writeInt(ACTION_BYTES + STRING_LENGTH_BYTES + bytes.length);
     out.writeByte(action);
     writeString(out, bytes);
   }
@@ -317,7 +329,7 @@ final class HelperProtocol {
   }
 
   private static HelperMessage readHello(final DataInput in, final int length) throws IOException {
-    expectLength(HELLO, length, TOKEN_BYTES + 2);
+    expectLength(HELLO, length, TOKEN_BYTES + VERSION_BYTES);
     final byte[] token = new byte[TOKEN_BYTES];
     in.readFully(token);
     final int version = in.readUnsignedShort();
@@ -330,7 +342,7 @@ final class HelperProtocol {
   }
 
   private static HelperMessage readLoading(final DataInput in, final int length) throws IOException {
-    expectLength(LOADING, length, 1);
+    expectLength(LOADING, length, LOADING_BYTES);
     final int value = in.readUnsignedByte();
     if (value > 1) {
       final String message = "Loading state %s must be 0 or 1!".formatted(value);
@@ -340,11 +352,16 @@ final class HelperProtocol {
   }
 
   private static HelperMessage readLoadError(final DataInput in, final int length) throws IOException {
-    checkLength(LOAD_ERROR, length, 4 + 2 + 2, 4 + 2 * (2 + MAXIMUM_TEXT_BYTES));
+    checkLength(
+      LOAD_ERROR,
+      length,
+      ERROR_CODE_BYTES + STRING_LENGTH_BYTES + STRING_LENGTH_BYTES,
+      ERROR_CODE_BYTES + STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES + STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES
+    );
     final int code = in.readInt();
     final byte[] textBytes = readStringBytes(in);
     final byte[] urlBytes = readStringBytes(in);
-    final int used = 4 + 2 + textBytes.length + 2 + urlBytes.length;
+    final int used = ERROR_CODE_BYTES + STRING_LENGTH_BYTES + textBytes.length + STRING_LENGTH_BYTES + urlBytes.length;
     if (used != length) {
       final String message = "A load error of %s bytes holds %s bytes!".formatted(length, used);
       throw new ProtocolException(message);
@@ -424,15 +441,16 @@ final class HelperProtocol {
   }
 
   private static HelperMessage readKey(final DataInput in, final int length) throws IOException {
-    checkLength(KEY, length, 1 + 2, 1 + 2 + MAXIMUM_TEXT_BYTES);
+    checkLength(KEY, length, ACTION_BYTES + STRING_LENGTH_BYTES, ACTION_BYTES + STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES);
     final int action = in.readUnsignedByte();
     if (action > KEY_TYPE) {
       final String message = "Key action %s is unknown!".formatted(action);
       throw new ProtocolException(message);
     }
     final byte[] bytes = readStringBytes(in);
-    if (1 + 2 + bytes.length != length) {
-      final String message = "A key message of %s bytes holds %s bytes!".formatted(length, 1 + 2 + bytes.length);
+    final int used = ACTION_BYTES + STRING_LENGTH_BYTES + bytes.length;
+    if (used != length) {
+      final String message = "A key message of %s bytes holds %s bytes!".formatted(length, used);
       throw new ProtocolException(message);
     }
     final String value = decode(bytes);
@@ -445,9 +463,9 @@ final class HelperProtocol {
   }
 
   private static String readSingleString(final DataInput in, final int type, final int length) throws IOException {
-    checkLength(type, length, 2, 2 + MAXIMUM_TEXT_BYTES);
+    checkLength(type, length, STRING_LENGTH_BYTES, STRING_LENGTH_BYTES + MAXIMUM_TEXT_BYTES);
     final byte[] bytes = readStringBytes(in);
-    if (2 + bytes.length != length) {
+    if (STRING_LENGTH_BYTES + bytes.length != length) {
       final String message = "A message of %s bytes holds a string of %s bytes!".formatted(length, bytes.length);
       throw new ProtocolException(message);
     }
@@ -506,13 +524,13 @@ final class HelperProtocol {
    * @return the bytes, from 1 to 4
    */
   private static int utf8Length(final int codePoint) {
-    if (codePoint < 0x80) {
+    if (codePoint < UTF8_TWO_BYTE_START) {
       return 1;
     }
-    if (codePoint < 0x800) {
+    if (codePoint < UTF8_THREE_BYTE_START) {
       return 2;
     }
-    return codePoint < 0x10000 ? 3 : 4;
+    return codePoint < UTF8_FOUR_BYTE_START ? 3 : 4;
   }
 
   /**
@@ -527,7 +545,7 @@ final class HelperProtocol {
       return bytes;
     }
     int end = MAXIMUM_TEXT_BYTES;
-    while ((bytes[end] & 0xC0) == 0x80) {
+    while ((bytes[end] & UTF8_CONTINUATION_MASK) == UTF8_CONTINUATION_BITS) {
       end--;
     }
     final byte[] cut = new byte[end];

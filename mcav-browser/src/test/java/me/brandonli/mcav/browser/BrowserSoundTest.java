@@ -56,6 +56,9 @@ class BrowserSoundTest {
   private static final int WINDOW_FRAMES = AudioFilter.SAMPLE_RATE / 200;
   private static final BrowserOptions LOCAL = BrowserOptions.builder().privateNetworks(true).build();
 
+  private static final int FREQUENCY_TOLERANCE_HERTZ = 20;
+  private static final double TONE_SHARE_THRESHOLD = 0.5;
+
   private final TestPages pages = TestPages.start();
   private final List<BrowserPlayer> players = new ArrayList<>();
   private final List<String> failures = new CopyOnWriteArrayList<>();
@@ -202,7 +205,7 @@ class BrowserSoundTest {
       held,
       AudioFilter.SAMPLE_RATE / WINDOW_FRAMES
     );
-    final boolean atTheToneFrequency = Math.abs(frequency - TestPages.TONE_HERTZ) < 20;
+    final boolean atTheToneFrequency = Math.abs(frequency - TestPages.TONE_HERTZ) < FREQUENCY_TOLERANCE_HERTZ;
     assertTrue(atTheToneFrequency, "the tone has " + frequency + " Hz");
     final boolean toneHolds = held > ((AudioFilter.SAMPLE_RATE / WINDOW_FRAMES) * 9) / 10;
     assertTrue(toneHolds, "the tone holds in " + held + " windows");
@@ -245,7 +248,7 @@ class BrowserSoundTest {
     this.awaitSound(recording, 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "two seconds of sound");
     final short[] left = recording.left();
     final double frequency = zeroCrossings(left, left.length - AudioFilter.SAMPLE_RATE) / 2.0;
-    final boolean atTheToneFrequency = Math.abs(frequency - TestPages.TONE_HERTZ) < 20;
+    final boolean atTheToneFrequency = Math.abs(frequency - TestPages.TONE_HERTZ) < FREQUENCY_TOLERANCE_HERTZ;
     assertTrue(atTheToneFrequency, "after the click the page's own tone plays: " + frequency + " Hz");
   }
 
@@ -298,7 +301,7 @@ class BrowserSoundTest {
         final short[] left = leftChannel(copy);
         final int windows = left.length / WINDOW_FRAMES;
         for (int window = 0; window < windows; window++) {
-          final boolean hasTone = toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > 0.5;
+          final boolean hasTone = toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > TONE_SHARE_THRESHOLD;
           final long end = (long) (window + 1) * WINDOW_FRAMES;
           final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
           sound.add(new long[] { arrival - before, hasTone ? 1 : 0 });
@@ -439,7 +442,7 @@ class BrowserSoundTest {
   private static int toneWindows(final short[] left, final int start) {
     int windows = 0;
     for (int window = start; window + WINDOW_FRAMES <= left.length; window += WINDOW_FRAMES) {
-      if (toneShare(left, window, WINDOW_FRAMES) > 0.5) {
+      if (toneShare(left, window, WINDOW_FRAMES) > TONE_SHARE_THRESHOLD) {
         windows++;
       }
     }

@@ -45,6 +45,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.regex.Pattern;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.StandardError;
 import me.friwi.jcefmaven.CefBuildInfo;
@@ -62,6 +63,8 @@ import org.mockito.InOrder;
 class CefEngineTest {
 
   private static final Path ROOT = Path.of("").toAbsolutePath().getRoot();
+
+  private static final Pattern FEATURE_SEPARATOR = Pattern.compile(",");
 
   private static HelperConfiguration configuration(final boolean allowsJit) {
     return configuration(allowsJit, false);
@@ -174,7 +177,7 @@ class CefEngineTest {
     final int disableFeaturesCount = disabled.size();
     assertEquals(1, disableFeaturesCount, "Chromium keeps the last --disable-features switch only");
     final String value = disabled.getFirst().substring("--disable-features=".length());
-    final List<String> features = List.of(value.split(",", -1));
+    final List<String> features = List.of(FEATURE_SEPARATOR.split(value, -1));
     final boolean disablesGoogleServices = features.containsAll(List.of("NetworkTimeServiceQuerying", "PreconnectToSearch"));
     assertTrue(disablesGoogleServices, value);
     final boolean keepsCefDisabledFeatures = features.containsAll(CefEngine.CEF_DISABLED_FEATURES);

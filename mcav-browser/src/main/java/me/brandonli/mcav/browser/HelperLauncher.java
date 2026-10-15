@@ -56,6 +56,25 @@ final class HelperLauncher {
    */
   static final String MAIN_CLASS = "me.brandonli.mcav.browser.BrowserHelper";
 
+  private static final String BIN_FOLDER = "bin";
+  private static final String WINDOWS_JAVA_EXECUTABLE = "java.exe";
+  private static final String JAVA_EXECUTABLE = "java";
+
+  private static final String HEADLESS_SWITCH = "-Djava.awt.headless=true";
+  private static final String NATIVE_ACCESS_SWITCH = "--enable-native-access=ALL-UNNAMED";
+  private static final String MAXIMUM_HEAP_SWITCH = "-Xmx512m";
+  private static final String SERIAL_COLLECTOR_SWITCH = "-XX:+UseSerialGC";
+  private static final String NO_ATTACH_SWITCH = "-XX:+DisableAttachMechanism";
+  private static final String ENCODING_SWITCH = "-Dfile.encoding=UTF-8";
+  private static final String TEMPORARY_FOLDER_SWITCH = "-Djava.io.tmpdir=";
+  private static final String CLASS_PATH_SWITCH = "-cp";
+
+  private static final String AUTHORITY_VARIABLE = "XAUTHORITY";
+  private static final String TEMPORARY_FOLDER_VARIABLE = "TMPDIR";
+  private static final String DATA_HOME_VARIABLE = "XDG_DATA_HOME";
+  private static final String MAC_TEMPORARY_FOLDER_VARIABLE = "MAC_CHROMIUM_TMPDIR";
+  private static final String LIBRARY_PATH_VARIABLE = "LD_LIBRARY_PATH";
+
   private final Path java;
   private final String mainClass;
   private final List<Path> classPath;
@@ -116,7 +135,7 @@ final class HelperLauncher {
    * @return {@code java.exe} on Windows, {@code java} elsewhere
    */
   static String javaExecutable(final Os os) {
-    return os == Os.WINDOWS ? "java.exe" : "java";
+    return os == Os.WINDOWS ? WINDOWS_JAVA_EXECUTABLE : JAVA_EXECUTABLE;
   }
 
   /**
@@ -131,7 +150,7 @@ final class HelperLauncher {
   static HelperLauncher createDefault(final long startTimeoutMilliseconds, final List<String> extraJvmOptions) {
     final String javaHome = System.getProperty("java.home");
     final Os os = OsUtils.getOs();
-    final Path java = Path.of(javaHome, "bin", javaExecutable(os));
+    final Path java = Path.of(javaHome, BIN_FOLDER, javaExecutable(os));
     final Set<Path> entries = new LinkedHashSet<>();
     entries.add(locate(BrowserHelper.class));
     entries.add(locate(CefApp.class));
@@ -174,15 +193,15 @@ final class HelperLauncher {
   List<String> createCommand(final Path folder) {
     final List<String> command = new ArrayList<>();
     command.add(this.java.toString());
-    command.add("-Djava.awt.headless=true");
-    command.add("--enable-native-access=ALL-UNNAMED");
-    command.add("-Xmx512m");
-    command.add("-XX:+UseSerialGC");
-    command.add("-XX:+DisableAttachMechanism");
-    command.add("-Dfile.encoding=UTF-8");
-    command.add("-Djava.io.tmpdir=" + folder);
+    command.add(HEADLESS_SWITCH);
+    command.add(NATIVE_ACCESS_SWITCH);
+    command.add(MAXIMUM_HEAP_SWITCH);
+    command.add(SERIAL_COLLECTOR_SWITCH);
+    command.add(NO_ATTACH_SWITCH);
+    command.add(ENCODING_SWITCH);
+    command.add(TEMPORARY_FOLDER_SWITCH + folder);
     command.addAll(this.extraJvmOptions);
-    command.add("-cp");
+    command.add(CLASS_PATH_SWITCH);
     final List<String> entries = new ArrayList<>();
     for (final Path entry : this.classPath) {
       entries.add(entry.toString());
@@ -206,19 +225,19 @@ final class HelperLauncher {
     final Map<String, String> kept = HelperEnvironment.filter(this.environment);
     if (this.os == Os.LINUX) {
       final Path authority = authorityOf(folder);
-      kept.put("XAUTHORITY", authority.toString());
+      kept.put(AUTHORITY_VARIABLE, authority.toString());
       // TMPDIR and XDG_DATA_HOME must keep Chromium temporary files and certificates inside its writable sandbox.
-      kept.put("TMPDIR", folder.toString());
-      kept.put("XDG_DATA_HOME", folder.toString());
+      kept.put(TEMPORARY_FOLDER_VARIABLE, folder.toString());
+      kept.put(DATA_HOME_VARIABLE, folder.toString());
     }
     if (this.os == Os.MAC) {
       // Chromium writes temporary files as it starts, where a confined Chromium may write: MAC_CHROMIUM_TMPDIR is the
       // temporary folder Chromium asks for first on macOS
-      kept.put("TMPDIR", folder.toString());
-      kept.put("MAC_CHROMIUM_TMPDIR", folder.toString());
+      kept.put(TEMPORARY_FOLDER_VARIABLE, folder.toString());
+      kept.put(MAC_TEMPORARY_FOLDER_VARIABLE, folder.toString());
     }
     if (libraries != null) {
-      kept.put("LD_LIBRARY_PATH", libraries.toString());
+      kept.put(LIBRARY_PATH_VARIABLE, libraries.toString());
     }
     return kept;
   }

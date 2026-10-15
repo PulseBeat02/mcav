@@ -45,6 +45,9 @@ class SessionFoldersTest {
 
   private static final long GONE = Long.MAX_VALUE;
 
+  private static final String LINE_SEPARATOR = "\n";
+  private static final String OLD_START = "2001-01-01T00:00:00Z";
+
   @TempDir
   private Path temporary;
 
@@ -69,7 +72,7 @@ class SessionFoldersTest {
     final Path gone = this.folderOf(server(GONE, Optional.of(Instant.parse("2026-10-05T00:00:00Z"))));
     final Path running = this.folderOf(ProcessHandle.current());
     final String ownerRecord = Files.readString(gone.resolve(SessionFolders.OWNER_FILE), StandardCharsets.US_ASCII);
-    assertEquals(GONE + "\n2026-10-05T00:00:00Z\n", ownerRecord);
+    assertEquals(GONE + LINE_SEPARATOR + "2026-10-05T00:00:00Z" + LINE_SEPARATOR, ownerRecord);
 
     final int removed = SessionFolders.ofThisServer().removeStale(this.temporary);
 
@@ -83,7 +86,7 @@ class SessionFoldersTest {
   @Test
   void shouldTreatAServerWhoseIdAnotherProcessTookAsGone() throws IOException {
     final long reused = ProcessHandle.current().pid();
-    final Path folder = this.folderOf(server(reused, Optional.of(Instant.parse("2001-01-01T00:00:00Z"))));
+    final Path folder = this.folderOf(server(reused, Optional.of(Instant.parse(OLD_START))));
     final int removedCount = SessionFolders.ofThisServer().removeStale(this.temporary);
     assertEquals(1, removedCount);
     final boolean folderLeft = Files.exists(folder);
@@ -98,15 +101,18 @@ class SessionFoldersTest {
     final Path garbage = Files.createDirectory(this.temporary.resolve(SessionFolders.PREFIX + "garbage"));
     Files.writeString(garbage.resolve(SessionFolders.OWNER_FILE), "not\na record\n");
     final Path truncated = Files.createDirectory(this.temporary.resolve(SessionFolders.PREFIX + "truncated"));
-    Files.writeString(truncated.resolve(SessionFolders.OWNER_FILE), GONE + "\n");
+    Files.writeString(truncated.resolve(SessionFolders.OWNER_FILE), GONE + LINE_SEPARATOR);
     final Path unreadable = Files.createDirectory(this.temporary.resolve(SessionFolders.PREFIX + "unreadable"));
-    final Path record = Files.writeString(unreadable.resolve(SessionFolders.OWNER_FILE), GONE + "\n2001-01-01T00:00:00Z\n");
+    final Path record = Files.writeString(
+      unreadable.resolve(SessionFolders.OWNER_FILE),
+      GONE + LINE_SEPARATOR + OLD_START + LINE_SEPARATOR
+    );
     final boolean posix = record.getFileSystem().supportedFileAttributeViews().contains("posix");
     if (posix) {
       Files.setPosixFilePermissions(record, PosixFilePermissions.fromString("-w-------"));
     }
     final Path other = Files.createDirectory(this.temporary.resolve("other-folder"));
-    Files.writeString(other.resolve(SessionFolders.OWNER_FILE), GONE + "\n2001-01-01T00:00:00Z\n");
+    Files.writeString(other.resolve(SessionFolders.OWNER_FILE), GONE + LINE_SEPARATOR + OLD_START + LINE_SEPARATOR);
     final boolean readable = Files.isReadable(record);
 
     final int removed = SessionFolders.ofThisServer().removeStale(this.temporary);
@@ -151,7 +157,7 @@ class SessionFoldersTest {
     try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true"))) {
       final Path root = zipped.getPath("/");
       final Path folder = Files.createDirectory(root.resolve(SessionFolders.PREFIX + "zipped"));
-      Files.writeString(folder.resolve(SessionFolders.OWNER_FILE), GONE + "\n2001-01-01T00:00:00Z\n");
+      Files.writeString(folder.resolve(SessionFolders.OWNER_FILE), GONE + LINE_SEPARATOR + OLD_START + LINE_SEPARATOR);
 
       final int removedCount = new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(root);
       assertEquals(1, removedCount);

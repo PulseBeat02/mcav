@@ -296,6 +296,13 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   private static final Pattern CONTEXT = Pattern.compile(Pattern.quote(CONTEXT_FIELD) + "-?[0-9]{1,10}}");
   private static final int MAXIMUM_TAIL = CONTEXT_FIELD.length() + 12;
 
+  private static final String ENABLE_RUNTIME_METHOD = "Runtime.enable";
+  private static final String ADD_BINDING_METHOD = "Runtime.addBinding";
+
+  private static final long BASE64_GROUP_CHARACTERS = 4L;
+  private static final long BASE64_GROUP_BYTES = 3L;
+  private static final long MAXIMUM_BASE64_PADDING = 2L;
+
   private final Consumer<byte[]> sink;
   private final LongSupplier clock;
   private long available;
@@ -323,9 +330,9 @@ final class PageAudio implements CefDevToolsClient.EventListener {
    * @return the calls, to be made before the page loads
    */
   static List<DevToolsInput.DevToolsCall> install() {
-    final DevToolsInput.DevToolsCall enable = new DevToolsInput.DevToolsCall("Runtime.enable", "{}");
+    final DevToolsInput.DevToolsCall enable = new DevToolsInput.DevToolsCall(ENABLE_RUNTIME_METHOD, "{}");
     final DevToolsInput.DevToolsCall binding = new DevToolsInput.DevToolsCall(
-      "Runtime.addBinding",
+      ADD_BINDING_METHOD,
       "{\"name\":" + DevToolsInput.quote(BINDING) + "}"
     );
     final DevToolsInput.DevToolsCall capture = new DevToolsInput.DevToolsCall(
@@ -361,7 +368,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
    */
   @VisibleForTesting
   static long leastBytes(final String parameters) {
-    return ((parameters.length() - PREFIX.length() - MAXIMUM_TAIL) / 4L) * 3L - 2L;
+    return ((parameters.length() - PREFIX.length() - MAXIMUM_TAIL) / BASE64_GROUP_CHARACTERS) * BASE64_GROUP_BYTES - MAXIMUM_BASE64_PADDING;
   }
 
   private synchronized boolean mayTake(final long bytes) {

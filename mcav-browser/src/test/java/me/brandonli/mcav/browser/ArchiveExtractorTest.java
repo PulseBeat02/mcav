@@ -45,6 +45,14 @@ import org.junit.jupiter.api.io.TempDir;
 
 class ArchiveExtractorTest {
 
+  private static final String POSIX_ATTRIBUTE_VIEW = "posix";
+  private static final String EXECUTABLE_PERMISSIONS = "rwxr-xr-x";
+
+  private static final int REGULAR_MODE = 0644;
+  private static final int EXECUTABLE_MODE = 0755;
+
+  private static final String LOCALES_FOLDER = "locales";
+
   @TempDir
   Path target;
 
@@ -99,9 +107,9 @@ class ArchiveExtractorTest {
   void shouldExtractFilesAndFolders() throws IOException {
     final InputStream archive = new Archive()
       .folder("./")
-      .folder("locales")
-      .file("locales/en-US.pak", 0644, "english")
-      .file("libcef.so", 0755, "library")
+      .folder(LOCALES_FOLDER)
+      .file("locales/en-US.pak", REGULAR_MODE, "english")
+      .file("libcef.so", EXECUTABLE_MODE, "library")
       .file("nested/deeper/file.txt", 0600, "made its own folders")
       .finish();
     new ArchiveExtractor().extract(archive, this.target);
@@ -111,30 +119,30 @@ class ArchiveExtractorTest {
     assertEquals("library", libraryText);
     final String nestedText = Files.readString(this.target.resolve("nested/deeper/file.txt"));
     assertEquals("made its own folders", nestedText);
-    final boolean localesExtractedAsFolder = Files.isDirectory(this.target.resolve("locales"));
+    final boolean localesExtractedAsFolder = Files.isDirectory(this.target.resolve(LOCALES_FOLDER));
     assertTrue(localesExtractedAsFolder);
   }
 
   @Test
   void shouldKeepExecutableFilesExecutableAndMakeNothingWritableForOthers() throws IOException {
-    final boolean supportsPosix = this.target.getFileSystem().supportedFileAttributeViews().contains("posix");
+    final boolean supportsPosix = this.target.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW);
     assumeTrue(supportsPosix, "POSIX permissions");
     final InputStream archive = new Archive().file("jcef_helper", 0777, "helper").file("resources.pak", 0666, "data").finish();
     new ArchiveExtractor().extract(archive, this.target);
     final Set<PosixFilePermission> helper = Files.getPosixFilePermissions(this.target.resolve("jcef_helper"));
     final Set<PosixFilePermission> data = Files.getPosixFilePermissions(this.target.resolve("resources.pak"));
-    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), helper);
+    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), helper);
     assertEquals(PosixFilePermissions.fromString("rw-r--r--"), data);
   }
 
   @Test
   void shouldMakeFoldersWritableByTheOwnerOnlyWhateverTheUmask() throws IOException {
-    final boolean supportsPosix = this.target.getFileSystem().supportedFileAttributeViews().contains("posix");
+    final boolean supportsPosix = this.target.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW);
     assumeTrue(supportsPosix, "POSIX permissions");
-    final InputStream archive = new Archive().folder("locales").file("swiftshader/deeper/libvk.so", 0755, "vk").finish();
+    final InputStream archive = new Archive().folder(LOCALES_FOLDER).file("swiftshader/deeper/libvk.so", EXECUTABLE_MODE, "vk").finish();
     new ArchiveExtractor().extract(archive, this.target);
-    final Set<PosixFilePermission> owner = PosixFilePermissions.fromString("rwxr-xr-x");
-    final Set<PosixFilePermission> localesPermissions = Files.getPosixFilePermissions(this.target.resolve("locales"));
+    final Set<PosixFilePermission> owner = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
+    final Set<PosixFilePermission> localesPermissions = Files.getPosixFilePermissions(this.target.resolve(LOCALES_FOLDER));
     assertEquals(owner, localesPermissions);
     final Set<PosixFilePermission> swiftshaderPermissions = Files.getPosixFilePermissions(this.target.resolve("swiftshader"));
     assertEquals(owner, swiftshaderPermissions);
@@ -155,7 +163,7 @@ class ArchiveExtractorTest {
 
   @Test
   void shouldKeepTheArchiveStreamOpen() throws IOException {
-    final byte[] archive = new Archive().file("a", 0644, "a").finish().readAllBytes();
+    final byte[] archive = new Archive().file("a", REGULAR_MODE, "a").finish().readAllBytes();
     final boolean[] closed = { false };
     final InputStream tracked = new ByteArrayInputStream(archive) {
       @Override
@@ -174,7 +182,7 @@ class ArchiveExtractorTest {
     final IOException symbolicFailure = assertThrows(IOException.class, () -> new ArchiveExtractor().extract(symbolic, this.target));
     final String message = symbolicFailure.getMessage();
     assertEquals("Archive entry current is not a plain file or folder!", message);
-    final InputStream hard = new Archive().file("a", 0644, "a").link("b", "a", TarConstants.LF_LINK).finish();
+    final InputStream hard = new Archive().file("a", REGULAR_MODE, "a").link("b", "a", TarConstants.LF_LINK).finish();
     assertThrows(IOException.class, () -> new ArchiveExtractor().extract(hard, this.target));
     final InputStream fifo = new Archive().link("pipe", "", TarConstants.LF_FIFO).finish();
     assertThrows(IOException.class, () -> new ArchiveExtractor().extract(fifo, this.target));
@@ -189,7 +197,7 @@ class ArchiveExtractorTest {
   @Test
   void shouldRefuseNamesThatLeaveTheFolder() throws IOException {
     for (final String name : new String[] { "../escape.txt", "a/../../escape.txt", "/etc/cron.d/evil" }) {
-      final InputStream archive = new Archive().file(name, 0644, "x").finish();
+      final InputStream archive = new Archive().file(name, REGULAR_MODE, "x").finish();
       assertThrows(IOException.class, () -> new ArchiveExtractor().extract(archive, this.target), name);
     }
     final boolean escapeWritten = Files.exists(this.target.getParent().resolve("escape.txt"));
@@ -233,7 +241,7 @@ class ArchiveExtractorTest {
 
   @Test
   void shouldExtractTheFilesWithoutPermissionsOnAFileSystemWithoutPosixPermissions() throws IOException {
-    final InputStream archive = new Archive().file("libcef.so", 0755, "library").finish();
+    final InputStream archive = new Archive().file("libcef.so", EXECUTABLE_MODE, "library").finish();
     new ArchiveExtractor().extract(archive, this.target, false);
     final String libraryText = Files.readString(this.target.resolve("libcef.so"));
     assertEquals("library", libraryText);
@@ -241,7 +249,11 @@ class ArchiveExtractorTest {
 
   @Test
   void shouldRefuseAnArchiveWithTooManyEntries() throws IOException {
-    final InputStream archive = new Archive().file("a", 0644, "a").file("b", 0644, "b").file("c", 0644, "c").finish();
+    final InputStream archive = new Archive()
+      .file("a", REGULAR_MODE, "a")
+      .file("b", REGULAR_MODE, "b")
+      .file("c", REGULAR_MODE, "c")
+      .finish();
     final IOException failure = assertThrows(IOException.class, () -> new ArchiveExtractor(2, 1000).extract(archive, this.target));
     final String message = failure.getMessage();
     assertEquals("The archive has more than 2 entries!", message);
@@ -249,17 +261,20 @@ class ArchiveExtractorTest {
 
   @Test
   void shouldRefuseAnArchiveThatExtractsToTooManyBytes() throws IOException {
-    final InputStream archive = new Archive().file("a", 0644, "12345").file("b", 0644, "678").finish();
+    final InputStream archive = new Archive().file("a", REGULAR_MODE, "12345").file("b", REGULAR_MODE, "678").finish();
     final IOException failure = assertThrows(IOException.class, () -> new ArchiveExtractor(10, 7).extract(archive, this.target));
     final String message = failure.getMessage();
     assertEquals("The archive extracts to more than the allowed size!", message);
-    new ArchiveExtractor(10, 8).extract(new Archive().file("c", 0644, "12345").file("d", 0644, "678").finish(), this.target);
+    new ArchiveExtractor(10, 8).extract(
+      new Archive().file("c", REGULAR_MODE, "12345").file("d", REGULAR_MODE, "678").finish(),
+      this.target
+    );
   }
 
   @Test
   void shouldNeverOverwriteAnExistingFile() throws IOException {
     Files.writeString(this.target.resolve("a"), "original");
-    final InputStream archive = new Archive().file("a", 0644, "replacement").finish();
+    final InputStream archive = new Archive().file("a", REGULAR_MODE, "replacement").finish();
     assertThrows(IOException.class, () -> new ArchiveExtractor().extract(archive, this.target));
     final String originalText = Files.readString(this.target.resolve("a"));
     assertEquals("original", originalText);
@@ -273,7 +288,7 @@ class ArchiveExtractorTest {
 
   @Test
   void shouldExtractAnArchiveWithExactlyTheLargestNumberOfEntries() throws IOException {
-    final InputStream archive = new Archive().file("a", 0644, "a").file("b", 0644, "b").finish();
+    final InputStream archive = new Archive().file("a", REGULAR_MODE, "a").file("b", REGULAR_MODE, "b").finish();
     new ArchiveExtractor(2, 1000).extract(archive, this.target);
     final boolean lastEntryExtracted = Files.isRegularFile(this.target.resolve("b"));
     assertTrue(lastEntryExtracted);
@@ -288,9 +303,9 @@ class ArchiveExtractorTest {
 
   @Test
   void shouldTakeTheWriteOfTheGroupAndOfOthersAwayAndLeaveLinksAndTheRestAloneWhenTightening() throws IOException {
-    assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
+    assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW), "POSIX permissions");
     final Path installation = Files.createDirectories(this.target.resolve("installation"));
-    final Path inner = Files.createDirectories(installation.resolve("locales"));
+    final Path inner = Files.createDirectories(installation.resolve(LOCALES_FOLDER));
     final Path groupWritable = Files.writeString(inner.resolve("group.pak"), "group");
     final Path othersWritable = Files.writeString(installation.resolve("others.so"), "others");
     final Path untouched = Files.writeString(installation.resolve("untouched.dat"), "untouched");
@@ -306,13 +321,13 @@ class ArchiveExtractorTest {
     ArchiveExtractor.tighten(installation);
 
     final Set<PosixFilePermission> installationPermissions = Files.getPosixFilePermissions(installation);
-    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), installationPermissions);
+    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), installationPermissions);
     final Set<PosixFilePermission> innerPermissions = Files.getPosixFilePermissions(inner);
-    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), innerPermissions);
+    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), innerPermissions);
     final Set<PosixFilePermission> groupWritablePermissions = Files.getPosixFilePermissions(groupWritable);
     assertEquals(PosixFilePermissions.fromString("rw-r--r--"), groupWritablePermissions);
     final Set<PosixFilePermission> othersWritablePermissions = Files.getPosixFilePermissions(othersWritable);
-    assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), othersWritablePermissions);
+    assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), othersWritablePermissions);
     final Set<PosixFilePermission> untouchedPermissions = Files.getPosixFilePermissions(untouched);
     assertEquals(PosixFilePermissions.fromString("r--------"), untouchedPermissions);
     final Set<PosixFilePermission> outsidePermissions = Files.getPosixFilePermissions(outside);
@@ -324,7 +339,7 @@ class ArchiveExtractorTest {
     final Path file = Files.writeString(this.target.resolve("file.txt"), "file");
     ArchiveExtractor.tighten(file);
     ArchiveExtractor.tighten(this.target.resolve("missing"));
-    assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
+    assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW), "POSIX permissions");
     ArchiveExtractor.takeWriteAway(this.target.resolve("gone"));
     final Path closed = Files.createDirectories(this.target.resolve("closed"));
     Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("-wx------"));

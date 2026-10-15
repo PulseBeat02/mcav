@@ -37,12 +37,18 @@ class PageAudioTest {
   private static final byte[] FRAMES = { 1, 0, 2, 0, 3, 0, 4, 0 };
   private static final int SECOND_BYTES = 48_000 * 4;
 
+  private static final int MAXIMUM_CHUNK_BYTES = 65_536;
+  private static final int PARTIAL_CHUNK_BYTES = 56_320;
+
+  private static final String CONTEXT_ID = "7";
+  private static final String EMPTY_OBJECT = "{}";
+
   private static String call(final String name, final String payload, final String context) {
     return "{\"name\":\"" + name + "\",\"payload\":\"" + payload + "\",\"executionContextId\":" + context + "}";
   }
 
   private static String call(final byte[] samples) {
-    return call(PageAudio.BINDING, Base64.getEncoder().encodeToString(samples), "7");
+    return call(PageAudio.BINDING, Base64.getEncoder().encodeToString(samples), CONTEXT_ID);
   }
 
   private static byte[] samplesOf(final PageAudio.Chunk chunk) {
@@ -115,9 +121,12 @@ class PageAudioTest {
     final String encoded = Base64.getEncoder().encodeToString(FRAMES);
     final PageAudio.@Nullable Chunk otherEventChunk = PageAudio.parse("Runtime.consoleAPICalled", call(FRAMES));
     assertNull(otherEventChunk, "another event");
-    final PageAudio.@Nullable Chunk otherBindingChunk = PageAudio.parse(PageAudio.BINDING_EVENT, call("other", encoded, "7"));
+    final PageAudio.@Nullable Chunk otherBindingChunk = PageAudio.parse(PageAudio.BINDING_EVENT, call("other", encoded, CONTEXT_ID));
     assertNull(otherBindingChunk, "another binding");
-    final PageAudio.@Nullable Chunk longerNameChunk = PageAudio.parse(PageAudio.BINDING_EVENT, call(PageAudio.BINDING + "X", encoded, "7"));
+    final PageAudio.@Nullable Chunk longerNameChunk = PageAudio.parse(
+      PageAudio.BINDING_EVENT,
+      call(PageAudio.BINDING + "X", encoded, CONTEXT_ID)
+    );
     assertNull(longerNameChunk, "a longer name");
     final PageAudio.@Nullable Chunk longIdChunk = PageAudio.parse(PageAudio.BINDING_EVENT, call(PageAudio.BINDING, encoded, "12345678901"));
     assertNull(longIdChunk, "a long id");
@@ -132,12 +141,12 @@ class PageAudioTest {
     assertNull(unterminatedChunk, "no end of the payload");
     final PageAudio.@Nullable Chunk escapedQuoteChunk = PageAudio.parse(
       PageAudio.BINDING_EVENT,
-      call(PageAudio.BINDING, "AAAA\\\"AAAA", "7")
+      call(PageAudio.BINDING, "AAAA\\\"AAAA", CONTEXT_ID)
     );
     assertNull(escapedQuoteChunk, "an escaped quote");
     final PageAudio.@Nullable Chunk invalidBase64Chunk = PageAudio.parse(
       PageAudio.BINDING_EVENT,
-      call(PageAudio.BINDING, "AAAA AAAA", "7")
+      call(PageAudio.BINDING, "AAAA AAAA", CONTEXT_ID)
     );
     assertNull(invalidBase64Chunk, "not Base64");
   }
@@ -163,7 +172,7 @@ class PageAudioTest {
     );
     assertNull(twoFramesMoreChunk, "longer still");
     final String longest = "A".repeat(87_384);
-    final PageAudio.@Nullable Chunk longestChunk = PageAudio.parse(PageAudio.BINDING_EVENT, call(PageAudio.BINDING, longest, "7"));
+    final PageAudio.@Nullable Chunk longestChunk = PageAudio.parse(PageAudio.BINDING_EVENT, call(PageAudio.BINDING, longest, CONTEXT_ID));
     assertNull(longestChunk, "65538 bytes");
   }
 
@@ -196,7 +205,7 @@ class PageAudioTest {
     final int countAfterTheClockWentBack = passed.size();
     assertEquals(12, countAfterTheClockWentBack);
     now.addAndGet(TimeUnit.SECONDS.toNanos(1));
-    audio.onEvent(PageAudio.BINDING_EVENT, "{}");
+    audio.onEvent(PageAudio.BINDING_EVENT, EMPTY_OBJECT);
     for (int count = 0; count < 6; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, event);
     }
@@ -213,13 +222,13 @@ class PageAudioTest {
       final long nearest = PageAudio.leastBytes(call(PageAudio.BINDING, payload, "-1234567890"));
       final boolean nearestIsClose = nearest <= length && length - nearest <= 2;
       assertTrue(nearestIsClose, length + " bytes, " + nearest + " at least");
-      for (final String context : List.of("0", "7", "1234567890")) {
+      for (final String context : List.of("0", CONTEXT_ID, "1234567890")) {
         final long least = PageAudio.leastBytes(call(PageAudio.BINDING, payload, context));
         final boolean leastFits = least <= length;
         assertTrue(leastFits, length + " bytes, not " + least);
       }
     }
-    final boolean noSoundInAShortEvent = PageAudio.leastBytes("{}") < 0;
+    final boolean noSoundInAShortEvent = PageAudio.leastBytes(EMPTY_OBJECT) < 0;
     assertTrue(noSoundInAShortEvent, "a short event may hold no sound");
   }
 
@@ -251,7 +260,10 @@ class PageAudioTest {
     audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[4_000]));
     final int looksAtASmallCall = looks.get();
     assertEquals(2, looksAtASmallCall);
-    assertEquals(List.of(65_536, 65_536, 65_536, 65_536, 65_536, 4_000), passed);
+    assertEquals(
+      List.of(MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, 4_000),
+      passed
+    );
   }
 
   @Test
@@ -263,13 +275,24 @@ class PageAudioTest {
     for (int count = 0; count < 5; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }
-    audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[56_320]));
+    audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[PARTIAL_CHUNK_BYTES]));
     now.addAndGet(170_664_063L);
     final boolean lengthLetsItPass = PageAudio.leastBytes(largest) <= 65_535;
     assertTrue(lengthLetsItPass);
     audio.onEvent(PageAudio.BINDING_EVENT, largest);
     audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[65_532]));
-    assertEquals(List.of(65_536, 65_536, 65_536, 65_536, 65_536, 56_320, 65_532), passed);
+    assertEquals(
+      List.of(
+        MAXIMUM_CHUNK_BYTES,
+        MAXIMUM_CHUNK_BYTES,
+        MAXIMUM_CHUNK_BYTES,
+        MAXIMUM_CHUNK_BYTES,
+        MAXIMUM_CHUNK_BYTES,
+        PARTIAL_CHUNK_BYTES,
+        65_532
+      ),
+      passed
+    );
   }
 
   @Test
@@ -286,14 +309,29 @@ class PageAudioTest {
     for (int count = 0; count < 5; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }
-    audio.onEvent(PageAudio.BINDING_EVENT, call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[56_320]), context));
+    audio.onEvent(
+      PageAudio.BINDING_EVENT,
+      call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[PARTIAL_CHUNK_BYTES]), context)
+    );
     now.addAndGet(10_417L);
     final String frame = call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[4]), context);
     final long frameLeastBytes = PageAudio.leastBytes(frame);
     assertEquals(4, frameLeastBytes);
     audio.onEvent(PageAudio.BINDING_EVENT, frame);
     audio.onEvent(PageAudio.BINDING_EVENT, frame);
-    assertEquals(List.of(65_536, 65_536, 65_536, 65_536, 65_536, 56_320, 4), passed, "the budget is spent after the first");
+    assertEquals(
+      List.of(
+        MAXIMUM_CHUNK_BYTES,
+        MAXIMUM_CHUNK_BYTES,
+        MAXIMUM_CHUNK_BYTES,
+        MAXIMUM_CHUNK_BYTES,
+        MAXIMUM_CHUNK_BYTES,
+        PARTIAL_CHUNK_BYTES,
+        4
+      ),
+      passed,
+      "the budget is spent after the first"
+    );
   }
 
   @Test
@@ -306,10 +344,21 @@ class PageAudioTest {
     for (int count = 0; count < 5; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }
-    audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[56_320]));
+    audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[PARTIAL_CHUNK_BYTES]));
     step.set(10_417L);
     audio.onEvent(PageAudio.BINDING_EVENT, call(new byte[8]));
-    assertEquals(List.of(65_536, 65_536, 65_536, 65_536, 65_536, 56_320, 8), passed);
+    assertEquals(
+      List.of(
+        MAXIMUM_CHUNK_BYTES,
+        MAXIMUM_CHUNK_BYTES,
+        MAXIMUM_CHUNK_BYTES,
+        MAXIMUM_CHUNK_BYTES,
+        MAXIMUM_CHUNK_BYTES,
+        PARTIAL_CHUNK_BYTES,
+        8
+      ),
+      passed
+    );
   }
 
   @Test
@@ -320,7 +369,7 @@ class PageAudioTest {
     final String enableMethod = calls.get(0).getMethod();
     assertEquals("Runtime.enable", enableMethod);
     final String enableParameters = calls.get(0).getParameters();
-    assertEquals("{}", enableParameters);
+    assertEquals(EMPTY_OBJECT, enableParameters);
     final String bindingMethod = calls.get(1).getMethod();
     assertEquals("Runtime.addBinding", bindingMethod);
     final String bindingParameters = calls.get(1).getParameters();

@@ -55,6 +55,8 @@ final class ChromiumConfinement {
   private static final Path PROCESSES = Path.of("/proc");
   private static final String AGENT_OPTION = "-javaagent:";
 
+  private static final String LIBRARY_PATH_VARIABLE = "LD_LIBRARY_PATH";
+
   private ChromiumConfinement() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -119,7 +121,7 @@ final class ChromiumConfinement {
       final String missing = Landlock.describeMissing(available);
       return UNAVAILABLE.formatted(missing);
     }
-    readable.addAll(linkedFiles(pathsOf(System.getenv("LD_LIBRARY_PATH"))));
+    readable.addAll(linkedFiles(pathsOf(System.getenv(LIBRARY_PATH_VARIABLE))));
     final List<Path> writable = List.of(session, DEVICES, PROCESSES);
     Landlock.restrictThread(available, rules(ROOT, hidden, readable, writable));
     return CONFINED;

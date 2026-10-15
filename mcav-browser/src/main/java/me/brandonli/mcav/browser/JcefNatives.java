@@ -78,6 +78,20 @@ final class JcefNatives {
   private static final Logger LOGGER = LoggerFactory.getLogger(JcefNatives.class);
   private static final String REPOSITORY = "https://repo.maven.apache.org/maven2/me/friwi/";
   private static final String ARCHIVE_SUFFIX = ".tar.gz";
+
+  private static final String CACHE_FOLDER = "jcef";
+  private static final String INSTALLATION_PREFIX = "jcef-";
+  private static final String NAME_SEPARATOR = "-";
+  private static final String LOCK_SUFFIX = ".lock";
+  private static final String STAGING_SUFFIX = ".staging";
+  private static final String JAR_SUFFIX = ".jar";
+
+  private static final String ARTIFACT_PREFIX = "jcef-natives-";
+  private static final String URL_SEPARATOR = "/";
+  private static final String PLUS = "+";
+  private static final String ENCODED_PLUS = "%2B";
+
+  private static final long BYTES_PER_MEGABYTE = 1024L * 1024L;
   // every copy of mcav in this JVM shares this monitor, whatever class loader loaded it: equal string literals are one
   // object in the whole JVM, and a text without a package name is not renamed when mcav is shaded. So a copy never
   // opens the lock file while another one holds it, which would release the lock of the process on some systems.
@@ -123,7 +137,7 @@ final class JcefNatives {
 
   private static Path defaultFolder() {
     final Path cache = IoUtils.getCachedFolder();
-    return cache.resolve("jcef");
+    return cache.resolve(CACHE_FOLDER);
   }
 
   /**
@@ -178,7 +192,7 @@ final class JcefNatives {
    */
   @VisibleForTesting
   Path install(final String identifier, final String sha256, final long size) throws IOException {
-    final String name = "jcef-" + JCEFMAVEN_VERSION + "-" + identifier;
+    final String name = INSTALLATION_PREFIX + JCEFMAVEN_VERSION + NAME_SEPARATOR + identifier;
     final Path installation = this.folder.resolve(name);
     final Path marker = installation.resolve(INSTALL_MARKER);
     if (Files.isRegularFile(marker)) {
@@ -187,7 +201,7 @@ final class JcefNatives {
       return installation;
     }
     ArchiveExtractor.createFolders(this.folder);
-    final Path lockFile = this.folder.resolve(name + ".lock");
+    final Path lockFile = this.folder.resolve(name + LOCK_SUFFIX);
     synchronized (INSTALL_LOCK) {
       try (
         final FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
@@ -281,8 +295,8 @@ final class JcefNatives {
     final URI uri = this.createUri(identifier);
     LOGGER.info("Downloading the CEF natives for {} ({} MB, once).", identifier, NativePlatform.approximateMegabytes(identifier));
     final Path suffix = Path.of(UUID.randomUUID().toString());
-    final Path download = this.folder.resolve(installation.getFileName() + "-" + suffix + ".jar");
-    final Path staging = this.folder.resolve(installation.getFileName() + "-" + suffix + ".staging");
+    final Path download = this.folder.resolve(installation.getFileName() + NAME_SEPARATOR + suffix + JAR_SUFFIX);
+    final Path staging = this.folder.resolve(installation.getFileName() + NAME_SEPARATOR + suffix + STAGING_SUFFIX);
     try {
       this.downloader.download(uri, download, sha256, size);
       ArchiveExtractor.createFolders(staging);
@@ -300,9 +314,10 @@ final class JcefNatives {
   }
 
   private URI createUri(final String identifier) {
-    final String encodedTag = RELEASE_TAG.replace("+", "%2B");
-    final String artifact = "jcef-natives-" + identifier;
-    final String address = this.repository + artifact + "/" + encodedTag + "/" + artifact + "-" + encodedTag + ".jar";
+    final String encodedTag = RELEASE_TAG.replace(PLUS, ENCODED_PLUS);
+    final String artifact = ARTIFACT_PREFIX + identifier;
+    final String address =
+      this.repository + artifact + URL_SEPARATOR + encodedTag + URL_SEPARATOR + artifact + NAME_SEPARATOR + encodedTag + JAR_SUFFIX;
     return URI.create(address);
   }
 
@@ -424,7 +439,7 @@ final class JcefNatives {
     static long approximateMegabytes(final String identifier) {
       for (final NativePlatform platform : values()) {
         if (platform.identifier.equals(identifier)) {
-          return platform.size / (1024L * 1024L);
+          return platform.size / BYTES_PER_MEGABYTE;
         }
       }
       return 0L;

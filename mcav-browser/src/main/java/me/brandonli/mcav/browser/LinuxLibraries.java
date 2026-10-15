@@ -130,6 +130,52 @@ final class LinuxLibraries {
   private static final String UNPACKED_SUFFIX = ".unpacked";
   private static final int MAXIMUM_INCLUDE_DEPTH = 8;
 
+  private static final String CACHE_FOLDER = "jcef-libraries";
+  private static final String INSTALLATION_PREFIX = "debian-11-";
+  private static final String NAME_SEPARATOR = "-";
+  private static final String LOCK_SUFFIX = ".lock";
+  private static final String STAGING_SUFFIX = ".staging";
+  private static final String DOWNLOAD_SUFFIX = ".deb";
+  private static final int FINGERPRINT_DIGITS = 12;
+
+  private static final long BYTES_PER_MEGABYTE = 1_000_000L;
+
+  private static final String POSIX_ATTRIBUTE_VIEW = "posix";
+  private static final String EXECUTABLE_PERMISSIONS = "rwxr-xr-x";
+
+  private static final String LIST_SEPARATOR = ", ";
+
+  private static final String PARENT_FOLDER = "..";
+  private static final String RUNTIME_LIBRARY_FOLDER = "lib";
+
+  private static final int UNSIGNED_BYTE_MASK = 0xFF;
+
+  private static final String ARM64_SUFFIX = "arm64";
+  private static final String AARCH64_TRIPLET = "aarch64-linux-gnu";
+  private static final String X86_64_TRIPLET = "x86_64-linux-gnu";
+  private static final List<String> MULTIARCH_FOLDERS = List.of("lib/", "usr/lib/");
+  private static final List<String> DEFAULT_FOLDERS = List.of("lib64", "usr/lib64", "lib", "usr/lib");
+
+  private static final String LOADER_CONFIGURATION = "etc/ld.so.conf";
+  private static final String COMMENT_PREFIX = "#";
+  private static final String INCLUDE_PREFIX = "include ";
+  private static final String FOLDER_SEPARATOR = "/";
+  private static final String GLOB_SYNTAX = "glob:";
+
+  private static final Pattern FIELD_SEPARATOR = Pattern.compile(" +");
+  private static final String HOST_KEYWORD = "host";
+  private static final int HOST_FIRST_SONAME_FIELD = 2;
+
+  private static final int PIN_PLATFORM_FIELD = 0;
+  private static final int PIN_NAME_FIELD = 1;
+  private static final int PIN_VERSION_FIELD = 2;
+  private static final int PIN_HASH_FIELD = 3;
+  private static final int PIN_SIZE_FIELD = 4;
+  private static final int PIN_POOL_FIELD = 5;
+  private static final int PIN_FIRST_FILE_FIELD = 6;
+  private static final int MINIMUM_PIN_FIELDS = 7;
+  private static final char SONAME_SEPARATOR = '=';
+
   private final Path folder;
   private final JcefNatives.Downloader downloader;
   private final List<String> mirrors;
@@ -189,16 +235,16 @@ final class LinuxLibraries {
     final Map<String, List<String>> host = new LinkedHashMap<>();
     for (final String line : pins) {
       final String trimmed = line.trim();
-      if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+      if (trimmed.isEmpty() || trimmed.startsWith(COMMENT_PREFIX)) {
         continue;
       }
-      final List<String> fields = List.of(trimmed.split(" +"));
-      if (fields.getFirst().equals("host")) {
-        if (fields.size() < 2) {
+      final List<String> fields = List.of(FIELD_SEPARATOR.split(trimmed));
+      if (fields.getFirst().equals(HOST_KEYWORD)) {
+        if (fields.size() < HOST_FIRST_SONAME_FIELD) {
           final String message = "The pin %s names no platform!".formatted(line);
           throw new IllegalArgumentException(message);
         }
-        host.put(requireMatch(PLATFORM, fields.get(1), line), requireSonames(fields.subList(2, fields.size()), line));
+        host.put(requireMatch(PLATFORM, fields.get(1), line), requireSonames(fields.subList(HOST_FIRST_SONAME_FIELD, fields.size()), line));
       } else {
         parsed.add(Pin.parse(fields, line));
       }
@@ -219,7 +265,7 @@ final class LinuxLibraries {
 
   private static Path defaultFolder() {
     final Path cache = IoUtils.getCachedFolder();
-    return cache.resolve("jcef-libraries");
+    return cache.resolve(CACHE_FOLDER);
   }
 
   /**
@@ -288,7 +334,7 @@ final class LinuxLibraries {
       final String message = "Platform %s has no libraries in mcav!".formatted(platform);
       throw new IOException(message);
     }
-    final String name = "debian-11-" + platform + "-" + fingerprint(wanted);
+    final String name = INSTALLATION_PREFIX + platform + NAME_SEPARATOR + fingerprint(wanted);
     final Path installation = this.folder.resolve(name);
     final Path marker = installation.resolve(INSTALL_MARKER);
     if (Files.isRegularFile(marker)) {
@@ -297,7 +343,7 @@ final class LinuxLibraries {
       return installation;
     }
     ArchiveExtractor.createFolders(this.folder);
-    final Path lockFile = this.folder.resolve(name + ".lock");
+    final Path lockFile = this.folder.resolve(name + LOCK_SUFFIX);
     synchronized (INSTALL_LOCK) {
       try (
         final FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
@@ -324,7 +370,7 @@ final class LinuxLibraries {
     for (final Pin pin : pins) {
       hasher.putString(pin.sha256(), StandardCharsets.US_ASCII);
     }
-    return hasher.hash().toString().substring(0, 12);
+    return hasher.hash().toString().substring(0, FINGERPRINT_DIGITS);
   }
 
   private void installLocked(final List<Pin> wanted, final Path installation) throws IOException {
@@ -332,10 +378,10 @@ final class LinuxLibraries {
     for (final Pin pin : wanted) {
       bytes += pin.size();
     }
-    LOGGER.info("Downloading {} Linux libraries for the browser ({} MB, once).", wanted.size(), bytes / 1_000_000L);
+    LOGGER.info("Downloading {} Linux libraries for the browser ({} MB, once).", wanted.size(), bytes / BYTES_PER_MEGABYTE);
     final String suffix = UUID.randomUUID().toString();
-    final Path staging = this.folder.resolve(installation.getFileName() + "-" + suffix + ".staging");
-    final Path download = this.folder.resolve(installation.getFileName() + "-" + suffix + ".deb");
+    final Path staging = this.folder.resolve(installation.getFileName() + NAME_SEPARATOR + suffix + STAGING_SUFFIX);
+    final Path download = this.folder.resolve(installation.getFileName() + NAME_SEPARATOR + suffix + DOWNLOAD_SUFFIX);
     try {
       ArchiveExtractor.createFolders(staging);
       for (final Pin pin : wanted) {
@@ -419,8 +465,8 @@ final class LinuxLibraries {
       Files.copy(library, out);
     }
     final FileSystem fileSystem = file.getFileSystem();
-    if (fileSystem.supportedFileAttributeViews().contains("posix")) {
-      Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rwxr-xr-x"));
+    if (fileSystem.supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW)) {
+      Files.setPosixFilePermissions(file, PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS));
     }
   }
 
@@ -441,7 +487,7 @@ final class LinuxLibraries {
       }
     }
     if (!missingHost.isEmpty()) {
-      final String libraries = String.join(", ", missingHost);
+      final String libraries = String.join(LIST_SEPARATOR, missingHost);
       final String message = "The browser needs %s, which this server lacks and mcav does not bring!".formatted(libraries);
       throw new BrowserUnavailableException(message);
     }
@@ -461,8 +507,8 @@ final class LinuxLibraries {
    * @throws BrowserUnavailableException if the runtime lacks it
    */
   static void requireJawt(final Path java) {
-    final Path runtime = java.toAbsolutePath().resolveSibling("..").normalize();
-    if (!Files.exists(runtime.resolve("lib").resolve(JAWT))) {
+    final Path runtime = java.toAbsolutePath().resolveSibling(PARENT_FOLDER).normalize();
+    if (!Files.exists(runtime.resolve(RUNTIME_LIBRARY_FOLDER).resolve(JAWT))) {
       final String message =
         "The browser needs the Java runtime's %s, which %s lacks: the headless Java packages of Debian and Ubuntu (openjdk-*-jre-headless) leave it out; install the full package of the same version (openjdk-*-jre), or run the server on a full Java runtime!".formatted(
           JAWT,
@@ -521,7 +567,7 @@ final class LinuxLibraries {
    */
   @VisibleForTesting
   static boolean isBuiltFor(final Path library, final String platform) {
-    final byte[] header = new byte[ELF_MACHINE_OFFSET + 2];
+    final byte[] header = new byte[ELF_MACHINE_OFFSET + Short.BYTES];
     final int read;
     try (final InputStream in = Files.newInputStream(library)) {
       read = in.readNBytes(header, 0, header.length);
@@ -532,8 +578,9 @@ final class LinuxLibraries {
       return false;
     }
     final byte[] start = Arrays.copyOf(header, ELF_64_LITTLE_ENDIAN.length);
-    final int machine = (header[ELF_MACHINE_OFFSET] & 0xFF) | ((header[ELF_MACHINE_OFFSET + 1] & 0xFF) << 8);
-    final int wanted = platform.endsWith("arm64") ? MACHINE_AARCH64 : MACHINE_X86_64;
+    final int machine =
+      (header[ELF_MACHINE_OFFSET] & UNSIGNED_BYTE_MASK) | ((header[ELF_MACHINE_OFFSET + 1] & UNSIGNED_BYTE_MASK) << Byte.SIZE);
+    final int wanted = platform.endsWith(ARM64_SUFFIX) ? MACHINE_AARCH64 : MACHINE_X86_64;
     return Arrays.equals(start, ELF_64_LITTLE_ENDIAN) && machine == wanted;
   }
 
@@ -547,9 +594,12 @@ final class LinuxLibraries {
    */
   static List<Path> hostFolders(final Path root, final String platform) {
     final Set<Path> folders = new LinkedHashSet<>();
-    readConfiguration(root, root.resolve("etc/ld.so.conf"), folders, 0);
-    final String triplet = platform.endsWith("arm64") ? "aarch64-linux-gnu" : "x86_64-linux-gnu";
-    for (final String folder : List.of("lib/" + triplet, "usr/lib/" + triplet, "lib64", "usr/lib64", "lib", "usr/lib")) {
+    readConfiguration(root, root.resolve(LOADER_CONFIGURATION), folders, 0);
+    final String triplet = platform.endsWith(ARM64_SUFFIX) ? AARCH64_TRIPLET : X86_64_TRIPLET;
+    for (final String folder : MULTIARCH_FOLDERS) {
+      folders.add(root.resolve(folder + triplet));
+    }
+    for (final String folder : DEFAULT_FOLDERS) {
       folders.add(root.resolve(folder));
     }
     return List.copyOf(folders);
@@ -566,16 +616,18 @@ final class LinuxLibraries {
       return;
     }
     for (final String raw : lines) {
-      final int comment = raw.indexOf('#');
+      final int comment = raw.indexOf(COMMENT_PREFIX);
       final String line = (comment >= 0 ? raw.substring(0, comment) : raw).trim();
-      if (line.startsWith("include ")) {
-        final String pattern = line.substring("include ".length()).trim();
+      if (line.startsWith(INCLUDE_PREFIX)) {
+        final String pattern = line.substring(INCLUDE_PREFIX.length()).trim();
         // as glibc does, a relative include lies beside the file that includes it
-        final Path base = pattern.startsWith("/") ? root : Objects.requireNonNull(file.getParent(), "A file lies in a folder!");
+        final Path base = pattern.startsWith(FOLDER_SEPARATOR)
+          ? root
+          : Objects.requireNonNull(file.getParent(), "A file lies in a folder!");
         for (final Path included : glob(base, pattern)) {
           readConfiguration(root, included, folders, depth + 1);
         }
-      } else if (line.startsWith("/")) {
+      } else if (line.startsWith(FOLDER_SEPARATOR)) {
         folders.add(root.resolve(line.substring(1)));
       }
     }
@@ -590,8 +642,8 @@ final class LinuxLibraries {
    */
   @VisibleForTesting
   static List<Path> glob(final Path root, final String pattern) {
-    final String relative = pattern.startsWith("/") ? pattern.substring(1) : pattern;
-    final int slash = relative.lastIndexOf('/');
+    final String relative = pattern.startsWith(FOLDER_SEPARATOR) ? pattern.substring(1) : pattern;
+    final int slash = relative.lastIndexOf(FOLDER_SEPARATOR);
     final String name = relative.substring(slash + 1);
     final List<Path> matches = new ArrayList<>();
     if (!name.isEmpty()) {
@@ -599,7 +651,7 @@ final class LinuxLibraries {
       // resolved; the folder of a name without one is the root, which the empty text resolves to
       final Path parent = root.resolve(relative.substring(0, Math.max(slash, 0)));
       final FileSystem fileSystem = root.getFileSystem();
-      final PathMatcher matcher = fileSystem.getPathMatcher("glob:" + name);
+      final PathMatcher matcher = fileSystem.getPathMatcher(GLOB_SYNTAX + name);
       try (final DirectoryStream<Path> entries = Files.newDirectoryStream(parent)) {
         for (final Path entry : entries) {
           final Path entryName = Objects.requireNonNull(entry.getFileName(), "An entry of a folder has a name!");
@@ -636,24 +688,24 @@ final class LinuxLibraries {
      * @throws IllegalArgumentException if a field is invalid
      */
     private static Pin parse(final List<String> fields, final String line) {
-      if (fields.size() < 7) {
-        final String message = "The pin %s has %s fields instead of at least 7 fields!".formatted(line, fields.size());
+      if (fields.size() < MINIMUM_PIN_FIELDS) {
+        final String message = "The pin %s has %s fields instead of at least %s fields!".formatted(line, fields.size(), MINIMUM_PIN_FIELDS);
         throw new IllegalArgumentException(message);
       }
       final Map<String, String> files = new LinkedHashMap<>();
-      for (final String entry : fields.subList(6, fields.size())) {
-        final int equals = entry.indexOf('=');
+      for (final String entry : fields.subList(PIN_FIRST_FILE_FIELD, fields.size())) {
+        final int equals = entry.indexOf(SONAME_SEPARATOR);
         final String soname = requireMatch(SONAME, equals > 0 ? entry.substring(0, equals) : entry, line);
         final String path = requireMatch(PACKAGE_PATH, entry.substring(equals + 1), line);
         files.put(path, soname);
       }
       return new Pin(
-        requireMatch(PLATFORM, fields.get(0), line),
-        fields.get(1),
-        fields.get(2),
-        requireMatch(HASH, fields.get(3), line),
-        Long.parseLong(fields.get(4)),
-        requireMatch(POOL_PATH, fields.get(5), line),
+        requireMatch(PLATFORM, fields.get(PIN_PLATFORM_FIELD), line),
+        fields.get(PIN_NAME_FIELD),
+        fields.get(PIN_VERSION_FIELD),
+        requireMatch(HASH, fields.get(PIN_HASH_FIELD), line),
+        Long.parseLong(fields.get(PIN_SIZE_FIELD)),
+        requireMatch(POOL_PATH, fields.get(PIN_POOL_FIELD), line),
         Collections.unmodifiableMap(files)
       );
     }

@@ -51,6 +51,8 @@ final class SocksProtocol {
   private static final int IPV4_BYTES = 4;
   private static final int IPV6_BYTES = 16;
 
+  private static final int UNSIGNED_BYTE_MASK = 0xFF;
+
   private SocksProtocol() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -138,7 +140,7 @@ final class SocksProtocol {
     in.readFully(bytes);
     for (final byte value : bytes) {
       if (!isHostNameCharacter(value) && value != ':' && value != '[' && value != ']') {
-        final String message = "Byte %s is not allowed in the host name of the request!".formatted(value & 0xFF);
+        final String message = "Byte %s is not allowed in the host name of the request!".formatted(value & UNSIGNED_BYTE_MASK);
         throw new ProtocolException(message);
       }
     }

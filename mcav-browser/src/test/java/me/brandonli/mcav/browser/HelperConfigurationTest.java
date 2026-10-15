@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 class HelperConfigurationTest {
@@ -38,6 +39,11 @@ class HelperConfigurationTest {
   private static final Path NATIVES = ROOT.resolve("natives");
   private static final Path PROFILE = ROOT.resolve("profile");
   private static final Path SERVER = ROOT.resolve("server");
+
+  private static final Path RELATIVE_PATH = Path.of("relative");
+  private static final Path RELATIVE_SERVER = Path.of("server");
+
+  private static final Pattern FIELD_SEPARATOR = Pattern.compile(":");
 
   private static byte[] token() {
     final byte[] token = new byte[HelperProtocol.TOKEN_BYTES];
@@ -195,61 +201,13 @@ class HelperConfigurationTest {
       new HelperConfiguration(new byte[1], SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, false, SERVER, List.of())
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(
-        token(),
-        Path.of("relative"),
-        NATIVES,
-        PROFILE,
-        page,
-        1,
-        1,
-        1,
-        1,
-        false,
-        false,
-        false,
-        false,
-        SERVER,
-        List.of()
-      )
+      new HelperConfiguration(token(), RELATIVE_PATH, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, false, SERVER, List.of())
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(
-        token(),
-        SOCKET,
-        Path.of("relative"),
-        PROFILE,
-        page,
-        1,
-        1,
-        1,
-        1,
-        false,
-        false,
-        false,
-        false,
-        SERVER,
-        List.of()
-      )
+      new HelperConfiguration(token(), SOCKET, RELATIVE_PATH, PROFILE, page, 1, 1, 1, 1, false, false, false, false, SERVER, List.of())
     );
     assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(
-        token(),
-        SOCKET,
-        NATIVES,
-        Path.of("relative"),
-        page,
-        1,
-        1,
-        1,
-        1,
-        false,
-        false,
-        false,
-        false,
-        SERVER,
-        List.of()
-      )
+      new HelperConfiguration(token(), SOCKET, NATIVES, RELATIVE_PATH, page, 1, 1, 1, 1, false, false, false, false, SERVER, List.of())
     );
     final URI file = URI.create("file:///etc/passwd");
     assertThrows(IllegalArgumentException.class, () ->
@@ -282,7 +240,7 @@ class HelperConfigurationTest {
     final String tooFastMessage = tooFast.getMessage();
     assertEquals("The frame rate 61 must be between 1 and 60!", tooFastMessage);
     final IllegalArgumentException relativeServer = assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, true, Path.of("server"), List.of())
+      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, true, RELATIVE_SERVER, List.of())
     );
     final String relativeServerMessage = relativeServer.getMessage();
     assertEquals("The server folder path server must be absolute!", relativeServerMessage);
@@ -297,7 +255,7 @@ class HelperConfigurationTest {
   }
 
   private static String[] parts(final HelperConfiguration configuration) {
-    return configuration.toLine().split(":", -1);
+    return FIELD_SEPARATOR.split(configuration.toLine(), -1);
   }
 
   private static String encode(final String value) {

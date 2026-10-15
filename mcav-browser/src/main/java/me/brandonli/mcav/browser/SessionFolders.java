@@ -70,6 +70,11 @@ final class SessionFolders {
   private static final Logger LOGGER = LoggerFactory.getLogger(SessionFolders.class);
   private static final String NOT_RECORDED = "The folder of the browser session {} names no server; if this server is killed, it stays.";
 
+  private static final String RECORD_SEPARATOR = "\n";
+  private static final int RECORD_LINES = 2;
+  private static final String ANY_NAME = "*";
+  private static final String POSIX_ATTRIBUTE_VIEW = "posix";
+
   private final ProcessHandle owner;
   private final LongFunction<Optional<ProcessHandle>> lookup;
 
@@ -119,7 +124,7 @@ final class SessionFolders {
       LOGGER.debug(NOT_RECORDED, folder);
       return;
     }
-    final String record = this.owner.pid() + "\n" + started.get() + "\n";
+    final String record = this.owner.pid() + RECORD_SEPARATOR + started.get() + RECORD_SEPARATOR;
     try {
       Files.writeString(folder.resolve(OWNER_FILE), record, StandardCharsets.US_ASCII);
     } catch (final IOException exception) {
@@ -135,7 +140,7 @@ final class SessionFolders {
    */
   int removeStale(final Path temporary) {
     int removed = 0;
-    try (final DirectoryStream<Path> folders = Files.newDirectoryStream(temporary, PREFIX + "*")) {
+    try (final DirectoryStream<Path> folders = Files.newDirectoryStream(temporary, PREFIX + ANY_NAME)) {
       for (final Path folder : folders) {
         if (this.isStale(folder)) {
           HelperSession.deleteFolder(folder);
@@ -161,7 +166,7 @@ final class SessionFolders {
     } catch (final IOException exception) {
       return false;
     }
-    if (lines.size() != 2) {
+    if (lines.size() != RECORD_LINES) {
       return false;
     }
     final long processId;
@@ -177,7 +182,7 @@ final class SessionFolders {
   }
 
   private boolean isOwnFolder(final Path folder) throws IOException {
-    final boolean posix = folder.getFileSystem().supportedFileAttributeViews().contains("posix");
+    final boolean posix = folder.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW);
     if (!posix) {
       return true;
     }

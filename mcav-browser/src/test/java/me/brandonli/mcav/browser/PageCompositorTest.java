@@ -37,10 +37,15 @@ class PageCompositorTest {
   private static final int HEIGHT = 6;
   private static final long NOW = 1_000_000_000L;
 
+  private static final long SETTLE_MILLISECONDS = 100L;
+  private static final long TAKER_START_MILLISECONDS = 50L;
+
+  private static final int POPUP_SHADE = 150;
+
   private final AtomicLong clock = new AtomicLong(NOW);
 
   private PageCompositor compositor(final int frameInterval) {
-    return new PageCompositor(WIDTH, HEIGHT, frameInterval, 100L, this.clock::get);
+    return new PageCompositor(WIDTH, HEIGHT, frameInterval, SETTLE_MILLISECONDS, this.clock::get);
   }
 
   /** A buffer whose every pixel is (value, column, row, 255) in BGRA order. */
@@ -155,7 +160,7 @@ class PageCompositorTest {
 
   @Test
   void shouldWakeAWaitingTakerWhenDamageBecomesDue() throws Exception {
-    final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, 100L, System::nanoTime);
+    final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, SETTLE_MILLISECONDS, System::nanoTime);
     final byte[] target = new byte[compositor.getPageBytes()];
     final CompletableFuture<FrameRegion> taken = CompletableFuture.supplyAsync(() -> {
       try {
@@ -164,7 +169,7 @@ class PageCompositorTest {
         throw new IllegalStateException(exception);
       }
     });
-    Thread.sleep(50L);
+    Thread.sleep(TAKER_START_MILLISECONDS);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, buffer(WIDTH, HEIGHT, 5), WIDTH, HEIGHT);
     final FrameRegion region = taken.get(10, TimeUnit.SECONDS);
     final byte[] pixels = region.getPixels();
@@ -187,14 +192,14 @@ class PageCompositorTest {
 
   @Test
   void shouldTimeOutTakingWithoutDamage() throws InterruptedException {
-    final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, 100L, System::nanoTime);
+    final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, SETTLE_MILLISECONDS, System::nanoTime);
     final @Nullable FrameRegion damage = compositor.takeDamage(new byte[compositor.getPageBytes()], 20L);
     assertNull(damage);
   }
 
   @Test
   void shouldWakeAWaitingTakerWithNothingOnClose() throws Exception {
-    final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, 100L, System::nanoTime);
+    final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, SETTLE_MILLISECONDS, System::nanoTime);
     final CompletableFuture<FrameRegion> taken = CompletableFuture.supplyAsync(() -> {
       try {
         return compositor.takeDamage(new byte[compositor.getPageBytes()], 60_000L);
@@ -202,7 +207,7 @@ class PageCompositorTest {
         throw new IllegalStateException(exception);
       }
     });
-    Thread.sleep(50L);
+    Thread.sleep(TAKER_START_MILLISECONDS);
     compositor.close();
     final FrameRegion wokenDamage = taken.get(10, TimeUnit.SECONDS);
     assertNull(wokenDamage);
@@ -256,7 +261,7 @@ class PageCompositorTest {
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, WIDTH, HEIGHT) }, buffer(WIDTH, HEIGHT, 1), WIDTH, HEIGHT);
     take(compositor);
     compositor.onPopupSize(new Rectangle(1, 1, 2, 2));
-    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, 150), 2, 2);
+    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, POPUP_SHADE), 2, 2);
     take(compositor);
     compositor.onPopupShow(false);
     final FrameRegion region = take(compositor);
@@ -273,14 +278,14 @@ class PageCompositorTest {
   @Test
   void shouldIgnoreAPopupPaintUntilItsSizeIsKnownOrWhenItDoesNotMatch() {
     final PageCompositor compositor = this.compositor(1);
-    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, 150), 2, 2);
+    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, POPUP_SHADE), 2, 2);
     final FrameRegion damageWithoutSize = takeNow(compositor);
     assertNull(damageWithoutSize, "no size yet");
     compositor.onPopupSize(new Rectangle(0, 0, 3, 3));
-    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, 150), 2, 2);
+    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, POPUP_SHADE), 2, 2);
     final FrameRegion damageOfOtherSize = takeNow(compositor);
     assertNull(damageOfOtherSize, "the size does not match");
-    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 3, 2) }, buffer(3, 2, 150), 3, 2);
+    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 3, 2) }, buffer(3, 2, POPUP_SHADE), 3, 2);
     final FrameRegion damageOfOtherHeight = takeNow(compositor);
     assertNull(damageOfOtherHeight, "the height does not match");
   }
@@ -289,14 +294,14 @@ class PageCompositorTest {
   void shouldDamageWhereAnOpenPopupWasWhenItMoves() throws InterruptedException {
     final PageCompositor compositor = this.compositor(1);
     compositor.onPopupSize(new Rectangle(0, 0, 2, 2));
-    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, 150), 2, 2);
+    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, POPUP_SHADE), 2, 2);
     take(compositor);
     compositor.onPopupSize(new Rectangle(4, 3, 2, 2));
     final FrameRegion region = take(compositor);
     final Rectangle bounds = new Rectangle(region.getX(), region.getY(), region.getWidth(), region.getHeight());
     assertEquals(new Rectangle(0, 0, 2, 2), bounds);
     compositor.onPopupSize(new Rectangle(100, 100, 2, 2));
-    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, 150), 2, 2);
+    compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, POPUP_SHADE), 2, 2);
     compositor.onPopupShow(false);
     final FrameRegion damage = takeNow(compositor);
     assertNull(damage);
@@ -304,7 +309,7 @@ class PageCompositorTest {
 
   @Test
   void shouldWakeAWaitingTakerForAPopupAndForItsEnd() throws Exception {
-    final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, 100L, System::nanoTime);
+    final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, SETTLE_MILLISECONDS, System::nanoTime);
     final byte[] target = new byte[compositor.getPageBytes()];
     compositor.onPopupSize(new Rectangle(1, 1, 2, 2));
     final CompletableFuture<FrameRegion> shown = CompletableFuture.supplyAsync(() -> waitForDamage(compositor, target));

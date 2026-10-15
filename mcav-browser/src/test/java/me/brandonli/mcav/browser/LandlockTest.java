@@ -53,6 +53,8 @@ class LandlockTest {
   private static final long READ_FOLDER = 0b1101;
   private static final long READ_FILE = 0b101;
 
+  private static final Path ROOT = Path.of("/");
+
   @TempDir
   private Path folder;
 
@@ -204,7 +206,7 @@ class LandlockTest {
     final Path readable = Files.writeString(open.resolve("readable.txt"), "readable");
     final Path writable = Files.createDirectories(this.folder.resolve("writable"));
     final List<Landlock.Rule> rules = new ArrayList<>(
-      ChromiumConfinement.rules(Path.of("/"), List.of(hidden), List.of(granted), List.of(writable))
+      ChromiumConfinement.rules(ROOT, List.of(hidden), List.of(granted), List.of(writable))
     );
     rules.add(new Landlock.Rule(this.folder.resolve("deleted"), false));
     final List<String> seen = new ArrayList<>();

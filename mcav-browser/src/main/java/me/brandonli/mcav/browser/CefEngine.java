@@ -67,6 +67,53 @@ final class CefEngine implements HelperEngine {
   private static final String NOT_CONFIRMED = "not confirmed";
   private static final String CHROMIUM_THREAD = "mcav-browser-chromium";
 
+  private static final String DISABLE_GPU_SWITCH = "--disable-gpu";
+  private static final String DISABLE_GPU_COMPOSITING_SWITCH = "--disable-gpu-compositing";
+
+  private static final String MUTE_AUDIO_SWITCH = "--mute-audio";
+  private static final String DISABLE_AUDIO_OUTPUT_SWITCH = "--disable-audio-output";
+  private static final String AUTOPLAY_POLICY_SWITCH = "--autoplay-policy=";
+  private static final String AUTOPLAY_WITHOUT_GESTURE = "no-user-gesture-required";
+  private static final String AUTOPLAY_AFTER_ACTIVATION = "document-user-activation-required";
+
+  private static final String HIDE_SCROLLBARS_SWITCH = "--hide-scrollbars";
+  private static final String DISABLE_EXTENSIONS_SWITCH = "--disable-extensions";
+  private static final String DISABLE_COMPONENT_UPDATE_SWITCH = "--disable-component-update";
+  private static final String DISABLE_BACKGROUND_NETWORKING_SWITCH = "--disable-background-networking";
+  private static final String DISABLE_SYNC_SWITCH = "--disable-sync";
+  private static final String DISABLE_DEFAULT_APPS_SWITCH = "--disable-default-apps";
+  private static final String DISABLE_NOTIFICATIONS_SWITCH = "--disable-notifications";
+  private static final String DENY_PERMISSION_PROMPTS_SWITCH = "--deny-permission-prompts";
+  private static final String NO_FIRST_RUN_SWITCH = "--no-first-run";
+  private static final String SITE_PER_PROCESS_SWITCH = "--site-per-process";
+  private static final String DISABLE_WEBGPU_SWITCH = "--disable-webgpu";
+
+  private static final String GAIA_URL_SWITCH = "--gaia-url=https://accounts.invalid";
+  private static final String GOOGLE_BASE_URL_SWITCH = "--google-base-url=https://www.invalid";
+  private static final String NETWORK_TIME_FEATURE = "NetworkTimeServiceQuerying";
+  private static final String PRECONNECT_TO_SEARCH_FEATURE = "PreconnectToSearch";
+  private static final String DISABLE_FEATURES_SWITCH = "--disable-features=";
+  private static final String FEATURE_SEPARATOR = ",";
+
+  private static final String JITLESS_SWITCH = "--js-flags=--jitless";
+
+  private static final String PROXY_SERVER_SWITCH = "--proxy-server=socks5://127.0.0.1:";
+  private static final String PROXY_BYPASS_LIST_SWITCH = "--proxy-bypass-list=<-loopback>";
+  private static final String WEBRTC_POLICY_SWITCH = "--force-webrtc-ip-handling-policy=disable_non_proxied_udp";
+  private static final String DISABLE_QUIC_SWITCH = "--disable-quic";
+
+  private static final String HEADLESS_OZONE_SWITCH = "--ozone-platform=headless";
+  private static final String BASIC_PASSWORD_STORE_SWITCH = "--password-store=basic";
+  private static final String DISABLE_SHARED_MEMORY_SWITCH = "--disable-dev-shm-usage";
+  private static final String DISPLAY_SWITCH = "--display=";
+
+  private static final String MOCK_KEYCHAIN_SWITCH = "--use-mock-keychain";
+
+  private static final String LINUX_NAME = "linux";
+  private static final String MAC_NAME = "mac";
+
+  private static final String UNKNOWN_VERSION = "unknown";
+
   // the features CEF disables itself: CEF passes them in a --disable-features switch before the switches of the helper,
   // and Chromium keeps only the last of several, so the helper's switch repeats them
   @VisibleForTesting
@@ -109,59 +156,59 @@ final class CefEngine implements HelperEngine {
     final @Nullable String display
   ) {
     final List<String> switches = new ArrayList<>();
-    switches.add("--disable-gpu");
-    switches.add("--disable-gpu-compositing");
+    switches.add(DISABLE_GPU_SWITCH);
+    switches.add(DISABLE_GPU_COMPOSITING_SWITCH);
     // the page's sound reaches the server through PageAudio, never the speakers of the server, and it plays on
     // Chromium's own clock instead of a sound device of the server, which may run slow or stall (as a virtual machine's
     // does) and so starve the capture; as in a desktop browser, a page may play sound only once a player clicked the
     // screen, which reaches it as a real click, unless the options let it play right away (CEF's own default)
-    switches.add("--mute-audio");
-    switches.add("--disable-audio-output");
+    switches.add(MUTE_AUDIO_SWITCH);
+    switches.add(DISABLE_AUDIO_OUTPUT_SWITCH);
     final boolean allowsAutoplay = configuration.isAutoplay();
-    switches.add("--autoplay-policy=" + (allowsAutoplay ? "no-user-gesture-required" : "document-user-activation-required"));
-    switches.add("--hide-scrollbars");
-    switches.add("--disable-extensions");
-    switches.add("--disable-component-update");
-    switches.add("--disable-background-networking");
-    switches.add("--disable-sync");
-    switches.add("--disable-default-apps");
-    switches.add("--disable-notifications");
-    switches.add("--deny-permission-prompts");
-    switches.add("--no-first-run");
-    switches.add("--site-per-process");
-    switches.add("--disable-webgpu");
+    switches.add(AUTOPLAY_POLICY_SWITCH + (allowsAutoplay ? AUTOPLAY_WITHOUT_GESTURE : AUTOPLAY_AFTER_ACTIVATION));
+    switches.add(HIDE_SCROLLBARS_SWITCH);
+    switches.add(DISABLE_EXTENSIONS_SWITCH);
+    switches.add(DISABLE_COMPONENT_UPDATE_SWITCH);
+    switches.add(DISABLE_BACKGROUND_NETWORKING_SWITCH);
+    switches.add(DISABLE_SYNC_SWITCH);
+    switches.add(DISABLE_DEFAULT_APPS_SWITCH);
+    switches.add(DISABLE_NOTIFICATIONS_SWITCH);
+    switches.add(DENY_PERMISSION_PROMPTS_SWITCH);
+    switches.add(NO_FIRST_RUN_SWITCH);
+    switches.add(SITE_PER_PROCESS_SWITCH);
+    switches.add(DISABLE_WEBGPU_SWITCH);
     // Chromium's own services contact Google when it starts, which tells Google that a browser runs on this server: the
     // sign-in and search services are sent to names that cannot exist (RFC 6761), and the network time service and the
     // preconnect to the search engine are turned off
-    switches.add("--gaia-url=https://accounts.invalid");
-    switches.add("--google-base-url=https://www.invalid");
+    switches.add(GAIA_URL_SWITCH);
+    switches.add(GOOGLE_BASE_URL_SWITCH);
     final List<String> disabledFeatures = new ArrayList<>(CEF_DISABLED_FEATURES);
-    disabledFeatures.add("NetworkTimeServiceQuerying");
-    disabledFeatures.add("PreconnectToSearch");
-    switches.add("--disable-features=" + String.join(",", disabledFeatures));
+    disabledFeatures.add(NETWORK_TIME_FEATURE);
+    disabledFeatures.add(PRECONNECT_TO_SEARCH_FEATURE);
+    switches.add(DISABLE_FEATURES_SWITCH + String.join(FEATURE_SEPARATOR, disabledFeatures));
     if (!configuration.isJavaScriptJit()) {
-      switches.add("--js-flags=--jitless");
+      switches.add(JITLESS_SWITCH);
     }
     if (guardPort > 0) {
       // every connection goes through the guard, loopback included, which Chromium would otherwise reach directly;
       // WebRTC may only use proxied connections, and QUIC, which a SOCKS proxy cannot carry, is off
-      switches.add("--proxy-server=socks5://127.0.0.1:" + guardPort);
-      switches.add("--proxy-bypass-list=<-loopback>");
-      switches.add("--force-webrtc-ip-handling-policy=disable_non_proxied_udp");
-      switches.add("--disable-quic");
+      switches.add(PROXY_SERVER_SWITCH + guardPort);
+      switches.add(PROXY_BYPASS_LIST_SWITCH);
+      switches.add(WEBRTC_POLICY_SWITCH);
+      switches.add(DISABLE_QUIC_SWITCH);
     }
     if (isLinux) {
       // Chromium draws without any display server; only JCEF's window of one pixel needs an X display, and gets the
       // helper's null display. The shared memory of a container is often small, so Chromium uses temporary files.
-      switches.add("--ozone-platform=headless");
-      switches.add("--password-store=basic");
-      switches.add("--disable-dev-shm-usage");
+      switches.add(HEADLESS_OZONE_SWITCH);
+      switches.add(BASIC_PASSWORD_STORE_SWITCH);
+      switches.add(DISABLE_SHARED_MEMORY_SWITCH);
       if (display != null) {
-        switches.add("--display=" + display);
+        switches.add(DISPLAY_SWITCH + display);
       }
     }
     if (isMac) {
-      switches.add("--use-mock-keychain");
+      switches.add(MOCK_KEYCHAIN_SWITCH);
     }
     return switches;
   }
@@ -189,8 +236,8 @@ final class CefEngine implements HelperEngine {
     throws Exception {
     final String osName = System.getProperty("os.name");
     final String os = osName.toLowerCase(Locale.ROOT);
-    final boolean isLinux = os.contains("linux");
-    final boolean isMac = os.contains("mac");
+    final boolean isLinux = os.contains(LINUX_NAME);
+    final boolean isMac = os.contains(MAC_NAME);
     final CefAppBuilder builder = new CefAppBuilder();
     final Path natives = configuration.getNatives();
     final File installation = natives.toFile();
@@ -404,7 +451,7 @@ final class CefEngine implements HelperEngine {
    */
   static String describe(final CefApp.@Nullable CefVersion version) {
     if (version == null) {
-      return "unknown";
+      return UNKNOWN_VERSION;
     }
     return version.getCefVersion() + " (Chromium " + version.getChromeVersion() + ")";
   }

@@ -79,6 +79,9 @@ final class ArchiveExtractor {
   private static final int EXECUTE_BITS = 0111;
   private static final int BUFFER_BYTES = 64 * 1024;
 
+  private static final String POSIX_ATTRIBUTE_VIEW = "posix";
+  private static final String PARENT_FOLDER = "..";
+
   private final int maxEntries;
   private final long maxTotalBytes;
 
@@ -110,7 +113,7 @@ final class ArchiveExtractor {
    */
   void extract(final InputStream archive, final Path target) throws IOException {
     final FileSystem fileSystem = target.getFileSystem();
-    final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains("posix");
+    final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW);
     this.extract(archive, target, supportsPosix);
   }
 
@@ -199,7 +202,7 @@ final class ArchiveExtractor {
     }
     Path current = root;
     for (final Path element : relative) {
-      if (element.toString().equals("..")) {
+      if (element.toString().equals(PARENT_FOLDER)) {
         final String message = "Archive entry name %s leaves the folder!".formatted(name);
         throw new IOException(message);
       }
@@ -248,7 +251,7 @@ final class ArchiveExtractor {
    */
   static void createFolders(final Path folder) throws IOException {
     final FileSystem fileSystem = folder.getFileSystem();
-    createFolders(folder, fileSystem.supportedFileAttributeViews().contains("posix"));
+    createFolders(folder, fileSystem.supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW));
   }
 
   /**
@@ -285,7 +288,7 @@ final class ArchiveExtractor {
    */
   static void tighten(final Path folder) throws IOException {
     final FileSystem fileSystem = folder.getFileSystem();
-    if (!fileSystem.supportedFileAttributeViews().contains("posix") || !Files.isDirectory(folder)) {
+    if (!fileSystem.supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW) || !Files.isDirectory(folder)) {
       return;
     }
     Files.walkFileTree(

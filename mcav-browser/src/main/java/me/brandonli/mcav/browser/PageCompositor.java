@@ -39,6 +39,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 final class PageCompositor implements McavOffscreenBrowser.PaintListener {
 
+  private static final byte FULL_CHANNEL = (byte) 0xFF;
+
   private final int width;
   private final int height;
   private final int frameInterval;
@@ -69,7 +71,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     this.settleNanoseconds = TimeUnit.MILLISECONDS.toNanos(settleMilliseconds);
     this.clock = clock;
     this.page = new byte[width * height * HelperProtocol.PIXEL_BYTES];
-    Arrays.fill(this.page, (byte) 0xFF);
+    Arrays.fill(this.page, FULL_CHANNEL);
   }
 
   /**

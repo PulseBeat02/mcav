@@ -119,6 +119,16 @@ final class HelperSession implements BrowserSession {
   private static final int MAXIMUM_FOLDER_ATTEMPTS = 100;
   private static final Thread NOT_STARTED = new Thread("mcav-browser-not-started");
 
+  private static final String PROFILE_FOLDER = "profile";
+
+  private static final String POSIX_ATTRIBUTE_VIEW = "posix";
+  private static final String OWNER_ONLY_PERMISSIONS = "rwx------";
+
+  private static final long CONNECT_POLL_MILLISECONDS = 250L;
+
+  private static final int INPUT_BUFFER_BYTES = 1 << 16;
+  private static final int OUTPUT_READ_CHARACTERS = 4096;
+
   /**
    * How long the delivery thread waits for a new picture before it hands over the last one again.
    */
@@ -237,7 +247,7 @@ final class HelperSession implements BrowserSession {
       requireShortEnough(launcher.getOs(), folder);
       final Path libraries = launcher.linkLibraries(folder);
       final URI uri = source.getUri();
-      final HelperConfiguration configuration = configure(token, socket, natives, folder.resolve("profile"), uri, source, options);
+      final HelperConfiguration configuration = configure(token, socket, natives, folder.resolve(PROFILE_FOLDER), uri, source, options);
       process = startProcess(launcher, folder, libraries);
       final Writer standardInput = sendConfiguration(process, configuration);
       final long timeoutMilliseconds = launcher.getStartTimeoutMilliseconds();
@@ -369,9 +379,9 @@ final class HelperSession implements BrowserSession {
   @VisibleForTesting
   static Path createFolder(final Path temporary, final Supplier<String> names) {
     final FileSystem fileSystem = temporary.getFileSystem();
-    final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains("posix");
+    final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW);
     final FileAttribute<?>[] attributes = supportsPosix
-      ? new FileAttribute<?>[] { PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")) }
+      ? new FileAttribute<?>[] { PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString(OWNER_ONLY_PERMISSIONS)) }
       : new FileAttribute<?>[0];
     try {
       for (int attempt = 1; attempt <= MAXIMUM_FOLDER_ATTEMPTS; attempt++) {
@@ -470,7 +480,7 @@ final class HelperSession implements BrowserSession {
           final String message = "The browser helper exited with code %s before it connected!".formatted(process.exitValue());
           throw new PlayerException(message);
         }
-        selector.select(Math.min(remaining, 250L));
+        selector.select(Math.min(remaining, CONNECT_POLL_MILLISECONDS));
         final SocketChannel channel = server.accept();
         if (channel != null) {
           channel.configureBlocking(true);
@@ -484,7 +494,7 @@ final class HelperSession implements BrowserSession {
     final InputStream processOutput = this.process.getInputStream();
     this.drain = startDaemon("mcav-browser-helper-log", () -> this.drainOutput(processOutput));
     final InputStream rawInput = Channels.newInputStream(this.channel);
-    final DataInputStream in = new DataInputStream(new BufferedInputStream(rawInput, 1 << 16));
+    final DataInputStream in = new DataInputStream(new BufferedInputStream(rawInput, INPUT_BUFFER_BYTES));
     this.reader = startDaemon("mcav-browser-reader", () -> this.read(in, token));
     this.delivery = startDaemon("mcav-browser-frames", this::deliverFrames);
   }
@@ -807,7 +817,7 @@ final class HelperSession implements BrowserSession {
   void drainOutput(final InputStream stream) {
     final StringBuilder line = new StringBuilder();
     try (final Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-      final char[] characters = new char[4096];
+      final char[] characters = new char[OUTPUT_READ_CHARACTERS];
       int count = reader.read(characters);
       while (count >= 0) {
         for (int index = 0; index < count; index++) {

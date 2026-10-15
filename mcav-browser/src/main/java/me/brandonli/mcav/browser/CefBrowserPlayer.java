@@ -80,6 +80,9 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private static final SessionFactory DEFAULT_SESSIONS = new DefaultSessionFactory();
   private static final Equivalence<Object> SESSION_IDENTITY = Equivalence.identity();
 
+  private static final int SINGLE_CLICK = 1;
+  private static final int DOUBLE_CLICK = 2;
+
   private final BrowserOptions options;
   private final SessionFactory sessions;
   private final VideoAttachableCallback videoCallback;
@@ -265,14 +268,14 @@ final class CefBrowserPlayer implements BrowserPlayer {
     Preconditions.checkNotNull(type, "Mouse click type must not be null!");
     this.moveMouse(pageX, pageY);
     final Runnable input = switch (type) {
-      case LEFT -> () -> this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, 1);
-      case RIGHT -> () -> this.click(HelperProtocol.BUTTON_RIGHT, pageX, pageY, 1);
+      case LEFT -> () -> this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, SINGLE_CLICK);
+      case RIGHT -> () -> this.click(HelperProtocol.BUTTON_RIGHT, pageX, pageY, SINGLE_CLICK);
       case DOUBLE -> () -> {
-        this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, 1);
-        this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, 2);
+        this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, SINGLE_CLICK);
+        this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, DOUBLE_CLICK);
       };
-      case HOLD -> () -> this.sendMouse(HelperProtocol.MOUSE_PRESS, pageX, pageY, HelperProtocol.BUTTON_LEFT, 1);
-      case RELEASE -> () -> this.sendMouse(HelperProtocol.MOUSE_RELEASE, pageX, pageY, HelperProtocol.BUTTON_LEFT, 1);
+      case HOLD -> () -> this.sendMouse(HelperProtocol.MOUSE_PRESS, pageX, pageY, HelperProtocol.BUTTON_LEFT, SINGLE_CLICK);
+      case RELEASE -> () -> this.sendMouse(HelperProtocol.MOUSE_RELEASE, pageX, pageY, HelperProtocol.BUTTON_LEFT, SINGLE_CLICK);
     };
     input.run();
   }
@@ -478,6 +481,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
    */
   static final class DefaultSessionFactory implements SessionFactory {
 
+    private static final Path ROOT = Path.of("/");
+
     private final JcefNatives natives;
     private final LinuxLibraries libraries;
     private final List<String> extraJvmOptions;
@@ -539,7 +544,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       if (base.getOs() != Os.LINUX) {
         return base;
       }
-      return withLibraries(base, libraries, Path.of("/"));
+      return withLibraries(base, libraries, ROOT);
     }
 
     /**

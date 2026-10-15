@@ -33,6 +33,8 @@ import me.brandonli.mcav.module.MCAVModule;
  */
 public final class BrowserModule implements MCAVModule {
 
+  private static final String MODULE_NAME = "browser";
+
   /**
    * Constructs the module. The module loader creates it for you.
    */
@@ -85,6 +87,6 @@ public final class BrowserModule implements MCAVModule {
    */
   @Override
   public String getModuleName() {
-    return "browser";
+    return MODULE_NAME;
   }
 }

@@ -19,6 +19,7 @@ package me.brandonli.mcav.browser;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -78,6 +79,27 @@ final class AddressPolicy {
   private static final int U_OCTET = 8;
 
   private static final int IPV6_BYTES = 16;
+
+  private static final int UNSIGNED_BYTE_MASK = 0xFF;
+
+  private static final int SECOND_WORD_OFFSET = 4;
+  private static final int THIRD_WORD_OFFSET = 8;
+
+  // the third 32 bits of an IPv4-mapped IPv6 address, ::ffff:0:0/96
+  private static final int IPV4_MAPPED_WORD = 0x0000FFFF;
+
+  private static final int GLOBAL_UNICAST_MASK = 0xE0000000;
+  private static final int GLOBAL_UNICAST_PREFIX = 0x20000000;
+
+  private static final int IETF_MASK = 0xFFFFFE00;
+  private static final int IETF_PREFIX = 0x20010000;
+
+  private static final int DOCUMENTATION_PREFIX = 0x20010DB8;
+  private static final int WIDE_DOCUMENTATION_MASK = 0xFFFFF000;
+  private static final int WIDE_DOCUMENTATION_PREFIX = 0x3FFF0000;
+
+  private static final int SIX_TO_FOUR_MASK = 0xFFFF0000;
+  private static final int SIX_TO_FOUR_PREFIX = 0x20020000;
 
   // the first 32 bits of the well-known NAT64 prefix 64:ff9b::/96 (RFC 6052) and of 64:ff9b:1::/48 (RFC 8215)
   private static final int WELL_KNOWN_NAT64 = 0x0064FF9B;
@@ -173,7 +195,7 @@ final class AddressPolicy {
       if (index == U_OCTET) {
         index++;
       }
-      address = (address << Byte.SIZE) | (bytes[index] & 0xFF);
+      address = (address << Byte.SIZE) | (bytes[index] & UNSIGNED_BYTE_MASK);
       index++;
     }
     return address;
@@ -203,9 +225,9 @@ final class AddressPolicy {
    */
   static boolean isPublicIpv6(final byte[] bytes) {
     final int first = toInt(bytes, 0);
-    final int second = toInt(bytes, 4);
-    final int third = toInt(bytes, 8);
-    final boolean mapped = first == 0 && second == 0 && third == 0x0000FFFF;
+    final int second = toInt(bytes, SECOND_WORD_OFFSET);
+    final int third = toInt(bytes, THIRD_WORD_OFFSET);
+    final boolean mapped = first == 0 && second == 0 && third == IPV4_MAPPED_WORD;
     final boolean inNat64Prefix = first == WELL_KNOWN_NAT64 && second == 0 && third == 0;
     if (mapped || inNat64Prefix) {
       return isPublicIpv4(toInt(bytes, EMBEDDED_IPV4_OFFSET));
@@ -233,17 +255,16 @@ final class AddressPolicy {
    * @return true if the address is global unicast
    */
   private static boolean isGlobalUnicast(final int first) {
-    final boolean inGlobalUnicastRange = (first & 0xE0000000) == 0x20000000;
-    final boolean inIetfRange = (first & 0xFFFFFE00) == 0x20010000;
-    final boolean inDocumentationRange = first == 0x20010DB8 || (first & 0xFFFFF000) == 0x3FFF0000;
-    final boolean inSixToFourRange = (first & 0xFFFF0000) == 0x20020000;
+    final boolean inGlobalUnicastRange = (first & GLOBAL_UNICAST_MASK) == GLOBAL_UNICAST_PREFIX;
+    final boolean inIetfRange = (first & IETF_MASK) == IETF_PREFIX;
+    final boolean inDocumentationRange = first == DOCUMENTATION_PREFIX || (first & WIDE_DOCUMENTATION_MASK) == WIDE_DOCUMENTATION_PREFIX;
+    final boolean inSixToFourRange = (first & SIX_TO_FOUR_MASK) == SIX_TO_FOUR_PREFIX;
     return inGlobalUnicastRange && !inIetfRange && !inDocumentationRange && !inSixToFourRange;
   }
 
   private static int toInt(final byte[] bytes, final int offset) {
-    return (
-      ((bytes[offset] & 0xFF) << 24) | ((bytes[offset + 1] & 0xFF) << 16) | ((bytes[offset + 2] & 0xFF) << 8) | (bytes[offset + 3] & 0xFF)
-    );
+    final ByteBuffer word = ByteBuffer.wrap(bytes, offset, Integer.BYTES);
+    return word.getInt();
   }
 
   /**

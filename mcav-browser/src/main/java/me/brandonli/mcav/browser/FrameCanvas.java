@@ -34,6 +34,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 final class FrameCanvas implements AutoCloseable {
 
+  private static final double FULL_CHANNEL = 255.0;
+
   private final int width;
   private final int height;
   private final Mat page;
@@ -49,7 +51,7 @@ final class FrameCanvas implements AutoCloseable {
   FrameCanvas(final int width, final int height) {
     this.width = width;
     this.height = height;
-    final Scalar white = new Scalar(255.0, 255.0, 255.0, 255.0);
+    final Scalar white = new Scalar(FULL_CHANNEL, FULL_CHANNEL, FULL_CHANNEL, FULL_CHANNEL);
     this.page = new Mat(height, width, opencv_core.CV_8UC4, white);
     this.pixels = this.page.createBuffer();
   }
