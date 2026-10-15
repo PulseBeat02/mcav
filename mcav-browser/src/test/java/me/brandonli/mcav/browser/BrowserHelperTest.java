@@ -115,11 +115,11 @@ class BrowserHelperTest {
     reporter.onAudio(chunk);
     final int soundBytesBeforeAnyPress = sent.size();
     assertEquals(0, soundBytesBeforeAnyPress, "no sound before anyone pressed a button or a key");
-    helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, HelperProtocol.BUTTON_LEFT, 0, 0, 0)));
+    helper.executeCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, HelperProtocol.BUTTON_LEFT, 0, 0, 0)));
     reporter.onAudio(chunk);
     final int soundBytesAfterAMove = sent.size();
     assertEquals(0, soundBytesAfterAMove, "a move presses nothing");
-    helper.handleCommand(HelperMessage.key(HelperProtocol.KEY_TYPE, "a"));
+    helper.executeCommand(HelperMessage.key(HelperProtocol.KEY_TYPE, "a"));
     reporter.onAudio(chunk);
     final int soundBytesAfterAKey = sent.size();
     assertEquals(message, soundBytesAfterAKey, "a key lets the sound pass");
@@ -137,7 +137,7 @@ class BrowserHelperTest {
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
     final ByteArrayOutputStream sent = new ByteArrayOutputStream();
     final BrowserHelper.Reporter reporter = helper.new Reporter(new DataOutputStream(sent));
-    helper.handleCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 1, HelperProtocol.BUTTON_LEFT, 1, 0, 0)));
+    helper.executeCommand(HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 1, HelperProtocol.BUTTON_LEFT, 1, 0, 0)));
     reporter.onAudio(chunk);
     final int soundBytesAfterAPress = sent.size();
     assertEquals(message, soundBytesAfterAPress, "a press lets the sound of the page pass");
@@ -145,7 +145,7 @@ class BrowserHelperTest {
     reporter.onAudio(chunk);
     final int soundBytesOnTheNewPage = sent.size();
     assertEquals(message, soundBytesOnTheNewPage, "the new page plays nothing before a press on it");
-    helper.handleCommand(HelperMessage.key(HelperProtocol.KEY_PRESS, "Enter"));
+    helper.executeCommand(HelperMessage.key(HelperProtocol.KEY_PRESS, "Enter"));
     reporter.onAudio(chunk);
     final int soundBytesAfterAPressOnTheNewPage = sent.size();
     assertEquals(2 * message, soundBytesAfterAPressOnTheNewPage);
@@ -361,21 +361,23 @@ class BrowserHelperTest {
   void shouldRememberTheHeldButtonsSoAMoveIsADrag() {
     final ScriptedEngine engine = new ScriptedEngine();
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), engine);
-    final boolean readsOnAfterThePress = helper.handleCommand(
-      HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 5, 5, HelperProtocol.BUTTON_LEFT, 1, 0, 0))
-    );
+    final HelperMessage press = HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 5, 5, HelperProtocol.BUTTON_LEFT, 1, 0, 0));
+    helper.executeCommand(press);
+    final boolean readsOnAfterThePress = helper.isInput(press);
     assertTrue(readsOnAfterThePress);
-    final boolean readsOnAfterTheDrag = helper.handleCommand(
-      HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 6, 6, HelperProtocol.BUTTON_LEFT, 0, 0, 0))
-    );
+    final HelperMessage drag = HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 6, 6, HelperProtocol.BUTTON_LEFT, 0, 0, 0));
+    helper.executeCommand(drag);
+    final boolean readsOnAfterTheDrag = helper.isInput(drag);
     assertTrue(readsOnAfterTheDrag);
-    final boolean readsOnAfterTheRelease = helper.handleCommand(
-      HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_RELEASE, 6, 6, HelperProtocol.BUTTON_LEFT, 1, 0, 0))
+    final HelperMessage release = HelperMessage.mouse(
+      new MouseInput(HelperProtocol.MOUSE_RELEASE, 6, 6, HelperProtocol.BUTTON_LEFT, 1, 0, 0)
     );
+    helper.executeCommand(release);
+    final boolean readsOnAfterTheRelease = helper.isInput(release);
     assertTrue(readsOnAfterTheRelease);
-    final boolean readsOnAfterTheMove = helper.handleCommand(
-      HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 7, 7, HelperProtocol.BUTTON_LEFT, 0, 0, 0))
-    );
+    final HelperMessage move = HelperMessage.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 7, 7, HelperProtocol.BUTTON_LEFT, 0, 0, 0));
+    helper.executeCommand(move);
+    final boolean readsOnAfterTheMove = helper.isInput(move);
     assertTrue(readsOnAfterTheMove);
     final List<String> calls = engine.getCalls();
     final boolean dragHoldsTheLeftButton = calls.get(1).contains("\"buttons\":1,\"button\":\"left\"");
@@ -717,9 +719,13 @@ class BrowserHelperTest {
   @Test
   void shouldReadNothingMoreAfterACloseOrAMessageOnlyAHelperSends() {
     final BrowserHelper helper = new BrowserHelper(this.configuration("/page"), new ScriptedEngine());
-    final boolean readsOnAfterTheClose = helper.handleCommand(HelperMessage.close());
+    final HelperMessage close = HelperMessage.close();
+    helper.executeCommand(close);
+    final boolean readsOnAfterTheClose = helper.isInput(close);
     assertFalse(readsOnAfterTheClose);
-    final boolean readsOnAfterTheHelperMessage = helper.handleCommand(HelperMessage.text(HelperProtocol.NOTICE, "confused server"));
+    final HelperMessage helperMessage = HelperMessage.text(HelperProtocol.NOTICE, "confused server");
+    helper.executeCommand(helperMessage);
+    final boolean readsOnAfterTheHelperMessage = helper.isInput(helperMessage);
     assertFalse(readsOnAfterTheHelperMessage);
   }
 

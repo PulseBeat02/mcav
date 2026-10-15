@@ -281,8 +281,9 @@ public final class BrowserHelper {
     try {
       while (true) {
         final HelperMessage message = HelperProtocol.read(input, size -> noPixels);
-        final boolean shouldKeepReading = this.handleCommand(message);
-        if (!shouldKeepReading) {
+        this.executeCommand(message);
+        final boolean isInput = this.isInput(message);
+        if (!isInput) {
           return;
         }
       }
@@ -294,42 +295,49 @@ public final class BrowserHelper {
   }
 
   /**
-   * Handles one message from the server.
+   * Executes one message from the server: passes input on to the browser and stops the helper on anything else.
    *
    * @param message the message
-   * @return true to keep reading
    */
-  boolean handleCommand(final HelperMessage message) {
+  void executeCommand(final HelperMessage message) {
     final int type = message.getType();
-    return switch (type) {
-      case HelperProtocol.MOUSE -> {
-        final MouseInput input = message.getMouse();
-        if (input.getAction() == HelperProtocol.MOUSE_PRESS) {
-          this.activated = true;
-        }
-        final List<DevToolsInput.DevToolsCall> calls = DevToolsInput.mouse(input, this.heldButtons);
-        this.heldButtons = DevToolsInput.heldAfter(input, this.heldButtons);
-        this.engine.dispatch(calls);
-        yield true;
-      }
-      case HelperProtocol.KEY -> {
-        this.activated = true;
-        final String value = message.getText();
-        final int action = message.getNumber();
-        final List<DevToolsInput.DevToolsCall> calls =
-          action == HelperProtocol.KEY_PRESS ? DevToolsInput.pressKey(value) : DevToolsInput.typeText(value);
-        this.engine.dispatch(calls);
-        yield true;
-      }
-      case HelperProtocol.CLOSE -> {
-        this.stop("the server asked to close");
-        yield false;
-      }
-      default -> {
-        this.stop("the server sent message type %s, which only a helper sends".formatted(type));
-        yield false;
-      }
-    };
+    switch (type) {
+      case HelperProtocol.MOUSE -> this.dispatchMouse(message);
+      case HelperProtocol.KEY -> this.dispatchKey(message);
+      case HelperProtocol.CLOSE -> this.stop("the server asked to close");
+      default -> this.stop("the server sent message type %s, which only a helper sends".formatted(type));
+    }
+  }
+
+  private void dispatchMouse(final HelperMessage message) {
+    final MouseInput input = message.getMouse();
+    if (input.getAction() == HelperProtocol.MOUSE_PRESS) {
+      this.activated = true;
+    }
+
+    final List<DevToolsInput.DevToolsCall> calls = DevToolsInput.mouse(input, this.heldButtons);
+    this.heldButtons = DevToolsInput.heldAfter(input, this.heldButtons);
+    this.engine.dispatch(calls);
+  }
+
+  private void dispatchKey(final HelperMessage message) {
+    this.activated = true;
+    final String value = message.getText();
+    final int action = message.getNumber();
+    final List<DevToolsInput.DevToolsCall> calls =
+      action == HelperProtocol.KEY_PRESS ? DevToolsInput.pressKey(value) : DevToolsInput.typeText(value);
+    this.engine.dispatch(calls);
+  }
+
+  /**
+   * Returns whether a message from the server is input, after which the helper reads on.
+   *
+   * @param message the message
+   * @return whether it is mouse or key input
+   */
+  boolean isInput(final HelperMessage message) {
+    final int type = message.getType();
+    return type == HelperProtocol.MOUSE || type == HelperProtocol.KEY;
   }
 
   /**
