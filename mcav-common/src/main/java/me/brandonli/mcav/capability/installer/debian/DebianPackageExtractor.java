@@ -18,6 +18,7 @@
 package me.brandonli.mcav.capability.installer.debian;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -37,10 +38,19 @@ import me.brandonli.mcav.capability.installer.InstallationException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.tukaani.xz.XZInputStream;
 
-// Extracts the libraries of a Debian package without dpkg, so it needs no administrator rights: a package is an ar
-// archive whose data member is a tar archive, compressed with xz or gzip. zstd, which no Debian release before trixie
-// uses, is refused. Only the library trees usr/lib and lib are written; every other entry is read and skipped.
-final class DebianPackageExtractor {
+/**
+ * Extracts the libraries of a Debian package without {@code dpkg}, so it needs no administrator rights.
+ *
+ * <p>A package is an ar archive whose data member is a tar archive, compressed with xz or gzip. zstd, which no Debian
+ * release before trixie uses, is refused. Only the library trees {@code usr/lib} and {@code lib} are written; every
+ * other entry is read and skipped. Entries that climb out of the destination, pass a symbolic link or exceed the size
+ * limits are refused.
+ *
+ * <p>This class is thread-safe: each extraction keeps its state to itself.
+ *
+ * @since 1.0.0
+ */
+public final class DebianPackageExtractor {
 
   private static final long MAXIMUM_ENTRY_SIZE = 512L * 1024L * 1024L;
   private static final long MAXIMUM_TOTAL_SIZE = 2L * 1024L * 1024L * 1024L;
@@ -59,8 +69,9 @@ final class DebianPackageExtractor {
   private static final String GZIP_SUFFIX = ".gz";
   private static final String ZSTD_SUFFIX = ".zst";
 
-  // a mebibyte is 1024 kibibytes; Debian compresses with xz -6, whose dictionary needs 9 MiB to decompress
-  private static final int XZ_MEMORY_LIMIT_KIBIBYTES = 64 * 1024;
+  // a mebibyte is 1024 kibibytes; Debian compresses with xz -6, whose dictionary needs 9 MiB to decompress, and
+  // dpkg-deb's strongest level, xz -9, needs a little more than its 64 MiB dictionary
+  private static final int XZ_MEMORY_LIMIT_KIBIBYTES = 128 * 1024;
 
   private static final int TAR_BLOCK_SIZE = 512;
   private static final int TAR_NAME_LENGTH = 100;
@@ -115,7 +126,19 @@ final class DebianPackageExtractor {
     this.remainingSize = maximumTotalSize;
   }
 
-  static void extract(final Path archive, final Path destination) {
+  /**
+   * Extracts the library trees of a Debian package into a folder, creating it if it is missing.
+   *
+   * @param archive     the Debian package
+   * @param destination the folder to extract into
+   * @throws NullPointerException  if an argument is null
+   * @throws InstallationException if the package cannot be read, is malformed or breaks a limit
+   * @since 1.0.0
+   */
+  public static void extract(final Path archive, final Path destination) {
+    Preconditions.checkNotNull(archive, "Archive must not be null!");
+    Preconditions.checkNotNull(destination, "Destination must not be null!");
+
     extract(archive, destination, MAXIMUM_ENTRY_SIZE, MAXIMUM_TOTAL_SIZE);
   }
 
