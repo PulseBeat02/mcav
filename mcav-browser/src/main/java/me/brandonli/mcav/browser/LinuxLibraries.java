@@ -20,7 +20,6 @@ package me.brandonli.mcav.browser;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,6 +33,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.StandardCopyOption;
@@ -42,7 +42,6 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -51,15 +50,12 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import me.brandonli.mcav.capability.installer.InstallationException;
+import me.brandonli.mcav.capability.installer.debian.DebianPackageExtractor;
 import me.brandonli.mcav.utils.FileOperationException;
 import me.brandonli.mcav.utils.IoUtils;
 import me.brandonli.mcav.utils.http.DownloadException;
 import me.brandonli.mcav.utils.http.HttpDownloader;
-import org.apache.commons.compress.archivers.ar.ArArchiveEntry;
-import org.apache.commons.compress.archivers.ar.ArArchiveInputStream;
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import org.apache.commons.compress.compressors.xz.XZCompressorInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -129,7 +125,6 @@ final class LinuxLibraries {
   @VisibleForTesting
   static final Object INSTALL_LOCK = "the installation of the Linux libraries of mcav";
 
-  private static final String DATA_MEMBER = "data.tar.xz";
   private static final Pattern PLATFORM = Pattern.compile("[a-z0-9]+-[a-z0-9]+");
   private static final Pattern SONAME = Pattern.compile("lib[A-Za-z0-9_+.-]+\\.so(\\.[0-9]+)*");
   private static final Pattern PACKAGE_PATH = Pattern.compile("(usr/)?lib/[a-z0-9_-]+/(nss/)?[A-Za-z0-9_+.-]+");
@@ -140,11 +135,7 @@ final class LinuxLibraries {
   private static final int MACHINE_X86_64 = 62;
   private static final int MACHINE_AARCH64 = 183;
   private static final Pattern HASH = Pattern.compile("[0-9a-f]{64}");
-  private static final long MAX_FILE_BYTES = 64L * 1024 * 1024;
-  private static final int MAX_ENTRIES = 20_000;
-  // xz -9, the strongest preset of dpkg-deb, reads with a dictionary of 64 MiB; a package that asks for far more is
-  // refused before the reader allocates it
-  private static final int MAX_XZ_MEMORY_KIB = 128 * 1024;
+  private static final String UNPACKED_SUFFIX = ".unpacked";
   private static final int MAX_INCLUDE_DEPTH = 8;
 
   private final Path folder;
@@ -387,107 +378,47 @@ final class LinuxLibraries {
   }
 
   /**
-   * Extracts the pinned libraries of a Debian package: the regular files of its {@value #DATA_MEMBER} at the pinned
-   * paths, each written as a file named by its soname. Links, other files and other members are skipped.
+   * Extracts the pinned libraries of a Debian package: the regular files at the pinned paths of its library trees, each
+   * written as a file named by its soname. The package is unpacked by {@link DebianPackageExtractor} into a folder
+   * beside it, which is removed again; links and other files are not copied.
    *
    * @param deb    the package
    * @param files  the paths in the package, mapped to the sonames to write them as
    * @param target the folder to write into
-   * @throws IOException if the package is not one, or a pinned library is missing or too large
+   * @throws IOException if the package is not one, breaks a limit of the extractor, or lacks a pinned library
    */
   static void extract(final Path deb, final Map<String, String> files, final Path target) throws IOException {
-    extract(deb, files, target, MAX_FILE_BYTES, MAX_ENTRIES);
+    final Path unpacked = deb.resolveSibling(deb.getFileName() + UNPACKED_SUFFIX);
+    try {
+      DebianPackageExtractor.extract(deb, unpacked);
+      copyLibraries(deb, files, unpacked, target);
+    } catch (final InstallationException exception) {
+      throw new IOException(exception.getMessage(), exception);
+    } finally {
+      IoUtils.deleteRecursively(unpacked);
+    }
   }
 
-  /**
-   * Extracts the pinned libraries of a Debian package with other limits, so tests can reach them.
-   *
-   * @param deb          the package
-   * @param files        the paths in the package, mapped to the sonames to write them as
-   * @param target       the folder to write into
-   * @param maxFileBytes the largest library
-   * @param maxEntries   the most entries the data of the package may have
-   * @throws IOException if the package is not one, or a pinned library is missing or too large
-   */
-  @VisibleForTesting
-  static void extract(final Path deb, final Map<String, String> files, final Path target, final long maxFileBytes, final int maxEntries)
+  private static void copyLibraries(final Path deb, final Map<String, String> files, final Path unpacked, final Path target)
     throws IOException {
-    final boolean extracted;
-    try (
-      final InputStream raw = Files.newInputStream(deb);
-      final ArArchiveInputStream archive = new ArArchiveInputStream(new BufferedInputStream(raw))
-    ) {
-      extracted = extractMembers(archive, files, target, deb, maxFileBytes, maxEntries);
-    }
-    if (!extracted) {
-      throw new IOException("The package " + deb.getFileName() + " holds no " + DATA_MEMBER);
-    }
-  }
-
-  private static boolean extractMembers(
-    final ArArchiveInputStream archive,
-    final Map<String, String> files,
-    final Path target,
-    final Path deb,
-    final long maxFileBytes,
-    final int maxEntries
-  ) throws IOException {
-    ArArchiveEntry member = archive.getNextEntry();
-    while (member != null) {
-      if (member.getName().equals(DATA_MEMBER)) {
-        // the streams are not closed here: the package closes them all
-        final XZCompressorInputStream decompressed = XZCompressorInputStream.builder()
-          .setInputStream(archive)
-          .setMemoryLimitKiB(MAX_XZ_MEMORY_KIB)
-          .get();
-        final TarArchiveInputStream tar = new TarArchiveInputStream(decompressed);
-        extractData(tar, files, target, deb, maxFileBytes, maxEntries);
-        return true;
+    final Set<String> missing = new LinkedHashSet<>();
+    for (final Map.Entry<String, String> file : files.entrySet()) {
+      final Path library = unpacked.resolve(file.getKey());
+      // a link is no library
+      if (!Files.isRegularFile(library, LinkOption.NOFOLLOW_LINKS)) {
+        missing.add(file.getKey());
+        continue;
       }
-      member = archive.getNextEntry();
+      writeLibrary(library, target.resolve(file.getValue()));
     }
-    return false;
-  }
-
-  private static void extractData(
-    final TarArchiveInputStream tar,
-    final Map<String, String> files,
-    final Path target,
-    final Path deb,
-    final long maxFileBytes,
-    final int maxEntries
-  ) throws IOException {
-    final Set<String> found = new HashSet<>();
-    int entries = 0;
-    TarArchiveEntry entry = tar.getNextEntry();
-    while (entry != null) {
-      entries++;
-      if (entries > maxEntries) {
-        throw new IOException("The package " + deb.getFileName() + " has more than " + maxEntries + " entries");
-      }
-      final String path = entry.getName().startsWith("./") ? entry.getName().substring(2) : entry.getName();
-      final String soname = files.get(path);
-      // isFile holds for a link as well, and a link is no library
-      final boolean regular = entry.isFile() && !entry.isSymbolicLink() && !entry.isLink();
-      if (soname != null && regular) {
-        if (entry.getSize() > maxFileBytes) {
-          throw new IOException("The library " + path + " is larger than " + maxFileBytes + " bytes");
-        }
-        writeLibrary(tar, target.resolve(soname));
-        found.add(path);
-      }
-      entry = tar.getNextEntry();
-    }
-    final Set<String> missing = new LinkedHashSet<>(files.keySet());
-    missing.removeAll(found);
     if (!missing.isEmpty()) {
       throw new IOException("The package " + deb.getFileName() + " holds no " + missing);
     }
   }
 
-  private static void writeLibrary(final InputStream content, final Path file) throws IOException {
+  private static void writeLibrary(final Path library, final Path file) throws IOException {
     try (final OutputStream out = Files.newOutputStream(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
-      content.transferTo(out);
+      Files.copy(library, out);
     }
     final FileSystem fileSystem = file.getFileSystem();
     if (fileSystem.supportedFileAttributeViews().contains("posix")) {

@@ -8,9 +8,9 @@ dependencies {
         exclude(group = "me.friwi", module = "jogl-all")
         exclude(group = "me.friwi", module = "gluegen-rt")
     }
-    implementation(libs.xz)
     compileOnlyApi(project(":mcav-common"))
     compileOnly(libs.osgi.annotation)
     testImplementation(project(":mcav-common"))
+    testImplementation(libs.xz)
     testRuntimeOnly(libs.slf4j.simple)
 }

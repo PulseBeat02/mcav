@@ -53,6 +53,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import java.util.zip.CRC32;
 import me.brandonli.mcav.browser.testing.Await;
+import me.brandonli.mcav.capability.installer.InstallationException;
 import me.brandonli.mcav.media.player.PlayerException;
 import me.brandonli.mcav.utils.FileOperationException;
 import me.brandonli.mcav.utils.IoUtils;
@@ -438,38 +439,22 @@ class LinuxLibrariesTest {
     final IOException member = assertThrows(IOException.class, () ->
       LinuxLibraries.extract(noData, wanted, Files.createDirectory(this.folder.resolve("a")))
     );
-    final String noDataMessage = member.getMessage();
-    assertEquals("The package no-data.deb holds no data.tar.xz", noDataMessage);
+    final Throwable noDataCause = member.getCause();
+    assertInstanceOf(InstallationException.class, noDataCause);
     final Path linkOnly = Files.write(this.folder.resolve("link.deb"), deb(Map.of(), Map.of(LIBRARY, "elsewhere.so"), "data.tar.xz"));
     final IOException link = assertThrows(IOException.class, () ->
       LinuxLibraries.extract(linkOnly, wanted, Files.createDirectory(this.folder.resolve("b")))
     );
     final String linkMessage = link.getMessage();
     assertEquals("The package link.deb holds no [" + LIBRARY + "]", linkMessage);
+    final boolean unpackedKept = Files.exists(this.folder.resolve("link.deb.unpacked"));
+    assertFalse(unpackedKept, "the unpacked package is removed");
     final Path hardLink = Files.write(this.folder.resolve("hard.deb"), deb(Map.of(), Map.of(LIBRARY, "=elsewhere.so"), "data.tar.xz"));
     final IOException hard = assertThrows(IOException.class, () ->
       LinuxLibraries.extract(hardLink, wanted, Files.createDirectory(this.folder.resolve("hard")))
     );
-    final String hardLinkMessage = hard.getMessage();
-    assertEquals("The package hard.deb holds no [" + LIBRARY + "]", hardLinkMessage);
-    final Path large = Files.write(this.folder.resolve("large.deb"), deb(Map.of(LIBRARY, new byte[11]), Map.of(), "data.tar.xz"));
-    final IOException size = assertThrows(IOException.class, () ->
-      LinuxLibraries.extract(large, wanted, Files.createDirectory(this.folder.resolve("c")), 10, 100)
-    );
-    final String tooLargeMessage = size.getMessage();
-    assertEquals("The library " + LIBRARY + " is larger than 10 bytes", tooLargeMessage);
-    final IOException entries = assertThrows(IOException.class, () ->
-      LinuxLibraries.extract(
-        Files.write(this.folder.resolve("full.deb"), testPackage()),
-        wanted,
-        Files.createDirectory(this.folder.resolve("d")),
-        100,
-        1
-      )
-    );
-    final String tooManyEntriesMessage = entries.getMessage();
-    assertEquals("The package full.deb has more than 1 entries", tooManyEntriesMessage);
-    LinuxLibraries.extract(large, wanted, Files.createDirectory(this.folder.resolve("e")), 11, 1);
+    final Throwable hardLinkCause = hard.getCause();
+    assertInstanceOf(InstallationException.class, hardLinkCause);
   }
 
   @Test

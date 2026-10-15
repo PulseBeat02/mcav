@@ -47,8 +47,8 @@ import org.tukaani.xz.XZOutputStream;
 /**
  * Fuzzes the extraction of the pinned libraries out of a Debian package: an ar archive whose data.tar.xz holds them.
  * The packages are pinned by their hashes, so this is a second line of defense: whatever the package, extraction
- * either fails with an {@link IOException} or writes nothing but the pinned libraries, each a plain file of at most the
- * size limit under the name its pin gives it, all of them when it succeeds, and nothing outside the target folder.
+ * either fails with an {@link IOException} or writes nothing but the pinned libraries, each a plain file under the name
+ * its pin gives it, all of them when it succeeds, and nothing outside the target folder.
  *
  * <p>The first byte of an input says what the rest of it is: the whole package (0), the data.tar.xz the fuzz target
  * puts into a package (1), or the tar the fuzz target compresses and puts into a package (2 and 3), so the fuzzer can
@@ -64,8 +64,6 @@ final class LinuxLibrariesFuzzTest {
     "usr/lib/x86_64-linux-gnu/libmcavother.so.2",
     "libmcavother.so.2"
   );
-  private static final long MAX_FILE_BYTES = 1024;
-  private static final int MAX_ENTRIES = 32;
   private static final int XZ_PRESET = 0;
 
   @FuzzTest(maxDuration = "30s")
@@ -85,7 +83,7 @@ final class LinuxLibrariesFuzzTest {
       final Path target = Files.createDirectory(root.resolve("target"));
       boolean extracted;
       try {
-        LinuxLibraries.extract(file, PINNED, target, MAX_FILE_BYTES, MAX_ENTRIES);
+        LinuxLibraries.extract(file, PINNED, target);
         extracted = true;
       } catch (final IOException refused) {
         extracted = false;
@@ -112,8 +110,6 @@ final class LinuxLibrariesFuzzTest {
         final String name = path.getFileName().toString();
         final boolean pinned = PINNED.containsValue(name);
         assertTrue(pinned, () -> "not a pinned library: " + path);
-        final boolean withinSizeLimit = Files.size(path) <= MAX_FILE_BYTES;
-        assertTrue(withinSizeLimit, () -> "larger than the limit: " + path);
         if (supportsPosix) {
           final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
           final boolean writableByOthers = permissions.contains(PosixFilePermission.OTHERS_WRITE);
