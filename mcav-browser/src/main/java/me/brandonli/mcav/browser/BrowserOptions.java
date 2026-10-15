@@ -45,10 +45,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>This class is immutable and thread-safe; options may be shared by any number of players.
  *
- * <pre>{@code
- *   final BrowserOptions options = BrowserOptions.builder().frameRate(30).build();
- *   final BrowserPlayer browser = BrowserPlayer.create(options);
- * }</pre>
+ * {@snippet :
+ * final int frameRate = 30;
+ * final BrowserOptionsBuilder builder = BrowserOptions.builder();
+ * final BrowserOptions options = builder.frameRate(frameRate).build();
+ * final BrowserPlayer browser = BrowserPlayer.create(options);
+ * }
  *
  * @since 1.0.0
  */

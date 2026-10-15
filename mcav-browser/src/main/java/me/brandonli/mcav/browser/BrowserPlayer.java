@@ -43,15 +43,23 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * {@link #getAudioAttachableCallback()}); sound of frames of another site, which Chromium runs in another process, of
  * media from another site that does not allow it (CORS), and of protected media, stays silent.
  *
- * <pre>{@code
- *   final BrowserPlayer browser = BrowserPlayer.create();
- *   final VideoAttachableCallback video = browser.getVideoAttachableCallback();
- *   video.attach(pipeline);
- *   final URI page = URI.create("https://example.com");
- *   final BrowserSource source = BrowserSource.uri(page, 1280, 720, 1);
- *   browser.start(source);
- *   browser.sendMouseEvent(MouseClick.LEFT, 640, 360);
- * }</pre>
+ * {@snippet :
+ * final int width = 1280;
+ * final int height = 720;
+ * final int frameInterval = 1;
+ * final URI page = URI.create("https://example.com");
+ * final BrowserSource source = BrowserSource.uri(page, width, height, frameInterval);
+ * final BrowserPlayer browser = BrowserPlayer.create();
+ * final VideoAttachableCallback video = browser.getVideoAttachableCallback();
+ * video.attach(pipeline);
+ * browser.start(source);
+ *
+ * final int clickX = 640;
+ * final int clickY = 360;
+ * browser.sendMouseEvent(MouseClick.LEFT, clickX, clickY);
+ * // when finished
+ * browser.release();
+ * }
  *
  * <p>The page is untrusted content running without the Chromium sandbox, which JCEF cannot use, so the browser only
  * shows {@code http} and {@code https} pages, opens popups in place, refuses downloads, file choosers and external

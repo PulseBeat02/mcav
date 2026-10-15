@@ -33,6 +33,11 @@ import me.brandonli.mcav.module.MCAVModule;
  *
  * <p>This class is thread-safe: {@link #start()} and {@link #stop()} may be called from any thread.
  *
+ * {@snippet :
+ * final MCAVApi api = MCAV.api();
+ * api.install(BrowserModule.class);
+ * }
+ *
  * @since 1.0.0
  */
 public final class BrowserModule implements MCAVModule {
