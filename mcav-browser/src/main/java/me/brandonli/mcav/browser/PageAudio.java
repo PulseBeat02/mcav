@@ -320,12 +320,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     return List.of(enable, binding, capture);
   }
 
-  /**
-   * Takes the samples of a call of the binding and passes them on, unless they are not sound or over the budget.
-   *
-   * @param method     the method of the event
-   * @param parameters the parameters of the event, JSON
-   */
+  // Takes the samples of a call of the binding and passes them on, unless they are not sound or over the budget.
   @Override
   public void onEvent(final String method, final String parameters) {
     if (!this.mayTake(leastBytes(parameters))) {

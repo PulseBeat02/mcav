@@ -377,11 +377,9 @@ public final class BrowserHelper {
       this.send(out -> HelperProtocol.writeText(out, HelperProtocol.NOTICE, text));
     }
 
-    /**
-     * Passes the sound of the page on, once a player pressed a mouse button or a key on this page, or at once if the
-     * options let pages play right away. Chromium holds a page's sound back until then as well; this keeps a page that gets
-     * around Chromium's rule, or around the capture script, from playing to the server before anyone touched it.
-     */
+    // Passes the sound of the page on, once a player pressed a mouse button or a key on this page, or at once if the
+    // options let pages play right away. Chromium holds a page's sound back until then as well; this keeps a page that
+    // gets around Chromium's rule, or around the capture script, from playing to the server before anyone touched it.
     @Override
     public void onAudio(final byte[] samples) {
       if (BrowserHelper.this.configuration.isAutoplay() || BrowserHelper.this.activated) {

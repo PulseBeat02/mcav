@@ -28,9 +28,7 @@ interface BrowserSession extends AutoCloseable {
 
   void requestFrame();
 
-  /**
-   * Ends the browser. Safe to call more than once.
-   */
+  // Ends the browser. Safe to call more than once.
   @Override
   void close();
 

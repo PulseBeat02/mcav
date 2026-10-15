@@ -60,15 +60,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     Arrays.fill(this.page, FULL_CHANNEL);
   }
 
-  /**
-   * Copies the painted rectangles of the page or of a popup.
-   *
-   * @param isPopup      true if the buffer holds a popup widget
-   * @param dirtyRects   the rectangles that changed, relative to the buffer
-   * @param buffer       the pixels, BGRA, row by row
-   * @param bufferWidth  the width of the buffer
-   * @param bufferHeight the height of the buffer
-   */
   @Override
   public synchronized void onPaint(
     final boolean isPopup,
@@ -128,11 +119,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
   }
 
-  /**
-   * Shows or hides the popup widget.
-   *
-   * @param isShown true if the popup is shown
-   */
   @Override
   public synchronized void onPopupShow(final boolean isShown) {
     if (!isShown) {
@@ -140,11 +126,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
   }
 
-  /**
-   * Remembers where the popup widget is drawn.
-   *
-   * @param bounds the bounds of the popup on the page
-   */
   @Override
   public synchronized void onPopupSize(final Rectangle bounds) {
     this.hidePopup();

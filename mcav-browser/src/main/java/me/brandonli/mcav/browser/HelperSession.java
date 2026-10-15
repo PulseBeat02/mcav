@@ -615,9 +615,7 @@ final class HelperSession implements BrowserSession {
     this.onStartEvent(StartEvent.FRAME);
   }
 
-  /**
-   * Hands the current picture of the page to the listener again, as soon as the delivery thread is free.
-   */
+  // Hands the current picture of the page to the listener again, as soon as the delivery thread is free.
   @Override
   public void requestFrame() {
     synchronized (this.deliveryLock) {
@@ -755,24 +753,11 @@ final class HelperSession implements BrowserSession {
     return new BrowserException(reason, cause);
   }
 
-  /**
-   * Queues mouse input for the helper.
-   *
-   * @param mouse the input
-   * @return false if the queue was full and the input was dropped
-   */
   @Override
   public boolean sendMouse(final MouseInput mouse) {
     return this.send(output -> HelperProtocol.writeMouse(output, mouse));
   }
 
-  /**
-   * Queues keyboard input for the helper.
-   *
-   * @param action {@link HelperProtocol#KEY_PRESS} or {@link HelperProtocol#KEY_TYPE}
-   * @param value  the key name or the text
-   * @return false if the queue was full and the input was dropped
-   */
   @Override
   public boolean sendKey(final int action, final String value) {
     final List<String> parts = HelperProtocol.split(value);
@@ -810,9 +795,7 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  /**
-   * Ends the helper and everything it started, and removes the folder of the session. Safe to call more than once.
-   */
+  // Ends the helper and everything it started, and removes the folder of the session. Safe to call more than once.
   @Override
   public void close() {
     if (!this.closing.compareAndSet(false, true)) {

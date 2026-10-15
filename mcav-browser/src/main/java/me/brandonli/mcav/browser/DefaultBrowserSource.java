@@ -38,52 +38,27 @@ final class DefaultBrowserSource implements BrowserSource {
     this.frameInterval = frameInterval;
   }
 
-  /**
-   * Returns the width of the page and of the frames.
-   *
-   * @return the width in pixels, from 1 to {@value BrowserSource#MAXIMUM_SIDE}
-   */
   @Override
   public int getWidth() {
     return this.width;
   }
 
-  /**
-   * Returns the height of the page and of the frames.
-   *
-   * @return the height in pixels, from 1 to {@value BrowserSource#MAXIMUM_SIDE}
-   */
   @Override
   public int getHeight() {
     return this.height;
   }
 
-  /**
-   * Returns how many painted frames make one streamed frame.
-   *
-   * @return the interval, from 1 to {@value BrowserSource#MAXIMUM_FRAME_INTERVAL}; 1 streams every painted frame
-   */
   @Override
   public int getFrameInterval() {
     return this.frameInterval;
   }
 
-  /**
-   * Returns the address of the page.
-   *
-   * @return the address
-   */
   @Override
   public URI getUri() {
     return this.uri;
   }
 
-  /**
-   * Checks whether another object is a browser source with the same address and settings.
-   *
-   * @param other the object to compare with, or null
-   * @return true if every setting is equal
-   */
+  // Checks whether another object is a browser source with the same address and settings.
   @Override
   public boolean equals(final @Nullable Object other) {
     if (this == other) {
@@ -102,21 +77,12 @@ final class DefaultBrowserSource implements BrowserSource {
     );
   }
 
-  /**
-   * Computes a hash code from the address and every setting.
-   *
-   * @return the hash code
-   */
   @Override
   public int hashCode() {
     return Objects.hash(this.uri, this.width, this.height, this.frameInterval);
   }
 
-  /**
-   * Returns a debugging representation with the address, the size and the frame interval.
-   *
-   * @return the representation
-   */
+  // Returns a debugging representation with the address, the size and the frame interval.
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)

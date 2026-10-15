@@ -847,9 +847,6 @@ final class NullDisplay implements AutoCloseable {
     return error;
   }
 
-  /**
-   * Closes the display and every connection to it.
-   */
   @Override
   public void close() {
     closeQuietly(this.server);

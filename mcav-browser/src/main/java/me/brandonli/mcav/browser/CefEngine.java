@@ -419,12 +419,8 @@ final class CefEngine implements HelperEngine {
     return lateAnswer;
   }
 
-  /**
-   * Sends the calls to the DevTools client of the browser on the event thread, which is CEF's thread for them. The
-   * results are not awaited: JCEF can lose the result of the very first call, and input needs no answer.
-   *
-   * @param calls the DevTools calls of the input
-   */
+  // Sends the calls to the DevTools client of the browser on the event thread, which is CEF's thread for them. The
+  // results are not awaited: JCEF can lose the result of the very first call, and input needs no answer.
   @Override
   public void dispatch(final List<DevToolsInput.DevToolsCall> calls) {
     final McavOffscreenBrowser current = this.browser;
@@ -463,10 +459,8 @@ final class CefEngine implements HelperEngine {
     return "";
   }
 
-  /**
-   * Closes the network guard and the browser, disposes of the client and shuts CEF down, waiting up to ten seconds for
-   * CEF to terminate, and then closes the null display.
-   */
+  // Closes the network guard and the browser, disposes of the client and shuts CEF down, waiting up to ten seconds for
+  // CEF to terminate, and then closes the null display.
   @Override
   public void stop() {
     final NetworkGuard currentGuard = this.guard;

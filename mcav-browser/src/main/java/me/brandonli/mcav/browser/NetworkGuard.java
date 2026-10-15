@@ -319,9 +319,6 @@ final class NetworkGuard implements Closeable {
     }
   }
 
-  /**
-   * Stops accepting connections and closes every open connection.
-   */
   @Override
   public void close() {
     this.closed = true;

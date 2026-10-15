@@ -80,9 +80,6 @@ final class FrameCanvas implements AutoCloseable {
     return ImageBuffer.mat(bgr);
   }
 
-  /**
-   * Frees the native memory of the page.
-   */
   @Override
   public synchronized void close() {
     if (this.closed) {
