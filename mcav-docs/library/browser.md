@@ -88,16 +88,23 @@ release the returned browser when you are done with the page.
 ```java
   public static BrowserPlayer searchWikipedia(final VideoFilter display) {
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
+    final int width = 1280;
+    final int height = 720;
+    final int frameInterval = 1;
     final URI address = URI.create("https://www.wikipedia.org");
-    final BrowserSource source = BrowserSource.uri(address, 1280, 720, 1);
+    final BrowserSource source = BrowserSource.uri(address, width, height, frameInterval);
     final BrowserPlayer browser = BrowserPlayer.create();
     final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
     callback.attach(videoPipelineStep);
 
     browser.start(source); // throws a BrowserException if the page cannot be shown
-    browser.sendMouseEvent(MouseClick.LEFT, 640, 360);
+
+    final int searchBoxX = 640;
+    final int searchBoxY = 360;
+    browser.sendMouseEvent(MouseClick.LEFT, searchBoxX, searchBoxY);
     browser.sendKeyEvent("hello");
     browser.sendKeyEvent("Enter");
+
     return browser;
   }
 ```
@@ -183,7 +190,8 @@ as 16-bit little-endian stereo samples at 48 kHz, like the sound of every MCAV p
 
 ```java
   final AudioAttachableCallback audio = browser.getAudioAttachableCallback();
-  audio.attach(AudioPipelineStep.of(speakers));
+  final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(speakers);
+  audio.attach(audioPipelineStep);
 ```
 
 JCEF has no way to hand over Chromium's own audio, so a script that MCAV adds to every document before the page's own
