@@ -38,7 +38,7 @@ public final class StandardError implements AutoCloseable {
   }
 
   /**
-   * Gets what was written so far.
+   * Returns what was written so far.
    *
    * @return the text
    */

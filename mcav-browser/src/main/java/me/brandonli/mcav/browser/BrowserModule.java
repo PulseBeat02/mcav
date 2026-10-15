@@ -79,7 +79,7 @@ public final class BrowserModule implements MCAVModule {
   }
 
   /**
-   * Gets the name of the module.
+   * Returns the name of the module.
    *
    * @return {@code browser}
    */

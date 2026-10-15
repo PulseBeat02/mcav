@@ -355,7 +355,7 @@ public final class BrowserHelper {
   }
 
   /**
-   * Gets the compositor that keeps the picture of the page.
+   * Returns the compositor that keeps the picture of the page.
    *
    * @return the compositor
    */
@@ -472,7 +472,7 @@ public final class BrowserHelper {
   }
 
   /**
-   * Gets why the helper stopped.
+   * Returns why the helper stopped.
    *
    * @return the reason, or null while it runs
    */

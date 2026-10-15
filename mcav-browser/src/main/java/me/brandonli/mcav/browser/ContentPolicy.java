@@ -182,7 +182,7 @@ final class ContentPolicy
   }
 
   /**
-   * Gets the policy of every request.
+   * Returns the policy of every request.
    *
    * @return the resource policy
    */

@@ -128,7 +128,7 @@ final class Landlock {
   }
 
   /**
-   * Gets the rights a ruleset of a version of Landlock handles: those it denies unless a rule grants them.
+   * Returns the rights a ruleset of a version of Landlock handles: those it denies unless a rule grants them.
    *
    * @param version the version of the kernel
    * @return the rights
@@ -149,7 +149,7 @@ final class Landlock {
   }
 
   /**
-   * Gets the rights of a rule: to read and run, and to change as well if it is writable; a file has no rights of a
+   * Returns the rights of a rule: to read and run, and to change as well if it is writable; a file has no rights of a
    * folder.
    *
    * @param rule        the rule

@@ -267,7 +267,7 @@ final class AddressPolicy {
     }
 
     /**
-     * Gets the length of the prefix.
+     * Returns the length of the prefix.
      *
      * @return the length in bits
      */

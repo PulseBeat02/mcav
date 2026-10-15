@@ -64,7 +64,7 @@ public interface BrowserSource extends UriSource {
    * @return the source
    * @throws IllegalArgumentException if the address is not a web address, is longer than {@value #MAX_ADDRESS_LENGTH}
    *                                  characters, or a number is out of range
-   * @throws NullPointerException if {@code uri} is null
+   * @throws NullPointerException     if {@code uri} is null
    */
   static BrowserSource uri(final URI uri, final int width, final int height, final int frameInterval) {
     Preconditions.checkNotNull(uri, "URI must not be null!");
@@ -108,35 +108,35 @@ public interface BrowserSource extends UriSource {
    * @return the source
    * @throws IllegalArgumentException if the address lacks a web scheme or host, or exceeds
    *                                  {@value #MAX_ADDRESS_LENGTH} UTF-16 code units
-   * @throws NullPointerException if {@code uri} is null
+   * @throws NullPointerException     if {@code uri} is null
    */
   static BrowserSource uri(final URI uri) {
     return uri(uri, DEFAULT_WIDTH, DEFAULT_HEIGHT, 1);
   }
 
   /**
-   * Gets the width of the page and of the frames.
+   * Returns the width of the page and of the frames.
    *
    * @return the width in pixels, from 1 to {@value BrowserSource#MAX_SIDE}
    */
   int getWidth();
 
   /**
-   * Gets the height of the page and of the frames.
+   * Returns the height of the page and of the frames.
    *
    * @return the height in pixels, from 1 to {@value BrowserSource#MAX_SIDE}
    */
   int getHeight();
 
   /**
-   * Gets how many painted frames make one streamed frame.
+   * Returns how many painted frames make one streamed frame.
    *
    * @return the interval, from 1 to {@value BrowserSource#MAX_FRAME_INTERVAL}; 1 streams every painted frame
    */
   int getFrameInterval();
 
   /**
-   * Gets the name of the source type.
+   * Returns the name of the source type.
    *
    * @return {@code browser}
    */

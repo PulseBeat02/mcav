@@ -111,7 +111,7 @@ final class HelperMessage {
   }
 
   /**
-   * Gets the type of the message, one of the message constants of {@link HelperProtocol}.
+   * Returns the type of the message, one of the message constants of {@link HelperProtocol}.
    *
    * @return the type
    */
@@ -120,7 +120,7 @@ final class HelperMessage {
   }
 
   /**
-   * Gets the session token of a {@link HelperProtocol#HELLO}.
+   * Returns the session token of a {@link HelperProtocol#HELLO}.
    *
    * @return the token, or an empty array for other types
    */
@@ -129,7 +129,7 @@ final class HelperMessage {
   }
 
   /**
-   * Gets the number of the message: the protocol version of a hello, 1 or 0 for loading, the error code of a load
+   * Returns the number of the message: the protocol version of a hello, 1 or 0 for loading, the error code of a load
    * error, or the action of a key message.
    *
    * @return the number, or 0 for types without one
@@ -139,7 +139,7 @@ final class HelperMessage {
   }
 
   /**
-   * Gets the string of the message: the CEF version, the notice, the failure, the error text, or the key name or text.
+   * Returns the string of the message: the CEF version, the notice, the failure, the error text, or the key name or text.
    *
    * @return the string, or an empty string for types without one
    */
@@ -148,7 +148,7 @@ final class HelperMessage {
   }
 
   /**
-   * Gets the address of a load error.
+   * Returns the address of a load error.
    *
    * @return the address, or an empty string for other types
    */
@@ -157,7 +157,7 @@ final class HelperMessage {
   }
 
   /**
-   * Gets the region of a frame.
+   * Returns the region of a frame.
    *
    * @return the region
    * @throws IllegalStateException if the message is not a frame
@@ -172,7 +172,7 @@ final class HelperMessage {
   }
 
   /**
-   * Gets the samples of sound, which the receiver owns: they are not copied.
+   * Returns the samples of sound, which the receiver owns: they are not copied.
    *
    * @return the samples, or an empty array for other types
    */
@@ -181,7 +181,7 @@ final class HelperMessage {
   }
 
   /**
-   * Gets the event of mouse input.
+   * Returns the event of mouse input.
    *
    * @return the event
    * @throws IllegalStateException if the message is not mouse input

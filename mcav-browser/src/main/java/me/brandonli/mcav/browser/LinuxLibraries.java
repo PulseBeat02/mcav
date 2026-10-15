@@ -208,7 +208,7 @@ final class LinuxLibraries {
   }
 
   /**
-   * Gets the folder the libraries are installed in.
+   * Returns the folder the libraries are installed in.
    *
    * @return the folder
    */
@@ -260,7 +260,7 @@ final class LinuxLibraries {
   }
 
   /**
-   * Gets the pins of a platform.
+   * Returns the pins of a platform.
    *
    * @param platform the jcefmaven identifier of the platform, such as {@code linux-amd64}
    * @return the pins, in the order of the resource
@@ -659,7 +659,7 @@ final class LinuxLibraries {
     }
 
     /**
-     * Gets the sonames of the package, the one that decides first.
+     * Returns the sonames of the package, the one that decides first.
      *
      * @return the sonames
      */

@@ -407,7 +407,7 @@ final class NullDisplay implements AutoCloseable {
   }
 
   /**
-   * Gets the name of the display, for CEF's {@code --display} switch.
+   * Returns the name of the display, for CEF's {@code --display} switch.
    *
    * @return the name, such as {@code 127.0.0.1:26768}
    */
@@ -428,7 +428,7 @@ final class NullDisplay implements AutoCloseable {
   }
 
   /**
-   * Gets the name of a display, for Chromium's {@code --display} switch.
+   * Returns the name of a display, for Chromium's {@code --display} switch.
    *
    * @param display the display, or null if there is none
    * @return the name, or null without a display
@@ -907,7 +907,7 @@ final class NullDisplay implements AutoCloseable {
     }
 
     /**
-     * Gets the atom of a name, naming it if it is new.
+     * Returns the atom of a name, naming it if it is new.
      *
      * @param name the name
      * @return the atom, or 0 if the display has named as many atoms as it may
@@ -928,7 +928,7 @@ final class NullDisplay implements AutoCloseable {
     }
 
     /**
-     * Gets the name of an atom.
+     * Returns the name of an atom.
      *
      * @param atom the atom
      * @return the name, or null if the atom was never named

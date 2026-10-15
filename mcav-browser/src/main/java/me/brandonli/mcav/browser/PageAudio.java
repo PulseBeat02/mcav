@@ -318,7 +318,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   }
 
   /**
-   * Gets the DevTools calls that let a page hand over its sound: the binding, and the script for every new document.
+   * Returns the DevTools calls that let a page hand over its sound: the binding, and the script for every new document.
    *
    * @return the calls, to be made before the page loads
    */
@@ -353,7 +353,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   }
 
   /**
-   * Gets how many bytes of sound an event holds at least, from its length alone, so an event over the budget is refused
+   * Returns how many bytes of sound an event holds at least, from its length alone, so an event over the budget is refused
    * before it is decoded.
    *
    * @param parameters the parameters of the event
@@ -464,7 +464,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     }
 
     /**
-     * Gets the execution context of the frame that sent the samples.
+     * Returns the execution context of the frame that sent the samples.
      *
      * @return the id of the context
      */
@@ -473,7 +473,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     }
 
     /**
-     * Gets the samples, which the receiver owns: they are not copied.
+     * Returns the samples, which the receiver owns: they are not copied.
      *
      * @return the samples
      */

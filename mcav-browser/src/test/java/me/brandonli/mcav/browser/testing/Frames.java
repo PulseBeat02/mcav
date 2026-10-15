@@ -117,7 +117,7 @@ public final class Frames {
   }
 
   /**
-   * Gets the recorded frames.
+   * Returns the recorded frames.
    *
    * @return a copy of the frames in the order they arrived
    */
@@ -135,7 +135,7 @@ public final class Frames {
   }
 
   /**
-   * Gets the last recorded frame.
+   * Returns the last recorded frame.
    *
    * @return the frame, or null if none arrived
    */
@@ -148,7 +148,7 @@ public final class Frames {
   }
 
   /**
-   * Gets the last recorded frame of a test that waited for a frame.
+   * Returns the last recorded frame of a test that waited for a frame.
    *
    * @return the frame
    * @throws AssertionError if no frame arrived
@@ -235,7 +235,7 @@ public final class Frames {
     }
 
     /**
-     * Gets the width.
+     * Returns the width.
      *
      * @return the width in pixels
      */
@@ -244,7 +244,7 @@ public final class Frames {
     }
 
     /**
-     * Gets the height.
+     * Returns the height.
      *
      * @return the height in pixels
      */
@@ -253,7 +253,7 @@ public final class Frames {
     }
 
     /**
-     * Gets the color of the pixel at (width / 2, height / 2), rounded down to integer coordinates.
+     * Returns the color of the pixel at (width / 2, height / 2), rounded down to integer coordinates.
      *
      * @return the color as packed RGB
      */
@@ -262,7 +262,7 @@ public final class Frames {
     }
 
     /**
-     * Gets the width in the metadata that came with the frame.
+     * Returns the width in the metadata that came with the frame.
      *
      * @return the width in pixels
      */
@@ -271,7 +271,7 @@ public final class Frames {
     }
 
     /**
-     * Gets the height in the metadata that came with the frame.
+     * Returns the height in the metadata that came with the frame.
      *
      * @return the height in pixels
      */

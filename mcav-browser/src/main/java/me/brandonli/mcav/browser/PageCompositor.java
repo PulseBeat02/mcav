@@ -73,7 +73,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
   }
 
   /**
-   * Gets the most bytes one region can have.
+   * Returns the most bytes one region can have.
    *
    * @return the size of the whole page in bytes
    */
@@ -85,8 +85,8 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
    * Copies the painted rectangles of the page or of a popup.
    *
    * @param isPopup      true if the buffer holds a popup widget
-   * @param dirtyRects the rectangles that changed, relative to the buffer
-   * @param buffer     the pixels, BGRA, row by row
+   * @param dirtyRects   the rectangles that changed, relative to the buffer
+   * @param buffer       the pixels, BGRA, row by row
    * @param bufferWidth  the width of the buffer
    * @param bufferHeight the height of the buffer
    */
@@ -243,13 +243,13 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
   /**
    * Copies a rectangle of a BGRA buffer into a BGRA array.
    *
-   * @param source       the source pixels
-   * @param sourceWidth  the width of the source in pixels
-   * @param area         the rectangle, relative to the source
-   * @param target       the target pixels
-   * @param targetWidth  the width of the target in pixels
-   * @param targetX      where the rectangle starts in the target
-   * @param targetY      where the rectangle starts in the target
+   * @param source      the source pixels
+   * @param sourceWidth the width of the source in pixels
+   * @param area        the rectangle, relative to the source
+   * @param target      the target pixels
+   * @param targetWidth the width of the target in pixels
+   * @param targetX     where the rectangle starts in the target
+   * @param targetY     where the rectangle starts in the target
    */
   private static void copyRows(
     final ByteBuffer source,

@@ -355,7 +355,7 @@ public final class TestPages implements AutoCloseable {
   }
 
   /**
-   * Gets the address of a page.
+   * Returns the address of a page.
    *
    * @param path the path, such as {@code /main}
    * @return the address
@@ -376,7 +376,7 @@ public final class TestPages implements AutoCloseable {
   }
 
   /**
-   * Gets the events the pages reported so far.
+   * Returns the events the pages reported so far.
    *
    * @return a copy of the events in the order they arrived
    */
@@ -387,7 +387,7 @@ public final class TestPages implements AutoCloseable {
   }
 
   /**
-   * Gets the events of one type the pages reported so far.
+   * Returns the events of one type the pages reported so far.
    *
    * @param type the event type, such as {@code click}
    * @return a copy of the matching events in the order they arrived
@@ -647,7 +647,7 @@ public final class TestPages implements AutoCloseable {
     }
 
     /**
-     * Gets the page that reported the event.
+     * Returns the page that reported the event.
      *
      * @return {@code main} or {@code popup}
      */
@@ -656,7 +656,7 @@ public final class TestPages implements AutoCloseable {
     }
 
     /**
-     * Gets the DOM event type.
+     * Returns the DOM event type.
      *
      * @return the type, such as {@code click}
      */
@@ -665,7 +665,7 @@ public final class TestPages implements AutoCloseable {
     }
 
     /**
-     * Gets the x coordinate in CSS pixels.
+     * Returns the x coordinate in CSS pixels.
      *
      * @return the x coordinate
      */
@@ -674,7 +674,7 @@ public final class TestPages implements AutoCloseable {
     }
 
     /**
-     * Gets the y coordinate in CSS pixels.
+     * Returns the y coordinate in CSS pixels.
      *
      * @return the y coordinate
      */
@@ -683,7 +683,7 @@ public final class TestPages implements AutoCloseable {
     }
 
     /**
-     * Gets the mouse button, 0 for the left and 2 for the right button.
+     * Returns the mouse button, 0 for the left and 2 for the right button.
      *
      * @return the button
      */
@@ -692,7 +692,7 @@ public final class TestPages implements AutoCloseable {
     }
 
     /**
-     * Gets the buttons held during a mouse event, 1 for the left and 2 for the right button.
+     * Returns the buttons held during a mouse event, 1 for the left and 2 for the right button.
      *
      * @return the buttons
      */
@@ -701,7 +701,7 @@ public final class TestPages implements AutoCloseable {
     }
 
     /**
-     * Gets the key of a keyboard event.
+     * Returns the key of a keyboard event.
      *
      * @return the key, or an empty string for mouse events
      */

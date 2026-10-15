@@ -509,7 +509,7 @@ final class HelperSession implements BrowserSession {
   }
 
   /**
-   * Gets the threads that read the helper's connection, hand over the pictures and keep the helper's output, so tests
+   * Returns the threads that read the helper's connection, hand over the pictures and keep the helper's output, so tests
    * can check how they run and that they end.
    *
    * @return the reader, delivery and output threads
@@ -520,7 +520,7 @@ final class HelperSession implements BrowserSession {
   }
 
   /**
-   * Gets the private folder of the session, so tests can check that it goes.
+   * Returns the private folder of the session, so tests can check that it goes.
    *
    * @return the folder
    */
@@ -540,7 +540,7 @@ final class HelperSession implements BrowserSession {
   }
 
   /**
-   * Gets the thread that hands the pictures to the listener, so tests can interrupt it.
+   * Returns the thread that hands the pictures to the listener, so tests can interrupt it.
    *
    * @return the delivery thread
    */
@@ -550,7 +550,7 @@ final class HelperSession implements BrowserSession {
   }
 
   /**
-   * Gets the picture of the page, so tests can close it early.
+   * Returns the picture of the page, so tests can close it early.
    *
    * @return the canvas
    */
@@ -840,7 +840,7 @@ final class HelperSession implements BrowserSession {
   }
 
   /**
-   * Gets the last lines the helper wrote, for error messages.
+   * Returns the last lines the helper wrote, for error messages.
    *
    * @return the lines
    */
@@ -940,7 +940,7 @@ final class HelperSession implements BrowserSession {
   }
 
   /**
-   * Gets how many input messages the writer thread has handled, sent or failed, so tests can wait for them.
+   * Returns how many input messages the writer thread has handled, sent or failed, so tests can wait for them.
    *
    * @return the number of handled messages
    */
@@ -959,7 +959,7 @@ final class HelperSession implements BrowserSession {
   }
 
   /**
-   * Gets the helper process, for tests that check its processes end.
+   * Returns the helper process, for tests that check its processes end.
    *
    * @return the process
    */

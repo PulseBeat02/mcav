@@ -230,7 +230,7 @@ final class DevToolsInput {
   }
 
   /**
-   * Gets the buttons held after a mouse event: a press adds its button, a release takes it away.
+   * Returns the buttons held after a mouse event: a press adds its button, a release takes it away.
    *
    * @param input the event
    * @param held  the buttons held before, as the bits of the DevTools {@code buttons} field
@@ -337,7 +337,7 @@ final class DevToolsInput {
   }
 
   /**
-   * Gets the Windows virtual key code of a character on a US keyboard: letters and digits have one, other characters
+   * Returns the Windows virtual key code of a character on a US keyboard: letters and digits have one, other characters
    * are typed without.
    *
    * @param codePoint the character

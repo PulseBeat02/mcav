@@ -182,7 +182,7 @@ final class NetworkGuard implements Closeable {
   }
 
   /**
-   * Gets the port the guard listens on.
+   * Returns the port the guard listens on.
    *
    * @return the port on the loopback interface
    */
@@ -383,7 +383,7 @@ final class NetworkGuard implements Closeable {
   }
 
   /**
-   * Gets the socket the guard listens on, so tests can break it.
+   * Returns the socket the guard listens on, so tests can break it.
    *
    * @return the listening socket
    */
@@ -476,7 +476,7 @@ final class NetworkGuard implements Closeable {
     }
 
     /**
-     * Gets the NAT64 prefixes of the network, asking the resolver if it has not answered yet.
+     * Returns the NAT64 prefixes of the network, asking the resolver if it has not answered yet.
      *
      * @return the prefixes, or null while the resolver fails
      */

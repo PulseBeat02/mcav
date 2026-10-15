@@ -112,7 +112,7 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    *         while startup was being handed over to the player (also reported to the exception handler)
    * @throws me.brandonli.mcav.media.player.PlayerException if the browser cannot be installed or started, or the page
    *                                                        cannot be loaded, or the browser module is stopped
-   * @throws NullPointerException if {@code source} is null
+   * @throws NullPointerException                           if {@code source} is null
    */
   boolean start(final BrowserSource source);
 
@@ -124,7 +124,7 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
    * @return a future that completes with the startup result, or exceptionally if startup throws; cancelling
    *         the future does not release the player or stop its helper
    * @throws java.util.concurrent.RejectedExecutionException if the executor refuses the startup task
-   * @throws NullPointerException if {@code source} or {@code executor} is null
+   * @throws NullPointerException                            if {@code source} or {@code executor} is null
    */
   default CompletableFuture<Boolean> startAsync(final BrowserSource source, final ExecutorService executor) {
     Preconditions.checkNotNull(source, "Source must not be null!");
@@ -191,14 +191,14 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
   boolean isPlaying();
 
   /**
-   * Gets the slot that holds the video pipeline the frames are sent through.
+   * Returns the slot that holds the video pipeline the frames are sent through.
    *
    * @return the video pipeline slot
    */
   VideoAttachableCallback getVideoAttachableCallback();
 
   /**
-   * Gets the slot that holds the audio pipeline the sound of the page is sent through, as 16-bit little-endian stereo
+   * Returns the slot that holds the audio pipeline the sound of the page is sent through, as 16-bit little-endian stereo
    * samples at 48 kHz like the sound of every mcav player. As in a desktop browser, a page may play sound only once
    * someone clicked or typed into it, such as a player who clicks the screen, unless {@link BrowserOptions#isAutoplay()};
    * mcav holds the sound of every page back until a press on that page as well, so a page written to get around the

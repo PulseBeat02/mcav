@@ -85,7 +85,7 @@ final class FrameRegion {
   }
 
   /**
-   * Gets the pixel array, which may be longer than the region.
+   * Returns the pixel array, which may be longer than the region.
    *
    * @return the pixels
    */
@@ -94,7 +94,7 @@ final class FrameRegion {
   }
 
   /**
-   * Gets how many bytes of the pixel array belong to the region.
+   * Returns how many bytes of the pixel array belong to the region.
    *
    * @return {@code width * height * 4}
    */

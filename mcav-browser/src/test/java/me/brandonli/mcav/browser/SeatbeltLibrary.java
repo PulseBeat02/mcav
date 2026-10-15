@@ -86,7 +86,7 @@ final class SeatbeltLibrary implements AutoCloseable {
   }
 
   /**
-   * Gets the functions as a library.
+   * Returns the functions as a library.
    *
    * @return the library
    */
@@ -95,7 +95,7 @@ final class SeatbeltLibrary implements AutoCloseable {
   }
 
   /**
-   * Gets the sandbox of this library.
+   * Returns the sandbox of this library.
    *
    * @return the sandbox
    */
@@ -125,7 +125,7 @@ final class SeatbeltLibrary implements AutoCloseable {
   }
 
   /**
-   * Gets the address of the reason sandbox_init gives.
+   * Returns the address of the reason sandbox_init gives.
    *
    * @return the address, 0 for none
    */

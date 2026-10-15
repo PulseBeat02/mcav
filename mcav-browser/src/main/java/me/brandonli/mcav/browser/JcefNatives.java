@@ -112,7 +112,7 @@ final class JcefNatives {
   }
 
   /**
-   * Gets the folder the natives are installed in, so tests can check the default one.
+   * Returns the folder the natives are installed in, so tests can check the default one.
    *
    * @return the folder
    */
@@ -381,7 +381,7 @@ final class JcefNatives {
     }
 
     /**
-     * Gets the jcefmaven identifier of the platform.
+     * Returns the jcefmaven identifier of the platform.
      *
      * @return the identifier, such as {@code linux-amd64}
      */
@@ -398,7 +398,7 @@ final class JcefNatives {
     }
 
     /**
-     * Gets the pinned SHA-256 hash of the natives jar.
+     * Returns the pinned SHA-256 hash of the natives jar.
      *
      * @return the hash in hexadecimal
      */
@@ -407,7 +407,7 @@ final class JcefNatives {
     }
 
     /**
-     * Gets the size of the natives jar.
+     * Returns the size of the natives jar.
      *
      * @return the size in bytes
      */
@@ -416,7 +416,7 @@ final class JcefNatives {
     }
 
     /**
-     * Gets the approximate size of the natives jar of a platform identifier, for the log.
+     * Returns the approximate size of the natives jar of a platform identifier, for the log.
      *
      * @param identifier the identifier
      * @return the size in megabytes, or 0 for an unknown identifier

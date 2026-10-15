@@ -40,7 +40,7 @@ public final class BrowserSourceImpl implements BrowserSource {
   }
 
   /**
-   * Gets the width of the page and of the frames.
+   * Returns the width of the page and of the frames.
    *
    * @return the width in pixels, from 1 to {@value BrowserSource#MAX_SIDE}
    */
@@ -50,7 +50,7 @@ public final class BrowserSourceImpl implements BrowserSource {
   }
 
   /**
-   * Gets the height of the page and of the frames.
+   * Returns the height of the page and of the frames.
    *
    * @return the height in pixels, from 1 to {@value BrowserSource#MAX_SIDE}
    */
@@ -60,7 +60,7 @@ public final class BrowserSourceImpl implements BrowserSource {
   }
 
   /**
-   * Gets how many painted frames make one streamed frame.
+   * Returns how many painted frames make one streamed frame.
    *
    * @return the interval, from 1 to {@value BrowserSource#MAX_FRAME_INTERVAL}; 1 streams every painted frame
    */
@@ -70,7 +70,7 @@ public final class BrowserSourceImpl implements BrowserSource {
   }
 
   /**
-   * Gets the address of the page.
+   * Returns the address of the page.
    *
    * @return the address
    */

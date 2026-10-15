@@ -106,7 +106,7 @@ final class FrameCanvas implements AutoCloseable {
   }
 
   /**
-   * Gets the native picture of the page, so tests can check that closing releases it.
+   * Returns the native picture of the page, so tests can check that closing releases it.
    *
    * @return the picture
    */

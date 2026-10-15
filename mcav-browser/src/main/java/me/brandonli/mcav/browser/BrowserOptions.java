@@ -93,7 +93,7 @@ public final class BrowserOptions {
   }
 
   /**
-   * Gets how many frames per second the browser paints at most. A page that does not change paints no frames.
+   * Returns how many frames per second the browser paints at most. A page that does not change paints no frames.
    *
    * @return the frame rate, from 1 to {@value #MAX_FRAME_RATE}
    */
@@ -140,7 +140,7 @@ public final class BrowserOptions {
   }
 
   /**
-   * Gets the names and addresses whose addresses pages may not reach, besides the private ones and the machine's own,
+   * Returns the names and addresses whose addresses pages may not reach, besides the private ones and the machine's own,
    * see {@link Builder#refusedHosts(Collection)}.
    *
    * @return the hosts, unmodifiable

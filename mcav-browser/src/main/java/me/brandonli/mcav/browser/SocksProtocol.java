@@ -234,7 +234,7 @@ final class SocksProtocol {
     }
 
     /**
-     * Gets the host.
+     * Returns the host.
      *
      * @return the host name or the address in text form
      */
@@ -243,7 +243,7 @@ final class SocksProtocol {
     }
 
     /**
-     * Gets the port.
+     * Returns the port.
      *
      * @return the port
      */
@@ -273,7 +273,7 @@ final class SocksProtocol {
     }
 
     /**
-     * Gets the reply code.
+     * Returns the reply code.
      *
      * @return the code the client gets
      */

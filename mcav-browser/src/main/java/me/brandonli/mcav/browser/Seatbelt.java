@@ -60,7 +60,7 @@ final class Seatbelt {
   }
 
   /**
-   * Gets the sandbox of this process's C library.
+   * Returns the sandbox of this process's C library.
    *
    * @return the sandbox, which only macOS has
    */

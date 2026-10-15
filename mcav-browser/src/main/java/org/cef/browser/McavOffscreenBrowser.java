@@ -88,7 +88,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   }
 
   /**
-   * Gets a component that is never shown. JCEF looks up the component of a browser in its focus and close handling,
+   * Returns a component that is never shown. JCEF looks up the component of a browser in its focus and close handling,
    * and this one keeps those paths from failing on a browser that has no window.
    *
    * @return the component
@@ -99,7 +99,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   }
 
   /**
-   * Gets this browser, which renders its own frames.
+   * Returns this browser, which renders its own frames.
    *
    * @return this browser
    */
@@ -167,7 +167,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   }
 
   /**
-   * Gets the size of the page.
+   * Returns the size of the page.
    *
    * @param browser the browser, which is this one
    * @return the size of the page at the origin

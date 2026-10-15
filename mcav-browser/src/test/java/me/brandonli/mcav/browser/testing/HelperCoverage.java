@@ -34,7 +34,7 @@ public final class HelperCoverage {
   }
 
   /**
-   * Gets the JVM options that give a helper the coverage agent of this JVM.
+   * Returns the JVM options that give a helper the coverage agent of this JVM.
    *
    * @return the agent option, or no option when the tests run without JaCoCo, as under PIT
    */

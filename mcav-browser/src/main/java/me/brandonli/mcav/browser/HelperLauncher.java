@@ -110,7 +110,7 @@ final class HelperLauncher {
   }
 
   /**
-   * Gets the name of the program of a JVM on an operating system.
+   * Returns the name of the program of a JVM on an operating system.
    *
    * @param os the operating system
    * @return {@code java.exe} on Windows, {@code java} elsewhere
@@ -224,7 +224,7 @@ final class HelperLauncher {
   }
 
   /**
-   * Gets the X authority file of a session, which the helper writes and its X clients read.
+   * Returns the X authority file of a session, which the helper writes and its X clients read.
    *
    * @param folder the folder of the session
    * @return the file
