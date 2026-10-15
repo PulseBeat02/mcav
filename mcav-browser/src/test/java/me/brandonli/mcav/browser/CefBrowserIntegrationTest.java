@@ -64,12 +64,12 @@ class CefBrowserIntegrationTest {
   private final List<BrowserPlayer> players = new ArrayList<>();
   private final List<String> failures = new CopyOnWriteArrayList<>();
 
-  private static CefBrowserPlayer.DefaultSessionFactory sessions() {
+  private CefBrowserPlayer.DefaultSessionFactory sessions() {
     return new CefBrowserPlayer.DefaultSessionFactory(new JcefNatives(), HelperCoverage.jvmOptions());
   }
 
   private BrowserPlayer player(final BrowserOptions options) {
-    return this.player(options, sessions());
+    return this.player(options, this.sessions());
   }
 
   private BrowserPlayer player(final BrowserOptions options, final CefBrowserPlayer.DefaultSessionFactory sessions) {
@@ -258,7 +258,7 @@ class CefBrowserIntegrationTest {
   }
 
   // Clicks a point of the page until a condition holds, since clicks are ignored for a moment after a page appears.
-  private static void clickUntil(final BrowserPlayer player, final String description, final BooleanSupplier condition) {
+  private void clickUntil(final BrowserPlayer player, final String description, final BooleanSupplier condition) {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
     while (!condition.getAsBoolean()) {
       final boolean beforeDeadline = System.nanoTime() < deadline;
@@ -275,7 +275,7 @@ class CefBrowserIntegrationTest {
   void shouldOpenALinkIntoAFrameOfThePageInThatFrame() throws InterruptedException {
     final BrowserPlayer player = this.player(LOCAL);
     final Frames frames = this.start(player, "/named-frame");
-    clickUntil(player, "the second page in the frame", () -> this.hasEventOnPage("size", "second"));
+    this.clickUntil(player, "the second page in the frame", () -> this.hasEventOnPage("size", "second"));
     final TestPages.PageEvent size = this.pages
       .getEvents("size")
       .stream()
@@ -300,7 +300,7 @@ class CefBrowserIntegrationTest {
   void shouldSendAFormInPlaceWhenItsButtonTargetsANewWindow() {
     final BrowserPlayer player = this.player(LOCAL);
     final Frames frames = this.start(player, "/form-target");
-    clickUntil(player, "the form sent", () -> frames.lastShows(TestPages.SECOND_COLOR));
+    this.clickUntil(player, "the form sent", () -> frames.lastShows(TestPages.SECOND_COLOR));
     final boolean playing = player.isPlaying();
     assertTrue(playing);
   }
@@ -396,7 +396,7 @@ class CefBrowserIntegrationTest {
 
   @Test
   void shouldLeaveNoProcessAfterAReleaseAndStartANewBrowserFresh() {
-    final CefBrowserPlayer.DefaultSessionFactory shared = sessions();
+    final CefBrowserPlayer.DefaultSessionFactory shared = this.sessions();
     final BrowserPlayer first = this.player(LOCAL, shared);
     this.start(first, MAIN_PAGE);
     final boolean browserRunning = countBrowserProcesses() > 0;
@@ -447,14 +447,14 @@ class CefBrowserIntegrationTest {
     assertFalse(empty, "Chromium's processes run");
     for (final ProcessHandle process : chromium) {
       final String command = process.info().command().orElse("?");
-      final boolean sandboxed = isSandboxed(process.pid());
+      final boolean sandboxed = this.isSandboxed(process.pid());
       assertTrue(sandboxed, () -> "a process of Chromium runs outside a sandbox: " + command);
     }
   }
 
   // sandbox_check is called through the restricted native linker; the tests run with native access enabled
   @SuppressWarnings("restricted")
-  private static boolean isSandboxed(final long processId) throws Throwable {
+  private boolean isSandboxed(final long processId) throws Throwable {
     final Linker linker = Linker.nativeLinker();
     final MethodHandle check = linker.downcallHandle(
       linker.defaultLookup().findOrThrow("sandbox_check"),

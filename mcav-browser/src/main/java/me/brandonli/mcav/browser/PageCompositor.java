@@ -83,7 +83,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
       if (clipped.isEmpty()) {
         continue;
       }
-      copyRows(buffer, this.width, clipped, this.page, this.width, clipped.x, clipped.y);
+      this.copyRows(buffer, this.width, clipped, this.page, this.width, clipped.x, clipped.y);
       this.addDamage(clipped);
     }
     this.paintsSinceSent++;
@@ -178,7 +178,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
 
   private FrameRegion copyDamage(final Rectangle area, final byte[] target) {
     final ByteBuffer pageBuffer = ByteBuffer.wrap(this.page);
-    copyRows(pageBuffer, this.width, area, target, area.width, 0, 0);
+    this.copyRows(pageBuffer, this.width, area, target, area.width, 0, 0);
     final Popup shown = this.shownPopup;
     if (shown != null) {
       final Rectangle bounds = shown.bounds();
@@ -186,7 +186,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
       if (!overlap.isEmpty()) {
         final Rectangle inPopup = new Rectangle(overlap.x - bounds.x, overlap.y - bounds.y, overlap.width, overlap.height);
         final ByteBuffer popupBuffer = ByteBuffer.wrap(shown.pixels());
-        copyRows(popupBuffer, bounds.width, inPopup, target, area.width, overlap.x - area.x, overlap.y - area.y);
+        this.copyRows(popupBuffer, bounds.width, inPopup, target, area.width, overlap.x - area.x, overlap.y - area.y);
       }
     }
     this.damage = null;
@@ -195,7 +195,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     return new FrameRegion(this.width, this.height, area.x, area.y, area.width, area.height, target);
   }
 
-  private static void copyRows(
+  private void copyRows(
     final ByteBuffer source,
     final int sourceWidth,
     final Rectangle area,

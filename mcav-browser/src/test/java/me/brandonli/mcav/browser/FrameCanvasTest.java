@@ -32,7 +32,7 @@ import org.junit.jupiter.api.Test;
 
 class FrameCanvasTest {
 
-  private static byte[] bgra(final int width, final int height, final int blue, final int green, final int red) {
+  private byte[] bgra(final int width, final int height, final int blue, final int green, final int red) {
     final byte[] pixels = new byte[width * height * 4];
     for (int index = 0; index < pixels.length; index += 4) {
       pixels[index] = (byte) blue;
@@ -43,19 +43,19 @@ class FrameCanvasTest {
     return pixels;
   }
 
-  private static int[] bgr(final ImageBuffer image, final int column, final int row) {
+  private int[] bgr(final ImageBuffer image, final int column, final int row) {
     final ByteBuffer pixels = image.getData();
     final int offset = (row * image.getWidth() + column) * 3;
     return new int[] { pixels.get(offset) & 0xFF, pixels.get(offset + 1) & 0xFF, pixels.get(offset + 2) & 0xFF };
   }
 
-  private static ImageBuffer snapshot(final FrameCanvas canvas) {
+  private ImageBuffer snapshot(final FrameCanvas canvas) {
     return Objects.requireNonNull(canvas.snapshot(), "an open canvas has a picture");
   }
 
   @Test
   void shouldStartWhite() {
-    try (final FrameCanvas canvas = new FrameCanvas(4, 3); final ImageBuffer image = snapshot(canvas)) {
+    try (final FrameCanvas canvas = new FrameCanvas(4, 3); final ImageBuffer image = this.snapshot(canvas)) {
       final int canvasWidth = canvas.getWidth();
       assertEquals(4, canvasWidth);
       final int canvasHeight = canvas.getHeight();
@@ -64,9 +64,9 @@ class FrameCanvasTest {
       assertEquals(4, imageWidth);
       final int imageHeight = image.getHeight();
       assertEquals(3, imageHeight);
-      final int cornerBlue = bgr(image, 3, 2)[0];
+      final int cornerBlue = this.bgr(image, 3, 2)[0];
       assertEquals(255, cornerBlue);
-      final int cornerRed = bgr(image, 3, 2)[2];
+      final int cornerRed = this.bgr(image, 3, 2)[2];
       assertEquals(255, cornerRed);
     }
   }
@@ -74,18 +74,18 @@ class FrameCanvasTest {
   @Test
   void shouldReplaceOnlyThePixelsOfARegion() throws ProtocolException {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3)) {
-      canvas.apply(new FrameRegion(4, 3, 1, 1, 2, 2, bgra(2, 2, 10, 20, 30)));
-      try (final ImageBuffer image = snapshot(canvas)) {
-        final int[] inside = bgr(image, 2, 2);
+      canvas.apply(new FrameRegion(4, 3, 1, 1, 2, 2, this.bgra(2, 2, 10, 20, 30)));
+      try (final ImageBuffer image = this.snapshot(canvas)) {
+        final int[] inside = this.bgr(image, 2, 2);
         final int insideBlue = inside[0];
         assertEquals(10, insideBlue);
         final int insideGreen = inside[1];
         assertEquals(20, insideGreen);
         final int insideRed = inside[2];
         assertEquals(30, insideRed);
-        final int outsideBlue = bgr(image, 0, 0)[0];
+        final int outsideBlue = this.bgr(image, 0, 0)[0];
         assertEquals(255, outsideBlue);
-        final int outsideGreen = bgr(image, 3, 1)[1];
+        final int outsideGreen = this.bgr(image, 3, 1)[1];
         assertEquals(255, outsideGreen);
       }
     }
@@ -99,10 +99,10 @@ class FrameCanvasTest {
       longer[1] = 2;
       longer[2] = 3;
       canvas.apply(new FrameRegion(2, 1, 1, 0, 1, 1, longer));
-      try (final ImageBuffer image = snapshot(canvas)) {
-        final int blue = bgr(image, 1, 0)[0];
+      try (final ImageBuffer image = this.snapshot(canvas)) {
+        final int blue = this.bgr(image, 1, 0)[0];
         assertEquals(1, blue);
-        final int red = bgr(image, 1, 0)[2];
+        final int red = this.bgr(image, 1, 0)[2];
         assertEquals(3, red);
       }
     }
@@ -136,15 +136,15 @@ class FrameCanvasTest {
   void shouldPlaceEveryRowOfARegionOnItsOwnRow() throws ProtocolException {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3)) {
       final byte[] pixels = new byte[2 * 2 * 4];
-      System.arraycopy(bgra(2, 1, 10, 20, 30), 0, pixels, 0, 8);
-      System.arraycopy(bgra(2, 1, 40, 50, 60), 0, pixels, 8, 8);
+      System.arraycopy(this.bgra(2, 1, 10, 20, 30), 0, pixels, 0, 8);
+      System.arraycopy(this.bgra(2, 1, 40, 50, 60), 0, pixels, 8, 8);
       canvas.apply(new FrameRegion(4, 3, 1, 1, 2, 2, pixels));
-      try (final ImageBuffer image = snapshot(canvas)) {
-        final int firstRowBlue = bgr(image, 1, 1)[0];
+      try (final ImageBuffer image = this.snapshot(canvas)) {
+        final int firstRowBlue = this.bgr(image, 1, 1)[0];
         assertEquals(10, firstRowBlue);
-        final int secondRowBlue = bgr(image, 1, 2)[0];
+        final int secondRowBlue = this.bgr(image, 1, 2)[0];
         assertEquals(40, secondRowBlue);
-        final int secondRowRed = bgr(image, 2, 2)[2];
+        final int secondRowRed = this.bgr(image, 2, 2)[2];
         assertEquals(60, secondRowRed);
       }
     }

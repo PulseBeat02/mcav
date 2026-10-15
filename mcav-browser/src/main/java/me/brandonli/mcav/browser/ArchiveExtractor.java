@@ -118,7 +118,7 @@ final class ArchiveExtractor {
         throw new IOException(message);
       }
       // the archive library counts links and special files as files, so they are refused by their type first
-      if (isLinkOrSpecial(entry)) {
+      if (this.isLinkOrSpecial(entry)) {
         final String message = "Archive entry %s is not a plain file or folder!".formatted(entry.getName());
         throw new IOException(message);
       }
@@ -127,7 +127,7 @@ final class ArchiveExtractor {
         createFolders(destination, permissions);
       } else {
         final long remaining = this.maximumTotalBytes - written;
-        written += writeFile(tar, destination, remaining, permissions);
+        written += this.writeFile(tar, destination, remaining, permissions);
         this.setFileMode(destination, entry, permissions);
       }
       entry = tar.getNextEntry();
@@ -142,7 +142,7 @@ final class ArchiveExtractor {
   }
 
   // Checks whether an entry is a link or a special file rather than a plain file or folder.
-  private static boolean isLinkOrSpecial(final TarArchiveEntry entry) {
+  private boolean isLinkOrSpecial(final TarArchiveEntry entry) {
     final boolean isLink = entry.isSymbolicLink() || entry.isLink();
     final boolean isDevice = entry.isCharacterDevice() || entry.isBlockDevice();
     return isLink || isDevice || entry.isFIFO();
@@ -185,7 +185,7 @@ final class ArchiveExtractor {
     return current.normalize();
   }
 
-  private static long writeFile(final InputStream tar, final Path destination, final long remaining, final PosixPermissions permissions)
+  private long writeFile(final InputStream tar, final Path destination, final long remaining, final PosixPermissions permissions)
     throws IOException {
     final Path parent = Objects.requireNonNull(destination.getParent(), "An entry lies below the folder!");
     createFolders(parent, permissions);
@@ -198,12 +198,11 @@ final class ArchiveExtractor {
         LinkOption.NOFOLLOW_LINKS
       )
     ) {
-      return copyAtMost(tar, output, buffer, remaining);
+      return this.copyAtMost(tar, output, buffer, remaining);
     }
   }
 
-  private static long copyAtMost(final InputStream tar, final OutputStream output, final byte[] buffer, final long remaining)
-    throws IOException {
+  private long copyAtMost(final InputStream tar, final OutputStream output, final byte[] buffer, final long remaining) throws IOException {
     long written = 0L;
     int count = tar.read(buffer);
     while (count >= 0) {

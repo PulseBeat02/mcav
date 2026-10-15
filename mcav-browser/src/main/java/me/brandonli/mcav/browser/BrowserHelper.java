@@ -173,9 +173,9 @@ public final class BrowserHelper {
         output.flush();
       }
       final Reporter reporter = new Reporter(output);
-      startDaemon("mcav-browser-helper-stdin", () -> this.watchInput(standardInput));
-      startDaemon("mcav-browser-helper-commands", () -> this.readCommands(input));
-      startDaemon("mcav-browser-helper-frames", () -> this.sendFrames(output));
+      this.startDaemon("mcav-browser-helper-stdin", () -> this.watchInput(standardInput));
+      this.startDaemon("mcav-browser-helper-commands", () -> this.readCommands(input));
+      this.startDaemon("mcav-browser-helper-frames", () -> this.sendFrames(output));
       return this.serve(reporter);
     } catch (final IOException exception) {
       System.err.println("The browser helper cannot reach the server (%s).".formatted(exception.getMessage()));
@@ -206,7 +206,7 @@ public final class BrowserHelper {
     return reporter.hasFailed() ? EXIT_FAILURE : 0;
   }
 
-  private static void startDaemon(final String name, final Runnable task) {
+  private void startDaemon(final String name, final Runnable task) {
     final Thread thread = new Thread(task, name);
     thread.setDaemon(true);
     thread.start();

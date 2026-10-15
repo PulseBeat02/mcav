@@ -69,14 +69,14 @@ class HelperLauncherTest {
   @TempDir
   Path folder;
 
-  private static HelperLauncher launcher(final Os os, final Map<String, String> environment) {
+  private HelperLauncher launcher(final Os os, final Map<String, String> environment) {
     return new HelperLauncher(JAVA, HelperLauncher.MAIN_CLASS, CLASS_PATH, List.of("-javaagent:/agent.jar"), os, environment, 5_000L);
   }
 
   @Test
   void shouldRunTheHelperJvmHeadlessAllowNativesAndKeepItsFilesInTheSession() {
     final Path session = SESSION_FOLDER;
-    final List<String> command = launcher(Os.LINUX, Map.of()).createCommand(session);
+    final List<String> command = this.launcher(Os.LINUX, Map.of()).createCommand(session);
     final String javaProgram = command.getFirst();
     assertEquals(JAVA.toString(), javaProgram);
     final boolean runsHeadless = command.contains("-Djava.awt.headless=true");
@@ -111,7 +111,7 @@ class HelperLauncherTest {
       "TMPDIR",
       "/var/tmp"
     );
-    final HelperLauncher linux = launcher(Os.LINUX, server);
+    final HelperLauncher linux = this.launcher(Os.LINUX, server);
     final Path authority = this.folder.resolve(NullDisplay.AUTHORITY_FILE);
     final String session = this.folder.toString();
     final Map<String, String> linuxEnvironment = linux.createEnvironment(this.folder, null);
@@ -136,9 +136,9 @@ class HelperLauncherTest {
       ),
       linuxEnvironmentWithLibraries
     );
-    final Map<String, String> macEnvironment = launcher(Os.MAC, server).createEnvironment(this.folder, null);
+    final Map<String, String> macEnvironment = this.launcher(Os.MAC, server).createEnvironment(this.folder, null);
     assertEquals(Map.of("PATH", "/usr/bin", "TMPDIR", session, "MAC_CHROMIUM_TMPDIR", session), macEnvironment);
-    final Map<String, String> windowsEnvironment = launcher(Os.WINDOWS, server).createEnvironment(this.folder, null);
+    final Map<String, String> windowsEnvironment = this.launcher(Os.WINDOWS, server).createEnvironment(this.folder, null);
     assertEquals(Map.of("PATH", "/usr/bin", "TMPDIR", "/var/tmp"), windowsEnvironment);
     final Os operatingSystem = linux.getOs();
     assertEquals(Os.LINUX, operatingSystem);
@@ -148,7 +148,7 @@ class HelperLauncherTest {
 
   @Test
   void shouldLinkTheLibrariesOfALauncherIntoEverySession() throws IOException {
-    final HelperLauncher plain = launcher(Os.LINUX, Map.of());
+    final HelperLauncher plain = this.launcher(Os.LINUX, Map.of());
     final @Nullable Path plainLibraries = plain.linkLibraries(this.folder);
     assertNull(plainLibraries);
     final Path linked = this.folder.resolve("lib");
@@ -251,16 +251,16 @@ class HelperLauncherTest {
   }
 
   private void followUsedClasses(final String name, final Deque<String> pending, final List<String> outside) throws IOException {
-    for (final String used : usedClasses(name)) {
+    for (final String used : this.usedClasses(name)) {
       if (used.startsWith(BROWSER_PACKAGE)) {
         pending.push(used);
-      } else if (!isOnTheHelperClassPath(used)) {
+      } else if (!this.isOnTheHelperClassPath(used)) {
         outside.add(name + " uses " + used);
       }
     }
   }
 
-  private static Set<String> usedClasses(final String name) throws IOException {
+  private Set<String> usedClasses(final String name) throws IOException {
     final byte[] bytes;
     try (final InputStream in = HelperLauncherTest.class.getResourceAsStream("/" + name + ".class")) {
       assertNotNull(in, name);
@@ -270,36 +270,36 @@ class HelperLauncherTest {
     final Set<String> used = new TreeSet<>();
     for (final PoolEntry entry : model.constantPool()) {
       if (entry instanceof final ClassEntry type) {
-        addClass(type, used);
+        this.addClass(type, used);
       } else if (entry instanceof final NameAndTypeEntry member) {
-        addDescribed(member.type().stringValue(), used);
+        this.addDescribed(member.type().stringValue(), used);
       } else if (entry instanceof final MethodTypeEntry method) {
-        addDescribed(method.descriptor().stringValue(), used);
+        this.addDescribed(method.descriptor().stringValue(), used);
       }
     }
-    model.fields().forEach(field -> addDescribed(field.fieldType().stringValue(), used));
-    model.methods().forEach(method -> addDescribed(method.methodType().stringValue(), used));
+    model.fields().forEach(field -> this.addDescribed(field.fieldType().stringValue(), used));
+    model.methods().forEach(method -> this.addDescribed(method.methodType().stringValue(), used));
 
     return used;
   }
 
-  private static void addClass(final ClassEntry type, final Set<String> used) {
+  private void addClass(final ClassEntry type, final Set<String> used) {
     final String internal = type.asInternalName();
     if (internal.startsWith("[")) {
-      addDescribed(internal, used);
+      this.addDescribed(internal, used);
     } else {
       used.add(internal);
     }
   }
 
-  private static void addDescribed(final String descriptor, final Set<String> used) {
+  private void addDescribed(final String descriptor, final Set<String> used) {
     final Matcher matcher = DESCRIBED_TYPE.matcher(descriptor);
     while (matcher.find()) {
       used.add(matcher.group(1));
     }
   }
 
-  private static boolean isOnTheHelperClassPath(final String name) {
+  private boolean isOnTheHelperClassPath(final String name) {
     return (
       name.startsWith("java/") ||
       name.startsWith("javax/") ||

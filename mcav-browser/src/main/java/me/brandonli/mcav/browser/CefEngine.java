@@ -278,7 +278,7 @@ final class CefEngine implements HelperEngine {
     final String url = configuration.getUrl().toString();
     final PageAudio audio = new PageAudio(events::onAudio, System::nanoTime);
     final ContentPolicy policy = new ContentPolicy(events, versionText, prepared -> this.openPreparedPage(prepared, url, audio, events));
-    addHandlers(createdClient, policy);
+    this.addHandlers(createdClient, policy);
     final CefBrowserSettings browserSettings = new CefBrowserSettings();
     browserSettings.windowless_frame_rate = configuration.getFrameRate();
     final int width = configuration.getWidth();
@@ -315,7 +315,7 @@ final class CefEngine implements HelperEngine {
     return startedGuard.getPort();
   }
 
-  private static void addHandlers(final CefClient client, final ContentPolicy policy) {
+  private void addHandlers(final CefClient client, final ContentPolicy policy) {
     client.addLifeSpanHandler(policy);
     client.addRequestHandler(policy);
     client.addJSDialogHandler(policy);

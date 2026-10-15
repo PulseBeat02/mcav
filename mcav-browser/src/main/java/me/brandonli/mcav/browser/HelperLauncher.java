@@ -175,7 +175,7 @@ final class HelperLauncher {
   Map<String, String> createEnvironment(final Path folder, final @Nullable Path libraries) {
     final Map<String, String> kept = HelperEnvironment.filter(this.environment);
     if (this.os == Os.LINUX) {
-      final Path authority = authorityOf(folder);
+      final Path authority = this.authorityOf(folder);
       kept.put(AUTHORITY_VARIABLE, authority.toString());
       // TMPDIR and XDG_DATA_HOME must keep Chromium temporary files and certificates inside its writable sandbox.
       kept.put(TEMPORARY_FOLDER_VARIABLE, folder.toString());
@@ -194,7 +194,7 @@ final class HelperLauncher {
   }
 
   // Returns the X authority file of a session, which the helper writes and its X clients read.
-  private static Path authorityOf(final Path folder) {
+  private Path authorityOf(final Path folder) {
     return folder.resolve(NullDisplay.AUTHORITY_FILE);
   }
 

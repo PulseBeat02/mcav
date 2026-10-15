@@ -72,21 +72,21 @@ final class LinuxLibrariesFuzzTest {
     final byte[] layer = Arrays.copyOfRange(input, 1, input.length);
     final byte[] debianPackage = switch (input[0] & 0b11) {
       case 0 -> layer;
-      case 1 -> debianPackageOf(layer);
-      default -> debianPackageOf(xz(layer));
+      case 1 -> this.debianPackageOf(layer);
+      default -> this.debianPackageOf(this.xz(layer));
     };
     final Path root = Files.createTempDirectory("mcav-deb-fuzz");
     try {
       final Path file = Files.write(root.resolve("package.deb"), debianPackage);
       final Path target = Files.createDirectory(root.resolve("target"));
-      final Outcome outcome = extract(file, target);
-      check(root, file, target, outcome);
+      final Outcome outcome = this.extract(file, target);
+      this.check(root, file, target, outcome);
     } finally {
       IoUtils.deleteRecursively(root);
     }
   }
 
-  private static Outcome extract(final Path file, final Path target) {
+  private Outcome extract(final Path file, final Path target) {
     try {
       LinuxLibraries.extract(file, PINNED, target);
 
@@ -96,10 +96,10 @@ final class LinuxLibrariesFuzzTest {
     }
   }
 
-  private static void check(final Path root, final Path file, final Path target, final Outcome outcome) throws IOException {
+  private void check(final Path root, final Path file, final Path target, final Outcome outcome) throws IOException {
     final boolean supportsPosix = FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
     final Set<String> written = new HashSet<>();
-    final List<Path> all = listAllPaths(root);
+    final List<Path> all = this.listAllPaths(root);
     for (final Path path : all) {
       if (path.equals(root) || path.equals(file) || path.equals(target)) {
         continue;
@@ -123,7 +123,7 @@ final class LinuxLibrariesFuzzTest {
     }
   }
 
-  private static List<Path> listAllPaths(final Path root) throws IOException {
+  private List<Path> listAllPaths(final Path root) throws IOException {
     try (final Stream<Path> paths = Files.walk(root)) {
       return paths.toList();
     } catch (final UncheckedIOException exception) {
@@ -131,7 +131,7 @@ final class LinuxLibrariesFuzzTest {
     }
   }
 
-  private static byte[] xz(final byte[] tar) throws IOException {
+  private byte[] xz(final byte[] tar) throws IOException {
     final ByteArrayOutputStream compressed = new ByteArrayOutputStream();
     try (final XZOutputStream xz = new XZOutputStream(compressed, new LZMA2Options(XZ_PRESET))) {
       xz.write(tar);
@@ -139,7 +139,7 @@ final class LinuxLibrariesFuzzTest {
     return compressed.toByteArray();
   }
 
-  private static byte[] debianPackageOf(final byte[] data) throws IOException {
+  private byte[] debianPackageOf(final byte[] data) throws IOException {
     final ByteArrayOutputStream debianPackage = new ByteArrayOutputStream();
     try (final ArArchiveOutputStream archive = new ArArchiveOutputStream(debianPackage)) {
       final byte[] version = "2.0\n".getBytes(StandardCharsets.US_ASCII);

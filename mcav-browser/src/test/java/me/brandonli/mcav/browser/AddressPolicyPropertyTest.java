@@ -37,11 +37,11 @@ final class AddressPolicyPropertyTest {
 
   private static final String SEED = "20260925";
 
-  private static byte[] ipv6(final int first, final int second, final int third, final int fourth) {
+  private byte[] ipv6(final int first, final int second, final int third, final int fourth) {
     return ByteBuffer.allocate(16).putInt(first).putInt(second).putInt(third).putInt(fourth).array();
   }
 
-  private static InetAddress translate(final byte[] prefix, final int length, final int ipv4) throws UnknownHostException {
+  private InetAddress translate(final byte[] prefix, final int length, final int ipv4) throws UnknownHostException {
     final byte[] bytes = new byte[16];
     System.arraycopy(prefix, 0, bytes, 0, length / Byte.SIZE);
     int index = length / Byte.SIZE;
@@ -63,15 +63,15 @@ final class AddressPolicyPropertyTest {
   ) throws UnknownHostException {
     final int length = new int[] { 32, 40, 48, 56, 64, 96 }[lengthIndex];
     prefix[0] = (byte) (0x20 | (prefix[0] & 0x1F));
-    final InetAddress[] answer = { translate(prefix, length, 0xC00000AA), translate(prefix, length, 0xC00000AB) };
+    final InetAddress[] answer = { this.translate(prefix, length, 0xC00000AA), this.translate(prefix, length, 0xC00000AB) };
     final List<AddressPolicy.TranslationPrefix> prefixes = AddressPolicy.findTranslationPrefixes(answer);
     if (prefixes.size() == 1) {
-      final boolean translatedJudgedPublic = AddressPolicy.isPublic(translate(prefix, length, ipv4), prefixes);
+      final boolean translatedJudgedPublic = AddressPolicy.isPublic(this.translate(prefix, length, ipv4), prefixes);
       assertEquals(AddressPolicy.isPublicIpv4(ipv4), translatedJudgedPublic);
     }
     final byte[] ordinary = prefix.clone();
     ordinary[0] = 0x2A;
-    final InetAddress[] ordinaryAnswer = { translate(ordinary, length, 0xC00000AA), translate(ordinary, length, 0xC00000AB) };
+    final InetAddress[] ordinaryAnswer = { this.translate(ordinary, length, 0xC00000AA), this.translate(ordinary, length, 0xC00000AB) };
     final List<AddressPolicy.TranslationPrefix> discovered = AddressPolicy.findTranslationPrefixes(ordinaryAnswer);
     final List<AddressPolicy.TranslationPrefix> matching = discovered
       .stream()
@@ -79,7 +79,7 @@ final class AddressPolicyPropertyTest {
       .toList();
     final int matchingCount = matching.size();
     assertEquals(1, matchingCount, "the generated ordinary prefix is discovered exactly once");
-    final boolean ordinaryTranslatedJudgedPublic = AddressPolicy.isPublic(translate(ordinary, length, ipv4), matching);
+    final boolean ordinaryTranslatedJudgedPublic = AddressPolicy.isPublic(this.translate(ordinary, length, ipv4), matching);
     assertEquals(AddressPolicy.isPublicIpv4(ipv4), ordinaryTranslatedJudgedPublic);
   }
 
@@ -93,7 +93,7 @@ final class AddressPolicyPropertyTest {
       prefix[0] = (byte) (prefix[0] ^ 0x80);
     }
     final boolean wellKnown = prefix[0] == 0 && prefix[1] == 0x64 && prefix[2] == (byte) 0xFF && prefix[3] == (byte) 0x9B;
-    final InetAddress[] answer = { translate(prefix, length, 0xC00000AA), translate(prefix, length, 0xC00000AB) };
+    final InetAddress[] answer = { this.translate(prefix, length, 0xC00000AA), this.translate(prefix, length, 0xC00000AB) };
     if (!wellKnown) {
       final List<AddressPolicy.TranslationPrefix> translationPrefixes = AddressPolicy.findTranslationPrefixes(answer);
       assertEquals(List.of(), translationPrefixes);
@@ -103,9 +103,9 @@ final class AddressPolicyPropertyTest {
   @Property(seed = SEED, tries = 2000)
   void shouldJudgeAnIpv4AddressTheSameMappedOrTranslated(@ForAll final int address) {
     final boolean plain = AddressPolicy.isPublicIpv4(address);
-    final boolean mappedJudgedPublic = AddressPolicy.isPublicIpv6(ipv6(0, 0, 0x0000FFFF, address));
+    final boolean mappedJudgedPublic = AddressPolicy.isPublicIpv6(this.ipv6(0, 0, 0x0000FFFF, address));
     assertEquals(plain, mappedJudgedPublic, "mapped");
-    final boolean translatedJudgedPublic = AddressPolicy.isPublicIpv6(ipv6(0x0064FF9B, 0, 0, address));
+    final boolean translatedJudgedPublic = AddressPolicy.isPublicIpv6(this.ipv6(0x0064FF9B, 0, 0, address));
     assertEquals(plain, translatedJudgedPublic, "translated by NAT64");
   }
 

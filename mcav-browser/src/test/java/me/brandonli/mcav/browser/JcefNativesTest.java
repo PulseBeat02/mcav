@@ -90,7 +90,7 @@ class JcefNativesTest {
   private final List<URI> requested = new ArrayList<>();
 
   // A natives jar the way jcefmaven publishes it: a zip with the tar.gz of the natives and some class files.
-  private static byte[] nativesJar(final JarContent content) throws IOException {
+  private byte[] nativesJar(final JarContent content) throws IOException {
     final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
     try (final ZipOutputStream zip = new ZipOutputStream(bytes)) {
       zip.putNextEntry(new ZipEntry("me/friwi/jcefmaven/CefNativeBundle.class"));
@@ -146,7 +146,7 @@ class JcefNativesTest {
     }
   }
 
-  private static Object installLockOf(final ClassLoader loader) throws ReflectiveOperationException {
+  private Object installLockOf(final ClassLoader loader) throws ReflectiveOperationException {
     final Class<?> natives = Class.forName(JcefNatives.class.getName(), true, loader);
     final Field field = natives.getDeclaredField("INSTALL_LOCK");
     field.setAccessible(true);
@@ -164,8 +164,8 @@ class JcefNativesTest {
     try (final URLClassLoader first = new URLClassLoader(urls, null); final URLClassLoader second = new URLClassLoader(urls, null)) {
       final Class<?> secondNatives = second.loadClass(JcefNatives.class.getName());
       assertNotSame(first.loadClass(JcefNatives.class.getName()), secondNatives);
-      final Object secondInstallLock = installLockOf(second);
-      assertSame(installLockOf(first), secondInstallLock);
+      final Object secondInstallLock = this.installLockOf(second);
+      assertSame(this.installLockOf(first), secondInstallLock);
     }
   }
 
@@ -216,7 +216,7 @@ class JcefNativesTest {
   @Test
   void shouldCreateTheCacheFolderWritableByItsOwnerOnly() throws IOException {
     final Path cache = this.folder.resolve("home/.mcav/cache/jcef");
-    final Path installation = this.natives(nativesJar(JarContent.WITH_ARCHIVE), cache).install(PLATFORM, PINNED_HASH, PINNED_SIZE);
+    final Path installation = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE), cache).install(PLATFORM, PINNED_HASH, PINNED_SIZE);
     assertEquals(cache.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX), installation);
 
     if (cache.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW)) {
@@ -229,7 +229,7 @@ class JcefNativesTest {
 
   @Test
   void shouldDownloadExtractAndMarkTheNativesOnce() throws IOException {
-    final JcefNatives natives = this.natives(nativesJar(JarContent.WITH_ARCHIVE));
+    final JcefNatives natives = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE));
     final Path installation = natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE);
     assertEquals(this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX), installation);
     final String libraryContent = Files.readString(installation.resolve(LIBRARY_FILE));
@@ -263,7 +263,7 @@ class JcefNativesTest {
       this.folder.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW),
       "This file system has no POSIX permissions!"
     );
-    final JcefNatives natives = this.natives(nativesJar(JarContent.WITH_ARCHIVE));
+    final JcefNatives natives = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE));
     final Path installation = natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE);
     final Path library = installation.resolve(LIBRARY_FILE);
     final Path marker = installation.resolve(JcefNatives.INSTALL_MARKER);
@@ -306,14 +306,14 @@ class JcefNativesTest {
   private void recordHashAndWriteNatives(final List<String> hashes, final Path destination, final String sha256, final long size)
     throws IOException {
     hashes.add(sha256 + " " + size);
-    Files.write(destination, nativesJar(JarContent.WITH_ARCHIVE));
+    Files.write(destination, this.nativesJar(JarContent.WITH_ARCHIVE));
   }
 
   @Test
   void shouldGiveThisMachineItsOwnNatives() throws IOException {
     final JcefNatives natives = new JcefNatives(
       this.folder,
-      (uri, destination, sha256, size) -> Files.write(destination, nativesJar(JarContent.WITH_ARCHIVE)),
+      (uri, destination, sha256, size) -> Files.write(destination, this.nativesJar(JarContent.WITH_ARCHIVE)),
       REPOSITORY,
       new ArchiveExtractor()
     );
@@ -334,7 +334,7 @@ class JcefNativesTest {
     final Path partial = this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX);
     Files.createDirectories(partial);
     Files.writeString(partial.resolve("half-written.so"), "?");
-    final Path installation = this.natives(nativesJar(JarContent.WITH_ARCHIVE)).install(PLATFORM, PINNED_HASH, PINNED_SIZE);
+    final Path installation = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE)).install(PLATFORM, PINNED_HASH, PINNED_SIZE);
     final boolean halfWrittenLeft = Files.exists(installation.resolve("half-written.so"));
     assertFalse(halfWrittenLeft);
     final boolean libraryPresent = Files.exists(installation.resolve(LIBRARY_FILE));
@@ -343,7 +343,7 @@ class JcefNativesTest {
 
   @Test
   void shouldLeaveNothingBehindAfterAFailedDownload() throws IOException {
-    final JcefNatives natives = this.natives(nativesJar(JarContent.WITH_ARCHIVE));
+    final JcefNatives natives = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE));
     final IOException failure = assertThrows(IOException.class, () -> natives.install(PLATFORM, "tampered", PINNED_SIZE));
     final String message = failure.getMessage();
     assertEquals("Checksum mismatch", message);
@@ -353,7 +353,7 @@ class JcefNativesTest {
 
   @Test
   void shouldRefuseAJarWithoutTheArchive() throws IOException {
-    final JcefNatives natives = this.natives(nativesJar(JarContent.CLASSES_ONLY));
+    final JcefNatives natives = this.natives(this.nativesJar(JarContent.CLASSES_ONLY));
     final IOException failure = assertThrows(IOException.class, () -> natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE));
     final String message = failure.getMessage();
     assertEquals("The natives jar holds no .tar.gz archive!", message);
@@ -367,14 +367,14 @@ class JcefNativesTest {
       final CountDownLatch release = new CountDownLatch(1);
       final CountDownLatch downloading = new CountDownLatch(1);
       final AtomicReference<Thread> secondCaller = new AtomicReference<>();
-      final byte[] jar = nativesJar(JarContent.WITH_ARCHIVE);
+      final byte[] jar = this.nativesJar(JarContent.WITH_ARCHIVE);
       final JcefNatives natives = new JcefNatives(
         this.folder,
         (uri, destination, sha256, size) -> this.downloadWhenReleased(downloading, release, destination, jar),
         REPOSITORY,
         new ArchiveExtractor()
       );
-      final CompletableFuture<Path> first = CompletableFuture.supplyAsync(() -> install(natives), starts);
+      final CompletableFuture<Path> first = CompletableFuture.supplyAsync(() -> this.install(natives), starts);
       final CompletableFuture<Path> second;
       try {
         final boolean downloadStarted = downloading.await(10, TimeUnit.SECONDS);
@@ -413,7 +413,7 @@ class JcefNativesTest {
   private Path installRecordingTheCaller(final AtomicReference<Thread> caller, final JcefNatives natives) {
     caller.set(Thread.currentThread());
 
-    return install(natives);
+    return this.install(natives);
   }
 
   private boolean isBlocked(final AtomicReference<Thread> secondCaller) {
@@ -423,7 +423,7 @@ class JcefNativesTest {
 
   @Test
   void shouldRefuseAPlatformWithoutNativesBeforeAnythingIsDownloaded() throws IOException {
-    final JcefNatives natives = this.natives(nativesJar(JarContent.WITH_ARCHIVE));
+    final JcefNatives natives = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE));
     final IOException failure = assertThrows(IOException.class, () -> this.installFreeBsd(natives));
     final String message = failure.getMessage();
     assertEquals("Platform FREEBSD X86 BITS_64 has no CEF build in jcefmaven, so the browser cannot run here!", message);
@@ -455,7 +455,7 @@ class JcefNativesTest {
 
   @Test
   void shouldFailTheInstallationClearlyWhenAnotherCopyOfMcavInThisJvmHoldsTheLock() throws IOException {
-    final JcefNatives natives = this.natives(nativesJar(JarContent.WITH_ARCHIVE));
+    final JcefNatives natives = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE));
     final Path lockFile = this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX + ".lock");
     try (
       final FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
@@ -474,7 +474,7 @@ class JcefNativesTest {
     assertEquals(1, downloadsAfterRelease);
   }
 
-  private static Path install(final JcefNatives natives) {
+  private Path install(final JcefNatives natives) {
     try {
       return natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE);
     } catch (final IOException exception) {

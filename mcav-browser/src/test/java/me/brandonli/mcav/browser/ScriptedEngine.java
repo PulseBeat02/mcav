@@ -121,11 +121,11 @@ final class ScriptedEngine implements HelperEngine {
   }
 
   private void pauseAndCrashRenderer(final HelperEvents events) {
-    pause(1_000L);
+    this.pause(1_000L);
     events.onFailure("scripted renderer crash");
   }
 
-  private static void pause(final long milliseconds) {
+  private void pause(final long milliseconds) {
     try {
       Thread.sleep(milliseconds);
     } catch (final InterruptedException exception) {

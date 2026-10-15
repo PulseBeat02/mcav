@@ -34,14 +34,14 @@ final class AddressTextFuzzTest {
   void shouldNeverShowTheUserTheQueryOrTheFragment(final FuzzedDataProvider data) {
     final String address = data.consumeRemainingAsString();
     final String described = AddressText.describe(address);
-    final int mark = indexOfAny(described, "?#");
+    final int mark = this.indexOfAny(described, "?#");
     if (mark >= 0) {
       final String textAfterMark = described.substring(mark + 1);
       assertEquals(AddressText.HIDDEN, textAfterMark, described);
     }
     final int user = described.indexOf('@');
     final int separator = described.indexOf("://");
-    final int authorityEnd = separator < 0 ? -1 : indexOfAny(described.substring(separator + 3), "/?#");
+    final int authorityEnd = separator < 0 ? -1 : this.indexOfAny(described.substring(separator + 3), "/?#");
     if (user >= 0 && separator >= 0 && (authorityEnd < 0 || user < separator + 3 + authorityEnd) && user > separator) {
       final boolean hidesTheUserInformation = described.startsWith(AddressText.HIDDEN + "@", separator + 3);
       assertTrue(hidesTheUserInformation, described);
@@ -52,7 +52,7 @@ final class AddressTextFuzzTest {
     }
   }
 
-  private static int indexOfAny(final String text, final String characters) {
+  private int indexOfAny(final String text, final String characters) {
     for (int index = 0; index < text.length(); index++) {
       if (characters.indexOf(text.charAt(index)) >= 0) {
         return index;

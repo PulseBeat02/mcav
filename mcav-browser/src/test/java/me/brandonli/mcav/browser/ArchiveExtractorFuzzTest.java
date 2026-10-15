@@ -67,14 +67,14 @@ final class ArchiveExtractorFuzzTest {
       } catch (final IOException exception) {
         // malformed or breaking a rule; what was written so far is checked all the same
       }
-      check(root, target);
-      checkWholeFileSystem(root.resolve("observed.zip"), compressed.toByteArray());
+      this.check(root, target);
+      this.checkWholeFileSystem(root.resolve("observed.zip"), compressed.toByteArray());
     } finally {
       IoUtils.deleteRecursively(root);
     }
   }
 
-  private static void checkWholeFileSystem(final Path backing, final byte[] archive) throws IOException {
+  private void checkWholeFileSystem(final Path backing, final byte[] archive) throws IOException {
     try (final FileSystem fileSystem = FileSystems.newFileSystem(backing, Map.of("create", "true", "enablePosixFileAttributes", "true"))) {
       final Path scope = fileSystem.getPath("/");
       final Path root = Files.createDirectories(scope.resolve("nested/root"));
@@ -90,7 +90,7 @@ final class ArchiveExtractorFuzzTest {
       } catch (final IOException exception) {
         // A refused archive must preserve the surrounding file system too.
       }
-      check(root, target);
+      this.check(root, target);
       try (final Stream<Path> paths = Files.walk(scope)) {
         final List<Path> outside = paths.filter(path -> !before.contains(path) && !path.startsWith(target)).toList();
         assertEquals(List.of(), outside, "writes above the extraction root remain visible");
@@ -100,9 +100,9 @@ final class ArchiveExtractorFuzzTest {
     }
   }
 
-  private static void check(final Path root, final Path target) throws IOException {
+  private void check(final Path root, final Path target) throws IOException {
     final boolean supportsPosix = root.getFileSystem().supportedFileAttributeViews().contains("posix");
-    final List<Path> all = listAllPaths(root);
+    final List<Path> all = this.listAllPaths(root);
     long bytes = 0L;
     for (final Path path : all) {
       final boolean symbolicLink = Files.isSymbolicLink(path);
@@ -126,7 +126,7 @@ final class ArchiveExtractorFuzzTest {
     assertTrue(withinLimit, () -> total + " bytes");
   }
 
-  private static List<Path> listAllPaths(final Path root) throws IOException {
+  private List<Path> listAllPaths(final Path root) throws IOException {
     try (final Stream<Path> paths = Files.walk(root)) {
       return paths.toList();
     } catch (final UncheckedIOException exception) {

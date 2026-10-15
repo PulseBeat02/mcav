@@ -24,6 +24,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.StringJoiner;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 
 // Everything the browser helper process needs to know, handed to it as one line on its standard input, so none of it
 // shows up in the process list: the session token, the socket to connect to, the installed CEF, the profile folder, the
@@ -93,18 +94,18 @@ final class HelperConfiguration {
     final List<String> refusedHosts
   ) {
     requireThat(token.length == HelperProtocol.TOKEN_BYTES, "The token must have %s bytes!".formatted(HelperProtocol.TOKEN_BYTES));
-    requireAbsolute(socket, "socket");
-    requireAbsolute(natives, "natives");
-    requireAbsolute(profile, "profile");
-    requireAbsolute(serverFolder, "server folder");
+    this.requireAbsolute(socket, "socket");
+    this.requireAbsolute(natives, "natives");
+    this.requireAbsolute(profile, "profile");
+    this.requireAbsolute(serverFolder, "server folder");
     for (final String host : refusedHosts) {
       requireThat(isHost(host), "Host %s is not a host name or address!".formatted(host));
     }
     requireThat(NavigationPolicy.isWebAddress(url), "Page %s must be an absolute http or https address!".formatted(url));
-    requireRange(width, 1, HelperProtocol.MAXIMUM_SIDE, "width");
-    requireRange(height, 1, HelperProtocol.MAXIMUM_SIDE, "height");
-    requireRange(frameInterval, 1, MAXIMUM_FRAME_INTERVAL, "frame interval");
-    requireRange(frameRate, 1, MAXIMUM_FRAME_RATE, "frame rate");
+    this.requireRange(width, 1, HelperProtocol.MAXIMUM_SIDE, "width");
+    this.requireRange(height, 1, HelperProtocol.MAXIMUM_SIDE, "height");
+    this.requireRange(frameInterval, 1, MAXIMUM_FRAME_INTERVAL, "frame interval");
+    this.requireRange(frameRate, 1, MAXIMUM_FRAME_RATE, "frame rate");
     this.token = token.clone();
     this.socket = socket;
     this.natives = natives;
@@ -210,11 +211,17 @@ final class HelperConfiguration {
     return Boolean.parseBoolean(value);
   }
 
-  private static void requireAbsolute(final Path path, final String name) {
+  private void requireAbsolute(@UnderInitialization HelperConfiguration this, final Path path, final String name) {
     requireThat(path.isAbsolute(), "The %s path %s must be absolute!".formatted(name, path));
   }
 
-  private static void requireRange(final int value, final int minimum, final int maximum, final String name) {
+  private void requireRange(
+    @UnderInitialization HelperConfiguration this,
+    final int value,
+    final int minimum,
+    final int maximum,
+    final String name
+  ) {
     requireThat(value >= minimum && value <= maximum, "The %s %s must be between %s and %s!".formatted(name, value, minimum, maximum));
   }
 

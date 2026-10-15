@@ -447,7 +447,7 @@ final class NullDisplay implements AutoCloseable {
       this.clients.add(client);
       final Socket evicted = this.admit(client);
       if (evicted != null) {
-        closeQuietly(evicted);
+        this.closeQuietly(evicted);
       }
       Thread.ofVirtual()
         .name("mcav-browser-null-display-client")
@@ -849,13 +849,13 @@ final class NullDisplay implements AutoCloseable {
 
   @Override
   public void close() {
-    closeQuietly(this.server);
+    this.closeQuietly(this.server);
     for (final Socket client : this.clients) {
-      closeQuietly(client);
+      this.closeQuietly(client);
     }
   }
 
-  private static void closeQuietly(final Closeable closeable) {
+  private void closeQuietly(final Closeable closeable) {
     // the helper runs without MCAV's other modules, so not HelperSession's, which needs them
     NetworkGuard.closeQuietly(closeable);
   }

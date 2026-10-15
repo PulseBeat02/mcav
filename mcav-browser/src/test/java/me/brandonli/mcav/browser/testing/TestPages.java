@@ -463,8 +463,8 @@ public final class TestPages implements AutoCloseable {
   private void event(final HttpExchange exchange) throws IOException {
     final URI requestUri = exchange.getRequestURI();
     final String query = requestUri.getRawQuery();
-    final Map<String, String> parameters = parse(query);
-    final PageEvent pageEvent = toEvent(parameters);
+    final Map<String, String> parameters = this.parse(query);
+    final PageEvent pageEvent = this.toEvent(parameters);
     synchronized (this.events) {
       this.events.add(pageEvent);
     }
@@ -472,7 +472,7 @@ public final class TestPages implements AutoCloseable {
     exchange.close();
   }
 
-  private static PageEvent toEvent(final Map<String, String> parameters) {
+  private PageEvent toEvent(final Map<String, String> parameters) {
     final String page = parameters.getOrDefault("page", "");
     final String type = parameters.getOrDefault("type", "");
     final String rawX = parameters.getOrDefault("x", "0");
@@ -487,7 +487,7 @@ public final class TestPages implements AutoCloseable {
     return new PageEvent(page, type, pageX, pageY, button, buttons, key);
   }
 
-  private static Map<String, String> parse(final String query) {
+  private Map<String, String> parse(final String query) {
     final Map<String, String> parameters = new HashMap<>();
     if (query == null) {
       return parameters;

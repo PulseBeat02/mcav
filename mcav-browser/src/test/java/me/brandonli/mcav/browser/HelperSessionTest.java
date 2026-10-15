@@ -530,14 +530,14 @@ class HelperSessionTest {
 
   @Test
   void shouldLeaveNothingBehindWhenTheStartFailsBeforeTheHelperConnects() throws IOException {
-    final Set<ProcessHandle> before = liveDescendants();
+    final Set<ProcessHandle> before = this.liveDescendants();
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/silent-stubborn"), 4, 3, 1);
     final HelperLauncher launcher = launcher(RawHelperMain.class.getName(), 1_000L);
     final Path parent = this.shortDirectory();
     final BrowserException failure = assertThrows(BrowserException.class, () -> this.openSessionIn(launcher, source, parent));
     final String message = failure.getMessage();
     assertEquals("The browser helper did not connect in time!", message);
-    final Set<ProcessHandle> newProcesses = newSince(before);
+    final Set<ProcessHandle> newProcesses = this.newSince(before);
     assertEquals(Set.of(), newProcesses);
     try (final Stream<Path> left = Files.list(parent)) {
       final List<Path> remainingFiles = left.toList();
@@ -545,14 +545,14 @@ class HelperSessionTest {
     }
   }
 
-  private static Set<ProcessHandle> liveDescendants() {
+  private Set<ProcessHandle> liveDescendants() {
     try (final Stream<ProcessHandle> descendants = ProcessHandle.current().descendants()) {
       return descendants.filter(ProcessHandle::isAlive).collect(Collectors.toSet());
     }
   }
 
-  private static Set<ProcessHandle> newSince(final Set<ProcessHandle> before) {
-    final Set<ProcessHandle> now = new HashSet<>(liveDescendants());
+  private Set<ProcessHandle> newSince(final Set<ProcessHandle> before) {
+    final Set<ProcessHandle> now = new HashSet<>(this.liveDescendants());
     now.removeAll(before);
 
     return now;
@@ -607,11 +607,11 @@ class HelperSessionTest {
       5_000L
     );
     final Path parent = this.shortDirectory();
-    final Set<ProcessHandle> before = liveDescendants();
+    final Set<ProcessHandle> before = this.liveDescendants();
     final BrowserException failure = assertThrows(BrowserException.class, () -> this.openSessionIn(broken, source, parent));
     final boolean reportsTheStartFailure = failure.getMessage().startsWith("The browser helper could not be started");
     assertTrue(reportsTheStartFailure, failure.getMessage());
-    final Set<ProcessHandle> newProcesses = newSince(before);
+    final Set<ProcessHandle> newProcesses = this.newSince(before);
     assertEquals(Set.of(), newProcesses);
     try (final Stream<Path> left = Files.list(parent)) {
       final List<Path> remainingFiles = left.toList();

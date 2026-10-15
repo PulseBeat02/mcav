@@ -58,7 +58,7 @@ class ContentPolicyTest {
   private final ContentPolicy policy = new ContentPolicy(this.events, "146.0.10 (Chromium 146)", this.prepared::add);
   private final CefBrowser browser = mock(CefBrowser.class);
 
-  private static CefFrame frame(final FrameKind kind) {
+  private CefFrame frame(final FrameKind kind) {
     final boolean isMain = kind == FrameKind.MAIN;
     final CefFrame frame = mock(CefFrame.class);
     when(frame.isMain()).thenReturn(isMain);
@@ -66,7 +66,7 @@ class ContentPolicyTest {
     return frame;
   }
 
-  private static CefRequest request(final String url) {
+  private CefRequest request(final String url) {
     final CefRequest request = mock(CefRequest.class);
     when(request.getURL()).thenReturn(url);
 
@@ -75,7 +75,7 @@ class ContentPolicyTest {
 
   @Test
   void shouldOpenAPopupInPlaceWhenItsAddressIsAllowed() {
-    final boolean cancelled = this.policy.onBeforePopup(this.browser, frame(FrameKind.MAIN), "https://example.com/popup", "_blank");
+    final boolean cancelled = this.policy.onBeforePopup(this.browser, this.frame(FrameKind.MAIN), "https://example.com/popup", "_blank");
     assertTrue(cancelled);
     verify(this.browser).loadURL("https://example.com/popup");
     assertEquals(List.of("notice: Opened the new window https://example.com/popup in place."), this.events.log);
@@ -83,7 +83,7 @@ class ContentPolicyTest {
 
   @Test
   void shouldRefuseAPopupToAnotherScheme() {
-    final boolean popupCancelled = this.policy.onBeforePopup(this.browser, frame(FrameKind.MAIN), "file:///etc/passwd", "");
+    final boolean popupCancelled = this.policy.onBeforePopup(this.browser, this.frame(FrameKind.MAIN), "file:///etc/passwd", "");
     assertTrue(popupCancelled);
     verify(this.browser, never()).loadURL(ArgumentMatchers.anyString());
     assertEquals(List.of("notice: The new window file:///etc/passwd was refused."), this.events.log);
@@ -91,14 +91,14 @@ class ContentPolicyTest {
 
   @Test
   void shouldOpenALinkForANewTabInPlaceToo() {
-    final boolean tabCancelled = this.policy.onOpenURLFromTab(this.browser, frame(FrameKind.MAIN), "http://example.com/tab", true);
+    final boolean tabCancelled = this.policy.onOpenURLFromTab(this.browser, this.frame(FrameKind.MAIN), "http://example.com/tab", true);
     assertTrue(tabCancelled);
     verify(this.browser).loadURL("http://example.com/tab");
   }
 
   @Test
   void shouldCancelANewTabWithoutAClickOrAKey() {
-    final boolean tabCancelled = this.policy.onOpenURLFromTab(this.browser, frame(FrameKind.MAIN), "http://example.com/tab", false);
+    final boolean tabCancelled = this.policy.onOpenURLFromTab(this.browser, this.frame(FrameKind.MAIN), "http://example.com/tab", false);
     assertTrue(tabCancelled);
     verify(this.browser, never()).loadURL(ArgumentMatchers.anyString());
   }
@@ -126,32 +126,32 @@ class ContentPolicyTest {
   void shouldFollowTheNavigationPolicyWhenNavigating() {
     final boolean httpsCancelled = this.policy.onBeforeBrowse(
       this.browser,
-      frame(FrameKind.MAIN),
-      request("https://example.com/"),
+      this.frame(FrameKind.MAIN),
+      this.request("https://example.com/"),
       true,
       false
     );
     assertFalse(httpsCancelled);
     final boolean fileCancelled = this.policy.onBeforeBrowse(
       this.browser,
-      frame(FrameKind.MAIN),
-      request("file:///etc/passwd"),
+      this.frame(FrameKind.MAIN),
+      this.request("file:///etc/passwd"),
       false,
       true
     );
     assertTrue(fileCancelled);
     final boolean blankSubframeCancelled = this.policy.onBeforeBrowse(
       this.browser,
-      frame(FrameKind.CHILD),
-      request("about:blank"),
+      this.frame(FrameKind.CHILD),
+      this.request("about:blank"),
       false,
       false
     );
     assertFalse(blankSubframeCancelled);
     final boolean chromeSubframeCancelled = this.policy.onBeforeBrowse(
       this.browser,
-      frame(FrameKind.CHILD),
-      request("chrome://settings"),
+      this.frame(FrameKind.CHILD),
+      this.request("chrome://settings"),
       false,
       false
     );
@@ -166,16 +166,16 @@ class ContentPolicyTest {
   void shouldNeverReportTheUserTheQueryOrTheFragmentOfAnAddress() {
     final boolean customSchemeCancelled = this.policy.onBeforeBrowse(
       this.browser,
-      frame(FrameKind.MAIN),
-      request("myapp://callback?code=secret"),
+      this.frame(FrameKind.MAIN),
+      this.request("myapp://callback?code=secret"),
       false,
       false
     );
     assertTrue(customSchemeCancelled);
     final CefResourceRequestHandler resources = this.policy.getResourceRequestHandler(
       this.browser,
-      frame(FrameKind.MAIN),
-      request("https://a/"),
+      this.frame(FrameKind.MAIN),
+      this.request("https://a/"),
       true,
       false,
       "",
@@ -183,8 +183,8 @@ class ContentPolicyTest {
     );
     final boolean ftpRequestCancelled = resources.onBeforeResourceLoad(
       this.browser,
-      frame(FrameKind.MAIN),
-      request("ftp://user:password@example.com/file")
+      this.frame(FrameKind.MAIN),
+      this.request("ftp://user:password@example.com/file")
     );
     assertTrue(ftpRequestCancelled);
     final boolean certificateContinued = this.policy.onCertificateError(
@@ -196,7 +196,7 @@ class ContentPolicyTest {
     assertFalse(certificateContinued);
     this.policy.onLoadError(
       this.browser,
-      frame(FrameKind.MAIN),
+      this.frame(FrameKind.MAIN),
       CefLoadHandler.ErrorCode.ERR_CONNECTION_REFUSED,
       "refused",
       "https://a/?sig=secret"
@@ -216,8 +216,8 @@ class ContentPolicyTest {
   void shouldSendEveryRequestThroughTheResourcePolicy() {
     final CefResourceRequestHandler first = this.policy.getResourceRequestHandler(
       this.browser,
-      frame(FrameKind.MAIN),
-      request("https://a/"),
+      this.frame(FrameKind.MAIN),
+      this.request("https://a/"),
       true,
       false,
       "",
@@ -225,20 +225,24 @@ class ContentPolicyTest {
     );
     final CefResourceRequestHandler second = this.policy.getResourceRequestHandler(
       this.browser,
-      frame(FrameKind.CHILD),
-      request("https://b/"),
+      this.frame(FrameKind.CHILD),
+      this.request("https://b/"),
       false,
       true,
       "https://a",
       new BoolRef()
     );
     assertSame(first, second);
-    final boolean imageCancelled = first.onBeforeResourceLoad(this.browser, frame(FrameKind.MAIN), request("https://example.com/a.png"));
+    final boolean imageCancelled = first.onBeforeResourceLoad(
+      this.browser,
+      this.frame(FrameKind.MAIN),
+      this.request("https://example.com/a.png")
+    );
     assertFalse(imageCancelled);
     final boolean fileRequestCancelled = first.onBeforeResourceLoad(
       this.browser,
-      frame(FrameKind.MAIN),
-      request("file:///home/server/config.yml")
+      this.frame(FrameKind.MAIN),
+      this.request("file:///home/server/config.yml")
     );
     assertTrue(fileRequestCancelled);
     assertEquals(List.of("notice: The request to file:///home/server/config.yml was refused."), this.events.log);
@@ -248,15 +252,15 @@ class ContentPolicyTest {
   void shouldNeverHandAnUnknownSchemeToAnotherProgram() {
     final CefResourceRequestHandler resources = this.policy.getResourceRequestHandler(
       this.browser,
-      frame(FrameKind.MAIN),
-      request("steam://run/1"),
+      this.frame(FrameKind.MAIN),
+      this.request("steam://run/1"),
       true,
       false,
       "",
       new BoolRef()
     );
     final BoolRef allow = new BoolRef(true);
-    resources.onProtocolExecution(this.browser, frame(FrameKind.MAIN), request("steam://run/1"), allow);
+    resources.onProtocolExecution(this.browser, this.frame(FrameKind.MAIN), this.request("steam://run/1"), allow);
     final boolean executionAllowed = allow.get();
     assertFalse(executionAllowed);
     assertEquals(List.of("notice: Opening steam://run/1 with another program was refused."), this.events.log);
@@ -394,17 +398,17 @@ class ContentPolicyTest {
   @Test
   void shouldEmptyTheContextMenu() {
     final CefMenuModel model = mock(CefMenuModel.class);
-    this.policy.onBeforeContextMenu(this.browser, frame(FrameKind.MAIN), mock(CefContextMenuParams.class), model);
+    this.policy.onBeforeContextMenu(this.browser, this.frame(FrameKind.MAIN), mock(CefContextMenuParams.class), model);
     verify(model).clear();
     final boolean commandHandled = this.policy.onContextMenuCommand(
       this.browser,
-      frame(FrameKind.MAIN),
+      this.frame(FrameKind.MAIN),
       mock(CefContextMenuParams.class),
       1,
       0
     );
     assertFalse(commandHandled);
-    this.policy.onContextMenuDismissed(this.browser, frame(FrameKind.MAIN));
+    this.policy.onContextMenuDismissed(this.browser, this.frame(FrameKind.MAIN));
   }
 
   @Test
@@ -417,7 +421,7 @@ class ContentPolicyTest {
     when(blank.getURL()).thenReturn("about:blank");
     this.policy.onLoadingStateChange(blank, true, false, false);
     this.policy.onLoadingStateChange(blank, false, false, false);
-    this.policy.onLoadError(blank, frame(FrameKind.MAIN), CefLoadHandler.ErrorCode.ERR_ABORTED, "aborted", "https://replaced/");
+    this.policy.onLoadError(blank, this.frame(FrameKind.MAIN), CefLoadHandler.ErrorCode.ERR_ABORTED, "aborted", "https://replaced/");
     when(blank.getURL()).thenReturn("https://example.com/");
     this.policy.onLoadingStateChange(blank, false, false, false);
     assertEquals(List.of("loading: false"), this.events.log);
@@ -427,12 +431,12 @@ class ContentPolicyTest {
   void shouldReportTheLoadStateAndErrorsOfThePage() {
     when(this.browser.getURL()).thenReturn("https://x.invalid/");
     this.policy.onLoadingStateChange(this.browser, true, false, false);
-    this.policy.onLoadStart(this.browser, frame(FrameKind.MAIN), CefRequest.TransitionType.TT_EXPLICIT);
-    this.policy.onLoadEnd(this.browser, frame(FrameKind.MAIN), 200);
-    this.policy.onLoadError(this.browser, frame(FrameKind.CHILD), CefLoadHandler.ErrorCode.ERR_ABORTED, "aborted", "https://frame/");
+    this.policy.onLoadStart(this.browser, this.frame(FrameKind.MAIN), CefRequest.TransitionType.TT_EXPLICIT);
+    this.policy.onLoadEnd(this.browser, this.frame(FrameKind.MAIN), 200);
+    this.policy.onLoadError(this.browser, this.frame(FrameKind.CHILD), CefLoadHandler.ErrorCode.ERR_ABORTED, "aborted", "https://frame/");
     this.policy.onLoadError(
       this.browser,
-      frame(FrameKind.MAIN),
+      this.frame(FrameKind.MAIN),
       CefLoadHandler.ErrorCode.ERR_NAME_NOT_RESOLVED,
       "no such host",
       "https://x.invalid/"
@@ -446,9 +450,9 @@ class ContentPolicyTest {
 
   @Test
   void shouldOnlyStartAPageOnANewPageInTheMainFrame() {
-    this.policy.onLoadStart(this.browser, frame(FrameKind.CHILD), CefRequest.TransitionType.TT_AUTO_SUBFRAME);
+    this.policy.onLoadStart(this.browser, this.frame(FrameKind.CHILD), CefRequest.TransitionType.TT_AUTO_SUBFRAME);
     assertEquals(List.of(), this.events.log, "a frame inside the page is part of it");
-    this.policy.onLoadStart(this.browser, frame(FrameKind.MAIN), CefRequest.TransitionType.TT_LINK);
+    this.policy.onLoadStart(this.browser, this.frame(FrameKind.MAIN), CefRequest.TransitionType.TT_LINK);
     assertEquals(List.of("page start"), this.events.log);
   }
 

@@ -212,7 +212,7 @@ final class NetworkGuard implements Closeable {
       this.sockets.add(target);
       try {
         SocksProtocol.writeReply(output, SocksProtocol.SUCCEEDED);
-        relay(input, client, target);
+        this.relay(input, client, target);
       } finally {
         this.sockets.remove(target);
         closeQuietly(target);
@@ -270,22 +270,22 @@ final class NetworkGuard implements Closeable {
   }
 
   // Copies both directions of a connection until one side ends; the caller closes both sockets then.
-  private static void relay(final InputStream fromClient, final Socket client, final Socket target) throws IOException {
+  private void relay(final InputStream fromClient, final Socket client, final Socket target) throws IOException {
     final InputStream fromTarget = target.getInputStream();
     final OutputStream toTarget = target.getOutputStream();
     final OutputStream toClient = client.getOutputStream();
     Thread.ofVirtual()
       .name("mcav-browser-guard-upstream")
-      .start(() -> pumpUpstream(fromClient, toTarget, target));
-    pump(fromTarget, toClient);
+      .start(() -> this.pumpUpstream(fromClient, toTarget, target));
+    this.pump(fromTarget, toClient);
   }
 
-  private static void pumpUpstream(final InputStream fromClient, final OutputStream toTarget, final Socket target) {
-    pump(fromClient, toTarget);
+  private void pumpUpstream(final InputStream fromClient, final OutputStream toTarget, final Socket target) {
+    this.pump(fromClient, toTarget);
     closeQuietly(target);
   }
 
-  private static void pump(final InputStream input, final OutputStream output) {
+  private void pump(final InputStream input, final OutputStream output) {
     final byte[] buffer = new byte[BUFFER_BYTES];
     try {
       int count = input.read(buffer);

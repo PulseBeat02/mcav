@@ -437,14 +437,14 @@ final class HelperSession implements BrowserSession {
 
   private void startThreads(final byte[] token) {
     final InputStream processOutput = this.process.getInputStream();
-    this.drain = startDaemon("mcav-browser-helper-log", () -> this.drainOutput(processOutput));
+    this.drain = this.startDaemon("mcav-browser-helper-log", () -> this.drainOutput(processOutput));
     final InputStream rawInput = Channels.newInputStream(this.channel);
     final DataInputStream input = new DataInputStream(new BufferedInputStream(rawInput, INPUT_BUFFER_BYTES));
-    this.reader = startDaemon("mcav-browser-reader", () -> this.read(input, token));
-    this.delivery = startDaemon("mcav-browser-frames", this::deliverFrames);
+    this.reader = this.startDaemon("mcav-browser-reader", () -> this.read(input, token));
+    this.delivery = this.startDaemon("mcav-browser-frames", this::deliverFrames);
   }
 
-  private static Thread startDaemon(final String name, final Runnable task) {
+  private Thread startDaemon(final String name, final Runnable task) {
     final Thread thread = new Thread(task, name);
     thread.setDaemon(true);
     thread.start();
@@ -576,14 +576,14 @@ final class HelperSession implements BrowserSession {
         // The helper is untrusted, so the server must check the address again.
         final String url = AddressText.describe(message.getUrl());
         final int code = message.getNumber();
-        this.logBudget.log(() -> LOGGER.warn("Page {} failed to load with error {} ({}).", url, text, code), HelperSession::logSkipped);
+        this.logBudget.log(() -> LOGGER.warn("Page {} failed to load with error {} ({}).", url, text, code), this::logSkipped);
         final String reason = "The page failed to load with error %s (%s)!".formatted(text, code);
         final BrowserException failure = new BrowserException(reason);
         this.started.completeExceptionally(failure);
       }
       case HelperProtocol.NOTICE -> {
         final String text = message.getText();
-        this.logBudget.log(() -> LOGGER.debug("Browser: {}", text), HelperSession::logSkipped);
+        this.logBudget.log(() -> LOGGER.debug("Browser: {}", text), this::logSkipped);
       }
       case HelperProtocol.FAILURE -> {
         final String text = message.getText();
@@ -606,7 +606,7 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  private static void logSkipped(final long lines) {
+  private void logSkipped(final long lines) {
     LOGGER.debug("Browser: {} more notices of the page were not logged.", lines);
   }
 
@@ -810,9 +810,9 @@ final class HelperSession implements BrowserSession {
     closeQuietly(this.standardInput);
     closeQuietly(this.channel);
     stopProcess(this.process);
-    join(this.reader);
-    join(this.delivery);
-    join(this.drain);
+    this.join(this.reader);
+    this.join(this.delivery);
+    this.join(this.drain);
     this.canvas.close();
     deleteFolder(this.folder);
   }
@@ -849,7 +849,7 @@ final class HelperSession implements BrowserSession {
     process.waitFor(KILL_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
   }
 
-  private static void join(final Thread thread) {
+  private void join(final Thread thread) {
     final Thread caller = Thread.currentThread();
     if (thread.equals(caller)) {
       return;

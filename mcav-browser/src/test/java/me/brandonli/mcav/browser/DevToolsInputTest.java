@@ -34,7 +34,7 @@ class DevToolsInputTest {
 
   private static final Pattern KEY_FIELD = Pattern.compile("\"key\":(\"[^\"]*\")");
 
-  private static List<String> parameters(final List<DevToolsInput.DevToolsCall> calls) {
+  private List<String> parameters(final List<DevToolsInput.DevToolsCall> calls) {
     final List<String> parameters = new ArrayList<>();
     for (final DevToolsInput.DevToolsCall call : calls) {
       parameters.add(call.getParameters());
@@ -51,20 +51,20 @@ class DevToolsInputTest {
     assertEquals(DevToolsInput.MOUSE_METHOD, method);
     final String moveParameters = move.getFirst().getParameters();
     assertEquals("{\"type\":\"mouseMoved\",\"x\":3,\"y\":4,\"buttons\":0,\"button\":\"none\"}", moveParameters);
-    final List<String> press = parameters(
+    final List<String> press = this.parameters(
       DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 2, HelperProtocol.BUTTON_LEFT, 1, 0, 0), 0)
     );
     assertEquals(List.of("{\"type\":\"mousePressed\",\"x\":1,\"y\":2,\"buttons\":1,\"button\":\"left\",\"clickCount\":1}"), press);
-    final List<String> release = parameters(
+    final List<String> release = this.parameters(
       DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_RELEASE, 1, 2, HelperProtocol.BUTTON_RIGHT, 2, 0, 0), 2)
     );
     assertEquals(List.of("{\"type\":\"mouseReleased\",\"x\":1,\"y\":2,\"buttons\":0,\"button\":\"right\",\"clickCount\":2}"), release);
-    final List<String> middle = parameters(
+    final List<String> middle = this.parameters(
       DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 0, 0, HelperProtocol.BUTTON_MIDDLE, 1, 0, 0), 0)
     );
     final boolean holdsTheMiddleButton = middle.getFirst().contains("\"buttons\":4,\"button\":\"middle\"");
     assertTrue(holdsTheMiddleButton);
-    final List<String> wheel = parameters(DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_WHEEL, 5, 6, 0, 0, -10, 120), 0));
+    final List<String> wheel = this.parameters(DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_WHEEL, 5, 6, 0, 0, -10, 120), 0));
     assertEquals(List.of("{\"type\":\"mouseWheel\",\"x\":5,\"y\":6,\"buttons\":0,\"deltaX\":-10,\"deltaY\":120}"), wheel);
   }
 
@@ -77,7 +77,7 @@ class DevToolsInputTest {
     final MouseInput wheel = new MouseInput(HelperProtocol.MOUSE_WHEEL, 6, 6, HelperProtocol.BUTTON_LEFT, 0, 0, 120);
     int held = DevToolsInput.heldAfter(pressLeft, 0);
     assertEquals(1, held);
-    final List<String> dragParameters = parameters(DevToolsInput.mouse(move, held));
+    final List<String> dragParameters = this.parameters(DevToolsInput.mouse(move, held));
     assertEquals(List.of("{\"type\":\"mouseMoved\",\"x\":6,\"y\":6,\"buttons\":1,\"button\":\"left\"}"), dragParameters);
     final int heldAfterTheMove = DevToolsInput.heldAfter(move, held);
     assertEquals(1, heldAfterTheMove);
@@ -87,7 +87,7 @@ class DevToolsInputTest {
     assertEquals(3, held);
     held = DevToolsInput.heldAfter(releaseLeft, held);
     assertEquals(2, held, "the right button stays held");
-    final boolean dragHoldsTheRightButton = parameters(DevToolsInput.mouse(move, held))
+    final boolean dragHoldsTheRightButton = this.parameters(DevToolsInput.mouse(move, held))
       .getFirst()
       .endsWith("\"buttons\":2,\"button\":\"right\"}");
     assertTrue(dragHoldsTheRightButton);
@@ -102,7 +102,7 @@ class DevToolsInputTest {
     assertEquals(2, pageDownCallCount);
     final String method = pageDown.getFirst().getMethod();
     assertEquals(DevToolsInput.KEY_METHOD, method);
-    final List<String> pageDownParameters = parameters(pageDown);
+    final List<String> pageDownParameters = this.parameters(pageDown);
     assertEquals(
       List.of(
         "{\"type\":\"rawKeyDown\",\"key\":\"PageDown\",\"code\":\"PageDown\",\"windowsVirtualKeyCode\":34}",
@@ -114,7 +114,7 @@ class DevToolsInputTest {
 
   @Test
   void shouldSendTheTextOfKeysThatTypeText() {
-    final List<String> enterParameters = parameters(DevToolsInput.pressKey("Enter"));
+    final List<String> enterParameters = this.parameters(DevToolsInput.pressKey("Enter"));
     assertEquals(
       List.of(
         "{\"type\":\"keyDown\",\"key\":\"Enter\",\"code\":\"Enter\",\"windowsVirtualKeyCode\":13,\"text\":\"\\r\",\"unmodifiedText\":\"\\r\"}",
@@ -122,7 +122,7 @@ class DevToolsInputTest {
       ),
       enterParameters
     );
-    final List<String> space = parameters(DevToolsInput.pressKey(" "));
+    final List<String> space = this.parameters(DevToolsInput.pressKey(" "));
     final boolean spaceHasItsCode = space.getFirst().contains("\"code\":\"Space\"");
     assertTrue(spaceHasItsCode);
     final boolean spaceTypesASpace = space.getFirst().contains("\"text\":\" \"");
@@ -149,7 +149,7 @@ class DevToolsInputTest {
 
   @Test
   void shouldPressAKeyWithoutADefinitionByItsNameAlone() {
-    final List<String> mediaKeyParameters = parameters(DevToolsInput.pressKey("MediaPlayPause"));
+    final List<String> mediaKeyParameters = this.parameters(DevToolsInput.pressKey("MediaPlayPause"));
     assertEquals(
       List.of(
         "{\"type\":\"rawKeyDown\",\"key\":\"MediaPlayPause\",\"windowsVirtualKeyCode\":0}",
@@ -161,7 +161,7 @@ class DevToolsInputTest {
 
   @Test
   void shouldTypeTextOneCharacterAtATime() {
-    final List<String> typed = parameters(DevToolsInput.typeText("a1!"));
+    final List<String> typed = this.parameters(DevToolsInput.typeText("a1!"));
     assertEquals(
       List.of(
         "{\"type\":\"keyDown\",\"key\":\"a\",\"windowsVirtualKeyCode\":65,\"text\":\"a\",\"unmodifiedText\":\"a\"}",
@@ -177,7 +177,7 @@ class DevToolsInputTest {
 
   @Test
   void shouldPressEnterForLineBreaksAndKeepCharactersOutsideTheBasicPlaneWhole() {
-    final List<String> typed = parameters(DevToolsInput.typeText("\n\r\uD83D\uDE00"));
+    final List<String> typed = this.parameters(DevToolsInput.typeText("\n\r\uD83D\uDE00"));
     final int typedCallCount = typed.size();
     assertEquals(6, typedCallCount);
     final boolean firstLineBreakPressesEnter = typed.get(0).contains("\"key\":\"Enter\"");
@@ -192,7 +192,7 @@ class DevToolsInputTest {
 
   @Test
   void shouldPressEnterOnceForAWindowsLineBreak() {
-    final List<String> keys = parameters(DevToolsInput.typeText("a\r\nb\n\r"))
+    final List<String> keys = this.parameters(DevToolsInput.typeText("a\r\nb\n\r"))
       .stream()
       .filter(call -> call.contains("keyDown"))
       .map(this::keyOf)

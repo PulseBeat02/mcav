@@ -40,16 +40,16 @@ final class NavigationPolicyFuzzTest {
     }
     if (NavigationPolicy.allowsNavigation(address, FrameKind.CHILD)) {
       final boolean isAboutPage = address.equals("about:blank") || address.equals("about:srcdoc");
-      final boolean documentedFrameScheme = isAboutPage || hasScheme(lower, "http", "https", "data", "blob");
+      final boolean documentedFrameScheme = isAboutPage || this.hasScheme(lower, "http", "https", "data", "blob");
       assertTrue(documentedFrameScheme, address);
     }
     if (NavigationPolicy.allowsRequest(address)) {
-      final boolean documentedRequestScheme = hasScheme(lower, "http", "https", "ws", "wss", "data", "blob");
+      final boolean documentedRequestScheme = this.hasScheme(lower, "http", "https", "ws", "wss", "data", "blob");
       assertTrue(documentedRequestScheme, address);
     }
   }
 
-  private static boolean hasScheme(final String lower, final String... schemes) {
+  private boolean hasScheme(final String lower, final String... schemes) {
     for (final String scheme : schemes) {
       if (lower.startsWith(scheme + ":")) {
         return true;

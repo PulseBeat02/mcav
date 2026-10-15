@@ -83,7 +83,7 @@ class BrowserHelperTest {
   private final PipedWriter standardInput = new PipedWriter();
   private ServerSocketChannel server;
 
-  private static byte[] token() {
+  private byte[] token() {
     final byte[] token = new byte[HelperProtocol.TOKEN_BYTES];
     token[5] = 5;
 
@@ -97,7 +97,7 @@ class BrowserHelperTest {
   private HelperConfiguration configuration(final String path, final Autoplay autoplay) {
     final boolean allowsAutoplay = autoplay == Autoplay.AT_ONCE;
     return new HelperConfiguration(
-      token(),
+      this.token(),
       this.folder.resolve(SOCKET_NAME),
       this.folder.resolve("natives"),
       this.folder.resolve("profile"),
@@ -161,7 +161,7 @@ class BrowserHelperTest {
     assertEquals(2 * message, soundBytesAfterAPressOnTheNewPage);
   }
 
-  private static SocketChannel connectTo(final Path socket) throws IOException {
+  private SocketChannel connectTo(final Path socket) throws IOException {
     final SocketChannel channel = SocketChannel.open(StandardProtocolFamily.UNIX);
     channel.connect(UnixDomainSocketAddress.of(socket));
 
@@ -172,7 +172,7 @@ class BrowserHelperTest {
     this.server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
     this.server.bind(UnixDomainSocketAddress.of(this.folder.resolve(SOCKET_NAME)));
     final PipedReader reader = new PipedReader(this.standardInput);
-    return CompletableFuture.supplyAsync(() -> helper.run(reader, BrowserHelperTest::connectTo));
+    return CompletableFuture.supplyAsync(() -> helper.run(reader, this::connectTo));
   }
 
   @AfterEach
@@ -194,7 +194,7 @@ class BrowserHelperTest {
       final int helloType = hello.getType();
       assertEquals(HelperProtocol.HELLO, helloType);
       final byte[] helloToken = hello.getToken();
-      assertArrayEquals(token(), helloToken);
+      assertArrayEquals(this.token(), helloToken);
       final String readyText = peer.readUntil(HelperProtocol.READY).getText();
       assertEquals("scripted", readyText);
       final HelperMessage first = peer.readFrameWithBlue(0);
@@ -401,7 +401,7 @@ class BrowserHelperTest {
     final AtomicInteger status,
     final AtomicBoolean interrupted
   ) {
-    status.set(helper.run(reader, BrowserHelperTest::connectTo));
+    status.set(helper.run(reader, this::connectTo));
     interrupted.set(Thread.currentThread().isInterrupted());
   }
 
@@ -491,7 +491,7 @@ class BrowserHelperTest {
     throw new IOException("no server");
   }
 
-  private static void neverHalts(final int status) {
+  private void neverHalts(final int status) {
     throw new AssertionError("the helper halted with " + status);
   }
 
@@ -500,20 +500,20 @@ class BrowserHelperTest {
     final int statusWithoutInput = BrowserHelper.runFromInput(
       new BufferedReader(new StringReader("")),
       new ScriptedEngine(),
-      BrowserHelperTest::neverHalts
+      this::neverHalts
     );
     assertEquals(2, statusWithoutInput);
     final int statusForGarbage = BrowserHelper.runFromInput(
       new BufferedReader(new StringReader("garbage\n")),
       new ScriptedEngine(),
-      BrowserHelperTest::neverHalts
+      this::neverHalts
     );
     assertEquals(2, statusForGarbage);
     final String line = this.configuration(PAGE).toLine() + "\n";
     final int statusForAConfiguration = BrowserHelper.runFromInput(
       new BufferedReader(new StringReader(line)),
       new ScriptedEngine(),
-      BrowserHelperTest::neverHalts
+      this::neverHalts
     );
     assertEquals(1, statusForAConfiguration);
   }
@@ -594,9 +594,9 @@ class BrowserHelperTest {
   void shouldLogWhyTheHelperCannotRun() {
     final String unreachable = this.configuration(PAGE).toLine() + "\n";
     try (final StandardError errors = new StandardError()) {
-      BrowserHelper.runFromInput(new BufferedReader(new StringReader("")), new ScriptedEngine(), BrowserHelperTest::neverHalts);
-      BrowserHelper.runFromInput(new BufferedReader(new StringReader("garbage\n")), new ScriptedEngine(), BrowserHelperTest::neverHalts);
-      BrowserHelper.runFromInput(new BufferedReader(new StringReader(unreachable)), new ScriptedEngine(), BrowserHelperTest::neverHalts);
+      BrowserHelper.runFromInput(new BufferedReader(new StringReader("")), new ScriptedEngine(), this::neverHalts);
+      BrowserHelper.runFromInput(new BufferedReader(new StringReader("garbage\n")), new ScriptedEngine(), this::neverHalts);
+      BrowserHelper.runFromInput(new BufferedReader(new StringReader(unreachable)), new ScriptedEngine(), this::neverHalts);
       final String log = errors.text();
       final boolean reportsTheMissingConfiguration = log.contains("The browser helper got no configuration");
       assertTrue(reportsTheMissingConfiguration, log);
@@ -653,7 +653,7 @@ class BrowserHelperTest {
     Thread.ofPlatform()
       .daemon(false)
       .name("helper-main")
-      .start(() -> result.complete(helper.run(reader, BrowserHelperTest::connectTo)));
+      .start(() -> result.complete(helper.run(reader, this::connectTo)));
 
     return result;
   }
@@ -781,7 +781,7 @@ class BrowserHelperTest {
         throw new IOException("closed");
       }
     };
-    final int statusForABrokenInput = BrowserHelper.runFromInput(broken, new ScriptedEngine(), BrowserHelperTest::neverHalts);
+    final int statusForABrokenInput = BrowserHelper.runFromInput(broken, new ScriptedEngine(), this::neverHalts);
     assertEquals(2, statusForABrokenInput);
   }
 

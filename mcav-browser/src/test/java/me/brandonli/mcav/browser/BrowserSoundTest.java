@@ -145,9 +145,9 @@ class BrowserSoundTest {
     this.awaitSound(recording, 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "two seconds of sound");
     final short[] left = recording.left();
     final int start = left.length - AudioFilter.SAMPLE_RATE;
-    final double frequency = zeroCrossings(left, start) / 2.0;
-    final double level = meanLevel(left, start);
-    final int held = toneWindows(left, start);
+    final double frequency = this.zeroCrossings(left, start) / 2.0;
+    final double level = this.meanLevel(left, start);
+    final int held = this.toneWindows(left, start);
     System.out.printf(
       Locale.ROOT,
       "captured %d frames, zero crossings say %.1f Hz, mean level %.0f, the tone holds in %d of %d windows%n",
@@ -195,7 +195,7 @@ class BrowserSoundTest {
     this.startClicking(player);
     this.awaitSound(recording, 2 * AudioFilter.SAMPLE_RATE * AudioFilter.FRAME_SIZE, "two seconds of sound");
     final short[] left = recording.left();
-    final double frequency = zeroCrossings(left, left.length - AudioFilter.SAMPLE_RATE) / 2.0;
+    final double frequency = this.zeroCrossings(left, left.length - AudioFilter.SAMPLE_RATE) / 2.0;
     final boolean atTheToneFrequency = Math.abs(frequency - TestPages.TONE_HERTZ) < FREQUENCY_TOLERANCE_HERTZ;
     assertTrue(atTheToneFrequency, "after the click the page's own tone plays: " + frequency + " Hz");
   }
@@ -220,7 +220,7 @@ class BrowserSoundTest {
     Thread.sleep(1_000L);
     final short[] left = halfRecording.left();
     final int start = left.length - AudioFilter.SAMPLE_RATE / 2;
-    final double level = meanLevel(left, start);
+    final double level = this.meanLevel(left, start);
     final double full = (2 * TestPages.TONE_AMPLITUDE * Short.MAX_VALUE) / Math.PI;
     System.out.printf(Locale.ROOT, "an element at half volume: mean level %.0f of %.0f at full volume%n", level, full);
     final boolean atHalfVolume = Math.abs(level - full / 2) < full * 0.1;
@@ -248,28 +248,28 @@ class BrowserSoundTest {
     player.getVideoAttachableCallback().attach(VideoPipelineStep.of((image, _) -> this.recordCenterBrightness(picture, image)));
     this.startAndClick(player, "/av-sync");
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(90);
-    while (onsets(picture).size() < 50) {
+    while (this.onsets(picture).size() < 50) {
       final boolean beforeDeadline = System.nanoTime() < deadline;
-      assertTrue(beforeDeadline, "the page turned on " + onsets(picture).size() + " times");
+      assertTrue(beforeDeadline, "the page turned on " + this.onsets(picture).size() + " times");
       Thread.sleep(100L);
     }
     player.release();
     final long matchWindow = TimeUnit.MILLISECONDS.toNanos(TestPages.TOGGLE_MILLISECONDS);
-    final SyncJudgement judgement = SyncJudgement.of(onsets(picture), onsets(sound), matchWindow);
+    final SyncJudgement judgement = SyncJudgement.of(this.onsets(picture), this.onsets(sound), matchWindow);
     final List<Double> offsets = judgement.offsets();
     final int changes = judgement.changes();
     final List<Double> sorted = new ArrayList<>(offsets);
     Collections.sort(sorted);
     final int halfCount = offsets.size() / 2;
-    final double firstHalf = median(offsets.subList(0, halfCount));
-    final double secondHalf = median(offsets.subList(halfCount, offsets.size()));
+    final double firstHalf = this.median(offsets.subList(0, halfCount));
+    final double secondHalf = this.median(offsets.subList(halfCount, offsets.size()));
     final long within = judgement.within(-40, 80);
     System.out.printf(
       Locale.ROOT,
       "A/V sync: %d changes matched of %d, sound minus picture: median %.1f ms, p5 %.1f ms, p95 %.1f ms, %d within [-40, +80] ms; first half %.1f ms, second half %.1f ms%n",
       offsets.size(),
       changes,
-      median(sorted),
+      this.median(sorted),
       sorted.get(sorted.size() / 20),
       sorted.get((sorted.size() * 19) / 20),
       within,
@@ -281,7 +281,7 @@ class BrowserSoundTest {
     System.out.printf(Locale.ROOT, "A/V sync: %d of %d within ITU-R BT.1359 acceptability [-90, +185] ms%n", acceptable, changes);
     final boolean mostChangesMatched = offsets.size() >= Math.ceil(changes * 0.9);
     assertTrue(mostChangesMatched, "matched " + offsets.size() + " of " + changes + " changes of the picture");
-    final double middle = median(sorted);
+    final double middle = this.median(sorted);
     final boolean togetherInTheMiddle = middle >= -40 && middle <= 80;
     assertTrue(togetherInTheMiddle, "the sound and the picture arrive together in the middle: " + middle);
     final boolean mostChangesWithinTarget = within >= Math.ceil(changes * 0.95);
@@ -299,7 +299,7 @@ class BrowserSoundTest {
     final short[] left = leftChannel(copy);
     final int windows = left.length / WINDOW_FRAMES;
     for (int window = 0; window < windows; window++) {
-      final boolean hasTone = toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > TONE_SHARE_THRESHOLD;
+      final boolean hasTone = this.toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > TONE_SHARE_THRESHOLD;
       final long end = (long) (window + 1) * WINDOW_FRAMES;
       final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
       sound.add(new long[] { arrival - before, hasTone ? 1 : 0 });
@@ -338,7 +338,7 @@ class BrowserSoundTest {
     assertEquals(50, changesWithinTarget);
   }
 
-  private static int zeroCrossings(final short[] left, final int start) {
+  private int zeroCrossings(final short[] left, final int start) {
     int crossings = 0;
     for (int index = start + 1; index < left.length; index++) {
       if (left[index - 1] < 0 != left[index] < 0) {
@@ -348,7 +348,7 @@ class BrowserSoundTest {
     return crossings;
   }
 
-  private static double meanLevel(final short[] left, final int start) {
+  private double meanLevel(final short[] left, final int start) {
     double sum = 0;
     for (int index = start; index < left.length; index++) {
       sum += Math.abs(left[index]);
@@ -356,10 +356,10 @@ class BrowserSoundTest {
     return sum / (left.length - start);
   }
 
-  private static int toneWindows(final short[] left, final int start) {
+  private int toneWindows(final short[] left, final int start) {
     int windows = 0;
     for (int window = start; window + WINDOW_FRAMES <= left.length; window += WINDOW_FRAMES) {
-      if (toneShare(left, window, WINDOW_FRAMES) > TONE_SHARE_THRESHOLD) {
+      if (this.toneShare(left, window, WINDOW_FRAMES) > TONE_SHARE_THRESHOLD) {
         windows++;
       }
     }
@@ -367,7 +367,7 @@ class BrowserSoundTest {
   }
 
   // Measures how strong the tone is in a window of the left channel, compared with everything in it (Goertzel).
-  private static double toneShare(final short[] left, final int start, final int length) {
+  private double toneShare(final short[] left, final int start, final int length) {
     final double omega = (2 * Math.PI * TestPages.TONE_HERTZ) / AudioFilter.SAMPLE_RATE;
     final double coefficient = 2 * Math.cos(omega);
     double previous = 0;
@@ -397,7 +397,7 @@ class BrowserSoundTest {
     return left;
   }
 
-  private static double median(final List<Double> values) {
+  private double median(final List<Double> values) {
     final List<Double> sorted = new ArrayList<>(values);
     Collections.sort(sorted);
 
@@ -406,7 +406,7 @@ class BrowserSoundTest {
 
   // Finds the times at which a signal switches on: a sample that is on after one that is off, or after a gap. The page
   // sends no sound while it is silent, so the sound has gaps where the picture has dark frames.
-  private static List<Long> onsets(final List<long[]> samples) {
+  private List<Long> onsets(final List<long[]> samples) {
     final List<long[]> ordered = new ArrayList<>(samples);
     ordered.sort((first, second) -> Long.compare(first[0], second[0]));
     final long gap = TimeUnit.MILLISECONDS.toNanos(60);

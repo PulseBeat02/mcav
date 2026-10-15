@@ -154,7 +154,7 @@ class LinuxLibrariesTest {
     return debianPackage.toByteArray();
   }
 
-  private static byte[] testPackage() throws IOException {
+  private byte[] testPackage() throws IOException {
     return debianPackage(
       Map.of(LIBRARY, "the library".getBytes(StandardCharsets.US_ASCII), "usr/share/doc/libmcavtest1/copyright", new byte[3]),
       Map.of("usr/lib/x86_64-linux-gnu/libmcavtest.so.1", "libmcavtest.so.1.2.3"),
@@ -164,7 +164,7 @@ class LinuxLibrariesTest {
 
   // Builds the start of an ELF file: its magic, class (1 for 32 bits, 2 for 64), byte order (1 little-, 2 big-endian)
   // and machine (62 x86-64, 183 AArch64, 3 i386).
-  private static byte[] elf(final int elfClass, final int order, final int machine) {
+  private byte[] elf(final int elfClass, final int order, final int machine) {
     final byte[] header = new byte[64];
     header[0] = 0x7F;
     header[1] = 'E';
@@ -181,7 +181,7 @@ class LinuxLibrariesTest {
   // Makes the xz data of a package ask its reader for another dictionary size, which the header of its first block
   // holds: the writer puts the block's size, flags without the optional sizes, LZMA2 (0x21) with one byte of
   // properties, padding and the CRC32 of all that.
-  private static byte[] withDictionary(final byte[] debianPackage, final int dictionary) {
+  private byte[] withDictionary(final byte[] debianPackage, final int dictionary) {
     final byte[] patched = debianPackage.clone();
     int stream = 0;
     while (!Arrays.equals(patched, stream, stream + XZ_MAGIC.length, XZ_MAGIC, 0, XZ_MAGIC.length)) {
@@ -203,7 +203,7 @@ class LinuxLibrariesTest {
     return patched;
   }
 
-  private static String sha256(final byte[] bytes) {
+  private String sha256(final byte[] bytes) {
     try {
       return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
     } catch (final NoSuchAlgorithmException exception) {
@@ -211,9 +211,16 @@ class LinuxLibrariesTest {
     }
   }
 
-  private static String pin(final byte[] debianPackage) {
+  private String pin(final byte[] debianPackage) {
     return (
-      "linux-amd64 libmcavtest1 1.2.3-1 " + sha256(debianPackage) + " " + debianPackage.length + " " + POOL + " libmcavtest.so.1=" + LIBRARY
+      "linux-amd64 libmcavtest1 1.2.3-1 " +
+      this.sha256(debianPackage) +
+      " " +
+      debianPackage.length +
+      " " +
+      POOL +
+      " libmcavtest.so.1=" +
+      LIBRARY
     );
   }
 
@@ -234,7 +241,7 @@ class LinuxLibrariesTest {
     if (uri.getHost().equals("broken.test")) {
       throw new IOException("mirror down");
     }
-    if (!sha256.equals(sha256(debianPackage))) {
+    if (!sha256.equals(this.sha256(debianPackage))) {
       throw new IOException("hash mismatch");
     }
     Files.write(destination, debianPackage);
@@ -328,11 +335,11 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldDownloadVerifyAndKeepTheLibrariesAsFilesNamedBySoname() throws IOException {
-    final byte[] debianPackage = testPackage();
+    final byte[] debianPackage = this.testPackage();
     final LinuxLibraries libraries = this.installer(
       debianPackage,
       List.of("https://mirror.test/debian/"),
-      List.of("# a comment", "", pin(debianPackage))
+      List.of("# a comment", "", this.pin(debianPackage))
     );
     final Path installation = libraries.install(PLATFORM);
     assertEquals(List.of(URI.create("https://mirror.test/debian/" + POOL)), this.downloads);
@@ -368,8 +375,12 @@ class LinuxLibrariesTest {
   @Test
   void shouldTakeTheGroupWritePermissionFromLibrariesAnEarlierVersionInstalled() throws IOException {
     assumeTrue(this.folder.getFileSystem().supportedFileAttributeViews().contains("posix"), "This file system has no POSIX permissions!");
-    final byte[] debianPackage = testPackage();
-    final LinuxLibraries libraries = this.installer(debianPackage, List.of("https://mirror.test/debian/"), List.of(pin(debianPackage)));
+    final byte[] debianPackage = this.testPackage();
+    final LinuxLibraries libraries = this.installer(
+      debianPackage,
+      List.of("https://mirror.test/debian/"),
+      List.of(this.pin(debianPackage))
+    );
     final Path installation = libraries.install(PLATFORM);
     final Path cache = this.folder.resolve("cache");
     final Path library = installation.resolve(LIBRARY_NAME);
@@ -390,12 +401,12 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldTryTheNextMirrorWhenTheDownloadOfTheFirstCannotBeMovedIntoPlace() throws IOException {
-    final byte[] debianPackage = testPackage();
+    final byte[] debianPackage = this.testPackage();
     final LinuxLibraries libraries = new LinuxLibraries(
       this.folder.resolve("cache"),
       (uri, destination, _, _) -> this.downloadFailingToMoveFromTheFirstMirror(debianPackage, uri, destination),
       List.of("https://first.test/debian/", "https://second.test/debian/"),
-      List.of(pin(debianPackage))
+      List.of(this.pin(debianPackage))
     );
 
     final Path installation = libraries.install(PLATFORM);
@@ -416,11 +427,11 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldFollowAFailingMirrorWithTheNextAndReportWhenAllFail() throws IOException {
-    final byte[] debianPackage = testPackage();
+    final byte[] debianPackage = this.testPackage();
     final LinuxLibraries fallback = this.installer(
       debianPackage,
       List.of("https://broken.test/debian/", "https://mirror.test/debian/"),
-      List.of(pin(debianPackage))
+      List.of(this.pin(debianPackage))
     );
     fallback.install(PLATFORM);
     final int downloadCount = this.downloads.size();
@@ -430,7 +441,7 @@ class LinuxLibrariesTest {
       this.folder.resolve("other-cache"),
       (uri, destination, _, _) -> this.writeAndFailDownload(uri, destination),
       List.of("https://first.test/debian/", "https://second.test/debian/"),
-      List.of(pin(debianPackage))
+      List.of(this.pin(debianPackage))
     );
     final IOException failure = assertThrows(IOException.class, () -> none.install(PLATFORM));
     final String failureMessage = failure.getMessage();
@@ -495,7 +506,7 @@ class LinuxLibrariesTest {
   @Test
   void shouldNotLetAPackageAskForMoreMemoryThanTheStrongestCompressionOfDpkg() throws IOException {
     final Map<String, String> wanted = Map.of(LIBRARY, LIBRARY_NAME);
-    final byte[] greedy = withDictionary(testPackage(), DICTIONARY_192_MEBIBYTES);
+    final byte[] greedy = this.withDictionary(this.testPackage(), DICTIONARY_192_MEBIBYTES);
     final Path debianPackage = Files.write(this.folder.resolve("greedy.deb"), greedy);
     final Path target = Files.createDirectory(this.folder.resolve("greedy"));
 
@@ -508,7 +519,7 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldReadAPackageCompressedWithTheStrongestCompressionOfDpkg() throws IOException {
-    final byte[] strongest = withDictionary(testPackage(), DICTIONARY_64_MEBIBYTES);
+    final byte[] strongest = this.withDictionary(this.testPackage(), DICTIONARY_64_MEBIBYTES);
     final Path debianPackage = Files.write(this.folder.resolve("strongest.deb"), strongest);
     final Path target = Files.createDirectory(this.folder.resolve("strongest"));
 
@@ -520,7 +531,7 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldWriteLibrariesOnFileSystemsWithoutPosixPermissions() throws IOException {
-    final Path debianPackage = Files.write(this.folder.resolve("package.deb"), testPackage());
+    final Path debianPackage = Files.write(this.folder.resolve("package.deb"), this.testPackage());
     try (final FileSystem zip = FileSystems.newFileSystem(this.folder.resolve("plain.zip"), Map.of("create", "true"))) {
       final Path target = zip.getPath(ROOT);
       LinuxLibraries.extract(debianPackage, Map.of(LIBRARY, LIBRARY_NAME), target);
@@ -532,8 +543,8 @@ class LinuxLibrariesTest {
   @Test
   void shouldOnlyLinkThePackagesTheServerLacksIntoTheSession() throws IOException {
     final Path host = Files.createDirectories(this.folder.resolve("host"));
-    Files.write(host.resolve("libpresent.so.1"), elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
-    Files.write(host.resolve("libz.so.1"), elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
+    Files.write(host.resolve("libpresent.so.1"), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
+    Files.write(host.resolve("libz.so.1"), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
     final String hash = "0".repeat(64);
     final LinuxLibraries libraries = new LinuxLibraries(
       this.folder,
@@ -607,21 +618,21 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldFollowThePinnedHashesInTheFingerprint() throws IOException {
-    final byte[] debianPackage = testPackage();
-    final LinuxLibraries libraries = this.installer(debianPackage, List.of(), List.of(pin(debianPackage)));
+    final byte[] debianPackage = this.testPackage();
+    final LinuxLibraries libraries = this.installer(debianPackage, List.of(), List.of(this.pin(debianPackage)));
     final String fingerprint = LinuxLibraries.fingerprint(libraries.getPins(PLATFORM));
-    assertEquals(sha256(sha256(debianPackage).getBytes(StandardCharsets.US_ASCII)).substring(0, 12), fingerprint);
+    assertEquals(this.sha256(this.sha256(debianPackage).getBytes(StandardCharsets.US_ASCII)).substring(0, 12), fingerprint);
   }
 
   @Test
   @EnabledOnOs(OS.LINUX)
   void shouldLinkTheLibrariesTheServerLacksIntoTheDefaultSessionsOfLinux() throws IOException {
-    final byte[] debianPackage = testPackage();
+    final byte[] debianPackage = this.testPackage();
     final String platform = JcefNatives.detectCurrent().getIdentifier();
     final LinuxLibraries libraries = this.installer(
       debianPackage,
       List.of("https://mirror.test/debian/"),
-      List.of(pin(debianPackage).replace(PLATFORM, platform))
+      List.of(this.pin(debianPackage).replace(PLATFORM, platform))
     );
     final HelperLauncher linux = HelperSessionTest.launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS, Os.LINUX);
     final HelperLauncher withLibraries = CefBrowserPlayer.DefaultSessionFactory.withLibraries(linux, libraries);
@@ -637,16 +648,19 @@ class LinuxLibrariesTest {
   @Test
   @EnabledOnOs(OS.LINUX)
   void shouldDownloadNothingWhenTheServerHasEveryLibrary() throws IOException {
-    final byte[] debianPackage = testPackage();
+    final byte[] debianPackage = this.testPackage();
     final String platform = JcefNatives.detectCurrent().getIdentifier();
     final LinuxLibraries libraries = this.installer(
       debianPackage,
       List.of("https://mirror.test/debian/"),
-      List.of(pin(debianPackage).replace(PLATFORM, platform))
+      List.of(this.pin(debianPackage).replace(PLATFORM, platform))
     );
     final Path root = Files.createDirectories(this.folder.resolve("provisioned"));
     final Path loader = Files.createDirectories(LinuxLibraries.hostFolders(root, platform).getFirst());
-    Files.write(loader.resolve(LIBRARY_NAME), elf(ELF_64_BIT, LITTLE_ENDIAN, platform.endsWith("arm64") ? ARM64_MACHINE : AMD64_MACHINE));
+    Files.write(
+      loader.resolve(LIBRARY_NAME),
+      this.elf(ELF_64_BIT, LITTLE_ENDIAN, platform.endsWith("arm64") ? ARM64_MACHINE : AMD64_MACHINE)
+    );
     final HelperLauncher linux = HelperSessionTest.launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS, Os.LINUX);
     final HelperLauncher launcherWithLibraries = CefBrowserPlayer.DefaultSessionFactory.withLibraries(linux, libraries, root);
     assertSame(linux, launcherWithLibraries);
@@ -656,17 +670,17 @@ class LinuxLibrariesTest {
   @Test
   @EnabledOnOs(OS.LINUX)
   void shouldRefuseAHeadlessJavaRuntimeWithWhatToInstall() throws IOException {
-    final byte[] debianPackage = testPackage();
+    final byte[] debianPackage = this.testPackage();
     final String platform = JcefNatives.detectCurrent().getIdentifier();
     final LinuxLibraries libraries = this.installer(
       debianPackage,
       List.of("https://mirror.test/debian/"),
-      List.of(pin(debianPackage).replace(PLATFORM, platform))
+      List.of(this.pin(debianPackage).replace(PLATFORM, platform))
     );
     // As Ubuntu's openjdk-25-jre-headless: AWT's headless library, but not libjawt.so, which libjcef.so links against
     final Path runtime = Files.createDirectories(this.folder.resolve("java-25-openjdk"));
     final Path library = Files.createDirectories(runtime.resolve("lib"));
-    Files.write(library.resolve("libawt_headless.so"), elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
+    Files.write(library.resolve("libawt_headless.so"), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
     final HelperLauncher headless = new HelperLauncher(
       runtime.resolve("bin").resolve("java"),
       ScriptedEngine.class.getName(),
@@ -688,9 +702,12 @@ class LinuxLibrariesTest {
       message
     );
     assertEquals(List.of(), this.downloads, "no library is downloaded for a runtime the browser cannot use");
-    Files.write(library.resolve("libjawt.so"), elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
+    Files.write(library.resolve("libjawt.so"), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
     final Path loader = Files.createDirectories(LinuxLibraries.hostFolders(server, platform).getFirst());
-    Files.write(loader.resolve(LIBRARY_NAME), elf(ELF_64_BIT, LITTLE_ENDIAN, platform.endsWith("arm64") ? ARM64_MACHINE : AMD64_MACHINE));
+    Files.write(
+      loader.resolve(LIBRARY_NAME),
+      this.elf(ELF_64_BIT, LITTLE_ENDIAN, platform.endsWith("arm64") ? ARM64_MACHINE : AMD64_MACHINE)
+    );
     final HelperLauncher launcherWithLibraries = CefBrowserPlayer.DefaultSessionFactory.withLibraries(headless, libraries, server);
     assertSame(headless, launcherWithLibraries, "a full runtime is used");
   }
@@ -709,8 +726,8 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldNotInstallAgainLibrariesAnotherProcessInstalledWhileThisOneWaited() throws Exception {
-    final byte[] debianPackage = testPackage();
-    final LinuxLibraries libraries = this.installer(debianPackage, List.of("https://deb.test/debian/"), List.of(pin(debianPackage)));
+    final byte[] debianPackage = this.testPackage();
+    final LinuxLibraries libraries = this.installer(debianPackage, List.of("https://deb.test/debian/"), List.of(this.pin(debianPackage)));
     final Path installation = this.folder
       .resolve("cache")
       .resolve("debian-11-linux-amd64-" + LinuxLibraries.fingerprint(libraries.getPins(PLATFORM)));
@@ -755,8 +772,8 @@ class LinuxLibrariesTest {
   @Test
   void shouldCountALibraryOfTheServerOnlyWhenItIsBuiltForThePlatform() throws IOException {
     final Path folder = Files.createDirectories(this.folder.resolve("multiarch"));
-    final Path amd64 = Files.write(folder.resolve("amd64.so"), elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
-    final Path arm64 = Files.write(folder.resolve("arm64.so"), elf(ELF_64_BIT, LITTLE_ENDIAN, ARM64_MACHINE));
+    final Path amd64 = Files.write(folder.resolve("amd64.so"), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE));
+    final Path arm64 = Files.write(folder.resolve("arm64.so"), this.elf(ELF_64_BIT, LITTLE_ENDIAN, ARM64_MACHINE));
     final boolean amd64LibraryFits = LinuxLibraries.isBuiltFor(amd64, PLATFORM);
     assertTrue(amd64LibraryFits);
     final boolean amd64LibraryFitsArm = LinuxLibraries.isBuiltFor(amd64, ARM_PLATFORM);
@@ -764,13 +781,13 @@ class LinuxLibrariesTest {
     final boolean arm64LibraryFits = LinuxLibraries.isBuiltFor(arm64, ARM_PLATFORM);
     assertTrue(arm64LibraryFits);
     final boolean thirtyTwoBitLibraryFits = LinuxLibraries.isBuiltFor(
-      Files.write(folder.resolve("i386.so"), elf(ELF_32_BIT, LITTLE_ENDIAN, I386_MACHINE)),
+      Files.write(folder.resolve("i386.so"), this.elf(ELF_32_BIT, LITTLE_ENDIAN, I386_MACHINE)),
       PLATFORM
     );
     assertFalse(thirtyTwoBitLibraryFits, "32 bits");
-    final boolean bigEndianLibraryFits = LinuxLibraries.isBuiltFor(Files.write(folder.resolve("big.so"), elf(2, 2, 62)), PLATFORM);
+    final boolean bigEndianLibraryFits = LinuxLibraries.isBuiltFor(Files.write(folder.resolve("big.so"), this.elf(2, 2, 62)), PLATFORM);
     assertFalse(bigEndianLibraryFits, "big-endian");
-    final byte[] notElf = elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE);
+    final byte[] notElf = this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE);
     notElf[1] = 'X';
     final boolean textFileFits = LinuxLibraries.isBuiltFor(Files.write(folder.resolve("text.so"), notElf), PLATFORM);
     assertFalse(textFileFits, "no ELF file");
@@ -779,7 +796,7 @@ class LinuxLibrariesTest {
     final boolean missingFileFits = LinuxLibraries.isBuiltFor(folder.resolve("missing.so"), PLATFORM);
     assertFalse(missingFileFits, "no file");
     final Path i386 = Files.createDirectories(this.folder.resolve("i386"));
-    Files.write(i386.resolve("libX11.so.6"), elf(ELF_32_BIT, LITTLE_ENDIAN, I386_MACHINE));
+    Files.write(i386.resolve("libX11.so.6"), this.elf(ELF_32_BIT, LITTLE_ENDIAN, I386_MACHINE));
     final boolean present = LinuxLibraries.isPresent("libX11.so.6", List.of(i386), PLATFORM);
     assertFalse(present);
   }
@@ -800,8 +817,12 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldReplaceAnInstallationThatWasNeverFinished() throws IOException {
-    final byte[] debianPackage = testPackage();
-    final LinuxLibraries libraries = this.installer(debianPackage, List.of("https://mirror.test/debian/"), List.of(pin(debianPackage)));
+    final byte[] debianPackage = this.testPackage();
+    final LinuxLibraries libraries = this.installer(
+      debianPackage,
+      List.of("https://mirror.test/debian/"),
+      List.of(this.pin(debianPackage))
+    );
     final String name = "debian-11-linux-amd64-" + LinuxLibraries.fingerprint(libraries.getPins(PLATFORM));
     final Path unfinished = Files.createDirectories(this.folder.resolve("cache").resolve(name));
     Files.writeString(unfinished.resolve("left-over"), "partial");
@@ -859,14 +880,14 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldFetchAPackageOfTheSecurityUpdatesFromTheirMirrors() throws IOException {
-    final byte[] debianPackage = testPackage();
+    final byte[] debianPackage = this.testPackage();
     final List<URI> asked = new ArrayList<>();
     final LinuxLibraries libraries = new LinuxLibraries(
       this.folder.resolve("security-cache"),
       (uri, destination, _, _) -> this.recordAndWritePackage(asked, debianPackage, uri, destination),
       List.of("https://main.test/debian/"),
       List.of("https://security.test/debian-security/"),
-      List.of(pin(debianPackage).replace(POOL, "pool/updates/main/m/mcavtest/libmcavtest1_1.2.3-1+deb11u1_amd64.deb"))
+      List.of(this.pin(debianPackage).replace(POOL, "pool/updates/main/m/mcavtest/libmcavtest1_1.2.3-1+deb11u1_amd64.deb"))
     );
     libraries.install(PLATFORM);
     assertEquals(

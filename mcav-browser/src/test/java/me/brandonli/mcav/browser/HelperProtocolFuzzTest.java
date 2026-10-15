@@ -43,7 +43,7 @@ final class HelperProtocolFuzzTest {
     try {
       while (true) {
         final HelperMessage message = HelperProtocol.read(in, size -> this.allocatePixels(bytes, size));
-        check(message);
+        this.check(message);
       }
     } catch (final IOException | CutShort exception) {
       // malformed or cut short: the server ends the session
@@ -58,7 +58,7 @@ final class HelperProtocolFuzzTest {
     return new byte[size];
   }
 
-  private static void check(final HelperMessage message) {
+  private void check(final HelperMessage message) {
     final int type = message.getType();
     switch (type) {
       case HelperProtocol.FRAME -> {

@@ -46,7 +46,7 @@ class HelperConfigurationTest {
 
   private static final Pattern FIELD_SEPARATOR = Pattern.compile(":");
 
-  private static byte[] token() {
+  private byte[] token() {
     final byte[] token = new byte[HelperProtocol.TOKEN_BYTES];
     for (int index = 0; index < token.length; index++) {
       token[index] = (byte) (index * 7);
@@ -54,9 +54,9 @@ class HelperConfigurationTest {
     return token;
   }
 
-  private static HelperConfiguration configuration() {
+  private HelperConfiguration configuration() {
     return new HelperConfiguration(
-      token(),
+      this.token(),
       SOCKET,
       NATIVES,
       PROFILE,
@@ -80,7 +80,7 @@ class HelperConfigurationTest {
     final URI longest = URI.create(start + "\u20ac".repeat(BrowserSource.MAXIMUM_ADDRESS_LENGTH - start.length()));
     final Path path = NATIVES.resolve("p".repeat(255)).resolve("q".repeat(255));
     final HelperConfiguration original = new HelperConfiguration(
-      token(),
+      this.token(),
       path,
       path,
       path,
@@ -104,7 +104,7 @@ class HelperConfigurationTest {
   @Test
   void shouldKeepAConfigurationThroughTheLine() {
     final HelperConfiguration original = new HelperConfiguration(
-      token(),
+      this.token(),
       SOCKET,
       NATIVES,
       PROFILE,
@@ -125,7 +125,7 @@ class HelperConfigurationTest {
     assertFalse(breaksTheLine);
     final HelperConfiguration read = HelperConfiguration.fromLine(line);
     final byte[] keptToken = read.getToken();
-    assertArrayEquals(token(), keptToken);
+    assertArrayEquals(this.token(), keptToken);
     final Path socket = read.getSocket();
     assertEquals(SOCKET, socket);
     final Path natives = read.getNatives();
@@ -154,7 +154,7 @@ class HelperConfigurationTest {
     assertEquals(SERVER, serverFolder);
     final List<String> keptRefusedHosts = read.getRefusedHosts();
     assertEquals(List.of("mc.example.com", "203.0.113.5", "2001:db8::1"), keptRefusedHosts);
-    final HelperConfiguration defaults = HelperConfiguration.fromLine(configuration().toLine());
+    final HelperConfiguration defaults = HelperConfiguration.fromLine(this.configuration().toLine());
     final boolean defaultJavaScriptJit = defaults.isJavaScriptJit();
     assertFalse(defaultJavaScriptJit);
     final boolean defaultPrivateNetworks = defaults.isPrivateNetworks();
@@ -169,7 +169,7 @@ class HelperConfigurationTest {
 
   @Test
   void shouldCopyTheTokenInAndOut() {
-    final byte[] token = token();
+    final byte[] token = this.token();
     final HelperConfiguration configuration = new HelperConfiguration(
       token,
       SOCKET,
@@ -224,7 +224,23 @@ class HelperConfigurationTest {
       final String refusedMessage = refused.getMessage();
       assertEquals("Host %s is not a host name or address!".formatted(host), refusedMessage);
     }
-    new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 4096, 4096, 1000, 60, false, false, false, false, SERVER, List.of());
+    new HelperConfiguration(
+      this.token(),
+      SOCKET,
+      NATIVES,
+      PROFILE,
+      page,
+      4096,
+      4096,
+      1000,
+      60,
+      false,
+      false,
+      false,
+      false,
+      SERVER,
+      List.of()
+    );
   }
 
   private HelperConfiguration configurationWithToken(final byte[] token, final URI url) {
@@ -232,7 +248,7 @@ class HelperConfigurationTest {
   }
 
   private HelperConfiguration configurationWithPaths(final Path socket, final Path natives, final Path profile, final URI url) {
-    return new HelperConfiguration(token(), socket, natives, profile, url, 1, 1, 1, 1, false, false, false, false, SERVER, List.of());
+    return new HelperConfiguration(this.token(), socket, natives, profile, url, 1, 1, 1, 1, false, false, false, false, SERVER, List.of());
   }
 
   private HelperConfiguration configurationOf(
@@ -243,7 +259,7 @@ class HelperConfigurationTest {
     final int frameRate
   ) {
     return new HelperConfiguration(
-      token(),
+      this.token(),
       SOCKET,
       NATIVES,
       PROFILE,
@@ -263,7 +279,7 @@ class HelperConfigurationTest {
 
   private HelperConfiguration confinedConfiguration(final URI url, final Path serverFolder, final List<String> refusedHosts) {
     return new HelperConfiguration(
-      token(),
+      this.token(),
       SOCKET,
       NATIVES,
       PROFILE,
@@ -281,43 +297,43 @@ class HelperConfigurationTest {
     );
   }
 
-  private static String[] parts(final HelperConfiguration configuration) {
+  private String[] parts(final HelperConfiguration configuration) {
     return FIELD_SEPARATOR.split(configuration.toLine(), -1);
   }
 
-  private static String encode(final String value) {
+  private String encode(final String value) {
     return Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8));
   }
 
-  private static String withValue(final int index, final String value) {
-    final String[] parts = parts(configuration());
-    parts[index] = encode(value);
+  private String withValue(final int index, final String value) {
+    final String[] parts = this.parts(this.configuration());
+    parts[index] = this.encode(value);
 
     return String.join(":", parts);
   }
 
   @Test
   void shouldRefuseALineWithTooFewOrTooManyValues() {
-    final String[] parts = parts(configuration());
+    final String[] parts = this.parts(this.configuration());
     final String missing = String.join(":", Arrays.copyOf(parts, parts.length - 1));
     final IllegalArgumentException tooFew = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(missing));
     final String message = tooFew.getMessage();
     assertEquals("The configuration has 14 values instead of 15 values!", message);
-    final String extra = configuration().toLine() + ":" + encode("x");
+    final String extra = this.configuration().toLine() + ":" + this.encode("x");
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(extra));
   }
 
   @Test
   void shouldRefuseALineWithAnInvalidValue() {
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(9, "yes")));
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(10, "TRUE")));
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(12, "on")));
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(13, "relative")));
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(14, "mc.example.com,,10.0.0.1")));
-    assertThrows(NumberFormatException.class, () -> HelperConfiguration.fromLine(withValue(5, "wide")));
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(0, "zz")));
-    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(4, "file:///etc/passwd")));
-    final String[] invalidEncoding = parts(configuration());
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(9, "yes")));
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(10, "TRUE")));
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(12, "on")));
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(13, "relative")));
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(14, "mc.example.com,,10.0.0.1")));
+    assertThrows(NumberFormatException.class, () -> HelperConfiguration.fromLine(this.withValue(5, "wide")));
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(0, "zz")));
+    assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(this.withValue(4, "file:///etc/passwd")));
+    final String[] invalidEncoding = this.parts(this.configuration());
     invalidEncoding[3] = "!" + invalidEncoding[3];
     final String line = String.join(":", invalidEncoding);
     final IllegalArgumentException malformed = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(line));

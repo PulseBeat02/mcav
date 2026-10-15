@@ -152,7 +152,7 @@ class AddressPolicyTest {
     assertFalse(straySuffixBitJudgedPublic);
   }
 
-  private static InetAddress[] addresses(final String... texts) throws UnknownHostException {
+  private InetAddress[] addresses(final String... texts) throws UnknownHostException {
     final InetAddress[] addresses = new InetAddress[texts.length];
     for (int index = 0; index < texts.length; index++) {
       addresses[index] = InetAddress.getByName(texts[index]);
@@ -160,7 +160,7 @@ class AddressPolicyTest {
     return addresses;
   }
 
-  private static boolean isPublic(final String text, final List<AddressPolicy.TranslationPrefix> prefixes) throws UnknownHostException {
+  private boolean isPublic(final String text, final List<AddressPolicy.TranslationPrefix> prefixes) throws UnknownHostException {
     return AddressPolicy.isPublic(InetAddress.getByName(text), prefixes);
   }
 
@@ -184,7 +184,7 @@ class AddressPolicyTest {
     final String publicAddress
   ) throws UnknownHostException {
     final List<AddressPolicy.TranslationPrefix> prefixes = AddressPolicy.findTranslationPrefixes(
-      addresses("192.0.0.170", first, "192.0.0.171", second)
+      this.addresses("192.0.0.170", first, "192.0.0.171", second)
     );
     final int prefixCount = prefixes.size();
     assertEquals(1, prefixCount, "both well-known addresses give the same prefix");
@@ -192,66 +192,69 @@ class AddressPolicyTest {
     assertEquals(length, prefixLength);
     final boolean privateJudgedPublicWithoutPrefix = AddressPolicy.isPublic(InetAddress.getByName(privateAddress));
     assertTrue(privateJudgedPublicWithoutPrefix, "without the prefix it looks like any address");
-    final boolean privateJudgedPublic = isPublic(privateAddress, prefixes);
+    final boolean privateJudgedPublic = this.isPublic(privateAddress, prefixes);
     assertFalse(privateJudgedPublic, privateAddress);
-    final boolean metadataServiceJudgedPublic = isPublic(metadataService, prefixes);
+    final boolean metadataServiceJudgedPublic = this.isPublic(metadataService, prefixes);
     assertFalse(metadataServiceJudgedPublic, metadataService);
-    final boolean publicAddressJudgedPublic = isPublic(publicAddress, prefixes);
+    final boolean publicAddressJudgedPublic = this.isPublic(publicAddress, prefixes);
     assertTrue(publicAddressJudgedPublic, publicAddress);
-    final boolean outsidePrefixJudgedPublic = isPublic("2606:4700:4700::1111", prefixes);
+    final boolean outsidePrefixJudgedPublic = this.isPublic("2606:4700:4700::1111", prefixes);
     assertTrue(outsidePrefixJudgedPublic, "an address outside the prefix is judged as before");
-    final boolean untranslatedPrivateJudgedPublic = isPublic("10.0.0.1", prefixes);
+    final boolean untranslatedPrivateJudgedPublic = this.isPublic("10.0.0.1", prefixes);
     assertFalse(untranslatedPrivateJudgedPublic);
-    final boolean untranslatedPublicJudgedPublic = isPublic("8.8.8.8", prefixes);
+    final boolean untranslatedPublicJudgedPublic = this.isPublic("8.8.8.8", prefixes);
     assertTrue(untranslatedPublicJudgedPublic);
   }
 
   @Test
   void shouldFindNoPrefixInANetworkWithoutTranslation() throws UnknownHostException {
-    final int ipv4PrefixCount = AddressPolicy.findTranslationPrefixes(addresses("192.0.0.170", "192.0.0.171")).size();
+    final int ipv4PrefixCount = AddressPolicy.findTranslationPrefixes(this.addresses("192.0.0.170", "192.0.0.171")).size();
     assertEquals(0, ipv4PrefixCount);
     final int unrelatedPrefixCount = AddressPolicy.findTranslationPrefixes(
-      addresses("2a01:4f8:1:2:3:4:5:6", "2a01:4f8:1:2:3:4:c000:ac")
+      this.addresses("2a01:4f8:1:2:3:4:5:6", "2a01:4f8:1:2:3:4:c000:ac")
     ).size();
     assertEquals(0, unrelatedPrefixCount);
-    final int singleAnswerPrefixCount = AddressPolicy.findTranslationPrefixes(addresses("2a01:4f8:1:2:1c0:0:aa00:0")).size();
+    final int singleAnswerPrefixCount = AddressPolicy.findTranslationPrefixes(this.addresses("2a01:4f8:1:2:1c0:0:aa00:0")).size();
     assertEquals(0, singleAnswerPrefixCount);
   }
 
   @Test
   void shouldOnlyTranslateAPrefixInGlobalUnicastOrWellKnownNat64Space() throws UnknownHostException {
     for (final String forged : new String[] { "fe80::c000:aa", "fd00::c000:aa", "ff02::c000:aa", "2001:db8::c000:aa", "2002::c000:aa" }) {
-      final List<AddressPolicy.TranslationPrefix> translationPrefixes = AddressPolicy.findTranslationPrefixes(addresses(forged));
+      final List<AddressPolicy.TranslationPrefix> translationPrefixes = AddressPolicy.findTranslationPrefixes(this.addresses(forged));
       assertEquals(List.of(), translationPrefixes, forged);
     }
-    final boolean linkLocalJudgedPublic = isPublic("fe80::808:808", AddressPolicy.findTranslationPrefixes(addresses("fe80::c000:aa")));
+    final boolean linkLocalJudgedPublic = this.isPublic(
+      "fe80::808:808",
+      AddressPolicy.findTranslationPrefixes(this.addresses("fe80::c000:aa"))
+    );
     assertFalse(linkLocalJudgedPublic);
-    final List<AddressPolicy.TranslationPrefix> local = AddressPolicy.findTranslationPrefixes(addresses("64:ff9b:1::c000:aa"));
+    final List<AddressPolicy.TranslationPrefix> local = AddressPolicy.findTranslationPrefixes(this.addresses("64:ff9b:1::c000:aa"));
     final int localPrefixCount = local.size();
     assertEquals(1, localPrefixCount);
-    final boolean embeddedPublicJudgedPublic = isPublic("64:ff9b:1::808:808", local);
+    final boolean embeddedPublicJudgedPublic = this.isPublic("64:ff9b:1::808:808", local);
     assertTrue(embeddedPublicJudgedPublic);
-    final boolean embeddedPrivateJudgedPublic = isPublic("64:ff9b:1::a00:1", local);
+    final boolean embeddedPrivateJudgedPublic = this.isPublic("64:ff9b:1::a00:1", local);
     assertFalse(embeddedPrivateJudgedPublic);
   }
 
   @Test
   void shouldRequireAnAddressInsideSeveralPrefixesToEmbedAPublicAddressInEach() throws UnknownHostException {
     final List<AddressPolicy.TranslationPrefix> nested = AddressPolicy.findTranslationPrefixes(
-      addresses("2a01:4f8:c000:aa::", "2a01:4f8:1:2:3:4:c000:aa")
+      this.addresses("2a01:4f8:c000:aa::", "2a01:4f8:1:2:3:4:c000:aa")
     );
     final int nestedPrefixCount = nested.size();
     assertEquals(2, nestedPrefixCount);
-    final boolean nestedJudgedPublic = isPublic("2a01:4f8:1:2:3:4:808:808", nested);
+    final boolean nestedJudgedPublic = this.isPublic("2a01:4f8:1:2:3:4:808:808", nested);
     assertFalse(nestedJudgedPublic);
     final List<AddressPolicy.TranslationPrefix> separate = AddressPolicy.findTranslationPrefixes(
-      addresses("2a01:4f8:1:2:3:4:c000:aa", "2a01:4f9:1:2:3:4:c000:aa")
+      this.addresses("2a01:4f8:1:2:3:4:c000:aa", "2a01:4f9:1:2:3:4:c000:aa")
     );
     final int separatePrefixCount = separate.size();
     assertEquals(2, separatePrefixCount);
-    final boolean embeddedPublicJudgedPublic = isPublic("2a01:4f9:1:2:3:4:808:808", separate);
+    final boolean embeddedPublicJudgedPublic = this.isPublic("2a01:4f9:1:2:3:4:808:808", separate);
     assertTrue(embeddedPublicJudgedPublic);
-    final boolean embeddedPrivateJudgedPublic = isPublic("2a01:4f9:1:2:3:4:a00:1", separate);
+    final boolean embeddedPrivateJudgedPublic = this.isPublic("2a01:4f9:1:2:3:4:a00:1", separate);
     assertFalse(embeddedPrivateJudgedPublic);
   }
 

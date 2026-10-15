@@ -159,9 +159,9 @@ class LandlockTest {
     assertSame(exhausted, thrown);
   }
 
-  private static Throwable onThread(final ThrowingTask task) throws InterruptedException {
+  private Throwable onThread(final ThrowingTask task) throws InterruptedException {
     final AtomicReference<Throwable> failure = new AtomicReference<>();
-    final Thread thread = new Thread(() -> runAndRecordFailure(task, failure), "landlock-test");
+    final Thread thread = new Thread(() -> this.runAndRecordFailure(task, failure), "landlock-test");
     thread.start();
     thread.join(TimeUnit.SECONDS.toMillis(60));
     final boolean ended = !thread.isAlive();
@@ -170,7 +170,7 @@ class LandlockTest {
     return failure.get();
   }
 
-  private static void runAndRecordFailure(final ThrowingTask task, final AtomicReference<Throwable> failure) {
+  private void runAndRecordFailure(final ThrowingTask task, final AtomicReference<Throwable> failure) {
     try {
       task.run();
     } catch (final Throwable exception) {
@@ -178,7 +178,7 @@ class LandlockTest {
     }
   }
 
-  private static int availableVersion() {
+  private int availableVersion() {
     final int version = Landlock.version();
     assumeTrue(version >= 1, () -> "This kernel cannot restrict (%s)!".formatted(Landlock.describeMissing(version)));
 
@@ -188,9 +188,9 @@ class LandlockTest {
   @Test
   @EnabledOnOs(OS.LINUX)
   void shouldRefuseRightsTheKernelDoesNotKnowWithItsErrorNumber() throws InterruptedException {
-    final int version = availableVersion();
+    final int version = this.availableVersion();
     assumeTrue(version < 5, () -> "This kernel already knows every right of the fifth version (Landlock %s)!".formatted(version));
-    final Throwable failure = onThread(() -> Landlock.restrictThread(5, List.of()));
+    final Throwable failure = this.onThread(() -> Landlock.restrictThread(5, List.of()));
     assertInstanceOf(IOException.class, failure);
     final String message = failure.getMessage();
     assertEquals("Landlock could not create a ruleset (error 22)!", message);
@@ -199,7 +199,7 @@ class LandlockTest {
   @Test
   @EnabledOnOs(OS.LINUX)
   void shouldLetARestrictedThreadAndItsChildThreadReachOnlyWhatItsRulesGrant() throws Exception {
-    final int version = availableVersion();
+    final int version = this.availableVersion();
     final Path hidden = Files.createDirectories(this.folder.resolve("hidden"));
     final Path secret = Files.writeString(hidden.resolve("secret.txt"), "secret");
     final Path granted = Files.writeString(hidden.resolve("granted.txt"), "granted");
@@ -211,7 +211,9 @@ class LandlockTest {
     );
     rules.add(new Landlock.Rule(this.folder.resolve("deleted"), false));
     final List<String> seen = new ArrayList<>();
-    final Throwable failure = onThread(() -> this.restrictAndCheckAccess(version, rules, seen, readable, granted, secret, open, writable));
+    final Throwable failure = this.onThread(() ->
+      this.restrictAndCheckAccess(version, rules, seen, readable, granted, secret, open, writable)
+    );
     assertNull(failure, () -> "the restricted thread failed: " + failure);
     assertEquals(List.of("readable", "granted", "new.txt"), seen);
     final String secretText = Files.readString(secret, StandardCharsets.UTF_8);
@@ -249,7 +251,7 @@ class LandlockTest {
   @Test
   @EnabledOnOs(OS.LINUX)
   void shouldRestrictAProcessStartedByARestrictedThreadToo() throws Exception {
-    availableVersion();
+    this.availableVersion();
     final Path hidden = Files.createDirectories(this.folder.resolve("hidden"));
     final Path secret = Files.writeString(hidden.resolve("secret.txt"), "secret");
     final String java = Path.of(System.getProperty("java.home"), "bin", "java").toString();

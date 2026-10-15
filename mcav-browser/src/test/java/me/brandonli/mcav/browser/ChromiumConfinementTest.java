@@ -79,7 +79,7 @@ class ChromiumConfinementTest {
   }
 
   // Sorts the rules of the walk, whose order is the file system's; the readable and writable rules come last.
-  private static List<Landlock.Rule> walkSorted(final List<Landlock.Rule> rules, final int given) {
+  private List<Landlock.Rule> walkSorted(final List<Landlock.Rule> rules, final int given) {
     final List<Landlock.Rule> sorted = new ArrayList<>(rules.subList(0, rules.size() - given));
     sorted.sort(Comparator.comparing(Landlock.Rule::path));
     sorted.addAll(rules.subList(rules.size() - given, rules.size()));
@@ -100,7 +100,7 @@ class ChromiumConfinementTest {
     final Path session = root.resolve("session");
     final List<Path> hidden = List.of(home, root, root.resolve(MISSING_NAME));
     final List<Landlock.Rule> rules = ChromiumConfinement.rules(root, hidden, List.of(natives), List.of(session));
-    final List<Landlock.Rule> walkedRules = walkSorted(rules, 2);
+    final List<Landlock.Rule> walkedRules = this.walkSorted(rules, 2);
     assertEquals(
       List.of(
         new Landlock.Rule(file, false),

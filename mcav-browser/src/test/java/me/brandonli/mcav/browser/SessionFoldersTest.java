@@ -49,7 +49,7 @@ class SessionFoldersTest {
   @TempDir
   private Path temporary;
 
-  private static ProcessHandle server(final long processId, final Optional<Instant> started) {
+  private ProcessHandle server(final long processId, final Optional<Instant> started) {
     final ProcessHandle server = mock(ProcessHandle.class);
     final ProcessHandle.Info information = mock(ProcessHandle.Info.class);
     when(server.pid()).thenReturn(processId);
@@ -69,7 +69,7 @@ class SessionFoldersTest {
 
   @Test
   void shouldRemoveTheFolderOfAServerThatIsGoneAndKeepThatOfARunningOne() throws IOException {
-    final Path gone = this.folderOf(server(GONE, Optional.of(Instant.parse("2026-10-05T00:00:00Z"))));
+    final Path gone = this.folderOf(this.server(GONE, Optional.of(Instant.parse("2026-10-05T00:00:00Z"))));
     final Path running = this.folderOf(ProcessHandle.current());
     final String ownerRecord = Files.readString(gone.resolve(SessionFolders.OWNER_FILE), StandardCharsets.US_ASCII);
     assertEquals(GONE + LINE_SEPARATOR + "2026-10-05T00:00:00Z" + LINE_SEPARATOR, ownerRecord);
@@ -86,7 +86,7 @@ class SessionFoldersTest {
   @Test
   void shouldTreatAServerWhoseIdAnotherProcessTookAsGone() throws IOException {
     final long reused = ProcessHandle.current().pid();
-    final Path folder = this.folderOf(server(reused, Optional.of(Instant.parse(OLD_START))));
+    final Path folder = this.folderOf(this.server(reused, Optional.of(Instant.parse(OLD_START))));
     final int removedCount = SessionFolders.ofThisServer().removeStale(this.temporary);
     assertEquals(1, removedCount);
     final boolean folderLeft = Files.exists(folder);
@@ -95,7 +95,7 @@ class SessionFoldersTest {
 
   @Test
   void shouldLeaveAFolderThatNamesNoServerOrNoneThatCanBeReadAlone() throws IOException {
-    final Path unnamed = this.folderOf(server(GONE, Optional.empty()));
+    final Path unnamed = this.folderOf(this.server(GONE, Optional.empty()));
     final boolean recordWritten = Files.exists(unnamed.resolve(SessionFolders.OWNER_FILE));
     assertFalse(recordWritten, "a server of unknown start names nothing");
     final Path garbage = Files.createDirectory(this.temporary.resolve(SessionFolders.PREFIX + "garbage"));
@@ -126,10 +126,10 @@ class SessionFoldersTest {
 
   @Test
   void shouldLeaveAFolderOfAnotherUserAloneEvenIfItsRecordNamesAServerThatIsGone() throws IOException {
-    final Path planted = this.folderOf(server(GONE, Optional.of(Instant.parse("2026-10-05T00:00:00Z"))));
-    final ProcessHandle serverOfAnotherUser = server(ProcessHandle.current().pid(), ProcessHandle.current().info().startInstant());
+    final Path planted = this.folderOf(this.server(GONE, Optional.of(Instant.parse("2026-10-05T00:00:00Z"))));
+    final ProcessHandle serverOfAnotherUser = this.server(ProcessHandle.current().pid(), ProcessHandle.current().info().startInstant());
     when(serverOfAnotherUser.info().user()).thenReturn(Optional.of("not-" + Files.getOwner(planted).getName()));
-    final ProcessHandle serverOfNoKnownUser = server(ProcessHandle.current().pid(), ProcessHandle.current().info().startInstant());
+    final ProcessHandle serverOfNoKnownUser = this.server(ProcessHandle.current().pid(), ProcessHandle.current().info().startInstant());
     when(serverOfNoKnownUser.info().user()).thenReturn(Optional.empty());
 
     if (planted.getFileSystem().supportedFileAttributeViews().contains("posix")) {
@@ -151,7 +151,7 @@ class SessionFoldersTest {
 
   @Test
   void shouldRemoveAFolderOnAFileSystemWithoutOwnersByItsRecordAlone() throws IOException {
-    final ProcessHandle serverOfAnotherUser = server(ProcessHandle.current().pid(), ProcessHandle.current().info().startInstant());
+    final ProcessHandle serverOfAnotherUser = this.server(ProcessHandle.current().pid(), ProcessHandle.current().info().startInstant());
     when(serverOfAnotherUser.info().user()).thenReturn(Optional.of("someone-else"));
     final Path zip = this.temporary.resolve("folders.zip");
     try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true"))) {

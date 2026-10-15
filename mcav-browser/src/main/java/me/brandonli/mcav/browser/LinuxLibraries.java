@@ -225,7 +225,10 @@ final class LinuxLibraries {
       throw new IllegalArgumentException(message);
     }
 
-    host.put(requireMatch(PLATFORM, fields.get(1), line), requireSonames(fields.subList(HOST_FIRST_SONAME_FIELD, fields.size()), line));
+    host.put(
+      requireMatch(PLATFORM, fields.get(1), line),
+      this.requireSonames(fields.subList(HOST_FIRST_SONAME_FIELD, fields.size()), line)
+    );
   }
 
   private static Path defaultFolder() {
@@ -257,7 +260,7 @@ final class LinuxLibraries {
     return value;
   }
 
-  private static List<String> requireSonames(final List<String> sonames, final String line) {
+  private List<String> requireSonames(@UnderInitialization LinuxLibraries this, final List<String> sonames, final String line) {
     for (final String soname : sonames) {
       requireMatch(SONAME, soname, line);
     }

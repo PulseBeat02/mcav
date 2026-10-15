@@ -107,7 +107,7 @@ class NullDisplayTest {
     return request.array();
   }
 
-  private static byte[] internAtom(final ByteOrder order, final String name) {
+  private byte[] internAtom(final ByteOrder order, final String name) {
     final byte[] bytes = name.getBytes(StandardCharsets.ISO_8859_1);
     final ByteBuffer body = ByteBuffer.allocate(4 + bytes.length).order(order);
     body.putShort((short) bytes.length);
@@ -121,7 +121,7 @@ class NullDisplayTest {
     return ((length + 3) / 4) * 4;
   }
 
-  private static byte[] concat(final byte[]... parts) {
+  private byte[] concat(final byte[]... parts) {
     final ByteArrayOutputStream all = new ByteArrayOutputStream();
     for (final byte[] part : parts) {
       all.writeBytes(part);
@@ -130,16 +130,21 @@ class NullDisplayTest {
   }
 
   // Serves a whole conversation and returns what the display answered after its setup reply.
-  private static ByteBuffer converse(final ByteOrder order, final NullDisplay.Atoms atoms, final byte[]... requests) throws IOException {
+  private ByteBuffer converse(final ByteOrder order, final NullDisplay.Atoms atoms, final byte[]... requests) throws IOException {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
-    NullDisplay.serve(new ByteArrayInputStream(concat(setup(order, 11, COOKIE_NAME, COOKIE), concat(requests))), output, COOKIE, atoms);
+    NullDisplay.serve(
+      new ByteArrayInputStream(this.concat(setup(order, 11, COOKIE_NAME, COOKIE), this.concat(requests))),
+      output,
+      COOKIE,
+      atoms
+    );
     final byte[] all = output.toByteArray();
     final int setupBytes = NullDisplay.createSetupReply(order).limit();
     return ByteBuffer.wrap(Arrays.copyOfRange(all, setupBytes, all.length)).order(order);
   }
 
-  private static ByteBuffer converse(final byte[]... requests) throws IOException {
-    return converse(ByteOrder.LITTLE_ENDIAN, new NullDisplay.Atoms(), requests);
+  private ByteBuffer converse(final byte[]... requests) throws IOException {
+    return this.converse(ByteOrder.LITTLE_ENDIAN, new NullDisplay.Atoms(), requests);
   }
 
   @Test
@@ -177,7 +182,11 @@ class NullDisplayTest {
 
   @Test
   void shouldAnswerABigEndianClientInItsOwnOrder() throws IOException {
-    final ByteBuffer answers = converse(ByteOrder.BIG_ENDIAN, new NullDisplay.Atoms(), internAtom(ByteOrder.BIG_ENDIAN, "PRIMARY"));
+    final ByteBuffer answers = this.converse(
+      ByteOrder.BIG_ENDIAN,
+      new NullDisplay.Atoms(),
+      this.internAtom(ByteOrder.BIG_ENDIAN, "PRIMARY")
+    );
     final short sequenceNumber = answers.getShort(2);
     assertEquals(1, sequenceNumber, "the sequence number");
     final int primaryAtom = answers.getInt(8);
@@ -238,11 +247,11 @@ class NullDisplayTest {
   @Test
   void shouldInternAtomsOnceAndNameThem() throws IOException {
     final NullDisplay.Atoms atoms = new NullDisplay.Atoms();
-    final ByteBuffer answers = converse(
+    final ByteBuffer answers = this.converse(
       ByteOrder.LITTLE_ENDIAN,
       atoms,
-      internAtom(ByteOrder.LITTLE_ENDIAN, "_NET_SUPPORTED"),
-      internAtom(ByteOrder.LITTLE_ENDIAN, "_NET_SUPPORTED"),
+      this.internAtom(ByteOrder.LITTLE_ENDIAN, "_NET_SUPPORTED"),
+      this.internAtom(ByteOrder.LITTLE_ENDIAN, "_NET_SUPPORTED"),
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.GET_ATOM_NAME, 0, new byte[] { 69, 0, 0, 0 }),
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.GET_ATOM_NAME, 0, new byte[] { 0x0F, 0x27, 0, 0 })
     );
@@ -282,7 +291,7 @@ class NullDisplayTest {
 
   @Test
   void shouldGiveNoWindowPropertiesAndOfferNoExtension() throws IOException {
-    final ByteBuffer answers = converse(
+    final ByteBuffer answers = this.converse(
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.GET_PROPERTY, 0, new byte[20]),
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.QUERY_EXTENSION, 0, new byte[] { 3, 0, 0, 0, 'G', 'L', 'X', 0 }),
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.LIST_EXTENSIONS, 0, new byte[0]),
@@ -304,7 +313,7 @@ class NullDisplayTest {
 
   @Test
   void shouldGiveTheKeyboardNoSymbolsAndNoModifiers() throws IOException {
-    final ByteBuffer answers = converse(
+    final ByteBuffer answers = this.converse(
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.GET_KEYBOARD_MAPPING, 0, new byte[] { 8, (byte) 248, 0, 0 }),
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.GET_MODIFIER_MAPPING, 0, new byte[0])
     );
@@ -324,7 +333,7 @@ class NullDisplayTest {
   @Test
   void shouldGiveWindowsAttributesAGeometryATreeAndAPointer() throws IOException {
     final byte[] window = { 0, 1, 0, 0 };
-    final ByteBuffer answers = converse(
+    final ByteBuffer answers = this.converse(
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.GET_WINDOW_ATTRIBUTES, 0, window),
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.GET_GEOMETRY, 0, window),
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.QUERY_TREE, 0, window),
@@ -361,7 +370,7 @@ class NullDisplayTest {
 
   @Test
   void shouldDiscardRequestsWithoutAReplyAndFailOthers() throws IOException {
-    final ByteBuffer answers = converse(
+    final ByteBuffer answers = this.converse(
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.CREATE_WINDOW, 24, new byte[28]),
       request(ByteOrder.LITTLE_ENDIAN, 4, 0, new byte[4]),
       request(ByteOrder.LITTLE_ENDIAN, 21, 0, new byte[4]),
@@ -387,9 +396,9 @@ class NullDisplayTest {
 
   @Test
   void shouldSkipARequestOfNoOpcodeAllowAnAtomWithAnEmptyNameAndFailTheFirstExtensionOpcode() throws IOException {
-    final ByteBuffer answers = converse(
+    final ByteBuffer answers = this.converse(
       request(ByteOrder.LITTLE_ENDIAN, 0, 0, new byte[0]),
-      internAtom(ByteOrder.LITTLE_ENDIAN, ""),
+      this.internAtom(ByteOrder.LITTLE_ENDIAN, ""),
       request(ByteOrder.LITTLE_ENDIAN, 128, 0, new byte[0])
     );
     final int answerBytes = answers.limit();
@@ -422,9 +431,9 @@ class NullDisplayTest {
       final boolean allDaemons = threads.stream().allMatch(Thread::isDaemon);
       assertTrue(allDaemons, "the display never keeps the helper alive");
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring(DISPLAY_PREFIX.length()));
-      try (final Socket client = introduce(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), port, cookieOf(authority))) {
+      try (final Socket client = this.introduce(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), port, this.cookieOf(authority))) {
         Await.until("the client is counted", () -> display.countClients() == 1);
-        final boolean atomInterned = internsAnAtom(client);
+        final boolean atomInterned = this.internsAnAtom(client);
         assertTrue(atomInterned);
       }
       Await.until("the client is gone", () -> display.countClients() == 0);
@@ -438,15 +447,15 @@ class NullDisplayTest {
     try (final NullDisplay display = NullDisplay.start(authority)) {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring(DISPLAY_PREFIX.length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
-      final byte[] cookie = cookieOf(authority);
+      final byte[] cookie = this.cookieOf(authority);
       for (int count = 0; count < NullDisplay.MAXIMUM_CONNECTIONS; count++) {
-        clients.add(introduce(loopback, port, cookie));
+        clients.add(this.introduce(loopback, port, cookie));
       }
       clients.removeFirst().close();
       Await.until("the client that left is gone", () -> display.countClients() == NullDisplay.MAXIMUM_CONNECTIONS - 1);
       Thread.sleep(200L);
-      try (final Socket next = introduce(loopback, port, cookie)) {
-        final boolean atomInterned = internsAnAtom(next);
+      try (final Socket next = this.introduce(loopback, port, cookie)) {
+        final boolean atomInterned = this.internsAnAtom(next);
         assertTrue(atomInterned, "one try is enough, with no client refused before");
       }
     } finally {
@@ -459,7 +468,7 @@ class NullDisplayTest {
   @Test
   void shouldFailRequestsTooShortForTheirFieldsWithALengthError() throws IOException {
     final byte[] longName = new byte[] { 50, 0, 0, 0, 'a', 'b', 'c', 'd' };
-    final ByteBuffer answers = converse(
+    final ByteBuffer answers = this.converse(
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.INTERN_ATOM, 0, new byte[0]),
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.INTERN_ATOM, 0, longName),
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.GET_ATOM_NAME, 0, new byte[0]),
@@ -481,22 +490,22 @@ class NullDisplayTest {
   @Test
   void shouldEndTheConnectionOnARequestOfNoUnitsOrMoreThanTheLimit() {
     final byte[] empty = { 43, 0, 0, 0 };
-    final ProtocolException zero = assertThrows(ProtocolException.class, () -> converse(empty));
+    final ProtocolException zero = assertThrows(ProtocolException.class, () -> this.converse(empty));
     final String zeroMessage = zero.getMessage();
     assertEquals("A request of 0 units must have 1 to 16384 units!", zeroMessage);
     final byte[] huge = { 43, 0, 1, 64 };
-    final ProtocolException tooLong = assertThrows(ProtocolException.class, () -> converse(huge));
+    final ProtocolException tooLong = assertThrows(ProtocolException.class, () -> this.converse(huge));
     final String tooLongMessage = tooLong.getMessage();
     assertEquals("A request of 16385 units must have 1 to 16384 units!", tooLongMessage);
     final byte[] longest = new byte[NullDisplay.MAXIMUM_REQUEST_UNITS * 4];
     longest[0] = 127;
     longest[2] = 0;
     longest[3] = 64;
-    final int answerBytes = assertDoesNotFail(() -> converse(longest)).limit();
+    final int answerBytes = this.assertDoesNotFail(() -> this.converse(longest)).limit();
     assertEquals(0, answerBytes);
   }
 
-  private static ByteBuffer assertDoesNotFail(final IoSupplier supplier) {
+  private ByteBuffer assertDoesNotFail(final IoSupplier supplier) {
     try {
       return supplier.get();
     } catch (final IOException exception) {
@@ -556,7 +565,7 @@ class NullDisplayTest {
       try (final Socket client = new Socket(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), port)) {
         client.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         final OutputStream output = client.getOutputStream();
-        output.write(concat(setup(cookie), internAtom(ByteOrder.LITTLE_ENDIAN, "CLIPBOARD")));
+        output.write(this.concat(setup(cookie), this.internAtom(ByteOrder.LITTLE_ENDIAN, "CLIPBOARD")));
         output.flush();
         final DataInputStream input = new DataInputStream(client.getInputStream());
         final byte[] accepted = new byte[NullDisplay.createSetupReply(ByteOrder.LITTLE_ENDIAN).limit()];
@@ -568,14 +577,14 @@ class NullDisplayTest {
         final int internedAtom = ByteBuffer.wrap(atom).order(ByteOrder.LITTLE_ENDIAN).getInt(8);
         assertEquals(69, internedAtom);
         display.close();
-        assertEnded(client.getInputStream());
+        this.assertEnded(client.getInputStream());
       }
     } finally {
       display.close();
     }
   }
 
-  private static void assertEnded(final InputStream input) throws IOException {
+  private void assertEnded(final InputStream input) throws IOException {
     try {
       final int nextByte = input.read();
       assertEquals(-1, nextByte);
@@ -584,12 +593,12 @@ class NullDisplayTest {
     }
   }
 
-  private static byte[] cookieOf(final Path authority) throws IOException {
+  private byte[] cookieOf(final Path authority) throws IOException {
     final byte[] entry = Files.readAllBytes(authority);
     return Arrays.copyOfRange(entry, entry.length - NullDisplay.COOKIE_BYTES, entry.length);
   }
 
-  private static Socket introduce(final InetAddress loopback, final int port, final byte[] cookie) throws IOException {
+  private Socket introduce(final InetAddress loopback, final int port, final byte[] cookie) throws IOException {
     final Socket client = new Socket(loopback, port);
     client.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
     client.getOutputStream().write(setup(cookie));
@@ -598,17 +607,17 @@ class NullDisplayTest {
     return client;
   }
 
-  private static boolean internsAnAtom(final Socket client) throws IOException {
-    client.getOutputStream().write(internAtom(ByteOrder.LITTLE_ENDIAN, "PRIMARY"));
+  private boolean internsAnAtom(final Socket client) throws IOException {
+    client.getOutputStream().write(this.internAtom(ByteOrder.LITTLE_ENDIAN, "PRIMARY"));
     final byte[] reply = new byte[32];
     new DataInputStream(client.getInputStream()).readFully(reply);
 
     return reply[0] == 1;
   }
 
-  private static boolean isServed(final Socket client) {
+  private boolean isServed(final Socket client) {
     try {
-      return internsAnAtom(client);
+      return this.internsAnAtom(client);
     } catch (final IOException exception) {
       return false;
     }
@@ -624,9 +633,9 @@ class NullDisplayTest {
     try (final NullDisplay display = NullDisplay.start(authority)) {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring(DISPLAY_PREFIX.length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
-      final byte[] cookie = cookieOf(authority);
+      final byte[] cookie = this.cookieOf(authority);
       for (int count = 0; count <= NullDisplay.MAXIMUM_CONNECTIONS; count++) {
-        clients.add(introduce(loopback, port, cookie));
+        clients.add(this.introduce(loopback, port, cookie));
       }
       final List<Socket> served = this.servedClients(clients);
       final int servedCount = served.size();
@@ -643,7 +652,7 @@ class NullDisplayTest {
   private List<Socket> servedClients(final List<Socket> clients) {
     final List<Socket> served = new ArrayList<>();
     for (final Socket client : clients) {
-      if (isServed(client)) {
+      if (this.isServed(client)) {
         served.add(client);
       }
     }
@@ -651,8 +660,8 @@ class NullDisplayTest {
   }
 
   private boolean isANewClientServed(final InetAddress loopback, final int port, final byte[] cookie) {
-    try (final Socket next = introduce(loopback, port, cookie)) {
-      return internsAnAtom(next);
+    try (final Socket next = this.introduce(loopback, port, cookie)) {
+      return this.internsAnAtom(next);
     } catch (final IOException exception) {
       return false;
     }
@@ -672,11 +681,11 @@ class NullDisplayTest {
         client.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         silent.add(client);
       }
-      try (final Socket introduced = introduce(loopback, port, cookieOf(authority))) {
-        final boolean atomInterned = internsAnAtom(introduced);
+      try (final Socket introduced = this.introduce(loopback, port, this.cookieOf(authority))) {
+        final boolean atomInterned = this.internsAnAtom(introduced);
         assertTrue(atomInterned, "the client with the cookie is served");
       }
-      assertEnded(silent.getFirst().getInputStream());
+      this.assertEnded(silent.getFirst().getInputStream());
       final Socket second = silent.get(1);
       second.setSoTimeout(300);
       assertThrows(SocketTimeoutException.class, () -> second.getInputStream().read(), "the second client still waits");
@@ -714,8 +723,8 @@ class NullDisplayTest {
         assertTrue(namesTheMissingCookie);
       }
       Await.until("the refused client is gone", () -> display.countClients() == NullDisplay.MAXIMUM_PENDING - 1);
-      try (final Socket introduced = introduce(loopback, port, cookieOf(authority))) {
-        final boolean atomInterned = internsAnAtom(introduced);
+      try (final Socket introduced = this.introduce(loopback, port, this.cookieOf(authority))) {
+        final boolean atomInterned = this.internsAnAtom(introduced);
         assertTrue(atomInterned, "the client with the cookie is served");
       }
       final Socket oldest = silent.getFirst();
@@ -741,8 +750,8 @@ class NullDisplayTest {
         client.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         silent.add(client);
       }
-      try (final Socket served = introduce(loopback, port, cookieOf(authority))) {
-        final boolean servedInternsAtom = internsAnAtom(served);
+      try (final Socket served = this.introduce(loopback, port, this.cookieOf(authority))) {
+        final boolean servedInternsAtom = this.internsAnAtom(served);
         assertTrue(servedInternsAtom, "the client with the cookie is served, and stays");
         final Socket newcomer = new Socket(loopback, port);
         newcomer.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
@@ -760,8 +769,8 @@ class NullDisplayTest {
   }
 
   private void assertASecondClientIsServed(final InetAddress loopback, final int port, final Path authority) throws IOException {
-    try (final Socket second = introduce(loopback, port, cookieOf(authority))) {
-      final boolean secondInternsAtom = internsAnAtom(second);
+    try (final Socket second = this.introduce(loopback, port, this.cookieOf(authority))) {
+      final boolean secondInternsAtom = this.internsAnAtom(second);
       assertTrue(secondInternsAtom, "the second client with the cookie is served");
     }
   }
@@ -772,7 +781,7 @@ class NullDisplayTest {
     final ByteBuffer asked = NullDisplay.answer(
       16,
       1,
-      requestOf(internAtom(ByteOrder.LITTLE_ENDIAN, "MCAV_NEW")),
+      this.requestOf(this.internAtom(ByteOrder.LITTLE_ENDIAN, "MCAV_NEW")),
       1,
       ByteOrder.LITTLE_ENDIAN,
       atoms
@@ -784,7 +793,7 @@ class NullDisplayTest {
     final ByteBuffer interned = NullDisplay.answer(
       16,
       0,
-      requestOf(internAtom(ByteOrder.LITTLE_ENDIAN, "MCAV_NEW")),
+      this.requestOf(this.internAtom(ByteOrder.LITTLE_ENDIAN, "MCAV_NEW")),
       2,
       ByteOrder.LITTLE_ENDIAN,
       atoms
@@ -793,7 +802,7 @@ class NullDisplayTest {
     final int existingAtom = NullDisplay.answer(
       16,
       1,
-      requestOf(internAtom(ByteOrder.LITTLE_ENDIAN, "MCAV_NEW")),
+      this.requestOf(this.internAtom(ByteOrder.LITTLE_ENDIAN, "MCAV_NEW")),
       3,
       ByteOrder.LITTLE_ENDIAN,
       atoms
@@ -804,7 +813,7 @@ class NullDisplayTest {
   }
 
   // The body of a request: what follows its opcode, data byte and length.
-  private static ByteBuffer requestOf(final byte[] request) {
+  private ByteBuffer requestOf(final byte[] request) {
     return ByteBuffer.wrap(Arrays.copyOfRange(request, 4, request.length)).order(ByteOrder.LITTLE_ENDIAN);
   }
 
@@ -968,7 +977,7 @@ class NullDisplayTest {
         final int nextByte = silent.getInputStream().read();
         assertEquals(-1, nextByte, "the display ends a connection that never introduced itself");
         Thread.sleep(600L);
-        introduced.getOutputStream().write(internAtom(ByteOrder.LITTLE_ENDIAN, "CLIPBOARD"));
+        introduced.getOutputStream().write(this.internAtom(ByteOrder.LITTLE_ENDIAN, "CLIPBOARD"));
         final byte[] atom = new byte[32];
         input.readFully(atom);
         final byte responseType = atom[0];

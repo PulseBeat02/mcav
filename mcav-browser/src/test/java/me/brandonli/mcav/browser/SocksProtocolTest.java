@@ -36,7 +36,7 @@ import org.junit.jupiter.api.Test;
 
 class SocksProtocolTest {
 
-  private static DataInputStream input(final int... bytes) {
+  private DataInputStream input(final int... bytes) {
     final byte[] data = new byte[bytes.length];
     for (int index = 0; index < bytes.length; index++) {
       data[index] = (byte) bytes[index];
@@ -59,47 +59,47 @@ class SocksProtocolTest {
     return bytes.toByteArray();
   }
 
-  private static SocksProtocol.Request request(final byte[] bytes) throws IOException {
+  private SocksProtocol.Request request(final byte[] bytes) throws IOException {
     return SocksProtocol.readRequest(new DataInputStream(new ByteArrayInputStream(bytes)));
   }
 
   @Test
   void shouldRequireAGreetingToOfferToGoWithoutAuthentication() throws IOException {
-    final boolean onlyMethodAccepted = SocksProtocol.readGreeting(input(5, 1, 0));
+    final boolean onlyMethodAccepted = SocksProtocol.readGreeting(this.input(5, 1, 0));
     assertTrue(onlyMethodAccepted);
-    final boolean lastMethodAccepted = SocksProtocol.readGreeting(input(5, 3, 2, 1, 0));
+    final boolean lastMethodAccepted = SocksProtocol.readGreeting(this.input(5, 3, 2, 1, 0));
     assertTrue(lastMethodAccepted);
-    final boolean firstMethodAccepted = SocksProtocol.readGreeting(input(5, 2, 0, 1));
+    final boolean firstMethodAccepted = SocksProtocol.readGreeting(this.input(5, 2, 0, 1));
     assertTrue(firstMethodAccepted, "no authentication stays chosen after other methods");
-    final boolean authenticationOnlyAccepted = SocksProtocol.readGreeting(input(5, 2, 1, 2));
+    final boolean authenticationOnlyAccepted = SocksProtocol.readGreeting(this.input(5, 2, 1, 2));
     assertFalse(authenticationOnlyAccepted);
   }
 
   @Test
   void shouldRefuseAMalformedGreeting() {
-    final ProtocolException version = assertThrows(ProtocolException.class, () -> SocksProtocol.readGreeting(input(4, 1, 0)));
+    final ProtocolException version = assertThrows(ProtocolException.class, () -> SocksProtocol.readGreeting(this.input(4, 1, 0)));
     final String versionMessage = version.getMessage();
     assertEquals("SOCKS version 4 of the client is not SOCKS 5!", versionMessage);
-    final ProtocolException empty = assertThrows(ProtocolException.class, () -> SocksProtocol.readGreeting(input(5, 0)));
+    final ProtocolException empty = assertThrows(ProtocolException.class, () -> SocksProtocol.readGreeting(this.input(5, 0)));
     final String emptyMessage = empty.getMessage();
     assertEquals("The greeting offers no method!", emptyMessage);
-    assertThrows(EOFException.class, () -> SocksProtocol.readGreeting(input(5, 2, 0)));
+    assertThrows(EOFException.class, () -> SocksProtocol.readGreeting(this.input(5, 2, 0)));
   }
 
   @Test
   void shouldReadAHostNameOrAnAddressFromAConnectionRequest() throws IOException {
-    final SocksProtocol.Request named = request(domainRequest(SocksProtocol.CONNECT, "Example-1.test_x", 443));
+    final SocksProtocol.Request named = this.request(domainRequest(SocksProtocol.CONNECT, "Example-1.test_x", 443));
     final String namedHost = named.getHost();
     assertEquals("Example-1.test_x", namedHost);
     final int namedPort = named.getPort();
     assertEquals(443, namedPort);
-    final SocksProtocol.Request ipv4 = SocksProtocol.readRequest(input(5, 1, 0, 1, 93, 184, 216, 34, 0, 80));
+    final SocksProtocol.Request ipv4 = SocksProtocol.readRequest(this.input(5, 1, 0, 1, 93, 184, 216, 34, 0, 80));
     final String ipv4Host = ipv4.getHost();
     assertEquals("93.184.216.34", ipv4Host);
     final int ipv4Port = ipv4.getPort();
     assertEquals(80, ipv4Port);
     final SocksProtocol.Request ipv6 = SocksProtocol.readRequest(
-      input(5, 1, 0, 4, 0x26, 0x06, 0x47, 0, 0x47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x11, 0x11, 0xFF, 0xFF)
+      this.input(5, 1, 0, 4, 0x26, 0x06, 0x47, 0, 0x47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x11, 0x11, 0xFF, 0xFF)
     );
     final String ipv6Host = ipv6.getHost();
     assertEquals("2606:4700:4700:0:0:0:0:1111", ipv6Host);
@@ -109,7 +109,7 @@ class SocksProtocolTest {
 
   @Test
   void shouldRefuseRequestsTheGuardDoesNotServeWithTheirReplyCode() {
-    final SocksProtocol.Refusal bind = assertThrows(SocksProtocol.Refusal.class, () -> request(domainRequest(2, "a.test", 80)));
+    final SocksProtocol.Refusal bind = assertThrows(SocksProtocol.Refusal.class, () -> this.request(domainRequest(2, "a.test", 80)));
     final int bindReply = bind.getReply();
     assertEquals(SocksProtocol.COMMAND_NOT_SUPPORTED, bindReply);
     final String bindMessage = bind.getMessage();
@@ -117,7 +117,9 @@ class SocksProtocolTest {
     final SocksProtocol.Refusal portZero = assertThrows(SocksProtocol.Refusal.class, () -> this.requestAConnection("a.test", 0));
     final int portZeroReply = portZero.getReply();
     assertEquals(SocksProtocol.NOT_ALLOWED, portZeroReply);
-    final SocksProtocol.Refusal type = assertThrows(SocksProtocol.Refusal.class, () -> SocksProtocol.readRequest(input(5, 1, 0, 9, 1, 2)));
+    final SocksProtocol.Refusal type = assertThrows(SocksProtocol.Refusal.class, () ->
+      SocksProtocol.readRequest(this.input(5, 1, 0, 9, 1, 2))
+    );
     final int typeReply = type.getReply();
     assertEquals(SocksProtocol.ADDRESS_NOT_SUPPORTED, typeReply);
     final String typeMessage = type.getMessage();
@@ -125,22 +127,22 @@ class SocksProtocolTest {
   }
 
   private SocksProtocol.Request requestAConnection(final String host, final int port) throws IOException {
-    return request(domainRequest(SocksProtocol.CONNECT, host, port));
+    return this.request(domainRequest(SocksProtocol.CONNECT, host, port));
   }
 
   @Test
   void shouldRefuseAMalformedRequest() {
-    assertThrows(ProtocolException.class, () -> SocksProtocol.readRequest(input(4, 1, 0, 1)));
-    final ProtocolException reserved = assertThrows(ProtocolException.class, () -> SocksProtocol.readRequest(input(5, 1, 7, 1)));
+    assertThrows(ProtocolException.class, () -> SocksProtocol.readRequest(this.input(4, 1, 0, 1)));
+    final ProtocolException reserved = assertThrows(ProtocolException.class, () -> SocksProtocol.readRequest(this.input(5, 1, 7, 1)));
     final String reservedMessage = reserved.getMessage();
     assertEquals("Reserved byte 7 of the request must be 0!", reservedMessage);
-    final ProtocolException empty = assertThrows(ProtocolException.class, () -> SocksProtocol.readRequest(input(5, 1, 0, 3, 0)));
+    final ProtocolException empty = assertThrows(ProtocolException.class, () -> SocksProtocol.readRequest(this.input(5, 1, 0, 3, 0)));
     final String emptyMessage = empty.getMessage();
     assertEquals("The request names an empty host!", emptyMessage);
     final ProtocolException character = assertThrows(ProtocolException.class, () -> this.requestAConnection("a b", 80));
     final String characterMessage = character.getMessage();
     assertEquals("Byte 32 is not allowed in the host name of the request!", characterMessage);
-    assertThrows(EOFException.class, () -> SocksProtocol.readRequest(input(5, 1, 0, 3, 5, 'a')));
+    assertThrows(EOFException.class, () -> SocksProtocol.readRequest(this.input(5, 1, 0, 3, 5, 'a')));
   }
 
   @Test
@@ -164,16 +166,16 @@ class SocksProtocolTest {
 
   @Test
   void shouldReadAnIpv6AddressNamedAsAHostAsTheAddress() throws IOException {
-    final String compressedIpv6Host = request(domainRequest(1, "2606:4700:4700::1111", 80)).getHost();
+    final String compressedIpv6Host = this.request(domainRequest(1, "2606:4700:4700::1111", 80)).getHost();
     assertEquals("2606:4700:4700:0:0:0:0:1111", compressedIpv6Host);
-    final String bracketedIpv6Host = request(domainRequest(1, "[2606:4700:4700::1111]", 80)).getHost();
+    final String bracketedIpv6Host = this.request(domainRequest(1, "[2606:4700:4700::1111]", 80)).getHost();
     assertEquals("2606:4700:4700:0:0:0:0:1111", bracketedIpv6Host);
-    final String loopbackHost = request(domainRequest(1, "::1", 80)).getHost();
+    final String loopbackHost = this.request(domainRequest(1, "::1", 80)).getHost();
     assertEquals("0:0:0:0:0:0:0:1", loopbackHost);
-    final String mappedIpv4Host = request(domainRequest(1, "::ffff:10.0.0.1", 80)).getHost();
+    final String mappedIpv4Host = this.request(domainRequest(1, "::ffff:10.0.0.1", 80)).getHost();
     assertEquals("10.0.0.1", mappedIpv4Host);
     for (final String bad : new String[] { "2606::zz::1", "1.2.3.4:80", "[::1", "exa[mple]", "exam]ple", "fe80::1%eth0" }) {
-      assertThrows(ProtocolException.class, () -> request(domainRequest(1, bad, 80)), bad);
+      assertThrows(ProtocolException.class, () -> this.request(domainRequest(1, bad, 80)), bad);
     }
   }
 

@@ -359,13 +359,13 @@ final class PageAudio implements CefDevToolsClient.EventListener {
 
     this.speaker = chunk.context();
 
-    if (!isSilent(chunk.samples())) {
+    if (!this.isSilent(chunk.samples())) {
       this.spoken = now;
     }
     return true;
   }
 
-  private static boolean isSilent(final byte[] samples) {
+  private boolean isSilent(final byte[] samples) {
     for (final byte sample : samples) {
       if (sample != 0) {
         return false;

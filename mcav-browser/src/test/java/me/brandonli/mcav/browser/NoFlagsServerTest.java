@@ -67,13 +67,13 @@ class NoFlagsServerTest {
       environment.remove("JAVA_TOOL_OPTIONS");
       environment.remove("JDK_JAVA_OPTIONS");
       environment.put("CLASSPATH", System.getProperty("java.class.path"));
-      final String path = withoutXServers(environment.getOrDefault("PATH", ""));
+      final String path = this.withoutXServers(environment.getOrDefault("PATH", ""));
       environment.put("PATH", path);
       System.out.println("PATH of the server: " + path);
       builder.redirectErrorStream(true);
       final Process process = builder.start();
       final ByteArrayOutputStream output = new ByteArrayOutputStream();
-      final Thread drain = new Thread(() -> copy(process.getInputStream(), output), "no-flags-output");
+      final Thread drain = new Thread(() -> this.copy(process.getInputStream(), output), "no-flags-output");
       drain.start();
       final boolean exited = process.waitFor(TIMEOUT_MINUTES, TimeUnit.MINUTES);
       if (!exited) {
@@ -100,19 +100,19 @@ class NoFlagsServerTest {
     final boolean madeExecutable = server.toFile().setExecutable(true);
     assertTrue(madeExecutable, "the fake X server is executable");
     final String path = String.join(File.pathSeparator, withX.toString(), "", plain.toString());
-    final String filteredPath = withoutXServers(path);
+    final String filteredPath = this.withoutXServers(path);
     assertEquals(plain.toString(), filteredPath);
   }
 
   // Removes the folders that hold an X server from a PATH, and its empty entries.
-  private static String withoutXServers(final String path) {
+  private String withoutXServers(final String path) {
     return Arrays.stream(path.split(File.pathSeparator))
       .filter(entry -> !entry.isEmpty())
       .filter(entry -> X_SERVERS.stream().noneMatch(name -> Files.isExecutable(Path.of(entry, name))))
       .collect(Collectors.joining(File.pathSeparator));
   }
 
-  private static void copy(final InputStream input, final ByteArrayOutputStream output) {
+  private void copy(final InputStream input, final ByteArrayOutputStream output) {
     try (input) {
       input.transferTo(output);
     } catch (final IOException exception) {
