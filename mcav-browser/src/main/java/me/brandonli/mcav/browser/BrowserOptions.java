@@ -24,11 +24,11 @@ import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Immutable options for how a {@link BrowserPlayer} treats pages; instances may be shared across threads.
- * The defaults suit untrusted web content: the browser runs
- * without the Chromium sandbox, which the embedded browser cannot use, so JavaScript runs without V8's just-in-time
- * compiler, the part of Chromium most exploits target. Pages load slower that way; turn it back on only for pages you
- * trust.
+ * Immutable options for how a {@link BrowserPlayer} treats pages.
+ *
+ * <p>The defaults suit untrusted web content: the browser runs without the Chromium sandbox, which the embedded
+ * browser cannot use, so JavaScript runs without V8's just-in-time compiler, the part of Chromium most exploits
+ * target. Pages load slower that way; turn it back on only for pages you trust.
  *
  * <p>Pages reach public addresses of the internet only, by default: every connection of the browser goes through a
  * guard in the helper process that resolves the host itself and refuses loopback, private, link-local (such as the
@@ -42,6 +42,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * change files only in the folder of their session. A page that exploits a flaw of Chromium then cannot read the
  * server's configuration or change its files. The confinement needs Landlock, which Linux has since 5.13, or Seatbelt
  * on macOS; on Windows, and on an older Linux kernel, the browser runs as before and the server log says so.
+ *
+ * <p>This class is immutable and thread-safe; options may be shared by any number of players.
  *
  * <pre>{@code
  *   final BrowserOptions options = BrowserOptions.builder().frameRate(30).build();

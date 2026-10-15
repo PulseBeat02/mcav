@@ -56,6 +56,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * standard input ended, it halts if it has not stopped within {@value #STOP_DEADLINE_MILLISECONDS} ms, so a browser that hangs
  * never outlives the server. It is not meant to be started by hand.
  *
+ * <p>This class is not thread-safe; the JVM calls {@link #main(String[])} once per helper process.
+ *
  * @since 1.0.0
  */
 public final class BrowserHelper {

@@ -31,6 +31,8 @@ import me.brandonli.mcav.module.MCAVModule;
  * module can start browsers again. Starting it also removes the folders of browser sessions that a killed server
  * left in the temporary folder.
  *
+ * <p>This class is thread-safe: {@link #start()} and {@link #stop()} may be called from any thread.
+ *
  * @since 1.0.0
  */
 public final class BrowserModule implements MCAVModule {

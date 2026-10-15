@@ -27,6 +27,8 @@ import me.brandonli.mcav.media.source.uri.UriSource;
  * The factories create immutable sources and perform no network access. Address-policy checks, including
  * the default restriction on private networks, happen when the browser loads the page.
  *
+ * <p>Sources are immutable and thread-safe.
+ *
  * @since 1.0.0
  */
 public interface BrowserSource extends UriSource {

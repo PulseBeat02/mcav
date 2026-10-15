@@ -69,6 +69,9 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  * Video and audio callbacks run on background threads; images are closed after the video callback, so copy
  * anything retained beyond the callback. Exception handlers must be fast and must not throw.
  *
+ * <p>Players are thread-safe: {@link #start(BrowserSource)}, {@link #release()} and the input methods may be called
+ * from any thread.
+ *
  * @since 1.0.0
  */
 public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {

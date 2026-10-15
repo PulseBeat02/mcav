@@ -45,6 +45,9 @@ import org.cef.handler.CefScreenInfo;
  * {@link #setFocus} ignores calls that do not change the focus, because {@link CefClient#onGotFocus} gives the browser
  * focus again from inside the focus event, which otherwise recurses through CEF until the stack overflows.
  *
+ * <p>This class is thread-safe: the focus state is guarded by the browser's lock and the size of the page never
+ * changes. JCEF calls the render handler methods on CEF's user-interface thread.
+ *
  * @since 1.0.0
  */
 public final class McavOffscreenBrowser extends CefBrowser_N implements CefRenderHandler {
@@ -339,6 +342,9 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
 
   /**
    * Receives the painted frames of a browser.
+   *
+   * <p>The methods are called on CEF's user-interface thread; an implementation that shares state with other threads
+   * must guard it.
    *
    * @since 1.0.0
    */
