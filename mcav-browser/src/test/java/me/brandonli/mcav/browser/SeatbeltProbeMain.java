@@ -100,6 +100,7 @@ final class SeatbeltProbeMain {
     return refused ? "denied" : "failed: " + failure;
   }
 
+  // sandbox_check is called through the restricted native linker; the probe runs with native access enabled
   @SuppressWarnings("restricted")
   private static int sandboxCheck() throws Throwable {
     final Linker linker = Linker.nativeLinker();

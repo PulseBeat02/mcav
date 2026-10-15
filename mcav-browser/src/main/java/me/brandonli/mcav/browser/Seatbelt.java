@@ -89,6 +89,7 @@ final class Seatbelt {
    * @param profile the profile
    * @throws IOException if the library has no Seatbelt or refuses the profile
    */
+  // sandbox_init is called through the restricted native linker; the helper starts with native access enabled
   @SuppressWarnings("restricted")
   void restrictProcess(final String profile) throws IOException {
     final Optional<MemorySegment> init = this.library.find(SANDBOX_INIT);

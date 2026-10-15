@@ -464,6 +464,7 @@ class CefBrowserIntegrationTest {
     }
   }
 
+  // sandbox_check is called through the restricted native linker; the tests run with native access enabled
   @SuppressWarnings("restricted")
   private static boolean isSandboxed(final long processId) throws Throwable {
     final Linker linker = Linker.nativeLinker();

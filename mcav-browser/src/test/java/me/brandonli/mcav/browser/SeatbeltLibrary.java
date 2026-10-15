@@ -35,6 +35,7 @@ import java.util.Optional;
  * Stand-ins written in Java for the functions of Seatbelt, handed over as native functions, which record their calls:
  * a {@link Seatbelt} of this library runs its real calls on any system without putting anything in a sandbox.
  */
+// upcall stubs and native function handles are restricted methods; the tests run with native access enabled
 @SuppressWarnings("restricted")
 final class SeatbeltLibrary implements AutoCloseable {
 
