@@ -71,7 +71,7 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  */
 public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
   /**
-   * Checks whether the browser can run on the operating system and processor of this machine: there are CEF builds for
+   * Returns whether the browser can run on the operating system and processor of this machine: there are CEF builds for
    * 64-bit Windows, Linux and macOS, on x86-64 and ARM processors. A start on such a machine can still fail with a
    * {@link BrowserUnavailableException}, for example when the download fails.
    *
@@ -185,7 +185,7 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
   void sendKeyEvent(final String text);
 
   /**
-   * Checks whether a page is being streamed.
+   * Returns whether a page is being streamed.
    *
    * @return true between a successful {@link #start(BrowserSource)} and {@link #release()} or the loss of the browser
    */

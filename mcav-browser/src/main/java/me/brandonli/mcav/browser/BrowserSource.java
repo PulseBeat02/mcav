@@ -147,7 +147,7 @@ public interface BrowserSource extends UriSource {
   }
 
   /**
-   * Checks whether the address can be played directly. A web page is rendered by a browser, so it never can.
+   * Returns whether the address can be played directly. A web page is rendered by a browser, so it never can.
    *
    * @return false
    */

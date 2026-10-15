@@ -104,7 +104,7 @@ public final class BrowserOptions {
   }
 
   /**
-   * Checks whether JavaScript is compiled to machine code.
+   * Returns whether JavaScript is compiled to machine code.
    *
    * @return true if the configuration enables V8's just-in-time compiler when a browser is started
    */
@@ -113,7 +113,7 @@ public final class BrowserOptions {
   }
 
   /**
-   * Checks whether pages may reach loopback, private and other non-public addresses.
+   * Returns whether pages may reach loopback, private and other non-public addresses.
    *
    * @return true if the address policy permits private and other non-public destinations; connectivity
    *         is still subject to the host network and other browser policies
@@ -123,7 +123,7 @@ public final class BrowserOptions {
   }
 
   /**
-   * Checks whether a page may play sound before anyone clicked or typed into it.
+   * Returns whether a page may play sound before anyone clicked or typed into it.
    *
    * @return true if the autoplay policy permits sound without a user gesture; this does not guarantee
    *         that a page produces capturable audio
@@ -133,7 +133,7 @@ public final class BrowserOptions {
   }
 
   /**
-   * Checks whether Chromium is confined where the system can confine it, see {@link BrowserOptionsBuilder#confinement(boolean)}.
+   * Returns whether Chromium is confined where the system can confine it, see {@link BrowserOptionsBuilder#confinement(boolean)}.
    *
    * @return true if Chromium is confined
    */

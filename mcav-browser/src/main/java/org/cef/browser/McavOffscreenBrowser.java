@@ -138,7 +138,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   }
 
   /**
-   * Checks whether the browser has focus, as far as this browser told CEF.
+   * Returns whether the browser has focus, as far as this browser told CEF.
    *
    * @return true if the browser has focus
    */
