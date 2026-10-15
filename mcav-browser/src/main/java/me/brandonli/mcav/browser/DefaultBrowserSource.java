@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
+import com.google.common.base.MoreObjects;
 import java.net.URI;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -114,12 +115,17 @@ final class DefaultBrowserSource implements BrowserSource {
   }
 
   /**
-   * Describes the source by its address, size, and frame interval.
+   * Returns a debugging representation with the address, the size and the frame interval.
    *
-   * @return a text such as {@code BrowserSource[https://example.org, 1280x720, every 1]}
+   * @return the representation
    */
   @Override
   public String toString() {
-    return "BrowserSource[" + this.uri + ", " + this.width + "x" + this.height + ", every " + this.frameInterval + "]";
+    return MoreObjects.toStringHelper(this)
+      .add("uri", this.uri)
+      .add("width", this.width)
+      .add("height", this.height)
+      .add("frameInterval", this.frameInterval)
+      .toString();
   }
 }

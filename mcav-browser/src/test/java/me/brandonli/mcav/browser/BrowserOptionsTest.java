@@ -19,10 +19,12 @@ package me.brandonli.mcav.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import me.brandonli.mcav.browser.testing.EqualityAssertions;
 import org.junit.jupiter.api.Test;
 
 class BrowserOptionsTest {
@@ -83,5 +85,35 @@ class BrowserOptionsTest {
     final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, () -> builder.frameRate(61));
     final String message = tooFast.getMessage();
     assertEquals("Frame rate 61 must be between 1 and 60!", message);
+  }
+
+  @Test
+  void shouldTreatOptionsWithTheSameValuesAsEqual() {
+    EqualityAssertions.assertEqualityContract(
+      BrowserOptions.builder().build(),
+      BrowserOptions.builder().build(),
+      BrowserOptions.builder().frameRate(1).build(),
+      BrowserOptions.builder().javaScriptJit(true).build(),
+      BrowserOptions.builder().privateNetworks(true).build(),
+      BrowserOptions.builder().autoplay(true).build(),
+      BrowserOptions.builder().confinement(false).build(),
+      BrowserOptions.builder().refusedHosts(List.of("mc.example.com")).build()
+    );
+  }
+
+  @Test
+  void shouldHashOptionsThatDifferInAValueDifferently() {
+    final BrowserOptions slower = BrowserOptions.builder().frameRate(1).build();
+    final int slowerHashCode = slower.hashCode();
+    assertNotEquals(BrowserOptions.DEFAULT.hashCode(), slowerHashCode);
+  }
+
+  @Test
+  void shouldDescribeEveryOption() {
+    final String description = BrowserOptions.DEFAULT.toString();
+    assertEquals(
+      "BrowserOptions{frameRate=60, javaScriptJit=false, privateNetworks=false, autoplay=false, confined=true, refusedHosts=[]}",
+      description
+    );
   }
 }

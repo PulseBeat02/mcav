@@ -62,7 +62,7 @@ class BrowserSourceTest {
     final int frameInterval = source.getFrameInterval();
     assertEquals(1000, frameInterval);
     final String description = source.toString();
-    assertEquals("BrowserSource[https://example.com/, 4096x1, every 1000]", description);
+    assertEquals("DefaultBrowserSource{uri=https://example.com/, width=4096, height=1, frameInterval=1000}", description);
   }
 
   @Test

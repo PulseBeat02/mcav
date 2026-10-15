@@ -17,9 +17,12 @@
  */
 package me.brandonli.mcav.browser;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Immutable options for how a {@link BrowserPlayer} treats pages; instances may be shared across threads.
@@ -147,6 +150,69 @@ public final class BrowserOptions {
    */
   public List<String> getRefusedHosts() {
     return this.refusedHosts;
+  }
+
+  /**
+   * Returns whether {@code other} is options with the same values.
+   *
+   * @param other the object to compare with
+   * @return whether every option matches
+   * @since 1.0.0
+   */
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final BrowserOptions options)) {
+      return false;
+    }
+
+    return (
+      this.frameRate == options.frameRate &&
+      this.allowsJavaScriptJit == options.allowsJavaScriptJit &&
+      this.allowsPrivateNetworks == options.allowsPrivateNetworks &&
+      this.allowsAutoplay == options.allowsAutoplay &&
+      this.confined == options.confined &&
+      this.refusedHosts.equals(options.refusedHosts)
+    );
+  }
+
+  /**
+   * Returns a hash code built from every option.
+   *
+   * @return the hash code
+   * @since 1.0.0
+   */
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+      this.frameRate,
+      this.allowsJavaScriptJit,
+      this.allowsPrivateNetworks,
+      this.allowsAutoplay,
+      this.confined,
+      this.refusedHosts
+    );
+  }
+
+  /**
+   * Returns a debugging representation with every option.
+   *
+   * @return the representation
+   * @since 1.0.0
+   */
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+      .add("frameRate", this.frameRate)
+      .add("javaScriptJit", this.allowsJavaScriptJit)
+      .add("privateNetworks", this.allowsPrivateNetworks)
+      .add("autoplay", this.allowsAutoplay)
+      .add("confined", this.confined)
+      .add("refusedHosts", this.refusedHosts)
+      .toString();
   }
 
   /**
