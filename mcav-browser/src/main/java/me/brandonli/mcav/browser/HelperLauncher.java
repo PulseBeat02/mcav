@@ -62,7 +62,7 @@ final class HelperLauncher {
   private final List<String> extraJvmOptions;
   private final Os os;
   private final Map<String, String> environment;
-  private final long startTimeoutMillis;
+  private final long startTimeoutMilliseconds;
   private final @Nullable LibraryLinker libraries;
 
   /**
@@ -74,7 +74,7 @@ final class HelperLauncher {
    * @param extraJvmOptions    options added to the JVM of the helper, such as a coverage agent in tests
    * @param os                 the operating system
    * @param environment        the environment of the server
-   * @param startTimeoutMillis how long a helper may take until the page shows
+   * @param startTimeoutMilliseconds how long a helper may take until the page shows
    */
   @VisibleForTesting
   HelperLauncher(
@@ -84,9 +84,9 @@ final class HelperLauncher {
     final List<String> extraJvmOptions,
     final Os os,
     final Map<String, String> environment,
-    final long startTimeoutMillis
+    final long startTimeoutMilliseconds
   ) {
-    this(java, mainClass, classPath, extraJvmOptions, os, environment, startTimeoutMillis, null);
+    this(java, mainClass, classPath, extraJvmOptions, os, environment, startTimeoutMilliseconds, null);
   }
 
   private HelperLauncher(
@@ -96,7 +96,7 @@ final class HelperLauncher {
     final List<String> extraJvmOptions,
     final Os os,
     final Map<String, String> environment,
-    final long startTimeoutMillis,
+    final long startTimeoutMilliseconds,
     final @Nullable LibraryLinker libraries
   ) {
     this.libraries = libraries;
@@ -106,7 +106,7 @@ final class HelperLauncher {
     this.extraJvmOptions = List.copyOf(extraJvmOptions);
     this.os = os;
     this.environment = Map.copyOf(environment);
-    this.startTimeoutMillis = startTimeoutMillis;
+    this.startTimeoutMilliseconds = startTimeoutMilliseconds;
   }
 
   /**
@@ -123,12 +123,12 @@ final class HelperLauncher {
    * Creates the launcher of this JVM: its Java program, the class path the browser module was loaded from, and the
    * environment of the server.
    *
-   * @param startTimeoutMillis how long a helper may take until the page shows
+   * @param startTimeoutMilliseconds how long a helper may take until the page shows
    * @param extraJvmOptions    options added to the JVM of the helper
    * @return the launcher
    * @throws PlayerException if a class the helper needs was not loaded from a file
    */
-  static HelperLauncher createDefault(final long startTimeoutMillis, final List<String> extraJvmOptions) {
+  static HelperLauncher createDefault(final long startTimeoutMilliseconds, final List<String> extraJvmOptions) {
     final String javaHome = System.getProperty("java.home");
     final Os os = OsUtils.getOs();
     final Path java = Path.of(javaHome, "bin", javaExecutable(os));
@@ -138,7 +138,7 @@ final class HelperLauncher {
     entries.add(locate(CefAppBuilder.class));
     final List<Path> classPath = new ArrayList<>(entries);
     final Map<String, String> environment = System.getenv();
-    return new HelperLauncher(java, MAIN_CLASS, classPath, extraJvmOptions, os, environment, startTimeoutMillis);
+    return new HelperLauncher(java, MAIN_CLASS, classPath, extraJvmOptions, os, environment, startTimeoutMilliseconds);
   }
 
   /**
@@ -247,7 +247,7 @@ final class HelperLauncher {
       this.extraJvmOptions,
       this.os,
       this.environment,
-      this.startTimeoutMillis,
+      this.startTimeoutMilliseconds,
       linker
     );
   }
@@ -268,8 +268,8 @@ final class HelperLauncher {
     return this.java;
   }
 
-  long getStartTimeoutMillis() {
-    return this.startTimeoutMillis;
+  long getStartTimeoutMilliseconds() {
+    return this.startTimeoutMilliseconds;
   }
 
   Os getOs() {

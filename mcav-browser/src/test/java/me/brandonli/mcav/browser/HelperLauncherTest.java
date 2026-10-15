@@ -140,7 +140,7 @@ class HelperLauncherTest {
     assertEquals(Map.of("PATH", "/usr/bin", "TMPDIR", "/var/tmp"), windowsEnvironment);
     final Os operatingSystem = linux.getOs();
     assertEquals(Os.LINUX, operatingSystem);
-    final long startTimeoutMilliseconds = linux.getStartTimeoutMillis();
+    final long startTimeoutMilliseconds = linux.getStartTimeoutMilliseconds();
     assertEquals(5_000L, startTimeoutMilliseconds);
   }
 
@@ -157,8 +157,8 @@ class HelperLauncherTest {
     assertTrue(linkedFolderExists);
     final List<String> commandWithLibraries = withLibraries.createCommand(this.folder);
     assertEquals(plain.createCommand(this.folder), commandWithLibraries);
-    final long startTimeoutMilliseconds = withLibraries.getStartTimeoutMillis();
-    assertEquals(plain.getStartTimeoutMillis(), startTimeoutMilliseconds);
+    final long startTimeoutMilliseconds = withLibraries.getStartTimeoutMilliseconds();
+    assertEquals(plain.getStartTimeoutMilliseconds(), startTimeoutMilliseconds);
     final Os operatingSystem = withLibraries.getOs();
     assertEquals(Os.LINUX, operatingSystem);
   }
@@ -229,7 +229,7 @@ class HelperLauncherTest {
     assertTrue(holdsJcefMaven, classPath);
     final boolean holdsJogl = classPath.contains("jogl");
     assertFalse(holdsJogl, classPath);
-    final long startTimeoutMilliseconds = launcher.getStartTimeoutMillis();
+    final long startTimeoutMilliseconds = launcher.getStartTimeoutMilliseconds();
     assertEquals(1_000L, startTimeoutMilliseconds);
   }
 

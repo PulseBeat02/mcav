@@ -28,8 +28,8 @@ import java.util.function.BooleanSupplier;
  */
 public final class Await {
 
-  private static final long TIMEOUT_MILLIS = 10_000L;
-  private static final long POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(5);
+  private static final long TIMEOUT_MILLISECONDS = 10_000L;
+  private static final long POLL_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(5);
 
   private Await() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -42,12 +42,12 @@ public final class Await {
    * @param condition   the condition
    */
   public static void until(final String description, final BooleanSupplier condition) {
-    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(TIMEOUT_MILLIS);
+    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(TIMEOUT_MILLISECONDS);
     while (!condition.getAsBoolean()) {
       if (System.nanoTime() - deadline > 0) {
         fail("Timed out waiting until " + description);
       }
-      LockSupport.parkNanos(POLL_NANOS);
+      LockSupport.parkNanos(POLL_NANOSECONDS);
     }
   }
 }

@@ -70,7 +70,7 @@ class HelperConfigurationTest {
   @Test
   void shouldKeepTheLongestAddressInCharactersOfThreeBytesThroughTheLine() {
     final String start = "https://example.com/";
-    final URI longest = URI.create(start + "\u20ac".repeat(BrowserSource.MAX_ADDRESS_LENGTH - start.length()));
+    final URI longest = URI.create(start + "\u20ac".repeat(BrowserSource.MAXIMUM_ADDRESS_LENGTH - start.length()));
     final Path path = NATIVES.resolve("p".repeat(255)).resolve("q".repeat(255));
     final HelperConfiguration original = new HelperConfiguration(
       token(),

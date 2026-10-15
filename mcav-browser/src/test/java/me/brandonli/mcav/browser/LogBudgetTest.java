@@ -55,7 +55,7 @@ final class LogBudgetTest {
   @Test
   void shouldPassOneMoreLinePerSecondAfterTheCountOfTheLinesThatDidNot() {
     this.lines(LogBudget.BURST + 10);
-    this.now.addAndGet(LogBudget.REFILL_NANOS - 1);
+    this.now.addAndGet(LogBudget.REFILL_NANOSECONDS - 1);
     this.line("too early");
     final int lineCount = this.log.size();
     assertEquals(LogBudget.BURST, lineCount);
@@ -69,7 +69,7 @@ final class LogBudgetTest {
   @Test
   void shouldRefillTheBurstAndNoMoreAfterALongQuietTime() {
     this.lines(LogBudget.BURST);
-    this.now.addAndGet(LogBudget.REFILL_NANOS * 1_000);
+    this.now.addAndGet(LogBudget.REFILL_NANOSECONDS * 1_000);
     this.lines(LogBudget.BURST + 1);
     final int lineCount = this.log.size();
     assertEquals(2 * LogBudget.BURST, lineCount);
@@ -78,7 +78,7 @@ final class LogBudgetTest {
   @Test
   void shouldRefillNothingWhenTheClockGoesBack() {
     this.lines(LogBudget.BURST);
-    this.now.addAndGet(-5 * LogBudget.REFILL_NANOS);
+    this.now.addAndGet(-5 * LogBudget.REFILL_NANOSECONDS);
     this.line("never");
     final int lineCount = this.log.size();
     assertEquals(LogBudget.BURST, lineCount);

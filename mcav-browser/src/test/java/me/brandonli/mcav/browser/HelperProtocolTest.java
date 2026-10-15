@@ -224,9 +224,9 @@ class HelperProtocolTest {
     assertThrows(ProtocolException.class, () -> read(frame(10, 0, 0, 0, 1, 1, 4)));
     assertThrows(ProtocolException.class, () -> read(frame(10, 10, 0, 0, 0, 1, 0)));
     assertThrows(ProtocolException.class, () -> read(frame(10, 10, 0, 0, 1, 0, 0)));
-    assertThrows(ProtocolException.class, () -> read(frame(HelperProtocol.MAX_SIDE + 1, 10, 0, 0, 1, 1, 4)));
-    assertThrows(ProtocolException.class, () -> read(frame(10, HelperProtocol.MAX_SIDE + 1, 0, 0, 1, 1, 4)));
-    final int type = read(frame(HelperProtocol.MAX_SIDE, HelperProtocol.MAX_SIDE, 0, 0, 1, 1, 4)).getType();
+    assertThrows(ProtocolException.class, () -> read(frame(HelperProtocol.MAXIMUM_SIDE + 1, 10, 0, 0, 1, 1, 4)));
+    assertThrows(ProtocolException.class, () -> read(frame(10, HelperProtocol.MAXIMUM_SIDE + 1, 0, 0, 1, 1, 4)));
+    final int type = read(frame(HelperProtocol.MAXIMUM_SIDE, HelperProtocol.MAXIMUM_SIDE, 0, 0, 1, 1, 4)).getType();
     assertEquals(HelperProtocol.FRAME, type);
   }
 
@@ -337,7 +337,7 @@ class HelperProtocolTest {
 
   @Test
   void shouldRefuseAMessageOfTheWrongLengthBeforeItsContentIsRead() {
-    final int max = HelperProtocol.MAX_TEXT_BYTES;
+    final int max = HelperProtocol.MAXIMUM_TEXT_BYTES;
     final ProtocolException loading = assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.LOADING, new byte[2])));
     final String loadingMessage = loading.getMessage();
     assertEquals("A message of type 4 has 1 bytes, but 2 bytes were announced!", loadingMessage);
@@ -369,7 +369,7 @@ class HelperProtocolTest {
 
   @Test
   void shouldFitTheShortestAndTheLongestTexts() throws IOException {
-    final String longest = "a".repeat(HelperProtocol.MAX_TEXT_BYTES);
+    final String longest = "a".repeat(HelperProtocol.MAXIMUM_TEXT_BYTES);
     final String longestText = read(bytes(out -> HelperProtocol.writeText(out, HelperProtocol.NOTICE, longest))).getText();
     assertEquals(longest, longestText);
     final String emptyText = read(bytes(out -> HelperProtocol.writeText(out, HelperProtocol.NOTICE, ""))).getText();
@@ -384,7 +384,7 @@ class HelperProtocolTest {
     assertEquals(HelperProtocol.AUDIO, type);
     final byte[] soundSamples = sound.getSamples();
     assertArrayEquals(Arrays.copyOf(samples, 8), soundSamples);
-    final byte[] largest = new byte[HelperProtocol.MAX_AUDIO_BYTES];
+    final byte[] largest = new byte[HelperProtocol.MAXIMUM_AUDIO_BYTES];
     largest[largest.length - 1] = 5;
     final byte[] largestSamples = read(bytes(out -> HelperProtocol.writeAudio(out, largest, largest.length))).getSamples();
     assertArrayEquals(largest, largestSamples);
@@ -394,7 +394,7 @@ class HelperProtocolTest {
     assertSoundRefused(new byte[8], -4);
     assertSoundRefused(new byte[8], 6);
     assertSoundRefused(new byte[8], 12);
-    assertSoundRefused(new byte[HelperProtocol.MAX_AUDIO_BYTES + 4], HelperProtocol.MAX_AUDIO_BYTES + 4);
+    assertSoundRefused(new byte[HelperProtocol.MAXIMUM_AUDIO_BYTES + 4], HelperProtocol.MAXIMUM_AUDIO_BYTES + 4);
   }
 
   private static void assertSoundRefused(final byte[] samples, final int length) {
@@ -414,7 +414,7 @@ class HelperProtocolTest {
     assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.AUDIO, new byte[2])));
     final byte[] tooLong = bytes(out -> {
       out.writeByte(HelperProtocol.AUDIO);
-      out.writeInt(HelperProtocol.MAX_AUDIO_BYTES + 4);
+      out.writeInt(HelperProtocol.MAXIMUM_AUDIO_BYTES + 4);
     });
     final ProtocolException refused = assertThrows(ProtocolException.class, () -> read(tooLong));
     final String tooLongMessage = refused.getMessage();
@@ -444,15 +444,15 @@ class HelperProtocolTest {
   void shouldRefuseAStringLongerThanTheLimit() throws IOException {
     final byte[] tooLong = bytes(out -> {
       out.writeByte(HelperProtocol.NOTICE);
-      out.writeInt(2 + HelperProtocol.MAX_TEXT_BYTES + 1);
-      out.writeShort(HelperProtocol.MAX_TEXT_BYTES + 1);
-      out.write(new byte[HelperProtocol.MAX_TEXT_BYTES + 1]);
+      out.writeInt(2 + HelperProtocol.MAXIMUM_TEXT_BYTES + 1);
+      out.writeShort(HelperProtocol.MAXIMUM_TEXT_BYTES + 1);
+      out.write(new byte[HelperProtocol.MAXIMUM_TEXT_BYTES + 1]);
     });
     assertThrows(ProtocolException.class, () -> read(tooLong));
     final byte[] lyingLength = bytes(out -> {
       out.writeByte(HelperProtocol.NOTICE);
       out.writeInt(2 + 10);
-      out.writeShort(HelperProtocol.MAX_TEXT_BYTES + 1);
+      out.writeShort(HelperProtocol.MAXIMUM_TEXT_BYTES + 1);
     });
     assertThrows(ProtocolException.class, () -> read(lyingLength));
     final byte[] mismatch = bytes(out -> {
@@ -487,23 +487,23 @@ class HelperProtocolTest {
 
   @Test
   void shouldCutLongTextsAtACharacterBoundary() {
-    final String ascii = "a".repeat(HelperProtocol.MAX_TEXT_BYTES + 10);
-    assertEquals(HelperProtocol.MAX_TEXT_BYTES, HelperProtocol.encode(ascii).length);
-    final String straddling = "a".repeat(HelperProtocol.MAX_TEXT_BYTES - 1) + "☃";
+    final String ascii = "a".repeat(HelperProtocol.MAXIMUM_TEXT_BYTES + 10);
+    assertEquals(HelperProtocol.MAXIMUM_TEXT_BYTES, HelperProtocol.encode(ascii).length);
+    final String straddling = "a".repeat(HelperProtocol.MAXIMUM_TEXT_BYTES - 1) + "☃";
     final byte[] cut = HelperProtocol.encode(straddling);
-    assertEquals(HelperProtocol.MAX_TEXT_BYTES - 1, cut.length);
+    assertEquals(HelperProtocol.MAXIMUM_TEXT_BYTES - 1, cut.length);
     final String cutText = new String(cut, StandardCharsets.UTF_8);
-    assertEquals("a".repeat(HelperProtocol.MAX_TEXT_BYTES - 1), cutText);
-    final byte[] exact = HelperProtocol.encode("a".repeat(HelperProtocol.MAX_TEXT_BYTES));
-    assertEquals(HelperProtocol.MAX_TEXT_BYTES, exact.length);
+    assertEquals("a".repeat(HelperProtocol.MAXIMUM_TEXT_BYTES - 1), cutText);
+    final byte[] exact = HelperProtocol.encode("a".repeat(HelperProtocol.MAXIMUM_TEXT_BYTES));
+    assertEquals(HelperProtocol.MAXIMUM_TEXT_BYTES, exact.length);
   }
 
   @Test
   void shouldCutWrittenTextsToo() throws IOException {
-    final String longText = "b".repeat(HelperProtocol.MAX_TEXT_BYTES * 2);
+    final String longText = "b".repeat(HelperProtocol.MAXIMUM_TEXT_BYTES * 2);
     final HelperMessage message = read(bytes(out -> HelperProtocol.writeText(out, HelperProtocol.NOTICE, longText)));
     final int textLength = message.getText().length();
-    assertEquals(HelperProtocol.MAX_TEXT_BYTES, textLength);
+    assertEquals(HelperProtocol.MAXIMUM_TEXT_BYTES, textLength);
   }
 
   private static int utf8(final String text) {
@@ -512,7 +512,7 @@ class HelperProtocolTest {
 
   @Test
   void shouldSplitALongTextIntoPartsThatEachFitIntoAMessage() {
-    final int max = HelperProtocol.MAX_TEXT_BYTES;
+    final int max = HelperProtocol.MAXIMUM_TEXT_BYTES;
     final List<String> emptyParts = HelperProtocol.split("");
     assertEquals(List.of(""), emptyParts);
     final List<String> shortParts = HelperProtocol.split("hello");
@@ -539,7 +539,7 @@ class HelperProtocolTest {
 
   @Test
   void shouldNeverSplitALineBreak() {
-    final int max = HelperProtocol.MAX_TEXT_BYTES;
+    final int max = HelperProtocol.MAXIMUM_TEXT_BYTES;
     final String text = "a".repeat(max - 1) + "\r\nb";
     final List<String> carriageReturnParts = HelperProtocol.split(text);
     assertEquals(List.of("a".repeat(max - 1), "\r\nb"), carriageReturnParts);

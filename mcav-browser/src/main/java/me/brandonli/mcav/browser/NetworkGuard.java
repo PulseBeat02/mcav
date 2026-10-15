@@ -62,16 +62,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * interface of this machine: a public address the server holds reaches the services that listen on every interface,
  * which a firewall in front of the machine hides from the internet but not from the machine itself.
  *
- * <p>The guard holds at most {@value #MAX_CONNECTIONS} connections, closes a client that has not finished its
+ * <p>The guard holds at most {@value #MAXIMUM_CONNECTIONS} connections, closes a client that has not finished its
  * handshake in time, and closes both sides of a connection as soon as one side ends. Each refused host is reported
- * once, up to {@value #MAX_REPORTED_HOSTS} hosts.
+ * once, up to {@value #MAXIMUM_REPORTED_HOSTS} hosts.
  */
 final class NetworkGuard implements Closeable {
 
-  static final int MAX_CONNECTIONS = 256;
-  static final int MAX_REPORTED_HOSTS = 64;
-  private static final int HANDSHAKE_TIMEOUT_MILLIS = 10_000;
-  private static final int CONNECT_TIMEOUT_MILLIS = 10_000;
+  static final int MAXIMUM_CONNECTIONS = 256;
+  static final int MAXIMUM_REPORTED_HOSTS = 64;
+  private static final int HANDSHAKE_TIMEOUT_MILLISECONDS = 10_000;
+  private static final int CONNECT_TIMEOUT_MILLISECONDS = 10_000;
   private static final int BACKLOG = 64;
   private static final int BUFFER_BYTES = 16 * 1024;
 
@@ -80,7 +80,7 @@ final class NetworkGuard implements Closeable {
   private final Predicate<InetAddress> policy;
   private final Connector connector;
   private final Consumer<String> notices;
-  private final int handshakeTimeoutMillis;
+  private final int handshakeTimeoutMilliseconds;
   private final Semaphore slots;
   private final Set<Socket> sockets;
   private final Set<String> reported;
@@ -92,15 +92,15 @@ final class NetworkGuard implements Closeable {
     final Predicate<InetAddress> policy,
     final Connector connector,
     final Consumer<String> notices,
-    final int handshakeTimeoutMillis
+    final int handshakeTimeoutMilliseconds
   ) {
     this.server = server;
     this.resolver = resolver;
     this.policy = policy;
     this.connector = connector;
     this.notices = notices;
-    this.handshakeTimeoutMillis = handshakeTimeoutMillis;
-    this.slots = new Semaphore(MAX_CONNECTIONS);
+    this.handshakeTimeoutMilliseconds = handshakeTimeoutMilliseconds;
+    this.slots = new Semaphore(MAXIMUM_CONNECTIONS);
     this.sockets = ConcurrentHashMap.newKeySet();
     this.reported = ConcurrentHashMap.newKeySet();
   }
@@ -118,7 +118,7 @@ final class NetworkGuard implements Closeable {
     final Resolver resolver = InetAddress::getAllByName;
     final Set<InetAddress> refused = resolveAll(resolver, refusedHosts, notices);
     final PublicAddresses policy = new PublicAddresses(resolver, ownOrRefused(NetworkGuard::isOwnAddress, refused));
-    return start(resolver, policy, NetworkGuard::connect, notices, HANDSHAKE_TIMEOUT_MILLIS);
+    return start(resolver, policy, NetworkGuard::connect, notices, HANDSHAKE_TIMEOUT_MILLISECONDS);
   }
 
   /**
@@ -128,7 +128,7 @@ final class NetworkGuard implements Closeable {
    * @param policy                 decides which addresses may be reached
    * @param connector              connects to an allowed address
    * @param notices                receives a line for every refused host
-   * @param handshakeTimeoutMillis how long a client may take for its handshake
+   * @param handshakeTimeoutMilliseconds how long a client may take for its handshake
    * @return the running guard
    * @throws IOException if no port of the loopback interface can be bound
    */
@@ -137,12 +137,12 @@ final class NetworkGuard implements Closeable {
     final Predicate<InetAddress> policy,
     final Connector connector,
     final Consumer<String> notices,
-    final int handshakeTimeoutMillis
+    final int handshakeTimeoutMilliseconds
   ) throws IOException {
     final ServerSocket server = new ServerSocket();
     final InetAddress loopback = InetAddress.getLoopbackAddress();
     server.bind(new InetSocketAddress(loopback, 0), BACKLOG);
-    final NetworkGuard guard = new NetworkGuard(server, resolver, policy, connector, notices, handshakeTimeoutMillis);
+    final NetworkGuard guard = new NetworkGuard(server, resolver, policy, connector, notices, handshakeTimeoutMilliseconds);
     final Thread thread = new Thread(guard::acceptConnections, "mcav-browser-guard");
     thread.setDaemon(true);
     thread.start();
@@ -228,7 +228,7 @@ final class NetworkGuard implements Closeable {
    */
   private void serve(final Socket client) {
     // Each expired handshake gets its own thread because a busy common pool must not delay closing it.
-    final Executor later = CompletableFuture.delayedExecutor(this.handshakeTimeoutMillis, TimeUnit.MILLISECONDS, task ->
+    final Executor later = CompletableFuture.delayedExecutor(this.handshakeTimeoutMilliseconds, TimeUnit.MILLISECONDS, task ->
       Thread.ofVirtual().name("mcav-browser-guard-deadline").start(task)
     );
     final CompletableFuture<Void> deadline = CompletableFuture.runAsync(() -> closeQuietly(client), later);
@@ -310,7 +310,7 @@ final class NetworkGuard implements Closeable {
   private void report(final String host) {
     final boolean first;
     synchronized (this.reported) {
-      first = this.reported.size() < MAX_REPORTED_HOSTS && this.reported.add(host);
+      first = this.reported.size() < MAXIMUM_REPORTED_HOSTS && this.reported.add(host);
     }
     if (first) {
       this.notices.accept("The connection to %s was refused, because it is not a public address.".formatted(host));
@@ -352,7 +352,7 @@ final class NetworkGuard implements Closeable {
   }
 
   /**
-   * Connects to an address, waiting at most {@value #CONNECT_TIMEOUT_MILLIS} ms.
+   * Connects to an address, waiting at most {@value #CONNECT_TIMEOUT_MILLISECONDS} ms.
    *
    * @param address the address
    * @return the connection
@@ -361,7 +361,7 @@ final class NetworkGuard implements Closeable {
   static Socket connect(final InetSocketAddress address) throws IOException {
     final Socket socket = new Socket();
     try {
-      socket.connect(address, CONNECT_TIMEOUT_MILLIS);
+      socket.connect(address, CONNECT_TIMEOUT_MILLISECONDS);
       return socket;
     } catch (final IOException exception) {
       socket.close();

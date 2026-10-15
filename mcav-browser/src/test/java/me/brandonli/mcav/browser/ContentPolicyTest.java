@@ -233,10 +233,19 @@ class ContentPolicyTest {
 
   @Test
   void shouldFailTheRequestOnAuthenticationAndBadCertificates() {
-    final CefAuthCallback auth = mock(CefAuthCallback.class);
-    final boolean credentialsGiven = this.policy.getAuthCredentials(this.browser, "https://a/", false, "a", 443, "realm", "basic", auth);
+    final CefAuthCallback authentication = mock(CefAuthCallback.class);
+    final boolean credentialsGiven = this.policy.getAuthCredentials(
+      this.browser,
+      "https://a/",
+      false,
+      "a",
+      443,
+      "realm",
+      "basic",
+      authentication
+    );
     assertFalse(credentialsGiven);
-    verifyNoInteractions(auth);
+    verifyNoInteractions(authentication);
     final CefCallback certificate = mock(CefCallback.class);
     final boolean certificateContinued = this.policy.onCertificateError(
       this.browser,

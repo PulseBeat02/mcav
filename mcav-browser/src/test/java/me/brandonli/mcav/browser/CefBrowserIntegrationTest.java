@@ -134,8 +134,8 @@ class CefBrowserIntegrationTest {
       return descendants
         .filter(ProcessHandle::isAlive)
         .filter(handle -> {
-          final ProcessHandle.Info info = handle.info();
-          final String command = info.commandLine().orElse(info.command().orElse(""));
+          final ProcessHandle.Info information = handle.info();
+          final String command = information.commandLine().orElse(information.command().orElse(""));
           final boolean helper = command.contains(HelperLauncher.MAIN_CLASS) || (!java.isEmpty() && command.equals(java));
           return helper || command.contains("jcef") || command.contains("Xvfb");
         })
@@ -461,12 +461,12 @@ class CefBrowserIntegrationTest {
   }
 
   @SuppressWarnings("restricted")
-  private static boolean isSandboxed(final long pid) throws Throwable {
+  private static boolean isSandboxed(final long processId) throws Throwable {
     final Linker linker = Linker.nativeLinker();
     final MethodHandle check = linker.downcallHandle(
       linker.defaultLookup().findOrThrow("sandbox_check"),
       FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT)
     );
-    return (int) check.invokeExact((int) pid, MemorySegment.NULL, 0) != 0;
+    return (int) check.invokeExact((int) processId, MemorySegment.NULL, 0) != 0;
   }
 }

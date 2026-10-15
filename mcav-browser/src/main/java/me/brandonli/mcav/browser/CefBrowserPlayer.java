@@ -61,7 +61,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
    * How long a helper may take until its page shows. The first start after a download can be slow, for example while a
    * virus scanner checks the new files.
    */
-  private static final long START_TIMEOUT_MILLIS = 180_000L;
+  private static final long START_TIMEOUT_MILLISECONDS = 180_000L;
 
   /**
    * How long the sound of the page is held before the audio pipeline gets it, in milliseconds: not at all. The page
@@ -70,12 +70,12 @@ final class CefBrowserPlayer implements BrowserPlayer {
    * arrives, it reaches the pipeline about 20 ms before its picture ({@code BrowserSoundTest}); but an output starts to
    * play a chunk only when it arrives, 43 ms later than that, so a hold would only make the sound late.
    */
-  private static final int AUDIO_DELAY_MILLIS = 0;
+  private static final int AUDIO_DELAY_MILLISECONDS = 0;
 
   /**
    * The most sound of the page that waits for the audio pipeline, the delay included, in milliseconds.
    */
-  static final int MAX_QUEUED_AUDIO_MILLIS = AUDIO_DELAY_MILLIS + 120;
+  static final int MAXIMUM_QUEUED_AUDIO_MILLISECONDS = AUDIO_DELAY_MILLISECONDS + 120;
 
   private static final SessionFactory DEFAULT_SESSIONS = new DefaultSessionFactory();
   private static final Equivalence<Object> SESSION_IDENTITY = Equivalence.identity();
@@ -89,7 +89,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private final AtomicReference<State> state;
   private final AtomicBoolean released;
   // the thread that starts a helper while it does, which a release interrupts instead of waiting for the start's lock up
-  // to START_TIMEOUT_MILLIS; guarded by itself, so no interrupt reaches the thread once its start is over
+  // to START_TIMEOUT_MILLISECONDS; guarded by itself, so no interrupt reaches the thread once its start is over
   private final Object starter;
   private @Nullable Thread starting;
   // Guarded by starter; the starting thread clears the interrupt sent by release().
@@ -192,8 +192,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
     this.session = started;
     this.audioOutput = DelayedAudioOutput.start(
       "the browser",
-      AUDIO_DELAY_MILLIS,
-      MAX_QUEUED_AUDIO_MILLIS,
+      AUDIO_DELAY_MILLISECONDS,
+      MAXIMUM_QUEUED_AUDIO_MILLISECONDS,
       this.audioCallback::retrieve,
       this::report
     );
@@ -232,7 +232,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     if (!first) {
       return false;
     }
-    // a start holds the lock while its helper starts, up to START_TIMEOUT_MILLIS, so it is stopped rather than awaited
+    // a start holds the lock while its helper starts, up to START_TIMEOUT_MILLISECONDS, so it is stopped rather than awaited
     synchronized (this.starter) {
       final Thread thread = this.starting;
       if (thread != null) {
@@ -572,7 +572,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     private synchronized HelperLauncher getLauncher() {
       HelperLauncher current = this.launcher;
       if (current == null) {
-        current = HelperLauncher.createDefault(START_TIMEOUT_MILLIS, this.extraJvmOptions);
+        current = HelperLauncher.createDefault(START_TIMEOUT_MILLISECONDS, this.extraJvmOptions);
         this.launcher = current;
       }
       return current;

@@ -42,7 +42,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
   private final int width;
   private final int height;
   private final int frameInterval;
-  private final long settleNanos;
+  private final long settleNanoseconds;
   private final LongSupplier clock;
   private final byte[] page;
 
@@ -59,14 +59,14 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
    * @param width         the width of the page in pixels
    * @param height        the height of the page in pixels
    * @param frameInterval damage is due after this many paints of the page
-   * @param settleMillis  damage is due once it waited this long
+   * @param settleMilliseconds  damage is due once it waited this long
    * @param clock         a monotonic clock in nanoseconds
    */
-  PageCompositor(final int width, final int height, final int frameInterval, final long settleMillis, final LongSupplier clock) {
+  PageCompositor(final int width, final int height, final int frameInterval, final long settleMilliseconds, final LongSupplier clock) {
     this.width = width;
     this.height = height;
     this.frameInterval = frameInterval;
-    this.settleNanos = TimeUnit.MILLISECONDS.toNanos(settleMillis);
+    this.settleNanoseconds = TimeUnit.MILLISECONDS.toNanos(settleMilliseconds);
     this.clock = clock;
     this.page = new byte[width * height * HelperProtocol.PIXEL_BYTES];
     Arrays.fill(this.page, (byte) 0xFF);
@@ -193,12 +193,12 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
    * Waits until damage is due, then copies the damaged region, with the popup drawn over it, into the buffer.
    *
    * @param target        the buffer, at least {@link #getPageBytes()} bytes
-   * @param timeoutMillis how long to wait at most
+   * @param timeoutMilliseconds how long to wait at most
    * @return the region, or null if nothing was due in time or the compositor was closed
    * @throws InterruptedException if the waiting thread is interrupted
    */
-  synchronized @Nullable FrameRegion takeDamage(final byte[] target, final long timeoutMillis) throws InterruptedException {
-    final long deadline = this.clock.getAsLong() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+  synchronized @Nullable FrameRegion takeDamage(final byte[] target, final long timeoutMilliseconds) throws InterruptedException {
+    final long deadline = this.clock.getAsLong() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
     while (!this.closed) {
       final Rectangle current = this.damage;
       final long now = this.clock.getAsLong();
@@ -209,16 +209,16 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
       if (remaining <= 0) {
         return null;
       }
-      final long settleLeft = current == null ? remaining : this.damageSince + this.settleNanos - now;
-      final long waitNanos = Math.max(1L, Math.min(remaining, settleLeft));
-      TimeUnit.NANOSECONDS.timedWait(this, waitNanos);
+      final long settleLeft = current == null ? remaining : this.damageSince + this.settleNanoseconds - now;
+      final long waitNanoseconds = Math.max(1L, Math.min(remaining, settleLeft));
+      TimeUnit.NANOSECONDS.timedWait(this, waitNanoseconds);
     }
     return null;
   }
 
   private boolean isDue(final long now) {
     final boolean enoughPaints = this.paintsSinceSent >= this.frameInterval;
-    final boolean settled = now - this.damageSince >= this.settleNanos;
+    final boolean settled = now - this.damageSince >= this.settleNanoseconds;
     return enoughPaints || settled;
   }
 

@@ -322,7 +322,7 @@ class BrowserSoundTest {
       Thread.sleep(100L);
     }
     player.release();
-    final long matchWindow = TimeUnit.MILLISECONDS.toNanos(TestPages.TOGGLE_MILLIS);
+    final long matchWindow = TimeUnit.MILLISECONDS.toNanos(TestPages.TOGGLE_MILLISECONDS);
     final SyncJudgement judgement = SyncJudgement.of(onsets(picture), onsets(sound), matchWindow);
     final List<Double> offsets = judgement.offsets();
     final int changes = judgement.changes();
@@ -370,7 +370,7 @@ class BrowserSoundTest {
    * @param offsets the sound minus the picture of each matched change, in milliseconds, in the order of the picture
    */
   record SyncJudgement(int changes, List<Double> offsets) {
-    static SyncJudgement of(final List<Long> pictureOnsets, final List<Long> soundOnsets, final long windowNanos) {
+    static SyncJudgement of(final List<Long> pictureOnsets, final List<Long> soundOnsets, final long windowNanoseconds) {
       final List<Double> offsets = new ArrayList<>();
       for (final long shown : pictureOnsets) {
         long nearest = Long.MAX_VALUE;
@@ -379,7 +379,7 @@ class BrowserSoundTest {
             nearest = heard - shown;
           }
         }
-        if (Math.abs(nearest) <= windowNanos) {
+        if (Math.abs(nearest) <= windowNanoseconds) {
           offsets.add(nearest / 1e6);
         }
       }

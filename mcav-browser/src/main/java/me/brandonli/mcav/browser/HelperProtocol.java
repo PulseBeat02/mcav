@@ -60,12 +60,12 @@ final class HelperProtocol {
   /**
    * The largest width or height of a page in pixels.
    */
-  static final int MAX_SIDE = 4096;
+  static final int MAXIMUM_SIDE = 4096;
 
   /**
    * The largest string in a message, in UTF-8 bytes.
    */
-  static final int MAX_TEXT_BYTES = 4096;
+  static final int MAXIMUM_TEXT_BYTES = 4096;
 
   /**
    * The bytes per pixel of a frame.
@@ -80,7 +80,7 @@ final class HelperProtocol {
   /**
    * The largest message of sound in bytes: 16384 frames, a third of a second at 48 kHz.
    */
-  static final int MAX_AUDIO_BYTES = 65_536;
+  static final int MAXIMUM_AUDIO_BYTES = 65_536;
 
   /** The token and protocol version of a new helper: {@code byte[32] token, u16 version}. */
   static final int HELLO = 1;
@@ -129,7 +129,7 @@ final class HelperProtocol {
 
   private static final int FRAME_HEADER_BYTES = 12;
   private static final int MOUSE_BYTES = 11;
-  private static final int MAX_CLICK_COUNT = 3;
+  private static final int MAXIMUM_CLICK_COUNT = 3;
 
   private HelperProtocol() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
@@ -158,7 +158,7 @@ final class HelperProtocol {
    *
    * @param out  the stream
    * @param type {@link #READY}, {@link #NOTICE} or {@link #FAILURE}
-   * @param text the string, cut to {@link #MAX_TEXT_BYTES} bytes
+   * @param text the string, cut to {@link #MAXIMUM_TEXT_BYTES} bytes
    * @throws IOException if the stream fails
    */
   static void writeText(final DataOutput out, final int type, final String text) throws IOException {
@@ -226,11 +226,11 @@ final class HelperProtocol {
    *
    * @param out     the stream
    * @param samples the samples, 16-bit little-endian stereo at 48 kHz, from the start of the array
-   * @param length  the number of bytes of samples, whole frames and at most {@link #MAX_AUDIO_BYTES}
+   * @param length  the number of bytes of samples, whole frames and at most {@link #MAXIMUM_AUDIO_BYTES}
    * @throws IOException if the stream fails
    */
   static void writeAudio(final DataOutput out, final byte[] samples, final int length) throws IOException {
-    if (length <= 0 || length > MAX_AUDIO_BYTES || length % AUDIO_FRAME_BYTES != 0 || length > samples.length) {
+    if (length <= 0 || length > MAXIMUM_AUDIO_BYTES || length % AUDIO_FRAME_BYTES != 0 || length > samples.length) {
       final String message = "Sound of %s bytes cannot be sent!".formatted(length);
       throw new IllegalArgumentException(message);
     }
@@ -263,7 +263,7 @@ final class HelperProtocol {
    *
    * @param out    the stream
    * @param action {@link #KEY_PRESS} or {@link #KEY_TYPE}
-   * @param value  the key name or the text, cut to {@link #MAX_TEXT_BYTES} bytes
+   * @param value  the key name or the text, cut to {@link #MAXIMUM_TEXT_BYTES} bytes
    * @throws IOException if the stream fails
    */
   static void writeKey(final DataOutput out, final int action, final String value) throws IOException {
@@ -340,7 +340,7 @@ final class HelperProtocol {
   }
 
   private static HelperMessage readLoadError(final DataInput in, final int length) throws IOException {
-    checkLength(LOAD_ERROR, length, 4 + 2 + 2, 4 + 2 * (2 + MAX_TEXT_BYTES));
+    checkLength(LOAD_ERROR, length, 4 + 2 + 2, 4 + 2 * (2 + MAXIMUM_TEXT_BYTES));
     final int code = in.readInt();
     final byte[] textBytes = readStringBytes(in);
     final byte[] urlBytes = readStringBytes(in);
@@ -355,7 +355,7 @@ final class HelperProtocol {
   }
 
   private static HelperMessage readFrame(final DataInput in, final int length, final IntFunction<byte[]> pixels) throws IOException {
-    final long maximum = FRAME_HEADER_BYTES + (long) MAX_SIDE * MAX_SIDE * PIXEL_BYTES;
+    final long maximum = FRAME_HEADER_BYTES + (long) MAXIMUM_SIDE * MAXIMUM_SIDE * PIXEL_BYTES;
     checkLength(FRAME, length, FRAME_HEADER_BYTES, maximum);
     final int pageWidth = in.readUnsignedShort();
     final int pageHeight = in.readUnsignedShort();
@@ -388,7 +388,7 @@ final class HelperProtocol {
   }
 
   private static HelperMessage readAudio(final DataInput in, final int length) throws IOException {
-    checkLength(AUDIO, length, AUDIO_FRAME_BYTES, MAX_AUDIO_BYTES);
+    checkLength(AUDIO, length, AUDIO_FRAME_BYTES, MAXIMUM_AUDIO_BYTES);
     if (length % AUDIO_FRAME_BYTES != 0) {
       final String message = "Sound of %s bytes does not hold whole frames of %s bytes!".formatted(length, AUDIO_FRAME_BYTES);
       throw new ProtocolException(message);
@@ -415,8 +415,8 @@ final class HelperProtocol {
       final String message = "Mouse button %s is unknown!".formatted(button);
       throw new ProtocolException(message);
     }
-    if (clickCount > MAX_CLICK_COUNT) {
-      final String message = "Click count %s must be at most %s!".formatted(clickCount, MAX_CLICK_COUNT);
+    if (clickCount > MAXIMUM_CLICK_COUNT) {
+      final String message = "Click count %s must be at most %s!".formatted(clickCount, MAXIMUM_CLICK_COUNT);
       throw new ProtocolException(message);
     }
     final MouseInput input = new MouseInput(action, pageX, pageY, button, clickCount, deltaX, deltaY);
@@ -424,7 +424,7 @@ final class HelperProtocol {
   }
 
   private static HelperMessage readKey(final DataInput in, final int length) throws IOException {
-    checkLength(KEY, length, 1 + 2, 1 + 2 + MAX_TEXT_BYTES);
+    checkLength(KEY, length, 1 + 2, 1 + 2 + MAXIMUM_TEXT_BYTES);
     final int action = in.readUnsignedByte();
     if (action > KEY_TYPE) {
       final String message = "Key action %s is unknown!".formatted(action);
@@ -445,7 +445,7 @@ final class HelperProtocol {
   }
 
   private static String readSingleString(final DataInput in, final int type, final int length) throws IOException {
-    checkLength(type, length, 2, 2 + MAX_TEXT_BYTES);
+    checkLength(type, length, 2, 2 + MAXIMUM_TEXT_BYTES);
     final byte[] bytes = readStringBytes(in);
     if (2 + bytes.length != length) {
       final String message = "A message of %s bytes holds a string of %s bytes!".formatted(length, bytes.length);
@@ -456,8 +456,8 @@ final class HelperProtocol {
 
   private static byte[] readStringBytes(final DataInput in) throws IOException {
     final int length = in.readUnsignedShort();
-    if (length > MAX_TEXT_BYTES) {
-      final String message = "A string of %s bytes must have at most %s bytes!".formatted(length, MAX_TEXT_BYTES);
+    if (length > MAXIMUM_TEXT_BYTES) {
+      final String message = "A string of %s bytes must have at most %s bytes!".formatted(length, MAXIMUM_TEXT_BYTES);
       throw new ProtocolException(message);
     }
     final byte[] bytes = new byte[length];
@@ -485,7 +485,7 @@ final class HelperProtocol {
     while (index < text.length()) {
       final int codePoint = text.codePointAt(index);
       final int size = utf8Length(codePoint);
-      if (bytes + size > MAX_TEXT_BYTES) {
+      if (bytes + size > MAXIMUM_TEXT_BYTES) {
         final boolean isLineBreak = codePoint == '\n' && text.charAt(index - 1) == '\r';
         final int end = isLineBreak ? index - 1 : index;
         parts.add(text.substring(start, end));
@@ -516,17 +516,17 @@ final class HelperProtocol {
   }
 
   /**
-   * Encodes a string as UTF-8, cut at a character boundary to at most {@link #MAX_TEXT_BYTES} bytes.
+   * Encodes a string as UTF-8, cut at a character boundary to at most {@link #MAXIMUM_TEXT_BYTES} bytes.
    *
    * @param text the string
    * @return the bytes
    */
   static byte[] encode(final String text) {
     final byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-    if (bytes.length <= MAX_TEXT_BYTES) {
+    if (bytes.length <= MAXIMUM_TEXT_BYTES) {
       return bytes;
     }
-    int end = MAX_TEXT_BYTES;
+    int end = MAXIMUM_TEXT_BYTES;
     while ((bytes[end] & 0xC0) == 0x80) {
       end--;
     }
@@ -571,8 +571,8 @@ final class HelperProtocol {
   }
 
   private static void checkSide(final String name, final int value) throws ProtocolException {
-    if (value < 1 || value > MAX_SIDE) {
-      final String message = "The %s %s must be between 1 and %s!".formatted(name, value, MAX_SIDE);
+    if (value < 1 || value > MAXIMUM_SIDE) {
+      final String message = "The %s %s must be between 1 and %s!".formatted(name, value, MAXIMUM_SIDE);
       throw new ProtocolException(message);
     }
   }

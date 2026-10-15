@@ -128,7 +128,7 @@ final class LinuxLibraries {
   private static final int MACHINE_AARCH64 = 183;
   private static final Pattern HASH = Pattern.compile("[0-9a-f]{64}");
   private static final String UNPACKED_SUFFIX = ".unpacked";
-  private static final int MAX_INCLUDE_DEPTH = 8;
+  private static final int MAXIMUM_INCLUDE_DEPTH = 8;
 
   private final Path folder;
   private final JcefNatives.Downloader downloader;
@@ -379,16 +379,16 @@ final class LinuxLibraries {
    * written as a file named by its soname. The package is unpacked by {@link DebianPackageExtractor} into a folder
    * beside it, which is removed again; links and other files are not copied.
    *
-   * @param deb    the package
+   * @param debianPackage    the package
    * @param files  the paths in the package, mapped to the sonames to write them as
    * @param target the folder to write into
    * @throws IOException if the package is not one, breaks a limit of the extractor, or lacks a pinned library
    */
-  static void extract(final Path deb, final Map<String, String> files, final Path target) throws IOException {
-    final Path unpacked = deb.resolveSibling(deb.getFileName() + UNPACKED_SUFFIX);
+  static void extract(final Path debianPackage, final Map<String, String> files, final Path target) throws IOException {
+    final Path unpacked = debianPackage.resolveSibling(debianPackage.getFileName() + UNPACKED_SUFFIX);
     try {
-      DebianPackageExtractor.extract(deb, unpacked);
-      copyLibraries(deb, files, unpacked, target);
+      DebianPackageExtractor.extract(debianPackage, unpacked);
+      copyLibraries(debianPackage, files, unpacked, target);
     } catch (final InstallationException exception) {
       throw new IOException(exception.getMessage(), exception);
     } finally {
@@ -396,7 +396,7 @@ final class LinuxLibraries {
     }
   }
 
-  private static void copyLibraries(final Path deb, final Map<String, String> files, final Path unpacked, final Path target)
+  private static void copyLibraries(final Path debianPackage, final Map<String, String> files, final Path unpacked, final Path target)
     throws IOException {
     final Set<String> missing = new LinkedHashSet<>();
     for (final Map.Entry<String, String> file : files.entrySet()) {
@@ -409,7 +409,7 @@ final class LinuxLibraries {
       writeLibrary(library, target.resolve(file.getValue()));
     }
     if (!missing.isEmpty()) {
-      final String message = "The package %s holds none of %s!".formatted(deb.getFileName(), missing);
+      final String message = "The package %s holds none of %s!".formatted(debianPackage.getFileName(), missing);
       throw new IOException(message);
     }
   }
@@ -556,7 +556,7 @@ final class LinuxLibraries {
   }
 
   private static void readConfiguration(final Path root, final Path file, final Set<Path> folders, final int depth) {
-    if (depth > MAX_INCLUDE_DEPTH) {
+    if (depth > MAXIMUM_INCLUDE_DEPTH) {
       return;
     }
     final List<String> lines;

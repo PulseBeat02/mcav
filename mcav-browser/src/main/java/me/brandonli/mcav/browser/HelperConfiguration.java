@@ -36,13 +36,13 @@ final class HelperConfiguration {
   /**
    * The highest frame rate a browser may paint at, mcav's limit: CEF sets none above its minimum of 1.
    */
-  static final int MAX_FRAME_RATE = 60;
+  static final int MAXIMUM_FRAME_RATE = 60;
 
   private static final String SEPARATOR = ":";
   private static final int FIELDS = 15;
   private static final String HOST_SEPARATOR = ",";
-  private static final int MAX_LINE_CHARACTERS = 1024 * 1024;
-  private static final int MAX_FRAME_INTERVAL = 1000;
+  private static final int MAXIMUM_LINE_CHARACTERS = 1024 * 1024;
+  private static final int MAXIMUM_FRAME_INTERVAL = 1000;
 
   private final byte[] token;
   private final Path socket;
@@ -106,10 +106,10 @@ final class HelperConfiguration {
       requireThat(isHost(host), "Host %s is not a host name or address!".formatted(host));
     }
     requireThat(NavigationPolicy.isWebAddress(url), "Page %s must be an absolute http or https address!".formatted(url));
-    requireRange(width, 1, HelperProtocol.MAX_SIDE, "width");
-    requireRange(height, 1, HelperProtocol.MAX_SIDE, "height");
-    requireRange(frameInterval, 1, MAX_FRAME_INTERVAL, "frame interval");
-    requireRange(frameRate, 1, MAX_FRAME_RATE, "frame rate");
+    requireRange(width, 1, HelperProtocol.MAXIMUM_SIDE, "width");
+    requireRange(height, 1, HelperProtocol.MAXIMUM_SIDE, "height");
+    requireRange(frameInterval, 1, MAXIMUM_FRAME_INTERVAL, "frame interval");
+    requireRange(frameRate, 1, MAXIMUM_FRAME_RATE, "frame rate");
     this.token = token.clone();
     this.socket = socket;
     this.natives = natives;
@@ -134,9 +134,9 @@ final class HelperConfiguration {
    * @return the line, without a line break
    */
   String toLine() {
-    final HexFormat hex = HexFormat.of();
+    final HexFormat hexadecimal = HexFormat.of();
     final List<String> values = List.of(
-      hex.formatHex(this.token),
+      hexadecimal.formatHex(this.token),
       this.socket.toString(),
       this.natives.toString(),
       this.profile.toString(),
@@ -169,7 +169,7 @@ final class HelperConfiguration {
    * @throws IllegalArgumentException if the line is not a complete, valid configuration
    */
   static HelperConfiguration fromLine(final String line) {
-    requireThat(line.length() <= MAX_LINE_CHARACTERS, "The configuration line is too long!");
+    requireThat(line.length() <= MAXIMUM_LINE_CHARACTERS, "The configuration line is too long!");
     final String[] parts = line.split(SEPARATOR, -1);
     requireThat(parts.length == FIELDS, "The configuration has %s values instead of %s values!".formatted(parts.length, FIELDS));
     final Base64.Decoder decoder = Base64.getDecoder();
@@ -178,8 +178,8 @@ final class HelperConfiguration {
       final byte[] bytes = decoder.decode(parts[index]);
       values[index] = new String(bytes, StandardCharsets.UTF_8);
     }
-    final HexFormat hex = HexFormat.of();
-    final byte[] token = hex.parseHex(values[0]);
+    final HexFormat hexadecimal = HexFormat.of();
+    final byte[] token = hexadecimal.parseHex(values[0]);
     final Path socket = Path.of(values[1]);
     final Path natives = Path.of(values[2]);
     final Path profile = Path.of(values[3]);

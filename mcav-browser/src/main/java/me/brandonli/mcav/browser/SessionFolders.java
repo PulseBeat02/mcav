@@ -164,15 +164,15 @@ final class SessionFolders {
     if (lines.size() != 2) {
       return false;
     }
-    final long pid;
+    final long processId;
     final Instant started;
     try {
-      pid = Long.parseLong(lines.get(0));
+      processId = Long.parseLong(lines.get(0));
       started = Instant.parse(lines.get(1));
     } catch (final NumberFormatException | DateTimeParseException exception) {
       return false;
     }
-    final Optional<ProcessHandle> server = this.lookup.apply(pid);
+    final Optional<ProcessHandle> server = this.lookup.apply(processId);
     return server.isEmpty() || !server.get().info().startInstant().equals(Optional.of(started));
   }
 

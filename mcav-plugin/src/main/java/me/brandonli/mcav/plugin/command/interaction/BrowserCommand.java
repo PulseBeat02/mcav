@@ -204,7 +204,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    * takes over the audio output from any video or virtual machine until it is released.
    *
    * <p>Requires the permission {@code mcav.command.browser.create}; players and the console can run it. A server the
-   * browser does not run on, invalid dimensions, a browser larger than {@value BrowserSource#MAX_SIDE} pixels on a
+   * browser does not run on, invalid dimensions, a browser larger than {@value BrowserSource#MAXIMUM_SIDE} pixels on a
    * side, an address that is not an absolute {@code http} or {@code https} URL with a host, or an audio output that is
    * not enabled or not ready, are reported with an error message and nothing starts. Otherwise the browser starts in
    * the background, and the sender is told "Browser started!" once the page streams, and the viewers get the link of
@@ -262,7 +262,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
       return;
     }
     // the browser paints at most this many pixels per side, fewer than a wall of maps can show
-    if (resolution.getFirst() > BrowserSource.MAX_SIDE || resolution.getSecond() > BrowserSource.MAX_SIDE) {
+    if (resolution.getFirst() > BrowserSource.MAXIMUM_SIDE || resolution.getSecond() > BrowserSource.MAXIMUM_SIDE) {
       final Component message = Message.UNSUPPORTED_DIMENSION.build();
       sender.sendMessage(message);
       return;

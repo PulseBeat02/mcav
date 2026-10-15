@@ -30,8 +30,8 @@ class BrowserOptionsTest {
   @Test
   void shouldSuitUntrustedPagesByDefault() {
     final int frameRate = BrowserOptions.DEFAULT.getFrameRate();
-    assertEquals(BrowserOptions.MAX_FRAME_RATE, frameRate);
-    assertEquals(60, BrowserOptions.MAX_FRAME_RATE);
+    assertEquals(BrowserOptions.MAXIMUM_FRAME_RATE, frameRate);
+    assertEquals(60, BrowserOptions.MAXIMUM_FRAME_RATE);
     final boolean javaScriptJit = BrowserOptions.DEFAULT.isJavaScriptJit();
     assertFalse(javaScriptJit);
     final boolean privateNetworks = BrowserOptions.DEFAULT.isPrivateNetworks();

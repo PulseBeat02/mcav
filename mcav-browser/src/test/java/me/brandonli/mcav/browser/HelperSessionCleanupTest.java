@@ -64,7 +64,7 @@ final class HelperSessionCleanupTest {
     when(process.descendants()).thenAnswer(_ -> Stream.empty());
     when(process.waitFor(anyLong(), eq(TimeUnit.MILLISECONDS))).thenReturn(true);
     when(builder.start()).thenReturn(process);
-    when(launcher.getStartTimeoutMillis()).thenReturn(1000L);
+    when(launcher.getStartTimeoutMilliseconds()).thenReturn(1000L);
     try (
       final SocketChannel accepted = SocketChannel.open();
       final MockedStatic<HelperSession> helpers = mockStatic(HelperSession.class, CALLS_REAL_METHODS);

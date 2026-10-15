@@ -184,7 +184,7 @@ class CefBrowserPlayerTest {
     assertTrue(released);
     first.onAudio(new byte[] { 2, 0, 2, 0 });
     this.player.deliverAudio(this.sessions.getFirst(), new byte[] { 3, 0, 3, 0 });
-    Thread.sleep(CefBrowserPlayer.MAX_QUEUED_AUDIO_MILLIS * 2L);
+    Thread.sleep(CefBrowserPlayer.MAXIMUM_QUEUED_AUDIO_MILLISECONDS * 2L);
     final int soundCount = heard.size();
     assertEquals(1, soundCount);
   }
@@ -210,7 +210,7 @@ class CefBrowserPlayerTest {
     this.player.deliverAudio(old, new byte[] { 4, 0, 4, 0 });
     this.listener.onAudio(new byte[] { 5, 0, 5, 0 });
     Await.until("the sound of the current session", () -> heard.size() == 1);
-    Thread.sleep(CefBrowserPlayer.MAX_QUEUED_AUDIO_MILLIS * 2L);
+    Thread.sleep(CefBrowserPlayer.MAXIMUM_QUEUED_AUDIO_MILLISECONDS * 2L);
     final int soundCount = heard.size();
     assertEquals(1, soundCount);
     final byte firstSoundByte = heard.getFirst()[0];
@@ -731,7 +731,7 @@ class CefBrowserPlayerTest {
     }
     final int reportCount = this.reports.size();
     assertEquals(LogBudget.BURST, reportCount, "a burst of reports, then none");
-    this.now.addAndGet(LogBudget.REFILL_NANOS);
+    this.now.addAndGet(LogBudget.REFILL_NANOSECONDS);
     this.player.sendKeyEvent("x");
     final List<String> later = this.reports.subList(LogBudget.BURST, this.reports.size());
     assertEquals(

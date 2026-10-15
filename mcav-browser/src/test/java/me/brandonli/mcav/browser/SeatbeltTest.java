@@ -104,7 +104,7 @@ class SeatbeltTest {
 
   @Test
   void shouldNotTreatALibraryWithoutEitherFunctionAsSeatbelt() throws ReflectiveOperationException {
-    for (final String only : List.of(SeatbeltLibrary.INIT, SeatbeltLibrary.FREE_ERROR)) {
+    for (final String only : List.of(SeatbeltLibrary.SANDBOX_INIT, SeatbeltLibrary.FREE_ERROR)) {
       try (final SeatbeltLibrary library = new SeatbeltLibrary(only)) {
         final Seatbelt seatbelt = library.seatbelt();
         final boolean available = seatbelt.isAvailable();

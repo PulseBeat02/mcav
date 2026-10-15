@@ -74,8 +74,8 @@ class LinuxLibrariesTest {
   private static final String POOL = "pool/main/m/mcavtest/libmcavtest1_1.2.3-1_amd64.deb";
   private static final byte[] XZ_MAGIC = { (byte) 0xFD, '7', 'z', 'X', 'Z', 0 };
   // LZMA2 stores the dictionary size in one byte: (2 | byte & 1) << (byte / 2 + 11)
-  private static final int DICTIONARY_64_MIB = 28;
-  private static final int DICTIONARY_192_MIB = 31;
+  private static final int DICTIONARY_64_MEBIBYTES = 28;
+  private static final int DICTIONARY_192_MEBIBYTES = 31;
 
   @TempDir
   Path folder;
@@ -85,14 +85,14 @@ class LinuxLibrariesTest {
   /**
    * Builds a Debian package: an ar archive with a data.tar.xz of the given regular files and links.
    */
-  static byte[] deb(final Map<String, byte[]> files, final Map<String, String> links, final String dataName) throws IOException {
-    return deb(files, links, dataName, "./", false);
+  static byte[] debianPackage(final Map<String, byte[]> files, final Map<String, String> links, final String dataName) throws IOException {
+    return debianPackage(files, links, dataName, "./", false);
   }
 
   /**
    * Builds a Debian package whose names start with a prefix, optionally with a folder entry before its files.
    */
-  static byte[] deb(
+  static byte[] debianPackage(
     final Map<String, byte[]> files,
     final Map<String, String> links,
     final String dataName,
@@ -123,8 +123,8 @@ class LinuxLibrariesTest {
         tar.closeArchiveEntry();
       }
     }
-    final ByteArrayOutputStream deb = new ByteArrayOutputStream();
-    try (final ArArchiveOutputStream archive = new ArArchiveOutputStream(deb)) {
+    final ByteArrayOutputStream debianPackage = new ByteArrayOutputStream();
+    try (final ArArchiveOutputStream archive = new ArArchiveOutputStream(debianPackage)) {
       final byte[] version = "2.0\n".getBytes(StandardCharsets.US_ASCII);
       archive.putArchiveEntry(new ArArchiveEntry("debian-binary", version.length));
       archive.write(version);
@@ -134,11 +134,11 @@ class LinuxLibrariesTest {
       archive.write(tarData);
       archive.closeArchiveEntry();
     }
-    return deb.toByteArray();
+    return debianPackage.toByteArray();
   }
 
   private static byte[] testPackage() throws IOException {
-    return deb(
+    return debianPackage(
       Map.of(LIBRARY, "the library".getBytes(StandardCharsets.US_ASCII), "usr/share/doc/libmcavtest1/copyright", new byte[3]),
       Map.of("usr/lib/x86_64-linux-gnu/libmcavtest.so.1", "libmcavtest.so.1.2.3"),
       "data.tar.xz"
@@ -167,8 +167,8 @@ class LinuxLibrariesTest {
    * holds: the writer puts the block's size, flags without the optional sizes, LZMA2 (0x21) with one byte of properties,
    * padding and the CRC32 of all that.
    */
-  private static byte[] withDictionary(final byte[] deb, final int dictionary) {
-    final byte[] patched = deb.clone();
+  private static byte[] withDictionary(final byte[] debianPackage, final int dictionary) {
+    final byte[] patched = debianPackage.clone();
     int stream = 0;
     while (!Arrays.equals(patched, stream, stream + XZ_MAGIC.length, XZ_MAGIC, 0, XZ_MAGIC.length)) {
       stream++;
@@ -197,26 +197,28 @@ class LinuxLibrariesTest {
     }
   }
 
-  private static String pin(final byte[] deb) {
-    return "linux-amd64 libmcavtest1 1.2.3-1 " + sha256(deb) + " " + deb.length + " " + POOL + " libmcavtest.so.1=" + LIBRARY;
+  private static String pin(final byte[] debianPackage) {
+    return (
+      "linux-amd64 libmcavtest1 1.2.3-1 " + sha256(debianPackage) + " " + debianPackage.length + " " + POOL + " libmcavtest.so.1=" + LIBRARY
+    );
   }
 
   /**
    * An installer whose downloads come from memory: a mirror named "broken" fails, every other one serves the package.
    */
-  private LinuxLibraries installer(final byte[] deb, final List<String> mirrors, final List<String> pins) {
+  private LinuxLibraries installer(final byte[] debianPackage, final List<String> mirrors, final List<String> pins) {
     return new LinuxLibraries(
       this.folder.resolve("cache"),
       (uri, destination, sha256, size) -> {
         this.downloads.add(uri);
-        assertEquals(deb.length, size, "the pinned size bounds the download");
+        assertEquals(debianPackage.length, size, "the pinned size bounds the download");
         if (uri.getHost().equals("broken.test")) {
           throw new IOException("mirror down");
         }
-        if (!sha256.equals(sha256(deb))) {
+        if (!sha256.equals(sha256(debianPackage))) {
           throw new IOException("hash mismatch");
         }
-        Files.write(destination, deb);
+        Files.write(destination, debianPackage);
       },
       mirrors,
       pins
@@ -253,8 +255,8 @@ class LinuxLibrariesTest {
       assertEquals("libnss3.so", mainLibrary, "NSS is linked as a whole, decided by its main library");
       final boolean holdsTheSoftwareToken = nss.sonames().contains("libsoftokn3.so");
       assertTrue(holdsTheSoftwareToken);
-      final boolean twelveHexDigits = LinuxLibraries.fingerprint(pins).matches("[0-9a-f]{12}");
-      assertTrue(twelveHexDigits);
+      final boolean twelveHexadecimalDigits = LinuxLibraries.fingerprint(pins).matches("[0-9a-f]{12}");
+      assertTrue(twelveHexadecimalDigits);
     }
     assertEquals(List.of("https://archive.debian.org/debian/", "https://deb.debian.org/debian/"), LinuxLibraries.MIRRORS);
   }
@@ -311,8 +313,12 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldDownloadVerifyAndKeepTheLibrariesAsFilesNamedBySoname() throws IOException {
-    final byte[] deb = testPackage();
-    final LinuxLibraries libraries = this.installer(deb, List.of("https://mirror.test/debian/"), List.of("# a comment", "", pin(deb)));
+    final byte[] debianPackage = testPackage();
+    final LinuxLibraries libraries = this.installer(
+      debianPackage,
+      List.of("https://mirror.test/debian/"),
+      List.of("# a comment", "", pin(debianPackage))
+    );
     final Path installation = libraries.install("linux-amd64");
     assertEquals(List.of(URI.create("https://mirror.test/debian/" + POOL)), this.downloads);
     try (final Stream<Path> files = Files.list(installation)) {
@@ -346,8 +352,8 @@ class LinuxLibrariesTest {
   @Test
   void shouldTakeTheGroupWritePermissionFromLibrariesAnEarlierVersionInstalled() throws IOException {
     assumeTrue(this.folder.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
-    final byte[] deb = testPackage();
-    final LinuxLibraries libraries = this.installer(deb, List.of("https://mirror.test/debian/"), List.of(pin(deb)));
+    final byte[] debianPackage = testPackage();
+    final LinuxLibraries libraries = this.installer(debianPackage, List.of("https://mirror.test/debian/"), List.of(pin(debianPackage)));
     final Path installation = libraries.install("linux-amd64");
     final Path cache = this.folder.resolve("cache");
     final Path library = installation.resolve("libmcavtest.so.1");
@@ -368,7 +374,7 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldTryTheNextMirrorWhenTheDownloadOfTheFirstCannotBeMovedIntoPlace() throws IOException {
-    final byte[] deb = testPackage();
+    final byte[] debianPackage = testPackage();
     final LinuxLibraries libraries = new LinuxLibraries(
       this.folder.resolve("cache"),
       (uri, destination, sha256, size) -> {
@@ -376,10 +382,10 @@ class LinuxLibrariesTest {
         if (uri.getHost().equals("first.test")) {
           throw new FileOperationException("The part file could not be moved into place!");
         }
-        Files.write(destination, deb);
+        Files.write(destination, debianPackage);
       },
       List.of("https://first.test/debian/", "https://second.test/debian/"),
-      List.of(pin(deb))
+      List.of(pin(debianPackage))
     );
 
     final Path installation = libraries.install("linux-amd64");
@@ -391,11 +397,11 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldFollowAFailingMirrorWithTheNextAndReportWhenAllFail() throws IOException {
-    final byte[] deb = testPackage();
+    final byte[] debianPackage = testPackage();
     final LinuxLibraries fallback = this.installer(
-      deb,
+      debianPackage,
       List.of("https://broken.test/debian/", "https://mirror.test/debian/"),
-      List.of(pin(deb))
+      List.of(pin(debianPackage))
     );
     fallback.install("linux-amd64");
     final int downloadCount = this.downloads.size();
@@ -409,7 +415,7 @@ class LinuxLibrariesTest {
         throw new IOException("down " + uri.getHost());
       },
       List.of("https://first.test/debian/", "https://second.test/debian/"),
-      List.of(pin(deb))
+      List.of(pin(debianPackage))
     );
     final IOException failure = assertThrows(IOException.class, () -> none.install("linux-amd64"));
     final String failureMessage = failure.getMessage();
@@ -435,13 +441,19 @@ class LinuxLibrariesTest {
   @Test
   void shouldRequireAPackageToHoldItsDataAndEveryPinnedLibraryAsARegularFile() throws IOException {
     final Map<String, String> wanted = Map.of(LIBRARY, "libmcavtest.so.1");
-    final Path noData = Files.write(this.folder.resolve("no-data.deb"), deb(Map.of(LIBRARY, new byte[1]), Map.of(), "data.tar.zst"));
+    final Path noData = Files.write(
+      this.folder.resolve("no-data.deb"),
+      debianPackage(Map.of(LIBRARY, new byte[1]), Map.of(), "data.tar.zst")
+    );
     final IOException member = assertThrows(IOException.class, () ->
       LinuxLibraries.extract(noData, wanted, Files.createDirectory(this.folder.resolve("a")))
     );
     final Throwable noDataCause = member.getCause();
     assertInstanceOf(InstallationException.class, noDataCause);
-    final Path linkOnly = Files.write(this.folder.resolve("link.deb"), deb(Map.of(), Map.of(LIBRARY, "elsewhere.so"), "data.tar.xz"));
+    final Path linkOnly = Files.write(
+      this.folder.resolve("link.deb"),
+      debianPackage(Map.of(), Map.of(LIBRARY, "elsewhere.so"), "data.tar.xz")
+    );
     final IOException link = assertThrows(IOException.class, () ->
       LinuxLibraries.extract(linkOnly, wanted, Files.createDirectory(this.folder.resolve("b")))
     );
@@ -449,7 +461,10 @@ class LinuxLibrariesTest {
     assertEquals("The package link.deb holds none of [%s]!".formatted(LIBRARY), linkMessage);
     final boolean unpackedKept = Files.exists(this.folder.resolve("link.deb.unpacked"));
     assertFalse(unpackedKept, "the unpacked package is removed");
-    final Path hardLink = Files.write(this.folder.resolve("hard.deb"), deb(Map.of(), Map.of(LIBRARY, "=elsewhere.so"), "data.tar.xz"));
+    final Path hardLink = Files.write(
+      this.folder.resolve("hard.deb"),
+      debianPackage(Map.of(), Map.of(LIBRARY, "=elsewhere.so"), "data.tar.xz")
+    );
     final IOException hard = assertThrows(IOException.class, () ->
       LinuxLibraries.extract(hardLink, wanted, Files.createDirectory(this.folder.resolve("hard")))
     );
@@ -460,11 +475,11 @@ class LinuxLibrariesTest {
   @Test
   void shouldNotLetAPackageAskForMoreMemoryThanTheStrongestCompressionOfDpkg() throws IOException {
     final Map<String, String> wanted = Map.of(LIBRARY, "libmcavtest.so.1");
-    final byte[] greedy = withDictionary(testPackage(), DICTIONARY_192_MIB);
-    final Path deb = Files.write(this.folder.resolve("greedy.deb"), greedy);
+    final byte[] greedy = withDictionary(testPackage(), DICTIONARY_192_MEBIBYTES);
+    final Path debianPackage = Files.write(this.folder.resolve("greedy.deb"), greedy);
     final Path target = Files.createDirectory(this.folder.resolve("greedy"));
 
-    assertThrows(IOException.class, () -> LinuxLibraries.extract(deb, wanted, target));
+    assertThrows(IOException.class, () -> LinuxLibraries.extract(debianPackage, wanted, target));
     try (final Stream<Path> written = Files.list(target)) {
       final List<Path> writtenFiles = written.toList();
       assertEquals(List.of(), writtenFiles, "nothing of a refused package is written");
@@ -473,11 +488,11 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldReadAPackageCompressedWithTheStrongestCompressionOfDpkg() throws IOException {
-    final byte[] strongest = withDictionary(testPackage(), DICTIONARY_64_MIB);
-    final Path deb = Files.write(this.folder.resolve("strongest.deb"), strongest);
+    final byte[] strongest = withDictionary(testPackage(), DICTIONARY_64_MEBIBYTES);
+    final Path debianPackage = Files.write(this.folder.resolve("strongest.deb"), strongest);
     final Path target = Files.createDirectory(this.folder.resolve("strongest"));
 
-    LinuxLibraries.extract(deb, Map.of(LIBRARY, "libmcavtest.so.1"), target);
+    LinuxLibraries.extract(debianPackage, Map.of(LIBRARY, "libmcavtest.so.1"), target);
 
     final byte[] libraryBytes = Files.readAllBytes(target.resolve("libmcavtest.so.1"));
     assertArrayEquals("the library".getBytes(StandardCharsets.US_ASCII), libraryBytes);
@@ -485,10 +500,10 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldWriteLibrariesOnFileSystemsWithoutPosixPermissions() throws IOException {
-    final Path deb = Files.write(this.folder.resolve("package.deb"), testPackage());
+    final Path debianPackage = Files.write(this.folder.resolve("package.deb"), testPackage());
     try (final FileSystem zip = FileSystems.newFileSystem(this.folder.resolve("plain.zip"), Map.of("create", "true"))) {
       final Path target = zip.getPath("/");
-      LinuxLibraries.extract(deb, Map.of(LIBRARY, "libmcavtest.so.1"), target);
+      LinuxLibraries.extract(debianPackage, Map.of(LIBRARY, "libmcavtest.so.1"), target);
       final byte[] libraryBytes = Files.readAllBytes(target.resolve("libmcavtest.so.1"));
       assertArrayEquals("the library".getBytes(StandardCharsets.US_ASCII), libraryBytes);
     }
@@ -574,21 +589,21 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldFollowThePinnedHashesInTheFingerprint() throws IOException {
-    final byte[] deb = testPackage();
-    final LinuxLibraries libraries = this.installer(deb, List.of(), List.of(pin(deb)));
+    final byte[] debianPackage = testPackage();
+    final LinuxLibraries libraries = this.installer(debianPackage, List.of(), List.of(pin(debianPackage)));
     final String fingerprint = LinuxLibraries.fingerprint(libraries.getPins("linux-amd64"));
-    assertEquals(sha256(sha256(deb).getBytes(StandardCharsets.US_ASCII)).substring(0, 12), fingerprint);
+    assertEquals(sha256(sha256(debianPackage).getBytes(StandardCharsets.US_ASCII)).substring(0, 12), fingerprint);
   }
 
   @Test
   @EnabledOnOs(OS.LINUX)
   void shouldLinkTheLibrariesTheServerLacksIntoTheDefaultSessionsOfLinux() throws IOException {
-    final byte[] deb = testPackage();
+    final byte[] debianPackage = testPackage();
     final String platform = JcefNatives.detectCurrent().getIdentifier();
     final LinuxLibraries libraries = this.installer(
-      deb,
+      debianPackage,
       List.of("https://mirror.test/debian/"),
-      List.of(pin(deb).replace("linux-amd64", platform))
+      List.of(pin(debianPackage).replace("linux-amd64", platform))
     );
     final HelperLauncher linux = HelperSessionTest.launcher(ScriptedEngine.class.getName(), 1_000L, Os.LINUX);
     final HelperLauncher withLibraries = CefBrowserPlayer.DefaultSessionFactory.withLibraries(linux, libraries);
@@ -604,12 +619,12 @@ class LinuxLibrariesTest {
   @Test
   @EnabledOnOs(OS.LINUX)
   void shouldDownloadNothingWhenTheServerHasEveryLibrary() throws IOException {
-    final byte[] deb = testPackage();
+    final byte[] debianPackage = testPackage();
     final String platform = JcefNatives.detectCurrent().getIdentifier();
     final LinuxLibraries libraries = this.installer(
-      deb,
+      debianPackage,
       List.of("https://mirror.test/debian/"),
-      List.of(pin(deb).replace("linux-amd64", platform))
+      List.of(pin(debianPackage).replace("linux-amd64", platform))
     );
     final Path root = Files.createDirectories(this.folder.resolve("provisioned"));
     final Path loader = Files.createDirectories(LinuxLibraries.hostFolders(root, platform).getFirst());
@@ -623,17 +638,17 @@ class LinuxLibrariesTest {
   @Test
   @EnabledOnOs(OS.LINUX)
   void shouldRefuseAHeadlessJavaRuntimeWithWhatToInstall() throws IOException {
-    final byte[] deb = testPackage();
+    final byte[] debianPackage = testPackage();
     final String platform = JcefNatives.detectCurrent().getIdentifier();
     final LinuxLibraries libraries = this.installer(
-      deb,
+      debianPackage,
       List.of("https://mirror.test/debian/"),
-      List.of(pin(deb).replace("linux-amd64", platform))
+      List.of(pin(debianPackage).replace("linux-amd64", platform))
     );
     // As Ubuntu's openjdk-25-jre-headless: AWT's headless library, but not libjawt.so, which libjcef.so links against
     final Path runtime = Files.createDirectories(this.folder.resolve("java-25-openjdk"));
-    final Path lib = Files.createDirectories(runtime.resolve("lib"));
-    Files.write(lib.resolve("libawt_headless.so"), elf(2, 1, 62));
+    final Path library = Files.createDirectories(runtime.resolve("lib"));
+    Files.write(library.resolve("libawt_headless.so"), elf(2, 1, 62));
     final HelperLauncher headless = new HelperLauncher(
       runtime.resolve("bin").resolve("java"),
       ScriptedEngine.class.getName(),
@@ -656,7 +671,7 @@ class LinuxLibrariesTest {
       message
     );
     assertEquals(List.of(), this.downloads, "no library is downloaded for a runtime the browser cannot use");
-    Files.write(lib.resolve("libjawt.so"), elf(2, 1, 62));
+    Files.write(library.resolve("libjawt.so"), elf(2, 1, 62));
     final Path loader = Files.createDirectories(LinuxLibraries.hostFolders(server, platform).getFirst());
     Files.write(loader.resolve("libmcavtest.so.1"), elf(2, 1, platform.endsWith("arm64") ? 183 : 62));
     final HelperLauncher launcherWithLibraries = CefBrowserPlayer.DefaultSessionFactory.withLibraries(headless, libraries, server);
@@ -667,7 +682,7 @@ class LinuxLibrariesTest {
   void shouldReadAPackageWhoseNamesHaveNoPrefixAndThatHoldsFolders() throws IOException {
     final Path plain = Files.write(
       this.folder.resolve("plain.deb"),
-      deb(Map.of(LIBRARY, new byte[] { 7 }), Map.of(), "data.tar.xz", "", true)
+      debianPackage(Map.of(LIBRARY, new byte[] { 7 }), Map.of(), "data.tar.xz", "", true)
     );
     final Path target = Files.createDirectories(this.folder.resolve("plain"));
     LinuxLibraries.extract(plain, Map.of(LIBRARY, "libmcavtest.so.1"), target);
@@ -677,8 +692,8 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldNotInstallAgainLibrariesAnotherProcessInstalledWhileThisOneWaited() throws Exception {
-    final byte[] deb = testPackage();
-    final LinuxLibraries libraries = this.installer(deb, List.of("https://deb.test/debian/"), List.of(pin(deb)));
+    final byte[] debianPackage = testPackage();
+    final LinuxLibraries libraries = this.installer(debianPackage, List.of("https://deb.test/debian/"), List.of(pin(debianPackage)));
     final Path installation = this.folder
       .resolve("cache")
       .resolve("debian-11-linux-amd64-" + LinuxLibraries.fingerprint(libraries.getPins("linux-amd64")));
@@ -763,8 +778,8 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldReplaceAnInstallationThatWasNeverFinished() throws IOException {
-    final byte[] deb = testPackage();
-    final LinuxLibraries libraries = this.installer(deb, List.of("https://mirror.test/debian/"), List.of(pin(deb)));
+    final byte[] debianPackage = testPackage();
+    final LinuxLibraries libraries = this.installer(debianPackage, List.of("https://mirror.test/debian/"), List.of(pin(debianPackage)));
     final String name = "debian-11-linux-amd64-" + LinuxLibraries.fingerprint(libraries.getPins("linux-amd64"));
     final Path unfinished = Files.createDirectories(this.folder.resolve("cache").resolve(name));
     Files.writeString(unfinished.resolve("left-over"), "partial");
@@ -822,17 +837,17 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldFetchAPackageOfTheSecurityUpdatesFromTheirMirrors() throws IOException {
-    final byte[] deb = testPackage();
+    final byte[] debianPackage = testPackage();
     final List<URI> asked = new ArrayList<>();
     final LinuxLibraries libraries = new LinuxLibraries(
       this.folder.resolve("security-cache"),
       (uri, destination, sha256, size) -> {
         asked.add(uri);
-        Files.write(destination, deb);
+        Files.write(destination, debianPackage);
       },
       List.of("https://main.test/debian/"),
       List.of("https://security.test/debian-security/"),
-      List.of(pin(deb).replace(POOL, "pool/updates/main/m/mcavtest/libmcavtest1_1.2.3-1+deb11u1_amd64.deb"))
+      List.of(pin(debianPackage).replace(POOL, "pool/updates/main/m/mcavtest/libmcavtest1_1.2.3-1+deb11u1_amd64.deb"))
     );
     libraries.install("linux-amd64");
     assertEquals(

@@ -64,12 +64,12 @@ final class ArchiveExtractor {
   /**
    * The most entries an archive may have.
    */
-  private static final int MAX_ENTRIES = 10_000;
+  private static final int MAXIMUM_ENTRIES = 10_000;
 
   /**
    * The most bytes an archive may extract to.
    */
-  private static final long MAX_TOTAL_BYTES = 2L * 1024 * 1024 * 1024;
+  private static final long MAXIMUM_TOTAL_BYTES = 2L * 1024 * 1024 * 1024;
 
   private static final Set<PosixFilePermission> EXECUTABLE = PosixFilePermissions.fromString("rwxr-xr-x");
   private static final Set<PosixFilePermission> REGULAR = PosixFilePermissions.fromString("rw-r--r--");
@@ -86,7 +86,7 @@ final class ArchiveExtractor {
    * Constructs an extractor with the default limits.
    */
   ArchiveExtractor() {
-    this(MAX_ENTRIES, MAX_TOTAL_BYTES);
+    this(MAXIMUM_ENTRIES, MAXIMUM_TOTAL_BYTES);
   }
 
   /**

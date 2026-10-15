@@ -87,7 +87,7 @@ public final class TestPages implements AutoCloseable {
   /**
    * How long the picture and the sound of {@code /av-sync} stay on and off, in milliseconds.
    */
-  public static final int TOGGLE_MILLIS = 400;
+  public static final int TOGGLE_MILLISECONDS = 400;
 
   private static final String TONE_SCRIPT = String.format(
     Locale.ROOT,
@@ -222,7 +222,7 @@ public final class TestPages implements AutoCloseable {
     """,
     TONE_HERTZ,
     TONE_AMPLITUDE,
-    TOGGLE_MILLIS
+    TOGGLE_MILLISECONDS
   );
 
   private static final String SCRIPT = """
@@ -446,12 +446,12 @@ public final class TestPages implements AutoCloseable {
   }
 
   private static void page(final HttpExchange exchange, final String name, final int color, final String extra) throws IOException {
-    final String hex = String.format(Locale.ROOT, "#%06x", color);
+    final String hexadecimal = String.format(Locale.ROOT, "#%06x", color);
     final String html =
       "<!doctype html><html><head><title>" +
       name +
       "</title><style>html,body{margin:0;width:100%;height:100%;background:" +
-      hex +
+      hexadecimal +
       ";}</style></head><body data-page=\"" +
       name +
       "\">" +

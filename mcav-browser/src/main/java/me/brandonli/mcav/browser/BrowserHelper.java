@@ -53,13 +53,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * server's Unix-domain socket, proves who it is with the session token, starts CEF and streams the page as
  * {@link HelperProtocol} frames while it forwards the server's input to the page. It exits when the server asks it
  * to, when the connection ends, or when its standard input ends, which happens when the server process dies. Once its
- * standard input ended, it halts if it has not stopped within {@value #STOP_DEADLINE_MILLIS} ms, so a browser that hangs
+ * standard input ended, it halts if it has not stopped within {@value #STOP_DEADLINE_MILLISECONDS} ms, so a browser that hangs
  * never outlives the server. It is not meant to be started by hand.
  */
 public final class BrowserHelper {
 
-  private static final long SETTLE_MILLIS = 100L;
-  private static final long TAKE_TIMEOUT_MILLIS = 250L;
+  private static final long SETTLE_MILLISECONDS = 100L;
+  private static final long TAKE_TIMEOUT_MILLISECONDS = 250L;
   private static final int EXIT_FAILURE = 1;
   private static final int EXIT_BAD_CONFIGURATION = 2;
 
@@ -67,12 +67,12 @@ public final class BrowserHelper {
    * How long the helper may take to stop once its standard input ended, in milliseconds. The server is gone then,
    * and CEF's own shutdown waits up to ten seconds; a browser that hangs longer must not outlive the server.
    */
-  private static final long STOP_DEADLINE_MILLIS = 20_000L;
+  private static final long STOP_DEADLINE_MILLISECONDS = 20_000L;
 
   private final HelperConfiguration configuration;
   private final HelperEngine engine;
   private final Halter halter;
-  private final long stopDeadlineMillis;
+  private final long stopDeadlineMilliseconds;
   private final PageCompositor compositor;
   private final CountDownLatch stopped;
   private final AtomicReference<String> stopReason;
@@ -96,17 +96,22 @@ public final class BrowserHelper {
    * @param configuration      the configuration
    * @param engine             the browser
    * @param halter             ends the JVM at once if the helper does not stop in time after its standard input ended
-   * @param stopDeadlineMillis how long the helper may take to stop then
+   * @param stopDeadlineMilliseconds how long the helper may take to stop then
    */
-  BrowserHelper(final HelperConfiguration configuration, final HelperEngine engine, final Halter halter, final long stopDeadlineMillis) {
+  BrowserHelper(
+    final HelperConfiguration configuration,
+    final HelperEngine engine,
+    final Halter halter,
+    final long stopDeadlineMilliseconds
+  ) {
     this.configuration = configuration;
     this.engine = engine;
     this.halter = halter;
-    this.stopDeadlineMillis = stopDeadlineMillis;
+    this.stopDeadlineMilliseconds = stopDeadlineMilliseconds;
     final int width = configuration.getWidth();
     final int height = configuration.getHeight();
     final int frameInterval = configuration.getFrameInterval();
-    this.compositor = new PageCompositor(width, height, frameInterval, SETTLE_MILLIS, System::nanoTime);
+    this.compositor = new PageCompositor(width, height, frameInterval, SETTLE_MILLISECONDS, System::nanoTime);
     this.stopped = new CountDownLatch(1);
     this.stopReason = new AtomicReference<>("");
   }
@@ -151,7 +156,7 @@ public final class BrowserHelper {
       System.err.println("The browser helper got an invalid configuration (%s).".formatted(exception.getMessage()));
       return EXIT_BAD_CONFIGURATION;
     }
-    final BrowserHelper helper = new BrowserHelper(configuration, engine, halter, STOP_DEADLINE_MILLIS);
+    final BrowserHelper helper = new BrowserHelper(configuration, engine, halter, STOP_DEADLINE_MILLISECONDS);
     return helper.run(input, BrowserHelper::connect);
   }
 
@@ -257,12 +262,12 @@ public final class BrowserHelper {
     }
     this.stop("the standard input ended");
     try {
-      Thread.sleep(this.stopDeadlineMillis);
+      Thread.sleep(this.stopDeadlineMilliseconds);
     } catch (final InterruptedException exception) {
       final Thread thread = Thread.currentThread();
       thread.interrupt();
     }
-    System.err.println("The browser helper did not stop within %s ms and halts.".formatted(this.stopDeadlineMillis));
+    System.err.println("The browser helper did not stop within %s ms and halts.".formatted(this.stopDeadlineMilliseconds));
     this.halter.halt(EXIT_FAILURE);
   }
 
@@ -337,7 +342,7 @@ public final class BrowserHelper {
     final byte[] buffer = new byte[pageBytes];
     try {
       while (this.stopped.getCount() > 0) {
-        final FrameRegion region = this.compositor.takeDamage(buffer, TAKE_TIMEOUT_MILLIS);
+        final FrameRegion region = this.compositor.takeDamage(buffer, TAKE_TIMEOUT_MILLISECONDS);
         if (region == null) {
           continue;
         }

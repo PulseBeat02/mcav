@@ -33,11 +33,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Web Audio and its audio and video elements in one 48 kHz stereo context, whose samples it sends as Base64 of 16-bit
  * little-endian PCM through a DevTools binding. The DevTools client reports every call of the binding as an event,
  * which this listener turns into samples for the server. Every frame of the page that plays sound has a context of its
- * own; the sound of one of them passes at a time, and another may take over after {@value #QUIET_MILLIS} ms of quiet.
+ * own; the sound of one of them passes at a time, and another may take over after {@value #QUIET_MILLISECONDS} ms of quiet.
  *
  * <p>Every byte of an event comes from the page, which can also call the binding itself before the script takes it
  * away, so an event is only taken when it is exactly a call of the binding with at most
- * {@link HelperProtocol#MAX_AUDIO_BYTES} of whole frames, and never more than {@value #BUDGET_SECONDS_PER_SECOND}
+ * {@link HelperProtocol#MAXIMUM_AUDIO_BYTES} of whole frames, and never more than {@value #BUDGET_SECONDS_PER_SECOND}
  * seconds of sound per second pass on; the page could play that sound anyway. Sound of frames that run in another
  * process (those of another site), of media from another site that does not allow it (CORS), of protected media, and
  * of Web Audio contexts of subclasses the page defines is not captured.
@@ -286,15 +286,15 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   /**
    * How long the frame whose sound passes must be quiet before the sound of another frame may pass, in milliseconds.
    */
-  static final int QUIET_MILLIS = 250;
+  static final int QUIET_MILLISECONDS = 250;
 
   private static final int BYTES_PER_SECOND = 48_000 * HelperProtocol.AUDIO_FRAME_BYTES;
   private static final long BUDGET_BYTES = (long) BUDGET_SECONDS_PER_SECOND * BYTES_PER_SECOND;
   private static final String PREFIX = "{\"name\":\"" + BINDING + "\",\"payload\":\"";
-  private static final int MAX_PAYLOAD_CHARS = ((HelperProtocol.MAX_AUDIO_BYTES + 2) / 3) * 4;
+  private static final int MAXIMUM_PAYLOAD_CHARACTERS = ((HelperProtocol.MAXIMUM_AUDIO_BYTES + 2) / 3) * 4;
   private static final String CONTEXT_FIELD = "\",\"executionContextId\":";
   private static final Pattern CONTEXT = Pattern.compile(Pattern.quote(CONTEXT_FIELD) + "-?[0-9]{1,10}}");
-  private static final int MAX_TAIL = CONTEXT_FIELD.length() + 12;
+  private static final int MAXIMUM_TAIL = CONTEXT_FIELD.length() + 12;
 
   private final Consumer<byte[]> sink;
   private final LongSupplier clock;
@@ -314,7 +314,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     this.clock = clock;
     this.available = BUDGET_BYTES;
     this.last = clock.getAsLong();
-    this.spoken = this.last - TimeUnit.MILLISECONDS.toNanos(QUIET_MILLIS);
+    this.spoken = this.last - TimeUnit.MILLISECONDS.toNanos(QUIET_MILLISECONDS);
   }
 
   /**
@@ -361,7 +361,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
    */
   @VisibleForTesting
   static long leastBytes(final String parameters) {
-    return ((parameters.length() - PREFIX.length() - MAX_TAIL) / 4L) * 3L - 2L;
+    return ((parameters.length() - PREFIX.length() - MAXIMUM_TAIL) / 4L) * 3L - 2L;
   }
 
   private synchronized boolean mayTake(final long bytes) {
@@ -371,7 +371,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
 
   private synchronized boolean take(final Chunk chunk) {
     final long now = this.clock.getAsLong();
-    final boolean quiet = now - this.spoken >= TimeUnit.MILLISECONDS.toNanos(QUIET_MILLIS);
+    final boolean quiet = now - this.spoken >= TimeUnit.MILLISECONDS.toNanos(QUIET_MILLISECONDS);
     if (chunk.context() != this.speaker && !quiet) {
       return false;
     }
@@ -411,7 +411,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
 
   /**
    * Reads an event: exactly a call of the binding whose payload is Base64 of 16-bit stereo samples, whole frames and at
-   * most {@link HelperProtocol#MAX_AUDIO_BYTES}.
+   * most {@link HelperProtocol#MAXIMUM_AUDIO_BYTES}.
    *
    * @param method     the method of the event
    * @param parameters the parameters of the event, JSON as Chromium writes it
@@ -424,7 +424,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     }
     final int start = PREFIX.length();
     final int end = parameters.indexOf('"', start);
-    if (end == -1 || end - start > MAX_PAYLOAD_CHARS) {
+    if (end == -1 || end - start > MAXIMUM_PAYLOAD_CHARACTERS) {
       return null;
     }
     if (!CONTEXT.matcher(parameters).region(end, parameters.length()).matches()) {

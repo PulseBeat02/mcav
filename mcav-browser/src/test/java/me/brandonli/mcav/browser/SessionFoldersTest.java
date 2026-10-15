@@ -48,12 +48,12 @@ class SessionFoldersTest {
   @TempDir
   private Path temporary;
 
-  private static ProcessHandle server(final long pid, final Optional<Instant> started) {
+  private static ProcessHandle server(final long processId, final Optional<Instant> started) {
     final ProcessHandle server = mock(ProcessHandle.class);
-    final ProcessHandle.Info info = mock(ProcessHandle.Info.class);
-    when(server.pid()).thenReturn(pid);
-    when(server.info()).thenReturn(info);
-    when(info.startInstant()).thenReturn(started);
+    final ProcessHandle.Info information = mock(ProcessHandle.Info.class);
+    when(server.pid()).thenReturn(processId);
+    when(server.info()).thenReturn(information);
+    when(information.startInstant()).thenReturn(started);
     return server;
   }
 

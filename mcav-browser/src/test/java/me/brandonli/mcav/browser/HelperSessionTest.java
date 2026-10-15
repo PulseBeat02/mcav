@@ -95,22 +95,22 @@ class HelperSessionTest {
   private final List<Path> shortDirectories = new ArrayList<>();
   private final List<HelperSession> sessions = new ArrayList<>();
 
-  static HelperLauncher launcher(final String mainClass, final long startTimeoutMillis) {
-    return launcher(mainClass, startTimeoutMillis, OsUtils.getOs());
+  static HelperLauncher launcher(final String mainClass, final long startTimeoutMilliseconds) {
+    return launcher(mainClass, startTimeoutMilliseconds, OsUtils.getOs());
   }
 
-  static HelperLauncher launcher(final String mainClass, final long startTimeoutMillis, final Os os) {
-    return launcher(mainClass, startTimeoutMillis, os, List.of());
+  static HelperLauncher launcher(final String mainClass, final long startTimeoutMilliseconds, final Os os) {
+    return launcher(mainClass, startTimeoutMilliseconds, os, List.of());
   }
 
-  static HelperLauncher launcher(final String mainClass, final long startTimeoutMillis, final Os os, final List<String> jvmOptions) {
+  static HelperLauncher launcher(final String mainClass, final long startTimeoutMilliseconds, final Os os, final List<String> jvmOptions) {
     final String javaHome = System.getProperty("java.home");
     final Path java = Path.of(javaHome, "bin", File.separatorChar == '\\' ? "java.exe" : "java");
     final List<Path> classPath = new ArrayList<>();
     for (final String entry : System.getProperty("java.class.path").split(Pattern.quote(File.pathSeparator), -1)) {
       classPath.add(Path.of(entry));
     }
-    return new HelperLauncher(java, mainClass, classPath, jvmOptions, os, System.getenv(), startTimeoutMillis);
+    return new HelperLauncher(java, mainClass, classPath, jvmOptions, os, System.getenv(), startTimeoutMilliseconds);
   }
 
   private HelperSession open(final String mainClass, final String path) {
@@ -124,11 +124,11 @@ class HelperSessionTest {
     return session;
   }
 
-  private PlayerException openFails(final String mainClass, final String path, final long timeoutMillis) {
+  private PlayerException openFails(final String mainClass, final String path, final long timeoutMilliseconds) {
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com" + path), 4, 3, 1);
     final int before = HelperProcesses.count();
     final PlayerException failure = assertThrows(PlayerException.class, () ->
-      HelperSession.open(launcher(mainClass, timeoutMillis), NATIVES, source, BrowserOptions.DEFAULT, this.listener)
+      HelperSession.open(launcher(mainClass, timeoutMilliseconds), NATIVES, source, BrowserOptions.DEFAULT, this.listener)
     );
     final int helperCount = HelperProcesses.count();
     assertEquals(before, helperCount, "a failed start leaves no session behind");
@@ -263,7 +263,7 @@ class HelperSessionTest {
         assertEquals(0, highByte);
       }
     }
-    Thread.sleep(HelperSession.REPEAT_DELAY_MILLIS * 2);
+    Thread.sleep(HelperSession.REPEAT_DELAY_MILLISECONDS * 2);
     final int chunkCount = this.listener.sound.size();
     assertEquals(ScriptedEngine.SOUND_CHUNKS, chunkCount);
     session.close();
@@ -280,7 +280,7 @@ class HelperSessionTest {
     final boolean pressAccepted = session.sendMouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 1, 0, 1, 0, 0));
     assertTrue(pressAccepted);
     Await.until("the sound after the press", () -> !this.listener.sound.isEmpty());
-    Thread.sleep(HelperSession.REPEAT_DELAY_MILLIS * 2);
+    Thread.sleep(HelperSession.REPEAT_DELAY_MILLISECONDS * 2);
     final int chunkCount = this.listener.sound.size();
     assertEquals(1, chunkCount);
     final byte firstSoundByte = this.listener.sound.getFirst()[0];
@@ -292,13 +292,13 @@ class HelperSessionTest {
     final HelperSession session = this.open(ScriptedEngine.class.getName(), "/page");
     final int expected = 1 + HelperSession.SETTLED_REPEATS;
     Await.until("the repeats of the settled page", () -> this.listener.frames.size() >= expected);
-    Thread.sleep(HelperSession.REPEAT_DELAY_MILLIS * 4);
+    Thread.sleep(HelperSession.REPEAT_DELAY_MILLISECONDS * 4);
     final int frameCount = this.listener.frames.size();
     assertEquals(expected, frameCount, "the repeats stop");
-    final long spanNanos = this.listener.frameNanos.get(expected - 1) - this.listener.frameNanos.get(0);
-    final long leastNanos = TimeUnit.MILLISECONDS.toNanos(HelperSession.SETTLED_REPEATS * HelperSession.REPEAT_DELAY_MILLIS);
-    final boolean repeatsSpreadOut = spanNanos >= leastNanos;
-    assertTrue(repeatsSpreadOut, "the repeats came within " + TimeUnit.NANOSECONDS.toMillis(spanNanos) + " ms");
+    final long spanNanoseconds = this.listener.frameNanoseconds.get(expected - 1) - this.listener.frameNanoseconds.get(0);
+    final long leastNanoseconds = TimeUnit.MILLISECONDS.toNanos(HelperSession.SETTLED_REPEATS * HelperSession.REPEAT_DELAY_MILLISECONDS);
+    final boolean repeatsSpreadOut = spanNanoseconds >= leastNanoseconds;
+    assertTrue(repeatsSpreadOut, "the repeats came within " + TimeUnit.NANOSECONDS.toMillis(spanNanoseconds) + " ms");
     session.sendKey(HelperProtocol.KEY_TYPE, "a");
     Await.until("the repeats of the changed page", () -> this.listener.frames.size() >= 2 * expected);
     session.close();
@@ -645,7 +645,7 @@ class HelperSessionTest {
   @Test
   void shouldDropInputForAHelperThatStopsReadingOnceTheQueueIsFull() {
     final HelperSession session = this.open(RawHelperMain.class.getName(), "/stall");
-    final String text = "x".repeat(HelperProtocol.MAX_TEXT_BYTES);
+    final String text = "x".repeat(HelperProtocol.MAXIMUM_TEXT_BYTES);
     boolean dropped = false;
     for (int count = 0; count < 10_000 && !dropped; count++) {
       dropped = !session.sendKey(HelperProtocol.KEY_TYPE, text);
@@ -1181,7 +1181,7 @@ class HelperSessionTest {
 
     final List<ImageBuffer> frames = new CopyOnWriteArrayList<>();
     final List<byte[]> sound = new CopyOnWriteArrayList<>();
-    private final List<Long> frameNanos = new CopyOnWriteArrayList<>();
+    private final List<Long> frameNanoseconds = new CopyOnWriteArrayList<>();
     final List<String> ended = new CopyOnWriteArrayList<>();
 
     private List<Integer> inputCounts() {
@@ -1205,7 +1205,7 @@ class HelperSessionTest {
 
     @Override
     public void onFrame(final ImageBuffer frame) {
-      this.frameNanos.add(System.nanoTime());
+      this.frameNanoseconds.add(System.nanoTime());
       this.frames.add(frame);
     }
 

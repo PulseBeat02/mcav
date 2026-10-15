@@ -265,7 +265,7 @@ class ChromiumConfinementTest {
     final int version = Landlock.version();
     assumeTrue(version >= 1, () -> Landlock.describeMissing(version));
     final Path server = Files.createDirectories(this.folder.resolve("server"));
-    final Path config = Files.writeString(server.resolve("config.yml"), "token: secret");
+    final Path serverConfiguration = Files.writeString(server.resolve("config.yml"), "token: secret");
     final Path otherSession = Files.createDirectories(this.folder.resolve("tmp").resolve("other-session"));
     final Path cookies = Files.writeString(otherSession.resolve("Cookies"), "cookie");
     final HelperConfiguration configuration = this.configuration(true, server);
@@ -275,7 +275,7 @@ class ChromiumConfinementTest {
     final Thread thread = new Thread(() -> {
       try {
         said.set(ChromiumConfinement.confine(configuration, true, false));
-        assertThrows(AccessDeniedException.class, () -> Files.readString(config, StandardCharsets.UTF_8));
+        assertThrows(AccessDeniedException.class, () -> Files.readString(serverConfiguration, StandardCharsets.UTF_8));
         assertThrows(AccessDeniedException.class, () -> Files.readString(cookies, StandardCharsets.UTF_8));
         Files.writeString(session.resolve("profile.txt"), "profile");
         assertThrows(AccessDeniedException.class, () -> Files.writeString(this.folder.resolve("outside.txt"), "outside"));
@@ -293,7 +293,7 @@ class ChromiumConfinementTest {
     assertEquals(ChromiumConfinement.CONFINED, saidConfinement);
     final String profileText = Files.readString(session.resolve("profile.txt"), StandardCharsets.UTF_8);
     assertEquals("profile", profileText);
-    final boolean readable = Files.isReadable(config);
+    final boolean readable = Files.isReadable(serverConfiguration);
     assertTrue(readable, "the other threads are free");
   }
 
@@ -301,7 +301,7 @@ class ChromiumConfinementTest {
   @EnabledOnOs(OS.MAC)
   void shouldNotLetAConfinedHelperOrWhatItStartsReadTheFolderOfTheServerOrTheTemporaryFolderOnMacOs() throws Exception {
     final Path server = Files.createDirectories(this.folder.resolve("server"));
-    final Path config = Files.writeString(server.resolve("config.yml"), "token: secret");
+    final Path serverConfiguration = Files.writeString(server.resolve("config.yml"), "token: secret");
     final Path otherSession = Files.createDirectories(this.folder.resolve("tmp").resolve("other-session"));
     final Path cookies = Files.writeString(otherSession.resolve("Cookies"), "cookie");
     final HelperConfiguration configuration = this.configuration(true, server);
@@ -317,7 +317,7 @@ class ChromiumConfinementTest {
       server.toString(),
       configuration.getSocket().toString(),
       configuration.getNatives().toString(),
-      config.toString(),
+      serverConfiguration.toString(),
       cookies.toString(),
       outside.toString()
     )
@@ -349,7 +349,7 @@ class ChromiumConfinementTest {
     assertEquals("profile", profileText);
     final boolean outsideWritten = Files.exists(outside);
     assertFalse(outsideWritten);
-    final boolean readable = Files.isReadable(config);
+    final boolean readable = Files.isReadable(serverConfiguration);
     assertTrue(readable, "this process is free");
   }
 }

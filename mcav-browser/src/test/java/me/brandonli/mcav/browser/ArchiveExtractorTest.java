@@ -205,8 +205,8 @@ class ArchiveExtractorTest {
     final Path dotSlashEntry = ArchiveExtractor.resolve(root, "./");
     assertEquals(root, dotSlashEntry);
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, ""));
-    final IOException nul = assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "a\u0000b"));
-    final String message = nul.getMessage();
+    final IOException nullCharacter = assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "a\u0000b"));
+    final String message = nullCharacter.getMessage();
     assertEquals("Archive entry name a\u0000b is not allowed!", message);
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "a\\b"));
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, ".."));

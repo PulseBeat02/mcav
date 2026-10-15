@@ -52,7 +52,7 @@ public final class BrowserOptions {
    * The highest frame rate a browser may paint at. This is mcav's limit, not CEF's: CEF's frame rate setting has a
    * minimum of 1 and a default of 30, and no maximum.
    */
-  public static final int MAX_FRAME_RATE = HelperConfiguration.MAX_FRAME_RATE;
+  public static final int MAXIMUM_FRAME_RATE = HelperConfiguration.MAXIMUM_FRAME_RATE;
 
   /**
    * The options {@link BrowserPlayer#create()} uses: 60 frames per second at most, no JavaScript JIT, public addresses
@@ -95,7 +95,7 @@ public final class BrowserOptions {
   /**
    * Returns how many frames per second the browser paints at most. A page that does not change paints no frames.
    *
-   * @return the frame rate, from 1 to {@value #MAX_FRAME_RATE}
+   * @return the frame rate, from 1 to {@value #MAXIMUM_FRAME_RATE}
    */
   public int getFrameRate() {
     return this.frameRate;
@@ -155,7 +155,7 @@ public final class BrowserOptions {
    */
   public static final class Builder {
 
-    private int frameRate = MAX_FRAME_RATE;
+    private int frameRate = MAXIMUM_FRAME_RATE;
     private boolean allowsJavaScriptJit;
     private boolean allowsPrivateNetworks;
     private boolean allowsAutoplay;
@@ -167,16 +167,16 @@ public final class BrowserOptions {
     /**
      * Sets how many frames per second the browser paints at most.
      *
-     * @param frameRate the frame rate, from 1 to {@value BrowserOptions#MAX_FRAME_RATE}
+     * @param frameRate the frame rate, from 1 to {@value BrowserOptions#MAXIMUM_FRAME_RATE}
      * @return this builder
      * @throws IllegalArgumentException if the frame rate is out of range
      */
     public Builder frameRate(final int frameRate) {
       Preconditions.checkArgument(
-        frameRate >= 1 && frameRate <= MAX_FRAME_RATE,
+        frameRate >= 1 && frameRate <= MAXIMUM_FRAME_RATE,
         "Frame rate %s must be between 1 and %s!",
         frameRate,
-        MAX_FRAME_RATE
+        MAXIMUM_FRAME_RATE
       );
       this.frameRate = frameRate;
       return this;

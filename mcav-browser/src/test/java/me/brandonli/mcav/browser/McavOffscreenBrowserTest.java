@@ -70,8 +70,8 @@ class McavOffscreenBrowserTest {
 
   @Test
   void shouldLeaveTheScreenToCefBecauseJcefDeletesAReferenceTwiceOtherwise() {
-    final CefScreenInfo info = new CefScreenInfo();
-    final boolean providesScreenInfo = this.browser.getScreenInfo(this.browser, info);
+    final CefScreenInfo information = new CefScreenInfo();
+    final boolean providesScreenInfo = this.browser.getScreenInfo(this.browser, information);
     assertFalse(providesScreenInfo);
   }
 

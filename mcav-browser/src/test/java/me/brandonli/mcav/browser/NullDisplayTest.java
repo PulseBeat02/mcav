@@ -155,7 +155,7 @@ class NullDisplayTest {
     final String vendor = new String(output.toByteArray(), 40, vendorLength, StandardCharsets.US_ASCII);
     assertEquals("mcav null display", vendor);
     final int maximumRequestLength = reply.getShort(26) & 0xFFFF;
-    assertEquals(NullDisplay.MAX_REQUEST_UNITS, maximumRequestLength);
+    assertEquals(NullDisplay.MAXIMUM_REQUEST_UNITS, maximumRequestLength);
     final byte screenCount = reply.get(28);
     assertEquals(1, screenCount, "one screen");
     final byte pixmapFormatCount = reply.get(29);
@@ -445,11 +445,11 @@ class NullDisplayTest {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
       final byte[] cookie = cookieOf(authority);
-      for (int count = 0; count < NullDisplay.MAX_CONNECTIONS; count++) {
+      for (int count = 0; count < NullDisplay.MAXIMUM_CONNECTIONS; count++) {
         clients.add(introduce(loopback, port, cookie));
       }
       clients.removeFirst().close();
-      Await.until("the client that left is gone", () -> display.countClients() == NullDisplay.MAX_CONNECTIONS - 1);
+      Await.until("the client that left is gone", () -> display.countClients() == NullDisplay.MAXIMUM_CONNECTIONS - 1);
       Thread.sleep(200L);
       try (final Socket next = introduce(loopback, port, cookie)) {
         final boolean atomInterned = internsAnAtom(next);
@@ -494,7 +494,7 @@ class NullDisplayTest {
     final ProtocolException tooLong = assertThrows(ProtocolException.class, () -> converse(huge));
     final String tooLongMessage = tooLong.getMessage();
     assertEquals("A request of 16385 units must have 1 to 16384 units!", tooLongMessage);
-    final byte[] longest = new byte[NullDisplay.MAX_REQUEST_UNITS * 4];
+    final byte[] longest = new byte[NullDisplay.MAXIMUM_REQUEST_UNITS * 4];
     longest[0] = 127;
     longest[2] = 0;
     longest[3] = 64;
@@ -522,7 +522,7 @@ class NullDisplayTest {
     while (many.intern("atom-" + count) != 0) {
       count++;
     }
-    assertEquals(NullDisplay.MAX_ATOMS - 68, count, "the 68 predefined atoms count too");
+    assertEquals(NullDisplay.MAXIMUM_ATOMS - 68, count, "the 68 predefined atoms count too");
     final int knownAtom = many.intern("atom-0");
     assertEquals(69, knownAtom, "a known atom is still found");
     final ByteBuffer full = NullDisplay.answer(
@@ -541,9 +541,9 @@ class NullDisplayTest {
     while (large.intern(name + named) != 0) {
       named++;
     }
-    final boolean namedWithinLimit = named * 60_000L <= NullDisplay.MAX_ATOM_BYTES;
+    final boolean namedWithinLimit = named * 60_000L <= NullDisplay.MAXIMUM_ATOM_BYTES;
     assertTrue(namedWithinLimit, named + " names of 60000 bytes");
-    final boolean anotherNameBeyondLimit = (named + 1) * 60_000L > NullDisplay.MAX_ATOM_BYTES - 1_000;
+    final boolean anotherNameBeyondLimit = (named + 1) * 60_000L > NullDisplay.MAXIMUM_ATOM_BYTES - 1_000;
     assertTrue(anotherNameBeyondLimit);
   }
 
@@ -636,7 +636,7 @@ class NullDisplayTest {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
       final byte[] cookie = cookieOf(authority);
-      for (int count = 0; count <= NullDisplay.MAX_CONNECTIONS; count++) {
+      for (int count = 0; count <= NullDisplay.MAXIMUM_CONNECTIONS; count++) {
         clients.add(introduce(loopback, port, cookie));
       }
       final List<Socket> served = new ArrayList<>();
@@ -646,7 +646,7 @@ class NullDisplayTest {
         }
       }
       final int servedCount = served.size();
-      assertEquals(NullDisplay.MAX_CONNECTIONS, servedCount, "one client more than the limit is ended");
+      assertEquals(NullDisplay.MAXIMUM_CONNECTIONS, servedCount, "one client more than the limit is ended");
       served.getFirst().close();
       Await.until("a place for another client", () -> {
         try (final Socket next = introduce(loopback, port, cookie)) {
@@ -671,7 +671,7 @@ class NullDisplayTest {
     try (final NullDisplay display = NullDisplay.start(authority, 0)) {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
-      for (int count = 0; count < NullDisplay.MAX_PENDING; count++) {
+      for (int count = 0; count < NullDisplay.MAXIMUM_PENDING; count++) {
         final Socket client = new Socket(loopback, port);
         client.setSoTimeout(10_000);
         silent.add(client);
@@ -699,7 +699,7 @@ class NullDisplayTest {
     try (final NullDisplay display = NullDisplay.start(authority, 0)) {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
-      for (int count = 1; count < NullDisplay.MAX_PENDING; count++) {
+      for (int count = 1; count < NullDisplay.MAXIMUM_PENDING; count++) {
         final Socket client = new Socket(loopback, port);
         client.setSoTimeout(10_000);
         silent.add(client);
@@ -717,7 +717,7 @@ class NullDisplayTest {
         );
         assertTrue(namesTheMissingCookie);
       }
-      Await.until("the refused client is gone", () -> display.countClients() == NullDisplay.MAX_PENDING - 1);
+      Await.until("the refused client is gone", () -> display.countClients() == NullDisplay.MAXIMUM_PENDING - 1);
       try (final Socket introduced = introduce(loopback, port, cookieOf(authority))) {
         final boolean atomInterned = internsAnAtom(introduced);
         assertTrue(atomInterned, "the client with the cookie is served");
@@ -740,7 +740,7 @@ class NullDisplayTest {
     try (final NullDisplay display = NullDisplay.start(authority, 0)) {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
-      for (int count = 2; count < NullDisplay.MAX_PENDING; count++) {
+      for (int count = 2; count < NullDisplay.MAXIMUM_PENDING; count++) {
         final Socket client = new Socket(loopback, port);
         client.setSoTimeout(10_000);
         silent.add(client);

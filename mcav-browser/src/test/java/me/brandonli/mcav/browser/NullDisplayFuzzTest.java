@@ -48,7 +48,7 @@ final class NullDisplayFuzzTest {
     } catch (final IOException exception) {
       // a request the display does not accept ends the connection
     }
-    final long largestReply = 32L + 4L * NullDisplay.MAX_REQUEST_UNITS;
+    final long largestReply = 32L + 4L * NullDisplay.MAXIMUM_REQUEST_UNITS;
     final long bound = 1_000L + (input.length / 4L + 1L) * largestReply;
     final boolean answerBounded = output.size() <= bound;
     assertTrue(answerBounded, output.size() + " bytes answered to " + input.length);

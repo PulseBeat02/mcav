@@ -38,7 +38,7 @@ final class LogBudget {
   /**
    * How long it takes until one more line may pass, in nanoseconds.
    */
-  static final long REFILL_NANOS = TimeUnit.SECONDS.toNanos(1);
+  static final long REFILL_NANOSECONDS = TimeUnit.SECONDS.toNanos(1);
 
   private final LongSupplier clock;
   private long available;
@@ -64,9 +64,9 @@ final class LogBudget {
    * @param skipped logs how many lines did not pass
    */
   synchronized void log(final Runnable line, final LongConsumer skipped) {
-    final long refills = Math.max(0L, this.clock.getAsLong() - this.refilled) / REFILL_NANOS;
+    final long refills = Math.max(0L, this.clock.getAsLong() - this.refilled) / REFILL_NANOSECONDS;
     this.available = Math.min(BURST, this.available + refills);
-    this.refilled += refills * REFILL_NANOS;
+    this.refilled += refills * REFILL_NANOSECONDS;
     if (this.available == 0) {
       this.skipped++;
       return;

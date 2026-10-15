@@ -356,7 +356,7 @@ final class ContentPolicy
   public void onBeforeContextMenu(
     final CefBrowser browser,
     final CefFrame frame,
-    final CefContextMenuParams params,
+    final CefContextMenuParams parameters,
     final CefMenuModel model
   ) {
     model.clear();
@@ -371,7 +371,7 @@ final class ContentPolicy
   public boolean onContextMenuCommand(
     final CefBrowser browser,
     final CefFrame frame,
-    final CefContextMenuParams params,
+    final CefContextMenuParams parameters,
     final int commandId,
     final int eventFlags
   ) {

@@ -68,7 +68,7 @@ interface HelperEvents {
    * The page played sound.
    *
    * @param samples 16-bit little-endian stereo samples at 48 kHz, whole frames and at most
-   *                {@link HelperProtocol#MAX_AUDIO_BYTES} bytes, which the receiver owns
+   *                {@link HelperProtocol#MAXIMUM_AUDIO_BYTES} bytes, which the receiver owns
    */
   void onAudio(byte[] samples);
 }

@@ -38,10 +38,10 @@ import java.util.Optional;
 @SuppressWarnings("restricted")
 final class SeatbeltLibrary implements AutoCloseable {
 
-  static final String INIT = "sandbox_init";
+  static final String SANDBOX_INIT = "sandbox_init";
   static final String FREE_ERROR = "sandbox_free_error";
 
-  private static final FunctionDescriptor INIT_DESCRIPTOR = FunctionDescriptor.of(
+  private static final FunctionDescriptor SANDBOX_INIT_DESCRIPTOR = FunctionDescriptor.of(
     ValueLayout.JAVA_INT,
     ValueLayout.ADDRESS,
     ValueLayout.JAVA_LONG,
@@ -60,16 +60,16 @@ final class SeatbeltLibrary implements AutoCloseable {
   /**
    * Creates the library with the stand-ins of some functions.
    *
-   * @param names the functions it has, {@link #INIT} and {@link #FREE_ERROR}
+   * @param names the functions it has, {@link #SANDBOX_INIT} and {@link #FREE_ERROR}
    * @throws ReflectiveOperationException if a stand-in cannot be found, which is a bug of this class
    */
   SeatbeltLibrary(final String... names) throws ReflectiveOperationException {
     final MethodHandles.Lookup lookup = MethodHandles.lookup();
     for (final String name : names) {
-      final boolean isInit = name.equals(INIT);
-      final FunctionDescriptor descriptor = isInit ? INIT_DESCRIPTOR : FREE_ERROR_DESCRIPTOR;
-      final Object function = isInit ? (InitFunction) this::init : (FreeErrorFunction) this::freeError;
-      final Class<?> type = isInit ? InitFunction.class : FreeErrorFunction.class;
+      final boolean isSandboxInit = name.equals(SANDBOX_INIT);
+      final FunctionDescriptor descriptor = isSandboxInit ? SANDBOX_INIT_DESCRIPTOR : FREE_ERROR_DESCRIPTOR;
+      final Object function = isSandboxInit ? (SandboxInitFunction) this::init : (FreeErrorFunction) this::freeError;
+      final Class<?> type = isSandboxInit ? SandboxInitFunction.class : FreeErrorFunction.class;
       final MethodHandle target = lookup.findVirtual(type, "call", descriptor.toMethodType()).bindTo(function);
       this.functions.put(name, Linker.nativeLinker().upcallStub(target, descriptor, this.arena));
     }
@@ -82,7 +82,7 @@ final class SeatbeltLibrary implements AutoCloseable {
    * @throws ReflectiveOperationException if a stand-in cannot be found, which is a bug of this class
    */
   static SeatbeltLibrary complete() throws ReflectiveOperationException {
-    return new SeatbeltLibrary(INIT, FREE_ERROR);
+    return new SeatbeltLibrary(SANDBOX_INIT, FREE_ERROR);
   }
 
   /**
@@ -163,7 +163,7 @@ final class SeatbeltLibrary implements AutoCloseable {
 
   /** The signature of sandbox_init; not private, as the upcall finds its method by name. */
   @FunctionalInterface
-  interface InitFunction {
+  interface SandboxInitFunction {
     int call(MemorySegment profile, long given, MemorySegment error);
   }
 

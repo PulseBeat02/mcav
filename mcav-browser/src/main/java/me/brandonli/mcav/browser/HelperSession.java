@@ -88,7 +88,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A reader thread writes every frame region into the {@link FrameCanvas}, and a delivery thread hands the newest
  * picture to the listener; pictures the listener was too slow for are skipped, never queued. Once the page stops
- * changing, the delivery thread hands the same picture over again, every {@value #REPEAT_DELAY_MILLIS} ms and at most
+ * changing, the delivery thread hands the same picture over again, every {@value #REPEAT_DELAY_MILLISECONDS} ms and at most
  * {@value #SETTLED_REPEATS} times: a video pipeline that spreads a big change over several frames, as the map encoder
  * does with its byte budget per frame, needs further frames to finish the change, and a page that stands still sends
  * none. Input goes through a bounded queue to a writer thread, so a caller such as the server's main thread never
@@ -103,26 +103,26 @@ import org.slf4j.LoggerFactory;
 final class HelperSession implements BrowserSession {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HelperSession.class);
-  private static final int MAX_QUEUED_INPUT = 128;
+  private static final int MAXIMUM_QUEUED_INPUT = 128;
   private static final int OUTPUT_TAIL_LINES = 40;
   private static final int OUTPUT_LINE_CHARACTERS = 1024;
-  private static final long STOP_TIMEOUT_MILLIS = 10_000L;
-  private static final long KILL_TIMEOUT_MILLIS = 5_000L;
-  private static final long EXIT_GRACE_MILLIS = 1_000L;
+  private static final long STOP_TIMEOUT_MILLISECONDS = 10_000L;
+  private static final long KILL_TIMEOUT_MILLISECONDS = 5_000L;
+  private static final long EXIT_GRACE_MILLISECONDS = 1_000L;
   private static final byte[] NO_PIXELS = new byte[0];
-  private static final long EXIT_POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(10L);
+  private static final long EXIT_POLL_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(10L);
   private static final String SOCKET_NAME = "s";
   // a socket's path has at most 107 characters, and on Linux Chromium binds one 45 characters below the folder of the
   // session, which is its temporary folder: <folder>/org.chromium.Chromium.XXXXXX/SingletonSocket
-  private static final int MAX_SOCKET_PATH = 107;
+  private static final int MAXIMUM_SOCKET_PATH = 107;
   private static final int CHROMIUM_SOCKET_TAIL = 45;
-  private static final int MAX_FOLDER_ATTEMPTS = 100;
+  private static final int MAXIMUM_FOLDER_ATTEMPTS = 100;
   private static final Thread NOT_STARTED = new Thread("mcav-browser-not-started");
 
   /**
    * How long the delivery thread waits for a new picture before it hands over the last one again.
    */
-  static final long REPEAT_DELAY_MILLIS = 50L;
+  static final long REPEAT_DELAY_MILLISECONDS = 50L;
 
   /**
    * How often the delivery thread hands over the last picture again once the page stopped changing.
@@ -170,7 +170,7 @@ final class HelperSession implements BrowserSession {
       1,
       0L,
       TimeUnit.MILLISECONDS,
-      new ArrayBlockingQueue<>(MAX_QUEUED_INPUT),
+      new ArrayBlockingQueue<>(MAXIMUM_QUEUED_INPUT),
       HelperSession::createInputThread
     );
     this.outputTail = new ArrayDeque<>();
@@ -240,8 +240,8 @@ final class HelperSession implements BrowserSession {
       final HelperConfiguration configuration = configure(token, socket, natives, folder.resolve("profile"), uri, source, options);
       process = startProcess(launcher, folder, libraries);
       final Writer standardInput = sendConfiguration(process, configuration);
-      final long timeoutMillis = launcher.getStartTimeoutMillis();
-      final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+      final long timeoutMilliseconds = launcher.getStartTimeoutMilliseconds();
+      final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
       final SocketChannel channel = accept(server, process, deadline);
       pendingChannel = channel;
       Files.deleteIfExists(socket);
@@ -275,8 +275,9 @@ final class HelperSession implements BrowserSession {
   @VisibleForTesting
   static void requireShortEnough(final Os os, final Path folder) {
     final String path = folder.toString();
-    if (os == Os.LINUX && path.length() + CHROMIUM_SOCKET_TAIL > MAX_SOCKET_PATH) {
-      final int longest = MAX_SOCKET_PATH - CHROMIUM_SOCKET_TAIL - 1 - SessionFolders.PREFIX.length() - SessionFolders.RANDOM_CHARACTERS;
+    if (os == Os.LINUX && path.length() + CHROMIUM_SOCKET_TAIL > MAXIMUM_SOCKET_PATH) {
+      final int longest =
+        MAXIMUM_SOCKET_PATH - CHROMIUM_SOCKET_TAIL - 1 - SessionFolders.PREFIX.length() - SessionFolders.RANDOM_CHARACTERS;
       final String message =
         "The temporary folder %s is too long for the browser: on Linux it may have at most %s characters, so start the server with a shorter java.io.tmpdir (such as /tmp)!".formatted(
           folder.getParent(),
@@ -358,7 +359,7 @@ final class HelperSession implements BrowserSession {
 
   /**
    * Creates the folder of a session as {@link #createFolder(Path)} does, with names drawn from a supplier: a name that
-   * is taken is drawn again, {@value #MAX_FOLDER_ATTEMPTS} times at most.
+   * is taken is drawn again, {@value #MAXIMUM_FOLDER_ATTEMPTS} times at most.
    *
    * @param temporary the folder the session folder is created in
    * @param names     draws the name of a folder
@@ -373,7 +374,7 @@ final class HelperSession implements BrowserSession {
       ? new FileAttribute<?>[] { PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")) }
       : new FileAttribute<?>[0];
     try {
-      for (int attempt = 1; attempt <= MAX_FOLDER_ATTEMPTS; attempt++) {
+      for (int attempt = 1; attempt <= MAXIMUM_FOLDER_ATTEMPTS; attempt++) {
         final Path candidate = temporary.resolve(names.get());
         try {
           final Path folder = Files.createDirectory(candidate, attributes);
@@ -628,9 +629,9 @@ final class HelperSession implements BrowserSession {
     if (this.closing.get()) {
       return connectionEnd;
     }
-    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(EXIT_GRACE_MILLIS);
+    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(EXIT_GRACE_MILLISECONDS);
     while (this.process.isAlive() && System.nanoTime() < deadline) {
-      LockSupport.parkNanos(EXIT_POLL_NANOS);
+      LockSupport.parkNanos(EXIT_POLL_NANOSECONDS);
     }
     if (this.process.isAlive()) {
       return connectionEnd;
@@ -780,7 +781,7 @@ final class HelperSession implements BrowserSession {
    */
   private boolean awaitFrame(final boolean repeating) throws InterruptedException {
     synchronized (this.deliveryLock) {
-      final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(REPEAT_DELAY_MILLIS);
+      final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(REPEAT_DELAY_MILLISECONDS);
       while (!this.frameWaiting && !this.closing.get()) {
         final long remaining = deadline - System.nanoTime();
         if (!repeating) {
@@ -1002,14 +1003,14 @@ final class HelperSession implements BrowserSession {
       started.forEach(descendants::add);
     }
     try {
-      final boolean exited = process.waitFor(STOP_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+      final boolean exited = process.waitFor(STOP_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
       if (!exited) {
-        LOGGER.warn("The browser helper did not stop within {} ms and is killed.", STOP_TIMEOUT_MILLIS);
+        LOGGER.warn("The browser helper did not stop within {} ms and is killed.", STOP_TIMEOUT_MILLISECONDS);
         try (final Stream<ProcessHandle> later = process.descendants()) {
           later.forEach(descendants::add);
         }
         process.destroyForcibly();
-        process.waitFor(KILL_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+        process.waitFor(KILL_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
       }
     } catch (final InterruptedException exception) {
       process.destroyForcibly();
@@ -1029,7 +1030,7 @@ final class HelperSession implements BrowserSession {
       return;
     }
     try {
-      thread.join(STOP_TIMEOUT_MILLIS);
+      thread.join(STOP_TIMEOUT_MILLISECONDS);
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();

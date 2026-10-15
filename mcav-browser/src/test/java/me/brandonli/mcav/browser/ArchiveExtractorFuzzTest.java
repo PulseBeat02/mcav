@@ -51,8 +51,8 @@ import org.junit.jupiter.api.Tag;
 @Tag("fuzz")
 final class ArchiveExtractorFuzzTest {
 
-  private static final int MAX_ENTRIES = 64;
-  private static final long MAX_BYTES = 1 << 20;
+  private static final int MAXIMUM_ENTRIES = 64;
+  private static final long MAXIMUM_BYTES = 1 << 20;
 
   @FuzzTest(maxDuration = "30s")
   void shouldExtractOnlyPlainFilesInsideTheTarget(final FuzzedDataProvider data) throws IOException {
@@ -65,7 +65,7 @@ final class ArchiveExtractorFuzzTest {
     try {
       final Path target = Files.createDirectory(root.resolve("target"));
       try {
-        new ArchiveExtractor(MAX_ENTRIES, MAX_BYTES).extract(new ByteArrayInputStream(compressed.toByteArray()), target);
+        new ArchiveExtractor(MAXIMUM_ENTRIES, MAXIMUM_BYTES).extract(new ByteArrayInputStream(compressed.toByteArray()), target);
       } catch (final IOException exception) {
         // malformed or breaking a rule; what was written so far is checked all the same
       }
@@ -88,7 +88,7 @@ final class ArchiveExtractorFuzzTest {
         before = paths.toList();
       }
       try {
-        new ArchiveExtractor(MAX_ENTRIES, MAX_BYTES).extract(new ByteArrayInputStream(archive), target);
+        new ArchiveExtractor(MAXIMUM_ENTRIES, MAXIMUM_BYTES).extract(new ByteArrayInputStream(archive), target);
       } catch (final IOException exception) {
         // A refused archive must preserve the surrounding file system too.
       }
@@ -125,7 +125,7 @@ final class ArchiveExtractorFuzzTest {
         }
       }
       final long total = bytes;
-      final boolean withinLimit = total <= MAX_BYTES;
+      final boolean withinLimit = total <= MAXIMUM_BYTES;
       assertTrue(withinLimit, () -> total + " bytes");
     } catch (final UncheckedIOException exception) {
       throw exception.getCause();

@@ -42,7 +42,7 @@ final class Seatbelt {
   /** Why a system has no Seatbelt. */
   static final String MISSING = "this system has no Seatbelt (sandbox_init)";
 
-  private static final String INIT = "sandbox_init";
+  private static final String SANDBOX_INIT = "sandbox_init";
   private static final String FREE_ERROR = "sandbox_free_error";
   private static final String UNCALLABLE = "The C library could not be called!";
   private static final Integer SUCCESS = 0;
@@ -74,7 +74,7 @@ final class Seatbelt {
    * @return true on macOS
    */
   boolean isAvailable() {
-    return this.library.find(INIT).isPresent() && this.library.find(FREE_ERROR).isPresent();
+    return this.library.find(SANDBOX_INIT).isPresent() && this.library.find(FREE_ERROR).isPresent();
   }
 
   /**
@@ -85,21 +85,21 @@ final class Seatbelt {
    */
   @SuppressWarnings("restricted")
   void restrictProcess(final String profile) throws IOException {
-    final Optional<MemorySegment> init = this.library.find(INIT);
+    final Optional<MemorySegment> init = this.library.find(SANDBOX_INIT);
     final Optional<MemorySegment> freeError = this.library.find(FREE_ERROR);
     if (init.isEmpty() || freeError.isEmpty()) {
       final String message = "The process cannot be restricted, because %s!".formatted(MISSING);
       throw new IOException(message);
     }
     final Linker linker = Linker.nativeLinker();
-    final MethodHandle initCall = linker.downcallHandle(
+    final MethodHandle sandboxInitCall = linker.downcallHandle(
       init.get(),
       FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_LONG, ValueLayout.ADDRESS)
     );
     final MethodHandle freeCall = linker.downcallHandle(freeError.get(), FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
     try (final Arena arena = Arena.ofConfined()) {
       final MemorySegment error = arena.allocate(ValueLayout.ADDRESS);
-      final Object result = call(initCall, arena.allocateFrom(profile), PROFILE_TEXT, error);
+      final Object result = call(sandboxInitCall, arena.allocateFrom(profile), PROFILE_TEXT, error);
       if (SUCCESS.equals(result)) {
         return;
       }

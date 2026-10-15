@@ -121,9 +121,18 @@ class NetworkGuardTest {
     };
   }
 
-  private NetworkGuard guard(final Predicate<InetAddress> policy, final NetworkGuard.Connector connector, final int handshakeTimeoutMillis)
-    throws IOException {
-    final NetworkGuard guard = NetworkGuard.start(NetworkGuardTest::resolve, policy, connector, this.notices::add, handshakeTimeoutMillis);
+  private NetworkGuard guard(
+    final Predicate<InetAddress> policy,
+    final NetworkGuard.Connector connector,
+    final int handshakeTimeoutMilliseconds
+  ) throws IOException {
+    final NetworkGuard guard = NetworkGuard.start(
+      NetworkGuardTest::resolve,
+      policy,
+      connector,
+      this.notices::add,
+      handshakeTimeoutMilliseconds
+    );
     this.closeables.add(guard);
     return guard;
   }
@@ -225,14 +234,14 @@ class NetworkGuardTest {
   @Test
   void shouldStopRefusedReportsAtTheirLimit() throws IOException {
     final NetworkGuard guard = this.guard(AddressPolicy::isPublic, NetworkGuard::connect, 5_000);
-    for (int host = 0; host <= NetworkGuard.MAX_REPORTED_HOSTS; host++) {
+    for (int host = 0; host <= NetworkGuard.MAXIMUM_REPORTED_HOSTS; host++) {
       final Socket client = this.client(guard);
       exchange(client, GREETING, 2);
       exchange(client, SocksProtocolTest.domainRequest(SocksProtocol.CONNECT, "h" + host + ".private.test", 80), 10);
       client.close();
     }
     final int noticeCount = this.notices.size();
-    assertEquals(NetworkGuard.MAX_REPORTED_HOSTS, noticeCount);
+    assertEquals(NetworkGuard.MAXIMUM_REPORTED_HOSTS, noticeCount);
   }
 
   @Test
@@ -355,7 +364,7 @@ class NetworkGuardTest {
   void shouldCloseConnectionsBeyondTheLimitAtOnce() throws IOException {
     final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, 30_000);
     final List<Socket> idle = new ArrayList<>();
-    for (int count = 0; count < NetworkGuard.MAX_CONNECTIONS; count++) {
+    for (int count = 0; count < NetworkGuard.MAXIMUM_CONNECTIONS; count++) {
       idle.add(this.client(guard));
     }
     final Socket extra = this.client(guard);
@@ -399,7 +408,7 @@ class NetworkGuardTest {
   @Test
   void shouldFreeTheSlotOfAConnectionWhenItEnds() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
-    for (int count = 0; count < NetworkGuard.MAX_CONNECTIONS + 44; count++) {
+    for (int count = 0; count < NetworkGuard.MAXIMUM_CONNECTIONS + 44; count++) {
       new Socket(LOOPBACK, guard.getPort()).close();
     }
     final Socket client = this.client(guard);

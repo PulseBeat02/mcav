@@ -77,34 +77,34 @@ final class NullDisplay implements AutoCloseable {
   /**
    * The largest request a client may send, in units of four bytes, as the connection setup announces it.
    */
-  static final int MAX_REQUEST_UNITS = 16_384;
+  static final int MAXIMUM_REQUEST_UNITS = 16_384;
 
   /**
    * The most connections the display serves at once.
    */
-  static final int MAX_CONNECTIONS = 16;
+  static final int MAXIMUM_CONNECTIONS = 16;
 
   /**
    * The most clients that have not introduced themselves yet; a new one ends the connection of the oldest, so clients
    * without the cookie can never keep one that has it out.
    */
-  static final int MAX_PENDING = 256;
+  static final int MAXIMUM_PENDING = 256;
 
   /**
    * How long a client may take to introduce itself, in milliseconds, so a client without the cookie cannot hold one
-   * of the {@value #MAX_CONNECTIONS} connections; one that introduced itself may stay quiet as long as it likes.
+   * of the {@value #MAXIMUM_CONNECTIONS} connections; one that introduced itself may stay quiet as long as it likes.
    */
-  private static final int SETUP_TIMEOUT_MILLIS = 10_000;
+  private static final int SETUP_TIMEOUT_MILLISECONDS = 10_000;
 
   /**
    * The most atoms a display names, the predefined ones included.
    */
-  static final int MAX_ATOMS = 4_096;
+  static final int MAXIMUM_ATOMS = 4_096;
 
   /**
    * The most bytes the names of the atoms of a display hold together.
    */
-  static final int MAX_ATOM_BYTES = 1 << 20;
+  static final int MAXIMUM_ATOM_BYTES = 1 << 20;
 
   /**
    * The size of the cookie, in bytes.
@@ -246,14 +246,14 @@ final class NullDisplay implements AutoCloseable {
   );
   private static final String COOKIE_NAME = "MIT-MAGIC-COOKIE-1";
   private static final int FAMILY_WILD = 0xFFFF;
-  private static final int MAX_AUTHORIZATION_BYTES = 256;
+  private static final int MAXIMUM_AUTHORIZATION_BYTES = 256;
   private static final int ROOT = 0x100;
   private static final int COLORMAP = 0x20;
   private static final int VISUAL = 0x21;
   private static final int SCREEN_WIDTH = 1920;
   private static final int SCREEN_HEIGHT = 1080;
-  private static final int MIN_KEYCODE = 8;
-  private static final int MAX_KEYCODE = 255;
+  private static final int MINIMUM_KEY_CODE = 8;
+  private static final int MAXIMUM_KEY_CODE = 255;
   private static final byte[] VENDOR = "mcav null display".getBytes(StandardCharsets.US_ASCII);
 
   private final ServerSocket server;
@@ -262,14 +262,14 @@ final class NullDisplay implements AutoCloseable {
   private final Semaphore slots;
   private final Set<Socket> clients;
   private final Deque<Socket> pending;
-  private final int setupTimeoutMillis;
+  private final int setupTimeoutMilliseconds;
 
-  private NullDisplay(final ServerSocket server, final byte[] cookie, final int setupTimeoutMillis) {
+  private NullDisplay(final ServerSocket server, final byte[] cookie, final int setupTimeoutMilliseconds) {
     this.server = server;
-    this.setupTimeoutMillis = setupTimeoutMillis;
+    this.setupTimeoutMilliseconds = setupTimeoutMilliseconds;
     this.cookie = cookie.clone();
     this.atoms = new Atoms();
-    this.slots = new Semaphore(MAX_CONNECTIONS);
+    this.slots = new Semaphore(MAXIMUM_CONNECTIONS);
     this.clients = ConcurrentHashMap.newKeySet();
     this.pending = new ArrayDeque<>();
   }
@@ -282,24 +282,24 @@ final class NullDisplay implements AutoCloseable {
    * @throws IOException if no port is free or the file cannot be written
    */
   static NullDisplay start(final Path authority) throws IOException {
-    return start(authority, SETUP_TIMEOUT_MILLIS);
+    return start(authority, SETUP_TIMEOUT_MILLISECONDS);
   }
 
   /**
    * Starts a display with another time for the setup, so tests need not wait for it.
    *
    * @param authority          the authority file to write
-   * @param setupTimeoutMillis how long a client may take to introduce itself
+   * @param setupTimeoutMilliseconds how long a client may take to introduce itself
    * @return the running display
    * @throws IOException if the display cannot listen or the file cannot be written
    */
   @VisibleForTesting
-  static NullDisplay start(final Path authority, final int setupTimeoutMillis) throws IOException {
+  static NullDisplay start(final Path authority, final int setupTimeoutMilliseconds) throws IOException {
     final ServerSocket server = bind(NullDisplay::isDisplayPort);
     try {
       final byte[] cookie = createCookie();
       writeAuthority(authority, cookie);
-      final NullDisplay display = new NullDisplay(server, cookie, setupTimeoutMillis);
+      final NullDisplay display = new NullDisplay(server, cookie, setupTimeoutMilliseconds);
       final Thread thread = new Thread(display::acceptConnections, "mcav-browser-null-display");
       thread.setDaemon(true);
       thread.start();
@@ -325,7 +325,7 @@ final class NullDisplay implements AutoCloseable {
     final List<ServerSocket> unusable = new ArrayList<>();
     try {
       while (unusable.size() < 64) {
-        final ServerSocket candidate = new ServerSocket(0, MAX_CONNECTIONS, loopback);
+        final ServerSocket candidate = new ServerSocket(0, MAXIMUM_CONNECTIONS, loopback);
         if (usable.test(candidate.getLocalPort())) {
           return candidate;
         }
@@ -459,7 +459,7 @@ final class NullDisplay implements AutoCloseable {
   private @Nullable Socket admit(final Socket client) {
     synchronized (this.pending) {
       this.pending.addLast(client);
-      return this.pending.size() > MAX_PENDING ? this.pending.removeFirst() : null;
+      return this.pending.size() > MAXIMUM_PENDING ? this.pending.removeFirst() : null;
     }
   }
 
@@ -472,7 +472,7 @@ final class NullDisplay implements AutoCloseable {
   private void serve(final Socket client) {
     boolean slot = false;
     try (client) {
-      client.setSoTimeout(this.setupTimeoutMillis);
+      client.setSoTimeout(this.setupTimeoutMilliseconds);
       final DataInputStream in = new DataInputStream(new BufferedInputStream(client.getInputStream()));
       final OutputStream out = new BufferedOutputStream(client.getOutputStream());
       final ByteOrder order = readSetup(in, out, this.cookie);
@@ -521,9 +521,9 @@ final class NullDisplay implements AutoCloseable {
       final byte[] lengthBytes = new byte[2];
       in.readFully(lengthBytes);
       final int units = ByteBuffer.wrap(lengthBytes).order(order).getShort() & 0xFFFF;
-      if (units == 0 || units > MAX_REQUEST_UNITS) {
+      if (units == 0 || units > MAXIMUM_REQUEST_UNITS) {
         // no extension is announced, so neither are the long requests of BIG-REQUESTS
-        final String message = "A request of %s units must have 1 to %s units!".formatted(units, MAX_REQUEST_UNITS);
+        final String message = "A request of %s units must have 1 to %s units!".formatted(units, MAXIMUM_REQUEST_UNITS);
         throw new ProtocolException(message);
       }
       final byte[] body = new byte[units * 4 - 4];
@@ -560,8 +560,8 @@ final class NullDisplay implements AutoCloseable {
     setup.getShort();
     final int nameLength = setup.getShort() & 0xFFFF;
     final int dataLength = setup.getShort() & 0xFFFF;
-    if (nameLength > MAX_AUTHORIZATION_BYTES || dataLength > MAX_AUTHORIZATION_BYTES) {
-      final String message = "The authorization of the connection setup is longer than %s bytes!".formatted(MAX_AUTHORIZATION_BYTES);
+    if (nameLength > MAXIMUM_AUTHORIZATION_BYTES || dataLength > MAXIMUM_AUTHORIZATION_BYTES) {
+      final String message = "The authorization of the connection setup is longer than %s bytes!".formatted(MAXIMUM_AUTHORIZATION_BYTES);
       throw new ProtocolException(message);
     }
     final byte[] name = readPadded(in, nameLength);
@@ -635,15 +635,15 @@ final class NullDisplay implements AutoCloseable {
     reply.putInt(0x001FFFFF);
     reply.putInt(0);
     reply.putShort((short) VENDOR.length);
-    reply.putShort((short) MAX_REQUEST_UNITS);
+    reply.putShort((short) MAXIMUM_REQUEST_UNITS);
     reply.put((byte) 1);
     reply.put((byte) 3);
     reply.put((byte) (order == ByteOrder.LITTLE_ENDIAN ? 0 : 1));
     reply.put((byte) 0);
     reply.put((byte) 32);
     reply.put((byte) 32);
-    reply.put((byte) MIN_KEYCODE);
-    reply.put((byte) MAX_KEYCODE);
+    reply.put((byte) MINIMUM_KEY_CODE);
+    reply.put((byte) MAXIMUM_KEY_CODE);
     reply.putInt(0);
     reply.put(VENDOR);
     reply.put(new byte[vendorPadded - VENDOR.length]);
@@ -881,8 +881,8 @@ final class NullDisplay implements AutoCloseable {
   }
 
   /**
-   * The atoms of a display: the predefined ones, and every name a client interns, up to {@value #MAX_ATOMS} atoms and
-   * {@value #MAX_ATOM_BYTES} bytes of names.
+   * The atoms of a display: the predefined ones, and every name a client interns, up to {@value #MAXIMUM_ATOMS} atoms and
+   * {@value #MAXIMUM_ATOM_BYTES} bytes of names.
    */
   static final class Atoms {
 
@@ -917,7 +917,7 @@ final class NullDisplay implements AutoCloseable {
       if (known != null) {
         return known;
       }
-      if (this.names.size() >= MAX_ATOMS || this.bytes + name.length() > MAX_ATOM_BYTES) {
+      if (this.names.size() >= MAXIMUM_ATOMS || this.bytes + name.length() > MAXIMUM_ATOM_BYTES) {
         return 0;
       }
       this.bytes += name.length();

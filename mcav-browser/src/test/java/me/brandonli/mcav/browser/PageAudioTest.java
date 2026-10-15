@@ -69,11 +69,11 @@ class PageAudioTest {
     final String second = call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 2, 0, 0, 0 }), "2");
     audio.onEvent(PageAudio.BINDING_EVENT, second);
     audio.onEvent(PageAudio.BINDING_EVENT, first);
-    now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLIS - 1));
+    now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLISECONDS - 1));
     audio.onEvent(PageAudio.BINDING_EVENT, first);
     audio.onEvent(PageAudio.BINDING_EVENT, second);
     assertEquals(List.of((byte) 2, (byte) 2), passed, "the frame that spoke first keeps the word");
-    now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLIS));
+    now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLISECONDS));
     audio.onEvent(PageAudio.BINDING_EVENT, first);
     audio.onEvent(PageAudio.BINDING_EVENT, second);
     assertEquals(List.of((byte) 2, (byte) 2, (byte) 1), passed, "after a quiet moment another frame speaks");
@@ -88,7 +88,7 @@ class PageAudioTest {
     final String silence = call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[4]), "1");
     final String other = call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[] { 2, 0, 0, 0 }), "2");
     audio.onEvent(PageAudio.BINDING_EVENT, sound);
-    now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLIS - 1));
+    now.addAndGet(TimeUnit.MILLISECONDS.toNanos(PageAudio.QUIET_MILLISECONDS - 1));
     audio.onEvent(PageAudio.BINDING_EVENT, silence);
     assertEquals(List.of((byte) 1, (byte) 0), passed);
     now.addAndGet(TimeUnit.MILLISECONDS.toNanos(1));
@@ -148,18 +148,18 @@ class PageAudioTest {
     assertNull(emptyChunk, "no sound");
     final PageAudio.@Nullable Chunk halfFrameMoreChunk = PageAudio.parse(PageAudio.BINDING_EVENT, call(new byte[6]));
     assertNull(halfFrameMoreChunk, "half a frame more");
-    final byte[] largest = new byte[HelperProtocol.MAX_AUDIO_BYTES];
+    final byte[] largest = new byte[HelperProtocol.MAXIMUM_AUDIO_BYTES];
     largest[largest.length - 1] = 9;
     final byte[] largestSamples = samplesOf(PageAudio.parse(PageAudio.BINDING_EVENT, call(largest)));
     assertArrayEquals(largest, largestSamples);
     final PageAudio.@Nullable Chunk frameMoreChunk = PageAudio.parse(
       PageAudio.BINDING_EVENT,
-      call(new byte[HelperProtocol.MAX_AUDIO_BYTES + 4])
+      call(new byte[HelperProtocol.MAXIMUM_AUDIO_BYTES + 4])
     );
     assertNull(frameMoreChunk, "a frame more");
     final PageAudio.@Nullable Chunk twoFramesMoreChunk = PageAudio.parse(
       PageAudio.BINDING_EVENT,
-      call(new byte[HelperProtocol.MAX_AUDIO_BYTES + 8])
+      call(new byte[HelperProtocol.MAXIMUM_AUDIO_BYTES + 8])
     );
     assertNull(twoFramesMoreChunk, "longer still");
     final String longest = "A".repeat(87_384);
@@ -172,7 +172,7 @@ class PageAudioTest {
     final AtomicLong now = new AtomicLong(TimeUnit.HOURS.toNanos(1));
     final List<Integer> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples.length), now::get);
-    final byte[] chunk = new byte[HelperProtocol.MAX_AUDIO_BYTES];
+    final byte[] chunk = new byte[HelperProtocol.MAXIMUM_AUDIO_BYTES];
     final String event = call(chunk);
     for (int count = 0; count < 6; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, event);
@@ -235,7 +235,7 @@ class PageAudioTest {
         return now.get();
       }
     );
-    final String largest = call(new byte[HelperProtocol.MAX_AUDIO_BYTES]);
+    final String largest = call(new byte[HelperProtocol.MAXIMUM_AUDIO_BYTES]);
     for (int count = 0; count < 5; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }
@@ -259,7 +259,7 @@ class PageAudioTest {
     final AtomicLong now = new AtomicLong();
     final List<Integer> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples.length), now::get);
-    final String largest = call(new byte[HelperProtocol.MAX_AUDIO_BYTES]);
+    final String largest = call(new byte[HelperProtocol.MAXIMUM_AUDIO_BYTES]);
     for (int count = 0; count < 5; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }
@@ -278,7 +278,11 @@ class PageAudioTest {
     final List<Integer> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples.length), now::get);
     final String context = "-1234567890";
-    final String largest = call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[HelperProtocol.MAX_AUDIO_BYTES]), context);
+    final String largest = call(
+      PageAudio.BINDING,
+      Base64.getEncoder().encodeToString(new byte[HelperProtocol.MAXIMUM_AUDIO_BYTES]),
+      context
+    );
     for (int count = 0; count < 5; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }
@@ -298,7 +302,7 @@ class PageAudioTest {
     final AtomicLong step = new AtomicLong();
     final List<Integer> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples.length), () -> now.addAndGet(step.get()));
-    final String largest = call(new byte[HelperProtocol.MAX_AUDIO_BYTES]);
+    final String largest = call(new byte[HelperProtocol.MAXIMUM_AUDIO_BYTES]);
     for (int count = 0; count < 5; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }

@@ -133,9 +133,9 @@ final class ScriptedEngine implements HelperEngine {
     }
   }
 
-  private static void pause(final long millis) {
+  private static void pause(final long milliseconds) {
     try {
-      Thread.sleep(millis);
+      Thread.sleep(milliseconds);
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
     }

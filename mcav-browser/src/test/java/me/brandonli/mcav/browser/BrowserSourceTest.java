@@ -87,7 +87,7 @@ class BrowserSourceTest {
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 1, 0));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 1, 1, 1001));
     final String start = "https://example.com/";
-    final URI longest = URI.create(start + "a".repeat(BrowserSource.MAX_ADDRESS_LENGTH - start.length()));
+    final URI longest = URI.create(start + "a".repeat(BrowserSource.MAXIMUM_ADDRESS_LENGTH - start.length()));
     final URI longestUri = BrowserSource.uri(longest).getUri();
     assertEquals(longest, longestUri);
     final URI tooLong = URI.create(longest + "a");

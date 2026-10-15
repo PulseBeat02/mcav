@@ -72,14 +72,14 @@ final class LinuxLibrariesFuzzTest {
       return;
     }
     final byte[] layer = Arrays.copyOfRange(input, 1, input.length);
-    final byte[] deb = switch (input[0] & 0b11) {
+    final byte[] debianPackage = switch (input[0] & 0b11) {
       case 0 -> layer;
-      case 1 -> debOf(layer);
-      default -> debOf(xz(layer));
+      case 1 -> debianPackageOf(layer);
+      default -> debianPackageOf(xz(layer));
     };
     final Path root = Files.createTempDirectory("mcav-deb-fuzz");
     try {
-      final Path file = Files.write(root.resolve("package.deb"), deb);
+      final Path file = Files.write(root.resolve("package.deb"), debianPackage);
       final Path target = Files.createDirectory(root.resolve("target"));
       boolean extracted;
       try {
@@ -133,9 +133,9 @@ final class LinuxLibrariesFuzzTest {
     return compressed.toByteArray();
   }
 
-  private static byte[] debOf(final byte[] data) throws IOException {
-    final ByteArrayOutputStream deb = new ByteArrayOutputStream();
-    try (final ArArchiveOutputStream archive = new ArArchiveOutputStream(deb)) {
+  private static byte[] debianPackageOf(final byte[] data) throws IOException {
+    final ByteArrayOutputStream debianPackage = new ByteArrayOutputStream();
+    try (final ArArchiveOutputStream archive = new ArArchiveOutputStream(debianPackage)) {
       final byte[] version = "2.0\n".getBytes(StandardCharsets.US_ASCII);
       archive.putArchiveEntry(new ArArchiveEntry("debian-binary", version.length));
       archive.write(version);
@@ -144,6 +144,6 @@ final class LinuxLibrariesFuzzTest {
       archive.write(data);
       archive.closeArchiveEntry();
     }
-    return deb.toByteArray();
+    return debianPackage.toByteArray();
   }
 }

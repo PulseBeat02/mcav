@@ -62,8 +62,8 @@ public final class HeadlessProofMain {
     "-XX:+EnableJVMCI",
     "-XX:-UnlockExperimentalVMOptions"
   );
-  private static final long START_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(10);
-  private static final long STOP_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(30);
+  private static final long START_TIMEOUT_MILLISECONDS = TimeUnit.MINUTES.toMillis(10);
+  private static final long STOP_TIMEOUT_MILLISECONDS = TimeUnit.SECONDS.toMillis(30);
   private static final String PAGE =
     "<!doctype html><html><body style=\"margin:0;background:#ff0000\">" +
     "<p style=\"margin:8px;font:bold 40px sans-serif;color:#000000\">mcav headless</p></body></html>";
@@ -152,7 +152,7 @@ public final class HeadlessProofMain {
     final VideoPipelineStep pipeline = builder.build();
     player.getVideoAttachableCallback().attach(pipeline);
     check(player.start(BrowserSource.uri(address, 320, 240, 1)), "the browser starts");
-    await("a red frame", START_TIMEOUT_MILLIS, () -> {
+    await("a red frame", START_TIMEOUT_MILLISECONDS, () -> {
       final int[] frame = last.get();
       return frame != null && isRed(frame[2]);
     });
@@ -175,7 +175,7 @@ public final class HeadlessProofMain {
     }
     api.release();
     check(HelperProcesses.count() == 0, "no browser session is left");
-    await("every browser process to end", STOP_TIMEOUT_MILLIS, () -> countBrowserProcesses() == 0);
+    await("every browser process to end", STOP_TIMEOUT_MILLISECONDS, () -> countBrowserProcesses() == 0);
     System.out.printf(Locale.ROOT, "round %d: disabled, no browser process left%n", round);
   }
 
@@ -202,9 +202,9 @@ public final class HeadlessProofMain {
     }
   }
 
-  private static void await(final String description, final long timeoutMillis, final BooleanSupplier condition)
+  private static void await(final String description, final long timeoutMilliseconds, final BooleanSupplier condition)
     throws InterruptedException {
-    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
     while (!condition.getAsBoolean()) {
       if (System.nanoTime() - deadline > 0) {
         throw new AssertionError("Timed out waiting for " + description);

@@ -87,7 +87,7 @@ final class PageAudioFuzzTest {
   private static void check(final byte[] samples) {
     final boolean notEmpty = samples.length > 0;
     assertTrue(notEmpty, "sound is not empty");
-    final boolean withinMessageLimit = samples.length <= HelperProtocol.MAX_AUDIO_BYTES;
+    final boolean withinMessageLimit = samples.length <= HelperProtocol.MAXIMUM_AUDIO_BYTES;
     assertTrue(withinMessageLimit, "sound is within the limit of a message");
     final boolean wholeFrames = samples.length % HelperProtocol.AUDIO_FRAME_BYTES == 0;
     assertTrue(wholeFrames, "sound holds whole frames");

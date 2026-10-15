@@ -60,8 +60,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 final class CefEngine implements HelperEngine {
 
-  private static final long STOP_TIMEOUT_MILLIS = 10_000L;
-  private static final long SCRIPT_TIMEOUT_MILLIS = 5_000L;
+  private static final long STOP_TIMEOUT_MILLISECONDS = 10_000L;
+  private static final long SCRIPT_TIMEOUT_MILLISECONDS = 5_000L;
   // A DevTools client can lose every answer; a replacement client can receive them.
   private static final int PLACING_ATTEMPTS = 2;
   private static final String NOT_CONFIRMED = "not confirmed";
@@ -255,7 +255,7 @@ final class CefEngine implements HelperEngine {
     final String url = configuration.getUrl().toString();
     final PageAudio audio = new PageAudio(events::onAudio, System::nanoTime);
     final ContentPolicy policy = new ContentPolicy(events, versionText, prepared ->
-      openPage(prepared, url, SCRIPT_TIMEOUT_MILLIS, audio, events::onNotice)
+      openPage(prepared, url, SCRIPT_TIMEOUT_MILLISECONDS, audio, events::onNotice)
     );
     addHandlers(createdClient, policy);
     final CefBrowserSettings browserSettings = new CefBrowserSettings();
@@ -322,24 +322,24 @@ final class CefEngine implements HelperEngine {
    *
    * @param created       the browser
    * @param url           the address of the page
-   * @param timeoutMillis how long to wait for the answer of one attempt at most
+   * @param timeoutMilliseconds how long to wait for the answer of one attempt at most
    * @param audio         hears the sound of the page
    * @param notices       hears that the page was loaded without the confirmation
    */
   static void openPage(
     final CefBrowser created,
     final String url,
-    final long timeoutMillis,
+    final long timeoutMilliseconds,
     final PageAudio audio,
     final Consumer<String> notices
   ) {
-    placeScripts(created, url, timeoutMillis, audio, notices, 1);
+    placeScripts(created, url, timeoutMilliseconds, audio, notices, 1);
   }
 
   private static void placeScripts(
     final CefBrowser created,
     final String url,
-    final long timeoutMillis,
+    final long timeoutMilliseconds,
     final PageAudio audio,
     final Consumer<String> notices,
     final int attempt
@@ -359,12 +359,12 @@ final class CefEngine implements HelperEngine {
     }
     // a copy times out, so the answer itself can still arrive late
     final CompletableFuture<String> answered = last;
-    final CompletableFuture<String> placed = answered.copy().completeOnTimeout(NOT_CONFIRMED, timeoutMillis, TimeUnit.MILLISECONDS);
+    final CompletableFuture<String> placed = answered.copy().completeOnTimeout(NOT_CONFIRMED, timeoutMilliseconds, TimeUnit.MILLISECONDS);
     final CompletableFuture<String> loading = placed.whenComplete((answer, failure) -> {
       final boolean confirmed = failure == null && !NOT_CONFIRMED.equals(answer);
       if (!confirmed && attempt < PLACING_ATTEMPTS) {
         devTools.close();
-        EventQueue.invokeLater(() -> placeScripts(created, url, timeoutMillis, audio, notices, attempt + 1));
+        EventQueue.invokeLater(() -> placeScripts(created, url, timeoutMilliseconds, audio, notices, attempt + 1));
         return;
       }
       if (!confirmed) {
@@ -453,7 +453,7 @@ final class CefEngine implements HelperEngine {
     final CefClient currentClient = this.client;
     final CefApp currentApp = this.app;
     if (currentApp != null) {
-      shutDown(() -> close(current, currentClient, currentApp), this.terminated, STOP_TIMEOUT_MILLIS);
+      shutDown(() -> close(current, currentClient, currentApp), this.terminated, STOP_TIMEOUT_MILLISECONDS);
     }
     // the display outlives CEF: the X library ends a process whose display goes away under it
     final NullDisplay currentDisplay = this.display;
@@ -486,12 +486,12 @@ final class CefEngine implements HelperEngine {
    *
    * @param shutdown      the shutdown
    * @param terminated    counts down when CEF has terminated
-   * @param timeoutMillis how long to wait for CEF at most
+   * @param timeoutMilliseconds how long to wait for CEF at most
    */
-  static void shutDown(final Runnable shutdown, final CountDownLatch terminated, final long timeoutMillis) {
+  static void shutDown(final Runnable shutdown, final CountDownLatch terminated, final long timeoutMilliseconds) {
     try {
       EventQueue.invokeAndWait(shutdown);
-      terminated.await(timeoutMillis, TimeUnit.MILLISECONDS);
+      terminated.await(timeoutMilliseconds, TimeUnit.MILLISECONDS);
     } catch (final InterruptedException exception) {
       final Thread thread = Thread.currentThread();
       thread.interrupt();

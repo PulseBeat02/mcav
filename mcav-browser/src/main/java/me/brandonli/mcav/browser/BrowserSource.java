@@ -41,28 +41,28 @@ public interface BrowserSource extends UriSource {
   /**
    * The largest width or height of a page.
    */
-  int MAX_SIDE = HelperProtocol.MAX_SIDE;
+  int MAXIMUM_SIDE = HelperProtocol.MAXIMUM_SIDE;
 
   /**
    * The largest frame interval.
    */
-  int MAX_FRAME_INTERVAL = 1000;
+  int MAXIMUM_FRAME_INTERVAL = 1000;
 
   /**
    * The longest {@link URI#toString()} representation accepted by the factories, in UTF-16 code units.
    */
-  int MAX_ADDRESS_LENGTH = 65_536;
+  int MAXIMUM_ADDRESS_LENGTH = 65_536;
 
   /**
    * Creates a source with every setting.
    *
    * @param uri           the non-null absolute {@code http} or {@code https} address with a host;
-   *                      its string representation has at most {@value #MAX_ADDRESS_LENGTH} UTF-16 code units
-   * @param width         the width of the page and the frames in pixels, from 1 to {@value #MAX_SIDE}
-   * @param height        the height of the page and the frames in pixels, from 1 to {@value #MAX_SIDE}
-   * @param frameInterval stream every n-th painted frame, from 1 to {@value #MAX_FRAME_INTERVAL}; 1 streams every frame
+   *                      its string representation has at most {@value #MAXIMUM_ADDRESS_LENGTH} UTF-16 code units
+   * @param width         the width of the page and the frames in pixels, from 1 to {@value #MAXIMUM_SIDE}
+   * @param height        the height of the page and the frames in pixels, from 1 to {@value #MAXIMUM_SIDE}
+   * @param frameInterval stream every n-th painted frame, from 1 to {@value #MAXIMUM_FRAME_INTERVAL}; 1 streams every frame
    * @return the source
-   * @throws IllegalArgumentException if the address is not a web address, is longer than {@value #MAX_ADDRESS_LENGTH}
+   * @throws IllegalArgumentException if the address is not a web address, is longer than {@value #MAXIMUM_ADDRESS_LENGTH}
    *                                  characters, or a number is out of range
    * @throws NullPointerException     if {@code uri} is null
    */
@@ -78,24 +78,24 @@ public interface BrowserSource extends UriSource {
     Preconditions.checkArgument(NavigationPolicy.isWebAddress(uri), "Address %s must be an http or https address for the browser!", uri);
     final int length = uri.toString().length();
     Preconditions.checkArgument(
-      length <= MAX_ADDRESS_LENGTH,
+      length <= MAXIMUM_ADDRESS_LENGTH,
       "Address length %s must be at most %s characters!",
       length,
-      MAX_ADDRESS_LENGTH
+      MAXIMUM_ADDRESS_LENGTH
     );
     Preconditions.checkArgument(width > 0 && height > 0, "Frame size %sx%s must be positive!", width, height);
     Preconditions.checkArgument(
-      width <= MAX_SIDE && height <= MAX_SIDE,
+      width <= MAXIMUM_SIDE && height <= MAXIMUM_SIDE,
       "Frame size %sx%s must be at most %s per side!",
       width,
       height,
-      MAX_SIDE
+      MAXIMUM_SIDE
     );
     Preconditions.checkArgument(
-      frameInterval > 0 && frameInterval <= MAX_FRAME_INTERVAL,
+      frameInterval > 0 && frameInterval <= MAXIMUM_FRAME_INTERVAL,
       "Frame interval %s must be between 1 and %s!",
       frameInterval,
-      MAX_FRAME_INTERVAL
+      MAXIMUM_FRAME_INTERVAL
     );
     return new BrowserSourceImpl(uri, width, height, frameInterval);
   }
@@ -107,7 +107,7 @@ public interface BrowserSource extends UriSource {
    * @param uri the non-null absolute {@code http} or {@code https} address with a host
    * @return the source
    * @throws IllegalArgumentException if the address lacks a web scheme or host, or exceeds
-   *                                  {@value #MAX_ADDRESS_LENGTH} UTF-16 code units
+   *                                  {@value #MAXIMUM_ADDRESS_LENGTH} UTF-16 code units
    * @throws NullPointerException     if {@code uri} is null
    */
   static BrowserSource uri(final URI uri) {
@@ -117,21 +117,21 @@ public interface BrowserSource extends UriSource {
   /**
    * Returns the width of the page and of the frames.
    *
-   * @return the width in pixels, from 1 to {@value BrowserSource#MAX_SIDE}
+   * @return the width in pixels, from 1 to {@value BrowserSource#MAXIMUM_SIDE}
    */
   int getWidth();
 
   /**
    * Returns the height of the page and of the frames.
    *
-   * @return the height in pixels, from 1 to {@value BrowserSource#MAX_SIDE}
+   * @return the height in pixels, from 1 to {@value BrowserSource#MAXIMUM_SIDE}
    */
   int getHeight();
 
   /**
    * Returns how many painted frames make one streamed frame.
    *
-   * @return the interval, from 1 to {@value BrowserSource#MAX_FRAME_INTERVAL}; 1 streams every painted frame
+   * @return the interval, from 1 to {@value BrowserSource#MAXIMUM_FRAME_INTERVAL}; 1 streams every painted frame
    */
   int getFrameInterval();
 
