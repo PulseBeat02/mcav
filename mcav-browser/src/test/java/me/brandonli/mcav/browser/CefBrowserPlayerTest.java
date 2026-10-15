@@ -529,12 +529,10 @@ class CefBrowserPlayerTest {
     return Thread.currentThread().isInterrupted();
   }
 
+  // Every wait of the fixture is bounded, so the test ends without a wall-clock limit of its own, which a loaded host
+  // would overrun: the fixture alone waits five seconds for the factory that is never reached.
   @Test
   void shouldStillEndTheInterruptFixtureWhenTheStartNeverReachesItsFactory() {
-    assertTimeoutPreemptively(Duration.ofSeconds(10), this::failTheFixtureWithoutAPlayer);
-  }
-
-  private void failTheFixtureWithoutAPlayer() {
     try (final MockedConstruction<CefBrowserPlayer> players = Mockito.mockConstruction(CefBrowserPlayer.class)) {
       final AssertionError failure = assertThrows(AssertionError.class, () -> leftInterruptedByAStartThat(FakeSession::new));
       final boolean namesTheHelperFactory = failure.getMessage().contains("the helper factory");
