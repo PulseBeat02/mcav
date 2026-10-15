@@ -26,30 +26,42 @@ import me.brandonli.mcav.media.source.uri.UriSource;
  * between streamed frames. Only absolute {@code http} and {@code https} addresses with a host can be shown.
  * The factories create immutable sources and perform no network access. Address-policy checks, including
  * the default restriction on private networks, happen when the browser loads the page.
+ *
+ * @since 1.0.0
  */
 public interface BrowserSource extends UriSource {
   /**
    * The frame width used by {@link #uri(URI)}.
+   *
+   * @since 1.0.0
    */
   int DEFAULT_WIDTH = 1280;
 
   /**
    * The frame height used by {@link #uri(URI)}.
+   *
+   * @since 1.0.0
    */
   int DEFAULT_HEIGHT = 720;
 
   /**
    * The largest width or height of a page.
+   *
+   * @since 1.0.0
    */
   int MAXIMUM_SIDE = HelperProtocol.MAXIMUM_SIDE;
 
   /**
    * The largest frame interval.
+   *
+   * @since 1.0.0
    */
   int MAXIMUM_FRAME_INTERVAL = 1000;
 
   /**
    * The longest {@link URI#toString()} representation accepted by the factories, in UTF-16 code units.
+   *
+   * @since 1.0.0
    */
   int MAXIMUM_ADDRESS_LENGTH = 65_536;
 
@@ -65,6 +77,7 @@ public interface BrowserSource extends UriSource {
    * @throws IllegalArgumentException if the address is not a web address, is longer than {@value #MAXIMUM_ADDRESS_LENGTH}
    *                                  characters, or a number is out of range
    * @throws NullPointerException     if {@code uri} is null
+   * @since 1.0.0
    */
   static BrowserSource uri(final URI uri, final int width, final int height, final int frameInterval) {
     Preconditions.checkNotNull(uri, "URI must not be null!");
@@ -110,6 +123,7 @@ public interface BrowserSource extends UriSource {
    * @throws IllegalArgumentException if the address lacks a web scheme or host, or exceeds
    *                                  {@value #MAXIMUM_ADDRESS_LENGTH} UTF-16 code units
    * @throws NullPointerException     if {@code uri} is null
+   * @since 1.0.0
    */
   static BrowserSource uri(final URI uri) {
     return uri(uri, DEFAULT_WIDTH, DEFAULT_HEIGHT, 1);
@@ -119,6 +133,7 @@ public interface BrowserSource extends UriSource {
    * Returns the width of the page and of the frames.
    *
    * @return the width in pixels, from 1 to {@value BrowserSource#MAXIMUM_SIDE}
+   * @since 1.0.0
    */
   int getWidth();
 
@@ -126,6 +141,7 @@ public interface BrowserSource extends UriSource {
    * Returns the height of the page and of the frames.
    *
    * @return the height in pixels, from 1 to {@value BrowserSource#MAXIMUM_SIDE}
+   * @since 1.0.0
    */
   int getHeight();
 
@@ -133,6 +149,7 @@ public interface BrowserSource extends UriSource {
    * Returns how many painted frames make one streamed frame.
    *
    * @return the interval, from 1 to {@value BrowserSource#MAXIMUM_FRAME_INTERVAL}; 1 streams every painted frame
+   * @since 1.0.0
    */
   int getFrameInterval();
 
@@ -140,6 +157,7 @@ public interface BrowserSource extends UriSource {
    * Returns the name of the source type.
    *
    * @return {@code browser}
+   * @since 1.0.0
    */
   @Override
   default String getName() {
@@ -150,6 +168,7 @@ public interface BrowserSource extends UriSource {
    * Returns whether the address can be played directly. A web page is rendered by a browser, so it never can.
    *
    * @return false
+   * @since 1.0.0
    */
   @Override
   default boolean isDirect() {

@@ -30,6 +30,8 @@ import me.brandonli.mcav.module.MCAVModule;
  * browser that is still running, so disabling a plugin leaves no browser process behind, and a later start of the
  * module can start browsers again. Starting it also removes the folders of browser sessions that a killed server
  * left in the temporary folder.
+ *
+ * @since 1.0.0
  */
 public final class BrowserModule implements MCAVModule {
 
@@ -37,12 +39,16 @@ public final class BrowserModule implements MCAVModule {
 
   /**
    * Constructs the module. The module loader creates it for you.
+   *
+   * @since 1.0.0
    */
   public BrowserModule() {}
 
   /**
    * Lets browsers start again after {@link #stop()}, and removes the folders of browser sessions whose server ended
    * without releasing them; the browser itself is installed by the first browser that starts.
+   *
+   * @since 1.0.0
    */
   @Override
   public void start() {
@@ -60,6 +66,8 @@ public final class BrowserModule implements MCAVModule {
   /**
    * Ends the helper process of every browser that is still running, and of every browser that is still starting, and
    * lets no browser start until the module starts again.
+   *
+   * @since 1.0.0
    */
   @Override
   public void stop() {
@@ -71,6 +79,7 @@ public final class BrowserModule implements MCAVModule {
    * {@link BrowserPlayer#isSupported()}.
    *
    * @return true if there is a CEF build for this machine
+   * @since 1.0.0
    */
   public boolean isSupported() {
     return BrowserPlayer.isSupported();
@@ -80,6 +89,7 @@ public final class BrowserModule implements MCAVModule {
    * Returns the name of the module.
    *
    * @return {@code browser}
+   * @since 1.0.0
    */
   @Override
   public String getModuleName() {

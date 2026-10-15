@@ -47,18 +47,24 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   final BrowserOptions options = BrowserOptions.builder().frameRate(30).build();
  *   final BrowserPlayer browser = BrowserPlayer.create(options);
  * }</pre>
+ *
+ * @since 1.0.0
  */
 public final class BrowserOptions {
 
   /**
    * The highest frame rate a browser may paint at. This is mcav's limit, not CEF's: CEF's frame rate setting has a
    * minimum of 1 and a default of 30, and no maximum.
+   *
+   * @since 1.0.0
    */
   public static final int MAXIMUM_FRAME_RATE = HelperConfiguration.MAXIMUM_FRAME_RATE;
 
   /**
    * The options {@link BrowserPlayer#create()} uses: 60 frames per second at most, no JavaScript JIT, public addresses
    * only, sound only once someone clicked or typed into the page, and Chromium confined where the system can.
+   *
+   * @since 1.0.0
    */
   public static final BrowserOptions DEFAULT = builder().build();
 
@@ -89,6 +95,7 @@ public final class BrowserOptions {
    * Creates a builder with the default options.
    *
    * @return the builder
+   * @since 1.0.0
    */
   public static BrowserOptionsBuilder builder() {
     return new DefaultBrowserOptionsBuilder();
@@ -98,6 +105,7 @@ public final class BrowserOptions {
    * Returns how many frames per second the browser paints at most. A page that does not change paints no frames.
    *
    * @return the frame rate, from 1 to {@value #MAXIMUM_FRAME_RATE}
+   * @since 1.0.0
    */
   public int getFrameRate() {
     return this.frameRate;
@@ -107,6 +115,7 @@ public final class BrowserOptions {
    * Returns whether JavaScript is compiled to machine code.
    *
    * @return true if the configuration enables V8's just-in-time compiler when a browser is started
+   * @since 1.0.0
    */
   public boolean isJavaScriptJit() {
     return this.allowsJavaScriptJit;
@@ -117,6 +126,7 @@ public final class BrowserOptions {
    *
    * @return true if the address policy permits private and other non-public destinations; connectivity
    *         is still subject to the host network and other browser policies
+   * @since 1.0.0
    */
   public boolean isPrivateNetworks() {
     return this.allowsPrivateNetworks;
@@ -127,6 +137,7 @@ public final class BrowserOptions {
    *
    * @return true if the autoplay policy permits sound without a user gesture; this does not guarantee
    *         that a page produces capturable audio
+   * @since 1.0.0
    */
   public boolean isAutoplay() {
     return this.allowsAutoplay;
@@ -136,6 +147,7 @@ public final class BrowserOptions {
    * Returns whether Chromium is confined where the system can confine it, see {@link BrowserOptionsBuilder#confinement(boolean)}.
    *
    * @return true if Chromium is confined
+   * @since 1.0.0
    */
   public boolean isConfined() {
     return this.confined;
@@ -146,6 +158,7 @@ public final class BrowserOptions {
    * see {@link BrowserOptionsBuilder#refusedHosts(Collection)}.
    *
    * @return the hosts, unmodifiable
+   * @since 1.0.0
    */
   public List<String> getRefusedHosts() {
     return this.refusedHosts;

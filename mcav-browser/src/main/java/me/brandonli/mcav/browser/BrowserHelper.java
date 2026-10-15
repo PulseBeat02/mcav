@@ -55,6 +55,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * to, when the connection ends, or when its standard input ends, which happens when the server process dies. Once its
  * standard input ended, it halts if it has not stopped within {@value #STOP_DEADLINE_MILLISECONDS} ms, so a browser that hangs
  * never outlives the server. It is not meant to be started by hand.
+ *
+ * @since 1.0.0
  */
 public final class BrowserHelper {
 
@@ -109,6 +111,7 @@ public final class BrowserHelper {
    * configuration was missing or invalid.
    *
    * @param args the non-null launch arguments, ignored; the configuration comes from standard input
+   * @since 1.0.0
    */
   public static void main(final String[] args) {
     final PrintStream errors = System.err;
