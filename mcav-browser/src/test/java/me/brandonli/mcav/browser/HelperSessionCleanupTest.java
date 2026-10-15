@@ -42,7 +42,7 @@ import me.brandonli.mcav.media.player.PlayerException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.MockedStatic;
 import org.mockito.invocation.InvocationOnMock;
 
@@ -52,8 +52,8 @@ final class HelperSessionCleanupTest {
   private Path directory;
 
   @ParameterizedTest
-  @ValueSource(booleans = { false, true })
-  void shouldCloseTheAcceptedChannelWhenTheSocketUnlinkFails(final boolean unchecked) throws Exception {
+  @EnumSource(FailureKind.class)
+  void shouldCloseTheAcceptedChannelWhenTheSocketUnlinkFails(final FailureKind kind) throws Exception {
     final Path folder = Files.createDirectory(this.directory.resolve("session"));
     final Path socket = folder.resolve("s");
     final HelperLauncher launcher = mock(HelperLauncher.class);
@@ -61,7 +61,7 @@ final class HelperSessionCleanupTest {
     final Process process = mock(Process.class);
     final ProcessBuilder builder = mock(ProcessBuilder.class);
     final ServerSocketChannel server = mock(ServerSocketChannel.class);
-    final Throwable failure = unchecked ? new IllegalStateException("unlink failed") : new IOException("unlink failed");
+    final Throwable failure = kind == FailureKind.UNCHECKED ? new IllegalStateException("unlink failed") : new IOException("unlink failed");
     when(process.getOutputStream()).thenReturn(new ByteArrayOutputStream());
     when(process.descendants()).thenAnswer(_ -> Stream.empty());
     when(process.waitFor(anyLong(), eq(TimeUnit.MILLISECONDS))).thenReturn(true);
@@ -80,7 +80,7 @@ final class HelperSessionCleanupTest {
         .when(() -> Files.deleteIfExists(any(Path.class)))
         .thenAnswer(invocation -> this.failToDeleteTheSocket(invocation, socket, failure));
       final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
-      if (unchecked) {
+      if (kind == FailureKind.UNCHECKED) {
         final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.openSession(launcher, source, listener));
         assertSame(failure, thrown);
       } else {
@@ -104,5 +104,10 @@ final class HelperSessionCleanupTest {
       throw failure;
     }
     return invocation.callRealMethod();
+  }
+
+  private enum FailureKind {
+    CHECKED,
+    UNCHECKED,
   }
 }

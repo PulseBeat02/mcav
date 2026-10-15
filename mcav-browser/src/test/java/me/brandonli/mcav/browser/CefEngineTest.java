@@ -66,11 +66,9 @@ class CefEngineTest {
 
   private static final Pattern FEATURE_SEPARATOR = Pattern.compile(",");
 
-  private static HelperConfiguration configuration(final boolean allowsJit) {
-    return configuration(allowsJit, false);
-  }
-
-  private static HelperConfiguration configuration(final boolean allowsJit, final boolean allowsAutoplay) {
+  private static HelperConfiguration configuration(final AllowedFeature feature) {
+    final boolean allowsJit = feature == AllowedFeature.JAVASCRIPT_JIT;
+    final boolean allowsAutoplay = feature == AllowedFeature.AUTOPLAY;
     return new HelperConfiguration(
       new byte[HelperProtocol.TOKEN_BYTES],
       ROOT.resolve("s"),
@@ -121,7 +119,7 @@ class CefEngineTest {
 
   @Test
   void shouldRunChromiumWithoutGpuSoundExtensionsOrPermissionPrompts() {
-    final List<String> switches = CefEngine.createSwitches(configuration(false), OperatingSystem.OTHER, 0, null);
+    final List<String> switches = CefEngine.createSwitches(configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 0, null);
     final boolean disablesGpuSoundExtensionsAndPrompts = switches.containsAll(
       List.of("--disable-gpu", "--mute-audio", "--disable-extensions", "--deny-permission-prompts", "--site-per-process")
     );
@@ -130,7 +128,7 @@ class CefEngineTest {
     assertTrue(disablesAudioOutput, "the page's sound is not paced by a sound device");
     final boolean requiresActivationForAutoplay = switches.contains("--autoplay-policy=document-user-activation-required");
     assertTrue(requiresActivationForAutoplay);
-    final List<String> autoplaySwitches = CefEngine.createSwitches(configuration(false, true), OperatingSystem.OTHER, 0, null);
+    final List<String> autoplaySwitches = CefEngine.createSwitches(configuration(AllowedFeature.AUTOPLAY), OperatingSystem.OTHER, 0, null);
     final boolean allowsAutoplay = autoplaySwitches.contains("--autoplay-policy=no-user-gesture-required");
     assertTrue(allowsAutoplay);
     final boolean autoplayRequiresActivation = autoplaySwitches.contains("--autoplay-policy=document-user-activation-required");
@@ -149,7 +147,7 @@ class CefEngineTest {
 
   @Test
   void shouldSendEveryConnectionThroughAGuardAndNothingAroundIt() {
-    final List<String> guarded = CefEngine.createSwitches(configuration(false), OperatingSystem.OTHER, 41234, null);
+    final List<String> guarded = CefEngine.createSwitches(configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 41234, null);
     final boolean routesThroughTheGuard = guarded.containsAll(
       List.of(
         "--proxy-server=socks5://127.0.0.1:41234",
@@ -159,7 +157,7 @@ class CefEngineTest {
       )
     );
     assertTrue(routesThroughTheGuard);
-    final List<String> open = CefEngine.createSwitches(configuration(false), OperatingSystem.OTHER, 0, null);
+    final List<String> open = CefEngine.createSwitches(configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 0, null);
     for (final String value : open) {
       final boolean namesAProxy = value.startsWith("--proxy");
       assertFalse(namesAProxy, value);
@@ -173,7 +171,7 @@ class CefEngineTest {
    */
   @Test
   void shouldNeverLetTheOwnServicesOfChromiumContactGoogle() {
-    final List<String> switches = CefEngine.createSwitches(configuration(false), OperatingSystem.OTHER, 0, null);
+    final List<String> switches = CefEngine.createSwitches(configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 0, null);
     final List<String> disabled = switches
       .stream()
       .filter(value -> value.startsWith("--disable-features="))
@@ -207,13 +205,15 @@ class CefEngineTest {
 
   @Test
   void shouldKeepTheJitOnlyWhenTheConfigurationAllowsIt() {
-    final boolean jitless = CefEngine.createSwitches(configuration(true), OperatingSystem.OTHER, 0, null).contains("--js-flags=--jitless");
+    final boolean jitless = CefEngine.createSwitches(configuration(AllowedFeature.JAVASCRIPT_JIT), OperatingSystem.OTHER, 0, null).contains(
+      "--js-flags=--jitless"
+    );
     assertFalse(jitless);
   }
 
   @Test
   void shouldUseTheHeadlessPlatformAndTheNullDisplayOnLinuxAndAMockKeychainOnMacos() {
-    final List<String> linux = CefEngine.createSwitches(configuration(false), OperatingSystem.LINUX, 0, "127.0.0.1:26768");
+    final List<String> linux = CefEngine.createSwitches(configuration(AllowedFeature.NONE), OperatingSystem.LINUX, 0, "127.0.0.1:26768");
     final boolean linuxHeadless = linux.contains("--ozone-platform=headless");
     assertTrue(linuxHeadless);
     final boolean basicPasswordStore = linux.contains("--password-store=basic");
@@ -222,10 +222,10 @@ class CefEngineTest {
     assertTrue(sharedMemoryDisabled);
     final boolean usesNullDisplay = linux.contains("--display=127.0.0.1:26768");
     assertTrue(usesNullDisplay);
-    final List<String> noDisplay = CefEngine.createSwitches(configuration(false), OperatingSystem.LINUX, 0, null);
+    final List<String> noDisplay = CefEngine.createSwitches(configuration(AllowedFeature.NONE), OperatingSystem.LINUX, 0, null);
     final boolean namesNoDisplay = noDisplay.stream().noneMatch(entry -> entry.startsWith("--display"));
     assertTrue(namesNoDisplay, noDisplay.toString());
-    final List<String> mac = CefEngine.createSwitches(configuration(false), OperatingSystem.MAC, 0, null);
+    final List<String> mac = CefEngine.createSwitches(configuration(AllowedFeature.NONE), OperatingSystem.MAC, 0, null);
     final boolean macMockKeychain = mac.contains("--use-mock-keychain");
     assertTrue(macMockKeychain);
     final boolean macHeadless = mac.contains("--ozone-platform=headless");
@@ -239,7 +239,7 @@ class CefEngineTest {
     final CefSettings settings = new CefSettings();
     settings.remote_debugging_port = 9222;
     settings.persist_session_cookies = true;
-    CefEngine.configureSettings(settings, configuration(false));
+    CefEngine.configureSettings(settings, configuration(AllowedFeature.NONE));
     final String profile = ROOT.resolve("session").resolve("profile").toString();
     assertTrue(settings.windowless_rendering_enabled);
     assertEquals(profile, settings.root_cache_path);
@@ -496,5 +496,11 @@ class CefEngineTest {
       final boolean authorityFileWrittenForDisplay = Files.exists(authority);
       assertTrue(authorityFileWrittenForDisplay, "the helper's X clients find the cookie there");
     }
+  }
+
+  private enum AllowedFeature {
+    NONE,
+    JAVASCRIPT_JIT,
+    AUTOPLAY,
   }
 }

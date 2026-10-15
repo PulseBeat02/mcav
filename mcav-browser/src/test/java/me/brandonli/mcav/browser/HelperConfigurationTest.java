@@ -54,7 +54,7 @@ class HelperConfigurationTest {
     return token;
   }
 
-  private static HelperConfiguration configuration(final boolean allowsJit) {
+  private static HelperConfiguration configuration() {
     return new HelperConfiguration(
       token(),
       SOCKET,
@@ -65,7 +65,7 @@ class HelperConfigurationTest {
       480,
       2,
       30,
-      allowsJit,
+      false,
       false,
       false,
       false,
@@ -154,7 +154,7 @@ class HelperConfigurationTest {
     assertEquals(SERVER, serverFolder);
     final List<String> keptRefusedHosts = read.getRefusedHosts();
     assertEquals(List.of("mc.example.com", "203.0.113.5", "2001:db8::1"), keptRefusedHosts);
-    final HelperConfiguration defaults = HelperConfiguration.fromLine(configuration(false).toLine());
+    final HelperConfiguration defaults = HelperConfiguration.fromLine(configuration().toLine());
     final boolean defaultJavaScriptJit = defaults.isJavaScriptJit();
     assertFalse(defaultJavaScriptJit);
     final boolean defaultPrivateNetworks = defaults.isPrivateNetworks();
@@ -290,7 +290,7 @@ class HelperConfigurationTest {
   }
 
   private static String withValue(final int index, final String value) {
-    final String[] parts = parts(configuration(false));
+    final String[] parts = parts(configuration());
     parts[index] = encode(value);
 
     return String.join(":", parts);
@@ -298,12 +298,12 @@ class HelperConfigurationTest {
 
   @Test
   void shouldRefuseALineWithTooFewOrTooManyValues() {
-    final String[] parts = parts(configuration(false));
+    final String[] parts = parts(configuration());
     final String missing = String.join(":", Arrays.copyOf(parts, parts.length - 1));
     final IllegalArgumentException tooFew = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(missing));
     final String message = tooFew.getMessage();
     assertEquals("The configuration has 14 values instead of 15 values!", message);
-    final String extra = configuration(false).toLine() + ":" + encode("x");
+    final String extra = configuration().toLine() + ":" + encode("x");
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(extra));
   }
 
@@ -317,7 +317,7 @@ class HelperConfigurationTest {
     assertThrows(NumberFormatException.class, () -> HelperConfiguration.fromLine(withValue(5, "wide")));
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(0, "zz")));
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(4, "file:///etc/passwd")));
-    final String[] invalidEncoding = parts(configuration(false));
+    final String[] invalidEncoding = parts(configuration());
     invalidEncoding[3] = "!" + invalidEncoding[3];
     final String line = String.join(":", invalidEncoding);
     final IllegalArgumentException malformed = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(line));

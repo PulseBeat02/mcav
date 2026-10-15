@@ -58,7 +58,8 @@ class ChromiumConfinementTest {
   @TempDir
   private Path folder;
 
-  private HelperConfiguration configuration(final boolean confined, final Path serverFolder) {
+  private HelperConfiguration configuration(final Confinement confinement, final Path serverFolder) {
+    final boolean confined = confinement == Confinement.ASKED;
     final Path session = this.folder.resolve("tmp").resolve("session");
     return new HelperConfiguration(
       new byte[HelperProtocol.TOKEN_BYTES],
@@ -179,19 +180,29 @@ class ChromiumConfinementTest {
     final Path server = this.folder.resolve(SERVER_FOLDER);
     try (final SeatbeltLibrary library = SeatbeltLibrary.complete()) {
       final Seatbelt seatbelt = library.seatbelt();
-      final String linuxNotAsked = ChromiumConfinement.confine(this.configuration(false, server), OperatingSystem.LINUX, () -> 4, seatbelt);
+      final String linuxNotAsked = ChromiumConfinement.confine(
+        this.configuration(Confinement.NOT_ASKED, server),
+        OperatingSystem.LINUX,
+        () -> 4,
+        seatbelt
+      );
       assertEquals(ChromiumConfinement.NOT_ASKED, linuxNotAsked);
-      final String macNotAsked = ChromiumConfinement.confine(this.configuration(false, server), OperatingSystem.MAC, () -> 4, seatbelt);
+      final String macNotAsked = ChromiumConfinement.confine(
+        this.configuration(Confinement.NOT_ASKED, server),
+        OperatingSystem.MAC,
+        () -> 4,
+        seatbelt
+      );
       assertEquals(ChromiumConfinement.NOT_ASKED, macNotAsked);
       final String otherSystemReason = ChromiumConfinement.confine(
-        this.configuration(true, server),
+        this.configuration(Confinement.ASKED, server),
         OperatingSystem.OTHER,
         () -> 4,
         seatbelt
       );
       assertEquals("Chromium runs without confinement: MCAV confines it on Linux and macOS only.", otherSystemReason);
       final String noLandlockReason = ChromiumConfinement.confine(
-        this.configuration(true, server),
+        this.configuration(Confinement.ASKED, server),
         OperatingSystem.LINUX,
         () -> -38,
         seatbelt
@@ -201,7 +212,7 @@ class ChromiumConfinementTest {
       assertEquals(List.of(), profiles, "only macOS uses Seatbelt");
     }
     final String noSeatbeltReason = ChromiumConfinement.confine(
-      this.configuration(true, server),
+      this.configuration(Confinement.ASKED, server),
       OperatingSystem.MAC,
       () -> 4,
       new Seatbelt(name -> Optional.empty())
@@ -212,7 +223,7 @@ class ChromiumConfinementTest {
   @Test
   @DisabledOnOs(OS.MAC) // on macOS this would put this JVM in the sandbox
   void shouldLeaveTheHelperAsItIsAndSayWhyOnASystemWithoutSeatbelt() throws IOException {
-    final HelperConfiguration configuration = this.configuration(true, this.folder.resolve(SERVER_FOLDER));
+    final HelperConfiguration configuration = this.configuration(Confinement.ASKED, this.folder.resolve(SERVER_FOLDER));
     final String noSeatbeltReason = ChromiumConfinement.confine(configuration, OperatingSystem.MAC);
     assertEquals("Chromium runs without confinement: this system has no Seatbelt (sandbox_init).", noSeatbeltReason);
   }
@@ -220,7 +231,7 @@ class ChromiumConfinementTest {
   @Test
   void shouldConfineTheWholeHelperWithAProfileOfTheRealPathsOnMacOs() throws Exception {
     final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
-    final HelperConfiguration configuration = this.configuration(true, server);
+    final HelperConfiguration configuration = this.configuration(Confinement.ASKED, server);
     final Path session = Files.createDirectories(configuration.getSocket().getParent());
     final String said;
     final List<String> profiles;
@@ -280,7 +291,7 @@ class ChromiumConfinementTest {
     final Path serverConfiguration = Files.writeString(server.resolve("config.yml"), "token: secret");
     final Path otherSession = Files.createDirectories(this.folder.resolve("tmp").resolve("other-session"));
     final Path cookies = Files.writeString(otherSession.resolve("Cookies"), "cookie");
-    final HelperConfiguration configuration = this.configuration(true, server);
+    final HelperConfiguration configuration = this.configuration(Confinement.ASKED, server);
     final Path session = Files.createDirectories(configuration.getSocket().getParent());
     final AtomicReference<String> said = new AtomicReference<>();
     final AtomicReference<Throwable> failure = new AtomicReference<>();
@@ -328,7 +339,7 @@ class ChromiumConfinementTest {
     final Path serverConfiguration = Files.writeString(server.resolve("config.yml"), "token: secret");
     final Path otherSession = Files.createDirectories(this.folder.resolve("tmp").resolve("other-session"));
     final Path cookies = Files.writeString(otherSession.resolve("Cookies"), "cookie");
-    final HelperConfiguration configuration = this.configuration(true, server);
+    final HelperConfiguration configuration = this.configuration(Confinement.ASKED, server);
     final Path session = Files.createDirectories(configuration.getSocket().getParent());
     final Path outside = this.folder.resolve("outside.txt");
     // Seatbelt holds for a whole process and cannot be lifted, so a JVM of its own confines itself
@@ -375,5 +386,10 @@ class ChromiumConfinementTest {
     assertFalse(outsideWritten);
     final boolean readable = Files.isReadable(serverConfiguration);
     assertTrue(readable, "this process is free");
+  }
+
+  private enum Confinement {
+    ASKED,
+    NOT_ASKED,
   }
 }

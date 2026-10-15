@@ -391,23 +391,6 @@ public final class TestPages implements AutoCloseable {
   }
 
   /**
-   * Maps a coordinate of a frame onto the page the way the players do, using the size the page reported when it
-   * loaded.
-   *
-   * @param value     the coordinate in the frame
-   * @param frameSize the width or height of the frames
-   * @param width     true to map a horizontal coordinate, false for a vertical one
-   * @return the coordinate on the page
-   */
-  public int toPage(final int value, final int frameSize, final boolean width) {
-    final List<PageEvent> sizes = this.getEvents("size");
-    final PageEvent size = sizes.getFirst();
-    final int pageSize = width ? size.getX() : size.getY();
-    final long scaled = Math.round(value * ((double) pageSize / frameSize));
-    return Math.clamp(scaled, 0, pageSize - 1);
-  }
-
-  /**
    * Counts the events of one type the pages reported so far.
    *
    * @param type the event type

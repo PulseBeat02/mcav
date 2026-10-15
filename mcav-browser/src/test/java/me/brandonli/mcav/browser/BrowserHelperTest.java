@@ -91,10 +91,11 @@ class BrowserHelperTest {
   }
 
   private HelperConfiguration configuration(final String path) {
-    return this.configuration(path, false);
+    return this.configuration(path, Autoplay.AFTER_INPUT);
   }
 
-  private HelperConfiguration configuration(final String path, final boolean allowsAutoplay) {
+  private HelperConfiguration configuration(final String path, final Autoplay autoplay) {
+    final boolean allowsAutoplay = autoplay == Autoplay.AT_ONCE;
     return new HelperConfiguration(
       token(),
       this.folder.resolve(SOCKET_NAME),
@@ -132,7 +133,7 @@ class BrowserHelperTest {
     reporter.onAudio(chunk);
     final int soundBytesAfterAKey = sent.size();
     assertEquals(message, soundBytesAfterAKey, "a key lets the sound pass");
-    final BrowserHelper autoplayHelper = new BrowserHelper(this.configuration(PAGE, true), new ScriptedEngine());
+    final BrowserHelper autoplayHelper = new BrowserHelper(this.configuration(PAGE, Autoplay.AT_ONCE), new ScriptedEngine());
     final ByteArrayOutputStream played = new ByteArrayOutputStream();
     autoplayHelper.new Reporter(new DataOutputStream(played)).onAudio(chunk);
     final int autoplaySoundBytes = played.size();
@@ -837,5 +838,10 @@ class BrowserHelperTest {
   @FunctionalInterface
   private interface Writer {
     void write(DataOutputStream output) throws IOException;
+  }
+
+  private enum Autoplay {
+    AT_ONCE,
+    AFTER_INPUT,
   }
 }

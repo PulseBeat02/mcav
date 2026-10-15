@@ -82,20 +82,24 @@ final class LinuxLibrariesFuzzTest {
     try {
       final Path file = Files.write(root.resolve("package.deb"), debianPackage);
       final Path target = Files.createDirectory(root.resolve("target"));
-      boolean extracted;
-      try {
-        LinuxLibraries.extract(file, PINNED, target);
-        extracted = true;
-      } catch (final IOException exception) {
-        extracted = false;
-      }
-      check(root, file, target, extracted);
+      final Outcome outcome = extract(file, target);
+      check(root, file, target, outcome);
     } finally {
       IoUtils.deleteRecursively(root);
     }
   }
 
-  private static void check(final Path root, final Path file, final Path target, final boolean extracted) throws IOException {
+  private static Outcome extract(final Path file, final Path target) {
+    try {
+      LinuxLibraries.extract(file, PINNED, target);
+
+      return Outcome.EXTRACTED;
+    } catch (final IOException exception) {
+      return Outcome.REFUSED;
+    }
+  }
+
+  private static void check(final Path root, final Path file, final Path target, final Outcome outcome) throws IOException {
     final boolean supportsPosix = FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
     final Set<String> written = new HashSet<>();
     final List<Path> all = listAllPaths(root);
@@ -117,7 +121,7 @@ final class LinuxLibrariesFuzzTest {
       }
       written.add(name);
     }
-    if (extracted) {
+    if (outcome == Outcome.EXTRACTED) {
       assertEquals(Set.copyOf(PINNED.values()), written, "a package that extracts holds every pinned library");
     }
   }
@@ -150,5 +154,10 @@ final class LinuxLibrariesFuzzTest {
       archive.closeArchiveEntry();
     }
     return debianPackage.toByteArray();
+  }
+
+  private enum Outcome {
+    EXTRACTED,
+    REFUSED,
   }
 }
