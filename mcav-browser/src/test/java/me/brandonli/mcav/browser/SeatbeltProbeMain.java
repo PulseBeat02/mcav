@@ -62,7 +62,7 @@ final class SeatbeltProbeMain {
       server,
       List.of()
     );
-    System.out.println("said " + ChromiumConfinement.confine(configuration, false, true));
+    System.out.println("said " + ChromiumConfinement.confine(configuration, OperatingSystem.MAC));
     System.out.println("server folder: " + read(Path.of(arguments[3])));
     System.out.println("other session: " + read(Path.of(arguments[4])));
     Files.writeString(socket.resolveSibling("profile.txt"), "profile", StandardCharsets.UTF_8);

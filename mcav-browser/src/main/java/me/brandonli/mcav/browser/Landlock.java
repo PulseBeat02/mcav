@@ -156,15 +156,15 @@ final class Landlock {
    * Returns the rights of a rule: to read and run, and to change as well if it is writable; a file has no rights of a
    * folder.
    *
-   * @param rule        the rule
-   * @param isDirectory whether its path is a folder
-   * @param handled     the rights of the ruleset
+   * @param rule    the rule
+   * @param kind    whether its path is a folder or a file
+   * @param handled the rights of the ruleset
    * @return the rights
    */
   @VisibleForTesting
-  static long rightsOf(final Rule rule, final boolean isDirectory, final long handled) {
+  static long rightsOf(final Rule rule, final PathKind kind, final long handled) {
     long rights = rule.writable() ? READ_RIGHTS | WRITE_RIGHTS : READ_RIGHTS;
-    if (!isDirectory) {
+    if (kind == PathKind.FILE) {
       rights &= FILE_RIGHTS;
     }
     return rights & handled;
@@ -209,6 +209,7 @@ final class Landlock {
     throws IOException {
     final Path path = rule.path();
     final boolean isDirectory = Files.isDirectory(path);
+    final PathKind kind = isDirectory ? PathKind.FOLDER : PathKind.FILE;
     final MemorySegment name = arena.allocateFrom(path.toString());
     final long descriptor = invoke(Calls.OPEN, state, name, OPEN_PATH | OPEN_CLOSE_ON_EXEC);
     if (descriptor < 0) {
@@ -217,7 +218,7 @@ final class Landlock {
     try {
       // struct landlock_path_beneath_attr, packed: the rights, then the descriptor
       final MemorySegment beneath = arena.allocate(Long.BYTES + Integer.BYTES);
-      beneath.set(ValueLayout.JAVA_LONG_UNALIGNED, 0, rightsOf(rule, isDirectory, handled));
+      beneath.set(ValueLayout.JAVA_LONG_UNALIGNED, 0, rightsOf(rule, kind, handled));
       beneath.set(ValueLayout.JAVA_INT_UNALIGNED, Long.BYTES, (int) descriptor);
       final long added = invoke(Calls.SYSCALL, state, ADD_RULE, ruleset, RULE_PATH_BENEATH, beneath.address(), 0L);
       check(added, Calls.errorOf(state), "add the rule of %s".formatted(path));
@@ -276,6 +277,12 @@ final class Landlock {
    * @param writable whether files may be written, created, renamed and deleted there
    */
   record Rule(Path path, boolean writable) {}
+
+  // whether the path of a rule is a folder, which may have the rights of a folder, or a file, which may not
+  enum PathKind {
+    FOLDER,
+    FILE,
+  }
 
   /**
    * The functions of the C library, bound when Landlock is first used, which happens on Linux only.

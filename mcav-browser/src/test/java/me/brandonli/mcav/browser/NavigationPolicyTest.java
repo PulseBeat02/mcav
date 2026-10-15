@@ -46,45 +46,45 @@ class NavigationPolicyTest {
 
   @Test
   void shouldOnlyLetThePageNavigateToWebAddresses() {
-    final boolean httpsAllowed = NavigationPolicy.allowsNavigation("https://example.com/", true);
+    final boolean httpsAllowed = NavigationPolicy.allowsNavigation("https://example.com/", FrameKind.MAIN);
     assertTrue(httpsAllowed);
-    final boolean fileAllowed = NavigationPolicy.allowsNavigation("file:///etc/passwd", true);
+    final boolean fileAllowed = NavigationPolicy.allowsNavigation("file:///etc/passwd", FrameKind.MAIN);
     assertFalse(fileAllowed);
-    final boolean aboutBlankAllowed = NavigationPolicy.allowsNavigation("about:blank", true);
+    final boolean aboutBlankAllowed = NavigationPolicy.allowsNavigation("about:blank", FrameKind.MAIN);
     assertTrue(aboutBlankAllowed, "the empty document the browser starts with");
-    final boolean aboutSrcdocAllowed = NavigationPolicy.allowsNavigation("about:srcdoc", true);
+    final boolean aboutSrcdocAllowed = NavigationPolicy.allowsNavigation("about:srcdoc", FrameKind.MAIN);
     assertFalse(aboutSrcdocAllowed);
-    final boolean dataAllowed = NavigationPolicy.allowsNavigation("data:text/html,x", true);
+    final boolean dataAllowed = NavigationPolicy.allowsNavigation("data:text/html,x", FrameKind.MAIN);
     assertFalse(dataAllowed);
-    final boolean malformedAllowed = NavigationPolicy.allowsNavigation("not a uri at all", true);
+    final boolean malformedAllowed = NavigationPolicy.allowsNavigation("not a uri at all", FrameKind.MAIN);
     assertFalse(malformedAllowed);
-    final boolean chromeAllowed = NavigationPolicy.allowsNavigation("chrome://gpu", true);
+    final boolean chromeAllowed = NavigationPolicy.allowsNavigation("chrome://gpu", FrameKind.MAIN);
     assertFalse(chromeAllowed);
-    final boolean pipeAllowed = NavigationPolicy.allowsNavigation("https://example.com/a|b?q=%7C", true);
+    final boolean pipeAllowed = NavigationPolicy.allowsNavigation("https://example.com/a|b?q=%7C", FrameKind.MAIN);
     assertTrue(pipeAllowed, "Chromium's canonical form may hold '|'");
   }
 
   @Test
   void shouldAlsoLetFramesHoldLocalDocumentsOfTheBrowser() {
-    final boolean aboutBlankAllowed = NavigationPolicy.allowsNavigation("about:blank", false);
+    final boolean aboutBlankAllowed = NavigationPolicy.allowsNavigation("about:blank", FrameKind.CHILD);
     assertTrue(aboutBlankAllowed);
-    final boolean aboutSrcdocAllowed = NavigationPolicy.allowsNavigation("about:srcdoc", false);
+    final boolean aboutSrcdocAllowed = NavigationPolicy.allowsNavigation("about:srcdoc", FrameKind.CHILD);
     assertTrue(aboutSrcdocAllowed);
-    final boolean dataAllowed = NavigationPolicy.allowsNavigation("data:text/html,x", false);
+    final boolean dataAllowed = NavigationPolicy.allowsNavigation("data:text/html,x", FrameKind.CHILD);
     assertTrue(dataAllowed);
-    final boolean blobAllowed = NavigationPolicy.allowsNavigation("blob:https://example.com/1234", false);
+    final boolean blobAllowed = NavigationPolicy.allowsNavigation("blob:https://example.com/1234", FrameKind.CHILD);
     assertTrue(blobAllowed);
-    final boolean upperCaseHttpAllowed = NavigationPolicy.allowsNavigation("HTTP://example.com/", false);
+    final boolean upperCaseHttpAllowed = NavigationPolicy.allowsNavigation("HTTP://example.com/", FrameKind.CHILD);
     assertTrue(upperCaseHttpAllowed);
-    final boolean aboutSettingsAllowed = NavigationPolicy.allowsNavigation("about:settings", false);
+    final boolean aboutSettingsAllowed = NavigationPolicy.allowsNavigation("about:settings", FrameKind.CHILD);
     assertFalse(aboutSettingsAllowed);
-    final boolean fileAllowed = NavigationPolicy.allowsNavigation("file:///etc/passwd", false);
+    final boolean fileAllowed = NavigationPolicy.allowsNavigation("file:///etc/passwd", FrameKind.CHILD);
     assertFalse(fileAllowed);
-    final boolean javascriptAllowed = NavigationPolicy.allowsNavigation("javascript:alert(1)", false);
+    final boolean javascriptAllowed = NavigationPolicy.allowsNavigation("javascript:alert(1)", FrameKind.CHILD);
     assertFalse(javascriptAllowed);
-    final boolean emptySchemeAllowed = NavigationPolicy.allowsNavigation(":nothing", false);
+    final boolean emptySchemeAllowed = NavigationPolicy.allowsNavigation(":nothing", FrameKind.CHILD);
     assertFalse(emptySchemeAllowed);
-    final boolean noSchemeAllowed = NavigationPolicy.allowsNavigation("noscheme", false);
+    final boolean noSchemeAllowed = NavigationPolicy.allowsNavigation("noscheme", FrameKind.CHILD);
     assertFalse(noSchemeAllowed);
   }
 

@@ -65,12 +65,12 @@ final class NavigationPolicy {
   /**
    * Checks whether a frame may navigate to an address.
    *
-   * @param address   the address, as the browser reports it
-   * @param mainFrame true for the page itself, false for a frame inside it
+   * @param address the address, as the browser reports it
+   * @param frame   whether the page itself or a frame inside it navigates
    * @return true if the navigation is allowed
    */
-  static boolean allowsNavigation(final String address, final boolean mainFrame) {
-    if (mainFrame) {
+  static boolean allowsNavigation(final String address, final FrameKind frame) {
+    if (frame == FrameKind.MAIN) {
       // the address is Chromium's canonical form, which java.net.URI may refuse for characters such as '|'; the page
       // itself may also be the empty document, which the browser starts with
       return BLANK.equals(address) || hasScheme(address, WEB_SCHEMES);

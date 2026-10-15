@@ -179,21 +179,30 @@ class ChromiumConfinementTest {
     final Path server = this.folder.resolve(SERVER_FOLDER);
     try (final SeatbeltLibrary library = SeatbeltLibrary.complete()) {
       final Seatbelt seatbelt = library.seatbelt();
-      final String linuxNotAsked = ChromiumConfinement.confine(this.configuration(false, server), true, false, () -> 4, seatbelt);
+      final String linuxNotAsked = ChromiumConfinement.confine(this.configuration(false, server), OperatingSystem.LINUX, () -> 4, seatbelt);
       assertEquals(ChromiumConfinement.NOT_ASKED, linuxNotAsked);
-      final String macNotAsked = ChromiumConfinement.confine(this.configuration(false, server), false, true, () -> 4, seatbelt);
+      final String macNotAsked = ChromiumConfinement.confine(this.configuration(false, server), OperatingSystem.MAC, () -> 4, seatbelt);
       assertEquals(ChromiumConfinement.NOT_ASKED, macNotAsked);
-      final String otherSystemReason = ChromiumConfinement.confine(this.configuration(true, server), false, false, () -> 4, seatbelt);
+      final String otherSystemReason = ChromiumConfinement.confine(
+        this.configuration(true, server),
+        OperatingSystem.OTHER,
+        () -> 4,
+        seatbelt
+      );
       assertEquals("Chromium runs without confinement: MCAV confines it on Linux and macOS only.", otherSystemReason);
-      final String noLandlockReason = ChromiumConfinement.confine(this.configuration(true, server), true, false, () -> -38, seatbelt);
+      final String noLandlockReason = ChromiumConfinement.confine(
+        this.configuration(true, server),
+        OperatingSystem.LINUX,
+        () -> -38,
+        seatbelt
+      );
       assertEquals("Chromium runs without confinement: this kernel has no Landlock, which Linux has since 5.13.", noLandlockReason);
       final List<String> profiles = library.profiles();
       assertEquals(List.of(), profiles, "only macOS uses Seatbelt");
     }
     final String noSeatbeltReason = ChromiumConfinement.confine(
       this.configuration(true, server),
-      false,
-      true,
+      OperatingSystem.MAC,
       () -> 4,
       new Seatbelt(name -> Optional.empty())
     );
@@ -204,7 +213,7 @@ class ChromiumConfinementTest {
   @DisabledOnOs(OS.MAC) // on macOS this would put this JVM in the sandbox
   void shouldLeaveTheHelperAsItIsAndSayWhyOnASystemWithoutSeatbelt() throws IOException {
     final HelperConfiguration configuration = this.configuration(true, this.folder.resolve(SERVER_FOLDER));
-    final String noSeatbeltReason = ChromiumConfinement.confine(configuration, false, true);
+    final String noSeatbeltReason = ChromiumConfinement.confine(configuration, OperatingSystem.MAC);
     assertEquals("Chromium runs without confinement: this system has no Seatbelt (sandbox_init).", noSeatbeltReason);
   }
 
@@ -216,7 +225,7 @@ class ChromiumConfinementTest {
     final String said;
     final List<String> profiles;
     try (final SeatbeltLibrary library = SeatbeltLibrary.complete()) {
-      said = ChromiumConfinement.confine(configuration, false, true, () -> -38, library.seatbelt());
+      said = ChromiumConfinement.confine(configuration, OperatingSystem.MAC, () -> -38, library.seatbelt());
       profiles = List.copyOf(library.profiles());
     }
     assertEquals(ChromiumConfinement.CONFINED, said);
@@ -302,7 +311,7 @@ class ChromiumConfinementTest {
     final AtomicReference<Throwable> failure
   ) {
     try {
-      said.set(ChromiumConfinement.confine(configuration, true, false));
+      said.set(ChromiumConfinement.confine(configuration, OperatingSystem.LINUX));
       assertThrows(AccessDeniedException.class, () -> Files.readString(serverConfiguration, StandardCharsets.UTF_8));
       assertThrows(AccessDeniedException.class, () -> Files.readString(cookies, StandardCharsets.UTF_8));
       Files.writeString(session.resolve("profile.txt"), "profile");

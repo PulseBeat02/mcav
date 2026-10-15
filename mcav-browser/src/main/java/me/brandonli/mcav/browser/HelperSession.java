@@ -745,7 +745,8 @@ final class HelperSession implements BrowserSession {
     while (true) {
       final boolean fresh;
       try {
-        fresh = this.awaitFrame(repeatsLeft > 0);
+        final FrameWait wait = repeatsLeft > 0 ? FrameWait.UNTIL_REPEAT_DELAY : FrameWait.UNTIL_FRAME;
+        fresh = this.awaitFrame(wait);
       } catch (final InterruptedException exception) {
         return;
       }
@@ -764,14 +765,14 @@ final class HelperSession implements BrowserSession {
   /**
    * Waits for a new picture, or, while the last picture is still repeated, at most the repeat delay.
    *
-   * @param repeating true if the last picture is still repeated
+   * @param wait whether the last picture is still repeated, so the wait ends after the repeat delay
    * @return true if a new picture arrived, false if the repeat delay passed or the session is closing
    * @throws InterruptedException if the delivery thread is interrupted
    */
-  private boolean awaitFrame(final boolean repeating) throws InterruptedException {
+  private boolean awaitFrame(final FrameWait wait) throws InterruptedException {
     synchronized (this.deliveryLock) {
       final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(REPEAT_DELAY_MILLISECONDS);
-      final boolean signalled = this.waitForFrameOrClose(repeating, deadline);
+      final boolean signalled = this.waitForFrameOrClose(wait, deadline);
       if (!signalled) {
         return false;
       }
@@ -781,10 +782,10 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  private boolean waitForFrameOrClose(final boolean repeating, final long deadline) throws InterruptedException {
+  private boolean waitForFrameOrClose(final FrameWait wait, final long deadline) throws InterruptedException {
     while (!this.frameWaiting && !this.closing.get()) {
       final long remaining = deadline - System.nanoTime();
-      if (!repeating) {
+      if (wait == FrameWait.UNTIL_FRAME) {
         this.deliveryLock.wait();
       } else if (remaining > 0) {
         TimeUnit.NANOSECONDS.timedWait(this.deliveryLock, remaining);
@@ -1127,6 +1128,13 @@ final class HelperSession implements BrowserSession {
   @VisibleForTesting
   Process getProcess() {
     return this.process;
+  }
+
+  // how long the delivery thread waits for a new picture: until one arrives, or at most the repeat delay while the last
+  // picture is still repeated
+  private enum FrameWait {
+    UNTIL_FRAME,
+    UNTIL_REPEAT_DELAY,
   }
 
   /**

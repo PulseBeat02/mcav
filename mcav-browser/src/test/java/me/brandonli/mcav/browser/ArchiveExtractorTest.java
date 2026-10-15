@@ -106,7 +106,7 @@ class ArchiveExtractorTest {
   @Test
   void shouldCreateFoldersWithoutPermissionsWhereTheFileSystemHasNone() throws IOException {
     final Path folder = this.target.resolve("a/b");
-    ArchiveExtractor.createFolders(folder, false);
+    ArchiveExtractor.createFolders(folder, PosixPermissions.SKIPPED);
     final boolean folderCreated = Files.isDirectory(folder);
     assertTrue(folderCreated);
     ArchiveExtractor.createFolders(folder);
@@ -195,7 +195,7 @@ class ArchiveExtractorTest {
   @Test
   void shouldExtractTheFilesWithoutPermissionsOnAFileSystemWithoutPosixPermissions() throws IOException {
     final InputStream archive = new Archive().file("libcef.so", EXECUTABLE_MODE, "library").finish();
-    new ArchiveExtractor().extract(archive, this.target, false);
+    new ArchiveExtractor().extract(archive, this.target, PosixPermissions.SKIPPED);
     final String libraryText = Files.readString(this.target.resolve("libcef.so"));
     assertEquals("library", libraryText);
   }

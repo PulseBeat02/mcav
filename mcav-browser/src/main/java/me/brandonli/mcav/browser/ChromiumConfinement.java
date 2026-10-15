@@ -66,21 +66,19 @@ final class ChromiumConfinement {
    * the calling thread and everything it starts afterwards, on macOS the whole process.
    *
    * @param configuration the configuration of the helper
-   * @param isLinux       whether the helper runs on Linux
-   * @param isMac         whether the helper runs on macOS
+   * @param system        the operating system the helper runs on
    * @return what happened, for the log of the server
    * @throws IOException if the system refused the confinement
    */
-  static String confine(final HelperConfiguration configuration, final boolean isLinux, final boolean isMac) throws IOException {
-    return confine(configuration, isLinux, isMac, Landlock::version, Seatbelt.ofSystem());
+  static String confine(final HelperConfiguration configuration, final OperatingSystem system) throws IOException {
+    return confine(configuration, system, Landlock::version, Seatbelt.ofSystem());
   }
 
   /**
-   * Confines Chromium as {@link #confine(HelperConfiguration, boolean, boolean)} does.
+   * Confines Chromium as {@link #confine(HelperConfiguration, OperatingSystem)} does.
    *
    * @param configuration the configuration of the helper
-   * @param isLinux       whether the helper runs on Linux
-   * @param isMac         whether the helper runs on macOS
+   * @param system        the operating system the helper runs on
    * @param version       asks the kernel for its version of Landlock
    * @param seatbelt      the sandbox of macOS
    * @return what happened, for the log of the server
@@ -89,8 +87,7 @@ final class ChromiumConfinement {
   @VisibleForTesting
   static String confine(
     final HelperConfiguration configuration,
-    final boolean isLinux,
-    final boolean isMac,
+    final OperatingSystem system,
     final IntSupplier version,
     final Seatbelt seatbelt
   ) throws IOException {
@@ -107,7 +104,7 @@ final class ChromiumConfinement {
     readable.addAll(pathsOf(System.getProperty("java.class.path")));
     readable.addAll(agentsOf(ManagementFactory.getRuntimeMXBean().getInputArguments()));
 
-    if (isMac) {
+    if (system == OperatingSystem.MAC) {
       if (!seatbelt.isAvailable()) {
         return UNAVAILABLE.formatted(Seatbelt.MISSING);
       }
@@ -116,7 +113,7 @@ final class ChromiumConfinement {
       return CONFINED;
     }
 
-    if (!isLinux) {
+    if (system != OperatingSystem.LINUX) {
       return NOT_SUPPORTED;
     }
 

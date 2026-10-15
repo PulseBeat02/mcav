@@ -121,7 +121,7 @@ class CefEngineTest {
 
   @Test
   void shouldRunChromiumWithoutGpuSoundExtensionsOrPermissionPrompts() {
-    final List<String> switches = CefEngine.createSwitches(configuration(false), false, false, 0, null);
+    final List<String> switches = CefEngine.createSwitches(configuration(false), OperatingSystem.OTHER, 0, null);
     final boolean disablesGpuSoundExtensionsAndPrompts = switches.containsAll(
       List.of("--disable-gpu", "--mute-audio", "--disable-extensions", "--deny-permission-prompts", "--site-per-process")
     );
@@ -130,7 +130,7 @@ class CefEngineTest {
     assertTrue(disablesAudioOutput, "the page's sound is not paced by a sound device");
     final boolean requiresActivationForAutoplay = switches.contains("--autoplay-policy=document-user-activation-required");
     assertTrue(requiresActivationForAutoplay);
-    final List<String> autoplaySwitches = CefEngine.createSwitches(configuration(false, true), false, false, 0, null);
+    final List<String> autoplaySwitches = CefEngine.createSwitches(configuration(false, true), OperatingSystem.OTHER, 0, null);
     final boolean allowsAutoplay = autoplaySwitches.contains("--autoplay-policy=no-user-gesture-required");
     assertTrue(allowsAutoplay);
     final boolean autoplayRequiresActivation = autoplaySwitches.contains("--autoplay-policy=document-user-activation-required");
@@ -149,7 +149,7 @@ class CefEngineTest {
 
   @Test
   void shouldSendEveryConnectionThroughAGuardAndNothingAroundIt() {
-    final List<String> guarded = CefEngine.createSwitches(configuration(false), false, false, 41234, null);
+    final List<String> guarded = CefEngine.createSwitches(configuration(false), OperatingSystem.OTHER, 41234, null);
     final boolean routesThroughTheGuard = guarded.containsAll(
       List.of(
         "--proxy-server=socks5://127.0.0.1:41234",
@@ -159,7 +159,7 @@ class CefEngineTest {
       )
     );
     assertTrue(routesThroughTheGuard);
-    final List<String> open = CefEngine.createSwitches(configuration(false), false, false, 0, null);
+    final List<String> open = CefEngine.createSwitches(configuration(false), OperatingSystem.OTHER, 0, null);
     for (final String value : open) {
       final boolean namesAProxy = value.startsWith("--proxy");
       assertFalse(namesAProxy, value);
@@ -173,7 +173,7 @@ class CefEngineTest {
    */
   @Test
   void shouldNeverLetTheOwnServicesOfChromiumContactGoogle() {
-    final List<String> switches = CefEngine.createSwitches(configuration(false), false, false, 0, null);
+    final List<String> switches = CefEngine.createSwitches(configuration(false), OperatingSystem.OTHER, 0, null);
     final List<String> disabled = switches
       .stream()
       .filter(value -> value.startsWith("--disable-features="))
@@ -207,13 +207,13 @@ class CefEngineTest {
 
   @Test
   void shouldKeepTheJitOnlyWhenTheConfigurationAllowsIt() {
-    final boolean jitless = CefEngine.createSwitches(configuration(true), false, false, 0, null).contains("--js-flags=--jitless");
+    final boolean jitless = CefEngine.createSwitches(configuration(true), OperatingSystem.OTHER, 0, null).contains("--js-flags=--jitless");
     assertFalse(jitless);
   }
 
   @Test
   void shouldUseTheHeadlessPlatformAndTheNullDisplayOnLinuxAndAMockKeychainOnMacos() {
-    final List<String> linux = CefEngine.createSwitches(configuration(false), true, false, 0, "127.0.0.1:26768");
+    final List<String> linux = CefEngine.createSwitches(configuration(false), OperatingSystem.LINUX, 0, "127.0.0.1:26768");
     final boolean linuxHeadless = linux.contains("--ozone-platform=headless");
     assertTrue(linuxHeadless);
     final boolean basicPasswordStore = linux.contains("--password-store=basic");
@@ -222,10 +222,10 @@ class CefEngineTest {
     assertTrue(sharedMemoryDisabled);
     final boolean usesNullDisplay = linux.contains("--display=127.0.0.1:26768");
     assertTrue(usesNullDisplay);
-    final List<String> noDisplay = CefEngine.createSwitches(configuration(false), true, false, 0, null);
+    final List<String> noDisplay = CefEngine.createSwitches(configuration(false), OperatingSystem.LINUX, 0, null);
     final boolean namesNoDisplay = noDisplay.stream().noneMatch(entry -> entry.startsWith("--display"));
     assertTrue(namesNoDisplay, noDisplay.toString());
-    final List<String> mac = CefEngine.createSwitches(configuration(false), false, true, 0, null);
+    final List<String> mac = CefEngine.createSwitches(configuration(false), OperatingSystem.MAC, 0, null);
     final boolean macMockKeychain = mac.contains("--use-mock-keychain");
     assertTrue(macMockKeychain);
     final boolean macHeadless = mac.contains("--ozone-platform=headless");
@@ -486,11 +486,11 @@ class CefEngineTest {
   @Test
   void shouldOnlyGiveLinuxANullDisplay(@TempDir final Path directory) throws IOException {
     final Path authority = directory.resolve(NullDisplay.AUTHORITY_FILE);
-    final @Nullable NullDisplay nonLinuxDisplay = CefEngine.startDisplay(false, authority);
+    final @Nullable NullDisplay nonLinuxDisplay = CefEngine.startDisplay(OperatingSystem.OTHER, authority);
     assertNull(nonLinuxDisplay);
     final boolean authorityFileWritten = Files.exists(authority);
     assertFalse(authorityFileWritten, "no display, no authority file");
-    try (final NullDisplay display = Objects.requireNonNull(CefEngine.startDisplay(true, authority))) {
+    try (final NullDisplay display = Objects.requireNonNull(CefEngine.startDisplay(OperatingSystem.LINUX, authority))) {
       final boolean loopbackDisplay = display.getDisplay().startsWith("127.0.0.1:");
       assertTrue(loopbackDisplay);
       final boolean authorityFileWrittenForDisplay = Files.exists(authority);

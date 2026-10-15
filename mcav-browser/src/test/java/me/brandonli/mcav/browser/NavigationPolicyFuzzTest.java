@@ -36,11 +36,11 @@ final class NavigationPolicyFuzzTest {
   void shouldAllowOnlyTheDocumentedSchemes(final FuzzedDataProvider data) {
     final String address = data.consumeRemainingAsString();
     final String lower = address.toLowerCase(Locale.ROOT);
-    if (NavigationPolicy.allowsNavigation(address, true)) {
+    if (NavigationPolicy.allowsNavigation(address, FrameKind.MAIN)) {
       final boolean documentedPageScheme = address.equals("about:blank") || lower.startsWith("http:") || lower.startsWith("https:");
       assertTrue(documentedPageScheme, address);
     }
-    if (NavigationPolicy.allowsNavigation(address, false)) {
+    if (NavigationPolicy.allowsNavigation(address, FrameKind.CHILD)) {
       final boolean isAboutPage = address.equals("about:blank") || address.equals("about:srcdoc");
       final boolean documentedFrameScheme = isAboutPage || hasScheme(lower, "http", "https", "data", "blob");
       assertTrue(documentedFrameScheme, address);

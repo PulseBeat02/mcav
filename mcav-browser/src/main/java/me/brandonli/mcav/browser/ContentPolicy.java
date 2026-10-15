@@ -104,7 +104,7 @@ final class ContentPolicy
   }
 
   private void openInPlace(final CefBrowser browser, final String targetUrl) {
-    final boolean allowed = NavigationPolicy.allowsNavigation(targetUrl, true);
+    final boolean allowed = NavigationPolicy.allowsNavigation(targetUrl, FrameKind.MAIN);
     if (allowed) {
       browser.loadURL(targetUrl);
       final String address = AddressText.describe(targetUrl);
@@ -160,8 +160,9 @@ final class ContentPolicy
     final boolean isRedirect
   ) {
     final String url = request.getURL();
-    final boolean mainFrame = frame.isMain();
-    final boolean allowed = NavigationPolicy.allowsNavigation(url, mainFrame);
+    final boolean isMain = frame.isMain();
+    final FrameKind kind = isMain ? FrameKind.MAIN : FrameKind.CHILD;
+    final boolean allowed = NavigationPolicy.allowsNavigation(url, kind);
     if (!allowed) {
       final String address = AddressText.describe(url);
       this.events.onNotice("The navigation to %s was refused.".formatted(address));

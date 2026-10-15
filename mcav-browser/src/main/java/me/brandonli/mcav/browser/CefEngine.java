@@ -25,7 +25,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -109,9 +108,6 @@ final class CefEngine implements HelperEngine {
 
   private static final String MOCK_KEYCHAIN_SWITCH = "--use-mock-keychain";
 
-  private static final String LINUX_NAME = "linux";
-  private static final String MAC_NAME = "mac";
-
   private static final String UNKNOWN_VERSION = "unknown";
 
   // the features CEF disables itself: CEF passes them in a --disable-features switch before the switches of the helper,
@@ -142,16 +138,14 @@ final class CefEngine implements HelperEngine {
    * Builds the command-line switches of Chromium.
    *
    * @param configuration the configuration of the helper
-   * @param isLinux       whether the helper runs on Linux
-   * @param isMac         whether the helper runs on macOS
+   * @param system        the operating system the helper runs on
    * @param guardPort     the port of the network guard on the loopback interface, or 0 if pages may reach any address
    * @param display       the name of the helper's null display on Linux, or null elsewhere
    * @return the switches
    */
   static List<String> createSwitches(
     final HelperConfiguration configuration,
-    final boolean isLinux,
-    final boolean isMac,
+    final OperatingSystem system,
     final int guardPort,
     final @Nullable String display
   ) {
@@ -198,7 +192,7 @@ final class CefEngine implements HelperEngine {
       switches.add(WEBRTC_POLICY_SWITCH);
       switches.add(DISABLE_QUIC_SWITCH);
     }
-    if (isLinux) {
+    if (system == OperatingSystem.LINUX) {
       // Chromium draws without any display server; only JCEF's window of one pixel needs an X display, and gets the
       // helper's null display. The shared memory of a container is often small, so Chromium uses temporary files.
       switches.add(HEADLESS_OZONE_SWITCH);
@@ -208,7 +202,7 @@ final class CefEngine implements HelperEngine {
         switches.add(DISPLAY_SWITCH + display);
       }
     }
-    if (isMac) {
+    if (system == OperatingSystem.MAC) {
       switches.add(MOCK_KEYCHAIN_SWITCH);
     }
     return switches;
@@ -236,9 +230,7 @@ final class CefEngine implements HelperEngine {
   public void start(final HelperConfiguration configuration, final McavOffscreenBrowser.PaintListener painter, final HelperEvents events)
     throws Exception {
     final String osName = System.getProperty("os.name");
-    final String os = osName.toLowerCase(Locale.ROOT);
-    final boolean isLinux = os.contains(LINUX_NAME);
-    final boolean isMac = os.contains(MAC_NAME);
+    final OperatingSystem system = OperatingSystem.fromName(osName);
     final CefAppBuilder builder = new CefAppBuilder();
     final Path natives = configuration.getNatives();
     final File installation = natives.toFile();
@@ -248,9 +240,9 @@ final class CefEngine implements HelperEngine {
     builder.setProgressHandler((state, percent) -> {});
     final int guardPort = this.startGuard(configuration, events);
     final Path authority = configuration.getSocket().resolveSibling(NullDisplay.AUTHORITY_FILE);
-    final NullDisplay startedDisplay = startDisplay(isLinux, authority);
+    final NullDisplay startedDisplay = startDisplay(system, authority);
     this.display = startedDisplay;
-    final List<String> switches = createSwitches(configuration, isLinux, isMac, guardPort, NullDisplay.nameOf(startedDisplay));
+    final List<String> switches = createSwitches(configuration, system, guardPort, NullDisplay.nameOf(startedDisplay));
     builder.addJcefArgs(switches.toArray(String[]::new));
     final CefSettings settings = builder.getCefSettings();
     configureSettings(settings, configuration);
@@ -258,18 +250,17 @@ final class CefEngine implements HelperEngine {
     // on Linux a confinement holds for the thread that starts Chromium and everything it starts, the AWT event thread,
     // CEF's threads and Chromium's processes among them, while the helper's own threads stay free: the guard and the
     // display connect anywhere, and the main thread ends the JVM; on macOS it holds for the whole helper
-    runOnOwnThread(CHROMIUM_THREAD, () -> this.confineAndStartChromium(builder, configuration, isLinux, isMac, painter, events));
+    runOnOwnThread(CHROMIUM_THREAD, () -> this.confineAndStartChromium(builder, configuration, system, painter, events));
   }
 
   private @Nullable Void confineAndStartChromium(
     final CefAppBuilder builder,
     final HelperConfiguration configuration,
-    final boolean isLinux,
-    final boolean isMac,
+    final OperatingSystem system,
     final McavOffscreenBrowser.PaintListener painter,
     final HelperEvents events
   ) throws Exception {
-    events.onNotice(ChromiumConfinement.confine(configuration, isLinux, isMac));
+    events.onNotice(ChromiumConfinement.confine(configuration, system));
     this.startChromium(builder, configuration, painter, events);
 
     return null;
@@ -364,13 +355,17 @@ final class CefEngine implements HelperEngine {
   /**
    * Starts the null display the helper needs on Linux, where JCEF asks for an X display once.
    *
-   * @param isLinux   whether the helper runs on Linux
+   * @param system    the operating system the helper runs on
    * @param authority the authority file of the display
    * @return the running display, or null elsewhere
    * @throws IOException if the display cannot listen
    */
-  static @Nullable NullDisplay startDisplay(final boolean isLinux, final Path authority) throws IOException {
-    return isLinux ? NullDisplay.start(authority) : null;
+  static @Nullable NullDisplay startDisplay(final OperatingSystem system, final Path authority) throws IOException {
+    if (system != OperatingSystem.LINUX) {
+      return null;
+    }
+
+    return NullDisplay.start(authority);
   }
 
   /**

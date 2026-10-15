@@ -306,7 +306,9 @@ final class CefBrowserPlayer implements BrowserPlayer {
       clampedY
     );
     final boolean queued = current.sendMouse(input);
-    this.reportIfDropped(queued);
+    if (!queued) {
+      this.reportDropped();
+    }
   }
 
   private void sendMouse(final int action, final int pageX, final int pageY, final int button, final int clickCount) {
@@ -318,7 +320,9 @@ final class CefBrowserPlayer implements BrowserPlayer {
     final int[] position = this.clamp(pageX, pageY);
     final MouseInput input = new MouseInput(action, position[0], position[1], button, clickCount, 0, 0);
     final boolean queued = current.sendMouse(input);
-    this.reportIfDropped(queued);
+    if (!queued) {
+      this.reportDropped();
+    }
   }
 
   @Override
@@ -332,16 +336,16 @@ final class CefBrowserPlayer implements BrowserPlayer {
     final boolean isSpecialKey = SpecialKeys.isSpecialKey(text);
     final int action = isSpecialKey ? HelperProtocol.KEY_PRESS : HelperProtocol.KEY_TYPE;
     final boolean queued = current.sendKey(action, text);
-    this.reportIfDropped(queued);
+    if (!queued) {
+      this.reportDropped();
+    }
   }
 
-  private void reportIfDropped(final boolean queued) {
-    if (!queued) {
-      this.dropReports.log(
-        () -> this.report("Browser input queue is full", new RejectedExecutionException("The browser input backlog is full!")),
-        this::reportDroppedInputs
-      );
-    }
+  private void reportDropped() {
+    this.dropReports.log(
+      () -> this.report("Browser input queue is full", new RejectedExecutionException("The browser input backlog is full!")),
+      this::reportDroppedInputs
+    );
   }
 
   private void reportDroppedInputs(final long dropped) {
