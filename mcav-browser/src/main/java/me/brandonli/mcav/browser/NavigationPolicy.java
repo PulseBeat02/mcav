@@ -21,18 +21,14 @@ import java.net.URI;
 import java.util.Locale;
 import java.util.Set;
 
-/**
- * Which addresses the browser may show and load. Web content is untrusted: a page may only navigate to {@code http}
- * and {@code https} addresses, frames inside it may also hold the local documents browsers create themselves
- * ({@code about:blank}, {@code about:srcdoc}, {@code data:} and {@code blob:}), and its requests may only use the web
- * schemes, including WebSockets. Anything else, such as {@code file:} with the files of the server, {@code chrome:}
- * with the internal pages of the browser, or an external program's scheme, is refused.
- */
+// Which addresses the browser may show and load. Web content is untrusted: a page may only navigate to http and https
+// addresses, frames inside it may also hold the local documents browsers create themselves (about:blank, about:srcdoc,
+// data: and blob:), and its requests may only use the web schemes, including WebSockets. Anything else, such as file:
+// with the files of the server, chrome: with the internal pages of the browser, or an external program's scheme, is
+// refused.
 final class NavigationPolicy {
 
-  /**
-   * The empty document a browser is created with, before it loads the page.
-   */
+  // The empty document a browser is created with, before it loads the page.
   static final String BLANK = "about:blank";
 
   private static final Set<String> WEB_SCHEMES = Set.of("http", "https");
@@ -44,13 +40,8 @@ final class NavigationPolicy {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Checks whether an address is an absolute {@code http} or {@code https} address with a host, the only kind a
-   * browser may be started with.
-   *
-   * @param address the address
-   * @return true if it is a web address
-   */
+  // Checks whether an address is an absolute http or https address with a host, the only kind a browser may be started
+  // with.
   static boolean isWebAddress(final URI address) {
     final String scheme = address.getScheme();
     final String host = address.getHost();
@@ -62,13 +53,6 @@ final class NavigationPolicy {
     return WEB_SCHEMES.contains(lowerScheme);
   }
 
-  /**
-   * Checks whether a frame may navigate to an address.
-   *
-   * @param address the address, as the browser reports it
-   * @param frame   whether the page itself or a frame inside it navigates
-   * @return true if the navigation is allowed
-   */
   static boolean allowsNavigation(final String address, final FrameKind frame) {
     if (frame == FrameKind.MAIN) {
       // the address is Chromium's canonical form, which java.net.URI may refuse for characters such as '|'; the page
@@ -80,12 +64,7 @@ final class NavigationPolicy {
     return isAboutPage || hasScheme(address, FRAME_SCHEMES);
   }
 
-  /**
-   * Checks whether the page may request an address, for an image, a script, a fetch or a WebSocket.
-   *
-   * @param address the address, as the browser reports it
-   * @return true if the request is allowed
-   */
+  // Checks whether the page may request an address, for an image, a script, a fetch or a WebSocket.
   static boolean allowsRequest(final String address) {
     return hasScheme(address, REQUEST_SCHEMES);
   }

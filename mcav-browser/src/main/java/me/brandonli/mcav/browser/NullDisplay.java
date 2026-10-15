@@ -49,66 +49,39 @@ import java.util.concurrent.Semaphore;
 import java.util.function.IntPredicate;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * An X display that shows nothing, for JCEF on Linux.
- *
- * <p>When CEF has started, JCEF creates a window of one pixel on the X display of CEF (its {@code TempWindowX11}), and
- * aborts the helper if there is no display, although CEF itself draws off-screen on Chromium's headless Ozone platform
- * and never uses X. So the helper answers the X connections itself, instead of an X server: the connection setup, with
- * one TrueColor screen and no extensions, atoms, empty properties, an empty keyboard, and the geometry of the screen.
- * Every other request that has no reply is discarded, and one that needs a reply gets an error. Nothing is drawn.
- *
- * <p>The display listens on the loopback interface, on a port of at least 6000, so the display number is the port minus
- * 6000 (X11 over TCP), and it lets in only clients that present the random cookie of the authority file it writes.
- * Requests are bounded in size, and so are the connections and the atoms.
- */
+// An X display that shows nothing, for JCEF on Linux. When CEF has started, JCEF creates a window of one pixel on the X
+// display of CEF (its TempWindowX11), and aborts the helper if there is no display, although CEF itself draws
+// off-screen on Chromium's headless Ozone platform and never uses X. So the helper answers the X connections itself,
+// instead of an X server: the connection setup, with one TrueColor screen and no extensions, atoms, empty properties,
+// an empty keyboard, and the geometry of the screen. Every other request that has no reply is discarded, and one that
+// needs a reply gets an error. Nothing is drawn. The display listens on the loopback interface, on a port of at least
+// 6000, so the display number is the port minus 6000 (X11 over TCP), and it lets in only clients that present the
+// random cookie of the authority file it writes. Requests are bounded in size, and so are the connections and the
+// atoms.
 final class NullDisplay implements AutoCloseable {
 
-  /**
-   * The port of display 0 of X11 over TCP.
-   */
   static final int X11_BASE_PORT = 6000;
 
-  /**
-   * The name of the X authority file in the folder of a session, which the helper writes for its display.
-   */
+  // The name of the X authority file in the folder of a session, which the helper writes for its display.
   static final String AUTHORITY_FILE = "Xauthority";
 
-  /**
-   * The largest request a client may send, in units of four bytes, as the connection setup announces it.
-   */
+  // The largest request a client may send, in units of four bytes, as the connection setup announces it.
   static final int MAXIMUM_REQUEST_UNITS = 16_384;
 
-  /**
-   * The most connections the display serves at once.
-   */
   static final int MAXIMUM_CONNECTIONS = 16;
 
-  /**
-   * The most clients that have not introduced themselves yet; a new one ends the connection of the oldest, so clients
-   * without the cookie can never keep one that has it out.
-   */
+  // The most clients that have not introduced themselves yet; a new one ends the connection of the oldest, so clients
+  // without the cookie can never keep one that has it out.
   static final int MAXIMUM_PENDING = 256;
 
-  /**
-   * How long a client may take to introduce itself, in milliseconds, so a client without the cookie cannot hold one
-   * of the {@value #MAXIMUM_CONNECTIONS} connections; one that introduced itself may stay quiet as long as it likes.
-   */
+  // How long a client may take to introduce itself, in milliseconds, so a client without the cookie cannot hold one of
+  // the MAXIMUM_CONNECTIONS connections; one that introduced itself may stay quiet as long as it likes.
   private static final int SETUP_TIMEOUT_MILLISECONDS = 10_000;
 
-  /**
-   * The most atoms a display names, the predefined ones included.
-   */
   static final int MAXIMUM_ATOMS = 4_096;
 
-  /**
-   * The most bytes the names of the atoms of a display hold together.
-   */
   static final int MAXIMUM_ATOM_BYTES = 1 << 20;
 
-  /**
-   * The size of the cookie, in bytes.
-   */
   static final int COOKIE_BYTES = 16;
 
   static final int CREATE_WINDOW = 1;
@@ -353,25 +326,12 @@ final class NullDisplay implements AutoCloseable {
     this.pending = new ArrayDeque<>();
   }
 
-  /**
-   * Starts a display and writes its authority file, which clients find through {@code XAUTHORITY}.
-   *
-   * @param authority the authority file to write, which must not exist yet
-   * @return the running display
-   * @throws IOException if no port is free or the file cannot be written
-   */
+  // Starts a display and writes its authority file, which clients find through XAUTHORITY.
   static NullDisplay start(final Path authority) throws IOException {
     return start(authority, SETUP_TIMEOUT_MILLISECONDS);
   }
 
-  /**
-   * Starts a display with another time for the setup, so tests need not wait for it.
-   *
-   * @param authority          the authority file to write
-   * @param setupTimeoutMilliseconds how long a client may take to introduce itself
-   * @return the running display
-   * @throws IOException if the display cannot listen or the file cannot be written
-   */
+  // Starts a display with another time for the setup, so tests need not wait for it.
   @VisibleForTesting
   static NullDisplay start(final Path authority, final int setupTimeoutMilliseconds) throws IOException {
     final ServerSocket server = bind(NullDisplay::isDisplayPort);
@@ -389,14 +349,8 @@ final class NullDisplay implements AutoCloseable {
     }
   }
 
-  /**
-   * Binds a port on the IPv4 loopback interface that a display number can name. The system picks ephemeral ports far
-   * above {@value #X11_BASE_PORT}; a port it may not use is kept bound until the search ends, so it is not picked again.
-   *
-   * @param usable whether a display can use a port
-   * @return the listening socket
-   * @throws IOException if no usable port is bound after 64 tries
-   */
+  // Binds a port on the IPv4 loopback interface that a display number can name. The system picks ephemeral ports far
+  // above X11_BASE_PORT; a port it may not use is kept bound until the search ends, so it is not picked again.
   @VisibleForTesting
   static ServerSocket bind(final IntPredicate usable) throws IOException {
     // the name of a display holds an IPv4 address or a host name, never an IPv6 address
@@ -424,22 +378,12 @@ final class NullDisplay implements AutoCloseable {
     throw new IOException(message);
   }
 
-  /**
-   * Checks whether a display number can name a port: X11 over TCP connects to 6000 plus the number.
-   *
-   * @param port the port
-   * @return true if it is at least {@value #X11_BASE_PORT}
-   */
+  // Checks whether a display number can name a port: X11 over TCP connects to 6000 plus the number.
   @VisibleForTesting
   static boolean isDisplayPort(final int port) {
     return port >= X11_BASE_PORT;
   }
 
-  /**
-   * Creates the secret a client of the display must present.
-   *
-   * @return {@value #COOKIE_BYTES} random bytes
-   */
   @VisibleForTesting
   static byte[] createCookie() {
     final SecureRandom random = new SecureRandom();
@@ -449,14 +393,8 @@ final class NullDisplay implements AutoCloseable {
     return cookie;
   }
 
-  /**
-   * Writes an X authority file with one cookie that matches every display, readable by the owner only where the file
-   * system has POSIX permissions.
-   *
-   * @param authority the file, which must not exist yet
-   * @param cookie    the cookie
-   * @throws IOException if the file cannot be written
-   */
+  // Writes an X authority file with one cookie that matches every display, readable by the owner only where the file
+  // system has POSIX permissions.
   @VisibleForTesting
   static void writeAuthority(final Path authority, final byte[] cookie) throws IOException {
     final byte[] entry = createAuthorityEntry(cookie);
@@ -470,13 +408,8 @@ final class NullDisplay implements AutoCloseable {
     Files.write(authority, entry);
   }
 
-  /**
-   * Encodes one entry of an X authority file: family, address, display number, method name and cookie, each counted
-   * with a big-endian 16-bit length. The family matches every host and the empty display number every display.
-   *
-   * @param cookie the cookie
-   * @return the entry
-   */
+  // Encodes one entry of an X authority file: family, address, display number, method name and cookie, each counted
+  // with a big-endian 16-bit length. The family matches every host and the empty display number every display.
   @VisibleForTesting
   static byte[] createAuthorityEntry(final byte[] cookie) {
     final byte[] name = COOKIE_NAME.getBytes(StandardCharsets.US_ASCII);
@@ -494,22 +427,11 @@ final class NullDisplay implements AutoCloseable {
     return entry.array();
   }
 
-  /**
-   * Counts the clients that are connected now.
-   *
-   * @return the number of clients
-   */
   @VisibleForTesting
   int countClients() {
     return this.clients.size();
   }
 
-  /**
-   * Returns the name of a display, for Chromium's {@code --display} switch.
-   *
-   * @param display the display, or null if there is none
-   * @return the name, or null without a display
-   */
   static @Nullable String nameOf(final @Nullable NullDisplay display) {
     return display == null ? null : display.getDisplay();
   }
@@ -570,15 +492,7 @@ final class NullDisplay implements AutoCloseable {
     }
   }
 
-  /**
-   * Serves one connection until it ends: the setup, then every request.
-   *
-   * @param clientInput the stream from the client
-   * @param output      the stream to the client, flushed after every answer
-   * @param cookie      the cookie a client must present
-   * @param atoms       the atoms of the display
-   * @throws IOException if the connection fails, the client breaks the protocol or presents another cookie
-   */
+  // Serves one connection until it ends: the setup, then every request.
   @VisibleForTesting
   static void serve(final InputStream clientInput, final OutputStream output, final byte[] cookie, final Atoms atoms) throws IOException {
     final DataInputStream input = new DataInputStream(clientInput);
@@ -614,11 +528,7 @@ final class NullDisplay implements AutoCloseable {
     }
   }
 
-  /**
-   * Reads the setup of a connection and answers it: a screen if the client presented the cookie, a refusal otherwise.
-   *
-   * @return the byte order of the client
-   */
+  // Reads the setup of a connection and answers it: a screen if the client presented the cookie, a refusal otherwise.
   private static ByteOrder readSetup(final DataInputStream input, final OutputStream output, final byte[] cookie) throws IOException {
     final int orderByte = input.readUnsignedByte();
     final ByteOrder order = switch (orderByte) {
@@ -691,12 +601,7 @@ final class NullDisplay implements AutoCloseable {
     output.flush();
   }
 
-  /**
-   * Describes the display: one screen of {@value #SCREEN_WIDTH}x{@value #SCREEN_HEIGHT} with a 24-bit TrueColor visual.
-   *
-   * @param order the byte order of the client
-   * @return the reply to the connection setup
-   */
+  // Describes the display: one screen of SCREEN_WIDTHxSCREEN_HEIGHT with a 24-bit TrueColor visual.
   @VisibleForTesting
   static ByteBuffer createSetupReply(final ByteOrder order) {
     final int vendorPadded = VENDOR.length + pad(VENDOR.length);
@@ -774,17 +679,6 @@ final class NullDisplay implements AutoCloseable {
     return reply;
   }
 
-  /**
-   * Answers one request.
-   *
-   * @param opcode   the major opcode
-   * @param data     the second byte of the request
-   * @param request  the rest of the request after its length
-   * @param sequence the sequence number of the request
-   * @param order    the byte order of the client
-   * @param atoms    the atoms of the display
-   * @return the reply or the error, or null for a request without a reply
-   */
   @VisibleForTesting
   static @Nullable ByteBuffer answer(
     final int opcode,
@@ -815,9 +709,7 @@ final class NullDisplay implements AutoCloseable {
     };
   }
 
-  /**
-   * Answers a request this display does not handle: an error if the client waits for a reply, nothing otherwise.
-   */
+  // Answers a request this display does not handle: an error if the client waits for a reply, nothing otherwise.
   private static @Nullable ByteBuffer unanswered(final int opcode, final int sequence, final ByteOrder order) {
     if (opcode >= FIRST_EXTENSION_OPCODE) {
       // an extension, and none was announced
@@ -933,15 +825,7 @@ final class NullDisplay implements AutoCloseable {
     return reply;
   }
 
-  /**
-   * Creates a reply: 32 bytes and the extra bytes, all zero but its header.
-   *
-   * @param sequence the sequence number of the request
-   * @param order    the byte order of the client
-   * @param data     the second byte
-   * @param extra    the bytes after the first 32, a multiple of four
-   * @return the reply, positioned at its start
-   */
+  // Creates a reply: 32 bytes and the extra bytes, all zero but its header.
   private static ByteBuffer reply(final int sequence, final ByteOrder order, final int data, final int extra) {
     final ByteBuffer reply = ByteBuffer.allocate(MESSAGE_BYTES + extra).order(order);
     reply.put(0, (byte) REPLY);
@@ -979,21 +863,14 @@ final class NullDisplay implements AutoCloseable {
     NetworkGuard.closeQuietly(closeable);
   }
 
-  /**
-   * Returns the name of the display, for CEF's {@code --display} switch.
-   *
-   * @return the name, such as {@code 127.0.0.1:26768}
-   */
   String getDisplay() {
     final InetAddress address = this.server.getInetAddress();
     final String host = address.getHostAddress();
     return host + DISPLAY_SEPARATOR + (this.server.getLocalPort() - X11_BASE_PORT);
   }
 
-  /**
-   * The atoms of a display: the predefined ones, and every name a client interns, up to {@value #MAXIMUM_ATOMS} atoms and
-   * {@value #MAXIMUM_ATOM_BYTES} bytes of names.
-   */
+  // The atoms of a display: the predefined ones, and every name a client interns, up to MAXIMUM_ATOMS atoms and
+  // MAXIMUM_ATOM_BYTES bytes of names.
   static final class Atoms {
 
     private final Map<String, Integer> ids = new ConcurrentHashMap<>();
@@ -1006,22 +883,10 @@ final class NullDisplay implements AutoCloseable {
       }
     }
 
-    /**
-     * Finds the atom of a name that was interned before.
-     *
-     * @param name the name
-     * @return the atom, or 0 (None) if the name has none
-     */
     synchronized int find(final String name) {
       return this.ids.getOrDefault(name, 0);
     }
 
-    /**
-     * Returns the atom of a name, naming it if it is new.
-     *
-     * @param name the name
-     * @return the atom, or 0 if the display has named as many atoms as it may
-     */
     synchronized int intern(final String name) {
       final Integer known = this.ids.get(name);
       if (known != null) {
@@ -1037,12 +902,6 @@ final class NullDisplay implements AutoCloseable {
       return atom;
     }
 
-    /**
-     * Returns the name of an atom.
-     *
-     * @param atom the atom
-     * @return the name, or null if the atom was never named
-     */
     synchronized @Nullable String name(final int atom) {
       if (atom < 1 || atom > this.names.size()) {
         return null;

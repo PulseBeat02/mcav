@@ -37,22 +37,15 @@ import me.friwi.jcefmaven.CefAppBuilder;
 import org.cef.CefApp;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Knows how to start a browser helper process: the Java program of the server, the class path of the helper, the
- * options of its JVM, and the environment it keeps, which on Linux also names the authority file of its null display
- * and the folder of the libraries the server lacks.
- *
- * <p>The class path is taken from where the classes of mcav's browser module, JCEF and jcefmaven were loaded from,
- * which works whether they are separate jars, as Paper's library loader gives them, or shaded into one plugin jar.
- * Relocating the {@code org.cef} or {@code me.friwi} packages breaks JCEF's native methods and is not supported. The
- * helper JVM gets the options CEF needs, which the server itself never does: it is headless, may load native code,
- * uses a small heap, and keeps its temporary files in the private folder of its session.
- */
+// Knows how to start a browser helper process: the Java program of the server, the class path of the helper, the
+// options of its JVM, and the environment it keeps, which on Linux also names the authority file of its null display
+// and the folder of the libraries the server lacks. The class path is taken from where the classes of mcav's browser
+// module, JCEF and jcefmaven were loaded from, which works whether they are separate jars, as Paper's library loader
+// gives them, or shaded into one plugin jar. Relocating the org.cef or me.friwi packages breaks JCEF's native methods
+// and is not supported. The helper JVM gets the options CEF needs, which the server itself never does: it is headless,
+// may load native code, uses a small heap, and keeps its temporary files in the private folder of its session.
 final class HelperLauncher {
 
-  /**
-   * The main class of the helper.
-   */
   static final String MAIN_CLASS = "me.brandonli.mcav.browser.BrowserHelper";
 
   private static final String BIN_FOLDER = "bin";
@@ -83,17 +76,6 @@ final class HelperLauncher {
   private final long startTimeoutMilliseconds;
   private final @Nullable LibraryLinker libraries;
 
-  /**
-   * Constructs a launcher.
-   *
-   * @param java               the Java program
-   * @param mainClass          the main class of the helper
-   * @param classPath          the class path of the helper
-   * @param extraJvmOptions    options added to the JVM of the helper, such as a coverage agent in tests
-   * @param os                 the operating system
-   * @param environment        the environment of the server
-   * @param startTimeoutMilliseconds how long a helper may take until the page shows
-   */
   @VisibleForTesting
   HelperLauncher(
     final Path java,
@@ -127,15 +109,8 @@ final class HelperLauncher {
     this.startTimeoutMilliseconds = startTimeoutMilliseconds;
   }
 
-  /**
-   * Creates the launcher of this JVM: its Java program, the class path the browser module was loaded from, and the
-   * environment of the server.
-   *
-   * @param startTimeoutMilliseconds how long a helper may take until the page shows
-   * @param extraJvmOptions    options added to the JVM of the helper
-   * @return the launcher
-   * @throws BrowserException if a class the helper needs was not loaded from a file
-   */
+  // Creates the launcher of this JVM: its Java program, the class path the browser module was loaded from, and the
+  // environment of the server.
   static HelperLauncher createDefault(final long startTimeoutMilliseconds, final List<String> extraJvmOptions) {
     final String javaHome = System.getProperty("java.home");
     final Os os = OsUtils.getOs();
@@ -149,23 +124,10 @@ final class HelperLauncher {
     return new HelperLauncher(java, MAIN_CLASS, classPath, extraJvmOptions, os, environment, startTimeoutMilliseconds);
   }
 
-  /**
-   * Returns the name of the program of a JVM on an operating system.
-   *
-   * @param os the operating system
-   * @return {@code java.exe} on Windows, {@code java} elsewhere
-   */
   static String javaExecutable(final Os os) {
     return os == Os.WINDOWS ? WINDOWS_JAVA_EXECUTABLE : JAVA_EXECUTABLE;
   }
 
-  /**
-   * Finds the jar or folder a class was loaded from.
-   *
-   * @param type the class
-   * @return the jar or folder
-   * @throws BrowserException if the class was not loaded from a file
-   */
   @VisibleForTesting
   static Path locate(final Class<?> type) {
     final ProtectionDomain domain = type.getProtectionDomain();
@@ -184,12 +146,6 @@ final class HelperLauncher {
     }
   }
 
-  /**
-   * Builds the command line of a helper.
-   *
-   * @param folder the private folder of the session, where the helper keeps its temporary files
-   * @return the command line
-   */
   List<String> createCommand(final Path folder) {
     final List<String> command = new ArrayList<>();
     command.add(this.java.toString());
@@ -212,16 +168,10 @@ final class HelperLauncher {
     return command;
   }
 
-  /**
-   * Builds the environment of a helper: the kept variables of the server, on Linux the authority file of the helper's
-   * null display, which X clients read, the folder of the session as the temporary folder and the folder of user data,
-   * and the libraries the server lacks, and on macOS the folder of the session as the temporary folder. No display of
-   * the server is passed on.
-   *
-   * @param folder    the private folder of the session
-   * @param libraries the folder of the libraries the server lacks on Linux, or null
-   * @return the environment
-   */
+  // Builds the environment of a helper: the kept variables of the server, on Linux the authority file of the helper's
+  // null display, which X clients read, the folder of the session as the temporary folder and the folder of user data,
+  // and the libraries the server lacks, and on macOS the folder of the session as the temporary folder. No display of
+  // the server is passed on.
   Map<String, String> createEnvironment(final Path folder, final @Nullable Path libraries) {
     final Map<String, String> kept = HelperEnvironment.filter(this.environment);
     if (this.os == Os.LINUX) {
@@ -243,22 +193,12 @@ final class HelperLauncher {
     return kept;
   }
 
-  /**
-   * Returns the X authority file of a session, which the helper writes and its X clients read.
-   *
-   * @param folder the folder of the session
-   * @return the file
-   */
+  // Returns the X authority file of a session, which the helper writes and its X clients read.
   private static Path authorityOf(final Path folder) {
     return folder.resolve(NullDisplay.AUTHORITY_FILE);
   }
 
-  /**
-   * Creates a launcher like this one whose helpers also get the libraries the server lacks.
-   *
-   * @param linker links the libraries into the folder of a session
-   * @return the launcher
-   */
+  // Creates a launcher like this one whose helpers also get the libraries the server lacks.
   HelperLauncher withLibraries(final LibraryLinker linker) {
     return new HelperLauncher(
       this.java,
@@ -272,13 +212,7 @@ final class HelperLauncher {
     );
   }
 
-  /**
-   * Links the libraries the server lacks into the folder of a session, if this launcher brings any.
-   *
-   * @param folder the folder of the session
-   * @return the folder of the libraries, or null if this launcher brings none
-   * @throws IOException if they cannot be linked
-   */
+  // Links the libraries the server lacks into the folder of a session, if this launcher brings any.
   @Nullable Path linkLibraries(final Path folder) throws IOException {
     final LibraryLinker linker = this.libraries;
     return linker == null ? null : linker.link(folder);
@@ -296,18 +230,8 @@ final class HelperLauncher {
     return this.os;
   }
 
-  /**
-   * Links the libraries a server lacks into a folder of a session.
-   */
   @FunctionalInterface
   interface LibraryLinker {
-    /**
-     * Links the libraries.
-     *
-     * @param session the folder of the session
-     * @return the folder of the links, which becomes the helper's library path
-     * @throws IOException if a link cannot be created
-     */
     Path link(Path session) throws IOException;
   }
 }

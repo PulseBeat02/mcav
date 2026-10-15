@@ -25,18 +25,13 @@ import java.util.function.LongSupplier;
 import org.cef.browser.McavOffscreenBrowser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Keeps the picture of a page in the helper process and hands out what changed.
- *
- * <p>CEF paints the page and, separately, popup widgets such as the list of an open drop-down box. The compositor
- * copies each painted rectangle out of CEF's buffer, which is only valid during the paint, into its own copy of the
- * page, and remembers the popup with its position. Changed areas add up to one damaged rectangle, which
- * {@link #takeDamage} copies out, with the popup drawn over the page where it is open. Damage is never dropped, only
- * merged, so the receiver's picture always ends up equal to the page.
- *
- * <p>Damage becomes due to be sent after every n-th paint of the page, or once it waited for the settle delay, so the
- * last change of a page that stops changing is not held back by the frame interval.
- */
+// Keeps the picture of a page in the helper process and hands out what changed. CEF paints the page and, separately,
+// popup widgets such as the list of an open drop-down box. The compositor copies each painted rectangle out of CEF's
+// buffer, which is only valid during the paint, into its own copy of the page, and remembers the popup with its
+// position. Changed areas add up to one damaged rectangle, which takeDamage copies out, with the popup drawn over the
+// page where it is open. Damage is never dropped, only merged, so the receiver's picture always ends up equal to the
+// page. Damage becomes due to be sent after every n-th paint of the page, or once it waited for the settle delay, so
+// the last change of a page that stops changing is not held back by the frame interval.
 final class PageCompositor implements McavOffscreenBrowser.PaintListener {
 
   private static final byte FULL_CHANNEL = (byte) 0xFF;
@@ -55,15 +50,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
   private @Nullable Rectangle popupBounds;
   private @Nullable Popup shownPopup;
 
-  /**
-   * Constructs a compositor with a white page.
-   *
-   * @param width         the width of the page in pixels
-   * @param height        the height of the page in pixels
-   * @param frameInterval damage is due after this many paints of the page
-   * @param settleMilliseconds  damage is due once it waited this long
-   * @param clock         a monotonic clock in nanoseconds
-   */
   PageCompositor(final int width, final int height, final int frameInterval, final long settleMilliseconds, final LongSupplier clock) {
     this.width = width;
     this.height = height;
@@ -131,9 +117,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     this.notifyAll();
   }
 
-  /**
-   * Hides the popup that is shown, sending the page under it again as soon as the next paint would be.
-   */
+  // Hides the popup that is shown, sending the page under it again as soon as the next paint would be.
   private void hidePopup() {
     final Popup shown = this.shownPopup;
     if (shown != null) {
@@ -185,14 +169,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
   }
 
-  /**
-   * Waits until damage is due, then copies the damaged region, with the popup drawn over it, into the buffer.
-   *
-   * @param target        the buffer, at least {@link #getPageBytes()} bytes
-   * @param timeoutMilliseconds how long to wait at most
-   * @return the region, or null if nothing was due in time or the compositor was closed
-   * @throws InterruptedException if the waiting thread is interrupted
-   */
+  // Waits until damage is due, then copies the damaged region, with the popup drawn over it, into the buffer.
   synchronized @Nullable FrameRegion takeDamage(final byte[] target, final long timeoutMilliseconds) throws InterruptedException {
     final long deadline = this.clock.getAsLong() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
     while (!this.closed) {
@@ -237,17 +214,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     return new FrameRegion(this.width, this.height, area.x, area.y, area.width, area.height, target);
   }
 
-  /**
-   * Copies a rectangle of a BGRA buffer into a BGRA array.
-   *
-   * @param source      the source pixels
-   * @param sourceWidth the width of the source in pixels
-   * @param area        the rectangle, relative to the source
-   * @param target      the target pixels
-   * @param targetWidth the width of the target in pixels
-   * @param targetX     where the rectangle starts in the target
-   * @param targetY     where the rectangle starts in the target
-   */
   private static void copyRows(
     final ByteBuffer source,
     final int sourceWidth,
@@ -267,26 +233,17 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
   }
 
-  /**
-   * Wakes a thread waiting in {@link #takeDamage} and makes it return null from now on.
-   */
+  // Wakes a thread waiting in takeDamage and makes it return null from now on.
   synchronized void close() {
     this.closed = true;
     this.notifyAll();
   }
 
-  /**
-   * Returns the most bytes one region can have.
-   *
-   * @return the size of the whole page in bytes
-   */
   int getPageBytes() {
     return this.page.length;
   }
 
-  /**
-   * A popup widget that is shown: where it is drawn on the page, and its pixels.
-   */
+  // A popup widget that is shown: where it is drawn on the page, and its pixels.
   private static final class Popup {
 
     private final Rectangle bounds;

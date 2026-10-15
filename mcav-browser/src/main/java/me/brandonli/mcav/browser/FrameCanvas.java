@@ -27,11 +27,9 @@ import org.bytedeco.opencv.opencv_core.Mat;
 import org.bytedeco.opencv.opencv_core.Scalar;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The server's copy of the page a browser helper streams: the changed regions the helper sends are written into it,
- * and every frame for the video pipeline is a copy of it converted from BGRA to the BGR the pipeline works with. The
- * page starts white, like a page before its first paint.
- */
+// The server's copy of the page a browser helper streams: the changed regions the helper sends are written into it, and
+// every frame for the video pipeline is a copy of it converted from BGRA to the BGR the pipeline works with. The page
+// starts white, like a page before its first paint.
 final class FrameCanvas implements AutoCloseable {
 
   private static final double FULL_CHANNEL = 255.0;
@@ -42,12 +40,6 @@ final class FrameCanvas implements AutoCloseable {
   private final ByteBuffer pixels;
   private boolean closed;
 
-  /**
-   * Constructs a white canvas.
-   *
-   * @param width  the width of the page in pixels
-   * @param height the height of the page in pixels
-   */
   FrameCanvas(final int width, final int height) {
     this.width = width;
     this.height = height;
@@ -56,12 +48,6 @@ final class FrameCanvas implements AutoCloseable {
     this.pixels = this.page.createBuffer();
   }
 
-  /**
-   * Writes a changed region into the page.
-   *
-   * @param region the region, whose position and size {@link HelperProtocol} already checked against its page
-   * @throws ProtocolException if the region belongs to a page of another size
-   */
   synchronized void apply(final FrameRegion region) throws ProtocolException {
     if (region.getPageWidth() != this.width || region.getPageHeight() != this.height) {
       final int pageWidth = region.getPageWidth();
@@ -85,11 +71,6 @@ final class FrameCanvas implements AutoCloseable {
     }
   }
 
-  /**
-   * Copies the page as a BGR image.
-   *
-   * @return the image, which the caller owns, or null once the canvas was closed
-   */
   synchronized @Nullable ImageBuffer snapshot() {
     if (this.closed) {
       return null;
@@ -120,11 +101,7 @@ final class FrameCanvas implements AutoCloseable {
     return this.height;
   }
 
-  /**
-   * Returns the native picture of the page, so tests can check that closing releases it.
-   *
-   * @return the picture
-   */
+  // Returns the native picture of the page, so tests can check that closing releases it.
   @VisibleForTesting
   Mat getPage() {
     return this.page;

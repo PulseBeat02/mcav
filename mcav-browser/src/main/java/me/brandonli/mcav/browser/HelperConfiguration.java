@@ -25,17 +25,13 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.StringJoiner;
 
-/**
- * Everything the browser helper process needs to know, handed to it as one line on its standard input, so none of it
- * shows up in the process list: the session token, the socket to connect to, the installed CEF, the profile folder,
- * the page and its size, the security profile with the hosts the guard refuses, and whether Chromium is confined and
- * which server folder it may not read then.
- */
+// Everything the browser helper process needs to know, handed to it as one line on its standard input, so none of it
+// shows up in the process list: the session token, the socket to connect to, the installed CEF, the profile folder, the
+// page and its size, the security profile with the hosts the guard refuses, and whether Chromium is confined and which
+// server folder it may not read then.
 final class HelperConfiguration {
 
-  /**
-   * The highest frame rate a browser may paint at, mcav's limit: CEF sets none above its minimum of 1.
-   */
+  // The highest frame rate a browser may paint at, mcav's limit: CEF sets none above its minimum of 1.
   static final int MAXIMUM_FRAME_RATE = 60;
 
   private static final String SEPARATOR = ":";
@@ -79,26 +75,6 @@ final class HelperConfiguration {
   private final Path serverFolder;
   private final List<String> refusedHosts;
 
-  /**
-   * Constructs a configuration and checks every value.
-   *
-   * @param token                 the session token, {@link HelperProtocol#TOKEN_BYTES} bytes
-   * @param socket                the socket the helper connects to, an absolute path
-   * @param natives               the folder CEF is installed in, an absolute path
-   * @param profile               the folder the browser keeps its profile in, an absolute path
-   * @param url                   the page to open, an absolute {@code http} or {@code https} address
-   * @param width                 the width of the page in pixels
-   * @param height                the height of the page in pixels
-   * @param frameInterval         send every n-th painted frame
-   * @param frameRate             how many frames per second CEF paints at most
-   * @param allowsJavaScriptJit   true to let V8 compile JavaScript to machine code
-   * @param allowsPrivateNetworks true to let the page reach loopback, private and link-local addresses
-   * @param allowsAutoplay        true to let the page play sound before anyone clicked or typed into it
-   * @param confined              true to confine Chromium where the helper can, see {@link ChromiumConfinement}
-   * @param serverFolder          the folder of the server, which a confined Chromium may not read, an absolute path
-   * @param refusedHosts          names or addresses of this machine the guard refuses, see {@link BrowserOptions}
-   * @throws IllegalArgumentException if a value is out of range
-   */
   HelperConfiguration(
     final byte[] token,
     final Path socket,
@@ -146,12 +122,8 @@ final class HelperConfiguration {
     this.refusedHosts = List.copyOf(refusedHosts);
   }
 
-  /**
-   * Writes the configuration as the line the helper reads: every value in a fixed order, each Base64-encoded as UTF-8
-   * and separated by colons, which Base64 never contains.
-   *
-   * @return the line, without a line break
-   */
+  // Writes the configuration as the line the helper reads: every value in a fixed order, each Base64-encoded as UTF-8
+  // and separated by colons, which Base64 never contains.
   String toLine() {
     final HexFormat hexadecimal = HexFormat.of();
     final List<String> values = List.of(
@@ -180,13 +152,6 @@ final class HelperConfiguration {
     return line.toString();
   }
 
-  /**
-   * Reads the line written by {@link #toLine()}.
-   *
-   * @param line the line
-   * @return the configuration
-   * @throws IllegalArgumentException if the line is not a complete, valid configuration
-   */
   static HelperConfiguration fromLine(final String line) {
     requireThat(line.length() <= MAXIMUM_LINE_CHARACTERS, "The configuration line is too long!");
     final String[] parts = line.split(SEPARATOR, -1);
@@ -234,12 +199,7 @@ final class HelperConfiguration {
     );
   }
 
-  /**
-   * Checks whether a text can be a host name or an address: not empty, and without a comma or a space.
-   *
-   * @param host the text
-   * @return true if it can be
-   */
+  // Checks whether a text can be a host name or an address: not empty, and without a comma or a space.
   static boolean isHost(final String host) {
     return !host.isEmpty() && host.chars().noneMatch(character -> character == ',' || Character.isWhitespace(character));
   }

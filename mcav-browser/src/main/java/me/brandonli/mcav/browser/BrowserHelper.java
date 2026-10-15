@@ -63,10 +63,8 @@ public final class BrowserHelper {
   private static final int EXIT_FAILURE = 1;
   private static final int EXIT_BAD_CONFIGURATION = 2;
 
-  /**
-   * How long the helper may take to stop once its standard input ended, in milliseconds. The server is gone then,
-   * and CEF's own shutdown waits up to ten seconds; a browser that hangs longer must not outlive the server.
-   */
+  // How long the helper may take to stop once its standard input ended, in milliseconds. The server is gone then, and
+  // CEF's own shutdown waits up to ten seconds; a browser that hangs longer must not outlive the server.
   private static final long STOP_DEADLINE_MILLISECONDS = 20_000L;
 
   private static final int OUTPUT_BUFFER_BYTES = 1 << 16;
@@ -82,25 +80,12 @@ public final class BrowserHelper {
   private int heldButtons;
   private volatile boolean activated;
 
-  /**
-   * Constructs a helper that never halts, for tests that run it inside their own JVM.
-   *
-   * @param configuration the configuration
-   * @param engine        the browser
-   */
+  // Constructs a helper that never halts, for tests that run it inside their own JVM.
   @VisibleForTesting
   BrowserHelper(final HelperConfiguration configuration, final HelperEngine engine) {
     this(configuration, engine, status -> {}, 0L);
   }
 
-  /**
-   * Constructs a helper.
-   *
-   * @param configuration      the configuration
-   * @param engine             the browser
-   * @param halter             ends the JVM at once if the helper does not stop in time after its standard input ended
-   * @param stopDeadlineMilliseconds how long the helper may take to stop then
-   */
   BrowserHelper(
     final HelperConfiguration configuration,
     final HelperEngine engine,
@@ -138,14 +123,6 @@ public final class BrowserHelper {
     throw new AssertionError("System.exit returned!");
   }
 
-  /**
-   * Reads the configuration line and runs a helper with it.
-   *
-   * @param input  the standard input
-   * @param engine the browser
-   * @param halter ends the JVM at once if the helper does not stop in time after its standard input ended
-   * @return the exit status
-   */
   static int runFromInput(final BufferedReader input, final HelperEngine engine, final Halter halter) {
     final HelperConfiguration configuration;
     try {
@@ -164,13 +141,6 @@ public final class BrowserHelper {
     return helper.run(input, BrowserHelper::connect);
   }
 
-  /**
-   * Connects to the socket of the server.
-   *
-   * @param socket the path of the socket
-   * @return the connected channel
-   * @throws IOException if the connection fails; the channel is closed then
-   */
   @VisibleForTesting
   static SocketChannel connect(final Path socket) throws IOException {
     final UnixDomainSocketAddress address = UnixDomainSocketAddress.of(socket);
@@ -184,13 +154,7 @@ public final class BrowserHelper {
     return channel;
   }
 
-  /**
-   * Connects to the server, starts the browser and serves the page until the helper is stopped.
-   *
-   * @param standardInput the rest of the standard input, whose end means the server is gone
-   * @param connector     connects to the socket of the server
-   * @return 0 when the helper was asked to stop, 1 when it failed
-   */
+  // Connects to the server, starts the browser and serves the page until the helper is stopped.
   int run(final Reader standardInput, final Connector connector) {
     final Path socket = this.configuration.getSocket();
     try (final SocketChannel channel = connector.connect(socket)) {
@@ -243,22 +207,13 @@ public final class BrowserHelper {
     thread.start();
   }
 
-  /**
-   * Stops the helper.
-   *
-   * @param reason why it stops, for the log
-   */
   void stop(final String reason) {
     this.stopReason.compareAndSet("", reason);
     this.stopped.countDown();
   }
 
-  /**
-   * Waits for the end of the standard input, which the server keeps open while it lives, stops the helper, and halts
-   * the JVM if the helper has not ended once the stop deadline has passed.
-   *
-   * @param standardInput the standard input
-   */
+  // Waits for the end of the standard input, which the server keeps open while it lives, stops the helper, and halts
+  // the JVM if the helper has not ended once the stop deadline has passed.
   void watchInput(final Reader standardInput) {
     try {
       final char[] buffer = new char[INPUT_BUFFER_CHARACTERS];
@@ -277,11 +232,7 @@ public final class BrowserHelper {
     this.halter.halt(EXIT_FAILURE);
   }
 
-  /**
-   * Reads the input and close requests of the server and passes the input on to the browser.
-   *
-   * @param input the stream from the server
-   */
+  // Reads the input and close requests of the server and passes the input on to the browser.
   void readCommands(final DataInputStream input) {
     final byte[] noPixels = new byte[0];
     try {
@@ -304,11 +255,7 @@ public final class BrowserHelper {
     }
   }
 
-  /**
-   * Executes one message from the server: passes input on to the browser and stops the helper on anything else.
-   *
-   * @param message the message
-   */
+  // Executes one message from the server: passes input on to the browser and stops the helper on anything else.
   void executeCommand(final HelperMessage message) {
     final int type = message.getType();
     switch (type) {
@@ -339,22 +286,12 @@ public final class BrowserHelper {
     this.engine.dispatch(calls);
   }
 
-  /**
-   * Returns whether a message from the server is input, after which the helper reads on.
-   *
-   * @param message the message
-   * @return whether it is mouse or key input
-   */
+  // Returns whether a message from the server is input, after which the helper reads on.
   boolean isInput(final HelperMessage message) {
     final int type = message.getType();
     return type == HelperProtocol.MOUSE || type == HelperProtocol.KEY;
   }
 
-  /**
-   * Sends the damaged regions of the page until the helper stops.
-   *
-   * @param output the stream to the server
-   */
   void sendFrames(final DataOutputStream output) {
     final int pageBytes = this.compositor.getPageBytes();
     final byte[] buffer = new byte[pageBytes];
@@ -382,56 +319,26 @@ public final class BrowserHelper {
     }
   }
 
-  /**
-   * Returns why the helper stopped.
-   *
-   * @return the reason, or null while it runs
-   */
   @Nullable String getStopReason() {
     final String reason = this.stopReason.get();
     return reason.isEmpty() ? null : reason;
   }
 
-  /**
-   * Returns the compositor that keeps the picture of the page.
-   *
-   * @return the compositor
-   */
   PageCompositor getCompositor() {
     return this.compositor;
   }
 
-  /**
-   * Ends the JVM at once, without running its shutdown hooks.
-   */
   @FunctionalInterface
   interface Halter {
-    /**
-     * Ends the JVM.
-     *
-     * @param status the exit status
-     */
     void halt(int status);
   }
 
-  /**
-   * Connects to the socket of the server.
-   */
   @FunctionalInterface
   interface Connector {
-    /**
-     * Connects.
-     *
-     * @param socket the path of the socket
-     * @return the connected channel
-     * @throws IOException if the connection fails
-     */
     SocketChannel connect(Path socket) throws IOException;
   }
 
-  /**
-   * Passes what the browser reports on to the server. A failure also stops the helper.
-   */
+  // Passes what the browser reports on to the server. A failure also stops the helper.
   final class Reporter implements HelperEvents {
 
     private final DataOutputStream output;
@@ -501,9 +408,6 @@ public final class BrowserHelper {
     }
   }
 
-  /**
-   * Writes one message.
-   */
   @FunctionalInterface
   private interface MessageWriter {
     void write(DataOutputStream output) throws IOException;

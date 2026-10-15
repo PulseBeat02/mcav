@@ -43,24 +43,14 @@ import org.cef.handler.CefResourceRequestHandlerAdapter;
 import org.cef.misc.BoolRef;
 import org.cef.network.CefRequest;
 
-/**
- * What the browser allows the web content it shows to do. The content is untrusted and runs without the Chromium
- * sandbox, so the browser keeps everything else away from it:
- *
- * <ul>
- *   <li>navigation only to {@code http} and {@code https} pages, and requests only to the web schemes
- *   ({@link NavigationPolicy});</li>
- *   <li>no new windows: a popup or a link opened in a new tab is opened in place instead, if its address is allowed;</li>
- *   <li>no downloads, no file choosers, no context menu, no external programs for unknown schemes;</li>
- *   <li>JavaScript dialogs are dismissed at once ({@code alert} confirmed, {@code confirm} and {@code prompt}
- *   cancelled), and leaving a page is always allowed;</li>
- *   <li>no credentials for authentication prompts, and requests with certificate errors fail.</li>
- * </ul>
- *
- * <p>Everything refused is reported as a notice, and a crashed renderer as a failure. Load state and load errors of
- * the page are reported too. The addresses in these reports are those of {@link AddressText}, without the parts that
- * may hold secrets.
- */
+// What the browser allows the web content it shows to do. The content is untrusted and runs without the Chromium
+// sandbox, so the browser keeps everything else away from it: navigation only to http and https pages, and requests
+// only to the web schemes (NavigationPolicy); no new windows: a popup or a link opened in a new tab is opened in place
+// instead, if its address is allowed; no downloads, no file choosers, no context menu, no external programs for unknown
+// schemes; JavaScript dialogs are dismissed at once (alert confirmed, confirm and prompt cancelled), and leaving a page
+// is always allowed; no credentials for authentication prompts, and requests with certificate errors fail. Everything
+// refused is reported as a notice, and a crashed renderer as a failure. Load state and load errors of the page are
+// reported too. The addresses in these reports are those of AddressText, without the parts that may hold secrets.
 final class ContentPolicy
   implements
     CefLifeSpanHandler,
@@ -77,13 +67,6 @@ final class ContentPolicy
   private final Consumer<CefBrowser> created;
   private final CefResourceRequestHandler resourcePolicy;
 
-  /**
-   * Constructs the policy.
-   *
-   * @param events        receives what happens
-   * @param engineVersion the version of CEF, reported when the browser was created
-   * @param created       prepares the browser once it exists, before it loads the page
-   */
   ContentPolicy(final HelperEvents events, final String engineVersion, final Consumer<CefBrowser> created) {
     this.events = events;
     this.engineVersion = engineVersion;
@@ -439,9 +422,7 @@ final class ContentPolicy
     }
   }
 
-  /**
-   * The policy of every request: only the web schemes, and never an external program.
-   */
+  // The policy of every request: only the web schemes, and never an external program.
   private static final class ResourcePolicy extends CefResourceRequestHandlerAdapter {
 
     private final HelperEvents events;

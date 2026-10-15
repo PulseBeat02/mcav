@@ -31,17 +31,15 @@ import java.util.function.IntSupplier;
 import java.util.stream.Stream;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Confines Chromium on Linux and macOS. JCEF cannot run Chromium with Chromium's own sandbox (its native library always
- * turns it off), so a page that exploits a flaw of Chromium's renderer would run code as the user of the server. The
- * helper therefore restricts Chromium before starting it: Chromium's processes cannot read the server's folder, the
- * home folder of its user or the temporary folder of the server, apart from what the browser needs there (Java, CEF,
- * the libraries and class path of the helper, and the folder of the session), and they change files only in the folder
- * of the session and the devices (and on Linux the process folder). On Linux the thread that starts Chromium restricts
- * itself with Landlock, and with it every thread and process Chromium starts, while the other threads of the helper,
- * among them the network guard and the null display, stay free. On macOS Seatbelt restricts the whole helper process,
- * whose other threads read and change nothing more than Chromium does.
- */
+// Confines Chromium on Linux and macOS. JCEF cannot run Chromium with Chromium's own sandbox (its native library always
+// turns it off), so a page that exploits a flaw of Chromium's renderer would run code as the user of the server. The
+// helper therefore restricts Chromium before starting it: Chromium's processes cannot read the server's folder, the
+// home folder of its user or the temporary folder of the server, apart from what the browser needs there (Java, CEF,
+// the libraries and class path of the helper, and the folder of the session), and they change files only in the folder
+// of the session and the devices (and on Linux the process folder). On Linux the thread that starts Chromium restricts
+// itself with Landlock, and with it every thread and process Chromium starts, while the other threads of the helper,
+// among them the network guard and the null display, stay free. On macOS Seatbelt restricts the whole helper process,
+// whose other threads read and change nothing more than Chromium does.
 final class ChromiumConfinement {
 
   static final String CONFINED =
@@ -61,29 +59,12 @@ final class ChromiumConfinement {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Confines Chromium for the helper of a configuration, if the configuration asks for it and the system can: on Linux
-   * the calling thread and everything it starts afterwards, on macOS the whole process.
-   *
-   * @param configuration the configuration of the helper
-   * @param system        the operating system the helper runs on
-   * @return what happened, for the log of the server
-   * @throws IOException if the system refused the confinement
-   */
+  // Confines Chromium for the helper of a configuration, if the configuration asks for it and the system can: on Linux
+  // the calling thread and everything it starts afterwards, on macOS the whole process.
   static String confine(final HelperConfiguration configuration, final OperatingSystem system) throws IOException {
     return confine(configuration, system, Landlock::version, Seatbelt.ofSystem());
   }
 
-  /**
-   * Confines Chromium as {@link #confine(HelperConfiguration, OperatingSystem)} does.
-   *
-   * @param configuration the configuration of the helper
-   * @param system        the operating system the helper runs on
-   * @param version       asks the kernel for its version of Landlock
-   * @param seatbelt      the sandbox of macOS
-   * @return what happened, for the log of the server
-   * @throws IOException if the system refused the confinement
-   */
   @VisibleForTesting
   static String confine(
     final HelperConfiguration configuration,
@@ -130,13 +111,8 @@ final class ChromiumConfinement {
     return CONFINED;
   }
 
-  /**
-   * Resolves paths as the file system names them: links and relative parts resolved where the path exists, and an
-   * absolute path otherwise.
-   *
-   * @param paths the paths
-   * @return the real paths
-   */
+  // Resolves paths as the file system names them: links and relative parts resolved where the path exists, and an
+  // absolute path otherwise.
   @VisibleForTesting
   static List<Path> realPaths(final List<Path> paths) {
     final List<Path> real = new ArrayList<>();
@@ -150,18 +126,9 @@ final class ChromiumConfinement {
     return real;
   }
 
-  /**
-   * Builds the rules of a confinement: everything beneath the root may be read, except the hidden folders, in which
-   * only the readable and the writable paths may be read; only the writable paths may be changed. A hidden folder
-   * that is the root itself is not hidden, as the root holds the system.
-   *
-   * @param root     the folder everything else lies in
-   * @param hidden   the folders that may not be read
-   * @param readable the files and folders that may be read even in a hidden folder
-   * @param writable the files and folders that may be changed
-   * @return the rules
-   * @throws IOException if a hidden folder cannot be resolved
-   */
+  // Builds the rules of a confinement: everything beneath the root may be read, except the hidden folders, in which
+  // only the readable and the writable paths may be read; only the writable paths may be changed. A hidden folder that
+  // is the root itself is not hidden, as the root holds the system.
   @VisibleForTesting
   static List<Landlock.Rule> rules(final Path root, final List<Path> hidden, final List<Path> readable, final List<Path> writable)
     throws IOException {
@@ -218,12 +185,6 @@ final class ChromiumConfinement {
     return Objects.requireNonNullElse(path.getParent(), path);
   }
 
-  /**
-   * Splits a list of paths such as a class path.
-   *
-   * @param list the list, or null
-   * @return its paths
-   */
   @VisibleForTesting
   static List<Path> pathsOf(final @Nullable String list) {
     final List<Path> paths = new ArrayList<>();
@@ -239,13 +200,8 @@ final class ChromiumConfinement {
     return paths;
   }
 
-  /**
-   * Finds the jars of the Java agents of the helper, such as the coverage agent of the tests, whose classes may load
-   * on a confined thread.
-   *
-   * @param arguments the options of the JVM
-   * @return the jars
-   */
+  // Finds the jars of the Java agents of the helper, such as the coverage agent of the tests, whose classes may load on
+  // a confined thread.
   @VisibleForTesting
   static List<Path> agentsOf(final List<String> arguments) {
     final List<Path> jars = new ArrayList<>();
@@ -259,14 +215,8 @@ final class ChromiumConfinement {
     return jars;
   }
 
-  /**
-   * Finds the files the symbolic links in folders point to, such as the libraries the server lacks, which the
-   * session links to.
-   *
-   * @param folders the folders
-   * @return the files the links point to
-   * @throws IOException if a folder cannot be listed
-   */
+  // Finds the files the symbolic links in folders point to, such as the libraries the server lacks, which the session
+  // links to.
   @VisibleForTesting
   static List<Path> linkedFiles(final List<Path> folders) throws IOException {
     final List<Path> targets = new ArrayList<>();

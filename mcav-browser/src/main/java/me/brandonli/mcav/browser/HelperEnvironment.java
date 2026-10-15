@@ -22,11 +22,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * The environment variables a browser helper gets. The helper runs untrusted web content without the Chromium
- * sandbox, so it inherits only the variables a program needs to find the system, its user and its language, never the
- * rest of the server's environment, which may hold credentials such as bot tokens or cloud keys.
- */
+// The environment variables a browser helper gets. The helper runs untrusted web content without the Chromium sandbox,
+// so it inherits only the variables a program needs to find the system, its user and its language, never the rest of
+// the server's environment, which may hold credentials such as bot tokens or cloud keys.
 final class HelperEnvironment {
 
   private static final Set<String> KEPT = Set.of(
@@ -64,13 +62,8 @@ final class HelperEnvironment {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Picks the variables a helper keeps from the environment of the server. Names are compared without case, as Windows
-   * does.
-   *
-   * @param parent the environment of the server
-   * @return the kept variables
-   */
+  // Picks the variables a helper keeps from the environment of the server. Names are compared without case, as Windows
+  // does.
   static Map<String, String> filter(final Map<String, String> parent) {
     final Map<String, String> kept = new HashMap<>();
     for (final Map.Entry<String, String> variable : parent.entrySet()) {

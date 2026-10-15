@@ -61,53 +61,33 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * The shared libraries the browser helper needs on Linux that a server may lack.
- *
- * <p>{@code libcef.so} needs the X11 client libraries, GLib, NSS, ATK and more at load time, even though CEF draws
- * off-screen and never talks to an X server; the Docker images Minecraft servers run in have few of them, and the
- * operator of a shared host can install nothing. So mcav downloads them once from the main archive of Debian 11, which
- * is frozen, checks every package against its pinned SHA-256 hash, and keeps only the pinned libraries, each as a file
- * named by its soname. For every session, the libraries the server lacks are linked into a folder of the session,
- * which is the helper's {@code LD_LIBRARY_PATH}: the libraries the server has are always its own, so no newer library
- * of the server is ever paired with an older one of the bundle. The pins are in {@value #RESOURCE}.
- *
- * <p>{@code libjcef.so} also links against {@value #JAWT} of the Java runtime, which no package can bring, as it
- * belongs to the build of the runtime; a runtime without it, as the headless Java packages of Debian and Ubuntu are, is
- * refused with what to install.
- */
+// The shared libraries the browser helper needs on Linux that a server may lack. libcef.so needs the X11 client
+// libraries, GLib, NSS, ATK and more at load time, even though CEF draws off-screen and never talks to an X server; the
+// Docker images Minecraft servers run in have few of them, and the operator of a shared host can install nothing. So
+// mcav downloads them once from the main archive of Debian 11, which is frozen, checks every package against its pinned
+// SHA-256 hash, and keeps only the pinned libraries, each as a file named by its soname. For every session, the
+// libraries the server lacks are linked into a folder of the session, which is the helper's LD_LIBRARY_PATH: the
+// libraries the server has are always its own, so no newer library of the server is ever paired with an older one of
+// the bundle. The pins are in RESOURCE. libjcef.so also links against JAWT of the Java runtime, which no package can
+// bring, as it belongs to the build of the runtime; a runtime without it, as the headless Java packages of Debian and
+// Ubuntu are, is refused with what to install.
 final class LinuxLibraries {
 
-  /**
-   * The resource that pins the packages.
-   */
   private static final String RESOURCE = "mcav/browser/linux-libraries.txt";
 
-  /**
-   * The marker file of a complete installation.
-   */
   static final String INSTALL_MARKER = "install.lock";
 
-  /**
-   * The folder of a session the libraries are linked into.
-   */
   static final String SESSION_FOLDER = "lib";
 
-  /**
-   * The library of the Java runtime that {@code libjcef.so} links against: the native interface of AWT.
-   */
+  // The library of the Java runtime that libjcef.so links against: the native interface of AWT.
   static final String JAWT = "libjawt.so";
 
-  /**
-   * The mirrors of the Debian archive the packages are tried from, in order; the hash decides whether a package is
-   * the pinned one, wherever it came from.
-   */
+  // The mirrors of the Debian archive the packages are tried from, in order; the hash decides whether a package is the
+  // pinned one, wherever it came from.
   static final List<String> MIRRORS = List.of("https://archive.debian.org/debian/", "https://deb.debian.org/debian/");
 
-  /**
-   * The mirrors of Debian 11's security updates, for the pins in {@code pool/updates/}: the archive, once they reach it,
-   * and Debian's snapshot archive, which keeps every file under a permanent address.
-   */
+  // The mirrors of Debian 11's security updates, for the pins in pool/updates/: the archive, once they reach it, and
+  // Debian's snapshot archive, which keeps every file under a permanent address.
   static final List<String> SECURITY_MIRRORS = List.of(
     "https://archive.debian.org/debian-security/",
     "https://snapshot.debian.org/archive/debian-security/20260901T000000Z/"
@@ -185,9 +165,7 @@ final class LinuxLibraries {
   private final List<Pin> pins;
   private final Map<String, List<String>> hostLibraries;
 
-  /**
-   * Constructs an installer that uses mcav's cache folder, the Debian mirrors and the pinned packages.
-   */
+  // Constructs an installer that uses mcav's cache folder, the Debian mirrors and the pinned packages.
   LinuxLibraries() {
     this(
       defaultFolder(),
@@ -198,29 +176,14 @@ final class LinuxLibraries {
     );
   }
 
-  /**
-   * Constructs an installer with another folder, download, mirrors and pins, so tests can install from a local copy.
-   *
-   * @param folder     the folder the libraries are installed in
-   * @param downloader downloads a file and verifies its hash
-   * @param mirrors    the base addresses of the archive, each ending with a slash
-   * @param pins       the lines of the pins
-   */
+  // Constructs an installer with another folder, download, mirrors and pins, so tests can install from a local copy.
   @VisibleForTesting
   LinuxLibraries(final Path folder, final JcefNatives.Downloader downloader, final List<String> mirrors, final List<String> pins) {
     this(folder, downloader, mirrors, mirrors, pins);
   }
 
-  /**
-   * Constructs an installer with another folder, download, mirrors of the archive and of its security updates, and
-   * pins.
-   *
-   * @param folder          the folder the libraries are installed in
-   * @param downloader      downloads a file and verifies its hash and size
-   * @param mirrors         the base addresses of the archive, each ending with a slash
-   * @param securityMirrors the base addresses of the security updates, for pins in {@code pool/updates/}
-   * @param pins            the lines of the pins
-   */
+  // Constructs an installer with another folder, download, mirrors of the archive and of its security updates, and
+  // pins.
   @VisibleForTesting
   LinuxLibraries(
     final Path folder,
@@ -270,13 +233,6 @@ final class LinuxLibraries {
     return cache.resolve(CACHE_FOLDER);
   }
 
-  /**
-   * Reads the bundled pins from {@code mcav/browser/linux-libraries.txt}.
-   *
-   * @param loader the class loader of this class
-   * @return the lines
-   * @throws IllegalStateException if the resource is missing or cannot be read, which only a broken build does
-   */
   @VisibleForTesting
   static List<String> readResource(final ClassLoader loader) {
     try (final InputStream stream = loader.getResourceAsStream(RESOURCE)) {
@@ -308,12 +264,6 @@ final class LinuxLibraries {
     return List.copyOf(sonames);
   }
 
-  /**
-   * Returns the pins of a platform.
-   *
-   * @param platform the jcefmaven identifier of the platform, such as {@code linux-amd64}
-   * @return the pins, in the order of the resource
-   */
   List<Pin> getPins(final String platform) {
     final List<Pin> matching = new ArrayList<>();
     for (final Pin pin : this.pins) {
@@ -324,13 +274,7 @@ final class LinuxLibraries {
     return matching;
   }
 
-  /**
-   * Installs the libraries of a platform unless they are installed already.
-   *
-   * @param platform the jcefmaven identifier of the platform, such as {@code linux-amd64}
-   * @return the folder of the installation, which holds every library as a file named by its soname
-   * @throws IOException if mcav has no libraries for the platform, or a download, a verification or an extraction fails
-   */
+  // Installs the libraries of a platform unless they are installed already.
   Path install(final String platform) throws IOException {
     final List<Pin> wanted = this.getPins(platform);
     if (wanted.isEmpty()) {
@@ -367,12 +311,7 @@ final class LinuxLibraries {
     }
   }
 
-  /**
-   * Names an installation after its pins, so a changed bundle is installed anew beside the old one.
-   *
-   * @param pins the pins
-   * @return the first twelve hexadecimal digits of the SHA-256 hash of the pinned hashes
-   */
+  // Names an installation after its pins, so a changed bundle is installed anew beside the old one.
   @VisibleForTesting
   static String fingerprint(final List<Pin> pins) {
     final Hasher hasher = Hashing.sha256().newHasher();
@@ -435,16 +374,9 @@ final class LinuxLibraries {
     return failure;
   }
 
-  /**
-   * Extracts the pinned libraries of a Debian package: the regular files at the pinned paths of its library trees, each
-   * written as a file named by its soname. The package is unpacked by {@link DebianPackageExtractor} into a folder
-   * beside it, which is removed again; links and other files are not copied.
-   *
-   * @param debianPackage    the package
-   * @param files  the paths in the package, mapped to the sonames to write them as
-   * @param target the folder to write into
-   * @throws IOException if the package is not one, breaks a limit of the extractor, or lacks a pinned library
-   */
+  // Extracts the pinned libraries of a Debian package: the regular files at the pinned paths of its library trees, each
+  // written as a file named by its soname. The package is unpacked by DebianPackageExtractor into a folder beside it,
+  // which is removed again; links and other files are not copied.
   static void extract(final Path debianPackage, final Map<String, String> files, final Path target) throws IOException {
     final Path unpacked = debianPackage.resolveSibling(debianPackage.getFileName() + UNPACKED_SUFFIX);
     try {
@@ -485,15 +417,8 @@ final class LinuxLibraries {
     }
   }
 
-  /**
-   * Finds the packages whose libraries a server lacks. A package is missing whole, or not at all, as its first library
-   * decides: NSS, for one, loads its modules from the folder of its own library.
-   *
-   * @param platform    the jcefmaven identifier of the platform
-   * @param hostFolders the folders the dynamic loader of the server searches
-   * @return the missing packages, empty if the server has every library
-   * @throws BrowserUnavailableException if the server lacks a library that mcav expects every server to have
-   */
+  // Finds the packages whose libraries a server lacks. A package is missing whole, or not at all, as its first library
+  // decides: NSS, for one, loads its modules from the folder of its own library.
   List<Pin> findMissing(final String platform, final List<Path> hostFolders) {
     final List<String> missingHost = new ArrayList<>();
     for (final String soname : this.hostLibraries.getOrDefault(platform, List.of())) {
@@ -516,12 +441,6 @@ final class LinuxLibraries {
     return missing;
   }
 
-  /**
-   * Checks that the Java runtime of the helpers has {@value #JAWT}.
-   *
-   * @param java the Java program of the helpers, in the {@code bin} folder of the runtime
-   * @throws BrowserUnavailableException if the runtime lacks it
-   */
   static void requireJawt(final Path java) {
     final Path runtime = java.toAbsolutePath().resolveSibling(PARENT_FOLDER).normalize();
     if (!Files.exists(runtime.resolve(RUNTIME_LIBRARY_FOLDER).resolve(JAWT))) {
@@ -534,15 +453,7 @@ final class LinuxLibraries {
     }
   }
 
-  /**
-   * Links the libraries of packages a server lacks into a folder of a session.
-   *
-   * @param installation the folder of the installation, which holds them
-   * @param session      the folder of the session
-   * @param missing      the packages the server lacks, see {@link #findMissing(String, List)}
-   * @return the folder of the links
-   * @throws IOException if a link cannot be created
-   */
+  // Links the libraries of packages a server lacks into a folder of a session.
   static Path link(final Path installation, final Path session, final List<Pin> missing) throws IOException {
     final Path libraries = session.resolve(SESSION_FOLDER);
     Files.createDirectory(libraries);
@@ -556,13 +467,6 @@ final class LinuxLibraries {
     return libraries;
   }
 
-  /**
-   * Checks whether the dynamic loader of a server finds a library.
-   *
-   * @param soname      the soname
-   * @param hostFolders the folders the loader searches
-   * @return true if a folder holds it
-   */
   static boolean isPresent(final String soname, final List<Path> hostFolders, final String platform) {
     for (final Path folder : hostFolders) {
       final Path library = folder.resolve(soname);
@@ -573,14 +477,8 @@ final class LinuxLibraries {
     return false;
   }
 
-  /**
-   * Checks that a shared library is built for a platform: a 64-bit little-endian ELF file of its machine. A library of
-   * another architecture, such as a 32-bit one of a multiarch system, is one the loader skips.
-   *
-   * @param library  the file
-   * @param platform the jcefmaven identifier of the platform
-   * @return true if it is a library of the platform
-   */
+  // Checks that a shared library is built for a platform: a 64-bit little-endian ELF file of its machine. A library of
+  // another architecture, such as a 32-bit one of a multiarch system, is one the loader skips.
   @VisibleForTesting
   static boolean isBuiltFor(final Path library, final String platform) {
     final byte[] header = new byte[ELF_MACHINE_OFFSET + Short.BYTES];
@@ -601,14 +499,8 @@ final class LinuxLibraries {
     return Arrays.equals(start, ELF_64_LITTLE_ENDIAN) && machine == wanted;
   }
 
-  /**
-   * Lists the folders the dynamic loader of a Linux system searches: those of {@code /etc/ld.so.conf} and the files it
-   * includes, and the default folders, the multiarch ones of the platform included.
-   *
-   * @param root     the root of the file system
-   * @param platform the jcefmaven identifier of the platform
-   * @return the folders, in the order the loader tries them
-   */
+  // Lists the folders the dynamic loader of a Linux system searches: those of /etc/ld.so.conf and the files it
+  // includes, and the default folders, the multiarch ones of the platform included.
   static List<Path> hostFolders(final Path root, final String platform) {
     final Set<Path> folders = new LinkedHashSet<>();
     readConfiguration(root, root.resolve(LOADER_CONFIGURATION), folders, 0);
@@ -656,13 +548,6 @@ final class LinuxLibraries {
     }
   }
 
-  /**
-   * Lists the files an {@code include} line of the loader's configuration names.
-   *
-   * @param root    the root of the file system
-   * @param pattern the pattern, whose last part may hold wildcards
-   * @return the files, sorted by name
-   */
   @VisibleForTesting
   static List<Path> glob(final Path root, final String pattern) {
     final String relative = pattern.startsWith(FOLDER_SEPARATOR) ? pattern.substring(1) : pattern;
@@ -694,36 +579,12 @@ final class LinuxLibraries {
     }
   }
 
-  /**
-   * Returns the folder the libraries are installed in.
-   *
-   * @return the folder
-   */
   @VisibleForTesting
   Path getFolder() {
     return this.folder;
   }
 
-  /**
-   * One pinned package.
-   *
-   * @param platform the jcefmaven identifier of the platform
-   * @param name     the name of the package
-   * @param version  its version
-   * @param sha256   the SHA-256 hash of the package
-   * @param size     its size in bytes
-   * @param pool     its path in the archive
-   * @param files    the paths of its libraries, mapped to their sonames, the one that decides first
-   */
   record Pin(String platform, String name, String version, String sha256, long size, String pool, Map<String, String> files) {
-    /**
-     * Reads the fields of a line of the resource.
-     *
-     * @param fields the fields
-     * @param line   the line, for the message of a failure
-     * @return the pin
-     * @throws IllegalArgumentException if a field is invalid
-     */
     private static Pin parse(final List<String> fields, final String line) {
       if (fields.size() < MINIMUM_PIN_FIELDS) {
         final String message = "The pin %s has %s fields instead of at least %s fields!".formatted(line, fields.size(), MINIMUM_PIN_FIELDS);
@@ -748,11 +609,6 @@ final class LinuxLibraries {
       );
     }
 
-    /**
-     * Returns the sonames of the package, the one that decides first.
-     *
-     * @return the sonames
-     */
     List<String> sonames() {
       return List.copyOf(new LinkedHashSet<>(this.files.values()));
     }

@@ -31,15 +31,12 @@ import java.util.List;
 import java.util.Optional;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Seatbelt, the sandbox of macOS that Chromium itself uses: a process that puts itself in it with a profile reaches only
- * what the profile allows, and so does every process it starts afterwards. Unlike Landlock it holds for the whole
- * process at once, and it cannot be lifted. It is reached through the functions of a library, the C library of the
- * process on macOS, and runs in the helper process, which has only the browser module and JCEF on its class path.
- */
+// Seatbelt, the sandbox of macOS that Chromium itself uses: a process that puts itself in it with a profile reaches
+// only what the profile allows, and so does every process it starts afterwards. Unlike Landlock it holds for the whole
+// process at once, and it cannot be lifted. It is reached through the functions of a library, the C library of the
+// process on macOS, and runs in the helper process, which has only the browser module and JCEF on its class path.
 final class Seatbelt {
 
-  /** Why a system has no Seatbelt. */
   static final String MISSING = "this system has no Seatbelt (sandbox_init)";
 
   private static final String SANDBOX_INIT = "sandbox_init";
@@ -56,30 +53,15 @@ final class Seatbelt {
 
   private final SymbolLookup library;
 
-  /**
-   * Creates the sandbox of a library.
-   *
-   * @param library the library that has {@code sandbox_init} and {@code sandbox_free_error}, the C library on macOS
-   */
   Seatbelt(final SymbolLookup library) {
     this.library = library;
   }
 
-  /**
-   * Returns the sandbox of this process's C library.
-   *
-   * @return the sandbox, which only macOS has
-   */
   static Seatbelt ofSystem() {
     return new Seatbelt(Linker.nativeLinker().defaultLookup());
   }
 
-  /**
-   * Puts the calling process, and every process it starts afterwards, in the sandbox of a profile.
-   *
-   * @param profile the profile
-   * @throws IOException if the library has no Seatbelt or refuses the profile
-   */
+  // Puts the calling process, and every process it starts afterwards, in the sandbox of a profile.
   // sandbox_init is called through the restricted native linker; the helper starts with native access enabled
   @SuppressWarnings("restricted")
   void restrictProcess(final String profile) throws IOException {
@@ -114,14 +96,6 @@ final class Seatbelt {
     }
   }
 
-  /**
-   * Calls a function of the C library.
-   *
-   * @param function  the function
-   * @param arguments its arguments
-   * @return its result, null for a function that returns nothing
-   * @throws IllegalStateException if the JVM could not make the call
-   */
   @VisibleForTesting
   static @Nullable Object call(final MethodHandle function, final Object... arguments) {
     try {
@@ -135,18 +109,11 @@ final class Seatbelt {
     }
   }
 
-  /**
-   * Writes the profile of a confinement: everything may be read and changed as before, except that nothing in the hidden
-   * folders may be read, files or folder listings, apart from the readable and writable paths, and nothing may be
-   * changed apart from the writable paths. The names and attributes of files stay visible, as with Landlock. Seatbelt
-   * matches the real paths of files, so the paths are given as they resolve; a later rule of a profile overrides an
-   * earlier one.
-   *
-   * @param hidden   the folders that may not be read
-   * @param readable the files and folders that may be read even in a hidden folder
-   * @param writable the files and folders that may be changed
-   * @return the profile
-   */
+  // Writes the profile of a confinement: everything may be read and changed as before, except that nothing in the
+  // hidden folders may be read, files or folder listings, apart from the readable and writable paths, and nothing may
+  // be changed apart from the writable paths. The names and attributes of files stay visible, as with Landlock.
+  // Seatbelt matches the real paths of files, so the paths are given as they resolve; a later rule of a profile
+  // overrides an earlier one.
   static String profile(final List<Path> hidden, final List<Path> readable, final List<Path> writable) {
     final StringBuilder profile = new StringBuilder(PROFILE_START);
     rule(profile, DENY_READING, hidden);
@@ -170,22 +137,12 @@ final class Seatbelt {
     profile.append(")\n");
   }
 
-  /**
-   * Writes a path as a string of the profile language, whose strings escape quotes and backslashes.
-   *
-   * @param text the path
-   * @return the string, in quotes
-   */
+  // Writes a path as a string of the profile language, whose strings escape quotes and backslashes.
   @VisibleForTesting
   static String quote(final String text) {
     return '"' + text.replace("\\", "\\\\").replace("\"", "\\\"") + '"';
   }
 
-  /**
-   * Checks whether the library has the functions of the sandbox.
-   *
-   * @return true on macOS
-   */
   boolean isAvailable() {
     return this.library.find(SANDBOX_INIT).isPresent() && this.library.find(FREE_ERROR).isPresent();
   }

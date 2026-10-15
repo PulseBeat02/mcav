@@ -32,9 +32,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-import me.brandonli.mcav.utils.FileOperationException;
 import me.brandonli.mcav.utils.IoUtils;
-import me.brandonli.mcav.utils.http.DownloadException;
 import me.brandonli.mcav.utils.http.HttpDownloader;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
@@ -43,36 +41,21 @@ import me.brandonli.mcav.utils.os.OsUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Installs the CEF natives of jcefmaven for this machine into mcav's cache folder ({@code ~/.mcav/cache/jcef}), the
- * folder mcav's other runtime downloads use, the first time a browser starts.
- *
- * <p>The natives come from Maven Central ({@code me.friwi:jcef-natives-<platform>}) and are verified against the
- * SHA-256 hash pinned here, which was checked against Central's SHA-1 and the release's PGP signature when it was
- * pinned. jcefmaven's own downloader is never used: it verifies nothing and its extraction does not keep archive
- * entries inside the target folder. The archive is extracted by {@link ArchiveExtractor} into a staging folder, which
- * is moved into place with the {@code install.lock} marker jcefmaven's {@code CefAppBuilder} looks for, so a folder
- * without that marker is never used. An installation lock file keeps two servers on one machine from installing at
- * the same time.
- *
- * <p>Platforms without natives, such as 32-bit systems, FreeBSD or RISC-V, cannot run the browser at all:
- * {@link #install()} fails with a message naming the platform.
- */
+// Installs the CEF natives of jcefmaven for this machine into mcav's cache folder (~/.mcav/cache/jcef), the folder
+// mcav's other runtime downloads use, the first time a browser starts. The natives come from Maven Central
+// (me.friwi:jcef-natives-) and are verified against the SHA-256 hash pinned here, which was checked against Central's
+// SHA-1 and the release's PGP signature when it was pinned. jcefmaven's own downloader is never used: it verifies
+// nothing and its extraction does not keep archive entries inside the target folder. The archive is extracted by
+// ArchiveExtractor into a staging folder, which is moved into place with the install.lock marker jcefmaven's
+// CefAppBuilder looks for, so a folder without that marker is never used. An installation lock file keeps two servers
+// on one machine from installing at the same time. Platforms without natives, such as 32-bit systems, FreeBSD or
+// RISC-V, cannot run the browser at all: install() fails with a message naming the platform.
 final class JcefNatives {
 
-  /**
-   * The version of jcefmaven the natives belong to.
-   */
   static final String JCEFMAVEN_VERSION = "152.0.6";
 
-  /**
-   * The release of JCEF, CEF and Chromium the natives were built from.
-   */
   static final String RELEASE_TAG = "jcef-17e805a+cef-152.0.6+g708dc14+chromium-152.0.7977.83";
 
-  /**
-   * The marker file of a complete installation, the one jcefmaven checks.
-   */
   static final String INSTALL_MARKER = "install.lock";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JcefNatives.class);
@@ -102,21 +85,12 @@ final class JcefNatives {
   private final String repository;
   private final ArchiveExtractor extractor;
 
-  /**
-   * Constructs an installer that uses mcav's cache folder and Maven Central.
-   */
+  // Constructs an installer that uses mcav's cache folder and Maven Central.
   JcefNatives() {
     this(defaultFolder(), HttpDownloader::download, REPOSITORY, new ArchiveExtractor());
   }
 
-  /**
-   * Constructs an installer with another folder, download and repository, so tests can install from a local copy.
-   *
-   * @param folder     the folder the natives are installed in
-   * @param downloader downloads a file and verifies its hash
-   * @param repository the base address of the {@code me.friwi} group of the repository, ending with a slash
-   * @param extractor  extracts the archive
-   */
+  // Constructs an installer with another folder, download and repository, so tests can install from a local copy.
   @VisibleForTesting
   JcefNatives(final Path folder, final Downloader downloader, final String repository, final ArchiveExtractor extractor) {
     this.folder = folder;
@@ -130,14 +104,6 @@ final class JcefNatives {
     return cache.resolve(CACHE_FOLDER);
   }
 
-  /**
-   * Finds the natives of a platform.
-   *
-   * @param os   the operating system
-   * @param arch the processor architecture
-   * @param bits the width of the processor
-   * @return the natives, or empty if jcefmaven has none mcav can use there
-   */
   static Optional<NativePlatform> detect(final Os os, final Arch arch, final Bits bits) {
     for (final NativePlatform platform : NativePlatform.values()) {
       final boolean matches = platform.getOs() == os && platform.getArch() == arch && bits == Bits.BITS_64;
@@ -148,38 +114,18 @@ final class JcefNatives {
     return Optional.empty();
   }
 
-  /**
-   * Installs the natives of this machine unless they are installed already.
-   *
-   * @return the folder of the installation
-   * @throws IOException if the platform has no natives, or the download, the verification or the extraction fails
-   */
+  // Installs the natives of this machine unless they are installed already.
   Path install() throws IOException {
     return this.install(detectCurrent());
   }
 
-  /**
-   * Installs the natives of a platform unless they are installed already.
-   *
-   * @param platform the platform
-   * @return the folder of the installation
-   * @throws IOException if the download, the verification or the extraction fails
-   */
   Path install(final NativePlatform platform) throws IOException {
     final String identifier = platform.getIdentifier();
     final String sha256 = platform.getSha256();
     return this.install(identifier, sha256, platform.getSize());
   }
 
-  /**
-   * Installs the natives of a platform identifier with a pinned hash unless they are installed already.
-   *
-   * @param identifier the jcefmaven identifier of the platform, such as {@code linux-amd64}
-   * @param sha256     the pinned SHA-256 hash of the natives jar
-   * @param size       the pinned size of the natives jar
-   * @return the folder of the installation
-   * @throws IOException if the download, the verification or the extraction fails
-   */
+  // Installs the natives of a platform identifier with a pinned hash unless they are installed already.
   @VisibleForTesting
   Path install(final String identifier, final String sha256, final long size) throws IOException {
     final String name = INSTALLATION_PREFIX + JCEFMAVEN_VERSION + NAME_SEPARATOR + identifier;
@@ -217,23 +163,10 @@ final class JcefNatives {
     }
   }
 
-  /**
-   * Checks whether jcefmaven has a CEF build for this machine.
-   *
-   * @return true if the natives of this machine exist
-   */
   static boolean isSupported() {
     return isSupported(OsUtils.getOs(), OsUtils.getArch(), OsUtils.getBits());
   }
 
-  /**
-   * Checks whether jcefmaven has a CEF build for a machine.
-   *
-   * @param os   the operating system
-   * @param arch the processor architecture
-   * @param bits the address width
-   * @return true if the natives of the machine exist
-   */
   static boolean isSupported(final Os os, final Arch arch, final Bits bits) {
     try {
       detectOrFail(os, arch, bits);
@@ -243,12 +176,6 @@ final class JcefNatives {
     }
   }
 
-  /**
-   * Finds the natives of this machine.
-   *
-   * @return the platform
-   * @throws IOException if jcefmaven has no CEF build for this machine
-   */
   static NativePlatform detectCurrent() throws IOException {
     final Os os = OsUtils.getOs();
     final Arch arch = OsUtils.getArch();
@@ -256,15 +183,6 @@ final class JcefNatives {
     return detectOrFail(os, arch, bits);
   }
 
-  /**
-   * Finds the natives of a machine.
-   *
-   * @param os   the operating system of the machine
-   * @param arch the processor architecture of the machine
-   * @param bits the width of its processor
-   * @return the platform
-   * @throws IOException if jcefmaven has no CEF build for the machine
-   */
   static NativePlatform detectOrFail(final Os os, final Arch arch, final Bits bits) throws IOException {
     final Optional<NativePlatform> platform = detect(os, arch, bits);
     if (platform.isEmpty()) {
@@ -275,14 +193,7 @@ final class JcefNatives {
     return platform.get();
   }
 
-  /**
-   * Takes the lock of an installation, waiting while another process installs.
-   *
-   * @param channel the lock file
-   * @return the lock
-   * @throws IOException if the lock cannot be taken, or another copy of mcav in this JVM holds it, such as the copy of a
-   *                     plugin that was disabled while it installed the natives
-   */
+  // Takes the lock of an installation, waiting while another process installs.
   @VisibleForTesting
   static FileLock lock(final FileChannel channel) throws IOException {
     try {
@@ -349,54 +260,27 @@ final class JcefNatives {
     return extracted;
   }
 
-  /**
-   * Returns the folder the natives are installed in, so tests can check the default one.
-   *
-   * @return the folder
-   */
+  // Returns the folder the natives are installed in, so tests can check the default one.
   @VisibleForTesting
   Path getFolder() {
     return this.folder;
   }
 
-  /**
-   * Downloads a file and verifies its SHA-256 hash.
-   */
   @FunctionalInterface
   interface Downloader {
-    /**
-     * Downloads a file.
-     *
-     * @param uri         the address
-     * @param destination the file to write
-     * @param sha256      the expected SHA-256 hash in hexadecimal
-     * @param size        the pinned size of the file, beyond which the download stops
-     * @throws IOException            if the download fails, is larger than its size, or the hash does not match
-     * @throws DownloadException      if the download over HTTP fails, is larger than its size, or the hash does not
-     *                                match
-     * @throws FileOperationException if the part file cannot be created or deleted, or the download cannot be moved
-     *                                into place
-     */
     void download(URI uri, Path destination, String sha256, long size) throws IOException;
   }
 
-  /**
-   * The platforms jcefmaven publishes natives for that mcav can run a browser on, with the pinned SHA-256 hash and
-   * size of each natives jar of {@link #RELEASE_TAG}. The 32-bit builds are left out: Java 25 has no 32-bit Windows
-   * port, and Paper does not run on 32-bit ARM.
-   */
+  // The platforms jcefmaven publishes natives for that mcav can run a browser on, with the pinned SHA-256 hash and size
+  // of each natives jar of RELEASE_TAG. The 32-bit builds are left out: Java 25 has no 32-bit Windows port, and Paper
+  // does not run on 32-bit ARM.
   enum NativePlatform {
-    /** Linux on x86-64. */
     LINUX_AMD64("linux-amd64", Os.LINUX, Arch.X86, "83f427992cd783fb6f3d499fdf275675187818aa7ca9c4a2a4d43af534a8bdfc", 152_141_475L),
-    /** Linux on 64-bit ARM. */
     LINUX_ARM64("linux-arm64", Os.LINUX, Arch.ARM, "a653d2cbdac487663ac52957511c022a6c5dd7bf9c99f79c6d1d732ab4138a24", 167_953_639L),
-    /** Windows on x86-64. */
     WINDOWS_AMD64("windows-amd64", Os.WINDOWS, Arch.X86, "0dc2ce28766d267f551398e24af7a9bec244b888e651bd97a14ac2d128550875", 171_200_308L),
-    /** Windows on 64-bit ARM; mcav's browser does not need JOGL, which jcefmaven lacks there. */
+    // Windows on 64-bit ARM; mcav's browser does not need JOGL, which jcefmaven lacks there.
     WINDOWS_ARM64("windows-arm64", Os.WINDOWS, Arch.ARM, "ec77b5798dfb53c4804b69eda5144d31e20e0e17b6291c98f7b4a66533ce6504", 168_690_639L),
-    /** macOS on Intel. */
     MACOS_AMD64("macosx-amd64", Os.MAC, Arch.X86, "0a49f85ebc8f942fae81bc0120950ce83a629696352338f000856ee72580908a", 153_880_493L),
-    /** macOS on Apple silicon. */
     MACOS_ARM64("macosx-arm64", Os.MAC, Arch.ARM, "685b27b3dc7f6899a7d4a3a3d58978c95c36ebd1afd571c7027a66fe6f1252a0", 142_331_980L);
 
     private final String identifier;
@@ -413,11 +297,6 @@ final class JcefNatives {
       this.size = size;
     }
 
-    /**
-     * Returns the jcefmaven identifier of the platform.
-     *
-     * @return the identifier, such as {@code linux-amd64}
-     */
     String getIdentifier() {
       return this.identifier;
     }
@@ -430,30 +309,15 @@ final class JcefNatives {
       return this.arch;
     }
 
-    /**
-     * Returns the pinned SHA-256 hash of the natives jar.
-     *
-     * @return the hash in hexadecimal
-     */
     String getSha256() {
       return this.sha256;
     }
 
-    /**
-     * Returns the size of the natives jar.
-     *
-     * @return the size in bytes
-     */
     long getSize() {
       return this.size;
     }
 
-    /**
-     * Returns the approximate size of the natives jar of a platform identifier, for the log.
-     *
-     * @param identifier the identifier
-     * @return the size in megabytes, or 0 for an unknown identifier
-     */
+    // Returns the approximate size of the natives jar of a platform identifier, for the log.
     static long approximateMegabytes(final String identifier) {
       for (final NativePlatform platform : values()) {
         if (platform.identifier.equals(identifier)) {

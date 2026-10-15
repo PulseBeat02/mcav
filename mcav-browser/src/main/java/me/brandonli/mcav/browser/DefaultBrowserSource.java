@@ -22,10 +22,8 @@ import java.net.URI;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The default {@link BrowserSource}, created by {@link BrowserSource#uri(URI, int, int, int)} with validated
- * settings. Two sources are equal when every setting is equal.
- */
+// The default BrowserSource, created by int, int, int) with validated settings. Two sources are equal when every
+// setting is equal.
 final class DefaultBrowserSource implements BrowserSource {
 
   private final URI uri;

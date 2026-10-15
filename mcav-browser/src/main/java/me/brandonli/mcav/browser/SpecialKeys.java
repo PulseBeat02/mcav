@@ -28,11 +28,8 @@ import java.util.Set;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.utils.IoUtils;
 
-/**
- * The key names {@link BrowserPlayer#sendKeyEvent(String)} presses rather than types: the W3C
- * {@code KeyboardEvent.key} values, such as {@code Enter}, {@code Backspace} or {@code ArrowLeft}, listed in the
- * {@code mcav/browser/keybinds.json} resource.
- */
+// The key names BrowserPlayer.sendKeyEvent(String) presses rather than types: the W3C KeyboardEvent.key values, such as
+// Enter, Backspace or ArrowLeft, listed in the mcav/browser/keybinds.json resource.
 final class SpecialKeys {
 
   private static final String RESOURCE = "mcav/browser/keybinds.json";
@@ -47,13 +44,6 @@ final class SpecialKeys {
     return parse(reader);
   }
 
-  /**
-   * Reads a key list, a JSON array of key names, and closes the reader.
-   *
-   * @param reader the reader of the list
-   * @return the key names
-   * @throws BrowserException if the list is empty or cannot be read
-   */
   @VisibleForTesting
   static Set<String> parse(final Reader reader) {
     final Gson gson = GsonProvider.getSimple();
@@ -72,12 +62,7 @@ final class SpecialKeys {
     }
   }
 
-  /**
-   * Checks whether the text is the name of a special key rather than text to type.
-   *
-   * @param text the text passed to {@link BrowserPlayer#sendKeyEvent(String)}
-   * @return true if the text names a key
-   */
+  // Checks whether the text is the name of a special key rather than text to type.
   static boolean isSpecialKey(final String text) {
     Preconditions.checkNotNull(text, "Text must not be null!");
 

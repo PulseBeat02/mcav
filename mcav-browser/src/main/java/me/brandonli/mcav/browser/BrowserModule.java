@@ -50,11 +50,7 @@ public final class BrowserModule implements MCAVModule {
     this.start(temporary);
   }
 
-  /**
-   * Starts the module as {@link #start()} does, with the folders of sessions in another temporary folder.
-   *
-   * @param temporary the temporary folder
-   */
+  // Starts the module as start() does, with the folders of sessions in another temporary folder.
   @VisibleForTesting
   void start(final Path temporary) {
     HelperProcesses.open();

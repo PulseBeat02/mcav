@@ -27,37 +27,27 @@ import java.util.regex.Pattern;
 import org.cef.browser.CefDevToolsClient;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The sound of the page. JCEF hands over no audio of CEF (it has no audio handler), so the page hands it over itself:
- * {@link #SCRIPT} runs in every document before the page's own scripts and plays whatever the document plays through
- * Web Audio and its audio and video elements in one 48 kHz stereo context, whose samples it sends as Base64 of 16-bit
- * little-endian PCM through a DevTools binding. The DevTools client reports every call of the binding as an event,
- * which this listener turns into samples for the server. Every frame of the page that plays sound has a context of its
- * own; the sound of one of them passes at a time, and another may take over after {@value #QUIET_MILLISECONDS} ms of quiet.
- *
- * <p>Every byte of an event comes from the page, which can also call the binding itself before the script takes it
- * away, so an event is only taken when it is exactly a call of the binding with at most
- * {@link HelperProtocol#MAXIMUM_AUDIO_BYTES} of whole frames, and never more than {@value #BUDGET_SECONDS_PER_SECOND}
- * seconds of sound per second pass on; the page could play that sound anyway. Sound of frames that run in another
- * process (those of another site), of media from another site that does not allow it (CORS), of protected media, and
- * of Web Audio contexts of subclasses the page defines is not captured.
- */
+// The sound of the page. JCEF hands over no audio of CEF (it has no audio handler), so the page hands it over itself:
+// SCRIPT runs in every document before the page's own scripts and plays whatever the document plays through Web Audio
+// and its audio and video elements in one 48 kHz stereo context, whose samples it sends as Base64 of 16-bit
+// little-endian PCM through a DevTools binding. The DevTools client reports every call of the binding as an event,
+// which this listener turns into samples for the server. Every frame of the page that plays sound has a context of its
+// own; the sound of one of them passes at a time, and another may take over after QUIET_MILLISECONDS ms of quiet. Every
+// byte of an event comes from the page, which can also call the binding itself before the script takes it away, so an
+// event is only taken when it is exactly a call of the binding with at most HelperProtocol.MAXIMUM_AUDIO_BYTES of whole
+// frames, and never more than BUDGET_SECONDS_PER_SECOND seconds of sound per second pass on; the page could play that
+// sound anyway. Sound of frames that run in another process (those of another site), of media from another site that
+// does not allow it (CORS), of protected media, and of Web Audio contexts of subclasses the page defines is not
+// captured.
 final class PageAudio implements CefDevToolsClient.EventListener {
 
-  /**
-   * The name of the binding, which the script takes away from the page.
-   */
   static final String BINDING = "__mcavAudio";
 
-  /**
-   * The event of a call of a binding.
-   */
   static final String BINDING_EVENT = "Runtime.bindingCalled";
 
-  /**
-   * The script that hands the sound of a document to the binding: it mixes what the top document and the frames of its
-   * origin play into one 48 kHz stereo Web Audio context, whose tap sends 16-bit little-endian PCM, and outputs silence.
-   */
+  // The script that hands the sound of a document to the binding: it mixes what the top document and the frames of its
+  // origin play into one 48 kHz stereo Web Audio context, whose tap sends 16-bit little-endian PCM, and outputs
+  // silence.
   static final String SCRIPT = """
   // mcav: hands what a document plays to the browser helper, see PageAudio.java. Runs in every document before the
   // page's own scripts. Without a sound card every Web Audio context and media element runs on a clock of its own, and
@@ -280,14 +270,10 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   })();
   """;
 
-  /**
-   * How many seconds of sound pass on per second at most, and at once after a quiet time.
-   */
+  // How many seconds of sound pass on per second at most, and at once after a quiet time.
   static final int BUDGET_SECONDS_PER_SECOND = 2;
 
-  /**
-   * How long the frame whose sound passes must be quiet before the sound of another frame may pass, in milliseconds.
-   */
+  // How long the frame whose sound passes must be quiet before the sound of another frame may pass, in milliseconds.
   static final int QUIET_MILLISECONDS = 250;
 
   private static final int BYTES_PER_SECOND = 48_000 * HelperProtocol.AUDIO_FRAME_BYTES;
@@ -312,12 +298,6 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   private long speaker;
   private long spoken;
 
-  /**
-   * Creates the listener.
-   *
-   * @param sink  receives the samples of every event that is taken
-   * @param clock a monotonic clock in nanoseconds
-   */
   PageAudio(final Consumer<byte[]> sink, final LongSupplier clock) {
     this.sink = sink;
     this.clock = clock;
@@ -326,11 +306,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     this.spoken = this.last - TimeUnit.MILLISECONDS.toNanos(QUIET_MILLISECONDS);
   }
 
-  /**
-   * Returns the DevTools calls that let a page hand over its sound: the binding, and the script for every new document.
-   *
-   * @return the calls, to be made before the page loads
-   */
+  // Returns the DevTools calls that let a page hand over its sound: the binding, and the script for every new document.
   static List<DevToolsInput.DevToolsCall> install() {
     final DevToolsInput.DevToolsCall enable = new DevToolsInput.DevToolsCall(ENABLE_RUNTIME_METHOD, "{}");
     final DevToolsInput.DevToolsCall binding = new DevToolsInput.DevToolsCall(
@@ -362,13 +338,8 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     }
   }
 
-  /**
-   * Returns how many bytes of sound an event holds at least, from its length alone, so an event over the budget is refused
-   * before it is decoded.
-   *
-   * @param parameters the parameters of the event
-   * @return the least number of bytes a call of the binding this long decodes to, negative if it may hold none
-   */
+  // Returns how many bytes of sound an event holds at least, from its length alone, so an event over the budget is
+  // refused before it is decoded.
   @VisibleForTesting
   static long leastBytes(final String parameters) {
     return ((parameters.length() - PREFIX.length() - MAXIMUM_TAIL) / BASE64_GROUP_CHARACTERS) * BASE64_GROUP_BYTES - MAXIMUM_BASE64_PADDING;
@@ -426,14 +397,8 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     return true;
   }
 
-  /**
-   * Reads an event: exactly a call of the binding whose payload is Base64 of 16-bit stereo samples, whole frames and at
-   * most {@link HelperProtocol#MAXIMUM_AUDIO_BYTES}.
-   *
-   * @param method     the method of the event
-   * @param parameters the parameters of the event, JSON as Chromium writes it
-   * @return the samples and the context that sent them, or null if the event is anything else
-   */
+  // Reads an event: exactly a call of the binding whose payload is Base64 of 16-bit stereo samples, whole frames and at
+  // most HelperProtocol.MAXIMUM_AUDIO_BYTES.
   @VisibleForTesting
   static @Nullable Chunk parse(final String method, final String parameters) {
     if (!BINDING_EVENT.equals(method) || !parameters.startsWith(PREFIX)) {
@@ -465,39 +430,22 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     return new Chunk(context, samples);
   }
 
-  /**
-   * Samples of sound and the execution context of the frame that sent them.
-   */
+  // Samples of sound and the execution context of the frame that sent them.
   static final class Chunk {
 
     private final long context;
     private final byte[] samples;
 
-    /**
-     * Creates a chunk.
-     *
-     * @param context the id of the execution context
-     * @param samples 16-bit little-endian stereo samples at 48 kHz, whole frames, which the chunk owns
-     */
     private Chunk(final long context, final byte[] samples) {
       this.context = context;
       this.samples = samples;
     }
 
-    /**
-     * Returns the execution context of the frame that sent the samples.
-     *
-     * @return the id of the context
-     */
     long context() {
       return this.context;
     }
 
-    /**
-     * Returns the samples, which the receiver owns: they are not copied.
-     *
-     * @return the samples
-     */
+    // Returns the samples, which the receiver owns: they are not copied.
     byte[] samples() {
       return this.samples;
     }

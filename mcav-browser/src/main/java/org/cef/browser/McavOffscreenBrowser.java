@@ -342,9 +342,6 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
     void onPopupSize(Rectangle bounds);
   }
 
-  /**
-   * A component that is never added to a window.
-   */
   private static final class DetachedComponent extends Component {
 
     @Serial

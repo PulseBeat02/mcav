@@ -24,15 +24,11 @@ import java.util.List;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The browser helper sessions that are running in this JVM, so that stopping the browser module ends every helper
- * process, including those of players nobody released.
- *
- * <p>Once {@link #closeAll()} has run, no session may start until {@link #open()}: a browser that was still starting,
- * for example while the browser was downloaded, is refused when its helper connects, and ends. A stop also begins a
- * new generation, so a session that began to start before it is refused even when the module has started again
- * meanwhile, as after a plugin disable and enable.
- */
+// The browser helper sessions that are running in this JVM, so that stopping the browser module ends every helper
+// process, including those of players nobody released. Once closeAll() has run, no session may start until open(): a
+// browser that was still starting, for example while the browser was downloaded, is refused when its helper connects,
+// and ends. A stop also begins a new generation, so a session that began to start before it is refused even when the
+// module has started again meanwhile, as after a plugin disable and enable.
 final class HelperProcesses {
 
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
@@ -44,19 +40,11 @@ final class HelperProcesses {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Lets sessions start again, once the browser module starts.
-   */
   static synchronized void open() {
     stopped = false;
   }
 
-  /**
-   * Checks that sessions may start, before anything is installed or launched for one.
-   *
-   * @return the generation of the module, which a session that starts now registers with
-   * @throws BrowserException if the browser module has been stopped
-   */
+  // Checks that sessions may start, before anything is installed or launched for one.
   static synchronized long requireOpen() {
     if (stopped) {
       throw new BrowserException("The browser module is stopped!");
@@ -65,13 +53,7 @@ final class HelperProcesses {
     return generation;
   }
 
-  /**
-   * Remembers a running session, unless the browser module has been stopped since the session began to start.
-   *
-   * @param session the session
-   * @param started the generation {@link #requireOpen()} gave when the session began to start
-   * @return true if the session is remembered, false if it must end because the module has been stopped since
-   */
+  // Remembers a running session, unless the browser module has been stopped since the session began to start.
   static synchronized boolean register(final HelperSession session, final long started) {
     if (stopped || started != generation) {
       return false;
@@ -82,28 +64,16 @@ final class HelperProcesses {
     return true;
   }
 
-  /**
-   * Forgets a session that is closing.
-   *
-   * @param session the session
-   */
   static synchronized void deregister(final HelperSession session) {
     SESSIONS.remove(session);
   }
 
-  /**
-   * Counts the running sessions.
-   *
-   * @return the number of sessions
-   */
   static synchronized int count() {
     return SESSIONS.size();
   }
 
-  /**
-   * Ends every running session, which its player hears of, and lets no session start until {@link #open()}. Every
-   * session ends even if the listener of another one fails, and the first such failure is thrown once all have ended.
-   */
+  // Ends every running session, which its player hears of, and lets no session start until open(). Every session ends
+  // even if the listener of another one fails, and the first such failure is thrown once all have ended.
   static void closeAll() {
     final List<HelperSession> running;
     synchronized (HelperProcesses.class) {

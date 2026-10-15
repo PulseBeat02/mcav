@@ -31,100 +31,65 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntFunction;
 
-/**
- * The messages between the server and the browser helper process, and their binary form.
- *
- * <p>Every message is a type byte, a 32-bit payload length and the payload, all big-endian. The helper runs web
- * content without the Chromium sandbox, so the server treats everything it receives as untrusted: every length is
- * checked against the limit of its message type before anything is allocated, every size and position against the
- * page, and every string is decoded strictly. A message that breaks a rule ends the connection with a
- * {@link ProtocolException}.
- *
- * <p>From the helper: {@link #HELLO} (the session token, first), {@link #READY} (the browser exists),
- * {@link #FRAME} (a changed region of the page, four bytes per pixel in BGRA order), {@link #LOADING},
- * {@link #LOAD_ERROR}, {@link #NOTICE} and {@link #FAILURE}. From the server: {@link #MOUSE}, {@link #KEY} and
- * {@link #CLOSE}.
- */
+// The messages between the server and the browser helper process, and their binary form. Every message is a type byte,
+// a 32-bit payload length and the payload, all big-endian. The helper runs web content without the Chromium sandbox, so
+// the server treats everything it receives as untrusted: every length is checked against the limit of its message type
+// before anything is allocated, every size and position against the page, and every string is decoded strictly. A
+// message that breaks a rule ends the connection with a ProtocolException. From the helper: HELLO (the session token,
+// first), READY (the browser exists), FRAME (a changed region of the page, four bytes per pixel in BGRA order),
+// LOADING, LOAD_ERROR, NOTICE and FAILURE. From the server: MOUSE, KEY and CLOSE.
 final class HelperProtocol {
 
-  /**
-   * The version of the protocol, sent in {@link #HELLO}.
-   */
   static final int VERSION = 1;
 
-  /**
-   * The length of the session token in bytes.
-   */
   static final int TOKEN_BYTES = 32;
 
-  /**
-   * The largest width or height of a page in pixels.
-   */
   static final int MAXIMUM_SIDE = 4096;
 
-  /**
-   * The largest string in a message, in UTF-8 bytes.
-   */
   static final int MAXIMUM_TEXT_BYTES = 4096;
 
-  /**
-   * The bytes per pixel of a frame.
-   */
   static final int PIXEL_BYTES = 4;
 
-  /**
-   * The bytes of one frame of sound: a 16-bit sample for each of the two channels.
-   */
+  // The bytes of one frame of sound: a 16-bit sample for each of the two channels.
   static final int AUDIO_FRAME_BYTES = 4;
 
-  /**
-   * The largest message of sound in bytes: 16384 frames, a third of a second at 48 kHz.
-   */
+  // The largest message of sound in bytes: 16384 frames, a third of a second at 48 kHz.
   static final int MAXIMUM_AUDIO_BYTES = 65_536;
 
-  /** The token and protocol version of a new helper: {@code byte[32] token, u16 version}. */
+  // The token and protocol version of a new helper: byte[32] token, u16 version.
   static final int HELLO = 1;
-  /** The browser was created: {@code string cefVersion}. */
+  // The browser was created: string cefVersion.
   static final int READY = 2;
-  /** A changed region: {@code u16 pageWidth, u16 pageHeight, u16 x, u16 y, u16 width, u16 height, pixels}. */
+  // A changed region: u16 pageWidth, u16 pageHeight, u16 x, u16 y, u16 width, u16 height, pixels.
   static final int FRAME = 3;
-  /** Whether the page is loading: {@code u8 loading}. */
+  // Whether the page is loading: u8 loading.
   static final int LOADING = 4;
-  /** The page failed to load: {@code i32 code, string text, string url}. */
+  // The page failed to load: i32 code, string text, string url.
   static final int LOAD_ERROR = 5;
-  /** Something the helper refused or changed, for the log: {@code string text}. */
+  // Something the helper refused or changed, for the log: string text.
   static final int NOTICE = 6;
-  /** The helper cannot go on and exits: {@code string text}. */
+  // The helper cannot go on and exits: string text.
   static final int FAILURE = 7;
 
-  /** Sound of the page: {@code pcm}, 16-bit little-endian stereo samples at 48 kHz, whole frames. */
+  // Sound of the page: pcm, 16-bit little-endian stereo samples at 48 kHz, whole frames.
   static final int AUDIO = 8;
-  /** Mouse input: {@code u8 action, u16 x, u16 y, u8 button, u8 clickCount, i16 deltaX, i16 deltaY}. */
+  // Mouse input: u8 action, u16 x, u16 y, u8 button, u8 clickCount, i16 deltaX, i16 deltaY.
   static final int MOUSE = 16;
-  /** Keyboard input: {@code u8 action, string value}. */
+  // Keyboard input: u8 action, string value.
   static final int KEY = 17;
-  /** Close the browser and exit: no payload. */
+  // Close the browser and exit: no payload.
   static final int CLOSE = 18;
 
-  /** A mouse move. */
   static final int MOUSE_MOVE = 0;
-  /** A mouse button goes down. */
   static final int MOUSE_PRESS = 1;
-  /** A mouse button goes up. */
   static final int MOUSE_RELEASE = 2;
-  /** A turn of the mouse wheel. */
   static final int MOUSE_WHEEL = 3;
 
-  /** The left mouse button. */
   static final int BUTTON_LEFT = 0;
-  /** The middle mouse button. */
   static final int BUTTON_MIDDLE = 1;
-  /** The right mouse button. */
   static final int BUTTON_RIGHT = 2;
 
-  /** Press and release a named key, such as {@code Enter}. */
   static final int KEY_PRESS = 0;
-  /** Type text character by character. */
   static final int KEY_TYPE = 1;
 
   private static final int FRAME_HEADER_BYTES = 12;
@@ -147,13 +112,6 @@ final class HelperProtocol {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Writes the first message of a helper.
-   *
-   * @param output   the stream
-   * @param token the session token
-   * @throws IOException if the stream fails
-   */
   static void writeHello(final DataOutput output, final byte[] token) throws IOException {
     if (token.length != TOKEN_BYTES) {
       final String message = "Token length %s must be %s bytes!".formatted(token.length, TOKEN_BYTES);
@@ -166,14 +124,6 @@ final class HelperProtocol {
     output.writeShort(VERSION);
   }
 
-  /**
-   * Writes a message that carries one string.
-   *
-   * @param output  the stream
-   * @param type {@link #READY}, {@link #NOTICE} or {@link #FAILURE}
-   * @param text the string, cut to {@link #MAXIMUM_TEXT_BYTES} bytes
-   * @throws IOException if the stream fails
-   */
   static void writeText(final DataOutput output, final int type, final String text) throws IOException {
     final byte[] bytes = encode(text);
     output.writeByte(type);
@@ -181,28 +131,12 @@ final class HelperProtocol {
     writeString(output, bytes);
   }
 
-  /**
-   * Writes whether the page is loading.
-   *
-   * @param output     the stream
-   * @param loading true while the page loads
-   * @throws IOException if the stream fails
-   */
   static void writeLoading(final DataOutput output, final boolean loading) throws IOException {
     output.writeByte(LOADING);
     output.writeInt(LOADING_BYTES);
     output.writeByte(loading ? 1 : 0);
   }
 
-  /**
-   * Writes that the page failed to load.
-   *
-   * @param output  the stream
-   * @param code the network error code of Chromium
-   * @param text the description of the error
-   * @param url  the address that failed
-   * @throws IOException if the stream fails
-   */
   static void writeLoadError(final DataOutput output, final int code, final String text, final String url) throws IOException {
     final byte[] textBytes = encode(text);
     final byte[] urlBytes = encode(url);
@@ -213,13 +147,6 @@ final class HelperProtocol {
     writeString(output, urlBytes);
   }
 
-  /**
-   * Writes a changed region of the page.
-   *
-   * @param output    the stream
-   * @param region the region, whose pixels are written from the start of its array
-   * @throws IOException if the stream fails
-   */
   static void writeFrame(final DataOutput output, final FrameRegion region) throws IOException {
     final int pixelBytes = region.getPixelBytes();
     output.writeByte(FRAME);
@@ -234,14 +161,6 @@ final class HelperProtocol {
     output.write(pixels, 0, pixelBytes);
   }
 
-  /**
-   * Writes sound of the page.
-   *
-   * @param output     the stream
-   * @param samples the samples, 16-bit little-endian stereo at 48 kHz, from the start of the array
-   * @param length  the number of bytes of samples, whole frames and at most {@link #MAXIMUM_AUDIO_BYTES}
-   * @throws IOException if the stream fails
-   */
   static void writeAudio(final DataOutput output, final byte[] samples, final int length) throws IOException {
     if (length <= 0 || length > MAXIMUM_AUDIO_BYTES || length % AUDIO_FRAME_BYTES != 0 || length > samples.length) {
       final String message = "Sound of %s bytes cannot be sent!".formatted(length);
@@ -253,13 +172,6 @@ final class HelperProtocol {
     output.write(samples, 0, length);
   }
 
-  /**
-   * Writes mouse input.
-   *
-   * @param output   the stream
-   * @param input the input
-   * @throws IOException if the stream fails
-   */
   static void writeMouse(final DataOutput output, final MouseInput input) throws IOException {
     output.writeByte(MOUSE);
     output.writeInt(MOUSE_BYTES);
@@ -272,14 +184,6 @@ final class HelperProtocol {
     output.writeShort(input.getDeltaY());
   }
 
-  /**
-   * Writes keyboard input.
-   *
-   * @param output    the stream
-   * @param action {@link #KEY_PRESS} or {@link #KEY_TYPE}
-   * @param value  the key name or the text, cut to {@link #MAXIMUM_TEXT_BYTES} bytes
-   * @throws IOException if the stream fails
-   */
   static void writeKey(final DataOutput output, final int action, final String value) throws IOException {
     final byte[] bytes = encode(value);
     output.writeByte(KEY);
@@ -288,28 +192,11 @@ final class HelperProtocol {
     writeString(output, bytes);
   }
 
-  /**
-   * Writes the request to close the browser.
-   *
-   * @param output the stream
-   * @throws IOException if the stream fails
-   */
   static void writeClose(final DataOutput output) throws IOException {
     output.writeByte(CLOSE);
     output.writeInt(0);
   }
 
-  /**
-   * Reads the next message.
-   *
-   * @param input     the stream
-   * @param pixels supplies an array for the pixels of a frame, which may be reused once the message has been handled;
-   *               an array shorter than the frame means frames are not expected here, which ends the reading
-   * @return the message
-   * @throws java.io.EOFException if the stream ends before or inside a message
-   * @throws ProtocolException    if the message breaks a rule of the protocol
-   * @throws IOException          if the stream fails
-   */
   static HelperMessage read(final DataInput input, final IntFunction<byte[]> pixels) throws IOException {
     final int type = input.readUnsignedByte();
     final int length = input.readInt();
@@ -508,13 +395,8 @@ final class HelperProtocol {
     output.write(bytes);
   }
 
-  /**
-   * Splits a text into parts that each fit into one message, at character boundaries and never between the two
-   * characters of a line break {@code \r\n}, so a long text can be sent as several messages without losing any of it.
-   *
-   * @param text the text
-   * @return the parts, in order; an empty text is one empty part
-   */
+  // Splits a text into parts that each fit into one message, at character boundaries and never between the two
+  // characters of a line break \r\n, so a long text can be sent as several messages without losing any of it.
   static List<String> split(final String text) {
     final List<String> parts = new ArrayList<>();
     int start = 0;
@@ -538,12 +420,7 @@ final class HelperProtocol {
     return parts;
   }
 
-  /**
-   * Counts the bytes of a character in UTF-8; an unpaired surrogate, which Java encodes as one byte, counts three.
-   *
-   * @param codePoint the character
-   * @return the bytes, from 1 to 4
-   */
+  // Counts the bytes of a character in UTF-8; an unpaired surrogate, which Java encodes as one byte, counts three.
   private static int utf8Length(final int codePoint) {
     if (codePoint < UTF8_TWO_BYTE_START) {
       return 1;
@@ -556,12 +433,7 @@ final class HelperProtocol {
     return codePoint < UTF8_FOUR_BYTE_START ? 3 : 4;
   }
 
-  /**
-   * Encodes a string as UTF-8, cut at a character boundary to at most {@link #MAXIMUM_TEXT_BYTES} bytes.
-   *
-   * @param text the string
-   * @return the bytes
-   */
+  // Encodes a string as UTF-8, cut at a character boundary to at most MAXIMUM_TEXT_BYTES bytes.
   static byte[] encode(final String text) {
     final byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
     if (bytes.length <= MAXIMUM_TEXT_BYTES) {

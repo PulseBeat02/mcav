@@ -23,46 +23,30 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/**
- * Turns input for the browser into DevTools protocol calls ({@code Input.dispatchMouseEvent} and
- * {@code Input.dispatchKeyEvent}), which CEF executes inside the browser without any debugging port.
- *
- * <p>The DevTools input methods behave the same on every operating system, unlike the key events of JCEF, which are
- * translated per platform and lose keys such as Page Down. Named keys follow the W3C {@code KeyboardEvent.key} values
- * and carry the Windows virtual key code and physical key code of a US keyboard where one exists; text is typed one
- * character at a time as a key press that inserts the character, which is what typing it on a keyboard does.
- */
+// Turns input for the browser into DevTools protocol calls (Input.dispatchMouseEvent and Input.dispatchKeyEvent), which
+// CEF executes inside the browser without any debugging port. The DevTools input methods behave the same on every
+// operating system, unlike the key events of JCEF, which are translated per platform and lose keys such as Page Down.
+// Named keys follow the W3C KeyboardEvent.key values and carry the Windows virtual key code and physical key code of a
+// US keyboard where one exists; text is typed one character at a time as a key press that inserts the character, which
+// is what typing it on a keyboard does.
 final class DevToolsInput {
 
-  /**
-   * The DevTools method of mouse events.
-   */
   static final String MOUSE_METHOD = "Input.dispatchMouseEvent";
 
-  /**
-   * The DevTools method of key events.
-   */
   static final String KEY_METHOD = "Input.dispatchKeyEvent";
 
-  /**
-   * The DevTools method that runs a script in every new document of the page.
-   */
+  // The DevTools method that runs a script in every new document of the page.
   static final String ADD_SCRIPT_METHOD = "Page.addScriptToEvaluateOnNewDocument";
 
-  /**
-   * The DevTools method that enables the page domain.
-   */
   static final String ENABLE_PAGE_METHOD = "Page.enable";
 
-  /**
-   * Opens new windows in place. An off-screen JCEF browser cancels every popup before the helper hears of it, so
-   * {@code window.open} and links and forms that target another window would do nothing. This script, which runs in
-   * every frame before the page's own scripts, sends them to the page itself instead, but only during a click or a
-   * key, as Chromium's popup blocker allows a popup: {@code window.open} and a click on such a link navigate the top
-   * frame, for {@code http} and {@code https} addresses only, and such a form, or a form sent by a button that targets
-   * another window, is submitted into its own frame. A link or form that targets a frame of the page by its name is left
-   * to the page. Every navigation still goes through the navigation policy of the helper.
-   */
+  // Opens new windows in place. An off-screen JCEF browser cancels every popup before the helper hears of it, so
+  // window.open and links and forms that target another window would do nothing. This script, which runs in every frame
+  // before the page's own scripts, sends them to the page itself instead, but only during a click or a key, as
+  // Chromium's popup blocker allows a popup: window.open and a click on such a link navigate the top frame, for http
+  // and https addresses only, and such a form, or a form sent by a button that targets another window, is submitted
+  // into its own frame. A link or form that targets a frame of the page by its name is left to the page. Every
+  // navigation still goes through the navigation policy of the helper.
   static final String OPEN_IN_PLACE_SCRIPT = """
   (() => {
     // the helper places the script again when it could not tell whether the first time worked; once is enough
@@ -221,14 +205,8 @@ final class DevToolsInput {
     return Map.copyOf(keys);
   }
 
-  /**
-   * Builds the DevTools calls of one mouse event. Every event carries the buttons that are held while it happens, so a
-   * page sees a move with a held button as a drag.
-   *
-   * @param input the event
-   * @param held  the buttons held before the event, as the bits of the DevTools {@code buttons} field
-   * @return the calls, in order
-   */
+  // Builds the DevTools calls of one mouse event. Every event carries the buttons that are held while it happens, so a
+  // page sees a move with a held button as a drag.
   static List<DevToolsCall> mouse(final MouseInput input, final int held) {
     final int pageX = input.getX();
     final int pageY = input.getY();
@@ -252,13 +230,7 @@ final class DevToolsInput {
     return List.of(call);
   }
 
-  /**
-   * Returns the buttons held after a mouse event: a press adds its button, a release takes it away.
-   *
-   * @param input the event
-   * @param held  the buttons held before, as the bits of the DevTools {@code buttons} field
-   * @return the buttons held after
-   */
+  // Returns the buttons held after a mouse event: a press adds its button, a release takes it away.
   static int heldAfter(final MouseInput input, final int held) {
     final int bit = BUTTON_BITS[input.getButton()];
     return switch (input.getAction()) {
@@ -285,23 +257,10 @@ final class DevToolsInput {
     return ",\"button\":\"" + button + "\",\"clickCount\":" + clickCount;
   }
 
-  /**
-   * Checks whether a text names a key that can be pressed.
-   *
-   * @param name the text
-   * @return true if the key has a definition
-   */
   static boolean isKnownKey(final String name) {
     return KEYS.containsKey(name);
   }
 
-  /**
-   * Builds the DevTools calls that press and release a named key.
-   *
-   * @param name the W3C name of the key, such as {@code Enter}; a name without a definition is pressed with only its
-   *             name
-   * @return the calls, in order
-   */
   static List<DevToolsCall> pressKey(final String name) {
     final KeyDefinition definition = KEYS.get(name);
     final String quotedName = quote(name);
@@ -323,13 +282,7 @@ final class DevToolsInput {
     return calls;
   }
 
-  /**
-   * Builds the DevTools calls that type a text, one key press per character. A line break presses Enter, once for
-   * {@code \r\n}.
-   *
-   * @param text the text
-   * @return the calls, in order
-   */
+  // Builds the DevTools calls that type a text, one key press per character. A line break presses Enter, once for \r\n.
   static List<DevToolsCall> typeText(final String text) {
     final List<DevToolsCall> calls = new ArrayList<>();
     final int[] codePoints = text.codePoints().toArray();
@@ -355,13 +308,8 @@ final class DevToolsInput {
     return calls;
   }
 
-  /**
-   * Returns the Windows virtual key code of a character on a US keyboard: letters and digits have one, other characters
-   * are typed without.
-   *
-   * @param codePoint the character
-   * @return the key code, or 0
-   */
+  // Returns the Windows virtual key code of a character on a US keyboard: letters and digits have one, other characters
+  // are typed without.
   static int virtualKeyCode(final int codePoint) {
     if (codePoint >= 'a' && codePoint <= 'z') {
       return codePoint - 'a' + 'A';
@@ -372,12 +320,6 @@ final class DevToolsInput {
     return upperCase || isDigit ? codePoint : 0;
   }
 
-  /**
-   * Writes a string as a JSON string literal.
-   *
-   * @param value the string
-   * @return the literal with its quotes
-   */
   static String quote(final String value) {
     final StringBuilder builder = new StringBuilder(value.length() + QUOTE_CHARACTERS);
     builder.append('"');
@@ -405,21 +347,14 @@ final class DevToolsInput {
     }
   }
 
-  /**
-   * Builds the DevTools calls that run {@link #OPEN_IN_PLACE_SCRIPT} in every new document, before the scripts of the
-   * page: the page domain, without which the script is never run, and the script.
-   *
-   * @return the calls, in order
-   */
+  // Builds the DevTools calls that run OPEN_IN_PLACE_SCRIPT in every new document, before the scripts of the page: the
+  // page domain, without which the script is never run, and the script.
   static List<DevToolsCall> openWindowsInPlace() {
     final DevToolsCall enable = new DevToolsCall(ENABLE_PAGE_METHOD, "{}");
     final DevToolsCall script = new DevToolsCall(ADD_SCRIPT_METHOD, "{\"source\":" + quote(OPEN_IN_PLACE_SCRIPT) + "}");
     return List.of(enable, script);
   }
 
-  /**
-   * A DevTools method and its parameters as a JSON object.
-   */
   static final class DevToolsCall {
 
     private final String method;
@@ -439,9 +374,7 @@ final class DevToolsInput {
     }
   }
 
-  /**
-   * The physical key and Windows virtual key code of a named key, and the text it types.
-   */
+  // The physical key and Windows virtual key code of a named key, and the text it types.
   private static final class KeyDefinition {
 
     private final String code;

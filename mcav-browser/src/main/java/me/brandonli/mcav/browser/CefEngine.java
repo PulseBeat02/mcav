@@ -44,19 +44,15 @@ import org.cef.browser.CefDevToolsClient;
 import org.cef.browser.McavOffscreenBrowser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The CEF browser of the helper process, started through jcefmaven's {@link CefAppBuilder} from the installation the
- * server prepared (the helper never downloads anything itself).
- *
- * <p>CEF runs with windowless rendering on its external message pump, which JCEF drives from the AWT event thread;
- * that thread exists in a headless JVM too, and no window is ever opened. Chromium is started with the headless
- * platform on Linux, without GPU, without sound, without extensions, background networking or component updates,
- * denying every permission prompt, with a mock keychain on macOS and a basic password store on Linux, and with V8's
- * JIT compiler off unless the configuration allows it. The profile lives in the folder the server gave, and the
- * remote debugging port stays closed. Unless the configuration allows private networks, every connection goes
- * through a {@link NetworkGuard} that lets pages reach public addresses only. Chromium starts on a thread of its own,
- * which {@link ChromiumConfinement} confines first where the configuration asks for it.
- */
+// The CEF browser of the helper process, started through jcefmaven's CefAppBuilder from the installation the server
+// prepared (the helper never downloads anything itself). CEF runs with windowless rendering on its external message
+// pump, which JCEF drives from the AWT event thread; that thread exists in a headless JVM too, and no window is ever
+// opened. Chromium is started with the headless platform on Linux, without GPU, without sound, without extensions,
+// background networking or component updates, denying every permission prompt, with a mock keychain on macOS and a
+// basic password store on Linux, and with V8's JIT compiler off unless the configuration allows it. The profile lives
+// in the folder the server gave, and the remote debugging port stays closed. Unless the configuration allows private
+// networks, every connection goes through a NetworkGuard that lets pages reach public addresses only. Chromium starts
+// on a thread of its own, which ChromiumConfinement confines first where the configuration asks for it.
 final class CefEngine implements HelperEngine {
 
   private static final long STOP_TIMEOUT_MILLISECONDS = 10_000L;
@@ -127,22 +123,10 @@ final class CefEngine implements HelperEngine {
   private volatile @Nullable CefClient client;
   private volatile @Nullable McavOffscreenBrowser browser;
 
-  /**
-   * Constructs an engine that has not started yet.
-   */
   CefEngine() {
     this.terminated = new CountDownLatch(1);
   }
 
-  /**
-   * Builds the command-line switches of Chromium.
-   *
-   * @param configuration the configuration of the helper
-   * @param system        the operating system the helper runs on
-   * @param guardPort     the port of the network guard on the loopback interface, or 0 if pages may reach any address
-   * @param display       the name of the helper's null display on Linux, or null elsewhere
-   * @return the switches
-   */
   static List<String> createSwitches(
     final HelperConfiguration configuration,
     final OperatingSystem system,
@@ -208,13 +192,8 @@ final class CefEngine implements HelperEngine {
     return switches;
   }
 
-  /**
-   * Configures the settings of CEF: windowless rendering, the profile folder, no persistent cookies, no remote
-   * debugging port, and warnings and errors only in the log.
-   *
-   * @param settings      the settings to change
-   * @param configuration the configuration of the helper
-   */
+  // Configures the settings of CEF: windowless rendering, the profile folder, no persistent cookies, no remote
+  // debugging port, and warnings and errors only in the log.
   static void configureSettings(final CefSettings settings, final HelperConfiguration configuration) {
     final Path profile = configuration.getProfile();
     final String profilePath = profile.toString();
@@ -266,14 +245,8 @@ final class CefEngine implements HelperEngine {
     return null;
   }
 
-  /**
-   * Runs a task on a new thread and waits for it, so that a restriction the task puts on its thread holds for that
-   * thread and what it starts only.
-   *
-   * @param name the name of the thread
-   * @param task the task
-   * @throws Exception what the task threw
-   */
+  // Runs a task on a new thread and waits for it, so that a restriction the task puts on its thread holds for that
+  // thread and what it starts only.
   @VisibleForTesting
   static void runOnOwnThread(final String name, final Callable<?> task) throws Exception {
     final FutureTask<?> future = new FutureTask<>(task);
@@ -352,14 +325,7 @@ final class CefEngine implements HelperEngine {
     client.addLoadHandler(policy);
   }
 
-  /**
-   * Starts the null display the helper needs on Linux, where JCEF asks for an X display once.
-   *
-   * @param system    the operating system the helper runs on
-   * @param authority the authority file of the display
-   * @return the running display, or null elsewhere
-   * @throws IOException if the display cannot listen
-   */
+  // Starts the null display the helper needs on Linux, where JCEF asks for an X display once.
   static @Nullable NullDisplay startDisplay(final OperatingSystem system, final Path authority) throws IOException {
     if (system != OperatingSystem.LINUX) {
       return null;
@@ -368,24 +334,16 @@ final class CefEngine implements HelperEngine {
     return NullDisplay.start(authority);
   }
 
-  /**
-   * Prepares a browser that was just created on the empty document, on CEF's thread, and then loads its page: the
-   * script that opens new windows in place and the one that hands over the sound of the page are added to every
-   * document it will show, and the listener of the sound hears the DevTools events. The browser of the helper is
-   * off-screen, so JCEF cancels every popup before the policy hears of it. The calls reach the page asynchronously, so
-   * the page is only loaded once the answer to the last of them says the scripts are in place: a page loaded before
-   * would miss them. A DevTools client of JCEF can lose its answers, and with them the events of the page, so without
-   * an answer in time the client is closed and a new one places the scripts again, which run once in a document
-   * however often they are placed. After the last attempt, or on a failure, the page is loaded anyway and a notice says
-   * so; the page then may lack its sound and open new windows nowhere, until the answer of the last attempt arrives
-   * after all, as it does late on a busy machine: then the page loads again, and its new document runs the scripts.
-   *
-   * @param created       the browser
-   * @param url           the address of the page
-   * @param timeoutMilliseconds how long to wait for the answer of one attempt at most
-   * @param audio         hears the sound of the page
-   * @param notices       hears that the page was loaded without the confirmation
-   */
+  // Prepares a browser that was just created on the empty document, on CEF's thread, and then loads its page: the
+  // script that opens new windows in place and the one that hands over the sound of the page are added to every
+  // document it will show, and the listener of the sound hears the DevTools events. The browser of the helper is
+  // off-screen, so JCEF cancels every popup before the policy hears of it. The calls reach the page asynchronously, so
+  // the page is only loaded once the answer to the last of them says the scripts are in place: a page loaded before
+  // would miss them. A DevTools client of JCEF can lose its answers, and with them the events of the page, so without
+  // an answer in time the client is closed and a new one places the scripts again, which run once in a document however
+  // often they are placed. After the last attempt, or on a failure, the page is loaded anyway and a notice says so; the
+  // page then may lack its sound and open new windows nowhere, until the answer of the last attempt arrives after all,
+  // as it does late on a busy machine: then the page loads again, and its new document runs the scripts.
   static void openPage(
     final CefBrowser created,
     final String url,
@@ -477,12 +435,6 @@ final class CefEngine implements HelperEngine {
     EventQueue.invokeLater(() -> execute(current.getDevToolsClient(), calls));
   }
 
-  /**
-   * Describes the version of CEF and Chromium.
-   *
-   * @param version the version JCEF reports, or null if it reports none
-   * @return the description, such as {@code 152.0.6 (Chromium 152.0.7977.83)}
-   */
   static String describe(final CefApp.@Nullable CefVersion version) {
     if (version == null) {
       return UNKNOWN_VERSION;
@@ -491,12 +443,6 @@ final class CefEngine implements HelperEngine {
     return version.getCefVersion() + " (Chromium " + version.getChromeVersion() + ")";
   }
 
-  /**
-   * Sends DevTools calls without waiting for their answers.
-   *
-   * @param devTools the DevTools client of the browser, or null once the browser is closing
-   * @param calls    the calls
-   */
   static void execute(final @Nullable CefDevToolsClient devTools, final List<DevToolsInput.DevToolsCall> calls) {
     if (devTools == null) {
       return;
@@ -510,12 +456,6 @@ final class CefEngine implements HelperEngine {
     }
   }
 
-  /**
-   * Writes a failed DevTools call to the log of the helper.
-   *
-   * @param failure why the call failed
-   * @return nothing, as nobody reads the result of an input call
-   */
   @VisibleForTesting
   static String logFailedCall(final Throwable failure) {
     System.err.println("A DevTools call failed (%s).".formatted(failure));
@@ -546,13 +486,7 @@ final class CefEngine implements HelperEngine {
     }
   }
 
-  /**
-   * Closes the browser and disposes of the client and of CEF, as far as they were created.
-   *
-   * @param browser the browser, or null if it was never created
-   * @param client  the client, or null if it was never created
-   * @param app     CEF
-   */
+  // Closes the browser and disposes of the client and of CEF, as far as they were created.
   static void close(final @Nullable McavOffscreenBrowser browser, final @Nullable CefClient client, final CefApp app) {
     if (browser != null) {
       browser.setCloseAllowed();
@@ -564,14 +498,8 @@ final class CefEngine implements HelperEngine {
     app.dispose();
   }
 
-  /**
-   * Runs the shutdown on the event thread, CEF's thread, and waits for CEF to terminate. A failed shutdown is written
-   * to the log of the helper, and an interrupt ends the waiting and is kept.
-   *
-   * @param shutdown      the shutdown
-   * @param terminated    counts down when CEF has terminated
-   * @param timeoutMilliseconds how long to wait for CEF at most
-   */
+  // Runs the shutdown on the event thread, CEF's thread, and waits for CEF to terminate. A failed shutdown is written
+  // to the log of the helper, and an interrupt ends the waiting and is kept.
   static void shutDown(final Runnable shutdown, final CountDownLatch terminated, final long timeoutMilliseconds) {
     try {
       EventQueue.invokeAndWait(shutdown);
@@ -585,9 +513,7 @@ final class CefEngine implements HelperEngine {
     }
   }
 
-  /**
-   * Counts down when CEF has terminated, and reports a CEF that failed to initialize, which leaves nothing to show.
-   */
+  // Counts down when CEF has terminated, and reports a CEF that failed to initialize, which leaves nothing to show.
   static final class StateListener extends MavenCefAppHandlerAdapter {
 
     private final CountDownLatch terminated;

@@ -19,10 +19,8 @@ package me.brandonli.mcav.browser;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * A message read by {@link HelperProtocol}: its type and the values of that type. Values a type does not carry are
- * empty, zero or null.
- */
+// A message read by HelperProtocol: its type and the values of that type. Values a type does not carry are empty, zero
+// or null.
 final class HelperMessage {
 
   private static final byte[] NO_TOKEN = new byte[0];
@@ -68,12 +66,6 @@ final class HelperMessage {
     this.samples = samples;
   }
 
-  /**
-   * Creates sound of the page.
-   *
-   * @param samples the samples, 16-bit little-endian stereo at 48 kHz, which the message owns
-   * @return the message
-   */
   static HelperMessage audio(final byte[] samples) {
     return new HelperMessage(HelperProtocol.AUDIO, NO_TOKEN, 0, "", "", null, null, samples);
   }
@@ -110,12 +102,6 @@ final class HelperMessage {
     return new HelperMessage(HelperProtocol.CLOSE, NO_TOKEN, 0, "", "", null, null);
   }
 
-  /**
-   * Returns the region of a frame.
-   *
-   * @return the region
-   * @throws IllegalStateException if the message is not a frame
-   */
   FrameRegion getRegion() {
     final FrameRegion current = this.region;
     if (current == null) {
@@ -126,12 +112,6 @@ final class HelperMessage {
     return current;
   }
 
-  /**
-   * Returns the event of mouse input.
-   *
-   * @return the event
-   * @throws IllegalStateException if the message is not mouse input
-   */
   MouseInput getMouse() {
     final MouseInput current = this.mouse;
     if (current == null) {
@@ -142,57 +122,32 @@ final class HelperMessage {
     return current;
   }
 
-  /**
-   * Returns the session token of a {@link HelperProtocol#HELLO}.
-   *
-   * @return the token, or an empty array for other types
-   */
   byte[] getToken() {
     return this.token.clone();
   }
 
-  /**
-   * Returns the type of the message, one of the message constants of {@link HelperProtocol}.
-   *
-   * @return the type
-   */
+  // Returns the type of the message, one of the message constants of HelperProtocol.
   int getType() {
     return this.type;
   }
 
-  /**
-   * Returns the number of the message: the protocol version of a hello, 1 or 0 for loading, the error code of a load
-   * error, or the action of a key message.
-   *
-   * @return the number, or 0 for types without one
-   */
+  // Returns the number of the message: the protocol version of a hello, 1 or 0 for loading, the error code of a load
+  // error, or the action of a key message.
   int getNumber() {
     return this.number;
   }
 
-  /**
-   * Returns the string of the message: the CEF version, the notice, the failure, the error text, or the key name or text.
-   *
-   * @return the string, or an empty string for types without one
-   */
+  // Returns the string of the message: the CEF version, the notice, the failure, the error text, or the key name or
+  // text.
   String getText() {
     return this.text;
   }
 
-  /**
-   * Returns the address of a load error.
-   *
-   * @return the address, or an empty string for other types
-   */
   String getUrl() {
     return this.url;
   }
 
-  /**
-   * Returns the samples of sound, which the receiver owns: they are not copied.
-   *
-   * @return the samples, or an empty array for other types
-   */
+  // Returns the samples of sound, which the receiver owns: they are not copied.
   byte[] getSamples() {
     return this.samples;
   }

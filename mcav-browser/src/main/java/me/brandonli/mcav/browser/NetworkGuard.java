@@ -46,26 +46,19 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * A SOCKS 5 proxy on the loopback interface of the helper, through which the browser makes every connection while
- * pages may reach public addresses only.
- *
- * <p>Chromium hands the proxy the host name, not an address, so the guard resolves the name itself and connects only
- * to an address the policy allows, the very address it checked: a name that resolves to a private address, or a name
- * whose answer changes between two lookups, does not lead past it. Loopback goes through the proxy too, WebRTC may
- * only use proxied connections and QUIC is off (see {@link CefEngine#createSwitches}), so no connection of a page
- * leaves the helper around the guard.
- *
- * <p>The default guard judges addresses by {@link AddressPolicy}. Once a page connects to an IPv6 address, it asks the
- * resolver for the NAT64 prefixes of the network ({@link AddressPolicy#findTranslationPrefixes}), so an address that
- * a translator of the network turns into a private IPv4 address is refused too. So is every address of a network
- * interface of this machine: a public address the server holds reaches the services that listen on every interface,
- * which a firewall in front of the machine hides from the internet but not from the machine itself.
- *
- * <p>The guard holds at most {@value #MAXIMUM_CONNECTIONS} connections, closes a client that has not finished its
- * handshake in time, and closes both sides of a connection as soon as one side ends. Each refused host is reported
- * once, up to {@value #MAXIMUM_REPORTED_HOSTS} hosts.
- */
+// A SOCKS 5 proxy on the loopback interface of the helper, through which the browser makes every connection while pages
+// may reach public addresses only. Chromium hands the proxy the host name, not an address, so the guard resolves the
+// name itself and connects only to an address the policy allows, the very address it checked: a name that resolves to a
+// private address, or a name whose answer changes between two lookups, does not lead past it. Loopback goes through the
+// proxy too, WebRTC may only use proxied connections and QUIC is off (see CefEngine.createSwitches), so no connection
+// of a page leaves the helper around the guard. The default guard judges addresses by AddressPolicy. Once a page
+// connects to an IPv6 address, it asks the resolver for the NAT64 prefixes of the network
+// (AddressPolicy.findTranslationPrefixes), so an address that a translator of the network turns into a private IPv4
+// address is refused too. So is every address of a network interface of this machine: a public address the server holds
+// reaches the services that listen on every interface, which a firewall in front of the machine hides from the internet
+// but not from the machine itself. The guard holds at most MAXIMUM_CONNECTIONS connections, closes a client that has
+// not finished its handshake in time, and closes both sides of a connection as soon as one side ends. Each refused host
+// is reported once, up to MAXIMUM_REPORTED_HOSTS hosts.
 final class NetworkGuard implements Closeable {
 
   static final int MAXIMUM_CONNECTIONS = 256;
@@ -105,15 +98,7 @@ final class NetworkGuard implements Closeable {
     this.reported = ConcurrentHashMap.newKeySet();
   }
 
-  /**
-   * Starts a guard that lets pages reach public addresses only, and none of the addresses of the refused hosts.
-   *
-   * @param notices      receives a line for every refused host
-   * @param refusedHosts more names or addresses of this machine, such as its public name, which the guard cannot find
-   *                     among the interfaces of a container; resolved once, now
-   * @return the running guard
-   * @throws IOException if no port of the loopback interface can be bound
-   */
+  // Starts a guard that lets pages reach public addresses only, and none of the addresses of the refused hosts.
   static NetworkGuard start(final Consumer<String> notices, final List<String> refusedHosts) throws IOException {
     final Resolver resolver = InetAddress::getAllByName;
     final Set<InetAddress> refused = resolveAll(resolver, refusedHosts, notices);
@@ -121,17 +106,7 @@ final class NetworkGuard implements Closeable {
     return start(resolver, policy, NetworkGuard::connect, notices, HANDSHAKE_TIMEOUT_MILLISECONDS);
   }
 
-  /**
-   * Starts a guard with another resolver, policy, connector and handshake timeout, for tests.
-   *
-   * @param resolver               resolves host names
-   * @param policy                 decides which addresses may be reached
-   * @param connector              connects to an allowed address
-   * @param notices                receives a line for every refused host
-   * @param handshakeTimeoutMilliseconds how long a client may take for its handshake
-   * @return the running guard
-   * @throws IOException if no port of the loopback interface can be bound
-   */
+  // Starts a guard with another resolver, policy, connector and handshake timeout, for tests.
   static NetworkGuard start(
     final Resolver resolver,
     final Predicate<InetAddress> policy,
@@ -150,26 +125,13 @@ final class NetworkGuard implements Closeable {
     return guard;
   }
 
-  /**
-   * Combines the test for the addresses of this machine with the addresses of the refused hosts.
-   *
-   * @param own     whether an address belongs to a network interface of this machine
-   * @param refused the addresses of the refused hosts
-   * @return whether an address is one of either
-   */
+  // Combines the test for the addresses of this machine with the addresses of the refused hosts.
   static Predicate<InetAddress> ownOrRefused(final Predicate<InetAddress> own, final Set<InetAddress> refused) {
     return address -> own.test(address) || refused.contains(address);
   }
 
-  /**
-   * Resolves the refused hosts; one without an address is reported and left out, so its address, once it has one,
-   * is refused only if it is otherwise not public or the machine's own.
-   *
-   * @param resolver resolves the names
-   * @param hosts    the names or addresses
-   * @param notices  receives a line for every host without an address
-   * @return every address of the hosts
-   */
+  // Resolves the refused hosts; one without an address is reported and left out, so its address, once it has one, is
+  // refused only if it is otherwise not public or the machine's own.
   static Set<InetAddress> resolveAll(final Resolver resolver, final List<String> hosts, final Consumer<String> notices) {
     final Set<InetAddress> addresses = new HashSet<>();
     for (final String host : hosts) {
@@ -218,12 +180,8 @@ final class NetworkGuard implements Closeable {
     }
   }
 
-  /**
-   * Serves one client: the handshake, the connection to the target if the policy allows it, and then the relay until
-   * one side ends.
-   *
-   * @param client the client
-   */
+  // Serves one client: the handshake, the connection to the target if the policy allows it, and then the relay until
+  // one side ends.
   private void serve(final Socket client) {
     // Each expired handshake gets its own thread because a busy common pool must not delay closing it.
     final Executor later = CompletableFuture.delayedExecutor(this.handshakeTimeoutMilliseconds, TimeUnit.MILLISECONDS, this::startDeadline);
@@ -268,15 +226,8 @@ final class NetworkGuard implements Closeable {
     Thread.ofVirtual().name("mcav-browser-guard-deadline").start(task);
   }
 
-  /**
-   * Resolves the host of a request and connects to the first address the policy allows, answering the client if
-   * that fails.
-   *
-   * @param request the request
-   * @param output     the stream to the client
-   * @return the connection, or null if the client got a failure as its answer
-   * @throws IOException if the answer cannot be sent
-   */
+  // Resolves the host of a request and connects to the first address the policy allows, answering the client if that
+  // fails.
   private @Nullable Socket open(final SocksProtocol.Request request, final DataOutputStream output) throws IOException {
     final String host = request.getHost();
     final InetAddress[] addresses;
@@ -318,14 +269,7 @@ final class NetworkGuard implements Closeable {
     }
   }
 
-  /**
-   * Copies both directions of a connection until one side ends; the caller closes both sockets then.
-   *
-   * @param fromClient the stream from the client, which may hold bytes the handshake read ahead
-   * @param client     the client
-   * @param target     the target
-   * @throws IOException if the streams of the sockets cannot be opened
-   */
+  // Copies both directions of a connection until one side ends; the caller closes both sockets then.
   private static void relay(final InputStream fromClient, final Socket client, final Socket target) throws IOException {
     final InputStream fromTarget = target.getInputStream();
     final OutputStream toTarget = target.getOutputStream();
@@ -354,13 +298,7 @@ final class NetworkGuard implements Closeable {
     }
   }
 
-  /**
-   * Connects to an address, waiting at most {@value #CONNECT_TIMEOUT_MILLISECONDS} ms.
-   *
-   * @param address the address
-   * @return the connection
-   * @throws IOException if the connection fails
-   */
+  // Connects to an address, waiting at most CONNECT_TIMEOUT_MILLISECONDS ms.
   static Socket connect(final InetSocketAddress address) throws IOException {
     final Socket socket = new Socket();
     try {
@@ -372,11 +310,7 @@ final class NetworkGuard implements Closeable {
     }
   }
 
-  /**
-   * Closes a socket or stream whose failure to close changes nothing, as its other side is gone or going.
-   *
-   * @param closeable the socket or stream
-   */
+  // Closes a socket or stream whose failure to close changes nothing, as its other side is gone or going.
   static void closeQuietly(final Closeable closeable) {
     try {
       closeable.close();
@@ -397,24 +331,13 @@ final class NetworkGuard implements Closeable {
     }
   }
 
-  /**
-   * Checks whether an address belongs to a network interface of this machine.
-   *
-   * @param address the address
-   * @return true if an interface of this machine has it
-   */
+  // Checks whether an address belongs to a network interface of this machine.
   static boolean isOwnAddress(final InetAddress address) {
     return isOwnAddress(address, NetworkInterface::getByInetAddress);
   }
 
-  /**
-   * Checks whether an address belongs to a network interface of this machine, finding the interfaces with a lookup,
-   * so tests can make it fail.
-   *
-   * @param address the address
-   * @param lookup  finds the interface of this machine that has an address
-   * @return true if an interface has it, or if the interfaces cannot be listed, as the address may be one of them
-   */
+  // Checks whether an address belongs to a network interface of this machine, finding the interfaces with a lookup, so
+  // tests can make it fail.
   static boolean isOwnAddress(final InetAddress address, final InterfaceLookup lookup) {
     try {
       return lookup.find(address) != null;
@@ -423,53 +346,30 @@ final class NetworkGuard implements Closeable {
     }
   }
 
-  /**
-   * Returns the port the guard listens on.
-   *
-   * @return the port on the loopback interface
-   */
   int getPort() {
     return this.server.getLocalPort();
   }
 
-  /**
-   * Returns the socket the guard listens on, so tests can break it.
-   *
-   * @return the listening socket
-   */
   ServerSocket getServer() {
     return this.server;
   }
 
-  /**
-   * The policy of the default guard: public addresses only, judged with the NAT64 prefixes of the network, and none of
-   * this machine's own.
-   *
-   * <p>The prefixes are asked for when the first IPv6 address is judged, since an IPv4 address needs none, and kept
-   * once the resolver answered. While it fails, IPv6 addresses are refused, as any of them may be a private address
-   * behind a translator of the network, and the next one asks again.
-   */
+  // The policy of the default guard: public addresses only, judged with the NAT64 prefixes of the network, and none of
+  // this machine's own. The prefixes are asked for when the first IPv6 address is judged, since an IPv4 address needs
+  // none, and kept once the resolver answered. While it fails, IPv6 addresses are refused, as any of them may be a
+  // private address behind a translator of the network, and the next one asks again.
   static final class PublicAddresses implements Predicate<InetAddress> {
 
     private final Resolver resolver;
     private final Predicate<InetAddress> own;
     private @Nullable List<AddressPolicy.TranslationPrefix> prefixes;
 
-    /**
-     * Constructs the policy that refuses the addresses of the network interfaces of this machine.
-     *
-     * @param resolver asked for {@value AddressPolicy#IPV4_ONLY_HOST}
-     */
+    // Constructs the policy that refuses the addresses of the network interfaces of this machine.
     PublicAddresses(final Resolver resolver) {
       this(resolver, NetworkGuard::isOwnAddress);
     }
 
-    /**
-     * Constructs the policy with another test for the addresses of this machine, so tests can make one up.
-     *
-     * @param resolver asked for {@value AddressPolicy#IPV4_ONLY_HOST}
-     * @param own      whether an address belongs to this machine, which is refused however public it is
-     */
+    // Constructs the policy with another test for the addresses of this machine, so tests can make one up.
     PublicAddresses(final Resolver resolver, final Predicate<InetAddress> own) {
       this.resolver = resolver;
       this.own = own;
@@ -487,11 +387,7 @@ final class NetworkGuard implements Closeable {
       return isPublic && !this.own.test(address);
     }
 
-    /**
-     * Returns the NAT64 prefixes of the network, asking the resolver if it has not answered yet.
-     *
-     * @return the prefixes, or null while the resolver fails
-     */
+    // Returns the NAT64 prefixes of the network, asking the resolver if it has not answered yet.
     synchronized @Nullable List<AddressPolicy.TranslationPrefix> getPrefixes() {
       final List<AddressPolicy.TranslationPrefix> known = this.prefixes;
       if (known != null) {
@@ -509,48 +405,18 @@ final class NetworkGuard implements Closeable {
     }
   }
 
-  /**
-   * Resolves host names.
-   */
   @FunctionalInterface
   interface Resolver {
-    /**
-     * Resolves a host name or parses an address.
-     *
-     * @param host the host
-     * @return the addresses, at least one
-     * @throws UnknownHostException if the host has no address
-     */
     InetAddress[] resolve(String host) throws UnknownHostException;
   }
 
-  /**
-   * Connects to an address the policy allowed.
-   */
   @FunctionalInterface
   interface Connector {
-    /**
-     * Connects.
-     *
-     * @param address the address and port
-     * @return the connection
-     * @throws IOException if the connection fails
-     */
     Socket connect(InetSocketAddress address) throws IOException;
   }
 
-  /**
-   * Finds the network interface of this machine that has an address.
-   */
   @FunctionalInterface
   interface InterfaceLookup {
-    /**
-     * Finds the interface.
-     *
-     * @param address the address
-     * @return the interface, or null if no interface of this machine has the address
-     * @throws SocketException if the interfaces cannot be listed
-     */
     @Nullable NetworkInterface find(InetAddress address) throws SocketException;
   }
 }

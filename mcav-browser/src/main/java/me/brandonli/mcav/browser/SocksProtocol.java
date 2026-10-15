@@ -24,14 +24,11 @@ import java.net.InetAddress;
 import java.net.ProtocolException;
 import java.nio.charset.StandardCharsets;
 
-/**
- * The part of SOCKS 5 (RFC 1928) that Chromium speaks to a proxy: a greeting that offers "no authentication", then one
- * CONNECT request per connection, to a host name, an IPv4 or an IPv6 address.
- *
- * <p>The reader is strict and never reads more than a request can hold: at most 255 offered methods and a host name
- * of at most 255 characters, which may only hold the characters of host names. A request the guard does not serve
- * fails with a {@link Refusal} that names the reply code, and anything malformed with a {@link ProtocolException}.
- */
+// The part of SOCKS 5 (RFC 1928) that Chromium speaks to a proxy: a greeting that offers "no authentication", then one
+// CONNECT request per connection, to a host name, an IPv4 or an IPv6 address. The reader is strict and never reads more
+// than a request can hold: at most 255 offered methods and a host name of at most 255 characters, which may only hold
+// the characters of host names. A request the guard does not serve fails with a Refusal that names the reply code, and
+// anything malformed with a ProtocolException.
 final class SocksProtocol {
 
   static final int VERSION = 5;
@@ -57,13 +54,6 @@ final class SocksProtocol {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Reads the greeting of a client.
-   *
-   * @param input the stream from the client
-   * @return true if the client offers to go without authentication
-   * @throws IOException if the stream ends or the greeting is malformed
-   */
   static boolean readGreeting(final DataInput input) throws IOException {
     readVersion(input);
     final int count = input.readUnsignedByte();
@@ -79,15 +69,6 @@ final class SocksProtocol {
     return withoutAuthentication;
   }
 
-  /**
-   * Reads the request of a client.
-   *
-   * @param input the stream from the client
-   * @return the host and port to connect to
-   * @throws Refusal     if the request asks for something other than a connection, to an address of an unknown type,
-   *                     or to port 0
-   * @throws IOException if the stream ends or the request is malformed
-   */
   static Request readRequest(final DataInput input) throws IOException {
     readVersion(input);
     final int command = input.readUnsignedByte();
@@ -163,13 +144,7 @@ final class SocksProtocol {
     return host;
   }
 
-  /**
-   * Reads an IPv6 address written as text, with or without brackets, without asking a resolver.
-   *
-   * @param text the text
-   * @return the address in its full text form
-   * @throws ProtocolException if the text is not an IPv6 address
-   */
+  // Reads an IPv6 address written as text, with or without brackets, without asking a resolver.
   private static String readIpv6Literal(final String text) throws ProtocolException {
     try {
       final InetAddress address = InetAddress.ofLiteral(text);
@@ -182,38 +157,20 @@ final class SocksProtocol {
     }
   }
 
-  /**
-   * Checks whether a byte may appear in a host name: an ASCII letter or digit, a hyphen, a dot or an underscore.
-   * Chromium sends international names in their ASCII form.
-   *
-   * @param value the byte
-   * @return true if it may appear
-   */
+  // Checks whether a byte may appear in a host name: an ASCII letter or digit, a hyphen, a dot or an underscore.
+  // Chromium sends international names in their ASCII form.
   static boolean isHostNameCharacter(final byte value) {
     final boolean isLetter = (value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z');
     final boolean isDigit = value >= '0' && value <= '9';
     return isLetter || isDigit || value == '-' || value == '.' || value == '_';
   }
 
-  /**
-   * Answers the greeting with the chosen method.
-   *
-   * @param output    the stream to the client
-   * @param method {@link #NO_AUTHENTICATION} or {@link #NO_ACCEPTABLE_METHOD}
-   * @throws IOException if the stream fails
-   */
   static void writeMethod(final DataOutput output, final int method) throws IOException {
     output.writeByte(VERSION);
     output.writeByte(method);
   }
 
-  /**
-   * Answers a request. The bound address is left empty, as Chromium does not use it.
-   *
-   * @param output   the stream to the client
-   * @param reply the reply code, such as {@link #SUCCEEDED}
-   * @throws IOException if the stream fails
-   */
+  // Answers a request. The bound address is left empty, as Chromium does not use it.
   static void writeReply(final DataOutput output, final int reply) throws IOException {
     output.writeByte(VERSION);
     output.writeByte(reply);
@@ -223,69 +180,37 @@ final class SocksProtocol {
     output.writeShort(0);
   }
 
-  /**
-   * Where a client asks to connect to.
-   */
   static final class Request {
 
     private final String host;
     private final int port;
 
-    /**
-     * Constructs a request.
-     *
-     * @param host the host name or the address in text form
-     * @param port the port, from 1 to 65535
-     */
     Request(final String host, final int port) {
       this.host = host;
       this.port = port;
     }
 
-    /**
-     * Returns the host.
-     *
-     * @return the host name or the address in text form
-     */
     String getHost() {
       return this.host;
     }
 
-    /**
-     * Returns the port.
-     *
-     * @return the port
-     */
     int getPort() {
       return this.port;
     }
   }
 
-  /**
-   * A request the guard does not serve, with the reply code the client gets.
-   */
+  // A request the guard does not serve, with the reply code the client gets.
   static final class Refusal extends ProtocolException {
 
     private static final long serialVersionUID = 1L;
 
     private final int reply;
 
-    /**
-     * Constructs a refusal.
-     *
-     * @param reply   the reply code
-     * @param message what was refused
-     */
     private Refusal(final int reply, final String message) {
       super(message);
       this.reply = reply;
     }
 
-    /**
-     * Returns the reply code.
-     *
-     * @return the code the client gets
-     */
     int getReply() {
       return this.reply;
     }

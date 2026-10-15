@@ -33,12 +33,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-/**
- * Landlock, the sandbox of the Linux kernel (5.13 and later) that a process can put itself in without privileges: a
- * thread that restricts itself, and every thread and process it starts afterwards, reaches only the files and folders
- * its rules name, in the ways they allow. The restriction cannot be lifted, and the other threads of the process stay
- * free. It runs in the helper process, which has only the browser module and JCEF on its class path.
- */
+// Landlock, the sandbox of the Linux kernel (5.13 and later) that a process can put itself in without privileges: a
+// thread that restricts itself, and every thread and process it starts afterwards, reaches only the files and folders
+// its rules name, in the ways they allow. The restriction cannot be lifted, and the other threads of the process stay
+// free. It runs in the helper process, which has only the browser module and JCEF on its class path.
 final class Landlock {
 
   // the system call numbers of Landlock are the same on every architecture
@@ -91,11 +89,7 @@ final class Landlock {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Asks the kernel which version of Landlock it has. Linux only.
-   *
-   * @return the version, 1 or more, or the negated error number of the kernel when it has none
-   */
+  // Asks the kernel which version of Landlock it has. Linux only.
   static int version() {
     try (final Arena arena = Arena.ofConfined()) {
       final MemorySegment state = arena.allocate(Calls.STATE);
@@ -104,24 +98,11 @@ final class Landlock {
     }
   }
 
-  /**
-   * Reads the answer of the kernel to the question of {@link #version()}.
-   *
-   * @param result the result of the system call
-   * @param error  the error number it left
-   * @return the version, or the negated error number
-   */
   @VisibleForTesting
   static int versionOf(final long result, final int error) {
     return result < 0 ? -error : (int) result;
   }
 
-  /**
-   * Says why a kernel has no Landlock.
-   *
-   * @param version what {@link #version()} gave, less than 1
-   * @return the reason
-   */
   static String describeMissing(final int version) {
     final int error = -version;
     return switch (error) {
@@ -131,12 +112,7 @@ final class Landlock {
     };
   }
 
-  /**
-   * Returns the rights a ruleset of a version of Landlock handles: those it denies unless a rule grants them.
-   *
-   * @param version the version of the kernel
-   * @return the rights
-   */
+  // Returns the rights a ruleset of a version of Landlock handles: those it denies unless a rule grants them.
   @VisibleForTesting
   static long handledRights(final int version) {
     long rights = FIRST_VERSION_RIGHTS;
@@ -152,15 +128,8 @@ final class Landlock {
     return rights;
   }
 
-  /**
-   * Returns the rights of a rule: to read and run, and to change as well if it is writable; a file has no rights of a
-   * folder.
-   *
-   * @param rule    the rule
-   * @param kind    whether its path is a folder or a file
-   * @param handled the rights of the ruleset
-   * @return the rights
-   */
+  // Returns the rights of a rule: to read and run, and to change as well if it is writable; a file has no rights of a
+  // folder.
   @VisibleForTesting
   static long rightsOf(final Rule rule, final PathKind kind, final long handled) {
     long rights = rule.writable() ? READ_RIGHTS | WRITE_RIGHTS : READ_RIGHTS;
@@ -170,14 +139,8 @@ final class Landlock {
     return rights & handled;
   }
 
-  /**
-   * Restricts the calling thread, and every thread and process it starts afterwards, to the rules. A rule whose path
-   * cannot be opened, such as one deleted meanwhile, is left out.
-   *
-   * @param version the version of Landlock the kernel has, 1 or more
-   * @param rules   what the thread may reach
-   * @throws IOException if the kernel refuses the rules or the restriction
-   */
+  // Restricts the calling thread, and every thread and process it starts afterwards, to the rules. A rule whose path
+  // cannot be opened, such as one deleted meanwhile, is left out.
   static void restrictThread(final int version, final List<Rule> rules) throws IOException {
     final long handled = handledRights(version);
     try (final Arena arena = Arena.ofConfined()) {
@@ -227,15 +190,6 @@ final class Landlock {
     }
   }
 
-  /**
-   * Checks the result of a call of the kernel.
-   *
-   * @param result the result
-   * @param error  the error number the call left
-   * @param action what the call did, for the message
-   * @return the result
-   * @throws IOException if the result says the call failed
-   */
   @VisibleForTesting
   static long check(final long result, final int error, final String action) throws IOException {
     if (result < 0) {
@@ -246,14 +200,6 @@ final class Landlock {
     return result;
   }
 
-  /**
-   * Calls a function of the C library.
-   *
-   * @param function  the function
-   * @param arguments its arguments, after the segment its error number is captured in
-   * @return its result
-   * @throws IllegalStateException if the JVM could not make the call
-   */
   @VisibleForTesting
   static long invoke(final MethodHandle function, final Object... arguments) {
     try {
@@ -269,13 +215,8 @@ final class Landlock {
     }
   }
 
-  /**
-   * A file, or a folder and everything beneath it, that a restricted thread may read and run, and change as well if
-   * the rule is writable.
-   *
-   * @param path     the file or folder
-   * @param writable whether files may be written, created, renamed and deleted there
-   */
+  // A file, or a folder and everything beneath it, that a restricted thread may read and run, and change as well if the
+  // rule is writable.
   record Rule(Path path, boolean writable) {}
 
   // whether the path of a rule is a folder, which may have the rights of a folder, or a file, which may not
@@ -284,9 +225,7 @@ final class Landlock {
     FILE,
   }
 
-  /**
-   * The functions of the C library, bound when Landlock is first used, which happens on Linux only.
-   */
+  // The functions of the C library, bound when Landlock is first used, which happens on Linux only.
   private static final class Calls {
 
     private static final String ERROR_NUMBER = "errno";

@@ -17,18 +17,13 @@
  */
 package me.brandonli.mcav.browser;
 
-/**
- * Writes an address of the browser the way the log of the server shows it. Addresses come from pages, which choose
- * them freely, and from the operator, and their user name and password, their query and their fragment often carry
- * secrets, such as the signature of a link or the code of a login; the log, which {@code /mcav dump} may publish, gets
- * the scheme, the host and the path only. An address without a host, such as a {@code data:} address, which holds its
- * content, is shown by its scheme only.
- */
+// Writes an address of the browser the way the log of the server shows it. Addresses come from pages, which choose them
+// freely, and from the operator, and their user name and password, their query and their fragment often carry secrets,
+// such as the signature of a link or the code of a login; the log, which /mcav dump may publish, gets the scheme, the
+// host and the path only. An address without a host, such as a data: address, which holds its content, is shown by its
+// scheme only.
 final class AddressText {
 
-  /**
-   * What stands in place of a hidden part.
-   */
   static final String HIDDEN = "<hidden>";
 
   private static final String AUTHORITY_START = "://";
@@ -39,12 +34,6 @@ final class AddressText {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Describes an address for the log.
-   *
-   * @param address the address, as the browser or the operator wrote it
-   * @return the scheme, the host and the path, with the user name and password, the query and the fragment hidden
-   */
   static String describe(final String address) {
     final int colon = address.indexOf(':');
     if (colon <= 0 || !isScheme(address, colon)) {
@@ -74,14 +63,7 @@ final class AddressText {
     return text.toString();
   }
 
-  /**
-   * Checks whether the text before a colon is a scheme: a letter, then letters, digits, {@code +}, {@code .} and
-   * {@code -} (RFC 3986).
-   *
-   * @param address the address
-   * @param colon   the index of its first colon, at least 1
-   * @return true if the text before the colon is a scheme
-   */
+  // Checks whether the text before a colon is a scheme: a letter, then letters, digits, +, . and - (RFC 3986).
   private static boolean isScheme(final String address, final int colon) {
     if (!isLetter(address.charAt(0))) {
       return false;

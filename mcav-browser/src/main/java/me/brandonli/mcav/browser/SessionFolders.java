@@ -34,37 +34,25 @@ import java.util.function.LongFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Records which server made the folder of a browser session, so that a later start of the browser module removes the
- * folders a killed server left behind.
- *
- * <p>The folder of a session holds the page's profile, its cookies and cache among them; a server that is killed (a
- * SIGKILL, a crash, the out-of-memory killer) cannot remove it. Each folder therefore gets a file with the process id
- * and the start instant of its server, and {@link #removeStale(Path)} removes every folder whose server is gone, while
- * the process with the recorded id is not the one that made it (another start instant, or no process at all). A folder
- * without the file, made by an earlier version or still being made, is left alone, and so is, on a file system with
- * POSIX permissions, a folder of another user: in a temporary folder every user shares, another user may make a folder
- * of that name, with a record, and swap what is inside it for a link while it is deleted.
- */
+// Records which server made the folder of a browser session, so that a later start of the browser module removes the
+// folders a killed server left behind. The folder of a session holds the page's profile, its cookies and cache among
+// them; a server that is killed (a SIGKILL, a crash, the out-of-memory killer) cannot remove it. Each folder therefore
+// gets a file with the process id and the start instant of its server, and removeStale(Path) removes every folder whose
+// server is gone, while the process with the recorded id is not the one that made it (another start instant, or no
+// process at all). A folder without the file, made by an earlier version or still being made, is left alone, and so is,
+// on a file system with POSIX permissions, a folder of another user: in a temporary folder every user shares, another
+// user may make a folder of that name, with a record, and swap what is inside it for a link while it is deleted.
 final class SessionFolders {
 
-  /**
-   * The start of the name of every folder of a session.
-   */
   static final String PREFIX = "mcavb-";
 
-  /**
-   * How many random letters and digits follow the prefix. The name is short, as the sockets in the folder may have
-   * paths of at most 107 characters.
-   */
+  // How many random letters and digits follow the prefix. The name is short, as the sockets in the folder may have
+  // paths of at most 107 characters.
   static final int RANDOM_CHARACTERS = 8;
 
   private static final String ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789";
   private static final SecureRandom RANDOM = new SecureRandom();
 
-  /**
-   * The file in the folder of a session that names its server.
-   */
   static final String OWNER_FILE = "server";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SessionFolders.class);
@@ -78,32 +66,17 @@ final class SessionFolders {
   private final ProcessHandle owner;
   private final LongFunction<Optional<ProcessHandle>> lookup;
 
-  /**
-   * Creates the records of this server.
-   *
-   * @return the records
-   */
   static SessionFolders ofThisServer() {
     return new SessionFolders(ProcessHandle.current(), ProcessHandle::of);
   }
 
-  /**
-   * Creates records.
-   *
-   * @param owner  the server that makes folders, this JVM outside of tests
-   * @param lookup finds a running process by its id
-   */
   @VisibleForTesting
   SessionFolders(final ProcessHandle owner, final LongFunction<Optional<ProcessHandle>> lookup) {
     this.owner = owner;
     this.lookup = lookup;
   }
 
-  /**
-   * Draws the name of a new folder: the prefix and random letters and digits.
-   *
-   * @return the name
-   */
+  // Draws the name of a new folder: the prefix and random letters and digits.
   static String newName() {
     final StringBuilder name = new StringBuilder(PREFIX);
     for (int index = 0; index < RANDOM_CHARACTERS; index++) {
@@ -112,12 +85,8 @@ final class SessionFolders {
     return name.toString();
   }
 
-  /**
-   * Names the server in a new folder. A server whose start instant the system does not report could not be told from
-   * a later process with its id, so its folders name nothing, and neither does one whose file cannot be written.
-   *
-   * @param folder the new folder of a session
-   */
+  // Names the server in a new folder. A server whose start instant the system does not report could not be told from a
+  // later process with its id, so its folders name nothing, and neither does one whose file cannot be written.
   void record(final Path folder) {
     final Optional<Instant> started = this.owner.info().startInstant();
     if (started.isEmpty()) {
@@ -133,12 +102,7 @@ final class SessionFolders {
     }
   }
 
-  /**
-   * Removes every folder of a session in a temporary folder whose server is gone.
-   *
-   * @param temporary the temporary folder
-   * @return how many folders were removed
-   */
+  // Removes every folder of a session in a temporary folder whose server is gone.
   int removeStale(final Path temporary) {
     int removed = 0;
     try (final DirectoryStream<Path> folders = Files.newDirectoryStream(temporary, PREFIX + ANY_NAME)) {
