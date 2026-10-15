@@ -24,11 +24,9 @@ import com.code_intelligence.jazzer.junit.FuzzTest;
 import java.util.Locale;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the navigation policy with the addresses a page can make the browser report. It never throws, the page itself
- * only ever goes to an {@code http} or {@code https} address or the empty document, and nothing it allows has a scheme
- * outside the lists {@link NavigationPolicy} documents.
- */
+// Fuzzes the navigation policy with the addresses a page can make the browser report. It never throws, the page itself
+// only ever goes to an http or https address or the empty document, and nothing it allows has a scheme outside the
+// lists NavigationPolicy documents.
 @Tag("fuzz")
 final class NavigationPolicyFuzzTest {
 

@@ -103,16 +103,12 @@ class LinuxLibrariesTest {
 
   private final List<URI> downloads = new CopyOnWriteArrayList<>();
 
-  /**
-   * Builds a Debian package: an ar archive with a data.tar.xz of the given regular files and links.
-   */
+  // Builds a Debian package: an ar archive with a data.tar.xz of the given regular files and links.
   static byte[] debianPackage(final Map<String, byte[]> files, final Map<String, String> links, final String dataName) throws IOException {
     return debianPackage(files, links, dataName, "./", false);
   }
 
-  /**
-   * Builds a Debian package whose names start with a prefix, optionally with a folder entry before its files.
-   */
+  // Builds a Debian package whose names start with a prefix, optionally with a folder entry before its files.
   static byte[] debianPackage(
     final Map<String, byte[]> files,
     final Map<String, String> links,
@@ -166,10 +162,8 @@ class LinuxLibrariesTest {
     );
   }
 
-  /**
-   * Builds the start of an ELF file: its magic, class (1 for 32 bits, 2 for 64), byte order (1 little-, 2 big-endian)
-   * and machine (62 x86-64, 183 AArch64, 3 i386).
-   */
+  // Builds the start of an ELF file: its magic, class (1 for 32 bits, 2 for 64), byte order (1 little-, 2 big-endian)
+  // and machine (62 x86-64, 183 AArch64, 3 i386).
   private static byte[] elf(final int elfClass, final int order, final int machine) {
     final byte[] header = new byte[64];
     header[0] = 0x7F;
@@ -184,11 +178,9 @@ class LinuxLibrariesTest {
     return header;
   }
 
-  /**
-   * Makes the xz data of a package ask its reader for another dictionary size, which the header of its first block
-   * holds: the writer puts the block's size, flags without the optional sizes, LZMA2 (0x21) with one byte of properties,
-   * padding and the CRC32 of all that.
-   */
+  // Makes the xz data of a package ask its reader for another dictionary size, which the header of its first block
+  // holds: the writer puts the block's size, flags without the optional sizes, LZMA2 (0x21) with one byte of
+  // properties, padding and the CRC32 of all that.
   private static byte[] withDictionary(final byte[] debianPackage, final int dictionary) {
     final byte[] patched = debianPackage.clone();
     int stream = 0;
@@ -225,9 +217,7 @@ class LinuxLibrariesTest {
     );
   }
 
-  /**
-   * An installer whose downloads come from memory: a mirror named "broken" fails, every other one serves the package.
-   */
+  // An installer whose downloads come from memory: a mirror named "broken" fails, every other one serves the package.
   private LinuxLibraries installer(final byte[] debianPackage, final List<String> mirrors, final List<String> pins) {
     return new LinuxLibraries(
       this.folder.resolve("cache"),

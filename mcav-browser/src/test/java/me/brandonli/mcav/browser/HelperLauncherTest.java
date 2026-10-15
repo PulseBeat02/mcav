@@ -309,8 +309,6 @@ class HelperLauncherTest {
     );
   }
 
-  /**
-   * A class for {@link #shouldNotAcceptAClassLoadedFromTheNetworkAsAHelperClassPath()} to load again.
-   */
+  // A class for shouldNotAcceptAClassLoadedFromTheNetworkAsAHelperClassPath() to load again.
   static final class Loaded {}
 }

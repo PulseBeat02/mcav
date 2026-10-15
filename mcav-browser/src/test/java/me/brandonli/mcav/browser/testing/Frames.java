@@ -34,9 +34,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Records the frames a player delivers and creates encoded frames for tests.
- */
+// Records the frames a player delivers and creates encoded frames for tests.
 public final class Frames {
 
   private final List<Frame> frames;
@@ -45,12 +43,6 @@ public final class Frames {
     this.frames = new CopyOnWriteArrayList<>();
   }
 
-  /**
-   * Attaches a new recorder to a video callback.
-   *
-   * @param callback the callback of the player
-   * @return the recorder
-   */
   public static Frames attach(final VideoAttachableCallback callback) {
     final Frames recorder = new Frames();
     final VideoFilter filter = recorder::record;
@@ -62,14 +54,6 @@ public final class Frames {
     return recorder;
   }
 
-  /**
-   * Encodes an image of one color as a JPEG.
-   *
-   * @param width  the width
-   * @param height the height
-   * @param rgb    the color as packed RGB
-   * @return the JPEG bytes
-   */
   public static byte[] jpeg(final int width, final int height, final int rgb) {
     final BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
     for (int row = 0; row < height; row++) {
@@ -85,13 +69,7 @@ public final class Frames {
     }
   }
 
-  /**
-   * Checks whether two colors are close, as colors that went through JPEG compression are.
-   *
-   * @param expected the expected color as packed RGB
-   * @param actual   the actual color as packed RGB
-   * @return true if every channel differs by at most 40
-   */
+  // Checks whether two colors are close, as colors that went through JPEG compression are.
   public static boolean isNear(final int expected, final int actual) {
     for (int shift = 0; shift <= 16; shift += 8) {
       final int expectedChannel = (expected >> shift) & 0xFF;
@@ -118,20 +96,10 @@ public final class Frames {
     return false;
   }
 
-  /**
-   * Counts the recorded frames.
-   *
-   * @return the number of frames
-   */
   public int count() {
     return this.frames.size();
   }
 
-  /**
-   * Returns the last recorded frame.
-   *
-   * @return the frame, or null if none arrived
-   */
   public @Nullable Frame last() {
     final List<Frame> copy = this.getFrames();
     if (copy.isEmpty()) {
@@ -141,12 +109,6 @@ public final class Frames {
     return copy.getLast();
   }
 
-  /**
-   * Returns the last recorded frame of a test that waited for a frame.
-   *
-   * @return the frame
-   * @throws AssertionError if no frame arrived
-   */
   public Frame requireLast() {
     final Frame frame = this.last();
     if (frame == null) {
@@ -156,12 +118,6 @@ public final class Frames {
     return frame;
   }
 
-  /**
-   * Checks whether the last frame shows a color.
-   *
-   * @param rgb the color as packed RGB
-   * @return true if the center of the last frame is near the color
-   */
   public boolean lastShows(final int rgb) {
     final Frame frame = this.last();
     if (frame == null) {
@@ -172,12 +128,8 @@ public final class Frames {
     return isNear(rgb, center);
   }
 
-  /**
-   * Describes the last frame for a failure message: how many frames arrived, the size and the center color of the
-   * last one, and the center colors in the order they arrived, each with how many frames in a row showed it.
-   *
-   * @return the description
-   */
+  // Describes the last frame for a failure message: how many frames arrived, the size and the center color of the last
+  // one, and the center colors in the order they arrived, each with how many frames in a row showed it.
   public String describeLast() {
     final List<Frame> all = this.getFrames();
     if (all.isEmpty()) {
@@ -212,18 +164,10 @@ public final class Frames {
     );
   }
 
-  /**
-   * Returns the recorded frames.
-   *
-   * @return a copy of the frames in the order they arrived
-   */
   public List<Frame> getFrames() {
     return List.copyOf(this.frames);
   }
 
-  /**
-   * A delivered frame.
-   */
   public static final class Frame {
 
     private final int width;
@@ -240,47 +184,23 @@ public final class Frames {
       this.metadataHeight = metadataHeight;
     }
 
-    /**
-     * Returns the width.
-     *
-     * @return the width in pixels
-     */
     public int getWidth() {
       return this.width;
     }
 
-    /**
-     * Returns the height.
-     *
-     * @return the height in pixels
-     */
     public int getHeight() {
       return this.height;
     }
 
-    /**
-     * Returns the color of the pixel at (width / 2, height / 2), rounded down to integer coordinates.
-     *
-     * @return the color as packed RGB
-     */
+    // Returns the color of the pixel at (width / 2, height / 2), rounded down to integer coordinates.
     public int getCenter() {
       return this.center;
     }
 
-    /**
-     * Returns the width in the metadata that came with the frame.
-     *
-     * @return the width in pixels
-     */
     public int getMetadataWidth() {
       return this.metadataWidth;
     }
 
-    /**
-     * Returns the height in the metadata that came with the frame.
-     *
-     * @return the height in pixels
-     */
     public int getMetadataHeight() {
       return this.metadataHeight;
     }

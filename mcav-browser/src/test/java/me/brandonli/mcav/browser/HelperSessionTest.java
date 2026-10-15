@@ -79,10 +79,8 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Starts real helper processes with a scripted engine instead of CEF, or with a helper that breaks the protocol, and
- * checks what the server's session makes of them.
- */
+// Starts real helper processes with a scripted engine instead of CEF, or with a helper that breaks the protocol, and
+// checks what the server's session makes of them.
 class HelperSessionTest {
 
   private static final Path NATIVES = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath();
@@ -166,14 +164,9 @@ class HelperSessionTest {
     }
   }
 
-  /**
-   * Creates an empty folder with a short path: macOS allows Unix domain sockets of at most 104 bytes, which a session
-   * folder exceeds one level below its temporary folder ({@code /var/folders/…/T/}, 49 characters), so {@code /tmp} is
-   * used where it exists.
-   *
-   * @return the folder, deleted after the test
-   * @throws IOException if it cannot be created
-   */
+  // Creates an empty folder with a short path: macOS allows Unix domain sockets of at most 104 bytes, which a session
+  // folder exceeds one level below its temporary folder (/var/folders/…/T/, 49 characters), so /tmp is used where it
+  // exists.
   private Path shortDirectory() throws IOException {
     final Path temporaryDirectory = TEMPORARY_FOLDER;
     final boolean isUsable = Files.isDirectory(temporaryDirectory) && Files.isWritable(temporaryDirectory);
@@ -1206,27 +1199,15 @@ class HelperSessionTest {
     assertThrows(ProtocolException.class, () -> HelperSession.checkHello(HelperMessage.hello(token, 2), token));
   }
 
-  /**
-   * A main class that never connects, so the start times out.
-   */
   public static final class SilentMain {
 
     private SilentMain() {}
 
-    /**
-     * Waits until the standard input ends.
-     *
-     * @param args ignored
-     * @throws IOException if the input fails
-     */
     public static void main(final String[] args) throws IOException {
       while (System.in.read() >= 0) {}
     }
   }
 
-  /**
-   * Records the frames, the sound and the end of a session.
-   */
   static final class RecordingListener implements BrowserSession.Listener {
 
     final List<ImageBuffer> frames = new CopyOnWriteArrayList<>();

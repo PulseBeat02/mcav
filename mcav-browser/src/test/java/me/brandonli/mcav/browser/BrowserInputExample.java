@@ -40,9 +40,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FramesPerSecondFilte
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.utils.interaction.MouseClick;
 
-/**
- * Streams a web page into a window and forwards clicks, the mouse wheel and typed characters to it.
- */
+// Streams a web page into a window and forwards clicks, the mouse wheel and typed characters to it.
 public final class BrowserInputExample {
 
   private static final int WIDTH = 1280;

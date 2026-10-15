@@ -164,11 +164,9 @@ class CefEngineTest {
     }
   }
 
-  /**
-   * Chromium's own services contact Google when it starts, which tells Google that a browser started on this server:
-   * the sign-in check, the AI mode check of the search box, the network time service and the preconnect to the search
-   * engine (measured with Chromium's net log).
-   */
+  // Chromium's own services contact Google when it starts, which tells Google that a browser started on this server:
+  // the sign-in check, the AI mode check of the search box, the network time service and the preconnect to the search
+  // engine (measured with Chromium's net log).
   @Test
   void shouldNeverLetTheOwnServicesOfChromiumContactGoogle() {
     final List<String> switches = CefEngine.createSwitches(configuration(AllowedFeature.NONE), OperatingSystem.OTHER, 0, null);
@@ -190,11 +188,9 @@ class CefEngineTest {
     assertTrue(keepsCefDisabledFeatures, "the features CEF disables itself stay disabled");
   }
 
-  /**
-   * CEF passes a --disable-features switch of its own before the switches of the helper, and Chromium keeps the last
-   * one only, so the helper's switch repeats CEF's list, which belongs to this CEF. Before moving to another CEF, load a
-   * page without the helper's switch and copy the list its renderer gets on its command line.
-   */
+  // CEF passes a --disable-features switch of its own before the switches of the helper, and Chromium keeps the last
+  // one only, so the helper's switch repeats CEF's list, which belongs to this CEF. Before moving to another CEF, load
+  // a page without the helper's switch and copy the list its renderer gets on its command line.
   @Test
   void shouldMatchTheFeaturesCefDisablesItselfToThoseOfThisCef() throws IOException {
     final CefBuildInfo build = CefBuildInfo.fromClasspath();

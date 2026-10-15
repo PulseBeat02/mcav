@@ -28,13 +28,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the reader of the helper protocol, which the server runs on everything a helper sends. A helper runs web
- * content, so the server treats it as untrusted: whatever the bytes, every message read is one the protocol allows,
- * with its region inside its page and its texts within their limit, and anything else ends in an {@link IOException}.
- * The fuzz target never hands out more pixel bytes than the input still holds, so a claimed size cannot make it
- * allocate more than the input is long.
- */
+// Fuzzes the reader of the helper protocol, which the server runs on everything a helper sends. A helper runs web
+// content, so the server treats it as untrusted: whatever the bytes, every message read is one the protocol allows,
+// with its region inside its page and its texts within their limit, and anything else ends in an IOException. The fuzz
+// target never hands out more pixel bytes than the input still holds, so a claimed size cannot make it allocate more
+// than the input is long.
 @Tag("fuzz")
 final class HelperProtocolFuzzTest {
 
@@ -99,9 +97,6 @@ final class HelperProtocolFuzzTest {
     }
   }
 
-  /**
-   * Ends a read that claims more pixels than the input holds.
-   */
   private static final class CutShort extends RuntimeException {
 
     private static final long serialVersionUID = 1L;

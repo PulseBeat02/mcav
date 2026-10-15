@@ -48,7 +48,7 @@ class PageCompositorTest {
     return new PageCompositor(WIDTH, HEIGHT, frameInterval, SETTLE_MILLISECONDS, this.clock::get);
   }
 
-  /** A buffer whose every pixel is (value, column, row, 255) in BGRA order. */
+  // A buffer whose every pixel is (value, column, row, 255) in BGRA order.
   private static ByteBuffer buffer(final int width, final int height, final int value) {
     final ByteBuffer buffer = ByteBuffer.allocateDirect(width * height * 4);
     for (int row = 0; row < height; row++) {

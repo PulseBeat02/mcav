@@ -29,25 +29,15 @@ import java.util.Base64;
 import java.util.List;
 import org.cef.browser.McavOffscreenBrowser;
 
-/**
- * A browser engine without CEF for tests of the helper and its session. What it does depends on the path of the page:
- *
- * <ul>
- *   <li>{@code /page}: reports ready, loads, and paints the whole page in one color; every input it receives paints the
- *   page again with the blue channel counting the DevTools calls so far, so a test can see input arrive;</li>
- *   <li>{@code /load-error}: fails to load the page;</li>
- *   <li>{@code /fail}: shows the page, then, a second later, fails as a crashed renderer would;</li>
- *   <li>{@code /sound}: shows the page, then hands {@link #SOUND_CHUNKS} chunks of {@link #SOUND_FRAMES} frames to a
- *   {@link PageAudio} as calls of its binding, whose samples all hold the number of the chunk, with a call that is not
- *   sound before each;</li>
- *   <li>{@code /sound-on-input}: shows the page and hands over a chunk of sound whose samples hold 0 at once, and one
- *   whose samples hold the number of DevTools calls so far after every input;</li>
- *   <li>{@code /exit}: ends the helper process during the start;</li>
- *   <li>{@code /throw}: fails to start;</li>
- *   <li>{@code /unlinked}: fails to start as a native library that cannot be loaded does;</li>
- *   <li>{@code /never}: never reports anything.</li>
- * </ul>
- */
+// A browser engine without CEF for tests of the helper and its session. What it does depends on the path of the page:
+// /page: reports ready, loads, and paints the whole page in one color; every input it receives paints the page again
+// with the blue channel counting the DevTools calls so far, so a test can see input arrive; /load-error: fails to load
+// the page; /fail: shows the page, then, a second later, fails as a crashed renderer would; /sound: shows the page,
+// then hands SOUND_CHUNKS chunks of SOUND_FRAMES frames to a PageAudio as calls of its binding, whose samples all hold
+// the number of the chunk, with a call that is not sound before each; /sound-on-input: shows the page and hands over a
+// chunk of sound whose samples hold 0 at once, and one whose samples hold the number of DevTools calls so far after
+// every input; /exit: ends the helper process during the start; /throw: fails to start; /unlinked: fails to start as a
+// native library that cannot be loaded does; /never: never reports anything.
 final class ScriptedEngine implements HelperEngine {
 
   static final int RED = 0x20;
@@ -67,11 +57,7 @@ final class ScriptedEngine implements HelperEngine {
     this.calls = new ArrayList<>();
   }
 
-  /**
-   * Starts the helper with this engine, as the real helper starts with CEF.
-   *
-   * @param args ignored
-   */
+  // Starts the helper with this engine, as the real helper starts with CEF.
   public static void main(final String[] args) {
     final BufferedReader input = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
     final Runtime runtime = Runtime.getRuntime();
@@ -180,12 +166,6 @@ final class ScriptedEngine implements HelperEngine {
     }
   }
 
-  /**
-   * Creates a chunk of sound whose samples all hold a number.
-   *
-   * @param value the number
-   * @return the chunk, 16-bit little-endian stereo
-   */
   static byte[] chunk(final int value) {
     final ByteBuffer samples = ByteBuffer.allocate(SOUND_FRAMES * 4).order(ByteOrder.LITTLE_ENDIAN);
     while (samples.hasRemaining()) {

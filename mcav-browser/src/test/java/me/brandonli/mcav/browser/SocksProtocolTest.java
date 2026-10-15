@@ -44,14 +44,6 @@ class SocksProtocolTest {
     return new DataInputStream(new ByteArrayInputStream(data));
   }
 
-  /**
-   * Builds a request to a host name.
-   *
-   * @param command the command
-   * @param host    the host name
-   * @param port    the port
-   * @return the bytes
-   */
   static byte[] domainRequest(final int command, final String host, final int port) {
     final byte[] name = host.getBytes(StandardCharsets.ISO_8859_1);
     final ByteArrayOutputStream bytes = new ByteArrayOutputStream();

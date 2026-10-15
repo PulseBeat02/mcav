@@ -358,10 +358,8 @@ class ContentPolicyTest {
     assertEquals(List.of("notice: The download of evil.exe was refused."), this.events.log);
   }
 
-  /**
-   * On macOS the view of a page that started a download while it loaded stayed white after the download was refused,
-   * until the page changed; the refusal asks the off-screen browser to paint its view again.
-   */
+  // On macOS the view of a page that started a download while it loaded stayed white after the download was refused,
+  // until the page changed; the refusal asks the off-screen browser to paint its view again.
   @Test
   void shouldRepaintTheViewAfterARefusedDownload() {
     final McavOffscreenBrowser offscreen = mock(McavOffscreenBrowser.class);
@@ -454,9 +452,6 @@ class ContentPolicyTest {
     assertEquals(List.of("page start"), this.events.log);
   }
 
-  /**
-   * Records every event as a line.
-   */
   static final class RecordingEvents implements HelperEvents {
 
     final List<String> log = new ArrayList<>();

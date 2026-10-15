@@ -47,10 +47,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 
-/**
- * Runs the real browser: helper processes with CEF, pages from a local HTTP server, input through the player, and the
- * frames that come back. The first run on a machine downloads the CEF natives.
- */
+// Runs the real browser: helper processes with CEF, pages from a local HTTP server, input through the player, and the
+// frames that come back. The first run on a machine downloads the CEF natives.
 @Tag("cef")
 class CefBrowserIntegrationTest {
 
@@ -91,13 +89,9 @@ class CefBrowserIntegrationTest {
     return frames;
   }
 
-  /**
-   * Waits until the page takes clicks. Chromium ignores presses, clicks and keys for a moment after a page appears,
-   * while it already passes mouse moves on, so a probe click is sent until the page reports one; the probe's events
-   * are forgotten afterwards.
-   *
-   * @param player the player showing a page of {@link #pages}
-   */
+  // Waits until the page takes clicks. Chromium ignores presses, clicks and keys for a moment after a page appears,
+  // while it already passes mouse moves on, so a probe click is sent until the page reports one; the probe's events are
+  // forgotten afterwards.
   private void awaitInput(final BrowserPlayer player) {
     Await.until("the page reported its size", () -> this.pages.count("size") > 0);
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
@@ -125,11 +119,7 @@ class CefBrowserIntegrationTest {
     Await.until("every browser process of this test has ended", () -> countBrowserProcesses() == 0);
   }
 
-  /**
-   * Counts the processes below this JVM that belong to a browser: the helper JVMs, their CEF processes, and Xvfb.
-   *
-   * @return the number of such processes
-   */
+  // Counts the processes below this JVM that belong to a browser: the helper JVMs, their CEF processes, and Xvfb.
   static long countBrowserProcesses() {
     final ProcessHandle self = ProcessHandle.current();
     // Windows does not tell the command line of another process, only its program, which for a helper is the Java of
@@ -267,13 +257,7 @@ class CefBrowserIntegrationTest {
     assertTrue(playing);
   }
 
-  /**
-   * Clicks a point of the page until a condition holds, since clicks are ignored for a moment after a page appears.
-   *
-   * @param player      the player
-   * @param description what the click achieves, for the failure message
-   * @param condition   whether it has been achieved
-   */
+  // Clicks a point of the page until a condition holds, since clicks are ignored for a moment after a page appears.
   private static void clickUntil(final BrowserPlayer player, final String description, final BooleanSupplier condition) {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
     while (!condition.getAsBoolean()) {

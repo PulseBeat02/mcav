@@ -44,10 +44,8 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Tests {@link Landlock}: the rights of each version and rule, and, where the kernel has Landlock, a restricted thread
- * and the threads and processes it starts. A restriction cannot be lifted, so each one runs on a thread of its own.
- */
+// Tests Landlock: the rights of each version and rule, and, where the kernel has Landlock, a restricted thread and the
+// threads and processes it starts. A restriction cannot be lifted, so each one runs on a thread of its own.
 class LandlockTest {
 
   private static final long READ_FOLDER = 0b1101;
@@ -161,11 +159,6 @@ class LandlockTest {
     assertSame(exhausted, thrown);
   }
 
-  /**
-   * Runs a task on a thread of its own and waits for it.
-   *
-   * @return the failure of the task, or null
-   */
   private static Throwable onThread(final ThrowingTask task) throws InterruptedException {
     final AtomicReference<Throwable> failure = new AtomicReference<>();
     final Thread thread = new Thread(() -> runAndRecordFailure(task, failure), "landlock-test");
@@ -284,9 +277,6 @@ class LandlockTest {
     assertTrue(noNewPrivileges, output);
   }
 
-  /**
-   * A task that may throw anything.
-   */
   @FunctionalInterface
   private interface ThrowingTask {
     void run() throws Throwable;

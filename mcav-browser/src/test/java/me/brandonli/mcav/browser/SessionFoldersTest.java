@@ -37,10 +37,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Tests {@link SessionFolders}: the folder of a session names its server, and a later start removes the folders of
- * servers that are gone, and nothing else.
- */
+// Tests SessionFolders: the folder of a session names its server, and a later start removes the folders of servers that
+// are gone, and nothing else.
 class SessionFoldersTest {
 
   private static final long GONE = Long.MAX_VALUE;

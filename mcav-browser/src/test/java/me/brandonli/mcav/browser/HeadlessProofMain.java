@@ -41,21 +41,14 @@ import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.builder.VideoPipelineStepBuilder;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 
-/**
- * The proof that the browser runs on a stock headless Linux server: no X server, no Xvfb, nothing installed, and no
- * option of the JVM. The proof bundle runs it with {@code java -jar} in stock server images as a user without
- * privileges; it does what {@link NoFlagsServerMain} does, with a page it serves itself: install MCAV with the browser
- * module, stream a red page with black text at 320x240, check the center pixel, release MCAV, check that no browser
- * process is left, and all of it twice. It prints {@value #PASSED} last, or why it failed.
- *
- * <p>{@code MCAV_PROOF_CACHE} names a writable folder kept between runs, which becomes the home folder of mcav's
- * cache, as the user of a proof run may have none.
- */
+// The proof that the browser runs on a stock headless Linux server: no X server, no Xvfb, nothing installed, and no
+// option of the JVM. The proof bundle runs it with java -jar in stock server images as a user without privileges; it
+// does what NoFlagsServerMain does, with a page it serves itself: install MCAV with the browser module, stream a red
+// page with black text at 320x240, check the center pixel, release MCAV, check that no browser process is left, and all
+// of it twice. It prints PASSED last, or why it failed. MCAV_PROOF_CACHE names a writable folder kept between runs,
+// which becomes the home folder of mcav's cache, as the user of a proof run may have none.
 public final class HeadlessProofMain {
 
-  /**
-   * The line printed when every check passed.
-   */
   static final String PASSED = "HEADLESS PROOF PASSED";
 
   private static final List<String> GRAALVM_DEFAULTS = List.of(
@@ -75,11 +68,6 @@ public final class HeadlessProofMain {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  /**
-   * Runs the proof and exits with 0 if it passed, 1 otherwise.
-   *
-   * @param args ignored
-   */
   public static void main(final String[] args) {
     int status = 1;
     try {

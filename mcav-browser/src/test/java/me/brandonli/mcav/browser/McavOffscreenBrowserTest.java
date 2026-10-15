@@ -44,10 +44,8 @@ import org.cef.handler.CefRenderHandler;
 import org.cef.handler.CefScreenInfo;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests the off-screen browser without CEF: its native methods are not loaded, which JCEF reports and ignores, so the
- * Java side of every method can run here.
- */
+// Tests the off-screen browser without CEF: its native methods are not loaded, which JCEF reports and ignores, so the
+// Java side of every method can run here.
 class McavOffscreenBrowserTest {
 
   private final RecordingPainter painter = new RecordingPainter();
@@ -158,9 +156,6 @@ class McavOffscreenBrowserTest {
     assertTrue(nothingPainted);
   }
 
-  /**
-   * Records what the browser hands to its listener.
-   */
   private static final class RecordingPainter implements McavOffscreenBrowser.PaintListener {
 
     final List<String> log = new ArrayList<>();

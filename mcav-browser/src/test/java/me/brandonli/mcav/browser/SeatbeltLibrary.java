@@ -31,10 +31,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Stand-ins written in Java for the functions of Seatbelt, handed over as native functions, which record their calls:
- * a {@link Seatbelt} of this library runs its real calls on any system without putting anything in a sandbox.
- */
+// Stand-ins written in Java for the functions of Seatbelt, handed over as native functions, which record their calls: a
+// Seatbelt of this library runs its real calls on any system without putting anything in a sandbox.
 // upcall stubs and native function handles are restricted methods; the tests run with native access enabled
 @SuppressWarnings("restricted")
 final class SeatbeltLibrary implements AutoCloseable {
@@ -58,12 +56,6 @@ final class SeatbeltLibrary implements AutoCloseable {
   private int answer;
   private MemorySegment reason = MemorySegment.NULL;
 
-  /**
-   * Creates the library with the stand-ins of some functions.
-   *
-   * @param names the functions it has, {@link #SANDBOX_INIT} and {@link #FREE_ERROR}
-   * @throws ReflectiveOperationException if a stand-in cannot be found, which is a bug of this class
-   */
   SeatbeltLibrary(final String... names) throws ReflectiveOperationException {
     final MethodHandles.Lookup lookup = MethodHandles.lookup();
     for (final String name : names) {
@@ -76,60 +68,29 @@ final class SeatbeltLibrary implements AutoCloseable {
     }
   }
 
-  /**
-   * Creates the library with both functions.
-   *
-   * @return the library
-   * @throws ReflectiveOperationException if a stand-in cannot be found, which is a bug of this class
-   */
   static SeatbeltLibrary complete() throws ReflectiveOperationException {
     return new SeatbeltLibrary(SANDBOX_INIT, FREE_ERROR);
   }
 
-  /**
-   * Returns the functions as a library.
-   *
-   * @return the library
-   */
   SymbolLookup lookup() {
     return name -> Optional.ofNullable(this.functions.get(name));
   }
 
-  /**
-   * Returns the sandbox of this library.
-   *
-   * @return the sandbox
-   */
   Seatbelt seatbelt() {
     return new Seatbelt(this.lookup());
   }
 
-  /**
-   * Makes sandbox_init refuse every profile from now on, without a reason.
-   *
-   * @param result the result it returns, not 0
-   */
+  // Makes sandbox_init refuse every profile from now on, without a reason.
   void refuse(final int result) {
     this.answer = result;
     this.reason = MemorySegment.NULL;
   }
 
-  /**
-   * Makes sandbox_init refuse every profile from now on, with a reason.
-   *
-   * @param result the result it returns, not 0
-   * @param text   the reason it gives
-   */
   void refuse(final int result, final String text) {
     this.answer = result;
     this.reason = this.arena.allocateFrom(text);
   }
 
-  /**
-   * Returns the address of the reason sandbox_init gives.
-   *
-   * @return the address, 0 for none
-   */
   long reasonAddress() {
     return this.reason.address();
   }
@@ -163,13 +124,13 @@ final class SeatbeltLibrary implements AutoCloseable {
     this.freed.add(error.address());
   }
 
-  /** The signature of sandbox_init; not private, as the upcall finds its method by name. */
+  // The signature of sandbox_init; not private, as the upcall finds its method by name.
   @FunctionalInterface
   interface SandboxInitFunction {
     int call(MemorySegment profile, long given, MemorySegment error);
   }
 
-  /** The signature of sandbox_free_error; not private, as the upcall finds its method by name. */
+  // The signature of sandbox_free_error; not private, as the upcall finds its method by name.
   @FunctionalInterface
   interface FreeErrorFunction {
     void call(MemorySegment error);

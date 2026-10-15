@@ -44,17 +44,14 @@ import org.junit.jupiter.api.Tag;
 import org.tukaani.xz.LZMA2Options;
 import org.tukaani.xz.XZOutputStream;
 
-/**
- * Fuzzes the extraction of the pinned libraries out of a Debian package: an ar archive whose data.tar.xz holds them.
- * The packages are pinned by their hashes, so this is a second line of defense: whatever the package, extraction
- * either fails with an {@link IOException} or writes nothing but the pinned libraries, each a plain file under the name
- * its pin gives it, all of them when it succeeds, and nothing outside the target folder.
- *
- * <p>The first byte of an input says what the rest of it is: the whole package (0), the data.tar.xz the fuzz target
- * puts into a package (1), or the tar the fuzz target compresses and puts into a package (2 and 3), so the fuzzer can
- * work on each layer's format. The seeds are packages built like real ones, with the libraries, other files, links,
- * folders and names with and without {@code ./}, and their tar and xz layers.
- */
+// Fuzzes the extraction of the pinned libraries out of a Debian package: an ar archive whose data.tar.xz holds them.
+// The packages are pinned by their hashes, so this is a second line of defense: whatever the package, extraction either
+// fails with an IOException or writes nothing but the pinned libraries, each a plain file under the name its pin gives
+// it, all of them when it succeeds, and nothing outside the target folder. The first byte of an input says what the
+// rest of it is: the whole package (0), the data.tar.xz the fuzz target puts into a package (1), or the tar the fuzz
+// target compresses and puts into a package (2 and 3), so the fuzzer can work on each layer's format. The seeds are
+// packages built like real ones, with the libraries, other files, links, folders and names with and without ./, and
+// their tar and xz layers.
 @Tag("fuzz")
 final class LinuxLibrariesFuzzTest {
 

@@ -38,13 +38,11 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Proves that a server needs no JVM option for the browser: {@link NoFlagsServerMain} runs in a child JVM started with
- * {@code -Djava.awt.headless=true} and nothing else, the class path given through the {@code CLASSPATH} variable, and
- * without {@code DISPLAY} or {@code WAYLAND_DISPLAY}, like a headless Minecraft server. No X server can be found on
- * its {@code PATH} either, as on a stock server: the browser must need none. It streams a local page, checks the
- * pixels of a frame, and disables and enables mcav in between.
- */
+// Proves that a server needs no JVM option for the browser: NoFlagsServerMain runs in a child JVM started with
+// -Djava.awt.headless=true and nothing else, the class path given through the CLASSPATH variable, and without DISPLAY
+// or WAYLAND_DISPLAY, like a headless Minecraft server. No X server can be found on its PATH either, as on a stock
+// server: the browser must need none. It streams a local page, checks the pixels of a frame, and disables and enables
+// mcav in between.
 @Tag("cef")
 class NoFlagsServerTest {
 
@@ -106,12 +104,7 @@ class NoFlagsServerTest {
     assertEquals(plain.toString(), filteredPath);
   }
 
-  /**
-   * Removes the folders that hold an X server from a {@code PATH}, and its empty entries.
-   *
-   * @param path the {@code PATH}
-   * @return the {@code PATH} without them
-   */
+  // Removes the folders that hold an X server from a PATH, and its empty entries.
   private static String withoutXServers(final String path) {
     return Arrays.stream(path.split(File.pathSeparator))
       .filter(entry -> !entry.isEmpty())

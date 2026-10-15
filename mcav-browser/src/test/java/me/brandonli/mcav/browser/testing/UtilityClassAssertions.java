@@ -26,21 +26,15 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 
-/**
- * Assertions for utility classes, which must be final and must refuse to be instantiated.
- */
+// Assertions for utility classes, which must be final and must refuse to be instantiated.
 public final class UtilityClassAssertions {
 
   private UtilityClassAssertions() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  /**
-   * Asserts that a class is final, has exactly one constructor, that the constructor is private, and that calling
-   * it anyway through reflection throws an {@link UnsupportedOperationException}.
-   *
-   * @param utilityClass the utility class
-   */
+  // Asserts that a class is final, has exactly one constructor, that the constructor is private, and that calling it
+  // anyway through reflection throws an UnsupportedOperationException.
   public static void assertNotInstantiable(final Class<?> utilityClass) {
     final int classModifiers = utilityClass.getModifiers();
     final boolean finalClass = Modifier.isFinal(classModifiers);

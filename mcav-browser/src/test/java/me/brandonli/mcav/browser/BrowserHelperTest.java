@@ -643,10 +643,8 @@ class BrowserHelperTest {
     OpenFiles.leaveNoneOpen("a failed connection", () -> assertThrows(IOException.class, () -> BrowserHelper.connect(missing)));
   }
 
-  /**
-   * Runs a helper as its main method does, on a thread that is no daemon: the threads it starts are daemons only if it
-   * makes them so, while those a daemon thread starts are daemons anyway.
-   */
+  // Runs a helper as its main method does, on a thread that is no daemon: the threads it starts are daemons only if it
+  // makes them so, while those a daemon thread starts are daemons anyway.
   private CompletableFuture<Integer> runOnMainLikeThread(final BrowserHelper helper) throws IOException {
     this.server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
     this.server.bind(UnixDomainSocketAddress.of(this.folder.resolve(SOCKET_NAME)));
@@ -787,9 +785,6 @@ class BrowserHelperTest {
     assertEquals(2, statusForABrokenInput);
   }
 
-  /**
-   * The server side of a connection.
-   */
   private static final class Peer implements AutoCloseable {
 
     private final SocketChannel channel;

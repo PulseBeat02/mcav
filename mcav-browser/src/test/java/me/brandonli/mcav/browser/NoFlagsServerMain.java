@@ -27,19 +27,13 @@ import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.Frames;
 import me.brandonli.mcav.browser.testing.TestPages;
 
-/**
- * The server side of {@link NoFlagsServerTest}: a JVM started like a Minecraft server on a machine without a display,
- * with no option but {@code -Djava.awt.headless=true}, installs mcav with the browser module as a plugin does, streams
- * a page and checks the color of the frame, then disables and enables the "plugin" and does it again.
- *
- * <p>The first round releases the player before mcav, as a plugin that cleans up after itself does; the second round
- * leaves the player running, so stopping the module has to end its browser.
- */
+// The server side of NoFlagsServerTest: a JVM started like a Minecraft server on a machine without a display, with no
+// option but -Djava.awt.headless=true, installs mcav with the browser module as a plugin does, streams a page and
+// checks the color of the frame, then disables and enables the "plugin" and does it again. The first round releases the
+// player before mcav, as a plugin that cleans up after itself does; the second round leaves the player running, so
+// stopping the module has to end its browser.
 public final class NoFlagsServerMain {
 
-  /**
-   * The line printed when every check passed.
-   */
   static final String PASSED = "NO-FLAGS PROOF PASSED";
 
   private static final List<String> GRAALVM_DEFAULTS = List.of(
@@ -54,11 +48,6 @@ public final class NoFlagsServerMain {
     throw new UnsupportedOperationException("Utility class cannot be instantiated");
   }
 
-  /**
-   * Runs the proof.
-   *
-   * @param args the address of a red test page
-   */
   public static void main(final String[] args) {
     final URI page = URI.create(args[0]);
     final List<String> arguments = ManagementFactory.getRuntimeMXBean().getInputArguments();

@@ -38,56 +38,31 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
-/**
- * Web pages on the loopback interface for browser tests.
- *
- * <p>{@code /main} is red, {@code /popup} is blue and {@code /second} is green, so the streamed frames show which
- * page is on screen. Each page reports its mouse and keyboard events serially, preserving DOM event order in the
- * server's arrival log. Different pages remain independent. A popup waits for its final report before closing.
- * Pressing {@code o} on the main page opens the popup, and pressing {@code x} on the popup closes it. Pressing
- * {@code n} on the popup opens the second page and closes the popup a second later; pressing {@code w} on the
- * second page closes it 300 milliseconds later.
- * {@code /hooked} is the main page, but the server runs a hook before answering, so tests can act while the browser
- * is still loading. The red pages {@code /to-popup-synthetic} (a script clicks a link to the popup without a click of
- * the user), {@code /named-frame} (a link in the upper left quarter opens the second page in a frame named
- * {@code inner}) and {@code /form-target} (a button over the whole page sends a form to the second page, targeting a
- * new window) test how windows open in place.
- */
+// Web pages on the loopback interface for browser tests. /main is red, /popup is blue and /second is green, so the
+// streamed frames show which page is on screen. Each page reports its mouse and keyboard events serially, preserving
+// DOM event order in the server's arrival log. Different pages remain independent. A popup waits for its final report
+// before closing. Pressing o on the main page opens the popup, and pressing x on the popup closes it. Pressing n on the
+// popup opens the second page and closes the popup a second later; pressing w on the second page closes it 300
+// milliseconds later. /hooked is the main page, but the server runs a hook before answering, so tests can act while the
+// browser is still loading. The red pages /to-popup-synthetic (a script clicks a link to the popup without a click of
+// the user), /named-frame (a link in the upper left quarter opens the second page in a frame named inner) and
+// /form-target (a button over the whole page sends a form to the second page, targeting a new window) test how windows
+// open in place.
 public final class TestPages implements AutoCloseable {
 
-  /**
-   * The background color of the main page as packed RGB.
-   */
   public static final int MAIN_COLOR = 0xFF0000;
 
-  /**
-   * The background color of the popup as packed RGB.
-   */
   public static final int POPUP_COLOR = 0x0000FF;
 
-  /**
-   * The background color of the second popup as packed RGB.
-   */
   public static final int SECOND_COLOR = 0x00FF00;
 
-  /**
-   * The width of the frame of {@code /named-frame}, in CSS pixels.
-   */
   public static final int FRAME_WIDTH = 100;
 
-  /**
-   * The frequency of the tone of the sound pages, in hertz.
-   */
   public static final int TONE_HERTZ = 1000;
 
-  /**
-   * The amplitude of the tone of the sound pages, a share of full scale.
-   */
   public static final double TONE_AMPLITUDE = 0.5;
 
-  /**
-   * How long the picture and the sound of {@code /av-sync} stay on and off, in milliseconds.
-   */
+  // How long the picture and the sound of /av-sync stay on and off, in milliseconds.
   public static final int TOGGLE_MILLISECONDS = 400;
 
   private static final Pattern PAIR_SEPARATOR = Pattern.compile("&");
@@ -295,11 +270,6 @@ public final class TestPages implements AutoCloseable {
     this.loadHook = new AtomicReference<>(() -> {});
   }
 
-  /**
-   * Starts the server on a free port of the loopback interface.
-   *
-   * @return the running server
-   */
   public static TestPages start() {
     try {
       final InetAddress loopback = InetAddress.ofLiteral("127.0.0.1");
@@ -369,33 +339,18 @@ public final class TestPages implements AutoCloseable {
     );
   }
 
-  /**
-   * Returns the address of a page.
-   *
-   * @param path the path, such as {@code /main}
-   * @return the address
-   */
   public URI uri(final String path) {
     final InetSocketAddress address = this.server.getAddress();
     final int port = address.getPort();
     return URI.create("http://127.0.0.1:" + port + path);
   }
 
-  /**
-   * Forgets the events the pages reported so far.
-   */
   public void clearEvents() {
     synchronized (this.events) {
       this.events.clear();
     }
   }
 
-  /**
-   * Counts the events of one type the pages reported so far.
-   *
-   * @param type the event type
-   * @return the number of matching events
-   */
   public int count(final String type) {
     final List<PageEvent> matching = this.getEvents(type);
     return matching.size();
@@ -427,12 +382,7 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  /**
-   * Serves one second of the tone as a WAV file: 16-bit stereo at 48 kHz.
-   *
-   * @param exchange the request
-   * @throws IOException if the answer cannot be sent
-   */
+  // Serves one second of the tone as a WAV file: 16-bit stereo at 48 kHz.
   private static void toneWave(final HttpExchange exchange) throws IOException {
     final int rate = 48_000;
     final ByteBuffer wave = ByteBuffer.allocate(44 + rate * 4).order(ByteOrder.LITTLE_ENDIAN);
@@ -463,13 +413,6 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  /**
-   * Serves a red page with more elements.
-   *
-   * @param exchange the request
-   * @param elements the HTML of the elements
-   * @throws IOException if the answer cannot be sent
-   */
   private static void html(final HttpExchange exchange, final String elements) throws IOException {
     final String html =
       "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head><body>" +
@@ -484,13 +427,7 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  /**
-   * Serves the red main page with a script that runs when the page has loaded.
-   *
-   * @param exchange the request
-   * @param script   the script
-   * @throws IOException if the response fails
-   */
+  // Serves the red main page with a script that runs when the page has loaded.
   private static void script(final HttpExchange exchange, final String script) throws IOException {
     final String html =
       "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head>" +
@@ -576,32 +513,16 @@ public final class TestPages implements AutoCloseable {
     this.server.stop(0);
   }
 
-  /**
-   * Sets the hook that runs before {@code /hooked} is answered.
-   *
-   * @param hook the hook
-   */
   public void setLoadHook(final Runnable hook) {
     this.loadHook.set(hook);
   }
 
-  /**
-   * Returns the events the pages reported so far.
-   *
-   * @return a copy of the events in the order they arrived
-   */
   public List<PageEvent> getEvents() {
     synchronized (this.events) {
       return List.copyOf(this.events);
     }
   }
 
-  /**
-   * Returns the events of one type the pages reported so far.
-   *
-   * @param type the event type, such as {@code click}
-   * @return a copy of the matching events in the order they arrived
-   */
   public List<PageEvent> getEvents(final String type) {
     final List<PageEvent> all = this.getEvents();
     final List<PageEvent> matching = new ArrayList<>();
@@ -614,9 +535,6 @@ public final class TestPages implements AutoCloseable {
     return matching;
   }
 
-  /**
-   * An event a page reported.
-   */
   public static final class PageEvent {
 
     private final String page;
@@ -645,65 +563,31 @@ public final class TestPages implements AutoCloseable {
       this.key = key;
     }
 
-    /**
-     * Returns the page that reported the event.
-     *
-     * @return {@code main} or {@code popup}
-     */
     public String getPage() {
       return this.page;
     }
 
-    /**
-     * Returns the DOM event type.
-     *
-     * @return the type, such as {@code click}
-     */
     public String getType() {
       return this.type;
     }
 
-    /**
-     * Returns the x coordinate in CSS pixels.
-     *
-     * @return the x coordinate
-     */
     public int getX() {
       return this.pageX;
     }
 
-    /**
-     * Returns the y coordinate in CSS pixels.
-     *
-     * @return the y coordinate
-     */
     public int getY() {
       return this.pageY;
     }
 
-    /**
-     * Returns the mouse button, 0 for the left and 2 for the right button.
-     *
-     * @return the button
-     */
     public int getButton() {
       return this.button;
     }
 
-    /**
-     * Returns the buttons held during a mouse event, 1 for the left and 2 for the right button.
-     *
-     * @return the buttons
-     */
+    // Returns the buttons held during a mouse event, 1 for the left and 2 for the right button.
     public int getButtons() {
       return this.buttons;
     }
 
-    /**
-     * Returns the key of a keyboard event.
-     *
-     * @return the key, or an empty string for mouse events
-     */
     public String getKey() {
       return this.key;
     }

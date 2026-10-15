@@ -317,9 +317,6 @@ class ArchiveExtractorTest {
     }
   }
 
-  /**
-   * Builds a gzip-compressed tar archive.
-   */
   static final class Archive {
 
     private final ByteArrayOutputStream bytes = new ByteArrayOutputStream();

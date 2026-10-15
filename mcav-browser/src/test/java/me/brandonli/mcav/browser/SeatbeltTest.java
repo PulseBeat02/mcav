@@ -41,11 +41,9 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Tests {@link Seatbelt}: the profile it writes, and its calls of the library, which here reach stand-ins written in
- * Java ({@link SeatbeltLibrary}). A real sandbox cannot be lifted, so the tests of macOS put a process of their own in
- * it ({@link ChromiumConfinementTest}).
- */
+// Tests Seatbelt: the profile it writes, and its calls of the library, which here reach stand-ins written in Java
+// (SeatbeltLibrary). A real sandbox cannot be lifted, so the tests of macOS put a process of their own in it
+// (ChromiumConfinementTest).
 class SeatbeltTest {
 
   private static final String PROFILE = "(version 1)\n(allow default)\n";

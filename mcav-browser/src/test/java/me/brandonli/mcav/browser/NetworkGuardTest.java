@@ -317,11 +317,7 @@ class NetworkGuardTest {
     assertEnded(socks4);
   }
 
-  /**
-   * Keeps every worker of the common pool busy until the returned latch opens, as the tasks of other plugins can.
-   *
-   * @return the latch that frees the workers
-   */
+  // Keeps every worker of the common pool busy until the returned latch opens, as the tasks of other plugins can.
   private static CountDownLatch occupyTheCommonPool() throws InterruptedException {
     final int workers = ForkJoinPool.getCommonPoolParallelism();
     final CountDownLatch busy = new CountDownLatch(workers);

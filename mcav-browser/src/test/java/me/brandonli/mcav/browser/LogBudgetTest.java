@@ -24,9 +24,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link LogBudget} with a clock the test moves.
- */
 final class LogBudgetTest {
 
   private final AtomicLong now = new AtomicLong(1_000L);

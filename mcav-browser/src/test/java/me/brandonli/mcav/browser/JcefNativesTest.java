@@ -89,7 +89,7 @@ class JcefNativesTest {
   private final AtomicInteger downloads = new AtomicInteger();
   private final List<URI> requested = new ArrayList<>();
 
-  /** A natives jar the way jcefmaven publishes it: a zip with the tar.gz of the natives and some class files. */
+  // A natives jar the way jcefmaven publishes it: a zip with the tar.gz of the natives and some class files.
   private static byte[] nativesJar(final JarContent content) throws IOException {
     final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
     try (final ZipOutputStream zip = new ZipOutputStream(bytes)) {

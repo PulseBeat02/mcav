@@ -31,64 +31,33 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-/**
- * A misbehaving browser helper for tests of the server's session: it reads the configuration like the real helper,
- * connects, and then does what the path of the page says:
- *
- * <ul>
- *   <li>{@code /wrong-token}: introduces itself with another token;</li>
- *   <li>{@code /wrong-version}: introduces itself with another protocol version;</li>
- *   <li>{@code /no-hello}: sends a notice first;</li>
- *   <li>{@code /server-message}: introduces itself, is ready and loaded, then sends a close, which only the server
- *   sends;</li>
- *   <li>{@code /wrong-page}: introduces itself and sends a frame of a page of another size;</li>
- *   <li>{@code /oversized}: introduces itself and sends a region larger than the page of the session;</li>
- *   <li>{@code /stall}: shows the page but never reads what the server sends;</li>
- *   <li>{@code /stubborn}: shows the page and ignores the end of its standard input for two minutes;</li>
- *   <li>{@code /frame-first}: sends a frame before it introduces itself;</li>
- *   <li>{@code /hang-up}: shows the page, then closes the connection but keeps running;</li>
- *   <li>{@code /exit}: exits before it connects;</li>
- *   <li>{@code /silent}: never connects, and exits when its standard input ends;</li>
- *   <li>{@code /stubborn-child}: like {@code /stubborn}, and starts a process of its own once its standard input
- *   ended, which runs for a minute;</li>
- *   <li>{@code /child}: shows the page and starts a process of its own at once, which runs for a minute;</li>
- *   <li>{@code /chatty}: writes far more output than a pipe holds before it connects, then shows the page;</li>
- *   <li>{@code /full-page}: shows the page with one region as large as the page;</li>
- *   <li>{@code /exit-later}: shows the page and exits with code 5 half a second later;</li>
- *   <li>{@code /deaf}: shows the page and shuts down the reading side of its connection;</li>
- *   <li>{@code /silent-stubborn}: never connects and ignores the end of its standard input for two minutes;</li>
- *   <li>{@code /noisy}: shows the page, sends {@value #NOISY_LOAD_ERRORS} load errors of addresses with a secret in
- *   their query and {@value #NOISY_NOTICES} notices at once, as a page can make a helper do, one more notice a moment
- *   later, and then one frame of sound.</li>
- * </ul>
- *
- * <p>It then waits until its standard input ends.
- */
+// A misbehaving browser helper for tests of the server's session: it reads the configuration like the real helper,
+// connects, and then does what the path of the page says: /wrong-token: introduces itself with another token;
+// /wrong-version: introduces itself with another protocol version; /no-hello: sends a notice first; /server-message:
+// introduces itself, is ready and loaded, then sends a close, which only the server sends; /wrong-page: introduces
+// itself and sends a frame of a page of another size; /oversized: introduces itself and sends a region larger than the
+// page of the session; /stall: shows the page but never reads what the server sends; /stubborn: shows the page and
+// ignores the end of its standard input for two minutes; /frame-first: sends a frame before it introduces itself;
+// /hang-up: shows the page, then closes the connection but keeps running; /exit: exits before it connects; /silent:
+// never connects, and exits when its standard input ends; /stubborn-child: like /stubborn, and starts a process of its
+// own once its standard input ended, which runs for a minute; /child: shows the page and starts a process of its own at
+// once, which runs for a minute; /chatty: writes far more output than a pipe holds before it connects, then shows the
+// page; /full-page: shows the page with one region as large as the page; /exit-later: shows the page and exits with
+// code 5 half a second later; /deaf: shows the page and shuts down the reading side of its connection;
+// /silent-stubborn: never connects and ignores the end of its standard input for two minutes; /noisy: shows the page,
+// sends NOISY_LOAD_ERRORS load errors of addresses with a secret in their query and NOISY_NOTICES notices at once, as a
+// page can make a helper do, one more notice a moment later, and then one frame of sound. It then waits until its
+// standard input ends.
 public final class RawHelperMain {
 
-  /**
-   * The last line {@code /chatty} writes.
-   */
   static final String CHATTY_END = "the chatty helper is done";
 
-  /**
-   * How many notices {@code /noisy} sends.
-   */
   static final int NOISY_NOTICES = 500;
 
-  /**
-   * How many load errors {@code /noisy} sends.
-   */
   static final int NOISY_LOAD_ERRORS = 50;
 
   private RawHelperMain() {}
 
-  /**
-   * Runs the misbehaving helper.
-   *
-   * @param args ignored
-   * @throws IOException if the connection fails
-   */
   public static void main(final String[] args) throws IOException {
     final BufferedReader input = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
     final HelperConfiguration configuration = HelperConfiguration.fromLine(input.readLine());
@@ -224,12 +193,8 @@ public final class RawHelperMain {
     }
   }
 
-  /**
-   * Starts a process of this helper two seconds after its standard input ended, while the server waits for the helper
-   * to stop: a JVM that waits for a gate that never opens, for a minute.
-   *
-   * @param input the standard input
-   */
+  // Starts a process of this helper two seconds after its standard input ended, while the server waits for the helper
+  // to stop: a JVM that waits for a gate that never opens, for a minute.
   private static void startChildWhenTheInputEnds(final BufferedReader input) {
     final Thread watcher = new Thread(() -> startChildAfterTheEnd(input));
     watcher.setDaemon(true);
@@ -248,11 +213,7 @@ public final class RawHelperMain {
     }
   }
 
-  /**
-   * Starts a process of this helper: a JVM that waits for a gate that never opens, for a minute.
-   *
-   * @throws IOException if the process cannot be started
-   */
+  // Starts a process of this helper: a JVM that waits for a gate that never opens, for a minute.
   private static void startChild() throws IOException {
     final String program = ProcessHandle.current().info().command().orElse("java");
     final String classPath = System.getProperty("java.class.path");
@@ -263,10 +224,8 @@ public final class RawHelperMain {
       .start();
   }
 
-  /**
-   * Keeps running for two minutes, whatever happens to the standard input: long enough for any test that kills this
-   * helper, and short enough that a test runner killed meanwhile leaves no helper behind for long.
-   */
+  // Keeps running for two minutes, whatever happens to the standard input: long enough for any test that kills this
+  // helper, and short enough that a test runner killed meanwhile leaves no helper behind for long.
   private static void waitTwoMinutes() {
     final long deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(2);
     while (System.nanoTime() < deadline) {

@@ -29,7 +29,7 @@ import java.nio.file.Path;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-/** Executes injected scripts against observable browser API fixtures in the build's pinned JavaScript engine. */
+// Executes injected scripts against observable browser API fixtures in the build's pinned JavaScript engine.
 final class ScriptAssertions {
 
   private ScriptAssertions() {}

@@ -74,9 +74,6 @@ class NullDisplayTest {
   @TempDir
   Path folder;
 
-  /**
-   * Encodes a connection setup.
-   */
   static byte[] setup(final ByteOrder order, final int major, final String name, final byte[] data) {
     final byte[] nameBytes = name.getBytes(StandardCharsets.US_ASCII);
     final ByteBuffer setup = ByteBuffer.allocate(12 + padded(nameBytes.length) + padded(data.length)).order(order);
@@ -98,9 +95,7 @@ class NullDisplayTest {
     return setup(ByteOrder.LITTLE_ENDIAN, 11, COOKIE_NAME, cookie);
   }
 
-  /**
-   * Encodes a request: opcode, data byte, length in units, and the body padded to four bytes.
-   */
+  // Encodes a request: opcode, data byte, length in units, and the body padded to four bytes.
   static byte[] request(final ByteOrder order, final int opcode, final int data, final byte[] body) {
     final int length = 4 + padded(body.length);
     final ByteBuffer request = ByteBuffer.allocate(length).order(order);
@@ -134,9 +129,7 @@ class NullDisplayTest {
     return all.toByteArray();
   }
 
-  /**
-   * Serves a whole conversation and returns what the display answered after its setup reply.
-   */
+  // Serves a whole conversation and returns what the display answered after its setup reply.
   private static ByteBuffer converse(final ByteOrder order, final NullDisplay.Atoms atoms, final byte[]... requests) throws IOException {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     NullDisplay.serve(new ByteArrayInputStream(concat(setup(order, 11, COOKIE_NAME, COOKIE), concat(requests))), output, COOKIE, atoms);
@@ -621,11 +614,9 @@ class NullDisplayTest {
     }
   }
 
-  /**
-   * The display answers a setup before the thread of the client takes a slot, so on a busy machine the thread of an
-   * earlier client may take its slot after a later one's, and that earlier client is the one ended: of one client more
-   * than the limit, exactly one ends and the others are served, whichever it is.
-   */
+  // The display answers a setup before the thread of the client takes a slot, so on a busy machine the thread of an
+  // earlier client may take its slot after a later one's, and that earlier client is the one ended: of one client more
+  // than the limit, exactly one ends and the others are served, whichever it is.
   @Test
   void shouldEndClientsWithTheCookieBeyondTheLimitAndFreeThePlaceOfOneThatLeaves() throws IOException {
     final Path authority = this.folder.resolve(AUTHORITY_FILE);
@@ -812,9 +803,7 @@ class NullDisplayTest {
     assertEquals(atom, foundExistingAtom);
   }
 
-  /**
-   * The body of a request: what follows its opcode, data byte and length.
-   */
+  // The body of a request: what follows its opcode, data byte and length.
   private static ByteBuffer requestOf(final byte[] request) {
     return ByteBuffer.wrap(Arrays.copyOfRange(request, 4, request.length)).order(ByteOrder.LITTLE_ENDIAN);
   }

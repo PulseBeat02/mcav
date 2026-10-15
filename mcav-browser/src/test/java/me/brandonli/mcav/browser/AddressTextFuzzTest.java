@@ -24,11 +24,9 @@ import com.code_intelligence.jazzer.api.FuzzedDataProvider;
 import com.code_intelligence.jazzer.junit.FuzzTest;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the description of the addresses a page can make the browser report. It never throws; whatever follows a
- * query or fragment mark in the description is the marker and nothing else, a user name is never shown, and an address
- * without a host is shown by its scheme only.
- */
+// Fuzzes the description of the addresses a page can make the browser report. It never throws; whatever follows a query
+// or fragment mark in the description is the marker and nothing else, a user name is never shown, and an address
+// without a host is shown by its scheme only.
 @Tag("fuzz")
 final class AddressTextFuzzTest {
 

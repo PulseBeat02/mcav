@@ -44,12 +44,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-/**
- * Proves with real Chromium that the sound of a page reaches the audio pipeline of the player: a Web Audio tone and an
- * audio element, each once the page may play, after the first click on it, and in step with the picture. The A/V
- * measurement times real events, which a busy machine delays, so it runs on request:
- * {@code -Pmcav.syncMeasurement=true}.
- */
+// Proves with real Chromium that the sound of a page reaches the audio pipeline of the player: a Web Audio tone and an
+// audio element, each once the page may play, after the first click on it, and in step with the picture. The A/V
+// measurement times real events, which a busy machine delays, so it runs on request: -Pmcav.syncMeasurement=true.
 @Tag("cef")
 class BrowserSoundTest {
 
@@ -102,15 +99,8 @@ class BrowserSoundTest {
     assertEquals(List.of(), this.failures);
   }
 
-  /**
-   * Waits up to 30 s, as long as the first sound of a helper can take on a busy or slow machine, for as many bytes of
-   * sound, and fails with what the page reported about its sound.
-   *
-   * @param recording the sound of a player
-   * @param bytes     how many bytes must arrive
-   * @param what      the sound that is waited for
-   * @throws InterruptedException if the wait is interrupted
-   */
+  // Waits up to 30 s, as long as the first sound of a helper can take on a busy or slow machine, for as many bytes of
+  // sound, and fails with what the page reported about its sound.
   private void awaitSound(final Recording recording, final int bytes, final String what) throws InterruptedException {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
     while (recording.size() < bytes) {
@@ -176,11 +166,7 @@ class BrowserSoundTest {
     assertTrue(atItsOwnLevel, "the tone plays at its own level, " + level);
   }
 
-  /**
-   * Clicks the page until it reports a click: Chromium ignores clicks for a moment after a page appears.
-   *
-   * @param player the player showing a page of {@link #pages}
-   */
+  // Clicks the page until it reports a click: Chromium ignores clicks for a moment after a page appears.
   private void startClicking(final BrowserPlayer player) {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
     while (this.pages.count("mousedown") == 0) {
@@ -377,14 +363,7 @@ class BrowserSoundTest {
     return windows;
   }
 
-  /**
-   * Measures how strong the tone is in a window of the left channel, compared with everything in it (Goertzel).
-   *
-   * @param left   the samples of the left channel
-   * @param start  the first sample of the window
-   * @param length the number of samples
-   * @return the share of the energy at the tone, from 0 to 1, or 0 for silence
-   */
+  // Measures how strong the tone is in a window of the left channel, compared with everything in it (Goertzel).
   private static double toneShare(final short[] left, final int start, final int length) {
     final double omega = (2 * Math.PI * TestPages.TONE_HERTZ) / AudioFilter.SAMPLE_RATE;
     final double coefficient = 2 * Math.cos(omega);
@@ -422,13 +401,8 @@ class BrowserSoundTest {
     return sorted.get(sorted.size() / 2);
   }
 
-  /**
-   * Finds the times at which a signal switches on: a sample that is on after one that is off, or after a gap. The page
-   * sends no sound while it is silent, so the sound has gaps where the picture has dark frames.
-   *
-   * @param samples pairs of a time in nanoseconds and a state, 1 for on
-   * @return the times the signal switched on
-   */
+  // Finds the times at which a signal switches on: a sample that is on after one that is off, or after a gap. The page
+  // sends no sound while it is silent, so the sound has gaps where the picture has dark frames.
   private static List<Long> onsets(final List<long[]> samples) {
     final List<long[]> ordered = new ArrayList<>(samples);
     ordered.sort((first, second) -> Long.compare(first[0], second[0]));
@@ -449,9 +423,6 @@ class BrowserSoundTest {
     return onsets;
   }
 
-  /**
-   * Records the sound that reaches the audio pipeline of a player.
-   */
   private static final class Recording {
 
     private final ByteArrayOutputStream pcm = new ByteArrayOutputStream();
@@ -491,15 +462,10 @@ class BrowserSoundTest {
     }
   }
 
-  /**
-   * What the changes of a picture and of its sound say about their sync. Every change of the picture is matched with
-   * the nearest change of the sound within a window of half the shortest time between two changes of the fixture, and a
-   * change without one counts against every rate: leaving those out before the rates were taken let a stream out of sync
-   * for most of its changes pass on the few that matched (deep review DR-016).
-   *
-   * @param changes the changes of the picture
-   * @param offsets the sound minus the picture of each matched change, in milliseconds, in the order of the picture
-   */
+  // What the changes of a picture and of its sound say about their sync. Every change of the picture is matched with
+  // the nearest change of the sound within a window of half the shortest time between two changes of the fixture, and a
+  // change without one counts against every rate: leaving those out before the rates were taken let a stream out of
+  // sync for most of its changes pass on the few that matched (deep review DR-016).
   record SyncJudgement(int changes, List<Double> offsets) {
     static SyncJudgement of(final List<Long> pictureOnsets, final List<Long> soundOnsets, final long windowNanoseconds) {
       final List<Double> offsets = new ArrayList<>();
@@ -522,7 +488,7 @@ class BrowserSoundTest {
       return nearest;
     }
 
-    /** How many changes of the picture had their sound in the range, in milliseconds; a change without sound never. */
+    // How many changes of the picture had their sound in the range, in milliseconds; a change without sound never.
     long within(final double low, final double high) {
       return this.offsets
         .stream()

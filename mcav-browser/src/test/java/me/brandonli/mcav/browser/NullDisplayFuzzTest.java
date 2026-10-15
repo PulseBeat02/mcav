@@ -26,11 +26,9 @@ import java.io.IOException;
 import java.nio.ByteOrder;
 import org.junit.jupiter.api.Tag;
 
-/**
- * Fuzzes the null display, which answers X11 connections on the loopback interface: a client with the cookie, such as
- * a renderer of the page, is untrusted. Whatever the bytes after a valid setup, the display answers or ends the
- * connection with an {@link IOException}, and it never answers with more than a bounded number of bytes per request.
- */
+// Fuzzes the null display, which answers X11 connections on the loopback interface: a client with the cookie, such as a
+// renderer of the page, is untrusted. Whatever the bytes after a valid setup, the display answers or ends the
+// connection with an IOException, and it never answers with more than a bounded number of bytes per request.
 @Tag("fuzz")
 final class NullDisplayFuzzTest {
 

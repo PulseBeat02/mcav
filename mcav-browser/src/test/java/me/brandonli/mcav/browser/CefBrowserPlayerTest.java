@@ -484,12 +484,8 @@ class CefBrowserPlayerTest {
     }
   }
 
-  /**
-   * Starts a player whose helper is reached by a release while it starts, and ends as the given ending does, then
-   * releases the player. The helper notices the release's interrupt only once it is done.
-   *
-   * @return whether the starting thread was left interrupted once the start ended
-   */
+  // Starts a player whose helper is reached by a release while it starts, and ends as the given ending does, then
+  // releases the player. The helper notices the release's interrupt only once it is done.
   private static boolean leftInterruptedByAStartThat(final Supplier<BrowserSession> ending) throws Exception {
     final CountDownLatch opening = new CountDownLatch(1);
     final CefBrowserPlayer late = new CefBrowserPlayer(BrowserOptions.DEFAULT, (_, _, _) -> waitForTheInterruptAndEnd(opening, ending));
@@ -904,9 +900,6 @@ class CefBrowserPlayerTest {
     }
   }
 
-  /**
-   * A session that records what the player sends it.
-   */
   private static final class FakeSession implements BrowserSession {
 
     final List<String> sent = new ArrayList<>();
@@ -954,9 +947,6 @@ class CefBrowserPlayerTest {
     }
   }
 
-  /**
-   * Wraps a picture and remembers whether it was closed.
-   */
   private static final class ClosingProbe {
 
     private final AtomicBoolean closed = new AtomicBoolean();
