@@ -497,17 +497,22 @@ class BrowserSoundTest {
     static SyncJudgement of(final List<Long> pictureOnsets, final List<Long> soundOnsets, final long windowNanoseconds) {
       final List<Double> offsets = new ArrayList<>();
       for (final long shown : pictureOnsets) {
-        long nearest = Long.MAX_VALUE;
-        for (final long heard : soundOnsets) {
-          if (Math.abs(heard - shown) < Math.abs(nearest)) {
-            nearest = heard - shown;
-          }
-        }
+        final long nearest = nearestOffset(shown, soundOnsets);
         if (Math.abs(nearest) <= windowNanoseconds) {
           offsets.add(nearest / 1e6);
         }
       }
       return new SyncJudgement(pictureOnsets.size(), List.copyOf(offsets));
+    }
+
+    private static long nearestOffset(final long shown, final List<Long> soundOnsets) {
+      long nearest = Long.MAX_VALUE;
+      for (final long heard : soundOnsets) {
+        if (Math.abs(heard - shown) < Math.abs(nearest)) {
+          nearest = heard - shown;
+        }
+      }
+      return nearest;
     }
 
     /** How many changes of the picture had their sound in the range, in milliseconds; a change without sound never. */

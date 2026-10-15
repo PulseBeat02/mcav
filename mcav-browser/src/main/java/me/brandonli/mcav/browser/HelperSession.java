@@ -384,21 +384,26 @@ final class HelperSession implements BrowserSession {
       ? new FileAttribute<?>[] { PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString(OWNER_ONLY_PERMISSIONS)) }
       : new FileAttribute<?>[0];
     try {
-      for (int attempt = 1; attempt <= MAXIMUM_FOLDER_ATTEMPTS; attempt++) {
-        final Path candidate = temporary.resolve(names.get());
-        try {
-          final Path folder = Files.createDirectory(candidate, attributes);
-          SessionFolders.ofThisServer().record(folder);
-          return folder;
-        } catch (final FileAlreadyExistsException exception) {
-          LOGGER.debug("The name {} of a browser session's folder is taken, another is drawn.", candidate);
-        }
-      }
-      throw new IOException("Every name drawn was taken!");
+      return createFolderUnderDrawnName(temporary, names, attributes);
     } catch (final IOException exception) {
       final String message = "The folder of the browser session cannot be created (%s)!".formatted(exception.getMessage());
       throw new PlayerException(message, exception);
     }
+  }
+
+  private static Path createFolderUnderDrawnName(final Path temporary, final Supplier<String> names, final FileAttribute<?>[] attributes)
+    throws IOException {
+    for (int attempt = 1; attempt <= MAXIMUM_FOLDER_ATTEMPTS; attempt++) {
+      final Path candidate = temporary.resolve(names.get());
+      try {
+        final Path folder = Files.createDirectory(candidate, attributes);
+        SessionFolders.ofThisServer().record(folder);
+        return folder;
+      } catch (final FileAlreadyExistsException exception) {
+        LOGGER.debug("The name {} of a browser session's folder is taken, another is drawn.", candidate);
+      }
+    }
+    throw new IOException("Every name drawn was taken!");
   }
 
   /**
@@ -466,26 +471,35 @@ final class HelperSession implements BrowserSession {
   static SocketChannel accept(final ServerSocketChannel server, final Process process, final long deadline) throws IOException {
     try (final Selector selector = Selector.open()) {
       server.register(selector, SelectionKey.OP_ACCEPT);
-      while (true) {
-        // an interrupted select returns at once without a word, so an interrupt, such as a release's, is checked here
-        if (Thread.currentThread().isInterrupted()) {
-          throw new PlayerException("Interrupted while the browser helper connected!");
-        }
-        final long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
-        if (remaining <= 0) {
-          throw new PlayerException("The browser helper did not connect in time!");
-        }
-        final boolean alive = process.isAlive();
-        if (!alive) {
-          final String message = "The browser helper exited with code %s before it connected!".formatted(process.exitValue());
-          throw new PlayerException(message);
-        }
-        selector.select(Math.min(remaining, CONNECT_POLL_MILLISECONDS));
-        final SocketChannel channel = server.accept();
-        if (channel != null) {
-          channel.configureBlocking(true);
-          return channel;
-        }
+      return awaitConnection(server, selector, process, deadline);
+    }
+  }
+
+  private static SocketChannel awaitConnection(
+    final ServerSocketChannel server,
+    final Selector selector,
+    final Process process,
+    final long deadline
+  ) throws IOException {
+    while (true) {
+      // an interrupted select returns at once without a word, so an interrupt, such as a release's, is checked here
+      if (Thread.currentThread().isInterrupted()) {
+        throw new PlayerException("Interrupted while the browser helper connected!");
+      }
+      final long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
+      if (remaining <= 0) {
+        throw new PlayerException("The browser helper did not connect in time!");
+      }
+      final boolean alive = process.isAlive();
+      if (!alive) {
+        final String message = "The browser helper exited with code %s before it connected!".formatted(process.exitValue());
+        throw new PlayerException(message);
+      }
+      selector.select(Math.min(remaining, CONNECT_POLL_MILLISECONDS));
+      final SocketChannel channel = server.accept();
+      if (channel != null) {
+        channel.configureBlocking(true);
+        return channel;
       }
     }
   }
@@ -558,15 +572,7 @@ final class HelperSession implements BrowserSession {
       final HelperMessage hello = HelperProtocol.read(in, size -> NO_PIXELS);
       checkHello(hello, token);
       while (true) {
-        final HelperMessage message = HelperProtocol.read(in, size -> {
-          if (size > pageBytes) {
-            return NO_PIXELS;
-          }
-          if (buffer[0].length < size) {
-            buffer[0] = new byte[size];
-          }
-          return buffer[0];
-        });
+        final HelperMessage message = HelperProtocol.read(in, size -> this.choosePixelBuffer(buffer, pageBytes, size));
         this.handle(message);
       }
     } catch (final EOFException exception) {
@@ -575,6 +581,16 @@ final class HelperSession implements BrowserSession {
       final String reason = "The connection to the browser helper failed (%s)!".formatted(exception.getMessage());
       this.end(this.describeEnd(reason), exception);
     }
+  }
+
+  private byte[] choosePixelBuffer(final byte[][] buffer, final int pageBytes, final int size) {
+    if (size > pageBytes) {
+      return NO_PIXELS;
+    }
+    if (buffer[0].length < size) {
+      buffer[0] = new byte[size];
+    }
+    return buffer[0];
   }
 
   /**
@@ -644,12 +660,7 @@ final class HelperSession implements BrowserSession {
         LOGGER.debug("CEF {} runs in the browser helper.", message.getText());
         this.onStartEvent(StartEvent.READY);
       }
-      case HelperProtocol.LOADING -> {
-        final boolean loading = message.getNumber() == 1;
-        if (!loading) {
-          this.onStartEvent(StartEvent.LOADED);
-        }
-      }
+      case HelperProtocol.LOADING -> this.onLoading(message);
       case HelperProtocol.LOAD_ERROR -> {
         final String text = message.getText();
         // The helper is untrusted, so the server must check the address again.
@@ -675,6 +686,13 @@ final class HelperSession implements BrowserSession {
         final String reason = "The browser helper sent message type %s, which only the server sends!".formatted(type);
         throw new ProtocolException(reason);
       }
+    }
+  }
+
+  private void onLoading(final HelperMessage message) {
+    final boolean loading = message.getNumber() == 1;
+    if (!loading) {
+      this.onStartEvent(StartEvent.LOADED);
     }
   }
 
@@ -741,20 +759,28 @@ final class HelperSession implements BrowserSession {
   private boolean awaitFrame(final boolean repeating) throws InterruptedException {
     synchronized (this.deliveryLock) {
       final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(REPEAT_DELAY_MILLISECONDS);
-      while (!this.frameWaiting && !this.closing.get()) {
-        final long remaining = deadline - System.nanoTime();
-        if (!repeating) {
-          this.deliveryLock.wait();
-        } else if (remaining > 0) {
-          TimeUnit.NANOSECONDS.timedWait(this.deliveryLock, remaining);
-        } else {
-          return false;
-        }
+      final boolean signalled = this.waitForFrameOrClose(repeating, deadline);
+      if (!signalled) {
+        return false;
       }
       final boolean fresh = this.frameWaiting;
       this.frameWaiting = false;
       return fresh;
     }
+  }
+
+  private boolean waitForFrameOrClose(final boolean repeating, final long deadline) throws InterruptedException {
+    while (!this.frameWaiting && !this.closing.get()) {
+      final long remaining = deadline - System.nanoTime();
+      if (!repeating) {
+        this.deliveryLock.wait();
+      } else if (remaining > 0) {
+        TimeUnit.NANOSECONDS.timedWait(this.deliveryLock, remaining);
+      } else {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
@@ -769,21 +795,25 @@ final class HelperSession implements BrowserSession {
       final char[] characters = new char[OUTPUT_READ_CHARACTERS];
       int count = reader.read(characters);
       while (count >= 0) {
-        for (int index = 0; index < count; index++) {
-          final char character = characters[index];
-          if (character == '\n') {
-            this.remember(line.toString());
-            line.setLength(0);
-          } else if (character != '\r' && line.length() < OUTPUT_LINE_CHARACTERS) {
-            line.append(character);
-          }
-        }
+        this.rememberCompleteLines(characters, count, line);
         count = reader.read(characters);
       }
     } catch (final IOException exception) {
       // the helper is gone
     }
     this.remember(line.toString());
+  }
+
+  private void rememberCompleteLines(final char[] characters, final int count, final StringBuilder line) {
+    for (int index = 0; index < count; index++) {
+      final char character = characters[index];
+      if (character == '\n') {
+        this.remember(line.toString());
+        line.setLength(0);
+      } else if (character != '\r' && line.length() < OUTPUT_LINE_CHARACTERS) {
+        line.append(character);
+      }
+    }
   }
 
   private void remember(final String line) {
@@ -924,12 +954,7 @@ final class HelperSession implements BrowserSession {
     try {
       final boolean exited = process.waitFor(STOP_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
       if (!exited) {
-        LOGGER.warn("The browser helper did not stop within {} ms and is killed.", STOP_TIMEOUT_MILLISECONDS);
-        try (final Stream<ProcessHandle> later = process.descendants()) {
-          later.forEach(descendants::add);
-        }
-        process.destroyForcibly();
-        process.waitFor(KILL_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
+        killAfterTimeout(process, descendants);
       }
     } catch (final InterruptedException exception) {
       process.destroyForcibly();
@@ -941,6 +966,15 @@ final class HelperSession implements BrowserSession {
         descendant.destroyForcibly();
       }
     }
+  }
+
+  private static void killAfterTimeout(final Process process, final List<ProcessHandle> descendants) throws InterruptedException {
+    LOGGER.warn("The browser helper did not stop within {} ms and is killed.", STOP_TIMEOUT_MILLISECONDS);
+    try (final Stream<ProcessHandle> later = process.descendants()) {
+      later.forEach(descendants::add);
+    }
+    process.destroyForcibly();
+    process.waitFor(KILL_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
   }
 
   private static void join(final Thread thread) {

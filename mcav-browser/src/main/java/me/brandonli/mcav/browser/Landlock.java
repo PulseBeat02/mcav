@@ -187,9 +187,7 @@ final class Landlock {
       final long created = invoke(Calls.SYSCALL, state, CREATE_RULESET, attributes.address(), (long) Long.BYTES, 0L, 0L);
       final long ruleset = check(created, Calls.errorOf(state), "create a ruleset");
       try {
-        for (final Rule rule : rules) {
-          addRule(arena, state, ruleset, rule, handled);
-        }
+        addRules(arena, state, ruleset, rules, handled);
         final long unprivileged = invoke(Calls.PRCTL, state, SET_NO_NEW_PRIVILEGES, 1L, 0L, 0L, 0L);
         check(unprivileged, Calls.errorOf(state), "keep the thread from gaining privileges");
         final long restricted = invoke(Calls.SYSCALL, state, RESTRICT_SELF, ruleset, 0L, 0L, 0L);
@@ -197,6 +195,13 @@ final class Landlock {
       } finally {
         invoke(Calls.CLOSE, state, (int) ruleset);
       }
+    }
+  }
+
+  private static void addRules(final Arena arena, final MemorySegment state, final long ruleset, final List<Rule> rules, final long handled)
+    throws IOException {
+    for (final Rule rule : rules) {
+      addRule(arena, state, ruleset, rule, handled);
     }
   }
 

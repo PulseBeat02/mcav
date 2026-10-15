@@ -416,16 +416,18 @@ final class CefEngine implements HelperEngine {
       }
       if (!confirmed) {
         notices.accept("The scripts of the page were not confirmed in %s attempts; it loads anyway.".formatted(attempt));
-        final CompletableFuture<String> late = answered.thenApply(lateAnswer -> {
-          notices.accept("The scripts of the page were confirmed late; it loads again.");
-          EventQueue.invokeLater(created::reload);
-          return lateAnswer;
-        });
+        final CompletableFuture<String> late = answered.thenApply(lateAnswer -> reloadOnLateAnswer(created, notices, lateAnswer));
         late.exceptionally(CefEngine::logFailedCall);
       }
       EventQueue.invokeLater(() -> created.loadURL(url));
     });
     loading.exceptionally(CefEngine::logFailedCall);
+  }
+
+  private static String reloadOnLateAnswer(final CefBrowser created, final Consumer<String> notices, final String lateAnswer) {
+    notices.accept("The scripts of the page were confirmed late; it loads again.");
+    EventQueue.invokeLater(created::reload);
+    return lateAnswer;
   }
 
   /**

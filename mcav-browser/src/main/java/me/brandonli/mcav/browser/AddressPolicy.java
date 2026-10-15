@@ -137,12 +137,13 @@ final class AddressPolicy {
     }
     boolean translated = false;
     for (final TranslationPrefix prefix : prefixes) {
-      if (prefix.contains(bytes)) {
-        if (!isPublicIpv4(embeddedIpv4(bytes, prefix.getLength()))) {
-          return false;
-        }
-        translated = true;
+      if (!prefix.contains(bytes)) {
+        continue;
       }
+      if (!isPublicIpv4(embeddedIpv4(bytes, prefix.getLength()))) {
+        return false;
+      }
+      translated = true;
     }
     return translated || isPublicIpv6(bytes);
   }
@@ -162,22 +163,26 @@ final class AddressPolicy {
       if (bytes.length != IPV6_BYTES || !isTranslationNetwork(bytes)) {
         continue;
       }
-      for (final int length : TRANSLATION_PREFIX_LENGTHS) {
-        final boolean uOctetAfterPrefix = length / Byte.SIZE <= U_OCTET;
-        if (uOctetAfterPrefix && bytes[U_OCTET] != 0) {
-          continue;
-        }
-        final int embedded = embeddedIpv4(bytes, length);
-        if (embedded != WELL_KNOWN_IPV4[0] && embedded != WELL_KNOWN_IPV4[1]) {
-          continue;
-        }
-        final TranslationPrefix prefix = new TranslationPrefix(bytes, length);
-        if (prefixes.stream().noneMatch(prefix::isSameAs)) {
-          prefixes.add(prefix);
-        }
-      }
+      addTranslationPrefixes(bytes, prefixes);
     }
     return prefixes;
+  }
+
+  private static void addTranslationPrefixes(final byte[] bytes, final List<TranslationPrefix> prefixes) {
+    for (final int length : TRANSLATION_PREFIX_LENGTHS) {
+      final boolean uOctetAfterPrefix = length / Byte.SIZE <= U_OCTET;
+      if (uOctetAfterPrefix && bytes[U_OCTET] != 0) {
+        continue;
+      }
+      final int embedded = embeddedIpv4(bytes, length);
+      if (embedded != WELL_KNOWN_IPV4[0] && embedded != WELL_KNOWN_IPV4[1]) {
+        continue;
+      }
+      final TranslationPrefix prefix = new TranslationPrefix(bytes, length);
+      if (prefixes.stream().noneMatch(prefix::isSameAs)) {
+        prefixes.add(prefix);
+      }
+    }
   }
 
   /**

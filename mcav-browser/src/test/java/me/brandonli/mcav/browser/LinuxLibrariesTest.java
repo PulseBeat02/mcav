@@ -719,14 +719,7 @@ class LinuxLibrariesTest {
     final AtomicReference<Thread> installer = new AtomicReference<>();
     final CompletableFuture<Path> installed;
     synchronized (LinuxLibraries.INSTALL_LOCK) {
-      installed = CompletableFuture.supplyAsync(() -> {
-        installer.set(Thread.currentThread());
-        try {
-          return libraries.install(PLATFORM);
-        } catch (final IOException exception) {
-          throw new UncheckedIOException(exception);
-        }
-      });
+      installed = CompletableFuture.supplyAsync(() -> this.installRecordingTheCaller(installer, libraries));
       Await.until("the installer waits for the lock", () -> installer.get() != null && installer.get().getState() == Thread.State.BLOCKED);
       Files.createDirectories(installation);
       Files.writeString(installation.resolve(LinuxLibraries.INSTALL_MARKER), "done");
@@ -734,6 +727,15 @@ class LinuxLibrariesTest {
     final Path waitedInstallation = installed.get(30, TimeUnit.SECONDS);
     assertEquals(installation, waitedInstallation);
     assertEquals(List.of(), this.downloads, "nothing was downloaded again");
+  }
+
+  private Path installRecordingTheCaller(final AtomicReference<Thread> installer, final LinuxLibraries libraries) {
+    installer.set(Thread.currentThread());
+    try {
+      return libraries.install(PLATFORM);
+    } catch (final IOException exception) {
+      throw new UncheckedIOException(exception);
+    }
   }
 
   @Test

@@ -97,31 +97,35 @@ final class LinuxLibrariesFuzzTest {
   private static void check(final Path root, final Path file, final Path target, final boolean extracted) throws IOException {
     final boolean supportsPosix = FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
     final Set<String> written = new HashSet<>();
-    try (final Stream<Path> paths = Files.walk(root)) {
-      final List<Path> all = paths.toList();
-      for (final Path path : all) {
-        if (path.equals(root) || path.equals(file) || path.equals(target)) {
-          continue;
-        }
-        final Path parent = path.getParent();
-        assertEquals(target, parent, () -> "outside the target or in a folder of its own: " + path);
-        final boolean regularFile = Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS);
-        assertTrue(regularFile, () -> "not a plain file: " + path);
-        final String name = path.getFileName().toString();
-        final boolean pinned = PINNED.containsValue(name);
-        assertTrue(pinned, () -> "not a pinned library: " + path);
-        if (supportsPosix) {
-          final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
-          final boolean writableByOthers = permissions.contains(PosixFilePermission.OTHERS_WRITE);
-          assertFalse(writableByOthers, () -> "writable by others: " + path);
-        }
-        written.add(name);
+    final List<Path> all = listAllPaths(root);
+    for (final Path path : all) {
+      if (path.equals(root) || path.equals(file) || path.equals(target)) {
+        continue;
       }
-    } catch (final UncheckedIOException exception) {
-      throw exception.getCause();
+      final Path parent = path.getParent();
+      assertEquals(target, parent, () -> "outside the target or in a folder of its own: " + path);
+      final boolean regularFile = Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS);
+      assertTrue(regularFile, () -> "not a plain file: " + path);
+      final String name = path.getFileName().toString();
+      final boolean pinned = PINNED.containsValue(name);
+      assertTrue(pinned, () -> "not a pinned library: " + path);
+      if (supportsPosix) {
+        final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
+        final boolean writableByOthers = permissions.contains(PosixFilePermission.OTHERS_WRITE);
+        assertFalse(writableByOthers, () -> "writable by others: " + path);
+      }
+      written.add(name);
     }
     if (extracted) {
       assertEquals(Set.copyOf(PINNED.values()), written, "a package that extracts holds every pinned library");
+    }
+  }
+
+  private static List<Path> listAllPaths(final Path root) throws IOException {
+    try (final Stream<Path> paths = Files.walk(root)) {
+      return paths.toList();
+    } catch (final UncheckedIOException exception) {
+      throw exception.getCause();
     }
   }
 

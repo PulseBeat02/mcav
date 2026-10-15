@@ -187,9 +187,7 @@ final class NetworkGuard implements Closeable {
       try {
         client = this.server.accept();
       } catch (final IOException exception) {
-        if (!this.closed) {
-          this.notices.accept("The network guard stopped (%s).".formatted(exception.getMessage()));
-        }
+        this.reportStopUnlessClosed(exception);
         return;
       }
       if (!this.slots.tryAcquire()) {
@@ -199,15 +197,23 @@ final class NetworkGuard implements Closeable {
       this.sockets.add(client);
       Thread.ofVirtual()
         .name("mcav-browser-guard-connection")
-        .start(() -> {
-          try {
-            this.serve(client);
-          } finally {
-            this.sockets.remove(client);
-            closeQuietly(client);
-            this.slots.release();
-          }
-        });
+        .start(() -> this.serveAndRelease(client));
+    }
+  }
+
+  private void reportStopUnlessClosed(final IOException exception) {
+    if (!this.closed) {
+      this.notices.accept("The network guard stopped (%s).".formatted(exception.getMessage()));
+    }
+  }
+
+  private void serveAndRelease(final Socket client) {
+    try {
+      this.serve(client);
+    } finally {
+      this.sockets.remove(client);
+      closeQuietly(client);
+      this.slots.release();
     }
   }
 

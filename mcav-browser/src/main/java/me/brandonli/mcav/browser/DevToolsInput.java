@@ -386,17 +386,19 @@ final class DevToolsInput {
         case '\n' -> builder.append("\\n");
         case '\r' -> builder.append("\\r");
         case '\t' -> builder.append("\\t");
-        default -> {
-          if (character < FIRST_UNESCAPED_CHARACTER || character == LINE_SEPARATOR || character == PARAGRAPH_SEPARATOR) {
-            builder.append(String.format(Locale.ROOT, "\\u%04x", (int) character));
-          } else {
-            builder.append(character);
-          }
-        }
+        default -> appendPlainOrUnicodeEscaped(builder, character);
       }
     }
     builder.append('"');
     return builder.toString();
+  }
+
+  private static void appendPlainOrUnicodeEscaped(final StringBuilder builder, final char character) {
+    if (character < FIRST_UNESCAPED_CHARACTER || character == LINE_SEPARATOR || character == PARAGRAPH_SEPARATOR) {
+      builder.append(String.format(Locale.ROOT, "\\u%04x", (int) character));
+    } else {
+      builder.append(character);
+    }
   }
 
   /**

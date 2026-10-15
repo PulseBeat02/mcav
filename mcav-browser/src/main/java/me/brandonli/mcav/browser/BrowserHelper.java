@@ -282,18 +282,22 @@ public final class BrowserHelper {
   void readCommands(final DataInputStream input) {
     final byte[] noPixels = new byte[0];
     try {
-      while (true) {
-        final HelperMessage message = HelperProtocol.read(input, size -> noPixels);
-        this.executeCommand(message);
-        final boolean isInput = this.isInput(message);
-        if (!isInput) {
-          return;
-        }
-      }
+      this.executeCommandsWhileInput(input, noPixels);
     } catch (final EOFException exception) {
       this.stop("the server closed the connection");
     } catch (final IOException exception) {
       this.stop("the connection failed (%s)".formatted(exception.getMessage()));
+    }
+  }
+
+  private void executeCommandsWhileInput(final DataInputStream input, final byte[] noPixels) throws IOException {
+    while (true) {
+      final HelperMessage message = HelperProtocol.read(input, size -> noPixels);
+      this.executeCommand(message);
+      final boolean isInput = this.isInput(message);
+      if (!isInput) {
+        return;
+      }
     }
   }
 
@@ -353,20 +357,24 @@ public final class BrowserHelper {
     final byte[] buffer = new byte[pageBytes];
     try {
       while (this.stopped.getCount() > 0) {
-        final FrameRegion region = this.compositor.takeDamage(buffer, TAKE_TIMEOUT_MILLISECONDS);
-        if (region == null) {
-          continue;
-        }
-        synchronized (output) {
-          HelperProtocol.writeFrame(output, region);
-          output.flush();
-        }
+        this.sendNextDamage(output, buffer);
       }
     } catch (final InterruptedException exception) {
       final Thread thread = Thread.currentThread();
       thread.interrupt();
     } catch (final IOException exception) {
       this.stop("a frame could not be sent (%s)".formatted(exception.getMessage()));
+    }
+  }
+
+  private void sendNextDamage(final DataOutputStream output, final byte[] buffer) throws InterruptedException, IOException {
+    final FrameRegion region = this.compositor.takeDamage(buffer, TAKE_TIMEOUT_MILLISECONDS);
+    if (region == null) {
+      return;
+    }
+    synchronized (output) {
+      HelperProtocol.writeFrame(output, region);
+      output.flush();
     }
   }
 

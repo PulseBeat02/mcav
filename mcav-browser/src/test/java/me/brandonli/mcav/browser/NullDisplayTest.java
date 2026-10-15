@@ -640,26 +640,33 @@ class NullDisplayTest {
       for (int count = 0; count <= NullDisplay.MAXIMUM_CONNECTIONS; count++) {
         clients.add(introduce(loopback, port, cookie));
       }
-      final List<Socket> served = new ArrayList<>();
-      for (final Socket client : clients) {
-        if (isServed(client)) {
-          served.add(client);
-        }
-      }
+      final List<Socket> served = this.servedClients(clients);
       final int servedCount = served.size();
       assertEquals(NullDisplay.MAXIMUM_CONNECTIONS, servedCount, "one client more than the limit is ended");
       served.getFirst().close();
-      Await.until("a place for another client", () -> {
-        try (final Socket next = introduce(loopback, port, cookie)) {
-          return internsAnAtom(next);
-        } catch (final IOException exception) {
-          return false;
-        }
-      });
+      Await.until("a place for another client", () -> this.isANewClientServed(loopback, port, cookie));
     } finally {
       for (final Socket client : clients) {
         client.close();
       }
+    }
+  }
+
+  private List<Socket> servedClients(final List<Socket> clients) {
+    final List<Socket> served = new ArrayList<>();
+    for (final Socket client : clients) {
+      if (isServed(client)) {
+        served.add(client);
+      }
+    }
+    return served;
+  }
+
+  private boolean isANewClientServed(final InetAddress loopback, final int port, final byte[] cookie) {
+    try (final Socket next = introduce(loopback, port, cookie)) {
+      return internsAnAtom(next);
+    } catch (final IOException exception) {
+      return false;
     }
   }
 
@@ -752,10 +759,7 @@ class NullDisplayTest {
         final Socket newcomer = new Socket(loopback, port);
         newcomer.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         silent.add(newcomer);
-        try (final Socket second = introduce(loopback, port, cookieOf(authority))) {
-          final boolean secondInternsAtom = internsAnAtom(second);
-          assertTrue(secondInternsAtom, "the second client with the cookie is served");
-        }
+        this.assertASecondClientIsServed(loopback, port, authority);
       }
       final Socket oldest = silent.getFirst();
       oldest.setSoTimeout(300);
@@ -764,6 +768,13 @@ class NullDisplayTest {
       for (final Socket client : silent) {
         client.close();
       }
+    }
+  }
+
+  private void assertASecondClientIsServed(final InetAddress loopback, final int port, final Path authority) throws IOException {
+    try (final Socket second = introduce(loopback, port, cookieOf(authority))) {
+      final boolean secondInternsAtom = internsAnAtom(second);
+      assertTrue(secondInternsAtom, "the second client with the cookie is served");
     }
   }
 

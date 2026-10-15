@@ -141,15 +141,22 @@ final class SessionFolders {
   int removeStale(final Path temporary) {
     int removed = 0;
     try (final DirectoryStream<Path> folders = Files.newDirectoryStream(temporary, PREFIX + ANY_NAME)) {
-      for (final Path folder : folders) {
-        if (this.isStale(folder)) {
-          HelperSession.deleteFolder(folder);
-          LOGGER.debug("Removed the folder {} of a browser whose server ended without releasing it.", folder);
-          removed++;
-        }
-      }
+      removed = this.removeStaleFolders(folders);
     } catch (final IOException exception) {
       LOGGER.warn("The folders of browser sessions in {} could not be listed ({}).", temporary, exception.toString());
+    }
+    return removed;
+  }
+
+  private int removeStaleFolders(final DirectoryStream<Path> folders) {
+    int removed = 0;
+    for (final Path folder : folders) {
+      if (!this.isStale(folder)) {
+        continue;
+      }
+      HelperSession.deleteFolder(folder);
+      LOGGER.debug("Removed the folder {} of a browser whose server ended without releasing it.", folder);
+      removed++;
     }
     return removed;
   }

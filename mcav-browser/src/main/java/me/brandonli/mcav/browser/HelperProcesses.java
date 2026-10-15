@@ -23,6 +23,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import me.brandonli.mcav.media.player.PlayerException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The browser helper sessions that are running in this JVM, so that stopping the browser module ends every helper
@@ -113,15 +114,21 @@ final class HelperProcesses {
       try {
         session.endAndClose("The browser module was stopped!");
       } catch (final RuntimeException exception) {
-        if (failure == null) {
-          failure = exception;
-        } else if (!FAILURE_IDENTITY.equivalent(failure, exception)) {
-          failure.addSuppressed(exception);
-        }
+        failure = combineFailures(failure, exception);
       }
     }
     if (failure != null) {
       throw failure;
     }
+  }
+
+  private static RuntimeException combineFailures(final @Nullable RuntimeException failure, final RuntimeException exception) {
+    if (failure == null) {
+      return exception;
+    }
+    if (!FAILURE_IDENTITY.equivalent(failure, exception)) {
+      failure.addSuppressed(exception);
+    }
+    return failure;
   }
 }

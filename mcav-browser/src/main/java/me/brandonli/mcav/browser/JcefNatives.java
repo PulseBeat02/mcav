@@ -197,13 +197,23 @@ final class JcefNatives {
         final FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
         final FileLock lock = lock(channel)
       ) {
-        if (!Files.isRegularFile(marker)) {
-          this.installLocked(identifier, sha256, size, installation);
-        }
+        this.installUnlessMarked(marker, identifier, sha256, size, installation);
         LOGGER.debug("Installation lock {} of {} was released.", lock, name);
       }
     }
     return installation;
+  }
+
+  private void installUnlessMarked(
+    final Path marker,
+    final String identifier,
+    final String sha256,
+    final long size,
+    final Path installation
+  ) throws IOException {
+    if (!Files.isRegularFile(marker)) {
+      this.installLocked(identifier, sha256, size, installation);
+    }
   }
 
   /**
@@ -312,23 +322,29 @@ final class JcefNatives {
   }
 
   private void extractArchive(final Path jar, final Path staging) throws IOException {
-    boolean extracted = false;
+    final boolean extracted;
     try (final InputStream raw = Files.newInputStream(jar); final ZipInputStream zip = new ZipInputStream(raw)) {
-      ZipEntry entry = zip.getNextEntry();
-      while (entry != null && !extracted) {
-        final String entryName = entry.getName();
-        if (entryName.endsWith(ARCHIVE_SUFFIX)) {
-          this.extractor.extract(zip, staging);
-          extracted = true;
-        } else {
-          entry = zip.getNextEntry();
-        }
-      }
+      extracted = this.extractFirstArchive(zip, staging);
     }
     if (!extracted) {
       final String message = "The natives jar holds no %s archive!".formatted(ARCHIVE_SUFFIX);
       throw new IOException(message);
     }
+  }
+
+  private boolean extractFirstArchive(final ZipInputStream zip, final Path staging) throws IOException {
+    boolean extracted = false;
+    ZipEntry entry = zip.getNextEntry();
+    while (entry != null && !extracted) {
+      final String entryName = entry.getName();
+      if (entryName.endsWith(ARCHIVE_SUFFIX)) {
+        this.extractor.extract(zip, staging);
+        extracted = true;
+      } else {
+        entry = zip.getNextEntry();
+      }
+    }
+    return extracted;
   }
 
   /**

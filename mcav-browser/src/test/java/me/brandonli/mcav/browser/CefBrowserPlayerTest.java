@@ -465,14 +465,7 @@ class CefBrowserPlayerTest {
     final ExecutorService starter = Executors.newSingleThreadExecutor();
     try {
       // read on the thread that called start, in the same task: the executor clears a worker's interrupt between tasks
-      final Future<Boolean> leftInterrupted = starter.submit(() -> {
-        try {
-          late.start(SOURCE);
-        } catch (final IllegalStateException exception) {
-          // the helper's own failure, which the start passes on
-        }
-        return Thread.currentThread().isInterrupted();
-      });
+      final Future<Boolean> leftInterrupted = starter.submit(() -> startAndReadTheInterrupt(late));
       final boolean factoryEntered = opening.await(5, TimeUnit.SECONDS);
       assertTrue(factoryEntered, "the helper factory must be entered before release");
       final Boolean released = assertTimeoutPreemptively(Duration.ofSeconds(5), late::release);
@@ -490,6 +483,15 @@ class CefBrowserPlayerTest {
         assertTimeoutPreemptively(Duration.ofSeconds(5), late::release);
       }
     }
+  }
+
+  private static boolean startAndReadTheInterrupt(final CefBrowserPlayer late) {
+    try {
+      late.start(SOURCE);
+    } catch (final IllegalStateException exception) {
+      // the helper's own failure, which the start passes on
+    }
+    return Thread.currentThread().isInterrupted();
   }
 
   @Test

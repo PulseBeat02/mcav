@@ -358,17 +358,7 @@ class JcefNativesTest {
       final byte[] jar = nativesJar(true);
       final JcefNatives natives = new JcefNatives(
         this.folder,
-        (uri, destination, sha256, size) -> {
-          this.downloads.incrementAndGet();
-          downloading.countDown();
-          try {
-            final boolean releasedInTime = release.await(10, TimeUnit.SECONDS);
-            assertTrue(releasedInTime, "the first download is released");
-          } catch (final InterruptedException exception) {
-            Thread.currentThread().interrupt();
-          }
-          Files.write(destination, jar);
-        },
+        (uri, destination, sha256, size) -> this.downloadWhenReleased(downloading, release, destination, jar),
         REPOSITORY,
         new ArchiveExtractor()
       );
@@ -377,14 +367,8 @@ class JcefNativesTest {
       try {
         final boolean downloadStarted = downloading.await(10, TimeUnit.SECONDS);
         assertTrue(downloadStarted, "the first install owns the download");
-        second = CompletableFuture.supplyAsync(() -> {
-          secondCaller.set(Thread.currentThread());
-          return install(natives);
-        }, starts);
-        Await.until("the second installer waits on the held installation lock", () -> {
-          final Thread caller = secondCaller.get();
-          return caller != null && caller.getState() == Thread.State.BLOCKED;
-        });
+        second = CompletableFuture.supplyAsync(() -> this.installRecordingTheCaller(secondCaller, natives), starts);
+        Await.until("the second installer waits on the held installation lock", () -> this.isBlocked(secondCaller));
         final boolean done = second.isDone();
         assertFalse(done);
       } finally {
@@ -395,6 +379,33 @@ class JcefNativesTest {
       final int downloadCount = this.downloads.get();
       assertEquals(1, downloadCount);
     }
+  }
+
+  private void downloadWhenReleased(
+    final CountDownLatch downloading,
+    final CountDownLatch release,
+    final Path destination,
+    final byte[] jar
+  ) throws IOException {
+    this.downloads.incrementAndGet();
+    downloading.countDown();
+    try {
+      final boolean releasedInTime = release.await(10, TimeUnit.SECONDS);
+      assertTrue(releasedInTime, "the first download is released");
+    } catch (final InterruptedException exception) {
+      Thread.currentThread().interrupt();
+    }
+    Files.write(destination, jar);
+  }
+
+  private Path installRecordingTheCaller(final AtomicReference<Thread> caller, final JcefNatives natives) {
+    caller.set(Thread.currentThread());
+    return install(natives);
+  }
+
+  private boolean isBlocked(final AtomicReference<Thread> secondCaller) {
+    final Thread caller = secondCaller.get();
+    return caller != null && caller.getState() == Thread.State.BLOCKED;
   }
 
   @Test

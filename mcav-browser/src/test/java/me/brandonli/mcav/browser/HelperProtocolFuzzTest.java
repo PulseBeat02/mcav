@@ -44,17 +44,19 @@ final class HelperProtocolFuzzTest {
     final DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
     try {
       while (true) {
-        final HelperMessage message = HelperProtocol.read(in, size -> {
-          if (size > bytes.length) {
-            throw new CutShort();
-          }
-          return new byte[size];
-        });
+        final HelperMessage message = HelperProtocol.read(in, size -> this.allocatePixels(bytes, size));
         check(message);
       }
     } catch (final IOException | CutShort exception) {
       // malformed or cut short: the server ends the session
     }
+  }
+
+  private byte[] allocatePixels(final byte[] bytes, final int size) {
+    if (size > bytes.length) {
+      throw new CutShort();
+    }
+    return new byte[size];
   }
 
   private static void check(final HelperMessage message) {

@@ -131,33 +131,41 @@ final class ArchiveExtractor {
     final Path root = target.toRealPath();
     final GzipCompressorInputStream gzip = new GzipCompressorInputStream(new NonClosingInputStream(archive));
     try (final TarArchiveInputStream tar = new TarArchiveInputStream(gzip)) {
-      int entries = 0;
-      long written = 0L;
-      TarArchiveEntry entry = tar.getNextEntry();
-      while (entry != null) {
-        entries++;
-        if (entries > this.maxEntries) {
-          final String message = "The archive has more than %s entries!".formatted(this.maxEntries);
-          throw new IOException(message);
-        }
-        // the archive library counts links and special files as files, so they are refused by their type first
-        if (isLinkOrSpecial(entry)) {
-          final String message = "Archive entry %s is not a plain file or folder!".formatted(entry.getName());
-          throw new IOException(message);
-        }
-        final Path destination = resolve(root, entry.getName());
-        if (entry.isDirectory()) {
-          createFolders(destination, supportsPosix);
-        } else {
-          final long remaining = this.maxTotalBytes - written;
-          written += writeFile(tar, destination, remaining, supportsPosix);
-          final boolean executable = (entry.getMode() & EXECUTE_BITS) != 0;
-          if (supportsPosix) {
-            Files.setPosixFilePermissions(destination, executable ? EXECUTABLE : REGULAR);
-          }
-        }
-        entry = tar.getNextEntry();
+      this.extractEntries(tar, root, supportsPosix);
+    }
+  }
+
+  private void extractEntries(final TarArchiveInputStream tar, final Path root, final boolean supportsPosix) throws IOException {
+    int entries = 0;
+    long written = 0L;
+    TarArchiveEntry entry = tar.getNextEntry();
+    while (entry != null) {
+      entries++;
+      if (entries > this.maxEntries) {
+        final String message = "The archive has more than %s entries!".formatted(this.maxEntries);
+        throw new IOException(message);
       }
+      // the archive library counts links and special files as files, so they are refused by their type first
+      if (isLinkOrSpecial(entry)) {
+        final String message = "Archive entry %s is not a plain file or folder!".formatted(entry.getName());
+        throw new IOException(message);
+      }
+      final Path destination = resolve(root, entry.getName());
+      if (entry.isDirectory()) {
+        createFolders(destination, supportsPosix);
+      } else {
+        final long remaining = this.maxTotalBytes - written;
+        written += writeFile(tar, destination, remaining, supportsPosix);
+        this.setFileMode(destination, entry, supportsPosix);
+      }
+      entry = tar.getNextEntry();
+    }
+  }
+
+  private void setFileMode(final Path destination, final TarArchiveEntry entry, final boolean supportsPosix) throws IOException {
+    final boolean executable = (entry.getMode() & EXECUTE_BITS) != 0;
+    if (supportsPosix) {
+      Files.setPosixFilePermissions(destination, executable ? EXECUTABLE : REGULAR);
     }
   }
 
@@ -219,7 +227,6 @@ final class ArchiveExtractor {
     throws IOException {
     final Path parent = Objects.requireNonNull(destination.getParent(), "An entry lies below the folder!");
     createFolders(parent, supportsPosix);
-    long written = 0L;
     final byte[] buffer = new byte[BUFFER_BYTES];
     try (
       final OutputStream out = Files.newOutputStream(
@@ -229,15 +236,21 @@ final class ArchiveExtractor {
         LinkOption.NOFOLLOW_LINKS
       )
     ) {
-      int count = tar.read(buffer);
-      while (count >= 0) {
-        written += count;
-        if (written > remaining) {
-          throw new IOException("The archive extracts to more than the allowed size!");
-        }
-        out.write(buffer, 0, count);
-        count = tar.read(buffer);
+      return copyAtMost(tar, out, buffer, remaining);
+    }
+  }
+
+  private static long copyAtMost(final InputStream tar, final OutputStream out, final byte[] buffer, final long remaining)
+    throws IOException {
+    long written = 0L;
+    int count = tar.read(buffer);
+    while (count >= 0) {
+      written += count;
+      if (written > remaining) {
+        throw new IOException("The archive extracts to more than the allowed size!");
       }
+      out.write(buffer, 0, count);
+      count = tar.read(buffer);
     }
     return written;
   }

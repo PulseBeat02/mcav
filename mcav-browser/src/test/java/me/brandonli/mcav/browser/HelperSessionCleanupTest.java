@@ -39,10 +39,12 @@ import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import me.brandonli.mcav.media.player.PlayerException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.MockedStatic;
+import org.mockito.invocation.InvocationOnMock;
 
 final class HelperSessionCleanupTest {
 
@@ -76,13 +78,7 @@ final class HelperSessionCleanupTest {
       helpers.when(() -> HelperSession.accept(eq(server), eq(process), anyLong())).thenReturn(accepted);
       files
         .when(() -> Files.deleteIfExists(any(Path.class)))
-        .thenAnswer(invocation -> {
-          final Path path = invocation.getArgument(0);
-          if (path.equals(socket)) {
-            throw failure;
-          }
-          return invocation.callRealMethod();
-        });
+        .thenAnswer(invocation -> this.failToDeleteTheSocket(invocation, socket, failure));
       final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
       if (unchecked) {
         final IllegalStateException uncheckedFailure = assertThrows(IllegalStateException.class, () ->
@@ -99,5 +95,14 @@ final class HelperSessionCleanupTest {
       final boolean acceptedOpen = accepted.isOpen();
       assertFalse(acceptedOpen, "an accepted channel has an owner before session construction");
     }
+  }
+
+  private @Nullable Object failToDeleteTheSocket(final InvocationOnMock invocation, final Path socket, final Throwable failure)
+    throws Throwable {
+    final Path path = invocation.getArgument(0);
+    if (path.equals(socket)) {
+      throw failure;
+    }
+    return invocation.callRealMethod();
   }
 }

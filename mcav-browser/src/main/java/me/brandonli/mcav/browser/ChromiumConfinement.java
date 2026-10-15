@@ -164,11 +164,12 @@ final class ChromiumConfinement {
     throws IOException {
     final List<Path> hiddenFolders = new ArrayList<>();
     for (final Path folder : hidden) {
-      if (Files.exists(folder)) {
-        final Path real = folder.toRealPath();
-        if (!real.equals(root)) {
-          hiddenFolders.add(real);
-        }
+      if (!Files.exists(folder)) {
+        continue;
+      }
+      final Path real = folder.toRealPath();
+      if (!real.equals(root)) {
+        hiddenFolders.add(real);
       }
     }
     final List<Landlock.Rule> rules = new ArrayList<>();
@@ -270,14 +271,19 @@ final class ChromiumConfinement {
         continue;
       }
       try (final Stream<Path> listing = Files.list(folder)) {
-        for (final Path entry : listing.toList()) {
-          if (Files.isSymbolicLink(entry)) {
-            final Path parent = parentOf(entry);
-            targets.add(parent.resolve(Files.readSymbolicLink(entry)));
-          }
-        }
+        final List<Path> entries = listing.toList();
+        addLinkTargets(entries, targets);
       }
     }
     return targets;
+  }
+
+  private static void addLinkTargets(final List<Path> entries, final List<Path> targets) throws IOException {
+    for (final Path entry : entries) {
+      if (Files.isSymbolicLink(entry)) {
+        final Path parent = parentOf(entry);
+        targets.add(parent.resolve(Files.readSymbolicLink(entry)));
+      }
+    }
   }
 }

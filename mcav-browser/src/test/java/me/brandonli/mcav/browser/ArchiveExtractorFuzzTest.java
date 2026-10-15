@@ -104,29 +104,33 @@ final class ArchiveExtractorFuzzTest {
 
   private static void check(final Path root, final Path target) throws IOException {
     final boolean supportsPosix = root.getFileSystem().supportedFileAttributeViews().contains("posix");
-    try (final Stream<Path> paths = Files.walk(root)) {
-      final List<Path> all = paths.toList();
-      long bytes = 0L;
-      for (final Path path : all) {
-        final boolean symbolicLink = Files.isSymbolicLink(path);
-        assertFalse(symbolicLink, () -> "a link: " + path);
-        final boolean insideTarget = path.equals(root) || path.startsWith(target);
-        assertTrue(insideTarget, () -> "outside the target: " + path);
-        final boolean regular = Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS);
-        final boolean fileOrFolder = regular || Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS);
-        assertTrue(fileOrFolder, () -> "neither file nor folder: " + path);
-        if (regular) {
-          bytes += Files.size(path);
-          if (supportsPosix) {
-            final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
-            final boolean writableByOthers = permissions.contains(PosixFilePermission.OTHERS_WRITE);
-            assertFalse(writableByOthers, () -> "writable by others: " + path);
-          }
-        }
+    final List<Path> all = listAllPaths(root);
+    long bytes = 0L;
+    for (final Path path : all) {
+      final boolean symbolicLink = Files.isSymbolicLink(path);
+      assertFalse(symbolicLink, () -> "a link: " + path);
+      final boolean insideTarget = path.equals(root) || path.startsWith(target);
+      assertTrue(insideTarget, () -> "outside the target: " + path);
+      final boolean regular = Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS);
+      final boolean fileOrFolder = regular || Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS);
+      assertTrue(fileOrFolder, () -> "neither file nor folder: " + path);
+      if (regular) {
+        bytes += Files.size(path);
       }
-      final long total = bytes;
-      final boolean withinLimit = total <= MAXIMUM_BYTES;
-      assertTrue(withinLimit, () -> total + " bytes");
+      if (regular && supportsPosix) {
+        final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
+        final boolean writableByOthers = permissions.contains(PosixFilePermission.OTHERS_WRITE);
+        assertFalse(writableByOthers, () -> "writable by others: " + path);
+      }
+    }
+    final long total = bytes;
+    final boolean withinLimit = total <= MAXIMUM_BYTES;
+    assertTrue(withinLimit, () -> total + " bytes");
+  }
+
+  private static List<Path> listAllPaths(final Path root) throws IOException {
+    try (final Stream<Path> paths = Files.walk(root)) {
+      return paths.toList();
     } catch (final UncheckedIOException exception) {
       throw exception.getCause();
     }

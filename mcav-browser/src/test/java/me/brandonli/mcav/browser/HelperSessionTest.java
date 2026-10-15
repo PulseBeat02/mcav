@@ -187,16 +187,20 @@ class HelperSessionTest {
       server.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
       server.configureBlocking(false);
       final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
-      final PlayerException interrupted = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> {
-        Thread.currentThread().interrupt();
-        try {
-          return assertThrows(PlayerException.class, () -> HelperSession.accept(server, alive, deadline));
-        } finally {
-          Thread.interrupted();
-        }
-      });
+      final PlayerException interrupted = assertTimeoutPreemptively(Duration.ofSeconds(10), () ->
+        this.acceptWhileInterrupted(server, alive, deadline)
+      );
       final String message = interrupted.getMessage();
       assertEquals("Interrupted while the browser helper connected!", message);
+    }
+  }
+
+  private PlayerException acceptWhileInterrupted(final ServerSocketChannel server, final Process alive, final long deadline) {
+    Thread.currentThread().interrupt();
+    try {
+      return assertThrows(PlayerException.class, () -> HelperSession.accept(server, alive, deadline));
+    } finally {
+      Thread.interrupted();
     }
   }
 
@@ -768,14 +772,7 @@ class HelperSessionTest {
     // its processes are watched while the session closes, because they are no descendants once the helper is gone
     final Set<ProcessHandle> started = ConcurrentHashMap.newKeySet();
     final AtomicBoolean closing = new AtomicBoolean(true);
-    final Thread watcher = new Thread(() -> {
-      while (closing.get()) {
-        try (final Stream<ProcessHandle> descendants = process.descendants()) {
-          descendants.forEach(started::add);
-        }
-        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(20));
-      }
-    });
+    final Thread watcher = new Thread(() -> this.collectDescendantsWhileClosing(process, started, closing));
     watcher.start();
     try {
       session.close();
@@ -788,6 +785,15 @@ class HelperSessionTest {
     final boolean startedNothing = started.isEmpty();
     assertFalse(startedNothing, "the helper started a process while it did not stop");
     Await.until("no process the helper started is left", () -> started.stream().noneMatch(ProcessHandle::isAlive));
+  }
+
+  private void collectDescendantsWhileClosing(final Process process, final Set<ProcessHandle> started, final AtomicBoolean closing) {
+    while (closing.get()) {
+      try (final Stream<ProcessHandle> descendants = process.descendants()) {
+        descendants.forEach(started::add);
+      }
+      LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(20));
+    }
   }
 
   @Test

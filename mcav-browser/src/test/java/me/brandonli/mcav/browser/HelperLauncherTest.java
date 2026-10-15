@@ -243,17 +243,21 @@ class HelperLauncherTest {
       if (!reached.add(name)) {
         continue;
       }
-      for (final String used : usedClasses(name)) {
-        if (used.startsWith(BROWSER_PACKAGE)) {
-          pending.push(used);
-        } else if (!isOnTheHelperClassPath(used)) {
-          outside.add(name + " uses " + used);
-        }
-      }
+      this.followUsedClasses(name, pending, outside);
     }
     assertEquals(List.of(), outside);
     final boolean reachedNullDisplay = reached.contains(BROWSER_PACKAGE + "NullDisplay");
     assertTrue(reachedNullDisplay, reached::toString);
+  }
+
+  private void followUsedClasses(final String name, final Deque<String> pending, final List<String> outside) throws IOException {
+    for (final String used : usedClasses(name)) {
+      if (used.startsWith(BROWSER_PACKAGE)) {
+        pending.push(used);
+      } else if (!isOnTheHelperClassPath(used)) {
+        outside.add(name + " uses " + used);
+      }
+    }
   }
 
   private static Set<String> usedClasses(final String name) throws IOException {
@@ -266,12 +270,7 @@ class HelperLauncherTest {
     final Set<String> used = new TreeSet<>();
     for (final PoolEntry entry : model.constantPool()) {
       if (entry instanceof final ClassEntry type) {
-        final String internal = type.asInternalName();
-        if (internal.startsWith("[")) {
-          addDescribed(internal, used);
-        } else {
-          used.add(internal);
-        }
+        addClass(type, used);
       } else if (entry instanceof final NameAndTypeEntry member) {
         addDescribed(member.type().stringValue(), used);
       } else if (entry instanceof final MethodTypeEntry method) {
@@ -281,6 +280,15 @@ class HelperLauncherTest {
     model.fields().forEach(field -> addDescribed(field.fieldType().stringValue(), used));
     model.methods().forEach(method -> addDescribed(method.methodType().stringValue(), used));
     return used;
+  }
+
+  private static void addClass(final ClassEntry type, final Set<String> used) {
+    final String internal = type.asInternalName();
+    if (internal.startsWith("[")) {
+      addDescribed(internal, used);
+    } else {
+      used.add(internal);
+    }
   }
 
   private static void addDescribed(final String descriptor, final Set<String> used) {

@@ -100,37 +100,41 @@ final class ScriptedEngine implements HelperEngine {
         events.onLoadError(-105, "ERR_NAME_NOT_RESOLVED", url.toString());
         events.onLoading(false);
       }
-      case "/sound" -> {
-        this.show(0);
-        final PageAudio audio = new PageAudio(events::onAudio, System::nanoTime);
-        for (int chunk = 1; chunk <= SOUND_CHUNKS; chunk++) {
-          final ByteBuffer samples = ByteBuffer.allocate(SOUND_FRAMES * 4).order(ByteOrder.LITTLE_ENDIAN);
-          while (samples.hasRemaining()) {
-            samples.putShort((short) chunk);
-          }
-          final String payload = Base64.getEncoder().encodeToString(samples.array());
-          audio.onEvent(PageAudio.BINDING_EVENT, "{\"name\":\"other\",\"payload\":\"" + payload + "\",\"executionContextId\":1}");
-          audio.onEvent(
-            PageAudio.BINDING_EVENT,
-            "{\"name\":\"" + PageAudio.BINDING + "\",\"payload\":\"" + payload + "\",\"executionContextId\":1}"
-          );
-        }
-      }
+      case "/sound" -> this.playSound(events);
       case "/sound-on-input" -> {
         this.soundOnInput = true;
         this.show(0);
         events.onAudio(chunk(0));
       }
-      case "/fail" -> {
-        this.show(0);
-        final Thread later = new Thread(() -> {
-          pause(1_000L);
-          events.onFailure("scripted renderer crash");
-        });
-        later.start();
-      }
+      case "/fail" -> this.crashRendererLater(events);
       default -> this.show(0);
     }
+  }
+
+  private void playSound(final HelperEvents events) {
+    this.show(0);
+    final PageAudio audio = new PageAudio(events::onAudio, System::nanoTime);
+    for (int chunk = 1; chunk <= SOUND_CHUNKS; chunk++) {
+      final ByteBuffer samples = ByteBuffer.allocate(SOUND_FRAMES * 4).order(ByteOrder.LITTLE_ENDIAN);
+      while (samples.hasRemaining()) {
+        samples.putShort((short) chunk);
+      }
+      final String payload = Base64.getEncoder().encodeToString(samples.array());
+      audio.onEvent(PageAudio.BINDING_EVENT, "{\"name\":\"other\",\"payload\":\"" + payload + "\",\"executionContextId\":1}");
+      audio.onEvent(
+        PageAudio.BINDING_EVENT,
+        "{\"name\":\"" + PageAudio.BINDING + "\",\"payload\":\"" + payload + "\",\"executionContextId\":1}"
+      );
+    }
+  }
+
+  private void crashRendererLater(final HelperEvents events) {
+    this.show(0);
+    final Thread later = new Thread(() -> {
+      pause(1_000L);
+      events.onFailure("scripted renderer crash");
+    });
+    later.start();
   }
 
   private static void pause(final long milliseconds) {

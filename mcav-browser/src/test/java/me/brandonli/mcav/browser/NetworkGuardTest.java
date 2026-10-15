@@ -325,18 +325,20 @@ class NetworkGuardTest {
     final CountDownLatch release = new CountDownLatch(1);
     final ForkJoinPool pool = ForkJoinPool.commonPool();
     for (int worker = 0; worker < workers; worker++) {
-      pool.execute(() -> {
-        busy.countDown();
-        try {
-          release.await();
-        } catch (final InterruptedException exception) {
-          Thread.currentThread().interrupt();
-        }
-      });
+      pool.execute(() -> occupyUntilReleased(busy, release));
     }
     final boolean allBusy = busy.await(30, TimeUnit.SECONDS);
     assertTrue(allBusy, "every worker of the common pool is busy");
     return release;
+  }
+
+  private static void occupyUntilReleased(final CountDownLatch busy, final CountDownLatch release) {
+    busy.countDown();
+    try {
+      release.await();
+    } catch (final InterruptedException exception) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   @Test

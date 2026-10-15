@@ -56,6 +56,8 @@ import me.brandonli.mcav.utils.FileOperationException;
 import me.brandonli.mcav.utils.IoUtils;
 import me.brandonli.mcav.utils.http.DownloadException;
 import me.brandonli.mcav.utils.http.HttpDownloader;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -240,17 +242,26 @@ final class LinuxLibraries {
       }
       final List<String> fields = List.of(FIELD_SEPARATOR.split(trimmed));
       if (fields.getFirst().equals(HOST_KEYWORD)) {
-        if (fields.size() < HOST_FIRST_SONAME_FIELD) {
-          final String message = "The pin %s names no platform!".formatted(line);
-          throw new IllegalArgumentException(message);
-        }
-        host.put(requireMatch(PLATFORM, fields.get(1), line), requireSonames(fields.subList(HOST_FIRST_SONAME_FIELD, fields.size()), line));
+        this.putHostLibraries(host, fields, line);
       } else {
         parsed.add(Pin.parse(fields, line));
       }
     }
     this.pins = List.copyOf(parsed);
     this.hostLibraries = Map.copyOf(host);
+  }
+
+  private void putHostLibraries(
+    @UnderInitialization LinuxLibraries this,
+    final Map<String, List<String>> host,
+    final List<String> fields,
+    final String line
+  ) {
+    if (fields.size() < HOST_FIRST_SONAME_FIELD) {
+      final String message = "The pin %s names no platform!".formatted(line);
+      throw new IllegalArgumentException(message);
+    }
+    host.put(requireMatch(PLATFORM, fields.get(1), line), requireSonames(fields.subList(HOST_FIRST_SONAME_FIELD, fields.size()), line));
   }
 
   private static Path defaultFolder() {
@@ -339,13 +350,17 @@ final class LinuxLibraries {
         final FileChannel channel = FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
         final FileLock lock = JcefNatives.lock(channel)
       ) {
-        if (!Files.isRegularFile(marker)) {
-          this.installLocked(wanted, installation);
-        }
+        this.installUnlessMarked(marker, wanted, installation);
         LOGGER.debug("Installation lock {} of {} was released.", lock, name);
       }
     }
     return installation;
+  }
+
+  private void installUnlessMarked(final Path marker, final List<Pin> wanted, final Path installation) throws IOException {
+    if (!Files.isRegularFile(marker)) {
+      this.installLocked(wanted, installation);
+    }
   }
 
   /**
@@ -399,15 +414,19 @@ final class LinuxLibraries {
         return;
       } catch (final IOException | DownloadException | FileOperationException exception) {
         Files.deleteIfExists(destination);
-        if (failure == null) {
-          failure = exception;
-        } else {
-          failure.addSuppressed(exception);
-        }
+        failure = this.combineFailures(failure, exception);
       }
     }
     final String message = "The package %s could not be downloaded from any mirror!".formatted(pin.name());
     throw new IOException(message, failure);
+  }
+
+  private Exception combineFailures(final @Nullable Exception failure, final Exception exception) {
+    if (failure == null) {
+      return exception;
+    }
+    failure.addSuppressed(exception);
+    return failure;
   }
 
   /**
@@ -614,12 +633,17 @@ final class LinuxLibraries {
         final Path base = pattern.startsWith(FOLDER_SEPARATOR)
           ? root
           : Objects.requireNonNull(file.getParent(), "A file lies in a folder!");
-        for (final Path included : glob(base, pattern)) {
-          readConfiguration(root, included, folders, depth + 1);
-        }
+        final List<Path> included = glob(base, pattern);
+        readConfigurations(root, included, folders, depth + 1);
       } else if (line.startsWith(FOLDER_SEPARATOR)) {
         folders.add(root.resolve(line.substring(1)));
       }
+    }
+  }
+
+  private static void readConfigurations(final Path root, final List<Path> files, final Set<Path> folders, final int depth) {
+    for (final Path file : files) {
+      readConfiguration(root, file, folders, depth);
     }
   }
 
@@ -643,18 +667,22 @@ final class LinuxLibraries {
       final FileSystem fileSystem = root.getFileSystem();
       final PathMatcher matcher = fileSystem.getPathMatcher(GLOB_SYNTAX + name);
       try (final DirectoryStream<Path> entries = Files.newDirectoryStream(parent)) {
-        for (final Path entry : entries) {
-          final Path entryName = Objects.requireNonNull(entry.getFileName(), "An entry of a folder has a name!");
-          if (matcher.matches(entryName)) {
-            matches.add(entry);
-          }
-        }
+        addMatchingEntries(entries, matcher, matches);
       } catch (final IOException exception) {
         // an include of a folder that is not there includes nothing
       }
       Collections.sort(matches);
     }
     return matches;
+  }
+
+  private static void addMatchingEntries(final DirectoryStream<Path> entries, final PathMatcher matcher, final List<Path> matches) {
+    for (final Path entry : entries) {
+      final Path entryName = Objects.requireNonNull(entry.getFileName(), "An entry of a folder has a name!");
+      if (matcher.matches(entryName)) {
+        matches.add(entry);
+      }
+    }
   }
 
   /**

@@ -403,20 +403,25 @@ final class NullDisplay implements AutoCloseable {
     final InetAddress loopback = InetAddress.getByAddress(LOOPBACK_ADDRESS);
     final List<ServerSocket> unusable = new ArrayList<>();
     try {
-      while (unusable.size() < MAXIMUM_BIND_ATTEMPTS) {
-        final ServerSocket candidate = new ServerSocket(0, MAXIMUM_CONNECTIONS, loopback);
-        if (usable.test(candidate.getLocalPort())) {
-          return candidate;
-        }
-        unusable.add(candidate);
-      }
-      final String message = "The system gives out no port of at least %s for the display!".formatted(X11_BASE_PORT);
-      throw new IOException(message);
+      return bindFirstUsable(usable, loopback, unusable);
     } finally {
       for (final ServerSocket socket : unusable) {
         socket.close();
       }
     }
+  }
+
+  private static ServerSocket bindFirstUsable(final IntPredicate usable, final InetAddress loopback, final List<ServerSocket> unusable)
+    throws IOException {
+    while (unusable.size() < MAXIMUM_BIND_ATTEMPTS) {
+      final ServerSocket candidate = new ServerSocket(0, MAXIMUM_CONNECTIONS, loopback);
+      if (usable.test(candidate.getLocalPort())) {
+        return candidate;
+      }
+      unusable.add(candidate);
+    }
+    final String message = "The system gives out no port of at least %s for the display!".formatted(X11_BASE_PORT);
+    throw new IOException(message);
   }
 
   /**

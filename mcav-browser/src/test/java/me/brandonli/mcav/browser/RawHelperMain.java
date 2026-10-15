@@ -134,46 +134,14 @@ public final class RawHelperMain {
         HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
         HelperProtocol.writeLoading(out, false);
         out.flush();
-        if (path.equals("/hang-up")) {
-          channel.close();
-        }
-        if (path.equals("/deaf")) {
-          channel.shutdownInput();
-        }
-        if (path.equals("/chatty")) {
-          // a pipe holds 64 KiB on Linux: unless the server reads the output, this helper blocks here
-          final String line = "x".repeat(1023);
-          for (int count = 0; count < 256; count++) {
-            System.out.println(line);
-          }
-          System.out.println(CHATTY_END);
-          System.out.flush();
-        }
-        if (path.equals("/exit-later")) {
-          sleep();
-          System.exit(5);
-        }
-        if (path.equals("/child")) {
-          startChild();
-        }
-        if (path.equals("/stubborn-child")) {
-          startChildWhenTheInputEnds(input);
-        }
-        if (path.equals("/stubborn") || path.equals("/stubborn-child")) {
-          waitTwoMinutes();
-        }
+        misbehaveAfterStarting(path, channel, input);
       }
       case "/noisy" -> {
         HelperProtocol.writeHello(out, token);
         HelperProtocol.writeText(out, HelperProtocol.READY, "raw");
         HelperProtocol.writeFrame(out, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
         HelperProtocol.writeLoading(out, false);
-        for (int count = 0; count < NOISY_LOAD_ERRORS; count++) {
-          HelperProtocol.writeLoadError(out, -2, "noise", "https://example.com/noise/" + count + "?token=secret");
-        }
-        for (int count = 0; count < NOISY_NOTICES; count++) {
-          HelperProtocol.writeText(out, HelperProtocol.NOTICE, "noise " + count);
-        }
+        writeNoise(out);
         out.flush();
         sleep();
         sleep();
@@ -210,6 +178,47 @@ public final class RawHelperMain {
     out.flush();
     while (input.read() >= 0) {}
     channel.close();
+  }
+
+  private static void misbehaveAfterStarting(final String path, final SocketChannel channel, final BufferedReader input)
+    throws IOException {
+    if (path.equals("/hang-up")) {
+      channel.close();
+    }
+    if (path.equals("/deaf")) {
+      channel.shutdownInput();
+    }
+    if (path.equals("/chatty")) {
+      // a pipe holds 64 KiB on Linux: unless the server reads the output, this helper blocks here
+      final String line = "x".repeat(1023);
+      for (int count = 0; count < 256; count++) {
+        System.out.println(line);
+      }
+      System.out.println(CHATTY_END);
+      System.out.flush();
+    }
+    if (path.equals("/exit-later")) {
+      sleep();
+      System.exit(5);
+    }
+    if (path.equals("/child")) {
+      startChild();
+    }
+    if (path.equals("/stubborn-child")) {
+      startChildWhenTheInputEnds(input);
+    }
+    if (path.equals("/stubborn") || path.equals("/stubborn-child")) {
+      waitTwoMinutes();
+    }
+  }
+
+  private static void writeNoise(final DataOutputStream out) throws IOException {
+    for (int count = 0; count < NOISY_LOAD_ERRORS; count++) {
+      HelperProtocol.writeLoadError(out, -2, "noise", "https://example.com/noise/" + count + "?token=secret");
+    }
+    for (int count = 0; count < NOISY_NOTICES; count++) {
+      HelperProtocol.writeText(out, HelperProtocol.NOTICE, "noise " + count);
+    }
   }
 
   /**
