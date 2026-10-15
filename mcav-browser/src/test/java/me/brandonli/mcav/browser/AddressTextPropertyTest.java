@@ -60,7 +60,7 @@ final class AddressTextPropertyTest {
   }
 
   @Property(seed = SEED, tries = 2000)
-  void theUserTheQueryAndTheFragmentNeverReachTheLog(
+  void shouldNeverLogTheUserTheQueryOrTheFragment(
     @ForAll("schemes") final String scheme,
     @ForAll("secrets") final String user,
     @ForAll("hosts") final String host,
@@ -77,7 +77,7 @@ final class AddressTextPropertyTest {
   }
 
   @Property(seed = SEED, tries = 2000)
-  void anAddressWithoutSecretsIsKeptAsItIs(
+  void shouldKeepAnAddressWithoutSecretsAsItIs(
     @ForAll("schemes") final String scheme,
     @ForAll("hosts") final String host,
     @ForAll("paths") final String path
@@ -87,7 +87,7 @@ final class AddressTextPropertyTest {
   }
 
   @Property(seed = SEED, tries = 2000)
-  void anyTextIsDescribedWithoutFailingOrGrowingBeyondTheMarkers(@ForAll final String text) {
+  void shouldDescribeAnyTextWithoutFailingOrGrowingBeyondTheMarkers(@ForAll final String text) {
     final String described = AddressText.describe(text);
     final int markers = 2 * AddressText.HIDDEN.length() + 2;
     assertTrue(described.length() <= text.length() + markers, described);

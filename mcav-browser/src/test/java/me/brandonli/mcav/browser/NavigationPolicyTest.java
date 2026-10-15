@@ -30,7 +30,7 @@ class NavigationPolicyTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "http://example.com", "https://example.com/a?b#c", "HTTPS://EXAMPLE.COM", "http://127.0.0.1:8080/" })
-  void webAddressesAreAbsoluteHttpOrHttpsWithAHost(final String address) {
+  void shouldAcceptOnlyAbsoluteHttpOrHttpsAddressesWithAHostAsWebAddresses(final String address) {
     assertTrue(NavigationPolicy.isWebAddress(URI.create(address)));
   }
 
@@ -38,12 +38,12 @@ class NavigationPolicyTest {
   @ValueSource(
     strings = { "file:///etc/passwd", "chrome://settings", "ftp://example.com/", "https:///no-host", "relative/path", "mailto:a@b.c" }
   )
-  void otherAddressesAreNotWebAddresses(final String address) {
+  void shouldNotAcceptOtherAddressesAsWebAddresses(final String address) {
     assertFalse(NavigationPolicy.isWebAddress(URI.create(address)));
   }
 
   @Test
-  void thePageMayOnlyNavigateToWebAddresses() {
+  void shouldOnlyLetThePageNavigateToWebAddresses() {
     assertTrue(NavigationPolicy.allowsNavigation("https://example.com/", true));
     assertFalse(NavigationPolicy.allowsNavigation("file:///etc/passwd", true));
     assertTrue(NavigationPolicy.allowsNavigation("about:blank", true), "the empty document the browser starts with");
@@ -55,7 +55,7 @@ class NavigationPolicyTest {
   }
 
   @Test
-  void framesMayAlsoHoldLocalDocumentsOfTheBrowser() {
+  void shouldAlsoLetFramesHoldLocalDocumentsOfTheBrowser() {
     assertTrue(NavigationPolicy.allowsNavigation("about:blank", false));
     assertTrue(NavigationPolicy.allowsNavigation("about:srcdoc", false));
     assertTrue(NavigationPolicy.allowsNavigation("data:text/html,x", false));
@@ -69,7 +69,7 @@ class NavigationPolicyTest {
   }
 
   @Test
-  void requestsMayOnlyUseTheWebSchemes() {
+  void shouldOnlyLetRequestsUseTheWebSchemes() {
     assertTrue(NavigationPolicy.allowsRequest("https://example.com/a.png"));
     assertTrue(NavigationPolicy.allowsRequest("wss://example.com/socket"));
     assertTrue(NavigationPolicy.allowsRequest("ws://example.com/socket"));
@@ -81,7 +81,7 @@ class NavigationPolicyTest {
   }
 
   @Test
-  void thePolicyIsNotInstantiable() {
+  void shouldNotInstantiateThePolicy() {
     UtilityClassAssertions.assertNotInstantiable(NavigationPolicy.class);
   }
 }

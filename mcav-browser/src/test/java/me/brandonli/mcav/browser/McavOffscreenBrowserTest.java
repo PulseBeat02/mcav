@@ -59,7 +59,7 @@ class McavOffscreenBrowserTest {
   );
 
   @Test
-  void theViewIsThePageAtTheOrigin() {
+  void shouldPlaceTheViewAtTheOriginOfThePage() {
     final Rectangle view = this.browser.getViewRect(this.browser);
     assertEquals(new Rectangle(0, 0, 640, 480), view);
     view.width = 1;
@@ -67,13 +67,13 @@ class McavOffscreenBrowserTest {
   }
 
   @Test
-  void theScreenIsLeftToCefBecauseJcefDeletesAReferenceTwiceOtherwise() {
+  void shouldLeaveTheScreenToCefBecauseJcefDeletesAReferenceTwiceOtherwise() {
     final CefScreenInfo info = new CefScreenInfo();
     assertFalse(this.browser.getScreenInfo(this.browser, info));
   }
 
   @Test
-  void aPointOfThePageIsTheSamePointOfTheScreen() {
+  void shouldMapAPointOfThePageToTheSamePointOfTheScreen() {
     final Point point = new Point(3, 4);
     final Point screen = this.browser.getScreenPoint(this.browser, point);
     assertEquals(point, screen);
@@ -81,7 +81,7 @@ class McavOffscreenBrowserTest {
   }
 
   @Test
-  void paintsAndPopupsGoToTheListener() {
+  void shouldSendPaintsAndPopupsToTheListener() {
     final ByteBuffer buffer = ByteBuffer.allocate(4);
     final Rectangle[] dirty = { new Rectangle(0, 0, 1, 1) };
     this.browser.onPaint(this.browser, false, dirty, buffer, 1, 1);
@@ -95,7 +95,7 @@ class McavOffscreenBrowserTest {
   }
 
   @Test
-  void theBrowserRendersItselfAndHasADetachedComponent() {
+  void shouldRenderItselfAndHaveADetachedComponent() {
     assertSame(this.browser, this.browser.getRenderHandler());
     final Component component = this.browser.getUIComponent();
     assertNotNull(component);
@@ -104,7 +104,7 @@ class McavOffscreenBrowserTest {
   }
 
   @Test
-  void focusChangesReachCefOnlyWhenTheyChangeSomething() {
+  void shouldPassFocusChangesToCefOnlyWhenTheyChangeSomething() {
     assertFalse(this.browser.hasFocus());
     this.browser.setFocus(true);
     assertTrue(this.browser.hasFocus());
@@ -118,7 +118,7 @@ class McavOffscreenBrowserTest {
   }
 
   @Test
-  void developerToolsScreenshotsAndPaintListenersAreRefused() {
+  void shouldRefuseDeveloperToolsScreenshotsAndPaintListeners() {
     assertThrows(UnsupportedOperationException.class, this.browser::openDevTools);
     final ExecutionException screenshot = assertThrows(ExecutionException.class, () -> this.browser.createScreenshot(true).get());
     assertInstanceOf(UnsupportedOperationException.class, screenshot.getCause());
@@ -128,7 +128,7 @@ class McavOffscreenBrowserTest {
   }
 
   @Test
-  void theCursorAndDragAndDropAreIgnored() {
+  void shouldIgnoreTheCursorAndDragAndDrop() {
     assertTrue(this.browser.onCursorChange(this.browser, 3));
     assertFalse(this.browser.startDragging(this.browser, mock(CefDragData.class), 1, 2, 3));
     this.browser.updateDragCursor(this.browser, 1);
@@ -136,7 +136,7 @@ class McavOffscreenBrowserTest {
   }
 
   @Test
-  void creatingTheBrowserWithoutCefLeavesItUncreated() {
+  void shouldLeaveTheBrowserUncreatedWhenCreatedWithoutCef() {
     // without the natives JCEF reports the missing native method and returns; nothing is painted
     this.browser.createImmediately();
     assertTrue(this.painter.log.isEmpty());

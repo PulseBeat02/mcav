@@ -71,7 +71,7 @@ class HelperLauncherTest {
   }
 
   @Test
-  void theHelperJvmIsHeadlessMayLoadNativesAndKeepsItsFilesInTheSession() {
+  void shouldRunTheHelperJvmHeadlessAllowNativesAndKeepItsFilesInTheSession() {
     final Path session = Path.of("/tmp/mcav-browser-1");
     final List<String> command = launcher(Os.LINUX, Map.of()).createCommand(session);
     assertEquals(JAVA.toString(), command.getFirst());
@@ -87,7 +87,7 @@ class HelperLauncherTest {
   }
 
   @Test
-  void theEnvironmentKeepsLittleAndNeverTheDisplayOfTheServer() throws IOException {
+  void shouldKeepLittleOfTheEnvironmentAndNeverTheDisplayOfTheServer() throws IOException {
     final Map<String, String> server = Map.of(
       "PATH",
       "/usr/bin",
@@ -133,7 +133,7 @@ class HelperLauncherTest {
   }
 
   @Test
-  void aLauncherWithLibrariesLinksThemIntoEverySession() throws IOException {
+  void shouldLinkTheLibrariesOfALauncherIntoEverySession() throws IOException {
     final HelperLauncher plain = launcher(Os.LINUX, Map.of());
     assertNull(plain.linkLibraries(this.folder));
     final Path linked = this.folder.resolve("lib");
@@ -146,7 +146,7 @@ class HelperLauncherTest {
   }
 
   @Test
-  void classesAreLocatedByWhereTheyWereLoadedFrom() {
+  void shouldLocateClassesByWhereTheyWereLoadedFrom() {
     final Path jcef = HelperLauncher.locate(CefApp.class);
     assertTrue(jcef.getFileName().toString().startsWith("jcef-api"), jcef.toString());
     final Path browser = HelperLauncher.locate(BrowserHelper.class);
@@ -156,12 +156,12 @@ class HelperLauncherTest {
   }
 
   /**
-   * A class for {@link #aClassLoadedFromTheNetworkCannotBeAHelperClassPath()} to load again.
+   * A class for {@link #shouldNotAcceptAClassLoadedFromTheNetworkAsAHelperClassPath()} to load again.
    */
   static final class Loaded {}
 
   @Test
-  void aClassLoadedFromTheNetworkCannotBeAHelperClassPath() throws Exception {
+  void shouldNotAcceptAClassLoadedFromTheNetworkAsAHelperClassPath() throws Exception {
     final String name = Loaded.class.getName();
     final byte[] bytes;
     try (final InputStream input = Loaded.class.getResourceAsStream("/" + name.replace('.', '/') + ".class")) {
@@ -185,14 +185,14 @@ class HelperLauncherTest {
   }
 
   @Test
-  void theJvmProgramIsNamedForItsSystem() {
+  void shouldNameTheJvmProgramForItsSystem() {
     assertEquals("java.exe", HelperLauncher.javaExecutable(Os.WINDOWS));
     assertEquals("java", HelperLauncher.javaExecutable(Os.LINUX));
     assertEquals("java", HelperLauncher.javaExecutable(Os.MAC));
   }
 
   @Test
-  void theDefaultLauncherUsesThisJavaAndTheModulesClassPath() {
+  void shouldUseThisJavaAndTheClassPathOfTheModuleByDefault() {
     final HelperLauncher launcher = HelperLauncher.createDefault(1_000L, List.of());
     final List<String> command = launcher.createCommand(Path.of("/tmp/x"));
     assertTrue(command.getFirst().startsWith(System.getProperty("java.home")), command.getFirst());
@@ -204,7 +204,7 @@ class HelperLauncherTest {
   }
 
   @Test
-  void theHelperReachesNoClassBeyondItsClassPath() throws IOException {
+  void shouldReachNoClassBeyondTheClassPathOfTheHelper() throws IOException {
     // the helper runs with the browser module, JCEF and the JDK only: a class of another module that it reaches, such
     // as mcav-common's, fails there with a NoClassDefFoundError that no test JVM shows, which all have every module
     final Set<String> reached = new HashSet<>();

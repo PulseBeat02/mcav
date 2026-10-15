@@ -55,7 +55,7 @@ final class ArchiveExtractorFuzzTest {
   private static final long MAX_BYTES = 1 << 20;
 
   @FuzzTest(maxDuration = "30s")
-  void extractsOnlyPlainFilesInsideTheTarget(final FuzzedDataProvider data) throws IOException {
+  void shouldExtractOnlyPlainFilesInsideTheTarget(final FuzzedDataProvider data) throws IOException {
     final byte[] tar = data.consumeRemainingAsBytes();
     final ByteArrayOutputStream compressed = new ByteArrayOutputStream();
     try (final GZIPOutputStream gzip = new GZIPOutputStream(compressed)) {

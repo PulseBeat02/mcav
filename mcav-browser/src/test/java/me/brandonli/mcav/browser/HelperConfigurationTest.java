@@ -68,7 +68,7 @@ class HelperConfigurationTest {
   }
 
   @Test
-  void theLongestAddressInCharactersOfThreeBytesSurvivesTheLine() {
+  void shouldKeepTheLongestAddressInCharactersOfThreeBytesThroughTheLine() {
     final String start = "https://example.com/";
     final URI longest = URI.create(start + "\u20ac".repeat(BrowserSource.MAX_ADDRESS_LENGTH - start.length()));
     final Path path = NATIVES.resolve("p".repeat(255)).resolve("q".repeat(255));
@@ -94,7 +94,7 @@ class HelperConfigurationTest {
   }
 
   @Test
-  void aConfigurationSurvivesTheLine() {
+  void shouldKeepAConfigurationThroughTheLine() {
     final HelperConfiguration original = new HelperConfiguration(
       token(),
       SOCKET,
@@ -139,7 +139,7 @@ class HelperConfigurationTest {
   }
 
   @Test
-  void theTokenIsCopiedInAndOut() {
+  void shouldCopyTheTokenInAndOut() {
     final byte[] token = token();
     final HelperConfiguration configuration = new HelperConfiguration(
       token,
@@ -165,7 +165,7 @@ class HelperConfigurationTest {
   }
 
   @Test
-  void everyValueIsChecked() {
+  void shouldCheckEveryValue() {
     final URI page = URI.create("https://example.com/");
     assertThrows(IllegalArgumentException.class, () ->
       new HelperConfiguration(new byte[1], SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, false, SERVER, List.of())
@@ -284,7 +284,7 @@ class HelperConfigurationTest {
   }
 
   @Test
-  void aLineWithTooFewOrTooManyValuesIsRefused() {
+  void shouldRefuseALineWithTooFewOrTooManyValues() {
     final String[] parts = parts(configuration(false));
     final String missing = String.join(":", Arrays.copyOf(parts, parts.length - 1));
     final IllegalArgumentException tooFew = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(missing));
@@ -294,7 +294,7 @@ class HelperConfigurationTest {
   }
 
   @Test
-  void aLineWithAnInvalidValueIsRefused() {
+  void shouldRefuseALineWithAnInvalidValue() {
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(9, "yes")));
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(10, "TRUE")));
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(12, "on")));
@@ -315,7 +315,7 @@ class HelperConfigurationTest {
   }
 
   @Test
-  void aLineOfTheLongestLengthIsReadAndThenJudgedByItsValues() {
+  void shouldReadALineOfTheLongestLengthAndThenJudgeItByItsValues() {
     final String longest = "x".repeat(1024 * 1024);
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(longest));
     assertTrue(failure.getMessage().startsWith("The configuration has 1 values instead of "), failure.getMessage());

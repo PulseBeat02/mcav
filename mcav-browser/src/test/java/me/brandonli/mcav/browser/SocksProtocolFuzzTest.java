@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Tag;
 final class SocksProtocolFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
-  void readsAGreetingAndARequestOrRefusesThem(final FuzzedDataProvider data) {
+  void shouldReadAGreetingAndARequestOrRefuseThem(final FuzzedDataProvider data) {
     final byte[] bytes = data.consumeRemainingAsBytes();
     final DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
     try {

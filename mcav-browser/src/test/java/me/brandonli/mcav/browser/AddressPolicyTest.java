@@ -77,7 +77,7 @@ class AddressPolicyTest {
       "ff02::1",
     }
   )
-  void specialAddressesAreNotPublic(final String text) throws UnknownHostException {
+  void shouldNotTreatSpecialAddressesAsPublic(final String text) throws UnknownHostException {
     assertFalse(AddressPolicy.isPublic(InetAddress.getByName(text)), text);
   }
 
@@ -102,12 +102,12 @@ class AddressPolicyTest {
       "64:ff9b::808:808",
     }
   )
-  void publicAddressesArePublic(final String text) throws UnknownHostException {
+  void shouldTreatPublicAddressesAsPublic(final String text) throws UnknownHostException {
     assertTrue(AddressPolicy.isPublic(InetAddress.getByName(text)), text);
   }
 
   @Test
-  void onlyTheExactPrefixesCarryAnIpv4Address() {
+  void shouldOnlyFindAnIpv4AddressInTheExactPrefixes() {
     assertFalse(AddressPolicy.isPublicIpv6(new byte[] { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8 }));
     assertFalse(AddressPolicy.isPublicIpv6(new byte[] { 0, 0x64, (byte) 0xFF, (byte) 0x9B, 0, 0, 0, 1, 0, 0, 0, 0, 8, 8, 8, 8 }));
     assertFalse(AddressPolicy.isPublicIpv6(new byte[] { 0, 0x64, (byte) 0xFF, (byte) 0x9B, 0, 0, 0, 0, 0, 0, 0, 1, 8, 8, 8, 8 }));
@@ -136,7 +136,7 @@ class AddressPolicyTest {
     "64, 2a01:4f8:1:2:c0:0:aa00:0, 2a01:4f8:1:2:c0:0:ab00:0, 2a01:4f8:1:2:a:0:100:0, 2a01:4f8:1:2:a9:fea9:fe00:0, 2a01:4f8:1:2:8:808:800:0",
     "96, 2a01:4f8:1:2:3:4:c000:aa, 2a01:4f8:1:2:3:4:c000:ab, 2a01:4f8:1:2:3:4:a00:1, 2a01:4f8:1:2:3:4:a9fe:a9fe, 2a01:4f8:1:2:3:4:808:808",
   })
-  void theNat64PrefixOfTheNetworkIsFoundAndItsPrivateAddressesAreRefused(
+  void shouldFindTheNat64PrefixOfTheNetworkAndRefuseItsPrivateAddresses(
     final int length,
     final String first,
     final String second,
@@ -159,14 +159,14 @@ class AddressPolicyTest {
   }
 
   @Test
-  void aNetworkWithoutTranslationHasNoPrefix() throws UnknownHostException {
+  void shouldFindNoPrefixInANetworkWithoutTranslation() throws UnknownHostException {
     assertEquals(0, AddressPolicy.findTranslationPrefixes(addresses("192.0.0.170", "192.0.0.171")).size());
     assertEquals(0, AddressPolicy.findTranslationPrefixes(addresses("2a01:4f8:1:2:3:4:5:6", "2a01:4f8:1:2:3:4:c000:ac")).size());
     assertEquals(0, AddressPolicy.findTranslationPrefixes(addresses("2a01:4f8:1:2:1c0:0:aa00:0")).size());
   }
 
   @Test
-  void onlyAPrefixInGlobalUnicastOrWellKnownNat64SpaceTranslates() throws UnknownHostException {
+  void shouldOnlyTranslateAPrefixInGlobalUnicastOrWellKnownNat64Space() throws UnknownHostException {
     for (final String forged : new String[] { "fe80::c000:aa", "fd00::c000:aa", "ff02::c000:aa", "2001:db8::c000:aa", "2002::c000:aa" }) {
       assertEquals(List.of(), AddressPolicy.findTranslationPrefixes(addresses(forged)), forged);
     }
@@ -178,7 +178,7 @@ class AddressPolicyTest {
   }
 
   @Test
-  void anAddressInsideSeveralPrefixesMustEmbedAPublicAddressInEach() throws UnknownHostException {
+  void shouldRequireAnAddressInsideSeveralPrefixesToEmbedAPublicAddressInEach() throws UnknownHostException {
     final List<AddressPolicy.TranslationPrefix> nested = AddressPolicy.findTranslationPrefixes(
       addresses("2a01:4f8:c000:aa::", "2a01:4f8:1:2:3:4:c000:aa")
     );
@@ -193,12 +193,12 @@ class AddressPolicyTest {
   }
 
   @Test
-  void thePolicyIsNotInstantiable() {
+  void shouldNotInstantiateThePolicy() {
     UtilityClassAssertions.assertNotInstantiable(AddressPolicy.class);
   }
 
   @Test
-  void anIpv4AddressMappedIntoIpv6IsJudgedAsItself() {
+  void shouldJudgeAnIpv4AddressMappedIntoIpv6AsItself() {
     final byte[] mappedPublic = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xFF, (byte) 0xFF, 8, 8, 8, 8 };
     final byte[] mappedLoopback = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xFF, (byte) 0xFF, 127, 0, 0, 1 };
     assertTrue(AddressPolicy.isPublicIpv6(mappedPublic));

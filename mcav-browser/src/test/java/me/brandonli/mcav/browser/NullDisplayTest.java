@@ -138,7 +138,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aClientWithTheCookieGetsOneTrueColorScreen() throws IOException {
+  void shouldGiveAClientWithTheCookieOneTrueColorScreen() throws IOException {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     NullDisplay.serve(new ByteArrayInputStream(setup(COOKIE)), output, COOKIE, new NullDisplay.Atoms());
     final ByteBuffer reply = ByteBuffer.wrap(output.toByteArray()).order(ByteOrder.LITTLE_ENDIAN);
@@ -159,7 +159,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aBigEndianClientIsAnsweredInItsOwnOrder() throws IOException {
+  void shouldAnswerABigEndianClientInItsOwnOrder() throws IOException {
     final ByteBuffer answers = converse(ByteOrder.BIG_ENDIAN, new NullDisplay.Atoms(), internAtom(ByteOrder.BIG_ENDIAN, "PRIMARY"));
     assertEquals(1, answers.getShort(2), "the sequence number");
     assertEquals(1, answers.getInt(8), "PRIMARY is atom 1");
@@ -167,7 +167,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aClientWithoutTheCookieIsRefusedWithAReason() {
+  void shouldRefuseAClientWithoutTheCookieWithAReason() {
     for (final byte[] wrong : new byte[][] {
       setup(ByteOrder.LITTLE_ENDIAN, 11, COOKIE_NAME, new byte[16]),
       setup(ByteOrder.LITTLE_ENDIAN, 11, "XDM-AUTHORIZATION-1", COOKIE),
@@ -197,7 +197,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aSetupThatIsNoSetupEndsTheConnection() {
+  void shouldEndTheConnectionOnASetupThatIsNoSetup() {
     final byte[] unknownOrder = setup(COOKIE);
     unknownOrder[0] = 'x';
     final ProtocolException order = assertThrows(ProtocolException.class, () ->
@@ -221,7 +221,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void atomsAreInternedOnceAndCanBeNamed() throws IOException {
+  void shouldInternAtomsOnceAndNameThem() throws IOException {
     final NullDisplay.Atoms atoms = new NullDisplay.Atoms();
     final ByteBuffer answers = converse(
       ByteOrder.LITTLE_ENDIAN,
@@ -252,7 +252,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void noWindowHasPropertiesAndNoExtensionIsThere() throws IOException {
+  void shouldGiveNoWindowPropertiesAndOfferNoExtension() throws IOException {
     final ByteBuffer answers = converse(
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.GET_PROPERTY, 0, new byte[20]),
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.QUERY_EXTENSION, 0, new byte[] { 3, 0, 0, 0, 'G', 'L', 'X', 0 }),
@@ -269,7 +269,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void theKeyboardHasNoSymbolsAndNoModifiers() throws IOException {
+  void shouldGiveTheKeyboardNoSymbolsAndNoModifiers() throws IOException {
     final ByteBuffer answers = converse(
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.GET_KEYBOARD_MAPPING, 0, new byte[] { 8, (byte) 248, 0, 0 }),
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.GET_MODIFIER_MAPPING, 0, new byte[0])
@@ -283,7 +283,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void windowsHaveAttributesAGeometryATreeAndAPointer() throws IOException {
+  void shouldGiveWindowsAttributesAGeometryATreeAndAPointer() throws IOException {
     final byte[] window = { 0, 1, 0, 0 };
     final ByteBuffer answers = converse(
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.GET_WINDOW_ATTRIBUTES, 0, window),
@@ -309,7 +309,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void requestsWithoutAReplyAreDiscardedAndOthersFail() throws IOException {
+  void shouldDiscardRequestsWithoutAReplyAndFailOthers() throws IOException {
     final ByteBuffer answers = converse(
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.CREATE_WINDOW, 24, new byte[28]),
       request(ByteOrder.LITTLE_ENDIAN, 4, 0, new byte[4]),
@@ -327,7 +327,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aRequestOfNoOpcodeIsSkippedAnAtomMayHaveAnEmptyNameAndTheFirstExtensionOpcodeFails() throws IOException {
+  void shouldSkipARequestOfNoOpcodeAllowAnAtomWithAnEmptyNameAndFailTheFirstExtensionOpcode() throws IOException {
     final ByteBuffer answers = converse(
       request(ByteOrder.LITTLE_ENDIAN, 0, 0, new byte[0]),
       internAtom(ByteOrder.LITTLE_ENDIAN, ""),
@@ -343,7 +343,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void theDisplayServesOnADaemonThreadAndCountsItsClients() throws IOException {
+  void shouldServeOnADaemonThreadAndCountItsClients() throws IOException {
     final Path authority = this.folder.resolve("Xauthority");
     try (final NullDisplay display = NullDisplay.start(authority)) {
       final List<Thread> threads = Thread.getAllStackTraces()
@@ -363,7 +363,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aClientThatLeavesFreesItsPlaceForTheNextOne() throws IOException, InterruptedException {
+  void shouldFreeThePlaceOfAClientThatLeavesForTheNextOne() throws IOException, InterruptedException {
     final Path authority = this.folder.resolve("Xauthority");
     final List<Socket> clients = new ArrayList<>();
     try (final NullDisplay display = NullDisplay.start(authority)) {
@@ -387,7 +387,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void requestsTooShortForTheirFieldsFailWithALengthError() throws IOException {
+  void shouldFailRequestsTooShortForTheirFieldsWithALengthError() throws IOException {
     final byte[] longName = new byte[] { 50, 0, 0, 0, 'a', 'b', 'c', 'd' };
     final ByteBuffer answers = converse(
       request(ByteOrder.LITTLE_ENDIAN, NullDisplay.INTERN_ATOM, 0, new byte[0]),
@@ -405,7 +405,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aRequestOfNoUnitsOrMoreThanTheLimitEndsTheConnection() {
+  void shouldEndTheConnectionOnARequestOfNoUnitsOrMoreThanTheLimit() {
     final byte[] empty = { 43, 0, 0, 0 };
     final ProtocolException zero = assertThrows(ProtocolException.class, () -> converse(empty));
     assertEquals("A request of 0 units is outside 1 to 16384", zero.getMessage());
@@ -433,7 +433,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void theAtomsOfADisplayAreBoundedInNumberAndBytes() {
+  void shouldBoundTheAtomsOfADisplayInNumberAndBytes() {
     final NullDisplay.Atoms many = new NullDisplay.Atoms();
     int count = 0;
     while (many.intern("atom-" + count) != 0) {
@@ -461,7 +461,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aDisplayServesClientsThatReadItsAuthorityFile() throws IOException {
+  void shouldServeClientsThatReadTheAuthorityFile() throws IOException {
     final Path authority = this.folder.resolve("Xauthority");
     final NullDisplay display = NullDisplay.start(authority);
     try {
@@ -537,7 +537,7 @@ class NullDisplayTest {
    * than the limit, exactly one ends and the others are served, whichever it is.
    */
   @Test
-  void clientsWithTheCookieBeyondTheLimitAreEndedAndOneThatLeavesFreesItsPlace() throws IOException {
+  void shouldEndClientsWithTheCookieBeyondTheLimitAndFreeThePlaceOfOneThatLeaves() throws IOException {
     final Path authority = this.folder.resolve("Xauthority");
     final List<Socket> clients = new ArrayList<>();
     try (final NullDisplay display = NullDisplay.start(authority)) {
@@ -570,7 +570,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void clientsWithoutTheCookieCannotKeepOneThatHasItOut() throws IOException {
+  void shouldNotLetClientsWithoutTheCookieKeepOneThatHasItOut() throws IOException {
     final Path authority = this.folder.resolve("Xauthority");
     final List<Socket> silent = new ArrayList<>();
     // no setup timeout, so only the eviction this test is about can end a waiting client: on a busy machine the
@@ -598,7 +598,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aClientRefusedInItsSetupLeavesTheQueueOfWaitingClients() throws IOException {
+  void shouldRemoveAClientRefusedInItsSetupFromTheQueueOfWaitingClients() throws IOException {
     final Path authority = this.folder.resolve("Xauthority");
     final List<Socket> silent = new ArrayList<>();
     // no setup timeout, as above: only a refusal or an eviction ends a client here
@@ -633,7 +633,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aServedClientLeavesTheQueueOfWaitingClients() throws IOException {
+  void shouldRemoveAServedClientFromTheQueueOfWaitingClients() throws IOException {
     final Path authority = this.folder.resolve("Xauthority");
     final List<Socket> silent = new ArrayList<>();
     // no setup timeout, as above: only an eviction ends a client here
@@ -665,7 +665,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aClientThatOnlyAsksWhetherAnAtomExistsCreatesNone() {
+  void shouldCreateNoAtomForAClientThatOnlyAsksWhetherItExists() {
     final NullDisplay.Atoms atoms = new NullDisplay.Atoms();
     final ByteBuffer asked = NullDisplay.answer(
       16,
@@ -701,7 +701,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void anAuthorityFileThatExistsIsNotOverwrittenAndNoPortIsLeftOpen() throws IOException {
+  void shouldNotOverwriteAnAuthorityFileThatExistsAndLeaveNoPortOpen() throws IOException {
     final Path authority = Files.writeString(this.folder.resolve("Xauthority"), "someone else's");
     OpenFiles.leaveNoneOpen("a display that cannot write its file", () ->
       assertThrows(IOException.class, () -> NullDisplay.start(authority))
@@ -710,7 +710,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void onlyPortsThatADisplayNumberCanNameAreUsed() throws IOException {
+  void shouldOnlyUsePortsThatADisplayNumberCanName() throws IOException {
     assertFalse(NullDisplay.isDisplayPort(NullDisplay.X11_BASE_PORT - 1));
     assertTrue(NullDisplay.isDisplayPort(NullDisplay.X11_BASE_PORT));
     final AtomicInteger asked = new AtomicInteger();
@@ -740,7 +740,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void everyDisplayHasARandomCookieOfItsOwn() {
+  void shouldGiveEveryDisplayARandomCookieOfItsOwn() {
     final byte[] first = NullDisplay.createCookie();
     assertEquals(NullDisplay.COOKIE_BYTES, first.length);
     assertFalse(Arrays.equals(first, NullDisplay.createCookie()), "two displays got the same cookie");
@@ -748,7 +748,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void theAuthorityEntryMatchesEveryDisplayWithOneCookie() {
+  void shouldMatchEveryDisplayWithOneCookieInTheAuthorityEntry() {
     final byte[] entry = NullDisplay.createAuthorityEntry(COOKIE);
     final ByteBuffer read = ByteBuffer.wrap(entry);
     assertEquals((short) 0xFFFF, read.getShort(), "FamilyWild");
@@ -764,7 +764,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void theAuthorityFileIsWrittenOnFileSystemsWithoutPosixPermissions() throws IOException {
+  void shouldWriteTheAuthorityFileOnFileSystemsWithoutPosixPermissions() throws IOException {
     final Path archive = this.folder.resolve("plain.zip");
     try (final FileSystem zip = FileSystems.newFileSystem(archive, Map.of("create", "true"))) {
       assertFalse(zip.supportedFileAttributeViews().contains("posix"));
@@ -775,7 +775,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aNewDisplayGivesOutAnotherPortEachTime() throws IOException {
+  void shouldGiveOutAnotherPortForEachNewDisplay() throws IOException {
     try (
       final NullDisplay first = NullDisplay.start(this.folder.resolve("first"));
       final NullDisplay second = NullDisplay.start(this.folder.resolve("second"))
@@ -785,7 +785,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aDisplayIsNamedForChromiumAndNoDisplayHasNoName(@TempDir final Path directory) throws IOException {
+  void shouldNameADisplayForChromiumAndGiveNoDisplayNoName(@TempDir final Path directory) throws IOException {
     assertNull(NullDisplay.nameOf(null));
     try (final NullDisplay display = NullDisplay.start(directory.resolve("Xauthority"))) {
       assertEquals(display.getDisplay(), NullDisplay.nameOf(display));
@@ -793,7 +793,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aClientThatBreaksTheProtocolLosesItsConnectionAndOthersKeepTheDisplay(@TempDir final Path directory) throws IOException {
+  void shouldEndTheConnectionOfAClientThatBreaksTheProtocolAndKeepTheDisplayForOthers(@TempDir final Path directory) throws IOException {
     try (final NullDisplay display = NullDisplay.start(directory.resolve("Xauthority"))) {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring("127.0.0.1:".length()));
       try (final Socket broken = new Socket(InetAddress.getLoopbackAddress(), port)) {
@@ -815,7 +815,7 @@ class NullDisplayTest {
   }
 
   @Test
-  void aClientThatDoesNotIntroduceItselfInTimeLosesItsConnectionAndOneThatDidMayIdle(@TempDir final Path directory)
+  void shouldEndTheConnectionOfAClientThatDoesNotIntroduceItselfInTimeAndLetOneThatDidIdle(@TempDir final Path directory)
     throws IOException, InterruptedException {
     final Path authority = directory.resolve("Xauthority");
     try (final NullDisplay display = NullDisplay.start(authority, 200)) {

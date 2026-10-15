@@ -96,7 +96,7 @@ class ArchiveExtractorTest {
   }
 
   @Test
-  void filesAndFoldersAreExtracted() throws IOException {
+  void shouldExtractFilesAndFolders() throws IOException {
     final InputStream archive = new Archive()
       .folder("./")
       .folder("locales")
@@ -112,7 +112,7 @@ class ArchiveExtractorTest {
   }
 
   @Test
-  void executableFilesStayExecutableAndNothingBecomesWritableForOthers() throws IOException {
+  void shouldKeepExecutableFilesExecutableAndMakeNothingWritableForOthers() throws IOException {
     final boolean supportsPosix = this.target.getFileSystem().supportedFileAttributeViews().contains("posix");
     assumeTrue(supportsPosix, "POSIX permissions");
     final InputStream archive = new Archive().file("jcef_helper", 0777, "helper").file("resources.pak", 0666, "data").finish();
@@ -124,7 +124,7 @@ class ArchiveExtractorTest {
   }
 
   @Test
-  void foldersAreWritableByTheOwnerOnlyWhateverTheUmask() throws IOException {
+  void shouldMakeFoldersWritableByTheOwnerOnlyWhateverTheUmask() throws IOException {
     final boolean supportsPosix = this.target.getFileSystem().supportedFileAttributeViews().contains("posix");
     assumeTrue(supportsPosix, "POSIX permissions");
     final InputStream archive = new Archive().folder("locales").file("swiftshader/deeper/libvk.so", 0755, "vk").finish();
@@ -136,7 +136,7 @@ class ArchiveExtractorTest {
   }
 
   @Test
-  void foldersAreCreatedWithoutPermissionsWhereTheFileSystemHasNone() throws IOException {
+  void shouldCreateFoldersWithoutPermissionsWhereTheFileSystemHasNone() throws IOException {
     final Path folder = this.target.resolve("a/b");
     ArchiveExtractor.createFolders(folder, false);
     assertTrue(Files.isDirectory(folder));
@@ -145,7 +145,7 @@ class ArchiveExtractorTest {
   }
 
   @Test
-  void theArchiveStreamStaysOpen() throws IOException {
+  void shouldKeepTheArchiveStreamOpen() throws IOException {
     final byte[] archive = new Archive().file("a", 0644, "a").finish().readAllBytes();
     final boolean[] closed = { false };
     final InputStream tracked = new ByteArrayInputStream(archive) {
@@ -159,7 +159,7 @@ class ArchiveExtractorTest {
   }
 
   @Test
-  void linksAndSpecialFilesAreRefused() throws IOException {
+  void shouldRefuseLinksAndSpecialFiles() throws IOException {
     final InputStream symbolic = new Archive().link("current", "../../etc", TarConstants.LF_SYMLINK).finish();
     final IOException symbolicFailure = assertThrows(IOException.class, () -> new ArchiveExtractor().extract(symbolic, this.target));
     assertEquals("The archive entry current is not a plain file or folder", symbolicFailure.getMessage());
@@ -175,7 +175,7 @@ class ArchiveExtractorTest {
   }
 
   @Test
-  void namesThatLeaveTheFolderAreRefused() throws IOException {
+  void shouldRefuseNamesThatLeaveTheFolder() throws IOException {
     for (final String name : new String[] { "../escape.txt", "a/../../escape.txt", "/etc/cron.d/evil" }) {
       final InputStream archive = new Archive().file(name, 0644, "x").finish();
       assertThrows(IOException.class, () -> new ArchiveExtractor().extract(archive, this.target), name);
@@ -184,7 +184,7 @@ class ArchiveExtractorTest {
   }
 
   @Test
-  void entryNamesAreResolvedStrictly() throws IOException {
+  void shouldResolveEntryNamesStrictly() throws IOException {
     final Path root = this.target.toRealPath();
     assertEquals(root.resolve("a/b"), ArchiveExtractor.resolve(root, "a/b"));
     assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "a/../b"));
@@ -198,7 +198,7 @@ class ArchiveExtractorTest {
   }
 
   @Test
-  void anEntryBelowALinkIsRefused() throws IOException {
+  void shouldRefuseAnEntryBelowALink() throws IOException {
     final Path root = this.target.toRealPath();
     final Path outside = Files.createTempDirectory("mcav-archive-outside");
     try {
@@ -215,21 +215,21 @@ class ArchiveExtractorTest {
   }
 
   @Test
-  void aFileSystemWithoutPosixPermissionsGetsTheFilesWithoutThem() throws IOException {
+  void shouldExtractTheFilesWithoutPermissionsOnAFileSystemWithoutPosixPermissions() throws IOException {
     final InputStream archive = new Archive().file("libcef.so", 0755, "library").finish();
     new ArchiveExtractor().extract(archive, this.target, false);
     assertEquals("library", Files.readString(this.target.resolve("libcef.so")));
   }
 
   @Test
-  void anArchiveWithTooManyEntriesIsRefused() throws IOException {
+  void shouldRefuseAnArchiveWithTooManyEntries() throws IOException {
     final InputStream archive = new Archive().file("a", 0644, "a").file("b", 0644, "b").file("c", 0644, "c").finish();
     final IOException failure = assertThrows(IOException.class, () -> new ArchiveExtractor(2, 1000).extract(archive, this.target));
     assertEquals("The archive has more than 2 entries", failure.getMessage());
   }
 
   @Test
-  void anArchiveThatExtractsToTooManyBytesIsRefused() throws IOException {
+  void shouldRefuseAnArchiveThatExtractsToTooManyBytes() throws IOException {
     final InputStream archive = new Archive().file("a", 0644, "12345").file("b", 0644, "678").finish();
     final IOException failure = assertThrows(IOException.class, () -> new ArchiveExtractor(10, 7).extract(archive, this.target));
     assertEquals("The archive extracts to more than the allowed size", failure.getMessage());
@@ -237,7 +237,7 @@ class ArchiveExtractorTest {
   }
 
   @Test
-  void anExistingFileIsNeverOverwritten() throws IOException {
+  void shouldNeverOverwriteAnExistingFile() throws IOException {
     Files.writeString(this.target.resolve("a"), "original");
     final InputStream archive = new Archive().file("a", 0644, "replacement").finish();
     assertThrows(IOException.class, () -> new ArchiveExtractor().extract(archive, this.target));
@@ -245,26 +245,26 @@ class ArchiveExtractorTest {
   }
 
   @Test
-  void aStreamThatIsNotAnArchiveFails() {
+  void shouldFailOnAStreamThatIsNotAnArchive() {
     final InputStream garbage = new ByteArrayInputStream("not gzip".getBytes(StandardCharsets.UTF_8));
     assertThrows(IOException.class, () -> new ArchiveExtractor().extract(garbage, this.target));
   }
 
   @Test
-  void anArchiveWithExactlyTheLargestNumberOfEntriesIsExtracted() throws IOException {
+  void shouldExtractAnArchiveWithExactlyTheLargestNumberOfEntries() throws IOException {
     final InputStream archive = new Archive().file("a", 0644, "a").file("b", 0644, "b").finish();
     new ArchiveExtractor(2, 1000).extract(archive, this.target);
     assertTrue(Files.isRegularFile(this.target.resolve("b")));
   }
 
   @Test
-  void aNameThatStartsWithABackslashIsRefused() {
+  void shouldRefuseANameThatStartsWithABackslash() {
     final IOException failure = assertThrows(IOException.class, () -> ArchiveExtractor.resolve(this.target, "\\evil"));
     assertEquals("The archive entry name is not allowed: \\evil", failure.getMessage());
   }
 
   @Test
-  void tighteningTakesTheWriteOfTheGroupAndOfOthersAwayAndLeavesLinksAndTheRestAlone() throws IOException {
+  void shouldTakeTheWriteOfTheGroupAndOfOthersAwayAndLeaveLinksAndTheRestAloneWhenTightening() throws IOException {
     assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
     final Path installation = Files.createDirectories(this.target.resolve("installation"));
     final Path inner = Files.createDirectories(installation.resolve("locales"));
@@ -291,7 +291,7 @@ class ArchiveExtractorTest {
   }
 
   @Test
-  void tighteningSkipsWhatItCannotReadOrChangeAndWhatIsNoFolder() throws IOException {
+  void shouldSkipWhatItCannotReadOrChangeAndWhatIsNoFolderWhenTightening() throws IOException {
     final Path file = Files.writeString(this.target.resolve("file.txt"), "file");
     ArchiveExtractor.tighten(file);
     ArchiveExtractor.tighten(this.target.resolve("missing"));
@@ -309,7 +309,7 @@ class ArchiveExtractorTest {
   }
 
   @Test
-  void aFileSystemWithoutPosixPermissionsIsNotTightened() throws IOException {
+  void shouldNotTightenAFileSystemWithoutPosixPermissions() throws IOException {
     final Path zip = this.target.resolve("tightened.zip");
     try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true"))) {
       final Path folder = Files.createDirectories(zipped.getPath("/natives"));

@@ -69,7 +69,7 @@ final class LinuxLibrariesFuzzTest {
   private static final int XZ_PRESET = 0;
 
   @FuzzTest(maxDuration = "30s")
-  void writesOnlyThePinnedLibrariesOrRefusesThePackage(final byte[] input) throws IOException {
+  void shouldWriteOnlyThePinnedLibrariesOrRefuseThePackage(final byte[] input) throws IOException {
     if (input.length == 0) {
       return;
     }

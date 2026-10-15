@@ -50,7 +50,7 @@ class PageAudioTest {
   }
 
   @Test
-  void aCallOfTheBindingIsSoundOfWholeFramesFromItsContext() {
+  void shouldReadACallOfTheBindingAsSoundOfWholeFramesFromItsContext() {
     final PageAudio.Chunk chunk = PageAudio.parse(PageAudio.BINDING_EVENT, call(FRAMES));
     assertNotNull(chunk);
     assertEquals(7, chunk.context());
@@ -58,7 +58,7 @@ class PageAudioTest {
   }
 
   @Test
-  void theSoundOfOneFramePassesAtATimeAndAnotherAfterAQuietMoment() {
+  void shouldPassTheSoundOfOneFrameAtATimeAndAnotherAfterAQuietMoment() {
     final AtomicLong now = new AtomicLong();
     final List<Byte> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples[0]), now::get);
@@ -77,7 +77,7 @@ class PageAudioTest {
   }
 
   @Test
-  void theSilenceAfterAFramesSoundPassesWithoutKeepingAnotherFrameFromSpeaking() {
+  void shouldPassTheSilenceAfterTheSoundOfAFrameWithoutKeepingAnotherFrameFromSpeaking() {
     final AtomicLong now = new AtomicLong();
     final List<Byte> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples[0]), now::get);
@@ -96,7 +96,7 @@ class PageAudioTest {
   }
 
   @Test
-  void aCallOfTheBindingIsSoundOfWholeFrames() {
+  void shouldReadACallOfTheBindingAsSoundOfWholeFrames() {
     assertArrayEquals(FRAMES, samplesOf(PageAudio.parse(PageAudio.BINDING_EVENT, call(FRAMES))));
     final String encoded = Base64.getEncoder().encodeToString(FRAMES);
     assertArrayEquals(FRAMES, samplesOf(PageAudio.parse(PageAudio.BINDING_EVENT, call(PageAudio.BINDING, encoded, "-12"))));
@@ -104,7 +104,7 @@ class PageAudioTest {
   }
 
   @Test
-  void anythingButExactlyACallOfTheBindingIsNotSound() {
+  void shouldNotReadAnythingButExactlyACallOfTheBindingAsSound() {
     final String encoded = Base64.getEncoder().encodeToString(FRAMES);
     assertNull(PageAudio.parse("Runtime.consoleAPICalled", call(FRAMES)), "another event");
     assertNull(PageAudio.parse(PageAudio.BINDING_EVENT, call("other", encoded, "7")), "another binding");
@@ -120,7 +120,7 @@ class PageAudioTest {
   }
 
   @Test
-  void soundIsWholeFramesUpToTheLimitOfAMessage() {
+  void shouldTakeSoundAsWholeFramesUpToTheLimitOfAMessage() {
     assertNull(PageAudio.parse(PageAudio.BINDING_EVENT, call(new byte[0])), "no sound");
     assertNull(PageAudio.parse(PageAudio.BINDING_EVENT, call(new byte[6])), "half a frame more");
     final byte[] largest = new byte[HelperProtocol.MAX_AUDIO_BYTES];
@@ -133,7 +133,7 @@ class PageAudioTest {
   }
 
   @Test
-  void atMostTwoSecondsOfSoundPassEverySecond() {
+  void shouldPassAtMostTwoSecondsOfSoundEverySecond() {
     final AtomicLong now = new AtomicLong(TimeUnit.HOURS.toNanos(1));
     final List<Integer> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples.length), now::get);
@@ -166,7 +166,7 @@ class PageAudioTest {
   }
 
   @Test
-  void theLengthOfACallSaysHowMuchSoundItHoldsAtLeast() {
+  void shouldTellFromTheLengthOfACallHowMuchSoundItHoldsAtLeast() {
     for (int length = 0; length <= 300; length++) {
       final String payload = Base64.getEncoder().encodeToString(new byte[length]);
       final long nearest = PageAudio.leastBytes(call(PageAudio.BINDING, payload, "-1234567890"));
@@ -180,7 +180,7 @@ class PageAudioTest {
   }
 
   @Test
-  void aCallOverTheBudgetIsRefusedBeforeItIsDecoded() {
+  void shouldRefuseACallOverTheBudgetBeforeItIsDecoded() {
     final AtomicLong now = new AtomicLong();
     final AtomicInteger looks = new AtomicInteger();
     final List<Integer> passed = new ArrayList<>();
@@ -207,7 +207,7 @@ class PageAudioTest {
   }
 
   @Test
-  void aCallThatItsLengthLetsPassIsStillRefusedWhenItsSoundIsMoreThanIsLeft() {
+  void shouldStillRefuseACallThatItsLengthLetsPassWhenItsSoundIsMoreThanIsLeft() {
     final AtomicLong now = new AtomicLong();
     final List<Integer> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples.length), now::get);
@@ -224,7 +224,7 @@ class PageAudioTest {
   }
 
   @Test
-  void aCallThatTheBudgetFitsExactlyPasses() {
+  void shouldPassACallThatTheBudgetFitsExactly() {
     final AtomicLong now = new AtomicLong();
     final List<Integer> passed = new ArrayList<>();
     final PageAudio audio = new PageAudio(samples -> passed.add(samples.length), now::get);
@@ -243,7 +243,7 @@ class PageAudioTest {
   }
 
   @Test
-  void theBudgetGrowsUntilTheSoundIsTaken() {
+  void shouldGrowTheBudgetUntilTheSoundIsTaken() {
     final AtomicLong now = new AtomicLong();
     final AtomicLong step = new AtomicLong();
     final List<Integer> passed = new ArrayList<>();
@@ -259,7 +259,7 @@ class PageAudioTest {
   }
 
   @Test
-  void aPageGetsTheBindingAndTheScriptInThatOrder() {
+  void shouldGiveAPageTheBindingAndTheScriptInThatOrder() {
     final List<DevToolsInput.DevToolsCall> calls = PageAudio.install();
     assertEquals(3, calls.size());
     assertEquals("Runtime.enable", calls.get(0).getMethod());
@@ -271,7 +271,7 @@ class PageAudioTest {
   }
 
   @Test
-  void theScriptTakesTheBindingAwayAndSendsWhatThePagePlays() throws Exception {
+  void shouldTakeTheBindingAwayInTheScriptAndSendWhatThePagePlays() throws Exception {
     final String script = PageAudio.SCRIPT;
     ScriptAssertions.execute("page-audio.mjs", script);
     assertTrue(script.contains("const BINDING = '" + PageAudio.BINDING + "';"), "the script uses the binding's name");

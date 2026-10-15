@@ -52,7 +52,7 @@ class NoFlagsServerTest {
   private static final List<String> X_SERVERS = List.of("Xvfb", "Xorg", "X", "Xwayland");
 
   @Test
-  void aHeadlessServerWithoutJvmOptionsStreamsAPageAndSurvivesADisableAndEnable() throws Exception {
+  void shouldStreamAPageOnAHeadlessServerWithoutJvmOptionsAndSurviveADisableAndEnable() throws Exception {
     try (final TestPages pages = TestPages.start()) {
       final String executable = System.getProperty("os.name").startsWith("Windows") ? "java.exe" : "java";
       final Path java = Path.of(System.getProperty("java.home"), "bin", executable);
@@ -92,7 +92,7 @@ class NoFlagsServerTest {
   }
 
   @Test
-  void thePathOfTheServerLeavesOutEveryFolderWithAnXServer(@TempDir final Path folder) throws IOException {
+  void shouldLeaveEveryFolderWithAnXServerOutOfThePathOfTheServer(@TempDir final Path folder) throws IOException {
     final Path withX = Files.createDirectories(folder.resolve("with-x"));
     final Path plain = Files.createDirectories(folder.resolve("plain"));
     final Path server = Files.createFile(withX.resolve("Xvfb"));

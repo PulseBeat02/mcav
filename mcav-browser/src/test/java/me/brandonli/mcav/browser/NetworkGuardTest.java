@@ -167,7 +167,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void aConnectionToAnAllowedHostIsRelayedBothWaysUntilOneSideEnds() throws IOException {
+  void shouldRelayAConnectionToAnAllowedHostBothWaysUntilOneSideEnds() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
     final Socket client = this.connectThrough(guard, "echo.test", this.echo.getLocalPort());
     final byte[] hello = "hello through the guard".getBytes(StandardCharsets.UTF_8);
@@ -178,7 +178,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void anAddressInTheRequestIsCheckedLikeAName() throws IOException {
+  void shouldCheckAnAddressInTheRequestLikeAName() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
     final Socket client = this.client(guard);
     exchange(client, GREETING, 2);
@@ -193,7 +193,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void aHostWithoutAnAllowedAddressIsRefusedAndReportedOnce() throws IOException {
+  void shouldRefuseAndReportOnceAHostWithoutAnAllowedAddress() throws IOException {
     final NetworkGuard guard = this.guard(AddressPolicy::isPublic, NetworkGuard::connect, 5_000);
     for (int attempt = 0; attempt < 2; attempt++) {
       final Socket client = this.client(guard);
@@ -206,7 +206,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void onlyAllowedAddressesOfAHostAreTried() throws IOException {
+  void shouldOnlyTryAllowedAddressesOfAHost() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
     final Socket client = this.connectThrough(guard, "mixed.test", this.echo.getLocalPort());
     final byte[] ping = { 42 };
@@ -214,7 +214,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void refusedReportsStopAtTheirLimit() throws IOException {
+  void shouldStopRefusedReportsAtTheirLimit() throws IOException {
     final NetworkGuard guard = this.guard(AddressPolicy::isPublic, NetworkGuard::connect, 5_000);
     for (int host = 0; host <= NetworkGuard.MAX_REPORTED_HOSTS; host++) {
       final Socket client = this.client(guard);
@@ -226,7 +226,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void failedConnectionsAreAnsweredWithTheirReason() throws IOException {
+  void shouldAnswerFailedConnectionsWithTheirReason() throws IOException {
     final int closedPort;
     try (final ServerSocket closed = new ServerSocket(0, 1, LOOPBACK)) {
       closedPort = closed.getLocalPort();
@@ -254,7 +254,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void clientsThatDoNotSpeakTheProtocolAreTurnedAway() throws IOException {
+  void shouldTurnAwayClientsThatDoNotSpeakTheProtocol() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
     final Socket withPassword = this.client(guard);
     assertArrayEquals(new byte[] { 5, (byte) 0xFF }, exchange(withPassword, new byte[] { 5, 1, 2 }, 2));
@@ -295,7 +295,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void aClientThatStallsInItsHandshakeIsDroppedWhileTheCommonPoolIsBusy() throws Exception {
+  void shouldDropAClientThatStallsInItsHandshakeWhileTheCommonPoolIsBusy() throws Exception {
     final CountDownLatch release = occupyTheCommonPool();
     try {
       final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, 200);
@@ -308,7 +308,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void aClientThatStallsInItsHandshakeIsDropped() throws IOException {
+  void shouldDropAClientThatStallsInItsHandshake() throws IOException {
     final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, 200);
     final Socket client = this.client(guard);
     client.getOutputStream().write(5);
@@ -316,7 +316,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void aClientThatTricklesItsHandshakeIsDroppedOnceTheWholeHandshakeTookTooLong() throws Exception {
+  void shouldDropAClientThatTricklesItsHandshakeOnceTheWholeHandshakeTookTooLong() throws Exception {
     final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, 600);
     final Socket client = this.client(guard);
     final OutputStream out = client.getOutputStream();
@@ -341,7 +341,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void connectionsBeyondTheLimitAreClosedAtOnce() throws IOException {
+  void shouldCloseConnectionsBeyondTheLimitAtOnce() throws IOException {
     final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, 30_000);
     final List<Socket> idle = new ArrayList<>();
     for (int count = 0; count < NetworkGuard.MAX_CONNECTIONS; count++) {
@@ -354,7 +354,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void aTargetThatEndsEndsTheConnectionOfTheClient() throws Exception {
+  void shouldEndTheConnectionOfTheClientWhenTheTargetEnds() throws Exception {
     try (final ServerSocket ending = new ServerSocket(0, 1, LOOPBACK)) {
       final CompletableFuture<Void> target = CompletableFuture.runAsync(() -> sayByeAndHangUp(ending));
       final NetworkGuard guard = this.loopbackGuard();
@@ -376,7 +376,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void aClientTurnedAwayIsDisconnected() throws IOException {
+  void shouldDisconnectAClientTurnedAway() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
     final Socket client = this.client(guard);
     assertArrayEquals(new byte[] { 5, (byte) 0xFF }, exchange(client, new byte[] { 5, 1, 2 }, 2));
@@ -384,7 +384,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void theSlotOfAConnectionIsFreedWhenItEnds() throws IOException {
+  void shouldFreeTheSlotOfAConnectionWhenItEnds() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
     for (int count = 0; count < NetworkGuard.MAX_CONNECTIONS + 44; count++) {
       new Socket(LOOPBACK, guard.getPort()).close();
@@ -394,7 +394,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void theThreadOfTheGuardDoesNotKeepTheJvmAlive() throws IOException {
+  void shouldNotKeepTheJvmAliveWithTheThreadOfTheGuard() throws IOException {
     this.loopbackGuard();
     final List<Thread> threads = Thread.getAllStackTraces()
       .keySet()
@@ -408,7 +408,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void aConnectionThatFailsLeavesNoFileOpen() throws IOException {
+  void shouldLeaveNoFileOpenWhenAConnectionFails() throws IOException {
     final int closedPort;
     try (final ServerSocket closed = new ServerSocket(0, 1, LOOPBACK)) {
       closedPort = closed.getLocalPort();
@@ -418,7 +418,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void closingTheGuardEndsEveryConnectionAndStopsListening() throws IOException {
+  void shouldEndEveryConnectionAndStopListeningWhenTheGuardCloses() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
     final Socket client = this.connectThrough(guard, "echo.test", this.echo.getLocalPort());
     guard.close();
@@ -430,7 +430,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void aBrokenListeningSocketIsReported() throws IOException {
+  void shouldReportABrokenListeningSocket() throws IOException {
     final NetworkGuard guard = this.loopbackGuard();
     guard.getServer().close();
     Await.until("the report", () -> !this.notices.isEmpty());
@@ -464,7 +464,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void theDefaultPolicyAsksForTheNat64PrefixesOnceAnIpv6AddressIsJudged() throws UnknownHostException {
+  void shouldAskForTheNat64PrefixesOnceAnIpv6AddressIsJudged() throws UnknownHostException {
     final TranslatingResolver resolver = new TranslatingResolver(0);
     final NetworkGuard.PublicAddresses policy = new NetworkGuard.PublicAddresses(resolver);
     assertTrue(policy.test(InetAddress.getByName("8.8.8.8")));
@@ -478,7 +478,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void theDefaultPolicyAsksAgainWhileTheResolverFails() throws UnknownHostException {
+  void shouldAskAgainWhileTheResolverFails() throws UnknownHostException {
     final TranslatingResolver resolver = new TranslatingResolver(1);
     final NetworkGuard.PublicAddresses policy = new NetworkGuard.PublicAddresses(resolver);
     final InetAddress translatedPrivate = InetAddress.getByName("2a01:4f8:1:2:3:4:a00:1");
@@ -489,7 +489,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void anIpv6AddressIsRefusedWhileTheNat64PrefixesAreUnknown() throws UnknownHostException {
+  void shouldRefuseAnIpv6AddressWhileTheNat64PrefixesAreUnknown() throws UnknownHostException {
     final TranslatingResolver resolver = new TranslatingResolver(2);
     final NetworkGuard.PublicAddresses policy = new NetworkGuard.PublicAddresses(resolver);
     assertFalse(policy.test(InetAddress.getByName("2a01:4f8:1:2:3:4:a00:1")), "10.0.0.1 through the translator");
@@ -500,7 +500,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void theDefaultPolicyRefusesAnAddressOfThisMachineHoweverPublicItIs() throws UnknownHostException {
+  void shouldRefuseAnAddressOfThisMachineHoweverPublicItIs() throws UnknownHostException {
     final InetAddress ownIpv4 = InetAddress.getByName("8.8.8.8");
     final InetAddress ownIpv6 = InetAddress.getByName("2606:4700:4700::1111");
     final Set<InetAddress> own = Set.of(ownIpv4, ownIpv6);
@@ -513,13 +513,13 @@ class NetworkGuardTest {
   }
 
   @Test
-  void anAddressOfAnInterfaceOfThisMachineIsItsOwn() throws UnknownHostException {
+  void shouldCountAnAddressOfAnInterfaceOfThisMachineAsItsOwn() throws UnknownHostException {
     assertTrue(NetworkGuard.isOwnAddress(InetAddress.getLoopbackAddress()));
     assertFalse(NetworkGuard.isOwnAddress(InetAddress.getByName("192.0.2.1")), "an address of the documentation");
   }
 
   @Test
-  void anAddressCountsAsOwnWhileTheInterfacesCannotBeListed() throws UnknownHostException {
+  void shouldCountAnAddressAsOwnWhileTheInterfacesCannotBeListed() throws UnknownHostException {
     final InetAddress address = InetAddress.getByName("192.0.2.1");
     assertTrue(
       NetworkGuard.isOwnAddress(address, candidate -> {
@@ -530,7 +530,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void aNameOfAPublicAddressOfThisMachineIsRefused() throws IOException {
+  void shouldRefuseANameOfAPublicAddressOfThisMachine() throws IOException {
     final NetworkGuard guard = NetworkGuard.start(
       host -> new InetAddress[] { InetAddress.getByName("8.8.8.8") },
       new NetworkGuard.PublicAddresses(new TranslatingResolver(0), address -> true),
@@ -549,7 +549,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void aNameThatTheTranslatorOfTheNetworkTurnsIntoAPrivateAddressIsRefused() throws IOException {
+  void shouldRefuseANameThatTheTranslatorOfTheNetworkTurnsIntoAPrivateAddress() throws IOException {
     final TranslatingResolver resolver = new TranslatingResolver(0);
     final NetworkGuard guard = NetworkGuard.start(
       resolver,
@@ -569,7 +569,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void theRefusedHostsAreResolvedOnceAndOneWithoutAnAddressIsReported() throws UnknownHostException {
+  void shouldResolveTheRefusedHostsOnceAndReportOneWithoutAnAddress() throws UnknownHostException {
     final InetAddress first = InetAddress.getByName("203.0.113.5");
     final InetAddress second = InetAddress.getByName("2001:db8::5");
     final NetworkGuard.Resolver resolver = host -> {
@@ -584,7 +584,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void anAddressOfARefusedHostCountsAsTheMachinesOwn() throws UnknownHostException {
+  void shouldCountAnAddressOfARefusedHostAsTheMachinesOwn() throws UnknownHostException {
     final InetAddress refusedAddress = InetAddress.getByName("203.0.113.5");
     final InetAddress interfaceAddress = InetAddress.getByName("198.51.100.7");
     final Predicate<InetAddress> own = NetworkGuard.ownOrRefused(interfaceAddress::equals, Set.of(refusedAddress));
@@ -594,7 +594,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void theDefaultGuardRefusesTheAddressesOfTheRefusedHosts() throws IOException {
+  void shouldRefuseTheAddressesOfTheRefusedHostsByDefault() throws IOException {
     try (final NetworkGuard guard = NetworkGuard.start(this.notices::add, List.of("8.8.8.8"))) {
       final Socket client = this.client(guard);
       exchange(client, GREETING, 2);
@@ -605,7 +605,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void theDefaultGuardRefusesLoopback() throws IOException {
+  void shouldRefuseLoopbackByDefault() throws IOException {
     try (final NetworkGuard guard = NetworkGuard.start(this.notices::add, List.of())) {
       final Socket client = this.client(guard);
       exchange(client, GREETING, 2);
@@ -616,7 +616,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void connectingClosesTheSocketOfAFailedAttempt() throws IOException {
+  void shouldCloseTheSocketOfAFailedAttemptWhenConnecting() throws IOException {
     final int closedPort;
     try (final ServerSocket closed = new ServerSocket(0, 1, LOOPBACK)) {
       closedPort = closed.getLocalPort();
@@ -639,7 +639,7 @@ class NetworkGuardTest {
   }
 
   @Test
-  void closingQuietlySwallowsAFailure() {
+  void shouldSwallowAFailureWhenClosingQuietly() {
     final AtomicInteger closed = new AtomicInteger();
     NetworkGuard.closeQuietly(() -> {
       closed.incrementAndGet();

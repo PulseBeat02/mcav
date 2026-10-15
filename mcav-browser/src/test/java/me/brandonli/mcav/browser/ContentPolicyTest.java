@@ -71,7 +71,7 @@ class ContentPolicyTest {
   }
 
   @Test
-  void aPopupOpensInPlaceWhenItsAddressIsAllowed() {
+  void shouldOpenAPopupInPlaceWhenItsAddressIsAllowed() {
     final boolean cancelled = this.policy.onBeforePopup(this.browser, frame(true), "https://example.com/popup", "_blank");
     assertTrue(cancelled);
     verify(this.browser).loadURL("https://example.com/popup");
@@ -79,26 +79,26 @@ class ContentPolicyTest {
   }
 
   @Test
-  void aPopupToAnotherSchemeIsRefused() {
+  void shouldRefuseAPopupToAnotherScheme() {
     assertTrue(this.policy.onBeforePopup(this.browser, frame(true), "file:///etc/passwd", ""));
     verify(this.browser, never()).loadURL(ArgumentMatchers.anyString());
     assertEquals(List.of("notice: Refused a new window: file:///etc/passwd"), this.events.log);
   }
 
   @Test
-  void aLinkForANewTabOpensInPlaceToo() {
+  void shouldOpenALinkForANewTabInPlaceToo() {
     assertTrue(this.policy.onOpenURLFromTab(this.browser, frame(true), "http://example.com/tab", true));
     verify(this.browser).loadURL("http://example.com/tab");
   }
 
   @Test
-  void aNewTabWithoutAClickOrAKeyIsCancelled() {
+  void shouldCancelANewTabWithoutAClickOrAKey() {
     assertTrue(this.policy.onOpenURLFromTab(this.browser, frame(true), "http://example.com/tab", false));
     verify(this.browser, never()).loadURL(ArgumentMatchers.anyString());
   }
 
   @Test
-  void theCreatedBrowserIsPreparedAndReportsItsEngine() {
+  void shouldPrepareTheCreatedBrowserAndReportItsEngine() {
     this.policy.onAfterCreated(this.browser);
     this.policy.onAfterParentChanged(this.browser);
     this.policy.onBeforeClose(this.browser);
@@ -107,7 +107,7 @@ class ContentPolicyTest {
   }
 
   @Test
-  void closingIsLeftToTheBrowser() {
+  void shouldLeaveClosingToTheBrowser() {
     when(this.browser.doClose()).thenReturn(true);
     assertTrue(this.policy.doClose(this.browser));
     when(this.browser.doClose()).thenReturn(false);
@@ -115,7 +115,7 @@ class ContentPolicyTest {
   }
 
   @Test
-  void navigationFollowsTheNavigationPolicy() {
+  void shouldFollowTheNavigationPolicyWhenNavigating() {
     assertFalse(this.policy.onBeforeBrowse(this.browser, frame(true), request("https://example.com/"), true, false));
     assertTrue(this.policy.onBeforeBrowse(this.browser, frame(true), request("file:///etc/passwd"), false, true));
     assertFalse(this.policy.onBeforeBrowse(this.browser, frame(false), request("about:blank"), false, false));
@@ -127,7 +127,7 @@ class ContentPolicyTest {
   }
 
   @Test
-  void theReportsNeverCarryTheUserTheQueryOrTheFragmentOfAnAddress() {
+  void shouldNeverReportTheUserTheQueryOrTheFragmentOfAnAddress() {
     assertTrue(this.policy.onBeforeBrowse(this.browser, frame(true), request("myapp://callback?code=secret"), false, false));
     final CefResourceRequestHandler resources = this.policy.getResourceRequestHandler(
       this.browser,
@@ -160,7 +160,7 @@ class ContentPolicyTest {
   }
 
   @Test
-  void everyRequestGoesThroughTheResourcePolicy() {
+  void shouldSendEveryRequestThroughTheResourcePolicy() {
     final CefResourceRequestHandler first = this.policy.getResourceRequestHandler(
       this.browser,
       frame(true),
@@ -186,7 +186,7 @@ class ContentPolicyTest {
   }
 
   @Test
-  void anUnknownSchemeIsNeverHandedToAnotherProgram() {
+  void shouldNeverHandAnUnknownSchemeToAnotherProgram() {
     final CefResourceRequestHandler resources = this.policy.getResourceRequestHandler(
       this.browser,
       frame(true),
@@ -203,7 +203,7 @@ class ContentPolicyTest {
   }
 
   @Test
-  void authenticationAndBadCertificatesFailTheRequest() {
+  void shouldFailTheRequestOnAuthenticationAndBadCertificates() {
     final CefAuthCallback auth = mock(CefAuthCallback.class);
     assertFalse(this.policy.getAuthCredentials(this.browser, "https://a/", false, "a", 443, "realm", "basic", auth));
     verifyNoInteractions(auth);
@@ -216,13 +216,13 @@ class ContentPolicyTest {
   }
 
   @Test
-  void aCrashedRendererIsAFailure() {
+  void shouldFailWhenTheRendererCrashes() {
     this.policy.onRenderProcessTerminated(this.browser, CefRequestHandler.TerminationStatus.TS_PROCESS_CRASHED, 11, "segfault");
     assertEquals(List.of("failure: The renderer of the page ended: TS_PROCESS_CRASHED (11)"), this.events.log);
   }
 
   @Test
-  void javaScriptDialogsAreDismissedAtOnce() {
+  void shouldDismissJavaScriptDialogsAtOnce() {
     final CefJSDialogCallback alert = mock(CefJSDialogCallback.class);
     assertTrue(
       this.policy.onJSDialog(this.browser, "https://a/", CefJSDialogHandler.JSDialogType.JSDIALOGTYPE_ALERT, "hi", "", alert, new BoolRef())
@@ -263,7 +263,7 @@ class ContentPolicyTest {
   }
 
   @Test
-  void downloadsAreRefusedAndCancelled() {
+  void shouldRefuseAndCancelDownloads() {
     final CefBeforeDownloadCallback before = mock(CefBeforeDownloadCallback.class);
     assertFalse(this.policy.onBeforeDownload(this.browser, mock(CefDownloadItem.class), "evil.exe", before));
     verifyNoInteractions(before);
@@ -278,7 +278,7 @@ class ContentPolicyTest {
    * until the page changed; the refusal asks the off-screen browser to paint its view again.
    */
   @Test
-  void aRefusedDownloadRepaintsTheView() {
+  void shouldRepaintTheViewAfterARefusedDownload() {
     final McavOffscreenBrowser offscreen = mock(McavOffscreenBrowser.class);
     final boolean handled = this.policy.onBeforeDownload(
       offscreen,
@@ -291,7 +291,7 @@ class ContentPolicyTest {
   }
 
   @Test
-  void fileChoosersAreCancelled() {
+  void shouldCancelFileChoosers() {
     final CefFileDialogCallback callback = mock(CefFileDialogCallback.class);
     final boolean handled = this.policy.onFileDialog(
       this.browser,
@@ -309,7 +309,7 @@ class ContentPolicyTest {
   }
 
   @Test
-  void theContextMenuIsEmpty() {
+  void shouldEmptyTheContextMenu() {
     final CefMenuModel model = mock(CefMenuModel.class);
     this.policy.onBeforeContextMenu(this.browser, frame(true), mock(CefContextMenuParams.class), model);
     verify(model).clear();
@@ -318,7 +318,7 @@ class ContentPolicyTest {
   }
 
   @Test
-  void theBlankDocumentBeforeThePageAndAbortedLoadsAreNotReported() {
+  void shouldNotReportTheBlankDocumentBeforeThePageOrAbortedLoads() {
     final CefBrowser blank = mock(CefBrowser.class);
     when(blank.getURL()).thenReturn("");
     this.policy.onLoadingStateChange(blank, true, false, false);
@@ -334,7 +334,7 @@ class ContentPolicyTest {
   }
 
   @Test
-  void theLoadStateAndErrorsOfThePageAreReported() {
+  void shouldReportTheLoadStateAndErrorsOfThePage() {
     when(this.browser.getURL()).thenReturn("https://x.invalid/");
     this.policy.onLoadingStateChange(this.browser, true, false, false);
     this.policy.onLoadStart(this.browser, frame(true), CefRequest.TransitionType.TT_EXPLICIT);
@@ -355,7 +355,7 @@ class ContentPolicyTest {
   }
 
   @Test
-  void onlyANewPageInTheMainFrameStartsAPage() {
+  void shouldOnlyStartAPageOnANewPageInTheMainFrame() {
     this.policy.onLoadStart(this.browser, frame(false), CefRequest.TransitionType.TT_AUTO_SUBFRAME);
     assertEquals(List.of(), this.events.log, "a frame inside the page is part of it");
     this.policy.onLoadStart(this.browser, frame(true), CefRequest.TransitionType.TT_LINK);

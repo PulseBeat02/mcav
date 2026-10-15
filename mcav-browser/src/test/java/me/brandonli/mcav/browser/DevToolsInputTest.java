@@ -41,7 +41,7 @@ class DevToolsInputTest {
   }
 
   @Test
-  void mouseEventsBecomeDispatchMouseEventCalls() {
+  void shouldTurnMouseEventsIntoDispatchMouseEventCalls() {
     final List<DevToolsInput.DevToolsCall> move = DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 3, 4, 0, 0, 0, 0), 0);
     assertEquals(1, move.size());
     assertEquals(DevToolsInput.MOUSE_METHOD, move.getFirst().getMethod());
@@ -63,7 +63,7 @@ class DevToolsInputTest {
   }
 
   @Test
-  void aMoveWhileAButtonIsHeldIsADrag() {
+  void shouldTreatAMoveWhileAButtonIsHeldAsADrag() {
     final MouseInput pressLeft = new MouseInput(HelperProtocol.MOUSE_PRESS, 5, 5, HelperProtocol.BUTTON_LEFT, 1, 0, 0);
     final MouseInput pressRight = new MouseInput(HelperProtocol.MOUSE_PRESS, 5, 5, HelperProtocol.BUTTON_RIGHT, 1, 0, 0);
     final MouseInput move = new MouseInput(HelperProtocol.MOUSE_MOVE, 6, 6, HelperProtocol.BUTTON_LEFT, 0, 0, 0);
@@ -86,7 +86,7 @@ class DevToolsInputTest {
   }
 
   @Test
-  void aNamedKeyIsPressedAndReleasedWithItsCodes() {
+  void shouldPressAndReleaseANamedKeyWithItsCodes() {
     final List<DevToolsInput.DevToolsCall> pageDown = DevToolsInput.pressKey("PageDown");
     assertEquals(2, pageDown.size());
     assertEquals(DevToolsInput.KEY_METHOD, pageDown.getFirst().getMethod());
@@ -100,7 +100,7 @@ class DevToolsInputTest {
   }
 
   @Test
-  void keysThatTypeTextSendTheirText() {
+  void shouldSendTheTextOfKeysThatTypeText() {
     assertEquals(
       List.of(
         "{\"type\":\"keyDown\",\"key\":\"Enter\",\"code\":\"Enter\",\"windowsVirtualKeyCode\":13,\"text\":\"\\r\",\"unmodifiedText\":\"\\r\"}",
@@ -114,7 +114,7 @@ class DevToolsInputTest {
   }
 
   @Test
-  void functionKeysHaveTheirCodes() {
+  void shouldGiveFunctionKeysTheirCodes() {
     assertTrue(DevToolsInput.pressKey("F1").getFirst().getParameters().contains("\"windowsVirtualKeyCode\":112"));
     assertTrue(DevToolsInput.pressKey("F24").getFirst().getParameters().contains("\"windowsVirtualKeyCode\":135"));
     assertTrue(DevToolsInput.isKnownKey("F12"));
@@ -122,7 +122,7 @@ class DevToolsInputTest {
   }
 
   @Test
-  void aKeyWithoutADefinitionIsPressedByItsNameAlone() {
+  void shouldPressAKeyWithoutADefinitionByItsNameAlone() {
     assertEquals(
       List.of(
         "{\"type\":\"rawKeyDown\",\"key\":\"MediaPlayPause\",\"windowsVirtualKeyCode\":0}",
@@ -133,7 +133,7 @@ class DevToolsInputTest {
   }
 
   @Test
-  void textIsTypedOneCharacterAtATime() {
+  void shouldTypeTextOneCharacterAtATime() {
     final List<String> typed = parameters(DevToolsInput.typeText("a1!"));
     assertEquals(
       List.of(
@@ -149,7 +149,7 @@ class DevToolsInputTest {
   }
 
   @Test
-  void lineBreaksPressEnterAndCharactersOutsideTheBasicPlaneStayWhole() {
+  void shouldPressEnterForLineBreaksAndKeepCharactersOutsideTheBasicPlaneWhole() {
     final List<String> typed = parameters(DevToolsInput.typeText("\n\r\uD83D\uDE00"));
     assertEquals(6, typed.size());
     assertTrue(typed.get(0).contains("\"key\":\"Enter\""));
@@ -159,7 +159,7 @@ class DevToolsInputTest {
   }
 
   @Test
-  void aWindowsLineBreakPressesEnterOnce() {
+  void shouldPressEnterOnceForAWindowsLineBreak() {
     final Pattern key = Pattern.compile("\"key\":(\"[^\"]*\")");
     final List<String> keys = parameters(DevToolsInput.typeText("a\r\nb\n\r"))
       .stream()
@@ -174,7 +174,7 @@ class DevToolsInputTest {
   }
 
   @Test
-  void onlyLettersAndDigitsHaveAVirtualKeyCode() {
+  void shouldOnlyGiveLettersAndDigitsAVirtualKeyCode() {
     assertEquals('A', DevToolsInput.virtualKeyCode('a'));
     assertEquals('Z', DevToolsInput.virtualKeyCode('z'));
     assertEquals('A', DevToolsInput.virtualKeyCode('A'));
@@ -191,7 +191,7 @@ class DevToolsInputTest {
   }
 
   @Test
-  void stringsAreQuotedAsJson() {
+  void shouldQuoteStringsAsJson() {
     assertEquals("\"plain\"", DevToolsInput.quote("plain"));
     assertEquals("\"\\\"\\\\\\n\\r\\t\"", DevToolsInput.quote("\"\\\n\r\t"));
     assertEquals("\"\\u0000\\u001f\\u2028\\u2029\"", DevToolsInput.quote("\u0000\u001f\u2028\u2029"));
@@ -199,7 +199,7 @@ class DevToolsInputTest {
   }
 
   @Test
-  void theScriptThatOpensWindowsInPlaceIsSentAsOneJsonString() throws Exception {
+  void shouldSendTheScriptThatOpensWindowsInPlaceAsOneJsonString() throws Exception {
     ScriptAssertions.execute("open-windows.mjs", DevToolsInput.OPEN_IN_PLACE_SCRIPT);
     final List<DevToolsInput.DevToolsCall> calls = DevToolsInput.openWindowsInPlace();
     assertEquals(2, calls.size());
@@ -218,7 +218,7 @@ class DevToolsInputTest {
   }
 
   @Test
-  void theInputIsNotInstantiable() {
+  void shouldNotInstantiateTheInput() {
     UtilityClassAssertions.assertNotInstantiable(DevToolsInput.class);
   }
 }

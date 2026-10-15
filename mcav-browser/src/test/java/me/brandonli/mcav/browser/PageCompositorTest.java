@@ -78,7 +78,7 @@ class PageCompositorTest {
   }
 
   @Test
-  void thePageStartsWhiteAndHoldsTheWholeViewport() throws InterruptedException {
+  void shouldStartWhiteAndHoldTheWholeViewport() throws InterruptedException {
     final PageCompositor compositor = this.compositor(1);
     assertEquals(WIDTH * HEIGHT * 4, compositor.getPageBytes());
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, buffer(WIDTH, HEIGHT, 9), WIDTH, HEIGHT);
@@ -88,7 +88,7 @@ class PageCompositorTest {
   }
 
   @Test
-  void aPaintCopiesOnlyItsDirtyRectanglesAndTheirUnionIsSent() throws InterruptedException {
+  void shouldCopyOnlyTheDirtyRectanglesOfAPaintAndSendTheirUnion() throws InterruptedException {
     final PageCompositor compositor = this.compositor(1);
     final Rectangle[] dirty = { new Rectangle(1, 1, 2, 1), new Rectangle(5, 3, 1, 2) };
     compositor.onPaint(false, dirty, buffer(WIDTH, HEIGHT, 7), WIDTH, HEIGHT);
@@ -104,7 +104,7 @@ class PageCompositorTest {
   }
 
   @Test
-  void dirtyRectanglesAreClippedToThePage() throws InterruptedException {
+  void shouldClipDirtyRectanglesToThePage() throws InterruptedException {
     final PageCompositor compositor = this.compositor(1);
     final Rectangle[] dirty = { new Rectangle(-5, -5, 7, 7), new Rectangle(20, 20, 3, 3) };
     compositor.onPaint(false, dirty, buffer(WIDTH, HEIGHT, 3), WIDTH, HEIGHT);
@@ -113,7 +113,7 @@ class PageCompositorTest {
   }
 
   @Test
-  void aPaintOfAnotherSizeIsIgnored() {
+  void shouldIgnoreAPaintOfAnotherSize() {
     final PageCompositor compositor = this.compositor(1);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(WIDTH + 1, HEIGHT, 1), WIDTH + 1, HEIGHT);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(WIDTH, HEIGHT + 1, 1), WIDTH, HEIGHT + 1);
@@ -121,7 +121,7 @@ class PageCompositorTest {
   }
 
   @Test
-  void damageWaitsForTheFrameIntervalOrTheSettleDelay() throws InterruptedException {
+  void shouldHoldDamageForTheFrameIntervalOrTheSettleDelay() throws InterruptedException {
     final PageCompositor compositor = this.compositor(3);
     final Rectangle[] all = { new Rectangle(0, 0, WIDTH, HEIGHT) };
     compositor.onPaint(false, all, buffer(WIDTH, HEIGHT, 1), WIDTH, HEIGHT);
@@ -136,7 +136,7 @@ class PageCompositorTest {
   }
 
   @Test
-  void aWaitingTakerWakesUpWhenDamageBecomesDue() throws Exception {
+  void shouldWakeAWaitingTakerWhenDamageBecomesDue() throws Exception {
     final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, 100L, System::nanoTime);
     final byte[] target = new byte[compositor.getPageBytes()];
     final CompletableFuture<FrameRegion> taken = CompletableFuture.supplyAsync(() -> {
@@ -154,7 +154,7 @@ class PageCompositorTest {
   }
 
   @Test
-  void aTakerThatWaitsForTheSettleDelayGetsTheDamageOnceItSettled() throws Exception {
+  void shouldGiveATakerThatWaitsForTheSettleDelayTheDamageOnceItSettled() throws Exception {
     final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 5, 60L, System::nanoTime);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, buffer(WIDTH, HEIGHT, 6), WIDTH, HEIGHT);
     final long start = System.nanoTime();
@@ -165,13 +165,13 @@ class PageCompositorTest {
   }
 
   @Test
-  void takingTimesOutWithoutDamage() throws InterruptedException {
+  void shouldTimeOutTakingWithoutDamage() throws InterruptedException {
     final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, 100L, System::nanoTime);
     assertNull(compositor.takeDamage(new byte[compositor.getPageBytes()], 20L));
   }
 
   @Test
-  void closingWakesAWaitingTakerWithNothing() throws Exception {
+  void shouldWakeAWaitingTakerWithNothingOnClose() throws Exception {
     final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, 100L, System::nanoTime);
     final CompletableFuture<FrameRegion> taken = CompletableFuture.supplyAsync(() -> {
       try {
@@ -188,7 +188,7 @@ class PageCompositorTest {
   }
 
   @Test
-  void anOpenPopupIsDrawnOverThePageAndItsAreaIsDamaged() throws InterruptedException {
+  void shouldDrawAnOpenPopupOverThePageAndDamageItsArea() throws InterruptedException {
     final PageCompositor compositor = this.compositor(1);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, WIDTH, HEIGHT) }, buffer(WIDTH, HEIGHT, 1), WIDTH, HEIGHT);
     take(compositor);
@@ -207,7 +207,7 @@ class PageCompositorTest {
   }
 
   @Test
-  void damageBesideAnOpenPopupShowsThePageAlone() throws InterruptedException {
+  void shouldShowThePageAloneForDamageBesideAnOpenPopup() throws InterruptedException {
     final PageCompositor compositor = this.compositor(1);
     compositor.onPopupSize(new Rectangle(2, 2, 3, 2));
     compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 3, 2) }, buffer(3, 2, 200), 3, 2);
@@ -219,7 +219,7 @@ class PageCompositorTest {
   }
 
   @Test
-  void hidingThePopupSendsThePageUnderIt() throws InterruptedException {
+  void shouldSendThePageUnderThePopupWhenItHides() throws InterruptedException {
     final PageCompositor compositor = this.compositor(1);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, WIDTH, HEIGHT) }, buffer(WIDTH, HEIGHT, 1), WIDTH, HEIGHT);
     take(compositor);
@@ -236,7 +236,7 @@ class PageCompositorTest {
   }
 
   @Test
-  void aPopupPaintIsIgnoredUntilItsSizeIsKnownOrWhenItDoesNotMatch() {
+  void shouldIgnoreAPopupPaintUntilItsSizeIsKnownOrWhenItDoesNotMatch() {
     final PageCompositor compositor = this.compositor(1);
     compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, 150), 2, 2);
     assertNull(takeNow(compositor), "no size yet");
@@ -248,7 +248,7 @@ class PageCompositorTest {
   }
 
   @Test
-  void movingAnOpenPopupDamagesWhereItWas() throws InterruptedException {
+  void shouldDamageWhereAnOpenPopupWasWhenItMoves() throws InterruptedException {
     final PageCompositor compositor = this.compositor(1);
     compositor.onPopupSize(new Rectangle(0, 0, 2, 2));
     compositor.onPaint(true, new Rectangle[] { new Rectangle(0, 0, 2, 2) }, buffer(2, 2, 150), 2, 2);
@@ -263,7 +263,7 @@ class PageCompositorTest {
   }
 
   @Test
-  void aWaitingTakerWakesUpForAPopupAndForItsEnd() throws Exception {
+  void shouldWakeAWaitingTakerForAPopupAndForItsEnd() throws Exception {
     final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, 100L, System::nanoTime);
     final byte[] target = new byte[compositor.getPageBytes()];
     compositor.onPopupSize(new Rectangle(1, 1, 2, 2));

@@ -36,7 +36,7 @@ final class FramesTest {
 
   @ParameterizedTest
   @CsvSource({ "4,2", "3,5", "5,2" })
-  void recordsTheGeometricCenterWithoutChangingTheImage(final int width, final int height) {
+  void shouldRecordTheGeometricCenterWithoutChangingTheImage(final int width, final int height) {
     final int blue = 0xFF0000FF;
     final int red = 0xFFFF0000;
     final int[] pixels = new int[width * height];

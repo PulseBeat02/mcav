@@ -65,7 +65,7 @@ class SessionFoldersTest {
   }
 
   @Test
-  void theFolderOfAServerThatIsGoneIsRemovedAndThatOfARunningOneKept() throws IOException {
+  void shouldRemoveTheFolderOfAServerThatIsGoneAndKeepThatOfARunningOne() throws IOException {
     final Path gone = this.folderOf(server(GONE, Optional.of(Instant.parse("2026-10-05T00:00:00Z"))));
     final Path running = this.folderOf(ProcessHandle.current());
     assertEquals(GONE + "\n2026-10-05T00:00:00Z\n", Files.readString(gone.resolve(SessionFolders.OWNER_FILE), StandardCharsets.US_ASCII));
@@ -78,7 +78,7 @@ class SessionFoldersTest {
   }
 
   @Test
-  void aServerWhoseIdAnotherProcessTookIsGone() throws IOException {
+  void shouldTreatAServerWhoseIdAnotherProcessTookAsGone() throws IOException {
     final long reused = ProcessHandle.current().pid();
     final Path folder = this.folderOf(server(reused, Optional.of(Instant.parse("2001-01-01T00:00:00Z"))));
     assertEquals(1, SessionFolders.ofThisServer().removeStale(this.temporary));
@@ -86,7 +86,7 @@ class SessionFoldersTest {
   }
 
   @Test
-  void aFolderThatNamesNoServerOrNoneThatCanBeReadIsLeftAlone() throws IOException {
+  void shouldLeaveAFolderThatNamesNoServerOrNoneThatCanBeReadAlone() throws IOException {
     final Path unnamed = this.folderOf(server(GONE, Optional.empty()));
     assertFalse(Files.exists(unnamed.resolve(SessionFolders.OWNER_FILE)), "a server of unknown start names nothing");
     final Path garbage = Files.createDirectory(this.temporary.resolve(SessionFolders.PREFIX + "garbage"));
@@ -112,7 +112,7 @@ class SessionFoldersTest {
   }
 
   @Test
-  void aFolderOfAnotherUserIsLeftAloneEvenIfItsRecordNamesAServerThatIsGone() throws IOException {
+  void shouldLeaveAFolderOfAnotherUserAloneEvenIfItsRecordNamesAServerThatIsGone() throws IOException {
     final Path planted = this.folderOf(server(GONE, Optional.of(Instant.parse("2026-10-05T00:00:00Z"))));
     final ProcessHandle serverOfAnotherUser = server(ProcessHandle.current().pid(), ProcessHandle.current().info().startInstant());
     when(serverOfAnotherUser.info().user()).thenReturn(Optional.of("not-" + Files.getOwner(planted).getName()));
@@ -131,7 +131,7 @@ class SessionFoldersTest {
   }
 
   @Test
-  void aFolderOnAFileSystemWithoutOwnersIsRemovedByItsRecordAlone() throws IOException {
+  void shouldRemoveAFolderOnAFileSystemWithoutOwnersByItsRecordAlone() throws IOException {
     final ProcessHandle serverOfAnotherUser = server(ProcessHandle.current().pid(), ProcessHandle.current().info().startInstant());
     when(serverOfAnotherUser.info().user()).thenReturn(Optional.of("someone-else"));
     final Path zip = this.temporary.resolve("folders.zip");
@@ -146,12 +146,12 @@ class SessionFoldersTest {
   }
 
   @Test
-  void aTemporaryFolderThatCannotBeListedIsOnlyLogged() {
+  void shouldOnlyLogATemporaryFolderThatCannotBeListed() {
     assertEquals(0, SessionFolders.ofThisServer().removeStale(this.temporary.resolve("missing")));
   }
 
   @Test
-  void aRecordThatCannotBeWrittenLeavesTheFolderUnnamed() {
+  void shouldLeaveTheFolderUnnamedWhenTheRecordCannotBeWritten() {
     final Path missing = this.temporary.resolve("missing");
     new SessionFolders(ProcessHandle.current(), ProcessHandle::of).record(missing);
     assertFalse(Files.exists(missing));

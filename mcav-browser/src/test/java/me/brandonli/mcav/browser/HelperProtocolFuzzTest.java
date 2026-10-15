@@ -39,7 +39,7 @@ import org.junit.jupiter.api.Tag;
 final class HelperProtocolFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
-  void readsOnlyMessagesTheProtocolAllows(final FuzzedDataProvider data) {
+  void shouldReadOnlyMessagesTheProtocolAllows(final FuzzedDataProvider data) {
     final byte[] bytes = data.consumeRemainingAsBytes();
     final DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
     try {

@@ -172,7 +172,7 @@ class BrowserSoundTest {
   }
 
   @Test
-  void theToneOfAPageReachesTheAudioPipelineOnceAPlayerClickedIt() throws InterruptedException {
+  void shouldPassTheToneOfAPageToTheAudioPipelineOnceAPlayerClickedIt() throws InterruptedException {
     final BrowserPlayer player = this.player();
     final Recording recording = Recording.attach(player);
     assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1)));
@@ -219,7 +219,7 @@ class BrowserSoundTest {
   }
 
   @Test
-  void aPageThatWrapsWebAudioBeforeItsFirstContextCannotReachTheCaptureAndPlaysOnlyAfterAClick() throws InterruptedException {
+  void shouldKeepAPageThatWrapsWebAudioBeforeItsFirstContextFromTheCaptureAndPlayItOnlyAfterAClick() throws InterruptedException {
     final BrowserPlayer player = this.player();
     final Recording recording = Recording.attach(player);
     assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone-wrapped"), WIDTH, HEIGHT, 1)));
@@ -235,7 +235,7 @@ class BrowserSoundTest {
   }
 
   @Test
-  void aPageMayPlayRightAwayWhenTheOptionsLetIt() throws InterruptedException {
+  void shouldLetAPagePlayRightAwayWhenTheOptionsAllowIt() throws InterruptedException {
     final BrowserPlayer player = this.player(BrowserOptions.builder().privateNetworks(true).autoplay(true).build());
     final Recording recording = Recording.attach(player);
     assertTrue(player.start(BrowserSource.uri(this.pages.uri("/tone"), WIDTH, HEIGHT, 1)));
@@ -244,7 +244,7 @@ class BrowserSoundTest {
   }
 
   @Test
-  void anAudioElementPlaysAtItsVolumeAndAMutedOneStaysSilent() throws InterruptedException {
+  void shouldPlayAnAudioElementAtItsVolumeAndKeepAMutedOneSilent() throws InterruptedException {
     final BrowserPlayer half = this.player();
     final Recording halfRecording = Recording.attach(half);
     this.startAndClick(half, "/tone-element?volume=0.5");
@@ -266,7 +266,7 @@ class BrowserSoundTest {
   }
 
   @Test
-  void theSoundOfAPageKeepsUpWithItsPicture() throws InterruptedException {
+  void shouldKeepTheSoundOfAPageUpWithItsPicture() throws InterruptedException {
     assumeTrue(Boolean.getBoolean("mcav.syncMeasurement"), "times real events; run with -Pmcav.syncMeasurement=true on a quiet machine");
     final BrowserPlayer player = this.player();
     final List<long[]> sound = new CopyOnWriteArrayList<>();
@@ -371,7 +371,7 @@ class BrowserSoundTest {
   }
 
   @Test
-  void theSyncOracleCountsAChangeWithoutItsSoundAsOutOfSync() {
+  void shouldCountAChangeWithoutItsSoundAsOutOfSyncInTheSyncOracle() {
     final List<Long> picture = new ArrayList<>();
     final List<Long> sound = new ArrayList<>();
     for (int change = 0; change < 50; change++) {

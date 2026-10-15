@@ -31,7 +31,7 @@ class BrowserSourceTest {
   private static final URI PAGE = URI.create("https://example.com/");
 
   @Test
-  void theDefaultSourceIs720pEveryFrame() {
+  void shouldDefaultTo720pEveryFrame() {
     final BrowserSource source = BrowserSource.uri(PAGE);
     assertEquals(PAGE, source.getUri());
     assertEquals(BrowserSource.DEFAULT_WIDTH, source.getWidth());
@@ -43,7 +43,7 @@ class BrowserSourceTest {
   }
 
   @Test
-  void everySettingIsKept() {
+  void shouldKeepEverySetting() {
     final BrowserSource source = BrowserSource.uri(PAGE, 4096, 1, 1000);
     assertEquals(4096, source.getWidth());
     assertEquals(1, source.getHeight());
@@ -52,7 +52,7 @@ class BrowserSourceTest {
   }
 
   @Test
-  void onlyWebAddressesAndSizesWithinTheLimitsAreAccepted() {
+  void shouldOnlyAcceptWebAddressesAndSizesWithinTheLimits() {
     assertThrows(NullPointerException.class, () -> BrowserSource.uri(null));
     final IllegalArgumentException file = assertThrows(IllegalArgumentException.class, () ->
       BrowserSource.uri(URI.create("file:///etc/passwd"))
@@ -81,7 +81,7 @@ class BrowserSourceTest {
   }
 
   @Test
-  void sourcesWithTheSameSettingsAreEqual() {
+  void shouldTreatSourcesWithTheSameSettingsAsEqual() {
     EqualityAssertions.assertEqualityContract(
       BrowserSource.uri(PAGE, 640, 480, 2),
       BrowserSource.uri(PAGE, 640, 480, 2),
@@ -93,14 +93,14 @@ class BrowserSourceTest {
   }
 
   @Test
-  void sourcesThatDifferInASettingHashDifferently() {
+  void shouldHashSourcesThatDifferInASettingDifferently() {
     final BrowserSource first = BrowserSource.uri(PAGE, 640, 480, 1);
     final BrowserSource wider = BrowserSource.uri(PAGE, 641, 480, 1);
     assertNotEquals(first.hashCode(), wider.hashCode());
   }
 
   @Test
-  void aSideOfZeroIsRefusedForEitherSide() {
+  void shouldRefuseASideOfZeroForEitherSide() {
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 0, 480, 1));
     assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(PAGE, 640, 0, 1));
   }

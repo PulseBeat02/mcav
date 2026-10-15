@@ -219,7 +219,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void theResourcePinsBothLinuxPlatformsFromTheArchiveOfDebian11() {
+  void shouldPinBothLinuxPlatformsFromTheArchiveOfDebian11InTheResource() {
     final LinuxLibraries libraries = new LinuxLibraries(
       this.folder,
       (uri, destination, sha256, size) -> {},
@@ -248,7 +248,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void aResourceThatIsMissingOrUnreadableIsABrokenBuild() {
+  void shouldTreatAResourceThatIsMissingOrUnreadableAsABrokenBuild() {
     final ClassLoader empty = new ClassLoader(null) {};
     final IllegalStateException missing = assertThrows(IllegalStateException.class, () -> LinuxLibraries.readResource(empty));
     assertEquals("The resource mcav/browser/linux-libraries.txt is missing", missing.getMessage());
@@ -273,7 +273,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void invalidPinsAreRefused() {
+  void shouldRefuseInvalidPins() {
     final String hash = "0".repeat(64);
     for (final String line : List.of(
       "linux-amd64 libx 1 " + hash + " 1 pool/main/x/x/x.deb",
@@ -296,7 +296,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void theLibrariesAreDownloadedVerifiedAndKeptAsFilesNamedBySoname() throws IOException {
+  void shouldDownloadVerifyAndKeepTheLibrariesAsFilesNamedBySoname() throws IOException {
     final byte[] deb = testPackage();
     final LinuxLibraries libraries = this.installer(deb, List.of("https://mirror.test/debian/"), List.of("# a comment", "", pin(deb)));
     final Path installation = libraries.install("linux-amd64");
@@ -326,7 +326,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void librariesAnEarlierVersionInstalledLoseTheWritePermissionOfTheGroup() throws IOException {
+  void shouldTakeTheGroupWritePermissionFromLibrariesAnEarlierVersionInstalled() throws IOException {
     assumeTrue(this.folder.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
     final byte[] deb = testPackage();
     final LinuxLibraries libraries = this.installer(deb, List.of("https://mirror.test/debian/"), List.of(pin(deb)));
@@ -367,7 +367,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void aMirrorThatFailsIsFollowedByTheNextAndAllFailingIsReported() throws IOException {
+  void shouldFollowAFailingMirrorWithTheNextAndReportWhenAllFail() throws IOException {
     final byte[] deb = testPackage();
     final LinuxLibraries fallback = this.installer(
       deb,
@@ -400,14 +400,14 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void aPlatformWithoutLibrariesIsRefused() {
+  void shouldRefuseAPlatformWithoutLibraries() {
     final LinuxLibraries libraries = new LinuxLibraries(this.folder, (uri, destination, sha256, size) -> {}, List.of(), List.of());
     final IOException failure = assertThrows(IOException.class, () -> libraries.install("linux-riscv64"));
     assertEquals("mcav has no libraries for linux-riscv64", failure.getMessage());
   }
 
   @Test
-  void aPackageMustHoldItsDataAndEveryPinnedLibraryAsARegularFile() throws IOException {
+  void shouldRequireAPackageToHoldItsDataAndEveryPinnedLibraryAsARegularFile() throws IOException {
     final Map<String, String> wanted = Map.of(LIBRARY, "libmcavtest.so.1");
     final Path noData = Files.write(this.folder.resolve("no-data.deb"), deb(Map.of(LIBRARY, new byte[1]), Map.of(), "data.tar.zst"));
     final IOException member = assertThrows(IOException.class, () ->
@@ -443,7 +443,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void aPackageMayNotAskForMoreMemoryThanTheStrongestCompressionOfDpkg() throws IOException {
+  void shouldNotLetAPackageAskForMoreMemoryThanTheStrongestCompressionOfDpkg() throws IOException {
     final Map<String, String> wanted = Map.of(LIBRARY, "libmcavtest.so.1");
     final byte[] greedy = withDictionary(testPackage(), DICTIONARY_192_MIB);
     final Path deb = Files.write(this.folder.resolve("greedy.deb"), greedy);
@@ -456,7 +456,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void aPackageCompressedWithTheStrongestCompressionOfDpkgIsRead() throws IOException {
+  void shouldReadAPackageCompressedWithTheStrongestCompressionOfDpkg() throws IOException {
     final byte[] strongest = withDictionary(testPackage(), DICTIONARY_64_MIB);
     final Path deb = Files.write(this.folder.resolve("strongest.deb"), strongest);
     final Path target = Files.createDirectory(this.folder.resolve("strongest"));
@@ -467,7 +467,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void librariesAreWrittenOnFileSystemsWithoutPosixPermissions() throws IOException {
+  void shouldWriteLibrariesOnFileSystemsWithoutPosixPermissions() throws IOException {
     final Path deb = Files.write(this.folder.resolve("package.deb"), testPackage());
     try (final FileSystem zip = FileSystems.newFileSystem(this.folder.resolve("plain.zip"), Map.of("create", "true"))) {
       final Path target = zip.getPath("/");
@@ -477,7 +477,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void onlyThePackagesTheServerLacksAreLinkedIntoTheSession() throws IOException {
+  void shouldOnlyLinkThePackagesTheServerLacksIntoTheSession() throws IOException {
     final Path host = Files.createDirectories(this.folder.resolve("host"));
     Files.write(host.resolve("libpresent.so.1"), elf(2, 1, 62));
     Files.write(host.resolve("libz.so.1"), elf(2, 1, 62));
@@ -517,7 +517,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void theFoldersOfTheLoaderComeFromItsConfigurationAndTheDefaults() throws IOException {
+  void shouldTakeTheFoldersOfTheLoaderFromItsConfigurationAndTheDefaults() throws IOException {
     final Path root = this.folder.resolve("root");
     final Path configuration = Files.createDirectories(root.resolve("etc/ld.so.conf.d"));
     Files.writeString(
@@ -551,7 +551,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void theFingerprintFollowsThePinnedHashes() throws IOException {
+  void shouldFollowThePinnedHashesInTheFingerprint() throws IOException {
     final byte[] deb = testPackage();
     final LinuxLibraries libraries = this.installer(deb, List.of(), List.of(pin(deb)));
     final String fingerprint = LinuxLibraries.fingerprint(libraries.getPins("linux-amd64"));
@@ -560,7 +560,7 @@ class LinuxLibrariesTest {
 
   @Test
   @EnabledOnOs(OS.LINUX)
-  void theDefaultSessionsOfLinuxLinkTheLibrariesTheServerLacks() throws IOException {
+  void shouldLinkTheLibrariesTheServerLacksIntoTheDefaultSessionsOfLinux() throws IOException {
     final byte[] deb = testPackage();
     final String platform = JcefNatives.detectCurrent().getIdentifier();
     final LinuxLibraries libraries = this.installer(
@@ -579,7 +579,7 @@ class LinuxLibrariesTest {
 
   @Test
   @EnabledOnOs(OS.LINUX)
-  void aServerThatHasEveryLibraryDownloadsNothing() throws IOException {
+  void shouldDownloadNothingWhenTheServerHasEveryLibrary() throws IOException {
     final byte[] deb = testPackage();
     final String platform = JcefNatives.detectCurrent().getIdentifier();
     final LinuxLibraries libraries = this.installer(
@@ -597,7 +597,7 @@ class LinuxLibrariesTest {
 
   @Test
   @EnabledOnOs(OS.LINUX)
-  void aHeadlessJavaRuntimeIsRefusedWithWhatToInstall() throws IOException {
+  void shouldRefuseAHeadlessJavaRuntimeWithWhatToInstall() throws IOException {
     final byte[] deb = testPackage();
     final String platform = JcefNatives.detectCurrent().getIdentifier();
     final LinuxLibraries libraries = this.installer(
@@ -637,7 +637,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void aPackageWhoseNamesHaveNoPrefixAndThatHoldsFoldersIsRead() throws IOException {
+  void shouldReadAPackageWhoseNamesHaveNoPrefixAndThatHoldsFolders() throws IOException {
     final Path plain = Files.write(
       this.folder.resolve("plain.deb"),
       deb(Map.of(LIBRARY, new byte[] { 7 }), Map.of(), "data.tar.xz", "", true)
@@ -648,7 +648,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void librariesAnotherProcessInstalledWhileThisOneWaitedAreNotInstalledAgain() throws Exception {
+  void shouldNotInstallAgainLibrariesAnotherProcessInstalledWhileThisOneWaited() throws Exception {
     final byte[] deb = testPackage();
     final LinuxLibraries libraries = this.installer(deb, List.of("https://deb.test/debian/"), List.of(pin(deb)));
     final Path installation = this.folder
@@ -674,7 +674,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void aPatternWithoutARootIsReadBelowTheRoot() throws IOException {
+  void shouldReadAPatternWithoutARootBelowTheRoot() throws IOException {
     final Path configurationDirectory = Files.createDirectories(this.folder.resolve("etc/ld.so.conf.d"));
     Files.writeString(configurationDirectory.resolve("a.conf"), "/opt/a");
     Files.writeString(configurationDirectory.resolve("b.txt"), "/opt/b");
@@ -686,7 +686,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void aLibraryOfTheServerCountsOnlyWhenItIsBuiltForThePlatform() throws IOException {
+  void shouldCountALibraryOfTheServerOnlyWhenItIsBuiltForThePlatform() throws IOException {
     final Path folder = Files.createDirectories(this.folder.resolve("multiarch"));
     final Path amd64 = Files.write(folder.resolve("amd64.so"), elf(2, 1, 62));
     final Path arm64 = Files.write(folder.resolve("arm64.so"), elf(2, 1, 183));
@@ -706,7 +706,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void aPlatformMayExpectNoLibraryOfTheServerAndTheLibrariesLieInTheCacheOfMcav() {
+  void shouldLetAPlatformExpectNoLibraryOfTheServerAndKeepTheLibrariesInTheCacheOfMcav() {
     final LinuxLibraries nothingExpected = new LinuxLibraries(
       this.folder,
       (uri, destination, sha256, size) -> {},
@@ -718,7 +718,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void anInstallationThatWasNeverFinishedIsReplaced() throws IOException {
+  void shouldReplaceAnInstallationThatWasNeverFinished() throws IOException {
     final byte[] deb = testPackage();
     final LinuxLibraries libraries = this.installer(deb, List.of("https://mirror.test/debian/"), List.of(pin(deb)));
     final String name = "debian-11-linux-amd64-" + LinuxLibraries.fingerprint(libraries.getPins("linux-amd64"));
@@ -731,7 +731,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void includesAreFollowedEightDeep() throws IOException {
+  void shouldFollowIncludesEightDeep() throws IOException {
     final Path root = this.folder.resolve("deep-root");
     final Path etc = Files.createDirectories(root.resolve("etc"));
     Files.writeString(etc.resolve("ld.so.conf"), "include /etc/1.conf\n");
@@ -744,7 +744,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void includedFilesAreReadInTheOrderOfTheirNames() throws IOException {
+  void shouldReadIncludedFilesInTheOrderOfTheirNames() throws IOException {
     final Path root = this.folder.resolve("sorted-root");
     final Path configuration = Files.createDirectories(root.resolve("etc/ld.so.conf.d"));
     Files.writeString(root.resolve("etc/ld.so.conf"), "include /etc/ld.so.conf.d/*.conf\n");
@@ -762,7 +762,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void aRelativeIncludeOfTheLoaderLiesBesideItsFile() throws IOException {
+  void shouldResolveARelativeIncludeOfTheLoaderBesideItsFile() throws IOException {
     final Path root = this.folder.resolve("relative-root");
     final Path etc = Files.createDirectories(root.resolve("etc/ld.so.conf.d"));
     Files.writeString(root.resolve("etc/ld.so.conf"), "include ld.so.conf.d/*.conf\n");
@@ -771,7 +771,7 @@ class LinuxLibrariesTest {
   }
 
   @Test
-  void aPackageOfTheSecurityUpdatesComesFromTheirMirrors() throws IOException {
+  void shouldFetchAPackageOfTheSecurityUpdatesFromTheirMirrors() throws IOException {
     final byte[] deb = testPackage();
     final List<URI> asked = new ArrayList<>();
     final LinuxLibraries libraries = new LinuxLibraries(

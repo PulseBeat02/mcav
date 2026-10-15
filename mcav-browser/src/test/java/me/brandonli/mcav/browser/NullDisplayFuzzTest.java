@@ -37,7 +37,7 @@ final class NullDisplayFuzzTest {
   private static final byte[] COOKIE = { 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 1, 2, 3, 4, 5, 6 };
 
   @FuzzTest(maxDuration = "30s")
-  void everyRequestIsAnsweredOrEndsTheConnection(final byte[] input) {
+  void shouldAnswerEveryRequestOrEndTheConnection(final byte[] input) {
     final byte[] setup = NullDisplayTest.setup(ByteOrder.LITTLE_ENDIAN, 11, "MIT-MAGIC-COOKIE-1", COOKIE);
     final ByteArrayOutputStream stream = new ByteArrayOutputStream();
     stream.writeBytes(setup);
@@ -54,7 +54,7 @@ final class NullDisplayFuzzTest {
   }
 
   @FuzzTest(maxDuration = "30s")
-  void everySetupIsAcceptedOrRefused(final byte[] input) {
+  void shouldAcceptOrRefuseEverySetup(final byte[] input) {
     try {
       NullDisplay.serve(new ByteArrayInputStream(input), new ByteArrayOutputStream(), COOKIE, new NullDisplay.Atoms());
     } catch (final IOException refused) {

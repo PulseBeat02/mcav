@@ -58,7 +58,7 @@ final class AddressPolicyPropertyTest {
   }
 
   @Property(seed = SEED, tries = 2000)
-  void behindTheNat64PrefixOfTheNetworkAnAddressIsJudgedByItsIpv4Address(
+  void shouldJudgeAnAddressBehindTheNat64PrefixOfTheNetworkByItsIpv4Address(
     @ForAll @Size(value = 16) final byte[] prefix,
     @ForAll @IntRange(min = 0, max = 5) final int lengthIndex,
     @ForAll final int ipv4
@@ -83,7 +83,7 @@ final class AddressPolicyPropertyTest {
   }
 
   @Property(seed = SEED, tries = 2000)
-  void aPrefixOutsideGlobalUnicastAndWellKnownNat64SpaceNeverTranslates(
+  void shouldNeverTranslateAPrefixOutsideGlobalUnicastAndWellKnownNat64Space(
     @ForAll @Size(value = 16) final byte[] prefix,
     @ForAll @IntRange(min = 0, max = 5) final int lengthIndex
   ) throws UnknownHostException {
@@ -99,15 +99,17 @@ final class AddressPolicyPropertyTest {
   }
 
   @Property(seed = SEED, tries = 2000)
-  void anIpv4AddressIsJudgedTheSameMappedOrTranslated(@ForAll final int address) {
+  void shouldJudgeAnIpv4AddressTheSameMappedOrTranslated(@ForAll final int address) {
     final boolean plain = AddressPolicy.isPublicIpv4(address);
     assertEquals(plain, AddressPolicy.isPublicIpv6(ipv6(0, 0, 0x0000FFFF, address)), "mapped");
     assertEquals(plain, AddressPolicy.isPublicIpv6(ipv6(0x0064FF9B, 0, 0, address)), "translated by NAT64");
   }
 
   @Property(seed = SEED, tries = 2000)
-  void whatJavaCallsLocalOrMulticastIsNeverPublic(@ForAll @Size(value = 4) final byte[] ipv4, @ForAll @Size(value = 16) final byte[] ipv6)
-    throws UnknownHostException {
+  void shouldNeverTreatWhatJavaCallsLocalOrMulticastAsPublic(
+    @ForAll @Size(value = 4) final byte[] ipv4,
+    @ForAll @Size(value = 16) final byte[] ipv6
+  ) throws UnknownHostException {
     for (final byte[] bytes : new byte[][] { ipv4, ipv6 }) {
       final InetAddress address = InetAddress.getByAddress(bytes);
       final boolean local =
@@ -123,7 +125,7 @@ final class AddressPolicyPropertyTest {
   }
 
   @Property(seed = SEED, tries = 2000)
-  void nothingOutsideIpv6GlobalUnicastIsPublicUnlessItCarriesIpv4(@ForAll @Size(value = 16) final byte[] bytes) {
+  void shouldTreatNothingOutsideIpv6GlobalUnicastAsPublicUnlessItCarriesIpv4(@ForAll @Size(value = 16) final byte[] bytes) {
     final ByteBuffer buffer = ByteBuffer.wrap(bytes);
     final int first = buffer.getInt();
     final int second = buffer.getInt();

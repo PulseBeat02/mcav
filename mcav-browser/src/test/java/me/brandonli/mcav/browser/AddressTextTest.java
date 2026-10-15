@@ -77,17 +77,17 @@ final class AddressTextTest {
       "Az://host|Az://host",
     }
   )
-  void describesAnAddressWithoutThePartsThatMayHoldSecrets(final String address, final String described) {
+  void shouldDescribeAnAddressWithoutThePartsThatMayHoldSecrets(final String address, final String described) {
     assertEquals(described, AddressText.describe(address));
   }
 
   @Test
-  void anEmptyTextIsHidden() {
+  void shouldHideAnEmptyText() {
     assertEquals(AddressText.HIDDEN, AddressText.describe(""));
   }
 
   @Test
-  void theTextIsNotInstantiable() {
+  void shouldNotInstantiateTheText() {
     UtilityClassAssertions.assertNotInstantiable(AddressText.class);
   }
 }

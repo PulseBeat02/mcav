@@ -28,7 +28,7 @@ import org.mockito.Mockito;
 final class HelperProcessesFailureTest {
 
   @Test
-  void aFailureSharedByTwoListenersDoesNotLeaveLaterHelpersRunning() {
+  void shouldNotLeaveLaterHelpersRunningAfterAFailureSharedByTwoListeners() {
     final IllegalStateException sharedFailure = new IllegalStateException("shared listener failure");
     final HelperSession first = Mockito.mock(HelperSession.class);
     final HelperSession second = Mockito.mock(HelperSession.class);

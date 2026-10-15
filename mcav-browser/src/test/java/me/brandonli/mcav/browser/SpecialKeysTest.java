@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 class SpecialKeysTest {
 
   @Test
-  void theW3cKeyNamesArePressed() {
+  void shouldPressTheW3cKeyNames() {
     for (final String key : new String[] { "Enter", "Backspace", "ArrowLeft", "PageDown", " ", "F12", "MediaPlayPause" }) {
       assertTrue(SpecialKeys.isSpecialKey(key), key);
     }
@@ -45,26 +45,26 @@ class SpecialKeysTest {
   }
 
   @Test
-  void theListIsReadFromJsonIntoAnUnmodifiableSet() {
+  void shouldReadTheListFromJsonIntoAnUnmodifiableSet() {
     final Set<String> keys = SpecialKeys.parse(new StringReader("[\"A\", \"B\", \"A\"]"));
     assertEquals(Set.of("A", "B"), keys);
     assertThrows(UnsupportedOperationException.class, keys::clear);
   }
 
   @Test
-  void anEmptyListIsRefused() {
+  void shouldRefuseAnEmptyList() {
     final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(new StringReader("")));
     assertEquals("The key list resource mcav/browser/keybinds.json is empty", failure.getMessage());
   }
 
   @Test
-  void anEmptyJsonListIsRefused() {
+  void shouldRefuseAnEmptyJsonList() {
     final PlayerException failure = assertThrows(PlayerException.class, () -> SpecialKeys.parse(new StringReader("[]")));
     assertEquals("The key list resource mcav/browser/keybinds.json is empty", failure.getMessage());
   }
 
   @Test
-  void aListThatCannotBeClosedIsRefused() {
+  void shouldRefuseAListThatCannotBeClosed() {
     final Reader throwing = new FilterReader(new StringReader("[\"A\"]")) {
       @Override
       public void close() throws IOException {
@@ -77,7 +77,7 @@ class SpecialKeysTest {
   }
 
   @Test
-  void theKeysAreNotInstantiable() {
+  void shouldNotInstantiateTheKeys() {
     UtilityClassAssertions.assertNotInstantiable(SpecialKeys.class);
   }
 }

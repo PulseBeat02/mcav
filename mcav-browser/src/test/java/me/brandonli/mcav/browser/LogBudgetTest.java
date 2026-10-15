@@ -44,14 +44,14 @@ final class LogBudgetTest {
   }
 
   @Test
-  void aBurstPassesAtOnceAndTheRestDoesNot() {
+  void shouldPassABurstAtOnceAndNotTheRest() {
     this.lines(LogBudget.BURST + 10);
     assertEquals(LogBudget.BURST, this.log.size());
     assertEquals("line " + (LogBudget.BURST - 1), this.log.getLast());
   }
 
   @Test
-  void oneMoreLinePassesPerSecondAfterTheCountOfTheLinesThatDidNot() {
+  void shouldPassOneMoreLinePerSecondAfterTheCountOfTheLinesThatDidNot() {
     this.lines(LogBudget.BURST + 10);
     this.now.addAndGet(LogBudget.REFILL_NANOS - 1);
     this.line("too early");
@@ -63,7 +63,7 @@ final class LogBudgetTest {
   }
 
   @Test
-  void aLongQuietTimeRefillsTheBurstAndNoMore() {
+  void shouldRefillTheBurstAndNoMoreAfterALongQuietTime() {
     this.lines(LogBudget.BURST);
     this.now.addAndGet(LogBudget.REFILL_NANOS * 1_000);
     this.lines(LogBudget.BURST + 1);
@@ -71,7 +71,7 @@ final class LogBudgetTest {
   }
 
   @Test
-  void aClockThatGoesBackRefillsNothing() {
+  void shouldRefillNothingWhenTheClockGoesBack() {
     this.lines(LogBudget.BURST);
     this.now.addAndGet(-5 * LogBudget.REFILL_NANOS);
     this.line("never");

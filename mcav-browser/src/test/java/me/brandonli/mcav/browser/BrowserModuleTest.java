@@ -63,7 +63,7 @@ class BrowserModuleTest {
   }
 
   @Test
-  void startingRemovesTheFolderOfASessionWhoseServerWasKilled(@TempDir final Path temporary) throws IOException {
+  void shouldRemoveTheFolderOfASessionWhoseServerWasKilledOnStart(@TempDir final Path temporary) throws IOException {
     final Path stale = Files.createDirectory(temporary.resolve(SessionFolders.PREFIX + "stale"));
     Files.writeString(stale.resolve(SessionFolders.OWNER_FILE), Long.MAX_VALUE + "\n2026-10-05T00:00:00Z\n", StandardCharsets.US_ASCII);
     final Path live = HelperSession.createFolder(temporary);
@@ -74,7 +74,7 @@ class BrowserModuleTest {
   }
 
   @Test
-  void theModuleIsNamedBrowserAndStartsWithoutDownloadingAnything() {
+  void shouldNameTheModuleBrowserAndStartWithoutDownloadingAnything() {
     final BrowserModule module = new BrowserModule();
     assertEquals("browser", module.getModuleName());
     module.start();
@@ -87,7 +87,7 @@ class BrowserModuleTest {
   }
 
   @Test
-  void stoppingTheModuleEndsEveryBrowserAndNoneStartsUntilItStartsAgain() {
+  void shouldEndEveryBrowserOnStopAndStartNoneUntilTheModuleStartsAgain() {
     final BrowserModule module = new BrowserModule();
     final HelperSession session = this.open();
     final Process process = session.getProcess();

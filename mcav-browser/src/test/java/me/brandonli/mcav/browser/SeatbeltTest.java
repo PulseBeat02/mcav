@@ -50,12 +50,12 @@ class SeatbeltTest {
   private static final String PROFILE = "(version 1)\n(allow default)\n";
 
   @Test
-  void theProbeOfMacOsCannotBeInstantiated() {
+  void shouldNotInstantiateTheProbeOfMacOs() {
     UtilityClassAssertions.assertNotInstantiable(SeatbeltProbeMain.class);
   }
 
   @Test
-  void aProfileHidesTheFoldersAndLetsOnlyTheWritablePathsChange(@TempDir final Path folder) throws IOException {
+  void shouldHideTheFoldersAndLetOnlyTheWritablePathsChangeInAProfile(@TempDir final Path folder) throws IOException {
     final String profile;
     try (final FileSystem mac = FileSystems.newFileSystem(folder.resolve("paths.zip"), Map.of("create", "true"))) {
       profile = Seatbelt.profile(
@@ -76,29 +76,29 @@ class SeatbeltTest {
   }
 
   @Test
-  void aProfileWithoutPathsHidesNothingAndChangesNothing() {
+  void shouldHideNothingAndChangeNothingInAProfileWithoutPaths() {
     assertEquals(PROFILE + "(deny file-write*)\n", Seatbelt.profile(List.of(), List.of(), List.of()));
   }
 
   @Test
-  void quotesAndBackslashesOfAPathAreEscaped() {
+  void shouldEscapeQuotesAndBackslashesOfAPath() {
     assertEquals("\"/a \\\"quoted\\\" \\\\ name\"", Seatbelt.quote("/a \"quoted\" \\ name"));
   }
 
   @Test
   @DisabledOnOs(OS.MAC)
-  void onlyMacOsHasSeatbelt() {
+  void shouldOnlyFindSeatbeltOnMacOs() {
     assertFalse(Seatbelt.ofSystem().isAvailable());
   }
 
   @Test
   @EnabledOnOs(OS.MAC)
-  void macOsHasSeatbelt() {
+  void shouldFindSeatbeltOnMacOs() {
     assertTrue(Seatbelt.ofSystem().isAvailable());
   }
 
   @Test
-  void aLibraryWithoutEitherFunctionIsNoSeatbelt() throws ReflectiveOperationException {
+  void shouldNotTreatALibraryWithoutEitherFunctionAsSeatbelt() throws ReflectiveOperationException {
     for (final String only : List.of(SeatbeltLibrary.INIT, SeatbeltLibrary.FREE_ERROR)) {
       try (final SeatbeltLibrary library = new SeatbeltLibrary(only)) {
         final Seatbelt seatbelt = library.seatbelt();
@@ -111,7 +111,7 @@ class SeatbeltTest {
   }
 
   @Test
-  void theProfileReachesTheLibraryAsTextOnce() throws Exception {
+  void shouldPassTheProfileToTheLibraryAsTextOnce() throws Exception {
     try (final SeatbeltLibrary library = SeatbeltLibrary.complete()) {
       final Seatbelt seatbelt = library.seatbelt();
       assertTrue(seatbelt.isAvailable());
@@ -123,7 +123,7 @@ class SeatbeltTest {
   }
 
   @Test
-  void aRefusedProfileGivesTheLibrarysReasonAndItsTextBack() throws Exception {
+  void shouldGiveTheReasonOfTheLibraryAndItsTextBackForARefusedProfile() throws Exception {
     try (final SeatbeltLibrary library = SeatbeltLibrary.complete()) {
       library.refuse(-1, "unbound variable: subpat");
       final Seatbelt seatbelt = library.seatbelt();
@@ -134,7 +134,7 @@ class SeatbeltTest {
   }
 
   @Test
-  void aRefusalWithoutAReasonSaysSoAndFreesNothing() throws Exception {
+  void shouldSaySoAndFreeNothingForARefusalWithoutAReason() throws Exception {
     try (final SeatbeltLibrary library = SeatbeltLibrary.complete()) {
       library.refuse(1);
       final Seatbelt seatbelt = library.seatbelt();
@@ -145,13 +145,13 @@ class SeatbeltTest {
   }
 
   @Test
-  void aCallPassesItsResultOn() {
+  void shouldPassTheResultOfACallOn() {
     assertEquals(7, Seatbelt.call(MethodHandles.constant(int.class, 7)));
     assertNull(Seatbelt.call(MethodHandles.empty(MethodType.methodType(void.class))));
   }
 
   @Test
-  void aCallTheJvmCannotMakeIsAnIllegalState() {
+  void shouldTreatACallTheJvmCannotMakeAsAnIllegalState() {
     final IllegalCallerException refused = new IllegalCallerException("native access is not enabled");
     final MethodHandle throwing = MethodHandles.throwException(int.class, IllegalCallerException.class);
     final MethodHandle call = MethodHandles.insertArguments(throwing, 0, refused);
@@ -161,7 +161,7 @@ class SeatbeltTest {
   }
 
   @Test
-  void aVirtualMachineErrorOfACallGoesOnAsItIs() {
+  void shouldPassAVirtualMachineErrorOfACallOnAsItIs() {
     final OutOfMemoryError exhausted = new OutOfMemoryError("no memory for the call");
     final MethodHandle throwing = MethodHandles.throwException(int.class, OutOfMemoryError.class);
     final MethodHandle call = MethodHandles.insertArguments(throwing, 0, exhausted);

@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Tag;
 final class NavigationPolicyFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
-  void allowsOnlyTheDocumentedSchemes(final FuzzedDataProvider data) {
+  void shouldAllowOnlyTheDocumentedSchemes(final FuzzedDataProvider data) {
     final String address = data.consumeRemainingAsString();
     final String lower = address.toLowerCase(Locale.ROOT);
     if (NavigationPolicy.allowsNavigation(address, true)) {

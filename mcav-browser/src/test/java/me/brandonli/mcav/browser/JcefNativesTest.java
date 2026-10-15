@@ -137,7 +137,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void everyCopyOfMcavInTheJvmSharesTheLockOfTheInstallation() throws Exception {
+  void shouldShareTheLockOfTheInstallationWithEveryCopyOfMcavInTheJvm() throws Exception {
     final String[] entries = System.getProperty("java.class.path").split(Pattern.quote(File.pathSeparator), -1);
     final URL[] urls = new URL[entries.length];
     for (int index = 0; index < entries.length; index++) {
@@ -150,7 +150,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void everyPlatformWithNativesIsFound() {
+  void shouldFindEveryPlatformWithNatives() {
     assertEquals(Optional.of(JcefNatives.NativePlatform.LINUX_AMD64), JcefNatives.detect(Os.LINUX, Arch.X86, Bits.BITS_64));
     assertEquals(Optional.of(JcefNatives.NativePlatform.LINUX_ARM64), JcefNatives.detect(Os.LINUX, Arch.ARM, Bits.BITS_64));
     assertEquals(Optional.of(JcefNatives.NativePlatform.WINDOWS_AMD64), JcefNatives.detect(Os.WINDOWS, Arch.X86, Bits.BITS_64));
@@ -160,7 +160,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void platformsWithoutNativesAreNotFound() {
+  void shouldNotFindPlatformsWithoutNatives() {
     assertEquals(Optional.empty(), JcefNatives.detect(Os.LINUX, Arch.X86, Bits.BITS_32));
     assertEquals(Optional.empty(), JcefNatives.detect(Os.WINDOWS, Arch.ARM, Bits.BITS_32));
     assertEquals(Optional.empty(), JcefNatives.detect(Os.FREEBSD, Arch.X86, Bits.BITS_64));
@@ -169,7 +169,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void everyPinIsASha256AndEverySizeIsPlausible() {
+  void shouldPinASha256AndAPlausibleSizeForEveryPlatform() {
     for (final JcefNatives.NativePlatform platform : JcefNatives.NativePlatform.values()) {
       assertTrue(platform.getSha256().matches("[0-9a-f]{64}"), platform.getIdentifier());
       assertTrue(platform.getSize() > 100_000_000L && platform.getSize() < 200_000_000L, platform.getIdentifier());
@@ -179,7 +179,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void theCacheFolderIsCreatedWritableByItsOwnerOnly() throws IOException {
+  void shouldCreateTheCacheFolderWritableByItsOwnerOnly() throws IOException {
     final Path cache = this.folder.resolve("home/.mcav/cache/jcef");
     final Path installation = this.natives(nativesJar(true), cache).install("linux-amd64", "pinned", PINNED_SIZE);
     assertEquals(cache.resolve("jcef-" + JcefNatives.JCEFMAVEN_VERSION + "-linux-amd64"), installation);
@@ -190,7 +190,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void theNativesAreDownloadedExtractedAndMarkedOnce() throws IOException {
+  void shouldDownloadExtractAndMarkTheNativesOnce() throws IOException {
     final JcefNatives natives = this.natives(nativesJar(true));
     final Path installation = natives.install("linux-amd64", "pinned", PINNED_SIZE);
     assertEquals(this.folder.resolve("jcef-" + JcefNatives.JCEFMAVEN_VERSION + "-linux-amd64"), installation);
@@ -212,7 +212,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void nativesAnEarlierVersionInstalledLoseTheWritePermissionOfTheGroup() throws IOException {
+  void shouldTakeTheGroupWritePermissionFromNativesAnEarlierVersionInstalled() throws IOException {
     assumeTrue(this.folder.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
     final JcefNatives natives = this.natives(nativesJar(true));
     final Path installation = natives.install("linux-amd64", "pinned", PINNED_SIZE);
@@ -231,7 +231,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void aPlatformIsInstalledWithItsPin() throws IOException {
+  void shouldInstallAPlatformWithItsPin() throws IOException {
     final List<String> hashes = new ArrayList<>();
     final JcefNatives natives = new JcefNatives(
       this.folder,
@@ -249,7 +249,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void thisMachineGetsItsOwnNatives() throws IOException {
+  void shouldGiveThisMachineItsOwnNatives() throws IOException {
     final JcefNatives natives = new JcefNatives(
       this.folder,
       (uri, destination, sha256, size) -> Files.write(destination, nativesJar(true)),
@@ -267,7 +267,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void aPartialInstallationWithoutItsMarkerIsReplaced() throws IOException {
+  void shouldReplaceAPartialInstallationWithoutItsMarker() throws IOException {
     final Path partial = this.folder.resolve("jcef-" + JcefNatives.JCEFMAVEN_VERSION + "-linux-amd64");
     Files.createDirectories(partial);
     Files.writeString(partial.resolve("half-written.so"), "?");
@@ -277,7 +277,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void aFailedDownloadLeavesNothingBehind() throws IOException {
+  void shouldLeaveNothingBehindAfterAFailedDownload() throws IOException {
     final JcefNatives natives = this.natives(nativesJar(true));
     final IOException failure = assertThrows(IOException.class, () -> natives.install("linux-amd64", "tampered", PINNED_SIZE));
     assertEquals("Checksum mismatch", failure.getMessage());
@@ -285,7 +285,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void aJarWithoutTheArchiveIsRefused() throws IOException {
+  void shouldRefuseAJarWithoutTheArchive() throws IOException {
     final JcefNatives natives = this.natives(nativesJar(false));
     final IOException failure = assertThrows(IOException.class, () -> natives.install("linux-amd64", "pinned", PINNED_SIZE));
     assertEquals("The natives jar holds no .tar.gz archive", failure.getMessage());
@@ -293,7 +293,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void twoStartsAtOnceDownloadOnce() throws Exception {
+  void shouldDownloadOnceForTwoStartsAtOnce() throws Exception {
     try (final ExecutorService starts = Executors.newFixedThreadPool(2)) {
       final CountDownLatch release = new CountDownLatch(1);
       final CountDownLatch downloading = new CountDownLatch(1);
@@ -336,7 +336,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void aPlatformWithoutNativesIsRefusedBeforeAnythingIsDownloaded() throws IOException {
+  void shouldRefuseAPlatformWithoutNativesBeforeAnythingIsDownloaded() throws IOException {
     final JcefNatives natives = this.natives(nativesJar(true));
     final IOException failure = assertThrows(IOException.class, () ->
       natives.install(JcefNatives.detectOrFail(Os.FREEBSD, Arch.X86, Bits.BITS_64))
@@ -346,7 +346,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void aMachineIsSupportedWhenJcefmavenHasACefBuildForIt() {
+  void shouldSupportAMachineWhenJcefmavenHasACefBuildForIt() {
     assertTrue(JcefNatives.isSupported(Os.LINUX, Arch.X86, Bits.BITS_64));
     assertTrue(JcefNatives.isSupported(Os.MAC, Arch.ARM, Bits.BITS_64));
     assertFalse(JcefNatives.isSupported(Os.LINUX, Arch.X86, Bits.BITS_32), "no 32-bit builds");
@@ -357,7 +357,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void aLockHeldByAnotherCopyOfMcavInThisJvmFailsTheInstallationClearly() throws IOException {
+  void shouldFailTheInstallationClearlyWhenAnotherCopyOfMcavInThisJvmHoldsTheLock() throws IOException {
     final JcefNatives natives = this.natives(nativesJar(true));
     final Path lockFile = this.folder.resolve("jcef-" + JcefNatives.JCEFMAVEN_VERSION + "-linux-amd64.lock");
     try (
@@ -382,12 +382,12 @@ class JcefNativesTest {
   }
 
   @Test
-  void theNativesLiveInTheCacheOfMcavByDefault() {
+  void shouldKeepTheNativesInTheCacheOfMcavByDefault() {
     assertEquals(IoUtils.getCachedFolder().resolve("jcef"), new JcefNatives().getFolder());
   }
 
   @Test
-  void theLockOfAnInstallationIsHeldUntilItIsReleased() throws IOException {
+  void shouldHoldTheLockOfAnInstallationUntilItIsReleased() throws IOException {
     final Path file = this.folder.resolve("install.lock.file");
     try (
       final FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
@@ -399,7 +399,7 @@ class JcefNativesTest {
   }
 
   @Test
-  void thePinnedNativesBelongToTheJcefOnTheClassPath() {
+  void shouldPinTheNativesOfTheJcefOnTheClassPath() {
     // the natives and the Java side of JCEF must be of one release: a bump of the catalog needs new pins, and the
     // pins a bump of the catalog
     final String classPath = System.getProperty("java.class.path");

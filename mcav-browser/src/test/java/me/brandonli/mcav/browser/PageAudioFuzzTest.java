@@ -39,7 +39,7 @@ final class PageAudioFuzzTest {
    * @param input the event
    */
   @FuzzTest(maxDuration = "30s")
-  void takesOnlyWholeFramesOfItsOwnBinding(final byte[] input) {
+  void shouldTakeOnlyWholeFramesOfItsOwnBinding(final byte[] input) {
     if (input.length == 0) {
       return;
     }
@@ -62,7 +62,7 @@ final class PageAudioFuzzTest {
    * @param input the payload
    */
   @FuzzTest(maxDuration = "30s")
-  void takesOnlyWholeFramesOfAnyPayload(final byte[] input) {
+  void shouldTakeOnlyWholeFramesOfAnyPayload(final byte[] input) {
     final String payload = new String(input, StandardCharsets.ISO_8859_1);
     final String parameters = PREFIX + payload + "\",\"executionContextId\":1}";
     final PageAudio.Chunk chunk = PageAudio.parse(PageAudio.BINDING_EVENT, parameters);

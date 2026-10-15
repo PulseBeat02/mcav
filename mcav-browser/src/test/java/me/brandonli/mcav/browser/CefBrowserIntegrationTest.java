@@ -141,7 +141,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void aPageIsStreamedWithItsColors() {
+  void shouldStreamAPageWithItsColors() {
     final BrowserPlayer player = this.player(LOCAL);
     final Frames frames = this.start(player, "/main");
     assertTrue(player.isPlaying());
@@ -154,7 +154,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void clicksKeysAndTheWheelReachThePageWhereTheyLand() {
+  void shouldPassClicksKeysAndTheWheelToThePageWhereTheyLand() {
     final BrowserPlayer player = this.player(LOCAL);
     this.start(player, "/main");
     this.awaitInput(player);
@@ -207,7 +207,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void aPopupOpenedByThePlayerOpensInPlace() {
+  void shouldOpenAPopupOpenedByThePlayerInPlace() {
     final BrowserPlayer player = this.player(LOCAL);
     final Frames frames = this.start(player, "/main");
     this.awaitInput(player);
@@ -228,7 +228,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void aLinkToANewWindowOpensInPlace() {
+  void shouldOpenALinkToANewWindowInPlace() {
     final BrowserPlayer player = this.player(LOCAL);
     final Frames frames = this.start(player, "/to-popup-link");
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
@@ -264,7 +264,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void aLinkIntoAFrameOfThePageOpensInThatFrame() throws InterruptedException {
+  void shouldOpenALinkIntoAFrameOfThePageInThatFrame() throws InterruptedException {
     final BrowserPlayer player = this.player(LOCAL);
     final Frames frames = this.start(player, "/named-frame");
     clickUntil(player, "the second page in the frame", () ->
@@ -285,7 +285,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void aFormSentByAButtonThatTargetsANewWindowIsSentInPlace() {
+  void shouldSendAFormInPlaceWhenItsButtonTargetsANewWindow() {
     final BrowserPlayer player = this.player(LOCAL);
     final Frames frames = this.start(player, "/form-target");
     clickUntil(player, "the form sent", () -> frames.lastShows(TestPages.SECOND_COLOR));
@@ -293,7 +293,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void aLinkToANewWindowThatAScriptClicksIsBlocked() throws InterruptedException {
+  void shouldBlockALinkToANewWindowThatAScriptClicks() throws InterruptedException {
     final BrowserPlayer player = this.player(LOCAL);
     final Frames frames = this.start(player, "/to-popup-synthetic");
     Thread.sleep(1_500L);
@@ -301,7 +301,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void aPopupThePageOpensByItselfIsBlocked() throws InterruptedException {
+  void shouldBlockAPopupThePageOpensByItself() throws InterruptedException {
     final BrowserPlayer player = this.player(LOCAL);
     final Frames frames = this.start(player, "/to-popup");
     Thread.sleep(1_500L);
@@ -309,14 +309,14 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void javaScriptDialogsAreDismissedAndThePageGoesOn() {
+  void shouldDismissJavaScriptDialogsAndLetThePageGoOn() {
     final BrowserPlayer player = this.player(BrowserOptions.builder().privateNetworks(true).javaScriptJit(true).frameRate(30).build());
     final Frames frames = this.start(player, "/dialog");
     Await.until("the page past its dialogs", () -> frames.lastShows(TestPages.SECOND_COLOR));
   }
 
   @Test
-  void aPageCannotNavigateToAFileOrDownloadOne() throws InterruptedException {
+  void shouldNotLetAPageNavigateToAFileOrDownloadOne() throws InterruptedException {
     try (final StandardError reports = new StandardError()) {
       final BrowserPlayer toFile = this.player(LOCAL);
       final Frames fileFrames = this.start(toFile, "/to-file");
@@ -340,7 +340,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void aPageThatCannotBeLoadedFailsTheStart() {
+  void shouldFailTheStartWhenThePageCannotBeLoaded() {
     final BrowserPlayer player = this.player(LOCAL);
     final BrowserSource unreachable = BrowserSource.uri(URI.create("http://mcav-browser-test.invalid/"), WIDTH, HEIGHT, 1);
     final PlayerException failure = assertThrows(PlayerException.class, () -> player.start(unreachable));
@@ -349,7 +349,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void aPageOnThisMachineIsRefusedUnlessPrivateNetworksAreAllowed() {
+  void shouldRefuseAPageOnThisMachineUnlessPrivateNetworksAreAllowed() {
     final BrowserPlayer player = this.player(BrowserOptions.DEFAULT);
     final BrowserSource local = BrowserSource.uri(this.pages.uri("/main"), WIDTH, HEIGHT, 1);
     final PlayerException failure = assertThrows(PlayerException.class, () -> player.start(local));
@@ -360,7 +360,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void aPublicPageLoadsThroughTheGuard() {
+  void shouldLoadAPublicPageThroughTheGuard() {
     assumeTrue(Boolean.getBoolean("mcav.networkTests"), "needs the internet: -Pmcav.networkTests=true");
     final BrowserPlayer player = this.player(BrowserOptions.DEFAULT);
     final Frames frames = Frames.attach(player.getVideoAttachableCallback());
@@ -370,7 +370,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void aReleasedBrowserLeavesNoProcessAndANewOneStartsFresh() {
+  void shouldLeaveNoProcessAfterAReleaseAndStartANewBrowserFresh() {
     final CefBrowserPlayer.DefaultSessionFactory shared = sessions();
     final BrowserPlayer first = this.player(LOCAL, shared);
     this.start(first, "/main");
@@ -383,7 +383,7 @@ class CefBrowserIntegrationTest {
   }
 
   @Test
-  void stoppingTheModuleEndsEveryBrowser() {
+  void shouldEndEveryBrowserWhenTheModuleStops() {
     final BrowserPlayer player = this.player(LOCAL);
     this.start(player, "/main");
     assertEquals(1, HelperProcesses.count());
@@ -403,7 +403,7 @@ class CefBrowserIntegrationTest {
 
   @Test
   @EnabledOnOs(OS.MAC)
-  void onMacOsEveryProcessOfChromiumRunsInASandbox() throws Throwable {
+  void shouldRunEveryProcessOfChromiumInASandboxOnMacOs() throws Throwable {
     final BrowserPlayer player = this.player(LOCAL);
     final Frames frames = this.start(player, "/main");
     Await.until("a red frame", () -> frames.lastShows(TestPages.MAIN_COLOR));

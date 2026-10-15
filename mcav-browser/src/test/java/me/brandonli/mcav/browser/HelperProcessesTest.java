@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 class HelperProcessesTest {
 
   @Test
-  void aStoppedRegistryRefusesStartsUntilItIsOpenedAgain() {
+  void shouldRefuseStartsInAStoppedRegistryUntilItIsOpenedAgain() {
     HelperProcesses.requireOpen();
     HelperProcesses.closeAll();
     try {
@@ -40,7 +40,7 @@ class HelperProcessesTest {
   }
 
   @Test
-  void theRegistryIsNotInstantiable() {
+  void shouldNotInstantiateTheRegistry() {
     UtilityClassAssertions.assertNotInstantiable(HelperProcesses.class);
   }
 }

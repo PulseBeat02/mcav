@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 class HelperMessageTest {
 
   @Test
-  void messagesWithoutAFrameOrMouseInputSayWhatTheyCarry() {
+  void shouldDescribeWhatMessagesWithoutAFrameOrMouseInputCarry() {
     final HelperMessage close = HelperMessage.close();
     assertEquals(HelperProtocol.CLOSE, close.getType());
     assertArrayEquals(new byte[0], close.getToken());
@@ -41,7 +41,7 @@ class HelperMessageTest {
   }
 
   @Test
-  void theTokenIsACopy() {
+  void shouldCopyTheToken() {
     final byte[] token = new byte[HelperProtocol.TOKEN_BYTES];
     final HelperMessage hello = HelperMessage.hello(token, 1);
     final byte[] first = hello.getToken();
@@ -51,7 +51,7 @@ class HelperMessageTest {
   }
 
   @Test
-  void eachFactorySetsItsValues() {
+  void shouldSetTheValuesOfEachFactory() {
     assertEquals(1, HelperMessage.loading(true).getNumber());
     assertEquals(0, HelperMessage.loading(false).getNumber());
     final HelperMessage error = HelperMessage.loadError(-3, "aborted", "http://a/");

@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
 class BrowserOptionsTest {
 
   @Test
-  void theDefaultsSuitUntrustedPages() {
+  void shouldSuitUntrustedPagesByDefault() {
     assertEquals(BrowserOptions.MAX_FRAME_RATE, BrowserOptions.DEFAULT.getFrameRate());
     assertEquals(60, BrowserOptions.MAX_FRAME_RATE);
     assertFalse(BrowserOptions.DEFAULT.isJavaScriptJit());
@@ -39,7 +39,7 @@ class BrowserOptionsTest {
   }
 
   @Test
-  void theBuilderSetsEveryOption() {
+  void shouldSetEveryOptionThroughTheBuilder() {
     final BrowserOptions options = BrowserOptions.builder()
       .frameRate(1)
       .javaScriptJit(true)
@@ -61,7 +61,7 @@ class BrowserOptionsTest {
   }
 
   @Test
-  void theFrameRateIsBetweenOneAndSixty() {
+  void shouldKeepTheFrameRateBetweenOneAndSixty() {
     final BrowserOptions.Builder builder = BrowserOptions.builder();
     assertThrows(IllegalArgumentException.class, () -> builder.frameRate(0));
     final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, () -> builder.frameRate(61));

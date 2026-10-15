@@ -82,7 +82,7 @@ class ChromiumConfinementTest {
   }
 
   @Test
-  void everythingButTheHiddenFoldersMayBeReadAndOnlyTheWritableOnesChanged() throws IOException {
+  void shouldLetEverythingButTheHiddenFoldersBeReadAndOnlyTheWritableOnesChanged() throws IOException {
     final Path root = this.folder.toRealPath();
     final Path system = Files.createDirectories(root.resolve("system"));
     final Path homes = Files.createDirectories(root.resolve("home"));
@@ -107,7 +107,7 @@ class ChromiumConfinementTest {
   }
 
   @Test
-  void aHiddenFolderIsFoundByItsRealPath() throws IOException {
+  void shouldFindAHiddenFolderByItsRealPath() throws IOException {
     final Path root = this.folder.toRealPath();
     final Path real = Files.createDirectories(root.resolve("real"));
     final Path kept = Files.createDirectories(root.resolve("kept"));
@@ -118,7 +118,7 @@ class ChromiumConfinementTest {
 
   @Test
   @EnabledOnOs({ OS.LINUX, OS.MAC })
-  void aFolderThatCannotBeListedGivesNothingBeneathIt() throws IOException {
+  void shouldGiveNothingBeneathAFolderThatCannotBeListed() throws IOException {
     final Path root = this.folder.toRealPath();
     final Path closed = Files.createDirectories(root.resolve("closed"));
     final Path hidden = Files.createDirectories(closed.resolve("hidden"));
@@ -133,14 +133,14 @@ class ChromiumConfinementTest {
   }
 
   @Test
-  void splitsListsOfPaths() {
+  void shouldSplitListsOfPaths() {
     assertEquals(List.of(), ChromiumConfinement.pathsOf(null));
     final String separator = File.pathSeparator;
     assertEquals(List.of(Path.of("first"), Path.of("second")), ChromiumConfinement.pathsOf("first" + separator + separator + "second"));
   }
 
   @Test
-  void findsTheJarsOfTheJavaAgents() {
+  void shouldFindTheJarsOfTheJavaAgents() {
     final List<String> arguments = List.of(
       "-Xmx512m",
       "-javaagent:/agents/coverage.jar=destfile=/out/helper.exec",
@@ -150,7 +150,7 @@ class ChromiumConfinementTest {
   }
 
   @Test
-  void findsTheFilesTheLibrariesOfTheSessionLinkTo() throws IOException {
+  void shouldFindTheFilesTheLibrariesOfTheSessionLinkTo() throws IOException {
     final Path installation = Files.createDirectories(this.folder.resolve("installation"));
     final Path library = Files.writeString(installation.resolve("libnss3.so"), "library");
     final Path linked = Files.createDirectories(this.folder.resolve("libraries"));
@@ -162,7 +162,7 @@ class ChromiumConfinementTest {
   }
 
   @Test
-  void aHelperIsConfinedOnlyWhenItsOptionsAskOnLinuxWithLandlockAndOnMacOsWithSeatbelt() throws Exception {
+  void shouldConfineAHelperOnlyWhenItsOptionsAskOnLinuxWithLandlockAndOnMacOsWithSeatbelt() throws Exception {
     final Path server = this.folder.resolve("server");
     try (final SeatbeltLibrary library = SeatbeltLibrary.complete()) {
       final Seatbelt seatbelt = library.seatbelt();
@@ -192,7 +192,7 @@ class ChromiumConfinementTest {
 
   @Test
   @DisabledOnOs(OS.MAC) // on macOS this would put this JVM in the sandbox
-  void aSystemWithoutSeatbeltLeavesTheHelperAsItIsAndSaysWhy() throws IOException {
+  void shouldLeaveTheHelperAsItIsAndSayWhyOnASystemWithoutSeatbelt() throws IOException {
     final HelperConfiguration configuration = this.configuration(true, this.folder.resolve("server"));
     assertEquals(
       "Chromium runs without confinement: this system has no Seatbelt (sandbox_init)",
@@ -201,7 +201,7 @@ class ChromiumConfinementTest {
   }
 
   @Test
-  void onMacOsTheWholeHelperIsConfinedWithAProfileOfTheRealPaths() throws Exception {
+  void shouldConfineTheWholeHelperWithAProfileOfTheRealPathsOnMacOs() throws Exception {
     final Path server = Files.createDirectories(this.folder.resolve("server"));
     final HelperConfiguration configuration = this.configuration(true, server);
     final Path session = Files.createDirectories(configuration.getSocket().getParent());
@@ -252,7 +252,7 @@ class ChromiumConfinementTest {
   }
 
   @Test
-  void realPathsResolveLinksAndKeepMissingPathsAbsolute() throws IOException {
+  void shouldResolveLinksAndKeepMissingPathsAbsoluteInRealPaths() throws IOException {
     final Path real = Files.createDirectories(this.folder.resolve("real"));
     final Path link = Files.createSymbolicLink(this.folder.resolve("link"), real);
     final Path missing = this.folder.resolve("missing").resolve("..").resolve("gone");
@@ -264,7 +264,7 @@ class ChromiumConfinementTest {
 
   @Test
   @EnabledOnOs(OS.LINUX)
-  void aConfinedHelperCannotReadTheServersFolderOrTheTemporaryFolder() throws Exception {
+  void shouldNotLetAConfinedHelperReadTheFolderOfTheServerOrTheTemporaryFolder() throws Exception {
     final int version = Landlock.version();
     assumeTrue(version >= 1, () -> Landlock.describeMissing(version));
     final Path server = Files.createDirectories(this.folder.resolve("server"));
@@ -297,7 +297,7 @@ class ChromiumConfinementTest {
 
   @Test
   @EnabledOnOs(OS.MAC)
-  void onMacOsAConfinedHelperCannotReadTheServersFolderOrTheTemporaryFolderAndNeitherCanWhatItStarts() throws Exception {
+  void shouldNotLetAConfinedHelperOrWhatItStartsReadTheFolderOfTheServerOrTheTemporaryFolderOnMacOs() throws Exception {
     final Path server = Files.createDirectories(this.folder.resolve("server"));
     final Path config = Files.writeString(server.resolve("config.yml"), "token: secret");
     final Path otherSession = Files.createDirectories(this.folder.resolve("tmp").resolve("other-session"));

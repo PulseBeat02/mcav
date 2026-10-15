@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Tag;
 final class AddressTextFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
-  void neverShowsTheUserTheQueryOrTheFragment(final FuzzedDataProvider data) {
+  void shouldNeverShowTheUserTheQueryOrTheFragment(final FuzzedDataProvider data) {
     final String address = data.consumeRemainingAsString();
     final String described = AddressText.describe(address);
     final int mark = indexOfAny(described, "?#");

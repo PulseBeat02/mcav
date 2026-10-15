@@ -53,7 +53,7 @@ class FrameCanvasTest {
   }
 
   @Test
-  void aNewCanvasIsWhite() {
+  void shouldStartWhite() {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3); final ImageBuffer image = snapshot(canvas)) {
       assertEquals(4, canvas.getWidth());
       assertEquals(3, canvas.getHeight());
@@ -65,7 +65,7 @@ class FrameCanvasTest {
   }
 
   @Test
-  void aRegionReplacesItsPixelsOnly() throws ProtocolException {
+  void shouldReplaceOnlyThePixelsOfARegion() throws ProtocolException {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3)) {
       canvas.apply(new FrameRegion(4, 3, 1, 1, 2, 2, bgra(2, 2, 10, 20, 30)));
       try (final ImageBuffer image = snapshot(canvas)) {
@@ -80,7 +80,7 @@ class FrameCanvasTest {
   }
 
   @Test
-  void aRegionReadsOnlyTheBytesItNeedsFromALongerBuffer() throws ProtocolException {
+  void shouldReadOnlyTheBytesARegionNeedsFromALongerBuffer() throws ProtocolException {
     try (final FrameCanvas canvas = new FrameCanvas(2, 1)) {
       final byte[] longer = new byte[64];
       longer[0] = 1;
@@ -95,7 +95,7 @@ class FrameCanvasTest {
   }
 
   @Test
-  void aRegionOfAnotherPageIsAProtocolError() {
+  void shouldTreatARegionOfAnotherPageAsAProtocolError() {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3)) {
       assertThrows(ProtocolException.class, () -> canvas.apply(new FrameRegion(5, 3, 0, 0, 1, 1, new byte[4])));
       final ProtocolException height = assertThrows(ProtocolException.class, () ->
@@ -106,7 +106,7 @@ class FrameCanvasTest {
   }
 
   @Test
-  void aClosedCanvasIgnoresRegionsAndHasNoPicture() throws ProtocolException {
+  void shouldIgnoreRegionsAndHaveNoPictureOnceClosed() throws ProtocolException {
     final FrameCanvas canvas = new FrameCanvas(2, 2);
     canvas.close();
     canvas.close();
@@ -115,7 +115,7 @@ class FrameCanvasTest {
   }
 
   @Test
-  void everyRowOfARegionLandsOnItsOwnRow() throws ProtocolException {
+  void shouldPlaceEveryRowOfARegionOnItsOwnRow() throws ProtocolException {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3)) {
       final byte[] pixels = new byte[2 * 2 * 4];
       System.arraycopy(bgra(2, 1, 10, 20, 30), 0, pixels, 0, 8);
@@ -130,7 +130,7 @@ class FrameCanvasTest {
   }
 
   @Test
-  void closingReleasesTheNativePicture() {
+  void shouldReleaseTheNativePictureOnClose() {
     final FrameCanvas canvas = new FrameCanvas(4, 3);
     assertFalse(canvas.getPage().isNull());
     canvas.close();

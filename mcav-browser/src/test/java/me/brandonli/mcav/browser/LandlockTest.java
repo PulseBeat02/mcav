@@ -57,13 +57,13 @@ class LandlockTest {
   private Path folder;
 
   @Test
-  void cannotBeInstantiated() {
+  void shouldNotBeInstantiated() {
     UtilityClassAssertions.assertNotInstantiable(Landlock.class);
     UtilityClassAssertions.assertNotInstantiable(ChromiumConfinement.class);
   }
 
   @Test
-  void readsTheAnswerOfTheKernel() {
+  void shouldReadTheAnswerOfTheKernel() {
     assertEquals(4, Landlock.versionOf(4, 0));
     assertEquals(-38, Landlock.versionOf(-1, 38));
     assertEquals(0, Landlock.versionOf(0, 38));
@@ -72,20 +72,20 @@ class LandlockTest {
 
   @Test
   @EnabledOnOs(OS.LINUX)
-  void theKernelAnswersAVersionOrWhyItHasNoneButNeverNothing() {
+  void shouldAnswerAVersionOrWhyThereIsNoneButNeverNothing() {
     final int version = Landlock.version();
     assertNotEquals(0, version, "1 or more, or the negated error number of a kernel without Landlock");
   }
 
   @Test
-  void saysWhyThereIsNoLandlock() {
+  void shouldSayWhyThereIsNoLandlock() {
     assertTrue(Landlock.describeMissing(-38).contains("5.13"));
     assertTrue(Landlock.describeMissing(-95).contains("turned off"));
     assertEquals("Landlock is not available here (error 1)", Landlock.describeMissing(-1));
   }
 
   @Test
-  void eachVersionHandlesTheRightsItKnows() {
+  void shouldHandleTheRightsEachVersionKnows() {
     assertEquals(0x1FFF, Landlock.handledRights(1));
     assertEquals(0x3FFF, Landlock.handledRights(2));
     assertEquals(0x7FFF, Landlock.handledRights(3));
@@ -94,7 +94,7 @@ class LandlockTest {
   }
 
   @Test
-  void aRuleGrantsReadingAndRunningAndAWritableOneChangesToo() {
+  void shouldGrantReadingAndRunningInARuleAndChangesInAWritableOne() {
     final Path path = this.folder;
     final long all = Landlock.handledRights(5);
     assertEquals(READ_FOLDER, Landlock.rightsOf(new Landlock.Rule(path, false), true, all));
@@ -105,14 +105,14 @@ class LandlockTest {
   }
 
   @Test
-  void aFailedCallOfTheKernelIsAnIOException() throws IOException {
+  void shouldTreatAFailedCallOfTheKernelAsAnIOException() throws IOException {
     assertEquals(7, Landlock.check(7, 0, "count"));
     final IOException failure = assertThrows(IOException.class, () -> Landlock.check(-1, 22, "create a ruleset"));
     assertEquals("Landlock could not create a ruleset (error 22)", failure.getMessage());
   }
 
   @Test
-  void aCallTheJvmCannotMakeIsAnIllegalState() throws ReflectiveOperationException {
+  void shouldTreatACallTheJvmCannotMakeAsAnIllegalState() throws ReflectiveOperationException {
     final IllegalCallerException refused = new IllegalCallerException("native access refused");
     final MethodHandle throwing = MethodHandles.throwException(long.class, IllegalCallerException.class);
     final MethodHandle call = MethodHandles.insertArguments(throwing, 0, refused);
@@ -125,7 +125,7 @@ class LandlockTest {
   }
 
   @Test
-  void aVirtualMachineErrorIsNotTurnedIntoAnAnswerOfTheCall() {
+  void shouldNotTurnAVirtualMachineErrorIntoAnAnswerOfTheCall() {
     final OutOfMemoryError exhausted = new OutOfMemoryError("no memory for the call");
     final MethodHandle throwing = MethodHandles.throwException(long.class, OutOfMemoryError.class);
     final MethodHandle call = MethodHandles.insertArguments(throwing, 0, exhausted);
@@ -161,7 +161,7 @@ class LandlockTest {
 
   @Test
   @EnabledOnOs(OS.LINUX)
-  void rightsTheKernelDoesNotKnowAreRefusedWithItsErrorNumber() throws InterruptedException {
+  void shouldRefuseRightsTheKernelDoesNotKnowWithItsErrorNumber() throws InterruptedException {
     final int version = availableVersion();
     assumeTrue(version < 5, () -> "this kernel knows every right of the fifth version: " + version);
     final Throwable failure = onThread(() -> Landlock.restrictThread(5, List.of()));
@@ -171,7 +171,7 @@ class LandlockTest {
 
   @Test
   @EnabledOnOs(OS.LINUX)
-  void aRestrictedThreadReachesOnlyWhatItsRulesGrantAndSoDoesItsChildThread() throws Exception {
+  void shouldLetARestrictedThreadAndItsChildThreadReachOnlyWhatItsRulesGrant() throws Exception {
     final int version = availableVersion();
     final Path hidden = Files.createDirectories(this.folder.resolve("hidden"));
     final Path secret = Files.writeString(hidden.resolve("secret.txt"), "secret");
@@ -206,7 +206,7 @@ class LandlockTest {
 
   @Test
   @EnabledOnOs(OS.LINUX)
-  void aProcessStartedByARestrictedThreadIsRestrictedToo() throws Exception {
+  void shouldRestrictAProcessStartedByARestrictedThreadToo() throws Exception {
     availableVersion();
     final Path hidden = Files.createDirectories(this.folder.resolve("hidden"));
     final Path secret = Files.writeString(hidden.resolve("secret.txt"), "secret");

@@ -71,7 +71,7 @@ class SocksProtocolTest {
   }
 
   @Test
-  void aGreetingMustOfferToGoWithoutAuthentication() throws IOException {
+  void shouldRequireAGreetingToOfferToGoWithoutAuthentication() throws IOException {
     assertTrue(SocksProtocol.readGreeting(input(5, 1, 0)));
     assertTrue(SocksProtocol.readGreeting(input(5, 3, 2, 1, 0)));
     assertTrue(SocksProtocol.readGreeting(input(5, 2, 0, 1)), "no authentication stays chosen after other methods");
@@ -79,7 +79,7 @@ class SocksProtocolTest {
   }
 
   @Test
-  void aMalformedGreetingIsRefused() {
+  void shouldRefuseAMalformedGreeting() {
     final ProtocolException version = assertThrows(ProtocolException.class, () -> SocksProtocol.readGreeting(input(4, 1, 0)));
     assertEquals("The client speaks SOCKS 4 instead of SOCKS 5", version.getMessage());
     final ProtocolException empty = assertThrows(ProtocolException.class, () -> SocksProtocol.readGreeting(input(5, 0)));
@@ -88,7 +88,7 @@ class SocksProtocolTest {
   }
 
   @Test
-  void aConnectionRequestNamesAHostNameOrAnAddress() throws IOException {
+  void shouldReadAHostNameOrAnAddressFromAConnectionRequest() throws IOException {
     final SocksProtocol.Request named = request(domainRequest(SocksProtocol.CONNECT, "Example-1.test_x", 443));
     assertEquals("Example-1.test_x", named.getHost());
     assertEquals(443, named.getPort());
@@ -103,7 +103,7 @@ class SocksProtocolTest {
   }
 
   @Test
-  void requestsTheGuardDoesNotServeAreRefusedWithTheirReplyCode() {
+  void shouldRefuseRequestsTheGuardDoesNotServeWithTheirReplyCode() {
     final SocksProtocol.Refusal bind = assertThrows(SocksProtocol.Refusal.class, () -> request(domainRequest(2, "a.test", 80)));
     assertEquals(SocksProtocol.COMMAND_NOT_SUPPORTED, bind.getReply());
     assertEquals("The request asks for command 2 instead of a connection", bind.getMessage());
@@ -117,7 +117,7 @@ class SocksProtocolTest {
   }
 
   @Test
-  void aMalformedRequestIsRefused() {
+  void shouldRefuseAMalformedRequest() {
     assertThrows(ProtocolException.class, () -> SocksProtocol.readRequest(input(4, 1, 0, 1)));
     final ProtocolException reserved = assertThrows(ProtocolException.class, () -> SocksProtocol.readRequest(input(5, 1, 7, 1)));
     assertEquals("The reserved byte of the request is 7", reserved.getMessage());
@@ -131,7 +131,7 @@ class SocksProtocolTest {
   }
 
   @Test
-  void hostNamesHoldLettersDigitsHyphensDotsAndUnderscoresOnly() {
+  void shouldOnlyAllowLettersDigitsHyphensDotsAndUnderscoresInHostNames() {
     for (final char allowed : "azAZ09-._".toCharArray()) {
       assertTrue(SocksProtocol.isHostNameCharacter((byte) allowed), String.valueOf(allowed));
     }
@@ -142,12 +142,12 @@ class SocksProtocolTest {
   }
 
   @Test
-  void theProtocolIsNotInstantiable() {
+  void shouldNotInstantiateTheProtocol() {
     UtilityClassAssertions.assertNotInstantiable(SocksProtocol.class);
   }
 
   @Test
-  void anIpv6AddressNamedAsAHostIsReadAsTheAddress() throws IOException {
+  void shouldReadAnIpv6AddressNamedAsAHostAsTheAddress() throws IOException {
     assertEquals("2606:4700:4700:0:0:0:0:1111", request(domainRequest(1, "2606:4700:4700::1111", 80)).getHost());
     assertEquals("2606:4700:4700:0:0:0:0:1111", request(domainRequest(1, "[2606:4700:4700::1111]", 80)).getHost());
     assertEquals("0:0:0:0:0:0:0:1", request(domainRequest(1, "::1", 80)).getHost());
@@ -158,7 +158,7 @@ class SocksProtocolTest {
   }
 
   @Test
-  void answersHaveTheFormOfTheProtocol() throws IOException {
+  void shouldGiveAnswersTheFormOfTheProtocol() throws IOException {
     final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
     final DataOutputStream out = new DataOutputStream(bytes);
     SocksProtocol.writeMethod(out, SocksProtocol.NO_ACCEPTABLE_METHOD);
@@ -167,7 +167,7 @@ class SocksProtocolTest {
   }
 
   @Test
-  void aHostNameThatStartsWithABracketIsRefused() {
+  void shouldRefuseAHostNameThatStartsWithABracket() {
     for (final String host : new String[] { "[example.com", "]example.com", "example.com]" }) {
       final ProtocolException failure = assertThrows(ProtocolException.class, () ->
         request(domainRequest(SocksProtocol.CONNECT, host, 443))

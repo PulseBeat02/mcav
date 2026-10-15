@@ -51,7 +51,7 @@ final class HelperSessionCleanupTest {
 
   @ParameterizedTest
   @ValueSource(booleans = { false, true })
-  void closesTheAcceptedChannelWhenSocketUnlinkFails(final boolean unchecked) throws Exception {
+  void shouldCloseTheAcceptedChannelWhenTheSocketUnlinkFails(final boolean unchecked) throws Exception {
     final Path folder = Files.createDirectory(this.directory.resolve("session"));
     final Path socket = folder.resolve("s");
     final HelperLauncher launcher = mock(HelperLauncher.class);
