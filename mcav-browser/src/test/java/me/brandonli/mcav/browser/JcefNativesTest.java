@@ -259,7 +259,10 @@ class JcefNativesTest {
 
   @Test
   void shouldTakeTheGroupWritePermissionFromNativesAnEarlierVersionInstalled() throws IOException {
-    assumeTrue(this.folder.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW), "POSIX permissions");
+    assumeTrue(
+      this.folder.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW),
+      "This file system has no POSIX permissions!"
+    );
     final JcefNatives natives = this.natives(nativesJar(JarContent.WITH_ARCHIVE));
     final Path installation = natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE);
     final Path library = installation.resolve(LIBRARY_FILE);

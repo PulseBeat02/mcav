@@ -1173,7 +1173,7 @@ class HelperSessionTest {
     final Path folder = Files.createDirectories(this.directory.resolve("kept").resolve("inner"));
     Files.writeString(folder.resolve("file"), "x");
     final File inner = folder.toFile();
-    assumeTrue(inner.setWritable(false) && !Files.isWritable(folder), "the folder can be made read-only");
+    assumeTrue(inner.setWritable(false) && !Files.isWritable(folder), "This file system cannot make the folder read-only!");
     try {
       HelperSession.deleteFolder(this.directory.resolve("kept"));
       final boolean fileKept = Files.exists(folder.resolve("file"));

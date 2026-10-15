@@ -46,6 +46,7 @@ import org.junit.jupiter.api.io.TempDir;
 class ArchiveExtractorTest {
 
   private static final String POSIX_ATTRIBUTE_VIEW = "posix";
+  private static final String POSIX_MISSING_MESSAGE = "This file system has no POSIX permissions!";
   private static final String EXECUTABLE_PERMISSIONS = "rwxr-xr-x";
 
   private static final int REGULAR_MODE = 0644;
@@ -79,7 +80,7 @@ class ArchiveExtractorTest {
   @Test
   void shouldKeepExecutableFilesExecutableAndMakeNothingWritableForOthers() throws IOException {
     final boolean supportsPosix = this.target.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW);
-    assumeTrue(supportsPosix, "POSIX permissions");
+    assumeTrue(supportsPosix, POSIX_MISSING_MESSAGE);
     final InputStream archive = new Archive().file("jcef_helper", 0777, "helper").file("resources.pak", 0666, "data").finish();
     new ArchiveExtractor().extract(archive, this.target);
     final Set<PosixFilePermission> helper = Files.getPosixFilePermissions(this.target.resolve("jcef_helper"));
@@ -91,7 +92,7 @@ class ArchiveExtractorTest {
   @Test
   void shouldMakeFoldersWritableByTheOwnerOnlyWhateverTheUmask() throws IOException {
     final boolean supportsPosix = this.target.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW);
-    assumeTrue(supportsPosix, "POSIX permissions");
+    assumeTrue(supportsPosix, POSIX_MISSING_MESSAGE);
     final InputStream archive = new Archive().folder(LOCALES_FOLDER).file("swiftshader/deeper/libvk.so", EXECUTABLE_MODE, "vk").finish();
     new ArchiveExtractor().extract(archive, this.target);
     final Set<PosixFilePermission> owner = PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS);
@@ -185,7 +186,8 @@ class ArchiveExtractorTest {
       assertEquals("Archive entry name link/file passes a link!", message);
       assertThrows(IOException.class, () -> ArchiveExtractor.resolve(root, "link/deeper/file"));
     } catch (final UnsupportedOperationException | IOException exception) {
-      assumeTrue(false, "symbolic links are not available: " + exception);
+      final String message = "Symbolic links are not available here (%s)!".formatted(exception);
+      assumeTrue(false, message);
     } finally {
       Files.deleteIfExists(root.resolve("link"));
       Files.deleteIfExists(outside);
@@ -256,7 +258,7 @@ class ArchiveExtractorTest {
 
   @Test
   void shouldTakeTheWriteOfTheGroupAndOfOthersAwayAndLeaveLinksAndTheRestAloneWhenTightening() throws IOException {
-    assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW), "POSIX permissions");
+    assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW), POSIX_MISSING_MESSAGE);
     final Path installation = Files.createDirectories(this.target.resolve("installation"));
     final Path inner = Files.createDirectories(installation.resolve(LOCALES_FOLDER));
     final Path groupWritable = Files.writeString(inner.resolve("group.pak"), "group");
@@ -292,12 +294,12 @@ class ArchiveExtractorTest {
     final Path file = Files.writeString(this.target.resolve("file.txt"), "file");
     ArchiveExtractor.tighten(file);
     ArchiveExtractor.tighten(this.target.resolve("missing"));
-    assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW), "POSIX permissions");
+    assumeTrue(this.target.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW), POSIX_MISSING_MESSAGE);
     ArchiveExtractor.takeWriteAway(this.target.resolve("gone"));
     final Path closed = Files.createDirectories(this.target.resolve("closed"));
     Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("-wx------"));
     try {
-      assumeTrue(!Files.isReadable(closed), "the user may read every folder");
+      assumeTrue(!Files.isReadable(closed), "The user may read every folder, so none can be closed to it!");
       ArchiveExtractor.tighten(this.target);
       final Set<PosixFilePermission> closedPermissions = Files.getPosixFilePermissions(closed);
       assertEquals(PosixFilePermissions.fromString("-wx------"), closedPermissions);

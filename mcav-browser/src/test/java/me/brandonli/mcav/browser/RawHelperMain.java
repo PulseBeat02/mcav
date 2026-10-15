@@ -145,7 +145,10 @@ public final class RawHelperMain {
         final int height = configuration.getHeight();
         HelperProtocol.writeFrame(output, new FrameRegion(width, height, 0, 0, width, height, new byte[width * height * 4]));
       }
-      default -> throw new IllegalArgumentException("Unknown scenario " + path);
+      default -> {
+        final String message = "Scenario %s is unknown!".formatted(path);
+        throw new IllegalArgumentException(message);
+      }
     }
     output.flush();
     while (input.read() >= 0) {}

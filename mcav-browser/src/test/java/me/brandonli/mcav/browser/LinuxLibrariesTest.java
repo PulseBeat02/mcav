@@ -367,7 +367,7 @@ class LinuxLibrariesTest {
 
   @Test
   void shouldTakeTheGroupWritePermissionFromLibrariesAnEarlierVersionInstalled() throws IOException {
-    assumeTrue(this.folder.getFileSystem().supportedFileAttributeViews().contains("posix"), "POSIX permissions");
+    assumeTrue(this.folder.getFileSystem().supportedFileAttributeViews().contains("posix"), "This file system has no POSIX permissions!");
     final byte[] debianPackage = testPackage();
     final LinuxLibraries libraries = this.installer(debianPackage, List.of("https://mirror.test/debian/"), List.of(pin(debianPackage)));
     final Path installation = libraries.install(PLATFORM);

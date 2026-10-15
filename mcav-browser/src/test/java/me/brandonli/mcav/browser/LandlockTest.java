@@ -180,7 +180,7 @@ class LandlockTest {
 
   private static int availableVersion() {
     final int version = Landlock.version();
-    assumeTrue(version >= 1, () -> "this kernel cannot restrict: " + Landlock.describeMissing(version));
+    assumeTrue(version >= 1, () -> "This kernel cannot restrict (%s)!".formatted(Landlock.describeMissing(version)));
 
     return version;
   }
@@ -189,7 +189,7 @@ class LandlockTest {
   @EnabledOnOs(OS.LINUX)
   void shouldRefuseRightsTheKernelDoesNotKnowWithItsErrorNumber() throws InterruptedException {
     final int version = availableVersion();
-    assumeTrue(version < 5, () -> "this kernel knows every right of the fifth version: " + version);
+    assumeTrue(version < 5, () -> "This kernel already knows every right of the fifth version (Landlock %s)!".formatted(version));
     final Throwable failure = onThread(() -> Landlock.restrictThread(5, List.of()));
     assertInstanceOf(IOException.class, failure);
     final String message = failure.getMessage();

@@ -602,7 +602,8 @@ class NetworkGuardTest {
   }
 
   private Socket failConnecting(final InetSocketAddress address) {
-    throw new AssertionError("connected to " + address);
+    final String message = "The guard connected to %s, which it must not reach!".formatted(address);
+    throw new AssertionError(message);
   }
 
   @Test

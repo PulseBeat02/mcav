@@ -37,7 +37,7 @@ import java.util.List;
 final class SeatbeltProbeMain {
 
   private SeatbeltProbeMain() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   public static void main(final String[] arguments) throws Throwable {

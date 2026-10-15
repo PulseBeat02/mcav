@@ -132,7 +132,7 @@ class ChromiumConfinementTest {
     Files.createDirectories(closed.resolve("beside"));
     Files.setPosixFilePermissions(closed, PosixFilePermissions.fromString("-wx------"));
     try {
-      assumeTrue(!Files.isReadable(closed), "the user may read every folder");
+      assumeTrue(!Files.isReadable(closed), "The user may read every folder, so none can be closed to it!");
       final List<Landlock.Rule> rules = ChromiumConfinement.rules(root, List.of(hidden), List.of(), List.of());
       assertEquals(List.of(), rules);
     } finally {
@@ -284,7 +284,7 @@ class ChromiumConfinementTest {
   @EnabledOnOs(OS.LINUX)
   void shouldNotLetAConfinedHelperReadTheFolderOfTheServerOrTheTemporaryFolder() throws Exception {
     final int version = Landlock.version();
-    assumeTrue(version >= 1, () -> Landlock.describeMissing(version));
+    assumeTrue(version >= 1, () -> "This kernel cannot restrict (%s)!".formatted(Landlock.describeMissing(version)));
     final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
     final Path serverConfiguration = Files.writeString(server.resolve("config.yml"), "token: secret");
     final Path otherSession = Files.createDirectories(this.folder.resolve("tmp").resolve("other-session"));

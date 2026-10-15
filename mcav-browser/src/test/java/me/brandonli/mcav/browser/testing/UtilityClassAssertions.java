@@ -30,7 +30,7 @@ import java.lang.reflect.Modifier;
 public final class UtilityClassAssertions {
 
   private UtilityClassAssertions() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   // Asserts that a class is final, has exactly one constructor, that the constructor is private, and that calling it

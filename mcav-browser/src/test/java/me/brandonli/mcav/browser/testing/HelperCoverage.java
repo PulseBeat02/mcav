@@ -30,7 +30,7 @@ public final class HelperCoverage {
   private static final Path DESTINATION = Path.of("build", "jacoco", "helper.exec");
 
   private HelperCoverage() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   // Returns the JVM options that give a helper the coverage agent of this JVM.

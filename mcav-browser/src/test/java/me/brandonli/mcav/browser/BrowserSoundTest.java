@@ -237,7 +237,10 @@ class BrowserSoundTest {
 
   @Test
   void shouldKeepTheSoundOfAPageUpWithItsPicture() throws InterruptedException {
-    assumeTrue(Boolean.getBoolean("mcav.syncMeasurement"), "times real events; run with -Pmcav.syncMeasurement=true on a quiet machine");
+    assumeTrue(
+      Boolean.getBoolean("mcav.syncMeasurement"),
+      "This test times real events; run it with -Pmcav.syncMeasurement=true on a quiet machine!"
+    );
     final BrowserPlayer player = this.player();
     final List<long[]> sound = new CopyOnWriteArrayList<>();
     final List<long[]> picture = new CopyOnWriteArrayList<>();

@@ -65,7 +65,7 @@ public final class HeadlessProofMain {
     "<p style=\"margin:8px;font:bold 40px sans-serif;color:#000000\">mcav headless</p></body></html>";
 
   private HeadlessProofMain() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   public static void main(final String[] args) {
@@ -209,7 +209,8 @@ public final class HeadlessProofMain {
     final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
     while (!condition.getAsBoolean()) {
       if (System.nanoTime() - deadline > 0) {
-        throw new AssertionError("Timed out waiting for " + description);
+        final String message = "Waiting for %s timed out!".formatted(description);
+        throw new AssertionError(message);
       }
       Thread.sleep(50L);
     }
@@ -217,7 +218,8 @@ public final class HeadlessProofMain {
 
   private static void check(final boolean holds, final String description) {
     if (!holds) {
-      throw new AssertionError("Failed: " + description);
+      final String message = "The check that %s failed!".formatted(description);
+      throw new AssertionError(message);
     }
   }
 }

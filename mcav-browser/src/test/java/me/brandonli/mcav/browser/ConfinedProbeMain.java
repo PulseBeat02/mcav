@@ -28,7 +28,7 @@ final class ConfinedProbeMain {
   private static final Path ROOT = Path.of("/");
 
   private ConfinedProbeMain() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   public static void main(final String[] arguments) throws Exception {

@@ -385,7 +385,7 @@ class CefBrowserIntegrationTest {
 
   @Test
   void shouldLoadAPublicPageThroughTheGuard() {
-    assumeTrue(Boolean.getBoolean("mcav.networkTests"), "needs the internet: -Pmcav.networkTests=true");
+    assumeTrue(Boolean.getBoolean("mcav.networkTests"), "This test needs the internet; run it with -Pmcav.networkTests=true!");
     final BrowserPlayer player = this.player(BrowserOptions.DEFAULT);
     final Frames frames = Frames.attach(player.getVideoAttachableCallback());
     final boolean started = player.start(BrowserSource.uri(URI.create("https://example.com/"), WIDTH, HEIGHT, 1));

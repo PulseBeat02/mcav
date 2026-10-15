@@ -271,7 +271,7 @@ class CefBrowserPlayerTest {
       new CountDownLatch(1).await();
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
-      throw new BrowserException("Interrupted while starting the browser", exception);
+      throw new BrowserException("Interrupted while starting the browser!", exception);
     }
     return new FakeSession();
   }
@@ -446,7 +446,7 @@ class CefBrowserPlayerTest {
 
   @Test
   void shouldLeaveThePlayerIdleAfterAFailedStart() {
-    this.startFailure = new BrowserException("no browser here");
+    this.startFailure = new BrowserException("No browser here!");
     assertThrows(BrowserException.class, () -> this.player.start(SOURCE));
     final boolean playing = this.player.isPlaying();
     assertFalse(playing);
@@ -472,7 +472,7 @@ class CefBrowserPlayerTest {
 
   @Test
   void shouldKeepTheInterruptOfTheCallerWhenTheStartFails() {
-    this.startFailure = new BrowserException("no browser here");
+    this.startFailure = new BrowserException("No browser here!");
     Thread.currentThread().interrupt();
     try {
       assertThrows(BrowserException.class, () -> this.player.start(SOURCE));
@@ -560,7 +560,7 @@ class CefBrowserPlayerTest {
   }
 
   private void failEveryAwait(final CountDownLatch latch) throws InterruptedException {
-    Mockito.doThrow(new AssertionError("unbounded fixture wait")).when(latch).await();
+    Mockito.doThrow(new AssertionError("Unbounded fixture wait!")).when(latch).await();
   }
 
   @Test
@@ -615,7 +615,7 @@ class CefBrowserPlayerTest {
   private BrowserSession releaseAndFailTheStart(final AtomicReference<CefBrowserPlayer> self) {
     final boolean released = self.get().release();
     assertTrue(released);
-    throw new BrowserException("Interrupted while starting the browser");
+    throw new BrowserException("Interrupted while starting the browser!");
   }
 
   @Test

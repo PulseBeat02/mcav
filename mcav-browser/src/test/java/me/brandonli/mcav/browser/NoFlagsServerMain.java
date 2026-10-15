@@ -45,7 +45,7 @@ public final class NoFlagsServerMain {
   );
 
   private NoFlagsServerMain() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   public static void main(final String[] args) {
@@ -84,7 +84,8 @@ public final class NoFlagsServerMain {
 
   private static void check(final boolean holds, final String description) {
     if (!holds) {
-      throw new AssertionError("Failed: " + description);
+      final String message = "The check that %s failed!".formatted(description);
+      throw new AssertionError(message);
     }
   }
 }
