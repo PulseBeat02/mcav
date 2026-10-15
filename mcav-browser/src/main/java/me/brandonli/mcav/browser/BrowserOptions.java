@@ -18,7 +18,6 @@
 package me.brandonli.mcav.browser;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -36,7 +35,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * metadata service of a cloud machine) and other special addresses, so neither a page nor a player clicking on it can
  * use the server to look into its own network. Allow private networks only to show pages of your own network. Inside a
  * container the guard cannot see the public address of the machine the container runs on, which reaches the
- * services that listen on every interface of that machine: name it in {@link Builder#refusedHosts(Collection)}.
+ * services that listen on every interface of that machine: name it in {@link BrowserOptionsBuilder#refusedHosts(Collection)}.
  *
  * <p>On Linux and macOS, Chromium is confined, by default: its processes cannot read the server's folder, the home
  * folder of the server's user or the server's temporary folder, apart from what the browser needs there, and they
@@ -70,7 +69,7 @@ public final class BrowserOptions {
   private final boolean confined;
   private final List<String> refusedHosts;
 
-  private BrowserOptions(
+  BrowserOptions(
     final int frameRate,
     final boolean allowsJavaScriptJit,
     final boolean allowsPrivateNetworks,
@@ -91,8 +90,8 @@ public final class BrowserOptions {
    *
    * @return the builder
    */
-  public static Builder builder() {
-    return new Builder();
+  public static BrowserOptionsBuilder builder() {
+    return new DefaultBrowserOptionsBuilder();
   }
 
   /**
@@ -134,7 +133,7 @@ public final class BrowserOptions {
   }
 
   /**
-   * Checks whether Chromium is confined where the system can confine it, see {@link Builder#confinement(boolean)}.
+   * Checks whether Chromium is confined where the system can confine it, see {@link BrowserOptionsBuilder#confinement(boolean)}.
    *
    * @return true if Chromium is confined
    */
@@ -144,7 +143,7 @@ public final class BrowserOptions {
 
   /**
    * Returns the names and addresses whose addresses pages may not reach, besides the private ones and the machine's own,
-   * see {@link Builder#refusedHosts(Collection)}.
+   * see {@link BrowserOptionsBuilder#refusedHosts(Collection)}.
    *
    * @return the hosts, unmodifiable
    */
@@ -213,126 +212,5 @@ public final class BrowserOptions {
       .add("confined", this.confined)
       .add("refusedHosts", this.refusedHosts)
       .toString();
-  }
-
-  /**
-   * Builds immutable {@link BrowserOptions}. Builders are mutable and not thread-safe;
-   * {@link #build()} snapshots their current values.
-   */
-  public static final class Builder {
-
-    private int frameRate = MAXIMUM_FRAME_RATE;
-    private boolean allowsJavaScriptJit;
-    private boolean allowsPrivateNetworks;
-    private boolean allowsAutoplay;
-    private boolean confined = true;
-    private List<String> refusedHosts = List.of();
-
-    private Builder() {}
-
-    /**
-     * Sets how many frames per second the browser paints at most.
-     *
-     * @param frameRate the frame rate, from 1 to {@value BrowserOptions#MAXIMUM_FRAME_RATE}
-     * @return this builder
-     * @throws IllegalArgumentException if the frame rate is out of range
-     */
-    public Builder frameRate(final int frameRate) {
-      Preconditions.checkArgument(
-        frameRate >= 1 && frameRate <= MAXIMUM_FRAME_RATE,
-        "Frame rate %s must be between 1 and %s!",
-        frameRate,
-        MAXIMUM_FRAME_RATE
-      );
-      this.frameRate = frameRate;
-      return this;
-    }
-
-    /**
-     * Turns V8's just-in-time compiler on or off. It is off by default, because the pages run without the Chromium
-     * sandbox; turn it on only for pages you trust.
-     *
-     * @param allowsJavaScriptJit true to compile JavaScript to machine code
-     * @return this builder
-     */
-    public Builder javaScriptJit(final boolean allowsJavaScriptJit) {
-      this.allowsJavaScriptJit = allowsJavaScriptJit;
-      return this;
-    }
-
-    /**
-     * Lets pages reach loopback, private, link-local and other non-public addresses, such as a dashboard in the
-     * server's own network. Off by default: a page, or a player clicking on it, could otherwise read services the
-     * server can reach but the players cannot.
-     *
-     * @param allowsPrivateNetworks true to let the browser connect to any address
-     * @return this builder
-     */
-    public Builder privateNetworks(final boolean allowsPrivateNetworks) {
-      this.allowsPrivateNetworks = allowsPrivateNetworks;
-      return this;
-    }
-
-    /**
-     * Lets pages play sound right away. Off by default: as in a desktop browser, a page plays sound only once someone
-     * clicked or typed into it, such as a player who clicks the screen of the browser.
-     *
-     * @param allowsAutoplay true to let pages play sound before anyone clicked or typed into them
-     * @return this builder
-     */
-    public Builder autoplay(final boolean allowsAutoplay) {
-      this.allowsAutoplay = allowsAutoplay;
-      return this;
-    }
-
-    /**
-     * Confines Chromium on Linux and macOS, or lets it run as before. On by default: Chromium's processes then cannot
-     * read the server's folder, the home folder of the server's user or the server's temporary folder, apart from Java,
-     * CEF and the folder of their session, and they change files only in the folder of their session. Turn it off only
-     * if a page needs something it hides, such as fonts in the home folder.
-     *
-     * @param confined true to confine Chromium where the system can
-     * @return this builder
-     */
-    public Builder confinement(final boolean confined) {
-      this.confined = confined;
-      return this;
-    }
-
-    /**
-     * Names more hosts whose addresses pages may not reach, such as the public name or address of the machine the
-     * server runs on. The guard refuses private addresses and every address of the machine's network interfaces
-     * already; inside a container, the public address of the machine around it is no interface of the container,
-     * but still reaches the services that listen on every interface of that machine, past a firewall in front of it.
-     * The names are resolved when a browser starts. None by default, and refusing them only matters while pages may
-     * not reach private networks.
-     *
-     * @param refusedHosts the names or addresses, each without a comma or a space
-     * @return this builder
-     * @throws IllegalArgumentException if a host is empty or holds a comma or a space
-     */
-    public Builder refusedHosts(final Collection<String> refusedHosts) {
-      for (final String host : refusedHosts) {
-        Preconditions.checkArgument(HelperConfiguration.isHost(host), "Host '%s' is not a host name or address!", host);
-      }
-      this.refusedHosts = List.copyOf(refusedHosts);
-      return this;
-    }
-
-    /**
-     * Builds the options.
-     *
-     * @return the options
-     */
-    public BrowserOptions build() {
-      return new BrowserOptions(
-        this.frameRate,
-        this.allowsJavaScriptJit,
-        this.allowsPrivateNetworks,
-        this.allowsAutoplay,
-        this.confined,
-        this.refusedHosts
-      );
-    }
   }
 }
