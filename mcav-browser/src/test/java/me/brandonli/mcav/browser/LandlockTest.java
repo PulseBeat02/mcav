@@ -164,18 +164,20 @@ class LandlockTest {
    */
   private static Throwable onThread(final ThrowingTask task) throws InterruptedException {
     final AtomicReference<Throwable> failure = new AtomicReference<>();
-    final Thread thread = new Thread(() -> {
-      try {
-        task.run();
-      } catch (final Throwable exception) {
-        failure.set(exception);
-      }
-    }, "landlock-test");
+    final Thread thread = new Thread(() -> runAndRecordFailure(task, failure), "landlock-test");
     thread.start();
     thread.join(TimeUnit.SECONDS.toMillis(60));
     final boolean ended = !thread.isAlive();
     assertTrue(ended, "the restricted thread ended");
     return failure.get();
+  }
+
+  private static void runAndRecordFailure(final ThrowingTask task, final AtomicReference<Throwable> failure) {
+    try {
+      task.run();
+    } catch (final Throwable exception) {
+      failure.set(exception);
+    }
   }
 
   private static int availableVersion() {
@@ -210,26 +212,39 @@ class LandlockTest {
     );
     rules.add(new Landlock.Rule(this.folder.resolve("deleted"), false));
     final List<String> seen = new ArrayList<>();
-    final Throwable failure = onThread(() -> {
-      Landlock.restrictThread(version, rules);
-      seen.add(Files.readString(readable, StandardCharsets.UTF_8));
-      seen.add(Files.readString(granted, StandardCharsets.UTF_8));
-      assertThrows(AccessDeniedException.class, () -> Files.readString(secret, StandardCharsets.UTF_8));
-      assertThrows(AccessDeniedException.class, () -> Files.writeString(open.resolve("new.txt"), "new"));
-      seen.add(Files.writeString(writable.resolve("new.txt"), "written").getFileName().toString());
-      final AtomicReference<Throwable> childFailure = new AtomicReference<>();
-      final Thread child = new Thread(() ->
-        childFailure.set(assertThrows(AccessDeniedException.class, () -> Files.readString(secret, StandardCharsets.UTF_8)))
-      );
-      child.start();
-      child.join();
-      final Throwable childThrown = childFailure.get();
-      assertInstanceOf(AccessDeniedException.class, childThrown, "a thread started afterwards is restricted too");
-    });
+    final Throwable failure = onThread(() -> this.restrictAndCheckAccess(version, rules, seen, readable, granted, secret, open, writable));
     assertNull(failure, () -> "the restricted thread failed: " + failure);
     assertEquals(List.of("readable", "granted", "new.txt"), seen);
     final String secretText = Files.readString(secret, StandardCharsets.UTF_8);
     assertEquals("secret", secretText, "the other threads are free");
+  }
+
+  private void restrictAndCheckAccess(
+    final int version,
+    final List<Landlock.Rule> rules,
+    final List<String> seen,
+    final Path readable,
+    final Path granted,
+    final Path secret,
+    final Path open,
+    final Path writable
+  ) throws IOException, InterruptedException {
+    Landlock.restrictThread(version, rules);
+    seen.add(Files.readString(readable, StandardCharsets.UTF_8));
+    seen.add(Files.readString(granted, StandardCharsets.UTF_8));
+    assertThrows(AccessDeniedException.class, () -> Files.readString(secret, StandardCharsets.UTF_8));
+    assertThrows(AccessDeniedException.class, () -> Files.writeString(open.resolve("new.txt"), "new"));
+    seen.add(Files.writeString(writable.resolve("new.txt"), "written").getFileName().toString());
+    final AtomicReference<Throwable> childFailure = new AtomicReference<>();
+    final Thread child = new Thread(() -> this.recordSecretRefusal(childFailure, secret));
+    child.start();
+    child.join();
+    final Throwable childThrown = childFailure.get();
+    assertInstanceOf(AccessDeniedException.class, childThrown, "a thread started afterwards is restricted too");
+  }
+
+  private void recordSecretRefusal(final AtomicReference<Throwable> childFailure, final Path secret) {
+    childFailure.set(assertThrows(AccessDeniedException.class, () -> Files.readString(secret, StandardCharsets.UTF_8)));
   }
 
   @Test

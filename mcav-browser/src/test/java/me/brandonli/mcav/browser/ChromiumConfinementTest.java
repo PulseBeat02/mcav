@@ -274,17 +274,10 @@ class ChromiumConfinementTest {
     final Path session = Files.createDirectories(configuration.getSocket().getParent());
     final AtomicReference<String> said = new AtomicReference<>();
     final AtomicReference<Throwable> failure = new AtomicReference<>();
-    final Thread thread = new Thread(() -> {
-      try {
-        said.set(ChromiumConfinement.confine(configuration, true, false));
-        assertThrows(AccessDeniedException.class, () -> Files.readString(serverConfiguration, StandardCharsets.UTF_8));
-        assertThrows(AccessDeniedException.class, () -> Files.readString(cookies, StandardCharsets.UTF_8));
-        Files.writeString(session.resolve("profile.txt"), "profile");
-        assertThrows(AccessDeniedException.class, () -> Files.writeString(this.folder.resolve("outside.txt"), "outside"));
-      } catch (final Throwable exception) {
-        failure.set(exception);
-      }
-    }, "confinement-test");
+    final Thread thread = new Thread(
+      () -> this.confineAndCheckAccess(configuration, serverConfiguration, cookies, session, said, failure),
+      "confinement-test"
+    );
     thread.start();
     thread.join(TimeUnit.SECONDS.toMillis(60));
     final boolean alive = thread.isAlive();
@@ -297,6 +290,25 @@ class ChromiumConfinementTest {
     assertEquals("profile", profileText);
     final boolean readable = Files.isReadable(serverConfiguration);
     assertTrue(readable, "the other threads are free");
+  }
+
+  private void confineAndCheckAccess(
+    final HelperConfiguration configuration,
+    final Path serverConfiguration,
+    final Path cookies,
+    final Path session,
+    final AtomicReference<String> said,
+    final AtomicReference<Throwable> failure
+  ) {
+    try {
+      said.set(ChromiumConfinement.confine(configuration, true, false));
+      assertThrows(AccessDeniedException.class, () -> Files.readString(serverConfiguration, StandardCharsets.UTF_8));
+      assertThrows(AccessDeniedException.class, () -> Files.readString(cookies, StandardCharsets.UTF_8));
+      Files.writeString(session.resolve("profile.txt"), "profile");
+      assertThrows(AccessDeniedException.class, () -> Files.writeString(this.folder.resolve("outside.txt"), "outside"));
+    } catch (final Throwable exception) {
+      failure.set(exception);
+    }
   }
 
   @Test

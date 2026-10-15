@@ -195,14 +195,16 @@ class DevToolsInputTest {
     final List<String> keys = parameters(DevToolsInput.typeText("a\r\nb\n\r"))
       .stream()
       .filter(call -> call.contains("keyDown"))
-      .map(call -> {
-        final Matcher matcher = KEY_FIELD.matcher(call);
-        final boolean keyFound = matcher.find();
-        assertTrue(keyFound, call);
-        return matcher.group(1);
-      })
+      .map(this::keyOf)
       .toList();
     assertEquals(List.of("\"a\"", "\"Enter\"", "\"b\"", "\"Enter\"", "\"Enter\""), keys);
+  }
+
+  private String keyOf(final String call) {
+    final Matcher matcher = KEY_FIELD.matcher(call);
+    final boolean keyFound = matcher.find();
+    assertTrue(keyFound, call);
+    return matcher.group(1);
   }
 
   @Test

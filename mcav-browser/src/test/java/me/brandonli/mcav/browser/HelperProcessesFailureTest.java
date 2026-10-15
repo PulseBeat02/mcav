@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -34,22 +35,13 @@ final class HelperProcessesFailureTest {
     final HelperSession second = Mockito.mock(HelperSession.class);
     final HelperSession last = Mockito.mock(HelperSession.class);
     final long generation = HelperProcesses.requireOpen();
-    Mockito.doAnswer(invocation -> {
-      HelperProcesses.deregister(first);
-      throw sharedFailure;
-    })
+    Mockito.doAnswer(_ -> this.deregisterAndFail(first, sharedFailure))
       .when(first)
       .endAndClose(Mockito.anyString());
-    Mockito.doAnswer(invocation -> {
-      HelperProcesses.deregister(second);
-      throw sharedFailure;
-    })
+    Mockito.doAnswer(_ -> this.deregisterAndFail(second, sharedFailure))
       .when(second)
       .endAndClose(Mockito.anyString());
-    Mockito.doAnswer(invocation -> {
-      HelperProcesses.deregister(last);
-      return null;
-    })
+    Mockito.doAnswer(_ -> this.deregisterAndAnswerNothing(last))
       .when(last)
       .endAndClose(Mockito.anyString());
     try {
@@ -71,5 +63,15 @@ final class HelperProcessesFailureTest {
       HelperProcesses.deregister(last);
       HelperProcesses.open();
     }
+  }
+
+  private Object deregisterAndFail(final HelperSession session, final IllegalStateException failure) {
+    HelperProcesses.deregister(session);
+    throw failure;
+  }
+
+  private @Nullable Object deregisterAndAnswerNothing(final HelperSession session) {
+    HelperProcesses.deregister(session);
+    return null;
   }
 }

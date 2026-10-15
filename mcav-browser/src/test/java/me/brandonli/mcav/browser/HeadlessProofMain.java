@@ -17,8 +17,10 @@
  */
 package me.brandonli.mcav.browser;
 
+import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.awt.GraphicsEnvironment;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
@@ -34,6 +36,7 @@ import java.util.function.BooleanSupplier;
 import java.util.stream.Stream;
 import me.brandonli.mcav.MCAV;
 import me.brandonli.mcav.MCAVApi;
+import me.brandonli.mcav.media.image.ImageBuffer;
 import me.brandonli.mcav.media.player.pipeline.builder.PipelineBuilder;
 import me.brandonli.mcav.media.player.pipeline.builder.VideoPipelineStepBuilder;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -112,13 +115,7 @@ public final class HeadlessProofMain {
     check(xServers.isEmpty() || local, "no X server runs");
     final HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), 0), 0);
     final byte[] page = PAGE.getBytes(StandardCharsets.UTF_8);
-    server.createContext("/", exchange -> {
-      exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
-      exchange.sendResponseHeaders(200, page.length);
-      try (final OutputStream body = exchange.getResponseBody()) {
-        body.write(page);
-      }
-    });
+    server.createContext("/", exchange -> servePage(exchange, page));
     server.start();
     try {
       final URI address = URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/");
@@ -130,6 +127,14 @@ public final class HeadlessProofMain {
     }
   }
 
+  private static void servePage(final HttpExchange exchange, final byte[] page) throws IOException {
+    exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+    exchange.sendResponseHeaders(200, page.length);
+    try (final OutputStream body = exchange.getResponseBody()) {
+      body.write(page);
+    }
+  }
+
   private static void runRound(final int round, final URI address) throws InterruptedException {
     final long start = System.nanoTime();
     final MCAVApi api = MCAV.api();
@@ -137,25 +142,11 @@ public final class HeadlessProofMain {
     final BrowserPlayer player = BrowserPlayer.create(BrowserOptions.builder().privateNetworks(true).build());
     final AtomicReference<int[]> last = new AtomicReference<>();
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();
-    builder.then((image, metadata) -> {
-      final int width = image.getWidth();
-      final int height = image.getHeight();
-      final int[] pixels = image.getPixels();
-      int dark = 0;
-      for (final int pixel : pixels) {
-        final boolean black = ((pixel >> 16) & 0xFF) < 80 && ((pixel >> 8) & 0xFF) < 80 && (pixel & 0xFF) < 80;
-        dark += black ? 1 : 0;
-      }
-      last.set(new int[] { width, height, pixels[(height / 2) * width + width / 2] & 0xFFFFFF, dark });
-      return false;
-    });
+    builder.then((image, _) -> recordFrame(last, image));
     final VideoPipelineStep pipeline = builder.build();
     player.getVideoAttachableCallback().attach(pipeline);
     check(player.start(BrowserSource.uri(address, 320, 240, 1)), "the browser starts");
-    await("a red frame", START_TIMEOUT_MILLISECONDS, () -> {
-      final int[] frame = last.get();
-      return frame != null && isRed(frame[2]);
-    });
+    await("a red frame", START_TIMEOUT_MILLISECONDS, () -> showsRed(last));
     final int[] frame = last.get();
     final long seconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start);
     System.out.printf(
@@ -179,6 +170,24 @@ public final class HeadlessProofMain {
     System.out.printf(Locale.ROOT, "round %d: disabled, no browser process left%n", round);
   }
 
+  private static boolean recordFrame(final AtomicReference<int[]> last, final ImageBuffer image) {
+    final int width = image.getWidth();
+    final int height = image.getHeight();
+    final int[] pixels = image.getPixels();
+    int dark = 0;
+    for (final int pixel : pixels) {
+      final boolean black = ((pixel >> 16) & 0xFF) < 80 && ((pixel >> 8) & 0xFF) < 80 && (pixel & 0xFF) < 80;
+      dark += black ? 1 : 0;
+    }
+    last.set(new int[] { width, height, pixels[(height / 2) * width + width / 2] & 0xFFFFFF, dark });
+    return false;
+  }
+
+  private static boolean showsRed(final AtomicReference<int[]> last) {
+    final int[] frame = last.get();
+    return frame != null && isRed(frame[2]);
+  }
+
   private static boolean isRed(final int rgb) {
     return ((rgb >> 16) & 0xFF) > 200 && ((rgb >> 8) & 0xFF) < 60 && (rgb & 0xFF) < 60;
   }
@@ -187,13 +196,15 @@ public final class HeadlessProofMain {
     try (final Stream<ProcessHandle> all = ProcessHandle.allProcesses()) {
       return all
         .map(process -> process.info().command().orElse(""))
-        .filter(command -> {
-          final Path name = Path.of(command).getFileName();
-          final String program = name == null ? "" : name.toString();
-          return program.equals("Xvfb") || program.equals("Xorg") || program.equals("Xwayland") || program.equals("X");
-        })
+        .filter(HeadlessProofMain::isXServer)
         .toList();
     }
+  }
+
+  private static boolean isXServer(final String command) {
+    final Path name = Path.of(command).getFileName();
+    final String program = name == null ? "" : name.toString();
+    return program.equals("Xvfb") || program.equals("Xorg") || program.equals("Xwayland") || program.equals("X");
   }
 
   private static long countBrowserProcesses() {

@@ -257,11 +257,20 @@ final class CefEngine implements HelperEngine {
     // on Linux a confinement holds for the thread that starts Chromium and everything it starts, the AWT event thread,
     // CEF's threads and Chromium's processes among them, while the helper's own threads stay free: the guard and the
     // display connect anywhere, and the main thread ends the JVM; on macOS it holds for the whole helper
-    runOnOwnThread(CHROMIUM_THREAD, () -> {
-      events.onNotice(ChromiumConfinement.confine(configuration, isLinux, isMac));
-      this.startChromium(builder, configuration, painter, events);
-      return null;
-    });
+    runOnOwnThread(CHROMIUM_THREAD, () -> this.confineAndStartChromium(builder, configuration, isLinux, isMac, painter, events));
+  }
+
+  private @Nullable Void confineAndStartChromium(
+    final CefAppBuilder builder,
+    final HelperConfiguration configuration,
+    final boolean isLinux,
+    final boolean isMac,
+    final McavOffscreenBrowser.PaintListener painter,
+    final HelperEvents events
+  ) throws Exception {
+    events.onNotice(ChromiumConfinement.confine(configuration, isLinux, isMac));
+    this.startChromium(builder, configuration, painter, events);
+    return null;
   }
 
   /**
@@ -301,9 +310,7 @@ final class CefEngine implements HelperEngine {
     this.client = createdClient;
     final String url = configuration.getUrl().toString();
     final PageAudio audio = new PageAudio(events::onAudio, System::nanoTime);
-    final ContentPolicy policy = new ContentPolicy(events, versionText, prepared ->
-      openPage(prepared, url, SCRIPT_TIMEOUT_MILLISECONDS, audio, events::onNotice)
-    );
+    final ContentPolicy policy = new ContentPolicy(events, versionText, prepared -> this.openPreparedPage(prepared, url, audio, events));
     addHandlers(createdClient, policy);
     final CefBrowserSettings browserSettings = new CefBrowserSettings();
     browserSettings.windowless_frame_rate = configuration.getFrameRate();
@@ -318,10 +325,16 @@ final class CefEngine implements HelperEngine {
       browserSettings
     );
     this.browser = createdBrowser;
-    EventQueue.invokeAndWait(() -> {
-      createdBrowser.createImmediately();
-      createdBrowser.setFocus(true);
-    });
+    EventQueue.invokeAndWait(() -> this.createAndFocus(createdBrowser));
+  }
+
+  private void openPreparedPage(final CefBrowser prepared, final String url, final PageAudio audio, final HelperEvents events) {
+    openPage(prepared, url, SCRIPT_TIMEOUT_MILLISECONDS, audio, events::onNotice);
+  }
+
+  private void createAndFocus(final McavOffscreenBrowser createdBrowser) {
+    createdBrowser.createImmediately();
+    createdBrowser.setFocus(true);
   }
 
   private int startGuard(final HelperConfiguration configuration, final HelperEvents events) throws IOException {
@@ -407,21 +420,36 @@ final class CefEngine implements HelperEngine {
     // a copy times out, so the answer itself can still arrive late
     final CompletableFuture<String> answered = last;
     final CompletableFuture<String> placed = answered.copy().completeOnTimeout(NOT_CONFIRMED, timeoutMilliseconds, TimeUnit.MILLISECONDS);
-    final CompletableFuture<String> loading = placed.whenComplete((answer, failure) -> {
-      final boolean confirmed = failure == null && !NOT_CONFIRMED.equals(answer);
-      if (!confirmed && attempt < PLACING_ATTEMPTS) {
-        devTools.close();
-        EventQueue.invokeLater(() -> placeScripts(created, url, timeoutMilliseconds, audio, notices, attempt + 1));
-        return;
-      }
-      if (!confirmed) {
-        notices.accept("The scripts of the page were not confirmed in %s attempts; it loads anyway.".formatted(attempt));
-        final CompletableFuture<String> late = answered.thenApply(lateAnswer -> reloadOnLateAnswer(created, notices, lateAnswer));
-        late.exceptionally(CefEngine::logFailedCall);
-      }
-      EventQueue.invokeLater(() -> created.loadURL(url));
-    });
+    final CompletableFuture<String> loading = placed.whenComplete((answer, failure) ->
+      retryPlacingOrLoad(created, url, timeoutMilliseconds, audio, notices, attempt, devTools, answered, answer, failure)
+    );
     loading.exceptionally(CefEngine::logFailedCall);
+  }
+
+  private static void retryPlacingOrLoad(
+    final CefBrowser created,
+    final String url,
+    final long timeoutMilliseconds,
+    final PageAudio audio,
+    final Consumer<String> notices,
+    final int attempt,
+    final CefDevToolsClient devTools,
+    final CompletableFuture<String> answered,
+    final @Nullable String answer,
+    final @Nullable Throwable failure
+  ) {
+    final boolean confirmed = failure == null && !NOT_CONFIRMED.equals(answer);
+    if (!confirmed && attempt < PLACING_ATTEMPTS) {
+      devTools.close();
+      EventQueue.invokeLater(() -> placeScripts(created, url, timeoutMilliseconds, audio, notices, attempt + 1));
+      return;
+    }
+    if (!confirmed) {
+      notices.accept("The scripts of the page were not confirmed in %s attempts; it loads anyway.".formatted(attempt));
+      final CompletableFuture<String> late = answered.thenApply(lateAnswer -> reloadOnLateAnswer(created, notices, lateAnswer));
+      late.exceptionally(CefEngine::logFailedCall);
+    }
+    EventQueue.invokeLater(() -> created.loadURL(url));
   }
 
   private static String reloadOnLateAnswer(final CefBrowser created, final Consumer<String> notices, final String lateAnswer) {

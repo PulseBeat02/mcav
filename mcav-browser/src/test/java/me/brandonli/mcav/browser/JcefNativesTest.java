@@ -116,21 +116,23 @@ class JcefNativesTest {
   private JcefNatives natives(final byte[] jar, final Path installFolder) {
     return new JcefNatives(
       installFolder,
-      (uri, destination, sha256, size) -> {
-        this.downloads.incrementAndGet();
-        synchronized (this.requested) {
-          this.requested.add(uri);
-        }
-        if (!sha256.equals(PINNED_HASH)) {
-          throw new IOException("Checksum mismatch");
-        }
-        try (final OutputStream out = Files.newOutputStream(destination)) {
-          out.write(jar);
-        }
-      },
+      (uri, destination, sha256, _) -> this.downloadJar(jar, uri, destination, sha256),
       REPOSITORY,
       new ArchiveExtractor()
     );
+  }
+
+  private void downloadJar(final byte[] jar, final URI uri, final Path destination, final String sha256) throws IOException {
+    this.downloads.incrementAndGet();
+    synchronized (this.requested) {
+      this.requested.add(uri);
+    }
+    if (!sha256.equals(PINNED_HASH)) {
+      throw new IOException("Checksum mismatch");
+    }
+    try (final OutputStream out = Files.newOutputStream(destination)) {
+      out.write(jar);
+    }
   }
 
   private List<String> leftovers() throws IOException {
@@ -281,10 +283,7 @@ class JcefNativesTest {
     final List<String> hashes = new ArrayList<>();
     final JcefNatives natives = new JcefNatives(
       this.folder,
-      (uri, destination, sha256, size) -> {
-        hashes.add(sha256 + " " + size);
-        Files.write(destination, nativesJar(true));
-      },
+      (_, destination, sha256, size) -> this.recordHashAndWriteNatives(hashes, destination, sha256, size),
       REPOSITORY,
       new ArchiveExtractor()
     );
@@ -295,6 +294,12 @@ class JcefNativesTest {
       this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + "-macosx-arm64")
     );
     assertTrue(macArm64Installed);
+  }
+
+  private void recordHashAndWriteNatives(final List<String> hashes, final Path destination, final String sha256, final long size)
+    throws IOException {
+    hashes.add(sha256 + " " + size);
+    Files.write(destination, nativesJar(true));
   }
 
   @Test
@@ -411,13 +416,15 @@ class JcefNativesTest {
   @Test
   void shouldRefuseAPlatformWithoutNativesBeforeAnythingIsDownloaded() throws IOException {
     final JcefNatives natives = this.natives(nativesJar(true));
-    final IOException failure = assertThrows(IOException.class, () ->
-      natives.install(JcefNatives.detectOrFail(Os.FREEBSD, Arch.X86, Bits.BITS_64))
-    );
+    final IOException failure = assertThrows(IOException.class, () -> this.installFreeBsd(natives));
     final String message = failure.getMessage();
     assertEquals("Platform FREEBSD X86 BITS_64 has no CEF build in jcefmaven, so the browser cannot run here!", message);
     final int downloadCount = this.downloads.get();
     assertEquals(0, downloadCount);
+  }
+
+  private Path installFreeBsd(final JcefNatives natives) throws IOException {
+    return natives.install(JcefNatives.detectOrFail(Os.FREEBSD, Arch.X86, Bits.BITS_64));
   }
 
   @Test

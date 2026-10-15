@@ -31,6 +31,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 class HelperConfigurationTest {
 
@@ -197,61 +198,87 @@ class HelperConfigurationTest {
   @Test
   void shouldCheckEveryValue() {
     final URI page = URI.create("https://example.com/");
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(new byte[1], SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), RELATIVE_PATH, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, RELATIVE_PATH, PROFILE, page, 1, 1, 1, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, RELATIVE_PATH, page, 1, 1, 1, 1, false, false, false, false, SERVER, List.of())
-    );
+    assertThrows(IllegalArgumentException.class, () -> this.configurationWithToken(new byte[1], page));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationWithPaths(RELATIVE_PATH, NATIVES, PROFILE, page));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationWithPaths(SOCKET, RELATIVE_PATH, PROFILE, page));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationWithPaths(SOCKET, NATIVES, RELATIVE_PATH, page));
     final URI file = URI.create("file:///etc/passwd");
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, file, 1, 1, 1, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 0, 1, 1, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 4097, 1, 1, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 0, 1, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 4097, 1, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 0, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1001, 1, false, false, false, false, SERVER, List.of())
-    );
-    assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 0, false, false, false, false, SERVER, List.of())
-    );
-    final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 61, false, false, false, false, SERVER, List.of())
-    );
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(file, 1, 1, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 0, 1, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 4097, 1, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 1, 0, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 1, 4097, 1, 1));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 1, 1, 0, 1));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 1, 1, 1001, 1));
+    assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 1, 1, 1, 0));
+    final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, () -> this.configurationOf(page, 1, 1, 1, 61));
     final String tooFastMessage = tooFast.getMessage();
     assertEquals("The frame rate 61 must be between 1 and 60!", tooFastMessage);
-    final IllegalArgumentException relativeServer = assertThrows(IllegalArgumentException.class, () ->
-      new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, true, RELATIVE_SERVER, List.of())
-    );
+    final Executable servedFromARelativeFolder = () -> this.confinedConfiguration(page, RELATIVE_SERVER, List.of());
+    final IllegalArgumentException relativeServer = assertThrows(IllegalArgumentException.class, servedFromARelativeFolder);
     final String relativeServerMessage = relativeServer.getMessage();
     assertEquals("The server folder path server must be absolute!", relativeServerMessage);
     for (final String host : List.of("", "two,hosts", "a host")) {
-      final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
-        new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 1, 1, 1, 1, false, false, false, true, SERVER, List.of(host))
-      );
+      final Executable refusingTheHost = () -> this.confinedConfiguration(page, SERVER, List.of(host));
+      final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, refusingTheHost);
       final String refusedMessage = refused.getMessage();
       assertEquals("Host %s is not a host name or address!".formatted(host), refusedMessage);
     }
     new HelperConfiguration(token(), SOCKET, NATIVES, PROFILE, page, 4096, 4096, 1000, 60, false, false, false, false, SERVER, List.of());
+  }
+
+  private HelperConfiguration configurationWithToken(final byte[] token, final URI url) {
+    return new HelperConfiguration(token, SOCKET, NATIVES, PROFILE, url, 1, 1, 1, 1, false, false, false, false, SERVER, List.of());
+  }
+
+  private HelperConfiguration configurationWithPaths(final Path socket, final Path natives, final Path profile, final URI url) {
+    return new HelperConfiguration(token(), socket, natives, profile, url, 1, 1, 1, 1, false, false, false, false, SERVER, List.of());
+  }
+
+  private HelperConfiguration configurationOf(
+    final URI url,
+    final int width,
+    final int height,
+    final int frameInterval,
+    final int frameRate
+  ) {
+    return new HelperConfiguration(
+      token(),
+      SOCKET,
+      NATIVES,
+      PROFILE,
+      url,
+      width,
+      height,
+      frameInterval,
+      frameRate,
+      false,
+      false,
+      false,
+      false,
+      SERVER,
+      List.of()
+    );
+  }
+
+  private HelperConfiguration confinedConfiguration(final URI url, final Path serverFolder, final List<String> refusedHosts) {
+    return new HelperConfiguration(
+      token(),
+      SOCKET,
+      NATIVES,
+      PROFILE,
+      url,
+      1,
+      1,
+      1,
+      1,
+      false,
+      false,
+      false,
+      true,
+      serverFolder,
+      refusedHosts
+    );
   }
 
   private static String[] parts(final HelperConfiguration configuration) {
@@ -291,9 +318,8 @@ class HelperConfigurationTest {
     assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(withValue(4, "file:///etc/passwd")));
     final String[] invalidEncoding = parts(configuration(false));
     invalidEncoding[3] = "!" + invalidEncoding[3];
-    final IllegalArgumentException malformed = assertThrows(IllegalArgumentException.class, () ->
-      HelperConfiguration.fromLine(String.join(":", invalidEncoding))
-    );
+    final String line = String.join(":", invalidEncoding);
+    final IllegalArgumentException malformed = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(line));
     final String malformedMessage = malformed.getMessage();
     assertEquals("Illegal base64 character 21", malformedMessage);
     final String tooLong = "A".repeat(1024 * 1024 + 1);
@@ -308,9 +334,8 @@ class HelperConfigurationTest {
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(longest));
     final boolean countsTheValues = failure.getMessage().startsWith("The configuration has 1 values instead of ");
     assertTrue(countsTheValues, failure.getMessage());
-    final IllegalArgumentException tooLong = assertThrows(IllegalArgumentException.class, () ->
-      HelperConfiguration.fromLine(longest + "x")
-    );
+    final String longerLine = longest + "x";
+    final IllegalArgumentException tooLong = assertThrows(IllegalArgumentException.class, () -> HelperConfiguration.fromLine(longerLine));
     final String message = tooLong.getMessage();
     assertEquals("The configuration line is too long!", message);
   }

@@ -314,47 +314,57 @@ public final class TestPages implements AutoCloseable {
       httpServer.createContext("/tone.wav", TestPages::toneWave);
       httpServer.createContext("/hooked", pages::hooked);
       httpServer.createContext("/event", pages::event);
-      httpServer.createContext("/dialog", exchange ->
-        script(exchange, "alert('hi'); confirm('sure?'); document.body.style.background = '#00ff00';")
-      );
+      httpServer.createContext("/dialog", TestPages::serveDialogs);
       httpServer.createContext("/to-file", exchange -> script(exchange, "location.href = 'file:///etc/passwd';"));
       httpServer.createContext("/to-download", exchange -> script(exchange, "location.href = '/download';"));
       httpServer.createContext("/to-popup", exchange -> script(exchange, "window.open('/popup', '_blank');"));
-      httpServer.createContext("/to-popup-link", exchange ->
-        script(
-          exchange,
-          "document.body.insertAdjacentHTML('beforeend', '<a href=\"/popup\" target=\"_blank\" style=\"position:fixed;inset:0\"></a>');"
-        )
-      );
-      httpServer.createContext("/to-popup-synthetic", exchange ->
-        script(
-          exchange,
-          "document.body.insertAdjacentHTML('beforeend', '<a id=\"link\" href=\"/popup\" target=\"_blank\">popup</a>');" +
-            " document.getElementById('link').click();"
-        )
-      );
-      httpServer.createContext("/named-frame", exchange ->
-        html(
-          exchange,
-          "<iframe name=\"inner\" src=\"about:blank\" style=\"position:fixed;right:0;bottom:0;width:" +
-            FRAME_WIDTH +
-            "px;height:60px;border:0\"></iframe>" +
-            "<a href=\"/second\" target=\"inner\" style=\"position:fixed;left:0;top:0;width:50%;height:50%\"></a>"
-        )
-      );
-      httpServer.createContext("/form-target", exchange ->
-        html(
-          exchange,
-          "<form action=\"/second\" method=\"get\"><button type=\"submit\" formtarget=\"_blank\"" +
-            " style=\"position:fixed;inset:0;opacity:0\">send</button></form>"
-        )
-      );
+      httpServer.createContext("/to-popup-link", TestPages::serveLinkToAPopup);
+      httpServer.createContext("/to-popup-synthetic", TestPages::serveLinkToAPopupThatAScriptClicks);
+      httpServer.createContext("/named-frame", TestPages::serveLinkIntoANamedFrame);
+      httpServer.createContext("/form-target", TestPages::serveFormThatTargetsANewWindow);
       httpServer.createContext("/download", TestPages::download);
       httpServer.start();
       return pages;
     } catch (final IOException exception) {
       throw new UncheckedIOException(exception);
     }
+  }
+
+  private static void serveDialogs(final HttpExchange exchange) throws IOException {
+    script(exchange, "alert('hi'); confirm('sure?'); document.body.style.background = '#00ff00';");
+  }
+
+  private static void serveLinkToAPopup(final HttpExchange exchange) throws IOException {
+    script(
+      exchange,
+      "document.body.insertAdjacentHTML('beforeend', '<a href=\"/popup\" target=\"_blank\" style=\"position:fixed;inset:0\"></a>');"
+    );
+  }
+
+  private static void serveLinkToAPopupThatAScriptClicks(final HttpExchange exchange) throws IOException {
+    script(
+      exchange,
+      "document.body.insertAdjacentHTML('beforeend', '<a id=\"link\" href=\"/popup\" target=\"_blank\">popup</a>');" +
+        " document.getElementById('link').click();"
+    );
+  }
+
+  private static void serveLinkIntoANamedFrame(final HttpExchange exchange) throws IOException {
+    html(
+      exchange,
+      "<iframe name=\"inner\" src=\"about:blank\" style=\"position:fixed;right:0;bottom:0;width:" +
+        FRAME_WIDTH +
+        "px;height:60px;border:0\"></iframe>" +
+        "<a href=\"/second\" target=\"inner\" style=\"position:fixed;left:0;top:0;width:50%;height:50%\"></a>"
+    );
+  }
+
+  private static void serveFormThatTargetsANewWindow(final HttpExchange exchange) throws IOException {
+    html(
+      exchange,
+      "<form action=\"/second\" method=\"get\"><button type=\"submit\" formtarget=\"_blank\"" +
+        " style=\"position:fixed;inset:0;opacity:0\">send</button></form>"
+    );
   }
 
   /**

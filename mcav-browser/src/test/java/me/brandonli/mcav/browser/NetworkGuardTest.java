@@ -35,6 +35,7 @@ import java.io.UncheckedIOException;
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
@@ -281,13 +282,7 @@ class NetworkGuardTest {
       REPLY_BYTES
     );
     assertArrayEquals(reply(SocksProtocol.HOST_UNREACHABLE), missingAnswer);
-    final NetworkGuard slow = this.guard(
-      InetAddress::isLoopbackAddress,
-      address -> {
-        throw new SocketTimeoutException("connect timed out");
-      },
-      CONNECT_TIMEOUT_MILLISECONDS
-    );
+    final NetworkGuard slow = this.guard(InetAddress::isLoopbackAddress, _ -> this.timeOutConnecting(), CONNECT_TIMEOUT_MILLISECONDS);
     final Socket timedOut = this.client(slow);
     exchange(timedOut, GREETING, 2);
     final byte[] timedOutAnswer = exchange(
@@ -296,6 +291,10 @@ class NetworkGuardTest {
       REPLY_BYTES
     );
     assertArrayEquals(reply(SocksProtocol.HOST_UNREACHABLE), timedOutAnswer);
+  }
+
+  private Socket timeOutConnecting() throws SocketTimeoutException {
+    throw new SocketTimeoutException("connect timed out");
   }
 
   @Test
@@ -574,12 +573,14 @@ class NetworkGuardTest {
   @Test
   void shouldCountAnAddressAsOwnWhileTheInterfacesCannotBeListed() throws UnknownHostException {
     final InetAddress address = InetAddress.getByName("192.0.2.1");
-    final boolean ownWhenListingFails = NetworkGuard.isOwnAddress(address, candidate -> {
-      throw new SocketException("no interfaces");
-    });
+    final boolean ownWhenListingFails = NetworkGuard.isOwnAddress(address, _ -> this.failToListInterfaces());
     assertTrue(ownWhenListingFails);
     final boolean ownWithoutInterfaces = NetworkGuard.isOwnAddress(address, candidate -> null);
     assertFalse(ownWithoutInterfaces);
+  }
+
+  private NetworkInterface failToListInterfaces() throws SocketException {
+    throw new SocketException("no interfaces");
   }
 
   @Test
@@ -587,9 +588,7 @@ class NetworkGuardTest {
     final NetworkGuard guard = NetworkGuard.start(
       host -> new InetAddress[] { InetAddress.getByName(PUBLIC_IPV4) },
       new NetworkGuard.PublicAddresses(new TranslatingResolver(0), address -> true),
-      address -> {
-        throw new AssertionError("connected to " + address);
-      },
+      this::failConnecting,
       this.notices::add,
       CONNECT_TIMEOUT_MILLISECONDS
     );
@@ -601,15 +600,17 @@ class NetworkGuardTest {
     assertEquals(List.of("The connection to server.example was refused, because it is not a public address."), this.notices);
   }
 
+  private Socket failConnecting(final InetSocketAddress address) {
+    throw new AssertionError("connected to " + address);
+  }
+
   @Test
   void shouldRefuseANameThatTheTranslatorOfTheNetworkTurnsIntoAPrivateAddress() throws IOException {
     final TranslatingResolver resolver = new TranslatingResolver(0);
     final NetworkGuard guard = NetworkGuard.start(
       resolver,
       new NetworkGuard.PublicAddresses(resolver),
-      address -> {
-        throw new AssertionError("connected to " + address);
-      },
+      this::failConnecting,
       this.notices::add,
       CONNECT_TIMEOUT_MILLISECONDS
     );
@@ -625,15 +626,18 @@ class NetworkGuardTest {
   void shouldResolveTheRefusedHostsOnceAndReportOneWithoutAnAddress() throws UnknownHostException {
     final InetAddress first = InetAddress.getByName("203.0.113.5");
     final InetAddress second = InetAddress.getByName("2001:db8::5");
-    final NetworkGuard.Resolver resolver = host -> {
-      if (host.equals("missing.example")) {
-        throw new UnknownHostException(host);
-      }
-      return new InetAddress[] { first, second };
-    };
+    final NetworkGuard.Resolver resolver = host -> this.resolveUnlessMissing(host, first, second);
     final Set<InetAddress> refused = NetworkGuard.resolveAll(resolver, List.of("mc.example.com", "missing.example"), this.notices::add);
     assertEquals(Set.of(first, second), refused);
     assertEquals(List.of("The refused host missing.example has no address, so pages are not kept from it."), this.notices);
+  }
+
+  private InetAddress[] resolveUnlessMissing(final String host, final InetAddress first, final InetAddress second)
+    throws UnknownHostException {
+    if (host.equals("missing.example")) {
+      throw new UnknownHostException(host);
+    }
+    return new InetAddress[] { first, second };
   }
 
   @Test
@@ -688,14 +692,9 @@ class NetworkGuardTest {
     }
 
     final ConnectException refusal = new ConnectException("fixture refused connection");
-    try (
-      final MockedConstruction<Socket> sockets = Mockito.mockConstruction(Socket.class, (socket, _) ->
-        Mockito.doThrow(refusal).when(socket).connect(ArgumentMatchers.any(), ArgumentMatchers.anyInt())
-      )
-    ) {
-      final ConnectException thrown = assertThrows(ConnectException.class, () ->
-        NetworkGuard.connect(new InetSocketAddress(LOOPBACK, closedPort))
-      );
+    final MockedConstruction.MockInitializer<Socket> refusingSockets = (socket, _) -> this.refuseConnecting(socket, refusal);
+    try (final MockedConstruction<Socket> sockets = Mockito.mockConstruction(Socket.class, refusingSockets)) {
+      final ConnectException thrown = assertThrows(ConnectException.class, () -> this.connectToLoopback(closedPort));
       assertSame(refusal, thrown);
       final int socketCount = sockets.constructed().size();
       assertEquals(1, socketCount);
@@ -703,15 +702,25 @@ class NetworkGuardTest {
     }
   }
 
+  private void refuseConnecting(final Socket socket, final ConnectException refusal) throws IOException {
+    Mockito.doThrow(refusal).when(socket).connect(ArgumentMatchers.any(), ArgumentMatchers.anyInt());
+  }
+
+  private Socket connectToLoopback(final int port) throws IOException {
+    return NetworkGuard.connect(new InetSocketAddress(LOOPBACK, port));
+  }
+
   @Test
   void shouldSwallowAFailureWhenClosingQuietly() {
     final AtomicInteger closed = new AtomicInteger();
-    NetworkGuard.closeQuietly(() -> {
-      closed.incrementAndGet();
-      throw new IOException("already gone");
-    });
+    NetworkGuard.closeQuietly(() -> this.countAndFailClosing(closed));
     final int closeCount = closed.get();
     assertEquals(1, closeCount);
+  }
+
+  private void countAndFailClosing(final AtomicInteger closed) throws IOException {
+    closed.incrementAndGet();
+    throw new IOException("already gone");
   }
 
   private static final class TranslatingResolver implements NetworkGuard.Resolver {

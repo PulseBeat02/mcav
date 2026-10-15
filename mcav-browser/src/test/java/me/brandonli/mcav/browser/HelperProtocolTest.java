@@ -55,11 +55,7 @@ class HelperProtocolTest {
   }
 
   private static byte[] message(final int type, final byte[] payload) throws IOException {
-    return bytes(out -> {
-      out.writeByte(type);
-      out.writeInt(payload.length);
-      out.write(payload);
-    });
+    return bytes(out -> writeMessage(out, type, payload));
   }
 
   private static byte[] token() {
@@ -67,6 +63,12 @@ class HelperProtocolTest {
     Arrays.fill(token, (byte) 7);
     token[0] = 1;
     return token;
+  }
+
+  private static void writeMessage(final DataOutputStream out, final int type, final byte[] payload) throws IOException {
+    out.writeByte(type);
+    out.writeInt(payload.length);
+    out.write(payload);
   }
 
   @Test
@@ -180,11 +182,13 @@ class HelperProtocolTest {
   void shouldEndTheReadingOnAFrameWhereNoFramesAreExpected() throws IOException {
     final FrameRegion region = new FrameRegion(2, 2, 0, 0, 2, 2, new byte[16]);
     final byte[] data = bytes(out -> HelperProtocol.writeFrame(out, region));
-    final ProtocolException failure = assertThrows(ProtocolException.class, () ->
-      HelperProtocol.read(new DataInputStream(new ByteArrayInputStream(data)), size -> new byte[0])
-    );
+    final ProtocolException failure = assertThrows(ProtocolException.class, () -> this.readExpectingNoFrames(data));
     final String message = failure.getMessage();
     assertEquals("A frame of 16 bytes arrived where no frame of that size is expected!", message);
+  }
+
+  private HelperMessage readExpectingNoFrames(final byte[] data) throws IOException {
+    return HelperProtocol.read(new DataInputStream(new ByteArrayInputStream(data)), size -> new byte[0]);
   }
 
   private static byte[] frame(
@@ -196,17 +200,28 @@ class HelperProtocolTest {
     final int height,
     final int pixelBytes
   ) throws IOException {
-    return bytes(out -> {
-      out.writeByte(HelperProtocol.FRAME);
-      out.writeInt(12 + pixelBytes);
-      out.writeShort(pageWidth);
-      out.writeShort(pageHeight);
-      out.writeShort(left);
-      out.writeShort(top);
-      out.writeShort(width);
-      out.writeShort(height);
-      out.write(new byte[pixelBytes]);
-    });
+    return bytes(out -> writeFrame(out, pageWidth, pageHeight, left, top, width, height, pixelBytes));
+  }
+
+  private static void writeFrame(
+    final DataOutputStream out,
+    final int pageWidth,
+    final int pageHeight,
+    final int left,
+    final int top,
+    final int width,
+    final int height,
+    final int pixelBytes
+  ) throws IOException {
+    out.writeByte(HelperProtocol.FRAME);
+    out.writeInt(12 + pixelBytes);
+    out.writeShort(pageWidth);
+    out.writeShort(pageHeight);
+    out.writeShort(left);
+    out.writeShort(top);
+    out.writeShort(width);
+    out.writeShort(height);
+    out.write(new byte[pixelBytes]);
   }
 
   @Test
@@ -238,23 +253,19 @@ class HelperProtocolTest {
 
   @Test
   void shouldRefuseAFrameLengthOutsideTheLimitsBeforeAnythingIsAllocated() throws IOException {
-    final byte[] negative = bytes(out -> {
-      out.writeByte(HelperProtocol.FRAME);
-      out.writeInt(-1);
-    });
+    final byte[] negative = bytes(out -> this.writeHeader(out, HelperProtocol.FRAME, -1));
     final ProtocolException failure = assertThrows(ProtocolException.class, () -> read(negative));
     final boolean namesTheLength = failure.getMessage().contains("4294967295");
     assertTrue(namesTheLength);
-    final byte[] tooShort = bytes(out -> {
-      out.writeByte(HelperProtocol.FRAME);
-      out.writeInt(11);
-    });
+    final byte[] tooShort = bytes(out -> this.writeHeader(out, HelperProtocol.FRAME, 11));
     assertThrows(ProtocolException.class, () -> read(tooShort));
-    final byte[] tooLong = bytes(out -> {
-      out.writeByte(HelperProtocol.FRAME);
-      out.writeInt(Integer.MAX_VALUE);
-    });
+    final byte[] tooLong = bytes(out -> this.writeHeader(out, HelperProtocol.FRAME, Integer.MAX_VALUE));
     assertThrows(ProtocolException.class, () -> read(tooLong));
+  }
+
+  private void writeHeader(final DataOutputStream out, final int type, final int length) throws IOException {
+    out.writeByte(type);
+    out.writeInt(length);
   }
 
   @Test
@@ -279,17 +290,19 @@ class HelperProtocolTest {
   }
 
   private static byte[] mouse(final int action, final int button, final int clickCount) throws IOException {
-    return bytes(out -> {
-      out.writeByte(HelperProtocol.MOUSE);
-      out.writeInt(11);
-      out.writeByte(action);
-      out.writeShort(1);
-      out.writeShort(1);
-      out.writeByte(button);
-      out.writeByte(clickCount);
-      out.writeShort(0);
-      out.writeShort(0);
-    });
+    return bytes(out -> writeMouse(out, action, button, clickCount));
+  }
+
+  private static void writeMouse(final DataOutputStream out, final int action, final int button, final int clickCount) throws IOException {
+    out.writeByte(HelperProtocol.MOUSE);
+    out.writeInt(11);
+    out.writeByte(action);
+    out.writeShort(1);
+    out.writeShort(1);
+    out.writeByte(button);
+    out.writeByte(clickCount);
+    out.writeShort(0);
+    out.writeShort(0);
   }
 
   @Test
@@ -316,23 +329,27 @@ class HelperProtocolTest {
 
   @Test
   void shouldRefuseKeyInputWithAnUnknownActionOrAWrongLength() throws IOException {
-    final byte[] unknown = bytes(out -> {
-      out.writeByte(HelperProtocol.KEY);
-      out.writeInt(3);
-      out.writeByte(2);
-      out.writeShort(0);
-    });
+    final byte[] unknown = bytes(this::writeUnknownKeyAction);
     assertThrows(ProtocolException.class, () -> read(unknown));
-    final byte[] padded = bytes(out -> {
-      out.writeByte(HelperProtocol.KEY);
-      out.writeInt(5);
-      out.writeByte(HelperProtocol.KEY_TYPE);
-      out.writeShort(1);
-      out.writeByte('a');
-      out.writeByte('b');
-    });
+    final byte[] padded = bytes(this::writePaddedKey);
     assertThrows(ProtocolException.class, () -> read(padded));
     assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.KEY, new byte[2])));
+  }
+
+  private void writeUnknownKeyAction(final DataOutputStream out) throws IOException {
+    out.writeByte(HelperProtocol.KEY);
+    out.writeInt(3);
+    out.writeByte(2);
+    out.writeShort(0);
+  }
+
+  private void writePaddedKey(final DataOutputStream out) throws IOException {
+    out.writeByte(HelperProtocol.KEY);
+    out.writeInt(5);
+    out.writeByte(HelperProtocol.KEY_TYPE);
+    out.writeShort(1);
+    out.writeByte('a');
+    out.writeByte('b');
   }
 
   @Test
@@ -354,14 +371,7 @@ class HelperProtocolTest {
 
   @Test
   void shouldTellHowMuchAKeyMessageHolds() throws IOException {
-    final byte[] padded = bytes(out -> {
-      out.writeByte(HelperProtocol.KEY);
-      out.writeInt(5);
-      out.writeByte(HelperProtocol.KEY_TYPE);
-      out.writeShort(1);
-      out.writeByte('a');
-      out.writeByte('b');
-    });
+    final byte[] padded = bytes(this::writePaddedKey);
     final ProtocolException failure = assertThrows(ProtocolException.class, () -> read(padded));
     final String message = failure.getMessage();
     assertEquals("A key message of 5 bytes holds 4 bytes!", message);
@@ -398,11 +408,13 @@ class HelperProtocolTest {
   }
 
   private static void assertSoundRefused(final byte[] samples, final int length) {
-    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
-      bytes(out -> HelperProtocol.writeAudio(out, samples, length))
-    );
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> encodeAudio(samples, length));
     final String message = refused.getMessage();
     assertEquals("Sound of " + length + " bytes cannot be sent!", message);
+  }
+
+  private static byte[] encodeAudio(final byte[] samples, final int length) throws IOException {
+    return bytes(out -> HelperProtocol.writeAudio(out, samples, length));
   }
 
   @Test
@@ -412,10 +424,7 @@ class HelperProtocolTest {
     assertEquals("Sound of 6 bytes does not hold whole frames of 4 bytes!", halfFrameMessage);
     assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.AUDIO, new byte[0])));
     assertThrows(ProtocolException.class, () -> read(message(HelperProtocol.AUDIO, new byte[2])));
-    final byte[] tooLong = bytes(out -> {
-      out.writeByte(HelperProtocol.AUDIO);
-      out.writeInt(HelperProtocol.MAXIMUM_AUDIO_BYTES + 4);
-    });
+    final byte[] tooLong = bytes(out -> this.writeHeader(out, HelperProtocol.AUDIO, HelperProtocol.MAXIMUM_AUDIO_BYTES + 4));
     final ProtocolException refused = assertThrows(ProtocolException.class, () -> read(tooLong));
     final String tooLongMessage = refused.getMessage();
     assertEquals("A message of type 8 has 4 to 65536 bytes, but 65540 bytes were announced!", tooLongMessage);
@@ -442,39 +451,47 @@ class HelperProtocolTest {
 
   @Test
   void shouldRefuseAStringLongerThanTheLimit() throws IOException {
-    final byte[] tooLong = bytes(out -> {
-      out.writeByte(HelperProtocol.NOTICE);
-      out.writeInt(2 + HelperProtocol.MAXIMUM_TEXT_BYTES + 1);
-      out.writeShort(HelperProtocol.MAXIMUM_TEXT_BYTES + 1);
-      out.write(new byte[HelperProtocol.MAXIMUM_TEXT_BYTES + 1]);
-    });
+    final byte[] tooLong = bytes(this::writeTooLongText);
     assertThrows(ProtocolException.class, () -> read(tooLong));
-    final byte[] lyingLength = bytes(out -> {
-      out.writeByte(HelperProtocol.NOTICE);
-      out.writeInt(2 + 10);
-      out.writeShort(HelperProtocol.MAXIMUM_TEXT_BYTES + 1);
-    });
+    final byte[] lyingLength = bytes(this::writeTextWithALyingLength);
     assertThrows(ProtocolException.class, () -> read(lyingLength));
-    final byte[] mismatch = bytes(out -> {
-      out.writeByte(HelperProtocol.NOTICE);
-      out.writeInt(2 + 3);
-      out.writeShort(2);
-      out.write(new byte[] { 'a', 'b', 'c' });
-    });
+    final byte[] mismatch = bytes(this::writeTextOfMismatchedLength);
     assertThrows(ProtocolException.class, () -> read(mismatch));
+  }
+
+  private void writeTooLongText(final DataOutputStream out) throws IOException {
+    out.writeByte(HelperProtocol.NOTICE);
+    out.writeInt(2 + HelperProtocol.MAXIMUM_TEXT_BYTES + 1);
+    out.writeShort(HelperProtocol.MAXIMUM_TEXT_BYTES + 1);
+    out.write(new byte[HelperProtocol.MAXIMUM_TEXT_BYTES + 1]);
+  }
+
+  private void writeTextWithALyingLength(final DataOutputStream out) throws IOException {
+    out.writeByte(HelperProtocol.NOTICE);
+    out.writeInt(2 + 10);
+    out.writeShort(HelperProtocol.MAXIMUM_TEXT_BYTES + 1);
+  }
+
+  private void writeTextOfMismatchedLength(final DataOutputStream out) throws IOException {
+    out.writeByte(HelperProtocol.NOTICE);
+    out.writeInt(2 + 3);
+    out.writeShort(2);
+    out.write(new byte[] { 'a', 'b', 'c' });
   }
 
   @Test
   void shouldRefuseAStringThatIsNotUtf8() throws IOException {
-    final byte[] invalid = bytes(out -> {
-      out.writeByte(HelperProtocol.NOTICE);
-      out.writeInt(2 + 1);
-      out.writeShort(1);
-      out.writeByte(0xFF);
-    });
+    final byte[] invalid = bytes(this::writeTextThatIsNotUtf8);
     final ProtocolException failure = assertThrows(ProtocolException.class, () -> read(invalid));
     final boolean codingFailure = failure.getCause() instanceof CharacterCodingException;
     assertTrue(codingFailure);
+  }
+
+  private void writeTextThatIsNotUtf8(final DataOutputStream out) throws IOException {
+    out.writeByte(HelperProtocol.NOTICE);
+    out.writeInt(2 + 1);
+    out.writeShort(1);
+    out.writeByte(0xFF);
   }
 
   @Test

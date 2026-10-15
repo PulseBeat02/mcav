@@ -225,9 +225,7 @@ final class NetworkGuard implements Closeable {
    */
   private void serve(final Socket client) {
     // Each expired handshake gets its own thread because a busy common pool must not delay closing it.
-    final Executor later = CompletableFuture.delayedExecutor(this.handshakeTimeoutMilliseconds, TimeUnit.MILLISECONDS, task ->
-      Thread.ofVirtual().name("mcav-browser-guard-deadline").start(task)
-    );
+    final Executor later = CompletableFuture.delayedExecutor(this.handshakeTimeoutMilliseconds, TimeUnit.MILLISECONDS, this::startDeadline);
     final CompletableFuture<Void> deadline = CompletableFuture.runAsync(() -> closeQuietly(client), later);
     try {
       final InputStream rawInput = client.getInputStream();
@@ -263,6 +261,10 @@ final class NetworkGuard implements Closeable {
     } catch (final IOException exception) {
       // the client broke the protocol, took too long, or went away
     }
+  }
+
+  private void startDeadline(final Runnable task) {
+    Thread.ofVirtual().name("mcav-browser-guard-deadline").start(task);
   }
 
   /**
@@ -328,11 +330,13 @@ final class NetworkGuard implements Closeable {
     final OutputStream toClient = client.getOutputStream();
     Thread.ofVirtual()
       .name("mcav-browser-guard-upstream")
-      .start(() -> {
-        pump(fromClient, toTarget);
-        closeQuietly(target);
-      });
+      .start(() -> pumpUpstream(fromClient, toTarget, target));
     pump(fromTarget, toClient);
+  }
+
+  private static void pumpUpstream(final InputStream fromClient, final OutputStream toTarget, final Socket target) {
+    pump(fromClient, toTarget);
+    closeQuietly(target);
   }
 
   private static void pump(final InputStream in, final OutputStream out) {

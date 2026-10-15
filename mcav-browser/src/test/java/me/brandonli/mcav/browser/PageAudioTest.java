@@ -237,13 +237,7 @@ class PageAudioTest {
     final AtomicLong now = new AtomicLong();
     final AtomicInteger looks = new AtomicInteger();
     final List<Integer> passed = new ArrayList<>();
-    final PageAudio audio = new PageAudio(
-      samples -> passed.add(samples.length),
-      () -> {
-        looks.incrementAndGet();
-        return now.get();
-      }
-    );
+    final PageAudio audio = new PageAudio(samples -> passed.add(samples.length), () -> this.countLookAndRead(looks, now));
     final String largest = call(new byte[HelperProtocol.MAXIMUM_AUDIO_BYTES]);
     for (int count = 0; count < 5; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
@@ -264,6 +258,11 @@ class PageAudioTest {
       List.of(MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, MAXIMUM_CHUNK_BYTES, 4_000),
       passed
     );
+  }
+
+  private long countLookAndRead(final AtomicInteger looks, final AtomicLong now) {
+    looks.incrementAndGet();
+    return now.get();
   }
 
   @Test

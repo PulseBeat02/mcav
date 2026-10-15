@@ -887,11 +887,13 @@ final class HelperSession implements BrowserSession {
   @Override
   public boolean sendKey(final int action, final String value) {
     final List<String> parts = HelperProtocol.split(value);
-    return this.send(out -> {
-      for (final String part : parts) {
-        HelperProtocol.writeKey(out, action, part);
-      }
-    });
+    return this.send(out -> this.writeKeys(out, action, parts));
+  }
+
+  private void writeKeys(final DataOutputStream out, final int action, final List<String> parts) throws IOException {
+    for (final String part : parts) {
+      HelperProtocol.writeKey(out, action, part);
+    }
   }
 
   private boolean send(final MessageWriter writer) {

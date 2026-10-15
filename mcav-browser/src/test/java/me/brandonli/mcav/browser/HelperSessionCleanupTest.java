@@ -81,20 +81,20 @@ final class HelperSessionCleanupTest {
         .thenAnswer(invocation -> this.failToDeleteTheSocket(invocation, socket, failure));
       final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
       if (unchecked) {
-        final IllegalStateException uncheckedFailure = assertThrows(IllegalStateException.class, () ->
-          HelperSession.open(launcher, this.directory, source, BrowserOptions.DEFAULT, listener, this.directory)
-        );
-        assertSame(failure, uncheckedFailure);
+        final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.openSession(launcher, source, listener));
+        assertSame(failure, thrown);
       } else {
-        final PlayerException thrown = assertThrows(PlayerException.class, () ->
-          HelperSession.open(launcher, this.directory, source, BrowserOptions.DEFAULT, listener, this.directory)
-        );
+        final PlayerException thrown = assertThrows(PlayerException.class, () -> this.openSession(launcher, source, listener));
         final Throwable cause = thrown.getCause();
         assertSame(failure, cause);
       }
       final boolean acceptedOpen = accepted.isOpen();
       assertFalse(acceptedOpen, "an accepted channel has an owner before session construction");
     }
+  }
+
+  private HelperSession openSession(final HelperLauncher launcher, final BrowserSource source, final BrowserSession.Listener listener) {
+    return HelperSession.open(launcher, this.directory, source, BrowserOptions.DEFAULT, listener, this.directory);
   }
 
   private @Nullable Object failToDeleteTheSocket(final InvocationOnMock invocation, final Path socket, final Throwable failure)

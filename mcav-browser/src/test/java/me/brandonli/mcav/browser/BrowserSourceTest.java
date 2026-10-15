@@ -68,14 +68,11 @@ class BrowserSourceTest {
   @Test
   void shouldOnlyAcceptWebAddressesAndSizesWithinTheLimits() {
     assertThrows(NullPointerException.class, () -> BrowserSource.uri(null));
-    final IllegalArgumentException file = assertThrows(IllegalArgumentException.class, () ->
-      BrowserSource.uri(URI.create("file:///etc/passwd"))
-    );
+    final IllegalArgumentException file = assertThrows(IllegalArgumentException.class, () -> this.sourceOf("file:///etc/passwd"));
     final String fileMessage = file.getMessage();
     assertEquals("Address file:///etc/passwd must be an http or https address for the browser!", fileMessage);
-    final IllegalArgumentException underscore = assertThrows(IllegalArgumentException.class, () ->
-      BrowserSource.uri(URI.create("https://my_site.example.com/"))
-    );
+    final String underscoreAddress = "https://my_site.example.com/";
+    final IllegalArgumentException underscore = assertThrows(IllegalArgumentException.class, () -> this.sourceOf(underscoreAddress));
     final String underscoreMessage = underscore.getMessage();
     assertEquals(
       "Address https://my_site.example.com/ has no host name the browser can check, such as a name with an underscore!",
@@ -97,6 +94,10 @@ class BrowserSourceTest {
     final IllegalArgumentException length = assertThrows(IllegalArgumentException.class, () -> BrowserSource.uri(tooLong));
     final String message = length.getMessage();
     assertEquals("Address length 65537 must be at most 65536 characters!", message);
+  }
+
+  private BrowserSource sourceOf(final String address) {
+    return BrowserSource.uri(URI.create(address));
   }
 
   @Test

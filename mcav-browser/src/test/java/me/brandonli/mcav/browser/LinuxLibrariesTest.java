@@ -67,6 +67,7 @@ import org.apache.commons.compress.compressors.xz.XZCompressorOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 class LinuxLibrariesTest {
@@ -230,20 +231,23 @@ class LinuxLibrariesTest {
   private LinuxLibraries installer(final byte[] debianPackage, final List<String> mirrors, final List<String> pins) {
     return new LinuxLibraries(
       this.folder.resolve("cache"),
-      (uri, destination, sha256, size) -> {
-        this.downloads.add(uri);
-        assertEquals(debianPackage.length, size, "the pinned size bounds the download");
-        if (uri.getHost().equals("broken.test")) {
-          throw new IOException("mirror down");
-        }
-        if (!sha256.equals(sha256(debianPackage))) {
-          throw new IOException("hash mismatch");
-        }
-        Files.write(destination, debianPackage);
-      },
+      (uri, destination, sha256, size) -> this.downloadPackage(debianPackage, uri, destination, sha256, size),
       mirrors,
       pins
     );
+  }
+
+  private void downloadPackage(final byte[] debianPackage, final URI uri, final Path destination, final String sha256, final long size)
+    throws IOException {
+    this.downloads.add(uri);
+    assertEquals(debianPackage.length, size, "the pinned size bounds the download");
+    if (uri.getHost().equals("broken.test")) {
+      throw new IOException("mirror down");
+    }
+    if (!sha256.equals(sha256(debianPackage))) {
+      throw new IOException("hash mismatch");
+    }
+    Files.write(destination, debianPackage);
   }
 
   @Test
@@ -398,13 +402,7 @@ class LinuxLibrariesTest {
     final byte[] debianPackage = testPackage();
     final LinuxLibraries libraries = new LinuxLibraries(
       this.folder.resolve("cache"),
-      (uri, destination, sha256, size) -> {
-        this.downloads.add(uri);
-        if (uri.getHost().equals("first.test")) {
-          throw new FileOperationException("The part file could not be moved into place!");
-        }
-        Files.write(destination, debianPackage);
-      },
+      (uri, destination, _, _) -> this.downloadFailingToMoveFromTheFirstMirror(debianPackage, uri, destination),
       List.of("https://first.test/debian/", "https://second.test/debian/"),
       List.of(pin(debianPackage))
     );
@@ -414,6 +412,15 @@ class LinuxLibrariesTest {
     assertEquals(expected, this.downloads);
     final boolean installed = Files.isRegularFile(installation.resolve(LIBRARY_NAME));
     assertTrue(installed);
+  }
+
+  private void downloadFailingToMoveFromTheFirstMirror(final byte[] debianPackage, final URI uri, final Path destination)
+    throws IOException {
+    this.downloads.add(uri);
+    if (uri.getHost().equals("first.test")) {
+      throw new FileOperationException("The part file could not be moved into place!");
+    }
+    Files.write(destination, debianPackage);
   }
 
   @Test
@@ -430,11 +437,7 @@ class LinuxLibrariesTest {
     this.downloads.clear();
     final LinuxLibraries none = new LinuxLibraries(
       this.folder.resolve("other-cache"),
-      (uri, destination, sha256, size) -> {
-        this.downloads.add(uri);
-        Files.write(destination, new byte[1]);
-        throw new IOException("down " + uri.getHost());
-      },
+      (uri, destination, _, _) -> this.writeAndFailDownload(uri, destination),
       List.of("https://first.test/debian/", "https://second.test/debian/"),
       List.of(pin(debianPackage))
     );
@@ -449,6 +452,12 @@ class LinuxLibrariesTest {
       final List<String> leftFileNames = left.map(file -> file.getFileName().toString()).toList();
       assertEquals(List.of("debian-11-linux-amd64-" + LinuxLibraries.fingerprint(none.getPins(PLATFORM)) + ".lock"), leftFileNames);
     }
+  }
+
+  private void writeAndFailDownload(final URI uri, final Path destination) throws IOException {
+    this.downloads.add(uri);
+    Files.write(destination, new byte[1]);
+    throw new IOException("down " + uri.getHost());
   }
 
   @Test
@@ -466,18 +475,14 @@ class LinuxLibrariesTest {
       this.folder.resolve("no-data.deb"),
       debianPackage(Map.of(LIBRARY, new byte[1]), Map.of(), "data.tar.zst")
     );
-    final IOException member = assertThrows(IOException.class, () ->
-      LinuxLibraries.extract(noData, wanted, Files.createDirectory(this.folder.resolve("a")))
-    );
+    final IOException member = assertThrows(IOException.class, () -> this.extractIntoNewFolder(noData, wanted, "a"));
     final Throwable noDataCause = member.getCause();
     assertInstanceOf(InstallationException.class, noDataCause);
     final Path linkOnly = Files.write(
       this.folder.resolve("link.deb"),
       debianPackage(Map.of(), Map.of(LIBRARY, "elsewhere.so"), "data.tar.xz")
     );
-    final IOException link = assertThrows(IOException.class, () ->
-      LinuxLibraries.extract(linkOnly, wanted, Files.createDirectory(this.folder.resolve("b")))
-    );
+    final IOException link = assertThrows(IOException.class, () -> this.extractIntoNewFolder(linkOnly, wanted, "b"));
     final String linkMessage = link.getMessage();
     assertEquals("The package link.deb holds none of [%s]!".formatted(LIBRARY), linkMessage);
     final boolean unpackedKept = Files.exists(this.folder.resolve("link.deb.unpacked"));
@@ -486,11 +491,14 @@ class LinuxLibrariesTest {
       this.folder.resolve("hard.deb"),
       debianPackage(Map.of(), Map.of(LIBRARY, "=elsewhere.so"), "data.tar.xz")
     );
-    final IOException hard = assertThrows(IOException.class, () ->
-      LinuxLibraries.extract(hardLink, wanted, Files.createDirectory(this.folder.resolve("hard")))
-    );
+    final IOException hard = assertThrows(IOException.class, () -> this.extractIntoNewFolder(hardLink, wanted, "hard"));
     final Throwable hardLinkCause = hard.getCause();
     assertInstanceOf(InstallationException.class, hardLinkCause);
+  }
+
+  private void extractIntoNewFolder(final Path debianPackage, final Map<String, String> wanted, final String folderName)
+    throws IOException {
+    LinuxLibraries.extract(debianPackage, wanted, Files.createDirectory(this.folder.resolve(folderName)));
   }
 
   @Test
@@ -678,9 +686,8 @@ class LinuxLibrariesTest {
       START_TIMEOUT_MILLISECONDS
     );
     final Path server = Files.createDirectories(this.folder.resolve("server"));
-    final PlayerException refused = assertThrows(BrowserUnavailableException.class, () ->
-      CefBrowserPlayer.DefaultSessionFactory.withLibraries(headless, libraries, server)
-    );
+    final Executable linking = () -> CefBrowserPlayer.DefaultSessionFactory.withLibraries(headless, libraries, server);
+    final PlayerException refused = assertThrows(BrowserUnavailableException.class, linking);
     final String message = refused.getMessage();
     assertEquals(
       "The browser needs the Java runtime's libjawt.so, which " +
@@ -865,10 +872,7 @@ class LinuxLibrariesTest {
     final List<URI> asked = new ArrayList<>();
     final LinuxLibraries libraries = new LinuxLibraries(
       this.folder.resolve("security-cache"),
-      (uri, destination, sha256, size) -> {
-        asked.add(uri);
-        Files.write(destination, debianPackage);
-      },
+      (uri, destination, _, _) -> this.recordAndWritePackage(asked, debianPackage, uri, destination),
       List.of("https://main.test/debian/"),
       List.of("https://security.test/debian-security/"),
       List.of(pin(debianPackage).replace(POOL, "pool/updates/main/m/mcavtest/libmcavtest1_1.2.3-1+deb11u1_amd64.deb"))
@@ -880,5 +884,11 @@ class LinuxLibrariesTest {
     );
     final String secondSecurityMirror = LinuxLibraries.SECURITY_MIRRORS.get(1);
     assertEquals("https://snapshot.debian.org/archive/debian-security/20260901T000000Z/", secondSecurityMirror);
+  }
+
+  private void recordAndWritePackage(final List<URI> asked, final byte[] debianPackage, final URI uri, final Path destination)
+    throws IOException {
+    asked.add(uri);
+    Files.write(destination, debianPackage);
   }
 }

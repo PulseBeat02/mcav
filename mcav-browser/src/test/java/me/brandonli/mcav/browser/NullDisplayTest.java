@@ -198,9 +198,7 @@ class NullDisplayTest {
       setup(ByteOrder.LITTLE_ENDIAN, 11, "", new byte[0]),
     }) {
       final ByteArrayOutputStream output = new ByteArrayOutputStream();
-      final ProtocolException refused = assertThrows(ProtocolException.class, () ->
-        NullDisplay.serve(new ByteArrayInputStream(wrong), output, COOKIE, new NullDisplay.Atoms())
-      );
+      final ProtocolException refused = assertThrows(ProtocolException.class, () -> this.serveSetup(wrong, output));
       final String wrongCookieMessage = refused.getMessage();
       assertEquals("A client was refused, because the cookie of the display is missing!", wrongCookieMessage);
       final byte[] answer = output.toByteArray();
@@ -213,36 +211,30 @@ class NullDisplayTest {
     }
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     final byte[] tenPointZero = setup(ByteOrder.LITTLE_ENDIAN, 10, COOKIE_NAME, COOKIE);
-    final ProtocolException oldProtocol = assertThrows(ProtocolException.class, () ->
-      NullDisplay.serve(new ByteArrayInputStream(tenPointZero), output, COOKIE, new NullDisplay.Atoms())
-    );
+    final ProtocolException oldProtocol = assertThrows(ProtocolException.class, () -> this.serveSetup(tenPointZero, output));
     final String oldProtocolMessage = oldProtocol.getMessage();
     assertEquals("A client was refused, because only X11 is spoken here!", oldProtocolMessage);
+  }
+
+  private void serveSetup(final byte[] setup, final OutputStream output) throws IOException {
+    NullDisplay.serve(new ByteArrayInputStream(setup), output, COOKIE, new NullDisplay.Atoms());
   }
 
   @Test
   void shouldEndTheConnectionOnASetupThatIsNoSetup() {
     final byte[] unknownOrder = setup(COOKIE);
     unknownOrder[0] = 'x';
-    final ProtocolException order = assertThrows(ProtocolException.class, () ->
-      NullDisplay.serve(new ByteArrayInputStream(unknownOrder), new ByteArrayOutputStream(), COOKIE, new NullDisplay.Atoms())
-    );
+    final ProtocolException order = assertThrows(ProtocolException.class, () -> this.serveSetup(unknownOrder, new ByteArrayOutputStream()));
     final String orderMessage = order.getMessage();
     assertEquals("Byte order 120 of the connection setup is unknown!", orderMessage);
     final byte[] longName = setup(ByteOrder.LITTLE_ENDIAN, 11, "x".repeat(257), new byte[0]);
-    final ProtocolException name = assertThrows(ProtocolException.class, () ->
-      NullDisplay.serve(new ByteArrayInputStream(longName), new ByteArrayOutputStream(), COOKIE, new NullDisplay.Atoms())
-    );
+    final ProtocolException name = assertThrows(ProtocolException.class, () -> this.serveSetup(longName, new ByteArrayOutputStream()));
     final String nameMessage = name.getMessage();
     assertEquals("The authorization of the connection setup is longer than 256 bytes!", nameMessage);
     final byte[] longData = setup(ByteOrder.LITTLE_ENDIAN, 11, COOKIE_NAME, new byte[257]);
-    assertThrows(ProtocolException.class, () ->
-      NullDisplay.serve(new ByteArrayInputStream(longData), new ByteArrayOutputStream(), COOKIE, new NullDisplay.Atoms())
-    );
+    assertThrows(ProtocolException.class, () -> this.serveSetup(longData, new ByteArrayOutputStream()));
     final byte[] longest = setup(ByteOrder.LITTLE_ENDIAN, 11, "x".repeat(256), new byte[256]);
-    final ProtocolException value = assertThrows(ProtocolException.class, () ->
-      NullDisplay.serve(new ByteArrayInputStream(longest), new ByteArrayOutputStream(), COOKIE, new NullDisplay.Atoms())
-    );
+    final ProtocolException value = assertThrows(ProtocolException.class, () -> this.serveSetup(longest, new ByteArrayOutputStream()));
     final String valueMessage = value.getMessage();
     assertEquals("A client was refused, because the cookie of the display is missing!", valueMessage);
   }
@@ -825,11 +817,13 @@ class NullDisplayTest {
   @Test
   void shouldNotOverwriteAnAuthorityFileThatExistsAndLeaveNoPortOpen() throws IOException {
     final Path authority = Files.writeString(this.folder.resolve(AUTHORITY_FILE), "someone else's");
-    OpenFiles.leaveNoneOpen("a display that cannot write its file", () ->
-      assertThrows(IOException.class, () -> NullDisplay.start(authority))
-    );
+    OpenFiles.leaveNoneOpen("a display that cannot write its file", () -> this.assertStartFails(authority));
     final String authorityText = Files.readString(authority);
     assertEquals("someone else's", authorityText);
+  }
+
+  private void assertStartFails(final Path authority) {
+    assertThrows(IOException.class, () -> NullDisplay.start(authority));
   }
 
   @Test
@@ -839,27 +833,14 @@ class NullDisplayTest {
     final boolean baseIsDisplayPort = NullDisplay.isDisplayPort(NullDisplay.X11_BASE_PORT);
     assertTrue(baseIsDisplayPort);
     final AtomicInteger asked = new AtomicInteger();
-    final IOException none = assertThrows(IOException.class, () ->
-      NullDisplay.bind(port -> {
-        asked.incrementAndGet();
-        return false;
-      })
-    );
+    final IOException none = assertThrows(IOException.class, () -> NullDisplay.bind(_ -> this.countAndRefuse(asked)));
     final String message = none.getMessage();
     assertEquals("The system gives out no port of at least 6000 for the display!", message);
     final int askedPorts = asked.get();
     assertEquals(64, askedPorts, "64 ports are tried");
     final AtomicInteger tries = new AtomicInteger();
     final List<Integer> refused = new ArrayList<>();
-    try (
-      final ServerSocket third = NullDisplay.bind(port -> {
-        if (tries.incrementAndGet() < 3) {
-          refused.add(port);
-          return false;
-        }
-        return true;
-      })
-    ) {
+    try (final ServerSocket third = NullDisplay.bind(port -> this.refuseTheFirstTwoPorts(tries, refused, port))) {
       final int tryCount = tries.get();
       assertEquals(3, tryCount);
       final boolean thirdPortRefused = refused.contains(third.getLocalPort());
@@ -867,6 +848,19 @@ class NullDisplayTest {
       final InetAddress boundAddress = third.getInetAddress();
       assertEquals(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), boundAddress);
     }
+  }
+
+  private boolean countAndRefuse(final AtomicInteger asked) {
+    asked.incrementAndGet();
+    return false;
+  }
+
+  private boolean refuseTheFirstTwoPorts(final AtomicInteger tries, final List<Integer> refused, final int port) {
+    if (tries.incrementAndGet() < 3) {
+      refused.add(port);
+      return false;
+    }
+    return true;
   }
 
   @Test

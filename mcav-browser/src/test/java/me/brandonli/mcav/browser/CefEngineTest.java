@@ -96,19 +96,27 @@ class CefEngineTest {
     CefEngine.runOnOwnThread("mcav-browser-chromium", () -> names.add(Thread.currentThread().getName()));
     assertEquals(List.of("mcav-browser-chromium"), names);
     final IOException refused = new IOException("Landlock could not restrict the thread (error 1)");
-    final IOException rethrownRefusal = assertThrows(IOException.class, () ->
-      CefEngine.runOnOwnThread("failing", () -> {
-        throw refused;
-      })
-    );
+    final IOException rethrownRefusal = assertThrows(IOException.class, () -> this.runFailingOnOwnThread(refused));
     assertSame(refused, rethrownRefusal);
     final UnsatisfiedLinkError unlinked = new UnsatisfiedLinkError("libcef.so");
-    final UnsatisfiedLinkError rethrownLinkError = assertThrows(UnsatisfiedLinkError.class, () ->
-      CefEngine.runOnOwnThread("unlinked", () -> {
-        throw unlinked;
-      })
-    );
+    final UnsatisfiedLinkError rethrownLinkError = assertThrows(UnsatisfiedLinkError.class, () -> this.runUnlinkedOnOwnThread(unlinked));
     assertSame(unlinked, rethrownLinkError);
+  }
+
+  private void runFailingOnOwnThread(final Exception exception) throws Exception {
+    CefEngine.runOnOwnThread("failing", () -> this.throwException(exception));
+  }
+
+  private void runUnlinkedOnOwnThread(final Error error) throws Exception {
+    CefEngine.runOnOwnThread("unlinked", () -> this.throwError(error));
+  }
+
+  private Object throwException(final Exception exception) throws Exception {
+    throw exception;
+  }
+
+  private Object throwError(final Error error) {
+    throw error;
   }
 
   @Test
@@ -299,22 +307,24 @@ class CefEngineTest {
     final PageAudio audio = new PageAudio(samples -> {}, System::nanoTime);
     final List<String> notices = new CopyOnWriteArrayList<>();
     CefEngine.openPage(browser, "https://example.com/again", 300L, audio, notices::add);
-    Await.until("the page loaded", () -> {
-      try {
-        EventQueue.invokeAndWait(() -> {});
-      } catch (final InterruptedException | InvocationTargetException exception) {
-        throw new IllegalStateException(exception);
-      }
-      return mockingDetails(browser)
-        .getInvocations()
-        .stream()
-        .anyMatch(call -> call.getMethod().getName().equals("loadURL"));
-    });
+    Await.until("the page loaded", () -> this.hasLoadedAPage(browser));
     verify(lost).close();
     verify(working).addEventListener(audio);
     verify(working, times(5)).executeDevToolsMethod(anyString(), anyString());
     verify(browser).loadURL("https://example.com/again");
     assertEquals(List.of(), notices, "the new client answered");
+  }
+
+  private boolean hasLoadedAPage(final CefBrowser browser) {
+    try {
+      EventQueue.invokeAndWait(() -> {});
+    } catch (final InterruptedException | InvocationTargetException exception) {
+      throw new IllegalStateException(exception);
+    }
+    return mockingDetails(browser)
+      .getInvocations()
+      .stream()
+      .anyMatch(call -> call.getMethod().getName().equals("loadURL"));
   }
 
   @Test
@@ -345,17 +355,7 @@ class CefEngineTest {
     final List<String> notices = new CopyOnWriteArrayList<>();
     CefEngine.openPage(browser, "https://example.com/lost", 1_000L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
     verify(browser, never()).loadURL(anyString());
-    Await.until("the page loaded after the timeout", () -> {
-      try {
-        EventQueue.invokeAndWait(() -> {});
-      } catch (final InterruptedException | InvocationTargetException exception) {
-        throw new IllegalStateException(exception);
-      }
-      return mockingDetails(browser)
-        .getInvocations()
-        .stream()
-        .anyMatch(call -> call.getMethod().getName().equals("loadURL"));
-    });
+    Await.until("the page loaded after the timeout", () -> this.hasLoadedAPage(browser));
     verify(browser).loadURL("https://example.com/lost");
     verify(devTools).close();
     assertEquals(List.of("The scripts of the page were not confirmed in 2 attempts; it loads anyway."), notices);
@@ -370,17 +370,7 @@ class CefEngineTest {
     when(devTools.executeDevToolsMethod(anyString(), anyString())).thenReturn(late);
     final List<String> notices = new CopyOnWriteArrayList<>();
     CefEngine.openPage(browser, "https://example.com/late", 100L, new PageAudio(samples -> {}, System::nanoTime), notices::add);
-    Await.until("the page loaded after the timeout", () -> {
-      try {
-        EventQueue.invokeAndWait(() -> {});
-      } catch (final InterruptedException | InvocationTargetException exception) {
-        throw new IllegalStateException(exception);
-      }
-      return mockingDetails(browser)
-        .getInvocations()
-        .stream()
-        .anyMatch(call -> call.getMethod().getName().equals("loadURL"));
-    });
+    Await.until("the page loaded after the timeout", () -> this.hasLoadedAPage(browser));
     verify(browser, never()).reload();
     late.complete("{}");
     EventQueue.invokeAndWait(() -> {});
@@ -439,13 +429,7 @@ class CefEngineTest {
     final long remainingCount = terminated.getCount();
     assertEquals(0, remainingCount);
     try (final StandardError errors = new StandardError()) {
-      CefEngine.shutDown(
-        () -> {
-          throw new IllegalStateException("dispose failed");
-        },
-        new CountDownLatch(1),
-        1_000L
-      );
+      CefEngine.shutDown(this::failToDispose, new CountDownLatch(1), 1_000L);
       final boolean reportsTheDisposeFailure = errors
         .text()
         .contains("Failed to shut CEF down (java.lang.IllegalStateException: dispose failed).");
@@ -461,15 +445,15 @@ class CefEngineTest {
     }
   }
 
+  private void failToDispose() {
+    throw new IllegalStateException("dispose failed");
+  }
+
   @Test
   void shouldIgnoreInputAndStopWhenTheEngineNeverStarted() throws Exception {
     final List<Throwable> failures = new CopyOnWriteArrayList<>();
     final Thread.UncaughtExceptionHandler previous = Thread.getDefaultUncaughtExceptionHandler();
-    Thread.setDefaultUncaughtExceptionHandler((thread, failure) -> {
-      if (thread.getName().startsWith("AWT-EventQueue")) {
-        failures.add(failure);
-      }
-    });
+    Thread.setDefaultUncaughtExceptionHandler((thread, failure) -> this.recordEventQueueFailure(failures, thread, failure));
     try (final StandardError errors = new StandardError()) {
       final CefEngine engine = new CefEngine();
       engine.dispatch(DevToolsInput.pressKey("Enter"));
@@ -481,6 +465,12 @@ class CefEngineTest {
       Thread.setDefaultUncaughtExceptionHandler(previous);
     }
     assertEquals(List.of(), failures);
+  }
+
+  private void recordEventQueueFailure(final List<Throwable> failures, final Thread thread, final Throwable failure) {
+    if (thread.getName().startsWith("AWT-EventQueue")) {
+      failures.add(failure);
+    }
   }
 
   @Test

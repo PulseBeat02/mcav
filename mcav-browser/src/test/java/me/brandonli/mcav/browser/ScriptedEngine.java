@@ -130,11 +130,13 @@ final class ScriptedEngine implements HelperEngine {
 
   private void crashRendererLater(final HelperEvents events) {
     this.show(0);
-    final Thread later = new Thread(() -> {
-      pause(1_000L);
-      events.onFailure("scripted renderer crash");
-    });
+    final Thread later = new Thread(() -> this.pauseAndCrashRenderer(events));
     later.start();
+  }
+
+  private void pauseAndCrashRenderer(final HelperEvents events) {
+    pause(1_000L);
+    events.onFailure("scripted renderer crash");
   }
 
   private static void pause(final long milliseconds) {

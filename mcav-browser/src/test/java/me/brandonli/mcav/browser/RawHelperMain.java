@@ -228,19 +228,21 @@ public final class RawHelperMain {
    * @param input the standard input
    */
   private static void startChildWhenTheInputEnds(final BufferedReader input) {
-    final Thread watcher = new Thread(() -> {
-      try {
-        awaitTheEnd(input);
-        Thread.sleep(2_000L);
-        startChild();
-      } catch (final IOException exception) {
-        throw new UncheckedIOException(exception);
-      } catch (final InterruptedException exception) {
-        Thread.currentThread().interrupt();
-      }
-    });
+    final Thread watcher = new Thread(() -> startChildAfterTheEnd(input));
     watcher.setDaemon(true);
     watcher.start();
+  }
+
+  private static void startChildAfterTheEnd(final BufferedReader input) {
+    try {
+      awaitTheEnd(input);
+      Thread.sleep(2_000L);
+      startChild();
+    } catch (final IOException exception) {
+      throw new UncheckedIOException(exception);
+    } catch (final InterruptedException exception) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   /**

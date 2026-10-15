@@ -137,14 +137,16 @@ class CefBrowserIntegrationTest {
     try (final Stream<ProcessHandle> descendants = self.descendants()) {
       return descendants
         .filter(ProcessHandle::isAlive)
-        .filter(handle -> {
-          final ProcessHandle.Info information = handle.info();
-          final String command = information.commandLine().orElse(information.command().orElse(""));
-          final boolean helper = command.contains(HelperLauncher.MAIN_CLASS) || (!java.isEmpty() && command.equals(java));
-          return helper || command.contains("jcef") || command.contains("Xvfb");
-        })
+        .filter(handle -> isBrowserProcess(java, handle))
         .count();
     }
+  }
+
+  private static boolean isBrowserProcess(final String java, final ProcessHandle handle) {
+    final ProcessHandle.Info information = handle.info();
+    final String command = information.commandLine().orElse(information.command().orElse(""));
+    final boolean helper = command.contains(HelperLauncher.MAIN_CLASS) || (!java.isEmpty() && command.equals(java));
+    return helper || command.contains("jcef") || command.contains("Xvfb");
   }
 
   @Test
@@ -170,12 +172,7 @@ class CefBrowserIntegrationTest {
     this.start(player, MAIN_PAGE);
     this.awaitInput(player);
     player.sendMouseEvent(MouseClick.LEFT, 100, 50);
-    Await.until("a click", () ->
-      this.pages
-        .getEvents("click")
-        .stream()
-        .anyMatch(event -> event.getX() == 100)
-    );
+    Await.until("a click", () -> this.hasEventAtX("click", 100));
     final TestPages.PageEvent click = this.pages
       .getEvents("click")
       .stream()
@@ -194,12 +191,7 @@ class CefBrowserIntegrationTest {
     Await.until("a double click", () -> this.pages.count("dblclick") > 0);
     player.sendMouseEvent(MouseClick.HOLD, 5, 5);
     player.sendMouseEvent(MouseClick.RELEASE, 6, 6);
-    Await.until("the held button released", () ->
-      this.pages
-        .getEvents("mouseup")
-        .stream()
-        .anyMatch(event -> event.getX() == 6)
-    );
+    Await.until("the held button released", () -> this.hasEventAtX("mouseup", 6));
     final TestPages.PageEvent drag = this.pages
       .getEvents("mousemove")
       .stream()
@@ -223,6 +215,13 @@ class CefBrowserIntegrationTest {
     assertEquals(List.of(), this.failures);
   }
 
+  private boolean hasEventAtX(final String type, final int pageX) {
+    return this.pages
+      .getEvents(type)
+      .stream()
+      .anyMatch(event -> event.getX() == pageX);
+  }
+
   @Test
   void shouldOpenAPopupOpenedByThePlayerInPlace() {
     final BrowserPlayer player = this.player(LOCAL);
@@ -232,18 +231,20 @@ class CefBrowserIntegrationTest {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
     while (!frames.lastShows(TestPages.POPUP_COLOR)) {
       final boolean beforeDeadline = System.nanoTime() < deadline;
-      assertTrue(
-        beforeDeadline,
-        () ->
-          "the popup is shown in place: " +
-          frames.describeLast() +
-          "; the pages reported " +
-          this.pages.getEvents().stream().map(TestPages.PageEvent::getType).toList()
-      );
+      assertTrue(beforeDeadline, () -> this.describePopupWait(frames));
       Thread.onSpinWait();
     }
     final boolean playing = player.isPlaying();
     assertTrue(playing);
+  }
+
+  private String describePopupWait(final Frames frames) {
+    return (
+      "the popup is shown in place: " +
+      frames.describeLast() +
+      "; the pages reported " +
+      this.pages.getEvents().stream().map(TestPages.PageEvent::getType).toList()
+    );
   }
 
   @Test
@@ -289,12 +290,7 @@ class CefBrowserIntegrationTest {
   void shouldOpenALinkIntoAFrameOfThePageInThatFrame() throws InterruptedException {
     final BrowserPlayer player = this.player(LOCAL);
     final Frames frames = this.start(player, "/named-frame");
-    clickUntil(player, "the second page in the frame", () ->
-      this.pages
-        .getEvents("size")
-        .stream()
-        .anyMatch(event -> event.getPage().equals("second"))
-    );
+    clickUntil(player, "the second page in the frame", () -> this.hasEventOnPage("size", "second"));
     final TestPages.PageEvent size = this.pages
       .getEvents("size")
       .stream()
@@ -306,6 +302,13 @@ class CefBrowserIntegrationTest {
     Thread.sleep(500L);
     final boolean showsMainPage = frames.lastShows(TestPages.MAIN_COLOR);
     assertTrue(showsMainPage, "the page itself stays");
+  }
+
+  private boolean hasEventOnPage(final String type, final String page) {
+    return this.pages
+      .getEvents(type)
+      .stream()
+      .anyMatch(event -> event.getPage().equals(page));
   }
 
   @Test

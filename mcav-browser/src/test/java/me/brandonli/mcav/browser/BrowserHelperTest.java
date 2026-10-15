@@ -205,9 +205,7 @@ class BrowserHelperTest {
       assertEquals(ScriptedEngine.RED, redChannel);
       peer.send(out -> HelperProtocol.writeKey(out, HelperProtocol.KEY_TYPE, "ab"));
       peer.readFrameWithBlue(4);
-      peer.send(out ->
-        HelperProtocol.writeMouse(out, new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 2, HelperProtocol.BUTTON_LEFT, 1, 0, 0))
-      );
+      peer.send(this::writeLeftPress);
       peer.readFrameWithBlue(5);
       peer.send(out -> HelperProtocol.writeKey(out, HelperProtocol.KEY_PRESS, "Enter"));
       peer.readFrameWithBlue(7);
@@ -235,6 +233,10 @@ class BrowserHelperTest {
     assertEquals("the server asked to close", stopReason);
     final PageCompositor compositor = helper.getCompositor();
     assertNotNull(compositor);
+  }
+
+  private void writeLeftPress(final DataOutputStream out) throws IOException {
+    HelperProtocol.writeMouse(out, new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 2, HelperProtocol.BUTTON_LEFT, 1, 0, 0));
   }
 
   @Test
@@ -287,15 +289,17 @@ class BrowserHelperTest {
     final CompletableFuture<Integer> result = this.run(helper);
     try (final Peer peer = new Peer(this.server.accept())) {
       peer.readUntil(HelperProtocol.READY);
-      peer.send(out -> {
-        out.writeByte(99);
-        out.writeInt(0);
-      });
+      peer.send(this::writeUnknownCommand);
       final Integer exitStatus = result.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertEquals(0, exitStatus);
     }
     final @Nullable String stopReason = helper.getStopReason();
     assertEquals("the connection failed (Message type 99 is unknown!)", stopReason);
+  }
+
+  private void writeUnknownCommand(final DataOutputStream out) throws IOException {
+    out.writeByte(99);
+    out.writeInt(0);
   }
 
   @Test
@@ -370,10 +374,7 @@ class BrowserHelperTest {
     final PipedReader reader = new PipedReader(this.standardInput);
     final AtomicInteger status = new AtomicInteger(-1);
     final AtomicBoolean interrupted = new AtomicBoolean();
-    final Thread running = new Thread(() -> {
-      status.set(helper.run(reader, BrowserHelperTest::connectTo));
-      interrupted.set(Thread.currentThread().isInterrupted());
-    });
+    final Thread running = new Thread(() -> this.runAndRecordTheInterrupt(helper, reader, status, interrupted));
     running.start();
     try (final Peer peer = new Peer(this.server.accept())) {
       peer.readUntil(HelperProtocol.READY);
@@ -388,6 +389,16 @@ class BrowserHelperTest {
     assertEquals(0, exitStatus);
     final boolean interruptKept = interrupted.get();
     assertTrue(interruptKept, "the interrupt is kept");
+  }
+
+  private void runAndRecordTheInterrupt(
+    final BrowserHelper helper,
+    final PipedReader reader,
+    final AtomicInteger status,
+    final AtomicBoolean interrupted
+  ) {
+    status.set(helper.run(reader, BrowserHelperTest::connectTo));
+    interrupted.set(Thread.currentThread().isInterrupted());
   }
 
   @Test
@@ -412,10 +423,7 @@ class BrowserHelperTest {
   void shouldEndAnInterruptedFrameSenderAndKeepTheInterrupt() throws InterruptedException {
     final BrowserHelper helper = new BrowserHelper(this.configuration(PAGE), new ScriptedEngine());
     final AtomicBoolean interrupted = new AtomicBoolean();
-    final Thread sender = new Thread(() -> {
-      helper.sendFrames(new DataOutputStream(OutputStream.nullOutputStream()));
-      interrupted.set(Thread.currentThread().isInterrupted());
-    });
+    final Thread sender = new Thread(() -> this.sendFramesAndRecordTheInterrupt(helper, interrupted));
     sender.start();
     sender.interrupt();
     sender.join(JOIN_TIMEOUT_MILLISECONDS);
@@ -423,6 +431,11 @@ class BrowserHelperTest {
     assertTrue(interruptKept);
     final @Nullable String stopReason = helper.getStopReason();
     assertNull(stopReason, "an interrupted sender does not stop the helper by itself");
+  }
+
+  private void sendFramesAndRecordTheInterrupt(final BrowserHelper helper, final AtomicBoolean interrupted) {
+    helper.sendFrames(new DataOutputStream(OutputStream.nullOutputStream()));
+    interrupted.set(Thread.currentThread().isInterrupted());
   }
 
   @Test
@@ -466,10 +479,12 @@ class BrowserHelperTest {
   @Test
   void shouldFailWhenTheHelperCannotReachTheServer() {
     final BrowserHelper helper = new BrowserHelper(this.configuration(PAGE), new ScriptedEngine());
-    final int status = helper.run(new StringReader(""), socket -> {
-      throw new IOException("no server");
-    });
+    final int status = helper.run(new StringReader(""), _ -> this.refuseTheConnection());
     assertEquals(1, status);
+  }
+
+  private SocketChannel refuseTheConnection() throws IOException {
+    throw new IOException("no server");
   }
 
   private static void neverHalts(final int status) {
@@ -502,7 +517,7 @@ class BrowserHelperTest {
   @Test
   void shouldHaltAHelperThatHasNotStoppedByTheDeadlineAfterItsInputEnded() {
     final List<Integer> halts = new CopyOnWriteArrayList<>();
-    final BrowserHelper helper = new BrowserHelper(this.configuration(PAGE), new ScriptedEngine(), status -> halts.add(status), 100L);
+    final BrowserHelper helper = new BrowserHelper(this.configuration(PAGE), new ScriptedEngine(), halts::add, 100L);
     final long start = System.nanoTime();
     helper.watchInput(new StringReader(""));
     final boolean waitedForTheDeadline = System.nanoTime() - start >= TimeUnit.MILLISECONDS.toNanos(100L);
@@ -525,7 +540,7 @@ class BrowserHelperTest {
   @Test
   void shouldStillHaltAndKeepTheInterruptWhenTheDeadlineIsInterrupted() {
     final List<Integer> halts = new CopyOnWriteArrayList<>();
-    final BrowserHelper helper = new BrowserHelper(this.configuration(PAGE), new ScriptedEngine(), status -> halts.add(status), 60_000L);
+    final BrowserHelper helper = new BrowserHelper(this.configuration(PAGE), new ScriptedEngine(), halts::add, 60_000L);
     Thread.currentThread().interrupt();
     try {
       helper.watchInput(new StringReader(""));

@@ -34,6 +34,8 @@ import java.util.stream.Stream;
 import me.brandonli.mcav.browser.testing.Await;
 import me.brandonli.mcav.browser.testing.HelperCoverage;
 import me.brandonli.mcav.browser.testing.TestPages;
+import me.brandonli.mcav.media.image.ImageBuffer;
+import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
@@ -252,30 +254,8 @@ class BrowserSoundTest {
     final BrowserPlayer player = this.player();
     final List<long[]> sound = new CopyOnWriteArrayList<>();
     final List<long[]> picture = new CopyOnWriteArrayList<>();
-    player.getAudioAttachableCallback().attach(
-      AudioPipelineStep.of((samples, metadata) -> {
-        final long arrival = System.nanoTime();
-        final byte[] copy = new byte[samples.remaining()];
-        samples.get(copy);
-        final short[] left = leftChannel(copy);
-        final int windows = left.length / WINDOW_FRAMES;
-        for (int window = 0; window < windows; window++) {
-          final boolean hasTone = toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > TONE_SHARE_THRESHOLD;
-          final long end = (long) (window + 1) * WINDOW_FRAMES;
-          final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
-          sound.add(new long[] { arrival - before, hasTone ? 1 : 0 });
-        }
-        return true;
-      })
-    );
-    player.getVideoAttachableCallback().attach(
-      VideoPipelineStep.of((image, metadata) -> {
-        final int[] pixels = image.getPixels();
-        final int center = pixels[(image.getHeight() / 2) * image.getWidth() + image.getWidth() / 2];
-        picture.add(new long[] { System.nanoTime(), (center & 0xFF) > 128 ? 1 : 0 });
-        return false;
-      })
-    );
+    player.getAudioAttachableCallback().attach(AudioPipelineStep.of((samples, _) -> this.recordToneWindows(sound, samples)));
+    player.getVideoAttachableCallback().attach(VideoPipelineStep.of((image, _) -> this.recordCenterBrightness(picture, image)));
     this.startAndClick(player, "/av-sync");
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(90);
     while (onsets(picture).size() < 50) {
@@ -320,6 +300,28 @@ class BrowserSoundTest {
     assertTrue(mostChangesAcceptable, acceptable + " of " + changes + " changes are in sync");
     final boolean noDrift = Math.abs(secondHalf - firstHalf) < 25;
     assertTrue(noDrift, "the sound does not drift from the picture");
+  }
+
+  private boolean recordToneWindows(final List<long[]> sound, final ByteBuffer samples) {
+    final long arrival = System.nanoTime();
+    final byte[] copy = new byte[samples.remaining()];
+    samples.get(copy);
+    final short[] left = leftChannel(copy);
+    final int windows = left.length / WINDOW_FRAMES;
+    for (int window = 0; window < windows; window++) {
+      final boolean hasTone = toneShare(left, window * WINDOW_FRAMES, WINDOW_FRAMES) > TONE_SHARE_THRESHOLD;
+      final long end = (long) (window + 1) * WINDOW_FRAMES;
+      final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
+      sound.add(new long[] { arrival - before, hasTone ? 1 : 0 });
+    }
+    return true;
+  }
+
+  private boolean recordCenterBrightness(final List<long[]> picture, final ImageBuffer image) {
+    final int[] pixels = image.getPixels();
+    final int center = pixels[(image.getHeight() / 2) * image.getWidth() + image.getWidth() / 2];
+    picture.add(new long[] { System.nanoTime(), (center & 0xFF) > 128 ? 1 : 0 });
+    return false;
   }
 
   @Test
@@ -452,21 +454,21 @@ class BrowserSoundTest {
 
     static Recording attach(final BrowserPlayer player) {
       final Recording recording = new Recording();
-      player.getAudioAttachableCallback().attach(
-        AudioPipelineStep.of((samples, metadata) -> {
-          final int audioSampleRate = metadata.getAudioSampleRate();
-          assertEquals(AudioFilter.SAMPLE_RATE, audioSampleRate);
-          final int audioChannels = metadata.getAudioChannels();
-          assertEquals(AudioFilter.CHANNELS, audioChannels);
-          final byte[] copy = new byte[samples.remaining()];
-          samples.get(copy);
-          synchronized (recording.pcm) {
-            recording.pcm.writeBytes(copy);
-          }
-          return true;
-        })
-      );
+      player.getAudioAttachableCallback().attach(AudioPipelineStep.of(recording::record));
       return recording;
+    }
+
+    private boolean record(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
+      final int audioSampleRate = metadata.getAudioSampleRate();
+      assertEquals(AudioFilter.SAMPLE_RATE, audioSampleRate);
+      final int audioChannels = metadata.getAudioChannels();
+      assertEquals(AudioFilter.CHANNELS, audioChannels);
+      final byte[] copy = new byte[samples.remaining()];
+      samples.get(copy);
+      synchronized (this.pcm) {
+        this.pcm.writeBytes(copy);
+      }
+      return true;
     }
 
     int size() {

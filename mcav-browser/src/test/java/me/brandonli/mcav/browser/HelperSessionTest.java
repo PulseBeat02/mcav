@@ -140,12 +140,19 @@ class HelperSessionTest {
   private PlayerException openFails(final String mainClass, final String path, final long timeoutMilliseconds) {
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com" + path), 4, 3, 1);
     final int before = HelperProcesses.count();
-    final PlayerException failure = assertThrows(PlayerException.class, () ->
-      HelperSession.open(launcher(mainClass, timeoutMilliseconds), NATIVES, source, BrowserOptions.DEFAULT, this.listener)
-    );
+    final HelperLauncher launcher = launcher(mainClass, timeoutMilliseconds);
+    final PlayerException failure = assertThrows(PlayerException.class, () -> this.openSession(launcher, source));
     final int helperCount = HelperProcesses.count();
     assertEquals(before, helperCount, "a failed start leaves no session behind");
     return failure;
+  }
+
+  private HelperSession openSession(final HelperLauncher launcher, final BrowserSource source) {
+    return HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener);
+  }
+
+  private HelperSession openSessionIn(final HelperLauncher launcher, final BrowserSource source, final Path parent) {
+    return HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, parent);
   }
 
   @AfterEach
@@ -187,9 +194,8 @@ class HelperSessionTest {
       server.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
       server.configureBlocking(false);
       final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
-      final PlayerException interrupted = assertTimeoutPreemptively(Duration.ofSeconds(10), () ->
-        this.acceptWhileInterrupted(server, alive, deadline)
-      );
+      final Duration timeout = Duration.ofSeconds(10);
+      final PlayerException interrupted = assertTimeoutPreemptively(timeout, () -> this.acceptWhileInterrupted(server, alive, deadline));
       final String message = interrupted.getMessage();
       assertEquals("Interrupted while the browser helper connected!", message);
     }
@@ -358,11 +364,7 @@ class HelperSessionTest {
     final Thread delivery = session.getThreads().get(1);
     final Thread closer = Thread.ofPlatform().name("closer").start(session::close);
     try {
-      Await.until("the close waits for the delivery", () ->
-        Arrays.stream(closer.getStackTrace()).anyMatch(
-          frame -> frame.getClassName().equals(Thread.class.getName()) && frame.getMethodName().equals("join")
-        )
-      );
+      Await.until("the close waits for the delivery", () -> this.isWaitingInJoin(closer));
       final boolean deliveryStillRunning = delivery.isAlive();
       assertTrue(deliveryStillRunning, "the delivery still hands its picture over");
     } finally {
@@ -373,6 +375,14 @@ class HelperSessionTest {
     assertFalse(closerAlive);
     final boolean deliveryAlive = delivery.isAlive();
     assertFalse(deliveryAlive, "the close returned only once the delivery ended");
+  }
+
+  private boolean isWaitingInJoin(final Thread thread) {
+    return Arrays.stream(thread.getStackTrace()).anyMatch(this::isJoinFrame);
+  }
+
+  private boolean isJoinFrame(final StackTraceElement frame) {
+    return frame.getClassName().equals(Thread.class.getName()) && frame.getMethodName().equals("join");
   }
 
   @Test
@@ -495,27 +505,31 @@ class HelperSessionTest {
   @EnabledOnOs(OS.LINUX)
   void shouldEndTheSessionWhenInputCannotBeWritten() {
     final HelperSession session = this.open(RawHelperMain.class.getName(), "/deaf");
-    Await.until("the end of the session", () -> {
-      session.sendKey(HelperProtocol.KEY_TYPE, "lost");
-      return !this.listener.ended.isEmpty();
-    });
+    Await.until("the end of the session", () -> this.sendAKeyAndReportTheEnd(session));
     final String reason = this.listener.ended.get(0);
     final boolean reportsTheInputFailure = reason.startsWith("Input could not be sent to the browser helper (");
     assertTrue(reportsTheInputFailure, reason);
+  }
+
+  private boolean sendAKeyAndReportTheEnd(final HelperSession session) {
+    session.sendKey(HelperProtocol.KEY_TYPE, "lost");
+    return !this.listener.ended.isEmpty();
   }
 
   @Test
   void shouldKillAProcessTheHelperStartedWhenTheSessionCloses() {
     final HelperSession session = this.open(RawHelperMain.class.getName(), "/child");
     final Set<ProcessHandle> started = ConcurrentHashMap.newKeySet();
-    Await.until("the process the helper starts", () -> {
-      try (final Stream<ProcessHandle> descendants = session.getProcess().descendants()) {
-        descendants.forEach(started::add);
-      }
-      return !started.isEmpty();
-    });
+    Await.until("the process the helper starts", () -> this.recordDescendantsAndReportAny(session, started));
     session.close();
     Await.until("no process the helper started is left", () -> started.stream().noneMatch(ProcessHandle::isAlive));
+  }
+
+  private boolean recordDescendantsAndReportAny(final HelperSession session, final Set<ProcessHandle> started) {
+    try (final Stream<ProcessHandle> descendants = session.getProcess().descendants()) {
+      descendants.forEach(started::add);
+    }
+    return !started.isEmpty();
   }
 
   @Test
@@ -524,9 +538,7 @@ class HelperSessionTest {
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/silent-stubborn"), 4, 3, 1);
     final HelperLauncher launcher = launcher(RawHelperMain.class.getName(), 1_000L);
     final Path parent = this.shortDirectory();
-    final PlayerException failure = assertThrows(PlayerException.class, () ->
-      HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, parent)
-    );
+    final PlayerException failure = assertThrows(PlayerException.class, () -> this.openSessionIn(launcher, source, parent));
     final String message = failure.getMessage();
     assertEquals("The browser helper did not connect in time!", message);
     final Set<ProcessHandle> newProcesses = newSince(before);
@@ -599,9 +611,7 @@ class HelperSessionTest {
     );
     final Path parent = this.shortDirectory();
     final Set<ProcessHandle> before = liveDescendants();
-    final PlayerException failure = assertThrows(PlayerException.class, () ->
-      HelperSession.open(broken, NATIVES, source, BrowserOptions.DEFAULT, this.listener, parent)
-    );
+    final PlayerException failure = assertThrows(PlayerException.class, () -> this.openSessionIn(broken, source, parent));
     final boolean reportsTheStartFailure = failure.getMessage().startsWith("The browser helper could not be started");
     assertTrue(reportsTheStartFailure, failure.getMessage());
     final Set<ProcessHandle> newProcesses = newSince(before);
@@ -698,11 +708,8 @@ class HelperSessionTest {
   @Test
   void shouldGiveAHelperTheLibrariesItsLauncherLinksIntoTheSession() {
     final List<Path> linked = new CopyOnWriteArrayList<>();
-    final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS).withLibraries(session -> {
-      final Path libraries = Files.createDirectory(session.resolve("lib"));
-      linked.add(libraries);
-      return libraries;
-    });
+    final HelperLauncher base = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS);
+    final HelperLauncher launcher = base.withLibraries(session -> this.createLibraries(session, linked));
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
     final HelperSession session = HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener);
     this.sessions.add(session);
@@ -715,22 +722,29 @@ class HelperSessionTest {
     assertFalse(librariesLeft);
   }
 
+  private Path createLibraries(final Path session, final List<Path> linked) throws IOException {
+    final Path libraries = Files.createDirectory(session.resolve("lib"));
+    linked.add(libraries);
+    return libraries;
+  }
+
   @Test
   void shouldFailTheStartAndLeaveNothingBehindWhenLibrariesCannotBeLinked() throws IOException {
-    final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS).withLibraries(session -> {
-      throw new IOException("no space left");
-    });
+    final HelperLauncher base = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS);
+    final HelperLauncher launcher = base.withLibraries(_ -> this.failToLinkLibraries());
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
     final Path parent = this.shortDirectory();
-    final PlayerException failure = assertThrows(PlayerException.class, () ->
-      HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, parent)
-    );
+    final PlayerException failure = assertThrows(PlayerException.class, () -> this.openSessionIn(launcher, source, parent));
     final String message = failure.getMessage();
     assertEquals("The browser helper could not be started (no space left)!", message);
     try (final Stream<Path> left = Files.list(parent)) {
       final List<Path> remainingFiles = left.toList();
       assertEquals(List.of(), remainingFiles);
     }
+  }
+
+  private Path failToLinkLibraries() throws IOException {
+    throw new IOException("no space left");
   }
 
   @Test
@@ -859,9 +873,7 @@ class HelperSessionTest {
       List.of("-D" + GatedHelperMain.GATE_PROPERTY + "=" + gate)
     );
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
-    final CompletableFuture<HelperSession> opening = CompletableFuture.supplyAsync(() ->
-      HelperSession.open(gated, NATIVES, source, BrowserOptions.DEFAULT, this.listener)
-    );
+    final CompletableFuture<HelperSession> opening = CompletableFuture.supplyAsync(() -> this.openSession(gated, source));
     final Path started = gate.resolveSibling(gate.getFileName() + GatedHelperMain.STARTED_SUFFIX);
     try {
       Await.until("the helper runs", () -> Files.exists(started));
@@ -876,11 +888,15 @@ class HelperSessionTest {
     }
     final int helperCount = HelperProcesses.count();
     assertEquals(0, helperCount);
-    Await.until("the helper ended", () ->
-      ProcessHandle.current()
-        .descendants()
-        .noneMatch(process -> process.info().commandLine().orElse("").contains(GatedHelperMain.class.getName()))
-    );
+    Await.until("the helper ended", this::isGatedHelperGone);
+  }
+
+  private boolean isGatedHelperGone() {
+    return ProcessHandle.current().descendants().noneMatch(this::isGatedHelper);
+  }
+
+  private boolean isGatedHelper(final ProcessHandle process) {
+    return process.info().commandLine().orElse("").contains(GatedHelperMain.class.getName());
   }
 
   @Test
@@ -893,9 +909,7 @@ class HelperSessionTest {
       List.of("-D" + GatedHelperMain.GATE_PROPERTY + "=" + gate)
     );
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
-    final CompletableFuture<HelperSession> opening = CompletableFuture.supplyAsync(() ->
-      HelperSession.open(gated, NATIVES, source, BrowserOptions.DEFAULT, this.listener)
-    );
+    final CompletableFuture<HelperSession> opening = CompletableFuture.supplyAsync(() -> this.openSession(gated, source));
     final Path started = gate.resolveSibling(gate.getFileName() + GatedHelperMain.STARTED_SUFFIX);
     Await.until("the helper runs", () -> Files.exists(started));
     HelperProcesses.closeAll();
@@ -915,14 +929,7 @@ class HelperSessionTest {
     final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS);
     final AtomicReference<Throwable> thrown = new AtomicReference<>();
     final AtomicBoolean stillInterrupted = new AtomicBoolean();
-    final Thread starter = new Thread(() -> {
-      try {
-        HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener);
-      } catch (final PlayerException exception) {
-        thrown.set(exception);
-        stillInterrupted.set(Thread.currentThread().isInterrupted());
-      }
-    });
+    final Thread starter = new Thread(() -> this.openAndRecordTheFailure(launcher, source, thrown, stillInterrupted));
     starter.start();
     Await.until("the helper runs", () -> HelperProcesses.count() == 1);
     starter.interrupt();
@@ -933,6 +940,20 @@ class HelperSessionTest {
     assertTrue(interruptKept, "the interrupt is kept");
     final int helperCount = HelperProcesses.count();
     assertEquals(0, helperCount);
+  }
+
+  private void openAndRecordTheFailure(
+    final HelperLauncher launcher,
+    final BrowserSource source,
+    final AtomicReference<Throwable> thrown,
+    final AtomicBoolean stillInterrupted
+  ) {
+    try {
+      HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener);
+    } catch (final PlayerException exception) {
+      thrown.set(exception);
+      stillInterrupted.set(Thread.currentThread().isInterrupted());
+    }
   }
 
   @Test
@@ -1068,9 +1089,8 @@ class HelperSessionTest {
       final boolean plainFolderCreated = Files.isDirectory(created);
       assertTrue(plainFolderCreated, "a file system without POSIX permissions gets a plain folder");
     }
-    final PlayerException missing = assertThrows(PlayerException.class, () ->
-      HelperSession.createFolder(this.directory.resolve("missing"))
-    );
+    final Path missingParent = this.directory.resolve("missing");
+    final PlayerException missing = assertThrows(PlayerException.class, () -> HelperSession.createFolder(missingParent));
     final boolean reportsTheMissingParent = missing.getMessage().startsWith("The folder of the browser session cannot be created");
     assertTrue(reportsTheMissingParent, missing.getMessage());
   }
@@ -1088,16 +1108,20 @@ class HelperSessionTest {
     final Path last = HelperSession.createFolder(this.directory, () -> drawn.incrementAndGet() < 100 ? "mcavb-taken" : "mcavb-last");
     assertEquals(this.directory.resolve("mcavb-last"), last);
     drawn.set(0);
-    final PlayerException exhausted = assertThrows(PlayerException.class, () ->
-      HelperSession.createFolder(this.directory, () -> {
-        drawn.incrementAndGet();
-        return "mcavb-taken";
-      })
-    );
+    final PlayerException exhausted = assertThrows(PlayerException.class, () -> this.createFolderFromTakenNames(drawn));
     final boolean reportsEveryNameTaken = exhausted.getMessage().endsWith("(Every name drawn was taken!)!");
     assertTrue(reportsEveryNameTaken, exhausted.getMessage());
     final int drawCount = drawn.get();
     assertEquals(100, drawCount);
+  }
+
+  private Path createFolderFromTakenNames(final AtomicInteger drawn) {
+    return HelperSession.createFolder(this.directory, () -> this.drawATakenName(drawn));
+  }
+
+  private String drawATakenName(final AtomicInteger drawn) {
+    drawn.incrementAndGet();
+    return "mcavb-taken";
   }
 
   @Test
@@ -1124,9 +1148,7 @@ class HelperSessionTest {
     final Path temporary = Files.createDirectories(this.directory.resolve("t".repeat(70 - this.directory.toString().length())));
     final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/page"), 4, 3, 1);
     final HelperLauncher launcher = launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS, Os.LINUX);
-    final PlayerException refused = assertThrows(PlayerException.class, () ->
-      HelperSession.open(launcher, NATIVES, source, BrowserOptions.DEFAULT, this.listener, temporary)
-    );
+    final PlayerException refused = assertThrows(PlayerException.class, () -> this.openSessionIn(launcher, source, temporary));
     final boolean reportsTheLongFolder = refused.getMessage().startsWith("The temporary folder " + temporary + " is too long");
     assertTrue(reportsTheLongFolder, refused.getMessage());
     try (final Stream<Path> left = Files.list(temporary)) {
@@ -1145,10 +1167,7 @@ class HelperSessionTest {
   @Test
   void shouldOnlyLogFailuresWhenClosingAndDeletingQuietly() throws IOException {
     final AtomicInteger calls = new AtomicInteger();
-    HelperSession.closeQuietly(() -> {
-      calls.incrementAndGet();
-      throw new IOException("already closed");
-    });
+    HelperSession.closeQuietly(() -> this.countAndFailClosing(calls));
     final int callCount = calls.get();
     assertEquals(1, callCount);
     final Path folder = Files.createDirectories(this.directory.resolve("kept").resolve("inner"));
@@ -1162,6 +1181,11 @@ class HelperSessionTest {
     } finally {
       inner.setWritable(true);
     }
+  }
+
+  private void countAndFailClosing(final AtomicInteger calls) throws IOException {
+    calls.incrementAndGet();
+    throw new IOException("already closed");
   }
 
   @Test

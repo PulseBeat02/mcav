@@ -112,12 +112,14 @@ class FrameCanvasTest {
   void shouldTreatARegionOfAnotherPageAsAProtocolError() {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3)) {
       assertThrows(ProtocolException.class, () -> canvas.apply(new FrameRegion(5, 3, 0, 0, 1, 1, new byte[4])));
-      final ProtocolException height = assertThrows(ProtocolException.class, () ->
-        canvas.apply(new FrameRegion(4, 2, 0, 0, 1, 1, new byte[4]))
-      );
+      final ProtocolException height = assertThrows(ProtocolException.class, () -> this.applyARegionOfAnotherHeight(canvas));
       final boolean namesTheOtherSize = height.getMessage().contains("4x2");
       assertTrue(namesTheOtherSize);
     }
+  }
+
+  private void applyARegionOfAnotherHeight(final FrameCanvas canvas) throws ProtocolException {
+    canvas.apply(new FrameRegion(4, 2, 0, 0, 1, 1, new byte[4]));
   }
 
   @Test

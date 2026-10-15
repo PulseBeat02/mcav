@@ -162,13 +162,7 @@ class PageCompositorTest {
   void shouldWakeAWaitingTakerWhenDamageBecomesDue() throws Exception {
     final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, SETTLE_MILLISECONDS, System::nanoTime);
     final byte[] target = new byte[compositor.getPageBytes()];
-    final CompletableFuture<FrameRegion> taken = CompletableFuture.supplyAsync(() -> {
-      try {
-        return compositor.takeDamage(target, 10_000L);
-      } catch (final InterruptedException exception) {
-        throw new IllegalStateException(exception);
-      }
-    });
+    final CompletableFuture<FrameRegion> taken = CompletableFuture.supplyAsync(() -> this.awaitDamage(compositor, target, 10_000L));
     Thread.sleep(TAKER_START_MILLISECONDS);
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, buffer(WIDTH, HEIGHT, 5), WIDTH, HEIGHT);
     final FrameRegion region = taken.get(10, TimeUnit.SECONDS);
@@ -176,6 +170,14 @@ class PageCompositorTest {
     assertSame(target, pixels);
     final int paintedValue = pixel(region, 0, 0, 0);
     assertEquals(5, paintedValue);
+  }
+
+  private @Nullable FrameRegion awaitDamage(final PageCompositor compositor, final byte[] target, final long timeoutMilliseconds) {
+    try {
+      return compositor.takeDamage(target, timeoutMilliseconds);
+    } catch (final InterruptedException exception) {
+      throw new IllegalStateException(exception);
+    }
   }
 
   @Test
@@ -200,13 +202,8 @@ class PageCompositorTest {
   @Test
   void shouldWakeAWaitingTakerWithNothingOnClose() throws Exception {
     final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, SETTLE_MILLISECONDS, System::nanoTime);
-    final CompletableFuture<FrameRegion> taken = CompletableFuture.supplyAsync(() -> {
-      try {
-        return compositor.takeDamage(new byte[compositor.getPageBytes()], 60_000L);
-      } catch (final InterruptedException exception) {
-        throw new IllegalStateException(exception);
-      }
-    });
+    final byte[] target = new byte[compositor.getPageBytes()];
+    final CompletableFuture<FrameRegion> taken = CompletableFuture.supplyAsync(() -> this.awaitDamage(compositor, target, 60_000L));
     Thread.sleep(TAKER_START_MILLISECONDS);
     compositor.close();
     final FrameRegion wokenDamage = taken.get(10, TimeUnit.SECONDS);

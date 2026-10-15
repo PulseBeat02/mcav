@@ -121,9 +121,7 @@ class SocksProtocolTest {
     assertEquals(SocksProtocol.COMMAND_NOT_SUPPORTED, bindReply);
     final String bindMessage = bind.getMessage();
     assertEquals("Command 2 of the request is not a connection!", bindMessage);
-    final SocksProtocol.Refusal portZero = assertThrows(SocksProtocol.Refusal.class, () ->
-      request(domainRequest(SocksProtocol.CONNECT, "a.test", 0))
-    );
+    final SocksProtocol.Refusal portZero = assertThrows(SocksProtocol.Refusal.class, () -> this.requestAConnection("a.test", 0));
     final int portZeroReply = portZero.getReply();
     assertEquals(SocksProtocol.NOT_ALLOWED, portZeroReply);
     final SocksProtocol.Refusal type = assertThrows(SocksProtocol.Refusal.class, () -> SocksProtocol.readRequest(input(5, 1, 0, 9, 1, 2)));
@@ -131,6 +129,10 @@ class SocksProtocolTest {
     assertEquals(SocksProtocol.ADDRESS_NOT_SUPPORTED, typeReply);
     final String typeMessage = type.getMessage();
     assertEquals("Address type 9 of the request is not supported!", typeMessage);
+  }
+
+  private SocksProtocol.Request requestAConnection(final String host, final int port) throws IOException {
+    return request(domainRequest(SocksProtocol.CONNECT, host, port));
   }
 
   @Test
@@ -142,9 +144,7 @@ class SocksProtocolTest {
     final ProtocolException empty = assertThrows(ProtocolException.class, () -> SocksProtocol.readRequest(input(5, 1, 0, 3, 0)));
     final String emptyMessage = empty.getMessage();
     assertEquals("The request names an empty host!", emptyMessage);
-    final ProtocolException character = assertThrows(ProtocolException.class, () ->
-      request(domainRequest(SocksProtocol.CONNECT, "a b", 80))
-    );
+    final ProtocolException character = assertThrows(ProtocolException.class, () -> this.requestAConnection("a b", 80));
     final String characterMessage = character.getMessage();
     assertEquals("Byte 32 is not allowed in the host name of the request!", characterMessage);
     assertThrows(EOFException.class, () -> SocksProtocol.readRequest(input(5, 1, 0, 3, 5, 'a')));
@@ -197,9 +197,7 @@ class SocksProtocolTest {
   @Test
   void shouldRefuseAHostNameThatStartsWithABracket() {
     for (final String host : new String[] { "[example.com", "]example.com", "example.com]" }) {
-      final ProtocolException failure = assertThrows(ProtocolException.class, () ->
-        request(domainRequest(SocksProtocol.CONNECT, host, 443))
-      );
+      final ProtocolException failure = assertThrows(ProtocolException.class, () -> this.requestAConnection(host, 443));
       final String message = failure.getMessage();
       assertEquals("Host name %s of the request holds a bracket!".formatted(host), message);
     }

@@ -265,10 +265,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     final Runnable input = switch (type) {
       case LEFT -> () -> this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, SINGLE_CLICK);
       case RIGHT -> () -> this.click(HelperProtocol.BUTTON_RIGHT, pageX, pageY, SINGLE_CLICK);
-      case DOUBLE -> () -> {
-        this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, SINGLE_CLICK);
-        this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, DOUBLE_CLICK);
-      };
+      case DOUBLE -> () -> this.doubleClick(pageX, pageY);
       case HOLD -> () -> this.sendMouse(HelperProtocol.MOUSE_PRESS, pageX, pageY, HelperProtocol.BUTTON_LEFT, SINGLE_CLICK);
       case RELEASE -> () -> this.sendMouse(HelperProtocol.MOUSE_RELEASE, pageX, pageY, HelperProtocol.BUTTON_LEFT, SINGLE_CLICK);
     };
@@ -278,6 +275,11 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private void click(final int button, final int pageX, final int pageY, final int clickCount) {
     this.sendMouse(HelperProtocol.MOUSE_PRESS, pageX, pageY, button, clickCount);
     this.sendMouse(HelperProtocol.MOUSE_RELEASE, pageX, pageY, button, clickCount);
+  }
+
+  private void doubleClick(final int pageX, final int pageY) {
+    this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, SINGLE_CLICK);
+    this.click(HelperProtocol.BUTTON_LEFT, pageX, pageY, DOUBLE_CLICK);
   }
 
   @Override
@@ -330,10 +332,13 @@ final class CefBrowserPlayer implements BrowserPlayer {
     if (!queued) {
       this.dropReports.log(
         () -> this.report("Browser input queue is full", new RejectedExecutionException("The browser input backlog is full!")),
-        dropped ->
-          this.report("Browser input queue is full", new RejectedExecutionException("%s more inputs were dropped!".formatted(dropped)))
+        this::reportDroppedInputs
       );
     }
+  }
+
+  private void reportDroppedInputs(final long dropped) {
+    this.report("Browser input queue is full", new RejectedExecutionException("%s more inputs were dropped!".formatted(dropped)));
   }
 
   private @Nullable BrowserSession getInputSession() {
