@@ -11,6 +11,7 @@ dependencies {
     compileOnlyApi(project(":mcav-common"))
     compileOnly(libs.osgi.annotation)
     testImplementation(project(":mcav-common"))
+    testImplementation(libs.jimfs)
     testImplementation(libs.xz)
     testRuntimeOnly(libs.slf4j.simple)
 }

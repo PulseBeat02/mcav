@@ -24,12 +24,15 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mockStatic;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.lang.reflect.Field;
 import java.net.URI;
@@ -37,6 +40,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -53,6 +57,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -65,6 +70,9 @@ import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
+import org.mockito.MockedStatic;
 
 class JcefNativesTest {
 
@@ -82,6 +90,9 @@ class JcefNativesTest {
   private static final String EXECUTABLE_PERMISSIONS = "rwxr-xr-x";
 
   private static final Pattern SHA256 = Pattern.compile("[0-9a-f]{64}");
+  private static final Pattern INSTALL_TIME = Pattern.compile("Installed the CEF natives for \\S+ in (\\d+) ms\\.");
+
+  private static final long MAXIMUM_INSTALL_MILLISECONDS = 600_000L;
 
   @TempDir
   Path folder;
@@ -451,6 +462,44 @@ class JcefNativesTest {
     assertTrue(playerSupported);
     final boolean moduleSupported = new BrowserModule().isSupported();
     assertTrue(moduleSupported);
+  }
+
+  @Test
+  void shouldNotSupportAMachineWithoutACefBuild() {
+    try (final MockedStatic<OsUtils> machine = mockStatic(OsUtils.class, CALLS_REAL_METHODS)) {
+      machine.when(OsUtils::getOs).thenReturn(Os.FREEBSD);
+      final boolean thisMachineSupported = JcefNatives.isSupported();
+      assertFalse(thisMachineSupported);
+
+      final boolean playerSupported = BrowserPlayer.isSupported();
+      assertFalse(playerSupported);
+
+      final boolean moduleSupported = new BrowserModule().isSupported();
+      assertFalse(moduleSupported);
+    }
+  }
+
+  @Test
+  @ResourceLock(Resources.SYSTEM_ERR)
+  void shouldLogHowLongTheInstallationTook() throws IOException {
+    final JcefNatives natives = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE));
+    final PrintStream standardError = System.err;
+    final ByteArrayOutputStream captured = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(captured, true, StandardCharsets.UTF_8));
+    try {
+      natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE);
+    } finally {
+      System.setErr(standardError);
+    }
+
+    final String log = captured.toString(StandardCharsets.UTF_8);
+    final Matcher installTime = INSTALL_TIME.matcher(log);
+    final boolean timeLogged = installTime.find();
+    assertTrue(timeLogged, log);
+
+    final long elapsed = Long.parseLong(installTime.group(1));
+    final boolean plausible = elapsed < MAXIMUM_INSTALL_MILLISECONDS;
+    assertTrue(plausible, log);
   }
 
   @Test

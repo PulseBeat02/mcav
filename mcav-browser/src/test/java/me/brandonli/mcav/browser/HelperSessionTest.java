@@ -24,14 +24,17 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.common.jimfs.Configuration;
+import com.google.common.jimfs.Jimfs;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ProtocolException;
@@ -78,6 +81,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 
 // Starts real helper processes with a scripted engine instead of CEF, or with a helper that breaks the protocol, and
 // checks what the server's session makes of them.
@@ -88,6 +93,8 @@ class HelperSessionTest {
   private static final String PAGE = "/page";
 
   private static final long START_TIMEOUT_MILLISECONDS = 60_000L;
+
+  private static final long SOUND_HOLD_MILLISECONDS = 3_000L;
 
   private static final Path TEMPORARY_FOLDER = Path.of("/tmp");
   private static final Pattern SESSION_FOLDER_NAME = Pattern.compile("mcavb-[a-z0-9]{8}");
@@ -372,6 +379,63 @@ class HelperSessionTest {
     assertFalse(deliveryAlive, "the close returned only once the delivery ended");
   }
 
+  @Test
+  void shouldWaitOnCloseForTheSoundThatIsStillHandedOver() throws InterruptedException {
+    final SoundHoldingListener holder = new SoundHoldingListener();
+    final BrowserOptions autoplay = BrowserOptions.builder().autoplay(true).build();
+    final BrowserSource source = BrowserSource.uri(URI.create("https://example.com/sound"), 4, 3, 1);
+    final HelperSession session = HelperSession.open(
+      launcher(ScriptedEngine.class.getName(), START_TIMEOUT_MILLISECONDS),
+      NATIVES,
+      source,
+      autoplay,
+      holder
+    );
+    this.sessions.add(session);
+    final boolean soundHeld = holder.awaitHolding();
+    assertTrue(soundHeld, "a sound is handed over");
+
+    final Thread reader = session.getThreads().get(0);
+    session.close();
+    final boolean readerAlive = reader.isAlive();
+    assertFalse(readerAlive, "the close returned only once the sound was handed over");
+  }
+
+  @Test
+  void shouldWaitOnCloseUntilTheOutputOfTheHelperAndItsProcessesEnded() {
+    final HelperSession session = this.open(RawHelperMain.class.getName(), "/output-child");
+    final Set<ProcessHandle> started = ConcurrentHashMap.newKeySet();
+    Await.until("the process the helper starts", () -> this.recordDescendantsAndReportAny(session, started));
+    final Thread drain = session.getThreads().get(2);
+    session.close();
+    final boolean drainAlive = drain.isAlive();
+    assertFalse(drainAlive, "the close returned only once the output of the helper and its process ended");
+  }
+
+  @Test
+  @ResourceLock(Resources.SYSTEM_ERR)
+  void shouldLogTheOutputOfAHelperWhoseStartFailed() {
+    final PrintStream standardError = System.err;
+    final ByteArrayOutputStream captured = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(captured, true, StandardCharsets.UTF_8));
+    final BrowserException failure;
+    try {
+      failure = this.openFails(ScriptedEngine.class.getName(), "/throw-after-output", START_TIMEOUT_MILLISECONDS);
+    } finally {
+      System.setErr(standardError);
+    }
+
+    final String message = failure.getMessage();
+    final boolean reportsTheStartFailure = message.contains("scripted start failure after output");
+    assertTrue(reportsTheStartFailure, message);
+
+    final String log = captured.toString(StandardCharsets.UTF_8);
+    final boolean outputAnnounced = log.contains("The browser helper wrote these lines before its start failed.");
+    final boolean outputLogged = log.contains(ScriptedEngine.OUTPUT_BEFORE_FAILURE);
+    assertTrue(outputAnnounced, log);
+    assertTrue(outputLogged, log);
+  }
+
   private boolean isWaitingInJoin(final Thread thread) {
     return Arrays.stream(thread.getStackTrace()).anyMatch(this::isJoinFrame);
   }
@@ -504,6 +568,10 @@ class HelperSessionTest {
     final String reason = this.listener.ended.get(0);
     final boolean reportsTheInputFailure = reason.startsWith("Input could not be sent to the browser helper (");
     assertTrue(reportsTheInputFailure, reason);
+
+    final Throwable failure = this.listener.failures.get(0);
+    final Throwable cause = failure.getCause();
+    assertInstanceOf(IOException.class, cause, "the failure carries the failed write");
   }
 
   private boolean sendAKeyAndReportTheEnd(final HelperSession session) {
@@ -1170,16 +1238,12 @@ class HelperSessionTest {
     HelperSession.closeQuietly(() -> this.countAndFailClosing(calls));
     final int callCount = calls.get();
     assertEquals(1, callCount);
-    final Path folder = Files.createDirectories(this.directory.resolve("kept").resolve("inner"));
-    Files.writeString(folder.resolve("file"), "x");
-    final File inner = folder.toFile();
-    assumeTrue(inner.setWritable(false) && !Files.isWritable(folder), "This file system cannot make the folder read-only!");
-    try {
-      HelperSession.deleteFolder(this.directory.resolve("kept"));
-      final boolean fileKept = Files.exists(folder.resolve("file"));
-      assertTrue(fileKept, "a folder that cannot be removed stays");
-    } finally {
-      inner.setWritable(true);
+
+    try (final FileSystem memory = Jimfs.newFileSystem(Configuration.unix())) {
+      final Path unremovable = memory.getPath("/");
+      HelperSession.deleteFolder(unremovable);
+      final boolean folderKept = Files.isDirectory(unremovable);
+      assertTrue(folderKept, "a folder that cannot be removed stays");
     }
   }
 
@@ -1214,6 +1278,7 @@ class HelperSessionTest {
     final List<byte[]> sound = new CopyOnWriteArrayList<>();
     private final List<Long> frameNanoseconds = new CopyOnWriteArrayList<>();
     final List<String> ended = new CopyOnWriteArrayList<>();
+    final List<Throwable> failures = new CopyOnWriteArrayList<>();
 
     private List<Integer> inputCounts() {
       final List<Integer> counts = new ArrayList<>();
@@ -1248,6 +1313,48 @@ class HelperSessionTest {
     @Override
     public void onEnded(final String reason, final Throwable cause) {
       this.ended.add(reason);
+      this.failures.add(cause);
     }
+  }
+
+  // Holds the first sound it is handed for a while, as a slow server would.
+  private static final class SoundHoldingListener implements BrowserSession.Listener {
+
+    private final CountDownLatch holding;
+
+    SoundHoldingListener() {
+      this.holding = new CountDownLatch(1);
+    }
+
+    boolean awaitHolding() throws InterruptedException {
+      return this.holding.await(START_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public void onFrame(final ImageBuffer frame) {
+      frame.close();
+    }
+
+    @Override
+    public void onAudio(final byte[] samples) {
+      if (this.holding.getCount() == 0) {
+        return;
+      }
+
+      this.holding.countDown();
+      this.hold();
+    }
+
+    private void hold() {
+      try {
+        Thread.sleep(SOUND_HOLD_MILLISECONDS);
+      } catch (final InterruptedException exception) {
+        final Thread current = Thread.currentThread();
+        current.interrupt();
+      }
+    }
+
+    @Override
+    public void onEnded(final String reason, final Throwable cause) {}
   }
 }

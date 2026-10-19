@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -68,6 +69,8 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 
 class LinuxLibrariesTest {
 
@@ -331,6 +334,43 @@ class LinuxLibrariesTest {
         line
       );
     }
+  }
+
+  @Test
+  void shouldNameTheWholeEntryOfALibraryWhoseSonameIsEmpty() {
+    final String line = "linux-amd64 libx 1 " + "0".repeat(64) + " 1 pool/main/x/x/x.deb =usr/lib/x/libx.so.1";
+    final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
+      new LinuxLibraries(this.folder, (uri, destination, sha256, size) -> {}, List.of(), List.of(line))
+    );
+
+    final String message = refused.getMessage();
+    final boolean namesTheEntry = message.endsWith("invalid value =usr/lib/x/libx.so.1!");
+    assertTrue(namesTheEntry, message);
+  }
+
+  @Test
+  @ResourceLock(Resources.SYSTEM_ERR)
+  void shouldLogTheSizeOfTheDownloadInMegabytes() throws IOException {
+    final byte[] debianPackage = this.testPackage();
+    final String pin = this.pin(debianPackage).replace(" " + debianPackage.length + " ", " 3000000 ");
+    final LinuxLibraries libraries = new LinuxLibraries(
+      this.folder.resolve("cache"),
+      (uri, destination, sha256, size) -> Files.write(destination, debianPackage),
+      List.of("https://mirror.test/debian/"),
+      List.of(pin)
+    );
+    final PrintStream standardError = System.err;
+    final ByteArrayOutputStream captured = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(captured, true, StandardCharsets.UTF_8));
+    try {
+      libraries.install(PLATFORM);
+    } finally {
+      System.setErr(standardError);
+    }
+
+    final String log = captured.toString(StandardCharsets.UTF_8);
+    final boolean sizeLogged = log.contains("(3 MB, once)");
+    assertTrue(sizeLogged, log);
   }
 
   @Test

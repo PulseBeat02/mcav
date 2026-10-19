@@ -102,6 +102,8 @@ class SessionFoldersTest {
     Files.writeString(garbage.resolve(SessionFolders.OWNER_FILE), "not\na record\n");
     final Path truncated = Files.createDirectory(this.temporary.resolve(SessionFolders.PREFIX + "truncated"));
     Files.writeString(truncated.resolve(SessionFolders.OWNER_FILE), GONE + LINE_SEPARATOR);
+    final Path notAscii = Files.createDirectory(this.temporary.resolve(SessionFolders.PREFIX + "not-ascii"));
+    Files.write(notAscii.resolve(SessionFolders.OWNER_FILE), new byte[] { (byte) 0xff, '\n' });
     final Path unreadable = Files.createDirectory(this.temporary.resolve(SessionFolders.PREFIX + "unreadable"));
     final Path record = Files.writeString(
       unreadable.resolve(SessionFolders.OWNER_FILE),
@@ -118,7 +120,7 @@ class SessionFoldersTest {
     final int removed = SessionFolders.ofThisServer().removeStale(this.temporary);
 
     assertEquals(readable ? 1 : 0, removed, "a user who may read every file reads the record");
-    for (final Path kept : List.of(unnamed, garbage, truncated, other)) {
+    for (final Path kept : List.of(unnamed, garbage, truncated, notAscii, other)) {
       final boolean folderKept = Files.exists(kept);
       assertTrue(folderKept, kept.toString());
     }

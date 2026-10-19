@@ -31,6 +31,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.ProtocolException;
 import java.net.ServerSocket;
@@ -70,6 +71,8 @@ class NullDisplayTest {
   private static final Pattern DISPLAY_ADDRESS = Pattern.compile("127\\.0\\.0\\.1:(\\d+)");
 
   private static final int READ_TIMEOUT_MILLISECONDS = 10_000;
+
+  private static final int PREDEFINED_ATOM_BYTES = 698;
 
   @TempDir
   Path folder;
@@ -546,6 +549,17 @@ class NullDisplayTest {
   }
 
   @Test
+  void shouldInternANameThatFillsTheBytesOfTheAtomsExactly() {
+    final NullDisplay.Atoms atoms = new NullDisplay.Atoms();
+    final String filling = "x".repeat(NullDisplay.MAXIMUM_ATOM_BYTES - PREDEFINED_ATOM_BYTES);
+    final int fillingAtom = atoms.intern(filling);
+    assertEquals(69, fillingAtom, "a name that fills the bytes left is interned");
+
+    final int overflowingAtom = atoms.intern("y");
+    assertEquals(0, overflowingAtom, "no byte is left");
+  }
+
+  @Test
   void shouldServeClientsThatReadTheAuthorityFile() throws IOException {
     final Path authority = this.folder.resolve(AUTHORITY_FILE);
     final NullDisplay display = NullDisplay.start(authority);
@@ -578,6 +592,8 @@ class NullDisplayTest {
         assertEquals(69, internedAtom);
         display.close();
         this.assertEnded(client.getInputStream());
+        final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
+        assertThrows(ConnectException.class, () -> new Socket(loopback, port).close(), "the display no longer listens");
       }
     } finally {
       display.close();
@@ -850,6 +866,10 @@ class NullDisplayTest {
       assertFalse(thirdPortRefused, "a refused port is kept until the search ends");
       final InetAddress boundAddress = third.getInetAddress();
       assertEquals(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), boundAddress);
+    }
+    for (final int port : refused) {
+      final ServerSocket again = new ServerSocket(port, 1, InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }));
+      again.close();
     }
   }
 

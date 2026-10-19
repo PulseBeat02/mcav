@@ -36,14 +36,19 @@ import org.cef.browser.McavOffscreenBrowser;
 // then hands SOUND_CHUNKS chunks of SOUND_FRAMES frames to a PageAudio as calls of its binding, whose samples all hold
 // the number of the chunk, with a call that is not sound before each; /sound-on-input: shows the page and hands over a
 // chunk of sound whose samples hold 0 at once, and one whose samples hold the number of DevTools calls so far after
-// every input; /exit: ends the helper process during the start; /throw: fails to start; /unlinked: fails to start as a
-// native library that cannot be loaded does; /never: never reports anything.
+// every input; /exit: ends the helper process during the start; /throw: fails to start; /throw-after-output: writes
+// OUTPUT_BEFORE_FAILURE to the output of the helper and fails to start half a second later; /unlinked: fails to start
+// as a native library that cannot be loaded does; /never: never reports anything.
 final class ScriptedEngine implements HelperEngine {
 
   static final int RED = 0x20;
   static final int GREEN = 0x40;
   static final int SOUND_CHUNKS = 3;
   static final int SOUND_FRAMES = 1024;
+
+  static final String OUTPUT_BEFORE_FAILURE = "the scripted helper is about to fail";
+
+  private static final long OUTPUT_READ_MILLISECONDS = 500L;
 
   private final List<String> calls;
   private McavOffscreenBrowser.PaintListener painter = new NoPainter();
@@ -76,6 +81,7 @@ final class ScriptedEngine implements HelperEngine {
     final String path = url.getPath();
     switch (path) {
       case "/throw" -> throw new IllegalStateException("scripted start failure");
+      case "/throw-after-output" -> this.failAfterOutput();
       case "/unlinked" -> throw new UnsatisfiedLinkError("scripted missing native library");
       case "/exit" -> System.exit(3);
       case "/never" -> {
@@ -95,6 +101,14 @@ final class ScriptedEngine implements HelperEngine {
       case "/fail" -> this.crashRendererLater(events);
       default -> this.show(0);
     }
+  }
+
+  // Writes a line to the output of the helper, and fails to start once the server has had time to read it.
+  private void failAfterOutput() throws InterruptedException {
+    System.out.println(OUTPUT_BEFORE_FAILURE);
+    System.out.flush();
+    Thread.sleep(OUTPUT_READ_MILLISECONDS);
+    throw new IllegalStateException("scripted start failure after output");
   }
 
   private void playSound(final HelperEvents events) {

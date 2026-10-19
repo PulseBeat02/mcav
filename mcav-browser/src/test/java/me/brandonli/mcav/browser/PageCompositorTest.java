@@ -195,6 +195,25 @@ class PageCompositorTest {
   }
 
   @Test
+  void shouldSleepUntilTheDamageSettlesInsteadOfSpinning() throws InterruptedException {
+    final AtomicLong reads = new AtomicLong();
+    final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 5, 60L, () -> this.readNanoTime(reads));
+    compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, this.buffer(WIDTH, HEIGHT, 6), WIDTH, HEIGHT);
+    final FrameRegion region = compositor.takeDamage(new byte[compositor.getPageBytes()], 10_000L);
+    assertNotNull(region);
+
+    final long clockReads = reads.get();
+    final boolean slept = clockReads < 100L;
+    assertTrue(slept, "the taker read the clock " + clockReads + " times while it waited");
+  }
+
+  private long readNanoTime(final AtomicLong reads) {
+    reads.incrementAndGet();
+
+    return System.nanoTime();
+  }
+
+  @Test
   void shouldTimeOutTakingWithoutDamage() throws InterruptedException {
     final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 1, SETTLE_MILLISECONDS, System::nanoTime);
     final @Nullable FrameRegion damage = compositor.takeDamage(new byte[compositor.getPageBytes()], 20L);

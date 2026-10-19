@@ -331,6 +331,81 @@ class ChromiumConfinementTest {
   }
 
   @Test
+  @EnabledOnOs(OS.LINUX)
+  void shouldConfineWithTheFirstVersionOfLandlock() throws Exception {
+    final int version = Landlock.version();
+    assumeTrue(version >= 1, () -> "This kernel cannot restrict (%s)!".formatted(Landlock.describeMissing(version)));
+    final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));
+    final HelperConfiguration configuration = this.configuration(Confinement.ASKED, server);
+    Files.createDirectories(configuration.getSocket().getParent());
+    final AtomicReference<String> said = new AtomicReference<>();
+    final AtomicReference<Throwable> failure = new AtomicReference<>();
+    final Thread thread = new Thread(() -> this.confineWithTheFirstVersion(configuration, said, failure), "confinement-test");
+    thread.start();
+    thread.join(TimeUnit.SECONDS.toMillis(60));
+    final boolean alive = thread.isAlive();
+    assertFalse(alive);
+
+    final Throwable confinedFailure = failure.get();
+    assertNull(confinedFailure, () -> "the confined thread failed: " + failure.get());
+
+    final String saidConfinement = said.get();
+    assertEquals(ChromiumConfinement.CONFINED, saidConfinement);
+  }
+
+  private void confineWithTheFirstVersion(
+    final HelperConfiguration configuration,
+    final AtomicReference<String> said,
+    final AtomicReference<Throwable> failure
+  ) {
+    try {
+      said.set(ChromiumConfinement.confine(configuration, OperatingSystem.LINUX, () -> 1, new Seatbelt(name -> Optional.empty())));
+    } catch (final Throwable exception) {
+      failure.set(exception);
+    }
+  }
+
+  @Test
+  @EnabledOnOs(OS.LINUX)
+  void shouldGiveNothingBeneathAFolderThatCannotBeListedEvenByRoot() throws Exception {
+    final int version = Landlock.version();
+    assumeTrue(version >= 1, () -> "This kernel cannot restrict (%s)!".formatted(Landlock.describeMissing(version)));
+    final Path root = this.folder.toRealPath();
+    final Path beside = Files.createDirectories(root.resolve("beside"));
+    final List<Landlock.Rule> openRules = ChromiumConfinement.rules(root, List.of(), List.of(), List.of());
+    assertEquals(List.of(new Landlock.Rule(beside, false)), openRules);
+
+    final AtomicReference<List<Landlock.Rule>> closedRules = new AtomicReference<>();
+    final AtomicReference<Throwable> failure = new AtomicReference<>();
+    final Thread thread = new Thread(() -> this.closeEverythingAndWalk(version, root, closedRules, failure), "closed-walk-test");
+    thread.start();
+    thread.join(TimeUnit.SECONDS.toMillis(60));
+    final boolean alive = thread.isAlive();
+    assertFalse(alive);
+
+    final Throwable closedFailure = failure.get();
+    assertNull(closedFailure, () -> "the closed thread failed: " + failure.get());
+
+    final List<Landlock.Rule> rules = closedRules.get();
+    assertEquals(List.of(), rules);
+  }
+
+  // a ruleset without rules closes every folder to the thread, unlike permissions, which root ignores
+  private void closeEverythingAndWalk(
+    final int version,
+    final Path root,
+    final AtomicReference<List<Landlock.Rule>> rules,
+    final AtomicReference<Throwable> failure
+  ) {
+    try {
+      Landlock.restrictThread(version, List.of());
+      rules.set(ChromiumConfinement.rules(root, List.of(), List.of(), List.of()));
+    } catch (final Throwable exception) {
+      failure.set(exception);
+    }
+  }
+
+  @Test
   @EnabledOnOs(OS.MAC)
   void shouldNotLetAConfinedHelperOrWhatItStartsReadTheFolderOfTheServerOrTheTemporaryFolderOnMacOs() throws Exception {
     final Path server = Files.createDirectories(this.folder.resolve(SERVER_FOLDER));

@@ -53,6 +53,9 @@ class LandlockTest {
 
   private static final Path ROOT = Path.of("/");
 
+  // the kernel stacks at most 16 rulesets on a thread, so a later restriction fails with E2BIG
+  private static final int MORE_THAN_THE_STACKED_RULESETS = 64;
+
   @TempDir
   private Path folder;
 
@@ -277,6 +280,23 @@ class LandlockTest {
     assertTrue(permissionDenied, output);
     final boolean noNewPrivileges = output.contains("NoNewPrivs:\t1");
     assertTrue(noNewPrivileges, output);
+  }
+
+  @Test
+  @EnabledOnOs(OS.LINUX)
+  void shouldRefuseMoreStackedRulesetsThanTheKernelAllowsWithItsErrorNumber() throws InterruptedException {
+    final int version = this.availableVersion();
+    final Throwable failure = this.onThread(() -> this.restrictUntilRefused(version));
+    assertInstanceOf(IOException.class, failure);
+
+    final String message = failure.getMessage();
+    assertEquals("Landlock could not restrict the thread (error 7)!", message);
+  }
+
+  private void restrictUntilRefused(final int version) throws IOException {
+    for (int ruleset = 0; ruleset < MORE_THAN_THE_STACKED_RULESETS; ruleset++) {
+      Landlock.restrictThread(version, List.of());
+    }
   }
 
   @FunctionalInterface

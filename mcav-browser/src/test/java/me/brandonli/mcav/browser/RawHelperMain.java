@@ -41,13 +41,13 @@ import java.util.concurrent.TimeUnit;
 // /hang-up: shows the page, then closes the connection but keeps running; /exit: exits before it connects; /silent:
 // never connects, and exits when its standard input ends; /stubborn-child: like /stubborn, and starts a process of its
 // own once its standard input ended, which runs for a minute; /child: shows the page and starts a process of its own at
-// once, which runs for a minute; /chatty: writes far more output than a pipe holds before it connects, then shows the
-// page; /full-page: shows the page with one region as large as the page; /exit-later: shows the page and exits with
-// code 5 half a second later; /deaf: shows the page and shuts down the reading side of its connection;
-// /silent-stubborn: never connects and ignores the end of its standard input for two minutes; /noisy: shows the page,
-// sends NOISY_LOAD_ERRORS load errors of addresses with a secret in their query and NOISY_NOTICES notices at once, as a
-// page can make a helper do, one more notice a moment later, and then one frame of sound. It then waits until its
-// standard input ends.
+// once, which runs for a minute; /output-child: like /child, with a process that writes to the output of the helper;
+// /chatty: writes far more output than a pipe holds before it connects, then shows the page; /full-page: shows the page
+// with one region as large as the page; /exit-later: shows the page and exits with code 5 half a second later; /deaf:
+// shows the page and shuts down the reading side of its connection; /silent-stubborn: never connects and ignores the
+// end of its standard input for two minutes; /noisy: shows the page, sends NOISY_LOAD_ERRORS load errors of addresses
+// with a secret in their query and NOISY_NOTICES notices at once, as a page can make a helper do, one more notice a
+// moment later, and then one frame of sound. It then waits until its standard input ends.
 public final class RawHelperMain {
 
   static final String CHATTY_END = "the chatty helper is done";
@@ -97,7 +97,7 @@ public final class RawHelperMain {
         sleep();
         HelperProtocol.writeClose(output);
       }
-      case "/stall", "/stubborn", "/stubborn-child", "/hang-up", "/child", "/chatty", "/exit-later", "/deaf" -> {
+      case "/stall", "/stubborn", "/stubborn-child", "/hang-up", "/child", "/output-child", "/chatty", "/exit-later", "/deaf" -> {
         HelperProtocol.writeHello(output, token);
         HelperProtocol.writeText(output, HelperProtocol.READY, "raw");
         HelperProtocol.writeFrame(output, new FrameRegion(configuration.getWidth(), configuration.getHeight(), 0, 0, 1, 1, new byte[4]));
@@ -177,7 +177,10 @@ public final class RawHelperMain {
       System.exit(5);
     }
     if (path.equals("/child")) {
-      startChild();
+      startChild(ProcessBuilder.Redirect.DISCARD);
+    }
+    if (path.equals("/output-child")) {
+      startChild(ProcessBuilder.Redirect.INHERIT);
     }
     if (path.equals("/stubborn-child")) {
       startChildWhenTheInputEnds(input);
@@ -208,7 +211,7 @@ public final class RawHelperMain {
     try {
       awaitTheEnd(input);
       Thread.sleep(2_000L);
-      startChild();
+      startChild(ProcessBuilder.Redirect.DISCARD);
     } catch (final IOException exception) {
       throw new UncheckedIOException(exception);
     } catch (final InterruptedException exception) {
@@ -216,14 +219,15 @@ public final class RawHelperMain {
     }
   }
 
-  // Starts a process of this helper: a JVM that waits for a gate that never opens, for a minute.
-  private static void startChild() throws IOException {
+  // Starts a process of this helper: a JVM that waits for a gate that never opens, for a minute, and writes its output
+  // where it is told to.
+  private static void startChild(final ProcessBuilder.Redirect output) throws IOException {
     final String program = ProcessHandle.current().info().command().orElse("java");
     final String classPath = System.getProperty("java.class.path");
     final String gate = System.getProperty("java.io.tmpdir") + File.separator + "never-opens";
     new ProcessBuilder(program, "-D" + GatedHelperMain.GATE_PROPERTY + "=" + gate, "-cp", classPath, GatedHelperMain.class.getName())
       .redirectErrorStream(true)
-      .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+      .redirectOutput(output)
       .start();
   }
 
