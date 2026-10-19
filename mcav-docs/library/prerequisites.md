@@ -59,11 +59,11 @@ downloads nothing.
 
 No one publishes a portable VLC for ARM64 Linux, so there MCAV installs the Debian 12 (bookworm) packages of VLC 3.0.23:
 `libvlc5`, `libvlccore9` and `vlc-plugin-base` with every library they depend on, apart from the C and C++ runtimes of
-the system. Each package comes from `snapshot.debian.org` and is checked against the SHA-256 hash MCAV ships. MCAV
-unpacks the packages itself into the cache folder, without `dpkg`, a package manager or administrator rights, and loads
-their libraries in dependency order before VLC. The libraries need glibc 2.36 or newer; on an older system, install VLC
-from your distribution instead. How to regenerate the pinned packages is described in
-[compiling MCAV](compile.md).
+the system. Each package comes from the bookworm archive or its security updates on `snapshot.debian.org`, whichever
+has the newer version, and is checked against the SHA-256 hash MCAV ships. MCAV unpacks the packages itself into the
+cache folder, without `dpkg`, a package manager or administrator rights, and loads their libraries in dependency order
+before VLC. The libraries need glibc 2.36 or newer; on an older system, install VLC from your distribution instead. How
+to regenerate the pinned packages is described in [compiling MCAV](compile.md).
 
 FFmpeg and OpenCV are bundled with the library for every platform marked so above. The OpenCV build differs per
 platform: the Windows and macOS builds read video files themselves, the Linux build has no file backend and only
