@@ -60,8 +60,9 @@ Click to watch a demo video above.
 | Sound in Minecraft | A port for the audio web page, a Discord bot, or the [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) plugin (2.6.24 for Minecraft 26.3) |
 
 Core file playback works on headless servers without a display or sound device, and MCAV never runs an administrative
-package installer. MCAV also detects other Unix systems, such as FreeBSD: it downloads nothing there and uses the VLC
-installed on the system, but the bundled FFmpeg and OpenCV natives only exist for the platforms above.
+package installer. JavaCPP publishes no FFmpeg and OpenCV builds for FreeBSD or for Windows on ARM64, and MCAV needs
+them to install, so there `install()` fails with an `MCAVLoadingException` whose cause names the platform, and MCAV
+cannot be used.
 
 ---
 
