@@ -140,6 +140,14 @@ final class DebianLibraryInstallerTest {
   }
 
   @Test
+  void shouldFindNoInstallationBeforeTheDownload() {
+    final DebianLibraryInstaller installer = this.createInstaller(ARM64, this::record);
+
+    final Optional<Path> found = installer.findInstallation();
+    assertEquals(Optional.empty(), found);
+  }
+
+  @Test
   void shouldLoadEveryLibraryInTheOrderOfThePackages() {
     final DebianLibraryInstaller installer = this.createInstaller(ARM64, this::record);
     this.serveBothPackages();

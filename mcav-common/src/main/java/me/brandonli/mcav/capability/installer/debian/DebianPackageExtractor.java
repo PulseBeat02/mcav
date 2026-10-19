@@ -22,24 +22,34 @@ import com.google.common.io.ByteStreams;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import me.brandonli.mcav.capability.installer.InstallationException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.tukaani.xz.XZInputStream;
 
-// Extracts the libraries of a Debian package without dpkg, so it needs no administrator rights: a package is an ar
-// archive whose data member is a tar archive, compressed with xz or gzip. zstd, which no Debian release before trixie
-// uses, is refused. Only the library trees usr/lib and lib are written; every other entry is read and skipped.
+// Extracts the trees of a Debian package that the caller names, such as usr/lib, without dpkg, so it needs no
+// administrator rights: a package is an ar archive whose data member is a tar archive, compressed with xz or gzip.
+// zstd, which no Debian release before trixie uses, is refused. Every entry outside the trees is read and skipped. A
+// file is executable when its entry is, and no file or folder is ever writable by anyone but its owner, whatever the
+// umask. A symbolic link must stay inside the destination along a normalized relative path, so that no chain of links
+// can lead out of it.
 final class DebianPackageExtractor {
 
   private static final long MAXIMUM_ENTRY_SIZE = 512L * 1024L * 1024L;
@@ -64,6 +74,8 @@ final class DebianPackageExtractor {
 
   private static final int TAR_BLOCK_SIZE = 512;
   private static final int TAR_NAME_LENGTH = 100;
+  private static final int TAR_MODE_OFFSET = 100;
+  private static final int TAR_MODE_LENGTH = 8;
   private static final int TAR_SIZE_OFFSET = 124;
   private static final int TAR_SIZE_LENGTH = 12;
   private static final int TAR_CHECKSUM_OFFSET = 148;
@@ -95,37 +107,66 @@ final class DebianPackageExtractor {
   private static final String PAX_PATH = "path";
   private static final String PAX_LINK_PATH = "linkpath";
   private static final String PATH_SEPARATOR = "/";
+  private static final String PARENT_FOLDER = "..";
 
   private static final Pattern DECIMAL = Pattern.compile("\\d{1,10}");
   private static final Pattern OCTAL = Pattern.compile("[0-7]{1,12}");
   private static final int OCTAL_RADIX = 8;
 
-  private static final List<String> EXTRACTED_TREES = List.of("usr/lib", "lib");
+  private static final int EXECUTE_BITS = 0111;
+  private static final Set<PosixFilePermission> EXECUTABLE = PosixFilePermissions.fromString("rwxr-xr-x");
+  private static final Set<PosixFilePermission> REGULAR = PosixFilePermissions.fromString("rw-r--r--");
+  private static final Set<PosixFilePermission> FOLDER = PosixFilePermissions.fromString("rwxr-xr-x");
+  private static final String POSIX_VIEW = "posix";
+
+  private static final Set<StandardOpenOption> NEW_FILE = Set.of(StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
 
   private final Path destination;
+  private final List<String> trees;
+  private final boolean supportsPosix;
   private final long maximumEntrySize;
 
   private long remainingSize;
   private @Nullable String pendingName;
   private @Nullable String pendingLinkName;
 
-  private DebianPackageExtractor(final Path destination, final long maximumEntrySize, final long maximumTotalSize) {
+  private DebianPackageExtractor(
+    final Path destination,
+    final List<String> trees,
+    final long maximumEntrySize,
+    final long maximumTotalSize
+  ) {
+    final FileSystem fileSystem = destination.getFileSystem();
+    final Set<String> views = fileSystem.supportedFileAttributeViews();
     this.destination = destination;
+    this.trees = trees;
+    this.supportsPosix = views.contains(POSIX_VIEW);
     this.maximumEntrySize = maximumEntrySize;
     this.remainingSize = maximumTotalSize;
   }
 
-  static void extract(final Path archive, final Path destination) {
-    extract(archive, destination, MAXIMUM_ENTRY_SIZE, MAXIMUM_TOTAL_SIZE);
+  static void extract(final Path archive, final Path destination, final List<String> trees) {
+    extract(archive, destination, trees, MAXIMUM_ENTRY_SIZE, MAXIMUM_TOTAL_SIZE);
   }
 
   @VisibleForTesting
-  static void extract(final Path archive, final Path destination, final long maximumEntrySize, final long maximumTotalSize) {
+  static void extract(
+    final Path archive,
+    final Path destination,
+    final List<String> trees,
+    final long maximumEntrySize,
+    final long maximumTotalSize
+  ) {
+    final Path absolute = destination.toAbsolutePath();
+    final Path normalized = absolute.normalize();
+    final DebianPackageExtractor extractor = new DebianPackageExtractor(normalized, trees, maximumEntrySize, maximumTotalSize);
+    extractor.extractPackage(archive);
+  }
+
+  private void extractPackage(final Path archive) {
     try (final InputStream file = Files.newInputStream(archive); final InputStream buffered = new BufferedInputStream(file)) {
-      Files.createDirectories(destination);
-      final Path realDestination = destination.toRealPath();
-      final DebianPackageExtractor extractor = new DebianPackageExtractor(realDestination, maximumEntrySize, maximumTotalSize);
-      extractor.extractDataMember(buffered);
+      this.createFolders(this.destination);
+      this.extractDataMember(buffered);
     } catch (final IOException exception) {
       final String message = "Debian package %s could not be extracted!".formatted(archive);
       throw new InstallationException(message, exception);
@@ -380,8 +421,8 @@ final class DebianPackageExtractor {
 
     this.rejectSymbolicLinks(target, name);
     switch (type) {
-      case OLD_REGULAR_FILE, REGULAR_FILE -> this.writeFile(target, data);
-      case DIRECTORY -> Files.createDirectories(target);
+      case OLD_REGULAR_FILE, REGULAR_FILE -> this.writeFile(target, header, data);
+      case DIRECTORY -> this.createFolders(target);
       case SYMBOLIC_LINK -> this.createSymbolicLink(target, linkName, name);
       default -> {
         final String message = "Tar entry %s has the unsupported type %s!".formatted(name, (char) type);
@@ -436,7 +477,7 @@ final class DebianPackageExtractor {
   }
 
   private boolean isInExtractedTree(final Path target) {
-    for (final String tree : EXTRACTED_TREES) {
+    for (final String tree : this.trees) {
       final Path root = this.destination.resolve(tree);
       if (target.startsWith(root)) {
         return true;
@@ -458,22 +499,68 @@ final class DebianPackageExtractor {
     }
   }
 
-  private void writeFile(final Path target, final InputStream data) throws IOException {
+  // a later entry of the same name replaces an earlier one
+  private void writeFile(final Path target, final byte[] header, final InputStream data) throws IOException {
+    final long mode = this.readOctal(header, TAR_MODE_OFFSET, TAR_MODE_LENGTH);
+    final boolean executable = (mode & EXECUTE_BITS) != 0;
     final Path parent = this.getParent(target);
-    Files.createDirectories(parent);
-    Files.copy(data, target, StandardCopyOption.REPLACE_EXISTING);
+    this.createFolders(parent);
+    Files.deleteIfExists(target);
+    this.writeNewFile(target, data);
+    this.setPermissions(target, executable ? EXECUTABLE : REGULAR);
+  }
+
+  private void writeNewFile(final Path target, final InputStream data) throws IOException {
+    final FileAttribute<?>[] permissions = this.initialPermissions(REGULAR);
+    try (
+      final SeekableByteChannel channel = Files.newByteChannel(target, NEW_FILE, permissions);
+      final OutputStream output = Channels.newOutputStream(channel)
+    ) {
+      data.transferTo(output);
+    }
+  }
+
+  private void setPermissions(final Path file, final Set<PosixFilePermission> permissions) throws IOException {
+    if (!this.supportsPosix) {
+      return;
+    }
+
+    Files.setPosixFilePermissions(file, permissions);
+  }
+
+  private void createFolders(final Path folder) throws IOException {
+    final FileAttribute<?>[] permissions = this.initialPermissions(FOLDER);
+    Files.createDirectories(folder, permissions);
+  }
+
+  private FileAttribute<?>[] initialPermissions(final Set<PosixFilePermission> permissions) {
+    if (!this.supportsPosix) {
+      return new FileAttribute<?>[0];
+    }
+
+    final FileAttribute<Set<PosixFilePermission>> attribute = PosixFilePermissions.asFileAttribute(permissions);
+    return new FileAttribute<?>[] { attribute };
   }
 
   private void createSymbolicLink(final Path link, final String linkName, final String name) throws IOException {
     final Path linkTarget = this.toPath(linkName);
     final Path parent = this.getParent(link);
-    final Path pointed = parent.resolve(linkTarget).normalize();
-    if (linkName.isEmpty() || linkTarget.isAbsolute() || !pointed.startsWith(this.destination)) {
+    // from the destination, since a link that climbs above it could come back through a link on the way to it
+    final Path relativeParent = this.destination.relativize(parent);
+    final Path pointed = relativeParent.resolve(linkTarget).normalize();
+    if (linkName.isEmpty() || linkTarget.isAbsolute() || pointed.startsWith(PARENT_FOLDER)) {
       final String message = "Symbolic link %s points to %s outside the destination!".formatted(name, linkName);
       throw new IOException(message);
     }
 
-    Files.createDirectories(parent);
+    // the lexical check misses a link that climbs after it descends, which could leave through another link
+    final Path normalizedTarget = linkTarget.normalize();
+    if (!linkTarget.equals(normalizedTarget)) {
+      final String message = "Symbolic link %s points to %s, which is not a normalized path!".formatted(name, linkName);
+      throw new IOException(message);
+    }
+
+    this.createFolders(parent);
     Files.createSymbolicLink(link, linkTarget);
   }
 

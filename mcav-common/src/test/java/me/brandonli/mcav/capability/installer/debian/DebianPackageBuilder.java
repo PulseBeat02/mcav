@@ -67,6 +67,7 @@ final class DebianPackageBuilder {
   private static final int UNSIGNED_BYTE_MASK = 0xFF;
 
   private static final String FILE_MODE = "0000644";
+  private static final String EXECUTABLE_MODE = "0000755";
   private static final int NUMBER_DIGITS = 7;
   private static final int SIZE_DIGITS = 11;
   private static final int CHECKSUM_DIGITS = 6;
@@ -106,27 +107,32 @@ final class DebianPackageBuilder {
   }
 
   DebianPackageBuilder file(final String name, final byte[] content) {
-    this.entries.add(new Entry(name, REGULAR_FILE, content, "", Layout.STANDARD));
+    this.entries.add(new Entry(name, REGULAR_FILE, content, "", FILE_MODE, Layout.STANDARD));
+    return this;
+  }
+
+  DebianPackageBuilder executableFile(final String name, final byte[] content) {
+    this.entries.add(new Entry(name, REGULAR_FILE, content, "", EXECUTABLE_MODE, Layout.STANDARD));
     return this;
   }
 
   DebianPackageBuilder directory(final String name) {
-    this.entries.add(new Entry(name, DIRECTORY, NO_DATA, "", Layout.STANDARD));
+    this.entries.add(new Entry(name, DIRECTORY, NO_DATA, "", FILE_MODE, Layout.STANDARD));
     return this;
   }
 
   DebianPackageBuilder symbolicLink(final String name, final String target) {
-    this.entries.add(new Entry(name, SYMBOLIC_LINK, NO_DATA, target, Layout.STANDARD));
+    this.entries.add(new Entry(name, SYMBOLIC_LINK, NO_DATA, target, FILE_MODE, Layout.STANDARD));
     return this;
   }
 
   DebianPackageBuilder hardLink(final String name, final String target) {
-    this.entries.add(new Entry(name, HARD_LINK, NO_DATA, target, Layout.STANDARD));
+    this.entries.add(new Entry(name, HARD_LINK, NO_DATA, target, FILE_MODE, Layout.STANDARD));
     return this;
   }
 
   DebianPackageBuilder rawEntry(final String name, final byte type, final byte[] data) {
-    this.entries.add(new Entry(name, type, data, "", Layout.RAW));
+    this.entries.add(new Entry(name, type, data, "", FILE_MODE, Layout.RAW));
     return this;
   }
 
@@ -246,7 +252,7 @@ final class DebianPackageBuilder {
   private void writeGnuMetadata(final ByteArrayOutputStream tar, final byte type, final String value) {
     final byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
     final byte[] terminated = Arrays.copyOf(bytes, bytes.length + 1);
-    final Entry metadata = new Entry(GNU_LONG_NAME_ENTRY, type, terminated, "", Layout.STANDARD);
+    final Entry metadata = new Entry(GNU_LONG_NAME_ENTRY, type, terminated, "", FILE_MODE, Layout.STANDARD);
     this.writeHeaderAndData(tar, GNU_LONG_NAME_ENTRY, "", metadata);
   }
 
@@ -282,7 +288,7 @@ final class DebianPackageBuilder {
   private void writeTruncated(final ByteArrayOutputStream tar, final Entry entry) {
     final String name = this.truncate(entry.name());
     final String linkTarget = this.truncate(entry.linkTarget());
-    final Entry truncated = new Entry(name, entry.type(), entry.data(), linkTarget, Layout.STANDARD);
+    final Entry truncated = new Entry(name, entry.type(), entry.data(), linkTarget, entry.mode(), Layout.STANDARD);
     this.writeHeaderAndData(tar, name, "", truncated);
   }
 
@@ -300,7 +306,7 @@ final class DebianPackageBuilder {
   }
 
   private void writeRawEntry(final ByteArrayOutputStream tar, final String name, final byte type, final byte[] data) {
-    final Entry raw = new Entry(name, type, data, "", Layout.STANDARD);
+    final Entry raw = new Entry(name, type, data, "", FILE_MODE, Layout.STANDARD);
     this.writeHeaderAndData(tar, name, "", raw);
   }
 
@@ -315,7 +321,7 @@ final class DebianPackageBuilder {
   private byte[] createHeader(final String name, final String prefix, final Entry entry) {
     final byte[] header = new byte[BLOCK_SIZE];
     this.put(header, 0, name);
-    this.put(header, MODE_OFFSET, FILE_MODE);
+    this.put(header, MODE_OFFSET, entry.mode());
     final byte[] data = entry.data();
     this.put(header, OWNER_OFFSET, this.toOctal(0, NUMBER_DIGITS));
     this.put(header, GROUP_OFFSET, this.toOctal(0, NUMBER_DIGITS));
@@ -367,5 +373,5 @@ final class DebianPackageBuilder {
 
   // the entry is a private tuple that is never compared or hashed, so its array component needs no deep equality
   @SuppressWarnings("ArrayRecordComponent")
-  private record Entry(String name, byte type, byte[] data, String linkTarget, Layout layout) {}
+  private record Entry(String name, byte type, byte[] data, String linkTarget, String mode, Layout layout) {}
 }
