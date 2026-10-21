@@ -99,6 +99,7 @@ every player and every audio output behind it.
       final double speed = 1.5;
       return decoded.setSpeed(speed); // false for a live stream or a camera
     }
+
     return false; // VLC plays at its own rate
   }
 ```
@@ -144,6 +145,7 @@ returned player when the chart should stop.
     videoCallback.attach(videoPipelineStep);
 
     player.start(frameSource);
+
     return player;
   }
 ```

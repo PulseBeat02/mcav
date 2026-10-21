@@ -44,6 +44,7 @@ filter is yours and shows the frames; release the returned player to disconnect.
     videoCallback.attach(pipeline);
 
     player.start(source);
+
     return player;
   }
 ```

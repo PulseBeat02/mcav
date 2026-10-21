@@ -89,6 +89,7 @@ before it starts; call `release()` on the returned filter when the video is over
     final VideoPipelineStep pipeline = VideoPipelineStep.of(mapFilter);
     final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
     videoCallback.attach(pipeline);
+
     return mapFilter;
   }
 ```

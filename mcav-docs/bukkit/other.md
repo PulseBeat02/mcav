@@ -34,6 +34,7 @@ the video is over.
     final VideoPipelineStep pipeline = VideoPipelineStep.of(chatResult);
     final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
     videoCallback.attach(pipeline);
+
     return chatResult;
   }
 ```

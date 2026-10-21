@@ -50,7 +50,6 @@ it, which checks the downmix without a Minecraft server:
     line.start();
 
     final AudioPipelineStep pipeline = AudioPipelineStep.of((samples, metadata) -> this.writeMono(line, samples));
-
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
     final AudioAttachableCallback audio = player.getAudioAttachableCallback();
     audio.attach(pipeline);
@@ -139,7 +138,6 @@ through the speakers of your computer, so you can hear the result:
 
     final AudioResampler resampler = AudioResampler.fromPipelineFormat(speechRate, monoChannels, SampleFormat.SIGNED_16_BIT);
     final AudioPipelineStep pipeline = AudioPipelineStep.of((samples, metadata) -> this.writeSpeech(resampler, line, samples));
-
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
     final AudioAttachableCallback audio = player.getAudioAttachableCallback();
     audio.attach(pipeline);

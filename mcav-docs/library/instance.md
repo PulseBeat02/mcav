@@ -83,6 +83,7 @@ not available yet, so the example below plays with FFmpeg until VLC is ready:
       final VideoPlayerMultiplexer vlcPlayer = VideoPlayer.vlc();
       return vlcPlayer;
     }
+
     final VideoPlayerMultiplexer ffmpegPlayer = VideoPlayer.ffmpeg(); // bundled, always available
     return ffmpegPlayer;
   }

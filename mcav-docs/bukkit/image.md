@@ -28,6 +28,7 @@ before `displayImage` returns, so the method below releases the buffer right awa
     try (final ImageBuffer image = ImageBuffer.path(file)) {
       display.displayImage(image);
     }
+
     return display;
   }
 ```

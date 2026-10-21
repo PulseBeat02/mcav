@@ -105,6 +105,7 @@ release the returned browser when you are done with the page.
     browser.sendMouseEvent(MouseClick.LEFT, clickX, clickY);
     browser.sendKeyEvent("hello");
     browser.sendKeyEvent(enterKey);
+
     return browser;
   }
 ```

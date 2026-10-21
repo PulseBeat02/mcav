@@ -66,6 +66,7 @@ QEMU whose JVM is gone and logs it; a QEMU of another JVM that still runs is lef
     final String returnKey = "Return";
     player.sendMouseEvent(MouseClick.LEFT, clickX, clickY);
     player.sendKeyEvent(returnKey);
+
     return player;
   }
 ```

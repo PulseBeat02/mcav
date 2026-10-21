@@ -39,6 +39,7 @@ environment variables, so that no secret ends up in the source:
     final String message = "Guild %s must have the bot as a member!".formatted(guildId);
     throw new IllegalStateException(message);
   }
+
   final VoiceChannel voiceChannel = guild.getVoiceChannelById(channelId);
   if (voiceChannel == null) {
     final String message = "Voice channel %s does not exist!".formatted(channelId);

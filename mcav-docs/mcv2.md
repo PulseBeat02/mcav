@@ -1404,6 +1404,7 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
       player -> player.sendMessage("Without the pack, you see the dithered picture")
     );
     packs.start();
+
     return packs;
   }
 ```
@@ -1479,6 +1480,7 @@ import org.bukkit.entity.ItemFrame;
       lease.close(); // otherwise the slot stays taken until the server stops
       throw exception;
     }
+
     return new Mcv2Wall(result, lease);
   }
 ```
