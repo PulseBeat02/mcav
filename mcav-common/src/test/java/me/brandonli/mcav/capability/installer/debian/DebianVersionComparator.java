@@ -105,9 +105,9 @@ final class DebianVersionComparator implements Comparator<String> {
     final List<Run> firstRuns = this.splitRuns(first);
     final List<Run> secondRuns = this.splitRuns(second);
     final int count = Math.max(firstRuns.size(), secondRuns.size());
-    for (int i = 0; i < count; i++) {
-      final Run firstRun = this.getRun(firstRuns, i);
-      final Run secondRun = this.getRun(secondRuns, i);
+    for (int runIndex = 0; runIndex < count; runIndex++) {
+      final Run firstRun = this.getRun(firstRuns, runIndex);
+      final Run secondRun = this.getRun(secondRuns, runIndex);
       final int order = this.compareRuns(firstRun, secondRun);
       if (order != 0) {
         return order;
@@ -156,9 +156,9 @@ final class DebianVersionComparator implements Comparator<String> {
 
   private int compareNonDigits(final String first, final String second) {
     final int length = Math.max(first.length(), second.length());
-    for (int i = 0; i < length; i++) {
-      final int firstOrder = this.order(first, i);
-      final int secondOrder = this.order(second, i);
+    for (int characterIndex = 0; characterIndex < length; characterIndex++) {
+      final int firstOrder = this.order(first, characterIndex);
+      final int secondOrder = this.order(second, characterIndex);
       if (firstOrder != secondOrder) {
         return Integer.compare(firstOrder, secondOrder);
       }
