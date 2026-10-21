@@ -181,6 +181,7 @@ final class NetworkGuard implements Closeable {
         SocksProtocol.writeMethod(output, SocksProtocol.NO_ACCEPTABLE_METHOD);
         return;
       }
+
       SocksProtocol.writeMethod(output, SocksProtocol.NO_AUTHENTICATION);
       final SocksProtocol.Request request;
       try {
@@ -194,6 +195,7 @@ final class NetworkGuard implements Closeable {
       if (target == null) {
         return;
       }
+
       this.sockets.add(target);
       try {
         SocksProtocol.writeReply(output, SocksProtocol.SUCCEEDED);
@@ -363,6 +365,7 @@ final class NetworkGuard implements Closeable {
       if (known != null) {
         return known;
       }
+
       final InetAddress[] answer;
       try {
         answer = this.resolver.resolve(AddressPolicy.IPV4_ONLY_HOST);

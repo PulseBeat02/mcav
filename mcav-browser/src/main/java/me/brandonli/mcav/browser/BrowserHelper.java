@@ -134,6 +134,7 @@ public final class BrowserHelper {
         System.err.println("The browser helper got no configuration.");
         return EXIT_BAD_CONFIGURATION;
       }
+
       configuration = HelperConfiguration.fromLine(line);
     } catch (final IOException | IllegalArgumentException exception) {
       System.err.println("The browser helper got an invalid configuration (%s).".formatted(exception.getMessage()));

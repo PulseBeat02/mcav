@@ -865,9 +865,11 @@ final class NullDisplay implements AutoCloseable {
       if (known != null) {
         return known;
       }
+
       if (this.names.size() >= MAXIMUM_ATOMS || this.bytes + name.length() > MAXIMUM_ATOM_BYTES) {
         return 0;
       }
+
       this.bytes += name.length();
       this.names.add(name);
       final int atom = this.names.size();
@@ -879,6 +881,7 @@ final class NullDisplay implements AutoCloseable {
       if (atom < 1 || atom > this.names.size()) {
         return null;
       }
+
       return this.names.get(atom - 1);
     }
   }

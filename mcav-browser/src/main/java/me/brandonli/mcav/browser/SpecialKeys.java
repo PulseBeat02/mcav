@@ -54,6 +54,7 @@ final class SpecialKeys {
         final String message = "The key list resource %s is empty!".formatted(RESOURCE);
         throw new BrowserException(message);
       }
+
       return Set.copyOf(keys);
     } catch (final IOException exception) {
       final String message = "The key list resource could not be read (%s)!".formatted(exception.getMessage());

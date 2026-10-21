@@ -46,6 +46,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {
       return;
     }
+
     Object.defineProperty(globalThis, PLACED, { value: true });
     const BINDING = '__mcavAudio';
     const INSTALLED = Symbol.for('mcav.audio.installed');
@@ -57,6 +58,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     if (typeof AudioContext !== 'function' || globalThis[INSTALLED] === true) {
       return;
     }
+
     Object.defineProperty(globalThis, INSTALLED, { value: true });
 
     // originals, so a page cannot reach the tap through a method it wrapped
@@ -104,6 +106,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       if (deliverTo === null) {
         return;
       }
+
       const left = nativeGetChannelData.call(buffer, 0);
       const right = channelsOf.call(buffer) > 1 ? nativeGetChannelData.call(buffer, 1) : left;
       const bytes = new Uint8Array(left.length * 4);
@@ -204,6 +207,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
         }
         return known.node;
       }
+
       const node = nativeCreateElementSource.call(context, element);
       sources.set(element, { node, byPage });
       if (!byPage) {
@@ -230,6 +234,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       if (sources.has(element)) {
         return;
       }
+
       try {
         sourceOf(mixerOf().context, element, false);
       } catch (error) {

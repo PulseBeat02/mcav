@@ -209,6 +209,7 @@ final class HelperSession implements BrowserSession {
       if (!HelperProcesses.register(session, generation)) {
         throw new BrowserException("The browser module was stopped while the browser started!");
       }
+
       session.startThreads(token);
       session.awaitStart(deadline, uri);
       return session;
@@ -633,6 +634,7 @@ final class HelperSession implements BrowserSession {
       if (!signalled) {
         return false;
       }
+
       final boolean fresh = this.frameWaiting;
       this.frameWaiting = false;
       return fresh;

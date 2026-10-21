@@ -334,6 +334,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       if (!this.isCurrent(from) || !this.isPlaying()) {
         return;
       }
+
       final VideoPipelineStep pipeline = this.videoCallback.retrieve();
       pipeline.processAll(frame, metadata);
     } catch (final RuntimeException | Error exception) {

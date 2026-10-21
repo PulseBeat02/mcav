@@ -79,10 +79,12 @@ final class Seatbelt {
       if (SUCCESS.equals(result)) {
         return;
       }
+
       final MemorySegment message = error.get(ValueLayout.ADDRESS, 0);
       if (message.address() == 0) {
         throw new IOException("Seatbelt refused the profile without a reason!");
       }
+
       // the library hands over a C string of its own, which is given back to it once read
       final String reason = message.reinterpret(Long.MAX_VALUE).getString(0);
       call(freeCall, message);

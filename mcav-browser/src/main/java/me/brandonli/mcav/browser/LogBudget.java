@@ -48,6 +48,7 @@ final class LogBudget {
       this.skipped++;
       return;
     }
+
     this.available--;
     if (this.skipped > 0) {
       skipped.accept(this.skipped);

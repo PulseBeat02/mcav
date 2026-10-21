@@ -225,6 +225,7 @@ final class LinuxLibraries {
         final String message = "The resource %s is missing!".formatted(RESOURCE);
         throw new IllegalStateException(message);
       }
+
       final BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
       return reader.lines().toList();
     } catch (final IOException | UncheckedIOException exception) {

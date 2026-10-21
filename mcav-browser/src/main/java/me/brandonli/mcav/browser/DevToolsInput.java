@@ -44,6 +44,7 @@ final class DevToolsInput {
     if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {
       return;
     }
+
     Object.defineProperty(globalThis, PLACED, { value: true });
     // like Chromium's popup blocker, only a click or a key lets a page open a window
     const isActive = () => navigator.userActivation === undefined || navigator.userActivation.isActive;
@@ -70,6 +71,7 @@ final class DevToolsInput {
       if (found !== undefined && found !== null && found !== view && found.window === found) {
         return true;
       }
+
       let count = 0;
       try {
         count = view.frames.length;
@@ -89,6 +91,7 @@ final class DevToolsInput {
       if (lower === '' || lower === '_self' || lower === '_top' || lower === '_parent') {
         return false;
       }
+
       return lower === '_blank' || !namesAFrame(window.top, text);
     };
     Object.defineProperty(window, 'open', {

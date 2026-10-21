@@ -53,9 +53,11 @@ final class FrameCanvas implements AutoCloseable {
       final String message = "A frame of a %sx%s page arrived for a %sx%s page!".formatted(pageWidth, pageHeight, this.width, this.height);
       throw new ProtocolException(message);
     }
+
     if (this.closed) {
       return;
     }
+
     final byte[] source = region.getPixels();
     final int left = region.getX();
     final int top = region.getY();
@@ -73,6 +75,7 @@ final class FrameCanvas implements AutoCloseable {
     if (this.closed) {
       return null;
     }
+
     final Mat bgr = new Mat();
     opencv_imgproc.cvtColor(this.page, bgr, opencv_imgproc.COLOR_BGRA2BGR);
     return ImageBuffer.mat(bgr);

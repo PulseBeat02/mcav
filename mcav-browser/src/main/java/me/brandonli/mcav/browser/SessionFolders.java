@@ -125,6 +125,7 @@ final class SessionFolders {
       if (!own || !Files.isRegularFile(record)) {
         return false;
       }
+
       lines = Files.readAllLines(record, StandardCharsets.US_ASCII);
     } catch (final IOException exception) {
       return false;

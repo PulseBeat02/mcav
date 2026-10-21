@@ -173,6 +173,7 @@ final class Landlock {
     if (descriptor < 0) {
       return;
     }
+
     try {
       // struct landlock_path_beneath_attr, packed: the rights, then the descriptor
       final MemorySegment beneath = arena.allocate(Long.BYTES + Integer.BYTES);
