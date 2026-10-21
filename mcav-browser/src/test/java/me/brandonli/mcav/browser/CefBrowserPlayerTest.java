@@ -484,8 +484,7 @@ class CefBrowserPlayerTest {
     }
   }
 
-  // Starts a player whose helper is reached by a release while it starts, and ends as the given ending does, then
-  // releases the player. The helper notices the release's interrupt only once it is done.
+  // the helper notices the interrupt of the release only once it is done
   private boolean leftInterruptedByAStartThat(final Supplier<BrowserSession> ending) throws Exception {
     final CountDownLatch opening = new CountDownLatch(1);
     final CefBrowserPlayer late = new CefBrowserPlayer(BrowserOptions.DEFAULT, (_, _, _) ->
@@ -531,8 +530,7 @@ class CefBrowserPlayerTest {
     return Thread.currentThread().isInterrupted();
   }
 
-  // Every wait of the fixture is bounded, so the test ends without a wall-clock limit of its own, which a loaded host
-  // would overrun: the fixture alone waits five seconds for the factory that is never reached.
+  // no wall-clock limit, which a loaded host would overrun: every wait of the fixture is bounded
   @Test
   void shouldStillEndTheInterruptFixtureWhenTheStartNeverReachesItsFactory() {
     try (final MockedConstruction<CefBrowserPlayer> players = Mockito.mockConstruction(CefBrowserPlayer.class)) {

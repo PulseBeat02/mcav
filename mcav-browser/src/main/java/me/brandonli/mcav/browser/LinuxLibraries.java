@@ -61,16 +61,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// The shared libraries the browser helper needs on Linux that a server may lack. libcef.so needs the X11 client
-// libraries, GLib, NSS, ATK and more at load time, even though CEF draws off-screen and never talks to an X server; the
-// Docker images Minecraft servers run in have few of them, and the operator of a shared host can install nothing. So
-// MCAV downloads them once from the main archive of Debian 11, which is frozen, checks every package against its pinned
-// SHA-256 hash, and keeps only the pinned libraries, each as a file named by its soname. For every session, the
-// libraries the server lacks are linked into a folder of the session, which is the helper's LD_LIBRARY_PATH: the
-// libraries the server has are always its own, so no newer library of the server is ever paired with an older one of
-// the bundle. The pins are in RESOURCE. libjcef.so also links against JAWT of the Java runtime, which no package can
-// bring, as it belongs to the build of the runtime; a runtime without it, as the headless Java packages of Debian and
-// Ubuntu are, is refused with what to install.
+// libcef.so needs X11, GLib, NSS, ATK and more at load time although CEF draws off-screen, and the image of a Minecraft
+// server often lacks them. MCAV fetches them from Debian 11's frozen archive, pinned by SHA-256, and links only the
+// missing ones into the session, so a newer library of the server is never paired with an older bundled one.
 final class LinuxLibraries {
 
   private static final String RESOURCE = "mcav/browser/linux-libraries.txt";
@@ -79,15 +72,12 @@ final class LinuxLibraries {
 
   static final String SESSION_FOLDER = "lib";
 
-  // The library of the Java runtime that libjcef.so links against: the native interface of AWT.
   static final String JAWT = "libjawt.so";
 
-  // The mirrors of the Debian archive the packages are tried from, in order; the hash decides whether a package is the
-  // pinned one, wherever it came from.
+  // tried in order; the hash decides whether a package is the pinned one
   static final List<String> MIRRORS = List.of("https://archive.debian.org/debian/", "https://deb.debian.org/debian/");
 
-  // The mirrors of Debian 11's security updates, for the pins in pool/updates/: the archive, once they reach it, and
-  // Debian's snapshot archive, which keeps every file under a permanent address.
+  // for the pins in pool/updates/; the snapshot archive keeps every file under a permanent address
   static final List<String> SECURITY_MIRRORS = List.of(
     "https://archive.debian.org/debian-security/",
     "https://snapshot.debian.org/archive/debian-security/20260901T000000Z/"
@@ -95,7 +85,7 @@ final class LinuxLibraries {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(LinuxLibraries.class);
 
-  // Every copy of MCAV in this JVM shares this monitor.
+  // interned, so every shaded copy of MCAV in the JVM shares it
   @VisibleForTesting
   static final Object INSTALL_LOCK = "the installation of the Linux libraries of mcav";
 
@@ -165,7 +155,6 @@ final class LinuxLibraries {
   private final List<Pin> pins;
   private final Map<String, List<String>> hostLibraries;
 
-  // Constructs an installer that uses MCAV's cache folder, the Debian mirrors and the pinned packages.
   LinuxLibraries() {
     this(
       defaultFolder(),
@@ -176,14 +165,11 @@ final class LinuxLibraries {
     );
   }
 
-  // Constructs an installer with another folder, download, mirrors and pins, so tests can install from a local copy.
   @VisibleForTesting
   LinuxLibraries(final Path folder, final JcefNatives.Downloader downloader, final List<String> mirrors, final List<String> pins) {
     this(folder, downloader, mirrors, mirrors, pins);
   }
 
-  // Constructs an installer with another folder, download, mirrors of the archive and of its security updates, and
-  // pins.
   @VisibleForTesting
   LinuxLibraries(
     final Path folder,
@@ -277,7 +263,6 @@ final class LinuxLibraries {
     return matching;
   }
 
-  // Installs the libraries of a platform unless they are installed already.
   Path install(final String platform) throws IOException {
     final List<Pin> wanted = this.getPins(platform);
     if (wanted.isEmpty()) {
@@ -289,7 +274,7 @@ final class LinuxLibraries {
     final Path installation = this.folder.resolve(name);
     final Path marker = installation.resolve(INSTALL_MARKER);
     if (Files.isRegularFile(marker)) {
-      // An existing installation may still have the permissions of the umask it was made with.
+      // an older installation may still carry the permissions of its umask
       ArchiveExtractor.tighten(this.folder);
       return installation;
     }
@@ -314,7 +299,7 @@ final class LinuxLibraries {
     }
   }
 
-  // Names an installation after its pins, so a changed bundle is installed anew beside the old one.
+  // a changed bundle installs anew beside the old one
   @VisibleForTesting
   static String fingerprint(final List<Pin> pins) {
     final Hasher hasher = Hashing.sha256().newHasher();
@@ -377,9 +362,6 @@ final class LinuxLibraries {
     return failure;
   }
 
-  // Extracts the pinned libraries of a Debian package: the regular files at the pinned paths of its library trees, each
-  // written as a file named by its soname. The package is unpacked by DebianPackageExtractor into a folder beside it,
-  // which is removed again; links and other files are not copied.
   static void extract(final Path debianPackage, final Map<String, String> files, final Path target) throws IOException {
     final Path unpacked = debianPackage.resolveSibling(debianPackage.getFileName() + UNPACKED_SUFFIX);
     try {
@@ -420,8 +402,7 @@ final class LinuxLibraries {
     }
   }
 
-  // Finds the packages whose libraries a server lacks. A package is missing whole, or not at all, as its first library
-  // decides: NSS, for one, loads its modules from the folder of its own library.
+  // a package is missing whole or not at all, as its first library decides: NSS loads its modules beside its own library
   List<Pin> findMissing(final String platform, final List<Path> hostFolders) {
     final List<String> missingHost = new ArrayList<>();
     for (final String soname : this.hostLibraries.getOrDefault(platform, List.of())) {
@@ -456,7 +437,6 @@ final class LinuxLibraries {
     }
   }
 
-  // Links the libraries of packages a server lacks into a folder of a session.
   static Path link(final Path installation, final Path session, final List<Pin> missing) throws IOException {
     final Path libraries = session.resolve(SESSION_FOLDER);
     Files.createDirectory(libraries);
@@ -480,8 +460,7 @@ final class LinuxLibraries {
     return false;
   }
 
-  // Checks that a shared library is built for a platform: a 64-bit little-endian ELF file of its machine. A library of
-  // another architecture, such as a 32-bit one of a multiarch system, is one the loader skips.
+  // the loader skips a library of another architecture, such as a 32-bit one of a multiarch system
   @VisibleForTesting
   static boolean isBuiltFor(final Path library, final String platform) {
     final byte[] header = new byte[ELF_MACHINE_OFFSET + Short.BYTES];
@@ -502,8 +481,6 @@ final class LinuxLibraries {
     return Arrays.equals(start, ELF_64_LITTLE_ENDIAN) && machine == wanted;
   }
 
-  // Lists the folders the dynamic loader of a Linux system searches: those of /etc/ld.so.conf and the files it
-  // includes, and the default folders, the multiarch ones of the platform included.
   static List<Path> hostFolders(final Path root, final String platform) {
     final Set<Path> folders = new LinkedHashSet<>();
     readConfiguration(root, root.resolve(LOADER_CONFIGURATION), folders, 0);
@@ -533,7 +510,7 @@ final class LinuxLibraries {
       final String line = (comment >= 0 ? raw.substring(0, comment) : raw).trim();
       if (line.startsWith(INCLUDE_PREFIX)) {
         final String pattern = line.substring(INCLUDE_PREFIX.length()).trim();
-        // as glibc does, a relative include lies beside the file that includes it
+        // as in glibc, a relative include lies beside the file that includes it
         final Path base = pattern.startsWith(FOLDER_SEPARATOR)
           ? root
           : Objects.requireNonNull(file.getParent(), "A file lies in a folder!");
@@ -558,8 +535,7 @@ final class LinuxLibraries {
     final String name = relative.substring(slash + 1);
     final List<Path> matches = new ArrayList<>();
     if (!name.isEmpty()) {
-      // the pattern is text, whose wildcards no file system but Linux's allows in a path, so only its folder is
-      // resolved; the folder of a name without one is the root, which the empty text resolves to
+      // only Linux allows wildcards in a path, so only the folder of the pattern is resolved; the empty text is the root
       final Path parent = root.resolve(relative.substring(0, Math.max(slash, 0)));
       final FileSystem fileSystem = root.getFileSystem();
       final PathMatcher matcher = fileSystem.getPathMatcher(GLOB_SYNTAX + name);

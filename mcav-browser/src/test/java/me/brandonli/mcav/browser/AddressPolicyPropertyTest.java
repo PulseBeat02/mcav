@@ -29,10 +29,6 @@ import net.jqwik.api.Property;
 import net.jqwik.api.constraints.IntRange;
 import net.jqwik.api.constraints.Size;
 
-// Properties of AddressPolicy over the whole address space: an IPv4 address is judged the same however it is written,
-// whatever Java itself calls local or multicast is never public, nothing outside IPv6 global unicast is public unless
-// it carries a public IPv4 address, and behind a NAT64 prefix of the network found from the answer for ipv4only.arpa,
-// an address is judged by the IPv4 address it embeds.
 final class AddressPolicyPropertyTest {
 
   private static final String SEED = "20260925";

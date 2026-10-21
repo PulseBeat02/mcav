@@ -17,7 +17,6 @@
  */
 package me.brandonli.mcav.browser;
 
-// Whether the archive extractor sets the POSIX permissions of what it creates, which only some file systems have.
 enum PosixPermissions {
   SET,
   SKIPPED,

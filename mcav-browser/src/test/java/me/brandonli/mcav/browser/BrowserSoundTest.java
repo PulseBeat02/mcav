@@ -44,9 +44,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-// Proves with real Chromium that the sound of a page reaches the audio pipeline of the player: a Web Audio tone and an
-// audio element, each once the page may play, after the first click on it, and in step with the picture. The A/V
-// measurement times real events, which a busy machine delays, so it runs on request: -Pmcav.syncMeasurement=true.
+// Plays page sound through real Chromium. The A/V sync measurement runs only with -Pmcav.syncMeasurement=true: a busy
+// machine delays the real events it times.
 @Tag("cef")
 class BrowserSoundTest {
 
@@ -86,7 +85,7 @@ class BrowserSoundTest {
     final int processCount = HelperProcesses.count();
     assertEquals(0, processCount);
     Await.until("every browser process of this test has ended", () -> CefBrowserIntegrationTest.countBrowserProcesses() == 0);
-    // a CEF process that lost its parent is no longer below this JVM; they are only told, as other programs may run CEF
+    // orphaned CEF processes are no longer below this JVM; only print them, as other programs may run CEF
     try (final Stream<ProcessHandle> all = ProcessHandle.allProcesses()) {
       final List<String> stray = all
         .filter(handle -> handle.info().command().orElse("").contains("jcef"))
@@ -99,8 +98,7 @@ class BrowserSoundTest {
     assertEquals(List.of(), this.failures);
   }
 
-  // Waits up to 30 s, as long as the first sound of a helper can take on a busy or slow machine, for as many bytes of
-  // sound, and fails with what the page reported about its sound.
+  // the first sound of a helper can take 30 s on a busy machine
   private void awaitSound(final Recording recording, final int bytes, final String what) throws InterruptedException {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
     while (recording.size() < bytes) {
@@ -166,7 +164,7 @@ class BrowserSoundTest {
     assertTrue(atItsOwnLevel, "the tone plays at its own level, " + level);
   }
 
-  // Clicks the page until it reports a click: Chromium ignores clicks for a moment after a page appears.
+  // Chromium ignores clicks for a moment after a page appears
   private void startClicking(final BrowserPlayer player) {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
     while (this.pages.count("mousedown") == 0) {
@@ -276,7 +274,7 @@ class BrowserSoundTest {
       firstHalf,
       secondHalf
     );
-    // ITU-R BT.1359: sound may lead the picture by 90 ms and lag it by 185 ms before viewers find it unacceptable
+    // ITU-R BT.1359: sound may lead the picture by 90 ms and lag it by 185 ms
     final long acceptable = judgement.within(-90, 185);
     System.out.printf(Locale.ROOT, "A/V sync: %d of %d within ITU-R BT.1359 acceptability [-90, +185] ms%n", acceptable, changes);
     final boolean mostChangesMatched = offsets.size() >= Math.ceil(changes * 0.9);
@@ -366,7 +364,7 @@ class BrowserSoundTest {
     return windows;
   }
 
-  // Measures how strong the tone is in a window of the left channel, compared with everything in it (Goertzel).
+  // Goertzel: the share of the tone in the window of the left channel
   private double toneShare(final short[] left, final int start, final int length) {
     final double omega = (2 * Math.PI * TestPages.TONE_HERTZ) / AudioFilter.SAMPLE_RATE;
     final double coefficient = 2 * Math.cos(omega);
@@ -404,8 +402,7 @@ class BrowserSoundTest {
     return sorted.get(sorted.size() / 2);
   }
 
-  // Finds the times at which a signal switches on: a sample that is on after one that is off, or after a gap. The page
-  // sends no sound while it is silent, so the sound has gaps where the picture has dark frames.
+  // a gap counts as off: the page sends no sound while it is silent
   private List<Long> onsets(final List<long[]> samples) {
     final List<long[]> ordered = new ArrayList<>(samples);
     ordered.sort((first, second) -> Long.compare(first[0], second[0]));
@@ -465,10 +462,8 @@ class BrowserSoundTest {
     }
   }
 
-  // What the changes of a picture and of its sound say about their sync. Every change of the picture is matched with
-  // the nearest change of the sound within a window of half the shortest time between two changes of the fixture, and a
-  // change without one counts against every rate: leaving those out before the rates were taken let a stream out of
-  // sync for most of its changes pass on the few that matched (deep review DR-016).
+  // Matches each change of the picture with the nearest change of the sound within half the shortest period of the
+  // fixture. An unmatched change counts against every rate, so a stream out of sync cannot pass on its few matches.
   record SyncJudgement(int changes, List<Double> offsets) {
     static SyncJudgement of(final List<Long> pictureOnsets, final List<Long> soundOnsets, final long windowNanoseconds) {
       final List<Double> offsets = new ArrayList<>();
@@ -491,7 +486,7 @@ class BrowserSoundTest {
       return nearest;
     }
 
-    // How many changes of the picture had their sound in the range, in milliseconds; a change without sound never.
+    // low and high in milliseconds; a change without sound never counts
     long within(final double low, final double high) {
       return this.offsets
         .stream()

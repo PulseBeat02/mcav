@@ -643,8 +643,7 @@ class BrowserHelperTest {
     OpenFiles.leaveNoneOpen("a failed connection", () -> assertThrows(IOException.class, () -> BrowserHelper.connect(missing)));
   }
 
-  // Runs a helper as its main method does, on a thread that is no daemon: the threads it starts are daemons only if it
-  // makes them so, while those a daemon thread starts are daemons anyway.
+  // a daemon thread starts only daemons, so the helper runs on a thread that is none, as from its main method
   private CompletableFuture<Integer> runOnMainLikeThread(final BrowserHelper helper) throws IOException {
     this.server = ServerSocketChannel.open(StandardProtocolFamily.UNIX);
     this.server.bind(UnixDomainSocketAddress.of(this.folder.resolve(SOCKET_NAME)));

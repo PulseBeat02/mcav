@@ -21,8 +21,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 
-// Captures what is written to the standard error while it is open, which is the log a browser helper keeps for its
-// server. The tests of a module run one after the other, so no other test writes meanwhile.
+// The tests of a module run one after the other, so no other test writes meanwhile.
 public final class StandardError implements AutoCloseable {
 
   private final PrintStream original = System.err;

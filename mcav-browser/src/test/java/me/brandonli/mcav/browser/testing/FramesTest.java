@@ -31,7 +31,6 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-// Checks center sampling on nonuniform images and the read-only recorder contract.
 final class FramesTest {
 
   @ParameterizedTest

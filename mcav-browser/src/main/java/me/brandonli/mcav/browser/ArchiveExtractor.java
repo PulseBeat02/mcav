@@ -46,17 +46,10 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// Extracts the gzip-compressed tar archive of the CEF natives, refusing anything that could write outside the target
-// folder. The archive is verified against its pinned SHA-256 hash before it gets here, so this is defense in depth:
-// only plain files and folders are extracted, every name is resolved inside the target and checked after normalization,
-// links and special files are refused, and the number of entries and the bytes written are bounded. The permissions of
-// the archive are not copied, because the macOS archive marks everything as writable by every user; files are readable
-// by everyone and writable by the owner only, and executable where the archive marks them so, and so are the folders,
-// whatever the umask of the server: a folder its group may write lets the group replace the native code. The bounds
-// count the entries the archive library hands over. The library reads the metadata of an entry, such as a GNU long name
-// or a PAX header, whole and without a bound before that, so a crafted archive could exhaust the heap there. That is
-// acceptable only because of the pinned hash: an archive that passes it is the published build of CEF, whose native
-// code runs anyway.
+// Extracts the pinned, hash-checked CEF archive, refusing anything that could write outside the target: links, special
+// files, names that leave it, and too many entries or bytes. Archive permissions are not copied, as the macOS archive
+// makes everything world-writable. The library reads metadata such as a PAX header without a bound, which only the
+// pinned hash makes acceptable.
 final class ArchiveExtractor {
 
   private static final int MAXIMUM_ENTRIES = 10_000;
@@ -84,7 +77,6 @@ final class ArchiveExtractor {
     this(MAXIMUM_ENTRIES, MAXIMUM_TOTAL_BYTES);
   }
 
-  // Constructs an extractor with other limits, so tests can reach them with small archives.
   @VisibleForTesting
   ArchiveExtractor(final int maximumEntries, final long maximumTotalBytes) {
     this.maximumEntries = maximumEntries;
@@ -96,8 +88,6 @@ final class ArchiveExtractor {
     this.extract(archive, target, permissions);
   }
 
-  // Extracts an archive into an empty folder, setting the permissions of the files where the file system has POSIX
-  // permissions.
   @VisibleForTesting
   void extract(final InputStream archive, final Path target, final PosixPermissions permissions) throws IOException {
     final Path root = target.toRealPath();
@@ -123,7 +113,7 @@ final class ArchiveExtractor {
         final String message = "The archive has more than %s entries!".formatted(this.maximumEntries);
         throw new IOException(message);
       }
-      // the archive library counts links and special files as files, so they are refused by their type first
+      // the library counts links and special files as files, so their type is checked first
       if (this.isLinkOrSpecial(entry)) {
         final String message = "Archive entry %s is not a plain file or folder!".formatted(entry.getName());
         throw new IOException(message);
@@ -147,15 +137,13 @@ final class ArchiveExtractor {
     }
   }
 
-  // Checks whether an entry is a link or a special file rather than a plain file or folder.
   private boolean isLinkOrSpecial(final TarArchiveEntry entry) {
     final boolean isLink = entry.isSymbolicLink() || entry.isLink();
     final boolean isDevice = entry.isCharacterDevice() || entry.isBlockDevice();
     return isLink || isDevice || entry.isFIFO();
   }
 
-  // Resolves the name of an entry inside the root, refusing names that are absolute, empty, climb out of the root, or
-  // cannot be represented by the file system. A folder entry such as ./ resolves to the root itself.
+  // a folder entry such as ./ resolves to the root itself
   @VisibleForTesting
   static Path resolve(final Path root, final String name) throws IOException {
     if (name.isEmpty() || name.indexOf('\\') >= 0) {
@@ -170,7 +158,7 @@ final class ArchiveExtractor {
       final String message = NAME_NOT_ALLOWED.formatted(name);
       throw new IOException(message, exception);
     }
-    // Windows drive-relative names have a root without being absolute.
+    // a Windows drive-relative name has a root without being absolute
     if (relative.getRoot() != null) {
       final String message = "Archive entry name %s is absolute!".formatted(name);
       throw new IOException(message);
@@ -219,14 +207,11 @@ final class ArchiveExtractor {
     return written;
   }
 
-  // Creates a folder and the missing folders above it, each readable by everyone and writable by its owner only where
-  // the file system has POSIX permissions, whatever the umask of the server.
   static void createFolders(final Path folder) throws IOException {
     final PosixPermissions permissions = permissionsOf(folder);
     createFolders(folder, permissions);
   }
 
-  // Creates a folder and the missing folders above it, setting the permissions of each new one if asked to.
   @VisibleForTesting
   static void createFolders(final Path folder, final PosixPermissions permissions) throws IOException {
     final List<Path> missing = new ArrayList<>();
@@ -255,10 +240,7 @@ final class ArchiveExtractor {
     return new FileAttribute<?>[] { attribute };
   }
 
-  // Takes the write permission of the group and of everyone else away from a folder and everything in it, where the
-  // file system has POSIX permissions: an installation made before MCAV set the permissions itself has the ones the
-  // umask of its server left, such as rwxrwxr-x, which let the group replace the native code. A path whose permissions
-  // cannot be changed is logged and left as it is.
+  // an installation made before MCAV set permissions itself may let its group replace the native code (rwxrwxr-x)
   static void tighten(final Path folder) throws IOException {
     final PosixPermissions permissions = permissionsOf(folder);
     if (permissions == PosixPermissions.SKIPPED || !Files.isDirectory(folder)) {
@@ -269,7 +251,6 @@ final class ArchiveExtractor {
     Files.walkFileTree(folder, visitor);
   }
 
-  // Takes the write permission of the group and of everyone else away from one file or folder.
   @VisibleForTesting
   static void takeWriteAway(final Path path) {
     try {
@@ -311,7 +292,6 @@ final class ArchiveExtractor {
     }
   }
 
-  // Keeps the archive stream of the caller open when the tar stream is closed.
   private static final class NonClosingInputStream extends FilterInputStream {
 
     NonClosingInputStream(final InputStream input) {

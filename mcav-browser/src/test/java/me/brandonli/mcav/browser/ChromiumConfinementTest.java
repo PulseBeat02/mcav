@@ -44,7 +44,6 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
-// Tests ChromiumConfinement: which paths a confined helper may read and change, and what it says it did.
 class ChromiumConfinementTest {
 
   private static final String SERVER_FOLDER = "server";
@@ -78,7 +77,7 @@ class ChromiumConfinementTest {
     );
   }
 
-  // Sorts the rules of the walk, whose order is the file system's; the readable and writable rules come last.
+  // the walk has the order of the file system; the given rules stay last
   private List<Landlock.Rule> walkSorted(final List<Landlock.Rule> rules, final int given) {
     final List<Landlock.Rule> sorted = new ArrayList<>(rules.subList(0, rules.size() - given));
     sorted.sort(Comparator.comparing(Landlock.Rule::path));

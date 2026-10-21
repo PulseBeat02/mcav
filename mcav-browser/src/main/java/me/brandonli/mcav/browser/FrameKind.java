@@ -17,7 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
-// Whether a navigation moves the page itself or a frame inside it, which may reach different addresses.
+// frames may reach other addresses than the page
 enum FrameKind {
   MAIN,
   CHILD,

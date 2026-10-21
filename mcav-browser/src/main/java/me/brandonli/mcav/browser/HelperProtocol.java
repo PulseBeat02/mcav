@@ -31,13 +31,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntFunction;
 
-// The messages between the server and the browser helper process, and their binary form. Every message is a type byte,
-// a 32-bit payload length and the payload, all big-endian. The helper runs web content without the Chromium sandbox, so
-// the server treats everything it receives as untrusted: every length is checked against the limit of its message type
-// before anything is allocated, every size and position against the page, and every string is decoded strictly. A
-// message that breaks a rule ends the connection with a ProtocolException. From the helper: HELLO (the session token,
-// first), READY (the browser exists), FRAME (a changed region of the page, four bytes per pixel in BGRA order),
-// LOADING, LOAD_ERROR, NOTICE and FAILURE. From the server: MOUSE, KEY and CLOSE.
+// Messages are a type byte, a 32-bit length and the payload, big-endian. The helper runs untrusted content without the
+// Chromium sandbox, so every length is checked against the limit of its type before anything is allocated.
 final class HelperProtocol {
 
   static final int VERSION = 1;
@@ -50,10 +45,10 @@ final class HelperProtocol {
 
   static final int PIXEL_BYTES = 4;
 
-  // The bytes of one frame of sound: a 16-bit sample for each of the two channels.
+  // 16-bit stereo
   static final int AUDIO_FRAME_BYTES = 4;
 
-  // The largest message of sound in bytes: 16384 frames, a third of a second at 48 kHz.
+  // 16384 frames, a third of a second at 48 kHz
   static final int MAXIMUM_AUDIO_BYTES = 65_536;
 
   // The token and protocol version of a new helper: byte[32] token, u16 version.
@@ -395,8 +390,7 @@ final class HelperProtocol {
     output.write(bytes);
   }
 
-  // Splits a text into parts that each fit into one message, at character boundaries and never between the two
-  // characters of a line break \r\n, so a long text can be sent as several messages without losing any of it.
+  // never between \r and \n, so the parts join back to the text
   static List<String> split(final String text) {
     final List<String> parts = new ArrayList<>();
     int start = 0;
@@ -420,7 +414,7 @@ final class HelperProtocol {
     return parts;
   }
 
-  // Counts the bytes of a character in UTF-8; an unpaired surrogate, which Java encodes as one byte, counts three.
+  // an unpaired surrogate counts three, although Java encodes it as one byte
   private static int utf8Length(final int codePoint) {
     if (codePoint < UTF8_TWO_BYTE_START) {
       return 1;
@@ -433,7 +427,6 @@ final class HelperProtocol {
     return codePoint < UTF8_FOUR_BYTE_START ? 3 : 4;
   }
 
-  // Encodes a string as UTF-8, cut at a character boundary to at most MAXIMUM_TEXT_BYTES bytes.
   static byte[] encode(final String text) {
     final byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
     if (bytes.length <= MAXIMUM_TEXT_BYTES) {

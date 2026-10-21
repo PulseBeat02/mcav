@@ -26,9 +26,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes the SOCKS 5 reader of the network guard, which reads what Chromium sends on behalf of a page: the host name
-// comes from the page. Whatever the bytes, the reader either refuses them with an IOException or returns a request
-// whose host holds only host name characters or an address and whose port is valid; nothing else escapes.
+// The host name comes from the page: the reader refuses with an IOException or returns a valid host and port.
 @Tag("fuzz")
 final class SocksProtocolFuzzTest {
 

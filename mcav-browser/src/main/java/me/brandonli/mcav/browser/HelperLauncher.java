@@ -37,13 +37,8 @@ import me.friwi.jcefmaven.CefAppBuilder;
 import org.cef.CefApp;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Knows how to start a browser helper process: the Java program of the server, the class path of the helper, the
-// options of its JVM, and the environment it keeps, which on Linux also names the authority file of its null display
-// and the folder of the libraries the server lacks. The class path is taken from where the classes of MCAV's browser
-// module, JCEF and jcefmaven were loaded from, which works whether they are separate jars, as Paper's library loader
-// gives them, or shaded into one plugin jar. Relocating the org.cef or me.friwi packages breaks JCEF's native methods
-// and is not supported. The helper JVM gets the options CEF needs, which the server itself never does: it is headless,
-// may load native code, uses a small heap, and keeps its temporary files in the private folder of its session.
+// The class path comes from where MCAV's browser module, JCEF and jcefmaven were loaded, so separate and shaded jars both
+// work; relocating org.cef or me.friwi breaks the native methods of JCEF.
 final class HelperLauncher {
 
   static final String MAIN_CLASS = "me.brandonli.mcav.browser.BrowserHelper";
@@ -109,8 +104,6 @@ final class HelperLauncher {
     this.startTimeoutMilliseconds = startTimeoutMilliseconds;
   }
 
-  // Creates the launcher of this JVM: its Java program, the class path the browser module was loaded from, and the
-  // environment of the server.
   static HelperLauncher createDefault(final long startTimeoutMilliseconds, final List<String> extraJvmOptions) {
     final String javaHome = System.getProperty("java.home");
     final Os os = OsUtils.getOs();
@@ -168,22 +161,18 @@ final class HelperLauncher {
     return command;
   }
 
-  // Builds the environment of a helper: the kept variables of the server, on Linux the authority file of the helper's
-  // null display, which X clients read, the folder of the session as the temporary folder and the folder of user data,
-  // and the libraries the server lacks, and on macOS the folder of the session as the temporary folder. No display of
-  // the server is passed on.
+  // no display of the server is passed on
   Map<String, String> createEnvironment(final Path folder, final @Nullable Path libraries) {
     final Map<String, String> kept = HelperEnvironment.filter(this.environment);
     if (this.os == Os.LINUX) {
       final Path authority = this.authorityOf(folder);
       kept.put(AUTHORITY_VARIABLE, authority.toString());
-      // TMPDIR and XDG_DATA_HOME must keep Chromium temporary files and certificates inside its writable sandbox.
+      // keeps the temporary files and certificates of Chromium inside its writable sandbox
       kept.put(TEMPORARY_FOLDER_VARIABLE, folder.toString());
       kept.put(DATA_HOME_VARIABLE, folder.toString());
     }
     if (this.os == Os.MAC) {
-      // Chromium writes temporary files as it starts, where a confined Chromium may write: MAC_CHROMIUM_TMPDIR is the
-      // temporary folder Chromium asks for first on macOS
+      // MAC_CHROMIUM_TMPDIR is where Chromium writes first on macOS, inside the confinement
       kept.put(TEMPORARY_FOLDER_VARIABLE, folder.toString());
       kept.put(MAC_TEMPORARY_FOLDER_VARIABLE, folder.toString());
     }
@@ -193,12 +182,10 @@ final class HelperLauncher {
     return kept;
   }
 
-  // Returns the X authority file of a session, which the helper writes and its X clients read.
   private Path authorityOf(final Path folder) {
     return folder.resolve(NullDisplay.AUTHORITY_FILE);
   }
 
-  // Creates a launcher like this one whose helpers also get the libraries the server lacks.
   HelperLauncher withLibraries(final LibraryLinker linker) {
     return new HelperLauncher(
       this.java,
@@ -212,7 +199,6 @@ final class HelperLauncher {
     );
   }
 
-  // Links the libraries the server lacks into the folder of a session, if this launcher brings any.
   @Nullable Path linkLibraries(final Path folder) throws IOException {
     final LibraryLinker linker = this.libraries;
     return linker == null ? null : linker.link(folder);

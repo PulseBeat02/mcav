@@ -23,33 +23,23 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-// Turns input for the browser into DevTools protocol calls (Input.dispatchMouseEvent and Input.dispatchKeyEvent), which
-// CEF executes inside the browser without any debugging port. The DevTools input methods behave the same on every
-// operating system, unlike the key events of JCEF, which are translated per platform and lose keys such as Page Down.
-// Named keys follow the W3C KeyboardEvent.key values and carry the Windows virtual key code and physical key code of a
-// US keyboard where one exists; text is typed one character at a time as a key press that inserts the character, which
-// is what typing it on a keyboard does.
+// Input as DevTools calls, which act alike on every system, unlike JCEF's key events, which are translated per platform
+// and lose keys such as Page Down.
 final class DevToolsInput {
 
   static final String MOUSE_METHOD = "Input.dispatchMouseEvent";
 
   static final String KEY_METHOD = "Input.dispatchKeyEvent";
 
-  // The DevTools method that runs a script in every new document of the page.
   static final String ADD_SCRIPT_METHOD = "Page.addScriptToEvaluateOnNewDocument";
 
   static final String ENABLE_PAGE_METHOD = "Page.enable";
 
-  // Opens new windows in place. An off-screen JCEF browser cancels every popup before the helper hears of it, so
-  // window.open and links and forms that target another window would do nothing. This script, which runs in every frame
-  // before the page's own scripts, sends them to the page itself instead, but only during a click or a key, as
-  // Chromium's popup blocker allows a popup: window.open and a click on such a link navigate the top frame, for http
-  // and https addresses only, and such a form, or a form sent by a button that targets another window, is submitted
-  // into its own frame. A link or form that targets a frame of the page by its name is left to the page. Every
-  // navigation still goes through the navigation policy of the helper.
+  // An off-screen JCEF browser cancels every popup, so this script sends window.open and other-window links and forms to
+  // the page itself during a click or key, as Chromium's popup blocker would allow; navigations still meet the policy.
   static final String OPEN_IN_PLACE_SCRIPT = """
   (() => {
-    // the helper places the script again when it could not tell whether the first time worked; once is enough
+    // the helper may place the script twice; once is enough
     const PLACED = Symbol.for('mcav.open-in-place');
     if (Object.prototype.hasOwnProperty.call(globalThis, PLACED)) {
       return;
@@ -76,7 +66,7 @@ final class DevToolsInput {
       } catch (error) {
         found = undefined;
       }
-      // the window of a frame is its own window property, which an element of the page named so is not
+      // the window of a frame is its own window property, unlike a page element of that name
       if (found !== undefined && found !== null && found !== view && found.window === found) {
         return true;
       }
@@ -139,7 +129,7 @@ final class DevToolsInput {
 
   private static final String[] BUTTON_NAMES = { "left", "middle", "right" };
 
-  // the bits of the buttons in the DevTools "buttons" field, in the order of the button numbers: left, middle, right
+  // the bits of the DevTools "buttons" field by button number: left, middle, right
   private static final int[] BUTTON_BITS = { 1, 4, 2 };
 
   private static final String ENTER_KEY = "Enter";
@@ -157,7 +147,6 @@ final class DevToolsInput {
   private static final String TEXT_FIELD = ",\"text\":";
   private static final String UNMODIFIED_TEXT_FIELD = ",\"unmodifiedText\":";
 
-  // a JSON string literal holds its value between two quotes
   private static final int QUOTE_CHARACTERS = 2;
   private static final char FIRST_UNESCAPED_CHARACTER = 0x20;
   private static final char LINE_SEPARATOR = 0x2028;
@@ -205,8 +194,7 @@ final class DevToolsInput {
     return Map.copyOf(keys);
   }
 
-  // Builds the DevTools calls of one mouse event. Every event carries the buttons that are held while it happens, so a
-  // page sees a move with a held button as a drag.
+  // every event carries the held buttons, so a page sees a move with a held button as a drag
   static List<DevToolsCall> mouse(final MouseInput input, final int held) {
     final int pageX = input.getX();
     final int pageY = input.getY();
@@ -230,7 +218,6 @@ final class DevToolsInput {
     return List.of(call);
   }
 
-  // Returns the buttons held after a mouse event: a press adds its button, a release takes it away.
   static int heldAfter(final MouseInput input, final int held) {
     final int bit = BUTTON_BITS[input.getButton()];
     return switch (input.getAction()) {
@@ -282,7 +269,7 @@ final class DevToolsInput {
     return calls;
   }
 
-  // Builds the DevTools calls that type a text, one key press per character. A line break presses Enter, once for \r\n.
+  // a line break presses Enter, once for \r\n
   static List<DevToolsCall> typeText(final String text) {
     final List<DevToolsCall> calls = new ArrayList<>();
     final int[] codePoints = text.codePoints().toArray();
@@ -308,8 +295,6 @@ final class DevToolsInput {
     return calls;
   }
 
-  // Returns the Windows virtual key code of a character on a US keyboard: letters and digits have one, other characters
-  // are typed without.
   static int virtualKeyCode(final int codePoint) {
     if (codePoint >= 'a' && codePoint <= 'z') {
       return codePoint - 'a' + 'A';
@@ -347,8 +332,7 @@ final class DevToolsInput {
     }
   }
 
-  // Builds the DevTools calls that run OPEN_IN_PLACE_SCRIPT in every new document, before the scripts of the page: the
-  // page domain, without which the script is never run, and the script.
+  // the page domain must be enabled, or the script never runs
   static List<DevToolsCall> openWindowsInPlace() {
     final DevToolsCall enable = new DevToolsCall(ENABLE_PAGE_METHOD, "{}");
     final DevToolsCall script = new DevToolsCall(ADD_SCRIPT_METHOD, "{\"source\":" + quote(OPEN_IN_PLACE_SCRIPT) + "}");
@@ -374,7 +358,6 @@ final class DevToolsInput {
     }
   }
 
-  // The physical key and Windows virtual key code of a named key, and the text it types.
   private static final class KeyDefinition {
 
     private final String code;

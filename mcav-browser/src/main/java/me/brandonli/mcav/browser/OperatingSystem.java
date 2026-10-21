@@ -19,8 +19,7 @@ package me.brandonli.mcav.browser;
 
 import java.util.Locale;
 
-// The family of the system the helper runs on, which decides the switches of Chromium and how it is confined; the
-// helper cannot use the Os of MCAV's common module, which is not on its class path.
+// MCAV's Os is not on the class path of the helper
 enum OperatingSystem {
   LINUX,
   MAC,

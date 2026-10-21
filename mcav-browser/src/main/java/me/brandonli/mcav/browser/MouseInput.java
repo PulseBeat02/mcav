@@ -17,8 +17,6 @@
  */
 package me.brandonli.mcav.browser;
 
-// One mouse event for the browser helper: a move, a button going down or up, or a turn of the wheel, at a position of
-// the page in pixels.
 final class MouseInput {
 
   private final int action;
@@ -29,7 +27,7 @@ final class MouseInput {
   private final int deltaX;
   private final int deltaY;
 
-  // Constructs an event. The values are not checked; HelperProtocol checks what it reads.
+  // not checked; HelperProtocol checks what it reads
   MouseInput(
     final int action,
     final int pageX,

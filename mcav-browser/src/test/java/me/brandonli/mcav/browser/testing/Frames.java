@@ -34,7 +34,6 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Records the frames a player delivers and creates encoded frames for tests.
 public final class Frames {
 
   private final List<Frame> frames;
@@ -69,7 +68,7 @@ public final class Frames {
     }
   }
 
-  // Checks whether two colors are close, as colors that went through JPEG compression are.
+  // JPEG compression shifts colors a little
   public static boolean isNear(final int expected, final int actual) {
     for (int shift = 0; shift <= 16; shift += 8) {
       final int expectedChannel = (expected >> shift) & 0xFF;
@@ -128,8 +127,6 @@ public final class Frames {
     return isNear(rgb, center);
   }
 
-  // Describes the last frame for a failure message: how many frames arrived, the size and the center color of the last
-  // one, and the center colors in the order they arrived, each with how many frames in a row showed it.
   public String describeLast() {
     final List<Frame> all = this.getFrames();
     if (all.isEmpty()) {
@@ -192,7 +189,7 @@ public final class Frames {
       return this.height;
     }
 
-    // Returns the color of the pixel at (width / 2, height / 2), rounded down to integer coordinates.
+    // the pixel at (width / 2, height / 2), rounded down
     public int getCenter() {
       return this.center;
     }

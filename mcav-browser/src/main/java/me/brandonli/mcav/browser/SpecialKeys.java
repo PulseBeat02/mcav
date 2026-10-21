@@ -28,8 +28,7 @@ import java.util.Set;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.utils.IoUtils;
 
-// The key names BrowserPlayer.sendKeyEvent(String) presses rather than types: the W3C KeyboardEvent.key values, such as
-// Enter, Backspace or ArrowLeft, listed in the mcav/browser/keybinds.json resource.
+// listed in the mcav/browser/keybinds.json resource
 final class SpecialKeys {
 
   private static final String RESOURCE = "mcav/browser/keybinds.json";
@@ -62,7 +61,6 @@ final class SpecialKeys {
     }
   }
 
-  // Checks whether the text is the name of a special key rather than text to type.
   static boolean isSpecialKey(final String text) {
     Preconditions.checkNotNull(text, "Text must not be null!");
 

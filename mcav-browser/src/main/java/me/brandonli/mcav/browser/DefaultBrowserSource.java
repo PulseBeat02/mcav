@@ -22,8 +22,6 @@ import java.net.URI;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// The default BrowserSource, created by int, int, int) with validated settings. Two sources are equal when every
-// setting is equal.
 final class DefaultBrowserSource implements BrowserSource {
 
   private final URI uri;
@@ -58,7 +56,6 @@ final class DefaultBrowserSource implements BrowserSource {
     return this.uri;
   }
 
-  // Checks whether another object is a browser source with the same address and settings.
   @Override
   public boolean equals(final @Nullable Object other) {
     if (this == other) {
@@ -82,7 +79,6 @@ final class DefaultBrowserSource implements BrowserSource {
     return Objects.hash(this.uri, this.width, this.height, this.frameInterval);
   }
 
-  // Returns a debugging representation with the address, the size and the frame interval.
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)

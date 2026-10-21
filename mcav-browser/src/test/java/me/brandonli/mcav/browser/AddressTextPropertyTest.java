@@ -27,9 +27,6 @@ import net.jqwik.api.ForAll;
 import net.jqwik.api.Property;
 import net.jqwik.api.Provide;
 
-// Properties of AddressText: whatever the parts of a web address are, the user name and password, the query and the
-// fragment never reach the log, while the scheme, the host and the path do; and any text at all is described without a
-// failure and without growing by more than the markers.
 final class AddressTextPropertyTest {
 
   private static final String SEED = "20260925";

@@ -38,16 +38,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
-// Web pages on the loopback interface for browser tests. /main is red, /popup is blue and /second is green, so the
-// streamed frames show which page is on screen. Each page reports its mouse and keyboard events serially, preserving
-// DOM event order in the server's arrival log. Different pages remain independent. A popup waits for its final report
-// before closing. Pressing o on the main page opens the popup, and pressing x on the popup closes it. Pressing n on the
-// popup opens the second page and closes the popup a second later; pressing w on the second page closes it 300
-// milliseconds later. /hooked is the main page, but the server runs a hook before answering, so tests can act while the
-// browser is still loading. The red pages /to-popup-synthetic (a script clicks a link to the popup without a click of
-// the user), /named-frame (a link in the upper left quarter opens the second page in a frame named inner) and
-// /form-target (a button over the whole page sends a form to the second page, targeting a new window) test how windows
-// open in place.
+// Web pages on the loopback interface for browser tests: each page has its own color, so the frames show which one
+// is on screen.
 public final class TestPages implements AutoCloseable {
 
   public static final int MAIN_COLOR = 0xFF0000;
@@ -62,7 +54,7 @@ public final class TestPages implements AutoCloseable {
 
   public static final double TONE_AMPLITUDE = 0.5;
 
-  // How long the picture and the sound of /av-sync stay on and off, in milliseconds.
+  // how long /av-sync keeps its picture and sound on, then off
   public static final int TOGGLE_MILLISECONDS = 400;
 
   private static final Pattern PAIR_SEPARATOR = Pattern.compile("&");
@@ -208,7 +200,7 @@ public final class TestPages implements AutoCloseable {
   private static final String SCRIPT = """
   <script>
     const page = document.body.dataset.page;
-    // Serialize transport as well as DOM observation: independent fetches can arrive out of order.
+    // one report at a time: independent fetches can arrive out of order
     let reports = Promise.resolve();
     const report = (type, event) => {
       const parameters = new URLSearchParams({
@@ -382,7 +374,6 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  // Serves one second of the tone as a WAV file: 16-bit stereo at 48 kHz.
   private static void toneWave(final HttpExchange exchange) throws IOException {
     final int rate = 48_000;
     final ByteBuffer wave = ByteBuffer.allocate(44 + rate * 4).order(ByteOrder.LITTLE_ENDIAN);
@@ -427,7 +418,6 @@ public final class TestPages implements AutoCloseable {
     }
   }
 
-  // Serves the red main page with a script that runs when the page has loaded.
   private static void script(final HttpExchange exchange, final String script) throws IOException {
     final String html =
       "<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;background:#ff0000;}</style></head>" +
@@ -583,7 +573,7 @@ public final class TestPages implements AutoCloseable {
       return this.button;
     }
 
-    // Returns the buttons held during a mouse event, 1 for the left and 2 for the right button.
+    // MouseEvent.buttons: 1 for the left, 2 for the right button
     public int getButtons() {
       return this.buttons;
     }

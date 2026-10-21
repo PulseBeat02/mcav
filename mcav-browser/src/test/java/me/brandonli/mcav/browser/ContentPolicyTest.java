@@ -362,8 +362,7 @@ class ContentPolicyTest {
     assertEquals(List.of("notice: The download of evil.exe was refused."), this.events.log);
   }
 
-  // On macOS the view of a page that started a download while it loaded stayed white after the download was refused,
-  // until the page changed; the refusal asks the off-screen browser to paint its view again.
+  // on macOS the view stayed white after a refused download until the page changed
   @Test
   void shouldRepaintTheViewAfterARefusedDownload() {
     final McavOffscreenBrowser offscreen = mock(McavOffscreenBrowser.class);

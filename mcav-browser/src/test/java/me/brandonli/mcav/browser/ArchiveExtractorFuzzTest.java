@@ -42,10 +42,8 @@ import java.util.zip.GZIPOutputStream;
 import me.brandonli.mcav.utils.IoUtils;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes the extraction of the CEF archive with arbitrary tar streams, compressed by the fuzz target itself so the
-// fuzzer works on the tar format rather than on gzip. The natives jar is pinned by its hash, so this is a second line
-// of defense: whatever the archive, extraction either fails with an IOException or leaves only plain files and folders
-// inside the target folder, none of them writable by others, and never more bytes than its limit.
+// The fuzz target compresses the tar streams, so the fuzzer works on the tar format, not on gzip. The natives jar is
+// pinned by its hash, so this fuzzes a second line of defense.
 @Tag("fuzz")
 final class ArchiveExtractorFuzzTest {
 
@@ -88,7 +86,7 @@ final class ArchiveExtractorFuzzTest {
       try {
         new ArchiveExtractor(MAXIMUM_ENTRIES, MAXIMUM_BYTES).extract(new ByteArrayInputStream(archive), target);
       } catch (final IOException exception) {
-        // A refused archive must preserve the surrounding file system too.
+        // a refused archive must leave the file system around the target alone too
       }
       this.check(root, target);
       try (final Stream<Path> paths = Files.walk(scope)) {

@@ -25,13 +25,8 @@ import java.util.function.LongSupplier;
 import org.cef.browser.McavOffscreenBrowser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Keeps the picture of a page in the helper process and hands out what changed. CEF paints the page and, separately,
-// popup widgets such as the list of an open drop-down box. The compositor copies each painted rectangle out of CEF's
-// buffer, which is only valid during the paint, into its own copy of the page, and remembers the popup with its
-// position. Changed areas add up to one damaged rectangle, which takeDamage copies out, with the popup drawn over the
-// page where it is open. Damage is never dropped, only merged, so the receiver's picture always ends up equal to the
-// page. Damage becomes due to be sent after every n-th paint of the page, or once it waited for the settle delay, so
-// the last change of a page that stops changing is not held back by the frame interval.
+// The paint buffer of CEF is valid only during the paint, so the page is copied; damage is merged, never dropped, so the
+// receiver ends up with the page. A settle delay sends the last change of a page that stops changing.
 final class PageCompositor implements McavOffscreenBrowser.PaintListener {
 
   private static final byte FULL_CHANNEL = (byte) 0xFF;
@@ -108,7 +103,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     this.notifyAll();
   }
 
-  // Hides the popup that is shown, sending the page under it again as soon as the next paint would be.
   private void hidePopup() {
     final Popup shown = this.shownPopup;
     if (shown != null) {
@@ -150,7 +144,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
   }
 
-  // Waits until damage is due, then copies the damaged region, with the popup drawn over it, into the buffer.
   synchronized @Nullable FrameRegion takeDamage(final byte[] target, final long timeoutMilliseconds) throws InterruptedException {
     final long deadline = this.clock.getAsLong() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
     while (!this.closed) {
@@ -214,7 +207,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
   }
 
-  // Wakes a thread waiting in takeDamage and makes it return null from now on.
   synchronized void close() {
     this.closed = true;
     this.notifyAll();
@@ -224,7 +216,6 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     return this.page.length;
   }
 
-  // A popup widget that is shown: where it is drawn on the page, and its pixels.
   private static final class Popup {
 
     private final Rectangle bounds;

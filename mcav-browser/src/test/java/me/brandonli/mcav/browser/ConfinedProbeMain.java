@@ -21,8 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 
-// Restricts its main thread as a confined helper does, hiding the folder of its first argument, and then runs cat on
-// the file of its second argument and on its own status, to show that a process started afterwards is restricted too.
+// Restricts its main thread as a confined helper does, then runs cat to show that a later process is restricted too.
 final class ConfinedProbeMain {
 
   private static final Path ROOT = Path.of("/");

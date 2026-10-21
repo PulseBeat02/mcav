@@ -29,16 +29,7 @@ import java.util.Base64;
 import java.util.List;
 import org.cef.browser.McavOffscreenBrowser;
 
-// A browser engine without CEF for tests of the helper and its session. What it does depends on the path of the page:
-// /page: reports ready, loads, and paints the whole page in one color; every input it receives paints the page again
-// with the blue channel counting the DevTools calls so far, so a test can see input arrive; /load-error: fails to load
-// the page; /fail: shows the page, then, a second later, fails as a crashed renderer would; /sound: shows the page,
-// then hands SOUND_CHUNKS chunks of SOUND_FRAMES frames to a PageAudio as calls of its binding, whose samples all hold
-// the number of the chunk, with a call that is not sound before each; /sound-on-input: shows the page and hands over a
-// chunk of sound whose samples hold 0 at once, and one whose samples hold the number of DevTools calls so far after
-// every input; /exit: ends the helper process during the start; /throw: fails to start; /throw-after-output: writes
-// OUTPUT_BEFORE_FAILURE to the output of the helper and fails to start half a second later; /unlinked: fails to start
-// as a native library that cannot be loaded does; /never: never reports anything.
+// A browser engine without CEF for the helper and session tests: the path of the page picks what it does.
 final class ScriptedEngine implements HelperEngine {
 
   static final int RED = 0x20;
@@ -62,7 +53,6 @@ final class ScriptedEngine implements HelperEngine {
     this.calls = new ArrayList<>();
   }
 
-  // Starts the helper with this engine, as the real helper starts with CEF.
   public static void main(final String[] args) {
     final BufferedReader input = new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));
     final Runtime runtime = Runtime.getRuntime();
@@ -103,7 +93,7 @@ final class ScriptedEngine implements HelperEngine {
     }
   }
 
-  // Writes a line to the output of the helper, and fails to start once the server has had time to read it.
+  // the pause gives the server time to read the line
   private void failAfterOutput() throws InterruptedException {
     System.out.println(OUTPUT_BEFORE_FAILURE);
     System.out.flush();

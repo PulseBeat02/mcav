@@ -44,8 +44,7 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
-// Tests Landlock: the rights of each version and rule, and, where the kernel has Landlock, a restricted thread and the
-// threads and processes it starts. A restriction cannot be lifted, so each one runs on a thread of its own.
+// A restriction cannot be lifted, so each one runs on a thread of its own.
 class LandlockTest {
 
   private static final long READ_FOLDER = 0b1101;

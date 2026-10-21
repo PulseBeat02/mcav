@@ -24,11 +24,8 @@ import java.util.List;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// The browser helper sessions that are running in this JVM, so that stopping the browser module ends every helper
-// process, including those of players nobody released. Once closeAll() has run, no session may start until open(): a
-// browser that was still starting, for example while the browser was downloaded, is refused when its helper connects,
-// and ends. A stop also begins a new generation, so a session that began to start before it is refused even when the
-// module has started again meanwhile, as after a plugin disable and enable.
+// Running sessions, so a module stop ends every helper, even of players nobody released. A stop starts a new generation,
+// so a session that began before it is refused even after the module started again.
 final class HelperProcesses {
 
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
@@ -44,7 +41,6 @@ final class HelperProcesses {
     stopped = false;
   }
 
-  // Checks that sessions may start, before anything is installed or launched for one.
   static synchronized long requireOpen() {
     if (stopped) {
       throw new BrowserException("The browser module is stopped!");
@@ -53,7 +49,6 @@ final class HelperProcesses {
     return generation;
   }
 
-  // Remembers a running session, unless the browser module has been stopped since the session began to start.
   static synchronized boolean register(final HelperSession session, final long started) {
     if (stopped || started != generation) {
       return false;
@@ -72,8 +67,7 @@ final class HelperProcesses {
     return SESSIONS.size();
   }
 
-  // Ends every running session, which its player hears of, and lets no session start until open(). Every session ends
-  // even if the listener of another one fails, and the first such failure is thrown once all have ended.
+  // every session ends even if the listener of another fails; the first failure is thrown once all ended
   static void closeAll() {
     final List<HelperSession> running;
     synchronized (HelperProcesses.class) {

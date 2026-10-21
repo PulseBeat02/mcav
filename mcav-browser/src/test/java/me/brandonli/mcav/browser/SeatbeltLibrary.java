@@ -31,9 +31,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-// Stand-ins written in Java for the functions of Seatbelt, handed over as native functions, which record their calls: a
-// Seatbelt of this library runs its real calls on any system without putting anything in a sandbox.
-// upcall stubs and native function handles are restricted methods; the tests run with native access enabled
+// Java stand-ins for the Seatbelt functions, so a Seatbelt runs its real calls on any system without a sandbox.
+// upcall stubs and native function handles are restricted; the tests run with native access enabled
 @SuppressWarnings("restricted")
 final class SeatbeltLibrary implements AutoCloseable {
 
@@ -80,7 +79,7 @@ final class SeatbeltLibrary implements AutoCloseable {
     return new Seatbelt(this.lookup());
   }
 
-  // Makes sandbox_init refuse every profile from now on, without a reason.
+  // sandbox_init refuses every later profile, without an error text
   void refuse(final int result) {
     this.answer = result;
     this.reason = MemorySegment.NULL;
@@ -124,13 +123,13 @@ final class SeatbeltLibrary implements AutoCloseable {
     this.freed.add(error.address());
   }
 
-  // The signature of sandbox_init; not private, as the upcall finds its method by name.
+  // not private: the upcall finds its method by name
   @FunctionalInterface
   interface SandboxInitFunction {
     int call(MemorySegment profile, long given, MemorySegment error);
   }
 
-  // The signature of sandbox_free_error; not private, as the upcall finds its method by name.
+  // not private: the upcall finds its method by name
   @FunctionalInterface
   interface FreeErrorFunction {
     void call(MemorySegment error);

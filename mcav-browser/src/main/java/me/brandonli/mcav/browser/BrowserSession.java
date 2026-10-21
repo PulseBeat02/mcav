@@ -19,8 +19,6 @@ package me.brandonli.mcav.browser;
 
 import me.brandonli.mcav.media.image.ImageBuffer;
 
-// A running browser as a CefBrowserPlayer sees it: it takes input, can send its picture again, and ends when closed.
-// HelperSession is the browser of a helper process.
 interface BrowserSession extends AutoCloseable {
   boolean sendMouse(MouseInput mouse);
 
@@ -28,14 +26,14 @@ interface BrowserSession extends AutoCloseable {
 
   void requestFrame();
 
-  // Ends the browser. Safe to call more than once.
+  // safe to call more than once
   @Override
   void close();
 
   interface Listener {
     void onFrame(ImageBuffer frame);
 
-    // Receives sound of the page, on the thread that reads the helper, so the listener must not hold it up.
+    // on the thread that reads the helper, so the listener must not hold it up
     void onAudio(byte[] samples);
 
     void onEnded(String reason, Throwable cause);

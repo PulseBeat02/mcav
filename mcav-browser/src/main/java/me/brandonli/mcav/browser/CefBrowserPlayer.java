@@ -45,25 +45,17 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
 import me.brandonli.mcav.utils.os.Os;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// The BrowserPlayer: a HelperSession per start, whose frames it runs through the video pipeline and whose input it
-// forwards. A player is idle until it starts, plays until it is released or its helper ends by itself, and then counts
-// as failed until it starts again, which closes the failed helper first. A released player cannot start again. Frames
-// and failures of a helper that is no longer the current one are ignored, so a late frame of a replaced browser never
-// reaches the pipeline.
+// Frames and failures of a helper that is no longer the current one are ignored, so a late frame of a replaced browser
+// never reaches the pipeline.
 final class CefBrowserPlayer implements BrowserPlayer {
 
-  // How long a helper may take until its page shows. The first start after a download can be slow, for example while a
-  // virus scanner checks the new files.
+  // the first start after a download can be slow, for example while a virus scanner checks the new files
   private static final long START_TIMEOUT_MILLISECONDS = 180_000L;
 
-  // How long the sound of the page is held before the audio pipeline gets it, in milliseconds: not at all. The page
-  // hands its sound over in chunks of 2048 frames (43 ms) as soon as Chromium rendered them, a little ahead of time.
-  // Timed as the sound of a virtual machine is, where the last sample of a chunk counts as played when the chunk
-  // arrives, it reaches the pipeline about 20 ms before its picture (BrowserSoundTest); but an output starts to play a
-  // chunk only when it arrives, 43 ms later than that, so a hold would only make the sound late.
+  // the page hands over its sound slightly ahead of its picture, and an output plays a chunk only once it arrives, so a
+  // hold would only make the sound late (BrowserSoundTest)
   private static final int AUDIO_DELAY_MILLISECONDS = 0;
 
-  // The most sound of the page that waits for the audio pipeline, the delay included, in milliseconds.
   static final int MAXIMUM_QUEUED_AUDIO_MILLISECONDS = AUDIO_DELAY_MILLISECONDS + 120;
 
   private static final SessionFactory DEFAULT_SESSIONS = new DefaultSessionFactory();
@@ -80,11 +72,11 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private final Lock lock;
   private final AtomicReference<State> state;
   private final AtomicBoolean released;
-  // the thread that starts a helper while it does, which a release interrupts instead of waiting for the start's lock up
-  // to START_TIMEOUT_MILLISECONDS; guarded by itself, so no interrupt reaches the thread once its start is over
+  // a release interrupts the starting thread instead of waiting up to START_TIMEOUT_MILLISECONDS for its lock; guarded by
+  // itself, so no interrupt reaches the thread after its start
   private final Object starter;
   private @Nullable Thread starting;
-  // Guarded by starter; the starting thread clears the interrupt sent by release().
+  // guarded by starter; the starting thread clears the interrupt of release()
   private boolean startInterrupted;
   private final LogBudget dropReports;
   private volatile @Nullable BrowserSession session;
@@ -95,14 +87,11 @@ final class CefBrowserPlayer implements BrowserPlayer {
     this(options, DEFAULT_SESSIONS);
   }
 
-  // Constructs a player that starts its sessions with a factory, so tests can control the helper.
   @VisibleForTesting
   CefBrowserPlayer(final BrowserOptions options, final SessionFactory sessions) {
     this(options, sessions, System::nanoTime);
   }
 
-  // Constructs a player with a factory for its sessions and the clock of the budget of its reports, so tests can move
-  // time.
   @VisibleForTesting
   CefBrowserPlayer(final BrowserOptions options, final SessionFactory sessions, final LongSupplier clock) {
     this.options = options;
@@ -136,7 +125,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       this.starting = caller;
     }
     try {
-      // Check after start becomes interruptible, so release either finds this start or is observed here.
+      // checked once start is interruptible, so a release either finds this start or is seen here
       final boolean idle = !this.released.get() && this.state.get() != State.PLAYING;
       return idle && this.startSession(source);
     } catch (final BrowserException exception) {
@@ -175,12 +164,11 @@ final class CefBrowserPlayer implements BrowserPlayer {
       this::report
     );
     this.state.set(State.PLAYING);
-    // An earlier helper exit must fail startup even if it preceded session ownership.
+    // a helper exit before the session was owned must fail the start too
     listener.setSession(started);
     final boolean playing = this.state.get() == State.PLAYING;
     if (playing) {
-      // the frames of the start arrived before the session was the player's; the page is sent once more, so a page
-      // that never changes again still reaches the pipeline
+      // the frames of the start arrived before the session was the player's; a page that stays still needs them again
       started.requestFrame();
     }
     return playing;
@@ -340,8 +328,6 @@ final class CefBrowserPlayer implements BrowserPlayer {
     return new int[] { clampedX, clampedY };
   }
 
-  // Runs a picture of the page through the video pipeline, unless the session is no longer the current one. Failures
-  // are reported, except errors of the virtual machine, which are thrown.
   @VisibleForTesting
   void deliver(final BrowserSession from, final OriginalVideoMetadata metadata, final ImageBuffer frame) {
     try {
@@ -351,8 +337,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       final VideoPipelineStep pipeline = this.videoCallback.retrieve();
       pipeline.processAll(frame, metadata);
     } catch (final RuntimeException | Error exception) {
-      // a frame runs user filters and native OpenCV code, which can fail with any Error; only errors of the virtual
-      // machine are thrown, every other failure is reported
+      // user filters and native OpenCV code can fail with any Error; only errors of the virtual machine are thrown
       ThrowableUtils.throwIfFatal(exception);
       this.report("Failed to process a browser frame", exception);
     } finally {
@@ -360,7 +345,6 @@ final class CefBrowserPlayer implements BrowserPlayer {
     }
   }
 
-  // Hands sound of the current session to its audio output; sound of a session that is over is dropped.
   @VisibleForTesting
   void deliverAudio(final BrowserSession from, final byte[] samples) {
     final DelayedAudioOutput output = this.audioOutput;
@@ -369,7 +353,6 @@ final class CefBrowserPlayer implements BrowserPlayer {
     }
   }
 
-  // Marks the player as failed when its current helper ended by itself, and reports why.
   private void onEnded(final BrowserSession from, final String reason, final Throwable cause) {
     if (!this.isCurrent(from)) {
       return;
@@ -382,8 +365,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     }
   }
 
-  // Checks whether a session is the current one of the player. Sessions compare by identity: an old session may belong
-  // to the same page, but its frames and failures are over.
+  // by identity: an old session may show the same page, but it is over
   private boolean isCurrent(final BrowserSession from) {
     final BrowserSession current = this.session;
     return current != null && SESSION_IDENTITY.equivalent(current, from);
@@ -425,7 +407,6 @@ final class CefBrowserPlayer implements BrowserPlayer {
     BrowserSession open(BrowserSource source, BrowserOptions options, BrowserSession.Listener listener);
   }
 
-  // Installs the CEF natives on first use and starts real helper processes.
   static final class DefaultSessionFactory implements SessionFactory {
 
     private static final Path ROOT = Path.of("/");
@@ -439,13 +420,11 @@ final class CefBrowserPlayer implements BrowserPlayer {
       this(new JcefNatives(), List.of());
     }
 
-    // Constructs a factory with another installer and JVM options for the helpers, so tests can add a coverage agent.
     @VisibleForTesting
     DefaultSessionFactory(final JcefNatives natives, final List<String> extraJvmOptions) {
       this(natives, new LinuxLibraries(), extraJvmOptions);
     }
 
-    // Constructs a factory with other installers and JVM options for the helpers.
     private DefaultSessionFactory(final JcefNatives natives, final LinuxLibraries libraries, final List<String> extraJvmOptions) {
       this.natives = natives;
       this.libraries = libraries;
@@ -467,7 +446,6 @@ final class CefBrowserPlayer implements BrowserPlayer {
       return HelperSession.open(current, installation, source, options, listener);
     }
 
-    // Gives the helpers of a Linux server the libraries it lacks, installing them first.
     @VisibleForTesting
     static HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries) throws IOException {
       if (base.getOs() != Os.LINUX) {
@@ -477,8 +455,6 @@ final class CefBrowserPlayer implements BrowserPlayer {
       return withLibraries(base, libraries, ROOT);
     }
 
-    // Gives the helpers of a Linux server the libraries it lacks, reading the server's loader configuration below a
-    // root, so tests can make up a server.
     @VisibleForTesting
     static HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries, final Path root) throws IOException {
       LinuxLibraries.requireJawt(base.getJava());
@@ -504,8 +480,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     }
   }
 
-  // Passes the frames, the sound and the end of a session to the player, once the session is known. Frames and sound
-  // before are dropped; an end before is kept and passed on when the session becomes known.
+  // frames and sound before the session is known are dropped; an end is kept until then
   private final class SessionListener implements BrowserSession.Listener {
 
     private final OriginalVideoMetadata metadata;
@@ -563,7 +538,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private enum State {
     IDLE,
     PLAYING,
-    // The helper ended by itself; it is closed when the player starts again or is released.
+    // closed when the player starts again or is released
     FAILED,
   }
 }

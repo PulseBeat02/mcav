@@ -17,8 +17,7 @@
  */
 package me.brandonli.mcav.browser;
 
-// A changed rectangle of a page and its pixels, four bytes per pixel in BGRA order, row by row from the start of the
-// pixel array. The array may be longer than the region needs, so a buffer can be reused for regions of any size.
+// BGRA, row by row; the array may be longer than the region, so a buffer can be reused
 final class FrameRegion {
 
   private final int pageWidth;
@@ -29,7 +28,7 @@ final class FrameRegion {
   private final int height;
   private final byte[] pixels;
 
-  // Constructs a region. The values are not checked; HelperProtocol checks what it reads.
+  // not checked; HelperProtocol checks what it reads
   FrameRegion(
     final int pageWidth,
     final int pageHeight,

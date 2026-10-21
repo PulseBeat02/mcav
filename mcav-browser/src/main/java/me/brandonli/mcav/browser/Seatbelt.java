@@ -30,10 +30,7 @@ import java.nio.file.Path;
 import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// Seatbelt, the sandbox of macOS that Chromium itself uses: a process that puts itself in it with a profile reaches
-// only what the profile allows, and so does every process it starts afterwards. Unlike Landlock it holds for the whole
-// process at once, and it cannot be lifted. It is reached through the functions of a library, the C library of the
-// process on macOS, and runs in the helper process, which has only the browser module and JCEF on its class path.
+// macOS's sandbox, which Chromium itself uses: unlike Landlock it holds for the whole process at once, for good.
 final class Seatbelt {
 
   static final String MISSING = "this system has no Seatbelt (sandbox_init)";
@@ -60,8 +57,7 @@ final class Seatbelt {
     return new Seatbelt(Linker.nativeLinker().defaultLookup());
   }
 
-  // Puts the calling process, and every process it starts afterwards, in the sandbox of a profile.
-  // sandbox_init is called through the restricted native linker; the helper starts with native access enabled
+  // sandbox_init is a restricted native call; the helper starts with native access enabled
   @SuppressWarnings("restricted")
   void restrictProcess(final String profile) throws IOException {
     final @Nullable MemorySegment init = this.library.find(SANDBOX_INIT).orElse(null);
@@ -108,11 +104,8 @@ final class Seatbelt {
     }
   }
 
-  // Writes the profile of a confinement: everything may be read and changed as before, except that nothing in the
-  // hidden folders may be read, files or folder listings, apart from the readable and writable paths, and nothing may
-  // be changed apart from the writable paths. The names and attributes of files stay visible, as with Landlock.
-  // Seatbelt matches the real paths of files, so the paths are given as they resolve; a later rule of a profile
-  // overrides an earlier one.
+  // names and attributes of files stay visible, as with Landlock; Seatbelt matches real paths, and a later rule of a
+  // profile overrides an earlier one
   static String profile(final List<Path> hidden, final List<Path> readable, final List<Path> writable) {
     final StringBuilder profile = new StringBuilder(PROFILE_START);
     rule(profile, DENY_READING, hidden);
@@ -136,7 +129,6 @@ final class Seatbelt {
     profile.append(")\n");
   }
 
-  // Writes a path as a string of the profile language, whose strings escape quotes and backslashes.
   @VisibleForTesting
   static String quote(final String text) {
     return '"' + text.replace("\\", "\\\\").replace("\"", "\\\"") + '"';

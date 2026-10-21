@@ -22,9 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
-// A scripted browser helper that waits before it connects, so a test can act while the server waits for it: it creates
-// the file named by GATE_PROPERTY plus STARTED_SUFFIX once it runs, and connects once the file named by GATE_PROPERTY
-// exists.
+// Waits for its gate before it connects, so a test can act while the server waits for the helper.
 public final class GatedHelperMain {
 
   static final String GATE_PROPERTY = "mcav.test.gate";
@@ -33,7 +31,6 @@ public final class GatedHelperMain {
 
   private GatedHelperMain() {}
 
-  // Waits for the gate, at most a minute, and then runs the scripted helper.
   public static void main(final String[] args) throws IOException, InterruptedException {
     final Path gate = Path.of(System.getProperty(GATE_PROPERTY));
     Files.createFile(gate.resolveSibling(gate.getFileName() + STARTED_SUFFIX));

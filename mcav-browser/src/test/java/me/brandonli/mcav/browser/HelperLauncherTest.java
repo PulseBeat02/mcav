@@ -233,8 +233,8 @@ class HelperLauncherTest {
 
   @Test
   void shouldReachNoClassBeyondTheClassPathOfTheHelper() throws IOException {
-    // the helper runs with the browser module, JCEF and the JDK only: a class of another module that it reaches, such
-    // as mcav-common's, fails there with a NoClassDefFoundError that no test JVM shows, which all have every module
+    // the helper has only this module, JCEF and the JDK: a class of another module fails there with a
+    // NoClassDefFoundError that no test JVM shows
     final Set<String> reached = new HashSet<>();
     final Deque<String> pending = new ArrayDeque<>(List.of(HelperLauncher.MAIN_CLASS.replace('.', '/')));
     final List<String> outside = new ArrayList<>();

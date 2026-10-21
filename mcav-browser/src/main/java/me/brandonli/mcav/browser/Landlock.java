@@ -33,10 +33,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-// Landlock, the sandbox of the Linux kernel (5.13 and later) that a process can put itself in without privileges: a
-// thread that restricts itself, and every thread and process it starts afterwards, reaches only the files and folders
-// its rules name, in the ways they allow. The restriction cannot be lifted, and the other threads of the process stay
-// free. It runs in the helper process, which has only the browser module and JCEF on its class path.
+// Linux's unprivileged sandbox (5.13 and later): a restricted thread, and what it starts afterwards, reaches only what
+// its rules allow, for good, while the other threads of the process stay free.
 final class Landlock {
 
   // the system call numbers of Landlock are the same on every architecture
@@ -89,7 +87,6 @@ final class Landlock {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  // Asks the kernel which version of Landlock it has. Linux only.
   static int version() {
     try (final Arena arena = Arena.ofConfined()) {
       final MemorySegment state = arena.allocate(Calls.STATE);
@@ -112,7 +109,7 @@ final class Landlock {
     };
   }
 
-  // Returns the rights a ruleset of a version of Landlock handles: those it denies unless a rule grants them.
+  // the rights a ruleset denies unless a rule grants them
   @VisibleForTesting
   static long handledRights(final int version) {
     long rights = FIRST_VERSION_RIGHTS;
@@ -128,8 +125,7 @@ final class Landlock {
     return rights;
   }
 
-  // Returns the rights of a rule: to read and run, and to change as well if it is writable; a file has no rights of a
-  // folder.
+  // a file has no rights of a folder
   @VisibleForTesting
   static long rightsOf(final Rule rule, final PathKind kind, final long handled) {
     long rights = rule.writable() ? READ_RIGHTS | WRITE_RIGHTS : READ_RIGHTS;
@@ -139,8 +135,7 @@ final class Landlock {
     return rights & handled;
   }
 
-  // Restricts the calling thread, and every thread and process it starts afterwards, to the rules. A rule whose path
-  // cannot be opened, such as one deleted meanwhile, is left out.
+  // a rule whose path cannot be opened, such as one deleted meanwhile, is left out
   static void restrictThread(final int version, final List<Rule> rules) throws IOException {
     final long handled = handledRights(version);
     try (final Arena arena = Arena.ofConfined()) {
@@ -206,7 +201,7 @@ final class Landlock {
       final Object result = function.invokeWithArguments(arguments);
       return ((Number) result).longValue();
     } catch (final Throwable exception) {
-      // Check VM errors here because ThrowableUtils is absent from the helper class path.
+      // ThrowableUtils is not on the class path of the helper
       if (exception instanceof final VirtualMachineError fatal) {
         throw fatal;
       }
@@ -215,17 +210,14 @@ final class Landlock {
     }
   }
 
-  // A file, or a folder and everything beneath it, that a restricted thread may read and run, and change as well if the
-  // rule is writable.
   record Rule(Path path, boolean writable) {}
 
-  // whether the path of a rule is a folder, which may have the rights of a folder, or a file, which may not
   enum PathKind {
     FOLDER,
     FILE,
   }
 
-  // The functions of the C library, bound when Landlock is first used, which happens on Linux only.
+  // bound on first use, which happens on Linux only
   private static final class Calls {
 
     private static final String ERROR_NUMBER = "errno";

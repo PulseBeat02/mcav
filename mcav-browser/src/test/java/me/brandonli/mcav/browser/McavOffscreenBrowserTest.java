@@ -44,8 +44,7 @@ import org.cef.handler.CefRenderHandler;
 import org.cef.handler.CefScreenInfo;
 import org.junit.jupiter.api.Test;
 
-// Tests the off-screen browser without CEF: its native methods are not loaded, which JCEF reports and ignores, so the
-// Java side of every method can run here.
+// Without the natives, JCEF reports and ignores every native call, so the Java side of each method runs here.
 class McavOffscreenBrowserTest {
 
   private final RecordingPainter painter = new RecordingPainter();

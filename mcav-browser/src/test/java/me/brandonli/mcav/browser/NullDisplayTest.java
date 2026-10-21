@@ -98,7 +98,7 @@ class NullDisplayTest {
     return setup(ByteOrder.LITTLE_ENDIAN, 11, COOKIE_NAME, cookie);
   }
 
-  // Encodes a request: opcode, data byte, length in units, and the body padded to four bytes.
+  // opcode, data byte, length in four-byte units, then the body padded to four bytes
   static byte[] request(final ByteOrder order, final int opcode, final int data, final byte[] body) {
     final int length = 4 + padded(body.length);
     final ByteBuffer request = ByteBuffer.allocate(length).order(order);
@@ -132,7 +132,7 @@ class NullDisplayTest {
     return all.toByteArray();
   }
 
-  // Serves a whole conversation and returns what the display answered after its setup reply.
+  // returns what the display answered after its setup reply
   private ByteBuffer converse(final ByteOrder order, final NullDisplay.Atoms atoms, final byte[]... requests) throws IOException {
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     NullDisplay.serve(
@@ -639,9 +639,8 @@ class NullDisplayTest {
     }
   }
 
-  // The display answers a setup before the thread of the client takes a slot, so on a busy machine the thread of an
-  // earlier client may take its slot after a later one's, and that earlier client is the one ended: of one client more
-  // than the limit, exactly one ends and the others are served, whichever it is.
+  // The display answers a setup before the thread of the client takes a slot, so on a busy machine any client may be
+  // the one ended: of one client over the limit, exactly one ends.
   @Test
   void shouldEndClientsWithTheCookieBeyondTheLimitAndFreeThePlaceOfOneThatLeaves() throws IOException {
     final Path authority = this.folder.resolve(AUTHORITY_FILE);
@@ -687,8 +686,7 @@ class NullDisplayTest {
   void shouldNotLetClientsWithoutTheCookieKeepOneThatHasItOut() throws IOException {
     final Path authority = this.folder.resolve(AUTHORITY_FILE);
     final List<Socket> silent = new ArrayList<>();
-    // no setup timeout, so only the eviction this test is about can end a waiting client: on a busy machine the
-    // default's ten seconds can pass while the clients connect, and close the second client
+    // no setup timeout: on a busy machine, the default ten seconds can pass while the clients connect
     try (final NullDisplay display = NullDisplay.start(authority, 0)) {
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring(DISPLAY_PREFIX.length()));
       final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
@@ -828,7 +826,7 @@ class NullDisplayTest {
     assertEquals(atom, foundExistingAtom);
   }
 
-  // The body of a request: what follows its opcode, data byte and length.
+  // skips the opcode, data byte and length
   private ByteBuffer requestOf(final byte[] request) {
     return ByteBuffer.wrap(Arrays.copyOfRange(request, 4, request.length)).order(ByteOrder.LITTLE_ENDIAN);
   }

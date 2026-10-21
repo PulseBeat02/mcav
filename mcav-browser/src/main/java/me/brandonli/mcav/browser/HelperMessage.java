@@ -19,8 +19,7 @@ package me.brandonli.mcav.browser;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// A message read by HelperProtocol: its type and the values of that type. Values a type does not carry are empty, zero
-// or null.
+// Values a type does not carry are empty, zero or null.
 final class HelperMessage {
 
   private static final byte[] NO_TOKEN = new byte[0];
@@ -126,19 +125,16 @@ final class HelperMessage {
     return this.token.clone();
   }
 
-  // Returns the type of the message, one of the message constants of HelperProtocol.
   int getType() {
     return this.type;
   }
 
-  // Returns the number of the message: the protocol version of a hello, 1 or 0 for loading, the error code of a load
-  // error, or the action of a key message.
+  // the protocol version of a hello, 1 or 0 for loading, the code of a load error, or the action of a key
   int getNumber() {
     return this.number;
   }
 
-  // Returns the string of the message: the CEF version, the notice, the failure, the error text, or the key name or
-  // text.
+  // the CEF version, a notice, a failure, an error text, or a key name or text
   String getText() {
     return this.text;
   }
@@ -147,7 +143,7 @@ final class HelperMessage {
     return this.url;
   }
 
-  // Returns the samples of sound, which the receiver owns: they are not copied.
+  // not copied: the receiver owns them
   byte[] getSamples() {
     return this.samples;
   }

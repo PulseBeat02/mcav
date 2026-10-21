@@ -29,8 +29,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes the DevTools calls built from what a user types and the key names a user sends. Every call is one JSON object,
-// a quoted value reads back as itself, and the typed characters are exactly the text, every line break pressing Enter.
 @Tag("fuzz")
 final class DevToolsInputFuzzTest {
 

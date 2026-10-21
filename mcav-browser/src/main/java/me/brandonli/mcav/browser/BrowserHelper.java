@@ -67,8 +67,7 @@ public final class BrowserHelper {
   private static final int EXIT_FAILURE = 1;
   private static final int EXIT_BAD_CONFIGURATION = 2;
 
-  // How long the helper may take to stop once its standard input ended, in milliseconds. The server is gone then, and
-  // CEF's own shutdown waits up to ten seconds; a browser that hangs longer must not outlive the server.
+  // CEF's own shutdown waits up to ten seconds; a browser that hangs longer must not outlive the server
   private static final long STOP_DEADLINE_MILLISECONDS = 20_000L;
 
   private static final int OUTPUT_BUFFER_BYTES = 1 << 16;
@@ -84,7 +83,6 @@ public final class BrowserHelper {
   private int heldButtons;
   private volatile boolean activated;
 
-  // Constructs a helper that never halts, for tests that run it inside their own JVM.
   @VisibleForTesting
   BrowserHelper(final HelperConfiguration configuration, final HelperEngine engine) {
     this(configuration, engine, status -> {}, 0L);
@@ -159,7 +157,6 @@ public final class BrowserHelper {
     return channel;
   }
 
-  // Connects to the server, starts the browser and serves the page until the helper is stopped.
   int run(final Reader standardInput, final Connector connector) {
     final Path socket = this.configuration.getSocket();
     try (final SocketChannel channel = connector.connect(socket)) {
@@ -217,8 +214,7 @@ public final class BrowserHelper {
     this.stopped.countDown();
   }
 
-  // Waits for the end of the standard input, which the server keeps open while it lives, stops the helper, and halts
-  // the JVM if the helper has not ended once the stop deadline has passed.
+  // the server keeps the standard input open while it lives
   void watchInput(final Reader standardInput) {
     try {
       final char[] buffer = new char[INPUT_BUFFER_CHARACTERS];
@@ -237,7 +233,6 @@ public final class BrowserHelper {
     this.halter.halt(EXIT_FAILURE);
   }
 
-  // Reads the input and close requests of the server and passes the input on to the browser.
   void readCommands(final DataInputStream input) {
     final byte[] noPixels = new byte[0];
     try {
@@ -260,7 +255,6 @@ public final class BrowserHelper {
     }
   }
 
-  // Executes one message from the server: passes input on to the browser and stops the helper on anything else.
   void executeCommand(final HelperMessage message) {
     final int type = message.getType();
     switch (type) {
@@ -291,7 +285,6 @@ public final class BrowserHelper {
     this.engine.dispatch(calls);
   }
 
-  // Returns whether a message from the server is input, after which the helper reads on.
   boolean isInput(final HelperMessage message) {
     final int type = message.getType();
     return type == HelperProtocol.MOUSE || type == HelperProtocol.KEY;
@@ -343,7 +336,6 @@ public final class BrowserHelper {
     SocketChannel connect(Path socket) throws IOException;
   }
 
-  // Passes what the browser reports on to the server. A failure also stops the helper.
   final class Reporter implements HelperEvents {
 
     private final DataOutputStream output;
@@ -382,9 +374,8 @@ public final class BrowserHelper {
       this.send(out -> HelperProtocol.writeText(out, HelperProtocol.NOTICE, text));
     }
 
-    // Passes the sound of the page on, once a player pressed a mouse button or a key on this page, or at once if the
-    // options let pages play right away. Chromium holds a page's sound back until then as well; this keeps a page that
-    // gets around Chromium's rule, or around the capture script, from playing to the server before anyone touched it.
+    // sound passes only after a press on this page, unless the options allow it, so a page that gets around Chromium's own
+    // rule or the capture script cannot play to the server before anyone touched it
     @Override
     public void onAudio(final byte[] samples) {
       if (BrowserHelper.this.configuration.isAutoplay() || BrowserHelper.this.activated) {

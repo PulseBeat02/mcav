@@ -20,14 +20,11 @@ package me.brandonli.mcav.browser;
 import java.util.List;
 import org.cef.browser.McavOffscreenBrowser;
 
-// The browser inside the helper process: CEF in production, a fake in tests of the helper.
 interface HelperEngine {
-  // Starts the browser and opens the page of the configuration. Returns once the browser is being created; the events
-  // report when it is ready.
+  // returns once the browser is being created; the events report when it is ready
   void start(HelperConfiguration configuration, McavOffscreenBrowser.PaintListener painter, HelperEvents events) throws Exception;
 
   void dispatch(List<DevToolsInput.DevToolsCall> calls);
 
-  // Closes the browser and shuts the engine down, waiting a bounded time for it.
   void stop();
 }

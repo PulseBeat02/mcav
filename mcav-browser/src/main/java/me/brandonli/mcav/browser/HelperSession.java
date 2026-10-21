@@ -75,23 +75,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// One browser helper process, from its start to its end: the private folder of the session, the helper and the
-// processes it starts, the authenticated connection, the page the helper streams, and the input sent to it. open
-// creates a folder only the server's user can read, binds a Unix-domain socket in it, starts the helper with its
-// configuration on its standard input, and accepts exactly one connection, which must present the random session token
-// first; the socket is then deleted. open returns once the page has loaded and its first frame arrived, and fails with
-// a BrowserException if the helper fails, exits, or takes longer than the start timeout, leaving nothing behind. A
-// reader thread writes every frame region into the FrameCanvas, and a delivery thread hands the newest picture to the
-// listener; pictures the listener was too slow for are skipped, never queued. Once the page stops changing, the
-// delivery thread hands the same picture over again, every REPEAT_DELAY_MILLISECONDS ms and at most SETTLED_REPEATS
-// times: a video pipeline that spreads a big change over several frames, as the map encoder does with its byte budget
-// per frame, needs further frames to finish the change, and a page that stands still sends none. Input goes through a
-// bounded queue to a writer thread, so a caller such as the server's main thread never waits for the helper. What the
-// helper reports for the log, its notices and failed loads, which the page it shows can cause as often as it likes,
-// reaches the log of the server within a LogBudget. close ends the helper by closing its standard input and the
-// connection, waits a bounded time, then kills it and every process it started, and removes the folder. A helper that
-// ends by itself is reported to the listener. The server's end is never a helper that outlives it: a helper exits when
-// its standard input ends, which the operating system does when the server process dies.
+// One browser helper process: its private folder, the token-authenticated connection, the frames it streams and the
+// input sent to it. A slow listener skips pictures instead of queuing them; a settled page repeats its last picture, so
+// an encoder that spreads a change over frames can finish it. A helper exits when its standard input ends, so it never
+// outlives the server.
 final class HelperSession implements BrowserSession {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HelperSession.class);
@@ -104,8 +91,7 @@ final class HelperSession implements BrowserSession {
   private static final byte[] NO_PIXELS = new byte[0];
   private static final long EXIT_POLL_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(10L);
   private static final String SOCKET_NAME = "s";
-  // a socket's path has at most 107 characters, and on Linux Chromium binds one 45 characters below the folder of the
-  // session, which is its temporary folder: <folder>/org.chromium.Chromium.XXXXXX/SingletonSocket
+  // a socket path has at most 107 characters, and on Linux Chromium binds one 45 characters below the session folder
   private static final int MAXIMUM_SOCKET_PATH = 107;
   private static final int CHROMIUM_SOCKET_TAIL = 45;
   private static final int MAXIMUM_FOLDER_ATTEMPTS = 100;
@@ -121,10 +107,8 @@ final class HelperSession implements BrowserSession {
   private static final int INPUT_BUFFER_BYTES = 1 << 16;
   private static final int OUTPUT_READ_CHARACTERS = 4096;
 
-  // How long the delivery thread waits for a new picture before it hands over the last one again.
   static final long REPEAT_DELAY_MILLISECONDS = 50L;
 
-  // How often the delivery thread hands over the last picture again once the page stopped changing.
   static final int SETTLED_REPEATS = 40;
 
   private final Path folder;
@@ -191,7 +175,6 @@ final class HelperSession implements BrowserSession {
     return open(launcher, natives, source, options, listener, temporary);
   }
 
-  // Starts a helper whose session folder lies in the given folder, so tests can see what a start leaves behind.
   @VisibleForTesting
   static HelperSession open(
     final HelperLauncher launcher,
@@ -239,8 +222,7 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  // Refuses a folder of a session whose path is too long for the socket Chromium binds in it on Linux, with a reason
-  // the operator can act on instead of Chromium's abort.
+  // an operator can act on this reason, unlike on Chromium's abort
   @VisibleForTesting
   static void requireShortEnough(final Os os, final Path folder) {
     final String path = folder.toString();
@@ -315,15 +297,11 @@ final class HelperSession implements BrowserSession {
     deleteFolder(folder);
   }
 
-  // Creates the folder of a session, readable by the owner only where the file system has POSIX permissions, and names
-  // this server in it, see SessionFolders.
   @VisibleForTesting
   static Path createFolder(final Path temporary) {
     return createFolder(temporary, SessionFolders::newName);
   }
 
-  // Creates the folder of a session as createFolder(Path) does, with names drawn from a supplier: a name that is taken
-  // is drawn again, MAXIMUM_FOLDER_ATTEMPTS times at most.
   @VisibleForTesting
   static Path createFolder(final Path temporary, final Supplier<String> names) {
     final FileSystem fileSystem = temporary.getFileSystem();
@@ -382,8 +360,6 @@ final class HelperSession implements BrowserSession {
     return builder.start();
   }
 
-  // Prepares the process of a helper: its command, no environment but what the launcher keeps, the session folder as
-  // its working folder, and one stream for its output and its errors.
   @VisibleForTesting
   static ProcessBuilder createProcessBuilder(final HelperLauncher launcher, final Path folder, final @Nullable Path libraries) {
     final List<String> command = launcher.createCommand(folder);
@@ -413,7 +389,7 @@ final class HelperSession implements BrowserSession {
     final long deadline
   ) throws IOException {
     while (true) {
-      // an interrupted select returns at once without a word, so an interrupt, such as a release's, is checked here
+      // an interrupted select returns silently, so the interrupt of a release is checked here
       if (Thread.currentThread().isInterrupted()) {
         throw new BrowserException("Interrupted while the browser helper connected!");
       }
@@ -452,7 +428,6 @@ final class HelperSession implements BrowserSession {
     return thread;
   }
 
-  // Creates the thread that writes the input to the helper, which must not keep the JVM alive.
   @VisibleForTesting
   static Thread createInputThread(final Runnable task) {
     final Thread thread = new Thread(task, "mcav-browser-input");
@@ -516,8 +491,7 @@ final class HelperSession implements BrowserSession {
     return buffer[0];
   }
 
-  // Describes the end of the connection by the exit of the helper if it exits right after: a helper that exits ends its
-  // connection, which Windows reports as a reset rather than an end.
+  // Windows reports the end of an exiting helper's connection as a reset, so its exit describes the end
   private String describeEnd(final String connectionEnd) {
     if (this.closing.get()) {
       return connectionEnd;
@@ -534,7 +508,6 @@ final class HelperSession implements BrowserSession {
     return "The browser helper exited with code %s before it was asked to stop!".formatted(this.process.exitValue());
   }
 
-  // Checks the first message of a helper: a hello of this protocol version with the session token.
   @VisibleForTesting
   static void checkHello(final HelperMessage hello, final byte[] token) throws ProtocolException {
     final int type = hello.getType();
@@ -573,7 +546,7 @@ final class HelperSession implements BrowserSession {
       case HelperProtocol.LOADING -> this.onLoading(message);
       case HelperProtocol.LOAD_ERROR -> {
         final String text = message.getText();
-        // The helper is untrusted, so the server must check the address again.
+        // the helper is untrusted, so the address is checked again
         final String url = AddressText.describe(message.getUrl());
         final int code = message.getNumber();
         this.logBudget.log(() -> LOGGER.warn("Page {} failed to load with error {} ({}).", url, text, code), this::logSkipped);
@@ -615,7 +588,6 @@ final class HelperSession implements BrowserSession {
     this.onStartEvent(StartEvent.FRAME);
   }
 
-  // Hands the current picture of the page to the listener again, as soon as the delivery thread is free.
   @Override
   public void requestFrame() {
     synchronized (this.deliveryLock) {
@@ -654,7 +626,6 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  // Waits for a new picture, or, while the last picture is still repeated, at most the repeat delay.
   private boolean awaitFrame(final FrameWait wait) throws InterruptedException {
     synchronized (this.deliveryLock) {
       final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(REPEAT_DELAY_MILLISECONDS);
@@ -724,8 +695,7 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  // Ends the session although its player did not ask for it, so the player hears of it as of a failure, and closes it;
-  // this happens when the browser module stops.
+  // the player hears of it as a failure; the browser module does this when it stops
   void endAndClose(final String reason) {
     try {
       this.end(reason, null);
@@ -795,7 +765,6 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  // Ends the helper and everything it started, and removes the folder of the session. Safe to call more than once.
   @Override
   public void close() {
     if (!this.closing.compareAndSet(false, true)) {
@@ -817,7 +786,6 @@ final class HelperSession implements BrowserSession {
     deleteFolder(this.folder);
   }
 
-  // Waits for a helper to exit after its input and connection closed, then kills it and every process it started.
   private static void stopProcess(final Process process) {
     final List<ProcessHandle> descendants = new ArrayList<>();
     try (final Stream<ProcessHandle> started = process.descendants()) {
@@ -863,7 +831,6 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  // Closes something whose failure to close changes nothing, logging the failure.
   @VisibleForTesting
   static void closeQuietly(final AutoCloseable closeable) {
     try {
@@ -882,8 +849,6 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  // Returns the threads that read the helper's connection, hand over the pictures and keep the helper's output, so
-  // tests can check how they run and that they end.
   @VisibleForTesting
   List<Thread> getThreads() {
     return List.of(this.reader, this.delivery, this.drain);
@@ -900,7 +865,6 @@ final class HelperSession implements BrowserSession {
     }
   }
 
-  // Returns how many input messages the writer thread has handled, sent or failed, so tests can wait for them.
   @VisibleForTesting
   long getHandledInput() {
     return this.input.getCompletedTaskCount();
@@ -910,13 +874,11 @@ final class HelperSession implements BrowserSession {
     return this.process.isAlive();
   }
 
-  // Returns the private folder of the session, so tests can check that it goes.
   @VisibleForTesting
   Path getFolder() {
     return this.folder;
   }
 
-  // Returns the thread that hands the pictures to the listener, so tests can interrupt it.
   @VisibleForTesting
   Thread getDeliveryThread() {
     return this.delivery;
@@ -932,8 +894,6 @@ final class HelperSession implements BrowserSession {
     return this.process;
   }
 
-  // how long the delivery thread waits for a new picture: until one arrives, or at most the repeat delay while the last
-  // picture is still repeated
   private enum FrameWait {
     UNTIL_FRAME,
     UNTIL_REPEAT_DELAY,

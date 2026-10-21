@@ -553,8 +553,7 @@ class JcefNativesTest {
 
   @Test
   void shouldPinTheNativesOfTheJcefOnTheClassPath() {
-    // the natives and the Java side of JCEF must be of one release: a bump of the catalog needs new pins, and the
-    // pins a bump of the catalog
+    // the natives and the Java side of JCEF must be of one release: bump the catalog and the pins together
     final String classPath = System.getProperty("java.class.path");
     final boolean namesTheJcefApiJar = classPath.contains("jcef-api-" + JcefNatives.RELEASE_TAG + ".jar");
     assertTrue(namesTheJcefApiJar, classPath);

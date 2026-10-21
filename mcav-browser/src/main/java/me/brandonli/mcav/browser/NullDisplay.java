@@ -49,33 +49,22 @@ import java.util.concurrent.Semaphore;
 import java.util.function.IntPredicate;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// An X display that shows nothing, for JCEF on Linux. When CEF has started, JCEF creates a window of one pixel on the X
-// display of CEF (its TempWindowX11), and aborts the helper if there is no display, although CEF itself draws
-// off-screen on Chromium's headless Ozone platform and never uses X. So the helper answers the X connections itself,
-// instead of an X server: the connection setup, with one TrueColor screen and no extensions, atoms, empty properties,
-// an empty keyboard, and the geometry of the screen. Every other request that has no reply is discarded, and one that
-// needs a reply gets an error. Nothing is drawn. The display listens on the loopback interface, on a port of at least
-// 6000, so the display number is the port minus 6000 (X11 over TCP), and it lets in only clients that present the
-// random cookie of the authority file it writes. Requests are bounded in size, and so are the connections and the
-// atoms.
+// Answers X connections for JCEF, which aborts the helper without a display although CEF draws off-screen. Listens on
+// loopback only, admits only clients with the cookie of its authority file, and bounds requests, connections and atoms.
 final class NullDisplay implements AutoCloseable {
 
   static final int X11_BASE_PORT = 6000;
 
-  // The name of the X authority file in the folder of a session, which the helper writes for its display.
   static final String AUTHORITY_FILE = "Xauthority";
 
-  // The largest request a client may send, in units of four bytes, as the connection setup announces it.
   static final int MAXIMUM_REQUEST_UNITS = 16_384;
 
   static final int MAXIMUM_CONNECTIONS = 16;
 
-  // The most clients that have not introduced themselves yet; a new one ends the connection of the oldest, so clients
-  // without the cookie can never keep one that has it out.
+  // a new client ends the oldest pending one, so clients without the cookie cannot crowd out one that has it
   static final int MAXIMUM_PENDING = 256;
 
-  // How long a client may take to introduce itself, in milliseconds, so a client without the cookie cannot hold one of
-  // the MAXIMUM_CONNECTIONS connections; one that introduced itself may stay quiet as long as it likes.
+  // so a client without the cookie cannot hold a connection; an introduced one may stay quiet
   private static final int SETUP_TIMEOUT_MILLISECONDS = 10_000;
 
   static final int MAXIMUM_ATOMS = 4_096;
@@ -103,7 +92,7 @@ final class NullDisplay implements AutoCloseable {
   static final int BAD_LENGTH = 16;
   static final int BAD_IMPLEMENTATION = 17;
 
-  // the core requests that have a reply, which a client waits for (X Window System Protocol, chapter 9)
+  // core requests with a reply (X Window System Protocol, chapter 9)
   private static final Set<Integer> REPLYING = Set.of(
     3,
     14,
@@ -146,7 +135,7 @@ final class NullDisplay implements AutoCloseable {
     118,
     119
   );
-  // the predefined atoms of the core protocol, numbered from 1 (X Window System Protocol, appendix B)
+  // numbered from 1 (X Window System Protocol, appendix B)
   private static final List<String> PREDEFINED_ATOMS = List.of(
     "PRIMARY",
     "SECONDARY",
@@ -326,12 +315,10 @@ final class NullDisplay implements AutoCloseable {
     this.pending = new ArrayDeque<>();
   }
 
-  // Starts a display and writes its authority file, which clients find through XAUTHORITY.
   static NullDisplay start(final Path authority) throws IOException {
     return start(authority, SETUP_TIMEOUT_MILLISECONDS);
   }
 
-  // Starts a display with another time for the setup, so tests need not wait for it.
   @VisibleForTesting
   static NullDisplay start(final Path authority, final int setupTimeoutMilliseconds) throws IOException {
     final ServerSocket server = bind(NullDisplay::isDisplayPort);
@@ -349,11 +336,10 @@ final class NullDisplay implements AutoCloseable {
     }
   }
 
-  // Binds a port on the IPv4 loopback interface that a display number can name. The system picks ephemeral ports far
-  // above X11_BASE_PORT; a port it may not use is kept bound until the search ends, so it is not picked again.
+  // an unusable port stays bound until the search ends, so the system does not hand it out again
   @VisibleForTesting
   static ServerSocket bind(final IntPredicate usable) throws IOException {
-    // the name of a display holds an IPv4 address or a host name, never an IPv6 address
+    // a display name cannot hold an IPv6 address
     final InetAddress loopback = InetAddress.getByAddress(LOOPBACK_ADDRESS);
     final List<ServerSocket> unusable = new ArrayList<>();
     try {
@@ -378,7 +364,7 @@ final class NullDisplay implements AutoCloseable {
     throw new IOException(message);
   }
 
-  // Checks whether a display number can name a port: X11 over TCP connects to 6000 plus the number.
+  // X11 over TCP connects to 6000 plus the display number
   @VisibleForTesting
   static boolean isDisplayPort(final int port) {
     return port >= X11_BASE_PORT;
@@ -393,8 +379,6 @@ final class NullDisplay implements AutoCloseable {
     return cookie;
   }
 
-  // Writes an X authority file with one cookie that matches every display, readable by the owner only where the file
-  // system has POSIX permissions.
   @VisibleForTesting
   static void writeAuthority(final Path authority, final byte[] cookie) throws IOException {
     final byte[] entry = createAuthorityEntry(cookie);
@@ -408,8 +392,8 @@ final class NullDisplay implements AutoCloseable {
     Files.write(authority, entry);
   }
 
-  // Encodes one entry of an X authority file: family, address, display number, method name and cookie, each counted
-  // with a big-endian 16-bit length. The family matches every host and the empty display number every display.
+  // family, address, display number, method name and cookie, each after a big-endian 16-bit length; this family matches
+  // every host and the empty display number every display
   @VisibleForTesting
   static byte[] createAuthorityEntry(final byte[] cookie) {
     final byte[] name = COOKIE_NAME.getBytes(StandardCharsets.US_ASCII);
@@ -482,7 +466,7 @@ final class NullDisplay implements AutoCloseable {
         serveRequests(input, output, order, this.atoms);
       }
     } catch (final IOException exception) {
-      // the client went away or broke the protocol; either way its connection ends
+      // the client left or broke the protocol: its connection ends
     } finally {
       this.introduced(client);
       this.clients.remove(client);
@@ -492,7 +476,6 @@ final class NullDisplay implements AutoCloseable {
     }
   }
 
-  // Serves one connection until it ends: the setup, then every request.
   @VisibleForTesting
   static void serve(final InputStream clientInput, final OutputStream output, final byte[] cookie, final Atoms atoms) throws IOException {
     final DataInputStream input = new DataInputStream(clientInput);
@@ -513,7 +496,7 @@ final class NullDisplay implements AutoCloseable {
       input.readFully(lengthBytes);
       final int units = ByteBuffer.wrap(lengthBytes).order(order).getShort() & UNSIGNED_SHORT_MASK;
       if (units == 0 || units > MAXIMUM_REQUEST_UNITS) {
-        // no extension is announced, so neither are the long requests of BIG-REQUESTS
+        // no BIG-REQUESTS extension, so no longer requests
         final String message = "A request of %s units must have 1 to %s units!".formatted(units, MAXIMUM_REQUEST_UNITS);
         throw new ProtocolException(message);
       }
@@ -528,7 +511,6 @@ final class NullDisplay implements AutoCloseable {
     }
   }
 
-  // Reads the setup of a connection and answers it: a screen if the client presented the cookie, a refusal otherwise.
   private static ByteOrder readSetup(final DataInputStream input, final OutputStream output, final byte[] cookie) throws IOException {
     final int orderByte = input.readUnsignedByte();
     final ByteOrder order = switch (orderByte) {
@@ -555,7 +537,7 @@ final class NullDisplay implements AutoCloseable {
     final byte[] name = readPadded(input, nameLength);
     final byte[] presented = readPadded(input, dataLength);
     final boolean named = COOKIE_NAME.equals(new String(name, StandardCharsets.US_ASCII));
-    // Compare in constant time so response timing cannot reveal the cookie.
+    // constant time, so timing cannot reveal the cookie
     final boolean matches = MessageDigest.isEqual(presented, cookie);
     if (major != X11_MAJOR_VERSION || !named || !matches) {
       final String reason = major != X11_MAJOR_VERSION ? "only X11 is spoken here" : "the cookie of the display is missing";
@@ -601,7 +583,6 @@ final class NullDisplay implements AutoCloseable {
     output.flush();
   }
 
-  // Describes the display: one screen of SCREEN_WIDTHxSCREEN_HEIGHT with a 24-bit TrueColor visual.
   @VisibleForTesting
   static ByteBuffer createSetupReply(final ByteOrder order) {
     final int vendorPadded = VENDOR.length + pad(VENDOR.length);
@@ -691,9 +672,9 @@ final class NullDisplay implements AutoCloseable {
     return switch (opcode) {
       case INTERN_ATOM -> internAtom(data != 0, request, sequence, order, atoms);
       case GET_ATOM_NAME -> atomName(request, sequence, order, atoms);
-      // no window has properties, so every property is missing: type None, format 0, nothing after, no value
+      // no window has properties
       case GET_PROPERTY -> reply(sequence, order, 0, 0);
-      // no extension is there: present, major opcode, first event and first error all zero
+      // no extension is there
       case QUERY_EXTENSION -> reply(sequence, order, 0, 0);
       case LIST_EXTENSIONS -> reply(sequence, order, 0, 0);
       // the focus is None, reverting to None
@@ -709,7 +690,6 @@ final class NullDisplay implements AutoCloseable {
     };
   }
 
-  // Answers a request this display does not handle: an error if the client waits for a reply, nothing otherwise.
   private static @Nullable ByteBuffer unanswered(final int opcode, final int sequence, final ByteOrder order) {
     if (opcode >= FIRST_EXTENSION_OPCODE) {
       // an extension, and none was announced
@@ -717,7 +697,7 @@ final class NullDisplay implements AutoCloseable {
     }
 
     if (REPLYING.contains(opcode)) {
-      // a core request with a reply that is not answered here would wait forever, so it fails
+      // the client would wait forever for this reply
       return error(BAD_IMPLEMENTATION, opcode, sequence, order, 0);
     }
 
@@ -745,7 +725,6 @@ final class NullDisplay implements AutoCloseable {
     final byte[] name = new byte[length];
     request.get(name);
     final String text = new String(name, StandardCharsets.ISO_8859_1);
-    // a client that only asks whether an atom exists gets None for a new name, which is not interned
     final int atom = onlyIfExists ? atoms.find(text) : atoms.intern(text);
     if (atom == 0 && !onlyIfExists) {
       return error(BAD_ALLOC, INTERN_ATOM, sequence, order, 0);
@@ -784,7 +763,7 @@ final class NullDisplay implements AutoCloseable {
 
     request.get();
     final int count = request.get() & UNSIGNED_BYTE_MASK;
-    // one key symbol per key code, and every one is NoSymbol
+    // every key symbol is NoSymbol
     return reply(sequence, order, KEY_SYMBOLS_PER_KEY_CODE, Integer.BYTES * KEY_SYMBOLS_PER_KEY_CODE * count);
   }
 
@@ -825,7 +804,6 @@ final class NullDisplay implements AutoCloseable {
     return reply;
   }
 
-  // Creates a reply: 32 bytes and the extra bytes, all zero but its header.
   private static ByteBuffer reply(final int sequence, final ByteOrder order, final int data, final int extra) {
     final ByteBuffer reply = ByteBuffer.allocate(MESSAGE_BYTES + extra).order(order);
     reply.put(0, (byte) REPLY);
@@ -856,7 +834,7 @@ final class NullDisplay implements AutoCloseable {
   }
 
   private void closeQuietly(final Closeable closeable) {
-    // the helper runs without MCAV's other modules, so not HelperSession's, which needs them
+    // not HelperSession's: the helper runs without MCAV's other modules
     NetworkGuard.closeQuietly(closeable);
   }
 
@@ -866,8 +844,6 @@ final class NullDisplay implements AutoCloseable {
     return host + DISPLAY_SEPARATOR + (this.server.getLocalPort() - X11_BASE_PORT);
   }
 
-  // The atoms of a display: the predefined ones, and every name a client interns, up to MAXIMUM_ATOMS atoms and
-  // MAXIMUM_ATOM_BYTES bytes of names.
   static final class Atoms {
 
     private final Map<String, Integer> ids = new ConcurrentHashMap<>();

@@ -33,9 +33,6 @@ import org.cef.browser.CefFrame;
 import org.cef.network.CefRequest;
 import org.junit.jupiter.api.Tag;
 
-// Fuzzes the content policy with the addresses a page can open, follow or load. A window or tab is opened in place only
-// at an address the navigation policy allows, every refused or allowed opening is one notice, and a navigation is
-// cancelled exactly when the policy refuses it for the kind of frame it happens in.
 @Tag("fuzz")
 final class ContentPolicyFuzzTest {
 

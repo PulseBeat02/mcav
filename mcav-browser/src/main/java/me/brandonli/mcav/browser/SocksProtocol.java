@@ -24,11 +24,8 @@ import java.net.InetAddress;
 import java.net.ProtocolException;
 import java.nio.charset.StandardCharsets;
 
-// The part of SOCKS 5 (RFC 1928) that Chromium speaks to a proxy: a greeting that offers "no authentication", then one
-// CONNECT request per connection, to a host name, an IPv4 or an IPv6 address. The reader is strict and never reads more
-// than a request can hold: at most 255 offered methods and a host name of at most 255 characters, which may only hold
-// the characters of host names. A request the guard does not serve fails with a Refusal that names the reply code, and
-// anything malformed with a ProtocolException.
+// The part of SOCKS 5 (RFC 1928) that Chromium speaks: "no authentication", then one CONNECT per connection. The reader
+// never reads more than a request can hold.
 final class SocksProtocol {
 
   static final int VERSION = 5;
@@ -144,7 +141,7 @@ final class SocksProtocol {
     return host;
   }
 
-  // Reads an IPv6 address written as text, with or without brackets, without asking a resolver.
+  // never asks a resolver
   private static String readIpv6Literal(final String text) throws ProtocolException {
     try {
       final InetAddress address = InetAddress.ofLiteral(text);
@@ -157,8 +154,7 @@ final class SocksProtocol {
     }
   }
 
-  // Checks whether a byte may appear in a host name: an ASCII letter or digit, a hyphen, a dot or an underscore.
-  // Chromium sends international names in their ASCII form.
+  // Chromium sends international names in their ASCII form
   static boolean isHostNameCharacter(final byte value) {
     final boolean isLetter = (value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z');
     final boolean isDigit = value >= '0' && value <= '9';
@@ -170,7 +166,7 @@ final class SocksProtocol {
     output.writeByte(method);
   }
 
-  // Answers a request. The bound address is left empty, as Chromium does not use it.
+  // Chromium does not use the bound address, so it stays empty
   static void writeReply(final DataOutput output, final int reply) throws IOException {
     output.writeByte(VERSION);
     output.writeByte(reply);
@@ -199,7 +195,6 @@ final class SocksProtocol {
     }
   }
 
-  // A request the guard does not serve, with the reply code the client gets.
   static final class Refusal extends ProtocolException {
 
     private static final long serialVersionUID = 1L;

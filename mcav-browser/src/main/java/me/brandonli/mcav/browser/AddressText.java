@@ -17,11 +17,8 @@
  */
 package me.brandonli.mcav.browser;
 
-// Writes an address of the browser the way the log of the server shows it. Addresses come from pages, which choose them
-// freely, and from the operator, and their user name and password, their query and their fragment often carry secrets,
-// such as the signature of a link or the code of a login; the log, which /mcav dump may publish, gets the scheme, the
-// host and the path only. An address without a host, such as a data: address, which holds its content, is shown by its
-// scheme only.
+// The user name, password, query and fragment of an address often carry secrets, and /mcav dump may publish the log,
+// so it shows the scheme, host and path only, and an address without a host only its scheme.
 final class AddressText {
 
   static final String HIDDEN = "<hidden>";
@@ -63,7 +60,7 @@ final class AddressText {
     return text.toString();
   }
 
-  // Checks whether the text before a colon is a scheme: a letter, then letters, digits, +, . and - (RFC 3986).
+  // a letter, then letters, digits, +, . and - (RFC 3986)
   private static boolean isScheme(final String address, final int colon) {
     if (!isLetter(address.charAt(0))) {
       return false;

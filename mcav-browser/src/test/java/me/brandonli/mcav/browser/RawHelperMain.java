@@ -31,23 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-// A misbehaving browser helper for tests of the server's session: it reads the configuration like the real helper,
-// connects, and then does what the path of the page says: /wrong-token: introduces itself with another token;
-// /wrong-version: introduces itself with another protocol version; /no-hello: sends a notice first; /server-message:
-// introduces itself, is ready and loaded, then sends a close, which only the server sends; /wrong-page: introduces
-// itself and sends a frame of a page of another size; /oversized: introduces itself and sends a region larger than the
-// page of the session; /stall: shows the page but never reads what the server sends; /stubborn: shows the page and
-// ignores the end of its standard input for two minutes; /frame-first: sends a frame before it introduces itself;
-// /hang-up: shows the page, then closes the connection but keeps running; /exit: exits before it connects; /silent:
-// never connects, and exits when its standard input ends; /stubborn-child: like /stubborn, and starts a process of its
-// own once its standard input ended, which runs for a minute; /child: shows the page and starts a process of its own at
-// once, which runs for a minute; /output-child: like /child, with a process that writes to the output of the helper;
-// /chatty: writes far more output than a pipe holds before it connects, then shows the page; /full-page: shows the page
-// with one region as large as the page; /exit-later: shows the page and exits with code 5 half a second later; /deaf:
-// shows the page and shuts down the reading side of its connection; /silent-stubborn: never connects and ignores the
-// end of its standard input for two minutes; /noisy: shows the page, sends NOISY_LOAD_ERRORS load errors of addresses
-// with a secret in their query and NOISY_NOTICES notices at once, as a page can make a helper do, one more notice a
-// moment later, and then one frame of sound. It then waits until its standard input ends.
+// A misbehaving browser helper for the session tests: the path of the page picks the misbehavior.
 public final class RawHelperMain {
 
   static final String CHATTY_END = "the chatty helper is done";
@@ -164,7 +148,7 @@ public final class RawHelperMain {
       channel.shutdownInput();
     }
     if (path.equals("/chatty")) {
-      // a pipe holds 64 KiB on Linux: unless the server reads the output, this helper blocks here
+      // more than a pipe holds (64 KiB on Linux): blocks unless the server reads the output
       final String line = "x".repeat(1023);
       for (int count = 0; count < 256; count++) {
         System.out.println(line);
@@ -199,8 +183,7 @@ public final class RawHelperMain {
     }
   }
 
-  // Starts a process of this helper two seconds after its standard input ended, while the server waits for the helper
-  // to stop: a JVM that waits for a gate that never opens, for a minute.
+  // the child starts while the server waits for this helper to stop
   private static void startChildWhenTheInputEnds(final BufferedReader input) {
     final Thread watcher = new Thread(() -> startChildAfterTheEnd(input));
     watcher.setDaemon(true);
@@ -219,8 +202,6 @@ public final class RawHelperMain {
     }
   }
 
-  // Starts a process of this helper: a JVM that waits for a gate that never opens, for a minute, and writes its output
-  // where it is told to.
   private static void startChild(final ProcessBuilder.Redirect output) throws IOException {
     final String program = ProcessHandle.current().info().command().orElse("java");
     final String classPath = System.getProperty("java.class.path");
@@ -231,8 +212,7 @@ public final class RawHelperMain {
       .start();
   }
 
-  // Keeps running for two minutes, whatever happens to the standard input: long enough for any test that kills this
-  // helper, and short enough that a test runner killed meanwhile leaves no helper behind for long.
+  // outlasts any test that kills this helper, but leaves no orphan behind for long
   private static void waitTwoMinutes() {
     final long deadline = System.nanoTime() + TimeUnit.MINUTES.toNanos(2);
     while (System.nanoTime() < deadline) {

@@ -25,13 +25,12 @@ import java.util.Arrays;
 import java.util.Base64;
 import org.junit.jupiter.api.Tag;
 
-// Feeds String) what a page controls: the parameters of a binding event.
 @Tag("fuzz")
 final class PageAudioFuzzTest {
 
   private static final String PREFIX = "{\"name\":\"" + PageAudio.BINDING + "\",\"payload\":\"";
 
-  // The first byte picks the event, odd for a call of a binding; the rest is its parameters.
+  // the first byte picks the event, odd for a call of a binding; the rest is its parameters
   @FuzzTest(maxDuration = "30s")
   void shouldTakeOnlyWholeFramesOfItsOwnBinding(final byte[] input) {
     if (input.length == 0) {

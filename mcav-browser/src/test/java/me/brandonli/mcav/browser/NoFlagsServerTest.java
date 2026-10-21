@@ -38,11 +38,8 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-// Proves that a server needs no JVM option for the browser: NoFlagsServerMain runs in a child JVM started with
-// -Djava.awt.headless=true and nothing else, the class path given through the CLASSPATH variable, and without DISPLAY
-// or WAYLAND_DISPLAY, like a headless Minecraft server. No X server can be found on its PATH either, as on a stock
-// server: the browser must need none. It streams a local page, checks the pixels of a frame, and disables and enables
-// MCAV in between.
+// Runs NoFlagsServerMain like a stock headless Minecraft server: only -Djava.awt.headless=true, the class path in
+// CLASSPATH, no DISPLAY or WAYLAND_DISPLAY, and no X server on the PATH.
 @Tag("cef")
 class NoFlagsServerTest {
 
@@ -104,7 +101,6 @@ class NoFlagsServerTest {
     assertEquals(plain.toString(), filteredPath);
   }
 
-  // Removes the folders that hold an X server from a PATH, and its empty entries.
   private String withoutXServers(final String path) {
     return Arrays.stream(path.split(File.pathSeparator))
       .filter(entry -> !entry.isEmpty())

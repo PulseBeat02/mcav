@@ -31,9 +31,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-// Confines its process as a helper on macOS does, for the server folder, socket and natives of its first three
-// arguments, and then reads the files of the next two, writes into the folder of the session and the file of the last
-// argument, starts cat on the first file, and asks the system whether the process is in a sandbox.
+// Confines its process as a macOS helper does, tries reads, writes and a child process, and asks whether it is in a
+// sandbox.
 final class SeatbeltProbeMain {
 
   private SeatbeltProbeMain() {

@@ -17,22 +17,19 @@
  */
 package me.brandonli.mcav.browser;
 
-// What the browser engine of the helper process reports to the helper, which passes it on to the server.
 interface HelperEvents {
   void onReady(String engineVersion);
 
-  // The browser started to load a new page in its main frame. Its sound waits for the next press of a mouse button or a
-  // key, as a press on the page before does not count for it.
+  // a press on the page before does not count for the sound of the new page
   void onPageStart();
 
   void onLoading(boolean loading);
 
   void onLoadError(int code, String text, String url);
 
-  // The browser refused or changed something the page asked for, such as a popup, a download or a dialog.
   void onNotice(String text);
 
-  // The browser cannot go on, for example because its renderer crashed; the helper exits.
+  // the helper exits
   void onFailure(String text);
 
   void onAudio(byte[] samples);

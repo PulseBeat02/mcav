@@ -47,8 +47,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 
-// Runs the real browser: helper processes with CEF, pages from a local HTTP server, input through the player, and the
-// frames that come back. The first run on a machine downloads the CEF natives.
+// The first run on a machine downloads the CEF natives.
 @Tag("cef")
 class CefBrowserIntegrationTest {
 
@@ -89,9 +88,8 @@ class CefBrowserIntegrationTest {
     return frames;
   }
 
-  // Waits until the page takes clicks. Chromium ignores presses, clicks and keys for a moment after a page appears,
-  // while it already passes mouse moves on, so a probe click is sent until the page reports one; the probe's events are
-  // forgotten afterwards.
+  // Chromium ignores clicks and keys for a moment after a page appears, but not mouse moves: probe with clicks until the
+  // page reports one, then forget the probe's events.
   private void awaitInput(final BrowserPlayer player) {
     Await.until("the page reported its size", () -> this.pages.count("size") > 0);
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
@@ -119,11 +117,9 @@ class CefBrowserIntegrationTest {
     Await.until("every browser process of this test has ended", () -> countBrowserProcesses() == 0);
   }
 
-  // Counts the processes below this JVM that belong to a browser: the helper JVMs, their CEF processes, and Xvfb.
   static long countBrowserProcesses() {
     final ProcessHandle self = ProcessHandle.current();
-    // Windows does not tell the command line of another process, only its program, which for a helper is the Java of
-    // this JVM and for a CEF process lies in the jcef folder
+    // Windows shows only the program of another process: this Java for a helper, a file in the jcef folder for CEF
     final String java = self.info().command().orElse("");
     try (final Stream<ProcessHandle> descendants = self.descendants()) {
       return descendants
@@ -257,7 +253,7 @@ class CefBrowserIntegrationTest {
     assertTrue(playing);
   }
 
-  // Clicks a point of the page until a condition holds, since clicks are ignored for a moment after a page appears.
+  // clicks are ignored for a moment after a page appears
   private void clickUntil(final BrowserPlayer player, final String description, final BooleanSupplier condition) {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
     while (!condition.getAsBoolean()) {

@@ -26,13 +26,10 @@ import java.util.List;
 import java.util.StringJoiner;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 
-// Everything the browser helper process needs to know, handed to it as one line on its standard input, so none of it
-// shows up in the process list: the session token, the socket to connect to, the installed CEF, the profile folder, the
-// page and its size, the security profile with the hosts the guard refuses, and whether Chromium is confined and which
-// server folder it may not read then.
+// Handed to the helper as one line on its standard input, so none of it shows up in the process list.
 final class HelperConfiguration {
 
-  // The highest frame rate a browser may paint at, MCAV's limit: CEF sets none above its minimum of 1.
+  // MCAV's limit: CEF sets none above its minimum of 1
   static final int MAXIMUM_FRAME_RATE = 60;
 
   private static final String SEPARATOR = ":";
@@ -123,8 +120,7 @@ final class HelperConfiguration {
     this.refusedHosts = List.copyOf(refusedHosts);
   }
 
-  // Writes the configuration as the line the helper reads: every value in a fixed order, each Base64-encoded as UTF-8
-  // and separated by colons, which Base64 never contains.
+  // Base64 never contains the colons that separate the values
   String toLine() {
     final HexFormat hexadecimal = HexFormat.of();
     final List<String> values = List.of(
@@ -200,7 +196,6 @@ final class HelperConfiguration {
     );
   }
 
-  // Checks whether a text can be a host name or an address: not empty, and without a comma or a space.
   static boolean isHost(final String host) {
     return !host.isEmpty() && host.chars().noneMatch(character -> character == ',' || Character.isWhitespace(character));
   }

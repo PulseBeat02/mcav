@@ -84,8 +84,6 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.api.parallel.Resources;
 
-// Starts real helper processes with a scripted engine instead of CEF, or with a helper that breaks the protocol, and
-// checks what the server's session makes of them.
 class HelperSessionTest {
 
   private static final Path NATIVES = Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath();
@@ -171,9 +169,7 @@ class HelperSessionTest {
     }
   }
 
-  // Creates an empty folder with a short path: macOS allows Unix domain sockets of at most 104 bytes, which a session
-  // folder exceeds one level below its temporary folder (/var/folders/…/T/, 49 characters), so /tmp is used where it
-  // exists.
+  // macOS allows socket paths of at most 104 bytes, which a session folder below /var/folders/…/T/ exceeds
   private Path shortDirectory() throws IOException {
     final Path temporaryDirectory = TEMPORARY_FOLDER;
     final boolean isUsable = Files.isDirectory(temporaryDirectory) && Files.isWritable(temporaryDirectory);
@@ -848,8 +844,7 @@ class HelperSessionTest {
   void shouldKillAProcessTheHelperStartsWhileItDoesNotStopTogetherWithIt() throws InterruptedException {
     final HelperSession session = this.open(RawHelperMain.class.getName(), "/stubborn-child");
     final Process process = session.getProcess();
-    // the helper ignores the end of its input, starts a process two seconds later, and is killed after ten seconds;
-    // its processes are watched while the session closes, because they are no descendants once the helper is gone
+    // watched while the session closes: once the helper is gone, its processes are no descendants of it
     final Set<ProcessHandle> started = ConcurrentHashMap.newKeySet();
     final AtomicBoolean closing = new AtomicBoolean(true);
     final Thread watcher = new Thread(() -> this.collectDescendantsWhileClosing(process, started, closing));
@@ -1317,7 +1312,7 @@ class HelperSessionTest {
     }
   }
 
-  // Holds the first sound it is handed for a while, as a slow server would.
+  // holds the first sound like a slow server
   private static final class SoundHoldingListener implements BrowserSession.Listener {
 
     private final CountDownLatch holding;
