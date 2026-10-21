@@ -22,6 +22,8 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.file.FileSystem;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -31,6 +33,7 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
@@ -70,6 +73,9 @@ final class ArchiveExtractor {
 
   private static final String POSIX_ATTRIBUTE_VIEW = "posix";
   private static final String PARENT_FOLDER = "..";
+
+  // CREATE_NEW refuses an existing link; zipfs rejects NOFOLLOW_LINKS here
+  private static final Set<StandardOpenOption> NEW_FILE = Set.of(StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
 
   private final int maximumEntries;
   private final long maximumTotalBytes;
@@ -190,13 +196,10 @@ final class ArchiveExtractor {
     final Path parent = Objects.requireNonNull(destination.getParent(), "An entry lies below the folder!");
     createFolders(parent, permissions);
     final byte[] buffer = new byte[BUFFER_BYTES];
+    final FileAttribute<?>[] attributes = initialAttributes(permissions, REGULAR);
     try (
-      final OutputStream output = Files.newOutputStream(
-        destination,
-        StandardOpenOption.CREATE_NEW,
-        StandardOpenOption.WRITE,
-        LinkOption.NOFOLLOW_LINKS
-      )
+      final SeekableByteChannel channel = Files.newByteChannel(destination, NEW_FILE, attributes);
+      final OutputStream output = Channels.newOutputStream(channel)
     ) {
       return this.copyAtMost(tar, output, buffer, remaining);
     }
@@ -232,13 +235,24 @@ final class ArchiveExtractor {
       missing.add(current);
       current = Objects.requireNonNull(current.getParent(), "The root of a file system exists!");
     }
-    Files.createDirectories(folder);
+    final FileAttribute<?>[] attributes = initialAttributes(permissions, FOLDER);
+    Files.createDirectories(folder, attributes);
 
     if (permissions == PosixPermissions.SET) {
       for (final Path created : missing) {
         Files.setPosixFilePermissions(created, FOLDER);
       }
     }
+  }
+
+  // a failed extraction leaves nothing wider than its final permissions
+  private static FileAttribute<?>[] initialAttributes(final PosixPermissions permissions, final Set<PosixFilePermission> mode) {
+    if (permissions == PosixPermissions.SKIPPED) {
+      return new FileAttribute<?>[0];
+    }
+
+    final FileAttribute<Set<PosixFilePermission>> attribute = PosixFilePermissions.asFileAttribute(mode);
+    return new FileAttribute<?>[] { attribute };
   }
 
   // Takes the write permission of the group and of everyone else away from a folder and everything in it, where the

@@ -236,6 +236,21 @@ class ArchiveExtractorTest {
   }
 
   @Test
+  void shouldLeaveTheFileOfAFailedExtractionNoWiderThanItsFinalPermissions() throws IOException {
+    final Path zip = this.target.resolve("posix.zip");
+    final InputStream archive = new Archive().file("natives/libcef.so", REGULAR_MODE, "larger than allowed").finish();
+    try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true", "enablePosixFileAttributes", "true"))) {
+      final Path folder = Files.createDirectory(zipped.getPath("/target"));
+      assertThrows(IOException.class, () -> new ArchiveExtractor(10, 1).extract(archive, folder));
+
+      final Set<PosixFilePermission> filePermissions = Files.getPosixFilePermissions(folder.resolve("natives/libcef.so"));
+      final Set<PosixFilePermission> folderPermissions = Files.getPosixFilePermissions(folder.resolve("natives"));
+      assertEquals(PosixFilePermissions.fromString("rw-r--r--"), filePermissions, "zipfs would otherwise create it as rwxrwxrwx");
+      assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), folderPermissions);
+    }
+  }
+
+  @Test
   void shouldFailOnAStreamThatIsNotAnArchive() {
     final InputStream garbage = new ByteArrayInputStream("not gzip".getBytes(StandardCharsets.UTF_8));
     assertThrows(IOException.class, () -> new ArchiveExtractor().extract(garbage, this.target));
