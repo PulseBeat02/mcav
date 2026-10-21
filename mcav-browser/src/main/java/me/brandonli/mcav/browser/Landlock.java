@@ -41,11 +41,15 @@ final class Landlock {
   private static final long CREATE_RULESET = 444;
   private static final long ADD_RULE = 445;
   private static final long RESTRICT_SELF = 446;
+
   private static final long CREATE_RULESET_VERSION = 1;
   private static final long RULE_PATH_BENEATH = 1;
+
   private static final int SET_NO_NEW_PRIVILEGES = 38;
+
   private static final int OPEN_PATH = 0x20_0000;
   private static final int OPEN_CLOSE_ON_EXEC = 0x8_0000;
+
   private static final int NO_SUCH_SYSTEM_CALL = 38;
   private static final int NOT_SUPPORTED = 95;
 
@@ -60,10 +64,11 @@ final class Landlock {
   private static final long MAKE_SOCKET = 1L << 9;
   private static final long MAKE_FIFO = 1L << 10;
   private static final long MAKE_SYMBOLIC_LINK = 1L << 12;
-  private static final long FIRST_VERSION_RIGHTS = (1L << 13) - 1;
   private static final long REFER = 1L << 13;
   private static final long TRUNCATE = 1L << 14;
   private static final long DEVICE_CONTROL = 1L << 15;
+
+  private static final long FIRST_VERSION_RIGHTS = (1L << 13) - 1;
   private static final long FILE_RIGHTS = EXECUTE | WRITE_FILE | READ_FILE | TRUNCATE | DEVICE_CONTROL;
   private static final long READ_RIGHTS = EXECUTE | READ_FILE | READ_DIRECTORY;
   private static final long WRITE_RIGHTS =
@@ -227,6 +232,7 @@ final class Landlock {
     private static final Linker LINKER = Linker.nativeLinker();
     private static final StructLayout STATE = Linker.Option.captureStateLayout();
     private static final VarHandle ERROR = STATE.varHandle(MemoryLayout.PathElement.groupElement(ERROR_NUMBER));
+
     private static final MethodHandle SYSCALL = bind(
       "syscall",
       FunctionDescriptor.of(

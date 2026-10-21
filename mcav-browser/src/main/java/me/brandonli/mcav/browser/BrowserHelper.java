@@ -63,7 +63,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class BrowserHelper {
 
   private static final long SETTLE_MILLISECONDS = 100L;
+
   private static final long TAKE_TIMEOUT_MILLISECONDS = 250L;
+
   private static final int EXIT_FAILURE = 1;
   private static final int EXIT_BAD_CONFIGURATION = 2;
 

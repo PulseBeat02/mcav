@@ -29,6 +29,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class HelperProcesses {
 
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
+
   private static final Set<HelperSession> SESSIONS = new LinkedHashSet<>();
   private static boolean stopped;
   private static long generation;

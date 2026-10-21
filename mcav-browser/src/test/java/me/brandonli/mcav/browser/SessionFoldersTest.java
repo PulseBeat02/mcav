@@ -42,6 +42,7 @@ class SessionFoldersTest {
   private static final long GONE = Long.MAX_VALUE;
 
   private static final String LINE_SEPARATOR = "\n";
+
   private static final String OLD_START = "2001-01-01T00:00:00Z";
 
   @TempDir

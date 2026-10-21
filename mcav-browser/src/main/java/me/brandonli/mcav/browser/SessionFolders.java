@@ -50,11 +50,14 @@ final class SessionFolders {
   static final String OWNER_FILE = "server";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SessionFolders.class);
+
   private static final String NOT_RECORDED = "The folder of the browser session {} names no server; if this server is killed, it stays.";
 
   private static final String RECORD_SEPARATOR = "\n";
   private static final int RECORD_LINES = 2;
+
   private static final String ANY_NAME = "*";
+
   private static final String POSIX_ATTRIBUTE_VIEW = "posix";
 
   private final ProcessHandle owner;

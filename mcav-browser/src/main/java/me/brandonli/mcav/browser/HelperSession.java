@@ -82,19 +82,27 @@ import org.slf4j.LoggerFactory;
 final class HelperSession implements BrowserSession {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HelperSession.class);
+
   private static final int MAXIMUM_QUEUED_INPUT = 128;
+
   private static final int OUTPUT_TAIL_LINES = 40;
   private static final int OUTPUT_LINE_CHARACTERS = 1024;
+
   private static final long STOP_TIMEOUT_MILLISECONDS = 10_000L;
   private static final long KILL_TIMEOUT_MILLISECONDS = 5_000L;
   private static final long EXIT_GRACE_MILLISECONDS = 1_000L;
-  private static final byte[] NO_PIXELS = new byte[0];
   private static final long EXIT_POLL_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(10L);
+
+  private static final byte[] NO_PIXELS = new byte[0];
+
   private static final String SOCKET_NAME = "s";
+
   // a socket path has at most 107 characters, and on Linux Chromium binds one 45 characters below the session folder
   private static final int MAXIMUM_SOCKET_PATH = 107;
   private static final int CHROMIUM_SOCKET_TAIL = 45;
+
   private static final int MAXIMUM_FOLDER_ATTEMPTS = 100;
+
   private static final Thread NOT_STARTED = new Thread("mcav-browser-not-started");
 
   private static final String PROFILE_FOLDER = "profile";

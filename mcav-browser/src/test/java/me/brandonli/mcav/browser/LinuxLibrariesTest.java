@@ -76,6 +76,7 @@ class LinuxLibrariesTest {
 
   private static final String LIBRARY = "usr/lib/x86_64-linux-gnu/libmcavtest.so.1.2.3";
   private static final String POOL = "pool/main/m/mcavtest/libmcavtest1_1.2.3-1_amd64.deb";
+
   private static final byte[] XZ_MAGIC = { (byte) 0xFD, '7', 'z', 'X', 'Z', 0 };
   // LZMA2 stores the dictionary size in one byte: (2 | byte & 1) << (byte / 2 + 11)
   private static final int DICTIONARY_64_MEBIBYTES = 28;

@@ -89,6 +89,7 @@ final class HelperProtocol {
 
   private static final int FRAME_HEADER_BYTES = 12;
   private static final int MOUSE_BYTES = 11;
+
   private static final int MAXIMUM_CLICK_COUNT = 3;
 
   private static final int VERSION_BYTES = 2;

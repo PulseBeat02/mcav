@@ -54,8 +54,10 @@ public final class HeadlessProofMain {
     "-XX:+EnableJVMCI",
     "-XX:-UnlockExperimentalVMOptions"
   );
+
   private static final long START_TIMEOUT_MILLISECONDS = TimeUnit.MINUTES.toMillis(10);
   private static final long STOP_TIMEOUT_MILLISECONDS = TimeUnit.SECONDS.toMillis(30);
+
   private static final String PAGE =
     "<!doctype html><html><body style=\"margin:0;background:#ff0000\">" +
     "<p style=\"margin:8px;font:bold 40px sans-serif;color:#000000\">mcav headless</p></body></html>";

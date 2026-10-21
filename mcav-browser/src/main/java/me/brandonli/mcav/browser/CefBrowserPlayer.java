@@ -59,6 +59,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   static final int MAXIMUM_QUEUED_AUDIO_MILLISECONDS = AUDIO_DELAY_MILLISECONDS + 120;
 
   private static final SessionFactory DEFAULT_SESSIONS = new DefaultSessionFactory();
+
   private static final Equivalence<Object> SESSION_IDENTITY = Equivalence.identity();
 
   private static final int SINGLE_CLICK = 1;

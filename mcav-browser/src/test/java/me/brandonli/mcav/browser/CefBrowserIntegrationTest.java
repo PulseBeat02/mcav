@@ -53,6 +53,7 @@ class CefBrowserIntegrationTest {
 
   private static final int WIDTH = 320;
   private static final int HEIGHT = 240;
+
   private static final BrowserOptions LOCAL = BrowserOptions.builder().privateNetworks(true).build();
 
   private static final String MAIN_PAGE = "/main";

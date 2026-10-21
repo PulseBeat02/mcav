@@ -77,11 +77,12 @@ import org.mockito.MockedStatic;
 class JcefNativesTest {
 
   private static final String REPOSITORY = "https://repository.test/me/friwi/";
-  private static final long PINNED_SIZE = 200_000_000L;
 
   private static final String PLATFORM = "linux-amd64";
   private static final String PLATFORM_SUFFIX = "-" + PLATFORM;
+
   private static final String PINNED_HASH = "pinned";
+  private static final long PINNED_SIZE = 200_000_000L;
 
   private static final String INSTALLATION_PREFIX = "jcef-";
   private static final String LIBRARY_FILE = "libjcef.so";

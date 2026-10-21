@@ -35,6 +35,7 @@ class PageCompositorTest {
 
   private static final int WIDTH = 8;
   private static final int HEIGHT = 6;
+
   private static final long NOW = 1_000_000_000L;
 
   private static final long SETTLE_MILLISECONDS = 100L;

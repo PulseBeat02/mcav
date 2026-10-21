@@ -92,14 +92,14 @@ final class LinuxLibraries {
   private static final Pattern SONAME = Pattern.compile("lib[A-Za-z0-9_+.-]+\\.so(\\.[0-9]+)*");
   private static final Pattern PACKAGE_PATH = Pattern.compile("(usr/)?lib/[a-z0-9_-]+/(nss/)?[A-Za-z0-9_+.-]+");
   private static final Pattern POOL_PATH = Pattern.compile("pool/(updates/)?main/[a-z0-9+.-]+/[a-z0-9+.-]+/[A-Za-z0-9_+.:~-]+\\.deb");
+  private static final Pattern HASH = Pattern.compile("[0-9a-f]{64}");
+
   private static final String SECURITY_POOL = "pool/updates/";
+
   private static final byte[] ELF_64_LITTLE_ENDIAN = { 0x7F, 'E', 'L', 'F', 2, 1 };
   private static final int ELF_MACHINE_OFFSET = 18;
   private static final int MACHINE_X86_64 = 62;
   private static final int MACHINE_AARCH64 = 183;
-  private static final Pattern HASH = Pattern.compile("[0-9a-f]{64}");
-  private static final String UNPACKED_SUFFIX = ".unpacked";
-  private static final int MAXIMUM_INCLUDE_DEPTH = 8;
 
   private static final String CACHE_FOLDER = "jcef-libraries";
   private static final String INSTALLATION_PREFIX = "debian-11-";
@@ -107,6 +107,7 @@ final class LinuxLibraries {
   private static final String LOCK_SUFFIX = ".lock";
   private static final String STAGING_SUFFIX = ".staging";
   private static final String DOWNLOAD_SUFFIX = ".deb";
+  private static final String UNPACKED_SUFFIX = ".unpacked";
   private static final int FINGERPRINT_DIGITS = 12;
 
   private static final long BYTES_PER_MEGABYTE = 1_000_000L;
@@ -121,12 +122,14 @@ final class LinuxLibraries {
   private static final String ARM64_SUFFIX = "arm64";
   private static final String AARCH64_TRIPLET = "aarch64-linux-gnu";
   private static final String X86_64_TRIPLET = "x86_64-linux-gnu";
+
   private static final List<String> MULTIARCH_FOLDERS = List.of("lib/", "usr/lib/");
   private static final List<String> DEFAULT_FOLDERS = List.of("lib64", "usr/lib64", "lib", "usr/lib");
 
   private static final String LOADER_CONFIGURATION = "etc/ld.so.conf";
   private static final String COMMENT_PREFIX = "#";
   private static final String INCLUDE_PREFIX = "include ";
+  private static final int MAXIMUM_INCLUDE_DEPTH = 8;
   private static final String FOLDER_SEPARATOR = "/";
   private static final String GLOB_SYNTAX = "glob:";
 

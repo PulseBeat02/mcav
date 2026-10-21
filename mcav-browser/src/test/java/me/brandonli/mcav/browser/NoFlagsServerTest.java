@@ -44,6 +44,7 @@ import org.junit.jupiter.api.io.TempDir;
 class NoFlagsServerTest {
 
   private static final long TIMEOUT_MINUTES = 15L;
+
   private static final List<String> X_SERVERS = List.of("Xvfb", "Xorg", "X", "Xwayland");
 
   @Test

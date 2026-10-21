@@ -86,6 +86,7 @@ final class NullDisplay implements AutoCloseable {
   static final int LIST_EXTENSIONS = 99;
   static final int GET_KEYBOARD_MAPPING = 101;
   static final int GET_MODIFIER_MAPPING = 119;
+
   static final int BAD_REQUEST = 1;
   static final int BAD_ATOM = 5;
   static final int BAD_ALLOC = 11;
@@ -135,6 +136,7 @@ final class NullDisplay implements AutoCloseable {
     118,
     119
   );
+
   // numbered from 1 (X Window System Protocol, appendix B)
   private static final List<String> PREDEFINED_ATOMS = List.of(
     "PRIMARY",
@@ -206,9 +208,11 @@ final class NullDisplay implements AutoCloseable {
     "WM_CLASS",
     "WM_TRANSIENT_FOR"
   );
+
   private static final String COOKIE_NAME = "MIT-MAGIC-COOKIE-1";
   private static final int FAMILY_WILD = 0xFFFF;
   private static final int MAXIMUM_AUTHORIZATION_BYTES = 256;
+
   private static final int ROOT = 0x100;
   private static final int COLORMAP = 0x20;
   private static final int VISUAL = 0x21;
@@ -230,15 +234,19 @@ final class NullDisplay implements AutoCloseable {
 
   private static final int UNIT_BYTES = 4;
   private static final int MESSAGE_BYTES = 32;
+
   private static final int FIRST_EXTENSION_OPCODE = 128;
 
   private static final int LITTLE_ENDIAN_ORDER = 'l';
   private static final int BIG_ENDIAN_ORDER = 'B';
+
   private static final int SETUP_HEAD_BYTES = 11;
   private static final int SETUP_HEADER_BYTES = 8;
   private static final int SETUP_FIXED_BYTES = 32;
+
   private static final int SETUP_FAILED = 0;
   private static final int SETUP_SUCCESS = 1;
+
   private static final int X11_MAJOR_VERSION = 11;
   private static final int X11_MINOR_VERSION = 0;
 

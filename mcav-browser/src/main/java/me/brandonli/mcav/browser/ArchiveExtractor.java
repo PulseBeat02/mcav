@@ -59,12 +59,17 @@ final class ArchiveExtractor {
   private static final Set<PosixFilePermission> EXECUTABLE = PosixFilePermissions.fromString("rwxr-xr-x");
   private static final Set<PosixFilePermission> REGULAR = PosixFilePermissions.fromString("rw-r--r--");
   private static final Set<PosixFilePermission> FOLDER = PosixFilePermissions.fromString("rwxr-xr-x");
+
   private static final Logger LOGGER = LoggerFactory.getLogger(ArchiveExtractor.class);
+
   private static final String NAME_NOT_ALLOWED = "Archive entry name %s is not allowed!";
+
   private static final int EXECUTE_BITS = 0111;
+
   private static final int BUFFER_BYTES = 64 * 1024;
 
   private static final String POSIX_ATTRIBUTE_VIEW = "posix";
+
   private static final String PARENT_FOLDER = "..";
 
   // CREATE_NEW refuses an existing link; zipfs rejects NOFOLLOW_LINKS here

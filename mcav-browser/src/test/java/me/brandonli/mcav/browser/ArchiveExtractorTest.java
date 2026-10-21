@@ -49,6 +49,7 @@ class ArchiveExtractorTest {
 
   private static final String POSIX_ATTRIBUTE_VIEW = "posix";
   private static final String POSIX_MISSING_MESSAGE = "This file system has no POSIX permissions!";
+
   private static final String EXECUTABLE_PERMISSIONS = "rwxr-xr-x";
 
   private static final int REGULAR_MODE = 0644;

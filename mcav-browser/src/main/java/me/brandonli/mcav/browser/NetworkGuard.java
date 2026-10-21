@@ -53,10 +53,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class NetworkGuard implements Closeable {
 
   static final int MAXIMUM_CONNECTIONS = 256;
+
   static final int MAXIMUM_REPORTED_HOSTS = 64;
+
   private static final int HANDSHAKE_TIMEOUT_MILLISECONDS = 10_000;
   private static final int CONNECT_TIMEOUT_MILLISECONDS = 10_000;
+
   private static final int BACKLOG = 64;
+
   private static final int BUFFER_BYTES = 16 * 1024;
 
   private final ServerSocket server;

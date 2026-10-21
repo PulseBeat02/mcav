@@ -131,12 +131,12 @@ final class DevToolsInput {
   """;
 
   private static final String[] BUTTON_NAMES = { "left", "middle", "right" };
+  private static final String NO_BUTTON = "none";
 
   // the bits of the DevTools "buttons" field by button number: left, middle, right
   private static final int[] BUTTON_BITS = { 1, 4, 2 };
 
   private static final String ENTER_KEY = "Enter";
-  private static final String NO_BUTTON = "none";
 
   private static final String FUNCTION_KEY_PREFIX = "F";
   private static final int FUNCTION_KEY_COUNT = 24;

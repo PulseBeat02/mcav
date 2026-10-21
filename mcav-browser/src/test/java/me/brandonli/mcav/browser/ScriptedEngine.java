@@ -34,6 +34,7 @@ final class ScriptedEngine implements HelperEngine {
 
   static final int RED = 0x20;
   static final int GREEN = 0x40;
+
   static final int SOUND_CHUNKS = 3;
   static final int SOUND_FRAMES = 1024;
 

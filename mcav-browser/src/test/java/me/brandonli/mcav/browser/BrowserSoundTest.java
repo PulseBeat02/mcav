@@ -51,7 +51,9 @@ class BrowserSoundTest {
 
   private static final int WIDTH = 320;
   private static final int HEIGHT = 240;
+
   private static final int WINDOW_FRAMES = AudioFilter.SAMPLE_RATE / 200;
+
   private static final BrowserOptions LOCAL = BrowserOptions.builder().privateNetworks(true).build();
 
   private static final int FREQUENCY_TOLERANCE_HERTZ = 20;

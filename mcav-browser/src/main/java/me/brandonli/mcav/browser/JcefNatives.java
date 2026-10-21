@@ -53,6 +53,7 @@ final class JcefNatives {
   static final String INSTALL_MARKER = "install.lock";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(JcefNatives.class);
+
   private static final String REPOSITORY = "https://repo.maven.apache.org/maven2/me/friwi/";
   private static final String ARCHIVE_SUFFIX = ".tar.gz";
 
@@ -69,6 +70,7 @@ final class JcefNatives {
   private static final String ENCODED_PLUS = "%2B";
 
   private static final long BYTES_PER_MEGABYTE = 1024L * 1024L;
+
   // interned, so every shaded copy of MCAV in the JVM shares it: a copy reopening a held lock file can release the lock
   private static final Object INSTALL_LOCK = "the installation of the CEF natives of mcav";
 

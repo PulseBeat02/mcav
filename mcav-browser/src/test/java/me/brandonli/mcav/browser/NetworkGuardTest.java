@@ -66,10 +66,11 @@ import org.mockito.Mockito;
 class NetworkGuardTest {
 
   private static final InetAddress LOOPBACK = InetAddress.getLoopbackAddress();
+
   private static final byte[] GREETING = { 5, 1, 0 };
   private static final byte[] SUCCESS = { 5, 0, 0, 1, 0, 0, 0, 0, 0, 0 };
-
   private static final int REPLY_BYTES = 10;
+
   private static final int HTTP_PORT = 80;
 
   private static final String ECHO_HOST = "echo.test";

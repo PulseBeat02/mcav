@@ -60,6 +60,7 @@ class HelperLauncherTest {
 
   private static final Path JAVA = Path.of("/opt/java/bin/java");
   private static final List<Path> CLASS_PATH = List.of(Path.of("/libs/mcav-browser.jar"), Path.of("/libs/jcef-api.jar"));
+
   private static final String BROWSER_PACKAGE = "me/brandonli/mcav/browser/";
   private static final Pattern DESCRIBED_TYPE = Pattern.compile("L([^;<]+)[;<]");
 

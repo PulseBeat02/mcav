@@ -265,8 +265,10 @@ final class PageAudio implements CefDevToolsClient.EventListener {
 
   private static final int BYTES_PER_SECOND = 48_000 * HelperProtocol.AUDIO_FRAME_BYTES;
   private static final long BUDGET_BYTES = (long) BUDGET_SECONDS_PER_SECOND * BYTES_PER_SECOND;
+
   private static final String PREFIX = "{\"name\":\"" + BINDING + "\",\"payload\":\"";
   private static final int MAXIMUM_PAYLOAD_CHARACTERS = ((HelperProtocol.MAXIMUM_AUDIO_BYTES + 2) / 3) * 4;
+
   private static final String CONTEXT_FIELD = "\",\"executionContextId\":";
   private static final Pattern CONTEXT = Pattern.compile(Pattern.quote(CONTEXT_FIELD) + "-?[0-9]{1,10}}");
   private static final int MAXIMUM_TAIL = CONTEXT_FIELD.length() + 12;

@@ -35,12 +35,14 @@ import org.junit.jupiter.api.Test;
 class PageAudioTest {
 
   private static final byte[] FRAMES = { 1, 0, 2, 0, 3, 0, 4, 0 };
+
   private static final int SECOND_BYTES = 48_000 * 4;
 
   private static final int MAXIMUM_CHUNK_BYTES = 65_536;
   private static final int PARTIAL_CHUNK_BYTES = 56_320;
 
   private static final String CONTEXT_ID = "7";
+
   private static final String EMPTY_OBJECT = "{}";
 
   private String call(final String name, final String payload, final String context) {

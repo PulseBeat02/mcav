@@ -29,12 +29,16 @@ import java.nio.charset.StandardCharsets;
 final class SocksProtocol {
 
   static final int VERSION = 5;
+
   static final int NO_AUTHENTICATION = 0x00;
   static final int NO_ACCEPTABLE_METHOD = 0xFF;
+
   static final int CONNECT = 1;
+
   private static final int ADDRESS_IPV4 = 1;
   static final int ADDRESS_DOMAIN = 3;
   private static final int ADDRESS_IPV6 = 4;
+
   static final int SUCCEEDED = 0;
   static final int NOT_ALLOWED = 2;
   static final int HOST_UNREACHABLE = 4;

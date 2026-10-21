@@ -42,9 +42,11 @@ final class ChromiumConfinement {
   static final String NOT_ASKED = "Chromium runs without confinement, as the options of the browser allow.";
   static final String NOT_SUPPORTED = "Chromium runs without confinement: MCAV confines it on Linux and macOS only.";
   private static final String UNAVAILABLE = "Chromium runs without confinement: %s.";
+
   private static final Path ROOT = Path.of("/");
   private static final Path DEVICES = Path.of("/dev");
   private static final Path PROCESSES = Path.of("/proc");
+
   private static final String AGENT_OPTION = "-javaagent:";
 
   private static final String LIBRARY_PATH_VARIABLE = "LD_LIBRARY_PATH";

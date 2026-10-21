@@ -31,12 +31,14 @@ final class HelperConfiguration {
 
   // MCAV's limit: CEF sets none above its minimum of 1
   static final int MAXIMUM_FRAME_RATE = 60;
+  private static final int MAXIMUM_FRAME_INTERVAL = 1000;
 
   private static final String SEPARATOR = ":";
   private static final int FIELDS = 15;
+
   private static final String HOST_SEPARATOR = ",";
+
   private static final int MAXIMUM_LINE_CHARACTERS = 1024 * 1024;
-  private static final int MAXIMUM_FRAME_INTERVAL = 1000;
 
   private static final int TOKEN_FIELD = 0;
   private static final int SOCKET_FIELD = 1;

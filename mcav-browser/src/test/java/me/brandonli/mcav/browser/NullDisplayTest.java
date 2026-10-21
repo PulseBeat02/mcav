@@ -68,6 +68,7 @@ class NullDisplayTest {
   private static final String COOKIE_NAME = "MIT-MAGIC-COOKIE-1";
 
   private static final String AUTHORITY_FILE = "Xauthority";
+
   private static final String DISPLAY_PREFIX = "127.0.0.1:";
   private static final Pattern DISPLAY_ADDRESS = Pattern.compile("127\\.0\\.0\\.1:(\\d+)");
 

@@ -70,6 +70,7 @@ class BrowserHelperTest {
   private static final IntFunction<byte[]> NEW_BUFFER = byte[]::new;
 
   private static final String PAGE = "/page";
+
   private static final String SOCKET_NAME = "s";
 
   private static final String STANDARD_INPUT_ENDED = "the standard input ended";
