@@ -31,6 +31,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.ProtocolException;
@@ -672,7 +673,8 @@ class NullDisplayTest {
         display.close();
         this.assertEnded(client.getInputStream());
         final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
-        assertThrows(ConnectException.class, () -> new Socket(loopback, port).close(), "the display no longer listens");
+        // the closed socket listens on until the blocked accept call of the display wakes up
+        Await.until("the display stops listening", () -> this.refusesConnections(loopback, port));
       }
     } finally {
       display.close();
@@ -685,6 +687,16 @@ class NullDisplayTest {
       assertEquals(-1, nextByte);
     } catch (final SocketException exception) {
       // a closed connection may be reset instead
+    }
+  }
+
+  private boolean refusesConnections(final InetAddress address, final int port) {
+    try (final Socket _ = new Socket(address, port)) {
+      return false;
+    } catch (final ConnectException exception) {
+      return true;
+    } catch (final IOException exception) {
+      throw new UncheckedIOException(exception);
     }
   }
 
