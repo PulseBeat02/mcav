@@ -28,7 +28,6 @@ import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Optional;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 // Seatbelt, the sandbox of macOS that Chromium itself uses: a process that puts itself in it with a profile reaches
@@ -65,19 +64,19 @@ final class Seatbelt {
   // sandbox_init is called through the restricted native linker; the helper starts with native access enabled
   @SuppressWarnings("restricted")
   void restrictProcess(final String profile) throws IOException {
-    final Optional<MemorySegment> init = this.library.find(SANDBOX_INIT);
-    final Optional<MemorySegment> freeError = this.library.find(FREE_ERROR);
-    if (init.isEmpty() || freeError.isEmpty()) {
+    final @Nullable MemorySegment init = this.library.find(SANDBOX_INIT).orElse(null);
+    final @Nullable MemorySegment freeError = this.library.find(FREE_ERROR).orElse(null);
+    if (init == null || freeError == null) {
       final String message = "The process cannot be restricted, because %s!".formatted(MISSING);
       throw new IOException(message);
     }
 
     final Linker linker = Linker.nativeLinker();
     final MethodHandle sandboxInitCall = linker.downcallHandle(
-      init.get(),
+      init,
       FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_LONG, ValueLayout.ADDRESS)
     );
-    final MethodHandle freeCall = linker.downcallHandle(freeError.get(), FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
+    final MethodHandle freeCall = linker.downcallHandle(freeError, FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
     try (final Arena arena = Arena.ofConfined()) {
       final MemorySegment error = arena.allocate(ValueLayout.ADDRESS);
       final Object result = call(sandboxInitCall, arena.allocateFrom(profile), PROFILE_TEXT, error);

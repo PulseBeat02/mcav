@@ -31,6 +31,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.LongFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,13 +89,13 @@ final class SessionFolders {
   // Names the server in a new folder. A server whose start instant the system does not report could not be told from a
   // later process with its id, so its folders name nothing, and neither does one whose file cannot be written.
   void record(final Path folder) {
-    final Optional<Instant> started = this.owner.info().startInstant();
-    if (started.isEmpty()) {
+    final @Nullable Instant started = this.owner.info().startInstant().orElse(null);
+    if (started == null) {
       LOGGER.debug(NOT_RECORDED, folder);
       return;
     }
 
-    final String record = this.owner.pid() + RECORD_SEPARATOR + started.get() + RECORD_SEPARATOR;
+    final String record = this.owner.pid() + RECORD_SEPARATOR + started + RECORD_SEPARATOR;
     try {
       Files.writeString(folder.resolve(OWNER_FILE), record, StandardCharsets.US_ASCII);
     } catch (final IOException exception) {
@@ -151,7 +152,8 @@ final class SessionFolders {
       return false;
     }
     final Optional<ProcessHandle> server = this.lookup.apply(processId);
-    return server.isEmpty() || !server.get().info().startInstant().equals(Optional.of(started));
+    final Optional<Instant> serverStart = server.map(ProcessHandle::info).flatMap(ProcessHandle.Info::startInstant);
+    return !serverStart.equals(Optional.of(started));
   }
 
   private boolean isOwnFolder(final Path folder) throws IOException {
@@ -162,6 +164,7 @@ final class SessionFolders {
 
     final Optional<String> user = this.owner.info().user();
     final UserPrincipal folderOwner = Files.getOwner(folder, LinkOption.NOFOLLOW_LINKS);
-    return user.isPresent() && user.get().equals(folderOwner.getName());
+    final String folderOwnerName = folderOwner.getName();
+    return user.equals(Optional.of(folderOwnerName));
   }
 }

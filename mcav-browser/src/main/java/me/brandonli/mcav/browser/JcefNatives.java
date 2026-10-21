@@ -38,6 +38,7 @@ import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -184,13 +185,13 @@ final class JcefNatives {
   }
 
   static NativePlatform detectOrFail(final Os os, final Arch arch, final Bits bits) throws IOException {
-    final Optional<NativePlatform> platform = detect(os, arch, bits);
-    if (platform.isEmpty()) {
+    final @Nullable NativePlatform platform = detect(os, arch, bits).orElse(null);
+    if (platform == null) {
       final String message = "Platform %s %s %s has no CEF build in jcefmaven, so the browser cannot run here!".formatted(os, arch, bits);
       throw new IOException(message);
     }
 
-    return platform.get();
+    return platform;
   }
 
   // Takes the lock of an installation, waiting while another process installs.
