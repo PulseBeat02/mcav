@@ -636,6 +636,6 @@ class HelperProtocolTest {
 
   @FunctionalInterface
   private interface ThrowingWriter {
-    void write(DataOutputStream output) throws IOException;
+    void write(final DataOutputStream output) throws IOException;
   }
 }

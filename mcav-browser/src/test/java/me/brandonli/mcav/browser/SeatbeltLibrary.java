@@ -126,12 +126,12 @@ final class SeatbeltLibrary implements AutoCloseable {
   // not private: the upcall finds its method by name
   @FunctionalInterface
   interface SandboxInitFunction {
-    int call(MemorySegment profile, long given, MemorySegment error);
+    int call(final MemorySegment profile, final long given, final MemorySegment error);
   }
 
   // not private: the upcall finds its method by name
   @FunctionalInterface
   interface FreeErrorFunction {
-    void call(MemorySegment error);
+    void call(final MemorySegment error);
   }
 }

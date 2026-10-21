@@ -22,9 +22,10 @@ import org.cef.browser.McavOffscreenBrowser;
 
 interface HelperEngine {
   // returns once the browser is being created; the events report when it is ready
-  void start(HelperConfiguration configuration, McavOffscreenBrowser.PaintListener painter, HelperEvents events) throws Exception;
+  void start(final HelperConfiguration configuration, final McavOffscreenBrowser.PaintListener painter, final HelperEvents events)
+    throws Exception;
 
-  void dispatch(List<DevToolsInput.DevToolsCall> calls);
+  void dispatch(final List<DevToolsInput.DevToolsCall> calls);
 
   void stop();
 }

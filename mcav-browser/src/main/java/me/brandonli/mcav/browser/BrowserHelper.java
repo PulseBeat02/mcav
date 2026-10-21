@@ -332,12 +332,12 @@ public final class BrowserHelper {
 
   @FunctionalInterface
   interface Halter {
-    void halt(int status);
+    void halt(final int status);
   }
 
   @FunctionalInterface
   interface Connector {
-    SocketChannel connect(Path socket) throws IOException;
+    SocketChannel connect(final Path socket) throws IOException;
   }
 
   final class Reporter implements HelperEvents {
@@ -408,6 +408,6 @@ public final class BrowserHelper {
 
   @FunctionalInterface
   private interface MessageWriter {
-    void write(DataOutputStream output) throws IOException;
+    void write(final DataOutputStream output) throws IOException;
   }
 }

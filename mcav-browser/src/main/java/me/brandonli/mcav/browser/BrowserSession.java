@@ -20,9 +20,9 @@ package me.brandonli.mcav.browser;
 import me.brandonli.mcav.media.image.ImageBuffer;
 
 interface BrowserSession extends AutoCloseable {
-  boolean sendMouse(MouseInput mouse);
+  boolean sendMouse(final MouseInput mouse);
 
-  boolean sendKey(int action, String value);
+  boolean sendKey(final int action, final String value);
 
   void requestFrame();
 
@@ -31,11 +31,11 @@ interface BrowserSession extends AutoCloseable {
   void close();
 
   interface Listener {
-    void onFrame(ImageBuffer frame);
+    void onFrame(final ImageBuffer frame);
 
     // on the thread that reads the helper, so the listener must not hold it up
-    void onAudio(byte[] samples);
+    void onAudio(final byte[] samples);
 
-    void onEnded(String reason, Throwable cause);
+    void onEnded(final String reason, final Throwable cause);
   }
 }

@@ -924,6 +924,6 @@ final class HelperSession implements BrowserSession {
 
   @FunctionalInterface
   private interface MessageWriter {
-    void write(DataOutputStream output) throws IOException;
+    void write(final DataOutputStream output) throws IOException;
   }
 }

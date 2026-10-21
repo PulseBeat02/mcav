@@ -880,7 +880,7 @@ class BrowserHelperTest {
 
   @FunctionalInterface
   private interface Writer {
-    void write(DataOutputStream output) throws IOException;
+    void write(final DataOutputStream output) throws IOException;
   }
 
   private enum Autoplay {

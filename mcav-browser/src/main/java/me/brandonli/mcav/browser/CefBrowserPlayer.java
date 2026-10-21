@@ -406,7 +406,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
   @FunctionalInterface
   interface SessionFactory {
-    BrowserSession open(BrowserSource source, BrowserOptions options, BrowserSession.Listener listener);
+    BrowserSession open(final BrowserSource source, final BrowserOptions options, final BrowserSession.Listener listener);
   }
 
   static final class DefaultSessionFactory implements SessionFactory {

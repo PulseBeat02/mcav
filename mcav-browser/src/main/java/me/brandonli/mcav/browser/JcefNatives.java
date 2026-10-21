@@ -257,7 +257,7 @@ final class JcefNatives {
 
   @FunctionalInterface
   interface Downloader {
-    void download(URI uri, Path destination, String sha256, long size) throws IOException;
+    void download(final URI uri, final Path destination, final String sha256, final long size) throws IOException;
   }
 
   // no 32-bit builds: Java 25 has no 32-bit Windows port, and Paper does not run on 32-bit ARM

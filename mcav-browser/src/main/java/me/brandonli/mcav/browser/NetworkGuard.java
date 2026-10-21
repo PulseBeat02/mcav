@@ -384,16 +384,16 @@ final class NetworkGuard implements Closeable {
 
   @FunctionalInterface
   interface Resolver {
-    InetAddress[] resolve(String host) throws UnknownHostException;
+    InetAddress[] resolve(final String host) throws UnknownHostException;
   }
 
   @FunctionalInterface
   interface Connector {
-    Socket connect(InetSocketAddress address) throws IOException;
+    Socket connect(final InetSocketAddress address) throws IOException;
   }
 
   @FunctionalInterface
   interface InterfaceLookup {
-    @Nullable NetworkInterface find(InetAddress address) throws SocketException;
+    @Nullable NetworkInterface find(final InetAddress address) throws SocketException;
   }
 }

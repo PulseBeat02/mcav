@@ -18,19 +18,19 @@
 package me.brandonli.mcav.browser;
 
 interface HelperEvents {
-  void onReady(String engineVersion);
+  void onReady(final String engineVersion);
 
   // a press on the page before does not count for the sound of the new page
   void onPageStart();
 
-  void onLoading(boolean loading);
+  void onLoading(final boolean loading);
 
-  void onLoadError(int code, String text, String url);
+  void onLoadError(final int code, final String text, final String url);
 
-  void onNotice(String text);
+  void onNotice(final String text);
 
   // the helper exits
-  void onFailure(String text);
+  void onFailure(final String text);
 
-  void onAudio(byte[] samples);
+  void onAudio(final byte[] samples);
 }

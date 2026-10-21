@@ -362,7 +362,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
      * @param height          the height of the buffer in pixels
      * @since 1.0.0
      */
-    void onPaint(boolean isPopup, Rectangle[] dirtyRectangles, ByteBuffer buffer, int width, int height);
+    void onPaint(final boolean isPopup, final Rectangle[] dirtyRectangles, final ByteBuffer buffer, final int width, final int height);
 
     /**
      * Receives that a popup widget was shown or hidden.
@@ -370,7 +370,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
      * @param isShown true if it was shown
      * @since 1.0.0
      */
-    void onPopupShow(boolean isShown);
+    void onPopupShow(final boolean isShown);
 
     /**
      * Receives where a popup widget is drawn.
@@ -378,7 +378,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
      * @param bounds the bounds of the popup on the page
      * @since 1.0.0
      */
-    void onPopupSize(Rectangle bounds);
+    void onPopupSize(final Rectangle bounds);
   }
 
   private static final class DetachedComponent extends Component {

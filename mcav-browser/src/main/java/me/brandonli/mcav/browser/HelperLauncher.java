@@ -218,6 +218,6 @@ final class HelperLauncher {
 
   @FunctionalInterface
   interface LibraryLinker {
-    Path link(Path session) throws IOException;
+    Path link(final Path session) throws IOException;
   }
 }
