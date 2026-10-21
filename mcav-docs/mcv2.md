@@ -1466,10 +1466,10 @@ import org.bukkit.entity.ItemFrame;
       final VideoPipelineStep pipeline = VideoPipelineStep.of(result);
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(pipeline);
-    } catch (final RuntimeException failure) {
+    } catch (final RuntimeException exception) {
       result.release();
       lease.close(); // otherwise the slot stays taken until the server stops
-      throw failure;
+      throw exception;
     }
     return new Mcv2Wall(result, lease);
   }

@@ -290,9 +290,9 @@ as usual:
   private void renderFrameSafely() {
     try {
       this.renderFrame();
-    } catch (final RuntimeException | Error failure) {
-      ThrowableUtils.throwIfFatal(failure); // rethrows an OutOfMemoryError or a StackOverflowError
-      LOGGER.error("Rendering a frame failed, skipping it.", failure);
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception); // rethrows an OutOfMemoryError or a StackOverflowError
+      LOGGER.error("Rendering a frame failed, skipping it.", exception);
     }
   }
 ```
