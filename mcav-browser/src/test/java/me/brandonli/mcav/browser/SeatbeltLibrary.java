@@ -90,22 +90,6 @@ final class SeatbeltLibrary implements AutoCloseable {
     this.reason = this.arena.allocateFrom(text);
   }
 
-  long reasonAddress() {
-    return this.reason.address();
-  }
-
-  List<String> profiles() {
-    return this.profiles;
-  }
-
-  List<Long> flags() {
-    return this.flags;
-  }
-
-  List<Long> freed() {
-    return this.freed;
-  }
-
   @Override
   public void close() {
     this.arena.close();
@@ -121,6 +105,22 @@ final class SeatbeltLibrary implements AutoCloseable {
 
   private void freeError(final MemorySegment error) {
     this.freed.add(error.address());
+  }
+
+  long reasonAddress() {
+    return this.reason.address();
+  }
+
+  List<String> profiles() {
+    return this.profiles;
+  }
+
+  List<Long> flags() {
+    return this.flags;
+  }
+
+  List<Long> freed() {
+    return this.freed;
   }
 
   // not private: the upcall finds its method by name

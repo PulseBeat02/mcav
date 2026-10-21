@@ -293,6 +293,16 @@ final class JcefNatives {
       this.size = size;
     }
 
+    static long approximateMegabytes(final String identifier) {
+      for (final NativePlatform platform : values()) {
+        if (platform.identifier.equals(identifier)) {
+          return platform.size / BYTES_PER_MEGABYTE;
+        }
+      }
+
+      return 0L;
+    }
+
     String getIdentifier() {
       return this.identifier;
     }
@@ -311,16 +321,6 @@ final class JcefNatives {
 
     long getSize() {
       return this.size;
-    }
-
-    static long approximateMegabytes(final String identifier) {
-      for (final NativePlatform platform : values()) {
-        if (platform.identifier.equals(identifier)) {
-          return platform.size / BYTES_PER_MEGABYTE;
-        }
-      }
-
-      return 0L;
     }
   }
 }

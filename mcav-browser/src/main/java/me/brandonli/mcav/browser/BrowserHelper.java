@@ -355,10 +355,6 @@ public final class BrowserHelper {
       this.output = output;
     }
 
-    private boolean hasFailed() {
-      return this.failed;
-    }
-
     @Override
     public void onReady(final String engineVersion) {
       this.send(out -> HelperProtocol.writeText(out, HelperProtocol.READY, engineVersion));
@@ -409,6 +405,10 @@ public final class BrowserHelper {
       } catch (final IOException exception) {
         BrowserHelper.this.stop("a message could not be sent (%s)".formatted(exception.getMessage()));
       }
+    }
+
+    private boolean hasFailed() {
+      return this.failed;
     }
   }
 

@@ -84,18 +84,6 @@ import me.brandonli.mcav.utils.interaction.MouseClick;
  */
 public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
   /**
-   * Returns whether the browser can run on the operating system and processor of this machine: there are CEF builds for
-   * 64-bit Windows, Linux and macOS, on x86-64 and ARM processors. A start on such a machine can still fail with a
-   * {@link BrowserUnavailableException}, for example when the download fails.
-   *
-   * @return true if there is a CEF build for this machine
-   * @since 1.0.0
-   */
-  static boolean isSupported() {
-    return JcefNatives.isSupported();
-  }
-
-  /**
    * Creates a player with the {@link BrowserOptions#DEFAULT default options}.
    *
    * @return the player
@@ -117,6 +105,18 @@ public interface BrowserPlayer extends ReleasablePlayer, ExceptionHandler {
     Preconditions.checkNotNull(options, "Options must not be null!");
 
     return new CefBrowserPlayer(options);
+  }
+
+  /**
+   * Returns whether the browser can run on the operating system and processor of this machine: there are CEF builds for
+   * 64-bit Windows, Linux and macOS, on x86-64 and ARM processors. A start on such a machine can still fail with a
+   * {@link BrowserUnavailableException}, for example when the download fails.
+   *
+   * @return true if there is a CEF build for this machine
+   * @since 1.0.0
+   */
+  static boolean isSupported() {
+    return JcefNatives.isSupported();
   }
 
   /**

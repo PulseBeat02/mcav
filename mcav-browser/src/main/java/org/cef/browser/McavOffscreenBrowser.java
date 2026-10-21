@@ -154,16 +154,6 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   }
 
   /**
-   * Returns whether the browser has focus, as far as this browser told CEF.
-   *
-   * @return true if the browser has focus
-   * @since 1.0.0
-   */
-  public synchronized boolean hasFocus() {
-    return this.focused;
-  }
-
-  /**
    * Returns the size of the page.
    *
    * @param browser the browser, which is this one
@@ -341,6 +331,16 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   @Override
   public void setOnPaintListener(final Consumer<CefPaintEvent> listener) {
     throw new UnsupportedOperationException(PAINT_LISTENER_MESSAGE);
+  }
+
+  /**
+   * Returns whether the browser has focus, as far as this browser told CEF.
+   *
+   * @return true if the browser has focus
+   * @since 1.0.0
+   */
+  public synchronized boolean hasFocus() {
+    return this.focused;
   }
 
   /**

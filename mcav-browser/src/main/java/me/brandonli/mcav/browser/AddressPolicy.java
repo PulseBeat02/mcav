@@ -217,16 +217,16 @@ final class AddressPolicy {
       this.length = length;
     }
 
-    int getLength() {
-      return this.length;
-    }
-
     boolean contains(final byte[] address) {
       return Arrays.equals(this.bytes, 0, this.bytes.length, address, 0, this.bytes.length);
     }
 
     private boolean isSameAs(final TranslationPrefix other) {
       return this.length == other.length && Arrays.equals(this.bytes, other.bytes);
+    }
+
+    int getLength() {
+      return this.length;
     }
   }
 }
