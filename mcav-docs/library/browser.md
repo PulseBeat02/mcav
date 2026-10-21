@@ -86,7 +86,7 @@ The example opens a page, clicks into it, and types a search. The `display` filt
 release the returned browser when you are done with the page.
 
 ```java
-  public static BrowserPlayer searchWikipedia(final VideoFilter display) {
+  public BrowserPlayer searchWikipedia(final VideoFilter display) {
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
     final String page = "https://www.wikipedia.org";
     final URI address = URI.create(page);

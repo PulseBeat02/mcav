@@ -65,7 +65,7 @@ Sites usually offer many formats, so a `StrategySelector` picks one for video an
 `FIRST_AUDIO`, `PREFER_WEBM_AUDIO`, and `PREFER_MP4_VIDEO`, all constants of `FormatStrategy`.
 
 ```java
-  public static boolean playBestQuality(final UrlParseDump dump, final VideoPlayerMultiplexer player) {
+  public boolean playBestQuality(final UrlParseDump dump, final VideoPlayerMultiplexer player) {
     final StrategySelector selector = StrategySelector.of(
       FormatStrategy.BEST_QUALITY_AUDIO,
       FormatStrategy.BEST_QUALITY_VIDEO

@@ -77,7 +77,7 @@ library.
 not available yet, so the example below plays with FFmpeg until VLC is ready:
 
 ```java
-  public static VideoPlayerMultiplexer createPreferredPlayer(final MCAVApi api) {
+  public VideoPlayerMultiplexer createPreferredPlayer(final MCAVApi api) {
     final boolean vlcAvailable = api.hasCapability(Capability.VLC);
     if (vlcAvailable) {
       final VideoPlayerMultiplexer vlcPlayer = VideoPlayer.vlc();
@@ -96,7 +96,7 @@ installation failed, or `release` cancelled it. A capability that is decided bef
 preparation already finished, gets a future that is complete already.
 
 ```java
-  public static CompletableFuture<VideoPlayerMultiplexer> createVlcPlayerWhenReady(final MCAVApi api) {
+  public CompletableFuture<VideoPlayerMultiplexer> createVlcPlayerWhenReady(final MCAVApi api) {
     final CompletableFuture<Boolean> vlcReady = api.whenCapabilityReady(Capability.VLC);
     return vlcReady.thenApply(available -> {
       if (!available) {

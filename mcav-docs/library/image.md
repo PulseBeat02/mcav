@@ -10,7 +10,7 @@ otherwise the memory is only freed when the garbage collector finds the object.
 ```
 
 ```java
-  public static BufferedImage createInvertedThumbnail(final BufferedImage original) {
+  public BufferedImage createInvertedThumbnail(final BufferedImage original) {
     try (final ImageBuffer image = ImageBuffer.image(original)) {
       final int thumbnailSize = 200;
       final ResizeFilter resize = new ResizeFilter(thumbnailSize, thumbnailSize);
@@ -49,7 +49,7 @@ caller sees, including every later loop of a `RepeatingFrameSource`. To change p
 with `updateArgb(int[], width, height)`:
 
 ```java
-  public static void paintFirstPixelRed(final Path imageFile) {
+  public void paintFirstPixelRed(final Path imageFile) {
     final FileSource file = FileSource.path(imageFile);
     try (final ImageBuffer image = ImageBuffer.path(file)) {
       final int[] pixels = image.getPixels(); // shared: read it, never write it
@@ -78,7 +78,7 @@ with `updateArgb(int[], width, height)`:
 with the [image player](player.md#image-players).
 
 ```java
-  public static void describeGif() {
+  public void describeGif() {
     final String address = "https://example.com/image.gif";
     final URI sourceUri = URI.create(address);
     final UriSource source = UriSource.uri(sourceUri);

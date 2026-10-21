@@ -55,7 +55,7 @@ Describe the wall of maps with a `MapConfiguration`: the id of the top-left map,
 resolution frames are scaled to, and the players who see the maps.
 
 ```java
-  public static MapConfiguration createMapWall(final Collection<UUID> viewers) {
+  public MapConfiguration createMapWall(final Collection<UUID> viewers) {
     final int firstMapId = 0;
     final int blockWidth = 5;
     final int blockHeight = 5;
@@ -80,7 +80,7 @@ before it starts; call `release()` on the returned filter when the video is over
 
 ```java
   // call on the main thread
-  public static FunctionalVideoFilter showVideoOnMaps(final MapConfiguration configuration, final VideoPlayerMultiplexer player) {
+  public FunctionalVideoFilter showVideoOnMaps(final MapConfiguration configuration, final VideoPlayerMultiplexer player) {
     final DitherAlgorithm algorithm = DitherAlgorithm.filterLite();
     final CompressedMapResult result = new CompressedMapResult(configuration);
     final FunctionalVideoFilter mapFilter = DitherFilter.dither(algorithm, result);

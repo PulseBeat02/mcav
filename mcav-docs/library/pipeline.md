@@ -15,7 +15,7 @@ Example of a pipeline from video players.
 Create pipelines with `PipelineBuilder`. Filters run in the order they are added:
 
 ```java
-  public static VideoPipelineStep createGrayscaleNegativePipeline(final VideoFilter display) {
+  public VideoPipelineStep createGrayscaleNegativePipeline(final VideoFilter display) {
     final GrayscaleFilter grayscale = new GrayscaleFilter(); // converts the frame to gray scale
     final InvertFilter invert = new InvertFilter(); // inverts the colors of the frame
     final VideoPipelineStepBuilder videoBuilder = PipelineBuilder.video();

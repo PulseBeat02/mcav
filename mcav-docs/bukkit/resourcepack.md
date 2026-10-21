@@ -14,7 +14,7 @@ format of your server's Minecraft version; the [Minecraft Wiki](https://minecraf
 format of every version.
 
 ```java
-  public static void buildAudioPack(final int packFormat, final Path destination) {
+  public void buildAudioPack(final int packFormat, final Path destination) {
     final String mediaAddress = "https://example.com/video.mp4";
     final URI mediaUri = URI.create(mediaAddress);
     final UriSource media = UriSource.uri(mediaUri);
@@ -41,7 +41,7 @@ Players download resource packs from a URL. `PackHosting` offers three ways to p
 | `PackHosting.injector(zip)`                | Served on the port of the Minecraft server itself, so no extra port is needed.                              |
 
 ```java
-  public static PackHosting hostAudioPack(final Path zip) {
+  public PackHosting hostAudioPack(final Path zip) {
     final PackHosting hosting = PackHosting.website(zip);
     hosting.start();
 

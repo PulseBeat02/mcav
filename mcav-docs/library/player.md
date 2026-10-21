@@ -40,7 +40,7 @@ The example below plays a file for the requested duration with its audio on the 
 on a worker thread; it waits during playback. The `display` filter is yours and shows the frames, for example in a window.
 
 ```java
-  public static void playVideoFile(final Path videoFile, final VideoFilter display, final Duration playTime)
+  public void playVideoFile(final Path videoFile, final VideoFilter display, final Duration playTime)
     throws InterruptedException {
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
     final DirectAudioOutput speakers = new DirectAudioOutput();
@@ -92,7 +92,7 @@ volume is a filter of the audio pipeline, `VolumeFilter` (see [filters](filters.
 every player and every audio output behind it.
 
 ```java
-  public static boolean playFaster(final VideoPlayerMultiplexer player) {
+  public boolean playFaster(final VideoPlayerMultiplexer player) {
     if (player instanceof final AbstractVideoPlayerCv decoded) {
       final long position = decoded.getPositionMilliseconds();
       LOGGER.debug("Speeding up at {} milliseconds.", position);
@@ -109,7 +109,7 @@ share the multiplexer interface; the device backend decodes no audio, and the Op
 with the bundled FFmpeg, as on Linux.
 
 ```java
-  public static boolean playSeparateStreams(final VideoPlayerMultiplexer player, final URI videoUri, final URI audioUri) {
+  public boolean playSeparateStreams(final VideoPlayerMultiplexer player, final URI videoUri, final URI audioUri) {
     final UriSource videoSource = UriSource.uri(videoUri);
     final UriSource audioSource = UriSource.uri(audioUri);
     return player.start(videoSource, audioSource);
@@ -133,7 +133,7 @@ The `chartSupplier` returns the next 640 by 360 frame as a `BufferedImage` and i
 returned player when the chart should stop.
 
 ```java
-  public static ImagePlayer playChart(final ImageSupplier chartSupplier, final VideoFilter display) {
+  public ImagePlayer playChart(final ImageSupplier chartSupplier, final VideoFilter display) {
     final int width = 640;
     final int height = 360;
     final FrameSource frameSource = FrameSource.image(chartSupplier, width, height);
@@ -156,7 +156,7 @@ The animation must stay open while it plays, so the example below plays it for a
 and only then closes the animation:
 
 ```java
-  public static void playGif(final Path gifFile, final VideoFilter display, final Duration playTime) throws InterruptedException {
+  public void playGif(final Path gifFile, final VideoFilter display, final Duration playTime) throws InterruptedException {
     final FileSource file = FileSource.path(gifFile);
     try (final DynamicImageBuffer gif = DynamicImageBuffer.path(file)) {
       final RepeatingFrameSource frameSource = RepeatingFrameSource.repeating(gif); // loops forever

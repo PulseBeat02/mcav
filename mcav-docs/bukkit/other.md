@@ -19,7 +19,7 @@ the video is over.
 
 ```java
   // call on the main thread
-  public static FunctionalVideoFilter showVideoInChat(final Collection<UUID> viewers, final VideoPlayerMultiplexer player) {
+  public FunctionalVideoFilter showVideoInChat(final Collection<UUID> viewers, final VideoPlayerMultiplexer player) {
     final int chatWidth = 16;
     final int chatHeight = 16;
     final ChatConfiguration.Builder<?> builder = ChatConfiguration.builder();

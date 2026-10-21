@@ -13,7 +13,7 @@ code generates. Sources are small immutable descriptions; the player opens them 
 | `BrowserSource`       | `BrowserSource.uri(...)`                             | `BrowserPlayer`                    |
 
 ```java
-  public static boolean playExampleVideo(final VideoPlayer player) {
+  public boolean playExampleVideo(final VideoPlayer player) {
     final String address = "https://example.com/video.mp4";
     final URI sourceUri = URI.create(address);
     final UriSource source = UriSource.uri(sourceUri);
@@ -30,7 +30,7 @@ To turn text entered by a user into a source, use the `SourceDetectionHelper`. I
 URLs, device numbers, and FFmpeg inputs written as `format||input`, such as `dshow||video=OBS Virtual Camera`:
 
 ```java
-  public static Optional<Source> parseUserInput(final String input) {
+  public Optional<Source> parseUserInput(final String input) {
     final SourceDetectionHelper helper = new SourceDetectionHelper();
     final Optional<Source> detected = helper.detectSource(input); // empty if MCAV does not understand the input
     return detected;

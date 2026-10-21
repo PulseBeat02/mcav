@@ -41,7 +41,7 @@ QEMU whose JVM is gone and logs it; a QEMU of another JVM that still runs is lef
 (`MCAVApi.release`) does not stop the machines either; release every player first.
 
 ```java
-  public static VMPlayer bootIsoImage(final Path isoFile, final VideoFilter display) {
+  public VMPlayer bootIsoImage(final Path isoFile, final VideoFilter display) {
     final VideoPipelineStep pipeline = VideoPipelineStep.of(display);
 
     final String isoPath = isoFile.toString();

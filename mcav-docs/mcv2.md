@@ -1386,7 +1386,7 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 
   // call on the main thread, in onEnable
-  public static Mcv2PackServer setUpMcv2(final Path dataFolder) {
+  public Mcv2PackServer setUpMcv2(final Path dataFolder) {
     final int defaultThreads = 0;
     final String nativesName = "natives";
     final String packName = "mcv2-pack";
@@ -1444,7 +1444,7 @@ import org.bukkit.entity.ItemFrame;
   public record Mcv2Wall(Mcv2Result result, Mcv2PackServer.Lease lease) {}
 
   // call on the main thread; topLeft is the item frame holding the wall's first map
-  public static Mcv2Wall showOnMcv2Wall(
+  public Mcv2Wall showOnMcv2Wall(
     final Mcv2PackServer packs,
     final ItemFrame topLeft,
     final int firstMapId,
@@ -1525,7 +1525,7 @@ import me.brandonli.mcav.bukkit.media.mcv2.MCV2;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2FileEncoder;
 
   // call off the main thread
-  public static Mcv2FileEncoder.Result preEncode(final Path video, final Path stream) throws IOException, InterruptedException {
+  public Mcv2FileEncoder.Result preEncode(final Path video, final Path stream) throws IOException, InterruptedException {
     final int width = 1920;
     final int height = 1080;
     final MCV2.Pool budget = MCV2.Pool.shared();

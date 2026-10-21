@@ -16,7 +16,7 @@ well.
 
 ```java
   // call on the render thread, with the OpenGL context current
-  public static void renderVideo(final Source source, final BooleanSupplier keepRendering) {
+  public void renderVideo(final Source source, final BooleanSupplier keepRendering) {
     final GlTextureFilter texture = new GlTextureFilter();
     texture.start();
 

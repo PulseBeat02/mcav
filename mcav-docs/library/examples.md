@@ -55,15 +55,16 @@ public final class YouTubeExample {
         final String message = "yt-dlp is unavailable!";
         throw new IllegalStateException(message);
       }
-      play();
+      final YouTubeExample example = new YouTubeExample();
+      example.play();
     } finally {
       api.release();
     }
   }
 
-  private static void play() throws Exception {
+  private void play() throws Exception {
     final CountDownLatch closed = new CountDownLatch(1);
-    final FutureTask<View> createWindow = new FutureTask<>(() -> createView(closed));
+    final FutureTask<View> createWindow = new FutureTask<>(() -> this.createView(closed));
     SwingUtilities.invokeLater(createWindow);
     final View view = createWindow.get();
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
@@ -117,7 +118,7 @@ public final class YouTubeExample {
   }
 
   // Called only on the Swing event-dispatch thread.
-  private static View createView(final CountDownLatch closed) {
+  private View createView(final CountDownLatch closed) {
     final JFrame frame = new JFrame("Video Player");
     frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
     frame.setSize(WINDOW_WIDTH, WINDOW_HEIGHT);

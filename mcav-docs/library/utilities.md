@@ -158,7 +158,7 @@ To convert other audio, describe the input yourself with `create`. For example, 
 into 48 kHz stereo floating point samples:
 
 ```java
-  public static byte[] convertSurroundToStereo(final ByteBuffer surroundSamples) {
+  public byte[] convertSurroundToStereo(final ByteBuffer surroundSamples) {
     final int inputSampleRate = 44_100;
     final int inputChannels = 6;
     final int outputSampleRate = 48_000;

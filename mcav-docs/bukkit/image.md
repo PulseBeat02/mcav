@@ -13,7 +13,7 @@ before `displayImage` returns, so the method below releases the buffer right awa
 `DisplayableImage` when the image should disappear.
 
 ```java
-  public static DisplayableImage showImageOnScoreboard(final Collection<UUID> viewers, final Path imageFile) {
+  public DisplayableImage showImageOnScoreboard(final Collection<UUID> viewers, final Path imageFile) {
     final int lines = 15;
     final int width = 16;
     final ScoreboardConfiguration.Builder<?> builder = ScoreboardConfiguration.builder();

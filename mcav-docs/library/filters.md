@@ -17,7 +17,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import org.bytedeco.opencv.global.opencv_imgproc;
 
-  public static VideoPipelineStep createSecurityCameraPipeline(final VideoFilter display) {
+  public VideoPipelineStep createSecurityCameraPipeline(final VideoFilter display) {
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();
     final double contrast = 1.4;
     final double brightness = -20;
