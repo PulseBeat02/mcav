@@ -106,21 +106,21 @@ class LinuxLibrariesTest {
 
   private final List<URI> downloads = new CopyOnWriteArrayList<>();
 
-  static byte[] debianPackage(final Map<String, byte[]> files, final Map<String, String> links, final String dataName) throws IOException {
-    return debianPackage(files, links, dataName, "./", false);
+  private byte[] debianPackage(final Map<String, byte[]> files, final Map<String, String> links, final String dataName) throws IOException {
+    return this.debianPackage(files, links, dataName, "./", List.of());
   }
 
-  static byte[] debianPackage(
+  private byte[] debianPackage(
     final Map<String, byte[]> files,
     final Map<String, String> links,
     final String dataName,
     final String prefix,
-    final boolean folder
+    final List<String> folders
   ) throws IOException {
     final ByteArrayOutputStream data = new ByteArrayOutputStream();
     try (final TarArchiveOutputStream tar = new TarArchiveOutputStream(new XZCompressorOutputStream(data))) {
-      if (folder) {
-        tar.putArchiveEntry(new TarArchiveEntry(prefix + "usr/", TarArchiveEntry.LF_DIR));
+      for (final String folder : folders) {
+        tar.putArchiveEntry(new TarArchiveEntry(prefix + folder, TarArchiveEntry.LF_DIR));
         tar.closeArchiveEntry();
       }
       for (final Map.Entry<String, byte[]> file : files.entrySet()) {
@@ -156,7 +156,7 @@ class LinuxLibrariesTest {
   }
 
   private byte[] testPackage() throws IOException {
-    return debianPackage(
+    return this.debianPackage(
       Map.of(LIBRARY, "the library".getBytes(StandardCharsets.US_ASCII), "usr/share/doc/libmcavtest1/copyright", new byte[3]),
       Map.of("usr/lib/x86_64-linux-gnu/libmcavtest.so.1", "libmcavtest.so.1.2.3"),
       "data.tar.xz"
@@ -537,7 +537,7 @@ class LinuxLibrariesTest {
     final Map<String, String> wanted = Map.of(LIBRARY, LIBRARY_NAME);
     final Path noData = Files.write(
       this.folder.resolve("no-data.deb"),
-      debianPackage(Map.of(LIBRARY, new byte[1]), Map.of(), "data.tar.zst")
+      this.debianPackage(Map.of(LIBRARY, new byte[1]), Map.of(), "data.tar.zst")
     );
     final IOException member = assertThrows(IOException.class, () -> this.extractIntoNewFolder(noData, wanted, "a"));
     final Throwable noDataCause = member.getCause();
@@ -545,7 +545,7 @@ class LinuxLibrariesTest {
 
     final Path linkOnly = Files.write(
       this.folder.resolve("link.deb"),
-      debianPackage(Map.of(), Map.of(LIBRARY, "elsewhere.so"), "data.tar.xz")
+      this.debianPackage(Map.of(), Map.of(LIBRARY, "elsewhere.so"), "data.tar.xz")
     );
     final IOException link = assertThrows(IOException.class, () -> this.extractIntoNewFolder(linkOnly, wanted, "b"));
     final String linkMessage = link.getMessage();
@@ -556,7 +556,7 @@ class LinuxLibrariesTest {
 
     final Path hardLink = Files.write(
       this.folder.resolve("hard.deb"),
-      debianPackage(Map.of(), Map.of(LIBRARY, "=elsewhere.so"), "data.tar.xz")
+      this.debianPackage(Map.of(), Map.of(LIBRARY, "=elsewhere.so"), "data.tar.xz")
     );
     final IOException hard = assertThrows(IOException.class, () -> this.extractIntoNewFolder(hardLink, wanted, "hard"));
     final Throwable hardLinkCause = hard.getCause();
@@ -790,7 +790,7 @@ class LinuxLibrariesTest {
   void shouldReadAPackageWhoseNamesHaveNoPrefixAndThatHoldsFolders() throws IOException {
     final Path plain = Files.write(
       this.folder.resolve("plain.deb"),
-      debianPackage(Map.of(LIBRARY, new byte[] { 7 }), Map.of(), "data.tar.xz", "", true)
+      this.debianPackage(Map.of(LIBRARY, new byte[] { 7 }), Map.of(), "data.tar.xz", "", List.of("usr/"))
     );
     final Path target = Files.createDirectories(this.folder.resolve("plain"));
     LinuxLibraries.extract(plain, Map.of(LIBRARY, LIBRARY_NAME), target);
