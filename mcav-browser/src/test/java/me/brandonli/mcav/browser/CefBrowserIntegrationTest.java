@@ -96,6 +96,7 @@ class CefBrowserIntegrationTest {
     while (this.pages.count("click") == 0) {
       final boolean beforeDeadline = System.nanoTime() < deadline;
       assertTrue(beforeDeadline, "the page never took a click");
+
       player.sendMouseEvent(MouseClick.LEFT, 1, 1);
       final long probeEnd = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(250);
       while (this.pages.count("click") == 0 && System.nanoTime() < probeEnd) {
@@ -114,6 +115,7 @@ class CefBrowserIntegrationTest {
     this.pages.close();
     final int processCount = HelperProcesses.count();
     assertEquals(0, processCount);
+
     Await.until("every browser process of this test has ended", () -> countBrowserProcesses() == 0);
   }
 
@@ -142,12 +144,15 @@ class CefBrowserIntegrationTest {
     final Frames frames = this.start(player, MAIN_PAGE);
     final boolean playing = player.isPlaying();
     assertTrue(playing);
+
     Await.until("a red frame", () -> frames.lastShows(TestPages.MAIN_COLOR));
     final Frames.Frame last = frames.requireLast();
     final int width = last.getWidth();
     assertEquals(WIDTH, width);
+
     final int height = last.getHeight();
     assertEquals(HEIGHT, height);
+
     final boolean browserRunning = countBrowserProcesses() > 0;
     assertTrue(browserRunning);
     assertEquals(List.of(), this.failures);
@@ -168,12 +173,15 @@ class CefBrowserIntegrationTest {
       .orElseThrow();
     final int clickY = click.getY();
     assertEquals(50, clickY);
+
     final int clickButton = click.getButton();
     assertEquals(0, clickButton);
+
     player.sendMouseEvent(MouseClick.RIGHT, 10, 20);
     Await.until("a context menu", () -> this.pages.count("contextmenu") > 0);
     final int contextMenuButton = this.pages.getEvents("contextmenu").getFirst().getButton();
     assertEquals(2, contextMenuButton);
+
     player.sendMouseEvent(MouseClick.DOUBLE, 30, 40);
     Await.until("a double click", () -> this.pages.count("dblclick") > 0);
     player.sendMouseEvent(MouseClick.HOLD, 5, 5);
@@ -187,6 +195,7 @@ class CefBrowserIntegrationTest {
       .orElseThrow();
     final int buttons = drag.getButtons();
     assertEquals(1, buttons, drag::toString);
+
     player.sendKeyEvent("hi");
     player.sendKeyEvent("Enter");
     player.sendKeyEvent("PageDown");
@@ -194,6 +203,7 @@ class CefBrowserIntegrationTest {
     final List<String> keys = this.pages.getEvents("keydown").stream().map(TestPages.PageEvent::getKey).toList();
     final List<String> typedKeys = keys.subList(0, 4);
     assertEquals(List.of("h", "i", "Enter", "PageDown"), typedKeys);
+
     player.scroll(50, 60, 0, 120);
     Await.until("a turn of the wheel", () -> this.pages.count("wheel") > 0);
     final TestPages.PageEvent wheel = this.pages.getEvents("wheel").getFirst();
@@ -219,6 +229,7 @@ class CefBrowserIntegrationTest {
     while (!frames.lastShows(TestPages.POPUP_COLOR)) {
       final boolean beforeDeadline = System.nanoTime() < deadline;
       assertTrue(beforeDeadline, () -> this.describePopupWait(frames));
+
       Thread.onSpinWait();
     }
     final boolean playing = player.isPlaying();
@@ -243,6 +254,7 @@ class CefBrowserIntegrationTest {
     while (!frames.lastShows(TestPages.POPUP_COLOR)) {
       final boolean beforeDeadline = System.nanoTime() < deadline;
       assertTrue(beforeDeadline, "the link never opened");
+
       player.sendMouseEvent(MouseClick.LEFT, 50, 50);
       final long pause = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(300);
       while (System.nanoTime() < pause && !frames.lastShows(TestPages.POPUP_COLOR)) {
@@ -259,6 +271,7 @@ class CefBrowserIntegrationTest {
     while (!condition.getAsBoolean()) {
       final boolean beforeDeadline = System.nanoTime() < deadline;
       assertTrue(beforeDeadline, description + " never happened");
+
       player.sendMouseEvent(MouseClick.LEFT, 20, 20);
       final long pause = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(300);
       while (System.nanoTime() < pause && !condition.getAsBoolean()) {
@@ -280,6 +293,7 @@ class CefBrowserIntegrationTest {
       .orElseThrow();
     final int secondPageWidth = size.getX();
     assertEquals(TestPages.FRAME_WIDTH, secondPageWidth, "the second page fills the frame, not the page");
+
     Thread.sleep(500L);
     final boolean showsMainPage = frames.lastShows(TestPages.MAIN_COLOR);
     assertTrue(showsMainPage, "the page itself stays");
@@ -336,12 +350,16 @@ class CefBrowserIntegrationTest {
       Thread.sleep(REFUSAL_WAIT_MILLISECONDS);
       final boolean fileShowsMainPage = fileFrames.lastShows(TestPages.MAIN_COLOR);
       assertTrue(fileShowsMainPage, () -> "still the page, not the file: " + fileFrames.describeLast());
+
       final boolean downloadShowsMainPage = downloadFrames.lastShows(TestPages.MAIN_COLOR);
       assertTrue(downloadShowsMainPage, () -> "still the page, not a download: " + downloadFrames.describeLast());
+
       final boolean filePlaying = toFile.isPlaying();
       assertTrue(filePlaying);
+
       final boolean downloadPlaying = toDownload.isPlaying();
       assertTrue(downloadPlaying);
+
       final String refusal = "Browser: The download of evil.exe was refused.";
       Await.until("the real download reaches the refusal handler", () -> reports.text().contains(refusal));
       final List<String> downloadReports = reports
@@ -361,6 +379,7 @@ class CefBrowserIntegrationTest {
     final BrowserException failure = assertThrows(BrowserException.class, () -> player.start(unreachable));
     final boolean namesTheLoadError = failure.getMessage().contains("NAME_NOT_RESOLVED") || failure.getMessage().contains("-105");
     assertTrue(namesTheLoadError, failure.getMessage());
+
     final boolean playing = player.isPlaying();
     assertFalse(playing);
   }
@@ -373,8 +392,10 @@ class CefBrowserIntegrationTest {
     final String message = failure.getMessage();
     final boolean namesTheProxyRefusal = message.contains("SOCKS") || message.contains("PROXY") || message.contains("TUNNEL");
     assertTrue(namesTheProxyRefusal, message);
+
     final int requestCount = this.pages.getEvents().size();
     assertEquals(0, requestCount, "the page was never requested");
+
     final boolean playing = player.isPlaying();
     assertFalse(playing);
   }
@@ -386,6 +407,7 @@ class CefBrowserIntegrationTest {
     final Frames frames = Frames.attach(player.getVideoAttachableCallback());
     final boolean started = player.start(BrowserSource.uri(URI.create("https://example.com/"), WIDTH, HEIGHT, 1));
     assertTrue(started);
+
     Await.until("a frame of the page", () -> frames.count() > 0);
     assertEquals(List.of(), this.failures);
   }
@@ -397,6 +419,7 @@ class CefBrowserIntegrationTest {
     this.start(first, MAIN_PAGE);
     final boolean browserRunning = countBrowserProcesses() > 0;
     assertTrue(browserRunning);
+
     first.release();
     Await.until("the processes of the first browser ended", () -> countBrowserProcesses() == 0);
     final BrowserPlayer second = this.player(LOCAL, shared);
@@ -410,14 +433,17 @@ class CefBrowserIntegrationTest {
     this.start(player, MAIN_PAGE);
     final int processCountWhilePlaying = HelperProcesses.count();
     assertEquals(1, processCountWhilePlaying);
+
     final BrowserModule module = new BrowserModule();
     try {
       module.stop();
       final int processCountAfterStop = HelperProcesses.count();
       assertEquals(0, processCountAfterStop);
+
       final boolean playing = player.isPlaying();
       assertFalse(playing, "the player knows its browser ended");
       assertEquals(List.of("The browser module was stopped!: The browser module was stopped!"), this.failures);
+
       Await.until("the browser processes ended", () -> countBrowserProcesses() == 0);
     } finally {
       module.start();
@@ -441,6 +467,7 @@ class CefBrowserIntegrationTest {
     }
     final boolean empty = chromium.isEmpty();
     assertFalse(empty, "Chromium's processes run");
+
     for (final ProcessHandle process : chromium) {
       final String command = process.info().command().orElse("?");
       final boolean sandboxed = this.isSandboxed(process.pid());

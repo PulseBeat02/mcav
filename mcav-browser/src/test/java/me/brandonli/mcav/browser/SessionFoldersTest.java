@@ -75,8 +75,10 @@ class SessionFoldersTest {
     final int removed = SessionFolders.ofThisServer().removeStale(this.temporary);
 
     assertEquals(1, removed);
+
     final boolean goneFolderLeft = Files.exists(gone);
     assertFalse(goneFolderLeft, "a killed server left it behind");
+
     final boolean runningCookiesKept = Files.exists(running.resolve("Cookies"));
     assertTrue(runningCookiesKept, "this server releases it itself");
   }
@@ -87,6 +89,7 @@ class SessionFoldersTest {
     final Path folder = this.folderOf(this.server(reused, Optional.of(Instant.parse(OLD_START))));
     final int removedCount = SessionFolders.ofThisServer().removeStale(this.temporary);
     assertEquals(1, removedCount);
+
     final boolean folderLeft = Files.exists(folder);
     assertFalse(folderLeft);
   }
@@ -96,6 +99,7 @@ class SessionFoldersTest {
     final Path unnamed = this.folderOf(this.server(GONE, Optional.empty()));
     final boolean recordWritten = Files.exists(unnamed.resolve(SessionFolders.OWNER_FILE));
     assertFalse(recordWritten, "a server of unknown start names nothing");
+
     final Path garbage = Files.createDirectory(this.temporary.resolve(SessionFolders.PREFIX + "garbage"));
     Files.writeString(garbage.resolve(SessionFolders.OWNER_FILE), "not\na record\n");
     final Path truncated = Files.createDirectory(this.temporary.resolve(SessionFolders.PREFIX + "truncated"));
@@ -118,6 +122,7 @@ class SessionFoldersTest {
     final int removed = SessionFolders.ofThisServer().removeStale(this.temporary);
 
     assertEquals(readable ? 1 : 0, removed, "a user who may read every file reads the record");
+
     for (final Path kept : List.of(unnamed, garbage, truncated, notAscii, other)) {
       final boolean folderKept = Files.exists(kept);
       assertTrue(folderKept, kept.toString());
@@ -135,15 +140,19 @@ class SessionFoldersTest {
     if (planted.getFileSystem().supportedFileAttributeViews().contains("posix")) {
       final int removedForAnotherUser = new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(this.temporary);
       assertEquals(0, removedForAnotherUser);
+
       final int removedForNoKnownUser = new SessionFolders(serverOfNoKnownUser, ProcessHandle::of).removeStale(this.temporary);
       assertEquals(0, removedForNoKnownUser);
+
       final boolean cookiesKept = Files.exists(planted.resolve("Cookies"));
       assertTrue(cookiesKept, "only folders of the server's own user are removed");
+
       final int removedForThisServer = SessionFolders.ofThisServer().removeStale(this.temporary);
       assertEquals(1, removedForThisServer);
     } else {
       final int removedWithoutOwners = new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(this.temporary);
       assertEquals(1, removedWithoutOwners);
+
       final boolean plantedLeft = Files.exists(planted);
       assertFalse(plantedLeft);
     }
@@ -161,6 +170,7 @@ class SessionFoldersTest {
 
       final int removedCount = new SessionFolders(serverOfAnotherUser, ProcessHandle::of).removeStale(root);
       assertEquals(1, removedCount);
+
       final boolean folderLeft = Files.exists(folder);
       assertFalse(folderLeft, "as on Windows, whose temporary folder belongs to its user alone");
     }

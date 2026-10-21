@@ -51,6 +51,7 @@ final class ContentPolicyFuzzTest {
     final CefFrame frame = this.createFrame(FrameKind.MAIN);
     final boolean cancelled = policy.onBeforePopup(browser, frame, address, FRAME_NAME);
     assertTrue(cancelled, address);
+
     this.assertOpenedOnlyWhenAllowed(browser, address);
     assertEquals(ONE_NOTICE, events.log.size(), address);
   }
@@ -64,6 +65,7 @@ final class ContentPolicyFuzzTest {
     final CefFrame frame = this.createFrame(FrameKind.MAIN);
     final boolean cancelled = policy.onOpenURLFromTab(browser, frame, address, true);
     assertTrue(cancelled, address);
+
     this.assertOpenedOnlyWhenAllowed(browser, address);
   }
 

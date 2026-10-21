@@ -79,19 +79,26 @@ class HelperLauncherTest {
     final List<String> command = this.launcher(Os.LINUX, Map.of()).createCommand(session);
     final String javaProgram = command.getFirst();
     assertEquals(JAVA.toString(), javaProgram);
+
     final boolean runsHeadless = command.contains("-Djava.awt.headless=true");
     assertTrue(runsHeadless);
+
     final boolean nativeAccessEnabled = command.contains("--enable-native-access=ALL-UNNAMED");
     assertTrue(nativeAccessEnabled);
+
     final boolean attachDisabled = command.contains("-XX:+DisableAttachMechanism");
     assertTrue(attachDisabled);
+
     final boolean temporaryFolderInTheSession = command.contains("-Djava.io.tmpdir=" + session);
     assertTrue(temporaryFolderInTheSession);
+
     final boolean agentPassedOn = command.contains("-javaagent:/agent.jar");
     assertTrue(agentPassedOn);
+
     final int classPath = command.indexOf("-cp");
     final String joinedClassPath = command.get(classPath + 1);
     assertEquals(Path.of("/libs/mcav-browser.jar") + File.pathSeparator + Path.of("/libs/jcef-api.jar"), joinedClassPath);
+
     final String mainClass = command.getLast();
     assertEquals(HelperLauncher.MAIN_CLASS, mainClass);
     assertEquals(BrowserHelper.class.getName(), HelperLauncher.MAIN_CLASS);
@@ -119,6 +126,7 @@ class HelperLauncherTest {
       Map.of("PATH", "/usr/bin", "XAUTHORITY", authority.toString(), "TMPDIR", session, "XDG_DATA_HOME", session),
       linuxEnvironment
     );
+
     final Path libraries = this.folder.resolve("lib");
     final Map<String, String> linuxEnvironmentWithLibraries = linux.createEnvironment(this.folder, libraries);
     assertEquals(
@@ -136,12 +144,16 @@ class HelperLauncherTest {
       ),
       linuxEnvironmentWithLibraries
     );
+
     final Map<String, String> macEnvironment = this.launcher(Os.MAC, server).createEnvironment(this.folder, null);
     assertEquals(Map.of("PATH", "/usr/bin", "TMPDIR", session, "MAC_CHROMIUM_TMPDIR", session), macEnvironment);
+
     final Map<String, String> windowsEnvironment = this.launcher(Os.WINDOWS, server).createEnvironment(this.folder, null);
     assertEquals(Map.of("PATH", "/usr/bin", "TMPDIR", "/var/tmp"), windowsEnvironment);
+
     final Os operatingSystem = linux.getOs();
     assertEquals(Os.LINUX, operatingSystem);
+
     final long startTimeoutMilliseconds = linux.getStartTimeoutMilliseconds();
     assertEquals(5_000L, startTimeoutMilliseconds);
   }
@@ -151,16 +163,21 @@ class HelperLauncherTest {
     final HelperLauncher plain = this.launcher(Os.LINUX, Map.of());
     final @Nullable Path plainLibraries = plain.linkLibraries(this.folder);
     assertNull(plainLibraries);
+
     final Path linked = this.folder.resolve("lib");
     final HelperLauncher withLibraries = plain.withLibraries(session -> Files.createDirectory(session.resolve("lib")));
     final @Nullable Path linkedLibraries = withLibraries.linkLibraries(this.folder);
     assertEquals(linked, linkedLibraries);
+
     final boolean linkedFolderExists = Files.isDirectory(linked);
     assertTrue(linkedFolderExists);
+
     final List<String> commandWithLibraries = withLibraries.createCommand(this.folder);
     assertEquals(plain.createCommand(this.folder), commandWithLibraries);
+
     final long startTimeoutMilliseconds = withLibraries.getStartTimeoutMilliseconds();
     assertEquals(plain.getStartTimeoutMilliseconds(), startTimeoutMilliseconds);
+
     final Os operatingSystem = withLibraries.getOs();
     assertEquals(Os.LINUX, operatingSystem);
   }
@@ -170,9 +187,11 @@ class HelperLauncherTest {
     final Path jcef = HelperLauncher.locate(CefApp.class);
     final boolean namedJcefApi = jcef.getFileName().toString().startsWith("jcef-api");
     assertTrue(namedJcefApi, jcef.toString());
+
     final Path browser = HelperLauncher.locate(BrowserHelper.class);
     final boolean browserLocationExists = Files.exists(browser);
     assertTrue(browserLocationExists, browser.toString());
+
     final BrowserException bootstrap = assertThrows(BrowserException.class, () -> HelperLauncher.locate(String.class));
     final boolean namesTheClass = bootstrap.getMessage().contains("java.lang.String");
     assertTrue(namesTheClass);
@@ -208,8 +227,10 @@ class HelperLauncherTest {
   void shouldNameTheJvmProgramForItsSystem() {
     final String windowsExecutable = HelperLauncher.javaExecutable(Os.WINDOWS);
     assertEquals("java.exe", windowsExecutable);
+
     final String linuxExecutable = HelperLauncher.javaExecutable(Os.LINUX);
     assertEquals("java", linuxExecutable);
+
     final String macExecutable = HelperLauncher.javaExecutable(Os.MAC);
     assertEquals("java", macExecutable);
   }
@@ -220,13 +241,17 @@ class HelperLauncherTest {
     final List<String> command = launcher.createCommand(OTHER_SESSION_FOLDER);
     final boolean runsThisJava = command.getFirst().startsWith(System.getProperty("java.home"));
     assertTrue(runsThisJava, command.getFirst());
+
     final String classPath = command.get(command.indexOf("-cp") + 1);
     final boolean holdsJcefApi = classPath.contains("jcef-api");
     assertTrue(holdsJcefApi, classPath);
+
     final boolean holdsJcefMaven = classPath.contains("jcefmaven");
     assertTrue(holdsJcefMaven, classPath);
+
     final boolean holdsJogl = classPath.contains("jogl");
     assertFalse(holdsJogl, classPath);
+
     final long startTimeoutMilliseconds = launcher.getStartTimeoutMilliseconds();
     assertEquals(1_000L, startTimeoutMilliseconds);
   }
@@ -246,6 +271,7 @@ class HelperLauncherTest {
       this.followUsedClasses(name, pending, outside);
     }
     assertEquals(List.of(), outside);
+
     final boolean reachedNullDisplay = reached.contains(BROWSER_PACKAGE + "NullDisplay");
     assertTrue(reachedNullDisplay, reached::toString);
   }
@@ -264,6 +290,7 @@ class HelperLauncherTest {
     final byte[] bytes;
     try (final InputStream input = HelperLauncherTest.class.getResourceAsStream("/" + name + ".class")) {
       assertNotNull(input, name);
+
       bytes = input.readAllBytes();
     }
     final ClassModel model = ClassFile.of().parse(bytes);

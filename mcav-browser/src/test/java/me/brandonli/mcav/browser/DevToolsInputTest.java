@@ -47,23 +47,29 @@ class DevToolsInputTest {
     final List<DevToolsInput.DevToolsCall> move = DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 3, 4, 0, 0, 0, 0), 0);
     final int moveCallCount = move.size();
     assertEquals(1, moveCallCount);
+
     final String method = move.getFirst().getMethod();
     assertEquals(DevToolsInput.MOUSE_METHOD, method);
+
     final String moveParameters = move.getFirst().getParameters();
     assertEquals("{\"type\":\"mouseMoved\",\"x\":3,\"y\":4,\"buttons\":0,\"button\":\"none\"}", moveParameters);
+
     final List<String> press = this.parameters(
       DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 1, 2, HelperProtocol.BUTTON_LEFT, 1, 0, 0), 0)
     );
     assertEquals(List.of("{\"type\":\"mousePressed\",\"x\":1,\"y\":2,\"buttons\":1,\"button\":\"left\",\"clickCount\":1}"), press);
+
     final List<String> release = this.parameters(
       DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_RELEASE, 1, 2, HelperProtocol.BUTTON_RIGHT, 2, 0, 0), 2)
     );
     assertEquals(List.of("{\"type\":\"mouseReleased\",\"x\":1,\"y\":2,\"buttons\":0,\"button\":\"right\",\"clickCount\":2}"), release);
+
     final List<String> middle = this.parameters(
       DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_PRESS, 0, 0, HelperProtocol.BUTTON_MIDDLE, 1, 0, 0), 0)
     );
     final boolean holdsTheMiddleButton = middle.getFirst().contains("\"buttons\":4,\"button\":\"middle\"");
     assertTrue(holdsTheMiddleButton);
+
     final List<String> wheel = this.parameters(DevToolsInput.mouse(new MouseInput(HelperProtocol.MOUSE_WHEEL, 5, 6, 0, 0, -10, 120), 0));
     assertEquals(List.of("{\"type\":\"mouseWheel\",\"x\":5,\"y\":6,\"buttons\":0,\"deltaX\":-10,\"deltaY\":120}"), wheel);
   }
@@ -77,20 +83,27 @@ class DevToolsInputTest {
     final MouseInput wheel = new MouseInput(HelperProtocol.MOUSE_WHEEL, 6, 6, HelperProtocol.BUTTON_LEFT, 0, 0, 120);
     int held = DevToolsInput.heldAfter(pressLeft, 0);
     assertEquals(1, held);
+
     final List<String> dragParameters = this.parameters(DevToolsInput.mouse(move, held));
     assertEquals(List.of("{\"type\":\"mouseMoved\",\"x\":6,\"y\":6,\"buttons\":1,\"button\":\"left\"}"), dragParameters);
+
     final int heldAfterTheMove = DevToolsInput.heldAfter(move, held);
     assertEquals(1, heldAfterTheMove);
+
     final int heldAfterTheWheel = DevToolsInput.heldAfter(wheel, held);
     assertEquals(1, heldAfterTheWheel);
+
     held = DevToolsInput.heldAfter(pressRight, held);
     assertEquals(3, held);
+
     held = DevToolsInput.heldAfter(releaseLeft, held);
     assertEquals(2, held, "the right button stays held");
+
     final boolean dragHoldsTheRightButton = this.parameters(DevToolsInput.mouse(move, held))
       .getFirst()
       .endsWith("\"buttons\":2,\"button\":\"right\"}");
     assertTrue(dragHoldsTheRightButton);
+
     final int heldAfterAStrayRelease = DevToolsInput.heldAfter(releaseLeft, 0);
     assertEquals(0, heldAfterAStrayRelease, "releasing a button that is not held changes nothing");
   }
@@ -100,8 +113,10 @@ class DevToolsInputTest {
     final List<DevToolsInput.DevToolsCall> pageDown = DevToolsInput.pressKey("PageDown");
     final int pageDownCallCount = pageDown.size();
     assertEquals(2, pageDownCallCount);
+
     final String method = pageDown.getFirst().getMethod();
     assertEquals(DevToolsInput.KEY_METHOD, method);
+
     final List<String> pageDownParameters = this.parameters(pageDown);
     assertEquals(
       List.of(
@@ -122,9 +137,11 @@ class DevToolsInputTest {
       ),
       enterParameters
     );
+
     final List<String> space = this.parameters(DevToolsInput.pressKey(" "));
     final boolean spaceHasItsCode = space.getFirst().contains("\"code\":\"Space\"");
     assertTrue(spaceHasItsCode);
+
     final boolean spaceTypesASpace = space.getFirst().contains("\"text\":\" \"");
     assertTrue(spaceTypesASpace);
   }
@@ -136,13 +153,16 @@ class DevToolsInputTest {
       .getParameters()
       .contains("\"windowsVirtualKeyCode\":112");
     assertTrue(firstFunctionKeyHasItsCode);
+
     final boolean lastFunctionKeyHasItsCode = DevToolsInput.pressKey("F24")
       .getFirst()
       .getParameters()
       .contains("\"windowsVirtualKeyCode\":135");
     assertTrue(lastFunctionKeyHasItsCode);
+
     final boolean twelfthFunctionKeyKnown = DevToolsInput.isKnownKey("F12");
     assertTrue(twelfthFunctionKeyKnown);
+
     final boolean twentyFifthFunctionKeyKnown = DevToolsInput.isKnownKey("F25");
     assertFalse(twentyFifthFunctionKeyKnown);
   }
@@ -180,12 +200,16 @@ class DevToolsInputTest {
     final List<String> typed = this.parameters(DevToolsInput.typeText("\n\r\uD83D\uDE00"));
     final int typedCallCount = typed.size();
     assertEquals(6, typedCallCount);
+
     final boolean firstLineBreakPressesEnter = typed.get(0).contains("\"key\":\"Enter\"");
     assertTrue(firstLineBreakPressesEnter);
+
     final boolean secondLineBreakPressesEnter = typed.get(2).contains("\"key\":\"Enter\"");
     assertTrue(secondLineBreakPressesEnter);
+
     final boolean emojiTypedWhole = typed.get(4).contains("\"text\":\"\uD83D\uDE00\"");
     assertTrue(emojiTypedWhole);
+
     final List<DevToolsInput.DevToolsCall> callsForNoText = DevToolsInput.typeText("");
     assertEquals(List.of(), callsForNoText);
   }
@@ -212,28 +236,40 @@ class DevToolsInputTest {
   void shouldOnlyGiveLettersAndDigitsAVirtualKeyCode() {
     final int lowerACode = DevToolsInput.virtualKeyCode('a');
     assertEquals('A', lowerACode);
+
     final int lowerZCode = DevToolsInput.virtualKeyCode('z');
     assertEquals('Z', lowerZCode);
+
     final int upperACode = DevToolsInput.virtualKeyCode('A');
     assertEquals('A', upperACode);
+
     final int upperZCode = DevToolsInput.virtualKeyCode('Z');
     assertEquals('Z', upperZCode);
+
     final int zeroCode = DevToolsInput.virtualKeyCode('0');
     assertEquals('0', zeroCode);
+
     final int nineCode = DevToolsInput.virtualKeyCode('9');
     assertEquals('9', nineCode);
+
     final int atSignCode = DevToolsInput.virtualKeyCode('@');
     assertEquals(0, atSignCode);
+
     final int openingBracketCode = DevToolsInput.virtualKeyCode('[');
     assertEquals(0, openingBracketCode);
+
     final int graveAccentCode = DevToolsInput.virtualKeyCode('`');
     assertEquals(0, graveAccentCode);
+
     final int openingBraceCode = DevToolsInput.virtualKeyCode('{');
     assertEquals(0, openingBraceCode);
+
     final int slashCode = DevToolsInput.virtualKeyCode('/');
     assertEquals(0, slashCode);
+
     final int colonCode = DevToolsInput.virtualKeyCode(':');
     assertEquals(0, colonCode);
+
     final int accentedECode = DevToolsInput.virtualKeyCode('\u00e9');
     assertEquals(0, accentedECode);
   }
@@ -242,10 +278,13 @@ class DevToolsInputTest {
   void shouldQuoteStringsAsJson() {
     final String plainQuoted = DevToolsInput.quote("plain");
     assertEquals("\"plain\"", plainQuoted);
+
     final String escapesQuoted = DevToolsInput.quote("\"\\\n\r\t");
     assertEquals("\"\\\"\\\\\\n\\r\\t\"", escapesQuoted);
+
     final String controlCharactersQuoted = DevToolsInput.quote("\u0000\u001f\u2028\u2029");
     assertEquals("\"\\u0000\\u001f\\u2028\\u2029\"", controlCharactersQuoted);
+
     final String unescapedCharactersQuoted = DevToolsInput.quote(" \u007f\u00e9");
     assertEquals("\" \u007f\u00e9\"", unescapedCharactersQuoted);
   }
@@ -256,20 +295,27 @@ class DevToolsInputTest {
     final List<DevToolsInput.DevToolsCall> calls = DevToolsInput.openWindowsInPlace();
     final int callCount = calls.size();
     assertEquals(2, callCount);
+
     final String firstMethod = calls.getFirst().getMethod();
     assertEquals("Page.enable", firstMethod);
+
     final String firstParameters = calls.getFirst().getParameters();
     assertEquals("{}", firstParameters);
+
     final DevToolsInput.DevToolsCall call = calls.get(1);
     final String secondMethod = call.getMethod();
     assertEquals("Page.addScriptToEvaluateOnNewDocument", secondMethod);
+
     final JsonObject parameters = JsonParser.parseString(call.getParameters()).getAsJsonObject();
     final String scriptSource = parameters.get("source").getAsString();
     assertEquals(DevToolsInput.OPEN_IN_PLACE_SCRIPT, scriptSource);
+
     final int parameterCount = parameters.size();
     assertEquals(1, parameterCount);
+
     final boolean opensInTheTopWindow = DevToolsInput.OPEN_IN_PLACE_SCRIPT.contains("window.top.location.href = target.href");
     assertTrue(opensInTheTopWindow);
+
     final boolean marksItselfPlaced = DevToolsInput.OPEN_IN_PLACE_SCRIPT.contains("const PLACED = Symbol.for('mcav.open-in-place');");
     assertTrue(marksItselfPlaced, "placed twice, it runs once");
   }

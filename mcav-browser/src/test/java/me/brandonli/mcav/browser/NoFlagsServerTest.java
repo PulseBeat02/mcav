@@ -80,10 +80,13 @@ class NoFlagsServerTest {
       final String text = output.toString(StandardCharsets.UTF_8);
       System.out.println(text);
       assertTrue(exited, "the server JVM finished in time");
+
       final int exitCode = process.exitValue();
       assertEquals(0, exitCode, text);
+
       final boolean reportsPassed = text.contains(NoFlagsServerMain.PASSED);
       assertTrue(reportsPassed, text);
+
       final boolean reportsTheSecondRound = text.contains("round 2: disabled, no browser process left");
       assertTrue(reportsTheSecondRound, text);
     }
@@ -96,6 +99,7 @@ class NoFlagsServerTest {
     final Path server = Files.createFile(withX.resolve("Xvfb"));
     final boolean madeExecutable = server.toFile().setExecutable(true);
     assertTrue(madeExecutable, "the fake X server is executable");
+
     final String path = String.join(File.pathSeparator, withX.toString(), "", plain.toString());
     final String filteredPath = this.withoutXServers(path);
     assertEquals(plain.toString(), filteredPath);

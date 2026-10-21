@@ -102,6 +102,7 @@ final class HelperSessionCleanupTest {
     if (path.equals(socket)) {
       throw failure;
     }
+
     return invocation.callRealMethod();
   }
 

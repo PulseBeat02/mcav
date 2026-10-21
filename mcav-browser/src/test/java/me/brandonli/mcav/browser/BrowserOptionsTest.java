@@ -36,14 +36,19 @@ class BrowserOptionsTest {
     final int frameRate = BrowserOptions.DEFAULT.getFrameRate();
     assertEquals(BrowserOptions.MAXIMUM_FRAME_RATE, frameRate);
     assertEquals(MAXIMUM_FRAME_RATE, BrowserOptions.MAXIMUM_FRAME_RATE);
+
     final boolean javaScriptJit = BrowserOptions.DEFAULT.isJavaScriptJit();
     assertFalse(javaScriptJit);
+
     final boolean privateNetworks = BrowserOptions.DEFAULT.isPrivateNetworks();
     assertFalse(privateNetworks);
+
     final boolean autoplay = BrowserOptions.DEFAULT.isAutoplay();
     assertFalse(autoplay);
+
     final boolean confined = BrowserOptions.DEFAULT.isConfined();
     assertTrue(confined, "Chromium is confined where the system can");
+
     final List<String> refusedHosts = BrowserOptions.DEFAULT.getRefusedHosts();
     assertEquals(List.of(), refusedHosts);
   }
@@ -60,20 +65,27 @@ class BrowserOptionsTest {
       .build();
     final int minimumFrameRate = options.getFrameRate();
     assertEquals(1, minimumFrameRate);
+
     final boolean javaScriptJit = options.isJavaScriptJit();
     assertTrue(javaScriptJit);
+
     final boolean privateNetworks = options.isPrivateNetworks();
     assertTrue(privateNetworks);
+
     final boolean autoplay = options.isAutoplay();
     assertTrue(autoplay);
+
     final boolean confined = options.isConfined();
     assertFalse(confined);
+
     final List<String> refusedHosts = options.getRefusedHosts();
     assertEquals(List.of("mc.example.com", "203.0.113.5"), refusedHosts);
+
     final BrowserOptionsBuilder builder = BrowserOptions.builder().refusedHosts(List.of("a b"));
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, builder::build);
     final String message = refused.getMessage();
     assertEquals("Host 'a b' is not a host name or address!", message);
+
     final int maximumFrameRate = BrowserOptions.builder().frameRate(MAXIMUM_FRAME_RATE).build().getFrameRate();
     assertEquals(MAXIMUM_FRAME_RATE, maximumFrameRate);
   }
@@ -82,6 +94,7 @@ class BrowserOptionsTest {
   void shouldKeepTheFrameRateBetweenOneAndSixty() {
     final BrowserOptionsBuilder tooSlowBuilder = BrowserOptions.builder().frameRate(0);
     assertThrows(IllegalArgumentException.class, tooSlowBuilder::build);
+
     final BrowserOptionsBuilder tooFastBuilder = BrowserOptions.builder().frameRate(61);
     final IllegalArgumentException tooFast = assertThrows(IllegalArgumentException.class, tooFastBuilder::build);
     final String message = tooFast.getMessage();

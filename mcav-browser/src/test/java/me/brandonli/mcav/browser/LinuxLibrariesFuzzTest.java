@@ -101,11 +101,14 @@ final class LinuxLibrariesFuzzTest {
       }
       final Path parent = path.getParent();
       assertEquals(target, parent, () -> "outside the target or in a folder of its own: " + path);
+
       final boolean regularFile = Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS);
       assertTrue(regularFile, () -> "not a plain file: " + path);
+
       final String name = path.getFileName().toString();
       final boolean pinned = PINNED.containsValue(name);
       assertTrue(pinned, () -> "not a pinned library: " + path);
+
       if (supportsPosix) {
         final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(path);
         final boolean writableByOthers = permissions.contains(PosixFilePermission.OTHERS_WRITE);

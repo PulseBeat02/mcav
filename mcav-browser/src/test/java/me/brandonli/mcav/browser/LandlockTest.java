@@ -68,10 +68,13 @@ class LandlockTest {
   void shouldReadTheAnswerOfTheKernel() {
     final int answeredVersion = Landlock.versionOf(4, 0);
     assertEquals(4, answeredVersion);
+
     final int negatedErrorNumber = Landlock.versionOf(-1, 38);
     assertEquals(-38, negatedErrorNumber);
+
     final int zeroAnswer = Landlock.versionOf(0, 38);
     assertEquals(0, zeroAnswer);
+
     final int versionDespiteErrorNumber = Landlock.versionOf(3, 38);
     assertEquals(3, versionDespiteErrorNumber);
   }
@@ -87,8 +90,10 @@ class LandlockTest {
   void shouldSayWhyThereIsNoLandlock() {
     final boolean namesTheKernelRelease = Landlock.describeMissing(-38).contains("5.13");
     assertTrue(namesTheKernelRelease);
+
     final boolean saysTurnedOff = Landlock.describeMissing(-95).contains("turned off");
     assertTrue(saysTurnedOff);
+
     final String otherErrorDescription = Landlock.describeMissing(-1);
     assertEquals("Landlock is not available here (error 1)", otherErrorDescription);
   }
@@ -97,12 +102,16 @@ class LandlockTest {
   void shouldHandleTheRightsEachVersionKnows() {
     final long versionOneRights = Landlock.handledRights(1);
     assertEquals(0x1FFF, versionOneRights);
+
     final long versionTwoRights = Landlock.handledRights(2);
     assertEquals(0x3FFF, versionTwoRights);
+
     final long versionThreeRights = Landlock.handledRights(3);
     assertEquals(0x7FFF, versionThreeRights);
+
     final long versionFourRights = Landlock.handledRights(4);
     assertEquals(0x7FFF, versionFourRights);
+
     final long versionFiveRights = Landlock.handledRights(5);
     assertEquals(0xFFFF, versionFiveRights);
   }
@@ -113,12 +122,16 @@ class LandlockTest {
     final long all = Landlock.handledRights(5);
     final long readOnlyFolderRights = Landlock.rightsOf(new Landlock.Rule(path, false), Landlock.PathKind.FOLDER, all);
     assertEquals(READ_FOLDER, readOnlyFolderRights);
+
     final long readOnlyFileRights = Landlock.rightsOf(new Landlock.Rule(path, false), Landlock.PathKind.FILE, all);
     assertEquals(READ_FILE, readOnlyFileRights);
+
     final long writableFolderRights = Landlock.rightsOf(new Landlock.Rule(path, true), Landlock.PathKind.FOLDER, all);
     assertEquals(0xFFFF & ~(1L << 6) & ~(1L << 11), writableFolderRights);
+
     final long writableFileRights = Landlock.rightsOf(new Landlock.Rule(path, true), Landlock.PathKind.FILE, all);
     assertEquals(0b1100_0000_0000_0111, writableFileRights);
+
     final long versionOneWritableFolderRights = Landlock.rightsOf(
       new Landlock.Rule(path, true),
       Landlock.PathKind.FOLDER,
@@ -131,6 +144,7 @@ class LandlockTest {
   void shouldTreatAFailedCallOfTheKernelAsAnIOException() throws IOException {
     final long checkedAnswer = Landlock.check(7, 0, "count");
     assertEquals(7, checkedAnswer);
+
     final IOException failure = assertThrows(IOException.class, () -> Landlock.check(-1, 22, "create a ruleset"));
     final String message = failure.getMessage();
     assertEquals("Landlock could not create a ruleset (error 22)!", message);
@@ -144,9 +158,11 @@ class LandlockTest {
     final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> Landlock.invoke(call));
     final Throwable cause = failure.getCause();
     assertSame(refused, cause);
+
     final MethodHandle answer = MethodHandles.constant(int.class, 3);
     final long constantAnswer = Landlock.invoke(answer);
     assertEquals(3, constantAnswer);
+
     final MethodHandle length = MethodHandles.lookup().findVirtual(String.class, "length", MethodType.methodType(int.class));
     final long lengthAnswer = Landlock.invoke(length, "four");
     assertEquals(4, lengthAnswer);
@@ -194,6 +210,7 @@ class LandlockTest {
     assumeTrue(version < 5, () -> "This kernel already knows every right of the fifth version (Landlock %s)!".formatted(version));
     final Throwable failure = this.onThread(() -> Landlock.restrictThread(5, List.of()));
     assertInstanceOf(IOException.class, failure);
+
     final String message = failure.getMessage();
     assertEquals("Landlock could not create a ruleset (error 22)!", message);
   }
@@ -218,6 +235,7 @@ class LandlockTest {
     );
     assertNull(failure, () -> "the restricted thread failed: " + failure);
     assertEquals(List.of("readable", "granted", "new.txt"), seen);
+
     final String secretText = Files.readString(secret, StandardCharsets.UTF_8);
     assertEquals("secret", secretText, "the other threads are free");
   }
@@ -237,6 +255,7 @@ class LandlockTest {
     seen.add(Files.readString(granted, StandardCharsets.UTF_8));
     assertThrows(AccessDeniedException.class, () -> Files.readString(secret, StandardCharsets.UTF_8));
     assertThrows(AccessDeniedException.class, () -> Files.writeString(open.resolve("new.txt"), "new"));
+
     seen.add(Files.writeString(writable.resolve("new.txt"), "written").getFileName().toString());
     final AtomicReference<Throwable> childFailure = new AtomicReference<>();
     final Thread child = new Thread(() -> this.recordSecretRefusal(childFailure, secret));
@@ -271,12 +290,16 @@ class LandlockTest {
     final String output = new String(probe.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     final boolean exited = probe.waitFor(60, TimeUnit.SECONDS);
     assertTrue(exited);
+
     final int exitCode = probe.exitValue();
     assertEquals(0, exitCode, output);
+
     final boolean catFailed = output.contains("cat exited 1");
     assertTrue(catFailed, output);
+
     final boolean permissionDenied = output.contains("Permission denied");
     assertTrue(permissionDenied, output);
+
     final boolean noNewPrivileges = output.contains("NoNewPrivs:\t1");
     assertTrue(noNewPrivileges, output);
   }

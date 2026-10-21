@@ -175,6 +175,7 @@ class JcefNativesTest {
     try (final URLClassLoader first = new URLClassLoader(urls, null); final URLClassLoader second = new URLClassLoader(urls, null)) {
       final Class<?> secondNatives = second.loadClass(JcefNatives.class.getName());
       assertNotSame(first.loadClass(JcefNatives.class.getName()), secondNatives);
+
       final Object secondInstallLock = this.installLockOf(second);
       assertSame(this.installLockOf(first), secondInstallLock);
     }
@@ -184,14 +185,19 @@ class JcefNativesTest {
   void shouldFindEveryPlatformWithNatives() {
     final Optional<JcefNatives.NativePlatform> linuxAmd64Platform = JcefNatives.detect(Os.LINUX, Arch.X86, Bits.BITS_64);
     assertEquals(Optional.of(JcefNatives.NativePlatform.LINUX_AMD64), linuxAmd64Platform);
+
     final Optional<JcefNatives.NativePlatform> linuxArm64Platform = JcefNatives.detect(Os.LINUX, Arch.ARM, Bits.BITS_64);
     assertEquals(Optional.of(JcefNatives.NativePlatform.LINUX_ARM64), linuxArm64Platform);
+
     final Optional<JcefNatives.NativePlatform> windowsAmd64Platform = JcefNatives.detect(Os.WINDOWS, Arch.X86, Bits.BITS_64);
     assertEquals(Optional.of(JcefNatives.NativePlatform.WINDOWS_AMD64), windowsAmd64Platform);
+
     final Optional<JcefNatives.NativePlatform> windowsArm64Platform = JcefNatives.detect(Os.WINDOWS, Arch.ARM, Bits.BITS_64);
     assertEquals(Optional.of(JcefNatives.NativePlatform.WINDOWS_ARM64), windowsArm64Platform);
+
     final Optional<JcefNatives.NativePlatform> macAmd64Platform = JcefNatives.detect(Os.MAC, Arch.X86, Bits.BITS_64);
     assertEquals(Optional.of(JcefNatives.NativePlatform.MACOS_AMD64), macAmd64Platform);
+
     final Optional<JcefNatives.NativePlatform> macArm64Platform = JcefNatives.detect(Os.MAC, Arch.ARM, Bits.BITS_64);
     assertEquals(Optional.of(JcefNatives.NativePlatform.MACOS_ARM64), macArm64Platform);
   }
@@ -200,12 +206,16 @@ class JcefNativesTest {
   void shouldNotFindPlatformsWithoutNatives() {
     final Optional<JcefNatives.NativePlatform> linuxX86Bits32Platform = JcefNatives.detect(Os.LINUX, Arch.X86, Bits.BITS_32);
     assertEquals(Optional.empty(), linuxX86Bits32Platform);
+
     final Optional<JcefNatives.NativePlatform> windowsArmBits32Platform = JcefNatives.detect(Os.WINDOWS, Arch.ARM, Bits.BITS_32);
     assertEquals(Optional.empty(), windowsArmBits32Platform);
+
     final Optional<JcefNatives.NativePlatform> freebsdAmd64Platform = JcefNatives.detect(Os.FREEBSD, Arch.X86, Bits.BITS_64);
     assertEquals(Optional.empty(), freebsdAmd64Platform);
+
     final Optional<JcefNatives.NativePlatform> linuxOtherArchitecturePlatform = JcefNatives.detect(Os.LINUX, Arch.OTHER, Bits.BITS_64);
     assertEquals(Optional.empty(), linuxOtherArchitecturePlatform);
+
     final Optional<JcefNatives.NativePlatform> otherSystemArm64Platform = JcefNatives.detect(Os.OTHER, Arch.ARM, Bits.BITS_64);
     assertEquals(Optional.empty(), otherSystemArm64Platform);
   }
@@ -215,8 +225,10 @@ class JcefNativesTest {
     for (final JcefNatives.NativePlatform platform : JcefNatives.NativePlatform.values()) {
       final boolean hexadecimalSha256 = SHA256.matcher(platform.getSha256()).matches();
       assertTrue(hexadecimalSha256, platform.getIdentifier());
+
       final boolean plausibleSize = platform.getSize() > 100_000_000L && platform.getSize() < 200_000_000L;
       assertTrue(plausibleSize, platform.getIdentifier());
+
       final long platformMegabytes = JcefNatives.NativePlatform.approximateMegabytes(platform.getIdentifier());
       assertEquals(platform.getSize() / (1024L * 1024L), platformMegabytes);
     }
@@ -233,6 +245,7 @@ class JcefNativesTest {
     if (cache.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW)) {
       final Set<PosixFilePermission> cachePermissions = Files.getPosixFilePermissions(cache);
       assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), cachePermissions);
+
       final Set<PosixFilePermission> cacheParentPermissions = Files.getPosixFilePermissions(cache.getParent());
       assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), cacheParentPermissions);
     }
@@ -243,8 +256,10 @@ class JcefNativesTest {
     final JcefNatives natives = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE));
     final Path installation = natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE);
     assertEquals(this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + PLATFORM_SUFFIX), installation);
+
     final String libraryContent = Files.readString(installation.resolve(LIBRARY_FILE));
     assertEquals("native", libraryContent);
+
     final boolean markerPresent = Files.isRegularFile(installation.resolve(JcefNatives.INSTALL_MARKER));
     assertTrue(markerPresent);
 
@@ -260,10 +275,13 @@ class JcefNativesTest {
       ),
       firstRequest
     );
+
     final List<String> leftoverNames = this.leftovers();
     assertEquals(List.of(installation.getFileName().toString()), leftoverNames, "the jar and the staging folder are gone");
+
     final Path secondInstallation = natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE);
     assertEquals(installation, secondInstallation);
+
     final int downloadCount = this.downloads.get();
     assertEquals(1, downloadCount);
   }
@@ -284,14 +302,19 @@ class JcefNativesTest {
     Files.setPosixFilePermissions(marker, PosixFilePermissions.fromString("rw-rw-r--"));
     final Path secondInstallation = natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE);
     assertEquals(installation, secondInstallation);
+
     final int downloadCount = this.downloads.get();
     assertEquals(1, downloadCount, "nothing is installed again");
+
     final Set<PosixFilePermission> folderPermissions = Files.getPosixFilePermissions(this.folder);
     assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), folderPermissions);
+
     final Set<PosixFilePermission> installationPermissions = Files.getPosixFilePermissions(installation);
     assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), installationPermissions);
+
     final Set<PosixFilePermission> libraryPermissions = Files.getPosixFilePermissions(library);
     assertEquals(PosixFilePermissions.fromString("rw-r--r--"), libraryPermissions);
+
     final Set<PosixFilePermission> markerPermissions = Files.getPosixFilePermissions(marker);
     assertEquals(PosixFilePermissions.fromString("rw-r--r--"), markerPermissions);
   }
@@ -308,6 +331,7 @@ class JcefNativesTest {
     natives.install(JcefNatives.NativePlatform.MACOS_ARM64);
     final JcefNatives.NativePlatform mac = JcefNatives.NativePlatform.MACOS_ARM64;
     assertEquals(List.of(mac.getSha256() + " " + mac.getSize()), hashes);
+
     final boolean macArm64Installed = Files.isDirectory(
       this.folder.resolve(INSTALLATION_PREFIX + JcefNatives.JCEFMAVEN_VERSION + "-macosx-arm64")
     );
@@ -348,6 +372,7 @@ class JcefNativesTest {
     final Path installation = this.natives(this.nativesJar(JarContent.WITH_ARCHIVE)).install(PLATFORM, PINNED_HASH, PINNED_SIZE);
     final boolean halfWrittenLeft = Files.exists(installation.resolve("half-written.so"));
     assertFalse(halfWrittenLeft);
+
     final boolean libraryPresent = Files.exists(installation.resolve(LIBRARY_FILE));
     assertTrue(libraryPresent);
   }
@@ -358,6 +383,7 @@ class JcefNativesTest {
     final IOException failure = assertThrows(IOException.class, () -> natives.install(PLATFORM, "tampered", PINNED_SIZE));
     final String message = failure.getMessage();
     assertEquals("Checksum mismatch", message);
+
     final List<String> leftoverNames = this.leftovers();
     assertEquals(List.of(), leftoverNames);
   }
@@ -368,6 +394,7 @@ class JcefNativesTest {
     final IOException failure = assertThrows(IOException.class, () -> natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE));
     final String message = failure.getMessage();
     assertEquals("The natives jar holds no .tar.gz archive!", message);
+
     final List<String> leftoverNames = this.leftovers();
     assertEquals(List.of(), leftoverNames);
   }
@@ -390,6 +417,7 @@ class JcefNativesTest {
       try {
         final boolean downloadStarted = downloading.await(10, TimeUnit.SECONDS);
         assertTrue(downloadStarted, "the first install owns the download");
+
         second = CompletableFuture.supplyAsync(() -> this.installRecordingTheCaller(secondCaller, natives), starts);
         Await.until("the second installer waits on the held installation lock", () -> this.isBlocked(secondCaller));
         final boolean done = second.isDone();
@@ -399,6 +427,7 @@ class JcefNativesTest {
       }
       final Path secondInstallation = second.get(30, TimeUnit.SECONDS);
       assertEquals(first.get(30, TimeUnit.SECONDS), secondInstallation);
+
       final int downloadCount = this.downloads.get();
       assertEquals(1, downloadCount);
     }
@@ -438,6 +467,7 @@ class JcefNativesTest {
     final IOException failure = assertThrows(IOException.class, () -> this.installFreeBsd(natives));
     final String message = failure.getMessage();
     assertEquals("Platform FREEBSD X86 BITS_64 has no CEF build in jcefmaven, so the browser cannot run here!", message);
+
     final int downloadCount = this.downloads.get();
     assertEquals(0, downloadCount);
   }
@@ -450,16 +480,22 @@ class JcefNativesTest {
   void shouldSupportAMachineWhenJcefmavenHasACefBuildForIt() {
     final boolean linuxAmd64Supported = JcefNatives.isSupported(Os.LINUX, Arch.X86, Bits.BITS_64);
     assertTrue(linuxAmd64Supported);
+
     final boolean macArm64Supported = JcefNatives.isSupported(Os.MAC, Arch.ARM, Bits.BITS_64);
     assertTrue(macArm64Supported);
+
     final boolean linuxX86Bits32Supported = JcefNatives.isSupported(Os.LINUX, Arch.X86, Bits.BITS_32);
     assertFalse(linuxX86Bits32Supported, "no 32-bit builds");
+
     final boolean freebsdAmd64Supported = JcefNatives.isSupported(Os.FREEBSD, Arch.X86, Bits.BITS_64);
     assertFalse(freebsdAmd64Supported);
+
     final boolean thisMachineSupported = JcefNatives.isSupported();
     assertTrue(thisMachineSupported);
+
     final boolean playerSupported = BrowserPlayer.isSupported();
     assertTrue(playerSupported);
+
     final boolean moduleSupported = new BrowserModule().isSupported();
     assertTrue(moduleSupported);
   }
@@ -513,11 +549,13 @@ class JcefNativesTest {
       final IOException failure = assertThrows(IOException.class, () -> natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE));
       final String message = failure.getMessage();
       assertEquals("Another copy of mcav in this server is installing the CEF natives; try again once it is done!", message);
+
       final boolean valid = held.isValid();
       assertTrue(valid);
     }
     final int downloadsWhileLocked = this.downloads.get();
     assertEquals(0, downloadsWhileLocked);
+
     natives.install(PLATFORM, PINNED_HASH, PINNED_SIZE);
     final int downloadsAfterRelease = this.downloads.get();
     assertEquals(1, downloadsAfterRelease);
@@ -546,6 +584,7 @@ class JcefNativesTest {
     ) {
       final boolean valid = lock.isValid();
       assertTrue(valid);
+
       final FileChannel lockedChannel = lock.channel();
       assertSame(channel, lockedChannel);
     }
@@ -557,6 +596,7 @@ class JcefNativesTest {
     final String classPath = System.getProperty("java.class.path");
     final boolean namesTheJcefApiJar = classPath.contains("jcef-api-" + JcefNatives.RELEASE_TAG + ".jar");
     assertTrue(namesTheJcefApiJar, classPath);
+
     final boolean namesTheJcefmavenJar = classPath.contains("jcefmaven-" + JcefNatives.JCEFMAVEN_VERSION + ".jar");
     assertTrue(namesTheJcefmavenJar, classPath);
   }

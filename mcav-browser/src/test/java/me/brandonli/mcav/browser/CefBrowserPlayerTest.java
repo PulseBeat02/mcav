@@ -139,15 +139,19 @@ class CefBrowserPlayerTest {
     final List<byte[]> heard = this.attachSoundRecorder();
     final AudioAttachableCallback audioAttachableCallback = this.player.getAudioAttachableCallback();
     assertSame(this.player.getAudioAttachableCallback(), audioAttachableCallback);
+
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
+
     final BrowserSession.Listener first = this.listener;
     first.onAudio(new byte[] { 1, 0, 1, 0 });
     Await.until("the sound of the page", () -> heard.size() == 1);
     final byte[] firstSound = heard.getFirst();
     assertArrayEquals(new byte[] { 1, 0, 1, 0 }, firstSound);
+
     final boolean released = this.player.release();
     assertTrue(released);
+
     first.onAudio(new byte[] { 2, 0, 2, 0 });
     this.player.deliverAudio(this.sessions.getFirst(), new byte[] { 3, 0, 3, 0 });
     Thread.sleep(CefBrowserPlayer.MAXIMUM_QUEUED_AUDIO_MILLISECONDS * 2L);
@@ -164,9 +168,11 @@ class CefBrowserPlayerTest {
     early.getAudioAttachableCallback().attach(AudioPipelineStep.of((samples, metadata) -> earlyHeard.add(new byte[0])));
     final boolean earlyStarted = early.start(SOURCE);
     assertTrue(earlyStarted);
+
     early.release();
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
+
     final FakeSession old = new FakeSession();
     this.player.deliverAudio(old, new byte[] { 4, 0, 4, 0 });
     this.listener.onAudio(new byte[] { 5, 0, 5, 0 });
@@ -174,6 +180,7 @@ class CefBrowserPlayerTest {
     Thread.sleep(CefBrowserPlayer.MAXIMUM_QUEUED_AUDIO_MILLISECONDS * 2L);
     final int soundCount = heard.size();
     assertEquals(1, soundCount);
+
     final byte firstSoundByte = heard.getFirst()[0];
     assertEquals(5, firstSoundByte);
     assertEquals(List.of(), earlyHeard);
@@ -192,13 +199,17 @@ class CefBrowserPlayerTest {
   void shouldPlayAndAskForTheFirstPictureAgainOnceStarted() {
     final boolean playingBeforeStart = this.player.isPlaying();
     assertFalse(playingBeforeStart);
+
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
+
     final boolean playingAfterStart = this.player.isPlaying();
     assertTrue(playingAfterStart);
     assertEquals(1, this.sessions.getFirst().requested);
+
     final boolean startedAgain = this.player.start(SOURCE);
     assertFalse(startedAgain, "a playing player does not start again");
+
     final int sessionCount = this.sessions.size();
     assertEquals(1, sessionCount);
   }
@@ -210,6 +221,7 @@ class CefBrowserPlayerTest {
     this.listener.onFrame(frame);
     final int processedCount = this.processed.size();
     assertEquals(1, processedCount);
+
     final ImageBuffer processedFrame = this.processed.getFirst();
     assertSame(frame, processedFrame);
   }
@@ -222,6 +234,7 @@ class CefBrowserPlayerTest {
     this.attachRecorder(player);
     final boolean started = player.start(SOURCE);
     assertTrue(started);
+
     final boolean playing = player.isPlaying();
     assertTrue(playing);
     assertEquals(List.of(), this.processed);
@@ -245,16 +258,21 @@ class CefBrowserPlayerTest {
       opening.await();
       final Boolean released = assertTimeoutPreemptively(Duration.ofSeconds(5), slow::release);
       assertTrue(released, "the release does not wait for the start");
+
       final Boolean startSucceeded = started.get(5, TimeUnit.SECONDS);
       assertFalse(startSucceeded, "the start of a released player fails");
+
       final boolean playing = slow.isPlaying();
       assertFalse(playing);
+
       final boolean callerLeftInterrupted = leftInterrupted.get();
       assertFalse(callerLeftInterrupted, "the release's interrupt is the player's own, not left to the thread that called start");
+
       Thread.currentThread().interrupt();
       try {
         final boolean restarted = slow.start(SOURCE);
         assertFalse(restarted, "a released player never starts");
+
         final boolean interrupted = Thread.currentThread().isInterrupted();
         assertTrue(interrupted, "an interrupt of the caller's own is not the player's to take");
       } finally {
@@ -292,11 +310,14 @@ class CefBrowserPlayerTest {
     player.setExceptionHandler((message, error) -> reports.add(message));
     final boolean firstStarted = player.start(SOURCE);
     assertFalse(firstStarted);
+
     final boolean playingAfterFailure = player.isPlaying();
     assertFalse(playingAfterFailure);
     assertEquals(List.of("The browser helper exited"), reports);
+
     final boolean startedAgain = player.start(SOURCE);
     assertTrue(startedAgain, "a failed player starts again");
+
     final boolean playingAfterRestart = player.isPlaying();
     assertTrue(playingAfterRestart);
     assertEquals(1, opened.getFirst().closed, "the dead session is closed");
@@ -328,15 +349,20 @@ class CefBrowserPlayerTest {
     final Set<Thread> before = this.audioThreads();
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
+
     final boolean noNewAudioThread = before.containsAll(this.audioThreads());
     assertFalse(noNewAudioThread, "a started player hands its sound over on a thread of its own");
+
     final boolean startedWhilePlaying = this.player.start(SOURCE);
     assertFalse(startedWhilePlaying, "a playing player does not start twice");
+
     final boolean released = this.player.release();
     assertTrue(released);
+
     Await.until("the audio thread of the released player ended", () -> before.containsAll(this.audioThreads()));
     final boolean startedAfterRelease = this.player.start(SOURCE);
     assertFalse(startedAfterRelease, "a released player does not start again");
+
     final int sessionCount = this.sessions.size();
     assertEquals(1, sessionCount);
   }
@@ -347,17 +373,20 @@ class CefBrowserPlayerTest {
     final List<byte[]> heard = this.attachSoundRecorder();
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
+
     final BrowserSession.Listener ended = this.listener;
     ended.onEnded(END_REASON, new IllegalStateException("crash"));
     Await.until("the audio thread of the failed session ended", () -> before.containsAll(this.audioThreads()));
     ended.onAudio(new byte[] { 6, 0, 6, 0 });
     this.player.deliverAudio(this.sessions.getFirst(), new byte[] { 7, 0, 7, 0 });
     assertEquals(List.of(), heard);
+
     final CefBrowserPlayer.SessionFactory factory = (_, _, sessionListener) -> this.openSessionThatEnds(sessionListener);
     final CefBrowserPlayer early = new CefBrowserPlayer(BrowserOptions.DEFAULT, factory);
     early.setExceptionHandler((message, error) -> {});
     final boolean earlyStarted = early.start(SOURCE);
     assertFalse(earlyStarted);
+
     Await.until("the audio thread of the failed start ended", () -> before.containsAll(this.audioThreads()));
     early.release();
   }
@@ -396,6 +425,7 @@ class CefBrowserPlayerTest {
     final ClosingProbe probe = new ClosingProbe();
     try (final ImageBuffer original = this.frame()) {
       assertThrows(OutOfMemoryError.class, () -> this.listener.onFrame(probe.wrap(original)));
+
       final boolean closed = probe.isClosed();
       assertTrue(closed, "a fatal pipeline failure still returns the frame's ownership");
     }
@@ -413,15 +443,19 @@ class CefBrowserPlayerTest {
     final boolean playingAfterEnd = this.player.isPlaying();
     assertFalse(playingAfterEnd);
     assertEquals(List.of("gone: crash"), this.reports);
+
     final boolean startedAgain = this.player.start(SOURCE);
     assertTrue(startedAgain);
     assertEquals(1, this.sessions.getFirst().closed);
+
     first.onFrame(this.frame());
     first.onEnded("late", new IllegalStateException("late"));
     final int processedCount = this.processed.size();
     assertEquals(0, processedCount);
+
     final int reportCount = this.reports.size();
     assertEquals(1, reportCount);
+
     final boolean playingAfterLateEvents = this.player.isPlaying();
     assertTrue(playingAfterLateEvents);
   }
@@ -448,8 +482,10 @@ class CefBrowserPlayerTest {
   void shouldLeaveThePlayerIdleAfterAFailedStart() {
     this.startFailure = new BrowserException("No browser here!");
     assertThrows(BrowserException.class, () -> this.player.start(SOURCE));
+
     final boolean playing = this.player.isPlaying();
     assertFalse(playing);
+
     this.startFailure = null;
     final boolean startedAfterFailure = this.player.start(SOURCE);
     assertTrue(startedAfterFailure);
@@ -459,10 +495,12 @@ class CefBrowserPlayerTest {
   void shouldKeepTheInterruptOfTheCallerWhenTheStartIsRefused() {
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
+
     Thread.currentThread().interrupt();
     try {
       final boolean startedAgain = this.player.start(SOURCE);
       assertFalse(startedAgain, "a playing player does not start twice");
+
       final boolean interrupted = Thread.currentThread().isInterrupted();
       assertTrue(interrupted, "an interrupt of the caller's own is not the player's to take");
     } finally {
@@ -476,6 +514,7 @@ class CefBrowserPlayerTest {
     Thread.currentThread().interrupt();
     try {
       assertThrows(BrowserException.class, () -> this.player.start(SOURCE));
+
       final boolean interrupted = Thread.currentThread().isInterrupted();
       assertTrue(interrupted, "an interrupt of the caller's own is not the player's to take");
     } finally {
@@ -496,11 +535,14 @@ class CefBrowserPlayerTest {
       final Future<Boolean> leftInterrupted = starter.submit(() -> this.startAndReadTheInterrupt(late));
       final boolean factoryEntered = opening.await(5, TimeUnit.SECONDS);
       assertTrue(factoryEntered, "the helper factory must be entered before release");
+
       final Boolean released = assertTimeoutPreemptively(Duration.ofSeconds(5), late::release);
       assertTrue(released);
+
       final boolean left = leftInterrupted.get(5, TimeUnit.SECONDS);
       final boolean playing = late.isPlaying();
       assertFalse(playing, "a released player plays nothing");
+
       return left;
     } finally {
       starter.shutdownNow();
@@ -537,6 +579,7 @@ class CefBrowserPlayerTest {
       final AssertionError failure = assertThrows(AssertionError.class, () -> this.leftInterruptedByAStartThat(FakeSession::new));
       final boolean namesTheHelperFactory = failure.getMessage().contains("the helper factory");
       assertTrue(namesTheHelperFactory);
+
       final int playerCount = players.constructed().size();
       assertEquals(1, playerCount);
     }
@@ -552,8 +595,10 @@ class CefBrowserPlayerTest {
       final AssertionError failure = assertThrows(AssertionError.class, () -> this.leftInterruptedByAStartThat(FakeSession::new));
       final boolean namesTheHelperFactory = failure.getMessage().contains("the helper factory");
       assertTrue(namesTheHelperFactory, failure.getMessage());
+
       final int latchCount = latches.constructed().size();
       assertEquals(1, latchCount);
+
       final int playerCount = players.constructed().size();
       assertEquals(1, playerCount);
     }
@@ -583,10 +628,12 @@ class CefBrowserPlayerTest {
   void shouldKeepTheInterruptOfTheCallerWhenStartingAfterTheRelease() {
     final boolean released = this.player.release();
     assertTrue(released);
+
     Thread.currentThread().interrupt();
     try {
       final boolean startedAfterRelease = this.player.start(SOURCE);
       assertFalse(startedAfterRelease, "a released player never starts");
+
       final boolean interrupted = Thread.currentThread().isInterrupted();
       assertTrue(interrupted, "the release interrupted no start, so the interrupt is the caller's");
     } finally {
@@ -605,6 +652,7 @@ class CefBrowserPlayerTest {
     try {
       final boolean startedAfterRelease = releasing.start(SOURCE);
       assertFalse(startedAfterRelease, "the start of a released player fails");
+
       final boolean interrupted = Thread.currentThread().isInterrupted();
       assertTrue(interrupted, "the caller was interrupted before the release, so the interrupt is its own");
     } finally {
@@ -615,6 +663,7 @@ class CefBrowserPlayerTest {
   private BrowserSession releaseAndFailTheStart(final AtomicReference<CefBrowserPlayer> self) {
     final boolean released = self.get().release();
     assertTrue(released);
+
     throw new BrowserException("Interrupted while starting the browser!");
   }
 
@@ -623,13 +672,17 @@ class CefBrowserPlayerTest {
     this.player.start(SOURCE);
     final boolean released = this.player.release();
     assertTrue(released);
+
     final boolean playing = this.player.isPlaying();
     assertFalse(playing);
     assertEquals(1, this.sessions.getFirst().closed);
+
     final boolean releasedAgain = this.player.release();
     assertFalse(releasedAgain);
+
     final boolean startedAfterRelease = this.player.start(SOURCE);
     assertFalse(startedAfterRelease);
+
     this.listener.onFrame(this.frame());
     final int processedCount = this.processed.size();
     assertEquals(0, processedCount);
@@ -671,6 +724,7 @@ class CefBrowserPlayerTest {
     this.player.moveMouse(-5, 500);
     this.player.scroll(1000, -1, 100_000, -100_000);
     assertEquals(List.of("mouse 0 0,49 b0 c0 d0,0", "mouse 3 99,0 b0 c0 d32767,-32768"), this.sessions.getFirst().sent);
+
     final int clampedX = this.player.clamp(0, 0)[0];
     assertEquals(0, clampedX);
   }
@@ -715,6 +769,7 @@ class CefBrowserPlayerTest {
       ),
       this.reports
     );
+
     this.player.sendMouseEvent(MouseClick.HOLD, 1, 1);
     final int reportCount = this.reports.size();
     assertEquals(4, reportCount, this.reports.toString());
@@ -729,6 +784,7 @@ class CefBrowserPlayerTest {
     }
     final int reportCount = this.reports.size();
     assertEquals(LogBudget.BURST, reportCount, "a burst of reports, then none");
+
     this.now.addAndGet(LogBudget.REFILL_NANOSECONDS);
     this.player.sendKeyEvent("x");
     final List<String> later = this.reports.subList(LogBudget.BURST, this.reports.size());
@@ -754,6 +810,7 @@ class CefBrowserPlayerTest {
   void shouldReadTheExceptionHandlerBack() {
     final boolean handlerPresent = this.player.getExceptionHandler() != null;
     assertTrue(handlerPresent);
+
     final VideoAttachableCallback callback = this.player.getVideoAttachableCallback();
     final VideoAttachableCallback secondCallback = this.player.getVideoAttachableCallback();
     assertSame(callback, secondCallback);
@@ -770,10 +827,13 @@ class CefBrowserPlayerTest {
       final CompletableFuture<Boolean> started = this.player.startAsync(SOURCE, executor);
       final boolean done = started.isDone();
       assertFalse(done, "startup must wait for its supplied executor");
+
       final int queuedCount = queued.size();
       assertEquals(1, queuedCount);
+
       final boolean empty = this.sessions.isEmpty();
       assertTrue(empty, "no session may start before the executor runs");
+
       queued.getFirst().run();
       final Boolean startSucceeded = started.get(10, TimeUnit.SECONDS);
       assertTrue(startSucceeded);
@@ -797,10 +857,12 @@ class CefBrowserPlayerTest {
   void shouldCloseAPictureOnceThePipelineHasIt() {
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
+
     final ClosingProbe probe = new ClosingProbe();
     this.listener.onFrame(probe.wrap(this.frame()));
     final int processedCount = this.processed.size();
     assertEquals(1, processedCount);
+
     final boolean closed = probe.isClosed();
     assertTrue(closed);
   }
@@ -812,6 +874,7 @@ class CefBrowserPlayerTest {
     final CefBrowserPlayer early = new CefBrowserPlayer(BrowserOptions.DEFAULT, factory);
     final boolean started = early.start(SOURCE);
     assertTrue(started);
+
     final boolean closed = probe.isClosed();
     assertTrue(closed);
   }
@@ -820,6 +883,7 @@ class CefBrowserPlayerTest {
   void shouldUseAPlayerReleasedOnAnotherThreadOnThisOne() {
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
+
     CompletableFuture.runAsync(() -> assertTrue(this.player.release())).join();
     assertTimeoutPreemptively(Duration.ofSeconds(5), () -> assertFalse(this.player.start(SOURCE)));
   }
@@ -858,6 +922,7 @@ class CefBrowserPlayerTest {
   void shouldMakeTheDefaultPlayerAJcefPlayer() {
     final BrowserPlayer defaultPlayer = BrowserPlayer.create();
     assertInstanceOf(CefBrowserPlayer.class, defaultPlayer);
+
     final BrowserPlayer configuredPlayer = BrowserPlayer.create(BrowserOptions.builder().frameRate(10).build());
     assertInstanceOf(CefBrowserPlayer.class, configuredPlayer);
   }
@@ -875,8 +940,10 @@ class CefBrowserPlayerTest {
     final BrowserException failure = assertThrows(BrowserException.class, () -> offline.start(SOURCE));
     final boolean namesTheInstallFailure = failure.getMessage().startsWith("The browser cannot be installed");
     assertTrue(namesTheInstallFailure, failure.getMessage());
+
     final boolean playing = offline.isPlaying();
     assertFalse(playing);
+
     final Throwable cause = failure.getCause();
     assertInstanceOf(IOException.class, cause);
   }
@@ -889,6 +956,7 @@ class CefBrowserPlayerTest {
   void shouldTellWhetherTheBrowserStartedAfterAnAsynchronousStart() {
     final boolean released = this.player.release();
     assertTrue(released);
+
     final ExecutorService executor = Executors.newSingleThreadExecutor();
     try {
       final Boolean startedAfterRelease = this.player.startAsync(SOURCE, executor).join();

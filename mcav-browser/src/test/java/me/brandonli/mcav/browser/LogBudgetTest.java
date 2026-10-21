@@ -45,6 +45,7 @@ final class LogBudgetTest {
     this.lines(LogBudget.BURST + 10);
     final int lineCount = this.log.size();
     assertEquals(LogBudget.BURST, lineCount);
+
     final String lastLine = this.log.getLast();
     assertEquals("line " + (LogBudget.BURST - 1), lastLine);
   }
@@ -56,6 +57,7 @@ final class LogBudgetTest {
     this.line("too early");
     final int lineCount = this.log.size();
     assertEquals(LogBudget.BURST, lineCount);
+
     this.now.addAndGet(1);
     this.line("a second later");
     this.line("too early again");

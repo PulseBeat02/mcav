@@ -68,9 +68,11 @@ class BrowserModuleTest {
     final Path live = HelperSession.createFolder(temporary);
     final boolean hasOwnerFile = Files.isRegularFile(live.resolve(SessionFolders.OWNER_FILE));
     assertTrue(hasOwnerFile, "a new folder names its server");
+
     new BrowserModule().start(temporary);
     final boolean staleExists = Files.exists(stale);
     assertFalse(staleExists, "a killed server left it behind");
+
     final boolean liveExists = Files.exists(live);
     assertTrue(liveExists, "the folder of a session of this server stays until its browser is released");
   }
@@ -80,6 +82,7 @@ class BrowserModuleTest {
     final BrowserModule module = new BrowserModule();
     final String moduleName = module.getModuleName();
     assertEquals("browser", moduleName);
+
     module.start();
     try {
       module.stop();
@@ -100,6 +103,7 @@ class BrowserModuleTest {
       final int helperCount = HelperProcesses.count();
       assertEquals(0, helperCount);
       assertEquals(List.of("The browser module was stopped!"), this.ends, "the player hears of it");
+
       Await.until("the helper ended", () -> !process.isAlive());
       final BrowserException refused = assertThrows(BrowserException.class, this::open);
       final String message = refused.getMessage();

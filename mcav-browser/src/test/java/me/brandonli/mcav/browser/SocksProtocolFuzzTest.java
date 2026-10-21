@@ -41,8 +41,10 @@ final class SocksProtocolFuzzTest {
       final int port = request.getPort();
       final boolean portInRange = port >= 1 && port <= 65_535;
       assertTrue(portInRange, () -> "port " + port);
+
       final boolean hostLengthInRange = !host.isEmpty() && host.length() <= 255;
       assertTrue(hostLengthInRange, () -> "host of " + host.length() + " characters");
+
       for (int index = 0; index < host.length(); index++) {
         final char character = host.charAt(index);
         final boolean allowed =

@@ -107,9 +107,11 @@ class SeatbeltTest {
         final Seatbelt seatbelt = library.seatbelt();
         final boolean available = seatbelt.isAvailable();
         assertFalse(available);
+
         final IOException refused = assertThrows(IOException.class, () -> seatbelt.restrictProcess(PROFILE));
         final String message = refused.getMessage();
         assertEquals("The process cannot be restricted, because this system has no Seatbelt (sandbox_init)!", message);
+
         final List<String> passedProfiles = library.profiles();
         assertEquals(List.of(), passedProfiles);
       }
@@ -122,11 +124,14 @@ class SeatbeltTest {
       final Seatbelt seatbelt = library.seatbelt();
       final boolean available = seatbelt.isAvailable();
       assertTrue(available);
+
       seatbelt.restrictProcess(PROFILE + DENY_WRITING);
       final List<String> passedProfiles = library.profiles();
       assertEquals(List.of(PROFILE + DENY_WRITING), passedProfiles);
+
       final List<Long> passedFlags = library.flags();
       assertEquals(List.of(0L), passedFlags);
+
       final List<Long> freedAddresses = library.freed();
       assertEquals(List.of(), freedAddresses);
     }
@@ -140,6 +145,7 @@ class SeatbeltTest {
       final IOException refused = assertThrows(IOException.class, () -> seatbelt.restrictProcess("(deny (subpat \"/\"))"));
       final String message = refused.getMessage();
       assertEquals("Seatbelt refused the profile (unbound variable: subpat)!", message);
+
       final List<Long> freedAddresses = library.freed();
       assertEquals(List.of(library.reasonAddress()), freedAddresses);
     }
@@ -153,6 +159,7 @@ class SeatbeltTest {
       final IOException refused = assertThrows(IOException.class, () -> seatbelt.restrictProcess(PROFILE));
       final String message = refused.getMessage();
       assertEquals("Seatbelt refused the profile without a reason!", message);
+
       final List<Long> freedAddresses = library.freed();
       assertEquals(List.of(), freedAddresses);
     }
@@ -162,6 +169,7 @@ class SeatbeltTest {
   void shouldPassTheResultOfACallOn() {
     final @Nullable Object returnedConstant = Seatbelt.call(MethodHandles.constant(int.class, 7));
     assertEquals(7, returnedConstant);
+
     final @Nullable Object returnedNothing = Seatbelt.call(MethodHandles.empty(MethodType.methodType(void.class)));
     assertNull(returnedNothing);
   }
@@ -174,6 +182,7 @@ class SeatbeltTest {
     final IllegalStateException failure = assertThrows(IllegalStateException.class, () -> Seatbelt.call(call));
     final String message = failure.getMessage();
     assertEquals("The C library could not be called!", message);
+
     final Throwable cause = failure.getCause();
     assertSame(refused, cause);
   }

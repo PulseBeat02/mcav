@@ -41,6 +41,7 @@ class SpecialKeysTest {
     }
     final boolean lowerCaseEnterSpecial = SpecialKeys.isSpecialKey("enter");
     assertFalse(lowerCaseEnterSpecial);
+
     final boolean plainWordSpecial = SpecialKeys.isSpecialKey("hello");
     assertFalse(plainWordSpecial);
     assertThrows(NullPointerException.class, () -> SpecialKeys.isSpecialKey(null));
@@ -78,6 +79,7 @@ class SpecialKeysTest {
     final BrowserException failure = assertThrows(BrowserException.class, () -> SpecialKeys.parse(throwing));
     final String message = failure.getMessage();
     assertEquals("The key list resource could not be read (disk gone)!", message);
+
     final Throwable cause = failure.getCause();
     assertInstanceOf(IOException.class, cause);
   }

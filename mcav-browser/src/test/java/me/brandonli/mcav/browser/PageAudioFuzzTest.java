@@ -44,11 +44,14 @@ final class PageAudioFuzzTest {
       this.check(chunk.samples());
       final boolean fromABinding = PageAudio.BINDING_EVENT.equals(method);
       assertTrue(fromABinding, "only a call of a binding is sound");
+
       final boolean fromOwnBinding = parameters.startsWith(PREFIX);
       assertTrue(fromOwnBinding, "only a call of mcav's binding is sound");
+
       final String payload = parameters.substring(PREFIX.length(), parameters.indexOf('"', PREFIX.length()));
       final boolean base64Only = payload.chars().allMatch(this::isBase64);
       assertTrue(base64Only, "the payload is Base64 and nothing else");
+
       final boolean longEnough = PageAudio.leastBytes(parameters) <= chunk.samples().length;
       assertTrue(longEnough, "sound is never refused for its length");
     }
@@ -62,11 +65,14 @@ final class PageAudioFuzzTest {
     if (chunk != null) {
       final boolean longEnough = PageAudio.leastBytes(parameters) <= chunk.samples().length;
       assertTrue(longEnough, "sound is never refused for its length");
+
       this.check(chunk.samples());
       final boolean contextMatches = chunk.context() == 1;
       assertTrue(contextMatches, "the context is the one of the call");
+
       final boolean base64Only = payload.chars().allMatch(this::isBase64);
       assertTrue(base64Only, "the payload is Base64 and nothing else");
+
       final byte[] decoded = Base64.getDecoder().decode(payload);
       final boolean samplesArePayload = Arrays.equals(chunk.samples(), decoded);
       assertTrue(samplesArePayload, "the samples are the payload");
@@ -76,8 +82,10 @@ final class PageAudioFuzzTest {
   private void check(final byte[] samples) {
     final boolean notEmpty = samples.length > 0;
     assertTrue(notEmpty, "sound is not empty");
+
     final boolean withinMessageLimit = samples.length <= HelperProtocol.MAXIMUM_AUDIO_BYTES;
     assertTrue(withinMessageLimit, "sound is within the limit of a message");
+
     final boolean wholeFrames = samples.length % HelperProtocol.AUDIO_FRAME_BYTES == 0;
     assertTrue(wholeFrames, "sound holds whole frames");
   }

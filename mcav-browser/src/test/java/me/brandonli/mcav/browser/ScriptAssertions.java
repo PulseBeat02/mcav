@@ -51,12 +51,14 @@ final class ScriptAssertions {
       }
       final boolean finished = process.waitFor(30, TimeUnit.SECONDS);
       assertTrue(finished, "the script fixture finishes within its deadline");
+
       final int exitValue = process.exitValue();
       assertEquals(0, exitValue, Files.readString(output));
     } finally {
       process.destroyForcibly();
       final boolean reaped = process.waitFor(30, TimeUnit.SECONDS);
       assertTrue(reaped, "the script process is reaped");
+
       Files.deleteIfExists(output);
     }
   }

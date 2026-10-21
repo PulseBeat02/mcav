@@ -58,14 +58,19 @@ class FrameCanvasTest {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3); final ImageBuffer image = this.snapshot(canvas)) {
       final int canvasWidth = canvas.getWidth();
       assertEquals(4, canvasWidth);
+
       final int canvasHeight = canvas.getHeight();
       assertEquals(3, canvasHeight);
+
       final int imageWidth = image.getWidth();
       assertEquals(4, imageWidth);
+
       final int imageHeight = image.getHeight();
       assertEquals(3, imageHeight);
+
       final int cornerBlue = this.bgr(image, 3, 2)[0];
       assertEquals(255, cornerBlue);
+
       final int cornerRed = this.bgr(image, 3, 2)[2];
       assertEquals(255, cornerRed);
     }
@@ -79,12 +84,16 @@ class FrameCanvasTest {
         final int[] inside = this.bgr(image, 2, 2);
         final int insideBlue = inside[0];
         assertEquals(10, insideBlue);
+
         final int insideGreen = inside[1];
         assertEquals(20, insideGreen);
+
         final int insideRed = inside[2];
         assertEquals(30, insideRed);
+
         final int outsideBlue = this.bgr(image, 0, 0)[0];
         assertEquals(255, outsideBlue);
+
         final int outsideGreen = this.bgr(image, 3, 1)[1];
         assertEquals(255, outsideGreen);
       }
@@ -102,6 +111,7 @@ class FrameCanvasTest {
       try (final ImageBuffer image = this.snapshot(canvas)) {
         final int blue = this.bgr(image, 1, 0)[0];
         assertEquals(1, blue);
+
         final int red = this.bgr(image, 1, 0)[2];
         assertEquals(3, red);
       }
@@ -112,6 +122,7 @@ class FrameCanvasTest {
   void shouldTreatARegionOfAnotherPageAsAProtocolError() {
     try (final FrameCanvas canvas = new FrameCanvas(4, 3)) {
       assertThrows(ProtocolException.class, () -> canvas.apply(new FrameRegion(5, 3, 0, 0, 1, 1, new byte[4])));
+
       final ProtocolException height = assertThrows(ProtocolException.class, () -> this.applyARegionOfAnotherHeight(canvas));
       final boolean namesTheOtherSize = height.getMessage().contains("4x2");
       assertTrue(namesTheOtherSize);
@@ -142,8 +153,10 @@ class FrameCanvasTest {
       try (final ImageBuffer image = this.snapshot(canvas)) {
         final int firstRowBlue = this.bgr(image, 1, 1)[0];
         assertEquals(10, firstRowBlue);
+
         final int secondRowBlue = this.bgr(image, 1, 2)[0];
         assertEquals(40, secondRowBlue);
+
         final int secondRowRed = this.bgr(image, 2, 2)[2];
         assertEquals(60, secondRowRed);
       }
@@ -155,6 +168,7 @@ class FrameCanvasTest {
     final FrameCanvas canvas = new FrameCanvas(4, 3);
     final boolean releasedWhileOpen = canvas.getPage().isNull();
     assertFalse(releasedWhileOpen);
+
     canvas.close();
     final boolean releasedAfterClose = canvas.getPage().isNull();
     assertTrue(releasedAfterClose);

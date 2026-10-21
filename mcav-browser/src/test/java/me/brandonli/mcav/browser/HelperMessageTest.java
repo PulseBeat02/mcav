@@ -32,15 +32,20 @@ class HelperMessageTest {
     final HelperMessage close = HelperMessage.close();
     final int type = close.getType();
     assertEquals(HelperProtocol.CLOSE, type);
+
     final byte[] token = close.getToken();
     assertArrayEquals(new byte[0], token);
+
     final String text = close.getText();
     assertEquals("", text);
+
     final String url = close.getUrl();
     assertEquals("", url);
+
     final IllegalStateException noFrame = assertThrows(IllegalStateException.class, close::getRegion);
     final String noFrameMessage = noFrame.getMessage();
     assertEquals("Message type 18 carries no frame!", noFrameMessage);
+
     final IllegalStateException noMouse = assertThrows(IllegalStateException.class, close::getMouse);
     final String noMouseMessage = noMouse.getMessage();
     assertEquals("Message type 18 carries no mouse input!", noMouseMessage);
@@ -54,6 +59,7 @@ class HelperMessageTest {
     first[0] = 9;
     final byte firstByte = hello.getToken()[0];
     assertEquals(0, firstByte);
+
     final byte[] secondCopy = hello.getToken();
     assertNotSame(hello.getToken(), secondCopy);
   }
@@ -62,33 +68,45 @@ class HelperMessageTest {
   void shouldSetTheValuesOfEachFactory() {
     final int loadingNumber = HelperMessage.loading(true).getNumber();
     assertEquals(1, loadingNumber);
+
     final int loadedNumber = HelperMessage.loading(false).getNumber();
     assertEquals(0, loadedNumber);
+
     final HelperMessage error = HelperMessage.loadError(-3, "aborted", "http://a/");
     final int errorMessageType = error.getType();
     assertEquals(HelperProtocol.LOAD_ERROR, errorMessageType);
+
     final int errorCode = error.getNumber();
     assertEquals(-3, errorCode);
+
     final String errorText = error.getText();
     assertEquals("aborted", errorText);
+
     final String errorUrl = error.getUrl();
     assertEquals("http://a/", errorUrl);
     final HelperMessage key = HelperMessage.key(HelperProtocol.KEY_TYPE, "x");
+
     final int keyMessageType = key.getType();
     assertEquals(HelperProtocol.KEY, keyMessageType);
+
     final int keyEventType = key.getNumber();
     assertEquals(HelperProtocol.KEY_TYPE, keyEventType);
+
     final String keyText = key.getText();
     assertEquals("x", keyText);
+
     final FrameRegion region = new FrameRegion(1, 1, 0, 0, 1, 1, new byte[4]);
     final FrameRegion frameRegion = HelperMessage.frame(region).getRegion();
     assertSame(region, frameRegion);
+
     final MouseInput mouse = new MouseInput(0, 0, 0, 0, 0, 0, 0);
     final MouseInput mouseInput = HelperMessage.mouse(mouse).getMouse();
     assertSame(mouse, mouseInput);
+
     final HelperMessage notice = HelperMessage.text(HelperProtocol.NOTICE, "n");
     final int noticeMessageType = notice.getType();
     assertEquals(HelperProtocol.NOTICE, noticeMessageType);
+
     final String noticeText = notice.getText();
     assertEquals("n", noticeText);
   }

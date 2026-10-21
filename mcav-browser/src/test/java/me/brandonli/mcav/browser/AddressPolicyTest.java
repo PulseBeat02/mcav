@@ -112,6 +112,7 @@ class AddressPolicyTest {
   void shouldOnlyFindAnIpv4AddressInTheExactPrefixes() {
     final boolean nearlyMappedJudgedPublic = AddressPolicy.isPublicIpv6(new byte[] { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 8, 8, 8, 8 });
     assertFalse(nearlyMappedJudgedPublic);
+
     final boolean strayPrefixBitJudgedPublic = AddressPolicy.isPublicIpv6(new byte[] {
       0,
       0x64,
@@ -131,6 +132,7 @@ class AddressPolicyTest {
       8,
     });
     assertFalse(strayPrefixBitJudgedPublic);
+
     final boolean straySuffixBitJudgedPublic = AddressPolicy.isPublicIpv6(new byte[] {
       0,
       0x64,
@@ -188,20 +190,28 @@ class AddressPolicyTest {
     );
     final int prefixCount = prefixes.size();
     assertEquals(1, prefixCount, "both well-known addresses give the same prefix");
+
     final int prefixLength = prefixes.getFirst().getLength();
     assertEquals(length, prefixLength);
+
     final boolean privateJudgedPublicWithoutPrefix = AddressPolicy.isPublic(InetAddress.getByName(privateAddress));
     assertTrue(privateJudgedPublicWithoutPrefix, "without the prefix it looks like any address");
+
     final boolean privateJudgedPublic = this.isPublic(privateAddress, prefixes);
     assertFalse(privateJudgedPublic, privateAddress);
+
     final boolean metadataServiceJudgedPublic = this.isPublic(metadataService, prefixes);
     assertFalse(metadataServiceJudgedPublic, metadataService);
+
     final boolean publicAddressJudgedPublic = this.isPublic(publicAddress, prefixes);
     assertTrue(publicAddressJudgedPublic, publicAddress);
+
     final boolean outsidePrefixJudgedPublic = this.isPublic("2606:4700:4700::1111", prefixes);
     assertTrue(outsidePrefixJudgedPublic, "an address outside the prefix is judged as before");
+
     final boolean untranslatedPrivateJudgedPublic = this.isPublic("10.0.0.1", prefixes);
     assertFalse(untranslatedPrivateJudgedPublic);
+
     final boolean untranslatedPublicJudgedPublic = this.isPublic("8.8.8.8", prefixes);
     assertTrue(untranslatedPublicJudgedPublic);
   }
@@ -210,10 +220,12 @@ class AddressPolicyTest {
   void shouldFindNoPrefixInANetworkWithoutTranslation() throws UnknownHostException {
     final int ipv4PrefixCount = AddressPolicy.findTranslationPrefixes(this.addresses("192.0.0.170", "192.0.0.171")).size();
     assertEquals(0, ipv4PrefixCount);
+
     final int unrelatedPrefixCount = AddressPolicy.findTranslationPrefixes(
       this.addresses("2a01:4f8:1:2:3:4:5:6", "2a01:4f8:1:2:3:4:c000:ac")
     ).size();
     assertEquals(0, unrelatedPrefixCount);
+
     final int singleAnswerPrefixCount = AddressPolicy.findTranslationPrefixes(this.addresses("2a01:4f8:1:2:1c0:0:aa00:0")).size();
     assertEquals(0, singleAnswerPrefixCount);
   }
@@ -229,11 +241,14 @@ class AddressPolicyTest {
       AddressPolicy.findTranslationPrefixes(this.addresses("fe80::c000:aa"))
     );
     assertFalse(linkLocalJudgedPublic);
+
     final List<AddressPolicy.TranslationPrefix> local = AddressPolicy.findTranslationPrefixes(this.addresses("64:ff9b:1::c000:aa"));
     final int localPrefixCount = local.size();
     assertEquals(1, localPrefixCount);
+
     final boolean embeddedPublicJudgedPublic = this.isPublic("64:ff9b:1::808:808", local);
     assertTrue(embeddedPublicJudgedPublic);
+
     final boolean embeddedPrivateJudgedPublic = this.isPublic("64:ff9b:1::a00:1", local);
     assertFalse(embeddedPrivateJudgedPublic);
   }
@@ -245,15 +260,19 @@ class AddressPolicyTest {
     );
     final int nestedPrefixCount = nested.size();
     assertEquals(2, nestedPrefixCount);
+
     final boolean nestedJudgedPublic = this.isPublic("2a01:4f8:1:2:3:4:808:808", nested);
     assertFalse(nestedJudgedPublic);
+
     final List<AddressPolicy.TranslationPrefix> separate = AddressPolicy.findTranslationPrefixes(
       this.addresses("2a01:4f8:1:2:3:4:c000:aa", "2a01:4f9:1:2:3:4:c000:aa")
     );
     final int separatePrefixCount = separate.size();
     assertEquals(2, separatePrefixCount);
+
     final boolean embeddedPublicJudgedPublic = this.isPublic("2a01:4f9:1:2:3:4:808:808", separate);
     assertTrue(embeddedPublicJudgedPublic);
+
     final boolean embeddedPrivateJudgedPublic = this.isPublic("2a01:4f9:1:2:3:4:a00:1", separate);
     assertFalse(embeddedPrivateJudgedPublic);
   }
@@ -269,11 +288,14 @@ class AddressPolicyTest {
     final byte[] mappedLoopback = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, (byte) 0xFF, (byte) 0xFF, 127, 0, 0, 1 };
     final boolean mappedPublicJudgedPublic = AddressPolicy.isPublicIpv6(mappedPublic);
     assertTrue(mappedPublicJudgedPublic);
+
     final boolean mappedLoopbackJudgedPublic = AddressPolicy.isPublicIpv6(mappedLoopback);
     assertFalse(mappedLoopbackJudgedPublic);
+
     final byte[] almostMapped = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, (byte) 0xFF, (byte) 0xFF, 8, 8, 8, 8 };
     final boolean almostMappedJudgedPublic = AddressPolicy.isPublicIpv6(almostMapped);
     assertFalse(almostMappedJudgedPublic);
+
     final boolean loopbackJudgedPublic = AddressPolicy.isPublicIpv4(0x7F000001);
     assertFalse(loopbackJudgedPublic);
   }

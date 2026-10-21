@@ -143,6 +143,7 @@ class ChromiumConfinementTest {
   void shouldSplitListsOfPaths() {
     final List<Path> pathsOfNothing = ChromiumConfinement.pathsOf(null);
     assertEquals(List.of(), pathsOfNothing);
+
     final String separator = File.pathSeparator;
     final List<Path> paths = ChromiumConfinement.pathsOf("first" + separator + separator + "second");
     assertEquals(List.of(Path.of("first"), Path.of("second")), paths);
@@ -184,6 +185,7 @@ class ChromiumConfinementTest {
         seatbelt
       );
       assertEquals(ChromiumConfinement.NOT_ASKED, linuxNotAsked);
+
       final String macNotAsked = ChromiumConfinement.confine(
         this.configuration(Confinement.NOT_ASKED, server),
         OperatingSystem.MAC,
@@ -191,6 +193,7 @@ class ChromiumConfinementTest {
         seatbelt
       );
       assertEquals(ChromiumConfinement.NOT_ASKED, macNotAsked);
+
       final String otherSystemReason = ChromiumConfinement.confine(
         this.configuration(Confinement.ASKED, server),
         OperatingSystem.OTHER,
@@ -198,6 +201,7 @@ class ChromiumConfinementTest {
         seatbelt
       );
       assertEquals("Chromium runs without confinement: MCAV confines it on Linux and macOS only.", otherSystemReason);
+
       final String noLandlockReason = ChromiumConfinement.confine(
         this.configuration(Confinement.ASKED, server),
         OperatingSystem.LINUX,
@@ -205,6 +209,7 @@ class ChromiumConfinementTest {
         seatbelt
       );
       assertEquals("Chromium runs without confinement: this kernel has no Landlock, which Linux has since 5.13.", noLandlockReason);
+
       final List<String> profiles = library.profiles();
       assertEquals(List.of(), profiles, "only macOS uses Seatbelt");
     }
@@ -237,8 +242,10 @@ class ChromiumConfinementTest {
       profiles = List.copyOf(library.profiles());
     }
     assertEquals(ChromiumConfinement.CONFINED, said);
+
     final int profileCount = profiles.size();
     assertEquals(1, profileCount);
+
     final String profile = profiles.getFirst();
     final String home = Path.of(System.getProperty("user.home")).toRealPath().toString();
     final String temporary = session.getParent().toRealPath().toString();
@@ -256,6 +263,7 @@ class ChromiumConfinementTest {
         ")"
     );
     assertTrue(deniesThenAllowsReading, profile);
+
     final boolean allowsWritingOnlyTheSession = profile.endsWith(
       "(deny file-write*)\n(allow file-write* (subpath " +
         Seatbelt.quote(session.toRealPath().toString()) +
@@ -264,6 +272,7 @@ class ChromiumConfinementTest {
         "))\n"
     );
     assertTrue(allowsWritingOnlyTheSession, profile);
+
     for (final Path entry : ChromiumConfinement.realPaths(ChromiumConfinement.pathsOf(System.getProperty("java.class.path")))) {
       final boolean allowsReadingEntry = profile.contains("(subpath " + Seatbelt.quote(entry.toString()) + ")");
       assertTrue(allowsReadingEntry, () -> entry + " may be read");
@@ -300,12 +309,16 @@ class ChromiumConfinementTest {
     thread.join(TimeUnit.SECONDS.toMillis(60));
     final boolean alive = thread.isAlive();
     assertFalse(alive);
+
     final Throwable confinedFailure = failure.get();
     assertNull(confinedFailure, () -> "the confined thread failed: " + failure.get());
+
     final String saidConfinement = said.get();
     assertEquals(ChromiumConfinement.CONFINED, saidConfinement);
+
     final String profileText = Files.readString(session.resolve("profile.txt"), StandardCharsets.UTF_8);
     assertEquals("profile", profileText);
+
     final boolean readable = Files.isReadable(serverConfiguration);
     assertTrue(readable, "the other threads are free");
   }
@@ -322,6 +335,7 @@ class ChromiumConfinementTest {
       said.set(ChromiumConfinement.confine(configuration, OperatingSystem.LINUX));
       assertThrows(AccessDeniedException.class, () -> Files.readString(serverConfiguration, StandardCharsets.UTF_8));
       assertThrows(AccessDeniedException.class, () -> Files.readString(cookies, StandardCharsets.UTF_8));
+
       Files.writeString(session.resolve("profile.txt"), "profile");
       assertThrows(AccessDeniedException.class, () -> Files.writeString(this.folder.resolve("outside.txt"), "outside"));
     } catch (final Throwable exception) {
@@ -433,8 +447,10 @@ class ChromiumConfinementTest {
     final String output = new String(probe.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
     final boolean exited = probe.waitFor(60, TimeUnit.SECONDS);
     assertTrue(exited, output);
+
     final int exitCode = probe.exitValue();
     assertEquals(0, exitCode, output);
+
     final List<String> outputLines = output
       .lines()
       .filter(line -> !line.startsWith("WARNING"))
@@ -452,10 +468,13 @@ class ChromiumConfinementTest {
       outputLines,
       output
     );
+
     final String profileText = Files.readString(session.resolve("profile.txt"), StandardCharsets.UTF_8);
     assertEquals("profile", profileText);
+
     final boolean outsideWritten = Files.exists(outside);
     assertFalse(outsideWritten);
+
     final boolean readable = Files.isReadable(serverConfiguration);
     assertTrue(readable, "this process is free");
   }

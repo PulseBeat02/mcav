@@ -68,8 +68,10 @@ final class AddressTextPropertyTest {
     assertEquals(scheme + "://" + AddressText.HIDDEN + "@" + host + path + "?" + AddressText.HIDDEN, described);
     final boolean showsTheUser = described.contains(user);
     assertFalse(showsTheUser, described);
+
     final boolean showsTheQuery = described.contains(query);
     assertFalse(showsTheQuery, described);
+
     final boolean showsTheFragment = described.contains(fragment);
     assertFalse(showsTheFragment, described);
   }

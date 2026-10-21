@@ -75,6 +75,7 @@ final class AddressPolicyPropertyTest {
       .toList();
     final int matchingCount = matching.size();
     assertEquals(1, matchingCount, "the generated ordinary prefix is discovered exactly once");
+
     final boolean ordinaryTranslatedJudgedPublic = AddressPolicy.isPublic(this.translate(ordinary, length, ipv4), matching);
     assertEquals(AddressPolicy.isPublicIpv4(ipv4), ordinaryTranslatedJudgedPublic);
   }
@@ -101,6 +102,7 @@ final class AddressPolicyPropertyTest {
     final boolean plain = AddressPolicy.isPublicIpv4(address);
     final boolean mappedJudgedPublic = AddressPolicy.isPublicIpv6(this.ipv6(0, 0, 0x0000FFFF, address));
     assertEquals(plain, mappedJudgedPublic, "mapped");
+
     final boolean translatedJudgedPublic = AddressPolicy.isPublicIpv6(this.ipv6(0x0064FF9B, 0, 0, address));
     assertEquals(plain, translatedJudgedPublic, "translated by NAT64");
   }

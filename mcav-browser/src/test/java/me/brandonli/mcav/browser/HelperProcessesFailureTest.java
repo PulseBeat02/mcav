@@ -47,10 +47,13 @@ final class HelperProcessesFailureTest {
     try {
       final boolean firstRegistered = HelperProcesses.register(first, generation);
       assertTrue(firstRegistered);
+
       final boolean secondRegistered = HelperProcesses.register(second, generation);
       assertTrue(secondRegistered);
+
       final boolean lastRegistered = HelperProcesses.register(last, generation);
       assertTrue(lastRegistered);
+
       final RuntimeException thrown = assertThrows(RuntimeException.class, HelperProcesses::closeAll);
       final int helperCount = HelperProcesses.count();
       assertEquals(0, helperCount, "every registered helper must be ended");

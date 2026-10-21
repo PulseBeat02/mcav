@@ -61,6 +61,7 @@ class McavOffscreenBrowserTest {
   void shouldPlaceTheViewAtTheOriginOfThePage() {
     final Rectangle view = this.browser.getViewRect(this.browser);
     assertEquals(new Rectangle(0, 0, 640, 480), view);
+
     view.width = 1;
     assertEquals(640, this.browser.getViewRect(this.browser).width, "a copy is handed out");
   }
@@ -98,10 +99,13 @@ class McavOffscreenBrowserTest {
   void shouldRenderItselfAndHaveADetachedComponent() {
     final CefRenderHandler renderHandler = this.browser.getRenderHandler();
     assertSame(this.browser, renderHandler);
+
     final Component component = this.browser.getUIComponent();
     assertNotNull(component);
+
     final Container parent = component.getParent();
     assertNull(parent);
+
     final boolean displayable = component.isDisplayable();
     assertFalse(displayable);
   }
@@ -110,16 +114,20 @@ class McavOffscreenBrowserTest {
   void shouldPassFocusChangesToCefOnlyWhenTheyChangeSomething() {
     final boolean focusedAtFirst = this.browser.hasFocus();
     assertFalse(focusedAtFirst);
+
     this.browser.setFocus(true);
     final boolean focusedAfterFocusing = this.browser.hasFocus();
     assertTrue(focusedAfterFocusing);
+
     // JCEF gives a focused browser focus again from inside the focus event; that call must change nothing
     this.browser.setFocus(true);
     final boolean focusedAfterRefocusing = this.browser.hasFocus();
     assertTrue(focusedAfterRefocusing);
+
     this.browser.setFocus(false);
     final boolean focusedAfterUnfocusing = this.browser.hasFocus();
     assertFalse(focusedAfterUnfocusing);
+
     this.browser.setFocus(false);
     final boolean focusedAfterUnfocusingAgain = this.browser.hasFocus();
     assertFalse(focusedAfterUnfocusingAgain);
@@ -128,11 +136,13 @@ class McavOffscreenBrowserTest {
   @Test
   void shouldRefuseDeveloperToolsScreenshotsAndPaintListeners() {
     assertThrows(UnsupportedOperationException.class, this.browser::openDevTools);
+
     final ExecutionException screenshot = assertThrows(ExecutionException.class, () -> this.browser.createScreenshot(true).get());
     final Throwable cause = screenshot.getCause();
     assertInstanceOf(UnsupportedOperationException.class, cause);
     assertThrows(UnsupportedOperationException.class, () -> this.browser.addOnPaintListener(event -> {}));
     assertThrows(UnsupportedOperationException.class, () -> this.browser.setOnPaintListener(event -> {}));
+
     this.browser.removeOnPaintListener(event -> {});
   }
 
@@ -140,8 +150,10 @@ class McavOffscreenBrowserTest {
   void shouldIgnoreTheCursorAndDragAndDrop() {
     final boolean cursorChangeHandled = this.browser.onCursorChange(this.browser, 3);
     assertTrue(cursorChangeHandled);
+
     final boolean draggingStarted = this.browser.startDragging(this.browser, mock(CefDragData.class), 1, 2, 3);
     assertFalse(draggingStarted);
+
     this.browser.updateDragCursor(this.browser, 1);
     final boolean nothingPainted = this.painter.log.isEmpty();
     assertTrue(nothingPainted);

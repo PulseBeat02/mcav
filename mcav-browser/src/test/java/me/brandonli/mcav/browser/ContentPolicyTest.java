@@ -117,6 +117,7 @@ class ContentPolicyTest {
     when(this.browser.doClose()).thenReturn(true);
     final boolean handledWhenTheBrowserHandles = this.policy.doClose(this.browser);
     assertTrue(handledWhenTheBrowserHandles);
+
     when(this.browser.doClose()).thenReturn(false);
     final boolean handledWhenTheBrowserDoesNot = this.policy.doClose(this.browser);
     assertFalse(handledWhenTheBrowserDoesNot);
@@ -132,6 +133,7 @@ class ContentPolicyTest {
       false
     );
     assertFalse(httpsCancelled);
+
     final boolean fileCancelled = this.policy.onBeforeBrowse(
       this.browser,
       this.frame(FrameKind.MAIN),
@@ -140,6 +142,7 @@ class ContentPolicyTest {
       true
     );
     assertTrue(fileCancelled);
+
     final boolean blankSubframeCancelled = this.policy.onBeforeBrowse(
       this.browser,
       this.frame(FrameKind.CHILD),
@@ -148,6 +151,7 @@ class ContentPolicyTest {
       false
     );
     assertFalse(blankSubframeCancelled);
+
     final boolean chromeSubframeCancelled = this.policy.onBeforeBrowse(
       this.browser,
       this.frame(FrameKind.CHILD),
@@ -172,6 +176,7 @@ class ContentPolicyTest {
       false
     );
     assertTrue(customSchemeCancelled);
+
     final CefResourceRequestHandler resources = this.policy.getResourceRequestHandler(
       this.browser,
       this.frame(FrameKind.MAIN),
@@ -187,6 +192,7 @@ class ContentPolicyTest {
       this.request("ftp://user:password@example.com/file")
     );
     assertTrue(ftpRequestCancelled);
+
     final boolean certificateContinued = this.policy.onCertificateError(
       this.browser,
       CefLoadHandler.ErrorCode.ERR_CERT_DATE_INVALID,
@@ -194,6 +200,7 @@ class ContentPolicyTest {
       mock(CefCallback.class)
     );
     assertFalse(certificateContinued);
+
     this.policy.onLoadError(
       this.browser,
       this.frame(FrameKind.MAIN),
@@ -233,12 +240,14 @@ class ContentPolicyTest {
       new BoolRef()
     );
     assertSame(first, second);
+
     final boolean imageCancelled = first.onBeforeResourceLoad(
       this.browser,
       this.frame(FrameKind.MAIN),
       this.request("https://example.com/a.png")
     );
     assertFalse(imageCancelled);
+
     final boolean fileRequestCancelled = first.onBeforeResourceLoad(
       this.browser,
       this.frame(FrameKind.MAIN),
@@ -259,6 +268,7 @@ class ContentPolicyTest {
       "",
       new BoolRef()
     );
+
     final BoolRef allow = new BoolRef(true);
     resources.onProtocolExecution(this.browser, this.frame(FrameKind.MAIN), this.request("steam://run/1"), allow);
     final boolean executionAllowed = allow.get();
@@ -269,6 +279,7 @@ class ContentPolicyTest {
   @Test
   void shouldFailTheRequestOnAuthenticationAndBadCertificates() {
     final CefAuthCallback authentication = mock(CefAuthCallback.class);
+
     final boolean credentialsGiven = this.policy.getAuthCredentials(
       this.browser,
       "https://a/",
@@ -281,6 +292,7 @@ class ContentPolicyTest {
     );
     assertFalse(credentialsGiven);
     verifyNoInteractions(authentication);
+
     final CefCallback certificate = mock(CefCallback.class);
     final boolean certificateContinued = this.policy.onCertificateError(
       this.browser,
@@ -316,6 +328,7 @@ class ContentPolicyTest {
     );
     assertTrue(alertHandled);
     verify(alert).Continue(true, "");
+
     final CefJSDialogCallback confirm = mock(CefJSDialogCallback.class);
     final boolean confirmHandled = this.policy.onJSDialog(
       this.browser,
@@ -328,6 +341,7 @@ class ContentPolicyTest {
     );
     assertTrue(confirmHandled);
     verify(confirm).Continue(false, "");
+
     final CefJSDialogCallback prompt = mock(CefJSDialogCallback.class);
     final boolean promptHandled = this.policy.onJSDialog(
       this.browser,
@@ -340,10 +354,12 @@ class ContentPolicyTest {
     );
     assertTrue(promptHandled);
     verify(prompt).Continue(false, "");
+
     final CefJSDialogCallback unload = mock(CefJSDialogCallback.class);
     final boolean unloadHandled = this.policy.onBeforeUnloadDialog(this.browser, "leave?", false, unload);
     assertTrue(unloadHandled);
     verify(unload).Continue(true, "");
+
     this.policy.onResetDialogState(this.browser);
     this.policy.onDialogClosed(this.browser);
     final int eventCount = this.events.log.size();
@@ -356,6 +372,7 @@ class ContentPolicyTest {
     final boolean downloadHandled = this.policy.onBeforeDownload(this.browser, mock(CefDownloadItem.class), "evil.exe", before);
     assertFalse(downloadHandled);
     verifyNoInteractions(before);
+
     final CefDownloadItemCallback updated = mock(CefDownloadItemCallback.class);
     this.policy.onDownloadUpdated(this.browser, mock(CefDownloadItem.class), updated);
     verify(updated).cancel();
@@ -399,6 +416,7 @@ class ContentPolicyTest {
     final CefMenuModel model = mock(CefMenuModel.class);
     this.policy.onBeforeContextMenu(this.browser, this.frame(FrameKind.MAIN), mock(CefContextMenuParams.class), model);
     verify(model).clear();
+
     final boolean commandHandled = this.policy.onContextMenuCommand(
       this.browser,
       this.frame(FrameKind.MAIN),
@@ -407,6 +425,7 @@ class ContentPolicyTest {
       0
     );
     assertFalse(commandHandled);
+
     this.policy.onContextMenuDismissed(this.browser, this.frame(FrameKind.MAIN));
   }
 
@@ -451,6 +470,7 @@ class ContentPolicyTest {
   void shouldOnlyStartAPageOnANewPageInTheMainFrame() {
     this.policy.onLoadStart(this.browser, this.frame(FrameKind.CHILD), CefRequest.TransitionType.TT_AUTO_SUBFRAME);
     assertEquals(List.of(), this.events.log, "a frame inside the page is part of it");
+
     this.policy.onLoadStart(this.browser, this.frame(FrameKind.MAIN), CefRequest.TransitionType.TT_LINK);
     assertEquals(List.of("page start"), this.events.log);
   }

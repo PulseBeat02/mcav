@@ -37,6 +37,7 @@ public final class EqualityAssertions {
     assertEquals(value, sameValue);
     assertEquals(value, equalValue);
     assertEquals(equalValue, value);
+
     final int hash = value.hashCode();
     final int equalHash = equalValue.hashCode();
     assertEquals(hash, equalHash);

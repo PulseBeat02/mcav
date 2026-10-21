@@ -157,28 +157,39 @@ class NullDisplayTest {
     final ByteBuffer reply = ByteBuffer.wrap(output.toByteArray()).order(ByteOrder.LITTLE_ENDIAN);
     final byte status = reply.get(0);
     assertEquals(1, status, "success");
+
     final short protocolMajorVersion = reply.getShort(2);
     assertEquals(11, protocolMajorVersion);
+
     final int additionalDataBytes = (reply.getShort(6) & 0xFFFF) * 4;
     assertEquals(reply.limit() - 8, additionalDataBytes, "the length in units counts the rest");
+
     final int vendorLength = reply.getShort(24);
     final String vendor = new String(output.toByteArray(), 40, vendorLength, StandardCharsets.US_ASCII);
     assertEquals("mcav null display", vendor);
+
     final int maximumRequestLength = reply.getShort(26) & 0xFFFF;
     assertEquals(NullDisplay.MAXIMUM_REQUEST_UNITS, maximumRequestLength);
+
     final byte screenCount = reply.get(28);
     assertEquals(1, screenCount, "one screen");
+
     final byte pixmapFormatCount = reply.get(29);
     assertEquals(3, pixmapFormatCount, "three pixmap formats");
+
     final int screen = 40 + 20 + 3 * 8;
     final int rootWindow = reply.getInt(screen);
     assertEquals(0x100, rootWindow, "the root window");
+
     final short screenWidth = reply.getShort(screen + 20);
     assertEquals(1920, screenWidth);
+
     final short screenHeight = reply.getShort(screen + 22);
     assertEquals(1080, screenHeight);
+
     final byte rootDepth = reply.get(screen + 38);
     assertEquals(24, rootDepth, "the root depth");
+
     final byte visualClass = reply.get(screen + 40 + 8 + 4);
     assertEquals(4, visualClass, "a TrueColor visual");
   }
@@ -192,8 +203,10 @@ class NullDisplayTest {
     );
     final short sequenceNumber = answers.getShort(2);
     assertEquals(1, sequenceNumber, "the sequence number");
+
     final int primaryAtom = answers.getInt(8);
     assertEquals(1, primaryAtom, "PRIMARY is atom 1");
+
     final byte imageByteOrder = NullDisplay.createSetupReply(ByteOrder.BIG_ENDIAN).get(30);
     assertEquals(1, imageByteOrder, "most significant byte first");
   }
@@ -209,11 +222,14 @@ class NullDisplayTest {
       final ProtocolException refused = assertThrows(ProtocolException.class, () -> this.serveSetup(wrong, output));
       final String wrongCookieMessage = refused.getMessage();
       assertEquals("A client was refused, because the cookie of the display is missing!", wrongCookieMessage);
+
       final byte[] answer = output.toByteArray();
       final byte status = answer[0];
       assertEquals(0, status, "failed");
+
       final String reason = new String(answer, 8, answer[1], StandardCharsets.US_ASCII);
       assertEquals("the cookie of the display is missing", reason);
+
       final short reasonUnits = ByteBuffer.wrap(answer).order(ByteOrder.LITTLE_ENDIAN).getShort(6);
       assertEquals((answer.length - 8) / 4, reasonUnits, "the reason's length in units");
     }
@@ -235,12 +251,15 @@ class NullDisplayTest {
     final ProtocolException order = assertThrows(ProtocolException.class, () -> this.serveSetup(unknownOrder, new ByteArrayOutputStream()));
     final String orderMessage = order.getMessage();
     assertEquals("Byte order 120 of the connection setup is unknown!", orderMessage);
+
     final byte[] longName = setup(ByteOrder.LITTLE_ENDIAN, 11, "x".repeat(257), new byte[0]);
     final ProtocolException name = assertThrows(ProtocolException.class, () -> this.serveSetup(longName, new ByteArrayOutputStream()));
     final String nameMessage = name.getMessage();
     assertEquals("The authorization of the connection setup is longer than 256 bytes!", nameMessage);
+
     final byte[] longData = setup(ByteOrder.LITTLE_ENDIAN, 11, COOKIE_NAME, new byte[257]);
     assertThrows(ProtocolException.class, () -> this.serveSetup(longData, new ByteArrayOutputStream()));
+
     final byte[] longest = setup(ByteOrder.LITTLE_ENDIAN, 11, "x".repeat(256), new byte[256]);
     final ProtocolException value = assertThrows(ProtocolException.class, () -> this.serveSetup(longest, new ByteArrayOutputStream()));
     final String valueMessage = value.getMessage();
@@ -260,34 +279,47 @@ class NullDisplayTest {
     );
     final int firstAtom = answers.getInt(8);
     assertEquals(69, firstAtom, "the first atom after the 68 predefined ones");
+
     final int reinternedAtom = answers.getInt(32 + 8);
     assertEquals(69, reinternedAtom, "an atom is interned once");
+
     final int name = 64;
     final byte nameResponseType = answers.get(name);
     assertEquals(1, nameResponseType);
+
     final short nameSequenceNumber = answers.getShort(name + 2);
     assertEquals(3, nameSequenceNumber, "the sequence number");
+
     final int nameReplyLength = answers.getInt(name + 4);
     assertEquals(4, nameReplyLength, "14 bytes of name, padded, in units");
+
     final short nameLength = answers.getShort(name + 8);
     assertEquals(14, nameLength);
+
     final byte[] text = new byte[14];
     answers.get(name + 32, text);
     final String atomName = new String(text, StandardCharsets.ISO_8859_1);
     assertEquals("_NET_SUPPORTED", atomName);
+
     final int unknown = name + 48;
     final byte unknownResponseType = answers.get(unknown);
     assertEquals(0, unknownResponseType, "an error");
+
     final byte errorCode = answers.get(unknown + 1);
     assertEquals(NullDisplay.BAD_ATOM, errorCode);
+
     final int badValue = answers.getInt(unknown + 4);
     assertEquals(9999, badValue);
+
     final byte majorOpcode = answers.get(unknown + 10);
     assertEquals(NullDisplay.GET_ATOM_NAME, majorOpcode);
+
     final @Nullable String primaryName = atoms.name(1);
     assertEquals("PRIMARY", primaryName);
+
     final @Nullable String lastPredefinedName = atoms.name(68);
     assertEquals("WM_TRANSIENT_FOR", lastPredefinedName);
+
     final @Nullable String noneName = atoms.name(0);
     assertNull(noneName);
   }
@@ -302,13 +334,17 @@ class NullDisplayTest {
     );
     final int answerBytes = answers.limit();
     assertEquals(4 * 32, answerBytes);
+
     for (int index = 0; index < 4; index++) {
       final byte responseType = answers.get(index * 32);
       assertEquals(1, responseType, "a reply");
+
       final short sequenceNumber = answers.getShort(index * 32 + 2);
       assertEquals(index + 1, sequenceNumber);
+
       final int replyLength = answers.getInt(index * 32 + 4);
       assertEquals(0, replyLength, "no extra bytes");
+
       final int replyContent = answers.getInt(index * 32 + 8);
       assertEquals(0, replyContent, "nothing: no type, not present, no focus");
     }
@@ -322,13 +358,17 @@ class NullDisplayTest {
     );
     final byte keySymbolsPerKeyCode = answers.get(1);
     assertEquals(1, keySymbolsPerKeyCode, "one key symbol per key code");
+
     final int keyboardReplyLength = answers.getInt(4);
     assertEquals(248, keyboardReplyLength, "248 key codes, one unit each");
+
     final int modifiers = 32 + 248 * 4;
     final byte keyCodesPerModifier = answers.get(modifiers + 1);
     assertEquals(1, keyCodesPerModifier, "one key code per modifier");
+
     final int modifierReplyLength = answers.getInt(modifiers + 4);
     assertEquals(2, modifierReplyLength);
+
     final int answerBytes = answers.limit();
     assertEquals(modifiers + 32 + 8, answerBytes);
   }
@@ -344,29 +384,40 @@ class NullDisplayTest {
     );
     final int attributesReplyLength = answers.getInt(4);
     assertEquals(3, attributesReplyLength, "44 bytes of attributes");
+
     final int visual = answers.getInt(8);
     assertEquals(0x21, visual, "the visual");
+
     final short windowClass = answers.getShort(12);
     assertEquals(1, windowClass, "InputOutput");
+
     final int geometry = 44;
     final byte depth = answers.get(geometry + 1);
     assertEquals(24, depth, "the depth");
+
     final int geometryRoot = answers.getInt(geometry + 8);
     assertEquals(0x100, geometryRoot);
+
     final short width = answers.getShort(geometry + 16);
     assertEquals(1920, width);
+
     final short height = answers.getShort(geometry + 18);
     assertEquals(1080, height);
+
     final int tree = geometry + 32;
     final int treeRoot = answers.getInt(tree + 8);
     assertEquals(0x100, treeRoot);
+
     final short childCount = answers.getShort(tree + 16);
     assertEquals(0, childCount, "no children");
+
     final int pointer = tree + 32;
     final byte sameScreen = answers.get(pointer + 1);
     assertEquals(1, sameScreen, "on this screen");
+
     final int pointerRoot = answers.getInt(pointer + 8);
     assertEquals(0x100, pointerRoot);
+
     final int answerBytes = answers.limit();
     assertEquals(pointer + 32, answerBytes);
   }
@@ -381,18 +432,25 @@ class NullDisplayTest {
     );
     final int answerBytes = answers.limit();
     assertEquals(64, answerBytes, "no answer to a created or destroyed window");
+
     final byte firstResponseType = answers.get(0);
     assertEquals(0, firstResponseType);
+
     final byte firstErrorCode = answers.get(1);
     assertEquals(NullDisplay.BAD_IMPLEMENTATION, firstErrorCode, "ListProperties has a reply this display does not give");
+
     final short firstSequenceNumber = answers.getShort(2);
     assertEquals(3, firstSequenceNumber);
+
     final byte firstMajorOpcode = answers.get(10);
     assertEquals(21, firstMajorOpcode);
+
     final byte secondErrorCode = answers.get(32 + 1);
     assertEquals(NullDisplay.BAD_REQUEST, secondErrorCode, "no extension was announced");
+
     final short secondSequenceNumber = answers.getShort(32 + 2);
     assertEquals(4, secondSequenceNumber);
+
     final int secondMajorOpcode = answers.get(32 + 10) & 0xFF;
     assertEquals(140, secondMajorOpcode);
   }
@@ -406,16 +464,22 @@ class NullDisplayTest {
     );
     final int answerBytes = answers.limit();
     assertEquals(64, answerBytes, "the request of no opcode has no answer, and the connection goes on");
+
     final byte firstResponseType = answers.get(0);
     assertEquals(1, firstResponseType, "a reply for the atom of the empty name");
+
     final short firstSequenceNumber = answers.getShort(2);
     assertEquals(2, firstSequenceNumber);
+
     final byte secondResponseType = answers.get(32);
     assertEquals(0, secondResponseType, "an error for the first opcode of an extension");
+
     final byte secondErrorCode = answers.get(32 + 1);
     assertEquals(NullDisplay.BAD_REQUEST, secondErrorCode);
+
     final short secondSequenceNumber = answers.getShort(32 + 2);
     assertEquals(3, secondSequenceNumber);
+
     final int secondMajorOpcode = answers.get(32 + 10) & 0xFF;
     assertEquals(128, secondMajorOpcode);
   }
@@ -431,8 +495,10 @@ class NullDisplayTest {
         .toList();
       final boolean empty = threads.isEmpty();
       assertFalse(empty);
+
       final boolean allDaemons = threads.stream().allMatch(Thread::isDaemon);
       assertTrue(allDaemons, "the display never keeps the helper alive");
+
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(display.getDisplay().substring(DISPLAY_PREFIX.length()));
       try (final Socket client = this.introduce(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), port, this.cookieOf(authority))) {
         Await.until("the client is counted", () -> display.countClients() == 1);
@@ -480,11 +546,14 @@ class NullDisplayTest {
     final int[] opcodes = { NullDisplay.INTERN_ATOM, NullDisplay.INTERN_ATOM, NullDisplay.GET_ATOM_NAME, NullDisplay.GET_KEYBOARD_MAPPING };
     final int answerBytes = answers.limit();
     assertEquals(opcodes.length * 32, answerBytes);
+
     for (int index = 0; index < opcodes.length; index++) {
       final byte responseType = answers.get(index * 32);
       assertEquals(0, responseType);
+
       final byte errorCode = answers.get(index * 32 + 1);
       assertEquals(NullDisplay.BAD_LENGTH, errorCode);
+
       final byte majorOpcode = answers.get(index * 32 + 10);
       assertEquals(opcodes[index], majorOpcode);
     }
@@ -496,10 +565,12 @@ class NullDisplayTest {
     final ProtocolException zero = assertThrows(ProtocolException.class, () -> this.converse(empty));
     final String zeroMessage = zero.getMessage();
     assertEquals("A request of 0 units must have 1 to 16384 units!", zeroMessage);
+
     final byte[] huge = { 43, 0, 1, 64 };
     final ProtocolException tooLong = assertThrows(ProtocolException.class, () -> this.converse(huge));
     final String tooLongMessage = tooLong.getMessage();
     assertEquals("A request of 16385 units must have 1 to 16384 units!", tooLongMessage);
+
     final byte[] longest = new byte[NullDisplay.MAXIMUM_REQUEST_UNITS * 4];
     longest[0] = 127;
     longest[2] = 0;
@@ -524,8 +595,10 @@ class NullDisplayTest {
       count++;
     }
     assertEquals(NullDisplay.MAXIMUM_ATOMS - 68, count, "the 68 predefined atoms count too");
+
     final int knownAtom = many.intern("atom-0");
     assertEquals(69, knownAtom, "a known atom is still found");
+
     final ByteBuffer full = NullDisplay.answer(
       NullDisplay.INTERN_ATOM,
       0,
@@ -536,6 +609,7 @@ class NullDisplayTest {
     );
     final byte errorCode = full.get(1);
     assertEquals(NullDisplay.BAD_ALLOC, errorCode);
+
     final NullDisplay.Atoms large = new NullDisplay.Atoms();
     final String name = "x".repeat(60_000);
     int named = 0;
@@ -544,6 +618,7 @@ class NullDisplayTest {
     }
     final boolean namedWithinLimit = named * 60_000L <= NullDisplay.MAXIMUM_ATOM_BYTES;
     assertTrue(namedWithinLimit, named + " names of 60000 bytes");
+
     final boolean anotherNameBeyondLimit = (named + 1) * 60_000L > NullDisplay.MAXIMUM_ATOM_BYTES - 1_000;
     assertTrue(anotherNameBeyondLimit);
   }
@@ -571,10 +646,12 @@ class NullDisplayTest {
       final byte[] entry = Files.readAllBytes(authority);
       final byte[] cookie = Arrays.copyOfRange(entry, entry.length - NullDisplay.COOKIE_BYTES, entry.length);
       assertArrayEquals(NullDisplay.createAuthorityEntry(cookie), entry);
+
       final String name = display.getDisplay();
       final Matcher matcher = DISPLAY_ADDRESS.matcher(name);
       final boolean displayNameMatches = matcher.matches();
       assertTrue(displayNameMatches, name);
+
       final int port = NullDisplay.X11_BASE_PORT + Integer.parseInt(matcher.group(1));
       try (final Socket client = new Socket(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), port)) {
         client.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
@@ -586,10 +663,12 @@ class NullDisplayTest {
         input.readFully(accepted);
         final byte status = accepted[0];
         assertEquals(1, status);
+
         final byte[] atom = new byte[32];
         input.readFully(atom);
         final int internedAtom = ByteBuffer.wrap(atom).order(ByteOrder.LITTLE_ENDIAN).getInt(8);
         assertEquals(69, internedAtom);
+
         display.close();
         this.assertEnded(client.getInputStream());
         final InetAddress loopback = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
@@ -655,6 +734,7 @@ class NullDisplayTest {
       final List<Socket> served = this.servedClients(clients);
       final int servedCount = served.size();
       assertEquals(NullDisplay.MAXIMUM_CONNECTIONS, servedCount, "one client more than the limit is ended");
+
       served.getFirst().close();
       Await.until("a place for another client", () -> this.isANewClientServed(loopback, port, cookie));
     } finally {
@@ -729,8 +809,10 @@ class NullDisplayTest {
         final byte[] answer = refused.getInputStream().readAllBytes();
         final boolean refusalArrived = answer.length >= 8;
         assertTrue(refusalArrived, "the refusal arrives");
+
         final byte status = answer[0];
         assertEquals(0, status, "an X11 setup that failed");
+
         final boolean namesTheMissingCookie = new String(answer, StandardCharsets.US_ASCII).contains(
           "the cookie of the display is missing"
         );
@@ -767,6 +849,7 @@ class NullDisplayTest {
       try (final Socket served = this.introduce(loopback, port, this.cookieOf(authority))) {
         final boolean servedInternsAtom = this.internsAnAtom(served);
         assertTrue(servedInternsAtom, "the client with the cookie is served, and stays");
+
         final Socket newcomer = new Socket(loopback, port);
         newcomer.setSoTimeout(READ_TIMEOUT_MILLISECONDS);
         silent.add(newcomer);
@@ -802,8 +885,10 @@ class NullDisplayTest {
     );
     final int askedAtom = asked.getInt(8);
     assertEquals(0, askedAtom, "None for a name nobody interned");
+
     final int foundMissingAtom = atoms.find("MCAV_NEW");
     assertEquals(0, foundMissingAtom, "and nothing interned");
+
     final ByteBuffer interned = NullDisplay.answer(
       16,
       0,
@@ -822,6 +907,7 @@ class NullDisplayTest {
       atoms
     ).getInt(8);
     assertEquals(atom, existingAtom);
+
     final int foundExistingAtom = atoms.find("MCAV_NEW");
     assertEquals(atom, foundExistingAtom);
   }
@@ -847,21 +933,27 @@ class NullDisplayTest {
   void shouldOnlyUsePortsThatADisplayNumberCanName() throws IOException {
     final boolean belowBaseIsDisplayPort = NullDisplay.isDisplayPort(NullDisplay.X11_BASE_PORT - 1);
     assertFalse(belowBaseIsDisplayPort);
+
     final boolean baseIsDisplayPort = NullDisplay.isDisplayPort(NullDisplay.X11_BASE_PORT);
     assertTrue(baseIsDisplayPort);
+
     final AtomicInteger asked = new AtomicInteger();
     final IOException none = assertThrows(IOException.class, () -> NullDisplay.bind(_ -> this.countAndRefuse(asked)));
     final String message = none.getMessage();
     assertEquals("The system gives out no port of at least 6000 for the display!", message);
+
     final int askedPorts = asked.get();
     assertEquals(64, askedPorts, "64 ports are tried");
+
     final AtomicInteger tries = new AtomicInteger();
     final List<Integer> refused = new ArrayList<>();
     try (final ServerSocket third = NullDisplay.bind(port -> this.refuseTheFirstTwoPorts(tries, refused, port))) {
       final int tryCount = tries.get();
       assertEquals(3, tryCount);
+
       final boolean thirdPortRefused = refused.contains(third.getLocalPort());
       assertFalse(thirdPortRefused, "a refused port is kept until the search ends");
+
       final InetAddress boundAddress = third.getInetAddress();
       assertEquals(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), boundAddress);
     }
@@ -890,8 +982,10 @@ class NullDisplayTest {
   void shouldGiveEveryDisplayARandomCookieOfItsOwn() {
     final byte[] first = NullDisplay.createCookie();
     assertEquals(NullDisplay.COOKIE_BYTES, first.length);
+
     final boolean sameAsAnotherCookie = Arrays.equals(first, NullDisplay.createCookie());
     assertFalse(sameAsAnotherCookie, "two displays got the same cookie");
+
     final boolean allZeros = Arrays.equals(new byte[NullDisplay.COOKIE_BYTES], first);
     assertFalse(allZeros, "the cookie is all zeros");
   }
@@ -902,17 +996,22 @@ class NullDisplayTest {
     final ByteBuffer read = ByteBuffer.wrap(entry);
     final short family = read.getShort();
     assertEquals((short) 0xFFFF, family, "FamilyWild");
+
     final short addressLength = read.getShort();
     assertEquals(0, addressLength, "no address");
+
     final short displayNumberLength = read.getShort();
     assertEquals(0, displayNumberLength, "no display number");
+
     final byte[] name = new byte[read.getShort()];
     read.get(name);
     final String authorizationName = new String(name, StandardCharsets.US_ASCII);
     assertEquals(COOKIE_NAME, authorizationName);
+
     final byte[] cookie = new byte[read.getShort()];
     read.get(cookie);
     assertArrayEquals(COOKIE, cookie);
+
     final boolean hasTrailingBytes = read.hasRemaining();
     assertFalse(hasTrailingBytes);
   }
@@ -923,6 +1022,7 @@ class NullDisplayTest {
     try (final FileSystem zip = FileSystems.newFileSystem(archive, Map.of("create", "true"))) {
       final boolean supportsPosix = zip.supportedFileAttributeViews().contains("posix");
       assertFalse(supportsPosix);
+
       final Path authority = zip.getPath("/Xauthority");
       NullDisplay.writeAuthority(authority, COOKIE);
       final byte[] authorityEntry = Files.readAllBytes(authority);
@@ -945,6 +1045,7 @@ class NullDisplayTest {
   void shouldNameADisplayForChromiumAndGiveNoDisplayNoName(@TempDir final Path directory) throws IOException {
     final @Nullable String nameOfNone = NullDisplay.nameOf(null);
     assertNull(nameOfNone);
+
     try (final NullDisplay display = NullDisplay.start(directory.resolve(AUTHORITY_FILE))) {
       final @Nullable String displayName = NullDisplay.nameOf(display);
       assertEquals(display.getDisplay(), displayName);
@@ -994,6 +1095,7 @@ class NullDisplayTest {
         input.readFully(new byte[NullDisplay.createSetupReply(ByteOrder.LITTLE_ENDIAN).limit()]);
         final int nextByte = silent.getInputStream().read();
         assertEquals(-1, nextByte, "the display ends a connection that never introduced itself");
+
         Thread.sleep(600L);
         introduced.getOutputStream().write(this.internAtom(ByteOrder.LITTLE_ENDIAN, "CLIPBOARD"));
         final byte[] atom = new byte[32];

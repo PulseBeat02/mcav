@@ -105,11 +105,14 @@ final class ArchiveExtractorFuzzTest {
     for (final Path path : all) {
       final boolean symbolicLink = Files.isSymbolicLink(path);
       assertFalse(symbolicLink, () -> "a link: " + path);
+
       final boolean insideTarget = path.equals(root) || path.startsWith(target);
       assertTrue(insideTarget, () -> "outside the target: " + path);
+
       final boolean regular = Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS);
       final boolean fileOrFolder = regular || Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS);
       assertTrue(fileOrFolder, () -> "neither file nor folder: " + path);
+
       if (regular) {
         bytes += Files.size(path);
       }

@@ -62,14 +62,19 @@ final class HelperProtocolFuzzTest {
         final FrameRegion region = message.getRegion();
         final boolean fitsHorizontally = region.getX() + region.getWidth() <= region.getPageWidth();
         assertTrue(fitsHorizontally, "the region fits the page horizontally");
+
         final boolean fitsVertically = region.getY() + region.getHeight() <= region.getPageHeight();
         assertTrue(fitsVertically, "the region fits the page vertically");
+
         final boolean sizesInRange = region.getWidth() >= 1 && region.getPageWidth() <= HelperProtocol.MAXIMUM_SIDE;
         assertTrue(sizesInRange, "the sizes are in range");
+
         final boolean regionHeightInRange = region.getHeight() >= 1 && region.getHeight() <= HelperProtocol.MAXIMUM_SIDE;
         assertTrue(regionHeightInRange, "the region height is in range");
+
         final boolean pageHeightInRange = region.getPageHeight() >= 1 && region.getPageHeight() <= HelperProtocol.MAXIMUM_SIDE;
         assertTrue(pageHeightInRange, "the page height is in range");
+
         final boolean widthsInRange = region.getPageWidth() >= 1 && region.getWidth() <= HelperProtocol.MAXIMUM_SIDE;
         assertTrue(widthsInRange, "the widths are in range");
       }
@@ -77,6 +82,7 @@ final class HelperProtocolFuzzTest {
         final int length = message.getSamples().length;
         final boolean soundWithinLimit = length > 0 && length <= HelperProtocol.MAXIMUM_AUDIO_BYTES;
         assertTrue(soundWithinLimit, "the sound is within its limit");
+
         final boolean wholeFrames = length % HelperProtocol.AUDIO_FRAME_BYTES == 0;
         assertTrue(wholeFrames, "the sound holds whole frames");
       }
@@ -88,6 +94,7 @@ final class HelperProtocolFuzzTest {
       default -> {
         final boolean knownType = type >= HelperProtocol.HELLO && type <= HelperProtocol.CLOSE;
         assertTrue(knownType, () -> "type " + type);
+
         final boolean definedType = Set.of(1, 4, 5, 16, 18).contains(type);
         assertTrue(definedType, () -> "undefined message type " + type);
       }
