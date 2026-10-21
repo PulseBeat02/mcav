@@ -315,7 +315,8 @@ final class HelperSession implements BrowserSession {
   @VisibleForTesting
   static Path createFolder(final Path temporary, final Supplier<String> names) {
     final FileSystem fileSystem = temporary.getFileSystem();
-    final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW);
+    final Set<String> views = fileSystem.supportedFileAttributeViews();
+    final boolean supportsPosix = views.contains(POSIX_ATTRIBUTE_VIEW);
     final FileAttribute<?>[] attributes = supportsPosix
       ? new FileAttribute<?>[] { PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString(OWNER_ONLY_PERMISSIONS)) }
       : new FileAttribute<?>[0];
@@ -401,7 +402,8 @@ final class HelperSession implements BrowserSession {
   ) throws IOException {
     while (true) {
       // an interrupted select returns silently, so the interrupt of a release is checked here
-      if (Thread.currentThread().isInterrupted()) {
+      final Thread current = Thread.currentThread();
+      if (current.isInterrupted()) {
         final String message = "Interrupted while the browser helper connected!";
         throw new BrowserException(message);
       }

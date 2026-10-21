@@ -21,6 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.lang.management.RuntimeMXBean;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -77,7 +78,9 @@ final class ChromiumConfinement {
     readable.add(Path.of(System.getProperty("java.home")));
     readable.add(configuration.getNatives());
     readable.addAll(pathsOf(System.getProperty("java.class.path")));
-    readable.addAll(agentsOf(ManagementFactory.getRuntimeMXBean().getInputArguments()));
+    final RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
+    final List<String> inputArguments = runtime.getInputArguments();
+    readable.addAll(agentsOf(inputArguments));
 
     if (system == OperatingSystem.MAC) {
       if (!seatbelt.isAvailable()) {

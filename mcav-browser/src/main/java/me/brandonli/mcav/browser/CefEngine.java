@@ -22,6 +22,7 @@ import java.awt.EventQueue;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -206,7 +207,8 @@ final class CefEngine implements HelperEngine {
     builder.setSkipInstallation(true);
     builder.setProgressHandler((state, percent) -> {});
     final int guardPort = this.startGuard(configuration, events);
-    final Path authority = configuration.getSocket().resolveSibling(NullDisplay.AUTHORITY_FILE);
+    final Path socket = configuration.getSocket();
+    final Path authority = socket.resolveSibling(NullDisplay.AUTHORITY_FILE);
     final NullDisplay startedDisplay = startDisplay(system, authority);
     this.display = startedDisplay;
     final List<String> switches = createSwitches(configuration, system, guardPort, NullDisplay.nameOf(startedDisplay));
@@ -261,7 +263,8 @@ final class CefEngine implements HelperEngine {
     final String versionText = describe(created.getVersion());
     final CefClient createdClient = created.createClient();
     this.client = createdClient;
-    final String url = configuration.getUrl().toString();
+    final URI address = configuration.getUrl();
+    final String url = address.toString();
     final PageAudio audio = new PageAudio(events::onAudio, System::nanoTime);
     final ContentPolicy policy = new ContentPolicy(events, versionText, prepared -> this.openPreparedPage(prepared, url, audio, events));
     this.addHandlers(createdClient, policy);

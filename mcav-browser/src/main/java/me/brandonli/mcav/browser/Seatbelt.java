@@ -89,7 +89,8 @@ final class Seatbelt {
       }
 
       // the library hands over a C string of its own, which is given back to it once read
-      final String reason = nativeReason.reinterpret(Long.MAX_VALUE).getString(0);
+      final MemorySegment reasonText = nativeReason.reinterpret(Long.MAX_VALUE);
+      final String reason = reasonText.getString(0);
       call(freeCall, nativeReason);
       final String message = "Seatbelt refused the profile (%s)!".formatted(reason);
       throw new IOException(message);

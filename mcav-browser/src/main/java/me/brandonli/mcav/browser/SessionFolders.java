@@ -21,6 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
+import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -30,6 +31,7 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.LongFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -83,7 +85,8 @@ final class SessionFolders {
 
   // a server of unknown start could not be told apart from a later process with its id
   void record(final Path folder) {
-    final @Nullable Instant started = this.owner.info().startInstant().orElse(null);
+    final ProcessHandle.Info information = this.owner.info();
+    final @Nullable Instant started = information.startInstant().orElse(null);
     if (started == null) {
       LOGGER.debug(NOT_RECORDED, folder);
       return;
@@ -151,12 +154,15 @@ final class SessionFolders {
   }
 
   private boolean isOwnFolder(final Path folder) throws IOException {
-    final boolean posix = folder.getFileSystem().supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW);
+    final FileSystem fileSystem = folder.getFileSystem();
+    final Set<String> views = fileSystem.supportedFileAttributeViews();
+    final boolean posix = views.contains(POSIX_ATTRIBUTE_VIEW);
     if (!posix) {
       return true;
     }
 
-    final Optional<String> user = this.owner.info().user();
+    final ProcessHandle.Info information = this.owner.info();
+    final Optional<String> user = information.user();
     final UserPrincipal folderOwner = Files.getOwner(folder, LinkOption.NOFOLLOW_LINKS);
     final String folderOwnerName = folderOwner.getName();
     return user.equals(Optional.of(folderOwnerName));

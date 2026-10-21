@@ -391,7 +391,8 @@ final class NullDisplay implements AutoCloseable {
   static void writeAuthority(final Path authority, final byte[] cookie) throws IOException {
     final byte[] entry = createAuthorityEntry(cookie);
     final FileSystem fileSystem = authority.getFileSystem();
-    final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW);
+    final Set<String> views = fileSystem.supportedFileAttributeViews();
+    final boolean supportsPosix = views.contains(POSIX_ATTRIBUTE_VIEW);
     if (supportsPosix) {
       Files.createFile(authority, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString(OWNER_ONLY_PERMISSIONS)));
     } else {
@@ -502,7 +503,8 @@ final class NullDisplay implements AutoCloseable {
       final int data = input.readUnsignedByte();
       final byte[] lengthBytes = new byte[Short.BYTES];
       input.readFully(lengthBytes);
-      final int units = ByteBuffer.wrap(lengthBytes).order(order).getShort() & UNSIGNED_SHORT_MASK;
+      final ByteBuffer lengthBuffer = ByteBuffer.wrap(lengthBytes).order(order);
+      final int units = lengthBuffer.getShort() & UNSIGNED_SHORT_MASK;
       if (units == 0 || units > MAXIMUM_REQUEST_UNITS) {
         // no BIG-REQUESTS extension, so no longer requests
         final String message = "A request of %s units must have 1 to %s units!".formatted(units, MAXIMUM_REQUEST_UNITS);

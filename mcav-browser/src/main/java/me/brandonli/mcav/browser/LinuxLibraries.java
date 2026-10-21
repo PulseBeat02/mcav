@@ -189,7 +189,8 @@ final class LinuxLibraries {
         continue;
       }
       final List<String> fields = List.of(FIELD_SEPARATOR.split(trimmed));
-      if (fields.getFirst().equals(HOST_KEYWORD)) {
+      final String firstField = fields.getFirst();
+      if (firstField.equals(HOST_KEYWORD)) {
         this.putHostLibraries(host, fields, line);
       } else {
         parsed.add(Pin.parse(fields, line));
@@ -256,7 +257,8 @@ final class LinuxLibraries {
   List<Pin> getPins(final String platform) {
     final List<Pin> matching = new ArrayList<>();
     for (final Pin pin : this.pins) {
-      if (pin.platform().equals(platform)) {
+      final String pinPlatform = pin.platform();
+      if (pinPlatform.equals(platform)) {
         matching.add(pin);
       }
     }
@@ -337,9 +339,10 @@ final class LinuxLibraries {
 
   private void download(final Pin pin, final Path destination) throws IOException {
     Exception failure = null;
-    final List<String> bases = pin.pool().startsWith(SECURITY_POOL) ? this.securityMirrors : this.mirrors;
+    final String pool = pin.pool();
+    final List<String> bases = pool.startsWith(SECURITY_POOL) ? this.securityMirrors : this.mirrors;
     for (final String mirror : bases) {
-      final URI uri = URI.create(mirror + pin.pool());
+      final URI uri = URI.create(mirror + pool);
       try {
         this.downloader.download(uri, destination, pin.sha256(), pin.size());
         return;
@@ -415,7 +418,9 @@ final class LinuxLibraries {
 
     final List<Pin> missing = new ArrayList<>();
     for (final Pin pin : this.getPins(platform)) {
-      if (!isPresent(pin.sonames().getFirst(), hostFolders, platform)) {
+      final List<String> sonames = pin.sonames();
+      final String soname = sonames.getFirst();
+      if (!isPresent(soname, hostFolders, platform)) {
         missing.add(pin);
       }
     }

@@ -104,7 +104,8 @@ final class ArchiveExtractor {
 
   private static PosixPermissions permissionsOf(final Path path) {
     final FileSystem fileSystem = path.getFileSystem();
-    final boolean supportsPosix = fileSystem.supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW);
+    final Set<String> views = fileSystem.supportedFileAttributeViews();
+    final boolean supportsPosix = views.contains(POSIX_ATTRIBUTE_VIEW);
     return supportsPosix ? PosixPermissions.SET : PosixPermissions.SKIPPED;
   }
 
@@ -156,9 +157,10 @@ final class ArchiveExtractor {
       throw new IOException(message);
     }
 
+    final FileSystem fileSystem = root.getFileSystem();
     final Path relative;
     try {
-      relative = root.getFileSystem().getPath(name);
+      relative = fileSystem.getPath(name);
     } catch (final InvalidPathException exception) {
       final String message = NAME_NOT_ALLOWED.formatted(name);
       throw new IOException(message, exception);
@@ -171,7 +173,8 @@ final class ArchiveExtractor {
 
     Path current = root;
     for (final Path element : relative) {
-      if (element.toString().equals(PARENT_FOLDER)) {
+      final String elementName = element.toString();
+      if (elementName.equals(PARENT_FOLDER)) {
         final String message = "Archive entry name %s leaves the folder!".formatted(name);
         throw new IOException(message);
       }

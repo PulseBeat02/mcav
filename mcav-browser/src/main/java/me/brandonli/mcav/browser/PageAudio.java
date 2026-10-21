@@ -394,9 +394,10 @@ final class PageAudio implements CefDevToolsClient.EventListener {
       return null;
     }
 
+    final Base64.Decoder decoder = Base64.getDecoder();
     final byte[] samples;
     try {
-      samples = Base64.getDecoder().decode(parameters.substring(start, end));
+      samples = decoder.decode(parameters.substring(start, end));
     } catch (final IllegalArgumentException exception) {
       return null;
     }

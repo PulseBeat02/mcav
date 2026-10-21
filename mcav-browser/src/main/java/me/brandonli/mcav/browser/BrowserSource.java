@@ -95,7 +95,8 @@ public interface BrowserSource extends UriSource {
       uri
     );
     Preconditions.checkArgument(NavigationPolicy.isWebAddress(uri), "Address %s must be an http or https address for the browser!", uri);
-    final int length = uri.toString().length();
+    final String address = uri.toString();
+    final int length = address.length();
     Preconditions.checkArgument(
       length <= MAXIMUM_ADDRESS_LENGTH,
       "Address length %s must be at most %s characters!",
