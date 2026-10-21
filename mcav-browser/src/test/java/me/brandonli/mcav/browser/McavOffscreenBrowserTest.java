@@ -170,7 +170,7 @@ class McavOffscreenBrowserTest {
 
   private static final class RecordingPainter implements McavOffscreenBrowser.PaintListener {
 
-    final List<String> log = new ArrayList<>();
+    private final List<String> log = new ArrayList<>();
 
     @Override
     public void onPaint(

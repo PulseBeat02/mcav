@@ -103,7 +103,7 @@ class LinuxLibrariesTest {
   private static final Pattern FINGERPRINT = Pattern.compile("[0-9a-f]{12}");
 
   @TempDir
-  Path folder;
+  private Path folder;
 
   private final List<URI> downloads = new CopyOnWriteArrayList<>();
 

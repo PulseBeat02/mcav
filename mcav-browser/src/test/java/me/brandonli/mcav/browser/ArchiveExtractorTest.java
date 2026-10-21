@@ -58,7 +58,7 @@ class ArchiveExtractorTest {
   private static final String LOCALES_FOLDER = "locales";
 
   @TempDir
-  Path target;
+  private Path target;
 
   @Test
   void shouldExtractFilesAndFolders() throws IOException {

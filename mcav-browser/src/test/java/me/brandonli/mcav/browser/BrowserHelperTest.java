@@ -79,7 +79,7 @@ class BrowserHelperTest {
   private static final long RESULT_TIMEOUT_SECONDS = 10L;
 
   @TempDir
-  Path folder;
+  private Path folder;
 
   private final PipedWriter standardInput = new PipedWriter();
   private ServerSocketChannel server;

@@ -68,7 +68,7 @@ class HelperLauncherTest {
   private static final Path OTHER_SESSION_FOLDER = Path.of("/tmp/x");
 
   @TempDir
-  Path folder;
+  private Path folder;
 
   private HelperLauncher launcher(final Os os, final Map<String, String> environment) {
     return new HelperLauncher(JAVA, HelperLauncher.MAIN_CLASS, CLASS_PATH, List.of("-javaagent:/agent.jar"), os, environment, 5_000L);

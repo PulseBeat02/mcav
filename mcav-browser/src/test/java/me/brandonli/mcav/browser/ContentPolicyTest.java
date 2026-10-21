@@ -477,7 +477,7 @@ class ContentPolicyTest {
 
   static final class RecordingEvents implements HelperEvents {
 
-    final List<String> log = new ArrayList<>();
+    private final List<String> log = new ArrayList<>();
 
     @Override
     public void onReady(final String engineVersion) {
@@ -512,6 +512,10 @@ class ContentPolicyTest {
     @Override
     public void onAudio(final byte[] samples) {
       this.log.add("audio: " + samples.length);
+    }
+
+    List<String> getLog() {
+      return this.log;
     }
   }
 }

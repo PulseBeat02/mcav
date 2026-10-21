@@ -96,7 +96,7 @@ class JcefNativesTest {
   private static final long MAXIMUM_INSTALL_MILLISECONDS = 600_000L;
 
   @TempDir
-  Path folder;
+  private Path folder;
 
   private final AtomicInteger downloads = new AtomicInteger();
   private final List<URI> requested = new ArrayList<>();

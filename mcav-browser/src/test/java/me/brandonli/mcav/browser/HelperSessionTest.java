@@ -1358,11 +1358,11 @@ class HelperSessionTest {
 
   static final class RecordingListener implements BrowserSession.Listener {
 
-    final List<ImageBuffer> frames = new CopyOnWriteArrayList<>();
-    final List<byte[]> sound = new CopyOnWriteArrayList<>();
+    private final List<ImageBuffer> frames = new CopyOnWriteArrayList<>();
+    private final List<byte[]> sound = new CopyOnWriteArrayList<>();
     private final List<Long> frameNanoseconds = new CopyOnWriteArrayList<>();
-    final List<String> ended = new CopyOnWriteArrayList<>();
-    final List<Throwable> failures = new CopyOnWriteArrayList<>();
+    private final List<String> ended = new CopyOnWriteArrayList<>();
+    private final List<Throwable> failures = new CopyOnWriteArrayList<>();
 
     private List<Integer> inputCounts() {
       final List<Integer> counts = new ArrayList<>();

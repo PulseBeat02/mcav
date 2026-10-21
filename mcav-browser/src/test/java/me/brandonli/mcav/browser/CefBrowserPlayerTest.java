@@ -995,10 +995,11 @@ class CefBrowserPlayerTest {
 
   private static final class FakeSession implements BrowserSession {
 
-    final List<String> sent = new ArrayList<>();
-    boolean accepting = true;
-    int requested;
-    int closed;
+    private final List<String> sent = new ArrayList<>();
+
+    private boolean accepting = true;
+    private int requested;
+    private int closed;
 
     @Override
     public boolean sendMouse(final MouseInput mouse) {

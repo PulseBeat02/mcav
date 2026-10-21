@@ -54,7 +54,8 @@ final class ContentPolicyFuzzTest {
 
     this.assertOpenedOnlyWhenAllowed(browser, address);
 
-    final int notices = events.log.size();
+    final List<String> log = events.getLog();
+    final int notices = log.size();
     assertEquals(ONE_NOTICE, notices, address);
   }
 

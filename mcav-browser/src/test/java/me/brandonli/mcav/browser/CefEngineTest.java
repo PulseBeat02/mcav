@@ -294,7 +294,9 @@ class CefEngineTest {
     new CefEngine.StateListener(failed, events).stateHasChanged(CefApp.CefAppState.INITIALIZATION_FAILED);
     final long failedCount = failed.getCount();
     assertEquals(0, failedCount);
-    assertEquals(List.of("failure: CEF failed to initialize"), events.log);
+
+    final List<String> log = events.getLog();
+    assertEquals(List.of("failure: CEF failed to initialize"), log);
   }
 
   @Test

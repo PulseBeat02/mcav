@@ -77,7 +77,7 @@ class NullDisplayTest {
   private static final int PREDEFINED_ATOM_BYTES = 698;
 
   @TempDir
-  Path folder;
+  private Path folder;
 
   static byte[] setup(final ByteOrder order, final int major, final String name, final byte[] data) {
     final byte[] nameBytes = name.getBytes(StandardCharsets.US_ASCII);
