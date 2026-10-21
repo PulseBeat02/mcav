@@ -265,7 +265,8 @@ final class CefEngine implements HelperEngine {
   ) throws Exception {
     final CefApp created = builder.build();
     this.application = created;
-    final String versionText = describe(created.getVersion());
+    final CefApp.@Nullable CefVersion version = created.getVersion();
+    final String versionText = describe(version);
     final CefClient createdClient = created.createClient();
     this.client = createdClient;
     final URI address = configuration.getUrl();
@@ -303,7 +304,8 @@ final class CefEngine implements HelperEngine {
       return 0;
     }
 
-    final NetworkGuard startedGuard = NetworkGuard.start(events::onNotice, configuration.getRefusedHosts());
+    final List<String> refusedHosts = configuration.getRefusedHosts();
+    final NetworkGuard startedGuard = NetworkGuard.start(events::onNotice, refusedHosts);
     this.guard = startedGuard;
 
     return startedGuard.getPort();
@@ -359,7 +361,9 @@ final class CefEngine implements HelperEngine {
     calls.addAll(PageAudio.install());
     CompletableFuture<String> last = CompletableFuture.completedFuture("");
     for (final DevToolsInput.DevToolsCall call : calls) {
-      last = devTools.executeDevToolsMethod(call.getMethod(), call.getParameters());
+      final String method = call.getMethod();
+      final String parameters = call.getParameters();
+      last = devTools.executeDevToolsMethod(method, parameters);
       last.exceptionally(CefEngine::logFailedCall);
     }
     // a copy times out, so the answer itself can still arrive late

@@ -70,12 +70,15 @@ final class ChromiumConfinement {
       return NOT_ASKED;
     }
 
-    final Path session = parentOf(configuration.getSocket());
+    final Path socket = configuration.getSocket();
+    final Path session = parentOf(socket);
     final Path home = Path.of(System.getProperty("user.home"));
-    final List<Path> hidden = List.of(configuration.getServerFolder(), home, parentOf(session));
+    final Path serverFolder = configuration.getServerFolder();
+    final List<Path> hidden = List.of(serverFolder, home, parentOf(session));
     final List<Path> readable = new ArrayList<>();
     readable.add(Path.of(System.getProperty("java.home")));
-    readable.add(configuration.getNatives());
+    final Path natives = configuration.getNatives();
+    readable.add(natives);
     readable.addAll(pathsOf(System.getProperty("java.class.path")));
     final RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
     final List<String> inputArguments = runtime.getInputArguments();

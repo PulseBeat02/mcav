@@ -141,7 +141,8 @@ public final class BrowserHelper {
 
       configuration = HelperConfiguration.fromLine(line);
     } catch (final IOException | IllegalArgumentException exception) {
-      System.err.println("The browser helper got an invalid configuration (%s).".formatted(exception.getMessage()));
+      final @Nullable String reason = exception.getMessage();
+      System.err.println("The browser helper got an invalid configuration (%s).".formatted(reason));
 
       return EXIT_BAD_CONFIGURATION;
     }
@@ -182,7 +183,8 @@ public final class BrowserHelper {
       this.startDaemon("mcav-browser-helper-frames", () -> this.sendFrames(output));
       return this.serve(reporter);
     } catch (final IOException exception) {
-      System.err.println("The browser helper cannot reach the server (%s).".formatted(exception.getMessage()));
+      final @Nullable String reason = exception.getMessage();
+      System.err.println("The browser helper cannot reach the server (%s).".formatted(reason));
 
       return EXIT_FAILURE;
     }
@@ -251,7 +253,8 @@ public final class BrowserHelper {
     } catch (final EOFException exception) {
       this.stop("the server closed the connection");
     } catch (final IOException exception) {
-      this.stop("the connection failed (%s)".formatted(exception.getMessage()));
+      final @Nullable String reason = exception.getMessage();
+      this.stop("the connection failed (%s)".formatted(reason));
     }
   }
 
@@ -312,7 +315,8 @@ public final class BrowserHelper {
       final Thread thread = Thread.currentThread();
       thread.interrupt();
     } catch (final IOException exception) {
-      this.stop("a frame could not be sent (%s)".formatted(exception.getMessage()));
+      final @Nullable String reason = exception.getMessage();
+      this.stop("a frame could not be sent (%s)".formatted(reason));
     }
   }
 
@@ -405,7 +409,8 @@ public final class BrowserHelper {
           this.output.flush();
         }
       } catch (final IOException exception) {
-        BrowserHelper.this.stop("a message could not be sent (%s)".formatted(exception.getMessage()));
+        final @Nullable String reason = exception.getMessage();
+        BrowserHelper.this.stop("a message could not be sent (%s)".formatted(reason));
       }
     }
 

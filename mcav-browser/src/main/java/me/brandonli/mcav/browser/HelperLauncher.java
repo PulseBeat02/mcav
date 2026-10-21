@@ -127,7 +127,8 @@ final class HelperLauncher {
     final CodeSource source = domain.getCodeSource();
     final URL location = source == null ? null : source.getLocation();
     if (location == null) {
-      final String message = "The browser helper cannot find where %s was loaded from!".formatted(type.getName());
+      final String className = type.getName();
+      final String message = "The browser helper cannot find where %s was loaded from!".formatted(className);
       throw new BrowserException(message);
     }
 

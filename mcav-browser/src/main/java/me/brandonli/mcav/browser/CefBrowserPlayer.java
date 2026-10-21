@@ -447,9 +447,11 @@ final class CefBrowserPlayer implements BrowserPlayer {
       final HelperLauncher current;
       try {
         installation = this.natives.install();
-        current = withLibraries(this.getLauncher(), this.libraries);
+        final HelperLauncher base = this.getLauncher();
+        current = withLibraries(base, this.libraries);
       } catch (final IOException | DownloadException | FileOperationException exception) {
-        final String message = "The browser cannot be installed (%s)!".formatted(exception.getMessage());
+        final @Nullable String reason = exception.getMessage();
+        final String message = "The browser cannot be installed (%s)!".formatted(reason);
         throw new BrowserUnavailableException(message, exception);
       }
 
@@ -467,7 +469,8 @@ final class CefBrowserPlayer implements BrowserPlayer {
 
     @VisibleForTesting
     static HelperLauncher withLibraries(final HelperLauncher base, final LinuxLibraries libraries, final Path root) throws IOException {
-      LinuxLibraries.requireJawt(base.getJava());
+      final Path java = base.getJava();
+      LinuxLibraries.requireJawt(java);
       final JcefNatives.NativePlatform platform = JcefNatives.detectCurrent();
       final String identifier = platform.getIdentifier();
       final List<Path> folders = LinuxLibraries.hostFolders(root, identifier);

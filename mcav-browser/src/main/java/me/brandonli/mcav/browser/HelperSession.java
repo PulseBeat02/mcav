@@ -204,7 +204,8 @@ final class HelperSession implements BrowserSession {
     HelperSession session = null;
     SocketChannel pendingChannel = null;
     try (final ServerSocketChannel server = bind(socket)) {
-      requireShortEnough(launcher.getOs(), folder);
+      final Os os = launcher.getOs();
+      requireShortEnough(os, folder);
       final Path libraries = launcher.linkLibraries(folder);
       final URI uri = source.getUri();
       final HelperConfiguration configuration = configure(token, socket, natives, folder.resolve(PROFILE_FOLDER), uri, source, options);
@@ -215,7 +216,9 @@ final class HelperSession implements BrowserSession {
       final SocketChannel channel = accept(server, process, deadline);
       pendingChannel = channel;
       Files.deleteIfExists(socket);
-      final FrameCanvas canvas = new FrameCanvas(source.getWidth(), source.getHeight());
+      final int width = source.getWidth();
+      final int height = source.getHeight();
+      final FrameCanvas canvas = new FrameCanvas(width, height);
       session = new HelperSession(folder, process, standardInput, channel, canvas, listener);
       pendingChannel = null;
       if (!HelperProcesses.register(session, generation)) {
@@ -228,7 +231,8 @@ final class HelperSession implements BrowserSession {
       return session;
     } catch (final IOException exception) {
       closeAfterFailure(session, process, pendingChannel, folder);
-      final String message = "The browser helper could not be started (%s)!".formatted(exception.getMessage());
+      final @Nullable String reason = exception.getMessage();
+      final String message = "The browser helper could not be started (%s)!".formatted(reason);
       throw new BrowserException(message, exception);
     } catch (final RuntimeException | Error exception) {
       closeAfterFailure(session, process, pendingChannel, folder);
@@ -243,9 +247,10 @@ final class HelperSession implements BrowserSession {
     if (os == Os.LINUX && path.length() + CHROMIUM_SOCKET_TAIL > MAXIMUM_SOCKET_PATH) {
       final int longest =
         MAXIMUM_SOCKET_PATH - CHROMIUM_SOCKET_TAIL - 1 - SessionFolders.PREFIX.length() - SessionFolders.RANDOM_CHARACTERS;
+      final @Nullable Path temporaryFolder = folder.getParent();
       final String message =
         "The temporary folder %s is too long for the browser: on Linux it may have at most %s characters, so start the server with a shorter java.io.tmpdir (such as /tmp)!".formatted(
-          folder.getParent(),
+          temporaryFolder,
           longest
         );
       throw new BrowserException(message);
@@ -261,22 +266,32 @@ final class HelperSession implements BrowserSession {
     final BrowserSource source,
     final BrowserOptions options
   ) {
+    final int width = source.getWidth();
+    final int height = source.getHeight();
+    final int frameInterval = source.getFrameInterval();
+    final int frameRate = options.getFrameRate();
+    final boolean allowsJavaScriptJit = options.isJavaScriptJit();
+    final boolean allowsPrivateNetworks = options.isPrivateNetworks();
+    final boolean allowsAutoplay = options.isAutoplay();
+    final boolean confined = options.isConfined();
+    final Path serverFolder = Path.of(System.getProperty("user.dir")).toAbsolutePath();
+    final List<String> refusedHosts = options.getRefusedHosts();
     return new HelperConfiguration(
       token,
       socket,
       natives,
       profile,
       uri,
-      source.getWidth(),
-      source.getHeight(),
-      source.getFrameInterval(),
-      options.getFrameRate(),
-      options.isJavaScriptJit(),
-      options.isPrivateNetworks(),
-      options.isAutoplay(),
-      options.isConfined(),
-      Path.of(System.getProperty("user.dir")).toAbsolutePath(),
-      options.getRefusedHosts()
+      width,
+      height,
+      frameInterval,
+      frameRate,
+      allowsJavaScriptJit,
+      allowsPrivateNetworks,
+      allowsAutoplay,
+      confined,
+      serverFolder,
+      refusedHosts
     );
   }
 
@@ -306,7 +321,8 @@ final class HelperSession implements BrowserSession {
     }
 
     if (process != null) {
-      closeQuietly(process.getOutputStream());
+      final OutputStream processInput = process.getOutputStream();
+      closeQuietly(processInput);
       stopProcess(process);
     }
 
@@ -329,7 +345,8 @@ final class HelperSession implements BrowserSession {
     try {
       return createFolderUnderDrawnName(temporary, names, attributes);
     } catch (final IOException exception) {
-      final String message = "The folder of the browser session cannot be created (%s)!".formatted(exception.getMessage());
+      final @Nullable String reason = exception.getMessage();
+      final String message = "The folder of the browser session cannot be created (%s)!".formatted(reason);
       throw new BrowserException(message, exception);
     }
   }
@@ -474,7 +491,8 @@ final class HelperSession implements BrowserSession {
         LOGGER.warn("The browser helper wrote these lines before its start failed.{}{}", System.lineSeparator(), tail);
       }
       final String address = AddressText.describe(uri.toString());
-      final String message = "The browser could not open %s (%s)!".formatted(address, cause.getMessage());
+      final @Nullable String reason = cause.getMessage();
+      final String message = "The browser could not open %s (%s)!".formatted(address, reason);
       throw new BrowserException(message, cause);
     } catch (final TimeoutException exception) {
       final String tail = this.getOutputTail();
@@ -498,8 +516,9 @@ final class HelperSession implements BrowserSession {
     } catch (final EOFException exception) {
       this.end(this.describeEnd("The browser helper closed the connection!"), null);
     } catch (final IOException exception) {
-      final String reason = "The connection to the browser helper failed (%s)!".formatted(exception.getMessage());
-      this.end(this.describeEnd(reason), exception);
+      final @Nullable String reason = exception.getMessage();
+      final String message = "The connection to the browser helper failed (%s)!".formatted(reason);
+      this.end(this.describeEnd(message), exception);
     }
   }
 
@@ -565,18 +584,23 @@ final class HelperSession implements BrowserSession {
         this.canvas.apply(region);
         this.onFrame();
       }
-      case HelperProtocol.AUDIO -> this.listener.onAudio(message.getSamples());
+      case HelperProtocol.AUDIO -> {
+        final byte[] samples = message.getSamples();
+        this.listener.onAudio(samples);
+      }
       case HelperProtocol.READY -> {
-        LOGGER.debug("CEF {} runs in the browser helper.", message.getText());
+        final String version = message.getText();
+        LOGGER.debug("CEF {} runs in the browser helper.", version);
         this.onStartEvent(StartEvent.READY);
       }
       case HelperProtocol.LOADING -> this.onLoading(message);
       case HelperProtocol.LOAD_ERROR -> {
         final String text = message.getText();
+        final String url = message.getUrl();
         // the helper is untrusted, so the address is checked again
-        final String url = AddressText.describe(message.getUrl());
+        final String address = AddressText.describe(url);
         final int code = message.getNumber();
-        this.logBudget.log(() -> LOGGER.warn("Page {} failed to load with error {} ({}).", url, text, code), this::logSkipped);
+        this.logBudget.log(() -> LOGGER.warn("Page {} failed to load with error {} ({}).", address, text, code), this::logSkipped);
         final String reason = "The page failed to load with error %s (%s)!".formatted(text, code);
         final BrowserException failure = new BrowserException(reason);
         this.started.completeExceptionally(failure);
@@ -791,8 +815,9 @@ final class HelperSession implements BrowserSession {
         this.output.flush();
       }
     } catch (final IOException exception) {
-      final String reason = "Input could not be sent to the browser helper (%s)!".formatted(exception.getMessage());
-      this.end(reason, exception);
+      final @Nullable String reason = exception.getMessage();
+      final String message = "Input could not be sent to the browser helper (%s)!".formatted(reason);
+      this.end(message, exception);
     }
   }
 
@@ -880,7 +905,8 @@ final class HelperSession implements BrowserSession {
     try {
       IoUtils.deleteRecursively(folder);
     } catch (final FileOperationException exception) {
-      LOGGER.warn("The folder of the browser session {} could not be removed ({}).", folder, exception.getMessage());
+      final @Nullable String reason = exception.getMessage();
+      LOGGER.warn("The folder of the browser session {} could not be removed ({}).", folder, reason);
     }
   }
 

@@ -111,7 +111,8 @@ final class AddressPolicy {
       if (!prefix.contains(bytes)) {
         continue;
       }
-      if (!isPublicIpv4(embeddedIpv4(bytes, prefix.getLength()))) {
+      final int length = prefix.getLength();
+      if (!isPublicIpv4(embeddedIpv4(bytes, length))) {
         return false;
       }
       translated = true;

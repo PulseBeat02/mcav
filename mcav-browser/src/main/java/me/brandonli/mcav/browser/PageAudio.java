@@ -328,7 +328,8 @@ final class PageAudio implements CefDevToolsClient.EventListener {
   }
 
   private synchronized boolean mayTake(final long bytes) {
-    this.refill(this.clock.getAsLong());
+    final long now = this.clock.getAsLong();
+    this.refill(now);
 
     return bytes <= this.available;
   }

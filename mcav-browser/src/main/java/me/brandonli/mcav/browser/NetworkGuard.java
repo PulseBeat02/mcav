@@ -159,7 +159,8 @@ final class NetworkGuard implements Closeable {
 
   private void reportStopUnlessClosed(final IOException exception) {
     if (!this.closed) {
-      this.notices.accept("The network guard stopped (%s).".formatted(exception.getMessage()));
+      final @Nullable String reason = exception.getMessage();
+      this.notices.accept("The network guard stopped (%s).".formatted(reason));
     }
   }
 
@@ -193,7 +194,8 @@ final class NetworkGuard implements Closeable {
       try {
         request = SocksProtocol.readRequest(input);
       } catch (final SocksProtocol.Refusal exception) {
-        SocksProtocol.writeReply(output, exception.getReply());
+        final int reply = exception.getReply();
+        SocksProtocol.writeReply(output, reply);
         return;
       }
       deadline.cancel(false);
@@ -236,7 +238,8 @@ final class NetworkGuard implements Closeable {
         continue;
       }
       try {
-        return this.connector.connect(new InetSocketAddress(address, request.getPort()));
+        final int port = request.getPort();
+        return this.connector.connect(new InetSocketAddress(address, port));
       } catch (final IOException exception) {
         failure = exception;
       }

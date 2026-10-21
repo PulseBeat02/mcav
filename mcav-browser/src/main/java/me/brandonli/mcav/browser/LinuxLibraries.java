@@ -379,7 +379,8 @@ final class LinuxLibraries {
       DebianPackageExtractor.extract(debianPackage, unpacked);
       copyLibraries(debianPackage, files, unpacked, target);
     } catch (final InstallationException exception) {
-      throw new IOException(exception.getMessage(), exception);
+      final @Nullable String message = exception.getMessage();
+      throw new IOException(message, exception);
     } finally {
       IoUtils.deleteRecursively(unpacked);
     }
@@ -389,17 +390,20 @@ final class LinuxLibraries {
     throws IOException {
     final Set<String> missing = new LinkedHashSet<>();
     for (final Map.Entry<String, String> file : files.entrySet()) {
-      final Path library = unpacked.resolve(file.getKey());
+      final String path = file.getKey();
+      final Path library = unpacked.resolve(path);
       // a link is no library
       if (!Files.isRegularFile(library, LinkOption.NOFOLLOW_LINKS)) {
-        missing.add(file.getKey());
+        missing.add(path);
         continue;
       }
-      writeLibrary(library, target.resolve(file.getValue()));
+      final String soname = file.getValue();
+      writeLibrary(library, target.resolve(soname));
     }
 
     if (!missing.isEmpty()) {
-      final String message = "The package %s holds none of %s!".formatted(debianPackage.getFileName(), missing);
+      final @Nullable Path packageName = debianPackage.getFileName();
+      final String message = "The package %s holds none of %s!".formatted(packageName, missing);
       throw new IOException(message);
     }
   }

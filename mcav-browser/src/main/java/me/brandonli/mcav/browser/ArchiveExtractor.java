@@ -119,12 +119,13 @@ final class ArchiveExtractor {
         final String message = "The archive has more than %s entries!".formatted(this.maximumEntries);
         throw new IOException(message);
       }
+      final String name = entry.getName();
       // the library counts links and special files as files, so their type is checked first
       if (this.isLinkOrSpecial(entry)) {
-        final String message = "Archive entry %s is not a plain file or folder!".formatted(entry.getName());
+        final String message = "Archive entry %s is not a plain file or folder!".formatted(name);
         throw new IOException(message);
       }
-      final Path destination = resolve(root, entry.getName());
+      final Path destination = resolve(root, name);
       if (entry.isDirectory()) {
         createFolders(destination, permissions);
       } else {

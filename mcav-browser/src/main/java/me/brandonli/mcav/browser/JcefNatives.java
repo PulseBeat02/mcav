@@ -114,7 +114,8 @@ final class JcefNatives {
   Path install(final NativePlatform platform) throws IOException {
     final String identifier = platform.getIdentifier();
     final String sha256 = platform.getSha256();
-    return this.install(identifier, sha256, platform.getSize());
+    final long size = platform.getSize();
+    return this.install(identifier, sha256, size);
   }
 
   @VisibleForTesting
@@ -156,7 +157,10 @@ final class JcefNatives {
   }
 
   static boolean isSupported() {
-    return isSupported(OsUtils.getOs(), OsUtils.getArch(), OsUtils.getBits());
+    final Os os = OsUtils.getOs();
+    final Arch architecture = OsUtils.getArch();
+    final Bits bits = OsUtils.getBits();
+    return isSupported(os, architecture, bits);
   }
 
   static boolean isSupported(final Os os, final Arch architecture, final Bits bits) {

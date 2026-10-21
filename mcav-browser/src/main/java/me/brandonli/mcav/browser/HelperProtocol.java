@@ -145,15 +145,21 @@ final class HelperProtocol {
 
   static void writeFrame(final DataOutput output, final FrameRegion region) throws IOException {
     final int pixelBytes = region.getPixelBytes();
+    final int pageWidth = region.getPageWidth();
+    final int pageHeight = region.getPageHeight();
+    final int left = region.getX();
+    final int top = region.getY();
+    final int width = region.getWidth();
+    final int height = region.getHeight();
+    final byte[] pixels = region.getPixels();
     output.writeByte(FRAME);
     output.writeInt(FRAME_HEADER_BYTES + pixelBytes);
-    output.writeShort(region.getPageWidth());
-    output.writeShort(region.getPageHeight());
-    output.writeShort(region.getX());
-    output.writeShort(region.getY());
-    output.writeShort(region.getWidth());
-    output.writeShort(region.getHeight());
-    final byte[] pixels = region.getPixels();
+    output.writeShort(pageWidth);
+    output.writeShort(pageHeight);
+    output.writeShort(left);
+    output.writeShort(top);
+    output.writeShort(width);
+    output.writeShort(height);
     output.write(pixels, 0, pixelBytes);
   }
 
@@ -169,15 +175,22 @@ final class HelperProtocol {
   }
 
   static void writeMouse(final DataOutput output, final MouseInput input) throws IOException {
+    final int action = input.getAction();
+    final int pageX = input.getX();
+    final int pageY = input.getY();
+    final int button = input.getButton();
+    final int clickCount = input.getClickCount();
+    final int deltaX = input.getDeltaX();
+    final int deltaY = input.getDeltaY();
     output.writeByte(MOUSE);
     output.writeInt(MOUSE_BYTES);
-    output.writeByte(input.getAction());
-    output.writeShort(input.getX());
-    output.writeShort(input.getY());
-    output.writeByte(input.getButton());
-    output.writeByte(input.getClickCount());
-    output.writeShort(input.getDeltaX());
-    output.writeShort(input.getDeltaY());
+    output.writeByte(action);
+    output.writeShort(pageX);
+    output.writeShort(pageY);
+    output.writeByte(button);
+    output.writeByte(clickCount);
+    output.writeShort(deltaX);
+    output.writeShort(deltaY);
   }
 
   static void writeKey(final DataOutput output, final int action, final String value) throws IOException {

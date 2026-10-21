@@ -363,7 +363,8 @@ final class NullDisplay implements AutoCloseable {
     throws IOException {
     while (unusable.size() < MAXIMUM_BIND_ATTEMPTS) {
       final ServerSocket candidate = new ServerSocket(0, MAXIMUM_CONNECTIONS, loopback);
-      if (usable.test(candidate.getLocalPort())) {
+      final int port = candidate.getLocalPort();
+      if (usable.test(port)) {
         return candidate;
       }
       unusable.add(candidate);
@@ -467,8 +468,10 @@ final class NullDisplay implements AutoCloseable {
     boolean slot = false;
     try (client) {
       client.setSoTimeout(this.setupTimeoutMilliseconds);
-      final DataInputStream input = new DataInputStream(new BufferedInputStream(client.getInputStream()));
-      final OutputStream output = new BufferedOutputStream(client.getOutputStream());
+      final InputStream clientInput = client.getInputStream();
+      final DataInputStream input = new DataInputStream(new BufferedInputStream(clientInput));
+      final OutputStream clientOutput = client.getOutputStream();
+      final OutputStream output = new BufferedOutputStream(clientOutput);
       final ByteOrder order = readSetup(input, output, this.cookie);
       this.introduced(client);
       slot = this.slots.tryAcquire();
