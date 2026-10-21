@@ -57,7 +57,10 @@ copyright notice its package carries (MIT, Apache-2.0, BSD, ISC and 0BSD licence
 mcav redistributes none of these; each comes from its own publisher, under its own licence:
 
 - JavaCV and JavaCPP with FFmpeg (an LGPL build) and OpenCV, as Maven dependencies of mcav-common.
-- VLC, from VideoLAN on Windows and macOS, and as an AppImage on Linux (GPL-2.0-or-later, libVLC LGPL-2.1-or-later).
+- VLC, from VideoLAN on Windows and macOS, and from the Debian 12 packages of VLC on Linux (GPL-2.0-or-later, libVLC
+  LGPL-2.1-or-later), with the libraries it depends on, each under its package's licence.
+- The Debian 12 libraries that FFmpeg (ALSA, PulseAudio, XCB and udev) and the face detection of OpenCV (GTK 2) need on
+  a Linux machine without them, each under its package's licence.
 - yt-dlp, from its GitHub releases (Unlicense; its executables include GPL-3.0-or-later code).
 - The Chromium Embedded Framework and Chromium of the browser, as jcefmaven's natives from Maven Central (BSD-3-Clause,
   with Chromium's third-party licences inside the natives).

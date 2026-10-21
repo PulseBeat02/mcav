@@ -21,6 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.Set;
 import me.brandonli.mcav.capability.installer.FileMode;
 import me.brandonli.mcav.capability.installer.InstallationException;
 import me.brandonli.mcav.capability.installer.Installer;
@@ -42,8 +43,9 @@ import org.slf4j.LoggerFactory;
  * <ol>
  *   <li>a VLC installation on the system, in the well-known installation directories of every operating system;
  *   <li>the private copy an earlier run installed with {@link VlcInstaller}, which needs no network at all;
- *   <li>a new private copy, downloaded with {@link VlcInstaller}, or on 64-bit ARM Linux, which has no VLC download,
- *   installed from the pinned Debian packages of {@link DebianLibraryInstaller#createVlcInstaller()}.
+ *   <li>a new private copy, downloaded with {@link VlcInstaller}, or on 64-bit x86 and ARM Linux installed from the
+ *   pinned Debian packages of {@link DebianLibraryInstaller#createVlcInstaller()}, which bring every library that VLC
+ *   needs besides glibc.
  * </ol>
  * The libraries of a private copy are loaded straight from its installation directory, and the kit never touches
  * vlcj's own configuration files. Either way, vlcj is ready to create media players once {@link #start()} returns.
@@ -64,7 +66,9 @@ public final class VlcInstallationKit {
   private static final Logger LOGGER = LoggerFactory.getLogger(VlcInstallationKit.class);
   private static final VlcLoadState SHARED_LOAD_STATE = new VlcLoadState();
 
+  private static final Platform LINUX_X86_64 = Platform.ofPlatform(Os.LINUX, Arch.X86, Bits.BITS_64);
   private static final Platform LINUX_ARM_64 = Platform.ofPlatform(Os.LINUX, Arch.ARM, Bits.BITS_64);
+  private static final Set<Platform> DEBIAN_PLATFORMS = Set.of(LINUX_X86_64, LINUX_ARM_64);
 
   private final Installer installer;
   private final VlcDiscovery discovery;
@@ -79,8 +83,8 @@ public final class VlcInstallationKit {
 
   /**
    * Creates a kit that installs VLC into the cache folder of the library when no system installation exists. On
-   * 64-bit ARM Linux, which has no VLC download, the kit installs the pinned Debian bookworm packages of VLC with
-   * {@link DebianLibraryInstaller#createVlcInstaller()} instead, and loads their libraries before VLC.
+   * 64-bit x86 and ARM Linux, the kit installs the pinned Debian bookworm packages of VLC with
+   * {@link DebianLibraryInstaller#createVlcInstaller()} instead of a download, and loads their libraries before VLC.
    *
    * @return the kit
    * @throws FileOperationException if the default cache folder cannot be created
@@ -108,7 +112,8 @@ public final class VlcInstallationKit {
 
   @VisibleForTesting
   static VlcInstallationKit createForPlatform(final Platform platform) {
-    if (platform.equals(LINUX_ARM_64)) {
+    final boolean debian = DEBIAN_PLATFORMS.contains(platform);
+    if (debian) {
       return createDebianKit();
     }
 

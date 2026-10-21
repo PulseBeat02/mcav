@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -71,6 +72,7 @@ public final class CommandTask {
 
   private final List<String> command;
   private final @Nullable Path workingDirectory;
+  private final Map<String, String> environment;
   private final Set<ProcessHandle> descendants;
 
   private @Nullable Process process;
@@ -87,7 +89,7 @@ public final class CommandTask {
    * @since 1.0.0
    */
   public CommandTask(final String... command) {
-    this(null, command);
+    this(null, Map.of(), command);
   }
 
   /**
@@ -100,11 +102,32 @@ public final class CommandTask {
    * @since 1.0.0
    */
   public CommandTask(final @Nullable Path workingDirectory, final String... command) {
+    this(workingDirectory, Map.of(), command);
+  }
+
+  /**
+   * Creates a task that runs the command in the working directory of the JVM, with environment variables besides
+   * those it inherits from the JVM. A variable replaces an inherited variable of the same name.
+   *
+   * @param environment the environment variables to set
+   * @param command     the program followed by its arguments
+   * @throws NullPointerException     if the environment, a variable name or value, the command array or any argument
+   *                                  is null
+   * @throws IllegalArgumentException if the command array is empty
+   * @since 1.0.0
+   */
+  public CommandTask(final Map<String, String> environment, final String... command) {
+    this(null, environment, command);
+  }
+
+  private CommandTask(final @Nullable Path workingDirectory, final Map<String, String> environment, final String[] command) {
+    Preconditions.checkNotNull(environment, "Environment must not be null!");
     Preconditions.checkNotNull(command, "Command must not be null!");
     Preconditions.checkArgument(command.length > 0, "Command must not be empty!");
 
     this.command = List.of(command);
     this.workingDirectory = workingDirectory;
+    this.environment = Map.copyOf(environment);
     this.descendants = new HashSet<>();
     this.output = "";
     this.errorOutput = "";
@@ -122,7 +145,7 @@ public final class CommandTask {
    * @since 1.0.0
    */
   public CommandTask(final String[] command, final RunMode mode) {
-    this(null, command);
+    this(null, Map.of(), command);
 
     if (mode == RunMode.IMMEDIATELY) {
       this.run();
@@ -243,6 +266,9 @@ public final class CommandTask {
       final File directoryFile = directory.toFile();
       builder.directory(directoryFile);
     }
+
+    final Map<String, String> variables = builder.environment();
+    variables.putAll(this.environment);
 
     LOGGER.debug("Command {} is running.", this.command);
     try {
@@ -396,6 +422,16 @@ public final class CommandTask {
    */
   public List<String> getCommand() {
     return this.command;
+  }
+
+  /**
+   * Returns the environment variables that the program gets besides those it inherits from the JVM.
+   *
+   * @return the environment variables as an unmodifiable map
+   * @since 1.0.0
+   */
+  public Map<String, String> getEnvironment() {
+    return this.environment;
   }
 
   /**

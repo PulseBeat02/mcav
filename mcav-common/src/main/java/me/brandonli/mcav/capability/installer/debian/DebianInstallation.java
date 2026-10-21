@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -162,11 +163,11 @@ final class DebianInstallation {
     loadOrder.addAll(libraries);
   }
 
-  // Lists the libraries directly in the library folders, sorted by name, as paths relative to the installation.
+  // direct subfolders count too, such as pulseaudio
   private Set<String> listLibraries(final Path root) throws IOException {
     final Set<String> libraries = new LinkedHashSet<>();
     for (final Path directory : this.getTripletFolders(root)) {
-      final List<Path> files = this.listDirectory(directory);
+      final List<Path> files = this.listLibraryFiles(directory);
       final List<String> names = files.stream().filter(this::isLibrary).map(root::relativize).map(Path::toString).sorted().toList();
       libraries.addAll(names);
     }
@@ -181,8 +182,19 @@ final class DebianInstallation {
     return List.of(libraryDirectory, legacyDirectory);
   }
 
+  private List<Path> listLibraryFiles(final Path directory) throws IOException {
+    final List<Path> files = new ArrayList<>();
+    for (final Path file : this.listDirectory(directory)) {
+      final List<Path> children = this.listDirectory(file);
+      files.add(file);
+      files.addAll(children);
+    }
+
+    return files;
+  }
+
   private List<Path> listDirectory(final Path directory) throws IOException {
-    final boolean exists = Files.isDirectory(directory);
+    final boolean exists = Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS);
     if (!exists) {
       return List.of();
     }
@@ -239,6 +251,12 @@ final class DebianInstallation {
   private Path getContainingFolder(final Path library) {
     final @Nullable Path parent = library.getParent();
     return Objects.requireNonNull(parent, "A library inside the installation always has a parent!");
+  }
+
+  boolean isInSubfolder(final Path library) {
+    final Path parent = this.getContainingFolder(library);
+    final List<Path> libraryFolders = this.getTripletFolders(this.folder);
+    return !libraryFolders.contains(parent);
   }
 
   Path getLibraryFolder() {

@@ -40,16 +40,20 @@ import org.slf4j.LoggerFactory;
  * machine without a library such as VLC can use it without a package manager.
  *
  * <p>The packages come from the Debian bookworm archive and its security updates on {@code snapshot.debian.org}, the
- * newer version of each package winning, in the lists {@code mcav/common/installers/debian-vlc.json} and
- * {@code mcav/common/installers/debian-gtk2.json}, which list each package after the packages it depends on, with its
- * SHA-256. Every package is downloaded, checked against its hash, and its {@code usr/lib} and {@code lib} trees are
- * extracted by MCAV itself, without {@code dpkg} and without administrator rights, into one folder of the cache. The
- * libraries need the glibc 2.36 and GCC 12 runtime of Debian bookworm or newer, which the lists leave out.
+ * newer version of each package winning, in the lists {@code mcav/common/installers/debian-vlc.json},
+ * {@code mcav/common/installers/debian-gtk2.json} and {@code mcav/common/installers/debian-ffmpeg.json}, which list
+ * each package after the packages it depends on, with its SHA-256. Every package is downloaded, checked against its
+ * hash, and its {@code usr/lib} and {@code lib} trees are extracted by MCAV itself, without {@code dpkg} and without
+ * administrator rights, into one folder of the cache. The libraries need the glibc 2.36 and GCC 12 runtime of Debian
+ * bookworm or newer, which the lists leave out.
  *
- * <p>{@link #loadLibraries()} loads every library of the installation into the JVM, the libraries of each package
- * after those of the packages before it, so that a library that later loads one of them by name, such as a VLC
- * plugin, finds it already loaded. A library that does not load, for example because the machine has an older
- * glibc, is logged and skipped.
+ * <p>{@link #loadLibraries()} loads every library of the installation into the JVM, from the library folders and
+ * their direct subfolders such as {@code pulseaudio}, the libraries of each package after those of the packages before
+ * it, so that a library that later loads one of them by name, such as a VLC plugin, finds it already loaded. The
+ * libraries keep their symbols local, except {@code libtheoradec}, which joins the global scope of the dynamic linker
+ * because {@code libtheoraenc} uses its symbols without linking it. A library that does not load, for example because
+ * the machine has an older glibc, is logged and skipped. A program that MCAV runs does not share the libraries of the
+ * JVM; it finds them through the folders of {@link #listLibraryFolders()}.
  *
  * <p>This class is thread-safe.
  *
@@ -64,16 +68,16 @@ public final class DebianLibraryInstaller implements Installer {
   private static final String VLC_NAME = "debian-vlc";
   private static final String GTK2_RESOURCE = "mcav/common/installers/debian-gtk2.json";
   private static final String GTK2_NAME = "debian-gtk2";
+  private static final String FFMPEG_RESOURCE = "mcav/common/installers/debian-ffmpeg.json";
+  private static final String FFMPEG_NAME = "debian-ffmpeg";
 
   private final DebianInstallation installation;
   private final String name;
   private final Consumer<String> libraryLoader;
 
-  // loading a native library is what this installer is for; the JVM warns about it unless native access is enabled
-  @SuppressWarnings("restricted")
   @VisibleForTesting
   DebianLibraryInstaller(final Path folder, final String name, final Download[] downloads, final Platform platform) {
-    this(folder, name, downloads, platform, System::load);
+    this(folder, name, downloads, platform, new PromotingLibraryLoader());
   }
 
   @VisibleForTesting
@@ -92,7 +96,7 @@ public final class DebianLibraryInstaller implements Installer {
 
   /**
    * Creates an installer of {@code libvlc5}, {@code libvlccore9} and {@code vlc-plugin-base} with their dependencies,
-   * which has packages for 64-bit ARM Linux.
+   * which has packages for 64-bit x86 and ARM Linux.
    *
    * @return the installer
    * @throws FileOperationException if the package list or the cache folder cannot be read
@@ -112,6 +116,19 @@ public final class DebianLibraryInstaller implements Installer {
    */
   public static DebianLibraryInstaller createGtk2Installer() {
     return create(GTK2_RESOURCE, GTK2_NAME);
+  }
+
+  /**
+   * Creates an installer of {@code libasound2}, {@code libpulse0}, {@code libxcb1}, {@code libxcb-shm0} and
+   * {@code libudev1} with their dependencies, which has packages for 64-bit x86 and ARM Linux. The libraries of FFmpeg
+   * link these system libraries, which a Linux machine without sound or a desktop can lack.
+   *
+   * @return the installer
+   * @throws FileOperationException if the package list or the cache folder cannot be read
+   * @since 1.0.0
+   */
+  public static DebianLibraryInstaller createFfmpegInstaller() {
+    return create(FFMPEG_RESOURCE, FFMPEG_NAME);
   }
 
   private static DebianLibraryInstaller create(final String resource, final String name) {
@@ -147,8 +164,8 @@ public final class DebianLibraryInstaller implements Installer {
 
   /**
    * Loads every library of the installation into the JVM, the libraries of each package after those of the packages
-   * it depends on. A library that does not load is retried after the others, and skipped with a warning if it never
-   * loads.
+   * it depends on. A library that does not load is retried after the others, and skipped if it never loads, with a
+   * warning unless it lies in a subfolder of a library folder.
    *
    * @throws InstallationException if the packages are not installed, or the installation cannot be read
    * @since 1.0.0
@@ -162,7 +179,7 @@ public final class DebianLibraryInstaller implements Installer {
     }
 
     for (final Path library : pending) {
-      LOGGER.warn("Library {} of {} could not be loaded and is skipped.", library, this.name);
+      this.logSkipped(library);
     }
   }
 
@@ -188,6 +205,29 @@ public final class DebianLibraryInstaller implements Installer {
       LOGGER.debug("Library {} could not be loaded yet.", library, error);
       return false;
     }
+  }
+
+  // a subfolder library, such as a plugin, matters only to the libraries that need it
+  private void logSkipped(final Path library) {
+    final boolean inSubfolder = this.installation.isInSubfolder(library);
+    if (inSubfolder) {
+      LOGGER.debug("Library {} of {} could not be loaded and is skipped.", library, this.name);
+      return;
+    }
+
+    LOGGER.warn("Library {} of {} could not be loaded and is skipped.", library, this.name);
+  }
+
+  /**
+   * Returns the folders that hold the libraries of the installation, in the order in which the packages list them, to
+   * put on the library path of a program, such as {@code LD_LIBRARY_PATH}.
+   *
+   * @return the library folders
+   * @throws InstallationException if the packages are not installed, or the installation cannot be read
+   * @since 1.0.0
+   */
+  public List<Path> listLibraryFolders() {
+    return this.installation.listLibraryFolders();
   }
 
   /**

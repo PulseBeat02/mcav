@@ -25,6 +25,12 @@ import org.bytedeco.javacpp.Loader;
  * Locates the FFmpeg command-line executable bundled with JavaCV. The executable is extracted from the platform
  * jar the first time it is requested, so the first call may take a moment.
  *
+ * <p>On a Linux machine that lacks a system library that FFmpeg links, such as ALSA or PulseAudio, the first call also
+ * installs the pinned Debian packages of those libraries into the cache folder of MCAV and loads them, which needs a
+ * network connection once. On Linux the executable needs its own folder and the folders of those libraries on its
+ * library path: run it with the environment variables of {@link FfmpegCommand#getEnvironment()}, or through
+ * {@link FfmpegCommand#createTask()}, which sets them.
+ *
  * <p>This class is thread-safe.
  *
  * @since 1.0.0
@@ -55,6 +61,7 @@ public final class FfmpegExecutableProvider {
     }
 
     private static Path extract() {
+      final FfmpegLibraries _ = FfmpegLibraries.installOnce();
       final String location = Loader.load(ffmpeg.class);
       return Path.of(location);
     }

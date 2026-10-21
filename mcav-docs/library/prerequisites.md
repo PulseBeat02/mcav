@@ -30,7 +30,7 @@ optional native features can also need system libraries, a display, or an audio 
 | Windows ARM64  | Downloaded from VideoLAN when missing                             | Downloaded    | Not available     |
 | macOS x86-64   | Downloaded from VideoLAN and mounted without administrator rights | Downloaded    | Bundled           |
 | macOS ARM64    | Downloaded from VideoLAN and mounted without administrator rights | Downloaded    | Bundled           |
-| Linux x86-64   | Used from the system, or downloaded as an AppImage                | Downloaded    | Bundled           |
+| Linux x86-64   | Used from the system, or installed from Debian packages           | Downloaded    | Bundled           |
 | Linux ARM64    | Used from the system, or installed from Debian packages           | Downloaded    | Bundled           |
 | FreeBSD (any)  | Not available                                                     | Not available | Not available     |
 
@@ -50,20 +50,14 @@ that names the platform, and downloading it directly fails with an `Installation
 listed, because Java 25, which MCAV needs, has no port for it.
 
 On Windows and macOS the download is VLC 3.0.24 from VideoLAN, checked against the SHA-256 hash MCAV ships. VideoLAN
-publishes no Linux build, so on x86-64 Linux MCAV downloads an AppImage built from the VLC package of Arch Linux
-(<https://github.com/ivan-hc/VLC-appimage>): one dated release, VLC 3.0.23 of 2026-10-01, pinned with the SHA-256 hash
-MCAV ships, like the others. MCAV runs the AppImage to unpack it, so it runs only that reviewed build, never what the
-project's weekly tag points to later; a newer VLC there needs a new pin in MCAV. A server that should run no build of a
-third party installs VLC from its distribution (`apt install vlc`, `dnf install vlc`): MCAV then uses that VLC and
-downloads nothing.
-
-No one publishes a portable VLC for ARM64 Linux, so there MCAV installs the Debian 12 (bookworm) packages of VLC 3.0.23:
+publishes no Linux build, so on x86-64 and ARM64 Linux MCAV installs the Debian 12 (bookworm) packages of VLC 3.0.23:
 `libvlc5`, `libvlccore9` and `vlc-plugin-base` with every library they depend on, apart from the C and C++ runtimes of
-the system. Each package comes from the bookworm archive or its security updates on `snapshot.debian.org`, whichever
-has the newer version, and is checked against the SHA-256 hash MCAV ships. MCAV unpacks the packages itself into the
-cache folder, without `dpkg`, a package manager or administrator rights, and loads their libraries in dependency order
-before VLC. The libraries need glibc 2.36 or newer; on an older system, install VLC from your distribution instead. How
-to regenerate the pinned packages is described in [compiling MCAV](compile.md).
+the system. Each package comes from the bookworm archive or its security updates on `snapshot.debian.org`, whichever has
+the newer version, and is checked against the SHA-256 hash MCAV ships. MCAV unpacks the packages itself into the cache
+folder, without `dpkg`, a package manager or administrator rights, and loads their libraries in dependency order before
+VLC. The libraries need glibc 2.36 or newer; on an older system, install VLC from your distribution instead
+(`apt install vlc`, `dnf install vlc`): MCAV then uses that VLC and downloads nothing. How to regenerate the pinned
+packages is described in [compiling MCAV](compile.md).
 
 FFmpeg and OpenCV are bundled with the library for every platform marked so above. The OpenCV build differs per
 platform: the Windows and macOS builds read video files themselves, the Linux build has no file backend and only
@@ -71,6 +65,13 @@ captures from cameras. `VideoPlayer.opencv()` therefore reads files with the bun
 file plays on every platform where they are bundled. OpenCV capture still depends on a working capture backend and
 device. VLC and yt-dlp are optional: when one of them cannot be installed, only the features that need it are
 unavailable, which you can check with [capabilities](instance.md#capabilities).
+
+The FFmpeg libraries link the sound, display and device libraries of a Linux desktop: ALSA, PulseAudio, XCB and udev.
+When the system lacks one of them, as a container or a minimal server can, MCAV installs the Debian 12 packages of
+`libasound2`, `libpulse0`, `libxcb1`, `libxcb-shm0` and `libudev1` with their dependencies on x86-64 and ARM64 Linux,
+the same way as VLC above, and loads them before FFmpeg. The FFmpeg program does not share the libraries of the JVM, so
+MCAV runs it with their folders on `LD_LIBRARY_PATH`, after the folder of the program itself, as [FFmpeg](ffmpeg.md)
+describes. When that installation fails, MCAV logs a warning, and FFmpeg loads only if the system has the libraries.
 
 Face detection loads the object detection module of OpenCV, which links GTK 2 on Linux. When the system has no GTK 2,
 MCAV installs the Debian 12 packages of `libgtk2.0-0` and its dependencies on x86-64 and ARM64 Linux, the same way as

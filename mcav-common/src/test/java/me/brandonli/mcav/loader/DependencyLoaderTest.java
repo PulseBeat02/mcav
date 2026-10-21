@@ -913,26 +913,6 @@ final class DependencyLoaderTest {
     assertEquals(expected, lookedUp);
   }
 
-  @Test
-  void shouldFindALibraryTheDynamicLinkerCanLoad() throws IOException {
-    final Path javaHome = Path.of(System.getProperty("java.home"));
-    final String javaLibraryName = System.mapLibraryName("java");
-    final Optional<Path> javaLibrary;
-    try (final Stream<Path> files = Files.walk(javaHome)) {
-      javaLibrary = files.filter(file -> javaLibraryName.equals(String.valueOf(file.getFileName()))).findFirst();
-    }
-
-    final Path library = javaLibrary.orElseThrow();
-    final boolean available = DependencyLoader.isLibraryAvailable(library.toString());
-    assertTrue(available, library.toString());
-  }
-
-  @Test
-  void shouldNotFindALibraryTheSystemLacks() {
-    final boolean available = DependencyLoader.isLibraryAvailable("libmcav-missing.so.0");
-    assertFalse(available);
-  }
-
   private boolean refuseToLookUp(final String library) {
     return fail("GTK 2 is only looked up on 64-bit Linux!");
   }

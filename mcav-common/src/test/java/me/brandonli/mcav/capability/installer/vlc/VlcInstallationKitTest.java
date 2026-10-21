@@ -48,6 +48,8 @@ import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.Platform;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 final class VlcInstallationKitTest {
 
@@ -223,33 +225,26 @@ final class VlcInstallationKitTest {
     final VlcInstaller installer = VlcInstaller.create(folder);
     final VlcInstallationKit custom = VlcInstallationKit.create(installer);
     final VlcInstallationKit standard;
-    final Path expectedFolder;
-    try (final TemporaryUserHome redirected = TemporaryUserHome.redirectTo(home)) {
+    try (final TemporaryUserHome _ = TemporaryUserHome.redirectTo(home)) {
       standard = VlcInstallationKit.create();
-      final Path redirectedHome = redirected.getHome();
-      final Path mcavFolder = redirectedHome.resolve(MCAV_DIRECTORY_NAME);
-      expectedFolder = mcavFolder.resolve(CACHE_DIRECTORY_NAME);
     }
 
     final Installer customInstaller = custom.getInstaller();
-    final Installer standardInstaller = standard.getInstaller();
-    final VlcInstaller standardVlcInstaller = assertInstanceOf(VlcInstaller.class, standardInstaller);
-    final Path standardFolder = standardVlcInstaller.getFolder();
     final VlcLoadState customState = custom.getLoadState();
     final VlcLoadState standardState = standard.getLoadState();
     assertSame(installer, customInstaller);
-    assertEquals(expectedFolder, standardFolder);
     assertNotNull(customState, "the shared load state exists, rather than both kits returning null");
     assertSame(customState, standardState, "libvlc is loaded once per JVM, whichever kit loads it");
   }
 
-  @Test
-  void shouldInstallTheDebianPackagesOf64BitArmLinux(@TempDir final Path home) {
-    final Platform linuxArm = Platform.ofPlatform(Os.LINUX, Arch.ARM, Bits.BITS_64);
+  @ParameterizedTest
+  @EnumSource(value = Arch.class, names = { "X86", "ARM" })
+  void shouldInstallTheDebianPackagesOf64BitLinux(final Arch architecture, @TempDir final Path home) {
+    final Platform linux = Platform.ofPlatform(Os.LINUX, architecture, Bits.BITS_64);
     final VlcInstallationKit kit;
     final Path expectedFolder;
     try (final TemporaryUserHome redirected = TemporaryUserHome.redirectTo(home)) {
-      kit = VlcInstallationKit.createForPlatform(linuxArm);
+      kit = VlcInstallationKit.createForPlatform(linux);
       final Path redirectedHome = redirected.getHome();
       final Path mcavFolder = redirectedHome.resolve(MCAV_DIRECTORY_NAME);
       final Path cacheFolder = mcavFolder.resolve(CACHE_DIRECTORY_NAME);
@@ -268,16 +263,23 @@ final class VlcInstallationKitTest {
     assertSame(customState, loadState);
   }
 
-  @Test
-  void shouldDownloadVlcOnEveryOtherPlatform(@TempDir final Path home) {
-    final Platform linuxX86 = Platform.ofPlatform(Os.LINUX, Arch.X86, Bits.BITS_64);
+  @ParameterizedTest
+  @EnumSource(value = Os.class, names = { "WINDOWS", "MAC", "FREEBSD" })
+  void shouldDownloadVlcOnEveryOtherPlatform(final Os os, @TempDir final Path home) {
+    final Platform platform = Platform.ofPlatform(os, Arch.X86, Bits.BITS_64);
     final VlcInstallationKit kit;
-    try (final TemporaryUserHome _ = TemporaryUserHome.redirectTo(home)) {
-      kit = VlcInstallationKit.createForPlatform(linuxX86);
+    final Path expectedFolder;
+    try (final TemporaryUserHome redirected = TemporaryUserHome.redirectTo(home)) {
+      kit = VlcInstallationKit.createForPlatform(platform);
+      final Path redirectedHome = redirected.getHome();
+      final Path mcavFolder = redirectedHome.resolve(MCAV_DIRECTORY_NAME);
+      expectedFolder = mcavFolder.resolve(CACHE_DIRECTORY_NAME);
     }
 
     final Installer installer = kit.getInstaller();
-    assertInstanceOf(VlcInstaller.class, installer);
+    final VlcInstaller vlcInstaller = assertInstanceOf(VlcInstaller.class, installer);
+    final Path folder = vlcInstaller.getFolder();
+    assertEquals(expectedFolder, folder);
   }
 
   @Test

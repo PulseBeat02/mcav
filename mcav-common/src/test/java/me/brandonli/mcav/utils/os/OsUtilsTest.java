@@ -25,7 +25,15 @@ import static com.sun.jna.Platform.isLinux;
 import static com.sun.jna.Platform.isMac;
 import static com.sun.jna.Platform.isWindows;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Optional;
+import java.util.stream.Stream;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -129,6 +137,31 @@ final class OsUtilsTest {
 
     final String missing = OsUtils.getProperty("mcav.test.missing");
     assertEquals("", missing);
+  }
+
+  @Test
+  void shouldFindALibraryTheDynamicLinkerCanLoad() throws IOException {
+    final Path javaHome = Path.of(System.getProperty("java.home"));
+    final String javaLibraryName = System.mapLibraryName("java");
+    final Optional<Path> javaLibrary;
+    try (final Stream<Path> files = Files.walk(javaHome)) {
+      javaLibrary = files.filter(file -> javaLibraryName.equals(String.valueOf(file.getFileName()))).findFirst();
+    }
+
+    final Path library = javaLibrary.orElseThrow();
+    final boolean available = OsUtils.isLibraryAvailable(library.toString());
+    assertTrue(available, library.toString());
+  }
+
+  @Test
+  void shouldNotFindALibraryTheSystemLacks() {
+    final boolean available = OsUtils.isLibraryAvailable("libmcav-missing.so.0");
+    assertFalse(available);
+  }
+
+  @Test
+  void shouldRejectANullLibrary() {
+    assertThrows(NullPointerException.class, () -> OsUtils.isLibraryAvailable(null));
   }
 
   @Test

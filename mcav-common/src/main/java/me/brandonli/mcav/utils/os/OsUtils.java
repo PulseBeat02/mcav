@@ -18,6 +18,9 @@
 package me.brandonli.mcav.utils.os;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import java.lang.foreign.Arena;
+import java.lang.foreign.SymbolLookup;
 import java.util.Locale;
 
 /**
@@ -127,6 +130,30 @@ public final class OsUtils {
     }
 
     return Bits.BITS_32;
+  }
+
+  /**
+   * Returns whether the dynamic linker of the system can load a shared library, such as {@code libasound.so.2}, the
+   * way a native library that links it by name finds it. A library that is found stays loaded, as linking it would
+   * load it.
+   *
+   * @param library the file name or path of the library
+   * @return whether the library can be loaded
+   * @throws NullPointerException if {@code library} is null
+   * @since 1.0.0
+   */
+  @SuppressWarnings("restricted") // the lookup loads native code, which the JVM restricts
+  public static boolean isLibraryAvailable(final String library) {
+    Preconditions.checkNotNull(library, "Library must not be null!");
+
+    try {
+      final Arena arena = Arena.global();
+      SymbolLookup.libraryLookup(library, arena);
+
+      return true;
+    } catch (final IllegalArgumentException exception) {
+      return false;
+    }
   }
 
   /**

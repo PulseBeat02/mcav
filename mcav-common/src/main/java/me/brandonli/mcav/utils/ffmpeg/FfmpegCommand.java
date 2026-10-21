@@ -17,9 +17,12 @@
  */
 package me.brandonli.mcav.utils.ffmpeg;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Supplier;
 import me.brandonli.mcav.utils.runtime.CommandTask;
 
 /**
@@ -48,9 +51,16 @@ public final class FfmpegCommand {
   private static final String ARGUMENT_SEPARATOR = " ";
 
   private final List<String> arguments;
+  private final Supplier<FfmpegLibraries> libraries;
 
   FfmpegCommand(final List<String> arguments) {
+    this(arguments, FfmpegLibraries::installOnce);
+  }
+
+  @VisibleForTesting
+  FfmpegCommand(final List<String> arguments, final Supplier<FfmpegLibraries> libraries) {
     this.arguments = List.copyOf(arguments);
+    this.libraries = libraries;
   }
 
   /**
@@ -64,7 +74,8 @@ public final class FfmpegCommand {
   }
 
   /**
-   * Returns the complete command line, starting with the executable.
+   * Returns the complete command line, starting with the executable. Run it with the environment variables of
+   * {@link #getEnvironment()}, or through {@link #createTask()}, which sets them.
    *
    * @return the command line as separate arguments
    * @throws UnsatisfiedLinkError if the bundled executable cannot be extracted for this platform
@@ -81,8 +92,8 @@ public final class FfmpegCommand {
   }
 
   /**
-   * Creates a task for the command without starting it. Call {@link CommandTask#run()} or
-   * {@link CommandTask#run(java.time.Duration)} to run it and wait for the exit code.
+   * Creates a task for the command with the environment variables of {@link #getEnvironment()}, without starting it.
+   * Call {@link CommandTask#run()} or {@link CommandTask#run(java.time.Duration)} to run it and wait for the exit code.
    *
    * @return the task, which has not been run yet
    * @throws UnsatisfiedLinkError if the bundled executable cannot be extracted for this platform
@@ -90,7 +101,8 @@ public final class FfmpegCommand {
    */
   public CommandTask createTask() {
     final String[] command = this.toCommandArray();
-    return new CommandTask(command);
+    final Map<String, String> environment = this.getEnvironment();
+    return new CommandTask(environment, command);
   }
 
   /**
@@ -101,6 +113,22 @@ public final class FfmpegCommand {
    */
   public List<String> getArguments() {
     return this.arguments;
+  }
+
+  /**
+   * Returns the environment variables that the executable needs besides those of the JVM. On Linux they set
+   * {@code LD_LIBRARY_PATH} to the folder of the executable, where the libraries beside it find the others they link,
+   * such as libva, then the folders of the system libraries of FFmpeg, such as ALSA or PulseAudio, that MCAV installs
+   * on first use where the machine lacks one, then the inherited value. Everywhere else there are none.
+   *
+   * @return the environment variables, which cannot be modified
+   * @throws UnsatisfiedLinkError if the bundled executable cannot be extracted for this platform
+   * @since 1.0.0
+   */
+  public Map<String, String> getEnvironment() {
+    final Path executable = this.getExecutable();
+    final FfmpegLibraries installed = this.libraries.get();
+    return installed.getEnvironment(executable);
   }
 
   /**

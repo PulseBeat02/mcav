@@ -20,37 +20,61 @@ package me.brandonli.mcav.capability.installer.vlc;
 import java.nio.file.Path;
 import java.util.Optional;
 import me.brandonli.mcav.capability.installer.FileMode;
+import me.brandonli.mcav.capability.installer.Installer;
+import me.brandonli.mcav.capability.installer.debian.DebianLibraryInstaller;
+import me.brandonli.mcav.utils.os.Platform;
 import org.junit.jupiter.api.Assumptions;
 import uk.co.caprica.vlcj.factory.discovery.strategy.NativeDiscoveryStrategy;
 
-// The VLC that VlcInstaller downloads into the cache of the library, never the one installed on this machine, so the VLC
-// tests behave alike on every host. The download happens once per machine and is reused after that.
+// The VLC of the installation kit, never this machine's, so every host behaves alike: the pinned Debian packages on
+// 64-bit x86 and ARM Linux, the VlcInstaller download elsewhere, installed once per machine.
 public final class DownloadedVlc {
 
   private DownloadedVlc() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  // Loads the downloaded VLC through the installation kit, downloading it first when the cache has none.
+  // installs VLC first when the cache has none
   public static Optional<Path> load() {
-    final VlcInstaller installer = VlcInstaller.create();
-    final NativeVlcDiscovery discovery = createDiscovery();
+    final Installer installer = createInstaller();
+    final VlcDiscovery discovery = createLoadingDiscovery(installer);
     final VlcLoadState loadState = new VlcLoadState();
     final VlcInstallationKit kit = new VlcInstallationKit(installer, discovery, loadState);
     return kit.start();
   }
 
-  // Returns the library directory of the downloaded VLC, and skips the test on a platform VLC has no download for.
+  // skips the test where VLC has no installation
   static Path install() {
-    final VlcInstaller installer = VlcInstaller.create();
+    final Installer installer = createInstaller();
     final boolean supported = installer.isSupported();
-    Assumptions.assumeTrue(supported, "VLC has no download for this platform!");
+    Assumptions.assumeTrue(supported, "VLC has no installation for this platform!");
 
     final Optional<Path> existing = installer.findInstallation();
-    return existing.orElseGet(() -> installer.download(FileMode.EXECUTABLE));
+    final Path directory = existing.orElseGet(() -> installer.download(FileMode.EXECUTABLE));
+    if (installer instanceof final DebianLibraryInstaller debian) {
+      debian.loadLibraries();
+    }
+
+    return directory;
   }
 
-  // A discovery that finds no VLC on the machine, so libvlc loads only from an installation directory.
+  private static Installer createInstaller() {
+    final Platform current = Platform.getCurrentPlatform();
+    final VlcInstallationKit kit = VlcInstallationKit.createForPlatform(current);
+    return kit.getInstaller();
+  }
+
+  // libvlc links the Debian libraries, so they load first
+  private static VlcDiscovery createLoadingDiscovery(final Installer installer) {
+    final NativeVlcDiscovery discovery = createDiscovery();
+    if (installer instanceof final DebianLibraryInstaller debian) {
+      return new PreloadingVlcDiscovery(debian::loadLibraries, discovery);
+    }
+
+    return discovery;
+  }
+
+  // finds no VLC on this machine, so libvlc loads only from an installation directory
   static NativeVlcDiscovery createDiscovery() {
     return new NativeVlcDiscovery(DownloadedVlc::createNoStrategies);
   }

@@ -97,8 +97,9 @@ final class DebianPinGenerator {
   private static final Comparator<String> VERSIONS = new DebianVersionComparator();
 
   private static final List<Bundle> BUNDLES = List.of(
-    new Bundle("debian-vlc.json", List.of("libvlc5", "libvlccore9", "vlc-plugin-base"), List.of(Architecture.ARM64)),
-    new Bundle("debian-gtk2.json", List.of("libgtk2.0-0"), List.of(Architecture.AMD64, Architecture.ARM64))
+    new Bundle("debian-vlc.json", List.of("libvlc5", "libvlccore9", "vlc-plugin-base")),
+    new Bundle("debian-gtk2.json", List.of("libgtk2.0-0")),
+    new Bundle("debian-ffmpeg.json", List.of("libasound2", "libpulse0", "libxcb1", "libxcb-shm0", "libudev1"))
   );
 
   static void main(final String[] arguments) throws IOException, InterruptedException {
@@ -184,7 +185,7 @@ final class DebianPinGenerator {
   private void writeBundle(final Path outputDirectory, final Bundle bundle, final Map<Architecture, List<Index>> indexes)
     throws IOException {
     final JsonArray downloads = new JsonArray();
-    for (final Architecture architecture : bundle.architectures()) {
+    for (final Architecture architecture : Architecture.values()) {
       final List<Index> architectureIndexes = indexes.get(architecture);
       final List<IndexEntry> closure = this.resolveClosure(architectureIndexes, bundle.roots());
       for (final IndexEntry entry : closure) {
@@ -389,7 +390,7 @@ final class DebianPinGenerator {
     }
   }
 
-  private record Bundle(String fileName, List<String> roots, List<Architecture> architectures) {}
+  private record Bundle(String fileName, List<String> roots) {}
 
   record Index(URI snapshot, String text) {}
 

@@ -25,7 +25,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.hash.Hashing;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -49,6 +51,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -65,13 +69,19 @@ final class DebianLibraryInstallerTest {
   private static final String SECOND_PACKAGE = "/second.deb";
   private static final String X86_PACKAGE = "/x86.deb";
 
+  private static final String LIBRARY_FOLDER = "usr/lib/aarch64-linux-gnu";
+  private static final String HELPER_FOLDER = "usr/lib/aarch64-linux-gnu/pulseaudio";
+  private static final String LEGACY_FOLDER = "lib/aarch64-linux-gnu";
   private static final String FIRST_LIBRARY = "usr/lib/aarch64-linux-gnu/liba.so.1.0";
+  private static final String HELPER_LIBRARY = "usr/lib/aarch64-linux-gnu/pulseaudio/libhelper.so.4";
   private static final String SECOND_LIBRARY = "usr/lib/aarch64-linux-gnu/libb.so.2";
   private static final String LEGACY_LIBRARY = "lib/aarch64-linux-gnu/libold.so.3";
-  private static final List<String> LOAD_ORDER = List.of(FIRST_LIBRARY, SECOND_LIBRARY, LEGACY_LIBRARY);
+  private static final List<String> LOAD_ORDER = List.of(FIRST_LIBRARY, HELPER_LIBRARY, SECOND_LIBRARY, LEGACY_LIBRARY);
   private static final String LOAD_ORDER_FILE = "load-order.txt";
 
   private static final byte[] CONTENT = "library".getBytes(StandardCharsets.US_ASCII);
+
+  private static final String SKIPPED_MESSAGE = "Library %s of debian-test could not be loaded and is skipped.";
 
   @TempDir
   private Path temporary;
@@ -90,6 +100,8 @@ final class DebianLibraryInstallerTest {
     this.firstPackage = new DebianPackageBuilder()
       .file("./usr/lib/aarch64-linux-gnu/liba.so.1.0", CONTENT)
       .symbolicLink("./usr/lib/aarch64-linux-gnu/liba.so.1", "liba.so.1.0")
+      .file("./usr/lib/aarch64-linux-gnu/pulseaudio/libhelper.so.4", CONTENT)
+      .symbolicLink("./usr/lib/aarch64-linux-gnu/linked", "pulseaudio")
       .file("./usr/lib/aarch64-linux-gnu/vlc/plugins/libplugin.so", CONTENT)
       .file("./usr/lib/aarch64-linux-gnu/README", CONTENT)
       .file("./usr/lib/aarch64-linux-gnu/liba.a", CONTENT)
@@ -165,19 +177,51 @@ final class DebianLibraryInstallerTest {
     installer.download(FileMode.EXECUTABLE);
     installer.loadLibraries();
 
-    final List<Path> expected = this.resolveAll(List.of(SECOND_LIBRARY, LEGACY_LIBRARY, FIRST_LIBRARY));
+    final List<Path> expected = this.resolveAll(List.of(HELPER_LIBRARY, SECOND_LIBRARY, LEGACY_LIBRARY, FIRST_LIBRARY));
     assertEquals(expected, this.loaded);
   }
 
   @Test
-  void shouldSkipALibraryThatNeverLoads() {
-    final DebianLibraryInstaller installer = this.createInstaller(ARM64, this::recordAllButLegacy);
+  @ResourceLock(Resources.SYSTEM_ERR)
+  void shouldWarnAboutALibraryThatNeverLoads() {
+    final DebianLibraryInstaller installer = this.createInstaller(ARM64, library -> this.recordAllBut(LEGACY_LIBRARY, library));
     this.serveBothPackages();
     installer.download(FileMode.EXECUTABLE);
-    installer.loadLibraries();
+    final String log = this.captureStandardError(installer::loadLibraries);
 
-    final List<Path> expected = this.resolveAll(List.of(FIRST_LIBRARY, SECOND_LIBRARY));
+    final List<Path> expected = this.resolveAll(List.of(FIRST_LIBRARY, HELPER_LIBRARY, SECOND_LIBRARY));
     assertEquals(expected, this.loaded);
+
+    final String warning = SKIPPED_MESSAGE.formatted(this.folder.resolve(LEGACY_LIBRARY));
+    final boolean warned = log.contains(warning);
+    assertTrue(warned, log);
+  }
+
+  @Test
+  @ResourceLock(Resources.SYSTEM_ERR)
+  void shouldSkipALibraryOfASubfolderWithoutAWarning() {
+    final DebianLibraryInstaller installer = this.createInstaller(ARM64, library -> this.recordAllBut(HELPER_LIBRARY, library));
+    this.serveBothPackages();
+    installer.download(FileMode.EXECUTABLE);
+    final String log = this.captureStandardError(installer::loadLibraries);
+
+    final List<Path> expected = this.resolveAll(List.of(FIRST_LIBRARY, SECOND_LIBRARY, LEGACY_LIBRARY));
+    assertEquals(expected, this.loaded);
+
+    final String warning = SKIPPED_MESSAGE.formatted(this.folder.resolve(HELPER_LIBRARY));
+    final boolean warned = log.contains(warning);
+    assertFalse(warned, log);
+  }
+
+  @Test
+  void shouldListTheFoldersOfTheLibrariesInTheirLoadOrder() {
+    final DebianLibraryInstaller installer = this.createInstaller(ARM64, this::record);
+    this.serveBothPackages();
+    installer.download(FileMode.EXECUTABLE);
+
+    final List<Path> folders = installer.listLibraryFolders();
+    final List<Path> expected = this.resolveAll(List.of(LIBRARY_FOLDER, HELPER_FOLDER, LEGACY_FOLDER));
+    assertEquals(expected, folders);
   }
 
   @Test
@@ -301,13 +345,18 @@ final class DebianLibraryInstallerTest {
   void shouldPinEveryBundledPackageWithAHash() {
     final Download[] vlc = IoUtils.readDownloadsFromJsonResource("mcav/common/installers/debian-vlc.json");
     final Download[] gtk2 = IoUtils.readDownloadsFromJsonResource("mcav/common/installers/debian-gtk2.json");
+    final Download[] ffmpeg = IoUtils.readDownloadsFromJsonResource("mcav/common/installers/debian-ffmpeg.json");
 
     final List<Platform> vlcPlatforms = Arrays.stream(vlc).map(Download::getPlatform).distinct().toList();
     final List<Platform> gtk2Platforms = Arrays.stream(gtk2).map(Download::getPlatform).distinct().toList();
-    assertEquals(List.of(ARM64), vlcPlatforms);
-    assertEquals(List.of(X86_64, ARM64), gtk2Platforms);
+    final List<Platform> ffmpegPlatforms = Arrays.stream(ffmpeg).map(Download::getPlatform).distinct().toList();
+    final List<Platform> expectedPlatforms = List.of(X86_64, ARM64);
+    assertEquals(expectedPlatforms, vlcPlatforms);
+    assertEquals(expectedPlatforms, gtk2Platforms);
+    assertEquals(expectedPlatforms, ffmpegPlatforms);
 
-    final boolean allHashed = Stream.concat(Arrays.stream(vlc), Arrays.stream(gtk2)).allMatch(download -> download.getHash().isPresent());
+    final Stream<Download> downloads = Stream.of(vlc, gtk2, ffmpeg).flatMap(Arrays::stream);
+    final boolean allHashed = downloads.allMatch(download -> download.getHash().isPresent());
     assertTrue(allHashed);
   }
 
@@ -315,12 +364,15 @@ final class DebianLibraryInstallerTest {
   void shouldCreateTheBundledInstallersInTheCache() {
     final DebianLibraryInstaller vlc = DebianLibraryInstaller.createVlcInstaller();
     final DebianLibraryInstaller gtk2 = DebianLibraryInstaller.createGtk2Installer();
+    final DebianLibraryInstaller ffmpeg = DebianLibraryInstaller.createFfmpegInstaller();
 
     final Path cache = IoUtils.getCachedFolder();
     final boolean vlcInCache = vlc.getPath().startsWith(cache.resolve("debian-vlc"));
     final boolean gtk2InCache = gtk2.getPath().startsWith(cache.resolve("debian-gtk2"));
+    final boolean ffmpegInCache = ffmpeg.getPath().startsWith(cache.resolve("debian-ffmpeg"));
     assertTrue(vlcInCache);
     assertTrue(gtk2InCache);
+    assertTrue(ffmpegInCache);
   }
 
   private DebianLibraryInstaller createInstaller(final Platform platform, final Consumer<String> loader) {
@@ -373,13 +425,28 @@ final class DebianLibraryInstallerTest {
     this.loaded.add(path);
   }
 
-  private void recordAllButLegacy(final String library) {
+  private void recordAllBut(final String refusedLibrary, final String library) {
     final Path path = Path.of(library);
-    final boolean legacy = path.equals(this.folder.resolve(LEGACY_LIBRARY));
-    if (legacy) {
-      throw new UnsatisfiedLinkError("libold.so.3: version GLIBC_2.99 not found");
+    final boolean refused = path.equals(this.folder.resolve(refusedLibrary));
+    if (refused) {
+      final String message = "%s: version GLIBC_2.99 not found".formatted(library);
+      throw new UnsatisfiedLinkError(message);
     }
 
     this.loaded.add(path);
+  }
+
+  private String captureStandardError(final Runnable action) {
+    final PrintStream original = System.err;
+    final ByteArrayOutputStream captured = new ByteArrayOutputStream();
+    final PrintStream capture = new PrintStream(captured, true, StandardCharsets.UTF_8);
+    System.setErr(capture);
+    try {
+      action.run();
+    } finally {
+      System.setErr(original);
+    }
+
+    return captured.toString(StandardCharsets.UTF_8);
   }
 }

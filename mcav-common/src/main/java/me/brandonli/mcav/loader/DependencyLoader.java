@@ -20,8 +20,6 @@ package me.brandonli.mcav.loader;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import java.lang.foreign.Arena;
-import java.lang.foreign.SymbolLookup;
 import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.EnumSet;
@@ -42,12 +40,13 @@ import me.brandonli.mcav.capability.installer.debian.DebianLibraryInstaller;
 import me.brandonli.mcav.capability.installer.vlc.VlcInstallationKit;
 import me.brandonli.mcav.capability.installer.ytdlp.YtdlpInstaller;
 import me.brandonli.mcav.utils.IoUtils;
+import me.brandonli.mcav.utils.ffmpeg.FfmpegExecutableProvider;
 import me.brandonli.mcav.utils.natives.NativeLoadingException;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.Os;
+import me.brandonli.mcav.utils.os.OsUtils;
 import me.brandonli.mcav.utils.os.Platform;
-import org.bytedeco.ffmpeg.ffmpeg;
 import org.bytedeco.ffmpeg.global.avutil;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacv.FFmpegLogCallback;
@@ -110,7 +109,7 @@ public final class DependencyLoader {
 
   @VisibleForTesting
   DependencyLoader(final Logger logger) {
-    this(logger, DependencyLoader::isLibraryAvailable, DebianLibraryInstaller::createGtk2Installer);
+    this(logger, OsUtils::isLibraryAvailable, DebianLibraryInstaller::createGtk2Installer);
   }
 
   @VisibleForTesting
@@ -194,7 +193,8 @@ public final class DependencyLoader {
   void loadNatives(final Platform platform) {
     configureJavaCpp();
     Loader.load(Loader.class);
-    loadFfmpeg(DependencyLoader::loadFfmpegLibraries, DependencyLoader::configureFfmpegLogging);
+    // extracting the ffmpeg program loads every FFmpeg library, after the system libraries that they link
+    loadFfmpeg(FfmpegExecutableProvider::getFfmpegPath, DependencyLoader::configureFfmpegLogging);
     for (final Class<?> module : OPENCV_MODULES) {
       Loader.load(module);
     }
@@ -296,21 +296,6 @@ public final class DependencyLoader {
     installer.loadLibraries();
   }
 
-  // asks the dynamic linker for the library the same way OpenCV's GUI module does, so the answer matches what linking
-  // the module will find; the lookup is restricted because it loads native code
-  @SuppressWarnings("restricted")
-  @VisibleForTesting
-  static boolean isLibraryAvailable(final String library) {
-    try {
-      final Arena arena = Arena.global();
-      SymbolLookup.libraryLookup(library, arena);
-
-      return true;
-    } catch (final IllegalArgumentException exception) {
-      return false;
-    }
-  }
-
   @VisibleForTesting
   void loadFaceDetection(final Runnable objectDetectionLoader) {
     // the object detection natives link OpenCV's GUI module, which needs GTK 2 on Linux; where it cannot be provided,
@@ -362,10 +347,6 @@ public final class DependencyLoader {
     }
 
     setup.run();
-  }
-
-  private static void loadFfmpegLibraries() {
-    Loader.load(ffmpeg.class);
   }
 
   private static void configureFfmpegLogging() {
