@@ -30,6 +30,7 @@ final class LogBudget {
   static final long REFILL_NANOSECONDS = TimeUnit.SECONDS.toNanos(1);
 
   private final LongSupplier clock;
+
   private long available;
   private long refilled;
   private long skipped;

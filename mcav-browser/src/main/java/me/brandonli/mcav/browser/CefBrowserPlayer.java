@@ -73,13 +73,14 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private final Lock lock;
   private final AtomicReference<State> state;
   private final AtomicBoolean released;
-  // a release interrupts the starting thread instead of waiting up to START_TIMEOUT_MILLISECONDS for its lock; guarded by
-  // itself, so no interrupt reaches the thread after its start
   private final Object starter;
+  private final LogBudget dropReports;
+
+  // a release interrupts the starting thread instead of waiting up to START_TIMEOUT_MILLISECONDS for its lock; guarded by
+  // starter, so no interrupt reaches the thread after its start
   private @Nullable Thread starting;
   // guarded by starter; the starting thread clears the interrupt of release()
   private boolean startInterrupted;
-  private final LogBudget dropReports;
   private volatile @Nullable BrowserSession session;
   private volatile @Nullable DelayedAudioOutput audioOutput;
   private volatile @Nullable BrowserSource source;
@@ -421,6 +422,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     private final JcefNatives natives;
     private final LinuxLibraries libraries;
     private final List<String> extraJvmOptions;
+
     private @Nullable HelperLauncher launcher;
 
     private DefaultSessionFactory() {
@@ -493,6 +495,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
   private final class SessionListener implements BrowserSession.Listener {
 
     private final OriginalVideoMetadata metadata;
+
     private volatile @Nullable BrowserSession owner;
     private @Nullable Consumer<BrowserSession> earlyEnd;
 

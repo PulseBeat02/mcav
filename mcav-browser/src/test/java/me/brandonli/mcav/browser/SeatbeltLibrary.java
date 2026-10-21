@@ -52,6 +52,7 @@ final class SeatbeltLibrary implements AutoCloseable {
   private final List<String> profiles = new ArrayList<>();
   private final List<Long> flags = new ArrayList<>();
   private final List<Long> freed = new ArrayList<>();
+
   private int answer;
   private MemorySegment reason = MemorySegment.NULL;
 

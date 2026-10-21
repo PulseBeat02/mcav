@@ -82,6 +82,7 @@ public final class BrowserHelper {
   private final PageCompositor compositor;
   private final CountDownLatch stopped;
   private final AtomicReference<String> stopReason;
+
   private int heldButtons;
   private volatile boolean activated;
 
@@ -349,6 +350,7 @@ public final class BrowserHelper {
   final class Reporter implements HelperEvents {
 
     private final DataOutputStream output;
+
     private volatile boolean failed;
 
     Reporter(final DataOutputStream output) {

@@ -58,6 +58,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
 
   private final Rectangle viewBounds;
   private final PaintListener listener;
+
   private boolean focused;
 
   /**

@@ -282,6 +282,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
 
   private final Consumer<byte[]> sink;
   private final LongSupplier clock;
+
   private long available;
   private long last;
   private long speaker;

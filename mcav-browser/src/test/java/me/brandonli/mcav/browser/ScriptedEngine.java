@@ -43,6 +43,7 @@ final class ScriptedEngine implements HelperEngine {
   private static final long OUTPUT_READ_MILLISECONDS = 500L;
 
   private final List<String> calls;
+
   private McavOffscreenBrowser.PaintListener painter = new NoPainter();
   private HelperEvents events = new NoEvents();
   private int width;

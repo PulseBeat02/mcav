@@ -84,6 +84,7 @@ class NetworkGuardTest {
   private final List<Closeable> closeables = new ArrayList<>();
   private final AtomicInteger echoConnections = new AtomicInteger();
   private final AtomicInteger echoEnded = new AtomicInteger();
+
   private ServerSocket echo;
 
   @BeforeEach

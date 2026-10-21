@@ -36,6 +36,7 @@ final class FrameCanvas implements AutoCloseable {
   private final int height;
   private final Mat page;
   private final ByteBuffer pixels;
+
   private boolean closed;
 
   FrameCanvas(final int width, final int height) {

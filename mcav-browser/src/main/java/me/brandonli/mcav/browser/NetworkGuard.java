@@ -72,6 +72,7 @@ final class NetworkGuard implements Closeable {
   private final Semaphore slots;
   private final Set<Socket> sockets;
   private final Set<String> reported;
+
   private volatile boolean closed;
 
   private NetworkGuard(
@@ -346,6 +347,7 @@ final class NetworkGuard implements Closeable {
 
     private final Resolver resolver;
     private final Predicate<InetAddress> own;
+
     private @Nullable List<AddressPolicy.TranslationPrefix> prefixes;
 
     PublicAddresses(final Resolver resolver) {

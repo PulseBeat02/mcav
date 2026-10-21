@@ -860,6 +860,7 @@ final class NullDisplay implements AutoCloseable {
 
     private final Map<String, Integer> ids = new ConcurrentHashMap<>();
     private final List<String> names = new ArrayList<>();
+
     private long bytes;
 
     Atoms() {

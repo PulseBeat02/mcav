@@ -75,8 +75,6 @@ class CefBrowserPlayerTest {
   private final List<FakeSession> sessions = new ArrayList<>();
   private final List<String> reports = new ArrayList<>();
   private final List<ImageBuffer> processed = new ArrayList<>();
-  private BrowserSession.Listener listener;
-  private RuntimeException startFailure;
   private final AtomicLong now = new AtomicLong();
 
   private final CefBrowserPlayer player = new CefBrowserPlayer(
@@ -84,6 +82,9 @@ class CefBrowserPlayerTest {
     (_, _, sessionListener) -> this.openRecordedSession(sessionListener),
     this.now::get
   );
+
+  private BrowserSession.Listener listener;
+  private RuntimeException startFailure;
 
   CefBrowserPlayerTest() {
     this.player.setExceptionHandler((message, error) -> this.reports.add(message + ": " + error.getMessage()));

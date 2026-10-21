@@ -113,6 +113,7 @@ final class CefEngine implements HelperEngine {
   );
 
   private final CountDownLatch terminated;
+
   private volatile @Nullable NetworkGuard guard;
   private volatile @Nullable NullDisplay display;
   private volatile @Nullable CefApp application;

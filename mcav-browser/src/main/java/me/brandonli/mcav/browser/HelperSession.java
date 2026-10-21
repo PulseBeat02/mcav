@@ -134,6 +134,7 @@ final class HelperSession implements BrowserSession {
   private final Object deliveryLock;
   private final Set<StartEvent> startEvents;
   private final LogBudget logBudget;
+
   private volatile Thread reader = NOT_STARTED;
   private volatile Thread delivery = NOT_STARTED;
   private volatile Thread drain = NOT_STARTED;
