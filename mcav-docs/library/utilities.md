@@ -40,14 +40,17 @@ it, which checks the downmix without a Minecraft server:
   final MCAVApi api = MCAV.api();
   api.install();
 
-  final AudioFormat format = new AudioFormat(48_000, 16, 1, true, false);
+  final int sampleRate = 48_000;
+  final int sampleBits = 16;
+  final int monoChannels = 1;
+  final AudioFormat format = new AudioFormat(sampleRate, sampleBits, monoChannels, true, false);
   final SourceDataLine line = AudioSystem.getSourceDataLine(format);
   line.open(format);
   line.start();
 
   final AudioPipelineStep pipeline = AudioPipelineStep.of((samples, metadata) -> {
     final short[] mono = MonoDownmixer.downmix(samples);
-    final ByteBuffer bytes = ByteBuffer.allocate(mono.length * 2);
+    final ByteBuffer bytes = ByteBuffer.allocate(mono.length * Short.BYTES);
     bytes.order(ByteOrder.LITTLE_ENDIAN);
     for (final short sample : mono) {
       bytes.putShort(sample);
@@ -60,7 +63,8 @@ it, which checks the downmix without a Minecraft server:
   final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
   final AudioAttachableCallback audio = player.getAudioAttachableCallback();
   audio.attach(pipeline);
-  final Path path = Path.of("video.mp4");
+  final String fileName = "video.mp4";
+  final Path path = Path.of(fileName);
   final FileSource source = FileSource.path(path);
   player.start(source);
 ```
@@ -118,12 +122,15 @@ through the speakers of your computer, so you can hear the result:
   final MCAVApi api = MCAV.api();
   api.install();
 
-  final AudioFormat speechFormat = new AudioFormat(16_000, 16, 1, true, false);
+  final int speechRate = 16_000;
+  final int sampleBits = 16;
+  final int monoChannels = 1;
+  final AudioFormat speechFormat = new AudioFormat(speechRate, sampleBits, monoChannels, true, false);
   final SourceDataLine line = AudioSystem.getSourceDataLine(speechFormat);
   line.open(speechFormat);
   line.start();
 
-  final AudioResampler resampler = AudioResampler.fromPipelineFormat(16_000, 1, SampleFormat.SIGNED_16_BIT);
+  final AudioResampler resampler = AudioResampler.fromPipelineFormat(speechRate, monoChannels, SampleFormat.SIGNED_16_BIT);
   final AudioPipelineStep pipeline = AudioPipelineStep.of((samples, metadata) -> {
     final byte[] speech = resampler.resample(samples);
     line.write(speech, 0, speech.length);
@@ -133,7 +140,8 @@ through the speakers of your computer, so you can hear the result:
   final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
   final AudioAttachableCallback audio = player.getAudioAttachableCallback();
   audio.attach(pipeline);
-  final Path path = Path.of("video.mp4");
+  final String fileName = "video.mp4";
+  final Path path = Path.of(fileName);
   final FileSource source = FileSource.path(path);
   player.start(source);
   // ... once playback has ended
@@ -224,7 +232,8 @@ convert:
 ```java
   final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
   executor.execute(() -> {
-    final URI mediaUri = URI.create("https://example.com/video.mp4");
+    final String mediaAddress = "https://example.com/video.mp4";
+    final URI mediaUri = URI.create(mediaAddress);
     final UriSource media = UriSource.uri(mediaUri);
     try {
       final Path oggFile = AudioExtractor.extractOggVorbis(media);
@@ -265,12 +274,15 @@ its URL:
 
 ```java
   final Optional<String> publicAddress = NetworkUtils.lookUpPublicAddress();
-  final String hostName = publicAddress.orElse("localhost");
+  final String fallbackHost = "localhost";
+  final String hostName = publicAddress.orElse(fallbackHost);
 
-  final URI customService = URI.create("https://api.ipify.org/");
+  final String serviceAddress = "https://api.ipify.org/";
+  final URI customService = URI.create(serviceAddress);
   final Optional<String> addressFromCustomService = NetworkUtils.lookUpPublicAddress(customService);
 
-  final URI packUri = URI.create("https://example.com/pack.zip");
+  final String packAddress = "https://example.com/pack.zip";
+  final URI packUri = URI.create(packAddress);
   final boolean stillHosted = NetworkUtils.isReachable(packUri);
   if (!stillHosted) {
     // upload the pack again before sending the URL to players

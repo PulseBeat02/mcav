@@ -12,7 +12,8 @@ otherwise the memory is only freed when the garbage collector finds the object.
 ```java
   public static BufferedImage createInvertedThumbnail(final BufferedImage original) {
     try (final ImageBuffer image = ImageBuffer.image(original)) {
-      final ResizeFilter resize = new ResizeFilter(200, 200);
+      final int thumbnailSize = 200;
+      final ResizeFilter resize = new ResizeFilter(thumbnailSize, thumbnailSize);
       resize.applyFilter(image);
       final InvertFilter invert = new InvertFilter();
       invert.applyFilter(image);
@@ -57,7 +58,8 @@ with `updateArgb(int[], width, height)`:
       LOGGER.debug("The first pixel was {}.", firstColor);
 
       final int[] editable = image.copyPixels(); // your own copy: write it freely
-      editable[0] = 0xFFFF0000;
+      final int opaqueRed = 0xFFFF0000;
+      editable[0] = opaqueRed;
       final int width = image.getWidth();
       final int height = image.getHeight();
       image.updateArgb(editable, width, height);
@@ -77,7 +79,8 @@ with the [image player](player.md#image-players).
 
 ```java
   public static void describeGif() {
-    final URI sourceUri = URI.create("https://example.com/image.gif");
+    final String address = "https://example.com/image.gif";
+    final URI sourceUri = URI.create(address);
     final UriSource source = UriSource.uri(sourceUri);
     try (final DynamicImageBuffer gif = DynamicImageBuffer.uri(source)) {
       final float frameRate = gif.getFrameRate();

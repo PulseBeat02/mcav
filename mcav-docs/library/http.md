@@ -39,7 +39,9 @@ The ports must be between 1 and 65535 and the host name must not be blank; other
 `IllegalArgumentException`.
 
 ```java
-  final HttpResult http = HttpResult.http("play.example.com", 8080);
+  final String domain = "play.example.com";
+  final int port = 8080;
+  final HttpResult http = HttpResult.http(domain, port);
   http.start(); // blocks for a few seconds; startAsync() starts it on another thread instead
   final MediaInfo media = MediaInfo.titled("My Video");
   http.setCurrentMedia(media); // or http.setCurrentMedia(dump) with the UrlParseDump of yt-dlp
@@ -48,7 +50,8 @@ The ports must be between 1 and 65535 and the host name must not be blank; other
   final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
   final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
   audioCallback.attach(audioPipelineStep);
-  final Path path = Path.of("video.mp4");
+  final String fileName = "video.mp4";
+  final Path path = Path.of(fileName);
   final FileSource source = FileSource.path(path);
   multiplexer.start(source);
 
@@ -80,9 +83,11 @@ a default, so only set what you need:
 For example, a server behind a reverse proxy on the same machine only needs the loopback interface:
 
 ```java
+  final String domain = "play.example.com";
+  final int port = 8080;
   final HttpResultBuilder builder = HttpResult.builder();
-  builder.domain("play.example.com");
-  builder.port(8080);
+  builder.domain(domain);
+  builder.port(port);
   final InetAddress loopback = InetAddress.getLoopbackAddress();
   builder.bindAddress(loopback);
   final HttpResult http = builder.build();

@@ -88,16 +88,23 @@ release the returned browser when you are done with the page.
 ```java
   public static BrowserPlayer searchWikipedia(final VideoFilter display) {
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
-    final URI address = URI.create("https://www.wikipedia.org");
-    final BrowserSource source = BrowserSource.uri(address, 1280, 720, 1);
+    final String page = "https://www.wikipedia.org";
+    final URI address = URI.create(page);
+    final int width = 1280;
+    final int height = 720;
+    final int everyFrame = 1;
+    final BrowserSource source = BrowserSource.uri(address, width, height, everyFrame);
     final BrowserPlayer browser = BrowserPlayer.create();
     final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
     callback.attach(videoPipelineStep);
 
     browser.start(source); // throws a PlayerException if the page cannot be shown
-    browser.sendMouseEvent(MouseClick.LEFT, 640, 360);
+    final int clickX = 640;
+    final int clickY = 360;
+    final String enterKey = "Enter";
+    browser.sendMouseEvent(MouseClick.LEFT, clickX, clickY);
     browser.sendKeyEvent("hello");
-    browser.sendKeyEvent("Enter");
+    browser.sendKeyEvent(enterKey);
     return browser;
   }
 ```

@@ -47,17 +47,25 @@ QEMU whose JVM is gone and logs it; a QEMU of another JVM that still runs is lef
     final String isoPath = isoFile.toString();
     final VMConfiguration configuration = VMConfiguration.builder();
     configuration.cdrom(isoPath);
-    configuration.memory(2048);
-    configuration.cores(2);
+    final int memoryMegabytes = 2048;
+    final int cores = 2;
+    configuration.memory(memoryMegabytes);
+    configuration.cores(cores);
 
-    final VMSettings settings = VMSettings.of(1024, 768, 30);
+    final int width = 1024;
+    final int height = 768;
+    final int framesPerSecond = 30;
+    final VMSettings settings = VMSettings.of(width, height, framesPerSecond);
     final VMPlayer player = VMPlayer.create();
     final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
     videoCallback.attach(pipeline);
 
     player.start(settings, VMPlayer.Architecture.X86_64, configuration);
-    player.sendMouseEvent(MouseClick.LEFT, 512, 384);
-    player.sendKeyEvent("Return");
+    final int clickX = 512;
+    final int clickY = 384;
+    final String returnKey = "Return";
+    player.sendMouseEvent(MouseClick.LEFT, clickX, clickY);
+    player.sendKeyEvent(returnKey);
     return player;
   }
 ```

@@ -1387,10 +1387,14 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 
   // call on the main thread, in onEnable
   public static Mcv2PackServer setUpMcv2(final Path dataFolder) {
-    MCV2.Pool.setSharedThreads(0);
-    MCV2.installNatives(dataFolder.resolve("natives"), "auto");
+    final int defaultThreads = 0;
+    final String nativesName = "natives";
+    final String packName = "mcv2-pack";
+    MCV2.Pool.setSharedThreads(defaultThreads);
+    final Path nativesFolder = dataFolder.resolve(nativesName);
+    MCV2.installNatives(nativesFolder, MCV2.NATIVE_AUTO);
 
-    final Path packFolder = dataFolder.resolve("mcv2-pack");
+    final Path packFolder = dataFolder.resolve(packName);
     final boolean debugView = false;
     final Mcv2PackServer packs = new Mcv2PackServer(
       packFolder,
@@ -1410,7 +1414,7 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 - **`MCV2.installNatives`** gives the native kernels a folder to extract their library into; `MCV2.describeNatives()`
   returns the line to log, such as `native avx2 (linux-x86_64)`. Use your data folder, not a temporary folder, which
   hosted servers often mount without execution. Without a library for the platform, the Java kernels encode the same
-  stream, and the mode `"off"` instead of `"auto"` turns the native kernels off.
+  stream, and the mode `MCV2.NATIVE_OFF` instead of `MCV2.NATIVE_AUTO` turns the native kernels off.
 - **`Mcv2PackServer`** builds and hosts the one resource pack that decodes every MCV2 screen of your plugin, offers it
   to the viewers, and follows who loaded it. Call `shutdown()` in `onDisable`. The injector hosting serves the pack on
   the Minecraft port and doesn't work behind a proxy such as Velocity; `zip -> PackHosting.http(zip, host, port)`
@@ -1447,14 +1451,18 @@ import org.bukkit.entity.ItemFrame;
     final Collection<UUID> viewers,
     final VideoPlayerMultiplexer player
   ) {
+    final int columns = 15;
+    final int rows = 9;
+    final int videoWidth = 1920;
+    final int videoHeight = 1080;
     final Mcv2Configuration requested = Mcv2Configuration.builder()
       .viewers(viewers)
       .origin(topLeft.getLocation())
       .facing(topLeft.getFacing())
       .map(firstMapId)
-      .columns(15)
-      .rows(9)
-      .video(1920, 1080)
+      .columns(columns)
+      .rows(rows)
+      .video(videoWidth, videoHeight)
       .settings(MCV2.Settings.DEFAULT)
       .build();
     final Mcv2PackServer.Lease lease = packs.open(requested);
@@ -1518,12 +1526,14 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2FileEncoder;
 
   // call off the main thread
   public static Mcv2FileEncoder.Result preEncode(final Path video, final Path stream) throws IOException, InterruptedException {
+    final int width = 1920;
+    final int height = 1080;
     final MCV2.Pool budget = MCV2.Pool.shared();
     try (
-      Mcv2FileEncoder.FrameReader frames = Mcv2FileEncoder.ffmpeg(video, 1920, 1080);
+      Mcv2FileEncoder.FrameReader frames = Mcv2FileEncoder.ffmpeg(video, width, height);
       OutputStream output = new BufferedOutputStream(Files.newOutputStream(stream))
     ) {
-      return Mcv2FileEncoder.encode(frames, 1920, 1080, MCV2.Settings.DEFAULT, budget, output, frame -> {});
+      return Mcv2FileEncoder.encode(frames, width, height, MCV2.Settings.DEFAULT, budget, output, frame -> {});
     }
   }
 ```

@@ -40,6 +40,11 @@ import me.brandonli.mcav.media.source.uri.UriSource;
 
 public final class YouTubeExample {
 
+  private static final String VIDEO_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+
+  private static final int WINDOW_WIDTH = 1280;
+  private static final int WINDOW_HEIGHT = 720;
+
   public static void main(final String[] args) throws Exception {
     final MCAVApi api = MCAV.api();
     try {
@@ -64,7 +69,7 @@ public final class YouTubeExample {
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
     final DirectAudioOutput speakers = new DirectAudioOutput();
     try {
-      final URI page = URI.create("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+      final URI page = URI.create(VIDEO_URL);
       final UriSource source = UriSource.uri(page);
       final YtdlpParser parser = YtdlpParser.simple();
       final UrlParseDump dump = parser.parse(source);
@@ -115,7 +120,7 @@ public final class YouTubeExample {
   private static View createView(final CountDownLatch closed) {
     final JFrame frame = new JFrame("Video Player");
     frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-    frame.setSize(1280, 720);
+    frame.setSize(WINDOW_WIDTH, WINDOW_HEIGHT);
     final JLabel label = new JLabel();
     final BorderLayout layout = new BorderLayout();
     frame.setLayout(layout);

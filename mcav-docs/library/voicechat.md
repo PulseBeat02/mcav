@@ -20,6 +20,8 @@ voice chat plugin once voice chat has started:
 ```java
   public final class MyVoiceChatPlugin implements VoicechatPlugin {
 
+    private static final String PLUGIN_ID = "my-plugin";
+
     private final MCAVApi mcav;
 
     public MyVoiceChatPlugin(final MCAVApi mcav) {
@@ -28,7 +30,7 @@ voice chat plugin once voice chat has started:
 
     @Override
     public String getPluginId() {
-      return "my-plugin";
+      return PLUGIN_ID;
     }
 
     @Override
@@ -69,7 +71,8 @@ Call `start()` before attaching the filter and `release()` when playback ends; t
 
 ```java
   final Player[] speakers = {firstPlayer, secondPlayer};
-  final SVCFilter voiceChat = SVCFilter.withDistance(48.0f, (Object[]) speakers);
+  final float hearingDistance = 48.0f;
+  final SVCFilter voiceChat = SVCFilter.withDistance(hearingDistance, (Object[]) speakers);
   voiceChat.start();
   final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(voiceChat);
 
@@ -77,7 +80,8 @@ Call `start()` before attaching the filter and `release()` when playback ends; t
   final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
   audioCallback.attach(audioPipelineStep);
 
-  final Path path = Path.of("video.mp4");
+  final String fileName = "video.mp4";
+  final Path path = Path.of(fileName);
   final FileSource source = FileSource.path(path);
   multiplexer.start(source);
   // ... play some media

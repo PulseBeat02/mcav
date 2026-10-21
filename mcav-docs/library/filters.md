@@ -19,9 +19,15 @@ import org.bytedeco.opencv.global.opencv_imgproc;
 
   public static VideoPipelineStep createSecurityCameraPipeline(final VideoFilter display) {
     final VideoPipelineStepBuilder builder = PipelineBuilder.video();
+    final double contrast = 1.4;
+    final double brightness = -20;
+    final int left = 12;
+    final int baseline = 28;
+    final double scale = 0.8;
+    final double[] white = new double[] {255, 255, 255};
     builder.then(new GrayscaleFilter());
-    builder.then(new LuminanceFilter(1.4, -20)); // contrast, brightness
-    builder.then(new TextFilter("CAM 1", 12, 28, opencv_imgproc.FONT_HERSHEY_SIMPLEX, 0.8, new double[] { 255, 255, 255 }));
+    builder.then(new LuminanceFilter(contrast, brightness));
+    builder.then(new TextFilter("CAM 1", left, baseline, opencv_imgproc.FONT_HERSHEY_SIMPLEX, scale, white));
     builder.then(new FramesPerSecondFilter());
     builder.then(display);
     return builder.build();
@@ -89,7 +95,8 @@ A `VolumeFilter` before an output turns the output down or up; one filter in fro
   builder.then(speakers);
   final AudioPipelineStep audioPipeline = builder.build();
   // ... attach it, start the player, and later:
-  volume.setVolume(0.5); // half the sample amplitude, from the next chunk on
+  final double halfAmplitude = 0.5;
+  volume.setVolume(halfAmplitude); // from the next chunk on
 ```
 
 ## Writing Your Own

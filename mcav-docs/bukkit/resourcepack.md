@@ -15,13 +15,15 @@ format of every version.
 
 ```java
   public static void buildAudioPack(final int packFormat, final Path destination) {
-    final URI mediaUri = URI.create("https://example.com/video.mp4");
+    final String mediaAddress = "https://example.com/video.mp4";
+    final URI mediaUri = URI.create(mediaAddress);
     final UriSource media = UriSource.uri(mediaUri);
     final Path sound = AudioExtractor.extractOggVorbis(media);
 
+    final String soundKey = "mcav:example";
     final SimpleResourcePack pack = SimpleResourcePack.pack();
     pack.meta(packFormat, "MCAV audio");
-    pack.sound("mcav:example", sound);
+    pack.sound(soundKey, sound);
     pack.zip(destination);
   }
 ```

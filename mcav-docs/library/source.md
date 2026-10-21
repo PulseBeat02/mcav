@@ -14,7 +14,8 @@ code generates. Sources are small immutable descriptions; the player opens them 
 
 ```java
   public static boolean playExampleVideo(final VideoPlayer player) {
-    final URI sourceUri = URI.create("https://example.com/video.mp4");
+    final String address = "https://example.com/video.mp4";
+    final URI sourceUri = URI.create(address);
     final UriSource source = UriSource.uri(sourceUri);
     return player.start(source);
   }

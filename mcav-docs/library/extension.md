@@ -19,6 +19,8 @@ import me.brandonli.mcav.module.MCAVModule;
 
 public final class ExampleModule implements MCAVModule {
 
+  private static final String NAME = "example";
+
   public ExampleModule() {
     // called by the library during install
   }
@@ -35,7 +37,7 @@ public final class ExampleModule implements MCAVModule {
 
   @Override
   public String getModuleName() {
-    return "example";
+    return NAME;
   }
 }
 ```

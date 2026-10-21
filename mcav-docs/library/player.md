@@ -53,7 +53,9 @@ on a worker thread; it waits during playback. The `display` filter is yours and 
       final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
       audioCallback.attach(audioPipelineStep);
       final DimensionAttachableCallback dimensionCallback = player.getDimensionAttachableCallback();
-      final Dimension resolution = Dimension.of(640, 360);
+      final int width = 640;
+      final int height = 360;
+      final Dimension resolution = Dimension.of(width, height);
       dimensionCallback.attach(resolution);
 
       final FileSource source = FileSource.path(videoFile);
@@ -94,7 +96,8 @@ every player and every audio output behind it.
     if (player instanceof final AbstractVideoPlayerCv decoded) {
       final long position = decoded.getPositionMilliseconds();
       LOGGER.debug("Speeding up at {} milliseconds.", position);
-      return decoded.setSpeed(1.5); // false for a live stream or a camera
+      final double speed = 1.5;
+      return decoded.setSpeed(speed); // false for a live stream or a camera
     }
     return false; // VLC plays at its own rate
   }
@@ -131,7 +134,9 @@ returned player when the chart should stop.
 
 ```java
   public static ImagePlayer playChart(final ImageSupplier chartSupplier, final VideoFilter display) {
-    final FrameSource frameSource = FrameSource.image(chartSupplier, 640, 360);
+    final int width = 640;
+    final int height = 360;
+    final FrameSource frameSource = FrameSource.image(chartSupplier, width, height);
     final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
     final ImagePlayer player = ImagePlayer.player();
 
