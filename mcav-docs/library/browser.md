@@ -190,8 +190,9 @@ The sound a page plays through Web Audio and its audio and video elements arrive
 as 16-bit little-endian stereo samples at 48 kHz, like the sound of every MCAV player:
 
 ```java
+  final AudioPipelineStep audioPipeline = AudioPipelineStep.of(speakers);
   final AudioAttachableCallback audio = browser.getAudioAttachableCallback();
-  audio.attach(AudioPipelineStep.of(speakers));
+  audio.attach(audioPipeline);
 ```
 
 JCEF has no way to hand over Chromium's own audio, so a script that MCAV adds to every document before the page's own

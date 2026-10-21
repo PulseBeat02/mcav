@@ -25,10 +25,14 @@ import org.bytedeco.opencv.global.opencv_imgproc;
     final int baseline = 28;
     final double scale = 0.8;
     final double[] white = new double[] {255, 255, 255};
-    builder.then(new GrayscaleFilter());
-    builder.then(new LuminanceFilter(contrast, brightness));
-    builder.then(new TextFilter("CAM 1", left, baseline, opencv_imgproc.FONT_HERSHEY_SIMPLEX, scale, white));
-    builder.then(new FramesPerSecondFilter());
+    final GrayscaleFilter grayscale = new GrayscaleFilter();
+    final LuminanceFilter luminance = new LuminanceFilter(contrast, brightness);
+    final TextFilter label = new TextFilter("CAM 1", left, baseline, opencv_imgproc.FONT_HERSHEY_SIMPLEX, scale, white);
+    final FramesPerSecondFilter framesPerSecond = new FramesPerSecondFilter();
+    builder.then(grayscale);
+    builder.then(luminance);
+    builder.then(label);
+    builder.then(framesPerSecond);
     builder.then(display);
     return builder.build();
   }

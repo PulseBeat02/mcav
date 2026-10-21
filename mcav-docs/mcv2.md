@@ -1435,10 +1435,13 @@ import me.brandonli.mcav.bukkit.media.mcv2.MCV2;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result;
+import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
 import me.brandonli.mcav.media.player.attachable.VideoAttachableCallback;
 import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
+import org.bukkit.Location;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.ItemFrame;
 
   // the result and the lease of one wall: release() the result, then close() the lease, on the main thread
@@ -1456,10 +1459,12 @@ import org.bukkit.entity.ItemFrame;
     final int rows = 9;
     final int videoWidth = 1920;
     final int videoHeight = 1080;
+    final Location origin = topLeft.getLocation();
+    final BlockFace facing = topLeft.getFacing();
     final Mcv2Configuration requested = Mcv2Configuration.builder()
       .viewers(viewers)
-      .origin(topLeft.getLocation())
-      .facing(topLeft.getFacing())
+      .origin(origin)
+      .facing(facing)
       .map(firstMapId)
       .columns(columns)
       .rows(rows)
@@ -1469,7 +1474,8 @@ import org.bukkit.entity.ItemFrame;
     final Mcv2PackServer.Lease lease = packs.open(requested);
     final Mcv2Configuration configuration = lease.getConfiguration();
     final DitherAlgorithm fallback = DitherAlgorithm.filterLite();
-    final Mcv2Result result = new Mcv2Result(configuration, packs.getViewers(), fallback);
+    final Mcv2Viewers packViewers = packs.getViewers();
+    final Mcv2Result result = new Mcv2Result(configuration, packViewers, fallback);
     try {
       result.start();
       final VideoPipelineStep pipeline = VideoPipelineStep.of(result);
@@ -1532,8 +1538,9 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2FileEncoder;
     final int height = 1080;
     final MCV2.Pool budget = MCV2.Pool.shared();
     try (
-      Mcv2FileEncoder.FrameReader frames = Mcv2FileEncoder.ffmpeg(video, width, height);
-      OutputStream output = new BufferedOutputStream(Files.newOutputStream(stream))
+      final Mcv2FileEncoder.FrameReader frames = Mcv2FileEncoder.ffmpeg(video, width, height);
+      final OutputStream file = Files.newOutputStream(stream);
+      final OutputStream output = new BufferedOutputStream(file)
     ) {
       return Mcv2FileEncoder.encode(frames, width, height, MCV2.Settings.DEFAULT, budget, output, frame -> {});
     }

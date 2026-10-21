@@ -59,7 +59,9 @@ on a worker thread; it waits during playback. The `display` filter is yours and 
       dimensionCallback.attach(resolution);
 
       final FileSource source = FileSource.path(videoFile);
-      if (player.start(source)) {
+      final boolean started = player.start(source);
+
+      if (started) {
         Thread.sleep(playTime);
       }
     } finally {

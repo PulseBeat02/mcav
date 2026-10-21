@@ -21,7 +21,8 @@ dependencies {
   final MCAVApi api = MCAV.api();
   api.install(VncModule.class, VMModule.class);
   final VMModule vmModule = api.getModule(VMModule.class);
-  if (!vmModule.isQemuInstalled()) {
+  final boolean qemuInstalled = vmModule.isQemuInstalled();
+  if (!qemuInstalled) {
     // QEMU is missing, virtual machines cannot be started
   }
 ```
@@ -92,8 +93,9 @@ The player hands the sound of the guest to its audio pipeline, in the format eve
 little-endian stereo PCM at 48 kHz. Attach a pipeline like the video one:
 
 ```java
+    final AudioPipelineStep audioPipeline = AudioPipelineStep.of(speakers);
     final AudioAttachableCallback audioCallback = player.getAudioAttachableCallback();
-    audioCallback.attach(AudioPipelineStep.of(speakers));
+    audioCallback.attach(audioPipeline);
 ```
 
 Only x86-64 machines of the PC and Q35 families (the default machine, `pc`, `q35` and their versions) have sound.
