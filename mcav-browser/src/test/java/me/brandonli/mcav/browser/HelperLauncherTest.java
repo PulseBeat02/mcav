@@ -262,9 +262,9 @@ class HelperLauncherTest {
 
   private Set<String> usedClasses(final String name) throws IOException {
     final byte[] bytes;
-    try (final InputStream in = HelperLauncherTest.class.getResourceAsStream("/" + name + ".class")) {
-      assertNotNull(in, name);
-      bytes = in.readAllBytes();
+    try (final InputStream input = HelperLauncherTest.class.getResourceAsStream("/" + name + ".class")) {
+      assertNotNull(input, name);
+      bytes = input.readAllBytes();
     }
     final ClassModel model = ClassFile.of().parse(bytes);
     final Set<String> used = new TreeSet<>();

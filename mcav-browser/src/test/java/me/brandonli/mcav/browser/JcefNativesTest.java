@@ -142,8 +142,8 @@ class JcefNativesTest {
       throw new IOException("Checksum mismatch");
     }
 
-    try (final OutputStream out = Files.newOutputStream(destination)) {
-      out.write(jar);
+    try (final OutputStream output = Files.newOutputStream(destination)) {
+      output.write(jar);
     }
   }
 

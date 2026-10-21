@@ -182,9 +182,9 @@ class SocksProtocolTest {
   @Test
   void shouldGiveAnswersTheFormOfTheProtocol() throws IOException {
     final ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-    final DataOutputStream out = new DataOutputStream(bytes);
-    SocksProtocol.writeMethod(out, SocksProtocol.NO_ACCEPTABLE_METHOD);
-    SocksProtocol.writeReply(out, SocksProtocol.NOT_ALLOWED);
+    final DataOutputStream output = new DataOutputStream(bytes);
+    SocksProtocol.writeMethod(output, SocksProtocol.NO_ACCEPTABLE_METHOD);
+    SocksProtocol.writeReply(output, SocksProtocol.NOT_ALLOWED);
     final byte[] writtenAnswers = bytes.toByteArray();
     assertArrayEquals(new byte[] { 5, (byte) 0xFF, 5, 2, 0, 1, 0, 0, 0, 0, 0, 0 }, writtenAnswers);
   }

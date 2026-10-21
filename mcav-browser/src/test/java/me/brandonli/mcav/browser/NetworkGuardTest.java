@@ -107,8 +107,8 @@ class NetworkGuardTest {
   }
 
   private void echo(final Socket socket) {
-    try (socket; final InputStream in = socket.getInputStream(); final OutputStream out = socket.getOutputStream()) {
-      in.transferTo(out);
+    try (socket; final InputStream input = socket.getInputStream(); final OutputStream output = socket.getOutputStream()) {
+      input.transferTo(output);
     } catch (final IOException exception) {
       // the guard closed the connection
     }
@@ -162,9 +162,9 @@ class NetworkGuardTest {
   }
 
   private byte[] exchange(final Socket socket, final byte[] request, final int answerBytes) throws IOException {
-    final OutputStream out = socket.getOutputStream();
-    out.write(request);
-    out.flush();
+    final OutputStream output = socket.getOutputStream();
+    output.write(request);
+    output.flush();
     final byte[] answer = new byte[answerBytes];
     new DataInputStream(socket.getInputStream()).readFully(answer);
 
@@ -366,21 +366,21 @@ class NetworkGuardTest {
   void shouldDropAClientThatTricklesItsHandshakeOnceTheWholeHandshakeTookTooLong() throws Exception {
     final NetworkGuard guard = this.guard(InetAddress::isLoopbackAddress, NetworkGuard::connect, 600);
     final Socket client = this.client(guard);
-    final OutputStream out = client.getOutputStream();
+    final OutputStream output = client.getOutputStream();
     final int port = this.echo.getLocalPort();
     final byte[] handshake = { 5, 1, 0, 5, 1, 0, 1, 127, 0, 0, 1, (byte) (port >> 8), (byte) port };
     try {
       for (final byte value : handshake) {
-        out.write(value);
-        out.flush();
+        output.write(value);
+        output.flush();
         Thread.sleep(150L);
       }
     } catch (final SocketException exception) {
       // the guard closed the connection while the client still wrote
     }
-    final InputStream in = client.getInputStream();
+    final InputStream input = client.getInputStream();
     try {
-      while (in.read() >= 0) {}
+      while (input.read() >= 0) {}
     } catch (final SocketException exception) {
       // a guard that closed with unread bytes resets the connection
     }

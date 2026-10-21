@@ -33,10 +33,10 @@ final class SocksProtocolFuzzTest {
   @FuzzTest(maxDuration = "30s")
   void shouldReadAGreetingAndARequestOrRefuseThem(final FuzzedDataProvider data) {
     final byte[] bytes = data.consumeRemainingAsBytes();
-    final DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
+    final DataInputStream input = new DataInputStream(new ByteArrayInputStream(bytes));
     try {
-      SocksProtocol.readGreeting(in);
-      final SocksProtocol.Request request = SocksProtocol.readRequest(in);
+      SocksProtocol.readGreeting(input);
+      final SocksProtocol.Request request = SocksProtocol.readRequest(input);
       final String host = request.getHost();
       final int port = request.getPort();
       final boolean portInRange = port >= 1 && port <= 65_535;

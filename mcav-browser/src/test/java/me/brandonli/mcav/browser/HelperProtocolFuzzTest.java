@@ -36,10 +36,10 @@ final class HelperProtocolFuzzTest {
   @FuzzTest(maxDuration = "30s")
   void shouldReadOnlyMessagesTheProtocolAllows(final FuzzedDataProvider data) {
     final byte[] bytes = data.consumeRemainingAsBytes();
-    final DataInputStream in = new DataInputStream(new ByteArrayInputStream(bytes));
+    final DataInputStream input = new DataInputStream(new ByteArrayInputStream(bytes));
     try {
       while (true) {
-        final HelperMessage message = HelperProtocol.read(in, size -> this.allocatePixels(bytes, size));
+        final HelperMessage message = HelperProtocol.read(input, size -> this.allocatePixels(bytes, size));
         this.check(message);
       }
     } catch (final IOException | CutShort exception) {

@@ -357,7 +357,7 @@ class HelperProtocolTest {
 
   @Test
   void shouldRefuseAMessageOfTheWrongLengthBeforeItsContentIsRead() {
-    final int max = HelperProtocol.MAXIMUM_TEXT_BYTES;
+    final int maximumTextBytes = HelperProtocol.MAXIMUM_TEXT_BYTES;
     final ProtocolException loading = assertThrows(ProtocolException.class, () ->
       this.read(this.message(HelperProtocol.LOADING, new byte[2]))
     );
@@ -367,11 +367,14 @@ class HelperProtocolTest {
       this.read(this.message(HelperProtocol.LOAD_ERROR, new byte[3]))
     );
     final String loadErrorMessage = loadError.getMessage();
-    assertEquals("A message of type 5 has 8 to " + (4 + 2 * (2 + max)) + " bytes, but 3 bytes were announced!", loadErrorMessage);
+    assertEquals(
+      "A message of type 5 has 8 to " + (4 + 2 * (2 + maximumTextBytes)) + " bytes, but 3 bytes were announced!",
+      loadErrorMessage
+    );
     final ProtocolException text = assertThrows(ProtocolException.class, () -> this.read(this.message(HelperProtocol.READY, new byte[1])));
     final String textMessage = text.getMessage();
     assertEquals(
-      "A message of type " + HelperProtocol.READY + " has 2 to " + (2 + max) + " bytes, but 1 bytes were announced!",
+      "A message of type " + HelperProtocol.READY + " has 2 to " + (2 + maximumTextBytes) + " bytes, but 1 bytes were announced!",
       textMessage
     );
   }
@@ -536,26 +539,26 @@ class HelperProtocolTest {
 
   @Test
   void shouldSplitALongTextIntoPartsThatEachFitIntoAMessage() {
-    final int max = HelperProtocol.MAXIMUM_TEXT_BYTES;
+    final int maximumTextBytes = HelperProtocol.MAXIMUM_TEXT_BYTES;
     final List<String> emptyParts = HelperProtocol.split("");
     assertEquals(List.of(""), emptyParts);
     final List<String> shortParts = HelperProtocol.split("hello");
     assertEquals(List.of("hello"), shortParts);
-    final List<String> fullParts = HelperProtocol.split("a".repeat(max));
-    assertEquals(List.of("a".repeat(max)), fullParts);
-    final List<String> overflowingParts = HelperProtocol.split("a".repeat(max + 1));
-    assertEquals(List.of("a".repeat(max), "a"), overflowingParts);
+    final List<String> fullParts = HelperProtocol.split("a".repeat(maximumTextBytes));
+    assertEquals(List.of("a".repeat(maximumTextBytes)), fullParts);
+    final List<String> overflowingParts = HelperProtocol.split("a".repeat(maximumTextBytes + 1));
+    assertEquals(List.of("a".repeat(maximumTextBytes), "a"), overflowingParts);
     for (final String character : new String[] { "\u0080", "\u00e9", "\u0800", "\u20ac", "\uD800\uDC00", "\uD83D\uDE00" }) {
-      final String text = character.repeat(max);
+      final String text = character.repeat(maximumTextBytes);
       final List<String> parts = HelperProtocol.split(text);
       final String joined = String.join("", parts);
       assertEquals(text, joined);
       for (int index = 0; index < parts.size(); index++) {
         final String part = parts.get(index);
-        final boolean partFits = this.utf8(part) <= max;
+        final boolean partFits = this.utf8(part) <= maximumTextBytes;
         assertTrue(partFits, character + " " + this.utf8(part));
         final boolean last = index == parts.size() - 1;
-        final boolean partFull = last || this.utf8(part) > max - this.utf8(character);
+        final boolean partFull = last || this.utf8(part) > maximumTextBytes - this.utf8(character);
         assertTrue(partFull, "parts are as long as they can be");
       }
     }
@@ -563,13 +566,13 @@ class HelperProtocolTest {
 
   @Test
   void shouldNeverSplitALineBreak() {
-    final int max = HelperProtocol.MAXIMUM_TEXT_BYTES;
-    final String text = "a".repeat(max - 1) + "\r\nb";
+    final int maximumTextBytes = HelperProtocol.MAXIMUM_TEXT_BYTES;
+    final String text = "a".repeat(maximumTextBytes - 1) + "\r\nb";
     final List<String> carriageReturnParts = HelperProtocol.split(text);
-    assertEquals(List.of("a".repeat(max - 1), "\r\nb"), carriageReturnParts);
-    final String lone = "a".repeat(max) + "\nb";
+    assertEquals(List.of("a".repeat(maximumTextBytes - 1), "\r\nb"), carriageReturnParts);
+    final String lone = "a".repeat(maximumTextBytes) + "\nb";
     final List<String> lineFeedParts = HelperProtocol.split(lone);
-    assertEquals(List.of("a".repeat(max), "\nb"), lineFeedParts);
+    assertEquals(List.of("a".repeat(maximumTextBytes), "\nb"), lineFeedParts);
   }
 
   @Test

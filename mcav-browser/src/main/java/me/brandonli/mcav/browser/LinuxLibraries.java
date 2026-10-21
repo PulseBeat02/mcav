@@ -389,8 +389,8 @@ final class LinuxLibraries {
   }
 
   private static void writeLibrary(final Path library, final Path file) throws IOException {
-    try (final OutputStream out = Files.newOutputStream(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
-      Files.copy(library, out);
+    try (final OutputStream output = Files.newOutputStream(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+      Files.copy(library, output);
     }
     IoUtils.markExecutable(file);
   }
@@ -458,8 +458,8 @@ final class LinuxLibraries {
   static boolean isBuiltFor(final Path library, final String platform) {
     final byte[] header = new byte[ELF_MACHINE_OFFSET + Short.BYTES];
     final int read;
-    try (final InputStream in = Files.newInputStream(library)) {
-      read = in.readNBytes(header, 0, header.length);
+    try (final InputStream input = Files.newInputStream(library)) {
+      read = input.readNBytes(header, 0, header.length);
     } catch (final IOException exception) {
       return false;
     }
