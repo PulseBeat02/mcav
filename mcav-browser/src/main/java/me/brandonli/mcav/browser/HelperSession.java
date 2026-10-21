@@ -777,6 +777,7 @@ final class HelperSession implements BrowserSession {
 
     try {
       this.input.execute(() -> this.write(writer));
+
       return true;
     } catch (final RejectedExecutionException exception) {
       return this.closing.get();

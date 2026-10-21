@@ -162,6 +162,7 @@ final class JcefNatives {
   static boolean isSupported(final Os os, final Arch architecture, final Bits bits) {
     try {
       detectOrFail(os, architecture, bits);
+
       return true;
     } catch (final IOException exception) {
       return false;

@@ -74,6 +74,7 @@ final class SeatbeltProbeMain {
   private static String read(final Path file) {
     try {
       Files.readString(file, StandardCharsets.UTF_8);
+
       return "read";
     } catch (final IOException exception) {
       return describe(exception);
@@ -83,6 +84,7 @@ final class SeatbeltProbeMain {
   private static String write(final Path file) {
     try {
       Files.writeString(file, "outside", StandardCharsets.UTF_8);
+
       return "written";
     } catch (final IOException exception) {
       return describe(exception);

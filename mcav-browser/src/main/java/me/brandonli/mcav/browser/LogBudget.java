@@ -45,6 +45,7 @@ final class LogBudget {
     final long refills = Math.max(0L, this.clock.getAsLong() - this.refilled) / REFILL_NANOSECONDS;
     this.available = Math.min(BURST, this.available + refills);
     this.refilled += refills * REFILL_NANOSECONDS;
+
     if (this.available == 0) {
       this.skipped++;
       return;

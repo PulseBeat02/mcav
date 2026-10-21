@@ -484,6 +484,7 @@ class LinuxLibrariesTest {
   private void downloadFailingToMoveFromTheFirstMirror(final byte[] debianPackage, final URI uri, final Path destination)
     throws IOException {
     this.downloads.add(uri);
+
     if (uri.getHost().equals("first.test")) {
       throw new FileOperationException("The part file could not be moved into place!");
     }

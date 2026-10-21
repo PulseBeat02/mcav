@@ -89,6 +89,7 @@ final class ChromiumConfinement {
 
       // Seatbelt matches the paths files really have, such as /private/var for /var
       seatbelt.restrictProcess(Seatbelt.profile(realPaths(hidden), realPaths(readable), realPaths(List.of(session, DEVICES))));
+
       return CONFINED;
     }
 

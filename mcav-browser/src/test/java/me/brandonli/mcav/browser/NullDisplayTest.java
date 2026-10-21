@@ -991,6 +991,7 @@ class NullDisplayTest {
   private boolean refuseTheFirstTwoPorts(final AtomicInteger tries, final List<Integer> refused, final int port) {
     if (tries.incrementAndGet() < 3) {
       refused.add(port);
+
       return false;
     }
 
