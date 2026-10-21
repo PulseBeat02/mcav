@@ -135,9 +135,9 @@ final class HelperSession implements BrowserSession {
   private final Set<StartEvent> startEvents;
   private final LogBudget logBudget;
 
-  private volatile Thread reader = NOT_STARTED;
-  private volatile Thread delivery = NOT_STARTED;
-  private volatile Thread drain = NOT_STARTED;
+  private volatile Thread reader;
+  private volatile Thread delivery;
+  private volatile Thread drain;
   private boolean frameWaiting;
 
   private HelperSession(
@@ -171,6 +171,9 @@ final class HelperSession implements BrowserSession {
     this.deliveryLock = new Object();
     this.startEvents = EnumSet.noneOf(StartEvent.class);
     this.logBudget = new LogBudget(System::nanoTime);
+    this.reader = NOT_STARTED;
+    this.delivery = NOT_STARTED;
+    this.drain = NOT_STARTED;
   }
 
   static HelperSession open(

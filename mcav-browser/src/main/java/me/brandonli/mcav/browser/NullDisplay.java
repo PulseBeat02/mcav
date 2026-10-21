@@ -858,12 +858,14 @@ final class NullDisplay implements AutoCloseable {
 
   static final class Atoms {
 
-    private final Map<String, Integer> ids = new ConcurrentHashMap<>();
-    private final List<String> names = new ArrayList<>();
+    private final Map<String, Integer> ids;
+    private final List<String> names;
 
     private long bytes;
 
     Atoms() {
+      this.ids = new ConcurrentHashMap<>();
+      this.names = new ArrayList<>();
       for (final String name : PREDEFINED_ATOMS) {
         this.intern(name);
       }
