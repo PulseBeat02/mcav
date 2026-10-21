@@ -178,13 +178,13 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   /**
    * Leaves the screen information to CEF, which takes it from {@link #getViewRect}.
    *
-   * @param browser    the browser, which is this one
-   * @param screenInfo the screen information, left unchanged
+   * @param browser           the browser, which is this one
+   * @param screenInformation the screen information, left unchanged
    * @return false
    * @since 1.0.0
    */
   @Override
-  public boolean getScreenInfo(final CefBrowser browser, final CefScreenInfo screenInfo) {
+  public boolean getScreenInfo(final CefBrowser browser, final CefScreenInfo screenInformation) {
     return false;
   }
 

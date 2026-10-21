@@ -213,7 +213,7 @@ class PageCompositorTest {
   @Test
   void shouldSleepUntilTheDamageSettlesInsteadOfSpinning() throws InterruptedException {
     final AtomicLong reads = new AtomicLong();
-    final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 5, 60L, () -> this.readNanoTime(reads));
+    final PageCompositor compositor = new PageCompositor(WIDTH, HEIGHT, 5, 60L, () -> this.readNanoseconds(reads));
     compositor.onPaint(false, new Rectangle[] { new Rectangle(0, 0, 1, 1) }, this.buffer(WIDTH, HEIGHT, 6), WIDTH, HEIGHT);
     final FrameRegion region = compositor.takeDamage(new byte[compositor.getPageBytes()], 10_000L);
     assertNotNull(region);
@@ -223,7 +223,7 @@ class PageCompositorTest {
     assertTrue(slept, "the taker read the clock " + clockReads + " times while it waited");
   }
 
-  private long readNanoTime(final AtomicLong reads) {
+  private long readNanoseconds(final AtomicLong reads) {
     reads.incrementAndGet();
 
     return System.nanoTime();

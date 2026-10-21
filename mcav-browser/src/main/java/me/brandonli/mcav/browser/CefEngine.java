@@ -115,7 +115,7 @@ final class CefEngine implements HelperEngine {
   private final CountDownLatch terminated;
   private volatile @Nullable NetworkGuard guard;
   private volatile @Nullable NullDisplay display;
-  private volatile @Nullable CefApp app;
+  private volatile @Nullable CefApp application;
   private volatile @Nullable CefClient client;
   private volatile @Nullable McavOffscreenBrowser browser;
 
@@ -263,7 +263,7 @@ final class CefEngine implements HelperEngine {
     final HelperEvents events
   ) throws Exception {
     final CefApp created = builder.build();
-    this.app = created;
+    this.application = created;
     final String versionText = describe(created.getVersion());
     final CefClient createdClient = created.createClient();
     this.client = createdClient;
@@ -453,9 +453,9 @@ final class CefEngine implements HelperEngine {
 
     final McavOffscreenBrowser current = this.browser;
     final CefClient currentClient = this.client;
-    final CefApp currentApp = this.app;
-    if (currentApp != null) {
-      shutDown(() -> close(current, currentClient, currentApp), this.terminated, STOP_TIMEOUT_MILLISECONDS);
+    final CefApp currentApplication = this.application;
+    if (currentApplication != null) {
+      shutDown(() -> close(current, currentClient, currentApplication), this.terminated, STOP_TIMEOUT_MILLISECONDS);
     }
     // the X library ends a process whose display goes away, so the display outlives CEF
     final NullDisplay currentDisplay = this.display;
@@ -464,7 +464,7 @@ final class CefEngine implements HelperEngine {
     }
   }
 
-  static void close(final @Nullable McavOffscreenBrowser browser, final @Nullable CefClient client, final CefApp app) {
+  static void close(final @Nullable McavOffscreenBrowser browser, final @Nullable CefClient client, final CefApp application) {
     if (browser != null) {
       browser.setCloseAllowed();
       browser.close(true);
@@ -474,7 +474,7 @@ final class CefEngine implements HelperEngine {
       client.dispose();
     }
 
-    app.dispose();
+    application.dispose();
   }
 
   static void shutDown(final Runnable shutdown, final CountDownLatch terminated, final long timeoutMilliseconds) {

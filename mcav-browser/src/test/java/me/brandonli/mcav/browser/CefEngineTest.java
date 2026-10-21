@@ -444,9 +444,9 @@ class CefEngineTest {
 
   @Test
   void shouldDisposeOfWhatWasCreatedOnClose() {
-    final CefApp app = mock(CefApp.class);
-    CefEngine.close(null, null, app);
-    verify(app).dispose();
+    final CefApp application = mock(CefApp.class);
+    CefEngine.close(null, null, application);
+    verify(application).dispose();
 
     final McavOffscreenBrowser browser = mock(McavOffscreenBrowser.class);
     final CefClient client = mock(CefClient.class);

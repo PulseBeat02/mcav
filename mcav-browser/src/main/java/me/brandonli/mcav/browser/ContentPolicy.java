@@ -169,7 +169,7 @@ final class ContentPolicy
   @Override
   public boolean onCertificateError(
     final CefBrowser browser,
-    final CefLoadHandler.ErrorCode certError,
+    final CefLoadHandler.ErrorCode certificateError,
     final String requestUrl,
     final CefCallback callback
   ) {

@@ -96,9 +96,9 @@ final class JcefNatives {
     return cache.resolve(CACHE_FOLDER);
   }
 
-  static Optional<NativePlatform> detect(final Os os, final Arch arch, final Bits bits) {
+  static Optional<NativePlatform> detect(final Os os, final Arch architecture, final Bits bits) {
     for (final NativePlatform platform : NativePlatform.values()) {
-      final boolean matches = platform.getOs() == os && platform.getArch() == arch && bits == Bits.BITS_64;
+      final boolean matches = platform.getOs() == os && platform.getArchitecture() == architecture && bits == Bits.BITS_64;
       if (matches) {
         return Optional.of(platform);
       }
@@ -159,9 +159,9 @@ final class JcefNatives {
     return isSupported(OsUtils.getOs(), OsUtils.getArch(), OsUtils.getBits());
   }
 
-  static boolean isSupported(final Os os, final Arch arch, final Bits bits) {
+  static boolean isSupported(final Os os, final Arch architecture, final Bits bits) {
     try {
-      detectOrFail(os, arch, bits);
+      detectOrFail(os, architecture, bits);
       return true;
     } catch (final IOException exception) {
       return false;
@@ -170,15 +170,19 @@ final class JcefNatives {
 
   static NativePlatform detectCurrent() throws IOException {
     final Os os = OsUtils.getOs();
-    final Arch arch = OsUtils.getArch();
+    final Arch architecture = OsUtils.getArch();
     final Bits bits = OsUtils.getBits();
-    return detectOrFail(os, arch, bits);
+    return detectOrFail(os, architecture, bits);
   }
 
-  static NativePlatform detectOrFail(final Os os, final Arch arch, final Bits bits) throws IOException {
-    final @Nullable NativePlatform platform = detect(os, arch, bits).orElse(null);
+  static NativePlatform detectOrFail(final Os os, final Arch architecture, final Bits bits) throws IOException {
+    final @Nullable NativePlatform platform = detect(os, architecture, bits).orElse(null);
     if (platform == null) {
-      final String message = "Platform %s %s %s has no CEF build in jcefmaven, so the browser cannot run here!".formatted(os, arch, bits);
+      final String message = "Platform %s %s %s has no CEF build in jcefmaven, so the browser cannot run here!".formatted(
+        os,
+        architecture,
+        bits
+      );
       throw new IOException(message);
     }
 
@@ -277,14 +281,14 @@ final class JcefNatives {
 
     private final String identifier;
     private final Os os;
-    private final Arch arch;
+    private final Arch architecture;
     private final String sha256;
     private final long size;
 
-    NativePlatform(final String identifier, final Os os, final Arch arch, final String sha256, final long size) {
+    NativePlatform(final String identifier, final Os os, final Arch architecture, final String sha256, final long size) {
       this.identifier = identifier;
       this.os = os;
-      this.arch = arch;
+      this.architecture = architecture;
       this.sha256 = sha256;
       this.size = size;
     }
@@ -297,8 +301,8 @@ final class JcefNatives {
       return this.os;
     }
 
-    private Arch getArch() {
-      return this.arch;
+    private Arch getArchitecture() {
+      return this.architecture;
     }
 
     String getSha256() {
