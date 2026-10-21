@@ -58,7 +58,9 @@ final class HelperProcessesFailureTest {
       final int helperCount = HelperProcesses.count();
       assertEquals(0, helperCount, "every registered helper must be ended");
       assertSame(sharedFailure, thrown, "the original listener failure remains the primary failure");
-      assertEquals(0, thrown.getSuppressed().length);
+
+      final Throwable[] suppressed = thrown.getSuppressed();
+      assertEquals(0, suppressed.length);
       Mockito.verify(last).endAndClose(Mockito.anyString());
     } finally {
       HelperProcesses.deregister(first);

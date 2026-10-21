@@ -205,7 +205,9 @@ class CefBrowserPlayerTest {
 
     final boolean playingAfterStart = this.player.isPlaying();
     assertTrue(playingAfterStart);
-    assertEquals(1, this.sessions.getFirst().requested);
+
+    final FakeSession session = this.sessions.getFirst();
+    assertEquals(1, session.requested);
 
     final boolean startedAgain = this.player.start(SOURCE);
     assertFalse(startedAgain, "a playing player does not start again");
@@ -320,7 +322,9 @@ class CefBrowserPlayerTest {
 
     final boolean playingAfterRestart = player.isPlaying();
     assertTrue(playingAfterRestart);
-    assertEquals(1, opened.getFirst().closed, "the dead session is closed");
+
+    final FakeSession deadSession = opened.getFirst();
+    assertEquals(1, deadSession.closed, "the dead session is closed");
     assertEquals(List.of("The browser helper exited"), reports);
   }
 
@@ -446,7 +450,9 @@ class CefBrowserPlayerTest {
 
     final boolean startedAgain = this.player.start(SOURCE);
     assertTrue(startedAgain);
-    assertEquals(1, this.sessions.getFirst().closed);
+
+    final FakeSession session = this.sessions.getFirst();
+    assertEquals(1, session.closed);
 
     first.onFrame(this.frame());
     first.onEnded("late", new IllegalStateException("late"));
@@ -675,7 +681,9 @@ class CefBrowserPlayerTest {
 
     final boolean playing = this.player.isPlaying();
     assertFalse(playing);
-    assertEquals(1, this.sessions.getFirst().closed);
+
+    final FakeSession session = this.sessions.getFirst();
+    assertEquals(1, session.closed);
 
     final boolean releasedAgain = this.player.release();
     assertFalse(releasedAgain);
@@ -696,6 +704,7 @@ class CefBrowserPlayerTest {
     this.player.sendMouseEvent(MouseClick.DOUBLE, 3, 4);
     this.player.sendMouseEvent(MouseClick.HOLD, 5, 6);
     this.player.sendMouseEvent(MouseClick.RELEASE, 7, 8);
+    final FakeSession session = this.sessions.getFirst();
     assertEquals(
       List.of(
         "mouse 0 10,20 b0 c0 d0,0",
@@ -714,7 +723,7 @@ class CefBrowserPlayerTest {
         "mouse 0 7,8 b0 c0 d0,0",
         "mouse 2 7,8 b0 c1 d0,0"
       ),
-      this.sessions.getFirst().sent
+      session.sent
     );
   }
 
@@ -723,7 +732,8 @@ class CefBrowserPlayerTest {
     this.player.start(SOURCE);
     this.player.moveMouse(-5, 500);
     this.player.scroll(1000, -1, 100_000, -100_000);
-    assertEquals(List.of("mouse 0 0,49 b0 c0 d0,0", "mouse 3 99,0 b0 c0 d32767,-32768"), this.sessions.getFirst().sent);
+    final FakeSession session = this.sessions.getFirst();
+    assertEquals(List.of("mouse 0 0,49 b0 c0 d0,0", "mouse 3 99,0 b0 c0 d32767,-32768"), session.sent);
 
     final int clampedX = this.player.clamp(0, 0)[0];
     assertEquals(0, clampedX);
@@ -741,7 +751,8 @@ class CefBrowserPlayerTest {
     this.player.sendKeyEvent("Enter");
     this.player.sendKeyEvent("PageDown");
     this.player.sendKeyEvent("hello");
-    assertEquals(List.of("key 0 Enter", "key 0 PageDown", "key 1 hello"), this.sessions.getFirst().sent);
+    final FakeSession session = this.sessions.getFirst();
+    assertEquals(List.of("key 0 Enter", "key 0 PageDown", "key 1 hello"), session.sent);
   }
 
   @Test
@@ -753,7 +764,8 @@ class CefBrowserPlayerTest {
     this.player.start(SOURCE);
     this.listener.onEnded(END_REASON, new IllegalStateException("crash"));
     this.player.sendKeyEvent("x");
-    assertEquals(List.of(), this.sessions.getFirst().sent);
+    final FakeSession session = this.sessions.getFirst();
+    assertEquals(List.of(), session.sent);
   }
 
   @Test
@@ -884,8 +896,12 @@ class CefBrowserPlayerTest {
     final boolean started = this.player.start(SOURCE);
     assertTrue(started);
 
-    CompletableFuture.runAsync(() -> assertTrue(this.player.release())).join();
-    assertTimeoutPreemptively(Duration.ofSeconds(5), () -> assertFalse(this.player.start(SOURCE)));
+    final CompletableFuture<Boolean> releasing = CompletableFuture.supplyAsync(this.player::release);
+    final boolean released = releasing.join();
+    assertTrue(released);
+
+    final boolean restarted = assertTimeoutPreemptively(Duration.ofSeconds(5), () -> this.player.start(SOURCE));
+    assertFalse(restarted);
   }
 
   @Test

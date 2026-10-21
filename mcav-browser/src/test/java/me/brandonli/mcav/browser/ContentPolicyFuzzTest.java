@@ -53,7 +53,9 @@ final class ContentPolicyFuzzTest {
     assertTrue(cancelled, address);
 
     this.assertOpenedOnlyWhenAllowed(browser, address);
-    assertEquals(ONE_NOTICE, events.log.size(), address);
+
+    final int notices = events.log.size();
+    assertEquals(ONE_NOTICE, notices, address);
   }
 
   @FuzzTest(maxDuration = "30s")

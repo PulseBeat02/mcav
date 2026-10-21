@@ -63,7 +63,8 @@ class McavOffscreenBrowserTest {
     assertEquals(new Rectangle(0, 0, 640, 480), view);
 
     view.width = 1;
-    assertEquals(640, this.browser.getViewRect(this.browser).width, "a copy is handed out");
+    final Rectangle freshView = this.browser.getViewRect(this.browser);
+    assertEquals(640, freshView.width, "a copy is handed out");
   }
 
   @Test

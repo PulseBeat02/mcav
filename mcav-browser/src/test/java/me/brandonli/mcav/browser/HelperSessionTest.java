@@ -961,8 +961,9 @@ class HelperSessionTest {
       HelperProcesses.open();
     }
     final String message = failure.getMessage();
+    final Throwable[] suppressed = failure.getSuppressed();
     assertEquals("the listener fails: The browser module was stopped!", message);
-    assertEquals(1, failure.getSuppressed().length, "the failure of the other listener goes along");
+    assertEquals(1, suppressed.length, "the failure of the other listener goes along");
 
     final boolean firstAlive = first.isAlive();
     assertFalse(firstAlive, "the first helper ended");
@@ -991,7 +992,8 @@ class HelperSessionTest {
       HelperProcesses.closeAll();
       Files.createFile(gate);
       final ExecutionException failure = assertThrows(ExecutionException.class, () -> opening.get(60, TimeUnit.SECONDS));
-      final BrowserException cause = assertInstanceOf(BrowserException.class, failure.getCause());
+      final Throwable wrapped = failure.getCause();
+      final BrowserException cause = assertInstanceOf(BrowserException.class, wrapped);
       final String message = cause.getMessage();
       assertEquals("The browser module was stopped while the browser started!", message);
     } finally {
@@ -1028,7 +1030,8 @@ class HelperSessionTest {
     HelperProcesses.open();
     Files.createFile(gate);
     final ExecutionException failure = assertThrows(ExecutionException.class, () -> opening.get(60, TimeUnit.SECONDS));
-    final BrowserException cause = assertInstanceOf(BrowserException.class, failure.getCause());
+    final Throwable wrapped = failure.getCause();
+    final BrowserException cause = assertInstanceOf(BrowserException.class, wrapped);
     final String message = cause.getMessage();
     assertEquals("The browser module was stopped while the browser started!", message);
 
@@ -1190,7 +1193,9 @@ class HelperSessionTest {
         }
       }
     );
-    assertEquals(40, session.getOutputTail().split(System.lineSeparator()).length);
+    final String outputTail = session.getOutputTail();
+    final int tailLineCount = outputTail.split(System.lineSeparator()).length;
+    assertEquals(40, tailLineCount);
   }
 
   @Test
