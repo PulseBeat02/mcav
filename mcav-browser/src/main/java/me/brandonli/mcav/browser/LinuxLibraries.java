@@ -38,7 +38,6 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -111,9 +110,6 @@ final class LinuxLibraries {
   private static final int FINGERPRINT_DIGITS = 12;
 
   private static final long BYTES_PER_MEGABYTE = 1_000_000L;
-
-  private static final String POSIX_ATTRIBUTE_VIEW = "posix";
-  private static final String EXECUTABLE_PERMISSIONS = "rwxr-xr-x";
 
   private static final String LIST_SEPARATOR = ", ";
 
@@ -396,10 +392,7 @@ final class LinuxLibraries {
     try (final OutputStream out = Files.newOutputStream(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
       Files.copy(library, out);
     }
-    final FileSystem fileSystem = file.getFileSystem();
-    if (fileSystem.supportedFileAttributeViews().contains(POSIX_ATTRIBUTE_VIEW)) {
-      Files.setPosixFilePermissions(file, PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS));
-    }
+    IoUtils.markExecutable(file);
   }
 
   // a package is missing whole or not at all, as its first library decides: NSS loads its modules beside its own library
