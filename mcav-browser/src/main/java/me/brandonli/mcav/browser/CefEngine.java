@@ -422,7 +422,9 @@ final class CefEngine implements HelperEngine {
       return UNKNOWN_VERSION;
     }
 
-    return version.getCefVersion() + " (Chromium " + version.getChromeVersion() + ")";
+    final String cefVersion = version.getCefVersion();
+    final String chromeVersion = version.getChromeVersion();
+    return "%s (Chromium %s)".formatted(cefVersion, chromeVersion);
   }
 
   static void execute(final @Nullable CefDevToolsClient devTools, final List<DevToolsInput.DevToolsCall> calls) {

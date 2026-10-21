@@ -38,8 +38,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class ChromiumConfinement {
 
   static final String CONFINED =
-    "Chromium runs confined: it cannot read the server's folder, the home folder or the temporary folder, and it " +
-    "writes only into the folder of its session.";
+    "Chromium runs confined: it cannot read the server's folder, the home folder or the temporary folder, and it writes only into the folder of its session.";
   static final String NOT_ASKED = "Chromium runs without confinement, as the options of the browser allow.";
   static final String NOT_SUPPORTED = "Chromium runs without confinement: MCAV confines it on Linux and macOS only.";
   private static final String UNAVAILABLE = "Chromium runs without confinement: %s.";
