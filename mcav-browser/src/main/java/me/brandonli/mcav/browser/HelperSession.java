@@ -504,6 +504,7 @@ final class HelperSession implements BrowserSession {
     if (buffer[0].length < size) {
       buffer[0] = new byte[size];
     }
+
     return buffer[0];
   }
 
@@ -517,6 +518,7 @@ final class HelperSession implements BrowserSession {
     while (this.process.isAlive() && System.nanoTime() < deadline) {
       LockSupport.parkNanos(EXIT_POLL_NANOSECONDS);
     }
+
     if (this.process.isAlive()) {
       return connectionEnd;
     }
@@ -669,6 +671,7 @@ final class HelperSession implements BrowserSession {
         return false;
       }
     }
+
     return true;
   }
 
@@ -685,6 +688,7 @@ final class HelperSession implements BrowserSession {
     } catch (final IOException exception) {
       // the helper is gone
     }
+
     this.remember(line.toString());
   }
 
@@ -795,6 +799,7 @@ final class HelperSession implements BrowserSession {
     synchronized (this.deliveryLock) {
       this.deliveryLock.notifyAll();
     }
+
     closeQuietly(this.standardInput);
     closeQuietly(this.channel);
     stopProcess(this.process);
@@ -810,6 +815,7 @@ final class HelperSession implements BrowserSession {
     try (final Stream<ProcessHandle> started = process.descendants()) {
       started.forEach(descendants::add);
     }
+
     try {
       final boolean exited = process.waitFor(STOP_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
       if (!exited) {
@@ -820,6 +826,7 @@ final class HelperSession implements BrowserSession {
       final Thread thread = Thread.currentThread();
       thread.interrupt();
     }
+
     for (final ProcessHandle descendant : descendants) {
       if (descendant.isAlive()) {
         descendant.destroyForcibly();
@@ -832,6 +839,7 @@ final class HelperSession implements BrowserSession {
     try (final Stream<ProcessHandle> later = process.descendants()) {
       later.forEach(descendants::add);
     }
+
     process.destroyForcibly();
     process.waitFor(KILL_TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
   }

@@ -168,6 +168,7 @@ class ArchiveExtractorTest {
       final InputStream archive = new Archive().file(name, REGULAR_MODE, "x").finish();
       assertThrows(IOException.class, () -> new ArchiveExtractor().extract(archive, this.target), name);
     }
+
     final boolean escapeWritten = Files.exists(this.target.getParent().resolve("escape.txt"));
     assertFalse(escapeWritten);
   }

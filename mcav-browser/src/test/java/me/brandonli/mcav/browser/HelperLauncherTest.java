@@ -205,6 +205,7 @@ class HelperLauncherTest {
     try (final InputStream input = Loaded.class.getResourceAsStream("/" + name.replace('.', '/') + ".class")) {
       bytes = input.readAllBytes();
     }
+
     final URL remote = URI.create("http://example.com/remote.jar").toURL();
     final CodeSource source = new CodeSource(remote, (Certificate[]) null);
     final ProtectionDomain domain = new ProtectionDomain(source, null);
@@ -271,6 +272,7 @@ class HelperLauncherTest {
       }
       this.followUsedClasses(name, pending, outside);
     }
+
     assertEquals(List.of(), outside);
 
     final boolean reachedNullDisplay = reached.contains(BROWSER_PACKAGE + "NullDisplay");
@@ -294,6 +296,7 @@ class HelperLauncherTest {
 
       bytes = input.readAllBytes();
     }
+
     final ClassModel model = ClassFile.of().parse(bytes);
     final Set<String> used = new TreeSet<>();
     for (final PoolEntry entry : model.constantPool()) {
@@ -305,6 +308,7 @@ class HelperLauncherTest {
         this.addDescribed(method.descriptor().stringValue(), used);
       }
     }
+
     model.fields().forEach(field -> this.addDescribed(field.fieldType().stringValue(), used));
     model.methods().forEach(method -> this.addDescribed(method.methodType().stringValue(), used));
 

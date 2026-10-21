@@ -60,6 +60,7 @@ public final class Frames {
         image.setRGB(column, row, rgb);
       }
     }
+
     try (final ByteArrayOutputStream output = new ByteArrayOutputStream()) {
       ImageIO.write(image, "jpg", output);
       return output.toByteArray();
@@ -78,6 +79,7 @@ public final class Frames {
         return false;
       }
     }
+
     return true;
   }
 
@@ -148,6 +150,7 @@ public final class Frames {
         run = 0;
       }
     }
+
     return (
       all.size() +
       " frames, the last " +

@@ -148,6 +148,7 @@ final class HelperConfiguration {
       final byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
       line.add(encoder.encodeToString(bytes));
     }
+
     return line.toString();
   }
 
@@ -161,6 +162,7 @@ final class HelperConfiguration {
       final byte[] bytes = decoder.decode(parts[index]);
       values[index] = new String(bytes, StandardCharsets.UTF_8);
     }
+
     final HexFormat hexadecimal = HexFormat.of();
     final byte[] token = hexadecimal.parseHex(values[TOKEN_FIELD]);
     final Path socket = Path.of(values[SOCKET_FIELD]);

@@ -104,6 +104,7 @@ class CefBrowserIntegrationTest {
         Thread.onSpinWait();
       }
     }
+
     Await.until("the probe released", () -> this.pages.count("mouseup") >= this.pages.count("mousedown"));
     this.pages.clearEvents();
   }
@@ -113,6 +114,7 @@ class CefBrowserIntegrationTest {
     for (final BrowserPlayer player : this.players) {
       player.release();
     }
+
     this.pages.close();
     final int processCount = HelperProcesses.count();
     assertEquals(0, processCount);
@@ -233,6 +235,7 @@ class CefBrowserIntegrationTest {
 
       Thread.onSpinWait();
     }
+
     final boolean playing = player.isPlaying();
     assertTrue(playing);
   }
@@ -262,6 +265,7 @@ class CefBrowserIntegrationTest {
         Thread.onSpinWait();
       }
     }
+
     final boolean playing = player.isPlaying();
     assertTrue(playing);
   }
@@ -449,6 +453,7 @@ class CefBrowserIntegrationTest {
     } finally {
       module.start();
     }
+
     final Frames frames = this.start(player, "/second");
     Await.until("the browser shows its page again", () -> frames.lastShows(TestPages.SECOND_COLOR));
   }
@@ -466,6 +471,7 @@ class CefBrowserIntegrationTest {
         .filter(handle -> handle.info().command().orElse("").contains("jcef Helper"))
         .toList();
     }
+
     final boolean empty = chromium.isEmpty();
     assertFalse(empty, "Chromium's processes run");
 

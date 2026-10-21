@@ -47,6 +47,7 @@ class HelperProtocolTest {
     try (final DataOutputStream output = new DataOutputStream(buffer)) {
       writer.write(output);
     }
+
     return buffer.toByteArray();
   }
 
@@ -158,6 +159,7 @@ class HelperProtocolTest {
     for (int index = 0; index < pixels.length; index++) {
       pixels[index] = (byte) index;
     }
+
     final FrameRegion region = new FrameRegion(640, 480, 10, 20, 2, 3, pixels);
     final HelperMessage message = this.read(this.bytes(output -> HelperProtocol.writeFrame(output, region)));
     final int type = message.getType();

@@ -131,6 +131,7 @@ final class ContentPolicy
     if (isUserGesture) {
       this.openInPlace(browser, targetUrl);
     }
+
     return true;
   }
 
@@ -336,6 +337,7 @@ final class ContentPolicy
         final String address = AddressText.describe(url);
         this.events.onNotice("The request to %s was refused.".formatted(address));
       }
+
       return !allowed;
     }
 

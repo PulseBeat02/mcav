@@ -113,6 +113,7 @@ class NetworkGuardTest {
     } catch (final IOException exception) {
       // the guard closed the connection
     }
+
     this.echoEnded.incrementAndGet();
   }
 
@@ -121,6 +122,7 @@ class NetworkGuardTest {
     for (final Closeable closeable : this.closeables) {
       closeable.close();
     }
+
     this.echo.close();
   }
 
@@ -241,6 +243,7 @@ class NetworkGuardTest {
       );
       assertArrayEquals(this.reply(SocksProtocol.NOT_ALLOWED), answer);
     }
+
     assertEquals(List.of("The connection to router.private.test was refused, because it is not a public address."), this.notices);
 
     final int echoConnectionCount = this.echoConnections.get();
@@ -265,6 +268,7 @@ class NetworkGuardTest {
       this.exchange(client, SocksProtocolTest.domainRequest(SocksProtocol.CONNECT, "h" + host + ".private.test", HTTP_PORT), REPLY_BYTES);
       client.close();
     }
+
     final int noticeCount = this.notices.size();
     assertEquals(NetworkGuard.MAXIMUM_REPORTED_HOSTS, noticeCount);
   }
@@ -275,6 +279,7 @@ class NetworkGuardTest {
     try (final ServerSocket closed = new ServerSocket(0, 1, LOOPBACK)) {
       closedPort = closed.getLocalPort();
     }
+
     final NetworkGuard guard = this.loopbackGuard();
     final Socket refused = this.client(guard);
     this.exchange(refused, GREETING, 2);
@@ -336,6 +341,7 @@ class NetworkGuardTest {
     for (int worker = 0; worker < workers; worker++) {
       pool.execute(() -> this.occupyUntilReleased(busy, release));
     }
+
     final boolean allBusy = busy.await(30, TimeUnit.SECONDS);
     assertTrue(allBusy, "every worker of the common pool is busy");
 
@@ -388,12 +394,14 @@ class NetworkGuardTest {
     } catch (final SocketException exception) {
       // the guard closed the connection while the client still wrote
     }
+
     final InputStream input = client.getInputStream();
     try {
       while (input.read() >= 0) {}
     } catch (final SocketException exception) {
       // a guard that closed with unread bytes resets the connection
     }
+
     final int echoConnectionCount = this.echoConnections.get();
     assertEquals(0, echoConnectionCount, "the request was never carried out");
   }
@@ -405,6 +413,7 @@ class NetworkGuardTest {
     for (int count = 0; count < NetworkGuard.MAXIMUM_CONNECTIONS; count++) {
       idle.add(this.client(guard));
     }
+
     final Socket extra = this.client(guard);
     this.assertEnded(extra);
     final Socket first = idle.getFirst();
@@ -451,6 +460,7 @@ class NetworkGuardTest {
     for (int count = 0; count < NetworkGuard.MAXIMUM_CONNECTIONS + 44; count++) {
       new Socket(LOOPBACK, guard.getPort()).close();
     }
+
     final Socket client = this.client(guard);
     final byte[] greetingAnswer = this.exchange(client, GREETING, 2);
     assertArrayEquals(new byte[] { 5, 0 }, greetingAnswer);
@@ -479,6 +489,7 @@ class NetworkGuardTest {
     try (final ServerSocket closed = new ServerSocket(0, 1, LOOPBACK)) {
       closedPort = closed.getLocalPort();
     }
+
     final InetSocketAddress refusing = new InetSocketAddress(LOOPBACK, closedPort);
     OpenFiles.leaveNoneOpen("a failed connection", () -> assertThrows(ConnectException.class, () -> NetworkGuard.connect(refusing)));
   }
@@ -722,6 +733,7 @@ class NetworkGuardTest {
       );
       assertArrayEquals(this.reply(SocksProtocol.NOT_ALLOWED), answer);
     }
+
     assertEquals(List.of("The connection to localhost was refused, because it is not a public address."), this.notices);
   }
 
@@ -731,6 +743,7 @@ class NetworkGuardTest {
     try (final ServerSocket closed = new ServerSocket(0, 1, LOOPBACK)) {
       closedPort = closed.getLocalPort();
     }
+
     assertThrows(ConnectException.class, () -> NetworkGuard.connect(new InetSocketAddress(LOOPBACK, closedPort)));
 
     try (final Socket socket = NetworkGuard.connect(new InetSocketAddress(LOOPBACK, this.echo.getLocalPort()))) {

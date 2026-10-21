@@ -75,6 +75,7 @@ public final class NoFlagsServerMain {
       Await.until("every browser process ended", () -> CefBrowserIntegrationTest.countBrowserProcesses() == 0);
       System.out.printf("round %d: disabled, no browser process left%n", round);
     }
+
     System.out.println(PASSED);
     System.exit(0);
   }

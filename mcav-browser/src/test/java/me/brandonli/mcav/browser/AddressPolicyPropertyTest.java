@@ -48,6 +48,7 @@ final class AddressPolicyPropertyTest {
       bytes[index] = (byte) (ipv4 >>> shift);
       index++;
     }
+
     return InetAddress.getByAddress(bytes);
   }
 
@@ -89,6 +90,7 @@ final class AddressPolicyPropertyTest {
     if ((prefix[0] & 0xE0) == 0x20) {
       prefix[0] = (byte) (prefix[0] ^ 0x80);
     }
+
     final boolean wellKnown = prefix[0] == 0 && prefix[1] == 0x64 && prefix[2] == (byte) 0xFF && prefix[3] == (byte) 0x9B;
     final InetAddress[] answer = { this.translate(prefix, length, 0xC00000AA), this.translate(prefix, length, 0xC00000AB) };
     if (!wellKnown) {

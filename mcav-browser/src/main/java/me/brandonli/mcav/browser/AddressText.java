@@ -50,6 +50,7 @@ final class AddressText {
     if (user >= authorityStart) {
       text.append(HIDDEN).append('@');
     }
+
     final int hostStart = Math.max(authorityStart, user + 1);
     final int pathEnd = indexOfAny(address, authorityEnd, PATH_ENDS);
     text.append(address, hostStart, pathEnd);
@@ -57,6 +58,7 @@ final class AddressText {
     if (pathEnd < address.length()) {
       text.append(address.charAt(pathEnd)).append(HIDDEN);
     }
+
     return text.toString();
   }
 
@@ -73,6 +75,7 @@ final class AddressText {
         return false;
       }
     }
+
     return true;
   }
 
@@ -86,6 +89,7 @@ final class AddressText {
         return index;
       }
     }
+
     return text.length();
   }
 }

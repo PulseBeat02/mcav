@@ -352,6 +352,7 @@ class CefEngineTest {
     } catch (final InterruptedException | InvocationTargetException exception) {
       throw new IllegalStateException(exception);
     }
+
     return mockingDetails(browser)
       .getInvocations()
       .stream()
@@ -472,6 +473,7 @@ class CefEngineTest {
         .contains("Failed to shut CEF down (java.lang.IllegalStateException: dispose failed).");
       assertTrue(reportsTheDisposeFailure, errors.text());
     }
+
     Thread.currentThread().interrupt();
     try {
       CefEngine.shutDown(() -> {}, new CountDownLatch(1), 60_000L);
@@ -501,6 +503,7 @@ class CefEngineTest {
     } finally {
       Thread.setDefaultUncaughtExceptionHandler(previous);
     }
+
     assertEquals(List.of(), failures);
   }
 

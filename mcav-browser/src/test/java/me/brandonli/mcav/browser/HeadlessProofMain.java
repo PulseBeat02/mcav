@@ -76,6 +76,7 @@ public final class HeadlessProofMain {
       exception.printStackTrace(System.out);
       System.out.println("HEADLESS PROOF FAILED: " + exception);
     }
+
     System.out.flush();
     System.exit(status);
   }
@@ -87,6 +88,7 @@ public final class HeadlessProofMain {
     if (cache != null) {
       System.setProperty("user.home", Path.of(cache, "home").toString());
     }
+
     final List<String> arguments = ManagementFactory.getRuntimeMXBean().getInputArguments();
     System.out.println("JVM arguments: " + arguments + ", Java " + Runtime.version() + ", " + System.getProperty("os.arch"));
     final List<String> options = arguments
@@ -152,6 +154,7 @@ public final class HeadlessProofMain {
     if (round == 1) {
       player.release();
     }
+
     api.release();
     check(HelperProcesses.count() == 0, "no browser session is left");
     await("every browser process to end", STOP_TIMEOUT_MILLISECONDS, () -> countBrowserProcesses() == 0);
@@ -167,6 +170,7 @@ public final class HeadlessProofMain {
       final boolean black = ((pixel >> 16) & 0xFF) < 80 && ((pixel >> 8) & 0xFF) < 80 && (pixel & 0xFF) < 80;
       dark += black ? 1 : 0;
     }
+
     last.set(new int[] { width, height, pixels[(height / 2) * width + width / 2] & 0xFFFFFF, dark });
 
     return false;

@@ -39,6 +39,7 @@ class DevToolsInputTest {
     for (final DevToolsInput.DevToolsCall call : calls) {
       parameters.add(call.getParameters());
     }
+
     return parameters;
   }
 

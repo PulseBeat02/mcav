@@ -60,6 +60,7 @@ class PageCompositorTest {
         buffer.put((byte) 255);
       }
     }
+
     buffer.flip();
 
     return buffer;

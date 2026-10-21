@@ -154,6 +154,7 @@ final class ScriptedEngine implements HelperEngine {
       buffer.put((byte) RED);
       buffer.put((byte) 255);
     }
+
     buffer.flip();
     final Rectangle[] all = { new Rectangle(0, 0, this.width, this.height) };
     this.painter.onPaint(false, all, buffer, this.width, this.height);
@@ -164,6 +165,7 @@ final class ScriptedEngine implements HelperEngine {
     for (final DevToolsInput.DevToolsCall call : dispatched) {
       this.calls.add(call.getMethod() + " " + call.getParameters());
     }
+
     this.paint(this.calls.size());
 
     if (this.soundOnInput) {
@@ -176,6 +178,7 @@ final class ScriptedEngine implements HelperEngine {
     while (samples.hasRemaining()) {
       samples.putShort((short) value);
     }
+
     return samples.array();
   }
 

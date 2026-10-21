@@ -39,6 +39,7 @@ class SpecialKeysTest {
       final boolean namedKeySpecial = SpecialKeys.isSpecialKey(key);
       assertTrue(namedKeySpecial, key);
     }
+
     final boolean lowerCaseEnterSpecial = SpecialKeys.isSpecialKey("enter");
     assertFalse(lowerCaseEnterSpecial);
 

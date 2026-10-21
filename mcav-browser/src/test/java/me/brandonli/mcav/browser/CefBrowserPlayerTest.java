@@ -293,6 +293,7 @@ class CefBrowserPlayerTest {
       Thread.currentThread().interrupt();
       throw new BrowserException("Interrupted while starting the browser!", exception);
     }
+
     return new FakeSession();
   }
 
@@ -333,6 +334,7 @@ class CefBrowserPlayerTest {
     if (opened.isEmpty()) {
       sessionListener.onEnded("The browser helper exited", new IllegalStateException("exit 1"));
     }
+
     opened.add(session);
 
     return session;
@@ -345,6 +347,7 @@ class CefBrowserPlayerTest {
         threads.add(thread);
       }
     }
+
     return threads;
   }
 
@@ -413,6 +416,7 @@ class CefBrowserPlayerTest {
       final boolean closed = probe.isClosed();
       assertTrue(closed, "a failed pipeline still returns the frame's ownership");
     }
+
     assertEquals(List.of("Failed to process a browser frame: filter broke"), this.reports);
   }
 
@@ -566,6 +570,7 @@ class CefBrowserPlayerTest {
     while (!Thread.currentThread().isInterrupted()) {
       LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
     }
+
     return ending.get();
   }
 
@@ -575,6 +580,7 @@ class CefBrowserPlayerTest {
     } catch (final IllegalStateException exception) {
       // the helper's own failure, which the start passes on
     }
+
     return Thread.currentThread().isInterrupted();
   }
 
@@ -645,6 +651,7 @@ class CefBrowserPlayerTest {
     } finally {
       Thread.interrupted();
     }
+
     final boolean empty = this.sessions.isEmpty();
     assertTrue(empty, "no helper was started");
   }
@@ -794,6 +801,7 @@ class CefBrowserPlayerTest {
     for (int index = 0; index < 500; index++) {
       this.player.sendKeyEvent("x");
     }
+
     final int reportCount = this.reports.size();
     assertEquals(LogBudget.BURST, reportCount, "a burst of reports, then none");
 
@@ -852,6 +860,7 @@ class CefBrowserPlayerTest {
     } finally {
       this.player.release();
     }
+
     final CefBrowserPlayer other = new CefBrowserPlayer(BrowserOptions.DEFAULT, (source, options, sessionListener) -> new FakeSession());
     final Boolean otherStarted = other.startAsync(SOURCE).get(10, TimeUnit.SECONDS);
     assertTrue(otherStarted);
@@ -922,6 +931,7 @@ class CefBrowserPlayerTest {
     } finally {
       HelperProcesses.open();
     }
+
     assertEquals(List.of(), downloads);
   }
 

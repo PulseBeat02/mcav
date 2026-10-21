@@ -51,6 +51,7 @@ class HelperConfigurationTest {
     for (int index = 0; index < token.length; index++) {
       token[index] = (byte) (index * 7);
     }
+
     return token;
   }
 
@@ -248,6 +249,7 @@ class HelperConfigurationTest {
       final String refusedMessage = refused.getMessage();
       assertEquals("Host %s is not a host name or address!".formatted(host), refusedMessage);
     }
+
     new HelperConfiguration(
       this.token(),
       SOCKET,

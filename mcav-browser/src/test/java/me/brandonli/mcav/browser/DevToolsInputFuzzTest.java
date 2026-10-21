@@ -80,6 +80,7 @@ final class DevToolsInputFuzzTest {
         typed.append(character);
       }
     }
+
     return typed.toString();
   }
 

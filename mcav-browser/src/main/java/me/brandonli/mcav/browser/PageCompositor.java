@@ -182,6 +182,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
         this.copyRows(popupBuffer, bounds.width, inPopup, target, area.width, overlap.x - area.x, overlap.y - area.y);
       }
     }
+
     this.damage = null;
     this.paintsSinceSent = 0;
 

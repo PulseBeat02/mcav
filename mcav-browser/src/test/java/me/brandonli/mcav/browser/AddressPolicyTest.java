@@ -159,6 +159,7 @@ class AddressPolicyTest {
     for (int index = 0; index < texts.length; index++) {
       addresses[index] = InetAddress.getByName(texts[index]);
     }
+
     return addresses;
   }
 
@@ -236,6 +237,7 @@ class AddressPolicyTest {
       final List<AddressPolicy.TranslationPrefix> translationPrefixes = AddressPolicy.findTranslationPrefixes(this.addresses(forged));
       assertEquals(List.of(), translationPrefixes, forged);
     }
+
     final boolean linkLocalJudgedPublic = this.isPublic(
       "fe80::808:808",
       AddressPolicy.findTranslationPrefixes(this.addresses("fe80::c000:aa"))

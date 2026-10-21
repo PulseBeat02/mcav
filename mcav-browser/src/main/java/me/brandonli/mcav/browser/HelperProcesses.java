@@ -77,6 +77,7 @@ final class HelperProcesses {
       generation++;
       running = new ArrayList<>(SESSIONS);
     }
+
     RuntimeException failure = null;
     for (final HelperSession session : running) {
       try {
@@ -85,6 +86,7 @@ final class HelperProcesses {
         failure = combineFailures(failure, exception);
       }
     }
+
     if (failure != null) {
       throw failure;
     }
@@ -98,6 +100,7 @@ final class HelperProcesses {
     if (!FAILURE_IDENTITY.equivalent(failure, exception)) {
       failure.addSuppressed(exception);
     }
+
     return failure;
   }
 }

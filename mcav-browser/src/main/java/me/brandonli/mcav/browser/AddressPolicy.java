@@ -116,6 +116,7 @@ final class AddressPolicy {
       }
       translated = true;
     }
+
     return translated || isPublicIpv6(bytes);
   }
 
@@ -129,6 +130,7 @@ final class AddressPolicy {
       }
       addTranslationPrefixes(bytes, prefixes);
     }
+
     return prefixes;
   }
 
@@ -159,6 +161,7 @@ final class AddressPolicy {
       address = (address << Byte.SIZE) | (bytes[index] & UNSIGNED_BYTE_MASK);
       index++;
     }
+
     return address;
   }
 
@@ -169,6 +172,7 @@ final class AddressPolicy {
         return false;
       }
     }
+
     return true;
   }
 

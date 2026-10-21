@@ -36,6 +36,7 @@ final class AddressTextFuzzTest {
       final String textAfterMark = described.substring(mark + 1);
       assertEquals(AddressText.HIDDEN, textAfterMark, described);
     }
+
     final int user = described.indexOf('@');
     final int separator = described.indexOf("://");
     final int authorityEnd = separator < 0 ? -1 : this.indexOfAny(described.substring(separator + 3), "/?#");
@@ -43,6 +44,7 @@ final class AddressTextFuzzTest {
       final boolean hidesTheUserInformation = described.startsWith(AddressText.HIDDEN + "@", separator + 3);
       assertTrue(hidesTheUserInformation, described);
     }
+
     if (separator < 0) {
       final boolean endsHidden = described.endsWith(AddressText.HIDDEN);
       assertTrue(endsHidden, described);
@@ -55,6 +57,7 @@ final class AddressTextFuzzTest {
         return index;
       }
     }
+
     return -1;
   }
 }

@@ -111,6 +111,7 @@ class BrowserModuleTest {
     } finally {
       module.start();
     }
+
     final HelperSession again = this.open();
     try {
       final boolean alive = again.isAlive();

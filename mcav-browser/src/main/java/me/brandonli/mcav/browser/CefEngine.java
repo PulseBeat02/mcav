@@ -445,6 +445,7 @@ final class CefEngine implements HelperEngine {
     if (currentGuard != null) {
       currentGuard.close();
     }
+
     final McavOffscreenBrowser current = this.browser;
     final CefClient currentClient = this.client;
     final CefApp currentApp = this.app;
@@ -463,9 +464,11 @@ final class CefEngine implements HelperEngine {
       browser.setCloseAllowed();
       browser.close(true);
     }
+
     if (client != null) {
       client.dispose();
     }
+
     app.dispose();
   }
 

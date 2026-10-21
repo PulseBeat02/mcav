@@ -48,13 +48,16 @@ public final class RawHelperMain {
     if (configuration.getUrl().getPath().equals("/exit")) {
       System.exit(4);
     }
+
     if (configuration.getUrl().getPath().equals("/silent")) {
       while (input.read() >= 0) {}
       System.exit(0);
     }
+
     if (configuration.getUrl().getPath().equals("/silent-stubborn")) {
       waitTwoMinutes();
     }
+
     final SocketChannel channel = SocketChannel.open(StandardProtocolFamily.UNIX);
     channel.connect(UnixDomainSocketAddress.of(configuration.getSocket()));
     final DataOutputStream output = new DataOutputStream(Channels.newOutputStream(channel));
@@ -134,6 +137,7 @@ public final class RawHelperMain {
         throw new IllegalArgumentException(message);
       }
     }
+
     output.flush();
     while (input.read() >= 0) {}
     channel.close();
@@ -178,6 +182,7 @@ public final class RawHelperMain {
     for (int count = 0; count < NOISY_LOAD_ERRORS; count++) {
       HelperProtocol.writeLoadError(output, -2, "noise", "https://example.com/noise/" + count + "?token=secret");
     }
+
     for (int count = 0; count < NOISY_NOTICES; count++) {
       HelperProtocol.writeText(output, HelperProtocol.NOTICE, "noise " + count);
     }
@@ -218,6 +223,7 @@ public final class RawHelperMain {
     while (System.nanoTime() < deadline) {
       sleep();
     }
+
     System.exit(0);
   }
 

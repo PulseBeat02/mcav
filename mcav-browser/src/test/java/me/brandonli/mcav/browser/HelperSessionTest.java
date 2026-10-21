@@ -119,6 +119,7 @@ class HelperSessionTest {
     for (final String entry : System.getProperty("java.class.path").split(Pattern.quote(File.pathSeparator), -1)) {
       classPath.add(Path.of(entry));
     }
+
     return new HelperLauncher(java, mainClass, classPath, jvmOptions, os, System.getenv(), startTimeoutMilliseconds);
   }
 
@@ -164,6 +165,7 @@ class HelperSessionTest {
     for (final HelperSession session : this.sessions) {
       session.close();
     }
+
     for (final Path parent : this.shortDirectories) {
       Files.deleteIfExists(parent);
     }
@@ -216,6 +218,7 @@ class HelperSessionTest {
       Await.until("the sound after the reports", () -> !this.listener.sound.isEmpty());
       log = errors.text();
     }
+
     final long reports = log
       .lines()
       .filter(line -> line.contains("Browser: noise ") || line.contains("Page https://example.com/noise/"))
@@ -299,6 +302,7 @@ class HelperSessionTest {
         assertEquals(0, highByte);
       }
     }
+
     Thread.sleep(HelperSession.REPEAT_DELAY_MILLISECONDS * 2);
     final int chunkCount = this.listener.sound.size();
     assertEquals(ScriptedEngine.SOUND_CHUNKS, chunkCount);
@@ -390,6 +394,7 @@ class HelperSessionTest {
     } finally {
       release.countDown();
     }
+
     closer.join(TimeUnit.SECONDS.toMillis(30));
     final boolean closerAlive = closer.isAlive();
     assertFalse(closerAlive);
@@ -485,6 +490,7 @@ class HelperSessionTest {
       final boolean daemon = thread.isDaemon();
       assertTrue(daemon, thread.getName() + " would keep the JVM alive");
     }
+
     final Path folder = session.getFolder();
     final boolean folderCreated = Files.isDirectory(folder);
     assertTrue(folderCreated, folder.toString());
@@ -497,6 +503,7 @@ class HelperSessionTest {
       final boolean threadAlive = thread.isAlive();
       assertFalse(threadAlive, thread.getName() + " still runs after the close");
     }
+
     final boolean connectedAfterClose = session.isConnected();
     assertFalse(connectedAfterClose);
 
@@ -624,6 +631,7 @@ class HelperSessionTest {
     try (final Stream<ProcessHandle> descendants = session.getProcess().descendants()) {
       descendants.forEach(started::add);
     }
+
     return !started.isEmpty();
   }
 
@@ -777,6 +785,7 @@ class HelperSessionTest {
     for (int count = 0; count < 10_000 && !dropped; count++) {
       dropped = !session.sendKey(HelperProtocol.KEY_TYPE, text);
     }
+
     assertTrue(dropped, "the bounded queue refuses input once the helper stops reading");
 
     final boolean mouseAccepted = session.sendMouse(new MouseInput(HelperProtocol.MOUSE_MOVE, 1, 1, HelperProtocol.BUTTON_LEFT, 0, 0, 0));
@@ -900,6 +909,7 @@ class HelperSessionTest {
       closing.set(false);
       watcher.join();
     }
+
     final boolean alive = process.isAlive();
     assertFalse(alive);
 
@@ -928,6 +938,7 @@ class HelperSessionTest {
     } finally {
       HelperProcesses.open();
     }
+
     final boolean restartedHelperAlive = this.open(ScriptedEngine.class.getName(), PAGE).isAlive();
     assertTrue(restartedHelperAlive, "a started module lets helpers start again");
   }
@@ -960,6 +971,7 @@ class HelperSessionTest {
     } finally {
       HelperProcesses.open();
     }
+
     final String message = failure.getMessage();
     final Throwable[] suppressed = failure.getSuppressed();
     assertEquals("the listener fails: The browser module was stopped!", message);
@@ -999,6 +1011,7 @@ class HelperSessionTest {
     } finally {
       HelperProcesses.open();
     }
+
     final int helperCount = HelperProcesses.count();
     assertEquals(0, helperCount);
 
@@ -1138,6 +1151,7 @@ class HelperSessionTest {
     } finally {
       Thread.interrupted();
     }
+
     Await.until("the helper ended", () -> !process.isAlive());
     final int helperCount = HelperProcesses.count();
     assertEquals(0, helperCount);
@@ -1168,6 +1182,7 @@ class HelperSessionTest {
     for (int line = 0; line < 50; line++) {
       output.append("line ").append(line).append("\r\n");
     }
+
     output.append("x".repeat(3000));
     session.drainOutput(new ByteArrayInputStream(output.toString().getBytes(StandardCharsets.UTF_8)));
     final List<String> tail = List.of(session.getOutputTail().split(System.lineSeparator()));
@@ -1208,6 +1223,7 @@ class HelperSessionTest {
       final Set<PosixFilePermission> folderPermissions = Files.getPosixFilePermissions(folder);
       assertEquals(PosixFilePermissions.fromString("rwx------"), folderPermissions);
     }
+
     final Path zip = this.directory.resolve("folders.zip");
     try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true"))) {
       final Path root = zipped.getPath("/");
@@ -1215,6 +1231,7 @@ class HelperSessionTest {
       final boolean plainFolderCreated = Files.isDirectory(created);
       assertTrue(plainFolderCreated, "a file system without POSIX permissions gets a plain folder");
     }
+
     final Path missingParent = this.directory.resolve("missing");
     final BrowserException missing = assertThrows(BrowserException.class, () -> HelperSession.createFolder(missingParent));
     final boolean reportsTheMissingParent = missing.getMessage().startsWith("The folder of the browser session cannot be created");
@@ -1355,6 +1372,7 @@ class HelperSessionTest {
         final int high = (pixels.get(1) & 0xFF) ^ ScriptedEngine.GREEN;
         counts.add(low | (high << 8));
       }
+
       return counts;
     }
 
@@ -1363,6 +1381,7 @@ class HelperSessionTest {
       for (final ImageBuffer frame : this.frames) {
         blues.add(blue(frame));
       }
+
       return blues;
     }
 

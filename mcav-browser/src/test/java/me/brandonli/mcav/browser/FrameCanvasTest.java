@@ -40,6 +40,7 @@ class FrameCanvasTest {
       pixels[index + 2] = (byte) red;
       pixels[index + 3] = (byte) 255;
     }
+
     return pixels;
   }
 

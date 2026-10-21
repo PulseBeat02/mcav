@@ -132,6 +132,7 @@ final class Seatbelt {
     for (final Path path : paths) {
       profile.append(" (subpath ").append(quote(path.toString())).append(')');
     }
+
     profile.append(")\n");
   }
 

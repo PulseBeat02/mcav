@@ -83,6 +83,7 @@ class BrowserSoundTest {
     for (final BrowserPlayer player : this.players) {
       player.release();
     }
+
     this.pages.close();
     final int processCount = HelperProcesses.count();
     assertEquals(0, processCount);
@@ -98,6 +99,7 @@ class BrowserSoundTest {
         System.out.println("CEF processes on this machine after the test: " + stray);
       }
     }
+
     assertEquals(List.of(), this.failures);
   }
 
@@ -123,6 +125,7 @@ class BrowserSoundTest {
         reports.add(type + " " + event.getKey());
       }
     }
+
     return reports;
   }
 
@@ -267,6 +270,7 @@ class BrowserSoundTest {
 
       Thread.sleep(100L);
     }
+
     player.release();
     final long matchWindow = TimeUnit.MILLISECONDS.toNanos(TestPages.TOGGLE_MILLISECONDS);
     final SyncJudgement judgement = SyncJudgement.of(this.onsets(picture), this.onsets(sound), matchWindow);
@@ -322,6 +326,7 @@ class BrowserSoundTest {
       final long before = TimeUnit.SECONDS.toNanos(left.length - end) / AudioFilter.SAMPLE_RATE;
       sound.add(new long[] { arrival - before, hasTone ? 1 : 0 });
     }
+
     return true;
   }
 
@@ -342,6 +347,7 @@ class BrowserSoundTest {
       picture.add(shown);
       sound.add(shown + TimeUnit.MILLISECONDS.toNanos(change < 10 ? 20 : 300));
     }
+
     final SyncJudgement late = SyncJudgement.of(picture, sound, TimeUnit.MILLISECONDS.toNanos(400));
     final int lateChanges = late.changes();
     assertEquals(50, lateChanges);
@@ -365,6 +371,7 @@ class BrowserSoundTest {
         crossings++;
       }
     }
+
     return crossings;
   }
 
@@ -373,6 +380,7 @@ class BrowserSoundTest {
     for (int index = start; index < left.length; index++) {
       sum += Math.abs(left[index]);
     }
+
     return sum / (left.length - start);
   }
 
@@ -383,6 +391,7 @@ class BrowserSoundTest {
         windows++;
       }
     }
+
     return windows;
   }
 
@@ -400,6 +409,7 @@ class BrowserSoundTest {
       beforePrevious = previous;
       previous = current;
     }
+
     if (energy < length * 100.0 * 100.0) {
       return 0;
     }
@@ -414,6 +424,7 @@ class BrowserSoundTest {
     for (int index = 0; index < left.length; index++) {
       left[index] = samples.getShort(index * AudioFilter.FRAME_SIZE);
     }
+
     return left;
   }
 
@@ -442,6 +453,7 @@ class BrowserSoundTest {
         onsets.add(current[0]);
       }
     }
+
     return onsets;
   }
 
@@ -482,6 +494,7 @@ class BrowserSoundTest {
       synchronized (this.pcm) {
         captured = this.pcm.toByteArray();
       }
+
       return leftChannel(captured);
     }
   }
@@ -497,6 +510,7 @@ class BrowserSoundTest {
           offsets.add(nearest / 1e6);
         }
       }
+
       return new SyncJudgement(pictureOnsets.size(), List.copyOf(offsets));
     }
 
@@ -507,6 +521,7 @@ class BrowserSoundTest {
           nearest = heard - shown;
         }
       }
+
       return nearest;
     }
 

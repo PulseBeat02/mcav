@@ -57,6 +57,7 @@ final class ArchiveExtractorFuzzTest {
     try (final GZIPOutputStream gzip = new GZIPOutputStream(compressed)) {
       gzip.write(tar);
     }
+
     final Path root = Files.createTempDirectory("mcav-extract-fuzz");
     try {
       final Path target = Files.createDirectory(root.resolve("target"));
@@ -122,6 +123,7 @@ final class ArchiveExtractorFuzzTest {
         assertFalse(writableByOthers, () -> "writable by others: " + path);
       }
     }
+
     final long total = bytes;
     final boolean withinLimit = total <= MAXIMUM_BYTES;
     assertTrue(withinLimit, () -> total + " bytes");

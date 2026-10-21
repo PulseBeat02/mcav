@@ -144,6 +144,7 @@ public final class BrowserHelper {
 
       return EXIT_BAD_CONFIGURATION;
     }
+
     final BrowserHelper helper = new BrowserHelper(configuration, engine, halter, STOP_DEADLINE_MILLISECONDS);
     return helper.run(input, BrowserHelper::connect);
   }
@@ -158,6 +159,7 @@ public final class BrowserHelper {
       channel.close();
       throw exception;
     }
+
     return channel;
   }
 
@@ -193,12 +195,14 @@ public final class BrowserHelper {
       final String message = "The browser could not be started (%s)".formatted(exception);
       reporter.onFailure(message);
     }
+
     try {
       this.stopped.await();
     } catch (final InterruptedException exception) {
       final Thread thread = Thread.currentThread();
       thread.interrupt();
     }
+
     this.compositor.close();
     this.engine.stop();
     final String reason = this.stopReason.get();
@@ -226,6 +230,7 @@ public final class BrowserHelper {
     } catch (final IOException exception) {
       // a broken input means the server is gone as well
     }
+
     this.stop("the standard input ended");
     try {
       Thread.sleep(this.stopDeadlineMilliseconds);
@@ -233,6 +238,7 @@ public final class BrowserHelper {
       final Thread thread = Thread.currentThread();
       thread.interrupt();
     }
+
     System.err.println("The browser helper did not stop within %s ms and halts.".formatted(this.stopDeadlineMilliseconds));
     this.halter.halt(EXIT_FAILURE);
   }

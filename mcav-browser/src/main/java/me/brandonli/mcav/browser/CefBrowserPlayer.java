@@ -125,6 +125,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     synchronized (this.starter) {
       this.starting = caller;
     }
+
     try {
       // checked once start is interruptible, so a release either finds this start or is seen here
       final boolean idle = !this.released.get() && this.state.get() != State.PLAYING;
@@ -172,6 +173,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
       // the frames of the start arrived before the session was the player's; a page that stays still needs them again
       started.requestFrame();
     }
+
     return playing;
   }
 
@@ -182,6 +184,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     if (current != null) {
       current.close();
     }
+
     this.closeAudio();
   }
 
@@ -209,6 +212,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
         thread.interrupt();
       }
     }
+
     this.lock.lock();
     try {
       this.state.set(State.IDLE);
@@ -216,6 +220,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
     } finally {
       this.lock.unlock();
     }
+
     return true;
   }
 
@@ -445,6 +450,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
         final String message = "The browser cannot be installed (%s)!".formatted(exception.getMessage());
         throw new BrowserUnavailableException(message, exception);
       }
+
       return HelperSession.open(current, installation, source, options, listener);
     }
 
@@ -478,6 +484,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
         current = HelperLauncher.createDefault(START_TIMEOUT_MILLISECONDS, this.extraJvmOptions);
         this.launcher = current;
       }
+
       return current;
     }
   }
@@ -499,6 +506,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
         this.owner = session;
         end = this.earlyEnd;
       }
+
       if (end != null) {
         end.accept(session);
       }
@@ -533,6 +541,7 @@ final class CefBrowserPlayer implements BrowserPlayer {
           return;
         }
       }
+
       CefBrowserPlayer.this.onEnded(from, reason, cause);
     }
   }

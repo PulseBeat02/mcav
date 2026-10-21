@@ -80,6 +80,7 @@ final class SessionFolders {
     for (int index = 0; index < RANDOM_CHARACTERS; index++) {
       name.append(ALPHABET.charAt(RANDOM.nextInt(ALPHABET.length())));
     }
+
     return name.toString();
   }
 
@@ -107,6 +108,7 @@ final class SessionFolders {
     } catch (final IOException exception) {
       LOGGER.warn("The folders of browser sessions in {} could not be listed ({}).", temporary, exception.toString());
     }
+
     return removed;
   }
 
@@ -120,6 +122,7 @@ final class SessionFolders {
       LOGGER.debug("Removed the folder {} of a browser whose server ended without releasing it.", folder);
       removed++;
     }
+
     return removed;
   }
 
@@ -136,6 +139,7 @@ final class SessionFolders {
     } catch (final IOException exception) {
       return false;
     }
+
     if (lines.size() != RECORD_LINES) {
       return false;
     }
@@ -148,6 +152,7 @@ final class SessionFolders {
     } catch (final NumberFormatException | DateTimeParseException exception) {
       return false;
     }
+
     final Optional<ProcessHandle> server = this.lookup.apply(processId);
     final Optional<Instant> serverStart = server.map(ProcessHandle::info).flatMap(ProcessHandle.Info::startInstant);
     return !serverStart.equals(Optional.of(started));

@@ -121,12 +121,15 @@ final class Landlock {
     if (version >= REFER_VERSION) {
       rights |= REFER;
     }
+
     if (version >= TRUNCATE_VERSION) {
       rights |= TRUNCATE;
     }
+
     if (version >= DEVICE_CONTROL_VERSION) {
       rights |= DEVICE_CONTROL;
     }
+
     return rights;
   }
 
@@ -137,6 +140,7 @@ final class Landlock {
     if (kind == PathKind.FILE) {
       rights &= FILE_RIGHTS;
     }
+
     return rights & handled;
   }
 

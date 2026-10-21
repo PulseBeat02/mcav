@@ -184,6 +184,7 @@ final class ArchiveExtractor {
       }
       current = current.resolve(element);
     }
+
     return current.normalize();
   }
 
@@ -213,6 +214,7 @@ final class ArchiveExtractor {
       output.write(buffer, 0, count);
       count = tar.read(buffer);
     }
+
     return written;
   }
 
@@ -229,6 +231,7 @@ final class ArchiveExtractor {
       missing.add(current);
       current = Objects.requireNonNull(current.getParent(), "The root of a file system exists!");
     }
+
     final FileAttribute<?>[] attributes = initialAttributes(permissions, FOLDER);
     Files.createDirectories(folder, attributes);
 

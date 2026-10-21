@@ -118,6 +118,7 @@ class JcefNativesTest {
         zip.closeEntry();
       }
     }
+
     return bytes.toByteArray();
   }
 
@@ -139,6 +140,7 @@ class JcefNativesTest {
     synchronized (this.requested) {
       this.requested.add(uri);
     }
+
     if (!sha256.equals(PINNED_HASH)) {
       throw new IOException("Checksum mismatch");
     }
@@ -173,6 +175,7 @@ class JcefNativesTest {
     for (int index = 0; index < entries.length; index++) {
       urls[index] = Path.of(entries[index]).toUri().toURL();
     }
+
     try (final URLClassLoader first = new URLClassLoader(urls, null); final URLClassLoader second = new URLClassLoader(urls, null)) {
       final Class<?> secondNatives = second.loadClass(JcefNatives.class.getName());
       assertNotSame(first.loadClass(JcefNatives.class.getName()), secondNatives);
@@ -233,6 +236,7 @@ class JcefNativesTest {
       final long platformMegabytes = JcefNatives.NativePlatform.approximateMegabytes(platform.getIdentifier());
       assertEquals(platform.getSize() / (1024L * 1024L), platformMegabytes);
     }
+
     final long unknownPlatformMegabytes = JcefNatives.NativePlatform.approximateMegabytes("amiga-m68k");
     assertEquals(0L, unknownPlatformMegabytes);
   }
@@ -268,6 +272,7 @@ class JcefNativesTest {
       final Set<PosixFilePermission> installationPermissions = Files.getPosixFilePermissions(installation);
       assertEquals(PosixFilePermissions.fromString(EXECUTABLE_PERMISSIONS), installationPermissions);
     }
+
     final URI firstRequest = this.requested.getFirst();
     assertEquals(
       URI.create(
@@ -554,6 +559,7 @@ class JcefNativesTest {
       final boolean valid = held.isValid();
       assertTrue(valid);
     }
+
     final int downloadsWhileLocked = this.downloads.get();
     assertEquals(0, downloadsWhileLocked);
 

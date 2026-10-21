@@ -36,6 +36,7 @@ class HelperProcessesTest {
     } finally {
       HelperProcesses.open();
     }
+
     HelperProcesses.requireOpen();
   }
 

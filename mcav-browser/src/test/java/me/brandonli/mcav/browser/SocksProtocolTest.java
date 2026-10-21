@@ -41,6 +41,7 @@ class SocksProtocolTest {
     for (int index = 0; index < bytes.length; index++) {
       data[index] = (byte) bytes[index];
     }
+
     return new DataInputStream(new ByteArrayInputStream(data));
   }
 
@@ -167,10 +168,12 @@ class SocksProtocolTest {
       final boolean allowedAccepted = SocksProtocol.isHostNameCharacter((byte) allowed);
       assertTrue(allowedAccepted, String.valueOf(allowed));
     }
+
     for (final char refused : "`{@[/:%\u0000 \u007f".toCharArray()) {
       final boolean refusedAccepted = SocksProtocol.isHostNameCharacter((byte) refused);
       assertFalse(refusedAccepted, String.valueOf((int) refused));
     }
+
     final boolean nonAsciiAccepted = SocksProtocol.isHostNameCharacter((byte) 0xC3);
     assertFalse(nonAsciiAccepted);
   }

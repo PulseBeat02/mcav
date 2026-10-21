@@ -186,6 +186,7 @@ class LinuxLibrariesTest {
     while (!Arrays.equals(patched, stream, stream + XZ_MAGIC.length, XZ_MAGIC, 0, XZ_MAGIC.length)) {
       stream++;
     }
+
     final int block = stream + 12;
     final int headerBytes = ((patched[block] & 0xFF) + 1) * 4;
     final byte filterId = patched[block + 2];
@@ -201,6 +202,7 @@ class LinuxLibrariesTest {
     for (int index = 0; index < Integer.BYTES; index++) {
       patched[block + headerBytes - Integer.BYTES + index] = (byte) (checksum >>> (Byte.SIZE * index));
     }
+
     return patched;
   }
 
@@ -289,6 +291,7 @@ class LinuxLibrariesTest {
       final boolean twelveHexadecimalDigits = FINGERPRINT.matcher(LinuxLibraries.fingerprint(pins)).matches();
       assertTrue(twelveHexadecimalDigits);
     }
+
     assertEquals(List.of("https://archive.debian.org/debian/", "https://deb.debian.org/debian/"), LinuxLibraries.MIRRORS);
   }
 
@@ -398,6 +401,7 @@ class LinuxLibrariesTest {
         .toList();
       assertEquals(List.of("install.lock", LIBRARY_NAME), fileNames, "neither the link nor the documentation of the package");
     }
+
     final Path library = installation.resolve(LIBRARY_NAME);
 
     final byte[] libraryBytes = Files.readAllBytes(library);
@@ -413,6 +417,7 @@ class LinuxLibrariesTest {
       final Set<PosixFilePermission> cachePermissions = Files.getPosixFilePermissions(this.folder.resolve("cache"));
       assertEquals(PosixFilePermissions.fromString("rwxr-xr-x"), cachePermissions);
     }
+
     final Path secondInstallation = libraries.install(PLATFORM);
     assertEquals(installation, secondInstallation);
 
@@ -638,6 +643,7 @@ class LinuxLibrariesTest {
         .toList();
       assertEquals(List.of("libmissing.so.1", "libmissingmodule.so"), linkNames);
     }
+
     final Path linkTarget = Files.readSymbolicLink(linked.resolve("libmissing.so.1"));
     assertEquals(installation.resolve("libmissing.so.1"), linkTarget);
 
@@ -673,6 +679,7 @@ class LinuxLibrariesTest {
     )) {
       expected.add(root.resolve(path));
     }
+
     assertEquals(expected, folders);
 
     final List<Path> arm = LinuxLibraries.hostFolders(this.folder.resolve("empty-root"), ARM_PLATFORM);
@@ -814,6 +821,7 @@ class LinuxLibrariesTest {
       Files.createDirectories(installation);
       Files.writeString(installation.resolve(LinuxLibraries.INSTALL_MARKER), "done");
     }
+
     final Path waitedInstallation = installed.get(30, TimeUnit.SECONDS);
     assertEquals(installation, waitedInstallation);
     assertEquals(List.of(), this.downloads, "nothing was downloaded again");
@@ -931,6 +939,7 @@ class LinuxLibrariesTest {
     for (int depth = 1; depth <= 9; depth++) {
       Files.writeString(etc.resolve(depth + ".conf"), "/opt/depth" + depth + "\ninclude /etc/" + (depth + 1) + ".conf\n");
     }
+
     final List<Path> folders = LinuxLibraries.hostFolders(root, PLATFORM);
     final boolean followsEightDeep = folders.contains(root.resolve("opt/depth8"));
     assertTrue(followsEightDeep, folders::toString);
@@ -948,6 +957,7 @@ class LinuxLibrariesTest {
     for (final String name : names) {
       Files.writeString(configuration.resolve(name + ".conf"), "/opt/" + name + "\n");
     }
+
     final List<Path> folders = LinuxLibraries.hostFolders(root, PLATFORM);
     final List<Path> expected = names
       .stream()

@@ -396,6 +396,7 @@ public final class TestPages implements AutoCloseable {
       final short sample = (short) Math.round(Math.sin((2 * Math.PI * TONE_HERTZ * frame) / rate) * TONE_AMPLITUDE * 32767);
       wave.putShort(sample).putShort(sample);
     }
+
     final byte[] body = wave.array();
     exchange.getResponseHeaders().add("Content-Type", "audio/wav");
     exchange.sendResponseHeaders(200, body.length);
@@ -458,6 +459,7 @@ public final class TestPages implements AutoCloseable {
     synchronized (this.events) {
       this.events.add(pageEvent);
     }
+
     exchange.sendResponseHeaders(204, -1);
     exchange.close();
   }
@@ -495,6 +497,7 @@ public final class TestPages implements AutoCloseable {
       final String value = URLDecoder.decode(encodedValue, StandardCharsets.UTF_8);
       parameters.put(name, value);
     }
+
     return parameters;
   }
 
@@ -522,6 +525,7 @@ public final class TestPages implements AutoCloseable {
         matching.add(event);
       }
     }
+
     return matching;
   }
 

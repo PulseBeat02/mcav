@@ -63,6 +63,7 @@ class SeatbeltTest {
         List.of(mac.getPath("/private/var/folders/session"), mac.getPath("/dev"))
       );
     }
+
     assertEquals(
       PROFILE +
         "(deny file-read-data (subpath \"/server\") (subpath \"/Users/owner\"))\n" +

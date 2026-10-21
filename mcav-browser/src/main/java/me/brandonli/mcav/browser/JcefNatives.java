@@ -103,6 +103,7 @@ final class JcefNatives {
         return Optional.of(platform);
       }
     }
+
     return Optional.empty();
   }
 
@@ -138,6 +139,7 @@ final class JcefNatives {
         LOGGER.debug("Installation lock {} of {} was released.", lock, name);
       }
     }
+
     return installation;
   }
 
@@ -212,6 +214,7 @@ final class JcefNatives {
       Files.deleteIfExists(download);
       IoUtils.deleteRecursively(staging);
     }
+
     final long elapsed = System.currentTimeMillis() - start;
     LOGGER.info("Installed the CEF natives for {} in {} ms.", identifier, elapsed);
   }
@@ -229,6 +232,7 @@ final class JcefNatives {
     try (final InputStream raw = Files.newInputStream(jar); final ZipInputStream zip = new ZipInputStream(raw)) {
       extracted = this.extractFirstArchive(zip, staging);
     }
+
     if (!extracted) {
       final String message = "The natives jar holds no %s archive!".formatted(ARCHIVE_SUFFIX);
       throw new IOException(message);
@@ -247,6 +251,7 @@ final class JcefNatives {
         entry = zip.getNextEntry();
       }
     }
+
     return extracted;
   }
 
@@ -310,6 +315,7 @@ final class JcefNatives {
           return platform.size / BYTES_PER_MEGABYTE;
         }
       }
+
       return 0L;
     }
   }

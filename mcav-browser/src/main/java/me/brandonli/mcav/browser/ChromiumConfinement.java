@@ -119,6 +119,7 @@ final class ChromiumConfinement {
         real.add(path.toAbsolutePath().normalize());
       }
     }
+
     return real;
   }
 
@@ -154,6 +155,7 @@ final class ChromiumConfinement {
     } catch (final AccessDeniedException exception) {
       return;
     }
+
     for (final Path child : children) {
       if (Files.isSymbolicLink(child) || hidden.contains(child)) {
         continue;
@@ -172,6 +174,7 @@ final class ChromiumConfinement {
         return true;
       }
     }
+
     return false;
   }
 
@@ -191,6 +194,7 @@ final class ChromiumConfinement {
         paths.add(Path.of(entry));
       }
     }
+
     return paths;
   }
 
@@ -205,6 +209,7 @@ final class ChromiumConfinement {
         jars.add(Path.of(options < 0 ? rest : rest.substring(0, options)));
       }
     }
+
     return jars;
   }
 
@@ -220,6 +225,7 @@ final class ChromiumConfinement {
         addLinkTargets(entries, targets);
       }
     }
+
     return targets;
   }
 

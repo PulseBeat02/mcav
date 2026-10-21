@@ -248,6 +248,7 @@ class BrowserHelperTest {
       final Integer exitStatus = result.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertEquals(0, exitStatus);
     }
+
     final boolean stopped = engine.isStopped();
     assertTrue(stopped);
 
@@ -273,6 +274,7 @@ class BrowserHelperTest {
       final Integer exitStatus = result.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertEquals(0, exitStatus);
     }
+
     final @Nullable String stopReason = helper.getStopReason();
     assertEquals(STANDARD_INPUT_ENDED, stopReason);
   }
@@ -303,6 +305,7 @@ class BrowserHelperTest {
       final Integer exitStatus = result.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertEquals(0, exitStatus);
     }
+
     final @Nullable String stopReason = helper.getStopReason();
     assertEquals("the server sent message type 6, which only a helper sends", stopReason);
   }
@@ -317,6 +320,7 @@ class BrowserHelperTest {
       final Integer exitStatus = result.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertEquals(0, exitStatus);
     }
+
     final @Nullable String stopReason = helper.getStopReason();
     assertEquals("the connection failed (Message type 99 is unknown!)", stopReason);
   }
@@ -336,6 +340,7 @@ class BrowserHelperTest {
       final Integer exitStatus = result.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertEquals(0, exitStatus);
     }
+
     final @Nullable String stopReason = helper.getStopReason();
     assertEquals("the connection failed (A frame of 16 bytes arrived where no frame of that size is expected!)", stopReason);
   }
@@ -411,6 +416,7 @@ class BrowserHelperTest {
       running.interrupt();
       running.join(JOIN_TIMEOUT_MILLISECONDS);
     }
+
     final boolean alive = running.isAlive();
     assertFalse(alive, "the interrupted helper has terminated");
 
@@ -589,6 +595,7 @@ class BrowserHelperTest {
     } finally {
       Thread.interrupted();
     }
+
     assertEquals(List.of(1), halts);
   }
 
@@ -622,6 +629,7 @@ class BrowserHelperTest {
     } finally {
       release.countDown();
     }
+
     final Integer exitStatus = result.get(30, TimeUnit.SECONDS);
     assertEquals(0, exitStatus);
   }
@@ -752,6 +760,7 @@ class BrowserHelperTest {
       final Integer exitStatus = result.get(RESULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertEquals(0, exitStatus);
     }
+
     final PageCompositor compositor = helper.getCompositor();
     final byte[] buffer = new byte[compositor.getPageBytes()];
     final long start = System.nanoTime();
@@ -854,6 +863,7 @@ class BrowserHelperTest {
       while (message.getType() != type) {
         message = this.read();
       }
+
       return message;
     }
 

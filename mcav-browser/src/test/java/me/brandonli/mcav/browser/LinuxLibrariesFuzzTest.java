@@ -116,6 +116,7 @@ final class LinuxLibrariesFuzzTest {
       }
       written.add(name);
     }
+
     if (outcome == Outcome.EXTRACTED) {
       assertEquals(Set.copyOf(PINNED.values()), written, "a package that extracts holds every pinned library");
     }
@@ -134,6 +135,7 @@ final class LinuxLibrariesFuzzTest {
     try (final XZOutputStream xz = new XZOutputStream(compressed, new LZMA2Options(XZ_PRESET))) {
       xz.write(tar);
     }
+
     return compressed.toByteArray();
   }
 
@@ -148,6 +150,7 @@ final class LinuxLibrariesFuzzTest {
       archive.write(data);
       archive.closeArchiveEntry();
     }
+
     return debianPackage.toByteArray();
   }
 

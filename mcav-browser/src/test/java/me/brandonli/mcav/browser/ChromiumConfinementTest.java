@@ -213,6 +213,7 @@ class ChromiumConfinementTest {
       final List<String> profiles = library.profiles();
       assertEquals(List.of(), profiles, "only macOS uses Seatbelt");
     }
+
     final String noSeatbeltReason = ChromiumConfinement.confine(
       this.configuration(Confinement.ASKED, server),
       OperatingSystem.MAC,
@@ -241,6 +242,7 @@ class ChromiumConfinementTest {
       said = ChromiumConfinement.confine(configuration, OperatingSystem.MAC, () -> -38, library.seatbelt());
       profiles = List.copyOf(library.profiles());
     }
+
     assertEquals(ChromiumConfinement.CONFINED, said);
 
     final int profileCount = profiles.size();

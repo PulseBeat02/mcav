@@ -72,6 +72,7 @@ final class HelperEnvironment {
         kept.put(name, value);
       }
     }
+
     return kept;
   }
 }

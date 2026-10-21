@@ -155,6 +155,7 @@ final class HelperLauncher {
     for (final Path entry : this.classPath) {
       entries.add(entry.toString());
     }
+
     command.add(String.join(File.pathSeparator, entries));
     command.add(this.mainClass);
 
@@ -171,14 +172,17 @@ final class HelperLauncher {
       kept.put(TEMPORARY_FOLDER_VARIABLE, folder.toString());
       kept.put(DATA_HOME_VARIABLE, folder.toString());
     }
+
     if (this.os == Os.MAC) {
       // MAC_CHROMIUM_TMPDIR is where Chromium writes first on macOS, inside the confinement
       kept.put(TEMPORARY_FOLDER_VARIABLE, folder.toString());
       kept.put(MAC_TEMPORARY_FOLDER_VARIABLE, folder.toString());
     }
+
     if (libraries != null) {
       kept.put(LIBRARY_PATH_VARIABLE, libraries.toString());
     }
+
     return kept;
   }
 

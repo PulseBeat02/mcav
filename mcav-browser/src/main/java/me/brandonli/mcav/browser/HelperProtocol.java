@@ -410,6 +410,7 @@ final class HelperProtocol {
       bytes += size;
       index += Character.charCount(codePoint);
     }
+
     parts.add(text.substring(start));
 
     return parts;
@@ -438,6 +439,7 @@ final class HelperProtocol {
     while ((bytes[end] & UTF8_CONTINUATION_MASK) == UTF8_CONTINUATION_BITS) {
       end--;
     }
+
     final byte[] cut = new byte[end];
     System.arraycopy(bytes, 0, cut, 0, end);
 

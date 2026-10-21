@@ -348,6 +348,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     if (!this.isSilent(chunk.samples())) {
       this.spoken = now;
     }
+
     return true;
   }
 
@@ -357,6 +358,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
         return false;
       }
     }
+
     return true;
   }
 
@@ -401,6 +403,7 @@ final class PageAudio implements CefDevToolsClient.EventListener {
     } catch (final IllegalArgumentException exception) {
       return null;
     }
+
     final int length = samples.length;
     if (length == 0 || length % HelperProtocol.AUDIO_FRAME_BYTES != 0) {
       return null;

@@ -44,6 +44,7 @@ public final class HelperCoverage {
         );
       }
     }
+
     return List.of();
   }
 }

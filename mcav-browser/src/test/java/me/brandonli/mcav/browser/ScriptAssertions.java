@@ -38,6 +38,7 @@ final class ScriptAssertions {
     try (final InputStream input = Objects.requireNonNull(ScriptAssertions.class.getResourceAsStream("/scripts/" + resource))) {
       fixture = new String(input.readAllBytes(), StandardCharsets.UTF_8);
     }
+
     final String program = fixture.replace("SCRIPT_UNDER_TEST", DevToolsInput.quote(script));
     final String node = Objects.requireNonNull(System.getProperty("mcav.testNode"), "The script-testing convention supplies Node");
     final Path output = Files.createTempFile("mcav-script-", ".log");

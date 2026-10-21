@@ -194,6 +194,7 @@ final class DevToolsInput {
       final String name = FUNCTION_KEY_PREFIX + number;
       keys.put(name, new KeyDefinition(name, FUNCTION_KEY_CODE_OFFSET + number, ""));
     }
+
     return Map.copyOf(keys);
   }
 
@@ -236,6 +237,7 @@ final class DevToolsInput {
         return BUTTON_NAMES[button];
       }
     }
+
     return NO_BUTTON;
   }
 
@@ -267,6 +269,7 @@ final class DevToolsInput {
         new DevToolsCall(KEY_METHOD, KEY_DOWN_START + keyFields + TEXT_FIELD + quotedText + UNMODIFIED_TEXT_FIELD + quotedText + "}")
       );
     }
+
     calls.add(new DevToolsCall(KEY_METHOD, KEY_UP_START + keyFields + "}"));
 
     return calls;
@@ -295,6 +298,7 @@ final class DevToolsInput {
       calls.add(new DevToolsCall(KEY_METHOD, KEY_DOWN_START + keyFields + TEXT_FIELD + quoted + UNMODIFIED_TEXT_FIELD + quoted + "}"));
       calls.add(new DevToolsCall(KEY_METHOD, KEY_UP_START + keyFields + "}"));
     }
+
     return calls;
   }
 
@@ -322,6 +326,7 @@ final class DevToolsInput {
         default -> appendPlainOrUnicodeEscaped(builder, character);
       }
     }
+
     builder.append('"');
 
     return builder.toString();

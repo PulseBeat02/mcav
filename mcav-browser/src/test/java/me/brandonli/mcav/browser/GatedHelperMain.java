@@ -38,6 +38,7 @@ public final class GatedHelperMain {
     while (!Files.exists(gate) && System.nanoTime() < deadline) {
       Thread.sleep(10);
     }
+
     ScriptedEngine.main(args);
   }
 }

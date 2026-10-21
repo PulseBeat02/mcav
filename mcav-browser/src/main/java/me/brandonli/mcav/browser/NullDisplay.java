@@ -398,6 +398,7 @@ final class NullDisplay implements AutoCloseable {
     } else {
       Files.createFile(authority);
     }
+
     Files.write(authority, entry);
   }
 

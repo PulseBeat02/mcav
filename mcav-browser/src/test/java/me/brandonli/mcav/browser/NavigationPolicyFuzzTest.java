@@ -35,11 +35,13 @@ final class NavigationPolicyFuzzTest {
       final boolean documentedPageScheme = address.equals("about:blank") || lower.startsWith("http:") || lower.startsWith("https:");
       assertTrue(documentedPageScheme, address);
     }
+
     if (NavigationPolicy.allowsNavigation(address, FrameKind.CHILD)) {
       final boolean isAboutPage = address.equals("about:blank") || address.equals("about:srcdoc");
       final boolean documentedFrameScheme = isAboutPage || this.hasScheme(lower, "http", "https", "data", "blob");
       assertTrue(documentedFrameScheme, address);
     }
+
     if (NavigationPolicy.allowsRequest(address)) {
       final boolean documentedRequestScheme = this.hasScheme(lower, "http", "https", "ws", "wss", "data", "blob");
       assertTrue(documentedRequestScheme, address);
@@ -52,6 +54,7 @@ final class NavigationPolicyFuzzTest {
         return true;
       }
     }
+
     return false;
   }
 }

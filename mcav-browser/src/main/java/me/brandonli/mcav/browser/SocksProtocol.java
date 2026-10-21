@@ -68,6 +68,7 @@ final class SocksProtocol {
       final int method = input.readUnsignedByte();
       withoutAuthentication = withoutAuthentication || method == NO_AUTHENTICATION;
     }
+
     return withoutAuthentication;
   }
 
@@ -134,6 +135,7 @@ final class SocksProtocol {
         throw new ProtocolException(message);
       }
     }
+
     final String host = new String(bytes, StandardCharsets.US_ASCII);
     // Chromium names an IPv6 address by its text, in the field of a host name
     if (host.indexOf(':') >= 0) {

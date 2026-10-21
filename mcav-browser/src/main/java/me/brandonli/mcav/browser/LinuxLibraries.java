@@ -251,6 +251,7 @@ final class LinuxLibraries {
     for (final String soname : sonames) {
       requireMatch(SONAME, soname, line);
     }
+
     return List.copyOf(sonames);
   }
 
@@ -262,6 +263,7 @@ final class LinuxLibraries {
         matching.add(pin);
       }
     }
+
     return matching;
   }
 
@@ -292,6 +294,7 @@ final class LinuxLibraries {
         LOGGER.debug("Installation lock {} of {} was released.", lock, name);
       }
     }
+
     return installation;
   }
 
@@ -308,6 +311,7 @@ final class LinuxLibraries {
     for (final Pin pin : pins) {
       hasher.putString(pin.sha256(), StandardCharsets.US_ASCII);
     }
+
     return hasher.hash().toString().substring(0, FINGERPRINT_DIGITS);
   }
 
@@ -316,6 +320,7 @@ final class LinuxLibraries {
     for (final Pin pin : wanted) {
       bytes += pin.size();
     }
+
     LOGGER.info("Downloading {} Linux libraries for the browser ({} MB, once).", wanted.size(), bytes / BYTES_PER_MEGABYTE);
     final String suffix = UUID.randomUUID().toString();
     final Path staging = this.folder.resolve(installation.getFileName() + NAME_SEPARATOR + suffix + STAGING_SUFFIX);
@@ -334,6 +339,7 @@ final class LinuxLibraries {
       Files.deleteIfExists(download);
       IoUtils.deleteRecursively(staging);
     }
+
     LOGGER.info("Folder {} now holds the Linux libraries of the browser.", installation);
   }
 
@@ -351,6 +357,7 @@ final class LinuxLibraries {
         failure = this.combineFailures(failure, exception);
       }
     }
+
     final String message = "The package %s could not be downloaded from any mirror!".formatted(pin.name());
     throw new IOException(message, failure);
   }
@@ -399,6 +406,7 @@ final class LinuxLibraries {
     try (final OutputStream output = Files.newOutputStream(file, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
       Files.copy(library, output);
     }
+
     IoUtils.markExecutable(file);
   }
 
@@ -410,6 +418,7 @@ final class LinuxLibraries {
         missingHost.add(soname);
       }
     }
+
     if (!missingHost.isEmpty()) {
       final String libraries = String.join(LIST_SEPARATOR, missingHost);
       final String message = "The browser needs %s, which this server lacks and mcav does not bring!".formatted(libraries);
@@ -424,6 +433,7 @@ final class LinuxLibraries {
         missing.add(pin);
       }
     }
+
     return missing;
   }
 
@@ -449,6 +459,7 @@ final class LinuxLibraries {
       }
       LOGGER.debug("The browser gets {} from {}, as the server lacks them.", sonames, installation);
     }
+
     return libraries;
   }
 
@@ -459,6 +470,7 @@ final class LinuxLibraries {
         return true;
       }
     }
+
     return false;
   }
 
@@ -472,6 +484,7 @@ final class LinuxLibraries {
     } catch (final IOException exception) {
       return false;
     }
+
     if (read < header.length) {
       return false;
     }
@@ -490,9 +503,11 @@ final class LinuxLibraries {
     for (final String folder : MULTIARCH_FOLDERS) {
       folders.add(root.resolve(folder + triplet));
     }
+
     for (final String folder : DEFAULT_FOLDERS) {
       folders.add(root.resolve(folder));
     }
+
     return List.copyOf(folders);
   }
 
@@ -507,6 +522,7 @@ final class LinuxLibraries {
     } catch (final IOException exception) {
       return;
     }
+
     for (final String raw : lines) {
       final int comment = raw.indexOf(COMMENT_PREFIX);
       final String line = (comment >= 0 ? raw.substring(0, comment) : raw).trim();
@@ -548,6 +564,7 @@ final class LinuxLibraries {
       }
       Collections.sort(matches);
     }
+
     return matches;
   }
 
@@ -579,6 +596,7 @@ final class LinuxLibraries {
         final String path = requireMatch(PACKAGE_PATH, entry.substring(equals + 1), line);
         files.put(path, soname);
       }
+
       return new Pin(
         requireMatch(PLATFORM, fields.get(PIN_PLATFORM_FIELD), line),
         fields.get(PIN_NAME_FIELD),

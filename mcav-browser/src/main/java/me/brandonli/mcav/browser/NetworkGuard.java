@@ -132,6 +132,7 @@ final class NetworkGuard implements Closeable {
         notices.accept("The refused host %s has no address, so pages are not kept from it.".formatted(host));
       }
     }
+
     return addresses;
   }
 
@@ -227,6 +228,7 @@ final class NetworkGuard implements Closeable {
 
       return null;
     }
+
     IOException failure = null;
     for (final InetAddress address : addresses) {
       if (!this.policy.test(address)) {
@@ -238,6 +240,7 @@ final class NetworkGuard implements Closeable {
         failure = exception;
       }
     }
+
     if (failure == null) {
       this.report(host);
       SocksProtocol.writeReply(output, SocksProtocol.NOT_ALLOWED);
@@ -245,6 +248,7 @@ final class NetworkGuard implements Closeable {
       final boolean refused = failure instanceof ConnectException;
       SocksProtocol.writeReply(output, refused ? SocksProtocol.CONNECTION_REFUSED : SocksProtocol.HOST_UNREACHABLE);
     }
+
     return null;
   }
 
@@ -253,6 +257,7 @@ final class NetworkGuard implements Closeable {
     synchronized (this.reported) {
       first = this.reported.size() < MAXIMUM_REPORTED_HOSTS && this.reported.add(host);
     }
+
     if (first) {
       this.notices.accept("The connection to %s was refused, because it is not a public address.".formatted(host));
     }
@@ -361,6 +366,7 @@ final class NetworkGuard implements Closeable {
         final List<AddressPolicy.TranslationPrefix> known = this.getPrefixes();
         isPublic = known != null && AddressPolicy.isPublic(address, known);
       }
+
       return isPublic && !this.own.test(address);
     }
 

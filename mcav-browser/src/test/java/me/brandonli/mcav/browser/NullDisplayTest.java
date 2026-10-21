@@ -131,6 +131,7 @@ class NullDisplayTest {
     for (final byte[] part : parts) {
       all.writeBytes(part);
     }
+
     return all.toByteArray();
   }
 
@@ -235,6 +236,7 @@ class NullDisplayTest {
       final short reasonUnits = ByteBuffer.wrap(answer).order(ByteOrder.LITTLE_ENDIAN).getShort(6);
       assertEquals((answer.length - 8) / 4, reasonUnits, "the reason's length in units");
     }
+
     final ByteArrayOutputStream output = new ByteArrayOutputStream();
     final byte[] tenPointZero = setup(ByteOrder.LITTLE_ENDIAN, 10, COOKIE_NAME, COOKIE);
     final ProtocolException oldProtocol = assertThrows(ProtocolException.class, () -> this.serveSetup(tenPointZero, output));
@@ -596,6 +598,7 @@ class NullDisplayTest {
     while (many.intern("atom-" + count) != 0) {
       count++;
     }
+
     assertEquals(NullDisplay.MAXIMUM_ATOMS - 68, count, "the 68 predefined atoms count too");
 
     final int knownAtom = many.intern("atom-0");
@@ -618,6 +621,7 @@ class NullDisplayTest {
     while (large.intern(name + named) != 0) {
       named++;
     }
+
     final boolean namedWithinLimit = named * 60_000L <= NullDisplay.MAXIMUM_ATOM_BYTES;
     assertTrue(namedWithinLimit, named + " names of 60000 bytes");
 
@@ -764,6 +768,7 @@ class NullDisplayTest {
         served.add(client);
       }
     }
+
     return served;
   }
 
@@ -970,6 +975,7 @@ class NullDisplayTest {
       final InetAddress boundAddress = third.getInetAddress();
       assertEquals(InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }), boundAddress);
     }
+
     for (final int port : refused) {
       final ServerSocket again = new ServerSocket(port, 1, InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }));
       again.close();

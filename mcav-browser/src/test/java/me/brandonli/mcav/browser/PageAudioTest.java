@@ -223,6 +223,7 @@ class PageAudioTest {
     for (int count = 0; count < 6; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, event);
     }
+
     final int countAtStart = passed.size();
     assertEquals(5, countAtStart);
 
@@ -230,6 +231,7 @@ class PageAudioTest {
     for (int count = 0; count < 3; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, event);
     }
+
     final int countAfterAQuarterSecond = passed.size();
     assertEquals(7, countAfterAQuarterSecond);
 
@@ -237,6 +239,7 @@ class PageAudioTest {
     for (int count = 0; count < 6; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, event);
     }
+
     final int countAfterAYear = passed.size();
     assertEquals(12, countAfterAYear);
 
@@ -250,6 +253,7 @@ class PageAudioTest {
     for (int count = 0; count < 6; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, event);
     }
+
     final int countAfterAnotherSecond = passed.size();
     assertEquals(17, countAfterAnotherSecond);
 
@@ -271,6 +275,7 @@ class PageAudioTest {
         assertTrue(leastFits, length + " bytes, not " + least);
       }
     }
+
     final boolean noSoundInAShortEvent = PageAudio.leastBytes(EMPTY_OBJECT) < 0;
     assertTrue(noSoundInAShortEvent, "a short event may hold no sound");
   }
@@ -285,6 +290,7 @@ class PageAudioTest {
     for (int count = 0; count < 5; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }
+
     final int passedCountAtBudget = passed.size();
     assertEquals(5, passedCountAtBudget);
 
@@ -321,6 +327,7 @@ class PageAudioTest {
     for (int count = 0; count < 5; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }
+
     audio.onEvent(PageAudio.BINDING_EVENT, this.call(new byte[PARTIAL_CHUNK_BYTES]));
     now.addAndGet(170_664_063L);
     final boolean lengthLetsItPass = PageAudio.leastBytes(largest) <= 65_535;
@@ -356,6 +363,7 @@ class PageAudioTest {
     for (int count = 0; count < 5; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }
+
     audio.onEvent(
       PageAudio.BINDING_EVENT,
       this.call(PageAudio.BINDING, Base64.getEncoder().encodeToString(new byte[PARTIAL_CHUNK_BYTES]), context)
@@ -392,6 +400,7 @@ class PageAudioTest {
     for (int count = 0; count < 5; count++) {
       audio.onEvent(PageAudio.BINDING_EVENT, largest);
     }
+
     audio.onEvent(PageAudio.BINDING_EVENT, this.call(new byte[PARTIAL_CHUNK_BYTES]));
     step.set(10_417L);
     audio.onEvent(PageAudio.BINDING_EVENT, this.call(new byte[8]));

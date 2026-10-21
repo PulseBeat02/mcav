@@ -116,6 +116,7 @@ class SessionFoldersTest {
     if (posix) {
       Files.setPosixFilePermissions(record, PosixFilePermissions.fromString("-w-------"));
     }
+
     final Path other = Files.createDirectory(this.temporary.resolve("other-folder"));
     Files.writeString(other.resolve(SessionFolders.OWNER_FILE), GONE + LINE_SEPARATOR + OLD_START + LINE_SEPARATOR);
     final boolean readable = Files.isReadable(record);
