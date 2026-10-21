@@ -33,16 +33,17 @@ audio.
 
 Filters are functional interfaces, so small filters can be lambdas. A filter returns `true` only if it changed the
 frame or the samples (or may have changed them), and `false` if it only read them. The pipeline passes the data on to
-the next step either way; filters that work on a copy use the result to skip copying unchanged data back. The filter
-below only reads the frame, so it returns `false`:
+the next step either way; filters that work on a copy use the result to skip copying unchanged data back. The method
+below only reads the frame, so it returns `false`; pass it to a pipeline as `this::logSize`:
 
 ```java
-  final VideoFilter logSize = (image, metadata) -> {
+  private boolean logSize(final ImageBuffer image, final OriginalVideoMetadata metadata) {
     final int width = image.getWidth();
     final int height = image.getHeight();
     LOGGER.debug("The frame is {} by {} pixels.", width, height);
+
     return false;
-  };
+  }
 ```
 
 ```{note}

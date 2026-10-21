@@ -98,14 +98,17 @@ preparation already finished, gets a future that is complete already.
 ```java
   public CompletableFuture<VideoPlayerMultiplexer> createVlcPlayerWhenReady(final MCAVApi api) {
     final CompletableFuture<Boolean> vlcReady = api.whenCapabilityReady(Capability.VLC);
-    return vlcReady.thenApply(available -> {
-      if (!available) {
-        final VideoPlayerMultiplexer ffmpegPlayer = VideoPlayer.ffmpeg(); // VLC cannot be used on this system
-        return ffmpegPlayer;
-      }
-      final VideoPlayerMultiplexer vlcPlayer = VideoPlayer.vlc();
-      return vlcPlayer;
-    });
+    return vlcReady.thenApply(this::createPlayer);
+  }
+
+  private VideoPlayerMultiplexer createPlayer(final boolean vlcAvailable) {
+    if (!vlcAvailable) {
+      final VideoPlayerMultiplexer ffmpegPlayer = VideoPlayer.ffmpeg(); // VLC cannot be used on this system
+      return ffmpegPlayer;
+    }
+
+    final VideoPlayerMultiplexer vlcPlayer = VideoPlayer.vlc();
+    return vlcPlayer;
   }
 ```
 

@@ -37,36 +37,42 @@ The example below plays a file through the speakers of your computer in mono, ex
 it, which checks the downmix without a Minecraft server:
 
 ```java
-  final MCAVApi api = MCAV.api();
-  api.install();
+  public void playInMono() throws LineUnavailableException {
+    final MCAVApi api = MCAV.api();
+    api.install();
 
-  final int sampleRate = 48_000;
-  final int sampleBits = 16;
-  final int monoChannels = 1;
-  final AudioFormat format = new AudioFormat(sampleRate, sampleBits, monoChannels, true, false);
-  final SourceDataLine line = AudioSystem.getSourceDataLine(format);
-  line.open(format);
-  line.start();
+    final int sampleRate = 48_000;
+    final int sampleBits = 16;
+    final int monoChannels = 1;
+    final AudioFormat format = new AudioFormat(sampleRate, sampleBits, monoChannels, true, false);
+    final SourceDataLine line = AudioSystem.getSourceDataLine(format);
+    line.open(format);
+    line.start();
 
-  final AudioPipelineStep pipeline = AudioPipelineStep.of((samples, metadata) -> {
+    final AudioPipelineStep pipeline = AudioPipelineStep.of((samples, metadata) -> this.writeMono(line, samples));
+
+    final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
+    final AudioAttachableCallback audio = player.getAudioAttachableCallback();
+    audio.attach(pipeline);
+    final String fileName = "video.mp4";
+    final Path path = Path.of(fileName);
+    final FileSource source = FileSource.path(path);
+    player.start(source);
+  }
+
+  private boolean writeMono(final SourceDataLine line, final ByteBuffer samples) {
     final short[] mono = MonoDownmixer.downmix(samples);
     final ByteBuffer bytes = ByteBuffer.allocate(mono.length * Short.BYTES);
     bytes.order(ByteOrder.LITTLE_ENDIAN);
     for (final short sample : mono) {
       bytes.putShort(sample);
     }
+
     final byte[] array = bytes.array();
     line.write(array, 0, array.length);
-    return false;
-  });
 
-  final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
-  final AudioAttachableCallback audio = player.getAudioAttachableCallback();
-  audio.attach(pipeline);
-  final String fileName = "video.mp4";
-  final Path path = Path.of(fileName);
-  final FileSource source = FileSource.path(path);
-  player.start(source);
+    return false;
+  }
 ```
 
 ## Resampling Audio
@@ -119,39 +125,44 @@ The example below converts the audio of a file to 16 kHz mono, the format of mos
 through the speakers of your computer, so you can hear the result:
 
 ```java
-  final MCAVApi api = MCAV.api();
-  api.install();
+  public void playAsSpeech() throws LineUnavailableException {
+    final MCAVApi api = MCAV.api();
+    api.install();
 
-  final int speechRate = 16_000;
-  final int sampleBits = 16;
-  final int monoChannels = 1;
-  final AudioFormat speechFormat = new AudioFormat(speechRate, sampleBits, monoChannels, true, false);
-  final SourceDataLine line = AudioSystem.getSourceDataLine(speechFormat);
-  line.open(speechFormat);
-  line.start();
+    final int speechRate = 16_000;
+    final int sampleBits = 16;
+    final int monoChannels = 1;
+    final AudioFormat speechFormat = new AudioFormat(speechRate, sampleBits, monoChannels, true, false);
+    final SourceDataLine line = AudioSystem.getSourceDataLine(speechFormat);
+    line.open(speechFormat);
+    line.start();
 
-  final AudioResampler resampler = AudioResampler.fromPipelineFormat(speechRate, monoChannels, SampleFormat.SIGNED_16_BIT);
-  final AudioPipelineStep pipeline = AudioPipelineStep.of((samples, metadata) -> {
+    final AudioResampler resampler = AudioResampler.fromPipelineFormat(speechRate, monoChannels, SampleFormat.SIGNED_16_BIT);
+    final AudioPipelineStep pipeline = AudioPipelineStep.of((samples, metadata) -> this.writeSpeech(resampler, line, samples));
+
+    final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
+    final AudioAttachableCallback audio = player.getAudioAttachableCallback();
+    audio.attach(pipeline);
+    final String fileName = "video.mp4";
+    final Path path = Path.of(fileName);
+    final FileSource source = FileSource.path(path);
+    player.start(source);
+    // ... once playback has ended
+
+    player.release();
+    final byte[] remaining = resampler.flush();
+    line.write(remaining, 0, remaining.length);
+    resampler.close();
+    line.drain();
+    line.close();
+  }
+
+  private boolean writeSpeech(final AudioResampler resampler, final SourceDataLine line, final ByteBuffer samples) {
     final byte[] speech = resampler.resample(samples);
     line.write(speech, 0, speech.length);
+
     return false;
-  });
-
-  final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
-  final AudioAttachableCallback audio = player.getAudioAttachableCallback();
-  audio.attach(pipeline);
-  final String fileName = "video.mp4";
-  final Path path = Path.of(fileName);
-  final FileSource source = FileSource.path(path);
-  player.start(source);
-  // ... once playback has ended
-
-  player.release();
-  final byte[] remaining = resampler.flush();
-  line.write(remaining, 0, remaining.length);
-  resampler.close();
-  line.drain();
-  line.close();
+  }
 ```
 
 To convert other audio, describe the input yourself with `create`. For example, turning 44.1 kHz 5.1 surround audio
@@ -230,8 +241,12 @@ every MCAV failure, so `catch (MCAVException exception)` catches both. Catch
 convert:
 
 ```java
-  final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
-  executor.execute(() -> {
+  public void extractAudioInBackground() {
+    final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+    executor.execute(this::extractAudio);
+  }
+
+  private void extractAudio() {
     final String mediaAddress = "https://example.com/video.mp4";
     final URI mediaUri = URI.create(mediaAddress);
     final UriSource media = UriSource.uri(mediaUri);
@@ -241,7 +256,7 @@ convert:
     } catch (final ProcessException exception) {
       // FFmpeg could not be run, or the source does not exist, cannot be decoded, or has no audio track
     }
-  });
+  }
 ```
 
 ## Network Helpers
