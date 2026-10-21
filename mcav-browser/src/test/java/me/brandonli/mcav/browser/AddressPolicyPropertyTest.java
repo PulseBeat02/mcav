@@ -66,6 +66,7 @@ final class AddressPolicyPropertyTest {
       final boolean translatedJudgedPublic = AddressPolicy.isPublic(this.translate(prefix, length, ipv4), prefixes);
       assertEquals(AddressPolicy.isPublicIpv4(ipv4), translatedJudgedPublic);
     }
+
     final byte[] ordinary = prefix.clone();
     ordinary[0] = 0x2A;
     final InetAddress[] ordinaryAnswer = { this.translate(ordinary, length, 0xC00000AA), this.translate(ordinary, length, 0xC00000AB) };

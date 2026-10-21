@@ -295,6 +295,7 @@ final class HelperSession implements BrowserSession {
     if (pendingChannel != null) {
       closeQuietly(pendingChannel);
     }
+
     if (session != null) {
       session.close();
       return;
@@ -304,6 +305,7 @@ final class HelperSession implements BrowserSession {
       closeQuietly(process.getOutputStream());
       stopProcess(process);
     }
+
     deleteFolder(folder);
   }
 
@@ -340,6 +342,7 @@ final class HelperSession implements BrowserSession {
         LOGGER.debug("The name {} of a browser session's folder is taken, another is drawn.", candidate);
       }
     }
+
     final String message = "Every name drawn was taken!";
     throw new IOException(message);
   }

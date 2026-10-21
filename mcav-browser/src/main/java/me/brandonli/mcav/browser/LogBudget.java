@@ -54,6 +54,7 @@ final class LogBudget {
       skipped.accept(this.skipped);
       this.skipped = 0;
     }
+
     line.run();
   }
 }

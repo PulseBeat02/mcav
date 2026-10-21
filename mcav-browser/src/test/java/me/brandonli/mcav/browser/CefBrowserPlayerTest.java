@@ -1056,6 +1056,7 @@ class CefBrowserPlayerTest {
       if (method.getName().equals("close") && method.getParameterCount() == 0) {
         this.closed.set(true);
       }
+
       try {
         return method.invoke(real, arguments);
       } catch (final InvocationTargetException exception) {

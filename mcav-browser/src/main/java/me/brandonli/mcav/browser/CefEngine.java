@@ -161,6 +161,7 @@ final class CefEngine implements HelperEngine {
     if (!configuration.isJavaScriptJit()) {
       switches.add(JITLESS_SWITCH);
     }
+
     if (guardPort > 0) {
       // the guard carries loopback too; WebRTC uses proxied connections only, and QUIC, which SOCKS cannot carry, is off
       switches.add(PROXY_SERVER_SWITCH + guardPort);
@@ -168,6 +169,7 @@ final class CefEngine implements HelperEngine {
       switches.add(WEBRTC_POLICY_SWITCH);
       switches.add(DISABLE_QUIC_SWITCH);
     }
+
     if (system == OperatingSystem.LINUX) {
       // no display server; a container's shared memory is often small, so Chromium uses temporary files
       switches.add(HEADLESS_OZONE_SWITCH);
@@ -177,9 +179,11 @@ final class CefEngine implements HelperEngine {
         switches.add(DISPLAY_SWITCH + display);
       }
     }
+
     if (system == OperatingSystem.MAC) {
       switches.add(MOCK_KEYCHAIN_SWITCH);
     }
+
     return switches;
   }
 
@@ -390,6 +394,7 @@ final class CefEngine implements HelperEngine {
       final CompletableFuture<String> late = answered.thenApply(lateAnswer -> reloadOnLateAnswer(created, notices, lateAnswer));
       late.exceptionally(CefEngine::logFailedCall);
     }
+
     EventQueue.invokeLater(() -> created.loadURL(url));
   }
 

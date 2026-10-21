@@ -196,6 +196,7 @@ final class LinuxLibraries {
         parsed.add(Pin.parse(fields, line));
       }
     }
+
     this.pins = List.copyOf(parsed);
     this.hostLibraries = Map.copyOf(host);
   }
@@ -396,6 +397,7 @@ final class LinuxLibraries {
       }
       writeLibrary(library, target.resolve(file.getValue()));
     }
+
     if (!missing.isEmpty()) {
       final String message = "The package %s holds none of %s!".formatted(debianPackage.getFileName(), missing);
       throw new IOException(message);

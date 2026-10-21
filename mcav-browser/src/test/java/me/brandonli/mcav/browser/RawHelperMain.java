@@ -148,9 +148,11 @@ public final class RawHelperMain {
     if (path.equals("/hang-up")) {
       channel.close();
     }
+
     if (path.equals("/deaf")) {
       channel.shutdownInput();
     }
+
     if (path.equals("/chatty")) {
       // more than a pipe holds (64 KiB on Linux): blocks unless the server reads the output
       final String line = "x".repeat(1023);
@@ -160,19 +162,24 @@ public final class RawHelperMain {
       System.out.println(CHATTY_END);
       System.out.flush();
     }
+
     if (path.equals("/exit-later")) {
       sleep();
       System.exit(5);
     }
+
     if (path.equals("/child")) {
       startChild(ProcessBuilder.Redirect.DISCARD);
     }
+
     if (path.equals("/output-child")) {
       startChild(ProcessBuilder.Redirect.INHERIT);
     }
+
     if (path.equals("/stubborn-child")) {
       startChildWhenTheInputEnds(input);
     }
+
     if (path.equals("/stubborn") || path.equals("/stubborn-child")) {
       waitTwoMinutes();
     }

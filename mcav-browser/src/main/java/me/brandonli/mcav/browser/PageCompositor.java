@@ -81,6 +81,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
       this.copyRows(buffer, this.width, clipped, this.page, this.width, clipped.x, clipped.y);
       this.addDamage(clipped);
     }
+
     this.paintsSinceSent++;
     this.notifyAll();
   }
@@ -160,6 +161,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
       final long waitNanoseconds = Math.max(1L, Math.min(remaining, settleLeft));
       TimeUnit.NANOSECONDS.timedWait(this, waitNanoseconds);
     }
+
     return null;
   }
 

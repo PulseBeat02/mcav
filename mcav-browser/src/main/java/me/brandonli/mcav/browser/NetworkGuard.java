@@ -382,6 +382,7 @@ final class NetworkGuard implements Closeable {
       } catch (final UnknownHostException exception) {
         return null;
       }
+
       final List<AddressPolicy.TranslationPrefix> found = AddressPolicy.findTranslationPrefixes(answer);
       this.prefixes = found;
       return found;

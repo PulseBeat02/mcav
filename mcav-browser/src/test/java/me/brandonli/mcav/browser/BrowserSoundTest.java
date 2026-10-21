@@ -480,6 +480,7 @@ class BrowserSoundTest {
       synchronized (this.pcm) {
         this.pcm.writeBytes(copy);
       }
+
       return true;
     }
 

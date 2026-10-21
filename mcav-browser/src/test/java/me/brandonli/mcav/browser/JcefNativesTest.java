@@ -453,6 +453,7 @@ class JcefNativesTest {
     } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
     }
+
     Files.write(destination, jar);
   }
 

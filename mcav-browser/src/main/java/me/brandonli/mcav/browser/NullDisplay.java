@@ -368,6 +368,7 @@ final class NullDisplay implements AutoCloseable {
       }
       unusable.add(candidate);
     }
+
     final String message = "The system gives out no port of at least %s for the display!".formatted(X11_BASE_PORT);
     throw new IOException(message);
   }

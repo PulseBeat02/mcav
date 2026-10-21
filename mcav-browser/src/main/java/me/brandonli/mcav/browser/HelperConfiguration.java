@@ -100,6 +100,7 @@ final class HelperConfiguration {
     for (final String host : refusedHosts) {
       requireThat(isHost(host), "Host %s is not a host name or address!".formatted(host));
     }
+
     requireThat(NavigationPolicy.isWebAddress(url), "Page %s must be an absolute http or https address!".formatted(url));
     this.requireRange(width, 1, HelperProtocol.MAXIMUM_SIDE, "width");
     this.requireRange(height, 1, HelperProtocol.MAXIMUM_SIDE, "height");

@@ -137,14 +137,17 @@ final class ChromiumConfinement {
         hiddenFolders.add(real);
       }
     }
+
     final List<Landlock.Rule> rules = new ArrayList<>();
     readAllBut(root, hiddenFolders, rules);
     for (final Path path : readable) {
       rules.add(new Landlock.Rule(path, false));
     }
+
     for (final Path path : writable) {
       rules.add(new Landlock.Rule(path, true));
     }
+
     return rules;
   }
 

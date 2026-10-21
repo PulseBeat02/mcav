@@ -142,6 +142,7 @@ class LinuxLibrariesTest {
         tar.closeArchiveEntry();
       }
     }
+
     final ByteArrayOutputStream debianPackage = new ByteArrayOutputStream();
     try (final ArArchiveOutputStream archive = new ArArchiveOutputStream(debianPackage)) {
       final byte[] version = "2.0\n".getBytes(StandardCharsets.US_ASCII);
@@ -153,6 +154,7 @@ class LinuxLibrariesTest {
       archive.write(tarData);
       archive.closeArchiveEntry();
     }
+
     return debianPackage.toByteArray();
   }
 

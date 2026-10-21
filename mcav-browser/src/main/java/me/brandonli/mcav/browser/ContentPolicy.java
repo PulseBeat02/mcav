@@ -122,6 +122,7 @@ final class ContentPolicy
       final String address = AddressText.describe(url);
       this.events.onNotice("The navigation to %s was refused.".formatted(address));
     }
+
     return !allowed;
   }
 
@@ -236,6 +237,7 @@ final class ContentPolicy
     if (browser instanceof final McavOffscreenBrowser offscreen) {
       offscreen.repaint();
     }
+
     return false;
   }
 
