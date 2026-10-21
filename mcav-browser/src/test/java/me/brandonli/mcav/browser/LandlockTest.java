@@ -120,20 +120,20 @@ class LandlockTest {
   void shouldGrantReadingAndRunningInARuleAndChangesInAWritableOne() {
     final Path path = this.folder;
     final long all = Landlock.handledRights(5);
-    final long readOnlyFolderRights = Landlock.rightsOf(new Landlock.Rule(path, false), Landlock.PathKind.FOLDER, all);
+    final long readOnlyFolderRights = Landlock.rightsOf(new Landlock.Rule(path, Landlock.Access.READ_ONLY), Landlock.PathKind.FOLDER, all);
     assertEquals(READ_FOLDER, readOnlyFolderRights);
 
-    final long readOnlyFileRights = Landlock.rightsOf(new Landlock.Rule(path, false), Landlock.PathKind.FILE, all);
+    final long readOnlyFileRights = Landlock.rightsOf(new Landlock.Rule(path, Landlock.Access.READ_ONLY), Landlock.PathKind.FILE, all);
     assertEquals(READ_FILE, readOnlyFileRights);
 
-    final long writableFolderRights = Landlock.rightsOf(new Landlock.Rule(path, true), Landlock.PathKind.FOLDER, all);
+    final long writableFolderRights = Landlock.rightsOf(new Landlock.Rule(path, Landlock.Access.READ_WRITE), Landlock.PathKind.FOLDER, all);
     assertEquals(0xFFFF & ~(1L << 6) & ~(1L << 11), writableFolderRights);
 
-    final long writableFileRights = Landlock.rightsOf(new Landlock.Rule(path, true), Landlock.PathKind.FILE, all);
+    final long writableFileRights = Landlock.rightsOf(new Landlock.Rule(path, Landlock.Access.READ_WRITE), Landlock.PathKind.FILE, all);
     assertEquals(0b1100_0000_0000_0111, writableFileRights);
 
     final long versionOneWritableFolderRights = Landlock.rightsOf(
-      new Landlock.Rule(path, true),
+      new Landlock.Rule(path, Landlock.Access.READ_WRITE),
       Landlock.PathKind.FOLDER,
       Landlock.handledRights(1)
     );
@@ -228,7 +228,7 @@ class LandlockTest {
     final List<Landlock.Rule> rules = new ArrayList<>(
       ChromiumConfinement.rules(ROOT, List.of(hidden), List.of(granted), List.of(writable))
     );
-    rules.add(new Landlock.Rule(this.folder.resolve("deleted"), false));
+    rules.add(new Landlock.Rule(this.folder.resolve("deleted"), Landlock.Access.READ_ONLY));
     final List<String> seen = new ArrayList<>();
     final Throwable failure = this.onThread(() ->
       this.restrictAndCheckAccess(version, rules, seen, readable, granted, secret, open, writable)

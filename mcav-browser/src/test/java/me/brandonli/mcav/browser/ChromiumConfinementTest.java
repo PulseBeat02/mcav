@@ -102,11 +102,11 @@ class ChromiumConfinementTest {
     final List<Landlock.Rule> walkedRules = this.walkSorted(rules, 2);
     assertEquals(
       List.of(
-        new Landlock.Rule(file, false),
-        new Landlock.Rule(otherHome, false),
-        new Landlock.Rule(system, false),
-        new Landlock.Rule(natives, false),
-        new Landlock.Rule(session, true)
+        new Landlock.Rule(file, Landlock.Access.READ_ONLY),
+        new Landlock.Rule(otherHome, Landlock.Access.READ_ONLY),
+        new Landlock.Rule(system, Landlock.Access.READ_ONLY),
+        new Landlock.Rule(natives, Landlock.Access.READ_ONLY),
+        new Landlock.Rule(session, Landlock.Access.READ_WRITE)
       ),
       walkedRules
     );
@@ -119,7 +119,7 @@ class ChromiumConfinementTest {
     final Path kept = Files.createDirectories(root.resolve("kept"));
     final Path alias = Files.createSymbolicLink(root.resolve("alias"), real);
     final List<Landlock.Rule> rules = ChromiumConfinement.rules(root, List.of(alias), List.of(), List.of());
-    assertEquals(List.of(new Landlock.Rule(kept, false)), rules);
+    assertEquals(List.of(new Landlock.Rule(kept, Landlock.Access.READ_ONLY)), rules);
   }
 
   @Test
@@ -388,7 +388,7 @@ class ChromiumConfinementTest {
     final Path root = this.folder.toRealPath();
     final Path beside = Files.createDirectories(root.resolve("beside"));
     final List<Landlock.Rule> openRules = ChromiumConfinement.rules(root, List.of(), List.of(), List.of());
-    assertEquals(List.of(new Landlock.Rule(beside, false)), openRules);
+    assertEquals(List.of(new Landlock.Rule(beside, Landlock.Access.READ_ONLY)), openRules);
 
     final AtomicReference<List<Landlock.Rule>> closedRules = new AtomicReference<>();
     final AtomicReference<Throwable> failure = new AtomicReference<>();

@@ -141,11 +141,11 @@ final class ChromiumConfinement {
     final List<Landlock.Rule> rules = new ArrayList<>();
     readAllBut(root, hiddenFolders, rules);
     for (final Path path : readable) {
-      rules.add(new Landlock.Rule(path, false));
+      rules.add(new Landlock.Rule(path, Landlock.Access.READ_ONLY));
     }
 
     for (final Path path : writable) {
-      rules.add(new Landlock.Rule(path, true));
+      rules.add(new Landlock.Rule(path, Landlock.Access.READ_WRITE));
     }
 
     return rules;
@@ -166,7 +166,7 @@ final class ChromiumConfinement {
       if (holdsAny(child, hidden)) {
         readAllBut(child, hidden, rules);
       } else {
-        rules.add(new Landlock.Rule(child, false));
+        rules.add(new Landlock.Rule(child, Landlock.Access.READ_ONLY));
       }
     }
   }

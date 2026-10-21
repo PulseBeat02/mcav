@@ -682,7 +682,7 @@ final class NullDisplay implements AutoCloseable {
     final Atoms atoms
   ) {
     return switch (opcode) {
-      case INTERN_ATOM -> internAtom(data != 0, request, sequence, order, atoms);
+      case INTERN_ATOM -> internAtom(data, request, sequence, order, atoms);
       case GET_ATOM_NAME -> atomName(request, sequence, order, atoms);
       // no window has properties
       case GET_PROPERTY -> reply(sequence, order, 0, 0);
@@ -717,7 +717,7 @@ final class NullDisplay implements AutoCloseable {
   }
 
   private static ByteBuffer internAtom(
-    final boolean onlyIfExists,
+    final int data,
     final ByteBuffer request,
     final int sequence,
     final ByteOrder order,
@@ -737,6 +737,7 @@ final class NullDisplay implements AutoCloseable {
     final byte[] name = new byte[length];
     request.get(name);
     final String text = new String(name, StandardCharsets.ISO_8859_1);
+    final boolean onlyIfExists = data != 0;
     final int atom = onlyIfExists ? atoms.find(text) : atoms.intern(text);
     if (atom == 0 && !onlyIfExists) {
       return error(BAD_ALLOC, INTERN_ATOM, sequence, order, 0);

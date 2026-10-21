@@ -136,7 +136,10 @@ final class Landlock {
   // a file has no rights of a folder
   @VisibleForTesting
   static long rightsOf(final Rule rule, final PathKind kind, final long handled) {
-    long rights = rule.writable() ? READ_RIGHTS | WRITE_RIGHTS : READ_RIGHTS;
+    long rights = switch (rule.access()) {
+      case READ_ONLY -> READ_RIGHTS;
+      case READ_WRITE -> READ_RIGHTS | WRITE_RIGHTS;
+    };
     if (kind == PathKind.FILE) {
       rights &= FILE_RIGHTS;
     }
@@ -221,7 +224,12 @@ final class Landlock {
     }
   }
 
-  record Rule(Path path, boolean writable) {}
+  record Rule(Path path, Access access) {}
+
+  enum Access {
+    READ_ONLY,
+    READ_WRITE,
+  }
 
   enum PathKind {
     FOLDER,
