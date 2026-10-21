@@ -265,31 +265,8 @@ final class ArchiveExtractor {
       return;
     }
 
-    Files.walkFileTree(
-      folder,
-      new SimpleFileVisitor<>() {
-        @Override
-        public FileVisitResult preVisitDirectory(final Path directory, final BasicFileAttributes attributes) {
-          takeWriteAway(directory);
-
-          return FileVisitResult.CONTINUE;
-        }
-
-        @Override
-        public FileVisitResult visitFile(final Path file, final BasicFileAttributes attributes) {
-          // A link has no permissions of its own; changing them would modify its target.
-          if (!attributes.isSymbolicLink()) {
-            takeWriteAway(file);
-          }
-          return FileVisitResult.CONTINUE;
-        }
-
-        @Override
-        public FileVisitResult visitFileFailed(final Path file, final IOException exception) {
-          return FileVisitResult.CONTINUE;
-        }
-      }
-    );
+    final TighteningVisitor visitor = new TighteningVisitor();
+    Files.walkFileTree(folder, visitor);
   }
 
   // Takes the write permission of the group and of everyone else away from one file or folder.
@@ -304,6 +281,33 @@ final class ArchiveExtractor {
       }
     } catch (final IOException exception) {
       LOGGER.warn("The group may still write {} of the browser's installation ({}).", path, exception.toString());
+    }
+  }
+
+  // visible because a walk run as root never reaches visitFileFailed
+  @VisibleForTesting
+  static final class TighteningVisitor extends SimpleFileVisitor<Path> {
+
+    @Override
+    public FileVisitResult preVisitDirectory(final Path directory, final BasicFileAttributes attributes) {
+      takeWriteAway(directory);
+
+      return FileVisitResult.CONTINUE;
+    }
+
+    @Override
+    public FileVisitResult visitFile(final Path file, final BasicFileAttributes attributes) {
+      // a link has no permissions of its own; changing them would change its target
+      if (!attributes.isSymbolicLink()) {
+        takeWriteAway(file);
+      }
+
+      return FileVisitResult.CONTINUE;
+    }
+
+    @Override
+    public FileVisitResult visitFileFailed(final Path file, final IOException exception) {
+      return FileVisitResult.CONTINUE;
     }
   }
 

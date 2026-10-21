@@ -28,8 +28,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
@@ -332,6 +334,14 @@ class ArchiveExtractorTest {
       final boolean folderKept = Files.isDirectory(folder);
       assertTrue(folderKept);
     }
+  }
+
+  @Test
+  void shouldGoOnPastWhatItCannotReadWhenTightening() {
+    final ArchiveExtractor.TighteningVisitor visitor = new ArchiveExtractor.TighteningVisitor();
+    final Path unreadable = this.target.resolve("unreadable");
+    final FileVisitResult result = visitor.visitFileFailed(unreadable, new AccessDeniedException(unreadable.toString()));
+    assertEquals(FileVisitResult.CONTINUE, result);
   }
 
   static final class Archive {
