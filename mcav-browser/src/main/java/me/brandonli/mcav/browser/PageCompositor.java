@@ -58,7 +58,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
   @Override
   public synchronized void onPaint(
     final boolean isPopup,
-    final Rectangle[] dirtyRects,
+    final Rectangle[] dirtyRectangles,
     final ByteBuffer buffer,
     final int bufferWidth,
     final int bufferHeight
@@ -73,7 +73,7 @@ final class PageCompositor implements McavOffscreenBrowser.PaintListener {
     }
 
     final Rectangle pageBounds = new Rectangle(0, 0, this.width, this.height);
-    for (final Rectangle dirty : dirtyRects) {
+    for (final Rectangle dirty : dirtyRectangles) {
       final Rectangle clipped = dirty.intersection(pageBounds);
       if (clipped.isEmpty()) {
         continue;

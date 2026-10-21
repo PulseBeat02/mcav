@@ -228,24 +228,24 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
   /**
    * Hands a painted frame to the listener. The buffer belongs to CEF and is only valid during the call.
    *
-   * @param browser    the browser, which is this one
-   * @param isPopup    true if the buffer holds a popup widget rather than the page
-   * @param dirtyRects the parts of the buffer that changed
-   * @param buffer     the pixels, four bytes per pixel in BGRA order, row by row
-   * @param width      the width of the buffer in pixels
-   * @param height     the height of the buffer in pixels
+   * @param browser         the browser, which is this one
+   * @param isPopup         true if the buffer holds a popup widget rather than the page
+   * @param dirtyRectangles the parts of the buffer that changed
+   * @param buffer          the pixels, four bytes per pixel in BGRA order, row by row
+   * @param width           the width of the buffer in pixels
+   * @param height          the height of the buffer in pixels
    * @since 1.0.0
    */
   @Override
   public void onPaint(
     final CefBrowser browser,
     final boolean isPopup,
-    final Rectangle[] dirtyRects,
+    final Rectangle[] dirtyRectangles,
     final ByteBuffer buffer,
     final int width,
     final int height
   ) {
-    this.listener.onPaint(isPopup, dirtyRects, buffer, width, height);
+    this.listener.onPaint(isPopup, dirtyRectangles, buffer, width, height);
   }
 
   /**
@@ -355,14 +355,14 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
     /**
      * Receives a painted frame. The buffer belongs to CEF and is only valid during the call.
      *
-     * @param isPopup    true if the buffer holds a popup widget rather than the page
-     * @param dirtyRects the parts of the buffer that changed
-     * @param buffer     the pixels, four bytes per pixel in BGRA order, row by row
-     * @param width      the width of the buffer in pixels
-     * @param height     the height of the buffer in pixels
+     * @param isPopup         true if the buffer holds a popup widget rather than the page
+     * @param dirtyRectangles the parts of the buffer that changed
+     * @param buffer          the pixels, four bytes per pixel in BGRA order, row by row
+     * @param width           the width of the buffer in pixels
+     * @param height          the height of the buffer in pixels
      * @since 1.0.0
      */
-    void onPaint(boolean isPopup, Rectangle[] dirtyRects, ByteBuffer buffer, int width, int height);
+    void onPaint(boolean isPopup, Rectangle[] dirtyRectangles, ByteBuffer buffer, int width, int height);
 
     /**
      * Receives that a popup widget was shown or hidden.
