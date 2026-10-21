@@ -33,11 +33,13 @@ environment variables, so that no secret ends up in the source:
 
   final Guild guild = jda.getGuildById(guildId);
   if (guild == null) {
-    throw new IllegalStateException("The bot is not a member of guild " + guildId);
+    final String message = "Guild %s must have the bot as a member!".formatted(guildId);
+    throw new IllegalStateException(message);
   }
   final VoiceChannel voiceChannel = guild.getVoiceChannelById(channelId);
   if (voiceChannel == null) {
-    throw new IllegalStateException("Voice channel " + channelId + " does not exist");
+    final String message = "Voice channel %s does not exist!".formatted(channelId);
+    throw new IllegalStateException(message);
   }
 
   final DiscordPlayer discord = DiscordPlayer.voice(jda);

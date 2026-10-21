@@ -47,7 +47,8 @@ public final class YouTubeExample {
       final CompletableFuture<Boolean> ready = api.whenCapabilityReady(Capability.YT_DLP);
       final boolean available = ready.join(); // this application thread may block; never do this on a server or UI thread
       if (!available) {
-        throw new IllegalStateException("yt-dlp is unavailable");
+        final String message = "yt-dlp is unavailable!";
+        throw new IllegalStateException(message);
       }
       play();
     } finally {
@@ -92,7 +93,8 @@ public final class YouTubeExample {
       audioCallback.attach(audioPipeline);
       final boolean started = player.start(videoSource, audioSource);
       if (!started) {
-        throw new IllegalStateException("Playback did not start");
+        final String message = "Playback did not start!";
+        throw new IllegalStateException(message);
       }
       closed.await(); // close the window to end this example
     } finally {

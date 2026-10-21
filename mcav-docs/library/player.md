@@ -93,7 +93,7 @@ every player and every audio output behind it.
   public static boolean playFaster(final VideoPlayerMultiplexer player) {
     if (player instanceof final AbstractVideoPlayerCv decoded) {
       final long position = decoded.getPositionMilliseconds();
-      System.out.println("Speeding up at " + position + " ms");
+      LOGGER.debug("Speeding up at {} milliseconds.", position);
       return decoded.setSpeed(1.5); // false for a live stream or a camera
     }
     return false; // VLC plays at its own rate

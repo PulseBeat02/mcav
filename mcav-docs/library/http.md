@@ -53,7 +53,7 @@ The ports must be between 1 and 65535 and the host name must not be blank; other
   multiplexer.start(source);
 
   final String url = http.getFullUrl(); // http://play.example.com:8080/
-  System.out.println("Listen at " + url);
+  LOGGER.info("The audio plays at {}.", url);
   // ... play some media
 
   multiplexer.release();

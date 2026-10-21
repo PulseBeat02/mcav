@@ -53,7 +53,8 @@ with `updateArgb(int[], width, height)`:
     try (final ImageBuffer image = ImageBuffer.path(file)) {
       final int[] pixels = image.getPixels(); // shared: read it, never write it
       final int firstPixel = pixels[0];
-      System.out.printf("The first pixel was %08X%n", firstPixel);
+      final String firstColor = Integer.toHexString(firstPixel);
+      LOGGER.debug("The first pixel was {}.", firstColor);
 
       final int[] editable = image.copyPixels(); // your own copy: write it freely
       editable[0] = 0xFFFF0000;
@@ -63,7 +64,8 @@ with `updateArgb(int[], width, height)`:
 
       final IntBuffer readOnlyView = image.getReadOnlyPixels(); // no copy, rejects writes
       final int updatedFirstPixel = readOnlyView.get(0);
-      System.out.printf("The first pixel is now %08X%n", updatedFirstPixel);
+      final String updatedColor = Integer.toHexString(updatedFirstPixel);
+      LOGGER.debug("The first pixel is now {}.", updatedColor);
     }
   }
 ```
@@ -81,7 +83,7 @@ with the [image player](player.md#image-players).
       final float frameRate = gif.getFrameRate();
       final List<ImageBuffer> frames = gif.getFrames();
       final int frameCount = frames.size();
-      System.out.println(frameCount + " frames at " + frameRate + " frames per second");
+      LOGGER.debug("The GIF has {} frames at {} frames per second.", frameCount, frameRate);
     }
   }
 ```

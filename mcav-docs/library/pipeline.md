@@ -40,7 +40,7 @@ below only reads the frame, so it returns `false`:
   final VideoFilter logSize = (image, metadata) -> {
     final int width = image.getWidth();
     final int height = image.getHeight();
-    System.out.println(width + "x" + height);
+    LOGGER.debug("The frame is {} by {} pixels.", width, height);
     return false;
   };
 ```
