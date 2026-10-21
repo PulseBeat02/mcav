@@ -37,6 +37,12 @@ programs in the cache cannot run, MCAV uses `mcav/cache` in the temporary direct
 instead and logs a warning that names both folders. If that folder cannot run programs either, VLC and yt-dlp are
 not available; point `java.io.tmpdir` at a folder that can.
 
+JavaCPP extracts the FFmpeg and OpenCV natives into its own cache, `~/.javacpp/cache`, and only checks that it can
+write there. When that folder cannot be written or cannot run programs, MCAV points JavaCPP at `javacpp` in the MCAV
+cache folder instead and logs a warning that names both folders, unless your application set
+`org.bytedeco.javacpp.cachedir` or `org.bytedeco.javacpp.cacheDir` itself. Set one of them before you call `install`
+if the natives should go elsewhere.
+
 Until a program is ready:
 
 - `hasCapability` reports its capability as unavailable;

@@ -27,6 +27,7 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,6 +41,7 @@ import me.brandonli.mcav.capability.installer.Installer;
 import me.brandonli.mcav.capability.installer.debian.DebianLibraryInstaller;
 import me.brandonli.mcav.capability.installer.vlc.VlcInstallationKit;
 import me.brandonli.mcav.capability.installer.ytdlp.YtdlpInstaller;
+import me.brandonli.mcav.utils.IoUtils;
 import me.brandonli.mcav.utils.natives.NativeLoadingException;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
@@ -53,6 +55,7 @@ import org.bytedeco.opencv.presets.opencv_core;
 import org.bytedeco.opencv.presets.opencv_imgcodecs;
 import org.bytedeco.opencv.presets.opencv_imgproc;
 import org.bytedeco.opencv.presets.opencv_objdetect;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,6 +83,14 @@ public final class DependencyLoader {
   private static final String PATHS_FIRST_VALUE = "false";
 
   private static final String GTK2_LIBRARY = "libgtk-x11-2.0.so.0";
+
+  private static final String CACHE_PROPERTY = "org.bytedeco.javacpp.cachedir";
+  private static final String CACHE_ALIAS_PROPERTY = "org.bytedeco.javacpp.cacheDir";
+  private static final String USER_HOME_PROPERTY = "user.home";
+
+  private static final String HOME_CACHE_ROOT = ".javacpp";
+  private static final String HOME_CACHE_DIRECTORY = "cache";
+  private static final String CACHE_FOLDER = "javacpp";
 
   private final Set<Capability> capabilities;
   private final Map<Capability, Object> preparations = new EnumMap<>(Capability.class);
@@ -214,6 +225,31 @@ public final class DependencyLoader {
     if (current == null) {
       System.setProperty(PATHS_FIRST_PROPERTY, PATHS_FIRST_VALUE);
     }
+
+    configureJavaCppCache();
+  }
+
+  // JavaCPP only checks that ~/.javacpp/cache is writable, so its natives fail to load from a home mounted noexec
+  private static void configureJavaCppCache() {
+    final @Nullable String configured = System.getProperty(CACHE_PROPERTY);
+    final @Nullable String configuredAlias = System.getProperty(CACHE_ALIAS_PROPERTY);
+    if (configured != null || configuredAlias != null) {
+      return;
+    }
+
+    final @Nullable String homeOrNull = System.getProperty(USER_HOME_PROPERTY);
+    final String home = Objects.requireNonNull(homeOrNull, "The JVM always sets the user home!");
+    final Path homeCache = Path.of(home, HOME_CACHE_ROOT, HOME_CACHE_DIRECTORY);
+    final boolean runnable = IoUtils.createRunnableFolder(homeCache);
+    if (runnable) {
+      return;
+    }
+
+    final Path cache = IoUtils.getCachedFolder();
+    final Path fallback = cache.resolve(CACHE_FOLDER);
+    final String rawFallback = fallback.toString();
+    LOGGER.warn("JavaCPP cache folder {} cannot be written or cannot run programs, using {} instead.", homeCache, fallback);
+    System.setProperty(CACHE_PROPERTY, rawFallback);
   }
 
   private void loadObjectDetection(final Platform platform) {

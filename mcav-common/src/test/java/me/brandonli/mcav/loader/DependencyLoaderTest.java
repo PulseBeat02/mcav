@@ -46,6 +46,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CountDownLatch;
@@ -70,6 +71,7 @@ import me.brandonli.mcav.capability.installer.vlc.UnsupportedOperatingSystemExce
 import me.brandonli.mcav.capability.installer.vlc.VlcInstallationKit;
 import me.brandonli.mcav.capability.installer.vlc.VlcInstallerFailures;
 import me.brandonli.mcav.capability.installer.ytdlp.YtdlpInstaller;
+import me.brandonli.mcav.testing.TemporaryUserHome;
 import me.brandonli.mcav.utils.FileOperationException;
 import me.brandonli.mcav.utils.natives.NativeLoadingException;
 import me.brandonli.mcav.utils.os.Arch;
@@ -101,6 +103,15 @@ final class DependencyLoaderTest {
   private static final long TIMEOUT_SECONDS = 10L;
 
   private static final String DEFAULT_PATHS_FIRST = "false";
+
+  private static final String CACHE = "org.bytedeco.javacpp.cachedir";
+  private static final String CACHE_ALIAS = "org.bytedeco.javacpp.cacheDir";
+  private static final String TEMPORARY_DIRECTORY = "java.io.tmpdir";
+
+  private static final String HOME_NAME = "home";
+  private static final String HOME_CACHE_PATH = ".javacpp/cache";
+  private static final String FALLBACK_CACHE_PATH = "mcav/cache/javacpp";
+  private static final String CUSTOM_CACHE = "custom-cache";
 
   private static final Pattern NATIVES_LOADED = Pattern.compile("JavaCV natives loaded in (\\d+) ms");
 
@@ -245,7 +256,79 @@ final class DependencyLoaderTest {
       assertEquals(DEFAULT_PATHS_FIRST, defaultPathsFirst);
       assertEquals("true", customPathsFirst, "a value set by the application is kept");
     } finally {
-      restorePathsFirst(previousPathsFirst);
+      resetProperty(PATHS_FIRST, previousPathsFirst);
+    }
+  }
+
+  @Test
+  void shouldKeepTheJavaCppCacheInAHomeThatCanRunPrograms(@TempDir final Path directory) {
+    final Path home = directory.resolve(HOME_NAME);
+
+    final @Nullable String cache = this.configureJavaCppIn(home, directory, Map.of());
+    assertNull(cache, "JavaCPP picks the cache in the home itself");
+  }
+
+  @Test
+  @ResourceLock(Resources.SYSTEM_ERR)
+  void shouldMoveTheJavaCppCacheWhenTheHomeCannotHoldIt(@TempDir final Path directory) throws IOException {
+    final Path home = directory.resolve(HOME_NAME);
+    Files.writeString(home, HOME_NAME);
+    final PrintStream standardError = System.err;
+    final ByteArrayOutputStream captured = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(captured, true, StandardCharsets.UTF_8));
+    final @Nullable String cache;
+    try {
+      cache = this.configureJavaCppIn(home, directory, Map.of());
+    } finally {
+      System.setErr(standardError);
+    }
+
+    final String log = captured.toString(StandardCharsets.UTF_8);
+    final Path homeCache = home.resolve(HOME_CACHE_PATH);
+    final Path fallback = directory.resolve(FALLBACK_CACHE_PATH);
+    final String expected = fallback.toString();
+    final String warning = "JavaCPP cache folder %s cannot be written or cannot run programs, using %s instead.".formatted(
+      homeCache,
+      fallback
+    );
+    final boolean warned = log.contains(warning);
+    assertEquals(expected, cache);
+    assertTrue(warned, log);
+  }
+
+  @Test
+  void shouldKeepTheJavaCppCacheTheApplicationChose(@TempDir final Path directory) throws IOException {
+    final Path home = directory.resolve(HOME_NAME);
+    Files.writeString(home, HOME_NAME);
+    final Map<String, String> custom = Map.of(CACHE, CUSTOM_CACHE);
+    final Map<String, String> customAlias = Map.of(CACHE_ALIAS, CUSTOM_CACHE);
+
+    final @Nullable String cache = this.configureJavaCppIn(home, directory, custom);
+    final @Nullable String aliasCache = this.configureJavaCppIn(home, directory, customAlias);
+    assertEquals(CUSTOM_CACHE, cache);
+    assertNull(aliasCache, "JavaCPP reads the other spelling of the property as well");
+  }
+
+  // configures JavaCPP with the user home and temporary directory moved and the given properties set, and returns the
+  // cache folder it was told to use
+  private @Nullable String configureJavaCppIn(final Path home, final Path temporary, final Map<String, String> properties) {
+    final @Nullable String previousCache = System.getProperty(CACHE);
+    final @Nullable String previousAlias = System.getProperty(CACHE_ALIAS);
+    final @Nullable String previousPathsFirst = System.getProperty(PATHS_FIRST);
+    final @Nullable String previousTemporary = System.getProperty(TEMPORARY_DIRECTORY);
+    System.clearProperty(CACHE);
+    System.clearProperty(CACHE_ALIAS);
+    properties.forEach(System::setProperty);
+    final String rawTemporary = temporary.toString();
+    System.setProperty(TEMPORARY_DIRECTORY, rawTemporary);
+    try (final TemporaryUserHome _ = TemporaryUserHome.redirectTo(home)) {
+      DependencyLoader.configureJavaCpp();
+      return System.getProperty(CACHE);
+    } finally {
+      resetProperty(CACHE, previousCache);
+      resetProperty(CACHE_ALIAS, previousAlias);
+      resetProperty(PATHS_FIRST, previousPathsFirst);
+      resetProperty(TEMPORARY_DIRECTORY, previousTemporary);
     }
   }
 
@@ -973,13 +1056,13 @@ final class DependencyLoaderTest {
     return assertThrows(NativeLoadingException.class, () -> DependencyLoader.loadFfmpeg(failingLoader, setup));
   }
 
-  private static void restorePathsFirst(final String value) {
+  private static void resetProperty(final String key, final @Nullable String value) {
     if (value == null) {
-      System.clearProperty(PATHS_FIRST);
+      System.clearProperty(key);
       return;
     }
 
-    System.setProperty(PATHS_FIRST, value);
+    System.setProperty(key, value);
   }
 
   private static final class FailingDeviceLibrary {

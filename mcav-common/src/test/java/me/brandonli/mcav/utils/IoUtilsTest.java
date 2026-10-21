@@ -502,6 +502,23 @@ final class IoUtilsTest {
   }
 
   @Test
+  void shouldCreateAFolderThatCanRunPrograms() throws IOException {
+    final Path folder = this.directory.resolve(HOME_CACHE_PATH);
+    final Path file = this.directory.resolve(HOME_NAME);
+    Files.writeString(file, FILE_CONTENT);
+    final Path belowFile = file.resolve(HOME_CACHE_PATH);
+
+    final boolean runnable = IoUtils.createRunnableFolder(folder);
+    final boolean created = Files.isDirectory(folder);
+    assertTrue(runnable);
+    assertTrue(created);
+
+    final boolean runnableBelowFile = IoUtils.createRunnableFolder(belowFile);
+    assertFalse(runnableBelowFile, "a folder that cannot be created cannot run programs");
+    assertThrows(NullPointerException.class, () -> IoUtils.createRunnableFolder(null));
+  }
+
+  @Test
   void shouldReadDownloadListsFromResources() {
     final Download[] downloads = IoUtils.readDownloadsFromJsonResource(SAMPLE_DOWNLOADS_RESOURCE);
     final Download[] none = IoUtils.readDownloadsFromJsonResource(EMPTY_DOWNLOADS_RESOURCE);
