@@ -745,6 +745,9 @@ class DelayedAudioOutputTest {
     assertFalse(interruptedAlive);
 
     final DelayedAudioOutput live = start(() -> this.step, (message, failure) -> this.failures.add(message));
+    this.blocking = true;
+    live.accept(new byte[AudioFilter.FRAME_SIZE], AudioFilter.FRAME_SIZE);
+    waitUntil(() -> live.getQueuedBytes() == 0);
     Thread.currentThread().interrupt();
     try {
       live.close();
