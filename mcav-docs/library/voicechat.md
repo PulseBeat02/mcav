@@ -69,9 +69,9 @@ Call `start()` before attaching the filter and `release()` when playback ends; t
 
 ```java
   final Player[] speakers = {firstPlayer, secondPlayer};
-  final SVCFilter svc = SVCFilter.withDistance(48.0f, (Object[]) speakers);
-  svc.start();
-  final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(svc);
+  final SVCFilter voiceChat = SVCFilter.withDistance(48.0f, (Object[]) speakers);
+  voiceChat.start();
+  final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(voiceChat);
 
   final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
   final AudioAttachableCallback audioCallback = multiplexer.getAudioAttachableCallback();
@@ -83,7 +83,7 @@ Call `start()` before attaching the filter and `release()` when playback ends; t
   // ... play some media
 
   multiplexer.release();
-  svc.release();
+  voiceChat.release();
 ```
 
 The filter mixes the stereo samples down to mono and cuts them into 20 millisecond frames. Every speaker has its own

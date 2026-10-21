@@ -41,8 +41,8 @@ The ports must be between 1 and 65535 and the host name must not be blank; other
 ```java
   final HttpResult http = HttpResult.http("play.example.com", 8080);
   http.start(); // blocks for a few seconds; startAsync() starts it on another thread instead
-  final MediaInfo info = MediaInfo.titled("My Video");
-  http.setCurrentMedia(info); // or http.setCurrentMedia(dump) with the UrlParseDump of yt-dlp
+  final MediaInfo media = MediaInfo.titled("My Video");
+  http.setCurrentMedia(media); // or http.setCurrentMedia(dump) with the UrlParseDump of yt-dlp
 
   final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(http);
   final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
