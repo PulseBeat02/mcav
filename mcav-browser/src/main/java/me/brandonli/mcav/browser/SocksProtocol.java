@@ -55,7 +55,8 @@ final class SocksProtocol {
     readVersion(input);
     final int count = input.readUnsignedByte();
     if (count == 0) {
-      throw new ProtocolException("The greeting offers no method!");
+      final String message = "The greeting offers no method!";
+      throw new ProtocolException(message);
     }
 
     boolean withoutAuthentication = false;
@@ -92,7 +93,8 @@ final class SocksProtocol {
     }
 
     if (port == 0) {
-      throw new Refusal(NOT_ALLOWED, "The request asks for port 0!");
+      final String message = "The request asks for port 0!";
+      throw new Refusal(NOT_ALLOWED, message);
     }
 
     return new Request(host, port);
@@ -116,7 +118,8 @@ final class SocksProtocol {
   private static String readHostName(final DataInput input) throws IOException {
     final int length = input.readUnsignedByte();
     if (length == 0) {
-      throw new ProtocolException("The request names an empty host!");
+      final String message = "The request names an empty host!";
+      throw new ProtocolException(message);
     }
 
     final byte[] bytes = new byte[length];

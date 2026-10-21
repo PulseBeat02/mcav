@@ -43,7 +43,8 @@ final class HelperProcesses {
 
   static synchronized long requireOpen() {
     if (stopped) {
-      throw new BrowserException("The browser module is stopped!");
+      final String message = "The browser module is stopped!";
+      throw new BrowserException(message);
     }
 
     return generation;

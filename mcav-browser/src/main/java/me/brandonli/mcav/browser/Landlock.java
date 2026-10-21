@@ -207,7 +207,8 @@ final class Landlock {
         throw fatal;
       }
 
-      throw new IllegalStateException("The C library could not be called!", exception);
+      final String message = "The C library could not be called!";
+      throw new IllegalStateException(message, exception);
     }
   }
 

@@ -54,6 +54,8 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
 
   private static final Component DETACHED = new DetachedComponent();
 
+  private static final String PAINT_LISTENER_MESSAGE = "The frames go to the paint listener of the browser!";
+
   private final Rectangle viewBounds;
   private final PaintListener listener;
   private boolean focused;
@@ -109,7 +111,8 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
     final CefBrowser_N parent,
     final Point inspectAt
   ) {
-    throw new UnsupportedOperationException("Developer tools are not available in an off-screen browser!");
+    final String message = "Developer tools are not available in an off-screen browser!";
+    throw new UnsupportedOperationException(message);
   }
 
   /**
@@ -254,7 +257,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    */
   @Override
   public void addOnPaintListener(final Consumer<CefPaintEvent> listener) {
-    throw new UnsupportedOperationException("The frames go to the paint listener of the browser!");
+    throw new UnsupportedOperationException(PAINT_LISTENER_MESSAGE);
   }
 
   /**
@@ -337,7 +340,7 @@ public final class McavOffscreenBrowser extends CefBrowser_N implements CefRende
    */
   @Override
   public void setOnPaintListener(final Consumer<CefPaintEvent> listener) {
-    throw new UnsupportedOperationException("The frames go to the paint listener of the browser!");
+    throw new UnsupportedOperationException(PAINT_LISTENER_MESSAGE);
   }
 
   /**

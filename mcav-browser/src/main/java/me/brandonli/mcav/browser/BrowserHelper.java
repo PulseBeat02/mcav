@@ -123,7 +123,8 @@ public final class BrowserHelper {
     final int status = runFromInput(input, new CefEngine(), runtime::halt);
     // the JVM must end even while threads of CEF or AWT still run
     System.exit(status);
-    throw new AssertionError("System.exit returned!");
+    final String message = "System.exit returned!";
+    throw new AssertionError(message);
   }
 
   static int runFromInput(final BufferedReader input, final HelperEngine engine, final Halter halter) {

@@ -207,7 +207,8 @@ final class HelperSession implements BrowserSession {
       session = new HelperSession(folder, process, standardInput, channel, canvas, listener);
       pendingChannel = null;
       if (!HelperProcesses.register(session, generation)) {
-        throw new BrowserException("The browser module was stopped while the browser started!");
+        final String message = "The browser module was stopped while the browser started!";
+        throw new BrowserException(message);
       }
 
       session.startThreads(token);
@@ -330,7 +331,8 @@ final class HelperSession implements BrowserSession {
         LOGGER.debug("The name {} of a browser session's folder is taken, another is drawn.", candidate);
       }
     }
-    throw new IOException("Every name drawn was taken!");
+    final String message = "Every name drawn was taken!";
+    throw new IOException(message);
   }
 
   @VisibleForTesting
@@ -392,11 +394,13 @@ final class HelperSession implements BrowserSession {
     while (true) {
       // an interrupted select returns silently, so the interrupt of a release is checked here
       if (Thread.currentThread().isInterrupted()) {
-        throw new BrowserException("Interrupted while the browser helper connected!");
+        final String message = "Interrupted while the browser helper connected!";
+        throw new BrowserException(message);
       }
       final long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
       if (remaining <= 0) {
-        throw new BrowserException("The browser helper did not connect in time!");
+        final String message = "The browser helper did not connect in time!";
+        throw new BrowserException(message);
       }
       final boolean alive = process.isAlive();
       if (!alive) {
@@ -444,7 +448,8 @@ final class HelperSession implements BrowserSession {
     } catch (final InterruptedException exception) {
       final Thread thread = Thread.currentThread();
       thread.interrupt();
-      throw new BrowserException("Interrupted while starting the browser!", exception);
+      final String message = "Interrupted while starting the browser!";
+      throw new BrowserException(message, exception);
     } catch (final ExecutionException exception) {
       final Throwable cause = Objects.requireNonNull(exception.getCause(), "A failed start has a cause!");
       final String tail = this.getOutputTail();
@@ -513,12 +518,14 @@ final class HelperSession implements BrowserSession {
   static void checkHello(final HelperMessage hello, final byte[] token) throws ProtocolException {
     final int type = hello.getType();
     if (type != HelperProtocol.HELLO) {
-      throw new ProtocolException("The browser helper did not introduce itself!");
+      final String message = "The browser helper did not introduce itself!";
+      throw new ProtocolException(message);
     }
 
     final byte[] presented = hello.getToken();
     if (!MessageDigest.isEqual(presented, token)) {
-      throw new ProtocolException("The browser helper presented a wrong session token!");
+      final String message = "The browser helper presented a wrong session token!";
+      throw new ProtocolException(message);
     }
 
     final int version = hello.getNumber();

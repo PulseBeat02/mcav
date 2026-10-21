@@ -186,7 +186,8 @@ final class JcefNatives {
     try {
       return channel.lock();
     } catch (final OverlappingFileLockException exception) {
-      throw new IOException("Another copy of mcav in this server is installing the CEF natives; try again once it is done!", exception);
+      final String message = "Another copy of mcav in this server is installing the CEF natives; try again once it is done!";
+      throw new IOException(message, exception);
     }
   }
 

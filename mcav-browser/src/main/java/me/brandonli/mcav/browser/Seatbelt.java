@@ -80,16 +80,17 @@ final class Seatbelt {
         return;
       }
 
-      final MemorySegment message = error.get(ValueLayout.ADDRESS, 0);
-      if (message.address() == 0) {
-        throw new IOException("Seatbelt refused the profile without a reason!");
+      final MemorySegment nativeReason = error.get(ValueLayout.ADDRESS, 0);
+      if (nativeReason.address() == 0) {
+        final String message = "Seatbelt refused the profile without a reason!";
+        throw new IOException(message);
       }
 
       // the library hands over a C string of its own, which is given back to it once read
-      final String reason = message.reinterpret(Long.MAX_VALUE).getString(0);
-      call(freeCall, message);
-      final String refusal = "Seatbelt refused the profile (%s)!".formatted(reason);
-      throw new IOException(refusal);
+      final String reason = nativeReason.reinterpret(Long.MAX_VALUE).getString(0);
+      call(freeCall, nativeReason);
+      final String message = "Seatbelt refused the profile (%s)!".formatted(reason);
+      throw new IOException(message);
     }
   }
 

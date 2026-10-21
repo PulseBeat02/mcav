@@ -199,7 +199,8 @@ final class ArchiveExtractor {
     while (count >= 0) {
       written += count;
       if (written > remaining) {
-        throw new IOException("The archive extracts to more than the allowed size!");
+        final String message = "The archive extracts to more than the allowed size!";
+        throw new IOException(message);
       }
       output.write(buffer, 0, count);
       count = tar.read(buffer);
