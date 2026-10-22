@@ -179,7 +179,8 @@ final class AudioListenerFuzzTest {
       }
       Thread.onSpinWait();
     }
-    throw new AssertionError("the sender neither waited for a chunk nor ended");
+    final String message = "The sender neither waited for a chunk nor ended!";
+    throw new AssertionError(message);
   }
 
   /**
