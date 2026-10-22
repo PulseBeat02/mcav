@@ -382,33 +382,30 @@ test("should let Start be pressed again after a Stop during a reconnect", () => 
 });
 
 for (const permission of [PERMISSION_REFUSED, PERMISSION_IGNORED]) {
-    test(`should let Start be pressed again after a Start whose sound permission is ${permission}`, async () => {
+    test(`should let Start be pressed again after a Start whose sound permission is ${permission}`, () => {
         const page = loadPage(permission);
         page.startPlayback();
-        await settle();
 
-        const loading = page.state.loading;
-        assert.equal(loading, false, "nothing is loading");
-
-        page.startPlayback();
-        await settle();
-
-        const contextCount = page.contexts.length;
-        assert.equal(contextCount, 2, "the second Start asks again");
-
-        const socketCount = page.sockets.length;
-        assert.equal(socketCount, 0, "no stream without sound");
+        return settle()
+            .then(() => page.state.loading)
+            .then(loading => assert.equal(loading, false, "nothing is loading"))
+            .then(page.startPlayback)
+            .then(settle)
+            .then(() => page.contexts.length)
+            .then(contextCount => assert.equal(contextCount, 2, "the second Start asks again"))
+            .then(() => page.sockets.length)
+            .then(socketCount => assert.equal(socketCount, 0, "no stream without sound"));
     });
 }
 
-test("should open one stream for a Start allowed to play once resumed", async () => {
+test("should open one stream for a Start allowed to play once resumed", () => {
     const page = loadPage(PERMISSION_AFTER_RESUME);
     page.startPlayback();
-    await settle();
-    page.runTimers();
 
-    const socketCount = page.sockets.length;
-    assert.equal(socketCount, 1);
+    return settle()
+        .then(page.runTimers)
+        .then(() => page.sockets.length)
+        .then(socketCount => assert.equal(socketCount, 1));
 });
 
 test("should keep one visualizer loop when reconnecting before the next animation frame", () => {
