@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.io.IOException;
+import me.brandonli.mcav.MCAVException;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -65,8 +66,8 @@ final class HttpModuleTest {
   }
 
   @Test
-  void shouldMakeExceptionsRuntimeExceptions() {
+  void shouldMakeExceptionsMCAVExceptions() {
     final HttpException exception = new HttpException("cannot start!");
-    assertInstanceOf(RuntimeException.class, exception, "a server that cannot start is recoverable, so it is no Error");
+    assertInstanceOf(MCAVException.class, exception, "a caller handles the failures of every module through one type");
   }
 }
