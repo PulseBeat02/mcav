@@ -36,7 +36,7 @@ QEMU started.
 
 The example boots an ISO image and presses a key in its boot menu. The `display` filter is yours and shows the frames;
 release the returned player to stop the machine. QEMU is a process of its own: a JVM that ends without releasing the
-player, or is killed, leaves it running, with its memory and its VNC port. Every QEMU mcav starts is recorded in
+player, or is killed, leaves it running, with its memory and its VNC port. Every QEMU that MCAV starts is recorded in
 `~/.mcav/vm`, and the next start of the VM module (`VMModule.start`, part of `MCAVApi.install`) stops each recorded
 QEMU whose JVM is gone and logs it; a QEMU of another JVM that still runs is left alone. Releasing the library
 (`MCAVApi.release`) does not stop the machines either; release every player first.
@@ -84,7 +84,7 @@ Options that QEMU accepts more than once, such as `-drive` or `-device`, are add
 with the output of QEMU when the machine fails to start.
 
 Behind the scenes, the player starts QEMU with a VNC display bound to the local machine and connects the `mcav-vnc`
-player to it. **You are responsible for giving QEMU a valid configuration**; MCAV reports QEMU's errors but does not
+player to it. You are responsible for giving QEMU a valid configuration; MCAV reports QEMU's errors but does not
 try to fix them.
 
 ## Sound
