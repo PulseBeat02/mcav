@@ -63,7 +63,8 @@ final class IrisShaders {
     }
     if (!this.apiMissing) {
       try {
-        final boolean inUse = IrisApi.getInstance().isShaderPackInUse();
+        final IrisApi iris = IrisApi.getInstance();
+        final boolean inUse = iris.isShaderPackInUse();
         return inUse
           ? new Mcv2Report(true, ShaderPack.IN_USE, this.decodesUnderShaders.getAsBoolean())
           : new Mcv2Report(true, ShaderPack.NONE, false);

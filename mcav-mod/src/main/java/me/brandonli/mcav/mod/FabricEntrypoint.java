@@ -25,6 +25,9 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.ModContainer;
+import net.fabricmc.loader.api.Version;
+import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -74,7 +77,14 @@ public final class FabricEntrypoint implements ClientModInitializer {
 
   /** The version of the Iris Fabric loaded, empty without Iris. */
   static Optional<String> irisVersion(final FabricLoader loader) {
-    return loader.getModContainer(IrisShaders.MOD_ID).map(iris -> iris.getMetadata().getVersion().getFriendlyString());
+    final Optional<ModContainer> iris = loader.getModContainer(IrisShaders.MOD_ID);
+    return iris.map(FabricEntrypoint::versionOf);
+  }
+
+  private static String versionOf(final ModContainer mod) {
+    final ModMetadata metadata = mod.getMetadata();
+    final Version version = metadata.getVersion();
+    return version.getFriendlyString();
   }
 
   @Override

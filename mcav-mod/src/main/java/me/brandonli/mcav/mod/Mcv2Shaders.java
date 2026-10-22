@@ -22,6 +22,7 @@ import com.mojang.blaze3d.resource.GraphicsResourceAllocator;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.renderpearl.api.commands.CommandEncoder;
+import com.mojang.renderpearl.api.device.GpuDevice;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -29,12 +30,15 @@ import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import net.irisshaders.iris.api.v0.IrisApi;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelTargetBundle;
 import net.minecraft.client.renderer.PostChain;
+import net.minecraft.client.renderer.ShaderManager;
 import net.minecraft.client.renderer.state.MapRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -144,30 +148,40 @@ public final class Mcv2Shaders {
 
   /** The game's main target, which Iris's final pass writes the shader pack's image into. */
   static RenderTarget mainTarget() {
-    return Minecraft.getInstance().gameRenderer.mainRenderTarget();
+    final Minecraft minecraft = Minecraft.getInstance();
+    final GameRenderer renderer = minecraft.gameRenderer;
+    return renderer.mainRenderTarget();
   }
 
   /** The post chain the MCV2 pack replaces vanilla's outline chain with, or null while no pack gives one. */
   static @Nullable PostChain outlineChain() {
-    return Minecraft.getInstance().getShaderManager().getPostChain(OUTLINE_CHAIN, LevelTargetBundle.OUTLINE_TARGETS);
+    final Minecraft minecraft = Minecraft.getInstance();
+    final ShaderManager shaders = minecraft.getShaderManager();
+    return shaders.getPostChain(OUTLINE_CHAIN, LevelTargetBundle.OUTLINE_TARGETS);
   }
 
   /** A command encoder of the game's GPU device. */
   static CommandEncoder commands() {
-    return RenderSystem.getDevice().createCommandEncoder();
+    final GpuDevice device = RenderSystem.getDevice();
+    return device.createCommandEncoder();
   }
 
   static boolean shaderPackInUse() {
-    return IrisApi.getInstance().isShaderPackInUse();
+    final IrisApi iris = IrisApi.getInstance();
+    return iris.isShaderPackInUse();
   }
 
   static boolean shadowPass() {
-    return IrisApi.getInstance().isRenderingShadowPass();
+    final IrisApi iris = IrisApi.getInstance();
+    return iris.isRenderingShadowPass();
   }
 
   /** The text of the MCV2 pack's generated layout, empty while no MCV2 pack is loaded. */
   static Optional<String> layout() {
-    return Minecraft.getInstance().getResourceManager().getResource(LAYOUT).flatMap(Mcv2Shaders::read);
+    final Minecraft minecraft = Minecraft.getInstance();
+    final ResourceManager resources = minecraft.getResourceManager();
+    final Optional<Resource> layout = resources.getResource(LAYOUT);
+    return layout.flatMap(Mcv2Shaders::read);
   }
 
   static Optional<String> read(final Resource resource) {

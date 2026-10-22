@@ -83,12 +83,14 @@ final class MinecraftStripOutput implements StripOutput {
 
   @Override
   public int width() {
-    return this.main.get().width;
+    final RenderTarget target = this.main.get();
+    return target.width;
   }
 
   @Override
   public int height() {
-    return this.main.get().height;
+    final RenderTarget target = this.main.get();
+    return target.height;
   }
 
   @Override

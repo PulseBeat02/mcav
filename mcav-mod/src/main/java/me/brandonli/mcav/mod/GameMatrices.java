@@ -84,7 +84,9 @@ final class GameMatrices {
   static Optional<GameMatrices> find(final Class<?> poses, final String poseMethod, final Class<?> cameras, final String rotationField) {
     try {
       final GameMatrices matrices = new GameMatrices(poses.getMethod(poseMethod), cameras.getField(rotationField));
-      matrices.pose(new PoseStack().last());
+      final PoseStack stack = new PoseStack();
+      final PoseStack.Pose pose = stack.last();
+      matrices.pose(pose);
       matrices.viewRotation(new CameraRenderState());
       return Optional.of(matrices);
     } catch (final NoSuchMethodException | NoSuchFieldException | IllegalStateException exception) {

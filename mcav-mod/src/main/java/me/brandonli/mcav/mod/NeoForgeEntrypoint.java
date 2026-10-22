@@ -21,12 +21,15 @@ import java.util.Optional;
 import java.util.function.LongSupplier;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforgespi.language.IModInfo;
+import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -73,6 +76,13 @@ public final class NeoForgeEntrypoint {
 
   /** The version of the Iris NeoForge loaded, empty without Iris. */
   static Optional<String> irisVersion(final ModList mods) {
-    return mods.getModContainerById(IrisShaders.MOD_ID).map(iris -> iris.getModInfo().getVersion().toString());
+    final Optional<? extends ModContainer> iris = mods.getModContainerById(IrisShaders.MOD_ID);
+    return iris.map(NeoForgeEntrypoint::versionOf);
+  }
+
+  private static String versionOf(final ModContainer mod) {
+    final IModInfo info = mod.getModInfo();
+    final ArtifactVersion version = info.getVersion();
+    return version.toString();
   }
 }
