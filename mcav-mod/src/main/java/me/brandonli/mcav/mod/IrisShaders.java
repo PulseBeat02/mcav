@@ -65,7 +65,7 @@ final class IrisShaders {
         return inUse
           ? new Mcv2Report(true, ShaderPack.IN_USE, this.decodesUnderShaders.getAsBoolean())
           : new Mcv2Report(true, ShaderPack.NONE, false);
-      } catch (final LinkageError missing) {
+      } catch (final LinkageError exception) {
         this.apiMissing = true;
       }
     }

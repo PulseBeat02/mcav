@@ -87,7 +87,7 @@ final class GameMatrices {
       matrices.pose(new PoseStack().last());
       matrices.viewRotation(new CameraRenderState());
       return Optional.of(matrices);
-    } catch (final NoSuchMethodException | NoSuchFieldException | IllegalStateException unreadable) {
+    } catch (final NoSuchMethodException | NoSuchFieldException | IllegalStateException exception) {
       return Optional.empty();
     }
   }
@@ -101,8 +101,8 @@ final class GameMatrices {
   float[] pose(final PoseStack.Pose pose) {
     try {
       return floats(this.pose.invoke(pose));
-    } catch (final IllegalAccessException | InvocationTargetException | IllegalArgumentException unreadable) {
-      throw new IllegalStateException(UNREADABLE, unreadable);
+    } catch (final IllegalAccessException | InvocationTargetException | IllegalArgumentException exception) {
+      throw new IllegalStateException(UNREADABLE, exception);
     }
   }
 
@@ -115,8 +115,8 @@ final class GameMatrices {
   float[] viewRotation(final CameraRenderState camera) {
     try {
       return floats(this.viewRotation.get(camera));
-    } catch (final IllegalAccessException | IllegalArgumentException unreadable) {
-      throw new IllegalStateException(UNREADABLE, unreadable);
+    } catch (final IllegalAccessException | IllegalArgumentException exception) {
+      throw new IllegalStateException(UNREADABLE, exception);
     }
   }
 
@@ -136,9 +136,9 @@ final class GameMatrices {
       final MatrixFloats floats = new MatrixFloats();
       serialisable.writeExternal(floats);
       return floats.values();
-    } catch (final IOException unreadable) {
+    } catch (final IOException exception) {
       final String message = NOT_A_MATRIX.formatted(matrix);
-      throw new IllegalStateException(message, unreadable);
+      throw new IllegalStateException(message, exception);
     }
   }
 
