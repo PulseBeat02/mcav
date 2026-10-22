@@ -26,12 +26,14 @@ import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 import me.brandonli.mcav.media.Polling;
 import org.junit.jupiter.api.Test;
 
 final class PlaybackClockTest {
 
   private static final long LONG_RESUME_TIMEOUT_MILLISECONDS = 10_000L;
+  private static final long SHORT_RESUME_TIMEOUT_MILLISECONDS = 10L;
   private static final long PROMPT_NANOSECONDS = 1_000_000_000L;
 
   private static final double FASTER_SPEED = 2;
@@ -165,18 +167,15 @@ final class PlaybackClockTest {
   }
 
   @Test
-  void shouldKeepWaitingAfterAWakeupWhileStillPaused() throws InterruptedException {
+  void shouldKeepWaitingWhileTheRealClockStandsStill() throws InterruptedException {
     final PlaybackClock clock = new PlaybackClock(System::nanoTime);
     clock.pause();
     final CountDownLatch released = new CountDownLatch(1);
-    final Thread waiter = new Thread(() -> this.awaitResumeAndRelease(clock, released));
+    final Thread waiter = new Thread(() -> this.awaitResumeOnAStoppedClockAndRelease(clock, released));
     waiter.start();
-    final Duration timeout = Duration.ofSeconds(5);
-    Polling.pollUntil(timeout, () -> waiter.getState() == Thread.State.TIMED_WAITING);
-    clock.wakeWaiters();
 
     final boolean returnedEarly = released.await(1, TimeUnit.SECONDS);
-    assertFalse(returnedEarly, "a wakeup while paused waits for the rest of the timeout");
+    assertFalse(returnedEarly, "a wait that ends before the deadline waits for the rest of the timeout");
 
     clock.resume();
     final boolean woke = released.await(5, TimeUnit.SECONDS);
@@ -186,6 +185,17 @@ final class PlaybackClockTest {
   private void awaitResumeAndRelease(final PlaybackClock clock, final CountDownLatch released) {
     try {
       clock.awaitResume(LONG_RESUME_TIMEOUT_MILLISECONDS);
+      released.countDown();
+    } catch (final InterruptedException exception) {
+      final Thread currentThread = Thread.currentThread();
+      currentThread.interrupt();
+    }
+  }
+
+  private void awaitResumeOnAStoppedClockAndRelease(final PlaybackClock clock, final CountDownLatch released) {
+    final LongSupplier stoppedClock = () -> 0L;
+    try {
+      clock.awaitResume(SHORT_RESUME_TIMEOUT_MILLISECONDS, stoppedClock);
       released.countDown();
     } catch (final InterruptedException exception) {
       final Thread currentThread = Thread.currentThread();
