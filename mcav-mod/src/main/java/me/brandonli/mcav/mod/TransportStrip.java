@@ -198,11 +198,19 @@ final class TransportStrip {
 
   /** The world direction one block along a map's right edge, by facing: east, south, west, north. */
   private static float rightX(final int facing) {
-    return facing == EAST ? 1 : facing == WEST ? -1 : 0;
+    return switch (facing) {
+      case EAST -> 1;
+      case WEST -> -1;
+      default -> 0;
+    };
   }
 
   private static float rightZ(final int facing) {
-    return facing == SOUTH ? 1 : facing == NORTH ? -1 : 0;
+    return switch (facing) {
+      case SOUTH -> 1;
+      case NORTH -> -1;
+      default -> 0;
+    };
   }
 
   /** A column-major 4x4 matrix times a vector, the first three components. */
