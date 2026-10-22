@@ -61,7 +61,7 @@ final class NeoForgeEntrypointTest {
 
   /** The listener the entry point added to a bus for an event. */
   @SuppressWarnings("unchecked")
-  private static <EventType extends Event> Consumer<EventType> listener(final IEventBus bus, final Class<EventType> event) {
+  private <EventType extends Event> Consumer<EventType> listener(final IEventBus bus, final Class<EventType> event) {
     final ArgumentCaptor<Consumer<EventType>> listener = ArgumentCaptor.forClass(Consumer.class);
     verify(bus).addListener(eq(event), listener.capture());
     return listener.getValue();
@@ -74,7 +74,7 @@ final class NeoForgeEntrypointTest {
     final PayloadRegistrar registrar = mock(PayloadRegistrar.class);
     when(event.registrar(NeoForgeEntrypoint.PROTOCOL)).thenReturn(registrar);
     when(registrar.optional()).thenReturn(registrar);
-    listener(this.modBus, RegisterPayloadHandlersEvent.class).accept(event);
+    this.listener(this.modBus, RegisterPayloadHandlersEvent.class).accept(event);
 
     @SuppressWarnings("unchecked")
     final ArgumentCaptor<IPayloadHandler<Mcv2Payload>> handler = ArgumentCaptor.forClass(IPayloadHandler.class);
@@ -88,9 +88,9 @@ final class NeoForgeEntrypointTest {
   void shouldReportOnTheTicksOfASessionWhoseServerHasTheChannel() {
     final AtomicLong clock = new AtomicLong();
     new NeoForgeEntrypoint(this.modBus, this.gameBus, null, clock::get);
-    final Consumer<ClientPlayerNetworkEvent.LoggingIn> loggingIn = listener(this.gameBus, ClientPlayerNetworkEvent.LoggingIn.class);
-    final Consumer<ClientPlayerNetworkEvent.LoggingOut> loggingOut = listener(this.gameBus, ClientPlayerNetworkEvent.LoggingOut.class);
-    final Consumer<ClientTickEvent.Post> ticks = listener(this.gameBus, ClientTickEvent.Post.class);
+    final Consumer<ClientPlayerNetworkEvent.LoggingIn> loggingIn = this.listener(this.gameBus, ClientPlayerNetworkEvent.LoggingIn.class);
+    final Consumer<ClientPlayerNetworkEvent.LoggingOut> loggingOut = this.listener(this.gameBus, ClientPlayerNetworkEvent.LoggingOut.class);
+    final Consumer<ClientTickEvent.Post> ticks = this.listener(this.gameBus, ClientTickEvent.Post.class);
     final Connection connection = mock(Connection.class);
     final ClientPlayerNetworkEvent.LoggingIn login = mock(ClientPlayerNetworkEvent.LoggingIn.class);
     when(login.getConnection()).thenReturn(connection);

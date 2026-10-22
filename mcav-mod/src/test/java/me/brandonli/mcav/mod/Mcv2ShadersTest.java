@@ -121,11 +121,11 @@ final class Mcv2ShadersTest {
     final IrisApi api = mock(IrisApi.class);
     try (final MockedStatic<IrisApi> iris = mockStatic(IrisApi.class)) {
       iris.when(IrisApi::getInstance).thenReturn(api);
-      final boolean testedHooked = hooked(Mcv2Shaders.start("1.11.7+mc26.3"));
+      final boolean testedHooked = this.hooked(Mcv2Shaders.start("1.11.7+mc26.3"));
       assertTrue(testedHooked);
       verify(api).isRenderingShadowPass();
-      final boolean newerHooked = hooked(Mcv2Shaders.start("1.11.8+mc26.3"));
-      final boolean withoutIrisHooked = hooked(Mcv2Shaders.start(null));
+      final boolean newerHooked = this.hooked(Mcv2Shaders.start("1.11.8+mc26.3"));
+      final boolean withoutIrisHooked = this.hooked(Mcv2Shaders.start(null));
       assertFalse(newerHooked);
       assertFalse(withoutIrisHooked);
       verify(api).isRenderingShadowPass();
@@ -133,7 +133,7 @@ final class Mcv2ShadersTest {
   }
 
   /** Runs every hook of the started decoder on a frame without MCV2 maps, and asks whether it decodes under shaders. */
-  private static boolean hooked(final BooleanSupplier decodes) throws ReflectiveOperationException {
+  private boolean hooked(final BooleanSupplier decodes) throws ReflectiveOperationException {
     final boolean decodesUnderShaders = decodes.getAsBoolean();
     assertFalse(decodesUnderShaders);
     final ShaderDecoder decoder = ShaderDecoder.current().orElseThrow();

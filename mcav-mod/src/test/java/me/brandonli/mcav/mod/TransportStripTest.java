@@ -88,7 +88,7 @@ final class TransportStripTest {
         (symbols[4 * pixel + 1] << SECOND_SYMBOL_SHIFT) |
         (symbols[4 * pixel + 2] << THIRD_SYMBOL_SHIFT) |
         (symbols[4 * pixel + 3] << FOURTH_SYMBOL_SHIFT);
-      put(expected, first + pixel, word & BYTE_MASK, (word >> SECOND_BYTE_SHIFT) & BYTE_MASK, word >> THIRD_BYTE_SHIFT);
+      this.put(expected, first + pixel, word & BYTE_MASK, (word >> SECOND_BYTE_SHIFT) & BYTE_MASK, word >> THIRD_BYTE_SHIFT);
     }
     assertArrayEquals(expected, strip);
   }
@@ -100,7 +100,7 @@ final class TransportStripTest {
     final byte[] strip = TransportStrip.build(layout, WIDTH, List.of(MapFixtures.colours(symbols)), List.of(), IDENTITY, PROJECTION);
     final int word =
       symbols[0] | (symbols[1] << SECOND_SYMBOL_SHIFT) | (symbols[2] << THIRD_SYMBOL_SHIFT) | (symbols[3] << FOURTH_SYMBOL_SHIFT);
-    assertPixel(strip, 0, word & BYTE_MASK, (word >> SECOND_BYTE_SHIFT) & BYTE_MASK, word >> THIRD_BYTE_SHIFT, OPAQUE);
+    this.assertPixel(strip, 0, word & BYTE_MASK, (word >> SECOND_BYTE_SHIFT) & BYTE_MASK, word >> THIRD_BYTE_SHIFT, OPAQUE);
   }
 
   @Test
@@ -149,9 +149,9 @@ final class TransportStripTest {
       for (int facing = 0; facing < 4; facing++) {
         final StripAnchor anchor = new StripAnchor(1, 2, 4, 3, facing, 7, 10.1F, 64.3F, -3.7F);
         final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(), List.of(anchor), rotation, PROJECTION);
-        final float[] corner = times(rotation, 10.1F, 64.3F, -3.7F, 1);
-        final float[] right = times(rotation, rights[facing][0], rights[facing][1], rights[facing][2], 0);
-        final float[] down = times(rotation, 0, -1, 0, 0);
+        final float[] corner = this.times(rotation, 10.1F, 64.3F, -3.7F, 1);
+        final float[] right = this.times(rotation, rights[facing][0], rights[facing][1], rights[facing][2], 0);
+        final float[] down = this.times(rotation, 0, -1, 0, 0);
         final float[] expected = new float[DESCRIPTOR_FLOATS];
         for (int axis = 0; axis < 3; axis++) {
           expected[axis] = corner[axis] - right[axis] - 2 * down[axis];
@@ -162,14 +162,14 @@ final class TransportStripTest {
         expected[7] = 3;
         expected[11] = 64 + 2;
         System.arraycopy(PROJECTION, 0, expected, 12, 16);
-        final float[] descriptor = descriptor(strip, DESCRIPTORS);
+        final float[] descriptor = this.descriptor(strip, DESCRIPTORS);
         assertArrayEquals(expected, descriptor, "facing " + facing);
-        assertPixel(strip, DESCRIPTORS, 0x4D, 0x43, 0x56, OPAQUE);
-        assertPixel(strip, DESCRIPTORS + 1, 0xA1, 0, 0, OPAQUE);
+        this.assertPixel(strip, DESCRIPTORS, 0x4D, 0x43, 0x56, OPAQUE);
+        this.assertPixel(strip, DESCRIPTORS + 1, 0xA1, 0, 0, OPAQUE);
         for (int pixel = 58; pixel < TransportStrip.DESCRIPTOR_PIXELS; pixel++) {
-          assertPixel(strip, DESCRIPTORS + pixel, 0, 0, 0, OPAQUE);
+          this.assertPixel(strip, DESCRIPTORS + pixel, 0, 0, 0, OPAQUE);
         }
-        assertPixel(strip, DESCRIPTORS + TransportStrip.DESCRIPTOR_PIXELS, 0, 0, 0, 0);
+        this.assertPixel(strip, DESCRIPTORS + TransportStrip.DESCRIPTOR_PIXELS, 0, 0, 0, 0);
         final byte[] rest = Arrays.copyOfRange(strip, (DESCRIPTORS + WIDTH) * CHANNELS, strip.length);
         final byte[] leadingPixels = Arrays.copyOf(strip, DESCRIPTORS * CHANNELS);
         assertArrayEquals(new byte[rest.length], rest, "screen 1 has no anchor");
@@ -184,7 +184,7 @@ final class TransportStripTest {
     final StripAnchor second = new StripAnchor(1, 1, 2, 2, 0, 9, 7, 8, 9);
     final StripAnchor other = new StripAnchor(0, 0, 2, 2, 0, 8, 4, 5, 6);
     final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(), List.of(other, first, second), IDENTITY, PROJECTION);
-    final float[] floats = descriptor(strip, DESCRIPTORS + WIDTH);
+    final float[] floats = this.descriptor(strip, DESCRIPTORS + WIDTH);
     final float[] corner = Arrays.copyOf(floats, 3);
     final byte[] firstScreenRow = Arrays.copyOfRange(strip, DESCRIPTORS * CHANNELS, (DESCRIPTORS + WIDTH) * CHANNELS);
     assertArrayEquals(new float[] { 1, 2, 3 }, corner);
@@ -203,7 +203,7 @@ final class TransportStripTest {
     UtilityClassAssertions.assertNotInstantiable(TransportStrip.class);
   }
 
-  private static float[] times(final float[] matrix, final float vectorX, final float vectorY, final float vectorZ, final float vectorW) {
+  private float[] times(final float[] matrix, final float vectorX, final float vectorY, final float vectorZ, final float vectorW) {
     final float[] transformed = new float[3];
     for (int row = 0; row < 3; row++) {
       transformed[row] = matrix[row] * vectorX + matrix[4 + row] * vectorY + matrix[8 + row] * vectorZ + matrix[12 + row] * vectorW;
@@ -212,7 +212,7 @@ final class TransportStripTest {
   }
 
   /** The 28 floats of a descriptor row: each in two pixels, the three low bytes in the first, the high byte next. */
-  private static float[] descriptor(final byte[] strip, final int start) {
+  private float[] descriptor(final byte[] strip, final int start) {
     final float[] floats = new float[DESCRIPTOR_FLOATS];
     for (int index = 0; index < floats.length; index++) {
       final int low = (start + 2 + 2 * index) * CHANNELS;
@@ -233,12 +233,12 @@ final class TransportStripTest {
     return floats;
   }
 
-  private static void assertPixel(final byte[] strip, final int pixel, final int red, final int green, final int blue, final int alpha) {
+  private void assertPixel(final byte[] strip, final int pixel, final int red, final int green, final int blue, final int alpha) {
     final byte[] pixelBytes = Arrays.copyOfRange(strip, pixel * CHANNELS, pixel * CHANNELS + CHANNELS);
     assertArrayEquals(new byte[] { (byte) red, (byte) green, (byte) blue, (byte) alpha }, pixelBytes);
   }
 
-  private static void put(final byte[] strip, final int pixel, final int red, final int green, final int blue) {
+  private void put(final byte[] strip, final int pixel, final int red, final int green, final int blue) {
     strip[pixel * CHANNELS] = (byte) red;
     strip[pixel * CHANNELS + 1] = (byte) green;
     strip[pixel * CHANNELS + 2] = (byte) blue;
