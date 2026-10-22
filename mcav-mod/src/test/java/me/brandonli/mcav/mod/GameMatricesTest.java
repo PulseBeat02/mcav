@@ -37,6 +37,14 @@ final class GameMatricesTest {
 
   private static final float[] IDENTITY = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 
+  private static final String POSE_METHOD = "pose";
+
+  private static final String VIEW_ROTATION_FIELD = "viewRotationMatrix";
+
+  private static final String MATRIX_FIELD = "matrix";
+
+  private static final String LENGTH_METHOD = "length";
+
   @Test
   void shouldReadAPoseColumnByColumn() {
     final GameMatrices matrices = GameMatrices.find().orElseThrow();
@@ -55,8 +63,8 @@ final class GameMatricesTest {
     assertArrayEquals(IDENTITY, rotation);
     final PoseStack stack = new PoseStack();
     stack.translate(5F, 6F, 7F);
-    final Object translation = PoseStack.Pose.class.getMethod("pose").invoke(stack.last());
-    CameraRenderState.class.getField("viewRotationMatrix").set(camera, translation);
+    final Object translation = PoseStack.Pose.class.getMethod(POSE_METHOD).invoke(stack.last());
+    CameraRenderState.class.getField(VIEW_ROTATION_FIELD).set(camera, translation);
     final float[] translatedRotation = matrices.viewRotation(camera);
     assertArrayEquals(new float[] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 6, 7, 1 }, translatedRotation);
   }
@@ -67,21 +75,21 @@ final class GameMatricesTest {
       PoseStack.Pose.class,
       "matrix",
       CameraRenderState.class,
-      "viewRotationMatrix"
+      VIEW_ROTATION_FIELD
     );
     final Optional<GameMatrices> unknownRotationField = GameMatrices.find(
       PoseStack.Pose.class,
-      "pose",
+      POSE_METHOD,
       CameraRenderState.class,
       "rotationMatrix"
     );
     final Optional<GameMatrices> foreignPoseMethod = GameMatrices.find(
       String.class,
-      "length",
+      LENGTH_METHOD,
       CameraRenderState.class,
-      "viewRotationMatrix"
+      VIEW_ROTATION_FIELD
     );
-    final Optional<GameMatrices> foreignRotationField = GameMatrices.find(PoseStack.Pose.class, "pose", Members.class, "matrix");
+    final Optional<GameMatrices> foreignRotationField = GameMatrices.find(PoseStack.Pose.class, POSE_METHOD, Members.class, MATRIX_FIELD);
     final Optional<GameMatrices> gameMatrices = GameMatrices.find();
     assertTrue(unknownPoseMethod.isEmpty());
     assertTrue(unknownRotationField.isEmpty());
@@ -99,12 +107,12 @@ final class GameMatricesTest {
     final Throwable hiddenRotation = this.causeOf(() -> hidden.viewRotation(camera));
     assertInstanceOf(IllegalAccessException.class, hiddenPose);
     assertInstanceOf(IllegalAccessException.class, hiddenRotation);
-    final GameMatrices failing = new GameMatrices(Members.class.getMethod("fails"), Members.class.getField("matrix"));
+    final GameMatrices failing = new GameMatrices(Members.class.getMethod("fails"), Members.class.getField(MATRIX_FIELD));
     final Throwable failingPose = this.causeOf(() -> failing.pose(pose));
     final Throwable failingRotation = this.causeOf(() -> failing.viewRotation(camera));
     assertInstanceOf(InvocationTargetException.class, failingPose);
     assertInstanceOf(IllegalArgumentException.class, failingRotation);
-    final GameMatrices strings = new GameMatrices(String.class.getMethod("length"), Members.class.getField("matrix"));
+    final GameMatrices strings = new GameMatrices(String.class.getMethod(LENGTH_METHOD), Members.class.getField(MATRIX_FIELD));
     final Throwable stringPose = this.causeOf(() -> strings.pose(pose));
     assertInstanceOf(IllegalArgumentException.class, stringPose);
   }

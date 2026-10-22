@@ -35,6 +35,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /** Every handler hands what the game gave it to the decoder's way in, and does nothing else. */
 final class MixinsTest {
 
+  private static final String RENDER_METHOD = "render";
+
   @Test
   void shouldHandOnTheMapsTheMapRendererExtractsAndPoses() {
     final MapRenderState state = new MapRenderState();
@@ -43,7 +45,7 @@ final class MixinsTest {
       final MapRendererMixin mixin = new MapRendererMixin() {};
       mixin.mcav$extracted(null, null, state, new CallbackInfo("extractRenderState", false));
       shaders.verify(() -> Mcv2Shaders.extracted(state, null));
-      mixin.mcav$posed(state, pose, mock(SubmitNodeCollector.class), true, 15, new CallbackInfo("render", false));
+      mixin.mcav$posed(state, pose, mock(SubmitNodeCollector.class), true, 15, new CallbackInfo(RENDER_METHOD, false));
       shaders.verify(() -> Mcv2Shaders.posed(state, pose));
     }
   }
@@ -78,7 +80,7 @@ final class MixinsTest {
         new Object(),
         true,
         false,
-        new CallbackInfo("render", false)
+        new CallbackInfo(RENDER_METHOD, false)
       );
       shaders.verify(() -> Mcv2Shaders.rendered(allocator, camera));
     }

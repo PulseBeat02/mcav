@@ -32,6 +32,8 @@ final class MapFixtures {
 
   private static final int SYMBOL_BITS = 6;
 
+  private static final int SYMBOL_MASK = 63;
+
   private MapFixtures() {}
 
   /** A map's colours: the symbols, and symbol 0 after them. */
@@ -48,7 +50,7 @@ final class MapFixtures {
   static int[] pageSymbols(final long stream, final int number) {
     final int[] symbols = new int[Mcv2Maps.COLOURS];
     for (int index = 0; index < symbols.length; index++) {
-      symbols[index] = (index * 7 + 3) & 63;
+      symbols[index] = (index * 7 + 3) & SYMBOL_MASK;
     }
     System.arraycopy(PAGE_PREFIX, 0, symbols, 0, PAGE_PREFIX.length);
     writeBits(symbols, 64, 32, stream);
@@ -58,14 +60,14 @@ final class MapFixtures {
 
   /** The symbols of an anchor: its signature, its fields, the low and high six bits of its stream, the checksum. */
   static int[] anchorSymbols(final int column, final int row, final int columns, final int rows, final int facing, final int stream) {
-    final int[] fields = { column, row, columns, rows, facing, stream & 63, (stream >> SYMBOL_BITS) & 63 };
+    final int[] fields = { column, row, columns, rows, facing, stream & SYMBOL_MASK, (stream >> SYMBOL_BITS) & SYMBOL_MASK };
     final int[] symbols = Arrays.copyOf(ANCHOR_SIGNATURE, 16);
     int sum = 0;
     for (int index = 0; index < fields.length; index++) {
       symbols[8 + index] = fields[index];
       sum += fields[index];
     }
-    symbols[15] = sum & 63;
+    symbols[15] = sum & SYMBOL_MASK;
     return symbols;
   }
 

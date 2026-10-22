@@ -26,6 +26,8 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2MapsTest {
 
+  private static final int CHECKSUM = 15;
+
   @Test
   void shouldUseTheColoursFourToSixtySevenAndNothingElseAsSymbols() {
     final byte[] colours = { 4, 67, 3, 68, (byte) 200, 0, 5 };
@@ -80,7 +82,7 @@ final class Mcv2MapsTest {
       assertFalse(changedReadAsAnchor, "symbol " + index + " of the signature");
     }
     final byte[] checksum = anchor.clone();
-    checksum[15] = (byte) (((checksum[15] - 4 + 1) & 63) + 4);
+    checksum[CHECKSUM] = (byte) (((checksum[CHECKSUM] - 4 + 1) & 63) + 4);
     final boolean wrongChecksumReadAsAnchor = Mcv2Maps.isAnchor(checksum);
     assertFalse(wrongChecksumReadAsAnchor);
     final byte[] outside = anchor.clone();
@@ -92,7 +94,7 @@ final class Mcv2MapsTest {
   @Test
   void shouldSumTheSevenFieldsInSixBitsForTheChecksum() {
     final int[] symbols = MapFixtures.anchorSymbols(63, 63, 63, 63, 3, 4095);
-    final int checksum = symbols[15];
+    final int checksum = symbols[CHECKSUM];
     final boolean readAsAnchor = Mcv2Maps.isAnchor(MapFixtures.colours(symbols));
     assertEquals(61, checksum);
     assertTrue(readAsAnchor);

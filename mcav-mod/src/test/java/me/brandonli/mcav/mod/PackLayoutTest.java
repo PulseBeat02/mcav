@@ -26,6 +26,11 @@ import org.junit.jupiter.api.Test;
 
 final class PackLayoutTest {
 
+  private static final int WIDTH = 854;
+
+  private static final String SLOTS = "3, 2";
+  private static final String FIRST_SLOTS = "0, 3";
+
   /** A layout as the server generates it, with the stream ids, slot counts and first slots of its screens. */
   static String packConstants(final String streams, final String slots, final String firsts, final int screens) {
     return String.join(
@@ -46,7 +51,7 @@ final class PackLayoutTest {
 
   @Test
   void shouldReadTheScreensTheServerGenerated() {
-    final PackLayout layout = PackLayout.parse(packConstants("7u, 4294967295u", "3, 2", "0, 3", 2)).orElseThrow();
+    final PackLayout layout = PackLayout.parse(packConstants("7u, 4294967295u", SLOTS, FIRST_SLOTS, 2)).orElseThrow();
     final int screens = layout.screens();
     final int firstScreenSlots = layout.slots(0);
     final int secondScreenSlots = layout.slots(1);
@@ -56,7 +61,7 @@ final class PackLayoutTest {
     final int screenOfSeven = layout.screenOf(7);
     final int screenOfTheLargestStream = layout.screenOf(4_294_967_295L);
     final int screenOfAnUnknownStream = layout.screenOf(8);
-    final int stripRows = layout.stripRows(854);
+    final int stripRows = layout.stripRows(WIDTH);
     assertEquals(2, screens);
     assertEquals(3, firstScreenSlots);
     assertEquals(2, secondScreenSlots);
@@ -90,7 +95,7 @@ final class PackLayoutTest {
   @Test
   void shouldGiveAPageTheRowsItsFourThousandPixelsNeed() {
     final int rowsAtWidthOne = PackLayout.rowsPerPage(1);
-    final int rowsAtScreenWidth = PackLayout.rowsPerPage(854);
+    final int rowsAtScreenWidth = PackLayout.rowsPerPage(WIDTH);
     final int rowsAtPageWidth = PackLayout.rowsPerPage(4096);
     final int rowsAbovePageWidth = PackLayout.rowsPerPage(4097);
     final int rowsBelowPageWidth = PackLayout.rowsPerPage(4095);
@@ -103,7 +108,7 @@ final class PackLayoutTest {
 
   @Test
   void shouldFindNoLayoutInAnythingTheServerCouldNotHaveGenerated() {
-    final String valid = packConstants("7u, 9u", "3, 2", "0, 3", 2);
+    final String valid = packConstants("7u, 9u", SLOTS, FIRST_SLOTS, 2);
     for (final String packConstants : List.of(
       "",
       valid.replace("MCV2_SCREENS = 2;", "MCV2_SCREENS = 0;"),
