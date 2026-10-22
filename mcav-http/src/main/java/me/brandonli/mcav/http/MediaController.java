@@ -28,9 +28,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 final class MediaController {
 
-  private final HttpResultImpl result;
+  private final SpringHttpResult result;
 
-  MediaController(final HttpResultImpl result) {
+  MediaController(final SpringHttpResult result) {
     this.result = result;
   }
 

@@ -138,6 +138,6 @@ public final class HttpResultBuilder {
    * @return the server, not started yet
    */
   public HttpResult build() {
-    return new HttpResultImpl(this.domain, this.port, this.directory, this.bindAddress, List.of());
+    return new SpringHttpResult(this.domain, this.port, this.directory, this.bindAddress, List.of());
   }
 }

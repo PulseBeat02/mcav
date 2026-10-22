@@ -37,7 +37,7 @@ final class HttpInterruptedStopTest {
       final Thread current = Thread.currentThread();
       current.interrupt();
       try {
-        HttpResultImpl.closeWithOwnClassLoader(context);
+        SpringHttpResult.closeWithOwnClassLoader(context);
 
         final boolean interrupted = current.isInterrupted();
         assertTrue(interrupted, "cleanup preserves the caller's interrupt");
@@ -65,7 +65,9 @@ final class HttpInterruptedStopTest {
 
     current.interrupt();
     try {
-      final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> HttpResultImpl.closeWithOwnClassLoader(context));
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
+        SpringHttpResult.closeWithOwnClassLoader(context)
+      );
       assertSame(failure, thrown);
 
       final boolean interrupted = current.isInterrupted();

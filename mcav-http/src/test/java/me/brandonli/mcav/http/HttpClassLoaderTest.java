@@ -61,8 +61,8 @@ final class HttpClassLoaderTest {
     try (final HttpClient client = HttpClient.newHttpClient()) {
       for (int restart = 0; restart < 2; restart++) {
         try (final URLClassLoader loader = new URLClassLoader(locations, platform)) {
-          final Class<?> type = loader.loadClass(HttpResultImpl.class.getName());
-          assertNotSame(HttpResultImpl.class, type, "each restart uses a new copy of the library");
+          final Class<?> type = loader.loadClass(SpringHttpResult.class.getName());
+          assertNotSame(SpringHttpResult.class, type, "each restart uses a new copy of the library");
           this.assertServesAndStops(type, client);
         }
       }
@@ -100,7 +100,7 @@ final class HttpClassLoaderTest {
 
   private static URL[] libraryLocations() throws IOException {
     final Map<String, URL> locations = new LinkedHashMap<>();
-    final URL httpLocation = HttpResultImpl.class.getProtectionDomain().getCodeSource().getLocation();
+    final URL httpLocation = SpringHttpResult.class.getProtectionDomain().getCodeSource().getLocation();
     final URL commonLocation = AudioFilter.class.getProtectionDomain().getCodeSource().getLocation();
     locations.put(httpLocation.toExternalForm(), httpLocation);
     locations.put(commonLocation.toExternalForm(), commonLocation);

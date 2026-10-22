@@ -60,10 +60,10 @@ import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 /**
- * Tests {@link HttpResultImpl} and the {@link HttpResult} factories without starting a web server; the running
+ * Tests {@link SpringHttpResult} and the {@link HttpResult} factories without starting a web server; the running
  * server is tested by {@link HttpServerTest}.
  */
-final class HttpResultImplTest {
+final class SpringHttpResultTest {
 
   private static final long TIMEOUT_MILLISECONDS = 10_000;
   private static final int LAST_CHUNK_VALUE = 20;
@@ -96,9 +96,9 @@ final class HttpResultImplTest {
    */
   static void restoreLoggingSystem(final @Nullable String previous) {
     if (previous == null) {
-      System.clearProperty(HttpResultImpl.LOGGING_SYSTEM_PROPERTY);
+      System.clearProperty(SpringHttpResult.LOGGING_SYSTEM_PROPERTY);
     } else {
-      System.setProperty(HttpResultImpl.LOGGING_SYSTEM_PROPERTY, previous);
+      System.setProperty(SpringHttpResult.LOGGING_SYSTEM_PROPERTY, previous);
     }
   }
 
@@ -142,7 +142,7 @@ final class HttpResultImplTest {
     this.workers.assertFinished();
   }
 
-  private void applySingleByteChunks(final HttpResultImpl http, final int first, final int last) {
+  private void applySingleByteChunks(final SpringHttpResult http, final int first, final int last) {
     for (int value = first; value <= last; value++) {
       final byte[] chunk = { (byte) value };
       final ByteBuffer samples = ByteBuffer.wrap(chunk);
@@ -163,7 +163,7 @@ final class HttpResultImplTest {
     final HttpResult http = HttpResult.port(3000);
     final String url = http.getFullUrl();
     final boolean running = http.isRunning();
-    assertInstanceOf(HttpResultImpl.class, http);
+    assertInstanceOf(SpringHttpResult.class, http);
     assertEquals("http://localhost:3000/", url);
     assertFalse(running);
   }
@@ -199,12 +199,12 @@ final class HttpResultImplTest {
 
   @Test
   void shouldResolveTheStaticLocationOfThePage() throws IOException {
-    final String bundled = HttpResultImpl.staticLocation(null);
+    final String bundled = SpringHttpResult.staticLocation(null);
     assertEquals("classpath:/mcav/http/website/", bundled);
 
     final Path existing = this.directory.resolve("out");
     Files.createDirectory(existing);
-    final String existingLocation = HttpResultImpl.staticLocation(existing);
+    final String existingLocation = SpringHttpResult.staticLocation(existing);
     final URI existingUri = existing.toUri();
     final String existingText = existingUri.toString();
     final boolean endsWithASlash = existingLocation.endsWith("/");
@@ -212,7 +212,7 @@ final class HttpResultImplTest {
     assertTrue(endsWithASlash);
 
     final Path missing = this.directory.resolve("missing");
-    final String missingLocation = HttpResultImpl.staticLocation(missing);
+    final String missingLocation = SpringHttpResult.staticLocation(missing);
     final URI missingUri = missing.toUri();
     final String missingText = missingUri.toString();
     assertEquals(missingText + "/", missingLocation);
@@ -220,7 +220,7 @@ final class HttpResultImplTest {
 
   @Test
   void shouldReportTheConfiguredPortAndIgnoreStopWhileNotRunning() {
-    final HttpResultImpl http = new HttpResultImpl("localhost", 4321, null);
+    final SpringHttpResult http = new SpringHttpResult("localhost", 4321, null);
     final int port = http.getLocalPort();
     assertEquals(4321, port);
     assertDoesNotThrow(http::stop);
@@ -230,7 +230,7 @@ final class HttpResultImplTest {
 
   @Test
   void shouldTurnAwayAndCloseAHandshakeThatArrivesAfterTheServerStopped() throws Exception {
-    final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
     final WebSocketSession early = session("early", sent);
     http.addListener(early);
@@ -248,7 +248,7 @@ final class HttpResultImplTest {
 
   @Test
   void shouldSurviveAHandshakeWhoseSessionCannotBeClosedAnyMore() throws Exception {
-    final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
     http.stop();
     final WebSocketSession broken = Mockito.mock(WebSocketSession.class);
     Mockito.when(broken.getId()).thenReturn("broken");
@@ -261,7 +261,7 @@ final class HttpResultImplTest {
 
   @Test
   void shouldAcceptSamplesWithoutListeners() {
-    final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
     final ByteBuffer samples = ByteBuffer.allocate(16);
     final boolean changed = http.applyFilter(samples, this.metadata);
     final int count = http.getListenerCount();
@@ -271,7 +271,7 @@ final class HttpResultImplTest {
 
   @Test
   void shouldRejectNullSamplesAndMetadata() {
-    final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
     final ByteBuffer samples = ByteBuffer.allocate(16);
     assertThrows(NullPointerException.class, () -> http.applyFilter(null, this.metadata));
     assertThrows(NullPointerException.class, () -> http.applyFilter(samples, null));
@@ -279,7 +279,7 @@ final class HttpResultImplTest {
 
   @Test
   void shouldSendTheRemainingSamplesToEveryListenerWithoutConsumingThem() throws Exception {
-    final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
     final BlockingQueue<byte[]> firstSent = new LinkedBlockingQueue<>();
     final BlockingQueue<byte[]> secondSent = new LinkedBlockingQueue<>();
     final WebSocketSession first = session("first", firstSent);
@@ -308,7 +308,7 @@ final class HttpResultImplTest {
 
   @Test
   void shouldNotStallTheAudioThreadOrTheOtherListenersWhenAListenerWriteIsBlocked() throws Exception {
-    final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
     final CountDownLatch stuckWriteEntered = new CountDownLatch(1);
     final CountDownLatch releaseStuckWrite = new CountDownLatch(1);
     final WebSocketSession stuck = this.stuckSession(stuckWriteEntered, releaseStuckWrite);
@@ -335,7 +335,7 @@ final class HttpResultImplTest {
 
   @Test
   void shouldStopAListenerWhenRemovingIt() throws Exception {
-    final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
     final WebSocketSession session = session("listener", sent);
     http.addListener(session);
@@ -363,11 +363,11 @@ final class HttpResultImplTest {
 
     final Thread current = Thread.currentThread();
     final ClassLoader before = current.getContextClassLoader();
-    final ClassLoader own = HttpResultImpl.class.getClassLoader();
+    final ClassLoader own = SpringHttpResult.class.getClassLoader();
     final ClassLoader caller = new ClassLoader(own) {};
     try {
       current.setContextClassLoader(caller);
-      HttpResultImpl.closeWithOwnClassLoader(context);
+      SpringHttpResult.closeWithOwnClassLoader(context);
       final ClassLoader after = current.getContextClassLoader();
       final List<ClassLoader> expected = List.of(own);
       assertEquals(expected, loadersWhileClosing, "Spring looks its own resources up through the context class loader");
@@ -393,11 +393,13 @@ final class HttpResultImplTest {
 
     final Thread current = Thread.currentThread();
     final ClassLoader before = current.getContextClassLoader();
-    final ClassLoader own = HttpResultImpl.class.getClassLoader();
+    final ClassLoader own = SpringHttpResult.class.getClassLoader();
     final ClassLoader caller = new ClassLoader(own) {};
     try {
       current.setContextClassLoader(caller);
-      final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> HttpResultImpl.closeWithOwnClassLoader(context));
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
+        SpringHttpResult.closeWithOwnClassLoader(context)
+      );
       final ClassLoader after = current.getContextClassLoader();
       final List<ClassLoader> expected = List.of(own);
       assertSame(failure, thrown, "the original context failure is preserved");
@@ -418,7 +420,7 @@ final class HttpResultImplTest {
 
   @Test
   void shouldIgnoreRemovingAListenerTwice() throws Exception {
-    final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
     final WebSocketSession listener = session("listener", sent);
     http.addListener(listener);
@@ -435,7 +437,7 @@ final class HttpResultImplTest {
 
   @Test
   void shouldDropListenersWhoseSessionClosed() throws Exception {
-    final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
     final WebSocketSession closed = session("closed", sent);
     http.addListener(closed);
@@ -450,7 +452,7 @@ final class HttpResultImplTest {
 
   @Test
   void shouldDropListenersWhoseWritesFail() throws Exception {
-    final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
     final WebSocketSession broken = Mockito.mock(WebSocketSession.class);
     Mockito.when(broken.getId()).thenReturn("broken");
     Mockito.when(broken.isOpen()).thenReturn(true);
@@ -465,7 +467,7 @@ final class HttpResultImplTest {
 
   @Test
   void shouldKeepAReplacedListenerWhenItsOldConnectionFails() throws Exception {
-    final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
     final WebSocketSession broken = Mockito.mock(WebSocketSession.class);
     Mockito.when(broken.getId()).thenReturn("same-id");
     Mockito.when(broken.isOpen()).thenReturn(true);
@@ -498,7 +500,7 @@ final class HttpResultImplTest {
 
   @Test
   void shouldShowInformationAboutTheCurrentMedia() {
-    final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
     final MediaInformation initial = http.getCurrentMedia();
     assertSame(MediaInformation.EMPTY, initial);
 
@@ -524,7 +526,7 @@ final class HttpResultImplTest {
   void shouldStartTheBuilderWithTheDefaults() {
     final HttpResultBuilder builder = HttpResult.builder();
     final HttpResult built = builder.build();
-    final HttpResultImpl http = assertInstanceOf(HttpResultImpl.class, built);
+    final SpringHttpResult http = assertInstanceOf(SpringHttpResult.class, built);
     final String url = http.getFullUrl();
     final InetAddress bindAddress = http.getBindAddress();
     final Path pageDirectory = http.getDirectory();
@@ -550,7 +552,7 @@ final class HttpResultImplTest {
     assertSame(builder, afterAddress);
 
     final HttpResult built = builder.build();
-    final HttpResultImpl http = assertInstanceOf(HttpResultImpl.class, built);
+    final SpringHttpResult http = assertInstanceOf(SpringHttpResult.class, built);
     final String url = http.getFullUrl();
     final InetAddress bindAddress = http.getBindAddress();
     final Path pageDirectory = http.getDirectory();
@@ -606,18 +608,18 @@ final class HttpResultImplTest {
 
   @Test
   void shouldKeepTheLoggingOfTheHostUnlessAnotherLoggingSystemWasChosen() {
-    final String property = HttpResultImpl.LOGGING_SYSTEM_PROPERTY;
+    final String property = SpringHttpResult.LOGGING_SYSTEM_PROPERTY;
     assertEquals("org.springframework.boot.logging.LoggingSystem", property);
     final String previous = System.getProperty(property);
     try {
       System.clearProperty(property);
-      HttpResultImpl.keepTheLoggingOfTheHost();
+      SpringHttpResult.keepTheLoggingOfTheHost();
       final String disabled = System.getProperty(property);
       assertEquals("none", disabled);
 
       final String chosen = "org.springframework.boot.logging.java.JavaLoggingSystem";
       System.setProperty(property, chosen);
-      HttpResultImpl.keepTheLoggingOfTheHost();
+      SpringHttpResult.keepTheLoggingOfTheHost();
       final String kept = System.getProperty(property);
       assertEquals(chosen, kept, "a logging system chosen by the user is respected");
     } finally {

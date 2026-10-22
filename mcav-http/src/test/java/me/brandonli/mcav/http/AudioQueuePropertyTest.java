@@ -126,7 +126,7 @@ final class AudioQueuePropertyTest {
 
   @Property(seed = SEED, tries = 100)
   void shouldGiveListenersACopyOfExactlyTheRemainingBytes(@ForAll("samples") final Samples samples) throws Exception {
-    final HttpResultImpl result = new HttpResultImpl("localhost", 0, null, List.of());
+    final SpringHttpResult result = new SpringHttpResult("localhost", 0, null, List.of());
     final Recorder recorder = new Recorder();
     result.addListener(recorder.session);
     final OriginalAudioMetadata metadata = Mockito.mock(OriginalAudioMetadata.class);
@@ -180,7 +180,7 @@ final class AudioQueuePropertyTest {
    */
   @Property(seed = SEED)
   void shouldMakeAValidPageAddressFromEveryIpv6Host(@ForAll("ipv6Hosts") final String host) {
-    final String urlHost = HttpResultImpl.urlHost(host);
+    final String urlHost = SpringHttpResult.urlHost(host);
     final String url = "http://" + urlHost + ":8080/";
     final URI uri = URI.create(url);
     final String parsedHost = uri.getHost();

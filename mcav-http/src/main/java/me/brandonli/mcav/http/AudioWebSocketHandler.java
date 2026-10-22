@@ -29,14 +29,14 @@ import org.springframework.web.socket.handler.BinaryWebSocketHandler;
  */
 final class AudioWebSocketHandler extends BinaryWebSocketHandler {
 
-  private final HttpResultImpl result;
+  private final SpringHttpResult result;
 
   /**
    * Creates a handler that registers the connected browsers as listeners of a server.
    *
    * @param result the server that sends the audio to the browsers
    */
-  AudioWebSocketHandler(final HttpResultImpl result) {
+  AudioWebSocketHandler(final SpringHttpResult result) {
     this.result = result;
   }
 

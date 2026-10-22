@@ -58,7 +58,7 @@ import org.springframework.web.socket.WebSocketSession;
  * property {@value #LOGGING_SYSTEM_PROPERTY} was already set, it is set to {@code none} before the first start,
  * so Spring logs through SLF4J like every other library and leaves the logging of the host alone.
  */
-public final class HttpResultImpl implements HttpResult {
+public final class SpringHttpResult implements HttpResult {
 
   private static final String RESULT_BEAN_NAME = "mcavHttpResult";
 
@@ -67,7 +67,7 @@ public final class HttpResultImpl implements HttpResult {
    */
   static final String LOGGING_SYSTEM_PROPERTY = "org.springframework.boot.logging.LoggingSystem";
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(HttpResultImpl.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(SpringHttpResult.class);
   private static final int SEND_TIME_LIMIT_MILLISECONDS = 5_000;
   private static final int SEND_BUFFER_LIMIT_BYTES = 512 * 1024;
 
@@ -90,7 +90,7 @@ public final class HttpResultImpl implements HttpResult {
    * @param port      the port, or 0 for any free port
    * @param directory the directory with the web page, or null for the bundled copy
    */
-  HttpResultImpl(final String domain, final int port, final @Nullable Path directory) {
+  SpringHttpResult(final String domain, final int port, final @Nullable Path directory) {
     this(domain, port, directory, null, List.of());
   }
 
@@ -104,7 +104,7 @@ public final class HttpResultImpl implements HttpResult {
    * @param extraProperties Spring properties in {@code key=value} form, applied after the defaults
    */
   @VisibleForTesting
-  HttpResultImpl(final String domain, final int port, final @Nullable Path directory, final List<String> extraProperties) {
+  SpringHttpResult(final String domain, final int port, final @Nullable Path directory, final List<String> extraProperties) {
     this(domain, port, directory, null, extraProperties);
   }
 
@@ -117,7 +117,7 @@ public final class HttpResultImpl implements HttpResult {
    * @param bindAddress     the address to listen on, or null for every network interface
    * @param extraProperties Spring properties in {@code key=value} form, applied after the defaults
    */
-  HttpResultImpl(
+  SpringHttpResult(
     final String domain,
     final int port,
     final @Nullable Path directory,
@@ -153,7 +153,7 @@ public final class HttpResultImpl implements HttpResult {
 
       final Thread thread = Thread.currentThread();
       final ClassLoader previous = thread.getContextClassLoader();
-      final ClassLoader own = HttpResultImpl.class.getClassLoader();
+      final ClassLoader own = SpringHttpResult.class.getClassLoader();
       // Spring resolves classes and resources through the context class loader, which plugin hosts do not set
       thread.setContextClassLoader(own);
       try {
@@ -291,7 +291,7 @@ public final class HttpResultImpl implements HttpResult {
   static void closeWithOwnClassLoader(final ConfigurableApplicationContext current) {
     final Thread thread = Thread.currentThread();
     final ClassLoader previous = thread.getContextClassLoader();
-    final ClassLoader own = HttpResultImpl.class.getClassLoader();
+    final ClassLoader own = SpringHttpResult.class.getClassLoader();
     thread.setContextClassLoader(own);
     // Spring silently skips closing if the caller's interrupt prevents taking its shutdown lock.
     final boolean interrupted = Thread.interrupted();

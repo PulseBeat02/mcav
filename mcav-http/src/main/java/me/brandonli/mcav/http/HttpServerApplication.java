@@ -25,7 +25,7 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistra
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
 /**
- * The Spring Boot application behind {@link HttpResultImpl}. The owning {@link HttpResultImpl} is registered as a
+ * The Spring Boot application behind {@link SpringHttpResult}. The owning {@link SpringHttpResult} is registered as a
  * bean before the context starts, so the WebSocket handler and the controller can reach it from the first
  * request on.
  */
@@ -36,7 +36,7 @@ class HttpServerApplication {
   HttpServerApplication() {}
 
   @Bean
-  AudioWebSocketHandler audioWebSocketHandler(final HttpResultImpl result) {
+  AudioWebSocketHandler audioWebSocketHandler(final SpringHttpResult result) {
     return new AudioWebSocketHandler(result);
   }
 
