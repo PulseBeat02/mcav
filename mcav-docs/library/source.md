@@ -24,7 +24,7 @@ code generates. Sources are small immutable descriptions; the player opens them 
 A `UriSource` that points at a web page rather than a media file, such as a YouTube video, has to be resolved with
 [yt-dlp](yt-dlp.md) first. `isDirect()` tells the two apart by the file extension of the URL.
 
-## Detecting Sources
+## Detecting sources
 
 To turn text entered by a user into a source, use the `SourceDetectionHelper`. It recognizes existing file paths,
 URLs, device numbers, and FFmpeg inputs written as `format||input`, such as `dshow||video=OBS Virtual Camera`, and
