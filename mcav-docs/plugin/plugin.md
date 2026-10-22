@@ -11,11 +11,11 @@ MCAV library. The [tutorial](tutorial.md) sets it up step by step; [videos and i
 [web browsers](browser.md), [virtual machines](vm.md), [VNC desktops](vnc.md) and [MCV2](../bukkit/mcv2.md) explain each
 feature as a server owner uses it.
 
-## Installing the Plugin
+## Installing the plugin
 
 ```{warning}
 The MCAV plugin works on **Paper** servers only, not on **Spigot** or **Bukkit** servers. It requires Minecraft
-**26.3** and Java 25; it will not load on any other version of Minecraft. Paper 26.3 has only alpha builds as of
+**26.3** and Java 25; it does not load on any other version of Minecraft. Paper 26.3 has only alpha builds as of
 2026-09-27; the plugin is built and tested against build 49.
 ```
 
@@ -27,16 +27,16 @@ The MCAV plugin works on **Paper** servers only, not on **Spigot** or **Bukkit**
 
 On the first start, the plugin downloads its libraries into the `libraries/mcav` folder of the server, which takes a
 moment; later starts are much faster. Core file playback works on a headless server without a sound device. Optional
-features can require system libraries, a browser, QEMU, or a display; see the [prerequisites](../library/prerequisites.md).
-MCAV itself does not run an administrative package installer.
+features can require system libraries, a browser, QEMU, or a display; see the
+[prerequisites](../library/prerequisites.md). MCAV itself does not run an administrative package installer.
 
 The first download is about 465 MiB. Most of it is the FFmpeg, OpenCV, and OpenBLAS native libraries, which the plugin
 includes for the platforms a Paper server runs on: Linux (x86-64 and ARM64), macOS (Intel and Apple silicon), and
 Windows (x86-64). Natives for Android, iOS, and 32-bit systems are left out. The browser commands download Chromium
-separately, about 136 to 163 MiB depending on the platform, the first time a browser starts, and on Linux the libraries it
-needs that the server lacks, about 13 MB; the browser needs no X server and nothing installed but a full Java runtime. Every file is checked against its
-SHA-256 hash, and later starts reuse the downloaded files. When building the plugin yourself, the list of platforms is the `javacppPlatform` property in
-`mcav-plugin/gradle.properties`.
+separately, about 136 to 163 MiB depending on the platform, the first time a browser starts, and on Linux the libraries
+it needs that the server lacks, about 13 MB; the browser needs no X server and nothing installed but a full Java
+runtime. Every file is checked against its SHA-256 hash, and later starts reuse the downloaded files. When building the
+plugin yourself, the list of platforms is the `javacppPlatform` property in `mcav-plugin/gradle.properties`.
 
 The server finishes starting without waiting for VLC and yt-dlp. When the server has no VLC, the plugin downloads it in
 the background into the MCAV cache folder of the user running the server (`~/.mcav/cache`), without `sudo`; yt-dlp is
