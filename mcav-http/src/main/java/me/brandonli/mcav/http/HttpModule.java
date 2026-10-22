@@ -26,7 +26,7 @@ import me.brandonli.mcav.module.MCAVModule;
 public final class HttpModule implements MCAVModule {
 
   /**
-   * Constructs the module. The module loader creates it for you.
+   * Creates the module. The module loader calls this constructor for you.
    */
   public HttpModule() {}
 
@@ -45,7 +45,7 @@ public final class HttpModule implements MCAVModule {
   public void stop() {}
 
   /**
-   * Gets the name of the module.
+   * Returns the name of the module.
    *
    * @return {@code http}
    */

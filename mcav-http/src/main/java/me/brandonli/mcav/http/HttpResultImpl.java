@@ -234,7 +234,7 @@ public final class HttpResultImpl implements HttpResult {
   }
 
   /**
-   * Gets the Spring resource location of the web page.
+   * Returns the Spring resource location of the web page.
    *
    * @param directory the directory with the web page, or null for the copy bundled in the jar
    * @return the location, always ending with a slash
@@ -306,7 +306,7 @@ public final class HttpResultImpl implements HttpResult {
   }
 
   /**
-   * Checks whether the embedded web server is running.
+   * Returns whether the embedded web server is running.
    *
    * @return true between a successful {@link #start()} and the next {@link #stop()}
    */
@@ -316,7 +316,7 @@ public final class HttpResultImpl implements HttpResult {
   }
 
   /**
-   * Gets the port the server listens on, which differs from the configured port when that was 0.
+   * Returns the port the server listens on, which differs from the configured port when that was 0.
    *
    * @return the bound port while running, otherwise the configured port
    */
@@ -332,7 +332,7 @@ public final class HttpResultImpl implements HttpResult {
   }
 
   /**
-   * Gets the address the server listens on.
+   * Returns the address the server listens on.
    *
    * @return the address, or null for every network interface
    */
@@ -342,7 +342,7 @@ public final class HttpResultImpl implements HttpResult {
   }
 
   /**
-   * Gets the directory the web page is served from.
+   * Returns the directory the web page is served from.
    *
    * @return the directory, or null for the copy bundled in the jar
    */
@@ -386,7 +386,7 @@ public final class HttpResultImpl implements HttpResult {
   }
 
   /**
-   * Gets the listener of a WebSocket session. Visible for testing.
+   * Returns the listener of a WebSocket session. Visible for testing.
    *
    * @param id the id of the session
    * @return the listener, or null if no browser of that session is connected
@@ -417,7 +417,7 @@ public final class HttpResultImpl implements HttpResult {
   }
 
   /**
-   * Gets the number of browsers currently connected to the audio socket.
+   * Returns the number of browsers currently connected to the audio socket.
    *
    * @return the listener count, 0 while the server is stopped
    */
@@ -464,7 +464,7 @@ public final class HttpResultImpl implements HttpResult {
   }
 
   /**
-   * Gets the address of the web page, built from the host name and the configured port.
+   * Returns the address of the web page, built from the host name and the configured port.
    *
    * @return the URL, such as {@code http://play.example.com:8080/}
    */
@@ -475,7 +475,7 @@ public final class HttpResultImpl implements HttpResult {
   }
 
   /**
-   * Gets the host part of a URL. A host name or IPv4 address is used as it is; an IPv6 address, the only host
+   * Returns the host part of a URL. A host name or IPv4 address is used as it is; an IPv6 address, the only host
    * that contains a colon, is put in brackets, with the {@code %} of a zone id encoded as RFC 6874 requires.
    *
    * @param domain the host name or address
@@ -516,7 +516,7 @@ public final class HttpResultImpl implements HttpResult {
   }
 
   /**
-   * Gets the information served at {@code /media}.
+   * Returns the information served at {@code /media}.
    *
    * @return the information, {@link MediaInfo#EMPTY} when nothing is playing
    */

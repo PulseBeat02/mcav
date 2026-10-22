@@ -79,7 +79,7 @@ public final class HttpResultBuilder {
    *               it is stored unchanged and must not include a scheme or path
    * @return this builder
    * @throws IllegalArgumentException if {@code domain} is blank
-   * @throws NullPointerException if {@code domain} is null
+   * @throws NullPointerException     if {@code domain} is null
    */
   public HttpResultBuilder domain(final String domain) {
     Preconditions.checkNotNull(domain, "Domain must not be null!");

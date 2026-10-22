@@ -120,7 +120,7 @@ public final class MediaInfo {
   }
 
   /**
-   * Gets the title.
+   * Returns the title.
    *
    * @return the title, or null if unknown
    */

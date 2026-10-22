@@ -117,7 +117,7 @@ final class AudioListener {
   }
 
   /**
-   * Gets the WebSocket session of the browser.
+   * Returns the WebSocket session of the browser.
    *
    * @return the session
    */
@@ -166,7 +166,7 @@ final class AudioListener {
   }
 
   /**
-   * Gets the number of bytes waiting to be written, not counting a write in progress.
+   * Returns the number of bytes waiting to be written, not counting a write in progress.
    *
    * @return the queued byte count
    */
@@ -181,7 +181,7 @@ final class AudioListener {
   }
 
   /**
-   * Gets the number of chunks waiting to be written, not counting a write in progress.
+   * Returns the number of chunks waiting to be written, not counting a write in progress.
    *
    * @return the queued chunk count
    */

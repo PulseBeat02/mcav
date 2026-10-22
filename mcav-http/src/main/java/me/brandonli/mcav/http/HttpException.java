@@ -34,7 +34,7 @@ public class HttpException extends RuntimeException {
   private static final long serialVersionUID = -4536819561346624904L;
 
   /**
-   * Constructs a new exception with a detail message and no cause.
+   * Creates an exception with a detail message and no cause.
    *
    * @param message the detail message, which says why the server did not start
    */
@@ -43,7 +43,7 @@ public class HttpException extends RuntimeException {
   }
 
   /**
-   * Constructs a new exception with a detail message and the failure that caused it.
+   * Creates an exception with a detail message and the failure that caused it.
    *
    * @param message the detail message, which says why the server did not start
    * @param cause   the failure of the web framework that caused this exception, or null if it is unknown

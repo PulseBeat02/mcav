@@ -70,7 +70,7 @@ public interface HttpResult extends AudioFilter {
    *
    * @param domain the non-null, nonblank host name or IP address listeners use, without a scheme or path
    * @return the server, not started yet
-   * @throws NullPointerException if {@code domain} is null
+   * @throws NullPointerException     if {@code domain} is null
    * @throws IllegalArgumentException if {@code domain} is blank
    */
   static HttpResult domain(final String domain) {
@@ -84,7 +84,7 @@ public interface HttpResult extends AudioFilter {
    * @param port   the port, from 1 to 65535
    * @return the server, not started yet
    * @throws IllegalArgumentException if {@code domain} is blank or {@code port} is outside 1 through 65535
-   * @throws NullPointerException if {@code domain} is null
+   * @throws NullPointerException     if {@code domain} is null
    */
   static HttpResult http(final String domain, final int port) {
     final HttpResultBuilder builder = builder();
@@ -101,7 +101,7 @@ public interface HttpResult extends AudioFilter {
    *                  existence is not checked by this factory
    * @return the server, not started yet
    * @throws IllegalArgumentException if {@code domain} is blank or {@code port} is outside 1 through 65535
-   * @throws NullPointerException if {@code domain} or {@code directory} is null
+   * @throws NullPointerException     if {@code domain} or {@code directory} is null
    */
   static HttpResult http(final String domain, final int port, final Path directory) {
     final HttpResultBuilder builder = builder();
@@ -138,26 +138,27 @@ public interface HttpResult extends AudioFilter {
   /**
    * Stops the server and disconnects every listener. The server can be started again afterwards. Stopping never
    * waits for a listener whose connection is stuck. The media information is retained across a restart.
+   *
    * @throws RuntimeException if closing the embedded web framework fails
    */
   void stop();
 
   /**
-   * Checks whether the server is running.
+   * Returns whether the server is running.
    *
    * @return true between {@link #start()} and {@link #stop()}
    */
   boolean isRunning();
 
   /**
-   * Gets the number of browsers currently listening.
+   * Returns the number of browsers currently listening.
    *
    * @return a nonnegative snapshot of the connected listener count
    */
   int getListenerCount();
 
   /**
-   * Gets the address of the web page, built from the host name and the port. An IPv6 address as host name is put
+   * Returns the address of the web page, built from the host name and the port. An IPv6 address as host name is put
    * in brackets, as URLs require.
    *
    * @return the HTTP URL built from the configured host and port; it does not test reachability or configure TLS
@@ -180,7 +181,7 @@ public interface HttpResult extends AudioFilter {
   void setCurrentMedia(final @Nullable MediaInfo info);
 
   /**
-   * Gets the information shown about the current media.
+   * Returns the information shown about the current media.
    *
    * @return the current immutable snapshot, or {@link MediaInfo#EMPTY} before any media is set or after clearing it
    */
