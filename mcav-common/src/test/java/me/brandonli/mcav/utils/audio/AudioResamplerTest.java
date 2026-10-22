@@ -630,4 +630,14 @@ final class AudioResamplerTest {
     assertTrue(closed);
     assertEquals("FFmpeg error -22 (Invalid argument) occurred while trying to initialize the resampler!", message);
   }
+
+  @Test
+  void shouldCloseTheResamplerWhenTheAllocationFailed() {
+    final AudioResampler resampler = AudioResampler.fromPipelineFormat(SPEECH_RATE, 1, SampleFormat.SIGNED_16_BIT);
+    final IllegalStateException exception = assertThrows(IllegalStateException.class, () -> resampler.initialize(EINVAL));
+    final String message = exception.getMessage();
+    final boolean closed = resampler.isClosed();
+    assertTrue(closed);
+    assertEquals("FFmpeg error -22 (Invalid argument) occurred while trying to allocate the resampler!", message);
+  }
 }
