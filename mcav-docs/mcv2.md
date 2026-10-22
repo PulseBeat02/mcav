@@ -2,7 +2,7 @@
 
 ![An MCV2 screen decoded by a vanilla Minecraft 26.3 client](images/mcv2/cover.png)
 
-*An MCV2 screen in a vanilla Minecraft 26.3 client. No mods: a resource pack's shaders decode the picture.*
+An MCV2 screen in a vanilla Minecraft 26.3 client. No mods: a resource pack's shaders decode the picture.
 
 MCV2 is a video codec I built for one very specific screen: a wall of maps in vanilla Minecraft. The server encodes
 the video, sends every frame as the colours of a few maps, and a resource pack decodes it on the player's graphics
@@ -16,15 +16,15 @@ is organised, how well it does against the codecs the rest of the world uses, an
 might be new is explained the first time it shows up, and there is a glossary at the end. It is long. Read it in
 order, and take breaks.
 
-## Part 1: Video, From the Beginning
+## Part 1: Video, from the beginning
 
-### Pixels and Colour
+### Pixels and colour
 
-A screen is a grid of tiny squares called **pixels**. A 1920x1080 screen (people call it "1080p", or "Full HD") has
+A screen is a grid of tiny squares called pixels. A 1920x1080 screen (people call it "1080p", or "Full HD") has
 1,920 pixels across and 1,080 down, which is 1920 × 1080 = 2,073,600 pixels.
 
-Each pixel shows one colour, and a computer stores that colour as three numbers: how much **red**, how much **green**
-and how much **blue** light to mix. This is called **RGB**. Each number is one **byte**, a whole number from 0 to 255,
+Each pixel shows one colour, and a computer stores that colour as three numbers: how much red, how much green
+and how much blue light to mix. This is called RGB. Each number is one byte, a whole number from 0 to 255,
 so a pixel is three bytes:
 
 | Colour | Red | Green | Blue |
@@ -37,143 +37,143 @@ so a pixel is three bytes:
 
 Three bytes give 256 × 256 × 256 = 16,777,216 possible colours, more than the eye can tell apart.
 
-A **picture** (or **image**) is just the colours of all the pixels, row by row: the top row from left to right, then
+A picture (or image) is just the colours of all the pixels, row by row: the top row from left to right, then
 the next row, and so on. A 1080p picture takes 2,073,600 × 3 = 6,220,800 bytes, about 6.2 megabytes.
 
-### Frames and Frame Rate
+### Frames and frame rate
 
-A **video** is a sequence of pictures shown one after another, fast enough that your eye sees motion instead of
-separate pictures. Each picture in a video is a **frame**. The **frame rate** says how many frames are shown every
-second, in **frames per second** (fps). Films are usually 24 fps, most online video 30 fps, and games and sports often
+A video is a sequence of pictures shown one after another, fast enough that your eye sees motion instead of
+separate pictures. Each picture in a video is a frame. The frame rate says how many frames are shown every
+second, in frames per second (fps). Films are usually 24 fps, most online video 30 fps, and games and sports often
 60 fps.
 
-### How Big Is Raw Video?
+### How big is raw video?
 
-Video stored as plain pixels, frame after frame, is called **raw** or **uncompressed** video. Let's work out how big
+Video stored as plain pixels, frame after frame, is called raw or uncompressed video. Let's work out how big
 1080p at 30 fps is:
 
-- one frame: 1,920 × 1,080 pixels × 3 bytes = **6,220,800 bytes**
-- one second: 6,220,800 bytes × 30 frames = **186,624,000 bytes**, about 187 megabytes
-- in bits (a byte is 8 bits): 186,624,000 × 8 = **1,492,992,000 bits a second**, about 1.5 gigabits a second
+- one frame: 1,920 × 1,080 pixels × 3 bytes = 6,220,800 bytes
+- one second: 6,220,800 bytes × 30 frames = 186,624,000 bytes, about 187 megabytes
+- in bits (a byte is 8 bits): 186,624,000 × 8 = 1,492,992,000 bits a second, about 1.5 gigabits a second
 - one minute: 186,624,000 × 60 = 11,197,440,000 bytes, about 11.2 gigabytes
 - a two-hour film: 186,624,000 × 7,200 = 1,343,692,800,000 bytes, about 1.3 terabytes
 
-The speed of a network connection is measured in **bits per second**: a megabit per second (Mbit/s) is a million bits a
+The speed of a network connection is measured in bits per second: a megabit per second (Mbit/s) is a million bits a
 second. A good home connection gives maybe 100 Mbit/s. Raw 1080p30 needs about 1,493 Mbit/s, fifteen times that, and
 a two-hour film would fill a large hard drive. Yet you can stream that film over a phone connection. The thing that
 makes that possible is a codec.
 
-### What a Codec Does
+### What a codec does
 
-A **codec** is a pair of programs: an **encoder**, which turns raw video into far fewer bytes, and a **decoder**, which
-turns those bytes back into pictures. (The name is short for **co**der-**dec**oder.) The bytes the encoder writes are
-called the **bitstream**, or just the **stream**, and the exact rules for what those bytes mean are the codec's
-**format**. Anyone who follows the format can write a decoder, and every decoder that follows it shows the same
+A codec is a pair of programs: an encoder, which turns raw video into far fewer bytes, and a decoder, which
+turns those bytes back into pictures. (The name is short for coder-decoder.) The bytes the encoder writes are
+called the bitstream, or just the stream, and the exact rules for what those bytes mean are the codec's
+format. Anyone who follows the format can write a decoder, and every decoder that follows it shows the same
 pictures.
 
-How many bits the stream uses for each second of video is its **bitrate**, or just its **rate**: the same video could
+How many bits the stream uses for each second of video is its bitrate, or just its rate: the same video could
 be 1,493 Mbit/s raw, 5 Mbit/s from a good codec, or 0.5 Mbit/s from the same codec told to save more. Fewer bits always
 cost something: the pictures come out less like the original. The whole art of a codec is to throw away what you will
 notice least.
 
-### Why the World Runs on Codecs
+### Why the world runs on codecs
 
 Almost every picture that moves on a screen today went through a codec:
 
-- **Streaming**: YouTube, Netflix and Twitch send codec streams; without them a single film would be over a terabyte.
-- **Video calls**: a call sends your camera's picture both ways while you talk, so the encoder has to keep up live,
+- Streaming: YouTube, Netflix and Twitch send codec streams; without them a single film would be over a terabyte.
+- Video calls: a call sends your camera's picture both ways while you talk, so the encoder has to keep up live,
   frame by frame, and the stream has to fit whatever connection you have at that moment.
-- **Phones and cameras**: the camera encodes as it records, otherwise a minute of video would fill the phone.
-- **Storage**: every video file you have, every security camera's recording, every game's cut scenes is stored
+- Phones and cameras: the camera encodes as it records, otherwise a minute of video would fill the phone.
+- Storage: every video file you have, every security camera's recording, every game's cut scenes is stored
   encoded.
 
-The codecs doing that work have names you may have seen in a video's settings: **H.264** (also called AVC, from 2003,
-still everywhere), **VP9** (Google's, used by YouTube), and **AV1** (the newest widely used one, from 2018). Later on
+The codecs doing that work have names you may have seen in a video's settings: H.264 (also called AVC, from 2003,
+still everywhere), VP9 (Google's, used by YouTube), and AV1 (the newest widely used one, from 2018). Later on
 this page I compare MCV2 with all three.
 
-## Part 2: The Ideas Every Codec Uses
+## Part 2: The ideas every codec uses
 
 Codecs differ in their details, but they're built from the same handful of ideas.
 
 ### Redundancy
 
-Video is full of repetition, which codecs call **redundancy**:
+Video is full of repetition, which codecs call redundancy:
 
-- **Redundancy in space.** Neighbouring pixels usually look alike. A blue sky is thousands of nearly identical pixels;
+- Redundancy in space. Neighbouring pixels usually look alike. A blue sky is thousands of nearly identical pixels;
   a wall in Minecraft is a few colours repeated. A codec can describe "this whole area is that blue" in a few bytes
   instead of storing every pixel.
-- **Redundancy in time.** Consecutive frames usually look alike. At 30 fps, a frame comes 33 milliseconds after the one
+- Redundancy in time. Consecutive frames usually look alike. At 30 fps, a frame comes 33 milliseconds after the one
   before, and in 33 milliseconds most of the picture hasn't changed. A codec can say "this part is the same as last
   time" almost for free.
 
 ### Prediction
 
-Codecs exploit redundancy with **prediction**: the decoder makes a guess at a part of the picture from things it
+Codecs exploit redundancy with prediction: the decoder makes a guess at a part of the picture from things it
 already has, and the stream only says how to correct the guess. If the guess is good, the correction is small, and
-small numbers take few bits. A frame that is predicted from an earlier frame is called a **P frame** (P for
-predicted), and the earlier picture it predicts from is its **reference**. A frame that needs nothing else, because it
-describes every part of the picture itself, is a **keyframe** (other codecs call it an I frame). A stream has to start
+small numbers take few bits. A frame that is predicted from an earlier frame is called a P frame (P for
+predicted), and the earlier picture it predicts from is its reference. A frame that needs nothing else, because it
+describes every part of the picture itself, is a keyframe (other codecs call it an I frame). A stream has to start
 with a keyframe, and it sends one now and then so a viewer who joins late, or who missed a frame, can start again.
 
 ### Motion
 
 When the camera pans or something moves, a part of the frame is still in the previous frame, just somewhere else. So
-codecs store a **motion vector**: "take the pixels from 5 pixels to the left and 2 up in the reference". Copying moved
-pixels like this is called **motion compensation**, and finding the best vector for each part of the picture is the
-encoder's **motion search**. Most of a codec's encoding time goes into searching.
+codecs store a motion vector: "take the pixels from 5 pixels to the left and 2 up in the reference". Copying moved
+pixels like this is called motion compensation, and finding the best vector for each part of the picture is the
+encoder's motion search. Most of a codec's encoding time goes into searching.
 
 ### Blocks
 
-Codecs don't treat the frame as one thing. They cut it into square **blocks**, say 8x8 or 32x32 pixels, and decide for
+Codecs don't treat the frame as one thing. They cut it into square blocks, say 8x8 or 32x32 pixels, and decide for
 each block how to code it: copy it from the reference, move it, describe it fresh, or correct a prediction. Big blocks
 cost few bytes but describe detail badly; small blocks describe detail well but each costs bytes of its own. Good
 codecs mix sizes: big blocks where the picture is plain, small ones where it's busy.
 
-### Transforms Versus Palettes
+### Transforms versus palettes
 
-How do you describe a block's pixels in few bytes? The big codecs use a **transform**: a bit of maths (usually the
+How do you describe a block's pixels in few bytes? The big codecs use a transform: a bit of maths (usually the
 discrete cosine transform) that rewrites a block's pixels as a sum of smooth wave patterns, from "the whole block is
 this bright" to fine ripples. For most natural pictures only a few of those waves matter, so the codec keeps a few
 numbers and drops the rest.
 
-A **palette** is the other way. A palette block says "this block uses only these two colours" and then, for each
+A palette is the other way. A palette block says "this block uses only these two colours" and then, for each
 pixel, which of the two it is: one bit per pixel. That's perfect for hard edges and flat areas, like text, user
 interfaces or Minecraft's blocks, where a transform needs many waves to draw a sharp edge. MCV2 uses palettes, not
 transforms ([Part 4](#part-4-why-minecraft-maps-need-their-own-codec) explains why).
 
-### Quantization: Trading Quality for Rate
+### Quantization: trading quality for rate
 
-**Quantization** means rounding numbers to a coarser step, so they take fewer bits. Rounding the brightness 117 to the
+Quantization means rounding numbers to a coarser step, so they take fewer bits. Rounding the brightness 117 to the
 nearest multiple of 4 gives 116: one value in four is kept, so it needs two bits less, at the cost of an error of 1. The
-**quantizer** sets the step: a bigger step means fewer bits and a worse picture.
+quantizer sets the step: a bigger step means fewer bits and a worse picture.
 
-That is the central trade of every lossy codec, between **rate** (bits) and **distortion** (how wrong the picture
-is). Encoders decide it with a number usually called **lambda** (λ), the price of a bit: for every choice, the encoder
+That is the central trade of every lossy codec, between rate (bits) and distortion (how wrong the picture
+is). Encoders decide it with a number usually called lambda (λ), the price of a bit: for every choice, the encoder
 adds up its distortion plus lambda times its bits, and picks the cheapest. With a small lambda, bits are cheap, so it
 spends many for a good picture; with a large lambda, it saves bits and accepts a worse picture. Turning that one knob
 moves a codec along its whole range, from huge and sharp to tiny and blurry.
 
-### Entropy Coding
+### Entropy coding
 
-**Entropy coding** writes common symbols with short codes and rare symbols with long ones, like Morse code gives E a
+Entropy coding writes common symbols with short codes and rare symbols with long ones, like Morse code gives E a
 single dot. A good entropy coder squeezes out every bit of predictability that's left. The big codecs use clever ones
 (CABAC in H.264, an arithmetic coder in AV1) whose state runs through the whole stream: to read any symbol, you have to
 read every symbol before it. As you'll see, MCV2 can't do that, and that costs it a lot.
 
-### Lossy and Lossless
+### Lossy and lossless
 
-A **lossless** codec gives back exactly the original bytes, like a ZIP file; a **lossy** codec gives back something
+A lossless codec gives back exactly the original bytes, like a ZIP file; a lossy codec gives back something
 close, and is far smaller. Video codecs are lossy. Inside them, though, lossless pieces are common: the entropy coder is
-lossless, and so is **zlib**, the general-purpose compressor (the same one inside ZIP files and PNG images) that
+lossless, and so is zlib, the general-purpose compressor (the same one inside ZIP files and PNG images) that
 Minecraft runs over its network packets. That one matters a lot for MCV2.
 
-## Part 3: Measuring Quality
+## Part 3: Measuring quality
 
 To compare codecs you need to measure how good their pictures are. There are three numbers people use.
 
 ### PSNR
 
-**PSNR**, the peak signal-to-noise ratio, compares pixels directly. First you take the **mean squared error** (MSE):
+PSNR, the peak signal-to-noise ratio, compares pixels directly. First you take the mean squared error (MSE):
 the average, over every pixel and colour channel, of (decoded value - original value)². Then
 
   PSNR = 10 × log₁₀(255² / MSE), in decibels (dB).
@@ -187,27 +187,27 @@ PSNR.
 
 ### SSIM
 
-**SSIM**, the structural similarity index, compares small neighbourhoods of the two pictures instead of single pixels:
+SSIM, the structural similarity index, compares small neighbourhoods of the two pictures instead of single pixels:
 are they equally bright, equally contrasty, and do their patterns line up? It gives a number up to 1 (identical), and
 it follows what people see better than PSNR does.
 
 ### VMAF
 
-**VMAF**, Video Multimethod Assessment Fusion, is the one Netflix built to predict what viewers would say. It computes
+VMAF, Video Multimethod Assessment Fusion, is the one Netflix built to predict what viewers would say. It computes
 several measures of detail and motion, and combines them with a model trained on thousands of scores that real people
 gave to real videos. The result is a number from 0 to 100: around 90 and above, most people can't tell the video from
 the original; 70 to 80 is clearly worse but watchable; below 50 it's bad. Every quality number on this page is VMAF
 (the version 0.6.1 model), computed by ffmpeg's libvmaf on the decoded pictures against the original.
 
-### Rate-Quality Curves
+### Rate-quality curves
 
 One encode gives one point: so many megabits a second for so much VMAF. Encode the same clip at several lambdas and you
-get a **curve**: rate along the bottom, quality up the side. A better codec's curve sits higher (more quality for the
+get a curve: rate along the bottom, quality up the side. A better codec's curve sits higher (more quality for the
 same rate) and further left (the same quality for less rate).
 
 ### BD-rate
 
-To boil two curves down to one number, people use the **Bjøntegaard delta rate** (**BD-rate**): the average
+To boil two curves down to one number, people use the Bjøntegaard delta rate (BD-rate): the average
 difference in rate between the two curves for the same quality, as a percentage. "+20 % BD-rate" means the second codec
 needs, on average, 20 % more bits than the first for the same VMAF; "-20 %" means 20 % fewer.
 
@@ -231,26 +231,26 @@ patterns turned off, at six lambdas each.
 You can see that the second column of rates is higher at every λ but the last, where the quality is lower too. And
 the qualities don't line up exactly, so you can't just divide one rate by the other. The BD-rate takes care of that:
 over the VMAF range both reach, 52 to 87, the curve without patterns needs on average 11.4 % more rate for the same
-quality. So turning patterns off costs **+11.4 % BD-rate** on this clip. (Notice the point at λ = 254, where the
+quality. So turning patterns off costs +11.4 % BD-rate on this clip. (Notice the point at λ = 254, where the
 encoder without patterns happened to land on a higher quality: real measurements are a little noisy, and fitting a
 smooth curve through all six points averages that out.)
 
-## Part 4: Why Minecraft Maps Need Their Own Codec
+## Part 4: Why Minecraft maps need their own codec
 
-### What a Map Is
+### What a map is
 
-In Minecraft, a **map** is an item that shows a 128x128 picture. In an **item frame** on a wall, a map shows its
+In Minecraft, a map is an item that shows a 128x128 picture. In an item frame on a wall, a map shows its
 picture on that block, and a wall of item frames with maps in them makes a big screen. The server sends each map's
-picture to the client in **map packets**.
+picture to the client in map packets.
 
-A map's picture isn't RGB. Every pixel is one byte: the number of one of the 248 **map colours** of Minecraft 26.3 (62
+A map's picture isn't RGB. Every pixel is one byte: the number of one of the 248 map colours of Minecraft 26.3 (62
 base colours in four shades each, where the four shades of the first are transparent). So a map is 128 × 128 = 16,384
 bytes, and to show a 1080p picture you need a wall 1920 / 128 = 15 maps wide and 1080 / 128 = 8.4, so 9, maps high: 135
 maps, 135 × 16,384 = 2,211,840 bytes of map colours for one frame.
 
-### How MCAV Played Video Before
+### How MCAV played video before
 
-MCAV has always played video on maps by **dithering**: turning every frame into the nearest map colours, mixing
+MCAV has always played video on maps by dithering: turning every frame into the nearest map colours, mixing
 neighbouring pixels of different colours where no map colour is close enough, and sending the map colours that changed
 since the last frame. Every client can show that without any help. But the numbers are bad. Here is what dithered maps
 send at 1080p and 30 fps, after Minecraft's own packet compression, with VMAF. The preserved measurement provenance is
@@ -267,35 +267,35 @@ the wall falls behind: some maps show the current frame and some a frame from se
 becomes a mosaic of different moments (that's why its VMAF is 10.9). And the picture is stuck at 128 pixels per map,
 whatever the video's real resolution.
 
-### What a Vanilla Client Gives Us
+### What a vanilla client gives us
 
 A mod could decode video with anything, but then every player would have to install it. I wanted MCV2 to work for
-anyone who accepts a **resource pack**: the zip file of textures, sounds and shaders a server can ask a client to load,
+anyone who accepts a resource pack: the zip file of textures, sounds and shaders a server can ask a client to load,
 which needs no installing. So MCV2 can only use what an unmodified client does with a resource pack:
 
-- **Map colours arrive exactly.** The client copies a map's bytes into a texture on the graphics card as they are. 64
+- Map colours arrive exactly. The client copies a map's bytes into a texture on the graphics card as they are. 64
   of the map colours can still be told apart exactly after the client has drawn them, so one map pixel can carry 6 bits
   of data (2⁶ = 64), and a whole map 16,384 × 6 / 8 = 12,288 bytes.
-- **A resource pack can replace the game's shaders.** A **shader** is a small program that runs on the graphics card
-  (the **GPU**), written in a language called GLSL. A pack can replace the shaders that draw text and maps, and the
-  **post effect** that draws the outline around glowing entities. A post effect is a chain of full-screen shader
+- A resource pack can replace the game's shaders. A shader is a small program that runs on the graphics card
+  (the GPU), written in a language called GLSL. A pack can replace the shaders that draw text and maps, and the
+  post effect that draws the outline around glowing entities. A post effect is a chain of full-screen shader
   passes the game runs after it has drawn the world.
-- **A post effect can keep pictures between frames.** Its render targets can be marked persistent, and then they survive
+- A post effect can keep pictures between frames. Its render targets can be marked persistent, and then they survive
   from one rendered frame to the next. That's where the previous decoded picture can live, so P frames are possible.
 
 That's all. No other way to store anything, no files, no network, and no compute shaders. The decoder has to be a
-**fragment shader**: a program the GPU runs once for every pixel it draws, thousands at the same time, each one on its
+fragment shader: a program the GPU runs once for every pixel it draws, thousands at the same time, each one on its
 own, none of them able to see what the others computed.
 
 That one fact shapes the whole codec. Every pixel has to find its own data in the frame's bytes directly, in a bounded
 number of steps, without reading the frame from the start. So:
 
-- **no entropy coder whose state runs through the stream**: a pixel would have to decode every symbol before its own;
-- **no prediction from neighbouring blocks**, the trick every modern codec uses to describe a block from the pixels
+- no entropy coder whose state runs through the stream: a pixel would have to decode every symbol before its own;
+- no prediction from neighbouring blocks, the trick every modern codec uses to describe a block from the pixels
   above and to the left of it: the neighbours are being decoded at the same moment;
-- **every address findable**: a pixel must be able to work out where its block's data starts without adding up the
+- every address findable: a pixel must be able to work out where its block's data starts without adding up the
   sizes of everything before it;
-- **no transform**: a transform pays off because an entropy coder writes its few important numbers in very few bits;
+- no transform: a transform pays off because an entropy coder writes its few important numbers in very few bits;
   stored plainly, those numbers cost more than they save. For Minecraft's flat colours and hard edges, a palette is
   smaller and sharper anyway. MCV2 keeps one smooth tool, a coarse grid of corrections on top of a moved picture, which
   is cheap to store and to decode.
@@ -305,49 +305,50 @@ number of steps, without reading the frame from the start. So:
 The server sends every map picture in a map packet. Minecraft compresses every packet over its compression threshold
 (256 bytes, by default) with zlib before it goes on the network, and decompresses it on the client. That changes what
 it costs to send MCV2: a map byte that carries 6 bits of MCV2 data is one of only 64 values, and zlib squeezes that
-kind of byte back down well. So **every MCV2 rate on this page is measured after zlib**: the bytes that actually cross
+kind of byte back down well. So every MCV2 rate on this page is measured after zlib: the bytes that actually cross
 the network.
 
 MCV2 is the codec that fits in that box: a server encodes the video into a bitstream built so that a fragment shader
 can decode any pixel on its own, sends it as the colours of a few maps per frame, and the pack's shaders decode it and
 draw it over the wall.
 
-## Part 5: How a Frame Gets to the Screen
+## Part 5: How a frame gets to the screen
 
 ![The path of a frame from the server's encoder through map packets to the client's shaders](images/mcv2/overview.png)
 
-*Everything on the left runs in `mcav-bukkit` on the server; everything on the right runs in the resource pack of a
-vanilla client. Nothing but map packets and one resource pack reaches the client.*
+Everything on the left runs in `mcav-bukkit` on the server; everything on the right runs in the resource pack of a
+vanilla client. Nothing but map packets and one resource pack reaches the client.
 
 Here is the whole trip of one frame, in five steps. The rest of the page goes through each one in detail.
 
-1. **Encode.** The encoder decides whether the frame is a keyframe or a P frame, and then, for every 32x32 square of
+1. Encode. The encoder decides whether the frame is a keyframe or a P frame, and then, for every 32x32 square of
    the picture, finds the cheapest way to describe it: skip it (it's the same as last frame), move it, paint it with
    one colour, two colours or a pattern, or correct a prediction with a small residual. It can cut a square into four
    16x16 squares, and those into 8x8 ones, wherever smaller pieces pay for themselves.
-2. **Write.** The choices are written into the frame's bytes: a 20-byte header, an index that lets every pixel find its
+2. Write. The choices are written into the frame's bytes: a 20-byte header, an index that lets every pixel find its
    own data, and the data itself.
-3. **Send.** The frame is cut into **pages** of up to 12,256 bytes, each with a 32-byte header and a checksum. Every
+3. Send. The frame is cut into pages of up to 12,256 bytes, each with a 32-byte header and a checksum. Every
    page becomes one 128x128 map, six bits per map pixel. The pages of a frame go out together as map packets, and
    Minecraft's zlib compresses them on the way.
-4. **Decode.** On the client, the pack's text shaders move the page maps into a strip at the top of the screen, and a
+4. Decode. On the client, the pack's text shaders move the page maps into a strip at the top of the screen, and a
    post effect reads them back into bytes, checks every page, finds every pixel's data, rebuilds the picture, and keeps
    it for the next frame to predict from.
-5. **Show.** The same post effect draws the picture over the wall of maps, behind anything that stands in front of it.
+5. Show. The same post effect draws the picture over the wall of maps, behind anything that stands in front of it.
 
-## Part 6: The MCV2 Format, Piece by Piece
+## Part 6: The MCV2 format, piece by piece
 
 This part is the full specification of an MCV2 frame, version 3: enough to write your own decoder. The normative
-definition is this text together with the independent Python reference decoder in `mcav-bukkit/src/test/python/mcv2_reference.py`; MCAV's Java
-decoder (`Mcv2Decoder`) and the resource pack's shader decode every test frame to exactly the same pictures.
+definition is this text together with the independent Python reference decoder in
+`mcav-bukkit/src/test/python/mcv2_reference.py`; MCAV's Java decoder (`Mcv2Decoder`) and the resource pack's shader
+decode every test frame to exactly the same pictures.
 
 A few conventions first. All numbers are whole numbers. A number of more than one byte is stored with its lowest byte
-first (that's called **little-endian**): the two bytes `0x34 0x12` are the number `0x1234` = 4,660. Numbers are
-unsigned (never negative) unless I say **signed**; a signed byte (s8) runs from -128 to 127, and a signed 4-bit value
-(s4) from -8 to 7. Inside a byte, bits are counted from the lowest (bit 0 is worth 1, bit 7 is worth 128). An **offset**
+first (that's called little-endian): the two bytes `0x34 0x12` are the number `0x1234` = 4,660. Numbers are
+unsigned (never negative) unless I say signed; a signed byte (s8) runs from -128 to 127, and a signed 4-bit value
+(s4) from -8 to 7. Inside a byte, bits are counted from the lowest (bit 0 is worth 1, bit 7 is worth 128). An offset
 is a position in the frame's bytes, counted from 0. `0x` in front of a number means it is written in hexadecimal.
 
-### The Frame Header
+### The frame header
 
 Every frame starts with 20 bytes:
 
@@ -367,36 +368,37 @@ starts at a multiple of its own size, so a decoder reads each one in a single st
 
 A frame of an older version (`MCV1`, or `MCV2` with version 2) is refused with a message that says so.
 
-The **frame id** goes up by one every frame. It is a 32-bit number, so after 4,294,967,295 it wraps around to 0; a
+The frame id goes up by one every frame. It is a 32-bit number, so after 4,294,967,295 it wraps around to 0; a
 decoder treats a frame as newer than the last one when the difference, counted the same wrap-around way, is between 1
-and 2,147,483,647. A **P frame** names the frame it predicts from in its **reference id**, and a decoder that doesn't
+and 2,147,483,647. A P frame names the frame it predicts from in its reference id, and a decoder that doesn't
 have that frame's picture simply doesn't decode it and keeps showing what it has. Every P frame MCAV writes predicts
 from the frame right before it.
 
-### Superblocks and the Block Tree
+### Superblocks and the block tree
 
-The picture is cut into **superblocks**: squares of 32x32 pixels, counted in rows from the top left. A picture of
+The picture is cut into superblocks: squares of 32x32 pixels, counted in rows from the top left. A picture of
 width `w` has `columns = ceil(w / 32)` superblocks per row (`ceil` rounds up), and the superblock number `i` has its
 top left corner at x = 32 × (i mod columns), y = 32 × (i div columns). A 1920x1080 picture has 60 columns and 34
 rows: 2,040 superblocks. Because 1080 isn't a multiple of 32, the last row of superblocks hangs 8 pixels below the
 picture; those pixels are decoded like any others but never shown.
 
-Each superblock is a small **tree**. Its **root** is the 32x32 square itself. A square is either a **leaf**, which says
-how to draw all of its pixels, or a **split** into four squares of half its size, in the order top left, top right,
+Each superblock is a small tree. Its root is the 32x32 square itself. A square is either a leaf, which says
+how to draw all of its pixels, or a split into four squares of half its size, in the order top left, top right,
 bottom left, bottom right. Only 32- and 16-pixel squares can split, so every leaf is 32, 16 or 8 pixels across. In a
 quiet area, one 32x32 leaf covers 1,024 pixels; around a busy edge, the encoder splits down to 8x8 leaves.
 
 ![A real frame with every leaf outlined](images/mcv2/tree.png)
 
-*A piece of two frames of the gameplay clip as MCV2 coded them. Top: the decoded picture with every leaf outlined;
+A piece of two frames of the gameplay clip as MCV2 coded them. Top: the decoded picture with every leaf outlined;
 bottom: every leaf coloured by its mode. In the keyframe (left), the sky and the dark mass of leaves are mostly SOLID
 leaves, big ones in the sky, and where the trees meet the sky the squares are split smaller and many become palettes.
-Twelve frames later (right), the camera has turned: most squares are unchanged (SKIP), moved copies of the last
-picture (MOTION) or corrected ones (COMPACT), and only the detail coming into view gets palettes and patterns. The whole keyframe is 61,275 bytes in 6,471 leaves; the P frame 27,501 bytes in 3,345.*
+Twelve frames later (right), the camera has turned: most squares are unchanged (SKIP), moved copies of the last picture
+(MOTION) or corrected ones (COMPACT), and only the detail coming into view gets palettes and patterns. The whole
+keyframe is 61,275 bytes in 6,471 leaves; the P frame 27,501 bytes in 3,345.
 
-### The Leaf Types
+### The leaf types
 
-Every leaf has a **mode**, which says how its pixels are made, and a **record**: the bytes that mode needs. There are
+Every leaf has a mode, which says how its pixels are made, and a record: the bytes that mode needs. There are
 six leaf modes; `s` is the leaf's size (32, 16 or 8):
 
 | Mode | Name | Record | Allowed in | What the decoder draws |
@@ -409,57 +411,57 @@ six leaf modes; `s` is the leaf's size (32, 16 or 8):
 | 5 | COMPACT | 10 bytes | P frames | the reference, moved, plus a small correction |
 | 6 | SPLIT | (no record) | 32- and 16-pixel squares | four smaller squares |
 
-**SKIP** costs nothing but its place in the tree. In a P frame, a skipped square shows exactly what the same square
+SKIP costs nothing but its place in the tree. In a P frame, a skipped square shows exactly what the same square
 showed in the reference: on a still picture, almost every square is a SKIP. A keyframe has no reference, so there a
 skipped square is black (MCAV's encoder never writes one: a keyframe describes every square).
 
-**MOTION** is two signed bytes, `dx` and `dy`: pixel (X, Y) of the leaf shows the reference's pixel at (X + dx, Y + dy).
-If that lands outside the picture, the nearest edge pixel is used (in maths, the coordinate is **clamped** into the
+MOTION is two signed bytes, `dx` and `dy`: pixel (X, Y) of the leaf shows the reference's pixel at (X + dx, Y + dy).
+If that lands outside the picture, the nearest edge pixel is used (in maths, the coordinate is clamped into the
 picture). So a vector can reach 128 pixels left or up and 127 pixels right or down. Vectors are whole pixels: there
 is no "half a pixel to the left".
 
-**SOLID** is three bytes, red, green and blue, and every pixel of the leaf has that colour.
+SOLID is three bytes, red, green and blue, and every pixel of the leaf has that colour.
 
-**PALETTE** is two colours (six bytes: R0, G0, B0, R1, G1, B1) and then one bit for every pixel, row by row: bit 0 of
+PALETTE is two colours (six bytes: R0, G0, B0, R1, G1, B1) and then one bit for every pixel, row by row: bit 0 of
 the first selector byte is the top left pixel, bit 1 the pixel to its right, and so on. A 0 bit means colour 0, a 1 bit
 colour 1. An 8x8 palette is 6 + 64/8 = 14 bytes, a 16x16 one 38, a 32x32 one 134.
 
-**PATTERN** is a palette whose bits repeat along one direction: stripes, which are everywhere in Minecraft (fences,
-planks, bars). Its record is the two colours and then a **selector word**: an orientation byte (0 when the stripes
+PATTERN is a palette whose bits repeat along one direction: stripes, which are everywhere in Minecraft (fences,
+planks, bars). Its record is the two colours and then a selector word: an orientation byte (0 when the stripes
 are vertical, so each column has one colour; 1 when they're horizontal) and `s/8` bytes with one bit per column (or
 row). An 8x8 pattern is 6 + 1 + 1 = 8 bytes instead of a palette's 14, a 32x32 one 6 + 1 + 4 = 11 instead of 134.
 
 ![A palette leaf and a pattern leaf, pixel by pixel](images/mcv2/leaves.png)
 
-*Two real leaves from the same keyframe. Top: a 32x32 PALETTE leaf where the trees meet the sky. Its record is the two
+Two real leaves from the same keyframe. Top: a 32x32 PALETTE leaf where the trees meet the sky. Its record is the two
 colours and 1,024 bits, one per pixel: 134 bytes. Bottom: a 16x16 PATTERN leaf at the edge of a cloud, where every
 column has a single colour. Its record is the two colours, the orientation byte and 16 bits, one per column: 9 bytes
-for 256 pixels.*
+for 256 pixels.
 
-**COMPACT** is a correction on top of a moved copy of the reference: "take this block from the last frame, moved by
+COMPACT is a correction on top of a moved copy of the reference: "take this block from the last frame, moved by
 (dx, dy), and make it a little brighter at the top left". It's how MCV2 handles things that move and change a bit at
 the same time. Its record is always 10 bytes: dx and dy as two signed bytes, like MOTION's, and then 16 brightness
 changes on a 4x4 grid, s4 values, two to a byte. The grid is spread smoothly over the whole leaf, whatever its size
 (the next section has the exact rule), so 16 numbers describe a gentle change across an 8x8 or a 32x32 block. The same
 change is added to red, green and blue, so the block gets brighter or darker without changing its colour: brightness
-changes far more than colour in real pictures. The descriptor's **quantizer** `q` (0, 1 or 2, below) scales the
+changes far more than colour in real pictures. The descriptor's quantizer `q` (0, 1 or 2, below) scales the
 correction by 2^q: q = 0 means steps of 1, q = 2 steps of 4.
 
-### Reconstruction: The Exact Rules
+### Reconstruction: the exact rules
 
 Every leaf is drawn on its own, from its record, the reference picture and nothing else; no leaf looks at another
 leaf. To decode bit for bit the same pictures as every other MCV2 decoder, follow these rules exactly.
 
-- **Prediction** (SKIP in a P frame, MOTION, COMPACT): pixel (X, Y) with vector (dx, dy) takes the reference's pixel at
+- Prediction (SKIP in a P frame, MOTION, COMPACT): pixel (X, Y) with vector (dx, dy) takes the reference's pixel at
   (clamp(X + dx, 0, w - 1), clamp(Y + dy, 0, h - 1)), each colour channel a whole number from 0 to 255.
-- **The grid** (COMPACT): node n of the 4x4 grid is in row n div 4, column n mod 4; node 2j is the low four bits of
-  the record's byte 2 + j and node 2j + 1 the high four bits, read as s4. For a pixel at position p (0 to s - 1) along one
+- The grid (COMPACT): node n of the 4x4 grid is in row n div 4, column n mod 4; node 2j is the low four bits of the
+  record's byte 2 + j and node 2j + 1 the high four bits, read as s4. For a pixel at position p (0 to s - 1) along one
   side of the leaf, take t = (p + 0.5) × 4 / s - 0.5, clamped to 0 to 3; i0 = the whole part of t, i1 = min(i0 + 1, 3),
   f = t - i0. Do that for x and for y, and blend the four nodes around the pixel: Y = (1 - fy) × ((1 - fx) × N[iy0][ix0]
-  + fx × N[iy0][ix1]) + fy × ((1 - fx) × N[iy1][ix0] + fx × N[iy1][ix1]). This is called **bilinear interpolation**.
-- **The colour**: each of red, green and blue becomes v = P + 2^q × Y, with P that channel of the prediction; the
+  + fx × N[iy0][ix1]) + fy × ((1 - fx) × N[iy1][ix0] + fx × N[iy1][ix1]). This is called bilinear interpolation.
+- The colour: each of red, green and blue becomes v = P + 2^q × Y, with P that channel of the prediction; the
   output is v rounded to the nearest whole number, halves rounded up (floor(v + 0.5)), then clamped to 0 to 255.
-- **Why it's exact**: f is always a multiple of 1/(2s), so every Y is a multiple of 1/(4s²) (at most 1/4,096), and no
+- Why it's exact: f is always a multiple of 1/(2s), so every Y is a multiple of 1/(4s²) (at most 1/4,096), and no
   value needs more than 21 significant bits: a GPU's 32-bit floating point numbers hold every value exactly, and a
   program working in whole numbers can multiply everything by 4s² and never round at all.
 
@@ -469,7 +471,7 @@ f = 0.125, and Y = 0.875 × (-2) + 0.125 × (-1) = -1.875 (every row is the same
 gets 4 × (-1.875) = -7.5: red 100 - 7.5 = 92.5, which rounds up to 93; green 112.5, so 113; blue 132.5, so 133. The
 pixel is (93, 113, 133).
 
-### The Index: How One Pixel Finds Its Leaf
+### The index: how one pixel finds its leaf
 
 This is the part of MCV2 that exists only because of the fragment shader. Remember: every pixel is decoded by its own
 little program, at the same time as all the others. Each one has to answer, on its own and quickly: which leaf covers
@@ -488,30 +490,30 @@ C = ceil(G / 8), and D descriptors in all (below), it is:
 | descriptors | D | one byte per square, in level order |
 | walk checkpoints | 4 × ceil(D / 8) | one 32-bit number per eight descriptors |
 
-and the leaf records begin right after it, at 20 + 4G + 4C + 12 + D + 4 × ceil(D / 8) (the **payload start**), one
+and the leaf records begin right after it, at 20 + 4G + 4C + 12 + D + 4 × ceil(D / 8) (the payload start), one
 after another with no gaps; the last one ends exactly at the end of the frame.
 
-**Presence.** A superblock whose bit is 0 isn't stored at all: it's one 32x32 SKIP. On a still picture most bits are 0,
-and a whole 1080p P frame where nothing moved is just the header and a 300-byte index: 320 bytes. To find where a present superblock's
-descriptor is, count how many present superblocks come before it: the directory gives the count up to the start of its
-group of eight, then add the number of 1 bits (the **popcount**) of at most seven whole masks, and of the bits of its
-own mask below its bit. Counting the 1 bits of a 32-bit number takes the shader a handful of operations (a classic
-bit trick, since the GLSL version Minecraft uses has no function for it), so seven masks cost almost nothing.
+Presence. A superblock whose bit is 0 isn't stored at all: it's one 32x32 SKIP. On a still picture most bits are 0, and
+a whole 1080p P frame where nothing moved is just the header and a 300-byte index: 320 bytes. To find where a present
+superblock's descriptor is, count how many present superblocks come before it: the directory gives the count up to the
+start of its group of eight, then add the number of 1 bits (the popcount) of at most seven whole masks, and of the bits
+of its own mask below its bit. Counting the 1 bits of a 32-bit number takes the shader a handful of operations (a
+classic bit trick, since the GLSL version Minecraft uses has no function for it), so seven masks cost almost nothing.
 
-**Descriptors.** A descriptor is one byte, `mode + 32 × q`: the mode in the low five bits and the quantizer q in the
-high three (q is zero unless the mode is COMPACT). The descriptors are stored in **level order**: first one for every
+Descriptors. A descriptor is one byte, `mode + 32 × q`: the mode in the low five bits and the quantizer q in the
+high three (q is zero unless the mode is COMPACT). The descriptors are stored in level order: first one for every
 present superblock (level 0, n0 of them), then the four children of every level-0 split, split by split (level 1, n1 =
 4 × the splits in level 0), then the children of every level-1 split (level 2, n2). A descriptor's number d tells its
 size: 32 if d < n0, 16 if d < n0 + n1, else 8. And the four children of the split with number d start at
 n0 + 4 × (the number of splits among descriptors 0 to d - 1). No pointers anywhere: just counting.
 
-**Walk checkpoints.** Two things still need counting: the splits before a descriptor (for its children), and the
-total length of the records before it (for where its record starts). Counting from the start would be too slow, so
-every eighth descriptor has a **checkpoint**: one 32-bit number holding the record bytes before it (the **cursor**, in
-the low 17 bits) and the splits before it (in the high 15 bits). From the checkpoint just before it, a pixel walks
-over at most seven descriptors, adding up their record lengths and counting their splits. A record's length always
-follows from its mode and its size alone, so the walk reads one byte per descriptor: the descriptor itself. Since a frame is at most 131,071 bytes, the cursor
-always fits in 17 bits, and there are always fewer than 32,768 splits.
+Walk checkpoints. Two things still need counting: the splits before a descriptor (for its children), and the total
+length of the records before it (for where its record starts). Counting from the start would be too slow, so every
+eighth descriptor has a checkpoint: one 32-bit number holding the record bytes before it (the cursor, in the low 17
+bits) and the splits before it (in the high 15 bits). From the checkpoint just before it, a pixel walks over at most
+seven descriptors, adding up their record lengths and counting their splits. A record's length always follows from its
+mode and its size alone, so the walk reads one byte per descriptor: the descriptor itself. Since a frame is at most
+131,071 bytes, the cursor always fits in 17 bits, and there are always fewer than 32,768 splits.
 
 Here's a worked example: a 96x64 picture with 6 superblocks (3 columns, 2 rows). Superblocks 0, 2, 3 and 5 are present,
 so the one presence mask is the bits 0, 2, 3 and 5: 1 + 4 + 8 + 32 = 45, and n0 = 4. Superblock 2 is split, and its
@@ -540,7 +542,7 @@ descriptor 8. Its checkpoint (number 1) already holds cursor 59 and splits 2, an
 three bytes start at payload start + 59. Three levels, a handful of additions. No pixel ever needs more than three
 rounds of at most seven steps, whatever the frame holds.
 
-### Validation: Never Trust the Bytes
+### Validation: never trust the bytes
 
 A decoder must assume a frame could be broken or even malicious, so it checks everything before using it, and never
 reads outside the frame. MCAV's Java decoder and the Python reference accept a frame if and only if all of these hold:
@@ -558,14 +560,14 @@ reads outside the frame. MCAV's Java decoder and the Python reference accept a f
 Everything that rule doesn't forbid is allowed, even when MCAV's encoder never writes it, like a present superblock
 that is a SKIP anyway.
 
-### A Real Frame, Byte by Byte
+### A real frame, byte by byte
 
 Here is a whole frame, all 71 bytes of it: the first frame MCAV's encoder writes, at the `DEFAULT` preset, for a
 64x32 piece of sky at the edge of a cloud, cut out of the gameplay clip. Two superblocks, side by side.
 
 ![The 71-byte frame: its picture with every leaf outlined, and its leaves by mode](images/mcv2/frame.png)
 
-*The left superblock is one SOLID leaf; the right one is split into four 16x16 leaves: three SOLIDs and a PATTERN.*
+The left superblock is one SOLID leaf; the right one is split into four 16x16 leaves: three SOLIDs and a PATTERN.
 
 ```text
 offset  bytes
@@ -605,14 +607,14 @@ columns 8 to 15 colour 1. That's the darker blue strip on the left of the bottom
 A keyframe has no picture to fall back on, so it describes every square, even plain sky; in a P frame, the squares
 that didn't change would be SKIPs and cost nothing but their place in the tree.
 
-## Part 7: Pages on Maps
+## Part 7: Pages on maps
 
 ![A frame's way from the encoder to the decoder](images/mcv2/transport.png)
 
-*A frame is cut into pages, every page becomes a map, and the client only decodes a frame whose pages all arrived
-intact.*
+A frame is cut into pages, every page becomes a map, and the client only decodes a frame whose pages all arrived
+intact.
 
-A frame doesn't go to the client as it is: it travels as **pages**. A page is a 32-byte header followed by a slice of
+A frame doesn't go to the client as it is: it travels as pages. A page is a 32-byte header followed by a slice of
 the frame:
 
 | Offset | Size | Field | Rule |
@@ -629,18 +631,18 @@ the frame:
 | 24 | 4 | frame length | 20 to 131,071 |
 | 28 | 4 | CRC32 | a checksum of the header (with this field zero) and the page's slice |
 
-A **CRC32** is a 32-bit checksum: a number computed from the bytes so that almost any damage (a changed bit, a lost
+A CRC32 is a 32-bit checksum: a number computed from the bytes so that almost any damage (a changed bit, a lost
 byte) gives a different number. The client recomputes it and throws a damaged page away. It catches accidents; it isn't
 a password, and it doesn't prove who sent the page.
 
-**Symbols.** A page's bytes are read as one long row of bits, lowest bit of each byte first, and cut into groups of
-six: each group is a **symbol**, a number from 0 to 63. A page holds 12,256 frame bytes, because (32 + 12,256) × 8 / 6
+Symbols. A page's bytes are read as one long row of bits, lowest bit of each byte first, and cut into groups of
+six: each group is a symbol, a number from 0 to 63. A page holds 12,256 frame bytes, because (32 + 12,256) × 8 / 6
 = 16,384 symbols: exactly one 128x128 map. Symbol `v` is sent as the map colour `v + 4`: the colour numbers 4 to 67,
 the four shades of the base colours 1 to 16, whose 64 RGB colours are all different, so the client's texture tells
 them apart exactly. The 244 opaque map colours could carry almost 8 bits per pixel, but a symbol has to be read back
 from the colour the client draws, so it uses 64 exactly distinguishable ones: 6 bits.
 
-**Packets.** The server writes page `n` of a frame into the top rows of the map numbered `pageMap + n` (a shorter last
+Packets. The server writes page `n` of a frame into the top rows of the map numbered `pageMap + n` (a shorter last
 page fills only whole rows of 128), one map packet per page, and sends all of a frame's pages in one bundle so they
 arrive together. The bundle goes to each viewer's connection as soon as the frame is encoded: Paper holds the map
 packets a plugin sends from another thread until the server's next tick, 20 times a second, and at 30 frames a second
@@ -648,12 +650,12 @@ two frames would often reach a client together. The client draws only the second
 and keeps its picture until the next keyframe. Minecraft's zlib then compresses each packet, and because a map byte
 carrying six bits uses only 64 of its 256 values, zlib takes back a good part of the six-bit cost.
 
-**Reassembly.** Pages can arrive in any order. A client keeps at most four unfinished frames; a page of a fifth evicts
+Reassembly. Pages can arrive in any order. A client keeps at most four unfinished frames; a page of a fifth evicts
 the oldest. A page must agree with the pages it already has for its frame (count, reference id, length and type), and a
 repeated page must be exactly the same, or the whole frame is dropped. When all pages are there, their slices are joined
 in order into the frame.
 
-**One stream, many viewers.** A screen is encoded once, and every viewer gets it through a link of their own, which
+One stream, many viewers. A screen is encoded once, and every viewer gets it through a link of their own, which
 sends a frame only when that viewer can decode it (a keyframe, or a P frame whose reference that viewer was sent) and
 only while that viewer's connection isn't already holding too much unsent video (128 KiB, twice that for a keyframe, by
 default). A viewer whose connection falls behind skips to the next frame they can decode, and the others aren't held
@@ -662,53 +664,53 @@ back.
 A screen has at most 8 page slots, so a frame can be at most 8 × 12,256 = 98,048 bytes on a wall. The encoder knows
 that and keeps every frame inside it (Part 9).
 
-## Part 8: Decoding in the Shader
+## Part 8: Decoding in the shader
 
 ![What the resource pack's post chain does on every rendered frame](images/mcv2/decode.png)
 
-*The post chain runs on every rendered frame while a page frame is in view. A frame that is incomplete, damaged or
-missing its reference is never decoded: the client keeps showing the last picture.*
+The post chain runs on every rendered frame while a page frame is in view. A frame that is incomplete, damaged or
+missing its reference is never decoded: the client keeps showing the last picture.
 
-**The hook.** Minecraft runs the post effect `post_effect/entity_outline.json` after drawing the world whenever a
+The hook. Minecraft runs the post effect `post_effect/entity_outline.json` after drawing the world whenever a
 glowing entity is in view, and a post effect can declare render targets `"persistent": true`, which survive from one
 frame to the next. That's the whole foundation: the first gives the decoder somewhere to run every frame, the second
-somewhere to keep the previous picture. So every MCV2 screen hides **page frames** two blocks behind its wall:
+somewhere to keep the previous picture. So every MCV2 screen hides page frames two blocks behind its wall:
 invisible item frames holding the page maps, glowing on a team of their own, shown only to players who loaded the
 pack. The last pass removes their outline colour, so nobody ever sees the glow.
 
-**The strip.** The pack's `core/text.vsh` sees every map the client draws. A page map, recognised by the `MCP1` at its
+The strip. The pack's `core/text.vsh` sees every map the client draws. A page map, recognised by the `MCP1` at its
 start, has its square moved to its own slot in a strip of rows at the top of the screen, and `core/text.fsh` writes
 its symbols there unchanged, four six-bit symbols into the three bytes of one screen pixel. A symbol is its colour's
 place among the 64 map colours, and both shaders find it with one read of a 256-entry table that the server writes
 into the pack: the entry is chosen by the colour times a multiplier the server picks so that no two map colours share
 an entry. Every other map, sign and piece of text is drawn exactly as vanilla draws it.
 
-**The anchors.** The screen's own maps carry small anchor patches in their top rows: a signature, their column and row
+The anchors. The screen's own maps carry small anchor patches in their top rows: a signature, their column and row
 in the wall, the wall's size and facing, and a checksum. The vertex shader of any visible anchor writes the wall's
 corner, its directions and the camera's projection into a row of the strip. That's how the post chain learns where the
 wall is.
 
-**The passes.** Each pass of the post chain is a fragment shader run over a small target:
+The passes. Each pass of the post chain is a fragment shader run over a small target:
 
-1. *bytes*: reads the strip back into the frame's bytes;
-2. *crc*: recomputes every page's CRC32, in chunks of 192 bytes, one fragment per chunk;
-3. *pages*: checks every page's header and checksum;
-4. *status*: decides whether this rendered frame brings a complete, undamaged, new frame the client can decode: a
+1. `bytes`: reads the strip back into the frame's bytes;
+2. `crc`: recomputes every page's CRC32, in chunks of 192 bytes, one fragment per chunk;
+3. `pages`: checks every page's header and checksum;
+4. `status`: decides whether this rendered frame brings a complete, undamaged, new frame the client can decode: a
    keyframe with a new frame id, or a newer P frame whose reference is the picture it holds;
-5. *resolve*: one fragment per 8x8 cell of the picture finds the cell's leaf with the index (leaves are at least 8x8
+5. `resolve`: one fragment per 8x8 cell of the picture finds the cell's leaf with the index (leaves are at least 8x8
    and line up with the cells, so all 64 pixels of a cell share the answer);
-6. *decode*: one fragment per pixel draws the pixel from its leaf: SKIP and MOTION go straight to the held picture,
+6. `decode`: one fragment per pixel draws the pixel from its leaf: SKIP and MOTION go straight to the held picture,
    every other leaf reads only its own record;
-7. *copy* and *state*: keep the new picture and its frame id in persistent targets, for the next frame to predict from;
-8. *view* and *screen*: work out where the wall is on the screen, and draw the picture over it, pixel by pixel, behind
+7. `copy` and `state`: keep the new picture and its frame id in persistent targets, for the next frame to predict from;
+8. `view` and `screen`: work out where the wall is on the screen, and draw the picture over it, pixel by pixel, behind
    anything that stands in front of the wall;
-9. *outline*: remove the page frames' glow.
+9. `outline`: remove the page frames' glow.
 
 No step loops over other pixels, and every loop has a fixed limit, so a broken frame can't make a fragment run forever
 or read outside its textures. A keyframe with a new id is always taken, even when its id is smaller than the last
 one: that's how a restarted server starts over without the players reloading anything.
 
-**One file.** All of that is in one shader source file, `assets/mcav/shaders/include/mcv2.glsl`. Minecraft's post
+One file. All of that is in one shader source file, `assets/mcav/shaders/include/mcv2.glsl`. Minecraft's post
 effect format wants a program file for every pass, so each pass has a stub of a few lines that selects its part of the
 file and includes it:
 
@@ -724,7 +726,7 @@ file and includes it:
 `mcv2_config.glsl`, `mcv2_screen.glsl` and `mcv2_alphabet.glsl` are generated by the server when it builds the pack:
 they hold only numbers (the video sizes, the page slots, the stream ids, the table of the 64 map colours), no code.
 
-**The resource pack.** The server builds the pack and serves it for pack format 97 (Minecraft 26.3). Its shaders are
+The resource pack. The server builds the pack and serves it for pack format 97 (Minecraft 26.3). Its shaders are
 fixed; only those generated numbers depend on the server. One pack decodes every MCV2 screen of the server, up to eight
 at once, each in a slot of its own video size, so screens of sizes the pack already has start and stop without anyone
 reloading. It is optional: offered with `required: false`, and a player who declines keeps seeing the dithered maps of
@@ -732,7 +734,7 @@ the same wall. Minecraft 26.3 compiles every shader through SPIR-V and back into
 that path; it replaces vanilla's `core/text.vsh`, `core/text.fsh` and `post_effect/entity_outline.json` with copies
 that are vanilla's plus the decoder.
 
-**One held picture.** The pack keeps exactly one picture per screen: the last frame it decoded. A client that misses a
+One held picture. The pack keeps exactly one picture per screen: the last frame it decoded. A client that misses a
 frame (it draws fewer frames a second than the video has, looks away, or reloads its resources) can't decode the P
 frames after it, and keeps the last picture until it draws a frame while a keyframe is the newest frame of the screen.
 A client that draws at least as many frames a second as the video has gets the next keyframe, at most four seconds
@@ -742,73 +744,73 @@ picture for minutes on average. A still image from `/mcav image` is sent twice a
 keyframe, so a client that missed one, for example while it compiled the pack's shaders as it first drew the screen,
 gets the next within four seconds.
 
-## Part 9: The Encoder
+## Part 9: The encoder
 
 The format only says what the bytes mean. How the encoder chooses them is up to the encoder: any stream that follows
 the format decodes the same everywhere. MCAV's encoder is the class `MCV2`, and this part explains what it does with
 each frame. It's fast enough to encode 1080p video while it plays, and it's also what encodes video files ahead of
 time.
 
-### Keyframe or P Frame
+### Keyframe or P frame
 
-A frame becomes a **keyframe** when there's nothing to predict from: the first frame, a frame of a new size, a viewer
+A frame becomes a keyframe when there's nothing to predict from: the first frame, a frame of a new size, a viewer
 who just started watching and holds no picture yet (the screen asks for a keyframe then), and every 120th frame (four
 seconds at 30 fps), so a viewer who missed something never waits longer than that. Every other frame is a P frame
 that predicts from the frame just before it, even across a cut to a completely different picture: there the P frame
 simply uses SOLID, PALETTE and PATTERN leaves like a keyframe would.
 
-### Motion Search
+### Motion search
 
 For every 32x32 and 16x16 square of a P frame, the encoder looks for the vector that best predicts it from the last
 picture. Trying every vector within 24 pixels would be 49 × 49 = 2,401 tries per square, far too slow, so it searches
 cleverly:
 
-1. **Start from good guesses.** Things that moved last frame usually keep moving the same way, so the search starts
+1. Start from good guesses. Things that moved last frame usually keep moving the same way, so the search starts
    from the vectors this square and its neighbours had in the previous frame, and from no motion at all.
-2. **Search small pictures first.** It searches on copies of both pictures shrunk to half their width and height
+2. Search small pictures first. It searches on copies of both pictures shrunk to half their width and height
    (each pixel the average of four), where a vector of 24 pixels is only 12 long, and for a 32x32 square first on
    copies shrunk to a quarter, where it's 6 long. Then it refines the best vector at full size. (`FAST` skips the
    quarter size.)
-3. **Diamond steps.** From the best point so far, it tries the points one step away up, down, left and right, moves to
+3. Diamond steps. From the best point so far, it tries the points one step away up, down, left and right, moves to
    the best, and repeats until no neighbour is better: a short walk downhill instead of 2,401 tries.
 
 The score of a vector is how different the moved pixels are from the new frame, summed over a fixed sample of the
 square's pixels. 8x8 squares don't search for themselves: they use the vector of the 16x16 square they're in. Vectors
 are whole pixels.
 
-### Candidates and Their Cost
+### Candidates and their cost
 
-For every square, the encoder tries ways to code it, called **candidates**, and keeps the cheapest. In a P frame they
+For every square, the encoder tries ways to code it, called candidates, and keeps the cheapest. In a P frame they
 are: SKIP; MOTION with the vector it found; SOLID with the square's average colour; PALETTE with two colours that suit
 it; PATTERN, when the palette's bits repeat along one direction; and COMPACT, on top of whichever prediction is
 closer, the one at (0, 0) or the one with the found vector. In a keyframe, only SOLID, PALETTE
 and PATTERN can be used.
 
-To compare candidates fairly, each one is drawn exactly the way the decoder will draw it, and given a **cost**:
+To compare candidates fairly, each one is drawn exactly the way the decoder will draw it, and given a cost:
 
   cost = D + λ × (8 × record bytes + 12)
 
-- **D, the distortion**, is how wrong the drawn square is: the sum, over its pixels, of the squared differences from the
+- D, the distortion, is how wrong the drawn square is: the sum, over its pixels, of the squared differences from the
   source, measured in YCoCg with the brightness counted four times as much as each colour channel (eyes notice
   brightness errors far more).
-- **8 × record bytes** is the record's size in bits, and 12 bits is what a leaf costs in the index: its descriptor byte
+- 8 × record bytes is the record's size in bits, and 12 bits is what a leaf costs in the index: its descriptor byte
   and its share of a walk checkpoint (four bytes per eight descriptors: 8 + 32/8 = 12). A 32x32 SKIP costs 1 bit: its
   presence bit.
-- **λ, lambda**, is the price of one bit, in units of squared error. MCAV's default is 72.
+- λ, lambda, is the price of one bit, in units of squared error. MCAV's default is 72.
 
 The cheapest candidate wins; on a tie, the first one tried. With λ = 72, spending one more byte has to remove more than
 8 × 72 = 576 of squared error to be worth it: a 32x32 square whose brightness is 2 off the source everywhere has an
 error of 1,024 × 2² × 4 = 16,384 in luma alone, so a 10-byte COMPACT that fixes it, at 72 × (80 + 12) = 6,624, is well
 worth it.
 
-### How the Pieces Are Fitted
+### How the pieces are fitted
 
-- **Palettes**: the two colours come from a tiny version of **k-means clustering**: start with the darkest and the
+- Palettes: the two colours come from a tiny version of k-means clustering: start with the darkest and the
   brightest pixel as the two colours, give every pixel the closer one, move each colour to the average of its pixels,
   and do that twice, on a sample of the pixels. Then every pixel gets the bit of its closer colour.
-- **Patterns**: when every row of a palette's bits is the same (or every column), the same two colours and bits are
+- Patterns: when every row of a palette's bits is the same (or every column), the same two colours and bits are
   written as a pattern instead: the same pixels in fewer bytes.
-- **COMPACT grids**: the 16 grid values are fitted by **least squares**: the encoder solves, exactly, for the 16 numbers
+- COMPACT grids: the 16 grid values are fitted by least squares: the encoder solves, exactly, for the 16 numbers
   whose interpolated surface is as close as possible to the brightness difference, Y = (R + 2G + B) / 4, between the
   source and the prediction. (A fixed
   "pseudo-inverse" matrix per leaf size, 4 rows of s numbers, applied to the rows of differences and then to the
@@ -816,7 +818,7 @@ worth it.
   smallest quantizer whose steps can hold the fitted values without clipping them, from q = 0 to 2, and clips at
   q = 2 when even that can't.
 
-### The Tree, From the Top
+### The tree, from the top
 
 The encoder works on each superblock from the top down. It first codes the whole 32x32 square. If the best leaf already
 costs little, at most 150 × λ, splitting can hardly pay, so it stops there; only above that does it try the four 16x16
@@ -827,16 +829,16 @@ split wins only when its four children plus its own descriptor cost less than th
 costs less than 28 × λ, the encoder takes it at once: every other leaf has at least 2 bytes and a descriptor, 16 +
 12 = 28 bits, so nothing could beat it.
 
-### Rate Control by Motion
+### Rate control by motion
 
-**Rate control** means steering how many bits the stream uses. MCAV's encoder raises λ when the picture moves a lot,
+Rate control means steering how many bits the stream uses. MCAV's encoder raises λ when the picture moves a lot,
 for two reasons: VMAF (and people) forgive more error in motion, and fast-moving frames are the most expensive to
 code. It measures how much the source changes from frame to frame, and above a knee it scales λ up with that motion,
 to at most four times. On quiet content it changes nothing.
 
 ### Presets
 
-A **preset** is a named set of settings. MCAV has two:
+A preset is a named set of settings. MCAV has two:
 
 | Preset | λ | What it's for |
 |---|---:|---|
@@ -846,7 +848,7 @@ A **preset** is a named set of settings. MCAV has two:
 A screen whose encoder can't keep up steps down by itself: from `DEFAULT` to `FAST`, then fewer frames a
 second, then a smaller video, and at worst the dithered maps.
 
-### Staying Inside the Page Slots
+### Staying inside the page slots
 
 A frame must fit the screen's page slots (98,048 bytes for eight), and a frame can never be more than 131,071 bytes.
 When a frame comes out too big, which happens with keyframes of busy pictures, the encoder searches it again with twice
@@ -856,26 +858,26 @@ or a keyframe of one solid 32x32 leaf per superblock, which even at 4096x4096 is
 give the encoder a time budget per frame: when it runs out, the superblocks not yet searched get the cheapest choice
 (SKIP, or a solid colour in a keyframe), and the next frames fix them.
 
-### Writing the Frame
+### Writing the frame
 
 With every leaf chosen, the encoder writes the bytes: the header, the index and the records. A superblock that is
 one SKIP leaf isn't stored at all (its presence bit is 0); in a keyframe every superblock is stored.
 
-### The Closed Loop
+### The closed loop
 
 The encoder doesn't predict the next frame from the source picture: it predicts from the picture the decoder will
 show, which it already has, because it drew every chosen leaf to measure it. So encoder and decoder hold exactly the
-same picture, and errors never pile up between them. With **verification** on, the encoder also decodes every frame it
+same picture, and errors never pile up between them. With verification on, the encoder also decodes every frame it
 writes with MCAV's decoder and checks that the picture is the one it drew; if not, it stops (that would be a bug, and a
 P frame built on a wrong picture would be wrong everywhere).
 
-### Many Threads, the Same Bytes
+### Many threads, the same bytes
 
 Every superblock's search depends only on the source frame and the last picture, never on a neighbouring superblock.
 So the encoder hands superblocks to all its threads at once, and gathers the results in order. Whether it runs on one
 thread or twelve, it writes exactly the same bytes; the tests check that.
 
-### Native Kernels
+### Native kernels
 
 The few small loops that run billions of times, like "draw this palette leaf and measure its error" or "score this
 motion vector", are also written in C++ with the processor's vector instructions (SSE, AVX2, AVX-512, NEON, SVE), in one
@@ -888,12 +890,12 @@ The libraries and their generated `SHA256SUMS` are packaged at `mcav/mcv2/native
 against that manifest before loading it. These checks detect corruption, but do not authenticate a jar whose libraries
 and manifest have both been replaced.
 
-## Part 10: The Code
+## Part 10: The code
 
 This part is about the program itself: where each piece lives, how big it is, how much work it does, and how I know
 it's right. You don't need any of it to use MCV2, but it's the map you'd want before changing it.
 
-### Where Everything Lives
+### Where everything lives
 
 | What | Where | Language |
 |---|---|---|
@@ -905,10 +907,10 @@ it's right. You don't need any of it to use MCV2, but it's the map you'd want be
 | Screens, viewers, pacing and the resource pack | the rest of `me.brandonli.mcav.bukkit.media.mcv2` | Java |
 | The reference decoder of the specification | `mcav-bukkit/src/test/python/mcv2_reference.py` | Python |
 
-The encoder and the server's decoder are in `mcav-bukkit`; nothing of MCV2 is in `mcav-common`. GLSL, the **OpenGL
-Shading Language**, is the language GPU programs are written in; it looks like C.
+The encoder and the server's decoder are in `mcav-bukkit`; nothing of MCV2 is in `mcav-common`. GLSL, the OpenGL
+Shading Language, is the language GPU programs are written in; it looks like C.
 
-### How Big It Is
+### How big it is
 
 I counted every line, including blank lines and comments.
 
@@ -932,34 +934,34 @@ I got it down from 52,613 to 35,968 lines, mostly by shrinking the encoder and t
 The class reads from top to bottom in the order a frame goes through it, and each section starts with a comment that
 says what it is for:
 
-1. **The public API and the encoder's state**: the presets (`MCV2.Settings`), the shared thread budget
+1. The public API and the encoder's state: the presets (`MCV2.Settings`), the shared thread budget
    (`MCV2.Pool`), and `encode`, or `begin` and `finish` for a screen that wants to overlap one frame's encode with the
    last one's check.
-2. **Frame analysis**: keyframe or P frame, and how much the picture moves (for rate control by motion).
-3. **Motion search**: the quarter- and half-size copies of the picture and the seeded search on each of them.
-4. **Block search**: the candidates of every square, their costs, the tree from the top down, and the time budget.
-5. **Fits**: palette colours, patterns, and the least-squares fit of the compact grids with their quantizer.
-6. **Kernels**: the small loops that do almost all the arithmetic, in Java, and the binding that calls the native
+2. Frame analysis: keyframe or P frame, and how much the picture moves (for rate control by motion).
+3. Motion search: the quarter- and half-size copies of the picture and the seeded search on each of them.
+4. Block search: the candidates of every square, their costs, the tree from the top down, and the time budget.
+5. Fits: palette colours, patterns, and the least-squares fit of the compact grids with their quantizer.
+6. Kernels: the small loops that do almost all the arithmetic, in Java, and the binding that calls the native
    library instead when it loads.
-7. **The writer**: the index, and the simplest frame there is, for when nothing else fits.
-8. **The reference**: putting the chosen leaves together into the picture the next frame predicts from, and checking
+7. The writer: the index, and the simplest frame there is, for when nothing else fits.
+8. The reference: putting the chosen leaves together into the picture the next frame predicts from, and checking
    it against the decoder.
-9. **Workers**: the threads, and how a frame's superblocks are shared out among them.
+9. Workers: the threads, and how a frame's superblocks are shared out among them.
 
-### How Much Work It Does
+### How much work it does
 
 Computer scientists describe how much work a program does by how that work grows with its input. If doubling the
-input doubles the work, the program is **linear**, written O(n) ("order n"). If doubling the input quadruples the
-work, it's **quadratic**, O(n²), and so on. For a video codec, n is the number of pixels, and anything worse than
+input doubles the work, the program is linear, written O(n) ("order n"). If doubling the input quadruples the
+work, it's quadratic, O(n²), and so on. For a video codec, n is the number of pixels, and anything worse than
 linear would be hopeless: a 4K frame has four times the pixels of a 1080p one.
 
-**Decoding is linear, with a hard ceiling per pixel.** Every pixel of the picture runs the same short program: find
+Decoding is linear, with a hard ceiling per pixel. Every pixel of the picture runs the same short program: find
 its superblock's bit (one read), count at most seven masks and the bits below its own (a handful of operations), then
 at most three times walk at most seven descriptors, and finally read its leaf's record and do a few multiplications.
 That's at most a few dozen steps, whatever the frame holds, so the GPU's work is proportional to the number of pixels,
 and a broken or malicious frame can't make it more. [Results](#what-it-costs-to-decode) has the time it takes.
 
-**Encoding is linear too, with a much bigger constant.** For each 32x32 superblock, the encoder looks at the square
+Encoding is linear too, with a much bigger constant. For each 32x32 superblock, the encoder looks at the square
 itself and, where splitting may pay, its four 16x16 and sixteen 8x8 squares: at most 21 squares covering each pixel at
 most three times. Each square tries at most six candidates (SKIP, MOTION, SOLID, PALETTE, PATTERN and COMPACT), and
 each candidate costs work proportional to the square's pixels. The motion search is the
@@ -968,39 +970,39 @@ pictures and walks from the best seeds at full size, on a sample of the square's
 of work per pixel, so the encoder is linear too. And the worst case is rare: many superblocks stop at their first
 square, or at a SKIP, which is why it keeps up with 30 frames a second.
 
-**Memory** is small and fixed for a given video size: the reference picture and its half and quarter copies, a few
+Memory is small and fixed for a given video size: the reference picture and its half and quarter copies, a few
 buffers per thread, and the frame's bytes. Nothing grows from one frame to the next.
 
-**Threads.** Every superblock's search reads only the source frame and the reference picture, never another
+Threads. Every superblock's search reads only the source frame and the reference picture, never another
 superblock's result, so the superblocks are shared out among all the threads at once and their results are written
 in order. One thread or twelve, the bytes are the same.
 
-### How I Know It's Right
+### How I know it's right
 
 A codec that's wrong by one in one pixel is wrong forever, because every P frame builds on the last picture. So every
 part is checked against something that was written separately:
 
-- **Exact examples.** Tests feed hand-written frames to the decoder and compare every pixel with values worked out by
+- Exact examples. Tests feed hand-written frames to the decoder and compare every pixel with values worked out by
   hand, like the worked example in [Reconstruction](#reconstruction-the-exact-rules), and check the encoder's bytes
   for small pictures byte for byte.
-- **Round trips.** Random block trees go through the writer and back through the parser and must come out the same;
+- Round trips. Random block trees go through the writer and back through the parser and must come out the same;
   every frame the encoder writes, decoded, must be exactly the picture the encoder thinks it made. These are
-  **property tests**: instead of a few examples, they try hundreds of random inputs, and a failure shrinks to the
+  property tests: instead of a few examples, they try hundreds of random inputs, and a failure shrinks to the
   smallest input that still fails.
-- **Fuzzing.** A **fuzzer** throws millions of broken and random frames and pages at the parsers, which must refuse
+- Fuzzing. A fuzzer throws millions of broken and random frames and pages at the parsers, which must refuse
   each one cleanly or decode it, and never crash, hang or read outside the frame.
-- **Two independent decoders.** The Python reference decoder was written from the specification alone. It and the
+- Two independent decoders. The Python reference decoder was written from the specification alone. It and the
   Java decoder must agree, picture for picture, on every test stream, and refuse exactly the same broken frames.
-- **The real shader.** A tool runs the resource pack's shaders outside Minecraft, on an Intel GPU and in software, the
+- The real shader. A tool runs the resource pack's shaders outside Minecraft, on an Intel GPU and in software, the
   way the game compiles them, and compares every decoded picture with the reference decoder's, byte for byte. And in
   the game itself, screenshots of the decoded picture match the reference decoder's pictures exactly.
-- **Mutation testing.** To check the tests themselves, a tool called PIT makes thousands of small changes to the code,
+- Mutation testing. To check the tests themselves, a tool called PIT makes thousands of small changes to the code,
   one at a time (turns a `<` into a `<=`, deletes a line, returns 0), and runs the tests on each. A good test suite
   fails on almost every one. On MCV2's code PIT makes 3,336 changes and the tests catch 3,274 of them (98 %); every
   one of the 62 they miss was read and listed with its reason.
-- **Coverage.** Every line and every branch of MCV2's code runs in at least one test.
+- Coverage. Every line and every branch of MCV2's code runs in at least one test.
 
-## Part 11: What I Took Out, and Why
+## Part 11: What I took out, and why
 
 MCV2 used to have more tools. To see what each one bought, I turned one feature off at a time in the encoder, encoded
 both test clips at six lambdas, and measured the BD-rate on the wire (after zlib) against the full encoder. Then I
@@ -1016,7 +1018,7 @@ removed every feature that saved less than 5 % on average over the two clips:
 | Global motion (one extra vector for the whole frame) | 0.0 % | +0.1 % | +0.1 % | removed |
 | Colour grids (a smooth grid of colours, as a leaf) | -1.0 % | 0.0 % | -0.5 % | removed |
 
-*Each number is how much more rate the encoder needed for the same VMAF with that feature turned off.*
+Each number is how much more rate the encoder needed for the same VMAF with that feature turned off.
 
 Each of those was real work, and each one cost lines of code in the encoder, the decoder and the shader, for almost
 nothing on the wire. Some even cost a little: the colour grids made the proxy slightly worse, because their bytes were
@@ -1055,19 +1057,18 @@ was, each saves less than 5 %. Every tool MCV2 has now saves more than 5 % on av
 [Results](#how-much-each-feature-saves) shows how much.
 
 Last, I went over every option the codec still had, the small switches inside the tools that stayed, the same way: one
-at a time, then together, because some of them stand in for each other. These went: the **default colour** (a
-keyframe's most common solid colour, sent once in the header so its squares could be skips: 0.0 %), **scene-cut
-keyframes** (0.0 % on these clips: a cut is just a P frame of new pictures now), COMPACT's **quantizers above 2**
-(2.7 %), two of COMPACT's three **classes** (one brightness value for the whole block: 0.0 %; a grid with a colour
-change: 0.2 %), its two shorter ways of **storing the vector** (two 4-bit numbers: 0.6 %, and no vector at all, once
-those were gone: 1.1 %, so the vector is always two bytes and the record always ten), and the `ADAPTIVE` **preset**
-(-0.1 %: it saved nothing). With them, the header lost every field a decoder can work out for itself and went from 32
-bytes to 20. Two options cost rate but stayed, because the speed test needs them: the `FAST` preset (6.2 % more rate
-than `DEFAULT` on average: 13.6 % more on the proxy, 1.2 % less on gameplay) keeps 1080p gameplay inside its time on a
-busy machine, and rate control by motion costs 1.1 % more rate, but without it the encoder needs about 40 % more processor time on
-gameplay. Together, these
-last removals cost 1.7 % on average: 4.9 % more on gameplay, mostly the cap on the quantizer, and 1.5 % less on the
-proxy, where the shorter COMPACT record more than pays for what went.
+at a time, then together, because some of them stand in for each other. These went: the default colour (a keyframe's
+most common solid colour, sent once in the header so its squares could be skips: 0.0 %), scene-cut keyframes (0.0 % on
+these clips: a cut is just a P frame of new pictures now), COMPACT's quantizers above 2 (2.7 %), two of COMPACT's three
+classes (one brightness value for the whole block: 0.0 %; a grid with a colour change: 0.2 %), its two shorter ways of
+storing the vector (two 4-bit numbers: 0.6 %, and no vector at all, once those were gone: 1.1 %, so the vector is always
+two bytes and the record always ten), and the `ADAPTIVE` preset (-0.1 %: it saved nothing). With them, the header lost
+every field a decoder can work out for itself and went from 32 bytes to 20. Two options cost rate but stayed, because
+the speed test needs them: the `FAST` preset (6.2 % more rate than `DEFAULT` on average: 13.6 % more on the proxy, 1.2 %
+less on gameplay) keeps 1080p gameplay inside its time on a busy machine, and rate control by motion costs 1.1 % more
+rate, but without it the encoder needs about 40 % more processor time on gameplay. Together, these last removals cost
+1.7 % on average: 4.9 % more on gameplay, mostly the cap on the quantizer, and 1.5 % less on the proxy, where the
+shorter COMPACT record more than pays for what went.
 
 What does all that removal cost on the wire? Against the old MCV2's live search, the one its screens used, the
 simplified MCV2 needs 16.4 % more rate on the proxy and 5.8 % more on gameplay for the same VMAF; against its slow
@@ -1076,16 +1077,16 @@ measures.
 
 ## Part 12: Results
 
-### The Test Clips
+### The test clips
 
-I measure everything on two clips. The **Minecraft proxy** is a procedural, Minecraft-looking 1080p clip, 30 frames at
+I measure everything on two clips. The Minecraft proxy is a procedural, Minecraft-looking 1080p clip, 30 frames at
 30 fps, full of flat regions and hard block edges. It flatters MCV2, because those are exactly the things its palettes
-and patterns code well, and it starves the transform codecs. The **Minecraft gameplay** clip is the honest case: 60
+and patterns code well, and it starves the transform codecs. The Minecraft gameplay clip is the honest case: 60
 frames at 30 fps from Xiph's Twitch recording `MINECRAFT.y4m` (frames 120 to 239 of the 1080p60 original, every second
 one), real gameplay with a lot of motion. VMAF was trained on natural video, so on the proxy it compares codecs with
 each other rather than on an absolute scale.
 
-### What a Viewer Receives
+### What a viewer receives
 
 Here is what one viewer's connection carries for 1080p at 30 frames a second, after Minecraft's zlib, with MCV2 at its
 `DEFAULT` preset, next to the dithered maps MCAV used before (the same table as in
@@ -1099,24 +1100,24 @@ Here is what one viewer's connection carries for 1080p at 30 frames a second, af
 The dithered wall under a budget never shows a whole frame, which is why its VMAF is so low; sending every change
 shows the video well, but at a rate no server can give each player.
 
-### MCV2 Against H.264, VP9 and AV1
+### MCV2 against H.264, VP9 and AV1
 
 ![Rate on the wire against VMAF for MCV2, H.264, VP9 and AV1 on both clips](images/mcv2/codecs.png)
 
-*Each point is one encode of the whole clip. For MCV2 the rate is its map packets after zlib; for the others, the size
-of the encoded file. Up and to the left is better.*
+Each point is one encode of the whole clip. For MCV2 the rate is its map packets after zlib; for the others, the size
+of the encoded file. Up and to the left is better.
 
 The same curves as numbers: the rate each codec needs, in Mbit/s, to reach a VMAF:
 
 | VMAF | MCV2 | H.264 | VP9 | AV1 |
 |---:|---:|---:|---:|---:|
-| **Minecraft proxy** | | | | |
+| Minecraft proxy     | | | | |
 | 70 | 1.54 | 1.98 | 0.35 | 0.38 |
 | 75 | 2.03 | 2.18 | 0.51 | 0.51 |
 | 80 | 3.10 | 2.47 | 0.72 | 0.70 |
 | 85 | 5.96 | 3.19 | 1.22 | 1.07 |
 | 90 | 12.59 | 4.97 | 2.44 | 2.09 |
-| **Minecraft gameplay** | | | | |
+| Minecraft gameplay     | | | | |
 | 70 | 7.92 | 3.14 | 1.83 | 1.62 |
 | 75 | 9.81 | 3.58 | 2.25 | 2.02 |
 | 80 | 12.13 | 4.20 | 2.79 | 2.51 |
@@ -1135,11 +1136,11 @@ bits each, and its only entropy coder is the zlib Minecraft already applies to e
 beats the alternative by far: the dithered maps above need 19 to 60 times its rate to show every frame. And on the
 proxy, the kind of flat, blocky picture Minecraft is full of, it keeps up with H.264.
 
-### How Much Each Feature Saves
+### How much each feature saves
 
 ![The extra rate MCV2 needs with each of its features turned off, on both clips](images/mcv2/features.png)
 
-*Each bar is the BD-rate on the wire of the encoder with that one feature turned off, against the full encoder.*
+Each bar is the BD-rate on the wire of the encoder with that one feature turned off, against the full encoder.
 
 | Feature turned off | Minecraft proxy | Minecraft gameplay | Average |
 |---|---:|---:|---:|
@@ -1159,7 +1160,7 @@ blocks and fences make stripes everywhere. Palettes are worth the most on gamepl
 last frame can't predict well enough is cheapest to draw again from two colours; prediction from the previous frame is
 worth the most on the proxy, which is no surprise: most of a video is the same as the frame before it.
 
-### What It Costs to Decode
+### What it costs to decode
 
 Every rendered frame with an MCV2 screen in view runs the resource pack's post chain, so this is a cost every
 player pays, whether or not their frame brings new video. I measured it pass by pass with GPU timer queries on an
@@ -1185,9 +1186,9 @@ window on the same UHD 630, the text shader's draws took 3.9 ms of GPU time a fr
 of it for the pages; they took 53 ms while the shaders searched the 64 map colours for every symbol instead of
 reading the table.
 
-### What It Costs to Encode
+### What it costs to encode
 
-**Live encoding.** On a 6-core i7-8700 (12 threads) with the native AVX2 loops, every frame checked against the
+Live encoding. On a 6-core i7-8700 (12 threads) with the native AVX2 loops, every frame checked against the
 decoder, the 95th percentile time to encode a 1080p frame of a video playing at 30 frames a second:
 
 | Preset | 12 threads: proxy | 12 threads: gameplay | 6 threads: proxy | 6 threads: gameplay |
@@ -1202,11 +1203,11 @@ These are times on a quiet machine; a busy one is slower, so measure your own se
 promise. With the Java loops only, and without checking each frame against the decoder, the same encoder takes
 19.0 ms on the proxy video and 29.4 ms on gameplay with 12 threads: still inside 33 ms, with less room.
 
-**Pre-encoding** a file uses the same search, on the shared encoder threads: on the same i7-8700, a 1080p frame
+Pre-encoding a file uses the same search, on the shared encoder threads: on the same i7-8700, a 1080p frame
 takes 7.0 ms on average on the proxy video and 10.9 ms on gameplay with 12 threads, 8.1 ms and 11.8 ms with 6
 threads (`DEFAULT`, native loops, the median of three timed runs after a warm-up, not counting reading the frames).
 
-### The Server
+### The server
 
 Every MCV2 screen of a server shares one encoder budget, half the processors by default, and the encoders never run
 on the server's main thread, which runs the game. In a 30-minute test on the i7-8700, a server limited to 4 processors
@@ -1281,7 +1282,7 @@ At startup the server log says `MCV2 encoders share N of M processors` and which
 `MCV2 kernels: native avx2 (linux-x86_64)`. The full syntax of every command is in [commands](plugin/commands.md),
 and every setting in [configuration](plugin/config.md).
 
-### The Resource Pack
+### The resource pack
 
 One pack decodes every MCV2 screen of the server, up to eight at once, each in a slot of its own video size. A screen of
 a size the pack already has starts and stops without anyone reloading; only a screen of a new video size changes the
@@ -1304,7 +1305,7 @@ MCV2 wins. To keep your own text or outline shaders, merge your changes into the
 and `mcav/mcv2/chain.json` for the outline chain, in the `mcav-bukkit` jar the plugin downloads into the server's
 `libraries/mcav` folder), which are vanilla's plus the decoder.
 
-### The Client Mod for Iris Shader Players
+### The client mod for Iris shader players
 
 Iris draws the world with its shader pack's own programs, which replace the MCV2 pack's shaders, and it writes the
 shader pack's final image over the screen after the level is drawn. On its own, a player with Iris shaders on sees an
@@ -1345,36 +1346,36 @@ burst of 5; a player without the mod sees MCV2 screens as before.
 
 ### Troubleshooting
 
-- **Players see the dithered maps on an MCV2 screen.** Their client hasn't loaded the pack yet, declined it or couldn't
+- Players see the dithered maps on an MCV2 screen. Their client hasn't loaded the pack yet, declined it or couldn't
   load it (the chat says which), or their client mod reports Iris shaders on that it can't decode under, with an Iris
   other than 1.11.7 (the server log says so). A `--codec mcv2` screen is dithered for everyone when no item frame holds
   its top-left map, when eight MCV2 screens already play, or when even the fastest encoder can't keep up; the command
   that started it says which.
-- **The wall shows the backs of item frames.** More than one item frame hangs in a block of the wall. Rebuild it with
+- The wall shows the backs of item frames. More than one item frame hangs in a block of the wall. Rebuild it with
   `/mcav screen`, which removes the frames already hanging where it places one.
-- **The pack loaded, but the wall shows nothing new.** Another pack that overrides `core/text` or `entity_outline.json`
+- The pack loaded, but the wall shows nothing new. Another pack that overrides `core/text` or `entity_outline.json`
   was loaded after it; the client uses improved transparency, an Iris shader pack without the client mod, or the Vulkan
   backend, which was never tested; the window is lower than the transport strip of the screens playing (a small window
   with many screens); or the hidden page frames are out of view: the decoder only runs while one is drawn, so look at
   the wall.
-- **The picture freezes and jumps every few seconds.** The client draws fewer frames a second than the video has, and a
+- The picture freezes and jumps every few seconds. The client draws fewer frames a second than the video has, and a
   missed frame is repaired only by a keyframe the client draws while it is the newest frame, so the slower the client,
   the more keyframes it misses too: one that draws a frame every few seconds can show the same picture for minutes. A
   faster client fixes it, and so does a lower frame rate for the screen (`maxFrameRate` in the API).
-- **The pack doesn't download.** Behind Velocity or BungeeCord, set `mcv2.pack.hosting` to `http` with a port the
+- The pack doesn't download. Behind Velocity or BungeeCord, set `mcv2.pack.hosting` to `http` with a port the
   players can reach, or to `website`.
-- **The screen steps down.** Its encoder takes longer than the video gives a frame, and the message says by how much.
+- The screen steps down. Its encoder takes longer than the video gives a frame, and the message says by how much.
   Give the encoders more threads, use a smaller resolution or `FAST`, or pre-encode.
-- **Something else.** Start the server with `-Dmcav.mcv2.debugView=true`: the pack then also draws the decoded picture
+- Something else. Start the server with `-Dmcav.mcv2.debugView=true`: the pack then also draws the decoded picture
   one to one in a corner of the screen, with a square per page slot (green: a valid page) and one for the decoder's
   decision on each rendered frame. Check the client log (`.minecraft/logs/latest.log`) for `Failed to compile`,
   `Failed to link` or `post_effect` errors.
 
-### In Your Own Plugin
+### In your own plugin
 
 The MCAV plugin's `--codec mcv2` is built from the same API any other plugin can use.
 
-#### Setting Up Once
+#### Setting up once
 
 MCV2 needs three things per plugin, set up once on the main thread in `onEnable`, after the Bukkit module received
 the plugin instance with `inject`:
@@ -1408,20 +1409,20 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
   }
 ```
 
-- **`MCV2.Pool`** is the one encoder budget of the server. Every MCV2 encoder uses `MCV2.Pool.shared()`, so screens
+- `MCV2.Pool` is the one encoder budget of the server. Every MCV2 encoder uses `MCV2.Pool.shared()`, so screens
   share the threads instead of each taking the machine. `setSharedThreads(0)` keeps the default, half the processors;
   what that buys is in [What It Costs to Encode](#what-it-costs-to-encode).
-- **`MCV2.installNatives`** gives the native kernels a folder to extract their library into; `MCV2.describeNatives()`
+- `MCV2.installNatives` gives the native kernels a folder to extract their library into; `MCV2.describeNatives()`
   returns the line to log, such as `native avx2 (linux-x86_64)`. Use your data folder, not a temporary folder, which
   hosted servers often mount without execution. Without a library for the platform, the Java kernels encode the same
   stream, and the mode `MCV2.NATIVE_OFF` instead of `MCV2.NATIVE_AUTO` turns the native kernels off.
-- **`Mcv2PackServer`** builds and hosts the one resource pack that decodes every MCV2 screen of your plugin, offers it
+- `Mcv2PackServer` builds and hosts the one resource pack that decodes every MCV2 screen of your plugin, offers it
   to the viewers, and follows who loaded it. Call `shutdown()` in `onDisable`. The injector hosting serves the pack on
   the Minecraft port and doesn't work behind a proxy such as Velocity; `zip -> PackHosting.http(zip, host, port)`
   serves it from an HTTP server on a port of its own, and `PackHosting::website` uploads it to mc-packs.net (see
   [hosting resource packs](bukkit/resourcepack.md#hosting-resource-packs)).
 
-#### Showing a Screen
+#### Showing a screen
 
 A screen is a wall of item frames holding consecutive maps, as `MapConfiguration` describes it, built by your plugin.
 Describe it with an `Mcv2Configuration`, take a slot of the pack for it, and put an `Mcv2Result` at the end of a video
@@ -1514,7 +1515,7 @@ settings matter:
 second, a smaller video, the dithered maps), with a message that says why; `setSmallerSizes(sizes, lease)` names the
 smaller video sizes it may step down to.
 
-#### Pre-Encoding a File
+#### Pre-encoding a file
 
 `Mcv2FileEncoder` encodes a video file ahead of time, inside a budget, into a stream of frames, each written as its
 length (a little-endian 32-bit integer) and its bytes. Every frame fits the page slots a wall of the video's own size
@@ -1556,24 +1557,24 @@ decoder the class `Mcv2Decoder`, both in `me.brandonli.mcav.bukkit.media.mcv2`, 
 
 ## Part 14: Limits
 
-- **Lighting.** The picture is drawn at full brightness, like a map in a glow item frame: the post chain has no light
+- Lighting. The picture is drawn at full brightness, like a map in a glow item frame: the post chain has no light
   level for the wall.
-- **Shader packs.** Iris with a shader pack on replaces the pack's shaders, so on its own the wall shows no MCV2
+- Shader packs. Iris with a shader pack on replaces the pack's shaders, so on its own the wall shows no MCV2
   picture. With Iris 1.11.7 the MCV2 client mod decodes it anyway; with another Iris version the mod tells the server,
   which shows that player the dithered maps. Sodium, and Iris with its shaders off, show MCV2 normally. Improved
   transparency shows no MCV2 picture.
-- **Tested clients.** Every client I tested ran on Linux and drew in software (Mesa's llvmpipe), besides the shader
+- Tested clients. Every client I tested ran on Linux and drew in software (Mesa's llvmpipe), besides the shader
   checks on an Intel UHD 630. NVIDIA, AMD and Apple GPUs, Windows and macOS clients, and the Vulkan backend were never
   tested.
-- **The top of the screen.** While a page frame is in view, the strip takes the top rows of the screen (41 rows in an
+- The top of the screen. While a page frame is in view, the strip takes the top rows of the screen (41 rows in an
   854x480 window with one screen of eight slots, 25 at 1080p), and the chain covers them with the scene row just below,
   so a detailed sky or ceiling smears there; every screen's picture shows over those rows as anywhere else. A window
   lower than the strip shows no MCV2 picture and leaves the view as it is.
-- **Missed frames.** A client that draws fewer frames than the video has misses frames, and a missed frame is repaired
+- Missed frames. A client that draws fewer frames than the video has misses frames, and a missed frame is repaired
   only by a keyframe the client draws while it is the newest frame. Keyframes come every four seconds at 30 frames a
   second, but a slow client draws on few of them: one that draws a frame every two seconds keeps a picture for minutes
   on average.
-- **Sound.** The audio web page keeps a little sound buffered, so its sound comes a moment after the wall shows the same
+- Sound. The audio web page keeps a little sound buffered, so its sound comes a moment after the wall shows the same
   picture, with MCV2 as with the dithered maps. The plugin doesn't delay the picture to match.
 
 ## Glossary
@@ -1656,8 +1657,9 @@ decoder the class `Mcv2Decoder`, both in `me.brandonli.mcav.bukkit.media.mcv2`, 
 - [Map](https://minecraft.wiki/w/Map), [Map item format](https://minecraft.wiki/w/Map_item_format),
   [Shader](https://minecraft.wiki/w/Shader) and [Pack format](https://minecraft.wiki/w/Pack_format), Minecraft Wiki
 - [AV1 Bitstream & Decoding Process Specification](https://aomediacodec.github.io/av1-spec/)
-- [Toward A Practical Perceptual Video Quality Metric](https://netflixtechblog.com/toward-a-practical-perceptual-video-quality-metric-653f208b9652),
-  the VMAF post from Netflix
+- [Toward A Practical Perceptual Video Quality
+  Metric](https://netflixtechblog.com/toward-a-practical-perceptual-video-quality-metric-653f208b9652), the VMAF post
+  from Netflix
 - Z. Wang, A. C. Bovik, H. R. Sheikh and E. P. Simoncelli, Image Quality Assessment: From Error Visibility to
   Structural Similarity, 2004 (SSIM)
 - G. Bjontegaard, Calculation of Average PSNR Differences between RD-curves, VCEG-M33, 2001
@@ -1668,9 +1670,10 @@ decoder the class `Mcv2Decoder`, both in `me.brandonli.mcav.bukkit.media.mcv2`, 
 - [PIT](https://pitest.org/), the mutation tester, and [jqwik](https://jqwik.net/), the property-test engine, of MCAV's
   tests
 
-The measurements behind every chart are in `mcav-bukkit/src/test/resources/mcv2/data`, and the `charts` subcommand draws the charts again.
+The measurements behind every chart are in `mcav-bukkit/src/test/resources/mcv2/data`, and the `charts` subcommand draws
+the charts again.
 
-### Reproducing the Measurements and Figures
+### Reproducing the measurements and figures
 
 MCV2's tools live in mcav-bukkit's test sources. The independent Python implementation is
 `mcav-bukkit/src/test/python/mcv2_reference.py`; it implements the format, serializer, decoder and six-bit transport
@@ -1739,9 +1742,10 @@ Use `natives=off` for the Java comparison. The `mcv2.native` system property sti
 `conformance/digests.json` and `conformance/pages.json` in the Java generator's own format. Run Python
 `fixtures FIXTURE_FOLDER all` afterwards to restore the independent digest and page manifests.
 
-The fixture root contains `conformance/`, `edge/`, `encoder/`, `writer-canonical/`, the measured curves in `data/`, and the
-three Graphviz sources in `figures/`. Jazzer's `*FuzzTestInputs/` directories stay beneath the fuzz tests' Java package paths because
-Jazzer discovers their seeds there. The resource pack and chain template live under `mcav/mcv2/` in main resources.
+The fixture root contains `conformance/`, `edge/`, `encoder/`, `writer-canonical/`, the measured curves in `data/`, and
+the three Graphviz sources in `figures/`. Jazzer's `*FuzzTestInputs/` directories stay beneath the fuzz tests' Java
+package paths because Jazzer discovers their seeds there. The resource pack and chain template live under `mcav/mcv2/`
+in main resources.
 
 Render the diagrams and charts with Graphviz 14.1.2 and Python:
 
