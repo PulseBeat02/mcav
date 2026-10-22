@@ -29,12 +29,15 @@ record Mcv2Report(boolean irisPresent, ShaderPack shaderPack, boolean decodesUnd
   /** The version of the reports this mod sends. */
   private static final byte VERSION = 1;
 
+  private static final byte FLAG_SET = 1;
+  private static final byte FLAG_CLEAR = 0;
+
   /** The report as it is sent. */
   byte[] toBytes() {
     return new byte[] { VERSION, flag(this.irisPresent), this.shaderPack.code(), flag(this.decodesUnderShaders) };
   }
 
   private static byte flag(final boolean set) {
-    return (byte) (set ? 1 : 0);
+    return set ? FLAG_SET : FLAG_CLEAR;
   }
 }

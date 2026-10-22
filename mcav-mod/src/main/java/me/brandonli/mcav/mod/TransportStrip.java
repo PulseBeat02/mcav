@@ -33,7 +33,23 @@ final class TransportStrip {
   /** The pixels of a descriptor row the post chain reads. */
   static final int DESCRIPTOR_PIXELS = 64;
 
+  static final float POINT_W = 1F;
+  static final float DIRECTION_W = 0F;
+
+  private static final int RED_OFFSET = 0;
+  private static final int GREEN_OFFSET = 1;
+  private static final int BLUE_OFFSET = 2;
+  private static final int ALPHA_OFFSET = 3;
+
   private static final int OPAQUE = 255;
+
+  private static final int BYTE_MASK = 0xFF;
+
+  private static final int SECOND_BYTE_SHIFT = 8;
+  private static final int THIRD_BYTE_SHIFT = 16;
+  private static final int HIGH_BYTE_SHIFT = 24;
+
+  private static final int LOWEST_BIT_MASK = 1;
 
   private static final int SYMBOL_BITS = 6;
 
@@ -47,17 +63,39 @@ final class TransportStrip {
   private static final int HALF_WORD = 16;
 
   /** The descriptor: "MCV", a version byte, then 28 floats, each in two pixels: three low bytes, then the high one. */
-  private static final int[] SIGNATURE = { 0x4D, 0x43, 0x56 };
+  private static final int SIGNATURE_RED = 'M';
+  private static final int SIGNATURE_GREEN = 'C';
+  private static final int SIGNATURE_BLUE = 'V';
 
   private static final int VERSION = 0xA1;
 
+  private static final int FIRST_FLOAT_PIXEL = 2;
+
+  private static final int PIXELS_PER_FLOAT = 2;
+
   private static final int FLOATS = 28;
 
+  private static final int ORIGIN = 0;
+  private static final int RIGHT = 4;
+  private static final int DOWN = 8;
   private static final int PROJECTION = 12;
+
+  private static final int W_COMPONENT = 3;
 
   private static final int MATRIX = 16;
 
   private static final int ANCHOR_INDEX_STRIDE = 64;
+
+  private static final int AXES = 3;
+
+  private static final int SECOND_COLUMN = 4;
+  private static final int THIRD_COLUMN = 8;
+  private static final int FOURTH_COLUMN = 12;
+
+  private static final int EAST = 0;
+  private static final int SOUTH = 1;
+  private static final int WEST = 2;
+  private static final int NORTH = 3;
 
   private TransportStrip() {}
 
@@ -101,7 +139,7 @@ final class TransportStrip {
     for (int index = 0; index < count; index++) {
       final int at = bit + index;
       final int symbol = Math.max(Mcv2Maps.symbol(colours, at / SYMBOL_BITS), 0);
-      value |= ((symbol >> (at % SYMBOL_BITS)) & 1) << index;
+      value |= ((symbol >> (at % SYMBOL_BITS)) & LOWEST_BIT_MASK) << index;
     }
     return value;
   }
@@ -119,7 +157,7 @@ final class TransportStrip {
       for (int index = 0; index < SYMBOLS_PER_PIXEL; index++) {
         word |= Math.max(Mcv2Maps.symbol(page, pixel * SYMBOLS_PER_PIXEL + index), 0) << (SYMBOL_BITS * index);
       }
-      put(strip, first + pixel, word & 0xFF, (word >> 8) & 0xFF, word >> HALF_WORD);
+      put(strip, first + pixel, word & BYTE_MASK, (word >> SECOND_BYTE_SHIFT) & BYTE_MASK, word >> THIRD_BYTE_SHIFT);
     }
   }
 
@@ -130,57 +168,61 @@ final class TransportStrip {
     final float[] viewRotation,
     final float[] projection
   ) {
-    final float[] corner = transform(viewRotation, anchor.cornerX(), anchor.cornerY(), anchor.cornerZ(), 1);
-    final float[] right = transform(viewRotation, rightX(anchor.facing()), 0, rightZ(anchor.facing()), 0);
-    final float[] down = transform(viewRotation, 0, -1, 0, 0);
+    final float[] corner = transform(viewRotation, anchor.cornerX(), anchor.cornerY(), anchor.cornerZ(), POINT_W);
+    final float[] right = transform(viewRotation, rightX(anchor.facing()), 0, rightZ(anchor.facing()), DIRECTION_W);
+    final float[] down = transform(viewRotation, 0, -1, 0, DIRECTION_W);
     final float[] floats = new float[FLOATS];
-    for (int axis = 0; axis < 3; axis++) {
-      floats[axis] = corner[axis] - anchor.column() * right[axis] - anchor.row() * down[axis];
-      floats[4 + axis] = right[axis];
-      floats[8 + axis] = down[axis];
+    for (int axis = 0; axis < AXES; axis++) {
+      floats[ORIGIN + axis] = corner[axis] - anchor.column() * right[axis] - anchor.row() * down[axis];
+      floats[RIGHT + axis] = right[axis];
+      floats[DOWN + axis] = down[axis];
     }
-    floats[3] = anchor.columns();
-    floats[7] = anchor.rows();
-    floats[11] = anchor.column() * ANCHOR_INDEX_STRIDE + anchor.row();
+    floats[ORIGIN + W_COMPONENT] = anchor.columns();
+    floats[RIGHT + W_COMPONENT] = anchor.rows();
+    floats[DOWN + W_COMPONENT] = anchor.column() * ANCHOR_INDEX_STRIDE + anchor.row();
     System.arraycopy(projection, 0, floats, PROJECTION, MATRIX);
-    put(strip, start, SIGNATURE[0], SIGNATURE[1], SIGNATURE[2]);
+    put(strip, start, SIGNATURE_RED, SIGNATURE_GREEN, SIGNATURE_BLUE);
     put(strip, start + 1, VERSION, 0, 0);
-    for (int pixel = 2; pixel < DESCRIPTOR_PIXELS; pixel++) {
-      final int index = (pixel - 2) / 2;
+    for (int pixel = FIRST_FLOAT_PIXEL; pixel < DESCRIPTOR_PIXELS; pixel++) {
+      final int index = (pixel - FIRST_FLOAT_PIXEL) / PIXELS_PER_FLOAT;
       if (index >= FLOATS) {
         put(strip, start + pixel, 0, 0, 0);
-      } else if (pixel % 2 == 0) {
+      } else if (pixel % PIXELS_PER_FLOAT == 0) {
         final int bits = Float.floatToRawIntBits(floats[index]);
-        put(strip, start + pixel, bits & 0xFF, (bits >> 8) & 0xFF, (bits >> HALF_WORD) & 0xFF);
+        put(strip, start + pixel, bits & BYTE_MASK, (bits >> SECOND_BYTE_SHIFT) & BYTE_MASK, (bits >> THIRD_BYTE_SHIFT) & BYTE_MASK);
       } else {
-        put(strip, start + pixel, Float.floatToRawIntBits(floats[index]) >>> 24, 0, 0);
+        put(strip, start + pixel, Float.floatToRawIntBits(floats[index]) >>> HIGH_BYTE_SHIFT, 0, 0);
       }
     }
   }
 
   /** The world direction one block along a map's right edge, by facing: east, south, west, north. */
   private static float rightX(final int facing) {
-    return facing == 0 ? 1 : facing == 2 ? -1 : 0;
+    return facing == EAST ? 1 : facing == WEST ? -1 : 0;
   }
 
   private static float rightZ(final int facing) {
-    return facing == 1 ? 1 : facing == 3 ? -1 : 0;
+    return facing == SOUTH ? 1 : facing == NORTH ? -1 : 0;
   }
 
   /** A column-major 4x4 matrix times a vector, the first three components. */
   static float[] transform(final float[] matrix, final float vectorX, final float vectorY, final float vectorZ, final float vectorW) {
-    final float[] transformed = new float[3];
-    for (int row = 0; row < 3; row++) {
-      transformed[row] = matrix[row] * vectorX + matrix[4 + row] * vectorY + matrix[8 + row] * vectorZ + matrix[12 + row] * vectorW;
+    final float[] transformed = new float[AXES];
+    for (int row = 0; row < AXES; row++) {
+      transformed[row] =
+        matrix[row] * vectorX +
+        matrix[SECOND_COLUMN + row] * vectorY +
+        matrix[THIRD_COLUMN + row] * vectorZ +
+        matrix[FOURTH_COLUMN + row] * vectorW;
     }
     return transformed;
   }
 
   private static void put(final byte[] strip, final int pixel, final int red, final int green, final int blue) {
     final int at = pixel * CHANNELS;
-    strip[at] = (byte) red;
-    strip[at + 1] = (byte) green;
-    strip[at + 2] = (byte) blue;
-    strip[at + 3] = (byte) OPAQUE;
+    strip[at + RED_OFFSET] = (byte) red;
+    strip[at + GREEN_OFFSET] = (byte) green;
+    strip[at + BLUE_OFFSET] = (byte) blue;
+    strip[at + ALPHA_OFFSET] = (byte) OPAQUE;
   }
 }

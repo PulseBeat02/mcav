@@ -45,6 +45,13 @@ final class MinecraftStripOutput implements StripOutput {
 
   private static final String NO_COLOUR = "Render target must have a colour texture!";
 
+  private static final int BASE_MIP_LEVEL = 0;
+
+  private static final int FIRST_LAYER = 0;
+
+  private static final int LEFT_COLUMN = 0;
+  private static final int BOTTOM_ROW = 0;
+
   private final Supplier<RenderTarget> main;
 
   private final Supplier<@Nullable PostChain> chain;
@@ -101,7 +108,16 @@ final class MinecraftStripOutput implements StripOutput {
     }
     this.pixels.flip();
     final CommandEncoder commands = this.encoder.get();
-    commands.writeToTexture(colour(target), this.pixels, 0, 0, 0, target.height - rows, target.width, rows);
+    commands.writeToTexture(
+      colour(target),
+      this.pixels,
+      BASE_MIP_LEVEL,
+      FIRST_LAYER,
+      LEFT_COLUMN,
+      target.height - rows,
+      target.width,
+      rows
+    );
     final TextureTarget empty = this.emptyOutline(target, commands);
     final FrameGraphBuilder frame = new FrameGraphBuilder();
     final LevelTargetBundle targets = new LevelTargetBundle();
@@ -123,7 +139,16 @@ final class MinecraftStripOutput implements StripOutput {
       final TextureTarget transparent = new TextureTarget(TRANSPARENT, target.width, target.height, GpuFormat.RGBA8_UNORM, null);
       // a new texture's pixels are undefined; a new direct buffer's bytes are zero
       final ByteBuffer zeros = ByteBuffer.allocateDirect(target.width * target.height * TransportStrip.CHANNELS);
-      commands.writeToTexture(colour(transparent), zeros, 0, 0, 0, 0, target.width, target.height);
+      commands.writeToTexture(
+        colour(transparent),
+        zeros,
+        BASE_MIP_LEVEL,
+        FIRST_LAYER,
+        LEFT_COLUMN,
+        BOTTOM_ROW,
+        target.width,
+        target.height
+      );
       targets = new OutlineTargets(new TextureTarget(EMPTY_OUTLINE, target.width, target.height, GpuFormat.RGBA8_UNORM, null), transparent);
       this.outlineTargets = targets;
     }

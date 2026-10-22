@@ -58,7 +58,7 @@ final class Mcv2Maps {
    * @return the symbol, or {@link #NOT_A_SYMBOL} for a colour outside the alphabet
    */
   static int symbol(final byte[] colours, final int index) {
-    final int symbol = (colours[index] & 0xFF) - FIRST_SYMBOL_COLOUR;
+    final int symbol = Byte.toUnsignedInt(colours[index]) - FIRST_SYMBOL_COLOUR;
     return symbol >= 0 && symbol < SYMBOLS ? symbol : NOT_A_SYMBOL;
   }
 

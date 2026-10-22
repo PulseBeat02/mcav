@@ -46,6 +46,8 @@ final class PackLayout {
 
   private static final Pattern SCREENS = Pattern.compile("const int MCV2_SCREENS = (\\d{1,2});");
 
+  private static final int COUNT_GROUP = 1;
+
   private static final String STREAMS = "uint MCV2_SCREEN_STREAMS";
 
   private static final String SLOTS = "int MCV2_SCREEN_SLOTS";
@@ -58,6 +60,13 @@ final class PackLayout {
   private static final String SIGNED = "(\\d{1,10})";
 
   private static final String SEPARATOR = ", ";
+
+  private static final String DECLARATION_START = "const ";
+  private static final String LENGTH_START = "\\[";
+  private static final String LENGTH_END = "]";
+  private static final String CONSTRUCTOR = " = \\w+";
+  private static final String ELEMENTS_START = "\\(";
+  private static final String ELEMENTS_END = "\\);";
 
   private final long[] streams;
 
@@ -77,7 +86,7 @@ final class PackLayout {
     if (!screens.find()) {
       return Optional.empty();
     }
-    final int count = Integer.parseInt(Objects.requireNonNull(screens.group(1)));
+    final int count = Integer.parseInt(Objects.requireNonNull(screens.group(COUNT_GROUP)));
     if (count < 1 || count > MAXIMUM_SCREENS) {
       return Optional.empty();
     }
@@ -115,10 +124,7 @@ final class PackLayout {
     final String element,
     final long maximum
   ) {
-    final String elements = String.join(SEPARATOR, Collections.nCopies(count, element));
-    final Pattern list = Pattern.compile(
-      "const " + Pattern.quote(declaration) + "\\[" + count + "] = \\w+\\[" + count + "]\\(" + elements + "\\);"
-    );
+    final Pattern list = listPattern(declaration, count, element);
     final Matcher matcher = list.matcher(packConstants);
     if (!matcher.find()) {
       return Optional.empty();
@@ -131,6 +137,14 @@ final class PackLayout {
       }
     }
     return Optional.of(values);
+  }
+
+  private static Pattern listPattern(final String declaration, final int count, final String element) {
+    final String quoted = Pattern.quote(declaration);
+    final String length = LENGTH_START + count + LENGTH_END;
+    final String elements = String.join(SEPARATOR, Collections.nCopies(count, element));
+    final String expression = DECLARATION_START + quoted + length + CONSTRUCTOR + length + ELEMENTS_START + elements + ELEMENTS_END;
+    return Pattern.compile(expression);
   }
 
   /** The rows of the strip a page fills at a screen width. */

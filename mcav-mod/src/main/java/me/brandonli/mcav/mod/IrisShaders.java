@@ -32,6 +32,8 @@ final class IrisShaders {
    */
   private static final String TESTED_VERSION = "1.11.7";
 
+  private static final String BUILD_METADATA_SEPARATOR = "+";
+
   private final boolean installed;
 
   private final BooleanSupplier decodesUnderShaders;
@@ -51,7 +53,7 @@ final class IrisShaders {
 
   /** Whether an Iris version is the one MCV2 was proven to decode under, whatever the build metadata after a '+'. */
   static boolean isTested(final String version) {
-    return version.equals(TESTED_VERSION) || version.startsWith(TESTED_VERSION + "+");
+    return version.equals(TESTED_VERSION) || version.startsWith(TESTED_VERSION + BUILD_METADATA_SEPARATOR);
   }
 
   /** What to tell the server now. */
