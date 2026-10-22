@@ -33,27 +33,36 @@ import tools.jackson.databind.ObjectMapper;
 
 final class PublishedDependenciesTest {
 
+  private static final String TOMCAT_GROUP = "org.apache.tomcat.embed";
+  private static final String JACKSON_CORE_GROUP = "tools.jackson.core";
+
+  private static final String JACKSON_BILL_OF_MATERIALS_PATH =
+    "/project/dependencyManagement/dependencies/dependency[groupId='tools.jackson' and artifactId='jackson-bom']";
+
+  private static final String TYPE_PATH = "/type";
+  private static final String SCOPE_PATH = "/scope";
+  private static final String VERSION_PATH = "/version";
+
   @Test
   void shouldPublishTheDependencyVersionsUsedByTheLibrary() throws Exception {
     final Document document = publishedPom();
-    assertPublishedVersion(document, Tomcat.class, "org.apache.tomcat.embed", "tomcat-embed-core");
-    assertPublishedVersion(document, ELSupport.class, "org.apache.tomcat.embed", "tomcat-embed-el");
-    assertPublishedVersion(document, WsSci.class, "org.apache.tomcat.embed", "tomcat-embed-websocket");
-    assertPublishedVersion(document, JsonParser.class, "tools.jackson.core", "jackson-core");
-    assertPublishedVersion(document, ObjectMapper.class, "tools.jackson.core", "jackson-databind");
+    assertPublishedVersion(document, Tomcat.class, TOMCAT_GROUP, "tomcat-embed-core");
+    assertPublishedVersion(document, ELSupport.class, TOMCAT_GROUP, "tomcat-embed-el");
+    assertPublishedVersion(document, WsSci.class, TOMCAT_GROUP, "tomcat-embed-websocket");
+    assertPublishedVersion(document, JsonParser.class, JACKSON_CORE_GROUP, "jackson-core");
+    assertPublishedVersion(document, ObjectMapper.class, JACKSON_CORE_GROUP, "jackson-databind");
   }
 
   @Test
   void shouldImportTheJacksonBillOfMaterials() throws Exception {
     final Document document = publishedPom();
-    final String dependency = "/project/dependencyManagement/dependencies/dependency[groupId='tools.jackson' and artifactId='jackson-bom']";
-    final String type = value(document, dependency + "/type");
+    final String type = value(document, JACKSON_BILL_OF_MATERIALS_PATH + TYPE_PATH);
     assertEquals("pom", type);
 
-    final String scope = value(document, dependency + "/scope");
+    final String scope = value(document, JACKSON_BILL_OF_MATERIALS_PATH + SCOPE_PATH);
     assertEquals("import", scope);
 
-    final String version = value(document, dependency + "/version");
+    final String version = value(document, JACKSON_BILL_OF_MATERIALS_PATH + VERSION_PATH);
     final Package jacksonPackage = ObjectMapper.class.getPackage();
     final String expectedVersion = jacksonPackage.getImplementationVersion();
     assertEquals(expectedVersion, version);
@@ -70,10 +79,10 @@ final class PublishedDependenciesTest {
     final String version = type.getPackage().getImplementationVersion();
     assertNotNull(version, "the resolved library declares its implementation version");
     final String dependency = "/project/dependencies/dependency[groupId='%s' and artifactId='%s']".formatted(group, artifact);
-    final String publishedVersion = value(document, dependency + "/version");
+    final String publishedVersion = value(document, dependency + VERSION_PATH);
     assertEquals(version, publishedVersion, "Maven consumers need the resolved version of " + artifact);
 
-    final String scope = value(document, dependency + "/scope");
+    final String scope = value(document, dependency + SCOPE_PATH);
     assertEquals("compile", scope);
   }
 

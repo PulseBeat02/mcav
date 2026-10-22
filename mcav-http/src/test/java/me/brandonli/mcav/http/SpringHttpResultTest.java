@@ -66,7 +66,24 @@ import org.springframework.web.socket.WebSocketSession;
 final class SpringHttpResultTest {
 
   private static final long TIMEOUT_MILLISECONDS = 10_000;
+
   private static final int LAST_CHUNK_VALUE = 20;
+
+  private static final String LOCALHOST = "localhost";
+  private static final String EXAMPLE_DOMAIN = "example.com";
+  private static final String PUBLIC_DOMAIN = "play.example.com";
+  private static final String BLANK_DOMAIN = " ";
+
+  private static final int PORT = 8080;
+  private static final int MAXIMUM_PORT = 65535;
+
+  private static final String BUNDLED_PAGE_LOCATION = "classpath:/mcav/http/website/";
+  private static final String PATH_SEPARATOR = "/";
+
+  private static final String SESSION_ID = "listener";
+  private static final String BROKEN_SESSION_ID = "broken";
+
+  private static final int SAMPLE_BYTES = 4;
 
   @TempDir
   private Path directory;
@@ -170,14 +187,14 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldUsePortEightyInTheDomainFactory() {
-    final HttpResult http = HttpResult.domain("play.example.com");
+    final HttpResult http = HttpResult.domain(PUBLIC_DOMAIN);
     final String url = http.getFullUrl();
     assertEquals("http://play.example.com:80/", url);
   }
 
   @Test
   void shouldKeepTheDomainAndPortInTheDirectoryFactory() {
-    final HttpResult http = HttpResult.http("example.com", 65535, this.directory);
+    final HttpResult http = HttpResult.http(EXAMPLE_DOMAIN, MAXIMUM_PORT, this.directory);
     final String url = http.getFullUrl();
     assertEquals("http://example.com:65535/", url);
   }
@@ -185,29 +202,29 @@ final class SpringHttpResultTest {
   @Test
   void shouldRejectInvalidArgumentsInTheFactories() {
     assertThrows(NullPointerException.class, () -> HttpResult.http(null, 80));
-    assertThrows(IllegalArgumentException.class, () -> HttpResult.http(" ", 80));
-    assertThrows(IllegalArgumentException.class, () -> HttpResult.http("localhost", 0));
-    assertThrows(IllegalArgumentException.class, () -> HttpResult.http("localhost", 65536));
+    assertThrows(IllegalArgumentException.class, () -> HttpResult.http(BLANK_DOMAIN, 80));
+    assertThrows(IllegalArgumentException.class, () -> HttpResult.http(LOCALHOST, 0));
+    assertThrows(IllegalArgumentException.class, () -> HttpResult.http(LOCALHOST, MAXIMUM_PORT + 1));
     assertThrows(IllegalArgumentException.class, () -> HttpResult.port(-1));
     assertThrows(NullPointerException.class, () -> HttpResult.domain(null));
     assertThrows(NullPointerException.class, () -> HttpResult.http(null, 80, this.directory));
     assertThrows(IllegalArgumentException.class, () -> HttpResult.http("", 80, this.directory));
-    assertThrows(IllegalArgumentException.class, () -> HttpResult.http("localhost", 0, this.directory));
-    assertThrows(IllegalArgumentException.class, () -> HttpResult.http("localhost", 70000, this.directory));
-    assertThrows(NullPointerException.class, () -> HttpResult.http("localhost", 80, null));
+    assertThrows(IllegalArgumentException.class, () -> HttpResult.http(LOCALHOST, 0, this.directory));
+    assertThrows(IllegalArgumentException.class, () -> HttpResult.http(LOCALHOST, 70000, this.directory));
+    assertThrows(NullPointerException.class, () -> HttpResult.http(LOCALHOST, 80, null));
   }
 
   @Test
   void shouldResolveTheStaticLocationOfThePage() throws IOException {
     final String bundled = SpringHttpResult.staticLocation(null);
-    assertEquals("classpath:/mcav/http/website/", bundled);
+    assertEquals(BUNDLED_PAGE_LOCATION, bundled);
 
     final Path existing = this.directory.resolve("out");
     Files.createDirectory(existing);
     final String existingLocation = SpringHttpResult.staticLocation(existing);
     final URI existingUri = existing.toUri();
     final String existingText = existingUri.toString();
-    final boolean endsWithASlash = existingLocation.endsWith("/");
+    final boolean endsWithASlash = existingLocation.endsWith(PATH_SEPARATOR);
     assertEquals(existingText, existingLocation);
     assertTrue(endsWithASlash);
 
@@ -215,12 +232,12 @@ final class SpringHttpResultTest {
     final String missingLocation = SpringHttpResult.staticLocation(missing);
     final URI missingUri = missing.toUri();
     final String missingText = missingUri.toString();
-    assertEquals(missingText + "/", missingLocation);
+    assertEquals(missingText + PATH_SEPARATOR, missingLocation);
   }
 
   @Test
   void shouldReportTheConfiguredPortAndIgnoreStopWhileNotRunning() {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 4321, null);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, 4321, null);
     final int port = http.getLocalPort();
     assertEquals(4321, port);
     assertDoesNotThrow(http::stop);
@@ -230,7 +247,7 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldTurnAwayAndCloseAHandshakeThatArrivesAfterTheServerStopped() throws Exception {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
     final WebSocketSession early = session("early", sent);
     http.addListener(early);
@@ -248,10 +265,10 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldSurviveAHandshakeWhoseSessionCannotBeClosedAnyMore() throws Exception {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     http.stop();
     final WebSocketSession broken = Mockito.mock(WebSocketSession.class);
-    Mockito.when(broken.getId()).thenReturn("broken");
+    Mockito.when(broken.getId()).thenReturn(BROKEN_SESSION_ID);
     Mockito.doThrow(new IOException("already gone!")).when(broken).close(ArgumentMatchers.any());
 
     assertDoesNotThrow(() -> http.addListener(broken));
@@ -261,8 +278,8 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldAcceptSamplesWithoutListeners() {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
-    final ByteBuffer samples = ByteBuffer.allocate(16);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
+    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BYTES);
     final boolean changed = http.applyFilter(samples, this.metadata);
     final int count = http.getListenerCount();
     assertFalse(changed, "the filter only reads the sample, so it reports no change");
@@ -271,15 +288,15 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldRejectNullSamplesAndMetadata() {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
-    final ByteBuffer samples = ByteBuffer.allocate(16);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
+    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BYTES);
     assertThrows(NullPointerException.class, () -> http.applyFilter(null, this.metadata));
     assertThrows(NullPointerException.class, () -> http.applyFilter(samples, null));
   }
 
   @Test
   void shouldSendTheRemainingSamplesToEveryListenerWithoutConsumingThem() throws Exception {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final BlockingQueue<byte[]> firstSent = new LinkedBlockingQueue<>();
     final BlockingQueue<byte[]> secondSent = new LinkedBlockingQueue<>();
     final WebSocketSession first = session("first", firstSent);
@@ -308,7 +325,7 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldNotStallTheAudioThreadOrTheOtherListenersWhenAListenerWriteIsBlocked() throws Exception {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final CountDownLatch stuckWriteEntered = new CountDownLatch(1);
     final CountDownLatch releaseStuckWrite = new CountDownLatch(1);
     final WebSocketSession stuck = this.stuckSession(stuckWriteEntered, releaseStuckWrite);
@@ -335,11 +352,11 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldStopAListenerWhenRemovingIt() throws Exception {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
-    final WebSocketSession session = session("listener", sent);
+    final WebSocketSession session = session(SESSION_ID, sent);
     http.addListener(session);
-    final AudioListener listener = http.getListener("listener");
+    final AudioListener listener = http.getListener(SESSION_ID);
     assertNotNull(listener, "the listener of a connected browser is kept");
 
     http.removeListener(session);
@@ -412,24 +429,24 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldTakeEveryPortFromOneTo65535InTheHostAndPortFactory() {
-    assertThrows(IllegalArgumentException.class, () -> HttpResult.http("example.com", 0));
-    assertThrows(IllegalArgumentException.class, () -> HttpResult.http("example.com", 65536));
-    assertDoesNotThrow(() -> HttpResult.http("example.com", 1));
-    assertDoesNotThrow(() -> HttpResult.http("example.com", 65535));
+    assertThrows(IllegalArgumentException.class, () -> HttpResult.http(EXAMPLE_DOMAIN, 0));
+    assertThrows(IllegalArgumentException.class, () -> HttpResult.http(EXAMPLE_DOMAIN, MAXIMUM_PORT + 1));
+    assertDoesNotThrow(() -> HttpResult.http(EXAMPLE_DOMAIN, 1));
+    assertDoesNotThrow(() -> HttpResult.http(EXAMPLE_DOMAIN, MAXIMUM_PORT));
   }
 
   @Test
   void shouldIgnoreRemovingAListenerTwice() throws Exception {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
-    final WebSocketSession listener = session("listener", sent);
+    final WebSocketSession listener = session(SESSION_ID, sent);
     http.addListener(listener);
     http.removeListener(listener);
     http.removeListener(listener);
     final int count = http.getListenerCount();
     assertEquals(0, count);
 
-    final ByteBuffer samples = ByteBuffer.allocate(4);
+    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BYTES);
     http.applyFilter(samples, this.metadata);
     final byte[] none = sent.poll(50, TimeUnit.MILLISECONDS);
     assertNull(none);
@@ -437,12 +454,12 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldDropListenersWhoseSessionClosed() throws Exception {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
     final WebSocketSession closed = session("closed", sent);
     http.addListener(closed);
     Mockito.when(closed.isOpen()).thenReturn(false);
-    final ByteBuffer samples = ByteBuffer.allocate(4);
+    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BYTES);
     final boolean changed = http.applyFilter(samples, this.metadata);
     final int count = http.getListenerCount();
     assertFalse(changed, "the filter only reads the sample, so it reports no change");
@@ -452,13 +469,13 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldDropListenersWhoseWritesFail() throws Exception {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final WebSocketSession broken = Mockito.mock(WebSocketSession.class);
-    Mockito.when(broken.getId()).thenReturn("broken");
+    Mockito.when(broken.getId()).thenReturn(BROKEN_SESSION_ID);
     Mockito.when(broken.isOpen()).thenReturn(true);
     Mockito.doThrow(new IOException("broken pipe!")).when(broken).sendMessage(ArgumentMatchers.any());
     http.addListener(broken);
-    final ByteBuffer samples = ByteBuffer.allocate(4);
+    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BYTES);
     http.applyFilter(samples, this.metadata);
     verifyClosed(broken, CloseStatus.SESSION_NOT_RELIABLE);
     final int count = http.getListenerCount();
@@ -467,7 +484,7 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldKeepAReplacedListenerWhenItsOldConnectionFails() throws Exception {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final WebSocketSession broken = Mockito.mock(WebSocketSession.class);
     Mockito.when(broken.getId()).thenReturn("same-id");
     Mockito.when(broken.isOpen()).thenReturn(true);
@@ -483,7 +500,7 @@ final class SpringHttpResultTest {
       .when(broken)
       .sendMessage(ArgumentMatchers.any());
     http.addListener(broken);
-    final ByteBuffer samples = ByteBuffer.allocate(4);
+    final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BYTES);
     http.applyFilter(samples, this.metadata);
 
     final boolean sending = sendEntered.await(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
@@ -500,7 +517,7 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldShowInformationAboutTheCurrentMedia() {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 8080, null);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final MediaInformation initial = http.getCurrentMedia();
     assertSame(MediaInformation.EMPTY, initial);
 
@@ -542,8 +559,8 @@ final class SpringHttpResultTest {
     final HttpResultBuilder builder = HttpResult.builder();
     final byte[] raw = { 10, 0, 0, 7 };
     final InetAddress address = InetAddress.getByAddress(raw);
-    final HttpResultBuilder afterDomain = builder.domain("play.example.com");
-    final HttpResultBuilder afterPort = builder.port(8080);
+    final HttpResultBuilder afterDomain = builder.domain(PUBLIC_DOMAIN);
+    final HttpResultBuilder afterPort = builder.port(PORT);
     final HttpResultBuilder afterDirectory = builder.directory(this.directory);
     final HttpResultBuilder afterAddress = builder.bindAddress(address);
     assertSame(builder, afterDomain);
@@ -569,15 +586,15 @@ final class SpringHttpResultTest {
   void shouldRejectInvalidBuilderSettingsAndKeepThePreviousOnes() {
     final HttpResultBuilder builder = HttpResult.builder();
     assertThrows(NullPointerException.class, () -> builder.domain(null));
-    assertThrows(IllegalArgumentException.class, () -> builder.domain(" "));
+    assertThrows(IllegalArgumentException.class, () -> builder.domain(BLANK_DOMAIN));
     assertThrows(IllegalArgumentException.class, () -> builder.port(0));
-    assertThrows(IllegalArgumentException.class, () -> builder.port(65536));
+    assertThrows(IllegalArgumentException.class, () -> builder.port(MAXIMUM_PORT + 1));
     assertThrows(NullPointerException.class, () -> builder.directory(null));
     assertThrows(NullPointerException.class, () -> builder.bindAddress(null));
 
     final HttpResultBuilder lowest = builder.port(1);
     assertSame(builder, lowest);
-    final HttpResultBuilder highest = builder.port(65535);
+    final HttpResultBuilder highest = builder.port(MAXIMUM_PORT);
     assertSame(builder, highest);
     final HttpResult http = builder.build();
     final String url = http.getFullUrl();
@@ -586,10 +603,10 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldBracketIpv6AddressesInTheUrl() {
-    final HttpResult loopback = HttpResult.http("::1", 8080);
-    final HttpResult bracketed = HttpResult.http("[::1]", 8080);
-    final HttpResult zoned = HttpResult.http("fe80::1%eth0", 8080);
-    final HttpResult ipv4 = HttpResult.http("127.0.0.1", 8080);
+    final HttpResult loopback = HttpResult.http("::1", PORT);
+    final HttpResult bracketed = HttpResult.http("[::1]", PORT);
+    final HttpResult zoned = HttpResult.http("fe80::1%eth0", PORT);
+    final HttpResult ipv4 = HttpResult.http("127.0.0.1", PORT);
     final String loopbackUrl = loopback.getFullUrl();
     final String bracketedUrl = bracketed.getFullUrl();
     final String zonedUrl = zoned.getFullUrl();
@@ -603,7 +620,7 @@ final class SpringHttpResultTest {
     final String host = parsed.getHost();
     final int port = parsed.getPort();
     assertEquals("[::1]", host);
-    assertEquals(8080, port);
+    assertEquals(PORT, port);
   }
 
   @Test

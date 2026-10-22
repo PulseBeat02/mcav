@@ -28,13 +28,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 final class MediaController {
 
+  private static final String MEDIA_PATH = "/media";
+
   private final SpringHttpResult result;
 
   MediaController(final SpringHttpResult result) {
     this.result = result;
   }
 
-  @GetMapping(value = "/media", produces = MediaType.APPLICATION_JSON_VALUE)
+  @GetMapping(value = MEDIA_PATH, produces = MediaType.APPLICATION_JSON_VALUE)
   Map<String, Object> media() {
     final MediaInformation information = this.result.getCurrentMedia();
     return information.toJson();

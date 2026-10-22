@@ -55,10 +55,24 @@ final class AudioListenerFuzzTest {
 
   private static final long WAIT_SECONDS = 10;
 
+  private static final int MAXIMUM_LIMIT_BYTES = 4096;
+  private static final long MAXIMUM_SEND_TIME_LIMIT_MILLISECONDS = 10_000;
+  private static final int MAXIMUM_OPERATIONS = 40;
+  private static final int MAXIMUM_CHUNK_TO_LIMIT_RATIO = 2;
+  private static final long MAXIMUM_CLOCK_STEP_NANOSECONDS = 20_000_000_000L;
+
+  private static final int OFFER_CHUNK = 0;
+  private static final int FINISH_WRITE = 1;
+  private static final int ADVANCE_CLOCK = 2;
+  private static final int STOP_LISTENER = 3;
+  private static final int CLOSE_SESSION = 4;
+
+  private static final int REMAINING_WRITE_PERMITS = 1_000;
+
   @FuzzTest(maxDuration = "30s")
   void shouldQueueDropAndSendAsDocumented(final FuzzedDataProvider data) throws Exception {
-    final int limit = data.consumeInt(1, 4096);
-    final long sendTimeLimitMilliseconds = data.consumeLong(1, 10_000);
+    final int limit = data.consumeInt(1, MAXIMUM_LIMIT_BYTES);
+    final long sendTimeLimitMilliseconds = data.consumeLong(1, MAXIMUM_SEND_TIME_LIMIT_MILLISECONDS);
     final long sendTimeLimitNanoseconds = TimeUnit.MILLISECONDS.toNanos(sendTimeLimitMilliseconds);
     final AtomicLong clock = new AtomicLong();
     final GatedSession gate = new GatedSession();
@@ -73,12 +87,12 @@ final class AudioListenerFuzzTest {
     boolean stopped = false;
     int chunkNumber = 0;
     try {
-      final int operations = data.consumeInt(0, 40);
+      final int operations = data.consumeInt(0, MAXIMUM_OPERATIONS);
       for (int operation = 0; operation < operations; operation++) {
-        switch (data.consumeInt(0, 4)) {
-          case 0 -> {
+        switch (data.consumeInt(OFFER_CHUNK, CLOSE_SESSION)) {
+          case OFFER_CHUNK -> {
             chunkNumber++;
-            final byte[] chunk = new byte[data.consumeInt(0, 2 * limit)];
+            final byte[] chunk = new byte[data.consumeInt(0, MAXIMUM_CHUNK_TO_LIMIT_RATIO * limit)];
             Arrays.fill(chunk, (byte) chunkNumber);
             final boolean stuck = inFlight != null && clock.get() - sendStart > sendTimeLimitNanoseconds;
             final boolean expected = gate.open.get() && !stopped && !stuck;
@@ -100,7 +114,7 @@ final class AudioListenerFuzzTest {
               }
             }
           }
-          case 1 -> {
+          case FINISH_WRITE -> {
             if (inFlight != null) {
               gate.finishWrite();
               inFlight = null;
@@ -115,8 +129,8 @@ final class AudioListenerFuzzTest {
               }
             }
           }
-          case 2 -> clock.addAndGet(data.consumeLong(0, 20_000_000_000L));
-          case 3 -> {
+          case ADVANCE_CLOCK -> clock.addAndGet(data.consumeLong(0, MAXIMUM_CLOCK_STEP_NANOSECONDS));
+          case STOP_LISTENER -> {
             listener.stop();
             stopped = true;
             queued.clear();
@@ -237,7 +251,7 @@ final class AudioListenerFuzzTest {
     }
 
     private void finishAll() {
-      this.finished.release(1_000);
+      this.finished.release(REMAINING_WRITE_PERMITS);
     }
 
     List<byte[]> written() {

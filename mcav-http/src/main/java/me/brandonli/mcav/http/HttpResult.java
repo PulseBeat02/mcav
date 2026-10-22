@@ -62,7 +62,8 @@ public interface HttpResult extends AudioFilter {
    * @throws IllegalArgumentException if {@code port} is outside 1 through 65535
    */
   static HttpResult port(final int port) {
-    return http("localhost", port);
+    final HttpResultBuilder builder = builder();
+    return builder.port(port).build();
   }
 
   /**
@@ -74,7 +75,8 @@ public interface HttpResult extends AudioFilter {
    * @throws IllegalArgumentException if {@code domain} is blank
    */
   static HttpResult domain(final String domain) {
-    return http(domain, 80);
+    final HttpResultBuilder builder = builder();
+    return builder.domain(domain).build();
   }
 
   /**

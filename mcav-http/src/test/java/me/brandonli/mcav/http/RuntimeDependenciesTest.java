@@ -27,10 +27,15 @@ import org.junit.jupiter.api.Test;
 
 final class RuntimeDependenciesTest {
 
+  private static final List<String> LIFECYCLE_ANNOTATION_CLASSES = List.of(
+    "jakarta/annotation/PostConstruct.class",
+    "jakarta/annotation/PreDestroy.class"
+  );
+
   @Test
   void shouldHaveOneRuntimeDefinitionOfTheLifecycleAnnotations() throws IOException {
     final ClassLoader loader = RuntimeDependenciesTest.class.getClassLoader();
-    for (final String name : List.of("jakarta/annotation/PostConstruct.class", "jakarta/annotation/PreDestroy.class")) {
+    for (final String name : LIFECYCLE_ANNOTATION_CLASSES) {
       final List<URL> definitions = Collections.list(loader.getResources(name));
       final int definitionCount = definitions.size();
       assertEquals(1, definitionCount, "one runtime definition of " + name + ": " + definitions);

@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.net.HttpURLConnection;
 import java.net.JarURLConnection;
 import java.net.URI;
 import java.net.URL;
@@ -39,6 +40,7 @@ import java.util.Enumeration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.jar.JarFile;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -49,17 +51,26 @@ final class HttpClassLoaderTest {
 
   private static final String PAGE = "<!doctype html><title>class loader restart</title>";
 
+  private static final String INDEX_FILE = "index.html";
+
+  private static final String LOOPBACK_HOST = "127.0.0.1";
+  private static final int EPHEMERAL_PORT = 0;
+
+  private static final int LIBRARY_LOADER_COUNT = 2;
+
+  private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
+
   @TempDir
   private Path directory;
 
   @Test
   @Timeout(120)
   void shouldServeTheAudioPageFromSuccessiveLibraryClassLoaders() throws Exception {
-    Files.writeString(this.directory.resolve("index.html"), PAGE);
+    Files.writeString(this.directory.resolve(INDEX_FILE), PAGE);
     final URL[] locations = libraryLocations();
     final ClassLoader platform = ClassLoader.getPlatformClassLoader();
     try (final HttpClient client = HttpClient.newHttpClient()) {
-      for (int restart = 0; restart < 2; restart++) {
+      for (int restart = 0; restart < LIBRARY_LOADER_COUNT; restart++) {
         try (final URLClassLoader loader = new URLClassLoader(locations, platform)) {
           final Class<?> type = loader.loadClass(SpringHttpResult.class.getName());
           assertNotSame(SpringHttpResult.class, type, "each restart uses a new copy of the library");
@@ -72,7 +83,8 @@ final class HttpClassLoaderTest {
   private void assertServesAndStops(final Class<?> type, final HttpClient client) throws Exception {
     final Constructor<?> constructor = type.getDeclaredConstructor(String.class, int.class, Path.class, List.class);
     constructor.setAccessible(true);
-    final Object server = constructor.newInstance("127.0.0.1", 0, this.directory, List.of("server.address=127.0.0.1"));
+    final String addressProperty = "server.address=%s".formatted(LOOPBACK_HOST);
+    final Object server = constructor.newInstance(LOOPBACK_HOST, EPHEMERAL_PORT, this.directory, List.of(addressProperty));
     final Method start = type.getMethod("start");
     final Method stop = type.getMethod("stop");
     final Method running = type.getMethod("isRunning");
@@ -83,12 +95,13 @@ final class HttpClassLoaderTest {
       final Object runningAfterStart = running.invoke(server);
       assertEquals(true, runningAfterStart);
       final int port = (Integer) localPort.invoke(server);
-      final URI address = URI.create("http://127.0.0.1:" + port + "/");
-      final HttpRequest request = HttpRequest.newBuilder(address).timeout(Duration.ofSeconds(10)).build();
+      final String url = "http://%s:%s/".formatted(LOOPBACK_HOST, port);
+      final URI address = URI.create(url);
+      final HttpRequest request = HttpRequest.newBuilder(address).timeout(REQUEST_TIMEOUT).build();
       final HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
       final int status = response.statusCode();
       final String body = response.body();
-      assertEquals(200, status);
+      assertEquals(HttpURLConnection.HTTP_OK, status);
       assertEquals(PAGE, body);
     } finally {
       stop.invoke(server);
@@ -104,9 +117,10 @@ final class HttpClassLoaderTest {
     final URL commonLocation = AudioFilter.class.getProtectionDomain().getCodeSource().getLocation();
     locations.put(httpLocation.toExternalForm(), httpLocation);
     locations.put(commonLocation.toExternalForm(), commonLocation);
+    final int ownLocationCount = locations.size();
     // Gradle and PIT use different loader types; manifests locate their dependency jars without a loader cast.
     final ClassLoader loader = HttpClassLoaderTest.class.getClassLoader();
-    final Enumeration<URL> manifests = loader.getResources("META-INF/MANIFEST.MF");
+    final Enumeration<URL> manifests = loader.getResources(JarFile.MANIFEST_NAME);
     while (manifests.hasMoreElements()) {
       final URL manifest = manifests.nextElement();
       final URLConnection connection = manifest.openConnection();
@@ -116,7 +130,7 @@ final class HttpClassLoaderTest {
       }
     }
     final int locationCount = locations.size();
-    assertTrue(locationCount > 2, "the isolated loader includes the real HTTP dependencies");
+    assertTrue(locationCount > ownLocationCount, "the isolated loader includes the real HTTP dependencies");
     return locations.values().toArray(URL[]::new);
   }
 }

@@ -45,6 +45,9 @@ import org.springframework.web.socket.WebSocketSession;
  */
 final class AudioListener {
 
+  private static final String LISTENER_THREAD_PREFIX = "mcav-http-listener-";
+  private static final String CLOSING_THREAD_PREFIX = "mcav-http-close-";
+
   private final WebSocketSession session;
   private final long sendTimeLimitNanoseconds;
   private final int bufferLimitBytes;
@@ -112,7 +115,7 @@ final class AudioListener {
   Thread start() {
     final String id = this.session.getId();
     final Thread.Builder.OfVirtual builder = Thread.ofVirtual();
-    builder.name("mcav-http-listener-" + id);
+    builder.name(LISTENER_THREAD_PREFIX + id);
     return builder.start(this::sendPending);
   }
 
@@ -221,7 +224,7 @@ final class AudioListener {
     this.stop();
     final String id = this.session.getId();
     final Thread.Builder.OfVirtual builder = Thread.ofVirtual();
-    builder.name("mcav-http-close-" + id);
+    builder.name(CLOSING_THREAD_PREFIX + id);
     return builder.start(() -> closeQuietly(this.session, status));
   }
 

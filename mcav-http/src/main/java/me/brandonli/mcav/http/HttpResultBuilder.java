@@ -61,6 +61,8 @@ public final class HttpResultBuilder {
    */
   private static final int DEFAULT_PORT = 80;
 
+  private static final int MAXIMUM_PORT = 65535;
+
   private String domain;
   private int port;
   private @Nullable Path directory;
@@ -96,7 +98,7 @@ public final class HttpResultBuilder {
    * @throws IllegalArgumentException if {@code port} is outside 1 through 65535
    */
   public HttpResultBuilder port(final int port) {
-    Preconditions.checkArgument(port > 0 && port <= 65535, "Port %s must be between 1 and 65535!", port);
+    Preconditions.checkArgument(port > 0 && port <= MAXIMUM_PORT, "Port %s must be between 1 and 65535!", port);
     this.port = port;
     return this;
   }

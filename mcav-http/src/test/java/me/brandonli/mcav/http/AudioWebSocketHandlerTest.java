@@ -36,7 +36,10 @@ import org.springframework.web.socket.WebSocketSession;
  */
 final class AudioWebSocketHandlerTest {
 
-  private final SpringHttpResult result = new SpringHttpResult("localhost", 8080, null);
+  private static final String LOCALHOST = "localhost";
+  private static final int PORT = 8080;
+
+  private final SpringHttpResult result = new SpringHttpResult(LOCALHOST, PORT, null);
   private final AudioWebSocketHandler handler = new AudioWebSocketHandler(this.result);
   private final WebSocketSession session = Mockito.mock(WebSocketSession.class);
 

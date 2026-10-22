@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -84,9 +85,43 @@ import org.springframework.web.socket.WebSocketSession;
 final class HttpServerTest {
 
   private static final long TIMEOUT_SECONDS = 10;
-  private static final List<String> LOOPBACK = List.of("server.address=127.0.0.1");
+  private static final long SLOW_TIMEOUT_SECONDS = 60;
+
+  private static final String LOCALHOST = "localhost";
+  private static final String LOOPBACK_HOST = "127.0.0.1";
+  private static final String FOREIGN_HOST = "192.0.2.1";
+
+  private static final String ADDRESS_PROPERTY = "server.address=%s";
+  private static final List<String> LOOPBACK = List.of(ADDRESS_PROPERTY.formatted(LOOPBACK_HOST));
+
+  private static final int EPHEMERAL_PORT = 0;
+  private static final int DEFAULT_BACKLOG = 50;
+
+  private static final String HTTP_SCHEME = "http";
+  private static final String WEBSOCKET_SCHEME = "ws";
+
+  private static final String ROOT_PATH = "/";
+  private static final String INDEX_PATH = "/index.html";
+  private static final String MISSING_PATH = "/missing.html";
+  private static final String MEDIA_PATH = "/media";
+  private static final String AUDIO_PATH = "/audio";
+
+  private static final String PAGE_DIRECTORY_NAME = "page";
+  private static final String OTHER_DIRECTORY_NAME = "other";
+  private static final String INDEX_FILE = "index.html";
+  private static final String SECRET_FILE = "secret.txt";
+
+  private static final String PAGE_TEMPLATE = "<!doctype html><title>%s</title>";
+  private static final String DIRECTORY_PAGE_TITLE = "directory test page";
 
   private static final String SECRET = "top secret content next to the page directory";
+
+  private static final int CHUNK_LENGTH = 4096;
+
+  private static final String START_FAILURE_PREFIX = "Web server on port %s failed with \"";
+  private static final String START_FAILURE_SUFFIX = "\" while starting!";
+
+  private static final String ROOT_LOGGER_NAME = "";
 
   private static final List<String> TRAVERSAL_ATTACKS = List.of(
     "/../secret.txt",
@@ -124,13 +159,14 @@ final class HttpServerTest {
 
   @BeforeAll
   static void startTheServer() throws IOException {
-    pageDirectory = temporary.resolve("page");
+    pageDirectory = temporary.resolve(PAGE_DIRECTORY_NAME);
     Files.createDirectories(pageDirectory);
-    final Path secret = temporary.resolve("secret.txt");
+    final Path secret = temporary.resolve(SECRET_FILE);
     Files.writeString(secret, SECRET);
-    final Path index = pageDirectory.resolve("index.html");
-    Files.writeString(index, "<!doctype html><title>directory test page</title>");
-    server = new SpringHttpResult("localhost", 0, pageDirectory, LOOPBACK);
+    final Path index = pageDirectory.resolve(INDEX_FILE);
+    final String page = PAGE_TEMPLATE.formatted(DIRECTORY_PAGE_TITLE);
+    Files.writeString(index, page);
+    server = new SpringHttpResult(LOCALHOST, EPHEMERAL_PORT, pageDirectory, LOOPBACK);
     server.start();
     client = HttpClient.newHttpClient();
   }
@@ -143,11 +179,16 @@ final class HttpServerTest {
 
   private static URI uri(final SpringHttpResult http, final String scheme, final String path) {
     final int port = http.getLocalPort();
-    return URI.create(scheme + "://127.0.0.1:" + port + path);
+    return uri(port, scheme, path);
+  }
+
+  private static URI uri(final int port, final String scheme, final String path) {
+    final String address = "%s://%s:%s%s".formatted(scheme, LOOPBACK_HOST, port, path);
+    return URI.create(address);
   }
 
   private static HttpResponse<String> get(final SpringHttpResult http, final String path) throws IOException, InterruptedException {
-    final URI target = uri(http, "http", path);
+    final URI target = uri(http, HTTP_SCHEME, path);
     final HttpRequest.Builder builder = HttpRequest.newBuilder(target);
     final Duration timeout = Duration.ofSeconds(TIMEOUT_SECONDS);
     builder.timeout(timeout);
@@ -157,7 +198,7 @@ final class HttpServerTest {
   }
 
   private static WebSocket connect(final SpringHttpResult http, final RecordingListener listener) throws Exception {
-    final URI target = uri(http, "ws", "/audio");
+    final URI target = uri(http, WEBSOCKET_SCHEME, AUDIO_PATH);
     final WebSocket.Builder builder = client.newWebSocketBuilder();
     final CompletableFuture<WebSocket> future = builder.buildAsync(target, listener);
     return future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -174,7 +215,7 @@ final class HttpServerTest {
 
   private static int freePort() throws IOException {
     final InetAddress loopback = InetAddress.getLoopbackAddress();
-    try (final ServerSocket socket = new ServerSocket(0, 1, loopback)) {
+    try (final ServerSocket socket = new ServerSocket(EPHEMERAL_PORT, DEFAULT_BACKLOG, loopback)) {
       return socket.getLocalPort();
     }
   }
@@ -255,33 +296,33 @@ final class HttpServerTest {
 
   @Test
   void shouldServeTheWebPageFromTheDirectory() throws Exception {
-    final HttpResponse<String> root = get(server, "/");
-    final HttpResponse<String> index = get(server, "/index.html");
-    final HttpResponse<String> missing = get(server, "/missing.html");
+    final HttpResponse<String> root = get(server, ROOT_PATH);
+    final HttpResponse<String> index = get(server, INDEX_PATH);
+    final HttpResponse<String> missing = get(server, MISSING_PATH);
     final int rootStatus = root.statusCode();
     final String rootBody = root.body();
     final int indexStatus = index.statusCode();
     final String indexBody = index.body();
     final int missingStatus = missing.statusCode();
-    final boolean rootServesThePage = rootBody.contains("directory test page");
-    final boolean indexServesThePage = indexBody.contains("directory test page");
-    assertEquals(200, rootStatus);
+    final boolean rootServesThePage = rootBody.contains(DIRECTORY_PAGE_TITLE);
+    final boolean indexServesThePage = indexBody.contains(DIRECTORY_PAGE_TITLE);
+    assertEquals(HttpURLConnection.HTTP_OK, rootStatus);
     assertTrue(rootServesThePage);
-    assertEquals(200, indexStatus);
+    assertEquals(HttpURLConnection.HTTP_OK, indexStatus);
     assertTrue(indexServesThePage);
-    assertEquals(404, missingStatus);
+    assertEquals(HttpURLConnection.HTTP_NOT_FOUND, missingStatus);
   }
 
   @Test
   void shouldServeEmptyMediaAsJson() throws Exception {
     server.setCurrentMedia((MediaInformation) null);
-    final HttpResponse<String> empty = get(server, "/media");
+    final HttpResponse<String> empty = get(server, MEDIA_PATH);
     final int status = empty.statusCode();
     final String emptyBody = empty.body();
     final HttpHeaders headers = empty.headers();
     final Optional<String> contentType = headers.firstValue("Content-Type");
     final Optional<String> expectedType = Optional.of("application/json");
-    assertEquals(200, status);
+    assertEquals(HttpURLConnection.HTTP_OK, status);
     assertEquals("{\"duration\":0,\"view_count\":0,\"like_count\":0}", emptyBody);
     assertEquals(expectedType, contentType);
   }
@@ -291,7 +332,7 @@ final class HttpServerTest {
     final UrlParseDump dump = MediaInformationTest.completeDump();
     server.setCurrentMedia(dump);
     try {
-      final HttpResponse<String> complete = get(server, "/media");
+      final HttpResponse<String> complete = get(server, MEDIA_PATH);
       final String completeBody = complete.body();
       final String expected =
         "{\"title\":\"Song\",\"uploader\":\"Artist\",\"channel\":\"Artist Channel\",\"uploader_id\":\"@artist\"," +
@@ -308,7 +349,7 @@ final class HttpServerTest {
     final MediaInformation titled = MediaInformation.titled("Quote \" and ünïcode");
     server.setCurrentMedia(titled);
     try {
-      final HttpResponse<String> escaped = get(server, "/media");
+      final HttpResponse<String> escaped = get(server, MEDIA_PATH);
       final String escapedBody = escaped.body();
       assertEquals("{\"title\":\"Quote \\\" and ünïcode\",\"duration\":0,\"view_count\":0,\"like_count\":0}", escapedBody);
     } finally {
@@ -317,7 +358,7 @@ final class HttpServerTest {
   }
 
   private static byte[] countingChunk() {
-    final byte[] chunk = new byte[4096];
+    final byte[] chunk = new byte[CHUNK_LENGTH];
     for (int index = 0; index < chunk.length; index++) {
       chunk[index] = (byte) index;
     }
@@ -380,7 +421,7 @@ final class HttpServerTest {
   }
 
   private static void assertServesTheBundledPage(final SpringHttpResult http) throws Exception {
-    final HttpResponse<String> page = get(http, "/");
+    final HttpResponse<String> page = get(http, ROOT_PATH);
     final String body = page.body();
     final boolean servesTheBundledPage = body.contains("bundled test page");
     assertTrue(servesTheBundledPage, "the bundled page is served from classpath:/mcav/http/website/");
@@ -400,7 +441,7 @@ final class HttpServerTest {
     assertEquals(0, listenersAfterStop);
     assertEquals(0, portAfterStop);
 
-    final URI stoppedTarget = URI.create("http://127.0.0.1:" + port + "/media");
+    final URI stoppedTarget = uri(port, HTTP_SCHEME, MEDIA_PATH);
     final HttpRequest.Builder stoppedBuilder = HttpRequest.newBuilder(stoppedTarget);
     final HttpRequest stoppedRequest = stoppedBuilder.build();
     final HttpResponse.BodyHandler<Void> discarding = HttpResponse.BodyHandlers.discarding();
@@ -411,18 +452,18 @@ final class HttpServerTest {
     http.start();
     final boolean runningAgain = http.isRunning();
     assertTrue(runningAgain);
-    final HttpResponse<String> media = get(http, "/media");
+    final HttpResponse<String> media = get(http, MEDIA_PATH);
     final int status = media.statusCode();
-    assertEquals(200, status);
+    assertEquals(HttpURLConnection.HTTP_OK, status);
   }
 
   @Test
   void shouldStartInTheBackgroundStopWithGoingAwayAndRestart() throws Exception {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 0, null, LOOPBACK);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, EPHEMERAL_PORT, null, LOOPBACK);
     final boolean runningBeforeStart = http.isRunning();
     assertFalse(runningBeforeStart);
     final CompletableFuture<Void> started = http.startAsync();
-    started.get(60, TimeUnit.SECONDS);
+    started.get(SLOW_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     try {
       final boolean running = http.isRunning();
       final int port = http.getLocalPort();
@@ -442,7 +483,7 @@ final class HttpServerTest {
 
   @Test
   void shouldRefuseAHandshakeThatFinishesWhileTheServerIsStopping() throws Exception {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 0, null, LOOPBACK);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, EPHEMERAL_PORT, null, LOOPBACK);
     http.start();
     try {
       final CountDownLatch insideHandshake = new CountDownLatch(1);
@@ -466,9 +507,9 @@ final class HttpServerTest {
 
       http.stop();
       serverStopped.countDown();
-      handshake.join(TIMEOUT_SECONDS * 1000);
-      final boolean finished = handshake.isAlive();
-      assertFalse(finished, "the handshake must finish instead of parking on a queue nothing signals");
+      final Duration limit = Duration.ofSeconds(TIMEOUT_SECONDS);
+      final boolean finished = handshake.join(limit);
+      assertTrue(finished, "the handshake must finish instead of parking on a queue nothing signals");
 
       final int listeners = http.getListenerCount();
       assertEquals(0, listeners, "a listener registered during the shutdown must not survive it");
@@ -482,7 +523,7 @@ final class HttpServerTest {
   void shouldRestoreTheContextClassLoaderAfterStartingAndStopping() throws Exception {
     final Thread thread = Thread.currentThread();
     final ClassLoader original = thread.getContextClassLoader();
-    final SpringHttpResult http = new SpringHttpResult("localhost", 0, pageDirectory, LOOPBACK);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, EPHEMERAL_PORT, pageDirectory, LOOPBACK);
     try (final URLClassLoader custom = new URLClassLoader(new URL[0], null)) {
       thread.setContextClassLoader(custom);
       http.start();
@@ -500,9 +541,9 @@ final class HttpServerTest {
   @Test
   void shouldFailWithAnHttpExceptionWhenThePortIsInUse() throws Exception {
     final InetAddress loopback = InetAddress.getLoopbackAddress();
-    try (final ServerSocket occupied = new ServerSocket(0, 50, loopback)) {
+    try (final ServerSocket occupied = new ServerSocket(EPHEMERAL_PORT, DEFAULT_BACKLOG, loopback)) {
       final int port = occupied.getLocalPort();
-      final SpringHttpResult http = new SpringHttpResult("localhost", port, null, LOOPBACK);
+      final SpringHttpResult http = new SpringHttpResult(LOCALHOST, port, null, LOOPBACK);
       final Thread thread = Thread.currentThread();
       final ClassLoader before = thread.getContextClassLoader();
       final HttpException exception = assertThrows(HttpException.class, http::start);
@@ -510,8 +551,9 @@ final class HttpServerTest {
       final String message = exception.getMessage();
       final Throwable cause = exception.getCause();
       final boolean running = http.isRunning();
-      final boolean namesThePort = message.startsWith("Web server on port %s failed with \"".formatted(port));
-      final boolean endsOnWords = message.endsWith("\" while starting!");
+      final String expectedStart = START_FAILURE_PREFIX.formatted(port);
+      final boolean namesThePort = message.startsWith(expectedStart);
+      final boolean endsOnWords = message.endsWith(START_FAILURE_SUFFIX);
       assertTrue(namesThePort, message);
       assertTrue(endsOnWords, message);
       assertInstanceOf(RuntimeException.class, cause);
@@ -522,10 +564,11 @@ final class HttpServerTest {
 
   @Test
   void shouldReportTheFailuresOfAnAsynchronousStart() {
-    final List<String> properties = List.of("server.address=192.0.2.1");
-    final SpringHttpResult http = new SpringHttpResult("localhost", 0, null, properties);
+    final String foreignAddress = ADDRESS_PROPERTY.formatted(FOREIGN_HOST);
+    final List<String> properties = List.of(foreignAddress);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, EPHEMERAL_PORT, null, properties);
     final CompletableFuture<Void> started = http.startAsync();
-    final ExecutionException exception = assertThrows(ExecutionException.class, () -> started.get(60, TimeUnit.SECONDS));
+    final ExecutionException exception = assertThrows(ExecutionException.class, () -> started.get(SLOW_TIMEOUT_SECONDS, TimeUnit.SECONDS));
     final Throwable cause = exception.getCause();
     assertInstanceOf(HttpException.class, cause);
     final boolean running = http.isRunning();
@@ -540,38 +583,39 @@ final class HttpServerTest {
       final String body = response.body();
       final boolean leaked = body.contains(SECRET);
       assertFalse(leaked, attack + " leaked the file outside the page directory");
-      assertTrue(status >= 400, attack + " answered " + status);
+      assertTrue(status >= HttpURLConnection.HTTP_BAD_REQUEST, attack + " answered " + status);
     }
   }
 
   @Test
   void shouldApplyACopyOfTheExtraPropertiesAfterTheDefaults() throws Exception {
-    final Path other = temporary.resolve("other");
+    final Path other = temporary.resolve(OTHER_DIRECTORY_NAME);
     Files.createDirectories(other);
-    final Path index = other.resolve("index.html");
-    Files.writeString(index, "<!doctype html><title>other page</title>");
+    final Path index = other.resolve(INDEX_FILE);
+    final String otherPage = PAGE_TEMPLATE.formatted("other page");
+    Files.writeString(index, otherPage);
     final String location = SpringHttpResult.staticLocation(other);
     final List<String> properties = new ArrayList<>(LOOPBACK);
     properties.add("spring.web.resources.static-locations=" + location);
-    final SpringHttpResult http = new SpringHttpResult("localhost", 0, pageDirectory, properties);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, EPHEMERAL_PORT, pageDirectory, properties);
     properties.clear();
     try {
       http.start();
-      final HttpResponse<String> page = get(http, "/");
+      final HttpResponse<String> page = get(http, ROOT_PATH);
       final int status = page.statusCode();
       final String body = page.body();
-      assertEquals(200, status, "server.address=127.0.0.1 of the copied list is in effect");
+      assertEquals(HttpURLConnection.HTTP_OK, status, "server.address=127.0.0.1 of the copied list is in effect");
       final Field contextField = SpringHttpResult.class.getDeclaredField("context");
       contextField.setAccessible(true);
       final WebServerApplicationContext context = (WebServerApplicationContext) contextField.get(http);
       final TomcatWebServer webServer = (TomcatWebServer) context.getWebServer();
       final AbstractProtocol<?> protocol = (AbstractProtocol<?>) webServer.getTomcat().getConnector().getProtocolHandler();
-      final InetAddress expectedAddress = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
+      final InetAddress expectedAddress = InetAddress.ofLiteral(LOOPBACK_HOST);
       final InetAddress address = protocol.getAddress();
       assertEquals(expectedAddress, address, "the connector binds only to the copied address");
 
       final boolean servesTheOtherPage = body.contains("other page");
-      final boolean servesTheDirectoryPage = body.contains("directory test page");
+      final boolean servesTheDirectoryPage = body.contains(DIRECTORY_PAGE_TITLE);
       assertTrue(servesTheOtherPage, "an extra property overrides the default location");
       assertFalse(servesTheDirectoryPage);
     } finally {
@@ -581,8 +625,7 @@ final class HttpServerTest {
 
   @Test
   void shouldListenOnTheBindAddressOfTheBuilder() throws Exception {
-    final byte[] raw = { 127, 0, 0, 1 };
-    final InetAddress loopback = InetAddress.getByAddress(raw);
+    final InetAddress loopback = InetAddress.ofLiteral(LOOPBACK_HOST);
     final int port = freePort();
     final HttpResultBuilder builder = HttpResult.builder();
     builder.port(port);
@@ -593,12 +636,12 @@ final class HttpServerTest {
     try {
       http.start();
       final int localPort = http.getLocalPort();
-      final HttpResponse<String> page = get(http, "/");
+      final HttpResponse<String> page = get(http, ROOT_PATH);
       final int status = page.statusCode();
       final String body = page.body();
-      final boolean servesThePage = body.contains("directory test page");
+      final boolean servesThePage = body.contains(DIRECTORY_PAGE_TITLE);
       assertEquals(port, localPort);
-      assertEquals(200, status);
+      assertEquals(HttpURLConnection.HTTP_OK, status);
       assertTrue(servesThePage);
     } finally {
       http.stop();
@@ -607,8 +650,7 @@ final class HttpServerTest {
 
   @Test
   void shouldFailToStartOnABindAddressOfAnotherMachine() throws Exception {
-    final byte[] raw = { (byte) 192, 0, 2, 1 };
-    final InetAddress foreign = InetAddress.getByAddress(raw);
+    final InetAddress foreign = InetAddress.ofLiteral(FOREIGN_HOST);
     final int port = freePort();
     final HttpResultBuilder builder = HttpResult.builder();
     builder.port(port);
@@ -617,8 +659,9 @@ final class HttpServerTest {
     final HttpException exception = assertThrows(HttpException.class, http::start);
     final String message = exception.getMessage();
     final boolean running = http.isRunning();
-    final boolean namesThePort = message.startsWith("Web server on port %s failed with \"".formatted(port));
-    final boolean endsOnWords = message.endsWith("\" while starting!");
+    final String expectedStart = START_FAILURE_PREFIX.formatted(port);
+    final boolean namesThePort = message.startsWith(expectedStart);
+    final boolean endsOnWords = message.endsWith(START_FAILURE_SUFFIX);
     assertTrue(namesThePort, message);
     assertTrue(endsOnWords, message);
     assertFalse(running);
@@ -635,7 +678,7 @@ final class HttpServerTest {
     Mockito.doAnswer(_ -> {
       this.workers.observeCurrentThread();
       writeEntered.countDown();
-      final boolean released = releaseWrite.await(60, TimeUnit.SECONDS);
+      final boolean released = releaseWrite.await(SLOW_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertTrue(released, "the test releases the stuck write");
       return null;
     })
@@ -643,7 +686,7 @@ final class HttpServerTest {
       .sendMessage(ArgumentMatchers.any());
     Mockito.doAnswer(_ -> {
       this.workers.observeCurrentThread();
-      final boolean released = releaseWrite.await(60, TimeUnit.SECONDS);
+      final boolean released = releaseWrite.await(SLOW_TIMEOUT_SECONDS, TimeUnit.SECONDS);
       assertTrue(released, "the test releases the stuck write");
       return null;
     })
@@ -654,7 +697,7 @@ final class HttpServerTest {
 
   @Test
   void shouldStopWithoutWaitingForAListenerWhoseWriteIsStuck() throws Exception {
-    final SpringHttpResult http = new SpringHttpResult("localhost", 0, pageDirectory, LOOPBACK);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, EPHEMERAL_PORT, pageDirectory, LOOPBACK);
     final CountDownLatch writeEntered = new CountDownLatch(1);
     final CountDownLatch releaseWrite = new CountDownLatch(1);
     final WebSocketSession stuck = this.stuckSession(writeEntered, releaseWrite);
@@ -675,7 +718,7 @@ final class HttpServerTest {
       assertEquals(0, listeners);
       SpringHttpResultTest.verifyClosed(stuck, CloseStatus.GOING_AWAY);
 
-      final Duration startLimit = Duration.ofSeconds(60);
+      final Duration startLimit = Duration.ofSeconds(SLOW_TIMEOUT_SECONDS);
       assertTimeoutPreemptively(startLimit, http::start, "start must not wait for the stuck write either");
       final boolean restarted = http.isRunning();
       assertTrue(restarted);
@@ -703,12 +746,12 @@ final class HttpServerTest {
   void shouldLeaveTheLoggingOfTheJvmUnchangedWhenStarting() {
     final String property = SpringHttpResult.LOGGING_SYSTEM_PROPERTY;
     final String previousProperty = System.getProperty(property);
-    final Logger root = Logger.getLogger("");
+    final Logger root = Logger.getLogger(ROOT_LOGGER_NAME);
     final Level previousLevel = root.getLevel();
     final Handler marker = new MarkerHandler();
     root.addHandler(marker);
     root.setLevel(Level.CONFIG);
-    final SpringHttpResult http = new SpringHttpResult("localhost", 0, pageDirectory, LOOPBACK);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, EPHEMERAL_PORT, pageDirectory, LOOPBACK);
     try {
       System.clearProperty(property);
       assertStartAndStopKeepTheLogging(http, root);

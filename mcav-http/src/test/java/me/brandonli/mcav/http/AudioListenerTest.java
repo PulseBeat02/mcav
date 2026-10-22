@@ -58,6 +58,19 @@ final class AudioListenerTest {
   private static final long TIMEOUT_SECONDS = 10;
   private static final long TIMEOUT_MILLISECONDS = TimeUnit.SECONDS.toMillis(TIMEOUT_SECONDS);
 
+  private static final long SEND_TIME_LIMIT_MILLISECONDS = 1000;
+  private static final long SHORT_SEND_TIME_LIMIT_MILLISECONDS = 50;
+
+  private static final long SILENCE_MILLISECONDS = 100;
+
+  private static final int BUFFER_LIMIT_BYTES = 1024;
+  private static final int SMALL_BUFFER_LIMIT_BYTES = 250;
+
+  private static final int SMALL_CHUNK_BYTES = 10;
+  private static final int MEDIUM_CHUNK_BYTES = 100;
+
+  private static final String SESSION_ID = "listener-1";
+
   private final WorkerAssertions workers = new WorkerAssertions();
   private final List<AudioListener> listeners = new ArrayList<>();
 
@@ -68,7 +81,7 @@ final class AudioListenerTest {
   private final CompletableFuture<AudioListener> failure = new CompletableFuture<>();
 
   private AudioListener createListener(final long sendTimeLimitMilliseconds, final int bufferLimitBytes) {
-    Mockito.when(this.session.getId()).thenReturn("listener-1");
+    Mockito.when(this.session.getId()).thenReturn(SESSION_ID);
     Mockito.when(this.session.isOpen()).thenReturn(true);
     final AudioListener listener = new AudioListener(this.session, sendTimeLimitMilliseconds, bufferLimitBytes, this.failure::complete);
     this.listeners.add(listener);
@@ -80,7 +93,7 @@ final class AudioListenerTest {
     final int bufferLimitBytes,
     final LongSupplier nanosecondClock
   ) {
-    Mockito.when(this.session.getId()).thenReturn("listener-1");
+    Mockito.when(this.session.getId()).thenReturn(SESSION_ID);
     Mockito.when(this.session.isOpen()).thenReturn(true);
     final AudioListener listener = new AudioListener(
       this.session,
@@ -191,8 +204,8 @@ final class AudioListenerTest {
 
   @Test
   void shouldReleaseTheLockNeededByOtherProducersAfterInspectingTheQueueDepth() throws Exception {
-    final AudioListener listener = this.createListener(1000, 1024);
-    final byte[] first = chunk(10, 1);
+    final AudioListener listener = this.createListener(SEND_TIME_LIMIT_MILLISECONDS, BUFFER_LIMIT_BYTES);
+    final byte[] first = chunk(SMALL_CHUNK_BYTES, 1);
     final boolean queued = listener.offer(first);
     assertTrue(queued);
 
@@ -219,15 +232,16 @@ final class AudioListenerTest {
     producer.join(TIMEOUT_MILLISECONDS);
     final boolean alive = producer.isAlive();
     final int bytes = listener.getPendingBytes();
+    final int expectedBytes = first.length + second.length;
     assertTrue(accepted);
     assertFalse(alive);
-    assertEquals(30, bytes, "a different producer can still append samples after a queue-depth query");
+    assertEquals(expectedBytes, bytes, "a different producer can still append samples after a queue-depth query");
     listener.stop();
   }
 
   @Test
   void shouldExposeItsSession() {
-    final AudioListener listener = this.createListener(1000, 1024);
+    final AudioListener listener = this.createListener(SEND_TIME_LIMIT_MILLISECONDS, BUFFER_LIMIT_BYTES);
     final WebSocketSession listenerSession = listener.getSession();
     assertSame(this.session, listenerSession);
   }
@@ -235,9 +249,9 @@ final class AudioListenerTest {
   @Test
   void shouldSendQueuedChunksInOrderAsBinaryMessages() throws Exception {
     this.recordSends();
-    final AudioListener listener = this.createListener(1000, 1024);
+    final AudioListener listener = this.createListener(SEND_TIME_LIMIT_MILLISECONDS, BUFFER_LIMIT_BYTES);
     listener.start();
-    final byte[] first = chunk(10, 1);
+    final byte[] first = chunk(SMALL_CHUNK_BYTES, 1);
     final byte[] second = chunk(20, 2);
     final byte[] third = chunk(30, 3);
     final boolean firstQueued = listener.offer(first);
@@ -257,11 +271,11 @@ final class AudioListenerTest {
   }
 
   /**
-   * Offers five chunks of 100 bytes filled with the values 2 to 6, which must all be queued.
+   * Offers five medium chunks filled with the values 2 to 6, which must all be queued.
    */
-  private static void offerFiveMoreHundredByteChunks(final AudioListener listener) {
+  private static void offerFiveMoreMediumChunks(final AudioListener listener) {
     for (int value = 2; value <= 6; value++) {
-      final byte[] next = chunk(100, value);
+      final byte[] next = chunk(MEDIUM_CHUNK_BYTES, value);
       final boolean queued = listener.offer(next);
       assertTrue(queued);
     }
@@ -270,25 +284,25 @@ final class AudioListenerTest {
   @Test
   void shouldQueueWithoutBlockingWhileAWriteIsInProgressAndDropTheOldestChunks() throws Exception {
     this.blockTheFirstSend();
-    final AudioListener listener = this.createListener(TIMEOUT_MILLISECONDS, 250);
+    final AudioListener listener = this.createListener(TIMEOUT_MILLISECONDS, SMALL_BUFFER_LIMIT_BYTES);
     listener.start();
-    final byte[] first = chunk(100, 1);
+    final byte[] first = chunk(MEDIUM_CHUNK_BYTES, 1);
     listener.offer(first);
     this.awaitFirstSend();
-    offerFiveMoreHundredByteChunks(listener);
+    offerFiveMoreMediumChunks(listener);
     final int pending = listener.getPendingBytes();
-    assertEquals(200, pending);
+    assertEquals(2 * MEDIUM_CHUNK_BYTES, pending);
 
     this.releaseSends.countDown();
     final byte[] firstSent = this.nextSent();
     final byte[] secondSent = this.nextSent();
     final byte[] thirdSent = this.nextSent();
-    final byte[] expectedSecond = chunk(100, 5);
-    final byte[] expectedThird = chunk(100, 6);
+    final byte[] expectedSecond = chunk(MEDIUM_CHUNK_BYTES, 5);
+    final byte[] expectedThird = chunk(MEDIUM_CHUNK_BYTES, 6);
     assertArrayEquals(first, firstSent);
     assertArrayEquals(expectedSecond, secondSent);
     assertArrayEquals(expectedThird, thirdSent);
-    final byte[] none = this.sent.poll(50, TimeUnit.MILLISECONDS);
+    final byte[] none = this.sent.poll(SILENCE_MILLISECONDS, TimeUnit.MILLISECONDS);
     assertNull(none);
     listener.stop();
   }
@@ -296,12 +310,12 @@ final class AudioListenerTest {
   @Test
   void shouldKeepTheNewestChunkEvenWhenItAloneExceedsTheLimit() throws Exception {
     this.blockTheFirstSend();
-    final AudioListener listener = this.createListener(TIMEOUT_MILLISECONDS, 250);
+    final AudioListener listener = this.createListener(TIMEOUT_MILLISECONDS, SMALL_BUFFER_LIMIT_BYTES);
     listener.start();
-    final byte[] first = chunk(10, 1);
+    final byte[] first = chunk(SMALL_CHUNK_BYTES, 1);
     listener.offer(first);
     this.awaitFirstSend();
-    final byte[] small = chunk(100, 2);
+    final byte[] small = chunk(MEDIUM_CHUNK_BYTES, 2);
     final byte[] large = chunk(1000, 3);
     listener.offer(small);
     listener.offer(large);
@@ -318,15 +332,14 @@ final class AudioListenerTest {
   @Test
   void shouldReportAListenerWhoseWriteIsBlockedForTooLong() throws Exception {
     this.blockTheFirstSend();
-    final long limitMilliseconds = 50L;
-    final long limitNanoseconds = TimeUnit.MILLISECONDS.toNanos(limitMilliseconds);
+    final long limitNanoseconds = TimeUnit.MILLISECONDS.toNanos(SHORT_SEND_TIME_LIMIT_MILLISECONDS);
     final LongSupplier clock = scriptedClock(0L, limitNanoseconds + 1);
-    final AudioListener listener = this.createListener(limitMilliseconds, 1024, clock);
+    final AudioListener listener = this.createListener(SHORT_SEND_TIME_LIMIT_MILLISECONDS, BUFFER_LIMIT_BYTES, clock);
     listener.start();
-    final byte[] first = chunk(10, 1);
+    final byte[] first = chunk(SMALL_CHUNK_BYTES, 1);
     listener.offer(first);
     this.awaitFirstSend();
-    final byte[] next = chunk(10, 2);
+    final byte[] next = chunk(SMALL_CHUNK_BYTES, 2);
     final boolean queued = listener.offer(next);
     assertFalse(queued);
     listener.stop();
@@ -335,18 +348,19 @@ final class AudioListenerTest {
   @Test
   void shouldKeepTheChunksThatFillTheBufferLimitExactly() throws Exception {
     this.blockTheFirstSend();
-    final AudioListener listener = this.createListener(TIMEOUT_MILLISECONDS, 200);
+    final int limitBytes = 2 * MEDIUM_CHUNK_BYTES;
+    final AudioListener listener = this.createListener(TIMEOUT_MILLISECONDS, limitBytes);
     listener.start();
-    final byte[] first = chunk(10, 1);
+    final byte[] first = chunk(SMALL_CHUNK_BYTES, 1);
     listener.offer(first);
     this.awaitFirstSend();
-    final byte[] second = chunk(100, 2);
-    final byte[] third = chunk(100, 3);
+    final byte[] second = chunk(MEDIUM_CHUNK_BYTES, 2);
+    final byte[] third = chunk(MEDIUM_CHUNK_BYTES, 3);
     listener.offer(second);
     listener.offer(third);
     final int pending = listener.getPendingBytes();
     final int chunks = listener.getPendingChunkCount();
-    assertEquals(200, pending, "the oldest chunks are only dropped above the limit");
+    assertEquals(limitBytes, pending, "the oldest chunks are only dropped above the limit");
     assertEquals(2, chunks);
     listener.stop();
   }
@@ -354,15 +368,14 @@ final class AudioListenerTest {
   @Test
   void shouldAcceptChunksWhileTheWriteHasRunForExactlyTheSendTimeLimit() throws Exception {
     this.blockTheFirstSend();
-    final long limitMilliseconds = 50L;
-    final long limitNanoseconds = TimeUnit.MILLISECONDS.toNanos(limitMilliseconds);
+    final long limitNanoseconds = TimeUnit.MILLISECONDS.toNanos(SHORT_SEND_TIME_LIMIT_MILLISECONDS);
     final LongSupplier clock = scriptedClock(0L, limitNanoseconds);
-    final AudioListener listener = this.createListener(limitMilliseconds, 1024, clock);
+    final AudioListener listener = this.createListener(SHORT_SEND_TIME_LIMIT_MILLISECONDS, BUFFER_LIMIT_BYTES, clock);
     listener.start();
-    final byte[] first = chunk(10, 1);
+    final byte[] first = chunk(SMALL_CHUNK_BYTES, 1);
     listener.offer(first);
     this.awaitFirstSend();
-    final byte[] next = chunk(10, 2);
+    final byte[] next = chunk(SMALL_CHUNK_BYTES, 2);
     final boolean queued = listener.offer(next);
     assertTrue(queued, "a write that has run for exactly the limit is not blocked for longer than it");
     listener.stop();
@@ -373,11 +386,11 @@ final class AudioListenerTest {
     this.blockTheFirstSend();
     final AudioListener listener = this.createListener(TIMEOUT_MILLISECONDS, 4096);
     listener.start();
-    final byte[] first = chunk(10, 1);
+    final byte[] first = chunk(SMALL_CHUNK_BYTES, 1);
     listener.offer(first);
     this.awaitFirstSend();
-    final byte[] second = chunk(10, 2);
-    final byte[] third = chunk(10, 3);
+    final byte[] second = chunk(SMALL_CHUNK_BYTES, 2);
+    final byte[] third = chunk(SMALL_CHUNK_BYTES, 3);
     listener.offer(second);
     listener.offer(third);
     final int queuedBefore = listener.getPendingChunkCount();
@@ -389,9 +402,9 @@ final class AudioListenerTest {
 
   @Test
   void shouldRefuseChunksForClosedSessions() {
-    final AudioListener listener = this.createListener(1000, 1024);
+    final AudioListener listener = this.createListener(SEND_TIME_LIMIT_MILLISECONDS, BUFFER_LIMIT_BYTES);
     Mockito.when(this.session.isOpen()).thenReturn(false);
-    final byte[] next = chunk(10, 1);
+    final byte[] next = chunk(SMALL_CHUNK_BYTES, 1);
     final boolean queued = listener.offer(next);
     final int pending = listener.getPendingBytes();
     assertFalse(queued);
@@ -401,12 +414,12 @@ final class AudioListenerTest {
   @Test
   void shouldDropQueuedChunksAndRefuseNewOnesWhenStopping() throws Exception {
     this.blockTheFirstSend();
-    final AudioListener listener = this.createListener(TIMEOUT_MILLISECONDS, 1024);
+    final AudioListener listener = this.createListener(TIMEOUT_MILLISECONDS, BUFFER_LIMIT_BYTES);
     listener.start();
-    final byte[] first = chunk(10, 1);
+    final byte[] first = chunk(SMALL_CHUNK_BYTES, 1);
     listener.offer(first);
     this.awaitFirstSend();
-    final byte[] second = chunk(10, 2);
+    final byte[] second = chunk(SMALL_CHUNK_BYTES, 2);
     listener.offer(second);
     listener.stop();
     final int pending = listener.getPendingBytes();
@@ -416,7 +429,7 @@ final class AudioListenerTest {
 
     this.releaseSends.countDown();
     this.nextSent();
-    final byte[] none = this.sent.poll(100, TimeUnit.MILLISECONDS);
+    final byte[] none = this.sent.poll(SILENCE_MILLISECONDS, TimeUnit.MILLISECONDS);
     assertNull(none);
     final VerificationMode never = Mockito.never();
     final WebSocketSession verified = Mockito.verify(this.session, never);
@@ -426,7 +439,7 @@ final class AudioListenerTest {
   @Test
   void shouldReturnFromStartTheSenderThatStopWakesAndEnds() throws Exception {
     this.recordSends();
-    final AudioListener listener = this.createListener(1000, 1024);
+    final AudioListener listener = this.createListener(SEND_TIME_LIMIT_MILLISECONDS, BUFFER_LIMIT_BYTES);
     final Thread sender = listener.start();
     final boolean virtual = sender.isVirtual();
     final String name = sender.getName();
@@ -434,7 +447,7 @@ final class AudioListenerTest {
     assertTrue(virtual);
     assertEquals("mcav-http-listener-listener-1", name);
 
-    final byte[] first = chunk(10, 1);
+    final byte[] first = chunk(SMALL_CHUNK_BYTES, 1);
     listener.offer(first);
     final byte[] firstSent = this.nextSent();
     assertArrayEquals(first, firstSent);
@@ -449,22 +462,22 @@ final class AudioListenerTest {
   @Test
   void shouldStopAnIdleSender() throws Exception {
     this.recordSends();
-    final AudioListener listener = this.createListener(1000, 1024);
+    final AudioListener listener = this.createListener(SEND_TIME_LIMIT_MILLISECONDS, BUFFER_LIMIT_BYTES);
     listener.start();
     listener.stop();
-    final byte[] next = chunk(10, 1);
+    final byte[] next = chunk(SMALL_CHUNK_BYTES, 1);
     final boolean queued = listener.offer(next);
     assertFalse(queued);
-    final byte[] none = this.sent.poll(50, TimeUnit.MILLISECONDS);
+    final byte[] none = this.sent.poll(SILENCE_MILLISECONDS, TimeUnit.MILLISECONDS);
     assertNull(none);
   }
 
   @Test
   void shouldReportFailedWritesAndStop() throws Exception {
     Mockito.doThrow(new IOException("broken pipe!")).when(this.session).sendMessage(ArgumentMatchers.any());
-    final AudioListener listener = this.createListener(1000, 1024);
+    final AudioListener listener = this.createListener(SEND_TIME_LIMIT_MILLISECONDS, BUFFER_LIMIT_BYTES);
     listener.start();
-    final byte[] first = chunk(10, 1);
+    final byte[] first = chunk(SMALL_CHUNK_BYTES, 1);
     listener.offer(first);
     final AudioListener failed = this.failure.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     assertSame(listener, failed);
@@ -475,9 +488,9 @@ final class AudioListenerTest {
   @Test
   void shouldReportWritesFailingWithRuntimeExceptions() throws Exception {
     Mockito.doThrow(new IllegalStateException("closed!")).when(this.session).sendMessage(ArgumentMatchers.any());
-    final AudioListener listener = this.createListener(1000, 1024);
+    final AudioListener listener = this.createListener(SEND_TIME_LIMIT_MILLISECONDS, BUFFER_LIMIT_BYTES);
     listener.start();
-    final byte[] first = chunk(10, 1);
+    final byte[] first = chunk(SMALL_CHUNK_BYTES, 1);
     listener.offer(first);
     final AudioListener failed = this.failure.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     assertSame(listener, failed);
@@ -487,7 +500,7 @@ final class AudioListenerTest {
   void shouldIgnoreConnectionsThatAreAlreadyGoneWhenClosingAsynchronously() throws Exception {
     Mockito.doThrow(new IOException("gone!")).when(this.session).close(CloseStatus.GOING_AWAY);
     Mockito.doThrow(new IllegalStateException("gone!")).when(this.session).close(CloseStatus.SERVER_ERROR);
-    final AudioListener listener = this.createListener(1000, 1024);
+    final AudioListener listener = this.createListener(SEND_TIME_LIMIT_MILLISECONDS, BUFFER_LIMIT_BYTES);
     final Thread first = listener.closeAsync(CloseStatus.GOING_AWAY);
     final Thread second = listener.closeAsync(CloseStatus.SERVER_ERROR);
     first.join(TIMEOUT_MILLISECONDS);
@@ -504,7 +517,7 @@ final class AudioListenerTest {
 
   @Test
   void shouldCloseTheSessionOnAVirtualThreadWhenClosingAsynchronously() throws Exception {
-    final AudioListener listener = this.createListener(1000, 1024);
+    final AudioListener listener = this.createListener(SEND_TIME_LIMIT_MILLISECONDS, BUFFER_LIMIT_BYTES);
     listener.start();
     final Thread closer = listener.closeAsync(CloseStatus.SESSION_NOT_RELIABLE);
     final boolean virtual = closer.isVirtual();
@@ -515,7 +528,7 @@ final class AudioListenerTest {
 
     final VerificationMode once = Mockito.times(1);
     this.verifySession(once, CloseStatus.SESSION_NOT_RELIABLE);
-    final byte[] next = chunk(10, 1);
+    final byte[] next = chunk(SMALL_CHUNK_BYTES, 1);
     final boolean queued = listener.offer(next);
     assertFalse(queued);
   }

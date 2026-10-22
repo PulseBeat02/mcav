@@ -71,6 +71,16 @@ public final class SpringHttpResult implements HttpResult {
   private static final int SEND_TIME_LIMIT_MILLISECONDS = 5_000;
   private static final int SEND_BUFFER_LIMIT_BYTES = 512 * 1024;
 
+  private static final String NO_LOGGING_SYSTEM = "none";
+
+  private static final String BUNDLED_PAGE_LOCATION = "classpath:/mcav/http/website/";
+  private static final String PATH_SEPARATOR = "/";
+
+  private static final char IPV6_SEPARATOR = ':';
+  private static final String OPENING_BRACKET = "[";
+  private static final String ZONE_SEPARATOR = "%";
+  private static final String ENCODED_ZONE_SEPARATOR = "%25";
+
   private final String domain;
   private final int port;
   private final @Nullable Path directory;
@@ -229,7 +239,7 @@ public final class SpringHttpResult implements HttpResult {
   static void keepTheLoggingOfTheHost() {
     final String chosen = System.getProperty(LOGGING_SYSTEM_PROPERTY);
     if (chosen == null) {
-      System.setProperty(LOGGING_SYSTEM_PROPERTY, "none");
+      System.setProperty(LOGGING_SYSTEM_PROPERTY, NO_LOGGING_SYSTEM);
     }
   }
 
@@ -242,12 +252,12 @@ public final class SpringHttpResult implements HttpResult {
   @VisibleForTesting
   static String staticLocation(final @Nullable Path directory) {
     if (directory == null) {
-      return "classpath:/mcav/http/website/";
+      return BUNDLED_PAGE_LOCATION;
     }
     final Path absolute = directory.toAbsolutePath();
     final URI location = absolute.toUri();
     final String uri = location.toString();
-    return uri.endsWith("/") ? uri : uri + "/";
+    return uri.endsWith(PATH_SEPARATOR) ? uri : uri + PATH_SEPARATOR;
   }
 
   /**
@@ -483,12 +493,12 @@ public final class SpringHttpResult implements HttpResult {
    */
   @VisibleForTesting
   static String urlHost(final String domain) {
-    final boolean isIpv6 = domain.indexOf(':') >= 0;
-    final boolean bracketed = domain.startsWith("[");
+    final boolean isIpv6 = domain.indexOf(IPV6_SEPARATOR) >= 0;
+    final boolean bracketed = domain.startsWith(OPENING_BRACKET);
     if (!isIpv6 || bracketed) {
       return domain;
     }
-    final String encoded = domain.replace("%", "%25");
+    final String encoded = domain.replace(ZONE_SEPARATOR, ENCODED_ZONE_SEPARATOR);
     return "[" + encoded + "]";
   }
 

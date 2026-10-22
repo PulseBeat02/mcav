@@ -32,6 +32,8 @@ import me.brandonli.mcav.media.source.file.FileSource;
  */
 public final class HttpAudioExample {
 
+  private static final int PORT = 3000;
+
   private HttpAudioExample() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -65,7 +67,7 @@ public final class HttpAudioExample {
   }
 
   private static HttpResult startServer(final Path path) {
-    final HttpResult http = HttpResult.port(3000);
+    final HttpResult http = HttpResult.port(PORT);
     http.start();
     final String title = path.toString();
     final MediaInformation information = MediaInformation.titled(title);

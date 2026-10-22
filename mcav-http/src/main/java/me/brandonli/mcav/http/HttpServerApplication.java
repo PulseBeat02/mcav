@@ -33,6 +33,9 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 @EnableWebSocket
 class HttpServerApplication {
 
+  private static final String AUDIO_PATH = "/audio";
+  private static final String ANY_ORIGIN = "*";
+
   HttpServerApplication() {}
 
   @Bean
@@ -43,8 +46,8 @@ class HttpServerApplication {
   @Bean
   WebSocketConfigurer audioWebSocketConfigurer(final AudioWebSocketHandler handler) {
     return (final WebSocketHandlerRegistry registry) -> {
-      final WebSocketHandlerRegistration registration = registry.addHandler(handler, "/audio");
-      registration.setAllowedOrigins("*");
+      final WebSocketHandlerRegistration registration = registry.addHandler(handler, AUDIO_PATH);
+      registration.setAllowedOrigins(ANY_ORIGIN);
     };
   }
 }

@@ -36,6 +36,14 @@ import org.junit.jupiter.api.Test;
  */
 final class MediaInformationTest {
 
+  private static final String TITLE_KEY = "title";
+  private static final String UPLOADER_KEY = "uploader";
+  private static final String DURATION_KEY = "duration";
+  private static final String VIEW_COUNT_KEY = "view_count";
+  private static final String LIKE_COUNT_KEY = "like_count";
+
+  private static final String FILE_NAME = "clip.mp4";
+
   static UrlParseDump completeDump() {
     final String json = """
     {
@@ -62,15 +70,15 @@ final class MediaInformationTest {
     final MediaInformation information = MediaInformation.of(dump);
     final Map<String, Object> json = information.toJson();
     final Map<String, Object> expected = new LinkedHashMap<>();
-    expected.put("title", "Song");
-    expected.put("uploader", "Artist");
+    expected.put(TITLE_KEY, "Song");
+    expected.put(UPLOADER_KEY, "Artist");
     expected.put("channel", "Artist Channel");
     expected.put("uploader_id", "@artist");
     expected.put("description", "A description");
     expected.put("thumbnail", "https://example.com/thumbnail.jpg");
-    expected.put("duration", 216L);
-    expected.put("view_count", 3_000_000_000L);
-    expected.put("like_count", 50L);
+    expected.put(DURATION_KEY, 216L);
+    expected.put(VIEW_COUNT_KEY, 3_000_000_000L);
+    expected.put(LIKE_COUNT_KEY, 50L);
     expected.put("upload_date", "20240101");
     assertEquals(expected, json);
     final Set<String> keys = json.keySet();
@@ -89,10 +97,10 @@ final class MediaInformationTest {
     final MediaInformation information = MediaInformation.of(dump);
     final Map<String, Object> json = information.toJson();
     final Map<String, Object> expected = new LinkedHashMap<>();
-    expected.put("uploader", "Artist");
-    expected.put("duration", 0L);
-    expected.put("view_count", 0L);
-    expected.put("like_count", 0L);
+    expected.put(UPLOADER_KEY, "Artist");
+    expected.put(DURATION_KEY, 0L);
+    expected.put(VIEW_COUNT_KEY, 0L);
+    expected.put(LIKE_COUNT_KEY, 0L);
     assertEquals(expected, json);
     final String title = information.getTitle();
     assertNull(title);
@@ -101,7 +109,7 @@ final class MediaInformationTest {
   @Test
   void shouldGiveEmptyInformationOnlyZeroStatistics() {
     final Map<String, Object> json = MediaInformation.EMPTY.toJson();
-    final Map<String, Object> expected = Map.of("duration", 0L, "view_count", 0L, "like_count", 0L);
+    final Map<String, Object> expected = Map.of(DURATION_KEY, 0L, VIEW_COUNT_KEY, 0L, LIKE_COUNT_KEY, 0L);
     assertEquals(expected, json);
     final String title = MediaInformation.EMPTY.getTitle();
     assertNull(title);
@@ -109,26 +117,26 @@ final class MediaInformationTest {
 
   @Test
   void shouldGiveTitledInformationOnlyATitle() {
-    final MediaInformation information = MediaInformation.titled("clip.mp4");
+    final MediaInformation information = MediaInformation.titled(FILE_NAME);
     final Map<String, Object> json = information.toJson();
     final Map<String, Object> expected = new LinkedHashMap<>();
-    expected.put("title", "clip.mp4");
-    expected.put("duration", 0L);
-    expected.put("view_count", 0L);
-    expected.put("like_count", 0L);
+    expected.put(TITLE_KEY, FILE_NAME);
+    expected.put(DURATION_KEY, 0L);
+    expected.put(VIEW_COUNT_KEY, 0L);
+    expected.put(LIKE_COUNT_KEY, 0L);
     assertEquals(expected, json);
     final String title = information.getTitle();
-    assertEquals("clip.mp4", title);
+    assertEquals(FILE_NAME, title);
   }
 
   @Test
   void shouldReturnANewMapEveryTime() {
-    final MediaInformation information = MediaInformation.titled("clip.mp4");
+    final MediaInformation information = MediaInformation.titled(FILE_NAME);
     final Map<String, Object> first = information.toJson();
-    first.put("title", "changed");
+    first.put(TITLE_KEY, "changed");
     final Map<String, Object> second = information.toJson();
-    final Object title = second.get("title");
-    assertEquals("clip.mp4", title);
+    final Object title = second.get(TITLE_KEY);
+    assertEquals(FILE_NAME, title);
   }
 
   @Test

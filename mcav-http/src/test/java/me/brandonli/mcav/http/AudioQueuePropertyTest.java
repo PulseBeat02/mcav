@@ -61,22 +61,40 @@ final class AudioQueuePropertyTest {
 
   private static final String SEED = "20260925";
   private static final long WAIT_SECONDS = 10;
+  private static final long SILENCE_MILLISECONDS = 50;
+  private static final long SEND_TIME_LIMIT_MILLISECONDS = 5_000;
+
+  private static final int MAXIMUM_CHUNK_BYTES = 3000;
+  private static final int MAXIMUM_CHUNK_COUNT = 40;
+  private static final int MAXIMUM_LIMIT_BYTES = 4096;
+
+  private static final int MAXIMUM_SAMPLE_BYTES = 300;
+  private static final int MAXIMUM_MARGIN_BYTES = 9;
+
+  private static final int MAXIMUM_HEXTET = 0xFFFF;
+  private static final int HEXTET_COUNT = 8;
+  private static final char HEXTET_SEPARATOR = ':';
+
+  private static final String ZONE_SEPARATOR = "%";
+  private static final String ENCODED_ZONE_SEPARATOR = "%25";
+
+  private static final int PORT = 8080;
 
   @Provide
   Arbitrary<List<Integer>> chunkSizes() {
     final IntegerArbitrary integers = Arbitraries.integers();
-    final Arbitrary<Integer> sizes = integers.between(0, 3000);
+    final Arbitrary<Integer> sizes = integers.between(0, MAXIMUM_CHUNK_BYTES);
     final ListArbitrary<Integer> sizeList = sizes.list();
-    return sizeList.ofMaxSize(40);
+    return sizeList.ofMaxSize(MAXIMUM_CHUNK_COUNT);
   }
 
   @Property(seed = SEED, tries = 100)
   void shouldDropTheOldestChunksKeepTheNewestAndSendWhatTheQueueKeptInOrder(
     @ForAll("chunkSizes") final List<Integer> sizes,
-    @ForAll @IntRange(min = 1, max = 4096) final int limit
+    @ForAll @IntRange(min = 1, max = MAXIMUM_LIMIT_BYTES) final int limit
   ) throws Exception {
     final Recorder recorder = new Recorder();
-    final AudioListener listener = new AudioListener(recorder.session, 5_000, limit, _ -> {}, () -> 0L);
+    final AudioListener listener = new AudioListener(recorder.session, SEND_TIME_LIMIT_MILLISECONDS, limit, _ -> {}, () -> 0L);
     final Deque<byte[]> kept = new ArrayDeque<>();
     long keptBytes = 0;
     for (int index = 0; index < sizes.size(); index++) {
@@ -116,9 +134,9 @@ final class AudioQueuePropertyTest {
   Arbitrary<Samples> samples() {
     final ByteArbitrary bytes = Arbitraries.bytes();
     final ListArbitrary<Byte> byteList = bytes.list();
-    final ListArbitrary<Byte> contents = byteList.ofMaxSize(300);
+    final ListArbitrary<Byte> contents = byteList.ofMaxSize(MAXIMUM_SAMPLE_BYTES);
     final IntegerArbitrary integers = Arbitraries.integers();
-    final Arbitrary<Integer> margins = integers.between(0, 9);
+    final Arbitrary<Integer> margins = integers.between(0, MAXIMUM_MARGIN_BYTES);
     final Arbitrary<Boolean> flags = Arbitraries.of(true, false);
     final Combinators.Combinator4<List<Byte>, Integer, Boolean, Boolean> samples = Combinators.combine(contents, margins, flags, flags);
     return samples.as(Samples::new);
@@ -153,9 +171,9 @@ final class AudioQueuePropertyTest {
   @Provide
   Arbitrary<String> ipv6Hosts() {
     final IntegerArbitrary integers = Arbitraries.integers();
-    final Arbitrary<Integer> hextets = integers.between(0, 0xFFFF);
+    final Arbitrary<Integer> hextets = integers.between(0, MAXIMUM_HEXTET);
     final ListArbitrary<Integer> hextetList = hextets.list();
-    final ListArbitrary<Integer> addresses = hextetList.ofSize(8);
+    final ListArbitrary<Integer> addresses = hextetList.ofSize(HEXTET_COUNT);
     final Arbitrary<String> literals = addresses.map(AudioQueuePropertyTest::formatAddress);
     final Arbitrary<String> zones = Arbitraries.of("", "%eth0", "%1", "%en0");
     final Combinators.Combinator2<String, String> hosts = Combinators.combine(literals, zones);
@@ -166,7 +184,7 @@ final class AudioQueuePropertyTest {
     final StringBuilder address = new StringBuilder();
     for (final int hextet : hextets) {
       if (!address.isEmpty()) {
-        address.append(':');
+        address.append(HEXTET_SEPARATOR);
       }
       final String hexadecimal = Integer.toHexString(hextet);
       address.append(hexadecimal);
@@ -181,14 +199,14 @@ final class AudioQueuePropertyTest {
   @Property(seed = SEED)
   void shouldMakeAValidPageAddressFromEveryIpv6Host(@ForAll("ipv6Hosts") final String host) {
     final String urlHost = SpringHttpResult.urlHost(host);
-    final String url = "http://" + urlHost + ":8080/";
+    final String url = "http://%s:%s/".formatted(urlHost, PORT);
     final URI uri = URI.create(url);
     final String parsedHost = uri.getHost();
     final int port = uri.getPort();
-    final String expectedHost = "[" + host.replace("%", "%25") + "]";
+    final String expectedHost = "[" + host.replace(ZONE_SEPARATOR, ENCODED_ZONE_SEPARATOR) + "]";
 
     assertEquals(expectedHost, parsedHost, "the host part of " + url);
-    assertEquals(8080, port, "the port stays separate from the address");
+    assertEquals(PORT, port, "the port stays separate from the address");
   }
 
   /**
@@ -223,7 +241,7 @@ final class AudioQueuePropertyTest {
     }
 
     private byte[] poll() throws InterruptedException {
-      return this.sent.poll(50, TimeUnit.MILLISECONDS);
+      return this.sent.poll(SILENCE_MILLISECONDS, TimeUnit.MILLISECONDS);
     }
   }
 
@@ -252,7 +270,7 @@ final class AudioQueuePropertyTest {
     }
 
     ByteBuffer create() {
-      final int capacity = this.content.length + 2 * this.margin;
+      final int capacity = this.margin + this.content.length + this.margin;
       final ByteBuffer whole = this.direct ? ByteBuffer.allocateDirect(capacity) : ByteBuffer.allocate(capacity);
       whole.put(this.margin, this.content);
       whole.position(this.margin);

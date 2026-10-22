@@ -25,6 +25,8 @@ import me.brandonli.mcav.module.MCAVModule;
  */
 public final class HttpModule implements MCAVModule {
 
+  private static final String MODULE_NAME = "http";
+
   /**
    * Creates the module. The module loader calls this constructor for you.
    */
@@ -51,6 +53,6 @@ public final class HttpModule implements MCAVModule {
    */
   @Override
   public String getModuleName() {
-    return "http";
+    return MODULE_NAME;
   }
 }

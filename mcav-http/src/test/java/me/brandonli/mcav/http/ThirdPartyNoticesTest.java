@@ -34,6 +34,9 @@ import org.junit.jupiter.api.Test;
  */
 final class ThirdPartyNoticesTest {
 
+  private static final String WEBSITE_NOTICES_PATH = "mcav/http/website/THIRD-PARTY-NOTICES.txt";
+  private static final String JAR_NOTICES_PATH = "META-INF/THIRD-PARTY-NOTICES.md";
+
   private static String read(final String name) throws IOException {
     final String path = System.getProperty("mcav.http.jar");
     assertNotNull(path, "the build passes the jar it built");
@@ -48,7 +51,7 @@ final class ThirdPartyNoticesTest {
 
   @Test
   void shouldShipTheNoticesOfItsNpmPackagesInTheWebPage() throws IOException {
-    final String notices = read("mcav/http/website/THIRD-PARTY-NOTICES.txt");
+    final String notices = read(WEBSITE_NOTICES_PATH);
     for (final String component : new String[] { "react@", "react-dom@", "next@", "scheduler@", "styled-jsx@" }) {
       final boolean named = notices.contains("\n" + component);
       assertTrue(named, component + " is named");
@@ -64,7 +67,7 @@ final class ThirdPartyNoticesTest {
 
   @Test
   void shouldNameWhatTheJarBundles() throws IOException {
-    final String notices = read("META-INF/THIRD-PARTY-NOTICES.md");
+    final String notices = read(JAR_NOTICES_PATH);
     final boolean namesTheJar = notices.contains("## mcav-http.jar");
     assertTrue(namesTheJar, notices);
   }
