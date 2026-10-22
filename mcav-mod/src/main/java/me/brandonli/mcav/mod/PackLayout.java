@@ -71,6 +71,12 @@ final class PackLayout {
 
   private final int[] firstSlots;
 
+  private PackLayout(final long[] streams, final int[] slots, final int[] firstSlots) {
+    this.streams = streams;
+    this.slots = slots;
+    this.firstSlots = firstSlots;
+  }
+
   /**
    * Reads the layout the server generated. The pack comes from the server, so anything but a layout the server could
    * have generated is no layout at all.
@@ -106,27 +112,6 @@ final class PackLayout {
     return Optional.of(new PackLayout(streams, slotCounts, firsts));
   }
 
-  private static int[] toIntegers(final long[] values) {
-    return Arrays.stream(values).mapToInt(Math::toIntExact).toArray();
-  }
-
-  private static boolean areSlotsBackToBack(final int[] slotCounts, final int[] firstSlots) {
-    int total = 0;
-    for (int screen = 0; screen < slotCounts.length; screen++) {
-      if (slotCounts[screen] < 1 || firstSlots[screen] != total) {
-        return false;
-      }
-      total += slotCounts[screen];
-    }
-    return true;
-  }
-
-  private PackLayout(final long[] streams, final int[] slots, final int[] firstSlots) {
-    this.streams = streams;
-    this.slots = slots;
-    this.firstSlots = firstSlots;
-  }
-
   /** The values of a declared list of {@code count} elements, each at most {@code maximum}; null when there is none. */
   private static long @Nullable [] numbers(
     final String packConstants,
@@ -160,9 +145,44 @@ final class PackLayout {
     return Pattern.compile(expression);
   }
 
+  private static int[] toIntegers(final long[] values) {
+    return Arrays.stream(values).mapToInt(Math::toIntExact).toArray();
+  }
+
+  private static boolean areSlotsBackToBack(final int[] slotCounts, final int[] firstSlots) {
+    int total = 0;
+    for (int screen = 0; screen < slotCounts.length; screen++) {
+      if (slotCounts[screen] < 1 || firstSlots[screen] != total) {
+        return false;
+      }
+      total += slotCounts[screen];
+    }
+    return true;
+  }
+
+  /** The rows the strip covers at a screen width: every slot, then a descriptor row per screen. */
+  int stripRows(final int width) {
+    return this.totalSlots() * rowsPerPage(width) + this.screens();
+  }
+
   /** The rows of the strip a page fills at a screen width. */
   static int rowsPerPage(final int width) {
     return (PAGE_PIXELS + width - 1) / width;
+  }
+
+  /**
+   * Finds the screen of a stream.
+   *
+   * @param stream a page's or an anchor's stream id
+   * @return the screen, or {@link #NO_SCREEN} when the pack has none of that stream
+   */
+  int screenOf(final long stream) {
+    for (int screen = 0; screen < this.streams.length; screen++) {
+      if (this.streams[screen] == stream) {
+        return screen;
+      }
+    }
+    return NO_SCREEN;
   }
 
   /** How many page slots a screen has. */
@@ -183,25 +203,5 @@ final class PackLayout {
   /** All page slots of the pack. */
   int totalSlots() {
     return Arrays.stream(this.slots).sum();
-  }
-
-  /** The rows the strip covers at a screen width: every slot, then a descriptor row per screen. */
-  int stripRows(final int width) {
-    return this.totalSlots() * rowsPerPage(width) + this.screens();
-  }
-
-  /**
-   * Finds the screen of a stream.
-   *
-   * @param stream a page's or an anchor's stream id
-   * @return the screen, or {@link #NO_SCREEN} when the pack has none of that stream
-   */
-  int screenOf(final long stream) {
-    for (int screen = 0; screen < this.streams.length; screen++) {
-      if (this.streams[screen] == stream) {
-        return screen;
-      }
-    }
-    return NO_SCREEN;
   }
 }
