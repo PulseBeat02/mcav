@@ -94,18 +94,27 @@ final class PackLayout {
     if (streams == null || slots == null || firstSlots == null) {
       return Optional.empty();
     }
-    final int[] slotCounts = new int[count];
-    final int[] firsts = new int[count];
+    final int[] slotCounts = toIntegers(slots);
+    final int[] firsts = toIntegers(firstSlots);
+    if (!areSlotsBackToBack(slotCounts, firsts)) {
+      return Optional.empty();
+    }
+    return Optional.of(new PackLayout(streams, slotCounts, firsts));
+  }
+
+  private static int[] toIntegers(final long[] values) {
+    return Arrays.stream(values).mapToInt(Math::toIntExact).toArray();
+  }
+
+  private static boolean areSlotsBackToBack(final int[] slotCounts, final int[] firstSlots) {
     int total = 0;
-    for (int screen = 0; screen < count; screen++) {
-      slotCounts[screen] = (int) slots[screen];
-      firsts[screen] = (int) firstSlots[screen];
-      if (slotCounts[screen] < 1 || firsts[screen] != total) {
-        return Optional.empty();
+    for (int screen = 0; screen < slotCounts.length; screen++) {
+      if (slotCounts[screen] < 1 || firstSlots[screen] != total) {
+        return false;
       }
       total += slotCounts[screen];
     }
-    return Optional.of(new PackLayout(streams, slotCounts, firsts));
+    return true;
   }
 
   private PackLayout(final long[] streams, final int[] slots, final int[] firstSlots) {

@@ -131,30 +131,47 @@ final class MinecraftStripOutput implements StripOutput {
 
   /** The outline target of this frame, transparent: the chain wrote into the last frame's, so it is copied over again. */
   private TextureTarget emptyOutline(final RenderTarget target, final CommandEncoder commands) {
-    OutlineTargets targets = this.outlineTargets;
-    if (targets == null || targets.empty().width != target.width || targets.empty().height != target.height) {
-      if (targets != null) {
-        targets.empty().destroyBuffers();
-        targets.transparent().destroyBuffers();
-      }
-      final TextureTarget transparent = new TextureTarget(TRANSPARENT, target.width, target.height, GpuFormat.RGBA8_UNORM, null);
-      // a new texture's pixels are undefined; a new direct buffer's bytes are zero
-      final ByteBuffer zeros = ByteBuffer.allocateDirect(target.width * target.height * TransportStrip.CHANNELS);
-      commands.writeToTexture(
-        colour(transparent),
-        zeros,
-        BASE_MIP_LEVEL,
-        FIRST_LAYER,
-        LEFT_COLUMN,
-        BOTTOM_ROW,
-        target.width,
-        target.height
-      );
-      targets = new OutlineTargets(new TextureTarget(EMPTY_OUTLINE, target.width, target.height, GpuFormat.RGBA8_UNORM, null), transparent);
-      this.outlineTargets = targets;
+    final OutlineTargets targets = this.sizeOutlineTargets(target, commands);
+    final TextureTarget empty = targets.empty();
+    final TextureTarget transparent = targets.transparent();
+    empty.copyColorFrom(transparent);
+    return empty;
+  }
+
+  private OutlineTargets sizeOutlineTargets(final RenderTarget target, final CommandEncoder commands) {
+    final @Nullable OutlineTargets current = this.outlineTargets;
+    if (current != null && this.hasSize(current, target)) {
+      return current;
     }
-    targets.empty().copyColorFrom(targets.transparent());
-    return targets.empty();
+
+    if (current != null) {
+      this.destroyOutlineTargets(current);
+    }
+
+    final OutlineTargets replacement = this.createOutlineTargets(target, commands);
+    this.outlineTargets = replacement;
+    return replacement;
+  }
+
+  private boolean hasSize(final OutlineTargets targets, final RenderTarget target) {
+    final TextureTarget empty = targets.empty();
+    return empty.width == target.width && empty.height == target.height;
+  }
+
+  private void destroyOutlineTargets(final OutlineTargets targets) {
+    final TextureTarget empty = targets.empty();
+    final TextureTarget transparent = targets.transparent();
+    empty.destroyBuffers();
+    transparent.destroyBuffers();
+  }
+
+  private OutlineTargets createOutlineTargets(final RenderTarget target, final CommandEncoder commands) {
+    final TextureTarget transparent = new TextureTarget(TRANSPARENT, target.width, target.height, GpuFormat.RGBA8_UNORM, null);
+    // a new texture's pixels are undefined; a new direct buffer's bytes are zero
+    final ByteBuffer zeros = ByteBuffer.allocateDirect(target.width * target.height * TransportStrip.CHANNELS);
+    commands.writeToTexture(colour(transparent), zeros, BASE_MIP_LEVEL, FIRST_LAYER, LEFT_COLUMN, BOTTOM_ROW, target.width, target.height);
+    final TextureTarget empty = new TextureTarget(EMPTY_OUTLINE, target.width, target.height, GpuFormat.RGBA8_UNORM, null);
+    return new OutlineTargets(empty, transparent);
   }
 
   /** A target's colour texture, which a target has from the moment it is made until it is destroyed. */

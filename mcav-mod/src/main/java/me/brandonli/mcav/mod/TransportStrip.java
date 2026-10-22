@@ -176,6 +176,12 @@ final class TransportStrip {
     final float[] viewRotation,
     final float[] projection
   ) {
+    final float[] floats = descriptorFloats(anchor, viewRotation, projection);
+    writeSignature(strip, start);
+    writeFloats(strip, start, floats);
+  }
+
+  private static float[] descriptorFloats(final StripAnchor anchor, final float[] viewRotation, final float[] projection) {
     final float[] corner = transform(viewRotation, anchor.cornerX(), anchor.cornerY(), anchor.cornerZ(), POINT_W);
     final float[] right = transform(viewRotation, rightX(anchor.facing()), 0, rightZ(anchor.facing()), DIRECTION_W);
     final float[] down = transform(viewRotation, 0, -1, 0, DIRECTION_W);
@@ -189,19 +195,34 @@ final class TransportStrip {
     floats[RIGHT + W_COMPONENT] = anchor.rows();
     floats[DOWN + W_COMPONENT] = anchor.column() * ANCHOR_INDEX_STRIDE + anchor.row();
     System.arraycopy(projection, 0, floats, PROJECTION, MATRIX);
+    return floats;
+  }
+
+  private static void writeSignature(final byte[] strip, final int start) {
     put(strip, start, SIGNATURE_RED, SIGNATURE_GREEN, SIGNATURE_BLUE);
     put(strip, start + 1, VERSION, 0, 0);
+  }
+
+  private static void writeFloats(final byte[] strip, final int start, final float[] floats) {
     for (int pixel = FIRST_FLOAT_PIXEL; pixel < DESCRIPTOR_PIXELS; pixel++) {
-      final int index = (pixel - FIRST_FLOAT_PIXEL) / PIXELS_PER_FLOAT;
-      if (index >= FLOATS) {
-        put(strip, start + pixel, 0, 0, 0);
-      } else if (pixel % PIXELS_PER_FLOAT == 0) {
-        final int bits = Float.floatToRawIntBits(floats[index]);
-        put(strip, start + pixel, bits & BYTE_MASK, (bits >> SECOND_BYTE_SHIFT) & BYTE_MASK, (bits >> THIRD_BYTE_SHIFT) & BYTE_MASK);
-      } else {
-        put(strip, start + pixel, Float.floatToRawIntBits(floats[index]) >>> HIGH_BYTE_SHIFT, 0, 0);
-      }
+      writeFloatPixel(strip, start, pixel, floats);
     }
+  }
+
+  private static void writeFloatPixel(final byte[] strip, final int start, final int pixel, final float[] floats) {
+    final int index = (pixel - FIRST_FLOAT_PIXEL) / PIXELS_PER_FLOAT;
+    if (index >= FLOATS) {
+      put(strip, start + pixel, 0, 0, 0);
+      return;
+    }
+
+    final int bits = Float.floatToRawIntBits(floats[index]);
+    if (pixel % PIXELS_PER_FLOAT == 0) {
+      put(strip, start + pixel, bits & BYTE_MASK, (bits >> SECOND_BYTE_SHIFT) & BYTE_MASK, (bits >> THIRD_BYTE_SHIFT) & BYTE_MASK);
+      return;
+    }
+
+    put(strip, start + pixel, bits >>> HIGH_BYTE_SHIFT, 0, 0);
   }
 
   /** The world direction one block along a map's right edge, by facing: east, south, west, north. */
