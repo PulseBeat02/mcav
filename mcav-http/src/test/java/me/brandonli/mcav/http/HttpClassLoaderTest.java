@@ -54,7 +54,7 @@ final class HttpClassLoaderTest {
 
   @Test
   @Timeout(120)
-  void successiveLibraryClassLoadersCanServeTheAudioPage() throws Exception {
+  void shouldServeTheAudioPageFromSuccessiveLibraryClassLoaders() throws Exception {
     Files.writeString(this.directory.resolve("index.html"), PAGE);
     final URL[] locations = libraryLocations();
     final ClassLoader platform = ClassLoader.getPlatformClassLoader();
@@ -80,17 +80,22 @@ final class HttpClassLoaderTest {
     localPort.setAccessible(true);
     try {
       start.invoke(server);
-      assertEquals(true, running.invoke(server));
+      final Object runningAfterStart = running.invoke(server);
+      assertEquals(true, runningAfterStart);
       final int port = (Integer) localPort.invoke(server);
       final URI address = URI.create("http://127.0.0.1:" + port + "/");
       final HttpRequest request = HttpRequest.newBuilder(address).timeout(Duration.ofSeconds(10)).build();
       final HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-      assertEquals(200, response.statusCode());
-      assertEquals(PAGE, response.body());
+      final int status = response.statusCode();
+      final String body = response.body();
+      assertEquals(200, status);
+      assertEquals(PAGE, body);
     } finally {
       stop.invoke(server);
     }
-    assertEquals(false, running.invoke(server));
+
+    final Object runningAfterStop = running.invoke(server);
+    assertEquals(false, runningAfterStop);
   }
 
   private static URL[] libraryLocations() throws IOException {
@@ -110,7 +115,8 @@ final class HttpClassLoaderTest {
         locations.put(location.toExternalForm(), location);
       }
     }
-    assertTrue(locations.size() > 2, "the isolated loader includes the real HTTP dependencies");
+    final int locationCount = locations.size();
+    assertTrue(locationCount > 2, "the isolated loader includes the real HTTP dependencies");
     return locations.values().toArray(URL[]::new);
   }
 }

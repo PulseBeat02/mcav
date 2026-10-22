@@ -28,11 +28,12 @@ import org.junit.jupiter.api.Test;
 final class RuntimeDependenciesTest {
 
   @Test
-  void lifecycleAnnotationsHaveOneRuntimeDefinition() throws IOException {
+  void shouldHaveOneRuntimeDefinitionOfTheLifecycleAnnotations() throws IOException {
     final ClassLoader loader = RuntimeDependenciesTest.class.getClassLoader();
     for (final String name : List.of("jakarta/annotation/PostConstruct.class", "jakarta/annotation/PreDestroy.class")) {
       final List<URL> definitions = Collections.list(loader.getResources(name));
-      assertEquals(1, definitions.size(), "one runtime definition of " + name + ": " + definitions);
+      final int definitionCount = definitions.size();
+      assertEquals(1, definitionCount, "one runtime definition of " + name + ": " + definitions);
     }
   }
 }

@@ -71,7 +71,7 @@ final class AudioQueuePropertyTest {
   }
 
   @Property(seed = SEED, tries = 100)
-  void theQueueDropsTheOldestChunksKeepsTheNewestAndSendsWhatItKeptInOrder(
+  void shouldDropTheOldestChunksKeepTheNewestAndSendWhatTheQueueKeptInOrder(
     @ForAll("chunkSizes") final List<Integer> sizes,
     @ForAll @IntRange(min = 1, max = 4096) final int limit
   ) throws Exception {
@@ -94,7 +94,8 @@ final class AudioQueuePropertyTest {
       final long pendingBytes = listener.getPendingBytes();
       final int pendingChunks = listener.getPendingChunkCount();
       assertEquals(keptBytes, pendingBytes, "bytes waiting after chunk " + index);
-      assertEquals(kept.size(), pendingChunks, "chunks waiting after chunk " + index);
+      final int keptChunks = kept.size();
+      assertEquals(keptChunks, pendingChunks, "chunks waiting after chunk " + index);
     }
 
     listener.start();
@@ -124,7 +125,7 @@ final class AudioQueuePropertyTest {
   }
 
   @Property(seed = SEED, tries = 100)
-  void listenersReceiveACopyOfExactlyTheRemainingBytes(@ForAll("samples") final Samples samples) throws Exception {
+  void shouldGiveListenersACopyOfExactlyTheRemainingBytes(@ForAll("samples") final Samples samples) throws Exception {
     final HttpResultImpl result = new HttpResultImpl("localhost", 0, null, List.of());
     final Recorder recorder = new Recorder();
     result.addListener(recorder.session);
@@ -178,7 +179,7 @@ final class AudioQueuePropertyTest {
    * id needs its percent sign encoded, as RFC 6874 requires.
    */
   @Property(seed = SEED)
-  void everyIpv6HostMakesAValidPageAddress(@ForAll("ipv6Hosts") final String host) {
+  void shouldMakeAValidPageAddressFromEveryIpv6Host(@ForAll("ipv6Hosts") final String host) {
     final String urlHost = HttpResultImpl.urlHost(host);
     final String url = "http://" + urlHost + ":8080/";
     final URI uri = URI.create(url);

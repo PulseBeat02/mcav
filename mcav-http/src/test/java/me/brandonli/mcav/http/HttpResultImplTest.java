@@ -159,7 +159,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void portFactoryUsesLocalhost() {
+  void shouldUseLocalhostInThePortFactory() {
     final HttpResult http = HttpResult.port(3000);
     final String url = http.getFullUrl();
     final boolean running = http.isRunning();
@@ -169,21 +169,21 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void domainFactoryUsesPortEighty() {
+  void shouldUsePortEightyInTheDomainFactory() {
     final HttpResult http = HttpResult.domain("play.example.com");
     final String url = http.getFullUrl();
     assertEquals("http://play.example.com:80/", url);
   }
 
   @Test
-  void directoryFactoryKeepsDomainAndPort() {
+  void shouldKeepTheDomainAndPortInTheDirectoryFactory() {
     final HttpResult http = HttpResult.http("example.com", 65535, this.directory);
     final String url = http.getFullUrl();
     assertEquals("http://example.com:65535/", url);
   }
 
   @Test
-  void factoriesRejectInvalidArguments() {
+  void shouldRejectInvalidArgumentsInTheFactories() {
     assertThrows(NullPointerException.class, () -> HttpResult.http(null, 80));
     assertThrows(IllegalArgumentException.class, () -> HttpResult.http(" ", 80));
     assertThrows(IllegalArgumentException.class, () -> HttpResult.http("localhost", 0));
@@ -198,7 +198,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void resolvesTheStaticLocationOfThePage() throws IOException {
+  void shouldResolveTheStaticLocationOfThePage() throws IOException {
     final String bundled = HttpResultImpl.staticLocation(null);
     assertEquals("classpath:/mcav/http/website/", bundled);
 
@@ -207,8 +207,9 @@ final class HttpResultImplTest {
     final String existingLocation = HttpResultImpl.staticLocation(existing);
     final URI existingUri = existing.toUri();
     final String existingText = existingUri.toString();
+    final boolean endsWithASlash = existingLocation.endsWith("/");
     assertEquals(existingText, existingLocation);
-    assertTrue(existingLocation.endsWith("/"));
+    assertTrue(endsWithASlash);
 
     final Path missing = this.directory.resolve("missing");
     final String missingLocation = HttpResultImpl.staticLocation(missing);
@@ -218,7 +219,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void reportsTheConfiguredPortAndIgnoresStopWhileNotRunning() {
+  void shouldReportTheConfiguredPortAndIgnoreStopWhileNotRunning() {
     final HttpResultImpl http = new HttpResultImpl("localhost", 4321, null);
     final int port = http.getLocalPort();
     assertEquals(4321, port);
@@ -228,7 +229,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void turnsAwayAndClosesAHandshakeThatArrivesAfterTheServerStopped() throws Exception {
+  void shouldTurnAwayAndCloseAHandshakeThatArrivesAfterTheServerStopped() throws Exception {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
     final WebSocketSession early = session("early", sent);
@@ -246,7 +247,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void survivesAHandshakeWhoseSessionCannotBeClosedAnyMore() throws Exception {
+  void shouldSurviveAHandshakeWhoseSessionCannotBeClosedAnyMore() throws Exception {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     http.stop();
     final WebSocketSession broken = Mockito.mock(WebSocketSession.class);
@@ -259,7 +260,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void acceptsSamplesWithoutListeners() {
+  void shouldAcceptSamplesWithoutListeners() {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     final ByteBuffer samples = ByteBuffer.allocate(16);
     final boolean changed = http.applyFilter(samples, this.metadata);
@@ -269,7 +270,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void rejectsNullSamplesAndMetadata() {
+  void shouldRejectNullSamplesAndMetadata() {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     final ByteBuffer samples = ByteBuffer.allocate(16);
     assertThrows(NullPointerException.class, () -> http.applyFilter(null, this.metadata));
@@ -277,7 +278,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void sendsTheRemainingSamplesToEveryListenerWithoutConsumingThem() throws Exception {
+  void shouldSendTheRemainingSamplesToEveryListenerWithoutConsumingThem() throws Exception {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     final BlockingQueue<byte[]> firstSent = new LinkedBlockingQueue<>();
     final BlockingQueue<byte[]> secondSent = new LinkedBlockingQueue<>();
@@ -306,7 +307,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void aListenerWithABlockedWriteDoesNotStallTheAudioThreadOrTheOtherListeners() throws Exception {
+  void shouldNotStallTheAudioThreadOrTheOtherListenersWhenAListenerWriteIsBlocked() throws Exception {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     final CountDownLatch stuckWriteEntered = new CountDownLatch(1);
     final CountDownLatch releaseStuckWrite = new CountDownLatch(1);
@@ -333,7 +334,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void removingAListenerStopsIt() throws Exception {
+  void shouldStopAListenerWhenRemovingIt() throws Exception {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
     final WebSocketSession session = session("listener", sent);
@@ -348,7 +349,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void closesTheSpringContextWithTheClassLoaderOfTheLibrary() {
+  void shouldCloseTheSpringContextWithTheClassLoaderOfTheLibrary() {
     final ConfigurableApplicationContext context = Mockito.mock(ConfigurableApplicationContext.class);
     final List<ClassLoader> loadersWhileClosing = new ArrayList<>();
     Mockito.doAnswer(invocation -> {
@@ -377,7 +378,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void restoresTheCallersClassLoaderWhenClosingTheSpringContextFails() {
+  void shouldRestoreTheCallersClassLoaderWhenClosingTheSpringContextFails() {
     final ConfigurableApplicationContext context = Mockito.mock(ConfigurableApplicationContext.class);
     final IllegalStateException failure = new IllegalStateException("context close failed");
     final List<ClassLoader> loadersWhileClosing = new ArrayList<>();
@@ -408,7 +409,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void theHostAndPortFactoryTakesEveryPortFromOneTo65535() {
+  void shouldTakeEveryPortFromOneTo65535InTheHostAndPortFactory() {
     assertThrows(IllegalArgumentException.class, () -> HttpResult.http("example.com", 0));
     assertThrows(IllegalArgumentException.class, () -> HttpResult.http("example.com", 65536));
     assertDoesNotThrow(() -> HttpResult.http("example.com", 1));
@@ -416,7 +417,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void removingAListenerTwiceIsHarmless() throws Exception {
+  void shouldIgnoreRemovingAListenerTwice() throws Exception {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
     final WebSocketSession listener = session("listener", sent);
@@ -433,7 +434,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void dropsListenersWhoseSessionClosed() throws Exception {
+  void shouldDropListenersWhoseSessionClosed() throws Exception {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
     final WebSocketSession closed = session("closed", sent);
@@ -448,7 +449,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void dropsListenersWhoseWritesFail() throws Exception {
+  void shouldDropListenersWhoseWritesFail() throws Exception {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     final WebSocketSession broken = Mockito.mock(WebSocketSession.class);
     Mockito.when(broken.getId()).thenReturn("broken");
@@ -463,7 +464,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void aReplacedListenerIsNotRemovedWhenItsOldConnectionFails() throws Exception {
+  void shouldKeepAReplacedListenerWhenItsOldConnectionFails() throws Exception {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     final WebSocketSession broken = Mockito.mock(WebSocketSession.class);
     Mockito.when(broken.getId()).thenReturn("same-id");
@@ -483,7 +484,8 @@ final class HttpResultImplTest {
     final ByteBuffer samples = ByteBuffer.allocate(4);
     http.applyFilter(samples, this.metadata);
 
-    assertTrue(sendEntered.await(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS), "the old connection is sending before replacement");
+    final boolean sending = sendEntered.await(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+    assertTrue(sending, "the old connection is sending before replacement");
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
     final WebSocketSession replacement = session("same-id", sent);
     http.addListener(replacement);
@@ -495,7 +497,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void showsInformationAboutTheCurrentMedia() {
+  void shouldShowInformationAboutTheCurrentMedia() {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
     final MediaInfo initial = http.getCurrentMedia();
     assertSame(MediaInfo.EMPTY, initial);
@@ -519,7 +521,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void builderStartsWithTheDefaults() {
+  void shouldStartTheBuilderWithTheDefaults() {
     final HttpResultBuilder builder = HttpResult.builder();
     final HttpResult built = builder.build();
     final HttpResultImpl http = assertInstanceOf(HttpResultImpl.class, built);
@@ -534,7 +536,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void builderAppliesEverySettingToTheServersItBuilds() throws UnknownHostException {
+  void shouldApplyEveryBuilderSettingToTheServersItBuilds() throws UnknownHostException {
     final HttpResultBuilder builder = HttpResult.builder();
     final byte[] raw = { 10, 0, 0, 7 };
     final InetAddress address = InetAddress.getByAddress(raw);
@@ -562,7 +564,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void builderRejectsInvalidSettingsAndKeepsThePreviousOnes() {
+  void shouldRejectInvalidBuilderSettingsAndKeepThePreviousOnes() {
     final HttpResultBuilder builder = HttpResult.builder();
     assertThrows(NullPointerException.class, () -> builder.domain(null));
     assertThrows(IllegalArgumentException.class, () -> builder.domain(" "));
@@ -581,7 +583,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void bracketsIpv6AddressesInTheUrl() {
+  void shouldBracketIpv6AddressesInTheUrl() {
     final HttpResult loopback = HttpResult.http("::1", 8080);
     final HttpResult bracketed = HttpResult.http("[::1]", 8080);
     final HttpResult zoned = HttpResult.http("fe80::1%eth0", 8080);
@@ -603,7 +605,7 @@ final class HttpResultImplTest {
   }
 
   @Test
-  void keepsTheLoggingOfTheHostUnlessAnotherLoggingSystemWasChosen() {
+  void shouldKeepTheLoggingOfTheHostUnlessAnotherLoggingSystemWasChosen() {
     final String property = HttpResultImpl.LOGGING_SYSTEM_PROPERTY;
     assertEquals("org.springframework.boot.logging.LoggingSystem", property);
     final String previous = System.getProperty(property);

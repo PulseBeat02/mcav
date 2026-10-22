@@ -32,21 +32,21 @@ import org.junit.jupiter.api.Test;
 final class HttpModuleTest {
 
   @Test
-  void isNamedHttp() {
+  void shouldBeNamedHttp() {
     final HttpModule module = new HttpModule();
     final String name = module.getModuleName();
     assertEquals("http", name);
   }
 
   @Test
-  void startsAndStopsWithoutHoldingResources() {
+  void shouldStartAndStopWithoutHoldingResources() {
     final HttpModule module = new HttpModule();
     assertDoesNotThrow(module::start);
     assertDoesNotThrow(module::stop);
   }
 
   @Test
-  void exceptionsKeepTheMessage() {
+  void shouldKeepTheMessageInExceptions() {
     final HttpException exception = new HttpException("cannot start");
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
@@ -55,7 +55,7 @@ final class HttpModuleTest {
   }
 
   @Test
-  void exceptionsKeepTheMessageAndTheCause() {
+  void shouldKeepTheMessageAndTheCauseInExceptions() {
     final IOException portInUse = new IOException("port in use");
     final HttpException exception = new HttpException("cannot start", portInUse);
     final String message = exception.getMessage();
@@ -65,7 +65,7 @@ final class HttpModuleTest {
   }
 
   @Test
-  void exceptionsAreRuntimeExceptions() {
+  void shouldMakeExceptionsRuntimeExceptions() {
     final HttpException exception = new HttpException("cannot start");
     assertInstanceOf(RuntimeException.class, exception, "a server that cannot start is recoverable, so it is no Error");
   }

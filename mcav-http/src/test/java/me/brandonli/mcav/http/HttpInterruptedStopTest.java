@@ -31,7 +31,7 @@ import org.springframework.context.support.GenericApplicationContext;
 final class HttpInterruptedStopTest {
 
   @Test
-  void closesAnActiveSpringContextFromAnInterruptedStartupThread() {
+  void shouldCloseAnActiveSpringContextFromAnInterruptedStartupThread() {
     try (final GenericApplicationContext context = new GenericApplicationContext()) {
       context.refresh();
       final Thread current = Thread.currentThread();
@@ -39,8 +39,11 @@ final class HttpInterruptedStopTest {
       try {
         HttpResultImpl.closeWithOwnClassLoader(context);
 
-        assertTrue(current.isInterrupted(), "cleanup preserves the caller's interrupt");
-        assertFalse(context.isActive(), "the interrupted startup thread must still close its Spring context");
+        final boolean interrupted = current.isInterrupted();
+        assertTrue(interrupted, "cleanup preserves the caller's interrupt");
+
+        final boolean active = context.isActive();
+        assertFalse(active, "the interrupted startup thread must still close its Spring context");
       } finally {
         final boolean _ = Thread.interrupted();
       }
@@ -48,12 +51,13 @@ final class HttpInterruptedStopTest {
   }
 
   @Test
-  void restoresTheInterruptWhenContextCleanupThrows() {
+  void shouldRestoreTheInterruptWhenContextCleanupThrows() {
     final ConfigurableApplicationContext context = Mockito.mock(ConfigurableApplicationContext.class);
     final IllegalStateException failure = new IllegalStateException("context close failed");
     final Thread current = Thread.currentThread();
     Mockito.doAnswer(_ -> {
-      assertFalse(current.isInterrupted(), "Spring cleanup must be able to acquire its shutdown lock");
+      final boolean interrupted = current.isInterrupted();
+      assertFalse(interrupted, "Spring cleanup must be able to acquire its shutdown lock");
       throw failure;
     })
       .when(context)
@@ -63,7 +67,9 @@ final class HttpInterruptedStopTest {
     try {
       final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> HttpResultImpl.closeWithOwnClassLoader(context));
       assertSame(failure, thrown);
-      assertTrue(current.isInterrupted(), "failed cleanup also preserves the caller's interrupt");
+
+      final boolean interrupted = current.isInterrupted();
+      assertTrue(interrupted, "failed cleanup also preserves the caller's interrupt");
     } finally {
       final boolean _ = Thread.interrupted();
     }

@@ -56,7 +56,7 @@ final class AudioListenerFuzzTest {
   private static final long WAIT_SECONDS = 10;
 
   @FuzzTest(maxDuration = "30s")
-  void queuesDropsAndSendsAsDocumented(final FuzzedDataProvider data) throws Exception {
+  void shouldQueueDropAndSendAsDocumented(final FuzzedDataProvider data) throws Exception {
     final int limit = data.consumeInt(1, 4096);
     final long sendTimeLimitMillis = data.consumeLong(1, 10_000);
     final long sendTimeLimitNanos = TimeUnit.MILLISECONDS.toNanos(sendTimeLimitMillis);
@@ -127,7 +127,8 @@ final class AudioListenerFuzzTest {
         final int pendingBytes = listener.getPendingBytes();
         final int pendingChunks = listener.getPendingChunkCount();
         assertEquals(queuedBytes, pendingBytes, "bytes waiting");
-        assertEquals(queued.size(), pendingChunks, "chunks waiting");
+        final int queuedChunks = queued.size();
+        assertEquals(queuedChunks, pendingChunks, "chunks waiting");
       }
     } finally {
       listener.stop();
@@ -137,9 +138,13 @@ final class AudioListenerFuzzTest {
     final boolean ended = !sender.isAlive();
     assertTrue(ended, "the sender ends once the listener is stopped");
     final List<byte[]> delivered = gate.written();
-    assertEquals(expectedDeliveries.size(), delivered.size(), "the number of chunks the browser received");
-    for (int index = 0; index < delivered.size(); index++) {
-      assertArrayEquals(expectedDeliveries.get(index), delivered.get(index), "the chunks the browser received, in order");
+    final int expectedCount = expectedDeliveries.size();
+    final int deliveredCount = delivered.size();
+    assertEquals(expectedCount, deliveredCount, "the number of chunks the browser received");
+    for (int index = 0; index < deliveredCount; index++) {
+      final byte[] expectedChunk = expectedDeliveries.get(index);
+      final byte[] deliveredChunk = delivered.get(index);
+      assertArrayEquals(expectedChunk, deliveredChunk, "the chunks the browser received, in order");
     }
   }
 

@@ -57,7 +57,7 @@ final class MediaInfoTest {
   }
 
   @Test
-  void takesTheShownFieldsFromYtDlpInYtDlpOrderAndNames() {
+  void shouldTakeTheShownFieldsFromYtDlpInYtDlpOrderAndNames() {
     final UrlParseDump dump = completeDump();
     final MediaInfo info = MediaInfo.of(dump);
     final Map<String, Object> json = info.toJson();
@@ -83,7 +83,7 @@ final class MediaInfoTest {
   }
 
   @Test
-  void leavesOutUnknownTextFieldsButKeepsTheNumbers() {
+  void shouldLeaveOutUnknownTextFieldsButKeepTheNumbers() {
     final Gson gson = GsonProvider.getSimple();
     final UrlParseDump dump = gson.fromJson("{\"uploader\": \"Artist\"}", UrlParseDump.class);
     final MediaInfo info = MediaInfo.of(dump);
@@ -99,7 +99,7 @@ final class MediaInfoTest {
   }
 
   @Test
-  void emptyInformationHasOnlyZeroStatistics() {
+  void shouldGiveEmptyInformationOnlyZeroStatistics() {
     final Map<String, Object> json = MediaInfo.EMPTY.toJson();
     final Map<String, Object> expected = Map.of("duration", 0L, "view_count", 0L, "like_count", 0L);
     assertEquals(expected, json);
@@ -108,7 +108,7 @@ final class MediaInfoTest {
   }
 
   @Test
-  void titledInformationHasOnlyATitle() {
+  void shouldGiveTitledInformationOnlyATitle() {
     final MediaInfo info = MediaInfo.titled("clip.mp4");
     final Map<String, Object> json = info.toJson();
     final Map<String, Object> expected = new LinkedHashMap<>();
@@ -122,7 +122,7 @@ final class MediaInfoTest {
   }
 
   @Test
-  void returnsANewMapEveryTime() {
+  void shouldReturnANewMapEveryTime() {
     final MediaInfo info = MediaInfo.titled("clip.mp4");
     final Map<String, Object> first = info.toJson();
     first.put("title", "changed");
@@ -132,7 +132,7 @@ final class MediaInfoTest {
   }
 
   @Test
-  void rejectsNulls() {
+  void shouldRejectNulls() {
     assertThrows(NullPointerException.class, () -> MediaInfo.of(null));
     assertThrows(NullPointerException.class, () -> MediaInfo.titled(null));
   }

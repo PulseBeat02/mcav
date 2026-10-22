@@ -186,7 +186,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void inspectingQueueDepthReleasesTheLockNeededByOtherProducers() throws Exception {
+  void shouldReleaseTheLockNeededByOtherProducersAfterInspectingTheQueueDepth() throws Exception {
     final AudioListener listener = this.createListener(1000, 1024);
     final byte[] first = chunk(10, 1);
     final boolean queued = listener.offer(first);
@@ -222,14 +222,14 @@ final class AudioListenerTest {
   }
 
   @Test
-  void exposesItsSession() {
+  void shouldExposeItsSession() {
     final AudioListener listener = this.createListener(1000, 1024);
     final WebSocketSession listenerSession = listener.getSession();
     assertSame(this.session, listenerSession);
   }
 
   @Test
-  void sendsQueuedChunksInOrderAsBinaryMessages() throws Exception {
+  void shouldSendQueuedChunksInOrderAsBinaryMessages() throws Exception {
     this.recordSends();
     final AudioListener listener = this.createListener(1000, 1024);
     listener.start();
@@ -264,7 +264,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void queuesWithoutBlockingWhileAWriteIsInProgressAndDropsTheOldestChunks() throws Exception {
+  void shouldQueueWithoutBlockingWhileAWriteIsInProgressAndDropTheOldestChunks() throws Exception {
     this.blockTheFirstSend();
     final AudioListener listener = this.createListener(TIMEOUT_MILLIS, 250);
     listener.start();
@@ -290,7 +290,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void keepsTheNewestChunkEvenWhenItAloneExceedsTheLimit() throws Exception {
+  void shouldKeepTheNewestChunkEvenWhenItAloneExceedsTheLimit() throws Exception {
     this.blockTheFirstSend();
     final AudioListener listener = this.createListener(TIMEOUT_MILLIS, 250);
     listener.start();
@@ -312,7 +312,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void reportsAListenerWhoseWriteIsBlockedForTooLong() throws Exception {
+  void shouldReportAListenerWhoseWriteIsBlockedForTooLong() throws Exception {
     this.blockTheFirstSend();
     final long limitMillis = 50L;
     final long limitNanos = TimeUnit.MILLISECONDS.toNanos(limitMillis);
@@ -329,7 +329,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void keepsTheChunksThatFillTheBufferLimitExactly() throws Exception {
+  void shouldKeepTheChunksThatFillTheBufferLimitExactly() throws Exception {
     this.blockTheFirstSend();
     final AudioListener listener = this.createListener(TIMEOUT_MILLIS, 200);
     listener.start();
@@ -348,7 +348,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void acceptsChunksWhileTheWriteHasRunForExactlyTheSendTimeLimit() throws Exception {
+  void shouldAcceptChunksWhileTheWriteHasRunForExactlyTheSendTimeLimit() throws Exception {
     this.blockTheFirstSend();
     final long limitMillis = 50L;
     final long limitNanos = TimeUnit.MILLISECONDS.toNanos(limitMillis);
@@ -365,7 +365,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void stopReleasesTheQueuedChunksThemselves() throws Exception {
+  void shouldReleaseTheQueuedChunksThemselvesWhenStopping() throws Exception {
     this.blockTheFirstSend();
     final AudioListener listener = this.createListener(TIMEOUT_MILLIS, 4096);
     listener.start();
@@ -384,7 +384,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void refusesChunksForClosedSessions() {
+  void shouldRefuseChunksForClosedSessions() {
     final AudioListener listener = this.createListener(1000, 1024);
     Mockito.when(this.session.isOpen()).thenReturn(false);
     final byte[] next = chunk(10, 1);
@@ -395,7 +395,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void stopDropsQueuedChunksAndRefusesNewOnes() throws Exception {
+  void shouldDropQueuedChunksAndRefuseNewOnesWhenStopping() throws Exception {
     this.blockTheFirstSend();
     final AudioListener listener = this.createListener(TIMEOUT_MILLIS, 1024);
     listener.start();
@@ -420,7 +420,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void startReturnsTheSenderThatStopWakesAndEnds() throws Exception {
+  void shouldReturnFromStartTheSenderThatStopWakesAndEnds() throws Exception {
     this.recordSends();
     final AudioListener listener = this.createListener(1000, 1024);
     final Thread sender = listener.start();
@@ -443,7 +443,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void stopsAnIdleSender() throws Exception {
+  void shouldStopAnIdleSender() throws Exception {
     this.recordSends();
     final AudioListener listener = this.createListener(1000, 1024);
     listener.start();
@@ -456,7 +456,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void reportsFailedWritesAndStops() throws Exception {
+  void shouldReportFailedWritesAndStop() throws Exception {
     Mockito.doThrow(new IOException("broken pipe")).when(this.session).sendMessage(ArgumentMatchers.any());
     final AudioListener listener = this.createListener(1000, 1024);
     listener.start();
@@ -469,7 +469,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void reportsWritesFailingWithRuntimeExceptions() throws Exception {
+  void shouldReportWritesFailingWithRuntimeExceptions() throws Exception {
     Mockito.doThrow(new IllegalStateException("closed")).when(this.session).sendMessage(ArgumentMatchers.any());
     final AudioListener listener = this.createListener(1000, 1024);
     listener.start();
@@ -480,7 +480,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void closeAsyncIgnoresConnectionsThatAreAlreadyGone() throws Exception {
+  void shouldIgnoreConnectionsThatAreAlreadyGoneWhenClosingAsynchronously() throws Exception {
     Mockito.doThrow(new IOException("gone")).when(this.session).close(CloseStatus.GOING_AWAY);
     Mockito.doThrow(new IllegalStateException("gone")).when(this.session).close(CloseStatus.SERVER_ERROR);
     final AudioListener listener = this.createListener(1000, 1024);
@@ -499,7 +499,7 @@ final class AudioListenerTest {
   }
 
   @Test
-  void closeAsyncClosesTheSessionOnAVirtualThread() throws Exception {
+  void shouldCloseTheSessionOnAVirtualThreadWhenClosingAsynchronously() throws Exception {
     final AudioListener listener = this.createListener(1000, 1024);
     listener.start();
     final Thread closer = listener.closeAsync(CloseStatus.SESSION_NOT_RELIABLE);

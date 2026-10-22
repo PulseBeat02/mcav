@@ -246,7 +246,7 @@ final class HttpServerTest {
   }
 
   @Test
-  void listensOnAFreePortOfTheLoopbackInterface() {
+  void shouldListenOnAFreePortOfTheLoopbackInterface() {
     final boolean running = server.isRunning();
     final int port = server.getLocalPort();
     assertTrue(running);
@@ -254,7 +254,7 @@ final class HttpServerTest {
   }
 
   @Test
-  void servesTheWebPageFromTheDirectory() throws Exception {
+  void shouldServeTheWebPageFromTheDirectory() throws Exception {
     final HttpResponse<String> root = get(server, "/");
     final HttpResponse<String> index = get(server, "/index.html");
     final HttpResponse<String> missing = get(server, "/missing.html");
@@ -263,15 +263,17 @@ final class HttpServerTest {
     final int indexStatus = index.statusCode();
     final String indexBody = index.body();
     final int missingStatus = missing.statusCode();
+    final boolean rootServesThePage = rootBody.contains("directory test page");
+    final boolean indexServesThePage = indexBody.contains("directory test page");
     assertEquals(200, rootStatus);
-    assertTrue(rootBody.contains("directory test page"));
+    assertTrue(rootServesThePage);
     assertEquals(200, indexStatus);
-    assertTrue(indexBody.contains("directory test page"));
+    assertTrue(indexServesThePage);
     assertEquals(404, missingStatus);
   }
 
   @Test
-  void servesEmptyMediaAsJson() throws Exception {
+  void shouldServeEmptyMediaAsJson() throws Exception {
     server.setCurrentMedia((MediaInfo) null);
     final HttpResponse<String> empty = get(server, "/media");
     final int status = empty.statusCode();
@@ -285,7 +287,7 @@ final class HttpServerTest {
   }
 
   @Test
-  void servesTheCompleteMediaAsJson() throws Exception {
+  void shouldServeTheCompleteMediaAsJson() throws Exception {
     final UrlParseDump dump = MediaInfoTest.completeDump();
     server.setCurrentMedia(dump);
     try {
@@ -302,7 +304,7 @@ final class HttpServerTest {
   }
 
   @Test
-  void escapesTheMediaInformationInJson() throws Exception {
+  void shouldEscapeTheMediaInformationInJson() throws Exception {
     final MediaInfo titled = MediaInfo.titled("Quote \" and ünïcode");
     server.setCurrentMedia(titled);
     try {
@@ -323,7 +325,7 @@ final class HttpServerTest {
   }
 
   @Test
-  void streamsTheSamplesToEveryListenerInOrder() throws Exception {
+  void shouldStreamTheSamplesToEveryListenerInOrder() throws Exception {
     final RecordingListener first = new RecordingListener();
     final RecordingListener second = new RecordingListener();
     final WebSocket firstSocket = connect(server, first);
@@ -353,7 +355,7 @@ final class HttpServerTest {
   }
 
   @Test
-  void ignoresMessagesFromBrowsers() throws Exception {
+  void shouldIgnoreMessagesFromBrowsers() throws Exception {
     final RecordingListener listener = new RecordingListener();
     final WebSocket socket = connect(server, listener);
     awaitListeners(server, 1);
@@ -380,7 +382,8 @@ final class HttpServerTest {
   private static void assertServesTheBundledPage(final HttpResultImpl http) throws Exception {
     final HttpResponse<String> page = get(http, "/");
     final String body = page.body();
-    assertTrue(body.contains("bundled test page"), "the bundled page is served from classpath:/mcav/http/website/");
+    final boolean servesTheBundledPage = body.contains("bundled test page");
+    assertTrue(servesTheBundledPage, "the bundled page is served from classpath:/mcav/http/website/");
   }
 
   private static void assertStopsWithGoingAway(final HttpResultImpl http, final int port) throws Exception {
@@ -414,7 +417,7 @@ final class HttpServerTest {
   }
 
   @Test
-  void startsInTheBackgroundStopsWithGoingAwayAndRestarts() throws Exception {
+  void shouldStartInTheBackgroundStopWithGoingAwayAndRestart() throws Exception {
     final HttpResultImpl http = new HttpResultImpl("localhost", 0, null, LOOPBACK);
     final boolean runningBeforeStart = http.isRunning();
     assertFalse(runningBeforeStart);
@@ -438,7 +441,7 @@ final class HttpServerTest {
   }
 
   @Test
-  void refusesAHandshakeThatFinishesWhileTheServerIsStopping() throws Exception {
+  void shouldRefuseAHandshakeThatFinishesWhileTheServerIsStopping() throws Exception {
     final HttpResultImpl http = new HttpResultImpl("localhost", 0, null, LOOPBACK);
     http.start();
     try {
@@ -476,7 +479,7 @@ final class HttpServerTest {
   }
 
   @Test
-  void restoresTheContextClassLoaderAfterStartingAndStopping() throws Exception {
+  void shouldRestoreTheContextClassLoaderAfterStartingAndStopping() throws Exception {
     final Thread thread = Thread.currentThread();
     final ClassLoader original = thread.getContextClassLoader();
     final HttpResultImpl http = new HttpResultImpl("localhost", 0, pageDirectory, LOOPBACK);
@@ -495,7 +498,7 @@ final class HttpServerTest {
   }
 
   @Test
-  void failsWithAnHttpExceptionWhenThePortIsInUse() throws Exception {
+  void shouldFailWithAnHttpExceptionWhenThePortIsInUse() throws Exception {
     final InetAddress loopback = InetAddress.getLoopbackAddress();
     try (final ServerSocket occupied = new ServerSocket(0, 50, loopback)) {
       final int port = occupied.getLocalPort();
@@ -507,7 +510,8 @@ final class HttpServerTest {
       final String message = exception.getMessage();
       final Throwable cause = exception.getCause();
       final boolean running = http.isRunning();
-      assertTrue(message.startsWith("Failed to start the web server on port " + port + ": "), message);
+      final boolean namesThePort = message.startsWith("Failed to start the web server on port " + port + ": ");
+      assertTrue(namesThePort, message);
       assertInstanceOf(RuntimeException.class, cause);
       assertFalse(running);
       assertSame(before, after);
@@ -515,7 +519,7 @@ final class HttpServerTest {
   }
 
   @Test
-  void asyncStartReportsFailures() {
+  void shouldReportTheFailuresOfAnAsynchronousStart() {
     final List<String> properties = List.of("server.address=192.0.2.1");
     final HttpResultImpl http = new HttpResultImpl("localhost", 0, null, properties);
     final CompletableFuture<Void> started = http.startAsync();
@@ -527,18 +531,19 @@ final class HttpServerTest {
   }
 
   @Test
-  void neverServesFilesOutsideThePageDirectory() throws Exception {
+  void shouldNeverServeFilesOutsideThePageDirectory() throws Exception {
     for (final String attack : TRAVERSAL_ATTACKS) {
       final HttpResponse<String> response = get(server, attack);
       final int status = response.statusCode();
       final String body = response.body();
-      assertFalse(body.contains(SECRET), attack + " leaked the file outside the page directory");
+      final boolean leaked = body.contains(SECRET);
+      assertFalse(leaked, attack + " leaked the file outside the page directory");
       assertTrue(status >= 400, attack + " answered " + status);
     }
   }
 
   @Test
-  void appliesACopyOfTheExtraPropertiesAfterTheDefaults() throws Exception {
+  void shouldApplyACopyOfTheExtraPropertiesAfterTheDefaults() throws Exception {
     final Path other = temporary.resolve("other");
     Files.createDirectories(other);
     final Path index = other.resolve("index.html");
@@ -559,20 +564,21 @@ final class HttpServerTest {
       final WebServerApplicationContext context = (WebServerApplicationContext) contextField.get(http);
       final TomcatWebServer webServer = (TomcatWebServer) context.getWebServer();
       final AbstractProtocol<?> protocol = (AbstractProtocol<?>) webServer.getTomcat().getConnector().getProtocolHandler();
-      assertEquals(
-        InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 }),
-        protocol.getAddress(),
-        "the connector binds only to the copied address"
-      );
-      assertTrue(body.contains("other page"), "an extra property overrides the default location");
-      assertFalse(body.contains("directory test page"));
+      final InetAddress expectedAddress = InetAddress.getByAddress(new byte[] { 127, 0, 0, 1 });
+      final InetAddress address = protocol.getAddress();
+      assertEquals(expectedAddress, address, "the connector binds only to the copied address");
+
+      final boolean servesTheOtherPage = body.contains("other page");
+      final boolean servesTheDirectoryPage = body.contains("directory test page");
+      assertTrue(servesTheOtherPage, "an extra property overrides the default location");
+      assertFalse(servesTheDirectoryPage);
     } finally {
       http.stop();
     }
   }
 
   @Test
-  void listensOnTheBindAddressOfTheBuilder() throws Exception {
+  void shouldListenOnTheBindAddressOfTheBuilder() throws Exception {
     final byte[] raw = { 127, 0, 0, 1 };
     final InetAddress loopback = InetAddress.getByAddress(raw);
     final int port = freePort();
@@ -588,16 +594,17 @@ final class HttpServerTest {
       final HttpResponse<String> page = get(http, "/");
       final int status = page.statusCode();
       final String body = page.body();
+      final boolean servesThePage = body.contains("directory test page");
       assertEquals(port, localPort);
       assertEquals(200, status);
-      assertTrue(body.contains("directory test page"));
+      assertTrue(servesThePage);
     } finally {
       http.stop();
     }
   }
 
   @Test
-  void failsToStartOnABindAddressOfAnotherMachine() throws Exception {
+  void shouldFailToStartOnABindAddressOfAnotherMachine() throws Exception {
     final byte[] raw = { (byte) 192, 0, 2, 1 };
     final InetAddress foreign = InetAddress.getByAddress(raw);
     final int port = freePort();
@@ -608,7 +615,8 @@ final class HttpServerTest {
     final HttpException exception = assertThrows(HttpException.class, http::start);
     final String message = exception.getMessage();
     final boolean running = http.isRunning();
-    assertTrue(message.startsWith("Failed to start the web server on port " + port + ": "), message);
+    final boolean namesThePort = message.startsWith("Failed to start the web server on port " + port + ": ");
+    assertTrue(namesThePort, message);
     assertFalse(running);
   }
 
@@ -641,7 +649,7 @@ final class HttpServerTest {
   }
 
   @Test
-  void stopDoesNotWaitForAListenerWhoseWriteIsStuck() throws Exception {
+  void shouldStopWithoutWaitingForAListenerWhoseWriteIsStuck() throws Exception {
     final HttpResultImpl http = new HttpResultImpl("localhost", 0, pageDirectory, LOOPBACK);
     final CountDownLatch writeEntered = new CountDownLatch(1);
     final CountDownLatch releaseWrite = new CountDownLatch(1);
@@ -688,7 +696,7 @@ final class HttpServerTest {
   }
 
   @Test
-  void startingLeavesTheLoggingOfTheJvmUnchanged() {
+  void shouldLeaveTheLoggingOfTheJvmUnchangedWhenStarting() {
     final String property = HttpResultImpl.LOGGING_SYSTEM_PROPERTY;
     final String previousProperty = System.getProperty(property);
     final Logger root = Logger.getLogger("");

@@ -40,7 +40,8 @@ final class WorkerAssertions {
   void assertFinished() throws InterruptedException {
     for (final Thread worker : this.workers) {
       worker.join(10_000L);
-      assertFalse(worker.isAlive(), "the callback worker finished after fixture cleanup");
+      final boolean alive = worker.isAlive();
+      assertFalse(alive, "the callback worker finished after fixture cleanup");
     }
     assertEquals(List.of(), this.failures, "worker assertions reach the JUnit thread");
   }

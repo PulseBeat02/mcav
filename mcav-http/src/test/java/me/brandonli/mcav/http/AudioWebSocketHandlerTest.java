@@ -52,14 +52,14 @@ final class AudioWebSocketHandlerTest {
   }
 
   @Test
-  void registersConnectedBrowsersAsListeners() {
+  void shouldRegisterConnectedBrowsersAsListeners() {
     this.connect();
     final int count = this.result.getListenerCount();
     assertEquals(1, count);
   }
 
   @Test
-  void forgetsBrowsersThatDisconnect() {
+  void shouldForgetBrowsersThatDisconnect() {
     this.connect();
     this.handler.afterConnectionClosed(this.session, CloseStatus.NORMAL);
     final int count = this.result.getListenerCount();
@@ -67,7 +67,7 @@ final class AudioWebSocketHandlerTest {
   }
 
   @Test
-  void forgetsBrowsersWithTransportErrors() {
+  void shouldForgetBrowsersWithTransportErrors() {
     this.connect();
     final IOException error = new IOException("reset");
     this.handler.handleTransportError(this.session, error);
@@ -76,7 +76,7 @@ final class AudioWebSocketHandlerTest {
   }
 
   @Test
-  void ignoresTextAndBinaryMessagesFromBrowsers() throws Exception {
+  void shouldIgnoreTextAndBinaryMessagesFromBrowsers() throws Exception {
     this.connect();
     final TextMessage text = new TextMessage("hello");
     final byte[] raw = { 1, 2, 3 };
