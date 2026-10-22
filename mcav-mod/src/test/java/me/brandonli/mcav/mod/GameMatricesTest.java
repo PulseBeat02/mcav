@@ -172,14 +172,14 @@ final class GameMatricesTest {
 
     public final Object matrix = new Object();
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings("unused") // read only through reflection
     private final Object secret = new Object();
 
     public static Object fails() {
       throw new IllegalStateException("The member failed!");
     }
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings("unused") // read only through reflection
     private static Object hidden() {
       return new Object();
     }

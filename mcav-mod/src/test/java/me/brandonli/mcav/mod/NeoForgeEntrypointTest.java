@@ -60,7 +60,7 @@ final class NeoForgeEntrypointTest {
   private final IEventBus gameBus = mock(IEventBus.class);
 
   /** The listener the entry point added to a bus for an event. */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked") // a class literal cannot name Consumer<EventType>
   private <EventType extends Event> Consumer<EventType> listener(final IEventBus bus, final Class<EventType> event) {
     final ArgumentCaptor<Consumer<EventType>> listener = ArgumentCaptor.forClass(Consumer.class);
     verify(bus).addListener(eq(event), listener.capture());
@@ -76,7 +76,7 @@ final class NeoForgeEntrypointTest {
     when(registrar.optional()).thenReturn(registrar);
     this.listener(this.modBus, RegisterPayloadHandlersEvent.class).accept(event);
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked") // a class literal cannot name IPayloadHandler<Mcv2Payload>
     final ArgumentCaptor<IPayloadHandler<Mcv2Payload>> handler = ArgumentCaptor.forClass(IPayloadHandler.class);
     verify(registrar).playToServer(eq(Mcv2Payload.TYPE), eq(Mcv2Payload.CODEC), handler.capture());
     final Mcv2Payload payload = mock(Mcv2Payload.class);

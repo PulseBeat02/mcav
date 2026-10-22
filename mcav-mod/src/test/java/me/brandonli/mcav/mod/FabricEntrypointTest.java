@@ -143,7 +143,7 @@ final class FabricEntrypointTest {
     });
   }
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings("unchecked") // a class literal cannot name PayloadTypeRegistry<RegistryFriendlyByteBuf>
   private PayloadTypeRegistry<RegistryFriendlyByteBuf> mockPayloads() {
     return mock(PayloadTypeRegistry.class);
   }
