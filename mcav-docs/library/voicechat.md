@@ -15,7 +15,8 @@ loader that can see the classes of the Simple Voice Chat plugin.
 ```
 
 Install the `SVCModule` when you create the library instance, and hand it the voice chat server API from your
-voice chat plugin once voice chat has started:
+voice chat plugin once voice chat has started. On a server, the `VoicechatApi` your plugin receives is always a
+`VoicechatServerApi`:
 
 ```java
   public final class MyVoiceChatPlugin implements VoicechatPlugin {
@@ -35,7 +36,7 @@ voice chat plugin once voice chat has started:
 
     @Override
     public void initialize(final VoicechatApi api) {
-      final VoicechatServerApi serverApi = (VoicechatServerApi) api; // on a server, the API is always a server API
+      final VoicechatServerApi serverApi = (VoicechatServerApi) api;
       final SVCModule voiceChatModule = this.mcav.getModule(SVCModule.class);
       voiceChatModule.inject(serverApi);
     }

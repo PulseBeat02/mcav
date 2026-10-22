@@ -83,7 +83,8 @@ of the page and its frames (at most 4096 pixels per side), and how many painted 
 default options; `BrowserPlayer.create(BrowserOptions)` takes others.
 
 The example opens a page, clicks into it, and types a search. The `display` filter is yours and shows the frames;
-release the returned browser when you are done with the page.
+release the returned browser when you are done with the page. `start` throws a `PlayerException` if the page cannot
+be shown.
 
 ```java
   public BrowserPlayer searchWikipedia(final VideoFilter display) {
@@ -98,7 +99,7 @@ release the returned browser when you are done with the page.
     final VideoAttachableCallback callback = browser.getVideoAttachableCallback();
     callback.attach(videoPipelineStep);
 
-    browser.start(source); // throws a PlayerException if the page cannot be shown
+    browser.start(source);
     final int clickX = 640;
     final int clickY = 360;
     final String enterKey = "Enter";

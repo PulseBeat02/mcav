@@ -37,7 +37,8 @@ little-endian PCM at 48 kHz with two interleaved channels, whatever the source f
 ```
 
 The example below plays a file for the requested duration with its audio on the speakers of the computer. Run it
-on a worker thread; it waits during playback. The `display` filter is yours and shows the frames, for example in a window.
+on a worker thread; it waits during playback. The `display` filter is yours and shows the frames, for example in a
+window. `speakers.start()` throws a `PlayerException` on a machine without a sound device.
 
 ```java
   public void playVideoFile(final Path videoFile, final VideoFilter display, final Duration playTime)
@@ -46,7 +47,7 @@ on a worker thread; it waits during playback. The `display` filter is yours and 
     final DirectAudioOutput speakers = new DirectAudioOutput();
     final VideoPlayerMultiplexer player = VideoPlayer.ffmpeg();
     try {
-      speakers.start(); // throws a PlayerException on a machine without a sound device
+      speakers.start();
       final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(speakers);
       final VideoAttachableCallback videoCallback = player.getVideoAttachableCallback();
       videoCallback.attach(videoPipelineStep);
@@ -99,10 +100,10 @@ every player and every audio output behind it.
       final long position = decoded.getPositionMilliseconds();
       LOGGER.debug("Speeding up at {} milliseconds.", position);
       final double speed = 1.5;
-      return decoded.setSpeed(speed); // false for a live stream or a camera
+      return decoded.setSpeed(speed);
     }
 
-    return false; // VLC plays at its own rate
+    return false;
   }
 ```
 
@@ -152,9 +153,9 @@ returned player when the chart should stop.
   }
 ```
 
-To play an animated GIF, decode it into a `DynamicImageBuffer` and wrap it in a `RepeatingFrameSource`, which plays
-the animation at its own frame rate. The source hands the same shared pixel arrays to the pipeline in every loop, so
-filters must not write into `getPixels()` (see [reading pixels](image.md#reading-pixels)).
+To play an animated GIF, decode it into a `DynamicImageBuffer` and wrap it in a `RepeatingFrameSource`, which loops
+the animation forever at its own frame rate. The source hands the same shared pixel arrays to the pipeline in every
+loop, so filters must not write into `getPixels()` (see [reading pixels](image.md#reading-pixels)).
 
 The animation must stay open while it plays, so the example below plays it for a fixed time, releases the player,
 and only then closes the animation:
@@ -163,7 +164,7 @@ and only then closes the animation:
   public void playGif(final Path gifFile, final VideoFilter display, final Duration playTime) throws InterruptedException {
     final FileSource file = FileSource.path(gifFile);
     try (final DynamicImageBuffer gif = DynamicImageBuffer.path(file)) {
-      final RepeatingFrameSource frameSource = RepeatingFrameSource.repeating(gif); // loops forever
+      final RepeatingFrameSource frameSource = RepeatingFrameSource.repeating(gif);
       final VideoPipelineStep videoPipelineStep = VideoPipelineStep.of(display);
       final ImagePlayer player = ImagePlayer.player();
 

@@ -12,16 +12,17 @@ in order for every frame or chunk of samples.
 Example of a pipeline from video players.
 ```
 
-Create pipelines with `PipelineBuilder`. Filters run in the order they are added:
+Create pipelines with `PipelineBuilder`. Filters run in the order they are added; the `display` filter is yours and
+shows the frames:
 
 ```java
   public VideoPipelineStep createGrayscaleNegativePipeline(final VideoFilter display) {
-    final GrayscaleFilter grayscale = new GrayscaleFilter(); // converts the frame to gray scale
-    final InvertFilter invert = new InvertFilter(); // inverts the colors of the frame
+    final GrayscaleFilter grayscale = new GrayscaleFilter();
+    final InvertFilter invert = new InvertFilter();
     final VideoPipelineStepBuilder videoBuilder = PipelineBuilder.video();
     videoBuilder.then(grayscale);
     videoBuilder.then(invert);
-    videoBuilder.then(display); // your filter that shows the frame
+    videoBuilder.then(display);
     final VideoPipelineStep videoPipelineStep = videoBuilder.build();
     return videoPipelineStep;
   }

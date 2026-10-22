@@ -22,7 +22,6 @@ public final class ExampleModule implements MCAVModule {
   private static final String NAME = "example";
 
   public ExampleModule() {
-    // called by the library during install
   }
 
   @Override

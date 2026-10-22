@@ -12,10 +12,9 @@ dependencies {
 OpenGL may only be called from the thread that owns the context, but filters run on the thread of the player. The
 `GlTextureFilter` therefore only copies each frame into a staging buffer, and the render thread uploads the newest
 frame by calling `upload()` once per rendered frame. `start()` and `release()` must be called on the render thread as
-well.
+well, so call the method below there, with the OpenGL context current.
 
 ```java
-  // call on the render thread, with the OpenGL context current
   public void renderVideo(final Source source, final BooleanSupplier keepRendering) {
     final GlTextureFilter texture = new GlTextureFilter();
     texture.start();

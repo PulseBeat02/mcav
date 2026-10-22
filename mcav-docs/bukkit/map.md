@@ -76,10 +76,9 @@ resolution frames are scaled to, and the players who see the maps.
 Then dither the frames onto the maps with a `DitherFilter` at the end of the video pipeline. The
 `CompressedMapResult` only sends the parts of every map that changed since the last frame, which saves most of the
 bandwidth of a video; use `MapResult` to always send whole maps. The method below attaches the filter to a player
-before it starts; call `release()` on the returned filter when the video is over.
+before it starts; call it on the main thread, and call `release()` on the returned filter when the video is over.
 
 ```java
-  // call on the main thread
   public FunctionalVideoFilter showVideoOnMaps(final MapConfiguration configuration, final VideoPlayerMultiplexer player) {
     final DitherAlgorithm algorithm = DitherAlgorithm.filterLite();
     final CompressedMapResult result = new CompressedMapResult(configuration);

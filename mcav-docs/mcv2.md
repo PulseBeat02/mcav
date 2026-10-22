@@ -1376,8 +1376,8 @@ The MCAV plugin's `--codec mcv2` is built from the same API any other plugin can
 
 #### Setting Up Once
 
-MCV2 needs three things per plugin, set up once as the plugin starts, after the Bukkit module received the plugin
-instance with `inject`:
+MCV2 needs three things per plugin, set up once on the main thread in `onEnable`, after the Bukkit module received
+the plugin instance with `inject`:
 
 ```java
 import java.nio.file.Path;
@@ -1385,7 +1385,6 @@ import me.brandonli.mcav.bukkit.media.mcv2.MCV2;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 
-  // call on the main thread, in onEnable
   public Mcv2PackServer setUpMcv2(final Path dataFolder) {
     final int defaultThreads = 0;
     final String nativesName = "natives";
@@ -1426,7 +1425,7 @@ import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
 
 A screen is a wall of item frames holding consecutive maps, as `MapConfiguration` describes it, built by your plugin.
 Describe it with an `Mcv2Configuration`, take a slot of the pack for it, and put an `Mcv2Result` at the end of a video
-pipeline:
+pipeline, all on the main thread. In the method below, `topLeft` is the item frame that holds the wall's first map:
 
 ```java
 import java.util.Collection;
@@ -1444,10 +1443,8 @@ import org.bukkit.Location;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.ItemFrame;
 
-  // the result and the lease of one wall: release() the result, then close() the lease, on the main thread
   public record Mcv2Wall(Mcv2Result result, Mcv2PackServer.Lease lease) {}
 
-  // call on the main thread; topLeft is the item frame holding the wall's first map
   public Mcv2Wall showOnMcv2Wall(
     final Mcv2PackServer packs,
     final ItemFrame topLeft,
@@ -1483,7 +1480,7 @@ import org.bukkit.entity.ItemFrame;
       videoCallback.attach(pipeline);
     } catch (final RuntimeException exception) {
       result.release();
-      lease.close(); // otherwise the slot stays taken until the server stops
+      lease.close();
       throw exception;
     }
 
@@ -1494,7 +1491,8 @@ import org.bukkit.entity.ItemFrame;
 When the video is over, call `release()` on the result on the main thread, which stops the encoder, removes the page
 frames and clears the dithered maps, and then `close()` on the lease, which gives the screen's slot back to the pack for
 the next screen of its size. Keep the lease for that: `release()` doesn't free the slot, and once all 8 slots are taken
-`open` throws an `IllegalStateException`.
+`open` throws an `IllegalStateException`. A lease that is never closed keeps its slot until the server stops, so the
+method closes it at once when the result fails to start.
 
 `Mcv2Result` resizes every frame to the configured video size and encodes the newest one on the shared budget; frames
 that arrive while it works replace each other, so a slow encoder shows fewer frames instead of falling behind. Viewers
@@ -1521,7 +1519,7 @@ smaller video sizes it may step down to.
 `Mcv2FileEncoder` encodes a video file ahead of time, inside a budget, into a stream of frames, each written as its
 length (a little-endian 32-bit integer) and its bytes. Every frame fits the page slots a wall of the video's own size
 has by default (one map for every 128x128 pixels, eight slots at most), because a screen drops a frame that doesn't fit,
-and a stream encoded ahead can't send a fresh keyframe to recover:
+and a stream encoded ahead can't send a fresh keyframe to recover. Encode off the main thread:
 
 ```java
 import java.io.BufferedOutputStream;
@@ -1532,7 +1530,6 @@ import java.nio.file.Path;
 import me.brandonli.mcav.bukkit.media.mcv2.MCV2;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2FileEncoder;
 
-  // call off the main thread
   public Mcv2FileEncoder.Result preEncode(final Path video, final Path stream) throws IOException, InterruptedException {
     final int width = 1920;
     final int height = 1080;

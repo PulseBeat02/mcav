@@ -100,8 +100,10 @@ A `VolumeFilter` before an output turns the output down or up; one filter in fro
   final AudioPipelineStep audioPipeline = builder.build();
   // ... attach it, start the player, and later:
   final double halfAmplitude = 0.5;
-  volume.setVolume(halfAmplitude); // from the next chunk on
+  volume.setVolume(halfAmplitude);
 ```
+
+A new volume applies from the next chunk on.
 
 ## Writing Your Own
 

@@ -60,7 +60,7 @@ environment variables, so that no secret ends up in the source:
   final Path path = Path.of(fileName);
   final Source source = FileSource.path(path);
   multiplexer.start(source);
-  discord.setPlaying("My Video"); // shows "Playing My Video" as the activity of the bot
+  discord.setPlaying("My Video");
 
   // at shutdown
   multiplexer.release();

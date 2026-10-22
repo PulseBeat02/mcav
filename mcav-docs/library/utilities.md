@@ -252,7 +252,7 @@ convert:
       final Path oggFile = AudioExtractor.extractOggVorbis(media);
       // ... use the Ogg Vorbis file, then delete it
     } catch (final ProcessException exception) {
-      // FFmpeg could not be run, or the source does not exist, cannot be decoded, or has no audio track
+      LOGGER.warn("Could not extract the audio of {}.", mediaUri, exception);
     }
   }
 ```
@@ -298,7 +298,7 @@ its URL:
   final URI packUri = URI.create(packAddress);
   final boolean stillHosted = NetworkUtils.isReachable(packUri);
   if (!stillHosted) {
-    // upload the pack again before sending the URL to players
+    // ... upload the pack again
   }
 ```
 
@@ -316,7 +316,7 @@ as usual:
     try {
       this.renderFrame();
     } catch (final RuntimeException | Error exception) {
-      ThrowableUtils.throwIfFatal(exception); // rethrows an OutOfMemoryError or a StackOverflowError
+      ThrowableUtils.throwIfFatal(exception);
       LOGGER.error("Rendering a frame failed, skipping it.", exception);
     }
   }

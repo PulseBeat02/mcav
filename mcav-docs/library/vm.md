@@ -23,7 +23,7 @@ dependencies {
   final VMModule vmModule = api.getModule(VMModule.class);
   final boolean qemuInstalled = vmModule.isQemuInstalled();
   if (!qemuInstalled) {
-    // QEMU is missing, virtual machines cannot be started
+    LOGGER.warn("QEMU is missing, so virtual machines cannot be started.");
   }
 ```
 

@@ -1,8 +1,10 @@
 # Examples
 
 This example resolves a YouTube video with yt-dlp, plays its separate video and audio streams in sync with the FFmpeg
-player, shows the frames in a window, and plays the audio through the speakers. More examples live in the `src/test`
-folders of every module.
+player, shows the frames in a window, and plays the audio through the speakers; close the window to end it. It blocks
+its main thread while it waits for yt-dlp, which an application may do but a server or UI thread never should. The
+filter `View.showFrame` only reads the frames, so it returns `false`. More examples live in the `src/test` folders of
+every module.
 
 ```java
 import java.awt.BorderLayout;
@@ -62,7 +64,7 @@ public final class YouTubeExample {
 
   private void play(final MCAVApi api) throws InterruptedException, ExecutionException {
     final CompletableFuture<Boolean> ready = api.whenCapabilityReady(Capability.YT_DLP);
-    final boolean available = ready.join(); // this application thread may block; never do this on a server or UI thread
+    final boolean available = ready.join();
     if (!available) {
       final String message = "yt-dlp is unavailable!";
       throw new IllegalStateException(message);
@@ -83,7 +85,6 @@ public final class YouTubeExample {
     return createView.get();
   }
 
-  // Called only on the Swing event-dispatch thread.
   private View createView(final CountDownLatch closed) {
     final JFrame frame = new JFrame("Video Player");
     frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
@@ -117,7 +118,7 @@ public final class YouTubeExample {
     try {
       this.attachPipelines(player, speakers, view);
       this.startPlayback(player);
-      closed.await(); // close the window to end this example
+      closed.await();
     } finally {
       player.release();
     }
@@ -170,7 +171,7 @@ public final class YouTubeExample {
       final ImageIcon icon = new ImageIcon(frameImage);
       SwingUtilities.invokeLater(() -> this.label.setIcon(icon));
 
-      return false; // the frame is only read, not changed
+      return false;
     }
 
     private void close() {

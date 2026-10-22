@@ -12,7 +12,7 @@ thumbnails, and converting containers. `FfmpegCommand.builder()` builds any othe
   final String output = "audio.ogg";
   final FfmpegCommand command = FfmpegTemplates.extractOggVorbis(input, output);
   final CommandTask task = command.createTask();
-  task.runChecked(); // waits for FFmpeg and throws if it fails
+  task.runChecked();
 ```
 
 ```java

@@ -46,7 +46,9 @@ Players download resource packs from a URL. `PackHosting` offers three ways to p
     hosting.start();
 
     final String url = hosting.getRawUrl();
-    // send the pack to players with this URL, and call hosting.shutdown() when the pack is no longer needed
+    LOGGER.info("The resource pack is hosted at {}.", url);
     return hosting;
   }
 ```
+
+Send that URL to the players, and call `shutdown()` on the hosting when the pack is no longer needed.

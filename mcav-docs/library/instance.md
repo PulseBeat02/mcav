@@ -8,8 +8,8 @@ such state.
 
 ```java
   final MCAVApi api = MCAV.api();
-  api.install(); // or api.install(BukkitModule.class, HttpModule.class, ...)
-  // ... use the library ...
+  api.install();
+  // ... use the library
   api.release();
 ```
 
@@ -84,7 +84,7 @@ not available yet, so the example below plays with FFmpeg until VLC is ready:
       return vlcPlayer;
     }
 
-    final VideoPlayerMultiplexer ffmpegPlayer = VideoPlayer.ffmpeg(); // bundled, always available
+    final VideoPlayerMultiplexer ffmpegPlayer = VideoPlayer.ffmpeg();
     return ffmpegPlayer;
   }
 ```
@@ -104,7 +104,7 @@ preparation already finished, gets a future that is complete already.
 
   private VideoPlayerMultiplexer createPlayer(final boolean vlcAvailable) {
     if (!vlcAvailable) {
-      final VideoPlayerMultiplexer ffmpegPlayer = VideoPlayer.ffmpeg(); // VLC cannot be used on this system
+      final VideoPlayerMultiplexer ffmpegPlayer = VideoPlayer.ffmpeg();
       return ffmpegPlayer;
     }
 
@@ -114,11 +114,12 @@ preparation already finished, gets a future that is complete already.
 ```
 
 Callbacks attached to the future never run on the installation threads of the library, so they may call any method
-of the library, even `release`. A thread that may block, such as a worker thread, can also wait with `join()`:
+of the library, even `release`. A thread that may block, such as a worker thread, can also wait with `join()`, but
+never the main thread of a server:
 
 ```java
   final CompletableFuture<Boolean> ytdlpReady = api.whenCapabilityReady(Capability.YT_DLP);
-  final boolean ytdlpAvailable = ytdlpReady.join(); // never call this on a server main thread
+  final boolean ytdlpAvailable = ytdlpReady.join();
 ```
 
 ## Modules

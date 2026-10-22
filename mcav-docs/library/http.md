@@ -36,15 +36,16 @@ require elevated privileges depending on the host configuration, so pick a highe
 | `HttpResult.builder()`                         | An `HttpResultBuilder` for every setting, including the bind address.         |
 
 The ports must be between 1 and 65535 and the host name must not be blank; otherwise the factories throw an
-`IllegalArgumentException`.
+`IllegalArgumentException`. `start()` blocks for a few seconds while the server starts; `startAsync()` starts it on
+another thread instead.
 
 ```java
   final String domain = "play.example.com";
   final int port = 8080;
   final HttpResult http = HttpResult.http(domain, port);
-  http.start(); // blocks for a few seconds; startAsync() starts it on another thread instead
+  http.start();
   final MediaInfo media = MediaInfo.titled("My Video");
-  http.setCurrentMedia(media); // or http.setCurrentMedia(dump) with the UrlParseDump of yt-dlp
+  http.setCurrentMedia(media);
 
   final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(http);
   final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
@@ -55,7 +56,7 @@ The ports must be between 1 and 65535 and the host name must not be blank; other
   final FileSource source = FileSource.path(path);
   multiplexer.start(source);
 
-  final String url = http.getFullUrl(); // http://play.example.com:8080/
+  final String url = http.getFullUrl();
   LOGGER.info("The audio plays at {}.", url);
   // ... play some media
 
@@ -66,7 +67,7 @@ The ports must be between 1 and 65535 and the host name must not be blank; other
 `setCurrentMedia(UrlParseDump)` shows the title, uploader, thumbnail, duration, and statistics yt-dlp reported, while
 `MediaInfo.titled(String)` creates information with only a title for media that did not come from yt-dlp. Passing
 `null` to `setCurrentMedia(MediaInfo)` shows that nothing is playing. An IPv6 address as host name is put in brackets
-in the URL, as URLs require.
+in the URL, as URLs require. `getFullUrl()` returns the URL of the page, here `http://play.example.com:8080/`.
 
 ## Using the Builder
 

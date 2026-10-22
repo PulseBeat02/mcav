@@ -52,19 +52,19 @@ with `updateArgb(int[], width, height)`:
   public void paintFirstPixelRed(final Path imageFile) {
     final FileSource file = FileSource.path(imageFile);
     try (final ImageBuffer image = ImageBuffer.path(file)) {
-      final int[] pixels = image.getPixels(); // shared: read it, never write it
+      final int[] pixels = image.getPixels();
       final int firstPixel = pixels[0];
       final String firstColor = Integer.toHexString(firstPixel);
       LOGGER.debug("The first pixel was {}.", firstColor);
 
-      final int[] editable = image.copyPixels(); // your own copy: write it freely
+      final int[] editable = image.copyPixels();
       final int opaqueRed = 0xFFFF0000;
       editable[0] = opaqueRed;
       final int width = image.getWidth();
       final int height = image.getHeight();
       image.updateArgb(editable, width, height);
 
-      final IntBuffer readOnlyView = image.getReadOnlyPixels(); // no copy, rejects writes
+      final IntBuffer readOnlyView = image.getReadOnlyPixels();
       final int updatedFirstPixel = readOnlyView.get(0);
       final String updatedColor = Integer.toHexString(updatedFirstPixel);
       LOGGER.debug("The first pixel is now {}.", updatedColor);

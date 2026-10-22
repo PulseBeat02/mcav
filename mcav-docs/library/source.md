@@ -27,12 +27,13 @@ A `UriSource` that points at a web page rather than a media file, such as a YouT
 ## Detecting Sources
 
 To turn text entered by a user into a source, use the `SourceDetectionHelper`. It recognizes existing file paths,
-URLs, device numbers, and FFmpeg inputs written as `format||input`, such as `dshow||video=OBS Virtual Camera`:
+URLs, device numbers, and FFmpeg inputs written as `format||input`, such as `dshow||video=OBS Virtual Camera`, and
+returns an empty `Optional` for any other input:
 
 ```java
   public Optional<Source> parseUserInput(final String input) {
     final SourceDetectionHelper helper = new SourceDetectionHelper();
-    final Optional<Source> detected = helper.detectSource(input); // empty if MCAV does not understand the input
+    final Optional<Source> detected = helper.detectSource(input);
     return detected;
   }
 ```
