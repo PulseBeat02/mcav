@@ -1695,17 +1695,17 @@ From the repository root:
 
 ```sh
 ./gradlew :mcav-bukkit:writeMcv2ToolsClasspath
-MCV2_CLASSPATH=$(cat mcav-bukkit/build/mcv2-tools-classpath.txt)
+MCV2_CLASSPATH="$(cat mcav-bukkit/build/mcv2-tools-classpath.txt)"
 MCV2_MAIN_CLASS=me.brandonli.mcav.bukkit.media.mcv2.Mcv2Tools
 MCV2_PYTHON_TOOLS=mcav-bukkit/src/test/python/mcv2_tools.py
 MCV2_FIXTURES=mcav-bukkit/src/test/resources/mcv2
-java --enable-native-access=ALL-UNNAMED -cp "$MCV2_CLASSPATH" "$MCV2_MAIN_CLASS" bench \
+java --enable-native-access=ALL-UNNAMED -cp "${MCV2_CLASSPATH}" "${MCV2_MAIN_CLASS}" bench \
   source=proxy.rgb width=1920 height=1080 frames=60 warm=10 fps=30 threads=12 \
   profile=DEFAULT budget=true verify=true natives=auto out=proxy.mcs decoded=proxy-decoded.rgb
-java -cp "$MCV2_CLASSPATH" "$MCV2_MAIN_CLASS" digests proxy.mcs
-python "$MCV2_PYTHON_TOOLS" differential "$MCV2_CLASSPATH" --out build/mcv2-differential
+java -cp "${MCV2_CLASSPATH}" "${MCV2_MAIN_CLASS}" digests proxy.mcs
+python "${MCV2_PYTHON_TOOLS}" differential "${MCV2_CLASSPATH}" --out build/mcv2-differential
 ./gradlew :mcav-bukkit:pythonTest
-python "$MCV2_PYTHON_TOOLS" fixtures "$MCV2_FIXTURES" all
+python "${MCV2_PYTHON_TOOLS}" fixtures "${MCV2_FIXTURES}" all
 ```
 
 The benchmark accepts `key=value` options: `source`, `width`, `height`, `frames`, `warm`, `fps`, `threads`,
@@ -1751,15 +1751,15 @@ Render the diagrams and charts with Graphviz 14.1.2 and Python:
 
 ```sh
 for diagram in decode overview transport; do
-  dot -Gdpi=110 -Tpng "mcav-bukkit/src/test/resources/mcv2/figures/$diagram.dot" \
-    -o "mcav-docs/images/mcv2/$diagram.png"
+  dot -Gdpi=110 -Tpng "mcav-bukkit/src/test/resources/mcv2/figures/${diagram}.dot" \
+    -o "mcav-docs/images/mcv2/${diagram}.png"
 done
-python "$MCV2_PYTHON_TOOLS" charts --tables
-java --enable-native-access=ALL-UNNAMED -cp "$MCV2_CLASSPATH" "$MCV2_MAIN_CLASS" bench \
+python "${MCV2_PYTHON_TOOLS}" charts --tables
+java --enable-native-access=ALL-UNNAMED -cp "${MCV2_CLASSPATH}" "${MCV2_MAIN_CLASS}" bench \
   source=gameplay.rgb width=1920 height=1080 frames=13 profile=DEFAULT lambda=260 out=gameplay.mcs
-python "$MCV2_PYTHON_TOOLS" samples tree gameplay.mcs --frames 0,12 --crop 896,128,576,324
-python "$MCV2_PYTHON_TOOLS" samples leaves gameplay.mcs gameplay.rgb --frame 0 --crop 896,128,576,324
-python "$MCV2_PYTHON_TOOLS" samples bytes gameplay.mcs --frame 0
+python "${MCV2_PYTHON_TOOLS}" samples tree gameplay.mcs --frames 0,12 --crop 896,128,576,324
+python "${MCV2_PYTHON_TOOLS}" samples leaves gameplay.mcs gameplay.rgb --frame 0 --crop 896,128,576,324
+python "${MCV2_PYTHON_TOOLS}" samples bytes gameplay.mcs --frame 0
 ```
 
 To redraw `frame.png`, put the 71 bytes from [A Real Frame, Byte by Byte](#a-real-frame-byte-by-byte) into a
@@ -1776,5 +1776,5 @@ frame = bytes.fromhex(
 )
 Path("frame.mcs").write_bytes(struct.pack("<I", len(frame)) + frame)
 PY
-python "$MCV2_PYTHON_TOOLS" samples --size 64x32 tree frame.mcs --frames 0 --crop 0,0,64,32 --out frame.png
+python "${MCV2_PYTHON_TOOLS}" samples --size 64x32 tree frame.mcs --frames 0 --crop 0,0,64,32 --out frame.png
 ```
