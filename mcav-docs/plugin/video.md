@@ -3,7 +3,7 @@
 How the plugin plays media, and what each choice in the `/mcav video` and `/mcav image` commands does. The syntax of
 every command is on the [commands](commands.md) page.
 
-## Where the Picture Goes
+## Where the picture goes
 
 | Display | Command | What the players see | MCV2 |
 |---|---|---|---|
@@ -21,7 +21,7 @@ you choose decoded by a resource pack ([MCV2 on Maps](../bukkit/mcv2.md)). The o
 block, entity and scoreboard displays update at most 20 times a second, once per server tick, and the chat display
 sends every frame as a new message as it arrives.
 
-**Dithering.** `FILTER_LITE` is the recommended default, `NEAREST_COLOR` keeps text and desktops sharp, and
+Dithering. `FILTER_LITE` is the recommended default, `NEAREST_COLOR` keeps text and desktops sharp, and
 `FLOYD_STEINBERG_TEMPORAL` keeps unchanged areas identical from frame to frame, so less of the wall has to be sent. A
 wall of maps sends only the parts of each map that changed, at most 128 KiB per frame and viewer; a big picture that
 changes everywhere, such as 1080p video, needs far more than that, so the wall shows each change a few frames late
@@ -58,7 +58,7 @@ until it is granted.
 One source plays through the audio outputs at a time: a video, a browser or a virtual machine that starts takes them
 over from the one that played before, and gives them back to it when it is released, if that one still plays.
 
-## Controlling a Video
+## Controlling a video
 
 | Command | What it does |
 |---|---|
@@ -81,20 +81,20 @@ detection, which needs a classifier model the plugin does not ship and runs on e
 which the resolution and `rotate` cover; blend, which needs a second picture; the other shapes; and the LWJGL texture
 filter.
 
-## Cameras and Capture Cards
+## Cameras and capture cards
 
 `/mcav video devices` lists the cameras and capture cards of the server by number and name; the `DEVICE` player then
 plays one by its number, and only a number the list showed. On Linux the number is that of `/dev/video<number>`, with
 the name the system gives the device; on Windows and macOS the list tries the numbers 0 to 7, which briefly opens every
 device there is. A server in a container usually has no device at all, and the command says so.
 
-## Why There Is No LWJGL Output
+## Why there is no LWJGL output
 
 `mcav-lwjgl` streams video into an OpenGL texture of a desktop application, such as a game or a mod, which renders it
 in its own window. A Minecraft server has no OpenGL context and no window, so nothing in the plugin could draw with it.
 Its players see what the server sends them: maps, blocks, entities, the scoreboard and chat.
 
-## If Playback Stutters
+## If playback stutters
 
 If playback pauses or arrives in bursts without an error, try a lower-resolution, lower-frame-rate H.264 file and
 compare it with the original on the same screen: decoding a high-resolution AV1 source can fall behind on a busy
