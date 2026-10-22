@@ -28,8 +28,8 @@ llvm_tools=${LLVM_BIN:-/usr/lib/llvm-18/bin}
 zig_compiler=${ZIG:-zig}
 x86_emulator=${QEMU_X86_64:-qemu-x86_64-static}
 aarch64_emulator=${QEMU_AARCH64:-qemu-aarch64-static}
-aarch64_sysroot=${SYSROOT_AARCH64:?the aarch64 sysroot}
-instruction_emulator=${SDE:?the path of sde64, Intel SDE}
+aarch64_sysroot=${SYSROOT_AARCH64:?must be the path of the aarch64 sysroot!}
+instruction_emulator=${SDE:?must be the path of sde64, Intel SDE!}
 resource_options=()
 [ -n "${RESOURCE_DIR:-}" ] && resource_options=(-resource-dir="$RESOURCE_DIR")
 kernel_flags=(-std=c++17 -ffp-contract=off -fwrapv -fno-strict-aliasing -Wall -Wextra -Werror -I"$native_sources")
@@ -75,7 +75,7 @@ compile_canary() {
 
 assert_overflow_caught() {
   if ASAN_OPTIONS=detect_leaks=0 "$@" > /dev/null 2> "$test_directory/caught.txt" || ! grep -q heap-buffer-overflow "$test_directory/caught.txt"; then
-    echo "the sanitizer missed a heap overflow under: $*" >&2
+    echo "The sanitizer under $* missed a heap overflow!" >&2
     exit 1
   fi
 }
@@ -116,7 +116,7 @@ check_symbols() {
     # shellcheck disable=SC2086 # instruction_flags holds several compiler flags that must split into words
     "$compiler" "${resource_options[@]}" "${kernel_flags[@]}" -O0 "$@" $instruction_flags -c "$native_sources/$unit_name.cpp" -o "$test_directory/symbols.o"
     if "$llvm_tools/llvm-nm" --defined-only --extern-only "$test_directory/symbols.o" | awk '{print $3}' | grep -v '^mcv2_' | grep -q .; then
-      echo "$unit_name ($label) defines a shared symbol:" >&2
+      echo "Unit $unit_name ($label) defines shared symbols!" >&2
       "$llvm_tools/llvm-nm" --defined-only --extern-only -C "$test_directory/symbols.o" | grep -v ' mcv2_' >&2
       exit 1
     fi
@@ -137,7 +137,7 @@ for target in x86_64 aarch64; do
   library=$native_libraries/linux-$target/libmcv2kernels.so
   if "$llvm_tools/llvm-readelf" --dynamic "$library" | grep -q NEEDED ||
     "$llvm_tools/llvm-readelf" --dyn-syms "$library" | awk '$7 == "UND" && $8 != ""' | grep -q .; then
-    echo "linux-$target imports something" >&2
+    echo "Library linux-$target imports something!" >&2
     exit 1
   fi
   "$zig_compiler" c++ -target "$target-linux-gnu.2.28" -O1 "${kernel_flags[@]}" "$script_directory/kernels_test.cpp" -o "$test_directory/glibc-$target" \
@@ -148,7 +148,7 @@ done
 x86_library=$native_libraries/linux-x86_64/libmcv2kernels.so
 aarch64_library=$native_libraries/linux-aarch64/libmcv2kernels.so
 assert_levels_agree "linux-x86_64 glibc (this CPU)" "$test_directory/glibc-x86_64" "$x86_library"
-assert_levels_agree "linux-x86_64 musl (this CPU)" "${MUSL_X86_64:?the path of ld-musl-x86_64.so.1}" "$test_directory/musl-x86_64" "$x86_library"
+assert_levels_agree "linux-x86_64 musl (this CPU)" "${MUSL_X86_64:?must be the path of ld-musl-x86_64.so.1!}" "$test_directory/musl-x86_64" "$x86_library"
 assert_levels_agree "linux-x86_64 glibc (qemu -cpu qemu64)" "$x86_emulator" -cpu qemu64 "$test_directory/glibc-x86_64" "$x86_library" expect=sse2
 for entry in "${emulated_x86_cpus[@]}"; do
   assert_levels_agree "linux-x86_64 glibc (SDE -${entry%%:*})" "$instruction_emulator" "-${entry%%:*}" -- "$test_directory/glibc-x86_64" "$x86_library" \
@@ -159,12 +159,12 @@ for entry in "${aarch64_cpus[@]}"; do
     "$test_directory/glibc-aarch64" "$aarch64_library" "expect=${entry#*:}"
 done
 assert_levels_agree "linux-aarch64 musl (qemu -cpu max,sve 64)" "$aarch64_emulator" -cpu max,sve-default-vector-length=64 \
-  "${MUSL_AARCH64:?the path of ld-musl-aarch64.so.1}" "$test_directory/musl-aarch64" "$aarch64_library" expect=sve512
+  "${MUSL_AARCH64:?must be the path of ld-musl-aarch64.so.1!}" "$test_directory/musl-aarch64" "$aarch64_library" expect=sve512
 reference=$(tail -n +3 "$test_directory/asan x86-64 (this CPU).txt")
 for run in "$test_directory"/*.txt; do
   [ "$(basename "$run")" = caught.txt ] && continue
   if [ "$(tail -n +3 "$run")" != "$reference" ]; then
-    echo "$(basename "$run" .txt) has other digests" >&2
+    echo "Run $(basename "$run" .txt) has other digests!" >&2
     exit 1
   fi
 done
