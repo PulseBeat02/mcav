@@ -27,7 +27,7 @@ if (!output) {
     process.exit(2);
 }
 
-function resolvePackage(name, fromDir) {
+const resolvePackage = (name, fromDir) => {
     for (let dir = fromDir; ; dir = dirname(dir)) {
         const candidate = join(dir, "node_modules", name);
         if (existsSync(join(candidate, "package.json"))) {
@@ -37,17 +37,17 @@ function resolvePackage(name, fromDir) {
             return null;
         }
     }
-}
+};
 
-function requiredDependencies(manifest) {
+const requiredDependencies = manifest => {
     const optionalPeers = manifest.peerDependenciesMeta ?? {};
-    const peers = Object.keys(manifest.peerDependencies ?? {}).filter((name) => !optionalPeers[name]?.optional);
+    const peers = Object.keys(manifest.peerDependencies ?? {}).filter(name => !optionalPeers[name]?.optional);
     return [...Object.keys(manifest.dependencies ?? {}), ...peers];
-}
+};
 
 const root = JSON.parse(readFileSync("package.json", "utf8"));
 const shipped = new Map();
-const pending = Object.keys(root.dependencies ?? {}).map((name) => [name, process.cwd()]);
+const pending = Object.keys(root.dependencies ?? {}).map(name => [name, process.cwd()]);
 while (pending.length > 0) {
     const [name, fromDir] = pending.pop();
     const path = resolvePackage(name, fromDir);
@@ -65,9 +65,9 @@ const sections = [];
 for (const [path, manifest] of shipped) {
     const license = manifest.license ?? "see the package";
     const texts = readdirSync(path)
-        .filter((file) => LICENSE_FILE.test(file))
+        .filter(file => LICENSE_FILE.test(file))
         .sort()
-        .map((file) => readFileSync(join(path, file), "utf8").trim());
+        .map(file => readFileSync(join(path, file), "utf8").trim());
     const text = texts.length > 0 ? texts.join("\n\n") : `${license}; the package carries no license file`;
     sections.push(`${manifest.name}@${manifest.version} (${license})\n\n${text}\n`);
 }

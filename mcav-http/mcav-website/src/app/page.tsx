@@ -323,17 +323,18 @@ const loadMediaInfo = async (): Promise<MediaInfo> => {
     }
 };
 
-const sameMediaInfo = (first: MediaInfo, second: MediaInfo): boolean =>
-    first.title === second.title
-    && first.uploader === second.uploader
-    && first.description === second.description
-    && first.thumbnail === second.thumbnail
-    && first.duration === second.duration
-    && first.view_count === second.view_count
-    && first.like_count === second.like_count
-    && first.upload_date === second.upload_date;
+const sameMediaInfo = (first: MediaInfo, second: MediaInfo): boolean => {
+    return first.title === second.title
+        && first.uploader === second.uploader
+        && first.description === second.description
+        && first.thumbnail === second.thumbnail
+        && first.duration === second.duration
+        && first.view_count === second.view_count
+        && first.like_count === second.like_count
+        && first.upload_date === second.upload_date;
+};
 
-export default function AudioStreamPlayer() {
+const AudioStreamPlayer = (): React.JSX.Element => {
     const [statusText, setStatusText] = useState("Disconnected");
     const [statusConnected, setStatusConnected] = useState(false);
     const updateStatus = useCallback(
@@ -982,4 +983,6 @@ export default function AudioStreamPlayer() {
             </div>
         </div>
     );
-}
+};
+
+export default AudioStreamPlayer;

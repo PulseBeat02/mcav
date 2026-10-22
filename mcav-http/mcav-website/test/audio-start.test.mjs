@@ -26,7 +26,29 @@ const PAGE = new URL("../src/app/page.tsx", import.meta.url);
 const CALLBACKS = ["animateVisualizer", "attemptReconnect", "stopStream", "connectWebSocket", "handleStart", "handleStop"];
 const CLOSED = 3;
 
-function skipBalanced(source, index) {
+const skipString = (source, index) => {
+    let at = index + 1;
+    while (source[at] !== source[index]) {
+        at += source[at] === "\\" ? 2 : 1;
+    }
+    return at + 1;
+};
+
+const skipTemplate = (source, index) => {
+    let at = index + 1;
+    while (source[at] !== "`") {
+        if (source[at] === "\\") {
+            at += 2;
+        } else if (source[at] === "$" && source[at + 1] === "{") {
+            at = skipBalanced(source, at + 1);
+        } else {
+            at++;
+        }
+    }
+    return at + 1;
+};
+
+const skipBalanced = (source, index) => {
     const closing = {"(": ")", "{": "}", "[": "]"};
     const expected = [closing[source[index]]];
     let at = index + 1;
@@ -53,31 +75,9 @@ function skipBalanced(source, index) {
         }
     }
     return at;
-}
+};
 
-function skipString(source, index) {
-    let at = index + 1;
-    while (source[at] !== source[index]) {
-        at += source[at] === "\\" ? 2 : 1;
-    }
-    return at + 1;
-}
-
-function skipTemplate(source, index) {
-    let at = index + 1;
-    while (source[at] !== "`") {
-        if (source[at] === "\\") {
-            at += 2;
-        } else if (source[at] === "$" && source[at + 1] === "{") {
-            at = skipBalanced(source, at + 1);
-        } else {
-            at++;
-        }
-    }
-    return at + 1;
-}
-
-function pageCallbacks() {
+const pageCallbacks = () => {
     const source = readFileSync(PAGE, "utf8");
     const declarations = CALLBACKS.map(name => {
         const declaration = `const ${name} = useCallback(`;
@@ -86,7 +86,7 @@ function pageCallbacks() {
         return `${source.slice(start, skipBalanced(source, start + declaration.length - 1))};`;
     });
     return stripTypeScriptTypes(`${declarations.join("\n")}\n({${CALLBACKS.join(", ")}});`);
-}
+};
 
 /**
  * Loads the page's callbacks into a world of fakes.
@@ -94,7 +94,7 @@ function pageCallbacks() {
  * @param permission what the browser does with the page's request to play sound: 'granted' (the context runs at once),
  *                   'after-resume' (it runs once resumed), 'refused' (resuming fails) or 'ignored' (it stays suspended)
  */
-function loadPage(permission = "granted") {
+const loadPage = (permission = "granted") => {
     const timers = new Map();
     const animations = new Map();
     let nextAnimation = 1;
@@ -246,9 +246,11 @@ function loadPage(permission = "granted") {
         liveProcessors: () => processors.filter(processor => !processor.isDestroyed).length,
         openSockets: () => sockets.filter(socket => socket.readyState !== CLOSED).length,
     };
-}
+};
 
-const settle = () => new Promise(resolve => setImmediate(resolve));
+const settle = () => {
+    return new Promise(resolve => setImmediate(resolve));
+};
 
 test("a second Start before the first stream connected opens no second stream", () => {
     const page = loadPage();

@@ -24,16 +24,16 @@ import { test } from "node:test";
 const ROOT = new URL("..", import.meta.url).pathname;
 const IMPORT = /(?:from\s+|import\s*\(\s*|require\s*\(\s*)['"]((?:@[^'"/]+\/)?[^'"/]+)/g;
 
-function sources(folder) {
-    return readdirSync(folder, {withFileTypes: true}).flatMap((entry) => {
+const sources = folder => {
+    return readdirSync(folder, {withFileTypes: true}).flatMap(entry => {
         const path = join(folder, entry.name);
         return entry.isDirectory() ? sources(path) : /\.(tsx?|jsx?|mjs|css)$/.test(entry.name) ? [path] : [];
     });
-}
+};
 
-function manifest(name) {
+const manifest = name => {
     return JSON.parse(readFileSync(join(ROOT, "node_modules", name, "package.json"), "utf8"));
-}
+};
 
 test("every dependency is imported by the website, or is a peer of one that is", () => {
     const declared = Object.keys(JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).dependencies);
@@ -52,5 +52,5 @@ test("every dependency is imported by the website, or is a peer of one that is",
             }
         }
     }
-    assert.deepEqual(declared.filter((name) => !used.has(name)), []);
+    assert.deepEqual(declared.filter(name => !used.has(name)), []);
 });

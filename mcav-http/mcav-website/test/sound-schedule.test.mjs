@@ -27,7 +27,7 @@ const RATE = 48000;
 const CHUNK_FRAMES = 1024;
 const CHUNK_SECONDS = CHUNK_FRAMES / RATE;
 
-function pageProcessor() {
+const pageProcessor = () => {
     const source = readFileSync(PAGE, "utf8");
     const start = source.indexOf("class PCMProcessor {");
     assert.ok(start >= 0, "the page declares the class PCMProcessor");
@@ -44,7 +44,7 @@ function pageProcessor() {
     } while (depth > 0);
     const constants = source.slice(source.indexOf("type PCMProcessorOptions"), start);
     return stripTypeScriptTypes(`${constants}\n${source.slice(start, end)}\nPCMProcessor;`);
-}
+};
 
 class FakeAudioContext {
     constructor(state) {
@@ -87,15 +87,15 @@ class FakeAudioContext {
     }
 }
 
-function processor(state) {
+const processor = state => {
     const PCMProcessor = vm.runInContext(pageProcessor(), vm.createContext({
         Float32Array, DataView, ArrayBuffer, Math, Date, Set, window: {},
     }), {filename: PAGE.pathname});
     const context = new FakeAudioContext(state);
     return {pcm: new PCMProcessor({encoding: "16bitInt", channels: 2, sampleRate: RATE, audioCtx: context}), context};
-}
+};
 
-function chunk() {
+const chunk = () => {
     const view = new DataView(new ArrayBuffer(CHUNK_FRAMES * 4));
     for (let frame = 0; frame < CHUNK_FRAMES; frame++) {
         const sample = Math.round(Math.sin(frame / 8) * 1000);
@@ -103,15 +103,15 @@ function chunk() {
         view.setInt16(frame * 4 + 2, sample, true);
     }
     return view.buffer;
-}
+};
 
-function feedLive(pcm, context, seconds) {
+const feedLive = (pcm, context, seconds) => {
     const chunks = Math.round(seconds / CHUNK_SECONDS);
     for (let index = 0; index < chunks; index++) {
         context.currentTime += CHUNK_SECONDS;
         pcm.feed(chunk());
     }
-}
+};
 
 test("sound that arrives while the context does not play yet does not delay the sound after it", () => {
     for (const starting of ["suspended", "running"]) {

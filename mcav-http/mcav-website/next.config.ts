@@ -35,7 +35,7 @@ const SOURCES = [
 // Next.js names the folder of a build's manifests after its build id, a random one unless told otherwise, so two builds
 // of the same sources would make two different jars. An id derived from the sources makes the same website from the
 // same sources, and a changed website still gets a new folder name, which keeps browsers from using stale manifests.
-function sourcesBuildId(): string {
+const sourcesBuildId = (): string => {
     const files: string[] = [];
     const collect = (path: string): void => {
         if (statSync(path).isDirectory()) {
@@ -52,11 +52,11 @@ function sourcesBuildId(): string {
         hash.update(readFileSync(file));
     }
     return hash.digest("hex").slice(0, 20);
-}
+};
 
 const nextConfig: NextConfig = {
     output: "export",
-    generateBuildId: async () => sourcesBuildId()
+    generateBuildId: sourcesBuildId
 };
 
 export default nextConfig;
