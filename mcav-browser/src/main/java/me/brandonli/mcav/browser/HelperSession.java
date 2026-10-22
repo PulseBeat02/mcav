@@ -795,10 +795,6 @@ final class HelperSession implements BrowserSession {
   }
 
   private boolean send(final MessageWriter writer) {
-    if (this.closing.get()) {
-      return true;
-    }
-
     try {
       this.input.execute(() -> this.write(writer));
 
