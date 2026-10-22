@@ -56,6 +56,7 @@ const CALLBACKS = [
 const CONNECTING = 0;
 const CLOSED = 3;
 
+// how the browser answers the request to play sound: the context runs at once, runs once resumed, fails to resume or stays suspended
 const PERMISSION_GRANTED = "granted";
 const PERMISSION_AFTER_RESUME = "after-resume";
 const PERMISSION_REFUSED = "refused";
@@ -135,12 +136,6 @@ const pageCallbacks = () => {
     return stripTypeScriptTypes(script);
 };
 
-/**
- * Loads the page's callbacks into a world of fakes.
- *
- * @param permission what the browser does with the page's request to play sound: 'granted' (the context runs at once),
- *                   'after-resume' (it runs once resumed), 'refused' (resuming fails) or 'ignored' (it stays suspended)
- */
 const loadPage = (permission = PERMISSION_GRANTED) => {
     const timers = new Map();
     const animations = new Map();
@@ -298,30 +293,42 @@ const settle = () => {
     return new Promise(resolve => setImmediate(resolve));
 };
 
-test("a second Start before the first stream connected opens no second stream", () => {
+test("should open no second stream for a second Start before the first stream connected", () => {
     const page = loadPage();
     page.startPlayback();
     page.startPlayback();
     page.runTimers();
-    assert.equal(page.sockets.length, 1, "one socket");
-    assert.equal(page.liveProcessors(), 1, "one sound processor");
-    page.sockets[0].opened();
-    page.sockets[0].received(CHUNK_BYTES);
-    assert.equal(page.processors.at(-1).fed, 1, "every piece of sound is played once");
+
+    const socketCount = page.sockets.length;
+    assert.equal(socketCount, 1, "one socket");
+
+    const liveProcessors = page.liveProcessors();
+    assert.equal(liveProcessors, 1, "one sound processor");
+
+    const socket = page.sockets[0];
+    socket.opened();
+    socket.received(CHUNK_BYTES);
+
+    const feeds = page.processors.at(-1).fed;
+    assert.equal(feeds, 1, "every piece of sound is played once");
 });
 
-test("Stop after two Starts leaves no stream behind", () => {
+test("should leave no stream behind after a Stop that follows two Starts", () => {
     const page = loadPage();
     page.startPlayback();
     page.startPlayback();
     page.runTimers();
     page.sockets.forEach(socket => socket.opened());
     page.stopPlayback();
-    assert.equal(page.openSockets(), 0, "no socket stays open");
-    assert.equal(page.liveProcessors(), 0, "no sound processor stays alive");
+
+    const openSockets = page.openSockets();
+    assert.equal(openSockets, 0, "no socket stays open");
+
+    const liveProcessors = page.liveProcessors();
+    assert.equal(liveProcessors, 0, "no sound processor stays alive");
 });
 
-test("the late close of a stopped stream does not start a second one next to the new one", () => {
+test("should start no second stream next to the new one when a stopped stream closes late", () => {
     const page = loadPage();
     page.startPlayback();
     page.runTimers();
@@ -334,71 +341,110 @@ test("the late close of a stopped stream does not start a second one next to the
     second.opened();
     first.closed();
     page.runTimers();
-    assert.equal(page.sockets.length, 2, "no socket besides the new one");
-    assert.equal(page.openSockets(), 1);
+
+    const socketCount = page.sockets.length;
+    assert.equal(socketCount, 2, "no socket besides the new one");
+    const openSockets = page.openSockets();
+    assert.equal(openSockets, 1);
+
     second.received(CHUNK_BYTES);
-    assert.equal(page.liveProcessors(), 1);
-    assert.equal(page.processors.at(-1).fed, 1);
+
+    const liveProcessors = page.liveProcessors();
+    assert.equal(liveProcessors, 1);
+    const feeds = page.processors.at(-1).fed;
+    assert.equal(feeds, 1);
 });
 
-test("a Stop during a reconnect lets Start be pressed again", () => {
+test("should let Start be pressed again after a Stop during a reconnect", () => {
     const page = loadPage();
     page.startPlayback();
     page.runTimers();
-    page.sockets[0].opened();
-    page.sockets[0].closed();
+    const socket = page.sockets[0];
+    socket.opened();
+    socket.closed();
     page.runTimers();
-    assert.equal(page.state.loading, true, "connecting again");
+
+    const reconnecting = page.state.loading;
+    assert.equal(reconnecting, true, "connecting again");
+
     page.stopPlayback();
-    assert.equal(page.state.loading, false);
-    assert.equal(page.state.connected, false);
+
+    const loading = page.state.loading;
+    assert.equal(loading, false);
+    const connected = page.state.connected;
+    assert.equal(connected, false);
+
     page.startPlayback();
     page.runTimers();
-    assert.equal(page.openSockets(), 1);
+
+    const openSockets = page.openSockets();
+    assert.equal(openSockets, 1);
 });
 
 for (const permission of [PERMISSION_REFUSED, PERMISSION_IGNORED]) {
-    test(`a Start whose sound permission is ${permission} lets Start be pressed again`, async () => {
+    test(`should let Start be pressed again after a Start whose sound permission is ${permission}`, async () => {
         const page = loadPage(permission);
         page.startPlayback();
         await settle();
-        assert.equal(page.state.loading, false, "nothing is loading");
+
+        const loading = page.state.loading;
+        assert.equal(loading, false, "nothing is loading");
+
         page.startPlayback();
         await settle();
-        assert.equal(page.contexts.length, 2, "the second Start asks again");
-        assert.equal(page.sockets.length, 0, "no stream without sound");
+
+        const contextCount = page.contexts.length;
+        assert.equal(contextCount, 2, "the second Start asks again");
+
+        const socketCount = page.sockets.length;
+        assert.equal(socketCount, 0, "no stream without sound");
     });
 }
 
-test("a Start allowed to play once resumed opens one stream", async () => {
+test("should open one stream for a Start allowed to play once resumed", async () => {
     const page = loadPage(PERMISSION_AFTER_RESUME);
     page.startPlayback();
     await settle();
     page.runTimers();
-    assert.equal(page.sockets.length, 1);
+
+    const socketCount = page.sockets.length;
+    assert.equal(socketCount, 1);
 });
 
-test("reconnecting before the next animation frame keeps one visualizer loop", () => {
+test("should keep one visualizer loop when reconnecting before the next animation frame", () => {
     const page = loadPage();
     page.startPlayback();
     page.runTimers();
     page.sockets.at(-1).opened();
-    assert.equal(page.activeAnimations(), 1);
+
+    const animations = page.activeAnimations();
+    assert.equal(animations, 1);
+
     for (let reconnect = 0; reconnect < 3; reconnect++) {
         page.sockets.at(-1).closed();
         page.runTimers();
         page.sockets.at(-1).opened();
-        assert.equal(page.activeAnimations(), 1, "only the replacement owns an animation");
-        const before = page.draws();
+
+        const replacementAnimations = page.activeAnimations();
+        assert.equal(replacementAnimations, 1, "only the replacement owns an animation");
+
+        const drawsBefore = page.draws();
         page.runAnimationFrame();
-        assert.equal(page.draws(), before + 1, "one draw per display frame");
-        assert.equal(page.activeAnimations(), 1, "one successor");
+
+        const drawsAfter = page.draws();
+        assert.equal(drawsAfter, drawsBefore + 1, "one draw per display frame");
+
+        const successors = page.activeAnimations();
+        assert.equal(successors, 1, "one successor");
     }
+
     page.stopPlayback();
-    assert.equal(page.activeAnimations(), 0);
+
+    const remainingAnimations = page.activeAnimations();
+    assert.equal(remainingAnimations, 0);
 });
 
-test("a dispatched animation from an older processor cannot adopt its replacement", () => {
+test("should let no dispatched animation of an older processor adopt its replacement", () => {
     const page = loadPage();
     page.startPlayback();
     page.runTimers();
@@ -408,7 +454,12 @@ test("a dispatched animation from an older processor cannot adopt its replacemen
     page.runTimers();
     page.sockets.at(-1).opened();
     oldDraw();
-    assert.equal(page.draws(), 0, "the superseded processor owns no new draw");
+
+    const draws = page.draws();
+    assert.equal(draws, 0, "the superseded processor owns no new draw");
+
     page.stopPlayback();
-    assert.equal(page.activeAnimations(), 0, "a late callback must not forget the current animation id");
+
+    const animations = page.activeAnimations();
+    assert.equal(animations, 0, "a late callback must not forget the current animation id");
 });

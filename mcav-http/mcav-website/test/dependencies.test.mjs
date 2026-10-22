@@ -52,22 +52,25 @@ const manifest = name => {
     return JSON.parse(readFileSync(join(ROOT, MODULES_DIRECTORY, name, MANIFEST_FILE), ENCODING));
 };
 
-test("every dependency is imported by the website, or is a peer of one that is", () => {
-    const declared = Object.keys(JSON.parse(readFileSync(join(ROOT, MANIFEST_FILE), ENCODING)).dependencies);
-    const used = new Set();
-    for (const file of sources(join(ROOT, SOURCE_DIRECTORY))) {
-        for (const [, name] of readFileSync(file, ENCODING).matchAll(IMPORT)) {
-            if (declared.includes(name)) {
-                used.add(name);
-            }
-        }
-    }
-    for (const name of [...used]) {
-        for (const peer of Object.keys(manifest(name).peerDependencies ?? {})) {
-            if (declared.includes(peer)) {
-                used.add(peer);
-            }
-        }
-    }
-    assert.deepEqual(declared.filter(name => !used.has(name)), []);
+const importedNames = file => {
+    const source = readFileSync(file, ENCODING);
+    const imports = [...source.matchAll(IMPORT)];
+    return imports.map(([, name]) => name);
+};
+
+const peerNames = name => {
+    const peers = manifest(name).peerDependencies ?? {};
+    return Object.keys(peers);
+};
+
+test("should use every dependency in the website, directly or as a peer of one it imports", () => {
+    const rootManifest = JSON.parse(readFileSync(join(ROOT, MANIFEST_FILE), ENCODING));
+    const declared = Object.keys(rootManifest.dependencies);
+    const files = sources(join(ROOT, SOURCE_DIRECTORY));
+    const imported = new Set(files.flatMap(importedNames));
+    const importedDependencies = declared.filter(name => imported.has(name));
+    const peers = new Set(importedDependencies.flatMap(peerNames));
+
+    const unused = declared.filter(name => !imported.has(name) && !peers.has(name));
+    assert.deepEqual(unused, []);
 });

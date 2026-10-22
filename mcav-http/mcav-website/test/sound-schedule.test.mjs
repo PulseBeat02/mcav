@@ -124,22 +124,27 @@ const feedLive = (pcm, context, seconds) => {
     }
 };
 
-test("sound that arrives while the context does not play yet does not delay the sound after it", () => {
+const feedAtOnce = (pcm, chunks) => {
+    for (let index = 0; index < chunks; index++) {
+        pcm.feed(chunk());
+    }
+};
+
+test("should not let sound that arrives before the context plays delay the sound after it", () => {
     for (const starting of ["suspended", "running"]) {
         for (let chunks = Math.round(1 / CHUNK_SECONDS); chunks <= Math.round(1.6 / CHUNK_SECONDS); chunks += 3) {
             const {pcm, context} = processor(starting);
-            for (let index = 0; index < chunks; index++) {
-                pcm.feed(chunk());
-            }
+            feedAtOnce(pcm, chunks);
             context.state = "running";
             feedLive(pcm, context, 2);
+
             const late = context.queuedAhead();
             assert.ok(late <= 0.21, `${chunks} chunks while ${starting}: the sound plays as late as steady sound, not ${late.toFixed(3)} s`);
         }
     }
 });
 
-test("a burst of sound is not kept as a delay for good", () => {
+test("should not keep a burst of sound as a delay for good", () => {
     const {pcm, context} = processor("running");
     feedLive(pcm, context, 1);
     for (let index = 0; index < Math.round(1 / CHUNK_SECONDS); index++) {
@@ -147,16 +152,25 @@ test("a burst of sound is not kept as a delay for good", () => {
         pcm.feed(chunk());
     }
     feedLive(pcm, context, 2);
-    assert.ok(context.queuedAhead() <= 0.5, `the sound plays at most half a second late, not ${context.queuedAhead().toFixed(3)} s`);
-    assert.ok(context.stopped.length > 0, "what was queued too far ahead was dropped");
+
+    const late = context.queuedAhead();
+    assert.ok(late <= 0.5, `the sound plays at most half a second late, not ${late.toFixed(3)} s`);
+
+    const dropped = context.stopped.length;
+    assert.ok(dropped > 0, "what was queued too far ahead was dropped");
 });
 
-test("steady sound keeps a short cushion and is never dropped", () => {
+test("should keep a short cushion of steady sound and drop none of it", () => {
     const {pcm, context} = processor("running");
     feedLive(pcm, context, 5);
-    assert.ok(context.queuedAhead() > 0, "sound is queued ahead of the clock");
-    assert.ok(context.queuedAhead() <= 0.25, `the cushion is short: ${context.queuedAhead().toFixed(3)} s`);
-    assert.deepEqual(context.stopped, [], "nothing was dropped");
+
+    const cushion = context.queuedAhead();
+    assert.ok(cushion > 0, "sound is queued ahead of the clock");
+    assert.ok(cushion <= 0.25, `the cushion is short: ${cushion.toFixed(3)} s`);
+
+    const dropped = context.stopped;
+    assert.deepEqual(dropped, [], "nothing was dropped");
+
     const scheduled = context.started.reduce((total, entry) => total + entry.duration, 0);
     assert.ok(Math.abs(scheduled + 0.1 - 5) < 0.15, `all of the sound is scheduled: ${scheduled.toFixed(3)} s of 5 s`);
 });
