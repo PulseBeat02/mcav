@@ -101,6 +101,11 @@ namespace mcv2 {
 // Internal linkage prevents the linker from substituting another SIMD level's weak helper symbol.
 namespace {
 
+constexpr int32_t SHIFT_DISTANCE_MASK = 31;
+
+constexpr int32_t BYTE_INDEX_SHIFT = 3;
+constexpr int32_t BIT_INDEX_MASK = 7;
+
 // SSE load/store shuffles cost more than the arithmetic in the halving kernel.
 #if defined(MCV2_SIMD_SSE2) || defined(MCV2_SIMD_SSE41)
 constexpr bool SHUFFLED_CHANNEL_LOAD = true;
@@ -118,10 +123,10 @@ inline int32_t wrapping_multiplication(const int32_t first, const int32_t second
   return (int32_t)((uint32_t)first * (uint32_t)second);
 }
 inline int32_t wrapping_shift_left(const int32_t first, const int32_t shift_distance) {
-  return (int32_t)((uint32_t)first << (shift_distance & 31));
+  return (int32_t)((uint32_t)first << (shift_distance & SHIFT_DISTANCE_MASK));
 }
 inline int32_t wrapping_shift_right(const int32_t first, const int32_t shift_distance) {
-  return first >> (shift_distance & 31);
+  return first >> (shift_distance & SHIFT_DISTANCE_MASK);
 }
 
 inline uint32_t pixel_word(const uint8_t* buffer) {
@@ -204,7 +209,7 @@ struct scalar_int_vector {
   }
 
   static scalar_int_vector bits(const int8_t* buffer, const int32_t index) {
-    return {((buffer[index >> 3] >> (index & 7)) & 1) ? -1 : 0};
+    return {((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & 1) ? -1 : 0};
   }
 
   static scalar_int_vector evens(const scalar_int_vector first, scalar_int_vector) {
@@ -381,10 +386,10 @@ struct int_vector {
     return {_mm_or_si128(first.lanes_, second.lanes_)};
   }
   int_vector shift_left(const int32_t shift_distance) const {
-    return {_mm_sll_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & 31))};
+    return {_mm_sll_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK))};
   }
   int_vector shift_right(const int32_t shift_distance) const {
-    return {_mm_sra_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & 31))};
+    return {_mm_sra_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK))};
   }
   static int_vector minimum(const int_vector first, const int_vector second) {
     return {minimum_int(first.lanes_, second.lanes_)};
@@ -444,7 +449,7 @@ struct int_vector {
     _mm_storeu_si128((__m128i*)(buffer + 8), third_vector);
   }
   static int_vector bits(const int8_t* buffer, const int32_t index) {
-    const __m128i byte = _mm_set1_epi32((buffer[index >> 3] >> (index & 7)) & 0xF);
+    const __m128i byte = _mm_set1_epi32((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & 0xF);
     const __m128i lane_bits = _mm_setr_epi32(1, 2, 4, 8);
     return {_mm_cmpeq_epi32(_mm_and_si128(byte, lane_bits), lane_bits)};
   }
@@ -554,10 +559,10 @@ struct int_vector {
     return {_mm256_or_si256(first.lanes_, second.lanes_)};
   }
   int_vector shift_left(const int32_t shift_distance) const {
-    return {_mm256_sll_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & 31))};
+    return {_mm256_sll_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK))};
   }
   int_vector shift_right(const int32_t shift_distance) const {
-    return {_mm256_sra_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & 31))};
+    return {_mm256_sra_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK))};
   }
   static int_vector minimum(const int_vector first, const int_vector second) {
     return {_mm256_min_epi32(first.lanes_, second.lanes_)};
@@ -614,7 +619,7 @@ struct int_vector {
         _mm256_blend_epi32(_mm256_blend_epi32(shuffled_green, shuffled_blue, 0x92), shuffled_red, 0x24));
   }
   static int_vector bits(const int8_t* buffer, const int32_t index) {
-    const __m256i byte = _mm256_set1_epi32(buffer[index >> 3] & 0xFF);
+    const __m256i byte = _mm256_set1_epi32(buffer[index >> BYTE_INDEX_SHIFT] & 0xFF);
     const __m256i lane_bits = _mm256_setr_epi32(1, 2, 4, 8, 16, 32, 64, 128);
     return {_mm256_cmpeq_epi32(_mm256_and_si256(byte, lane_bits), lane_bits)};
   }
@@ -724,10 +729,10 @@ struct int_vector {
     return {_mm512_or_si512(first.lanes_, second.lanes_)};
   }
   int_vector shift_left(const int32_t shift_distance) const {
-    return {_mm512_sll_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & 31))};
+    return {_mm512_sll_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK))};
   }
   int_vector shift_right(const int32_t shift_distance) const {
-    return {_mm512_sra_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & 31))};
+    return {_mm512_sra_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK))};
   }
   static int_vector minimum(const int_vector first, const int_vector second) {
     return {_mm512_min_epi32(first.lanes_, second.lanes_)};
@@ -762,7 +767,7 @@ struct int_vector {
   }
 
   static int_vector bits(const int8_t* buffer, const int32_t index) {
-    const int32_t array_offset = index >> 3;
+    const int32_t array_offset = index >> BYTE_INDEX_SHIFT;
     const uint32_t word = (uint32_t)(uint8_t)buffer[array_offset] | ((uint32_t)(uint8_t)buffer[array_offset + 1] << 8);
     return {_mm512_movm_epi32((__mmask16)word)};
   }
@@ -899,10 +904,10 @@ struct int_vector {
     return {vorrq_s32(first.lanes_, second.lanes_)};
   }
   int_vector shift_left(const int32_t shift_distance) const {
-    return {vshlq_s32(lanes_, vdupq_n_s32(shift_distance & 31))};
+    return {vshlq_s32(lanes_, vdupq_n_s32(shift_distance & SHIFT_DISTANCE_MASK))};
   }
   int_vector shift_right(const int32_t shift_distance) const {
-    return {vshlq_s32(lanes_, vdupq_n_s32(-(shift_distance & 31)))};
+    return {vshlq_s32(lanes_, vdupq_n_s32(-(shift_distance & SHIFT_DISTANCE_MASK)))};
   }
   static int_vector minimum(const int_vector first, const int_vector second) {
     return {vminq_s32(first.lanes_, second.lanes_)};
@@ -936,7 +941,7 @@ struct int_vector {
   }
   static int_vector bits(const int8_t* buffer, const int32_t index) {
     static const int32_t lane_bits[4] = {1, 2, 4, 8};
-    const int32x4_t byte = vdupq_n_s32((buffer[index >> 3] >> (index & 7)) & 0xF);
+    const int32x4_t byte = vdupq_n_s32((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & 0xF);
     return {vreinterpretq_s32_u32(vtstq_s32(byte, vld1q_s32(lane_bits)))};
   }
   static int_vector evens(const int_vector first, const int_vector second) {
@@ -1049,10 +1054,10 @@ struct int_vector {
     return {svorr_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
   }
   int_vector shift_left(const int32_t shift_distance) const {
-    return {svlsl_n_s32_x(svptrue_b32(), lanes_, (uint32_t)(shift_distance & 31))};
+    return {svlsl_n_s32_x(svptrue_b32(), lanes_, (uint32_t)(shift_distance & SHIFT_DISTANCE_MASK))};
   }
   int_vector shift_right(const int32_t shift_distance) const {
-    return {svasr_n_s32_x(svptrue_b32(), lanes_, (uint32_t)(shift_distance & 31))};
+    return {svasr_n_s32_x(svptrue_b32(), lanes_, (uint32_t)(shift_distance & SHIFT_DISTANCE_MASK))};
   }
   static int_vector minimum(const int_vector first, const int_vector second) {
     return {svmin_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
@@ -1083,7 +1088,7 @@ struct int_vector {
   }
 
   static int_vector bits(const int8_t* buffer, const int32_t index) {
-    const int32_t array_offset = index >> 3;
+    const int32_t array_offset = index >> BYTE_INDEX_SHIFT;
     uint32_t word = (uint8_t)buffer[array_offset];
     if (LANES > 8) {
       word |= (uint32_t)(uint8_t)buffer[array_offset + 1] << 8;
@@ -1878,7 +1883,7 @@ inline bool sample_pixel(const int32_t* source_pixel, int32_t* sample, uint8_t* 
   for (int32_t channel = 0; channel < CHANNELS; channel++) {
     const int32_t value = source_pixel[channel];
     sample[channel] = value;
-    fits_bytes &= (uint32_t)value <= 255;
+    fits_bytes &= (uint32_t)value <= MAXIMUM_CHANNEL;
     sample_byte[channel] = (uint8_t)value;
   }
   return fits_bytes;
