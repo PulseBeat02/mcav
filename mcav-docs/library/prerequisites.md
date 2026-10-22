@@ -19,7 +19,7 @@ dependencies {
 }
 ```
 
-## Supported Platforms
+## Supported platforms
 
 MCAV targets the following platforms. Everything MCAV downloads is stored in the cache folder of the current user;
 optional native features can also need system libraries, a display, or an audio device.
@@ -80,7 +80,7 @@ OpenCV. When that installation fails, only face detection is unavailable.
 QEMU is never installed by MCAV. To use the [virtual machine module](vm.md), install QEMU yourself and make sure it is
 on the `PATH`.
 
-## Native Access Warnings
+## Native access warnings
 
 Java 24 and newer print a warning the first time a library loads native code. The warning is harmless. To hide it,
 start the JVM with the following argument:
