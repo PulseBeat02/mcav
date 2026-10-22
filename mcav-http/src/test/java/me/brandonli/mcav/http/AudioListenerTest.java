@@ -207,8 +207,8 @@ final class AudioListenerTest {
       try {
         final boolean accepted = listener.offer(second);
         offered.complete(accepted);
-      } catch (final RuntimeException | Error failure) {
-        offered.completeExceptionally(failure);
+      } catch (final RuntimeException | Error exception) {
+        offered.completeExceptionally(exception);
       }
     });
     final boolean accepted = offered.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
