@@ -22,12 +22,12 @@ every painted frame over as plain pixels, so frames arrive only when the page ch
 
 ## Installation
 
-The first browser that starts on a machine downloads the CEF build for it, about 136 to 163 MiB depending on the platform,
-from Maven Central into MCAV's cache folder (`~/.mcav/cache/jcef` of the user that runs the application). The download
-is checked against a SHA-256 hash pinned in MCAV and unpacked with checks that keep every file inside that folder;
-later starts reuse it. A mirror may redirect the download only to itself, and one that takes longer than a minute
-plus a second for every 64 KiB is given up, so a mirror cannot make the server send requests elsewhere or hold the
-installation up. Two applications starting at the same time download it once. Only the user that runs the
+The first browser that starts on a machine downloads the CEF build for it, about 136 to 163 MiB depending on the
+platform, from Maven Central into MCAV's cache folder (`~/.mcav/cache/jcef` of the user that runs the application). The
+download is checked against a SHA-256 hash pinned in MCAV and unpacked with checks that keep every file inside that
+folder; later starts reuse it. A mirror may redirect the download only to itself, and one that takes longer than a
+minute plus a second for every 64 KiB is given up, so a mirror cannot make the server send requests elsewhere or hold
+the installation up. Two applications starting at the same time download it once. Only the user that runs the
 application may change the installation, whatever its umask; one that an older version left writable for its group is
 fixed at the next start.
 
@@ -76,11 +76,11 @@ This was proven in the images `eclipse-temurin:25-jre`, `ghcr.io/pterodactyl/yol
 `itzg/minecraft-server:latest`, run as an unprivileged user without capabilities: a page streams, the player is
 released and started again, and no process of the browser is left.
 
-## Playing a Page
+## Playing a page
 
 Describe the page with a `BrowserSource`: an absolute `http` or `https` address of at most 65 536 characters, the size
-of the page and its frames (at most 4096 pixels per side), and how many painted frames make one streamed frame. `BrowserPlayer.create()` uses the
-default options; `BrowserPlayer.create(BrowserOptions)` takes others.
+of the page and its frames (at most 4096 pixels per side), and how many painted frames make one streamed frame.
+`BrowserPlayer.create()` uses the default options; `BrowserPlayer.create(BrowserOptions)` takes others.
 
 The example opens a page, clicks into it, and types a search. The `display` filter is yours and shows the frames;
 release the returned browser when you are done with the page. `start` throws a `PlayerException` if the page cannot
@@ -153,13 +153,14 @@ a page can do instead:
   documents. `file:`, `chrome:` and other addresses are refused, and so is handing an address to another program.
 - By default, pages reach public addresses of the internet only. Every connection goes through a guard in the helper
   that resolves the host itself and refuses loopback, private, link-local (such as the metadata service of a cloud
-  machine) and other special addresses, also when a public name resolves to one, and also behind a NAT64 prefix of
-  the network, which the guard learns from `ipv4only.arpa`. It also refuses every address of the machine's own
-  network interfaces, since a public address of the server reaches the services that listen on every interface,
-  which a firewall in front of the server does not hide from the server itself. Inside a container the public
-  address of the machine around it is no interface of the container: `BrowserOptions.builder().refusedHosts(...)`
-  names it, or any other host, and the guard refuses its addresses too. WebRTC may only use proxied connections. `BrowserOptions.builder().privateNetworks(true)` allows the machine's own network, for example to show
-  a dashboard of your network.
+  machine) and other special addresses, also when a public name resolves to one, and also behind a NAT64 prefix of the
+  network, which the guard learns from `ipv4only.arpa`. It also refuses every address of the machine's own network
+  interfaces, since a public address of the server reaches the services that listen on every interface, which a firewall
+  in front of the server does not hide from the server itself. Inside a container the public address of the machine
+  around it is no interface of the container: `BrowserOptions.builder().refusedHosts(...)` names it, or any other host,
+  and the guard refuses its addresses too. WebRTC may only use proxied connections.
+  `BrowserOptions.builder().privateNetworks(true)` allows the machine's own network, for example to show a dashboard of
+  your network.
 - JavaScript runs without V8's just-in-time compiler by default, the part of Chromium most exploits target.
   `BrowserOptions.builder().javaScriptJit(true)` turns it on for pages you trust.
 - Chromium's own services do not contact Google when it starts: its sign-in and search services are sent to names
