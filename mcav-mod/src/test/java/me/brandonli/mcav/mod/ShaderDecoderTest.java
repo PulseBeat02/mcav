@@ -59,6 +59,22 @@ final class ShaderDecoderTest {
   /** Two slots of five rows at 854 pixels, then the descriptor row. */
   private static final int ROWS = 11;
 
+  private static final int WIDTH = 854;
+  private static final int HEIGHT = 480;
+
+  private static final String PAGE_TEXTURE = "page";
+  private static final String ANCHOR_TEXTURE = "anchor";
+
+  private static final float CORNER_X = 1F;
+  private static final float CORNER_Y = 2F;
+  private static final float CORNER_Z = 3F;
+
+  private static final float MAP_DEPTH = -0.01F;
+
+  private static final String POSE_METHOD = "pose";
+
+  private static final long LAYOUT_NANOSECONDS = 1_000_000_000L;
+
   private final AtomicLong clock = new AtomicLong();
 
   private final AtomicBoolean shaderPack = new AtomicBoolean(true);
@@ -98,45 +114,45 @@ final class ShaderDecoderTest {
   private static Object projection() throws ReflectiveOperationException {
     final PoseStack stack = new PoseStack();
     stack.translate(0.5F, 0.25F, -1F);
-    return PoseStack.Pose.class.getMethod("pose").invoke(stack.last());
+    return PoseStack.Pose.class.getMethod(POSE_METHOD).invoke(stack.last());
   }
 
   /** One frame of a page and an anchor, the anchor drawn at (1, 2, 3) from the camera. */
   private static void frame(final ShaderDecoder decoder) throws ReflectiveOperationException {
-    decoder.extracted("page", PAGE);
-    decoder.extracted("anchor", ANCHOR);
+    decoder.extracted(PAGE_TEXTURE, PAGE);
+    decoder.extracted(ANCHOR_TEXTURE, ANCHOR);
     final PoseStack stack = new PoseStack();
-    stack.translate(1F, 2F, 3F);
-    decoder.posed("anchor", stack.last());
+    stack.translate(CORNER_X, CORNER_Y, CORNER_Z);
+    decoder.posed(ANCHOR_TEXTURE, stack.last());
     decoder.projecting();
     decoder.projected(projection());
   }
 
   @Test
   void shouldDecodeTheFrameOnceTheShaderPacksFinalImageIsDone() throws ReflectiveOperationException {
-    final ShaderDecoder decoder = this.decoder(true, 854, 480);
+    final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
     frame(decoder);
     decoder.rendered(this.allocator, this.camera);
     final ArgumentCaptor<byte[]> strip = ArgumentCaptor.forClass(byte[].class);
     verify(this.output).decode(strip.capture(), eq(ROWS), same(this.allocator));
-    final StripAnchor anchor = StripAnchor.of(ANCHOR, 1F, 2F, -0.01F + 3F);
+    final StripAnchor anchor = StripAnchor.of(ANCHOR, CORNER_X, CORNER_Y, MAP_DEPTH + CORNER_Z);
     final byte[] written = strip.getValue();
     final boolean decodesUnderShaders = decoder.decodesUnderShaders();
-    assertArrayEquals(TransportStrip.build(LAYOUT, 854, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), written);
+    assertArrayEquals(TransportStrip.build(LAYOUT, WIDTH, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), written);
     assertTrue(decodesUnderShaders);
   }
 
   @Test
   void shouldTakeOnlyTheProjectionTheGameRendersTheLevelWithAsTheFrames() throws ReflectiveOperationException {
-    final ShaderDecoder decoder = this.decoder(true, 854, 480);
-    decoder.extracted("page", PAGE);
-    decoder.extracted("anchor", ANCHOR);
+    final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
+    decoder.extracted(PAGE_TEXTURE, PAGE);
+    decoder.extracted(ANCHOR_TEXTURE, ANCHOR);
     final PoseStack stack = new PoseStack();
-    stack.translate(1F, 2F, 3F);
-    decoder.posed("anchor", stack.last());
+    stack.translate(CORNER_X, CORNER_Y, CORNER_Z);
+    decoder.posed(ANCHOR_TEXTURE, stack.last());
     final PoseStack other = new PoseStack();
     other.translate(9F, 9F, 9F);
-    final Object elsewhere = PoseStack.Pose.class.getMethod("pose").invoke(other.last());
+    final Object elsewhere = PoseStack.Pose.class.getMethod(POSE_METHOD).invoke(other.last());
     decoder.projected(elsewhere);
     decoder.projecting();
     decoder.projected(projection());
@@ -144,13 +160,13 @@ final class ShaderDecoderTest {
     decoder.rendered(this.allocator, this.camera);
     final ArgumentCaptor<byte[]> strip = ArgumentCaptor.forClass(byte[].class);
     verify(this.output).decode(strip.capture(), eq(ROWS), same(this.allocator));
-    final StripAnchor anchor = StripAnchor.of(ANCHOR, 1F, 2F, -0.01F + 3F);
+    final StripAnchor anchor = StripAnchor.of(ANCHOR, CORNER_X, CORNER_Y, MAP_DEPTH + CORNER_Z);
     final byte[] written = strip.getValue();
-    assertArrayEquals(TransportStrip.build(LAYOUT, 854, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), written);
-    final ShaderDecoder unmarked = this.decoder(true, 854, 480);
-    unmarked.extracted("page", PAGE);
-    unmarked.extracted("anchor", ANCHOR);
-    unmarked.posed("anchor", stack.last());
+    assertArrayEquals(TransportStrip.build(LAYOUT, WIDTH, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), written);
+    final ShaderDecoder unmarked = this.decoder(true, WIDTH, HEIGHT);
+    unmarked.extracted(PAGE_TEXTURE, PAGE);
+    unmarked.extracted(ANCHOR_TEXTURE, ANCHOR);
+    unmarked.posed(ANCHOR_TEXTURE, stack.last());
     unmarked.projected(projection());
     unmarked.rendered(this.allocator, this.camera);
     verify(this.output).decode(any(), anyInt(), any());
@@ -160,31 +176,31 @@ final class ShaderDecoderTest {
 
   @Test
   void shouldNotTakeTheMapsOfIrissShadowPassForTheScreens() throws ReflectiveOperationException {
-    final ShaderDecoder decoder = this.decoder(true, 854, 480);
-    decoder.extracted("page", PAGE);
-    decoder.extracted("anchor", ANCHOR);
+    final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
+    decoder.extracted(PAGE_TEXTURE, PAGE);
+    decoder.extracted(ANCHOR_TEXTURE, ANCHOR);
     this.shadowPass.set(true);
     final PoseStack sun = new PoseStack();
     sun.translate(50F, 60F, 70F);
-    decoder.posed("anchor", sun.last());
+    decoder.posed(ANCHOR_TEXTURE, sun.last());
     this.shadowPass.set(false);
     final PoseStack stack = new PoseStack();
-    stack.translate(1F, 2F, 3F);
-    decoder.posed("anchor", stack.last());
+    stack.translate(CORNER_X, CORNER_Y, CORNER_Z);
+    decoder.posed(ANCHOR_TEXTURE, stack.last());
     decoder.projecting();
     decoder.projected(projection());
     decoder.rendered(this.allocator, this.camera);
     final ArgumentCaptor<byte[]> strip = ArgumentCaptor.forClass(byte[].class);
     verify(this.output).decode(strip.capture(), eq(ROWS), same(this.allocator));
-    final StripAnchor anchor = StripAnchor.of(ANCHOR, 1F, 2F, -0.01F + 3F);
+    final StripAnchor anchor = StripAnchor.of(ANCHOR, CORNER_X, CORNER_Y, MAP_DEPTH + CORNER_Z);
     final byte[] written = strip.getValue();
-    assertArrayEquals(TransportStrip.build(LAYOUT, 854, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), written);
+    assertArrayEquals(TransportStrip.build(LAYOUT, WIDTH, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), written);
   }
 
   @Test
   void shouldDecodeUnderShadersOnlyWithTheTestedIrisOnceTheGameCalledEveryHook() throws ReflectiveOperationException {
     for (int missing = 0; missing < 4; missing++) {
-      final ShaderDecoder decoder = this.decoder(true, 854, 480);
+      final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
       if (missing != 0) {
         decoder.extracted("picture", new byte[Mcv2Maps.COLOURS]);
       }
@@ -201,7 +217,7 @@ final class ShaderDecoderTest {
       final boolean decodesUnderShaders = decoder.decodesUnderShaders();
       assertFalse(decodesUnderShaders, "hook " + missing + " never ran");
     }
-    final ShaderDecoder untested = this.decoder(false, 854, 480);
+    final ShaderDecoder untested = this.decoder(false, WIDTH, HEIGHT);
     frame(untested);
     untested.rendered(this.allocator, this.camera);
     final boolean untestedDecodesUnderShaders = untested.decodesUnderShaders();
@@ -211,8 +227,8 @@ final class ShaderDecoderTest {
 
   @Test
   void shouldLeaveAFrameWithoutProjectionMapsOrShaderPackAsIrisDrewIt() throws ReflectiveOperationException {
-    final ShaderDecoder decoder = this.decoder(true, 854, 480);
-    decoder.extracted("page", PAGE);
+    final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
+    decoder.extracted(PAGE_TEXTURE, PAGE);
     decoder.rendered(this.allocator, this.camera);
     decoder.projecting();
     decoder.projected(projection());
@@ -232,11 +248,11 @@ final class ShaderDecoderTest {
   @Test
   void shouldNeedTheLayoutOfAnMcv2Pack() throws ReflectiveOperationException {
     this.packConstants.set(Optional.empty());
-    final ShaderDecoder decoder = this.decoder(true, 854, 480);
+    final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
     frame(decoder);
     decoder.rendered(this.allocator, this.camera);
     this.packConstants.set(Optional.of("// a pack without MCV2 screens"));
-    this.clock.set(1_000_000_000L);
+    this.clock.set(LAYOUT_NANOSECONDS);
     frame(decoder);
     decoder.rendered(this.allocator, this.camera);
     verify(this.output, never()).decode(any(), anyInt(), any());
@@ -244,13 +260,13 @@ final class ShaderDecoderTest {
 
   @Test
   void shouldNeedAWindowWideEnoughForADescriptorAndHighEnoughForTheStrip() throws ReflectiveOperationException {
-    for (final int[] size : List.of(new int[] { 63, 4096 }, new int[] { 854, ROWS - 1 }, new int[] { 854, ROWS })) {
+    for (final int[] size : List.of(new int[] { 63, 4096 }, new int[] { WIDTH, ROWS - 1 }, new int[] { WIDTH, ROWS })) {
       final ShaderDecoder decoder = this.decoder(true, size[0], size[1]);
       frame(decoder);
       decoder.rendered(this.allocator, this.camera);
     }
     verify(this.output, never()).decode(any(), anyInt(), any());
-    final ShaderDecoder fits = this.decoder(true, 854, ROWS + 1);
+    final ShaderDecoder fits = this.decoder(true, WIDTH, ROWS + 1);
     frame(fits);
     fits.rendered(this.allocator, this.camera);
     verify(this.output).decode(any(), eq(ROWS), same(this.allocator));
@@ -262,8 +278,14 @@ final class ShaderDecoderTest {
 
   @Test
   void shouldReadThePacksLayoutAgainEverySecond() throws ReflectiveOperationException {
-    final ShaderDecoder decoder = this.decoder(true, 854, 480);
-    for (final long now : new long[] { 0, 999_999_999L, 1_000_000_000L, 1_999_999_999L, 2_000_000_000L }) {
+    final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
+    for (final long now : new long[] {
+      0,
+      LAYOUT_NANOSECONDS - 1,
+      LAYOUT_NANOSECONDS,
+      2 * LAYOUT_NANOSECONDS - 1,
+      2 * LAYOUT_NANOSECONDS,
+    }) {
       this.clock.set(now);
       frame(decoder);
       decoder.rendered(this.allocator, this.camera);
@@ -275,7 +297,7 @@ final class ShaderDecoderTest {
 
   @Test
   void shouldMakeTheMixinsReportToTheInstalledDecoder() {
-    final ShaderDecoder decoder = this.decoder(true, 854, 480);
+    final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
     ShaderDecoder.install(Optional.of(decoder));
     final Optional<ShaderDecoder> current = ShaderDecoder.current();
     assertEquals(Optional.of(decoder), current);
