@@ -44,7 +44,9 @@ it, which checks the downmix without a Minecraft server:
     final int sampleRate = 48_000;
     final int sampleBits = 16;
     final int monoChannels = 1;
-    final AudioFormat format = new AudioFormat(sampleRate, sampleBits, monoChannels, true, false);
+    final boolean signed = true;
+    final boolean bigEndian = false;
+    final AudioFormat format = new AudioFormat(sampleRate, sampleBits, monoChannels, signed, bigEndian);
     final SourceDataLine line = AudioSystem.getSourceDataLine(format);
     line.open(format);
     line.start();
@@ -131,7 +133,9 @@ through the speakers of your computer, so you can hear the result:
     final int speechRate = 16_000;
     final int sampleBits = 16;
     final int monoChannels = 1;
-    final AudioFormat speechFormat = new AudioFormat(speechRate, sampleBits, monoChannels, true, false);
+    final boolean signed = true;
+    final boolean bigEndian = false;
+    final AudioFormat speechFormat = new AudioFormat(speechRate, sampleBits, monoChannels, signed, bigEndian);
     final SourceDataLine line = AudioSystem.getSourceDataLine(speechFormat);
     line.open(speechFormat);
     line.start();
