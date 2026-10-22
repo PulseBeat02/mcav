@@ -34,13 +34,13 @@ environment variables, so that no secret ends up in the source:
   final JDA jda = builder.build();
   jda.awaitReady();
 
-  final Guild guild = jda.getGuildById(guildId);
+  final @Nullable Guild guild = jda.getGuildById(guildId);
   if (guild == null) {
     final String message = "Guild %s must have the bot as a member!".formatted(guildId);
     throw new IllegalStateException(message);
   }
 
-  final VoiceChannel voiceChannel = guild.getVoiceChannelById(channelId);
+  final @Nullable VoiceChannel voiceChannel = guild.getVoiceChannelById(channelId);
   if (voiceChannel == null) {
     final String message = "Voice channel %s does not exist!".formatted(channelId);
     throw new IllegalStateException(message);
