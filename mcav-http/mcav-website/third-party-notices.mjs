@@ -35,7 +35,7 @@ const SECTION_SEPARATOR = `\n${"-".repeat(SECTION_RULE_WIDTH)}\n\n`;
 
 const output = process.argv[OUTPUT_ARGUMENT_INDEX];
 if (!output) {
-    console.error("usage: node third-party-notices.mjs <output file>");
+    console.error("Usage: node third-party-notices.mjs <output file>");
     process.exit(USAGE_EXIT_CODE);
 }
 
@@ -88,4 +88,4 @@ const header =
     "The audio web page of mcav-http is built from the npm packages below; their code ships, minified, in the jar.\n" +
     `${sections.length} packages, each with its license as the package carries it.\n`;
 writeFileSync(output, [header, ...sections].join(SECTION_SEPARATOR));
-console.log(`Wrote the notices of ${sections.length} packages to ${output}`);
+console.log(`Wrote the notices of ${sections.length} packages to ${output}.`);

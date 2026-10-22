@@ -416,7 +416,7 @@ const readMediaInformation = (response: Response): Promise<MediaInformation> => 
 };
 
 const reportMediaInformationFailure = (error: unknown): MediaInformation => {
-    console.error("Error fetching media information:", error);
+    console.error("Could not fetch the media information.", error);
     return unknownMediaInformation;
 };
 
@@ -597,7 +597,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                 try {
                     socketRef.current.send(new ArrayBuffer(0));
                 } catch (exception: unknown) {
-                    console.error("Heartbeat failed:", exception);
+                    console.error("Could not send the heartbeat.", exception);
                 }
             }
         }, HEARTBEAT_MILLISECONDS);
@@ -762,7 +762,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                             pcmProcessorRef.current.feed(event.data);
                         }
                     } catch (exception: unknown) {
-                        console.error("Error processing audio data:", exception);
+                        console.error("Could not play the received sound.", exception);
                         if (pcmProcessorRef.current) {
                             pcmProcessorRef.current.flush();
                         }
@@ -771,7 +771,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
                 socket.onerror = (event: Event) => {
                     if (socketRef.current !== socket) return;
-                    console.error("WebSocket error:", event);
+                    console.error("The audio connection failed.", event);
                     setIsLoading(false);
                     if (shouldReconnectRef.current) {
                         updateStatus("Connection error - reconnecting...");
@@ -796,7 +796,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                     }
                 };
             } catch (exception: unknown) {
-                console.error("Error starting stream:", exception);
+                console.error("Could not start the stream.", exception);
                 updateStatus(`Error: ${(exception as Error).message}`);
                 setIsLoading(false);
                 if (shouldReconnectRef.current) {
