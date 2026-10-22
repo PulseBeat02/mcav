@@ -23,27 +23,27 @@ import { test } from "node:test";
 import vm from "node:vm";
 
 const PAGE = new URL("../src/app/page.tsx", import.meta.url);
-const RATE = 48000;
+const SAMPLE_RATE = 48000;
 const CHUNK_FRAMES = 1024;
-const CHUNK_SECONDS = CHUNK_FRAMES / RATE;
+const CHUNK_SECONDS = CHUNK_FRAMES / SAMPLE_RATE;
 
 const pageProcessor = () => {
     const source = readFileSync(PAGE, "utf8");
-    const start = source.indexOf("class PCMProcessor {");
-    assert.ok(start >= 0, "the page declares the class PCMProcessor");
+    const start = source.indexOf("class PcmProcessor {");
+    assert.ok(start >= 0, "the page declares the class PcmProcessor");
     let depth = 0;
     let end = source.indexOf("{", start);
     do {
-        const char = source[end];
-        if (char === "{") {
+        const character = source[end];
+        if (character === "{") {
             depth++;
-        } else if (char === "}") {
+        } else if (character === "}") {
             depth--;
         }
         end++;
     } while (depth > 0);
-    const constants = source.slice(source.indexOf("type PCMProcessorOptions"), start);
-    return stripTypeScriptTypes(`${constants}\n${source.slice(start, end)}\nPCMProcessor;`);
+    const constants = source.slice(source.indexOf("type PcmProcessorOptions"), start);
+    return stripTypeScriptTypes(`${constants}\n${source.slice(start, end)}\nPcmProcessor;`);
 };
 
 class FakeAudioContext {
@@ -88,11 +88,11 @@ class FakeAudioContext {
 }
 
 const processor = state => {
-    const PCMProcessor = vm.runInContext(pageProcessor(), vm.createContext({
+    const PcmProcessor = vm.runInContext(pageProcessor(), vm.createContext({
         Float32Array, DataView, ArrayBuffer, Math, Date, Set, window: {},
     }), {filename: PAGE.pathname});
     const context = new FakeAudioContext(state);
-    return {pcm: new PCMProcessor({encoding: "16bitInt", channels: 2, sampleRate: RATE, audioCtx: context}), context};
+    return {pcm: new PcmProcessor({encoding: "16bitInt", channels: 2, sampleRate: SAMPLE_RATE, audioContext: context}), context};
 };
 
 const chunk = () => {

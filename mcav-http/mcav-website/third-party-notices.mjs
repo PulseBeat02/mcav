@@ -27,13 +27,13 @@ if (!output) {
     process.exit(2);
 }
 
-const resolvePackage = (name, fromDir) => {
-    for (let dir = fromDir; ; dir = dirname(dir)) {
-        const candidate = join(dir, "node_modules", name);
+const resolvePackage = (name, fromDirectory) => {
+    for (let directory = fromDirectory; ; directory = dirname(directory)) {
+        const candidate = join(directory, "node_modules", name);
         if (existsSync(join(candidate, "package.json"))) {
             return realpathSync(candidate);
         }
-        if (dirname(dir) === dir) {
+        if (dirname(directory) === directory) {
             return undefined;
         }
     }
@@ -49,8 +49,8 @@ const root = JSON.parse(readFileSync("package.json", "utf8"));
 const shipped = new Map();
 const pending = Object.keys(root.dependencies ?? {}).map(name => [name, process.cwd()]);
 while (pending.length > 0) {
-    const [name, fromDir] = pending.pop();
-    const path = resolvePackage(name, fromDir);
+    const [name, fromDirectory] = pending.pop();
+    const path = resolvePackage(name, fromDirectory);
     if (path === undefined || shipped.has(path)) {
         continue;
     }
