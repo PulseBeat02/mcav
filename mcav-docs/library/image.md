@@ -33,7 +33,7 @@ another limit, and `0` turns the check off. The header is read for the formats O
 WebP, TIFF, Radiance HDR, Sun raster and PBM, PGM, PPM, PAM and PFM. JPEG 2000 and OpenEXR, which OpenCV turns off
 unless an environment variable turns them on, are refused while the check is on.
 
-## Reading Pixels
+## Reading pixels
 
 `ImageBuffer` offers the pixels as packed ARGB integers, laid out row by row, in three ways:
 
