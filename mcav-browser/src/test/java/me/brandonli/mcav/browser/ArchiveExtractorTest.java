@@ -114,14 +114,17 @@ class ArchiveExtractorTest {
 
   @Test
   void shouldCreateFoldersWithoutPermissionsWhereTheFileSystemHasNone() throws IOException {
-    final Path folder = this.target.resolve("a/b");
-    ArchiveExtractor.createFolders(folder, PosixPermissions.SKIPPED);
-    final boolean folderCreated = Files.isDirectory(folder);
-    assertTrue(folderCreated);
+    final Path zip = this.target.resolve("folders.zip");
+    try (final FileSystem zipped = FileSystems.newFileSystem(zip, Map.of("create", "true"))) {
+      final Path folder = zipped.getPath("/a/b");
+      ArchiveExtractor.createFolders(folder, PosixPermissions.SKIPPED);
+      final boolean folderCreated = Files.isDirectory(folder);
+      assertTrue(folderCreated);
 
-    ArchiveExtractor.createFolders(folder);
-    final boolean folderKept = Files.isDirectory(folder);
-    assertTrue(folderKept, "an existing folder is left as it is");
+      ArchiveExtractor.createFolders(folder);
+      final boolean folderKept = Files.isDirectory(folder);
+      assertTrue(folderKept, "an existing folder is left as it is");
+    }
   }
 
   @Test

@@ -433,6 +433,37 @@ class LinuxLibrariesTest {
   }
 
   @Test
+  void shouldDeleteEachPackageBeforeTheNextOneDownloads() throws IOException {
+    final byte[] debianPackage = this.testPackage();
+    final String sha256 = this.sha256(debianPackage);
+    final String otherPin = "linux-amd64 libmcavother1 1.2.3-1 %s %s %s libmcavother.so.1=%s".formatted(
+      sha256,
+      debianPackage.length,
+      POOL,
+      LIBRARY
+    );
+    final List<Boolean> leftOver = new ArrayList<>();
+    final LinuxLibraries libraries = new LinuxLibraries(
+      this.folder.resolve("cache"),
+      (_, destination, _, _) -> this.downloadAndRecordLeftOver(debianPackage, destination, leftOver),
+      List.of("https://mirror.test/debian/"),
+      List.of(this.pin(debianPackage), otherPin)
+    );
+    final Path installation = libraries.install(PLATFORM);
+    final boolean otherLibraryInstalled = Files.isRegularFile(installation.resolve("libmcavother.so.1"));
+    assertTrue(otherLibraryInstalled);
+
+    assertEquals(List.of(false, false), leftOver, "each package downloads into a free spot");
+  }
+
+  private void downloadAndRecordLeftOver(final byte[] debianPackage, final Path destination, final List<Boolean> leftOver)
+    throws IOException {
+    final boolean exists = Files.exists(destination);
+    leftOver.add(exists);
+    Files.write(destination, debianPackage);
+  }
+
+  @Test
   void shouldTakeTheGroupWritePermissionFromLibrariesAnEarlierVersionInstalled() throws IOException {
     assumeTrue(this.folder.getFileSystem().supportedFileAttributeViews().contains("posix"), "This file system has no POSIX permissions!");
     final byte[] debianPackage = this.testPackage();
@@ -880,6 +911,12 @@ class LinuxLibrariesTest {
 
     final boolean bigEndianLibraryFits = LinuxLibraries.isBuiltFor(Files.write(folder.resolve("big.so"), this.elf(2, 2, 62)), PLATFORM);
     assertFalse(bigEndianLibraryFits, "big-endian");
+
+    final boolean otherMachineFits = LinuxLibraries.isBuiltFor(
+      Files.write(folder.resolve("other.so"), this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE + 0x100)),
+      PLATFORM
+    );
+    assertFalse(otherMachineFits, "a machine that matches x86-64 only in its low byte");
 
     final byte[] notElf = this.elf(ELF_64_BIT, LITTLE_ENDIAN, AMD64_MACHINE);
     notElf[1] = 'X';
