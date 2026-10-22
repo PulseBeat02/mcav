@@ -38,7 +38,7 @@ dependencies {
 ```
 ````
 
-## Getting Started
+## Getting started
 
 Pass the Bukkit module to `install`, then hand it your plugin instance with `inject`, because the module schedules
 work on the server and registers listeners in the name of your plugin.
