@@ -32,7 +32,7 @@ type MediaInfo = {
     duration?: number;
     view_count?: number;
     like_count?: number;
-    upload_date?: string | null;
+    upload_date?: string;
 };
 
 type PCMProcessorOptions = {
@@ -279,7 +279,7 @@ const formatNumber = (num?: number): string => {
     return num.toString();
 };
 
-const formatDate = (dateString?: string | null): string => {
+const formatDate = (dateString?: string): string => {
     if (!dateString) return "Unknown date";
     try {
         const date = new Date(dateString.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3"));
@@ -297,7 +297,7 @@ const unknownMediaInfo: MediaInfo = {
     duration: 0,
     view_count: 0,
     like_count: 0,
-    upload_date: null
+    upload_date: undefined
 };
 
 const loadMediaInfo = async (): Promise<MediaInfo> => {
@@ -315,7 +315,7 @@ const loadMediaInfo = async (): Promise<MediaInfo> => {
             duration: data?.duration || 0,
             view_count: data?.view_count || 0,
             like_count: data?.like_count || 0,
-            upload_date: data?.upload_date || null
+            upload_date: data?.upload_date || undefined
         };
     } catch (error) {
         console.error("Error fetching media info:", error);
@@ -357,31 +357,31 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         duration: 0,
         view_count: 0,
         like_count: 0,
-        upload_date: null
+        upload_date: undefined
     });
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const animationIdRef = useRef<number | null>(null);
-    const audioContextRef = useRef<AudioContext | null>(null);
-    const wsRef = useRef<WebSocket | null>(null);
-    const pcmProcessorRef = useRef<PCMProcessor | null>(null);
-    const metadataIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const connectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const animationIdRef = useRef<number | undefined>(undefined);
+    const audioContextRef = useRef<AudioContext | undefined>(undefined);
+    const wsRef = useRef<WebSocket | undefined>(undefined);
+    const pcmProcessorRef = useRef<PCMProcessor | undefined>(undefined);
+    const metadataIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const heartbeatIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+    const connectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
     const reconnectAttemptsRef = useRef(0);
     const shouldReconnectRef = useRef(false);
     const titleRef = useRef<HTMLHeadingElement>(null);
     const titleWrapperRef = useRef<HTMLDivElement>(null);
     const placeholderRef = useRef<HTMLDivElement>(null);
     const [failedThumbnail, setFailedThumbnail] = useState<string | undefined>(undefined);
-    const mediaInfoRequestRef = useRef<Promise<MediaInfo> | null>(null);
+    const mediaInfoRequestRef = useRef<Promise<MediaInfo> | undefined>(undefined);
 
     const maxReconnectAttempts = 5;
 
     const requestMediaInfo = useCallback((): Promise<MediaInfo> => {
         if (!mediaInfoRequestRef.current) {
             mediaInfoRequestRef.current = loadMediaInfo().finally(() => {
-                mediaInfoRequestRef.current = null;
+                mediaInfoRequestRef.current = undefined;
             });
         }
         return mediaInfoRequestRef.current;
@@ -403,7 +403,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     const stopMetadataRefresh = useCallback(() => {
         if (metadataIntervalRef.current) {
             clearInterval(metadataIntervalRef.current);
-            metadataIntervalRef.current = null;
+            metadataIntervalRef.current = undefined;
         }
     }, []);
 
@@ -412,14 +412,14 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         const ctx = canvas?.getContext("2d");
         const processor = pcmProcessorRef.current;
         if (!canvas || !ctx || !processor) return;
-        if (animationIdRef.current !== null) {
+        if (animationIdRef.current !== undefined) {
             cancelAnimationFrame(animationIdRef.current);
-            animationIdRef.current = null;
+            animationIdRef.current = undefined;
         }
 
         const dataLength = 256;
 
-        let gradient: CanvasGradient | null = null;
+        let gradient: CanvasGradient | undefined;
         let lastHue = -1;
         let lastWidth = -1;
 
@@ -427,7 +427,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
             // a dispatched callback can outlive cancellation and must not adopt a replacement processor
             if (pcmProcessorRef.current !== processor) return;
             if (!canvasRef.current || !pcmProcessorRef.current || pcmProcessorRef.current.isDestroyed) {
-                animationIdRef.current = null;
+                animationIdRef.current = undefined;
                 return;
             }
 
@@ -500,7 +500,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     const stopHeartbeat = useCallback(() => {
         if (heartbeatIntervalRef.current) {
             clearInterval(heartbeatIntervalRef.current);
-            heartbeatIntervalRef.current = null;
+            heartbeatIntervalRef.current = undefined;
         }
     }, []);
 
@@ -519,7 +519,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current - 1), 30000);
 
         reconnectTimeoutRef.current = setTimeout(() => {
-            reconnectTimeoutRef.current = null;
+            reconnectTimeoutRef.current = undefined;
             if (shouldReconnectRef.current && audioContextRef.current?.state === "running") {
                 connectRef.current();
             }
@@ -532,27 +532,27 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
         if (reconnectTimeoutRef.current) {
             clearTimeout(reconnectTimeoutRef.current);
-            reconnectTimeoutRef.current = null;
+            reconnectTimeoutRef.current = undefined;
         }
 
         if (connectTimeoutRef.current) {
             clearTimeout(connectTimeoutRef.current);
-            connectTimeoutRef.current = null;
+            connectTimeoutRef.current = undefined;
         }
 
         if (wsRef.current) {
             wsRef.current.close();
-            wsRef.current = null;
+            wsRef.current = undefined;
         }
 
         if (pcmProcessorRef.current) {
             pcmProcessorRef.current.destroy();
-            pcmProcessorRef.current = null;
+            pcmProcessorRef.current = undefined;
         }
 
         if (animationIdRef.current) {
             cancelAnimationFrame(animationIdRef.current);
-            animationIdRef.current = null;
+            animationIdRef.current = undefined;
         }
 
         stopMetadataRefresh();
@@ -579,13 +579,13 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     }, [stopMetadataRefresh, stopHeartbeat, updateStatus]);
 
     const connectWebSocket = useCallback(() => {
-        if (animationIdRef.current !== null) {
+        if (animationIdRef.current !== undefined) {
             cancelAnimationFrame(animationIdRef.current);
-            animationIdRef.current = null;
+            animationIdRef.current = undefined;
         }
         if (pcmProcessorRef.current) {
             pcmProcessorRef.current.destroy();
-            pcmProcessorRef.current = null;
+            pcmProcessorRef.current = undefined;
         }
 
         if (connectTimeoutRef.current) {
@@ -595,7 +595,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         startMetadataRefresh();
 
         connectTimeoutRef.current = setTimeout(() => {
-            connectTimeoutRef.current = null;
+            connectTimeoutRef.current = undefined;
             try {
                 setIsLoading(true);
                 updateStatus("Connecting...");
@@ -640,7 +640,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
                     if (reconnectTimeoutRef.current) {
                         clearTimeout(reconnectTimeoutRef.current);
-                        reconnectTimeoutRef.current = null;
+                        reconnectTimeoutRef.current = undefined;
                     }
                 };
 
@@ -713,7 +713,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
         if (pcmProcessorRef.current) {
             pcmProcessorRef.current.destroy();
-            pcmProcessorRef.current = null;
+            pcmProcessorRef.current = undefined;
         }
 
         if (audioContextRef.current) {
@@ -721,7 +721,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                 audioContextRef.current.close().then(() => {});
             } catch {
             }
-            audioContextRef.current = null;
+            audioContextRef.current = undefined;
         }
 
         if ("webkitAudioContext" in window) {
@@ -813,7 +813,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
             if (animationIdRef.current) {
                 cancelAnimationFrame(animationIdRef.current);
-                animationIdRef.current = null;
+                animationIdRef.current = undefined;
             }
 
             if (metadataIntervalRef.current) {

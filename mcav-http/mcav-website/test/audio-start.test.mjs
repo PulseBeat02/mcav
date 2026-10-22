@@ -202,9 +202,9 @@ const loadPage = (permission = "granted") => {
             return identifier;
         },
         cancelAnimationFrame: identifier => animations.delete(identifier),
-        wsRef: ref(null), pcmProcessorRef: ref(null), audioContextRef: ref(null), connectRef: ref(noop),
-        shouldReconnectRef: ref(false), streamingRef: ref(false), reconnectTimeoutRef: ref(null),
-        connectTimeoutRef: ref(null), reconnectAttemptsRef: ref(0), animationIdRef: ref(null), volumeRef: ref(100),
+        wsRef: ref(undefined), pcmProcessorRef: ref(undefined), audioContextRef: ref(undefined), connectRef: ref(noop),
+        shouldReconnectRef: ref(false), streamingRef: ref(false), reconnectTimeoutRef: ref(undefined),
+        connectTimeoutRef: ref(undefined), reconnectAttemptsRef: ref(0), animationIdRef: ref(undefined), volumeRef: ref(100),
         canvasRef: ref({
             width: 320, height: 120, style: {},
             getContext: () => ({

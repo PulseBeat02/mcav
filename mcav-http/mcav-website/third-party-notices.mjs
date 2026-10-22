@@ -34,7 +34,7 @@ const resolvePackage = (name, fromDir) => {
             return realpathSync(candidate);
         }
         if (dirname(dir) === dir) {
-            return null;
+            return undefined;
         }
     }
 };
@@ -51,7 +51,7 @@ const pending = Object.keys(root.dependencies ?? {}).map(name => [name, process.
 while (pending.length > 0) {
     const [name, fromDir] = pending.pop();
     const path = resolvePackage(name, fromDir);
-    if (path === null || shipped.has(path)) {
+    if (path === undefined || shipped.has(path)) {
         continue;
     }
     const manifest = JSON.parse(readFileSync(join(path, "package.json"), "utf8"));
