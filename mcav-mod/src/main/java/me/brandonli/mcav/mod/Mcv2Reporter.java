@@ -69,15 +69,18 @@ final class Mcv2Reporter {
     if (!this.channel.isOpen()) {
       return;
     }
+
     final long now = this.clock.getAsLong();
     final Mcv2Report report = this.shaders.report();
     if (!Objects.equals(this.seen, report)) {
       this.seen = report;
       this.seenSince = now;
     }
+
     if (Objects.equals(this.sent, report) || now - this.seenSince < STEADY_NANOSECONDS) {
       return;
     }
+
     this.channel.send(report.toBytes());
     this.sent = report;
   }

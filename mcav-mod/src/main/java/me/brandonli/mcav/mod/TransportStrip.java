@@ -159,6 +159,7 @@ final class TransportStrip {
     if (screen == PackLayout.NO_SCREEN || number >= layout.slots(screen)) {
       return;
     }
+
     final int first = (layout.firstSlot(screen) + number) * PackLayout.rowsPerPage(width) * width;
     for (int pixel = 0; pixel < PackLayout.PAGE_PIXELS; pixel++) {
       int word = 0;

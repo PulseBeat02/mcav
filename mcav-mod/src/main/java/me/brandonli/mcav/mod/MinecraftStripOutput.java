@@ -99,6 +99,7 @@ final class MinecraftStripOutput implements StripOutput {
     if (outline == null) {
       return false;
     }
+
     final RenderTarget target = this.main.get();
     final int rowBytes = target.width * TransportStrip.CHANNELS;
     if (this.pixels.capacity() < rows * rowBytes) {

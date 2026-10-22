@@ -61,6 +61,7 @@ final class IrisShaders {
     if (!this.installed) {
       return new Mcv2Report(false, ShaderPack.NONE, false);
     }
+
     if (!this.apiMissing) {
       try {
         final IrisApi iris = IrisApi.getInstance();

@@ -134,6 +134,7 @@ final class GameMatrices {
       final String message = NOT_A_MATRIX.formatted(matrix);
       throw new IllegalStateException(message);
     }
+
     try {
       final MatrixFloats floats = new MatrixFloats();
       serialisable.writeExternal(floats);

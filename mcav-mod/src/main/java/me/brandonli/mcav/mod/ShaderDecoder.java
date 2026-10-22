@@ -148,9 +148,11 @@ final class ShaderDecoder {
    */
   void posed(final Object texture, final PoseStack.Pose pose) {
     this.hooks |= POSED;
+
     if (!this.testedIris || this.shadowPass.getAsBoolean()) {
       return;
     }
+
     final float[] corner = TransportStrip.transform(
       this.matrices.pose(pose),
       MAP_CORNER_X,
@@ -177,6 +179,7 @@ final class ShaderDecoder {
     if (!this.levelProjection) {
       return;
     }
+
     this.levelProjection = false;
     this.hooks |= PROJECTED;
     this.frame.projected(GameMatrices.floats(projection));

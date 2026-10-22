@@ -73,6 +73,7 @@ final class Mcv2Maps {
     if (colours.length != COLOURS || !starts(colours, ANCHOR_SIGNATURE)) {
       return false;
     }
+
     int sum = 0;
     for (int index = FIRST_FIELD; index < CHECKSUM; index++) {
       final int field = symbol(colours, index);

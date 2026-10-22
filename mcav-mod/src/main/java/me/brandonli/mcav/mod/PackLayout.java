@@ -83,22 +83,26 @@ final class PackLayout {
     if (!screens.find()) {
       return Optional.empty();
     }
+
     final String countText = requireNonNull(screens.group(COUNT_GROUP)); // checker framework
     final int count = Integer.parseInt(countText);
     if (count < 1 || count > MAXIMUM_SCREENS) {
       return Optional.empty();
     }
+
     final long @Nullable [] streams = numbers(packConstants, STREAMS, count, UNSIGNED, MAXIMUM_STREAM);
     final long @Nullable [] slots = numbers(packConstants, SLOTS, count, SIGNED, MAXIMUM_SLOTS);
     final long @Nullable [] firstSlots = numbers(packConstants, FIRST_SLOTS, count, SIGNED, MAXIMUM_SCREENS * MAXIMUM_SLOTS);
     if (streams == null || slots == null || firstSlots == null) {
       return Optional.empty();
     }
+
     final int[] slotCounts = toIntegers(slots);
     final int[] firsts = toIntegers(firstSlots);
     if (!areSlotsBackToBack(slotCounts, firsts)) {
       return Optional.empty();
     }
+
     return Optional.of(new PackLayout(streams, slotCounts, firsts));
   }
 
@@ -136,6 +140,7 @@ final class PackLayout {
     if (!matcher.find()) {
       return null;
     }
+
     final long[] values = new long[count];
     for (int index = 0; index < count; index++) {
       final String value = requireNonNull(matcher.group(index + 1)); // checker framework
