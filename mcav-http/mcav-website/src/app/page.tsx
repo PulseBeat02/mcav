@@ -22,6 +22,100 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import styles from "./page.module.css";
 
+const MEDIA_PATH: string = "/media";
+const AUDIO_PATH: string = "/audio";
+
+const SECURE_PROTOCOL: string = "https:";
+const SECURE_SOCKET_SCHEME: string = "wss";
+const SOCKET_SCHEME: string = "ws";
+
+const GITHUB_URL: string = "https://github.com/PulseBeat02/mcav";
+const DOCUMENTATION_URL: string = "https://mcav.readthedocs.io/en/latest/intro.html";
+
+const STREAM_ENCODING: string = "16bitInt";
+const STREAM_CHANNELS: number = 2;
+const STREAM_SAMPLE_RATE: number = 48000;
+const FLUSHING_TIME_MILLISECONDS: number = 2000;
+
+const BYTES_PER_SAMPLE: number = 2;
+const LITTLE_ENDIAN: boolean = true;
+const SAMPLE_SCALE: number = 32768.0;
+
+const MAXIMUM_BUFFERED_SAMPLES: number = 480000;
+const TRIMMED_BUFFER_SAMPLES: number = MAXIMUM_BUFFERED_SAMPLES / 2;
+
+const IDLE_FLUSH_MILLISECONDS: number = 3000;
+
+const CUSHION_SECONDS: number = 0.1;
+const MAXIMUM_LEAD_SECONDS: number = 0.5;
+
+const FADE_IN_FRAMES: number = 64;
+
+const WAVEFORM_POINTS: number = 256;
+const WAVEFORM_GAIN: number = 2;
+const WAVEFORM_STEP: number = 4;
+
+const PREVIOUS_PEAK_WEIGHT: number = 0.85;
+const CURRENT_PEAK_WEIGHT: number = 0.15;
+
+const HUE_STEP_DEGREES: number = 0.5;
+const FULL_CIRCLE_DEGREES: number = 360;
+const HUE_REDRAW_DEGREES: number = 5;
+const MIDDLE_HUE_OFFSET_DEGREES: number = 60;
+const END_HUE_OFFSET_DEGREES: number = 120;
+
+const BACKGROUND_COLOR: string = "#000";
+const COLOR_SATURATION: string = "100%";
+const COLOR_LIGHTNESS: string = "50%";
+const FILL_OPACITY: number = 0.2;
+const MIDDLE_COLOR_STOP: number = 0.5;
+const LINE_WIDTH: number = 2;
+
+const VERTICAL_CENTER: number = 0.5;
+const AMPLITUDE_HEIGHT_FRACTION: number = 0.4;
+
+const DEFAULT_PIXEL_RATIO: number = 1;
+const MINIMUM_CANVAS_PIXELS: number = 1;
+
+const METADATA_REFRESH_MILLISECONDS: number = 5000;
+const HEARTBEAT_MILLISECONDS: number = 30000;
+const CONNECT_DELAY_MILLISECONDS: number = 100;
+const TITLE_MEASURE_DELAY_MILLISECONDS: number = 100;
+
+const MAXIMUM_RECONNECT_ATTEMPTS: number = 5;
+const RECONNECT_BASE_DELAY_MILLISECONDS: number = 1000;
+const RECONNECT_BACKOFF_FACTOR: number = 2;
+const MAXIMUM_RECONNECT_DELAY_MILLISECONDS: number = 30000;
+
+const MAXIMUM_VOLUME: number = 100;
+const DECIMAL_RADIX: number = 10;
+
+const THUMBNAIL_SIZE: number = 128;
+
+const SECONDS_PER_HOUR: number = 3600;
+const SECONDS_PER_MINUTE: number = 60;
+const TIME_FIELD_LENGTH: number = 2;
+const TIME_FIELD_PADDING: string = "0";
+
+const MILLION: number = 1000000;
+const THOUSAND: number = 1000;
+const COUNT_FRACTION_DIGITS: number = 1;
+const MILLIONS_SUFFIX: string = "M";
+const THOUSANDS_SUFFIX: string = "K";
+
+const UPLOAD_DATE_PATTERN: RegExp = /(\d{4})(\d{2})(\d{2})/;
+const ISO_DATE_REPLACEMENT: string = "$1-$2-$3";
+const DATE_LOCALE: string = "en-US";
+const DATE_FORMAT: Intl.DateTimeFormatOptions = {year: "numeric", month: "short", day: "numeric"};
+
+const DISCONNECTED_STATUS: string = "Disconnected";
+const WAITING_TITLE: string = "Waiting for stream...";
+const CONNECT_PROMPT: string = "Connect to start streaming";
+const UNKNOWN_TITLE: string = "Unknown Title";
+const UNKNOWN_ARTIST: string = "Unknown Artist";
+const UNKNOWN_DATE: string = "Unknown date";
+const NO_DESCRIPTION: string = "No description available";
+
 type MediaInformation = {
     title?: string;
     uploader?: string;
@@ -52,9 +146,6 @@ type WebkitWindow = typeof window & {
     webkitAudioContext: typeof AudioContext;
 };
 
-const CUSHION_SECONDS: number = 0.1;
-const MAXIMUM_LEAD_SECONDS: number = 0.5;
-
 class PcmProcessor {
     private options: Required<PcmProcessorOptions>;
     private samples: Float32Array;
@@ -68,14 +159,13 @@ class PcmProcessor {
     private startTime: number;
     private scheduledAt: number = -1;
     private processingTimestamp: number;
-    private maximumBufferSize: number = 480000;
 
     constructor(options: PcmProcessorOptions) {
         this.options = {
-            encoding: options.encoding || "16bitInt",
-            channels: options.channels || 2,
-            sampleRate: options.sampleRate || 48000,
-            flushingTime: options.flushingTime || 2000,
+            encoding: options.encoding || STREAM_ENCODING,
+            channels: options.channels || STREAM_CHANNELS,
+            sampleRate: options.sampleRate || STREAM_SAMPLE_RATE,
+            flushingTime: options.flushingTime || FLUSHING_TIME_MILLISECONDS,
             audioContext: options.audioContext || (
                 "webkitAudioContext" in window
                     ? new (window as WebkitWindow).webkitAudioContext()
@@ -84,8 +174,8 @@ class PcmProcessor {
         };
         this.samples = new Float32Array();
         this.audioContext = this.options.audioContext;
-        this.waveformData = new Float32Array(256);
-        this.smoothedData = new Float32Array(256);
+        this.waveformData = new Float32Array(WAVEFORM_POINTS);
+        this.smoothedData = new Float32Array(WAVEFORM_POINTS);
 
         this.gainNode = this.audioContext.createGain();
         this.gainNode.connect(this.audioContext.destination);
@@ -97,23 +187,22 @@ class PcmProcessor {
         if (this.isDestroyed) return;
 
         const currentTime: number = Date.now();
-        if (currentTime - this.processingTimestamp > 3000) {
+        if (currentTime - this.processingTimestamp > IDLE_FLUSH_MILLISECONDS) {
             this.flush();
         }
         this.processingTimestamp = currentTime;
 
         const view: DataView = new DataView(data);
-        const decodedSamples: Float32Array = new Float32Array(data.byteLength / 2);
+        const decodedSamples: Float32Array = new Float32Array(data.byteLength / BYTES_PER_SAMPLE);
         for (let i: number = 0; i < decodedSamples.length; i++) {
-            const sample: number = view.getInt16(i * 2, true);
-            decodedSamples[i] = sample / 32768.0;
+            const sample: number = view.getInt16(i * BYTES_PER_SAMPLE, LITTLE_ENDIAN);
+            decodedSamples[i] = sample / SAMPLE_SCALE;
         }
 
         this.updateVisualizer(decodedSamples);
 
-        if (this.samples.length > this.maximumBufferSize) {
-            const keepSamples: number = Math.floor(this.maximumBufferSize / 2);
-            this.samples = this.samples.slice(-keepSamples);
+        if (this.samples.length > MAXIMUM_BUFFERED_SAMPLES) {
+            this.samples = this.samples.slice(-TRIMMED_BUFFER_SAMPLES);
         }
 
         const newSamples: Float32Array = new Float32Array(this.samples.length + decodedSamples.length);
@@ -150,13 +239,13 @@ class PcmProcessor {
                     peak = Math.max(peak, Math.abs(data[index]));
                 }
             }
-            this.waveformData[i] = peak * 2;
-            this.smoothedData[i] = this.smoothedData[i] * 0.85 + this.waveformData[i] * 0.15;
+            this.waveformData[i] = peak * WAVEFORM_GAIN;
+            this.smoothedData[i] = this.smoothedData[i] * PREVIOUS_PEAK_WEIGHT + this.waveformData[i] * CURRENT_PEAK_WEIGHT;
         }
     }
 
     getVisualizerData(): VisualizerData {
-        this.hue = (this.hue + 0.5) % 360;
+        this.hue = (this.hue + HUE_STEP_DEGREES) % FULL_CIRCLE_DEGREES;
         return {smoothedData: this.smoothedData, hue: this.hue};
     }
 
@@ -186,7 +275,7 @@ class PcmProcessor {
                 offset += channels;
             }
             if (underrun) {
-                const fade: number = Math.min(64, length);
+                const fade: number = Math.min(FADE_IN_FRAMES, length);
                 for (let i: number = 0; i < fade; i++) {
                     audioData[i] = (audioData[i] * i) / fade;
                 }
@@ -237,8 +326,8 @@ class PcmProcessor {
 
         this.samples = new Float32Array();
         this.startTime = 0;
-        this.waveformData = new Float32Array(256);
-        this.smoothedData = new Float32Array(256);
+        this.waveformData = new Float32Array(WAVEFORM_POINTS);
+        this.smoothedData = new Float32Array(WAVEFORM_POINTS);
     }
 
     flush(): void {
@@ -252,47 +341,51 @@ class PcmProcessor {
 
         this.samples = new Float32Array();
         this.startTime = this.audioContext.currentTime;
-        this.waveformData = new Float32Array(256);
-        this.smoothedData = new Float32Array(256);
+        this.waveformData = new Float32Array(WAVEFORM_POINTS);
+        this.smoothedData = new Float32Array(WAVEFORM_POINTS);
     }
 }
 
+const padTimeField = (value: number): string => {
+    return value.toString().padStart(TIME_FIELD_LENGTH, TIME_FIELD_PADDING);
+};
+
 const formatDuration = (seconds?: number): string => {
     if (!seconds || seconds === 0) return "--:--";
-    const hours: number = Math.floor(seconds / 3600);
-    const minutes: number = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds: number = Math.floor(seconds % 60);
+    const hours: number = Math.floor(seconds / SECONDS_PER_HOUR);
+    const minutes: number = Math.floor((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
+    const remainingSeconds: number = Math.floor(seconds % SECONDS_PER_MINUTE);
     if (hours > 0) {
-        return `${hours}:${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
+        return `${hours}:${padTimeField(minutes)}:${padTimeField(remainingSeconds)}`;
     }
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+    return `${minutes}:${padTimeField(remainingSeconds)}`;
 };
 
 const formatNumber = (value?: number): string => {
     if (!value || value === 0) return "0";
-    if (value >= 1000000) {
-        return (value / 1000000).toFixed(1) + "M";
+    if (value >= MILLION) {
+        return (value / MILLION).toFixed(COUNT_FRACTION_DIGITS) + MILLIONS_SUFFIX;
     }
-    if (value >= 1000) {
-        return (value / 1000).toFixed(1) + "K";
+    if (value >= THOUSAND) {
+        return (value / THOUSAND).toFixed(COUNT_FRACTION_DIGITS) + THOUSANDS_SUFFIX;
     }
     return value.toString();
 };
 
 const formatDate = (dateString?: string): string => {
-    if (!dateString) return "Unknown date";
+    if (!dateString) return UNKNOWN_DATE;
     try {
-        const date: Date = new Date(dateString.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3"));
-        return date.toLocaleDateString("en-US", {year: "numeric", month: "short", day: "numeric"});
+        const date: Date = new Date(dateString.replace(UPLOAD_DATE_PATTERN, ISO_DATE_REPLACEMENT));
+        return date.toLocaleDateString(DATE_LOCALE, DATE_FORMAT);
     } catch {
-        return "Unknown date";
+        return UNKNOWN_DATE;
     }
 };
 
 const unknownMediaInformation: MediaInformation = {
-    title: "Unknown Title",
-    uploader: "Unknown Artist",
-    description: "No description available",
+    title: UNKNOWN_TITLE,
+    uploader: UNKNOWN_ARTIST,
+    description: NO_DESCRIPTION,
     thumbnail: undefined,
     duration: 0,
     view_count: 0,
@@ -303,9 +396,9 @@ const unknownMediaInformation: MediaInformation = {
 const toMediaInformation = (data: unknown): MediaInformation => {
     const received: MediaInformation = typeof data === "object" && data !== null ? data : {};
     return {
-        title: received.title || "Unknown Title",
-        uploader: received.uploader || received.channel || received.uploader_id || "Unknown Artist",
-        description: received.description || "No description available",
+        title: received.title || UNKNOWN_TITLE,
+        uploader: received.uploader || received.channel || received.uploader_id || UNKNOWN_ARTIST,
+        description: received.description || NO_DESCRIPTION,
         thumbnail: received.thumbnail,
         duration: received.duration || 0,
         view_count: received.view_count || 0,
@@ -328,7 +421,7 @@ const reportMediaInformationFailure = (error: unknown): MediaInformation => {
 };
 
 const loadMediaInformation = (): Promise<MediaInformation> => {
-    return fetch("/media")
+    return fetch(MEDIA_PATH)
         .then(readMediaInformation)
         .catch(reportMediaInformationFailure);
 };
@@ -349,7 +442,7 @@ const reportCloseFailure = (error: unknown): void => {
 };
 
 const AudioStreamPlayer = (): React.JSX.Element => {
-    const [statusText, setStatusText] = useState<string>("Disconnected");
+    const [statusText, setStatusText] = useState<string>(DISCONNECTED_STATUS);
     const [statusConnected, setStatusConnected] = useState<boolean>(false);
     const updateStatus = useCallback(
         (text: string, connected: boolean = false): void => {
@@ -360,14 +453,14 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     );
     const [isConnected, setIsConnected] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [volume, setVolume] = useState<number>(100);
-    const volumeRef: React.RefObject<number> = useRef(100);
+    const [volume, setVolume] = useState<number>(MAXIMUM_VOLUME);
+    const volumeRef: React.RefObject<number> = useRef(MAXIMUM_VOLUME);
     const streamingRef: React.RefObject<boolean> = useRef(false);
     const connectRef: React.RefObject<() => void> = useRef(() => {});
     const [mediaInformation, setMediaInformation] = useState<MediaInformation>({
-        title: "Waiting for stream...",
-        uploader: "Unknown Artist",
-        description: "Connect to start streaming",
+        title: WAITING_TITLE,
+        uploader: UNKNOWN_ARTIST,
+        description: CONNECT_PROMPT,
         duration: 0,
         view_count: 0,
         like_count: 0,
@@ -389,8 +482,6 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     const placeholderRef: React.RefObject<HTMLDivElement | null> = useRef(null);
     const [failedThumbnail, setFailedThumbnail] = useState<string | undefined>(undefined);
     const mediaInformationRequestRef: React.RefObject<Promise<MediaInformation> | undefined> = useRef(undefined);
-
-    const maximumReconnectAttempts: number = 5;
 
     const requestMediaInformation = useCallback((): Promise<MediaInformation> => {
         if (!mediaInformationRequestRef.current) {
@@ -414,7 +505,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
             clearInterval(metadataIntervalRef.current);
         }
         fetchMediaInformation();
-        metadataIntervalRef.current = setInterval(fetchMediaInformation, 5000);
+        metadataIntervalRef.current = setInterval(fetchMediaInformation, METADATA_REFRESH_MILLISECONDS);
     }, [fetchMediaInformation]);
 
     const stopMetadataRefresh = useCallback((): void => {
@@ -434,7 +525,6 @@ const AudioStreamPlayer = (): React.JSX.Element => {
             animationIdRef.current = undefined;
         }
 
-        const dataLength: number = 256;
 
         let gradient: CanvasGradient | undefined;
         let lastHue: number = -1;
@@ -451,43 +541,42 @@ const AudioStreamPlayer = (): React.JSX.Element => {
             const {smoothedData, hue}: VisualizerData = processor.getVisualizerData();
             const width: number = canvas.width;
             const height: number = canvas.height;
-            const centerY: number = height / 2;
-            const maximumAmplitude: number = height * 0.4;
-            const xStep: number = width / dataLength;
-            context.fillStyle = "#000";
+            const centerY: number = height * VERTICAL_CENTER;
+            const maximumAmplitude: number = height * AMPLITUDE_HEIGHT_FRACTION;
+            const xStep: number = width / WAVEFORM_POINTS;
+            context.fillStyle = BACKGROUND_COLOR;
             context.fillRect(0, 0, width, height);
 
-            if (!gradient || Math.abs(hue - lastHue) > 5 || width !== lastWidth) {
+            if (!gradient || Math.abs(hue - lastHue) > HUE_REDRAW_DEGREES || width !== lastWidth) {
                 gradient = context.createLinearGradient(0, 0, width, 0);
-                gradient.addColorStop(0, `hsl(${hue}, 100%, 50%)`);
-                gradient.addColorStop(0.5, `hsl(${hue + 60}, 100%, 50%)`);
-                gradient.addColorStop(1, `hsl(${hue + 120}, 100%, 50%)`);
+                gradient.addColorStop(0, `hsl(${hue}, ${COLOR_SATURATION}, ${COLOR_LIGHTNESS})`);
+                gradient.addColorStop(MIDDLE_COLOR_STOP, `hsl(${hue + MIDDLE_HUE_OFFSET_DEGREES}, ${COLOR_SATURATION}, ${COLOR_LIGHTNESS})`);
+                gradient.addColorStop(1, `hsl(${hue + END_HUE_OFFSET_DEGREES}, ${COLOR_SATURATION}, ${COLOR_LIGHTNESS})`);
                 lastHue = hue;
                 lastWidth = width;
             }
 
             context.shadowBlur = 0;
             context.strokeStyle = gradient;
-            context.lineWidth = 2;
+            context.lineWidth = LINE_WIDTH;
 
             context.beginPath();
 
-            const step: number = 4;
             context.moveTo(0, centerY);
-            for (let i: number = 0; i < dataLength; i += step) {
+            for (let i: number = 0; i < WAVEFORM_POINTS; i += WAVEFORM_STEP) {
                 const x: number = i * xStep;
                 const amplitude: number = smoothedData[i] * maximumAmplitude;
                 context.lineTo(x, centerY - amplitude);
             }
 
-            for (let i: number = dataLength - 1; i >= 0; i -= step) {
+            for (let i: number = WAVEFORM_POINTS - 1; i >= 0; i -= WAVEFORM_STEP) {
                 const x: number = i * xStep;
                 const amplitude: number = smoothedData[i] * maximumAmplitude;
                 context.lineTo(x, centerY + amplitude);
             }
 
             context.closePath();
-            context.fillStyle = `hsla(${hue}, 100%, 50%, 0.2)`;
+            context.fillStyle = `hsla(${hue}, ${COLOR_SATURATION}, ${COLOR_LIGHTNESS}, ${FILL_OPACITY})`;
             context.fill();
             context.stroke();
 
@@ -511,7 +600,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                     console.error("Heartbeat failed:", exception);
                 }
             }
-        }, 30000);
+        }, HEARTBEAT_MILLISECONDS);
     }, []);
 
     const stopHeartbeat = useCallback((): void => {
@@ -526,14 +615,15 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
         reconnectAttemptsRef.current++;
 
-        if (reconnectAttemptsRef.current > maximumReconnectAttempts) {
+        if (reconnectAttemptsRef.current > MAXIMUM_RECONNECT_ATTEMPTS) {
             updateStatus("Maximum reconnection attempts reached");
             shouldReconnectRef.current = false;
             setIsConnected(false);
             return;
         }
 
-        const delay: number = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current - 1), 30000);
+        const backoff: number = Math.pow(RECONNECT_BACKOFF_FACTOR, reconnectAttemptsRef.current - 1);
+        const delay: number = Math.min(RECONNECT_BASE_DELAY_MILLISECONDS * backoff, MAXIMUM_RECONNECT_DELAY_MILLISECONDS);
 
         reconnectTimeoutRef.current = setTimeout(() => {
             reconnectTimeoutRef.current = undefined;
@@ -577,7 +667,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
         setIsConnected(false);
         setIsLoading(false);
-        updateStatus("Disconnected");
+        updateStatus(DISCONNECTED_STATUS);
 
         const canvas: HTMLCanvasElement | null = canvasRef.current;
         if (canvas) {
@@ -618,17 +708,17 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                 updateStatus("Connecting...");
 
                 pcmProcessorRef.current = new PcmProcessor({
-                    encoding: "16bitInt",
-                    channels: 2,
-                    sampleRate: 48000,
-                    flushingTime: 2000,
+                    encoding: STREAM_ENCODING,
+                    channels: STREAM_CHANNELS,
+                    sampleRate: STREAM_SAMPLE_RATE,
+                    flushingTime: FLUSHING_TIME_MILLISECONDS,
                     audioContext: audioContextRef.current!
                 });
 
-                pcmProcessorRef.current.gainNode.gain.value = volumeRef.current / 100;
+                pcmProcessorRef.current.gainNode.gain.value = volumeRef.current / MAXIMUM_VOLUME;
 
-                const scheme: string = window.location.protocol === "https:" ? "wss" : "ws";
-                const endpoint: string = `${scheme}://${window.location.host}/audio`;
+                const scheme: string = window.location.protocol === SECURE_PROTOCOL ? SECURE_SOCKET_SCHEME : SOCKET_SCHEME;
+                const endpoint: string = `${scheme}://${window.location.host}${AUDIO_PATH}`;
 
                 const socket: WebSocket = new WebSocket(endpoint);
                 socket.binaryType = "arraybuffer";
@@ -701,7 +791,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                         updateStatus("Disconnected - reconnecting...");
                         attemptReconnect();
                     } else {
-                        updateStatus("Disconnected");
+                        updateStatus(DISCONNECTED_STATUS);
                         stopStream();
                     }
                 };
@@ -713,7 +803,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                     attemptReconnect();
                 }
             }
-        }, 100);
+        }, CONNECT_DELAY_MILLISECONDS);
     }, [startMetadataRefresh, startHeartbeat, stopHeartbeat, animateVisualizer, attemptReconnect, updateStatus, stopStream]);
 
     useEffect(() => {
@@ -776,11 +866,11 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     }, [stopStream]);
 
     const changeVolume = useCallback((event: React.ChangeEvent<HTMLInputElement>): void => {
-        const newVolume: number = parseInt(event.target.value, 10);
+        const newVolume: number = parseInt(event.target.value, DECIMAL_RADIX);
         volumeRef.current = newVolume;
         setVolume(newVolume);
         if (pcmProcessorRef.current?.gainNode) {
-            pcmProcessorRef.current.gainNode.gain.value = newVolume / 100;
+            pcmProcessorRef.current.gainNode.gain.value = newVolume / MAXIMUM_VOLUME;
         }
     }, []);
 
@@ -812,9 +902,9 @@ const AudioStreamPlayer = (): React.JSX.Element => {
             const canvas: HTMLCanvasElement | null = canvasRef.current;
             if (canvas && canvas.parentElement) {
                 const bounds: DOMRect = canvas.parentElement.getBoundingClientRect();
-                const ratio: number = window.devicePixelRatio || 1;
-                canvas.width = Math.max(1, Math.round(bounds.width * ratio));
-                canvas.height = Math.max(1, Math.round(bounds.height * ratio));
+                const ratio: number = window.devicePixelRatio || DEFAULT_PIXEL_RATIO;
+                canvas.width = Math.max(MINIMUM_CANVAS_PIXELS, Math.round(bounds.width * ratio));
+                canvas.height = Math.max(MINIMUM_CANVAS_PIXELS, Math.round(bounds.height * ratio));
             }
         };
 
@@ -864,8 +954,8 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     }, [requestMediaInformation]);
 
     useEffect(() => {
-        if (mediaInformation.title && mediaInformation.title !== "Waiting for stream...") {
-            setTimeout(updateTitleScrolling, 100);
+        if (mediaInformation.title && mediaInformation.title !== WAITING_TITLE) {
+            setTimeout(updateTitleScrolling, TITLE_MEASURE_DELAY_MILLISECONDS);
         }
     }, [mediaInformation.title, updateTitleScrolling]);
 
@@ -877,14 +967,14 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                 </div>
 
                 <div
-                    className={`${styles.mediaInformation} ${mediaInformation.title && mediaInformation.title !== "Waiting for stream..." ? styles.loaded : ""}`}>
+                    className={`${styles.mediaInformation} ${mediaInformation.title && mediaInformation.title !== WAITING_TITLE ? styles.loaded : ""}`}>
                     <div className={styles.mediaThumbnail}>
                         {mediaInformation.thumbnail && mediaInformation.thumbnail !== failedThumbnail ? (
                             <Image
                                 src={mediaInformation.thumbnail}
                                 alt={mediaInformation.title || "Media thumbnail"}
-                                width={128}
-                                height={128}
+                                width={THUMBNAIL_SIZE}
+                                height={THUMBNAIL_SIZE}
                                 unoptimized
                                 onError={() => setFailedThumbnail(mediaInformation.thumbnail)}
                                 className={styles.mediaThumbnailImage}
@@ -896,11 +986,11 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                     <div className={styles.mediaDetails}>
                         <div className={styles.mediaTitleWrapper} ref={titleWrapperRef}>
                             <h2 className={styles.mediaTitle} ref={titleRef}>
-                                {mediaInformation.title || "Waiting for stream..."}
+                                {mediaInformation.title || WAITING_TITLE}
                             </h2>
                         </div>
                         <p className={styles.mediaUploader}>
-                            {mediaInformation.uploader || mediaInformation.channel || mediaInformation.uploader_id || "Unknown Artist"}
+                            {mediaInformation.uploader || mediaInformation.channel || mediaInformation.uploader_id || UNKNOWN_ARTIST}
                         </p>
                         <div className={styles.mediaMetadata}>
                             <div className={styles.metadataItem}>
@@ -921,7 +1011,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                             </div>
                         </div>
                         <p className={styles.mediaDescription}>
-                            {mediaInformation.description || "Connect to start streaming"}
+                            {mediaInformation.description || CONNECT_PROMPT}
                         </p>
                     </div>
                 </div>
@@ -942,7 +1032,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                     <input
                         type="range"
                         min="0"
-                        max="100"
+                        max={MAXIMUM_VOLUME}
                         value={volume}
                         onChange={changeVolume}
                         className={styles.volumeSlider}
@@ -975,7 +1065,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
                 <div className={styles.footerSection}>
                     <a
-                        href="https://github.com/PulseBeat02/mcav"
+                        href={GITHUB_URL}
                         className={styles.footerLink}
                         title="View on GitHub"
                     >
@@ -986,7 +1076,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
                         <span>GitHub</span>
                     </a>
                     <a
-                        href="https://mcav.readthedocs.io/en/latest/intro.html"
+                        href={DOCUMENTATION_URL}
                         className={styles.footerLink}
                         title="Documentation"
                     >

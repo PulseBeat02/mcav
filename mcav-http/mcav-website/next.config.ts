@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { createHash, type Hash } from "node:crypto";
+import { type BinaryToTextEncoding, createHash, type Hash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { NextConfig } from "next";
@@ -32,6 +32,15 @@ const SOURCES: string[] = [
     "postcss.config.mjs"
 ];
 
+const HASH_ALGORITHM: string = "sha256";
+const HASH_ENCODING: BinaryToTextEncoding = "hex";
+
+const BUILD_ID_LENGTH: number = 20;
+
+const CURRENT_DIRECTORY: string = ".";
+const PATH_SEPARATOR: string = "/";
+const PATH_TERMINATOR: string = "\0";
+
 // Next.js names the folder of a build's manifests after its build id, a random one unless told otherwise, so two builds
 // of the same sources would make two different jars. An id derived from the sources makes the same website from the
 // same sources, and a changed website still gets a new folder name, which keeps browsers from using stale manifests.
@@ -45,13 +54,13 @@ const sourcesBuildId = (): string => {
         }
     };
     SOURCES.forEach(collect);
-    const hash: Hash = createHash("sha256");
+    const hash: Hash = createHash(HASH_ALGORITHM);
     for (const file of files) {
-        hash.update(relative(".", file).split(sep).join("/"));
-        hash.update("\0");
+        hash.update(relative(CURRENT_DIRECTORY, file).split(sep).join(PATH_SEPARATOR));
+        hash.update(PATH_TERMINATOR);
         hash.update(readFileSync(file));
     }
-    return hash.digest("hex").slice(0, 20);
+    return hash.digest(HASH_ENCODING).slice(0, BUILD_ID_LENGTH);
 };
 
 const nextConfig: NextConfig = {

@@ -23,6 +23,8 @@ import { test } from "node:test";
 import vm from "node:vm";
 
 const PAGE = new URL("../src/app/page.tsx", import.meta.url);
+const CONSTANT_DECLARATION = /^const [A-Z][A-Z0-9_]*: .+;$/gm;
+const ENCODING = "utf8";
 const CALLBACKS = [
     "animateVisualizer",
     "attemptReconnect",
@@ -33,7 +35,17 @@ const CALLBACKS = [
     "startPlayback",
     "stopPlayback"
 ];
+const CONNECTING = 0;
 const CLOSED = 3;
+
+const PERMISSION_GRANTED = "granted";
+const PERMISSION_AFTER_RESUME = "after-resume";
+const PERMISSION_REFUSED = "refused";
+const PERMISSION_IGNORED = "ignored";
+
+const CHUNK_BYTES = 4;
+
+const MAXIMUM_TIMER_ROUNDS = 10;
 
 const skipString = (source, index) => {
     let at = index + 1;
@@ -87,14 +99,15 @@ const skipBalanced = (source, index) => {
 };
 
 const pageCallbacks = () => {
-    const source = readFileSync(PAGE, "utf8");
+    const source = readFileSync(PAGE, ENCODING);
     const declarations = CALLBACKS.map(name => {
         const declaration = `const ${name} = useCallback(`;
         const start = source.indexOf(declaration);
         assert.ok(start >= 0, `the page declares ${name} with useCallback`);
         return `${source.slice(start, skipBalanced(source, start + declaration.length - 1))};`;
     });
-    return stripTypeScriptTypes(`${declarations.join("\n")}\n({${CALLBACKS.join(", ")}});`);
+    const constants = source.match(CONSTANT_DECLARATION).join("\n");
+    return stripTypeScriptTypes(`${constants}\n${declarations.join("\n")}\n({${CALLBACKS.join(", ")}});`);
 };
 
 /**
@@ -103,7 +116,7 @@ const pageCallbacks = () => {
  * @param permission what the browser does with the page's request to play sound: 'granted' (the context runs at once),
  *                   'after-resume' (it runs once resumed), 'refused' (resuming fails) or 'ignored' (it stays suspended)
  */
-const loadPage = (permission = "granted") => {
+const loadPage = (permission = PERMISSION_GRANTED) => {
     const timers = new Map();
     const animations = new Map();
     let nextAnimation = 1;
@@ -119,7 +132,7 @@ const loadPage = (permission = "granted") => {
 
         constructor(url) {
             this.url = url;
-            this.readyState = 0;
+            this.readyState = CONNECTING;
             sockets.push(this);
         }
 
@@ -171,15 +184,15 @@ const loadPage = (permission = "granted") => {
 
     class FakeAudioContext {
         constructor() {
-            this.state = permission === "granted" ? "running" : "suspended";
+            this.state = permission === PERMISSION_GRANTED ? "running" : "suspended";
             contexts.push(this);
         }
 
         resume() {
-            if (permission === "refused") {
+            if (permission === PERMISSION_REFUSED) {
                 return Promise.reject(new Error("NotAllowedError"));
             }
-            if (permission === "after-resume") {
+            if (permission === PERMISSION_AFTER_RESUME) {
                 this.state = "running";
             }
             return Promise.resolve();
@@ -223,7 +236,6 @@ const loadPage = (permission = "granted") => {
                 stroke: () => { draws++; },
             }),
         }), placeholderRef: ref(null),
-        maximumReconnectAttempts: 5,
         setIsLoading: loading => {
             state.loading = loading;
         },
@@ -246,7 +258,7 @@ const loadPage = (permission = "granted") => {
             due.forEach(callback => callback());
         },
         runTimers() {
-            for (let round = 0; round < 10 && timers.size > 0; round++) {
+            for (let round = 0; round < MAXIMUM_TIMER_ROUNDS && timers.size > 0; round++) {
                 const due = [...timers.entries()];
                 timers.clear();
                 due.forEach(([, callback]) => callback());
@@ -269,7 +281,7 @@ test("a second Start before the first stream connected opens no second stream", 
     assert.equal(page.sockets.length, 1, "one socket");
     assert.equal(page.liveProcessors(), 1, "one sound processor");
     page.sockets[0].opened();
-    page.sockets[0].received(4);
+    page.sockets[0].received(CHUNK_BYTES);
     assert.equal(page.processors.at(-1).fed, 1, "every piece of sound is played once");
 });
 
@@ -299,7 +311,7 @@ test("the late close of a stopped stream does not start a second one next to the
     page.runTimers();
     assert.equal(page.sockets.length, 2, "no socket besides the new one");
     assert.equal(page.openSockets(), 1);
-    second.received(4);
+    second.received(CHUNK_BYTES);
     assert.equal(page.liveProcessors(), 1);
     assert.equal(page.processors.at(-1).fed, 1);
 });
@@ -320,7 +332,7 @@ test("a Stop during a reconnect lets Start be pressed again", () => {
     assert.equal(page.openSockets(), 1);
 });
 
-for (const permission of ["refused", "ignored"]) {
+for (const permission of [PERMISSION_REFUSED, PERMISSION_IGNORED]) {
     test(`a Start whose sound permission is ${permission} lets Start be pressed again`, async () => {
         const page = loadPage(permission);
         page.startPlayback();
@@ -334,7 +346,7 @@ for (const permission of ["refused", "ignored"]) {
 }
 
 test("a Start allowed to play once resumed opens one stream", async () => {
-    const page = loadPage("after-resume");
+    const page = loadPage(PERMISSION_AFTER_RESUME);
     page.startPlayback();
     await settle();
     page.runTimers();

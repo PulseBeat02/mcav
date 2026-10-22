@@ -23,12 +23,24 @@ import { test } from "node:test";
 import vm from "node:vm";
 
 const PAGE = new URL("../src/app/page.tsx", import.meta.url);
+const CONSTANT_DECLARATION = /^const [A-Z][A-Z0-9_]*: .+;$/gm;
+const ENCODING = "utf8";
+
+const SOUND_ENCODING = "16bitInt";
+const CHANNELS = 2;
+const BYTES_PER_SAMPLE = 2;
+const BYTES_PER_FRAME = CHANNELS * BYTES_PER_SAMPLE;
+const LITTLE_ENDIAN = true;
+
+const WAVE_PERIOD_FRAMES = 8;
+const WAVE_AMPLITUDE = 1000;
+
 const SAMPLE_RATE = 48000;
 const CHUNK_FRAMES = 1024;
 const CHUNK_SECONDS = CHUNK_FRAMES / SAMPLE_RATE;
 
 const pageProcessor = () => {
-    const source = readFileSync(PAGE, "utf8");
+    const source = readFileSync(PAGE, ENCODING);
     const start = source.indexOf("class PcmProcessor {");
     assert.ok(start >= 0, "the page declares the class PcmProcessor");
     let depth = 0;
@@ -42,7 +54,7 @@ const pageProcessor = () => {
         }
         end++;
     } while (depth > 0);
-    const constants = source.slice(source.indexOf("type PcmProcessorOptions"), start);
+    const constants = source.match(CONSTANT_DECLARATION).join("\n");
     return stripTypeScriptTypes(`${constants}\n${source.slice(start, end)}\nPcmProcessor;`);
 };
 
@@ -92,15 +104,15 @@ const processor = state => {
         Float32Array, DataView, ArrayBuffer, Math, Date, Set, window: {},
     }), {filename: PAGE.pathname});
     const context = new FakeAudioContext(state);
-    return {pcm: new PcmProcessor({encoding: "16bitInt", channels: 2, sampleRate: SAMPLE_RATE, audioContext: context}), context};
+    return {pcm: new PcmProcessor({encoding: SOUND_ENCODING, channels: CHANNELS, sampleRate: SAMPLE_RATE, audioContext: context}), context};
 };
 
 const chunk = () => {
-    const view = new DataView(new ArrayBuffer(CHUNK_FRAMES * 4));
+    const view = new DataView(new ArrayBuffer(CHUNK_FRAMES * BYTES_PER_FRAME));
     for (let frame = 0; frame < CHUNK_FRAMES; frame++) {
-        const sample = Math.round(Math.sin(frame / 8) * 1000);
-        view.setInt16(frame * 4, sample, true);
-        view.setInt16(frame * 4 + 2, sample, true);
+        const sample = Math.round(Math.sin(frame / WAVE_PERIOD_FRAMES) * WAVE_AMPLITUDE);
+        view.setInt16(frame * BYTES_PER_FRAME, sample, LITTLE_ENDIAN);
+        view.setInt16(frame * BYTES_PER_FRAME + BYTES_PER_SAMPLE, sample, LITTLE_ENDIAN);
     }
     return view.buffer;
 };

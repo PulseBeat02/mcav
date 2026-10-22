@@ -22,24 +22,30 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 const ROOT = new URL("..", import.meta.url).pathname;
+const SOURCE_DIRECTORY = "src";
+const MODULES_DIRECTORY = "node_modules";
+const MANIFEST_FILE = "package.json";
+const ENCODING = "utf8";
+
+const SOURCE_FILE = /\.(tsx?|jsx?|mjs|css)$/;
 const IMPORT = /(?:from\s+|import\s*\(\s*|require\s*\(\s*)['"]((?:@[^'"/]+\/)?[^'"/]+)/g;
 
 const sources = folder => {
     return readdirSync(folder, {withFileTypes: true}).flatMap(entry => {
         const path = join(folder, entry.name);
-        return entry.isDirectory() ? sources(path) : /\.(tsx?|jsx?|mjs|css)$/.test(entry.name) ? [path] : [];
+        return entry.isDirectory() ? sources(path) : SOURCE_FILE.test(entry.name) ? [path] : [];
     });
 };
 
 const manifest = name => {
-    return JSON.parse(readFileSync(join(ROOT, "node_modules", name, "package.json"), "utf8"));
+    return JSON.parse(readFileSync(join(ROOT, MODULES_DIRECTORY, name, MANIFEST_FILE), ENCODING));
 };
 
 test("every dependency is imported by the website, or is a peer of one that is", () => {
-    const declared = Object.keys(JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).dependencies);
+    const declared = Object.keys(JSON.parse(readFileSync(join(ROOT, MANIFEST_FILE), ENCODING)).dependencies);
     const used = new Set();
-    for (const file of sources(join(ROOT, "src"))) {
-        for (const [, name] of readFileSync(file, "utf8").matchAll(IMPORT)) {
+    for (const file of sources(join(ROOT, SOURCE_DIRECTORY))) {
+        for (const [, name] of readFileSync(file, ENCODING).matchAll(IMPORT)) {
             if (declared.includes(name)) {
                 used.add(name);
             }
