@@ -59,7 +59,7 @@ server has loaded:
   }
 ```
 
-## Playing Audio
+## Playing audio
 
 The `SVCFilter` is an audio filter that makes one or more entities speakers: nearby players hear the audio with
 positional voice chat audio. Pass the platform entities, such as Bukkit `Player`s, to `SVCFilter.svc(Object...)`, or
@@ -101,7 +101,7 @@ If `start()` fails part way, for example because Simple Voice Chat refuses to cr
 entities, it releases every speaker, encoder, and audio player it had already created before throwing. The filter
 stays stopped and can simply be started again.
 
-## Mono Downmixing
+## Mono downmixing
 
 The downmix is available on its own as `MonoDownmixer` in the package `me.brandonli.mcav.utils.audio` of
 `mcav-common`, for any output that carries a single channel, such as a mono speaker or a speech recognizer. See
