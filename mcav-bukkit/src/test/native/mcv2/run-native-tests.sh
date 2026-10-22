@@ -59,11 +59,35 @@ readonly AARCH64_CPUS=(cortex-a72:neon "max,sve-default-vector-length=16:neon" "
 
 readonly FAILURE_EXIT_CODE=1
 
+main() {
+  check_sanitized_kernels
+  check_kernel_symbols
+  report_kernel_coverage
+  check_shipped_libraries
+  check_digests_agree
+}
+
+check_sanitized_kernels() {
+  echo "== AddressSanitizer + UndefinedBehaviorSanitizer"
+  check_sanitized_x86_64_kernels
+  check_sanitized_aarch64_kernels
+}
+
+check_sanitized_x86_64_kernels() {
+  compile_direct_test sanitized-x86_64 X86_UNITS "${SANITIZER_FLAGS[@]}"
+  compile_canary canary-x86_64
+  assert_overflow_caught "${TEST_DIRECTORY}/canary-x86_64"
+  assert_overflow_caught "${INSTRUCTION_EMULATOR}" -icx -- "${TEST_DIRECTORY}/canary-x86_64"
+  ASAN_OPTIONS=detect_leaks=1 assert_levels_agree "asan x86-64 (this CPU)" "${TEST_DIRECTORY}/sanitized-x86_64"
+  ASAN_OPTIONS=detect_leaks=0 assert_levels_agree "asan x86-64 (SDE -icx)" "${INSTRUCTION_EMULATOR}" -icx -- "${TEST_DIRECTORY}/sanitized-x86_64" expect=avx512
+}
+
 compile_direct_test() {
   local -r name="${1}"
   local -n units="${2}"
   shift 2
   local object_files=()
+  local unit
   for unit in "${units[@]}" test; do
     local unit_name="${unit%%:*}" instruction_flags=()
     [ "${unit}" != "${unit_name}" ] && read -r -a instruction_flags <<< "${unit#*:}"
@@ -72,6 +96,7 @@ compile_direct_test() {
     "${COMPILER}" "${RESOURCE_OPTIONS[@]}" "${KERNEL_FLAGS[@]}" -DMCV2_TEST_DIRECT "${@}" "${instruction_flags[@]}" -c "${source_file}" -o "${TEST_DIRECTORY}/${name}-${unit_name}.o"
     object_files+=("${TEST_DIRECTORY}/${name}-${unit_name}.o")
   done
+
   "${COMPILER}" "${RESOURCE_OPTIONS[@]}" "${@}" "${object_files[@]}" -o "${TEST_DIRECTORY}/${name}"
 }
 
@@ -98,28 +123,29 @@ assert_levels_agree() {
     "$(sed -n 's/^all *//p' "${TEST_DIRECTORY}/${label}.txt")"
 }
 
-echo "== AddressSanitizer + UndefinedBehaviorSanitizer"
-compile_direct_test sanitized-x86_64 X86_UNITS "${SANITIZER_FLAGS[@]}"
-compile_canary canary-x86_64
-assert_overflow_caught "${TEST_DIRECTORY}/canary-x86_64"
-assert_overflow_caught "${INSTRUCTION_EMULATOR}" -icx -- "${TEST_DIRECTORY}/canary-x86_64"
-ASAN_OPTIONS=detect_leaks=1 assert_levels_agree "asan x86-64 (this CPU)" "${TEST_DIRECTORY}/sanitized-x86_64"
-ASAN_OPTIONS=detect_leaks=0 assert_levels_agree "asan x86-64 (SDE -icx)" "${INSTRUCTION_EMULATOR}" -icx -- "${TEST_DIRECTORY}/sanitized-x86_64" expect=avx512
-compile_direct_test sanitized-aarch64 AARCH64_UNITS "${AARCH64_FLAGS[@]}" "${SANITIZER_FLAGS[@]}"
-compile_canary canary-aarch64 "${AARCH64_FLAGS[@]}"
-assert_overflow_caught "${AARCH64_EMULATOR}" -L "${AARCH64_SYSROOT}" "${TEST_DIRECTORY}/canary-aarch64"
-for entry in "${AARCH64_CPUS[@]}"; do
-  ASAN_OPTIONS=detect_leaks=0 assert_levels_agree "asan aarch64 (qemu -cpu ${entry%%:*})" \
-    "${AARCH64_EMULATOR}" -L "${AARCH64_SYSROOT}" -cpu "${entry%%:*}" "${TEST_DIRECTORY}/sanitized-aarch64" "expect=${entry#*:}"
-done
+check_sanitized_aarch64_kernels() {
+  compile_direct_test sanitized-aarch64 AARCH64_UNITS "${AARCH64_FLAGS[@]}" "${SANITIZER_FLAGS[@]}"
+  compile_canary canary-aarch64 "${AARCH64_FLAGS[@]}"
+  assert_overflow_caught "${AARCH64_EMULATOR}" -L "${AARCH64_SYSROOT}" "${TEST_DIRECTORY}/canary-aarch64"
+  local entry
+  for entry in "${AARCH64_CPUS[@]}"; do
+    ASAN_OPTIONS=detect_leaks=0 assert_levels_agree "asan aarch64 (qemu -cpu ${entry%%:*})" \
+      "${AARCH64_EMULATOR}" -L "${AARCH64_SYSROOT}" -cpu "${entry%%:*}" "${TEST_DIRECTORY}/sanitized-aarch64" "expect=${entry#*:}"
+  done
+}
 
-echo "== symbols"
+check_kernel_symbols() {
+  echo "== symbols"
+  check_symbols x86-64 X86_UNITS
+  check_symbols aarch64 AARCH64_UNITS "${AARCH64_FLAGS[@]}"
+}
 
 check_symbols() {
   local -r label="${1}"
   shift
   local -n units="${1}"
   shift
+  local unit
   for unit in "${units[@]}"; do
     local unit_name="${unit%%:*}" instruction_flags=()
     [ "${unit}" != "${unit_name}" ] && read -r -a instruction_flags <<< "${unit#*:}"
@@ -130,49 +156,83 @@ check_symbols() {
       exit "${FAILURE_EXIT_CODE}"
     fi
   done
+
   echo "${label}: every unit defines only its kernels"
 }
-check_symbols x86-64 X86_UNITS
-check_symbols aarch64 AARCH64_UNITS "${AARCH64_FLAGS[@]}"
 
-echo "== coverage (llvm-cov)"
-compile_direct_test covered X86_UNITS -O1 -fprofile-instr-generate -fcoverage-mapping
-LLVM_PROFILE_FILE="${TEST_DIRECTORY}/kernels-%p.profraw" "${INSTRUCTION_EMULATOR}" -icx -- "${TEST_DIRECTORY}/covered" > /dev/null
-"${LLVM_TOOLS}/llvm-profdata" merge -o "${TEST_DIRECTORY}/kernels.profdata" "${TEST_DIRECTORY}"/kernels-*.profraw
-"${LLVM_TOOLS}/llvm-cov" report "${TEST_DIRECTORY}/covered" -instr-profile="${TEST_DIRECTORY}/kernels.profdata" "${NATIVE_SOURCES}"/*.cpp
+report_kernel_coverage() {
+  echo "== coverage (llvm-cov)"
+  compile_direct_test covered X86_UNITS -O1 -fprofile-instr-generate -fcoverage-mapping
+  LLVM_PROFILE_FILE="${TEST_DIRECTORY}/kernels-%p.profraw" "${INSTRUCTION_EMULATOR}" -icx -- "${TEST_DIRECTORY}/covered" > /dev/null
+  "${LLVM_TOOLS}/llvm-profdata" merge -o "${TEST_DIRECTORY}/kernels.profdata" "${TEST_DIRECTORY}"/kernels-*.profraw
+  "${LLVM_TOOLS}/llvm-cov" report "${TEST_DIRECTORY}/covered" -instr-profile="${TEST_DIRECTORY}/kernels.profdata" "${NATIVE_SOURCES}"/*.cpp
+}
 
-echo "== the shipped libraries"
-for target in x86_64 aarch64; do
-  library="${NATIVE_LIBRARIES}/linux-${target}/libmcv2kernels.so"
+check_shipped_libraries() {
+  echo "== the shipped libraries"
+  local target
+  for target in x86_64 aarch64; do
+    check_library_imports "${target}"
+    compile_library_tests "${target}"
+  done
+
+  check_x86_64_library
+  check_aarch64_library
+}
+
+check_library_imports() {
+  local -r target="${1}"
+  local -r library="${NATIVE_LIBRARIES}/linux-${target}/libmcv2kernels.so"
   if "${LLVM_TOOLS}/llvm-readelf" --dynamic "${library}" | grep -q NEEDED ||
     "${LLVM_TOOLS}/llvm-readelf" --dyn-syms "${library}" | awk '$7 == "UND" && $8 != ""' | grep -q .; then
     echo "Library linux-${target} imports something!" >&2
     exit "${FAILURE_EXIT_CODE}"
   fi
+}
+
+compile_library_tests() {
+  local -r target="${1}"
   "${ZIG_COMPILER}" c++ -target "${target}-linux-gnu.2.28" -O1 "${KERNEL_FLAGS[@]}" "${SCRIPT_DIRECTORY}/kernels_test.cpp" -o "${TEST_DIRECTORY}/glibc-${target}" \
     -ldl 2> /dev/null
   "${ZIG_COMPILER}" c++ -target "${target}-linux-musl" -dynamic -O1 "${KERNEL_FLAGS[@]}" "${SCRIPT_DIRECTORY}/kernels_test.cpp" \
     -o "${TEST_DIRECTORY}/musl-${target}" 2> /dev/null
-done
-assert_levels_agree "linux-x86_64 glibc (this CPU)" "${TEST_DIRECTORY}/glibc-x86_64" "${X86_LIBRARY}"
-assert_levels_agree "linux-x86_64 musl (this CPU)" "${X86_MUSL_LOADER}" "${TEST_DIRECTORY}/musl-x86_64" "${X86_LIBRARY}"
-assert_levels_agree "linux-x86_64 glibc (qemu -cpu qemu64)" "${X86_EMULATOR}" -cpu qemu64 "${TEST_DIRECTORY}/glibc-x86_64" "${X86_LIBRARY}" expect=sse2
-for entry in "${EMULATED_X86_CPUS[@]}"; do
-  assert_levels_agree "linux-x86_64 glibc (SDE -${entry%%:*})" "${INSTRUCTION_EMULATOR}" "-${entry%%:*}" -- "${TEST_DIRECTORY}/glibc-x86_64" "${X86_LIBRARY}" \
-    "expect=${entry#*:}"
-done
-for entry in "${AARCH64_CPUS[@]}"; do
-  assert_levels_agree "linux-aarch64 glibc (qemu -cpu ${entry%%:*})" "${AARCH64_EMULATOR}" -L "${AARCH64_SYSROOT}" -cpu "${entry%%:*}" \
-    "${TEST_DIRECTORY}/glibc-aarch64" "${AARCH64_LIBRARY}" "expect=${entry#*:}"
-done
-assert_levels_agree "linux-aarch64 musl (qemu -cpu max,sve 64)" "${AARCH64_EMULATOR}" -cpu max,sve-default-vector-length=64 \
-  "${AARCH64_MUSL_LOADER}" "${TEST_DIRECTORY}/musl-aarch64" "${AARCH64_LIBRARY}" expect=sve512
-reference="$(tail -n +3 "${TEST_DIRECTORY}/asan x86-64 (this CPU).txt")"
-for run in "${TEST_DIRECTORY}"/*.txt; do
-  [ "$(basename "${run}")" = caught.txt ] && continue
-  if [ "$(tail -n +3 "${run}")" != "${reference}" ]; then
-    echo "Run $(basename "${run}" .txt) has other digests!" >&2
-    exit "${FAILURE_EXIT_CODE}"
-  fi
-done
-echo "every level on every CPU agrees, digests identical"
+}
+
+check_x86_64_library() {
+  assert_levels_agree "linux-x86_64 glibc (this CPU)" "${TEST_DIRECTORY}/glibc-x86_64" "${X86_LIBRARY}"
+  assert_levels_agree "linux-x86_64 musl (this CPU)" "${X86_MUSL_LOADER}" "${TEST_DIRECTORY}/musl-x86_64" "${X86_LIBRARY}"
+  assert_levels_agree "linux-x86_64 glibc (qemu -cpu qemu64)" "${X86_EMULATOR}" -cpu qemu64 "${TEST_DIRECTORY}/glibc-x86_64" "${X86_LIBRARY}" expect=sse2
+  local entry
+  for entry in "${EMULATED_X86_CPUS[@]}"; do
+    assert_levels_agree "linux-x86_64 glibc (SDE -${entry%%:*})" "${INSTRUCTION_EMULATOR}" "-${entry%%:*}" -- "${TEST_DIRECTORY}/glibc-x86_64" "${X86_LIBRARY}" \
+      "expect=${entry#*:}"
+  done
+}
+
+check_aarch64_library() {
+  local entry
+  for entry in "${AARCH64_CPUS[@]}"; do
+    assert_levels_agree "linux-aarch64 glibc (qemu -cpu ${entry%%:*})" "${AARCH64_EMULATOR}" -L "${AARCH64_SYSROOT}" -cpu "${entry%%:*}" \
+      "${TEST_DIRECTORY}/glibc-aarch64" "${AARCH64_LIBRARY}" "expect=${entry#*:}"
+  done
+
+  assert_levels_agree "linux-aarch64 musl (qemu -cpu max,sve 64)" "${AARCH64_EMULATOR}" -cpu max,sve-default-vector-length=64 \
+    "${AARCH64_MUSL_LOADER}" "${TEST_DIRECTORY}/musl-aarch64" "${AARCH64_LIBRARY}" expect=sve512
+}
+
+check_digests_agree() {
+  local reference
+  reference="$(tail -n +3 "${TEST_DIRECTORY}/asan x86-64 (this CPU).txt")"
+  local run
+  for run in "${TEST_DIRECTORY}"/*.txt; do
+    [ "$(basename "${run}")" = caught.txt ] && continue
+    if [ "$(tail -n +3 "${run}")" != "${reference}" ]; then
+      echo "Run $(basename "${run}" .txt) has other digests!" >&2
+      exit "${FAILURE_EXIT_CODE}"
+    fi
+  done
+
+  echo "every level on every CPU agrees, digests identical"
+}
+
+main "${@}"
