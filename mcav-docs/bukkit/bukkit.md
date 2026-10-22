@@ -20,13 +20,12 @@ The Bukkit module uses server internals through paperweight-userdev, compiled ag
 with, so nothing is remapped; it is a library, not a plugin, so it has to be on your plugin's class path, shaded into
 the plugin or downloaded when the plugin loads (the sandbox plugin downloads it with Gremlin). Its POM declares
 `mcav-common`, which brings the JavaCV natives, as a compile dependency, together with Netty, Guava and Gson, which the
-server already has; leave them out of a shaded jar. When you use the installer for the other modules, a configuration
-looks like this:
+server already has; leave them out of a shaded jar. When you use the installer for the other modules, it downloads
+`mcav-common` too, and a configuration looks like this:
 
 ```kotlin
 dependencies {
     implementation("me.brandonli:mcav-bukkit:1.0.0-SNAPSHOT") {
-        // the installer downloads mcav-common; the server already has Netty, Guava and Gson
         exclude(group = "me.brandonli", module = "mcav-common")
         exclude(group = "io.netty")
         exclude(group = "com.google.guava")
