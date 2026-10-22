@@ -25,7 +25,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/** Relays failures from fixture callbacks to the JUnit thread after every callback has finished. */
 final class WorkerAssertions {
 
   private static final long JOIN_TIMEOUT_MILLISECONDS = 10_000L;

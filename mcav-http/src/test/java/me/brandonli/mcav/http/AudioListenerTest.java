@@ -53,9 +53,6 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 
-/**
- * Tests {@link AudioListener}.
- */
 final class AudioListenerTest {
 
   private static final long TIMEOUT_SECONDS = 10;
@@ -296,9 +293,6 @@ final class AudioListenerTest {
     assertTrue(entered);
   }
 
-  /**
-   * Offers five medium chunks filled with the values 2 to 6, which must all be queued.
-   */
   private void offerFiveMoreMediumChunks(final AudioListener listener) {
     for (int value = 2; value <= 6; value++) {
       final byte[] next = this.chunk(MEDIUM_CHUNK_BYTES, value);
@@ -347,12 +341,6 @@ final class AudioListenerTest {
     listener.stop();
   }
 
-  /**
-   * Creates a clock that hands out the specified times, one per call, and repeats the last one afterwards.
-   *
-   * @param times the times in nanoseconds, in the order they are read
-   * @return the clock
-   */
   private LongSupplier scriptedClock(final long... times) {
     final AtomicInteger reads = new AtomicInteger();
     return () -> this.readNextTime(times, reads);
@@ -482,11 +470,6 @@ final class AudioListenerTest {
     assertFalse(alive, "stop wakes the waiting sender so its thread ends");
   }
 
-  /**
-   * Waits until a thread is waiting for a signal, so that only a signal can let it continue.
-   *
-   * @param thread the thread to watch
-   */
   private void awaitWaiting(final Thread thread) {
     final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(TIMEOUT_SECONDS);
     while (System.nanoTime() < deadline) {

@@ -20,8 +20,20 @@ package me.brandonli.mcav.http;
 import me.brandonli.mcav.module.MCAVModule;
 
 /**
- * Registers the HTTP audio backend. Install it with {@code MCAV.api().install(HttpModule.class)}; servers are
- * created with the factories of {@link HttpResult}.
+ * Registers the HTTP audio backend. Servers are created with the factories of {@link HttpResult}, so the module only
+ * has to be installed:
+ *
+ * {@snippet :
+ * final MCAVApi api = MCAV.api();
+ * api.install(HttpModule.class);
+ * }
+ *
+ * <p>The module holds no state; stopping it does not stop the servers you started, so stop each {@link HttpResult}
+ * yourself with {@link HttpResult#stop()}.
+ *
+ * <p>This class is thread-safe.
+ *
+ * @since 1.0.0
  */
 public final class HttpModule implements MCAVModule {
 
@@ -29,12 +41,16 @@ public final class HttpModule implements MCAVModule {
 
   /**
    * Creates the module. The module loader calls this constructor for you.
+   *
+   * @since 1.0.0
    */
   public HttpModule() {}
 
   /**
    * Starts the module. Nothing is prepared here, because every {@link HttpResult} starts its own web server with
    * {@link HttpResult#start()}.
+   *
+   * @since 1.0.0
    */
   @Override
   public void start() {}
@@ -42,6 +58,8 @@ public final class HttpModule implements MCAVModule {
   /**
    * Stops the module. Nothing is released here, because every {@link HttpResult} stops its own web server with
    * {@link HttpResult#stop()}.
+   *
+   * @since 1.0.0
    */
   @Override
   public void stop() {}
@@ -50,6 +68,7 @@ public final class HttpModule implements MCAVModule {
    * Returns the name of the module.
    *
    * @return {@code http}
+   * @since 1.0.0
    */
   @Override
   public String getModuleName() {

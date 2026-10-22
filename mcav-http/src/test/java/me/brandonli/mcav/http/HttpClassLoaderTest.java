@@ -49,7 +49,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Tests replacing a plugin's library class loader without restarting the host JVM. */
 final class HttpClassLoaderTest {
 
   private static final String PAGE = "<!doctype html><title>class loader restart</title>";

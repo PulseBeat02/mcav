@@ -86,10 +86,6 @@ import org.springframework.boot.web.server.context.WebServerApplicationContext;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketSession;
 
-/**
- * Tests {@link SpringHttpResult} together with {@link HttpServerApplication}, {@link MediaController} and
- * {@link AudioWebSocketHandler} on a real web server bound to a free port of the loopback interface.
- */
 final class HttpServerTest {
 
   private static final long TIMEOUT_SECONDS = 10;
@@ -674,10 +670,6 @@ final class HttpServerTest {
     }
   }
 
-  /**
-   * Creates a session whose writes block until released and which, like the WebSocket sessions of Spring, waits
-   * for the write in progress when it is closed.
-   */
   private WebSocketSession stuckSession(final CountDownLatch writeEntered, final CountDownLatch releaseWrite) throws IOException {
     final WebSocketSession stuck = Mockito.mock(WebSocketSession.class);
     Mockito.when(stuck.getId()).thenReturn("stuck");
@@ -687,6 +679,7 @@ final class HttpServerTest {
     final WebSocketSession stubbedWrite = blockingWrite.when(stuck);
     stubbedWrite.sendMessage(ArgumentMatchers.any());
 
+    // like Spring's sessions, closing waits for the write in progress
     final Stubber blockingClose = Mockito.doAnswer(_ -> this.waitForRelease(releaseWrite));
     final WebSocketSession stubbedClose = blockingClose.when(stuck);
     stubbedClose.close(ArgumentMatchers.any());
@@ -750,9 +743,6 @@ final class HttpServerTest {
     assertArrayEquals(before, handlersAfterStop);
   }
 
-  /**
-   * Collects the complete binary messages and the close code a WebSocket client receives.
-   */
   private static final class RecordingListener implements WebSocket.Listener {
 
     private final BlockingQueue<byte[]> messages;
@@ -811,10 +801,6 @@ final class HttpServerTest {
     }
   }
 
-  /**
-   * A logging handler that only marks the logging configuration of the JVM, so a test can see whether it was
-   * replaced.
-   */
   private static final class MarkerHandler extends Handler {
 
     @Override

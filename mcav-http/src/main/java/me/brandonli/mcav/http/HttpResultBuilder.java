@@ -34,17 +34,18 @@ import java.nio.file.Path;
  *
  * <p>For example, a server behind a reverse proxy on the same machine only needs the loopback interface:
  *
- * <pre><code>
- *   final HttpResultBuilder builder = HttpResult.builder();
- *   builder.domain("play.example.com");
- *   builder.port(8080);
- *   final InetAddress loopback = InetAddress.getLoopbackAddress();
- *   builder.bindAddress(loopback);
- *   final HttpResult http = builder.build();
- * </code></pre>
+ * {@snippet :
+ * final String domain = "play.example.com";
+ * final int port = 8080;
+ * final InetAddress loopback = InetAddress.getLoopbackAddress();
+ * final HttpResultBuilder builder = HttpResult.builder();
+ * final HttpResult http = builder.domain(domain).port(port).bindAddress(loopback).build();
+ * }
  *
  * <p>A builder can build several servers; changing it afterwards does not affect servers built before. Builders
  * are not thread-safe.
+ *
+ * @since 1.0.0
  */
 public interface HttpResultBuilder {
   /**
@@ -56,6 +57,7 @@ public interface HttpResultBuilder {
    * @return this builder
    * @throws IllegalArgumentException if {@code domain} is blank
    * @throws NullPointerException     if {@code domain} is null
+   * @since 1.0.0
    */
   HttpResultBuilder domain(final String domain);
 
@@ -65,6 +67,7 @@ public interface HttpResultBuilder {
    * @param port the port, from 1 to 65535
    * @return this builder
    * @throws IllegalArgumentException if {@code port} is outside 1 through 65535
+   * @since 1.0.0
    */
   HttpResultBuilder port(final int port);
 
@@ -76,6 +79,7 @@ public interface HttpResultBuilder {
    *                  existence is not checked here
    * @return this builder
    * @throws NullPointerException if {@code directory} is null
+   * @since 1.0.0
    */
   HttpResultBuilder directory(final Path directory);
 
@@ -88,6 +92,7 @@ public interface HttpResultBuilder {
    *                binding is attempted when the built server starts
    * @return this builder
    * @throws NullPointerException if {@code address} is null
+   * @since 1.0.0
    */
   HttpResultBuilder bindAddress(final InetAddress address);
 
@@ -95,6 +100,7 @@ public interface HttpResultBuilder {
    * Creates a server with the current settings.
    *
    * @return the server, not started yet
+   * @since 1.0.0
    */
   HttpResult build();
 }

@@ -23,9 +23,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BooleanSupplier;
 
-/**
- * Polls a condition until it holds or a timeout passes.
- */
 public final class Await {
 
   private static final long TIMEOUT_NANOSECONDS = TimeUnit.SECONDS.toNanos(10);
@@ -35,12 +32,6 @@ public final class Await {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Waits until a condition holds, failing the test after ten seconds.
-   *
-   * @param description what is waited for, used in the failure message
-   * @param condition   the condition
-   */
   public static void until(final String description, final BooleanSupplier condition) {
     final long start = System.nanoTime();
     final long deadline = start + TIMEOUT_NANOSECONDS;

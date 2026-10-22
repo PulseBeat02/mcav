@@ -27,6 +27,8 @@ import me.brandonli.mcav.MCAVException;
  * machine, such as another program that already listens on the port, not on the state of the server object or on a
  * programming error. It is unchecked, so a caller that cannot recover does not have to declare it, and a caller that
  * can recover catches it and tries another port.
+ *
+ * @since 1.0.0
  */
 public class HttpException extends MCAVException {
 
@@ -37,6 +39,7 @@ public class HttpException extends MCAVException {
    * Creates an exception with a message.
    *
    * @param message the detail message, which says why the server did not start
+   * @since 1.0.0
    */
   public HttpException(final String message) {
     super(message);
@@ -47,6 +50,7 @@ public class HttpException extends MCAVException {
    *
    * @param message the detail message, which says why the server did not start
    * @param cause   the failure of the web framework that caused this exception
+   * @since 1.0.0
    */
   public HttpException(final String message, final Throwable cause) {
     super(message, cause);

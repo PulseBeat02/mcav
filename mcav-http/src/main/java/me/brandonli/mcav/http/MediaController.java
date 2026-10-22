@@ -22,9 +22,6 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Serves the information about the current media at {@code /media}.
- */
 @RestController
 final class MediaController {
 

@@ -43,14 +43,6 @@ import org.junit.jupiter.api.Tag;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.WebSocketSession;
 
-/**
- * Fuzzes the queue of one browser of the audio page against a model of what {@link AudioListener} documents, with a
- * connection whose writes finish only when the fuzzer says and a clock the fuzzer moves. For every sequence of chunks,
- * finished writes, passing time, closed connections and stops: a chunk is queued exactly when the connection is open,
- * the listener runs and its current write is not stuck for longer than the send time limit; when more than the buffer
- * limit waits, the oldest chunks are dropped and the newest is kept; and the browser receives the chunks that were
- * kept, once and in order.
- */
 @Tag("fuzz")
 final class AudioListenerFuzzTest {
 
@@ -192,12 +184,6 @@ final class AudioListenerFuzzTest {
       this.sendNext();
     }
 
-    /**
-     * Waits until the sender waits for its next chunk, or has ended. Its state alone does not tell: a virtual thread that
-     * is being woken up from the write it just finished reports itself as waiting for a moment, while the listener still
-     * counts that write as the current one, which is what the fuzzer found the first time. Only a sender that waits on
-     * the condition of the listener has taken up waiting for the next chunk.
-     */
     private void awaitIdleOrEnded() {
       final long start = System.nanoTime();
       final long timeout = TimeUnit.SECONDS.toNanos(WAIT_SECONDS);
@@ -205,6 +191,7 @@ final class AudioListenerFuzzTest {
       while (System.nanoTime() < deadline) {
         final Thread.State state = this.sender.getState();
         final Object blocker = LockSupport.getBlocker(this.sender);
+        // a sender woken from a finished write briefly reports WAITING too; only one parked on the condition is idle
         final boolean waitingForAChunk = state == Thread.State.WAITING && blocker instanceof AbstractQueuedSynchronizer.ConditionObject;
         if (waitingForAChunk || state == Thread.State.TERMINATED) {
           return;
@@ -266,11 +253,7 @@ final class AudioListenerFuzzTest {
     }
   }
 
-  /**
-   * A connection whose writes block until they are finished, one at a time, and which records what was written. It is
-   * a plain proxy rather than a mock: a mock records every call, and one created per input kept the chunks of every
-   * input alive until a long fuzzing run ran out of heap.
-   */
+  // a proxy, not a mock: mocks record every call, which ran a long fuzzing run out of heap
   private static final class GatedSession implements InvocationHandler {
 
     private final WebSocketSession session;
@@ -309,9 +292,6 @@ final class AudioListenerFuzzTest {
       };
     }
 
-    /**
-     * Records a chunk and blocks until the fuzzer finishes the write.
-     */
     private void write(final Object message) {
       final BinaryMessage binary = (BinaryMessage) message;
       final ByteBuffer payload = binary.getPayload();

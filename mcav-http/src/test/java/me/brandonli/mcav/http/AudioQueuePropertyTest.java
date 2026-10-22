@@ -54,12 +54,6 @@ import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 
-/**
- * Properties of what the audio server hands to a browser, for every sequence of chunks and every layout of the samples
- * the pipeline passes on: the byte-limited queue of a listener drops the oldest chunks and always keeps the newest, the
- * sender writes what was kept in order, and the server sends exactly the bytes between the position and the limit of
- * the samples, copied, without moving the buffer of the pipeline.
- */
 final class AudioQueuePropertyTest {
 
   private static final String SEED = "20260925";
@@ -238,10 +232,6 @@ final class AudioQueuePropertyTest {
     return address.toString();
   }
 
-  /**
-   * The page's address must be a valid URL for every IPv6 address and zone the server may be configured with; a zone
-   * id needs its percent sign encoded, as RFC 6874 requires.
-   */
   @Property(seed = SEED)
   void shouldMakeAValidPageAddressFromEveryIpv6Host(@ForAll("ipv6Hosts") final String host) {
     final SpringHttpResult http = new SpringHttpResult(host, PORT, null);
@@ -257,9 +247,6 @@ final class AudioQueuePropertyTest {
     assertEquals(PORT, port, "the port stays separate from the address");
   }
 
-  /**
-   * A session that records the payload of every binary message written to it.
-   */
   private static final class Recorder {
 
     private final WebSocketSession session;
@@ -297,9 +284,6 @@ final class AudioQueuePropertyTest {
     }
   }
 
-  /**
-   * Samples in a buffer with other bytes around them, in heap or native memory.
-   */
   private static final class Samples {
 
     private final byte[] content;

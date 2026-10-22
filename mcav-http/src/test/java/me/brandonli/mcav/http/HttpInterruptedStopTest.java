@@ -28,7 +28,6 @@ import org.mockito.stubbing.Stubber;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.GenericApplicationContext;
 
-/** Tests cleanup when a plugin interrupts the thread that starts its audio server. */
 final class HttpInterruptedStopTest {
 
   private static final String LOCALHOST = "localhost";

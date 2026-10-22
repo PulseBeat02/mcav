@@ -27,9 +27,6 @@ import java.io.IOException;
 import me.brandonli.mcav.MCAVException;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link HttpModule} and {@link HttpException}.
- */
 final class HttpModuleTest {
 
   @Test

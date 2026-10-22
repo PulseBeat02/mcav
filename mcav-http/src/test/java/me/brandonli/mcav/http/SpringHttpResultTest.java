@@ -63,10 +63,6 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 
-/**
- * Tests {@link SpringHttpResult} and the {@link HttpResult} factories without starting a web server; the running
- * server is tested by {@link HttpServerTest}.
- */
 final class SpringHttpResultTest {
 
   private static final long TIMEOUT_MILLISECONDS = 10_000;

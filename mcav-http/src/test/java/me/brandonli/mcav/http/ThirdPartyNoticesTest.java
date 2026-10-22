@@ -28,10 +28,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests the notices of the built mcav-http jar, whose audio web page bundles npm packages: MIT, BSD, ISC and Apache-2.0
- * ask that their copyright and licence notices go with the copies.
- */
 final class ThirdPartyNoticesTest {
 
   private static final String WEBSITE_NOTICES_PATH = "mcav/http/website/THIRD-PARTY-NOTICES.txt";

@@ -26,10 +26,6 @@ import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.source.file.FileSource;
 
-/**
- * Plays the audio of a file in the browser. Pass the path of a media file as the first argument, then open the
- * printed address.
- */
 public final class HttpAudioExample {
 
   private static final int PORT = 3000;
@@ -38,11 +34,6 @@ public final class HttpAudioExample {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Starts a web server on port 3000 and plays the file into it until the JVM exits.
-   *
-   * @param args the path of the media file
-   */
   static void main(final String[] args) {
     if (args.length == 0) {
       System.err.println("Usage: HttpAudioExample <file>");

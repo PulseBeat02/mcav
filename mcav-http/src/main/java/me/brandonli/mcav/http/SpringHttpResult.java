@@ -57,14 +57,15 @@ import org.springframework.web.socket.WebSocketSession;
  * handlers of {@code java.util.logging} or Log4j 2 for the whole server that hosts the library. Unless the system
  * property {@value #LOGGING_SYSTEM_PROPERTY} was already set, it is set to {@code none} before the first start,
  * so Spring logs through SLF4J like every other library and leaves the logging of the host alone.
+ *
+ * <p>This class is thread-safe.
+ *
+ * @since 1.0.0
  */
 public final class SpringHttpResult implements HttpResult {
 
   private static final String RESULT_BEAN_NAME = "mcavHttpResult";
 
-  /**
-   * The system property that selects the logging system of Spring Boot.
-   */
   static final String LOGGING_SYSTEM_PROPERTY = "org.springframework.boot.logging.LoggingSystem";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SpringHttpResult.class);
@@ -93,40 +94,15 @@ public final class SpringHttpResult implements HttpResult {
   private volatile @Nullable ConfigurableApplicationContext context;
   private volatile boolean acceptingListeners;
 
-  /**
-   * Creates a server that listens on every network interface.
-   *
-   * @param domain    the host name listeners use
-   * @param port      the port, or 0 for any free port
-   * @param directory the directory with the web page, or null for the bundled copy
-   */
   SpringHttpResult(final String domain, final int port, final @Nullable Path directory) {
     this(domain, port, directory, null, List.of());
   }
 
-  /**
-   * Creates a server with additional Spring properties, such as {@code server.address=127.0.0.1} to listen on the
-   * loopback interface only. Port 0 picks a free port, which {@link #getLocalPort()} reports once started.
-   *
-   * @param domain          the host name listeners use
-   * @param port            the port, or 0 for any free port
-   * @param directory       the directory with the web page, or null for the bundled copy
-   * @param extraProperties Spring properties in {@code key=value} form, applied after the defaults
-   */
   @VisibleForTesting
   SpringHttpResult(final String domain, final int port, final @Nullable Path directory, final List<String> extraProperties) {
     this(domain, port, directory, null, extraProperties);
   }
 
-  /**
-   * Creates a server.
-   *
-   * @param domain          the host name listeners use
-   * @param port            the port, or 0 for any free port
-   * @param directory       the directory with the web page, or null for the bundled copy
-   * @param bindAddress     the address to listen on, or null for every network interface
-   * @param extraProperties Spring properties in {@code key=value} form, applied after the defaults
-   */
   SpringHttpResult(
     final String domain,
     final int port,
@@ -154,6 +130,7 @@ public final class SpringHttpResult implements HttpResult {
    * afterwards. Calling it while the server runs has no effect.
    *
    * @throws HttpException if the server cannot be started, for example because the port is in use
+   * @since 1.0.0
    */
   @Override
   public void start() {
@@ -170,6 +147,8 @@ public final class SpringHttpResult implements HttpResult {
    * Disconnects every listener with {@link CloseStatus#GOING_AWAY} and stops the embedded web server. The
    * connections are closed on other threads, so a listener whose write is stuck never delays stopping. Calling it
    * while the server is stopped has no effect.
+   *
+   * @since 1.0.0
    */
   @Override
   public void stop() {
@@ -234,10 +213,6 @@ public final class SpringHttpResult implements HttpResult {
     return builder.run();
   }
 
-  /**
-   * Stops Spring Boot from reconfiguring the logging system of the JVM, unless someone chose a logging system for
-   * it with {@value #LOGGING_SYSTEM_PROPERTY}.
-   */
   @VisibleForTesting
   void keepTheLoggingOfTheHost() {
     final String chosen = System.getProperty(LOGGING_SYSTEM_PROPERTY);
@@ -251,12 +226,6 @@ public final class SpringHttpResult implements HttpResult {
     beanFactory.registerSingleton(RESULT_BEAN_NAME, this);
   }
 
-  /**
-   * Creates the Spring properties of the server: the defaults first, then the extra properties, which therefore
-   * override the defaults.
-   *
-   * @return the properties in {@code key=value} form
-   */
   private List<String> createProperties() {
     final String location = this.staticLocation(this.directory);
     final String portProperty = "server.port=%s".formatted(this.port);
@@ -279,16 +248,11 @@ public final class SpringHttpResult implements HttpResult {
       properties.add(addressProperty);
     }
 
+    // last, so they override the defaults
     properties.addAll(this.extraProperties);
     return properties;
   }
 
-  /**
-   * Returns the Spring resource location of the web page.
-   *
-   * @param directory the directory with the web page, or null for the copy bundled in the jar
-   * @return the location, always ending with a slash
-   */
   @VisibleForTesting
   String staticLocation(final @Nullable Path directory) {
     if (directory == null) {
@@ -310,19 +274,12 @@ public final class SpringHttpResult implements HttpResult {
     this.listeners.clear();
   }
 
-  /**
-   * Closes the Spring context with the class loader of this class as the context class loader of the thread, because
-   * Spring looks up its own resources through it while shutting down, and restores the previous one afterwards.
-   * Temporarily clears an existing interrupt so Spring can acquire its shutdown lock, then restores it.
-   * Visible for testing.
-   *
-   * @param current the context to close
-   */
   @VisibleForTesting
   void closeWithOwnClassLoader(final ConfigurableApplicationContext current) {
     final Thread thread = Thread.currentThread();
     final ClassLoader previous = thread.getContextClassLoader();
     final ClassLoader own = SpringHttpResult.class.getClassLoader();
+    // Spring finds its own resources through the context class loader while closing
     thread.setContextClassLoader(own);
     // Spring silently skips closing if the caller's interrupt prevents taking its shutdown lock.
     final boolean interrupted = Thread.interrupted();
@@ -336,11 +293,6 @@ public final class SpringHttpResult implements HttpResult {
     }
   }
 
-  /**
-   * Registers a browser that connected to the audio socket.
-   *
-   * @param session the WebSocket session
-   */
   void addListener(final WebSocketSession session) {
     final boolean acceptingBefore = this.acceptingListeners;
     if (!acceptingBefore) {
@@ -377,11 +329,6 @@ public final class SpringHttpResult implements HttpResult {
     listener.closeAsync(CloseStatus.SESSION_NOT_RELIABLE);
   }
 
-  /**
-   * Forgets a browser that disconnected.
-   *
-   * @param session the WebSocket session
-   */
   void removeListener(final WebSocketSession session) {
     final String id = session.getId();
     final AudioListener listener = this.listeners.remove(id);
@@ -398,6 +345,7 @@ public final class SpringHttpResult implements HttpResult {
    * @param metadata the metadata of the original audio
    * @return always false, because the samples are only copied out and never changed
    * @throws NullPointerException if {@code samples} or {@code metadata} is null
+   * @since 1.0.0
    */
   @Override
   public boolean applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
@@ -433,17 +381,13 @@ public final class SpringHttpResult implements HttpResult {
    * Returns whether the embedded web server is running.
    *
    * @return true between a successful {@link #start()} and the next {@link #stop()}
+   * @since 1.0.0
    */
   @Override
   public boolean isRunning() {
     return this.context != null;
   }
 
-  /**
-   * Returns the port the server listens on, which differs from the configured port when that was 0.
-   *
-   * @return the bound port while running, otherwise the configured port
-   */
   @VisibleForTesting
   int getLocalPort() {
     final ConfigurableApplicationContext current = this.context;
@@ -456,32 +400,16 @@ public final class SpringHttpResult implements HttpResult {
     return this.port;
   }
 
-  /**
-   * Returns the address the server listens on.
-   *
-   * @return the address, or null for every network interface
-   */
   @VisibleForTesting
   @Nullable InetAddress getBindAddress() {
     return this.bindAddress;
   }
 
-  /**
-   * Returns the directory the web page is served from.
-   *
-   * @return the directory, or null for the copy bundled in the jar
-   */
   @VisibleForTesting
   @Nullable Path getDirectory() {
     return this.directory;
   }
 
-  /**
-   * Returns the listener of a WebSocket session. Visible for testing.
-   *
-   * @param id the id of the session
-   * @return the listener, or null if no browser of that session is connected
-   */
   @VisibleForTesting
   @Nullable AudioListener getListener(final String id) {
     return this.listeners.get(id);
@@ -491,6 +419,7 @@ public final class SpringHttpResult implements HttpResult {
    * Returns the number of browsers currently connected to the audio socket.
    *
    * @return the listener count, 0 while the server is stopped
+   * @since 1.0.0
    */
   @Override
   public int getListenerCount() {
@@ -503,6 +432,7 @@ public final class SpringHttpResult implements HttpResult {
    *
    * @param dump the output of yt-dlp
    * @throws NullPointerException if {@code dump} is null
+   * @since 1.0.0
    */
   @Override
   public void setCurrentMedia(final UrlParseDump dump) {
@@ -514,6 +444,7 @@ public final class SpringHttpResult implements HttpResult {
    * Shows information about the current media; browsers see it the next time they ask for {@code /media}.
    *
    * @param information the information, or null to show {@link MediaInformation#EMPTY}
+   * @since 1.0.0
    */
   @Override
   public void setCurrentMedia(final @Nullable MediaInformation information) {
@@ -524,6 +455,7 @@ public final class SpringHttpResult implements HttpResult {
    * Returns the information served at {@code /media}.
    *
    * @return the information, {@link MediaInformation#EMPTY} when nothing is playing
+   * @since 1.0.0
    */
   @Override
   public MediaInformation getCurrentMedia() {
@@ -534,6 +466,7 @@ public final class SpringHttpResult implements HttpResult {
    * Returns the address of the web page, built from the host name and the configured port.
    *
    * @return the URL, such as {@code http://play.example.com:8080/}
+   * @since 1.0.0
    */
   @Override
   public String getFullUrl() {
@@ -541,13 +474,6 @@ public final class SpringHttpResult implements HttpResult {
     return "http://%s:%s/".formatted(host, this.port);
   }
 
-  /**
-   * Returns the host part of a URL. A host name or IPv4 address is used as it is; an IPv6 address, the only host
-   * that contains a colon, is put in brackets, with the {@code %} of a zone id encoded as RFC 6874 requires.
-   *
-   * @param domain the host name or address
-   * @return the host as it appears in a URL
-   */
   @VisibleForTesting
   String urlHost(final String domain) {
     final boolean isIpv6 = domain.indexOf(IPV6_SEPARATOR) >= 0;
@@ -556,6 +482,7 @@ public final class SpringHttpResult implements HttpResult {
       return domain;
     }
 
+    // RFC 6874 encodes the percent sign of a zone id
     final String encoded = domain.replace(ZONE_SEPARATOR, ENCODED_ZONE_SEPARATOR);
     return "[%s]".formatted(encoded);
   }

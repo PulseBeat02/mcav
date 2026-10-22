@@ -34,9 +34,6 @@ import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link MediaInformation}.
- */
 final class MediaInformationTest {
 
   private static final String TITLE_KEY = "title";

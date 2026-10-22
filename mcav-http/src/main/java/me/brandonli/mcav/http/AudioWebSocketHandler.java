@@ -23,60 +23,28 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.BinaryWebSocketHandler;
 
-/**
- * Keeps track of the browsers connected to {@code /audio}. The browsers only receive; anything they send is
- * ignored.
- */
 final class AudioWebSocketHandler extends BinaryWebSocketHandler {
 
   private final SpringHttpResult result;
 
-  /**
-   * Creates a handler that registers the connected browsers as listeners of a server.
-   *
-   * @param result the server that sends the audio to the browsers
-   */
   AudioWebSocketHandler(final SpringHttpResult result) {
     this.result = result;
   }
 
-  /**
-   * Registers a browser that just connected as a listener, so it receives the samples from now on.
-   *
-   * @param session the WebSocket session of the browser
-   */
   @Override
   public void afterConnectionEstablished(final @NonNull WebSocketSession session) {
     this.result.addListener(session);
   }
 
-  /**
-   * Ignores text messages. The base class would close the connection instead, which contradicts the promise that
-   * anything a browser sends is ignored.
-   *
-   * @param session the WebSocket session
-   * @param message the ignored message
-   */
+  // ignores text messages, which the base class would answer by closing the connection
   @Override
   protected void handleTextMessage(final @NonNull WebSocketSession session, final @NonNull TextMessage message) {}
 
-  /**
-   * Forgets a browser that disconnected, so no more samples are queued for it.
-   *
-   * @param session the WebSocket session of the browser
-   * @param status  the reason the connection was closed
-   */
   @Override
   public void afterConnectionClosed(final @NonNull WebSocketSession session, final @NonNull CloseStatus status) {
     this.result.removeListener(session);
   }
 
-  /**
-   * Forgets a browser whose connection failed, so no more samples are queued for it.
-   *
-   * @param session   the WebSocket session of the browser
-   * @param exception the error of the connection
-   */
   @Override
   public void handleTransportError(final @NonNull WebSocketSession session, final @NonNull Throwable exception) {
     this.result.removeListener(session);

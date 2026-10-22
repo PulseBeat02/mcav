@@ -30,11 +30,15 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * The information about the current media that the web player shows: title, artist, thumbnail, and a few
  * statistics. Instances are immutable snapshots and can be shared across threads. Only these fields are sent
  * to browsers, not the complete yt-dlp output.
+ *
+ * @since 1.0.0
  */
 public final class MediaInformation {
 
   /**
    * Information for when nothing is playing.
+   *
+   * @since 1.0.0
    */
   public static final MediaInformation EMPTY = new MediaInformation(null, null, null, null, null, null, 0, 0, 0, null);
 
@@ -80,6 +84,7 @@ public final class MediaInformation {
    * @param dump the non-null output of yt-dlp; do not mutate it while this snapshot is taken
    * @return a new immutable snapshot, with missing text fields retained as null
    * @throws NullPointerException if {@code dump} is null
+   * @since 1.0.0
    */
   public static MediaInformation of(final UrlParseDump dump) {
     Preconditions.checkNotNull(dump, "Dump must not be null!");
@@ -116,6 +121,7 @@ public final class MediaInformation {
    * @param title the non-null title, retained verbatim; empty or blank strings are allowed
    * @return a new immutable snapshot with that title, unknown other text fields and zero statistics
    * @throws NullPointerException if {@code title} is null
+   * @since 1.0.0
    */
   public static MediaInformation titled(final String title) {
     Preconditions.checkNotNull(title, "Title must not be null!");
@@ -123,11 +129,6 @@ public final class MediaInformation {
     return new MediaInformation(title, null, null, null, null, null, 0, 0, 0, null);
   }
 
-  /**
-   * Converts the information into the JSON object the web player reads, with the field names of yt-dlp.
-   *
-   * @return the fields; unknown text fields are left out
-   */
   Map<String, Object> toJson() {
     final Map<String, Object> json = new LinkedHashMap<>();
     this.putIfPresent(json, "title", this.title);
@@ -153,6 +154,7 @@ public final class MediaInformation {
    * Returns the title.
    *
    * @return the title, or empty if unknown
+   * @since 1.0.0
    */
   public Optional<String> getTitle() {
     return Optional.ofNullable(this.title);

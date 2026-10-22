@@ -32,9 +32,6 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
-/**
- * Tests {@link AudioWebSocketHandler}.
- */
 final class AudioWebSocketHandlerTest {
 
   private static final String LOCALHOST = "localhost";

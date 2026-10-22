@@ -31,18 +31,6 @@ import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketSession;
 
-/**
- * One browser connected to the audio socket.
- *
- * <p>The audio thread only queues samples with {@link #offer(byte[])}; a virtual thread of the listener writes them
- * to the connection in order. A slow connection therefore never stalls the pipeline or the other listeners: when
- * more than the buffer limit is waiting, the oldest chunks are dropped, and a listener whose current write has been
- * blocked for longer than the send time limit is reported as unreliable so that it can be disconnected.
- *
- * <p>The writing thread waits for new samples without reacting to interrupts, because an interrupt in the middle of a
- * write would leave the connection in an unknown state. {@link #stop()} is therefore the only way to end it, and every
- * path that drops a listener calls it.
- */
 final class AudioListener {
 
   private static final String LISTENER_THREAD_PREFIX = "mcav-http-listener-";
@@ -62,14 +50,6 @@ final class AudioListener {
   private boolean sending;
   private boolean stopped;
 
-  /**
-   * Creates a listener. Call {@link #start()} to begin sending.
-   *
-   * @param session                   the WebSocket session of the browser
-   * @param sendTimeLimitMilliseconds how long one write may block before the listener counts as unreliable
-   * @param bufferLimitBytes          how many bytes may wait before the oldest chunks are dropped
-   * @param failureHandler            called on the sender thread when a write fails
-   */
   AudioListener(
     final WebSocketSession session,
     final long sendTimeLimitMilliseconds,
@@ -79,16 +59,6 @@ final class AudioListener {
     this(session, sendTimeLimitMilliseconds, bufferLimitBytes, failureHandler, System::nanoTime);
   }
 
-  /**
-   * Creates a listener that reads the time from the specified clock, so that a test can decide how long a write has
-   * been running. Visible for testing.
-   *
-   * @param session                   the WebSocket session of the browser
-   * @param sendTimeLimitMilliseconds how long one write may block before the listener counts as unreliable
-   * @param bufferLimitBytes          how many bytes may wait before the oldest chunks are dropped
-   * @param failureHandler            called on the sender thread when a write fails
-   * @param nanosecondClock           the clock the send time limit is measured with, in nanoseconds
-   */
   @VisibleForTesting
   AudioListener(
     final WebSocketSession session,
@@ -107,11 +77,6 @@ final class AudioListener {
     this.changed = this.lock.newCondition();
   }
 
-  /**
-   * Starts the virtual thread that writes the queued chunks. Call it once.
-   *
-   * @return the sender thread
-   */
   Thread start() {
     final String id = this.session.getId();
     final Thread.Builder.OfVirtual builder = Thread.ofVirtual();
@@ -119,10 +84,6 @@ final class AudioListener {
     return builder.start(this::sendPending);
   }
 
-  /**
-   * Stops sending and drops the queued chunks without closing the session, for example because the browser
-   * already disconnected. A write in progress is finished first.
-   */
   void stop() {
     this.lock.lock();
     try {
@@ -155,6 +116,7 @@ final class AudioListener {
     try {
       this.sending = false;
       while (this.pending.isEmpty() && !this.stopped) {
+        // interrupts are ignored: one in the middle of a write would leave the connection in an unknown state
         this.changed.awaitUninterruptibly();
       }
 
@@ -172,14 +134,6 @@ final class AudioListener {
     }
   }
 
-  /**
-   * Queues a chunk of samples without blocking. When more than the buffer limit is waiting afterwards, the oldest
-   * chunks are dropped, but the newest chunk is always kept.
-   *
-   * @param chunk the samples; the array must not be changed afterwards
-   * @return false if the listener is closed, stopped, or its current write is blocked for longer than the send
-   * time limit, in which case the chunk was not queued and the listener should be disconnected
-   */
   boolean offer(final byte[] chunk) {
     final boolean open = this.session.isOpen();
     if (!open) {
@@ -224,15 +178,10 @@ final class AudioListener {
     }
   }
 
-  /**
-   * Stops sending and closes the session on another thread, because closing waits for a blocked write.
-   *
-   * @param status the close status sent to the browser
-   * @return the thread that closes the session
-   */
   Thread closeAsync(final CloseStatus status) {
     this.stop();
 
+    // closing waits for a blocked write, so it runs on its own thread
     final String id = this.session.getId();
     final Thread.Builder.OfVirtual builder = Thread.ofVirtual();
     builder.name(CLOSING_THREAD_PREFIX + id);
@@ -247,20 +196,10 @@ final class AudioListener {
     }
   }
 
-  /**
-   * Returns the WebSocket session of the browser.
-   *
-   * @return the session
-   */
   WebSocketSession getSession() {
     return this.session;
   }
 
-  /**
-   * Returns the number of bytes waiting to be written, not counting a write in progress.
-   *
-   * @return the queued byte count
-   */
   @VisibleForTesting
   int getPendingBytes() {
     this.lock.lock();
@@ -271,11 +210,6 @@ final class AudioListener {
     }
   }
 
-  /**
-   * Returns the number of chunks waiting to be written, not counting a write in progress.
-   *
-   * @return the queued chunk count
-   */
   @VisibleForTesting
   int getPendingChunkCount() {
     this.lock.lock();
