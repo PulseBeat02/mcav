@@ -14,8 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Independent MCV2 v3 format, serializer, decoder and six-bit transport."""
-
 import struct
 import zlib
 from collections.abc import Mapping, Sequence
@@ -127,10 +125,9 @@ LENGTH_LIMIT_MESSAGE: str = "The frame exceeds the length limit!"
 
 
 
+# a leaf carries its record, a SPLIT four children in quadrant order
 @dataclass(frozen=True)
 class Node:
-    """A leaf with its record, or a SPLIT with four children in quadrant order."""
-
     mode: int
     quantizer: int = 0
     record: bytes = b""
@@ -185,8 +182,6 @@ class Page:
 
 
 class MapCharge(Enum):
-    """How wire_bytes charges the map colours of a page: rounded up to whole 128-colour rows, or as a full map."""
-
     ROWS = auto()
     FULL_MAPS = auto()
 
@@ -201,8 +196,8 @@ class _FrameIndex:
     payload: int
 
 
+# exactly the syntax of spec section 9; anything else raises ValueError
 def parse_frame(data: bytes) -> Frame:
-    """Accept exactly spec section 9 syntax; check each field extent before reading it, or raise ValueError."""
     width, height, frame_id, reference_id = _read_header(data)
     keyframe: bool = frame_id == reference_id
     root_count: int = _root_count(width, height)
@@ -488,7 +483,6 @@ def _build_roots(
 
 
 def pack_frame(width: int, height: int, frame_id: int, reference_id: int, roots: Mapping[int, Node]) -> bytes:
-    """Serialize a tree canonically. Absent roots stay absent; a frame is a keyframe when its ids are equal."""
     _require(_is_dimension_valid(width) and _is_dimension_valid(height), INVALID_DIMENSIONS_MESSAGE)
     _require(_is_id_valid(frame_id) and _is_id_valid(reference_id), "The frame and reference ids must be u32!")
 
@@ -598,10 +592,6 @@ def _pack_words(words: Sequence[int]) -> bytes:
 def decode(
     data: bytes, reference: numpy.ndarray | None = None, reference_id: int | None = None
 ) -> numpy.ndarray:
-    """Validate and decode into a new height x width x 3 uint8 RGB picture.
-
-    A P frame requires its matching reference shape, uint8 dtype and id. Invalid syntax or reference raises ValueError.
-    """
     frame: Frame = parse_frame(data)
     return _decode(frame, reference, reference_id)
 
@@ -736,8 +726,6 @@ def _draw_block(picture: numpy.ndarray, leaf: Leaf, block: numpy.ndarray) -> Non
 
 
 class Decoder:
-    """Keep the last committed picture on every error; accept only newer u32 ids."""
-
     def __init__(self) -> None:
         self.reference: numpy.ndarray | None = None
         self.frame_id: int | None = None
@@ -811,8 +799,8 @@ def _make_page(frame_data: bytes, frame: Frame, stream_id: int, number: int) -> 
     return to_symbols(page)
 
 
+# map colours are these symbols plus four
 def to_symbols(data: bytes, symbol_bits: int = SYMBOL_BITS) -> bytes:
-    """Return exact, unpadded map symbol bytes (map colours are these values plus four)."""
     _check_symbol_bits(symbol_bits)
     packed: numpy.ndarray = numpy.frombuffer(data, numpy.uint8)
     bits: Any = numpy.unpackbits(packed, bitorder=BIT_ORDER)
@@ -885,7 +873,6 @@ def _page_crc(raw: bytes) -> int:
 
 
 def wire_bytes(pages: list[bytes], charge: MapCharge = MapCharge.ROWS, packet_overhead: int = PACKET_OVERHEAD) -> int:
-    """Charge each page's map colour bytes as charge says, plus each page's packet allowance."""
     return sum(_map_bytes(page, charge) + packet_overhead for page in pages)
 
 
@@ -898,8 +885,6 @@ def _map_bytes(page: bytes, charge: MapCharge) -> int:
 
 
 class Assembler:
-    """Keep at most four pending frames; identical duplicates are safe, a conflict discards that pending frame."""
-
     def __init__(self, stream_id: int = DEFAULT_STREAM_ID, symbol_bits: int = SYMBOL_BITS) -> None:
         _check_symbol_bits(symbol_bits)
         self.stream_id: int = stream_id

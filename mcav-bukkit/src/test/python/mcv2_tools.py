@@ -14,8 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""MCV2 measurements, fixture generation, shader checks and documentation figures."""
-
 import argparse
 import hashlib
 import json
@@ -890,11 +888,6 @@ def codec_curves_sha256(path: Any) -> str:
 
 
 def codec_curves_resume(out: str, name: str, identity: dict[str, Any] | dict[Any, Any]) -> Any | dict[Any, Any]:
-    """The measurements already in the output, with the identity of this run's source recorded under its name.
-
-    The curves are kept under "codecs", as in mcav-bukkit/src/test/resources/mcv2/data/codec_curves.json; the first runs wrote them under "points",
-    which is read too. A name whose recorded source is other content is refused: its points would mix with this run's.
-    """
     measured: Any | dict[Any, Any] = json.loads(Path(out).read_text()) if os.path.exists(out) else {SOURCES_KEY: {}, CODECS_KEY: []}
     if LEGACY_CODECS_KEY in measured:
         if CODECS_KEY in measured:
@@ -1901,8 +1894,8 @@ def differential_mutant(original: list[bytes], randomizer: random.Random) -> lis
     return [bytes(frame) for frame in mutated]
 
 
+# only ValueError is a rejection: any other exception must fail the comparison
 def differential_reference_tokens(chunks: list[bytes]) -> list[str]:
-    """Only ValueError is a rejection; unexpected reference exceptions must fail the comparison."""
     decoder, tokens = (Decoder(), [])
     for frame in chunks:
         try:
@@ -2235,9 +2228,8 @@ class ShaderChain:
             self.arrays[id(program)] = self.context.vertex_array(program, [])
         self.arrays[id(program)].render(mode=self.context.TRIANGLES, vertices=TRIANGLE_VERTICES)
 
+    # Minecraft's outline passes (sobel, box blurs) only touch its outline target and are left out
     def steps(self) -> list[tuple[str, Any, dict[Any, Any], Any]]:
-        """The passes this harness runs, in order: (name, program, inputs, output). Minecraft's own outline passes
-        (sobel, box blurs) only touch its outline target and are left out."""
         steps: list[tuple[str, Any, dict[Any, Any], Any]] = []
         for step in self.passes:
             shader: Any = step["fragment_shader"]
@@ -2376,9 +2368,8 @@ def shader_check_post_chain(width: Any, height: Any, slots: Any) -> dict[Any, An
     return {TARGETS_KEY: targets, PASSES_KEY: template["decode"] + template["draw"] + template["tail"]}
 
 
+# Minecraft 26.3 compiles the pack for Vulkan, whose vertex index is gl_VertexIndex
 def shader_check_desktop(source: str) -> str:
-    """The pack's GLSL for a desktop OpenGL 3.3 compiler: Minecraft 26.3 compiles it for Vulkan, whose vertex index is
-    gl_VertexIndex."""
     return source.replace("gl_VertexIndex", "gl_VertexID")
 
 
@@ -2435,9 +2426,8 @@ def shader_check_compile_via_spirv(includes: Any, classpath: Any) -> Path:
     return work / COMPILED_SHADERS_NAME
 
 
+# a restarted keyframe may move the id backwards, a P frame may not
 def shader_check_check_restart(context: "moderngl.Context", slots: Any, classpath: str | None = None) -> int:
-    """Known pictures and decisions: a restarted keyframe can move backwards, P frames cannot."""
-
     chain: ShaderChain = ShaderChain(context, SUPERBLOCK_SIZE, SUPERBLOCK_SIZE, slots)
     if classpath:
         chain.compiled = shader_check_compile_via_spirv(chain.includes, classpath)
@@ -2572,9 +2562,8 @@ class TimedShaderChain(ShaderChain):
             viewport=(0, row, shader_check_screen[0], 1),
         )
 
+    # untimed load, so the timed chain does not start at an idle GPU clock
     def warm(self) -> None:
-        """Keeps the GPU busy for a few milliseconds, untimed, as a client drawing its world would: after the harness's
-        own uploads and read-backs the GPU would otherwise start the chain at an idle clock."""
         for _ in range(SHADER_TIMING_WARM_UP_FRAMES):
             self.draw(self.blit, {"In": self.main}, "mcav:mcv2_screen")
 
@@ -2628,8 +2617,8 @@ def shader_timing_descriptor_row(width: int) -> numpy.ndarray:
     return row
 
 
+# column-major, like GLSL's mat4 constructor
 def shader_timing_perspective(field_of_view_y: float, aspect: float, near: float, far: float) -> numpy.ndarray:
-    """An OpenGL projection matrix, column-major like GLSL's mat4 constructor order."""
     focal_length: Any = 1.0 / numpy.tan(numpy.radians(field_of_view_y) / 2)
     matrix: numpy.ndarray = numpy.zeros((4, 4), numpy.float32)
     matrix[0, 0] = focal_length / aspect
@@ -2945,10 +2934,10 @@ def strip_fit_check_strip_rows(width: int) -> int:
     return STRIP_FIT_CHECK_SLOTS * ((PAGE_PIXELS + width - 1) // width) + 1
 
 
+# one random scene for every size, so strip coverage compares exactly
 def strip_fit_check_frame(
     context: "moderngl.Context", screen: tuple[int, int], spirv: str | None = None, screen_index: int = 0
 ) -> tuple[numpy.ndarray | Any, numpy.ndarray, bool]:
-    """Use the same random scene for every size, so strip coverage can be compared exactly."""
     global shader_check_screen, shader_check_screen_index, shader_check_first_slot
     shader_check_screen = screen
     shader_check_screen_index = screen_index
@@ -3106,9 +3095,8 @@ def counter_video_read(luma: list[int] | Any) -> Any | int | None:
     return sum(bit << position for position, bit in enumerate(bits[:COUNTER_VIDEO_BITS]))
 
 
+# one frame at a time: a 10-minute capture is 2.6 GB of pixels
 def latency_captures(path: Any) -> list[tuple[float, Any]]:
-    """(wall-clock ms, number or None) for every captured frame, decoded one frame at a time: a 10-minute capture is
-    2.6 GB of pixels."""
     probe: str = subprocess.run(
         [
             FFPROBE_COMMAND,

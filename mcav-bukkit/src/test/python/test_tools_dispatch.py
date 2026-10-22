@@ -72,7 +72,6 @@ class HelpCommandTest(unittest.TestCase):
 
                 self.assertIn(f"usage: {PROGRAM} {command} ", usage)
                 self.assertIn("Exit 1", usage)
-                self.assertNotIn(mcv2_tools.__doc__, usage)
 
     def run_help(self, command: str) -> tuple[str | int | None, str]:
         output: StringIO = StringIO()
