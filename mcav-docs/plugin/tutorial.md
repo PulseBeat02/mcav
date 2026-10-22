@@ -5,21 +5,22 @@ plugin up.
 
 ---
 
-**Step 1: Install the Plugin**
+## Step 1: Install the plugin
 
-If you haven't already, follow the installation instructions in the [Installation Guide](./plugin.md#installing-the-plugin) to
-install the MCAV plugin on your Minecraft server. Make sure you are using a compatible version of Paper (26.3).
-
+If you haven't already, follow the installation instructions in the [Installation
+Guide](./plugin.md#installing-the-plugin) to install the MCAV plugin on your Minecraft server. Make sure you are using a
+compatible version of Paper (26.3).
 
 ---
 
-**Step 2: Configure the Plugin**
+## Step 2: Configure the plugin
 
 Run the plugin once to generate the default configuration files. You can find the main configuration file in
 `plugins/MCAV/config.yml`. Open this file in your favorite text editor and adjust the settings as needed. If you would
 like audio support for videos, follow one or both of the ways to set up audio:
 
-**Option 1**: HTTP Audio Streaming
+### Option 1: HTTP audio streaming
+
 1) Port-forward another port besides your current Minecraft server port.
 2) Go into the `config.yml` and set the `port` under the `http-server` section to the port you just forwarded. Make sure
 to set the `host-name` to your public IP address or domain if the server is open to the internet.
@@ -28,7 +29,8 @@ to set the `host-name` to your public IP address or domain if the server is open
 5) The web server starts in the background. Once it is listening, the console prints
 `The audio web page is available at <link>`; open that link in a browser to check it.
 
-**Option 2**: Discord Audio Streaming
+### Option 2: Discord audio streaming
+
 1) Create a new Discord application [here](https://discord.com/developers/applications/).
 2) Open the `Installation` tab in your new application. Uncheck the `User Install` option, and set the `Install Link`
 dropdown menu to `None`.
@@ -44,7 +46,8 @@ Paste that ID into the `channel-id` field under the `discord-bot` section in you
 8) Set the `enabled` option under `discord-bot` to `true`.
 9) Restart your server to apply the changes.
 
-**Option 3**: Simple Voice Chat
+### Option 3: Simple Voice Chat
+
 1) Install the [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) plugin on your server. Make sure that
 it's the correct version for your Minecraft server; version 2.6.24 supports Minecraft 26.3.
 2) Open the `config.yml` file, and set the `enabled` option under the `simple-voice-chat` section to `true`.
@@ -57,19 +60,19 @@ simple-voice-chat.enabled to false in config.yml)`, and disables itself. Fix eit
 
 ---
 
-**Step 3: Profit**
+## Step 3: Profit
 
 Now that you have configured the plugin, you can start using it to play videos in your Minecraft server!
 
-## Usage Instructions
+## Usage instructions
 
-The sandbox plugin provides many features. Refer to the [Commands Guide](./commands.md) for a complete list of all
-their commands and proper usage. The following guide below will help you get started with the most common commands.
+The sandbox plugin provides many features. Refer to the [Commands Guide](./commands.md) for a complete list of the
+commands and their usage. The guide below helps you get started with the most common commands.
 
 First, run the `/mcav screen` command with arguments to create a new map screen. For example, running
-`/mcav screen 5x5 0 OAK_PLANKS ~ ~ ~` will create a 5x5 screen at your current location with oak planks as the frame.
+`/mcav screen 5x5 0 OAK_PLANKS ~ ~ ~` creates a 5x5 screen at your current location with oak planks as the frame.
 
-### If you would like to play a video, here are the steps to take:
+### Playing a video
 1) If you would like to play a video on the screen you just created, run the `/mcav video map` command. Otherwise, you
 can use other commands like `/mcav video block`.
 2) Set the audio type to whatever audio you configured in Step 2 (HTTP, Discord, or Simple Voice Chat).
@@ -94,25 +97,27 @@ server; when the player drops most frames of ten seconds of video for coming too
 `Playback falls behind`. The playing message reports player state; it does not guarantee frames are arriving, and a
 static image can also produce no map updates, so packet silence alone does not identify a decoder failure.
 
-### If you would like to create a browser, here are the steps to take:
+### Creating a browser
 1) Use the `/mcav browser create` command to create a new browser on that screen. Browsers can only be created on maps.
-For example, running `/mcav browser create @a 640x640 1 5x5 0 FILTER_LITE HTTP_SERVER https://www.google.com` will
-create a new browser that all players can see on the 5x5 screen you just created with a resolution of 640x640 pixels,
-streams every changed browser frame with Filter Lite dithering, and plays the sound of the page on the audio web page.
-The frame-skip value of `1` keeps every frame; it does not set a one-second interval. Choose `NONE` as the audio type
-for a silent page. The first browser on a server downloads Chromium once (about 136 to 163 MiB), and on Linux the libraries
-it needs that the server lacks (about 13 MB), so it takes a moment longer to start; nothing has to be installed.
-As in a desktop browser, a page plays sound only after a player clicked its screen or typed into it; turn on
-`browser.autoplay-sound` in the [configuration](./config) to let pages play sound right away.
-2) If you want to interact with the browser, you can use the `/mcav browser interact` command, which will take all your
-chat input and send it to the browser as if you were typing in a real web browser. For special keys like enter, type the
-key in "Enter" to simulate pressing the enter key. Left and right-clicking on the browser will simulate mouse
-clicks, for every player with the permission `mcav.browser.interact`. For more information on possible keys, see the `KeyboardEvent.key` column [here](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values).
+   For example, running `/mcav browser create @a 640x640 1 5x5 0 FILTER_LITE HTTP_SERVER https://www.google.com` creates
+   a new browser that all players can see on the 5x5 screen you just created with a resolution of 640x640 pixels,
+   streams every changed browser frame with Filter Lite dithering, and plays the sound of the page on the audio web
+   page. The frame-skip value of `1` keeps every frame; it does not set a one-second interval. Choose `NONE` as the
+   audio type for a silent page. The first browser on a server downloads Chromium once (about 136 to 163 MiB), and on
+   Linux the libraries it needs that the server lacks (about 13 MB), so it takes a moment longer to start; nothing has
+   to be installed. As in a desktop browser, a page plays sound only after a player clicked its screen or typed into it;
+   turn on `browser.autoplay-sound` in the [configuration](./config) to let pages play sound right away.
+2) If you want to interact with the browser, you can use the `/mcav browser interact` command, which takes all your
+   chat input and send it to the browser as if you were typing in a real web browser. For special keys like enter, type
+   the key in "Enter" to simulate pressing the enter key. A left or right click on the browser simulates a mouse
+   click, for every player with the permission `mcav.browser.interact`. For more information on possible keys, see the
+   `KeyboardEvent.key` column
+   [here](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values).
 3) Once you're done with the browser, you can close it by running the `/mcav browser release` command.
 
 [Web Browsers](browser.md) has the details: the first-start download, sound, and what a page may reach.
 
-### If you would like to stream OBS output, here are the steps to take:
+### Streaming OBS output
 1) Follow all the steps to play a video. The only difference is that you must set the player to be `FFMPEG` instead of
 `VLC`.
 2) Set the `mrl` to be `dshow||video=OBS Virtual Camera` on Windows. For other operating systems, please refer to the
@@ -122,7 +127,7 @@ cameras, microphones and screen, so it needs the permission `mcav.command.video.
 3) Alternatively, run `/mcav video devices` to list the cameras and capture cards of the server, and play one with the
 `DEVICE` player and its number as the `mrl`.
 
-### If you would like to create a virtual machine, here are the steps to take:
+### Creating a virtual machine
 1) Use the `/mcav vm create` command to create a new virtual machine on that screen. Virtual machines can only be
 created on maps.
 2) Follow the command argument usage in the [Commands Guide](./commands) to specify the VM parameters. You are
@@ -139,7 +144,7 @@ option for it; machines of other architectures are silent and must choose `NONE`
 purpose, so that it plays with the picture of QEMU's display. [Virtual Machines](vm.md) lists the options QEMU accepts
 and where disk images go.
 
-### If you would like a sharper picture with MCV2, here are the steps to take:
+### Getting a sharper picture with MCV2
 1) Build the wall with `/mcav screen` as usual; MCV2 finds the wall by the item frame that holds its top-left map.
 2) Add `--codec mcv2` at the end of `/mcav video map`, `/mcav image map`, `/mcav browser create`, `/mcav vnc create`
 or `/mcav vm create`, for example
@@ -153,19 +158,20 @@ starts. Iris shader packs keep the MCV2 picture from showing on their own: playe
 [the MCV2 client mod](../mcv2.md#the-client-mod-for-iris-shader-players), which decodes MCV2 under shader packs
 with Iris 1.11.7, and with other Iris versions shows them the dithered maps while the shaders are on.
 4) If players join through a proxy such as Velocity or BungeeCord, the pack cannot be served on the Minecraft port: set
-`mcv2.pack.hosting` to `http` (and open `mcv2.pack.http-port`) or to `website` in the MCV2 part of the [configuration file](./config.md).
+   `mcv2.pack.hosting` to `http` (and open `mcv2.pack.http-port`) or to `website` in the MCV2 part of the [configuration
+   file](./config.md).
 5) MCV2 encodes on the server's CPU, on the threads of `mcv2.encoder-threads`, which every MCV2 screen shares. When a
 screen asks for more than they can give, it steps down to a faster encoder, a smaller video or fewer frames, and tells
 you. A video file you show often can be encoded ahead of time at the best quality with `/mcav mcv2 encode` and shown
 with `/mcav mcv2 play` (without sound). [MCV2 on Maps](../bukkit/mcv2.md) helps you choose a preset, host the pack and
 troubleshoot.
 
-### If you would like to show a VNC desktop, here are the steps to take:
+### Showing a VNC desktop
 1) List the VNC server in `vnc.allowed-hosts` of the [configuration file](./config.md), with its password if it has one,
 and restart the server. Nothing can be reached until you do.
 2) Run `/mcav vnc create @a 1280x720 20 10x6 0 NEAREST_COLOR 127.0.0.1:5901`, naming the server exactly as listed.
 3) Players click the screen to click the desktop; `/mcav vnc interact` types their chat into it. `/mcav vnc release`
 disconnects. See [VNC Desktops](vnc.md).
 
-You are not limited by any of these commands! You can combine them in any way you like to create whatever you want on your
-server!
+You are not limited by any of these commands! You can combine them in any way you like to create whatever you want on
+your server!
