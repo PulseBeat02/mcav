@@ -529,6 +529,18 @@ class DelayedAudioOutputTest {
   }
 
   @Test
+  void shouldSleepUntilTheNextChunkIsDueWhileNotQuiet() throws InterruptedException {
+    final AtomicLong now = new AtomicLong();
+    final AtomicInteger reads = new AtomicInteger();
+    final DelayedAudioOutput waiting = this.quietOutput(() -> this.countClockRead(reads, now), SILENCE_LIMIT_MILLISECONDS);
+    waiting.accept(new byte[SOUND_CHUNK_BYTES], SOUND_CHUNK_BYTES);
+    Thread.sleep(3L * DELAY_MILLISECONDS);
+
+    final int readCount = reads.get();
+    assertTrue(readCount < 20, "the delivery thread sleeps until the chunk is due instead of polling the clock");
+  }
+
+  @Test
   void shouldEndTheSilenceForGoodOnceTheSoundAfterItHasPlayed() {
     final AtomicLong now = new AtomicLong();
     final DelayedAudioOutput quiet = this.quietOutput(now, LONG_SILENCE_LIMIT_MILLISECONDS);
