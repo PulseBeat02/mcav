@@ -633,11 +633,14 @@ final class AudioResamplerTest {
 
   @Test
   void shouldCloseTheResamplerWhenTheAllocationFailed() {
-    final AudioResampler resampler = AudioResampler.fromPipelineFormat(SPEECH_RATE, 1, SampleFormat.SIGNED_16_BIT);
-    final IllegalStateException exception = assertThrows(IllegalStateException.class, () -> resampler.initialize(EINVAL));
+    final SampleFormat format = SampleFormat.SIGNED_16_BIT;
+    final int negativeRate = -1;
+    final AudioResampler resampler = new AudioResampler(SPEECH_RATE, 1, format, negativeRate, 1, format);
+    final IllegalStateException exception = assertThrows(IllegalStateException.class, resampler::configure);
     final String message = exception.getMessage();
     final boolean closed = resampler.isClosed();
+    final boolean reported = message.endsWith("occurred while trying to allocate the resampler!");
     assertTrue(closed);
-    assertEquals("FFmpeg error -22 (Invalid argument) occurred while trying to allocate the resampler!", message);
+    assertTrue(reported, message);
   }
 }

@@ -91,7 +91,9 @@ public final class AudioResampler implements AutoCloseable {
   private final SwrContext context;
   private boolean closed;
 
-  private AudioResampler(
+  // Package-private so a test can pass a sample rate that create refuses, see configure.
+  @VisibleForTesting
+  AudioResampler(
     final int inputSampleRate,
     final int inputChannels,
     final SampleFormat inputFormat,
@@ -155,8 +157,7 @@ public final class AudioResampler implements AutoCloseable {
       outputChannels,
       outputFormat
     );
-    final int allocation = resampler.allocate();
-    resampler.initialize(allocation);
+    resampler.configure();
     return resampler;
   }
 
@@ -193,11 +194,13 @@ public final class AudioResampler implements AutoCloseable {
     Preconditions.checkArgument(inRange, "%s channel count %s must be between 1 and %s!", side, channels, MAXIMUM_CHANNELS);
   }
 
-  private int allocate() {
+  // Package-private so a test can make the allocation fail, which kills the mutant that skips its check.
+  @VisibleForTesting
+  void configure() {
     final Pointer noLoggingContext = new Pointer();
     final int outputFfmpegFormat = this.outputFormat.getFfmpegFormat();
     final int inputFfmpegFormat = this.inputFormat.getFfmpegFormat();
-    return swresample.swr_alloc_set_opts2(
+    final int allocation = swresample.swr_alloc_set_opts2(
       this.context,
       this.outputLayout,
       outputFfmpegFormat,
@@ -208,11 +211,6 @@ public final class AudioResampler implements AutoCloseable {
       0,
       noLoggingContext
     );
-  }
-
-  // Takes the result of allocate, so a test can pass a failed allocation, which kills the mutant that skips its check.
-  @VisibleForTesting
-  void initialize(final int allocation) {
     this.closeOnFailure(allocation, "allocate the resampler");
 
     final int initialization = swresample.swr_init(this.context);
