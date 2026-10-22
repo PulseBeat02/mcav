@@ -568,6 +568,11 @@ const drawWaveform = (canvas: HTMLCanvasElement, context: CanvasRenderingContext
     context.stroke();
 };
 
+/**
+ * Plays the server's live audio stream with the media's information, a volume control and a waveform visualizer.
+ *
+ * @returns the player page
+ */
 const AudioStreamPlayer = (): React.JSX.Element => {
     const [statusText, setStatusText] = useState<string>(DISCONNECTED_STATUS);
     const [statusConnected, setStatusConnected] = useState<boolean>(false);

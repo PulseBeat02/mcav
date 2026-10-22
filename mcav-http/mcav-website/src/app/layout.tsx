@@ -22,6 +22,12 @@ type RootLayoutProperties = {
     children: React.ReactNode;
 };
 
+/**
+ * Wraps every page of the website in the document's html and body elements.
+ *
+ * @param properties the layout properties, whose children are the page to wrap
+ * @returns the document that holds the page
+ */
 const RootLayout = ({children}: RootLayoutProperties): React.JSX.Element => {
     return (
         <html lang="en">
