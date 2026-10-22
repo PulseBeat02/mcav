@@ -334,8 +334,15 @@ public final class CommandTask {
   }
 
   private static long remainingNanoseconds(final Duration timeout, final long startNanoseconds) throws TimeoutException {
+    final long now = System.nanoTime();
+    return remainingNanoseconds(timeout, startNanoseconds, now);
+  }
+
+  // Takes the current time, so a test can reach the deadline to the nanosecond, which kills the mutant that lets it pass.
+  @VisibleForTesting
+  static long remainingNanoseconds(final Duration timeout, final long startNanoseconds, final long now) throws TimeoutException {
     final long budget = TimeUnit.NANOSECONDS.convert(timeout);
-    final long elapsed = System.nanoTime() - startNanoseconds;
+    final long elapsed = now - startNanoseconds;
     final long remaining = budget - elapsed;
     if (remaining <= 0) {
       throw new TimeoutException("The command and output deadline expired!");
