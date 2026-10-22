@@ -19,7 +19,9 @@ package me.brandonli.mcav.media.image;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.awt.color.ColorSpace;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
 import java.awt.image.DataBufferInt;
@@ -317,10 +319,10 @@ public final class MatImageBuffer implements ImageBuffer {
 
   private static void writeBufferedImage(final Mat target, final BufferedImage image, final IntFunction<byte[]> scratchFactory) {
     final int type = image.getType();
-    final boolean packed = isPacked(image);
+    final boolean copyable = isPacked(image) && isSrgb(image);
     final WritableRaster raster = image.getRaster();
     final DataBuffer dataBuffer = raster.getDataBuffer();
-    if (packed && type == BufferedImage.TYPE_3BYTE_BGR) {
+    if (copyable && type == BufferedImage.TYPE_3BYTE_BGR) {
       final DataBufferByte byteBuffer = (DataBufferByte) dataBuffer;
       final byte[] pixels = byteBuffer.getData();
       final ByteBuffer bytes = target.createBuffer();
@@ -329,7 +331,7 @@ public final class MatImageBuffer implements ImageBuffer {
     }
 
     final boolean intType = type == BufferedImage.TYPE_INT_RGB || type == BufferedImage.TYPE_INT_ARGB;
-    if (packed && intType) {
+    if (copyable && intType) {
       final DataBufferInt intBuffer = (DataBufferInt) dataBuffer;
       final int[] pixels = intBuffer.getData();
       final byte[] bytes = scratchFactory.apply(pixels.length * CHANNELS);
@@ -381,6 +383,13 @@ public final class MatImageBuffer implements ImageBuffer {
     }
 
     return false;
+  }
+
+  // A linear RGB image reports the same types as an sRGB one, but its samples need the conversion of getRGB.
+  private static boolean isSrgb(final BufferedImage image) {
+    final ColorModel colorModel = image.getColorModel();
+    final ColorSpace colorSpace = colorModel.getColorSpace();
+    return colorSpace.isCS_sRGB();
   }
 
   // Returns the byte array this image converts pixels with, growing it when it is too small, so repeated conversions of
