@@ -144,17 +144,17 @@ final class GameMatricesTest {
     }
 
     @Override
-    public void writeExternal(final ObjectOutput out) throws IOException {
+    public void writeExternal(final ObjectOutput output) throws IOException {
       if (this.count < 0) {
         throw new IOException("Writing the floats failed!");
       }
       for (int index = 0; index < this.count; index++) {
-        out.writeFloat(index);
+        output.writeFloat(index);
       }
     }
 
     @Override
-    public void readExternal(final ObjectInput in) {
+    public void readExternal(final ObjectInput input) {
       throw new UnsupportedOperationException();
     }
   }

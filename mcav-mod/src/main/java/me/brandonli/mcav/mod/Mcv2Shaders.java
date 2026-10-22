@@ -169,8 +169,8 @@ public final class Mcv2Shaders {
   }
 
   static Optional<String> read(final Resource resource) {
-    try (InputStream in = resource.open()) {
-      return Optional.of(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+    try (final InputStream input = resource.open()) {
+      return Optional.of(new String(input.readAllBytes(), StandardCharsets.UTF_8));
     } catch (final IOException exception) {
       return Optional.empty();
     }

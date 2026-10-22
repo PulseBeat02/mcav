@@ -169,11 +169,11 @@ final class TransportStrip {
 
   /** A column-major 4x4 matrix times a vector, the first three components. */
   static float[] transform(final float[] matrix, final float vectorX, final float vectorY, final float vectorZ, final float vectorW) {
-    final float[] out = new float[3];
+    final float[] transformed = new float[3];
     for (int row = 0; row < 3; row++) {
-      out[row] = matrix[row] * vectorX + matrix[4 + row] * vectorY + matrix[8 + row] * vectorZ + matrix[12 + row] * vectorW;
+      transformed[row] = matrix[row] * vectorX + matrix[4 + row] * vectorY + matrix[8 + row] * vectorZ + matrix[12 + row] * vectorW;
     }
-    return out;
+    return transformed;
   }
 
   private static void put(final byte[] strip, final int pixel, final int red, final int green, final int blue) {

@@ -176,11 +176,11 @@ final class TransportStripTest {
   }
 
   private static float[] times(final float[] matrix, final float vectorX, final float vectorY, final float vectorZ, final float vectorW) {
-    final float[] out = new float[3];
+    final float[] transformed = new float[3];
     for (int row = 0; row < 3; row++) {
-      out[row] = matrix[row] * vectorX + matrix[4 + row] * vectorY + matrix[8 + row] * vectorZ + matrix[12 + row] * vectorW;
+      transformed[row] = matrix[row] * vectorX + matrix[4 + row] * vectorY + matrix[8 + row] * vectorZ + matrix[12 + row] * vectorW;
     }
-    return out;
+    return transformed;
   }
 
   /** The 28 floats of a descriptor row: each in two pixels, the three low bytes in the first, the high byte next. */

@@ -38,11 +38,11 @@ final class PackLayout {
   static final int NO_SCREEN = -1;
 
   /** What the server generates: 1 to 8 screens of 1 to 8 page slots each, in consecutive runs. */
-  private static final int MAX_SCREENS = 8;
+  private static final int MAXIMUM_SCREENS = 8;
 
-  private static final int MAX_SLOTS = 8;
+  private static final int MAXIMUM_SLOTS = 8;
 
-  private static final long MAX_STREAM = 0xFFFF_FFFFL;
+  private static final long MAXIMUM_STREAM = 0xFFFF_FFFFL;
 
   private static final Pattern SCREENS = Pattern.compile("const int MCV2_SCREENS = (\\d{1,2});");
 
@@ -78,12 +78,12 @@ final class PackLayout {
       return Optional.empty();
     }
     final int count = Integer.parseInt(Objects.requireNonNull(screens.group(1)));
-    if (count < 1 || count > MAX_SCREENS) {
+    if (count < 1 || count > MAXIMUM_SCREENS) {
       return Optional.empty();
     }
-    final Optional<long[]> streams = numbers(packConstants, STREAMS, count, UNSIGNED, MAX_STREAM);
-    final Optional<long[]> slots = numbers(packConstants, SLOTS, count, SIGNED, MAX_SLOTS);
-    final Optional<long[]> firstSlots = numbers(packConstants, FIRST_SLOTS, count, SIGNED, MAX_SCREENS * MAX_SLOTS);
+    final Optional<long[]> streams = numbers(packConstants, STREAMS, count, UNSIGNED, MAXIMUM_STREAM);
+    final Optional<long[]> slots = numbers(packConstants, SLOTS, count, SIGNED, MAXIMUM_SLOTS);
+    final Optional<long[]> firstSlots = numbers(packConstants, FIRST_SLOTS, count, SIGNED, MAXIMUM_SCREENS * MAXIMUM_SLOTS);
     if (streams.isEmpty() || slots.isEmpty() || firstSlots.isEmpty()) {
       return Optional.empty();
     }
