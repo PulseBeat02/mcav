@@ -110,21 +110,21 @@ struct random_generator {
   }
   vector<int32_t> integers(const size_t count, const int32_t low, const int32_t high) {
     vector<int32_t> values(count);
-    for (auto& value : values) {
+    for (int32_t& value : values) {
       value = range(low, high);
     }
     return values;
   }
   vector<int8_t> bytes(const size_t count) {
     vector<int8_t> values(count);
-    for (auto& value : values) {
+    for (int8_t& value : values) {
       value = (int8_t)next();
     }
     return values;
   }
   vector<uint8_t> unsigned_bytes(const size_t count) {
     vector<uint8_t> values(count);
-    for (auto& value : values) {
+    for (uint8_t& value : values) {
       value = (uint8_t)next();
     }
     return values;
@@ -132,7 +132,7 @@ struct random_generator {
 
   vector<float> floats(const size_t count) {
     vector<float> values(count);
-    for (auto& value : values) {
+    for (float& value : values) {
       switch (range(0, 15)) {
       case 0:
         value = -0.0f;
@@ -243,7 +243,7 @@ void run(const vector<level_kernels>& levels, const int trials) {
           const int32_t spread = inputs.range(0, 1) ? 8 : 255;
           vector<int32_t> block = inputs.integers(channels, low, low + spread > 255 ? 255 : low + spread);
           if (inputs.range(0, 7) == 0) {
-            for (auto& value : block) {
+            for (int32_t& value : block) {
               value = (int32_t)inputs.next();
             }
           }
@@ -267,7 +267,7 @@ void run(const vector<level_kernels>& levels, const int trials) {
           const int32_t height = inputs.range(1, 90);
           const vector<uint8_t> reference = inputs.unsigned_bytes((size_t)width * height * 3);
           vector<int32_t> seeds((size_t)inputs.range(0, 6));
-          for (auto& seed : seeds) {
+          for (int32_t& seed : seeds) {
             seed = (int32_t)((uint32_t)inputs.range(-40, 40) << 16) | (inputs.range(-40, 40) & 0xFFFF);
           }
 
@@ -332,7 +332,7 @@ void run(const vector<level_kernels>& levels, const int trials) {
 
 const char* best_level_name(const int32_t available) {
   const char* name = "none";
-  for (const auto& level : KNOWN_LEVELS) {
+  for (const known_level& level : KNOWN_LEVELS) {
     if (available & level.bit_) {
       name = level.name_;
     }
@@ -366,7 +366,7 @@ int main(int argument_count, char** arguments) {
 #endif
   };
   for (const level_kernels& level : linked) {
-    for (const auto& candidate : KNOWN_LEVELS) {
+    for (const known_level& candidate : KNOWN_LEVELS) {
       if (strcmp(candidate.name_, level.name_) == 0 && (available & candidate.bit_)) {
         levels.push_back(level);
       }
@@ -383,7 +383,7 @@ int main(int argument_count, char** arguments) {
     return 2;
   }
   const int32_t available = ((int32_t(*)(int64_t))dlsym(library, "mcv2_cpu_levels"))(kernel_capabilities());
-  for (const auto& candidate : KNOWN_LEVELS) {
+  for (const known_level& candidate : KNOWN_LEVELS) {
     if (!(available & candidate.bit_)) {
       continue;
     }
