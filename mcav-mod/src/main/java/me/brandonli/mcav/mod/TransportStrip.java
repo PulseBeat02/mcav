@@ -138,10 +138,16 @@ final class TransportStrip {
     int value = 0;
     for (int index = 0; index < count; index++) {
       final int at = bit + index;
-      final int symbol = Math.max(Mcv2Maps.symbol(colours, at / SYMBOL_BITS), 0);
+      final int symbol = symbolOrZero(colours, at / SYMBOL_BITS);
       value |= ((symbol >> (at % SYMBOL_BITS)) & LOWEST_BIT_MASK) << index;
     }
     return value;
+  }
+
+  // a colour outside the alphabet reads as 0, as in the shader
+  private static int symbolOrZero(final byte[] colours, final int index) {
+    final int symbol = Mcv2Maps.symbol(colours, index);
+    return Math.max(symbol, 0);
   }
 
   private static void writePage(final byte[] strip, final PackLayout layout, final int width, final byte[] page) {
@@ -155,7 +161,7 @@ final class TransportStrip {
     for (int pixel = 0; pixel < PackLayout.PAGE_PIXELS; pixel++) {
       int word = 0;
       for (int index = 0; index < SYMBOLS_PER_PIXEL; index++) {
-        word |= Math.max(Mcv2Maps.symbol(page, pixel * SYMBOLS_PER_PIXEL + index), 0) << (SYMBOL_BITS * index);
+        word |= symbolOrZero(page, pixel * SYMBOLS_PER_PIXEL + index) << (SYMBOL_BITS * index);
       }
       put(strip, first + pixel, word & BYTE_MASK, (word >> SECOND_BYTE_SHIFT) & BYTE_MASK, word >> THIRD_BYTE_SHIFT);
     }
