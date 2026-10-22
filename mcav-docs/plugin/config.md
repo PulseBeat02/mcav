@@ -257,7 +257,7 @@ compute exactly what the Java ones do, about twice as fast; the server log says 
 
 | `hosting` | Where the pack is served | Pick it when |
 |---|---|---|
-| `injector` (default) | On the Minecraft server's own port, next to the game | Players join this server directly. It does **not** work behind a proxy such as Velocity or BungeeCord: the players' connections reach the proxy's port, never this server's |
+| `injector` (default) | On the Minecraft server's own port, next to the game | Players join this server directly. It does not work behind a proxy such as Velocity or BungeeCord: the players' connections reach the proxy's port, never this server's     |
 | `http` | A small HTTP server on `http-port`, reached at `http-host` (empty: the address the server finds for itself) | The server is behind a proxy and the port can be opened in the firewall for the players |
 | `website` | Uploaded to mc-packs.net | No port can be opened. The pack is then public there; it holds only the decoder's shaders |
 
