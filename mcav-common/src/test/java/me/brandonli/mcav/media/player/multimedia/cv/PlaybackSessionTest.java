@@ -763,7 +763,7 @@ final class PlaybackSessionTest {
   void shouldDropFramesThatAreTooLate() throws Exception {
     final AtomicLong now = new AtomicLong();
     final AtomicInteger frames = new AtomicInteger();
-    this.onVideo((_, _) -> this.advanceClockAfterFirstFrame(frames, now));
+    this.onVideo((_, _) -> this.advanceClockAfterFirstFrame(frames, now, 300_000_000L));
     final Timing controlled = new Timing(PlaybackSession.AUDIO_LEAD_NANOSECONDS, PlaybackSession.MAXIMUM_VIDEO_LAG_NANOSECONDS, now::get);
     final List<Object> script = frames(6, FRAME_MICROSECONDS);
     final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(FRAME_WIDTH, FRAME_HEIGHT, script);
@@ -776,13 +776,75 @@ final class PlaybackSessionTest {
     assertEquals(1, frameCount, "every frame after the filter that took 300 ms is more than 100 ms late");
   }
 
-  private boolean advanceClockAfterFirstFrame(final AtomicInteger frames, final AtomicLong now) {
+  private boolean advanceClockAfterFirstFrame(final AtomicInteger frames, final AtomicLong now, final long nanoseconds) {
     final int frameNumber = frames.incrementAndGet();
     if (frameNumber == 1) {
-      now.addAndGet(300_000_000L);
+      now.addAndGet(nanoseconds);
     }
 
     return true;
+  }
+
+  @Test
+  void shouldShowAFrameThatIsExactlyAsLateAsAllowed() throws Exception {
+    final AtomicLong now = new AtomicLong();
+    final AtomicInteger frames = new AtomicInteger();
+    final long frameNanoseconds = TimeUnit.MICROSECONDS.toNanos(FRAME_MICROSECONDS);
+    final long slowFilterNanoseconds = PlaybackSession.MAXIMUM_VIDEO_LAG_NANOSECONDS + frameNanoseconds;
+    this.onVideo((_, _) -> this.advanceClockAfterFirstFrame(frames, now, slowFilterNanoseconds));
+    final Timing controlled = new Timing(PlaybackSession.AUDIO_LEAD_NANOSECONDS, PlaybackSession.MAXIMUM_VIDEO_LAG_NANOSECONDS, now::get);
+    final List<Object> script = frames(2, FRAME_MICROSECONDS);
+    final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(FRAME_WIDTH, FRAME_HEIGHT, script);
+    final PlaybackSession.GrabberFactory factory = factoryOf(grabber);
+    final PlaybackSession session = this.session(factory, null, this.videoCallback, controlled, 0L, StartState.PLAYING);
+    session.start();
+    awaitEnd(session);
+
+    final int frameCount = frames.get();
+    assertEquals(2, frameCount, "the second frame is exactly as late as allowed, so it is still shown");
+  }
+
+  @Test
+  void shouldSleepUntilAFrameIsDue() throws Exception {
+    final AtomicLong now = new AtomicLong();
+    final AtomicInteger reads = new AtomicInteger();
+    final LongSupplier clock = () -> this.countClockRead(reads, now);
+    final Timing frozen = new Timing(PlaybackSession.AUDIO_LEAD_NANOSECONDS, PlaybackSession.MAXIMUM_VIDEO_LAG_NANOSECONDS, clock);
+    final List<Object> script = frames(2, FRAME_MICROSECONDS);
+    final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(FRAME_WIDTH, FRAME_HEIGHT, script);
+    final PlaybackSession.GrabberFactory factory = factoryOf(grabber);
+    final PlaybackSession session = this.session(factory, null, this.videoCallback, frozen, 0L, StartState.PLAYING);
+    session.start();
+    Thread.sleep(300L);
+    session.stop();
+
+    final int readCount = reads.get();
+    assertTrue(readCount < 1_000, "the renderer sleeps until the second frame is due instead of polling the clock");
+  }
+
+  private long countClockRead(final AtomicInteger reads, final AtomicLong now) {
+    reads.incrementAndGet();
+
+    return now.get();
+  }
+
+  @Test
+  void shouldKeepTheInterruptOfADecoderStoppedWhileWaitingForRoom() throws Exception {
+    final List<Object> script = frames(20, FRAME_MICROSECONDS);
+    final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(FRAME_WIDTH, FRAME_HEIGHT, script);
+    final PlaybackSession session = this.session(grabber, 0L, StartState.PAUSED);
+    session.start();
+    awaitCondition("the decoder waits for room in the full queue", () -> isWaiting(grabber.getGrabbingThread()));
+    session.stop();
+
+    final Thread decoder = grabber.getGrabbingThread();
+    decoder.join(TIMEOUT_MILLISECONDS);
+    final boolean interrupted = decoder.isInterrupted();
+    assertTrue(interrupted, "the decoder keeps its interrupt while it closes the grabber");
+  }
+
+  private static boolean isWaiting(final @Nullable Thread thread) {
+    return thread != null && thread.getState() == Thread.State.WAITING;
   }
 
   @Test

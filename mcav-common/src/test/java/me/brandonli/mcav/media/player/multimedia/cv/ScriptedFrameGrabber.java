@@ -24,6 +24,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
@@ -43,6 +44,7 @@ final class ScriptedFrameGrabber extends FrameGrabber {
   private final Deque<Object> script;
   private final AtomicBoolean closed;
   private final AtomicLong requestedTimestamp;
+  private final AtomicReference<Thread> grabbingThread;
   private boolean failOnStart;
   private boolean failOnStop;
   private boolean failOnSeek;
@@ -52,6 +54,7 @@ final class ScriptedFrameGrabber extends FrameGrabber {
     this.script = new ArrayDeque<>(steps);
     this.closed = new AtomicBoolean();
     this.requestedTimestamp = new AtomicLong(-1L);
+    this.grabbingThread = new AtomicReference<>();
     this.imageWidth = width;
     this.imageHeight = height;
     this.sampleRate = SAMPLE_RATE;
@@ -124,6 +127,9 @@ final class ScriptedFrameGrabber extends FrameGrabber {
 
   @Override
   public Frame grab() throws FrameGrabber.Exception {
+    final Thread currentThread = Thread.currentThread();
+    this.grabbingThread.set(currentThread);
+
     Object next = this.takeNextStep();
     while (next instanceof final Delay delay) {
       delay.block();
@@ -172,6 +178,10 @@ final class ScriptedFrameGrabber extends FrameGrabber {
 
   long getRequestedTimestamp() {
     return this.requestedTimestamp.get();
+  }
+
+  Thread getGrabbingThread() {
+    return this.grabbingThread.get();
   }
 
   void setLength(final long lengthMicroseconds) {
