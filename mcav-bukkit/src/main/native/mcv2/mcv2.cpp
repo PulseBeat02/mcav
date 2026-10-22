@@ -108,19 +108,19 @@ constexpr bool SHUFFLED_CHANNEL_LOAD = true;
 constexpr bool SHUFFLED_CHANNEL_LOAD = false;
 #endif
 
-inline int32_t wrapping_addition(int32_t first, int32_t second) {
+inline int32_t wrapping_addition(const int32_t first, const int32_t second) {
   return (int32_t)((uint32_t)first + (uint32_t)second);
 }
-inline int32_t wrapping_subtraction(int32_t first, int32_t second) {
+inline int32_t wrapping_subtraction(const int32_t first, const int32_t second) {
   return (int32_t)((uint32_t)first - (uint32_t)second);
 }
-inline int32_t wrapping_multiplication(int32_t first, int32_t second) {
+inline int32_t wrapping_multiplication(const int32_t first, const int32_t second) {
   return (int32_t)((uint32_t)first * (uint32_t)second);
 }
-inline int32_t wrapping_shift_left(int32_t first, int32_t shift_distance) {
+inline int32_t wrapping_shift_left(const int32_t first, const int32_t shift_distance) {
   return (int32_t)((uint32_t)first << (shift_distance & 31));
 }
-inline int32_t wrapping_shift_right(int32_t first, int32_t shift_distance) {
+inline int32_t wrapping_shift_right(const int32_t first, const int32_t shift_distance) {
   return first >> (shift_distance & 31);
 }
 
@@ -141,7 +141,7 @@ struct scalar_int_vector {
   void store_bytes(int8_t* buffer) const {
     buffer[0] = (int8_t)lanes_;
   }
-  static scalar_int_vector broadcast(int32_t value) {
+  static scalar_int_vector broadcast(const int32_t value) {
     return {value};
   }
   static scalar_int_vector zero() {
@@ -153,38 +153,38 @@ struct scalar_int_vector {
   static scalar_int_vector load_unsigned_bytes(const uint8_t* buffer) {
     return {buffer[0]};
   }
-  friend scalar_int_vector operator+(scalar_int_vector first, scalar_int_vector second) {
+  friend scalar_int_vector operator+(const scalar_int_vector first, const scalar_int_vector second) {
     return {wrapping_addition(first.lanes_, second.lanes_)};
   }
-  friend scalar_int_vector operator-(scalar_int_vector first, scalar_int_vector second) {
+  friend scalar_int_vector operator-(const scalar_int_vector first, const scalar_int_vector second) {
     return {wrapping_subtraction(first.lanes_, second.lanes_)};
   }
-  friend scalar_int_vector operator*(scalar_int_vector first, scalar_int_vector second) {
+  friend scalar_int_vector operator*(const scalar_int_vector first, const scalar_int_vector second) {
     return {wrapping_multiplication(first.lanes_, second.lanes_)};
   }
-  friend scalar_int_vector operator&(scalar_int_vector first, scalar_int_vector second) {
+  friend scalar_int_vector operator&(const scalar_int_vector first, const scalar_int_vector second) {
     return {first.lanes_ & second.lanes_};
   }
-  friend scalar_int_vector operator|(scalar_int_vector first, scalar_int_vector second) {
+  friend scalar_int_vector operator|(const scalar_int_vector first, const scalar_int_vector second) {
     return {first.lanes_ | second.lanes_};
   }
-  scalar_int_vector shift_left(int32_t shift_distance) const {
+  scalar_int_vector shift_left(const int32_t shift_distance) const {
     return {wrapping_shift_left(lanes_, shift_distance)};
   }
-  scalar_int_vector shift_right(int32_t shift_distance) const {
+  scalar_int_vector shift_right(const int32_t shift_distance) const {
     return {wrapping_shift_right(lanes_, shift_distance)};
   }
-  static scalar_int_vector minimum(scalar_int_vector first, scalar_int_vector second) {
+  static scalar_int_vector minimum(const scalar_int_vector first, const scalar_int_vector second) {
     return {first.lanes_ < second.lanes_ ? first.lanes_ : second.lanes_};
   }
-  static scalar_int_vector maximum(scalar_int_vector first, scalar_int_vector second) {
+  static scalar_int_vector maximum(const scalar_int_vector first, const scalar_int_vector second) {
     return {first.lanes_ > second.lanes_ ? first.lanes_ : second.lanes_};
   }
-  static scalar_int_vector absolute(scalar_int_vector first) {
+  static scalar_int_vector absolute(const scalar_int_vector first) {
     return {first.lanes_ < 0 ? wrapping_subtraction(0, first.lanes_) : first.lanes_};
   }
 
-  static scalar_int_vector less(scalar_int_vector first, scalar_int_vector second) {
+  static scalar_int_vector less(const scalar_int_vector first, const scalar_int_vector second) {
     return {first.lanes_ < second.lanes_ ? -1 : 0};
   }
   int32_t sum() const {
@@ -196,22 +196,22 @@ struct scalar_int_vector {
     green_channels.lanes_ = buffer[1];
     blue_channels.lanes_ = buffer[2];
   }
-  static void store_channels(int32_t* buffer, scalar_int_vector red_channels, scalar_int_vector green_channels,
-                             scalar_int_vector blue_channels) {
+  static void store_channels(int32_t* buffer, const scalar_int_vector red_channels,
+                             const scalar_int_vector green_channels, const scalar_int_vector blue_channels) {
     buffer[0] = red_channels.lanes_;
     buffer[1] = green_channels.lanes_;
     buffer[2] = blue_channels.lanes_;
   }
 
-  static scalar_int_vector bits(const int8_t* buffer, int32_t index) {
+  static scalar_int_vector bits(const int8_t* buffer, const int32_t index) {
     return {((buffer[index >> 3] >> (index & 7)) & 1) ? -1 : 0};
   }
 
-  static scalar_int_vector evens(scalar_int_vector first, scalar_int_vector) {
+  static scalar_int_vector evens(const scalar_int_vector first, scalar_int_vector) {
     return first;
   }
 
-  static scalar_int_vector odds(scalar_int_vector, scalar_int_vector second) {
+  static scalar_int_vector odds(scalar_int_vector, const scalar_int_vector second) {
     return second;
   }
 };
@@ -220,8 +220,9 @@ struct scalar_int_vector {
 
 using int_vector = scalar_int_vector;
 
-inline int32_t four_pixel_difference(uint32_t first_pixel, uint32_t second_pixel, uint32_t third_pixel,
-                                     uint32_t fourth_pixel, const uint8_t* sample_bytes) {
+inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t second_pixel,
+                                     const uint32_t third_pixel, const uint32_t fourth_pixel,
+                                     const uint8_t* sample_bytes) {
   const uint32_t words[4] = {first_pixel, second_pixel, third_pixel, fourth_pixel};
   int32_t sum = 0;
   for (int32_t byte_index = 0; byte_index < 16; byte_index++) {
@@ -234,19 +235,19 @@ inline int32_t four_pixel_difference(uint32_t first_pixel, uint32_t second_pixel
 
 struct float_vector {
   float lanes_;
-  static float_vector broadcast(float value) {
+  static float_vector broadcast(const float value) {
     return {value};
   }
-  static float_vector from_integers(int_vector first) {
+  static float_vector from_integers(const int_vector first) {
     return {(float)first.lanes_};
   }
-  friend float_vector operator+(float_vector first, float_vector second) {
+  friend float_vector operator+(const float_vector first, const float_vector second) {
     return {first.lanes_ + second.lanes_};
   }
-  friend float_vector operator-(float_vector first, float_vector second) {
+  friend float_vector operator-(const float_vector first, const float_vector second) {
     return {first.lanes_ - second.lanes_};
   }
-  friend float_vector operator*(float_vector first, float_vector second) {
+  friend float_vector operator*(const float_vector first, const float_vector second) {
     return {first.lanes_ * second.lanes_};
   }
   void store(float* buffer) const {
@@ -257,16 +258,16 @@ struct float_vector {
 struct double_vector {
   static constexpr int LANES = 1;
   double lanes_;
-  static double_vector broadcast(double value) {
+  static double_vector broadcast(const double value) {
     return {value};
   }
   static double_vector load_floats(const float* buffer) {
     return {(double)buffer[0]};
   }
-  friend double_vector operator+(double_vector first, double_vector second) {
+  friend double_vector operator+(const double_vector first, const double_vector second) {
     return {first.lanes_ + second.lanes_};
   }
-  friend double_vector operator*(double_vector first, double_vector second) {
+  friend double_vector operator*(const double_vector first, const double_vector second) {
     return {first.lanes_ * second.lanes_};
   }
   void store(double* buffer) const {
@@ -277,59 +278,60 @@ struct double_vector {
 #elif defined(MCV2_SIMD_SSE41) || defined(MCV2_SIMD_SSE2)
 
 #if defined(MCV2_SIMD_SSE41)
-template <int BLEND_MASK> inline __m128i blend_integer_lanes(__m128i first, __m128i second) {
+template <int BLEND_MASK> inline __m128i blend_integer_lanes(const __m128i first, const __m128i second) {
   return _mm_castps_si128(_mm_blend_ps(_mm_castsi128_ps(first), _mm_castsi128_ps(second), BLEND_MASK));
 }
-inline __m128i multiply_low_int(__m128i first, __m128i second) {
+inline __m128i multiply_low_int(const __m128i first, const __m128i second) {
   return _mm_mullo_epi32(first, second);
 }
-inline __m128i minimum_int(__m128i first, __m128i second) {
+inline __m128i minimum_int(const __m128i first, const __m128i second) {
   return _mm_min_epi32(first, second);
 }
-inline __m128i maximum_int(__m128i first, __m128i second) {
+inline __m128i maximum_int(const __m128i first, const __m128i second) {
   return _mm_max_epi32(first, second);
 }
-inline __m128i absolute_int(__m128i first) {
+inline __m128i absolute_int(const __m128i first) {
   return _mm_abs_epi32(first);
 }
-inline __m128i widen_unsigned_bytes(__m128i bytes) {
+inline __m128i widen_unsigned_bytes(const __m128i bytes) {
   return _mm_cvtepu8_epi32(bytes);
 }
 #else
 
-template <int BLEND_MASK> inline __m128i blend_integer_lanes(__m128i first, __m128i second) {
+template <int BLEND_MASK> inline __m128i blend_integer_lanes(const __m128i first, const __m128i second) {
   const __m128i mask = _mm_setr_epi32((BLEND_MASK & 1) ? -1 : 0, (BLEND_MASK & 2) ? -1 : 0, (BLEND_MASK & 4) ? -1 : 0,
                                       (BLEND_MASK & 8) ? -1 : 0);
   return _mm_or_si128(_mm_and_si128(mask, second), _mm_andnot_si128(mask, first));
 }
 // Signed and unsigned products share the low 32 bits required by Java's wrapping arithmetic.
-inline __m128i multiply_low_int(__m128i first, __m128i second) {
+inline __m128i multiply_low_int(const __m128i first, const __m128i second) {
   const __m128i even = _mm_mul_epu32(first, second);
   const __m128i odd = _mm_mul_epu32(_mm_srli_epi64(first, 32), _mm_srli_epi64(second, 32));
   return _mm_unpacklo_epi32(_mm_shuffle_epi32(even, _MM_SHUFFLE(0, 0, 2, 0)),
                             _mm_shuffle_epi32(odd, _MM_SHUFFLE(0, 0, 2, 0)));
 }
-inline __m128i minimum_int(__m128i first, __m128i second) {
+inline __m128i minimum_int(const __m128i first, const __m128i second) {
   const __m128i less = _mm_cmplt_epi32(first, second);
   return _mm_or_si128(_mm_and_si128(less, first), _mm_andnot_si128(less, second));
 }
-inline __m128i maximum_int(__m128i first, __m128i second) {
+inline __m128i maximum_int(const __m128i first, const __m128i second) {
   const __m128i greater = _mm_cmpgt_epi32(first, second);
   return _mm_or_si128(_mm_and_si128(greater, first), _mm_andnot_si128(greater, second));
 }
 // Java Math.abs leaves Integer.MIN_VALUE negative.
-inline __m128i absolute_int(__m128i first) {
+inline __m128i absolute_int(const __m128i first) {
   const __m128i sign = _mm_srai_epi32(first, 31);
   return _mm_sub_epi32(_mm_xor_si128(first, sign), sign);
 }
-inline __m128i widen_unsigned_bytes(__m128i bytes) {
+inline __m128i widen_unsigned_bytes(const __m128i bytes) {
   const __m128i zero = _mm_setzero_si128();
   return _mm_unpacklo_epi16(_mm_unpacklo_epi8(bytes, zero), zero);
 }
 #endif
 
-inline int32_t four_pixel_difference(uint32_t first_pixel, uint32_t second_pixel, uint32_t third_pixel,
-                                     uint32_t fourth_pixel, const uint8_t* sample_bytes) {
+inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t second_pixel,
+                                     const uint32_t third_pixel, const uint32_t fourth_pixel,
+                                     const uint8_t* sample_bytes) {
   const __m128i absolute_differences = _mm_sad_epu8(
       _mm_setr_epi32((int32_t)first_pixel, (int32_t)second_pixel, (int32_t)third_pixel, (int32_t)fourth_pixel),
       _mm_loadu_si128((const __m128i*)sample_bytes));
@@ -349,7 +351,7 @@ struct int_vector {
     const int32_t word = _mm_cvtsi128_si32(_mm_packs_epi16(_mm_packs_epi32(lanes_, lanes_), _mm_setzero_si128()));
     memcpy(buffer, &word, sizeof(word));
   }
-  static int_vector broadcast(int32_t value) {
+  static int_vector broadcast(const int32_t value) {
     return {_mm_set1_epi32(value)};
   }
   static int_vector zero() {
@@ -363,37 +365,37 @@ struct int_vector {
     memcpy(&word, buffer, sizeof(word));
     return {widen_unsigned_bytes(_mm_cvtsi32_si128(word))};
   }
-  friend int_vector operator+(int_vector first, int_vector second) {
+  friend int_vector operator+(const int_vector first, const int_vector second) {
     return {_mm_add_epi32(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator-(int_vector first, int_vector second) {
+  friend int_vector operator-(const int_vector first, const int_vector second) {
     return {_mm_sub_epi32(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator*(int_vector first, int_vector second) {
+  friend int_vector operator*(const int_vector first, const int_vector second) {
     return {multiply_low_int(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator&(int_vector first, int_vector second) {
+  friend int_vector operator&(const int_vector first, const int_vector second) {
     return {_mm_and_si128(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator|(int_vector first, int_vector second) {
+  friend int_vector operator|(const int_vector first, const int_vector second) {
     return {_mm_or_si128(first.lanes_, second.lanes_)};
   }
-  int_vector shift_left(int32_t shift_distance) const {
+  int_vector shift_left(const int32_t shift_distance) const {
     return {_mm_sll_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & 31))};
   }
-  int_vector shift_right(int32_t shift_distance) const {
+  int_vector shift_right(const int32_t shift_distance) const {
     return {_mm_sra_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & 31))};
   }
-  static int_vector minimum(int_vector first, int_vector second) {
+  static int_vector minimum(const int_vector first, const int_vector second) {
     return {minimum_int(first.lanes_, second.lanes_)};
   }
-  static int_vector maximum(int_vector first, int_vector second) {
+  static int_vector maximum(const int_vector first, const int_vector second) {
     return {maximum_int(first.lanes_, second.lanes_)};
   }
-  static int_vector absolute(int_vector first) {
+  static int_vector absolute(const int_vector first) {
     return {absolute_int(first.lanes_)};
   }
-  static int_vector less(int_vector first, int_vector second) {
+  static int_vector less(const int_vector first, const int_vector second) {
     return {_mm_cmplt_epi32(first.lanes_, second.lanes_)};
   }
   int32_t sum() const {
@@ -420,8 +422,8 @@ struct int_vector {
     green_channels.lanes_ = _mm_shuffle_epi32(shuffled_green, _MM_SHUFFLE(2, 3, 0, 1));
     blue_channels.lanes_ = _mm_shuffle_epi32(shuffled_blue, _MM_SHUFFLE(3, 0, 1, 2));
   }
-  static void store_channels(int32_t* buffer, int_vector red_channels, int_vector green_channels,
-                             int_vector blue_channels) {
+  static void store_channels(int32_t* buffer, const int_vector red_channels, const int_vector green_channels,
+                             const int_vector blue_channels) {
 
     const __m128i first_vector = blend_integer_lanes<0x4>(
         blend_integer_lanes<0x2>(_mm_shuffle_epi32(red_channels.lanes_, _MM_SHUFFLE(1, 0, 0, 0)),
@@ -441,16 +443,16 @@ struct int_vector {
     _mm_storeu_si128((__m128i*)(buffer + 4), second_vector);
     _mm_storeu_si128((__m128i*)(buffer + 8), third_vector);
   }
-  static int_vector bits(const int8_t* buffer, int32_t index) {
+  static int_vector bits(const int8_t* buffer, const int32_t index) {
     const __m128i byte = _mm_set1_epi32((buffer[index >> 3] >> (index & 7)) & 0xF);
     const __m128i lane_bits = _mm_setr_epi32(1, 2, 4, 8);
     return {_mm_cmpeq_epi32(_mm_and_si128(byte, lane_bits), lane_bits)};
   }
-  static int_vector evens(int_vector first, int_vector second) {
+  static int_vector evens(const int_vector first, const int_vector second) {
     return {_mm_castps_si128(
         _mm_shuffle_ps(_mm_castsi128_ps(first.lanes_), _mm_castsi128_ps(second.lanes_), _MM_SHUFFLE(2, 0, 2, 0)))};
   }
-  static int_vector odds(int_vector first, int_vector second) {
+  static int_vector odds(const int_vector first, const int_vector second) {
     return {_mm_castps_si128(
         _mm_shuffle_ps(_mm_castsi128_ps(first.lanes_), _mm_castsi128_ps(second.lanes_), _MM_SHUFFLE(3, 1, 3, 1)))};
   }
@@ -458,19 +460,19 @@ struct int_vector {
 
 struct float_vector {
   __m128 lanes_;
-  static float_vector broadcast(float value) {
+  static float_vector broadcast(const float value) {
     return {_mm_set1_ps(value)};
   }
-  static float_vector from_integers(int_vector first) {
+  static float_vector from_integers(const int_vector first) {
     return {_mm_cvtepi32_ps(first.lanes_)};
   }
-  friend float_vector operator+(float_vector first, float_vector second) {
+  friend float_vector operator+(const float_vector first, const float_vector second) {
     return {_mm_add_ps(first.lanes_, second.lanes_)};
   }
-  friend float_vector operator-(float_vector first, float_vector second) {
+  friend float_vector operator-(const float_vector first, const float_vector second) {
     return {_mm_sub_ps(first.lanes_, second.lanes_)};
   }
-  friend float_vector operator*(float_vector first, float_vector second) {
+  friend float_vector operator*(const float_vector first, const float_vector second) {
     return {_mm_mul_ps(first.lanes_, second.lanes_)};
   }
   void store(float* buffer) const {
@@ -481,7 +483,7 @@ struct float_vector {
 struct double_vector {
   static constexpr int LANES = 2;
   __m128d lanes_;
-  static double_vector broadcast(double value) {
+  static double_vector broadcast(const double value) {
     return {_mm_set1_pd(value)};
   }
   static double_vector load_floats(const float* buffer) {
@@ -489,10 +491,10 @@ struct double_vector {
     memcpy(&pair, buffer, sizeof(pair));
     return {_mm_cvtps_pd(_mm_castsi128_ps(_mm_cvtsi64_si128(pair)))};
   }
-  friend double_vector operator+(double_vector first, double_vector second) {
+  friend double_vector operator+(const double_vector first, const double_vector second) {
     return {_mm_add_pd(first.lanes_, second.lanes_)};
   }
-  friend double_vector operator*(double_vector first, double_vector second) {
+  friend double_vector operator*(const double_vector first, const double_vector second) {
     return {_mm_mul_pd(first.lanes_, second.lanes_)};
   }
   void store(double* buffer) const {
@@ -502,8 +504,9 @@ struct double_vector {
 
 #elif defined(MCV2_SIMD_AVX2)
 
-inline int32_t four_pixel_difference(uint32_t first_pixel, uint32_t second_pixel, uint32_t third_pixel,
-                                     uint32_t fourth_pixel, const uint8_t* sample_bytes) {
+inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t second_pixel,
+                                     const uint32_t third_pixel, const uint32_t fourth_pixel,
+                                     const uint8_t* sample_bytes) {
   const __m128i absolute_differences = _mm_sad_epu8(
       _mm_setr_epi32((int32_t)first_pixel, (int32_t)second_pixel, (int32_t)third_pixel, (int32_t)fourth_pixel),
       _mm_loadu_si128((const __m128i*)sample_bytes));
@@ -523,7 +526,7 @@ struct int_vector {
   void store(int32_t* buffer) const {
     _mm256_storeu_si256((__m256i*)buffer, lanes_);
   }
-  static int_vector broadcast(int32_t value) {
+  static int_vector broadcast(const int32_t value) {
     return {_mm256_set1_epi32(value)};
   }
   static int_vector zero() {
@@ -535,37 +538,37 @@ struct int_vector {
   static int_vector load_unsigned_bytes(const uint8_t* buffer) {
     return {_mm256_cvtepu8_epi32(_mm_loadl_epi64((const __m128i*)buffer))};
   }
-  friend int_vector operator+(int_vector first, int_vector second) {
+  friend int_vector operator+(const int_vector first, const int_vector second) {
     return {_mm256_add_epi32(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator-(int_vector first, int_vector second) {
+  friend int_vector operator-(const int_vector first, const int_vector second) {
     return {_mm256_sub_epi32(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator*(int_vector first, int_vector second) {
+  friend int_vector operator*(const int_vector first, const int_vector second) {
     return {_mm256_mullo_epi32(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator&(int_vector first, int_vector second) {
+  friend int_vector operator&(const int_vector first, const int_vector second) {
     return {_mm256_and_si256(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator|(int_vector first, int_vector second) {
+  friend int_vector operator|(const int_vector first, const int_vector second) {
     return {_mm256_or_si256(first.lanes_, second.lanes_)};
   }
-  int_vector shift_left(int32_t shift_distance) const {
+  int_vector shift_left(const int32_t shift_distance) const {
     return {_mm256_sll_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & 31))};
   }
-  int_vector shift_right(int32_t shift_distance) const {
+  int_vector shift_right(const int32_t shift_distance) const {
     return {_mm256_sra_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & 31))};
   }
-  static int_vector minimum(int_vector first, int_vector second) {
+  static int_vector minimum(const int_vector first, const int_vector second) {
     return {_mm256_min_epi32(first.lanes_, second.lanes_)};
   }
-  static int_vector maximum(int_vector first, int_vector second) {
+  static int_vector maximum(const int_vector first, const int_vector second) {
     return {_mm256_max_epi32(first.lanes_, second.lanes_)};
   }
-  static int_vector absolute(int_vector first) {
+  static int_vector absolute(const int_vector first) {
     return {_mm256_abs_epi32(first.lanes_)};
   }
-  static int_vector less(int_vector first, int_vector second) {
+  static int_vector less(const int_vector first, const int_vector second) {
     return {_mm256_cmpgt_epi32(second.lanes_, first.lanes_)};
   }
   int32_t sum() const {
@@ -593,8 +596,8 @@ struct int_vector {
     green_channels.lanes_ = _mm256_permutevar8x32_epi32(shuffled_green, _mm256_setr_epi32(1, 4, 7, 2, 5, 0, 3, 6));
     blue_channels.lanes_ = _mm256_permutevar8x32_epi32(shuffled_blue, _mm256_setr_epi32(2, 5, 0, 3, 6, 1, 4, 7));
   }
-  static void store_channels(int32_t* buffer, int_vector red_channels, int_vector green_channels,
-                             int_vector blue_channels) {
+  static void store_channels(int32_t* buffer, const int_vector red_channels, const int_vector green_channels,
+                             const int_vector blue_channels) {
     const __m256i shuffled_red =
         _mm256_permutevar8x32_epi32(red_channels.lanes_, _mm256_setr_epi32(0, 3, 6, 1, 4, 7, 2, 5));
     const __m256i shuffled_green =
@@ -610,18 +613,18 @@ struct int_vector {
         (__m256i*)(buffer + 16),
         _mm256_blend_epi32(_mm256_blend_epi32(shuffled_green, shuffled_blue, 0x92), shuffled_red, 0x24));
   }
-  static int_vector bits(const int8_t* buffer, int32_t index) {
+  static int_vector bits(const int8_t* buffer, const int32_t index) {
     const __m256i byte = _mm256_set1_epi32(buffer[index >> 3] & 0xFF);
     const __m256i lane_bits = _mm256_setr_epi32(1, 2, 4, 8, 16, 32, 64, 128);
     return {_mm256_cmpeq_epi32(_mm256_and_si256(byte, lane_bits), lane_bits)};
   }
 
-  static int_vector evens(int_vector first, int_vector second) {
+  static int_vector evens(const int_vector first, const int_vector second) {
     const __m256 pairs = _mm256_shuffle_ps(_mm256_castsi256_ps(first.lanes_), _mm256_castsi256_ps(second.lanes_),
                                            _MM_SHUFFLE(2, 0, 2, 0));
     return {_mm256_permute4x64_epi64(_mm256_castps_si256(pairs), _MM_SHUFFLE(3, 1, 2, 0))};
   }
-  static int_vector odds(int_vector first, int_vector second) {
+  static int_vector odds(const int_vector first, const int_vector second) {
     const __m256 pairs = _mm256_shuffle_ps(_mm256_castsi256_ps(first.lanes_), _mm256_castsi256_ps(second.lanes_),
                                            _MM_SHUFFLE(3, 1, 3, 1));
     return {_mm256_permute4x64_epi64(_mm256_castps_si256(pairs), _MM_SHUFFLE(3, 1, 2, 0))};
@@ -630,19 +633,19 @@ struct int_vector {
 
 struct float_vector {
   __m256 lanes_;
-  static float_vector broadcast(float value) {
+  static float_vector broadcast(const float value) {
     return {_mm256_set1_ps(value)};
   }
-  static float_vector from_integers(int_vector first) {
+  static float_vector from_integers(const int_vector first) {
     return {_mm256_cvtepi32_ps(first.lanes_)};
   }
-  friend float_vector operator+(float_vector first, float_vector second) {
+  friend float_vector operator+(const float_vector first, const float_vector second) {
     return {_mm256_add_ps(first.lanes_, second.lanes_)};
   }
-  friend float_vector operator-(float_vector first, float_vector second) {
+  friend float_vector operator-(const float_vector first, const float_vector second) {
     return {_mm256_sub_ps(first.lanes_, second.lanes_)};
   }
-  friend float_vector operator*(float_vector first, float_vector second) {
+  friend float_vector operator*(const float_vector first, const float_vector second) {
     return {_mm256_mul_ps(first.lanes_, second.lanes_)};
   }
   void store(float* buffer) const {
@@ -653,16 +656,16 @@ struct float_vector {
 struct double_vector {
   static constexpr int LANES = 4;
   __m256d lanes_;
-  static double_vector broadcast(double value) {
+  static double_vector broadcast(const double value) {
     return {_mm256_set1_pd(value)};
   }
   static double_vector load_floats(const float* buffer) {
     return {_mm256_cvtps_pd(_mm_loadu_ps(buffer))};
   }
-  friend double_vector operator+(double_vector first, double_vector second) {
+  friend double_vector operator+(const double_vector first, const double_vector second) {
     return {_mm256_add_pd(first.lanes_, second.lanes_)};
   }
-  friend double_vector operator*(double_vector first, double_vector second) {
+  friend double_vector operator*(const double_vector first, const double_vector second) {
     return {_mm256_mul_pd(first.lanes_, second.lanes_)};
   }
   void store(double* buffer) const {
@@ -672,8 +675,9 @@ struct double_vector {
 
 #elif defined(MCV2_SIMD_AVX512)
 
-inline int32_t four_pixel_difference(uint32_t first_pixel, uint32_t second_pixel, uint32_t third_pixel,
-                                     uint32_t fourth_pixel, const uint8_t* sample_bytes) {
+inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t second_pixel,
+                                     const uint32_t third_pixel, const uint32_t fourth_pixel,
+                                     const uint8_t* sample_bytes) {
   const __m128i absolute_differences = _mm_sad_epu8(
       _mm_setr_epi32((int32_t)first_pixel, (int32_t)second_pixel, (int32_t)third_pixel, (int32_t)fourth_pixel),
       _mm_loadu_si128((const __m128i*)sample_bytes));
@@ -692,7 +696,7 @@ struct int_vector {
   void store(int32_t* buffer) const {
     _mm512_storeu_si512(buffer, lanes_);
   }
-  static int_vector broadcast(int32_t value) {
+  static int_vector broadcast(const int32_t value) {
     return {_mm512_set1_epi32(value)};
   }
   static int_vector zero() {
@@ -704,37 +708,37 @@ struct int_vector {
   static int_vector load_unsigned_bytes(const uint8_t* buffer) {
     return {_mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)buffer))};
   }
-  friend int_vector operator+(int_vector first, int_vector second) {
+  friend int_vector operator+(const int_vector first, const int_vector second) {
     return {_mm512_add_epi32(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator-(int_vector first, int_vector second) {
+  friend int_vector operator-(const int_vector first, const int_vector second) {
     return {_mm512_sub_epi32(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator*(int_vector first, int_vector second) {
+  friend int_vector operator*(const int_vector first, const int_vector second) {
     return {_mm512_mullo_epi32(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator&(int_vector first, int_vector second) {
+  friend int_vector operator&(const int_vector first, const int_vector second) {
     return {_mm512_and_si512(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator|(int_vector first, int_vector second) {
+  friend int_vector operator|(const int_vector first, const int_vector second) {
     return {_mm512_or_si512(first.lanes_, second.lanes_)};
   }
-  int_vector shift_left(int32_t shift_distance) const {
+  int_vector shift_left(const int32_t shift_distance) const {
     return {_mm512_sll_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & 31))};
   }
-  int_vector shift_right(int32_t shift_distance) const {
+  int_vector shift_right(const int32_t shift_distance) const {
     return {_mm512_sra_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & 31))};
   }
-  static int_vector minimum(int_vector first, int_vector second) {
+  static int_vector minimum(const int_vector first, const int_vector second) {
     return {_mm512_min_epi32(first.lanes_, second.lanes_)};
   }
-  static int_vector maximum(int_vector first, int_vector second) {
+  static int_vector maximum(const int_vector first, const int_vector second) {
     return {_mm512_max_epi32(first.lanes_, second.lanes_)};
   }
-  static int_vector absolute(int_vector first) {
+  static int_vector absolute(const int_vector first) {
     return {_mm512_abs_epi32(first.lanes_)};
   }
-  static int_vector less(int_vector first, int_vector second) {
+  static int_vector less(const int_vector first, const int_vector second) {
     return {_mm512_movm_epi32(_mm512_cmplt_epi32_mask(first.lanes_, second.lanes_))};
   }
   int32_t sum() const {
@@ -750,23 +754,23 @@ struct int_vector {
     green_channels.lanes_ = gather(first_vector, second_vector, third_vector, 1);
     blue_channels.lanes_ = gather(first_vector, second_vector, third_vector, 2);
   }
-  static void store_channels(int32_t* buffer, int_vector red_channels, int_vector green_channels,
-                             int_vector blue_channels) {
+  static void store_channels(int32_t* buffer, const int_vector red_channels, const int_vector green_channels,
+                             const int_vector blue_channels) {
     _mm512_storeu_si512(buffer, scatter(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_, 0));
     _mm512_storeu_si512(buffer + 16, scatter(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_, 1));
     _mm512_storeu_si512(buffer + 32, scatter(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_, 2));
   }
 
-  static int_vector bits(const int8_t* buffer, int32_t index) {
+  static int_vector bits(const int8_t* buffer, const int32_t index) {
     const int32_t array_offset = index >> 3;
     const uint32_t word = (uint32_t)(uint8_t)buffer[array_offset] | ((uint32_t)(uint8_t)buffer[array_offset + 1] << 8);
     return {_mm512_movm_epi32((__mmask16)word)};
   }
-  static int_vector evens(int_vector first, int_vector second) {
+  static int_vector evens(const int_vector first, const int_vector second) {
     const __m512i index = _mm512_set_epi32(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
     return {_mm512_permutex2var_epi32(first.lanes_, index, second.lanes_)};
   }
-  static int_vector odds(int_vector first, int_vector second) {
+  static int_vector odds(const int_vector first, const int_vector second) {
     const __m512i index = _mm512_set_epi32(31, 29, 27, 25, 23, 21, 19, 17, 15, 13, 11, 9, 7, 5, 3, 1);
     return {_mm512_permutex2var_epi32(first.lanes_, index, second.lanes_)};
   }
@@ -787,12 +791,13 @@ private:
       {0, 21, 2, 3, 22, 5, 6, 23, 8, 9, 24, 11, 12, 25, 14, 15},
       {26, 1, 2, 27, 4, 5, 28, 7, 8, 29, 10, 11, 30, 13, 14, 31}};
 
-  static __m512i gather(__m512i first_vector, __m512i second_vector, __m512i third_vector, int32_t channel) {
+  static __m512i gather(const __m512i first_vector, const __m512i second_vector, const __m512i third_vector,
+                        const int32_t channel) {
     const __m512i low =
         _mm512_permutex2var_epi32(first_vector, _mm512_load_si512(GATHER_FIRST[channel]), second_vector);
     return _mm512_permutex2var_epi32(low, _mm512_load_si512(GATHER_SECOND[channel]), third_vector);
   }
-  static __m512i scatter(__m512i red, __m512i green, __m512i blue, int32_t output_index) {
+  static __m512i scatter(const __m512i red, __m512i green, __m512i blue, const int32_t output_index) {
     const __m512i red_green = _mm512_permutex2var_epi32(red, _mm512_load_si512(SCATTER_FIRST[output_index]), green);
     return _mm512_permutex2var_epi32(red_green, _mm512_load_si512(SCATTER_SECOND[output_index]), blue);
   }
@@ -800,19 +805,19 @@ private:
 
 struct float_vector {
   __m512 lanes_;
-  static float_vector broadcast(float value) {
+  static float_vector broadcast(const float value) {
     return {_mm512_set1_ps(value)};
   }
-  static float_vector from_integers(int_vector first) {
+  static float_vector from_integers(const int_vector first) {
     return {_mm512_cvtepi32_ps(first.lanes_)};
   }
-  friend float_vector operator+(float_vector first, float_vector second) {
+  friend float_vector operator+(const float_vector first, const float_vector second) {
     return {_mm512_add_ps(first.lanes_, second.lanes_)};
   }
-  friend float_vector operator-(float_vector first, float_vector second) {
+  friend float_vector operator-(const float_vector first, const float_vector second) {
     return {_mm512_sub_ps(first.lanes_, second.lanes_)};
   }
-  friend float_vector operator*(float_vector first, float_vector second) {
+  friend float_vector operator*(const float_vector first, const float_vector second) {
     return {_mm512_mul_ps(first.lanes_, second.lanes_)};
   }
   void store(float* buffer) const {
@@ -823,16 +828,16 @@ struct float_vector {
 struct double_vector {
   static constexpr int LANES = 8;
   __m512d lanes_;
-  static double_vector broadcast(double value) {
+  static double_vector broadcast(const double value) {
     return {_mm512_set1_pd(value)};
   }
   static double_vector load_floats(const float* buffer) {
     return {_mm512_cvtps_pd(_mm256_loadu_ps(buffer))};
   }
-  friend double_vector operator+(double_vector first, double_vector second) {
+  friend double_vector operator+(const double_vector first, const double_vector second) {
     return {_mm512_add_pd(first.lanes_, second.lanes_)};
   }
-  friend double_vector operator*(double_vector first, double_vector second) {
+  friend double_vector operator*(const double_vector first, const double_vector second) {
     return {_mm512_mul_pd(first.lanes_, second.lanes_)};
   }
   void store(double* buffer) const {
@@ -842,8 +847,9 @@ struct double_vector {
 
 #elif defined(MCV2_SIMD_NEON)
 
-inline int32_t four_pixel_difference(uint32_t first_pixel, uint32_t second_pixel, uint32_t third_pixel,
-                                     uint32_t fourth_pixel, const uint8_t* sample_bytes) {
+inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t second_pixel,
+                                     const uint32_t third_pixel, const uint32_t fourth_pixel,
+                                     const uint8_t* sample_bytes) {
   const uint32_t words[4] = {first_pixel, second_pixel, third_pixel, fourth_pixel};
   return (int32_t)vaddlvq_u8(vabdq_u8(vreinterpretq_u8_u32(vld1q_u32(words)), vld1q_u8(sample_bytes)));
 }
@@ -861,7 +867,7 @@ struct int_vector {
   void store(int32_t* buffer) const {
     vst1q_s32(buffer, lanes_);
   }
-  static int_vector broadcast(int32_t value) {
+  static int_vector broadcast(const int32_t value) {
     return {vdupq_n_s32(value)};
   }
   static int_vector zero() {
@@ -877,37 +883,37 @@ struct int_vector {
     const uint8x8_t bytes = vreinterpret_u8_u32(vdup_n_u32(word));
     return {vreinterpretq_s32_u32(vmovl_u16(vget_low_u16(vmovl_u8(bytes))))};
   }
-  friend int_vector operator+(int_vector first, int_vector second) {
+  friend int_vector operator+(const int_vector first, const int_vector second) {
     return {vaddq_s32(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator-(int_vector first, int_vector second) {
+  friend int_vector operator-(const int_vector first, const int_vector second) {
     return {vsubq_s32(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator*(int_vector first, int_vector second) {
+  friend int_vector operator*(const int_vector first, const int_vector second) {
     return {vmulq_s32(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator&(int_vector first, int_vector second) {
+  friend int_vector operator&(const int_vector first, const int_vector second) {
     return {vandq_s32(first.lanes_, second.lanes_)};
   }
-  friend int_vector operator|(int_vector first, int_vector second) {
+  friend int_vector operator|(const int_vector first, const int_vector second) {
     return {vorrq_s32(first.lanes_, second.lanes_)};
   }
-  int_vector shift_left(int32_t shift_distance) const {
+  int_vector shift_left(const int32_t shift_distance) const {
     return {vshlq_s32(lanes_, vdupq_n_s32(shift_distance & 31))};
   }
-  int_vector shift_right(int32_t shift_distance) const {
+  int_vector shift_right(const int32_t shift_distance) const {
     return {vshlq_s32(lanes_, vdupq_n_s32(-(shift_distance & 31)))};
   }
-  static int_vector minimum(int_vector first, int_vector second) {
+  static int_vector minimum(const int_vector first, const int_vector second) {
     return {vminq_s32(first.lanes_, second.lanes_)};
   }
-  static int_vector maximum(int_vector first, int_vector second) {
+  static int_vector maximum(const int_vector first, const int_vector second) {
     return {vmaxq_s32(first.lanes_, second.lanes_)};
   }
-  static int_vector absolute(int_vector first) {
+  static int_vector absolute(const int_vector first) {
     return {vabsq_s32(first.lanes_)};
   }
-  static int_vector less(int_vector first, int_vector second) {
+  static int_vector less(const int_vector first, const int_vector second) {
     return {vreinterpretq_s32_u32(vcltq_s32(first.lanes_, second.lanes_))};
   }
   int32_t sum() const {
@@ -920,42 +926,42 @@ struct int_vector {
     green_channels.lanes_ = channel_vectors.val[1];
     blue_channels.lanes_ = channel_vectors.val[2];
   }
-  static void store_channels(int32_t* buffer, int_vector red_channels, int_vector green_channels,
-                             int_vector blue_channels) {
+  static void store_channels(int32_t* buffer, const int_vector red_channels, const int_vector green_channels,
+                             const int_vector blue_channels) {
     int32x4x3_t channel_vectors;
     channel_vectors.val[0] = red_channels.lanes_;
     channel_vectors.val[1] = green_channels.lanes_;
     channel_vectors.val[2] = blue_channels.lanes_;
     vst3q_s32(buffer, channel_vectors);
   }
-  static int_vector bits(const int8_t* buffer, int32_t index) {
+  static int_vector bits(const int8_t* buffer, const int32_t index) {
     static const int32_t lane_bits[4] = {1, 2, 4, 8};
     const int32x4_t byte = vdupq_n_s32((buffer[index >> 3] >> (index & 7)) & 0xF);
     return {vreinterpretq_s32_u32(vtstq_s32(byte, vld1q_s32(lane_bits)))};
   }
-  static int_vector evens(int_vector first, int_vector second) {
+  static int_vector evens(const int_vector first, const int_vector second) {
     return {vuzp1q_s32(first.lanes_, second.lanes_)};
   }
-  static int_vector odds(int_vector first, int_vector second) {
+  static int_vector odds(const int_vector first, const int_vector second) {
     return {vuzp2q_s32(first.lanes_, second.lanes_)};
   }
 };
 
 struct float_vector {
   float32x4_t lanes_;
-  static float_vector broadcast(float value) {
+  static float_vector broadcast(const float value) {
     return {vdupq_n_f32(value)};
   }
-  static float_vector from_integers(int_vector first) {
+  static float_vector from_integers(const int_vector first) {
     return {vcvtq_f32_s32(first.lanes_)};
   }
-  friend float_vector operator+(float_vector first, float_vector second) {
+  friend float_vector operator+(const float_vector first, const float_vector second) {
     return {vaddq_f32(first.lanes_, second.lanes_)};
   }
-  friend float_vector operator-(float_vector first, float_vector second) {
+  friend float_vector operator-(const float_vector first, const float_vector second) {
     return {vsubq_f32(first.lanes_, second.lanes_)};
   }
-  friend float_vector operator*(float_vector first, float_vector second) {
+  friend float_vector operator*(const float_vector first, const float_vector second) {
     return {vmulq_f32(first.lanes_, second.lanes_)};
   }
   void store(float* buffer) const {
@@ -966,16 +972,16 @@ struct float_vector {
 struct double_vector {
   static constexpr int LANES = 2;
   float64x2_t lanes_;
-  static double_vector broadcast(double value) {
+  static double_vector broadcast(const double value) {
     return {vdupq_n_f64(value)};
   }
   static double_vector load_floats(const float* buffer) {
     return {vcvt_f64_f32(vld1_f32(buffer))};
   }
-  friend double_vector operator+(double_vector first, double_vector second) {
+  friend double_vector operator+(const double_vector first, const double_vector second) {
     return {vaddq_f64(first.lanes_, second.lanes_)};
   }
-  friend double_vector operator*(double_vector first, double_vector second) {
+  friend double_vector operator*(const double_vector first, const double_vector second) {
     return {vmulq_f64(first.lanes_, second.lanes_)};
   }
   void store(double* buffer) const {
@@ -996,8 +1002,9 @@ typedef svuint64_t sve_unsigned_long_lanes __attribute__((arm_sve_vector_bits(MC
 typedef svfloat32_t sve_float_lanes __attribute__((arm_sve_vector_bits(MCV2_SVE_BITS)));
 typedef svfloat64_t sve_double_lanes __attribute__((arm_sve_vector_bits(MCV2_SVE_BITS)));
 
-inline int32_t four_pixel_difference(uint32_t first_pixel, uint32_t second_pixel, uint32_t third_pixel,
-                                     uint32_t fourth_pixel, const uint8_t* sample_bytes) {
+inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t second_pixel,
+                                     const uint32_t third_pixel, const uint32_t fourth_pixel,
+                                     const uint8_t* sample_bytes) {
   const uint32_t words[4] = {first_pixel, second_pixel, third_pixel, fourth_pixel};
   return (int32_t)vaddlvq_u8(vabdq_u8(vreinterpretq_u8_u32(vld1q_u32(words)), vld1q_u8(sample_bytes)));
 }
@@ -1014,7 +1021,7 @@ struct int_vector {
   void store(int32_t* buffer) const {
     svst1_s32(svptrue_b32(), buffer, lanes_);
   }
-  static int_vector broadcast(int32_t value) {
+  static int_vector broadcast(const int32_t value) {
     return {svdup_n_s32(value)};
   }
   static int_vector zero() {
@@ -1026,37 +1033,37 @@ struct int_vector {
   static int_vector load_unsigned_bytes(const uint8_t* buffer) {
     return {svreinterpret_s32_u32(svld1ub_u32(svptrue_b32(), buffer))};
   }
-  friend int_vector operator+(int_vector first, int_vector second) {
+  friend int_vector operator+(const int_vector first, const int_vector second) {
     return {svadd_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
   }
-  friend int_vector operator-(int_vector first, int_vector second) {
+  friend int_vector operator-(const int_vector first, const int_vector second) {
     return {svsub_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
   }
-  friend int_vector operator*(int_vector first, int_vector second) {
+  friend int_vector operator*(const int_vector first, const int_vector second) {
     return {svmul_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
   }
-  friend int_vector operator&(int_vector first, int_vector second) {
+  friend int_vector operator&(const int_vector first, const int_vector second) {
     return {svand_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
   }
-  friend int_vector operator|(int_vector first, int_vector second) {
+  friend int_vector operator|(const int_vector first, const int_vector second) {
     return {svorr_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
   }
-  int_vector shift_left(int32_t shift_distance) const {
+  int_vector shift_left(const int32_t shift_distance) const {
     return {svlsl_n_s32_x(svptrue_b32(), lanes_, (uint32_t)(shift_distance & 31))};
   }
-  int_vector shift_right(int32_t shift_distance) const {
+  int_vector shift_right(const int32_t shift_distance) const {
     return {svasr_n_s32_x(svptrue_b32(), lanes_, (uint32_t)(shift_distance & 31))};
   }
-  static int_vector minimum(int_vector first, int_vector second) {
+  static int_vector minimum(const int_vector first, const int_vector second) {
     return {svmin_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
   }
-  static int_vector maximum(int_vector first, int_vector second) {
+  static int_vector maximum(const int_vector first, const int_vector second) {
     return {svmax_s32_x(svptrue_b32(), first.lanes_, second.lanes_)};
   }
-  static int_vector absolute(int_vector first) {
+  static int_vector absolute(const int_vector first) {
     return {svabs_s32_x(svptrue_b32(), first.lanes_)};
   }
-  static int_vector less(int_vector first, int_vector second) {
+  static int_vector less(const int_vector first, const int_vector second) {
     return {svsel_s32(svcmplt_s32(svptrue_b32(), first.lanes_, second.lanes_), svdup_n_s32(-1), svdup_n_s32(0))};
   }
 
@@ -1070,12 +1077,12 @@ struct int_vector {
     green_channels.lanes_ = svget3_s32(channel_vectors, 1);
     blue_channels.lanes_ = svget3_s32(channel_vectors, 2);
   }
-  static void store_channels(int32_t* buffer, int_vector red_channels, int_vector green_channels,
-                             int_vector blue_channels) {
+  static void store_channels(int32_t* buffer, const int_vector red_channels, const int_vector green_channels,
+                             const int_vector blue_channels) {
     svst3_s32(svptrue_b32(), buffer, svcreate3_s32(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_));
   }
 
-  static int_vector bits(const int8_t* buffer, int32_t index) {
+  static int_vector bits(const int8_t* buffer, const int32_t index) {
     const int32_t array_offset = index >> 3;
     uint32_t word = (uint8_t)buffer[array_offset];
     if (LANES > 8) {
@@ -1086,29 +1093,29 @@ struct int_vector {
         svand_n_u32_x(svptrue_b32(), svlsr_u32_x(svptrue_b32(), svdup_n_u32(word), bit_positions), 1);
     return {svsel_s32(svcmpne_n_u32(svptrue_b32(), lane_bit, 0), svdup_n_s32(-1), svdup_n_s32(0))};
   }
-  static int_vector evens(int_vector first, int_vector second) {
+  static int_vector evens(const int_vector first, const int_vector second) {
     return {svuzp1_s32(first.lanes_, second.lanes_)};
   }
-  static int_vector odds(int_vector first, int_vector second) {
+  static int_vector odds(const int_vector first, const int_vector second) {
     return {svuzp2_s32(first.lanes_, second.lanes_)};
   }
 };
 
 struct float_vector {
   sve_float_lanes lanes_;
-  static float_vector broadcast(float value) {
+  static float_vector broadcast(const float value) {
     return {svdup_n_f32(value)};
   }
-  static float_vector from_integers(int_vector first) {
+  static float_vector from_integers(const int_vector first) {
     return {svcvt_f32_s32_x(svptrue_b32(), first.lanes_)};
   }
-  friend float_vector operator+(float_vector first, float_vector second) {
+  friend float_vector operator+(const float_vector first, const float_vector second) {
     return {svadd_f32_x(svptrue_b32(), first.lanes_, second.lanes_)};
   }
-  friend float_vector operator-(float_vector first, float_vector second) {
+  friend float_vector operator-(const float_vector first, const float_vector second) {
     return {svsub_f32_x(svptrue_b32(), first.lanes_, second.lanes_)};
   }
-  friend float_vector operator*(float_vector first, float_vector second) {
+  friend float_vector operator*(const float_vector first, const float_vector second) {
     return {svmul_f32_x(svptrue_b32(), first.lanes_, second.lanes_)};
   }
   void store(float* buffer) const {
@@ -1119,7 +1126,7 @@ struct float_vector {
 struct double_vector {
   static constexpr int LANES = MCV2_SVE_BITS / 64;
   sve_double_lanes lanes_;
-  static double_vector broadcast(double value) {
+  static double_vector broadcast(const double value) {
     return {svdup_n_f64(value)};
   }
 
@@ -1127,10 +1134,10 @@ struct double_vector {
     const sve_unsigned_long_lanes words = svld1uw_u64(svptrue_b64(), (const uint32_t*)buffer);
     return {svcvt_f64_f32_x(svptrue_b64(), svreinterpret_f32_u64(words))};
   }
-  friend double_vector operator+(double_vector first, double_vector second) {
+  friend double_vector operator+(const double_vector first, const double_vector second) {
     return {svadd_f64_x(svptrue_b64(), first.lanes_, second.lanes_)};
   }
-  friend double_vector operator*(double_vector first, double_vector second) {
+  friend double_vector operator*(const double_vector first, const double_vector second) {
     return {svmul_f64_x(svptrue_b64(), first.lanes_, second.lanes_)};
   }
   void store(double* buffer) const {
@@ -1156,19 +1163,19 @@ constexpr double DISTORTION_SCALE = 96.0;
 constexpr int32_t NIBBLE_BITS = 4;
 constexpr int32_t NIBBLE_MASK = 15;
 
-inline int32_t logarithm_base_two(int32_t value) {
+inline int32_t logarithm_base_two(const int32_t value) {
   return __builtin_ctz((unsigned)value);
 }
-inline int32_t size_index(int32_t size) {
+inline int32_t size_index(const int32_t size) {
   return logarithm_base_two(size) - 3;
 }
-inline int32_t minimum_int(int32_t first, int32_t second) {
+inline int32_t minimum_int(const int32_t first, const int32_t second) {
   return first < second ? first : second;
 }
-inline int32_t maximum_int(int32_t first, int32_t second) {
+inline int32_t maximum_int(const int32_t first, const int32_t second) {
   return first > second ? first : second;
 }
-inline int32_t clamp_int(int32_t value, int32_t low, int32_t high) {
+inline int32_t clamp_int(const int32_t value, const int32_t low, const int32_t high) {
   return minimum_int(maximum_int(value, low), high);
 }
 
@@ -1202,11 +1209,11 @@ constexpr interpolation_axes make_axes() {
 
 constexpr interpolation_axes AXES = make_axes();
 
-inline int32_t rounding_shift(int32_t size) {
+inline int32_t rounding_shift(const int32_t size) {
   return 2 * (logarithm_base_two(size) + 1);
 }
 
-inline int_vector round(int_vector value, int32_t shift) {
+inline int_vector round(const int_vector value, const int32_t shift) {
   return int_vector::minimum(
       int_vector::maximum((value + int_vector::broadcast(1 << (shift - 1))).shift_right(shift), int_vector::zero()),
       int_vector::broadcast(MAXIMUM_CHANNEL));
@@ -1219,8 +1226,8 @@ struct distortion_measure {
   int64_t distortion_;
 };
 
-inline void add_row_distortion(distortion_measure& measure, const int32_t* output, int32_t source_position,
-                               int32_t pixels) {
+inline void add_row_distortion(distortion_measure& measure, const int32_t* output, const int32_t source_position,
+                               const int32_t pixels) {
   int_vector sum = int_vector::zero();
   for (int32_t pixel_index = 0; pixel_index < pixels; pixel_index += int_vector::LANES) {
     int_vector source_red, source_green, source_blue, reconstructed_red, reconstructed_green, reconstructed_blue;
@@ -1244,7 +1251,7 @@ inline bool is_within_limit(const distortion_measure& measure) {
   return (double)measure.distortion_ / DISTORTION_SCALE + measure.rate_ < measure.limit_;
 }
 
-inline void interpolate_horizontally(const int32_t* nodes, int32_t size, int32_t* rows) {
+inline void interpolate_horizontally(const int32_t* nodes, const int32_t size, int32_t* rows) {
   const interpolation_axis& axis = AXES.axes_[size_index(size)];
   const int32_t span = 2 * size;
   for (int32_t node_row = 0; node_row < GRID; node_row++) {
@@ -1258,7 +1265,7 @@ inline void interpolate_horizontally(const int32_t* nodes, int32_t size, int32_t
   }
 }
 
-inline void interpolate_vertically(const int32_t* rows, int32_t size, int32_t pixel_row, int32_t* line) {
+inline void interpolate_vertically(const int32_t* rows, const int32_t size, const int32_t pixel_row, int32_t* line) {
   const interpolation_axis& axis = AXES.axes_[size_index(size)];
   const int32_t top = axis.lower_[pixel_row] * size;
   const int32_t bottom = axis.upper_[pixel_row] * size;
@@ -1271,7 +1278,7 @@ inline void interpolate_vertically(const int32_t* rows, int32_t size, int32_t pi
   }
 }
 
-int64_t predicted(const int32_t* prediction, int32_t size, int32_t* output, distortion_measure measure) {
+int64_t predicted(const int32_t* prediction, const int32_t size, int32_t* output, distortion_measure measure) {
   const int32_t row_length = size * CHANNELS;
   for (int32_t row_index = 0; row_index < size; row_index++) {
     const int32_t source_position = row_index * row_length;
@@ -1287,7 +1294,7 @@ int64_t predicted(const int32_t* prediction, int32_t size, int32_t* output, dist
   return measure.distortion_;
 }
 
-int64_t solid(int32_t color, int32_t size, int32_t* output, distortion_measure measure) {
+int64_t solid(const int32_t color, const int32_t size, int32_t* output, distortion_measure measure) {
   const int_vector red_values = int_vector::broadcast((color >> 16) & 0xFF);
   const int_vector green_values = int_vector::broadcast((color >> 8) & 0xFF);
   const int_vector blue_values = int_vector::broadcast(color & 0xFF);
@@ -1306,7 +1313,7 @@ int64_t solid(int32_t color, int32_t size, int32_t* output, distortion_measure m
   return measure.distortion_;
 }
 
-int64_t palette(const int8_t* record, int32_t size, int32_t* output, distortion_measure measure) {
+int64_t palette(const int8_t* record, const int32_t size, int32_t* output, distortion_measure measure) {
   const int_vector first_red = int_vector::broadcast((uint8_t)record[0]);
   const int_vector first_green = int_vector::broadcast((uint8_t)record[1]);
   const int_vector first_blue = int_vector::broadcast((uint8_t)record[2]);
@@ -1329,8 +1336,8 @@ int64_t palette(const int8_t* record, int32_t size, int32_t* output, distortion_
   return measure.distortion_;
 }
 
-int64_t compact(const int32_t* prediction, const int8_t* record, int32_t quantizer, int32_t size, int32_t* output,
-                distortion_measure measure) {
+int64_t compact(const int32_t* prediction, const int8_t* record, const int32_t quantizer, const int32_t size,
+                int32_t* output, distortion_measure measure) {
   int32_t nodes[GRID * GRID];
   for (int32_t index = 0; index < GRID * GRID; index++) {
     const int32_t packed = (uint8_t)record[2 + index / 2];
@@ -1364,8 +1371,9 @@ int64_t compact(const int32_t* prediction, const int8_t* record, int32_t quantiz
   return measure.distortion_;
 }
 
-void predict(const uint8_t* reference, int32_t width, int32_t height, int32_t block_left, int32_t block_top,
-             int32_t size, int32_t motion_x, int32_t motion_y, int32_t* output) {
+void predict(const uint8_t* reference, const int32_t width, const int32_t height, const int32_t block_left,
+             const int32_t block_top, const int32_t size, const int32_t motion_x, const int32_t motion_y,
+             int32_t* output) {
   const int32_t left = block_left + motion_x;
   const int32_t top = block_top + motion_y;
   const int32_t row_length = size * CHANNELS;
@@ -1393,7 +1401,7 @@ void predict(const uint8_t* reference, int32_t width, int32_t height, int32_t bl
 }
 
 // Each lane must retain Java's summation order for bit-exact fits.
-void fit(const float* values, int32_t size, const float* matrix, float* output) {
+void fit(const float* values, const int32_t size, const float* matrix, float* output) {
   const int32_t grid = GRID;
   float plane[ROOT_SIZE * ROOT_SIZE];
   for (int32_t vertical_position = 0; vertical_position < size; vertical_position++) {
@@ -1451,12 +1459,12 @@ void fit(const float* values, int32_t size, const float* matrix, float* output) 
   }
 }
 
-inline bool lane_sums_fit(int32_t low, int32_t high, int32_t count) {
+inline bool lane_sums_fit(const int32_t low, const int32_t high, const int32_t count) {
   const int64_t largest = -(int64_t)low > (int64_t)high ? -(int64_t)low : (int64_t)high;
   return largest * ((int64_t)count + int_vector::LANES) <= INT32_MAX;
 }
 
-void cluster_pixels(const int32_t* source, int32_t size, int32_t step, int32_t* endpoints) {
+void cluster_pixels(const int32_t* source, const int32_t size, const int32_t step, int32_t* endpoints) {
   const int32_t first_red = endpoints[0];
   const int32_t first_green = endpoints[1];
   const int32_t first_blue = endpoints[2];
@@ -1500,7 +1508,7 @@ void cluster_pixels(const int32_t* source, int32_t size, int32_t step, int32_t* 
   }
 }
 
-template <int STEP> void cluster_lanes(const int32_t* source, int32_t size, int32_t* endpoints) {
+template <int STEP> void cluster_lanes(const int32_t* source, const int32_t size, int32_t* endpoints) {
   const int32_t pixels = (size / STEP) * (size / STEP);
   const int_vector first_red = int_vector::broadcast(endpoints[0]);
   const int_vector first_green = int_vector::broadcast(endpoints[1]);
@@ -1558,7 +1566,7 @@ template <int STEP> void cluster_lanes(const int32_t* source, int32_t size, int3
   }
 }
 
-template <int STEP> int32_t cluster_extrema(const int32_t* source, int32_t size, int32_t* endpoints) {
+template <int STEP> int32_t cluster_extrema(const int32_t* source, const int32_t size, int32_t* endpoints) {
   int_vector low_lanes = int_vector::broadcast(INT32_MAX);
   int_vector high_lanes = int_vector::broadcast(INT32_MIN);
   int_vector low_at = int_vector::zero();
@@ -1621,7 +1629,7 @@ template <int STEP> int32_t cluster_extrema(const int32_t* source, int32_t size,
   return all;
 }
 
-void cluster(const int32_t* source, int32_t size, int32_t* endpoints) {
+void cluster(const int32_t* source, const int32_t size, int32_t* endpoints) {
   const int32_t step = size >= 16 ? 2 : 1;
   const int32_t all =
       step == 2 ? cluster_extrema<2>(source, size, endpoints) : cluster_extrema<1>(source, size, endpoints);
@@ -1640,7 +1648,7 @@ void cluster(const int32_t* source, int32_t size, int32_t* endpoints) {
   }
 }
 
-void assign(const int32_t* source, int32_t count, const int32_t* colors, int8_t* selectors) {
+void assign(const int32_t* source, const int32_t count, const int32_t* colors, int8_t* selectors) {
   const int_vector first_red = int_vector::broadcast(colors[0]);
   const int_vector first_green = int_vector::broadcast(colors[1]);
   const int_vector first_blue = int_vector::broadcast(colors[2]);
@@ -1677,7 +1685,7 @@ void assign(const int32_t* source, int32_t count, const int32_t* colors, int8_t*
   }
 }
 
-int32_t assign_pattern(const int32_t* source, int32_t size, const int32_t* colors, int8_t* selectors) {
+int32_t assign_pattern(const int32_t* source, const int32_t size, const int32_t* colors, int8_t* selectors) {
   bool columns = true;
   bool rows = true;
   for (int32_t vertical_position = 0; vertical_position < size && (columns || rows); vertical_position++) {
@@ -1691,24 +1699,25 @@ int32_t assign_pattern(const int32_t* source, int32_t size, const int32_t* color
   return columns || rows ? 1 : 0;
 }
 
-inline int32_t sample_position(int32_t size, int32_t sample_index) {
+inline int32_t sample_position(const int32_t size, const int32_t sample_index) {
   return minimum_int((sample_index * size) / 4 + size / 8, size - 1);
 }
 
 constexpr int32_t DIRECTIONS[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
 
-inline int32_t pack_motion(int32_t motion_x, int32_t motion_y) {
+inline int32_t pack_motion(const int32_t motion_x, const int32_t motion_y) {
   return wrapping_shift_left(motion_x, 16) | (motion_y & 0xFFFF);
 }
-inline int32_t unpack_horizontal_motion(int32_t vector) {
+inline int32_t unpack_horizontal_motion(const int32_t vector) {
   return vector >> 16;
 }
-inline int32_t unpack_vertical_motion(int32_t vector) {
+inline int32_t unpack_vertical_motion(const int32_t vector) {
   return (int16_t)vector;
 }
 
-int64_t interior_cost(const uint8_t* reference, int32_t width, const int32_t* source_samples, int32_t block_left,
-                      int32_t block_top, const int32_t* samples, int32_t motion_x, int32_t motion_y) {
+int64_t interior_cost(const uint8_t* reference, const int32_t width, const int32_t* source_samples,
+                      const int32_t block_left, const int32_t block_top, const int32_t* samples, const int32_t motion_x,
+                      const int32_t motion_y) {
   int64_t sum = 0;
   for (int32_t sample_row = 0; sample_row < 4; sample_row++) {
     const uint8_t* line =
@@ -1727,8 +1736,9 @@ int64_t interior_cost(const uint8_t* reference, int32_t width, const int32_t* so
   return sum;
 }
 
-int64_t packed_interior_cost(const uint8_t* reference, int32_t width, const uint8_t* packed_samples, int32_t block_left,
-                             int32_t block_top, const int32_t* samples, int32_t motion_x, int32_t motion_y) {
+int64_t packed_interior_cost(const uint8_t* reference, const int32_t width, const uint8_t* packed_samples,
+                             const int32_t block_left, const int32_t block_top, const int32_t* samples,
+                             const int32_t motion_x, const int32_t motion_y) {
   int32_t sum = 0;
   for (int32_t sample_row = 0; sample_row < 4; sample_row++) {
     const uint8_t* line =
@@ -1740,9 +1750,9 @@ int64_t packed_interior_cost(const uint8_t* reference, int32_t width, const uint
   return sum;
 }
 
-int64_t cost(const uint8_t* reference, int32_t width, int32_t height, const int32_t* source_samples,
-             const uint8_t* packed_samples, int32_t block_left, int32_t block_top, const int32_t* samples,
-             int32_t motion_x, int32_t motion_y) {
+int64_t cost(const uint8_t* reference, const int32_t width, const int32_t height, const int32_t* source_samples,
+             const uint8_t* packed_samples, const int32_t block_left, const int32_t block_top, const int32_t* samples,
+             const int32_t motion_x, const int32_t motion_y) {
   const int32_t left = block_left + samples[0] + motion_x;
   const int32_t right = block_left + samples[3] + motion_x;
   const int32_t top = block_top + samples[0] + motion_y;
@@ -1774,10 +1784,10 @@ struct measured_vectors {
   int64_t vectors_[CAPACITY];
   int32_t count_ = 0;
   // Full coordinates avoid collisions caused by truncating packed motion vectors.
-  static int64_t key(int32_t motion_x, int32_t motion_y) {
+  static int64_t key(const int32_t motion_x, const int32_t motion_y) {
     return (int64_t)((uint64_t)(uint32_t)motion_x << 32 | (uint32_t)motion_y);
   }
-  bool contains(int32_t motion_x, int32_t motion_y) const {
+  bool contains(const int32_t motion_x, const int32_t motion_y) const {
     const int64_t vector = key(motion_x, motion_y);
     for (int32_t index = 0; index < count_; index++) {
       if (vectors_[index] == vector) {
@@ -1786,15 +1796,16 @@ struct measured_vectors {
     }
     return false;
   }
-  void add(int32_t motion_x, int32_t motion_y) {
+  void add(const int32_t motion_x, const int32_t motion_y) {
     if (count_ < CAPACITY) {
       vectors_[count_++] = key(motion_x, motion_y);
     }
   }
 };
 
-int32_t seeded(const uint8_t* reference, int32_t width, int32_t height, const int32_t* source, int32_t block_left,
-               int32_t block_top, int32_t size, int32_t range, const int32_t* seeds, int32_t seed_count) {
+int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t height, const int32_t* source,
+               const int32_t block_left, const int32_t block_top, const int32_t size, const int32_t range,
+               const int32_t* seeds, const int32_t seed_count) {
   const int32_t samples[4] = {sample_position(size, 0), sample_position(size, 1), sample_position(size, 2),
                               sample_position(size, 3)};
   int32_t source_samples[16 * CHANNELS];
@@ -1856,8 +1867,8 @@ int32_t seeded(const uint8_t* reference, int32_t width, int32_t height, const in
   return pack_motion(best_x, best_y);
 }
 
-void load_source(const uint8_t* image, int32_t width, int32_t height, int32_t horizontal_position,
-                 int32_t vertical_position, int32_t size, int32_t* source) {
+void load_source(const uint8_t* image, const int32_t width, const int32_t height, const int32_t horizontal_position,
+                 const int32_t vertical_position, const int32_t size, int32_t* source) {
   for (int32_t pixel_row = 0; pixel_row < size; pixel_row++) {
     const int32_t source_row = minimum_int(vertical_position + pixel_row, height - 1);
     const uint8_t* line = image + (int64_t)source_row * width * CHANNELS;
@@ -1878,7 +1889,7 @@ void load_source(const uint8_t* image, int32_t width, int32_t height, int32_t ho
   }
 }
 
-template <class VectorType> void halve_lanes(const int32_t* block, int32_t size, int32_t* output) {
+template <class VectorType> void halve_lanes(const int32_t* block, const int32_t size, int32_t* output) {
   const int32_t half = size / 2;
   const int32_t row_length = size * CHANNELS;
   const VectorType two = VectorType::broadcast(2);
@@ -1913,7 +1924,7 @@ template <class VectorType> void halve_lanes(const int32_t* block, int32_t size,
   }
 }
 
-void halve(const int32_t* block, int32_t size, int32_t* output) {
+void halve(const int32_t* block, const int32_t size, int32_t* output) {
 
   if (SHUFFLED_CHANNEL_LOAD || size < 2 * int_vector::LANES) {
     halve_lanes<scalar_int_vector>(block, size, output);
@@ -1922,7 +1933,7 @@ void halve(const int32_t* block, int32_t size, int32_t* output) {
   }
 }
 
-void residual_target(const int32_t* source, const int32_t* prediction, int32_t count, float* target) {
+void residual_target(const int32_t* source, const int32_t* prediction, const int32_t count, float* target) {
   const float_vector quarter = float_vector::broadcast(0.25f);
   const float_vector two = float_vector::broadcast(2.0f);
   int32_t pixel = 0;
@@ -1988,40 +1999,41 @@ MCV2_KERNELS(MCV2_DECLARE_NARROW)
 MCV2_EXPORT void MCV2_FIT_TO(fit)(const float* values, int32_t size, const float* matrix, float* output);
 #endif
 
-int64_t MCV2_PREFIX(predicted)(const int32_t* prediction, int32_t size, int32_t* output, const int32_t* source,
-                               double rate, double limit) {
+int64_t MCV2_PREFIX(predicted)(const int32_t* prediction, const int32_t size, int32_t* output, const int32_t* source,
+                               const double rate, const double limit) {
   MCV2_HAND_OFF(predicted, prediction, size, output, source, rate, limit)
   return predicted(prediction, size, output, {source, rate, limit, 0});
 }
 
-int64_t MCV2_PREFIX(solid)(int32_t color, int32_t size, int32_t* output, const int32_t* source, double rate,
-                           double limit) {
+int64_t MCV2_PREFIX(solid)(const int32_t color, const int32_t size, int32_t* output, const int32_t* source,
+                           const double rate, const double limit) {
   MCV2_HAND_OFF(solid, color, size, output, source, rate, limit)
   return solid(color, size, output, {source, rate, limit, 0});
 }
 
-int64_t MCV2_PREFIX(palette)(const int8_t* record, int32_t size, int32_t* output, const int32_t* source, double rate,
-                             double limit) {
+int64_t MCV2_PREFIX(palette)(const int8_t* record, const int32_t size, int32_t* output, const int32_t* source,
+                             const double rate, const double limit) {
   MCV2_HAND_OFF(palette, record, size, output, source, rate, limit)
   return palette(record, size, output, {source, rate, limit, 0});
 }
 
-int64_t MCV2_PREFIX(compact)(const int32_t* prediction, const int8_t* record, int32_t quantizer, int32_t size,
-                             int32_t* output, const int32_t* source, double rate, double limit) {
+int64_t MCV2_PREFIX(compact)(const int32_t* prediction, const int8_t* record, const int32_t quantizer,
+                             const int32_t size, int32_t* output, const int32_t* source, const double rate,
+                             const double limit) {
   MCV2_HAND_OFF(compact, prediction, record, quantizer, size, output, source, rate, limit)
   return compact(prediction, record, quantizer, size, output, {source, rate, limit, 0});
 }
 
-void MCV2_PREFIX(predict)(const uint8_t* reference, int32_t width, int32_t height, int32_t horizontal_position,
-                          int32_t vertical_position, int32_t size, int32_t horizontal_motion, int32_t vertical_motion,
-                          int32_t* output) {
+void MCV2_PREFIX(predict)(const uint8_t* reference, const int32_t width, const int32_t height,
+                          const int32_t horizontal_position, const int32_t vertical_position, const int32_t size,
+                          const int32_t horizontal_motion, const int32_t vertical_motion, int32_t* output) {
   MCV2_HAND_OFF(predict, reference, width, height, horizontal_position, vertical_position, size, horizontal_motion,
                 vertical_motion, output)
   predict(reference, width, height, horizontal_position, vertical_position, size, horizontal_motion, vertical_motion,
           output);
 }
 
-void MCV2_PREFIX(fit)(const float* values, int32_t size, const float* matrix, float* output) {
+void MCV2_PREFIX(fit)(const float* values, const int32_t size, const float* matrix, float* output) {
   MCV2_HAND_OFF(fit, values, size, matrix, output)
 #if defined(MCV2_FIT_TO)
   if (size == MCV2_FIT_AT) {
@@ -2031,43 +2043,46 @@ void MCV2_PREFIX(fit)(const float* values, int32_t size, const float* matrix, fl
   fit(values, size, matrix, output);
 }
 
-void MCV2_PREFIX(cluster)(const int32_t* source, int32_t size, int32_t* endpoints) {
+void MCV2_PREFIX(cluster)(const int32_t* source, const int32_t size, int32_t* endpoints) {
   // Blocks narrower than two vectors would make the sampled clustering kernel overread.
   MCV2_HAND_OFF_BELOW(2 * MCV2_NARROW_BELOW, cluster, source, size, endpoints)
   cluster(source, size, endpoints);
 }
 
-void MCV2_PREFIX(assign)(const int32_t* source, int32_t count, const int32_t* colors, int8_t* selectors) {
+void MCV2_PREFIX(assign)(const int32_t* source, const int32_t count, const int32_t* colors, int8_t* selectors) {
   assign(source, count, colors, selectors);
 }
 
-int32_t MCV2_PREFIX(assign_pattern)(const int32_t* source, int32_t size, const int32_t* colors, int8_t* selectors) {
+int32_t MCV2_PREFIX(assign_pattern)(const int32_t* source, const int32_t size, const int32_t* colors,
+                                    int8_t* selectors) {
   MCV2_HAND_OFF(assign_pattern, source, size, colors, selectors)
   return assign_pattern(source, size, colors, selectors);
 }
 
-int32_t MCV2_PREFIX(seeded)(const uint8_t* reference, int32_t width, int32_t height, const int32_t* source,
-                            int32_t horizontal_position, int32_t vertical_position, int32_t size, int32_t range,
-                            const int32_t* seeds, int32_t seed_count) {
+int32_t MCV2_PREFIX(seeded)(const uint8_t* reference, const int32_t width, const int32_t height, const int32_t* source,
+                            const int32_t horizontal_position, const int32_t vertical_position, const int32_t size,
+                            const int32_t range, const int32_t* seeds, const int32_t seed_count) {
   MCV2_HAND_OFF(seeded, reference, width, height, source, horizontal_position, vertical_position, size, range, seeds,
                 seed_count)
   return seeded(reference, width, height, source, horizontal_position, vertical_position, size, range, seeds,
                 seed_count);
 }
 
-void MCV2_PREFIX(load_source)(const uint8_t* image, int32_t width, int32_t height, int32_t horizontal_position,
-                              int32_t vertical_position, int32_t size, int32_t* source) {
+void MCV2_PREFIX(load_source)(const uint8_t* image, const int32_t width, const int32_t height,
+                              const int32_t horizontal_position, const int32_t vertical_position, const int32_t size,
+                              int32_t* source) {
   MCV2_HAND_OFF(load_source, image, width, height, horizontal_position, vertical_position, size, source)
   load_source(image, width, height, horizontal_position, vertical_position, size, source);
 }
 
-void MCV2_PREFIX(halve)(const int32_t* block, int32_t size, int32_t* output) {
+void MCV2_PREFIX(halve)(const int32_t* block, const int32_t size, int32_t* output) {
   // Blocks narrower than two vectors would make the halving kernel overread.
   MCV2_HAND_OFF_BELOW(2 * MCV2_NARROW_BELOW, halve, block, size, output)
   halve(block, size, output);
 }
 
-void MCV2_PREFIX(residual_target)(const int32_t* source, const int32_t* prediction, int32_t count, float* target) {
+void MCV2_PREFIX(residual_target)(const int32_t* source, const int32_t* prediction, const int32_t count,
+                                  float* target) {
   residual_target(source, prediction, count, target);
 }
 }
@@ -2135,7 +2150,7 @@ extern "C" int32_t mcv2_cpu_levels(int64_t) {
 
 #elif defined(__aarch64__) || defined(_M_ARM64)
 
-extern "C" int32_t mcv2_cpu_levels(int64_t kernel_capabilities) {
+extern "C" int32_t mcv2_cpu_levels(const int64_t kernel_capabilities) {
   int32_t levels = MCV2_LEVEL_SCALAR | MCV2_LEVEL_NEON;
 #if defined(__linux__)
   if (kernel_capabilities & MCV2_HARDWARE_CAPABILITY_SVE) {

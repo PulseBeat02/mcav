@@ -105,24 +105,24 @@ struct random_generator {
     mixed_value = (mixed_value ^ (mixed_value >> 27)) * 0x94D049BB133111EBull;
     return mixed_value ^ (mixed_value >> 31);
   }
-  int32_t range(int32_t low, int32_t high) {
+  int32_t range(const int32_t low, const int32_t high) {
     return low + (int32_t)(next() % (uint64_t)(high - low + 1));
   }
-  vector<int32_t> integers(size_t count, int32_t low, int32_t high) {
+  vector<int32_t> integers(const size_t count, const int32_t low, const int32_t high) {
     vector<int32_t> values(count);
     for (auto& value : values) {
       value = range(low, high);
     }
     return values;
   }
-  vector<int8_t> bytes(size_t count) {
+  vector<int8_t> bytes(const size_t count) {
     vector<int8_t> values(count);
     for (auto& value : values) {
       value = (int8_t)next();
     }
     return values;
   }
-  vector<uint8_t> unsigned_bytes(size_t count) {
+  vector<uint8_t> unsigned_bytes(const size_t count) {
     vector<uint8_t> values(count);
     for (auto& value : values) {
       value = (uint8_t)next();
@@ -130,7 +130,7 @@ struct random_generator {
     return values;
   }
 
-  vector<float> floats(size_t count) {
+  vector<float> floats(const size_t count) {
     vector<float> values(count);
     for (auto& value : values) {
       switch (range(0, 15)) {
@@ -153,7 +153,7 @@ struct random_generator {
 
 struct fnv_digest {
   uint64_t value_ = 0xCBF29CE484222325ull;
-  void add(const void* data, size_t length) {
+  void add(const void* data, const size_t length) {
     const uint8_t* bytes = (const uint8_t*)data;
     for (size_t index = 0; index < length; index++) {
       value_ = (value_ ^ bytes[index]) * 0x100000001B3ull;
@@ -162,7 +162,7 @@ struct fnv_digest {
   template <class ValueType> void add(const vector<ValueType>& values) {
     add(values.data(), values.size() * sizeof(ValueType));
   }
-  template <class ValueType> void add(ValueType value) {
+  template <class ValueType> void add(const ValueType value) {
     add(&value, sizeof(value));
   }
 };
@@ -175,13 +175,13 @@ template <class ValueType> bool same(const vector<ValueType>& actual, const vect
          (actual.empty() || memcmp(actual.data(), expected.data(), actual.size() * sizeof(ValueType)) == 0);
 }
 
-void report(bool equal, const char* kernel, const level_kernels& level, int trial) {
+void report(const bool equal, const char* kernel, const level_kernels& level, const int trial) {
   if (!equal && failures++ < 20) {
     fprintf(stderr, "%s differs at %s, trial %d\n", kernel, level.name_, trial);
   }
 }
 
-void run(const vector<level_kernels>& levels, int trials) {
+void run(const vector<level_kernels>& levels, const int trials) {
   const level_kernels& scalar = levels[0];
   const char* names[] = {"predicted", "solid",  "palette",     "compact", "predict",        "fit", "cluster", "assign",
                          "pattern",   "seeded", "load_source", "halve",   "residual_target"};
@@ -330,7 +330,7 @@ void run(const vector<level_kernels>& levels, int trials) {
   printf("%-16s %016llx\n", "all", (unsigned long long)total.value_);
 }
 
-const char* best_level_name(int32_t available) {
+const char* best_level_name(const int32_t available) {
   const char* name = "none";
   for (const auto& level : KNOWN_LEVELS) {
     if (available & level.bit_) {
