@@ -1,10 +1,10 @@
-# Manual test: watching mcav on a real server
+# Manual Test: Watching MCAV on a Real Server
 
-This is the checklist for seeing mcav play media with your own eyes, with a real Minecraft client, rather than
+This is the checklist for seeing MCAV play media with your own eyes, with a real Minecraft client, rather than
 trusting the automated tests. It takes about fifteen minutes the first time, and about two minutes afterwards.
 
-You need a Minecraft **26.3** client. The MCAV plugin is built against Paper 26.3, and a 26.3 server refuses
-older clients unless you add ViaBackwards, so a client of any other version will simply be rejected at login.
+You need a Minecraft 26.3 client. The MCAV plugin is built against Paper 26.3, and a 26.3 server refuses
+older clients unless you add ViaBackwards, so the server rejects a client of any other version at login.
 
 ## 1. Forward the server port to your PC
 
@@ -35,9 +35,10 @@ From the repository root:
 
 The task selects Paper build 49 from the catalog's `paper = "26.3.build.49-alpha"`. run-task verifies the digest
 returned by the Paper API; the repository supplies no expected server digest. It also downloads Simple Voice Chat
-`bukkit-2.6.24` and Spark `1.10.187`/build `539`. Spark uses the existing URL download without a repository-pinned digest.
+`bukkit-2.6.24` and Spark `1.10.187`/build `539`. Spark uses the existing URL download without a repository-pinned
+digest.
 
-The first start takes several minutes: it downloads Paper, then the plugin asks Gremlin to download the mcav
+The first start takes several minutes: it downloads Paper, then the plugin asks Gremlin to download the MCAV
 modules, the JavaCV natives, VLC and yt-dlp. Wait for `Done (…)! For help, type "help"` and, just before it,
 `MCAV loaded in … ms`.
 
@@ -57,12 +58,12 @@ modules, the JavaCV natives, VLC and yt-dlp. Wait for `Done (…)! For help, typ
 > ./gradlew :mcav-plugin:runServer -Pmcav.e2e=true -Pmcav.e2e.repositoryPort=8765
 > ```
 >
-> The port is baked into the plugin's `mcav/plugin/dependencies.txt` as the first repository, so the server asks it first. You
-> can confirm it worked: the request log of that little HTTP server must show `mcav-bukkit-1.0.0-<timestamp>.jar`
-> being fetched. This is the same mechanism the `e2eTest` task uses.
+> The build bakes the port into the plugin's `mcav/plugin/dependencies.txt` as the first repository, so the server asks
+> it first. You can confirm it worked: the request log of that small HTTP server must show a request for
+> `mcav-bukkit-1.0.0-<timestamp>.jar`. The `e2eTest` task uses the same mechanism.
 
-Let a bot or yourself join without a Mojang account by setting `online-mode=false` in `mcav-plugin/run/server.properties`
-before starting, and accept the EULA in `mcav-plugin/run/eula.txt` (`eula=true`).
+Let a bot or yourself join without a Mojang account by setting `online-mode=false` in
+`mcav-plugin/run/server.properties` before starting, and accept the EULA in `mcav-plugin/run/eula.txt` (`eula=true`).
 
 ## 3. Join
 
@@ -98,20 +99,20 @@ mcav video map @a VLC HTTP_SERVER "1920x1080" "15x9" 0 FLOYD_STEINBERG "" "/abso
 > containing spaces. Empty and malformed image sources still report `Invalid MRL!`.
 
 `HTTP_SERVER` audio needs the audio web page, which is off by default: set `enabled: true` under `http-server` in
-`mcav-plugin/run/plugins/MCAV/config.yml` and restart the server, or the command is refused. At startup the console then prints
-`The audio web page is available at http://localhost:3000/` (port 3000 unless `http-server.port` says otherwise);
+`mcav-plugin/run/plugins/MCAV/config.yml` and restart the server, or the command is refused. At startup the console then
+prints `The audio web page is available at http://localhost:3000/` (port 3000 unless `http-server.port` says otherwise);
 open that page in a browser (forward port 3000 the same way) and press play. Listen for audio and compare its timing
 with the video; a successful connection alone does not verify synchronization.
 
 ## 5. What to look for
 
-- **The whole wall fills.** Every map in the grid should show part of the picture, including the outer rows and
+- The whole wall fills. Every map in the grid should show part of the picture, including the outer rows and
   columns. If a map stays blank, check its ID, frame facing and duplicate frames as well as packet delivery.
   Rebuild the same screen once and verify it remains visible with one item frame per cell.
-- **No tearing between maps.** Watch motion across tile boundaries. Packets are bundled, but large updates can be split
+- No tearing between maps. Watch motion across tile boundaries. Packets are bundled, but large updates can be split
   and delta budgeting can defer tiles. A bundle is not a guarantee that the whole wall displays one decoded
   frame atomically; record any visible split or stale tiles.
-- **Motion is smooth, or evenly slow.** Playback that stutters in bursts — a second of motion, then several
+- Motion is smooth, or evenly slow. Playback that stutters in bursts — a second of motion, then several
   seconds frozen — can come from decoding, rendering or contention. The measured `mcav.mp4` fixture is
   2560x1440 AV1 at 60 fps. Compare it with a smaller H.264 file:
   ```sh
@@ -119,21 +120,21 @@ with the video; a successful connection alone does not verify synchronization.
   ```
   If `cheap.mp4` is smooth and `mcav.mp4` is not, that supports a workload or codec bottleneck; it does not
   isolate decoder time from every other stage. The playing message reports state, not continuing frame progress.
-- **The maps clear on release.** `mcav video release` should blank the wall, not leave the last frame frozen on it.
-- **The console stays quiet.** No `ERROR`, no stack traces, during playback or on release.
+- The maps clear on release. `mcav video release` should blank the wall, not leave the last frame frozen on it.
+- The console stays quiet. No `ERROR`, no stack traces, during playback or on release.
 
 ## 6. Capturing client-side errors
 
 The server log is `mcav-plugin/run/logs/latest.log`. The client's own log is the one that shows rendering and
 protocol problems, and it is not on the devbox:
 
-- **Vanilla launcher:** `.minecraft/logs/latest.log` (Windows `%APPDATA%\.minecraft\logs\latest.log`, macOS
+- Vanilla launcher: `.minecraft/logs/latest.log` (Windows `%APPDATA%\.minecraft\logs\latest.log`, macOS
   `~/Library/Application Support/minecraft/logs/latest.log`, Linux `~/.minecraft/logs/latest.log`).
-- **Prism / MultiMC:** the instance's `minecraft/logs/latest.log`, or the **Log** tab while it runs.
+- Prism / MultiMC: the instance's `minecraft/logs/latest.log`, or the Log tab while it runs.
 - Start the client from a terminal to watch it live; a client-side protocol failure usually shows up there as a
   disconnect with a decoder error naming the packet.
 
-If the client disconnects during playback, copy the last twenty lines of both logs — the server log says what mcav
+If the client disconnects during playback, copy the last twenty lines of both logs — the server log says what MCAV
 was sending, the client log says what it could not read.
 
 ## 7. Stop
