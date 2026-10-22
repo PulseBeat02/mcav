@@ -184,14 +184,36 @@ class PcmProcessor {
     }
 
     feed(data: ArrayBuffer): void {
-        if (this.isDestroyed) return;
+        if (this.isDestroyed) {
+            return;
+        }
 
+        this.flushWhenIdle();
+        const decodedSamples: Float32Array = this.decode(data);
+        this.updateVisualizer(decodedSamples);
+        this.append(decodedSamples);
+
+        if (this.isClockStopped()) {
+            this.keepNewestSound();
+            return;
+        }
+
+        const bufferedFrames: number = this.samples.length / this.options.channels;
+        if (bufferedFrames > this.cushionFrames()) {
+            this.play();
+        }
+    }
+
+    private flushWhenIdle(): void {
         const currentTime: number = Date.now();
         if (currentTime - this.processingTimestamp > IDLE_FLUSH_MILLISECONDS) {
             this.flush();
         }
-        this.processingTimestamp = currentTime;
 
+        this.processingTimestamp = currentTime;
+    }
+
+    private decode(data: ArrayBuffer): Float32Array {
         const view: DataView = new DataView(data);
         const decodedSamples: Float32Array = new Float32Array(data.byteLength / BYTES_PER_SAMPLE);
         for (let i: number = 0; i < decodedSamples.length; i++) {
@@ -199,8 +221,33 @@ class PcmProcessor {
             decodedSamples[i] = sample / SAMPLE_SCALE;
         }
 
-        this.updateVisualizer(decodedSamples);
+        return decodedSamples;
+    }
 
+    private updateVisualizer(data: Float32Array): void {
+        if (this.isDestroyed) {
+            return;
+        }
+
+        const samplesPerPoint: number = Math.floor(data.length / this.waveformData.length);
+        for (let i: number = 0; i < this.waveformData.length; i++) {
+            const peak: number = this.findPeak(data, i * samplesPerPoint, samplesPerPoint);
+            this.waveformData[i] = peak * WAVEFORM_GAIN;
+            this.smoothedData[i] = this.smoothedData[i] * PREVIOUS_PEAK_WEIGHT + this.waveformData[i] * CURRENT_PEAK_WEIGHT;
+        }
+    }
+
+    private findPeak(data: Float32Array, start: number, length: number): number {
+        const end: number = Math.min(start + length, data.length);
+        let peak: number = 0;
+        for (let i: number = start; i < end; i++) {
+            peak = Math.max(peak, Math.abs(data[i]));
+        }
+
+        return peak;
+    }
+
+    private append(decodedSamples: Float32Array): void {
         if (this.samples.length > MAXIMUM_BUFFERED_SAMPLES) {
             this.samples = this.samples.slice(-TRIMMED_BUFFER_SAMPLES);
         }
@@ -209,39 +256,23 @@ class PcmProcessor {
         newSamples.set(this.samples);
         newSamples.set(decodedSamples, this.samples.length);
         this.samples = newSamples;
+    }
 
+    private isClockStopped(): boolean {
+        // Chrome reports a starting context as running before its audio device runs
+        return this.audioContext.state !== "running" || this.audioContext.currentTime === this.scheduledAt;
+    }
+
+    private keepNewestSound(): void {
         const channels: number = this.options.channels;
-        const cushion: number = Math.floor(this.options.sampleRate * CUSHION_SECONDS);
-        if (this.audioContext.state !== "running" || this.audioContext.currentTime === this.scheduledAt) {
-            // a context that does not play yet, or whose clock has not moved since sound was last scheduled (Chrome
-            // reports a starting context as running before its audio device runs), keeps only the newest sound, which
-            // plays once it runs; whole frames are dropped, so the channels stay aligned
-            const extraFrames: number = Math.floor(this.samples.length / channels) - cushion;
-            if (extraFrames > 0) {
-                this.samples = this.samples.slice(extraFrames * channels);
-            }
-            return;
-        }
-        if (this.samples.length / channels > cushion) {
-            this.play();
+        const extraFrames: number = Math.floor(this.samples.length / channels) - this.cushionFrames();
+        if (extraFrames > 0) {
+            this.samples = this.samples.slice(extraFrames * channels);
         }
     }
 
-    private updateVisualizer(data: Float32Array): void {
-        if (this.isDestroyed) return;
-
-        const samplesPerPoint: number = Math.floor(data.length / this.waveformData.length);
-        for (let i: number = 0; i < this.waveformData.length; i++) {
-            let peak: number = 0;
-            for (let j: number = 0; j < samplesPerPoint; j++) {
-                const index: number = i * samplesPerPoint + j;
-                if (index < data.length) {
-                    peak = Math.max(peak, Math.abs(data[index]));
-                }
-            }
-            this.waveformData[i] = peak * WAVEFORM_GAIN;
-            this.smoothedData[i] = this.smoothedData[i] * PREVIOUS_PEAK_WEIGHT + this.waveformData[i] * CURRENT_PEAK_WEIGHT;
-        }
+    private cushionFrames(): number {
+        return Math.floor(this.options.sampleRate * CUSHION_SECONDS);
     }
 
     getVisualizerData(): VisualizerData {
@@ -250,99 +281,135 @@ class PcmProcessor {
     }
 
     private play(): void {
-        if (this.samples.length === 0 || this.isDestroyed) return;
+        if (this.samples.length === 0 || this.isDestroyed) {
+            return;
+        }
 
         const channels: number = this.options.channels;
         const length: number = Math.floor(this.samples.length / channels);
-        if (length === 0) return;
-        const audioBuffer: AudioBuffer = this.audioContext.createBuffer(channels, length, this.options.sampleRate);
+        if (length === 0) {
+            return;
+        }
 
+        const audioBuffer: AudioBuffer = this.audioContext.createBuffer(channels, length, this.options.sampleRate);
         const now: number = this.audioContext.currentTime;
         const late: boolean = this.startTime - now > MAXIMUM_LEAD_SECONDS;
         if (late) {
             this.stopQueued();
         }
+
         const underrun: boolean = late || this.startTime < now;
         if (underrun) {
             this.startTime = now + CUSHION_SECONDS;
         }
 
-        for (let channel: number = 0; channel < channels; channel++) {
-            const audioData: Float32Array = audioBuffer.getChannelData(channel);
-            let offset: number = channel;
-            for (let i: number = 0; i < length; i++) {
-                audioData[i] = this.samples[offset];
-                offset += channels;
-            }
-            if (underrun) {
-                const fade: number = Math.min(FADE_IN_FRAMES, length);
-                for (let i: number = 0; i < fade; i++) {
-                    audioData[i] = (audioData[i] * i) / fade;
-                }
-            }
+        this.fillChannels(audioBuffer, length);
+        if (underrun) {
+            this.fadeInChannels(audioBuffer, length);
         }
 
-        const bufferSource: AudioBufferSourceNode = this.audioContext.createBufferSource();
-        bufferSource.buffer = audioBuffer;
-        bufferSource.connect(this.gainNode);
-        this.activeSources.add(bufferSource);
-        bufferSource.onended = () => {
-            this.activeSources.delete(bufferSource);
-        };
-        bufferSource.start(this.startTime);
-        this.startTime += audioBuffer.duration;
+        this.schedule(audioBuffer);
         this.scheduledAt = now;
         this.samples = this.samples.slice(length * channels);
     }
 
     private stopQueued(): void {
-        this.activeSources.forEach((source: AudioBufferSourceNode) => {
-            try {
-                source.stop(this.audioContext.currentTime);
-            } catch {
-            }
-        });
+        for (const source of this.activeSources) {
+            this.stopSource(source);
+        }
+
         this.activeSources.clear();
+    }
+
+    private stopSource(source: AudioBufferSourceNode): void {
+        try {
+            source.stop(this.audioContext.currentTime);
+        } catch {
+            // stop() throws for a source that never started
+        }
+    }
+
+    private fillChannels(audioBuffer: AudioBuffer, length: number): void {
+        const channels: number = this.options.channels;
+        for (let channel: number = 0; channel < channels; channel++) {
+            const audioData: Float32Array = audioBuffer.getChannelData(channel);
+            this.fillChannel(audioData, channel, length);
+        }
+    }
+
+    private fillChannel(audioData: Float32Array, channel: number, length: number): void {
+        const channels: number = this.options.channels;
+        let offset: number = channel;
+        for (let i: number = 0; i < length; i++) {
+            audioData[i] = this.samples[offset];
+            offset += channels;
+        }
+    }
+
+    private fadeInChannels(audioBuffer: AudioBuffer, length: number): void {
+        const fade: number = Math.min(FADE_IN_FRAMES, length);
+        for (let channel: number = 0; channel < this.options.channels; channel++) {
+            const audioData: Float32Array = audioBuffer.getChannelData(channel);
+            this.fadeIn(audioData, fade);
+        }
+    }
+
+    private fadeIn(audioData: Float32Array, fade: number): void {
+        for (let i: number = 0; i < fade; i++) {
+            audioData[i] = (audioData[i] * i) / fade;
+        }
+    }
+
+    private schedule(audioBuffer: AudioBuffer): void {
+        const bufferSource: AudioBufferSourceNode = this.audioContext.createBufferSource();
+        bufferSource.buffer = audioBuffer;
+        bufferSource.connect(this.gainNode);
+        this.activeSources.add(bufferSource);
+        bufferSource.onended = (): boolean => this.activeSources.delete(bufferSource);
+        bufferSource.start(this.startTime);
+        this.startTime += audioBuffer.duration;
     }
 
     destroy(): void {
         this.isDestroyed = true;
-
-        this.activeSources.forEach((source: AudioBufferSourceNode) => {
-            try {
-                source.stop(this.audioContext.currentTime);
-                source.disconnect();
-            } catch {
-            }
-        });
-        this.activeSources.clear();
-
-        if (this.gainNode) {
-            try {
-                this.gainNode.disconnect();
-            } catch {
-            }
+        for (const source of this.activeSources) {
+            this.releaseSource(source);
         }
 
+        this.activeSources.clear();
+        this.disconnectGain();
         this.samples = new Float32Array();
         this.startTime = 0;
+        this.clearWaveform();
+    }
+
+    private releaseSource(source: AudioBufferSourceNode): void {
+        try {
+            source.stop(this.audioContext.currentTime);
+            source.disconnect();
+        } catch {
+            // stop() throws for a source that never started
+        }
+    }
+
+    private disconnectGain(): void {
+        try {
+            this.gainNode.disconnect();
+        } catch {
+            // the teardown goes on
+        }
+    }
+
+    private clearWaveform(): void {
         this.waveformData = new Float32Array(WAVEFORM_POINTS);
         this.smoothedData = new Float32Array(WAVEFORM_POINTS);
     }
 
     flush(): void {
-        this.activeSources.forEach((source: AudioBufferSourceNode) => {
-            try {
-                source.stop(this.audioContext.currentTime);
-            } catch {
-            }
-        });
-        this.activeSources.clear();
-
+        this.stopQueued();
         this.samples = new Float32Array();
         this.startTime = this.audioContext.currentTime;
-        this.waveformData = new Float32Array(WAVEFORM_POINTS);
-        this.smoothedData = new Float32Array(WAVEFORM_POINTS);
+        this.clearWaveform();
     }
 }
 
@@ -351,31 +418,46 @@ const padTimeField = (value: number): string => {
 };
 
 const formatDuration = (seconds?: number): string => {
-    if (!seconds || seconds === 0) return "--:--";
+    if (!seconds) {
+        return "--:--";
+    }
+
     const hours: number = Math.floor(seconds / SECONDS_PER_HOUR);
     const minutes: number = Math.floor((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
     const remainingSeconds: number = Math.floor(seconds % SECONDS_PER_MINUTE);
     if (hours > 0) {
         return `${hours}:${padTimeField(minutes)}:${padTimeField(remainingSeconds)}`;
     }
+
     return `${minutes}:${padTimeField(remainingSeconds)}`;
 };
 
 const formatNumber = (value?: number): string => {
-    if (!value || value === 0) return "0";
+    if (!value) {
+        return "0";
+    }
+
     if (value >= MILLION) {
-        return (value / MILLION).toFixed(COUNT_FRACTION_DIGITS) + MILLIONS_SUFFIX;
+        const millions: string = (value / MILLION).toFixed(COUNT_FRACTION_DIGITS);
+        return `${millions}${MILLIONS_SUFFIX}`;
     }
+
     if (value >= THOUSAND) {
-        return (value / THOUSAND).toFixed(COUNT_FRACTION_DIGITS) + THOUSANDS_SUFFIX;
+        const thousands: string = (value / THOUSAND).toFixed(COUNT_FRACTION_DIGITS);
+        return `${thousands}${THOUSANDS_SUFFIX}`;
     }
+
     return value.toString();
 };
 
 const formatDate = (dateString?: string): string => {
-    if (!dateString) return UNKNOWN_DATE;
+    if (!dateString) {
+        return UNKNOWN_DATE;
+    }
+
     try {
-        const date: Date = new Date(dateString.replace(UPLOAD_DATE_PATTERN, ISO_DATE_REPLACEMENT));
+        const isoDate: string = dateString.replace(UPLOAD_DATE_PATTERN, ISO_DATE_REPLACEMENT);
+        const date: Date = new Date(isoDate);
         return date.toLocaleDateString(DATE_LOCALE, DATE_FORMAT);
     } catch {
         return UNKNOWN_DATE;
@@ -439,6 +521,51 @@ const isSameMediaInformation = (first: MediaInformation, second: MediaInformatio
 
 const reportCloseFailure = (error: unknown): void => {
     console.error("Could not close the audio context.", error);
+};
+
+const toHslColor = (hue: number): string => {
+    return `hsl(${hue}, ${COLOR_SATURATION}, ${COLOR_LIGHTNESS})`;
+};
+
+const createGradient = (context: CanvasRenderingContext2D, width: number, hue: number): CanvasGradient => {
+    const gradient: CanvasGradient = context.createLinearGradient(0, 0, width, 0);
+    gradient.addColorStop(0, toHslColor(hue));
+    gradient.addColorStop(MIDDLE_COLOR_STOP, toHslColor(hue + MIDDLE_HUE_OFFSET_DEGREES));
+    gradient.addColorStop(1, toHslColor(hue + END_HUE_OFFSET_DEGREES));
+    return gradient;
+};
+
+const traceWaveform = (context: CanvasRenderingContext2D, smoothedData: Float32Array, width: number, height: number): void => {
+    const centerY: number = height * VERTICAL_CENTER;
+    const maximumAmplitude: number = height * AMPLITUDE_HEIGHT_FRACTION;
+    const xStep: number = width / WAVEFORM_POINTS;
+    context.beginPath();
+    context.moveTo(0, centerY);
+    for (let i: number = 0; i < WAVEFORM_POINTS; i += WAVEFORM_STEP) {
+        const x: number = i * xStep;
+        const amplitude: number = smoothedData[i] * maximumAmplitude;
+        context.lineTo(x, centerY - amplitude);
+    }
+
+    for (let i: number = WAVEFORM_POINTS - 1; i >= 0; i -= WAVEFORM_STEP) {
+        const x: number = i * xStep;
+        const amplitude: number = smoothedData[i] * maximumAmplitude;
+        context.lineTo(x, centerY + amplitude);
+    }
+
+    context.closePath();
+};
+
+const drawWaveform = (canvas: HTMLCanvasElement, context: CanvasRenderingContext2D, gradient: CanvasGradient, data: VisualizerData): void => {
+    context.fillStyle = BACKGROUND_COLOR;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.shadowBlur = 0;
+    context.strokeStyle = gradient;
+    context.lineWidth = LINE_WIDTH;
+    traceWaveform(context, data.smoothedData, canvas.width, canvas.height);
+    context.fillStyle = `hsla(${data.hue}, ${COLOR_SATURATION}, ${COLOR_LIGHTNESS}, ${FILL_OPACITY})`;
+    context.fill();
+    context.stroke();
 };
 
 const AudioStreamPlayer = (): React.JSX.Element => {
@@ -515,93 +642,69 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         }
     }, []);
 
-    const animateVisualizer = useCallback((): void => {
-        const canvas: HTMLCanvasElement | null = canvasRef.current;
-        const context: CanvasRenderingContext2D | null | undefined = canvas?.getContext("2d");
-        const processor: PcmProcessor | undefined = pcmProcessorRef.current;
-        if (!canvas || !context || !processor) return;
+    const cancelAnimation = useCallback((): void => {
         if (animationIdRef.current !== undefined) {
             cancelAnimationFrame(animationIdRef.current);
             animationIdRef.current = undefined;
         }
+    }, []);
 
+    const animateVisualizer = useCallback((): void => {
+        const canvas: HTMLCanvasElement | null = canvasRef.current;
+        const context: CanvasRenderingContext2D | null | undefined = canvas?.getContext("2d");
+        const processor: PcmProcessor | undefined = pcmProcessorRef.current;
+        if (!canvas || !context || !processor) {
+            return;
+        }
 
+        cancelAnimation();
         let gradient: CanvasGradient | undefined;
         let lastHue: number = -1;
         let lastWidth: number = -1;
-
         const draw = (): void => {
-            // a dispatched callback can outlive cancellation and must not adopt a replacement processor
-            if (pcmProcessorRef.current !== processor) return;
-            if (!canvasRef.current || !pcmProcessorRef.current || pcmProcessorRef.current.isDestroyed) {
+            // a dispatched frame can outlive its cancellation
+            if (pcmProcessorRef.current !== processor) {
+                return;
+            }
+
+            if (!canvasRef.current || processor.isDestroyed) {
                 animationIdRef.current = undefined;
                 return;
             }
 
-            const {smoothedData, hue}: VisualizerData = processor.getVisualizerData();
-            const width: number = canvas.width;
-            const height: number = canvas.height;
-            const centerY: number = height * VERTICAL_CENTER;
-            const maximumAmplitude: number = height * AMPLITUDE_HEIGHT_FRACTION;
-            const xStep: number = width / WAVEFORM_POINTS;
-            context.fillStyle = BACKGROUND_COLOR;
-            context.fillRect(0, 0, width, height);
-
-            if (!gradient || Math.abs(hue - lastHue) > HUE_REDRAW_DEGREES || width !== lastWidth) {
-                gradient = context.createLinearGradient(0, 0, width, 0);
-                gradient.addColorStop(0, `hsl(${hue}, ${COLOR_SATURATION}, ${COLOR_LIGHTNESS})`);
-                gradient.addColorStop(MIDDLE_COLOR_STOP, `hsl(${hue + MIDDLE_HUE_OFFSET_DEGREES}, ${COLOR_SATURATION}, ${COLOR_LIGHTNESS})`);
-                gradient.addColorStop(1, `hsl(${hue + END_HUE_OFFSET_DEGREES}, ${COLOR_SATURATION}, ${COLOR_LIGHTNESS})`);
-                lastHue = hue;
-                lastWidth = width;
+            const data: VisualizerData = processor.getVisualizerData();
+            if (!gradient || Math.abs(data.hue - lastHue) > HUE_REDRAW_DEGREES || canvas.width !== lastWidth) {
+                gradient = createGradient(context, canvas.width, data.hue);
+                lastHue = data.hue;
+                lastWidth = canvas.width;
             }
 
-            context.shadowBlur = 0;
-            context.strokeStyle = gradient;
-            context.lineWidth = LINE_WIDTH;
-
-            context.beginPath();
-
-            context.moveTo(0, centerY);
-            for (let i: number = 0; i < WAVEFORM_POINTS; i += WAVEFORM_STEP) {
-                const x: number = i * xStep;
-                const amplitude: number = smoothedData[i] * maximumAmplitude;
-                context.lineTo(x, centerY - amplitude);
-            }
-
-            for (let i: number = WAVEFORM_POINTS - 1; i >= 0; i -= WAVEFORM_STEP) {
-                const x: number = i * xStep;
-                const amplitude: number = smoothedData[i] * maximumAmplitude;
-                context.lineTo(x, centerY + amplitude);
-            }
-
-            context.closePath();
-            context.fillStyle = `hsla(${hue}, ${COLOR_SATURATION}, ${COLOR_LIGHTNESS}, ${FILL_OPACITY})`;
-            context.fill();
-            context.stroke();
-
-            if (canvasRef.current && pcmProcessorRef.current) {
-                animationIdRef.current = requestAnimationFrame(draw);
-            }
+            drawWaveform(canvas, context, gradient, data);
+            animationIdRef.current = requestAnimationFrame(draw);
         };
 
         animationIdRef.current = requestAnimationFrame(draw);
+    }, [cancelAnimation]);
+
+    const sendHeartbeat = useCallback((): void => {
+        if (socketRef.current?.readyState !== WebSocket.OPEN) {
+            return;
+        }
+
+        try {
+            socketRef.current.send(new ArrayBuffer(0));
+        } catch (exception: unknown) {
+            console.error("Could not send the heartbeat.", exception);
+        }
     }, []);
 
     const startHeartbeat = useCallback((): void => {
         if (heartbeatIntervalRef.current) {
             clearInterval(heartbeatIntervalRef.current);
         }
-        heartbeatIntervalRef.current = setInterval(() => {
-            if (socketRef.current?.readyState === WebSocket.OPEN) {
-                try {
-                    socketRef.current.send(new ArrayBuffer(0));
-                } catch (exception: unknown) {
-                    console.error("Could not send the heartbeat.", exception);
-                }
-            }
-        }, HEARTBEAT_MILLISECONDS);
-    }, []);
+
+        heartbeatIntervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_MILLISECONDS);
+    }, [sendHeartbeat]);
 
     const stopHeartbeat = useCallback((): void => {
         if (heartbeatIntervalRef.current) {
@@ -610,8 +713,17 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         }
     }, []);
 
+    const reconnect = useCallback((): void => {
+        reconnectTimeoutRef.current = undefined;
+        if (shouldReconnectRef.current && audioContextRef.current?.state === "running") {
+            connectRef.current();
+        }
+    }, []);
+
     const attemptReconnect = useCallback((): void => {
-        if (reconnectTimeoutRef.current) return;
+        if (reconnectTimeoutRef.current) {
+            return;
+        }
 
         reconnectAttemptsRef.current++;
 
@@ -624,187 +736,210 @@ const AudioStreamPlayer = (): React.JSX.Element => {
 
         const backoff: number = Math.pow(RECONNECT_BACKOFF_FACTOR, reconnectAttemptsRef.current - 1);
         const delay: number = Math.min(RECONNECT_BASE_DELAY_MILLISECONDS * backoff, MAXIMUM_RECONNECT_DELAY_MILLISECONDS);
+        reconnectTimeoutRef.current = setTimeout(reconnect, delay);
+    }, [reconnect, updateStatus]);
 
-        reconnectTimeoutRef.current = setTimeout(() => {
-            reconnectTimeoutRef.current = undefined;
-            if (shouldReconnectRef.current && audioContextRef.current?.state === "running") {
-                connectRef.current();
-            }
-        }, delay);
-    }, [updateStatus]);
-
-    const stopStream = useCallback((): void => {
-        shouldReconnectRef.current = false;
-        streamingRef.current = false;
-
+    const cancelReconnect = useCallback((): void => {
         if (reconnectTimeoutRef.current) {
             clearTimeout(reconnectTimeoutRef.current);
             reconnectTimeoutRef.current = undefined;
         }
+    }, []);
 
+    const cancelConnect = useCallback((): void => {
         if (connectTimeoutRef.current) {
             clearTimeout(connectTimeoutRef.current);
             connectTimeoutRef.current = undefined;
         }
+    }, []);
 
+    const closeSocket = useCallback((): void => {
         if (socketRef.current) {
             socketRef.current.close();
             socketRef.current = undefined;
         }
+    }, []);
 
+    const destroyProcessor = useCallback((): void => {
         if (pcmProcessorRef.current) {
             pcmProcessorRef.current.destroy();
             pcmProcessorRef.current = undefined;
         }
+    }, []);
 
-        if (animationIdRef.current) {
-            cancelAnimationFrame(animationIdRef.current);
-            animationIdRef.current = undefined;
+    const clearVisualizer = useCallback((): void => {
+        const canvas: HTMLCanvasElement | null = canvasRef.current;
+        const context: CanvasRenderingContext2D | null | undefined = canvas?.getContext("2d");
+        if (canvas && context) {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    }, []);
+
+    const hideVisualizer = useCallback((): void => {
+        if (placeholderRef.current) {
+            placeholderRef.current.style.display = "block";
         }
 
+        if (canvasRef.current) {
+            canvasRef.current.style.display = "none";
+        }
+    }, []);
+
+    const stopStream = useCallback((): void => {
+        shouldReconnectRef.current = false;
+        streamingRef.current = false;
+        cancelReconnect();
+        cancelConnect();
+        closeSocket();
+        destroyProcessor();
+        cancelAnimation();
         stopMetadataRefresh();
         stopHeartbeat();
 
         setIsConnected(false);
         setIsLoading(false);
         updateStatus(DISCONNECTED_STATUS);
+        clearVisualizer();
+        hideVisualizer();
+    }, [
+        cancelAnimation, cancelConnect, cancelReconnect, clearVisualizer, closeSocket, destroyProcessor, hideVisualizer,
+        stopHeartbeat, stopMetadataRefresh, updateStatus
+    ]);
 
-        const canvas: HTMLCanvasElement | null = canvasRef.current;
-        if (canvas) {
-            const context: CanvasRenderingContext2D | null = canvas.getContext("2d");
-            if (context) {
-                context.clearRect(0, 0, canvas.width, canvas.height);
+    const showVisualizer = useCallback((): void => {
+        if (placeholderRef.current) {
+            placeholderRef.current.style.display = "none";
+        }
+
+        if (canvasRef.current) {
+            canvasRef.current.style.display = "block";
+        }
+    }, []);
+
+    const startConnectedStream = useCallback((socket: WebSocket): void => {
+        if (socketRef.current !== socket) {
+            return;
+        }
+
+        updateStatus("Connected", true);
+        streamingRef.current = false;
+        setIsConnected(true);
+        shouldReconnectRef.current = true;
+        setIsLoading(false);
+        startHeartbeat();
+        showVisualizer();
+        reconnectAttemptsRef.current = 0;
+        animateVisualizer();
+        cancelReconnect();
+    }, [animateVisualizer, cancelReconnect, showVisualizer, startHeartbeat, updateStatus]);
+
+    const feedProcessor = useCallback((data: ArrayBuffer): void => {
+        const processor: PcmProcessor | undefined = pcmProcessorRef.current;
+        const hasSound: boolean = data.byteLength > 0;
+        if (!hasSound || !processor || processor.isDestroyed) {
+            return;
+        }
+
+        if (!streamingRef.current) {
+            streamingRef.current = true;
+            updateStatus("Streaming audio", true);
+        }
+
+        processor.feed(data);
+    }, [updateStatus]);
+
+    const playReceivedSound = useCallback((socket: WebSocket, event: MessageEvent): void => {
+        if (socketRef.current !== socket) {
+            return;
+        }
+
+        try {
+            feedProcessor(event.data);
+        } catch (exception: unknown) {
+            console.error("Could not play the received sound.", exception);
+            pcmProcessorRef.current?.flush();
+        }
+    }, [feedProcessor]);
+
+    const reconnectOrStopAfterError = useCallback((socket: WebSocket, event: Event): void => {
+        if (socketRef.current !== socket) {
+            return;
+        }
+
+        console.error("The audio connection failed.", event);
+        setIsLoading(false);
+        if (shouldReconnectRef.current) {
+            updateStatus("Connection error - reconnecting...");
+            attemptReconnect();
+            return;
+        }
+
+        updateStatus("Connection error");
+        stopStream();
+    }, [attemptReconnect, stopStream, updateStatus]);
+
+    const reconnectOrStopAfterClose = useCallback((socket: WebSocket): void => {
+        if (socketRef.current !== socket) {
+            return;
+        }
+
+        streamingRef.current = false;
+        stopHeartbeat();
+        setIsLoading(false);
+        if (shouldReconnectRef.current) {
+            updateStatus("Disconnected - reconnecting...");
+            attemptReconnect();
+            return;
+        }
+
+        updateStatus(DISCONNECTED_STATUS);
+        stopStream();
+    }, [attemptReconnect, stopHeartbeat, stopStream, updateStatus]);
+
+    const openSocket = useCallback((): void => {
+        const scheme: string = window.location.protocol === SECURE_PROTOCOL ? SECURE_SOCKET_SCHEME : SOCKET_SCHEME;
+        const endpoint: string = `${scheme}://${window.location.host}${AUDIO_PATH}`;
+        const socket: WebSocket = new WebSocket(endpoint);
+        socket.binaryType = "arraybuffer";
+        socketRef.current = socket;
+        // each handler ignores a replaced socket, whose late close would reconnect next to the new stream
+        socket.onopen = (): void => startConnectedStream(socket);
+        socket.onmessage = (event: MessageEvent): void => playReceivedSound(socket, event);
+        socket.onerror = (event: Event): void => reconnectOrStopAfterError(socket, event);
+        socket.onclose = (): void => reconnectOrStopAfterClose(socket);
+    }, [playReceivedSound, reconnectOrStopAfterClose, reconnectOrStopAfterError, startConnectedStream]);
+
+    const openStream = useCallback((): void => {
+        connectTimeoutRef.current = undefined;
+        try {
+            setIsLoading(true);
+            updateStatus("Connecting...");
+            pcmProcessorRef.current = new PcmProcessor({
+                encoding: STREAM_ENCODING,
+                channels: STREAM_CHANNELS,
+                sampleRate: STREAM_SAMPLE_RATE,
+                flushingTime: FLUSHING_TIME_MILLISECONDS,
+                audioContext: audioContextRef.current!
+            });
+            pcmProcessorRef.current.gainNode.gain.value = volumeRef.current / MAXIMUM_VOLUME;
+            openSocket();
+        } catch (exception: unknown) {
+            console.error("Could not start the stream.", exception);
+            updateStatus(`Error: ${(exception as Error).message}`);
+            setIsLoading(false);
+            if (shouldReconnectRef.current) {
+                attemptReconnect();
             }
         }
-
-        if (placeholderRef.current) {
-            placeholderRef.current.style.display = "block";
-        }
-        if (canvasRef.current) {
-            canvasRef.current.style.display = "none";
-        }
-    }, [stopMetadataRefresh, stopHeartbeat, updateStatus]);
+    }, [attemptReconnect, openSocket, updateStatus]);
 
     const connectWebSocket = useCallback((): void => {
-        if (animationIdRef.current !== undefined) {
-            cancelAnimationFrame(animationIdRef.current);
-            animationIdRef.current = undefined;
-        }
-        if (pcmProcessorRef.current) {
-            pcmProcessorRef.current.destroy();
-            pcmProcessorRef.current = undefined;
-        }
-
-        if (connectTimeoutRef.current) {
-            clearTimeout(connectTimeoutRef.current);
-        }
-
+        cancelAnimation();
+        destroyProcessor();
+        cancelConnect();
         startMetadataRefresh();
-
-        connectTimeoutRef.current = setTimeout(() => {
-            connectTimeoutRef.current = undefined;
-            try {
-                setIsLoading(true);
-                updateStatus("Connecting...");
-
-                pcmProcessorRef.current = new PcmProcessor({
-                    encoding: STREAM_ENCODING,
-                    channels: STREAM_CHANNELS,
-                    sampleRate: STREAM_SAMPLE_RATE,
-                    flushingTime: FLUSHING_TIME_MILLISECONDS,
-                    audioContext: audioContextRef.current!
-                });
-
-                pcmProcessorRef.current.gainNode.gain.value = volumeRef.current / MAXIMUM_VOLUME;
-
-                const scheme: string = window.location.protocol === SECURE_PROTOCOL ? SECURE_SOCKET_SCHEME : SOCKET_SCHEME;
-                const endpoint: string = `${scheme}://${window.location.host}${AUDIO_PATH}`;
-
-                const socket: WebSocket = new WebSocket(endpoint);
-                socket.binaryType = "arraybuffer";
-                socketRef.current = socket;
-
-                // a socket the page closed or replaced may still report its end; it no longer acts on the page, or its
-                // late close would reconnect a stream that was stopped and started again, next to the new one
-                socket.onopen = () => {
-                    if (socketRef.current !== socket) return;
-                    updateStatus("Connected", true);
-                    streamingRef.current = false;
-                    setIsConnected(true);
-                    shouldReconnectRef.current = true;
-                    setIsLoading(false);
-                    startHeartbeat();
-
-                    if (placeholderRef.current) {
-                        placeholderRef.current.style.display = "none";
-                    }
-                    if (canvasRef.current) {
-                        canvasRef.current.style.display = "block";
-                    }
-
-                    reconnectAttemptsRef.current = 0;
-                    animateVisualizer();
-
-                    if (reconnectTimeoutRef.current) {
-                        clearTimeout(reconnectTimeoutRef.current);
-                        reconnectTimeoutRef.current = undefined;
-                    }
-                };
-
-                socket.onmessage = (event: MessageEvent) => {
-                    if (socketRef.current !== socket) return;
-                    try {
-                        if (event.data.byteLength > 0 && pcmProcessorRef.current && !pcmProcessorRef.current.isDestroyed) {
-                            if (!streamingRef.current) {
-                                streamingRef.current = true;
-                                updateStatus("Streaming audio", true);
-                            }
-                            pcmProcessorRef.current.feed(event.data);
-                        }
-                    } catch (exception: unknown) {
-                        console.error("Could not play the received sound.", exception);
-                        if (pcmProcessorRef.current) {
-                            pcmProcessorRef.current.flush();
-                        }
-                    }
-                };
-
-                socket.onerror = (event: Event) => {
-                    if (socketRef.current !== socket) return;
-                    console.error("The audio connection failed.", event);
-                    setIsLoading(false);
-                    if (shouldReconnectRef.current) {
-                        updateStatus("Connection error - reconnecting...");
-                        attemptReconnect();
-                    } else {
-                        updateStatus("Connection error");
-                        stopStream();
-                    }
-                };
-
-                socket.onclose = () => {
-                    if (socketRef.current !== socket) return;
-                    streamingRef.current = false;
-                    stopHeartbeat();
-                    setIsLoading(false);
-                    if (shouldReconnectRef.current) {
-                        updateStatus("Disconnected - reconnecting...");
-                        attemptReconnect();
-                    } else {
-                        updateStatus(DISCONNECTED_STATUS);
-                        stopStream();
-                    }
-                };
-            } catch (exception: unknown) {
-                console.error("Could not start the stream.", exception);
-                updateStatus(`Error: ${(exception as Error).message}`);
-                setIsLoading(false);
-                if (shouldReconnectRef.current) {
-                    attemptReconnect();
-                }
-            }
-        }, CONNECT_DELAY_MILLISECONDS);
-    }, [startMetadataRefresh, startHeartbeat, stopHeartbeat, animateVisualizer, attemptReconnect, updateStatus, stopStream]);
+        connectTimeoutRef.current = setTimeout(openStream, CONNECT_DELAY_MILLISECONDS);
+    }, [cancelAnimation, cancelConnect, destroyProcessor, openStream, startMetadataRefresh]);
 
     useEffect(() => {
         connectRef.current = connectWebSocket;
@@ -814,10 +949,11 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         updateStatus("Audio permission granted!");
         if (audioContextRef.current?.state === "running") {
             connectWebSocket();
-        } else {
-            shouldReconnectRef.current = false;
-            setIsLoading(false);
+            return;
         }
+
+        shouldReconnectRef.current = false;
+        setIsLoading(false);
     }, [connectWebSocket, updateStatus]);
 
     const reportPermissionFailure = useCallback((error: unknown): void => {
@@ -830,35 +966,30 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         if (shouldReconnectRef.current) {
             return;
         }
+
         shouldReconnectRef.current = true;
         reconnectAttemptsRef.current = 0;
         setIsLoading(true);
-
-        if (pcmProcessorRef.current) {
-            pcmProcessorRef.current.destroy();
-            pcmProcessorRef.current = undefined;
-        }
-
+        destroyProcessor();
         if (audioContextRef.current) {
             audioContextRef.current.close().catch(reportCloseFailure);
             audioContextRef.current = undefined;
         }
 
-        if ("webkitAudioContext" in window) {
-            audioContextRef.current = new (window as WebkitWindow).webkitAudioContext();
-        } else {
-            audioContextRef.current = new AudioContext();
-        }
-        updateStatus(`Audio permission: ${audioContextRef.current.state}`);
-
-        if (audioContextRef.current.state === "running") {
+        const audioContext: AudioContext = "webkitAudioContext" in window
+            ? new (window as WebkitWindow).webkitAudioContext()
+            : new AudioContext();
+        audioContextRef.current = audioContext;
+        updateStatus(`Audio permission: ${audioContext.state}`);
+        if (audioContext.state === "running") {
             connectWebSocket();
-        } else {
-            audioContextRef.current.resume()
-                .then(connectAfterResume)
-                .catch(reportPermissionFailure);
+            return;
         }
-    }, [connectAfterResume, connectWebSocket, reportPermissionFailure, updateStatus]);
+
+        audioContext.resume()
+            .then(connectAfterResume)
+            .catch(reportPermissionFailure);
+    }, [connectAfterResume, connectWebSocket, destroyProcessor, reportPermissionFailure, updateStatus]);
 
     const stopPlayback = useCallback((): void => {
         shouldReconnectRef.current = false;
@@ -877,81 +1008,82 @@ const AudioStreamPlayer = (): React.JSX.Element => {
     const updateTitleScrolling = useCallback((): void => {
         const title: HTMLHeadingElement | null = titleRef.current;
         const wrapper: HTMLDivElement | null = titleWrapperRef.current;
-
-        if (!title || !wrapper) return;
+        if (!title || !wrapper) {
+            return;
+        }
 
         const titleWidth: number = title.scrollWidth;
         const wrapperWidth: number = wrapper.clientWidth;
+        const overflowing: boolean = titleWidth > wrapperWidth && wrapperWidth > 0;
+        title.classList.toggle(styles.scrolling, overflowing);
+    }, []);
 
-        if (titleWidth > wrapperWidth && wrapperWidth > 0) {
-            title.classList.add(styles.scrolling);
-        } else {
-            title.classList.remove(styles.scrolling);
+    const resizeCanvas = useCallback((): void => {
+        const canvas: HTMLCanvasElement | null = canvasRef.current;
+        const container: HTMLElement | null | undefined = canvas?.parentElement;
+        if (!canvas || !container) {
+            return;
+        }
+
+        const bounds: DOMRect = container.getBoundingClientRect();
+        const ratio: number = window.devicePixelRatio || DEFAULT_PIXEL_RATIO;
+        canvas.width = Math.max(MINIMUM_CANVAS_PIXELS, Math.round(bounds.width * ratio));
+        canvas.height = Math.max(MINIMUM_CANVAS_PIXELS, Math.round(bounds.height * ratio));
+    }, []);
+
+    const clearPendingTimers = useCallback((): void => {
+        if (metadataIntervalRef.current) {
+            clearInterval(metadataIntervalRef.current);
+        }
+
+        if (heartbeatIntervalRef.current) {
+            clearInterval(heartbeatIntervalRef.current);
+        }
+
+        if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+        }
+
+        if (connectTimeoutRef.current) {
+            clearTimeout(connectTimeoutRef.current);
         }
     }, []);
 
+    const releasePlayer = useCallback((): void => {
+        shouldReconnectRef.current = false;
+        cancelAnimation();
+        clearPendingTimers();
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.close();
+        }
+
+        pcmProcessorRef.current?.destroy();
+        audioContextRef.current?.close().catch(reportCloseFailure);
+    }, [cancelAnimation, clearPendingTimers]);
+
     useEffect(() => {
         let unmounted: boolean = false;
-        requestMediaInformation().then((information: MediaInformation) => {
+        const showWhileMounted = (information: MediaInformation): void => {
             if (!unmounted) {
                 setMediaInformation(information);
             }
-        });
-
-        const resizeCanvas = (): void => {
-            const canvas: HTMLCanvasElement | null = canvasRef.current;
-            if (canvas && canvas.parentElement) {
-                const bounds: DOMRect = canvas.parentElement.getBoundingClientRect();
-                const ratio: number = window.devicePixelRatio || DEFAULT_PIXEL_RATIO;
-                canvas.width = Math.max(MINIMUM_CANVAS_PIXELS, Math.round(bounds.width * ratio));
-                canvas.height = Math.max(MINIMUM_CANVAS_PIXELS, Math.round(bounds.height * ratio));
-            }
         };
 
+        requestMediaInformation().then(showWhileMounted);
         const resizeObserver: ResizeObserver = new ResizeObserver(resizeCanvas);
         const canvasContainer: HTMLElement | null | undefined = canvasRef.current?.parentElement;
         if (canvasContainer) {
             resizeObserver.observe(canvasContainer);
         }
-        resizeCanvas();
 
-        return () => {
+        resizeCanvas();
+        const release = (): void => {
             unmounted = true;
             resizeObserver.disconnect();
-
-            shouldReconnectRef.current = false;
-
-            if (animationIdRef.current) {
-                cancelAnimationFrame(animationIdRef.current);
-                animationIdRef.current = undefined;
-            }
-
-            if (metadataIntervalRef.current) {
-                clearInterval(metadataIntervalRef.current);
-            }
-            if (heartbeatIntervalRef.current) {
-                clearInterval(heartbeatIntervalRef.current);
-            }
-            if (reconnectTimeoutRef.current) {
-                clearTimeout(reconnectTimeoutRef.current);
-            }
-            if (connectTimeoutRef.current) {
-                clearTimeout(connectTimeoutRef.current);
-            }
-
-            if (socketRef.current?.readyState === WebSocket.OPEN) {
-                socketRef.current.close();
-            }
-
-            if (pcmProcessorRef.current) {
-                pcmProcessorRef.current.destroy();
-            }
-
-            if (audioContextRef.current) {
-                audioContextRef.current.close().catch(reportCloseFailure);
-            }
+            releasePlayer();
         };
-    }, [requestMediaInformation]);
+        return release;
+    }, [releasePlayer, requestMediaInformation, resizeCanvas]);
 
     useEffect(() => {
         if (mediaInformation.title && mediaInformation.title !== WAITING_TITLE) {

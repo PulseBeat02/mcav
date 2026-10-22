@@ -77,16 +77,15 @@ class FakeAudioContext {
     }
 
     createBufferSource() {
-        const context = this;
         const source = {
             buffer: null,
             connect() {},
             disconnect() {},
-            start(when) {
-                context.started.push({source, when, duration: source.buffer.duration});
+            start: when => {
+                this.started.push({source, when, duration: source.buffer.duration});
             },
-            stop() {
-                context.stopped.push(source);
+            stop: () => {
+                this.stopped.push(source);
             },
         };
         return source;

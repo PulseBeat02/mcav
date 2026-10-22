@@ -25,10 +25,28 @@ import vm from "node:vm";
 const PAGE = new URL("../src/app/page.tsx", import.meta.url);
 const CONSTANT_DECLARATION = /^const [A-Z][A-Z0-9_]*: .+;$/gm;
 const ENCODING = "utf8";
+const ARROW_BODY = "=> {";
+const HELPERS = ["toHslColor", "createGradient", "traceWaveform", "drawWaveform"];
 const CALLBACKS = [
+    "cancelAnimation",
     "animateVisualizer",
+    "reconnect",
     "attemptReconnect",
+    "cancelReconnect",
+    "cancelConnect",
+    "closeSocket",
+    "destroyProcessor",
+    "clearVisualizer",
+    "hideVisualizer",
     "stopStream",
+    "showVisualizer",
+    "startConnectedStream",
+    "feedProcessor",
+    "playReceivedSound",
+    "reconnectOrStopAfterError",
+    "reconnectOrStopAfterClose",
+    "openSocket",
+    "openStream",
     "connectWebSocket",
     "connectAfterResume",
     "reportPermissionFailure",
@@ -100,6 +118,12 @@ const skipBalanced = (source, index) => {
 
 const pageCallbacks = () => {
     const source = readFileSync(PAGE, ENCODING);
+    const helpers = HELPERS.map(name => {
+        const start = source.indexOf(`const ${name} = (`);
+        assert.ok(start >= 0, `the page declares the helper ${name}`);
+        const body = source.indexOf(ARROW_BODY, start) + ARROW_BODY.length - 1;
+        return `${source.slice(start, skipBalanced(source, body))};`;
+    });
     const declarations = CALLBACKS.map(name => {
         const declaration = `const ${name} = useCallback(`;
         const start = source.indexOf(declaration);
@@ -107,7 +131,8 @@ const pageCallbacks = () => {
         return `${source.slice(start, skipBalanced(source, start + declaration.length - 1))};`;
     });
     const constants = source.match(CONSTANT_DECLARATION).join("\n");
-    return stripTypeScriptTypes(`${constants}\n${declarations.join("\n")}\n({${CALLBACKS.join(", ")}});`);
+    const script = `${constants}\n${helpers.join("\n")}\n${declarations.join("\n")}\n({${CALLBACKS.join(", ")}});`;
+    return stripTypeScriptTypes(script);
 };
 
 /**

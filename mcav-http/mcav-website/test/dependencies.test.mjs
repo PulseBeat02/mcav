@@ -30,11 +30,22 @@ const ENCODING = "utf8";
 const SOURCE_FILE = /\.(tsx?|jsx?|mjs|css)$/;
 const IMPORT = /(?:from\s+|import\s*\(\s*|require\s*\(\s*)['"]((?:@[^'"/]+\/)?[^'"/]+)/g;
 
+const entrySources = (folder, entry) => {
+    const path = join(folder, entry.name);
+    if (entry.isDirectory()) {
+        return sources(path);
+    }
+
+    if (SOURCE_FILE.test(entry.name)) {
+        return [path];
+    }
+
+    return [];
+};
+
 const sources = folder => {
-    return readdirSync(folder, {withFileTypes: true}).flatMap(entry => {
-        const path = join(folder, entry.name);
-        return entry.isDirectory() ? sources(path) : SOURCE_FILE.test(entry.name) ? [path] : [];
-    });
+    const entries = readdirSync(folder, {withFileTypes: true});
+    return entries.flatMap(entry => entrySources(folder, entry));
 };
 
 const manifest = name => {
