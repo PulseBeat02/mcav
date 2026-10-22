@@ -69,7 +69,7 @@ final class NeoForgeEntrypointTest {
 
   @Test
   void shouldRegisterAnOptionalPayloadWhoseServerHandlerDropsIt() {
-    new NeoForgeEntrypoint(this.modBus, this.gameBus, Optional.empty(), System::nanoTime);
+    new NeoForgeEntrypoint(this.modBus, this.gameBus, null, System::nanoTime);
     final RegisterPayloadHandlersEvent event = mock(RegisterPayloadHandlersEvent.class);
     final PayloadRegistrar registrar = mock(PayloadRegistrar.class);
     when(event.registrar(NeoForgeEntrypoint.PROTOCOL)).thenReturn(registrar);
@@ -87,7 +87,7 @@ final class NeoForgeEntrypointTest {
   @Test
   void shouldReportOnTheTicksOfASessionWhoseServerHasTheChannel() {
     final AtomicLong clock = new AtomicLong();
-    new NeoForgeEntrypoint(this.modBus, this.gameBus, Optional.empty(), clock::get);
+    new NeoForgeEntrypoint(this.modBus, this.gameBus, null, clock::get);
     final Consumer<ClientPlayerNetworkEvent.LoggingIn> loggingIn = listener(this.gameBus, ClientPlayerNetworkEvent.LoggingIn.class);
     final Consumer<ClientPlayerNetworkEvent.LoggingOut> loggingOut = listener(this.gameBus, ClientPlayerNetworkEvent.LoggingOut.class);
     final Consumer<ClientTickEvent.Post> ticks = listener(this.gameBus, ClientTickEvent.Post.class);
@@ -128,7 +128,7 @@ final class NeoForgeEntrypointTest {
 
   @AfterEach
   void uninstall() {
-    ShaderDecoder.install(Optional.empty());
+    ShaderDecoder.uninstall();
   }
 
   @Test

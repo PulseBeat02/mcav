@@ -71,13 +71,13 @@ final class Mcv2ShadersTest {
 
   @AfterEach
   void uninstall() {
-    ShaderDecoder.install(Optional.empty());
+    ShaderDecoder.uninstall();
   }
 
   @Test
   void shouldHandEveryHookToTheDecoder() {
     final ShaderDecoder decoder = mock(ShaderDecoder.class);
-    ShaderDecoder.install(Optional.of(decoder));
+    ShaderDecoder.install(decoder);
     final MapRenderState state = new MapRenderState();
     state.texture = TEXTURE;
     final MapItemSavedData data = MapItemSavedData.createForClient((byte) 0, false, Level.OVERWORLD);
@@ -100,13 +100,13 @@ final class Mcv2ShadersTest {
   @Test
   void shouldLeaveAMapWithoutATextureAndAClientWithoutADecoderAlone() {
     final ShaderDecoder decoder = mock(ShaderDecoder.class);
-    ShaderDecoder.install(Optional.of(decoder));
+    ShaderDecoder.install(decoder);
     final MapRenderState state = new MapRenderState();
     final MapItemSavedData data = MapItemSavedData.createForClient((byte) 0, false, Level.OVERWORLD);
     Mcv2Shaders.extracted(state, data);
     Mcv2Shaders.posed(state, new PoseStack());
     verifyNoInteractions(decoder);
-    ShaderDecoder.install(Optional.empty());
+    ShaderDecoder.uninstall();
     state.texture = TEXTURE;
     Mcv2Shaders.extracted(state, data);
     Mcv2Shaders.posed(state, new PoseStack());
@@ -121,11 +121,11 @@ final class Mcv2ShadersTest {
     final IrisApi api = mock(IrisApi.class);
     try (final MockedStatic<IrisApi> iris = mockStatic(IrisApi.class)) {
       iris.when(IrisApi::getInstance).thenReturn(api);
-      final boolean testedHooked = hooked(Mcv2Shaders.start(Optional.of("1.11.7+mc26.3")));
+      final boolean testedHooked = hooked(Mcv2Shaders.start("1.11.7+mc26.3"));
       assertTrue(testedHooked);
       verify(api).isRenderingShadowPass();
-      final boolean newerHooked = hooked(Mcv2Shaders.start(Optional.of("1.11.8+mc26.3")));
-      final boolean withoutIrisHooked = hooked(Mcv2Shaders.start(Optional.empty()));
+      final boolean newerHooked = hooked(Mcv2Shaders.start("1.11.8+mc26.3"));
+      final boolean withoutIrisHooked = hooked(Mcv2Shaders.start(null));
       assertFalse(newerHooked);
       assertFalse(withoutIrisHooked);
       verify(api).isRenderingShadowPass();

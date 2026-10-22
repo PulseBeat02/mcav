@@ -105,30 +105,30 @@ public final class Mcv2Shaders {
   /**
    * Starts the decoder of this client, the one the mixins report to.
    *
-   * @param irisVersion the version of the Iris installed, empty without Iris
+   * @param irisVersion the version of the Iris installed, null without Iris
    * @return whether MCV2 decodes under a shader pack in this client now, false for good when the game's matrices cannot
    *     be read and there is no decoder
    */
-  static BooleanSupplier start(final Optional<String> irisVersion) {
+  static BooleanSupplier start(final @Nullable String irisVersion) {
     final Optional<ShaderDecoder> decoder = decoder(irisVersion);
-    ShaderDecoder.install(decoder);
+    decoder.ifPresentOrElse(ShaderDecoder::install, ShaderDecoder::uninstall);
     return () -> decoder.filter(ShaderDecoder::decodesUnderShaders).isPresent();
   }
 
   /**
    * The decoder of this client.
    *
-   * @param irisVersion the version of the Iris installed, empty without Iris
+   * @param irisVersion the version of the Iris installed, null without Iris
    * @return the decoder, which decodes under shader packs only with the Iris version it was proven with, or empty when
    *     the game's matrices cannot be read
    */
-  static Optional<ShaderDecoder> decoder(final Optional<String> irisVersion) {
+  static Optional<ShaderDecoder> decoder(final @Nullable String irisVersion) {
     return GameMatrices.find().map(matrices -> decoder(irisVersion, matrices));
   }
 
-  private static ShaderDecoder decoder(final Optional<String> irisVersion, final GameMatrices matrices) {
+  private static ShaderDecoder decoder(final @Nullable String irisVersion, final GameMatrices matrices) {
     final MinecraftStripOutput output = new MinecraftStripOutput(Mcv2Shaders::mainTarget, Mcv2Shaders::outlineChain, Mcv2Shaders::commands);
-    final boolean tested = irisVersion.filter(IrisShaders::isTested).isPresent();
+    final boolean tested = irisVersion != null && IrisShaders.isTested(irisVersion);
     return new ShaderDecoder(
       tested,
       Mcv2Shaders::shaderPackInUse,

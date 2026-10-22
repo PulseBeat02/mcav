@@ -55,7 +55,7 @@ final class ShaderDecoder {
 
   private static final int ALL_HOOKS = EXTRACTED | POSED | PROJECTED | RENDERED;
 
-  private static Optional<ShaderDecoder> current = Optional.empty();
+  private static @Nullable ShaderDecoder current;
 
   private final boolean testedIris;
 
@@ -73,7 +73,7 @@ final class ShaderDecoder {
 
   private final ShaderFrame frame = new ShaderFrame();
 
-  private Optional<PackLayout> layout = Optional.empty();
+  private @Nullable PackLayout layout;
 
   private long layoutRead;
 
@@ -115,12 +115,17 @@ final class ShaderDecoder {
 
   /** The decoder the mixins report to, from the moment the mod starts. */
   static Optional<ShaderDecoder> current() {
-    return current;
+    return Optional.ofNullable(current);
   }
 
-  /** Makes a decoder, or none, the one the mixins report to. */
-  static void install(final Optional<ShaderDecoder> decoder) {
+  /** Makes a decoder the one the mixins report to. */
+  static void install(final ShaderDecoder decoder) {
     current = decoder;
+  }
+
+  /** Leaves the mixins with no decoder to report to. */
+  static void uninstall() {
+    current = null;
   }
 
   /**
@@ -193,26 +198,28 @@ final class ShaderDecoder {
       if (!this.testedIris || projection == null || this.frame.isEmpty() || !this.shaderPackInUse.getAsBoolean()) {
         return;
       }
-      final Optional<PackLayout> pack = this.layout();
-      if (pack.isEmpty()) {
+      final @Nullable PackLayout pack = this.layout();
+      if (pack == null) {
         return;
       }
       final int width = this.output.width();
-      if (width < TransportStrip.DESCRIPTOR_PIXELS || pack.get().stripRows(width) >= this.output.height()) {
+      if (width < TransportStrip.DESCRIPTOR_PIXELS || pack.stripRows(width) >= this.output.height()) {
         return;
       }
       final float[] viewRotation = this.matrices.viewRotation(camera);
-      final byte[] strip = TransportStrip.build(pack.get(), width, this.frame.pages(), this.frame.anchors(), viewRotation, projection);
-      this.output.decode(strip, pack.get().stripRows(width), allocator);
+      final byte[] strip = TransportStrip.build(pack, width, this.frame.pages(), this.frame.anchors(), viewRotation, projection);
+      this.output.decode(strip, pack.stripRows(width), allocator);
     } finally {
       this.frame.finish();
     }
   }
 
-  private Optional<PackLayout> layout() {
+  private @Nullable PackLayout layout() {
     final long now = this.clock.getAsLong();
     if (!this.layoutKnown || now - this.layoutRead >= LAYOUT_NANOSECONDS) {
-      this.layout = this.packConstants.get().flatMap(PackLayout::parse);
+      final Optional<String> constants = this.packConstants.get();
+      final Optional<PackLayout> parsed = constants.flatMap(PackLayout::parse);
+      this.layout = parsed.orElse(null);
       this.layoutRead = now;
       this.layoutKnown = true;
     }

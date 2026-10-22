@@ -37,6 +37,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.api.Version;
 import net.fabricmc.loader.api.metadata.ModMetadata;
+import net.irisshaders.iris.api.v0.IrisApi;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -45,27 +46,17 @@ import org.mockito.MockedStatic;
 
 final class FabricEntrypointTest {
 
+  private static final String IRIS_VERSION = "1.11.7+mc26.3";
+
   @Test
   void shouldRegisterThePayloadAndReportOnTheTicksOfEachConnection() {
-    final Event<ClientPlayConnectionEvents.Join> joins = EventFactory.createArrayBacked(
-      ClientPlayConnectionEvents.Join.class,
-      listeners -> (handler, sender, client) -> {
-        for (final ClientPlayConnectionEvents.Join listener : listeners) {
-          listener.onPlayReady(handler, sender, client);
-        }
-      }
-    );
-    final Event<ClientTickEvents.EndTick> ticks = EventFactory.createArrayBacked(ClientTickEvents.EndTick.class, listeners -> client -> {
-      for (final ClientTickEvents.EndTick listener : listeners) {
-        listener.onEndTick(client);
-      }
-    });
-    @SuppressWarnings("unchecked")
-    final PayloadTypeRegistry<RegistryFriendlyByteBuf> payloads = mock(PayloadTypeRegistry.class);
+    final Event<ClientPlayConnectionEvents.Join> joins = this.createJoins();
+    final Event<ClientTickEvents.EndTick> ticks = this.createTicks();
+    final PayloadTypeRegistry<RegistryFriendlyByteBuf> payloads = this.mockPayloads();
     final AtomicLong clock = new AtomicLong();
     try (final MockedStatic<ClientPlayNetworking> networking = mockStatic(ClientPlayNetworking.class)) {
       networking.when(() -> ClientPlayNetworking.canSend(Mcv2Payload.TYPE)).thenReturn(true);
-      new FabricEntrypoint(payloads, joins, ticks, Optional.empty(), clock::get).onInitializeClient();
+      new FabricEntrypoint(payloads, joins, ticks, null, clock::get).onInitializeClient();
       verify(payloads).register(Mcv2Payload.TYPE, Mcv2Payload.CODEC);
 
       ticks.invoker().onEndTick(null);
@@ -85,6 +76,31 @@ final class FabricEntrypointTest {
   }
 
   @Test
+  void shouldReportTheIrisThatFabricLoaded() {
+    final Event<ClientPlayConnectionEvents.Join> joins = this.createJoins();
+    final Event<ClientTickEvents.EndTick> ticks = this.createTicks();
+    final PayloadTypeRegistry<RegistryFriendlyByteBuf> payloads = this.mockPayloads();
+    final AtomicLong clock = new AtomicLong();
+    final IrisApi api = mock(IrisApi.class);
+    try (
+      final MockedStatic<ClientPlayNetworking> networking = mockStatic(ClientPlayNetworking.class);
+      final MockedStatic<IrisApi> iris = mockStatic(IrisApi.class)
+    ) {
+      networking.when(() -> ClientPlayNetworking.canSend(Mcv2Payload.TYPE)).thenReturn(true);
+      iris.when(IrisApi::getInstance).thenReturn(api);
+      new FabricEntrypoint(payloads, joins, ticks, IRIS_VERSION, clock::get).onInitializeClient();
+      ticks.invoker().onEndTick(null);
+      clock.addAndGet(Mcv2Reporter.STEADY_NANOSECONDS);
+      ticks.invoker().onEndTick(null);
+
+      final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
+      networking.verify(() -> ClientPlayNetworking.send(sent.capture()));
+      final byte[] report = sent.getValue().report();
+      assertArrayEquals(new byte[] { 1, 1, 0, 0 }, report, "Iris, no shader pack");
+    }
+  }
+
+  @Test
   void shouldAskFabricForTheVersionOfIrisFromTheEntryPointFabricCalls() {
     final FabricLoader loader = mock(FabricLoader.class);
     final ModContainer iris = mock(ModContainer.class);
@@ -92,7 +108,7 @@ final class FabricEntrypointTest {
     final Version version = mock(Version.class);
     when(iris.getMetadata()).thenReturn(metadata);
     when(metadata.getVersion()).thenReturn(version);
-    when(version.getFriendlyString()).thenReturn("1.11.7+mc26.3");
+    when(version.getFriendlyString()).thenReturn(IRIS_VERSION);
     try (final MockedStatic<FabricLoader> loaders = mockStatic(FabricLoader.class)) {
       loaders.when(FabricLoader::getInstance).thenReturn(loader);
       when(loader.getModContainer(IrisShaders.MOD_ID)).thenReturn(Optional.of(iris));
@@ -100,7 +116,7 @@ final class FabricEntrypointTest {
       verify(loader).getModContainer("iris");
     }
     final Optional<String> irisVersion = FabricEntrypoint.irisVersion(loader);
-    assertEquals(Optional.of("1.11.7+mc26.3"), irisVersion);
+    assertEquals(Optional.of(IRIS_VERSION), irisVersion);
     when(loader.getModContainer(IrisShaders.MOD_ID)).thenReturn(Optional.empty());
     final Optional<String> missingVersion = FabricEntrypoint.irisVersion(loader);
     assertEquals(Optional.empty(), missingVersion);
@@ -108,6 +124,27 @@ final class FabricEntrypointTest {
 
   @AfterEach
   void uninstall() {
-    ShaderDecoder.install(Optional.empty());
+    ShaderDecoder.uninstall();
+  }
+
+  private Event<ClientPlayConnectionEvents.Join> createJoins() {
+    return EventFactory.createArrayBacked(ClientPlayConnectionEvents.Join.class, listeners -> (handler, sender, client) -> {
+      for (final ClientPlayConnectionEvents.Join listener : listeners) {
+        listener.onPlayReady(handler, sender, client);
+      }
+    });
+  }
+
+  private Event<ClientTickEvents.EndTick> createTicks() {
+    return EventFactory.createArrayBacked(ClientTickEvents.EndTick.class, listeners -> client -> {
+      for (final ClientTickEvents.EndTick listener : listeners) {
+        listener.onEndTick(client);
+      }
+    });
+  }
+
+  @SuppressWarnings("unchecked")
+  private PayloadTypeRegistry<RegistryFriendlyByteBuf> mockPayloads() {
+    return mock(PayloadTypeRegistry.class);
   }
 }

@@ -298,10 +298,10 @@ final class ShaderDecoderTest {
   @Test
   void shouldMakeTheMixinsReportToTheInstalledDecoder() {
     final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
-    ShaderDecoder.install(Optional.of(decoder));
+    ShaderDecoder.install(decoder);
     final Optional<ShaderDecoder> current = ShaderDecoder.current();
     assertEquals(Optional.of(decoder), current);
-    ShaderDecoder.install(Optional.empty());
+    ShaderDecoder.uninstall();
     final Optional<ShaderDecoder> currentAfterUninstalling = ShaderDecoder.current();
     assertEquals(Optional.empty(), currentAfterUninstalling);
   }

@@ -27,6 +27,7 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * The entry point of the MCV2 client mod on NeoForge: it registers the {@code mcav:mcv2} payload, starts the decoder of
@@ -48,16 +49,12 @@ public final class NeoForgeEntrypoint {
    * @param modBus the mod's event bus
    */
   public NeoForgeEntrypoint(final IEventBus modBus) {
-    this(modBus, NeoForge.EVENT_BUS, irisVersion(ModList.get()), System::nanoTime);
+    this(modBus, NeoForge.EVENT_BUS, irisVersion(ModList.get()).orElse(null), System::nanoTime);
   }
 
-  NeoForgeEntrypoint(final IEventBus modBus, final IEventBus gameBus, final Optional<String> irisVersion, final LongSupplier clock) {
+  NeoForgeEntrypoint(final IEventBus modBus, final IEventBus gameBus, final @Nullable String irisVersion, final LongSupplier clock) {
     final NeoForgeChannel channel = new NeoForgeChannel();
-    final Mcv2Reporter reporter = new Mcv2Reporter(
-      new IrisShaders(irisVersion.isPresent(), Mcv2Shaders.start(irisVersion)),
-      channel,
-      clock
-    );
+    final Mcv2Reporter reporter = new Mcv2Reporter(new IrisShaders(irisVersion != null, Mcv2Shaders.start(irisVersion)), channel, clock);
     // optional, so the client still joins servers without the channel, which are all servers but MCAV's; the server of
     // a single-player world has no MCV2 screens, and its handler drops the reports
     modBus.addListener(RegisterPayloadHandlersEvent.class, event ->
