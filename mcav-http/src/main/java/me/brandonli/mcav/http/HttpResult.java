@@ -117,7 +117,7 @@ public interface HttpResult extends AudioFilter {
    * @return a builder with the default settings
    */
   static HttpResultBuilder builder() {
-    return new HttpResultBuilder();
+    return new DefaultHttpResultBuilder();
   }
 
   /**

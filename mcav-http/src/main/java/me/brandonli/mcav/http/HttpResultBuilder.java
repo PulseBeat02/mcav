@@ -17,11 +17,8 @@
  */
 package me.brandonli.mcav.http;
 
-import com.google.common.base.Preconditions;
 import java.net.InetAddress;
 import java.nio.file.Path;
-import java.util.List;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Configures an {@link HttpResult} setting by setting, including the settings the factories of
@@ -29,8 +26,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * {@link HttpResult#builder()}. Every setting has a default:
  *
  * <ul>
- *   <li>domain: {@value #DEFAULT_DOMAIN}</li>
- *   <li>port: {@value #DEFAULT_PORT}</li>
+ *   <li>domain: {@code localhost}</li>
+ *   <li>port: 80</li>
  *   <li>web page: the copy bundled in the jar</li>
  *   <li>bind address: every network interface, because the browsers of players connect from other machines</li>
  * </ul>
@@ -49,30 +46,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>A builder can build several servers; changing it afterwards does not affect servers built before. Builders
  * are not thread-safe.
  */
-public final class HttpResultBuilder {
-
-  /**
-   * The host name used when none is set.
-   */
-  private static final String DEFAULT_DOMAIN = "localhost";
-
-  /**
-   * The port used when none is set.
-   */
-  private static final int DEFAULT_PORT = 80;
-
-  private static final int MAXIMUM_PORT = 65535;
-
-  private String domain;
-  private int port;
-  private @Nullable Path directory;
-  private @Nullable InetAddress bindAddress;
-
-  HttpResultBuilder() {
-    this.domain = DEFAULT_DOMAIN;
-    this.port = DEFAULT_PORT;
-  }
-
+public interface HttpResultBuilder {
   /**
    * Sets the host name listeners use, which decides the URL returned by {@link HttpResult#getFullUrl()}. It does
    * not decide which network interface the server listens on; see {@link #bindAddress(InetAddress)}.
@@ -83,12 +57,7 @@ public final class HttpResultBuilder {
    * @throws IllegalArgumentException if {@code domain} is blank
    * @throws NullPointerException     if {@code domain} is null
    */
-  public HttpResultBuilder domain(final String domain) {
-    Preconditions.checkNotNull(domain, "Domain must not be null!");
-    Preconditions.checkArgument(!domain.isBlank(), "Domain must not be blank!");
-    this.domain = domain;
-    return this;
-  }
+  HttpResultBuilder domain(final String domain);
 
   /**
    * Sets the port. Ports below 1024 may require elevated privileges depending on the host configuration.
@@ -97,11 +66,7 @@ public final class HttpResultBuilder {
    * @return this builder
    * @throws IllegalArgumentException if {@code port} is outside 1 through 65535
    */
-  public HttpResultBuilder port(final int port) {
-    Preconditions.checkArgument(port > 0 && port <= MAXIMUM_PORT, "Port %s must be between 1 and 65535!", port);
-    this.port = port;
-    return this;
-  }
+  HttpResultBuilder port(final int port);
 
   /**
    * Serves the web page from a directory instead of the copy bundled in the jar, which is useful while developing
@@ -112,11 +77,7 @@ public final class HttpResultBuilder {
    * @return this builder
    * @throws NullPointerException if {@code directory} is null
    */
-  public HttpResultBuilder directory(final Path directory) {
-    Preconditions.checkNotNull(directory, "Directory must not be null!");
-    this.directory = directory;
-    return this;
-  }
+  HttpResultBuilder directory(final Path directory);
 
   /**
    * Makes the server listen on one network interface only, instead of every interface of the machine. Use the
@@ -128,18 +89,12 @@ public final class HttpResultBuilder {
    * @return this builder
    * @throws NullPointerException if {@code address} is null
    */
-  public HttpResultBuilder bindAddress(final InetAddress address) {
-    Preconditions.checkNotNull(address, "Bind address must not be null!");
-    this.bindAddress = address;
-    return this;
-  }
+  HttpResultBuilder bindAddress(final InetAddress address);
 
   /**
    * Creates a server with the current settings.
    *
    * @return the server, not started yet
    */
-  public HttpResult build() {
-    return new SpringHttpResult(this.domain, this.port, this.directory, this.bindAddress, List.of());
-  }
+  HttpResult build();
 }
