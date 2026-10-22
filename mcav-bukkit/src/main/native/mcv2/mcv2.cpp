@@ -113,6 +113,14 @@ constexpr bool SHUFFLED_CHANNEL_LOAD = true;
 constexpr bool SHUFFLED_CHANNEL_LOAD = false;
 #endif
 
+#if defined(MCV2_SIMD_SSE41) || defined(MCV2_SIMD_SSE2) || defined(MCV2_SIMD_AVX2)
+constexpr int32_t SWAP_HALVES = _MM_SHUFFLE(1, 0, 3, 2);
+constexpr int32_t SWAP_PAIRS = _MM_SHUFFLE(2, 3, 0, 1);
+
+constexpr int32_t EVEN_LANES = _MM_SHUFFLE(2, 0, 2, 0);
+constexpr int32_t ODD_LANES = _MM_SHUFFLE(3, 1, 3, 1);
+#endif
+
 inline int32_t wrapping_addition(const int32_t first, const int32_t second) {
   return (int32_t)((uint32_t)first + (uint32_t)second);
 }
@@ -282,6 +290,19 @@ struct double_vector {
 
 #elif defined(MCV2_SIMD_SSE41) || defined(MCV2_SIMD_SSE2)
 
+constexpr int32_t RED_LOAD_ORDER = _MM_SHUFFLE(1, 2, 3, 0);
+constexpr int32_t GREEN_LOAD_ORDER = _MM_SHUFFLE(2, 3, 0, 1);
+constexpr int32_t BLUE_LOAD_ORDER = _MM_SHUFFLE(3, 0, 1, 2);
+
+constexpr int32_t RED_STORE_ORDER = _MM_SHUFFLE(1, 0, 0, 0);
+constexpr int32_t GREEN_STORE_ORDER = _MM_SHUFFLE(2, 0, 0, 1);
+constexpr int32_t BLUE_STORE_ORDER = _MM_SHUFFLE(3, 0, 0, 2);
+
+constexpr int32_t BROADCAST_FIRST_LANE = _MM_SHUFFLE(0, 0, 0, 0);
+constexpr int32_t BROADCAST_SECOND_LANE = _MM_SHUFFLE(1, 1, 1, 1);
+constexpr int32_t BROADCAST_THIRD_LANE = _MM_SHUFFLE(2, 2, 2, 2);
+constexpr int32_t BROADCAST_FOURTH_LANE = _MM_SHUFFLE(3, 3, 3, 3);
+
 #if defined(MCV2_SIMD_SSE41)
 template <int BLEND_MASK> inline __m128i blend_integer_lanes(const __m128i first, const __m128i second) {
   return _mm_castps_si128(_mm_blend_ps(_mm_castsi128_ps(first), _mm_castsi128_ps(second), BLEND_MASK));
@@ -302,6 +323,7 @@ inline __m128i widen_unsigned_bytes(const __m128i bytes) {
   return _mm_cvtepu8_epi32(bytes);
 }
 #else
+constexpr int32_t PACK_LOW_WORDS = _MM_SHUFFLE(0, 0, 2, 0);
 
 template <int BLEND_MASK> inline __m128i blend_integer_lanes(const __m128i first, const __m128i second) {
   const __m128i mask = _mm_setr_epi32((BLEND_MASK & 1) ? -1 : 0, (BLEND_MASK & 2) ? -1 : 0, (BLEND_MASK & 4) ? -1 : 0,
@@ -312,8 +334,7 @@ template <int BLEND_MASK> inline __m128i blend_integer_lanes(const __m128i first
 inline __m128i multiply_low_int(const __m128i first, const __m128i second) {
   const __m128i even = _mm_mul_epu32(first, second);
   const __m128i odd = _mm_mul_epu32(_mm_srli_epi64(first, 32), _mm_srli_epi64(second, 32));
-  return _mm_unpacklo_epi32(_mm_shuffle_epi32(even, _MM_SHUFFLE(0, 0, 2, 0)),
-                            _mm_shuffle_epi32(odd, _MM_SHUFFLE(0, 0, 2, 0)));
+  return _mm_unpacklo_epi32(_mm_shuffle_epi32(even, PACK_LOW_WORDS), _mm_shuffle_epi32(odd, PACK_LOW_WORDS));
 }
 inline __m128i minimum_int(const __m128i first, const __m128i second) {
   const __m128i less = _mm_cmplt_epi32(first, second);
@@ -404,8 +425,8 @@ struct int_vector {
     return {_mm_cmplt_epi32(first.lanes_, second.lanes_)};
   }
   int32_t sum() const {
-    __m128i partial_sum = _mm_add_epi32(lanes_, _mm_shuffle_epi32(lanes_, _MM_SHUFFLE(1, 0, 3, 2)));
-    partial_sum = _mm_add_epi32(partial_sum, _mm_shuffle_epi32(partial_sum, _MM_SHUFFLE(2, 3, 0, 1)));
+    __m128i partial_sum = _mm_add_epi32(lanes_, _mm_shuffle_epi32(lanes_, SWAP_HALVES));
+    partial_sum = _mm_add_epi32(partial_sum, _mm_shuffle_epi32(partial_sum, SWAP_PAIRS));
     return _mm_cvtsi128_si32(partial_sum);
   }
 
@@ -423,27 +444,27 @@ struct int_vector {
 
     const __m128i shuffled_blue =
         blend_integer_lanes<0x4>(blend_integer_lanes<0x2>(third_vector, second_vector), first_vector);
-    red_channels.lanes_ = _mm_shuffle_epi32(shuffled_red, _MM_SHUFFLE(1, 2, 3, 0));
-    green_channels.lanes_ = _mm_shuffle_epi32(shuffled_green, _MM_SHUFFLE(2, 3, 0, 1));
-    blue_channels.lanes_ = _mm_shuffle_epi32(shuffled_blue, _MM_SHUFFLE(3, 0, 1, 2));
+    red_channels.lanes_ = _mm_shuffle_epi32(shuffled_red, RED_LOAD_ORDER);
+    green_channels.lanes_ = _mm_shuffle_epi32(shuffled_green, GREEN_LOAD_ORDER);
+    blue_channels.lanes_ = _mm_shuffle_epi32(shuffled_blue, BLUE_LOAD_ORDER);
   }
   static void store_channels(int32_t* buffer, const int_vector red_channels, const int_vector green_channels,
                              const int_vector blue_channels) {
 
     const __m128i first_vector = blend_integer_lanes<0x4>(
-        blend_integer_lanes<0x2>(_mm_shuffle_epi32(red_channels.lanes_, _MM_SHUFFLE(1, 0, 0, 0)),
-                                 _mm_shuffle_epi32(green_channels.lanes_, _MM_SHUFFLE(0, 0, 0, 0))),
-        _mm_shuffle_epi32(blue_channels.lanes_, _MM_SHUFFLE(0, 0, 0, 0)));
+        blend_integer_lanes<0x2>(_mm_shuffle_epi32(red_channels.lanes_, RED_STORE_ORDER),
+                                 _mm_shuffle_epi32(green_channels.lanes_, BROADCAST_FIRST_LANE)),
+        _mm_shuffle_epi32(blue_channels.lanes_, BROADCAST_FIRST_LANE));
 
     const __m128i second_vector = blend_integer_lanes<0x4>(
-        blend_integer_lanes<0x2>(_mm_shuffle_epi32(green_channels.lanes_, _MM_SHUFFLE(2, 0, 0, 1)),
-                                 _mm_shuffle_epi32(blue_channels.lanes_, _MM_SHUFFLE(1, 1, 1, 1))),
-        _mm_shuffle_epi32(red_channels.lanes_, _MM_SHUFFLE(2, 2, 2, 2)));
+        blend_integer_lanes<0x2>(_mm_shuffle_epi32(green_channels.lanes_, GREEN_STORE_ORDER),
+                                 _mm_shuffle_epi32(blue_channels.lanes_, BROADCAST_SECOND_LANE)),
+        _mm_shuffle_epi32(red_channels.lanes_, BROADCAST_THIRD_LANE));
 
     const __m128i third_vector = blend_integer_lanes<0x4>(
-        blend_integer_lanes<0x2>(_mm_shuffle_epi32(blue_channels.lanes_, _MM_SHUFFLE(3, 0, 0, 2)),
-                                 _mm_shuffle_epi32(red_channels.lanes_, _MM_SHUFFLE(3, 3, 3, 3))),
-        _mm_shuffle_epi32(green_channels.lanes_, _MM_SHUFFLE(3, 3, 3, 3)));
+        blend_integer_lanes<0x2>(_mm_shuffle_epi32(blue_channels.lanes_, BLUE_STORE_ORDER),
+                                 _mm_shuffle_epi32(red_channels.lanes_, BROADCAST_FOURTH_LANE)),
+        _mm_shuffle_epi32(green_channels.lanes_, BROADCAST_FOURTH_LANE));
     _mm_storeu_si128((__m128i*)buffer, first_vector);
     _mm_storeu_si128((__m128i*)(buffer + 4), second_vector);
     _mm_storeu_si128((__m128i*)(buffer + 8), third_vector);
@@ -454,12 +475,12 @@ struct int_vector {
     return {_mm_cmpeq_epi32(_mm_and_si128(byte, lane_bits), lane_bits)};
   }
   static int_vector evens(const int_vector first, const int_vector second) {
-    return {_mm_castps_si128(
-        _mm_shuffle_ps(_mm_castsi128_ps(first.lanes_), _mm_castsi128_ps(second.lanes_), _MM_SHUFFLE(2, 0, 2, 0)))};
+    return {
+        _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(first.lanes_), _mm_castsi128_ps(second.lanes_), EVEN_LANES))};
   }
   static int_vector odds(const int_vector first, const int_vector second) {
-    return {_mm_castps_si128(
-        _mm_shuffle_ps(_mm_castsi128_ps(first.lanes_), _mm_castsi128_ps(second.lanes_), _MM_SHUFFLE(3, 1, 3, 1)))};
+    return {
+        _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(first.lanes_), _mm_castsi128_ps(second.lanes_), ODD_LANES))};
   }
 };
 
@@ -508,6 +529,8 @@ struct double_vector {
 };
 
 #elif defined(MCV2_SIMD_AVX2)
+
+constexpr int32_t SWAP_MIDDLE_QUARTERS = _MM_SHUFFLE(3, 1, 2, 0);
 
 inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t second_pixel,
                                      const uint32_t third_pixel, const uint32_t fourth_pixel,
@@ -578,8 +601,8 @@ struct int_vector {
   }
   int32_t sum() const {
     __m128i partial_sum = _mm_add_epi32(_mm256_castsi256_si128(lanes_), _mm256_extracti128_si256(lanes_, 1));
-    partial_sum = _mm_add_epi32(partial_sum, _mm_shuffle_epi32(partial_sum, _MM_SHUFFLE(1, 0, 3, 2)));
-    partial_sum = _mm_add_epi32(partial_sum, _mm_shuffle_epi32(partial_sum, _MM_SHUFFLE(2, 3, 0, 1)));
+    partial_sum = _mm_add_epi32(partial_sum, _mm_shuffle_epi32(partial_sum, SWAP_HALVES));
+    partial_sum = _mm_add_epi32(partial_sum, _mm_shuffle_epi32(partial_sum, SWAP_PAIRS));
     return _mm_cvtsi128_si32(partial_sum);
   }
 
@@ -625,14 +648,14 @@ struct int_vector {
   }
 
   static int_vector evens(const int_vector first, const int_vector second) {
-    const __m256 pairs = _mm256_shuffle_ps(_mm256_castsi256_ps(first.lanes_), _mm256_castsi256_ps(second.lanes_),
-                                           _MM_SHUFFLE(2, 0, 2, 0));
-    return {_mm256_permute4x64_epi64(_mm256_castps_si256(pairs), _MM_SHUFFLE(3, 1, 2, 0))};
+    const __m256 pairs =
+        _mm256_shuffle_ps(_mm256_castsi256_ps(first.lanes_), _mm256_castsi256_ps(second.lanes_), EVEN_LANES);
+    return {_mm256_permute4x64_epi64(_mm256_castps_si256(pairs), SWAP_MIDDLE_QUARTERS)};
   }
   static int_vector odds(const int_vector first, const int_vector second) {
-    const __m256 pairs = _mm256_shuffle_ps(_mm256_castsi256_ps(first.lanes_), _mm256_castsi256_ps(second.lanes_),
-                                           _MM_SHUFFLE(3, 1, 3, 1));
-    return {_mm256_permute4x64_epi64(_mm256_castps_si256(pairs), _MM_SHUFFLE(3, 1, 2, 0))};
+    const __m256 pairs =
+        _mm256_shuffle_ps(_mm256_castsi256_ps(first.lanes_), _mm256_castsi256_ps(second.lanes_), ODD_LANES);
+    return {_mm256_permute4x64_epi64(_mm256_castps_si256(pairs), SWAP_MIDDLE_QUARTERS)};
   }
 };
 
