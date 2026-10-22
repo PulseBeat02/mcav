@@ -17,9 +17,10 @@
  */
 package me.brandonli.mcav.mod;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -87,7 +88,8 @@ final class PackLayout {
     if (!screens.find()) {
       return Optional.empty();
     }
-    final int count = Integer.parseInt(Objects.requireNonNull(screens.group(COUNT_GROUP)));
+    final String countText = requireNonNull(screens.group(COUNT_GROUP)); // checker framework
+    final int count = Integer.parseInt(countText);
     if (count < 1 || count > MAXIMUM_SCREENS) {
       return Optional.empty();
     }
@@ -132,7 +134,8 @@ final class PackLayout {
     }
     final long[] values = new long[count];
     for (int index = 0; index < count; index++) {
-      values[index] = Long.parseLong(Objects.requireNonNull(matcher.group(index + 1)));
+      final String value = requireNonNull(matcher.group(index + 1)); // checker framework
+      values[index] = Long.parseLong(value);
       if (values[index] > maximum) {
         return null;
       }

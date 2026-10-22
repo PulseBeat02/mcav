@@ -17,6 +17,8 @@
  */
 package me.brandonli.mcav.mod;
 
+import static java.util.Objects.requireNonNull;
+
 import com.mojang.blaze3d.framegraph.FrameGraphBuilder;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
@@ -26,7 +28,6 @@ import com.mojang.renderpearl.api.commands.CommandEncoder;
 import com.mojang.renderpearl.api.textures.GpuTexture;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.Objects;
 import java.util.function.Supplier;
 import net.minecraft.client.renderer.LevelTargetBundle;
 import net.minecraft.client.renderer.PostChain;
@@ -158,7 +159,7 @@ final class MinecraftStripOutput implements StripOutput {
 
   /** A target's colour texture, which a target has from the moment it is made until it is destroyed. */
   private static GpuTexture colour(final RenderTarget target) {
-    return Objects.requireNonNull(target.getColorTexture(), NO_COLOUR);
+    return requireNonNull(target.getColorTexture(), NO_COLOUR);
   }
 
   /** The outline target the chain runs on, and the transparent one it is copied from, both the size of the screen. */
