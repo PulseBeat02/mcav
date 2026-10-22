@@ -17,9 +17,11 @@
  */
 package me.brandonli.mcav.http;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -150,9 +152,84 @@ public final class MediaInformation {
   /**
    * Returns the title.
    *
-   * @return the title, or null if unknown
+   * @return the title, or empty if unknown
    */
-  public @Nullable String getTitle() {
-    return this.title;
+  public Optional<String> getTitle() {
+    return Optional.ofNullable(this.title);
+  }
+
+  /**
+   * Returns whether {@code other} is media information with the same values.
+   *
+   * @param other the object to compare with
+   * @return whether every value matches
+   * @since 1.0.0
+   */
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final MediaInformation information)) {
+      return false;
+    }
+
+    return (
+      Objects.equals(this.title, information.title) &&
+      Objects.equals(this.uploader, information.uploader) &&
+      Objects.equals(this.channel, information.channel) &&
+      Objects.equals(this.uploaderId, information.uploaderId) &&
+      Objects.equals(this.description, information.description) &&
+      Objects.equals(this.thumbnail, information.thumbnail) &&
+      this.duration == information.duration &&
+      this.viewCount == information.viewCount &&
+      this.likeCount == information.likeCount &&
+      Objects.equals(this.uploadDate, information.uploadDate)
+    );
+  }
+
+  /**
+   * Returns a hash code built from every value.
+   *
+   * @return the hash code
+   * @since 1.0.0
+   */
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+      this.title,
+      this.uploader,
+      this.channel,
+      this.uploaderId,
+      this.description,
+      this.thumbnail,
+      this.duration,
+      this.viewCount,
+      this.likeCount,
+      this.uploadDate
+    );
+  }
+
+  /**
+   * Returns a debugging representation with every value.
+   *
+   * @return the representation
+   * @since 1.0.0
+   */
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+      .add("title", this.title)
+      .add("uploader", this.uploader)
+      .add("channel", this.channel)
+      .add("uploaderId", this.uploaderId)
+      .add("description", this.description)
+      .add("thumbnail", this.thumbnail)
+      .add("duration", this.duration)
+      .add("viewCount", this.viewCount)
+      .add("likeCount", this.likeCount)
+      .add("uploadDate", this.uploadDate)
+      .toString();
   }
 }

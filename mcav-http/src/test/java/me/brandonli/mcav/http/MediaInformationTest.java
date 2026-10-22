@@ -18,7 +18,7 @@
 package me.brandonli.mcav.http;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.gson.Gson;
@@ -26,7 +26,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import me.brandonli.mcav.http.testing.EqualityAssertions;
 import me.brandonli.mcav.http.testing.UrlParseDumpUtils;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
@@ -44,6 +46,20 @@ final class MediaInformationTest {
   private static final String LIKE_COUNT_KEY = "like_count";
 
   private static final String FILE_NAME = "clip.mp4";
+
+  private static final String TITLE = "Song";
+  private static final String UPLOADER = "Artist";
+  private static final String CHANNEL = "Artist Channel";
+  private static final String UPLOADER_ID = "@artist";
+  private static final String DESCRIPTION = "A description";
+  private static final String THUMBNAIL = "https://example.com/thumbnail.jpg";
+  private static final long DURATION_SECONDS = 216;
+  private static final long VIEW_COUNT = 3_000_000_000L;
+  private static final long LIKE_COUNT = 50;
+  private static final String UPLOAD_DATE = "20240101";
+
+  private static final String OTHER_TEXT = "other";
+  private static final long OTHER_COUNT = 1;
 
   @Test
   void shouldTakeTheShownFieldsFromYtDlpInYtDlpOrderAndNames() {
@@ -69,8 +85,9 @@ final class MediaInformationTest {
     final List<String> expectedOrder = new ArrayList<>(expectedKeys);
     assertEquals(expectedOrder, order);
 
-    final String title = information.getTitle();
-    assertEquals("Song", title);
+    final Optional<String> title = information.getTitle();
+    final Optional<String> expectedTitle = Optional.of("Song");
+    assertEquals(expectedTitle, title);
   }
 
   @Test
@@ -86,8 +103,9 @@ final class MediaInformationTest {
     expected.put(LIKE_COUNT_KEY, 0L);
     assertEquals(expected, json);
 
-    final String title = information.getTitle();
-    assertNull(title);
+    final Optional<String> title = information.getTitle();
+    final Optional<String> expectedTitle = Optional.empty();
+    assertEquals(expectedTitle, title);
   }
 
   @Test
@@ -96,8 +114,9 @@ final class MediaInformationTest {
     final Map<String, Object> expected = Map.of(DURATION_KEY, 0L, VIEW_COUNT_KEY, 0L, LIKE_COUNT_KEY, 0L);
     assertEquals(expected, json);
 
-    final String title = MediaInformation.EMPTY.getTitle();
-    assertNull(title);
+    final Optional<String> title = MediaInformation.EMPTY.getTitle();
+    final Optional<String> expectedTitle = Optional.empty();
+    assertEquals(expectedTitle, title);
   }
 
   @Test
@@ -111,8 +130,9 @@ final class MediaInformationTest {
     expected.put(LIKE_COUNT_KEY, 0L);
     assertEquals(expected, json);
 
-    final String title = information.getTitle();
-    assertEquals(FILE_NAME, title);
+    final Optional<String> title = information.getTitle();
+    final Optional<String> expectedTitle = Optional.of(FILE_NAME);
+    assertEquals(expectedTitle, title);
   }
 
   @Test
@@ -130,5 +150,157 @@ final class MediaInformationTest {
   void shouldRejectNulls() {
     assertThrows(NullPointerException.class, () -> MediaInformation.of(null));
     assertThrows(NullPointerException.class, () -> MediaInformation.titled(null));
+  }
+
+  @Test
+  void shouldFollowTheEqualityContract() {
+    final UrlParseDump dump = UrlParseDumpUtils.completeDump();
+    final MediaInformation information = MediaInformation.of(dump);
+    final MediaInformation equal = this.createComplete();
+    final Object[] differentValues = {
+      new MediaInformation(
+        OTHER_TEXT,
+        UPLOADER,
+        CHANNEL,
+        UPLOADER_ID,
+        DESCRIPTION,
+        THUMBNAIL,
+        DURATION_SECONDS,
+        VIEW_COUNT,
+        LIKE_COUNT,
+        UPLOAD_DATE
+      ),
+      new MediaInformation(
+        TITLE,
+        OTHER_TEXT,
+        CHANNEL,
+        UPLOADER_ID,
+        DESCRIPTION,
+        THUMBNAIL,
+        DURATION_SECONDS,
+        VIEW_COUNT,
+        LIKE_COUNT,
+        UPLOAD_DATE
+      ),
+      new MediaInformation(
+        TITLE,
+        UPLOADER,
+        OTHER_TEXT,
+        UPLOADER_ID,
+        DESCRIPTION,
+        THUMBNAIL,
+        DURATION_SECONDS,
+        VIEW_COUNT,
+        LIKE_COUNT,
+        UPLOAD_DATE
+      ),
+      new MediaInformation(
+        TITLE,
+        UPLOADER,
+        CHANNEL,
+        OTHER_TEXT,
+        DESCRIPTION,
+        THUMBNAIL,
+        DURATION_SECONDS,
+        VIEW_COUNT,
+        LIKE_COUNT,
+        UPLOAD_DATE
+      ),
+      new MediaInformation(
+        TITLE,
+        UPLOADER,
+        CHANNEL,
+        UPLOADER_ID,
+        OTHER_TEXT,
+        THUMBNAIL,
+        DURATION_SECONDS,
+        VIEW_COUNT,
+        LIKE_COUNT,
+        UPLOAD_DATE
+      ),
+      new MediaInformation(
+        TITLE,
+        UPLOADER,
+        CHANNEL,
+        UPLOADER_ID,
+        DESCRIPTION,
+        OTHER_TEXT,
+        DURATION_SECONDS,
+        VIEW_COUNT,
+        LIKE_COUNT,
+        UPLOAD_DATE
+      ),
+      new MediaInformation(TITLE, UPLOADER, CHANNEL, UPLOADER_ID, DESCRIPTION, THUMBNAIL, OTHER_COUNT, VIEW_COUNT, LIKE_COUNT, UPLOAD_DATE),
+      new MediaInformation(
+        TITLE,
+        UPLOADER,
+        CHANNEL,
+        UPLOADER_ID,
+        DESCRIPTION,
+        THUMBNAIL,
+        DURATION_SECONDS,
+        OTHER_COUNT,
+        LIKE_COUNT,
+        UPLOAD_DATE
+      ),
+      new MediaInformation(
+        TITLE,
+        UPLOADER,
+        CHANNEL,
+        UPLOADER_ID,
+        DESCRIPTION,
+        THUMBNAIL,
+        DURATION_SECONDS,
+        VIEW_COUNT,
+        OTHER_COUNT,
+        UPLOAD_DATE
+      ),
+      new MediaInformation(
+        TITLE,
+        UPLOADER,
+        CHANNEL,
+        UPLOADER_ID,
+        DESCRIPTION,
+        THUMBNAIL,
+        DURATION_SECONDS,
+        VIEW_COUNT,
+        LIKE_COUNT,
+        OTHER_TEXT
+      ),
+    };
+    EqualityAssertions.assertEqualityContract(information, equal, differentValues);
+  }
+
+  private MediaInformation createComplete() {
+    return new MediaInformation(
+      TITLE,
+      UPLOADER,
+      CHANNEL,
+      UPLOADER_ID,
+      DESCRIPTION,
+      THUMBNAIL,
+      DURATION_SECONDS,
+      VIEW_COUNT,
+      LIKE_COUNT,
+      UPLOAD_DATE
+    );
+  }
+
+  @Test
+  void shouldGiveInformationThatDiffersInAValueADifferentHashCode() {
+    final MediaInformation information = this.createComplete();
+    final int hash = information.hashCode();
+    final int emptyHash = MediaInformation.EMPTY.hashCode();
+    assertNotEquals(hash, emptyHash);
+  }
+
+  @Test
+  void shouldDescribeEveryValue() {
+    final MediaInformation information = MediaInformation.titled(FILE_NAME);
+    final String text = information.toString();
+    assertEquals(
+      "MediaInformation{title=clip.mp4, uploader=null, channel=null, uploaderId=null, description=null, thumbnail=null, duration=0, viewCount=0, likeCount=0, uploadDate=null}",
+      text
+    );
   }
 }
