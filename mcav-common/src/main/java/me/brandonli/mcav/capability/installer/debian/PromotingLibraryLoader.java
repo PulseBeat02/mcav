@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.capability.installer.debian;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.sun.jna.Function;
 import com.sun.jna.NativeLibrary;
 import java.nio.file.Path;
@@ -25,7 +26,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 // libtheoraenc uses symbols of libtheoradec without linking it, so libtheoradec alone joins the global scope; promoting
 // every library would let variants such as libexpatw shadow the symbols of libexpat.
-final class PromotingLibraryLoader implements Consumer<String> {
+class PromotingLibraryLoader implements Consumer<String> {
 
   private static final String UNLINKED_LIBRARY = "libtheoradec.so.1";
 
@@ -55,7 +56,10 @@ final class PromotingLibraryLoader implements Consumer<String> {
     return name.startsWith(UNLINKED_LIBRARY);
   }
 
-  private void promote(final String path) {
+  // Package-private so a test can see the promotion, which kills the mutant that skips it. A symbol lookup cannot,
+  // because a library that an earlier test promoted stays global for the whole JVM.
+  @VisibleForTesting
+  void promote(final String path) {
     final NativeLibrary process = NativeLibrary.getProcess();
     final Function open = process.getFunction(OPEN_FUNCTION);
     open.invokePointer(new Object[] { path, RTLD_LAZY | RTLD_NOLOAD | RTLD_GLOBAL });

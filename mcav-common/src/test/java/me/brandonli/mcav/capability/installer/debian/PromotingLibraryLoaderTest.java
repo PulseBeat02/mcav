@@ -18,6 +18,7 @@
 package me.brandonli.mcav.capability.installer.debian;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -25,6 +26,8 @@ import com.sun.jna.NativeLibrary;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.os.OsUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -81,6 +84,26 @@ final class PromotingLibraryLoaderTest {
   }
 
   @Test
+  void shouldPromoteOnlyLibtheoradec(@TempDir final Path folder) throws IOException {
+    assumeTrue(OsUtils.getOs() == Os.LINUX, LINUX_ONLY_MESSAGE);
+
+    final String verifyFileName = System.mapLibraryName(VERIFY_LIBRARY);
+    final Path verifyCopy = folder.resolve(verifyFileName);
+    final Path theoraDecoderCopy = folder.resolve(THEORA_DECODER_FILE);
+    this.copyJdkLibrary(VERIFY_LIBRARY, verifyCopy);
+    this.copyJdkLibrary(JIMAGE_LIBRARY, theoraDecoderCopy);
+    final RecordingLoader recordingLoader = new RecordingLoader();
+    final String verifyPath = verifyCopy.toString();
+    final String theoraDecoderPath = theoraDecoderCopy.toString();
+    recordingLoader.accept(verifyPath);
+    recordingLoader.accept(theoraDecoderPath);
+
+    final List<String> promoted = recordingLoader.getPromoted();
+    final List<String> expected = List.of(theoraDecoderPath);
+    assertEquals(expected, promoted);
+  }
+
+  @Test
   void shouldFailForALibraryThatDoesNotLoad(@TempDir final Path folder) {
     final Path missing = folder.resolve(MISSING_LIBRARY);
     final String path = missing.toString();
@@ -93,5 +116,23 @@ final class PromotingLibraryLoaderTest {
     final String fileName = System.mapLibraryName(library);
     final Path original = Path.of(javaHome, LIBRARY_FOLDER, fileName);
     Files.copy(original, copy);
+  }
+
+  private static final class RecordingLoader extends PromotingLibraryLoader {
+
+    private final List<String> promoted;
+
+    RecordingLoader() {
+      this.promoted = new ArrayList<>();
+    }
+
+    @Override
+    void promote(final String path) {
+      this.promoted.add(path);
+    }
+
+    List<String> getPromoted() {
+      return this.promoted;
+    }
   }
 }
