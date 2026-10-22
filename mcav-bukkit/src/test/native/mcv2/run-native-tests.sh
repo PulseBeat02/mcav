@@ -33,18 +33,20 @@ instruction_emulator=${SDE:?the path of sde64, Intel SDE}
 resource_options=()
 [ -n "${RESOURCE_DIR:-}" ] && resource_options=(-resource-dir="$RESOURCE_DIR")
 kernel_flags=(-std=c++17 -ffp-contract=off -fwrapv -fno-strict-aliasing -Wall -Wextra -Werror -I"$native_sources")
-sanitizer_flags=(-O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
+sanitizer_flags=(-O1 -g "-fsanitize=address,undefined" -fno-sanitize-recover=all -fno-omit-frame-pointer)
 
 aarch64_flags=(--target=aarch64-linux-gnu --sysroot="$aarch64_sysroot" -fuse-ld=lld -Wno-unused-command-line-argument)
 
 avx512_flags="-mavx512f -mavx512dq -mavx512bw -mavx512vl -mavx512vbmi -mavx512vbmi2 -mavx512vnni -mavx512bitalg"
+# shellcheck disable=SC2034 # read through the nameref of compile_direct_test and check_symbols
 x86_units=(level_scalar level_sse2 level_sse41:-msse4.1 level_avx2:-mavx2 "level_avx512:$avx512_flags")
+# shellcheck disable=SC2034 # read through the nameref of compile_direct_test and check_symbols
 aarch64_units=(level_scalar level_neon "level_sve256:-march=armv8-a+sve -msve-vector-bits=256"
   "level_sve512:-march=armv8-a+sve -msve-vector-bits=512")
 
 emulated_x86_cpus=(spr:avx512 icx:avx512 skx:avx2 hsw:avx2 mrm:sse2)
-aarch64_cpus=(cortex-a72:neon max,sve-default-vector-length=16:neon max,sve-default-vector-length=32:sve256
-  max,sve-default-vector-length=64:sve512)
+aarch64_cpus=(cortex-a72:neon "max,sve-default-vector-length=16:neon" "max,sve-default-vector-length=32:sve256"
+  "max,sve-default-vector-length=64:sve512")
 
 compile_direct_test() {
   local name=$1
