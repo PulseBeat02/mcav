@@ -1443,9 +1443,9 @@ import org.bukkit.Location;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.ItemFrame;
 
-  public record Mcv2Wall(Mcv2Result result, Mcv2PackServer.Lease lease) {}
+  private record Mcv2Wall(Mcv2Result result, Mcv2PackServer.Lease lease) {}
 
-  public Mcv2Wall showOnMcv2Wall(
+  private Mcv2Wall showOnMcv2Wall(
     final Mcv2PackServer packs,
     final ItemFrame topLeft,
     final int firstMapId,
