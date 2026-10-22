@@ -1,4 +1,4 @@
-# Upgrading from the May 2026 snapshot
+# Upgrading from the May 2026 Snapshot
 
 The rewrite changes public APIs from the `1.0.0-SNAPSHOT` artifacts published on May 11, 2026
 (`20260511.021315`). It is not a binary-compatible replacement for that snapshot. Recompile applications and plugins
@@ -215,8 +215,8 @@ injection hooks and several resource-pack exception constructors changed as well
 
 Custom `HttpResult` implementations must now supply `getCurrentMedia`, `setCurrentMedia`, `getListenerCount` and
 `isRunning`. Custom `DiscordPlayer` implementations must supply `flush`, `getQueuedMillis` and `setPlaying`.
-Custom `SVCFilter` implementations must supply `getQueuedFrames`. Existing factory users usually need only to
-recompile, while implementation subclasses may also be affected by the new final modifiers.
+Custom `SVCFilter` implementations must supply `getQueuedFrames`. If you only call the factories, recompiling is
+usually enough; the new `final` modifiers may also break your subclasses of the implementations.
 
 ## Virtual machines and VNC
 
