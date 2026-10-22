@@ -82,8 +82,8 @@ public final class HttpResultBuilder {
    * @throws NullPointerException if {@code domain} is null
    */
   public HttpResultBuilder domain(final String domain) {
-    Preconditions.checkNotNull(domain, "Domain must not be null");
-    Preconditions.checkArgument(!domain.isBlank(), "Domain must not be blank");
+    Preconditions.checkNotNull(domain, "Domain must not be null!");
+    Preconditions.checkArgument(!domain.isBlank(), "Domain must not be blank!");
     this.domain = domain;
     return this;
   }
@@ -96,7 +96,7 @@ public final class HttpResultBuilder {
    * @throws IllegalArgumentException if {@code port} is outside 1 through 65535
    */
   public HttpResultBuilder port(final int port) {
-    Preconditions.checkArgument(port > 0 && port <= 65535, "Port must be between 1 and 65535 but was %s", port);
+    Preconditions.checkArgument(port > 0 && port <= 65535, "Port %s must be between 1 and 65535!", port);
     this.port = port;
     return this;
   }
@@ -111,7 +111,7 @@ public final class HttpResultBuilder {
    * @throws NullPointerException if {@code directory} is null
    */
   public HttpResultBuilder directory(final Path directory) {
-    Preconditions.checkNotNull(directory, "Directory must not be null");
+    Preconditions.checkNotNull(directory, "Directory must not be null!");
     this.directory = directory;
     return this;
   }
@@ -127,7 +127,7 @@ public final class HttpResultBuilder {
    * @throws NullPointerException if {@code address} is null
    */
   public HttpResultBuilder bindAddress(final InetAddress address) {
-    Preconditions.checkNotNull(address, "Bind address must not be null");
+    Preconditions.checkNotNull(address, "Bind address must not be null!");
     this.bindAddress = address;
     return this;
   }

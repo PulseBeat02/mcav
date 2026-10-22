@@ -17,7 +17,6 @@
  */
 package me.brandonli.mcav.http;
 
-import com.google.common.base.Preconditions;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
@@ -88,10 +87,8 @@ public interface HttpResult extends AudioFilter {
    * @throws NullPointerException if {@code domain} is null
    */
   static HttpResult http(final String domain, final int port) {
-    Preconditions.checkNotNull(domain, "Domain must not be null");
-    Preconditions.checkArgument(!domain.isBlank(), "Domain must not be blank");
-    Preconditions.checkArgument(port > 0 && port <= 65535, "Port must be between 1 and 65535 but was %s", port);
-    return new HttpResultImpl(domain, port, null);
+    final HttpResultBuilder builder = builder();
+    return builder.domain(domain).port(port).build();
   }
 
   /**
@@ -107,11 +104,8 @@ public interface HttpResult extends AudioFilter {
    * @throws NullPointerException if {@code domain} or {@code directory} is null
    */
   static HttpResult http(final String domain, final int port, final Path directory) {
-    Preconditions.checkNotNull(domain, "Domain must not be null");
-    Preconditions.checkArgument(!domain.isBlank(), "Domain must not be blank");
-    Preconditions.checkArgument(port > 0 && port <= 65535, "Port must be between 1 and 65535 but was %s", port);
-    Preconditions.checkNotNull(directory, "Directory must not be null");
-    return new HttpResultImpl(domain, port, directory);
+    final HttpResultBuilder builder = builder();
+    return builder.domain(domain).port(port).directory(directory).build();
   }
 
   /**

@@ -510,8 +510,10 @@ final class HttpServerTest {
       final String message = exception.getMessage();
       final Throwable cause = exception.getCause();
       final boolean running = http.isRunning();
-      final boolean namesThePort = message.startsWith("Failed to start the web server on port " + port + ": ");
+      final boolean namesThePort = message.startsWith("Web server on port %s failed with \"".formatted(port));
+      final boolean endsOnWords = message.endsWith("\" while starting!");
       assertTrue(namesThePort, message);
+      assertTrue(endsOnWords, message);
       assertInstanceOf(RuntimeException.class, cause);
       assertFalse(running);
       assertSame(before, after);
@@ -615,8 +617,10 @@ final class HttpServerTest {
     final HttpException exception = assertThrows(HttpException.class, http::start);
     final String message = exception.getMessage();
     final boolean running = http.isRunning();
-    final boolean namesThePort = message.startsWith("Failed to start the web server on port " + port + ": ");
+    final boolean namesThePort = message.startsWith("Web server on port %s failed with \"".formatted(port));
+    final boolean endsOnWords = message.endsWith("\" while starting!");
     assertTrue(namesThePort, message);
+    assertTrue(endsOnWords, message);
     assertFalse(running);
   }
 

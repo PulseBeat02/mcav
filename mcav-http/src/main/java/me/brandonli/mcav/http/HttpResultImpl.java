@@ -68,7 +68,6 @@ public final class HttpResultImpl implements HttpResult {
   static final String LOGGING_SYSTEM_PROPERTY = "org.springframework.boot.logging.LoggingSystem";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HttpResultImpl.class);
-  private static final String RUNNING_AT = "Audio web player running at {}";
   private static final int SEND_TIME_LIMIT_MILLIS = 5_000;
   private static final int SEND_BUFFER_LIMIT_BYTES = 512 * 1024;
 
@@ -125,8 +124,8 @@ public final class HttpResultImpl implements HttpResult {
     final @Nullable InetAddress bindAddress,
     final List<String> extraProperties
   ) {
-    Preconditions.checkNotNull(domain, "Domain must not be null");
-    Preconditions.checkNotNull(extraProperties, "Extra properties must not be null");
+    Preconditions.checkNotNull(domain, "Domain must not be null!");
+    Preconditions.checkNotNull(extraProperties, "Extra properties must not be null!");
     this.domain = domain;
     this.port = port;
     this.directory = directory;
@@ -161,10 +160,11 @@ public final class HttpResultImpl implements HttpResult {
         this.context = this.createApplication();
         this.acceptingListeners = true;
         final String url = this.getFullUrl();
-        LOGGER.info(RUNNING_AT, url);
+        LOGGER.info("Audio web player is running at {}.", url);
       } catch (final RuntimeException exception) {
-        final String message = exception.getMessage();
-        throw new HttpException("Failed to start the web server on port " + this.port + ": " + message, exception);
+        final String reason = exception.getMessage();
+        final String message = "Web server on port %s failed with \"%s\" while starting!".formatted(this.port, reason);
+        throw new HttpException(message, exception);
       } finally {
         thread.setContextClassLoader(previous);
       }
@@ -325,7 +325,7 @@ public final class HttpResultImpl implements HttpResult {
     final ConfigurableApplicationContext current = this.context;
     if (current instanceof final WebServerApplicationContext web) {
       final WebServer webServer = web.getWebServer();
-      final WebServer server = Objects.requireNonNull(webServer, "A running server has a web server");
+      final WebServer server = Objects.requireNonNull(webServer, "A running server must have a web server!");
       return server.getPort();
     }
     return this.port;
@@ -437,8 +437,8 @@ public final class HttpResultImpl implements HttpResult {
    */
   @Override
   public boolean applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
-    Preconditions.checkNotNull(samples, "Samples must not be null");
-    Preconditions.checkNotNull(metadata, "Metadata must not be null");
+    Preconditions.checkNotNull(samples, "Samples must not be null!");
+    Preconditions.checkNotNull(metadata, "Metadata must not be null!");
     final boolean empty = this.listeners.isEmpty();
     if (empty) {
       return false;
@@ -501,7 +501,7 @@ public final class HttpResultImpl implements HttpResult {
    */
   @Override
   public void setCurrentMedia(final UrlParseDump dump) {
-    Preconditions.checkNotNull(dump, "Dump must not be null");
+    Preconditions.checkNotNull(dump, "Dump must not be null!");
     this.currentMedia = MediaInfo.of(dump);
   }
 

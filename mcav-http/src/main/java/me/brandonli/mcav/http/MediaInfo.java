@@ -80,7 +80,7 @@ public final class MediaInfo {
    * @throws NullPointerException if {@code dump} is null
    */
   public static MediaInfo of(final UrlParseDump dump) {
-    Preconditions.checkNotNull(dump, "Dump must not be null");
+    Preconditions.checkNotNull(dump, "Dump must not be null!");
     final double reportedDuration = dump.getDuration();
     final double wholeSeconds = Math.ceil(reportedDuration);
     final long duration = (long) wholeSeconds;
@@ -115,7 +115,7 @@ public final class MediaInfo {
    * @throws NullPointerException if {@code title} is null
    */
   public static MediaInfo titled(final String title) {
-    Preconditions.checkNotNull(title, "Title must not be null");
+    Preconditions.checkNotNull(title, "Title must not be null!");
     return new MediaInfo(title, null, null, null, null, null, 0, 0, 0, null);
   }
 

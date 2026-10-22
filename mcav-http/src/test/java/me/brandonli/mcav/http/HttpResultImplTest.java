@@ -252,7 +252,7 @@ final class HttpResultImplTest {
     http.stop();
     final WebSocketSession broken = Mockito.mock(WebSocketSession.class);
     Mockito.when(broken.getId()).thenReturn("broken");
-    Mockito.doThrow(new IOException("already gone")).when(broken).close(ArgumentMatchers.any());
+    Mockito.doThrow(new IOException("already gone!")).when(broken).close(ArgumentMatchers.any());
 
     assertDoesNotThrow(() -> http.addListener(broken));
     final int count = http.getListenerCount();
@@ -380,7 +380,7 @@ final class HttpResultImplTest {
   @Test
   void shouldRestoreTheCallersClassLoaderWhenClosingTheSpringContextFails() {
     final ConfigurableApplicationContext context = Mockito.mock(ConfigurableApplicationContext.class);
-    final IllegalStateException failure = new IllegalStateException("context close failed");
+    final IllegalStateException failure = new IllegalStateException("context close failed!");
     final List<ClassLoader> loadersWhileClosing = new ArrayList<>();
     Mockito.doAnswer(invocation -> {
       final Thread closing = Thread.currentThread();
@@ -454,7 +454,7 @@ final class HttpResultImplTest {
     final WebSocketSession broken = Mockito.mock(WebSocketSession.class);
     Mockito.when(broken.getId()).thenReturn("broken");
     Mockito.when(broken.isOpen()).thenReturn(true);
-    Mockito.doThrow(new IOException("broken pipe")).when(broken).sendMessage(ArgumentMatchers.any());
+    Mockito.doThrow(new IOException("broken pipe!")).when(broken).sendMessage(ArgumentMatchers.any());
     http.addListener(broken);
     final ByteBuffer samples = ByteBuffer.allocate(4);
     http.applyFilter(samples, this.metadata);
@@ -476,7 +476,7 @@ final class HttpResultImplTest {
       sendEntered.countDown();
       final boolean ready = replaced.await(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
       assertTrue(ready);
-      throw new IOException("broken pipe");
+      throw new IOException("broken pipe!");
     })
       .when(broken)
       .sendMessage(ArgumentMatchers.any());

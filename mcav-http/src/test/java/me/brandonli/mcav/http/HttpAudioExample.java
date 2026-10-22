@@ -33,7 +33,7 @@ import me.brandonli.mcav.media.source.file.FileSource;
 public final class HttpAudioExample {
 
   private HttpAudioExample() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**

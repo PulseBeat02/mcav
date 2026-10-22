@@ -47,26 +47,26 @@ final class HttpModuleTest {
 
   @Test
   void shouldKeepTheMessageInExceptions() {
-    final HttpException exception = new HttpException("cannot start");
+    final HttpException exception = new HttpException("cannot start!");
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
-    assertEquals("cannot start", message);
+    assertEquals("cannot start!", message);
     assertNull(cause);
   }
 
   @Test
   void shouldKeepTheMessageAndTheCauseInExceptions() {
-    final IOException portInUse = new IOException("port in use");
-    final HttpException exception = new HttpException("cannot start", portInUse);
+    final IOException portInUse = new IOException("port in use!");
+    final HttpException exception = new HttpException("cannot start!", portInUse);
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
-    assertEquals("cannot start", message);
+    assertEquals("cannot start!", message);
     assertSame(portInUse, cause);
   }
 
   @Test
   void shouldMakeExceptionsRuntimeExceptions() {
-    final HttpException exception = new HttpException("cannot start");
+    final HttpException exception = new HttpException("cannot start!");
     assertInstanceOf(RuntimeException.class, exception, "a server that cannot start is recoverable, so it is no Error");
   }
 }

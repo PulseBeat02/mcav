@@ -69,7 +69,7 @@ final class AudioWebSocketHandlerTest {
   @Test
   void shouldForgetBrowsersWithTransportErrors() {
     this.connect();
-    final IOException error = new IOException("reset");
+    final IOException error = new IOException("reset!");
     this.handler.handleTransportError(this.session, error);
     final int count = this.result.getListenerCount();
     assertEquals(0, count);

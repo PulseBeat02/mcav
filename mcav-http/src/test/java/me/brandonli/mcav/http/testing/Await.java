@@ -32,7 +32,7 @@ public final class Await {
   private static final long POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(5);
 
   private Await() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -47,7 +47,8 @@ public final class Await {
     while (!condition.getAsBoolean()) {
       final long now = System.nanoTime();
       if (now - deadline > 0) {
-        fail("Timed out waiting until " + description);
+        final String message = "Waiting until %s timed out!".formatted(description);
+        fail(message);
       }
       LockSupport.parkNanos(POLL_NANOS);
     }

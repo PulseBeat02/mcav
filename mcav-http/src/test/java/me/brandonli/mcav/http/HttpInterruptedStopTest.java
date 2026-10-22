@@ -53,7 +53,7 @@ final class HttpInterruptedStopTest {
   @Test
   void shouldRestoreTheInterruptWhenContextCleanupThrows() {
     final ConfigurableApplicationContext context = Mockito.mock(ConfigurableApplicationContext.class);
-    final IllegalStateException failure = new IllegalStateException("context close failed");
+    final IllegalStateException failure = new IllegalStateException("context close failed!");
     final Thread current = Thread.currentThread();
     Mockito.doAnswer(_ -> {
       final boolean interrupted = current.isInterrupted();

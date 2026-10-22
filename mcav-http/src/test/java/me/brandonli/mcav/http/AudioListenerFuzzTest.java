@@ -204,7 +204,10 @@ final class AudioListenerFuzzTest {
         case "hashCode" -> System.identityHashCode(proxy);
         case "equals" -> false;
         case "toString" -> "GatedSession";
-        default -> throw new UnsupportedOperationException("The listener does not call " + name);
+        default -> {
+          final String message = "Method %s is never called by the listener!".formatted(name);
+          throw new UnsupportedOperationException(message);
+        }
       };
     }
 

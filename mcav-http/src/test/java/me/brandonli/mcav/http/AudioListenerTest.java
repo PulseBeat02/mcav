@@ -119,7 +119,7 @@ final class AudioListenerTest {
       }
       Thread.onSpinWait();
     }
-    fail("the sender never waited for a chunk");
+    fail("Sender never waited for a chunk!");
   }
 
   private void recordSends() throws IOException {
@@ -457,7 +457,7 @@ final class AudioListenerTest {
 
   @Test
   void shouldReportFailedWritesAndStop() throws Exception {
-    Mockito.doThrow(new IOException("broken pipe")).when(this.session).sendMessage(ArgumentMatchers.any());
+    Mockito.doThrow(new IOException("broken pipe!")).when(this.session).sendMessage(ArgumentMatchers.any());
     final AudioListener listener = this.createListener(1000, 1024);
     listener.start();
     final byte[] first = chunk(10, 1);
@@ -470,7 +470,7 @@ final class AudioListenerTest {
 
   @Test
   void shouldReportWritesFailingWithRuntimeExceptions() throws Exception {
-    Mockito.doThrow(new IllegalStateException("closed")).when(this.session).sendMessage(ArgumentMatchers.any());
+    Mockito.doThrow(new IllegalStateException("closed!")).when(this.session).sendMessage(ArgumentMatchers.any());
     final AudioListener listener = this.createListener(1000, 1024);
     listener.start();
     final byte[] first = chunk(10, 1);
@@ -481,8 +481,8 @@ final class AudioListenerTest {
 
   @Test
   void shouldIgnoreConnectionsThatAreAlreadyGoneWhenClosingAsynchronously() throws Exception {
-    Mockito.doThrow(new IOException("gone")).when(this.session).close(CloseStatus.GOING_AWAY);
-    Mockito.doThrow(new IllegalStateException("gone")).when(this.session).close(CloseStatus.SERVER_ERROR);
+    Mockito.doThrow(new IOException("gone!")).when(this.session).close(CloseStatus.GOING_AWAY);
+    Mockito.doThrow(new IllegalStateException("gone!")).when(this.session).close(CloseStatus.SERVER_ERROR);
     final AudioListener listener = this.createListener(1000, 1024);
     final Thread first = listener.closeAsync(CloseStatus.GOING_AWAY);
     final Thread second = listener.closeAsync(CloseStatus.SERVER_ERROR);
