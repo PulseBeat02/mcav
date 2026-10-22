@@ -198,7 +198,8 @@ final class AudioQueuePropertyTest {
    */
   @Property(seed = SEED)
   void shouldMakeAValidPageAddressFromEveryIpv6Host(@ForAll("ipv6Hosts") final String host) {
-    final String urlHost = SpringHttpResult.urlHost(host);
+    final SpringHttpResult http = new SpringHttpResult(host, PORT, null);
+    final String urlHost = http.urlHost(host);
     final String url = "http://%s:%s/".formatted(urlHost, PORT);
     final URI uri = URI.create(url);
     final String parsedHost = uri.getHost();

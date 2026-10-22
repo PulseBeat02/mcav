@@ -30,14 +30,19 @@ import org.springframework.context.support.GenericApplicationContext;
 /** Tests cleanup when a plugin interrupts the thread that starts its audio server. */
 final class HttpInterruptedStopTest {
 
+  private static final String LOCALHOST = "localhost";
+
+  private static final int PORT = 8080;
+
   @Test
   void shouldCloseAnActiveSpringContextFromAnInterruptedStartupThread() {
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     try (final GenericApplicationContext context = new GenericApplicationContext()) {
       context.refresh();
       final Thread current = Thread.currentThread();
       current.interrupt();
       try {
-        SpringHttpResult.closeWithOwnClassLoader(context);
+        http.closeWithOwnClassLoader(context);
 
         final boolean interrupted = current.isInterrupted();
         assertTrue(interrupted, "cleanup preserves the caller's interrupt");
@@ -63,11 +68,10 @@ final class HttpInterruptedStopTest {
       .when(context)
       .close();
 
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     current.interrupt();
     try {
-      final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-        SpringHttpResult.closeWithOwnClassLoader(context)
-      );
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> http.closeWithOwnClassLoader(context));
       assertSame(failure, thrown);
 
       final boolean interrupted = current.isInterrupted();

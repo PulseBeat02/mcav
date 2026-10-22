@@ -81,6 +81,7 @@ public final class MediaInformation {
    */
   public static MediaInformation of(final UrlParseDump dump) {
     Preconditions.checkNotNull(dump, "Dump must not be null!");
+
     final double reportedDuration = dump.getDuration();
     final double wholeSeconds = Math.ceil(reportedDuration);
     final long duration = (long) wholeSeconds;
@@ -116,16 +117,8 @@ public final class MediaInformation {
    */
   public static MediaInformation titled(final String title) {
     Preconditions.checkNotNull(title, "Title must not be null!");
-    return new MediaInformation(title, null, null, null, null, null, 0, 0, 0, null);
-  }
 
-  /**
-   * Returns the title.
-   *
-   * @return the title, or null if unknown
-   */
-  public @Nullable String getTitle() {
-    return this.title;
+    return new MediaInformation(title, null, null, null, null, null, 0, 0, 0, null);
   }
 
   /**
@@ -135,22 +128,31 @@ public final class MediaInformation {
    */
   Map<String, Object> toJson() {
     final Map<String, Object> json = new LinkedHashMap<>();
-    putIfPresent(json, "title", this.title);
-    putIfPresent(json, "uploader", this.uploader);
-    putIfPresent(json, "channel", this.channel);
-    putIfPresent(json, "uploader_id", this.uploaderId);
-    putIfPresent(json, "description", this.description);
-    putIfPresent(json, "thumbnail", this.thumbnail);
+    this.putIfPresent(json, "title", this.title);
+    this.putIfPresent(json, "uploader", this.uploader);
+    this.putIfPresent(json, "channel", this.channel);
+    this.putIfPresent(json, "uploader_id", this.uploaderId);
+    this.putIfPresent(json, "description", this.description);
+    this.putIfPresent(json, "thumbnail", this.thumbnail);
     json.put("duration", this.duration);
     json.put("view_count", this.viewCount);
     json.put("like_count", this.likeCount);
-    putIfPresent(json, "upload_date", this.uploadDate);
+    this.putIfPresent(json, "upload_date", this.uploadDate);
     return json;
   }
 
-  private static void putIfPresent(final Map<String, Object> json, final String key, final @Nullable String value) {
+  private void putIfPresent(final Map<String, Object> json, final String key, final @Nullable String value) {
     if (value != null) {
       json.put(key, value);
     }
+  }
+
+  /**
+   * Returns the title.
+   *
+   * @return the title, or null if unknown
+   */
+  public @Nullable String getTitle() {
+    return this.title;
   }
 }

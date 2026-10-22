@@ -45,9 +45,11 @@ class HttpServerApplication {
 
   @Bean
   WebSocketConfigurer audioWebSocketConfigurer(final AudioWebSocketHandler handler) {
-    return (final WebSocketHandlerRegistry registry) -> {
-      final WebSocketHandlerRegistration registration = registry.addHandler(handler, AUDIO_PATH);
-      registration.setAllowedOrigins(ANY_ORIGIN);
-    };
+    return registry -> this.registerAudioHandler(registry, handler);
+  }
+
+  private void registerAudioHandler(final WebSocketHandlerRegistry registry, final AudioWebSocketHandler handler) {
+    final WebSocketHandlerRegistration registration = registry.addHandler(handler, AUDIO_PATH);
+    registration.setAllowedOrigins(ANY_ORIGIN);
   }
 }

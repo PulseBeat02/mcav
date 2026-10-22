@@ -592,7 +592,7 @@ final class HttpServerTest {
     final Path index = other.resolve(INDEX_FILE);
     final String otherPage = PAGE_TEMPLATE.formatted("other page");
     Files.writeString(index, otherPage);
-    final String location = SpringHttpResult.staticLocation(other);
+    final String location = server.staticLocation(other);
     final List<String> properties = new ArrayList<>(LOOPBACK);
     final String locationProperty = "spring.web.resources.static-locations=%s".formatted(location);
     properties.add(locationProperty);

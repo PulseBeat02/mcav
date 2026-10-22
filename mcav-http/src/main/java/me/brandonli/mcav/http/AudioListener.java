@@ -120,12 +120,56 @@ final class AudioListener {
   }
 
   /**
-   * Returns the WebSocket session of the browser.
-   *
-   * @return the session
+   * Stops sending and drops the queued chunks without closing the session, for example because the browser
+   * already disconnected. A write in progress is finished first.
    */
-  WebSocketSession getSession() {
-    return this.session;
+  void stop() {
+    this.lock.lock();
+    try {
+      this.stopped = true;
+      this.pending.clear();
+      this.pendingBytes = 0;
+      this.changed.signalAll();
+    } finally {
+      this.lock.unlock();
+    }
+  }
+
+  private void sendPending() {
+    byte[] chunk = this.takeNext();
+    while (chunk != null) {
+      final BinaryMessage message = new BinaryMessage(chunk);
+      try {
+        this.session.sendMessage(message);
+      } catch (final IOException | RuntimeException exception) {
+        this.stop();
+        this.failureHandler.accept(this);
+        return;
+      }
+      chunk = this.takeNext();
+    }
+  }
+
+  private byte @Nullable [] takeNext() {
+    this.lock.lock();
+    try {
+      this.sending = false;
+      while (this.pending.isEmpty() && !this.stopped) {
+        this.changed.awaitUninterruptibly();
+      }
+
+      if (this.stopped) {
+        return null;
+      }
+
+      final byte[] chunk = this.pending.removeFirst();
+      this.pendingBytes -= chunk.length;
+      this.sending = true;
+      this.sendStartNanoseconds = this.nanosecondClock.getAsLong();
+      return chunk;
+    } finally {
+      this.lock.unlock();
+    }
   }
 
   /**
@@ -141,18 +185,15 @@ final class AudioListener {
     if (!open) {
       return false;
     }
+
     this.lock.lock();
     try {
       if (this.stopped || this.isStuck()) {
         return false;
       }
-      this.pending.addLast(chunk);
-      this.pendingBytes += chunk.length;
-      while (this.pendingBytes > this.bufferLimitBytes && this.pending.size() > 1) {
-        final byte[] oldest = this.pending.removeFirst();
-        this.pendingBytes -= oldest.length;
-      }
-      this.changed.signalAll();
+
+      this.queue(chunk);
+
       return true;
     } finally {
       this.lock.unlock();
@@ -163,9 +204,56 @@ final class AudioListener {
     if (!this.sending) {
       return false;
     }
+
     final long now = this.nanosecondClock.getAsLong();
     final long elapsed = now - this.sendStartNanoseconds;
     return elapsed > this.sendTimeLimitNanoseconds;
+  }
+
+  private void queue(final byte[] chunk) {
+    this.pending.addLast(chunk);
+    this.pendingBytes += chunk.length;
+    this.dropOldestOverTheLimit();
+    this.changed.signalAll();
+  }
+
+  private void dropOldestOverTheLimit() {
+    while (this.pendingBytes > this.bufferLimitBytes && this.pending.size() > 1) {
+      final byte[] oldest = this.pending.removeFirst();
+      this.pendingBytes -= oldest.length;
+    }
+  }
+
+  /**
+   * Stops sending and closes the session on another thread, because closing waits for a blocked write.
+   *
+   * @param status the close status sent to the browser
+   * @return the thread that closes the session
+   */
+  Thread closeAsync(final CloseStatus status) {
+    this.stop();
+
+    final String id = this.session.getId();
+    final Thread.Builder.OfVirtual builder = Thread.ofVirtual();
+    builder.name(CLOSING_THREAD_PREFIX + id);
+    return builder.start(() -> this.closeQuietly(this.session, status));
+  }
+
+  private void closeQuietly(final WebSocketSession session, final CloseStatus status) {
+    try {
+      session.close(status);
+    } catch (final IOException | RuntimeException exception) {
+      // the connection is already gone
+    }
+  }
+
+  /**
+   * Returns the WebSocket session of the browser.
+   *
+   * @return the session
+   */
+  WebSocketSession getSession() {
+    return this.session;
   }
 
   /**
@@ -193,79 +281,6 @@ final class AudioListener {
     this.lock.lock();
     try {
       return this.pending.size();
-    } finally {
-      this.lock.unlock();
-    }
-  }
-
-  /**
-   * Stops sending and drops the queued chunks without closing the session, for example because the browser
-   * already disconnected. A write in progress is finished first.
-   */
-  void stop() {
-    this.lock.lock();
-    try {
-      this.stopped = true;
-      this.pending.clear();
-      this.pendingBytes = 0;
-      this.changed.signalAll();
-    } finally {
-      this.lock.unlock();
-    }
-  }
-
-  /**
-   * Stops sending and closes the session on another thread, because closing waits for a blocked write.
-   *
-   * @param status the close status sent to the browser
-   * @return the thread that closes the session
-   */
-  Thread closeAsync(final CloseStatus status) {
-    this.stop();
-    final String id = this.session.getId();
-    final Thread.Builder.OfVirtual builder = Thread.ofVirtual();
-    builder.name(CLOSING_THREAD_PREFIX + id);
-    return builder.start(() -> closeQuietly(this.session, status));
-  }
-
-  private static void closeQuietly(final WebSocketSession session, final CloseStatus status) {
-    try {
-      session.close(status);
-    } catch (final IOException | RuntimeException exception) {
-      // the connection is already gone
-    }
-  }
-
-  private void sendPending() {
-    byte[] chunk = this.takeNext();
-    while (chunk != null) {
-      final BinaryMessage message = new BinaryMessage(chunk);
-      try {
-        this.session.sendMessage(message);
-      } catch (final IOException | RuntimeException exception) {
-        this.stop();
-        this.failureHandler.accept(this);
-        return;
-      }
-      chunk = this.takeNext();
-    }
-  }
-
-  private byte @Nullable [] takeNext() {
-    this.lock.lock();
-    try {
-      this.sending = false;
-      while (this.pending.isEmpty() && !this.stopped) {
-        this.changed.awaitUninterruptibly();
-      }
-      if (this.stopped) {
-        return null;
-      }
-      final byte[] chunk = this.pending.removeFirst();
-      this.pendingBytes -= chunk.length;
-      this.sending = true;
-      this.sendStartNanoseconds = this.nanosecondClock.getAsLong();
-      return chunk;
     } finally {
       this.lock.unlock();
     }

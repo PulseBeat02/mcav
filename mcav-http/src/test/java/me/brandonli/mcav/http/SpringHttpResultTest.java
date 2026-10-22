@@ -216,12 +216,13 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldResolveTheStaticLocationOfThePage() throws IOException {
-    final String bundled = SpringHttpResult.staticLocation(null);
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
+    final String bundled = http.staticLocation(null);
     assertEquals(BUNDLED_PAGE_LOCATION, bundled);
 
     final Path existing = this.directory.resolve("out");
     Files.createDirectory(existing);
-    final String existingLocation = SpringHttpResult.staticLocation(existing);
+    final String existingLocation = http.staticLocation(existing);
     final URI existingUri = existing.toUri();
     final String existingText = existingUri.toString();
     final boolean endsWithASlash = existingLocation.endsWith(PATH_SEPARATOR);
@@ -229,7 +230,7 @@ final class SpringHttpResultTest {
     assertTrue(endsWithASlash);
 
     final Path missing = this.directory.resolve("missing");
-    final String missingLocation = SpringHttpResult.staticLocation(missing);
+    final String missingLocation = http.staticLocation(missing);
     final URI missingUri = missing.toUri();
     final String missingText = missingUri.toString();
     assertEquals(missingText + PATH_SEPARATOR, missingLocation);
@@ -378,13 +379,14 @@ final class SpringHttpResultTest {
       .when(context)
       .close();
 
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final Thread current = Thread.currentThread();
     final ClassLoader before = current.getContextClassLoader();
     final ClassLoader own = SpringHttpResult.class.getClassLoader();
     final ClassLoader caller = new ClassLoader(own) {};
     try {
       current.setContextClassLoader(caller);
-      SpringHttpResult.closeWithOwnClassLoader(context);
+      http.closeWithOwnClassLoader(context);
       final ClassLoader after = current.getContextClassLoader();
       final List<ClassLoader> expected = List.of(own);
       assertEquals(expected, loadersWhileClosing, "Spring looks its own resources up through the context class loader");
@@ -408,15 +410,14 @@ final class SpringHttpResultTest {
       .when(context)
       .close();
 
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final Thread current = Thread.currentThread();
     final ClassLoader before = current.getContextClassLoader();
     final ClassLoader own = SpringHttpResult.class.getClassLoader();
     final ClassLoader caller = new ClassLoader(own) {};
     try {
       current.setContextClassLoader(caller);
-      final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
-        SpringHttpResult.closeWithOwnClassLoader(context)
-      );
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> http.closeWithOwnClassLoader(context));
       final ClassLoader after = current.getContextClassLoader();
       final List<ClassLoader> expected = List.of(own);
       assertSame(failure, thrown, "the original context failure is preserved");
@@ -625,18 +626,19 @@ final class SpringHttpResultTest {
 
   @Test
   void shouldKeepTheLoggingOfTheHostUnlessAnotherLoggingSystemWasChosen() {
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final String property = SpringHttpResult.LOGGING_SYSTEM_PROPERTY;
     assertEquals("org.springframework.boot.logging.LoggingSystem", property);
     final String previous = System.getProperty(property);
     try {
       System.clearProperty(property);
-      SpringHttpResult.keepTheLoggingOfTheHost();
+      http.keepTheLoggingOfTheHost();
       final String disabled = System.getProperty(property);
       assertEquals("none", disabled);
 
       final String chosen = "org.springframework.boot.logging.java.JavaLoggingSystem";
       System.setProperty(property, chosen);
-      SpringHttpResult.keepTheLoggingOfTheHost();
+      http.keepTheLoggingOfTheHost();
       final String kept = System.getProperty(property);
       assertEquals(chosen, kept, "a logging system chosen by the user is respected");
     } finally {

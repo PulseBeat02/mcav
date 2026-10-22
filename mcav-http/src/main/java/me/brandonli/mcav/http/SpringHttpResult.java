@@ -136,6 +136,7 @@ public final class SpringHttpResult implements HttpResult {
   ) {
     Preconditions.checkNotNull(domain, "Domain must not be null!");
     Preconditions.checkNotNull(extraProperties, "Extra properties must not be null!");
+
     this.domain = domain;
     this.port = port;
     this.directory = directory;
@@ -161,28 +162,61 @@ public final class SpringHttpResult implements HttpResult {
         return;
       }
 
-      final Thread thread = Thread.currentThread();
-      final ClassLoader previous = thread.getContextClassLoader();
-      final ClassLoader own = SpringHttpResult.class.getClassLoader();
-      // Spring resolves classes and resources through the context class loader, which plugin hosts do not set
-      thread.setContextClassLoader(own);
-      try {
-        this.context = this.createApplication();
-        this.acceptingListeners = true;
-        final String url = this.getFullUrl();
-        LOGGER.info("Audio web player is running at {}.", url);
-      } catch (final RuntimeException exception) {
-        final String reason = exception.getMessage();
-        final String message = "Web server on port %s failed with \"%s\" while starting!".formatted(this.port, reason);
-        throw new HttpException(message, exception);
-      } finally {
-        thread.setContextClassLoader(previous);
+      this.startWithOwnClassLoader();
+    }
+  }
+
+  /**
+   * Disconnects every listener with {@link CloseStatus#GOING_AWAY} and stops the embedded web server. The
+   * connections are closed on other threads, so a listener whose write is stuck never delays stopping. Calling it
+   * while the server is stopped has no effect.
+   */
+  @Override
+  public void stop() {
+    synchronized (this.lifecycleLock) {
+      // Clear before disconnectListeners(): a handshake finishing during shutdown must not add a listener.
+      this.acceptingListeners = false;
+      final ConfigurableApplicationContext current = this.context;
+      this.disconnectListeners();
+
+      if (current == null) {
+        return;
       }
+
+      this.context = null;
+      this.closeWithOwnClassLoader(current);
+    }
+  }
+
+  private void startWithOwnClassLoader() {
+    final Thread thread = Thread.currentThread();
+    final ClassLoader previous = thread.getContextClassLoader();
+    final ClassLoader own = SpringHttpResult.class.getClassLoader();
+    // Spring resolves classes and resources through the context class loader, which plugin hosts do not set
+    thread.setContextClassLoader(own);
+    try {
+      this.startApplication();
+    } finally {
+      thread.setContextClassLoader(previous);
+    }
+  }
+
+  private void startApplication() {
+    try {
+      this.context = this.createApplication();
+      this.acceptingListeners = true;
+
+      final String url = this.getFullUrl();
+      LOGGER.info("Audio web player is running at {}.", url);
+    } catch (final RuntimeException exception) {
+      final String reason = exception.getMessage();
+      final String message = "Web server on port %s failed with \"%s\" while starting!".formatted(this.port, reason);
+      throw new HttpException(message, exception);
     }
   }
 
   private ConfigurableApplicationContext createApplication() {
-    keepTheLoggingOfTheHost();
+    this.keepTheLoggingOfTheHost();
     // The JVM keeps a URL factory forever; a replacement plugin loader must not register another copy of Tomcat's.
     TomcatURLStreamHandlerFactory.disable();
 
@@ -192,15 +226,29 @@ public final class SpringHttpResult implements HttpResult {
     builder.logStartupInfo(false);
     // plugin class loaders are closed before JVM shutdown hooks run, so Spring must not register one
     builder.registerShutdownHook(false);
-    builder.initializers(context -> {
-      final ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
-      beanFactory.registerSingleton(RESULT_BEAN_NAME, this);
-    });
+    builder.initializers(this::registerResult);
 
     final List<String> properties = this.createProperties();
     final String[] array = properties.toArray(new String[0]);
     builder.properties(array);
     return builder.run();
+  }
+
+  /**
+   * Stops Spring Boot from reconfiguring the logging system of the JVM, unless someone chose a logging system for
+   * it with {@value #LOGGING_SYSTEM_PROPERTY}.
+   */
+  @VisibleForTesting
+  void keepTheLoggingOfTheHost() {
+    final String chosen = System.getProperty(LOGGING_SYSTEM_PROPERTY);
+    if (chosen == null) {
+      System.setProperty(LOGGING_SYSTEM_PROPERTY, NO_LOGGING_SYSTEM);
+    }
+  }
+
+  private void registerResult(final ConfigurableApplicationContext context) {
+    final ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
+    beanFactory.registerSingleton(RESULT_BEAN_NAME, this);
   }
 
   /**
@@ -210,7 +258,7 @@ public final class SpringHttpResult implements HttpResult {
    * @return the properties in {@code key=value} form
    */
   private List<String> createProperties() {
-    final String location = staticLocation(this.directory);
+    final String location = this.staticLocation(this.directory);
     final String portProperty = "server.port=%s".formatted(this.port);
     final String nameProperty = "spring.application.name=mcav-http-%s".formatted(this.port);
     final String locationProperty = "spring.web.resources.static-locations=%s".formatted(location);
@@ -236,52 +284,21 @@ public final class SpringHttpResult implements HttpResult {
   }
 
   /**
-   * Stops Spring Boot from reconfiguring the logging system of the JVM, unless someone chose a logging system for
-   * it with {@value #LOGGING_SYSTEM_PROPERTY}.
-   */
-  @VisibleForTesting
-  static void keepTheLoggingOfTheHost() {
-    final String chosen = System.getProperty(LOGGING_SYSTEM_PROPERTY);
-    if (chosen == null) {
-      System.setProperty(LOGGING_SYSTEM_PROPERTY, NO_LOGGING_SYSTEM);
-    }
-  }
-
-  /**
    * Returns the Spring resource location of the web page.
    *
    * @param directory the directory with the web page, or null for the copy bundled in the jar
    * @return the location, always ending with a slash
    */
   @VisibleForTesting
-  static String staticLocation(final @Nullable Path directory) {
+  String staticLocation(final @Nullable Path directory) {
     if (directory == null) {
       return BUNDLED_PAGE_LOCATION;
     }
+
     final Path absolute = directory.toAbsolutePath();
     final URI location = absolute.toUri();
     final String uri = location.toString();
     return uri.endsWith(PATH_SEPARATOR) ? uri : uri + PATH_SEPARATOR;
-  }
-
-  /**
-   * Disconnects every listener with {@link CloseStatus#GOING_AWAY} and stops the embedded web server. The
-   * connections are closed on other threads, so a listener whose write is stuck never delays stopping. Calling it
-   * while the server is stopped has no effect.
-   */
-  @Override
-  public void stop() {
-    synchronized (this.lifecycleLock) {
-      // Clear before disconnectListeners(): a handshake finishing during shutdown must not add a listener.
-      this.acceptingListeners = false;
-      final ConfigurableApplicationContext current = this.context;
-      this.disconnectListeners();
-      if (current == null) {
-        return;
-      }
-      this.context = null;
-      closeWithOwnClassLoader(current);
-    }
   }
 
   private void disconnectListeners() {
@@ -302,7 +319,7 @@ public final class SpringHttpResult implements HttpResult {
    * @param current the context to close
    */
   @VisibleForTesting
-  static void closeWithOwnClassLoader(final ConfigurableApplicationContext current) {
+  void closeWithOwnClassLoader(final ConfigurableApplicationContext current) {
     final Thread thread = Thread.currentThread();
     final ClassLoader previous = thread.getContextClassLoader();
     final ClassLoader own = SpringHttpResult.class.getClassLoader();
@@ -317,6 +334,99 @@ public final class SpringHttpResult implements HttpResult {
         thread.interrupt();
       }
     }
+  }
+
+  /**
+   * Registers a browser that connected to the audio socket.
+   *
+   * @param session the WebSocket session
+   */
+  void addListener(final WebSocketSession session) {
+    final boolean acceptingBefore = this.acceptingListeners;
+    if (!acceptingBefore) {
+      this.closeQuietly(session);
+      return;
+    }
+
+    final String id = session.getId();
+    final AudioListener listener = new AudioListener(session, SEND_TIME_LIMIT_MILLISECONDS, SEND_BUFFER_LIMIT_BYTES, this::dropListener);
+    this.listeners.put(id, listener);
+    listener.start();
+
+    // stop() clears the flag before it clears the map, so a listener registered after that clear is only visible
+    // here; taking the lifecycle lock instead would deadlock against the web server waiting for this handshake
+    final boolean acceptingAfter = this.acceptingListeners;
+    if (!acceptingAfter) {
+      this.listeners.remove(id, listener);
+      listener.closeAsync(CloseStatus.GOING_AWAY);
+    }
+  }
+
+  private void closeQuietly(final WebSocketSession session) {
+    try {
+      session.close(CloseStatus.GOING_AWAY);
+    } catch (final IOException | RuntimeException exception) {
+      // the browser is already gone, which is the outcome this method wants anyway
+    }
+  }
+
+  private void dropListener(final AudioListener listener) {
+    final WebSocketSession session = listener.getSession();
+    final String id = session.getId();
+    this.listeners.remove(id, listener);
+    listener.closeAsync(CloseStatus.SESSION_NOT_RELIABLE);
+  }
+
+  /**
+   * Forgets a browser that disconnected.
+   *
+   * @param session the WebSocket session
+   */
+  void removeListener(final WebSocketSession session) {
+    final String id = session.getId();
+    final AudioListener listener = this.listeners.remove(id);
+    if (listener != null) {
+      listener.stop();
+    }
+  }
+
+  /**
+   * Queues a copy of the remaining samples for every listener without blocking and without moving the position of
+   * the buffer. A listener whose connection closed or whose write is stuck is disconnected.
+   *
+   * @param samples  the little-endian 16-bit stereo samples between the position and the limit of the buffer
+   * @param metadata the metadata of the original audio
+   * @return always false, because the samples are only copied out and never changed
+   * @throws NullPointerException if {@code samples} or {@code metadata} is null
+   */
+  @Override
+  public boolean applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
+    Preconditions.checkNotNull(samples, "Samples must not be null!");
+    Preconditions.checkNotNull(metadata, "Metadata must not be null!");
+
+    final boolean empty = this.listeners.isEmpty();
+    if (empty) {
+      return false;
+    }
+
+    final byte[] bytes = this.copyRemaining(samples);
+    final Collection<AudioListener> connected = this.listeners.values();
+    for (final AudioListener listener : connected) {
+      final boolean queued = listener.offer(bytes);
+      if (!queued) {
+        this.dropListener(listener);
+      }
+    }
+
+    return false;
+  }
+
+  private byte[] copyRemaining(final ByteBuffer samples) {
+    final ByteBuffer source = samples.duplicate();
+    final int remaining = source.remaining();
+    final byte[] bytes = new byte[remaining];
+    source.get(bytes);
+    return bytes;
   }
 
   /**
@@ -342,6 +452,7 @@ public final class SpringHttpResult implements HttpResult {
       final WebServer server = Objects.requireNonNull(webServer, "A running server must have a web server!");
       return server.getPort();
     }
+
     return this.port;
   }
 
@@ -366,40 +477,6 @@ public final class SpringHttpResult implements HttpResult {
   }
 
   /**
-   * Registers a browser that connected to the audio socket.
-   *
-   * @param session the WebSocket session
-   */
-  void addListener(final WebSocketSession session) {
-    final boolean acceptingBefore = this.acceptingListeners;
-    if (!acceptingBefore) {
-      closeQuietly(session);
-      return;
-    }
-
-    final String id = session.getId();
-    final AudioListener listener = new AudioListener(session, SEND_TIME_LIMIT_MILLISECONDS, SEND_BUFFER_LIMIT_BYTES, this::dropListener);
-    this.listeners.put(id, listener);
-    listener.start();
-
-    // stop() clears the flag before it clears the map, so a listener registered after that clear is only visible
-    // here; taking the lifecycle lock instead would deadlock against the web server waiting for this handshake
-    final boolean acceptingAfter = this.acceptingListeners;
-    if (!acceptingAfter) {
-      this.listeners.remove(id, listener);
-      listener.closeAsync(CloseStatus.GOING_AWAY);
-    }
-  }
-
-  private static void closeQuietly(final WebSocketSession session) {
-    try {
-      session.close(CloseStatus.GOING_AWAY);
-    } catch (final IOException | RuntimeException exception) {
-      // the browser is already gone, which is the outcome this method wants anyway
-    }
-  }
-
-  /**
    * Returns the listener of a WebSocket session. Visible for testing.
    *
    * @param id the id of the session
@@ -411,26 +488,6 @@ public final class SpringHttpResult implements HttpResult {
   }
 
   /**
-   * Forgets a browser that disconnected.
-   *
-   * @param session the WebSocket session
-   */
-  void removeListener(final WebSocketSession session) {
-    final String id = session.getId();
-    final AudioListener listener = this.listeners.remove(id);
-    if (listener != null) {
-      listener.stop();
-    }
-  }
-
-  private void dropListener(final AudioListener listener) {
-    final WebSocketSession session = listener.getSession();
-    final String id = session.getId();
-    this.listeners.remove(id, listener);
-    listener.closeAsync(CloseStatus.SESSION_NOT_RELIABLE);
-  }
-
-  /**
    * Returns the number of browsers currently connected to the audio socket.
    *
    * @return the listener count, 0 while the server is stopped
@@ -438,72 +495,6 @@ public final class SpringHttpResult implements HttpResult {
   @Override
   public int getListenerCount() {
     return this.listeners.size();
-  }
-
-  /**
-   * Queues a copy of the remaining samples for every listener without blocking and without moving the position of
-   * the buffer. A listener whose connection closed or whose write is stuck is disconnected.
-   *
-   * @param samples  the little-endian 16-bit stereo samples between the position and the limit of the buffer
-   * @param metadata the metadata of the original audio
-   * @return always false, because the samples are only copied out and never changed
-   * @throws NullPointerException if {@code samples} or {@code metadata} is null
-   */
-  @Override
-  public boolean applyFilter(final ByteBuffer samples, final OriginalAudioMetadata metadata) {
-    Preconditions.checkNotNull(samples, "Samples must not be null!");
-    Preconditions.checkNotNull(metadata, "Metadata must not be null!");
-    final boolean empty = this.listeners.isEmpty();
-    if (empty) {
-      return false;
-    }
-
-    final byte[] bytes = copyRemaining(samples);
-    final Collection<AudioListener> connected = this.listeners.values();
-    for (final AudioListener listener : connected) {
-      final boolean queued = listener.offer(bytes);
-      if (!queued) {
-        this.dropListener(listener);
-      }
-    }
-    return false;
-  }
-
-  private static byte[] copyRemaining(final ByteBuffer samples) {
-    final ByteBuffer source = samples.duplicate();
-    final int remaining = source.remaining();
-    final byte[] bytes = new byte[remaining];
-    source.get(bytes);
-    return bytes;
-  }
-
-  /**
-   * Returns the address of the web page, built from the host name and the configured port.
-   *
-   * @return the URL, such as {@code http://play.example.com:8080/}
-   */
-  @Override
-  public String getFullUrl() {
-    final String host = urlHost(this.domain);
-    return "http://%s:%s/".formatted(host, this.port);
-  }
-
-  /**
-   * Returns the host part of a URL. A host name or IPv4 address is used as it is; an IPv6 address, the only host
-   * that contains a colon, is put in brackets, with the {@code %} of a zone id encoded as RFC 6874 requires.
-   *
-   * @param domain the host name or address
-   * @return the host as it appears in a URL
-   */
-  @VisibleForTesting
-  static String urlHost(final String domain) {
-    final boolean isIpv6 = domain.indexOf(IPV6_SEPARATOR) >= 0;
-    final boolean bracketed = domain.startsWith(OPENING_BRACKET);
-    if (!isIpv6 || bracketed) {
-      return domain;
-    }
-    final String encoded = domain.replace(ZONE_SEPARATOR, ENCODED_ZONE_SEPARATOR);
-    return "[%s]".formatted(encoded);
   }
 
   /**
@@ -537,5 +528,35 @@ public final class SpringHttpResult implements HttpResult {
   @Override
   public MediaInformation getCurrentMedia() {
     return this.currentMedia;
+  }
+
+  /**
+   * Returns the address of the web page, built from the host name and the configured port.
+   *
+   * @return the URL, such as {@code http://play.example.com:8080/}
+   */
+  @Override
+  public String getFullUrl() {
+    final String host = this.urlHost(this.domain);
+    return "http://%s:%s/".formatted(host, this.port);
+  }
+
+  /**
+   * Returns the host part of a URL. A host name or IPv4 address is used as it is; an IPv6 address, the only host
+   * that contains a colon, is put in brackets, with the {@code %} of a zone id encoded as RFC 6874 requires.
+   *
+   * @param domain the host name or address
+   * @return the host as it appears in a URL
+   */
+  @VisibleForTesting
+  String urlHost(final String domain) {
+    final boolean isIpv6 = domain.indexOf(IPV6_SEPARATOR) >= 0;
+    final boolean bracketed = domain.startsWith(OPENING_BRACKET);
+    if (!isIpv6 || bracketed) {
+      return domain;
+    }
+
+    final String encoded = domain.replace(ZONE_SEPARATOR, ENCODED_ZONE_SEPARATOR);
+    return "[%s]".formatted(encoded);
   }
 }
