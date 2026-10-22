@@ -29,6 +29,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -47,6 +48,8 @@ import net.jqwik.api.arbitraries.ListArbitrary;
 import net.jqwik.api.constraints.IntRange;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Stubber;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -95,39 +98,73 @@ final class AudioQueuePropertyTest {
   ) throws Exception {
     final Recorder recorder = new Recorder();
     final AudioListener listener = new AudioListener(recorder.session, SEND_TIME_LIMIT_MILLISECONDS, limit, _ -> {}, () -> 0L);
-    final Deque<byte[]> kept = new ArrayDeque<>();
-    long keptBytes = 0;
-    for (int index = 0; index < sizes.size(); index++) {
-      final byte[] chunk = new byte[sizes.get(index)];
-      final byte fill = (byte) index;
-      Arrays.fill(chunk, fill);
-      final boolean queued = listener.offer(chunk);
-      assertTrue(queued, "an open listener queues every chunk");
-      kept.addLast(chunk);
-      keptBytes += chunk.length;
-      while (keptBytes > limit && kept.size() > 1) {
-        final byte[] oldest = kept.removeFirst();
-        keptBytes -= oldest.length;
-      }
-      final long pendingBytes = listener.getPendingBytes();
-      final int pendingChunks = listener.getPendingChunkCount();
-      assertEquals(keptBytes, pendingBytes, "bytes waiting after chunk %s".formatted(index));
-      final int keptChunks = kept.size();
-      assertEquals(keptChunks, pendingChunks, "chunks waiting after chunk %s".formatted(index));
-    }
+    final Deque<byte[]> kept = this.offerEveryChunk(listener, sizes, limit);
 
     listener.start();
     try {
-      for (final byte[] expected : kept) {
-        final byte[] sent = recorder.next();
-        assertNotNull(sent, "the sender wrote every chunk it kept");
-        assertArrayEquals(expected, sent, "the sender writes the kept chunks in order");
-      }
-      final byte[] extra = recorder.poll();
-      assertNull(extra, "nothing was sent that the queue had dropped");
+      this.assertSentInOrder(recorder, kept);
     } finally {
       listener.stop();
     }
+  }
+
+  private Deque<byte[]> offerEveryChunk(final AudioListener listener, final List<Integer> sizes, final int limit) {
+    final Deque<byte[]> kept = new ArrayDeque<>();
+    for (int index = 0; index < sizes.size(); index++) {
+      final int size = sizes.get(index);
+      final byte[] chunk = this.createChunk(size, index);
+      final boolean queued = listener.offer(chunk);
+      assertTrue(queued, "an open listener queues every chunk");
+
+      kept.addLast(chunk);
+      this.dropOldestOverTheLimit(kept, limit);
+      this.assertPending(listener, kept, index);
+    }
+
+    return kept;
+  }
+
+  private byte[] createChunk(final int size, final int index) {
+    final byte[] chunk = new byte[size];
+    final byte fill = (byte) index;
+    Arrays.fill(chunk, fill);
+    return chunk;
+  }
+
+  private void dropOldestOverTheLimit(final Deque<byte[]> kept, final int limit) {
+    while (this.countBytes(kept) > limit && kept.size() > 1) {
+      kept.removeFirst();
+    }
+  }
+
+  private long countBytes(final Collection<byte[]> chunks) {
+    long bytes = 0;
+    for (final byte[] chunk : chunks) {
+      bytes += chunk.length;
+    }
+
+    return bytes;
+  }
+
+  private void assertPending(final AudioListener listener, final Deque<byte[]> kept, final int index) {
+    final long pendingBytes = listener.getPendingBytes();
+    final int pendingChunks = listener.getPendingChunkCount();
+    final long keptBytes = this.countBytes(kept);
+    assertEquals(keptBytes, pendingBytes, "bytes waiting after chunk %s".formatted(index));
+
+    final int keptChunks = kept.size();
+    assertEquals(keptChunks, pendingChunks, "chunks waiting after chunk %s".formatted(index));
+  }
+
+  private void assertSentInOrder(final Recorder recorder, final Deque<byte[]> kept) throws InterruptedException {
+    for (final byte[] expected : kept) {
+      final byte[] sent = recorder.next();
+      assertNotNull(sent, "the sender wrote every chunk it kept");
+      assertArrayEquals(expected, sent, "the sender writes the kept chunks in order");
+    }
+
+    final byte[] extra = recorder.poll();
+    assertNull(extra, "nothing was sent that the queue had dropped");
   }
 
   @Provide
@@ -153,18 +190,26 @@ final class AudioQueuePropertyTest {
     final int limit = buffer.limit();
     try {
       final boolean changed = result.applyFilter(buffer, metadata);
-      Samples.overwrite(buffer);
-
+      this.overwrite(buffer);
       assertFalse(changed, "the samples are only read");
+
       final int positionAfter = buffer.position();
       final int limitAfter = buffer.limit();
       assertEquals(position, positionAfter, "position of the pipeline's buffer");
       assertEquals(limit, limitAfter, "limit of the pipeline's buffer");
+
       final byte[] sent = recorder.next();
       final byte[] expected = samples.getContent();
       assertArrayEquals(expected, sent, "the listener receives the samples as they were when they were passed on");
     } finally {
       result.stop();
+    }
+  }
+
+  private void overwrite(final ByteBuffer buffer) {
+    for (int index = buffer.position(); index < buffer.limit(); index++) {
+      final byte current = buffer.get(index);
+      buffer.put(index, (byte) ~current);
     }
   }
 
@@ -174,13 +219,13 @@ final class AudioQueuePropertyTest {
     final Arbitrary<Integer> hextets = integers.between(0, MAXIMUM_HEXTET);
     final ListArbitrary<Integer> hextetList = hextets.list();
     final ListArbitrary<Integer> addresses = hextetList.ofSize(HEXTET_COUNT);
-    final Arbitrary<String> literals = addresses.map(AudioQueuePropertyTest::formatAddress);
+    final Arbitrary<String> literals = addresses.map(this::formatAddress);
     final Arbitrary<String> zones = Arbitraries.of("", "%eth0", "%1", "%en0");
     final Combinators.Combinator2<String, String> hosts = Combinators.combine(literals, zones);
     return hosts.as((literal, zone) -> literal + zone);
   }
 
-  private static String formatAddress(final List<Integer> hextets) {
+  private String formatAddress(final List<Integer> hextets) {
     final StringBuilder address = new StringBuilder();
     for (final int hextet : hextets) {
       if (!address.isEmpty()) {
@@ -189,6 +234,7 @@ final class AudioQueuePropertyTest {
       final String hexadecimal = Integer.toHexString(hextet);
       address.append(hexadecimal);
     }
+
     return address.toString();
   }
 
@@ -224,18 +270,22 @@ final class AudioQueuePropertyTest {
       this.sent = new LinkedBlockingQueue<>();
       Mockito.when(this.session.isOpen()).thenReturn(true);
       Mockito.when(this.session.getId()).thenReturn("property");
-      Mockito.doAnswer(invocation -> {
-        final WebSocketMessage<?> message = invocation.getArgument(0);
-        final BinaryMessage binary = (BinaryMessage) message;
-        final ByteBuffer payload = binary.getPayload();
-        final ByteBuffer copy = payload.duplicate();
-        final byte[] bytes = new byte[copy.remaining()];
-        copy.get(bytes);
-        this.sent.add(bytes);
-        return null;
-      })
-        .when(this.session)
-        .sendMessage(ArgumentMatchers.any());
+
+      final Stubber recording = Mockito.doAnswer(this::record);
+      final WebSocketSession stubbedSession = recording.when(this.session);
+      stubbedSession.sendMessage(ArgumentMatchers.any());
+    }
+
+    private Void record(final InvocationOnMock invocation) {
+      final WebSocketMessage<?> message = invocation.getArgument(0);
+      final BinaryMessage binary = (BinaryMessage) message;
+      final ByteBuffer payload = binary.getPayload();
+      final ByteBuffer copy = payload.duplicate();
+      final byte[] bytes = new byte[copy.remaining()];
+      copy.get(bytes);
+      this.sent.add(bytes);
+
+      return null;
     }
 
     byte[] next() throws InterruptedException {
@@ -262,13 +312,10 @@ final class AudioQueuePropertyTest {
       for (int index = 0; index < this.content.length; index++) {
         this.content[index] = content.get(index);
       }
+
       this.margin = margin;
       this.direct = direct;
       this.sliced = sliced;
-    }
-
-    private byte[] getContent() {
-      return this.content.clone();
     }
 
     ByteBuffer create() {
@@ -277,14 +324,12 @@ final class AudioQueuePropertyTest {
       whole.put(this.margin, this.content);
       whole.position(this.margin);
       whole.limit(this.margin + this.content.length);
+
       return this.sliced ? whole.slice() : whole;
     }
 
-    private static void overwrite(final ByteBuffer buffer) {
-      for (int index = buffer.position(); index < buffer.limit(); index++) {
-        final byte current = buffer.get(index);
-        buffer.put(index, (byte) ~current);
-      }
+    private byte[] getContent() {
+      return this.content.clone();
     }
 
     @Override

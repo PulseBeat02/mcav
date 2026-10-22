@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.AbstractQueuedSynchronizer;
 import java.util.concurrent.locks.LockSupport;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.Tag;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -73,114 +74,196 @@ final class AudioListenerFuzzTest {
   void shouldQueueDropAndSendAsDocumented(final FuzzedDataProvider data) throws Exception {
     final int limit = data.consumeInt(1, MAXIMUM_LIMIT_BYTES);
     final long sendTimeLimitMilliseconds = data.consumeLong(1, MAXIMUM_SEND_TIME_LIMIT_MILLISECONDS);
-    final long sendTimeLimitNanoseconds = TimeUnit.MILLISECONDS.toNanos(sendTimeLimitMilliseconds);
-    final AtomicLong clock = new AtomicLong();
-    final GatedSession gate = new GatedSession();
-    final AudioListener listener = new AudioListener(gate.session, sendTimeLimitMilliseconds, limit, _ -> {}, clock::get);
-    final Thread sender = listener.start();
-
-    final Deque<byte[]> queued = new ArrayDeque<>();
-    final List<byte[]> expectedDeliveries = new ArrayList<>();
-    byte[] inFlight = null;
-    long sendStart = 0;
-    long queuedBytes = 0;
-    boolean stopped = false;
-    int chunkNumber = 0;
+    final ListenerModel model = new ListenerModel(limit, sendTimeLimitMilliseconds);
     try {
-      final int operations = data.consumeInt(0, MAXIMUM_OPERATIONS);
-      for (int operation = 0; operation < operations; operation++) {
-        switch (data.consumeInt(OFFER_CHUNK, CLOSE_SESSION)) {
-          case OFFER_CHUNK -> {
-            chunkNumber++;
-            final byte[] chunk = new byte[data.consumeInt(0, MAXIMUM_CHUNK_TO_LIMIT_RATIO * limit)];
-            Arrays.fill(chunk, (byte) chunkNumber);
-            final boolean stuck = inFlight != null && clock.get() - sendStart > sendTimeLimitNanoseconds;
-            final boolean expected = gate.open.get() && !stopped && !stuck;
-            final boolean accepted = listener.offer(chunk);
-            assertEquals(expected, accepted, "whether a chunk is queued");
-            if (accepted) {
-              queued.addLast(chunk);
-              queuedBytes += chunk.length;
-              while (queuedBytes > limit && queued.size() > 1) {
-                final byte[] dropped = queued.removeFirst();
-                queuedBytes -= dropped.length;
-              }
-              if (inFlight == null) {
-                gate.awaitWrite();
-                inFlight = queued.removeFirst();
-                queuedBytes -= inFlight.length;
-                sendStart = clock.get();
-                expectedDeliveries.add(inFlight);
-              }
-            }
-          }
-          case FINISH_WRITE -> {
-            if (inFlight != null) {
-              gate.finishWrite();
-              inFlight = null;
-              if (!stopped && !queued.isEmpty()) {
-                gate.awaitWrite();
-                inFlight = queued.removeFirst();
-                queuedBytes -= inFlight.length;
-                sendStart = clock.get();
-                expectedDeliveries.add(inFlight);
-              } else {
-                awaitIdleOrEnded(sender);
-              }
-            }
-          }
-          case ADVANCE_CLOCK -> clock.addAndGet(data.consumeLong(0, MAXIMUM_CLOCK_STEP_NANOSECONDS));
-          case STOP_LISTENER -> {
-            listener.stop();
-            stopped = true;
-            queued.clear();
-            queuedBytes = 0;
-          }
-          default -> gate.open.set(false);
-        }
-        final int pendingBytes = listener.getPendingBytes();
-        final int pendingChunks = listener.getPendingChunkCount();
-        assertEquals(queuedBytes, pendingBytes, "bytes waiting");
-        final int queuedChunks = queued.size();
-        assertEquals(queuedChunks, pendingChunks, "chunks waiting");
-      }
+      this.runOperations(data, model);
     } finally {
-      listener.stop();
-      gate.finishAll();
-      sender.join(TimeUnit.SECONDS.toMillis(WAIT_SECONDS));
+      model.stopAndAwaitTheSender();
     }
-    final boolean ended = !sender.isAlive();
-    assertTrue(ended, "the sender ends once the listener is stopped");
-    final List<byte[]> delivered = gate.written();
-    final int expectedCount = expectedDeliveries.size();
-    final int deliveredCount = delivered.size();
-    assertEquals(expectedCount, deliveredCount, "the number of chunks the browser received");
-    for (int index = 0; index < deliveredCount; index++) {
-      final byte[] expectedChunk = expectedDeliveries.get(index);
-      final byte[] deliveredChunk = delivered.get(index);
-      assertArrayEquals(expectedChunk, deliveredChunk, "the chunks the browser received, in order");
+
+    model.assertDelivered();
+  }
+
+  private void runOperations(final FuzzedDataProvider data, final ListenerModel model) throws InterruptedException {
+    final int operations = data.consumeInt(0, MAXIMUM_OPERATIONS);
+    for (int operation = 0; operation < operations; operation++) {
+      this.runOperation(data, model);
+      model.assertPending();
     }
   }
 
-  /**
-   * Waits until the sender waits for its next chunk, or has ended. Its state alone does not tell: a virtual thread that
-   * is being woken up from the write it just finished reports itself as waiting for a moment, while the listener still
-   * counts that write as the current one, which is what the fuzzer found the first time. Only a sender that waits on
-   * the condition of the listener has taken up waiting for the next chunk.
-   */
-  private static void awaitIdleOrEnded(final Thread sender) {
-    final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(WAIT_SECONDS);
-    while (System.nanoTime() < deadline) {
-      final Thread.State state = sender.getState();
-      final Object blocker = LockSupport.getBlocker(sender);
-      final boolean waitingForAChunk = state == Thread.State.WAITING && blocker instanceof AbstractQueuedSynchronizer.ConditionObject;
-      if (waitingForAChunk || state == Thread.State.TERMINATED) {
+  private void runOperation(final FuzzedDataProvider data, final ListenerModel model) throws InterruptedException {
+    final int code = data.consumeInt(OFFER_CHUNK, CLOSE_SESSION);
+    switch (code) {
+      case OFFER_CHUNK -> model.offerChunk(data);
+      case FINISH_WRITE -> model.finishWrite();
+      case ADVANCE_CLOCK -> model.advanceClock(data);
+      case STOP_LISTENER -> model.stop();
+      default -> model.closeSession();
+    }
+  }
+
+  private static final class ListenerModel {
+
+    private final int limit;
+    private final long sendTimeLimitNanoseconds;
+    private final AtomicLong clock;
+    private final GatedSession gate;
+    private final AudioListener listener;
+    private final Thread sender;
+    private final Deque<byte[]> queued;
+    private final List<byte[]> expectedDeliveries;
+
+    private byte @Nullable [] inFlight;
+    private long sendStart;
+    private long queuedBytes;
+    private boolean stopped;
+    private int chunkNumber;
+
+    ListenerModel(final int limit, final long sendTimeLimitMilliseconds) {
+      this.limit = limit;
+      this.sendTimeLimitNanoseconds = TimeUnit.MILLISECONDS.toNanos(sendTimeLimitMilliseconds);
+      this.clock = new AtomicLong();
+      this.gate = new GatedSession();
+      this.listener = new AudioListener(this.gate.session, sendTimeLimitMilliseconds, limit, _ -> {}, this.clock::get);
+      this.sender = this.listener.start();
+      this.queued = new ArrayDeque<>();
+      this.expectedDeliveries = new ArrayList<>();
+    }
+
+    void offerChunk(final FuzzedDataProvider data) throws InterruptedException {
+      this.chunkNumber++;
+      final int length = data.consumeInt(0, MAXIMUM_CHUNK_TO_LIMIT_RATIO * this.limit);
+      final byte[] chunk = new byte[length];
+      Arrays.fill(chunk, (byte) this.chunkNumber);
+
+      final boolean expected = this.isQueueingChunks();
+      final boolean accepted = this.listener.offer(chunk);
+      assertEquals(expected, accepted, "whether a chunk is queued");
+      if (accepted) {
+        this.queue(chunk);
+      }
+    }
+
+    private boolean isQueueingChunks() {
+      final boolean stuck = this.inFlight != null && this.clock.get() - this.sendStart > this.sendTimeLimitNanoseconds;
+      final boolean open = this.gate.open.get();
+      return open && !this.stopped && !stuck;
+    }
+
+    private void queue(final byte[] chunk) throws InterruptedException {
+      this.queued.addLast(chunk);
+      this.queuedBytes += chunk.length;
+      this.dropOldestOverTheLimit();
+      if (this.inFlight == null) {
+        this.sendNext();
+      }
+    }
+
+    private void dropOldestOverTheLimit() {
+      while (this.queuedBytes > this.limit && this.queued.size() > 1) {
+        final byte[] dropped = this.queued.removeFirst();
+        this.queuedBytes -= dropped.length;
+      }
+    }
+
+    private void sendNext() throws InterruptedException {
+      this.gate.awaitWrite();
+
+      final byte[] next = this.queued.removeFirst();
+      this.inFlight = next;
+      this.queuedBytes -= next.length;
+      this.sendStart = this.clock.get();
+      this.expectedDeliveries.add(next);
+    }
+
+    void finishWrite() throws InterruptedException {
+      if (this.inFlight == null) {
         return;
       }
-      Thread.onSpinWait();
+
+      this.gate.finishWrite();
+      this.inFlight = null;
+      if (this.stopped || this.queued.isEmpty()) {
+        this.awaitIdleOrEnded();
+        return;
+      }
+
+      this.sendNext();
     }
-    final String message = "The sender neither waited for a chunk nor ended!";
-    throw new AssertionError(message);
+
+    /**
+     * Waits until the sender waits for its next chunk, or has ended. Its state alone does not tell: a virtual thread that
+     * is being woken up from the write it just finished reports itself as waiting for a moment, while the listener still
+     * counts that write as the current one, which is what the fuzzer found the first time. Only a sender that waits on
+     * the condition of the listener has taken up waiting for the next chunk.
+     */
+    private void awaitIdleOrEnded() {
+      final long start = System.nanoTime();
+      final long timeout = TimeUnit.SECONDS.toNanos(WAIT_SECONDS);
+      final long deadline = start + timeout;
+      while (System.nanoTime() < deadline) {
+        final Thread.State state = this.sender.getState();
+        final Object blocker = LockSupport.getBlocker(this.sender);
+        final boolean waitingForAChunk = state == Thread.State.WAITING && blocker instanceof AbstractQueuedSynchronizer.ConditionObject;
+        if (waitingForAChunk || state == Thread.State.TERMINATED) {
+          return;
+        }
+
+        Thread.onSpinWait();
+      }
+
+      final String message = "The sender neither waited for a chunk nor ended!";
+      throw new AssertionError(message);
+    }
+
+    void advanceClock(final FuzzedDataProvider data) {
+      final long step = data.consumeLong(0, MAXIMUM_CLOCK_STEP_NANOSECONDS);
+      this.clock.addAndGet(step);
+    }
+
+    void stop() {
+      this.listener.stop();
+      this.stopped = true;
+      this.queued.clear();
+      this.queuedBytes = 0;
+    }
+
+    void closeSession() {
+      this.gate.open.set(false);
+    }
+
+    void assertPending() {
+      final int pendingBytes = this.listener.getPendingBytes();
+      final int pendingChunks = this.listener.getPendingChunkCount();
+      assertEquals(this.queuedBytes, pendingBytes, "bytes waiting");
+
+      final int queuedChunks = this.queued.size();
+      assertEquals(queuedChunks, pendingChunks, "chunks waiting");
+    }
+
+    void stopAndAwaitTheSender() throws InterruptedException {
+      this.listener.stop();
+      this.gate.finishAll();
+
+      final long waitMilliseconds = TimeUnit.SECONDS.toMillis(WAIT_SECONDS);
+      this.sender.join(waitMilliseconds);
+    }
+
+    void assertDelivered() {
+      final boolean ended = !this.sender.isAlive();
+      assertTrue(ended, "the sender ends once the listener is stopped");
+
+      final List<byte[]> delivered = this.gate.written();
+      final int expectedCount = this.expectedDeliveries.size();
+      final int deliveredCount = delivered.size();
+      assertEquals(expectedCount, deliveredCount, "the number of chunks the browser received");
+      for (int index = 0; index < deliveredCount; index++) {
+        final byte[] expectedChunk = this.expectedDeliveries.get(index);
+        final byte[] deliveredChunk = delivered.get(index);
+        assertArrayEquals(expectedChunk, deliveredChunk, "the chunks the browser received, in order");
+      }
+    }
   }
 
   /**
