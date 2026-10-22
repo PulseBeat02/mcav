@@ -181,151 +181,228 @@ void report(const bool equal, const char* kernel, const level_kernels& level, co
   }
 }
 
+constexpr const char* KERNEL_NAMES[] = {"predicted",   "solid",   "palette",        "compact", "predict",
+                                        "fit",         "cluster", "assign",         "pattern", "seeded",
+                                        "load_source", "halve",   "residual_target"};
+
+struct kernel_trial {
+  int kernel_;
+  int index_;
+  int32_t size_;
+  size_t channels_;
+  vector<int32_t> source_;
+  vector<int32_t> prediction_;
+  double rate_;
+  double limit_;
+};
+
+struct kernel_result {
+  vector<int32_t> output_;
+  vector<int32_t> integers_;
+  vector<float> floats_;
+  vector<int8_t> bytes_;
+  int64_t measured_ = 0;
+};
+
+kernel_trial draw_trial(const int kernel, const int index, random_generator& random) {
+  const int32_t size = 8 << random.range(0, 2);
+  const size_t channels = (size_t)size * size * 3;
+  const vector<int32_t> source = random.integers(channels, 0, 255);
+  const vector<int32_t> prediction = random.integers(channels, 0, 255);
+  const double rate = random.range(0, 100000) / 7.0;
+  const double limit = random.range(0, 3) == 0 ? INFINITY : rate + random.range(0, size * size * 3000);
+  return {kernel, index, size, channels, source, prediction, rate, limit};
+}
+
+void run_palette(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
+                 kernel_result& result) {
+  const vector<int8_t> record = inputs.bytes(6 + trial.size_ * trial.size_ / 8);
+  result.measured_ = level.palette_(record.data(), trial.size_, result.output_.data(), trial.source_.data(),
+                                    trial.rate_, trial.limit_);
+}
+
+void run_compact(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
+                 kernel_result& result) {
+  const int32_t quantizer = inputs.range(0, 2);
+  const vector<int8_t> record = inputs.bytes(10);
+  result.measured_ = level.compact_(trial.prediction_.data(), record.data(), quantizer, trial.size_,
+                                    result.output_.data(), trial.source_.data(), trial.rate_, trial.limit_);
+}
+
+void run_predict(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
+                 kernel_result& result) {
+  const int32_t width = inputs.range(1, 80);
+  const int32_t height = inputs.range(1, 60);
+  const vector<uint8_t> reference = inputs.unsigned_bytes((size_t)width * height * 3);
+  level.predict_(reference.data(), width, height, inputs.range(-10, width + 10), inputs.range(-10, height + 10),
+                 trial.size_, inputs.range(-40, 40), inputs.range(-40, 40), result.output_.data());
+}
+
+void run_fit(const level_kernels& level, const kernel_trial& trial, random_generator& inputs, kernel_result& result) {
+  const vector<float> values = inputs.floats((size_t)trial.size_ * trial.size_);
+  const vector<float> matrix = inputs.floats((size_t)4 * trial.size_);
+  result.floats_.assign(16, 0);
+  level.fit_(values.data(), trial.size_, matrix.data(), result.floats_.data());
+}
+
+void run_cluster(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
+                 kernel_result& result) {
+  const int32_t low = inputs.range(0, 255);
+  const int32_t spread = inputs.range(0, 1) ? 8 : 255;
+  vector<int32_t> block = inputs.integers(trial.channels_, low, low + spread > 255 ? 255 : low + spread);
+  if (inputs.range(0, 7) == 0) {
+    for (int32_t& value : block) {
+      value = (int32_t)inputs.next();
+    }
+  }
+  result.integers_.assign(6, 0);
+  level.cluster_(block.data(), trial.size_, result.integers_.data());
+}
+
+void run_assign(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
+                kernel_result& result) {
+  const vector<int32_t> colors = inputs.integers(6, 0, 255);
+  result.bytes_.assign((size_t)trial.size_ * trial.size_, 0);
+  level.assign_(trial.source_.data(), trial.size_ * trial.size_, colors.data(), result.bytes_.data());
+}
+
+void run_assign_pattern(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
+                        kernel_result& result) {
+  const vector<int32_t> colors = inputs.integers(6, 0, 255);
+  result.bytes_.assign((size_t)trial.size_ * trial.size_, 0);
+  result.measured_ = level.assign_pattern_(trial.source_.data(), trial.size_, colors.data(), result.bytes_.data());
+}
+
+void run_seeded(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
+                kernel_result& result) {
+  const int32_t width = inputs.range(1, 120);
+  const int32_t height = inputs.range(1, 90);
+  const vector<uint8_t> reference = inputs.unsigned_bytes((size_t)width * height * 3);
+  vector<int32_t> seeds((size_t)inputs.range(0, 6));
+  for (int32_t& seed : seeds) {
+    seed = (int32_t)((uint32_t)inputs.range(-40, 40) << 16) | (inputs.range(-40, 40) & 0xFFFF);
+  }
+
+  vector<int32_t> block = trial.source_;
+  if (inputs.range(0, 7) == 0) {
+    block[inputs.range(0, (int32_t)block.size() - 1)] = (int32_t)inputs.next();
+  }
+  result.measured_ =
+      level.seeded_(reference.data(), width, height, block.data(), inputs.range(0, width - 1),
+                    inputs.range(0, height - 1), trial.size_, inputs.range(0, 24), seeds.data(), (int32_t)seeds.size());
+}
+
+void run_load_source(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
+                     kernel_result& result) {
+  const int32_t width = inputs.range(1, 70);
+  const int32_t height = inputs.range(1, 70);
+  const vector<uint8_t> image = inputs.unsigned_bytes((size_t)width * height * 3);
+  level.load_source_(image.data(), width, height, inputs.range(0, width - 1), inputs.range(0, height - 1), trial.size_,
+                     result.output_.data());
+}
+
+void run_residual_target(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
+                         kernel_result& result) {
+  const int32_t count = inputs.range(0, trial.size_ * trial.size_);
+  result.floats_ = inputs.floats((size_t)count + 2);
+  level.residual_target_(trial.source_.data(), trial.prediction_.data(), count, result.floats_.data());
+}
+
+kernel_result run_level(const level_kernels& level, const kernel_trial& trial, random_generator& inputs) {
+  kernel_result result;
+  result.output_.assign(trial.channels_, 0);
+  switch (trial.kernel_) {
+  case 0:
+    result.measured_ = level.predicted_(trial.prediction_.data(), trial.size_, result.output_.data(),
+                                        trial.source_.data(), trial.rate_, trial.limit_);
+    break;
+  case 1:
+    result.measured_ = level.solid_(inputs.range(0, 0xFFFFFF), trial.size_, result.output_.data(), trial.source_.data(),
+                                    trial.rate_, trial.limit_);
+    break;
+  case 2:
+    run_palette(level, trial, inputs, result);
+    break;
+  case 3:
+    run_compact(level, trial, inputs, result);
+    break;
+  case 4:
+    run_predict(level, trial, inputs, result);
+    break;
+  case 5:
+    run_fit(level, trial, inputs, result);
+    break;
+  case 6:
+    run_cluster(level, trial, inputs, result);
+    break;
+  case 7:
+    run_assign(level, trial, inputs, result);
+    break;
+  case 8:
+    run_assign_pattern(level, trial, inputs, result);
+    break;
+  case 9:
+    run_seeded(level, trial, inputs, result);
+    break;
+  case 10:
+    run_load_source(level, trial, inputs, result);
+    break;
+  case 11:
+    level.halve_(trial.source_.data(), trial.size_, result.output_.data());
+    break;
+  default:
+    run_residual_target(level, trial, inputs, result);
+    break;
+  }
+  return result;
+}
+
+void add_result(fnv_digest& digest, const kernel_result& result) {
+  digest.add(result.output_);
+  digest.add(result.integers_);
+  digest.add(result.floats_);
+  digest.add(result.bytes_);
+  digest.add(result.measured_);
+}
+
+bool same_result(const kernel_result& actual, const kernel_result& expected) {
+  return same(actual.output_, expected.output_) && same(actual.integers_, expected.integers_) &&
+         same(actual.floats_, expected.floats_) && same(actual.bytes_, expected.bytes_) &&
+         actual.measured_ == expected.measured_;
+}
+
+void compare_levels(const vector<level_kernels>& levels, const kernel_trial& trial, const random_generator& random,
+                    fnv_digest& digest) {
+  kernel_result reference;
+  for (const level_kernels& level : levels) {
+    random_generator inputs = random;
+    const kernel_result result = run_level(level, trial, inputs);
+    if (&level == &levels[0]) {
+      add_result(digest, result);
+      reference = result;
+      continue;
+    }
+    report(same_result(result, reference), KERNEL_NAMES[trial.kernel_], level, trial.index_);
+  }
+}
+
+uint64_t digest_kernel(const vector<level_kernels>& levels, const int kernel, const int trials) {
+  random_generator random{0x6D637632ull * (kernel + 1)};
+  fnv_digest digest;
+  for (int index = 0; index < trials; index++) {
+    const kernel_trial trial = draw_trial(kernel, index, random);
+    compare_levels(levels, trial, random, digest);
+    random.next();
+  }
+  return digest.value_;
+}
+
 void run(const vector<level_kernels>& levels, const int trials) {
-  const level_kernels& scalar = levels[0];
-  const char* names[] = {"predicted", "solid",  "palette",     "compact", "predict",        "fit", "cluster", "assign",
-                         "pattern",   "seeded", "load_source", "halve",   "residual_target"};
   fnv_digest total;
   for (int kernel = 0; kernel < 13; kernel++) {
-    random_generator random{0x6D637632ull * (kernel + 1)};
-    fnv_digest digest;
-    for (int trial = 0; trial < trials; trial++) {
-      const int32_t size = 8 << random.range(0, 2);
-      const size_t channels = (size_t)size * size * 3;
-      const vector<int32_t> source = random.integers(channels, 0, 255);
-      const vector<int32_t> prediction = random.integers(channels, 0, 255);
-      const double rate = random.range(0, 100000) / 7.0;
-      const double limit = random.range(0, 3) == 0 ? INFINITY : rate + random.range(0, size * size * 3000);
-      for (const level_kernels& level : levels) {
-        random_generator inputs = random;
-        vector<int32_t> output(channels, 0);
-        int64_t measured = 0;
-        vector<int32_t> integers;
-        vector<float> floats;
-        vector<int8_t> bytes;
-        switch (kernel) {
-        case 0:
-          measured = level.predicted_(prediction.data(), size, output.data(), source.data(), rate, limit);
-          break;
-        case 1:
-          measured = level.solid_(inputs.range(0, 0xFFFFFF), size, output.data(), source.data(), rate, limit);
-          break;
-        case 2: {
-          const vector<int8_t> record = inputs.bytes(6 + size * size / 8);
-          measured = level.palette_(record.data(), size, output.data(), source.data(), rate, limit);
-          break;
-        }
-        case 3: {
-          const int32_t quantizer = inputs.range(0, 2);
-          const vector<int8_t> record = inputs.bytes(10);
-          measured = level.compact_(prediction.data(), record.data(), quantizer, size, output.data(), source.data(),
-                                    rate, limit);
-          break;
-        }
-        case 4: {
-          const int32_t width = inputs.range(1, 80);
-          const int32_t height = inputs.range(1, 60);
-          const vector<uint8_t> reference = inputs.unsigned_bytes((size_t)width * height * 3);
-          level.predict_(reference.data(), width, height, inputs.range(-10, width + 10), inputs.range(-10, height + 10),
-                         size, inputs.range(-40, 40), inputs.range(-40, 40), output.data());
-          break;
-        }
-        case 5: {
-          const vector<float> values = inputs.floats((size_t)size * size);
-          const vector<float> matrix = inputs.floats((size_t)4 * size);
-          floats.assign(16, 0);
-          level.fit_(values.data(), size, matrix.data(), floats.data());
-          break;
-        }
-        case 6: {
-
-          const int32_t low = inputs.range(0, 255);
-          const int32_t spread = inputs.range(0, 1) ? 8 : 255;
-          vector<int32_t> block = inputs.integers(channels, low, low + spread > 255 ? 255 : low + spread);
-          if (inputs.range(0, 7) == 0) {
-            for (int32_t& value : block) {
-              value = (int32_t)inputs.next();
-            }
-          }
-          integers.assign(6, 0);
-          level.cluster_(block.data(), size, integers.data());
-          break;
-        }
-        case 7:
-        case 8: {
-          const vector<int32_t> colors = inputs.integers(6, 0, 255);
-          bytes.assign((size_t)size * size, 0);
-          if (kernel == 7) {
-            level.assign_(source.data(), size * size, colors.data(), bytes.data());
-          } else {
-            measured = level.assign_pattern_(source.data(), size, colors.data(), bytes.data());
-          }
-          break;
-        }
-        case 9: {
-          const int32_t width = inputs.range(1, 120);
-          const int32_t height = inputs.range(1, 90);
-          const vector<uint8_t> reference = inputs.unsigned_bytes((size_t)width * height * 3);
-          vector<int32_t> seeds((size_t)inputs.range(0, 6));
-          for (int32_t& seed : seeds) {
-            seed = (int32_t)((uint32_t)inputs.range(-40, 40) << 16) | (inputs.range(-40, 40) & 0xFFFF);
-          }
-
-          vector<int32_t> block = source;
-          if (inputs.range(0, 7) == 0) {
-            block[inputs.range(0, (int32_t)block.size() - 1)] = (int32_t)inputs.next();
-          }
-          measured = level.seeded_(reference.data(), width, height, block.data(), inputs.range(0, width - 1),
-                                   inputs.range(0, height - 1), size, inputs.range(0, 24), seeds.data(),
-                                   (int32_t)seeds.size());
-          break;
-        }
-        case 10: {
-          const int32_t width = inputs.range(1, 70);
-          const int32_t height = inputs.range(1, 70);
-          const vector<uint8_t> image = inputs.unsigned_bytes((size_t)width * height * 3);
-          level.load_source_(image.data(), width, height, inputs.range(0, width - 1), inputs.range(0, height - 1), size,
-                             output.data());
-          break;
-        }
-        case 11:
-          level.halve_(source.data(), size, output.data());
-          break;
-        default: {
-          const int32_t count = inputs.range(0, size * size);
-          floats = inputs.floats((size_t)count + 2);
-          level.residual_target_(source.data(), prediction.data(), count, floats.data());
-          break;
-        }
-        }
-
-        static vector<int32_t> reference_output;
-        static vector<int32_t> reference_integers;
-        static vector<float> reference_floats;
-        static vector<int8_t> reference_bytes;
-        static int64_t reference_measured;
-        if (&level == &scalar) {
-          reference_output = output;
-          reference_integers = integers;
-          reference_floats = floats;
-          reference_bytes = bytes;
-          reference_measured = measured;
-          digest.add(output);
-          digest.add(integers);
-          digest.add(floats);
-          digest.add(bytes);
-          digest.add(measured);
-        } else {
-          report(same(output, reference_output) && same(integers, reference_integers) &&
-                     same(floats, reference_floats) && same(bytes, reference_bytes) && measured == reference_measured,
-                 names[kernel], level, trial);
-        }
-      }
-
-      random.next();
-    }
-    printf("%-16s %016llx\n", names[kernel], (unsigned long long)digest.value_);
-    total.add(digest.value_);
+    const uint64_t digest = digest_kernel(levels, kernel, trials);
+    printf("%-16s %016llx\n", KERNEL_NAMES[kernel], (unsigned long long)digest);
+    total.add(digest);
   }
   printf("%-16s %016llx\n", "all", (unsigned long long)total.value_);
 }
@@ -339,6 +416,17 @@ const char* best_level_name(const int32_t available) {
   }
   return name;
 }
+
+#ifdef MCV2_TEST_DIRECT
+bool is_available(const level_kernels& level, const int32_t available) {
+  for (const known_level& candidate : KNOWN_LEVELS) {
+    if (strcmp(candidate.name_, level.name_) == 0 && (available & candidate.bit_)) {
+      return true;
+    }
+  }
+  return false;
+}
+#endif
 }
 
 int main(int argument_count, char** arguments) {
@@ -366,10 +454,8 @@ int main(int argument_count, char** arguments) {
 #endif
   };
   for (const level_kernels& level : linked) {
-    for (const known_level& candidate : KNOWN_LEVELS) {
-      if (strcmp(candidate.name_, level.name_) == 0 && (available & candidate.bit_)) {
-        levels.push_back(level);
-      }
+    if (is_available(level, available)) {
+      levels.push_back(level);
     }
   }
 #else

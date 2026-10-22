@@ -1371,6 +1371,18 @@ int64_t compact(const int32_t* prediction, const int8_t* record, const int32_t q
   return measure.distortion_;
 }
 
+inline void widen_bytes(const uint8_t* source, const int32_t count, int32_t* target) {
+  for (int32_t offset = 0; offset < count; offset += int_vector::LANES) {
+    int_vector::load_unsigned_bytes(source + offset).store(target + offset);
+  }
+}
+
+inline void copy_pixel(const uint8_t* source, int32_t* target) {
+  for (int32_t channel = 0; channel < CHANNELS; channel++) {
+    target[channel] = source[channel];
+  }
+}
+
 void predict(const uint8_t* reference, const int32_t width, const int32_t height, const int32_t block_left,
              const int32_t block_top, const int32_t size, const int32_t motion_x, const int32_t motion_y,
              int32_t* output) {
@@ -1381,9 +1393,7 @@ void predict(const uint8_t* reference, const int32_t width, const int32_t height
     for (int32_t row_index = 0; row_index < size; row_index++) {
       const uint8_t* source = reference + ((int64_t)(top + row_index) * width + left) * CHANNELS;
       int32_t* target = output + row_index * row_length;
-      for (int32_t offset = 0; offset < row_length; offset += int_vector::LANES) {
-        int_vector::load_unsigned_bytes(source + offset).store(target + offset);
-      }
+      widen_bytes(source, row_length, target);
     }
     return;
   }
@@ -1393,11 +1403,55 @@ void predict(const uint8_t* reference, const int32_t width, const int32_t height
       const int32_t source_column = clamp_int(left + column, 0, width - 1);
       const uint8_t* source = reference + ((int64_t)source_row * width + source_column) * CHANNELS;
       int32_t* target = output + (row_index * size + column) * CHANNELS;
-      for (int32_t channel = 0; channel < CHANNELS; channel++) {
-        target[channel] = source[channel];
-      }
+      copy_pixel(source, target);
     }
   }
+}
+
+inline void sum_four_row_vectors(const float* plane, const float* weights, const int32_t size,
+                                 const int32_t first_source_row, double* lanes) {
+  double_vector first_sum = double_vector::broadcast(0.0);
+  double_vector second_sum = first_sum;
+  double_vector third_sum = first_sum;
+  double_vector fourth_sum = first_sum;
+  for (int32_t horizontal_position = 0; horizontal_position < size; horizontal_position++) {
+    const double_vector weight = double_vector::broadcast((double)weights[horizontal_position]);
+    const float* column = plane + horizontal_position * size + first_source_row;
+    first_sum = first_sum + double_vector::load_floats(column) * weight;
+    second_sum = second_sum + double_vector::load_floats(column + double_vector::LANES) * weight;
+    third_sum = third_sum + double_vector::load_floats(column + 2 * double_vector::LANES) * weight;
+    fourth_sum = fourth_sum + double_vector::load_floats(column + 3 * double_vector::LANES) * weight;
+  }
+  first_sum.store(lanes);
+  second_sum.store(lanes + double_vector::LANES);
+  third_sum.store(lanes + 2 * double_vector::LANES);
+  fourth_sum.store(lanes + 3 * double_vector::LANES);
+}
+
+inline void sum_row_vector(const float* plane, const float* weights, const int32_t size, const int32_t first_source_row,
+                           double* lanes) {
+  double_vector sum = double_vector::broadcast(0.0);
+  for (int32_t horizontal_position = 0; horizontal_position < size; horizontal_position++) {
+    sum = sum + double_vector::load_floats(plane + horizontal_position * size + first_source_row) *
+                    double_vector::broadcast((double)weights[horizontal_position]);
+  }
+  sum.store(lanes);
+}
+
+inline void store_lanes(const double* lanes, const int32_t lane_count, const int32_t first_source_row,
+                        const int32_t element_index, double* scratch) {
+  for (int32_t lane_index = 0; lane_index < lane_count; lane_index++) {
+    scratch[(first_source_row + lane_index) * GRID + element_index] = lanes[lane_index];
+  }
+}
+
+inline double sum_weighted_column(const float* weights, const double* scratch, const int32_t size,
+                                  const int32_t element_index) {
+  double sum = 0;
+  for (int32_t vertical_position = 0; vertical_position < size; vertical_position++) {
+    sum += (double)weights[vertical_position] * scratch[vertical_position * GRID + element_index];
+  }
+  return sum;
 }
 
 // Each lane must retain Java's summation order for bit-exact fits.
@@ -1416,45 +1470,18 @@ void fit(const float* values, const int32_t size, const float* matrix, float* ou
     int32_t first_source_row = 0;
 
     for (; first_source_row + 4 * double_vector::LANES <= size; first_source_row += 4 * double_vector::LANES) {
-      double_vector first_sum = double_vector::broadcast(0.0);
-      double_vector second_sum = first_sum;
-      double_vector third_sum = first_sum;
-      double_vector fourth_sum = first_sum;
-      for (int32_t horizontal_position = 0; horizontal_position < size; horizontal_position++) {
-        const double_vector weight = double_vector::broadcast((double)weights[horizontal_position]);
-        const float* column = plane + horizontal_position * size + first_source_row;
-        first_sum = first_sum + double_vector::load_floats(column) * weight;
-        second_sum = second_sum + double_vector::load_floats(column + double_vector::LANES) * weight;
-        third_sum = third_sum + double_vector::load_floats(column + 2 * double_vector::LANES) * weight;
-        fourth_sum = fourth_sum + double_vector::load_floats(column + 3 * double_vector::LANES) * weight;
-      }
-      first_sum.store(lanes);
-      second_sum.store(lanes + double_vector::LANES);
-      third_sum.store(lanes + 2 * double_vector::LANES);
-      fourth_sum.store(lanes + 3 * double_vector::LANES);
-      for (int32_t lane_index = 0; lane_index < 4 * double_vector::LANES; lane_index++) {
-        scratch[(first_source_row + lane_index) * grid + element_index] = lanes[lane_index];
-      }
+      sum_four_row_vectors(plane, weights, size, first_source_row, lanes);
+      store_lanes(lanes, 4 * double_vector::LANES, first_source_row, element_index, scratch);
     }
     for (; first_source_row < size; first_source_row += double_vector::LANES) {
-      double_vector sum = double_vector::broadcast(0.0);
-      for (int32_t horizontal_position = 0; horizontal_position < size; horizontal_position++) {
-        sum = sum + double_vector::load_floats(plane + horizontal_position * size + first_source_row) *
-                        double_vector::broadcast((double)weights[horizontal_position]);
-      }
-      sum.store(lanes);
-      for (int32_t lane_index = 0; lane_index < double_vector::LANES; lane_index++) {
-        scratch[(first_source_row + lane_index) * grid + element_index] = lanes[lane_index];
-      }
+      sum_row_vector(plane, weights, size, first_source_row, lanes);
+      store_lanes(lanes, double_vector::LANES, first_source_row, element_index, scratch);
     }
   }
   for (int32_t index = 0; index < grid; index++) {
+    const float* weights = matrix + index * size;
     for (int32_t element_index = 0; element_index < grid; element_index++) {
-      double sum = 0;
-      for (int32_t vertical_position = 0; vertical_position < size; vertical_position++) {
-        sum += (double)matrix[index * size + vertical_position] * scratch[vertical_position * grid + element_index];
-      }
-      output[index * grid + element_index] = (float)sum;
+      output[index * grid + element_index] = (float)sum_weighted_column(weights, scratch, size, element_index);
     }
   }
 }
@@ -1499,13 +1526,29 @@ void cluster_pixels(const int32_t* source, const int32_t size, const int32_t ste
   }
   for (int32_t endpoint = 0; endpoint < 2; endpoint++) {
     const int64_t members = sums[6 + endpoint];
-    if (members > 0) {
-      for (int32_t channel = 0; channel < CHANNELS; channel++) {
-        endpoints[endpoint * CHANNELS + channel] =
-            (int32_t)((sums[endpoint * CHANNELS + channel] + members / 2) / members);
-      }
+    if (members <= 0) {
+      continue;
+    }
+    for (int32_t channel = 0; channel < CHANNELS; channel++) {
+      endpoints[endpoint * CHANNELS + channel] =
+          (int32_t)((sums[endpoint * CHANNELS + channel] + members / 2) / members);
     }
   }
+}
+
+template <int STEP>
+inline void load_step_channels(const int32_t* source, const int32_t pixel_index, int_vector& red, int_vector& green,
+                               int_vector& blue) {
+  int_vector::load_channels(source + pixel_index * CHANNELS, red, green, blue);
+  if (STEP != 2) {
+    return;
+  }
+
+  int_vector next_red, next_green, next_blue;
+  int_vector::load_channels(source + (pixel_index + int_vector::LANES) * CHANNELS, next_red, next_green, next_blue);
+  red = int_vector::evens(red, next_red);
+  green = int_vector::evens(green, next_green);
+  blue = int_vector::evens(blue, next_blue);
 }
 
 template <int STEP> void cluster_lanes(const int32_t* source, const int32_t size, int32_t* endpoints) {
@@ -1527,15 +1570,7 @@ template <int STEP> void cluster_lanes(const int32_t* source, const int32_t size
   for (int32_t row_index = 0; row_index < size; row_index += STEP) {
     for (int32_t column = 0; column < size; column += STEP * int_vector::LANES) {
       int_vector red, green, blue;
-      int_vector::load_channels(source + (row_index * size + column) * CHANNELS, red, green, blue);
-      if (STEP == 2) {
-        int_vector next_red, next_green, next_blue;
-        int_vector::load_channels(source + (row_index * size + column + int_vector::LANES) * CHANNELS, next_red,
-                                  next_green, next_blue);
-        red = int_vector::evens(red, next_red);
-        green = int_vector::evens(green, next_green);
-        blue = int_vector::evens(blue, next_blue);
-      }
+      load_step_channels<STEP>(source, row_index * size + column, red, green, blue);
       const int_vector first_distance = (red - first_red) * (red - first_red) +
                                         (green - first_green) * (green - first_green) +
                                         (blue - first_blue) * (blue - first_blue);
@@ -1557,11 +1592,12 @@ template <int STEP> void cluster_lanes(const int32_t* source, const int32_t size
   const int64_t all[CHANNELS] = {all_red.sum(), all_green.sum(), all_blue.sum()};
   for (int32_t endpoint = 0; endpoint < 2; endpoint++) {
     const int64_t members = counts[endpoint];
-    if (members > 0) {
-      for (int32_t channel = 0; channel < CHANNELS; channel++) {
-        const int64_t sum = endpoint == 1 ? near[channel] : all[channel] - near[channel];
-        endpoints[endpoint * CHANNELS + channel] = (int32_t)((sum + members / 2) / members);
-      }
+    if (members <= 0) {
+      continue;
+    }
+    for (int32_t channel = 0; channel < CHANNELS; channel++) {
+      const int64_t sum = endpoint == 1 ? near[channel] : all[channel] - near[channel];
+      endpoints[endpoint * CHANNELS + channel] = (int32_t)((sum + members / 2) / members);
     }
   }
 }
@@ -1576,15 +1612,7 @@ template <int STEP> int32_t cluster_extrema(const int32_t* source, const int32_t
   for (int32_t row_index = 0; row_index < size; row_index += STEP) {
     for (int32_t column = 0; column < size; column += STEP * int_vector::LANES) {
       int_vector red, green, blue;
-      int_vector::load_channels(source + (row_index * size + column) * CHANNELS, red, green, blue);
-      if (STEP == 2) {
-        int_vector next_red, next_green, next_blue;
-        int_vector::load_channels(source + (row_index * size + column + int_vector::LANES) * CHANNELS, next_red,
-                                  next_green, next_blue);
-        red = int_vector::evens(red, next_red);
-        green = int_vector::evens(green, next_green);
-        blue = int_vector::evens(blue, next_blue);
-      }
+      load_step_channels<STEP>(source, row_index * size + column, red, green, blue);
       combined_bits = combined_bits | red | green | blue;
       const int_vector luma = red + green + green + blue;
       const int_vector array_offset = int_vector::broadcast((row_index * size + column) * CHANNELS) + lane_offsets;
@@ -1629,23 +1657,28 @@ template <int STEP> int32_t cluster_extrema(const int32_t* source, const int32_t
   return all;
 }
 
+inline void cluster_lanes_with_step(const int32_t* source, const int32_t size, const int32_t step, int32_t* endpoints) {
+  if (step == 2) {
+    cluster_lanes<2>(source, size, endpoints);
+    return;
+  }
+
+  cluster_lanes<1>(source, size, endpoints);
+}
+
 void cluster(const int32_t* source, const int32_t size, int32_t* endpoints) {
   const int32_t step = size >= 16 ? 2 : 1;
   const int32_t all =
       step == 2 ? cluster_extrema<2>(source, size, endpoints) : cluster_extrema<1>(source, size, endpoints);
   if (all >= 0 && lane_sums_fit(0, all, (size / step) * (size / step))) {
     for (int32_t iteration = 0; iteration < 2; iteration++) {
-      if (step == 2) {
-        cluster_lanes<2>(source, size, endpoints);
-      } else {
-        cluster_lanes<1>(source, size, endpoints);
-      }
+      cluster_lanes_with_step(source, size, step, endpoints);
     }
-  } else {
-
-    cluster_pixels(source, size, step, endpoints);
-    cluster_pixels(source, size, step, endpoints);
+    return;
   }
+
+  cluster_pixels(source, size, step, endpoints);
+  cluster_pixels(source, size, step, endpoints);
 }
 
 void assign(const int32_t* source, const int32_t count, const int32_t* colors, int8_t* selectors) {
@@ -1715,6 +1748,15 @@ inline int32_t unpack_vertical_motion(const int32_t vector) {
   return (int16_t)vector;
 }
 
+inline int64_t pixel_cost(const uint8_t* reference_pixel, const int32_t* source_pixel) {
+  int64_t sum = 0;
+  for (int32_t channel = 0; channel < CHANNELS; channel++) {
+    const int32_t difference = wrapping_subtraction(reference_pixel[channel], source_pixel[channel]);
+    sum += difference < 0 ? wrapping_subtraction(0, difference) : difference;
+  }
+  return sum;
+}
+
 int64_t interior_cost(const uint8_t* reference, const int32_t width, const int32_t* source_samples,
                       const int32_t block_left, const int32_t block_top, const int32_t* samples, const int32_t motion_x,
                       const int32_t motion_y) {
@@ -1725,12 +1767,8 @@ int64_t interior_cost(const uint8_t* reference, const int32_t width, const int32
     const int32_t* source_row = source_samples + sample_row * 4 * CHANNELS;
     for (int32_t sample_column = 0; sample_column < 4; sample_column++) {
       const uint8_t* reference_pixel = line + samples[sample_column] * CHANNELS;
-      for (int32_t channel = 0; channel < CHANNELS; channel++) {
-
-        const int32_t difference =
-            wrapping_subtraction(reference_pixel[channel], source_row[sample_column * CHANNELS + channel]);
-        sum += difference < 0 ? wrapping_subtraction(0, difference) : difference;
-      }
+      const int32_t* source_pixel = source_row + sample_column * CHANNELS;
+      sum += pixel_cost(reference_pixel, source_pixel);
     }
   }
   return sum;
@@ -1769,11 +1807,8 @@ int64_t cost(const uint8_t* reference, const int32_t width, const int32_t height
     for (int32_t sample_column = 0; sample_column < 4; sample_column++) {
       const int32_t reference_column = clamp_int(block_left + samples[sample_column] + motion_x, 0, width - 1);
       const uint8_t* reference_pixel = reference + ((int64_t)reference_row * width + reference_column) * CHANNELS;
-      const int32_t* source_row = source_samples + (sample_row * 4 + sample_column) * CHANNELS;
-      for (int32_t channel = 0; channel < CHANNELS; channel++) {
-        const int32_t difference = wrapping_subtraction(reference_pixel[channel], source_row[channel]);
-        sum += difference < 0 ? wrapping_subtraction(0, difference) : difference;
-      }
+      const int32_t* source_pixel = source_samples + (sample_row * 4 + sample_column) * CHANNELS;
+      sum += pixel_cost(reference_pixel, source_pixel);
     }
   }
   return sum;
@@ -1803,6 +1838,52 @@ struct measured_vectors {
   }
 };
 
+struct motion_search {
+  const uint8_t* reference_;
+  int32_t width_;
+  int32_t height_;
+  const int32_t* source_samples_;
+  const uint8_t* packed_samples_;
+  int32_t block_left_;
+  int32_t block_top_;
+  const int32_t* samples_;
+  measured_vectors measured_;
+  int64_t best_cost_ = INT64_MAX;
+  int32_t best_x_ = 0;
+  int32_t best_y_ = 0;
+  motion_search(const uint8_t* reference, const int32_t width, const int32_t height, const int32_t* source_samples,
+                const uint8_t* packed_samples, const int32_t block_left, const int32_t block_top,
+                const int32_t* samples)
+      : reference_(reference), width_(width), height_(height), source_samples_(source_samples),
+        packed_samples_(packed_samples), block_left_(block_left), block_top_(block_top), samples_(samples) {
+  }
+  void measure_once(const int32_t motion_x, const int32_t motion_y) {
+    if (measured_.contains(motion_x, motion_y)) {
+      return;
+    }
+
+    measured_.add(motion_x, motion_y);
+    const int64_t motion_cost = cost(reference_, width_, height_, source_samples_, packed_samples_, block_left_,
+                                     block_top_, samples_, motion_x, motion_y);
+    if (motion_cost < best_cost_) {
+      best_cost_ = motion_cost;
+      best_x_ = motion_x;
+      best_y_ = motion_y;
+    }
+  }
+};
+
+inline bool sample_pixel(const int32_t* source_pixel, int32_t* sample, uint8_t* sample_byte) {
+  bool fits_bytes = true;
+  for (int32_t channel = 0; channel < CHANNELS; channel++) {
+    const int32_t value = source_pixel[channel];
+    sample[channel] = value;
+    fits_bytes &= (uint32_t)value <= 255;
+    sample_byte[channel] = (uint8_t)value;
+  }
+  return fits_bytes;
+}
+
 int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t height, const int32_t* source,
                const int32_t block_left, const int32_t block_top, const int32_t size, const int32_t range,
                const int32_t* seeds, const int32_t seed_count) {
@@ -1813,58 +1894,33 @@ int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t heig
   bool fits_bytes = true;
   for (int32_t sample_row = 0; sample_row < 4; sample_row++) {
     for (int32_t sample_column = 0; sample_column < 4; sample_column++) {
-      for (int32_t channel = 0; channel < CHANNELS; channel++) {
-        const int32_t value = source[(samples[sample_row] * size + samples[sample_column]) * CHANNELS + channel];
-        source_samples[(sample_row * 4 + sample_column) * CHANNELS + channel] = value;
-        fits_bytes &= (uint32_t)value <= 255;
-        sample_bytes[16 * sample_row + 4 * sample_column + channel] = (uint8_t)value;
-      }
+      const int32_t* source_pixel = source + (samples[sample_row] * size + samples[sample_column]) * CHANNELS;
+      int32_t* sample = source_samples + (sample_row * 4 + sample_column) * CHANNELS;
+      uint8_t* sample_byte = sample_bytes + 16 * sample_row + 4 * sample_column;
+      fits_bytes &= sample_pixel(source_pixel, sample, sample_byte);
     }
   }
   const uint8_t* packed_samples = fits_bytes ? sample_bytes : nullptr;
-  measured_vectors measured;
-  int32_t best_x = 0;
-  int32_t best_y = 0;
-  int64_t best_cost =
-      cost(reference, width, height, source_samples, packed_samples, block_left, block_top, samples, best_x, best_y);
-  measured.add(best_x, best_y);
+  motion_search search(reference, width, height, source_samples, packed_samples, block_left, block_top, samples);
+  search.measure_once(0, 0);
   for (int32_t seed_index = 0; seed_index < seed_count; seed_index++) {
     const int32_t seed_x = clamp_int(unpack_horizontal_motion(seeds[seed_index]), -range, range);
     const int32_t seed_y = clamp_int(unpack_vertical_motion(seeds[seed_index]), -range, range);
-    if (!measured.contains(seed_x, seed_y)) {
-      measured.add(seed_x, seed_y);
-      const int64_t candidate_cost = cost(reference, width, height, source_samples, packed_samples, block_left,
-                                          block_top, samples, seed_x, seed_y);
-      if (candidate_cost < best_cost) {
-        best_cost = candidate_cost;
-        best_x = seed_x;
-        best_y = seed_y;
-      }
-    }
+    search.measure_once(seed_x, seed_y);
   }
   for (int32_t step = 0; step < 2 * range; step++) {
-    const int32_t center_x = best_x;
-    const int32_t center_y = best_y;
+    const int32_t center_x = search.best_x_;
+    const int32_t center_y = search.best_y_;
     for (int32_t direction = 0; direction < 4; direction++) {
       const int32_t candidate_x = clamp_int(center_x + DIRECTIONS[direction][0], -range, range);
       const int32_t candidate_y = clamp_int(center_y + DIRECTIONS[direction][1], -range, range);
-      if (measured.contains(candidate_x, candidate_y)) {
-        continue;
-      }
-      measured.add(candidate_x, candidate_y);
-      const int64_t candidate_cost = cost(reference, width, height, source_samples, packed_samples, block_left,
-                                          block_top, samples, candidate_x, candidate_y);
-      if (candidate_cost < best_cost) {
-        best_cost = candidate_cost;
-        best_x = candidate_x;
-        best_y = candidate_y;
-      }
+      search.measure_once(candidate_x, candidate_y);
     }
-    if (best_x == center_x && best_y == center_y) {
+    if (search.best_x_ == center_x && search.best_y_ == center_y) {
       break;
     }
   }
-  return pack_motion(best_x, best_y);
+  return pack_motion(search.best_x_, search.best_y_);
 }
 
 void load_source(const uint8_t* image, const int32_t width, const int32_t height, const int32_t horizontal_position,
@@ -1875,16 +1931,14 @@ void load_source(const uint8_t* image, const int32_t width, const int32_t height
     int32_t* destination = source + pixel_row * size * CHANNELS;
     if (horizontal_position + size <= width) {
       const uint8_t* block_start = line + (int64_t)horizontal_position * CHANNELS;
-      for (int32_t index = 0; index < size * CHANNELS; index += int_vector::LANES) {
-        int_vector::load_unsigned_bytes(block_start + index).store(destination + index);
-      }
+      widen_bytes(block_start, size * CHANNELS, destination);
       continue;
     }
     for (int32_t pixel_column = 0; pixel_column < size; pixel_column++) {
       const int32_t source_column = minimum_int(horizontal_position + pixel_column, width - 1);
-      for (int32_t channel_index = 0; channel_index < CHANNELS; channel_index++) {
-        destination[pixel_column * CHANNELS + channel_index] = line[(int64_t)source_column * CHANNELS + channel_index];
-      }
+      const uint8_t* source_pixel = line + (int64_t)source_column * CHANNELS;
+      int32_t* destination_pixel = destination + pixel_column * CHANNELS;
+      copy_pixel(source_pixel, destination_pixel);
     }
   }
 }
