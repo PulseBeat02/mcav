@@ -41,7 +41,6 @@ final class Mcv2Maps {
 
   /** The first and last symbol an anchor's checksum adds up. */
   private static final int FIRST_FIELD = 8;
-
   private static final int CHECKSUM = 15;
 
   private static final int FACING = 12;

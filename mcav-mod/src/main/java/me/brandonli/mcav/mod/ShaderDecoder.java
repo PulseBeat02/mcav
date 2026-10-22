@@ -46,11 +46,8 @@ final class ShaderDecoder {
 
   /** The hooks the game calls, one bit each: the decoder works only once the game has called every one of them. */
   private static final int EXTRACTED = 1;
-
   private static final int POSED = 2;
-
   private static final int PROJECTED = 4;
-
   private static final int RENDERED = 8;
 
   private static final int ALL_HOOKS = EXTRACTED | POSED | PROJECTED | RENDERED;

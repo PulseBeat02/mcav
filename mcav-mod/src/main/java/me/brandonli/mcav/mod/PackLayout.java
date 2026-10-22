@@ -41,9 +41,7 @@ final class PackLayout {
 
   /** What the server generates: 1 to 8 screens of 1 to 8 page slots each, in consecutive runs. */
   private static final int MAXIMUM_SCREENS = 8;
-
   private static final int MAXIMUM_SLOTS = 8;
-
   private static final long MAXIMUM_STREAM = 0xFFFF_FFFFL;
 
   private static final Pattern SCREENS = Pattern.compile("const int MCV2_SCREENS = (\\d{1,2});");
@@ -51,14 +49,11 @@ final class PackLayout {
   private static final int COUNT_GROUP = 1;
 
   private static final String STREAMS = "uint MCV2_SCREEN_STREAMS";
-
   private static final String SLOTS = "int MCV2_SCREEN_SLOTS";
-
   private static final String FIRST_SLOTS = "int MCV2_SCREEN_FIRST_SLOTS";
 
   /** An element of a list: digits, with the unsigned suffix in a uint list; ten digits hold any uint. */
   private static final String UNSIGNED = "(\\d{1,10})u";
-
   private static final String SIGNED = "(\\d{1,10})";
 
   private static final String SEPARATOR = ", ";

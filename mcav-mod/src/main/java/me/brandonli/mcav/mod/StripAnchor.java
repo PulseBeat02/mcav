@@ -34,17 +34,11 @@ package me.brandonli.mcav.mod;
 record StripAnchor(int column, int row, int columns, int rows, int facing, long stream, float cornerX, float cornerY, float cornerZ) {
   /** The anchor's fields and its stream, one symbol each after the signature. */
   private static final int COLUMN = 8;
-
   private static final int ROW = 9;
-
   private static final int COLUMNS = 10;
-
   private static final int ROWS = 11;
-
   private static final int FACING = 12;
-
   private static final int STREAM_LOW = 13;
-
   private static final int STREAM_HIGH = 14;
 
   private static final int SYMBOL_BITS = 6;
