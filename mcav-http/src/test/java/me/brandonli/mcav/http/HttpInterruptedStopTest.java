@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.mockito.stubbing.Stubber;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.GenericApplicationContext;
 
@@ -60,13 +61,9 @@ final class HttpInterruptedStopTest {
     final ConfigurableApplicationContext context = Mockito.mock(ConfigurableApplicationContext.class);
     final IllegalStateException failure = new IllegalStateException("context close failed!");
     final Thread current = Thread.currentThread();
-    Mockito.doAnswer(_ -> {
-      final boolean interrupted = current.isInterrupted();
-      assertFalse(interrupted, "Spring cleanup must be able to acquire its shutdown lock");
-      throw failure;
-    })
-      .when(context)
-      .close();
+    final Stubber failingClose = Mockito.doAnswer(_ -> this.assertNotInterruptedThenThrow(current, failure));
+    final ConfigurableApplicationContext stubbedContext = failingClose.when(context);
+    stubbedContext.close();
 
     final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     current.interrupt();
@@ -79,5 +76,12 @@ final class HttpInterruptedStopTest {
     } finally {
       final boolean _ = Thread.interrupted();
     }
+  }
+
+  private Object assertNotInterruptedThenThrow(final Thread current, final IllegalStateException failure) {
+    final boolean interrupted = current.isInterrupted();
+    assertFalse(interrupted, "Spring cleanup must be able to acquire its shutdown lock");
+
+    throw failure;
   }
 }

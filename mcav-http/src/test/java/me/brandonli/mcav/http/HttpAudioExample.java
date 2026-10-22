@@ -48,6 +48,7 @@ public final class HttpAudioExample {
       System.err.println("Usage: HttpAudioExample <file>");
       return;
     }
+
     final MCAVApi api = MCAV.api();
     api.install(HttpModule.class);
 
@@ -57,11 +58,7 @@ public final class HttpAudioExample {
     final String url = http.getFullUrl();
     System.out.println("Listen at %s".formatted(url));
 
-    final Thread shutdownHook = new Thread(() -> {
-      player.release();
-      http.stop();
-      api.release();
-    });
+    final Thread shutdownHook = new Thread(() -> release(player, http, api));
     final Runtime runtime = Runtime.getRuntime();
     runtime.addShutdownHook(shutdownHook);
   }
@@ -69,9 +66,11 @@ public final class HttpAudioExample {
   private static HttpResult startServer(final Path path) {
     final HttpResult http = HttpResult.port(PORT);
     http.start();
+
     final String title = path.toString();
     final MediaInformation information = MediaInformation.titled(title);
     http.setCurrentMedia(information);
+
     return http;
   }
 
@@ -80,8 +79,16 @@ public final class HttpAudioExample {
     final AudioAttachableCallback audio = player.getAudioAttachableCallback();
     final AudioPipelineStep pipeline = AudioPipelineStep.of(http);
     audio.attach(pipeline);
+
     final FileSource source = FileSource.path(path);
     player.start(source);
+
     return player;
+  }
+
+  private static void release(final VideoPlayerMultiplexer player, final HttpResult http, final MCAVApi api) {
+    player.release();
+    http.stop();
+    api.release();
   }
 }

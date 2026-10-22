@@ -63,6 +63,7 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import me.brandonli.mcav.http.testing.Await;
+import me.brandonli.mcav.http.testing.UrlParseDumpUtils;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import org.apache.coyote.AbstractProtocol;
@@ -329,7 +330,7 @@ final class HttpServerTest {
 
   @Test
   void shouldServeTheCompleteMediaAsJson() throws Exception {
-    final UrlParseDump dump = MediaInformationTest.completeDump();
+    final UrlParseDump dump = UrlParseDumpUtils.completeDump();
     server.setCurrentMedia(dump);
     try {
       final HttpResponse<String> complete = get(server, MEDIA_PATH);

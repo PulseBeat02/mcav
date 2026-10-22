@@ -37,26 +37,15 @@ final class ThirdPartyNoticesTest {
   private static final String WEBSITE_NOTICES_PATH = "mcav/http/website/THIRD-PARTY-NOTICES.txt";
   private static final String JAR_NOTICES_PATH = "META-INF/THIRD-PARTY-NOTICES.md";
 
-  private static String read(final String name) throws IOException {
-    final String path = System.getProperty("mcav.http.jar");
-    assertNotNull(path, "the build passes the jar it built");
-    try (final ZipFile jar = new ZipFile(path)) {
-      final ZipEntry entry = jar.getEntry(name);
-      assertNotNull(entry, "%s is in the jar".formatted(name));
-      try (final InputStream input = jar.getInputStream(entry)) {
-        return new String(input.readAllBytes(), StandardCharsets.UTF_8);
-      }
-    }
-  }
-
   @Test
   void shouldShipTheNoticesOfItsNpmPackagesInTheWebPage() throws IOException {
-    final String notices = read(WEBSITE_NOTICES_PATH);
+    final String notices = this.read(WEBSITE_NOTICES_PATH);
     for (final String component : new String[] { "react@", "react-dom@", "next@", "scheduler@", "styled-jsx@" }) {
       final String entry = "\n%s".formatted(component);
       final boolean named = notices.contains(entry);
       assertTrue(named, "%s is named".formatted(component));
     }
+
     for (final String unused : new String[] { "@mui/material@", "@emotion/react@", "howler@", "@fontsource/roboto@" }) {
       final String entry = "\n%s".formatted(unused);
       final boolean named = notices.contains(entry);
@@ -67,9 +56,23 @@ final class ThirdPartyNoticesTest {
     assertTrue(includesTheNotice, "the MIT notice itself, not only the name of the licence");
   }
 
+  private String read(final String name) throws IOException {
+    final String path = System.getProperty("mcav.http.jar");
+    assertNotNull(path, "the build passes the jar it built");
+
+    try (final ZipFile jar = new ZipFile(path)) {
+      final ZipEntry entry = jar.getEntry(name);
+      assertNotNull(entry, "%s is in the jar".formatted(name));
+
+      try (final InputStream input = jar.getInputStream(entry)) {
+        return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+      }
+    }
+  }
+
   @Test
   void shouldNameWhatTheJarBundles() throws IOException {
-    final String notices = read(JAR_NOTICES_PATH);
+    final String notices = this.read(JAR_NOTICES_PATH);
     final boolean namesTheJar = notices.contains("## mcav-http.jar");
     assertTrue(namesTheJar, notices);
   }

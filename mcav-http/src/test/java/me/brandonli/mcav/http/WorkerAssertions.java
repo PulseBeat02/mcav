@@ -30,8 +30,13 @@ final class WorkerAssertions {
 
   private static final long JOIN_TIMEOUT_MILLISECONDS = 10_000L;
 
-  private final Set<Thread> workers = ConcurrentHashMap.newKeySet();
-  private final List<Throwable> failures = new CopyOnWriteArrayList<>();
+  private final Set<Thread> workers;
+  private final List<Throwable> failures;
+
+  WorkerAssertions() {
+    this.workers = ConcurrentHashMap.newKeySet();
+    this.failures = new CopyOnWriteArrayList<>();
+  }
 
   void observeCurrentThread() {
     final Thread worker = Thread.currentThread();
@@ -45,6 +50,7 @@ final class WorkerAssertions {
       final boolean alive = worker.isAlive();
       assertFalse(alive, "the callback worker finished after fixture cleanup");
     }
+
     assertEquals(List.of(), this.failures, "worker assertions reach the JUnit thread");
   }
 }

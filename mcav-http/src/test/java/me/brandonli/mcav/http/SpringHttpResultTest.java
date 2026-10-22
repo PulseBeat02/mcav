@@ -44,6 +44,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import me.brandonli.mcav.http.testing.UrlParseDumpUtils;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -522,7 +523,7 @@ final class SpringHttpResultTest {
     final MediaInformation initial = http.getCurrentMedia();
     assertSame(MediaInformation.EMPTY, initial);
 
-    final UrlParseDump dump = MediaInformationTest.completeDump();
+    final UrlParseDump dump = UrlParseDumpUtils.completeDump();
     http.setCurrentMedia(dump);
     final MediaInformation fromDump = http.getCurrentMedia();
     final Map<String, Object> json = fromDump.toJson();

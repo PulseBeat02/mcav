@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
@@ -39,19 +40,20 @@ final class AudioWebSocketHandlerTest {
   private static final String LOCALHOST = "localhost";
   private static final int PORT = 8080;
 
-  private final SpringHttpResult result = new SpringHttpResult(LOCALHOST, PORT, null);
-  private final AudioWebSocketHandler handler = new AudioWebSocketHandler(this.result);
-  private final WebSocketSession session = Mockito.mock(WebSocketSession.class);
+  private SpringHttpResult result;
+  private AudioWebSocketHandler handler;
+  private WebSocketSession session;
+
+  @BeforeEach
+  void setUp() {
+    this.result = new SpringHttpResult(LOCALHOST, PORT, null);
+    this.handler = new AudioWebSocketHandler(this.result);
+    this.session = Mockito.mock(WebSocketSession.class);
+  }
 
   @AfterEach
   void forgetTheSession() {
     this.result.removeListener(this.session);
-  }
-
-  private void connect() {
-    Mockito.when(this.session.getId()).thenReturn("session-1");
-    Mockito.when(this.session.isOpen()).thenReturn(true);
-    this.handler.afterConnectionEstablished(this.session);
   }
 
   @Test
@@ -59,6 +61,12 @@ final class AudioWebSocketHandlerTest {
     this.connect();
     final int count = this.result.getListenerCount();
     assertEquals(1, count);
+  }
+
+  private void connect() {
+    Mockito.when(this.session.getId()).thenReturn("session-1");
+    Mockito.when(this.session.isOpen()).thenReturn(true);
+    this.handler.afterConnectionEstablished(this.session);
   }
 
   @Test
@@ -85,6 +93,7 @@ final class AudioWebSocketHandlerTest {
     final byte[] raw = { 1, 2, 3 };
     final ByteBuffer payload = ByteBuffer.wrap(raw);
     final BinaryMessage binary = new BinaryMessage(payload);
+
     this.handler.handleMessage(this.session, text);
     this.handler.handleMessage(this.session, binary);
     final int count = this.result.getListenerCount();

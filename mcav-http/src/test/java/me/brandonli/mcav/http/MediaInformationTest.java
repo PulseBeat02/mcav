@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import me.brandonli.mcav.http.testing.UrlParseDumpUtils;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
 import org.junit.jupiter.api.Test;
@@ -44,29 +45,9 @@ final class MediaInformationTest {
 
   private static final String FILE_NAME = "clip.mp4";
 
-  static UrlParseDump completeDump() {
-    final String json = """
-    {
-      "title": "Song",
-      "uploader": "Artist",
-      "channel": "Artist Channel",
-      "uploader_id": "@artist",
-      "description": "A description",
-      "thumbnail": "https://example.com/thumbnail.jpg",
-      "duration": 215.2,
-      "view_count": 3000000000,
-      "like_count": 50,
-      "upload_date": "20240101",
-      "webpage_url": "https://example.com/watch"
-    }
-    """;
-    final Gson gson = GsonProvider.getSimple();
-    return gson.fromJson(json, UrlParseDump.class);
-  }
-
   @Test
   void shouldTakeTheShownFieldsFromYtDlpInYtDlpOrderAndNames() {
-    final UrlParseDump dump = completeDump();
+    final UrlParseDump dump = UrlParseDumpUtils.completeDump();
     final MediaInformation information = MediaInformation.of(dump);
     final Map<String, Object> json = information.toJson();
     final Map<String, Object> expected = new LinkedHashMap<>();
@@ -81,11 +62,13 @@ final class MediaInformationTest {
     expected.put(LIKE_COUNT_KEY, 50L);
     expected.put("upload_date", "20240101");
     assertEquals(expected, json);
+
     final Set<String> keys = json.keySet();
     final List<String> order = new ArrayList<>(keys);
     final Set<String> expectedKeys = expected.keySet();
     final List<String> expectedOrder = new ArrayList<>(expectedKeys);
     assertEquals(expectedOrder, order);
+
     final String title = information.getTitle();
     assertEquals("Song", title);
   }
@@ -102,6 +85,7 @@ final class MediaInformationTest {
     expected.put(VIEW_COUNT_KEY, 0L);
     expected.put(LIKE_COUNT_KEY, 0L);
     assertEquals(expected, json);
+
     final String title = information.getTitle();
     assertNull(title);
   }
@@ -111,6 +95,7 @@ final class MediaInformationTest {
     final Map<String, Object> json = MediaInformation.EMPTY.toJson();
     final Map<String, Object> expected = Map.of(DURATION_KEY, 0L, VIEW_COUNT_KEY, 0L, LIKE_COUNT_KEY, 0L);
     assertEquals(expected, json);
+
     final String title = MediaInformation.EMPTY.getTitle();
     assertNull(title);
   }
@@ -125,6 +110,7 @@ final class MediaInformationTest {
     expected.put(VIEW_COUNT_KEY, 0L);
     expected.put(LIKE_COUNT_KEY, 0L);
     assertEquals(expected, json);
+
     final String title = information.getTitle();
     assertEquals(FILE_NAME, title);
   }
@@ -134,6 +120,7 @@ final class MediaInformationTest {
     final MediaInformation information = MediaInformation.titled(FILE_NAME);
     final Map<String, Object> first = information.toJson();
     first.put(TITLE_KEY, "changed");
+
     final Map<String, Object> second = information.toJson();
     final Object title = second.get(TITLE_KEY);
     assertEquals(FILE_NAME, title);

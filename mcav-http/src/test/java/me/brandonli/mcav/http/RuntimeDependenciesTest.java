@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.io.IOException;
 import java.net.URL;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -36,7 +37,8 @@ final class RuntimeDependenciesTest {
   void shouldHaveOneRuntimeDefinitionOfTheLifecycleAnnotations() throws IOException {
     final ClassLoader loader = RuntimeDependenciesTest.class.getClassLoader();
     for (final String name : LIFECYCLE_ANNOTATION_CLASSES) {
-      final List<URL> definitions = Collections.list(loader.getResources(name));
+      final Enumeration<URL> resources = loader.getResources(name);
+      final List<URL> definitions = Collections.list(resources);
       final int definitionCount = definitions.size();
       assertEquals(1, definitionCount, "one runtime definition of %s: %s".formatted(name, definitions));
     }
