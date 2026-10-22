@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Where the pack's screens keep their pages and anchors in the transport strip, read from the constants the server
@@ -90,24 +91,24 @@ final class PackLayout {
     if (count < 1 || count > MAXIMUM_SCREENS) {
       return Optional.empty();
     }
-    final Optional<long[]> streams = numbers(packConstants, STREAMS, count, UNSIGNED, MAXIMUM_STREAM);
-    final Optional<long[]> slots = numbers(packConstants, SLOTS, count, SIGNED, MAXIMUM_SLOTS);
-    final Optional<long[]> firstSlots = numbers(packConstants, FIRST_SLOTS, count, SIGNED, MAXIMUM_SCREENS * MAXIMUM_SLOTS);
-    if (streams.isEmpty() || slots.isEmpty() || firstSlots.isEmpty()) {
+    final long @Nullable [] streams = numbers(packConstants, STREAMS, count, UNSIGNED, MAXIMUM_STREAM);
+    final long @Nullable [] slots = numbers(packConstants, SLOTS, count, SIGNED, MAXIMUM_SLOTS);
+    final long @Nullable [] firstSlots = numbers(packConstants, FIRST_SLOTS, count, SIGNED, MAXIMUM_SCREENS * MAXIMUM_SLOTS);
+    if (streams == null || slots == null || firstSlots == null) {
       return Optional.empty();
     }
     final int[] slotCounts = new int[count];
     final int[] firsts = new int[count];
     int total = 0;
     for (int screen = 0; screen < count; screen++) {
-      slotCounts[screen] = (int) slots.get()[screen];
-      firsts[screen] = (int) firstSlots.get()[screen];
+      slotCounts[screen] = (int) slots[screen];
+      firsts[screen] = (int) firstSlots[screen];
       if (slotCounts[screen] < 1 || firsts[screen] != total) {
         return Optional.empty();
       }
       total += slotCounts[screen];
     }
-    return Optional.of(new PackLayout(streams.get(), slotCounts, firsts));
+    return Optional.of(new PackLayout(streams, slotCounts, firsts));
   }
 
   private PackLayout(final long[] streams, final int[] slots, final int[] firstSlots) {
@@ -116,8 +117,8 @@ final class PackLayout {
     this.firstSlots = firstSlots;
   }
 
-  /** The values of a declared list of {@code count} elements, each at most {@code maximum}; empty when there is none. */
-  private static Optional<long[]> numbers(
+  /** The values of a declared list of {@code count} elements, each at most {@code maximum}; null when there is none. */
+  private static long @Nullable [] numbers(
     final String packConstants,
     final String declaration,
     final int count,
@@ -127,16 +128,16 @@ final class PackLayout {
     final Pattern list = listPattern(declaration, count, element);
     final Matcher matcher = list.matcher(packConstants);
     if (!matcher.find()) {
-      return Optional.empty();
+      return null;
     }
     final long[] values = new long[count];
     for (int index = 0; index < count; index++) {
       values[index] = Long.parseLong(Objects.requireNonNull(matcher.group(index + 1)));
       if (values[index] > maximum) {
-        return Optional.empty();
+        return null;
       }
     }
-    return Optional.of(values);
+    return values;
   }
 
   private static Pattern listPattern(final String declaration, final int count, final String element) {
