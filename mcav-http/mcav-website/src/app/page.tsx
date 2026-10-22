@@ -300,27 +300,37 @@ const unknownMediaInformation: MediaInformation = {
     upload_date: undefined
 };
 
-const loadMediaInformation = async (): Promise<MediaInformation> => {
-    try {
-        const response = await fetch("/media");
-        if (!response.ok) {
-            return unknownMediaInformation;
-        }
-        const data = await response.json();
-        return {
-            title: data?.title || "Unknown Title",
-            uploader: data?.uploader || data?.channel || data?.uploader_id || "Unknown Artist",
-            description: data?.description || "No description available",
-            thumbnail: data?.thumbnail,
-            duration: data?.duration || 0,
-            view_count: data?.view_count || 0,
-            like_count: data?.like_count || 0,
-            upload_date: data?.upload_date || undefined
-        };
-    } catch (exception) {
-        console.error("Error fetching media information:", exception);
-        return unknownMediaInformation;
+const toMediaInformation = (data: unknown): MediaInformation => {
+    const received: MediaInformation = typeof data === "object" && data !== null ? data : {};
+    return {
+        title: received.title || "Unknown Title",
+        uploader: received.uploader || received.channel || received.uploader_id || "Unknown Artist",
+        description: received.description || "No description available",
+        thumbnail: received.thumbnail,
+        duration: received.duration || 0,
+        view_count: received.view_count || 0,
+        like_count: received.like_count || 0,
+        upload_date: received.upload_date || undefined
+    };
+};
+
+const readMediaInformation = (response: Response): Promise<MediaInformation> => {
+    if (!response.ok) {
+        return Promise.resolve(unknownMediaInformation);
     }
+
+    return response.json().then(toMediaInformation);
+};
+
+const reportMediaInformationFailure = (error: unknown): MediaInformation => {
+    console.error("Error fetching media information:", error);
+    return unknownMediaInformation;
+};
+
+const loadMediaInformation = (): Promise<MediaInformation> => {
+    return fetch("/media")
+        .then(readMediaInformation)
+        .catch(reportMediaInformationFailure);
 };
 
 const isSameMediaInformation = (first: MediaInformation, second: MediaInformation): boolean => {
@@ -332,6 +342,10 @@ const isSameMediaInformation = (first: MediaInformation, second: MediaInformatio
         && first.view_count === second.view_count
         && first.like_count === second.like_count
         && first.upload_date === second.upload_date;
+};
+
+const reportCloseFailure = (error: unknown): void => {
+    console.error("Could not close the audio context.", error);
 };
 
 const AudioStreamPlayer = (): React.JSX.Element => {
@@ -387,16 +401,19 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         return mediaInformationRequestRef.current;
     }, []);
 
-    const fetchMediaInformation = useCallback(async () => {
-        const information = await requestMediaInformation();
-        setMediaInformation(previous => isSameMediaInformation(previous, information) ? previous : information);
-    }, [requestMediaInformation]);
+    const showMediaInformation = useCallback((information: MediaInformation): void => {
+        setMediaInformation((previous: MediaInformation) => isSameMediaInformation(previous, information) ? previous : information);
+    }, []);
+
+    const fetchMediaInformation = useCallback((): void => {
+        requestMediaInformation().then(showMediaInformation);
+    }, [requestMediaInformation, showMediaInformation]);
 
     const startMetadataRefresh = useCallback(() => {
         if (metadataIntervalRef.current) {
             clearInterval(metadataIntervalRef.current);
         }
-        fetchMediaInformation().then(() => {});
+        fetchMediaInformation();
         metadataIntervalRef.current = setInterval(fetchMediaInformation, 5000);
     }, [fetchMediaInformation]);
 
@@ -703,6 +720,22 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         connectRef.current = connectWebSocket;
     }, [connectWebSocket]);
 
+    const connectAfterResume = useCallback((): void => {
+        updateStatus("Audio permission granted!");
+        if (audioContextRef.current?.state === "running") {
+            connectWebSocket();
+        } else {
+            shouldReconnectRef.current = false;
+            setIsLoading(false);
+        }
+    }, [connectWebSocket, updateStatus]);
+
+    const reportPermissionFailure = useCallback((error: unknown): void => {
+        shouldReconnectRef.current = false;
+        setIsLoading(false);
+        updateStatus(`Failed to get audio permission: ${error}`);
+    }, [updateStatus]);
+
     const startPlayback = useCallback(() => {
         if (shouldReconnectRef.current) {
             return;
@@ -717,10 +750,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         }
 
         if (audioContextRef.current) {
-            try {
-                audioContextRef.current.close().then(() => {});
-            } catch {
-            }
+            audioContextRef.current.close().catch(reportCloseFailure);
             audioContextRef.current = undefined;
         }
 
@@ -734,21 +764,11 @@ const AudioStreamPlayer = (): React.JSX.Element => {
         if (audioContextRef.current.state === "running") {
             connectWebSocket();
         } else {
-            audioContextRef.current.resume().then(() => {
-                updateStatus("Audio permission granted!");
-                if (audioContextRef.current?.state === "running") {
-                    connectWebSocket();
-                } else {
-                    shouldReconnectRef.current = false;
-                    setIsLoading(false);
-                }
-            }).catch(error => {
-                shouldReconnectRef.current = false;
-                setIsLoading(false);
-                updateStatus(`Failed to get audio permission: ${error}`);
-            });
+            audioContextRef.current.resume()
+                .then(connectAfterResume)
+                .catch(reportPermissionFailure);
         }
-    }, [connectWebSocket, updateStatus]);
+    }, [connectAfterResume, connectWebSocket, reportPermissionFailure, updateStatus]);
 
     const stopPlayback = useCallback(() => {
         shouldReconnectRef.current = false;
@@ -838,10 +858,7 @@ const AudioStreamPlayer = (): React.JSX.Element => {
             }
 
             if (audioContextRef.current) {
-                try {
-                    audioContextRef.current.close().then(() => {});
-                } catch {
-                }
+                audioContextRef.current.close().catch(reportCloseFailure);
             }
         };
     }, [requestMediaInformation]);

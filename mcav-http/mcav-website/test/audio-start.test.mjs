@@ -23,7 +23,16 @@ import { test } from "node:test";
 import vm from "node:vm";
 
 const PAGE = new URL("../src/app/page.tsx", import.meta.url);
-const CALLBACKS = ["animateVisualizer", "attemptReconnect", "stopStream", "connectWebSocket", "startPlayback", "stopPlayback"];
+const CALLBACKS = [
+    "animateVisualizer",
+    "attemptReconnect",
+    "stopStream",
+    "connectWebSocket",
+    "connectAfterResume",
+    "reportPermissionFailure",
+    "startPlayback",
+    "stopPlayback"
+];
 const CLOSED = 3;
 
 const skipString = (source, index) => {
@@ -222,7 +231,7 @@ const loadPage = (permission = "granted") => {
             state.connected = connected;
         },
         updateStatus: doNothing, startMetadataRefresh: doNothing, stopMetadataRefresh: doNothing, startHeartbeat: doNothing,
-        stopHeartbeat: doNothing,
+        stopHeartbeat: doNothing, reportCloseFailure: doNothing,
     });
     const page = vm.runInContext(pageCallbacks(), context, {filename: PAGE.pathname});
     context.connectRef.current = page.connectWebSocket;
