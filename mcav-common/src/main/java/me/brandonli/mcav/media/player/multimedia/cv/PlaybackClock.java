@@ -142,6 +142,14 @@ final class PlaybackClock {
     }
   }
 
+  // Wakes the waiters of awaitResume without resuming, as a spurious wakeup would, so a test can kill the mutant that
+  // moves their deadline into the past.
+  void wakeWaiters() {
+    synchronized (this.lock) {
+      this.lock.notifyAll();
+    }
+  }
+
   boolean isPaused() {
     synchronized (this.lock) {
       return this.paused;

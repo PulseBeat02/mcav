@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.player.multimedia.cv;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -160,6 +161,25 @@ final class PlaybackClockTest {
     clock.resume();
     final boolean woke = released.await(5, TimeUnit.SECONDS);
     assertTrue(stillWaiting);
+    assertTrue(woke);
+  }
+
+  @Test
+  void shouldKeepWaitingAfterAWakeupWhileStillPaused() throws InterruptedException {
+    final PlaybackClock clock = new PlaybackClock(System::nanoTime);
+    clock.pause();
+    final CountDownLatch released = new CountDownLatch(1);
+    final Thread waiter = new Thread(() -> this.awaitResumeAndRelease(clock, released));
+    waiter.start();
+    final Duration timeout = Duration.ofSeconds(5);
+    Polling.pollUntil(timeout, () -> waiter.getState() == Thread.State.TIMED_WAITING);
+    clock.wakeWaiters();
+
+    final boolean returnedEarly = released.await(1, TimeUnit.SECONDS);
+    assertFalse(returnedEarly, "a wakeup while paused waits for the rest of the timeout");
+
+    clock.resume();
+    final boolean woke = released.await(5, TimeUnit.SECONDS);
     assertTrue(woke);
   }
 
