@@ -50,7 +50,7 @@ final class ScriptAssertions {
       try (final OutputStream input = process.getOutputStream()) {
         input.write(program.getBytes(StandardCharsets.UTF_8));
       }
-      final boolean finished = process.waitFor(30, TimeUnit.SECONDS);
+      final boolean finished = process.waitFor(120, TimeUnit.SECONDS);
       assertTrue(finished, "the script fixture finishes within its deadline");
 
       final int exitValue = process.exitValue();

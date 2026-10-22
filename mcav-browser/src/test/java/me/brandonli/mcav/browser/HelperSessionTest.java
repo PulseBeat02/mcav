@@ -691,7 +691,8 @@ class HelperSessionTest {
 
   @Test
   void shouldTimeOutWhenTheHelperNeverShowsThePage() {
-    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), "/never", 3_000L);
+    // the helper must connect before this deadline, and a loaded host takes seconds to start it
+    final BrowserException failure = this.openFails(ScriptedEngine.class.getName(), "/never", 15_000L);
     final boolean reportsTheTimeout = failure.getMessage().contains("did not show https://example.com/never in time");
     assertTrue(reportsTheTimeout, failure.getMessage());
   }
