@@ -30,7 +30,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Reader;
-import java.net.StandardProtocolFamily;
 import java.net.UnixDomainSocketAddress;
 import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
@@ -154,15 +153,7 @@ public final class BrowserHelper {
   @VisibleForTesting
   static SocketChannel connect(final Path socket) throws IOException {
     final UnixDomainSocketAddress address = UnixDomainSocketAddress.of(socket);
-    final SocketChannel channel = SocketChannel.open(StandardProtocolFamily.UNIX);
-    try {
-      channel.connect(address);
-    } catch (final IOException exception) {
-      channel.close();
-      throw exception;
-    }
-
-    return channel;
+    return SocketChannel.open(address);
   }
 
   int run(final Reader standardInput, final Connector connector) {
