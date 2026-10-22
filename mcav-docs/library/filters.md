@@ -38,7 +38,7 @@ import org.bytedeco.opencv.global.opencv_imgproc;
   }
 ```
 
-## Video Filters
+## Video filters
 
 Colours are arrays of the blue, green and red components from 0 to 255, OpenCV's order. Coordinates are pixels of the
 frame, from its top left corner.
@@ -80,7 +80,7 @@ The display filters that end a pipeline come with their modules: `DitherFilter` 
 entity and scoreboard results of `mcav-bukkit` ([Bukkit integration](../bukkit/bukkit.md)), `Mcv2Result` for
 [MCV2](../bukkit/mcv2.md), and `GlTextureFilter` of `mcav-lwjgl` ([LWJGL module](lwjgl.md)).
 
-## Audio Filters
+## Audio filters
 
 | Filter | Module | Effect |
 |---|---|---|
@@ -105,7 +105,7 @@ A `VolumeFilter` before an output turns the output down or up; one filter in fro
 
 A new volume applies from the next chunk on.
 
-## Writing Your Own
+## Writing your own
 
 A filter is a functional interface: `VideoFilter.applyFilter(ImageBuffer, OriginalVideoMetadata)` and
 `AudioFilter.applyFilter(ByteBuffer, OriginalAudioMetadata)`, returning whether it changed the data. Filters that own
