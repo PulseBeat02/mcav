@@ -63,17 +63,24 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 import me.brandonli.mcav.http.testing.Await;
+import me.brandonli.mcav.http.testing.SystemPropertyUtils;
 import me.brandonli.mcav.http.testing.UrlParseDumpUtils;
+import me.brandonli.mcav.http.testing.WebSocketSessionUtils;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
+import org.apache.catalina.connector.Connector;
+import org.apache.catalina.startup.Tomcat;
 import org.apache.coyote.AbstractProtocol;
+import org.apache.coyote.ProtocolHandler;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
+import org.mockito.stubbing.Stubber;
 import org.springframework.boot.tomcat.TomcatWebServer;
 import org.springframework.boot.web.server.context.WebServerApplicationContext;
 import org.springframework.web.socket.CloseStatus;
@@ -149,24 +156,22 @@ final class HttpServerTest {
   private static SpringHttpResult server;
   private static HttpClient client;
 
-  private final WorkerAssertions workers = new WorkerAssertions();
+  private WorkerAssertions workers;
 
-  private final OriginalAudioMetadata metadata = Mockito.mock(OriginalAudioMetadata.class);
-
-  @AfterEach
-  void assertWorkersFinished() throws InterruptedException {
-    this.workers.assertFinished();
-  }
+  private OriginalAudioMetadata metadata;
 
   @BeforeAll
   static void startTheServer() throws IOException {
     pageDirectory = temporary.resolve(PAGE_DIRECTORY_NAME);
     Files.createDirectories(pageDirectory);
+
     final Path secret = temporary.resolve(SECRET_FILE);
     Files.writeString(secret, SECRET);
+
     final Path index = pageDirectory.resolve(INDEX_FILE);
     final String page = PAGE_TEMPLATE.formatted(DIRECTORY_PAGE_TITLE);
     Files.writeString(index, page);
+
     server = new SpringHttpResult(LOCALHOST, EPHEMERAL_PORT, pageDirectory, LOOPBACK);
     server.start();
     client = HttpClient.newHttpClient();
@@ -178,113 +183,15 @@ final class HttpServerTest {
     client.close();
   }
 
-  private static URI uri(final SpringHttpResult http, final String scheme, final String path) {
-    final int port = http.getLocalPort();
-    return uri(port, scheme, path);
+  @BeforeEach
+  void setUp() {
+    this.workers = new WorkerAssertions();
+    this.metadata = Mockito.mock(OriginalAudioMetadata.class);
   }
 
-  private static URI uri(final int port, final String scheme, final String path) {
-    final String address = "%s://%s:%s%s".formatted(scheme, LOOPBACK_HOST, port, path);
-    return URI.create(address);
-  }
-
-  private static HttpResponse<String> get(final SpringHttpResult http, final String path) throws IOException, InterruptedException {
-    final URI target = uri(http, HTTP_SCHEME, path);
-    final HttpRequest.Builder builder = HttpRequest.newBuilder(target);
-    final Duration timeout = Duration.ofSeconds(TIMEOUT_SECONDS);
-    builder.timeout(timeout);
-    final HttpRequest request = builder.build();
-    final HttpResponse.BodyHandler<String> handler = HttpResponse.BodyHandlers.ofString();
-    return client.send(request, handler);
-  }
-
-  private static WebSocket connect(final SpringHttpResult http, final RecordingListener listener) throws Exception {
-    final URI target = uri(http, WEBSOCKET_SCHEME, AUDIO_PATH);
-    final WebSocket.Builder builder = client.newWebSocketBuilder();
-    final CompletableFuture<WebSocket> future = builder.buildAsync(target, listener);
-    return future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-  }
-
-  private static void awaitListeners(final SpringHttpResult http, final int count) {
-    Await.until("%s browsers listen".formatted(count), () -> http.getListenerCount() == count);
-  }
-
-  private static void closeNormally(final WebSocket socket) throws Exception {
-    final CompletableFuture<WebSocket> closing = socket.sendClose(WebSocket.NORMAL_CLOSURE, "done");
-    closing.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-  }
-
-  private static int freePort() throws IOException {
-    final InetAddress loopback = InetAddress.getLoopbackAddress();
-    try (final ServerSocket socket = new ServerSocket(EPHEMERAL_PORT, DEFAULT_BACKLOG, loopback)) {
-      return socket.getLocalPort();
-    }
-  }
-
-  /**
-   * Collects the complete binary messages and the close code a WebSocket client receives.
-   */
-  private static final class RecordingListener implements WebSocket.Listener {
-
-    private final BlockingQueue<byte[]> messages = new LinkedBlockingQueue<>();
-    private final CompletableFuture<Integer> closeCode = new CompletableFuture<>();
-    private final ByteArrayOutputStream partial = new ByteArrayOutputStream();
-
-    @Override
-    public CompletionStage<?> onBinary(final WebSocket webSocket, final ByteBuffer data, final boolean last) {
-      final int remaining = data.remaining();
-      final byte[] bytes = new byte[remaining];
-      data.get(bytes);
-      this.partial.writeBytes(bytes);
-      if (last) {
-        final byte[] message = this.partial.toByteArray();
-        this.messages.add(message);
-        this.partial.reset();
-      }
-      webSocket.request(1);
-      return null;
-    }
-
-    @Override
-    public CompletionStage<?> onClose(final WebSocket webSocket, final int statusCode, final String reason) {
-      this.closeCode.complete(statusCode);
-      return null;
-    }
-
-    @Override
-    public void onError(final WebSocket webSocket, final Throwable error) {
-      this.closeCode.completeExceptionally(error);
-    }
-
-    private byte[] nextMessage() throws InterruptedException {
-      final byte[] message = this.messages.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-      assertNotNull(message, "no audio message arrived");
-      return message;
-    }
-
-    private int awaitCloseCode() throws Exception {
-      return this.closeCode.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-    }
-
-    private boolean isClosed() {
-      return this.closeCode.isDone();
-    }
-  }
-
-  /**
-   * A logging handler that only marks the logging configuration of the JVM, so a test can see whether it was
-   * replaced.
-   */
-  private static final class MarkerHandler extends Handler {
-
-    @Override
-    public void publish(final LogRecord record) {}
-
-    @Override
-    public void flush() {}
-
-    @Override
-    public void close() {}
+  @AfterEach
+  void assertWorkersFinished() throws InterruptedException {
+    this.workers.assertFinished();
   }
 
   @Test
@@ -297,9 +204,9 @@ final class HttpServerTest {
 
   @Test
   void shouldServeTheWebPageFromTheDirectory() throws Exception {
-    final HttpResponse<String> root = get(server, ROOT_PATH);
-    final HttpResponse<String> index = get(server, INDEX_PATH);
-    final HttpResponse<String> missing = get(server, MISSING_PATH);
+    final HttpResponse<String> root = this.get(server, ROOT_PATH);
+    final HttpResponse<String> index = this.get(server, INDEX_PATH);
+    final HttpResponse<String> missing = this.get(server, MISSING_PATH);
     final int rootStatus = root.statusCode();
     final String rootBody = root.body();
     final int indexStatus = index.statusCode();
@@ -314,10 +221,30 @@ final class HttpServerTest {
     assertEquals(HttpURLConnection.HTTP_NOT_FOUND, missingStatus);
   }
 
+  private HttpResponse<String> get(final SpringHttpResult http, final String path) throws IOException, InterruptedException {
+    final URI target = this.uri(http, HTTP_SCHEME, path);
+    final HttpRequest.Builder builder = HttpRequest.newBuilder(target);
+    final Duration timeout = Duration.ofSeconds(TIMEOUT_SECONDS);
+    builder.timeout(timeout);
+    final HttpRequest request = builder.build();
+    final HttpResponse.BodyHandler<String> handler = HttpResponse.BodyHandlers.ofString();
+    return client.send(request, handler);
+  }
+
+  private URI uri(final SpringHttpResult http, final String scheme, final String path) {
+    final int port = http.getLocalPort();
+    return this.uri(port, scheme, path);
+  }
+
+  private URI uri(final int port, final String scheme, final String path) {
+    final String address = "%s://%s:%s%s".formatted(scheme, LOOPBACK_HOST, port, path);
+    return URI.create(address);
+  }
+
   @Test
   void shouldServeEmptyMediaAsJson() throws Exception {
     server.setCurrentMedia((MediaInformation) null);
-    final HttpResponse<String> empty = get(server, MEDIA_PATH);
+    final HttpResponse<String> empty = this.get(server, MEDIA_PATH);
     final int status = empty.statusCode();
     final String emptyBody = empty.body();
     final HttpHeaders headers = empty.headers();
@@ -333,7 +260,7 @@ final class HttpServerTest {
     final UrlParseDump dump = UrlParseDumpUtils.completeDump();
     server.setCurrentMedia(dump);
     try {
-      final HttpResponse<String> complete = get(server, MEDIA_PATH);
+      final HttpResponse<String> complete = this.get(server, MEDIA_PATH);
       final String completeBody = complete.body();
       final String expected =
         "{\"title\":\"Song\",\"uploader\":\"Artist\",\"channel\":\"Artist Channel\",\"uploader_id\":\"@artist\",\"description\":\"A description\",\"thumbnail\":\"https://example.com/thumbnail.jpg\",\"duration\":216,\"view_count\":3000000000,\"like_count\":50,\"upload_date\":\"20240101\"}";
@@ -348,7 +275,7 @@ final class HttpServerTest {
     final MediaInformation titled = MediaInformation.titled("Quote \" and ünïcode");
     server.setCurrentMedia(titled);
     try {
-      final HttpResponse<String> escaped = get(server, MEDIA_PATH);
+      final HttpResponse<String> escaped = this.get(server, MEDIA_PATH);
       final String escapedBody = escaped.body();
       assertEquals("{\"title\":\"Quote \\\" and ünïcode\",\"duration\":0,\"view_count\":0,\"like_count\":0}", escapedBody);
     } finally {
@@ -356,23 +283,15 @@ final class HttpServerTest {
     }
   }
 
-  private static byte[] countingChunk() {
-    final byte[] chunk = new byte[CHUNK_LENGTH];
-    for (int index = 0; index < chunk.length; index++) {
-      chunk[index] = (byte) index;
-    }
-    return chunk;
-  }
-
   @Test
   void shouldStreamTheSamplesToEveryListenerInOrder() throws Exception {
     final RecordingListener first = new RecordingListener();
     final RecordingListener second = new RecordingListener();
-    final WebSocket firstSocket = connect(server, first);
-    final WebSocket secondSocket = connect(server, second);
-    awaitListeners(server, 2);
+    final WebSocket firstSocket = this.connect(server, first);
+    final WebSocket secondSocket = this.connect(server, second);
+    this.awaitListeners(server, 2);
 
-    final byte[] chunkOne = countingChunk();
+    final byte[] chunkOne = this.countingChunk();
     final byte[] chunkTwo = { 42 };
     final ByteBuffer samplesOne = ByteBuffer.wrap(chunkOne);
     final ByteBuffer samplesTwo = ByteBuffer.wrap(chunkTwo);
@@ -388,17 +307,44 @@ final class HttpServerTest {
       assertArrayEquals(chunkOne, receivedOne);
       assertArrayEquals(chunkTwo, receivedTwo);
     }
-    closeNormally(firstSocket);
-    awaitListeners(server, 1);
-    closeNormally(secondSocket);
-    awaitListeners(server, 0);
+
+    this.closeNormally(firstSocket);
+    this.awaitListeners(server, 1);
+    this.closeNormally(secondSocket);
+    this.awaitListeners(server, 0);
+  }
+
+  private WebSocket connect(final SpringHttpResult http, final RecordingListener listener) throws Exception {
+    final URI target = this.uri(http, WEBSOCKET_SCHEME, AUDIO_PATH);
+    final WebSocket.Builder builder = client.newWebSocketBuilder();
+    final CompletableFuture<WebSocket> future = builder.buildAsync(target, listener);
+    return future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+  }
+
+  private void awaitListeners(final SpringHttpResult http, final int count) {
+    Await.until("%s browsers listen".formatted(count), () -> http.getListenerCount() == count);
+  }
+
+  private byte[] countingChunk() {
+    final byte[] chunk = new byte[CHUNK_LENGTH];
+    for (int index = 0; index < chunk.length; index++) {
+      chunk[index] = (byte) index;
+    }
+
+    return chunk;
+  }
+
+  private void closeNormally(final WebSocket socket) throws Exception {
+    final CompletableFuture<WebSocket> closing = socket.sendClose(WebSocket.NORMAL_CLOSURE, "done");
+    closing.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
   }
 
   @Test
   void shouldIgnoreMessagesFromBrowsers() throws Exception {
     final RecordingListener listener = new RecordingListener();
-    final WebSocket socket = connect(server, listener);
-    awaitListeners(server, 1);
+    final WebSocket socket = this.connect(server, listener);
+    this.awaitListeners(server, 1);
+
     final CompletableFuture<WebSocket> text = socket.sendText("hello", true);
     text.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     final byte[] raw = { 1, 2, 3 };
@@ -415,45 +361,9 @@ final class HttpServerTest {
     assertEquals(1, count);
     final boolean closed = listener.isClosed();
     assertFalse(closed);
-    closeNormally(socket);
-    awaitListeners(server, 0);
-  }
 
-  private static void assertServesTheBundledPage(final SpringHttpResult http) throws Exception {
-    final HttpResponse<String> page = get(http, ROOT_PATH);
-    final String body = page.body();
-    final boolean servesTheBundledPage = body.contains("bundled test page");
-    assertTrue(servesTheBundledPage, "the bundled page is served from classpath:/mcav/http/website/");
-  }
-
-  private static void assertStopsWithGoingAway(final SpringHttpResult http, final int port) throws Exception {
-    final RecordingListener listener = new RecordingListener();
-    connect(http, listener);
-    awaitListeners(http, 1);
-    http.stop();
-    final int closeCode = listener.awaitCloseCode();
-    assertEquals(1001, closeCode);
-    final boolean runningAfterStop = http.isRunning();
-    final int listenersAfterStop = http.getListenerCount();
-    final int portAfterStop = http.getLocalPort();
-    assertFalse(runningAfterStop);
-    assertEquals(0, listenersAfterStop);
-    assertEquals(0, portAfterStop);
-
-    final URI stoppedTarget = uri(port, HTTP_SCHEME, MEDIA_PATH);
-    final HttpRequest.Builder stoppedBuilder = HttpRequest.newBuilder(stoppedTarget);
-    final HttpRequest stoppedRequest = stoppedBuilder.build();
-    final HttpResponse.BodyHandler<Void> discarding = HttpResponse.BodyHandlers.discarding();
-    assertThrows(IOException.class, () -> client.send(stoppedRequest, discarding));
-  }
-
-  private static void assertRestarts(final SpringHttpResult http) throws Exception {
-    http.start();
-    final boolean runningAgain = http.isRunning();
-    assertTrue(runningAgain);
-    final HttpResponse<String> media = get(http, MEDIA_PATH);
-    final int status = media.statusCode();
-    assertEquals(HttpURLConnection.HTTP_OK, status);
+    this.closeNormally(socket);
+    this.awaitListeners(server, 0);
   }
 
   @Test
@@ -461,23 +371,64 @@ final class HttpServerTest {
     final SpringHttpResult http = new SpringHttpResult(LOCALHOST, EPHEMERAL_PORT, null, LOOPBACK);
     final boolean runningBeforeStart = http.isRunning();
     assertFalse(runningBeforeStart);
+
     final CompletableFuture<Void> started = http.startAsync();
     started.get(SLOW_TIMEOUT_SECONDS, TimeUnit.SECONDS);
     try {
       final boolean running = http.isRunning();
       final int port = http.getLocalPort();
       assertTrue(running);
+
       http.start();
       final int portAfterSecondStart = http.getLocalPort();
       assertEquals(port, portAfterSecondStart);
 
-      assertServesTheBundledPage(http);
-      assertStopsWithGoingAway(http, port);
+      this.assertServesTheBundledPage(http);
+      this.assertStopsWithGoingAway(http, port);
       http.stop();
-      assertRestarts(http);
+      this.assertRestarts(http);
     } finally {
       http.stop();
     }
+  }
+
+  private void assertServesTheBundledPage(final SpringHttpResult http) throws Exception {
+    final HttpResponse<String> page = this.get(http, ROOT_PATH);
+    final String body = page.body();
+    final boolean servesTheBundledPage = body.contains("bundled test page");
+    assertTrue(servesTheBundledPage, "the bundled page is served from classpath:/mcav/http/website/");
+  }
+
+  private void assertStopsWithGoingAway(final SpringHttpResult http, final int port) throws Exception {
+    final RecordingListener listener = new RecordingListener();
+    this.connect(http, listener);
+    this.awaitListeners(http, 1);
+    http.stop();
+    final int closeCode = listener.awaitCloseCode();
+    assertEquals(1001, closeCode);
+
+    final boolean runningAfterStop = http.isRunning();
+    final int listenersAfterStop = http.getListenerCount();
+    final int portAfterStop = http.getLocalPort();
+    assertFalse(runningAfterStop);
+    assertEquals(0, listenersAfterStop);
+    assertEquals(0, portAfterStop);
+
+    final URI stoppedTarget = this.uri(port, HTTP_SCHEME, MEDIA_PATH);
+    final HttpRequest.Builder stoppedBuilder = HttpRequest.newBuilder(stoppedTarget);
+    final HttpRequest stoppedRequest = stoppedBuilder.build();
+    final HttpResponse.BodyHandler<Void> discarding = HttpResponse.BodyHandlers.discarding();
+    assertThrows(IOException.class, () -> client.send(stoppedRequest, discarding));
+  }
+
+  private void assertRestarts(final SpringHttpResult http) throws Exception {
+    http.start();
+    final boolean runningAgain = http.isRunning();
+    assertTrue(runningAgain);
+
+    final HttpResponse<String> media = this.get(http, MEDIA_PATH);
+    final int status = media.statusCode();
+    assertEquals(HttpURLConnection.HTTP_OK, status);
   }
 
   @Test
@@ -490,14 +441,7 @@ final class HttpServerTest {
       final AtomicBoolean firstIdentifier = new AtomicBoolean(true);
       final WebSocketSession late = Mockito.mock(WebSocketSession.class);
       Mockito.when(late.isOpen()).thenReturn(true);
-      Mockito.when(late.getId()).thenAnswer(invocation -> {
-        final boolean first = firstIdentifier.getAndSet(false);
-        if (first) {
-          insideHandshake.countDown();
-          serverStopped.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        }
-        return "late";
-      });
+      Mockito.when(late.getId()).thenAnswer(_ -> this.holdTheFirstCallUntilStopped(firstIdentifier, insideHandshake, serverStopped));
 
       final Thread handshake = new Thread(() -> http.addListener(late), "late-handshake");
       handshake.start();
@@ -512,10 +456,24 @@ final class HttpServerTest {
 
       final int listeners = http.getListenerCount();
       assertEquals(0, listeners, "a listener registered during the shutdown must not survive it");
-      SpringHttpResultTest.verifyClosed(late, CloseStatus.GOING_AWAY);
+      WebSocketSessionUtils.verifyClosed(late, CloseStatus.GOING_AWAY);
     } finally {
       http.stop();
     }
+  }
+
+  private String holdTheFirstCallUntilStopped(
+    final AtomicBoolean firstIdentifier,
+    final CountDownLatch insideHandshake,
+    final CountDownLatch serverStopped
+  ) throws InterruptedException {
+    final boolean first = firstIdentifier.getAndSet(false);
+    if (first) {
+      insideHandshake.countDown();
+      serverStopped.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    }
+
+    return "late";
   }
 
   @Test
@@ -569,15 +527,15 @@ final class HttpServerTest {
     final CompletableFuture<Void> started = http.startAsync();
     final ExecutionException exception = assertThrows(ExecutionException.class, () -> started.get(SLOW_TIMEOUT_SECONDS, TimeUnit.SECONDS));
     final Throwable cause = exception.getCause();
-    assertInstanceOf(HttpException.class, cause);
     final boolean running = http.isRunning();
+    assertInstanceOf(HttpException.class, cause);
     assertFalse(running);
   }
 
   @Test
   void shouldNeverServeFilesOutsideThePageDirectory() throws Exception {
     for (final String attack : TRAVERSAL_ATTACKS) {
-      final HttpResponse<String> response = get(server, attack);
+      final HttpResponse<String> response = this.get(server, attack);
       final int status = response.statusCode();
       final String body = response.body();
       final boolean leaked = body.contains(SECRET);
@@ -593,6 +551,7 @@ final class HttpServerTest {
     final Path index = other.resolve(INDEX_FILE);
     final String otherPage = PAGE_TEMPLATE.formatted("other page");
     Files.writeString(index, otherPage);
+
     final String location = server.staticLocation(other);
     final List<String> properties = new ArrayList<>(LOOPBACK);
     final String locationProperty = "spring.web.resources.static-locations=%s".formatted(location);
@@ -601,15 +560,12 @@ final class HttpServerTest {
     properties.clear();
     try {
       http.start();
-      final HttpResponse<String> page = get(http, ROOT_PATH);
+      final HttpResponse<String> page = this.get(http, ROOT_PATH);
       final int status = page.statusCode();
       final String body = page.body();
       assertEquals(HttpURLConnection.HTTP_OK, status, "server.address=127.0.0.1 of the copied list is in effect");
-      final Field contextField = SpringHttpResult.class.getDeclaredField("context");
-      contextField.setAccessible(true);
-      final WebServerApplicationContext context = (WebServerApplicationContext) contextField.get(http);
-      final TomcatWebServer webServer = (TomcatWebServer) context.getWebServer();
-      final AbstractProtocol<?> protocol = (AbstractProtocol<?>) webServer.getTomcat().getConnector().getProtocolHandler();
+
+      final AbstractProtocol<?> protocol = this.readProtocol(http);
       final InetAddress expectedAddress = InetAddress.ofLiteral(LOOPBACK_HOST);
       final InetAddress address = protocol.getAddress();
       assertEquals(expectedAddress, address, "the connector binds only to the copied address");
@@ -623,10 +579,21 @@ final class HttpServerTest {
     }
   }
 
+  private AbstractProtocol<?> readProtocol(final SpringHttpResult http) throws ReflectiveOperationException {
+    final Field contextField = SpringHttpResult.class.getDeclaredField("context");
+    contextField.setAccessible(true);
+    final WebServerApplicationContext context = (WebServerApplicationContext) contextField.get(http);
+    final TomcatWebServer webServer = (TomcatWebServer) context.getWebServer();
+    final Tomcat tomcat = webServer.getTomcat();
+    final Connector connector = tomcat.getConnector();
+    final ProtocolHandler handler = connector.getProtocolHandler();
+    return (AbstractProtocol<?>) handler;
+  }
+
   @Test
   void shouldListenOnTheBindAddressOfTheBuilder() throws Exception {
     final InetAddress loopback = InetAddress.ofLiteral(LOOPBACK_HOST);
-    final int port = freePort();
+    final int port = this.freePort();
     final HttpResultBuilder builder = HttpResult.builder();
     builder.port(port);
     builder.directory(pageDirectory);
@@ -636,7 +603,7 @@ final class HttpServerTest {
     try {
       http.start();
       final int localPort = http.getLocalPort();
-      final HttpResponse<String> page = get(http, ROOT_PATH);
+      final HttpResponse<String> page = this.get(http, ROOT_PATH);
       final int status = page.statusCode();
       final String body = page.body();
       final boolean servesThePage = body.contains(DIRECTORY_PAGE_TITLE);
@@ -648,10 +615,17 @@ final class HttpServerTest {
     }
   }
 
+  private int freePort() throws IOException {
+    final InetAddress loopback = InetAddress.getLoopbackAddress();
+    try (final ServerSocket socket = new ServerSocket(EPHEMERAL_PORT, DEFAULT_BACKLOG, loopback)) {
+      return socket.getLocalPort();
+    }
+  }
+
   @Test
   void shouldFailToStartOnABindAddressOfAnotherMachine() throws Exception {
     final InetAddress foreign = InetAddress.ofLiteral(FOREIGN_HOST);
-    final int port = freePort();
+    final int port = this.freePort();
     final HttpResultBuilder builder = HttpResult.builder();
     builder.port(port);
     builder.bindAddress(foreign);
@@ -665,34 +639,6 @@ final class HttpServerTest {
     assertTrue(namesThePort, message);
     assertTrue(endsOnWords, message);
     assertFalse(running);
-  }
-
-  /**
-   * Creates a session whose writes block until released and which, like the WebSocket sessions of Spring, waits
-   * for the write in progress when it is closed.
-   */
-  private WebSocketSession stuckSession(final CountDownLatch writeEntered, final CountDownLatch releaseWrite) throws IOException {
-    final WebSocketSession stuck = Mockito.mock(WebSocketSession.class);
-    Mockito.when(stuck.getId()).thenReturn("stuck");
-    Mockito.when(stuck.isOpen()).thenReturn(true);
-    Mockito.doAnswer(_ -> {
-      this.workers.observeCurrentThread();
-      writeEntered.countDown();
-      final boolean released = releaseWrite.await(SLOW_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-      assertTrue(released, "the test releases the stuck write");
-      return null;
-    })
-      .when(stuck)
-      .sendMessage(ArgumentMatchers.any());
-    Mockito.doAnswer(_ -> {
-      this.workers.observeCurrentThread();
-      final boolean released = releaseWrite.await(SLOW_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-      assertTrue(released, "the test releases the stuck write");
-      return null;
-    })
-      .when(stuck)
-      .close(ArgumentMatchers.any());
-    return stuck;
   }
 
   @Test
@@ -716,7 +662,7 @@ final class HttpServerTest {
       final int listeners = http.getListenerCount();
       assertFalse(running);
       assertEquals(0, listeners);
-      SpringHttpResultTest.verifyClosed(stuck, CloseStatus.GOING_AWAY);
+      WebSocketSessionUtils.verifyClosed(stuck, CloseStatus.GOING_AWAY);
 
       final Duration startLimit = Duration.ofSeconds(SLOW_TIMEOUT_SECONDS);
       assertTimeoutPreemptively(startLimit, http::start, "start must not wait for the stuck write either");
@@ -728,18 +674,43 @@ final class HttpServerTest {
     }
   }
 
-  private static void assertStartAndStopKeepTheLogging(final SpringHttpResult http, final Logger root) {
-    final Handler[] before = root.getHandlers();
-    http.start();
-    final Level levelWhileRunning = root.getLevel();
-    final Handler[] handlersWhileRunning = root.getHandlers();
-    http.stop();
-    final Level levelAfterStop = root.getLevel();
-    final Handler[] handlersAfterStop = root.getHandlers();
-    assertEquals(Level.CONFIG, levelWhileRunning);
-    assertArrayEquals(before, handlersWhileRunning);
-    assertEquals(Level.CONFIG, levelAfterStop);
-    assertArrayEquals(before, handlersAfterStop);
+  /**
+   * Creates a session whose writes block until released and which, like the WebSocket sessions of Spring, waits
+   * for the write in progress when it is closed.
+   */
+  private WebSocketSession stuckSession(final CountDownLatch writeEntered, final CountDownLatch releaseWrite) throws IOException {
+    final WebSocketSession stuck = Mockito.mock(WebSocketSession.class);
+    Mockito.when(stuck.getId()).thenReturn("stuck");
+    Mockito.when(stuck.isOpen()).thenReturn(true);
+
+    final Stubber blockingWrite = Mockito.doAnswer(_ -> this.enterAndWaitForRelease(writeEntered, releaseWrite));
+    final WebSocketSession stubbedWrite = blockingWrite.when(stuck);
+    stubbedWrite.sendMessage(ArgumentMatchers.any());
+
+    final Stubber blockingClose = Mockito.doAnswer(_ -> this.waitForRelease(releaseWrite));
+    final WebSocketSession stubbedClose = blockingClose.when(stuck);
+    stubbedClose.close(ArgumentMatchers.any());
+
+    return stuck;
+  }
+
+  private Void enterAndWaitForRelease(final CountDownLatch writeEntered, final CountDownLatch releaseWrite) throws InterruptedException {
+    this.workers.observeCurrentThread();
+    writeEntered.countDown();
+
+    final boolean released = releaseWrite.await(SLOW_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    assertTrue(released, "the test releases the stuck write");
+
+    return null;
+  }
+
+  private Void waitForRelease(final CountDownLatch releaseWrite) throws InterruptedException {
+    this.workers.observeCurrentThread();
+
+    final boolean released = releaseWrite.await(SLOW_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    assertTrue(released, "the test releases the stuck write");
+
+    return null;
   }
 
   @Test
@@ -754,14 +725,105 @@ final class HttpServerTest {
     final SpringHttpResult http = new SpringHttpResult(LOCALHOST, EPHEMERAL_PORT, pageDirectory, LOOPBACK);
     try {
       System.clearProperty(property);
-      assertStartAndStopKeepTheLogging(http, root);
+      this.assertStartAndStopKeepTheLogging(http, root);
       final String chosen = System.getProperty(property);
       assertEquals("none", chosen);
     } finally {
       http.stop();
       root.removeHandler(marker);
       root.setLevel(previousLevel);
-      SpringHttpResultTest.restoreLoggingSystem(previousProperty);
+      SystemPropertyUtils.restore(property, previousProperty);
     }
+  }
+
+  private void assertStartAndStopKeepTheLogging(final SpringHttpResult http, final Logger root) {
+    final Handler[] before = root.getHandlers();
+    http.start();
+    final Level levelWhileRunning = root.getLevel();
+    final Handler[] handlersWhileRunning = root.getHandlers();
+    http.stop();
+    final Level levelAfterStop = root.getLevel();
+    final Handler[] handlersAfterStop = root.getHandlers();
+    assertEquals(Level.CONFIG, levelWhileRunning);
+    assertArrayEquals(before, handlersWhileRunning);
+    assertEquals(Level.CONFIG, levelAfterStop);
+    assertArrayEquals(before, handlersAfterStop);
+  }
+
+  /**
+   * Collects the complete binary messages and the close code a WebSocket client receives.
+   */
+  private static final class RecordingListener implements WebSocket.Listener {
+
+    private final BlockingQueue<byte[]> messages;
+    private final CompletableFuture<Integer> closeCode;
+    private final ByteArrayOutputStream partial;
+
+    RecordingListener() {
+      this.messages = new LinkedBlockingQueue<>();
+      this.closeCode = new CompletableFuture<>();
+      this.partial = new ByteArrayOutputStream();
+    }
+
+    @Override
+    public CompletionStage<?> onBinary(final WebSocket webSocket, final ByteBuffer data, final boolean last) {
+      final int remaining = data.remaining();
+      final byte[] bytes = new byte[remaining];
+      data.get(bytes);
+      this.partial.writeBytes(bytes);
+
+      if (last) {
+        final byte[] message = this.partial.toByteArray();
+        this.messages.add(message);
+        this.partial.reset();
+      }
+
+      webSocket.request(1);
+
+      return null;
+    }
+
+    @Override
+    public CompletionStage<?> onClose(final WebSocket webSocket, final int statusCode, final String reason) {
+      this.closeCode.complete(statusCode);
+
+      return null;
+    }
+
+    @Override
+    public void onError(final WebSocket webSocket, final Throwable error) {
+      this.closeCode.completeExceptionally(error);
+    }
+
+    private byte[] nextMessage() throws InterruptedException {
+      final byte[] message = this.messages.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      assertNotNull(message, "no audio message arrived");
+
+      return message;
+    }
+
+    private int awaitCloseCode() throws Exception {
+      return this.closeCode.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    }
+
+    private boolean isClosed() {
+      return this.closeCode.isDone();
+    }
+  }
+
+  /**
+   * A logging handler that only marks the logging configuration of the JVM, so a test can see whether it was
+   * replaced.
+   */
+  private static final class MarkerHandler extends Handler {
+
+    @Override
+    public void publish(final LogRecord record) {}
+
+    @Override
+    public void flush() {}
+
+    @Override
+    public void close() {}
   }
 }

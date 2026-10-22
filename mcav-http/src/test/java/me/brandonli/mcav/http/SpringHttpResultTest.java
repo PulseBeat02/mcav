@@ -44,16 +44,19 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import me.brandonli.mcav.http.testing.SystemPropertyUtils;
 import me.brandonli.mcav.http.testing.UrlParseDumpUtils;
+import me.brandonli.mcav.http.testing.WebSocketSessionUtils;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
-import org.mockito.verification.VerificationWithTimeout;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Stubber;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
@@ -89,91 +92,19 @@ final class SpringHttpResultTest {
   @TempDir
   private Path directory;
 
-  private final WorkerAssertions workers = new WorkerAssertions();
+  private WorkerAssertions workers;
 
-  private final OriginalAudioMetadata metadata = Mockito.mock(OriginalAudioMetadata.class);
+  private OriginalAudioMetadata metadata;
 
-  /**
-   * Verifies that a session is closed with a status within the timeout, because sessions are closed on another
-   * thread.
-   *
-   * @param session the mocked session
-   * @param status  the expected close status
-   * @throws IOException never, the mock is only verified
-   */
-  static void verifyClosed(final WebSocketSession session, final CloseStatus status) throws IOException {
-    final VerificationWithTimeout withinTimeout = Mockito.timeout(TIMEOUT_MILLISECONDS);
-    final WebSocketSession verified = Mockito.verify(session, withinTimeout);
-    verified.close(status);
-  }
-
-  /**
-   * Restores the logging system property of Spring Boot to the value it had before a test.
-   *
-   * @param previous the previous value, or null if it was not set
-   */
-  static void restoreLoggingSystem(final @Nullable String previous) {
-    if (previous == null) {
-      System.clearProperty(SpringHttpResult.LOGGING_SYSTEM_PROPERTY);
-    } else {
-      System.setProperty(SpringHttpResult.LOGGING_SYSTEM_PROPERTY, previous);
-    }
-  }
-
-  private static WebSocketSession session(final String id, final BlockingQueue<byte[]> sent) throws IOException {
-    final WebSocketSession session = Mockito.mock(WebSocketSession.class);
-    Mockito.when(session.getId()).thenReturn(id);
-    Mockito.when(session.isOpen()).thenReturn(true);
-    Mockito.doAnswer(invocation -> {
-      final WebSocketMessage<?> message = invocation.getArgument(0);
-      final BinaryMessage binary = (BinaryMessage) message;
-      final ByteBuffer payload = binary.getPayload();
-      final int remaining = payload.remaining();
-      final byte[] bytes = new byte[remaining];
-      payload.get(bytes);
-      sent.add(bytes);
-      return null;
-    })
-      .when(session)
-      .sendMessage(ArgumentMatchers.any());
-    return session;
-  }
-
-  private WebSocketSession stuckSession(final CountDownLatch writeEntered, final CountDownLatch releaseWrite) throws IOException {
-    final WebSocketSession stuck = Mockito.mock(WebSocketSession.class);
-    Mockito.when(stuck.getId()).thenReturn("stuck");
-    Mockito.when(stuck.isOpen()).thenReturn(true);
-    Mockito.doAnswer(_ -> {
-      this.workers.observeCurrentThread();
-      writeEntered.countDown();
-      final boolean released = releaseWrite.await(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
-      assertTrue(released, "the test releases the stuck write");
-      return null;
-    })
-      .when(stuck)
-      .sendMessage(ArgumentMatchers.any());
-    return stuck;
+  @BeforeEach
+  void setUp() {
+    this.workers = new WorkerAssertions();
+    this.metadata = Mockito.mock(OriginalAudioMetadata.class);
   }
 
   @AfterEach
   void assertWorkersFinished() throws InterruptedException {
     this.workers.assertFinished();
-  }
-
-  private void applySingleByteChunks(final SpringHttpResult http, final int first, final int last) {
-    for (int value = first; value <= last; value++) {
-      final byte[] chunk = { (byte) value };
-      final ByteBuffer samples = ByteBuffer.wrap(chunk);
-      http.applyFilter(samples, this.metadata);
-    }
-  }
-
-  private static void assertReceivedEverySingleByteChunk(final BlockingQueue<byte[]> sent) throws InterruptedException {
-    for (int value = 1; value <= LAST_CHUNK_VALUE; value++) {
-      final byte[] received = sent.poll(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
-      final byte[] expected = { (byte) value };
-      assertArrayEquals(expected, received);
-    }
   }
 
   @Test
@@ -242,6 +173,7 @@ final class SpringHttpResultTest {
     final SpringHttpResult http = new SpringHttpResult(LOCALHOST, 4321, null);
     final int port = http.getLocalPort();
     assertEquals(4321, port);
+
     assertDoesNotThrow(http::stop);
     final boolean running = http.isRunning();
     assertFalse(running);
@@ -251,18 +183,42 @@ final class SpringHttpResultTest {
   void shouldTurnAwayAndCloseAHandshakeThatArrivesAfterTheServerStopped() throws Exception {
     final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
-    final WebSocketSession early = session("early", sent);
+    final WebSocketSession early = this.session("early", sent);
     http.addListener(early);
     final int countWhileAccepting = http.getListenerCount();
     assertEquals(1, countWhileAccepting);
 
     http.stop();
-    final WebSocketSession late = session("late", sent);
+    final WebSocketSession late = this.session("late", sent);
     http.addListener(late);
     final int countAfterStop = http.getListenerCount();
     assertEquals(0, countAfterStop, "stopping closes existing listeners and rejects later handshakes");
-    verifyClosed(early, CloseStatus.GOING_AWAY);
-    verifyClosed(late, CloseStatus.GOING_AWAY);
+    WebSocketSessionUtils.verifyClosed(early, CloseStatus.GOING_AWAY);
+    WebSocketSessionUtils.verifyClosed(late, CloseStatus.GOING_AWAY);
+  }
+
+  private WebSocketSession session(final String id, final BlockingQueue<byte[]> sent) throws IOException {
+    final WebSocketSession session = Mockito.mock(WebSocketSession.class);
+    Mockito.when(session.getId()).thenReturn(id);
+    Mockito.when(session.isOpen()).thenReturn(true);
+
+    final Stubber recording = Mockito.doAnswer(invocation -> this.record(invocation, sent));
+    final WebSocketSession stubbedSession = recording.when(session);
+    stubbedSession.sendMessage(ArgumentMatchers.any());
+
+    return session;
+  }
+
+  private Void record(final InvocationOnMock invocation, final BlockingQueue<byte[]> sent) {
+    final WebSocketMessage<?> message = invocation.getArgument(0);
+    final BinaryMessage binary = (BinaryMessage) message;
+    final ByteBuffer payload = binary.getPayload();
+    final int remaining = payload.remaining();
+    final byte[] bytes = new byte[remaining];
+    payload.get(bytes);
+    sent.add(bytes);
+
+    return null;
   }
 
   @Test
@@ -301,8 +257,8 @@ final class SpringHttpResultTest {
     final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final BlockingQueue<byte[]> firstSent = new LinkedBlockingQueue<>();
     final BlockingQueue<byte[]> secondSent = new LinkedBlockingQueue<>();
-    final WebSocketSession first = session("first", firstSent);
-    final WebSocketSession second = session("second", secondSent);
+    final WebSocketSession first = this.session("first", firstSent);
+    final WebSocketSession second = this.session("second", secondSent);
     http.addListener(first);
     http.addListener(second);
     final int count = http.getListenerCount();
@@ -321,6 +277,7 @@ final class SpringHttpResultTest {
     final byte[] secondBytes = secondSent.poll(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
     assertArrayEquals(expected, firstBytes);
     assertArrayEquals(expected, secondBytes);
+
     http.removeListener(first);
     http.removeListener(second);
   }
@@ -332,7 +289,7 @@ final class SpringHttpResultTest {
     final CountDownLatch releaseStuckWrite = new CountDownLatch(1);
     final WebSocketSession stuck = this.stuckSession(stuckWriteEntered, releaseStuckWrite);
     final BlockingQueue<byte[]> healthySent = new LinkedBlockingQueue<>();
-    final WebSocketSession healthy = session("healthy", healthySent);
+    final WebSocketSession healthy = this.session("healthy", healthySent);
     http.addListener(stuck);
     http.addListener(healthy);
     try {
@@ -342,7 +299,7 @@ final class SpringHttpResultTest {
 
       final Duration limit = Duration.ofSeconds(2);
       assertTimeoutPreemptively(limit, () -> this.applySingleByteChunks(http, 2, LAST_CHUNK_VALUE));
-      assertReceivedEverySingleByteChunk(healthySent);
+      this.assertReceivedEverySingleByteChunk(healthySent);
       final int count = http.getListenerCount();
       assertEquals(2, count);
     } finally {
@@ -352,11 +309,49 @@ final class SpringHttpResultTest {
     }
   }
 
+  private WebSocketSession stuckSession(final CountDownLatch writeEntered, final CountDownLatch releaseWrite) throws IOException {
+    final WebSocketSession stuck = Mockito.mock(WebSocketSession.class);
+    Mockito.when(stuck.getId()).thenReturn("stuck");
+    Mockito.when(stuck.isOpen()).thenReturn(true);
+
+    final Stubber blocking = Mockito.doAnswer(_ -> this.enterAndWaitForRelease(writeEntered, releaseWrite));
+    final WebSocketSession stubbedSession = blocking.when(stuck);
+    stubbedSession.sendMessage(ArgumentMatchers.any());
+
+    return stuck;
+  }
+
+  private Void enterAndWaitForRelease(final CountDownLatch writeEntered, final CountDownLatch releaseWrite) throws InterruptedException {
+    this.workers.observeCurrentThread();
+    writeEntered.countDown();
+
+    final boolean released = releaseWrite.await(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
+    assertTrue(released, "the test releases the stuck write");
+
+    return null;
+  }
+
+  private void applySingleByteChunks(final SpringHttpResult http, final int first, final int last) {
+    for (int value = first; value <= last; value++) {
+      final byte[] chunk = { (byte) value };
+      final ByteBuffer samples = ByteBuffer.wrap(chunk);
+      http.applyFilter(samples, this.metadata);
+    }
+  }
+
+  private void assertReceivedEverySingleByteChunk(final BlockingQueue<byte[]> sent) throws InterruptedException {
+    for (int value = 1; value <= LAST_CHUNK_VALUE; value++) {
+      final byte[] received = sent.poll(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
+      final byte[] expected = { (byte) value };
+      assertArrayEquals(expected, received);
+    }
+  }
+
   @Test
   void shouldStopAListenerWhenRemovingIt() throws Exception {
     final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
-    final WebSocketSession session = session(SESSION_ID, sent);
+    final WebSocketSession session = this.session(SESSION_ID, sent);
     http.addListener(session);
     final AudioListener listener = http.getListener(SESSION_ID);
     assertNotNull(listener, "the listener of a connected browser is kept");
@@ -371,14 +366,9 @@ final class SpringHttpResultTest {
   void shouldCloseTheSpringContextWithTheClassLoaderOfTheLibrary() {
     final ConfigurableApplicationContext context = Mockito.mock(ConfigurableApplicationContext.class);
     final List<ClassLoader> loadersWhileClosing = new ArrayList<>();
-    Mockito.doAnswer(invocation -> {
-      final Thread closing = Thread.currentThread();
-      final ClassLoader loader = closing.getContextClassLoader();
-      loadersWhileClosing.add(loader);
-      return null;
-    })
-      .when(context)
-      .close();
+    final Stubber recordingLoader = Mockito.doAnswer(_ -> this.recordContextClassLoader(loadersWhileClosing));
+    final ConfigurableApplicationContext stubbedContext = recordingLoader.when(context);
+    stubbedContext.close();
 
     final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final Thread current = Thread.currentThread();
@@ -397,19 +387,22 @@ final class SpringHttpResultTest {
     }
   }
 
+  private Void recordContextClassLoader(final List<ClassLoader> loaders) {
+    final Thread closing = Thread.currentThread();
+    final ClassLoader loader = closing.getContextClassLoader();
+    loaders.add(loader);
+
+    return null;
+  }
+
   @Test
   void shouldRestoreTheCallersClassLoaderWhenClosingTheSpringContextFails() {
     final ConfigurableApplicationContext context = Mockito.mock(ConfigurableApplicationContext.class);
     final IllegalStateException failure = new IllegalStateException("context close failed!");
     final List<ClassLoader> loadersWhileClosing = new ArrayList<>();
-    Mockito.doAnswer(invocation -> {
-      final Thread closing = Thread.currentThread();
-      final ClassLoader loader = closing.getContextClassLoader();
-      loadersWhileClosing.add(loader);
-      throw failure;
-    })
-      .when(context)
-      .close();
+    final Stubber failingClose = Mockito.doAnswer(_ -> this.recordContextClassLoaderThenThrow(loadersWhileClosing, failure));
+    final ConfigurableApplicationContext stubbedContext = failingClose.when(context);
+    stubbedContext.close();
 
     final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final Thread current = Thread.currentThread();
@@ -429,6 +422,11 @@ final class SpringHttpResultTest {
     }
   }
 
+  private Void recordContextClassLoaderThenThrow(final List<ClassLoader> loaders, final IllegalStateException failure) {
+    this.recordContextClassLoader(loaders);
+    throw failure;
+  }
+
   @Test
   void shouldTakeEveryPortFromOneTo65535InTheHostAndPortFactory() {
     assertThrows(IllegalArgumentException.class, () -> HttpResult.http(EXAMPLE_DOMAIN, 0));
@@ -441,7 +439,7 @@ final class SpringHttpResultTest {
   void shouldIgnoreRemovingAListenerTwice() throws Exception {
     final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
-    final WebSocketSession listener = session(SESSION_ID, sent);
+    final WebSocketSession listener = this.session(SESSION_ID, sent);
     http.addListener(listener);
     http.removeListener(listener);
     http.removeListener(listener);
@@ -458,7 +456,7 @@ final class SpringHttpResultTest {
   void shouldDropListenersWhoseSessionClosed() throws Exception {
     final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
-    final WebSocketSession closed = session("closed", sent);
+    final WebSocketSession closed = this.session("closed", sent);
     http.addListener(closed);
     Mockito.when(closed.isOpen()).thenReturn(false);
     final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BYTES);
@@ -466,7 +464,7 @@ final class SpringHttpResultTest {
     final int count = http.getListenerCount();
     assertFalse(changed, "the filter only reads the sample, so it reports no change");
     assertEquals(0, count);
-    verifyClosed(closed, CloseStatus.SESSION_NOT_RELIABLE);
+    WebSocketSessionUtils.verifyClosed(closed, CloseStatus.SESSION_NOT_RELIABLE);
   }
 
   @Test
@@ -479,7 +477,7 @@ final class SpringHttpResultTest {
     http.addListener(broken);
     final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BYTES);
     http.applyFilter(samples, this.metadata);
-    verifyClosed(broken, CloseStatus.SESSION_NOT_RELIABLE);
+    WebSocketSessionUtils.verifyClosed(broken, CloseStatus.SESSION_NOT_RELIABLE);
     final int count = http.getListenerCount();
     assertEquals(0, count);
   }
@@ -492,29 +490,36 @@ final class SpringHttpResultTest {
     Mockito.when(broken.isOpen()).thenReturn(true);
     final CountDownLatch replaced = new CountDownLatch(1);
     final CountDownLatch sendEntered = new CountDownLatch(1);
-    Mockito.doAnswer(_ -> {
-      this.workers.observeCurrentThread();
-      sendEntered.countDown();
-      final boolean ready = replaced.await(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
-      assertTrue(ready);
-      throw new IOException("broken pipe!");
-    })
-      .when(broken)
-      .sendMessage(ArgumentMatchers.any());
+    final Stubber failingSend = Mockito.doAnswer(_ -> this.failAfterTheReplacement(sendEntered, replaced));
+    final WebSocketSession stubbedSession = failingSend.when(broken);
+    stubbedSession.sendMessage(ArgumentMatchers.any());
     http.addListener(broken);
     final ByteBuffer samples = ByteBuffer.allocate(SAMPLE_BYTES);
     http.applyFilter(samples, this.metadata);
 
     final boolean sending = sendEntered.await(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
     assertTrue(sending, "the old connection is sending before replacement");
+
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
-    final WebSocketSession replacement = session("same-id", sent);
+    final WebSocketSession replacement = this.session("same-id", sent);
     http.addListener(replacement);
     replaced.countDown();
-    verifyClosed(broken, CloseStatus.SESSION_NOT_RELIABLE);
+    WebSocketSessionUtils.verifyClosed(broken, CloseStatus.SESSION_NOT_RELIABLE);
     final int count = http.getListenerCount();
     assertEquals(1, count);
+
     http.removeListener(replacement);
+  }
+
+  private Void failAfterTheReplacement(final CountDownLatch sendEntered, final CountDownLatch replaced)
+    throws InterruptedException, IOException {
+    this.workers.observeCurrentThread();
+    sendEntered.countDown();
+
+    final boolean ready = replaced.await(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
+    assertTrue(ready);
+
+    throw new IOException("broken pipe!");
   }
 
   @Test
@@ -538,6 +543,7 @@ final class SpringHttpResultTest {
     http.setCurrentMedia((MediaInformation) null);
     final MediaInformation cleared = http.getCurrentMedia();
     assertSame(MediaInformation.EMPTY, cleared);
+
     assertThrows(NullPointerException.class, () -> http.setCurrentMedia((UrlParseDump) null));
   }
 
@@ -595,9 +601,10 @@ final class SpringHttpResultTest {
     assertThrows(NullPointerException.class, () -> builder.bindAddress(null));
 
     final HttpResultBuilder lowest = builder.port(1);
-    assertSame(builder, lowest);
     final HttpResultBuilder highest = builder.port(MAXIMUM_PORT);
+    assertSame(builder, lowest);
     assertSame(builder, highest);
+
     final HttpResult http = builder.build();
     final String url = http.getFullUrl();
     assertEquals("http://localhost:65535/", url);
@@ -630,6 +637,7 @@ final class SpringHttpResultTest {
     final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     final String property = SpringHttpResult.LOGGING_SYSTEM_PROPERTY;
     assertEquals("org.springframework.boot.logging.LoggingSystem", property);
+
     final String previous = System.getProperty(property);
     try {
       System.clearProperty(property);
@@ -643,7 +651,7 @@ final class SpringHttpResultTest {
       final String kept = System.getProperty(property);
       assertEquals(chosen, kept, "a logging system chosen by the user is respected");
     } finally {
-      restoreLoggingSystem(previous);
+      SystemPropertyUtils.restore(property, previous);
     }
   }
 }
