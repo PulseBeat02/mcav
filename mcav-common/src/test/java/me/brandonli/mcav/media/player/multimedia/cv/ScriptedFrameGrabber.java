@@ -43,6 +43,7 @@ final class ScriptedFrameGrabber extends FrameGrabber {
 
   private final Deque<Object> script;
   private final AtomicBoolean closed;
+  private final AtomicBoolean interruptedWhenReleased;
   private final AtomicLong requestedTimestamp;
   private final AtomicReference<Thread> grabbingThread;
   private boolean failOnStart;
@@ -53,6 +54,7 @@ final class ScriptedFrameGrabber extends FrameGrabber {
   ScriptedFrameGrabber(final int width, final int height, final List<?> steps) {
     this.script = new ArrayDeque<>(steps);
     this.closed = new AtomicBoolean();
+    this.interruptedWhenReleased = new AtomicBoolean();
     this.requestedTimestamp = new AtomicLong(-1L);
     this.grabbingThread = new AtomicReference<>();
     this.imageWidth = width;
@@ -160,6 +162,9 @@ final class ScriptedFrameGrabber extends FrameGrabber {
 
   @Override
   public void release() {
+    final Thread currentThread = Thread.currentThread();
+    final boolean interrupted = currentThread.isInterrupted();
+    this.interruptedWhenReleased.set(interrupted);
     this.closed.set(true);
   }
 
@@ -174,6 +179,10 @@ final class ScriptedFrameGrabber extends FrameGrabber {
 
   boolean isClosed() {
     return this.closed.get();
+  }
+
+  boolean wasInterruptedWhenReleased() {
+    return this.interruptedWhenReleased.get();
   }
 
   long getRequestedTimestamp() {

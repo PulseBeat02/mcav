@@ -829,17 +829,20 @@ final class PlaybackSessionTest {
   }
 
   @Test
-  void shouldKeepTheInterruptOfADecoderStoppedWhileWaitingForRoom() throws Exception {
+  void shouldKeepTheInterruptOfADecoderInterruptedWhileWaitingForRoom() throws Exception {
     final List<Object> script = frames(20, FRAME_MICROSECONDS);
     final ScriptedFrameGrabber grabber = new ScriptedFrameGrabber(FRAME_WIDTH, FRAME_HEIGHT, script);
     final PlaybackSession session = this.session(grabber, 0L, StartState.PAUSED);
     session.start();
     awaitCondition("the decoder waits for room in the full queue", () -> isWaiting(grabber.getGrabbingThread()));
+
+    // not through stop, which also empties the queue and so can wake the decoder without an exception
+    final Thread decoder = grabber.getGrabbingThread();
+    decoder.interrupt();
+    awaitCondition("the interrupted decoder closes the grabber", grabber::isClosed);
     session.stop();
 
-    final Thread decoder = grabber.getGrabbingThread();
-    decoder.join(TIMEOUT_MILLISECONDS);
-    final boolean interrupted = decoder.isInterrupted();
+    final boolean interrupted = grabber.wasInterruptedWhenReleased();
     assertTrue(interrupted, "the decoder keeps its interrupt while it closes the grabber");
   }
 
