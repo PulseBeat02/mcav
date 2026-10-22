@@ -16,12 +16,12 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { createHash } from "node:crypto";
+import { createHash, type Hash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { NextConfig } from "next";
 
-const SOURCES = [
+const SOURCES: string[] = [
     "src",
     "public",
     "package.json",
@@ -39,13 +39,13 @@ const sourcesBuildId = (): string => {
     const files: string[] = [];
     const collect = (path: string): void => {
         if (statSync(path).isDirectory()) {
-            readdirSync(path).sort().forEach(name => collect(join(path, name)));
+            readdirSync(path).sort().forEach((name: string) => collect(join(path, name)));
         } else {
             files.push(path);
         }
     };
     SOURCES.forEach(collect);
-    const hash = createHash("sha256");
+    const hash: Hash = createHash("sha256");
     for (const file of files) {
         hash.update(relative(".", file).split(sep).join("/"));
         hash.update("\0");
