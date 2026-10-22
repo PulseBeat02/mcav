@@ -382,8 +382,11 @@ class CefBrowserIntegrationTest {
     final BrowserPlayer player = this.player(LOCAL);
     final BrowserSource unreachable = BrowserSource.uri(URI.create("http://mcav-browser-test.invalid/"), WIDTH, HEIGHT, 1);
     final BrowserException failure = assertThrows(BrowserException.class, () -> player.start(unreachable));
-    final boolean namesTheLoadError = failure.getMessage().contains("NAME_NOT_RESOLVED") || failure.getMessage().contains("-105");
-    assertTrue(namesTheLoadError, failure.getMessage());
+    final String message = failure.getMessage();
+    final boolean nameNotResolved = message.contains("NAME_NOT_RESOLVED") || message.contains("-105");
+    final boolean offline = message.contains("INTERNET_DISCONNECTED") || message.contains("-106");
+    final boolean namesTheLoadError = nameNotResolved || offline;
+    assertTrue(namesTheLoadError, message);
 
     final boolean playing = player.isPlaying();
     assertFalse(playing);
