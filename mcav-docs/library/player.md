@@ -20,11 +20,12 @@ Create a video player with one of the factories of `VideoPlayer`:
 | `VideoPlayer.device()` | Cameras and capture cards, played from a `DeviceSource`         | No    |
 
 ```{note}
-VLC is prepared in the background after `install` returned (see the [installation lifecycle](instance.md#installation-lifecycle)).
-When the machine has no VLC, the first start downloads it into the MCAV cache folder, which can take several minutes.
-Until VLC is ready, `VideoPlayer.vlc()` throws an `IllegalStateException` that says VLC is still being prepared; if the
-preparation found that VLC is not available on this system, the exception says so instead. Wait for
-`api.whenCapabilityReady(Capability.VLC)`, or play with `VideoPlayer.ffmpeg()` in the meantime.
+VLC is prepared in the background after `install` returned (see the [installation
+lifecycle](instance.md#installation-lifecycle)). When the machine has no VLC, the first start downloads it into the MCAV
+cache folder, which can take several minutes. Until VLC is ready, `VideoPlayer.vlc()` throws an `IllegalStateException`
+that says VLC is still being prepared; if the preparation found that VLC is not available on this system, the exception
+says so instead. Wait for `api.whenCapabilityReady(Capability.VLC)`, or play with `VideoPlayer.ffmpeg()` in the
+meantime.
 ```
 
 Every video player has three slots: a `VideoAttachableCallback` for the video pipeline, an `AudioAttachableCallback`
@@ -79,7 +80,7 @@ window. `speakers.start()` throws a `PlayerException` on a machine without a sou
 `resume()` returns `false` and does not restart it; call `start` with the source again to play it once more, which is
 also how to loop a video.
 
-## Speed, Position and Volume
+## Speed, position and volume
 
 The FFmpeg, OpenCV and device players extend `AbstractVideoPlayerCv`, which adds a playback speed and the position:
 
