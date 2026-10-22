@@ -635,18 +635,21 @@ struct int_vector {
     const __m256i shuffled_blue =
         _mm256_blend_epi32(_mm256_blend_epi32(first_vector, second_vector, EVERY_THIRD_LANE_FROM_ZERO), third_vector,
                            EVERY_THIRD_LANE_FROM_ONE);
-    red_channels.lanes_ = _mm256_permutevar8x32_epi32(shuffled_red, _mm256_setr_epi32(0, 3, 6, 1, 4, 7, 2, 5));
-    green_channels.lanes_ = _mm256_permutevar8x32_epi32(shuffled_green, _mm256_setr_epi32(1, 4, 7, 2, 5, 0, 3, 6));
-    blue_channels.lanes_ = _mm256_permutevar8x32_epi32(shuffled_blue, _mm256_setr_epi32(2, 5, 0, 3, 6, 1, 4, 7));
+    const __m256i red_order = _mm256_setr_epi32(0, 3, 6, 1, 4, 7, 2, 5);
+    const __m256i green_order = _mm256_setr_epi32(1, 4, 7, 2, 5, 0, 3, 6);
+    const __m256i blue_order = _mm256_setr_epi32(2, 5, 0, 3, 6, 1, 4, 7);
+    red_channels.lanes_ = _mm256_permutevar8x32_epi32(shuffled_red, red_order);
+    green_channels.lanes_ = _mm256_permutevar8x32_epi32(shuffled_green, green_order);
+    blue_channels.lanes_ = _mm256_permutevar8x32_epi32(shuffled_blue, blue_order);
   }
   static void store_channels(int32_t* buffer, const int_vector red_channels, const int_vector green_channels,
                              const int_vector blue_channels) {
-    const __m256i shuffled_red =
-        _mm256_permutevar8x32_epi32(red_channels.lanes_, _mm256_setr_epi32(0, 3, 6, 1, 4, 7, 2, 5));
-    const __m256i shuffled_green =
-        _mm256_permutevar8x32_epi32(green_channels.lanes_, _mm256_setr_epi32(5, 0, 3, 6, 1, 4, 7, 2));
-    const __m256i shuffled_blue =
-        _mm256_permutevar8x32_epi32(blue_channels.lanes_, _mm256_setr_epi32(2, 5, 0, 3, 6, 1, 4, 7));
+    const __m256i red_order = _mm256_setr_epi32(0, 3, 6, 1, 4, 7, 2, 5);
+    const __m256i green_order = _mm256_setr_epi32(5, 0, 3, 6, 1, 4, 7, 2);
+    const __m256i blue_order = _mm256_setr_epi32(2, 5, 0, 3, 6, 1, 4, 7);
+    const __m256i shuffled_red = _mm256_permutevar8x32_epi32(red_channels.lanes_, red_order);
+    const __m256i shuffled_green = _mm256_permutevar8x32_epi32(green_channels.lanes_, green_order);
+    const __m256i shuffled_blue = _mm256_permutevar8x32_epi32(blue_channels.lanes_, blue_order);
     _mm256_storeu_si256((__m256i*)buffer,
                         _mm256_blend_epi32(_mm256_blend_epi32(shuffled_red, shuffled_green, EVERY_THIRD_LANE_FROM_ONE),
                                            shuffled_blue, EVERY_THIRD_LANE_FROM_TWO));
