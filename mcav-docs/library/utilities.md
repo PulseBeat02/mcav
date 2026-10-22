@@ -16,14 +16,14 @@ A filter returns whether it changed the samples. The filters on this page only r
 the pipeline passes the samples on to the next step either way.
 ```
 
-## Reading Bundled Installer Lists
+## Reading bundled installer lists
 
 `IoUtils.readDownloadsFromJsonResource` and `ReleasePackageManager.readVlcDownloadsFromJsonResource` take a full
 path from the classpath root, without a leading slash. The bundled lists are `mcav/common/installers/vlc.json` and
 `mcav/common/installers/yt-dlp.json`. Custom lists can live at any full classpath path, such as
 `installers/custom.json`.
 
-## Mono Downmixing
+## Mono downmixing
 
 `MonoDownmixer` in `me.brandonli.mcav.utils.audio` mixes the stereo samples of a pipeline down to mono for outputs
 that carry a single channel, such as Simple Voice Chat, a mono speaker, or a speech recognizer.
@@ -76,7 +76,7 @@ it, which checks the downmix without a Minecraft server:
   }
 ```
 
-## Resampling Audio
+## Resampling audio
 
 `AudioResampler` in `me.brandonli.mcav.utils.audio` converts interleaved PCM audio between sample rates, channel
 counts, and sample formats with FFmpeg's libswresample, which is bundled with MCAV. Use it when an output expects
@@ -195,7 +195,7 @@ into 48 kHz stereo floating point samples:
   }
 ```
 
-### Sample Formats
+### Sample formats
 
 `SampleFormat` is the encoding of a single sample. Every format is packed (interleaved): the samples of all channels
 of one frame follow each other, so a stereo stream is laid out as `left, right, left, right, ...`. Samples are stored in
@@ -215,7 +215,7 @@ little-endian audio of the pipeline can be passed to `resample` as it is. Floati
 `getBytesPerSample()` returns the size of one sample of one channel, and `getFfmpegFormat()` returns the matching
 packed `avutil.AV_SAMPLE_FMT_*` constant, for use with the FFmpeg bindings of JavaCV.
 
-## Extracting Audio
+## Extracting audio
 
 `AudioExtractor` in `me.brandonli.mcav.utils.ffmpeg` extracts the audio track of media into a standalone audio file
 with the FFmpeg program bundled with MCAV. The audio is written as stereo Ogg Vorbis, a compact and royalty-free format
@@ -261,7 +261,7 @@ convert:
   }
 ```
 
-## Network Helpers
+## Network helpers
 
 `NetworkUtils` in `me.brandonli.mcav.utils.http` answers two questions: what the public address of this machine is,
 and whether a URL can still be downloaded. Every method blocks for at most a few seconds per request, so call them off
@@ -306,7 +306,7 @@ its URL:
   }
 ```
 
-## Handling Fatal Errors
+## Handling fatal errors
 
 `ThrowableUtils` in `me.brandonli.mcav.utils` helps code that catches failures at a thread boundary, such as a render
 thread of your own, and must keep running after a failure without hiding the failures no code can recover from.
