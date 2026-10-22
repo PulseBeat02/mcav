@@ -562,6 +562,15 @@ final class MatImageBufferTest {
   }
 
   @Test
+  void shouldCopyPackedSrgbSamplesWithoutConvertingThem() {
+    final ConversionCountingImage source = new ConversionCountingImage();
+    try (final ImageBuffer _ = ImageBuffer.image(source)) {
+      final int conversions = source.getConversions();
+      assertEquals(0, conversions, "the samples of a packed sRGB image are copied as they are");
+    }
+  }
+
+  @Test
   void shouldConvertTheSamplesOfALinearBgrImageToSrgb() {
     final ColorSpace linear = ColorSpace.getInstance(ColorSpace.CS_LINEAR_RGB);
     final ComponentColorModel colorModel = new ComponentColorModel(linear, false, false, Transparency.OPAQUE, DataBuffer.TYPE_BYTE);
@@ -1252,6 +1261,33 @@ final class MatImageBufferTest {
     @Override
     public int getWidth() {
       return 0;
+    }
+  }
+
+  private static final class ConversionCountingImage extends BufferedImage {
+
+    private int conversions;
+
+    ConversionCountingImage() {
+      super(SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE, BufferedImage.TYPE_3BYTE_BGR);
+    }
+
+    @Override
+    public int[] getRGB(
+      final int startX,
+      final int startY,
+      final int width,
+      final int height,
+      final int @Nullable [] pixels,
+      final int offset,
+      final int scanlineSize
+    ) {
+      this.conversions++;
+      return super.getRGB(startX, startY, width, height, pixels, offset, scanlineSize);
+    }
+
+    int getConversions() {
+      return this.conversions;
     }
   }
 }
