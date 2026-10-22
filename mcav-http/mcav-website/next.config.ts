@@ -16,10 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {createHash} from "node:crypto";
-import {readdirSync, readFileSync, statSync} from "node:fs";
-import {join, relative, sep} from "node:path";
-import type {NextConfig} from "next";
+import { createHash } from "node:crypto";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, relative, sep } from "node:path";
+import type { NextConfig } from "next";
 
 const SOURCES = [
     "src",
@@ -55,7 +55,7 @@ function sourcesBuildId(): string {
 }
 
 const nextConfig: NextConfig = {
-    output: 'export',
+    output: "export",
     generateBuildId: async () => sourcesBuildId()
 };
 

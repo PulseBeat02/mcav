@@ -16,11 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-'use client';
+"use client";
 
-import React, {useCallback, useEffect, useRef, useState} from 'react';
-import Image from 'next/image';
-import styles from './page.module.css';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import styles from "./page.module.css";
 
 interface MediaInfo {
     title?: string;
@@ -63,12 +63,12 @@ class PCMProcessor {
 
     constructor(options: PCMProcessorOptions) {
         this.options = {
-            encoding: options.encoding || '16bitInt',
+            encoding: options.encoding || "16bitInt",
             channels: options.channels || 2,
             sampleRate: options.sampleRate || 48000,
             flushingTime: options.flushingTime || 2000,
             audioCtx: options.audioCtx || (
-                'webkitAudioContext' in window
+                "webkitAudioContext" in window
                     ? new (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext()
                     : new AudioContext()
             )
@@ -114,7 +114,7 @@ class PCMProcessor {
 
         const channels = this.options.channels;
         const cushion = Math.floor(this.options.sampleRate * CUSHION_SECONDS);
-        if (this.audioCtx.state !== 'running' || this.audioCtx.currentTime === this.scheduledAt) {
+        if (this.audioCtx.state !== "running" || this.audioCtx.currentTime === this.scheduledAt) {
             // a context that does not play yet, or whose clock has not moved since sound was last scheduled (Chrome
             // reports a starting context as running before its audio device runs), keeps only the newest sound, which
             // plays once it runs; whole frames are dropped, so the channels stay aligned
@@ -249,41 +249,41 @@ class PCMProcessor {
 }
 
 const formatDuration = (seconds?: number): string => {
-    if (!seconds || seconds === 0) return '--:--';
+    if (!seconds || seconds === 0) return "--:--";
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
     if (hours > 0) {
-        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    return `${minutes}:${secs.toString().padStart(2, "0")}`;
 };
 
 const formatNumber = (num?: number): string => {
-    if (!num || num === 0) return '0';
+    if (!num || num === 0) return "0";
     if (num >= 1000000) {
-        return (num / 1000000).toFixed(1) + 'M';
+        return (num / 1000000).toFixed(1) + "M";
     }
     if (num >= 1000) {
-        return (num / 1000).toFixed(1) + 'K';
+        return (num / 1000).toFixed(1) + "K";
     }
     return num.toString();
 };
 
 const formatDate = (dateString?: string | null): string => {
-    if (!dateString) return 'Unknown date';
+    if (!dateString) return "Unknown date";
     try {
-        const date = new Date(dateString.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'));
-        return date.toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'});
+        const date = new Date(dateString.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3"));
+        return date.toLocaleDateString("en-US", {year: "numeric", month: "short", day: "numeric"});
     } catch {
-        return 'Unknown date';
+        return "Unknown date";
     }
 };
 
 const unknownMediaInfo: MediaInfo = {
-    title: 'Unknown Title',
-    uploader: 'Unknown Artist',
-    description: 'No description available',
+    title: "Unknown Title",
+    uploader: "Unknown Artist",
+    description: "No description available",
     thumbnail: undefined,
     duration: 0,
     view_count: 0,
@@ -293,15 +293,15 @@ const unknownMediaInfo: MediaInfo = {
 
 const loadMediaInfo = async (): Promise<MediaInfo> => {
     try {
-        const response = await fetch('/media');
+        const response = await fetch("/media");
         if (!response.ok) {
             return unknownMediaInfo;
         }
         const data = await response.json();
         return {
-            title: data?.title || 'Unknown Title',
-            uploader: data?.uploader || data?.channel || data?.uploader_id || 'Unknown Artist',
-            description: data?.description || 'No description available',
+            title: data?.title || "Unknown Title",
+            uploader: data?.uploader || data?.channel || data?.uploader_id || "Unknown Artist",
+            description: data?.description || "No description available",
             thumbnail: data?.thumbnail,
             duration: data?.duration || 0,
             view_count: data?.view_count || 0,
@@ -309,7 +309,7 @@ const loadMediaInfo = async (): Promise<MediaInfo> => {
             upload_date: data?.upload_date || null
         };
     } catch (error) {
-        console.error('Error fetching media info:', error);
+        console.error("Error fetching media info:", error);
         return unknownMediaInfo;
     }
 };
@@ -325,7 +325,7 @@ const sameMediaInfo = (first: MediaInfo, second: MediaInfo): boolean =>
     && first.upload_date === second.upload_date;
 
 export default function AudioStreamPlayer() {
-    const [statusText, setStatusText] = useState('Disconnected');
+    const [statusText, setStatusText] = useState("Disconnected");
     const [statusConnected, setStatusConnected] = useState(false);
     const updateStatus = useCallback(
         (text: string, connected = false) => {
@@ -341,9 +341,9 @@ export default function AudioStreamPlayer() {
     const streamingRef = useRef(false);
     const connectRef = useRef<() => void>(() => {});
     const [mediaInfo, setMediaInfo] = useState<MediaInfo>({
-        title: 'Waiting for stream...',
-        uploader: 'Unknown Artist',
-        description: 'Connect to start streaming',
+        title: "Waiting for stream...",
+        uploader: "Unknown Artist",
+        description: "Connect to start streaming",
         duration: 0,
         view_count: 0,
         like_count: 0,
@@ -399,7 +399,7 @@ export default function AudioStreamPlayer() {
 
     const animateVisualizer = useCallback(() => {
         const canvas = canvasRef.current;
-        const ctx = canvas?.getContext('2d');
+        const ctx = canvas?.getContext("2d");
         const processor = pcmProcessorRef.current;
         if (!canvas || !ctx || !processor) return;
         if (animationIdRef.current !== null) {
@@ -427,7 +427,7 @@ export default function AudioStreamPlayer() {
             const centerY = height / 2;
             const maxAmplitude = height * 0.4;
             const xStep = width / dataLength;
-            ctx.fillStyle = '#000';
+            ctx.fillStyle = "#000";
             ctx.fillRect(0, 0, width, height);
 
             if (!gradient || Math.abs(hue - lastHue) > 5 || width !== lastWidth) {
@@ -481,7 +481,7 @@ export default function AudioStreamPlayer() {
                 try {
                     wsRef.current.send(new ArrayBuffer(0));
                 } catch (e) {
-                    console.error('Heartbeat failed:', e);
+                    console.error("Heartbeat failed:", e);
                 }
             }
         }, 30000);
@@ -500,7 +500,7 @@ export default function AudioStreamPlayer() {
         reconnectAttemptsRef.current++;
 
         if (reconnectAttemptsRef.current > maxReconnectAttempts) {
-            updateStatus('Maximum reconnection attempts reached');
+            updateStatus("Maximum reconnection attempts reached");
             shouldReconnectRef.current = false;
             setIsConnected(false);
             return;
@@ -510,7 +510,7 @@ export default function AudioStreamPlayer() {
 
         reconnectTimeoutRef.current = setTimeout(() => {
             reconnectTimeoutRef.current = null;
-            if (shouldReconnectRef.current && audioContextRef.current?.state === 'running') {
+            if (shouldReconnectRef.current && audioContextRef.current?.state === "running") {
                 connectRef.current();
             }
         }, delay);
@@ -550,21 +550,21 @@ export default function AudioStreamPlayer() {
 
         setIsConnected(false);
         setIsLoading(false);
-        updateStatus('Disconnected');
+        updateStatus("Disconnected");
 
         const canvas = canvasRef.current;
         if (canvas) {
-            const ctx = canvas.getContext('2d');
+            const ctx = canvas.getContext("2d");
             if (ctx) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
             }
         }
 
         if (placeholderRef.current) {
-            placeholderRef.current.style.display = 'block';
+            placeholderRef.current.style.display = "block";
         }
         if (canvasRef.current) {
-            canvasRef.current.style.display = 'none';
+            canvasRef.current.style.display = "none";
         }
     }, [stopMetadataRefresh, stopHeartbeat, updateStatus]);
 
@@ -588,10 +588,10 @@ export default function AudioStreamPlayer() {
             connectTimeoutRef.current = null;
             try {
                 setIsLoading(true);
-                updateStatus('Connecting...');
+                updateStatus("Connecting...");
 
                 pcmProcessorRef.current = new PCMProcessor({
-                    encoding: '16bitInt',
+                    encoding: "16bitInt",
                     channels: 2,
                     sampleRate: 48000,
                     flushingTime: 2000,
@@ -600,18 +600,18 @@ export default function AudioStreamPlayer() {
 
                 pcmProcessorRef.current.gainNode.gain.value = volumeRef.current / 100;
 
-                const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+                const scheme = window.location.protocol === "https:" ? "wss" : "ws";
                 const endpoint = `${scheme}://${window.location.host}/audio`;
 
                 const socket = new WebSocket(endpoint);
-                socket.binaryType = 'arraybuffer';
+                socket.binaryType = "arraybuffer";
                 wsRef.current = socket;
 
                 // a socket the page closed or replaced may still report its end; it no longer acts on the page, or its
                 // late close would reconnect a stream that was stopped and started again, next to the new one
                 socket.onopen = () => {
                     if (wsRef.current !== socket) return;
-                    updateStatus('Connected', true);
+                    updateStatus("Connected", true);
                     streamingRef.current = false;
                     setIsConnected(true);
                     shouldReconnectRef.current = true;
@@ -619,10 +619,10 @@ export default function AudioStreamPlayer() {
                     startHeartbeat();
 
                     if (placeholderRef.current) {
-                        placeholderRef.current.style.display = 'none';
+                        placeholderRef.current.style.display = "none";
                     }
                     if (canvasRef.current) {
-                        canvasRef.current.style.display = 'block';
+                        canvasRef.current.style.display = "block";
                     }
 
                     reconnectAttemptsRef.current = 0;
@@ -640,12 +640,12 @@ export default function AudioStreamPlayer() {
                         if (e.data.byteLength > 0 && pcmProcessorRef.current && !pcmProcessorRef.current.isDestroyed) {
                             if (!streamingRef.current) {
                                 streamingRef.current = true;
-                                updateStatus('Streaming audio', true);
+                                updateStatus("Streaming audio", true);
                             }
                             pcmProcessorRef.current.feed(e.data);
                         }
                     } catch (error) {
-                        console.error('Error processing audio data:', error);
+                        console.error("Error processing audio data:", error);
                         if (pcmProcessorRef.current) {
                             pcmProcessorRef.current.flush();
                         }
@@ -654,13 +654,13 @@ export default function AudioStreamPlayer() {
 
                 socket.onerror = (e) => {
                     if (wsRef.current !== socket) return;
-                    console.error('WebSocket error:', e);
+                    console.error("WebSocket error:", e);
                     setIsLoading(false);
                     if (shouldReconnectRef.current) {
-                        updateStatus('Connection error - reconnecting...');
+                        updateStatus("Connection error - reconnecting...");
                         attemptReconnect();
                     } else {
-                        updateStatus('Connection error');
+                        updateStatus("Connection error");
                         stopStream();
                     }
                 };
@@ -671,15 +671,15 @@ export default function AudioStreamPlayer() {
                     stopHeartbeat();
                     setIsLoading(false);
                     if (shouldReconnectRef.current) {
-                        updateStatus('Disconnected - reconnecting...');
+                        updateStatus("Disconnected - reconnecting...");
                         attemptReconnect();
                     } else {
-                        updateStatus('Disconnected');
+                        updateStatus("Disconnected");
                         stopStream();
                     }
                 };
             } catch (error) {
-                console.error('Error starting stream:', error);
+                console.error("Error starting stream:", error);
                 updateStatus(`Error: ${(error as Error).message}`);
                 setIsLoading(false);
                 if (shouldReconnectRef.current) {
@@ -714,7 +714,7 @@ export default function AudioStreamPlayer() {
             audioContextRef.current = null;
         }
 
-        if ('webkitAudioContext' in window) {
+        if ("webkitAudioContext" in window) {
             audioContextRef.current = new (window as typeof window & {
                 webkitAudioContext: typeof AudioContext
             }).webkitAudioContext();
@@ -723,12 +723,12 @@ export default function AudioStreamPlayer() {
         }
         updateStatus(`Audio permission: ${audioContextRef.current.state}`);
 
-        if (audioContextRef.current.state === 'running') {
+        if (audioContextRef.current.state === "running") {
             connectWebSocket();
         } else {
             audioContextRef.current.resume().then(() => {
-                updateStatus('Audio permission granted!');
-                if (audioContextRef.current?.state === 'running') {
+                updateStatus("Audio permission granted!");
+                if (audioContextRef.current?.state === "running") {
                     connectWebSocket();
                 } else {
                     shouldReconnectRef.current = false;
@@ -839,7 +839,7 @@ export default function AudioStreamPlayer() {
     }, [requestMediaInfo]);
 
     useEffect(() => {
-        if (mediaInfo.title && mediaInfo.title !== 'Waiting for stream...') {
+        if (mediaInfo.title && mediaInfo.title !== "Waiting for stream...") {
             setTimeout(checkTitleScrolling, 100);
         }
     }, [mediaInfo.title, checkTitleScrolling]);
@@ -852,12 +852,12 @@ export default function AudioStreamPlayer() {
                 </div>
 
                 <div
-                    className={`${styles.mediaInfo} ${mediaInfo.title && mediaInfo.title !== 'Waiting for stream...' ? styles.loaded : ''}`}>
+                    className={`${styles.mediaInfo} ${mediaInfo.title && mediaInfo.title !== "Waiting for stream..." ? styles.loaded : ""}`}>
                     <div className={styles.mediaThumbnail}>
                         {mediaInfo.thumbnail && mediaInfo.thumbnail !== failedThumbnail ? (
                             <Image
                                 src={mediaInfo.thumbnail}
-                                alt={mediaInfo.title || 'Media thumbnail'}
+                                alt={mediaInfo.title || "Media thumbnail"}
                                 width={128}
                                 height={128}
                                 unoptimized
@@ -871,11 +871,11 @@ export default function AudioStreamPlayer() {
                     <div className={styles.mediaDetails}>
                         <div className={styles.mediaTitleWrapper} ref={titleWrapperRef}>
                             <h2 className={styles.mediaTitle} ref={titleRef}>
-                                {mediaInfo.title || 'Waiting for stream...'}
+                                {mediaInfo.title || "Waiting for stream..."}
                             </h2>
                         </div>
                         <p className={styles.mediaUploader}>
-                            {mediaInfo.uploader || mediaInfo.channel || mediaInfo.uploader_id || 'Unknown Artist'}
+                            {mediaInfo.uploader || mediaInfo.channel || mediaInfo.uploader_id || "Unknown Artist"}
                         </p>
                         <div className={styles.mediaMetadata}>
                             <div className={styles.metadataItem}>
@@ -896,7 +896,7 @@ export default function AudioStreamPlayer() {
                             </div>
                         </div>
                         <p className={styles.mediaDescription}>
-                            {mediaInfo.description || 'Connect to start streaming'}
+                            {mediaInfo.description || "Connect to start streaming"}
                         </p>
                     </div>
                 </div>
@@ -908,7 +908,7 @@ export default function AudioStreamPlayer() {
                     <canvas
                         ref={canvasRef}
                         className={styles.visualizerCanvas}
-                        style={{ display: 'none' }}
+                        style={{ display: "none" }}
                     />
                 </div>
 
@@ -942,7 +942,7 @@ export default function AudioStreamPlayer() {
                 </div>
 
                 <div className={styles.statusPanel}>
-                    <div className={`${styles.status} ${statusConnected ? styles.statusConnected : ''}`}>
+                    <div className={`${styles.status} ${statusConnected ? styles.statusConnected : ""}`}>
                         {isLoading && <span className={styles.loadingSpinner}></span>}
                         {statusText}
                     </div>

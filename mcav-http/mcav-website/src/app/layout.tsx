@@ -1,5 +1,5 @@
-import type { Metadata } from 'next';
-import './globals.css';
+import type { Metadata } from "next";
+import "./globals.css";
 import React from "react";
 
 export const metadata: Metadata = {
@@ -8,9 +8,9 @@ export const metadata: Metadata = {
         default: "MCAV Audio",
     },
     description: "A website to serve audio from the MCAV platform.",
-    keywords: ['mcav', 'GitHub', 'audio', 'music', 'platform'],
+    keywords: ["mcav", "GitHub", "audio", "music", "platform"],
     icons: {
-        icon: 'favicon.ico?v=2'
+        icon: "favicon.ico?v=2"
     },
     robots: {
         index: true,
