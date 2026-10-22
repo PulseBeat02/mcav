@@ -8,27 +8,27 @@ are mixed so that your eyes blend them into the colors in between.
 The Minecraft map palette
 ```
 
-## Dithering Algorithms
+## Dithering algorithms
 
 MCAV implements the common families of dithering algorithms:
 
 - [Error Diffusion](https://en.wikipedia.org/wiki/Error_diffusion) spreads the error of every pixel to its neighbors,
   which gives the smoothest results.
-    - **Filter Lite**: the fastest error diffusion algorithm, with results close to Floyd-Steinberg. The recommended
+    - Filter Lite: the fastest error diffusion algorithm, with results close to Floyd-Steinberg. The recommended
       default.
     - [Floyd-Steinberg](https://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering): spreads the error to four
       neighbors.
-    - **Temporal Floyd-Steinberg**: Floyd-Steinberg that keeps the dither pattern stable between frames of a video, which
+    - Temporal Floyd-Steinberg: Floyd-Steinberg that keeps the dither pattern stable between frames of a video, which
       reduces flickering.
     - [Atkinson](https://en.wikipedia.org/wiki/Atkinson_dithering): spreads only part of the error to six neighbors,
       which gives crisper, higher contrast images.
-    - **Jarvis-Judice-Ninke**, **Stucki**, and **Burkes**: spread the error over twelve or seven neighbors for smoother
+    - Jarvis-Judice-Ninke, Stucki, and Burkes: spread the error over twelve or seven neighbors for smoother
       gradients at a higher cost.
-    - **Stevenson-Arce**: a hexagonal pattern over twelve neighbors.
+    - Stevenson-Arce: a hexagonal pattern over twelve neighbors.
 - [Ordered Dithering](https://en.wikipedia.org/wiki/Ordered_dithering) compares every pixel with a threshold matrix,
   such as a Bayer matrix. It is fast, parallel, and stable between frames, with a visible pattern.
-- **Random Dithering** adds noise before choosing the nearest color.
-- **Nearest Color** picks the closest palette color for every pixel without dithering. It is the fastest and looks the
+- Random Dithering adds noise before choosing the nearest color.
+- Nearest Color picks the closest palette color for every pixel without dithering. It is the fastest and looks the
   worst, because nothing blends the colors.
 
 ```{note}
@@ -49,7 +49,7 @@ The common algorithms have shortcuts, and every family has a builder for the rem
   final ErrorDiffusionDither atkinson = builder.build();
 ```
 
-## Using Maps to Display Frames
+## Using maps to display frames
 
 Describe the wall of maps with a `MapConfiguration`: the id of the top-left map, the size of the wall in maps, the
 resolution frames are scaled to, and the players who see the maps.
