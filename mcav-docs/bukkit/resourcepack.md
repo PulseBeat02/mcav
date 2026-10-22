@@ -30,7 +30,7 @@ format of every version.
 
 Players then hear the audio when the sound `mcav:example` is played to them.
 
-## Hosting Resource Packs
+## Hosting resource packs
 
 Players download resource packs from a URL. `PackHosting` offers three ways to provide one:
 
