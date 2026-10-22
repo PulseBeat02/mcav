@@ -59,20 +59,34 @@ final class IrisShaders {
   /** What to tell the server now. */
   Mcv2Report report() {
     if (!this.installed) {
-      return new Mcv2Report(false, ShaderPack.NONE, false);
+      final boolean irisPresent = false;
+      final boolean decodesUnderShaders = false;
+      return Mcv2Report.of(irisPresent, ShaderPack.NONE, decodesUnderShaders);
     }
 
     if (!this.apiMissing) {
       try {
-        final IrisApi iris = IrisApi.getInstance();
-        final boolean inUse = iris.isShaderPackInUse();
-        return inUse
-          ? new Mcv2Report(true, ShaderPack.IN_USE, this.decodesUnderShaders.getAsBoolean())
-          : new Mcv2Report(true, ShaderPack.NONE, false);
+        return this.reportShaderPack();
       } catch (final LinkageError exception) {
         this.apiMissing = true;
       }
     }
-    return new Mcv2Report(true, ShaderPack.UNKNOWN, false);
+
+    final boolean irisPresent = true;
+    final boolean decodesUnderShaders = false;
+    return Mcv2Report.of(irisPresent, ShaderPack.UNKNOWN, decodesUnderShaders);
+  }
+
+  private Mcv2Report reportShaderPack() {
+    final IrisApi iris = IrisApi.getInstance();
+    final boolean inUse = iris.isShaderPackInUse();
+    final boolean irisPresent = true;
+    if (!inUse) {
+      final boolean decodesUnderShaders = false;
+      return Mcv2Report.of(irisPresent, ShaderPack.NONE, decodesUnderShaders);
+    }
+
+    final boolean decodesUnderShaders = this.decodesUnderShaders.getAsBoolean();
+    return Mcv2Report.of(irisPresent, ShaderPack.IN_USE, decodesUnderShaders);
   }
 }

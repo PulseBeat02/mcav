@@ -45,6 +45,9 @@ import org.mockito.ArgumentCaptor;
 
 final class ShaderDecoderTest {
 
+  private static final boolean TESTED_IRIS = true;
+  private static final boolean UNTESTED_IRIS = false;
+
   private static final PackLayout LAYOUT = PackLayout.parse(PackLayoutTest.packConstants("7u", "2", "0", 1)).orElseThrow();
 
   private static final byte[] PAGE = MapFixtures.colours(MapFixtures.pageSymbols(7, 1));
@@ -130,7 +133,7 @@ final class ShaderDecoderTest {
 
   @Test
   void shouldDecodeTheFrameOnceTheShaderPacksFinalImageIsDone() throws ReflectiveOperationException {
-    final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
+    final ShaderDecoder decoder = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
     this.frame(decoder);
     decoder.rendered(this.allocator, this.camera);
     final ArgumentCaptor<byte[]> strip = ArgumentCaptor.forClass(byte[].class);
@@ -144,7 +147,7 @@ final class ShaderDecoderTest {
 
   @Test
   void shouldTakeOnlyTheProjectionTheGameRendersTheLevelWithAsTheFrames() throws ReflectiveOperationException {
-    final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
+    final ShaderDecoder decoder = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
     decoder.extracted(PAGE_TEXTURE, PAGE);
     decoder.extracted(ANCHOR_TEXTURE, ANCHOR);
     final PoseStack stack = new PoseStack();
@@ -163,7 +166,7 @@ final class ShaderDecoderTest {
     final StripAnchor anchor = StripAnchor.of(ANCHOR, CORNER_X, CORNER_Y, MAP_DEPTH + CORNER_Z);
     final byte[] written = strip.getValue();
     assertArrayEquals(TransportStrip.build(LAYOUT, WIDTH, List.of(PAGE), List.of(anchor), IDENTITY, PROJECTION), written);
-    final ShaderDecoder unmarked = this.decoder(true, WIDTH, HEIGHT);
+    final ShaderDecoder unmarked = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
     unmarked.extracted(PAGE_TEXTURE, PAGE);
     unmarked.extracted(ANCHOR_TEXTURE, ANCHOR);
     unmarked.posed(ANCHOR_TEXTURE, stack.last());
@@ -176,7 +179,7 @@ final class ShaderDecoderTest {
 
   @Test
   void shouldNotTakeTheMapsOfIrissShadowPassForTheScreens() throws ReflectiveOperationException {
-    final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
+    final ShaderDecoder decoder = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
     decoder.extracted(PAGE_TEXTURE, PAGE);
     decoder.extracted(ANCHOR_TEXTURE, ANCHOR);
     this.shadowPass.set(true);
@@ -200,7 +203,7 @@ final class ShaderDecoderTest {
   @Test
   void shouldDecodeUnderShadersOnlyWithTheTestedIrisOnceTheGameCalledEveryHook() throws ReflectiveOperationException {
     for (int missing = 0; missing < 4; missing++) {
-      final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
+      final ShaderDecoder decoder = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
       if (missing != 0) {
         decoder.extracted("picture", new byte[Mcv2Maps.COLOURS]);
       }
@@ -217,7 +220,7 @@ final class ShaderDecoderTest {
       final boolean decodesUnderShaders = decoder.decodesUnderShaders();
       assertFalse(decodesUnderShaders, "hook " + missing + " never ran");
     }
-    final ShaderDecoder untested = this.decoder(false, WIDTH, HEIGHT);
+    final ShaderDecoder untested = this.decoder(UNTESTED_IRIS, WIDTH, HEIGHT);
     this.frame(untested);
     untested.rendered(this.allocator, this.camera);
     final boolean untestedDecodesUnderShaders = untested.decodesUnderShaders();
@@ -227,7 +230,7 @@ final class ShaderDecoderTest {
 
   @Test
   void shouldLeaveAFrameWithoutProjectionMapsOrShaderPackAsIrisDrewIt() throws ReflectiveOperationException {
-    final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
+    final ShaderDecoder decoder = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
     decoder.extracted(PAGE_TEXTURE, PAGE);
     decoder.rendered(this.allocator, this.camera);
     decoder.projecting();
@@ -248,7 +251,7 @@ final class ShaderDecoderTest {
   @Test
   void shouldNeedTheLayoutOfAnMcv2Pack() throws ReflectiveOperationException {
     this.packConstants.set(Optional.empty());
-    final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
+    final ShaderDecoder decoder = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
     this.frame(decoder);
     decoder.rendered(this.allocator, this.camera);
     this.packConstants.set(Optional.of("// a pack without MCV2 screens"));
@@ -261,16 +264,16 @@ final class ShaderDecoderTest {
   @Test
   void shouldNeedAWindowWideEnoughForADescriptorAndHighEnoughForTheStrip() throws ReflectiveOperationException {
     for (final int[] size : List.of(new int[] { 63, 4096 }, new int[] { WIDTH, ROWS - 1 }, new int[] { WIDTH, ROWS })) {
-      final ShaderDecoder decoder = this.decoder(true, size[0], size[1]);
+      final ShaderDecoder decoder = this.decoder(TESTED_IRIS, size[0], size[1]);
       this.frame(decoder);
       decoder.rendered(this.allocator, this.camera);
     }
     verify(this.output, never()).decode(any(), anyInt(), any());
-    final ShaderDecoder fits = this.decoder(true, WIDTH, ROWS + 1);
+    final ShaderDecoder fits = this.decoder(TESTED_IRIS, WIDTH, ROWS + 1);
     this.frame(fits);
     fits.rendered(this.allocator, this.camera);
     verify(this.output).decode(any(), eq(ROWS), same(this.allocator));
-    final ShaderDecoder narrow = this.decoder(true, 64, 4096);
+    final ShaderDecoder narrow = this.decoder(TESTED_IRIS, 64, 4096);
     this.frame(narrow);
     narrow.rendered(this.allocator, this.camera);
     verify(this.output).decode(any(), eq(PackLayout.rowsPerPage(64) * 2 + 1), same(this.allocator));
@@ -278,7 +281,7 @@ final class ShaderDecoderTest {
 
   @Test
   void shouldReadThePacksLayoutAgainEverySecond() throws ReflectiveOperationException {
-    final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
+    final ShaderDecoder decoder = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
     for (final long now : new long[] {
       0,
       LAYOUT_NANOSECONDS - 1,
@@ -297,7 +300,7 @@ final class ShaderDecoderTest {
 
   @Test
   void shouldMakeTheMixinsReportToTheInstalledDecoder() {
-    final ShaderDecoder decoder = this.decoder(true, WIDTH, HEIGHT);
+    final ShaderDecoder decoder = this.decoder(TESTED_IRIS, WIDTH, HEIGHT);
     ShaderDecoder.install(decoder);
     final Optional<ShaderDecoder> current = ShaderDecoder.current();
     assertEquals(Optional.of(decoder), current);

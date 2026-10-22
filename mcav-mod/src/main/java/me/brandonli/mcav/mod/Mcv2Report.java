@@ -17,27 +17,88 @@
  */
 package me.brandonli.mcav.mod;
 
+import com.google.common.base.MoreObjects;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * What the mod tells the server: version 1 of a report is four bytes, the version, 1 if Iris is installed, the shader
  * pack's code, and 1 if MCV2 decodes under the shader pack in use.
- *
- * @param irisPresent         whether Iris is installed
- * @param shaderPack          what Iris says of its shader pack
- * @param decodesUnderShaders whether MCV2 decodes under the shader pack
  */
-record Mcv2Report(boolean irisPresent, ShaderPack shaderPack, boolean decodesUnderShaders) {
+final class Mcv2Report {
+
   /** The version of the reports this mod sends. */
   private static final byte VERSION = 1;
 
   private static final byte FLAG_SET = 1;
   private static final byte FLAG_CLEAR = 0;
 
-  /** The report as it is sent. */
-  byte[] toBytes() {
-    return new byte[] { VERSION, flag(this.irisPresent), this.shaderPack.code(), flag(this.decodesUnderShaders) };
+  private final boolean irisPresent;
+  private final ShaderPack shaderPack;
+  private final boolean decodesUnderShaders;
+
+  private Mcv2Report(final boolean irisPresent, final ShaderPack shaderPack, final boolean decodesUnderShaders) {
+    this.irisPresent = irisPresent;
+    this.shaderPack = shaderPack;
+    this.decodesUnderShaders = decodesUnderShaders;
   }
 
-  private static byte flag(final boolean set) {
+  static Mcv2Report of(final boolean irisPresent, final ShaderPack shaderPack, final boolean decodesUnderShaders) {
+    return new Mcv2Report(irisPresent, shaderPack, decodesUnderShaders);
+  }
+
+  /** The report as it is sent. */
+  byte[] toBytes() {
+    final byte iris = this.flag(this.irisPresent);
+    final byte code = this.shaderPack.code();
+    final byte decodes = this.flag(this.decodesUnderShaders);
+    return new byte[] { VERSION, iris, code, decodes };
+  }
+
+  private byte flag(final boolean set) {
     return set ? FLAG_SET : FLAG_CLEAR;
+  }
+
+  boolean isIrisPresent() {
+    return this.irisPresent;
+  }
+
+  ShaderPack getShaderPack() {
+    return this.shaderPack;
+  }
+
+  boolean canDecodeUnderShaders() {
+    return this.decodesUnderShaders;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final Mcv2Report report)) {
+      return false;
+    }
+
+    return (
+      this.irisPresent == report.irisPresent &&
+      this.shaderPack == report.shaderPack &&
+      this.decodesUnderShaders == report.decodesUnderShaders
+    );
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.irisPresent, this.shaderPack, this.decodesUnderShaders);
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+      .add("irisPresent", this.irisPresent)
+      .add("shaderPack", this.shaderPack)
+      .add("decodesUnderShaders", this.decodesUnderShaders)
+      .toString();
   }
 }

@@ -31,9 +31,13 @@ import org.junit.jupiter.api.Test;
 
 final class Mcv2ReporterTest {
 
-  private static final Mcv2Report SHADERS_OFF = new Mcv2Report(true, ShaderPack.NONE, false);
+  private static final boolean IRIS_INSTALLED = true;
 
-  private static final Mcv2Report SHADERS_ON = new Mcv2Report(true, ShaderPack.IN_USE, false);
+  private static final boolean DOES_NOT_DECODE = false;
+
+  private static final Mcv2Report SHADERS_OFF = Mcv2Report.of(IRIS_INSTALLED, ShaderPack.NONE, DOES_NOT_DECODE);
+
+  private static final Mcv2Report SHADERS_ON = Mcv2Report.of(IRIS_INSTALLED, ShaderPack.IN_USE, DOES_NOT_DECODE);
 
   private final AtomicLong clock = new AtomicLong(Long.MAX_VALUE - Mcv2Reporter.STEADY_NANOSECONDS);
 
