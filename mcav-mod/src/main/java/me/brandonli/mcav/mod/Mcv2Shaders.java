@@ -50,7 +50,9 @@ public final class Mcv2Shaders {
   /** The vanilla post chain the MCV2 pack replaces with its decoder. */
   static final Identifier OUTLINE_CHAIN = Identifier.withDefaultNamespace("entity_outline");
 
-  private Mcv2Shaders() {}
+  private Mcv2Shaders() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+  }
 
   /**
    * The game extracted a map's state, before it renders the level.

@@ -109,4 +109,9 @@ final class Mcv2MapsTest {
     final boolean fifthFacingReadAsAnchor = Mcv2Maps.isAnchor(MapFixtures.colours(MapFixtures.anchorSymbols(0, 0, 1, 1, 4, 7)));
     assertFalse(fifthFacingReadAsAnchor);
   }
+
+  @Test
+  void shouldNotBeInstantiated() {
+    UtilityClassAssertions.assertNotInstantiable(Mcv2Maps.class);
+  }
 }

@@ -228,4 +228,9 @@ final class Mcv2ShadersTest {
     final Optional<String> layout = Mcv2Shaders.read(unreadable);
     assertEquals(Optional.empty(), layout);
   }
+
+  @Test
+  void shouldNotBeInstantiated() {
+    UtilityClassAssertions.assertNotInstantiable(Mcv2Shaders.class);
+  }
 }

@@ -97,7 +97,9 @@ final class TransportStrip {
   private static final int WEST = 2;
   private static final int NORTH = 3;
 
-  private TransportStrip() {}
+  private TransportStrip() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+  }
 
   /**
    * Builds the strip.

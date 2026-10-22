@@ -34,7 +34,9 @@ final class MapFixtures {
 
   private static final int SYMBOL_MASK = 63;
 
-  private MapFixtures() {}
+  private MapFixtures() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+  }
 
   /** A map's colours: the symbols, and symbol 0 after them. */
   static byte[] colours(final int[] symbols) {

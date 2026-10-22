@@ -47,7 +47,9 @@ final class Mcv2Maps {
 
   private static final int LAST_FACING = 3;
 
-  private Mcv2Maps() {}
+  private Mcv2Maps() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
+  }
 
   /**
    * Reads a symbol.

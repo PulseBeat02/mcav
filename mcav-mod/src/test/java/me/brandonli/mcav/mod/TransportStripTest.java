@@ -198,6 +198,11 @@ final class TransportStripTest {
     assertArrayEquals(new float[] { 1 + 10 + 27 + 52, 2 + 12 + 30 + 56, 3 + 14 + 33 + 60 }, transformed);
   }
 
+  @Test
+  void shouldNotBeInstantiated() {
+    UtilityClassAssertions.assertNotInstantiable(TransportStrip.class);
+  }
+
   private static float[] times(final float[] matrix, final float vectorX, final float vectorY, final float vectorZ, final float vectorW) {
     final float[] transformed = new float[3];
     for (int row = 0; row < 3; row++) {
