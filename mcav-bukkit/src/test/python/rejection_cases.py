@@ -26,7 +26,7 @@ BYTE_ORDER: str = '<'
 BYTE_CODE: str = 'B'
 HALF_WORD_CODE: str = 'H'
 WORD_CODE: str = 'I'
-WORD = struct.Struct(BYTE_ORDER + WORD_CODE)
+WORD: struct.Struct = struct.Struct(BYTE_ORDER + WORD_CODE)
 
 FRAME_KEY: str = 'frame'
 

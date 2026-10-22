@@ -89,7 +89,9 @@ class CaptureCheckTest(unittest.TestCase):
         ambiguous_reference_frames: float | int | str = result[AMBIGUOUS_REFERENCE_FRAMES_KEY]
         self.assertEqual(2, ambiguous_reference_frames)
 
-    def report(self, references: list[numpy.ndarray], captures: list[numpy.ndarray]) -> tuple[int, dict[str, float | int | str], str]:
+    def report(
+        self, references: list[numpy.ndarray], captures: list[numpy.ndarray]
+    ) -> tuple[str | int | None, dict[str, float | int | str], str]:
         with tempfile.TemporaryDirectory() as directory:
             root: Path = Path(directory)
             reference: Path = root / REFERENCE_NAME

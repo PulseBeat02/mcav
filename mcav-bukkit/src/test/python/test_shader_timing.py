@@ -52,7 +52,7 @@ PREDICTED_FRAME_ID: int = 2
 VERSION_TWO: int = 2
 VERSION_TWO_HEADER_BYTES: int = 32
 VERSION_TWO_FLAGS_OFFSET: int = 6
-DIMENSIONS = struct.Struct("<HH")
+DIMENSIONS: struct.Struct = struct.Struct("<HH")
 
 DECODE_MILLISECONDS: float = 1.0
 SCREEN_MILLISECONDS: float = 2.0
@@ -173,12 +173,12 @@ class TimerAccountingTest(unittest.TestCase):
 
 
 def run(
-    *options,
+    *options: str,
     missed: set[tuple[int, int]] | tuple[()] = (),
     again: set[tuple[int, int]] | tuple[()] = (),
     changed: set[tuple[int, int]] | tuple[()] = (),
     version: int = mcv2_reference.VERSION,
-    received: None = None
+    received: list[Any] | None = None
 ) -> str | int | None:
     """Runs main() on a stream of a keyframe and a P frame, and returns its exit code; 0 when it returns."""
     context: types.SimpleNamespace = types.SimpleNamespace(info={"GL_RENDERER": "fake", "GL_VERSION": GL_VERSION})
@@ -216,12 +216,12 @@ class FakeChain:
     missed: frozenset[Any] = frozenset()
     again: frozenset[Any] = frozenset()
     changed: frozenset[Any] = frozenset()
-    received: None = None
+    received: list[Any] | None = None
 
     def __init__(self, context: types.SimpleNamespace, width: int, height: int, slots: int) -> None:
-        self.round = -1
-        self.index = 0
-        self.first = True
+        self.round: int = -1
+        self.index: int = 0
+        self.first: bool = True
 
     def reset(self) -> None:
         self.round += 1
@@ -278,7 +278,7 @@ class FakeQuery:
     def __enter__(self) -> "FakeQuery":
         return self
 
-    def __exit__(self, *unused) -> None:
+    def __exit__(self, *unused: object) -> None:
         pass
 
 

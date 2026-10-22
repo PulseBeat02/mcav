@@ -168,7 +168,7 @@ class ChartCommandTest(unittest.TestCase):
             message: str = f"Matplotlib is missing, but the chart pixels need matplotlib {MATPLOTLIB_VERSION} and the {CHART_FONT} font!"
             self.skipTest(message)
 
-        font_path = font_manager.findfont(font_manager.FontProperties(family=mcv2_tools.CHARTS_FONT))
+        font_path: str = font_manager.findfont(font_manager.FontProperties(family=mcv2_tools.CHARTS_FONT))
         font: str = font_manager.FontProperties(fname=font_path).get_name()
         if matplotlib.__version__ != MATPLOTLIB_VERSION or font != CHART_FONT:
             version: str = matplotlib.__version__

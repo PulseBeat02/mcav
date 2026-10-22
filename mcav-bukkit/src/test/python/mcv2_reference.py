@@ -30,7 +30,7 @@ VERSION: int = 3
 VERSION_1_MAGIC: bytes = b"MCV1"
 VERSION_2_PREFIX: bytes = b"MCV2\x02"
 
-HEADER = struct.Struct("<4sIHHII")
+HEADER: struct.Struct = struct.Struct("<4sIHHII")
 HEADER_BYTES: int = 20
 MAGIC_OFFSET: int = 0
 VERSION_OFFSET: int = 4
@@ -41,7 +41,7 @@ REFERENCE_ID_OFFSET: int = 16
 
 WORD_BYTES: int = 4
 WORDS_FORMAT: str = "<{}I"
-LEVEL_COUNTS = struct.Struct("<III")
+LEVEL_COUNTS: struct.Struct = struct.Struct("<III")
 
 BITS_PER_BYTE: int = 8
 BIT_ORDER: str = "little"
@@ -100,9 +100,9 @@ HALF_PIXEL: float = 0.5
 
 PAGE_MAGIC: bytes = b"MCP1"
 PAGE_VERSION: int = 1
-PAGE_HEADER = struct.Struct("<4sBBHIIHHIII")
+PAGE_HEADER: struct.Struct = struct.Struct("<4sBBHIIHHIII")
 PAGE_HEADER_BYTES: int = 32
-PAGE_CRC = struct.Struct("<I")
+PAGE_CRC: struct.Struct = struct.Struct("<I")
 PAGE_CRC_OFFSET: int = 28
 MAXIMUM_PAGE_FLAGS: int = KEYFRAME
 DEFAULT_STREAM_ID: int = 1
@@ -532,12 +532,12 @@ def _presence_masks(roots: Mapping[int, Node], root_count: int) -> list[int]:
 
 class _TreeWriter:
     def __init__(self, keyframe: bool) -> None:
-        self.keyframe = keyframe
-        self.levels = []
-        self.descriptors = bytearray()
-        self.records = bytearray()
-        self.walk = []
-        self.splits = 0
+        self.keyframe: bool = keyframe
+        self.levels: list[int] = []
+        self.descriptors: bytearray = bytearray()
+        self.records: bytearray = bytearray()
+        self.walk: list[int] = []
+        self.splits: int = 0
 
     def write_tree(self, roots: Mapping[int, Node]) -> None:
         current: list[Node] = [roots[root] for root in sorted(roots)]
@@ -902,8 +902,8 @@ class Assembler:
 
     def __init__(self, stream_id: int = DEFAULT_STREAM_ID, symbol_bits: int = SYMBOL_BITS) -> None:
         _check_symbol_bits(symbol_bits)
-        self.stream_id = stream_id
-        self.symbol_bits = symbol_bits
+        self.stream_id: int = stream_id
+        self.symbol_bits: int = symbol_bits
         self.pending: dict[int, dict[int, Page]] = {}
 
     def push(self, symbols: bytes) -> bytes | None:

@@ -34,7 +34,7 @@ from collections.abc import Callable, Generator, Iterator, Sequence
 from datetime import datetime
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
-from typing import Any, IO
+from typing import Any, IO, TYPE_CHECKING
 
 import mcv2_reference
 import numpy
@@ -87,6 +87,9 @@ from mcv2_reference import (
     read_page,
     wire_bytes,
 )
+
+if TYPE_CHECKING:
+    import moderngl
 
 SUCCESS_EXIT_CODE: int = 0
 FAILURE_EXIT_CODE: int = 1
@@ -1056,8 +1059,8 @@ def vmaf_filter(log: str | Path, threads: int | None = VMAF_THREADS) -> str:
 
 def codec_curves_rgb_psnr(source: Any, decoded: str, frames: Any, width: Any, height: Any) -> float:
     shape: tuple[Any, Any, Any, int] = (frames, height, width, CHANNELS)
-    reference_frames = numpy.memmap(source, dtype=numpy.uint8, mode="r", shape=shape)
-    picture = numpy.memmap(decoded, dtype=numpy.uint8, mode="r", shape=shape)
+    reference_frames: numpy.memmap = numpy.memmap(source, dtype=numpy.uint8, mode="r", shape=shape)
+    picture: numpy.memmap = numpy.memmap(decoded, dtype=numpy.uint8, mode="r", shape=shape)
     errors: list[float] = []
     for first, second in zip(reference_frames, picture, strict=True):
         difference: Any = first.astype(numpy.float64) - second.astype(numpy.float64)
@@ -1103,7 +1106,7 @@ def counter_video_main() -> None:
     arguments: argparse.Namespace = parser.parse_args()
     width, height = (arguments.width, arguments.height)
     size: Any = width * height * CHANNELS
-    clip = numpy.memmap(arguments.clip, dtype=numpy.uint8, mode="r")
+    clip: numpy.memmap = numpy.memmap(arguments.clip, dtype=numpy.uint8, mode="r")
     count: Any = clip.size // size
     if (
         count < 1
@@ -1205,7 +1208,8 @@ def capture_check_main() -> None:
     index: dict[Any, Any] = {}
     for frame_index, frame in enumerate(reference_frames):
         index.setdefault(hashlib.sha256(frame.tobytes()).hexdigest(), []).append(frame_index)
-    exact, near = ({}, [])
+    exact: dict[str, str] = {}
+    near: list[tuple[str, int, float]] = []
     pairs: list[tuple[Any, numpy.ndarray]] = []
     for path in paths:
         screen: numpy.ndarray = numpy.asarray(Image.open(path).convert("RGB"))
@@ -1261,7 +1265,7 @@ def capture_check_main() -> None:
 
 
 def capture_check_psnr(captured: numpy.ndarray, expected: numpy.ndarray) -> float:
-    mean_squared_error = numpy.mean((captured.astype(numpy.float64) - expected.astype(numpy.float64)) ** 2)
+    mean_squared_error: numpy.floating = numpy.mean((captured.astype(numpy.float64) - expected.astype(numpy.float64)) ** 2)
     return math.inf if mean_squared_error == 0 else float(DECIBELS_PER_BEL * numpy.log10(MAXIMUM_CHANNEL**2 / mean_squared_error))
 
 
@@ -1718,7 +1722,7 @@ def fixtures_write_json(path: Path, value: Any | dict[Any, Any]) -> None:
     path.write_text(json.dumps(value, indent=JSON_INDENT) + LINE_SEPARATOR)
 
 
-def fixtures_edge(root) -> None:
+def fixtures_edge(root: Path) -> None:
     edge_streams_generate(root / EDGE_DIRECTORY)
 
 
@@ -1767,7 +1771,7 @@ def fixtures_pages(root: Path) -> None:
     )
 
 
-def read_archive(path: Path) -> Iterator[bytes]:
+def read_archive(path: str | Path) -> Iterator[bytes]:
     return archive_frames(Path(path).read_bytes())
 
 
@@ -1852,7 +1856,7 @@ def differential_run(arguments: argparse.Namespace | SimpleNamespace) -> int:
     return FAILURE_EXIT_CODE if disagreements else SUCCESS_EXIT_CODE
 
 
-def differential_build_archives(arguments: SimpleNamespace) -> dict[str, list[bytes]]:
+def differential_build_archives(arguments: argparse.Namespace | SimpleNamespace) -> dict[str, list[bytes]]:
     randomizer: random.Random = random.Random(arguments.seed)
     archives: dict[str, list[bytes]] = {
         f"tree-{index:04d}": edge_streams_random_stream(randomizer) for index in range(arguments.streams)
@@ -1884,11 +1888,11 @@ def differential_mutant(original: list[bytes], randomizer: random.Random) -> lis
         raise ValueError(message)
 
     if randomizer.random() < DIFFERENTIAL_MUTATION_CHANCE:
-        victim: int = randomizer.choice(nonempty)
-        mutated[victim] = mutated[victim][: randomizer.randrange(len(mutated[victim]))]
+        victim_index: int = randomizer.choice(nonempty)
+        mutated[victim_index] = mutated[victim_index][: randomizer.randrange(len(mutated[victim_index]))]
     else:
         for _ in range(randomizer.randint(1, DIFFERENTIAL_MAXIMUM_FLIPS)):
-            victim = mutated[randomizer.choice(nonempty)]
+            victim: bytearray = mutated[randomizer.choice(nonempty)]
             limit: int = min(len(victim), DIFFERENTIAL_HEAD_BYTES) if randomizer.random() < DIFFERENTIAL_HEAD_CHANCE else len(victim)
             victim[randomizer.randrange(limit)] ^= randomizer.randint(1, BYTE_VALUES - 1)
     if mutated == original:
@@ -2057,7 +2061,7 @@ def shader_check_main() -> None:
         shader_check_pack = arguments.pack
     import moderngl
 
-    context = moderngl.create_standalone_context(
+    context: moderngl.Context = moderngl.create_standalone_context(
         require=GL_VERSION, **{"backend": EGL_BACKEND} if arguments.backend == EGL_BACKEND else {}
     )
     print(context.info[GL_RENDERER_KEY])
@@ -2069,7 +2073,7 @@ def shader_check_main() -> None:
     sys.exit(FAILURE_EXIT_CODE if failures else SUCCESS_EXIT_CODE)
 
 
-def shader_check_stream(context, arguments: argparse.Namespace, stream: Any) -> int:
+def shader_check_stream(context: "moderngl.Context", arguments: argparse.Namespace, stream: Any) -> int:
     check: ShaderStreamCheck = ShaderStreamCheck(context, arguments)
     for index, frame in enumerate(read_archive(stream)):
         check.check_frame(index, frame)
@@ -2080,14 +2084,14 @@ def shader_check_stream(context, arguments: argparse.Namespace, stream: Any) -> 
 
 class ShaderStreamCheck:
     def __init__(self, context: Any, arguments: argparse.Namespace) -> None:
-        self.context = context
-        self.arguments = arguments
-        self.chain = None
-        self.last_id = None
-        self.shown = None
-        self.decoded = 0
-        self.skipped = 0
-        self.wrong = 0
+        self.context: Any = context
+        self.arguments: argparse.Namespace = arguments
+        self.chain: ShaderChain | None = None
+        self.last_id: int | None = None
+        self.shown: numpy.ndarray | None = None
+        self.decoded: int = 0
+        self.skipped: int = 0
+        self.wrong: int = 0
 
     def check_frame(self, index: int, frame: bytes) -> None:
         width, height = struct.unpack_from(DIMENSIONS_FORMAT, frame, WIDTH_OFFSET)
@@ -2100,7 +2104,7 @@ class ShaderStreamCheck:
 
         pages: list[bytes] = make_pages(frame, SHADER_CHECK_STREAM_ID, SYMBOL_BITS)
         # Mcv2Channel.send refuses a frame with more pages than slots, so the client never receives it.
-        delta: None = None if self.last_id is None else (frame_id - self.last_id) & ID_MASK
+        delta: int | None = None if self.last_id is None else (frame_id - self.last_id) & ID_MASK
         newer: bool = delta is None or (delta > 0 and (keyframe or delta < ID_HALF_RANGE))
         decodable: bool | Any = (
             newer
@@ -2153,23 +2157,25 @@ class ShaderStreamCheck:
 
 class ShaderChain:
     def __init__(self, context: Any | SimpleNamespace, width: Any | int, height: Any | int, slots: Any | int) -> None:
-        self.context = context
-        self.width, self.height, self.slots = (width, height, slots)
-        self.includes = shader_check_generated(width, height, slots)
-        self.programs = {}
-        self.framebuffers = {}
-        self.arrays = {}
+        self.context: Any | SimpleNamespace = context
+        self.width: int = width
+        self.height: int = height
+        self.slots: int = slots
+        self.includes: dict[str, str] = shader_check_generated(width, height, slots)
+        self.programs: dict[tuple[Any, str], moderngl.Program] = {}
+        self.framebuffers: dict[str, moderngl.Framebuffer] = {}
+        self.arrays: dict[int, moderngl.VertexArray] = {}
         chain: dict[Any, Any] = shader_check_post_chain(width, height, slots)
-        self.passes = chain[PASSES_KEY]
+        self.passes: list[dict[str, Any]] = chain[PASSES_KEY]
         make: Callable[[Any, Any], Any] = lambda width, height: context.texture((width, height), RGBA_CHANNELS, dtype="f1")
-        self.main = make(*shader_check_screen)
-        self.depth = context.depth_texture(shader_check_screen)
+        self.main: moderngl.Texture = make(*shader_check_screen)
+        self.depth: moderngl.Texture = context.depth_texture(shader_check_screen)
         self.depth.compare_func = ""
         framebuffer: Any = context.framebuffer(depth_attachment=self.depth)
         framebuffer.clear(depth=0.0)
         framebuffer.release()
-        self.targets = {"minecraft:main": self.main, "minecraft:entity_outline": make(*shader_check_screen)}
-        self.persistent = []
+        self.targets: dict[str, moderngl.Texture] = {"minecraft:main": self.main, "minecraft:entity_outline": make(*shader_check_screen)}
+        self.persistent: list[str] = []
         for name, definition in chain[TARGETS_KEY].items():
             self.targets[name] = make(
                 definition.get("width", shader_check_screen[0]), definition.get("height", shader_check_screen[1])
@@ -2179,8 +2185,8 @@ class ShaderChain:
         for texture in self.targets.values():
             texture.filter = (context.NEAREST, context.NEAREST)
             texture.write(bytes(texture.width * texture.height * RGBA_CHANNELS))
-        self.blit = context.program(vertex_shader=SHADER_CHECK_VERTEX, fragment_shader=SHADER_CHECK_BLIT)
-        self.compiled = None
+        self.blit: moderngl.Program = context.program(vertex_shader=SHADER_CHECK_VERTEX, fragment_shader=SHADER_CHECK_BLIT)
+        self.compiled: Path | None = None
 
     def target(self, name: str) -> Any:
         target_name: str = (
@@ -2376,10 +2382,10 @@ def shader_check_desktop(source: str) -> str:
     return source.replace("gl_VertexIndex", "gl_VertexID")
 
 
-def shader_check_resolve(source: Any | str, includes: Any, seen: None = None) -> str:
+def shader_check_resolve(source: Any | str, includes: Any, seen: set[str] | None = None) -> str:
     seen = set() if seen is None else seen
 
-    def include(match) -> str:
+    def include(match: re.Match[str]) -> str:
         name: Any = match.group(1)
         if name in seen:
             return ""
@@ -2429,13 +2435,14 @@ def shader_check_compile_via_spirv(includes: Any, classpath: Any) -> Path:
     return work / COMPILED_SHADERS_NAME
 
 
-def shader_check_check_restart(context, slots: Any, classpath: None = None) -> int:
+def shader_check_check_restart(context: "moderngl.Context", slots: Any, classpath: str | None = None) -> int:
     """Known pictures and decisions: a restarted keyframe can move backwards, P frames cannot."""
 
     chain: ShaderChain = ShaderChain(context, SUPERBLOCK_SIZE, SUPERBLOCK_SIZE, slots)
     if classpath:
         chain.compiled = shader_check_compile_via_spirv(chain.includes, classpath)
-    failures = committed = 0
+    failures: int = 0
+    committed: int = 0
     held_id: int | None = None
     for index, (frame_id, reference_id, color, should_decode, expected_color) in enumerate(SHADER_CHECK_RESTART_CASES):
         data: bytes = pack_frame(SUPERBLOCK_SIZE, SUPERBLOCK_SIZE, frame_id, reference_id, {0: Node(SOLID, record=bytes(color))})
@@ -2494,7 +2501,7 @@ def shader_timing_main() -> None:
     else:
         page_maker = make_pages
     options: dict[str, Any] = {"backend": arguments.backend} if arguments.backend == EGL_BACKEND else {}
-    context = moderngl.create_standalone_context(require=GL_VERSION, **options)
+    context: moderngl.Context = moderngl.create_standalone_context(require=GL_VERSION, **options)
     renderer: Any = context.info[GL_RENDERER_KEY]
     print(renderer, context.info[GL_VERSION_KEY])
     report: dict[str, Any] = dict(
@@ -2515,7 +2522,7 @@ def shader_timing_main() -> None:
 
 
 def shader_timing_stream(
-    context: SimpleNamespace, arguments: argparse.Namespace, page_maker: Any, stream: str
+    context: "moderngl.Context", arguments: argparse.Namespace, page_maker: Any, stream: str
 ) -> tuple[dict[str, Any], int]:
     frames: list[bytes] = list(read_archive(stream))
     width, height = struct.unpack_from(DIMENSIONS_FORMAT, frames[0], WIDTH_OFFSET)
@@ -2547,9 +2554,9 @@ def shader_timing_stream(
 
 
 class TimedShaderChain(ShaderChain):
-    def __init__(self, context: SimpleNamespace, width: Any, height: Any, slots: Any) -> None:
+    def __init__(self, context: "moderngl.Context", width: Any, height: Any, slots: Any) -> None:
         super().__init__(context, width, height, slots)
-        self.queries = {}
+        self.queries: dict[str, moderngl.Query] = {}
 
     def show(self, pages: list[bytes]) -> None:
         super().show(pages)
@@ -2635,17 +2642,17 @@ def shader_timing_perspective(field_of_view_y: float, aspect: float, near: float
 
 class ShaderTimingRounds:
     def __init__(self, chain: TimedShaderChain, pages: list[list[bytes]], keyframes: list[bool], repeats: int) -> None:
-        self.chain = chain
-        self.pages = pages
-        self.keyframes = keyframes
-        self.repeats = repeats
-        self.names = None
-        self.first_pictures = None
-        self.new_keyframes = []
-        self.new_predicted_frames = []
-        self.idle = []
-        self.mismatches = 0
-        self.failures = 0
+        self.chain: TimedShaderChain = chain
+        self.pages: list[list[bytes]] = pages
+        self.keyframes: list[bool] = keyframes
+        self.repeats: int = repeats
+        self.names: tuple[str, ...] | None = None
+        self.first_pictures: list[bytes] | None = None
+        self.new_keyframes: list[dict[str, float]] = []
+        self.new_predicted_frames: list[dict[str, float]] = []
+        self.idle: list[dict[str, float]] = []
+        self.mismatches: int = 0
+        self.failures: int = 0
 
     def run(self, round_index: int) -> None:
         self.chain.reset()
@@ -2681,7 +2688,7 @@ class ShaderTimingRounds:
             )
 
 
-def shader_timing_summarize(samples: list[dict[str, float]], names: tuple[str, str]) -> dict[str, dict[str, float | int]]:
+def shader_timing_summarize(samples: list[dict[str, float]], names: tuple[str, ...]) -> dict[str, dict[str, float | int]]:
     out: dict[str, dict[str, float]] = {}
     for name in names + (TOTAL_TIMING_NAME,):
         values: numpy.ndarray = numpy.array([sample[name] for sample in samples]) if samples else numpy.zeros(1)
@@ -2691,7 +2698,7 @@ def shader_timing_summarize(samples: list[dict[str, float]], names: tuple[str, s
 
 
 def shader_timing_print(
-    stream_name: str, result: dict[str, dict[str, dict[str, float | int]] | int], names: tuple[str, str], rounds_counted: int
+    stream_name: str, result: dict[str, dict[str, dict[str, float | int]] | int], names: tuple[str, ...], rounds_counted: int
 ) -> None:
     print(
         "%s (%dx%d, %d frames, %d rounds counted, %d picture mismatches between rounds)"
@@ -2757,16 +2764,16 @@ def strip_check_main() -> None:
 
 class StripCheck:
     def __init__(self, arguments: argparse.Namespace) -> None:
-        self.arguments = arguments
-        self.total_slots = arguments.total_slots if arguments.total_slots is not None else arguments.slots
-        self.valid = Counter()
-        self.invalid = Counter()
-        self.frames = set()
-        self.descriptors = 0
-        self.decisions = Counter()
-        self.failures = []
-        self.counts = []
-        self.squared = 0
+        self.arguments: argparse.Namespace = arguments
+        self.total_slots: int = arguments.total_slots if arguments.total_slots is not None else arguments.slots
+        self.valid: Counter[int] = Counter()
+        self.invalid: Counter[tuple[int, str]] = Counter()
+        self.frames: set[tuple[int, int]] = set()
+        self.descriptors: int = 0
+        self.decisions: Counter[str] = Counter()
+        self.failures: list[tuple[str, str]] = []
+        self.counts: list[int] = []
+        self.squared: int = 0
 
     def check_capture(self, name: Any, screen: numpy.ndarray) -> None:
         width: Any = screen.shape[1]
@@ -2897,7 +2904,7 @@ def strip_fit_check_main() -> int:
     arguments: argparse.Namespace = parser.parse_args()
     import moderngl
 
-    context = moderngl.create_standalone_context(
+    context: moderngl.Context = moderngl.create_standalone_context(
         require=GL_VERSION, **{"backend": EGL_BACKEND} if arguments.backend == EGL_BACKEND else {}
     )
     print(context.info[GL_RENDERER_KEY])
@@ -2939,7 +2946,7 @@ def strip_fit_check_strip_rows(width: int) -> int:
 
 
 def strip_fit_check_frame(
-    context, screen: tuple[int, int], spirv: None = None, screen_index: int = 0
+    context: "moderngl.Context", screen: tuple[int, int], spirv: str | None = None, screen_index: int = 0
 ) -> tuple[numpy.ndarray | Any, numpy.ndarray, bool]:
     """Use the same random scene for every size, so strip coverage can be compared exactly."""
     global shader_check_screen, shader_check_screen_index, shader_check_first_slot
@@ -3162,10 +3169,10 @@ def latency_captures(path: Any) -> list[tuple[float, Any]]:
 
 
 def latency_first_seen(
-    shots: list[tuple[int, int]],
+    shots: list[tuple[float, Any]],
     by_number: dict[int, list[dict[str, bool | float | int] | dict[str, bool | int]]] | dict[int, list[dict[str, bool | int]]],
-) -> tuple[dict[tuple[int, float | int], int], set[tuple[int, float | int]]]:
-    first_seen: dict[tuple[int, float | int], int] = {}
+) -> tuple[dict[tuple[int, float | int], float], set[tuple[int, float | int]]]:
+    first_seen: dict[tuple[int, float | int], float] = {}
     ambiguous: set[tuple[int, float | int]] = set()
     for timestamp, number in latency_number_changes(shots):
         candidates: list[dict[str, bool | float | int] | dict[str, bool | int]] = [
@@ -3186,7 +3193,7 @@ def latency_first_seen(
     return first_seen, ambiguous
 
 
-def latency_number_changes(shots: list[tuple[int, int]]) -> Iterator[tuple[int, int]]:
+def latency_number_changes(shots: list[tuple[float, Any]]) -> Iterator[tuple[float, Any]]:
     previous: int | None = None
     for timestamp, number in shots:
         if number is not None and number != previous:
@@ -3215,7 +3222,7 @@ def charts_main() -> None:
     charts_draw_codecs(data)
     ablation_file: Path = CHARTS_DATA / ABLATION_DATA_NAME
     ablation: Any | dict[Any, Any] = json.loads(ablation_file.read_text()) if ablation_file.exists() else {}
-    rows = charts_ablation_rates(ablation)
+    rows: list[dict[str, Any]] = charts_ablation_rates(ablation)
     if rows:
         charts_draw_features(rows)
     if arguments.tables:
@@ -3315,7 +3322,7 @@ def charts_curve(data: Any, source: str, codec: str) -> list[tuple[float, float]
     return sorted(points)
 
 
-def charts_ablation_rates(ablation: Any | dict[Any, Any]) -> list[dict[str, str | tuple[float, numpy.float64, numpy.float64]]]:
+def charts_ablation_rates(ablation: Any | dict[Any, Any]) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     for feature in ablation.get("features", []):
         row: dict[str, Any] = {FEATURE_ID_KEY: feature[FEATURE_ID_KEY], FEATURE_NAME_KEY: feature[FEATURE_NAME_KEY]}
@@ -3328,12 +3335,12 @@ def charts_ablation_rates(ablation: Any | dict[Any, Any]) -> list[dict[str, str 
     return results
 
 
-def charts_draw_features(rows: list[dict[str, str | tuple[float, numpy.float64, numpy.float64]]]) -> None:
+def charts_draw_features(rows: list[dict[str, Any]]) -> None:
     pyplot: ModuleType = figure_pyplot()
     rows = sorted(rows, key=lambda row: row[GAMEPLAY_SOURCE][0] + row[PROXY_SOURCE][0])
-    values: list[str | float] = [row[source][0] for row in rows for source, _ in CHARTS_SOURCES]
-    ordered: list[str | float] = sorted(values, reverse=True)
-    limit: Any | float | None = (
+    values: list[float] = [row[source][0] for row in rows for source, _ in CHARTS_SOURCES]
+    ordered: list[float] = sorted(values, reverse=True)
+    limit: float | None = (
         max(ordered[1] * CHARTS_CLIPPED_HEADROOM, CHARTS_MINIMUM_CLIPPED_LIMIT)
         if len(ordered) > 1 and ordered[0] > CHARTS_OUTLIER_RATIO * ordered[1]
         else None
@@ -3342,9 +3349,11 @@ def charts_draw_features(rows: list[dict[str, str | tuple[float, numpy.float64, 
     figure, axis = pyplot.subplots(figsize=(CHARTS_FEATURES_WIDTH, CHARTS_FEATURES_ROW_HEIGHT * len(rows) + CHARTS_FEATURES_BASE_HEIGHT))
     for index, (source, title) in enumerate(CHARTS_SOURCES):
         positions: list[float] = [row_index + (0.5 - index) * (height + CHARTS_BAR_GAP) for row_index in range(len(rows))]
-        shown: list[str | float | Any] = [min(row[source][0], limit) if limit else row[source][0] for row in rows]
+        shown: list[float] = [min(row[source][0], limit) if limit else row[source][0] for row in rows]
         axis.barh(positions, shown, height=height, color=CHARTS_SOURCE_COLOURS[source], label=title, zorder=CHARTS_FRONT_LAYER)
-        clipped = [(position, row, value) for position, row, value in zip(positions, rows, shown) if limit and row[source][0] > limit]
+        clipped: list[tuple[float, dict[str, Any], float]] = [
+            (position, row, value) for position, row, value in zip(positions, rows, shown) if limit and row[source][0] > limit
+        ]
         for position, row, value in clipped:
             axis.annotate(
                 f"{row[source][0]:+.0f}% →",
@@ -3372,7 +3381,7 @@ def charts_draw_features(rows: list[dict[str, str | tuple[float, numpy.float64, 
     pyplot.close(figure)
 
 
-def charts_print_tables(data: Any, rows, removed: Any) -> None:
+def charts_print_tables(data: Any, rows: list[dict[str, Any]], removed: Any) -> None:
     print("Rate on the wire (Mbit/s) for the same VMAF mean, log-linear between measured points:\n")
     print("| VMAF mean | " + MARKDOWN_CELL_SEPARATOR.join(name for _, name, _, _ in CHARTS_CODECS) + MARKDOWN_ROW_END)
     print("|---:|" + MARKDOWN_RIGHT_ALIGNED_RULE * len(CHARTS_CODECS))
@@ -3465,7 +3474,7 @@ def samples_main() -> None:
     ](arguments)
 
 
-def samples_draw_tree(arguments) -> None:
+def samples_draw_tree(arguments: argparse.Namespace) -> None:
     from matplotlib.patches import Patch, Rectangle
 
     pyplot: ModuleType = figure_pyplot()
@@ -3503,7 +3512,7 @@ def samples_draw_tree(arguments) -> None:
             axis.set_ylim(height - SAMPLES_HALF_PIXEL, -SAMPLES_HALF_PIXEL)
         samples_finish(top, f"Frame {number} ({kind}): {frame.total:,} bytes, {len(frame.leaves):,} leaves")
         samples_finish(bottom, f"The leaves of frame {number} by mode")
-    handles = [
+    handles: list[Patch] = [
         Patch(facecolor=colour, edgecolor=CHARTS_SECONDARY, linewidth=CHARTS_FINE_LINE_WIDTH, label=name)
         for _, name, colour in SAMPLES_MODES
     ]
@@ -3563,7 +3572,7 @@ def samples_finish(axis: Any, title: str) -> None:
     axis.set_title(title, fontsize=CHARTS_FONT_SIZE, color=CHARTS_INK, loc="left")
 
 
-def samples_draw_leaves(arguments) -> None:
+def samples_draw_leaves(arguments: argparse.Namespace) -> None:
     pyplot: ModuleType = figure_pyplot()
     frame, picture = samples_decoded(arguments.archive, {arguments.frame})[arguments.frame]
     width, height = arguments.size

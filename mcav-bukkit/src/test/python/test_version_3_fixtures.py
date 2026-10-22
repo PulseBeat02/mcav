@@ -60,6 +60,8 @@ VECTOR_BYTES: int = mcv2_reference.COMPACT_BYTES - mcv2_reference.GRID_BYTES
 
 
 class FixtureCoverageTest(unittest.TestCase):
+    streams: dict[str, list[bytes]]
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.streams = mcv2_tools.edge_streams_build_streams()
