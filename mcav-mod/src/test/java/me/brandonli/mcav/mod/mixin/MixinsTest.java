@@ -36,7 +36,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 final class MixinsTest {
 
   @Test
-  void theMapRendererHandsOnTheMapsItExtractsAndPoses() {
+  void shouldHandOnTheMapsTheMapRendererExtractsAndPoses() {
     final MapRenderState state = new MapRenderState();
     final PoseStack pose = new PoseStack();
     try (final MockedStatic<Mcv2Shaders> shaders = mockStatic(Mcv2Shaders.class)) {
@@ -49,7 +49,7 @@ final class MixinsTest {
   }
 
   @Test
-  void theGameRendererSaysTheNextProjectionIsTheLevels() {
+  void shouldSayTheNextProjectionIsTheLevelsFromTheGameRenderer() {
     try (final MockedStatic<Mcv2Shaders> shaders = mockStatic(Mcv2Shaders.class)) {
       new GameRendererMixin() {}.mcav$projecting(new CallbackInfo("renderLevel", false));
       shaders.verify(Mcv2Shaders::projecting);
@@ -57,7 +57,7 @@ final class MixinsTest {
   }
 
   @Test
-  void theProjectionBufferHandsOnEveryProjection() {
+  void shouldHandOnEveryProjectionFromTheProjectionBuffer() {
     final Object projection = new Object();
     try (final MockedStatic<Mcv2Shaders> shaders = mockStatic(Mcv2Shaders.class)) {
       new ProjectionMatrixBufferMixin() {}.mcav$projected(projection, new CallbackInfoReturnable<>("getBuffer", false));
@@ -66,7 +66,7 @@ final class MixinsTest {
   }
 
   @Test
-  void theLevelRendererHandsOnTheRenderedLevel() {
+  void shouldHandOnTheRenderedLevelFromTheLevelRenderer() {
     final GraphicsResourceAllocator allocator = mock(GraphicsResourceAllocator.class);
     final CameraRenderState camera = new CameraRenderState();
     try (final MockedStatic<Mcv2Shaders> shaders = mockStatic(Mcv2Shaders.class)) {

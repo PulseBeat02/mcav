@@ -68,7 +68,7 @@ final class NeoForgeEntrypointTest {
   }
 
   @Test
-  void registersAnOptionalPayloadWhoseServerHandlerDropsIt() {
+  void shouldRegisterAnOptionalPayloadWhoseServerHandlerDropsIt() {
     new NeoForgeEntrypoint(this.modBus, this.gameBus, Optional.empty(), System::nanoTime);
     final RegisterPayloadHandlersEvent event = mock(RegisterPayloadHandlersEvent.class);
     final PayloadRegistrar registrar = mock(PayloadRegistrar.class);
@@ -85,7 +85,7 @@ final class NeoForgeEntrypointTest {
   }
 
   @Test
-  void reportsOnTheTicksOfASessionTheServerOfWhichHasTheChannel() {
+  void shouldReportOnTheTicksOfASessionWhoseServerHasTheChannel() {
     final AtomicLong clock = new AtomicLong();
     new NeoForgeEntrypoint(this.modBus, this.gameBus, Optional.empty(), clock::get);
     final Consumer<ClientPlayerNetworkEvent.LoggingIn> loggingIn = listener(this.gameBus, ClientPlayerNetworkEvent.LoggingIn.class);
@@ -109,7 +109,8 @@ final class NeoForgeEntrypointTest {
       ticks.accept(new ClientTickEvent.Post());
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       distributor.verify(() -> ClientPacketDistributor.sendToServer(sent.capture()));
-      assertArrayEquals(new byte[] { 1, 0, 0, 0 }, sent.getValue().report(), "no Iris, no shader pack");
+      final byte[] report = sent.getValue().report();
+      assertArrayEquals(new byte[] { 1, 0, 0, 0 }, report, "no Iris, no shader pack");
 
       loggingOut.accept(logout);
       loggingIn.accept(login);
@@ -131,7 +132,7 @@ final class NeoForgeEntrypointTest {
   }
 
   @Test
-  void theEntryPointNeoForgeCallsAsksNeoForgeForTheVersionOfIris() {
+  void shouldAskNeoForgeForTheVersionOfIrisFromTheEntryPointNeoForgeCalls() {
     final ModList mods = mock(ModList.class);
     final ModContainer iris = mock(ModContainer.class);
     final IModInfo irisMetadata = mock(IModInfo.class);
@@ -144,9 +145,12 @@ final class NeoForgeEntrypointTest {
       verify(mods).getModContainerById("iris");
       verify(this.modBus).addListener(eq(RegisterPayloadHandlersEvent.class), any());
     }
-    assertTrue(ShaderDecoder.current().isPresent(), "the decoder the mixins report to");
-    assertEquals(Optional.of("1.11.7+mc26.3"), NeoForgeEntrypoint.irisVersion(mods));
+    final Optional<ShaderDecoder> decoder = ShaderDecoder.current();
+    final Optional<String> version = NeoForgeEntrypoint.irisVersion(mods);
+    assertTrue(decoder.isPresent(), "the decoder the mixins report to");
+    assertEquals(Optional.of("1.11.7+mc26.3"), version);
     doReturn(Optional.empty()).when(mods).getModContainerById("iris");
-    assertEquals(Optional.empty(), NeoForgeEntrypoint.irisVersion(mods));
+    final Optional<String> missingVersion = NeoForgeEntrypoint.irisVersion(mods);
+    assertEquals(Optional.empty(), missingVersion);
   }
 }

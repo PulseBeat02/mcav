@@ -34,30 +34,35 @@ import org.mockito.MockedStatic;
 final class NeoForgeChannelTest {
 
   @Test
-  void isOpenWhileTheConnectionOfTheSessionHasTheChannel() {
+  void shouldBeOpenWhileTheConnectionOfTheSessionHasTheChannel() {
     final Connection connection = mock(Connection.class);
     try (final MockedStatic<NetworkRegistry> registry = mockStatic(NetworkRegistry.class)) {
       final NeoForgeChannel channel = new NeoForgeChannel();
-      assertFalse(channel.isOpen(), "no session, no channel");
+      final boolean openWithoutSession = channel.isOpen();
+      assertFalse(openWithoutSession, "no session, no channel");
       registry.verifyNoInteractions();
 
       channel.open(connection);
-      assertFalse(channel.isOpen(), "the server has not registered the channel yet");
+      final boolean openBeforeRegistration = channel.isOpen();
+      assertFalse(openBeforeRegistration, "the server has not registered the channel yet");
       registry.when(() -> NetworkRegistry.hasChannel(connection, ConnectionProtocol.PLAY, Mcv2Payload.TYPE.id())).thenReturn(true);
-      assertTrue(channel.isOpen());
+      final boolean openOnceRegistered = channel.isOpen();
+      assertTrue(openOnceRegistered);
 
       channel.close();
-      assertFalse(channel.isOpen());
+      final boolean openAfterClosing = channel.isOpen();
+      assertFalse(openAfterClosing);
     }
   }
 
   @Test
-  void sendsThroughNeoForgesDistributor() {
+  void shouldSendThroughNeoForgesDistributor() {
     try (final MockedStatic<ClientPacketDistributor> distributor = mockStatic(ClientPacketDistributor.class)) {
       new NeoForgeChannel().send(new byte[] { 1, 1, 2, 0 });
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       distributor.verify(() -> ClientPacketDistributor.sendToServer(sent.capture()));
-      assertArrayEquals(new byte[] { 1, 1, 2, 0 }, sent.getValue().report());
+      final byte[] report = sent.getValue().report();
+      assertArrayEquals(new byte[] { 1, 1, 2, 0 }, report);
     }
   }
 }

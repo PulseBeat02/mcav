@@ -36,33 +36,40 @@ final class ShaderFrameTest {
   private static final byte[] PICTURE = new byte[Mcv2Maps.COLOURS];
 
   @Test
-  void keepsThePagesOfTheFrameAndTheAnchorsItPosed() {
+  void shouldKeepThePagesOfTheFrameAndTheAnchorsItPosed() {
     final ShaderFrame frame = new ShaderFrame();
-    assertTrue(frame.isEmpty());
+    final boolean emptyAtStart = frame.isEmpty();
+    assertTrue(emptyAtStart);
     frame.extracted("page", PAGE);
     frame.extracted("anchor", ANCHOR);
     frame.extracted("picture", PICTURE);
-    assertEquals(1, frame.pages().size());
-    assertSame(PAGE, frame.pages().get(0));
-    assertFalse(frame.isEmpty());
+    final int pageCount = frame.pages().size();
+    final byte[] firstPage = frame.pages().get(0);
+    final boolean emptyWithAPage = frame.isEmpty();
+    assertEquals(1, pageCount);
+    assertSame(PAGE, firstPage);
+    assertFalse(emptyWithAPage);
     frame.posed("anchor", 1, 2, 3);
     frame.posed("picture", 4, 5, 6);
     frame.posed("page", 7, 8, 9);
     frame.posed("never extracted", 7, 8, 9);
-    assertEquals(List.of(StripAnchor.of(ANCHOR, 1, 2, 3)), frame.anchors());
+    final List<StripAnchor> anchors = frame.anchors();
+    assertEquals(List.of(StripAnchor.of(ANCHOR, 1, 2, 3)), anchors);
   }
 
   @Test
-  void aFrameWithAnAnchorAloneIsNotEmpty() {
+  void shouldNotBeEmptyWithAnAnchorAlone() {
     final ShaderFrame frame = new ShaderFrame();
     frame.extracted("anchor", ANCHOR);
-    assertTrue(frame.isEmpty(), "extracted, not drawn");
+    final boolean emptyBeforeDrawing = frame.isEmpty();
+    assertTrue(emptyBeforeDrawing, "extracted, not drawn");
     frame.posed("anchor", 1, 2, 3);
-    assertFalse(frame.isEmpty());
+    final boolean emptyOnceDrawn = frame.isEmpty();
+    assertFalse(emptyOnceDrawn);
   }
 
   @Test
-  void aMapThatTurnsIntoAPageOrAPictureIsNoAnchorAnyMore() {
+  void shouldForgetTheAnchorOfAMapThatTurnsIntoAPageOrAPicture() {
     final ShaderFrame frame = new ShaderFrame();
     frame.extracted("map", ANCHOR);
     frame.extracted("map", PAGE);
@@ -70,27 +77,33 @@ final class ShaderFrameTest {
     frame.extracted("other", ANCHOR);
     frame.extracted("other", PICTURE);
     frame.posed("other", 1, 2, 3);
-    assertTrue(frame.anchors().isEmpty());
+    final List<StripAnchor> anchors = frame.anchors();
+    assertTrue(anchors.isEmpty());
   }
 
   @Test
-  void theNextFrameStartsWithoutPagesAnchorsOrProjectionAndKnowsTheAnchorsStill() {
+  void shouldStartTheNextFrameWithoutPagesAnchorsOrProjectionAndStillKnowTheAnchors() {
     final ShaderFrame frame = new ShaderFrame();
-    assertNull(frame.projection());
+    final float[] projectionAtStart = frame.projection();
+    assertNull(projectionAtStart);
     final float[] projection = new float[16];
     frame.projected(projection);
-    assertSame(projection, frame.projection());
+    final float[] markedProjection = frame.projection();
+    assertSame(projection, markedProjection);
     frame.extracted("page", PAGE);
     frame.extracted("anchor", ANCHOR);
     frame.posed("anchor", 1, 2, 3);
     frame.finish();
-    assertTrue(frame.isEmpty());
-    assertTrue(frame.pages().isEmpty());
-    assertNull(frame.projection());
+    final boolean emptyNextFrame = frame.isEmpty();
+    final List<byte[]> nextPages = frame.pages();
+    final float[] nextProjection = frame.projection();
+    assertTrue(emptyNextFrame);
+    assertTrue(nextPages.isEmpty());
+    assertNull(nextProjection);
     frame.posed("anchor", 4, 5, 6);
-    assertArrayEquals(
-      new float[] { 4, 5, 6 },
-      new float[] { frame.anchors().get(0).cornerX(), frame.anchors().get(0).cornerY(), frame.anchors().get(0).cornerZ() }
-    );
+    final List<StripAnchor> anchors = frame.anchors();
+    final StripAnchor anchor = anchors.get(0);
+    final float[] corner = { anchor.cornerX(), anchor.cornerY(), anchor.cornerZ() };
+    assertArrayEquals(new float[] { 4, 5, 6 }, corner);
   }
 }

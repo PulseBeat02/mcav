@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 final class PackLayoutTest {
@@ -44,44 +45,64 @@ final class PackLayoutTest {
   }
 
   @Test
-  void readsTheScreensTheServerGenerated() {
+  void shouldReadTheScreensTheServerGenerated() {
     final PackLayout layout = PackLayout.parse(packConstants("7u, 4294967295u", "3, 2", "0, 3", 2)).orElseThrow();
-    assertEquals(2, layout.screens());
-    assertEquals(3, layout.slots(0));
-    assertEquals(2, layout.slots(1));
-    assertEquals(0, layout.firstSlot(0));
-    assertEquals(3, layout.firstSlot(1));
-    assertEquals(5, layout.totalSlots());
-    assertEquals(0, layout.screenOf(7));
-    assertEquals(1, layout.screenOf(4_294_967_295L));
-    assertEquals(PackLayout.NO_SCREEN, layout.screenOf(8));
-    assertEquals(27, layout.stripRows(854));
+    final int screens = layout.screens();
+    final int firstScreenSlots = layout.slots(0);
+    final int secondScreenSlots = layout.slots(1);
+    final int firstScreenFirstSlot = layout.firstSlot(0);
+    final int secondScreenFirstSlot = layout.firstSlot(1);
+    final int totalSlots = layout.totalSlots();
+    final int screenOfSeven = layout.screenOf(7);
+    final int screenOfTheLargestStream = layout.screenOf(4_294_967_295L);
+    final int screenOfAnUnknownStream = layout.screenOf(8);
+    final int stripRows = layout.stripRows(854);
+    assertEquals(2, screens);
+    assertEquals(3, firstScreenSlots);
+    assertEquals(2, secondScreenSlots);
+    assertEquals(0, firstScreenFirstSlot);
+    assertEquals(3, secondScreenFirstSlot);
+    assertEquals(5, totalSlots);
+    assertEquals(0, screenOfSeven);
+    assertEquals(1, screenOfTheLargestStream);
+    assertEquals(PackLayout.NO_SCREEN, screenOfAnUnknownStream);
+    assertEquals(27, stripRows);
   }
 
   @Test
-  void readsOneScreenOfOneSlotAndEightScreensOfEightSlots() {
+  void shouldReadOneScreenOfOneSlotAndEightScreensOfEightSlots() {
     final PackLayout one = PackLayout.parse(packConstants("0u", "1", "0", 1)).orElseThrow();
-    assertEquals(1, one.screens());
-    assertEquals(1, one.totalSlots());
+    final int screensOfOne = one.screens();
+    final int totalSlotsOfOne = one.totalSlots();
+    assertEquals(1, screensOfOne);
+    assertEquals(1, totalSlotsOfOne);
     final PackLayout eight = PackLayout.parse(
       packConstants("1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u", "8, 8, 8, 8, 8, 8, 8, 8", "0, 8, 16, 24, 32, 40, 48, 56", 8)
     ).orElseThrow();
-    assertEquals(8, eight.screens());
-    assertEquals(56, eight.firstSlot(7));
-    assertEquals(64, eight.totalSlots());
+    final int screensOfEight = eight.screens();
+    final int firstSlotOfTheLastScreen = eight.firstSlot(7);
+    final int totalSlotsOfEight = eight.totalSlots();
+    assertEquals(8, screensOfEight);
+    assertEquals(56, firstSlotOfTheLastScreen);
+    assertEquals(64, totalSlotsOfEight);
   }
 
   @Test
-  void aPageFillsTheRowsItsFourThousandPixelsNeed() {
-    assertEquals(4096, PackLayout.rowsPerPage(1));
-    assertEquals(5, PackLayout.rowsPerPage(854));
-    assertEquals(1, PackLayout.rowsPerPage(4096));
-    assertEquals(1, PackLayout.rowsPerPage(4097));
-    assertEquals(2, PackLayout.rowsPerPage(4095));
+  void shouldGiveAPageTheRowsItsFourThousandPixelsNeed() {
+    final int rowsAtWidthOne = PackLayout.rowsPerPage(1);
+    final int rowsAtScreenWidth = PackLayout.rowsPerPage(854);
+    final int rowsAtPageWidth = PackLayout.rowsPerPage(4096);
+    final int rowsAbovePageWidth = PackLayout.rowsPerPage(4097);
+    final int rowsBelowPageWidth = PackLayout.rowsPerPage(4095);
+    assertEquals(4096, rowsAtWidthOne);
+    assertEquals(5, rowsAtScreenWidth);
+    assertEquals(1, rowsAtPageWidth);
+    assertEquals(1, rowsAbovePageWidth);
+    assertEquals(2, rowsBelowPageWidth);
   }
 
   @Test
-  void anythingTheServerCouldNotHaveGeneratedIsNoLayout() {
+  void shouldFindNoLayoutInAnythingTheServerCouldNotHaveGenerated() {
     final String valid = packConstants("7u, 9u", "3, 2", "0, 3", 2);
     for (final String packConstants : List.of(
       "",
@@ -103,8 +124,10 @@ final class PackLayoutTest {
       valid.replace("int[2](0, 3)", "int[2](0, 65)"),
       valid.replace("int MCV2_SCREEN_FIRST_SLOTS", "int MCV2_SCREEN_FIRST")
     )) {
-      assertTrue(PackLayout.parse(packConstants).isEmpty(), packConstants);
+      final Optional<PackLayout> layout = PackLayout.parse(packConstants);
+      assertTrue(layout.isEmpty(), packConstants);
     }
-    assertTrue(PackLayout.parse(valid).isPresent());
+    final Optional<PackLayout> validLayout = PackLayout.parse(valid);
+    assertTrue(validLayout.isPresent());
   }
 }

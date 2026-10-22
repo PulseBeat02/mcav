@@ -24,9 +24,12 @@ import org.junit.jupiter.api.Test;
 final class Mcv2ReportTest {
 
   @Test
-  void writesVersionOneAsFourBytes() {
-    assertArrayEquals(new byte[] { 1, 0, 0, 0 }, new Mcv2Report(false, ShaderPack.NONE, false).toBytes());
-    assertArrayEquals(new byte[] { 1, 1, 1, 0 }, new Mcv2Report(true, ShaderPack.IN_USE, false).toBytes());
-    assertArrayEquals(new byte[] { 1, 1, 2, 1 }, new Mcv2Report(true, ShaderPack.UNKNOWN, true).toBytes());
+  void shouldWriteVersionOneAsFourBytes() {
+    final byte[] withoutIris = new Mcv2Report(false, ShaderPack.NONE, false).toBytes();
+    final byte[] withShaderPackInUse = new Mcv2Report(true, ShaderPack.IN_USE, false).toBytes();
+    final byte[] decodingUnderAnUnknownPack = new Mcv2Report(true, ShaderPack.UNKNOWN, true).toBytes();
+    assertArrayEquals(new byte[] { 1, 0, 0, 0 }, withoutIris);
+    assertArrayEquals(new byte[] { 1, 1, 1, 0 }, withShaderPackInUse);
+    assertArrayEquals(new byte[] { 1, 1, 2, 1 }, decodingUnderAnUnknownPack);
   }
 }

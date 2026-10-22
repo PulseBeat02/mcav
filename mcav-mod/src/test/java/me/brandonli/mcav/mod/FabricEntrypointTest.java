@@ -46,7 +46,7 @@ import org.mockito.MockedStatic;
 final class FabricEntrypointTest {
 
   @Test
-  void registersThePayloadAndReportsOnTheTicksOfEachConnection() {
+  void shouldRegisterThePayloadAndReportOnTheTicksOfEachConnection() {
     final Event<ClientPlayConnectionEvents.Join> joins = EventFactory.createArrayBacked(
       ClientPlayConnectionEvents.Join.class,
       listeners -> (handler, sender, client) -> {
@@ -73,7 +73,8 @@ final class FabricEntrypointTest {
       ticks.invoker().onEndTick(null);
       final ArgumentCaptor<Mcv2Payload> sent = ArgumentCaptor.forClass(Mcv2Payload.class);
       networking.verify(() -> ClientPlayNetworking.send(sent.capture()));
-      assertArrayEquals(new byte[] { 1, 0, 0, 0 }, sent.getValue().report(), "no Iris, no shader pack");
+      final byte[] report = sent.getValue().report();
+      assertArrayEquals(new byte[] { 1, 0, 0, 0 }, report, "no Iris, no shader pack");
 
       joins.invoker().onPlayReady(null, null, null);
       ticks.invoker().onEndTick(null);
@@ -84,7 +85,7 @@ final class FabricEntrypointTest {
   }
 
   @Test
-  void theEntryPointFabricCallsAsksFabricForTheVersionOfIris() {
+  void shouldAskFabricForTheVersionOfIrisFromTheEntryPointFabricCalls() {
     final FabricLoader loader = mock(FabricLoader.class);
     final ModContainer iris = mock(ModContainer.class);
     final ModMetadata metadata = mock(ModMetadata.class);
@@ -98,9 +99,11 @@ final class FabricEntrypointTest {
       new FabricEntrypoint();
       verify(loader).getModContainer("iris");
     }
-    assertEquals(Optional.of("1.11.7+mc26.3"), FabricEntrypoint.irisVersion(loader));
+    final Optional<String> irisVersion = FabricEntrypoint.irisVersion(loader);
+    assertEquals(Optional.of("1.11.7+mc26.3"), irisVersion);
     when(loader.getModContainer(IrisShaders.MOD_ID)).thenReturn(Optional.empty());
-    assertEquals(Optional.empty(), FabricEntrypoint.irisVersion(loader));
+    final Optional<String> missingVersion = FabricEntrypoint.irisVersion(loader);
+    assertEquals(Optional.empty(), missingVersion);
   }
 
   @AfterEach

@@ -59,7 +59,7 @@ final class TransportStripTest {
   private static final int DESCRIPTORS = 25 * WIDTH;
 
   @Test
-  void aPageFillsItsSlotWithFourSymbolsAPixel() {
+  void shouldFillTheSlotOfAPageWithFourSymbolsAPixel() {
     final int[] symbols = MapFixtures.pageSymbols(9, 1);
     final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(MapFixtures.colours(symbols)), List.of(), IDENTITY, PROJECTION);
     final byte[] expected = new byte[27 * WIDTH * TransportStrip.CHANNELS];
@@ -72,7 +72,7 @@ final class TransportStripTest {
   }
 
   @Test
-  void aPageFindsItsScreenByAllThirtyTwoBitsOfItsStream() {
+  void shouldFindTheScreenOfAPageByAllThirtyTwoBitsOfItsStream() {
     final PackLayout layout = PackLayout.parse(PackLayoutTest.packConstants("4294901767u", "1", "0", 1)).orElseThrow();
     final int[] symbols = MapFixtures.pageSymbols(0xFFFF_0007L, 0);
     final byte[] strip = TransportStrip.build(layout, WIDTH, List.of(MapFixtures.colours(symbols)), List.of(), IDENTITY, PROJECTION);
@@ -81,38 +81,46 @@ final class TransportStripTest {
   }
 
   @Test
-  void aColourOutsideTheAlphabetReadsAsSymbolZero() {
+  void shouldReadAColourOutsideTheAlphabetAsSymbolZero() {
     final int[] symbols = MapFixtures.pageSymbols(7, 0);
     final byte[] colours = MapFixtures.colours(symbols);
     colours[41] = 3;
     final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(colours), List.of(), IDENTITY, PROJECTION);
     final int word = symbols[40] | (symbols[42] << 12) | (symbols[43] << 18);
-    assertEquals(word & 0xFF, strip[40] & 0xFF);
-    assertEquals((word >> 8) & 0xFF, strip[41] & 0xFF);
-    assertEquals(word >> 16, strip[42] & 0xFF);
+    final int red = strip[40] & 0xFF;
+    final int green = strip[41] & 0xFF;
+    final int blue = strip[42] & 0xFF;
+    assertEquals(word & 0xFF, red);
+    assertEquals((word >> 8) & 0xFF, green);
+    assertEquals(word >> 16, blue);
     final byte[] bits = MapFixtures.colours(new int[] { 63, 63 });
     bits[0] = 3;
-    assertEquals(0b111111_000000, TransportStrip.bits(bits, 0, 12));
+    final int firstTwelveBits = TransportStrip.bits(bits, 0, 12);
+    assertEquals(0b111111_000000, firstTwelveBits);
   }
 
   @Test
-  void readsTheStreamAndNumberOfAPage() {
+  void shouldReadTheStreamAndNumberOfAPage() {
     final byte[] page = MapFixtures.colours(MapFixtures.pageSymbols(0xCAFE_BABEL, 0x1234));
-    assertEquals(0xBABE, TransportStrip.bits(page, 64, 16));
-    assertEquals(0xCAFE, TransportStrip.bits(page, 80, 16));
-    assertEquals(0x1234, TransportStrip.bits(page, 128, 16));
+    final int lowStreamHalf = TransportStrip.bits(page, 64, 16);
+    final int highStreamHalf = TransportStrip.bits(page, 80, 16);
+    final int pageNumber = TransportStrip.bits(page, 128, 16);
+    assertEquals(0xBABE, lowStreamHalf);
+    assertEquals(0xCAFE, highStreamHalf);
+    assertEquals(0x1234, pageNumber);
   }
 
   @Test
-  void aPageOfAnotherStreamOrBeyondItsScreensSlotsIsLeftOut() {
+  void shouldLeaveOutAPageOfAnotherStreamOrBeyondItsScreensSlots() {
     final byte[] empty = new byte[27 * WIDTH * TransportStrip.CHANNELS];
     for (final int[] symbols : List.of(MapFixtures.pageSymbols(8, 0), MapFixtures.pageSymbols(9, 2), MapFixtures.pageSymbols(7, 3))) {
-      assertArrayEquals(empty, TransportStrip.build(LAYOUT, WIDTH, List.of(MapFixtures.colours(symbols)), List.of(), IDENTITY, PROJECTION));
+      final byte[] built = TransportStrip.build(LAYOUT, WIDTH, List.of(MapFixtures.colours(symbols)), List.of(), IDENTITY, PROJECTION);
+      assertArrayEquals(empty, built);
     }
   }
 
   @Test
-  void theDescriptorRowTellsTheChainWhereTheScreenIsByFacing() {
+  void shouldTellTheChainWhereTheScreenIsByFacingInTheDescriptorRow() {
     final float[][] rights = { { 1, 0, 0 }, { 0, 0, 1 }, { -1, 0, 0 }, { 0, 0, -1 } };
     for (final float[] rotation : List.of(IDENTITY, QUARTER_TURN)) {
       for (int facing = 0; facing < 4; facing++) {
@@ -131,7 +139,8 @@ final class TransportStripTest {
         expected[7] = 3;
         expected[11] = 64 + 2;
         System.arraycopy(PROJECTION, 0, expected, 12, 16);
-        assertArrayEquals(expected, descriptor(strip, DESCRIPTORS), "facing " + facing);
+        final float[] descriptor = descriptor(strip, DESCRIPTORS);
+        assertArrayEquals(expected, descriptor, "facing " + facing);
         assertPixel(strip, DESCRIPTORS, 0x4D, 0x43, 0x56, 255);
         assertPixel(strip, DESCRIPTORS + 1, 0xA1, 0, 0, 255);
         for (int pixel = 58; pixel < TransportStrip.DESCRIPTOR_PIXELS; pixel++) {
@@ -139,27 +148,31 @@ final class TransportStripTest {
         }
         assertPixel(strip, DESCRIPTORS + TransportStrip.DESCRIPTOR_PIXELS, 0, 0, 0, 0);
         final byte[] rest = Arrays.copyOfRange(strip, (DESCRIPTORS + WIDTH) * 4, strip.length);
+        final byte[] leadingPixels = Arrays.copyOf(strip, DESCRIPTORS * 4);
         assertArrayEquals(new byte[rest.length], rest, "screen 1 has no anchor");
-        assertArrayEquals(new byte[DESCRIPTORS * 4], Arrays.copyOf(strip, DESCRIPTORS * 4), "no page");
+        assertArrayEquals(new byte[DESCRIPTORS * 4], leadingPixels, "no page");
       }
     }
   }
 
   @Test
-  void theFirstAnchorOfAScreenDescribesItAndAnchorsOfOtherStreamsAreLeftOut() {
+  void shouldDescribeAScreenByItsFirstAnchorAndLeaveOutAnchorsOfOtherStreams() {
     final StripAnchor first = new StripAnchor(0, 0, 2, 2, 0, 9, 1, 2, 3);
     final StripAnchor second = new StripAnchor(1, 1, 2, 2, 0, 9, 7, 8, 9);
     final StripAnchor other = new StripAnchor(0, 0, 2, 2, 0, 8, 4, 5, 6);
     final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(), List.of(other, first, second), IDENTITY, PROJECTION);
     final float[] floats = descriptor(strip, DESCRIPTORS + WIDTH);
-    assertArrayEquals(new float[] { 1, 2, 3 }, Arrays.copyOf(floats, 3));
-    assertArrayEquals(new byte[WIDTH * 4], Arrays.copyOfRange(strip, DESCRIPTORS * 4, (DESCRIPTORS + WIDTH) * 4), "screen 0 has none");
+    final float[] corner = Arrays.copyOf(floats, 3);
+    final byte[] firstScreenRow = Arrays.copyOfRange(strip, DESCRIPTORS * 4, (DESCRIPTORS + WIDTH) * 4);
+    assertArrayEquals(new float[] { 1, 2, 3 }, corner);
+    assertArrayEquals(new byte[WIDTH * 4], firstScreenRow, "screen 0 has none");
   }
 
   @Test
-  void aMatrixTimesAVectorIsItsColumnsWeighted() {
+  void shouldMultiplyAMatrixByAVectorAsItsWeightedColumns() {
     final float[] matrix = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
-    assertArrayEquals(new float[] { 1 + 10 + 27 + 52, 2 + 12 + 30 + 56, 3 + 14 + 33 + 60 }, TransportStrip.transform(matrix, 1, 2, 3, 4));
+    final float[] transformed = TransportStrip.transform(matrix, 1, 2, 3, 4);
+    assertArrayEquals(new float[] { 1 + 10 + 27 + 52, 2 + 12 + 30 + 56, 3 + 14 + 33 + 60 }, transformed);
   }
 
   private static float[] times(final float[] matrix, final float vectorX, final float vectorY, final float vectorZ, final float vectorW) {
@@ -178,19 +191,20 @@ final class TransportStripTest {
       final int high = low + 4;
       final int bits =
         (strip[low] & 0xFF) | ((strip[low + 1] & 0xFF) << 8) | ((strip[low + 2] & 0xFF) << 16) | ((strip[high] & 0xFF) << 24);
-      assertEquals(0, strip[high + 1] | strip[high + 2], "the high pixel holds one byte");
-      assertEquals(255, strip[low + 3] & 0xFF);
-      assertEquals(255, strip[high + 3] & 0xFF);
+      final int highPixelBytes = strip[high + 1] | strip[high + 2];
+      final int lowAlpha = strip[low + 3] & 0xFF;
+      final int highAlpha = strip[high + 3] & 0xFF;
+      assertEquals(0, highPixelBytes, "the high pixel holds one byte");
+      assertEquals(255, lowAlpha);
+      assertEquals(255, highAlpha);
       floats[index] = Float.intBitsToFloat(bits);
     }
     return floats;
   }
 
   private static void assertPixel(final byte[] strip, final int pixel, final int red, final int green, final int blue, final int alpha) {
-    assertArrayEquals(
-      new byte[] { (byte) red, (byte) green, (byte) blue, (byte) alpha },
-      Arrays.copyOfRange(strip, pixel * 4, pixel * 4 + 4)
-    );
+    final byte[] pixelBytes = Arrays.copyOfRange(strip, pixel * 4, pixel * 4 + 4);
+    assertArrayEquals(new byte[] { (byte) red, (byte) green, (byte) blue, (byte) alpha }, pixelBytes);
   }
 
   private static void put(final byte[] strip, final int pixel, final int red, final int green, final int blue) {

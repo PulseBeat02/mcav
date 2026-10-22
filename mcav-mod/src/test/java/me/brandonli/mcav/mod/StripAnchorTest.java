@@ -24,9 +24,10 @@ import org.junit.jupiter.api.Test;
 final class StripAnchorTest {
 
   @Test
-  void readsItsFieldsAndTheTwelveBitStreamFromTheSymbolsAfterTheSignature() {
+  void shouldReadItsFieldsAndTheTwelveBitStreamFromTheSymbolsAfterTheSignature() {
     final int stream = (21 << 6) | 42;
     final byte[] colours = MapFixtures.colours(MapFixtures.anchorSymbols(5, 6, 7, 8, 2, stream));
-    assertEquals(new StripAnchor(5, 6, 7, 8, 2, stream, 1.5F, -2F, 3.25F), StripAnchor.of(colours, 1.5F, -2F, 3.25F));
+    final StripAnchor anchor = StripAnchor.of(colours, 1.5F, -2F, 3.25F);
+    assertEquals(new StripAnchor(5, 6, 7, 8, 2, stream, 1.5F, -2F, 3.25F), anchor);
   }
 }

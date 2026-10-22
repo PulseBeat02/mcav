@@ -23,33 +23,39 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import org.junit.jupiter.api.Test;
 
 final class Mcv2PayloadTest {
 
   @Test
-  void travelsOnTheMcv2ChannelOfTheMcavNamespace() {
-    assertEquals("mcav:mcv2", Mcv2Payload.TYPE.id().toString());
-    assertSame(Mcv2Payload.TYPE, new Mcv2Payload(new byte[0]).type());
+  void shouldTravelOnTheMcv2ChannelOfTheMcavNamespace() {
+    final String id = Mcv2Payload.TYPE.id().toString();
+    final CustomPacketPayload.Type<Mcv2Payload> type = new Mcv2Payload(new byte[0]).type();
+    assertEquals("mcav:mcv2", id);
+    assertSame(Mcv2Payload.TYPE, type);
   }
 
   @Test
-  void writesTheReportsBytesAsTheyAreAndReadsThemBack() {
+  void shouldWriteTheReportsBytesAsTheyAreAndReadThemBack() {
     final ByteBuf buffer = Unpooled.buffer();
     Mcv2Payload.CODEC.encode(buffer, new Mcv2Payload(new byte[] { 1, 1, 1, 0 }));
     final byte[] written = new byte[buffer.readableBytes()];
     buffer.getBytes(buffer.readerIndex(), written);
+    final byte[] decoded = Mcv2Payload.CODEC.decode(buffer).report();
+    final int remaining = buffer.readableBytes();
     assertArrayEquals(new byte[] { 1, 1, 1, 0 }, written);
-    assertArrayEquals(new byte[] { 1, 1, 1, 0 }, Mcv2Payload.CODEC.decode(buffer).report());
-    assertEquals(0, buffer.readableBytes());
+    assertArrayEquals(new byte[] { 1, 1, 1, 0 }, decoded);
+    assertEquals(0, remaining);
   }
 
   @Test
-  void keepsItsOwnCopyOfTheReport() {
+  void shouldKeepItsOwnCopyOfTheReport() {
     final byte[] report = { 1, 0, 0, 0 };
     final Mcv2Payload payload = new Mcv2Payload(report);
     report[1] = 1;
     payload.report()[2] = 1;
-    assertArrayEquals(new byte[] { 1, 0, 0, 0 }, payload.report());
+    final byte[] kept = payload.report();
+    assertArrayEquals(new byte[] { 1, 0, 0, 0 }, kept);
   }
 }

@@ -27,62 +27,84 @@ import org.junit.jupiter.api.Test;
 final class Mcv2MapsTest {
 
   @Test
-  void theSymbolsAreTheColoursFourToSixtySevenAndNothingElse() {
+  void shouldUseTheColoursFourToSixtySevenAndNothingElseAsSymbols() {
     final byte[] colours = { 4, 67, 3, 68, (byte) 200, 0, 5 };
-    assertEquals(0, Mcv2Maps.symbol(colours, 0));
-    assertEquals(63, Mcv2Maps.symbol(colours, 1));
-    assertEquals(Mcv2Maps.NOT_A_SYMBOL, Mcv2Maps.symbol(colours, 2));
-    assertEquals(Mcv2Maps.NOT_A_SYMBOL, Mcv2Maps.symbol(colours, 3));
-    assertEquals(Mcv2Maps.NOT_A_SYMBOL, Mcv2Maps.symbol(colours, 4), "colours are unsigned");
-    assertEquals(Mcv2Maps.NOT_A_SYMBOL, Mcv2Maps.symbol(colours, 5));
-    assertEquals(1, Mcv2Maps.symbol(colours, 6));
+    final int firstSymbol = Mcv2Maps.symbol(colours, 0);
+    final int secondSymbol = Mcv2Maps.symbol(colours, 1);
+    final int thirdSymbol = Mcv2Maps.symbol(colours, 2);
+    final int fourthSymbol = Mcv2Maps.symbol(colours, 3);
+    final int fifthSymbol = Mcv2Maps.symbol(colours, 4);
+    final int sixthSymbol = Mcv2Maps.symbol(colours, 5);
+    final int seventhSymbol = Mcv2Maps.symbol(colours, 6);
+    assertEquals(0, firstSymbol);
+    assertEquals(63, secondSymbol);
+    assertEquals(Mcv2Maps.NOT_A_SYMBOL, thirdSymbol);
+    assertEquals(Mcv2Maps.NOT_A_SYMBOL, fourthSymbol);
+    assertEquals(Mcv2Maps.NOT_A_SYMBOL, fifthSymbol, "colours are unsigned");
+    assertEquals(Mcv2Maps.NOT_A_SYMBOL, sixthSymbol);
+    assertEquals(1, seventhSymbol);
   }
 
   @Test
-  void aPageIsAWholeMapThatStartsWithItsMagicVersionAndWidth() {
+  void shouldTakeAWholeMapThatStartsWithItsMagicVersionAndWidthAsAPage() {
     final byte[] page = MapFixtures.colours(MapFixtures.pageSymbols(7, 0));
-    assertTrue(Mcv2Maps.isPage(page));
-    assertFalse(Mcv2Maps.isAnchor(page));
+    final boolean readAsPage = Mcv2Maps.isPage(page);
+    final boolean readAsAnchor = Mcv2Maps.isAnchor(page);
+    assertTrue(readAsPage);
+    assertFalse(readAsAnchor);
     for (int index = 0; index < MapFixtures.PAGE_PREFIX.length; index++) {
       final byte[] changed = page.clone();
       changed[index] = (byte) (changed[index] == 4 ? 5 : 4);
-      assertFalse(Mcv2Maps.isPage(changed), "symbol " + index + " of the prefix");
+      final boolean changedReadAsPage = Mcv2Maps.isPage(changed);
+      assertFalse(changedReadAsPage, "symbol " + index + " of the prefix");
     }
-    assertFalse(Mcv2Maps.isPage(Arrays.copyOf(page, Mcv2Maps.COLOURS - 1)));
-    assertFalse(Mcv2Maps.isPage(Arrays.copyOf(page, Mcv2Maps.COLOURS + 1)));
+    final boolean shorterReadAsPage = Mcv2Maps.isPage(Arrays.copyOf(page, Mcv2Maps.COLOURS - 1));
+    final boolean longerReadAsPage = Mcv2Maps.isPage(Arrays.copyOf(page, Mcv2Maps.COLOURS + 1));
+    assertFalse(shorterReadAsPage);
+    assertFalse(longerReadAsPage);
   }
 
   @Test
-  void anAnchorIsAWholeMapOfItsSignatureAndFieldsWhoseChecksumHolds() {
+  void shouldTakeAWholeMapOfItsSignatureAndFieldsWhoseChecksumHoldsAsAnAnchor() {
     final byte[] anchor = MapFixtures.colours(MapFixtures.anchorSymbols(1, 2, 4, 3, 2, 1234));
-    assertTrue(Mcv2Maps.isAnchor(anchor));
-    assertFalse(Mcv2Maps.isPage(anchor));
-    assertFalse(Mcv2Maps.isAnchor(Arrays.copyOf(anchor, Mcv2Maps.COLOURS - 1)));
+    final boolean readAsAnchor = Mcv2Maps.isAnchor(anchor);
+    final boolean readAsPage = Mcv2Maps.isPage(anchor);
+    final boolean shorterReadAsAnchor = Mcv2Maps.isAnchor(Arrays.copyOf(anchor, Mcv2Maps.COLOURS - 1));
+    assertTrue(readAsAnchor);
+    assertFalse(readAsPage);
+    assertFalse(shorterReadAsAnchor);
     for (int index = 0; index < MapFixtures.ANCHOR_SIGNATURE.length; index++) {
       final byte[] changed = anchor.clone();
       changed[index] = (byte) (changed[index] == 4 ? 5 : 4);
-      assertFalse(Mcv2Maps.isAnchor(changed), "symbol " + index + " of the signature");
+      final boolean changedReadAsAnchor = Mcv2Maps.isAnchor(changed);
+      assertFalse(changedReadAsAnchor, "symbol " + index + " of the signature");
     }
     final byte[] checksum = anchor.clone();
     checksum[15] = (byte) (((checksum[15] - 4 + 1) & 63) + 4);
-    assertFalse(Mcv2Maps.isAnchor(checksum));
+    final boolean wrongChecksumReadAsAnchor = Mcv2Maps.isAnchor(checksum);
+    assertFalse(wrongChecksumReadAsAnchor);
     final byte[] outside = anchor.clone();
     outside[9] = 3;
-    assertFalse(Mcv2Maps.isAnchor(outside), "a field outside the alphabet");
+    final boolean outsideReadAsAnchor = Mcv2Maps.isAnchor(outside);
+    assertFalse(outsideReadAsAnchor, "a field outside the alphabet");
   }
 
   @Test
-  void theChecksumIsTheSumOfTheSevenFieldsInSixBits() {
+  void shouldSumTheSevenFieldsInSixBitsForTheChecksum() {
     final int[] symbols = MapFixtures.anchorSymbols(63, 63, 63, 63, 3, 4095);
-    assertEquals(61, symbols[15]);
-    assertTrue(Mcv2Maps.isAnchor(MapFixtures.colours(symbols)));
+    final int checksum = symbols[15];
+    final boolean readAsAnchor = Mcv2Maps.isAnchor(MapFixtures.colours(symbols));
+    assertEquals(61, checksum);
+    assertTrue(readAsAnchor);
   }
 
   @Test
-  void anAnchorFacesOneOfFourDirections() {
+  void shouldLetAnAnchorFaceOneOfFourDirections() {
     for (int facing = 0; facing <= 3; facing++) {
-      assertTrue(Mcv2Maps.isAnchor(MapFixtures.colours(MapFixtures.anchorSymbols(0, 0, 1, 1, facing, 7))), "facing " + facing);
+      final boolean facingReadAsAnchor = Mcv2Maps.isAnchor(MapFixtures.colours(MapFixtures.anchorSymbols(0, 0, 1, 1, facing, 7)));
+      assertTrue(facingReadAsAnchor, "facing " + facing);
     }
-    assertFalse(Mcv2Maps.isAnchor(MapFixtures.colours(MapFixtures.anchorSymbols(0, 0, 1, 1, 4, 7))));
+    final boolean fifthFacingReadAsAnchor = Mcv2Maps.isAnchor(MapFixtures.colours(MapFixtures.anchorSymbols(0, 0, 1, 1, 4, 7)));
+    assertFalse(fifthFacingReadAsAnchor);
   }
 }
