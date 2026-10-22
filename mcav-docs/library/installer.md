@@ -64,7 +64,7 @@ Any other Maven artifact can be loaded with `loadDependencies`, which takes the 
 single method, `loadJars(Collection<Path> jars, ClassLoader loader)`, so you can add the jars in another way and pass
 your loader to `loadDependencies` or to `loadMCAVDependencies(Artifact, JarLoader)`.
 
-## Downloads and Folder Layout
+## Downloads and folder layout
 
 Artifacts are downloaded from Maven Central, the MCAV snapshot repository, the PaperMC repository, Google's Maven
 repository, and the CodeMC releases repository. The local Maven repository of the user (`~/.m2/repository`) serves as
