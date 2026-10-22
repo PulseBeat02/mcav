@@ -18,7 +18,7 @@ started, and stopped by your code.
   api.install(HttpModule.class);
 ```
 
-## Creating a Server
+## Creating a server
 
 The `HttpResult` is an audio filter: attach it to the audio pipeline of a player and every connected browser receives
 the samples over a WebSocket. By default the server listens on all network interfaces, because the browsers of players
@@ -69,7 +69,7 @@ another thread instead.
 `null` to `setCurrentMedia(MediaInfo)` shows that nothing is playing. An IPv6 address as host name is put in brackets
 in the URL, as URLs require. `getFullUrl()` returns the URL of the page, here `http://play.example.com:8080/`.
 
-## Using the Builder
+## Using the builder
 
 `HttpResult.builder()` returns an `HttpResultBuilder`, which configures a server setting by setting. Every setting has
 a default, so only set what you need:
