@@ -68,8 +68,8 @@ public final class HttpAudioExample {
     final HttpResult http = HttpResult.port(3000);
     http.start();
     final String title = path.toString();
-    final MediaInfo info = MediaInfo.titled(title);
-    http.setCurrentMedia(info);
+    final MediaInformation information = MediaInformation.titled(title);
+    http.setCurrentMedia(information);
     return http;
   }
 

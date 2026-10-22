@@ -36,7 +36,7 @@ final class MediaController {
 
   @GetMapping(value = "/media", produces = MediaType.APPLICATION_JSON_VALUE)
   Map<String, Object> media() {
-    final MediaInfo info = this.result.getCurrentMedia();
-    return info.toJson();
+    final MediaInformation information = this.result.getCurrentMedia();
+    return information.toJson();
   }
 }

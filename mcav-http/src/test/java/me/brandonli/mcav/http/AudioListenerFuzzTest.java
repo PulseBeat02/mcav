@@ -58,11 +58,11 @@ final class AudioListenerFuzzTest {
   @FuzzTest(maxDuration = "30s")
   void shouldQueueDropAndSendAsDocumented(final FuzzedDataProvider data) throws Exception {
     final int limit = data.consumeInt(1, 4096);
-    final long sendTimeLimitMillis = data.consumeLong(1, 10_000);
-    final long sendTimeLimitNanos = TimeUnit.MILLISECONDS.toNanos(sendTimeLimitMillis);
+    final long sendTimeLimitMilliseconds = data.consumeLong(1, 10_000);
+    final long sendTimeLimitNanoseconds = TimeUnit.MILLISECONDS.toNanos(sendTimeLimitMilliseconds);
     final AtomicLong clock = new AtomicLong();
     final GatedSession gate = new GatedSession();
-    final AudioListener listener = new AudioListener(gate.session, sendTimeLimitMillis, limit, _ -> {}, clock::get);
+    final AudioListener listener = new AudioListener(gate.session, sendTimeLimitMilliseconds, limit, _ -> {}, clock::get);
     final Thread sender = listener.start();
 
     final Deque<byte[]> queued = new ArrayDeque<>();
@@ -80,7 +80,7 @@ final class AudioListenerFuzzTest {
             chunkNumber++;
             final byte[] chunk = new byte[data.consumeInt(0, 2 * limit)];
             Arrays.fill(chunk, (byte) chunkNumber);
-            final boolean stuck = inFlight != null && clock.get() - sendStart > sendTimeLimitNanos;
+            final boolean stuck = inFlight != null && clock.get() - sendStart > sendTimeLimitNanoseconds;
             final boolean expected = gate.open.get() && !stopped && !stuck;
             final boolean accepted = listener.offer(chunk);
             assertEquals(expected, accepted, "whether a chunk is queued");

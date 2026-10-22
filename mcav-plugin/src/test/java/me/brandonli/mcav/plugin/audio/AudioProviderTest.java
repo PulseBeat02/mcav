@@ -46,7 +46,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import me.brandonli.mcav.discord.DiscordPlayer;
 import me.brandonli.mcav.http.HttpResult;
-import me.brandonli.mcav.http.MediaInfo;
+import me.brandonli.mcav.http.MediaInformation;
 import me.brandonli.mcav.json.GsonProvider;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
 import me.brandonli.mcav.media.player.metadata.OriginalAudioMetadata;
@@ -515,7 +515,7 @@ final class AudioProviderTest {
     this.provider.releaseAudioFilter();
     this.provider.releaseAudioFilter(machine);
     assertFalse(video.applyFilter(ByteBuffer.allocate(4), OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1)));
-    verify(this.httpServer).setCurrentMedia(MediaInfo.EMPTY);
+    verify(this.httpServer).setCurrentMedia(MediaInformation.EMPTY);
     verify(this.httpServer, times(1)).setCurrentMedia(this.dump);
   }
 
@@ -530,9 +530,9 @@ final class AudioProviderTest {
     doThrow(new IllegalStateException("Missing permission VOICE_CONNECT")).when(this.audioManager).openAudioConnection(this.channel);
     this.provider.releaseAudioFilter(machine);
     assertFalse(video.applyFilter(ByteBuffer.allocate(4), OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1)));
-    verify(this.httpServer).setCurrentMedia(MediaInfo.EMPTY);
+    verify(this.httpServer).setCurrentMedia(MediaInformation.EMPTY);
     this.provider.releaseAudioFilter();
-    verify(this.httpServer, times(2)).setCurrentMedia(MediaInfo.EMPTY);
+    verify(this.httpServer, times(2)).setCurrentMedia(MediaInformation.EMPTY);
   }
 
   @Test
@@ -610,7 +610,7 @@ final class AudioProviderTest {
     verify(this.audioManager).setSendingHandler(null);
     verify(this.audioManager).closeAudioConnection();
     verify(this.discord).flush();
-    verify(this.httpServer).setCurrentMedia(MediaInfo.EMPTY);
+    verify(this.httpServer).setCurrentMedia(MediaInformation.EMPTY);
     verify(this.httpServer, never()).stop();
     verify(this.jda, never()).shutdown();
   }

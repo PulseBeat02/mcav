@@ -65,7 +65,7 @@ import org.springframework.web.socket.WebSocketSession;
  */
 final class HttpResultImplTest {
 
-  private static final long TIMEOUT_MILLIS = 10_000;
+  private static final long TIMEOUT_MILLISECONDS = 10_000;
   private static final int LAST_CHUNK_VALUE = 20;
 
   @TempDir
@@ -84,7 +84,7 @@ final class HttpResultImplTest {
    * @throws IOException never, the mock is only verified
    */
   static void verifyClosed(final WebSocketSession session, final CloseStatus status) throws IOException {
-    final VerificationWithTimeout withinTimeout = Mockito.timeout(TIMEOUT_MILLIS);
+    final VerificationWithTimeout withinTimeout = Mockito.timeout(TIMEOUT_MILLISECONDS);
     final WebSocketSession verified = Mockito.verify(session, withinTimeout);
     verified.close(status);
   }
@@ -128,7 +128,7 @@ final class HttpResultImplTest {
     Mockito.doAnswer(_ -> {
       this.workers.observeCurrentThread();
       writeEntered.countDown();
-      final boolean released = releaseWrite.await(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+      final boolean released = releaseWrite.await(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
       assertTrue(released, "the test releases the stuck write");
       return null;
     })
@@ -152,7 +152,7 @@ final class HttpResultImplTest {
 
   private static void assertReceivedEverySingleByteChunk(final BlockingQueue<byte[]> sent) throws InterruptedException {
     for (int value = 1; value <= LAST_CHUNK_VALUE; value++) {
-      final byte[] received = sent.poll(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+      final byte[] received = sent.poll(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
       final byte[] expected = { (byte) value };
       assertArrayEquals(expected, received);
     }
@@ -298,8 +298,8 @@ final class HttpResultImplTest {
     assertEquals(2, position);
 
     final byte[] expected = { 1, 2, 3, 4 };
-    final byte[] firstBytes = firstSent.poll(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
-    final byte[] secondBytes = secondSent.poll(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+    final byte[] firstBytes = firstSent.poll(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
+    final byte[] secondBytes = secondSent.poll(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
     assertArrayEquals(expected, firstBytes);
     assertArrayEquals(expected, secondBytes);
     http.removeListener(first);
@@ -318,7 +318,7 @@ final class HttpResultImplTest {
     http.addListener(healthy);
     try {
       this.applySingleByteChunks(http, 1, 1);
-      final boolean entered = stuckWriteEntered.await(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+      final boolean entered = stuckWriteEntered.await(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
       assertTrue(entered);
 
       final Duration limit = Duration.ofSeconds(2);
@@ -474,7 +474,7 @@ final class HttpResultImplTest {
     Mockito.doAnswer(_ -> {
       this.workers.observeCurrentThread();
       sendEntered.countDown();
-      final boolean ready = replaced.await(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+      final boolean ready = replaced.await(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
       assertTrue(ready);
       throw new IOException("broken pipe!");
     })
@@ -484,7 +484,7 @@ final class HttpResultImplTest {
     final ByteBuffer samples = ByteBuffer.allocate(4);
     http.applyFilter(samples, this.metadata);
 
-    final boolean sending = sendEntered.await(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+    final boolean sending = sendEntered.await(TIMEOUT_MILLISECONDS, TimeUnit.MILLISECONDS);
     assertTrue(sending, "the old connection is sending before replacement");
     final BlockingQueue<byte[]> sent = new LinkedBlockingQueue<>();
     final WebSocketSession replacement = session("same-id", sent);
@@ -499,24 +499,24 @@ final class HttpResultImplTest {
   @Test
   void shouldShowInformationAboutTheCurrentMedia() {
     final HttpResultImpl http = new HttpResultImpl("localhost", 8080, null);
-    final MediaInfo initial = http.getCurrentMedia();
-    assertSame(MediaInfo.EMPTY, initial);
+    final MediaInformation initial = http.getCurrentMedia();
+    assertSame(MediaInformation.EMPTY, initial);
 
-    final UrlParseDump dump = MediaInfoTest.completeDump();
+    final UrlParseDump dump = MediaInformationTest.completeDump();
     http.setCurrentMedia(dump);
-    final MediaInfo fromDump = http.getCurrentMedia();
+    final MediaInformation fromDump = http.getCurrentMedia();
     final Map<String, Object> json = fromDump.toJson();
     final Object title = json.get("title");
     assertEquals("Song", title);
 
-    final MediaInfo titled = MediaInfo.titled("clip.mp4");
+    final MediaInformation titled = MediaInformation.titled("clip.mp4");
     http.setCurrentMedia(titled);
-    final MediaInfo current = http.getCurrentMedia();
+    final MediaInformation current = http.getCurrentMedia();
     assertSame(titled, current);
 
-    http.setCurrentMedia((MediaInfo) null);
-    final MediaInfo cleared = http.getCurrentMedia();
-    assertSame(MediaInfo.EMPTY, cleared);
+    http.setCurrentMedia((MediaInformation) null);
+    final MediaInformation cleared = http.getCurrentMedia();
+    assertSame(MediaInformation.EMPTY, cleared);
     assertThrows(NullPointerException.class, () -> http.setCurrentMedia((UrlParseDump) null));
   }
 

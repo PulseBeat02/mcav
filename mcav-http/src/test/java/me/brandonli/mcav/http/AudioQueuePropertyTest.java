@@ -168,8 +168,8 @@ final class AudioQueuePropertyTest {
       if (!address.isEmpty()) {
         address.append(':');
       }
-      final String hex = Integer.toHexString(hextet);
-      address.append(hex);
+      final String hexadecimal = Integer.toHexString(hextet);
+      address.append(hexadecimal);
     }
     return address.toString();
   }

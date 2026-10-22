@@ -176,14 +176,14 @@ public interface HttpResult extends AudioFilter {
   /**
    * Shows information about the current media.
    *
-   * @param info the information, or null to show that nothing is playing
+   * @param information the information, or null to show that nothing is playing
    */
-  void setCurrentMedia(final @Nullable MediaInfo info);
+  void setCurrentMedia(final @Nullable MediaInformation information);
 
   /**
    * Returns the information shown about the current media.
    *
-   * @return the current immutable snapshot, or {@link MediaInfo#EMPTY} before any media is set or after clearing it
+   * @return the current immutable snapshot, or {@link MediaInformation#EMPTY} before any media is set or after clearing it
    */
-  MediaInfo getCurrentMedia();
+  MediaInformation getCurrentMedia();
 }

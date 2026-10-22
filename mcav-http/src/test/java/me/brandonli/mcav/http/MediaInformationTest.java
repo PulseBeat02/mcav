@@ -32,9 +32,9 @@ import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests {@link MediaInfo}.
+ * Tests {@link MediaInformation}.
  */
-final class MediaInfoTest {
+final class MediaInformationTest {
 
   static UrlParseDump completeDump() {
     final String json = """
@@ -59,8 +59,8 @@ final class MediaInfoTest {
   @Test
   void shouldTakeTheShownFieldsFromYtDlpInYtDlpOrderAndNames() {
     final UrlParseDump dump = completeDump();
-    final MediaInfo info = MediaInfo.of(dump);
-    final Map<String, Object> json = info.toJson();
+    final MediaInformation information = MediaInformation.of(dump);
+    final Map<String, Object> json = information.toJson();
     final Map<String, Object> expected = new LinkedHashMap<>();
     expected.put("title", "Song");
     expected.put("uploader", "Artist");
@@ -78,7 +78,7 @@ final class MediaInfoTest {
     final Set<String> expectedKeys = expected.keySet();
     final List<String> expectedOrder = new ArrayList<>(expectedKeys);
     assertEquals(expectedOrder, order);
-    final String title = info.getTitle();
+    final String title = information.getTitle();
     assertEquals("Song", title);
   }
 
@@ -86,54 +86,54 @@ final class MediaInfoTest {
   void shouldLeaveOutUnknownTextFieldsButKeepTheNumbers() {
     final Gson gson = GsonProvider.getSimple();
     final UrlParseDump dump = gson.fromJson("{\"uploader\": \"Artist\"}", UrlParseDump.class);
-    final MediaInfo info = MediaInfo.of(dump);
-    final Map<String, Object> json = info.toJson();
+    final MediaInformation information = MediaInformation.of(dump);
+    final Map<String, Object> json = information.toJson();
     final Map<String, Object> expected = new LinkedHashMap<>();
     expected.put("uploader", "Artist");
     expected.put("duration", 0L);
     expected.put("view_count", 0L);
     expected.put("like_count", 0L);
     assertEquals(expected, json);
-    final String title = info.getTitle();
+    final String title = information.getTitle();
     assertNull(title);
   }
 
   @Test
   void shouldGiveEmptyInformationOnlyZeroStatistics() {
-    final Map<String, Object> json = MediaInfo.EMPTY.toJson();
+    final Map<String, Object> json = MediaInformation.EMPTY.toJson();
     final Map<String, Object> expected = Map.of("duration", 0L, "view_count", 0L, "like_count", 0L);
     assertEquals(expected, json);
-    final String title = MediaInfo.EMPTY.getTitle();
+    final String title = MediaInformation.EMPTY.getTitle();
     assertNull(title);
   }
 
   @Test
   void shouldGiveTitledInformationOnlyATitle() {
-    final MediaInfo info = MediaInfo.titled("clip.mp4");
-    final Map<String, Object> json = info.toJson();
+    final MediaInformation information = MediaInformation.titled("clip.mp4");
+    final Map<String, Object> json = information.toJson();
     final Map<String, Object> expected = new LinkedHashMap<>();
     expected.put("title", "clip.mp4");
     expected.put("duration", 0L);
     expected.put("view_count", 0L);
     expected.put("like_count", 0L);
     assertEquals(expected, json);
-    final String title = info.getTitle();
+    final String title = information.getTitle();
     assertEquals("clip.mp4", title);
   }
 
   @Test
   void shouldReturnANewMapEveryTime() {
-    final MediaInfo info = MediaInfo.titled("clip.mp4");
-    final Map<String, Object> first = info.toJson();
+    final MediaInformation information = MediaInformation.titled("clip.mp4");
+    final Map<String, Object> first = information.toJson();
     first.put("title", "changed");
-    final Map<String, Object> second = info.toJson();
+    final Map<String, Object> second = information.toJson();
     final Object title = second.get("title");
     assertEquals("clip.mp4", title);
   }
 
   @Test
   void shouldRejectNulls() {
-    assertThrows(NullPointerException.class, () -> MediaInfo.of(null));
-    assertThrows(NullPointerException.class, () -> MediaInfo.titled(null));
+    assertThrows(NullPointerException.class, () -> MediaInformation.of(null));
+    assertThrows(NullPointerException.class, () -> MediaInformation.titled(null));
   }
 }

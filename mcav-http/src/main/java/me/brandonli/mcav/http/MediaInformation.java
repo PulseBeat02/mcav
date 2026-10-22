@@ -29,12 +29,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * statistics. Instances are immutable snapshots and can be shared across threads. Only these fields are sent
  * to browsers, not the complete yt-dlp output.
  */
-public final class MediaInfo {
+public final class MediaInformation {
 
   /**
    * Information for when nothing is playing.
    */
-  public static final MediaInfo EMPTY = new MediaInfo(null, null, null, null, null, null, 0, 0, 0, null);
+  public static final MediaInformation EMPTY = new MediaInformation(null, null, null, null, null, null, 0, 0, 0, null);
 
   private final @Nullable String title;
   private final @Nullable String uploader;
@@ -47,7 +47,7 @@ public final class MediaInfo {
   private final long likeCount;
   private final @Nullable String uploadDate;
 
-  MediaInfo(
+  MediaInformation(
     final @Nullable String title,
     final @Nullable String uploader,
     final @Nullable String channel,
@@ -79,7 +79,7 @@ public final class MediaInfo {
    * @return a new immutable snapshot, with missing text fields retained as null
    * @throws NullPointerException if {@code dump} is null
    */
-  public static MediaInfo of(final UrlParseDump dump) {
+  public static MediaInformation of(final UrlParseDump dump) {
     Preconditions.checkNotNull(dump, "Dump must not be null!");
     final double reportedDuration = dump.getDuration();
     final double wholeSeconds = Math.ceil(reportedDuration);
@@ -93,7 +93,7 @@ public final class MediaInfo {
     final Optional<String> uploadDate = dump.getUploadDate();
     final long viewCount = dump.getViewCount();
     final long likeCount = dump.getLikeCount();
-    return new MediaInfo(
+    return new MediaInformation(
       title.orElse(null),
       uploader.orElse(null),
       channel.orElse(null),
@@ -114,9 +114,9 @@ public final class MediaInfo {
    * @return a new immutable snapshot with that title, unknown other text fields and zero statistics
    * @throws NullPointerException if {@code title} is null
    */
-  public static MediaInfo titled(final String title) {
+  public static MediaInformation titled(final String title) {
     Preconditions.checkNotNull(title, "Title must not be null!");
-    return new MediaInfo(title, null, null, null, null, null, 0, 0, 0, null);
+    return new MediaInformation(title, null, null, null, null, null, 0, 0, 0, null);
   }
 
   /**

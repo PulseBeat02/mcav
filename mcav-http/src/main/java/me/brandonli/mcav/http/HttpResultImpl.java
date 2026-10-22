@@ -50,7 +50,7 @@ import org.springframework.web.socket.WebSocketSession;
  *
  * <p>Every listener gets an {@link AudioListener} with its own sender thread, so samples are handed over from the
  * audio thread without blocking on slow connections: a listener that cannot keep up loses its oldest samples
- * instead of stalling the pipeline, and one whose writes block for {@value #SEND_TIME_LIMIT_MILLIS} milliseconds
+ * instead of stalling the pipeline, and one whose writes block for {@value #SEND_TIME_LIMIT_MILLISECONDS} milliseconds
  * is disconnected.
  *
  * <p>Spring Boot normally takes over the logging system of the JVM when it starts, resetting the levels and
@@ -68,7 +68,7 @@ public final class HttpResultImpl implements HttpResult {
   static final String LOGGING_SYSTEM_PROPERTY = "org.springframework.boot.logging.LoggingSystem";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(HttpResultImpl.class);
-  private static final int SEND_TIME_LIMIT_MILLIS = 5_000;
+  private static final int SEND_TIME_LIMIT_MILLISECONDS = 5_000;
   private static final int SEND_BUFFER_LIMIT_BYTES = 512 * 1024;
 
   private final String domain;
@@ -79,7 +79,7 @@ public final class HttpResultImpl implements HttpResult {
   private final Map<String, AudioListener> listeners;
   private final Object lifecycleLock;
 
-  private volatile MediaInfo currentMedia;
+  private volatile MediaInformation currentMedia;
   private volatile @Nullable ConfigurableApplicationContext context;
   private volatile boolean acceptingListeners;
 
@@ -134,7 +134,7 @@ public final class HttpResultImpl implements HttpResult {
     this.listeners = new ConcurrentHashMap<>();
     this.lifecycleLock = new Object();
     this.acceptingListeners = true;
-    this.currentMedia = MediaInfo.EMPTY;
+    this.currentMedia = MediaInformation.EMPTY;
   }
 
   /**
@@ -364,7 +364,7 @@ public final class HttpResultImpl implements HttpResult {
     }
 
     final String id = session.getId();
-    final AudioListener listener = new AudioListener(session, SEND_TIME_LIMIT_MILLIS, SEND_BUFFER_LIMIT_BYTES, this::dropListener);
+    final AudioListener listener = new AudioListener(session, SEND_TIME_LIMIT_MILLISECONDS, SEND_BUFFER_LIMIT_BYTES, this::dropListener);
     this.listeners.put(id, listener);
     listener.start();
 
@@ -493,7 +493,7 @@ public final class HttpResultImpl implements HttpResult {
   }
 
   /**
-   * Shows the title, artist, thumbnail, and statistics yt-dlp reported, as {@link MediaInfo#of(UrlParseDump)}
+   * Shows the title, artist, thumbnail, and statistics yt-dlp reported, as {@link MediaInformation#of(UrlParseDump)}
    * takes them.
    *
    * @param dump the output of yt-dlp
@@ -502,26 +502,26 @@ public final class HttpResultImpl implements HttpResult {
   @Override
   public void setCurrentMedia(final UrlParseDump dump) {
     Preconditions.checkNotNull(dump, "Dump must not be null!");
-    this.currentMedia = MediaInfo.of(dump);
+    this.currentMedia = MediaInformation.of(dump);
   }
 
   /**
    * Shows information about the current media; browsers see it the next time they ask for {@code /media}.
    *
-   * @param info the information, or null to show {@link MediaInfo#EMPTY}
+   * @param information the information, or null to show {@link MediaInformation#EMPTY}
    */
   @Override
-  public void setCurrentMedia(final @Nullable MediaInfo info) {
-    this.currentMedia = info == null ? MediaInfo.EMPTY : info;
+  public void setCurrentMedia(final @Nullable MediaInformation information) {
+    this.currentMedia = information == null ? MediaInformation.EMPTY : information;
   }
 
   /**
    * Returns the information served at {@code /media}.
    *
-   * @return the information, {@link MediaInfo#EMPTY} when nothing is playing
+   * @return the information, {@link MediaInformation#EMPTY} when nothing is playing
    */
   @Override
-  public MediaInfo getCurrentMedia() {
+  public MediaInformation getCurrentMedia() {
     return this.currentMedia;
   }
 }

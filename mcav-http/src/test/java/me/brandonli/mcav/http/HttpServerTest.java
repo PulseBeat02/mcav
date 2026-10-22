@@ -274,7 +274,7 @@ final class HttpServerTest {
 
   @Test
   void shouldServeEmptyMediaAsJson() throws Exception {
-    server.setCurrentMedia((MediaInfo) null);
+    server.setCurrentMedia((MediaInformation) null);
     final HttpResponse<String> empty = get(server, "/media");
     final int status = empty.statusCode();
     final String emptyBody = empty.body();
@@ -288,7 +288,7 @@ final class HttpServerTest {
 
   @Test
   void shouldServeTheCompleteMediaAsJson() throws Exception {
-    final UrlParseDump dump = MediaInfoTest.completeDump();
+    final UrlParseDump dump = MediaInformationTest.completeDump();
     server.setCurrentMedia(dump);
     try {
       final HttpResponse<String> complete = get(server, "/media");
@@ -299,20 +299,20 @@ final class HttpServerTest {
         "\"view_count\":3000000000,\"like_count\":50,\"upload_date\":\"20240101\"}";
       assertEquals(expected, completeBody);
     } finally {
-      server.setCurrentMedia((MediaInfo) null);
+      server.setCurrentMedia((MediaInformation) null);
     }
   }
 
   @Test
   void shouldEscapeTheMediaInformationInJson() throws Exception {
-    final MediaInfo titled = MediaInfo.titled("Quote \" and ünïcode");
+    final MediaInformation titled = MediaInformation.titled("Quote \" and ünïcode");
     server.setCurrentMedia(titled);
     try {
       final HttpResponse<String> escaped = get(server, "/media");
       final String escapedBody = escaped.body();
       assertEquals("{\"title\":\"Quote \\\" and ünïcode\",\"duration\":0,\"view_count\":0,\"like_count\":0}", escapedBody);
     } finally {
-      server.setCurrentMedia((MediaInfo) null);
+      server.setCurrentMedia((MediaInformation) null);
     }
   }
 

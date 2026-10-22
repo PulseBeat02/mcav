@@ -28,7 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import me.brandonli.mcav.discord.DiscordPlayer;
 import me.brandonli.mcav.http.HttpResult;
-import me.brandonli.mcav.http.MediaInfo;
+import me.brandonli.mcav.http.MediaInformation;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
 import me.brandonli.mcav.media.player.pipeline.filter.audio.AudioFilter;
 import me.brandonli.mcav.plugin.MCAVSandbox;
@@ -460,7 +460,7 @@ public final class AudioProvider {
     }
     final HttpResult server = this.httpServer;
     if (server != null) {
-      server.setCurrentMedia(MediaInfo.EMPTY);
+      server.setCurrentMedia(MediaInformation.EMPTY);
     }
     this.releaseSpeakers();
   }

@@ -46,59 +46,59 @@ import org.springframework.web.socket.WebSocketSession;
 final class AudioListener {
 
   private final WebSocketSession session;
-  private final long sendTimeLimitNanos;
+  private final long sendTimeLimitNanoseconds;
   private final int bufferLimitBytes;
   private final Consumer<AudioListener> failureHandler;
-  private final LongSupplier nanoClock;
+  private final LongSupplier nanosecondClock;
   private final Deque<byte[]> pending;
   private final ReentrantLock lock;
   private final Condition changed;
 
   private int pendingBytes;
-  private long sendStartNanos;
+  private long sendStartNanoseconds;
   private boolean sending;
   private boolean stopped;
 
   /**
    * Creates a listener. Call {@link #start()} to begin sending.
    *
-   * @param session             the WebSocket session of the browser
-   * @param sendTimeLimitMillis how long one write may block before the listener counts as unreliable
-   * @param bufferLimitBytes    how many bytes may wait before the oldest chunks are dropped
-   * @param failureHandler      called on the sender thread when a write fails
+   * @param session                   the WebSocket session of the browser
+   * @param sendTimeLimitMilliseconds how long one write may block before the listener counts as unreliable
+   * @param bufferLimitBytes          how many bytes may wait before the oldest chunks are dropped
+   * @param failureHandler            called on the sender thread when a write fails
    */
   AudioListener(
     final WebSocketSession session,
-    final long sendTimeLimitMillis,
+    final long sendTimeLimitMilliseconds,
     final int bufferLimitBytes,
     final Consumer<AudioListener> failureHandler
   ) {
-    this(session, sendTimeLimitMillis, bufferLimitBytes, failureHandler, System::nanoTime);
+    this(session, sendTimeLimitMilliseconds, bufferLimitBytes, failureHandler, System::nanoTime);
   }
 
   /**
    * Creates a listener that reads the time from the specified clock, so that a test can decide how long a write has
    * been running. Visible for testing.
    *
-   * @param session             the WebSocket session of the browser
-   * @param sendTimeLimitMillis how long one write may block before the listener counts as unreliable
-   * @param bufferLimitBytes    how many bytes may wait before the oldest chunks are dropped
-   * @param failureHandler      called on the sender thread when a write fails
-   * @param nanoClock           the clock the send time limit is measured with, in nanoseconds
+   * @param session                   the WebSocket session of the browser
+   * @param sendTimeLimitMilliseconds how long one write may block before the listener counts as unreliable
+   * @param bufferLimitBytes          how many bytes may wait before the oldest chunks are dropped
+   * @param failureHandler            called on the sender thread when a write fails
+   * @param nanosecondClock           the clock the send time limit is measured with, in nanoseconds
    */
   @VisibleForTesting
   AudioListener(
     final WebSocketSession session,
-    final long sendTimeLimitMillis,
+    final long sendTimeLimitMilliseconds,
     final int bufferLimitBytes,
     final Consumer<AudioListener> failureHandler,
-    final LongSupplier nanoClock
+    final LongSupplier nanosecondClock
   ) {
     this.session = session;
-    this.sendTimeLimitNanos = TimeUnit.MILLISECONDS.toNanos(sendTimeLimitMillis);
+    this.sendTimeLimitNanoseconds = TimeUnit.MILLISECONDS.toNanos(sendTimeLimitMilliseconds);
     this.bufferLimitBytes = bufferLimitBytes;
     this.failureHandler = failureHandler;
-    this.nanoClock = nanoClock;
+    this.nanosecondClock = nanosecondClock;
     this.pending = new ArrayDeque<>();
     this.lock = new ReentrantLock();
     this.changed = this.lock.newCondition();
@@ -160,9 +160,9 @@ final class AudioListener {
     if (!this.sending) {
       return false;
     }
-    final long now = this.nanoClock.getAsLong();
-    final long elapsed = now - this.sendStartNanos;
-    return elapsed > this.sendTimeLimitNanos;
+    final long now = this.nanosecondClock.getAsLong();
+    final long elapsed = now - this.sendStartNanoseconds;
+    return elapsed > this.sendTimeLimitNanoseconds;
   }
 
   /**
@@ -261,7 +261,7 @@ final class AudioListener {
       final byte[] chunk = this.pending.removeFirst();
       this.pendingBytes -= chunk.length;
       this.sending = true;
-      this.sendStartNanos = this.nanoClock.getAsLong();
+      this.sendStartNanoseconds = this.nanosecondClock.getAsLong();
       return chunk;
     } finally {
       this.lock.unlock();
