@@ -290,6 +290,9 @@ struct double_vector {
 
 #elif defined(MCV2_SIMD_SSE41) || defined(MCV2_SIMD_SSE2)
 
+constexpr int32_t EVERY_THIRD_LANE_FROM_ONE = 0x2;
+constexpr int32_t EVERY_THIRD_LANE_FROM_TWO = 0x4;
+
 constexpr int32_t RED_LOAD_ORDER = _MM_SHUFFLE(1, 2, 3, 0);
 constexpr int32_t GREEN_LOAD_ORDER = _MM_SHUFFLE(2, 3, 0, 1);
 constexpr int32_t BLUE_LOAD_ORDER = _MM_SHUFFLE(3, 0, 1, 2);
@@ -325,9 +328,14 @@ inline __m128i widen_unsigned_bytes(const __m128i bytes) {
 #else
 constexpr int32_t PACK_LOW_WORDS = _MM_SHUFFLE(0, 0, 2, 0);
 
+constexpr int32_t FIRST_LANE_BIT = 1;
+constexpr int32_t SECOND_LANE_BIT = 2;
+constexpr int32_t THIRD_LANE_BIT = 4;
+constexpr int32_t FOURTH_LANE_BIT = 8;
+
 template <int BLEND_MASK> inline __m128i blend_integer_lanes(const __m128i first, const __m128i second) {
-  const __m128i mask = _mm_setr_epi32((BLEND_MASK & 1) ? -1 : 0, (BLEND_MASK & 2) ? -1 : 0, (BLEND_MASK & 4) ? -1 : 0,
-                                      (BLEND_MASK & 8) ? -1 : 0);
+  const __m128i mask = _mm_setr_epi32((BLEND_MASK & FIRST_LANE_BIT) ? -1 : 0, (BLEND_MASK & SECOND_LANE_BIT) ? -1 : 0,
+                                      (BLEND_MASK & THIRD_LANE_BIT) ? -1 : 0, (BLEND_MASK & FOURTH_LANE_BIT) ? -1 : 0);
   return _mm_or_si128(_mm_and_si128(mask, second), _mm_andnot_si128(mask, first));
 }
 // Signed and unsigned products share the low 32 bits required by Java's wrapping arithmetic.
@@ -436,14 +444,14 @@ struct int_vector {
     const __m128i second_vector = _mm_loadu_si128((const __m128i*)(buffer + 4));
     const __m128i third_vector = _mm_loadu_si128((const __m128i*)(buffer + 8));
 
-    const __m128i shuffled_red =
-        blend_integer_lanes<0x2>(blend_integer_lanes<0x4>(first_vector, second_vector), third_vector);
+    const __m128i shuffled_red = blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(
+        blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(first_vector, second_vector), third_vector);
 
-    const __m128i shuffled_green =
-        blend_integer_lanes<0x4>(blend_integer_lanes<0x2>(second_vector, first_vector), third_vector);
+    const __m128i shuffled_green = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
+        blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(second_vector, first_vector), third_vector);
 
-    const __m128i shuffled_blue =
-        blend_integer_lanes<0x4>(blend_integer_lanes<0x2>(third_vector, second_vector), first_vector);
+    const __m128i shuffled_blue = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
+        blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(third_vector, second_vector), first_vector);
     red_channels.lanes_ = _mm_shuffle_epi32(shuffled_red, RED_LOAD_ORDER);
     green_channels.lanes_ = _mm_shuffle_epi32(shuffled_green, GREEN_LOAD_ORDER);
     blue_channels.lanes_ = _mm_shuffle_epi32(shuffled_blue, BLUE_LOAD_ORDER);
@@ -451,19 +459,19 @@ struct int_vector {
   static void store_channels(int32_t* buffer, const int_vector red_channels, const int_vector green_channels,
                              const int_vector blue_channels) {
 
-    const __m128i first_vector = blend_integer_lanes<0x4>(
-        blend_integer_lanes<0x2>(_mm_shuffle_epi32(red_channels.lanes_, RED_STORE_ORDER),
-                                 _mm_shuffle_epi32(green_channels.lanes_, BROADCAST_FIRST_LANE)),
+    const __m128i first_vector = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
+        blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(_mm_shuffle_epi32(red_channels.lanes_, RED_STORE_ORDER),
+                                                       _mm_shuffle_epi32(green_channels.lanes_, BROADCAST_FIRST_LANE)),
         _mm_shuffle_epi32(blue_channels.lanes_, BROADCAST_FIRST_LANE));
 
-    const __m128i second_vector = blend_integer_lanes<0x4>(
-        blend_integer_lanes<0x2>(_mm_shuffle_epi32(green_channels.lanes_, GREEN_STORE_ORDER),
-                                 _mm_shuffle_epi32(blue_channels.lanes_, BROADCAST_SECOND_LANE)),
+    const __m128i second_vector = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
+        blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(_mm_shuffle_epi32(green_channels.lanes_, GREEN_STORE_ORDER),
+                                                       _mm_shuffle_epi32(blue_channels.lanes_, BROADCAST_SECOND_LANE)),
         _mm_shuffle_epi32(red_channels.lanes_, BROADCAST_THIRD_LANE));
 
-    const __m128i third_vector = blend_integer_lanes<0x4>(
-        blend_integer_lanes<0x2>(_mm_shuffle_epi32(blue_channels.lanes_, BLUE_STORE_ORDER),
-                                 _mm_shuffle_epi32(red_channels.lanes_, BROADCAST_FOURTH_LANE)),
+    const __m128i third_vector = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
+        blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(_mm_shuffle_epi32(blue_channels.lanes_, BLUE_STORE_ORDER),
+                                                       _mm_shuffle_epi32(red_channels.lanes_, BROADCAST_FOURTH_LANE)),
         _mm_shuffle_epi32(green_channels.lanes_, BROADCAST_FOURTH_LANE));
     _mm_storeu_si128((__m128i*)buffer, first_vector);
     _mm_storeu_si128((__m128i*)(buffer + 4), second_vector);
@@ -529,6 +537,10 @@ struct double_vector {
 };
 
 #elif defined(MCV2_SIMD_AVX2)
+
+constexpr int32_t EVERY_THIRD_LANE_FROM_ZERO = 0x49;
+constexpr int32_t EVERY_THIRD_LANE_FROM_ONE = 0x92;
+constexpr int32_t EVERY_THIRD_LANE_FROM_TWO = 0x24;
 
 constexpr int32_t SWAP_MIDDLE_QUARTERS = _MM_SHUFFLE(3, 1, 2, 0);
 
@@ -613,13 +625,16 @@ struct int_vector {
     const __m256i third_vector = _mm256_loadu_si256((const __m256i*)(buffer + 16));
 
     const __m256i shuffled_red =
-        _mm256_blend_epi32(_mm256_blend_epi32(first_vector, second_vector, 0x92), third_vector, 0x24);
+        _mm256_blend_epi32(_mm256_blend_epi32(first_vector, second_vector, EVERY_THIRD_LANE_FROM_ONE), third_vector,
+                           EVERY_THIRD_LANE_FROM_TWO);
 
     const __m256i shuffled_green =
-        _mm256_blend_epi32(_mm256_blend_epi32(first_vector, second_vector, 0x24), third_vector, 0x49);
+        _mm256_blend_epi32(_mm256_blend_epi32(first_vector, second_vector, EVERY_THIRD_LANE_FROM_TWO), third_vector,
+                           EVERY_THIRD_LANE_FROM_ZERO);
 
     const __m256i shuffled_blue =
-        _mm256_blend_epi32(_mm256_blend_epi32(first_vector, second_vector, 0x49), third_vector, 0x92);
+        _mm256_blend_epi32(_mm256_blend_epi32(first_vector, second_vector, EVERY_THIRD_LANE_FROM_ZERO), third_vector,
+                           EVERY_THIRD_LANE_FROM_ONE);
     red_channels.lanes_ = _mm256_permutevar8x32_epi32(shuffled_red, _mm256_setr_epi32(0, 3, 6, 1, 4, 7, 2, 5));
     green_channels.lanes_ = _mm256_permutevar8x32_epi32(shuffled_green, _mm256_setr_epi32(1, 4, 7, 2, 5, 0, 3, 6));
     blue_channels.lanes_ = _mm256_permutevar8x32_epi32(shuffled_blue, _mm256_setr_epi32(2, 5, 0, 3, 6, 1, 4, 7));
@@ -632,14 +647,15 @@ struct int_vector {
         _mm256_permutevar8x32_epi32(green_channels.lanes_, _mm256_setr_epi32(5, 0, 3, 6, 1, 4, 7, 2));
     const __m256i shuffled_blue =
         _mm256_permutevar8x32_epi32(blue_channels.lanes_, _mm256_setr_epi32(2, 5, 0, 3, 6, 1, 4, 7));
-    _mm256_storeu_si256((__m256i*)buffer, _mm256_blend_epi32(_mm256_blend_epi32(shuffled_red, shuffled_green, 0x92),
-                                                             shuffled_blue, 0x24));
-    _mm256_storeu_si256(
-        (__m256i*)(buffer + 8),
-        _mm256_blend_epi32(_mm256_blend_epi32(shuffled_blue, shuffled_red, 0x92), shuffled_green, 0x24));
-    _mm256_storeu_si256(
-        (__m256i*)(buffer + 16),
-        _mm256_blend_epi32(_mm256_blend_epi32(shuffled_green, shuffled_blue, 0x92), shuffled_red, 0x24));
+    _mm256_storeu_si256((__m256i*)buffer,
+                        _mm256_blend_epi32(_mm256_blend_epi32(shuffled_red, shuffled_green, EVERY_THIRD_LANE_FROM_ONE),
+                                           shuffled_blue, EVERY_THIRD_LANE_FROM_TWO));
+    _mm256_storeu_si256((__m256i*)(buffer + 8),
+                        _mm256_blend_epi32(_mm256_blend_epi32(shuffled_blue, shuffled_red, EVERY_THIRD_LANE_FROM_ONE),
+                                           shuffled_green, EVERY_THIRD_LANE_FROM_TWO));
+    _mm256_storeu_si256((__m256i*)(buffer + 16),
+                        _mm256_blend_epi32(_mm256_blend_epi32(shuffled_green, shuffled_blue, EVERY_THIRD_LANE_FROM_ONE),
+                                           shuffled_red, EVERY_THIRD_LANE_FROM_TWO));
   }
   static int_vector bits(const int8_t* buffer, const int32_t index) {
     const __m256i byte = _mm256_set1_epi32(buffer[index >> BYTE_INDEX_SHIFT] & 0xFF);
