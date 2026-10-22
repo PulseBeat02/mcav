@@ -14,9 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
-"""The subcommands of mcv2_tools: a usage naming them, their exit statuses and figures equal to the committed ones."""
-
 import functools
 import json
 import sys

@@ -14,9 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
-"""Resuming codec curves into an earlier output preserves the previous measurements."""
-
 import json
 import os
 import tempfile

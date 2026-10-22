@@ -14,15 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
-"""Checks mcv2_tools shader_timing without a GPU: its main() runs on a fake GL context, with a fake post chain
-that decodes as each test says, so what the run counts as a failure is tested on any machine.
-
-    python -m unittest discover -s mcav-bukkit/src/test/python -p test_shader_timing.py
-
-Needs numpy, as shader_timing does; moderngl and the reference's make_pages are replaced.
-"""
-
 import json
 import struct
 import sys
@@ -180,7 +171,6 @@ def run(
     version: int = mcv2_reference.VERSION,
     received: list[Any] | None = None
 ) -> str | int | None:
-    """Runs main() on a stream of a keyframe and a P frame, and returns its exit code; 0 when it returns."""
     context: types.SimpleNamespace = types.SimpleNamespace(info={"GL_RENDERER": "fake", "GL_VERSION": GL_VERSION})
     moderngl: types.ModuleType = types.ModuleType(MODERNGL_MODULE)
     moderngl.create_standalone_context = lambda **_: context
@@ -210,9 +200,6 @@ def run(
 
 
 class FakeChain:
-    """A post chain that decodes every frame once, to a picture of its own, except where a test says otherwise. The
-    sets hold (round, frame) pairs."""
-
     missed: frozenset[Any] = frozenset()
     again: frozenset[Any] = frozenset()
     changed: frozenset[Any] = frozenset()
@@ -255,8 +242,8 @@ def keyframe(version: int) -> bytes:
     return frame(KEYFRAME_ID, version)
 
 
+# only a header: shader_timing reads nothing else of a frame
 def frame(frame_id: int, version: int) -> bytes:
-    """The header of a 64x32 frame, which is all shader_timing reads of a frame itself."""
     if version == mcv2_reference.VERSION:
         return mcv2_reference.HEADER.pack(mcv2_reference.MAGIC, mcv2_reference.VERSION, WIDTH, HEIGHT, frame_id, KEYFRAME_ID)
 

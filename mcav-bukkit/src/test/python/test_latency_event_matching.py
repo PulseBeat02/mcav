@@ -14,9 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
-"""Exact event matching for the MCV2 latency report, without JFR or a client."""
-
 import json
 import sys
 import tempfile

@@ -14,9 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
-"""Strict differential comparisons, with no exemptions or hidden parser failures."""
-
 import hashlib
 import json
 import random

@@ -14,9 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
-"""Hand-computed pictures for every reconstruction rule and stream transition."""
-
 import itertools
 import unittest
 from typing import Any

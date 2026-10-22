@@ -14,9 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
-"""Page wire examples, damaged pages and transactional bounded assembly."""
-
 import unittest
 import zlib
 from collections.abc import Callable

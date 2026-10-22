@@ -14,8 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Malformed frames shared by the validation tests and the public rejected corpus."""
-
 import struct
 from typing import Any
 
