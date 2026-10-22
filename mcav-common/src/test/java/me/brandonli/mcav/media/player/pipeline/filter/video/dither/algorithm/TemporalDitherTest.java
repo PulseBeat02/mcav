@@ -409,6 +409,19 @@ final class TemporalDitherTest {
   }
 
   @Test
+  void shouldDitherEveryRowOfATallFrameOnASingleThread() {
+    final int height = 32_769;
+    final int[] white = new int[height];
+    Arrays.fill(white, 0xFFFFFFFF);
+    final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(DitherTestImages.BLACK_WHITE);
+    try (final ForkJoinPool pool = new ForkJoinPool(1); final ImageBuffer image = ImageBuffer.buffer(white, 1, height)) {
+      final byte[] indices = dither.ditherIntoBytes(image, pool);
+      final int rowsWithoutWhite = countRowsWithoutWhite(indices, 1);
+      assertEquals(0, rowsWithoutWhite, "one strip holds every row, although twice the rows times the rows overflows an int");
+    }
+  }
+
+  @Test
   void shouldRejectAnIncompleteFinalRowBeforeChangingAnyPixels() {
     final TemporalDitherAlgorithm dither = new TemporalFloydSteinbergDither(PRIMARIES);
     final int[] pixels = { MIDDLE_GRAY, MIDDLE_GRAY, MIDDLE_GRAY };
