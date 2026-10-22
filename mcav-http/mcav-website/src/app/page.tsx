@@ -22,7 +22,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import styles from "./page.module.css";
 
-interface MediaInfo {
+type MediaInfo = {
     title?: string;
     uploader?: string;
     channel?: string;
@@ -33,15 +33,24 @@ interface MediaInfo {
     view_count?: number;
     like_count?: number;
     upload_date?: string | null;
-}
+};
 
-interface PCMProcessorOptions {
+type PCMProcessorOptions = {
     encoding?: string;
     channels?: number;
     sampleRate?: number;
     flushingTime?: number;
     audioCtx?: AudioContext;
-}
+};
+
+type VisualizerData = {
+    smoothedData: Float32Array;
+    hue: number;
+};
+
+type WebkitWindow = typeof window & {
+    webkitAudioContext: typeof AudioContext;
+};
 
 const CUSHION_SECONDS = 0.1;
 const MAX_LEAD_SECONDS = 0.5;
@@ -69,7 +78,7 @@ class PCMProcessor {
             flushingTime: options.flushingTime || 2000,
             audioCtx: options.audioCtx || (
                 "webkitAudioContext" in window
-                    ? new (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext()
+                    ? new (window as WebkitWindow).webkitAudioContext()
                     : new AudioContext()
             )
         };
@@ -146,7 +155,7 @@ class PCMProcessor {
         }
     }
 
-    getVisualizerData(): { smoothedData: Float32Array; hue: number } {
+    getVisualizerData(): VisualizerData {
         this.hue = (this.hue + 0.5) % 360;
         return {smoothedData: this.smoothedData, hue: this.hue};
     }
@@ -715,9 +724,7 @@ export default function AudioStreamPlayer() {
         }
 
         if ("webkitAudioContext" in window) {
-            audioContextRef.current = new (window as typeof window & {
-                webkitAudioContext: typeof AudioContext
-            }).webkitAudioContext();
+            audioContextRef.current = new (window as WebkitWindow).webkitAudioContext();
         } else {
             audioContextRef.current = new AudioContext();
         }

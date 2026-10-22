@@ -42,7 +42,7 @@ function pageProcessor() {
         }
         end++;
     } while (depth > 0);
-    const constants = source.slice(source.indexOf("interface PCMProcessorOptions"), start).replace(/interface PCMProcessorOptions \{[^}]*}/, "");
+    const constants = source.slice(source.indexOf("type PCMProcessorOptions"), start);
     return stripTypeScriptTypes(`${constants}\n${source.slice(start, end)}\nPCMProcessor;`);
 }
 
