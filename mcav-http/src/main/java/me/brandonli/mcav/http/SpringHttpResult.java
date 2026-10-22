@@ -211,20 +211,24 @@ public final class SpringHttpResult implements HttpResult {
    */
   private List<String> createProperties() {
     final String location = staticLocation(this.directory);
+    final String portProperty = "server.port=%s".formatted(this.port);
+    final String nameProperty = "spring.application.name=mcav-http-%s".formatted(this.port);
+    final String locationProperty = "spring.web.resources.static-locations=%s".formatted(location);
     final List<String> properties = new ArrayList<>();
-    properties.add("server.port=" + this.port);
-    properties.add("spring.application.name=mcav-http-" + this.port);
+    properties.add(portProperty);
+    properties.add(nameProperty);
     properties.add("spring.main.banner-mode=off");
     properties.add("spring.jmx.enabled=false");
     properties.add("spring.main.lazy-initialization=true");
-    properties.add("spring.web.resources.static-locations=" + location);
+    properties.add(locationProperty);
     properties.add("server.shutdown=immediate");
     properties.add("server.compression.enabled=true");
 
     final InetAddress address = this.bindAddress;
     if (address != null) {
       final String hostAddress = address.getHostAddress();
-      properties.add("server.address=" + hostAddress);
+      final String addressProperty = "server.address=%s".formatted(hostAddress);
+      properties.add(addressProperty);
     }
 
     properties.addAll(this.extraProperties);
@@ -481,7 +485,7 @@ public final class SpringHttpResult implements HttpResult {
   @Override
   public String getFullUrl() {
     final String host = urlHost(this.domain);
-    return "http://" + host + ":" + this.port + "/";
+    return "http://%s:%s/".formatted(host, this.port);
   }
 
   /**
@@ -499,7 +503,7 @@ public final class SpringHttpResult implements HttpResult {
       return domain;
     }
     final String encoded = domain.replace(ZONE_SEPARATOR, ENCODED_ZONE_SEPARATOR);
-    return "[" + encoded + "]";
+    return "[%s]".formatted(encoded);
   }
 
   /**

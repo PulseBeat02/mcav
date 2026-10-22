@@ -38,7 +38,7 @@ final class RuntimeDependenciesTest {
     for (final String name : LIFECYCLE_ANNOTATION_CLASSES) {
       final List<URL> definitions = Collections.list(loader.getResources(name));
       final int definitionCount = definitions.size();
-      assertEquals(1, definitionCount, "one runtime definition of " + name + ": " + definitions);
+      assertEquals(1, definitionCount, "one runtime definition of %s: %s".formatted(name, definitions));
     }
   }
 }

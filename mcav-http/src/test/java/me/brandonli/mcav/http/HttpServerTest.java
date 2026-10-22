@@ -205,7 +205,7 @@ final class HttpServerTest {
   }
 
   private static void awaitListeners(final SpringHttpResult http, final int count) {
-    Await.until(count + " browsers listen", () -> http.getListenerCount() == count);
+    Await.until("%s browsers listen".formatted(count), () -> http.getListenerCount() == count);
   }
 
   private static void closeNormally(final WebSocket socket) throws Exception {
@@ -335,9 +335,7 @@ final class HttpServerTest {
       final HttpResponse<String> complete = get(server, MEDIA_PATH);
       final String completeBody = complete.body();
       final String expected =
-        "{\"title\":\"Song\",\"uploader\":\"Artist\",\"channel\":\"Artist Channel\",\"uploader_id\":\"@artist\"," +
-        "\"description\":\"A description\",\"thumbnail\":\"https://example.com/thumbnail.jpg\",\"duration\":216," +
-        "\"view_count\":3000000000,\"like_count\":50,\"upload_date\":\"20240101\"}";
+        "{\"title\":\"Song\",\"uploader\":\"Artist\",\"channel\":\"Artist Channel\",\"uploader_id\":\"@artist\",\"description\":\"A description\",\"thumbnail\":\"https://example.com/thumbnail.jpg\",\"duration\":216,\"view_count\":3000000000,\"like_count\":50,\"upload_date\":\"20240101\"}";
       assertEquals(expected, completeBody);
     } finally {
       server.setCurrentMedia((MediaInformation) null);
@@ -582,8 +580,8 @@ final class HttpServerTest {
       final int status = response.statusCode();
       final String body = response.body();
       final boolean leaked = body.contains(SECRET);
-      assertFalse(leaked, attack + " leaked the file outside the page directory");
-      assertTrue(status >= HttpURLConnection.HTTP_BAD_REQUEST, attack + " answered " + status);
+      assertFalse(leaked, "%s leaked the file outside the page directory".formatted(attack));
+      assertTrue(status >= HttpURLConnection.HTTP_BAD_REQUEST, "%s answered %s".formatted(attack, status));
     }
   }
 
@@ -596,7 +594,8 @@ final class HttpServerTest {
     Files.writeString(index, otherPage);
     final String location = SpringHttpResult.staticLocation(other);
     final List<String> properties = new ArrayList<>(LOOPBACK);
-    properties.add("spring.web.resources.static-locations=" + location);
+    final String locationProperty = "spring.web.resources.static-locations=%s".formatted(location);
+    properties.add(locationProperty);
     final SpringHttpResult http = new SpringHttpResult(LOCALHOST, EPHEMERAL_PORT, pageDirectory, properties);
     properties.clear();
     try {

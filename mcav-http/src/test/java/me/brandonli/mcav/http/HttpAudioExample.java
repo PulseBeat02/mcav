@@ -55,7 +55,7 @@ public final class HttpAudioExample {
     final HttpResult http = startServer(path);
     final VideoPlayerMultiplexer player = play(http, path);
     final String url = http.getFullUrl();
-    System.out.println("Listen at " + url);
+    System.out.println("Listen at %s".formatted(url));
 
     final Thread shutdownHook = new Thread(() -> {
       player.release();

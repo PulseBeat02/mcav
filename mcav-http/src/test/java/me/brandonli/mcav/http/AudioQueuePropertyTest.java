@@ -111,9 +111,9 @@ final class AudioQueuePropertyTest {
       }
       final long pendingBytes = listener.getPendingBytes();
       final int pendingChunks = listener.getPendingChunkCount();
-      assertEquals(keptBytes, pendingBytes, "bytes waiting after chunk " + index);
+      assertEquals(keptBytes, pendingBytes, "bytes waiting after chunk %s".formatted(index));
       final int keptChunks = kept.size();
-      assertEquals(keptChunks, pendingChunks, "chunks waiting after chunk " + index);
+      assertEquals(keptChunks, pendingChunks, "chunks waiting after chunk %s".formatted(index));
     }
 
     listener.start();
@@ -203,9 +203,10 @@ final class AudioQueuePropertyTest {
     final URI uri = URI.create(url);
     final String parsedHost = uri.getHost();
     final int port = uri.getPort();
-    final String expectedHost = "[" + host.replace(ZONE_SEPARATOR, ENCODED_ZONE_SEPARATOR) + "]";
+    final String encodedHost = host.replace(ZONE_SEPARATOR, ENCODED_ZONE_SEPARATOR);
+    final String expectedHost = "[%s]".formatted(encodedHost);
 
-    assertEquals(expectedHost, parsedHost, "the host part of " + url);
+    assertEquals(expectedHost, parsedHost, "the host part of %s".formatted(url));
     assertEquals(PORT, port, "the port stays separate from the address");
   }
 
@@ -289,7 +290,7 @@ final class AudioQueuePropertyTest {
     public String toString() {
       final String kind = this.direct ? "direct" : "heap";
       final String view = this.sliced ? " slice" : "";
-      return this.content.length + " bytes, margin " + this.margin + ", " + kind + view;
+      return "%s bytes, margin %s, %s%s".formatted(this.content.length, this.margin, kind, view);
     }
   }
 }

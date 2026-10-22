@@ -42,7 +42,7 @@ final class ThirdPartyNoticesTest {
     assertNotNull(path, "the build passes the jar it built");
     try (final ZipFile jar = new ZipFile(path)) {
       final ZipEntry entry = jar.getEntry(name);
-      assertNotNull(entry, name + " is in the jar");
+      assertNotNull(entry, "%s is in the jar".formatted(name));
       try (final InputStream input = jar.getInputStream(entry)) {
         return new String(input.readAllBytes(), StandardCharsets.UTF_8);
       }
@@ -53,12 +53,14 @@ final class ThirdPartyNoticesTest {
   void shouldShipTheNoticesOfItsNpmPackagesInTheWebPage() throws IOException {
     final String notices = read(WEBSITE_NOTICES_PATH);
     for (final String component : new String[] { "react@", "react-dom@", "next@", "scheduler@", "styled-jsx@" }) {
-      final boolean named = notices.contains("\n" + component);
-      assertTrue(named, component + " is named");
+      final String entry = "\n%s".formatted(component);
+      final boolean named = notices.contains(entry);
+      assertTrue(named, "%s is named".formatted(component));
     }
     for (final String unused : new String[] { "@mui/material@", "@emotion/react@", "howler@", "@fontsource/roboto@" }) {
-      final boolean named = notices.contains("\n" + unused);
-      assertFalse(named, unused + " is not named");
+      final String entry = "\n%s".formatted(unused);
+      final boolean named = notices.contains(entry);
+      assertFalse(named, "%s is not named".formatted(unused));
     }
 
     final boolean includesTheNotice = notices.contains("Permission is hereby granted");

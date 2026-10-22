@@ -80,7 +80,8 @@ final class PublishedDependenciesTest {
     assertNotNull(version, "the resolved library declares its implementation version");
     final String dependency = "/project/dependencies/dependency[groupId='%s' and artifactId='%s']".formatted(group, artifact);
     final String publishedVersion = value(document, dependency + VERSION_PATH);
-    assertEquals(version, publishedVersion, "Maven consumers need the resolved version of " + artifact);
+    final String message = "The resolved version of %s is what Maven consumers need".formatted(artifact);
+    assertEquals(version, publishedVersion, message);
 
     final String scope = value(document, dependency + SCOPE_PATH);
     assertEquals("compile", scope);
