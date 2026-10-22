@@ -223,7 +223,7 @@ final class Mcv2ShadersTest {
   @Test
   void shouldFindNoLayoutWhenItCannotBeRead() {
     final Resource unreadable = new Resource(null, () -> {
-      throw new IOException("gone");
+      throw new IOException("The resource is gone!");
     });
     final Optional<String> layout = Mcv2Shaders.read(unreadable);
     assertEquals(Optional.empty(), layout);

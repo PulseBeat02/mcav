@@ -43,7 +43,7 @@ final class MinecraftStripOutput implements StripOutput {
 
   private static final String TRANSPARENT = "MCV2 transparent";
 
-  private static final String NO_COLOUR = "A render target without a colour texture";
+  private static final String NO_COLOUR = "Render target must have a colour texture!";
 
   private final Supplier<RenderTarget> main;
 

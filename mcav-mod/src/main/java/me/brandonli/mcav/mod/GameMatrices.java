@@ -43,9 +43,9 @@ final class GameMatrices {
 
   private static final String VIEW_ROTATION_FIELD = "viewRotationMatrix";
 
-  private static final String UNREADABLE = "The game's matrix could not be read";
+  private static final String UNREADABLE = "The game's matrix could not be read!";
 
-  private static final String NOT_A_MATRIX = "Not a JOML 4x4 float matrix: %s";
+  private static final String NOT_A_MATRIX = "Matrix %s is not a JOML 4x4 float matrix!";
 
   private final Method pose;
 
@@ -129,21 +129,23 @@ final class GameMatrices {
    */
   static float[] floats(final @Nullable Object matrix) {
     if (!(matrix instanceof final Externalizable serialisable)) {
-      throw new IllegalStateException(String.format(NOT_A_MATRIX, matrix));
+      final String message = NOT_A_MATRIX.formatted(matrix);
+      throw new IllegalStateException(message);
     }
     try {
       final MatrixFloats floats = new MatrixFloats();
       serialisable.writeExternal(floats);
       return floats.values();
     } catch (final IOException unreadable) {
-      throw new IllegalStateException(String.format(NOT_A_MATRIX, matrix), unreadable);
+      final String message = NOT_A_MATRIX.formatted(matrix);
+      throw new IllegalStateException(message, unreadable);
     }
   }
 
   /** Keeps the floats a matrix writes for serialisation; it has no stream underneath, so it is never closed. */
   private static final class MatrixFloats extends ObjectOutputStream {
 
-    private static final String NOT_FLOATS = "A 4x4 float matrix writes 16 floats and nothing else";
+    private static final String NOT_FLOATS = "A 4x4 float matrix must write 16 floats and nothing else!";
 
     private final float[] values = new float[FLOATS];
 

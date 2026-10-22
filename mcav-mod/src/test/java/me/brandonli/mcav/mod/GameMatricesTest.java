@@ -146,7 +146,7 @@ final class GameMatricesTest {
     @Override
     public void writeExternal(final ObjectOutput out) throws IOException {
       if (this.count < 0) {
-        throw new IOException("failed");
+        throw new IOException("Writing the floats failed!");
       }
       for (int index = 0; index < this.count; index++) {
         out.writeFloat(index);
@@ -168,7 +168,7 @@ final class GameMatricesTest {
     private final Object secret = new Object();
 
     public static Object fails() {
-      throw new IllegalStateException("fails");
+      throw new IllegalStateException("The member failed!");
     }
 
     @SuppressWarnings("unused")
