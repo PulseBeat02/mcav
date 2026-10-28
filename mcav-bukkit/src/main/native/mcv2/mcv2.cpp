@@ -107,6 +107,10 @@ constexpr int32_t SHIFT_DISTANCE_MASK = 31;
 constexpr int32_t BYTE_INDEX_SHIFT = 3;
 constexpr int32_t BIT_INDEX_MASK = 7;
 
+constexpr int32_t SAMPLE_GRID = 4;
+constexpr int32_t WORD_BYTES = (int32_t)sizeof(uint32_t);
+constexpr int32_t SAMPLE_ROW_BYTES = SAMPLE_GRID * WORD_BYTES;
+
 // SSE load/store shuffles cost more than the arithmetic in the halving kernel.
 #if defined(MCV2_SIMD_SSE2) || defined(MCV2_SIMD_SSE41)
 constexpr bool SHUFFLED_CHANNEL_LOAD = true;
@@ -241,11 +245,12 @@ using int_vector = scalar_int_vector;
 inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t second_pixel,
                                      const uint32_t third_pixel, const uint32_t fourth_pixel,
                                      const uint8_t* sample_bytes) {
-  const uint32_t words[4] = {first_pixel, second_pixel, third_pixel, fourth_pixel};
+  const uint32_t words[SAMPLE_GRID] = {first_pixel, second_pixel, third_pixel, fourth_pixel};
   int32_t sum = 0;
-  for (int32_t byte_index = 0; byte_index < 16; byte_index++) {
+  for (int32_t byte_index = 0; byte_index < SAMPLE_ROW_BYTES; byte_index++) {
     const int32_t difference =
-        (int32_t)((words[byte_index / 4] >> (CHAR_BIT * (byte_index % 4))) & UINT8_MAX) - sample_bytes[byte_index];
+        (int32_t)((words[byte_index / WORD_BYTES] >> (CHAR_BIT * (byte_index % WORD_BYTES))) & UINT8_MAX) -
+        sample_bytes[byte_index];
     sum += difference < 0 ? -difference : difference;
   }
   return sum;
@@ -911,7 +916,7 @@ struct double_vector {
 inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t second_pixel,
                                      const uint32_t third_pixel, const uint32_t fourth_pixel,
                                      const uint8_t* sample_bytes) {
-  const uint32_t words[4] = {first_pixel, second_pixel, third_pixel, fourth_pixel};
+  const uint32_t words[SAMPLE_GRID] = {first_pixel, second_pixel, third_pixel, fourth_pixel};
   return (int32_t)vaddlvq_u8(vabdq_u8(vreinterpretq_u8_u32(vld1q_u32(words)), vld1q_u8(sample_bytes)));
 }
 
@@ -1067,7 +1072,7 @@ typedef svfloat64_t sve_double_lanes __attribute__((arm_sve_vector_bits(MCV2_SVE
 inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t second_pixel,
                                      const uint32_t third_pixel, const uint32_t fourth_pixel,
                                      const uint8_t* sample_bytes) {
-  const uint32_t words[4] = {first_pixel, second_pixel, third_pixel, fourth_pixel};
+  const uint32_t words[SAMPLE_GRID] = {first_pixel, second_pixel, third_pixel, fourth_pixel};
   return (int32_t)vaddlvq_u8(vabdq_u8(vreinterpretq_u8_u32(vld1q_u32(words)), vld1q_u8(sample_bytes)));
 }
 
@@ -1812,7 +1817,7 @@ int32_t assign_pattern(const int32_t* source, const int32_t size, const int32_t*
 }
 
 inline int32_t sample_position(const int32_t size, const int32_t sample_index) {
-  return minimum_int((sample_index * size) / 4 + size / 8, size - 1);
+  return minimum_int((sample_index * size) / SAMPLE_GRID + size / (2 * SAMPLE_GRID), size - 1);
 }
 
 inline int32_t pack_motion(const int32_t motion_x, const int32_t motion_y) {
@@ -1838,11 +1843,11 @@ int64_t interior_cost(const uint8_t* reference, const int32_t width, const int32
                       const int32_t block_left, const int32_t block_top, const int32_t* samples, const int32_t motion_x,
                       const int32_t motion_y) {
   int64_t sum = 0;
-  for (int32_t sample_row = 0; sample_row < 4; sample_row++) {
+  for (int32_t sample_row = 0; sample_row < SAMPLE_GRID; sample_row++) {
     const uint8_t* line =
         reference + ((int64_t)(block_top + samples[sample_row] + motion_y) * width + block_left + motion_x) * CHANNELS;
-    const int32_t* source_row = source_samples + sample_row * 4 * CHANNELS;
-    for (int32_t sample_column = 0; sample_column < 4; sample_column++) {
+    const int32_t* source_row = source_samples + sample_row * SAMPLE_GRID * CHANNELS;
+    for (int32_t sample_column = 0; sample_column < SAMPLE_GRID; sample_column++) {
       const uint8_t* reference_pixel = line + samples[sample_column] * CHANNELS;
       const int32_t* source_pixel = source_row + sample_column * CHANNELS;
       sum += pixel_cost(reference_pixel, source_pixel);
@@ -1855,12 +1860,12 @@ int64_t packed_interior_cost(const uint8_t* reference, const int32_t width, cons
                              const int32_t block_left, const int32_t block_top, const int32_t* samples,
                              const int32_t motion_x, const int32_t motion_y) {
   int32_t sum = 0;
-  for (int32_t sample_row = 0; sample_row < 4; sample_row++) {
+  for (int32_t sample_row = 0; sample_row < SAMPLE_GRID; sample_row++) {
     const uint8_t* line =
         reference + ((int64_t)(block_top + samples[sample_row] + motion_y) * width + block_left + motion_x) * CHANNELS;
     sum += four_pixel_difference(pixel_word(line + samples[0] * CHANNELS), pixel_word(line + samples[1] * CHANNELS),
                                  pixel_word(line + samples[2] * CHANNELS), pixel_word(line + samples[3] * CHANNELS),
-                                 packed_samples + 16 * sample_row);
+                                 packed_samples + SAMPLE_ROW_BYTES * sample_row);
   }
   return sum;
 }
@@ -1879,12 +1884,12 @@ int64_t cost(const uint8_t* reference, const int32_t width, const int32_t height
                : interior_cost(reference, width, source_samples, block_left, block_top, samples, motion_x, motion_y);
   }
   int64_t sum = 0;
-  for (int32_t sample_row = 0; sample_row < 4; sample_row++) {
+  for (int32_t sample_row = 0; sample_row < SAMPLE_GRID; sample_row++) {
     const int32_t reference_row = clamp_int(block_top + samples[sample_row] + motion_y, 0, height - 1);
-    for (int32_t sample_column = 0; sample_column < 4; sample_column++) {
+    for (int32_t sample_column = 0; sample_column < SAMPLE_GRID; sample_column++) {
       const int32_t reference_column = clamp_int(block_left + samples[sample_column] + motion_x, 0, width - 1);
       const uint8_t* reference_pixel = reference + ((int64_t)reference_row * width + reference_column) * CHANNELS;
-      const int32_t* source_pixel = source_samples + (sample_row * 4 + sample_column) * CHANNELS;
+      const int32_t* source_pixel = source_samples + (sample_row * SAMPLE_GRID + sample_column) * CHANNELS;
       sum += pixel_cost(reference_pixel, source_pixel);
     }
   }
@@ -1964,16 +1969,16 @@ inline bool sample_pixel(const int32_t* source_pixel, int32_t* sample, uint8_t* 
 int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t height, const int32_t* source,
                const int32_t block_left, const int32_t block_top, const int32_t size, const int32_t range,
                const int32_t* seeds, const int32_t seed_count) {
-  const int32_t samples[4] = {sample_position(size, 0), sample_position(size, 1), sample_position(size, 2),
-                              sample_position(size, 3)};
-  int32_t source_samples[16 * CHANNELS];
-  uint8_t sample_bytes[4 * 16] = {0};
+  const int32_t samples[SAMPLE_GRID] = {sample_position(size, 0), sample_position(size, 1), sample_position(size, 2),
+                                        sample_position(size, 3)};
+  int32_t source_samples[SAMPLE_GRID * SAMPLE_GRID * CHANNELS];
+  uint8_t sample_bytes[SAMPLE_GRID * SAMPLE_ROW_BYTES] = {0};
   bool fits_bytes = true;
-  for (int32_t sample_row = 0; sample_row < 4; sample_row++) {
-    for (int32_t sample_column = 0; sample_column < 4; sample_column++) {
+  for (int32_t sample_row = 0; sample_row < SAMPLE_GRID; sample_row++) {
+    for (int32_t sample_column = 0; sample_column < SAMPLE_GRID; sample_column++) {
       const int32_t* source_pixel = source + (samples[sample_row] * size + samples[sample_column]) * CHANNELS;
-      int32_t* sample = source_samples + (sample_row * 4 + sample_column) * CHANNELS;
-      uint8_t* sample_byte = sample_bytes + 16 * sample_row + 4 * sample_column;
+      int32_t* sample = source_samples + (sample_row * SAMPLE_GRID + sample_column) * CHANNELS;
+      uint8_t* sample_byte = sample_bytes + SAMPLE_ROW_BYTES * sample_row + WORD_BYTES * sample_column;
       fits_bytes &= sample_pixel(source_pixel, sample, sample_byte);
     }
   }
