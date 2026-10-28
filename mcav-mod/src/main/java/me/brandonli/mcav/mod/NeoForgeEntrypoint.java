@@ -18,6 +18,7 @@
 package me.brandonli.mcav.mod;
 
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import net.minecraft.network.Connection;
 import net.neoforged.api.distmarker.Dist;
@@ -61,12 +62,18 @@ public final class NeoForgeEntrypoint {
    * @since 1.0.0
    */
   public NeoForgeEntrypoint(final IEventBus modBus) {
-    this(modBus, NeoForge.EVENT_BUS, irisVersion(ModList.get()).orElse(null), System::nanoTime);
+    final ModList mods = ModList.get();
+    final Optional<String> version = irisVersion(mods);
+    final @Nullable String irisVersion = version.orElse(null);
+    this(modBus, NeoForge.EVENT_BUS, irisVersion, System::nanoTime);
   }
 
   NeoForgeEntrypoint(final IEventBus modBus, final IEventBus gameBus, final @Nullable String irisVersion, final LongSupplier clock) {
+    final boolean installed = irisVersion != null;
+    final BooleanSupplier decodesUnderShaders = Mcv2Shaders.start(irisVersion);
+    final IrisShaders iris = new IrisShaders(installed, decodesUnderShaders);
     this.channel = new NeoForgeChannel();
-    this.reporter = new Mcv2Reporter(new IrisShaders(irisVersion != null, Mcv2Shaders.start(irisVersion)), this.channel, clock);
+    this.reporter = new Mcv2Reporter(iris, this.channel, clock);
 
     modBus.addListener(RegisterPayloadHandlersEvent.class, this::onRegisterPayloadHandlers);
     gameBus.addListener(ClientPlayerNetworkEvent.LoggingIn.class, this::onLoggingIn);
@@ -88,7 +95,10 @@ public final class NeoForgeEntrypoint {
   private void onRegisterPayloadHandlers(final RegisterPayloadHandlersEvent event) {
     // optional, so the client still joins servers without the channel, which are all servers but MCAV's; the server of
     // a single-player world has no MCV2 screens, and its handler drops the reports
-    event.registrar(PROTOCOL).optional().playToServer(Mcv2Payload.TYPE, Mcv2Payload.CODEC, (_, _) -> {});
+    event
+      .registrar(PROTOCOL)
+      .optional()
+      .playToServer(Mcv2Payload.TYPE, Mcv2Payload.CODEC, (_, _) -> {});
   }
 
   private void onLoggingIn(final ClientPlayerNetworkEvent.LoggingIn event) {

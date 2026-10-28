@@ -18,6 +18,7 @@
 package me.brandonli.mcav.mod;
 
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -59,13 +60,11 @@ public final class FabricEntrypoint implements ClientModInitializer {
    * @since 1.0.0
    */
   public FabricEntrypoint() {
-    this(
-      PayloadTypeRegistry.serverboundPlay(),
-      ClientPlayConnectionEvents.JOIN,
-      ClientTickEvents.END_CLIENT_TICK,
-      irisVersion(FabricLoader.getInstance()).orElse(null),
-      System::nanoTime
-    );
+    final PayloadTypeRegistry<RegistryFriendlyByteBuf> payloads = PayloadTypeRegistry.serverboundPlay();
+    final FabricLoader loader = FabricLoader.getInstance();
+    final Optional<String> version = irisVersion(loader);
+    final @Nullable String irisVersion = version.orElse(null);
+    this(payloads, ClientPlayConnectionEvents.JOIN, ClientTickEvents.END_CLIENT_TICK, irisVersion, System::nanoTime);
   }
 
   FabricEntrypoint(
@@ -102,8 +101,12 @@ public final class FabricEntrypoint implements ClientModInitializer {
   @Override
   public void onInitializeClient() {
     this.payloads.register(Mcv2Payload.TYPE, Mcv2Payload.CODEC);
-    final IrisShaders iris = new IrisShaders(this.irisVersion != null, Mcv2Shaders.start(this.irisVersion));
-    final Mcv2Reporter reporter = new Mcv2Reporter(iris, new FabricChannel(), this.clock);
+
+    final boolean installed = this.irisVersion != null;
+    final BooleanSupplier decodesUnderShaders = Mcv2Shaders.start(this.irisVersion);
+    final IrisShaders iris = new IrisShaders(installed, decodesUnderShaders);
+    final FabricChannel channel = new FabricChannel();
+    final Mcv2Reporter reporter = new Mcv2Reporter(iris, channel, this.clock);
     this.joins.register((_, _, _) -> reporter.reset());
     this.ticks.register(_ -> reporter.tick());
   }

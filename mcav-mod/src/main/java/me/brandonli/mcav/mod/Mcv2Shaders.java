@@ -73,7 +73,8 @@ public final class Mcv2Shaders {
   public static void extracted(final MapRenderState state, final MapItemSavedData data) {
     final Identifier texture = state.texture;
     if (texture != null) {
-      ShaderDecoder.current().ifPresent(decoder -> decoder.extracted(texture, data.colors));
+      final Optional<ShaderDecoder> current = ShaderDecoder.current();
+      current.ifPresent(decoder -> decoder.extracted(texture, data.colors));
     }
   }
 
@@ -88,7 +89,9 @@ public final class Mcv2Shaders {
   public static void posed(final MapRenderState state, final PoseStack pose) {
     final Identifier texture = state.texture;
     if (texture != null) {
-      ShaderDecoder.current().ifPresent(decoder -> decoder.posed(texture, pose.last()));
+      final PoseStack.Pose lastPose = pose.last();
+      final Optional<ShaderDecoder> current = ShaderDecoder.current();
+      current.ifPresent(decoder -> decoder.posed(texture, lastPose));
     }
   }
 
@@ -99,7 +102,8 @@ public final class Mcv2Shaders {
    * @since 1.0.0
    */
   public static void projecting() {
-    ShaderDecoder.current().ifPresent(ShaderDecoder::projecting);
+    final Optional<ShaderDecoder> current = ShaderDecoder.current();
+    current.ifPresent(ShaderDecoder::projecting);
   }
 
   /**
@@ -109,7 +113,8 @@ public final class Mcv2Shaders {
    * @since 1.0.0
    */
   public static void projected(final @Nullable Object projection) {
-    ShaderDecoder.current().ifPresent(decoder -> decoder.projected(projection));
+    final Optional<ShaderDecoder> current = ShaderDecoder.current();
+    current.ifPresent(decoder -> decoder.projected(projection));
   }
 
   /**
@@ -121,7 +126,8 @@ public final class Mcv2Shaders {
    * @since 1.0.0
    */
   public static void rendered(final GraphicsResourceAllocator allocator, final CameraRenderState camera) {
-    ShaderDecoder.current().ifPresent(decoder -> decoder.rendered(allocator, camera));
+    final Optional<ShaderDecoder> current = ShaderDecoder.current();
+    current.ifPresent(decoder -> decoder.rendered(allocator, camera));
   }
 
   // answers false for good when the game's matrices cannot be read
@@ -133,7 +139,8 @@ public final class Mcv2Shaders {
 
   // empty when the game's matrices cannot be read
   static Optional<ShaderDecoder> decoder(final @Nullable String irisVersion) {
-    return GameMatrices.find().map(matrices -> decoder(irisVersion, matrices));
+    final Optional<GameMatrices> found = GameMatrices.find();
+    return found.map(matrices -> decoder(irisVersion, matrices));
   }
 
   private static ShaderDecoder decoder(final @Nullable String irisVersion, final GameMatrices matrices) {
