@@ -19,6 +19,7 @@ package me.brandonli.mcav.mod;
 
 import java.util.Optional;
 import java.util.function.LongSupplier;
+import net.minecraft.network.Connection;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
@@ -49,6 +50,10 @@ public final class NeoForgeEntrypoint {
   // NeoForge compares it when the server runs NeoForge too
   static final String PROTOCOL = "1";
 
+  private final NeoForgeChannel channel;
+
+  private final Mcv2Reporter reporter;
+
   /**
    * Constructs the entry point NeoForge calls.
    *
@@ -60,22 +65,13 @@ public final class NeoForgeEntrypoint {
   }
 
   NeoForgeEntrypoint(final IEventBus modBus, final IEventBus gameBus, final @Nullable String irisVersion, final LongSupplier clock) {
-    final NeoForgeChannel channel = new NeoForgeChannel();
-    final Mcv2Reporter reporter = new Mcv2Reporter(new IrisShaders(irisVersion != null, Mcv2Shaders.start(irisVersion)), channel, clock);
-    // optional, so the client still joins servers without the channel, which are all servers but MCAV's; the server of
-    // a single-player world has no MCV2 screens, and its handler drops the reports
-    modBus.addListener(RegisterPayloadHandlersEvent.class, event ->
-      event
-        .registrar(PROTOCOL)
-        .optional()
-        .playToServer(Mcv2Payload.TYPE, Mcv2Payload.CODEC, (_, _) -> {})
-    );
-    gameBus.addListener(ClientPlayerNetworkEvent.LoggingIn.class, event -> {
-      channel.open(event.getConnection());
-      reporter.reset();
-    });
-    gameBus.addListener(ClientPlayerNetworkEvent.LoggingOut.class, _ -> channel.close());
-    gameBus.addListener(ClientTickEvent.Post.class, _ -> reporter.tick());
+    this.channel = new NeoForgeChannel();
+    this.reporter = new Mcv2Reporter(new IrisShaders(irisVersion != null, Mcv2Shaders.start(irisVersion)), this.channel, clock);
+
+    modBus.addListener(RegisterPayloadHandlersEvent.class, this::onRegisterPayloadHandlers);
+    gameBus.addListener(ClientPlayerNetworkEvent.LoggingIn.class, this::onLoggingIn);
+    gameBus.addListener(ClientPlayerNetworkEvent.LoggingOut.class, _ -> this.channel.close());
+    gameBus.addListener(ClientTickEvent.Post.class, _ -> this.reporter.tick());
   }
 
   static Optional<String> irisVersion(final ModList mods) {
@@ -87,5 +83,17 @@ public final class NeoForgeEntrypoint {
     final IModInfo info = mod.getModInfo();
     final ArtifactVersion version = info.getVersion();
     return version.toString();
+  }
+
+  private void onRegisterPayloadHandlers(final RegisterPayloadHandlersEvent event) {
+    // optional, so the client still joins servers without the channel, which are all servers but MCAV's; the server of
+    // a single-player world has no MCV2 screens, and its handler drops the reports
+    event.registrar(PROTOCOL).optional().playToServer(Mcv2Payload.TYPE, Mcv2Payload.CODEC, (_, _) -> {});
+  }
+
+  private void onLoggingIn(final ClientPlayerNetworkEvent.LoggingIn event) {
+    final Connection connection = event.getConnection();
+    this.channel.open(connection);
+    this.reporter.reset();
   }
 }
