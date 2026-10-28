@@ -626,6 +626,7 @@ final class GlTextureFilterTest {
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
+
       return false;
     }
   }

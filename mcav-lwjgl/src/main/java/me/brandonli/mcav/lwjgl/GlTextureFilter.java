@@ -270,7 +270,10 @@ public class GlTextureFilter implements FunctionalVideoFilter {
       return false;
     }
 
-    this.transfer(frame.pixels(), frame.width(), frame.height());
+    final ByteBuffer pixels = frame.pixels();
+    final int width = frame.width();
+    final int height = frame.height();
+    this.transfer(pixels, width, height);
 
     return true;
   }
