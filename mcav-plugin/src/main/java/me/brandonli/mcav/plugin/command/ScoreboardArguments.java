@@ -19,11 +19,8 @@ package me.brandonli.mcav.plugin.command;
 
 import com.google.common.base.Preconditions;
 import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
-import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.utils.immutable.Pair;
-import net.kyori.adventure.text.Component;
-import org.bukkit.command.CommandSender;
 
 /**
  * Checks the arguments of the scoreboard commands before they load any media.
@@ -35,29 +32,23 @@ public final class ScoreboardArguments {
   }
 
   /**
-   * Checks that a resolution such as {@code 24x15} fits on a scoreboard, which shows at most
-   * {@value ScoreboardConfiguration#MAXIMUM_LINES} lines, and tells the sender when it does not. A resolution that
-   * cannot be parsed passes this check, so the command reports it like any other invalid resolution.
+   * Returns whether a resolution such as {@code 24x16} is too tall for a scoreboard, which shows at most
+   * {@value ScoreboardConfiguration#MAXIMUM_LINES} lines. A resolution that cannot be parsed is not too tall, so the
+   * command reports it like any other invalid resolution.
    *
-   * @param sender     who ran the command
    * @param resolution the resolution as entered, whose height is the number of lines
-   * @return true if the command may go on, false if the sender was told that the height is too large
+   * @return whether the height is above the line limit
+   * @throws NullPointerException if {@code resolution} is null
    */
-  public static boolean checkLines(final CommandSender sender, final String resolution) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+  public static boolean isTooTall(final String resolution) {
     Preconditions.checkNotNull(resolution, "Resolution must not be null");
     final Pair<Integer, Integer> dimensions;
     try {
       dimensions = ArgumentUtils.parseDimensions(resolution);
     } catch (final IllegalArgumentException exception) {
-      return true;
+      return false;
     }
     final int lines = dimensions.getSecond();
-    if (lines <= ScoreboardConfiguration.MAXIMUM_LINES) {
-      return true;
-    }
-    final Component message = Message.SCOREBOARD_LINES.build();
-    sender.sendMessage(message);
-    return false;
+    return lines > ScoreboardConfiguration.MAXIMUM_LINES;
   }
 }

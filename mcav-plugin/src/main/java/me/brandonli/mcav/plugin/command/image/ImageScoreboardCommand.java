@@ -25,9 +25,11 @@ import me.brandonli.mcav.bukkit.media.config.ScoreboardConfigurationBuilder;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.ScoreboardArguments;
+import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.FilterChain;
 import me.brandonli.mcav.utils.immutable.Pair;
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotation.specifier.FlagYielding;
@@ -97,8 +99,10 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
     Preconditions.checkNotNull(imageResolution, "Image resolution must not be null");
     Preconditions.checkNotNull(character, "Character must not be null");
     Preconditions.checkNotNull(mrl, "MRL must not be null");
-    final boolean fits = ScoreboardArguments.checkLines(sender, imageResolution);
-    if (!fits) {
+    final boolean tooTall = ScoreboardArguments.isTooTall(imageResolution);
+    if (tooTall) {
+      final Component message = Message.SCOREBOARD_LINES.build();
+      sender.sendMessage(message);
       return;
     }
 

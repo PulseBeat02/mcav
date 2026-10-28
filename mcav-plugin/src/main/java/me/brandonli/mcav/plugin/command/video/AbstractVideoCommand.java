@@ -170,8 +170,15 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     if (chain == null) {
       return;
     }
-    final boolean ready = this.checkBackends(sender, playerType, audioType, mrl);
-    if (!ready || !this.claim(sender)) {
+    final @Nullable Component problem = this.findBackendProblem(sender, playerType, audioType, mrl);
+    if (problem != null) {
+      sender.sendMessage(problem);
+      return;
+    }
+    final boolean claimed = this.claim();
+    if (!claimed) {
+      final Component message = Message.PLAYER_ERROR.build();
+      sender.sendMessage(message);
       return;
     }
 
@@ -268,14 +275,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    *
    * @return true if claimed, false if another video is still starting
    */
-  private boolean claim(final CommandSender sender) {
+  private boolean claim() {
     final AtomicBoolean initializing = this.manager.getStatus();
-    final boolean claimed = initializing.compareAndSet(false, true);
-    if (!claimed) {
-      final Component message = Message.PLAYER_ERROR.build();
-      sender.sendMessage(message);
-    }
-    return claimed;
+    return initializing.compareAndSet(false, true);
   }
 
   private static Player[] collectViewers(final MultiplePlayerSelector selector) {
@@ -310,7 +312,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
   /**
    * Starts the video on the worker thread and reports the outcome to the sender on the main thread. The claim of
-   * {@link #claim(CommandSender)} is given up once the worker is done, or at once if it refuses the video.
+   * {@link #claim()} is given up once the worker is done, or at once if it refuses the video.
    */
   private void launch(final CommandSender sender, final PlaybackRequest request) {
     final AtomicBoolean initializing = this.manager.getStatus();
@@ -366,19 +368,14 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     sender.sendMessage(message);
   }
 
-  private boolean checkBackends(
+  private @Nullable Component findBackendProblem(
     final CommandSender sender,
     final PlayerArgument playerType,
     final AudioArgument audioType,
     final String mrl
   ) {
     final Component deviceProblem = this.findDeviceProblem(sender, playerType, mrl);
-    final Component problem = deviceProblem != null ? deviceProblem : this.findProblem(playerType, audioType, mrl);
-    if (problem == null) {
-      return true;
-    }
-    sender.sendMessage(problem);
-    return false;
+    return deviceProblem != null ? deviceProblem : this.findProblem(playerType, audioType, mrl);
   }
 
   /**

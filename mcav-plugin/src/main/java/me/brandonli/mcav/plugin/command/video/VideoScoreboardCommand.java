@@ -27,11 +27,13 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilte
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.ScoreboardArguments;
+import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.FilterChain;
 import me.brandonli.mcav.plugin.utils.PlayerArgument;
 import me.brandonli.mcav.utils.immutable.Pair;
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.incendo.cloud.annotation.specifier.Quoted;
@@ -107,8 +109,10 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
     Preconditions.checkNotNull(videoResolution, "Video resolution must not be null");
     Preconditions.checkNotNull(character, "Character must not be null");
 
-    final boolean fits = ScoreboardArguments.checkLines(sender, videoResolution);
-    if (!fits) {
+    final boolean tooTall = ScoreboardArguments.isTooTall(videoResolution);
+    if (tooTall) {
+      final Component message = Message.SCOREBOARD_LINES.build();
+      sender.sendMessage(message);
       return;
     }
 

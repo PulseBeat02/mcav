@@ -17,23 +17,12 @@
  */
 package me.brandonli.mcav.plugin.command;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 
-import java.util.List;
 import me.brandonli.mcav.bukkit.media.config.ScoreboardConfiguration;
-import me.brandonli.mcav.plugin.locale.Message;
-import me.brandonli.mcav.plugin.testing.Components;
 import me.brandonli.mcav.plugin.testing.UtilityClassAssertions;
-import net.kyori.adventure.text.Component;
-import org.bukkit.command.CommandSender;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -43,54 +32,40 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 final class ScoreboardArgumentsTest {
 
-  private CommandSender sender;
-
-  @BeforeEach
-  void createSender() {
-    this.sender = mock(CommandSender.class);
-  }
-
   @ParameterizedTest
   @ValueSource(strings = { "24x1", "24x15", "1x15" })
   void shouldAcceptHeightsUpToTheLineLimit(final String resolution) {
-    final boolean fits = ScoreboardArguments.checkLines(this.sender, resolution);
-    assertTrue(fits);
-    verify(this.sender, never()).sendMessage(any(Component.class));
+    final boolean tooTall = ScoreboardArguments.isTooTall(resolution);
+    assertFalse(tooTall);
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "24x16", "8x100" })
-  void shouldRefuseHeightsAboveTheLineLimitAndTellTheSender(final String resolution) {
-    final boolean fits = ScoreboardArguments.checkLines(this.sender, resolution);
-    assertFalse(fits);
-    final List<Component> messages = Components.received(this.sender);
-    final Component error = Message.SCOREBOARD_LINES.build();
-    final List<Component> expected = List.of(error);
-    assertEquals(expected, messages);
+  void shouldRefuseHeightsAboveTheLineLimit(final String resolution) {
+    final boolean tooTall = ScoreboardArguments.isTooTall(resolution);
+    assertTrue(tooTall);
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "wide", "24x", "0x5" })
   void shouldLeaveResolutionsThatCannotBeParsedToTheCommand(final String resolution) {
-    final boolean fits = ScoreboardArguments.checkLines(this.sender, resolution);
-    assertTrue(fits);
-    verify(this.sender, never()).sendMessage(any(Component.class));
+    final boolean tooTall = ScoreboardArguments.isTooTall(resolution);
+    assertFalse(tooTall);
   }
 
   @Test
   void shouldUseTheLineLimitOfTheLibrary() {
     final int limit = ScoreboardConfiguration.MAXIMUM_LINES;
-    final boolean atLimit = ScoreboardArguments.checkLines(this.sender, "24x" + limit);
+    final boolean atLimit = ScoreboardArguments.isTooTall("24x" + limit);
     final int above = limit + 1;
-    final boolean aboveLimit = ScoreboardArguments.checkLines(this.sender, "24x" + above);
-    assertTrue(atLimit);
-    assertFalse(aboveLimit);
+    final boolean aboveLimit = ScoreboardArguments.isTooTall("24x" + above);
+    assertFalse(atLimit);
+    assertTrue(aboveLimit);
   }
 
   @Test
-  void shouldRefuseNullArguments() {
-    assertThrows(NullPointerException.class, () -> ScoreboardArguments.checkLines(null, "24x15"));
-    assertThrows(NullPointerException.class, () -> ScoreboardArguments.checkLines(this.sender, null));
+  void shouldRefuseANullResolution() {
+    assertThrows(NullPointerException.class, () -> ScoreboardArguments.isTooTall(null));
   }
 
   @Test
