@@ -54,7 +54,6 @@ final class Mcv2ReporterTest {
     this.reporter = new Mcv2Reporter(this.shaders, this.channel, this.clock::get);
   }
 
-  /** Ticks once, after a time. */
   private void tickAfter(final long nanoseconds) {
     this.clock.addAndGet(nanoseconds);
     this.reporter.tick();
@@ -123,7 +122,6 @@ final class Mcv2ReporterTest {
     assertArrayEquals(SHADERS_OFF.toBytes(), last);
   }
 
-  /** A channel that records what is sent on it. */
   private static final class RecordingChannel implements ReportChannel {
 
     private final List<byte[]> sent = new ArrayList<>();

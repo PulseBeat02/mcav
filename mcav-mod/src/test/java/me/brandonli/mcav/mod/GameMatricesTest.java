@@ -136,7 +136,7 @@ final class GameMatricesTest {
     assertArrayEquals(new float[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }, floats);
   }
 
-  /** Writes the floats 0, 1, 2 and on, as many as asked, or fails for a negative count. */
+  // writes the floats 0, 1, 2 and on, as many as asked, or fails for a negative count
   public static final class Floats implements Externalizable {
 
     private static final long serialVersionUID = 1L;
@@ -167,7 +167,7 @@ final class GameMatricesTest {
     }
   }
 
-  /** Members that are not the game's: one that fails, and two no other class may read. */
+  // members that are not the game's: one that fails, and two no other class may read
   static final class Members {
 
     public final Object matrix = new Object();

@@ -76,7 +76,7 @@ final class MinecraftStripOutputTest {
 
   private final GraphicsResourceAllocator allocator = mock(GraphicsResourceAllocator.class);
 
-  /** Every texture the device made, in order. */
+  // in the order the device made them
   private final List<GpuTexture> textures = new ArrayList<>();
 
   private MockedStatic<RenderSystem> system;
@@ -103,7 +103,7 @@ final class MinecraftStripOutputTest {
     this.system.close();
   }
 
-  /** A strip of three rows, each of one value, so the order of its rows shows. */
+  // each row of one value, so the order of the rows shows
   private byte[] strip(final int width) {
     final byte[] strip = new byte[ROWS * width * TransportStrip.CHANNELS];
     for (int row = 0; row < ROWS; row++) {

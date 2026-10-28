@@ -56,10 +56,10 @@ final class ShaderDecoderTest {
 
   private static final float[] IDENTITY = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 
-  /** The projection of {@link #projection}: a translation by (0.5, 0.25, -1). */
+  // the projection of projection(): a translation by (0.5, 0.25, -1)
   private static final float[] PROJECTION = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0.5F, 0.25F, -1F, 1 };
 
-  /** Two slots of five rows at 854 pixels, then the descriptor row. */
+  // two slots of five rows at 854 pixels, then the descriptor row
   private static final int ROWS = 11;
 
   private static final int WIDTH = 854;
@@ -113,14 +113,14 @@ final class ShaderDecoderTest {
     );
   }
 
-  /** The projection the game renders with: a JOML matrix, which only reflection names. */
+  // a JOML matrix, which only reflection names
   private Object projection() throws ReflectiveOperationException {
     final PoseStack stack = new PoseStack();
     stack.translate(0.5F, 0.25F, -1F);
     return PoseStack.Pose.class.getMethod(POSE_METHOD).invoke(stack.last());
   }
 
-  /** One frame of a page and an anchor, the anchor drawn at (1, 2, 3) from the camera. */
+  // a page and an anchor, the anchor drawn at (1, 2, 3) from the camera
   private void frame(final ShaderDecoder decoder) throws ReflectiveOperationException {
     decoder.extracted(PAGE_TEXTURE, PAGE);
     decoder.extracted(ANCHOR_TEXTURE, ANCHOR);

@@ -59,7 +59,6 @@ final class NeoForgeEntrypointTest {
 
   private final IEventBus gameBus = mock(IEventBus.class);
 
-  /** The listener the entry point added to a bus for an event. */
   @SuppressWarnings("unchecked") // a class literal cannot name Consumer<EventType>
   private <EventType extends Event> Consumer<EventType> listener(final IEventBus bus, final Class<EventType> event) {
     final ArgumentCaptor<Consumer<EventType>> listener = ArgumentCaptor.forClass(Consumer.class);

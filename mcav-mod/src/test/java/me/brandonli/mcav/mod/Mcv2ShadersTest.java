@@ -132,7 +132,7 @@ final class Mcv2ShadersTest {
     }
   }
 
-  /** Runs every hook of the started decoder on a frame without MCV2 maps, and asks whether it decodes under shaders. */
+  // runs every hook of the started decoder on a frame without MCV2 maps
   private boolean hooked(final BooleanSupplier decodes) throws ReflectiveOperationException {
     final boolean decodesUnderShaders = decodes.getAsBoolean();
     assertFalse(decodesUnderShaders);

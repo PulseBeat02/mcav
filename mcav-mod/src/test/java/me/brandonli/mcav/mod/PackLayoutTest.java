@@ -31,7 +31,7 @@ final class PackLayoutTest {
   private static final String SLOTS = "3, 2";
   private static final String FIRST_SLOTS = "0, 3";
 
-  /** A layout as the server generates it, with the stream ids, slot counts and first slots of its screens. */
+  // a layout as the server generates it
   static String packConstants(final String streams, final String slots, final String firsts, final int screens) {
     return String.join(
       "\n",

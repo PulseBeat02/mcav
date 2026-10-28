@@ -28,15 +28,15 @@ final class TransportStripTest {
 
   private static final int WIDTH = 854;
 
-  /** Five rows a page at 854 pixels: screen 0 owns slots 0 to 2, screen 1 slots 3 and 4, then a descriptor row each. */
+  // five rows a page at 854 pixels: screen 0 owns slots 0 to 2, screen 1 slots 3 and 4, then a descriptor row each
   private static final PackLayout LAYOUT = PackLayout.parse(PackLayoutTest.packConstants("7u, 9u", "3, 2", "0, 3", 2)).orElseThrow();
 
   private static final float[] IDENTITY = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 
-  /** A quarter turn about the y axis, column by column: x becomes -z and z becomes x. */
+  // a quarter turn about the y axis, column by column: x becomes -z and z becomes x
   private static final float[] QUARTER_TURN = { 0, 0, -1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1 };
 
-  /** Floats whose every byte counts: no trailing zeros in their mantissas. */
+  // every byte of these floats counts: no trailing zeros in their mantissas
   private static final float[] PROJECTION = {
     0.1F,
     1.1F,
@@ -211,7 +211,7 @@ final class TransportStripTest {
     return transformed;
   }
 
-  /** The 28 floats of a descriptor row: each in two pixels, the three low bytes in the first, the high byte next. */
+  // each float in two pixels: the three low bytes in the first, the high byte next
   private float[] descriptor(final byte[] strip, final int start) {
     final float[] floats = new float[DESCRIPTOR_FLOATS];
     for (int index = 0; index < floats.length; index++) {

@@ -32,7 +32,6 @@ import org.mockito.MockedStatic;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Every handler hands what the game gave it to the decoder's way in, and does nothing else. */
 final class MixinsTest {
 
   private static final String RENDER_METHOD = "render";
