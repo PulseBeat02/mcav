@@ -73,6 +73,7 @@ final class GlTextureFilterTest {
   private static final long UPLOAD_LIMIT_MILLISECONDS = 4_000L;
 
   private static final int NO_TEXTURE = 0;
+
   private static final int BASE_LEVEL = 0;
   private static final int NO_BORDER = 0;
 
@@ -122,9 +123,13 @@ final class GlTextureFilterTest {
   private static final int NEGATIVE_TEXTURE_ID = -3;
 
   private static final int FRAME_COUNT = 4;
+  private static final int THIRD_FRAME = 2;
+  private static final int FOURTH_FRAME = 3;
+
   private static final int STAGING_BUFFER_COUNT = 2;
 
   private static final String TEXTURE_IMAGE_METHOD = "glTexImage2D";
+
   private static final String CONTEXT_FAILURE_PREFIX = "No OpenGL context is current on this thread";
 
   private static boolean initialized;
@@ -360,8 +365,8 @@ final class GlTextureFilterTest {
 
       final ByteBuffer first = transferred.get(0);
       final ByteBuffer second = transferred.get(1);
-      final ByteBuffer third = transferred.get(2);
-      final ByteBuffer fourth = transferred.get(3);
+      final ByteBuffer third = transferred.get(THIRD_FRAME);
+      final ByteBuffer fourth = transferred.get(FOURTH_FRAME);
       assertNotSame(first, second, "the player must not overwrite the buffer being uploaded");
       assertSame(first, third, "fixed-size playback must reuse its direct buffers");
       assertSame(second, fourth, "both staging buffers must be reusable");

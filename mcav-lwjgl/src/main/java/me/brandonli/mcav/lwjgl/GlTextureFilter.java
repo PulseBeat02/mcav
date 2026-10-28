@@ -71,6 +71,7 @@ import org.lwjgl.opengl.GLCapabilities;
 public class GlTextureFilter implements FunctionalVideoFilter {
 
   private static final int NO_TEXTURE = 0;
+
   private static final int CHANNELS = 3;
 
   private static final int BASE_LEVEL = 0;
