@@ -1234,6 +1234,14 @@ constexpr double DISTORTION_SCALE = 96.0;
 constexpr int32_t NIBBLE_BITS = 4;
 constexpr int32_t NIBBLE_MASK = 15;
 
+constexpr int32_t DIRECTION_COUNT = 4;
+constexpr int32_t DIRECTIONS[DIRECTION_COUNT][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+
+constexpr int32_t HORIZONTAL_MOTION_SHIFT = 16;
+constexpr int32_t VERTICAL_MOTION_MASK = 0xFFFF;
+
+constexpr int32_t KEY_HORIZONTAL_SHIFT = 32;
+
 inline int32_t logarithm_base_two(const int32_t value) {
   return __builtin_ctz((unsigned)value);
 }
@@ -1807,13 +1815,11 @@ inline int32_t sample_position(const int32_t size, const int32_t sample_index) {
   return minimum_int((sample_index * size) / 4 + size / 8, size - 1);
 }
 
-constexpr int32_t DIRECTIONS[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
-
 inline int32_t pack_motion(const int32_t motion_x, const int32_t motion_y) {
-  return wrapping_shift_left(motion_x, 16) | (motion_y & 0xFFFF);
+  return wrapping_shift_left(motion_x, HORIZONTAL_MOTION_SHIFT) | (motion_y & VERTICAL_MOTION_MASK);
 }
 inline int32_t unpack_horizontal_motion(const int32_t vector) {
-  return vector >> 16;
+  return vector >> HORIZONTAL_MOTION_SHIFT;
 }
 inline int32_t unpack_vertical_motion(const int32_t vector) {
   return (int16_t)vector;
@@ -1891,7 +1897,7 @@ struct measured_vectors {
   int32_t count_ = 0;
   // Full coordinates avoid collisions caused by truncating packed motion vectors.
   static int64_t key(const int32_t motion_x, const int32_t motion_y) {
-    return (int64_t)((uint64_t)(uint32_t)motion_x << 32 | (uint32_t)motion_y);
+    return (int64_t)((uint64_t)(uint32_t)motion_x << KEY_HORIZONTAL_SHIFT | (uint32_t)motion_y);
   }
   bool contains(const int32_t motion_x, const int32_t motion_y) const {
     const int64_t vector = key(motion_x, motion_y);
@@ -1982,7 +1988,7 @@ int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t heig
   for (int32_t step = 0; step < 2 * range; step++) {
     const int32_t center_x = search.best_x_;
     const int32_t center_y = search.best_y_;
-    for (int32_t direction = 0; direction < 4; direction++) {
+    for (int32_t direction = 0; direction < DIRECTION_COUNT; direction++) {
       const int32_t candidate_x = clamp_int(center_x + DIRECTIONS[direction][0], -range, range);
       const int32_t candidate_y = clamp_int(center_y + DIRECTIONS[direction][1], -range, range);
       search.measure_once(candidate_x, candidate_y);
