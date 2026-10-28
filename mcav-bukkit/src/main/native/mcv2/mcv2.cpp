@@ -375,6 +375,7 @@ inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t 
 
 struct int_vector {
   static constexpr int LANES = 4;
+  static constexpr int32_t LANE_MASK = (1 << LANES) - 1;
   __m128i lanes_;
   static int_vector load(const int32_t* buffer) {
     return {_mm_loadu_si128((const __m128i*)buffer)};
@@ -479,7 +480,7 @@ struct int_vector {
     _mm_storeu_si128((__m128i*)(buffer + 8), third_vector);
   }
   static int_vector bits(const int8_t* buffer, const int32_t index) {
-    const __m128i byte = _mm_set1_epi32((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & 0xF);
+    const __m128i byte = _mm_set1_epi32((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & LANE_MASK);
     const __m128i lane_bits = _mm_setr_epi32(1, 2, 4, 8);
     return {_mm_cmpeq_epi32(_mm_and_si128(byte, lane_bits), lane_bits)};
   }
@@ -556,6 +557,7 @@ inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t 
 
 struct int_vector {
   static constexpr int LANES = 8;
+  static constexpr int32_t LANE_MASK = (1 << LANES) - 1;
   __m256i lanes_;
   static int_vector load(const int32_t* buffer) {
     return {_mm256_loadu_si256((const __m256i*)buffer)};
@@ -662,7 +664,7 @@ struct int_vector {
                                            shuffled_red, EVERY_THIRD_LANE_FROM_TWO));
   }
   static int_vector bits(const int8_t* buffer, const int32_t index) {
-    const __m256i byte = _mm256_set1_epi32(buffer[index >> BYTE_INDEX_SHIFT] & 0xFF);
+    const __m256i byte = _mm256_set1_epi32(buffer[index >> BYTE_INDEX_SHIFT] & LANE_MASK);
     const __m256i lane_bits = _mm256_setr_epi32(1, 2, 4, 8, 16, 32, 64, 128);
     return {_mm256_cmpeq_epi32(_mm256_and_si256(byte, lane_bits), lane_bits)};
   }
@@ -811,7 +813,8 @@ struct int_vector {
 
   static int_vector bits(const int8_t* buffer, const int32_t index) {
     const int32_t array_offset = index >> BYTE_INDEX_SHIFT;
-    const uint32_t word = (uint32_t)(uint8_t)buffer[array_offset] | ((uint32_t)(uint8_t)buffer[array_offset + 1] << 8);
+    const uint32_t word =
+        (uint32_t)(uint8_t)buffer[array_offset] | ((uint32_t)(uint8_t)buffer[array_offset + 1] << CHAR_BIT);
     return {_mm512_movm_epi32((__mmask16)word)};
   }
   static int_vector evens(const int_vector first, const int_vector second) {
@@ -904,6 +907,7 @@ inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t 
 
 struct int_vector {
   static constexpr int LANES = 4;
+  static constexpr int32_t LANE_MASK = (1 << LANES) - 1;
   int32x4_t lanes_;
   static int_vector load(const int32_t* buffer) {
     return {vld1q_s32(buffer)};
@@ -984,7 +988,7 @@ struct int_vector {
   }
   static int_vector bits(const int8_t* buffer, const int32_t index) {
     static const int32_t lane_bits[4] = {1, 2, 4, 8};
-    const int32x4_t byte = vdupq_n_s32((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & 0xF);
+    const int32x4_t byte = vdupq_n_s32((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & LANE_MASK);
     return {vreinterpretq_s32_u32(vtstq_s32(byte, vld1q_s32(lane_bits)))};
   }
   static int_vector evens(const int_vector first, const int_vector second) {
@@ -1133,8 +1137,8 @@ struct int_vector {
   static int_vector bits(const int8_t* buffer, const int32_t index) {
     const int32_t array_offset = index >> BYTE_INDEX_SHIFT;
     uint32_t word = (uint8_t)buffer[array_offset];
-    if (LANES > 8) {
-      word |= (uint32_t)(uint8_t)buffer[array_offset + 1] << 8;
+    if (LANES > CHAR_BIT) {
+      word |= (uint32_t)(uint8_t)buffer[array_offset + 1] << CHAR_BIT;
     }
     const svuint32_t bit_positions = svindex_u32(0, 1);
     const svuint32_t lane_bit =
