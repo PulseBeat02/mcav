@@ -77,6 +77,7 @@ MCV2_EXPORT int32_t mcv2_abi(void);
 
 #if !defined(MCV2_DECLARATIONS_ONLY)
 
+#include <limits.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -138,7 +139,7 @@ inline int32_t wrapping_shift_right(const int32_t first, const int32_t shift_dis
 }
 
 inline uint32_t pixel_word(const uint8_t* buffer) {
-  return (uint32_t)buffer[0] | (uint32_t)buffer[1] << 8 | (uint32_t)buffer[2] << 16;
+  return (uint32_t)buffer[0] | (uint32_t)buffer[1] << CHAR_BIT | (uint32_t)buffer[2] << 2 * CHAR_BIT;
 }
 
 struct scalar_int_vector {
@@ -240,7 +241,7 @@ inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t 
   int32_t sum = 0;
   for (int32_t byte_index = 0; byte_index < 16; byte_index++) {
     const int32_t difference =
-        (int32_t)((words[byte_index / 4] >> (8 * (byte_index % 4))) & 0xFF) - sample_bytes[byte_index];
+        (int32_t)((words[byte_index / 4] >> (CHAR_BIT * (byte_index % 4))) & UINT8_MAX) - sample_bytes[byte_index];
     sum += difference < 0 ? -difference : difference;
   }
   return sum;
@@ -1202,11 +1203,20 @@ namespace {
 
 constexpr int32_t CHANNELS = 3;
 constexpr int32_t MAXIMUM_CHANNEL = 255;
+
+constexpr int32_t RED_SHIFT = 16;
+constexpr int32_t GREEN_SHIFT = 8;
+constexpr int32_t BLUE_SHIFT = 0;
+constexpr int32_t CHANNEL_MASK = 0xFF;
+
 constexpr int32_t GRID = 4;
 constexpr int32_t ROOT_SIZE = 32;
 constexpr int32_t BLOCK_SIZES = 3;
+
 constexpr int32_t SELECTORS_AT = 6;
+
 constexpr double DISTORTION_SCALE = 96.0;
+
 constexpr int32_t NIBBLE_BITS = 4;
 constexpr int32_t NIBBLE_MASK = 15;
 
@@ -1342,9 +1352,9 @@ int64_t predicted(const int32_t* prediction, const int32_t size, int32_t* output
 }
 
 int64_t solid(const int32_t color, const int32_t size, int32_t* output, distortion_measure measure) {
-  const int_vector red_values = int_vector::broadcast((color >> 16) & 0xFF);
-  const int_vector green_values = int_vector::broadcast((color >> 8) & 0xFF);
-  const int_vector blue_values = int_vector::broadcast(color & 0xFF);
+  const int_vector red_values = int_vector::broadcast((color >> RED_SHIFT) & CHANNEL_MASK);
+  const int_vector green_values = int_vector::broadcast((color >> GREEN_SHIFT) & CHANNEL_MASK);
+  const int_vector blue_values = int_vector::broadcast((color >> BLUE_SHIFT) & CHANNEL_MASK);
   for (int32_t vertical_position = 0; vertical_position < size; vertical_position++) {
     const int32_t source_position = vertical_position * size * CHANNELS;
     for (int32_t horizontal_position = 0; horizontal_position < size; horizontal_position += int_vector::LANES) {
