@@ -1235,12 +1235,16 @@ constexpr int32_t BLOCK_SIZES = 3;
 constexpr int32_t SMALLEST_BLOCK_SHIFT = 3;
 constexpr int32_t SMALLEST_BLOCK_SIZE = 1 << SMALLEST_BLOCK_SHIFT;
 
+constexpr int32_t MOTION_BYTES = 2;
 constexpr int32_t SELECTORS_AT = 6;
 
 constexpr double DISTORTION_SCALE = 96.0;
 
 constexpr int32_t NIBBLE_BITS = 4;
 constexpr int32_t NIBBLE_MASK = 15;
+constexpr int32_t NIBBLE_SIGN = 1 << (NIBBLE_BITS - 1);
+constexpr int32_t NIBBLE_RANGE = 1 << NIBBLE_BITS;
+constexpr int32_t NIBBLES_PER_BYTE = CHAR_BIT / NIBBLE_BITS;
 
 constexpr int32_t DIRECTION_COUNT = 4;
 constexpr int32_t DIRECTIONS[DIRECTION_COUNT][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
@@ -1427,10 +1431,10 @@ int64_t compact(const int32_t* prediction, const int8_t* record, const int32_t q
                 int32_t* output, distortion_measure measure) {
   int32_t nodes[GRID * GRID];
   for (int32_t index = 0; index < GRID * GRID; index++) {
-    const int32_t packed = (uint8_t)record[2 + index / 2];
-    const int32_t nibble = (packed >> ((index % 2) * NIBBLE_BITS)) & NIBBLE_MASK;
+    const int32_t packed = (uint8_t)record[MOTION_BYTES + index / NIBBLES_PER_BYTE];
+    const int32_t nibble = (packed >> ((index % NIBBLES_PER_BYTE) * NIBBLE_BITS)) & NIBBLE_MASK;
 
-    nodes[index] = nibble >= 8 ? nibble - 16 : nibble;
+    nodes[index] = nibble >= NIBBLE_SIGN ? nibble - NIBBLE_RANGE : nibble;
   }
   int32_t rows[GRID * ROOT_SIZE];
   interpolate_horizontally(nodes, size, rows);
