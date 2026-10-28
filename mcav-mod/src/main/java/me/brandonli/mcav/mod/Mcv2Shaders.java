@@ -48,10 +48,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public final class Mcv2Shaders {
 
-  /** The constants the server generates into the MCV2 pack. */
+  // the server generates it into the MCV2 pack
   static final Identifier LAYOUT = Identifier.fromNamespaceAndPath("mcav", "shaders/include/mcv2_config.glsl");
 
-  /** The vanilla post chain the MCV2 pack replaces with its decoder. */
+  // the MCV2 pack replaces this vanilla chain with its decoder
   static final Identifier OUTLINE_CHAIN = Identifier.withDefaultNamespace("entity_outline");
 
   private Mcv2Shaders() {
@@ -108,26 +108,14 @@ public final class Mcv2Shaders {
     ShaderDecoder.current().ifPresent(decoder -> decoder.rendered(allocator, camera));
   }
 
-  /**
-   * Starts the decoder of this client, the one the mixins report to.
-   *
-   * @param irisVersion the version of the Iris installed, null without Iris
-   * @return whether MCV2 decodes under a shader pack in this client now, false for good when the game's matrices cannot
-   *     be read and there is no decoder
-   */
+  // answers false for good when the game's matrices cannot be read
   static BooleanSupplier start(final @Nullable String irisVersion) {
     final Optional<ShaderDecoder> decoder = decoder(irisVersion);
     decoder.ifPresentOrElse(ShaderDecoder::install, ShaderDecoder::uninstall);
     return () -> decoder.filter(ShaderDecoder::decodesUnderShaders).isPresent();
   }
 
-  /**
-   * The decoder of this client.
-   *
-   * @param irisVersion the version of the Iris installed, null without Iris
-   * @return the decoder, which decodes under shader packs only with the Iris version it was proven with, or empty when
-   *     the game's matrices cannot be read
-   */
+  // empty when the game's matrices cannot be read
   static Optional<ShaderDecoder> decoder(final @Nullable String irisVersion) {
     return GameMatrices.find().map(matrices -> decoder(irisVersion, matrices));
   }
@@ -146,21 +134,19 @@ public final class Mcv2Shaders {
     );
   }
 
-  /** The game's main target, which Iris's final pass writes the shader pack's image into. */
+  // Iris's final pass writes the shader pack's image into it
   static RenderTarget mainTarget() {
     final Minecraft minecraft = Minecraft.getInstance();
     final GameRenderer renderer = minecraft.gameRenderer;
     return renderer.mainRenderTarget();
   }
 
-  /** The post chain the MCV2 pack replaces vanilla's outline chain with, or null while no pack gives one. */
   static @Nullable PostChain outlineChain() {
     final Minecraft minecraft = Minecraft.getInstance();
     final ShaderManager shaders = minecraft.getShaderManager();
     return shaders.getPostChain(OUTLINE_CHAIN, LevelTargetBundle.OUTLINE_TARGETS);
   }
 
-  /** A command encoder of the game's GPU device. */
   static CommandEncoder commands() {
     final GpuDevice device = RenderSystem.getDevice();
     return device.createCommandEncoder();
@@ -176,7 +162,6 @@ public final class Mcv2Shaders {
     return iris.isRenderingShadowPass();
   }
 
-  /** The text of the MCV2 pack's generated layout, empty while no MCV2 pack is loaded. */
   static Optional<String> layout() {
     final Minecraft minecraft = Minecraft.getInstance();
     final ResourceManager resources = minecraft.getResourceManager();

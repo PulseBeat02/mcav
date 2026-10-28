@@ -21,13 +21,10 @@ import com.google.common.base.MoreObjects;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * An anchor map seen this frame: where its screen is, read from the anchor's symbols, and the top left corner of the map
- * as the game drew it, relative to the camera.
- */
+// the corner is the map's top left as the game drew it, relative to the camera
 final class StripAnchor {
 
-  /** The anchor's fields and its stream, one symbol each after the signature. */
+  // the fields and the stream, one symbol each after the signature
   private static final int COLUMN = 8;
   private static final int ROW = 9;
   private static final int COLUMNS = 10;
@@ -84,15 +81,7 @@ final class StripAnchor {
     return new StripAnchor(column, row, columns, rows, facing, stream, cornerX, cornerY, cornerZ);
   }
 
-  /**
-   * Reads an anchor.
-   *
-   * @param colours the colours of a map {@link Mcv2Maps#isAnchor} accepted
-   * @param cornerX the map's top left corner relative to the camera, x
-   * @param cornerY y
-   * @param cornerZ z
-   * @return the anchor
-   */
+  // colours of a map Mcv2Maps.isAnchor accepted
   static StripAnchor of(final byte[] colours, final float cornerX, final float cornerY, final float cornerZ) {
     final long stream = Mcv2Maps.symbol(colours, STREAM_LOW) | ((long) Mcv2Maps.symbol(colours, STREAM_HIGH) << SYMBOL_BITS);
     return new StripAnchor(

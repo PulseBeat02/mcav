@@ -17,13 +17,11 @@
  */
 package me.brandonli.mcav.mod;
 
-/** What Iris says of its shader pack, as a report carries it. */
 enum ShaderPack {
-  /** No shader pack is in use, or Iris is not installed. */
+  // also without Iris
   NONE(0),
-  /** A shader pack is in use. */
   IN_USE(1),
-  /** Iris lacks the API the mod asks, so it cannot be known. */
+  // Iris lacks the API the mod asks
   UNKNOWN(2);
 
   private final byte code;
@@ -32,7 +30,6 @@ enum ShaderPack {
     this.code = (byte) code;
   }
 
-  /** The byte of a report that says this. */
   byte code() {
     return this.code;
   }

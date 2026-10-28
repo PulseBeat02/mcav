@@ -19,18 +19,11 @@ package me.brandonli.mcav.mod;
 
 import java.util.List;
 
-/**
- * The transport strip of a frame, built from the frame's MCV2 maps exactly as the pack's text shaders draw it in a
- * client without a shader pack: every page's symbols in its slot, four symbols in the three bytes of a pixel, and per
- * screen a descriptor row that tells the post chain where the screen is. Rows count from the top of the screen, pixels
- * are RGBA bytes.
- */
+// built exactly as the pack's text shaders draw it without a shader pack; rows count from the top, pixels are RGBA
 final class TransportStrip {
 
-  /** The bytes of a pixel. */
   static final int CHANNELS = 4;
 
-  /** The pixels of a descriptor row the post chain reads. */
   static final int DESCRIPTOR_PIXELS = 64;
 
   static final float POINT_W = 1F;
@@ -55,14 +48,14 @@ final class TransportStrip {
 
   private static final int SYMBOLS_PER_PIXEL = 4;
 
-  /** A page's stream id and page number in its header: bits 64 to 95 and 128 to 143 of its symbol stream. */
+  // a page header's stream id and page number: bits 64 to 95 and 128 to 143 of its symbol stream
   private static final int STREAM_BIT = 64;
 
   private static final int NUMBER_BIT = 128;
 
   private static final int HALF_WORD = 16;
 
-  /** The descriptor: "MCV", a version byte, then 28 floats, each in two pixels: three low bytes, then the high one. */
+  // the descriptor: "MCV", a version byte, then 28 floats, each in two pixels: three low bytes, then the high one
   private static final int SIGNATURE_RED = 'M';
   private static final int SIGNATURE_GREEN = 'C';
   private static final int SIGNATURE_BLUE = 'V';
@@ -101,17 +94,7 @@ final class TransportStrip {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Builds the strip.
-   *
-   * @param layout       where the pack keeps its screens' pages and anchors
-   * @param width        the screen's width in pixels
-   * @param pages        the colours of every page map of this frame
-   * @param anchors      the anchor maps of this frame; the first of each screen describes it
-   * @param viewRotation the camera's rotation, a column-major 4x4 matrix
-   * @param projection   the projection, a column-major 4x4 matrix
-   * @return {@link PackLayout#stripRows} rows of {@code width} RGBA pixels, the top row first
-   */
+  // the first anchor of each screen describes it; matrices are column-major
   static byte[] build(
     final PackLayout layout,
     final int width,
@@ -135,7 +118,7 @@ final class TransportStrip {
     return strip;
   }
 
-  /** Bits of a page's symbol stream, least significant first; a colour outside the alphabet reads as 0, as in the shader. */
+  // least significant first
   static int bits(final byte[] colours, final int bit, final int count) {
     int value = 0;
     for (int index = 0; index < count; index++) {
@@ -226,7 +209,7 @@ final class TransportStrip {
     put(strip, start + pixel, bits >>> HIGH_BYTE_SHIFT, 0, 0);
   }
 
-  /** The world direction one block along a map's right edge, by facing: east, south, west, north. */
+  // one block along a map's right edge, by facing: east, south, west, north
   private static float rightX(final int facing) {
     return switch (facing) {
       case EAST -> 1;
@@ -243,7 +226,7 @@ final class TransportStrip {
     };
   }
 
-  /** A column-major 4x4 matrix times a vector, the first three components. */
+  // a column-major 4x4 matrix times a vector, the first three components
   static float[] transform(final float[] matrix, final float vectorX, final float vectorY, final float vectorZ, final float vectorW) {
     final float[] transformed = new float[AXES];
     for (int row = 0; row < AXES; row++) {

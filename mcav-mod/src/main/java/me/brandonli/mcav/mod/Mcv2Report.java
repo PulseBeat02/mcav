@@ -21,13 +21,8 @@ import com.google.common.base.MoreObjects;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * What the mod tells the server: version 1 of a report is four bytes, the version, 1 if Iris is installed, the shader
- * pack's code, and 1 if MCV2 decodes under the shader pack in use.
- */
 final class Mcv2Report {
 
-  /** The version of the reports this mod sends. */
   private static final byte VERSION = 1;
 
   private static final byte FLAG_SET = 1;
@@ -47,7 +42,6 @@ final class Mcv2Report {
     return new Mcv2Report(irisPresent, shaderPack, decodesUnderShaders);
   }
 
-  /** The report as it is sent. */
   byte[] toBytes() {
     final byte iris = this.flag(this.irisPresent);
     final byte code = this.shaderPack.code();

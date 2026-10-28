@@ -40,10 +40,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Mod(value = NeoForgeEntrypoint.MOD_ID, dist = Dist.CLIENT)
 public final class NeoForgeEntrypoint {
 
-  /** The mod's id. */
   static final String MOD_ID = "mcav_mcv2";
 
-  /** The version NeoForge compares when the server runs NeoForge too. */
+  // NeoForge compares it when the server runs NeoForge too
   static final String PROTOCOL = "1";
 
   /**
@@ -74,7 +73,6 @@ public final class NeoForgeEntrypoint {
     gameBus.addListener(ClientTickEvent.Post.class, _ -> reporter.tick());
   }
 
-  /** The version of the Iris NeoForge loaded, empty without Iris. */
   static Optional<String> irisVersion(final ModList mods) {
     final Optional<? extends ModContainer> iris = mods.getModContainerById(IrisShaders.MOD_ID);
     return iris.map(NeoForgeEntrypoint::versionOf);

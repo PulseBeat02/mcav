@@ -17,20 +17,9 @@
  */
 package me.brandonli.mcav.mod;
 
-/** The plugin channel of the server the client plays on, as a loader offers it. */
 interface ReportChannel {
-  /**
-   * Checks whether the server listens on the channel: a server learns of a report only once it registered the channel,
-   * which an MCAV server does as the player joins.
-   *
-   * @return true if a report may be sent now
-   */
+  // a server gets reports only once it registered the channel, which an MCAV server does as the player joins
   boolean isOpen();
 
-  /**
-   * Sends a report.
-   *
-   * @param report the report's bytes
-   */
   void send(byte[] report);
 }

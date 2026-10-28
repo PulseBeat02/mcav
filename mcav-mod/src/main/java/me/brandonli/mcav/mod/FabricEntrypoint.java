@@ -75,7 +75,6 @@ public final class FabricEntrypoint implements ClientModInitializer {
     this.clock = clock;
   }
 
-  /** The version of the Iris Fabric loaded, empty without Iris. */
   static Optional<String> irisVersion(final FabricLoader loader) {
     final Optional<ModContainer> iris = loader.getModContainer(IrisShaders.MOD_ID);
     return iris.map(FabricEntrypoint::versionOf);

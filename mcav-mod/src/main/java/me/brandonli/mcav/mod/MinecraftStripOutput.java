@@ -33,11 +33,8 @@ import net.minecraft.client.renderer.LevelTargetBundle;
 import net.minecraft.client.renderer.PostChain;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * The game's main target and the MCV2 pack's post chain, which is the vanilla {@code entity_outline} chain the pack
- * replaces. The chain also draws the outlines of glowing entities from the outline target, and writes into it; it runs
- * here on an empty one, copied each frame from a target nothing draws into, so it draws MCV2's screens and nothing else.
- */
+// the pack's chain replaces vanilla's entity_outline chain, which also draws glowing entities' outlines from the
+// outline target and writes into it: it runs on an empty one, copied each frame from a target nothing draws into
 final class MinecraftStripOutput implements StripOutput {
 
   private static final String EMPTY_OUTLINE = "MCV2 empty outline";
@@ -61,16 +58,8 @@ final class MinecraftStripOutput implements StripOutput {
 
   private @Nullable OutlineTargets outlineTargets;
 
-  /** The strip's pixels as the GPU takes them, kept from frame to frame: a frame's strip is the size of the last one. */
   private ByteBuffer pixels = ByteBuffer.allocateDirect(0);
 
-  /**
-   * Constructs the output.
-   *
-   * @param main    the game's main target
-   * @param chain   the pack's outline chain, or null while it has none
-   * @param encoder a command encoder of the game's GPU device
-   */
   MinecraftStripOutput(
     final Supplier<RenderTarget> main,
     final Supplier<@Nullable PostChain> chain,
@@ -132,7 +121,7 @@ final class MinecraftStripOutput implements StripOutput {
     return true;
   }
 
-  /** The outline target of this frame, transparent: the chain wrote into the last frame's, so it is copied over again. */
+  // copied over again each frame, since the chain wrote into the last frame's
   private TextureTarget emptyOutline(final RenderTarget target, final CommandEncoder commands) {
     final OutlineTargets targets = this.sizeOutlineTargets(target, commands);
     final TextureTarget empty = targets.empty();
@@ -177,11 +166,11 @@ final class MinecraftStripOutput implements StripOutput {
     return new OutlineTargets(empty, transparent);
   }
 
-  /** A target's colour texture, which a target has from the moment it is made until it is destroyed. */
+  // a target has its colour texture from creation until it is destroyed
   private static GpuTexture colour(final RenderTarget target) {
     return requireNonNull(target.getColorTexture(), NO_COLOUR);
   }
 
-  /** The outline target the chain runs on, and the transparent one it is copied from, both the size of the screen. */
+  // the chain runs on empty, copied from transparent; both the size of the screen
   private record OutlineTargets(TextureTarget empty, TextureTarget transparent) {}
 }

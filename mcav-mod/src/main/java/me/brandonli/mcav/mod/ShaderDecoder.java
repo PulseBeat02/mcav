@@ -26,25 +26,19 @@ import java.util.function.Supplier;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * Decodes MCV2 under an Iris shader pack. Iris draws the world with the shader pack's programs and writes the pack's
- * final image over the game's main target after the level is rendered, so the MCV2 pack's text shaders never put the
- * transport strip where its post chain reads it, and whatever the chain drew is painted over. With a shader pack in use,
- * this builds the strip from the frame's MCV2 maps once the shader pack's final image is done, writes it into the main
- * target and runs the pack's chain over it. Nothing else of the frame changes, and a frame without MCV2 maps is left as
- * Iris drew it. Used on the render thread only.
- */
+// Iris writes the shader pack's final image over the main target, so the MCV2 pack's text shaders never put the
+// strip where its chain reads it: this builds the strip from the frame's maps after Iris, writes it and runs the chain
 final class ShaderDecoder {
 
-  /** How often the pack's layout is read again: a new pack comes with a resource reload, at most every few seconds. */
+  // a new pack comes with a resource reload, at most every few seconds
   private static final long LAYOUT_NANOSECONDS = 1_000_000_000L;
 
-  /** The corner of a map as the game draws it, in the map's own space: its top left, just in front of the frame. */
+  // a map's top left corner in its own space, just in front of the frame
   private static final float MAP_CORNER_X = 0F;
   private static final float MAP_CORNER_Y = 0F;
   private static final float MAP_DEPTH = -0.01F;
 
-  /** The hooks the game calls, one bit each: the decoder works only once the game has called every one of them. */
+  // one bit per hook; the decoder works only once the game has called every one
   private static final int EXTRACTED = 1;
   private static final int POSED = 2;
   private static final int PROJECTED = 4;
@@ -80,18 +74,8 @@ final class ShaderDecoder {
 
   private boolean levelProjection;
 
-  /**
-   * Constructs the decoder.
-   *
-   * @param testedIris      whether the Iris installed is the version this decoder was proven with: another version may
-   *                        draw in another order, so this stays off for it
-   * @param shaderPackInUse whether Iris draws a shader pack now
-   * @param shadowPass      whether Iris is drawing its shadow pass, which draws the maps again from the sun's view
-   * @param packConstants   the text of the pack's generated layout, empty while no MCV2 pack is loaded
-   * @param clock           nanoseconds
-   * @param matrices        reads the game's matrices
-   * @param output          the game's main target and the pack's chain
-   */
+  // another Iris version may draw in another order, so the decoder stays off for it; the shadow pass draws the maps
+  // again from the sun's view
   ShaderDecoder(
     final boolean testedIris,
     final BooleanSupplier shaderPackInUse,
@@ -110,42 +94,29 @@ final class ShaderDecoder {
     this.output = output;
   }
 
-  /** The decoder the mixins report to, from the moment the mod starts. */
   static Optional<ShaderDecoder> current() {
     return Optional.ofNullable(current);
   }
 
-  /** Makes a decoder the one the mixins report to. */
   static void install(final ShaderDecoder decoder) {
     current = decoder;
   }
 
-  /** Leaves the mixins with no decoder to report to. */
   static void uninstall() {
     current = null;
   }
 
-  /**
-   * Whether MCV2 decodes under a shader pack in this client: Iris is the tested version and the game has called every
-   * hook of the decoder, which it does only where its mixins applied. The map hooks run once the player sees a map,
-   * such as the dithered maps a screen shows a player whose shaders keep MCV2 from decoding.
-   */
+  // the game calls every hook only where the mixins applied, and the map hooks only once the player sees a map
   boolean decodesUnderShaders() {
     return this.testedIris && this.hooks == ALL_HOOKS;
   }
 
-  /** A map's state was extracted; see {@link ShaderFrame#extracted}. */
   void extracted(final Object texture, final byte[] colours) {
     this.hooks |= EXTRACTED;
     this.frame.extracted(texture, colours);
   }
 
-  /**
-   * A map was posed. Iris's shadow pass poses the maps again, from the sun's view, which is not where the screens are.
-   *
-   * @param texture the map's texture
-   * @param pose    the pose the map is drawn with: its top left corner is at the origin, just in front of the frame
-   */
+  // Iris's shadow pass poses the maps again from the sun's view, which is not where the screens are
   void posed(final Object texture, final PoseStack.Pose pose) {
     this.hooks |= POSED;
 
@@ -163,18 +134,13 @@ final class ShaderDecoder {
     this.frame.posed(texture, corner[0], corner[1], corner[2]);
   }
 
-  /** The game is about to set the projection it renders the level with: the next one {@link #projected} is that one. */
+  // the next projection is the level's
   void projecting() {
     this.levelProjection = true;
   }
 
-  /**
-   * The game set a projection. Only the one it renders the level with is the frame's: Iris sets its shadow pass's and
-   * its hands' the same way. With shaders on, Iris draws the view bobbing through the camera's view rotation, which
-   * {@link #rendered} reads, instead of through this projection.
-   *
-   * @param projection the projection, a JOML 4x4 float matrix
-   */
+  // only the level's projection is the frame's: Iris sets its shadow pass's and its hands' the same way; with shaders,
+  // Iris draws the view bobbing through the camera's view rotation instead
   void projected(final @Nullable Object projection) {
     if (!this.levelProjection) {
       return;
@@ -185,12 +151,6 @@ final class ShaderDecoder {
     this.frame.projected(GameMatrices.floats(projection));
   }
 
-  /**
-   * The level is rendered, and with a shader pack, Iris's final image is in the main target.
-   *
-   * @param allocator the frame's pool of render targets
-   * @param camera    the frame's camera
-   */
   void rendered(final GraphicsResourceAllocator allocator, final CameraRenderState camera) {
     this.hooks |= RENDERED;
     try {

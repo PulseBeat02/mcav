@@ -29,7 +29,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Tells the decoder about every map the game extracts and poses; how anything is drawn stays as it was. */
 @Mixin(MapRenderer.class)
 abstract class MapRendererMixin {
 

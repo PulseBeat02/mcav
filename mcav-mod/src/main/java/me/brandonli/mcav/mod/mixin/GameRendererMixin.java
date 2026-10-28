@@ -24,10 +24,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Tells the decoder that the projection {@code renderLevel} is about to hand {@code ProjectionMatrixBuffer} is the
- * level's, so the shadow and hand projections Iris sets the same way later in the frame are not taken for it.
- */
+// marks the next projection as the level's, so Iris's later shadow and hand projections are not taken for it
 @Mixin(GameRenderer.class)
 abstract class GameRendererMixin {
 
