@@ -2225,6 +2225,10 @@ void MCV2_PREFIX(residual_target)(const int32_t* source, const int32_t* predicti
 
 namespace {
 
+constexpr unsigned FEATURES_LEAF = 1;
+constexpr unsigned EXTENDED_FEATURES_LEAF = 7;
+constexpr unsigned EXTENDED_FEATURES_SUBLEAF = 0;
+
 constexpr unsigned SSE41_BIT = 1u << 19;
 constexpr unsigned OSXSAVE_BIT = 1u << 27;
 constexpr unsigned AVX_BIT = 1u << 28;
@@ -2239,11 +2243,14 @@ constexpr unsigned AVX512_ECX = (1u << 1) | (1u << 6) | (1u << 11) | (1u << 12);
 constexpr unsigned long long ZMM_STATE = 0xE6;
 #endif
 
+constexpr unsigned EXTENDED_CONTROL_REGISTER = 0;
+constexpr int HIGH_WORD_SHIFT = 32;
+
 unsigned long long extended_control_state() {
   unsigned low;
   unsigned high;
-  __asm__ volatile("xgetbv" : "=a"(low), "=d"(high) : "c"(0));
-  return ((unsigned long long)high << 32) | low;
+  __asm__ volatile("xgetbv" : "=a"(low), "=d"(high) : "c"(EXTENDED_CONTROL_REGISTER));
+  return ((unsigned long long)high << HIGH_WORD_SHIFT) | low;
 }
 
 }
@@ -2255,15 +2262,15 @@ extern "C" int32_t mcv2_cpu_levels(int64_t) {
   unsigned register_b;
   unsigned register_c;
   unsigned register_d;
-  if (!__get_cpuid(1, &register_a, &register_b, &register_c, &register_d)) {
+  if (!__get_cpuid(FEATURES_LEAF, &register_a, &register_b, &register_c, &register_d)) {
     return levels;
   }
   if (register_c & SSE41_BIT) {
     levels |= MCV2_LEVEL_SSE41;
   }
   const unsigned long long state = (register_c & OSXSAVE_BIT) && (register_c & AVX_BIT) ? extended_control_state() : 0;
-  if ((state & YMM_STATE) != YMM_STATE ||
-      !__get_cpuid_count(7, 0, &register_a, &register_b, &register_c, &register_d)) {
+  if ((state & YMM_STATE) != YMM_STATE || !__get_cpuid_count(EXTENDED_FEATURES_LEAF, EXTENDED_FEATURES_SUBLEAF,
+                                                             &register_a, &register_b, &register_c, &register_d)) {
     return levels;
   }
   if (register_b & AVX2_BIT) {
@@ -2281,6 +2288,15 @@ extern "C" int32_t mcv2_cpu_levels(int64_t) {
 
 #elif defined(__aarch64__) || defined(_M_ARM64)
 
+#if defined(__linux__)
+namespace {
+
+constexpr unsigned long long SVE256_VECTOR_BYTES = 32;
+constexpr unsigned long long SVE512_VECTOR_BYTES = 64;
+
+}
+#endif
+
 extern "C" int32_t mcv2_cpu_levels(const int64_t kernel_capabilities) {
   int32_t levels = MCV2_LEVEL_SCALAR | MCV2_LEVEL_NEON;
 #if defined(__linux__)
@@ -2288,9 +2304,9 @@ extern "C" int32_t mcv2_cpu_levels(const int64_t kernel_capabilities) {
 
     unsigned long long vector_bytes;
     __asm__ volatile(".arch_extension sve\n\trdvl %0, #1" : "=r"(vector_bytes));
-    if (vector_bytes == 32) {
+    if (vector_bytes == SVE256_VECTOR_BYTES) {
       levels |= MCV2_LEVEL_SVE256;
-    } else if (vector_bytes == 64) {
+    } else if (vector_bytes == SVE512_VECTOR_BYTES) {
       levels |= MCV2_LEVEL_SVE512;
     }
   }
