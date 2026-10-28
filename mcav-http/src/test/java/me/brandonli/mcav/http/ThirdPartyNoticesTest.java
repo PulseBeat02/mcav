@@ -28,18 +28,38 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests the notices of the built mcav-http jar, whose audio web page bundles npm packages: MIT, BSD, ISC and Apache-2.0
- * ask that their copyright and licence notices go with the copies.
- */
 final class ThirdPartyNoticesTest {
 
-  private static String read(final String name) throws IOException {
+  private static final String WEBSITE_NOTICES_PATH = "mcav/http/website/THIRD-PARTY-NOTICES.txt";
+  private static final String JAR_NOTICES_PATH = "META-INF/THIRD-PARTY-NOTICES.md";
+
+  @Test
+  void shouldShipTheNoticesOfItsNpmPackagesInTheWebPage() throws IOException {
+    final String notices = this.read(WEBSITE_NOTICES_PATH);
+    for (final String component : new String[] { "react@", "react-dom@", "next@", "scheduler@", "styled-jsx@" }) {
+      final String entry = "\n%s".formatted(component);
+      final boolean named = notices.contains(entry);
+      assertTrue(named, "%s is named".formatted(component));
+    }
+
+    for (final String unused : new String[] { "@mui/material@", "@emotion/react@", "howler@", "@fontsource/roboto@" }) {
+      final String entry = "\n%s".formatted(unused);
+      final boolean named = notices.contains(entry);
+      assertFalse(named, "%s is not named".formatted(unused));
+    }
+
+    final boolean includesTheNotice = notices.contains("Permission is hereby granted");
+    assertTrue(includesTheNotice, "the MIT notice itself, not only the name of the licence");
+  }
+
+  private String read(final String name) throws IOException {
     final String path = System.getProperty("mcav.http.jar");
     assertNotNull(path, "the build passes the jar it built");
+
     try (final ZipFile jar = new ZipFile(path)) {
       final ZipEntry entry = jar.getEntry(name);
-      assertNotNull(entry, name + " is in the jar");
+      assertNotNull(entry, "%s is in the jar".formatted(name));
+
       try (final InputStream input = jar.getInputStream(entry)) {
         return new String(input.readAllBytes(), StandardCharsets.UTF_8);
       }
@@ -47,20 +67,9 @@ final class ThirdPartyNoticesTest {
   }
 
   @Test
-  void theWebPageShipsTheNoticesOfItsNpmPackages() throws IOException {
-    final String notices = read("mcav/http/website/THIRD-PARTY-NOTICES.txt");
-    for (final String component : new String[] { "react@", "react-dom@", "next@", "scheduler@", "styled-jsx@" }) {
-      assertTrue(notices.contains("\n" + component), component + " is named");
-    }
-    for (final String unused : new String[] { "@mui/material@", "@emotion/react@", "howler@", "@fontsource/roboto@" }) {
-      assertFalse(notices.contains("\n" + unused), unused + " is not named");
-    }
-    assertTrue(notices.contains("Permission is hereby granted"), "the MIT notice itself, not only the name of the licence");
-  }
-
-  @Test
-  void theJarNamesWhatItBundles() throws IOException {
-    final String notices = read("META-INF/THIRD-PARTY-NOTICES.md");
-    assertTrue(notices.contains("## mcav-http.jar"), notices);
+  void shouldNameWhatTheJarBundles() throws IOException {
+    final String notices = this.read(JAR_NOTICES_PATH);
+    final boolean namesTheJar = notices.contains("## mcav-http.jar");
+    assertTrue(namesTheJar, notices);
   }
 }

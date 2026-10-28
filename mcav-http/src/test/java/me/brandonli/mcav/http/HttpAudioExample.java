@@ -26,26 +26,20 @@ import me.brandonli.mcav.media.player.multimedia.VideoPlayerMultiplexer;
 import me.brandonli.mcav.media.player.pipeline.step.AudioPipelineStep;
 import me.brandonli.mcav.media.source.file.FileSource;
 
-/**
- * Plays the audio of a file in the browser. Pass the path of a media file as the first argument, then open the
- * printed address.
- */
 public final class HttpAudioExample {
 
+  private static final int PORT = 3000;
+
   private HttpAudioExample() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  /**
-   * Starts a web server on port 3000 and plays the file into it until the JVM exits.
-   *
-   * @param args the path of the media file
-   */
   static void main(final String[] args) {
     if (args.length == 0) {
       System.err.println("Usage: HttpAudioExample <file>");
       return;
     }
+
     final MCAVApi api = MCAV.api();
     api.install(HttpModule.class);
 
@@ -53,23 +47,21 @@ public final class HttpAudioExample {
     final HttpResult http = startServer(path);
     final VideoPlayerMultiplexer player = play(http, path);
     final String url = http.getFullUrl();
-    System.out.println("Listen at " + url);
+    System.out.println("Listen at %s".formatted(url));
 
-    final Thread shutdownHook = new Thread(() -> {
-      player.release();
-      http.stop();
-      api.release();
-    });
+    final Thread shutdownHook = new Thread(() -> release(player, http, api));
     final Runtime runtime = Runtime.getRuntime();
     runtime.addShutdownHook(shutdownHook);
   }
 
   private static HttpResult startServer(final Path path) {
-    final HttpResult http = HttpResult.port(3000);
+    final HttpResult http = HttpResult.port(PORT);
     http.start();
+
     final String title = path.toString();
-    final MediaInfo info = MediaInfo.titled(title);
-    http.setCurrentMedia(info);
+    final MediaInformation information = MediaInformation.titled(title);
+    http.setCurrentMedia(information);
+
     return http;
   }
 
@@ -78,8 +70,16 @@ public final class HttpAudioExample {
     final AudioAttachableCallback audio = player.getAudioAttachableCallback();
     final AudioPipelineStep pipeline = AudioPipelineStep.of(http);
     audio.attach(pipeline);
+
     final FileSource source = FileSource.path(path);
     player.start(source);
+
     return player;
+  }
+
+  private static void release(final VideoPlayerMultiplexer player, final HttpResult http, final MCAVApi api) {
+    player.release();
+    http.stop();
+    api.release();
   }
 }

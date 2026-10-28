@@ -22,21 +22,20 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * Serves the information about the current media at {@code /media}.
- */
 @RestController
 final class MediaController {
 
-  private final HttpResultImpl result;
+  private static final String MEDIA_PATH = "/media";
 
-  MediaController(final HttpResultImpl result) {
+  private final SpringHttpResult result;
+
+  MediaController(final SpringHttpResult result) {
     this.result = result;
   }
 
-  @GetMapping(value = "/media", produces = MediaType.APPLICATION_JSON_VALUE)
+  @GetMapping(value = MEDIA_PATH, produces = MediaType.APPLICATION_JSON_VALUE)
   Map<String, Object> media() {
-    final MediaInfo info = this.result.getCurrentMedia();
-    return info.toJson();
+    final MediaInformation information = this.result.getCurrentMedia();
+    return information.toJson();
   }
 }

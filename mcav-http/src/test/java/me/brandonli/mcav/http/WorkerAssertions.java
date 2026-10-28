@@ -25,11 +25,17 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/** Relays failures from fixture callbacks to the JUnit thread after every callback has finished. */
 final class WorkerAssertions {
 
-  private final Set<Thread> workers = ConcurrentHashMap.newKeySet();
-  private final List<Throwable> failures = new CopyOnWriteArrayList<>();
+  private static final long JOIN_TIMEOUT_MILLISECONDS = 10_000L;
+
+  private final Set<Thread> workers;
+  private final List<Throwable> failures;
+
+  WorkerAssertions() {
+    this.workers = ConcurrentHashMap.newKeySet();
+    this.failures = new CopyOnWriteArrayList<>();
+  }
 
   void observeCurrentThread() {
     final Thread worker = Thread.currentThread();
@@ -39,9 +45,11 @@ final class WorkerAssertions {
 
   void assertFinished() throws InterruptedException {
     for (final Thread worker : this.workers) {
-      worker.join(10_000L);
-      assertFalse(worker.isAlive(), "the callback worker finished after fixture cleanup");
+      worker.join(JOIN_TIMEOUT_MILLISECONDS);
+      final boolean alive = worker.isAlive();
+      assertFalse(alive, "the callback worker finished after fixture cleanup");
     }
+
     assertEquals(List.of(), this.failures, "worker assertions reach the JUnit thread");
   }
 }

@@ -24,49 +24,47 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.io.IOException;
+import me.brandonli.mcav.MCAVException;
 import org.junit.jupiter.api.Test;
 
-/**
- * Tests {@link HttpModule} and {@link HttpException}.
- */
 final class HttpModuleTest {
 
   @Test
-  void isNamedHttp() {
+  void shouldBeNamedHttp() {
     final HttpModule module = new HttpModule();
     final String name = module.getModuleName();
     assertEquals("http", name);
   }
 
   @Test
-  void startsAndStopsWithoutHoldingResources() {
+  void shouldStartAndStopWithoutHoldingResources() {
     final HttpModule module = new HttpModule();
     assertDoesNotThrow(module::start);
     assertDoesNotThrow(module::stop);
   }
 
   @Test
-  void exceptionsKeepTheMessage() {
-    final HttpException exception = new HttpException("cannot start");
+  void shouldKeepTheMessageInExceptions() {
+    final HttpException exception = new HttpException("cannot start!");
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
-    assertEquals("cannot start", message);
+    assertEquals("cannot start!", message);
     assertNull(cause);
   }
 
   @Test
-  void exceptionsKeepTheMessageAndTheCause() {
-    final IOException portInUse = new IOException("port in use");
-    final HttpException exception = new HttpException("cannot start", portInUse);
+  void shouldKeepTheMessageAndTheCauseInExceptions() {
+    final IOException portInUse = new IOException("port in use!");
+    final HttpException exception = new HttpException("cannot start!", portInUse);
     final String message = exception.getMessage();
     final Throwable cause = exception.getCause();
-    assertEquals("cannot start", message);
+    assertEquals("cannot start!", message);
     assertSame(portInUse, cause);
   }
 
   @Test
-  void exceptionsAreRuntimeExceptions() {
-    final HttpException exception = new HttpException("cannot start");
-    assertInstanceOf(RuntimeException.class, exception, "a server that cannot start is recoverable, so it is no Error");
+  void shouldMakeExceptionsMCAVExceptions() {
+    final HttpException exception = new HttpException("cannot start!");
+    assertInstanceOf(MCAVException.class, exception, "a caller handles the failures of every module through one type");
   }
 }

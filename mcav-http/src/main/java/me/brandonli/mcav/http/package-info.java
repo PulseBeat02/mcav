@@ -26,9 +26,11 @@
  * <p>Servers bind to every interface unless a builder supplies a local bind address. The domain controls the
  * advertised HTTP URL. The caller owns each server: detach producers and stop it when finished, including
  * before unloading its class loader. {@link me.brandonli.mcav.http.HttpModule} does not stop server instances.
- * Builders are mutable and not thread-safe; {@link me.brandonli.mcav.http.MediaInfo} snapshots are immutable.
+ * Builders are mutable and not thread-safe; {@link me.brandonli.mcav.http.MediaInformation} snapshots are immutable.
  *
  * <p>Reference parameters and return values are non-null unless marked {@code @Nullable};
  * nullable values and their meanings are described on the corresponding members.
+ *
+ * @since 1.0.0
  */
 package me.brandonli.mcav.http;

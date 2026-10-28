@@ -17,9 +17,11 @@
  */
 package me.brandonli.mcav.http;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -28,13 +30,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * The information about the current media that the web player shows: title, artist, thumbnail, and a few
  * statistics. Instances are immutable snapshots and can be shared across threads. Only these fields are sent
  * to browsers, not the complete yt-dlp output.
+ *
+ * @since 1.0.0
  */
-public final class MediaInfo {
+public final class MediaInformation {
 
   /**
    * Information for when nothing is playing.
+   *
+   * @since 1.0.0
    */
-  public static final MediaInfo EMPTY = new MediaInfo(null, null, null, null, null, null, 0, 0, 0, null);
+  public static final MediaInformation EMPTY = new MediaInformation(null, null, null, null, null, null, 0, 0, 0, null);
 
   private final @Nullable String title;
   private final @Nullable String uploader;
@@ -47,7 +53,7 @@ public final class MediaInfo {
   private final long likeCount;
   private final @Nullable String uploadDate;
 
-  MediaInfo(
+  MediaInformation(
     final @Nullable String title,
     final @Nullable String uploader,
     final @Nullable String channel,
@@ -78,9 +84,11 @@ public final class MediaInfo {
    * @param dump the non-null output of yt-dlp; do not mutate it while this snapshot is taken
    * @return a new immutable snapshot, with missing text fields retained as null
    * @throws NullPointerException if {@code dump} is null
+   * @since 1.0.0
    */
-  public static MediaInfo of(final UrlParseDump dump) {
-    Preconditions.checkNotNull(dump, "Dump must not be null");
+  public static MediaInformation of(final UrlParseDump dump) {
+    Preconditions.checkNotNull(dump, "Dump must not be null!");
+
     final double reportedDuration = dump.getDuration();
     final double wholeSeconds = Math.ceil(reportedDuration);
     final long duration = (long) wholeSeconds;
@@ -93,7 +101,7 @@ public final class MediaInfo {
     final Optional<String> uploadDate = dump.getUploadDate();
     final long viewCount = dump.getViewCount();
     final long likeCount = dump.getLikeCount();
-    return new MediaInfo(
+    return new MediaInformation(
       title.orElse(null),
       uploader.orElse(null),
       channel.orElse(null),
@@ -113,44 +121,117 @@ public final class MediaInfo {
    * @param title the non-null title, retained verbatim; empty or blank strings are allowed
    * @return a new immutable snapshot with that title, unknown other text fields and zero statistics
    * @throws NullPointerException if {@code title} is null
+   * @since 1.0.0
    */
-  public static MediaInfo titled(final String title) {
-    Preconditions.checkNotNull(title, "Title must not be null");
-    return new MediaInfo(title, null, null, null, null, null, 0, 0, 0, null);
+  public static MediaInformation titled(final String title) {
+    Preconditions.checkNotNull(title, "Title must not be null!");
+
+    return new MediaInformation(title, null, null, null, null, null, 0, 0, 0, null);
   }
 
-  /**
-   * Gets the title.
-   *
-   * @return the title, or null if unknown
-   */
-  public @Nullable String getTitle() {
-    return this.title;
-  }
-
-  /**
-   * Converts the information into the JSON object the web player reads, with the field names of yt-dlp.
-   *
-   * @return the fields; unknown text fields are left out
-   */
   Map<String, Object> toJson() {
     final Map<String, Object> json = new LinkedHashMap<>();
-    putIfPresent(json, "title", this.title);
-    putIfPresent(json, "uploader", this.uploader);
-    putIfPresent(json, "channel", this.channel);
-    putIfPresent(json, "uploader_id", this.uploaderId);
-    putIfPresent(json, "description", this.description);
-    putIfPresent(json, "thumbnail", this.thumbnail);
+    this.putIfPresent(json, "title", this.title);
+    this.putIfPresent(json, "uploader", this.uploader);
+    this.putIfPresent(json, "channel", this.channel);
+    this.putIfPresent(json, "uploader_id", this.uploaderId);
+    this.putIfPresent(json, "description", this.description);
+    this.putIfPresent(json, "thumbnail", this.thumbnail);
     json.put("duration", this.duration);
     json.put("view_count", this.viewCount);
     json.put("like_count", this.likeCount);
-    putIfPresent(json, "upload_date", this.uploadDate);
+    this.putIfPresent(json, "upload_date", this.uploadDate);
     return json;
   }
 
-  private static void putIfPresent(final Map<String, Object> json, final String key, final @Nullable String value) {
+  private void putIfPresent(final Map<String, Object> json, final String key, final @Nullable String value) {
     if (value != null) {
       json.put(key, value);
     }
+  }
+
+  /**
+   * Returns the title.
+   *
+   * @return the title, or empty if unknown
+   * @since 1.0.0
+   */
+  public Optional<String> getTitle() {
+    return Optional.ofNullable(this.title);
+  }
+
+  /**
+   * Returns whether {@code other} is media information with the same values.
+   *
+   * @param other the object to compare with
+   * @return whether every value matches
+   * @since 1.0.0
+   */
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final MediaInformation information)) {
+      return false;
+    }
+
+    return (
+      Objects.equals(this.title, information.title) &&
+      Objects.equals(this.uploader, information.uploader) &&
+      Objects.equals(this.channel, information.channel) &&
+      Objects.equals(this.uploaderId, information.uploaderId) &&
+      Objects.equals(this.description, information.description) &&
+      Objects.equals(this.thumbnail, information.thumbnail) &&
+      this.duration == information.duration &&
+      this.viewCount == information.viewCount &&
+      this.likeCount == information.likeCount &&
+      Objects.equals(this.uploadDate, information.uploadDate)
+    );
+  }
+
+  /**
+   * Returns a hash code built from every value.
+   *
+   * @return the hash code
+   * @since 1.0.0
+   */
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+      this.title,
+      this.uploader,
+      this.channel,
+      this.uploaderId,
+      this.description,
+      this.thumbnail,
+      this.duration,
+      this.viewCount,
+      this.likeCount,
+      this.uploadDate
+    );
+  }
+
+  /**
+   * Returns a debugging representation with every value.
+   *
+   * @return the representation
+   * @since 1.0.0
+   */
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+      .add("title", this.title)
+      .add("uploader", this.uploader)
+      .add("channel", this.channel)
+      .add("uploaderId", this.uploaderId)
+      .add("description", this.description)
+      .add("thumbnail", this.thumbnail)
+      .add("duration", this.duration)
+      .add("viewCount", this.viewCount)
+      .add("likeCount", this.likeCount)
+      .add("uploadDate", this.uploadDate)
+      .toString();
   }
 }

@@ -16,41 +16,61 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import assert from 'node:assert/strict';
-import {readdirSync, readFileSync} from 'node:fs';
-import {join} from 'node:path';
-import {test} from 'node:test';
+import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { test } from "node:test";
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = new URL("..", import.meta.url).pathname;
+const SOURCE_DIRECTORY = "src";
+const MODULES_DIRECTORY = "node_modules";
+const MANIFEST_FILE = "package.json";
+const ENCODING = "utf8";
+
+const SOURCE_FILE = /\.(tsx?|jsx?|mjs|css)$/;
 const IMPORT = /(?:from\s+|import\s*\(\s*|require\s*\(\s*)['"]((?:@[^'"/]+\/)?[^'"/]+)/g;
 
-function sources(folder) {
-    return readdirSync(folder, {withFileTypes: true}).flatMap((entry) => {
-        const path = join(folder, entry.name);
-        return entry.isDirectory() ? sources(path) : /\.(tsx?|jsx?|mjs|css)$/.test(entry.name) ? [path] : [];
-    });
-}
-
-function manifest(name) {
-    return JSON.parse(readFileSync(join(ROOT, 'node_modules', name, 'package.json'), 'utf8'));
-}
-
-test('every dependency is imported by the website, or is a peer of one that is', () => {
-    const declared = Object.keys(JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).dependencies);
-    const used = new Set();
-    for (const file of sources(join(ROOT, 'src'))) {
-        for (const [, name] of readFileSync(file, 'utf8').matchAll(IMPORT)) {
-            if (declared.includes(name)) {
-                used.add(name);
-            }
-        }
+const entrySources = (folder, entry) => {
+    const path = join(folder, entry.name);
+    if (entry.isDirectory()) {
+        return sources(path);
     }
-    for (const name of [...used]) {
-        for (const peer of Object.keys(manifest(name).peerDependencies ?? {})) {
-            if (declared.includes(peer)) {
-                used.add(peer);
-            }
-        }
+
+    if (SOURCE_FILE.test(entry.name)) {
+        return [path];
     }
-    assert.deepEqual(declared.filter((name) => !used.has(name)), []);
+
+    return [];
+};
+
+const sources = folder => {
+    const entries = readdirSync(folder, {withFileTypes: true});
+    return entries.flatMap(entry => entrySources(folder, entry));
+};
+
+const manifest = name => {
+    return JSON.parse(readFileSync(join(ROOT, MODULES_DIRECTORY, name, MANIFEST_FILE), ENCODING));
+};
+
+const importedNames = file => {
+    const source = readFileSync(file, ENCODING);
+    const imports = [...source.matchAll(IMPORT)];
+    return imports.map(([, name]) => name);
+};
+
+const peerNames = name => {
+    const peers = manifest(name).peerDependencies ?? {};
+    return Object.keys(peers);
+};
+
+test("should use every dependency in the website, directly or as a peer of one it imports", () => {
+    const rootManifest = JSON.parse(readFileSync(join(ROOT, MANIFEST_FILE), ENCODING));
+    const declared = Object.keys(rootManifest.dependencies);
+    const files = sources(join(ROOT, SOURCE_DIRECTORY));
+    const imported = new Set(files.flatMap(importedNames));
+    const importedDependencies = declared.filter(name => imported.has(name));
+    const peers = new Set(importedDependencies.flatMap(peerNames));
+
+    const unused = declared.filter(name => !imported.has(name) && !peers.has(name));
+    assert.deepEqual(unused, []);
 });

@@ -24,23 +24,31 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.mockito.stubbing.Stubber;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.GenericApplicationContext;
 
-/** Tests cleanup when a plugin interrupts the thread that starts its audio server. */
 final class HttpInterruptedStopTest {
 
+  private static final String LOCALHOST = "localhost";
+
+  private static final int PORT = 8080;
+
   @Test
-  void closesAnActiveSpringContextFromAnInterruptedStartupThread() {
+  void shouldCloseAnActiveSpringContextFromAnInterruptedStartupThread() {
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     try (final GenericApplicationContext context = new GenericApplicationContext()) {
       context.refresh();
       final Thread current = Thread.currentThread();
       current.interrupt();
       try {
-        HttpResultImpl.closeWithOwnClassLoader(context);
+        http.closeWithOwnClassLoader(context);
 
-        assertTrue(current.isInterrupted(), "cleanup preserves the caller's interrupt");
-        assertFalse(context.isActive(), "the interrupted startup thread must still close its Spring context");
+        final boolean interrupted = current.isInterrupted();
+        assertTrue(interrupted, "cleanup preserves the caller's interrupt");
+
+        final boolean active = context.isActive();
+        assertFalse(active, "the interrupted startup thread must still close its Spring context");
       } finally {
         final boolean _ = Thread.interrupted();
       }
@@ -48,24 +56,31 @@ final class HttpInterruptedStopTest {
   }
 
   @Test
-  void restoresTheInterruptWhenContextCleanupThrows() {
+  void shouldRestoreTheInterruptWhenContextCleanupThrows() {
     final ConfigurableApplicationContext context = Mockito.mock(ConfigurableApplicationContext.class);
-    final IllegalStateException failure = new IllegalStateException("context close failed");
+    final IllegalStateException failure = new IllegalStateException("context close failed!");
     final Thread current = Thread.currentThread();
-    Mockito.doAnswer(_ -> {
-      assertFalse(current.isInterrupted(), "Spring cleanup must be able to acquire its shutdown lock");
-      throw failure;
-    })
-      .when(context)
-      .close();
+    final Stubber failingClose = Mockito.doAnswer(_ -> this.assertNotInterruptedThenThrow(current, failure));
+    final ConfigurableApplicationContext stubbedContext = failingClose.when(context);
+    stubbedContext.close();
 
+    final SpringHttpResult http = new SpringHttpResult(LOCALHOST, PORT, null);
     current.interrupt();
     try {
-      final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> HttpResultImpl.closeWithOwnClassLoader(context));
+      final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> http.closeWithOwnClassLoader(context));
       assertSame(failure, thrown);
-      assertTrue(current.isInterrupted(), "failed cleanup also preserves the caller's interrupt");
+
+      final boolean interrupted = current.isInterrupted();
+      assertTrue(interrupted, "failed cleanup also preserves the caller's interrupt");
     } finally {
       final boolean _ = Thread.interrupted();
     }
+  }
+
+  private Object assertNotInterruptedThenThrow(final Thread current, final IllegalStateException failure) {
+    final boolean interrupted = current.isInterrupted();
+    assertFalse(interrupted, "Spring cleanup must be able to acquire its shutdown lock");
+
+    throw failure;
   }
 }

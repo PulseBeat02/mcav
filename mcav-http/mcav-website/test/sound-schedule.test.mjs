@@ -16,35 +16,47 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-import {stripTypeScriptTypes} from 'node:module';
-import {test} from 'node:test';
-import vm from 'node:vm';
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
+import { test } from "node:test";
+import vm from "node:vm";
 
-const PAGE = new URL('../src/app/page.tsx', import.meta.url);
-const RATE = 48000;
+const PAGE = new URL("../src/app/page.tsx", import.meta.url);
+const CONSTANT_DECLARATION = /^const [A-Z][A-Z0-9_]*: .+;$/gm;
+const ENCODING = "utf8";
+
+const SOUND_ENCODING = "16bitInt";
+const CHANNELS = 2;
+const BYTES_PER_SAMPLE = 2;
+const BYTES_PER_FRAME = CHANNELS * BYTES_PER_SAMPLE;
+const LITTLE_ENDIAN = true;
+
+const WAVE_PERIOD_FRAMES = 8;
+const WAVE_AMPLITUDE = 1000;
+
+const SAMPLE_RATE = 48000;
 const CHUNK_FRAMES = 1024;
-const CHUNK_SECONDS = CHUNK_FRAMES / RATE;
+const CHUNK_SECONDS = CHUNK_FRAMES / SAMPLE_RATE;
 
-function pageProcessor() {
-    const source = readFileSync(PAGE, 'utf8');
-    const start = source.indexOf('class PCMProcessor {');
-    assert.ok(start >= 0, 'the page declares the class PCMProcessor');
+const pageProcessor = () => {
+    const source = readFileSync(PAGE, ENCODING);
+    const start = source.indexOf("class PcmProcessor {");
+    assert.ok(start >= 0, "the page declares the class PcmProcessor");
     let depth = 0;
-    let end = source.indexOf('{', start);
+    let end = source.indexOf("{", start);
     do {
-        const char = source[end];
-        if (char === '{') {
+        const character = source[end];
+        if (character === "{") {
             depth++;
-        } else if (char === '}') {
+        } else if (character === "}") {
             depth--;
         }
         end++;
     } while (depth > 0);
-    const constants = source.slice(source.indexOf('interface PCMProcessorOptions'), start).replace(/interface PCMProcessorOptions \{[^}]*}/, '');
-    return stripTypeScriptTypes(`${constants}\n${source.slice(start, end)}\nPCMProcessor;`);
-}
+    const constants = source.match(CONSTANT_DECLARATION).join("\n");
+    return stripTypeScriptTypes(`${constants}\n${source.slice(start, end)}\nPcmProcessor;`);
+};
 
 class FakeAudioContext {
     constructor(state) {
@@ -65,16 +77,15 @@ class FakeAudioContext {
     }
 
     createBufferSource() {
-        const context = this;
         const source = {
             buffer: null,
             connect() {},
             disconnect() {},
-            start(when) {
-                context.started.push({source, when, duration: source.buffer.duration});
+            start: when => {
+                this.started.push({source, when, duration: source.buffer.duration});
             },
-            stop() {
-                context.stopped.push(source);
+            stop: () => {
+                this.stopped.push(source);
             },
         };
         return source;
@@ -87,65 +98,79 @@ class FakeAudioContext {
     }
 }
 
-function processor(state) {
-    const PCMProcessor = vm.runInContext(pageProcessor(), vm.createContext({
+const processor = state => {
+    const PcmProcessor = vm.runInContext(pageProcessor(), vm.createContext({
         Float32Array, DataView, ArrayBuffer, Math, Date, Set, window: {},
     }), {filename: PAGE.pathname});
     const context = new FakeAudioContext(state);
-    return {pcm: new PCMProcessor({encoding: '16bitInt', channels: 2, sampleRate: RATE, audioCtx: context}), context};
-}
+    return {pcm: new PcmProcessor({encoding: SOUND_ENCODING, channels: CHANNELS, sampleRate: SAMPLE_RATE, audioContext: context}), context};
+};
 
-function chunk() {
-    const view = new DataView(new ArrayBuffer(CHUNK_FRAMES * 4));
+const chunk = () => {
+    const view = new DataView(new ArrayBuffer(CHUNK_FRAMES * BYTES_PER_FRAME));
     for (let frame = 0; frame < CHUNK_FRAMES; frame++) {
-        const sample = Math.round(Math.sin(frame / 8) * 1000);
-        view.setInt16(frame * 4, sample, true);
-        view.setInt16(frame * 4 + 2, sample, true);
+        const sample = Math.round(Math.sin(frame / WAVE_PERIOD_FRAMES) * WAVE_AMPLITUDE);
+        view.setInt16(frame * BYTES_PER_FRAME, sample, LITTLE_ENDIAN);
+        view.setInt16(frame * BYTES_PER_FRAME + BYTES_PER_SAMPLE, sample, LITTLE_ENDIAN);
     }
     return view.buffer;
-}
+};
 
-function feedLive(pcm, context, seconds) {
+const feedLive = (pcm, context, seconds) => {
     const chunks = Math.round(seconds / CHUNK_SECONDS);
     for (let index = 0; index < chunks; index++) {
         context.currentTime += CHUNK_SECONDS;
         pcm.feed(chunk());
     }
-}
+};
 
-test('sound that arrives while the context does not play yet does not delay the sound after it', () => {
-    for (const starting of ['suspended', 'running']) {
+const feedAtOnce = (pcm, chunks) => {
+    for (let index = 0; index < chunks; index++) {
+        pcm.feed(chunk());
+    }
+};
+
+test("should not let sound that arrives before the context plays delay the sound after it", () => {
+    for (const starting of ["suspended", "running"]) {
         for (let chunks = Math.round(1 / CHUNK_SECONDS); chunks <= Math.round(1.6 / CHUNK_SECONDS); chunks += 3) {
             const {pcm, context} = processor(starting);
-            for (let index = 0; index < chunks; index++) {
-                pcm.feed(chunk());
-            }
-            context.state = 'running';
+            feedAtOnce(pcm, chunks);
+            context.state = "running";
             feedLive(pcm, context, 2);
+
             const late = context.queuedAhead();
             assert.ok(late <= 0.21, `${chunks} chunks while ${starting}: the sound plays as late as steady sound, not ${late.toFixed(3)} s`);
         }
     }
 });
 
-test('a burst of sound is not kept as a delay for good', () => {
-    const {pcm, context} = processor('running');
+test("should not keep a burst of sound as a delay for good", () => {
+    const {pcm, context} = processor("running");
     feedLive(pcm, context, 1);
     for (let index = 0; index < Math.round(1 / CHUNK_SECONDS); index++) {
         context.currentTime += 0.001;
         pcm.feed(chunk());
     }
     feedLive(pcm, context, 2);
-    assert.ok(context.queuedAhead() <= 0.5, `the sound plays at most half a second late, not ${context.queuedAhead().toFixed(3)} s`);
-    assert.ok(context.stopped.length > 0, 'what was queued too far ahead was dropped');
+
+    const late = context.queuedAhead();
+    assert.ok(late <= 0.5, `the sound plays at most half a second late, not ${late.toFixed(3)} s`);
+
+    const dropped = context.stopped.length;
+    assert.ok(dropped > 0, "what was queued too far ahead was dropped");
 });
 
-test('steady sound keeps a short cushion and is never dropped', () => {
-    const {pcm, context} = processor('running');
+test("should keep a short cushion of steady sound and drop none of it", () => {
+    const {pcm, context} = processor("running");
     feedLive(pcm, context, 5);
-    assert.ok(context.queuedAhead() > 0, 'sound is queued ahead of the clock');
-    assert.ok(context.queuedAhead() <= 0.25, `the cushion is short: ${context.queuedAhead().toFixed(3)} s`);
-    assert.deepEqual(context.stopped, [], 'nothing was dropped');
+
+    const cushion = context.queuedAhead();
+    assert.ok(cushion > 0, "sound is queued ahead of the clock");
+    assert.ok(cushion <= 0.25, `the cushion is short: ${cushion.toFixed(3)} s`);
+
+    const dropped = context.stopped;
+    assert.deepEqual(dropped, [], "nothing was dropped");
+
     const scheduled = context.started.reduce((total, entry) => total + entry.duration, 0);
     assert.ok(Math.abs(scheduled + 0.1 - 5) < 0.15, `all of the sound is scheduled: ${scheduled.toFixed(3)} s of 5 s`);
 });

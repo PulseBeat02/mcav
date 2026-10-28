@@ -41,8 +41,8 @@ The ports must be between 1 and 65535 and the host name must not be blank; other
 ```java
   final HttpResult http = HttpResult.http("play.example.com", 8080);
   http.start(); // blocks for a few seconds; startAsync() starts it on another thread instead
-  final MediaInfo info = MediaInfo.titled("My Video");
-  http.setCurrentMedia(info); // or http.setCurrentMedia(dump) with the UrlParseDump of yt-dlp
+  final MediaInformation information = MediaInformation.titled("My Video");
+  http.setCurrentMedia(information); // or http.setCurrentMedia(dump) with the UrlParseDump of yt-dlp
 
   final AudioPipelineStep audioPipelineStep = AudioPipelineStep.of(http);
   final VideoPlayerMultiplexer multiplexer = VideoPlayer.ffmpeg();
@@ -61,9 +61,9 @@ The ports must be between 1 and 65535 and the host name must not be blank; other
 ```
 
 `setCurrentMedia(UrlParseDump)` shows the title, uploader, thumbnail, duration, and statistics yt-dlp reported, while
-`MediaInfo.titled(String)` creates information with only a title for media that did not come from yt-dlp. Passing
-`null` to `setCurrentMedia(MediaInfo)` shows that nothing is playing. An IPv6 address as host name is put in brackets
-in the URL, as URLs require.
+`MediaInformation.titled(String)` creates information with only a title for media that did not come from yt-dlp. Passing
+`null` to `setCurrentMedia(MediaInformation)` shows that nothing is playing. An IPv6 address as host name is put in
+brackets in the URL, as URLs require.
 
 ## Using the Builder
 

@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
@@ -31,18 +32,32 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
-/**
- * Tests {@link AudioWebSocketHandler}.
- */
 final class AudioWebSocketHandlerTest {
 
-  private final HttpResultImpl result = new HttpResultImpl("localhost", 8080, null);
-  private final AudioWebSocketHandler handler = new AudioWebSocketHandler(this.result);
-  private final WebSocketSession session = Mockito.mock(WebSocketSession.class);
+  private static final String LOCALHOST = "localhost";
+  private static final int PORT = 8080;
+
+  private SpringHttpResult result;
+  private AudioWebSocketHandler handler;
+  private WebSocketSession session;
+
+  @BeforeEach
+  void setUp() {
+    this.result = new SpringHttpResult(LOCALHOST, PORT, null);
+    this.handler = new AudioWebSocketHandler(this.result);
+    this.session = Mockito.mock(WebSocketSession.class);
+  }
 
   @AfterEach
   void forgetTheSession() {
     this.result.removeListener(this.session);
+  }
+
+  @Test
+  void shouldRegisterConnectedBrowsersAsListeners() {
+    this.connect();
+    final int count = this.result.getListenerCount();
+    assertEquals(1, count);
   }
 
   private void connect() {
@@ -52,14 +67,7 @@ final class AudioWebSocketHandlerTest {
   }
 
   @Test
-  void registersConnectedBrowsersAsListeners() {
-    this.connect();
-    final int count = this.result.getListenerCount();
-    assertEquals(1, count);
-  }
-
-  @Test
-  void forgetsBrowsersThatDisconnect() {
+  void shouldForgetBrowsersThatDisconnect() {
     this.connect();
     this.handler.afterConnectionClosed(this.session, CloseStatus.NORMAL);
     final int count = this.result.getListenerCount();
@@ -67,21 +75,22 @@ final class AudioWebSocketHandlerTest {
   }
 
   @Test
-  void forgetsBrowsersWithTransportErrors() {
+  void shouldForgetBrowsersWithTransportErrors() {
     this.connect();
-    final IOException error = new IOException("reset");
+    final IOException error = new IOException("reset!");
     this.handler.handleTransportError(this.session, error);
     final int count = this.result.getListenerCount();
     assertEquals(0, count);
   }
 
   @Test
-  void ignoresTextAndBinaryMessagesFromBrowsers() throws Exception {
+  void shouldIgnoreTextAndBinaryMessagesFromBrowsers() throws Exception {
     this.connect();
     final TextMessage text = new TextMessage("hello");
     final byte[] raw = { 1, 2, 3 };
     final ByteBuffer payload = ByteBuffer.wrap(raw);
     final BinaryMessage binary = new BinaryMessage(payload);
+
     this.handler.handleMessage(this.session, text);
     this.handler.handleMessage(this.session, binary);
     final int count = this.result.getListenerCount();

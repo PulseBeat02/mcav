@@ -40,7 +40,7 @@ import org.openjdk.jcstress.infra.results.II_Result;
 @State
 public class ListenerStopRace {
 
-  private final HttpResultImpl result = new HttpResultImpl("localhost", 0, null, List.of());
+  private final SpringHttpResult result = new SpringHttpResult("localhost", 0, null, List.of());
   private final RecordingSession session = new RecordingSession();
 
   /**

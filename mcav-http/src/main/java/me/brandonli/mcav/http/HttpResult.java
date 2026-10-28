@@ -17,7 +17,6 @@
  */
 package me.brandonli.mcav.http;
 
-import com.google.common.base.Preconditions;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import me.brandonli.mcav.json.ytdlp.format.UrlParseDump;
@@ -36,21 +35,27 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * and macOS, ports below 1024 may require elevated privileges, depending on the host configuration.
  *
  * <p>The caller owns each server and must call {@link #stop()} when finished; {@link HttpModule} does not
- * stop servers. Stop or detach audio producers first. Start and stop are serialized in the default
- * implementation; media updates are safely published, and listener counts are snapshots. Audio buffers must
+ * stop servers. Stop or detach audio producers first. The default implementation is thread-safe: start and stop
+ * are serialized, media updates are safely published, and listener counts are snapshots. Audio buffers must
  * stay stable while being copied, and concurrent producers must arrange any required ordering themselves.
  * Stopping preserves the current media information for a later restart.
  *
- * <pre><code>
- *   final HttpResult http = HttpResult.http("play.example.com", 8080);
- *   http.start();
- *   http.setCurrentMedia(dump);
- *   final AudioAttachableCallback audio = player.getAudioAttachableCallback();
- *   final AudioPipelineStep step = AudioPipelineStep.of(http);
- *   audio.attach(step);
- *   final String url = http.getFullUrl();
- *   System.out.println("Listen at " + url);
- * </code></pre>
+ * {@snippet :
+ * final String domain = "play.example.com";
+ * final int port = 8080;
+ * final HttpResult http = HttpResult.http(domain, port);
+ * http.start();
+ * http.setCurrentMedia(dump);
+ *
+ * final AudioPipelineStep step = AudioPipelineStep.of(http);
+ * final AudioAttachableCallback audio = videoPlayer.getAudioAttachableCallback();
+ * audio.attach(step);
+ *
+ * final String url = http.getFullUrl();
+ * LOGGER.info("Listen at {}.", url);
+ * }
+ *
+ * @since 1.0.0
  */
 public interface HttpResult extends AudioFilter {
   /**
@@ -61,9 +66,11 @@ public interface HttpResult extends AudioFilter {
    * @param port the port, from 1 to 65535
    * @return the server, not started yet
    * @throws IllegalArgumentException if {@code port} is outside 1 through 65535
+   * @since 1.0.0
    */
   static HttpResult port(final int port) {
-    return http("localhost", port);
+    final HttpResultBuilder builder = builder();
+    return builder.port(port).build();
   }
 
   /**
@@ -71,11 +78,13 @@ public interface HttpResult extends AudioFilter {
    *
    * @param domain the non-null, nonblank host name or IP address listeners use, without a scheme or path
    * @return the server, not started yet
-   * @throws NullPointerException if {@code domain} is null
+   * @throws NullPointerException     if {@code domain} is null
    * @throws IllegalArgumentException if {@code domain} is blank
+   * @since 1.0.0
    */
   static HttpResult domain(final String domain) {
-    return http(domain, 80);
+    final HttpResultBuilder builder = builder();
+    return builder.domain(domain).build();
   }
 
   /**
@@ -85,13 +94,12 @@ public interface HttpResult extends AudioFilter {
    * @param port   the port, from 1 to 65535
    * @return the server, not started yet
    * @throws IllegalArgumentException if {@code domain} is blank or {@code port} is outside 1 through 65535
-   * @throws NullPointerException if {@code domain} is null
+   * @throws NullPointerException     if {@code domain} is null
+   * @since 1.0.0
    */
   static HttpResult http(final String domain, final int port) {
-    Preconditions.checkNotNull(domain, "Domain must not be null");
-    Preconditions.checkArgument(!domain.isBlank(), "Domain must not be blank");
-    Preconditions.checkArgument(port > 0 && port <= 65535, "Port must be between 1 and 65535 but was %s", port);
-    return new HttpResultImpl(domain, port, null);
+    final HttpResultBuilder builder = builder();
+    return builder.domain(domain).port(port).build();
   }
 
   /**
@@ -104,14 +112,12 @@ public interface HttpResult extends AudioFilter {
    *                  existence is not checked by this factory
    * @return the server, not started yet
    * @throws IllegalArgumentException if {@code domain} is blank or {@code port} is outside 1 through 65535
-   * @throws NullPointerException if {@code domain} or {@code directory} is null
+   * @throws NullPointerException     if {@code domain} or {@code directory} is null
+   * @since 1.0.0
    */
   static HttpResult http(final String domain, final int port, final Path directory) {
-    Preconditions.checkNotNull(domain, "Domain must not be null");
-    Preconditions.checkArgument(!domain.isBlank(), "Domain must not be blank");
-    Preconditions.checkArgument(port > 0 && port <= 65535, "Port must be between 1 and 65535 but was %s", port);
-    Preconditions.checkNotNull(directory, "Directory must not be null");
-    return new HttpResultImpl(domain, port, directory);
+    final HttpResultBuilder builder = builder();
+    return builder.domain(domain).port(port).directory(directory).build();
   }
 
   /**
@@ -119,15 +125,17 @@ public interface HttpResult extends AudioFilter {
    * it listens on.
    *
    * @return a builder with the default settings
+   * @since 1.0.0
    */
   static HttpResultBuilder builder() {
-    return new HttpResultBuilder();
+    return new DefaultHttpResultBuilder();
   }
 
   /**
    * Starts the server. Blocks for a few seconds while the web server starts; calling it again has no effect.
    *
    * @throws HttpException if the server cannot be started, for example because the port is in use
+   * @since 1.0.0
    */
   void start();
 
@@ -136,6 +144,7 @@ public interface HttpResult extends AudioFilter {
    *
    * @return a future that completes normally when startup returns, or exceptionally with the startup failure;
    *         work runs on the common pool and cancelling the future does not stop a running server
+   * @since 1.0.0
    */
   default CompletableFuture<Void> startAsync() {
     return CompletableFuture.runAsync(this::start);
@@ -144,29 +153,34 @@ public interface HttpResult extends AudioFilter {
   /**
    * Stops the server and disconnects every listener. The server can be started again afterwards. Stopping never
    * waits for a listener whose connection is stuck. The media information is retained across a restart.
+   *
    * @throws RuntimeException if closing the embedded web framework fails
+   * @since 1.0.0
    */
   void stop();
 
   /**
-   * Checks whether the server is running.
+   * Returns whether the server is running.
    *
    * @return true between {@link #start()} and {@link #stop()}
+   * @since 1.0.0
    */
   boolean isRunning();
 
   /**
-   * Gets the number of browsers currently listening.
+   * Returns the number of browsers currently listening.
    *
    * @return a nonnegative snapshot of the connected listener count
+   * @since 1.0.0
    */
   int getListenerCount();
 
   /**
-   * Gets the address of the web page, built from the host name and the port. An IPv6 address as host name is put
+   * Returns the address of the web page, built from the host name and the port. An IPv6 address as host name is put
    * in brackets, as URLs require.
    *
    * @return the HTTP URL built from the configured host and port; it does not test reachability or configure TLS
+   * @since 1.0.0
    */
   String getFullUrl();
 
@@ -175,20 +189,23 @@ public interface HttpResult extends AudioFilter {
    *
    * @param dump the non-null output of yt-dlp; selected fields are copied into an immutable snapshot
    * @throws NullPointerException if {@code dump} is null
+   * @since 1.0.0
    */
   void setCurrentMedia(final UrlParseDump dump);
 
   /**
    * Shows information about the current media.
    *
-   * @param info the information, or null to show that nothing is playing
+   * @param information the information, or null to show that nothing is playing
+   * @since 1.0.0
    */
-  void setCurrentMedia(final @Nullable MediaInfo info);
+  void setCurrentMedia(final @Nullable MediaInformation information);
 
   /**
-   * Gets the information shown about the current media.
+   * Returns the information shown about the current media.
    *
-   * @return the current immutable snapshot, or {@link MediaInfo#EMPTY} before any media is set or after clearing it
+   * @return the current immutable snapshot, or {@link MediaInformation#EMPTY} before any media is set or after clearing it
+   * @since 1.0.0
    */
-  MediaInfo getCurrentMedia();
+  MediaInformation getCurrentMedia();
 }

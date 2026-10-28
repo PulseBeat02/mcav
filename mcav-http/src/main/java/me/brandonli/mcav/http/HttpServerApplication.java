@@ -24,27 +24,27 @@ import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistration;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
-/**
- * The Spring Boot application behind {@link HttpResultImpl}. The owning {@link HttpResultImpl} is registered as a
- * bean before the context starts, so the WebSocket handler and the controller can reach it from the first
- * request on.
- */
 @SpringBootApplication
 @EnableWebSocket
 class HttpServerApplication {
 
+  private static final String AUDIO_PATH = "/audio";
+  private static final String ANY_ORIGIN = "*";
+
   HttpServerApplication() {}
 
   @Bean
-  AudioWebSocketHandler audioWebSocketHandler(final HttpResultImpl result) {
+  AudioWebSocketHandler audioWebSocketHandler(final SpringHttpResult result) {
     return new AudioWebSocketHandler(result);
   }
 
   @Bean
   WebSocketConfigurer audioWebSocketConfigurer(final AudioWebSocketHandler handler) {
-    return (final WebSocketHandlerRegistry registry) -> {
-      final WebSocketHandlerRegistration registration = registry.addHandler(handler, "/audio");
-      registration.setAllowedOrigins("*");
-    };
+    return registry -> this.registerAudioHandler(registry, handler);
+  }
+
+  private void registerAudioHandler(final WebSocketHandlerRegistry registry, final AudioWebSocketHandler handler) {
+    final WebSocketHandlerRegistration registration = registry.addHandler(handler, AUDIO_PATH);
+    registration.setAllowedOrigins(ANY_ORIGIN);
   }
 }
