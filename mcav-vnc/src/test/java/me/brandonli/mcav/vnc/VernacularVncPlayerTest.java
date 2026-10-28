@@ -435,7 +435,7 @@ final class VernacularVncPlayerTest {
   }
 
   @Test
-  void shouldPauseAndResumesTheStream() {
+  void shouldPauseAndResumeTheStream() {
     final RfbTestServer server = this.server(SERVER_SIDE, SERVER_SIDE);
     final VernacularVncPlayer player = this.player();
     final VncSource source = this.source(server, 0, 0);
@@ -660,7 +660,7 @@ final class VernacularVncPlayerTest {
   }
 
   @Test
-  void shouldReportPipelineFailuresAndKeepsStreaming() {
+  void shouldReportPipelineFailuresAndKeepStreaming() {
     final RfbTestServer server = this.server(SERVER_SIDE, SERVER_SIDE);
     final VernacularVncPlayer player = this.player();
     final IllegalStateException failure = new IllegalStateException("filter failed!");
@@ -886,7 +886,7 @@ final class VernacularVncPlayerTest {
   }
 
   @Test
-  void shouldStopTheClientAndClosesTheSocketWhenTheHandshakeFails() throws IOException {
+  void shouldStopTheClientAndCloseTheSocketWhenTheHandshakeFails() throws IOException {
     final ServerSocket listening = this.listeningSocket();
     final VernacularClient client = mock(VernacularClient.class);
     final AtomicReference<VernacularConfig> capturedConfiguration = new AtomicReference<>();
@@ -1004,7 +1004,7 @@ final class VernacularVncPlayerTest {
   }
 
   @Test
-  void shouldLearnTheRemoteSizeButDropsFramesWhilePaused() throws IOException {
+  void shouldLearnTheRemoteSizeButDropFramesWhilePaused() throws IOException {
     final ServerSocket listening = this.listeningSocket();
     final VernacularClient client = mock(VernacularClient.class);
     final AtomicReference<VernacularConfig> capturedConfiguration = new AtomicReference<>();
@@ -1058,7 +1058,7 @@ final class VernacularVncPlayerTest {
   }
 
   @Test
-  void shouldPressNamedKeysAndTypesOtherText() throws IOException {
+  void shouldPressNamedKeysAndTypeOtherText() throws IOException {
     final ServerSocket listening = this.listeningSocket();
     final VernacularClient client = mock(VernacularClient.class);
     final AtomicReference<VernacularConfig> capturedConfiguration = new AtomicReference<>();
