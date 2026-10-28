@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Tag;
 final class SizeArgumentsFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
-  void everyTypedSizeIsBoundedOrRefused(final byte[] input) {
+  void shouldBoundOrRefuseEveryTypedSize(final byte[] input) {
     final String typed = new String(input, StandardCharsets.UTF_8);
     assertBoundedOrRefused(typed, false, ArgumentUtils.MAX_SIDE);
     assertBoundedOrRefused(typed, true, ArgumentUtils.MAX_SCREEN_SIDE);

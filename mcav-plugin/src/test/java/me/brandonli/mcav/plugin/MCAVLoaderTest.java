@@ -80,7 +80,7 @@ final class MCAVLoaderTest {
   }
 
   @Test
-  void cachesTheLibrariesInTheServerLibraryFolder() {
+  void shouldCacheTheLibrariesInTheServerLibraryFolder() {
     final MCAVLoader loader = new MCAVLoader();
     final Path libraries = loader.getLibraries();
     final Path expected = Path.of("libraries/mcav");
@@ -88,7 +88,7 @@ final class MCAVLoaderTest {
   }
 
   @Test
-  void readsTheBundledDependencyManifest() {
+  void shouldReadTheBundledDependencyManifest() {
     final ClassLoader loader = MCAVLoader.class.getClassLoader();
     final DependencySet bundled = DependencySet.readFromClasspathResource(loader, "mcav/plugin/dependencies.txt");
     final Dependency common = bundled
@@ -97,12 +97,16 @@ final class MCAVLoaderTest {
       .filter(dependency -> dependency.group().equals("me.brandonli") && dependency.name().equals("mcav-common"))
       .findFirst()
       .orElseThrow();
-    assertEquals("jar", common.extension());
-    assertTrue(common.sha256().matches("[0-9a-f]{64}"));
+
+    final String extension = common.extension();
+    assertEquals("jar", extension);
+
+    final boolean matches = common.sha256().matches("[0-9a-f]{64}");
+    assertTrue(matches);
   }
 
   @Test
-  void putsTheResolvedLibrariesOnTheClasspath() throws IOException, NoSuchAlgorithmException {
+  void shouldPutTheResolvedLibrariesOnTheClasspath() throws IOException, NoSuchAlgorithmException {
     final Path jar = this.cache.resolve("com/example/library/1.0/library-1.0.jar");
     final Path parent = jar.getParent();
     Files.createDirectories(parent);
@@ -127,7 +131,7 @@ final class MCAVLoaderTest {
   }
 
   @Test
-  void removesCachedLibrariesThatAreNoLongerListed() throws IOException, NoSuchAlgorithmException {
+  void shouldRemoveCachedLibrariesThatAreNoLongerListed() throws IOException, NoSuchAlgorithmException {
     final Path jar = this.cache.resolve("com/example/library/1.0/library-1.0.jar");
     final Path parent = jar.getParent();
     Files.createDirectories(parent);
@@ -167,7 +171,7 @@ final class MCAVLoaderTest {
   }
 
   @Test
-  void addsNothingWithoutLibraries() {
+  void shouldAddNothingWithoutLibraries() {
     final DependencySet set = dependencies(List.of());
     final PluginClasspathBuilder builder = mock(PluginClasspathBuilder.class);
     try (final MockedStatic<DependencySet> sets = Mockito.mockStatic(DependencySet.class, Mockito.CALLS_REAL_METHODS)) {
@@ -191,20 +195,22 @@ final class MCAVLoaderTest {
   }
 
   @Test
-  void refusesModulesOlderThanThePlugin() throws IOException {
+  void shouldRefuseModulesOlderThanThePlugin() throws IOException {
     final Path old = this.jarOf("mcav-bukkit-1.0.0-20260510.193149-206.jar", "me/brandonli/mcav/bukkit/BukkitModule");
     final List<String> required = List.of("me/brandonli/mcav/bukkit/BukkitModule", "me/brandonli/mcav/bukkit/media/mcv2/Mcv2Result");
     final IllegalStateException refused = assertThrows(IllegalStateException.class, () -> MCAVLoader.checkModules(required, List.of(old)));
+
+    final String message = refused.getMessage();
     assertEquals(
       "The mcav modules the server downloaded are older than this plugin, which uses classes they lack (1), such as " +
         "me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result. Publish the modules of the plugin's own version, or build the plugin " +
         "with -Pmcav.e2e=true",
-      refused.getMessage()
+      message
     );
   }
 
   @Test
-  void acceptsModulesThatHaveEveryClassThePluginUses() throws IOException {
+  void shouldAcceptModulesThatHaveEveryClassThePluginUses() throws IOException {
     final Path bukkit = this.jarOf("mcav-bukkit.jar", "me/brandonli/mcav/bukkit/media/mcv2/Mcv2Result");
     final Path common = this.jarOf("mcav-common.jar", "me/brandonli/mcav/MCAV");
     MCAVLoader.checkModules(List.of("me/brandonli/mcav/MCAV", "me/brandonli/mcav/bukkit/media/mcv2/Mcv2Result"), List.of(bukkit, common));
@@ -212,17 +218,19 @@ final class MCAVLoaderTest {
   }
 
   @Test
-  void namesAtMostFiveOfTheMissingClasses() throws IOException {
+  void shouldNameAtMostFiveOfTheMissingClasses() throws IOException {
     final Path empty = this.jarOf("empty.jar");
     final List<String> required = List.of("a/A", "b/B", "c/C", "d/D", "e/E", "f/F");
     final IllegalStateException refused = assertThrows(IllegalStateException.class, () ->
       MCAVLoader.checkModules(required, List.of(empty))
     );
-    assertTrue(refused.getMessage().contains("(6), such as a.A, b.B, c.C, d.D, e.E. "), refused.getMessage());
+
+    final boolean contained = refused.getMessage().contains("(6), such as a.A, b.B, c.C, d.D, e.E. ");
+    assertTrue(contained, refused.getMessage());
   }
 
   @Test
-  void checksTheModulesBeforeTheyAreAddedToTheClasspath() throws IOException, NoSuchAlgorithmException {
+  void shouldCheckTheModulesBeforeTheyAreAddedToTheClasspath() throws IOException, NoSuchAlgorithmException {
     final Path jar = this.cache.resolve("com/example/library/1.0/library-1.0.jar");
     Files.createDirectories(jar.getParent());
     final byte[] content = { 0x50, 0x4B, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -239,18 +247,27 @@ final class MCAVLoaderTest {
   }
 
   @Test
-  void readsTheModuleClassesTheBuildListed() {
+  void shouldReadTheModuleClassesTheBuildListed() {
     final List<String> required = MCAVLoader.readRequiredClasses(MCAVLoaderTest.class.getClassLoader());
-    assertTrue(required.contains("me/brandonli/mcav/bukkit/media/mcv2/Mcv2PackServer"), "the plugin starts MCV2 screens");
-    assertTrue(required.contains("me/brandonli/mcav/MCAV"));
-    assertFalse(required.stream().anyMatch(name -> name.startsWith("me/brandonli/mcav/plugin/")), "the plugin's own classes");
-    assertFalse(required.stream().anyMatch(name -> name.startsWith("me/brandonli/mcav/voicechat/")), "a module shaded into the plugin");
+
+    final boolean contained = required.contains("me/brandonli/mcav/bukkit/media/mcv2/Mcv2PackServer");
+    assertTrue(contained, "the plugin starts MCV2 screens");
+
+    final boolean requiredContained = required.contains("me/brandonli/mcav/MCAV");
+    assertTrue(requiredContained);
+
+    final boolean matched = required.stream().anyMatch(name -> name.startsWith("me/brandonli/mcav/plugin/"));
+    assertFalse(matched, "the plugin's own classes");
+
+    final boolean requiredMatched = required.stream().anyMatch(name -> name.startsWith("me/brandonli/mcav/voicechat/"));
+    assertFalse(requiredMatched, "a module shaded into the plugin");
   }
 
   @Test
-  void readsNoModuleClassesFromAPluginBuiltWithoutTheList() throws IOException {
+  void shouldReadNoModuleClassesFromAPluginBuiltWithoutTheList() throws IOException {
     try (final URLClassLoader withoutTheList = new URLClassLoader(new URL[0], null)) {
-      assertEquals(List.of(), MCAVLoader.readRequiredClasses(withoutTheList));
+      final List<String> requiredClasses = MCAVLoader.readRequiredClasses(withoutTheList);
+      assertEquals(List.of(), requiredClasses);
     }
     final ClassLoader unreadable = new ClassLoader(null) {
       @Override
@@ -272,13 +289,15 @@ final class MCAVLoaderTest {
   }
 
   @Test
-  void readsTheListWithoutItsBlankLines() {
+  void shouldReadTheListWithoutItsBlankLines() {
     final ClassLoader listed = new ClassLoader(null) {
       @Override
       public InputStream getResourceAsStream(final String name) {
         return new ByteArrayInputStream("me/brandonli/mcav/MCAV\n\n  \nme/brandonli/mcav/MCAVApi\n".getBytes(StandardCharsets.UTF_8));
       }
     };
-    assertEquals(List.of("me/brandonli/mcav/MCAV", "me/brandonli/mcav/MCAVApi"), MCAVLoader.readRequiredClasses(listed));
+
+    final List<String> requiredClasses = MCAVLoader.readRequiredClasses(listed);
+    assertEquals(List.of("me/brandonli/mcav/MCAV", "me/brandonli/mcav/MCAVApi"), requiredClasses);
   }
 }

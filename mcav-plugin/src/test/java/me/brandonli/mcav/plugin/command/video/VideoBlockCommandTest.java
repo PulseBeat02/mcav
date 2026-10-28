@@ -175,7 +175,7 @@ final class VideoBlockCommandTest {
   }
 
   @Test
-  void passesTheArgumentsOnAndConfiguresTheWall() {
+  void shouldPassTheArgumentsOnAndConfigureTheWall() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
     final Pair<Integer, Integer> resolution = Pair.pair(32, 18);
 
@@ -186,7 +186,7 @@ final class VideoBlockCommandTest {
   }
 
   @Test
-  void showsTheFramesOnAWallStartedOnTheMainThread() {
+  void shouldShowTheFramesOnAWallStartedOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
     final Pair<Integer, Integer> resolution = Pair.pair(32, 18);
     final List<List<?>> arguments = new ArrayList<>();

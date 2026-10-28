@@ -38,6 +38,7 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2.Settings;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Configuration;
 import me.brandonli.mcav.bukkit.media.result.CompressedMapResult;
 import me.brandonli.mcav.media.player.pipeline.filter.video.FunctionalVideoFilter;
+import me.brandonli.mcav.media.player.pipeline.filter.video.VideoFilter;
 import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
@@ -113,7 +114,7 @@ final class VideoMcv2CommandTest {
   }
 
   @Test
-  void configuresTheWallAndPlaysOnIt() {
+  void shouldConfigureTheWallAndPlayOnIt() {
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
     when(
       this.support.configure(
@@ -144,13 +145,19 @@ final class VideoMcv2CommandTest {
     );
     final Object built = providers.getValue().buildConfiguration(Pair.pair(640, 384));
     final VideoMcv2Command.Mcv2Settings settings = assertInstanceOf(VideoMcv2Command.Mcv2Settings.class, built);
-    assertSame(configuration, settings.configuration());
-    assertEquals(DitheringArgument.FILTER_LITE, settings.dithering());
-    assertSame(this.sender, settings.sender());
+
+    final Mcv2Configuration settingsConfiguration = settings.configuration();
+    assertSame(configuration, settingsConfiguration);
+
+    final DitheringArgument dithering = settings.dithering();
+    assertEquals(DitheringArgument.FILTER_LITE, dithering);
+
+    final CommandSender sender = settings.sender();
+    assertSame(this.sender, sender);
   }
 
   @Test
-  void startsTheOutputInASlotOfThePackOnThePlayerManager() {
+  void shouldStartTheOutputInASlotOfThePackOnThePlayerManager() {
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
     final Mcv2Output output = mock(Mcv2Output.class);
     when(this.support.output(this.sender, configuration, DitheringArgument.FILTER_LITE)).thenReturn(output);
@@ -160,11 +167,13 @@ final class VideoMcv2CommandTest {
     final VideoPipelineStep step = this.command.createVideoFilter(Pair.pair(640, 384), provider);
 
     verify(this.manager).startFilter(output);
-    assertSame(output, step.getFilter());
+
+    final VideoFilter filter = step.getFilter();
+    assertSame(output, filter);
   }
 
   @Test
-  void dithersTheWallWhenEverySlotOfThePackPlays() {
+  void shouldDitherTheWallWhenEverySlotOfThePackPlays() {
     final Mcv2Configuration configuration = mock(Mcv2Configuration.class);
     when(configuration.getColumns()).thenReturn(5);
     when(configuration.getRows()).thenReturn(3);
@@ -193,28 +202,40 @@ final class VideoMcv2CommandTest {
 
       dithers.verify(() -> DitherFilter.dither(DitheringArgument.FILTER_LITE.createAlgorithm(), maps.constructed().getFirst()));
       verify(this.manager).startFilter(dithered);
-      assertSame(dithered, step.getFilter());
+
+      final VideoFilter filter = step.getFilter();
+      assertSame(dithered, filter);
     }
   }
 
   @Test
-  void takesTheBacklogLimitOfAMeasurement() {
+  void shouldTakeTheBacklogLimitOfAMeasurement() {
     System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "65536");
     try {
-      assertEquals(65536, VideoMcv2Command.backlogLimit());
-      assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, VideoMcv2Command.unsentLimit());
+      final long videoMcv2CommandBacklogLimit = VideoMcv2Command.backlogLimit();
+      assertEquals(65536, videoMcv2CommandBacklogLimit);
+
+      final int unsentLimit = VideoMcv2Command.unsentLimit();
+      assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, unsentLimit);
+
       System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "none");
-      assertEquals(Long.MAX_VALUE, VideoMcv2Command.backlogLimit());
+
+      final long secondBacklogLimit = VideoMcv2Command.backlogLimit();
+      assertEquals(Long.MAX_VALUE, secondBacklogLimit);
       // no backpressure at all: no cap on a viewer's unsent bytes either
-      assertEquals(0, VideoMcv2Command.unsentLimit());
+
+      final int videoMcv2CommandUnsentLimit = VideoMcv2Command.unsentLimit();
+      assertEquals(0, videoMcv2CommandUnsentLimit);
     } finally {
       System.clearProperty(VideoMcv2Command.BACKLOG_PROPERTY);
     }
-    assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, VideoMcv2Command.backlogLimit());
+
+    final long backlogLimit = VideoMcv2Command.backlogLimit();
+    assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, backlogLimit);
   }
 
   @Test
-  void refusesInvalidSizesAndMissingWalls() {
+  void shouldRefuseInvalidSizesAndMissingWalls() {
     this.play("640x384", "65x1", 20);
     this.play("nope", "5x3", 20);
     verify(this.support, never()).configure(any(), any(), any(), eq(20), any(), any());

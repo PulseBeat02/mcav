@@ -168,12 +168,12 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void refusesANullPlugin() {
+  void shouldRefuseANullPlugin() {
     assertThrows(NullPointerException.class, () -> new VideoPlayerManager(null));
   }
 
   @Test
-  void startsEmpty() {
+  void shouldStartEmpty() {
     final VideoPlayerMultiplexer currentPlayer = this.manager.getPlayer();
     final FunctionalVideoFilter currentFilter = this.manager.getFilter();
     final Hologram currentHologram = this.manager.getHologram();
@@ -189,7 +189,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void remembersWhatItIsGiven() {
+  void shouldRememberWhatItIsGiven() {
     this.fill();
     final Location location = new Location(null, 1.0, 2.0, 3.0);
     this.manager.setHologramLocation(location);
@@ -206,7 +206,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void asksTheLibraryWhetherVlcIsAvailable() {
+  void shouldAskTheLibraryWhetherVlcIsAvailable() {
     when(this.api.hasCapability(Capability.VLC)).thenReturn(true);
     final boolean supported = this.manager.isVLCSupported();
     assertTrue(supported);
@@ -217,7 +217,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void asksTheLibraryWhetherACapabilityIsStillBeingPrepared() {
+  void shouldAskTheLibraryWhetherACapabilityIsStillBeingPrepared() {
     final CompletableFuture<Boolean> pending = new CompletableFuture<>();
     final CompletableFuture<Boolean> failed = CompletableFuture.completedFuture(false);
     final CompletableFuture<Boolean> ready = CompletableFuture.completedFuture(true);
@@ -236,7 +236,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void releasesEverythingAtOnceOnTheMainThread() {
+  void shouldReleaseEverythingAtOnceOnTheMainThread() {
     this.fill();
 
     this.manager.releaseVideoPlayer();
@@ -259,7 +259,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void releasesTheWorldOnTheMainThreadAndWaitsForItWhenCalledFromTheWorker()
+  void shouldReleaseTheWorldOnTheMainThreadAndWaitForItWhenCalledFromTheWorker()
     throws InterruptedException, ExecutionException, TimeoutException {
     this.fill();
     final BlockingQueue<Runnable> mainThreadTasks = interceptMainThreadTasks();
@@ -283,7 +283,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void leavesTheWorldAloneWhenThePluginIsAlreadyDisabled() throws InterruptedException, ExecutionException, TimeoutException {
+  void shouldLeaveTheWorldAloneWhenThePluginIsAlreadyDisabled() throws InterruptedException, ExecutionException, TimeoutException {
     this.fill();
     final BukkitScheduler scheduler = TestServer.scheduler();
     when(scheduler.callSyncMethod(any(Plugin.class), any())).thenThrow(new IllegalPluginAccessException("disabled"));
@@ -300,7 +300,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void failsWhenInterruptedWhileWaitingForTheMainThread() throws InterruptedException {
+  void shouldFailWhenInterruptedWhileWaitingForTheMainThread() throws InterruptedException {
     this.fill();
     final BlockingQueue<Runnable> mainThreadTasks = interceptMainThreadTasks();
     final Future<?> release = this.releaseOnTheWorker();
@@ -319,7 +319,8 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void keepsTheInterruptWhenInterruptedWhileWaitingForTheMainThread() throws InterruptedException, ExecutionException, TimeoutException {
+  void shouldKeepTheInterruptWhenInterruptedWhileWaitingForTheMainThread()
+    throws InterruptedException, ExecutionException, TimeoutException {
     this.fill();
     final BlockingQueue<Runnable> mainThreadTasks = interceptMainThreadTasks();
     final AtomicBoolean keptInterrupt = new AtomicBoolean();
@@ -342,7 +343,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void failsWhenReleasingOnTheMainThreadFails() {
+  void shouldFailWhenReleasingOnTheMainThreadFails() {
     TestServer.reset();
     this.fill();
     final IllegalStateException broken = new IllegalStateException("entity already removed");
@@ -360,7 +361,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void releasesTheAudioEvenWithoutAVideo() {
+  void shouldReleaseTheAudioEvenWithoutAVideo() {
     this.manager.releaseVideoPlayer();
     this.manager.releaseVideoPlayer();
 
@@ -368,7 +369,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void runsTasksOnItsWorkerThread() throws ExecutionException, InterruptedException, TimeoutException {
+  void shouldRunTasksOnItsWorkerThread() throws ExecutionException, InterruptedException, TimeoutException {
     final ExecutorService service = this.manager.getService();
     final Thread caller = Thread.currentThread();
 
@@ -380,7 +381,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void shutdownDrainsWorldCleanupWhoseScheduledTaskNeverRuns() throws InterruptedException, ExecutionException, TimeoutException {
+  void shouldDrainOnShutdownTheWorldCleanupWhoseScheduledTaskNeverRuns() throws InterruptedException, ExecutionException, TimeoutException {
     this.fill();
     final BlockingQueue<Runnable> tasks = interceptMainThreadTasks();
     final Future<?> release = this.releaseOnTheWorker();
@@ -396,7 +397,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void releasesTheOwnedDisplayWhenItsSchedulerRejectsStartup() {
+  void shouldReleaseTheOwnedDisplayWhenItsSchedulerRejectsStartup() {
     this.manager.beginStart();
     final BukkitScheduler scheduler = TestServer.scheduler();
     final IllegalPluginAccessException failure = new IllegalPluginAccessException("disabled");
@@ -411,7 +412,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void neverStartsAnAcceptedDisplayTaskAfterRelease() {
+  void shouldNeverStartAnAcceptedDisplayTaskAfterRelease() {
     TestServer.resetWithDeferredTasks();
     this.manager.beginStart();
     this.manager.startFilter(this.filter);
@@ -422,7 +423,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void rejectsAResolvedStartupAfterShutdown() {
+  void shouldRejectAResolvedStartupAfterShutdown() {
     final long generation = this.manager.beginStart();
     this.manager.shutdown();
     assertThrows(CancellationException.class, this.manager::checkStart);
@@ -432,7 +433,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void closesANativePlayerOnlyAfterCancelledStartupReturns() {
+  void shouldCloseANativePlayerOnlyAfterCancelledStartupReturns() {
     this.manager.beginStart();
     this.manager.setPlayer(this.player);
     assertThrows(CancellationException.class, () ->
@@ -448,7 +449,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void disposesAPlayerWhoseConstructionCompletedAfterCancellation() {
+  void shouldDisposeAPlayerWhoseConstructionCompletedAfterCancellation() {
     this.manager.beginStart();
     final AtomicBoolean status = this.manager.getStatus();
     status.set(true);
@@ -460,7 +461,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void attemptsEveryRecoverableCleanupAndStopsTheWorker() {
+  void shouldAttemptEveryRecoverableCleanupAndStopTheWorker() {
     this.fill();
     final IllegalStateException audioFailure = new IllegalStateException("audio");
     final IllegalArgumentException playerFailure = new IllegalArgumentException("player");
@@ -481,7 +482,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void stopsItsWorkerAndReleasesWhenShutDown() {
+  void shouldStopItsWorkerAndReleaseWhenShutDown() {
     this.fill();
 
     this.manager.shutdown();
@@ -494,21 +495,33 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void cancellingAndRestartingNeverRevivesAnEarlierStartupToken() {
+  void shouldNeverReviveAnEarlierStartupTokenWhenCancellingAndRestarting() {
     final long oldest = this.manager.beginStart();
     final long replaced = this.manager.beginStart();
     this.manager.cancelStart();
-    assertFalse(this.manager.isCurrent(oldest));
-    assertFalse(this.manager.isCurrent(replaced));
+
+    final boolean managerCurrent = this.manager.isCurrent(oldest);
+    assertFalse(managerCurrent);
+
+    final boolean secondCurrent = this.manager.isCurrent(replaced);
+    assertFalse(secondCurrent);
+
     final long current = this.manager.beginStart();
-    assertFalse(this.manager.isCurrent(oldest));
-    assertFalse(this.manager.isCurrent(replaced));
-    assertTrue(this.manager.isCurrent(current));
+
+    final boolean thirdCurrent = this.manager.isCurrent(oldest);
+    assertFalse(thirdCurrent);
+
+    final boolean fourthCurrent = this.manager.isCurrent(replaced);
+    assertFalse(fourthCurrent);
+
+    final boolean fifthCurrent = this.manager.isCurrent(current);
+    assertTrue(fifthCurrent);
+
     this.manager.checkStart();
   }
 
   @Test
-  void startsOnlyTheCurrentOwnedDisplay() {
+  void shouldStartOnlyTheCurrentOwnedDisplay() {
     final long generation = this.manager.beginStart();
     this.manager.checkStart();
     this.manager.startFilter(this.filter);
@@ -528,7 +541,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void releasesAFailedDisplayAndPreservesItsFailureOverCleanup() {
+  void shouldReleaseAFailedDisplayAndPreserveItsFailureOverCleanup() {
     this.manager.beginStart();
     final IllegalStateException failure = new IllegalStateException("display start");
     final IllegalArgumentException cleanup = new IllegalArgumentException("display release");
@@ -546,7 +559,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void preservesRejectedSchedulingFailureOverDisplayCleanup() {
+  void shouldPreserveRejectedSchedulingFailureOverDisplayCleanup() {
     this.manager.beginStart();
     final IllegalPluginAccessException failure = new IllegalPluginAccessException("disabled");
     final IllegalStateException cleanup = new IllegalStateException("display release");
@@ -565,7 +578,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void retainsANativePlayerAfterCompletedStartupUntilExplicitRelease() {
+  void shouldRetainANativePlayerAfterCompletedStartupUntilExplicitRelease() {
     this.manager.beginStart();
     final AtomicBoolean status = this.manager.getStatus();
     status.set(true);
@@ -583,7 +596,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void endsNativeOwnershipAfterARecoverableStartFailure() {
+  void shouldEndNativeOwnershipAfterARecoverableStartFailure() {
     this.manager.beginStart();
     this.manager.setPlayer(this.player);
     final IllegalStateException failure = new IllegalStateException("native start");
@@ -599,7 +612,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void preservesDetachedNativeStartFailureAndSuppressesCleanupFailure() {
+  void shouldPreserveDetachedNativeStartFailureAndSuppressCleanupFailure() {
     this.manager.beginStart();
     this.manager.setPlayer(this.player);
     final IllegalStateException failure = new IllegalStateException("native start");
@@ -619,7 +632,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void doesNotSuppressANativeFailureOntoItself() {
+  void shouldNotSuppressANativeFailureOntoItself() {
     this.manager.beginStart();
     this.manager.setPlayer(this.player);
     final IllegalStateException failure = new IllegalStateException("same native failure");
@@ -636,7 +649,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void propagatesFatalDetachedNativeCleanupImmediately() {
+  void shouldPropagateFatalDetachedNativeCleanupImmediately() {
     this.manager.beginStart();
     this.manager.setPlayer(this.player);
     final IllegalStateException failure = new IllegalStateException("native start");
@@ -654,7 +667,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void rejectsAndReleasesAPlayerPublishedAfterShutdown() {
+  void shouldRejectAndReleaseAPlayerPublishedAfterShutdown() {
     this.manager.shutdown();
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.setPlayer(this.player));
     final String message = thrown.getMessage();
@@ -666,7 +679,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void usesWorldCleanupAlreadyCompletedByMainThreadShutdown() throws Exception {
+  void shouldUseWorldCleanupAlreadyCompletedByMainThreadShutdown() throws Exception {
     this.fill();
     final CountDownLatch releasingAudio = new CountDownLatch(1);
     final CountDownLatch continueRelease = new CountDownLatch(1);
@@ -711,7 +724,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void propagatesAFatalMainThreadCleanupCauseWithoutWrappingIt() throws Exception {
+  void shouldPropagateAFatalMainThreadCleanupCauseWithoutWrappingIt() throws Exception {
     this.fill();
     final InternalError fatal = new InternalError("fatal display cleanup");
     doThrow(fatal).when(this.filter).release();
@@ -727,7 +740,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void propagatesFatalDisplayStartFailureWithoutReleasingVideoPlayer() {
+  void shouldPropagateFatalDisplayStartFailureWithoutReleasingVideoPlayer() {
     this.manager.beginStart();
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
     doThrow(fatal).when(this.filter).start();
@@ -735,11 +748,13 @@ final class VideoPlayerManagerTest {
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, TestServer::runPendingTasks);
     assertSame(fatal, thrown);
     verify(this.filter, never()).release();
-    assertSame(this.filter, this.manager.getFilter());
+
+    final FunctionalVideoFilter filter = this.manager.getFilter();
+    assertSame(this.filter, filter);
   }
 
   @Test
-  void propagatesFatalSchedulingFailureWithoutClearingCurrentVideo() {
+  void shouldPropagateFatalSchedulingFailureWithoutClearingCurrentVideo() {
     this.manager.beginStart();
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
     final BukkitScheduler scheduler = TestServer.scheduler();
@@ -748,11 +763,13 @@ final class VideoPlayerManagerTest {
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () -> this.manager.startFilter(this.filter));
     assertSame(fatal, thrown);
     verify(this.filter, never()).release();
-    assertSame(this.filter, this.manager.getFilter());
+
+    final FunctionalVideoFilter filter = this.manager.getFilter();
+    assertSame(this.filter, filter);
   }
 
   @Test
-  void propagatesFatalNativeStartFailureWithoutFinishingNativeCandidate() {
+  void shouldPropagateFatalNativeStartFailureWithoutFinishingNativeCandidate() {
     this.manager.beginStart();
     this.manager.setPlayer(this.player);
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
@@ -767,44 +784,56 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void startFilterWithoutBeginStartMustReject() {
+  void shouldRejectStartFilterWithoutBeginStart() {
     this.manager.cancelStart();
     final BukkitScheduler scheduler = TestServer.scheduler();
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startFilter(this.filter));
-    assertEquals("The video startup was cancelled", thrown.getMessage());
+
+    final String message = thrown.getMessage();
+    assertEquals("The video startup was cancelled", message);
+
     verify(scheduler, never()).runTask(any(Plugin.class), any(Runnable.class));
     verify(this.filter, never()).start();
   }
 
   @Test
-  void startNativeWithoutBeginStartMustReject() {
+  void shouldRejectStartNativeWithoutBeginStart() {
     this.manager.cancelStart();
     this.manager.setPlayer(this.player);
     final BooleanSupplier start = mock(BooleanSupplier.class);
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startNative(start));
-    assertEquals("The video startup was cancelled", thrown.getMessage());
+
+    final String message = thrown.getMessage();
+    assertEquals("The video startup was cancelled", message);
+
     verify(start, never()).getAsBoolean();
   }
 
   @Test
-  void rejectsFilterStartAfterCancelledStartupWithoutNewBeginStart() {
+  void shouldRejectFilterStartAfterCancelledStartupWithoutNewBeginStart() {
     this.manager.beginStart();
     this.manager.cancelStart();
     final BukkitScheduler scheduler = TestServer.scheduler();
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startFilter(this.filter));
-    assertEquals("The video startup was cancelled", thrown.getMessage());
+
+    final String message = thrown.getMessage();
+    assertEquals("The video startup was cancelled", message);
+
     verify(scheduler, never()).runTask(any(Plugin.class), any(Runnable.class));
     verify(this.filter, never()).start();
   }
 
   @Test
-  void rejectsNativeStartAfterCancelledStartupWithoutNewBeginStart() {
+  void shouldRejectNativeStartAfterCancelledStartupWithoutNewBeginStart() {
     this.manager.beginStart();
     this.manager.cancelStart();
     this.manager.setPlayer(this.player);
     final BooleanSupplier start = mock(BooleanSupplier.class);
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startNative(start));
-    assertEquals("The video startup was cancelled", thrown.getMessage());
+
+    final String message = thrown.getMessage();
+    assertEquals("The video startup was cancelled", message);
+
     verify(start, never()).getAsBoolean();
   }
 
@@ -816,24 +845,37 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void keepsOneVolumeForEveryVideo() {
+  void shouldKeepOneVolumeForEveryVideo() {
     final VolumeFilter volume = this.manager.getVolume();
-    assertSame(volume, this.manager.getVolume());
-    assertEquals(VolumeFilter.UNCHANGED, volume.getVolume());
+
+    final VolumeFilter managerVolume = this.manager.getVolume();
+    assertSame(volume, managerVolume);
+
+    final double volumeVolume = volume.getVolume();
+    assertEquals(VolumeFilter.UNCHANGED, volumeVolume);
   }
 
   @Test
-  void watchesForTheEndOnlyWhileLooping() {
+  void shouldWatchForTheEndOnlyWhileLooping() {
     final BukkitTask task = stubLoopWatcher();
     final BukkitScheduler scheduler = Bukkit.getScheduler();
-    assertFalse(this.manager.isLooping());
+
+    final boolean looping = this.manager.isLooping();
+    assertFalse(looping);
+
     this.manager.setLooping(true);
     this.manager.setLooping(true);
-    assertTrue(this.manager.isLooping());
+
+    final boolean managerLooping = this.manager.isLooping();
+    assertTrue(managerLooping);
+
     verify(scheduler, times(1)).runTaskTimerAsynchronously(any(Plugin.class), any(Runnable.class), eq(10L), eq(10L));
     this.manager.setLooping(false);
     this.manager.setLooping(false);
-    assertFalse(this.manager.isLooping());
+
+    final boolean secondLooping = this.manager.isLooping();
+    assertFalse(secondLooping);
+
     verify(task, times(1)).cancel();
     this.manager.setLooping(true);
     this.manager.shutdown();
@@ -841,7 +883,7 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void playsAgainOnlyADecodedVideoThatEndedWhileLooping() {
+  void shouldPlayAgainOnlyADecodedVideoThatEndedWhileLooping() {
     stubLoopWatcher();
     final AbstractVideoPlayerCv decoded = mock(AbstractVideoPlayerCv.class);
     this.manager.setPlayer(decoded);
@@ -861,11 +903,16 @@ final class VideoPlayerManagerTest {
   }
 
   @Test
-  void remembersTheDevicesListedLast() {
-    assertEquals(List.of(), this.manager.getDevices());
+  void shouldRememberTheDevicesListedLast() {
+    final List<CaptureDevices.Device> devices = this.manager.getDevices();
+    assertEquals(List.of(), devices);
+
     final List<CaptureDevices.Device> listed = new ArrayList<>(List.of(new CaptureDevices.Device(0, "camera")));
     this.manager.setDevices(listed);
     listed.clear();
-    assertEquals(List.of(new CaptureDevices.Device(0, "camera")), this.manager.getDevices());
+
+    final List<CaptureDevices.Device> expected = List.of(new CaptureDevices.Device(0, "camera"));
+    final List<CaptureDevices.Device> managerDevices = this.manager.getDevices();
+    assertEquals(expected, managerDevices);
   }
 }

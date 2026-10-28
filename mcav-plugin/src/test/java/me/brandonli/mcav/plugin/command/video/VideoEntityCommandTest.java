@@ -178,7 +178,7 @@ final class VideoEntityCommandTest {
   }
 
   @Test
-  void passesTheArgumentsOnAndConfiguresTheEntity() {
+  void shouldPassTheArgumentsOnAndConfigureTheEntity() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
     final Pair<Integer, Integer> resolution = Pair.pair(64, 36);
 
@@ -189,7 +189,7 @@ final class VideoEntityCommandTest {
   }
 
   @Test
-  void showsTheFramesInAnEntitySpawnedOnTheMainThread() {
+  void shouldShowTheFramesInAnEntitySpawnedOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
     final Pair<Integer, Integer> resolution = Pair.pair(64, 36);
     final List<List<?>> arguments = new ArrayList<>();

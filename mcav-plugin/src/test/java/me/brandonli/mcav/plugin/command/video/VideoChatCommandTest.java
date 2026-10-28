@@ -160,7 +160,7 @@ final class VideoChatCommandTest {
   }
 
   @Test
-  void passesTheArgumentsOnAndConfiguresTheChat() {
+  void shouldPassTheArgumentsOnAndConfigureTheChat() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
     final Pair<Integer, Integer> resolution = Pair.pair(16, 16);
 
@@ -171,7 +171,7 @@ final class VideoChatCommandTest {
   }
 
   @Test
-  void showsTheFramesInTheChatStartedOnTheMainThread() {
+  void shouldShowTheFramesInTheChatStartedOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
     final Pair<Integer, Integer> resolution = Pair.pair(16, 16);
     final List<List<?>> arguments = new ArrayList<>();

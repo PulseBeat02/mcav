@@ -52,7 +52,7 @@ final class OnlinePlayersTest {
   }
 
   @Test
-  void followsThePlayersFromThoseOnlineAtTheStart() {
+  void shouldFollowThePlayersFromThoseOnlineAtTheStart() {
     final Server server = TestServer.reset();
     final UUID alice = UUID.randomUUID();
     final UUID bob = UUID.randomUUID();
@@ -77,6 +77,8 @@ final class OnlinePlayersTest {
       online.stop();
       lists.verify(() -> HandlerList.unregisterAll(online));
     }
-    assertTrue(players.isEmpty());
+
+    final boolean empty = players.isEmpty();
+    assertTrue(empty);
   }
 }

@@ -45,7 +45,7 @@ final class ScreenCommandTest {
   private final Location location = new Location(null, 1.0, 64.0, 2.0);
 
   @Test
-  void buildsTheScreenWithTheParsedSize() {
+  void shouldBuildTheScreenWithTheParsedSize() {
     try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
       this.command.buildScreen(this.sender, "5x3", 10, Material.STONE, this.location);
       maps.verify(() -> MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, 5, 3, 10));
@@ -57,7 +57,7 @@ final class ScreenCommandTest {
   }
 
   @Test
-  void refusesInvalidSizes() {
+  void shouldRefuseInvalidSizes() {
     try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
       this.command.buildScreen(this.sender, "5by3", 10, Material.STONE, this.location);
       maps.verifyNoInteractions();
@@ -70,7 +70,7 @@ final class ScreenCommandTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "100000x100000", "65x1", "1x65", "8193x8193" })
-  void refusesWallsLargerThanTheLimit(final String size) {
+  void shouldRefuseWallsLargerThanTheLimit(final String size) {
     try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
       this.command.buildScreen(this.sender, size, 10, Material.STONE, this.location);
       maps.verifyNoInteractions();
@@ -82,7 +82,7 @@ final class ScreenCommandTest {
   }
 
   @Test
-  void buildsTheLargestWall() {
+  void shouldBuildTheLargestWall() {
     try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
       this.command.buildScreen(this.sender, "64x64", 10, Material.STONE, this.location);
       maps.verify(() -> MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, 64, 64, 10));
@@ -95,7 +95,7 @@ final class ScreenCommandTest {
 
   @ParameterizedTest
   @ValueSource(classes = { IllegalArgumentException.class, IllegalStateException.class })
-  void tellsTheSenderWhenTheMapIdsCannotBeUsed(final Class<? extends RuntimeException> failureType) {
+  void shouldTellTheSenderWhenTheMapIdsCannotBeUsed(final Class<? extends RuntimeException> failureType) {
     try (final MockedStatic<MapUtils> maps = Mockito.mockStatic(MapUtils.class)) {
       maps
         .when(() -> MapUtils.buildMapScreen(this.sender, this.location, Material.STONE, 5, 3, Integer.MAX_VALUE - 20))
@@ -109,7 +109,7 @@ final class ScreenCommandTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> this.command.buildScreen(null, "5x3", 10, Material.STONE, this.location));
     assertThrows(NullPointerException.class, () -> this.command.buildScreen(this.sender, null, 10, Material.STONE, this.location));
     assertThrows(NullPointerException.class, () -> this.command.buildScreen(this.sender, "5x3", 10, null, this.location));

@@ -163,7 +163,7 @@ final class VideoScoreboardCommandTest {
   }
 
   @Test
-  void passesTheArgumentsOnAndConfiguresTheSidebar() {
+  void shouldPassTheArgumentsOnAndConfigureTheSidebar() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
     final Pair<Integer, Integer> resolution = Pair.pair(24, 15);
 
@@ -174,7 +174,7 @@ final class VideoScoreboardCommandTest {
   }
 
   @Test
-  void showsTheFramesOnASidebarShownOnTheMainThread() {
+  void shouldShowTheFramesOnASidebarShownOnTheMainThread() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider();
     final Pair<Integer, Integer> resolution = Pair.pair(24, 15);
     final List<List<?>> arguments = new ArrayList<>();
@@ -198,7 +198,7 @@ final class VideoScoreboardCommandTest {
   }
 
   @Test
-  void refusesMoreLinesThanAScoreboardShows() {
+  void shouldRefuseMoreLinesThanAScoreboardShows() {
     this.command.playVideo(this.sender, this.selector, PlayerArgument.DEVICE, AudioArgument.NONE, "24x16", "#", "", "0", null);
 
     final List<Component> messages = Components.received(this.sender);

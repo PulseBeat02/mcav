@@ -32,7 +32,7 @@ final class VideoFlagsParserFuzzTest {
   private final VideoFlagsParser parser = new VideoFlagsParser();
 
   @FuzzTest(maxDuration = "30s")
-  void onlyAcceptedOptionsAndTheirValuesReachYtDlp(final byte[] input) {
+  void shouldPassOnlyAcceptedOptionsAndTheirValuesToYtDlp(final byte[] input) {
     final String typed = new String(input, StandardCharsets.UTF_8);
     final String[] arguments;
     try {

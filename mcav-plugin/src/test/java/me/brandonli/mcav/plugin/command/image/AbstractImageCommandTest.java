@@ -185,7 +185,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void loadsAnImageFileAndShowsIt() throws IOException {
+  void shouldLoadAnImageFileAndShowIt() throws IOException {
     final Path file = this.writeImage("picture.png", "png");
     final String mrl = file.toString();
     this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
@@ -212,19 +212,23 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void filtersAnImageAtTheSizeItIsShownAt() throws IOException {
+  void shouldFilterAnImageAtTheSizeItIsShownAt() throws IOException {
     final Path file = this.writeImage("picture.png", "png");
     this.command.displayImage(_ -> "configuration", this.sender, "4x2", file.toString(), "invert");
     try (final ImageBuffer image = this.verifyShown()) {
-      assertEquals(4, image.getWidth());
-      assertEquals(2, image.getHeight());
+      final int width = image.getWidth();
+      assertEquals(4, width);
+
+      final int height = image.getHeight();
+      assertEquals(2, height);
+
       final int[] pixels = image.getPixels();
       assertEquals(0xffffff, pixels[pixels.length - 1] & 0xffffff);
     }
   }
 
   @Test
-  void releasesTheDecodedImageWhenResizingForFiltersFails() throws IOException {
+  void shouldReleaseTheDecodedImageWhenResizingForFiltersFails() throws IOException {
     final Path file = this.writeImage("filter-failure.png", "png");
     final IllegalStateException failure = new IllegalStateException("resize failed after decoding");
     try (
@@ -234,11 +238,20 @@ final class AbstractImageCommandTest {
       )
     ) {
       this.command.displayImage(_ -> "configuration", this.sender, "4x2", file.toString(), "invert");
-      assertEquals(1, resizers.constructed().size());
-      assertEquals(1, buffers.constructed().size());
+
+      final int size = resizers.constructed().size();
+      assertEquals(1, size);
+
+      final int buffersSize = buffers.constructed().size();
+      assertEquals(1, buffersSize);
+
       final MatImageBuffer decoded = buffers.constructed().getFirst();
       verify(decoded, times(1)).release();
-      assertEquals(List.of(Message.LOAD_IMAGE_START.build(), Message.UNSUPPORTED_MRL.build()), Components.received(this.sender));
+
+      final List<Component> expected = List.of(Message.LOAD_IMAGE_START.build(), Message.UNSUPPORTED_MRL.build());
+      final List<Component> received = Components.received(this.sender);
+      assertEquals(expected, received);
+
       this.assertNothingShown();
       verify(this.manager, never()).retainLoaded(Mockito.anyLong(), any());
     }
@@ -246,7 +259,7 @@ final class AbstractImageCommandTest {
 
   @ParameterizedTest
   @ValueSource(booleans = { false, true })
-  void keepsTheFilterFailureWhenReleasingTheImageAlsoFails(final boolean sameFailure) throws IOException {
+  void shouldKeepTheFilterFailureWhenReleasingTheImageAlsoFails(final boolean sameFailure) throws IOException {
     final Path file = this.writeImage("filter-cleanup-failure.png", "png");
     final IllegalStateException failure = new IllegalStateException("resize failed");
     final RuntimeException cleanupFailure = sameFailure ? failure : new IllegalArgumentException("release failed");
@@ -259,25 +272,37 @@ final class AbstractImageCommandTest {
       )
     ) {
       this.command.displayImage(_ -> "configuration", this.sender, "4x2", file.toString(), "invert");
-      assertEquals(1, resizers.constructed().size());
+
+      final int size = resizers.constructed().size();
+      assertEquals(1, size);
+
       verify(buffers.constructed().getFirst(), times(1)).release();
       final Throwable[] expected = sameFailure ? new Throwable[0] : new Throwable[] { cleanupFailure };
-      assertArrayEquals(expected, failure.getSuppressed());
-      assertEquals(List.of(Message.LOAD_IMAGE_START.build(), Message.UNSUPPORTED_MRL.build()), Components.received(this.sender));
+
+      final Throwable[] suppressed = failure.getSuppressed();
+      assertArrayEquals(expected, suppressed);
+
+      final List<Component> listExpected = List.of(Message.LOAD_IMAGE_START.build(), Message.UNSUPPORTED_MRL.build());
+      final List<Component> received = Components.received(this.sender);
+      assertEquals(listExpected, received);
+
       this.assertNothingShown();
     }
   }
 
   @Test
-  void refusesFiltersThatAreNotAllowedBeforeLoading() {
+  void shouldRefuseFiltersThatAreNotAllowedBeforeLoading() {
     this.command.displayImage(_ -> "configuration", this.sender, "4x2", "picture.png", "fps");
     final Component refused = Message.FILTERS_INVALID.build("fps counts the frames of a video, and an image has one");
-    assertEquals(List.of(refused), Components.received(this.sender));
+
+    final List<Component> received = Components.received(this.sender);
+    assertEquals(List.of(refused), received);
+
     verify(this.manager, never()).beginLoad();
   }
 
   @Test
-  void downloadsAnImageAndShowsIt() throws IOException {
+  void shouldDownloadAnImageAndShowIt() throws IOException {
     final String url = this.serveImage();
     this.command.displayImage(_ -> "configuration", this.sender, "8x8", url, null);
     try (final ImageBuffer image = this.verifyShown()) {
@@ -288,7 +313,7 @@ final class AbstractImageCommandTest {
 
   @ParameterizedTest
   @ValueSource(booleans = { false, true })
-  void loadsPathsWithSpacesWithOrWithoutSurroundingQuotes(final boolean quoted) throws IOException {
+  void shouldLoadPathsWithSpacesWithOrWithoutSurroundingQuotes(final boolean quoted) throws IOException {
     final Path file = this.writeImage("my picture.png", "png");
     final String path = file.toString();
     final String mrl = quoted ? '"' + path + '"' : path;
@@ -299,7 +324,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void downloadsAnImageFromAQuotedUrl() throws IOException {
+  void shouldDownloadAnImageFromAQuotedUrl() throws IOException {
     final String url = this.serveImage();
     final String mrl = '"' + url + '"';
     this.command.displayImage(_ -> "configuration", this.sender, "8x8", mrl, null);
@@ -310,7 +335,7 @@ final class AbstractImageCommandTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "", "\"", "\"\"", "\"missing.png", "missing.png\"", "\"\"missing.png\"\"" })
-  void rejectsEmptyOrMalformedQuotedSources(final String mrl) {
+  void shouldRejectEmptyOrMalformedQuotedSources(final String mrl) {
     this.command.displayImage(_ -> "configuration", this.sender, "8x8", mrl, null);
     this.assertNothingShown();
     final List<Component> messages = Components.received(this.sender);
@@ -320,7 +345,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void rejectsEmptyQuotedMrlEvenWhenRawQuotesResolveToAnImage() throws IOException {
+  void shouldRejectEmptyQuotedMrlEvenWhenRawQuotesResolveToAnImage() throws IOException {
     final Path imagePath = this.writeImage("literal-quotes.png", "png");
     final FileSource imageSource = FileSource.path(imagePath);
     // A Unix file can literally be named two quote characters. Model that lookup without creating a shared
@@ -336,12 +361,14 @@ final class AbstractImageCommandTest {
       final Component invalid = Message.UNSUPPORTED_MRL.build();
       assertEquals(List.of(invalid), messages);
       final List<SourceDetectionHelper> lookups = detection.constructed();
-      assertEquals(0, lookups.size(), "an empty quoted MRL must be rejected before consulting the filesystem");
+
+      final int size = lookups.size();
+      assertEquals(0, size, "an empty quoted MRL must be rejected before consulting the filesystem");
     }
   }
 
   @Test
-  void refusesInvalidResolutions() throws IOException {
+  void shouldRefuseInvalidResolutions() throws IOException {
     final Path file = this.writeImage("picture.png", "png");
     final String mrl = file.toString();
     this.command.displayImage(_ -> "configuration", this.sender, "wide", mrl, null);
@@ -355,7 +382,7 @@ final class AbstractImageCommandTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "not a source", "0", "mp4||input" })
-  void refusesMediaThatIsNotAFileOrUrl(final String mrl) {
+  void shouldRefuseMediaThatIsNotAFileOrUrl(final String mrl) {
     this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
     final List<Component> messages = Components.received(this.sender);
     final Component error = Message.UNSUPPORTED_MRL.build();
@@ -365,7 +392,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void refusesAnimatedImages() throws IOException {
+  void shouldRefuseAnimatedImages() throws IOException {
     final Path file = this.writeImage("animation.gif", "gif");
     final String mrl = file.toString();
     this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
@@ -377,7 +404,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void namesTheImageThatFailedToLoadInTheLog() throws IOException {
+  void shouldNameTheImageThatFailedToLoadInTheLog() throws IOException {
     final Path file = this.folder.resolve("unreadable.png");
     Files.writeString(file, "this is not an image");
     final String mrl = file.toString();
@@ -391,7 +418,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void reportsImagesThatFailToLoad() throws IOException {
+  void shouldReportImagesThatFailToLoad() throws IOException {
     final Path file = this.folder.resolve("broken.png");
     Files.writeString(file, "this is not an image");
     final String mrl = file.toString();
@@ -406,12 +433,12 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void usesTheImageManagerOfThePlugin() {
+  void shouldUseTheImageManagerOfThePlugin() {
     assertSame(this.manager, this.command.manager);
   }
 
   @Test
-  void releasesTheLoadedImageWhenThePluginWasDisabledMeanwhile() throws IOException {
+  void shouldReleaseTheLoadedImageWhenThePluginWasDisabledMeanwhile() throws IOException {
     final BukkitScheduler scheduler = TestServer.scheduler();
     final IllegalPluginAccessException disabled = new IllegalPluginAccessException("disabled");
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(disabled);
@@ -435,7 +462,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void releasesAnImageWhenAnAcceptedMainThreadTaskIsCancelledByShutdown() throws IOException {
+  void shouldReleaseAnImageWhenAnAcceptedMainThreadTaskIsCancelledByShutdown() throws IOException {
     TestServer.resetWithDeferredTasks();
     final Path file = this.writeImage("queued.png", "png");
     final String mrl = file.toString();
@@ -453,7 +480,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void discardsTheOlderLoadedImageWhenANewerRequestIsQueued() throws IOException {
+  void shouldDiscardTheOlderLoadedImageWhenANewerRequestIsQueued() throws IOException {
     TestServer.resetWithDeferredTasks();
     final Path file = this.writeImage("queued.png", "png");
     final String mrl = file.toString();
@@ -474,7 +501,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void releasesTheLoadedImageWhenDisplayConfigurationFails() throws IOException {
+  void shouldReleaseTheLoadedImageWhenDisplayConfigurationFails() throws IOException {
     TestServer.resetWithDeferredTasks();
     final Path file = this.writeImage("queued.png", "png");
     final String mrl = file.toString();
@@ -493,7 +520,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void releasesBothDisplayAndImageWhenDisplayingFails() throws IOException {
+  void shouldReleaseBothDisplayAndImageWhenDisplayingFails() throws IOException {
     TestServer.resetWithDeferredTasks();
     final Path file = this.writeImage("queued.png", "png");
     final String mrl = file.toString();
@@ -511,7 +538,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void releasesALoadThatCompletesAfterItsManagerHasShutDown() throws IOException, InterruptedException {
+  void shouldReleaseALoadThatCompletesAfterItsManagerHasShutDown() throws IOException, InterruptedException {
     final ExecutorService deferred = mock(ExecutorService.class);
     final List<Runnable> work = new ArrayList<>();
     Mockito.doAnswer(invocation -> {
@@ -542,7 +569,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void propagatesFatalConfigurationFailureWithoutAttemptingNativeCleanup() throws IOException {
+  void shouldPropagateFatalConfigurationFailureWithoutAttemptingNativeCleanup() throws IOException {
     TestServer.resetWithDeferredTasks();
     final Path file = this.writeImage("queued.png", "png");
     final String mrl = file.toString();
@@ -562,7 +589,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void reportsARejectedLoadWithoutAllocatingAnImage() throws IOException {
+  void shouldReportARejectedLoadWithoutAllocatingAnImage() throws IOException {
     final Path file = this.writeImage("rejected.png", "png");
     final String mrl = file.toString();
     this.manager.shutdown();
@@ -582,7 +609,7 @@ final class AbstractImageCommandTest {
 
   @ParameterizedTest
   @ValueSource(ints = { 0, 1, 2 })
-  void failedSchedulingDiscardsTheImageAndPreservesCleanupFailures(final int cleanupMode) throws IOException {
+  void shouldDiscardTheImageAndPreserveCleanupFailuresWhenSchedulingFails(final int cleanupMode) throws IOException {
     final Path file = this.writeImage("schedule-failure.png", "png");
     final String mrl = file.toString();
     final IllegalStateException primary = new IllegalStateException("scheduler rejected the loaded image");
@@ -616,7 +643,7 @@ final class AbstractImageCommandTest {
 
   @ParameterizedTest
   @ValueSource(booleans = { false, true })
-  void failedConfigurationPreservesItsPrimaryFailureWhenImageCleanupAlsoFails(final boolean sameFailure) throws IOException {
+  void shouldPreserveThePrimaryFailureOfAFailedConfigurationWhenImageCleanupAlsoFails(final boolean sameFailure) throws IOException {
     TestServer.resetWithDeferredTasks();
     final Path file = this.writeImage("cleanup-failure.png", "png");
     final String mrl = file.toString();
@@ -643,7 +670,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     final AbstractImageCommand.ImageConfigurationProvider configuration = _ -> "configuration";
     assertThrows(NullPointerException.class, () -> new RecordingCommand(null, this.display));
     assertThrows(NullPointerException.class, () -> this.command.displayImage(null, this.sender, "4x2", "picture.png", null));
@@ -654,7 +681,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void propagatesFatalSchedulingFailureWithoutDiscardingLoadedImage() throws IOException {
+  void shouldPropagateFatalSchedulingFailureWithoutDiscardingLoadedImage() throws IOException {
     final Path file = this.writeImage("schedule-fatal.png", "png");
     final String mrl = file.toString();
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal scheduling sentinel");
@@ -679,7 +706,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void propagatesFatalDiscardFailureDuringSchedulingFailureRecovery() throws IOException {
+  void shouldPropagateFatalDiscardFailureDuringSchedulingFailureRecovery() throws IOException {
     final Path file = this.writeImage("discard-fatal.png", "png");
     final String mrl = file.toString();
     final IllegalStateException primary = new IllegalStateException("scheduling rejected");
@@ -709,7 +736,7 @@ final class AbstractImageCommandTest {
   }
 
   @Test
-  void propagatesFatalImageCleanupFailureWhenDisplayConfigurationFails() throws IOException {
+  void shouldPropagateFatalImageCleanupFailureWhenDisplayConfigurationFails() throws IOException {
     TestServer.resetWithDeferredTasks();
     final Path file = this.writeImage("config-cleanup-fatal.png", "png");
     final String mrl = file.toString();

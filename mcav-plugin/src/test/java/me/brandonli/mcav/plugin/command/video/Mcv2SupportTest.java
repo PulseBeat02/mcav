@@ -43,6 +43,7 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Result;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2Viewers;
 import me.brandonli.mcav.bukkit.resourcepack.provider.PackHosting;
+import me.brandonli.mcav.media.player.pipeline.filter.video.dither.algorithm.DitherAlgorithm;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.testing.TestServer;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
@@ -130,7 +131,7 @@ final class Mcv2SupportTest {
   }
 
   @Test
-  void findsTheFrameHoldingAMap() {
+  void shouldFindTheFrameHoldingAMap() {
     final ItemFrame wrongMap = frame(map(Material.FILLED_MAP, true, 3));
     final ItemFrame noId = frame(map(Material.FILLED_MAP, false, 7));
     final ItemFrame other = frame(map(Material.STONE, true, 7));
@@ -143,37 +144,74 @@ final class Mcv2SupportTest {
     when(first.getEntitiesByClass(ItemFrame.class)).thenReturn(List.of(wrongMap, noId));
     final World second = mock(World.class);
     when(second.getEntitiesByClass(ItemFrame.class)).thenReturn(List.of(other, notAMap, wanted));
-    assertSame(wanted, Mcv2Support.findFrame(List.of(first, second), 7));
-    assertNull(Mcv2Support.findFrame(List.of(first, second), 8));
-    assertFalse(Mcv2Support.holdsMap(map(Material.FILLED_MAP, true, 3), 7));
-    assertTrue(Mcv2Support.holdsMap(map(Material.FILLED_MAP, true, 7), 7));
+
+    final ItemFrame frame = Mcv2Support.findFrame(List.of(first, second), 7);
+    assertSame(wanted, frame);
+
+    final ItemFrame mcv2SupportFrame = Mcv2Support.findFrame(List.of(first, second), 8);
+    assertNull(mcv2SupportFrame);
+
+    final boolean holdsMap = Mcv2Support.holdsMap(map(Material.FILLED_MAP, true, 3), 7);
+    assertFalse(holdsMap);
+
+    final boolean mcv2SupportHoldsMap = Mcv2Support.holdsMap(map(Material.FILLED_MAP, true, 7), 7);
+    assertTrue(mcv2SupportHoldsMap);
   }
 
   @Test
-  void configuresTheScreenOnTheWallThatHoldsTheMap() {
+  void shouldConfigureTheScreenOnTheWallThatHoldsTheMap() {
     final Mcv2Configuration configuration = Objects.requireNonNull(this.configure(20));
-    assertEquals(new Location(this.world, 5, 64, 7), configuration.getOrigin());
-    assertEquals(BlockFace.SOUTH, configuration.getFacing());
-    assertEquals(20, configuration.getMap());
-    assertEquals(5, configuration.getColumns());
-    assertEquals(3, configuration.getRows());
-    assertEquals(640, configuration.getVideoWidth());
-    assertEquals(384, configuration.getVideoHeight());
-    assertEquals(Settings.DEFAULT, configuration.getSettings());
-    assertEquals(List.of(this.viewer), List.copyOf(configuration.getViewers()));
-    assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, configuration.getBacklogLimit());
-    assertEquals(Mcv2Configuration.MAXIMUM_PAGE_SLOTS, configuration.getPageSlots());
+
+    final Location expected = new Location(this.world, 5, 64, 7);
+    final Location origin = configuration.getOrigin();
+    assertEquals(expected, origin);
+
+    final BlockFace facing = configuration.getFacing();
+    assertEquals(BlockFace.SOUTH, facing);
+
+    final int map = configuration.getMap();
+    assertEquals(20, map);
+
+    final int columns = configuration.getColumns();
+    assertEquals(5, columns);
+
+    final int rows = configuration.getRows();
+    assertEquals(3, rows);
+
+    final int videoWidth = configuration.getVideoWidth();
+    assertEquals(640, videoWidth);
+
+    final int videoHeight = configuration.getVideoHeight();
+    assertEquals(384, videoHeight);
+
+    final Settings settings = configuration.getSettings();
+    assertEquals(Settings.DEFAULT, settings);
+
+    final List<UUID> copy = List.copyOf(configuration.getViewers());
+    assertEquals(List.of(this.viewer), copy);
+
+    final long backlogLimit = configuration.getBacklogLimit();
+    assertEquals(Mcv2Configuration.DEFAULT_BACKLOG_LIMIT, backlogLimit);
+
+    final int pageSlots = configuration.getPageSlots();
+    assertEquals(Mcv2Configuration.MAXIMUM_PAGE_SLOTS, pageSlots);
   }
 
   @Test
-  void takesThePageSlotsAndTheBacklogLimitOfAMeasurement() {
+  void shouldTakeThePageSlotsAndTheBacklogLimitOfAMeasurement() {
     System.setProperty(VideoMcv2Command.PAGE_SLOTS_PROPERTY, "8");
     System.setProperty(VideoMcv2Command.BACKLOG_PROPERTY, "65536");
     try {
       final Mcv2Configuration limited = Objects.requireNonNull(this.configure(20));
-      assertEquals(8, limited.getPageSlots());
-      assertEquals(65536, limited.getBacklogLimit());
-      assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, limited.getUnsentLimit());
+
+      final int pageSlots = limited.getPageSlots();
+      assertEquals(8, pageSlots);
+
+      final long backlogLimit = limited.getBacklogLimit();
+      assertEquals(65536, backlogLimit);
+
+      final int unsentLimit = limited.getUnsentLimit();
+      assertEquals(Mcv2Configuration.DEFAULT_UNSENT_LIMIT, unsentLimit);
     } finally {
       System.clearProperty(VideoMcv2Command.PAGE_SLOTS_PROPERTY);
       System.clearProperty(VideoMcv2Command.BACKLOG_PROPERTY);
@@ -181,39 +219,58 @@ final class Mcv2SupportTest {
   }
 
   @Test
-  void tellsTheSenderWhenTheScreenIsLargerThanMcv2Plays() {
+  void shouldTellTheSenderWhenTheScreenIsLargerThanMcv2Plays() {
     // the plugin's walls go up to 64 maps a side and its videos up to 8192 pixels, MCV2's to 63 and 4096
-    assertNull(this.configure(64, 3, 640, 384));
-    assertNull(this.configure(5, 64, 640, 384));
-    assertNull(this.configure(5, 3, 4097, 384));
-    assertNull(this.configure(5, 3, 640, 4097));
+    final Mcv2Configuration configured = this.configure(64, 3, 640, 384);
+    assertNull(configured);
+
+    final Mcv2Configuration secondConfigured = this.configure(5, 64, 640, 384);
+    assertNull(secondConfigured);
+
+    final Mcv2Configuration thirdConfigured = this.configure(5, 3, 4097, 384);
+    assertNull(thirdConfigured);
+
+    final Mcv2Configuration fourthConfigured = this.configure(5, 3, 640, 4097);
+    assertNull(fourthConfigured);
+
     verify(this.sender, times(4)).sendMessage(Message.MCV2_SIZE_ERROR.build());
     final Mcv2Configuration largest = Objects.requireNonNull(this.configure(63, 63, 4096, 4096));
-    assertEquals(63, largest.getColumns());
-    assertEquals(4096, largest.getVideoHeight());
+
+    final int columns = largest.getColumns();
+    assertEquals(63, columns);
+
+    final int videoHeight = largest.getVideoHeight();
+    assertEquals(4096, videoHeight);
   }
 
   @Test
-  void tellsTheSenderWhenNoFrameHoldsTheMap() {
-    assertNull(this.configure(21));
+  void shouldTellTheSenderWhenNoFrameHoldsTheMap() {
+    final Mcv2Configuration configured = this.configure(21);
+    assertNull(configured);
+
     verify(this.sender).sendMessage(Message.MCV2_SCREEN_ERROR.build(21));
   }
 
   @Test
-  void opensASlotOrTellsTheSenderThatEveryOnePlays() {
+  void shouldOpenASlotOrTellTheSenderThatEveryOnePlays() {
     final Mcv2Configuration configuration = Objects.requireNonNull(this.configure(20));
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
     when(this.packs.open(configuration)).thenReturn(lease).thenThrow(new IllegalStateException("full"));
 
-    assertSame(lease, this.support.open(this.sender, configuration));
-    assertNull(this.support.open(this.sender, configuration));
+    final Mcv2PackServer.Lease opened = this.support.open(this.sender, configuration);
+    assertSame(lease, opened);
+
+    final Mcv2PackServer.Lease supportOpened = this.support.open(this.sender, configuration);
+    assertNull(supportOpened);
 
     verify(this.sender).sendMessage(Message.MCV2_FULL.build());
-    assertNull(this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR));
+
+    final Mcv2Output mcv2Output = this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR);
+    assertNull(mcv2Output);
   }
 
   @Test
-  void createsTheOutputOfAScreenInItsSlot() {
+  void shouldCreateTheOutputOfAScreenInItsSlot() {
     final Mcv2Configuration configuration = Objects.requireNonNull(this.configure(20));
     final Mcv2Configuration slotted = configuration.withSlot(3, Mcv2Configuration.DEFAULT_PAGE_MAP + 16, 1234);
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
@@ -229,10 +286,20 @@ final class Mcv2SupportTest {
     ) {
       final Mcv2Output output = Objects.requireNonNull(this.support.output(this.sender, configuration, DitheringArgument.NEAREST_COLOR));
       final Mcv2Result result = results.constructed().getFirst();
-      assertSame(result, output.getResult());
-      assertSame(slotted, arguments.getFirst().getFirst());
-      assertSame(viewers, arguments.getFirst().get(1));
-      assertSame(DitheringArgument.NEAREST_COLOR.createAlgorithm(), arguments.getFirst().get(2));
+
+      final Mcv2Result outputResult = output.getResult();
+      assertSame(result, outputResult);
+
+      final Object argument = arguments.getFirst().getFirst();
+      assertSame(slotted, argument);
+
+      final Object argumentsArgument = arguments.getFirst().get(1);
+      assertSame(viewers, argumentsArgument);
+
+      final DitherAlgorithm expected = DitheringArgument.NEAREST_COLOR.createAlgorithm();
+      final Object secondArgument = arguments.getFirst().get(2);
+      assertSame(expected, secondArgument);
+
       @SuppressWarnings("unchecked")
       final ArgumentCaptor<Consumer<Mcv2Pacer.Change>> listeners = ArgumentCaptor.forClass(Consumer.class);
       verify(result).setPacingListener(listeners.capture());
@@ -250,19 +317,18 @@ final class Mcv2SupportTest {
       final ArgumentCaptor<List<int[]>> sizes = ArgumentCaptor.forClass(List.class);
       verify(result).setSmallerSizes(sizes.capture(), any());
       verify(result).setSmallerSizes(any(), Mockito.same(lease));
-      assertEquals(
-        List.of("426x256", "320x192"),
-        sizes
-          .getValue()
-          .stream()
-          .map(size -> size[0] + "x" + size[1])
-          .toList()
-      );
+
+      final List<String> list = sizes
+        .getValue()
+        .stream()
+        .map(size -> size[0] + "x" + size[1])
+        .toList();
+      assertEquals(List.of("426x256", "320x192"), list);
     }
   }
 
   @Test
-  void recordsTheFramesOfAScreenForAMeasurement() {
+  void shouldRecordTheFramesOfAScreenForAMeasurement() {
     final Mcv2Configuration configuration = Objects.requireNonNull(this.configure(20));
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
     when(lease.getConfiguration()).thenReturn(configuration.withSlot(3, Mcv2Configuration.DEFAULT_PAGE_MAP + 16, 0));
@@ -281,14 +347,23 @@ final class Mcv2SupportTest {
   }
 
   @Test
-  void stepsDownToTwoThirdsAndHalfOfTheVideo() {
-    assertEquals(List.of("1280x720", "960x540"), described(Mcv2Support.smallerSizes(1920, 1080)));
-    assertEquals(List.of("256x144", "192x108"), described(Mcv2Support.smallerSizes(384, 216)));
+  void shouldStepDownToTwoThirdsAndHalfOfTheVideo() {
+    final List<String> described = described(Mcv2Support.smallerSizes(1920, 1080));
+    assertEquals(List.of("1280x720", "960x540"), described);
+
+    final List<String> secondDescribed = described(Mcv2Support.smallerSizes(384, 216));
+    assertEquals(List.of("256x144", "192x108"), secondDescribed);
     // a size under 128 by 72 is left out
-    assertEquals(List.of("160x80"), described(Mcv2Support.smallerSizes(240, 120)));
-    assertEquals(List.of(), described(Mcv2Support.smallerSizes(200, 100)));
+
+    final List<String> thirdDescribed = described(Mcv2Support.smallerSizes(240, 120));
+    assertEquals(List.of("160x80"), thirdDescribed);
+
+    final List<String> fourthDescribed = described(Mcv2Support.smallerSizes(200, 100));
+    assertEquals(List.of(), fourthDescribed);
     // exactly 128 by 72 is kept
-    assertEquals(List.of("128x72"), described(Mcv2Support.smallerSizes(192, 108)));
+
+    final List<String> fifthDescribed = described(Mcv2Support.smallerSizes(192, 108));
+    assertEquals(List.of("128x72"), fifthDescribed);
   }
 
   private static List<String> described(final List<int[]> sizes) {
@@ -299,11 +374,14 @@ final class Mcv2SupportTest {
   }
 
   @Test
-  void startsAndStopsThePackServer() {
+  void shouldStartAndStopThePackServer() {
     final Mcv2Viewers viewers = mock(Mcv2Viewers.class);
     when(this.packs.getViewers()).thenReturn(viewers);
     this.support.start();
-    assertSame(viewers, this.support.getViewers());
+
+    final Mcv2Viewers supportViewers = this.support.getViewers();
+    assertSame(viewers, supportViewers);
+
     this.support.shutdown();
     verify(this.packs).start();
     verify(this.packs).shutdown();
@@ -311,7 +389,7 @@ final class Mcv2SupportTest {
   }
 
   @Test
-  void writesThePackIntoItsOwnFolderAndTellsThePlayers() {
+  void shouldWriteThePackIntoItsOwnFolderAndTellThePlayers() {
     try (
       final MockedConstruction<Mcv2PackServer> servers = Mockito.mockConstruction(Mcv2PackServer.class, (_, context) ->
         assertEquals(this.folder.resolve("mcv2").resolve("pack"), context.arguments().getFirst())

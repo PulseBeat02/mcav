@@ -66,7 +66,7 @@ final class ImageControlCommandTest {
   }
 
   @Test
-  void releasesTheImageOnTheLoadingThreadAndReportsIt() {
+  void shouldReleaseTheImageOnTheLoadingThreadAndReportIt() {
     final CommandSender sender = mock(CommandSender.class);
     this.command.releaseImage(sender);
     final Component start = Message.RELEASE_IMAGE_START.build();
@@ -82,7 +82,7 @@ final class ImageControlCommandTest {
   }
 
   @Test
-  void logsAFailedReleaseAndDoesNotReportTheImageAsReleased() {
+  void shouldLogAFailedReleaseAndNotReportTheImageAsReleased() {
     final CommandSender sender = mock(CommandSender.class);
     final IllegalStateException failure = new IllegalStateException("the release failed");
     doThrow(failure).when(this.manager).releaseImage(false);
@@ -104,7 +104,7 @@ final class ImageControlCommandTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> new ImageControlCommand(null));
     assertThrows(NullPointerException.class, () -> this.command.releaseImage(null));
   }

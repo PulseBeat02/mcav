@@ -67,22 +67,28 @@ final class FilterChainPropertyTest {
   }
 
   @Property
-  void parsesEveryChainOfAllowedFilters(@ForAll final List<@From("filters") String> specs) {
+  void shouldParseEveryChainOfAllowedFilters(@ForAll final List<@From("filters") String> specs) {
     final List<String> chain = specs.subList(0, Math.min(specs.size(), FilterChain.MAX_FILTERS));
     final String text = String.join(",", chain);
     if (text.length() > FilterChain.MAX_LENGTH) {
       return;
     }
-    assertEquals(chain.size(), FilterChain.parse(text, NO_OVERLAYS, true).create().size(), text);
+
+    final int expected = chain.size();
+    final int size = FilterChain.parse(text, NO_OVERLAYS, true).create().size();
+    assertEquals(expected, size, text);
   }
 
   @Property
-  void refusesAnythingElseWithAReason(@ForAll final String text) {
+  void shouldRefuseAnythingElseWithAReason(@ForAll final String text) {
     try {
       final FilterChain chain = FilterChain.parse(text, NO_OVERLAYS, true);
-      assertTrue(chain.create().size() <= FilterChain.MAX_FILTERS, text);
+
+      final boolean matches = chain.create().size() <= FilterChain.MAX_FILTERS;
+      assertTrue(matches, text);
     } catch (final IllegalArgumentException refused) {
-      assertTrue(refused.getMessage() != null && !refused.getMessage().isBlank(), text);
+      final boolean secondMatches = refused.getMessage() != null && !refused.getMessage().isBlank();
+      assertTrue(secondMatches, text);
     }
   }
 }

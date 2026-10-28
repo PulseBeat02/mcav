@@ -33,7 +33,7 @@ final class KeysTest {
   }
 
   @Test
-  void namesEveryKeyInThePluginNamespace() {
+  void shouldNameEveryKeyInThePluginNamespace() {
     final String map = format(Keys.MAP_KEY);
     final String first = format(Keys.FIRST_MAP_KEY);
     final String last = format(Keys.LAST_MAP_KEY);
@@ -44,7 +44,7 @@ final class KeysTest {
   }
 
   @Test
-  void isNotInstantiable() {
+  void shouldNotBeInstantiable() {
     UtilityClassAssertions.assertNotInstantiable(Keys.class);
   }
 }

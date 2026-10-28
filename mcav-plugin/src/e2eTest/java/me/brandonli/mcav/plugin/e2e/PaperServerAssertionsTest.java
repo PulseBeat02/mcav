@@ -35,7 +35,7 @@ final class PaperServerAssertionsTest {
   );
 
   @Test
-  void acceptsTheCompleteIdleSnapshotInAnyFieldOrder() {
+  void shouldAcceptTheCompleteIdleSnapshotInAnyFieldOrder() {
     PaperServerEndToEndTest.assertRanCleanly(0, IDLE_MEDIA, STARTUP);
     PaperServerEndToEndTest.assertRanCleanly(0, "{\"like_count\":0,\"duration\":0,\"view_count\":0}", STARTUP);
   }
@@ -56,7 +56,7 @@ final class PaperServerAssertionsTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "{", "{duration:0,view_count:0,like_count:0}", "{\"duration\":0,\"view_count\":0,\"like_count\":0} trailing" })
-  void refusesMalformedMediaInformation(final String response) {
+  void shouldRefuseMalformedMediaInformation(final String response) {
     assertThrows(JsonParseException.class, () -> PaperServerEndToEndTest.assertRanCleanly(0, response, STARTUP));
   }
 
@@ -79,7 +79,7 @@ final class PaperServerAssertionsTest {
   }
 
   @Test
-  void acceptsUnrelatedServerWarnings() {
+  void shouldAcceptUnrelatedServerWarnings() {
     PaperServerEndToEndTest.assertNoErrors(
       List.of("[Server thread/WARN]: This server is running in offline mode", "[Server thread/WARN]: Can't keep up!")
     );

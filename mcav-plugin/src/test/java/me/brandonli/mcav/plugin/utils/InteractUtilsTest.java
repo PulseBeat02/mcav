@@ -146,7 +146,7 @@ final class InteractUtilsTest {
 
   @ParameterizedTest
   @ValueSource(booleans = { true, false })
-  void keepsAdjacentScreenCornersSeparateOrRejectsAmbiguousLegacyWalls(final boolean identified) {
+  void shouldKeepAdjacentScreenCornersSeparateOrRejectAmbiguousLegacyWalls(final boolean identified) {
     final Location firstLocation = this.fakeWorld.location(0.5, 64.5, 0.0);
     final Location secondLocation = this.fakeWorld.location(1.5, 64.5, 0.0);
     final ItemFrame first = this.fakeWorld.addFrame(firstLocation, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY, Keys.LAST_MAP_KEY);
@@ -169,14 +169,14 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void findsThePixelOnAWallFacingSouth() {
+  void shouldFindThePixelOnAWallFacingSouth() {
     this.buildSouthWall();
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
     assertArrayEquals(new int[] { 3 * 128 + 38, 128 + 51 }, coordinates);
   }
 
   @Test
-  void findsThePixelOfTheFrameItWasGiven() {
+  void shouldFindThePixelOfTheFrameItWasGiven() {
     final ItemFrame target = this.buildSouthWall();
     when(this.player.getTargetEntity(anyInt())).thenReturn(null);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player, target);
@@ -184,7 +184,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void countsTheColumnsFromTheFirstCornerOfTheWall() {
+  void shouldCountTheColumnsFromTheFirstCornerOfTheWall() {
     this.buildSouthWallAwayFromTheOrigin();
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
     final int[] expected = { 3 * 128 + 38, 128 + 51 };
@@ -192,7 +192,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void countsTheColumnsOfAWallFacingWestFromItsFirstCorner() {
+  void shouldCountTheColumnsOfAWallFacingWestFromItsFirstCorner() {
     final Location left = this.fakeWorld.location(0.0, 64.5, 2.5);
     final Location right = this.fakeWorld.location(0.0, 64.5, 3.5);
     this.fakeWorld.addFrame(left, BlockFace.WEST, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
@@ -206,7 +206,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void followsTheLineOfSightOfAPlayerLookingDown() {
+  void shouldFollowTheLineOfSightOfAPlayerLookingDown() {
     this.buildSouthWall();
     final Location eye = this.eye(3.3, 69.6, 5.3, LOOK_NORTH, 45.0f);
     when(this.player.getEyeLocation()).thenAnswer(_ -> eye.clone());
@@ -234,7 +234,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void ignoresEntitiesAndFramesThatAreNotPartOfTheWall() {
+  void shouldIgnoreEntitiesAndFramesThatAreNotPartOfTheWall() {
     this.buildSouthWall();
     final Zombie zombie = mock(Zombie.class);
     final Location zombieLocation = this.fakeWorld.location(2.5, 64.5, 0.5);
@@ -249,7 +249,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void mirrorsThePixelOnAWallFacingNorth() {
+  void shouldMirrorThePixelOnAWallFacingNorth() {
     final Location left = this.fakeWorld.location(1.5, 64.5, 0.0);
     final Location right = this.fakeWorld.location(0.5, 64.5, 0.0);
     this.fakeWorld.addFrame(left, BlockFace.NORTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
@@ -262,7 +262,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void findsThePixelOnAWallFacingWest() {
+  void shouldFindThePixelOnAWallFacingWest() {
     final Location left = this.fakeWorld.location(0.0, 64.5, 0.5);
     final Location right = this.fakeWorld.location(0.0, 64.5, 1.5);
     this.fakeWorld.addFrame(left, BlockFace.WEST, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
@@ -275,7 +275,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void mirrorsThePixelOnAWallFacingEast() {
+  void shouldMirrorThePixelOnAWallFacingEast() {
     final Location left = this.fakeWorld.location(0.0, 64.5, 1.5);
     final Location right = this.fakeWorld.location(0.0, 64.5, 0.5);
     this.fakeWorld.addFrame(left, BlockFace.EAST, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
@@ -288,7 +288,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void followsTheLineOfSightToAWallThatIsNotOnTheZeroPlane() {
+  void shouldFollowTheLineOfSightToAWallThatIsNotOnTheZeroPlane() {
     final Location left = this.fakeWorld.location(0.5, 64.5, 8.0);
     final Location right = this.fakeWorld.location(1.5, 64.5, 8.0);
     this.fakeWorld.addFrame(left, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
@@ -302,7 +302,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void followsTheLineOfSightToAWallFacingWestThatIsNotOnTheZeroPlane() {
+  void shouldFollowTheLineOfSightToAWallFacingWestThatIsNotOnTheZeroPlane() {
     final Location left = this.fakeWorld.location(8.0, 64.5, 0.5);
     final Location right = this.fakeWorld.location(8.0, 64.5, 1.5);
     this.fakeWorld.addFrame(left, BlockFace.WEST, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
@@ -316,7 +316,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void rejectsUnsupportedFramesOnTheFloor() {
+  void shouldRejectUnsupportedFramesOnTheFloor() {
     ItemFrame target = null;
     for (int blockX = 0; blockX < 2; blockX++) {
       for (int blockZ = 0; blockZ < 2; blockZ++) {
@@ -341,7 +341,7 @@ final class InteractUtilsTest {
 
   @ParameterizedTest
   @CsvSource({ "2.9,64.5", "4.1,64.5", "3.5,63.9", "3.5,65.1" })
-  void rejectsRaysOutsideTheSelectedFrame(final double eyeX, final double eyeY) {
+  void shouldRejectRaysOutsideTheSelectedFrame(final double eyeX, final double eyeY) {
     this.buildSouthWall();
     final Location eye = this.eye(eyeX, eyeY, 5.0, LOOK_NORTH);
     when(this.player.getEyeLocation()).thenReturn(eye);
@@ -350,7 +350,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void acceptsAnEyeOnTheMapPlaneLookingAcrossIt() {
+  void shouldAcceptAnEyeOnTheMapPlaneLookingAcrossIt() {
     this.buildSouthWall();
     final Location eye = this.eye(3.5, 64.5, 0.0, LOOK_NORTH);
     when(this.player.getEyeLocation()).thenReturn(eye);
@@ -359,7 +359,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void rejectsAnIntersectionBehindThePlayer() {
+  void shouldRejectAnIntersectionBehindThePlayer() {
     this.buildSouthWall();
     final Location eye = this.eye(3.3, 64.6, 5.0, LOOK_SOUTH);
     when(this.player.getEyeLocation()).thenReturn(eye);
@@ -369,7 +369,7 @@ final class InteractUtilsTest {
 
   @ParameterizedTest
   @CsvSource({ "5.0", "0.0" })
-  void rejectsParallelAndCoplanarRays(final double eyeZ) {
+  void shouldRejectParallelAndCoplanarRays(final double eyeZ) {
     this.buildSouthWall();
     final Location eye = mock(Location.class);
     when(eye.getZ()).thenReturn(eyeZ);
@@ -382,7 +382,7 @@ final class InteractUtilsTest {
 
   @ParameterizedTest
   @CsvSource({ "3.0,64.0,0,127", "4.0,65.0,127,0" })
-  void keepsFrameEdgesInsideTheSelectedMap(final double eyeX, final double eyeY, final int pixelX, final int pixelY) {
+  void shouldKeepFrameEdgesInsideTheSelectedMap(final double eyeX, final double eyeY, final int pixelX, final int pixelY) {
     this.buildSouthWall();
     final Location eye = this.eye(eyeX, eyeY, -5.0, LOOK_SOUTH);
     when(this.player.getEyeLocation()).thenReturn(eye);
@@ -391,7 +391,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void keepsRotatedFrameEdgesInsideTheSelectedMap() {
+  void shouldKeepRotatedFrameEdgesInsideTheSelectedMap() {
     final ItemFrame target = this.buildSouthWall();
     when(target.getRotation()).thenReturn(Rotation.CLOCKWISE);
     final Location eye = this.eye(3.0, 65.0, -5.0, LOOK_SOUTH);
@@ -401,7 +401,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void returnsNullForWallsThatDoNotFaceAlongAnAxis() {
+  void shouldReturnNullForWallsThatDoNotFaceAlongAnAxis() {
     final Location location = this.fakeWorld.location(0.5, 64.5, 0.0);
     final ItemFrame target = this.fakeWorld.addFrame(location, BlockFace.NORTH_EAST, Keys.MAP_KEY, Keys.FIRST_MAP_KEY, Keys.LAST_MAP_KEY);
     final Block wallBlock = this.fakeWorld.block(0, 64, -1);
@@ -412,14 +412,14 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void returnsNullWhenThePlayerLooksAtNoEntity() {
+  void shouldReturnNullWhenThePlayerLooksAtNoEntity() {
     when(this.player.getTargetEntity(anyInt())).thenReturn(null);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
     assertNull(coordinates);
   }
 
   @Test
-  void returnsNullWhenThePlayerLooksAtNoBlockFace() {
+  void shouldReturnNullWhenThePlayerLooksAtNoBlockFace() {
     this.buildSouthWall();
     when(this.player.getTargetBlockFace(anyInt())).thenReturn(null);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);
@@ -427,7 +427,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void returnsNullForAWallWithoutItsLastCorner() {
+  void shouldReturnNullForAWallWithoutItsLastCorner() {
     final Location first = this.fakeWorld.location(0.5, 64.5, 0.0);
     final Location second = this.fakeWorld.location(1.5, 64.5, 0.0);
     this.fakeWorld.addFrame(first, BlockFace.SOUTH, Keys.MAP_KEY, Keys.FIRST_MAP_KEY);
@@ -440,7 +440,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void returnsNullForAWallWithoutItsFirstCorner() {
+  void shouldReturnNullForAWallWithoutItsFirstCorner() {
     final Location first = this.fakeWorld.location(0.5, 64.5, 0.0);
     final Location second = this.fakeWorld.location(1.5, 64.5, 0.0);
     this.fakeWorld.addFrame(first, BlockFace.SOUTH, Keys.MAP_KEY);
@@ -453,7 +453,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void rejectsEntitiesThatAreNotItemFrames() {
+  void shouldRejectEntitiesThatAreNotItemFrames() {
     final Zombie zombie = mock(Zombie.class);
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
       InteractUtils.getBoardCoordinates(this.player, zombie)
@@ -463,7 +463,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void rejectsNullArguments() {
+  void shouldRejectNullArguments() {
     final ItemFrame frame = mock(ItemFrame.class);
     assertThrows(NullPointerException.class, () -> InteractUtils.getBoardCoordinates(null));
     assertThrows(NullPointerException.class, () -> InteractUtils.getBoardCoordinates(null, frame));
@@ -471,7 +471,7 @@ final class InteractUtilsTest {
   }
 
   @Test
-  void isNotInstantiable() {
+  void shouldNotBeInstantiable() {
     UtilityClassAssertions.assertNotInstantiable(InteractUtils.class);
   }
 }

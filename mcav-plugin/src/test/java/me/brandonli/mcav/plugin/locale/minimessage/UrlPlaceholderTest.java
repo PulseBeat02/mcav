@@ -54,7 +54,7 @@ final class UrlPlaceholderTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "https://example.test/normal", "https://example.test/a'b", "https://example.test/a%5Cb?x=$URL$" })
-  void legacyQuotedClickTargetsAndVisibleUrlsRemainLiteral(final String url) {
+  void shouldKeepLegacyQuotedClickTargetsAndVisibleUrlsLiteral(final String url) {
     final MiniMessage parser = MiniMessage.miniMessage();
     final MiniMessageTranslator translator = translator("<click:open_url:'$URL$'>$URL$</click>", parser);
     final Component argument = Component.text(url);
@@ -92,7 +92,7 @@ final class UrlPlaceholderTest {
   }
 
   @Test
-  void preservesUrlTextHoverTextAndTheOriginalArgumentAndSuffix() {
+  void shouldPreserveUrlTextHoverTextAndTheOriginalArgumentAndSuffix() {
     final MiniMessage parser = MiniMessage.miniMessage();
     final MiniMessageTranslator translator = translator("<red>$URL$</red> <arg:1></arg> <hover:show_text:'$URL$'>hover</hover>", parser);
     final Component argument = Component.text(INJECTION);
@@ -117,7 +117,7 @@ final class UrlPlaceholderTest {
   }
 
   @Test
-  void preservesRepeatedPlaceholdersWithinExistingClickTargets() {
+  void shouldPreserveRepeatedPlaceholdersWithinExistingClickTargets() {
     final String url = "https://example.test/a'b";
     final MiniMessage parser = MiniMessage.miniMessage();
     final MiniMessageTranslator translator = translator("<click:open_url:'https://redirect.test/?to=$URL$&again=$URL$'>go</click>", parser);
@@ -133,7 +133,7 @@ final class UrlPlaceholderTest {
   }
 
   @Test
-  void doesNotEnableClickTagsExcludedByTheSuppliedParser() {
+  void shouldNotEnableClickTagsExcludedByTheSuppliedParser() {
     final TagResolver colors = StandardTags.color();
     final MiniMessage.Builder builder = MiniMessage.builder();
     builder.tags(colors);
@@ -149,7 +149,7 @@ final class UrlPlaceholderTest {
   }
 
   @Test
-  void retainsCustomClickResolverSemantics() {
+  void shouldRetainCustomClickResolverSemantics() {
     final TagResolver customClick = TagResolver.resolver("click", (arguments, context) -> Tag.styling(NamedTextColor.GOLD));
     final MiniMessage.Builder builder = MiniMessage.builder();
     builder.tags(customClick);
@@ -165,7 +165,7 @@ final class UrlPlaceholderTest {
   }
 
   @Test
-  void restoresUrlsInsideHoverEntityNamesAndTranslationArguments() {
+  void shouldRestoreUrlsInsideHoverEntityNamesAndTranslationArguments() {
     final String url = "https://example.test/a'b";
     final UrlPlaceholder placeholder = new UrlPlaceholder();
     final String marker = placeholder.prepare("$URL$");
@@ -195,7 +195,7 @@ final class UrlPlaceholderTest {
   }
 
   @Test
-  void leavesNonUrlEventsIntactAndSupportsNonTextComponents() {
+  void shouldLeaveNonUrlEventsIntactAndSupportsNonTextComponents() {
     final UrlPlaceholder placeholder = new UrlPlaceholder();
     final ClickEvent<?> click = ClickEvent.suggestCommand("/say ready");
     final Component score = Component.score("reviewer", "points");
@@ -205,7 +205,7 @@ final class UrlPlaceholderTest {
   }
 
   @Test
-  void missingUrlArgumentsStillFailClearly() {
+  void shouldStillFailClearlyOnMissingUrlArguments() {
     final MiniMessage parser = MiniMessage.miniMessage();
     final MiniMessageTranslator translator = translator("$URL$", parser);
     final TranslatableComponent input = Component.translatable("message");
@@ -232,11 +232,8 @@ final class UrlPlaceholderTest {
     for (final Component descendant : descendants) {
       final ClickEvent<?> click = descendant.clickEvent();
       if (click != null) {
-        assertNotEquals(
-          ClickEvent.Action.RUN_COMMAND,
-          click.action(),
-          "URL data must not inject commands in text, hover or argument components"
-        );
+        final ClickEvent.Action<? extends ClickEvent.Payload> action = click.action();
+        assertNotEquals(ClickEvent.Action.RUN_COMMAND, action, "URL data must not inject commands in text, hover or argument components");
       }
     }
   }

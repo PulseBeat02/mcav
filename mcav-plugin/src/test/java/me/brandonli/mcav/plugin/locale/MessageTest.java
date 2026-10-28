@@ -49,7 +49,7 @@ final class MessageTest {
   }
 
   @Test
-  void everyMessageHasATextInTheBundledLanguage() throws ReflectiveOperationException {
+  void shouldHaveATextInTheBundledLanguageForEveryMessage() throws ReflectiveOperationException {
     final List<Field> fields = messageFields();
     final int fieldCount = fields.size();
     assertEquals(85, fieldCount);
@@ -80,21 +80,21 @@ final class MessageTest {
   }
 
   @Test
-  void rendersTheDumpLink() {
+  void shouldRenderTheDumpLink() {
     final Component component = Message.SEND_DUMP.build("https://paste.helpch.at/abc");
     final String text = Components.plain(component);
     assertEquals("Created a new dump! Copy and paste this link for support: https://paste.helpch.at/abc", text);
   }
 
   @Test
-  void rendersTheDiscordLink() {
+  void shouldRenderTheDiscordLink() {
     final Component component = Message.AUDIO_DISCORD.build("https://discord.com/channels/1/2");
     final String text = Components.plain(component);
     assertEquals("Click on the URL to join the Discord voice channel! https://discord.com/channels/1/2", text);
   }
 
   @Test
-  void tellsThatVlcAndYtdlpAreStillBeingPrepared() {
+  void shouldTellThatVlcAndYtdlpAreStillBeingPrepared() {
     final Component vlc = Message.VLC_PREPARING.build();
     final Component ytdlp = Message.YTDLP_PREPARING.build();
     final Component unsupported = Message.UNSUPPORTED_PLAYER.build();
@@ -107,7 +107,7 @@ final class MessageTest {
   }
 
   @Test
-  void namesTheLineLimitOfScoreboards() {
+  void shouldNameTheLineLimitOfScoreboards() {
     final Component component = Message.SCOREBOARD_LINES.build();
     final String text = Components.plain(component);
     final String limit = String.valueOf(ScoreboardConfiguration.MAXIMUM_LINES);

@@ -54,30 +54,42 @@ final class VncAllowListPropertyTest {
   }
 
   @Property(seed = SEED)
-  void findsAListedServerByTheTextItsEntryNamesItWith(
+  void shouldFindAListedServerByTheTextItsEntryNamesItWith(
     @ForAll("hosts") final String host,
     @ForAll @IntRange(min = 1, max = 65_535) final int port
   ) {
     final VncAllowList.Entry entry = new VncAllowList.Entry(host, port, "secret");
     final VncAllowList list = new VncAllowList(List.of(entry));
-    assertSame(entry, list.find(entry.toString()));
-    assertFalse(entry.toString().contains("secret"));
+
+    final VncAllowList.Entry found = list.find(entry.toString());
+    assertSame(entry, found);
+
+    final boolean contained = entry.toString().contains("secret");
+    assertFalse(contained);
   }
 
   @Property(seed = SEED)
-  void findsNoServerOnAnotherPort(@ForAll("hosts") final String host, @ForAll @IntRange(min = 1, max = 65_534) final int port) {
+  void shouldFindNoServerOnAnotherPort(@ForAll("hosts") final String host, @ForAll @IntRange(min = 1, max = 65_534) final int port) {
     final VncAllowList list = new VncAllowList(List.of(new VncAllowList.Entry(host, port, null)));
-    assertNull(list.find(new VncAllowList.Entry(host, port + 1, null).toString()));
+
+    final VncAllowList.Entry found = list.find(new VncAllowList.Entry(host, port + 1, null).toString());
+    assertNull(found);
   }
 
   @Property(seed = SEED)
-  void readsWhateverIsTypedAsAHostAndAPortOrNothing(@ForAll final String text) {
+  void shouldReadWhateverIsTypedAsAHostAndAPortOrNothing(@ForAll final String text) {
     final VncAllowList.Target target = VncAllowList.parse(text);
     if (target == null) {
       return;
     }
-    assertFalse(target.host().isBlank());
-    assertTrue(target.port() >= 1 && target.port() <= 65_535);
-    assertEquals(target, VncAllowList.parse(new VncAllowList.Entry(target.host(), target.port(), null).toString()));
+
+    final boolean blank = target.host().isBlank();
+    assertFalse(blank);
+
+    final boolean matches = target.port() >= 1 && target.port() <= 65_535;
+    assertTrue(matches);
+
+    final VncAllowList.Target parsed = VncAllowList.parse(new VncAllowList.Entry(target.host(), target.port(), null).toString());
+    assertEquals(target, parsed);
   }
 }

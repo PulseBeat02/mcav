@@ -36,15 +36,17 @@ final class VncAllowListFuzzTest {
   private static final VncAllowList LIST = new VncAllowList(List.of(LISTED));
 
   @FuzzTest(maxDuration = "30s")
-  void findsOnlyTheListedServer(final FuzzedDataProvider data) {
+  void shouldFindOnlyTheListedServer(final FuzzedDataProvider data) {
     final String text = data.consumeRemainingAsString();
     final VncAllowList.Target target = VncAllowList.parse(text);
     final VncAllowList.Entry found = LIST.find(text);
     if (found != null) {
-      assertTrue(target != null && target.port() == LISTED.port() && target.host().equalsIgnoreCase(LISTED.host()), text);
+      final boolean matches = target != null && target.port() == LISTED.port() && target.host().equalsIgnoreCase(LISTED.host());
+      assertTrue(matches, text);
     }
     if (target != null) {
-      assertTrue(!target.host().isBlank() && target.port() >= 1 && target.port() <= 65_535, text);
+      final boolean secondMatches = !target.host().isBlank() && target.port() >= 1 && target.port() <= 65_535;
+      assertTrue(secondMatches, text);
     }
   }
 }

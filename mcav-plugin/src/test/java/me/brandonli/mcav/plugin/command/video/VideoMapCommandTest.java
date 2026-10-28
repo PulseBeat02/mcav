@@ -207,7 +207,7 @@ final class VideoMapCommandTest {
   }
 
   @Test
-  void passesTheArgumentsOnAndConfiguresTheWallOfMaps() {
+  void shouldPassTheArgumentsOnAndConfigureTheWallOfMaps() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider(
       DitheringArgument.FILTER_LITE
     );
@@ -221,7 +221,7 @@ final class VideoMapCommandTest {
   }
 
   @Test
-  void dithersTheVideoOntoTheWallOfMaps() {
+  void shouldDitherTheVideoOntoTheWallOfMaps() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider(
       DitheringArgument.FILTER_LITE
     );
@@ -252,7 +252,7 @@ final class VideoMapCommandTest {
   }
 
   @Test
-  void givesEveryVideoItsOwnTemporalDitheringAlgorithm() {
+  void shouldGiveEveryVideoItsOwnTemporalDitheringAlgorithm() {
     final AbstractVideoCommand.VideoConfigurationProvider configurationProvider = this.playAndCaptureProvider(
       DitheringArgument.FLOYD_STEINBERG_TEMPORAL
     );
@@ -277,7 +277,7 @@ final class VideoMapCommandTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "5x", "65x1", "1x65" })
-  void refusesInvalidWallSizes(final String wall) {
+  void shouldRefuseInvalidWallSizes(final String wall) {
     this.playOnWall(wall, DitheringArgument.FILTER_LITE);
 
     verify(this.command, never()).playVideo(
@@ -315,7 +315,7 @@ final class VideoMapCommandTest {
   }
 
   @Test
-  void encodesTheVideoWithMcv2WhenTheFlagSaysSo() {
+  void shouldEncodeTheVideoWithMcv2WhenTheFlagSaysSo() {
     final Mcv2Configuration wall = mock(Mcv2Configuration.class);
     when(
       this.support.configure(eq(this.sender), eq(Pair.pair(5, 3)), eq(Pair.pair(640, 384)), eq(20), eq(Settings.DEFAULT), any())
@@ -340,32 +340,37 @@ final class VideoMapCommandTest {
       VideoMcv2Command.Mcv2Settings.class,
       providers.getValue().buildConfiguration(resolution)
     );
-    assertSame(wall, settings.configuration());
+
+    final Mcv2Configuration configuration = settings.configuration();
+    assertSame(wall, configuration);
+
     final Mcv2Output output = mock(Mcv2Output.class);
     when(this.support.output(this.sender, wall, DitheringArgument.NEAREST_COLOR)).thenReturn(output);
 
     final VideoPipelineStep pipeline = this.command.createVideoFilter(resolution, providers.getValue());
 
-    assertSame(output, pipeline.getFilter());
+    final VideoFilter filter = pipeline.getFilter();
+    assertSame(output, filter);
+
     this.assertStartedOnTheMainThread(output);
   }
 
   @Test
-  void theConfiguredCodecAppliesWithoutTheFlag() {
+  void shouldApplyTheConfiguredCodecWithoutTheFlag() {
     when(this.configuration.getMcv2DefaultCodec()).thenReturn(MapCodec.MCV2);
     this.playWithCodec("640x384", null);
     verify(this.support).configure(eq(this.sender), eq(Pair.pair(5, 3)), eq(Pair.pair(640, 384)), eq(20), eq(Settings.DEFAULT), any());
   }
 
   @Test
-  void anMcv2VideoWithAnInvalidResolutionDoesNotStart() {
+  void shouldNotStartAnMcv2VideoWithAnInvalidResolution() {
     this.playWithCodec("wide", MapCodec.MCV2);
     verify(this.support, never()).configure(any(), any(), any(), eq(20), any(), any());
     verify(this.command, never()).playVideo(any(), any(), any(), any(), any(), anyString(), anyString(), anyString(), isNull());
   }
 
   @Test
-  void anMcv2VideoWithoutAWallIsDithered() {
+  void shouldDitherAnMcv2VideoWithoutAWall() {
     this.playWithCodec("640x384", MapCodec.MCV2);
     final ArgumentCaptor<AbstractVideoCommand.VideoConfigurationProvider> providers = ArgumentCaptor.forClass(
       AbstractVideoCommand.VideoConfigurationProvider.class
@@ -381,6 +386,8 @@ final class VideoMapCommandTest {
       eq(""),
       isNull()
     );
-    assertInstanceOf(MapDisplaySettings.class, providers.getValue().buildConfiguration(Pair.pair(640, 384)));
+
+    final Object configuration = providers.getValue().buildConfiguration(Pair.pair(640, 384));
+    assertInstanceOf(MapDisplaySettings.class, configuration);
   }
 }

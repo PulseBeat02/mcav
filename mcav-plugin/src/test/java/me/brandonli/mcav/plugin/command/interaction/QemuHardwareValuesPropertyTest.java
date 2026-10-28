@@ -72,7 +72,7 @@ final class QemuHardwareValuesPropertyTest {
   }
 
   @Property(seed = SEED, tries = 1000)
-  void aValueWithAPathSeparatorIsRefused(
+  void shouldRefuseAValueWithAPathSeparator(
     @ForAll("options") final String option,
     @ForAll final String before,
     @ForAll final boolean backslash,
@@ -83,7 +83,7 @@ final class QemuHardwareValuesPropertyTest {
   }
 
   @Property(seed = SEED, tries = 1000)
-  void aPropertyThatNamesAFileIsRefused(
+  void shouldRefuseAPropertyThatNamesAFile(
     @ForAll("optionsWithProperties") final String option,
     @ForAll("fileProperties") final String property,
     @ForAll final String prefix
@@ -115,7 +115,7 @@ final class QemuHardwareValuesPropertyTest {
   }
 
   @Property(seed = SEED, tries = 1000)
-  void aDrivePropertyOutsideTheListIsRefusedWhateverItsValue(
+  void shouldRefuseADrivePropertyOutsideTheListWhateverItsValue(
     @ForAll("unlistedDriveProperties") final String property,
     @ForAll final String value
   ) {

@@ -42,7 +42,7 @@ import org.mockito.Mockito;
 final class IOUtilsTest {
 
   @Test
-  void resolvesTheDataFolderToAnAbsolutePath() {
+  void shouldResolveTheDataFolderToAnAbsolutePath() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final File relative = new File("plugins/MCAV");
     when(plugin.getDataFolder()).thenReturn(relative);
@@ -58,7 +58,7 @@ final class IOUtilsTest {
   }
 
   @Test
-  void opensBundledResources() throws IOException {
+  void shouldOpenBundledResources() throws IOException {
     try (final InputStream stream = IOUtils.getResourceAsStream("config.yml")) {
       final byte[] bytes = stream.readAllBytes();
       final String content = new String(bytes, StandardCharsets.UTF_8);
@@ -74,21 +74,21 @@ final class IOUtilsTest {
   }
 
   @Test
-  void failsForMissingResources() {
+  void shouldFailForMissingResources() {
     final NullPointerException exception = assertThrows(NullPointerException.class, () -> openAndClose("missing.yml"));
     final String message = exception.getMessage();
     assertEquals("missing.yml", message);
   }
 
   @Test
-  void refusesANullPath() {
+  void shouldRefuseANullPath() {
     final NullPointerException exception = assertThrows(NullPointerException.class, () -> openAndClose(null));
     final String message = exception.getMessage();
     assertEquals("Path must not be null", message);
   }
 
   @Test
-  void isNotInstantiable() {
+  void shouldNotBeInstantiable() {
     UtilityClassAssertions.assertNotInstantiable(IOUtils.class);
   }
 }

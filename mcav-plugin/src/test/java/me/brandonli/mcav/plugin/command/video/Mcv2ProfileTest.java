@@ -34,14 +34,19 @@ import org.junit.jupiter.api.Test;
 final class Mcv2ProfileTest {
 
   @Test
-  void namesTheEncoderSettings() {
-    assertEquals(Settings.DEFAULT, Mcv2Profile.DEFAULT.getSettings());
-    assertEquals(Settings.FAST, Mcv2Profile.FAST.getSettings());
-    assertEquals(List.of(Mcv2Profile.DEFAULT, Mcv2Profile.FAST), List.of(Mcv2Profile.values()));
+  void shouldNameTheEncoderSettings() {
+    final Settings settings = Mcv2Profile.DEFAULT.getSettings();
+    assertEquals(Settings.DEFAULT, settings);
+
+    final Settings FASTSettings = Mcv2Profile.FAST.getSettings();
+    assertEquals(Settings.FAST, FASTSettings);
+
+    final List<Mcv2Profile> list = List.of(Mcv2Profile.values());
+    assertEquals(List.of(Mcv2Profile.DEFAULT, Mcv2Profile.FAST), list);
   }
 
   @Test
-  void refusesRemovedProfiles() {
+  void shouldRefuseRemovedProfiles() {
     for (final String old : List.of(
       "ADAPTIVE",
       "SHIP",
@@ -58,7 +63,7 @@ final class Mcv2ProfileTest {
   }
 
   @Test
-  void commandErrorsListTheValidProfiles() {
+  void shouldListTheValidProfilesInCommandErrors() {
     final CommandContext<Object> context = mock();
     final EnumParser<Object, Mcv2Profile> parser = new EnumParser<>(Mcv2Profile.class);
     for (final String old : List.of("ADAPTIVE", "SHIP", "LIVE")) {
@@ -66,10 +71,20 @@ final class Mcv2ProfileTest {
         EnumParseException.class,
         parser.parse(context, CommandInput.of(old)).failure().orElseThrow()
       );
-      assertEquals(CaptionVariable.of("input", old), failure.captionVariables()[0]);
-      assertEquals(CaptionVariable.of("acceptableValues", "default, fast"), failure.captionVariables()[1]);
+
+      final CaptionVariable expected = CaptionVariable.of("input", old);
+      final CaptionVariable captionVariable = failure.captionVariables()[0];
+      assertEquals(expected, captionVariable);
+
+      final CaptionVariable captionVariableExpected = CaptionVariable.of("acceptableValues", "default, fast");
+      final CaptionVariable secondCaptionVariable = failure.captionVariables()[1];
+      assertEquals(captionVariableExpected, secondCaptionVariable);
     }
-    assertEquals(Mcv2Profile.DEFAULT, parser.parse(context, CommandInput.of("DEFAULT")).parsedValue().orElseThrow());
-    assertEquals(Mcv2Profile.FAST, parser.parse(context, CommandInput.of("FAST")).parsedValue().orElseThrow());
+
+    final Mcv2Profile parserParser = parser.parse(context, CommandInput.of("DEFAULT")).parsedValue().orElseThrow();
+    assertEquals(Mcv2Profile.DEFAULT, parserParser);
+
+    final Mcv2Profile secondParser = parser.parse(context, CommandInput.of("FAST")).parsedValue().orElseThrow();
+    assertEquals(Mcv2Profile.FAST, secondParser);
   }
 }

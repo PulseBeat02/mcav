@@ -89,12 +89,12 @@ final class ArgumentUtilsPropertyTest {
   }
 
   @Property(seed = SEED)
-  void everyTypedSizeIsWithinTheBoundsOrRefused(@ForAll("typedSizes") final String typed) {
+  void shouldKeepEveryTypedSizeWithinTheBoundsOrRefuseIt(@ForAll("typedSizes") final String typed) {
     assertBoundedOrRefused(typed, ArgumentUtils::parseDimensions, ArgumentUtils.MAX_SIDE);
   }
 
   @Property(seed = SEED)
-  void everyTypedWallIsWithinTheBoundsOrRefused(@ForAll("typedSizes") final String typed) {
+  void shouldKeepEveryTypedWallWithinTheBoundsOrRefuseIt(@ForAll("typedSizes") final String typed) {
     assertBoundedOrRefused(typed, ArgumentUtils::parseScreenDimensions, ArgumentUtils.MAX_SCREEN_SIDE);
   }
 
@@ -113,7 +113,7 @@ final class ArgumentUtilsPropertyTest {
   }
 
   @Property(seed = SEED)
-  void readsEveryWellFormedSizeBackExactly(
+  void shouldReadEveryWellFormedSizeBackExactly(
     @ForAll @IntRange(min = 1, max = ArgumentUtils.MAX_SIDE) final int width,
     @ForAll @IntRange(min = 1, max = ArgumentUtils.MAX_SIDE) final int height
   ) {
@@ -127,7 +127,7 @@ final class ArgumentUtilsPropertyTest {
   }
 
   @Property(seed = SEED)
-  void refusesEverySideBeyondTheBound(
+  void shouldRefuseEverySideBeyondTheBound(
     @ForAll @IntRange(min = ArgumentUtils.MAX_SIDE + 1) final int tooLarge,
     @ForAll @IntRange(min = 1, max = ArgumentUtils.MAX_SIDE) final int fine
   ) {
@@ -144,7 +144,7 @@ final class ArgumentUtilsPropertyTest {
    * in a single tick, and it is at most 4096 map packets of 16400 bytes.
    */
   @Property(seed = SEED)
-  void theClearOfEveryAcceptedWallFitsOneBundle(@ForAll("typedSizes") final String typed) {
+  void shouldFitTheClearOfEveryAcceptedWallInOneBundle(@ForAll("typedSizes") final String typed) {
     final Pair<Integer, Integer> size;
     try {
       size = ArgumentUtils.parseScreenDimensions(typed);

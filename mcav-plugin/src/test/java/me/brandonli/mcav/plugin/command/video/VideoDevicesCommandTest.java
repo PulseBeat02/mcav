@@ -32,6 +32,7 @@ import me.brandonli.mcav.plugin.testing.Components;
 import me.brandonli.mcav.plugin.testing.StandardErrorCapture;
 import me.brandonli.mcav.plugin.testing.TestServer;
 import me.brandonli.mcav.plugin.utils.CaptureDevices;
+import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -70,7 +71,7 @@ final class VideoDevicesCommandTest {
   }
 
   @Test
-  void listsTheDevicesAndRemembersThemForTheDevicePlayer() {
+  void shouldListTheDevicesAndRememberThemForTheDevicePlayer() {
     final List<CaptureDevices.Device> listed = List.of(
       new CaptureDevices.Device(0, "Integrated Camera"),
       new CaptureDevices.Device(2, "OBS Virtual Camera")
@@ -78,11 +79,14 @@ final class VideoDevicesCommandTest {
     this.devices.when(CaptureDevices::list).thenReturn(listed);
     this.command.listDevices(this.sender);
     verify(this.manager).setDevices(listed);
-    assertEquals(List.of(Message.DEVICE_LIST.build("0: Integrated Camera, 2: OBS Virtual Camera")), Components.received(this.sender));
+
+    final List<Component> expected = List.of(Message.DEVICE_LIST.build("0: Integrated Camera, 2: OBS Virtual Camera"));
+    final List<Component> received = Components.received(this.sender);
+    assertEquals(expected, received);
   }
 
   @Test
-  void saysWhenThereIsNoDeviceOrTheListingFails() {
+  void shouldSayWhenThereIsNoDeviceOrTheListingFails() {
     this.devices.when(CaptureDevices::list).thenReturn(List.of());
     this.command.listDevices(this.sender);
     this.devices.when(CaptureDevices::list).thenThrow(new IllegalStateException("no sysfs"));
@@ -92,7 +96,12 @@ final class VideoDevicesCommandTest {
       output = errors.getOutput();
     }
     verify(this.manager, Mockito.times(2)).setDevices(List.of());
-    assertEquals(List.of(Message.DEVICE_NONE.build(), Message.DEVICE_NONE.build()), Components.received(this.sender));
-    assertTrue(output.contains("Failed to list the capture devices") && output.contains("no sysfs"), output);
+
+    final List<Component> expected = List.of(Message.DEVICE_NONE.build(), Message.DEVICE_NONE.build());
+    final List<Component> received = Components.received(this.sender);
+    assertEquals(expected, received);
+
+    final boolean matches = output.contains("Failed to list the capture devices") && output.contains("no sysfs");
+    assertTrue(matches, output);
   }
 }

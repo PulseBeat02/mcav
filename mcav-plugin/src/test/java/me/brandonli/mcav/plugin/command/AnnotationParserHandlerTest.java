@@ -34,6 +34,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.MissingResourceException;
 import java.util.Objects;
@@ -154,7 +155,7 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
-  void usesThePaperCommandManagerOfThePlugin() {
+  void shouldUseThePaperCommandManagerOfThePlugin() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     final CommandManager<CommandSender> manager = handler.getManager();
     assertSame(this.paperManager, manager);
@@ -162,7 +163,7 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
-  void registersBrigadierWhenPaperSupportsIt() {
+  void shouldRegisterBrigadierWhenPaperSupportsIt() {
     doReturn(true).when(this.paperManager).hasCapability(CloudBukkitCapabilities.NATIVE_BRIGADIER);
     doNothing().when(this.paperManager).registerBrigadier();
     new AnnotationParserHandler(this.plugin);
@@ -170,7 +171,7 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
-  void registersEveryCommandOfThePlugin() {
+  void shouldRegisterEveryCommandOfThePlugin() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final Set<String> syntaxes = this.commands.syntaxes();
@@ -204,7 +205,7 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
-  void limitsTheFrameRateOfVirtualMachines() {
+  void shouldLimitTheFrameRateOfVirtualMachines() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final String syntax =
@@ -219,7 +220,7 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
-  void takesTheRestOfTheLineForFreeTextArguments() {
+  void shouldTakeTheRestOfTheLineForFreeTextArguments() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final String vm =
@@ -233,38 +234,49 @@ final class AnnotationParserHandlerTest {
     final StringParser<?> flagsParser = assertInstanceOf(StringParser.class, flags);
     final StringParser<?> mrlParser = assertInstanceOf(StringParser.class, mrl);
     final StringParser<?> urlParser = assertInstanceOf(StringParser.class, url);
-    assertEquals(StringParser.StringMode.GREEDY, flagsParser.stringMode(), "QEMU options are several words, as the jukebox sends them");
+
+    final StringParser.StringMode stringMode = flagsParser.stringMode();
+    assertEquals(StringParser.StringMode.GREEDY, stringMode, "QEMU options are several words, as the jukebox sends them");
+
+    final StringParser.StringMode mrlParserStringMode = mrlParser.stringMode();
     assertEquals(
       StringParser.StringMode.GREEDY_FLAG_YIELDING,
-      mrlParser.stringMode(),
+      mrlParserStringMode,
       "image paths may contain spaces without quotes, up to the codec flag"
     );
-    assertEquals(StringParser.StringMode.GREEDY_FLAG_YIELDING, urlParser.stringMode());
+
+    final StringParser.StringMode urlParserStringMode = urlParser.stringMode();
+    assertEquals(StringParser.StringMode.GREEDY_FLAG_YIELDING, urlParserStringMode);
   }
 
   @Test
-  void namesEveryArgumentOfACommandOnce() {
+  void shouldNameEveryArgumentOfACommandOnce() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     for (final String syntax : this.commands.syntaxes()) {
       // an argument named like the component of the command's flags would be handed the flags
       final List<String> names = this.commands.command(syntax).components().stream().map(CommandComponent::name).toList();
-      assertEquals(names.size(), Set.copyOf(names).size(), syntax);
+
+      final int expected = names.size();
+      final int size = Set.copyOf(names).size();
+      assertEquals(expected, size, syntax);
     }
   }
 
   @Test
-  void takesTheVncServerUnquotedUpToTheFlags() {
+  void shouldTakeTheVncServerUnquotedUpToTheFlags() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final String vnc = "mcav vnc create playerSelector vncResolution targetFps blockDimensions mapId ditheringAlgorithm server flags";
     final StringParser<?> server = assertInstanceOf(StringParser.class, this.parserOf(vnc, "server"));
     // a quoted argument ends a host at its colon
-    assertEquals(StringParser.StringMode.GREEDY_FLAG_YIELDING, server.stringMode());
+
+    final StringParser.StringMode stringMode = server.stringMode();
+    assertEquals(StringParser.StringMode.GREEDY_FLAG_YIELDING, stringMode);
   }
 
   @Test
-  void everyWallOfMapsTakesTheCodecFlag() {
+  void shouldTakeTheCodecFlagOnEveryWallOfMaps() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     for (final String syntax : List.of(
@@ -276,23 +288,30 @@ final class AnnotationParserHandlerTest {
       final Command<CommandSender> command = this.commands.command(syntax);
       final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, command.components().getLast().parser(), syntax);
       final List<String> names = flags.flags().stream().map(CommandFlag::name).toList();
-      assertEquals("codec", names.getFirst(), syntax);
+
+      final String name = names.getFirst();
+      assertEquals("codec", name, syntax);
+
       final CommandComponent<?> codec = Objects.requireNonNull(flags.flags().iterator().next().commandComponent());
       final EnumParser<?, ?> values = assertInstanceOf(EnumParser.class, codec.parser(), syntax);
-      assertEquals(Set.of(MapCodec.DITHER, MapCodec.MCV2), Set.copyOf(values.acceptedValues()), syntax);
+
+      final Set<? extends Enum<?>> copy = Set.copyOf(values.acceptedValues());
+      assertEquals(Set.of(MapCodec.DITHER, MapCodec.MCV2), copy, syntax);
     }
   }
 
   @Test
-  void takesASeekPositionWithColonsUnquoted() {
+  void shouldTakeASeekPositionWithColonsUnquoted() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final StringParser<?> position = assertInstanceOf(StringParser.class, this.parserOf("mcav video seek position", "position"));
-    assertEquals(StringParser.StringMode.GREEDY, position.stringMode(), "a single word cannot hold the colon of 1:30");
+
+    final StringParser.StringMode stringMode = position.stringMode();
+    assertEquals(StringParser.StringMode.GREEDY, stringMode, "a single word cannot hold the colon of 1:30");
   }
 
   @Test
-  void everyVideoAndImageCommandTakesQuotedFilters() {
+  void shouldTakeQuotedFiltersOnEveryVideoAndImageCommand() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final List<String> media = this.commands
@@ -300,7 +319,10 @@ final class AnnotationParserHandlerTest {
       .stream()
       .filter(syntax -> (syntax.startsWith("mcav video ") || syntax.startsWith("mcav image ")) && syntax.contains(" mrl"))
       .toList();
-    assertEquals(11, media.size(), String.valueOf(media));
+
+    final int size = media.size();
+    assertEquals(11, size, String.valueOf(media));
+
     for (final String syntax : media) {
       final Command<CommandSender> command = this.commands.command(syntax);
       final CommandFlagParser<?> flags = assertInstanceOf(CommandFlagParser.class, command.components().getLast().parser(), syntax);
@@ -315,12 +337,14 @@ final class AnnotationParserHandlerTest {
         Objects.requireNonNull(filters.commandComponent()).parser(),
         syntax
       );
-      assertEquals(StringParser.StringMode.QUOTED, parser.stringMode(), syntax);
+
+      final StringParser.StringMode stringMode = parser.stringMode();
+      assertEquals(StringParser.StringMode.QUOTED, stringMode, syntax);
     }
   }
 
   @Test
-  void theBrowserAndTheMachineChooseTheirAudioOutputLikeTheVideos() {
+  void shouldLetTheBrowserAndTheMachineChooseTheirAudioOutputLikeTheVideos() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final String video =
@@ -333,14 +357,19 @@ final class AnnotationParserHandlerTest {
     for (final String syntax : List.of(browser, vm)) {
       final ArgumentParser<CommandSender, ?> audio = this.parserOf(syntax, "audioType");
       final EnumParser<?, ?> outputs = assertInstanceOf(EnumParser.class, audio);
-      assertEquals(assertInstanceOf(EnumParser.class, videoAudio).acceptedValues(), outputs.acceptedValues(), syntax);
+
+      final Collection<?> expected = assertInstanceOf(EnumParser.class, videoAudio).acceptedValues();
+      final Collection<? extends Enum<?>> acceptedValues = outputs.acceptedValues();
+      assertEquals(expected, acceptedValues, syntax);
     }
     final Component description = ((RichDescription) this.commands.command(browser).commandDescription().description()).contents();
-    assertEquals("Opens a web page on a wall of maps, with its sound in an audio output", Components.plain(description));
+
+    final String text = Components.plain(description);
+    assertEquals("Opens a web page on a wall of maps, with its sound in an audio output", text);
   }
 
   @Test
-  void describesTheCommandsInTheLanguageOfThePlugin() {
+  void shouldDescribeTheCommandsInTheLanguageOfThePlugin() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final Command<CommandSender> dump = this.commands.command("mcav dump");
@@ -353,7 +382,7 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
-  void runsTheParsedCommands() {
+  void shouldRunTheParsedCommands() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     final VideoPlayerMultiplexer player = mock(VideoPlayerMultiplexer.class);
@@ -370,7 +399,7 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
-  void shutsEveryFeatureDown() {
+  void shouldShutEveryFeatureDown() {
     final AnnotationParserHandler handler = new AnnotationParserHandler(this.plugin);
     handler.registerCommands();
     try (final MockedStatic<HandlerList> handlers = Mockito.mockStatic(HandlerList.class)) {
@@ -381,7 +410,7 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
-  void rollsBackAllFeaturesWhenRegistrationFails() {
+  void shouldRollBackAllFeaturesWhenRegistrationFails() {
     final IllegalStateException failure = new IllegalStateException("listener registration failed");
     try (
       final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
@@ -404,7 +433,7 @@ final class AnnotationParserHandlerTest {
 
   @ParameterizedTest
   @ValueSource(booleans = { false, true })
-  void registrationFailureRemainsPrimaryWhenRollbackAlsoFails(final boolean sameFailure) {
+  void shouldKeepTheRegistrationFailurePrimaryWhenRollbackAlsoFails(final boolean sameFailure) {
     final IllegalStateException primary = new IllegalStateException("registration failed");
     final RuntimeException cleanup = sameFailure ? primary : new IllegalArgumentException("browser cleanup failed");
     try (
@@ -431,7 +460,7 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
-  void shutsLaterFeaturesDownEvenWhenAnEarlierFeatureFails() {
+  void shouldShutLaterFeaturesDownEvenWhenAnEarlierFeatureFails() {
     final IllegalStateException failure = new IllegalStateException("browser cleanup failed");
     try (
       final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
@@ -453,7 +482,7 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
-  void rendersDescriptionsWithTheMessagesOfThePlugin() {
+  void shouldRenderDescriptionsWithTheMessagesOfThePlugin() {
     final RichDescription description = AnnotationParserHandler.describe("mcav.command.video.pause.info");
     final Component contents = description.contents();
     final String text = Components.plain(contents);
@@ -465,12 +494,12 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
-  void refusesANullPlugin() {
+  void shouldRefuseANullPlugin() {
     assertThrows(NullPointerException.class, () -> new AnnotationParserHandler(null));
   }
 
   @Test
-  void propagatesFatalRegistrationFailureWithoutAttemptingRollback() {
+  void shouldPropagateFatalRegistrationFailureWithoutAttemptingRollback() {
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
     try (
       final MockedConstruction<BrowserCommand> browsers = Mockito.mockConstruction(BrowserCommand.class, (browser, _) ->
@@ -491,7 +520,7 @@ final class AnnotationParserHandlerTest {
   }
 
   @Test
-  void propagatesFatalCleanupFailureDuringRollback() {
+  void shouldPropagateFatalCleanupFailureDuringRollback() {
     final IllegalStateException primary = new IllegalStateException("registration failed");
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
     try (

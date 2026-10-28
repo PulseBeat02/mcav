@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.testing.UtilityClassAssertions;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
+import net.kyori.adventure.text.Component;
 import org.bukkit.entity.Player;
 import org.junit.jupiter.api.Test;
 
@@ -38,18 +39,31 @@ final class AudioOutputsTest {
   private final AudioProvider provider = mock(AudioProvider.class);
 
   @Test
-  void anOutputThatIsOffOrStillStartingCannotPlay() {
-    assertEquals(Message.UNSUPPORTED_AUDIO.build(), AudioOutputs.findProblem(this.provider, AudioArgument.DISCORD_BOT));
+  void shouldNotPlayAnOutputThatIsOffOrStillStarting() {
+    final Component expected = Message.UNSUPPORTED_AUDIO.build();
+    final Component problem = AudioOutputs.findProblem(this.provider, AudioArgument.DISCORD_BOT);
+    assertEquals(expected, problem);
+
     when(this.provider.isHttpEnabled()).thenReturn(true);
-    assertEquals(Message.AUDIO_NOT_READY.build(), AudioOutputs.findProblem(this.provider, AudioArgument.HTTP_SERVER));
+
+    final Component AUDIO_NOT_READYExpected = Message.AUDIO_NOT_READY.build();
+    final Component audioOutputsProblem = AudioOutputs.findProblem(this.provider, AudioArgument.HTTP_SERVER);
+    assertEquals(AUDIO_NOT_READYExpected, audioOutputsProblem);
+
     when(this.provider.isHttpReady()).thenReturn(true);
-    assertNull(AudioOutputs.findProblem(this.provider, AudioArgument.HTTP_SERVER));
-    assertNull(AudioOutputs.findProblem(this.provider, AudioArgument.NONE));
-    assertNull(AudioOutputs.findProblem(this.provider, AudioArgument.SIMPLE_VOICE_CHAT));
+
+    final Component secondProblem = AudioOutputs.findProblem(this.provider, AudioArgument.HTTP_SERVER);
+    assertNull(secondProblem);
+
+    final Component thirdProblem = AudioOutputs.findProblem(this.provider, AudioArgument.NONE);
+    assertNull(thirdProblem);
+
+    final Component fourthProblem = AudioOutputs.findProblem(this.provider, AudioArgument.SIMPLE_VOICE_CHAT);
+    assertNull(fourthProblem);
   }
 
   @Test
-  void theViewersGetTheLinkOfOutputsThatHaveOne() {
+  void shouldGiveTheViewersTheLinkOfOutputsThatHaveOne() {
     when(this.provider.constructVoiceChannelUrl()).thenReturn("https://discord.com/channels/1/2");
     final Player viewer = mock(Player.class);
     AudioOutputs.sendLink(this.provider, AudioArgument.DISCORD_BOT, new Player[] { viewer });
@@ -58,12 +72,17 @@ final class AudioOutputsTest {
     AudioOutputs.sendLink(this.provider, AudioArgument.NONE, new Player[] { silent });
     verifyNoInteractions(silent);
     when(this.provider.constructHttpUrl()).thenReturn("http://mc.example.com:3000");
-    assertEquals(Message.AUDIO_HTTP.build("http://mc.example.com:3000"), AudioOutputs.createLink(this.provider, AudioArgument.HTTP_SERVER));
-    assertNull(AudioOutputs.createLink(this.provider, AudioArgument.SIMPLE_VOICE_CHAT));
+
+    final Component expected = Message.AUDIO_HTTP.build("http://mc.example.com:3000");
+    final Component link = AudioOutputs.createLink(this.provider, AudioArgument.HTTP_SERVER);
+    assertEquals(expected, link);
+
+    final Component audioOutputsLink = AudioOutputs.createLink(this.provider, AudioArgument.SIMPLE_VOICE_CHAT);
+    assertNull(audioOutputsLink);
   }
 
   @Test
-  void theOutputsAreNotInstantiable() {
+  void shouldRefuseToInstantiateTheOutputs() {
     UtilityClassAssertions.assertNotInstantiable(AudioOutputs.class);
   }
 }

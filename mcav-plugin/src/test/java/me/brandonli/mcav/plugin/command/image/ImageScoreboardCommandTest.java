@@ -104,7 +104,7 @@ final class ImageScoreboardCommandTest {
   }
 
   @Test
-  void showsTheImageOnTheScoreboardOfTheSelectedPlayers() {
+  void shouldShowTheImageOnTheScoreboardOfTheSelectedPlayers() {
     this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, MRL, null);
     final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
     final ScoreboardConfiguration configuration = this.createImage(provider);
@@ -122,7 +122,7 @@ final class ImageScoreboardCommandTest {
   }
 
   @Test
-  void refusesMoreLinesThanAScoreboardShows() {
+  void shouldRefuseMoreLinesThanAScoreboardShows() {
     this.command.showImage(this.sender, this.selector, "24x16", CHARACTER, MRL, null);
     verify(this.command, never()).displayImage(any(), any(), any(), any(), isNull());
     final List<Component> messages = Components.received(this.sender);
@@ -132,7 +132,7 @@ final class ImageScoreboardCommandTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     final AbstractImageCommand.ImageConfigurationProvider provider = _ -> "configuration";
     final Pair<Integer, Integer> resolution = Pair.pair(24, 15);
     assertThrows(NullPointerException.class, () -> this.command.showImage(null, this.selector, RESOLUTION, CHARACTER, MRL, null));

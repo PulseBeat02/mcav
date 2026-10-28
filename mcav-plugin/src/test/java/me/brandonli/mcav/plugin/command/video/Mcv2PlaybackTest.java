@@ -67,7 +67,7 @@ final class Mcv2PlaybackTest {
   }
 
   @Test
-  void waitsForAViewer() {
+  void shouldWaitForAViewer() {
     when(this.channel.getRecipients()).thenReturn(Set.of());
     new Mcv2Playback(this.channel, stream(), 0).run();
     verify(this.channel).update();
@@ -75,11 +75,14 @@ final class Mcv2PlaybackTest {
   }
 
   @Test
-  void loopsWithIdsThatKeepIncreasing() {
+  void shouldLoopWithIdsThatKeepIncreasing() {
     when(this.channel.getRecipients()).thenReturn(Set.of(UUID.randomUUID()));
     final Mcv2Playback playback = new Mcv2Playback(this.channel, stream(), 0);
     playback.run();
-    assertEquals(0, this.sent(1)[0]);
+
+    final long sent = this.sent(1)[0];
+    assertEquals(0, sent);
+
     playback.run();
     playback.run();
     final long[] third = this.sent(3);
@@ -93,13 +96,16 @@ final class Mcv2PlaybackTest {
   }
 
   @Test
-  void startsOverForANewViewer() {
+  void shouldStartOverForANewViewer() {
     when(this.channel.getRecipients()).thenReturn(Set.of(UUID.randomUUID()));
     when(this.channel.takeKeyframeRequest()).thenReturn(true, false, true);
     final Mcv2Playback playback = new Mcv2Playback(this.channel, stream(), 0);
     // a request before the first frame changes nothing: the first frame is the keyframe
     playback.run();
-    assertEquals(0, this.sent(1)[0]);
+
+    final long sent = this.sent(1)[0];
+    assertEquals(0, sent);
+
     playback.run();
     // a request in the middle starts over from the keyframe, three ids later
     playback.run();
@@ -109,13 +115,19 @@ final class Mcv2PlaybackTest {
   }
 
   @Test
-  void numbersItsFramesFromTheFirstFrameIdOfItsSlotAcrossTheWrap() {
+  void shouldNumberItsFramesFromTheFirstFrameIdOfItsSlotAcrossTheWrap() {
     when(this.channel.getRecipients()).thenReturn(Set.of(UUID.randomUUID()));
     final Mcv2Playback playback = new Mcv2Playback(this.channel, stream(), Mcv2Decoder.MAXIMUM_UNSIGNED_INT - 1);
     playback.run();
-    assertEquals(Mcv2Decoder.MAXIMUM_UNSIGNED_INT - 1, this.sent(1)[0]);
+
+    final long sent = this.sent(1)[0];
+    assertEquals(Mcv2Decoder.MAXIMUM_UNSIGNED_INT - 1, sent);
+
     playback.run();
-    assertEquals(Mcv2Decoder.MAXIMUM_UNSIGNED_INT, this.sent(2)[0]);
+
+    final long secondSent = this.sent(2)[0];
+    assertEquals(Mcv2Decoder.MAXIMUM_UNSIGNED_INT, secondSent);
+
     playback.run();
     final long[] third = this.sent(3);
     assertEquals(0, third[0], "the ids wrap like the clients' unsigned 32-bit sequence");
@@ -123,7 +135,7 @@ final class Mcv2PlaybackTest {
   }
 
   @Test
-  void refusesAnEmptyStream() {
+  void shouldRefuseAnEmptyStream() {
     assertThrows(IllegalArgumentException.class, () -> new Mcv2Playback(this.channel, List.of(), 0));
     assertThrows(NullPointerException.class, () -> new Mcv2Playback(null, stream(), 0));
   }

@@ -40,7 +40,7 @@ final class Mcv2HostingTest {
   private static final Path ZIP = Path.of("mcv2", "pack", "mcav-mcv2-1.zip");
 
   @Test
-  void hostsAPackWithTheStrategyOfTheSetting() {
+  void shouldHostAPackWithTheStrategyOfTheSetting() {
     final InjectorHosting injector = mock(InjectorHosting.class);
     final HttpHosting http = mock(HttpHosting.class);
     final WebsiteHosting website = mock(WebsiteHosting.class);
@@ -48,14 +48,20 @@ final class Mcv2HostingTest {
       hostings.when(() -> PackHosting.injector(ZIP)).thenReturn(injector);
       hostings.when(() -> PackHosting.http(ZIP, "mc.example", 8443)).thenReturn(http);
       hostings.when(() -> PackHosting.website(ZIP)).thenReturn(website);
-      assertSame(injector, Mcv2Hosting.INJECTOR.hosting("", 25580).apply(ZIP));
-      assertSame(http, Mcv2Hosting.HTTP.hosting("mc.example", 8443).apply(ZIP));
-      assertSame(website, Mcv2Hosting.WEBSITE.hosting("", 25580).apply(ZIP));
+
+      final PackHosting result = Mcv2Hosting.INJECTOR.hosting("", 25580).apply(ZIP);
+      assertSame(injector, result);
+
+      final PackHosting HTTPResult = Mcv2Hosting.HTTP.hosting("mc.example", 8443).apply(ZIP);
+      assertSame(http, HTTPResult);
+
+      final PackHosting WEBSITEResult = Mcv2Hosting.WEBSITE.hosting("", 25580).apply(ZIP);
+      assertSame(website, WEBSITEResult);
     }
   }
 
   @Test
-  void anHttpServerWithoutAHostNameUsesTheAddressTheServerFinds() {
+  void shouldUseTheAddressTheServerFindsForAnHttpServerWithoutAHostName() {
     final HttpHosting http = mock(HttpHosting.class);
     try (
       final MockedStatic<PackHosting> hostings = Mockito.mockStatic(PackHosting.class);
@@ -63,7 +69,9 @@ final class Mcv2HostingTest {
     ) {
       addresses.when(ServerAddress::getPublicIpAddress).thenReturn("203.0.113.9");
       hostings.when(() -> PackHosting.http(ZIP, "203.0.113.9", 25580)).thenReturn(http);
-      assertSame(http, Mcv2Hosting.HTTP.hosting("", 25580).apply(ZIP));
+
+      final PackHosting result = Mcv2Hosting.HTTP.hosting("", 25580).apply(ZIP);
+      assertSame(http, result);
     }
   }
 }

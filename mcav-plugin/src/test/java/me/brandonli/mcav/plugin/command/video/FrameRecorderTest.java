@@ -37,23 +37,27 @@ final class FrameRecorderTest {
   private Path folder;
 
   @Test
-  void appendsEveryFrameAfterItsLength() throws IOException {
+  void shouldAppendEveryFrameAfterItsLength() throws IOException {
     final Path file = this.folder.resolve("records").resolve("screen-1-5.mcs");
     final FrameRecorder recorder = new FrameRecorder(file);
     recorder.accept(new byte[] { 7, 8, 9 });
     recorder.accept(new byte[] { 1 });
-    assertArrayEquals(new byte[] { 3, 0, 0, 0, 7, 8, 9, 1, 0, 0, 0, 1 }, Files.readAllBytes(file));
+
+    final byte[] allBytes = Files.readAllBytes(file);
+    assertArrayEquals(new byte[] { 3, 0, 0, 0, 7, 8, 9, 1, 0, 0, 0, 1 }, allBytes);
   }
 
   @Test
-  void stopsRecordingAtTheFirstFailure() throws IOException {
+  void shouldStopRecordingAtTheFirstFailure() throws IOException {
     final Path file = this.folder.resolve("screen-1-5.mcs");
     Files.createDirectories(file);
     final FrameRecorder recorder = new FrameRecorder(file);
     recorder.accept(new byte[] { 7 });
     Files.delete(file);
     recorder.accept(new byte[] { 8 });
-    assertFalse(Files.exists(file));
+
+    final boolean exists = Files.exists(file);
+    assertFalse(exists);
     assertThrows(NullPointerException.class, () -> new FrameRecorder(null));
     assertThrows(IllegalArgumentException.class, () -> new FrameRecorder(this.folder.getRoot()));
   }

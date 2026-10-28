@@ -48,7 +48,7 @@ final class QemuHardwareValuesFuzzTest {
   );
 
   @FuzzTest(maxDuration = "30s")
-  void everyTypedValueNamesNoFileOrIsRefused(final byte[] input) {
+  void shouldNameNoFileOrRefuseEveryTypedValue(final byte[] input) {
     if (input.length == 0) {
       return;
     }
@@ -59,12 +59,17 @@ final class QemuHardwareValuesFuzzTest {
     } catch (final IllegalArgumentException refused) {
       return;
     }
-    assertFalse(value.indexOf('/') >= 0 || value.indexOf('\\') >= 0, () -> "-" + option + " accepted a path: " + value);
+
+    final boolean matches = value.indexOf('/') >= 0 || value.indexOf('\\') >= 0;
+    assertFalse(matches, () -> "-" + option + " accepted a path: " + value);
+
     for (final String part : value.split(",", -1)) {
       final int equals = part.indexOf('=');
       if (equals > 0) {
         final String property = part.substring(0, equals);
-        assertFalse(FILE_PROPERTIES.contains(property), () -> "-" + option + " accepted the property " + property + " in " + value);
+
+        final boolean contained = FILE_PROPERTIES.contains(property);
+        assertFalse(contained, () -> "-" + option + " accepted the property " + property + " in " + value);
       }
     }
   }

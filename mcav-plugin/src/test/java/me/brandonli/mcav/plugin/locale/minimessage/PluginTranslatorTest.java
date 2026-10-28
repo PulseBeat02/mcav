@@ -76,20 +76,20 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void isNamedByItsKey() {
+  void shouldBeNamedByItsKey() {
     final Key name = this.translator.name();
     assertSame(KEY, name);
   }
 
   @Test
-  void rendersMessagesWithoutArguments() {
+  void shouldRenderMessagesWithoutArguments() {
     final TranslatableComponent component = Component.translatable("plain");
     final String text = this.render(component);
     assertEquals("Plain text", text);
   }
 
   @Test
-  void insertsArgumentsIntoArgumentTags() {
+  void shouldInsertArgumentsIntoArgumentTags() {
     final TextComponent name = Component.text("Steve");
     final TextComponent role = Component.text("admin");
     final TranslatableComponent component = Component.translatable("colored", name, role);
@@ -102,7 +102,7 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void replacesTheUrlPlaceholderWithTheFirstArgument() {
+  void shouldReplaceTheUrlPlaceholderWithTheFirstArgument() {
     final TextComponent url = Component.text("https://example.com/");
     final TranslatableComponent component = Component.translatable("link", url);
     final String text = this.render(component);
@@ -110,7 +110,7 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void keepsTheChildrenOfTheComponent() {
+  void shouldKeepTheChildrenOfTheComponent() {
     final TranslatableComponent translatable = Component.translatable("plain");
     final TextComponent suffix = Component.text("!");
     final TranslatableComponent component = translatable.append(suffix);
@@ -119,7 +119,7 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void keepsParsedChildrenOriginalSuffixAndFallbackStyle() {
+  void shouldKeepParsedChildrenOriginalSuffixAndFallbackStyle() {
     final TranslatableComponent base = Component.translatable("rich");
     final TranslatableComponent blue = base.color(NamedTextColor.BLUE);
     final TranslatableComponent bold = blue.decorate(TextDecoration.BOLD);
@@ -137,20 +137,20 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void declinesUnknownKeys() {
+  void shouldDeclineUnknownKeys() {
     final TranslatableComponent component = Component.translatable("missing");
     final Component rendered = this.translator.translate(component, Locale.ENGLISH);
     assertNull(rendered);
   }
 
   @Test
-  void doesNotTranslateToMessageFormats() {
+  void shouldNotTranslateToMessageFormats() {
     final MessageFormat rendered = this.translator.translate("plain", Locale.ENGLISH);
     assertNull(rendered);
   }
 
   @Test
-  void resolvesOnlyTheArgumentTag() {
+  void shouldResolveOnlyTheArgumentTag() {
     final List<ComponentLike> arguments = List.of(Component.text("value"));
     final ArgumentTag tag = new ArgumentTag(arguments);
     final boolean hasArg = tag.has("arg");
@@ -160,7 +160,7 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void insertsTheArgumentAtTheIndexOfTheTag() {
+  void shouldInsertTheArgumentAtTheIndexOfTheTag() {
     final List<ComponentLike> arguments = List.of(Component.text("zero"), Component.text("one"));
     final TagResolver tag = new ArgumentTag(arguments);
     final MiniMessage miniMessage = MiniMessage.miniMessage();
@@ -170,7 +170,7 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void usesTheMiniMessageInstanceItWasGiven() {
+  void shouldUseTheMiniMessageInstanceItWasGiven() {
     final MiniMessage.Builder builder = MiniMessage.builder();
     builder.strict(true);
     final MiniMessage strict = builder.build();
@@ -190,7 +190,7 @@ final class PluginTranslatorTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> new ArgumentTag(null));
     assertThrows(NullPointerException.class, () -> new PluginTranslator(KEY, null));
   }

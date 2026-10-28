@@ -89,7 +89,7 @@ final class VideoFlagsParserPropertyTest {
   }
 
   @Property(seed = SEED)
-  void onlyAcceptedOptionsAndTheirValuesReachYtDlp(@ForAll("typedFlags") final String typed) {
+  void shouldPassOnlyAcceptedOptionsAndTheirValuesToYtDlp(@ForAll("typedFlags") final String typed) {
     final String[] arguments;
     try {
       arguments = this.parser.parseYTDLPFlags(typed);
@@ -118,7 +118,7 @@ final class VideoFlagsParserPropertyTest {
   }
 
   @Property(seed = SEED)
-  void findsTheOptionsWhereTheRegularExpressionItReplacedFoundThem(@ForAll("flagTexts") final String flags) {
+  void shouldFindTheOptionsWhereTheRegularExpressionItReplacedFoundThem(@ForAll("flagTexts") final String flags) {
     final Matcher matcher = ORIGINAL_OPTIONS.matcher(flags);
     final boolean found = matcher.find();
     final String group = found ? matcher.group(1) : null;
@@ -156,7 +156,7 @@ final class VideoFlagsParserPropertyTest {
    * and values they meant.
    */
   @Property(seed = SEED)
-  void escapedValuesReachYtDlpUnchanged(@ForAll("validOptions") final List<String[]> options) {
+  void shouldPassEscapedValuesToYtDlpUnchanged(@ForAll("validOptions") final List<String[]> options) {
     final List<String> typedOptions = new ArrayList<>();
     final List<String> expected = new ArrayList<>();
     for (final String[] option : options) {

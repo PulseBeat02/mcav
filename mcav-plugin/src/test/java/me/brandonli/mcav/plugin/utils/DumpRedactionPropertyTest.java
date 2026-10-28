@@ -103,7 +103,7 @@ final class DumpRedactionPropertyTest {
   }
 
   @Property(seed = SEED)
-  void noSecretOfAWebAddressSurvivesTheRedaction(
+  void shouldLetNoSecretOfAWebAddressSurviveTheRedaction(
     @ForAll("hosts") final String host,
     @ForAll("secrets") final String user,
     @ForAll("secrets") final String query,
@@ -119,13 +119,17 @@ final class DumpRedactionPropertyTest {
     for (final String line : lines) {
       final String redacted = DumpUtils.redactLogLine(line);
       for (final String secret : List.of(user, query, fragment)) {
-        assertFalse(redacted.contains(secret), () -> "the secret " + secret + " survives in: " + redacted);
+        final boolean contained = redacted.contains(secret);
+        assertFalse(contained, () -> "the secret " + secret + " survives in: " + redacted);
       }
     }
   }
 
   @Property(seed = SEED)
-  void noPlayerAddressSurvivesTheRedaction(@ForAll("addresses") final InetSocketAddress connection, @ForAll("names") final String name) {
+  void shouldLetNoPlayerAddressSurviveTheRedaction(
+    @ForAll("addresses") final InetSocketAddress connection,
+    @ForAll("names") final String name
+  ) {
     final String socket = connection.toString();
     final InetAddress address = connection.getAddress();
     final String host = address.getHostAddress();

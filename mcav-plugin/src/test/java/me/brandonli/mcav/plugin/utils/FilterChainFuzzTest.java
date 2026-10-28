@@ -34,17 +34,23 @@ final class FilterChainFuzzTest {
   private static final Path NO_OVERLAYS = Path.of("no-overlays-here");
 
   @FuzzTest(maxDuration = "30s")
-  void everyTypedChainIsBoundedOrRefused(final FuzzedDataProvider data) {
+  void shouldBoundOrRefuseEveryTypedChain(final FuzzedDataProvider data) {
     final boolean isVideo = data.consumeBoolean();
     final String text = data.consumeRemainingAsString();
     final FilterChain chain;
     try {
       chain = FilterChain.parse(text, NO_OVERLAYS, isVideo);
     } catch (final IllegalArgumentException refused) {
-      assertTrue(refused.getMessage() != null && !refused.getMessage().isBlank(), text);
+      final boolean thirdMatches = refused.getMessage() != null && !refused.getMessage().isBlank();
+      assertTrue(thirdMatches, text);
+
       return;
     }
-    assertTrue(text.length() <= FilterChain.MAX_LENGTH, text);
-    assertTrue(chain.create().size() <= FilterChain.MAX_FILTERS, text);
+
+    final boolean matches = text.length() <= FilterChain.MAX_LENGTH;
+    assertTrue(matches, text);
+
+    final boolean secondMatches = chain.create().size() <= FilterChain.MAX_FILTERS;
+    assertTrue(secondMatches, text);
   }
 }

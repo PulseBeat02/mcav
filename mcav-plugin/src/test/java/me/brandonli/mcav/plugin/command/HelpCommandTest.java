@@ -103,7 +103,7 @@ final class HelpCommandTest {
   }
 
   @Test
-  void listsTheCommandsWithTheirTranslatedDescriptions() {
+  void shouldListTheCommandsWithTheirTranslatedDescriptions() {
     this.help.commandHelp(this.sender, null);
     final String text = this.helpText();
     final boolean title = text.contains("Available Commands");
@@ -121,7 +121,7 @@ final class HelpCommandTest {
   }
 
   @Test
-  void showsOnlyTheCommandsMatchingAQuery() {
+  void shouldShowOnlyTheCommandsMatchingAQuery() {
     this.help.commandHelp(this.sender, "dump");
     final String text = this.helpText();
     final boolean dumpListed = text.contains("/mcav dump");
@@ -180,7 +180,7 @@ final class HelpCommandTest {
   }
 
   @Test
-  void translatesEveryTextOfTheHelp() {
+  void shouldTranslateEveryTextOfTheHelp() {
     final Map<String, String> messages = HelpCommand.createMessages();
     final Map<String, String> expected = new HashMap<>();
     putListingMessages(expected);
@@ -194,7 +194,7 @@ final class HelpCommandTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> new HelpCommand(null));
     assertThrows(NullPointerException.class, () -> this.help.commandHelp(null, "dump"));
   }

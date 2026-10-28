@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
 final class CleanupUtilsTest {
 
   @Test
-  void attemptsEveryCleanupAndPreservesAllFailures() {
+  void shouldAttemptEveryCleanupAndPreserveAllFailures() {
     final List<Integer> cleaned = new ArrayList<>();
     final IllegalStateException first = new IllegalStateException("first");
     final IllegalArgumentException second = new IllegalArgumentException("second");
@@ -55,7 +55,7 @@ final class CleanupUtilsTest {
   }
 
   @Test
-  void preservesAnErrorAndDoesNotSuppressItAgainstItself() {
+  void shouldPreserveAnErrorAndNotSuppressItAgainstItself() {
     final AssertionError failure = new AssertionError("failed cleanup");
     final List<Integer> cleaned = new ArrayList<>();
     final AssertionError thrown = assertThrows(AssertionError.class, () ->
@@ -77,7 +77,7 @@ final class CleanupUtilsTest {
   }
 
   @Test
-  void propagatesFatalFailuresWithoutAttemptingLaterCleanup() {
+  void shouldPropagateFatalFailuresWithoutAttemptingLaterCleanup() {
     final OutOfMemoryError fatal = new OutOfMemoryError("fatal cleanup failure");
     final List<Integer> cleaned = new ArrayList<>();
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
@@ -94,7 +94,7 @@ final class CleanupUtilsTest {
   }
 
   @Test
-  void acceptsNoActionsAndRejectsANullArray() {
+  void shouldAcceptNoActionsAndRejectANullArray() {
     CleanupUtils.runAll();
     assertThrows(NullPointerException.class, () -> CleanupUtils.runAll((Runnable[]) null));
     UtilityClassAssertions.assertNotInstantiable(CleanupUtils.class);

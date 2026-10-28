@@ -105,7 +105,7 @@ final class ImageBlockCommandTest {
   }
 
   @Test
-  void showsTheImageAsBlocksToTheSelectedPlayers() {
+  void shouldShowTheImageAsBlocksToTheSelectedPlayers() {
     this.command.showImage(this.sender, this.selector, RESOLUTION, this.location, MRL, null);
     final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
     final BlockConfiguration configuration = this.createImage(provider);
@@ -123,7 +123,7 @@ final class ImageBlockCommandTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     final AbstractImageCommand.ImageConfigurationProvider provider = _ -> "configuration";
     final Pair<Integer, Integer> resolution = Pair.pair(4, 2);
     assertThrows(NullPointerException.class, () -> this.command.showImage(null, this.selector, RESOLUTION, this.location, MRL, null));

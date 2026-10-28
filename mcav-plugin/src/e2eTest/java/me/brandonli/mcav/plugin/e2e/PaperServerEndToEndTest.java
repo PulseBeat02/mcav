@@ -118,7 +118,7 @@ final class PaperServerEndToEndTest {
     "{\"block\":\"minecraft:grass_block\",\"height\":1}],\"biome\":\"minecraft:plains\"}";
 
   @Test
-  void enablesThePluginWithItsAudioOutputsOnAHeadlessServer(@TempDir final Path serverDirectory) throws Exception {
+  void shouldEnableThePluginWithItsAudioOutputsOnAHeadlessServer(@TempDir final Path serverDirectory) throws Exception {
     final boolean eulaAccepted = Boolean.getBoolean("mcav.e2e.acceptEula");
     Assumptions.assumeTrue(eulaAccepted, "Running a Minecraft server needs the Minecraft EULA; pass -Pmcav.acceptMinecraftEula=true");
     final Path cache = requirePath("mcav.e2e.cacheDirectory");
@@ -193,7 +193,10 @@ final class PaperServerEndToEndTest {
         expected.add(fields[1]);
       }
     }
-    assertTrue(!expected.isEmpty(), "the plugin must request the modules of this build");
+
+    final boolean matches = !expected.isEmpty();
+    assertTrue(matches, "the plugin must request the modules of this build");
+
     final Path modules = serverDirectory.resolve("libraries/mcav/me/brandonli");
     final List<Path> files;
     try (final Stream<Path> walk = Files.walk(modules)) {
@@ -208,7 +211,8 @@ final class PaperServerEndToEndTest {
       }
     }
     for (final String digest : expected) {
-      assertTrue(actual.contains(digest), "the running server's module cache must contain build digest " + digest);
+      final boolean contained = actual.contains(digest);
+      assertTrue(contained, "the running server's module cache must contain build digest " + digest);
     }
   }
 
@@ -257,11 +261,17 @@ final class PaperServerEndToEndTest {
     server.awaitLine(firstLine, line -> line.contains("Maps 0 to 5 show their first picture"), COMMAND_TIMEOUT);
     final double frequency = sound.awaitFrequency(2, SOUND_TIMEOUT);
     System.out.printf(Locale.ROOT, "The page of the browser plays %.1f Hz in the audio web page%n", frequency);
-    assertTrue(Math.abs(frequency - TonePage.TONE_HERTZ) < 20, "the tone of the page has " + frequency + " Hz");
+
+    final boolean matches = Math.abs(frequency - TonePage.TONE_HERTZ) < 20;
+    assertTrue(matches, "the tone of the page has " + frequency + " Hz");
+
     // a helper runs the Java of the server, which starts no other Java; CEF's processes run programs of its folder
     final Predicate<String> browser = command -> isJava(command) || command.contains("jcef") || command.contains("Xvfb");
     final List<ProcessHandle> running = server.findDescendants(browser);
-    assertFalse(running.isEmpty(), "the browser runs in processes of its own");
+
+    final boolean empty = running.isEmpty();
+    assertFalse(empty, "the browser runs in processes of its own");
+
     runCommand(server, "mcav browser release", "Browser released!", COMMAND_TIMEOUT);
     awaitNoneLeft(server, "browser", browser, running);
   }
@@ -280,10 +290,16 @@ final class PaperServerEndToEndTest {
     server.awaitLine(firstLine, line -> line.contains("Maps 6 to 11 show their first picture"), COMMAND_TIMEOUT);
     final double frequency = sound.awaitFrequency(2, SOUND_TIMEOUT);
     System.out.printf(Locale.ROOT, "The virtual machine plays %.1f Hz in the audio web page%n", frequency);
-    assertTrue(Math.abs(frequency - TonePage.TONE_HERTZ) < 20, "the tone of the machine has " + frequency + " Hz");
+
+    final boolean matches = Math.abs(frequency - TonePage.TONE_HERTZ) < 20;
+    assertTrue(matches, "the tone of the machine has " + frequency + " Hz");
+
     final Predicate<String> machine = command -> command.contains("qemu-system");
     final List<ProcessHandle> running = server.findDescendants(machine);
-    assertFalse(running.isEmpty(), "the machine runs in a QEMU process");
+
+    final boolean empty = running.isEmpty();
+    assertFalse(empty, "the machine runs in a QEMU process");
+
     runCommand(server, "mcav vm release", "Virtual machine released!", COMMAND_TIMEOUT);
     awaitNoneLeft(server, "virtual machine", machine, running);
   }
@@ -303,9 +319,15 @@ final class PaperServerEndToEndTest {
     }
     runCommand(server, "mcav vnc release", "VNC desktop released!");
     System.out.printf(Locale.ROOT, "The VNC desktop logged in %d time(s) and sent %d updates%n", vnc.getLogins(), vnc.getUpdates());
-    assertEquals(1, vnc.getLogins(), "the plugin logs in with the listed password");
-    assertEquals(0, vnc.getRefused(), "and never with another");
-    assertTrue(vnc.getUpdates() > 1, "the desktop's pictures reach the maps");
+
+    final int logins = vnc.getLogins();
+    assertEquals(1, logins, "the plugin logs in with the listed password");
+
+    final int refused = vnc.getRefused();
+    assertEquals(0, refused, "and never with another");
+
+    final boolean matches = vnc.getUpdates() > 1;
+    assertTrue(matches, "the desktop's pictures reach the maps");
   }
 
   /**
@@ -326,23 +348,33 @@ final class PaperServerEndToEndTest {
     );
     final String served = server.awaitLine(firstLine, line -> PACK_SERVED.matcher(line).find(), COMMAND_TIMEOUT);
     final Matcher matcher = PACK_SERVED.matcher(served);
-    assertTrue(matcher.find(), served);
+
+    final boolean found = matcher.find();
+    assertTrue(found, served);
+
     final URI pack = URI.create(matcher.group(2));
-    assertEquals(gamePort, pack.getPort(), "the pack is hosted on the game port");
+
+    final int port = pack.getPort();
+    assertEquals(gamePort, port, "the pack is hosted on the game port");
+
     final byte[] zip = fetchBytes(pack);
     final String sha1 = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-1").digest(zip));
     final UUID id = UUID.nameUUIDFromBytes(("mcav-mcv2:" + sha1).getBytes(StandardCharsets.UTF_8));
-    assertEquals(matcher.group(1), id.toString(), "the pack's id is derived from its hash");
+
+    final String expected = matcher.group(1);
+    final String text = id.toString();
+    assertEquals(expected, text, "the pack's id is derived from its hash");
+
     final Set<String> entries = new HashSet<>();
     try (final ZipInputStream input = new ZipInputStream(new ByteArrayInputStream(zip))) {
       for (ZipEntry entry = input.getNextEntry(); entry != null; entry = input.getNextEntry()) {
         entries.add(entry.getName());
       }
     }
-    assertTrue(
-      entries.contains("pack.mcmeta") && entries.contains("assets/minecraft/post_effect/entity_outline.json"),
-      String.valueOf(entries)
-    );
+
+    final boolean matches = entries.contains("pack.mcmeta") && entries.contains("assets/minecraft/post_effect/entity_outline.json");
+    assertTrue(matches, String.valueOf(entries));
+
     System.out.println("The MCV2 pack " + id + " of " + zip.length + " bytes is hosted at " + pack);
     runCommand(server, "mcav browser release", "Browser released!", COMMAND_TIMEOUT);
     assertLogged(server.getLines(), "MCV2 kernels: ");
@@ -462,7 +494,10 @@ final class PaperServerEndToEndTest {
     final HttpRequest request = HttpRequest.newBuilder(uri).timeout(REQUEST_TIMEOUT).build();
     try (final HttpClient client = HttpClient.newHttpClient()) {
       final HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-      assertEquals(HTTP_OK, response.statusCode(), "the server hosts " + uri);
+
+      final int statusCode = response.statusCode();
+      assertEquals(HTTP_OK, statusCode, "the server hosts " + uri);
+
       return response.body();
     }
   }

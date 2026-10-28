@@ -81,18 +81,19 @@ final class VideoPlaybackCommandTest {
   }
 
   private void assertReceived(final Component... expected) {
-    assertEquals(List.of(expected), Components.received(this.sender));
+    final List<Component> received = Components.received(this.sender);
+    assertEquals(List.of(expected), received);
   }
 
   @Test
-  void refusesWhatIsNotATimeAndAnswersWithoutAVideo() {
+  void shouldRefuseWhatIsNotATimeAndAnswerWithoutAVideo() {
     this.command.seekVideo(this.sender, "1:60");
     this.command.seekVideo(this.sender, "+10");
     this.assertReceived(Message.SEEK_INVALID.build("1:60"), Message.SEEK_FAILED.build());
   }
 
   @Test
-  void jumpsFromWhereADecodedVideoPlays() {
+  void shouldJumpFromWhereADecodedVideoPlays() {
     when(this.manager.getPlayer()).thenReturn(this.decoded);
     when(this.decoded.getPositionMilliseconds()).thenReturn(5_000L);
     when(this.decoded.seek(anyLong())).thenReturn(true);
@@ -104,7 +105,7 @@ final class VideoPlaybackCommandTest {
   }
 
   @Test
-  void jumpsOnlyToATimeFromTheStartWithAPlayerThatDoesNotTellItsPosition() {
+  void shouldJumpOnlyToATimeFromTheStartWithAPlayerThatDoesNotTellItsPosition() {
     when(this.manager.getPlayer()).thenReturn(this.other);
     when(this.other.seek(90_000L)).thenReturn(true);
     this.command.seekVideo(this.sender, "-10");
@@ -114,7 +115,7 @@ final class VideoPlaybackCommandTest {
   }
 
   @Test
-  void reportsAJumpThatFailsOrThrows() {
+  void shouldReportAJumpThatFailsOrThrows() {
     when(this.manager.getPlayer()).thenReturn(this.other);
     when(this.other.seek(1_000L)).thenReturn(false);
     when(this.other.seek(2_000L)).thenThrow(new IllegalStateException("the grabber broke"));
@@ -125,20 +126,28 @@ final class VideoPlaybackCommandTest {
       output = errors.getOutput();
     }
     this.assertReceived(Message.SEEK_FAILED.build(), Message.SEEK_FAILED.build());
-    assertTrue(output.contains("Failed to seek the video") && output.contains("the grabber broke"), output);
+
+    final boolean matches = output.contains("Failed to seek the video") && output.contains("the grabber broke");
+    assertTrue(matches, output);
   }
 
   @Test
-  void setsTheVolumeInPercent() {
+  void shouldSetTheVolumeInPercent() {
     this.command.setVolume(this.sender, 80);
-    assertEquals(0.8, this.volume.getVolume());
+
+    final double volume = this.volume.getVolume();
+    assertEquals(0.8, volume);
+
     this.command.setVolume(this.sender, 200);
-    assertEquals(VolumeFilter.MAXIMUM_VOLUME, this.volume.getVolume());
+
+    final double volumeVolume = this.volume.getVolume();
+    assertEquals(VolumeFilter.MAXIMUM_VOLUME, volumeVolume);
+
     this.assertReceived(Message.VOLUME_SET.build(80), Message.VOLUME_SET.build(200));
   }
 
   @Test
-  void changesTheSpeedOfAFileOnly() {
+  void shouldChangeTheSpeedOfAFileOnly() {
     this.command.setSpeed(this.sender, 1.5);
     when(this.manager.getPlayer()).thenReturn(this.other);
     this.command.setSpeed(this.sender, 1.5);
@@ -160,7 +169,7 @@ final class VideoPlaybackCommandTest {
   }
 
   @Test
-  void loopsAndSaysWhenThePlayerCannot() {
+  void shouldLoopAndSayWhenThePlayerCannot() {
     this.command.setLoop(this.sender, true);
     when(this.manager.getPlayer()).thenReturn(this.other);
     this.command.setLoop(this.sender, true);

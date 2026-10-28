@@ -28,35 +28,61 @@ import org.junit.jupiter.api.Test;
 final class WallPictureTest {
 
   @Test
-  void aStretchedPictureScalesTheWallToTheSource() {
+  void shouldScaleTheWallToTheSourceForAStretchedPicture() {
     final WallPicture picture = WallPicture.of(10, 6, 1280, 720, true);
-    assertArrayEquals(new int[] { 640, 360 }, picture.toSource(640, 384));
-    assertArrayEquals(new int[] { 1279, 719 }, picture.toSource(1279, 767));
-    assertArrayEquals(new int[] { 0, 0 }, picture.toSource(0, 0));
+
+    final int[] source = picture.toSource(640, 384);
+    assertArrayEquals(new int[] { 640, 360 }, source);
+
+    final int[] pictureSource = picture.toSource(1279, 767);
+    assertArrayEquals(new int[] { 1279, 719 }, pictureSource);
+
+    final int[] secondSource = picture.toSource(0, 0);
+    assertArrayEquals(new int[] { 0, 0 }, secondSource);
   }
 
   @Test
-  void aCentredPictureShiftsByItsBorderAndHasNoPixelThere() {
+  void shouldShiftACentredPictureByItsBorderAndLeaveNoPixelThere() {
     final WallPicture picture = WallPicture.of(10, 6, 1280, 720, false);
-    assertArrayEquals(new int[] { 640, 360 }, picture.toSource(640, 384));
-    assertArrayEquals(new int[] { 100, 0 }, picture.toSource(100, 24));
-    assertArrayEquals(new int[] { 100, 719 }, picture.toSource(100, 743));
-    assertNull(picture.toSource(100, 23));
-    assertNull(picture.toSource(100, 744));
+
+    final int[] source = picture.toSource(640, 384);
+    assertArrayEquals(new int[] { 640, 360 }, source);
+
+    final int[] pictureSource = picture.toSource(100, 24);
+    assertArrayEquals(new int[] { 100, 0 }, pictureSource);
+
+    final int[] secondSource = picture.toSource(100, 743);
+    assertArrayEquals(new int[] { 100, 719 }, secondSource);
+
+    final int[] thirdSource = picture.toSource(100, 23);
+    assertNull(thirdSource);
+
+    final int[] fourthSource = picture.toSource(100, 744);
+    assertNull(fourthSource);
   }
 
   @Test
-  void aCentredPictureLargerThanTheWallIsCutOffEquallyOnEachSide() {
+  void shouldCutOffACentredPictureLargerThanTheWallEquallyOnEachSide() {
     final WallPicture picture = WallPicture.of(10, 6, 1920, 1080, false);
-    assertArrayEquals(new int[] { 320, 156 }, picture.toSource(0, 0));
-    assertArrayEquals(new int[] { 1599, 923 }, picture.toSource(1279, 767));
+
+    final int[] source = picture.toSource(0, 0);
+    assertArrayEquals(new int[] { 320, 156 }, source);
+
+    final int[] pictureSource = picture.toSource(1279, 767);
+    assertArrayEquals(new int[] { 1599, 923 }, pictureSource);
   }
 
   @Test
-  void aCentredPictureNarrowerThanTheWallHasNoPixelOnItsSides() {
+  void shouldLeaveNoPixelOnTheSidesOfACentredPictureNarrowerThanTheWall() {
     final WallPicture picture = WallPicture.of(4, 3, 384, 384, false);
-    assertNull(picture.toSource(63, 10));
-    assertArrayEquals(new int[] { 0, 10 }, picture.toSource(64, 10));
-    assertNull(picture.toSource(448, 10));
+
+    final int[] source = picture.toSource(63, 10);
+    assertNull(source);
+
+    final int[] pictureSource = picture.toSource(64, 10);
+    assertArrayEquals(new int[] { 0, 10 }, pictureSource);
+
+    final int[] secondSource = picture.toSource(448, 10);
+    assertNull(secondSource);
   }
 }

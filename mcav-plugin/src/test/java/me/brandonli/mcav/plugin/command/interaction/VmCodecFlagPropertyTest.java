@@ -59,7 +59,7 @@ final class VmCodecFlagPropertyTest {
   }
 
   @Property(seed = SEED)
-  void splitsOffTheCodecAtTheEnd(
+  void shouldSplitOffTheCodecAtTheEnd(
     @ForAll("options") final String options,
     @ForAll final MapCodec codec,
     @ForAll final boolean upper,
@@ -67,26 +67,38 @@ final class VmCodecFlagPropertyTest {
   ) {
     final String name = upper ? codec.name() : codec.name().toLowerCase(Locale.ROOT);
     final VirtualizeCommand.CodecSplit split = VirtualizeCommand.splitCodec(options + gap + "--codec" + gap + name + gap);
-    assertEquals(new VirtualizeCommand.CodecSplit(options.strip(), codec), split);
+
+    final VirtualizeCommand.CodecSplit expected = new VirtualizeCommand.CodecSplit(options.strip(), codec);
+    assertEquals(expected, split);
   }
 
   @Property(seed = SEED)
-  void leavesOptionsWithoutATrailingCodecWhole(@ForAll("options") final String options) {
-    assertEquals(new VirtualizeCommand.CodecSplit(options, null), VirtualizeCommand.splitCodec(options));
+  void shouldLeaveOptionsWithoutATrailingCodecWhole(@ForAll("options") final String options) {
+    final VirtualizeCommand.CodecSplit expected = new VirtualizeCommand.CodecSplit(options, null);
+    final VirtualizeCommand.CodecSplit split = VirtualizeCommand.splitCodec(options);
+    assertEquals(expected, split);
   }
 
   @Property(seed = SEED)
-  void splitsWhateverIsTypedIntoAPrefixAndACodecOrNothing(@ForAll final String typed) {
+  void shouldSplitWhateverIsTypedIntoAPrefixAndACodecOrNothing(@ForAll final String typed) {
     final VirtualizeCommand.CodecSplit split = VirtualizeCommand.splitCodec(typed);
     if (split == null) {
-      assertTrue(typed.contains("--codec"), typed);
+      final boolean contained = typed.contains("--codec");
+      assertTrue(contained, typed);
+
       return;
     }
     if (split.codec() == null) {
-      assertEquals(typed, split.options());
+      final String options = split.options();
+      assertEquals(typed, options);
+
       return;
     }
-    assertTrue(typed.startsWith(split.options()), typed);
-    assertTrue(typed.strip().toLowerCase(Locale.ROOT).endsWith(split.codec().name().toLowerCase(Locale.ROOT)), typed);
+
+    final boolean prefixed = typed.startsWith(split.options());
+    assertTrue(prefixed, typed);
+
+    final boolean suffixed = typed.strip().toLowerCase(Locale.ROOT).endsWith(split.codec().name().toLowerCase(Locale.ROOT));
+    assertTrue(suffixed, typed);
   }
 }

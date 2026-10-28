@@ -52,7 +52,7 @@ final class ScoreboardArgumentsTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "24x1", "24x15", "1x15" })
-  void acceptsHeightsUpToTheLineLimit(final String resolution) {
+  void shouldAcceptHeightsUpToTheLineLimit(final String resolution) {
     final boolean fits = ScoreboardArguments.checkLines(this.sender, resolution);
     assertTrue(fits);
     verify(this.sender, never()).sendMessage(any(Component.class));
@@ -60,7 +60,7 @@ final class ScoreboardArgumentsTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "24x16", "8x100" })
-  void refusesHeightsAboveTheLineLimitAndTellsTheSender(final String resolution) {
+  void shouldRefuseHeightsAboveTheLineLimitAndTellTheSender(final String resolution) {
     final boolean fits = ScoreboardArguments.checkLines(this.sender, resolution);
     assertFalse(fits);
     final List<Component> messages = Components.received(this.sender);
@@ -71,14 +71,14 @@ final class ScoreboardArgumentsTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "wide", "24x", "0x5" })
-  void leavesResolutionsThatCannotBeParsedToTheCommand(final String resolution) {
+  void shouldLeaveResolutionsThatCannotBeParsedToTheCommand(final String resolution) {
     final boolean fits = ScoreboardArguments.checkLines(this.sender, resolution);
     assertTrue(fits);
     verify(this.sender, never()).sendMessage(any(Component.class));
   }
 
   @Test
-  void usesTheLineLimitOfTheLibrary() {
+  void shouldUseTheLineLimitOfTheLibrary() {
     final int limit = ScoreboardConfiguration.MAXIMUM_LINES;
     final boolean atLimit = ScoreboardArguments.checkLines(this.sender, "24x" + limit);
     final int above = limit + 1;
@@ -88,13 +88,13 @@ final class ScoreboardArgumentsTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     assertThrows(NullPointerException.class, () -> ScoreboardArguments.checkLines(null, "24x15"));
     assertThrows(NullPointerException.class, () -> ScoreboardArguments.checkLines(this.sender, null));
   }
 
   @Test
-  void isNotInstantiable() {
+  void shouldNotBeInstantiable() {
     UtilityClassAssertions.assertNotInstantiable(ScoreboardArguments.class);
   }
 }

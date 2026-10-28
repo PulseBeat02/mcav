@@ -66,7 +66,7 @@ final class LocaleToolsTest {
   }
 
   @Test
-  void rendersAMessageWithoutArguments() {
+  void shouldRenderAMessageWithoutArguments() {
     final LocaleTools.NullComponent message = LocaleTools.direct("mcav.command.screen.build");
     final Component component = message.build();
     final String text = Components.plain(component);
@@ -76,7 +76,7 @@ final class LocaleToolsTest {
   }
 
   @Test
-  void insertsTheArgumentIntoTheUrlPlaceholders() {
+  void shouldInsertTheArgumentIntoTheUrlPlaceholders() {
     final LocaleTools.UniComponent<String> message = LocaleTools.direct(LINK_KEY, null);
     final Component component = message.build("http://localhost:3000/");
     final String text = Components.plain(component);
@@ -95,7 +95,7 @@ final class LocaleToolsTest {
   }
 
   @Test
-  void convertsTheArgumentWithTheFunction() {
+  void shouldConvertTheArgumentWithTheFunction() {
     final Function<Integer, String> function = port -> "http://localhost:" + port + "/";
     final LocaleTools.UniComponent<Integer> message = LocaleTools.direct(LINK_KEY, function);
     final Component component = message.build(8080);
@@ -104,18 +104,20 @@ final class LocaleToolsTest {
   }
 
   @Test
-  void rendersMessagesWithTwoArguments() {
+  void shouldRenderMessagesWithTwoArguments() {
     final Function<String, String> upper = value -> value.toUpperCase(Locale.ROOT);
     final LocaleTools.BiComponent<String, String> message = LocaleTools.direct(LINK_KEY, upper, null);
     final Component component = message.build("http://a/", "ignored");
     final String text = Components.plain(component);
     assertEquals(LINK_PREFIX + "HTTP://A/", text);
     final LocaleTools.BiComponent<String, String> pair = LocaleTools.direct("mcav.test.two", upper, value -> "length=" + value.length());
-    assertEquals("FIRST|length=6", Components.plain(assertDoesNotThrow(() -> pair.build("first", "second"))));
+
+    final String componentsText = Components.plain(assertDoesNotThrow(() -> pair.build("first", "second")));
+    assertEquals("FIRST|length=6", componentsText);
   }
 
   @Test
-  void rendersMessagesWithThreeArguments() {
+  void shouldRenderMessagesWithThreeArguments() {
     final LocaleTools.TriComponent<String, String, String> message = LocaleTools.direct(LINK_KEY, null, null, null);
     final Component component = message.build("http://b/", "second", "third");
     final String text = Components.plain(component);
@@ -126,11 +128,13 @@ final class LocaleToolsTest {
       value -> "[" + value + "]",
       value -> "number=" + value
     );
-    assertEquals("FIRST|[second]|number=3", Components.plain(triple.build("first", "second", 3)));
+
+    final String componentsText = Components.plain(triple.build("first", "second", 3));
+    assertEquals("FIRST|[second]|number=3", componentsText);
   }
 
   @Test
-  void rendersNullArgumentsAsEmptyText() {
+  void shouldRenderNullArgumentsAsEmptyText() {
     final Component empty = LocaleTools.createFinalText(null, null);
     final Component converted = LocaleTools.createFinalText(null, _ -> "fallback");
     final String emptyText = Components.plain(empty);
@@ -140,20 +144,20 @@ final class LocaleToolsTest {
   }
 
   @Test
-  void rendersArgumentsWithToStringWithoutFunction() {
+  void shouldRenderArgumentsWithToStringWithoutFunction() {
     final Component component = LocaleTools.createFinalText(42, null);
     final String text = Components.plain(component);
     assertEquals("42", text);
   }
 
   @Test
-  void failsForUnknownKeysWhenBuilt() {
+  void shouldFailForUnknownKeysWhenBuilt() {
     final LocaleTools.NullComponent message = LocaleTools.direct("mcav.unknown.key");
     assertThrows(MissingResourceException.class, message::build);
   }
 
   @Test
-  void refusesNullKeys() {
+  void shouldRefuseNullKeys() {
     assertThrows(NullPointerException.class, () -> LocaleTools.direct(null));
     assertThrows(NullPointerException.class, () -> LocaleTools.direct(null, null));
     assertThrows(NullPointerException.class, () -> LocaleTools.direct(null, null, null));
@@ -161,14 +165,18 @@ final class LocaleToolsTest {
   }
 
   @Test
-  void sharesOneTranslationManager() {
+  void shouldShareOneTranslationManager() {
     final TranslationManager manager = LocaleTools.MANAGER;
     assertNotNull(manager);
     try (final MockedConstruction<TranslationManager> managers = Mockito.mockConstruction(TranslationManager.class)) {
       final Component first = LocaleTools.direct("mcav.command.screen.build").build();
       final Component second = LocaleTools.direct("mcav.command.screen.build").build();
-      assertEquals(List.of(), managers.constructed(), "message builders share the initialized manager");
-      assertEquals("Built a new map screen!", Components.plain(first));
+
+      final List<TranslationManager> constructed = managers.constructed();
+      assertEquals(List.of(), constructed, "message builders share the initialized manager");
+
+      final String text = Components.plain(first);
+      assertEquals("Built a new map screen!", text);
       assertEquals(first, second);
     }
   }

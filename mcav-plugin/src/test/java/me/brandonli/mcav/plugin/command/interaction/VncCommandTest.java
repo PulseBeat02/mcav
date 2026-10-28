@@ -116,11 +116,12 @@ final class VncCommandTest {
   }
 
   private void assertReceived(final Component... expected) {
-    assertEquals(List.of(expected), Components.received(this.sender));
+    final List<Component> received = Components.received(this.sender);
+    assertEquals(List.of(expected), received);
   }
 
   @Test
-  void connectsToAListedServerWithThePasswordOfItsEntry() {
+  void shouldConnectToAListedServerWithThePasswordOfItsEntry() {
     when(this.desktop.startAsync(any(VncSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
 
     this.create("1280x720", "127.0.0.1:5901");
@@ -128,19 +129,32 @@ final class VncCommandTest {
     final ArgumentCaptor<VncSource> sources = ArgumentCaptor.forClass(VncSource.class);
     verify(this.desktop).startAsync(sources.capture(), any());
     final VncSource source = sources.getValue();
-    assertEquals("127.0.0.1", source.getHost());
-    assertEquals(5901, source.getPort());
-    assertEquals(Optional.of("secret"), source.getPassword());
-    assertEquals(1280, source.getScreenWidth());
-    assertEquals(720, source.getScreenHeight());
-    assertEquals(20, source.getTargetFrameRate());
+
+    final String host = source.getHost();
+    assertEquals("127.0.0.1", host);
+
+    final int port = source.getPort();
+    assertEquals(5901, port);
+
+    final Optional<String> password = source.getPassword();
+    assertEquals(Optional.of("secret"), password);
+
+    final int screenWidth = source.getScreenWidth();
+    assertEquals(1280, screenWidth);
+
+    final int screenHeight = source.getScreenHeight();
+    assertEquals(720, screenHeight);
+
+    final int targetFrameRate = source.getTargetFrameRate();
+    assertEquals(20, targetFrameRate);
+
     verify(this.callback).attach(any(VideoPipelineStep.class));
     assertSame(this.desktop, this.command.player);
     this.assertReceived(Message.VNC_LOADING.build(), Message.VNC_CREATE.build());
   }
 
   @Test
-  void connectsToNoServerThatIsNotListed() {
+  void shouldConnectToNoServerThatIsNotListed() {
     this.create("1280x720", "10.0.0.2:5900");
 
     this.assertReceived(Message.VNC_NOT_ALLOWED.build("10.0.0.2:5900"));
@@ -149,7 +163,7 @@ final class VncCommandTest {
   }
 
   @Test
-  void connectsToNothingWithInvalidDimensions() {
+  void shouldConnectToNothingWithInvalidDimensions() {
     this.create("wide", "127.0.0.1:5901");
 
     this.desktops.verifyNoInteractions();
@@ -157,7 +171,7 @@ final class VncCommandTest {
   }
 
   @Test
-  void connectsToNothingWithInvalidBlockDimensions() {
+  void shouldConnectToNothingWithInvalidBlockDimensions() {
     this.command.createVnc(this.sender, this.selector, "1280x720", 20, "tall", 0, DitheringArgument.NEAREST_COLOR, "127.0.0.1:5901", null);
 
     this.desktops.verifyNoInteractions();
@@ -165,7 +179,7 @@ final class VncCommandTest {
   }
 
   @Test
-  void tellsTheSenderWhenTheServerCannotBeReached() {
+  void shouldTellTheSenderWhenTheServerCannotBeReached() {
     when(this.desktop.startAsync(any(VncSource.class), any())).thenReturn(
       CompletableFuture.failedFuture(new IllegalStateException("refused"))
     );
@@ -176,14 +190,16 @@ final class VncCommandTest {
   }
 
   @Test
-  void aServerWithoutAPasswordGetsNone() {
+  void shouldGiveNoPasswordToAServerWithoutOne() {
     final VncAllowList.Entry open = new VncAllowList.Entry("127.0.0.1", 5902, null);
     final VncSource source = VncCommand.createSource(open, Pair.pair(640, 480), 10);
-    assertEquals(Optional.empty(), source.getPassword());
+
+    final Optional<String> password = source.getPassword();
+    assertEquals(Optional.empty(), password);
   }
 
   @Test
-  void forwardsClicksAndTextToTheDesktop() {
+  void shouldForwardClicksAndTextToTheDesktop() {
     this.command.handleLeftClick(this.desktop, 10, 20);
     this.command.handleRightClick(this.desktop, 30, 40);
     this.command.handleTextInput(this.desktop, "hello");
@@ -191,11 +207,13 @@ final class VncCommandTest {
     verify(this.desktop).sendMouseEvent(MouseClick.LEFT, 10, 20);
     verify(this.desktop).sendMouseEvent(MouseClick.RIGHT, 30, 40);
     verify(this.desktop).sendKeyEvent("hello");
-    assertEquals(VncCommand.INTERACT_PERMISSION, this.command.getInteractionPermission());
+
+    final String interactionPermission = this.command.getInteractionPermission();
+    assertEquals(VncCommand.INTERACT_PERMISSION, interactionPermission);
   }
 
   @Test
-  void releasesTheDesktopWhenAsked() {
+  void shouldReleaseTheDesktopWhenAsked() {
     this.command.player = this.desktop;
 
     this.command.releaseVnc(this.sender);
@@ -207,12 +225,14 @@ final class VncCommandTest {
   }
 
   @Test
-  void togglesTheChatInteractionOfAPlayer() {
+  void shouldToggleTheChatInteractionOfAPlayer() {
     final Player player = mock(Player.class);
 
     this.command.toggleInteraction(player);
     this.command.toggleInteraction(player);
 
-    assertEquals(List.of(Message.INTERACT_ENABLE.build(), Message.INTERACT_DISABLE.build()), Components.received(player));
+    final List<Component> expected = List.of(Message.INTERACT_ENABLE.build(), Message.INTERACT_DISABLE.build());
+    final List<Component> received = Components.received(player);
+    assertEquals(expected, received);
   }
 }

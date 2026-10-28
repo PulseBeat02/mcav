@@ -82,7 +82,7 @@ final class TranslationManagerTest {
   }
 
   @Test
-  void copiesTheBundledMessagesIntoTheDataFolder() throws IOException {
+  void shouldCopyTheBundledMessagesIntoTheDataFolder() throws IOException {
     final TranslationManager manager = new TranslationManager();
     final Path file = this.folder.resolve(RESOURCE);
     final byte[] copied = Files.readAllBytes(file);
@@ -93,7 +93,7 @@ final class TranslationManagerTest {
   }
 
   @Test
-  void usesTheMessagesEditedByTheServerOwner() throws IOException {
+  void shouldUseTheMessagesEditedByTheServerOwner() throws IOException {
     final Path file = this.folder.resolve(RESOURCE);
     final Path parent = file.getParent();
     Files.createDirectories(parent);
@@ -106,7 +106,7 @@ final class TranslationManagerTest {
   }
 
   @Test
-  void takesMessagesMissingFromTheEditedFileFromTheBundledFile() throws IOException {
+  void shouldTakeMessagesMissingFromTheEditedFileFromTheBundledFile() throws IOException {
     final Path file = this.folder.resolve(RESOURCE);
     final Path parent = file.getParent();
     Files.createDirectories(parent);
@@ -120,7 +120,7 @@ final class TranslationManagerTest {
   }
 
   @Test
-  void rendersArgumentsIntoMessages() {
+  void shouldRenderArgumentsIntoMessages() {
     final TranslationManager manager = new TranslationManager();
     final Component url = Component.text("https://example.com/");
     final TranslatableComponent component = Component.translatable("mcav.command.audio.http", url);
@@ -130,14 +130,14 @@ final class TranslationManagerTest {
   }
 
   @Test
-  void failsForUnknownKeys() {
+  void shouldFailForUnknownKeys() {
     final TranslationManager manager = new TranslationManager();
     final TranslatableComponent component = Component.translatable("mcav.unknown");
     assertThrows(MissingResourceException.class, () -> manager.render(component));
   }
 
   @Test
-  void failsWhenTheMessagesCannotBeRead() throws IOException {
+  void shouldFailWhenTheMessagesCannotBeRead() throws IOException {
     final Path file = this.folder.resolve(RESOURCE);
     Files.createDirectories(file);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, TranslationManager::new);
@@ -147,7 +147,7 @@ final class TranslationManagerTest {
   }
 
   @Test
-  void failsWhenTheMessagesCannotBeCopied() throws IOException {
+  void shouldFailWhenTheMessagesCannotBeCopied() throws IOException {
     final Path blocker = this.folder.resolve("locale");
     Files.writeString(blocker, "not a folder", StandardCharsets.UTF_8);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, TranslationManager::new);
@@ -156,7 +156,7 @@ final class TranslationManagerTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     final TranslationManager manager = new TranslationManager();
     assertThrows(NullPointerException.class, () -> manager.getProperty(null));
     assertThrows(NullPointerException.class, () -> manager.render(null));

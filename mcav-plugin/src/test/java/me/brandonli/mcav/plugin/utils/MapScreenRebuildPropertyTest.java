@@ -123,7 +123,7 @@ final class MapScreenRebuildPropertyTest {
   }
 
   @Property(seed = SEED, tries = 150)
-  void everyBlockOfARebuiltWallHoldsExactlyTheFrameOfTheLastBuild(@ForAll("rebuilds") final Rebuild rebuild) {
+  void shouldHoldExactlyTheFrameOfTheLastBuildInEveryBlockOfARebuiltWall(@ForAll("rebuilds") final Rebuild rebuild) {
     final List<List<Integer>> cells = rebuild.findCells();
     final FakeWorld world = new FakeWorld();
     final List<Entity> keep = new ArrayList<>();
@@ -157,14 +157,19 @@ final class MapScreenRebuildPropertyTest {
       final List<Integer> block = blockOf(frame);
       final boolean alone = occupied.add(block);
       assertTrue(alone, () -> "two frames of the wall hang in the block " + block);
-      assertFalse(wasRemoved(frame), () -> "the frame of the last build in " + block + " was removed");
+
+      final boolean removed = wasRemoved(frame);
+      assertFalse(removed, () -> "the frame of the last build in " + block + " was removed");
     }
     for (final ItemFrame frame : doomed) {
       final List<Integer> block = blockOf(frame);
-      assertTrue(wasRemoved(frame), () -> "an old frame still hangs in the block " + block + " of the wall");
+
+      final boolean secondRemoved = wasRemoved(frame);
+      assertTrue(secondRemoved, () -> "an old frame still hangs in the block " + block + " of the wall");
     }
     for (final Entity entity : keep) {
-      assertFalse(wasRemoved(entity), () -> "an entity that is not a frame of the wall was removed: " + entity);
+      final boolean thirdRemoved = wasRemoved(entity);
+      assertFalse(thirdRemoved, () -> "an entity that is not a frame of the wall was removed: " + entity);
     }
   }
 

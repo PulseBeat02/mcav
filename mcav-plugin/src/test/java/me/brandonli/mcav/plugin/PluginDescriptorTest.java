@@ -49,7 +49,7 @@ final class PluginDescriptorTest {
   private static final String COMMANDS = "me/brandonli/mcav/plugin/command";
 
   @Test
-  void theDescriptorDeclaresEveryPermissionTheCommandsCheckForOperatorsAndNoOther()
+  void shouldDeclareInTheDescriptorEveryPermissionTheCommandsCheckForOperatorsAndNoOther()
     throws IOException, URISyntaxException, InvalidConfigurationException {
     final YamlConfiguration descriptor = new YamlConfiguration();
     descriptor.options().pathSeparator('/');
@@ -61,11 +61,17 @@ final class PluginDescriptorTest {
     final ConfigurationSection permissions = descriptor.getConfigurationSection("permissions");
     assertNotNull(permissions, "the descriptor declares permissions");
     final Set<String> declared = new TreeSet<>(permissions.getKeys(false));
-    assertEquals(checkedPermissions(), declared);
+
+    final Set<String> expected = checkedPermissions();
+    assertEquals(expected, declared);
+
     final String pluginDefault = descriptor.getString("default-permission");
     for (final String name : declared) {
-      assertEquals("op", permissions.getString(name + "/default", pluginDefault), name + " is for operators until granted");
-      assertFalse(permissions.getString(name + "/description", "").isBlank(), name + " says what it allows");
+      final String string = permissions.getString(name + "/default", pluginDefault);
+      assertEquals("op", string, name + " is for operators until granted");
+
+      final boolean blank = permissions.getString(name + "/description", "").isBlank();
+      assertFalse(blank, name + " says what it allows");
     }
   }
 
@@ -93,7 +99,10 @@ final class PluginDescriptorTest {
         }
       }
     }
-    assertFalse(checked.isEmpty(), "the commands check permissions");
+
+    final boolean empty = checked.isEmpty();
+    assertFalse(empty, "the commands check permissions");
+
     return checked;
   }
 }

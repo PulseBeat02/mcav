@@ -31,15 +31,21 @@ import org.junit.jupiter.api.Tag;
 final class SeekPositionFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
-  void everyTypedPositionIsBoundedOrRefused(final FuzzedDataProvider data) {
+  void shouldBoundOrRefuseEveryTypedPosition(final FuzzedDataProvider data) {
     final long current = data.consumeLong(0, SeekPosition.MAX_MILLIS);
     final String text = data.consumeRemainingAsString();
     final SeekPosition position = SeekPosition.parse(text);
     if (position == null) {
       return;
     }
-    assertTrue(Math.abs(position.millis()) <= SeekPosition.MAX_MILLIS, text);
-    assertTrue(position.relative() || position.millis() >= 0, text);
-    assertTrue(position.resolve(current) >= 0, text);
+
+    final boolean matches = Math.abs(position.millis()) <= SeekPosition.MAX_MILLIS;
+    assertTrue(matches, text);
+
+    final boolean secondMatches = position.relative() || position.millis() >= 0;
+    assertTrue(secondMatches, text);
+
+    final boolean thirdMatches = position.resolve(current) >= 0;
+    assertTrue(thirdMatches, text);
   }
 }

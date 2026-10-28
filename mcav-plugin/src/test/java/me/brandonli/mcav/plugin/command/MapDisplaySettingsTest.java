@@ -46,7 +46,7 @@ final class MapDisplaySettingsTest {
   }
 
   @Test
-  void keepsTheConfigurationAndSharesStatelessAlgorithms() {
+  void shouldKeepTheConfigurationAndShareStatelessAlgorithms() {
     final MapConfigurationBuilder builder = MapConfiguration.builder();
     final UUID viewer = UUID.randomUUID();
     final List<UUID> viewers = List.of(viewer);
@@ -67,7 +67,7 @@ final class MapDisplaySettingsTest {
   }
 
   @Test
-  void createsAFreshTemporalAlgorithmOnEveryCall() {
+  void shouldCreateAFreshTemporalAlgorithmOnEveryCall() {
     final MapConfiguration configuration = createSingleMapConfiguration();
     final MapDisplaySettings settings = new MapDisplaySettings(configuration, DitheringArgument.FLOYD_STEINBERG_TEMPORAL);
     final DitherAlgorithm first = settings.createAlgorithm();
@@ -76,7 +76,7 @@ final class MapDisplaySettingsTest {
   }
 
   @Test
-  void createsTheConfigurationOfAWallOfMaps() {
+  void shouldCreateTheConfigurationOfAWallOfMaps() {
     final UUID viewer = UUID.randomUUID();
     final List<UUID> viewers = List.of(viewer);
     final Pair<Integer, Integer> blocks = Pair.pair(4, 3);
@@ -99,7 +99,7 @@ final class MapDisplaySettingsTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     final Pair<Integer, Integer> size = Pair.pair(1, 1);
     final List<UUID> viewers = List.of();
     final MapConfiguration configuration = createSingleMapConfiguration();

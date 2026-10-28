@@ -100,7 +100,7 @@ final class ImageChatCommandTest {
   }
 
   @Test
-  void showsTheImageInTheChatOfTheSelectedPlayers() {
+  void shouldShowTheImageInTheChatOfTheSelectedPlayers() {
     this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, MRL, null);
     final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
     final ChatConfiguration configuration = this.createImage(provider);
@@ -118,7 +118,7 @@ final class ImageChatCommandTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     final AbstractImageCommand.ImageConfigurationProvider provider = _ -> "configuration";
     final Pair<Integer, Integer> resolution = Pair.pair(16, 8);
     assertThrows(NullPointerException.class, () -> this.command.showImage(null, this.selector, RESOLUTION, CHARACTER, MRL, null));

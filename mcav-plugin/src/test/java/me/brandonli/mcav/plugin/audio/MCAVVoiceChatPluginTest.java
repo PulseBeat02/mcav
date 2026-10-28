@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 final class MCAVVoiceChatPluginTest {
 
   @Test
-  void isNamedAfterThePlugin() {
+  void shouldBeNamedAfterThePlugin() {
     final MCAVSandbox sandbox = mock(MCAVSandbox.class);
     final MCAVVoiceChatPlugin plugin = new MCAVVoiceChatPlugin(sandbox);
     final String id = plugin.getPluginId();
@@ -43,7 +43,7 @@ final class MCAVVoiceChatPluginTest {
   }
 
   @Test
-  void handsTheVoiceChatServerToTheLibrary() {
+  void shouldHandTheVoiceChatServerToTheLibrary() {
     final MCAVSandbox sandbox = mock(MCAVSandbox.class);
     final MCAVApi library = mock(MCAVApi.class);
     final SvcModule module = mock(SvcModule.class);
@@ -56,7 +56,7 @@ final class MCAVVoiceChatPluginTest {
   }
 
   @Test
-  void rejectsMissingArguments() {
+  void shouldRejectMissingArguments() {
     final MCAVSandbox sandbox = mock(MCAVSandbox.class);
     final MCAVVoiceChatPlugin plugin = new MCAVVoiceChatPlugin(sandbox);
     assertThrows(NullPointerException.class, () -> new MCAVVoiceChatPlugin(null));

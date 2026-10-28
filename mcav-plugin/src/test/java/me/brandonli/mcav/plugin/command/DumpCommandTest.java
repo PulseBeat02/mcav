@@ -45,7 +45,7 @@ import org.mockito.Mockito;
 final class DumpCommandTest {
 
   @Test
-  void sendsTheLinkOnceTheDumpIsUploaded() {
+  void shouldSendTheLinkOnceTheDumpIsUploaded() {
     final CommandSender sender = mock(CommandSender.class);
     final DumpCommand command = new DumpCommand(() -> "https://paste.helpch.at/abc");
     command.createDump(sender);
@@ -58,7 +58,7 @@ final class DumpCommandTest {
   }
 
   @Test
-  void tellsTheSenderWhenTheUploadFails() throws InterruptedException {
+  void shouldTellTheSenderWhenTheUploadFails() throws InterruptedException {
     final CommandSender sender = mock(CommandSender.class);
     final CountDownLatch attempted = new CountDownLatch(1);
     final DumpCommand command = new DumpCommand(() -> {
@@ -78,7 +78,7 @@ final class DumpCommandTest {
   }
 
   @Test
-  void uploadsWithTheDumpUtilitiesByDefault() throws ReflectiveOperationException {
+  void shouldUploadWithTheDumpUtilitiesByDefault() throws ReflectiveOperationException {
     final DumpCommand command = new DumpCommand();
     final Field field = DumpCommand.class.getDeclaredField("uploader");
     field.setAccessible(true);
@@ -93,7 +93,7 @@ final class DumpCommandTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     final DumpCommand command = new DumpCommand(() -> "unused");
     assertThrows(NullPointerException.class, () -> new DumpCommand(null));
     assertThrows(NullPointerException.class, () -> command.createDump(null));

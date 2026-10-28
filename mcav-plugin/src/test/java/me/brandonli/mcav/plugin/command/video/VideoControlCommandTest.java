@@ -84,7 +84,7 @@ final class VideoControlCommandTest {
   }
 
   @Test
-  void resumesTheVideo() {
+  void shouldResumeTheVideo() {
     when(this.manager.getPlayer()).thenReturn(this.player);
     when(this.player.resume()).thenReturn(true);
 
@@ -96,7 +96,7 @@ final class VideoControlCommandTest {
   }
 
   @Test
-  void tellsTheSenderWhenAVideoThatEndedCannotBeResumed() {
+  void shouldTellTheSenderWhenAVideoThatEndedCannotBeResumed() {
     when(this.manager.getPlayer()).thenReturn(this.player);
     when(this.player.resume()).thenReturn(false);
 
@@ -108,7 +108,7 @@ final class VideoControlCommandTest {
   }
 
   @Test
-  void pausesTheVideo() {
+  void shouldPauseTheVideo() {
     when(this.manager.getPlayer()).thenReturn(this.player);
 
     this.command.pauseVideo(this.sender);
@@ -119,7 +119,7 @@ final class VideoControlCommandTest {
   }
 
   @Test
-  void answersEvenWithoutAVideo() {
+  void shouldAnswerEvenWithoutAVideo() {
     this.command.resumeVideo(this.sender);
     this.command.pauseVideo(this.sender);
 
@@ -129,7 +129,7 @@ final class VideoControlCommandTest {
   }
 
   @Test
-  void releasesTheVideoOnTheWorkerThreadAndReportsIt() {
+  void shouldReleaseTheVideoOnTheWorkerThreadAndReportIt() {
     this.command.releaseVideo(this.sender);
 
     final Component start = Message.RELEASE_PLAYER_START.build();
@@ -142,7 +142,7 @@ final class VideoControlCommandTest {
   }
 
   @Test
-  void queuedReleaseDoesNotCancelARequestSubmittedAfterIt() {
+  void shouldNotLetAQueuedReleaseCancelARequestSubmittedAfterIt() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final MCAVApi api = mock(MCAVApi.class);
     final AudioProvider provider = mock(AudioProvider.class);
@@ -179,7 +179,7 @@ final class VideoControlCommandTest {
   }
 
   @Test
-  void logsAFailedReleaseAndDoesNotReportThePlayerAsReleased() {
+  void shouldLogAFailedReleaseAndNotReportThePlayerAsReleased() {
     final IllegalStateException failure = new IllegalStateException("the release failed");
     doThrow(failure).when(this.manager).clearCurrentVideo();
 
@@ -198,7 +198,7 @@ final class VideoControlCommandTest {
   }
 
   @Test
-  void setsTheLocationOfTheHologram() {
+  void shouldSetTheLocationOfTheHologram() {
     final Location location = new Location(null, 1.0, 70.0, 1.0);
 
     this.command.setHologramLocation(this.sender, location);
@@ -209,7 +209,7 @@ final class VideoControlCommandTest {
   }
 
   @Test
-  void disablesTheHologram() {
+  void shouldDisableTheHologram() {
     this.command.disableHologram(this.sender);
 
     verify(this.manager).setHologramLocation(null);

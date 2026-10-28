@@ -100,7 +100,9 @@ final class QemuHardwareValuesTest {
   )
   void refusesEveryOtherValue(final String name, final String value) {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.check(name, value));
-    assertEquals(true, refused.getMessage().startsWith("The QEMU option -" + name + " does not allow"), refused.getMessage());
+
+    final boolean prefixed = refused.getMessage().startsWith("The QEMU option -" + name + " does not allow");
+    assertEquals(true, prefixed, refused.getMessage());
   }
 
   @ParameterizedTest
@@ -164,7 +166,9 @@ final class QemuHardwareValuesTest {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
       QemuHardwareValues.checkDriveProperty(part, value)
     );
-    assertEquals(true, refused.getMessage().startsWith("The QEMU option -drive does not allow"), refused.getMessage());
+
+    final boolean prefixed = refused.getMessage().startsWith("The QEMU option -drive does not allow");
+    assertEquals(true, prefixed, refused.getMessage());
   }
 
   @ParameterizedTest
@@ -188,20 +192,25 @@ final class QemuHardwareValuesTest {
     }
   )
   void theMemoryOfAMachineIsReadAsQemuReadsIt(final String value, final long bytes) {
-    assertEquals(bytes, QemuHardwareValues.memoryBytes(value));
+    final long memoryBytes = QemuHardwareValues.memoryBytes(value);
+    assertEquals(bytes, memoryBytes);
   }
 
   @Test
-  void onlyHardwareOptionsAreChecked() {
+  void shouldCheckOnlyHardwareOptions() {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.check("fda", "a"));
-    assertEquals("The QEMU option -fda is not a hardware option", refused.getMessage());
+
+    final String message = refused.getMessage();
+    assertEquals("The QEMU option -fda is not a hardware option", message);
   }
 
   @Test
-  void theValuesAreNotInstantiable() throws ReflectiveOperationException {
+  void shouldRefuseToInstantiateTheValues() throws ReflectiveOperationException {
     final Constructor<QemuHardwareValues> constructor = QemuHardwareValues.class.getDeclaredConstructor();
     constructor.setAccessible(true);
     final InvocationTargetException failure = assertThrows(InvocationTargetException.class, constructor::newInstance);
-    assertEquals(UnsupportedOperationException.class, failure.getCause().getClass());
+
+    final Class<? extends Throwable> failureClass = failure.getCause().getClass();
+    assertEquals(UnsupportedOperationException.class, failureClass);
   }
 }

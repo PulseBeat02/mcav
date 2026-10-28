@@ -41,15 +41,25 @@ final class VncAllowListTest {
   private static final VncAllowList LIST = new VncAllowList(List.of(DESKTOP, LOOPBACK));
 
   @Test
-  void parsesAHostAndAPort() {
-    assertEquals(new VncAllowList.Target("desktop.example", 5901), VncAllowList.parse("desktop.example:5901"));
-    assertEquals(new VncAllowList.Target("127.0.0.1", 1), VncAllowList.parse("127.0.0.1:1"));
-    assertEquals(new VncAllowList.Target("example", 65_535), VncAllowList.parse("example:65535"));
+  void shouldParseAHostAndAPort() {
+    final VncAllowList.Target expected = new VncAllowList.Target("desktop.example", 5901);
+    final VncAllowList.Target parsed = VncAllowList.parse("desktop.example:5901");
+    assertEquals(expected, parsed);
+
+    final VncAllowList.Target secondExpected = new VncAllowList.Target("127.0.0.1", 1);
+    final VncAllowList.Target vncAllowListParsed = VncAllowList.parse("127.0.0.1:1");
+    assertEquals(secondExpected, vncAllowListParsed);
+
+    final VncAllowList.Target thirdExpected = new VncAllowList.Target("example", 65_535);
+    final VncAllowList.Target secondParsed = VncAllowList.parse("example:65535");
+    assertEquals(thirdExpected, secondParsed);
   }
 
   @Test
-  void parsesAnIpv6AddressInBrackets() {
-    assertEquals(new VncAllowList.Target("::1", 5902), VncAllowList.parse("[::1]:5902"));
+  void shouldParseAnIpv6AddressInBrackets() {
+    final VncAllowList.Target expected = new VncAllowList.Target("::1", 5902);
+    final VncAllowList.Target parsed = VncAllowList.parse("[::1]:5902");
+    assertEquals(expected, parsed);
   }
 
   @ParameterizedTest
@@ -76,44 +86,62 @@ final class VncAllowListTest {
     }
   )
   void refusesTextThatIsNotAHostAndAPort(final String text) {
-    assertNull(VncAllowList.parse(text));
+    final VncAllowList.Target parsed = VncAllowList.parse(text);
+    assertNull(parsed);
   }
 
   @Test
-  void findsAListedServerWhateverTheCaseOfItsHost() {
-    assertSame(DESKTOP, LIST.find("DESKTOP.example:5901"));
-    assertSame(LOOPBACK, LIST.find("[::1]:5902"));
+  void shouldFindAListedServerWhateverTheCaseOfItsHost() {
+    final VncAllowList.Entry found = LIST.find("DESKTOP.example:5901");
+    assertSame(DESKTOP, found);
+
+    final VncAllowList.Entry listFound = LIST.find("[::1]:5902");
+    assertSame(LOOPBACK, listFound);
   }
 
   @ParameterizedTest
   @ValueSource(strings = { "desktop.example:5902", "other.example:5901", "desktop.example", "[::1]:5901" })
-  void findsNoServerThatIsNotListed(final String text) {
-    assertNull(LIST.find(text));
+  void shouldFindNoServerThatIsNotListed(final String text) {
+    final VncAllowList.Entry found = LIST.find(text);
+    assertNull(found);
   }
 
   @Test
-  void anEmptyListAllowsNoServer() {
-    assertNull(VncAllowList.NONE.find("desktop.example:5901"));
+  void shouldAllowNoServerForAnEmptyList() {
+    final VncAllowList.Entry found = VncAllowList.NONE.find("desktop.example:5901");
+    assertNull(found);
   }
 
   @Test
-  void namesAServerWithoutItsPassword() {
-    assertEquals("Desktop.Example:5901", DESKTOP.toString());
-    assertEquals("[::1]:5902", LOOPBACK.toString());
+  void shouldNameAServerWithoutItsPassword() {
+    final String text = DESKTOP.toString();
+    assertEquals("Desktop.Example:5901", text);
+
+    final String loopbackText = LOOPBACK.toString();
+    assertEquals("[::1]:5902", loopbackText);
   }
 
   @Test
-  void findsAnIpv6AddressListedInBrackets() {
+  void shouldFindAnIpv6AddressListedInBrackets() {
     final VncAllowList.Entry bracketed = new VncAllowList.Entry("[::1]", 5902, null);
-    assertEquals("::1", bracketed.host());
-    assertSame(bracketed, new VncAllowList(List.of(bracketed)).find("[::1]:5902"));
-    assertEquals("[::1]:5902", bracketed.toString());
+
+    final String text = bracketed.host();
+    assertEquals("::1", text);
+
+    final VncAllowList.Entry found = new VncAllowList(List.of(bracketed)).find("[::1]:5902");
+    assertSame(bracketed, found);
+
+    final String bracketedText = bracketed.toString();
+    assertEquals("[::1]:5902", bracketedText);
+
     final VncAllowList.Entry unbalanced = new VncAllowList.Entry("[::1", 5902, null);
-    assertEquals("[::1", unbalanced.host(), "only a host in both brackets loses them");
+
+    final String unbalancedText = unbalanced.host();
+    assertEquals("[::1", unbalancedText, "only a host in both brackets loses them");
   }
 
   @Test
-  void refusesAnEntryWithoutAHostOrWithoutATcpPort() {
+  void shouldRefuseAnEntryWithoutAHostOrWithoutATcpPort() {
     assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry(" ", 5901, null));
     assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry("[]", 5901, null));
     assertThrows(IllegalArgumentException.class, () -> new VncAllowList.Entry("desktop", 0, null));
@@ -121,16 +149,21 @@ final class VncAllowListTest {
   }
 
   @Test
-  void takesAnEntryOnTheFirstOrTheLastTcpPort() {
-    assertEquals(1, new VncAllowList.Entry("desktop", 1, null).port());
-    assertEquals(65_535, new VncAllowList.Entry("desktop", 65_535, null).port());
+  void shouldTakeAnEntryOnTheFirstOrTheLastTcpPort() {
+    final int port = new VncAllowList.Entry("desktop", 1, null).port();
+    assertEquals(1, port);
+
+    final int secondPort = new VncAllowList.Entry("desktop", 65_535, null).port();
+    assertEquals(65_535, secondPort);
   }
 
   @Test
-  void keepsItsEntriesWhenTheListItWasGivenChanges() {
+  void shouldKeepItsEntriesWhenTheListItWasGivenChanges() {
     final List<VncAllowList.Entry> entries = new ArrayList<>(List.of(DESKTOP));
     final VncAllowList list = new VncAllowList(entries);
     entries.clear();
-    assertSame(DESKTOP, list.find("desktop.example:5901"));
+
+    final VncAllowList.Entry found = list.find("desktop.example:5901");
+    assertSame(DESKTOP, found);
   }
 }

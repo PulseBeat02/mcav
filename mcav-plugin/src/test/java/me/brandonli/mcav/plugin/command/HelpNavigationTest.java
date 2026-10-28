@@ -88,7 +88,7 @@ final class HelpNavigationTest {
   }
 
   @Test
-  void generatedEntryLinksOpenTheirOwnCommandHelp() {
+  void shouldOpenTheirOwnCommandHelpFromGeneratedEntryLinks() {
     this.help.commandHelp(this.sender, null);
     this.followGeneratedClick("/mcav help mcav topic0");
     final String text = this.text();
@@ -97,7 +97,7 @@ final class HelpNavigationTest {
   }
 
   @Test
-  void indexPaginationPreservesTheWholeCommandIndexInBothDirections() {
+  void shouldPreserveTheWholeCommandIndexInBothDirectionsWhenPaginatingTheIndex() {
     this.help.commandHelp(this.sender, null);
     final List<Component> firstPage = Components.received(this.sender);
     this.followGeneratedClick("/mcav help 2");
@@ -110,7 +110,7 @@ final class HelpNavigationTest {
   }
 
   @Test
-  void filteredPaginationPreservesTheQueryInBothDirections() {
+  void shouldPreserveTheQueryInBothDirectionsWhenPaginatingAFilter() {
     this.help.commandHelp(this.sender, "video");
     final List<Component> firstPage = Components.received(this.sender);
     this.followGeneratedClick("/mcav help mcav video 2");
@@ -124,7 +124,7 @@ final class HelpNavigationTest {
 
   @ParameterizedTest
   @ValueSource(strings = { "topic0", "mcav topic0", "MCAV topic0", "  mcav topic0  " })
-  void acceptsShorthandAndFullManualQueries(final String query) {
+  void shouldAcceptShorthandAndFullManualQueries(final String query) {
     this.help.commandHelp(this.sender, query);
     final String text = this.text();
     final boolean showsDescription = text.contains("Description for topic0");
@@ -134,7 +134,7 @@ final class HelpNavigationTest {
   @ParameterizedTest
   @NullAndEmptySource
   @ValueSource(strings = { "   " })
-  void missingAndBlankQueriesShowTheSameIndex(final String query) {
+  void shouldShowTheSameIndexForMissingAndBlankQueries(final String query) {
     this.help.commandHelp(this.sender, null);
     final List<Component> expected = Components.received(this.sender);
     clearInvocations(this.sender);
@@ -144,7 +144,7 @@ final class HelpNavigationTest {
   }
 
   @Test
-  void rootPrefixInASubcommandNameDoesNotCountAsTheWholeRoot() {
+  void shouldNotCountARootPrefixInASubcommandNameAsTheWholeRoot() {
     this.help.commandHelp(this.sender, "mcavity");
     final String text = this.text();
     final boolean showsDescription = text.contains("Description for mcavity");
@@ -152,7 +152,7 @@ final class HelpNavigationTest {
   }
 
   @Test
-  void wholeRootQueriesAndManualFilteredPagesRemainSupported() {
+  void shouldKeepSupportingWholeRootQueriesAndManualFilteredPages() {
     this.help.commandHelp(this.sender, "mcav");
     final Set<String> rootClicks = this.clickCommands();
     final boolean rootPage = rootClicks.contains("/mcav help mcav 2");

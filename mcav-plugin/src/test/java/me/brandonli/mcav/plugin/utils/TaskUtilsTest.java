@@ -53,7 +53,7 @@ final class TaskUtilsTest {
   }
 
   @Test
-  void schedulesTheTaskOnTheMainThreadOnlyWhenRun() {
+  void shouldScheduleTheTaskOnTheMainThreadOnlyWhenRun() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final AtomicInteger runs = new AtomicInteger();
     final Runnable task = runs::incrementAndGet;
@@ -72,12 +72,12 @@ final class TaskUtilsTest {
   }
 
   @Test
-  void isNotInstantiable() {
+  void shouldNotBeInstantiable() {
     UtilityClassAssertions.assertNotInstantiable(TaskUtils.class);
   }
 
   @Test
-  void schedulesATaskOnTheMainThread() {
+  void shouldScheduleATaskOnTheMainThread() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final AtomicInteger runs = new AtomicInteger();
     final boolean scheduled = TaskUtils.runOnMainThread(plugin, runs::incrementAndGet);
@@ -91,7 +91,7 @@ final class TaskUtilsTest {
   }
 
   @Test
-  void dropsTheTaskWhenThePluginIsDisabled() {
+  void shouldDropTheTaskWhenThePluginIsDisabled() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final BukkitScheduler scheduler = TestServer.scheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled"));
@@ -105,7 +105,7 @@ final class TaskUtilsTest {
   }
 
   @Test
-  void passesTheResultOfTheFutureToTheCallback() {
+  void shouldPassTheResultOfTheFutureToTheCallback() {
     final CompletableFuture<String> future = CompletableFuture.completedFuture("done");
     final AtomicReference<String> result = new AtomicReference<>();
     final AtomicReference<Throwable> failure = new AtomicReference<>();
@@ -126,7 +126,7 @@ final class TaskUtilsTest {
   }
 
   @Test
-  void passesTheFailureOfTheFutureToTheCallback() {
+  void shouldPassTheFailureOfTheFutureToTheCallback() {
     final IllegalStateException boom = new IllegalStateException("boom");
     final CompletableFuture<String> future = CompletableFuture.failedFuture(boom);
     final AtomicReference<String> result = new AtomicReference<>("not called");
@@ -144,7 +144,7 @@ final class TaskUtilsTest {
   }
 
   @Test
-  void runsTheCallbackOnceTheFutureCompletesLater() {
+  void shouldRunTheCallbackOnceTheFutureCompletesLater() {
     final CompletableFuture<String> future = new CompletableFuture<>();
     final AtomicReference<String> result = new AtomicReference<>();
     TaskUtils.whenComplete(future, (value, _) -> result.set(value));
@@ -158,7 +158,7 @@ final class TaskUtilsTest {
   }
 
   @Test
-  void logsACallbackThatFailsInsteadOfLosingIt() {
+  void shouldLogACallbackThatFailsInsteadOfLosingIt() {
     final CompletableFuture<String> future = CompletableFuture.completedFuture("done");
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
@@ -175,7 +175,7 @@ final class TaskUtilsTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final Runnable task = () -> {};
     final CompletableFuture<String> future = CompletableFuture.completedFuture("done");

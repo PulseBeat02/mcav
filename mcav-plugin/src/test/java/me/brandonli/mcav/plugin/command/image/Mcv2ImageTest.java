@@ -84,7 +84,7 @@ final class Mcv2ImageTest {
   }
 
   @Test
-  void startsTheScreenAndGivesItTheImageTwiceASecondUntilReleased() {
+  void shouldStartTheScreenAndGiveItTheImageTwiceASecondUntilReleased() {
     final Mcv2Image image = new Mcv2Image(this.plugin, this.output);
     final ImageBuffer picture = ImageBuffer.buffer(PIXELS.clone(), 3, 2);
 
@@ -97,9 +97,16 @@ final class Mcv2ImageTest {
     verify(TestServer.scheduler()).runTaskTimerAsynchronously(eq(this.plugin), feeds.capture(), eq(0L), eq(Mcv2Image.PERIOD_TICKS));
     feeds.getValue().run();
     feeds.getValue().run();
-    assertEquals(2, this.given.size());
-    assertArrayEquals(PIXELS, this.given.getFirst());
-    assertArrayEquals(PIXELS, this.given.getLast(), "every frame is a fresh copy of the image");
+
+    final int size = this.given.size();
+    assertEquals(2, size);
+
+    final int[] given = this.given.getFirst();
+    assertArrayEquals(PIXELS, given);
+
+    final int[] givenGiven = this.given.getLast();
+    assertArrayEquals(PIXELS, givenGiven, "every frame is a fresh copy of the image");
+
     image.release();
     verify(this.task).cancel();
     verify(this.output).release();
@@ -108,7 +115,7 @@ final class Mcv2ImageTest {
   }
 
   @Test
-  void asksForAKeyframeEveryFourthSecond() {
+  void shouldAskForAKeyframeEveryFourthSecond() {
     final Mcv2Result result = mock(Mcv2Result.class);
     final Mcv2Channel channel = mock(Mcv2Channel.class);
     when(this.output.getResult()).thenReturn(result);
@@ -132,11 +139,13 @@ final class Mcv2ImageTest {
       feeds.getValue().run();
     }
     verify(channel, times(2)).requestKeyframe();
-    assertEquals(2 * fourSeconds, this.given.size(), "every feed gives the image");
+
+    final int size = this.given.size();
+    assertEquals(2 * fourSeconds, size, "every feed gives the image");
   }
 
   @Test
-  void releasesAScreenThatShowedNothing() {
+  void shouldReleaseAScreenThatShowedNothing() {
     final Mcv2Image image = new Mcv2Image(this.plugin, this.output);
     image.release();
     verify(this.output).release();
@@ -144,7 +153,7 @@ final class Mcv2ImageTest {
   }
 
   @Test
-  void refusesMissingParts() {
+  void shouldRefuseMissingParts() {
     assertThrows(NullPointerException.class, () -> new Mcv2Image(null, this.output));
     assertThrows(NullPointerException.class, () -> new Mcv2Image(this.plugin, null));
     assertThrows(NullPointerException.class, () -> new Mcv2Image(this.plugin, this.output).displayImage(null));

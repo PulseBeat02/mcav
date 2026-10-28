@@ -71,7 +71,7 @@ final class ImageManagerTest {
   }
 
   @Test
-  void releasesEverythingOnceWhenForced() {
+  void shouldReleaseEverythingOnceWhenForced() {
     this.fill();
     this.manager.releaseImage(true);
     this.manager.releaseImage(true);
@@ -83,7 +83,7 @@ final class ImageManagerTest {
   }
 
   @Test
-  void releasesOnTheMainThreadWhenNotForced() {
+  void shouldReleaseOnTheMainThreadWhenNotForced() {
     this.fill();
     this.manager.releaseImage(false);
     verify(this.display, never()).release();
@@ -95,7 +95,7 @@ final class ImageManagerTest {
   }
 
   @Test
-  void releasesNothingWhenEmpty() {
+  void shouldReleaseNothingWhenEmpty() {
     this.manager.releaseImage(true);
     this.manager.setImage(this.display);
     this.manager.releaseImage(true);
@@ -103,7 +103,7 @@ final class ImageManagerTest {
   }
 
   @Test
-  void forgetsAnImageThatFailedToClose() {
+  void shouldForgetAnImageThatFailedToClose() {
     this.fill();
     final IllegalStateException failure = new IllegalStateException("already closed");
     doThrow(failure).when(this.image).close();
@@ -117,7 +117,7 @@ final class ImageManagerTest {
   }
 
   @Test
-  void stopsItsWorkerWhenShutDown() {
+  void shouldStopItsWorkerWhenShutDown() {
     this.fill();
     this.manager.shutdown();
     verify(this.display).release();
@@ -127,7 +127,7 @@ final class ImageManagerTest {
   }
 
   @Test
-  void rejectsALoadThatFinishesAfterShutdownOrClear() {
+  void shouldRejectALoadThatFinishesAfterShutdownOrClear() {
     final long beforeClear = this.manager.beginLoad();
     this.manager.releaseImage(true);
     final boolean retainedAfterClear = this.manager.retainLoaded(beforeClear, this.image);
@@ -140,7 +140,7 @@ final class ImageManagerTest {
   }
 
   @Test
-  void shutsDownTheWorkerEvenWhenDisplayCleanupFails() {
+  void shouldShutDownTheWorkerEvenWhenDisplayCleanupFails() {
     this.fill();
     final IllegalStateException failure = new IllegalStateException("display cleanup failed");
     doThrow(failure).when(this.display).release();
@@ -154,7 +154,7 @@ final class ImageManagerTest {
   }
 
   @Test
-  void discardingAnOldRequestCannotReleaseTheNewRequestsImage() {
+  void shouldNotReleaseTheNewRequestsImageWhenDiscardingAnOldRequest() {
     final long oldRequest = this.manager.beginLoad();
     final long newRequest = this.manager.beginLoad();
     final boolean retained = this.manager.retainLoaded(newRequest, this.image);
@@ -168,7 +168,7 @@ final class ImageManagerTest {
   }
 
   @Test
-  void cancellationAndReplacementNeverReviveAnOlderLoadToken() {
+  void shouldNeverReviveAnOlderLoadTokenOnCancellationAndReplacement() {
     final long oldest = this.manager.beginLoad();
     final long replaced = this.manager.beginLoad();
     this.manager.releaseImage(true);
@@ -177,15 +177,22 @@ final class ImageManagerTest {
     assertFalse(oldestAccepted);
     assertFalse(replacedAccepted);
     final long current = this.manager.beginLoad();
-    assertFalse(this.manager.retainLoaded(oldest, this.image));
-    assertFalse(this.manager.retainLoaded(replaced, this.image));
-    assertTrue(this.manager.retainLoaded(current, this.image));
+
+    final boolean retained = this.manager.retainLoaded(oldest, this.image);
+    assertFalse(retained);
+
+    final boolean managerRetained = this.manager.retainLoaded(replaced, this.image);
+    assertFalse(managerRetained);
+
+    final boolean secondRetained = this.manager.retainLoaded(current, this.image);
+    assertTrue(secondRetained);
+
     final ImageBuffer taken = this.manager.takeLoaded(current);
     Assertions.assertSame(this.image, taken);
   }
 
   @Test
-  void refusesANullPlugin() {
+  void shouldRefuseANullPlugin() {
     assertThrows(NullPointerException.class, () -> new ImageManager(null));
   }
 }

@@ -106,7 +106,7 @@ final class ImageEntityCommandTest {
   }
 
   @Test
-  void showsTheImageAsTextEntitiesToTheSelectedPlayers() {
+  void shouldShowTheImageAsTextEntitiesToTheSelectedPlayers() {
     this.command.showImage(this.sender, this.selector, RESOLUTION, CHARACTER, this.location, MRL, null);
     final AbstractImageCommand.ImageConfigurationProvider provider = this.captureProvider();
     final EntityConfiguration configuration = this.createImage(provider);
@@ -126,7 +126,7 @@ final class ImageEntityCommandTest {
   }
 
   @Test
-  void refusesNullArguments() {
+  void shouldRefuseNullArguments() {
     final AbstractImageCommand.ImageConfigurationProvider provider = _ -> "configuration";
     final Pair<Integer, Integer> resolution = Pair.pair(32, 16);
     final Location position = this.location;

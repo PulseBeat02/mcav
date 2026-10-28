@@ -74,7 +74,7 @@ final class DitheringArgumentTest {
 
   @Test
   @Order(0)
-  void createsTheSharedAlgorithmOfAnArgumentOnItsFirstUse() {
+  void shouldCreateTheSharedAlgorithmOfAnArgumentOnItsFirstUse() {
     final DitheringArgument argument = DitheringArgument.CLUSTERED_DOT_4X4_LIGHT;
     final DitherAlgorithm first = argument.createAlgorithm();
     final DitherAlgorithm second = argument.createAlgorithm();
@@ -84,7 +84,7 @@ final class DitheringArgumentTest {
 
   @Test
   @Order(1)
-  void threadsThatRaceForTheFirstUseShareOneStatelessAlgorithm() throws InterruptedException {
+  void shouldShareOneStatelessAlgorithmBetweenThreadsThatRaceForTheFirstUse() throws InterruptedException {
     final DitheringArgument argument = DitheringArgument.HORIZONTAL_3X5_HEAVY;
     final AtomicReference<DitherAlgorithm> first = new AtomicReference<>();
     final AtomicReference<DitherAlgorithm> second = new AtomicReference<>();
@@ -111,7 +111,7 @@ final class DitheringArgumentTest {
   @ParameterizedTest
   @Order(2)
   @EnumSource(DitheringArgument.class)
-  void createsAnAlgorithmOfTheNamedFamily(final DitheringArgument argument) {
+  void shouldCreateAnAlgorithmOfTheNamedFamily(final DitheringArgument argument) {
     final DitherAlgorithm algorithm = argument.createAlgorithm();
     final String name = argument.name();
     final Class<?> expected;
@@ -132,14 +132,14 @@ final class DitheringArgumentTest {
   @ParameterizedTest
   @Order(3)
   @EnumSource(value = DitheringArgument.class, mode = EnumSource.Mode.EXCLUDE, names = "FLOYD_STEINBERG_TEMPORAL")
-  void sharesTheStatelessAlgorithm(final DitheringArgument argument) {
+  void shouldShareTheStatelessAlgorithm(final DitheringArgument argument) {
     final DitherAlgorithm first = argument.createAlgorithm();
     final DitherAlgorithm second = argument.createAlgorithm();
     assertSame(first, second);
   }
 
   @Test
-  void cachedAlgorithmDoesNotWaitForTheInitializationLock() throws Exception {
+  void shouldNotWaitForTheInitializationLockWithACachedAlgorithm() throws Exception {
     final DitheringArgument argument = DitheringArgument.NEAREST_COLOR;
     final DitherAlgorithm expected = argument.createAlgorithm();
     final CompletableFuture<DitherAlgorithm> completed = new CompletableFuture<>();
@@ -157,7 +157,7 @@ final class DitheringArgumentTest {
 
   @Test
   @Order(4)
-  void createsANewTemporalAlgorithmForEveryStream() {
+  void shouldCreateANewTemporalAlgorithmForEveryStream() {
     final DitheringArgument argument = DitheringArgument.FLOYD_STEINBERG_TEMPORAL;
     final DitherAlgorithm first = argument.createAlgorithm();
     final DitherAlgorithm second = argument.createAlgorithm();

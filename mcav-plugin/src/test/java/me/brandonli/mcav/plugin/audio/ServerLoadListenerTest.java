@@ -79,7 +79,7 @@ final class ServerLoadListenerTest {
   }
 
   @Test
-  void registersTheVoiceChatPluginOnceTheServerHasLoaded() {
+  void shouldRegisterTheVoiceChatPluginOnceTheServerHasLoaded() {
     final BukkitVoicechatService voiceChat = mock(BukkitVoicechatService.class);
     when(this.services.load(BukkitVoicechatService.class)).thenReturn(voiceChat);
     final ServerLoadEvent event = mock(ServerLoadEvent.class);
@@ -96,7 +96,7 @@ final class ServerLoadListenerTest {
   }
 
   @Test
-  void failsWithAClearMessageWhenSimpleVoiceChatOffersNoService() {
+  void shouldFailWithAClearMessageWhenSimpleVoiceChatOffersNoService() {
     final ServerLoadEvent event = mock(ServerLoadEvent.class);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () -> this.listener.onServerLoad(event));
     final String message = exception.getMessage();
@@ -107,12 +107,12 @@ final class ServerLoadListenerTest {
   }
 
   @Test
-  void refusesANullPlugin() {
+  void shouldRefuseANullPlugin() {
     assertThrows(NullPointerException.class, () -> new ServerLoadListener(null));
   }
 
   @Test
-  void refusesANullEvent() {
+  void shouldRefuseANullEvent() {
     assertThrows(NullPointerException.class, () -> this.listener.onServerLoad(null));
   }
 }
