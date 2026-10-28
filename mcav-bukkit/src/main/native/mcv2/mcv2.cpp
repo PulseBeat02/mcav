@@ -456,8 +456,8 @@ struct int_vector {
   static void load_channels(const int32_t* buffer, int_vector& red_channels, int_vector& green_channels,
                             int_vector& blue_channels) {
     const __m128i first_vector = _mm_loadu_si128((const __m128i*)buffer);
-    const __m128i second_vector = _mm_loadu_si128((const __m128i*)(buffer + 4));
-    const __m128i third_vector = _mm_loadu_si128((const __m128i*)(buffer + 8));
+    const __m128i second_vector = _mm_loadu_si128((const __m128i*)(buffer + LANES));
+    const __m128i third_vector = _mm_loadu_si128((const __m128i*)(buffer + 2 * LANES));
 
     const __m128i shuffled_red = blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(
         blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(first_vector, second_vector), third_vector);
@@ -489,8 +489,8 @@ struct int_vector {
                                                        _mm_shuffle_epi32(red_channels.lanes_, BROADCAST_FOURTH_LANE)),
         _mm_shuffle_epi32(green_channels.lanes_, BROADCAST_FOURTH_LANE));
     _mm_storeu_si128((__m128i*)buffer, first_vector);
-    _mm_storeu_si128((__m128i*)(buffer + 4), second_vector);
-    _mm_storeu_si128((__m128i*)(buffer + 8), third_vector);
+    _mm_storeu_si128((__m128i*)(buffer + LANES), second_vector);
+    _mm_storeu_si128((__m128i*)(buffer + 2 * LANES), third_vector);
   }
   static int_vector bits(const int8_t* buffer, const int32_t index) {
     const __m128i byte = _mm_set1_epi32((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & LANE_MASK);
@@ -638,8 +638,8 @@ struct int_vector {
   static void load_channels(const int32_t* buffer, int_vector& red_channels, int_vector& green_channels,
                             int_vector& blue_channels) {
     const __m256i first_vector = _mm256_loadu_si256((const __m256i*)buffer);
-    const __m256i second_vector = _mm256_loadu_si256((const __m256i*)(buffer + 8));
-    const __m256i third_vector = _mm256_loadu_si256((const __m256i*)(buffer + 16));
+    const __m256i second_vector = _mm256_loadu_si256((const __m256i*)(buffer + LANES));
+    const __m256i third_vector = _mm256_loadu_si256((const __m256i*)(buffer + 2 * LANES));
 
     const __m256i shuffled_red =
         _mm256_blend_epi32(_mm256_blend_epi32(first_vector, second_vector, EVERY_THIRD_LANE_FROM_ONE), third_vector,
@@ -670,10 +670,10 @@ struct int_vector {
     _mm256_storeu_si256((__m256i*)buffer,
                         _mm256_blend_epi32(_mm256_blend_epi32(shuffled_red, shuffled_green, EVERY_THIRD_LANE_FROM_ONE),
                                            shuffled_blue, EVERY_THIRD_LANE_FROM_TWO));
-    _mm256_storeu_si256((__m256i*)(buffer + 8),
+    _mm256_storeu_si256((__m256i*)(buffer + LANES),
                         _mm256_blend_epi32(_mm256_blend_epi32(shuffled_blue, shuffled_red, EVERY_THIRD_LANE_FROM_ONE),
                                            shuffled_green, EVERY_THIRD_LANE_FROM_TWO));
-    _mm256_storeu_si256((__m256i*)(buffer + 16),
+    _mm256_storeu_si256((__m256i*)(buffer + 2 * LANES),
                         _mm256_blend_epi32(_mm256_blend_epi32(shuffled_green, shuffled_blue, EVERY_THIRD_LANE_FROM_ONE),
                                            shuffled_red, EVERY_THIRD_LANE_FROM_TWO));
   }
@@ -813,8 +813,8 @@ struct int_vector {
   static void load_channels(const int32_t* buffer, int_vector& red_channels, int_vector& green_channels,
                             int_vector& blue_channels) {
     const __m512i first_vector = _mm512_loadu_si512(buffer);
-    const __m512i second_vector = _mm512_loadu_si512(buffer + 16);
-    const __m512i third_vector = _mm512_loadu_si512(buffer + 32);
+    const __m512i second_vector = _mm512_loadu_si512(buffer + LANES);
+    const __m512i third_vector = _mm512_loadu_si512(buffer + 2 * LANES);
     red_channels.lanes_ = gather(first_vector, second_vector, third_vector, 0);
     green_channels.lanes_ = gather(first_vector, second_vector, third_vector, 1);
     blue_channels.lanes_ = gather(first_vector, second_vector, third_vector, 2);
@@ -822,8 +822,9 @@ struct int_vector {
   static void store_channels(int32_t* buffer, const int_vector red_channels, const int_vector green_channels,
                              const int_vector blue_channels) {
     _mm512_storeu_si512(buffer, scatter(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_, 0));
-    _mm512_storeu_si512(buffer + 16, scatter(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_, 1));
-    _mm512_storeu_si512(buffer + 32, scatter(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_, 2));
+    _mm512_storeu_si512(buffer + LANES, scatter(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_, 1));
+    _mm512_storeu_si512(buffer + 2 * LANES,
+                        scatter(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_, 2));
   }
 
   static int_vector bits(const int8_t* buffer, const int32_t index) {
@@ -941,7 +942,7 @@ struct int_vector {
     return {vdupq_n_s32(0)};
   }
   static int_vector lane_indices() {
-    static const int32_t indices[4] = {0, 1, 2, 3};
+    static const int32_t indices[LANES] = {0, 1, 2, 3};
     return {vld1q_s32(indices)};
   }
   static int_vector load_unsigned_bytes(const uint8_t* buffer) {
@@ -1002,7 +1003,7 @@ struct int_vector {
     vst3q_s32(buffer, channel_vectors);
   }
   static int_vector bits(const int8_t* buffer, const int32_t index) {
-    static const int32_t lane_bits[4] = {1, 2, 4, 8};
+    static const int32_t lane_bits[LANES] = {1, 2, 4, 8};
     const int32x4_t byte = vdupq_n_s32((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & LANE_MASK);
     return {vreinterpretq_s32_u32(vtstq_s32(byte, vld1q_s32(lane_bits)))};
   }
