@@ -102,7 +102,7 @@ final class GeneratedMediaTest {
   }
 
   @Test
-  void shouldReplaceUntrustedExistingFilesAndCachOnlySuccessfulGeneration() throws Exception {
+  void shouldReplaceUntrustedExistingFilesAndCacheOnlySuccessfulGeneration() throws Exception {
     final Path output = this.directory.resolve(OUTPUT_FILE_NAME);
     Files.writeString(output, "partial from a failed older attempt");
     final AtomicInteger invocations = new AtomicInteger();
