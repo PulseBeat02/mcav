@@ -20,13 +20,12 @@ package me.brandonli.mcav.loader;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
-import java.lang.foreign.Arena;
-import java.lang.foreign.SymbolLookup;
 import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,12 +39,14 @@ import me.brandonli.mcav.capability.installer.Installer;
 import me.brandonli.mcav.capability.installer.debian.DebianLibraryInstaller;
 import me.brandonli.mcav.capability.installer.vlc.VlcInstallationKit;
 import me.brandonli.mcav.capability.installer.ytdlp.YtdlpInstaller;
+import me.brandonli.mcav.utils.IoUtils;
+import me.brandonli.mcav.utils.ffmpeg.FfmpegExecutableProvider;
 import me.brandonli.mcav.utils.natives.NativeLoadingException;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
 import me.brandonli.mcav.utils.os.Os;
+import me.brandonli.mcav.utils.os.OsUtils;
 import me.brandonli.mcav.utils.os.Platform;
-import org.bytedeco.ffmpeg.ffmpeg;
 import org.bytedeco.ffmpeg.global.avutil;
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacv.FFmpegLogCallback;
@@ -53,6 +54,7 @@ import org.bytedeco.opencv.presets.opencv_core;
 import org.bytedeco.opencv.presets.opencv_imgcodecs;
 import org.bytedeco.opencv.presets.opencv_imgproc;
 import org.bytedeco.opencv.presets.opencv_objdetect;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +83,14 @@ public final class DependencyLoader {
 
   private static final String GTK2_LIBRARY = "libgtk-x11-2.0.so.0";
 
+  private static final String CACHE_PROPERTY = "org.bytedeco.javacpp.cachedir";
+  private static final String CACHE_ALIAS_PROPERTY = "org.bytedeco.javacpp.cacheDir";
+  private static final String USER_HOME_PROPERTY = "user.home";
+
+  private static final String HOME_CACHE_ROOT = ".javacpp";
+  private static final String HOME_CACHE_DIRECTORY = "cache";
+  private static final String CACHE_FOLDER = "javacpp";
+
   private final Set<Capability> capabilities;
   private final Map<Capability, Object> preparations = new EnumMap<>(Capability.class);
   private final Logger logger;
@@ -99,7 +109,7 @@ public final class DependencyLoader {
 
   @VisibleForTesting
   DependencyLoader(final Logger logger) {
-    this(logger, DependencyLoader::isLibraryAvailable, DebianLibraryInstaller::createGtk2Installer);
+    this(logger, OsUtils::isLibraryAvailable, DebianLibraryInstaller::createGtk2Installer);
   }
 
   @VisibleForTesting
@@ -183,7 +193,8 @@ public final class DependencyLoader {
   void loadNatives(final Platform platform) {
     configureJavaCpp();
     Loader.load(Loader.class);
-    loadFfmpeg(DependencyLoader::loadFfmpegLibraries, DependencyLoader::configureFfmpegLogging);
+    // extracting the ffmpeg program loads every FFmpeg library, after the system libraries that they link
+    loadFfmpeg(FfmpegExecutableProvider::getFfmpegPath, DependencyLoader::configureFfmpegLogging);
     for (final Class<?> module : OPENCV_MODULES) {
       Loader.load(module);
     }
@@ -214,6 +225,31 @@ public final class DependencyLoader {
     if (current == null) {
       System.setProperty(PATHS_FIRST_PROPERTY, PATHS_FIRST_VALUE);
     }
+
+    configureJavaCppCache();
+  }
+
+  // JavaCPP only checks that ~/.javacpp/cache is writable, so its natives fail to load from a home mounted noexec
+  private static void configureJavaCppCache() {
+    final @Nullable String configured = System.getProperty(CACHE_PROPERTY);
+    final @Nullable String configuredAlias = System.getProperty(CACHE_ALIAS_PROPERTY);
+    if (configured != null || configuredAlias != null) {
+      return;
+    }
+
+    final @Nullable String homeOrNull = System.getProperty(USER_HOME_PROPERTY);
+    final String home = Objects.requireNonNull(homeOrNull, "The JVM always sets the user home!");
+    final Path homeCache = Path.of(home, HOME_CACHE_ROOT, HOME_CACHE_DIRECTORY);
+    final boolean runnable = IoUtils.createRunnableFolder(homeCache);
+    if (runnable) {
+      return;
+    }
+
+    final Path cache = IoUtils.getCachedFolder();
+    final Path fallback = cache.resolve(CACHE_FOLDER);
+    final String rawFallback = fallback.toString();
+    LOGGER.warn("JavaCPP cache folder {} cannot be written or cannot run programs, using {} instead.", homeCache, fallback);
+    System.setProperty(CACHE_PROPERTY, rawFallback);
   }
 
   private void loadObjectDetection(final Platform platform) {
@@ -258,21 +294,6 @@ public final class DependencyLoader {
     final DebianLibraryInstaller installer = installerFactory.get();
     installer.download(FileMode.EXECUTABLE);
     installer.loadLibraries();
-  }
-
-  // asks the dynamic linker for the library the same way OpenCV's GUI module does, so the answer matches what linking
-  // the module will find; the lookup is restricted because it loads native code
-  @SuppressWarnings("restricted")
-  @VisibleForTesting
-  static boolean isLibraryAvailable(final String library) {
-    try {
-      final Arena arena = Arena.global();
-      SymbolLookup.libraryLookup(library, arena);
-
-      return true;
-    } catch (final IllegalArgumentException exception) {
-      return false;
-    }
   }
 
   @VisibleForTesting
@@ -326,10 +347,6 @@ public final class DependencyLoader {
     }
 
     setup.run();
-  }
-
-  private static void loadFfmpegLibraries() {
-    Loader.load(ffmpeg.class);
   }
 
   private static void configureFfmpegLogging() {

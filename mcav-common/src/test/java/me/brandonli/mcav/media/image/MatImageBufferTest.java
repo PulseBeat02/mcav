@@ -35,6 +35,7 @@ import java.awt.image.ComponentSampleModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferByte;
 import java.awt.image.DataBufferInt;
+import java.awt.image.DirectColorModel;
 import java.awt.image.PixelInterleavedSampleModel;
 import java.awt.image.Raster;
 import java.awt.image.SampleModel;
@@ -558,6 +559,47 @@ final class MatImageBufferTest {
     }
 
     assertThrowsWhileOpening(NullPointerException.class, () -> ImageBuffer.image(null));
+  }
+
+  @Test
+  void shouldCopyPackedSrgbSamplesWithoutConvertingThem() {
+    final ConversionCountingImage source = new ConversionCountingImage();
+    try (final ImageBuffer _ = ImageBuffer.image(source)) {
+      final int conversions = source.getConversions();
+      assertEquals(0, conversions, "the samples of a packed sRGB image are copied as they are");
+    }
+  }
+
+  @Test
+  void shouldConvertTheSamplesOfALinearBgrImageToSrgb() {
+    final ColorSpace linear = ColorSpace.getInstance(ColorSpace.CS_LINEAR_RGB);
+    final ComponentColorModel colorModel = new ComponentColorModel(linear, false, false, Transparency.OPAQUE, DataBuffer.TYPE_BYTE);
+    final WritableRaster raster = Raster.createInterleavedRaster(DataBuffer.TYPE_BYTE, 1, 1, 3, 3, new int[] { 2, 1, 0 }, null);
+    raster.setPixel(0, 0, new int[] { 8, 8, 8 });
+    final BufferedImage source = new BufferedImage(colorModel, raster, false, null);
+    final int type = source.getType();
+    final int expected = source.getRGB(0, 0);
+    try (final ImageBuffer image = ImageBuffer.image(source)) {
+      final int pixel = argbAt(image, 0, 0);
+      assertEquals(BufferedImage.TYPE_3BYTE_BGR, type, "a linear image reports the type of an sRGB one");
+      assertEquals(expected, pixel, "the linear samples are converted to sRGB rather than copied");
+    }
+  }
+
+  @Test
+  void shouldConvertThePixelsOfALinearIntegerImageToSrgb() {
+    final ColorSpace linear = ColorSpace.getInstance(ColorSpace.CS_LINEAR_RGB);
+    final DirectColorModel colorModel = new DirectColorModel(linear, 24, 0xFF0000, 0xFF00, 0xFF, 0, false, DataBuffer.TYPE_INT);
+    final WritableRaster raster = colorModel.createCompatibleWritableRaster(1, 1);
+    raster.setPixel(0, 0, new int[] { 8, 8, 8 });
+    final BufferedImage source = new BufferedImage(colorModel, raster, false, null);
+    final int type = source.getType();
+    final int expected = source.getRGB(0, 0);
+    try (final ImageBuffer image = ImageBuffer.image(source)) {
+      final int pixel = argbAt(image, 0, 0);
+      assertEquals(BufferedImage.TYPE_INT_RGB, type, "a linear image reports the type of an sRGB one");
+      assertEquals(expected, pixel, "the linear pixels are converted to sRGB rather than copied");
+    }
   }
 
   private static BufferedImage imageWithExtraStorage(final int type, final int offset) {
@@ -1219,6 +1261,33 @@ final class MatImageBufferTest {
     @Override
     public int getWidth() {
       return 0;
+    }
+  }
+
+  private static final class ConversionCountingImage extends BufferedImage {
+
+    private int conversions;
+
+    ConversionCountingImage() {
+      super(SMALL_IMAGE_SIZE, SMALL_IMAGE_SIZE, BufferedImage.TYPE_3BYTE_BGR);
+    }
+
+    @Override
+    public int[] getRGB(
+      final int startX,
+      final int startY,
+      final int width,
+      final int height,
+      final int @Nullable [] pixels,
+      final int offset,
+      final int scanlineSize
+    ) {
+      this.conversions++;
+      return super.getRGB(startX, startY, width, height, pixels, offset, scanlineSize);
+    }
+
+    int getConversions() {
+      return this.conversions;
     }
   }
 }

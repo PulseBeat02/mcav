@@ -596,6 +596,14 @@ final class HttpDownloaderTest {
   }
 
   @Test
+  void shouldKeepDownloadingAtTheLastNanosecondOfTheDeadline() {
+    final Duration deadline = Duration.ofMinutes(1);
+    final long now = deadline.toNanos();
+    final boolean past = HttpDownloader.isPastDeadline(0L, now, deadline);
+    assertFalse(past, "the deadline itself is still in time");
+  }
+
+  @Test
   void shouldStopRetryingWhenInterrupted() throws IOException {
     final URI unreachable = unusedPort();
     final Path destination = this.directory.resolve(INTERRUPTED_FILE_NAME);

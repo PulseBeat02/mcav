@@ -590,6 +590,12 @@ final class DeclaredImageSizeTest {
         7
       ),
       Arguments.of(
+        "jpeg after a segment of only its length",
+        bytes(0xFF, 0xD8, 0xFF, 0xE0, bigEndian(2, 2), 0xFF, 0xC0, bigEndian(17, 2), 8, bigEndian(7, 2), bigEndian(5, 2)),
+        5,
+        7
+      ),
+      Arguments.of(
         "jpeg with a stuffed zero before its frame",
         bytes(0xFF, 0xD8, 0xFF, 0x00, 0xFF, 0xC0, bigEndian(17, 2), 8, bigEndian(7, 2), bigEndian(5, 2)),
         5,

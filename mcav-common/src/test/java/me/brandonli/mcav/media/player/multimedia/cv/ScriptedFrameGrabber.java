@@ -24,6 +24,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameGrabber;
@@ -42,7 +43,9 @@ final class ScriptedFrameGrabber extends FrameGrabber {
 
   private final Deque<Object> script;
   private final AtomicBoolean closed;
+  private final AtomicBoolean interruptedWhenReleased;
   private final AtomicLong requestedTimestamp;
+  private final AtomicReference<Thread> grabbingThread;
   private boolean failOnStart;
   private boolean failOnStop;
   private boolean failOnSeek;
@@ -51,7 +54,9 @@ final class ScriptedFrameGrabber extends FrameGrabber {
   ScriptedFrameGrabber(final int width, final int height, final List<?> steps) {
     this.script = new ArrayDeque<>(steps);
     this.closed = new AtomicBoolean();
+    this.interruptedWhenReleased = new AtomicBoolean();
     this.requestedTimestamp = new AtomicLong(-1L);
+    this.grabbingThread = new AtomicReference<>();
     this.imageWidth = width;
     this.imageHeight = height;
     this.sampleRate = SAMPLE_RATE;
@@ -124,6 +129,9 @@ final class ScriptedFrameGrabber extends FrameGrabber {
 
   @Override
   public Frame grab() throws FrameGrabber.Exception {
+    final Thread currentThread = Thread.currentThread();
+    this.grabbingThread.set(currentThread);
+
     Object next = this.takeNextStep();
     while (next instanceof final Delay delay) {
       delay.block();
@@ -154,6 +162,9 @@ final class ScriptedFrameGrabber extends FrameGrabber {
 
   @Override
   public void release() {
+    final Thread currentThread = Thread.currentThread();
+    final boolean interrupted = currentThread.isInterrupted();
+    this.interruptedWhenReleased.set(interrupted);
     this.closed.set(true);
   }
 
@@ -170,8 +181,16 @@ final class ScriptedFrameGrabber extends FrameGrabber {
     return this.closed.get();
   }
 
+  boolean wasInterruptedWhenReleased() {
+    return this.interruptedWhenReleased.get();
+  }
+
   long getRequestedTimestamp() {
     return this.requestedTimestamp.get();
+  }
+
+  Thread getGrabbingThread() {
+    return this.grabbingThread.get();
   }
 
   void setLength(final long lengthMicroseconds) {

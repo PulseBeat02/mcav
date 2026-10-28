@@ -33,9 +33,10 @@ import me.brandonli.mcav.capability.installer.InstallationException;
 import org.junit.jupiter.api.Tag;
 
 // Fuzzes the extraction of Debian packages, which mcav runs on packages it downloads: whatever the package, nothing is
-// written outside the destination, and a bad package fails only with an InstallationException. The limits are small so
-// that a compressed bomb cannot fill the heap. The seeds are packages with xz, gzip and uncompressed data, GNU and pax
-// long names, a symbolic link that escapes and a hard link.
+// written outside the destination, no symbolic link leads out of it, and a bad package fails only with an
+// InstallationException. The limits are small so that a compressed bomb cannot fill the heap. The seeds are packages
+// with xz, gzip and uncompressed data, GNU and pax long names, a symbolic link that escapes, a chain of links, a hard
+// link and a program with its library.
 @Tag("fuzz")
 final class DebianPackageExtractorFuzzTest {
 
@@ -43,13 +44,15 @@ final class DebianPackageExtractorFuzzTest {
   private static final String ARCHIVE = "/work/package.deb";
   private static final String DESTINATION = "/work/destination";
 
+  private static final List<String> TREES = List.of("usr/lib", "lib", "usr/bin");
+  private static final Configuration POSIX = Configuration.unix().toBuilder().setAttributeViews("basic", "owner", "posix", "unix").build();
+
   private static final long MAXIMUM_ENTRY_SIZE = 1024L * 1024L;
   private static final long MAXIMUM_TOTAL_SIZE = 4L * 1024L * 1024L;
 
   @FuzzTest(maxDuration = "30s")
   void shouldExtractOnlyIntoTheDestination(final byte[] debianPackage) throws IOException {
-    final Configuration unix = Configuration.unix();
-    try (final FileSystem fileSystem = Jimfs.newFileSystem(unix)) {
+    try (final FileSystem fileSystem = Jimfs.newFileSystem(POSIX)) {
       final Path root = fileSystem.getPath(ROOT);
       final Path archive = fileSystem.getPath(ARCHIVE);
       final Path destination = fileSystem.getPath(DESTINATION);
@@ -65,6 +68,12 @@ final class DebianPackageExtractorFuzzTest {
         .toList();
       assertEquals(List.of(), outside, "something was written outside the destination");
 
+      final List<Path> escapingLinks = after
+        .stream()
+        .filter(path -> this.leadsOutside(path, destination))
+        .toList();
+      assertEquals(List.of(), escapingLinks, "a symbolic link leads out of the destination");
+
       final byte[] archiveAfter = Files.readAllBytes(archive);
       assertArrayEquals(debianPackage, archiveAfter, "extraction preserves the package");
     }
@@ -72,9 +81,23 @@ final class DebianPackageExtractorFuzzTest {
 
   private void extract(final Path archive, final Path destination) {
     try {
-      DebianPackageExtractor.extract(archive, destination, MAXIMUM_ENTRY_SIZE, MAXIMUM_TOTAL_SIZE);
+      DebianPackageExtractor.extract(archive, destination, TREES, MAXIMUM_ENTRY_SIZE, MAXIMUM_TOTAL_SIZE);
     } catch (final InstallationException exception) {
       // a broken or unsafe package; what matters is where anything was written
+    }
+  }
+
+  // a link that cannot be resolved, such as a dangling one, leads nowhere
+  private boolean leadsOutside(final Path path, final Path destination) {
+    if (!Files.isSymbolicLink(path)) {
+      return false;
+    }
+
+    try {
+      final Path resolved = path.toRealPath();
+      return !resolved.startsWith(destination);
+    } catch (final IOException exception) {
+      return false;
     }
   }
 

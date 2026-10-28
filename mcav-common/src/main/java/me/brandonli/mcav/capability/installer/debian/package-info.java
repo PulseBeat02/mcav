@@ -16,15 +16,19 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 /**
- * Installs shared libraries from pinned Debian packages, without a package manager or administrator rights.
+ * Installs shared libraries and programs from pinned Debian packages, without a package manager or administrator
+ * rights.
  *
  * <p>{@link me.brandonli.mcav.capability.installer.debian.DebianLibraryInstaller#createVlcInstaller()} installs VLC
  * for 64-bit ARM Linux, and
  * {@link me.brandonli.mcav.capability.installer.debian.DebianLibraryInstaller#createGtk2Installer()} installs the
  * GTK 2 libraries that the object detection of OpenCV needs on Linux.
  * {@link me.brandonli.mcav.capability.installer.debian.DebianLibraryInstaller#loadLibraries()} then loads them into
- * the JVM in dependency order. Packages are downloaded from {@code snapshot.debian.org}, checked against their pinned
- * SHA-256 and extracted by MCAV itself into the cache folder.
+ * the JVM in dependency order.
+ * {@link me.brandonli.mcav.capability.installer.debian.DebianProgramInstaller#create(String, String, java.util.List)}
+ * installs the programs of a package list instead, to run as processes. Packages are downloaded from
+ * {@code snapshot.debian.org}, checked against their pinned SHA-256 and extracted by MCAV itself into the cache
+ * folder.
  *
  * <p>Downloading, extraction and loading block the caller. Installed libraries are kept for reuse.
  *

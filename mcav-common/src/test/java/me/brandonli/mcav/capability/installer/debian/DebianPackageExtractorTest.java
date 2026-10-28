@@ -34,8 +34,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import me.brandonli.mcav.capability.installer.InstallationException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,6 +57,16 @@ final class DebianPackageExtractorTest {
   private static final String LINK_TARGET = "libexample.so.1.2.3";
   private static final byte[] CONTENT = "library".getBytes(StandardCharsets.US_ASCII);
 
+  private static final List<String> TREES = List.of("usr/lib", "lib");
+  private static final List<String> PROGRAM_TREES = List.of("usr/lib", "lib", "usr/bin", "usr/share/tool");
+  private static final String PROGRAM = "./usr/bin/tool";
+  private static final String PROGRAM_PATH = "usr/bin/tool";
+
+  private static final Configuration POSIX = Configuration.unix().toBuilder().setAttributeViews("basic", "owner", "posix", "unix").build();
+  private static final Set<PosixFilePermission> EXECUTABLE = PosixFilePermissions.fromString("rwxr-xr-x");
+  private static final Set<PosixFilePermission> REGULAR = PosixFilePermissions.fromString("rw-r--r--");
+  private static final Set<PosixFilePermission> FOLDER = PosixFilePermissions.fromString("rwxr-xr-x");
+
   private static final String UNCOMPRESSED = "data.tar";
   private static final String DEEP_DIRECTORY = "d".repeat(120);
 
@@ -60,6 +74,7 @@ final class DebianPackageExtractorTest {
   // member with its 7 bytes and a padding byte come first, each member behind a 60 byte header
   private static final int FIRST_TAR_HEADER = 8 + 60 + 4 + 60 + 7 + 1 + 60;
   private static final int TAR_HEADER_SIZE = 512;
+  private static final int TAR_MODE_OFFSET = 100;
   private static final int TAR_SIZE_OFFSET = 124;
   private static final int TAR_CHECKSUM_OFFSET = 148;
   private static final int TAR_CHECKSUM_LENGTH = 8;
@@ -80,7 +95,7 @@ final class DebianPackageExtractorTest {
 
   @BeforeEach
   void setUp() {
-    this.fileSystem = Jimfs.newFileSystem(Configuration.unix());
+    this.fileSystem = Jimfs.newFileSystem(POSIX);
     this.archive = this.fileSystem.getPath("/package.deb");
     this.destination = this.fileSystem.getPath("/destination");
   }
@@ -122,6 +137,87 @@ final class DebianPackageExtractorTest {
     assertFalse(documentation);
     assertFalse(configuration);
     assertFalse(escaped);
+  }
+
+  @Test
+  void shouldExtractTheTreesTheCallerNames() throws IOException {
+    final byte[] other = "other".getBytes(StandardCharsets.US_ASCII);
+    final byte[] debianPackage = new DebianPackageBuilder()
+      .executableFile(PROGRAM, CONTENT)
+      .file("./usr/share/tool/firmware.bin", CONTENT)
+      .file("./usr/share/doc/tool/copyright", other)
+      .build();
+    this.extract(debianPackage, PROGRAM_TREES);
+
+    final byte[] program = Files.readAllBytes(this.destination.resolve(PROGRAM_PATH));
+    final byte[] firmware = Files.readAllBytes(this.destination.resolve("usr/share/tool/firmware.bin"));
+    assertArrayEquals(CONTENT, program);
+    assertArrayEquals(CONTENT, firmware);
+
+    final boolean documentation = Files.exists(this.destination.resolve("usr/share/doc"));
+    assertFalse(documentation);
+  }
+
+  @Test
+  void shouldMakeAFileExecutableOnlyWhenItsEntryIs() throws IOException {
+    final byte[] debianPackage = new DebianPackageBuilder().executableFile(PROGRAM, CONTENT).file(LIBRARY, CONTENT).build();
+    this.extract(debianPackage, PROGRAM_TREES);
+
+    final Set<PosixFilePermission> program = Files.getPosixFilePermissions(this.destination.resolve(PROGRAM_PATH));
+    final Set<PosixFilePermission> library = Files.getPosixFilePermissions(this.destination.resolve(LIBRARY_PATH));
+    assertEquals(EXECUTABLE, program);
+    assertEquals(REGULAR, library);
+  }
+
+  @Test
+  void shouldCreateFoldersThatOnlyTheirOwnerMayWrite() throws IOException {
+    final byte[] debianPackage = new DebianPackageBuilder().directory("./usr/bin/").file(LIBRARY, CONTENT).build();
+    this.extract(debianPackage, PROGRAM_TREES);
+
+    final Set<PosixFilePermission> directory = Files.getPosixFilePermissions(this.destination.resolve("usr/bin"));
+    final Set<PosixFilePermission> parent = Files.getPosixFilePermissions(this.destination.resolve("usr/lib/aarch64-linux-gnu"));
+    assertEquals(FOLDER, directory);
+    assertEquals(FOLDER, parent);
+  }
+
+  @Test
+  void shouldCreateTheDestinationOfAPackageWithNothingToExtract() throws IOException {
+    final byte[] debianPackage = new DebianPackageBuilder().file("./etc/example.conf", CONTENT).build();
+    this.extract(debianPackage);
+
+    final Set<PosixFilePermission> destinationPermissions = Files.getPosixFilePermissions(this.destination);
+    assertEquals(FOLDER, destinationPermissions);
+  }
+
+  @Test
+  void shouldExtractOntoAFileSystemWithoutPermissions() throws IOException {
+    final byte[] debianPackage = new DebianPackageBuilder()
+      .directory("./usr/bin/")
+      .executableFile(PROGRAM, CONTENT)
+      .file(LIBRARY, CONTENT)
+      .symbolicLink(LINK, LINK_TARGET)
+      .build();
+    try (final FileSystem basic = Jimfs.newFileSystem(Configuration.unix())) {
+      final Path basicArchive = basic.getPath("/package.deb");
+      final Path basicDestination = basic.getPath("/destination");
+      Files.write(basicArchive, debianPackage);
+      DebianPackageExtractor.extract(basicArchive, basicDestination, PROGRAM_TREES);
+
+      final byte[] program = Files.readAllBytes(basicDestination.resolve(PROGRAM_PATH));
+      final byte[] linked = Files.readAllBytes(basicDestination.resolve(LINK_PATH));
+      assertArrayEquals(CONTENT, program);
+      assertArrayEquals(CONTENT, linked);
+    }
+  }
+
+  @Test
+  void shouldReplaceAnEarlierEntryOfTheSameName() throws IOException {
+    final byte[] newer = "newer".getBytes(StandardCharsets.US_ASCII);
+    final byte[] debianPackage = new DebianPackageBuilder().file(LIBRARY, CONTENT).file(LIBRARY, newer).build();
+    this.extract(debianPackage);
+
+    final byte[] library = Files.readAllBytes(this.destination.resolve(LIBRARY_PATH));
+    assertArrayEquals(newer, library);
   }
 
   @ParameterizedTest
@@ -229,14 +325,45 @@ final class DebianPackageExtractorTest {
     assertEquals(this.fileSystem.getPath(target), linkTarget);
   }
 
+  // the last one only comes back by name, which a link on the way to the destination could lead elsewhere
   @ParameterizedTest
-  @ValueSource(strings = { "/etc/passwd", "../../../../outside", "" })
+  @ValueSource(strings = { "/etc/passwd", "../../../../outside", "", "../../../../destination/usr/lib/libexample.so.1.2.3" })
   void shouldRefuseSymbolicLinksThatLeaveTheDestination(final String target) {
     final byte[] debianPackage = new DebianPackageBuilder().symbolicLink(LINK, target).build();
 
     final String reason = this.extractFailureReason(debianPackage);
     final String expected = "Symbolic link %s points to %s outside the destination!".formatted(LINK, target);
     assertEquals(expected, reason);
+  }
+
+  // up/../.. stays inside by its text, but up leads to the destination itself, so it would leave by two folders
+  @ParameterizedTest
+  @ValueSource(strings = { "up/../..", "./up", "up/." })
+  void shouldRefuseSymbolicLinksThatAreNotNormalized(final String target) {
+    final byte[] debianPackage = new DebianPackageBuilder()
+      .symbolicLink("./usr/lib/up", "../..")
+      .symbolicLink("./usr/lib/out", target)
+      .build();
+
+    final String reason = this.extractFailureReason(debianPackage);
+    final String expected = "Symbolic link ./usr/lib/out points to %s, which is not a normalized path!".formatted(target);
+    assertEquals(expected, reason);
+  }
+
+  @Test
+  void shouldKeepASymbolicLinkInANewFolderThatPointsInsideTheDestination() throws IOException {
+    final String target = "../lib/tool/tool";
+    final byte[] debianPackage = new DebianPackageBuilder()
+      .executableFile("./usr/lib/tool/tool", CONTENT)
+      .symbolicLink(PROGRAM, target)
+      .build();
+    this.extract(debianPackage, PROGRAM_TREES);
+
+    final Path link = this.destination.resolve(PROGRAM_PATH);
+    final Path linkTarget = Files.readSymbolicLink(link);
+    final byte[] linked = Files.readAllBytes(link);
+    assertEquals(this.fileSystem.getPath(target), linkTarget);
+    assertArrayEquals(CONTENT, linked);
   }
 
   @ParameterizedTest
@@ -267,7 +394,7 @@ final class DebianPackageExtractorTest {
     final byte[] outside = new DebianPackageBuilder().hardLink("./usr/share/hard", "./usr/share/file").build();
     final byte[] inside = new DebianPackageBuilder().hardLink("./usr/lib/hard", "./usr/lib/file").build();
     this.writeArchive(outside);
-    assertDoesNotThrow(() -> DebianPackageExtractor.extract(this.archive, this.destination));
+    assertDoesNotThrow(() -> DebianPackageExtractor.extract(this.archive, this.destination, TREES));
 
     final String reason = this.extractFailureReason(inside);
     assertEquals("Tar entry ./usr/lib/hard has the unsupported type 1!", reason);
@@ -282,18 +409,18 @@ final class DebianPackageExtractorTest {
       .build();
     this.writeArchive(debianPackage);
 
-    assertDoesNotThrow(() -> DebianPackageExtractor.extract(this.archive, this.destination, 10, 20));
+    assertDoesNotThrow(() -> DebianPackageExtractor.extract(this.archive, this.destination, TREES, 10, 20));
 
     final Path entryDestination = this.fileSystem.getPath("/entry");
     final InstallationException entryFailure = assertThrows(InstallationException.class, () ->
-      DebianPackageExtractor.extract(this.archive, entryDestination, 9, 20)
+      DebianPackageExtractor.extract(this.archive, entryDestination, TREES, 9, 20)
     );
     final String entryReason = this.findReason(entryFailure);
     assertEquals("Tar entry of 10 bytes exceeds the maximum entry size!", entryReason);
 
     final Path totalDestination = this.fileSystem.getPath("/total");
     final InstallationException totalFailure = assertThrows(InstallationException.class, () ->
-      DebianPackageExtractor.extract(this.archive, totalDestination, 10, 19)
+      DebianPackageExtractor.extract(this.archive, totalDestination, TREES, 10, 19)
     );
     final String totalReason = this.findReason(totalFailure);
     assertEquals("The data archive exceeds the maximum total size!", totalReason);
@@ -314,6 +441,12 @@ final class DebianPackageExtractorTest {
 
     final String checksumReason = this.extractFailureReason(badChecksum);
     assertEquals("Tar header field zz is not an octal number!", checksumReason);
+
+    final byte[] badMode = debianPackage.clone();
+    this.rewriteTarField(badMode, TAR_MODE_OFFSET, "000064x");
+
+    final String modeReason = this.extractFailureReason(badMode);
+    assertEquals("Tar header field 000064x is not an octal number!", modeReason);
   }
 
   @Test
@@ -344,7 +477,7 @@ final class DebianPackageExtractorTest {
     final byte[] largestPackage = new DebianPackageBuilder().rawEntry(PAX_ENTRY, GNU_LONG_NAME, largest).build();
     final byte[] tooLargePackage = new DebianPackageBuilder().rawEntry(PAX_ENTRY, GNU_LONG_NAME, tooLarge).build();
     this.writeArchive(largestPackage);
-    assertDoesNotThrow(() -> DebianPackageExtractor.extract(this.archive, this.destination));
+    assertDoesNotThrow(() -> DebianPackageExtractor.extract(this.archive, this.destination, TREES));
 
     final String tooLargeReason = this.extractFailureReason(tooLargePackage);
     assertEquals("Tar metadata of 65537 bytes exceeds the maximum metadata size!", tooLargeReason);
@@ -402,15 +535,19 @@ final class DebianPackageExtractorTest {
     Files.createSymbolicLink(alias, this.destination);
     final byte[] debianPackage = new DebianPackageBuilder().file(LIBRARY, CONTENT).build();
     this.writeArchive(debianPackage);
-    DebianPackageExtractor.extract(this.archive, alias);
+    DebianPackageExtractor.extract(this.archive, alias, TREES);
 
     final byte[] library = Files.readAllBytes(this.destination.resolve(LIBRARY_PATH));
     assertArrayEquals(CONTENT, library);
   }
 
-  private void extract(final byte[] debianPackage) throws IOException {
+  private void extract(final byte[] debianPackage) {
+    this.extract(debianPackage, TREES);
+  }
+
+  private void extract(final byte[] debianPackage, final List<String> trees) {
     this.writeArchive(debianPackage);
-    DebianPackageExtractor.extract(this.archive, this.destination);
+    DebianPackageExtractor.extract(this.archive, this.destination, trees);
   }
 
   private String extractFailureReason(final byte[] debianPackage) {
@@ -425,7 +562,7 @@ final class DebianPackageExtractorTest {
 
   private InstallationException extractFailure(final byte[] debianPackage) {
     this.writeArchive(debianPackage);
-    return assertThrows(InstallationException.class, () -> DebianPackageExtractor.extract(this.archive, this.destination));
+    return assertThrows(InstallationException.class, () -> DebianPackageExtractor.extract(this.archive, this.destination, TREES));
   }
 
   private void writeArchive(final byte[] debianPackage) {

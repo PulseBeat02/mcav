@@ -553,8 +553,8 @@ public final class HttpDownloader {
         final String message = "The download of %s is larger than the %s bytes it may have!".formatted(uri, maximumBytes);
         throw new DownloadTooLargeException(message);
       }
-      // compared as durations: the deadline of the largest pinned size does not fit a long of nanoseconds
-      if (deadline != null && Duration.ofNanos(System.nanoTime() - started).compareTo(deadline) > 0) {
+      final long now = System.nanoTime();
+      if (deadline != null && isPastDeadline(started, now, deadline)) {
         final String message = "The download of %s took longer than the %s it may take!".formatted(uri, deadline);
         throw new DownloadTooSlowException(message);
       }
@@ -562,6 +562,14 @@ public final class HttpDownloader {
       digest.update(chunk, 0, read);
       read = body.read(chunk);
     }
+  }
+
+  // Takes the current time, so a test can reach the deadline to the nanosecond, which kills the mutant that stops there.
+  @VisibleForTesting
+  static boolean isPastDeadline(final long started, final long now, final Duration deadline) {
+    // compared as durations: the deadline of the largest pinned size does not fit a long of nanoseconds
+    final Duration elapsed = Duration.ofNanos(now - started);
+    return elapsed.compareTo(deadline) > 0;
   }
 
   private static void verifyChecksum(final URI uri, final MessageDigest digest, final @Nullable String expectedSha256) {

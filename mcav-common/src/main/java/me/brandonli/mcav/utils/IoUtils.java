@@ -587,6 +587,22 @@ public final class IoUtils {
   }
 
   /**
+   * Creates a folder if it is missing and returns whether programs written into it can run. The answer is
+   * {@code false} when the folder cannot be created or written, or lies on a file system mounted {@code noexec}; a probe
+   * file written into the folder, marked executable and deleted again finds that out.
+   *
+   * @param folder the folder to create and check
+   * @return whether programs written into the folder can run
+   * @throws NullPointerException if {@code folder} is null
+   * @since 1.0.0
+   */
+  public static boolean createRunnableFolder(final Path folder) {
+    Preconditions.checkNotNull(folder, "Folder must not be null!");
+
+    return createUsableDirectory(folder, Files::isExecutable);
+  }
+
+  /**
    * Reads the download list of an installer from a classpath resource.
    *
    * @param resourcePath the full path from the classpath root, such as {@code mcav/common/installers/yt-dlp.json}

@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.media.player.multimedia.cv;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.util.concurrent.TimeUnit;
 import java.util.function.LongSupplier;
@@ -129,14 +130,20 @@ final class PlaybackClock {
   // wakeup keeps waiting for the rest of the timeout. The timeout is measured on the real clock, not on the wall clock
   // of the constructor, because the thread really sleeps.
   void awaitResume(final long timeoutMilliseconds) throws InterruptedException {
+    this.awaitResume(timeoutMilliseconds, System::nanoTime);
+  }
+
+  // Takes the real clock, so a test can stop it, which kills the mutant that moves the deadline into the past.
+  @VisibleForTesting
+  void awaitResume(final long timeoutMilliseconds, final LongSupplier realClock) throws InterruptedException {
     final long timeoutNanoseconds = TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
-    final long start = System.nanoTime();
+    final long start = realClock.getAsLong();
     final long deadline = start + timeoutNanoseconds;
     synchronized (this.lock) {
       long remainingNanoseconds = timeoutNanoseconds;
       while (this.paused && remainingNanoseconds > 0) {
         TimeUnit.NANOSECONDS.timedWait(this.lock, remainingNanoseconds);
-        final long now = System.nanoTime();
+        final long now = realClock.getAsLong();
         remainingNanoseconds = deadline - now;
       }
     }

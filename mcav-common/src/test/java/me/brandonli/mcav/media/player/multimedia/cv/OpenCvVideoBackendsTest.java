@@ -82,6 +82,17 @@ final class OpenCvVideoBackendsTest {
 
   @Test
   @ResourceLock(Resources.SYSTEM_ERR)
+  void shouldDetectTheFileReaderFromTheBuildInformationOfTheLoadedOpenCv() {
+    final BytePointer information = opencv_core.getBuildInformation();
+    final String text = information.getString();
+    final VideoFileReader expected = OpenCvVideoBackends.decideFromBuildInformation(text);
+
+    final VideoFileReader reader = OpenCvVideoBackends.detectFileReader();
+    assertSame(expected, reader);
+  }
+
+  @Test
+  @ResourceLock(Resources.SYSTEM_ERR)
   void shouldSayWhereFilesAreReadWhenTheBuildHasNoFileBackend() {
     final PrintStream standardError = System.err;
     final ByteArrayOutputStream captured = new ByteArrayOutputStream();

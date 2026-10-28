@@ -27,7 +27,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
+import me.brandonli.mcav.utils.os.Os;
 import me.brandonli.mcav.utils.runtime.CommandTask;
 import org.junit.jupiter.api.Test;
 
@@ -158,6 +160,22 @@ final class FfmpegCommandTest {
     assertEquals(expectedTaskCommand, taskCommand);
     assertEquals(0, exitCode);
     assertTrue(printsTheVersion, output);
+  }
+
+  @Test
+  void shouldRunTheTaskWithTheEnvironmentOfTheInstalledLibraries() {
+    final Path folder = Path.of("libraries");
+    final List<Path> folders = List.of(folder);
+    final FfmpegLibraries libraries = new FfmpegLibraries(Os.LINUX, folders);
+    final List<String> arguments = List.of(VERSION_ARGUMENT);
+    final FfmpegCommand command = new FfmpegCommand(arguments, () -> libraries);
+    final Map<String, String> environment = command.getEnvironment();
+    final CommandTask task = command.createTask();
+    final Map<String, String> taskEnvironment = task.getEnvironment();
+    final Path executable = command.getExecutable();
+    final Map<String, String> expected = libraries.getEnvironment(executable);
+    assertEquals(expected, environment);
+    assertEquals(expected, taskEnvironment);
   }
 
   @Test

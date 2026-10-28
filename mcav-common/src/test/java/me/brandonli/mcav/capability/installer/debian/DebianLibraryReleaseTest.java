@@ -38,21 +38,28 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 
-// Installs the bundled Debian package lists from the real snapshot archive, which checks every pinned hash and that
-// the closures extract. These tests download about 130 MiB, so they only run when the mcav.networkTests system
-// property is true, which ./gradlew test -Pmcav.networkTests=true sets. Only the libraries of this machine's
-// architecture are loaded; the 64-bit ARM VLC is only installed.
+// Installs the pinned package lists from the real archive, checking every hash. The download of about 290 MiB
+// runs only with -Pmcav.networkTests=true; only this machine's architecture is loaded.
 final class DebianLibraryReleaseTest {
 
   private static final String VLC_RESOURCE = "mcav/common/installers/debian-vlc.json";
   private static final String GTK2_RESOURCE = "mcav/common/installers/debian-gtk2.json";
+  private static final String FFMPEG_RESOURCE = "mcav/common/installers/debian-ffmpeg.json";
 
   private static final Platform ARM64 = Platform.ofPlatform(Os.LINUX, Arch.ARM, Bits.BITS_64);
   private static final Platform X86_64 = Platform.ofPlatform(Os.LINUX, Arch.X86, Bits.BITS_64);
 
   private static final String LOAD_ORDER_FILE = "load-order.txt";
   private static final String GTK2_LIBRARY = "libgtk-x11-2.0.so.0";
+  private static final String SOUND_LIBRARY = "libasound.so.2";
+  private static final String VLC_CORE_LIBRARY = "/libvlccore.so.9";
+  private static final String VLC_LIBRARY = "/libvlc.so.5";
+  private static final String TRIPLET_SUFFIX = "-linux-gnu";
+  private static final char PATH_SEPARATOR = '/';
 
   @TempDir
   private Path temporary;
@@ -63,9 +70,11 @@ final class DebianLibraryReleaseTest {
     Assumptions.assumeTrue(enabled, "Network tests run only with -Pmcav.networkTests=true!");
   }
 
-  @Test
-  void shouldInstallVlcForArm64WithItsPluginsAfterItsDependencies() throws IOException {
-    final DebianLibraryInstaller installer = this.createInstaller(VLC_RESOURCE, ARM64, this::refuse);
+  @ParameterizedTest
+  @EnumSource(value = Arch.class, names = { "X86", "ARM" })
+  void shouldInstallVlcWithItsPluginsAfterItsDependencies(final Arch architecture) throws IOException {
+    final Platform platform = Platform.ofPlatform(Os.LINUX, architecture, Bits.BITS_64);
+    final DebianLibraryInstaller installer = this.createInstaller(VLC_RESOURCE, platform, this::refuse);
     final Path libraryDirectory = installer.download(FileMode.EXECUTABLE);
 
     final boolean libvlc = Files.exists(libraryDirectory.resolve("libvlc.so.5"));
@@ -74,35 +83,60 @@ final class DebianLibraryReleaseTest {
     assertTrue(plugins);
 
     final List<String> loadOrder = this.readLoadOrder();
-    final int core = this.indexOf(loadOrder, "/libvlccore.so.9");
-    final int vlc = this.indexOf(loadOrder, "/libvlc.so.5");
+    final int core = this.indexOf(loadOrder, VLC_CORE_LIBRARY);
+    final int vlc = this.indexOf(loadOrder, VLC_LIBRARY);
     assertTrue(core >= 0 && core < vlc, "Libvlccore must load before libvlc!");
   }
 
   @Test
-  void shouldInstallGtk2ForArm64() throws IOException {
-    final DebianLibraryInstaller installer = this.createInstaller(GTK2_RESOURCE, ARM64, this::refuse);
-    final Path libraryDirectory = installer.download(FileMode.EXECUTABLE);
-
-    final boolean gtk2 = Files.exists(libraryDirectory.resolve(GTK2_LIBRARY));
-    assertTrue(gtk2);
-  }
-
-  @Test
-  void shouldInstallAndLoadEveryGtk2LibraryOnThisMachine() throws IOException {
-    final Platform current = Platform.getCurrentPlatform();
-    Assumptions.assumeTrue(current.equals(X86_64), "Only a 64-bit x86 Linux machine loads the x86-64 libraries!");
+  void shouldInstallAndLoadVlcOnThisMachine() throws IOException {
+    this.assumeX86Machine();
 
     final List<String> loaded = new ArrayList<>();
-    final DebianLibraryInstaller installer = this.createInstaller(GTK2_RESOURCE, X86_64, library -> this.loadAndRecord(library, loaded));
+    final DebianLibraryInstaller installer = this.createInstaller(VLC_RESOURCE, X86_64, library -> this.loadAndRecord(library, loaded));
+    installer.download(FileMode.EXECUTABLE);
+    installer.loadLibraries();
+
+    final List<String> loadOrder = this.readLoadOrder();
+    final long expected = loadOrder.stream().filter(this::isInLibraryFolder).count();
+    final long loadedFromLibraryFolders = loaded.stream().filter(this::isInLibraryFolder).count();
+    assertEquals(expected, loadedFromLibraryFolders, "Every library of the library folders must load!");
+
+    final int core = this.indexOf(loaded, VLC_CORE_LIBRARY);
+    final int vlc = this.indexOf(loaded, VLC_LIBRARY);
+    assertTrue(core >= 0 && vlc >= 0, "Libvlccore and libvlc must load!");
+  }
+
+  @ParameterizedTest
+  @CsvSource({ GTK2_RESOURCE + "," + GTK2_LIBRARY, FFMPEG_RESOURCE + "," + SOUND_LIBRARY })
+  void shouldInstallTheLibrariesForArm64(final String resource, final String library) {
+    final DebianLibraryInstaller installer = this.createInstaller(resource, ARM64, this::refuse);
+    final Path libraryDirectory = installer.download(FileMode.EXECUTABLE);
+
+    final boolean installed = Files.exists(libraryDirectory.resolve(library));
+    assertTrue(installed);
+  }
+
+  @ParameterizedTest
+  @CsvSource({ GTK2_RESOURCE + "," + GTK2_LIBRARY, FFMPEG_RESOURCE + "," + SOUND_LIBRARY })
+  void shouldInstallAndLoadEveryLibraryOnThisMachine(final String resource, final String library) throws IOException {
+    this.assumeX86Machine();
+
+    final List<String> loaded = new ArrayList<>();
+    final DebianLibraryInstaller installer = this.createInstaller(resource, X86_64, path -> this.loadAndRecord(path, loaded));
     installer.download(FileMode.EXECUTABLE);
     installer.loadLibraries();
 
     final List<String> loadOrder = this.readLoadOrder();
     assertEquals(loadOrder.size(), loaded.size(), "Every library must load!");
 
-    final boolean gtk2 = loaded.stream().anyMatch(library -> library.contains(GTK2_LIBRARY));
-    assertTrue(gtk2);
+    final int index = this.indexOf(loaded, library);
+    assertTrue(index >= 0, library);
+  }
+
+  private void assumeX86Machine() {
+    final Platform current = Platform.getCurrentPlatform();
+    Assumptions.assumeTrue(current.equals(X86_64), "Only a 64-bit x86 Linux machine loads the x86-64 libraries!");
   }
 
   private DebianLibraryInstaller createInstaller(final String resource, final Platform platform, final Consumer<String> loader) {
@@ -119,9 +153,9 @@ final class DebianLibraryReleaseTest {
     return Files.readAllLines(folder.resolve(LOAD_ORDER_FILE));
   }
 
-  private int indexOf(final List<String> loadOrder, final String library) {
-    for (int index = 0; index < loadOrder.size(); index++) {
-      if (loadOrder.get(index).contains(library)) {
+  private int indexOf(final List<String> libraries, final String library) {
+    for (int index = 0; index < libraries.size(); index++) {
+      if (libraries.get(index).contains(library)) {
         return index;
       }
     }
@@ -129,14 +163,20 @@ final class DebianLibraryReleaseTest {
     return -1;
   }
 
+  private boolean isInLibraryFolder(final String library) {
+    final int folderEnd = library.lastIndexOf(PATH_SEPARATOR);
+    final String folder = library.substring(0, folderEnd);
+    return folder.endsWith(TRIPLET_SUFFIX);
+  }
+
   private void refuse(final String library) {
     throw new UnsatisfiedLinkError("Libraries of another architecture are not loaded!");
   }
 
   // the libraries of this machine's architecture really load, which proves that the dependency order holds
-  @SuppressWarnings("restricted")
   private void loadAndRecord(final String library, final List<String> loaded) {
-    System.load(library);
+    final PromotingLibraryLoader loader = new PromotingLibraryLoader();
+    loader.accept(library);
     loaded.add(library);
   }
 }

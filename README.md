@@ -51,8 +51,8 @@ Click to watch a demo video above.
 | Building from source | A JDK 17 or newer to run Gradle, and network access; Gradle downloads the build tools, Python and clang-format included. Full coverage also needs the runtime test prerequisites below |
 | Library and plugin | Java 25 or newer |
 | Minecraft | Paper 26.3, for the plugin and `mcav-bukkit`. Paper 26.3 has only **alpha** builds as of 2026-09-27; MCAV builds and tests against build 49 |
-| Platforms | Windows (x86-64), macOS (x86-64 and Apple silicon), and Linux (x86-64 and ARM64): MCAV bundles FFmpeg and OpenCV for these and extracts their natives into the JavaCPP cache of the user |
-| VLC (optional) | Nothing: when the system has none, MCAV downloads VLC 3.0.24 into the cache folder of the user on Windows and macOS, and on x86-64 Linux, for which VideoLAN publishes no build, a pinned AppImage of Arch Linux's VLC 3.0.23 package; elsewhere MCAV uses the system's VLC |
+| Platforms | Windows (x86-64), macOS (x86-64 and Apple silicon), and Linux (x86-64 and ARM64): MCAV bundles FFmpeg and OpenCV for these and extracts their natives into the JavaCPP cache of the user, and on a Linux system without the sound and display libraries that FFmpeg links, installs them from pinned Debian 12 packages |
+| VLC (optional) | Nothing: when the system has none, MCAV downloads VLC 3.0.24 into the cache folder of the user on Windows and macOS, and on x86-64 and ARM64 Linux, for which VideoLAN publishes no build, installs the pinned Debian 12 packages of VLC 3.0.23 there; elsewhere MCAV uses the system's VLC |
 | yt-dlp (optional) | Nothing: MCAV downloads a pinned and checked yt-dlp into the cache folder of the user; its Linux builds need glibc |
 | Web browser | Nothing: MCAV embeds Chromium through JCEF, so there is no Selenium, Playwright, ChromeDriver or installed browser. MCAV downloads Chromium (about 136 to 163 MiB) on the first browser start, and on Linux the libraries a server lacks (about 13 MB). No X server, no Xvfb and no JVM options; 64-bit Linux, Windows and macOS on x86-64 and ARM64 |
 | Virtual machines | QEMU, which you install and put on the `PATH` |
@@ -60,8 +60,9 @@ Click to watch a demo video above.
 | Sound in Minecraft | A port for the audio web page, a Discord bot, or the [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat) plugin (2.6.24 for Minecraft 26.3) |
 
 Core file playback works on headless servers without a display or sound device, and MCAV never runs an administrative
-package installer. MCAV also detects other Unix systems, such as FreeBSD: it downloads nothing there and uses the VLC
-installed on the system, but the bundled FFmpeg and OpenCV natives only exist for the platforms above.
+package installer. JavaCPP publishes no FFmpeg and OpenCV builds for FreeBSD or for Windows on ARM64, and MCAV needs
+them to install, so there `install()` fails with an `MCAVLoadingException` whose cause names the platform, and MCAV
+cannot be used.
 
 ---
 

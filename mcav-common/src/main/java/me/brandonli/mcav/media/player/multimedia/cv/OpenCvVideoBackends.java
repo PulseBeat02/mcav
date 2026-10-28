@@ -52,7 +52,9 @@ final class OpenCvVideoBackends {
     return FILE_READER.get();
   }
 
-  private static VideoFileReader detectFileReader() {
+  // Package-private so a test can call it past the memoized answer, which kills the mutant that returns null here.
+  @VisibleForTesting
+  static VideoFileReader detectFileReader() {
     final BytePointer information = opencv_core.getBuildInformation();
     final String text = information.getString();
     return decideFromBuildInformation(text);

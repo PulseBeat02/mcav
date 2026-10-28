@@ -37,8 +37,7 @@ final class VlcTestSupport {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
-  // Loads the VLC the installer of the library downloads, never the one installed on this machine, so the tests behave
-  // alike on every host.
+  // the VLC of the installation kit, never this machine's, so every host behaves alike
   private static String loadVlc() {
     try {
       final Optional<Path> directory = DownloadedVlc.load();
@@ -47,7 +46,7 @@ final class VlcTestSupport {
       System.out.println("VLC integration tests use " + description);
       return null;
     } catch (final MCAVException | LinkageError exception) {
-      return "VLC could not be downloaded or loaded: " + exception;
+      return "VLC could not be installed or loaded: " + exception;
     }
   }
 

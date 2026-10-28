@@ -28,13 +28,14 @@ import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Stream;
-import org.bytedeco.ffmpeg.ffmpeg;
-import org.bytedeco.javacpp.Loader;
+import me.brandonli.mcav.utils.ffmpeg.FfmpegCommand;
+import me.brandonli.mcav.utils.ffmpeg.FfmpegExecutableProvider;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class GeneratedMedia {
@@ -52,8 +53,7 @@ public final class GeneratedMedia {
   }
 
   public static Path ffmpegPath() {
-    final String location = Loader.load(ffmpeg.class);
-    return Path.of(location);
+    return FfmpegExecutableProvider.getFfmpegPath();
   }
 
   // Generates a file into a temporary sibling with the same extension and publishes it only after a successful nonempty
@@ -122,6 +122,9 @@ public final class GeneratedMedia {
   private static void runProcess(final List<String> command, final Path log, final Duration timeout)
     throws IOException, InterruptedException {
     final ProcessBuilder builder = new ProcessBuilder(command);
+    final Map<String, String> environment = builder.environment();
+    final Map<String, String> ffmpegEnvironment = ffmpegEnvironment();
+    environment.putAll(ffmpegEnvironment);
     builder.redirectErrorStream(true);
     builder.redirectOutput(log.toFile());
     final long startedAt = System.nanoTime();
@@ -144,6 +147,12 @@ public final class GeneratedMedia {
         terminate(process, descendants);
       }
     }
+  }
+
+  // the ffmpeg process needs the library path that FfmpegCommand sets
+  private static Map<String, String> ffmpegEnvironment() {
+    final FfmpegCommand command = FfmpegCommand.builder().build();
+    return command.getEnvironment();
   }
 
   private static void awaitExit(

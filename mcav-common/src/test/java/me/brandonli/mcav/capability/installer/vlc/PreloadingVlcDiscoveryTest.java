@@ -22,22 +22,33 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 final class PreloadingVlcDiscoveryTest {
 
   private static final Path LIBRARY_DIRECTORY = Path.of("installation", "usr", "lib", "aarch64-linux-gnu");
 
+  private static final Path TAGLIB_PLUGIN_FOLDER = Path.of("vlc", "plugins", "meta_engine");
+  private static final String TAGLIB_PLUGIN_FILE = "libtaglib_plugin.so";
+
   private static final String PRELOAD = "preload";
+  private static final String PLUGIN = "plugin";
   private static final String SYSTEM = "system";
   private static final String LOAD = "load";
 
+  @TempDir
+  private Path directory;
+
   private List<String> calls;
+  private @Nullable String loadedPlugin;
   private FakeDiscovery delegate;
   private PreloadingVlcDiscovery discovery;
 
@@ -45,7 +56,7 @@ final class PreloadingVlcDiscoveryTest {
   void setUp() {
     this.calls = new ArrayList<>();
     this.delegate = new FakeDiscovery(this.calls);
-    this.discovery = new PreloadingVlcDiscovery(this::preload, this.delegate);
+    this.discovery = new PreloadingVlcDiscovery(this::preload, this::loadPlugin, this.delegate);
   }
 
   @Test
@@ -57,6 +68,29 @@ final class PreloadingVlcDiscoveryTest {
     assertTrue(loaded);
     assertEquals(expected, this.calls);
     assertEquals(LIBRARY_DIRECTORY, this.delegate.loadedDirectory);
+  }
+
+  @Test
+  void shouldLoadTheTaglibPluginBetweenThePreloadAndTheInstalledLibraries() throws IOException {
+    final Path plugin = this.createTaglibPlugin();
+
+    this.discovery.loadInstalledLibraries(this.directory);
+    final List<String> expected = List.of(PRELOAD, PLUGIN, LOAD);
+    final String expectedPlugin = plugin.toString();
+    assertEquals(expected, this.calls);
+    assertEquals(expectedPlugin, this.loadedPlugin);
+  }
+
+  @Test
+  void shouldLoadTheInstalledLibrariesWhenTheTaglibPluginDoesNotLoad() throws IOException {
+    this.createTaglibPlugin();
+    this.delegate.found = true;
+    final PreloadingVlcDiscovery failingDiscovery = new PreloadingVlcDiscovery(this::preload, this::failToLoadPlugin, this.delegate);
+
+    final boolean loaded = failingDiscovery.loadInstalledLibraries(this.directory);
+    final List<String> expected = List.of(PRELOAD, LOAD);
+    assertTrue(loaded);
+    assertEquals(expected, this.calls);
   }
 
   @Test
@@ -95,8 +129,26 @@ final class PreloadingVlcDiscoveryTest {
     assertNull(discoveredPath);
   }
 
+  private Path createTaglibPlugin() throws IOException {
+    final Path folder = this.directory.resolve(TAGLIB_PLUGIN_FOLDER);
+    Files.createDirectories(folder);
+
+    final Path plugin = folder.resolve(TAGLIB_PLUGIN_FILE);
+    return Files.createFile(plugin);
+  }
+
   private void preload() {
     this.calls.add(PRELOAD);
+  }
+
+  private void loadPlugin(final String path) {
+    this.calls.add(PLUGIN);
+    this.loadedPlugin = path;
+  }
+
+  private void failToLoadPlugin(final String path) {
+    final String message = "Plugin %s could not be loaded!".formatted(path);
+    throw new UnsatisfiedLinkError(message);
   }
 
   private static final class FakeDiscovery implements VlcDiscovery {

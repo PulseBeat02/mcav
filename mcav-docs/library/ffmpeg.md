@@ -4,6 +4,12 @@ Besides the FFmpeg libraries the players use, MCAV bundles the FFmpeg command-li
 commands without installing anything. `FfmpegExecutableProvider.getFfmpegPath()` returns the path of the program; it
 is extracted on first use.
 
+On Linux, every `CommandTask` of an `FfmpegCommand` runs the program with `LD_LIBRARY_PATH` set to its own folder, where
+the FFmpeg libraries beside it find the others they load, such as `libva`, and then to the folders of the sound and
+display libraries that MCAV installs first on a system without them, as
+[prerequisites](prerequisites.md#supported-platforms) describes. To start the program yourself, add
+`FfmpegCommand#getEnvironment()` to the environment of the process.
+
 `FfmpegTemplates` contains ready-made commands for common jobs, such as extracting audio, cutting clips, creating
 thumbnails, and converting containers. `FfmpegCommand.builder()` builds any other command.
 

@@ -1,0 +1,506 @@
+[
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/a/alsa-lib/libasound2_1.2.8-1+b1_amd64.deb",
+    "hash": "44c77b076a7b11ae99712439022d822245b1994c435da564ebd320bb676faf4c"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/liba/libasyncns/libasyncns0_0.8-6+b3_amd64.deb",
+    "hash": "cadaff99f4178b1f580331045621b363abaaefc994e78eecba1857774a3cead2"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libc/libcap2/libcap2_2.66-4+deb12u3+b1_amd64.deb",
+    "hash": "8d684c673e7483802a5c447834b0df6fce006eb3a7109e1be412f5ad425bb24f"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libg/libgpg-error/libgpg-error0_1.46-1_amd64.deb",
+    "hash": "89944ee11d7370ce6ef46fc52f094c4a6512eff8943ec4c6ebefeae6360ceada"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libg/libgcrypt20/libgcrypt20_1.10.1-3+deb12u1_amd64.deb",
+    "hash": "e7a56552139c693904a6f9712234c05fe918353273a7cbdb5e62f423ad71bb97"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/l/lz4/liblz4-1_1.9.4-1_amd64.deb",
+    "hash": "64cde86cef1deaf828bd60297839b59710b5cd8dc50efd4f12643caaee9389d3"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian-security/20261018T181625Z/pool/updates/main/x/xz-utils/liblzma5_5.4.1-1+deb12u2_amd64.deb",
+    "hash": "3d8c29c8c21ec6007635e1b2591edf98b771c9572a085968f47452b33040f384"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libz/libzstd/libzstd1_1.5.4+dfsg2-5_amd64.deb",
+    "hash": "6315b5ac38b724a710fb96bf1042019398cb656718b1522279a5185ed39318fa"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/s/systemd/libsystemd0_252.39-1~deb12u2_amd64.deb",
+    "hash": "013c07514a9e4933b2d5c098018695a6aa42d085dbc483ce2c094a954c8a1b0a"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/d/dbus/libdbus-1-3_1.14.10-1~deb12u1_amd64.deb",
+    "hash": "18ee0ce5fab9f7b671e87da1e9fa18660e36e04a3402f24bdb8635e0ba1d35f6"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libo/libogg/libogg0_1.3.5-3_amd64.deb",
+    "hash": "f67acb0477aed0354f411172e37af338f3ac6bd4f3766134a2cf5539884b5a28"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/f/flac/libflac12_1.4.2+ds-2_amd64.deb",
+    "hash": "4d8431c274eef13ec9ee2c0bf988c34b4342367dec053b7f69a432525be5b1fe"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/l/lame/libmp3lame0_3.100-6_amd64.deb",
+    "hash": "b1292c749172e7623547ecf684da57d3ec6ca22109f08b11bbb9e6be6e6beb95"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/m/mpg123/libmpg123-0_1.31.2-1+deb12u1_amd64.deb",
+    "hash": "a10ad0d59995b859797a5f20d2833672051d0b2c7dab4c71f2e79258b2e3f631"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/o/opus/libopus0_1.3.1-3_amd64.deb",
+    "hash": "c172e212f9039e741916aa8e12f3670d1e049dc0c16685325641288c2d83faa7"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libv/libvorbis/libvorbis0a_1.3.7-1_amd64.deb",
+    "hash": "01c14f9d1109650077a4c5c337c285476a6932d4d448f5a190c2b845724dbf21"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libv/libvorbis/libvorbisenc2_1.3.7-1_amd64.deb",
+    "hash": "75dd4d6f904c7db82f5112e60d8efea9e81dfedf94e970c5da7af2b3d81643c0"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libs/libsndfile/libsndfile1_1.2.0-1+deb12u1_amd64.deb",
+    "hash": "02dc3f08fe8476e82e005f412e3b7289ff641180f33a9be8073f4bde61c85e8e"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libx/libxau/libxau6_1.0.9-1_amd64.deb",
+    "hash": "679db1c4579ec7c61079adeaae8528adeb2e4bf5465baa6c56233b995d714750"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libm/libmd/libmd0_1.0.4-2_amd64.deb",
+    "hash": "03539fd30c509e27101d13a56e52eda9062bdf1aefe337c07ab56def25a13eab"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libb/libbsd/libbsd0_0.11.7-2_amd64.deb",
+    "hash": "bb31cc8b40f962a85b2cec970f7f79cc704a1ae4bad24257a822055404b2c60b"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libx/libxdmcp/libxdmcp6_1.1.2-3_amd64.deb",
+    "hash": "ecb8536f5fb34543b55bb9dc5f5b14c9dbb4150a7bddb3f2287b7cab6e9d25ef"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libx/libxcb/libxcb1_1.15-1_amd64.deb",
+    "hash": "fdc61332a3892168f3cc9cfa1fe9cf11a91dc3e0acacbc47cbc50ebaa234cc71"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libx/libx11/libx11-6_1.8.4-2+deb12u2_amd64.deb",
+    "hash": "d88c973e79fd9b65838d77624142952757e47a6eb1a58602acf0911cf35989f4"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libx/libx11/libx11-xcb1_1.8.4-2+deb12u2_amd64.deb",
+    "hash": "f5da45e1d881a793250a96613f28c471a248877f1a0f18a5c90e2a620a76c898"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/p/pulseaudio/libpulse0_16.1+dfsg1-2+b1_amd64.deb",
+    "hash": "7b2c5403cb726312219aad678becc6d6adcee1d8694fdffce0b6ec15ae010831"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libx/libxcb/libxcb-shm0_1.15-1_amd64.deb",
+    "hash": "c1afcef29dc78b95c475159b181b28b1dedaf1d5aa06efd2fa6d90c73bfbe0e5"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "X86",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/s/systemd/libudev1_252.39-1~deb12u2_amd64.deb",
+    "hash": "6f7e08f11c4809d2e5998c775f7b423ab5ec2ce0309494b4a2615037052245e2"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/a/alsa-lib/libasound2_1.2.8-1+b1_arm64.deb",
+    "hash": "9fa889400fcee4b92c8f4a2fafbb7f2cd33444d9ec1665a71002ab67c06114bb"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/liba/libasyncns/libasyncns0_0.8-6+b3_arm64.deb",
+    "hash": "30ec77ed3695fc09863427bf30e27318b74909089144ac24db17c3ab1f184a62"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libc/libcap2/libcap2_2.66-4+deb12u3+b1_arm64.deb",
+    "hash": "b3a21ae1cef9c2f3fa340007100fb0aa934ab6a4d8aed131660de9713db2bb6e"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libg/libgpg-error/libgpg-error0_1.46-1_arm64.deb",
+    "hash": "aff6ce011ae9abf7090e906f0cf6bc2b447bbc4cc7e03ff117f9d73528857352"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libg/libgcrypt20/libgcrypt20_1.10.1-3+deb12u1_arm64.deb",
+    "hash": "140af58350c9b15bfa611000d9e0205528bbed2cba39271bf12bd36de2678f2e"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/l/lz4/liblz4-1_1.9.4-1_arm64.deb",
+    "hash": "f061216ce11aabba8f032dfd6c75c181e782fef7493033b9621a8c3b2953b87e"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian-security/20261018T181625Z/pool/updates/main/x/xz-utils/liblzma5_5.4.1-1+deb12u2_arm64.deb",
+    "hash": "36358d245f246234721e6c1c2ee5d11a46c1c877023c63f7570df02cd79964f5"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libz/libzstd/libzstd1_1.5.4+dfsg2-5_arm64.deb",
+    "hash": "95e173c9538f96ede4fc275ec7863f395a97dd0ea62454be9bc914efa1b9be93"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/s/systemd/libsystemd0_252.39-1~deb12u2_arm64.deb",
+    "hash": "293ab474b90276dae9ebc03ed01e622e0c1f2578e83ed3aa926ae1eaf84dda9c"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/d/dbus/libdbus-1-3_1.14.10-1~deb12u1_arm64.deb",
+    "hash": "2a423794f44ee756f70fda67c6e47b15afe3dd22cd69e51f5d14d2ec9538f806"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libo/libogg/libogg0_1.3.5-3_arm64.deb",
+    "hash": "1a3e6c2a934a4099dcd982785d1563212fc6ad20f021a6f06aa0d6e6582416d3"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/f/flac/libflac12_1.4.2+ds-2_arm64.deb",
+    "hash": "338f78e2a140ed4ffca36d4240a7fc6f7867999bea000762a0c1b3924245a868"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/l/lame/libmp3lame0_3.100-6_arm64.deb",
+    "hash": "4259ab5810ec52b03344e8c8fbcad330561ad6758f35f07233af3224d2824547"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/m/mpg123/libmpg123-0_1.31.2-1+deb12u1_arm64.deb",
+    "hash": "a4348cc2939baabb498158c94229941d09fc42070af765dc45ef9b26eab727d2"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/o/opus/libopus0_1.3.1-3_arm64.deb",
+    "hash": "a7efb06da15cc7f1ffff62bfdd77ba43f2a2065b8b59185ad1d14031c5a9e354"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libv/libvorbis/libvorbis0a_1.3.7-1_arm64.deb",
+    "hash": "2f902ae456bcada7b0d494d7bd7c994feb81c4158209d8a12c0b2d9e255edda7"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libv/libvorbis/libvorbisenc2_1.3.7-1_arm64.deb",
+    "hash": "f1089e220c81e267caec859bf2e440bb78ed9f318bbb51cfd6c85d35bf80144b"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libs/libsndfile/libsndfile1_1.2.0-1+deb12u1_arm64.deb",
+    "hash": "9113167979c64bae0a73d2ee0740e662b25bb45b2f76e4745ea27db9f43f7b24"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libx/libxau/libxau6_1.0.9-1_arm64.deb",
+    "hash": "36c2bf400641a80521093771dc2562c903df4065f9eb03add50d90564337ea6c"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libm/libmd/libmd0_1.0.4-2_arm64.deb",
+    "hash": "99a8c7dd591fae9fb37d8bf8dfdffa850e207fa405b3198c5b24711a5f972381"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libb/libbsd/libbsd0_0.11.7-2_arm64.deb",
+    "hash": "ef00f132ddd268ee67d756998723ee18543db27ab34930c0a9f1cff75cf55382"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libx/libxdmcp/libxdmcp6_1.1.2-3_arm64.deb",
+    "hash": "e92569ac33247261aa09adfadc34ced3994ac301cf8b58de415a2d5dbf15ccfc"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libx/libxcb/libxcb1_1.15-1_arm64.deb",
+    "hash": "041d9a68415c3ccf3ce8f4f8b88e4bbfb5dc1f0d97013c6ef8423e620ea50f84"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libx/libx11/libx11-6_1.8.4-2+deb12u2_arm64.deb",
+    "hash": "d1d533e983582282a9ea82c87ac5ce715a9b67bd6d1acbd2439a11c63c36549b"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libx/libx11/libx11-xcb1_1.8.4-2+deb12u2_arm64.deb",
+    "hash": "21c7e6f19909bb1e02bb3c2089789791858c54d37e86cef9d7872782c1cb711e"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/p/pulseaudio/libpulse0_16.1+dfsg1-2+b1_arm64.deb",
+    "hash": "26f17e3457c5fce0104a6b2f0efb75a3256b24b32ca7cfda6266373758a930cb"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/libx/libxcb/libxcb-shm0_1.15-1_arm64.deb",
+    "hash": "825931950d42f51cd795cf2e5b9399d840225491e95ec530e0c5a9145c4ba5a0"
+  },
+  {
+    "platform": {
+      "os": "LINUX",
+      "arch": "ARM",
+      "bits": "BITS_64"
+    },
+    "url": "https://snapshot.debian.org/archive/debian/20261018T202950Z/pool/main/s/systemd/libudev1_252.39-1~deb12u2_arm64.deb",
+    "hash": "b76444b0259abfa416f8c1d9a652d208a24770667a1181aa52317b74d12a7a72"
+  }
+]

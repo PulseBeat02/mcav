@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
@@ -360,6 +361,23 @@ final class ScriptedPlayerTest {
       assertThrows(IllegalArgumentException.class, () -> player.setSpeed(AbstractVideoPlayerCv.MINIMUM_SPEED - 0.01));
       assertThrows(IllegalArgumentException.class, () -> player.setSpeed(AbstractVideoPlayerCv.MAXIMUM_SPEED + 0.01));
       assertThrows(IllegalArgumentException.class, () -> player.setSpeed(Double.NaN));
+    } finally {
+      player.release();
+    }
+  }
+
+  @Test
+  void shouldLetAnotherThreadPauseThePlayerAfterTheSpeedChanged() {
+    final ScriptedPlayer player = new ScriptedPlayer(ScriptedPlayerTest::endlessVideo);
+    try {
+      final boolean idle = player.setSpeed(2);
+      player.start(VIDEO);
+      final boolean faster = player.setSpeed(2);
+      final Duration timeout = Duration.ofSeconds(5);
+      final boolean paused = assertTimeoutPreemptively(timeout, player::pause, "setting the speed lets go of the lock of the player");
+      assertFalse(idle, "nothing plays yet");
+      assertTrue(faster);
+      assertTrue(paused, "the endless video still plays");
     } finally {
       player.release();
     }

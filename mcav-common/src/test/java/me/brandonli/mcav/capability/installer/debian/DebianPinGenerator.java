@@ -38,6 +38,8 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -51,20 +53,19 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.tukaani.xz.XZInputStream;
 
 // Generates the pinned Debian package lists that mcav fetches libraries from: it resolves the dependency closure of a
-// few root packages in the bookworm index of one snapshot of the Debian archive, so every URL stays valid after later
-// point releases, and writes each package with the SHA-256 the index lists, dependencies before their dependents.
-// Packages every glibc system has (libc6 and the GCC runtime) and architecture-independent packages, which hold no
-// libraries, are left out. Run it with ./gradlew :mcav-common:generateDebianPins after a Debian point release.
+// few root packages in the bookworm and bookworm-security indexes of one snapshot of each Debian archive, the newest
+// version of a package winning, so every URL stays valid after later point releases, and writes each package with the
+// SHA-256 its index lists, dependencies before their dependents. Packages every glibc system has (libc6 and the GCC
+// runtime) and architecture-independent packages, which hold no libraries, are left out. Run it with
+// ./gradlew :mcav-common:generateDebianPins after a Debian point release or security update.
 final class DebianPinGenerator {
 
-  private static final String SNAPSHOT_ARCHIVE = "https://snapshot.debian.org/archive/debian/";
   private static final DateTimeFormatter SNAPSHOT_DAY = DateTimeFormatter.ofPattern("yyyyMMdd'T000000Z/'", Locale.ROOT).withZone(
     ZoneOffset.UTC
   );
   private static final String LOCATION_HEADER = "location";
   private static final int FOUND_STATUS = 302;
 
-  private static final String INDEX_DIRECTORY_PREFIX = "dists/bookworm/main/binary-";
   private static final String INDEX_FILE_NAME = "Packages.xz";
   private static final String PATH_SEPARATOR = "/";
   private static final String TEMPORARY_DIRECTORY_PREFIX = "mcav-debian-pins";
@@ -77,6 +78,7 @@ final class DebianPinGenerator {
   private static final String INDEPENDENT_ARCHITECTURE = "all";
 
   private static final String PACKAGE_FIELD = "Package";
+  private static final String VERSION_FIELD = "Version";
   private static final String ARCHITECTURE_FIELD = "Architecture";
   private static final String FILENAME_FIELD = "Filename";
   private static final String SHA256_FIELD = "SHA256";
@@ -92,9 +94,12 @@ final class DebianPinGenerator {
   private static final String FIELD_SEPARATOR = ":";
   private static final String LINE_END = "\n";
 
+  private static final Comparator<String> VERSIONS = new DebianVersionComparator();
+
   private static final List<Bundle> BUNDLES = List.of(
-    new Bundle("debian-vlc.json", List.of("libvlc5", "libvlccore9", "vlc-plugin-base"), List.of(Architecture.ARM64)),
-    new Bundle("debian-gtk2.json", List.of("libgtk2.0-0"), List.of(Architecture.AMD64, Architecture.ARM64))
+    new Bundle("debian-vlc.json", List.of("libvlc5", "libvlccore9", "vlc-plugin-base")),
+    new Bundle("debian-gtk2.json", List.of("libgtk2.0-0")),
+    new Bundle("debian-ffmpeg.json", List.of("libasound2", "libpulse0", "libxcb1", "libxcb-shm0", "libudev1"))
   );
 
   static void main(final String[] arguments) throws IOException, InterruptedException {
@@ -104,28 +109,33 @@ final class DebianPinGenerator {
   }
 
   private void generate(final Path outputDirectory) throws IOException, InterruptedException {
-    final URI snapshot = this.findSnapshot();
+    final Map<Archive, URI> snapshots = new EnumMap<>(Archive.class);
+    for (final Archive archive : Archive.values()) {
+      final URI snapshot = this.findSnapshot(archive);
+      snapshots.put(archive, snapshot);
+    }
+
     final Path temporary = Files.createTempDirectory(TEMPORARY_DIRECTORY_PREFIX);
     try {
-      final Map<Architecture, String> indexes = new HashMap<>();
+      final Map<Architecture, List<Index>> indexes = new EnumMap<>(Architecture.class);
       for (final Architecture architecture : Architecture.values()) {
-        final String index = this.downloadIndex(snapshot, architecture, temporary);
-        indexes.put(architecture, index);
+        final List<Index> architectureIndexes = this.downloadIndexes(snapshots, architecture, temporary);
+        indexes.put(architecture, architectureIndexes);
       }
 
       for (final Bundle bundle : BUNDLES) {
-        this.writeBundle(outputDirectory, snapshot, bundle, indexes);
+        this.writeBundle(outputDirectory, bundle, indexes);
       }
     } finally {
       IoUtils.deleteRecursively(temporary);
     }
   }
 
-  // Asks the snapshot archive for the last snapshot before today, which it answers with a redirect to that snapshot.
-  private URI findSnapshot() throws IOException, InterruptedException {
+  // Asks a snapshot archive for its last snapshot before today, which it answers with a redirect to that snapshot.
+  private URI findSnapshot(final Archive archive) throws IOException, InterruptedException {
     final Instant now = Instant.now();
     final String day = SNAPSHOT_DAY.format(now);
-    final URI request = URI.create(SNAPSHOT_ARCHIVE + day);
+    final URI request = URI.create(archive.getUrl() + day);
     final HttpRequest httpRequest = HttpRequest.newBuilder(request).build();
     final HttpResponse.BodyHandler<Void> discarding = HttpResponse.BodyHandlers.discarding();
     try (final HttpClient client = HttpClient.newHttpClient()) {
@@ -143,9 +153,24 @@ final class DebianPinGenerator {
     }
   }
 
-  private String downloadIndex(final URI snapshot, final Architecture architecture, final Path temporary) throws IOException {
-    final URI index = snapshot.resolve(INDEX_DIRECTORY_PREFIX + architecture.getDebianName() + PATH_SEPARATOR + INDEX_FILE_NAME);
-    final Path directory = Files.createDirectory(temporary.resolve(architecture.getDebianName()));
+  private List<Index> downloadIndexes(final Map<Archive, URI> snapshots, final Architecture architecture, final Path temporary)
+    throws IOException {
+    final List<Index> indexes = new ArrayList<>();
+    for (final Archive archive : Archive.values()) {
+      final URI snapshot = snapshots.get(archive);
+      final String text = this.downloadIndex(snapshot, archive, architecture, temporary);
+      final Index index = new Index(snapshot, text);
+      indexes.add(index);
+    }
+
+    return indexes;
+  }
+
+  private String downloadIndex(final URI snapshot, final Archive archive, final Architecture architecture, final Path temporary)
+    throws IOException {
+    final String debianName = architecture.getDebianName();
+    final URI index = snapshot.resolve(archive.getIndexDirectoryPrefix() + debianName + PATH_SEPARATOR + INDEX_FILE_NAME);
+    final Path directory = Files.createDirectories(temporary.resolve(archive.name()).resolve(debianName));
     final Path file = directory.resolve(INDEX_FILE_NAME);
     HttpDownloader.download(index, file, MAXIMUM_INDEX_SIZE);
     try (
@@ -157,14 +182,14 @@ final class DebianPinGenerator {
     }
   }
 
-  private void writeBundle(final Path outputDirectory, final URI snapshot, final Bundle bundle, final Map<Architecture, String> indexes)
+  private void writeBundle(final Path outputDirectory, final Bundle bundle, final Map<Architecture, List<Index>> indexes)
     throws IOException {
     final JsonArray downloads = new JsonArray();
-    for (final Architecture architecture : bundle.architectures()) {
-      final String index = indexes.get(architecture);
-      final List<IndexEntry> closure = this.resolveClosure(index, bundle.roots());
+    for (final Architecture architecture : Architecture.values()) {
+      final List<Index> architectureIndexes = indexes.get(architecture);
+      final List<IndexEntry> closure = this.resolveClosure(architectureIndexes, bundle.roots());
       for (final IndexEntry entry : closure) {
-        final JsonObject download = this.toDownload(snapshot, architecture, entry);
+        final JsonObject download = this.toDownload(architecture, entry);
         downloads.add(download);
       }
     }
@@ -175,11 +200,12 @@ final class DebianPinGenerator {
     Files.writeString(file, json, StandardCharsets.UTF_8);
   }
 
-  private JsonObject toDownload(final URI snapshot, final Architecture architecture, final IndexEntry entry) {
+  private JsonObject toDownload(final Architecture architecture, final IndexEntry entry) {
     final JsonObject platform = new JsonObject();
     platform.addProperty("os", "LINUX");
     platform.addProperty("arch", architecture.getArch());
     platform.addProperty("bits", "BITS_64");
+    final URI snapshot = entry.snapshot();
     final URI url = snapshot.resolve(entry.filename());
     final JsonObject download = new JsonObject();
     download.add("platform", platform);
@@ -189,9 +215,9 @@ final class DebianPinGenerator {
   }
 
   // Resolves the packages that the roots need, each after the packages it depends on. Only the first alternative of
-  // a dependency is followed, and a virtual package resolves to its first provider in the index.
-  List<IndexEntry> resolveClosure(final String index, final List<String> roots) {
-    final Map<String, IndexEntry> entries = this.parseIndex(index);
+  // a dependency is followed, and a virtual package resolves to its first provider in the indexes.
+  List<IndexEntry> resolveClosure(final List<Index> indexes, final List<String> roots) {
+    final Map<String, IndexEntry> entries = this.parseIndexes(indexes);
     final Map<String, String> providers = this.findProviders(entries);
     final Map<String, IndexEntry> resolved = new LinkedHashMap<>();
     for (final String root : roots) {
@@ -215,7 +241,7 @@ final class DebianPinGenerator {
     final String real = entries.containsKey(name) ? name : providers.getOrDefault(name, name);
     final @Nullable IndexEntry entry = entries.get(real);
     if (entry == null) {
-      final String message = "Package %s is missing from the index!".formatted(name);
+      final String message = "Package %s is missing from the indexes!".formatted(name);
       throw new IllegalStateException(message);
     }
 
@@ -245,15 +271,33 @@ final class DebianPinGenerator {
     return providers;
   }
 
-  private Map<String, IndexEntry> parseIndex(final String index) {
+  // an equal version keeps the entry of the earlier index
+  private Map<String, IndexEntry> parseIndexes(final List<Index> indexes) {
     final Map<String, IndexEntry> entries = new LinkedHashMap<>();
-    for (final String stanza : STANZAS.split(index)) {
-      final Map<String, String> fields = this.parseFields(stanza);
-      final IndexEntry entry = this.toEntry(fields);
-      entries.put(entry.name(), entry);
+    for (final Index index : indexes) {
+      final List<IndexEntry> parsed = this.parseIndex(index);
+      for (final IndexEntry entry : parsed) {
+        entries.merge(entry.name(), entry, this::selectNewer);
+      }
     }
 
     return entries;
+  }
+
+  private List<IndexEntry> parseIndex(final Index index) {
+    final List<IndexEntry> entries = new ArrayList<>();
+    for (final String stanza : STANZAS.split(index.text())) {
+      final Map<String, String> fields = this.parseFields(stanza);
+      final IndexEntry entry = this.toEntry(fields, index.snapshot());
+      entries.add(entry);
+    }
+
+    return entries;
+  }
+
+  private IndexEntry selectNewer(final IndexEntry earlier, final IndexEntry later) {
+    final int order = VERSIONS.compare(earlier.version(), later.version());
+    return order >= 0 ? earlier : later;
   }
 
   private Map<String, String> parseFields(final String stanza) {
@@ -273,8 +317,9 @@ final class DebianPinGenerator {
     return fields;
   }
 
-  private IndexEntry toEntry(final Map<String, String> fields) {
+  private IndexEntry toEntry(final Map<String, String> fields, final URI snapshot) {
     final String name = fields.getOrDefault(PACKAGE_FIELD, "");
+    final String version = fields.getOrDefault(VERSION_FIELD, "");
     final String architecture = fields.getOrDefault(ARCHITECTURE_FIELD, "");
     final String filename = fields.getOrDefault(FILENAME_FIELD, "");
     final String sha256 = fields.getOrDefault(SHA256_FIELD, "");
@@ -287,7 +332,7 @@ final class DebianPinGenerator {
 
     final String provided = fields.getOrDefault(PROVIDES_FIELD, "");
     final List<String> provides = this.readFirstAlternatives(provided);
-    return new IndexEntry(name, architecture, filename, sha256, dependencies, provides);
+    return new IndexEntry(name, version, architecture, filename, sha256, dependencies, provides, snapshot);
   }
 
   private List<String> readFirstAlternatives(final String relations) {
@@ -301,6 +346,27 @@ final class DebianPinGenerator {
     }
 
     return names;
+  }
+
+  private enum Archive {
+    MAIN("https://snapshot.debian.org/archive/debian/", "dists/bookworm/main/binary-"),
+    SECURITY("https://snapshot.debian.org/archive/debian-security/", "dists/bookworm-security/main/binary-");
+
+    private final String url;
+    private final String indexDirectoryPrefix;
+
+    Archive(final String url, final String indexDirectoryPrefix) {
+      this.url = url;
+      this.indexDirectoryPrefix = indexDirectoryPrefix;
+    }
+
+    String getUrl() {
+      return this.url;
+    }
+
+    String getIndexDirectoryPrefix() {
+      return this.indexDirectoryPrefix;
+    }
   }
 
   private enum Architecture {
@@ -324,7 +390,18 @@ final class DebianPinGenerator {
     }
   }
 
-  private record Bundle(String fileName, List<String> roots, List<Architecture> architectures) {}
+  private record Bundle(String fileName, List<String> roots) {}
 
-  record IndexEntry(String name, String architecture, String filename, String sha256, List<String> dependencies, List<String> provides) {}
+  record Index(URI snapshot, String text) {}
+
+  record IndexEntry(
+    String name,
+    String version,
+    String architecture,
+    String filename,
+    String sha256,
+    List<String> dependencies,
+    List<String> provides,
+    URI snapshot
+  ) {}
 }

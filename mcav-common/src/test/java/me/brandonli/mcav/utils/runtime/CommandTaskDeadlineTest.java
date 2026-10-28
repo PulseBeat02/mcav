@@ -202,6 +202,12 @@ final class CommandTaskDeadlineTest {
     }
   }
 
+  @Test
+  void shouldExpireTheDeadlineAtItsLastNanosecond() {
+    final long now = OUTPUT_TIMEOUT.toNanos();
+    assertThrows(TimeoutException.class, () -> CommandTask.remainingNanoseconds(OUTPUT_TIMEOUT, 0L, now));
+  }
+
   private static final class StringFuture extends CompletableFuture<String> {}
 
   // A parent that starts a child sharing its standard streams and ends, while the child holds the pipes for 30 seconds.

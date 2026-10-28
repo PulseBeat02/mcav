@@ -91,7 +91,9 @@ public final class AudioResampler implements AutoCloseable {
   private final SwrContext context;
   private boolean closed;
 
-  private AudioResampler(
+  // Package-private so a test can pass a sample rate that create refuses, see configure.
+  @VisibleForTesting
+  AudioResampler(
     final int inputSampleRate,
     final int inputChannels,
     final SampleFormat inputFormat,
@@ -192,7 +194,9 @@ public final class AudioResampler implements AutoCloseable {
     Preconditions.checkArgument(inRange, "%s channel count %s must be between 1 and %s!", side, channels, MAXIMUM_CHANNELS);
   }
 
-  private void configure() {
+  // Package-private so a test can make the allocation fail, which kills the mutant that skips its check.
+  @VisibleForTesting
+  void configure() {
     final Pointer noLoggingContext = new Pointer();
     final int outputFfmpegFormat = this.outputFormat.getFfmpegFormat();
     final int inputFfmpegFormat = this.inputFormat.getFfmpegFormat();

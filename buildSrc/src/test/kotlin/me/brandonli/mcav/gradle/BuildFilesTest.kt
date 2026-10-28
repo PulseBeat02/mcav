@@ -40,8 +40,9 @@ class BuildFilesTest {
         const val BUILD_SOURCE_DIRECTORY: String = "buildSrc"
 
         val MODULE_ENTRY: Regex = Regex("""^ {4}"([\w-]+)",$""", RegexOption.MULTILINE)
+        const val DEPENDENCY_GROUPS: String = """( {4}.+\n)+(\n( {4}.+\n)+)*"""
         val MODULE_SCRIPT_LAYOUT: Regex =
-            Regex("""((import [\w.]+\n)+\n)?plugins \{\n( {4}id\("mcav\.[\w-]+"\)\n)+}\n(\ndependencies \{\n( {4}.+\n)+}\n)?""")
+            Regex("""((import [\w.]+\n)+\n)?plugins \{\n( {4}id\("mcav\.[\w-]+"\)\n)+}\n(\ndependencies \{\n$DEPENDENCY_GROUPS}\n)?""")
         val CATALOG_SECTION_HEADER: Regex = Regex("""^\[\w+]\n""", RegexOption.MULTILINE)
         val CATALOG_ENTRY: Regex = Regex("""^([\w-]+) = """, RegexOption.MULTILINE)
     }

@@ -34,7 +34,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -50,9 +52,12 @@ final class CommandTaskTest {
   private static final String JAVA_EXECUTABLE = "java";
   private static final String SLEEPER_SOURCE_FILE = "Sleeper.java";
   private static final String SPAWNER_SOURCE_FILE = "Spawner.java";
+  private static final String ENVIRONMENT_SOURCE_FILE = "Environment.java";
 
   private static final String VERSION_OPTION = "-version";
   private static final String UNKNOWN_OPTION = "-XX:+NoSuchOptionForMcav";
+
+  private static final String VARIABLE = "MCAV_COMMAND_TASK_VARIABLE";
 
   private static final long EXIT_TIMEOUT_SECONDS = 10L;
   private static final long RETURN_DEADLINE_NANOSECONDS = 15_000_000_000L;
@@ -79,6 +84,15 @@ final class CommandTaskTest {
     Files.writeString(
       program,
       "class Spawner { public static void main(String[] args) throws Exception { System.out.println(new ProcessBuilder(args[0], args[1]).start().pid()); System.out.flush(); Thread.sleep(1_000L); } }"
+    );
+    return program.toString();
+  }
+
+  private String environmentProgram() throws IOException {
+    final Path program = this.directory.resolve(ENVIRONMENT_SOURCE_FILE);
+    Files.writeString(
+      program,
+      "class Environment { public static void main(String[] args) { System.out.print(System.getenv(args[0])); } }"
     );
     return program.toString();
   }
@@ -129,6 +143,19 @@ final class CommandTaskTest {
     final String directoryName = fileName.toString();
     final boolean mentionsDirectory = errorOutput.contains(directoryName);
     assertTrue(mentionsDirectory, errorOutput);
+  }
+
+  @Test
+  void shouldGiveTheProgramItsEnvironmentVariables() throws IOException {
+    final String java = javaExecutable();
+    final String programPath = this.environmentProgram();
+    final Map<String, String> environment = Map.of(VARIABLE, "mcav");
+    final CommandTask task = new CommandTask(environment, java, programPath, VARIABLE);
+    task.runChecked();
+    final String output = task.getOutput();
+    final Map<String, String> taskEnvironment = task.getEnvironment();
+    assertEquals("mcav", output);
+    assertEquals(environment, taskEnvironment);
   }
 
   @Test
@@ -245,6 +272,12 @@ final class CommandTaskTest {
   void shouldRejectInvalidCommands() {
     assertThrows(IllegalArgumentException.class, CommandTask::new);
     assertThrows(NullPointerException.class, () -> new CommandTask((String[]) null));
+
+    final String java = javaExecutable();
+    final Map<String, String> nullValue = new HashMap<>();
+    nullValue.put(VARIABLE, null);
+    assertThrows(NullPointerException.class, () -> new CommandTask((Map<String, String>) null, java));
+    assertThrows(NullPointerException.class, () -> new CommandTask(nullValue, java));
   }
 
   @Test
