@@ -122,6 +122,10 @@ constexpr int32_t EVEN_LANES = _MM_SHUFFLE(2, 0, 2, 0);
 constexpr int32_t ODD_LANES = _MM_SHUFFLE(3, 1, 3, 1);
 #endif
 
+#if defined(MCV2_SIMD_SSE41) || defined(MCV2_SIMD_SSE2) || defined(MCV2_SIMD_AVX2) || defined(MCV2_SIMD_AVX512)
+constexpr int32_t HALF_VECTOR_BYTES = 8;
+#endif
+
 inline int32_t wrapping_addition(const int32_t first, const int32_t second) {
   return (int32_t)((uint32_t)first + (uint32_t)second);
 }
@@ -334,6 +338,9 @@ constexpr int32_t SECOND_LANE_BIT = 2;
 constexpr int32_t THIRD_LANE_BIT = 4;
 constexpr int32_t FOURTH_LANE_BIT = 8;
 
+constexpr int32_t LANE_BITS = 32;
+constexpr int32_t SIGN_SHIFT = LANE_BITS - 1;
+
 template <int BLEND_MASK> inline __m128i blend_integer_lanes(const __m128i first, const __m128i second) {
   const __m128i mask = _mm_setr_epi32((BLEND_MASK & FIRST_LANE_BIT) ? -1 : 0, (BLEND_MASK & SECOND_LANE_BIT) ? -1 : 0,
                                       (BLEND_MASK & THIRD_LANE_BIT) ? -1 : 0, (BLEND_MASK & FOURTH_LANE_BIT) ? -1 : 0);
@@ -342,7 +349,7 @@ template <int BLEND_MASK> inline __m128i blend_integer_lanes(const __m128i first
 // Signed and unsigned products share the low 32 bits required by Java's wrapping arithmetic.
 inline __m128i multiply_low_int(const __m128i first, const __m128i second) {
   const __m128i even = _mm_mul_epu32(first, second);
-  const __m128i odd = _mm_mul_epu32(_mm_srli_epi64(first, 32), _mm_srli_epi64(second, 32));
+  const __m128i odd = _mm_mul_epu32(_mm_srli_epi64(first, LANE_BITS), _mm_srli_epi64(second, LANE_BITS));
   return _mm_unpacklo_epi32(_mm_shuffle_epi32(even, PACK_LOW_WORDS), _mm_shuffle_epi32(odd, PACK_LOW_WORDS));
 }
 inline __m128i minimum_int(const __m128i first, const __m128i second) {
@@ -355,7 +362,7 @@ inline __m128i maximum_int(const __m128i first, const __m128i second) {
 }
 // Java Math.abs leaves Integer.MIN_VALUE negative.
 inline __m128i absolute_int(const __m128i first) {
-  const __m128i sign = _mm_srai_epi32(first, 31);
+  const __m128i sign = _mm_srai_epi32(first, SIGN_SHIFT);
   return _mm_sub_epi32(_mm_xor_si128(first, sign), sign);
 }
 inline __m128i widen_unsigned_bytes(const __m128i bytes) {
@@ -370,7 +377,8 @@ inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t 
   const __m128i absolute_differences = _mm_sad_epu8(
       _mm_setr_epi32((int32_t)first_pixel, (int32_t)second_pixel, (int32_t)third_pixel, (int32_t)fourth_pixel),
       _mm_loadu_si128((const __m128i*)sample_bytes));
-  return _mm_cvtsi128_si32(absolute_differences) + _mm_cvtsi128_si32(_mm_srli_si128(absolute_differences, 8));
+  return _mm_cvtsi128_si32(absolute_differences) +
+         _mm_cvtsi128_si32(_mm_srli_si128(absolute_differences, HALF_VECTOR_BYTES));
 }
 
 struct int_vector {
@@ -552,7 +560,8 @@ inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t 
   const __m128i absolute_differences = _mm_sad_epu8(
       _mm_setr_epi32((int32_t)first_pixel, (int32_t)second_pixel, (int32_t)third_pixel, (int32_t)fourth_pixel),
       _mm_loadu_si128((const __m128i*)sample_bytes));
-  return _mm_cvtsi128_si32(absolute_differences) + _mm_cvtsi128_si32(_mm_srli_si128(absolute_differences, 8));
+  return _mm_cvtsi128_si32(absolute_differences) +
+         _mm_cvtsi128_si32(_mm_srli_si128(absolute_differences, HALF_VECTOR_BYTES));
 }
 
 struct int_vector {
@@ -731,7 +740,8 @@ inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t 
   const __m128i absolute_differences = _mm_sad_epu8(
       _mm_setr_epi32((int32_t)first_pixel, (int32_t)second_pixel, (int32_t)third_pixel, (int32_t)fourth_pixel),
       _mm_loadu_si128((const __m128i*)sample_bytes));
-  return _mm_cvtsi128_si32(absolute_differences) + _mm_cvtsi128_si32(_mm_srli_si128(absolute_differences, 8));
+  return _mm_cvtsi128_si32(absolute_differences) +
+         _mm_cvtsi128_si32(_mm_srli_si128(absolute_differences, HALF_VECTOR_BYTES));
 }
 
 struct int_vector {
