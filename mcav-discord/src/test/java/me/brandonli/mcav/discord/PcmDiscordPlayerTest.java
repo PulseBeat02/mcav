@@ -205,7 +205,7 @@ final class PcmDiscordPlayerTest {
 
   @Test
   void shouldRemoveTheControlCharactersThatDiscordTrimsFromTheTitle() {
-    final List<String> invisibles = List.of("\u0000", "\u0001 \u0001");
+    final List<String> invisibles = List.of("\u0000", "\u0001\u2003\u0001");
     for (final String invisible : invisibles) {
       this.player.setPlaying(invisible);
       final String name = this.shownActivityName();
