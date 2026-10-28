@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.discord;
 
+import com.google.common.base.CharMatcher;
 import com.google.common.base.Preconditions;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -57,6 +58,11 @@ public final class PcmDiscordPlayer implements DiscordPlayer {
   private static final String UNKNOWN_TITLE = "Unknown title";
 
   private static final String ELLIPSIS = "…";
+
+  private static final char LAST_CONTROL_CHARACTER = '\u001F';
+  private static final CharMatcher WHITESPACE_OR_CONTROL = CharMatcher.forPredicate(Character::isWhitespace).or(
+    CharMatcher.inRange(Character.MIN_VALUE, LAST_CONTROL_CHARACTER)
+  );
 
   private final JDA jda;
   private final Deque<ByteBuffer> frames;
@@ -212,10 +218,8 @@ public final class PcmDiscordPlayer implements DiscordPlayer {
       return UNKNOWN_TITLE;
     }
 
-    final String stripped = title.strip();
-    // JDA trims the control characters that strip keeps
-    final String trimmed = stripped.trim();
-    if (trimmed.isBlank()) {
+    final String trimmed = WHITESPACE_OR_CONTROL.trimFrom(title);
+    if (trimmed.isEmpty()) {
       return UNKNOWN_TITLE;
     }
 

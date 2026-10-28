@@ -221,6 +221,14 @@ final class PcmDiscordPlayerTest {
   }
 
   @Test
+  void shouldRemoveWhitespaceAndControlCharactersAroundTheTitleInAnyOrder() {
+    this.player.setPlaying("\u0001\u2003Song\u2003\u0001");
+
+    final String name = this.shownActivityName();
+    assertEquals("Song", name);
+  }
+
+  @Test
   void shouldKeepTitlesOfExactlyTheMaximumLength() {
     final String title = "a".repeat(MAXIMUM_NAME_LENGTH);
     this.player.setPlaying("  " + title + "  ");

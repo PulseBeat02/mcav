@@ -68,6 +68,7 @@ final class PcmDiscordPlayerFuzzTest {
   private static final int MAXIMUM_NAME_LENGTH = 128;
   private static final String UNKNOWN_TITLE = "Unknown title";
   private static final String ELLIPSIS = "…";
+  private static final char LAST_CONTROL_CHARACTER = '\u001F';
 
   @FuzzTest(maxDuration = "30s")
   void shouldSendTheSwappedSamplesInOrderWhateverTheChunks(final FuzzedDataProvider data) {
@@ -192,10 +193,9 @@ final class PcmDiscordPlayerFuzzTest {
   }
 
   private void assertShownAs(final String title, final String name) {
-    final String stripped = title.strip();
-    final String visible = stripped.trim();
+    final String visible = this.removeSurroundingInvisibles(title);
     final int visibleLength = visible.length();
-    if (visible.isBlank()) {
+    if (visible.isEmpty()) {
       assertEquals(UNKNOWN_TITLE, name);
       return;
     }
@@ -206,6 +206,24 @@ final class PcmDiscordPlayerFuzzTest {
     }
 
     this.assertCutAtACharacterBoundary(visible, name);
+  }
+
+  private String removeSurroundingInvisibles(final String title) {
+    int start = 0;
+    int end = title.length();
+    while (start < end && this.isInvisible(title.charAt(start))) {
+      start++;
+    }
+
+    while (end > start && this.isInvisible(title.charAt(end - 1))) {
+      end--;
+    }
+
+    return title.substring(start, end);
+  }
+
+  private boolean isInvisible(final char character) {
+    return Character.isWhitespace(character) || character <= LAST_CONTROL_CHARACTER;
   }
 
   private void assertCutAtACharacterBoundary(final String visible, final String name) {
