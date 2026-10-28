@@ -1246,6 +1246,9 @@ constexpr int32_t NIBBLE_SIGN = 1 << (NIBBLE_BITS - 1);
 constexpr int32_t NIBBLE_RANGE = 1 << NIBBLE_BITS;
 constexpr int32_t NIBBLES_PER_BYTE = CHAR_BIT / NIBBLE_BITS;
 
+constexpr int32_t ENDPOINTS = 2;
+constexpr int32_t ENDPOINT_CHANNELS = ENDPOINTS * CHANNELS;
+
 constexpr int32_t DIRECTION_COUNT = 4;
 constexpr int32_t DIRECTIONS[DIRECTION_COUNT][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
 
@@ -1589,7 +1592,7 @@ void cluster_pixels(const int32_t* source, const int32_t size, const int32_t ste
   const int32_t second_red = endpoints[3];
   const int32_t second_green = endpoints[4];
   const int32_t second_blue = endpoints[5];
-  int64_t sums[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  int64_t sums[ENDPOINT_CHANNELS + ENDPOINTS] = {0, 0, 0, 0, 0, 0, 0, 0};
   for (int32_t row_index = 0; row_index < size; row_index += step) {
     for (int32_t column = 0; column < size; column += step) {
       const int32_t array_offset = (row_index * size + column) * CHANNELS;
@@ -1612,11 +1615,11 @@ void cluster_pixels(const int32_t* source, const int32_t size, const int32_t ste
       sums[endpoint * CHANNELS] += red;
       sums[endpoint * CHANNELS + 1] += green;
       sums[endpoint * CHANNELS + 2] += blue;
-      sums[6 + endpoint]++;
+      sums[ENDPOINT_CHANNELS + endpoint]++;
     }
   }
-  for (int32_t endpoint = 0; endpoint < 2; endpoint++) {
-    const int64_t members = sums[6 + endpoint];
+  for (int32_t endpoint = 0; endpoint < ENDPOINTS; endpoint++) {
+    const int64_t members = sums[ENDPOINT_CHANNELS + endpoint];
     if (members <= 0) {
       continue;
     }
@@ -1678,10 +1681,10 @@ template <int STEP> void cluster_lanes(const int32_t* source, const int32_t size
       all_blue = all_blue + blue;
     }
   }
-  const int64_t counts[2] = {pixels - near_count.sum(), near_count.sum()};
+  const int64_t counts[ENDPOINTS] = {pixels - near_count.sum(), near_count.sum()};
   const int64_t near[CHANNELS] = {near_red.sum(), near_green.sum(), near_blue.sum()};
   const int64_t all[CHANNELS] = {all_red.sum(), all_green.sum(), all_blue.sum()};
-  for (int32_t endpoint = 0; endpoint < 2; endpoint++) {
+  for (int32_t endpoint = 0; endpoint < ENDPOINTS; endpoint++) {
     const int64_t members = counts[endpoint];
     if (members <= 0) {
       continue;
