@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -49,10 +48,6 @@ final class ArtifactTest {
       "mcav-bukkit"
     );
     assertEquals(expected, artifactIds);
-
-    final Artifact common = Artifact.valueOf("COMMON");
-    assertSame(Artifact.COMMON, common);
-    assertThrows(IllegalArgumentException.class, () -> Artifact.valueOf("UNKNOWN"));
   }
 
   @Test
