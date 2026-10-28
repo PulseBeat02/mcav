@@ -1249,6 +1249,11 @@ constexpr int32_t NIBBLES_PER_BYTE = CHAR_BIT / NIBBLE_BITS;
 constexpr int32_t ENDPOINTS = 2;
 constexpr int32_t ENDPOINT_CHANNELS = ENDPOINTS * CHANNELS;
 
+constexpr int32_t CLUSTER_STEP = 2;
+constexpr int32_t SMALLEST_STEPPED_SIZE = 16;
+
+constexpr int32_t CLUSTER_ITERATIONS = 2;
+
 constexpr int32_t DIRECTION_COUNT = 4;
 constexpr int32_t DIRECTIONS[DIRECTION_COUNT][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
 
@@ -1634,7 +1639,7 @@ template <int STEP>
 inline void load_step_channels(const int32_t* source, const int32_t pixel_index, int_vector& red, int_vector& green,
                                int_vector& blue) {
   int_vector::load_channels(source + pixel_index * CHANNELS, red, green, blue);
-  if (STEP != 2) {
+  if (STEP != CLUSTER_STEP) {
     return;
   }
 
@@ -1752,8 +1757,8 @@ template <int STEP> int32_t cluster_extrema(const int32_t* source, const int32_t
 }
 
 inline void cluster_lanes_with_step(const int32_t* source, const int32_t size, const int32_t step, int32_t* endpoints) {
-  if (step == 2) {
-    cluster_lanes<2>(source, size, endpoints);
+  if (step == CLUSTER_STEP) {
+    cluster_lanes<CLUSTER_STEP>(source, size, endpoints);
     return;
   }
 
@@ -1761,11 +1766,11 @@ inline void cluster_lanes_with_step(const int32_t* source, const int32_t size, c
 }
 
 void cluster(const int32_t* source, const int32_t size, int32_t* endpoints) {
-  const int32_t step = size >= 16 ? 2 : 1;
-  const int32_t all =
-      step == 2 ? cluster_extrema<2>(source, size, endpoints) : cluster_extrema<1>(source, size, endpoints);
+  const int32_t step = size >= SMALLEST_STEPPED_SIZE ? CLUSTER_STEP : 1;
+  const int32_t all = step == CLUSTER_STEP ? cluster_extrema<CLUSTER_STEP>(source, size, endpoints)
+                                           : cluster_extrema<1>(source, size, endpoints);
   if (all >= 0 && lane_sums_fit(0, all, (size / step) * (size / step))) {
-    for (int32_t iteration = 0; iteration < 2; iteration++) {
+    for (int32_t iteration = 0; iteration < CLUSTER_ITERATIONS; iteration++) {
       cluster_lanes_with_step(source, size, step, endpoints);
     }
     return;
