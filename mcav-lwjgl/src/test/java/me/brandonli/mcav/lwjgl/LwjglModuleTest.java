@@ -26,9 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
 
-/**
- * Tests {@link LwjglModule}.
- */
 final class LwjglModuleTest {
 
   private static final String MODULE_NAME = "lwjgl";

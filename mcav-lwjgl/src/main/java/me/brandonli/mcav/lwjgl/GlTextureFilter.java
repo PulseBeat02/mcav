@@ -71,6 +71,7 @@ import org.lwjgl.opengl.GLCapabilities;
 public class GlTextureFilter implements FunctionalVideoFilter {
 
   private static final int NO_TEXTURE = 0;
+
   private static final int CHANNELS = 3;
 
   private static final int BASE_LEVEL = 0;
@@ -134,7 +135,7 @@ public class GlTextureFilter implements FunctionalVideoFilter {
    */
   @Override
   public void start() {
-    requireContext();
+    this.requireContext();
 
     if (this.ownsTexture && this.textureId == NO_TEXTURE) {
       this.createTexture();
@@ -178,7 +179,7 @@ public class GlTextureFilter implements FunctionalVideoFilter {
   }
 
   private void deleteTexture() {
-    requireContext();
+    this.requireContext();
 
     GL11.glDeleteTextures(this.textureId);
     this.textureId = NO_TEXTURE;
@@ -225,14 +226,6 @@ public class GlTextureFilter implements FunctionalVideoFilter {
     return false;
   }
 
-  /**
-   * Copies a frame into the back buffer and marks it as the newest frame, growing the back buffer when it is too
-   * small.
-   *
-   * @param source the pixels of the frame, positioned and limited to exactly the frame
-   * @param width  the width of the frame
-   * @param height the height of the frame
-   */
   private void stage(final ByteBuffer source, final int width, final int height) {
     final int size = source.remaining();
     synchronized (this.lock) {
@@ -262,14 +255,17 @@ public class GlTextureFilter implements FunctionalVideoFilter {
    */
   public boolean upload() {
     Preconditions.checkState(this.textureId != NO_TEXTURE, "The texture was not created; call start() on the render thread first!");
-    requireContext();
+    this.requireContext();
 
     final @Nullable StagedFrame frame = this.swapStagedFrame();
     if (frame == null) {
       return false;
     }
 
-    this.transfer(frame.pixels(), frame.width(), frame.height());
+    final ByteBuffer pixels = frame.pixels();
+    final int width = frame.width();
+    final int height = frame.height();
+    this.transfer(pixels, width, height);
 
     return true;
   }
@@ -289,13 +285,6 @@ public class GlTextureFilter implements FunctionalVideoFilter {
     }
   }
 
-  /**
-   * Uploads pixels to the texture, leaving the bound texture and the unpack settings of the caller as they were.
-   *
-   * @param pixels the frame in {@code GL_BGR} layout
-   * @param width  the width of the frame
-   * @param height the height of the frame
-   */
   @VisibleForTesting
   void transfer(final ByteBuffer pixels, final int width, final int height) {
     final int previousTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
@@ -307,21 +296,14 @@ public class GlTextureFilter implements FunctionalVideoFilter {
     try {
       GL11.glBindTexture(GL11.GL_TEXTURE_2D, this.textureId);
       // Rows of 3-byte pixels are not usually 4-byte aligned; the frame is tightly packed.
-      setUnpackState(PACKED_ALIGNMENT, UPLOAD_ROW_LENGTH, NO_SKIP, NO_SKIP);
+      this.setUnpackState(PACKED_ALIGNMENT, UPLOAD_ROW_LENGTH, NO_SKIP, NO_SKIP);
       this.writePixels(pixels, width, height);
     } finally {
-      setUnpackState(previousAlignment, previousRowLength, previousSkipRows, previousSkipPixels);
+      this.setUnpackState(previousAlignment, previousRowLength, previousSkipRows, previousSkipPixels);
       GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
     }
   }
 
-  /**
-   * Writes pixels into the bound texture, reallocating the texture storage when the frame size changed.
-   *
-   * @param pixels the frame in {@code GL_BGR} layout
-   * @param width  the width of the frame
-   * @param height the height of the frame
-   */
   private void writePixels(final ByteBuffer pixels, final int width, final int height) {
     final boolean resized = width != this.textureWidth || height != this.textureHeight;
     if (resized) {
@@ -333,27 +315,15 @@ public class GlTextureFilter implements FunctionalVideoFilter {
     }
   }
 
-  /**
-   * Sets the pixel unpack settings of the current context.
-   *
-   * @param alignment  the row alignment in bytes
-   * @param rowLength  the row length in pixels, or 0 for the width of the upload
-   * @param skipRows   the number of rows to skip
-   * @param skipPixels the number of pixels to skip in every row
-   */
-  private static void setUnpackState(final int alignment, final int rowLength, final int skipRows, final int skipPixels) {
+  private void setUnpackState(final int alignment, final int rowLength, final int skipRows, final int skipPixels) {
     GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, alignment);
     GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, rowLength);
     GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, skipRows);
     GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, skipPixels);
   }
 
-  /**
-   * Checks that an OpenGL context is current, since OpenGL calls without one crash the JVM or fail obscurely.
-   *
-   * @throws IllegalStateException if no OpenGL context is current on the calling thread
-   */
-  private static void requireContext() {
+  // OpenGL calls without a current context crash the JVM.
+  private void requireContext() {
     try {
       final GLCapabilities capabilities = GL.getCapabilities();
       Preconditions.checkNotNull(capabilities, "OpenGL capabilities must be set!");
