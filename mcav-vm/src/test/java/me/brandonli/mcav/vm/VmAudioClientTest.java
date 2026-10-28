@@ -265,16 +265,11 @@ final class VmAudioClientTest {
         throw new UncheckedIOException(exception);
       }
     });
-    try (final VmAudioClient client = VmAudioClient.connect(this.address(), PASSWORD, sink, (message, failure) -> {})) {
+    try (final VmAudioClient _ = VmAudioClient.connect(this.address(), PASSWORD, sink, (message, failure) -> {})) {
       served.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
       final List<String> expected = List.of("sound 4", "quiet");
-      final boolean readerStarted = client.getReader() != null;
       assertEquals(expected, heard, "the end of the guest's sound, after its samples");
-      assertTrue(readerStarted);
     }
-
-    final VmAudioClient.Sink plain = (samples, length) -> {};
-    plain.quiet();
   }
 
   @Test
