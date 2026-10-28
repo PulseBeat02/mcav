@@ -17,21 +17,16 @@
  */
 package me.brandonli.mcav.mod;
 
+import com.google.common.base.MoreObjects;
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * An anchor map seen this frame: where its screen is, read from the anchor's symbols, and the top left corner of the map
  * as the game drew it, relative to the camera.
- *
- * @param column  the anchor's column in its screen
- * @param row     the anchor's row in its screen
- * @param columns the screen's width in maps
- * @param rows    the screen's height in maps
- * @param facing  the direction the map's right edge points to: east, south, west or north
- * @param stream  the screen's stream id
- * @param cornerX the map's top left corner, x
- * @param cornerY the map's top left corner, y
- * @param cornerZ the map's top left corner, z
  */
-record StripAnchor(int column, int row, int columns, int rows, int facing, long stream, float cornerX, float cornerY, float cornerZ) {
+final class StripAnchor {
+
   /** The anchor's fields and its stream, one symbol each after the signature. */
   private static final int COLUMN = 8;
   private static final int ROW = 9;
@@ -42,6 +37,52 @@ record StripAnchor(int column, int row, int columns, int rows, int facing, long 
   private static final int STREAM_HIGH = 14;
 
   private static final int SYMBOL_BITS = 6;
+
+  private final int column;
+  private final int row;
+  private final int columns;
+  private final int rows;
+  private final int facing;
+  private final long stream;
+  private final float cornerX;
+  private final float cornerY;
+  private final float cornerZ;
+
+  private StripAnchor(
+    final int column,
+    final int row,
+    final int columns,
+    final int rows,
+    final int facing,
+    final long stream,
+    final float cornerX,
+    final float cornerY,
+    final float cornerZ
+  ) {
+    this.column = column;
+    this.row = row;
+    this.columns = columns;
+    this.rows = rows;
+    this.facing = facing;
+    this.stream = stream;
+    this.cornerX = cornerX;
+    this.cornerY = cornerY;
+    this.cornerZ = cornerZ;
+  }
+
+  static StripAnchor of(
+    final int column,
+    final int row,
+    final int columns,
+    final int rows,
+    final int facing,
+    final long stream,
+    final float cornerX,
+    final float cornerY,
+    final float cornerZ
+  ) {
+    return new StripAnchor(column, row, columns, rows, facing, stream, cornerX, cornerY, cornerZ);
+  }
 
   /**
    * Reads an anchor.
@@ -65,5 +106,84 @@ record StripAnchor(int column, int row, int columns, int rows, int facing, long 
       cornerY,
       cornerZ
     );
+  }
+
+  int getColumn() {
+    return this.column;
+  }
+
+  int getRow() {
+    return this.row;
+  }
+
+  int getColumns() {
+    return this.columns;
+  }
+
+  int getRows() {
+    return this.rows;
+  }
+
+  int getFacing() {
+    return this.facing;
+  }
+
+  long getStream() {
+    return this.stream;
+  }
+
+  float getCornerX() {
+    return this.cornerX;
+  }
+
+  float getCornerY() {
+    return this.cornerY;
+  }
+
+  float getCornerZ() {
+    return this.cornerZ;
+  }
+
+  @Override
+  public boolean equals(final @Nullable Object other) {
+    if (this == other) {
+      return true;
+    }
+
+    if (!(other instanceof final StripAnchor anchor)) {
+      return false;
+    }
+
+    return (
+      this.column == anchor.column &&
+      this.row == anchor.row &&
+      this.columns == anchor.columns &&
+      this.rows == anchor.rows &&
+      this.facing == anchor.facing &&
+      this.stream == anchor.stream &&
+      Float.compare(this.cornerX, anchor.cornerX) == 0 &&
+      Float.compare(this.cornerY, anchor.cornerY) == 0 &&
+      Float.compare(this.cornerZ, anchor.cornerZ) == 0
+    );
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(this.column, this.row, this.columns, this.rows, this.facing, this.stream, this.cornerX, this.cornerY, this.cornerZ);
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+      .add("column", this.column)
+      .add("row", this.row)
+      .add("columns", this.columns)
+      .add("rows", this.rows)
+      .add("facing", this.facing)
+      .add("stream", this.stream)
+      .add("cornerX", this.cornerX)
+      .add("cornerY", this.cornerY)
+      .add("cornerZ", this.cornerZ)
+      .toString();
   }
 }

@@ -126,7 +126,7 @@ final class TransportStrip {
     }
     final boolean[] described = new boolean[layout.screens()];
     for (final StripAnchor anchor : anchors) {
-      final int screen = layout.screenOf(anchor.stream());
+      final int screen = layout.screenOf(anchor.getStream());
       if (screen != PackLayout.NO_SCREEN && !described[screen]) {
         described[screen] = true;
         writeDescriptor(strip, (layout.totalSlots() * PackLayout.rowsPerPage(width) + screen) * width, anchor, viewRotation, projection);
@@ -183,18 +183,18 @@ final class TransportStrip {
   }
 
   private static float[] descriptorFloats(final StripAnchor anchor, final float[] viewRotation, final float[] projection) {
-    final float[] corner = transform(viewRotation, anchor.cornerX(), anchor.cornerY(), anchor.cornerZ(), POINT_W);
-    final float[] right = transform(viewRotation, rightX(anchor.facing()), 0, rightZ(anchor.facing()), DIRECTION_W);
+    final float[] corner = transform(viewRotation, anchor.getCornerX(), anchor.getCornerY(), anchor.getCornerZ(), POINT_W);
+    final float[] right = transform(viewRotation, rightX(anchor.getFacing()), 0, rightZ(anchor.getFacing()), DIRECTION_W);
     final float[] down = transform(viewRotation, 0, -1, 0, DIRECTION_W);
     final float[] floats = new float[FLOATS];
     for (int axis = 0; axis < AXES; axis++) {
-      floats[ORIGIN + axis] = corner[axis] - anchor.column() * right[axis] - anchor.row() * down[axis];
+      floats[ORIGIN + axis] = corner[axis] - anchor.getColumn() * right[axis] - anchor.getRow() * down[axis];
       floats[RIGHT + axis] = right[axis];
       floats[DOWN + axis] = down[axis];
     }
-    floats[ORIGIN + W_COMPONENT] = anchor.columns();
-    floats[RIGHT + W_COMPONENT] = anchor.rows();
-    floats[DOWN + W_COMPONENT] = anchor.column() * ANCHOR_INDEX_STRIDE + anchor.row();
+    floats[ORIGIN + W_COMPONENT] = anchor.getColumns();
+    floats[RIGHT + W_COMPONENT] = anchor.getRows();
+    floats[DOWN + W_COMPONENT] = anchor.getColumn() * ANCHOR_INDEX_STRIDE + anchor.getRow();
     System.arraycopy(projection, 0, floats, PROJECTION, MATRIX);
     return floats;
   }

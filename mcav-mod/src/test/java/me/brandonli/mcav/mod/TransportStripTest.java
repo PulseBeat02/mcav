@@ -147,7 +147,7 @@ final class TransportStripTest {
     final float[][] rights = { { 1, 0, 0 }, { 0, 0, 1 }, { -1, 0, 0 }, { 0, 0, -1 } };
     for (final float[] rotation : List.of(IDENTITY, QUARTER_TURN)) {
       for (int facing = 0; facing < 4; facing++) {
-        final StripAnchor anchor = new StripAnchor(1, 2, 4, 3, facing, 7, 10.1F, 64.3F, -3.7F);
+        final StripAnchor anchor = StripAnchor.of(1, 2, 4, 3, facing, 7, 10.1F, 64.3F, -3.7F);
         final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(), List.of(anchor), rotation, PROJECTION);
         final float[] corner = this.times(rotation, 10.1F, 64.3F, -3.7F, 1);
         final float[] right = this.times(rotation, rights[facing][0], rights[facing][1], rights[facing][2], 0);
@@ -180,9 +180,9 @@ final class TransportStripTest {
 
   @Test
   void shouldDescribeAScreenByItsFirstAnchorAndLeaveOutAnchorsOfOtherStreams() {
-    final StripAnchor first = new StripAnchor(0, 0, 2, 2, 0, 9, 1, 2, 3);
-    final StripAnchor second = new StripAnchor(1, 1, 2, 2, 0, 9, 7, 8, 9);
-    final StripAnchor other = new StripAnchor(0, 0, 2, 2, 0, 8, 4, 5, 6);
+    final StripAnchor first = StripAnchor.of(0, 0, 2, 2, 0, 9, 1, 2, 3);
+    final StripAnchor second = StripAnchor.of(1, 1, 2, 2, 0, 9, 7, 8, 9);
+    final StripAnchor other = StripAnchor.of(0, 0, 2, 2, 0, 8, 4, 5, 6);
     final byte[] strip = TransportStrip.build(LAYOUT, WIDTH, List.of(), List.of(other, first, second), IDENTITY, PROJECTION);
     final float[] floats = this.descriptor(strip, DESCRIPTORS + WIDTH);
     final float[] corner = Arrays.copyOf(floats, 3);

@@ -106,7 +106,7 @@ final class ShaderFrameTest {
     frame.posed(ANCHOR_TEXTURE, 4, 5, 6);
     final List<StripAnchor> anchors = frame.anchors();
     final StripAnchor anchor = anchors.get(0);
-    final float[] corner = { anchor.cornerX(), anchor.cornerY(), anchor.cornerZ() };
+    final float[] corner = { anchor.getCornerX(), anchor.getCornerY(), anchor.getCornerZ() };
     assertArrayEquals(new float[] { 4, 5, 6 }, corner);
   }
 }
