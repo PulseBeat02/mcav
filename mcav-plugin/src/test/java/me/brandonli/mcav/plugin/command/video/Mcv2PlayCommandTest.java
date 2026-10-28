@@ -336,7 +336,7 @@ final class Mcv2PlayCommandTest {
 
   @Test
   void shouldPlayNothingWhenEverySlotOfThePackPlays() throws IOException, InterruptedException {
-    when(this.packs.open(any())).thenThrow(new IllegalStateException("full"));
+    when(this.packs.open(any())).thenThrow(new IllegalStateException("full!"));
     this.command.play(this.sender, this.selector, "5x3", 20, 2, this.archive(Mcv2PlaybackTest.stream()).toString());
     this.runHandedOver();
     verify(this.sender).sendMessage(Message.MCV2_FULL.build());
@@ -583,7 +583,7 @@ final class Mcv2PlayCommandTest {
     Mcv2PlayCommand.encodeFile(
       this.sender,
       (_, _, _) -> {
-        throw new IOException("no such video");
+        throw new IOException("no such video!");
       },
       Path.of("b.mp4"),
       output,
@@ -619,7 +619,7 @@ final class Mcv2PlayCommandTest {
     );
     final List<String> failures = this.finish();
 
-    final String expected = text(Message.MCV2_ENCODE_ERROR.build("no such video"));
+    final String expected = text(Message.MCV2_ENCODE_ERROR.build("no such video!"));
     final String failure = failures.getFirst();
     assertEquals(expected, failure);
 
@@ -640,7 +640,7 @@ final class Mcv2PlayCommandTest {
   @ValueSource(strings = { "4097x1", "1x4097" })
   void shouldRefuseOfflineDimensionsBeyondTheCodecLimit(final String dimensions) throws Exception {
     final Mcv2PlayCommand.Opener opener = mock(Mcv2PlayCommand.Opener.class);
-    when(opener.open(any(), anyInt(), anyInt())).thenThrow(new IOException("unexpected open"));
+    when(opener.open(any(), anyInt(), anyInt())).thenThrow(new IOException("unexpected open!"));
     this.command.setOpener(opener);
     try {
       this.command.encode(this.sender, "clip.mp4", "limit.mcs", dimensions, Mcv2Profile.DEFAULT);
@@ -682,7 +682,7 @@ final class Mcv2PlayCommandTest {
       Mcv2PlayCommand.encodeFile(
         this.sender,
         (_, _, _) -> {
-          throw new IllegalStateException("reader rejected the source");
+          throw new IllegalStateException("reader rejected the source!");
         },
         Path.of("clip.mp4"),
         target,
@@ -700,7 +700,7 @@ final class Mcv2PlayCommandTest {
     final byte[] allBytes = Files.readAllBytes(target);
     assertArrayEquals(previous, allBytes);
 
-    verify(this.sender).sendMessage(Message.MCV2_ENCODE_ERROR.build("reader rejected the source"));
+    verify(this.sender).sendMessage(Message.MCV2_ENCODE_ERROR.build("reader rejected the source!"));
   }
 
   @Test
@@ -1022,17 +1022,17 @@ final class Mcv2PlayCommandTest {
     final Path truncatedLength = Files.write(this.folder.resolve("a.mcs"), new byte[] { 1, 0, 0 });
 
     final String message = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(truncatedLength)).getMessage();
-    assertEquals("Truncated frame length", message);
+    assertEquals("Truncated frame length!", message);
 
     final Path truncatedFrame = Files.write(this.folder.resolve("b.mcs"), new byte[] { 9, 0, 0, 0, 1 });
 
     final String secondMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(truncatedFrame)).getMessage();
-    assertEquals("Truncated frame", secondMessage);
+    assertEquals("Truncated frame!", secondMessage);
 
     final Path empty = Files.write(this.folder.resolve("c.mcs"), new byte[0]);
 
     final String thirdMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(empty)).getMessage();
-    assertEquals("Empty stream", thirdMessage);
+    assertEquals("Empty stream!", thirdMessage);
 
     final String secondExpected = "Not a stream file: " + this.folder.getFileName();
     final String fourthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(this.folder)).getMessage();
@@ -1050,12 +1050,12 @@ final class Mcv2PlayCommandTest {
     final Path shortTail = Files.write(this.folder.resolve("e.mcs"), concat(shortest, new byte[] { 1, 0, 0 }));
 
     final String sixthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(shortTail)).getMessage();
-    assertEquals("Truncated frame length", sixthMessage);
+    assertEquals("Truncated frame length!", sixthMessage);
 
     final Path longTail = Files.write(this.folder.resolve("f.mcs"), concat(shortest, new byte[] { 9, 0, 0, 0, 1 }));
 
     final String seventhMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(longTail)).getMessage();
-    assertEquals("Truncated frame", seventhMessage);
+    assertEquals("Truncated frame!", seventhMessage);
 
     // a record shorter than a frame's header is no frame, an empty one neither
     final Path tiny = Files.write(this.folder.resolve("g.mcs"), new byte[] { 1, 0, 0, 0, 7 });
@@ -1086,7 +1086,7 @@ final class Mcv2PlayCommandTest {
       final Path file = Files.write(this.folder.resolve("h" + high + ".mcs"), data);
 
       final String eleventhMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(file)).getMessage();
-      assertEquals("Truncated frame", eleventhMessage);
+      assertEquals("Truncated frame!", eleventhMessage);
     }
     assertThrows(NullPointerException.class, () -> new Mcv2PlayCommand(null));
   }

@@ -181,7 +181,7 @@ final class VncCommandTest {
   @Test
   void shouldTellTheSenderWhenTheServerCannotBeReached() {
     when(this.desktop.startAsync(any(VncSource.class), any())).thenReturn(
-      CompletableFuture.failedFuture(new IllegalStateException("refused"))
+      CompletableFuture.failedFuture(new IllegalStateException("refused!"))
     );
 
     this.create("1280x720", "127.0.0.1:5901");

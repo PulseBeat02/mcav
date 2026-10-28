@@ -405,7 +405,7 @@ final class FilterChainTest {
       Files.createSymbolicLink(this.overlays.resolve("link.png"), outside);
       assertThrows(IllegalArgumentException.class, () -> this.parse("overlay=link"), "links are not followed");
     } catch (final UnsupportedOperationException | IOException noLinks) {
-      assumeTrue(false, "no symbolic links here");
+      assumeTrue(false, "no symbolic links here!");
     } finally {
       Files.deleteIfExists(outside);
     }

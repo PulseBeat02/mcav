@@ -115,7 +115,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @param plugin the plugin, whose video player manager and audio provider must be available
    */
   protected AbstractVideoCommand(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     this.plugin = plugin;
     this.manager = plugin.getVideoPlayerManager();
     this.provider = plugin.getAudioProvider();
@@ -149,14 +149,14 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final String flags,
     final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null");
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(selector, "Player selector must not be null");
-    Preconditions.checkNotNull(playerType, "Player type must not be null");
-    Preconditions.checkNotNull(audioType, "Audio type must not be null");
-    Preconditions.checkNotNull(videoResolution, "Video resolution must not be null");
-    Preconditions.checkNotNull(mrl, "MRL must not be null");
-    Preconditions.checkNotNull(flags, "Flags must not be null");
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(selector, "Player selector must not be null!");
+    Preconditions.checkNotNull(playerType, "Player type must not be null!");
+    Preconditions.checkNotNull(audioType, "Audio type must not be null!");
+    Preconditions.checkNotNull(videoResolution, "Video resolution must not be null!");
+    Preconditions.checkNotNull(mrl, "MRL must not be null!");
+    Preconditions.checkNotNull(flags, "Flags must not be null!");
 
     final Pair<Integer, Integer> resolution = parseDimensions(sender, videoResolution);
     if (resolution == null) {
@@ -239,8 +239,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @return the width and height, or {@code null} if the text is not a valid size
    */
   protected static @Nullable Pair<Integer, Integer> parseDimensions(final CommandSender sender, final String text) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(text, "Text must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(text, "Text must not be null!");
     try {
       return ArgumentUtils.parseDimensions(text);
     } catch (final IllegalArgumentException exception) {
@@ -259,8 +259,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
    * @return the width and height in maps, or {@code null} if the text is not a valid wall size
    */
   protected static @Nullable Pair<Integer, Integer> parseScreenDimensions(final CommandSender sender, final String text) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(text, "Text must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(text, "Text must not be null!");
     try {
       return ArgumentUtils.parseScreenDimensions(text);
     } catch (final IllegalArgumentException exception) {

@@ -275,12 +275,12 @@ final class MCAVLoaderTest {
         return new InputStream() {
           @Override
           public int read() throws IOException {
-            throw new IOException("the jar was replaced while the server started");
+            throw new IOException("the jar was replaced while the server started!");
           }
 
           @Override
           public int read(final byte[] buffer, final int offset, final int length) throws IOException {
-            throw new IOException("the jar was replaced while the server started");
+            throw new IOException("the jar was replaced while the server started!");
           }
         };
       }

@@ -118,7 +118,7 @@ final class ServerProcess implements AutoCloseable {
       consoleInput.write(bytes);
       consoleInput.flush();
     } catch (final IOException exception) {
-      throw new UncheckedIOException("The server console is closed", exception);
+      throw new UncheckedIOException("The server console is closed!", exception);
     }
   }
 

@@ -33,7 +33,7 @@ public interface AnnotationCommandFeature {
    * @param parser the parser the feature's annotations are about to be parsed with
    */
   default void registerFeature(final AnnotationParser<CommandSender> parser) {
-    Preconditions.checkNotNull(parser, "Parser must not be null");
+    Preconditions.checkNotNull(parser, "Parser must not be null!");
   }
 
   /**

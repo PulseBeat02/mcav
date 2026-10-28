@@ -161,7 +161,7 @@ final class MapProbe implements DitherResultStep {
   Watch watch(final byte index) {
     final DeltaMapEncoder current = this.encoder;
     if (current == null) {
-      throw new IllegalStateException("No frame was encoded yet");
+      throw new IllegalStateException("No frame was encoded yet!");
     }
     final MapLayout layout = current.getLayout();
     final int firstMapId = layout.getMapId(0);

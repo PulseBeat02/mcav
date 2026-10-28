@@ -132,10 +132,10 @@ final class DiskImagesTest {
     );
 
     final String message = missing.getMessage();
-    assertEquals("There is no disk image absent.iso in the iso folder of the plugin", message);
+    assertEquals("There is no disk image absent.iso in the iso folder of the plugin!", message);
 
     final String notAFileMessage = notAFile.getMessage();
-    assertEquals("There is no disk image directory.iso in the iso folder of the plugin", notAFileMessage);
+    assertEquals("There is no disk image directory.iso in the iso folder of the plugin!", notAFileMessage);
   }
 
   @ParameterizedTest
@@ -144,7 +144,7 @@ final class DiskImagesTest {
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> DiskImages.require(this.folder, image));
 
     final String message = failure.getMessage();
-    assertEquals("A disk image must be named", message);
+    assertEquals("A disk image must be named!", message);
   }
 
   @Test

@@ -198,8 +198,8 @@ public final class FilterChain {
    * @throws IllegalArgumentException with the reason for the sender, if the text is not a chain of allowed filters
    */
   public static FilterChain parse(final String text, final Path overlays, final boolean isVideo) {
-    Preconditions.checkNotNull(text, "Text must not be null");
-    Preconditions.checkNotNull(overlays, "Overlay folder must not be null");
+    Preconditions.checkNotNull(text, "Text must not be null!");
+    Preconditions.checkNotNull(overlays, "Overlay folder must not be null!");
     if (text.isEmpty()) {
       return NONE;
     }
@@ -252,7 +252,7 @@ public final class FilterChain {
 
   private static Supplier<VideoFilter> fps(final List<String> args, final boolean isVideo) {
     if (!isVideo) {
-      throw new IllegalArgumentException("fps counts the frames of a video, and an image has one");
+      throw new IllegalArgumentException("fps counts the frames of a video, and an image has one!");
     }
     return noArguments("fps", args, FramesPerSecondFilter::new);
   }
@@ -295,7 +295,7 @@ public final class FilterChain {
 
   private static Supplier<VideoFilter> tint(final List<String> args) {
     if (args.isEmpty() || args.size() > 2) {
-      throw new IllegalArgumentException("tint takes a colour such as ff8000, and a strength from 0 to 100");
+      throw new IllegalArgumentException("tint takes a colour such as ff8000, and a strength from 0 to 100!");
     }
     final double[] color = color("tint", args.getFirst());
     final double strength = args.size() == 2 ? whole("tint", args.get(1), 0, PERCENT) / (double) PERCENT : DEFAULT_TINT;
@@ -365,7 +365,7 @@ public final class FilterChain {
     count("overlay", args, 1);
     final String name = args.getFirst();
     if (!OVERLAY_NAME.matcher(name).matches()) {
-      throw new IllegalArgumentException("overlay takes the name of a PNG file of the overlays folder, without .png");
+      throw new IllegalArgumentException("overlay takes the name of a PNG file of the overlays folder, without .png!");
     }
     final Path file = overlays.resolve(name + OVERLAY_SUFFIX);
     final BasicFileAttributes attributes;
@@ -473,7 +473,7 @@ public final class FilterChain {
    * @return the first step of the filters, or the output if the chain is empty
    */
   public VideoPipelineStep prepend(final VideoPipelineStep output) {
-    Preconditions.checkNotNull(output, "Output must not be null");
+    Preconditions.checkNotNull(output, "Output must not be null!");
     final List<VideoFilter> created = this.create();
     VideoPipelineStep first = output;
     for (int index = created.size() - 1; index >= 0; index--) {
@@ -488,7 +488,7 @@ public final class FilterChain {
    * @param picture the picture, changed in place
    */
   public void apply(final ImageBuffer picture) {
-    Preconditions.checkNotNull(picture, "Picture must not be null");
+    Preconditions.checkNotNull(picture, "Picture must not be null!");
     for (final VideoFilter filter : this.create()) {
       filter.applyFilter(picture);
     }

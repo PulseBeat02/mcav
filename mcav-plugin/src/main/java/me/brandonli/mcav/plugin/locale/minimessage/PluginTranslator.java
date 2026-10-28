@@ -42,8 +42,8 @@ public final class PluginTranslator extends MiniMessageTranslator {
    * @throws NullPointerException if the key or the bundle is {@code null}
    */
   public PluginTranslator(final Key key, final ResourceBundle bundle) {
-    Preconditions.checkNotNull(key, "Key must not be null");
-    Preconditions.checkNotNull(bundle, "Bundle must not be null");
+    Preconditions.checkNotNull(key, "Key must not be null!");
+    Preconditions.checkNotNull(bundle, "Bundle must not be null!");
     this.key = key;
     this.bundle = bundle;
   }

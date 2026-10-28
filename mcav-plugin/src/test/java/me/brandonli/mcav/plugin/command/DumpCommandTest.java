@@ -63,7 +63,7 @@ final class DumpCommandTest {
     final CountDownLatch attempted = new CountDownLatch(1);
     final DumpCommand command = new DumpCommand(() -> {
       attempted.countDown();
-      throw new IllegalStateException("offline");
+      throw new IllegalStateException("offline!");
     });
     command.createDump(sender);
     final boolean ran = attempted.await(10, TimeUnit.SECONDS);

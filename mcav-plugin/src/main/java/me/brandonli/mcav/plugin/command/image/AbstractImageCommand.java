@@ -77,7 +77,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
    * @param plugin the plugin
    */
   protected AbstractImageCommand(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     this.plugin = plugin;
     this.manager = plugin.getImageManager();
   }
@@ -98,10 +98,10 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     final String mrl,
     final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null");
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(imageResolution, "Image resolution must not be null");
-    Preconditions.checkNotNull(mrl, "MRL must not be null");
+    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null!");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(imageResolution, "Image resolution must not be null!");
+    Preconditions.checkNotNull(mrl, "MRL must not be null!");
     final Pair<Integer, Integer> resolution = parseResolution(imageResolution);
     if (resolution == null) {
       final Component message = Message.UNSUPPORTED_DIMENSION.build();

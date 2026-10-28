@@ -52,7 +52,7 @@ final class FrameRecorder implements Consumer<byte[]> {
    * @throws IllegalArgumentException if the file is the root of the file system
    */
   FrameRecorder(final Path file) {
-    Preconditions.checkNotNull(file, "File must not be null");
+    Preconditions.checkNotNull(file, "File must not be null!");
     final Path absolute = file.toAbsolutePath();
     final Path parent = absolute.getParent();
     if (parent == null) {

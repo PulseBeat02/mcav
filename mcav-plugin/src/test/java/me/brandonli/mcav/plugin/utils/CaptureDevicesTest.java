@@ -104,7 +104,7 @@ final class CaptureDevicesTest {
 
     final Path locked = Files.createDirectory(this.folder.resolve("locked"));
     Files.createDirectory(locked.resolve("video0"));
-    assumeTrue(Files.getFileStore(locked).supportsFileAttributeView(PosixFileAttributeView.class), "POSIX permissions");
+    assumeTrue(Files.getFileStore(locked).supportsFileAttributeView(PosixFileAttributeView.class), "POSIX permissions!");
     final Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(locked);
     Files.setPosixFilePermissions(locked, Set.of());
     try {
@@ -149,7 +149,7 @@ final class CaptureDevicesTest {
 
   @Test
   void shouldTryDevicesOnlyWhereTheSystemDoesNotListThem() {
-    final FrameGrabber.Exception noCamera = new FrameGrabber.Exception("no camera");
+    final FrameGrabber.Exception noCamera = new FrameGrabber.Exception("no camera!");
     try (
       final MockedStatic<OsUtils> systems = Mockito.mockStatic(OsUtils.class);
       final MockedConstruction<OpenCVFrameGrabber> grabbers = Mockito.mockConstruction(OpenCVFrameGrabber.class, (grabber, _) ->

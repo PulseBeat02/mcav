@@ -44,7 +44,7 @@ public final class ServerLoadListener implements Listener {
    * @throws NullPointerException if the plugin is {@code null}
    */
   public ServerLoadListener(final MCAVSandbox sandbox) {
-    Preconditions.checkNotNull(sandbox, "Plugin must not be null");
+    Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
     this.sandbox = sandbox;
   }
 
@@ -57,13 +57,13 @@ public final class ServerLoadListener implements Listener {
    */
   @EventHandler(priority = EventPriority.HIGHEST)
   public void onServerLoad(final ServerLoadEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null");
+    Preconditions.checkNotNull(event, "Event must not be null!");
     final Server server = Bukkit.getServer();
     final ServicesManager manager = server.getServicesManager();
     final BukkitVoicechatService voiceChatService = manager.load(BukkitVoicechatService.class);
     if (voiceChatService == null) {
       throw new IllegalStateException(
-        "Simple Voice Chat audio is enabled, but Simple Voice Chat offers no voice chat service, so voice chat audio is not available"
+        "Simple Voice Chat audio is enabled, but Simple Voice Chat offers no voice chat service, so voice chat audio is not available!"
       );
     }
 

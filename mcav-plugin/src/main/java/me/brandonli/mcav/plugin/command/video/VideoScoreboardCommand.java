@@ -104,10 +104,10 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
     @Quoted final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(videoResolution, "Video resolution must not be null");
-    Preconditions.checkNotNull(character, "Character must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(videoResolution, "Video resolution must not be null!");
+    Preconditions.checkNotNull(character, "Character must not be null!");
 
     final boolean tooTall = ScoreboardArguments.isTooTall(videoResolution);
     if (tooTall) {
@@ -135,8 +135,8 @@ public final class VideoScoreboardCommand extends AbstractVideoCommand {
     final Pair<Integer, Integer> resolution,
     final VideoConfigurationProvider configurationProvider
   ) {
-    Preconditions.checkNotNull(resolution, "Resolution must not be null");
-    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null");
+    Preconditions.checkNotNull(resolution, "Resolution must not be null!");
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
 
     final ScoreboardConfiguration configuration = (ScoreboardConfiguration) configurationProvider.buildConfiguration(resolution);
     final FunctionalVideoFilter result = new ScoreboardResult(configuration);

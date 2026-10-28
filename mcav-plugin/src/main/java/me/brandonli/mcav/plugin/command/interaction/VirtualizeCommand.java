@@ -145,7 +145,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    */
   @Override
   protected void handleLeftClick(final VmPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Virtual machine must not be null");
+    Preconditions.checkNotNull(current, "Virtual machine must not be null!");
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
 
@@ -158,7 +158,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    */
   @Override
   protected void handleRightClick(final VmPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Virtual machine must not be null");
+    Preconditions.checkNotNull(current, "Virtual machine must not be null!");
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
 
@@ -170,8 +170,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    */
   @Override
   protected void handleTextInput(final VmPlayer current, final String text) {
-    Preconditions.checkNotNull(current, "Virtual machine must not be null");
-    Preconditions.checkNotNull(text, "Text must not be null");
+    Preconditions.checkNotNull(current, "Virtual machine must not be null!");
+    Preconditions.checkNotNull(text, "Text must not be null!");
     current.sendKeyEvent(text);
   }
 
@@ -182,7 +182,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    */
   @Override
   protected void releasePlayer(final VmPlayer current) {
-    Preconditions.checkNotNull(current, "Virtual machine must not be null");
+    Preconditions.checkNotNull(current, "Virtual machine must not be null!");
     // QEMU takes up to ten seconds to stop, and is then killed; no frame or sound of it meanwhile
     CleanupUtils.runAll(
       () -> current.getVideoAttachableCallback().detach(),
@@ -210,7 +210,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   @Permission(INTERACT_PERMISSION)
   @CommandDescription("mcav.command.vm.interact.info")
   public void toggleInteraction(final Player sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
     final Component enabled = Message.INTERACT_ENABLE.build();
     final Component disabled = Message.INTERACT_DISABLE.build();
     this.toggleInteraction(sender, enabled, disabled);
@@ -230,7 +230,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   @Permission("mcav.vm.release")
   @CommandDescription("mcav.command.vm.release.info")
   public void releaseVM(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
     final Component released = Message.VM_RELEASE.build();
     this.releaseResource(sender, released);
   }
@@ -295,12 +295,12 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     final AudioArgument audioType,
     @Greedy final String flags
   ) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
-    Preconditions.checkNotNull(architecture, "Architecture must not be null");
-    Preconditions.checkNotNull(audioType, "Audio type must not be null");
-    Preconditions.checkNotNull(flags, "Flags must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
+    Preconditions.checkNotNull(architecture, "Architecture must not be null!");
+    Preconditions.checkNotNull(audioType, "Audio type must not be null!");
+    Preconditions.checkNotNull(flags, "Flags must not be null!");
 
     final boolean hasQemu = this.plugin.isQemuInstalled();
     if (!hasQemu) {

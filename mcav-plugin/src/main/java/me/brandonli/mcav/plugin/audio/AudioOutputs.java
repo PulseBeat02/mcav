@@ -31,7 +31,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class AudioOutputs {
 
   private AudioOutputs() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -43,8 +43,8 @@ public final class AudioOutputs {
    * @return the message that explains why the output cannot play, or {@code null} if it can
    */
   public static @Nullable Component findProblem(final AudioProvider provider, final AudioArgument audioType) {
-    Preconditions.checkNotNull(provider, "Provider must not be null");
-    Preconditions.checkNotNull(audioType, "Audio type must not be null");
+    Preconditions.checkNotNull(provider, "Provider must not be null!");
+    Preconditions.checkNotNull(audioType, "Audio type must not be null!");
     return switch (audioType) {
       case DISCORD_BOT -> describe(provider.isDiscordBotEnabled(), provider.isDiscordBotReady());
       case HTTP_SERVER -> describe(provider.isHttpEnabled(), provider.isHttpReady());
@@ -70,7 +70,7 @@ public final class AudioOutputs {
    * @param viewers   the players who see the picture
    */
   public static void sendLink(final AudioProvider provider, final AudioArgument audioType, final Player[] viewers) {
-    Preconditions.checkNotNull(viewers, "Viewers must not be null");
+    Preconditions.checkNotNull(viewers, "Viewers must not be null!");
     final Component link = createLink(provider, audioType);
     if (link == null) {
       return;
@@ -88,8 +88,8 @@ public final class AudioOutputs {
    * @return the link, or {@code null} for outputs without one
    */
   public static @Nullable Component createLink(final AudioProvider provider, final AudioArgument audioType) {
-    Preconditions.checkNotNull(provider, "Provider must not be null");
-    Preconditions.checkNotNull(audioType, "Audio type must not be null");
+    Preconditions.checkNotNull(provider, "Provider must not be null!");
+    Preconditions.checkNotNull(audioType, "Audio type must not be null!");
     return switch (audioType) {
       case DISCORD_BOT -> Message.AUDIO_DISCORD.build(provider.constructVoiceChannelUrl());
       case HTTP_SERVER -> Message.AUDIO_HTTP.build(provider.constructHttpUrl());

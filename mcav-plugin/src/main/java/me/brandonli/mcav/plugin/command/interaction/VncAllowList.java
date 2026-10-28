@@ -45,7 +45,7 @@ public record VncAllowList(List<Entry> entries) {
    * @param entries the allowed servers
    */
   public VncAllowList {
-    Preconditions.checkNotNull(entries, "Entries must not be null");
+    Preconditions.checkNotNull(entries, "Entries must not be null!");
     entries = List.copyOf(entries);
   }
 
@@ -64,10 +64,10 @@ public record VncAllowList(List<Entry> entries) {
      * @throws IllegalArgumentException if the host is blank or the port is not a TCP port
      */
     public Entry {
-      Preconditions.checkNotNull(host, "Host must not be null");
+      Preconditions.checkNotNull(host, "Host must not be null!");
       host = host.startsWith("[") && host.endsWith("]") ? host.substring(1, host.length() - 1) : host;
-      Preconditions.checkArgument(!host.isBlank(), "Host must not be blank");
-      Preconditions.checkArgument(port >= 1 && port <= MAX_PORT, "Port must be from 1 to 65535");
+      Preconditions.checkArgument(!host.isBlank(), "Host must not be blank!");
+      Preconditions.checkArgument(port >= 1 && port <= MAX_PORT, "Port must be from 1 to 65535!");
     }
 
     /**
@@ -96,7 +96,7 @@ public record VncAllowList(List<Entry> entries) {
    * @return the server, or null if the text is not a host and a TCP port
    */
   static @Nullable Target parse(final String text) {
-    Preconditions.checkNotNull(text, "Text must not be null");
+    Preconditions.checkNotNull(text, "Text must not be null!");
     final int colon = text.lastIndexOf(':');
     if (colon <= 0 || colon == text.length() - 1) {
       return null;

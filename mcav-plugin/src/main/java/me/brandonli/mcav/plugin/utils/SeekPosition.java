@@ -53,7 +53,7 @@ public record SeekPosition(boolean relative, long millis) {
    * @return the position, or null if the text is not one
    */
   public static @Nullable SeekPosition parse(final String text) {
-    Preconditions.checkNotNull(text, "Text must not be null");
+    Preconditions.checkNotNull(text, "Text must not be null!");
     final Matcher matcher = FORMAT.matcher(text);
     if (!matcher.matches()) {
       return null;

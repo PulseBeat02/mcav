@@ -227,8 +227,8 @@ final class BrowserCommandTest {
     when(this.browser.getAudioAttachableCallback()).thenReturn(mock(AudioAttachableCallback.class));
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
     this.create("1280x720", "5x3", AudioArgument.SIMPLE_VOICE_CHAT, "https://example.com/page");
-    when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available"));
-    Mockito.doThrow(new IllegalStateException("release broke")).when(this.browser).release();
+    when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available!"));
+    Mockito.doThrow(new IllegalStateException("release broke!")).when(this.browser).release();
     this.command.releaseBrowser(this.sender);
     verify(this.provider).releaseAudioFilter(this.browser);
     verify(this.callback).detach();
@@ -239,11 +239,11 @@ final class BrowserCommandTest {
   void shouldFailTheShutdownWhenABrowserFailsToStopWhileTheCommandShutsDown() {
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(CompletableFuture.completedFuture(true));
     this.create("1280x720", "5x3", "https://example.com/page");
-    Mockito.doThrow(new IllegalStateException("release broke")).when(this.browser).release();
+    Mockito.doThrow(new IllegalStateException("release broke!")).when(this.browser).release();
     final IllegalStateException failure = assertThrows(IllegalStateException.class, this.command::shutdown);
 
     final String message = failure.getMessage();
-    assertEquals("release broke", message);
+    assertEquals("release broke!", message);
   }
 
   private void createWithTheWebPage(final CompletableFuture<Boolean> start) {
@@ -268,7 +268,7 @@ final class BrowserCommandTest {
     final List<String> receivedText = Components.receivedText(this.viewer);
     assertEquals(List.of("Click on the URL to listen onto the website! http://mc.example.com:3000/"), receivedText);
 
-    this.createWithTheWebPage(CompletableFuture.failedFuture(new IllegalStateException("the page broke")));
+    this.createWithTheWebPage(CompletableFuture.failedFuture(new IllegalStateException("the page broke!")));
     verify(this.provider).constructHttpUrl();
 
     final List<Component> componentsReceived = Components.received(this.viewer);
@@ -288,11 +288,11 @@ final class BrowserCommandTest {
 
   @Test
   void shouldDescribeABrowserThatCannotRunOnThisServerSo() {
-    final BrowserUnavailableException unavailable = new BrowserUnavailableException("The browser cannot be installed: offline");
+    final BrowserUnavailableException unavailable = new BrowserUnavailableException("The browser cannot be installed: offline!");
 
     final Component direct = this.command.createStartMessage(false, unavailable);
     final Component wrapped = this.command.createStartMessage(false, new CompletionException(unavailable));
-    final Component other = this.command.createStartMessage(false, new CompletionException(new IllegalStateException("page")));
+    final Component other = this.command.createStartMessage(false, new CompletionException(new IllegalStateException("page!")));
 
     final Component expected = Message.BROWSER_UNAVAILABLE.build();
     assertEquals(expected, direct);
@@ -446,7 +446,7 @@ final class BrowserCommandTest {
 
   @Test
   void shouldReleaseTheScreenWhenTheBrowserFactoryFails() {
-    final IllegalStateException failure = new IllegalStateException("browser factory");
+    final IllegalStateException failure = new IllegalStateException("browser factory!");
     this.browsers.when(() -> BrowserPlayer.create(any(BrowserOptions.class))).thenThrow(failure);
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
       this.create("1280x720", "5x3", "https://example.com")
@@ -458,7 +458,7 @@ final class BrowserCommandTest {
 
   @Test
   void shouldReleaseTheBrowserAndScreenWhenCallbackAttachmentFails() {
-    final IllegalStateException failure = new IllegalStateException("callback attach");
+    final IllegalStateException failure = new IllegalStateException("callback attach!");
     Mockito.doThrow(failure).when(this.callback).attach(any(VideoPipelineStep.class));
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
       this.create("1280x720", "5x3", "https://example.com")
@@ -470,7 +470,7 @@ final class BrowserCommandTest {
 
   @Test
   void shouldReleaseTheBrowserAndScreenWhenSubmissionIsRejected() {
-    final RejectedExecutionException failure = new RejectedExecutionException("executor stopped");
+    final RejectedExecutionException failure = new RejectedExecutionException("executor stopped!");
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenThrow(failure);
     final RejectedExecutionException thrown = assertThrows(RejectedExecutionException.class, () ->
       this.create("1280x720", "5x3", "https://example.com")
@@ -482,7 +482,7 @@ final class BrowserCommandTest {
 
   @Test
   void shouldReleaseTheUnpublishedScreenWhenFilterStartupFails() {
-    final IllegalStateException failure = new IllegalStateException("display start");
+    final IllegalStateException failure = new IllegalStateException("display start!");
     Mockito.doThrow(failure).when(this.ditherFilter).start();
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
       this.create("1280x720", "5x3", "https://example.com")
@@ -534,7 +534,7 @@ final class BrowserCommandTest {
 
   @Test
   void shouldDescribeTheOutcomeOfTheStart() {
-    final IllegalStateException error = new IllegalStateException("no browser");
+    final IllegalStateException error = new IllegalStateException("no browser!");
 
     final Component success = this.command.createStartMessage(true, null);
     final Component failure = this.command.createStartMessage(false, error);
@@ -547,7 +547,7 @@ final class BrowserCommandTest {
 
   @Test
   void shouldReportABrowserThatCannotStartWithoutBlamingTheUrl() {
-    final IllegalStateException missingNatives = new IllegalStateException("The browser cannot be installed: no route to host");
+    final IllegalStateException missingNatives = new IllegalStateException("The browser cannot be installed: no route to host!");
     final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(missingNatives);
     when(this.browser.startAsync(any(BrowserSource.class), any())).thenReturn(start);
 

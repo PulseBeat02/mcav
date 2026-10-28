@@ -107,9 +107,9 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     @Quoted final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(profile, "Profile must not be null");
-    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(profile, "Profile must not be null!");
+    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
     final Pair<Integer, Integer> blocks = parseScreenDimensions(sender, blockDimensions);
     final Pair<Integer, Integer> resolution = parseDimensions(sender, videoResolution);
     if (blocks == null || resolution == null) {
@@ -175,8 +175,8 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     final Pair<Integer, Integer> resolution,
     final VideoConfigurationProvider configurationProvider
   ) {
-    Preconditions.checkNotNull(resolution, "Resolution must not be null");
-    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null");
+    Preconditions.checkNotNull(resolution, "Resolution must not be null!");
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
     final Mcv2Settings settings = (Mcv2Settings) configurationProvider.buildConfiguration(resolution);
     final FunctionalVideoFilter output = mcv2Filter(this.plugin.getMcv2Support(), settings);
     this.manager.startFilter(output);

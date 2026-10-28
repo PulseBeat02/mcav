@@ -105,7 +105,7 @@ final class ImageManagerTest {
   @Test
   void shouldForgetAnImageThatFailedToClose() {
     this.fill();
-    final IllegalStateException failure = new IllegalStateException("already closed");
+    final IllegalStateException failure = new IllegalStateException("already closed!");
     doThrow(failure).when(this.image).close();
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> this.manager.releaseImage(true));
     assertEquals(failure, thrown);
@@ -142,7 +142,7 @@ final class ImageManagerTest {
   @Test
   void shouldShutDownTheWorkerEvenWhenDisplayCleanupFails() {
     this.fill();
-    final IllegalStateException failure = new IllegalStateException("display cleanup failed");
+    final IllegalStateException failure = new IllegalStateException("display cleanup failed!");
     doThrow(failure).when(this.display).release();
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.manager::shutdown);
     assertEquals(failure, thrown);

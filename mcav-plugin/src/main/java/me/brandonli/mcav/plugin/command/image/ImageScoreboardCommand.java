@@ -94,11 +94,11 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
     @Greedy @FlagYielding final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(imageResolution, "Image resolution must not be null");
-    Preconditions.checkNotNull(character, "Character must not be null");
-    Preconditions.checkNotNull(mrl, "MRL must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(imageResolution, "Image resolution must not be null!");
+    Preconditions.checkNotNull(character, "Character must not be null!");
+    Preconditions.checkNotNull(mrl, "MRL must not be null!");
     final boolean tooTall = ScoreboardArguments.isTooTall(imageResolution);
     if (tooTall) {
       final Component message = Message.SCOREBOARD_LINES.build();
@@ -121,8 +121,8 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
    */
   @Override
   public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configProvider) {
-    Preconditions.checkNotNull(resolution, "Resolution must not be null");
-    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null");
+    Preconditions.checkNotNull(resolution, "Resolution must not be null!");
+    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null!");
     final ScoreboardConfiguration configuration = (ScoreboardConfiguration) configProvider.buildConfiguration(resolution);
     return DisplayableImage.scoreboard(configuration);
   }

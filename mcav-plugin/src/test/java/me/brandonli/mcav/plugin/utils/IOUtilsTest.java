@@ -84,7 +84,7 @@ final class IOUtilsTest {
   void shouldRefuseANullPath() {
     final NullPointerException exception = assertThrows(NullPointerException.class, () -> openAndClose(null));
     final String message = exception.getMessage();
-    assertEquals("Path must not be null", message);
+    assertEquals("Path must not be null!", message);
   }
 
   @Test

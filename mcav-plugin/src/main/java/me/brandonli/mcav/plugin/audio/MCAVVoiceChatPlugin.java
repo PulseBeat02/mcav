@@ -45,7 +45,7 @@ public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
    * @param sandbox the plugin whose library receives the voice chat server API
    */
   public MCAVVoiceChatPlugin(final MCAVSandbox sandbox) {
-    Preconditions.checkNotNull(sandbox, "Plugin must not be null");
+    Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
     this.sandbox = sandbox;
   }
 
@@ -67,7 +67,7 @@ public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
    */
   @Override
   public void initialize(final VoicechatApi api) {
-    Preconditions.checkNotNull(api, "Voice chat API must not be null");
+    Preconditions.checkNotNull(api, "Voice chat API must not be null!");
     final MCAVApi library = this.sandbox.getMCAV();
     final SvcModule module = library.getModule(SvcModule.class);
     final VoicechatServerApi serverApi = (VoicechatServerApi) api;

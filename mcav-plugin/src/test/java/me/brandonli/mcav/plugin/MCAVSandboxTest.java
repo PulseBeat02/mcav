@@ -382,7 +382,7 @@ final class MCAVSandboxTest {
 
   @Test
   void shouldKeepOwnershipWhenCommandRegistrationFailsPartwayThrough() {
-    final IllegalStateException failure = new IllegalStateException("partial registration");
+    final IllegalStateException failure = new IllegalStateException("partial registration!");
     try (
       final MockedConstruction<AnnotationParserHandler> handlers = Mockito.mockConstruction(AnnotationParserHandler.class, (handler, _) ->
         doThrow(failure).when(handler).registerCommands()
@@ -400,7 +400,7 @@ final class MCAVSandboxTest {
 
   @Test
   void shouldKeepOwnershipWhenListenerStartupFails() {
-    final IllegalStateException failure = new IllegalStateException("partial listener startup");
+    final IllegalStateException failure = new IllegalStateException("partial listener startup!");
     try (
       final MockedConstruction<JukeBoxListener> listeners = Mockito.mockConstruction(JukeBoxListener.class, (listener, _) ->
         doThrow(failure).when(listener).start()
@@ -418,8 +418,8 @@ final class MCAVSandboxTest {
 
   @Test
   void shouldAttemptEveryOwnedCleanupOnceEvenWhenTheFirstTwoFail() {
-    final IllegalStateException first = new IllegalStateException("video cleanup");
-    final IllegalArgumentException second = new IllegalArgumentException("image cleanup");
+    final IllegalStateException first = new IllegalStateException("video cleanup!");
+    final IllegalArgumentException second = new IllegalArgumentException("image cleanup!");
     try (
       final MockedConstruction<VideoPlayerManager> videos = Mockito.mockConstruction(VideoPlayerManager.class, (manager, _) ->
         doThrow(first).when(manager).shutdown()
@@ -535,7 +535,7 @@ final class MCAVSandboxTest {
 
     this.sandbox.onEnable();
 
-    final String reason = "Simple Voice Chat audio is enabled, but the voicechat plugin is not installed";
+    final String reason = "Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!";
     final String remedy = "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml";
     this.assertDisabledItselfWithOneError(reason, remedy);
     final AudioProvider audioProvider = this.sandbox.getAudioProvider();
@@ -554,7 +554,7 @@ final class MCAVSandboxTest {
 
   @Test
   void shouldLetUnexpectedFailuresEscapeWithoutDisablingItself() {
-    final IllegalStateException failure = new IllegalStateException("the packet listener failed");
+    final IllegalStateException failure = new IllegalStateException("the packet listener failed!");
     doThrow(failure).when(this.bukkitModule).inject(this.sandbox);
 
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.sandbox::onEnable);
@@ -569,7 +569,7 @@ final class MCAVSandboxTest {
 
   @Test
   void shouldReleaseTheLibraryWhenInstallingItsModulesFails() {
-    final IllegalStateException failure = new IllegalStateException("a module failed to start");
+    final IllegalStateException failure = new IllegalStateException("a module failed to start!");
     doThrow(failure).when(this.api).install(BukkitModule.class, BrowserModule.class, VmModule.class, SvcModule.class);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.sandbox::onEnable);
     assertSame(failure, exception);

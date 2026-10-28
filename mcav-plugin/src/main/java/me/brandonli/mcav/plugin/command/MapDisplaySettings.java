@@ -41,8 +41,8 @@ public final class MapDisplaySettings {
    * @param dithering     the dithering algorithm
    */
   public MapDisplaySettings(final MapConfiguration configuration, final DitheringArgument dithering) {
-    Preconditions.checkNotNull(configuration, "Configuration must not be null");
-    Preconditions.checkNotNull(dithering, "Dithering must not be null");
+    Preconditions.checkNotNull(configuration, "Configuration must not be null!");
+    Preconditions.checkNotNull(dithering, "Dithering must not be null!");
     this.configuration = configuration;
     this.dithering = dithering;
   }
@@ -62,9 +62,9 @@ public final class MapDisplaySettings {
     final int mapId,
     final Collection<UUID> players
   ) {
-    Preconditions.checkNotNull(blocks, "Blocks must not be null");
-    Preconditions.checkNotNull(resolution, "Resolution must not be null");
-    Preconditions.checkNotNull(players, "Players must not be null");
+    Preconditions.checkNotNull(blocks, "Blocks must not be null!");
+    Preconditions.checkNotNull(resolution, "Resolution must not be null!");
+    Preconditions.checkNotNull(players, "Players must not be null!");
     final int blockWidth = blocks.getFirst();
     final int blockHeight = blocks.getSecond();
     final int resolutionWidth = resolution.getFirst();

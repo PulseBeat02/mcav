@@ -31,7 +31,7 @@ import me.brandonli.mcav.plugin.MCAVSandbox;
 public final class IOUtils {
 
   private IOUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -55,7 +55,7 @@ public final class IOUtils {
    *                              message in the second case
    */
   public static InputStream getResourceAsStream(final String path) {
-    Preconditions.checkNotNull(path, "Path must not be null");
+    Preconditions.checkNotNull(path, "Path must not be null!");
     final Class<IOUtils> utilsClass = IOUtils.class;
     final ClassLoader nullableLoader = utilsClass.getClassLoader();
     final ClassLoader loader = requireNonNull(nullableLoader);

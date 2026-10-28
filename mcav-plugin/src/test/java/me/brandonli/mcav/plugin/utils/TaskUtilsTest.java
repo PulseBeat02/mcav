@@ -94,7 +94,7 @@ final class TaskUtilsTest {
   void shouldDropTheTaskWhenThePluginIsDisabled() {
     final MCAVSandbox plugin = mock(MCAVSandbox.class);
     final BukkitScheduler scheduler = TestServer.scheduler();
-    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled"));
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled!"));
     final AtomicInteger runs = new AtomicInteger();
     final boolean scheduled = TaskUtils.runOnMainThread(plugin, runs::incrementAndGet);
     assertFalse(scheduled);
@@ -127,7 +127,7 @@ final class TaskUtilsTest {
 
   @Test
   void shouldPassTheFailureOfTheFutureToTheCallback() {
-    final IllegalStateException boom = new IllegalStateException("boom");
+    final IllegalStateException boom = new IllegalStateException("boom!");
     final CompletableFuture<String> future = CompletableFuture.failedFuture(boom);
     final AtomicReference<String> result = new AtomicReference<>("not called");
     final AtomicReference<Throwable> failure = new AtomicReference<>();
@@ -163,7 +163,7 @@ final class TaskUtilsTest {
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
       TaskUtils.whenComplete(future, (_, _) -> {
-        throw new IllegalStateException("the callback failed");
+        throw new IllegalStateException("the callback failed!");
       });
       output = errors.getOutput();
     }

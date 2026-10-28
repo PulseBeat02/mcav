@@ -41,7 +41,7 @@ public final class TaskUtils {
   private static final String CALLBACK_FAILED = "A callback of a background task failed";
 
   private TaskUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -53,8 +53,8 @@ public final class TaskUtils {
    * {@link #runOnMainThread(MCAVSandbox, Runnable)}
    */
   public static Runnable handleAsyncTask(final MCAVSandbox plugin, final Runnable task) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
-    Preconditions.checkNotNull(task, "Task must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+    Preconditions.checkNotNull(task, "Task must not be null!");
     return () -> runOnMainThread(plugin, task);
   }
 
@@ -67,8 +67,8 @@ public final class TaskUtils {
    * @return true if the task was scheduled, false if it was dropped because the plugin is disabled
    */
   public static boolean runOnMainThread(final MCAVSandbox plugin, final Runnable task) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
-    Preconditions.checkNotNull(task, "Task must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+    Preconditions.checkNotNull(task, "Task must not be null!");
     final BukkitScheduler scheduler = Bukkit.getScheduler();
     try {
       scheduler.runTask(plugin, task);
@@ -96,8 +96,8 @@ public final class TaskUtils {
     final CompletableFuture<T> future,
     final BiConsumer<? super T, ? super @Nullable Throwable> callback
   ) {
-    Preconditions.checkNotNull(future, "Future must not be null");
-    Preconditions.checkNotNull(callback, "Callback must not be null");
+    Preconditions.checkNotNull(future, "Future must not be null!");
+    Preconditions.checkNotNull(callback, "Callback must not be null!");
     final CompletableFuture<@Nullable Void> handled = future.handle((result, error) -> runCallback(callback, result, error));
     handled.exceptionally(TaskUtils::logCallbackFailure);
   }

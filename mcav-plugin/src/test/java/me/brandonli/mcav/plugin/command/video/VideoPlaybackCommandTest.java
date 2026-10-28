@@ -118,7 +118,7 @@ final class VideoPlaybackCommandTest {
   void shouldReportAJumpThatFailsOrThrows() {
     when(this.manager.getPlayer()).thenReturn(this.other);
     when(this.other.seek(1_000L)).thenReturn(false);
-    when(this.other.seek(2_000L)).thenThrow(new IllegalStateException("the grabber broke"));
+    when(this.other.seek(2_000L)).thenThrow(new IllegalStateException("the grabber broke!"));
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
       this.command.seekVideo(this.sender, "1");

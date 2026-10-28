@@ -69,7 +69,7 @@ public final class BrowserBenchmark {
   private static final List<String> LATENCY_COLORS = List.of("#dc0000", "#7fb238", "#c7c7c7", "#f7e9a3");
 
   private BrowserBenchmark() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -212,12 +212,12 @@ public final class BrowserBenchmark {
     throws InterruptedException {
     final boolean started = player.start(source);
     if (!started) {
-      throw new IllegalStateException("The browser did not start");
+      throw new IllegalStateException("The browser did not start!");
     }
     final long deadline = System.nanoTime() + START_TIMEOUT_MILLIS * 1_000_000L;
     while (probe.getFrames() == 0) {
       if (System.nanoTime() > deadline) {
-        throw new IllegalStateException("No frame reached the map encoder");
+        throw new IllegalStateException("No frame reached the map encoder!");
       }
       Thread.sleep(20L);
     }

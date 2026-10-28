@@ -55,7 +55,7 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
    * @param plugin the plugin, whose video player manager must be available
    */
   public VideoDevicesCommand(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     this.plugin = plugin;
     this.manager = plugin.getVideoPlayerManager();
   }
@@ -72,7 +72,7 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
   @Permission(CaptureDevices.PERMISSION)
   @CommandDescription("mcav.command.video.devices.info")
   public void listDevices(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
     final CompletableFuture<List<CaptureDevices.Device>> listing = CompletableFuture.supplyAsync(
       CaptureDevices::list,
       this.manager.getService()

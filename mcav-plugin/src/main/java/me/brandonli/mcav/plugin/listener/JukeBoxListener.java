@@ -63,7 +63,7 @@ public final class JukeBoxListener implements Listener {
    * @param sandbox the plugin
    */
   public JukeBoxListener(final MCAVSandbox sandbox) {
-    Preconditions.checkNotNull(sandbox, "Sandbox must not be null");
+    Preconditions.checkNotNull(sandbox, "Sandbox must not be null!");
     this.sandbox = sandbox;
     final Path dataFolder = sandbox.getDataPath();
     this.isoFolder = DiskImages.folderOf(dataFolder);
@@ -95,7 +95,7 @@ public final class JukeBoxListener implements Listener {
    */
   @EventHandler(priority = EventPriority.HIGHEST)
   public void onJukeboxInteract(final PlayerInteractEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null");
+    Preconditions.checkNotNull(event, "Event must not be null!");
     if (event.useInteractedBlock() == Event.Result.DENY) {
       return;
     }

@@ -91,7 +91,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    */
   @Override
   protected void handleLeftClick(final VncPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Desktop must not be null");
+    Preconditions.checkNotNull(current, "Desktop must not be null!");
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
 
@@ -104,7 +104,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    */
   @Override
   protected void handleRightClick(final VncPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Desktop must not be null");
+    Preconditions.checkNotNull(current, "Desktop must not be null!");
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
 
@@ -116,8 +116,8 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    */
   @Override
   protected void handleTextInput(final VncPlayer current, final String text) {
-    Preconditions.checkNotNull(current, "Desktop must not be null");
-    Preconditions.checkNotNull(text, "Text must not be null");
+    Preconditions.checkNotNull(current, "Desktop must not be null!");
+    Preconditions.checkNotNull(text, "Text must not be null!");
     current.sendKeyEvent(text);
   }
 
@@ -128,7 +128,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    */
   @Override
   protected void releasePlayer(final VncPlayer current) {
-    Preconditions.checkNotNull(current, "Desktop must not be null");
+    Preconditions.checkNotNull(current, "Desktop must not be null!");
     // closing the connection waits for the client's threads, which a stalled server can hold up
     CleanupUtils.runAll(() -> current.getVideoAttachableCallback().detach(), () -> this.releaseInTheBackground(current::release));
   }
@@ -147,7 +147,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   @Permission(INTERACT_PERMISSION)
   @CommandDescription("mcav.command.vnc.interact.info")
   public void toggleInteraction(final Player sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
     final Component enabled = Message.INTERACT_ENABLE.build();
     final Component disabled = Message.INTERACT_DISABLE.build();
     this.toggleInteraction(sender, enabled, disabled);
@@ -165,7 +165,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   @Permission("mcav.vnc.release")
   @CommandDescription("mcav.command.vnc.release.info")
   public void releaseVnc(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
     final Component released = Message.VNC_RELEASE.build();
     this.releaseResource(sender, released);
   }
@@ -213,9 +213,9 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
     @Greedy @FlagYielding final String server,
     @Flag("codec") final @Nullable MapCodec codec
   ) {
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
-    Preconditions.checkNotNull(server, "Server must not be null");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
+    Preconditions.checkNotNull(server, "Server must not be null!");
 
     final PluginDataConfigurationMapper configuration = this.plugin.getConfiguration();
     final VncAllowList allowList = configuration.getVncAllowList();

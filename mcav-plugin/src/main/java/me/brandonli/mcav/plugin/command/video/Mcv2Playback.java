@@ -49,8 +49,8 @@ final class Mcv2Playback implements Runnable {
    * @param firstFrameId the id the first frame sent gets
    */
   Mcv2Playback(final Mcv2Channel channel, final List<byte[]> frames, final long firstFrameId) {
-    Preconditions.checkNotNull(channel, "Channel must not be null");
-    Preconditions.checkArgument(!frames.isEmpty(), "A stream has at least one frame");
+    Preconditions.checkNotNull(channel, "Channel must not be null!");
+    Preconditions.checkArgument(!frames.isEmpty(), "A stream has at least one frame!");
     this.channel = channel;
     this.frames = List.copyOf(frames);
     long highest = 0;

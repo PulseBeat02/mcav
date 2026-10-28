@@ -153,7 +153,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * @param plugin the plugin
    */
   protected AbstractInteractiveCommand(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     this.plugin = plugin;
     this.service = Executors.newSingleThreadExecutor();
     final WeakHashMap<Player, Boolean> backing = new WeakHashMap<>();
@@ -163,8 +163,8 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   }
 
   AbstractInteractiveCommand(final MCAVSandbox plugin, final ExecutorService service) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
-    Preconditions.checkNotNull(service, "Executor must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
+    Preconditions.checkNotNull(service, "Executor must not be null!");
     this.plugin = plugin;
     this.service = service;
     final WeakHashMap<Player, Boolean> backing = new WeakHashMap<>();
@@ -180,7 +180,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    */
   @Override
   public void registerFeature(final AnnotationParser<CommandSender> parser) {
-    Preconditions.checkNotNull(parser, "Parser must not be null");
+    Preconditions.checkNotNull(parser, "Parser must not be null!");
     final Server server = this.plugin.getServer();
     final PluginManager pluginManager = server.getPluginManager();
     pluginManager.registerEvents(this, this.plugin);
@@ -332,8 +332,8 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * @return the width and height, or {@code null} if the text is not a valid size
    */
   protected static @Nullable Pair<Integer, Integer> parseDimensions(final CommandSender sender, final String text) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(text, "Text must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(text, "Text must not be null!");
     try {
       return ArgumentUtils.parseDimensions(text);
     } catch (final IllegalArgumentException exception) {
@@ -352,8 +352,8 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * @return the width and height in maps, or {@code null} if the text is not a valid wall size
    */
   protected static @Nullable Pair<Integer, Integer> parseScreenDimensions(final CommandSender sender, final String text) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(text, "Text must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(text, "Text must not be null!");
     try {
       return ArgumentUtils.parseScreenDimensions(text);
     } catch (final IllegalArgumentException exception) {
@@ -374,7 +374,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    */
   final Screen createScreen(final ScreenSettings settings) {
     synchronized (this.lock) {
-      Preconditions.checkState(!this.closed, "The interactive command is shut down");
+      Preconditions.checkState(!this.closed, "The interactive command is shut down!");
     }
     this.releaseCurrent();
     final Collection<UUID> players = ArgumentUtils.parseViewers(settings.getViewers(), this.plugin.getOnlinePlayers());
@@ -678,7 +678,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    */
   @EventHandler
   public void onBlockBreak(final BlockBreakEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null");
+    Preconditions.checkNotNull(event, "Event must not be null!");
     final T current = this.player;
     if (current == null) {
       return;
@@ -754,7 +754,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    */
   @EventHandler
   public void onScreenDamage(final EntityDamageByEntityEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null");
+    Preconditions.checkNotNull(event, "Event must not be null!");
     final Entity entity = event.getEntity();
     final boolean isScreen = isScreen(entity);
     if (!isScreen) {
@@ -810,7 +810,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    */
   @EventHandler
   public void onPlayerInteractEntity(final PlayerInteractEntityEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null");
+    Preconditions.checkNotNull(event, "Event must not be null!");
     final T current = this.player;
     final Entity entity = event.getRightClicked();
     final boolean isScreen = isScreen(entity);
@@ -845,7 +845,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    */
   @EventHandler
   public void onChatMessage(final AsyncChatEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null");
+    Preconditions.checkNotNull(event, "Event must not be null!");
     final Player chatter = event.getPlayer();
     final boolean active = this.activePlayers.contains(chatter);
     final T current = this.player;
@@ -875,7 +875,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    */
   @EventHandler
   public void onScreenBreak(final HangingBreakEvent event) {
-    Preconditions.checkNotNull(event, "Event must not be null");
+    Preconditions.checkNotNull(event, "Event must not be null!");
     final Entity entity = event.getEntity();
     final boolean isScreen = isScreen(entity);
     if (isScreen) {
@@ -891,9 +891,9 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * @param disableMessage the message shown when interaction is disabled
    */
   protected void toggleInteraction(final Player chatter, final Component enableMessage, final Component disableMessage) {
-    Preconditions.checkNotNull(chatter, "Player must not be null");
-    Preconditions.checkNotNull(enableMessage, "Enable message must not be null");
-    Preconditions.checkNotNull(disableMessage, "Disable message must not be null");
+    Preconditions.checkNotNull(chatter, "Player must not be null!");
+    Preconditions.checkNotNull(enableMessage, "Enable message must not be null!");
+    Preconditions.checkNotNull(disableMessage, "Disable message must not be null!");
     final boolean removed = this.activePlayers.remove(chatter);
     if (removed) {
       chatter.sendMessage(disableMessage);
@@ -910,8 +910,8 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
    * @param message the message to send
    */
   protected void releaseResource(final CommandSender sender, final Component message) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(message, "Message must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(message, "Message must not be null!");
     this.releaseCurrent();
     sender.sendMessage(message);
   }

@@ -166,7 +166,7 @@ public final class PluginDataConfigurationMapper {
    * @param plugin the plugin
    */
   public PluginDataConfigurationMapper(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     this.plugin = plugin;
     this.locale = Locale.EN_US;
     this.discordBotToken = "";

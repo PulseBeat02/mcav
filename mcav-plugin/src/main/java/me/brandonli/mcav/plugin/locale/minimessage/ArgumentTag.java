@@ -52,7 +52,7 @@ public final class ArgumentTag implements TagResolver {
    * @throws NullPointerException if the list is {@code null}
    */
   public ArgumentTag(final List<? extends ComponentLike> argumentComponents) {
-    Preconditions.checkNotNull(argumentComponents, "Argument components must not be null");
+    Preconditions.checkNotNull(argumentComponents, "Argument components must not be null!");
     this.argumentComponents = argumentComponents;
   }
 
@@ -70,7 +70,7 @@ public final class ArgumentTag implements TagResolver {
   @Override
   public Tag resolve(final @NonNull String name, final @NonNull ArgumentQueue arguments, final @NonNull Context context)
     throws ParsingException {
-    Preconditions.checkNotNull(arguments, "Arguments must not be null");
+    Preconditions.checkNotNull(arguments, "Arguments must not be null!");
     final Argument indexArgument = arguments.pop();
     final OptionalInt parsedIndex = indexArgument.asInt();
     final int index = parsedIndex.orElseThrow();

@@ -82,7 +82,7 @@ public final class TranslationExtension implements BeforeAllCallback {
       final TranslationManager manager = LocaleTools.MANAGER;
       final String title = manager.getProperty("mcav.command.help.command");
       if (title.isEmpty()) {
-        throw new IllegalStateException("The messages were not loaded");
+        throw new IllegalStateException("The messages were not loaded!");
       }
     }
     deleteOnExit(folder);

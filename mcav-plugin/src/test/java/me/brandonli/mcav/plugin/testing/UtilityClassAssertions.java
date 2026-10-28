@@ -32,7 +32,7 @@ import java.lang.reflect.Modifier;
 public final class UtilityClassAssertions {
 
   private UtilityClassAssertions() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**

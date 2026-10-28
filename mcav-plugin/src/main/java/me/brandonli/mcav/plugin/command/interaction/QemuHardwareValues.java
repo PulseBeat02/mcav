@@ -162,7 +162,7 @@ final class QemuHardwareValues {
   private static final Splitter PROPERTY = Splitter.on('=').limit(2);
 
   private QemuHardwareValues() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**

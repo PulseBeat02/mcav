@@ -54,7 +54,7 @@ public final class InteractUtils {
   private static final double BLOCK_CENTER_OFFSET = 0.5;
 
   private InteractUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -65,7 +65,7 @@ public final class InteractUtils {
    * of a complete vertical wall
    */
   public static int @Nullable [] getBoardCoordinates(final Player player) {
-    Preconditions.checkNotNull(player, "Player must not be null");
+    Preconditions.checkNotNull(player, "Player must not be null!");
     final Entity targetEntity = player.getTargetEntity(MAX_TARGET_DISTANCE);
     if (targetEntity == null) {
       return null;
@@ -83,10 +83,10 @@ public final class InteractUtils {
    * @throws IllegalArgumentException if the entity is not an item frame
    */
   public static int @Nullable [] getBoardCoordinates(final Player player, final Entity entity) {
-    Preconditions.checkNotNull(player, "Player must not be null");
-    Preconditions.checkNotNull(entity, "Entity must not be null");
+    Preconditions.checkNotNull(player, "Player must not be null!");
+    Preconditions.checkNotNull(entity, "Entity must not be null!");
     if (!(entity instanceof final ItemFrame frame)) {
-      throw new IllegalArgumentException("Target entity is not an ItemFrame");
+      throw new IllegalArgumentException("Target entity is not an ItemFrame!");
     }
     final int[] mapIndex = getRelativeMapIndex(player, frame);
     if (mapIndex == null) {

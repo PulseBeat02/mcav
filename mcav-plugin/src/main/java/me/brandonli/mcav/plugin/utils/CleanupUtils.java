@@ -30,7 +30,7 @@ public final class CleanupUtils {
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
 
   private CleanupUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -40,7 +40,7 @@ public final class CleanupUtils {
    * @param actions the independent cleanup actions
    */
   public static void runAll(final Runnable... actions) {
-    Preconditions.checkNotNull(actions, "Cleanup actions must not be null");
+    Preconditions.checkNotNull(actions, "Cleanup actions must not be null!");
     Throwable failure = null;
     for (final Runnable action : actions) {
       try {

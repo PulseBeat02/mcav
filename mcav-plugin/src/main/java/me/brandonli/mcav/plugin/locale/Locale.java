@@ -46,7 +46,7 @@ public enum Locale {
    * @throws NullPointerException if the value is {@code null}
    */
   public static Locale fromString(final String locale) {
-    Preconditions.checkNotNull(locale, "Locale must not be null");
+    Preconditions.checkNotNull(locale, "Locale must not be null!");
     final String upperCaseName = locale.toUpperCase(java.util.Locale.ROOT); // fqn: Locale is also declared in this file
     return LOOKUP_TABLE.getOrDefault(upperCaseName, EN_US);
   }

@@ -66,7 +66,7 @@ public abstract class MiniMessageTranslator implements Translator {
    * @throws NullPointerException if the parser is {@code null}
    */
   public MiniMessageTranslator(final MiniMessage miniMessage) {
-    Preconditions.checkNotNull(miniMessage, "MiniMessage must not be null");
+    Preconditions.checkNotNull(miniMessage, "MiniMessage must not be null!");
     this.miniMessage = miniMessage;
   }
 
@@ -94,8 +94,8 @@ public abstract class MiniMessageTranslator implements Translator {
    */
   @Override
   public @Nullable Component translate(final @NonNull TranslatableComponent component, final @NonNull Locale locale) {
-    Preconditions.checkNotNull(component, "Component must not be null");
-    Preconditions.checkNotNull(locale, "Locale must not be null");
+    Preconditions.checkNotNull(component, "Component must not be null!");
+    Preconditions.checkNotNull(locale, "Locale must not be null!");
     final String key = component.key();
     final String message = this.getMiniMessageString(key, locale);
     if (message == null) {

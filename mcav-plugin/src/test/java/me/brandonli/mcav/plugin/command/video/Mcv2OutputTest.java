@@ -83,7 +83,7 @@ final class Mcv2OutputTest {
 
   @Test
   void shouldGiveTheSlotBackWhenTheResultFailsToRelease() {
-    final IllegalStateException failure = new IllegalStateException("release");
+    final IllegalStateException failure = new IllegalStateException("release!");
     doThrow(failure).when(this.result).release();
 
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.output::release);

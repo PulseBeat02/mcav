@@ -48,6 +48,6 @@ public final class Keys {
   public static final NamespacedKey SCREEN_KEY = new NamespacedKey(NAMESPACE, "screen");
 
   private Keys() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 }

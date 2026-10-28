@@ -286,7 +286,7 @@ final class VideoPlayerManagerTest {
   void shouldLeaveTheWorldAloneWhenThePluginIsAlreadyDisabled() throws InterruptedException, ExecutionException, TimeoutException {
     this.fill();
     final BukkitScheduler scheduler = TestServer.scheduler();
-    when(scheduler.callSyncMethod(any(Plugin.class), any())).thenThrow(new IllegalPluginAccessException("disabled"));
+    when(scheduler.callSyncMethod(any(Plugin.class), any())).thenThrow(new IllegalPluginAccessException("disabled!"));
 
     final Future<?> release = this.releaseOnTheWorker();
     release.get(10, TimeUnit.SECONDS);
@@ -313,7 +313,7 @@ final class VideoPlayerManagerTest {
     final Throwable cause = exception.getCause();
     final IllegalStateException failure = assertInstanceOf(IllegalStateException.class, cause);
     final String message = failure.getMessage();
-    assertEquals("Interrupted while releasing the video on the main thread", message);
+    assertEquals("Interrupted while releasing the video on the main thread!", message);
     final Throwable interruption = failure.getCause();
     assertInstanceOf(InterruptedException.class, interruption);
   }
@@ -346,7 +346,7 @@ final class VideoPlayerManagerTest {
   void shouldFailWhenReleasingOnTheMainThreadFails() {
     TestServer.reset();
     this.fill();
-    final IllegalStateException broken = new IllegalStateException("entity already removed");
+    final IllegalStateException broken = new IllegalStateException("entity already removed!");
     doThrow(broken).when(this.hologram).kill();
 
     final Future<?> release = this.releaseOnTheWorker();
@@ -355,7 +355,7 @@ final class VideoPlayerManagerTest {
     final Throwable cause = exception.getCause();
     final IllegalStateException failure = assertInstanceOf(IllegalStateException.class, cause);
     final String message = failure.getMessage();
-    assertEquals("Failed to release the video on the main thread", message);
+    assertEquals("Failed to release the video on the main thread!", message);
     final Throwable original = failure.getCause();
     assertSame(broken, original);
   }
@@ -400,7 +400,7 @@ final class VideoPlayerManagerTest {
   void shouldReleaseTheOwnedDisplayWhenItsSchedulerRejectsStartup() {
     this.manager.beginStart();
     final BukkitScheduler scheduler = TestServer.scheduler();
-    final IllegalPluginAccessException failure = new IllegalPluginAccessException("disabled");
+    final IllegalPluginAccessException failure = new IllegalPluginAccessException("disabled!");
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(failure);
     final IllegalPluginAccessException thrown = assertThrows(IllegalPluginAccessException.class, () ->
       this.manager.startFilter(this.filter)
@@ -463,8 +463,8 @@ final class VideoPlayerManagerTest {
   @Test
   void shouldAttemptEveryRecoverableCleanupAndStopTheWorker() {
     this.fill();
-    final IllegalStateException audioFailure = new IllegalStateException("audio");
-    final IllegalArgumentException playerFailure = new IllegalArgumentException("player");
+    final IllegalStateException audioFailure = new IllegalStateException("audio!");
+    final IllegalArgumentException playerFailure = new IllegalArgumentException("player!");
     doThrow(audioFailure).when(this.provider).releaseAudioFilter();
     doThrow(playerFailure).when(this.player).release();
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, this.manager::shutdown);
@@ -543,8 +543,8 @@ final class VideoPlayerManagerTest {
   @Test
   void shouldReleaseAFailedDisplayAndPreserveItsFailureOverCleanup() {
     this.manager.beginStart();
-    final IllegalStateException failure = new IllegalStateException("display start");
-    final IllegalArgumentException cleanup = new IllegalArgumentException("display release");
+    final IllegalStateException failure = new IllegalStateException("display start!");
+    final IllegalArgumentException cleanup = new IllegalArgumentException("display release!");
     doThrow(failure).when(this.filter).start();
     doThrow(cleanup).when(this.filter).release();
     this.manager.startFilter(this.filter);
@@ -561,8 +561,8 @@ final class VideoPlayerManagerTest {
   @Test
   void shouldPreserveRejectedSchedulingFailureOverDisplayCleanup() {
     this.manager.beginStart();
-    final IllegalPluginAccessException failure = new IllegalPluginAccessException("disabled");
-    final IllegalStateException cleanup = new IllegalStateException("display release");
+    final IllegalPluginAccessException failure = new IllegalPluginAccessException("disabled!");
+    final IllegalStateException cleanup = new IllegalStateException("display release!");
     final BukkitScheduler scheduler = TestServer.scheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(failure);
     doThrow(cleanup).when(this.filter).release();
@@ -599,7 +599,7 @@ final class VideoPlayerManagerTest {
   void shouldEndNativeOwnershipAfterARecoverableStartFailure() {
     this.manager.beginStart();
     this.manager.setPlayer(this.player);
-    final IllegalStateException failure = new IllegalStateException("native start");
+    final IllegalStateException failure = new IllegalStateException("native start!");
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
       this.manager.startNative(() -> {
         throw failure;
@@ -615,8 +615,8 @@ final class VideoPlayerManagerTest {
   void shouldPreserveDetachedNativeStartFailureAndSuppressCleanupFailure() {
     this.manager.beginStart();
     this.manager.setPlayer(this.player);
-    final IllegalStateException failure = new IllegalStateException("native start");
-    final IllegalArgumentException cleanup = new IllegalArgumentException("native release");
+    final IllegalStateException failure = new IllegalStateException("native start!");
+    final IllegalArgumentException cleanup = new IllegalArgumentException("native release!");
     doThrow(cleanup).when(this.player).release();
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
       this.manager.startNative(() -> {
@@ -635,7 +635,7 @@ final class VideoPlayerManagerTest {
   void shouldNotSuppressANativeFailureOntoItself() {
     this.manager.beginStart();
     this.manager.setPlayer(this.player);
-    final IllegalStateException failure = new IllegalStateException("same native failure");
+    final IllegalStateException failure = new IllegalStateException("same native failure!");
     doThrow(failure).when(this.player).release();
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
       this.manager.startNative(() -> {
@@ -652,8 +652,8 @@ final class VideoPlayerManagerTest {
   void shouldPropagateFatalDetachedNativeCleanupImmediately() {
     this.manager.beginStart();
     this.manager.setPlayer(this.player);
-    final IllegalStateException failure = new IllegalStateException("native start");
-    final InternalError fatal = new InternalError("fatal native release");
+    final IllegalStateException failure = new IllegalStateException("native start!");
+    final InternalError fatal = new InternalError("fatal native release!");
     doThrow(fatal).when(this.player).release();
     final InternalError thrown = assertThrows(InternalError.class, () ->
       this.manager.startNative(() -> {
@@ -671,7 +671,7 @@ final class VideoPlayerManagerTest {
     this.manager.shutdown();
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.setPlayer(this.player));
     final String message = thrown.getMessage();
-    assertEquals("The video startup was cancelled", message);
+    assertEquals("The video startup was cancelled!", message);
     verify(this.player).release();
     this.manager.setPlayer(null);
     final VideoPlayerMultiplexer current = this.manager.getPlayer();
@@ -726,7 +726,7 @@ final class VideoPlayerManagerTest {
   @Test
   void shouldPropagateAFatalMainThreadCleanupCauseWithoutWrappingIt() throws Exception {
     this.fill();
-    final InternalError fatal = new InternalError("fatal display cleanup");
+    final InternalError fatal = new InternalError("fatal display cleanup!");
     doThrow(fatal).when(this.filter).release();
     final BlockingQueue<Runnable> tasks = interceptMainThreadTasks();
     final Future<?> release = this.releaseOnTheWorker();
@@ -742,7 +742,7 @@ final class VideoPlayerManagerTest {
   @Test
   void shouldPropagateFatalDisplayStartFailureWithoutReleasingVideoPlayer() {
     this.manager.beginStart();
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
     doThrow(fatal).when(this.filter).start();
     this.manager.startFilter(this.filter);
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, TestServer::runPendingTasks);
@@ -756,7 +756,7 @@ final class VideoPlayerManagerTest {
   @Test
   void shouldPropagateFatalSchedulingFailureWithoutClearingCurrentVideo() {
     this.manager.beginStart();
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
     final BukkitScheduler scheduler = TestServer.scheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(fatal);
 
@@ -772,7 +772,7 @@ final class VideoPlayerManagerTest {
   void shouldPropagateFatalNativeStartFailureWithoutFinishingNativeCandidate() {
     this.manager.beginStart();
     this.manager.setPlayer(this.player);
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
       this.manager.startNative(() -> {
         this.manager.releaseVideoPlayer();
@@ -790,7 +790,7 @@ final class VideoPlayerManagerTest {
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startFilter(this.filter));
 
     final String message = thrown.getMessage();
-    assertEquals("The video startup was cancelled", message);
+    assertEquals("The video startup was cancelled!", message);
 
     verify(scheduler, never()).runTask(any(Plugin.class), any(Runnable.class));
     verify(this.filter, never()).start();
@@ -804,7 +804,7 @@ final class VideoPlayerManagerTest {
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startNative(start));
 
     final String message = thrown.getMessage();
-    assertEquals("The video startup was cancelled", message);
+    assertEquals("The video startup was cancelled!", message);
 
     verify(start, never()).getAsBoolean();
   }
@@ -817,7 +817,7 @@ final class VideoPlayerManagerTest {
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startFilter(this.filter));
 
     final String message = thrown.getMessage();
-    assertEquals("The video startup was cancelled", message);
+    assertEquals("The video startup was cancelled!", message);
 
     verify(scheduler, never()).runTask(any(Plugin.class), any(Runnable.class));
     verify(this.filter, never()).start();
@@ -832,7 +832,7 @@ final class VideoPlayerManagerTest {
     final CancellationException thrown = assertThrows(CancellationException.class, () -> this.manager.startNative(start));
 
     final String message = thrown.getMessage();
-    assertEquals("The video startup was cancelled", message);
+    assertEquals("The video startup was cancelled!", message);
 
     verify(start, never()).getAsBoolean();
   }

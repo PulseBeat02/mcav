@@ -101,7 +101,7 @@ final class ServerLoadListenerTest {
     final IllegalStateException exception = assertThrows(IllegalStateException.class, () -> this.listener.onServerLoad(event));
     final String message = exception.getMessage();
     assertEquals(
-      "Simple Voice Chat audio is enabled, but Simple Voice Chat offers no voice chat service, so voice chat audio is not available",
+      "Simple Voice Chat audio is enabled, but Simple Voice Chat offers no voice chat service, so voice chat audio is not available!",
       message
     );
   }

@@ -75,7 +75,7 @@ public final class AnnotationParserHandler {
    * @param plugin the plugin
    */
   public AnnotationParserHandler(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     this.manager = createCommandManager(plugin);
     this.parser = createAnnotationParser(this.manager);
     this.features = createFeatures(plugin, this.manager);

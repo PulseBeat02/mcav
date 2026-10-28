@@ -111,8 +111,8 @@ public final class AudioProvider {
    */
   @VisibleForTesting
   AudioProvider(final MCAVSandbox sandbox, final ExecutorService startup) {
-    Preconditions.checkNotNull(sandbox, "Plugin must not be null");
-    Preconditions.checkNotNull(startup, "Startup executor must not be null");
+    Preconditions.checkNotNull(sandbox, "Plugin must not be null!");
+    Preconditions.checkNotNull(startup, "Startup executor must not be null!");
     this.configuration = sandbox.getConfiguration();
     this.sandbox = sandbox;
     this.startup = startup;
@@ -148,7 +148,7 @@ public final class AudioProvider {
     final PluginManager pluginManager = server.getPluginManager();
     final boolean installed = pluginManager.isPluginEnabled("voicechat");
     if (!installed) {
-      throw new MissingVoiceChatException("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed");
+      throw new MissingVoiceChatException("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!");
     }
     final ServerLoadListener listener = new ServerLoadListener(this.sandbox);
     pluginManager.registerEvents(listener, this.sandbox);
@@ -209,7 +209,7 @@ public final class AudioProvider {
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new IllegalStateException("Interrupted while logging the Discord bot in", exception);
+      throw new IllegalStateException("Interrupted while logging the Discord bot in!", exception);
     }
     final Guild guild = bot.getGuildById(guildId);
     if (guild == null) {
@@ -340,10 +340,10 @@ public final class AudioProvider {
    * @throws IllegalStateException if the Discord bot or the web page is chosen but not ready
    */
   public AudioFilter constructFilter(final AudioArgument argument, final UrlParseDump dump, final Object[] players, final Object source) {
-    Preconditions.checkNotNull(argument, "Audio argument must not be null");
-    Preconditions.checkNotNull(dump, "Dump must not be null");
-    Preconditions.checkNotNull(players, "Players must not be null");
-    Preconditions.checkNotNull(source, "Source must not be null");
+    Preconditions.checkNotNull(argument, "Audio argument must not be null!");
+    Preconditions.checkNotNull(dump, "Dump must not be null!");
+    Preconditions.checkNotNull(players, "Players must not be null!");
+    Preconditions.checkNotNull(source, "Source must not be null!");
     if (argument == AudioArgument.NONE) {
       return AudioFilter.NO_OP;
     }
@@ -390,7 +390,7 @@ public final class AudioProvider {
   private AudioFilter constructHttpFilter(final UrlParseDump dump) {
     final HttpResult server = this.httpServer;
     if (server == null) {
-      throw new IllegalStateException("The audio web page is not ready");
+      throw new IllegalStateException("The audio web page is not ready!");
     }
     server.setCurrentMedia(dump);
     return server;
@@ -399,7 +399,7 @@ public final class AudioProvider {
   private AudioFilter constructDiscordFilter(final UrlParseDump dump) {
     final DiscordConnection connection = this.discord;
     if (connection == null) {
-      throw new IllegalStateException("The Discord bot is not ready");
+      throw new IllegalStateException("The Discord bot is not ready!");
     }
     final VoiceChannel voiceChannel = connection.getChannel();
     final AudioManager manager = connection.getAudioManager();
@@ -426,7 +426,7 @@ public final class AudioProvider {
    * @param source the source that is done, such as a virtual machine
    */
   public void releaseAudioFilter(final Object source) {
-    Preconditions.checkNotNull(source, "Source must not be null");
+    Preconditions.checkNotNull(source, "Source must not be null!");
     synchronized (this.outputLock) {
       this.claims.removeIf(held -> IDENTITY.equivalent(held.source, source));
       final Claim current = this.owner;

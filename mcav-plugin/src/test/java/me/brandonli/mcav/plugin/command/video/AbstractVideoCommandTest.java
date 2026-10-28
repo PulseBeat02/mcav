@@ -608,7 +608,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldReportWebPagesThatYtdlpCannotResolve() {
-    when(this.parser.parse(any(UriSource.class))).thenThrow(new InstallationException("offline"));
+    when(this.parser.parse(any(UriSource.class))).thenThrow(new InstallationException("offline!"));
 
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, WEB_PAGE, "");
 
@@ -641,7 +641,7 @@ final class AbstractVideoCommandTest {
     Mockito.doAnswer(_ -> {
       if (checks.incrementAndGet() == 2) {
         cancelled.set(true);
-        throw new CancellationException("released during resolution");
+        throw new CancellationException("released during resolution!");
       }
       return null;
     })
@@ -660,7 +660,7 @@ final class AbstractVideoCommandTest {
   void shouldReleasePartiallyConfiguredOutputsWhenAudioConstructionFails() throws IOException {
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
-    when(this.provider.constructFilter(any(), any(), any())).thenThrow(new IllegalStateException("audio failed"));
+    when(this.provider.constructFilter(any(), any(), any())).thenThrow(new IllegalStateException("audio failed!"));
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
     verify(this.manager, times(2)).clearCurrentVideo();
     verify(this.manager, never()).setPlayer(any());
@@ -698,7 +698,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldReleaseAPlayerThatFailsToStart() throws IOException {
-    when(this.player.start(any())).thenThrow(new IllegalStateException("cannot open"));
+    when(this.player.start(any())).thenThrow(new IllegalStateException("cannot open!"));
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
 
@@ -901,7 +901,7 @@ final class AbstractVideoCommandTest {
   @Test
   void shouldUnlockWithoutReportingWhenThePluginWasDisabledMeanwhile() throws IOException {
     final BukkitScheduler scheduler = TestServer.scheduler();
-    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled"));
+    when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(new IllegalPluginAccessException("disabled!"));
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
 
@@ -958,7 +958,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldReleaseTheStartupClaimWhenViewerSelectionFails() {
-    final IllegalStateException failure = new IllegalStateException("selector failed");
+    final IllegalStateException failure = new IllegalStateException("selector failed!");
     when(this.selector.values()).thenThrow(failure);
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
       this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "missing.mp4", "")
@@ -970,7 +970,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldReleaseTheStartupClaimWhenLoadingNotificationFails() {
-    final IllegalStateException failure = new IllegalStateException("viewer disconnected");
+    final IllegalStateException failure = new IllegalStateException("viewer disconnected!");
     Mockito.doThrow(failure).when(this.viewer).sendMessage(any(Component.class));
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
       this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, "missing.mp4", "")
@@ -984,8 +984,8 @@ final class AbstractVideoCommandTest {
   void shouldPreserveStartupFailureWhenClearingPartialOutputsAlsoFails() throws IOException {
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
-    final IllegalStateException failure = new IllegalStateException("native start");
-    final IllegalArgumentException cleanup = new IllegalArgumentException("clear outputs");
+    final IllegalStateException failure = new IllegalStateException("native start!");
+    final IllegalArgumentException cleanup = new IllegalArgumentException("clear outputs!");
     when(this.player.start(any())).thenThrow(failure);
     Mockito.doNothing().doThrow(cleanup).when(this.manager).clearCurrentVideo();
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
@@ -1002,7 +1002,7 @@ final class AbstractVideoCommandTest {
   void shouldNotSuppressStartupFailureOntoItself() throws IOException {
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
-    final IllegalStateException failure = new IllegalStateException("same failure");
+    final IllegalStateException failure = new IllegalStateException("same failure!");
     when(this.player.start(any())).thenThrow(failure);
     Mockito.doNothing().doThrow(failure).when(this.manager).clearCurrentVideo();
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
@@ -1019,8 +1019,8 @@ final class AbstractVideoCommandTest {
     final String mrl = file.toString();
     final Location location = mock(Location.class);
     when(this.manager.getHologramLocation()).thenReturn(location);
-    final IllegalStateException failure = new IllegalStateException("hologram start");
-    final IllegalArgumentException cleanup = new IllegalArgumentException("hologram kill");
+    final IllegalStateException failure = new IllegalStateException("hologram start!");
+    final IllegalArgumentException cleanup = new IllegalArgumentException("hologram kill!");
     Mockito.doThrow(failure).when(this.hologram).start();
     Mockito.doThrow(cleanup).when(this.hologram).kill();
     this.play(PlayerArgument.FFMPEG, AudioArgument.NONE, mrl, "");
@@ -1039,7 +1039,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldPropagateFatalPlayVideoFailureWithoutResettingStartingStatus() {
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
     when(this.manager.getService()).thenThrow(fatal);
 
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
@@ -1052,7 +1052,7 @@ final class AbstractVideoCommandTest {
 
   @Test
   void shouldReportFatalPlayerStartFailureWithoutRecoverableCleanup() throws IOException {
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
     when(this.player.start(any())).thenThrow(fatal);
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
@@ -1064,8 +1064,8 @@ final class AbstractVideoCommandTest {
   void shouldReportFatalCleanupFailureWithoutSuppressingItOntoTheStartFailure() throws IOException {
     final Path file = this.createVideoFile();
     final String mrl = file.toString();
-    final IllegalStateException failure = new IllegalStateException("native start");
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
+    final IllegalStateException failure = new IllegalStateException("native start!");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
     when(this.player.start(any())).thenThrow(failure);
     Mockito.doNothing().doThrow(fatal).when(this.manager).clearCurrentVideo();
     this.playAndRequireFatalReport(mrl);
@@ -1079,7 +1079,7 @@ final class AbstractVideoCommandTest {
     final String mrl = file.toString();
     final Location location = mock(Location.class);
     when(this.manager.getHologramLocation()).thenReturn(location);
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal sentinel!");
     Mockito.doThrow(fatal).when(this.hologram).start();
     this.playAndRequireFatalReport(mrl);
     verify(this.hologram, never()).kill();
@@ -1110,7 +1110,7 @@ final class AbstractVideoCommandTest {
       .clearCurrentVideo();
     Mockito.doAnswer(_ -> {
       if (cancelled.get()) {
-        throw new CancellationException("cancelled before player creation");
+        throw new CancellationException("cancelled before player creation!");
       }
       return null;
     })
@@ -1137,7 +1137,7 @@ final class AbstractVideoCommandTest {
     when(this.manager.isCurrent(ArgumentMatchers.anyLong())).thenAnswer(_ -> !cancelled.get());
     Mockito.doAnswer(_ -> {
       if (cancelled.get()) {
-        throw new CancellationException("cancelled during video configuration");
+        throw new CancellationException("cancelled during video configuration!");
       }
       return null;
     })
@@ -1173,7 +1173,7 @@ final class AbstractVideoCommandTest {
     });
     Mockito.doAnswer(_ -> {
       if (cancelled.get()) {
-        throw new CancellationException("cancelled during audio configuration");
+        throw new CancellationException("cancelled during audio configuration!");
       }
       return null;
     })

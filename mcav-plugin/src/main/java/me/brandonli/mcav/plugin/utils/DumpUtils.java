@@ -74,7 +74,7 @@ public final class DumpUtils {
   private static final long MEGABYTE = 1024L * 1024L;
 
   private DumpUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -110,7 +110,7 @@ public final class DumpUtils {
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new IllegalStateException("Interrupted while uploading the dump", exception);
+      throw new IllegalStateException("Interrupted while uploading the dump!", exception);
     }
   }
 

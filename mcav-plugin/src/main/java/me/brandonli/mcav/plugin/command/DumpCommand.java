@@ -58,7 +58,7 @@ public final class DumpCommand implements AnnotationCommandFeature {
    */
   @VisibleForTesting
   DumpCommand(final Supplier<String> uploader) {
-    Preconditions.checkNotNull(uploader, "Uploader must not be null");
+    Preconditions.checkNotNull(uploader, "Uploader must not be null!");
     this.uploader = uploader;
   }
 
@@ -71,7 +71,7 @@ public final class DumpCommand implements AnnotationCommandFeature {
   @Command(value = "mcav dump", requiredSender = CommandSender.class)
   @CommandDescription("mcav.command.dump.info")
   public void createDump(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
     final Component loading = Message.CREATE_DUMP.build();
     sender.sendMessage(loading);
 

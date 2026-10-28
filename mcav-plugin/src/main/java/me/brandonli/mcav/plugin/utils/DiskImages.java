@@ -37,7 +37,7 @@ public final class DiskImages {
   public static final String FOLDER_NAME = "iso";
 
   private DiskImages() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -47,7 +47,7 @@ public final class DiskImages {
    * @return the folder of the disk images
    */
   public static Path folderOf(final Path dataFolder) {
-    Preconditions.checkNotNull(dataFolder, "Data folder must not be null");
+    Preconditions.checkNotNull(dataFolder, "Data folder must not be null!");
     return dataFolder.resolve(FOLDER_NAME);
   }
 
@@ -61,10 +61,10 @@ public final class DiskImages {
    * @throws IllegalArgumentException if the image is empty, lies outside the folder, or is not a file there
    */
   public static Path require(final Path folder, final String image) {
-    Preconditions.checkNotNull(folder, "Folder must not be null");
-    Preconditions.checkNotNull(image, "Image must not be null");
+    Preconditions.checkNotNull(folder, "Folder must not be null!");
+    Preconditions.checkNotNull(image, "Image must not be null!");
     final boolean named = !image.isBlank();
-    Preconditions.checkArgument(named, "A disk image must be named");
+    Preconditions.checkArgument(named, "A disk image must be named!");
 
     final Path resolved = resolve(folder, image);
     final Path normalizedFolder = folder.toAbsolutePath().normalize();
@@ -72,12 +72,12 @@ public final class DiskImages {
     final boolean inside = normalizedImage.startsWith(normalizedFolder) && !normalizedImage.equals(normalizedFolder);
     Preconditions.checkArgument(
       inside,
-      "The disk image %s lies outside the %s folder of the plugin; put the image there and name it",
+      "The disk image %s lies outside the %s folder of the plugin; put the image there and name it!",
       image,
       FOLDER_NAME
     );
     final boolean file = Files.isRegularFile(normalizedImage);
-    Preconditions.checkArgument(file, "There is no disk image %s in the %s folder of the plugin", image, FOLDER_NAME);
+    Preconditions.checkArgument(file, "There is no disk image %s in the %s folder of the plugin!", image, FOLDER_NAME);
     return normalizedImage;
   }
 

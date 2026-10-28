@@ -180,7 +180,7 @@ final class VideoControlCommandTest {
 
   @Test
   void shouldLogAFailedReleaseAndNotReportThePlayerAsReleased() {
-    final IllegalStateException failure = new IllegalStateException("the release failed");
+    final IllegalStateException failure = new IllegalStateException("the release failed!");
     doThrow(failure).when(this.manager).clearCurrentVideo();
 
     final String output;
@@ -192,7 +192,7 @@ final class VideoControlCommandTest {
     final Component start = Message.RELEASE_PLAYER_START.build();
     this.assertReceived(start);
     final boolean logged = output.contains("Failed to release the video player");
-    final boolean withCause = output.contains("the release failed");
+    final boolean withCause = output.contains("the release failed!");
     assertTrue(logged, output);
     assertTrue(withCause, output);
   }

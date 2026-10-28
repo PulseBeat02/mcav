@@ -85,7 +85,7 @@ final class VideoFlagsParserTest {
     final IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> this.parser.parseYTDLPFlags(flags));
 
     final String message = exception.getMessage();
-    assertEquals("yt-dlp option name must not be empty", message);
+    assertEquals("yt-dlp option name must not be empty!", message);
   }
 
   @Test

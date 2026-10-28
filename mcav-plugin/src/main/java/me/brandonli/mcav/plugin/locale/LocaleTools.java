@@ -52,7 +52,7 @@ public interface LocaleTools {
    * @throws NullPointerException if the key is {@code null}
    */
   static NullComponent direct(final String key) {
-    Preconditions.checkNotNull(key, "Key must not be null");
+    Preconditions.checkNotNull(key, "Key must not be null!");
     return () -> {
       final TranslatableComponent component = translatable(key);
       return MANAGER.render(component);
@@ -69,7 +69,7 @@ public interface LocaleTools {
    * @throws NullPointerException if the key is {@code null}
    */
   static <T> UniComponent<T> direct(final String key, final @Nullable Function<T, String> function) {
-    Preconditions.checkNotNull(key, "Key must not be null");
+    Preconditions.checkNotNull(key, "Key must not be null!");
     return argument -> {
       final Component text = createFinalText(argument, function);
       final TranslatableComponent component = translatable(key, text);
@@ -95,7 +95,7 @@ public interface LocaleTools {
     final @Nullable Function<T, String> firstFunction,
     final @Nullable Function<U, String> secondFunction
   ) {
-    Preconditions.checkNotNull(key, "Key must not be null");
+    Preconditions.checkNotNull(key, "Key must not be null!");
     return (firstArgument, secondArgument) -> {
       final Component firstText = createFinalText(firstArgument, firstFunction);
       final Component secondText = createFinalText(secondArgument, secondFunction);
@@ -127,7 +127,7 @@ public interface LocaleTools {
     final @Nullable Function<U, String> secondFunction,
     final @Nullable Function<V, String> thirdFunction
   ) {
-    Preconditions.checkNotNull(key, "Key must not be null");
+    Preconditions.checkNotNull(key, "Key must not be null!");
     return (firstArgument, secondArgument, thirdArgument) -> {
       final Component firstText = createFinalText(firstArgument, firstFunction);
       final Component secondText = createFinalText(secondArgument, secondFunction);

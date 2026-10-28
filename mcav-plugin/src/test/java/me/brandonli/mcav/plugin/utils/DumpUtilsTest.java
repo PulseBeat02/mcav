@@ -236,7 +236,7 @@ final class DumpUtilsTest {
     final boolean interrupted = Thread.interrupted();
     assertTrue(interrupted);
     final String message = exception.getMessage();
-    assertEquals("Interrupted while uploading the dump", message);
+    assertEquals("Interrupted while uploading the dump!", message);
   }
 
   @Test

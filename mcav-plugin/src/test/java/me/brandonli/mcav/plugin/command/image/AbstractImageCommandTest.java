@@ -230,7 +230,7 @@ final class AbstractImageCommandTest {
   @Test
   void shouldReleaseTheDecodedImageWhenResizingForFiltersFails() throws IOException {
     final Path file = this.writeImage("filter-failure.png", "png");
-    final IllegalStateException failure = new IllegalStateException("resize failed after decoding");
+    final IllegalStateException failure = new IllegalStateException("resize failed after decoding!");
     try (
       final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class);
       final MockedConstruction<ResizeFilter> resizers = Mockito.mockConstruction(ResizeFilter.class, (filter, context) ->
@@ -261,8 +261,8 @@ final class AbstractImageCommandTest {
   @ValueSource(booleans = { false, true })
   void shouldKeepTheFilterFailureWhenReleasingTheImageAlsoFails(final boolean sameFailure) throws IOException {
     final Path file = this.writeImage("filter-cleanup-failure.png", "png");
-    final IllegalStateException failure = new IllegalStateException("resize failed");
-    final RuntimeException cleanupFailure = sameFailure ? failure : new IllegalArgumentException("release failed");
+    final IllegalStateException failure = new IllegalStateException("resize failed!");
+    final RuntimeException cleanupFailure = sameFailure ? failure : new IllegalArgumentException("release failed!");
     try (
       final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, context) ->
         Mockito.doThrow(cleanupFailure).when(image).release()
@@ -293,7 +293,7 @@ final class AbstractImageCommandTest {
   @Test
   void shouldRefuseFiltersThatAreNotAllowedBeforeLoading() {
     this.command.displayImage(_ -> "configuration", this.sender, "4x2", "picture.png", "fps");
-    final Component refused = Message.FILTERS_INVALID.build("fps counts the frames of a video, and an image has one");
+    final Component refused = Message.FILTERS_INVALID.build("fps counts the frames of a video, and an image has one!");
 
     final List<Component> received = Components.received(this.sender);
     assertEquals(List.of(refused), received);
@@ -440,7 +440,7 @@ final class AbstractImageCommandTest {
   @Test
   void shouldReleaseTheLoadedImageWhenThePluginWasDisabledMeanwhile() throws IOException {
     final BukkitScheduler scheduler = TestServer.scheduler();
-    final IllegalPluginAccessException disabled = new IllegalPluginAccessException("disabled");
+    final IllegalPluginAccessException disabled = new IllegalPluginAccessException("disabled!");
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(disabled);
     final Path file = this.writeImage("picture.png", "png");
     final String mrl = file.toString();
@@ -506,7 +506,7 @@ final class AbstractImageCommandTest {
     final Path file = this.writeImage("queued.png", "png");
     final String mrl = file.toString();
     final RecordingCommand failing = spy(this.command);
-    final IllegalStateException failure = new IllegalStateException("invalid display configuration");
+    final IllegalStateException failure = new IllegalStateException("invalid display configuration!");
     Mockito.doThrow(failure).when(failing).createImage(any(), any());
     try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
       failing.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
@@ -524,7 +524,7 @@ final class AbstractImageCommandTest {
     TestServer.resetWithDeferredTasks();
     final Path file = this.writeImage("queued.png", "png");
     final String mrl = file.toString();
-    final IllegalStateException failure = new IllegalStateException("failed display");
+    final IllegalStateException failure = new IllegalStateException("failed display!");
     Mockito.doThrow(failure).when(this.display).displayImage(any());
     try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
       this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
@@ -574,7 +574,7 @@ final class AbstractImageCommandTest {
     final Path file = this.writeImage("queued.png", "png");
     final String mrl = file.toString();
     final RecordingCommand failing = spy(this.command);
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal configuration failure");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal configuration failure!");
     Mockito.doThrow(fatal).when(failing).createImage(any(), any());
     try (final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class)) {
       failing.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
@@ -612,8 +612,8 @@ final class AbstractImageCommandTest {
   void shouldDiscardTheImageAndPreserveCleanupFailuresWhenSchedulingFails(final int cleanupMode) throws IOException {
     final Path file = this.writeImage("schedule-failure.png", "png");
     final String mrl = file.toString();
-    final IllegalStateException primary = new IllegalStateException("scheduler rejected the loaded image");
-    final RuntimeException cleanup = cleanupMode == 1 ? primary : new IllegalArgumentException("image release failed");
+    final IllegalStateException primary = new IllegalStateException("scheduler rejected the loaded image!");
+    final RuntimeException cleanup = cleanupMode == 1 ? primary : new IllegalArgumentException("image release failed!");
     final BukkitScheduler scheduler = TestServer.scheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(primary);
     final String output;
@@ -636,7 +636,7 @@ final class AbstractImageCommandTest {
     final Throwable[] suppressed = primary.getSuppressed();
     final Throwable[] expected = cleanupMode == 2 ? new Throwable[] { cleanup } : new Throwable[0];
     assertArrayEquals(expected, suppressed);
-    final boolean reported = output.contains("scheduler rejected the loaded image");
+    final boolean reported = output.contains("scheduler rejected the loaded image!");
     assertTrue(reported, "the callback reports the scheduling failure after releasing the image");
     this.assertNothingShown();
   }
@@ -648,8 +648,8 @@ final class AbstractImageCommandTest {
     final Path file = this.writeImage("cleanup-failure.png", "png");
     final String mrl = file.toString();
     final RecordingCommand failing = spy(this.command);
-    final IllegalStateException primary = new IllegalStateException("invalid image configuration");
-    final RuntimeException cleanup = sameFailure ? primary : new IllegalArgumentException("image release failed");
+    final IllegalStateException primary = new IllegalStateException("invalid image configuration!");
+    final RuntimeException cleanup = sameFailure ? primary : new IllegalArgumentException("image release failed!");
     Mockito.doThrow(primary).when(failing).createImage(any(), any());
     try (
       final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, context) -> {
@@ -684,7 +684,7 @@ final class AbstractImageCommandTest {
   void shouldPropagateFatalSchedulingFailureWithoutDiscardingLoadedImage() throws IOException {
     final Path file = this.writeImage("schedule-fatal.png", "png");
     final String mrl = file.toString();
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal scheduling sentinel");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal scheduling sentinel!");
     final BukkitScheduler scheduler = TestServer.scheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(fatal);
 
@@ -700,7 +700,7 @@ final class AbstractImageCommandTest {
       final MatImageBuffer image = constructed.getFirst();
       verify(image, never()).release();
     }
-    final boolean reported = output.contains("fatal scheduling sentinel");
+    final boolean reported = output.contains("fatal scheduling sentinel!");
     assertTrue(reported, "the fatal scheduling error is logged by the background callback handler");
     this.assertNothingShown();
   }
@@ -709,8 +709,8 @@ final class AbstractImageCommandTest {
   void shouldPropagateFatalDiscardFailureDuringSchedulingFailureRecovery() throws IOException {
     final Path file = this.writeImage("discard-fatal.png", "png");
     final String mrl = file.toString();
-    final IllegalStateException primary = new IllegalStateException("scheduling rejected");
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal discard sentinel");
+    final IllegalStateException primary = new IllegalStateException("scheduling rejected!");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal discard sentinel!");
     final BukkitScheduler scheduler = TestServer.scheduler();
     when(scheduler.runTask(any(Plugin.class), any(Runnable.class))).thenThrow(primary);
 
@@ -730,7 +730,7 @@ final class AbstractImageCommandTest {
     }
     final Throwable[] suppressed = primary.getSuppressed();
     assertEquals(0, suppressed.length, "fatal cleanup failure must not be suppressed onto recoverable primary exception");
-    final boolean reported = output.contains("fatal discard sentinel");
+    final boolean reported = output.contains("fatal discard sentinel!");
     assertTrue(reported, "the fatal discard failure is logged as the escaping callback error");
     this.assertNothingShown();
   }
@@ -741,8 +741,8 @@ final class AbstractImageCommandTest {
     final Path file = this.writeImage("config-cleanup-fatal.png", "png");
     final String mrl = file.toString();
     final RecordingCommand failing = spy(this.command);
-    final IllegalStateException primary = new IllegalStateException("display configuration failed");
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal cleanup sentinel");
+    final IllegalStateException primary = new IllegalStateException("display configuration failed!");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal cleanup sentinel!");
     Mockito.doThrow(primary).when(failing).createImage(any(), any());
     try (
       final MockedConstruction<MatImageBuffer> buffers = Mockito.mockConstruction(MatImageBuffer.class, (image, _) -> {

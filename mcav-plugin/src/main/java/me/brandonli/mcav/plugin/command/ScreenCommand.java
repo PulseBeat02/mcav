@@ -77,10 +77,10 @@ public final class ScreenCommand implements AnnotationCommandFeature {
     final Material material,
     final Location location
   ) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(blockDimensions, "Block dimensions must not be null");
-    Preconditions.checkNotNull(material, "Material must not be null");
-    Preconditions.checkNotNull(location, "Location must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(blockDimensions, "Block dimensions must not be null!");
+    Preconditions.checkNotNull(material, "Material must not be null!");
+    Preconditions.checkNotNull(location, "Location must not be null!");
     final Pair<Integer, Integer> dimensions;
     try {
       dimensions = ArgumentUtils.parseScreenDimensions(blockDimensions);

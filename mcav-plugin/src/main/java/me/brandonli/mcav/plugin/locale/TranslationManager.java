@@ -117,7 +117,7 @@ public final class TranslationManager {
    * @throws MissingResourceException if there is no message with the key
    */
   public String getProperty(final String key) {
-    Preconditions.checkNotNull(key, "Key must not be null");
+    Preconditions.checkNotNull(key, "Key must not be null!");
     return this.bundle.getString(key);
   }
 
@@ -130,7 +130,7 @@ public final class TranslationManager {
    * @throws MissingResourceException if there is no message with the key of the component
    */
   public Component render(final TranslatableComponent component) {
-    Preconditions.checkNotNull(component, "Component must not be null");
+    Preconditions.checkNotNull(component, "Component must not be null!");
     final Component rendered = this.translator.translate(component, DEFAULT_LOCALE);
     if (rendered == null) {
       final String key = component.key();

@@ -172,7 +172,7 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldReleaseTheMachineAndScreenWhenSubmissionIsRejected() {
-    final RejectedExecutionException failure = new RejectedExecutionException("executor stopped");
+    final RejectedExecutionException failure = new RejectedExecutionException("executor stopped!");
     when(this.machine.startAsync(any(VmSettings.class), any(VmPlayer.Architecture.class), any(VmConfiguration.class), any())).thenThrow(
       failure
     );
@@ -400,7 +400,7 @@ final class VirtualizeCommandTest {
   void shouldDescribeTheOutcomeOfTheStart() {
     final ExecutableNotInPathException missing = new ExecutableNotInPathException("qemu-system-arm");
     final CompletionException wrapped = new CompletionException(missing);
-    final IllegalStateException crash = new IllegalStateException("crashed");
+    final IllegalStateException crash = new IllegalStateException("crashed!");
     final CompletionException other = new CompletionException(crash);
 
     final Component success = this.command.createStartMessage(true, null);
@@ -450,8 +450,8 @@ final class VirtualizeCommandTest {
       AudioArgument.SIMPLE_VOICE_CHAT,
       ""
     );
-    when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available"));
-    Mockito.doThrow(new IllegalStateException("release broke")).when(this.machine).release();
+    when(this.plugin.getAudioProvider()).thenThrow(new IllegalStateException("The audio provider is not available!"));
+    Mockito.doThrow(new IllegalStateException("release broke!")).when(this.machine).release();
     this.command.releaseVM(this.sender);
     verify(this.provider).releaseAudioFilter(this.machine);
     verify(this.callback).detach();
@@ -593,7 +593,7 @@ final class VirtualizeCommandTest {
     this.image("present.iso");
     final IllegalArgumentException failure = this.assertRefusedOptions("-cdrom absent.iso");
     final String message = failure.getMessage();
-    assertEquals("There is no disk image absent.iso in the iso folder of the plugin", message);
+    assertEquals("There is no disk image absent.iso in the iso folder of the plugin!", message);
   }
 
   @ParameterizedTest
@@ -718,7 +718,7 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldSendNoLinkForAMachineThatFailsToStart() {
-    this.createWithTheWebPage(CompletableFuture.failedFuture(new IllegalStateException("QEMU broke")));
+    this.createWithTheWebPage(CompletableFuture.failedFuture(new IllegalStateException("QEMU broke!")));
     verify(this.provider, never()).constructHttpUrl();
   }
 
@@ -931,7 +931,7 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldReportAMachineThatFailsToStartWithoutBlamingTheInstallation() {
-    final IllegalStateException crash = new IllegalStateException("qemu crashed");
+    final IllegalStateException crash = new IllegalStateException("qemu crashed!");
     final CompletableFuture<Boolean> start = CompletableFuture.failedFuture(crash);
     this.startsWith(start);
 

@@ -122,8 +122,8 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     @Flag("codec") final @Nullable MapCodec codec,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
 
     final Pair<Integer, Integer> blocks = parseScreenDimensions(sender, blockDimensions);
     if (blocks == null) {
@@ -175,8 +175,8 @@ public final class VideoMapCommand extends AbstractVideoCommand {
     final Pair<Integer, Integer> resolution,
     final VideoConfigurationProvider configurationProvider
   ) {
-    Preconditions.checkNotNull(resolution, "Resolution must not be null");
-    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null");
+    Preconditions.checkNotNull(resolution, "Resolution must not be null!");
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
 
     final Object built = configurationProvider.buildConfiguration(resolution);
     if (built instanceof final VideoMcv2Command.Mcv2Settings mcv2) {

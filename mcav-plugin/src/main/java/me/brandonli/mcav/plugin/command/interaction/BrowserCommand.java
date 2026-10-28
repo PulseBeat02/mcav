@@ -102,7 +102,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    */
   @Override
   protected void handleLeftClick(final BrowserPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Browser must not be null");
+    Preconditions.checkNotNull(current, "Browser must not be null!");
     current.sendMouseEvent(MouseClick.LEFT, screenX, screenY);
   }
 
@@ -115,7 +115,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    */
   @Override
   protected void handleRightClick(final BrowserPlayer current, final int screenX, final int screenY) {
-    Preconditions.checkNotNull(current, "Browser must not be null");
+    Preconditions.checkNotNull(current, "Browser must not be null!");
     current.sendMouseEvent(MouseClick.RIGHT, screenX, screenY);
   }
 
@@ -127,8 +127,8 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    */
   @Override
   protected void handleTextInput(final BrowserPlayer current, final String text) {
-    Preconditions.checkNotNull(current, "Browser must not be null");
-    Preconditions.checkNotNull(text, "Text must not be null");
+    Preconditions.checkNotNull(current, "Browser must not be null!");
+    Preconditions.checkNotNull(text, "Text must not be null!");
     current.sendKeyEvent(text);
   }
 
@@ -139,7 +139,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
    */
   @Override
   protected void releasePlayer(final BrowserPlayer current) {
-    Preconditions.checkNotNull(current, "Browser must not be null");
+    Preconditions.checkNotNull(current, "Browser must not be null!");
     // the browser helper takes seconds to stop and its session folder to be deleted; no frame or sound of it meanwhile
     CleanupUtils.runAll(
       () -> current.getVideoAttachableCallback().detach(),
@@ -166,7 +166,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   @Permission(INTERACT_PERMISSION)
   @CommandDescription("mcav.command.browser.interact.info")
   public void toggleInteraction(final Player sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
     final Component enabled = Message.INTERACT_ENABLE.build();
     final Component disabled = Message.INTERACT_DISABLE.build();
     this.toggleInteraction(sender, enabled, disabled);
@@ -185,7 +185,7 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   @Permission("mcav.browser.release")
   @CommandDescription("mcav.command.browser.release.info")
   public void releaseBrowser(final CommandSender sender) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
     final Component released = Message.RELEASE_BROWSER.build();
     this.releaseResource(sender, released);
   }
@@ -246,10 +246,10 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
     @Greedy @FlagYielding final String url,
     @Flag("codec") final @Nullable MapCodec codec
   ) {
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
-    Preconditions.checkNotNull(audioType, "Audio type must not be null");
-    Preconditions.checkNotNull(url, "URL must not be null");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
+    Preconditions.checkNotNull(audioType, "Audio type must not be null!");
+    Preconditions.checkNotNull(url, "URL must not be null!");
 
     if (!this.plugin.isBrowserSupported()) {
       final Component message = Message.BROWSER_UNSUPPORTED.build();

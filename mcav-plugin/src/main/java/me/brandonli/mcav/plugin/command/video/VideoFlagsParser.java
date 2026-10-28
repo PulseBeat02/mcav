@@ -198,7 +198,7 @@ public final class VideoFlagsParser {
     final String cleanName = name.trim();
     final String cleanValue = value.trim();
     if (cleanName.isEmpty()) {
-      throw new IllegalArgumentException("yt-dlp option name must not be empty");
+      throw new IllegalArgumentException("yt-dlp option name must not be empty!");
     }
     requireValueOption(cleanName, cleanValue);
     arguments.add("--" + cleanName);

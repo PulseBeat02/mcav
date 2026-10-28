@@ -82,7 +82,7 @@ public final class MapUtils {
   public static final int MAX_NEW_MAPS = ArgumentUtils.MAX_SCREEN_SIDE * ArgumentUtils.MAX_SCREEN_SIDE;
 
   private MapUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -184,9 +184,9 @@ public final class MapUtils {
     final int height,
     final int map
   ) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(location, "Location must not be null");
-    Preconditions.checkNotNull(material, "Material must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(location, "Location must not be null!");
+    Preconditions.checkNotNull(material, "Material must not be null!");
     Preconditions.checkArgument(width > 0, "Width must be positive: %s", width);
     Preconditions.checkArgument(height > 0, "Height must be positive: %s", height);
     Preconditions.checkArgument(map >= 0, "Map id must not be negative: %s", map);

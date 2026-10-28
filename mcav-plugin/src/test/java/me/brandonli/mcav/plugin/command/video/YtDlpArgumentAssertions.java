@@ -69,7 +69,7 @@ final class YtDlpArgumentAssertions {
   );
 
   private YtDlpArgumentAssertions() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**

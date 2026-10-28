@@ -60,7 +60,7 @@ public final class CaptureDevices {
   private static final Pattern NODE = Pattern.compile("video(\\d{1,3})");
 
   private CaptureDevices() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -141,7 +141,7 @@ public final class CaptureDevices {
    * @return the devices that opened, named by their number
    */
   static List<Device> probe(final int count, final IntPredicate opens) {
-    Preconditions.checkArgument(count >= 0, "Count must not be negative");
+    Preconditions.checkArgument(count >= 0, "Count must not be negative!");
     final List<Device> devices = new ArrayList<>();
     for (int index = 0; index < count; index++) {
       if (opens.test(index)) {
@@ -180,8 +180,8 @@ public final class CaptureDevices {
    * @return the device, or null if the text is not the number of a listed device
    */
   public static @Nullable Device find(final List<Device> devices, final String typed) {
-    Preconditions.checkNotNull(devices, "Devices must not be null");
-    Preconditions.checkNotNull(typed, "Typed number must not be null");
+    Preconditions.checkNotNull(devices, "Devices must not be null!");
+    Preconditions.checkNotNull(typed, "Typed number must not be null!");
     for (final Device device : devices) {
       if (Integer.toString(device.index()).equals(typed)) {
         return device;

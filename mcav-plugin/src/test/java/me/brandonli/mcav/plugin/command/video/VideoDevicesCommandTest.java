@@ -89,7 +89,7 @@ final class VideoDevicesCommandTest {
   void shouldSayWhenThereIsNoDeviceOrTheListingFails() {
     this.devices.when(CaptureDevices::list).thenReturn(List.of());
     this.command.listDevices(this.sender);
-    this.devices.when(CaptureDevices::list).thenThrow(new IllegalStateException("no sysfs"));
+    this.devices.when(CaptureDevices::list).thenThrow(new IllegalStateException("no sysfs!"));
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
       this.command.listDevices(this.sender);

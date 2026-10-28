@@ -100,7 +100,7 @@ public final class Mcv2Support {
   }
 
   Mcv2Support(final Mcv2PackServer packs) {
-    Preconditions.checkNotNull(packs, "Pack server must not be null");
+    Preconditions.checkNotNull(packs, "Pack server must not be null!");
     this.packs = packs;
   }
 

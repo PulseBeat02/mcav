@@ -255,7 +255,7 @@ final class Mcv2SupportTest {
   void shouldOpenASlotOrTellTheSenderThatEveryOnePlays() {
     final Mcv2Configuration configuration = Objects.requireNonNull(this.configure(20));
     final Mcv2PackServer.Lease lease = mock(Mcv2PackServer.Lease.class);
-    when(this.packs.open(configuration)).thenReturn(lease).thenThrow(new IllegalStateException("full"));
+    when(this.packs.open(configuration)).thenReturn(lease).thenThrow(new IllegalStateException("full!"));
 
     final Mcv2PackServer.Lease opened = this.support.open(this.sender, configuration);
     assertSame(lease, opened);

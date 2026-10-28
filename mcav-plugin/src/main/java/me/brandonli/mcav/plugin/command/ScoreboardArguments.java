@@ -28,7 +28,7 @@ import me.brandonli.mcav.utils.immutable.Pair;
 public final class ScoreboardArguments {
 
   private ScoreboardArguments() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -41,7 +41,7 @@ public final class ScoreboardArguments {
    * @throws NullPointerException if {@code resolution} is null
    */
   public static boolean isTooTall(final String resolution) {
-    Preconditions.checkNotNull(resolution, "Resolution must not be null");
+    Preconditions.checkNotNull(resolution, "Resolution must not be null!");
     final Pair<Integer, Integer> dimensions;
     try {
       dimensions = ArgumentUtils.parseDimensions(resolution);

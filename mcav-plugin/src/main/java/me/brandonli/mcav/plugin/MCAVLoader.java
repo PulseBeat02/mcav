@@ -110,7 +110,7 @@ public final class MCAVLoader implements PluginLoader {
         .filter(line -> !line.isBlank())
         .toList();
     } catch (final IOException exception) {
-      throw new UncheckedIOException("Cannot read the classes the plugin needs from its modules", exception);
+      throw new UncheckedIOException("Cannot read the classes the plugin needs from its modules!", exception);
     }
   }
 
@@ -172,7 +172,7 @@ public final class MCAVLoader implements PluginLoader {
    */
   @Override
   public void classloader(final @NonNull PluginClasspathBuilder classpathBuilder) {
-    Preconditions.checkNotNull(classpathBuilder, "Classpath builder must not be null");
+    Preconditions.checkNotNull(classpathBuilder, "Classpath builder must not be null!");
     final Class<?> loaderClass = this.getClass();
     final ClassLoader nullableClassLoader = loaderClass.getClassLoader();
     final ClassLoader classLoader = requireNonNull(nullableClassLoader);

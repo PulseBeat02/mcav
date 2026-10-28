@@ -52,7 +52,7 @@ public final class TestServer {
   private static final List<Runnable> PENDING_TASKS = Collections.synchronizedList(new ArrayList<>());
 
   private TestServer() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   private static Server install() {
@@ -156,7 +156,7 @@ public final class TestServer {
   public static void ensureInstalled() {
     final Server installed = Bukkit.getServer();
     final boolean testServerInstalled = Objects.equals(installed, SERVER);
-    Preconditions.checkState(testServerInstalled, "Bukkit has a server that is not the test server");
+    Preconditions.checkState(testServerInstalled, "Bukkit has a server that is not the test server!");
   }
 
   /**

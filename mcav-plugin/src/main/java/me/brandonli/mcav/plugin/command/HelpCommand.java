@@ -61,7 +61,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
    * @param manager the command manager whose commands are listed
    */
   public HelpCommand(final CommandManager<CommandSender> manager) {
-    Preconditions.checkNotNull(manager, "Command manager must not be null");
+    Preconditions.checkNotNull(manager, "Command manager must not be null!");
     final Map<String, String> messages = createMessages();
     final AudienceProvider<CommandSender> audiences = AudienceProvider.nativeAudience();
     final ImmutableMinecraftHelp.CommandManagerBuildStage<CommandSender> managerStage = MinecraftHelp.builder();
@@ -113,7 +113,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.help.info")
   @Command("mcav help [query]")
   public void commandHelp(final CommandSender sender, @Greedy final @Nullable String query) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
     final String search = searchQuery(query);
     this.minecraftHelp.queryCommands(search, sender);
   }

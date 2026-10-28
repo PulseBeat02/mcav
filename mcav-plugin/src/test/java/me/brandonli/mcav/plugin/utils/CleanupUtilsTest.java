@@ -32,8 +32,8 @@ final class CleanupUtilsTest {
   @Test
   void shouldAttemptEveryCleanupAndPreserveAllFailures() {
     final List<Integer> cleaned = new ArrayList<>();
-    final IllegalStateException first = new IllegalStateException("first");
-    final IllegalArgumentException second = new IllegalArgumentException("second");
+    final IllegalStateException first = new IllegalStateException("first!");
+    final IllegalArgumentException second = new IllegalArgumentException("second!");
     final IllegalStateException thrown = assertThrows(IllegalStateException.class, () ->
       CleanupUtils.runAll(
         () -> {
@@ -56,7 +56,7 @@ final class CleanupUtilsTest {
 
   @Test
   void shouldPreserveAnErrorAndNotSuppressItAgainstItself() {
-    final AssertionError failure = new AssertionError("failed cleanup");
+    final AssertionError failure = new AssertionError("failed cleanup!");
     final List<Integer> cleaned = new ArrayList<>();
     final AssertionError thrown = assertThrows(AssertionError.class, () ->
       CleanupUtils.runAll(
@@ -78,7 +78,7 @@ final class CleanupUtilsTest {
 
   @Test
   void shouldPropagateFatalFailuresWithoutAttemptingLaterCleanup() {
-    final OutOfMemoryError fatal = new OutOfMemoryError("fatal cleanup failure");
+    final OutOfMemoryError fatal = new OutOfMemoryError("fatal cleanup failure!");
     final List<Integer> cleaned = new ArrayList<>();
     final OutOfMemoryError thrown = assertThrows(OutOfMemoryError.class, () ->
       CleanupUtils.runAll(

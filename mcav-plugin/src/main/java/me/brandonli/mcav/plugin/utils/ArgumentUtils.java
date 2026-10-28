@@ -50,7 +50,7 @@ public final class ArgumentUtils {
   private static final String EVERYONE = "@a";
 
   private ArgumentUtils() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+    throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
 
   /**
@@ -66,7 +66,7 @@ public final class ArgumentUtils {
    *                                  negative or larger than {@link #MAX_SIDE}
    */
   public static Pair<Integer, Integer> parseDimensions(final String argument) {
-    Preconditions.checkNotNull(argument, "Argument must not be null");
+    Preconditions.checkNotNull(argument, "Argument must not be null!");
     final String[] sides = argument.split("x", 2);
     if (sides.length != 2) {
       throw new IllegalArgumentException("Invalid dimensions format: " + argument);
@@ -122,7 +122,7 @@ public final class ArgumentUtils {
    * @throws NullPointerException if the selector is {@code null}
    */
   public static Collection<UUID> parsePlayerSelectors(final MultiplePlayerSelector playerSelector) {
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
     final Collection<Player> players = playerSelector.values();
     final Stream<Player> playerStream = players.stream();
     final Stream<UUID> ids = playerStream.map(Entity::getUniqueId);
@@ -139,8 +139,8 @@ public final class ArgumentUtils {
    * @return the unique ids of the viewers, a live view for {@code @a}
    */
   public static Collection<UUID> parseViewers(final MultiplePlayerSelector playerSelector, final OnlinePlayers online) {
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(online, "Online players must not be null");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(online, "Online players must not be null!");
     return EVERYONE.equals(playerSelector.inputString()) ? online.getPlayers() : parsePlayerSelectors(playerSelector);
   }
 }

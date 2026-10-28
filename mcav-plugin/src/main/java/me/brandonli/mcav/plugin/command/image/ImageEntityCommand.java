@@ -92,12 +92,12 @@ public final class ImageEntityCommand extends AbstractImageCommand {
     @Greedy @FlagYielding final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(imageResolution, "Image resolution must not be null");
-    Preconditions.checkNotNull(character, "Character must not be null");
-    Preconditions.checkNotNull(location, "Location must not be null");
-    Preconditions.checkNotNull(mrl, "MRL must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(imageResolution, "Image resolution must not be null!");
+    Preconditions.checkNotNull(character, "Character must not be null!");
+    Preconditions.checkNotNull(location, "Location must not be null!");
+    Preconditions.checkNotNull(mrl, "MRL must not be null!");
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
     final ImageConfigurationProvider configProvider = resolution -> createConfiguration(resolution, players, character, location);
     this.displayImage(configProvider, sender, imageResolution, mrl, filters);
@@ -113,8 +113,8 @@ public final class ImageEntityCommand extends AbstractImageCommand {
    */
   @Override
   public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configProvider) {
-    Preconditions.checkNotNull(resolution, "Resolution must not be null");
-    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null");
+    Preconditions.checkNotNull(resolution, "Resolution must not be null!");
+    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null!");
     final EntityConfiguration configuration = (EntityConfiguration) configProvider.buildConfiguration(resolution);
     return DisplayableImage.entity(configuration);
   }

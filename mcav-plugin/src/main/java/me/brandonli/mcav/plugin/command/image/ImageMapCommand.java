@@ -111,12 +111,12 @@ public final class ImageMapCommand extends AbstractImageCommand {
     @Flag("codec") final @Nullable MapCodec codec,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(sender, "Sender must not be null");
-    Preconditions.checkNotNull(playerSelector, "Player selector must not be null");
-    Preconditions.checkNotNull(imageResolution, "Image resolution must not be null");
-    Preconditions.checkNotNull(blockDimensions, "Block dimensions must not be null");
-    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null");
-    Preconditions.checkNotNull(mrl, "MRL must not be null");
+    Preconditions.checkNotNull(sender, "Sender must not be null!");
+    Preconditions.checkNotNull(playerSelector, "Player selector must not be null!");
+    Preconditions.checkNotNull(imageResolution, "Image resolution must not be null!");
+    Preconditions.checkNotNull(blockDimensions, "Block dimensions must not be null!");
+    Preconditions.checkNotNull(ditheringAlgorithm, "Dithering algorithm must not be null!");
+    Preconditions.checkNotNull(mrl, "MRL must not be null!");
     final Pair<Integer, Integer> blocks = parseBlocks(sender, blockDimensions);
     if (blocks == null) {
       return;
@@ -195,8 +195,8 @@ public final class ImageMapCommand extends AbstractImageCommand {
    */
   @Override
   public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configProvider) {
-    Preconditions.checkNotNull(resolution, "Resolution must not be null");
-    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null");
+    Preconditions.checkNotNull(resolution, "Resolution must not be null!");
+    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null!");
     final Object built = configProvider.buildConfiguration(resolution);
     if (built instanceof final Mcv2ImageSettings mcv2) {
       final DisplayableImage image = this.createMcv2Image(mcv2);

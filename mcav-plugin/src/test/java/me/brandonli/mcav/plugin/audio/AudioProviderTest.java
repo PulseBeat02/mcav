@@ -275,7 +275,7 @@ final class AudioProviderTest {
     final boolean readyWhileStarting = this.provider.isDiscordBotReady();
     assertFalse(readyWhileStarting);
     final String message = this.discordFailure();
-    assertEquals("The Discord bot is not ready", message);
+    assertEquals("The Discord bot is not ready!", message);
     final int ran = this.runDeferred();
     assertEquals(1, ran);
     verify(this.jda).awaitReady();
@@ -294,7 +294,7 @@ final class AudioProviderTest {
     final boolean ready = this.provider.isDiscordBotReady();
     assertFalse(ready);
     final String message = this.discordFailure();
-    assertEquals("The Discord bot is not ready", message);
+    assertEquals("The Discord bot is not ready!", message);
     this.provider.shutdown();
     verify(this.jda, never()).shutdown();
   }
@@ -313,7 +313,7 @@ final class AudioProviderTest {
   @Test
   void shouldShutTheBotDownAndKeepTheInterruptWhenInterruptedWhileLoggingIn() throws InterruptedException {
     this.enableDiscord();
-    doThrow(new InterruptedException("stop")).when(this.jda).awaitReady();
+    doThrow(new InterruptedException("stop!")).when(this.jda).awaitReady();
     this.provider.initialize();
     final boolean interrupted = Thread.interrupted();
     assertTrue(interrupted);
@@ -346,7 +346,7 @@ final class AudioProviderTest {
     final boolean readyWhileStarting = this.provider.isHttpReady();
     assertFalse(readyWhileStarting);
     final String message = this.httpFailure();
-    assertEquals("The audio web page is not ready", message);
+    assertEquals("The audio web page is not ready!", message);
     final int ran = this.runDeferred();
     assertEquals(1, ran);
     verify(this.httpServer).start();
@@ -357,12 +357,12 @@ final class AudioProviderTest {
   @Test
   void shouldLeaveTheWebPageUnavailableWhenItFailsToStart() {
     this.enableHttp();
-    doThrow(new IllegalStateException("port 3000 is in use")).when(this.httpServer).start();
+    doThrow(new IllegalStateException("port 3000 is in use!")).when(this.httpServer).start();
     this.provider.initialize();
     final boolean ready = this.provider.isHttpReady();
     assertFalse(ready);
     final String message = this.httpFailure();
-    assertEquals("The audio web page is not ready", message);
+    assertEquals("The audio web page is not ready!", message);
     final String url = this.provider.constructHttpUrl();
     assertEquals("http://mc.example.com:3000/", url);
   }
@@ -371,8 +371,8 @@ final class AudioProviderTest {
   void shouldRefuseOutputsThatWereNotStarted() {
     final String httpMessage = this.httpFailure();
     final String discordMessage = this.discordFailure();
-    assertEquals("The audio web page is not ready", httpMessage);
-    assertEquals("The Discord bot is not ready", discordMessage);
+    assertEquals("The audio web page is not ready!", httpMessage);
+    assertEquals("The Discord bot is not ready!", discordMessage);
   }
 
   @Test
@@ -395,7 +395,7 @@ final class AudioProviderTest {
     when(this.configuration.isSimpleVoiceChatEnabled()).thenReturn(true);
     final IllegalStateException exception = assertThrows(IllegalStateException.class, this.provider::initialize);
     final String message = exception.getMessage();
-    assertEquals("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed", message);
+    assertEquals("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!", message);
     final PluginManager pluginManager = TestServer.pluginManager();
     verify(pluginManager, never()).registerEvents(any(), any());
   }
@@ -551,7 +551,7 @@ final class AudioProviderTest {
     final Object machine = new Object();
     final AudioFilter video = this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.HTTP_SERVER, UrlParseDump.of("The machine"), this.players, machine);
-    doThrow(new IllegalStateException("Missing permission VOICE_CONNECT")).when(this.audioManager).openAudioConnection(this.channel);
+    doThrow(new IllegalStateException("Missing permission VOICE_CONNECT!")).when(this.audioManager).openAudioConnection(this.channel);
     this.provider.releaseAudioFilter(machine);
 
     final boolean filtered = video.applyFilter(ByteBuffer.allocate(4), OriginalAudioMetadata.of("pcm_s16le", 1_536_000, 48_000, 2, 1));
@@ -571,7 +571,7 @@ final class AudioProviderTest {
     );
 
     final String message = failure.getMessage();
-    assertEquals("The Discord bot is not ready", message);
+    assertEquals("The Discord bot is not ready!", message);
 
     this.provider.releaseAudioFilter(machine);
     verify(this.voiceChatFilter, never()).release();
@@ -601,7 +601,7 @@ final class AudioProviderTest {
     this.provider.constructFilter(AudioArgument.HTTP_SERVER, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.DISCORD_BOT, this.dump, this.players);
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, machine);
-    doThrow(new IllegalStateException("Missing permission VOICE_CONNECT")).when(this.audioManager).openAudioConnection(this.channel);
+    doThrow(new IllegalStateException("Missing permission VOICE_CONNECT!")).when(this.audioManager).openAudioConnection(this.channel);
     this.provider.releaseAudioFilter(machine);
     this.provider.constructFilter(AudioArgument.SIMPLE_VOICE_CHAT, this.dump, this.players, browser);
     this.provider.releaseAudioFilter(browser);
@@ -665,7 +665,7 @@ final class AudioProviderTest {
     verify(this.jda, times(1)).shutdown();
     verify(this.audioManager, times(1)).closeAudioConnection();
     final String message = this.discordFailure();
-    assertEquals("The Discord bot is not ready", message);
+    assertEquals("The Discord bot is not ready!", message);
     final boolean httpReady = this.provider.isHttpReady();
     assertFalse(httpReady);
     final String url = this.provider.constructHttpUrl();
@@ -754,7 +754,7 @@ final class AudioProviderTest {
   @Test
   void shouldPreserveTheInterruptWhenShutdownCannotWaitForStartup() throws InterruptedException {
     this.startInTheBackground();
-    when(this.startup.awaitTermination(10, TimeUnit.SECONDS)).thenThrow(new InterruptedException("stop waiting"));
+    when(this.startup.awaitTermination(10, TimeUnit.SECONDS)).thenThrow(new InterruptedException("stop waiting!"));
     final String output;
     try (final StandardErrorCapture errors = StandardErrorCapture.start()) {
       this.provider.shutdown();

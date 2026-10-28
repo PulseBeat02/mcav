@@ -459,7 +459,7 @@ final class InteractUtilsTest {
       InteractUtils.getBoardCoordinates(this.player, zombie)
     );
     final String message = exception.getMessage();
-    assertEquals("Target entity is not an ItemFrame", message);
+    assertEquals("Target entity is not an ItemFrame!", message);
   }
 
   @Test

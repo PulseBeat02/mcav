@@ -184,7 +184,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * @param plugin the plugin
    */
   public Mcv2PlayCommand(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     this.plugin = plugin;
     this.reads = Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name("mcav-mcv2-stream-read").factory());
   }
@@ -674,11 +674,11 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     int offset = 0;
     while (offset < data.length) {
       if (data.length - offset < LENGTH_BYTES) {
-        throw new IOException("Truncated frame length");
+        throw new IOException("Truncated frame length!");
       }
       final long length = Mcv2Decoder.u32(data, offset);
       if (length > data.length - offset - LENGTH_BYTES) {
-        throw new IOException("Truncated frame");
+        throw new IOException("Truncated frame!");
       }
       // a record no frame can be is refused before it is copied: records of a few bytes each would make the copies
       // take several times the file's size in memory
@@ -691,7 +691,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       offset += LENGTH_BYTES + frame.length;
     }
     if (frames.isEmpty()) {
-      throw new IOException("Empty stream");
+      throw new IOException("Empty stream!");
     }
     return frames;
   }

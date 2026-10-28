@@ -100,7 +100,7 @@ public final class VideoPlayerManager {
    * @param plugin the plugin, whose library and audio provider must be available
    */
   public VideoPlayerManager(final MCAVSandbox plugin) {
-    Preconditions.checkNotNull(plugin, "Plugin must not be null");
+    Preconditions.checkNotNull(plugin, "Plugin must not be null!");
     this.status = new AtomicBoolean(false);
     this.service = Executors.newSingleThreadExecutor();
     this.provider = plugin.getAudioProvider();
@@ -183,7 +183,7 @@ public final class VideoPlayerManager {
    * @return true if the preparation has not finished yet, false if the capability is available or failed
    */
   public boolean isPreparing(final Capability capability) {
-    Preconditions.checkNotNull(capability, "Capability must not be null");
+    Preconditions.checkNotNull(capability, "Capability must not be null!");
     final CompletableFuture<Boolean> ready = this.api.whenCapabilityReady(capability);
     final boolean done = ready.isDone();
     return !done;
@@ -216,7 +216,7 @@ public final class VideoPlayerManager {
   long beginStart() {
     synchronized (this.lifecycle) {
       if (this.closed) {
-        throw new CancellationException("The video manager is shut down");
+        throw new CancellationException("The video manager is shut down!");
       }
       this.startGeneration = ++this.generation;
       return this.startGeneration;
@@ -237,7 +237,7 @@ public final class VideoPlayerManager {
 
   private void checkStartLocked() {
     if (this.closed || this.generation != this.startGeneration) {
-      throw new CancellationException("The video startup was cancelled");
+      throw new CancellationException("The video startup was cancelled!");
     }
   }
 
@@ -328,7 +328,7 @@ public final class VideoPlayerManager {
     final VideoPlayerMultiplexer candidate;
     synchronized (this.lifecycle) {
       this.checkStartLocked();
-      candidate = Preconditions.checkNotNull(this.player, "No video player was configured");
+      candidate = Preconditions.checkNotNull(this.player, "No video player was configured!");
       this.startingPlayer = candidate;
     }
     final boolean started;
@@ -457,13 +457,13 @@ public final class VideoPlayerManager {
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();
       current.interrupt();
-      throw new IllegalStateException("Interrupted while releasing the video on the main thread", exception);
+      throw new IllegalStateException("Interrupted while releasing the video on the main thread!", exception);
     } catch (final ExecutionException exception) {
       final Throwable cause = exception.getCause();
       if (cause instanceof final VirtualMachineError fatal) {
         throw fatal;
       }
-      throw new IllegalStateException("Failed to release the video on the main thread", cause);
+      throw new IllegalStateException("Failed to release the video on the main thread!", cause);
     }
   }
 
@@ -502,7 +502,7 @@ public final class VideoPlayerManager {
         return;
       }
     }
-    final CancellationException failure = new CancellationException("The video startup was cancelled");
+    final CancellationException failure = new CancellationException("The video startup was cancelled!");
     cleanupAfterFailure(failure, player::release);
     throw failure;
   }
