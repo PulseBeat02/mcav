@@ -79,4 +79,13 @@ final class MapFixtures {
       symbols[at / SYMBOL_BITS] = (symbols[at / SYMBOL_BITS] & ~(1 << shift)) | (set << shift);
     }
   }
+
+  static byte[] withFlippedBits(final byte[] colours, final byte[] masks) {
+    final byte[] flipped = colours.clone();
+    for (int index = 0; index < masks.length; index++) {
+      flipped[index] ^= masks[index];
+    }
+
+    return flipped;
+  }
 }
