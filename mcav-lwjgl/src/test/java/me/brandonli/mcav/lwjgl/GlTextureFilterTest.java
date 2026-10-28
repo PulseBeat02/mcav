@@ -57,11 +57,6 @@ import org.mockito.MockedStatic;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Stubber;
 
-/**
- * Tests {@link GlTextureFilter} against a real OpenGL context of a hidden GLFW window, and reads the textures back
- * to check what was uploaded. The tests are skipped on machines without an OpenGL driver or LWJGL natives
- * for the platform, and on macOS when the tests do not run on the first thread.
- */
 final class GlTextureFilterTest {
 
   private static final int WINDOW_SIZE = 16;

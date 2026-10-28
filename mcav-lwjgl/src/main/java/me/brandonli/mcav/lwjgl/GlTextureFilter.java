@@ -226,14 +226,6 @@ public class GlTextureFilter implements FunctionalVideoFilter {
     return false;
   }
 
-  /**
-   * Copies a frame into the back buffer and marks it as the newest frame, growing the back buffer when it is too
-   * small.
-   *
-   * @param source the pixels of the frame, positioned and limited to exactly the frame
-   * @param width  the width of the frame
-   * @param height the height of the frame
-   */
   private void stage(final ByteBuffer source, final int width, final int height) {
     final int size = source.remaining();
     synchronized (this.lock) {
@@ -293,13 +285,6 @@ public class GlTextureFilter implements FunctionalVideoFilter {
     }
   }
 
-  /**
-   * Uploads pixels to the texture, leaving the bound texture and the unpack settings of the caller as they were.
-   *
-   * @param pixels the frame in {@code GL_BGR} layout
-   * @param width  the width of the frame
-   * @param height the height of the frame
-   */
   @VisibleForTesting
   void transfer(final ByteBuffer pixels, final int width, final int height) {
     final int previousTexture = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
@@ -319,13 +304,6 @@ public class GlTextureFilter implements FunctionalVideoFilter {
     }
   }
 
-  /**
-   * Writes pixels into the bound texture, reallocating the texture storage when the frame size changed.
-   *
-   * @param pixels the frame in {@code GL_BGR} layout
-   * @param width  the width of the frame
-   * @param height the height of the frame
-   */
   private void writePixels(final ByteBuffer pixels, final int width, final int height) {
     final boolean resized = width != this.textureWidth || height != this.textureHeight;
     if (resized) {
@@ -337,14 +315,6 @@ public class GlTextureFilter implements FunctionalVideoFilter {
     }
   }
 
-  /**
-   * Sets the pixel unpack settings of the current context.
-   *
-   * @param alignment  the row alignment in bytes
-   * @param rowLength  the row length in pixels, or 0 for the width of the upload
-   * @param skipRows   the number of rows to skip
-   * @param skipPixels the number of pixels to skip in every row
-   */
   private void setUnpackState(final int alignment, final int rowLength, final int skipRows, final int skipPixels) {
     GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, alignment);
     GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, rowLength);
@@ -352,11 +322,7 @@ public class GlTextureFilter implements FunctionalVideoFilter {
     GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, skipPixels);
   }
 
-  /**
-   * Checks that an OpenGL context is current, since OpenGL calls without one crash the JVM or fail obscurely.
-   *
-   * @throws IllegalStateException if no OpenGL context is current on the calling thread
-   */
+  // OpenGL calls without a current context crash the JVM.
   private void requireContext() {
     try {
       final GLCapabilities capabilities = GL.getCapabilities();
