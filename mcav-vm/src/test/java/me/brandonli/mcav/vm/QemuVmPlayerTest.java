@@ -94,6 +94,8 @@ final class QemuVmPlayerTest {
 
   private static final int CHUNK_BYTES = 8;
 
+  private static final long SOUND_HOLD_MILLISECONDS = 70L;
+
   private static final int MOVE_X = 1;
   private static final int MOVE_Y = 2;
   private static final int CLICK_X = 3;
@@ -237,6 +239,26 @@ final class QemuVmPlayerTest {
     this.waitUntil(() -> heard.size() >= 2);
     final int silenceLength = heard.get(1);
     assertEquals(3840, silenceLength, "20 ms of silence after the sound");
+
+    player.release();
+  }
+
+  @Test
+  void shouldHoldTheSoundOfTheGuestSoItWaitsForThePicture() {
+    when(this.qemu.hasAudio()).thenReturn(true);
+    final List<Long> handedOver = new CopyOnWriteArrayList<>();
+    final QemuVmPlayer player = this.startedPlayer();
+    final AudioAttachableCallback audio = player.getAudioAttachableCallback();
+    audio.attach(AudioPipelineStep.of((samples, metadata) -> handedOver.add(System.nanoTime())));
+    final VmAudioClient.Sink sink = this.sinks.getFirst();
+    final long arrived = System.nanoTime();
+    sink.accept(new byte[CHUNK_BYTES], CHUNK_BYTES);
+    this.waitUntil(() -> !handedOver.isEmpty());
+
+    final long handedOverAt = handedOver.getFirst();
+    final long heldNanoseconds = handedOverAt - arrived;
+    final long heldMilliseconds = TimeUnit.NANOSECONDS.toMillis(heldNanoseconds);
+    assertTrue(heldMilliseconds >= SOUND_HOLD_MILLISECONDS, "the sound was held for %s ms".formatted(heldMilliseconds));
 
     player.release();
   }
