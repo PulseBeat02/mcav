@@ -64,7 +64,7 @@ final class KeySymbolsTest {
   }
 
   @Test
-  void shouldParseHexadecimalCodesAndClosesTheReader() {
+  void shouldParseHexadecimalCodesAndCloseTheReader() {
     final ClosingReader reader = new ClosingReader("{\"A\": \"0x41\", \"F1\": \"0xffbe\"}", false);
     final Map<String, Integer> symbols = KeySymbols.parse(reader);
     final int letter = symbols.get("A");

@@ -82,7 +82,7 @@ public interface VncSource extends DynamicSource {
   /**
    * Returns the user name for servers that require one.
    *
-   * @return the user name, or empty if none is sent
+   * @return the user name, or empty if none was set
    * @since 1.0.0
    */
   Optional<String> getUsername();
@@ -90,7 +90,7 @@ public interface VncSource extends DynamicSource {
   /**
    * Returns the password for servers that require one.
    *
-   * @return the password, or empty if none is sent
+   * @return the password, or empty if none was set
    * @since 1.0.0
    */
   Optional<String> getPassword();

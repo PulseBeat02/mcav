@@ -543,8 +543,11 @@ final class VmProcessTest {
 
       final String secret = command.get(command.indexOf(OBJECT_ARGUMENT) + 1);
       final Path file = Path.of(secret.substring(SECRET_OBJECT_PREFIX.length()));
+      final Path folder = this.directory.resolve(SECRET_FOLDER);
       final boolean leftOnDisk = Files.exists(file);
+      final boolean folderLeft = Files.exists(folder);
       assertFalse(leftOnDisk, "QEMU read the password, so it is not left on disk");
+      assertFalse(folderLeft, "nor is the folder that held it");
     } finally {
       process.shutdown();
     }

@@ -18,6 +18,7 @@
 package me.brandonli.mcav.vnc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Constructor;
 import me.brandonli.mcav.module.MCAVModule;
@@ -35,14 +36,14 @@ final class VncModuleTest {
   }
 
   @Test
-  void shouldStartAndStopsWithoutPreparingAnything() {
+  void shouldReleaseNoPlayerWhenStopped() {
     final MCAVModule module = new VncModule();
+    final VncPlayer player = VncPlayer.create();
     module.start();
     module.stop();
-    module.start();
-    module.stop();
-    final String name = module.getModuleName();
-    assertEquals(MODULE_NAME, name);
+
+    final boolean released = player.release();
+    assertTrue(released, "the player was still unreleased after the module stopped");
   }
 
   @Test

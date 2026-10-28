@@ -338,17 +338,16 @@ final class EntityChannelSvcFilterTest {
   }
 
   @Test
-  void shouldPassSamplesOnWithoutPlayingThemUntilStartedAndAfterRelease() {
+  void shouldPassTheSamplesOnUnchangedWhetherStartedOrNot() {
     final SvcFilter filter = SvcFilter.svc(ALICE);
-    final short[] silence = new short[FRAME_SAMPLES];
-    this.assertStoppedFilterQueuesNothing(filter, silence);
+    final short[] mono = this.ramp(FRAME_SAMPLES, -100);
+    this.assertPassedOnUnchanged(filter, mono);
 
     filter.start();
-    filter.release();
-    this.assertStoppedFilterQueuesNothing(filter, silence);
+    this.assertPassedOnUnchanged(filter, mono);
 
-    final short[] afterReleaseFrame = this.nextFrameOf(0);
-    assertArrayEquals(silence, afterReleaseFrame);
+    filter.release();
+    this.assertPassedOnUnchanged(filter, mono);
   }
 
   @Test
@@ -823,6 +822,14 @@ final class EntityChannelSvcFilterTest {
     final int queued = filter.getQueuedFrames();
     assertFalse(reportedChange, "the filter only reads the samples, so it reports no change");
     assertEquals(0, queued);
+  }
+
+  private void assertPassedOnUnchanged(final SvcFilter filter, final short[] mono) {
+    final ByteBuffer samples = this.stereoOf(mono);
+    final ByteBuffer original = this.stereoOf(mono);
+    final boolean reportedChange = filter.applyFilter(samples, this.metadata);
+    assertFalse(reportedChange);
+    assertEquals(original, samples);
   }
 
   private boolean feed(final SvcFilter filter, final short[] mono) {

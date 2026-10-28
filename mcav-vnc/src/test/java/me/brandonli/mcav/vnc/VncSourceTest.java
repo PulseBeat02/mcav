@@ -171,6 +171,18 @@ final class VncSourceTest {
   }
 
   @Test
+  void shouldKeepItsSettingsWhenTheBuilderChangesLater() {
+    final VncSourceBuilder builder = this.fullBuilder();
+    final VncSource source = builder.build();
+    builder.host("example.com").port(5902).username("admin").password("hunter2");
+    builder.screenWidth(320).screenHeight(240).targetFrameRate(60);
+
+    final VncSourceBuilder unchangedBuilder = this.fullBuilder();
+    final VncSource unchanged = unchangedBuilder.build();
+    assertEquals(unchanged, source);
+  }
+
+  @Test
   void shouldCompareEverySetting() {
     final VncSourceBuilder sourceBuilder = this.fullBuilder();
     final VncSource source = sourceBuilder.build();

@@ -37,11 +37,14 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -93,6 +96,14 @@ final class QemuVmPlayerTest {
   private static final long TIMEOUT_SECONDS = 10L;
 
   private static final int CHUNK_BYTES = 8;
+
+  private static final long SOUND_HOLD_MILLISECONDS = 70L;
+  private static final int MAXIMUM_WAITING_SOUND_MILLISECONDS = 130;
+
+  private static final int SOUND_BYTES_PER_MILLISECOND = 192;
+  private static final int SOUND_CHUNK_MILLISECONDS = 10;
+  private static final int SOUND_CHUNKS_PER_SECOND = 100;
+  private static final int MARKER_BYTES = 4;
 
   private static final int MOVE_X = 1;
   private static final int MOVE_Y = 2;
@@ -239,6 +250,82 @@ final class QemuVmPlayerTest {
     assertEquals(3840, silenceLength, "20 ms of silence after the sound");
 
     player.release();
+  }
+
+  @Test
+  void shouldHoldTheSoundOfTheGuestSoItWaitsForThePicture() {
+    when(this.qemu.hasAudio()).thenReturn(true);
+    final List<Long> handedOver = new CopyOnWriteArrayList<>();
+    final QemuVmPlayer player = this.startedPlayer();
+    final AudioAttachableCallback audio = player.getAudioAttachableCallback();
+    audio.attach(AudioPipelineStep.of((samples, metadata) -> handedOver.add(System.nanoTime())));
+    final VmAudioClient.Sink sink = this.sinks.getFirst();
+    final long arrived = System.nanoTime();
+    sink.accept(new byte[CHUNK_BYTES], CHUNK_BYTES);
+    this.waitUntil(() -> !handedOver.isEmpty());
+
+    final long handedOverAt = handedOver.getFirst();
+    final long heldNanoseconds = handedOverAt - arrived;
+    final long heldMilliseconds = TimeUnit.NANOSECONDS.toMillis(heldNanoseconds);
+    assertTrue(heldMilliseconds >= SOUND_HOLD_MILLISECONDS, "the sound was held for %s ms".formatted(heldMilliseconds));
+
+    player.release();
+  }
+
+  @Test
+  void shouldDropTheOldestSoundOnceMoreThan130MillisecondsWaitForASlowPipeline() {
+    when(this.qemu.hasAudio()).thenReturn(true);
+    final CountDownLatch pipelineFreed = new CountDownLatch(1);
+    final List<byte[]> handedOver = new CopyOnWriteArrayList<>();
+    final QemuVmPlayer player = this.startedPlayer();
+    final AudioAttachableCallback audio = player.getAudioAttachableCallback();
+    audio.attach(AudioPipelineStep.of((samples, metadata) -> this.recordBlockingOnTheFirst(samples, handedOver, pipelineFreed)));
+    final VmAudioClient.Sink sink = this.sinks.getFirst();
+    sink.accept(new byte[CHUNK_BYTES], CHUNK_BYTES);
+    this.waitUntil(() -> handedOver.size() == 1);
+
+    final byte[] sent = this.sendOneSecondOfNumberedChunks(sink);
+    sink.accept(new byte[MARKER_BYTES], MARKER_BYTES);
+    pipelineFreed.countDown();
+    this.waitUntil(() -> handedOver.getLast().length == MARKER_BYTES);
+    final List<byte[]> waitedChunks = handedOver.subList(1, handedOver.size() - 1);
+    final ByteArrayOutputStream waited = new ByteArrayOutputStream();
+    waitedChunks.forEach(waited::writeBytes);
+    final byte[] kept = waited.toByteArray();
+    final byte[] newest = Arrays.copyOfRange(sent, sent.length - kept.length, sent.length);
+    assertArrayEquals(newest, kept, "the newest sound waited and the oldest was dropped");
+
+    final int waitingBytes = kept.length + MARKER_BYTES;
+    final int limitBytes = MAXIMUM_WAITING_SOUND_MILLISECONDS * SOUND_BYTES_PER_MILLISECOND;
+    final int chunkBytes = SOUND_CHUNK_MILLISECONDS * SOUND_BYTES_PER_MILLISECOND;
+    assertTrue(waitingBytes <= limitBytes, "%s bytes of sound waited".formatted(waitingBytes));
+    assertTrue(waitingBytes > limitBytes - chunkBytes, "%s bytes of sound waited".formatted(waitingBytes));
+
+    player.release();
+  }
+
+  private boolean recordBlockingOnTheFirst(final ByteBuffer samples, final List<byte[]> handedOver, final CountDownLatch pipelineFreed) {
+    final byte[] copy = new byte[samples.remaining()];
+    samples.get(copy);
+    handedOver.add(copy);
+    if (handedOver.size() == 1) {
+      this.awaitLatch(pipelineFreed);
+    }
+
+    return true;
+  }
+
+  private byte[] sendOneSecondOfNumberedChunks(final VmAudioClient.Sink sink) {
+    final int chunkBytes = SOUND_CHUNK_MILLISECONDS * SOUND_BYTES_PER_MILLISECOND;
+    final ByteArrayOutputStream sent = new ByteArrayOutputStream();
+    for (int chunkNumber = 0; chunkNumber < SOUND_CHUNKS_PER_SECOND; chunkNumber++) {
+      final byte[] chunk = new byte[chunkBytes];
+      Arrays.fill(chunk, (byte) chunkNumber);
+      sink.accept(chunk, chunkBytes);
+      sent.writeBytes(chunk);
+    }
+
+    return sent.toByteArray();
   }
 
   @Test

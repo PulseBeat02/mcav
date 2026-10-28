@@ -117,6 +117,7 @@ final class InstallationManagerTest {
   private static final String PATH_SEPARATOR = "/";
   private static final String VERSION_SEPARATOR = "-";
   private static final String JAR_EXTENSION = ".jar";
+  private static final String PART_SUFFIX = ".part";
 
   private static final String GROUP = "me.test";
   private static final String VERSION = "1.0";
@@ -510,6 +511,22 @@ final class InstallationManagerTest {
         VERSION +
         JAR_EXTENSION
     );
+  }
+
+  @Test
+  void shouldReplaceAPartialFileThatAnInterruptedCopyLeftBehind() throws IOException {
+    this.download(RUNTIME_DEPENDENCY);
+    final Path copied = this.copiedJar(RUNTIME_DEPENDENCY, RUNTIME_DEPENDENCY);
+    final Path fileName = copied.getFileName();
+    final Path partial = copied.resolveSibling(fileName + PART_SUFFIX);
+    Files.writeString(copied, "outdated jar");
+    Files.writeString(partial, "half-written jar");
+
+    this.download(RUNTIME_DEPENDENCY);
+    final Path source = this.publishedJar(RUNTIME_DEPENDENCY);
+    final boolean partialLeft = Files.exists(partial);
+    this.assertSameContent(source, copied, "the jar is copied again in full");
+    assertFalse(partialLeft, "the partial file of the interrupted copy is overwritten and moved into place");
   }
 
   @Test
