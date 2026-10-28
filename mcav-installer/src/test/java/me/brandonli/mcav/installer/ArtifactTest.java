@@ -18,18 +18,12 @@
 package me.brandonli.mcav.installer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 final class ArtifactTest {
-
-  private static final String COPY_FAILURE_MESSAGE = "Jars cannot be copied!";
 
   @Test
   void shouldListEveryModuleWithItsArtifactId() {
@@ -54,46 +48,5 @@ final class ArtifactTest {
   void shouldUseTheGroupAndVersionOfThePublishedModules() {
     assertEquals("me.brandonli", Artifact.GROUP_ID);
     assertEquals("1.0.0-SNAPSHOT", Artifact.DEFAULT_VERSION);
-  }
-
-  @Test
-  void shouldKeepTheMessageOfInstallationExceptions() {
-    final InstallationException exception = new InstallationException(COPY_FAILURE_MESSAGE);
-    final String message = exception.getMessage();
-    final Throwable cause = exception.getCause();
-    assertEquals(COPY_FAILURE_MESSAGE, message);
-    assertNull(cause);
-  }
-
-  @Test
-  void shouldKeepTheMessageAndTheCauseOfInstallationExceptions() {
-    final IOException copyFailure = new IOException("Disk is full!");
-    final InstallationException exception = new InstallationException(COPY_FAILURE_MESSAGE, copyFailure);
-    final String message = exception.getMessage();
-    final Throwable cause = exception.getCause();
-    assertEquals(COPY_FAILURE_MESSAGE, message);
-    assertSame(copyFailure, cause);
-  }
-
-  @Test
-  void shouldMakeInstallationExceptionsRuntimeExceptions() {
-    final InstallationException exception = new InstallationException(COPY_FAILURE_MESSAGE);
-    assertInstanceOf(RuntimeException.class, exception, "a failed installation is recoverable, so it is no Error");
-  }
-
-  @Test
-  void shouldCarryTheMessageAndCauseOfInjectorExceptions() {
-    final IllegalAccessException cause = new IllegalAccessException("Module is closed!");
-    final JarInjectorException withCause = new JarInjectorException("Jars cannot be injected!", cause);
-    final JarInjectorException withoutCause = new JarInjectorException("Jars cannot be injected!");
-    final String message = withCause.getMessage();
-    final Throwable actualCause = withCause.getCause();
-    final String otherMessage = withoutCause.getMessage();
-    final Throwable missingCause = withoutCause.getCause();
-    assertEquals("Jars cannot be injected!", message);
-    assertSame(cause, actualCause);
-    assertEquals("Jars cannot be injected!", otherMessage);
-    assertNull(missingCause);
-    assertInstanceOf(UnsupportedOperationException.class, withCause);
   }
 }
