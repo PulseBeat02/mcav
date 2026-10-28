@@ -135,7 +135,7 @@ public class GlTextureFilter implements FunctionalVideoFilter {
    */
   @Override
   public void start() {
-    requireContext();
+    this.requireContext();
 
     if (this.ownsTexture && this.textureId == NO_TEXTURE) {
       this.createTexture();
@@ -179,7 +179,7 @@ public class GlTextureFilter implements FunctionalVideoFilter {
   }
 
   private void deleteTexture() {
-    requireContext();
+    this.requireContext();
 
     GL11.glDeleteTextures(this.textureId);
     this.textureId = NO_TEXTURE;
@@ -263,7 +263,7 @@ public class GlTextureFilter implements FunctionalVideoFilter {
    */
   public boolean upload() {
     Preconditions.checkState(this.textureId != NO_TEXTURE, "The texture was not created; call start() on the render thread first!");
-    requireContext();
+    this.requireContext();
 
     final @Nullable StagedFrame frame = this.swapStagedFrame();
     if (frame == null) {
@@ -308,10 +308,10 @@ public class GlTextureFilter implements FunctionalVideoFilter {
     try {
       GL11.glBindTexture(GL11.GL_TEXTURE_2D, this.textureId);
       // Rows of 3-byte pixels are not usually 4-byte aligned; the frame is tightly packed.
-      setUnpackState(PACKED_ALIGNMENT, UPLOAD_ROW_LENGTH, NO_SKIP, NO_SKIP);
+      this.setUnpackState(PACKED_ALIGNMENT, UPLOAD_ROW_LENGTH, NO_SKIP, NO_SKIP);
       this.writePixels(pixels, width, height);
     } finally {
-      setUnpackState(previousAlignment, previousRowLength, previousSkipRows, previousSkipPixels);
+      this.setUnpackState(previousAlignment, previousRowLength, previousSkipRows, previousSkipPixels);
       GL11.glBindTexture(GL11.GL_TEXTURE_2D, previousTexture);
     }
   }
@@ -342,7 +342,7 @@ public class GlTextureFilter implements FunctionalVideoFilter {
    * @param skipRows   the number of rows to skip
    * @param skipPixels the number of pixels to skip in every row
    */
-  private static void setUnpackState(final int alignment, final int rowLength, final int skipRows, final int skipPixels) {
+  private void setUnpackState(final int alignment, final int rowLength, final int skipRows, final int skipPixels) {
     GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, alignment);
     GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, rowLength);
     GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, skipRows);
@@ -354,7 +354,7 @@ public class GlTextureFilter implements FunctionalVideoFilter {
    *
    * @throws IllegalStateException if no OpenGL context is current on the calling thread
    */
-  private static void requireContext() {
+  private void requireContext() {
     try {
       final GLCapabilities capabilities = GL.getCapabilities();
       Preconditions.checkNotNull(capabilities, "OpenGL capabilities must be set!");

@@ -230,13 +230,13 @@ final class GlTextureFilterTest {
     GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, CALLER_SKIP_PIXELS);
 
     try {
-      try (final MockedStatic<GL11> calls = mockStatic(GL11.class, invocation -> failTextureImage(invocation, failure))) {
+      try (final MockedStatic<GL11> calls = mockStatic(GL11.class, invocation -> this.failTextureImage(invocation, failure))) {
         final IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () ->
           this.filter.transfer(pixels, SINGLE_PIXEL, SINGLE_PIXEL)
         );
         assertSame(failure, thrown);
 
-        calls.verify(() -> uploadSinglePixel(pixels));
+        calls.verify(() -> this.uploadSinglePixel(pixels));
       }
 
       final int binding = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
@@ -259,7 +259,7 @@ final class GlTextureFilterTest {
     }
   }
 
-  private static Object failTextureImage(final InvocationOnMock invocation, final RuntimeException failure) throws Throwable {
+  private Object failTextureImage(final InvocationOnMock invocation, final RuntimeException failure) throws Throwable {
     final Method method = invocation.getMethod();
     final String name = method.getName();
     if (name.equals(TEXTURE_IMAGE_METHOD)) {
@@ -269,7 +269,7 @@ final class GlTextureFilterTest {
     return invocation.callRealMethod();
   }
 
-  private static void uploadSinglePixel(final ByteBuffer pixels) {
+  private void uploadSinglePixel(final ByteBuffer pixels) {
     GL11.glTexImage2D(
       GL11.GL_TEXTURE_2D,
       BASE_LEVEL,
@@ -295,10 +295,10 @@ final class GlTextureFilterTest {
     assertNotEquals(NO_TEXTURE, texture);
     assertTrue(isTexture);
 
-    final int minificationFilter = parameter(texture, GL11.GL_TEXTURE_MIN_FILTER);
-    final int magnificationFilter = parameter(texture, GL11.GL_TEXTURE_MAG_FILTER);
-    final int wrapS = parameter(texture, GL11.GL_TEXTURE_WRAP_S);
-    final int wrapT = parameter(texture, GL11.GL_TEXTURE_WRAP_T);
+    final int minificationFilter = this.parameter(texture, GL11.GL_TEXTURE_MIN_FILTER);
+    final int magnificationFilter = this.parameter(texture, GL11.GL_TEXTURE_MAG_FILTER);
+    final int wrapS = this.parameter(texture, GL11.GL_TEXTURE_WRAP_S);
+    final int wrapT = this.parameter(texture, GL11.GL_TEXTURE_WRAP_T);
     assertEquals(GL11.GL_LINEAR, minificationFilter);
     assertEquals(GL11.GL_LINEAR, magnificationFilter);
     assertEquals(GL12.GL_CLAMP_TO_EDGE, wrapS);
@@ -308,7 +308,7 @@ final class GlTextureFilterTest {
     assertEquals(0, width);
   }
 
-  private static int parameter(final int texture, final int name) {
+  private int parameter(final int texture, final int name) {
     GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
     final int value = GL11.glGetTexParameteri(GL11.GL_TEXTURE_2D, name);
     GL11.glBindTexture(GL11.GL_TEXTURE_2D, NO_TEXTURE);
@@ -328,10 +328,10 @@ final class GlTextureFilterTest {
       GL11.glBindTexture(GL11.GL_TEXTURE_2D, NO_TEXTURE);
       borrowing.start();
 
-      final int minificationFilter = parameter(texture, GL11.GL_TEXTURE_MIN_FILTER);
-      final int magnificationFilter = parameter(texture, GL11.GL_TEXTURE_MAG_FILTER);
-      final int wrapS = parameter(texture, GL11.GL_TEXTURE_WRAP_S);
-      final int wrapT = parameter(texture, GL11.GL_TEXTURE_WRAP_T);
+      final int minificationFilter = this.parameter(texture, GL11.GL_TEXTURE_MIN_FILTER);
+      final int magnificationFilter = this.parameter(texture, GL11.GL_TEXTURE_MAG_FILTER);
+      final int wrapS = this.parameter(texture, GL11.GL_TEXTURE_WRAP_S);
+      final int wrapT = this.parameter(texture, GL11.GL_TEXTURE_WRAP_T);
       assertEquals(GL11.GL_LINEAR, minificationFilter);
       assertEquals(GL11.GL_LINEAR, magnificationFilter);
       assertEquals(GL12.GL_CLAMP_TO_EDGE, wrapS);
@@ -345,19 +345,19 @@ final class GlTextureFilterTest {
   @Test
   void shouldReuseTheTwoStagingBuffersForFixedSizePlayback() {
     final List<ByteBuffer> transferred = new ArrayList<>();
-    final GlTextureFilter recording = recordingFilter(transferred);
+    final GlTextureFilter recording = this.recordingFilter(transferred);
     try {
       recording.start();
 
       for (int frame = 0; frame < FRAME_COUNT; frame++) {
         final int color = frame % STAGING_BUFFER_COUNT == 0 ? RED_ARGB : BLUE_ARGB;
-        final boolean uploaded = stageAndUpload(recording, SMALL_WIDTH, SMALL_HEIGHT, color);
+        final boolean uploaded = this.stageAndUpload(recording, SMALL_WIDTH, SMALL_HEIGHT, color);
         assertTrue(uploaded);
 
         final int texture = recording.getTextureId();
-        final byte[] pixels = readTexture(texture, SMALL_WIDTH, SMALL_HEIGHT);
+        final byte[] pixels = this.readTexture(texture, SMALL_WIDTH, SMALL_HEIGHT);
         final byte[] expected = frame % STAGING_BUFFER_COUNT == 0 ? RED_RGB : BLUE_RGB;
-        assertAllPixels(pixels, expected);
+        this.assertAllPixels(pixels, expected);
       }
 
       final int count = transferred.size();
@@ -375,7 +375,7 @@ final class GlTextureFilterTest {
     }
   }
 
-  private static GlTextureFilter recordingFilter(final List<ByteBuffer> transferred) {
+  private GlTextureFilter recordingFilter(final List<ByteBuffer> transferred) {
     return new GlTextureFilter() {
       @Override
       void transfer(final ByteBuffer pixels, final int width, final int height) {
@@ -385,24 +385,24 @@ final class GlTextureFilterTest {
     };
   }
 
-  private static boolean stageAndUpload(final GlTextureFilter filter, final int width, final int height, final int argb) {
-    stage(filter, width, height, argb);
+  private boolean stageAndUpload(final GlTextureFilter filter, final int width, final int height, final int argb) {
+    this.stage(filter, width, height, argb);
     return filter.upload();
   }
 
-  private static void stage(final GlTextureFilter filter, final int width, final int height, final int argb) {
-    try (final ImageBuffer image = frame(width, height, argb)) {
-      apply(filter, image);
+  private void stage(final GlTextureFilter filter, final int width, final int height, final int argb) {
+    try (final ImageBuffer image = this.frame(width, height, argb)) {
+      this.apply(filter, image);
     }
   }
 
-  private static ImageBuffer frame(final int width, final int height, final int argb) {
+  private ImageBuffer frame(final int width, final int height, final int argb) {
     final int[] pixels = new int[width * height];
     Arrays.fill(pixels, argb);
     return ImageBuffer.buffer(pixels, width, height);
   }
 
-  private static void apply(final GlTextureFilter filter, final ImageBuffer image) {
+  private void apply(final GlTextureFilter filter, final ImageBuffer image) {
     final int width = image.getWidth();
     final int height = image.getHeight();
     final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(width, height);
@@ -410,7 +410,7 @@ final class GlTextureFilterTest {
     assertFalse(kept, "the filter only reads the sample, so it reports no change");
   }
 
-  private static byte[] readTexture(final int texture, final int width, final int height) {
+  private byte[] readTexture(final int texture, final int width, final int height) {
     final ByteBuffer pixels = MemoryUtil.memAlloc(width * height * CHANNELS);
     try {
       GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
@@ -428,7 +428,7 @@ final class GlTextureFilterTest {
     }
   }
 
-  private static void assertAllPixels(final byte[] pixels, final byte[] rgb) {
+  private void assertAllPixels(final byte[] pixels, final byte[] rgb) {
     final int count = pixels.length / CHANNELS;
     for (int pixel = 0; pixel < count; pixel++) {
       final int pixelOffset = pixel * CHANNELS;
@@ -444,8 +444,8 @@ final class GlTextureFilterTest {
     final boolean nothingYet = this.filter.upload();
     assertFalse(nothingYet);
 
-    stage(this.filter, SMALL_WIDTH, SMALL_HEIGHT, RED_ARGB);
-    stage(this.filter, SMALL_WIDTH, SMALL_HEIGHT, BLUE_ARGB);
+    this.stage(this.filter, SMALL_WIDTH, SMALL_HEIGHT, RED_ARGB);
+    this.stage(this.filter, SMALL_WIDTH, SMALL_HEIGHT, BLUE_ARGB);
 
     final boolean pending = this.filter.hasPendingFrame();
     assertTrue(pending);
@@ -461,35 +461,35 @@ final class GlTextureFilterTest {
     final int texture = this.filter.getTextureId();
     final int width = this.filter.getWidth();
     final int height = this.filter.getHeight();
-    final byte[] pixels = readTexture(texture, SMALL_WIDTH, SMALL_HEIGHT);
+    final byte[] pixels = this.readTexture(texture, SMALL_WIDTH, SMALL_HEIGHT);
     assertEquals(SMALL_WIDTH, width);
     assertEquals(SMALL_HEIGHT, height);
-    assertAllPixels(pixels, BLUE_RGB);
+    this.assertAllPixels(pixels, BLUE_RGB);
   }
 
   @Test
   void shouldUpdateFramesOfTheSameSizeInPlaceAndResizeForNewSizes() {
     this.filter.start();
-    stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, GREEN_ARGB);
-    stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, WHITE_ARGB);
+    this.stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, GREEN_ARGB);
+    this.stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, WHITE_ARGB);
 
     final int texture = this.filter.getTextureId();
-    final byte[] white = readTexture(texture, INITIAL_WIDTH, INITIAL_HEIGHT);
-    assertAllPixels(white, WHITE_RGB);
+    final byte[] white = this.readTexture(texture, INITIAL_WIDTH, INITIAL_HEIGHT);
+    this.assertAllPixels(white, WHITE_RGB);
 
-    stageAndUpload(this.filter, RESIZED_WIDTH, RESIZED_HEIGHT, BLACK_ARGB);
+    this.stageAndUpload(this.filter, RESIZED_WIDTH, RESIZED_HEIGHT, BLACK_ARGB);
 
     final int width = this.filter.getWidth();
     final int height = this.filter.getHeight();
-    final byte[] black = readTexture(texture, RESIZED_WIDTH, RESIZED_HEIGHT);
-    final int textureWidth = levelParameter(texture, GL11.GL_TEXTURE_WIDTH);
-    assertAllPixels(black, BLACK_RGB);
+    final byte[] black = this.readTexture(texture, RESIZED_WIDTH, RESIZED_HEIGHT);
+    final int textureWidth = this.levelParameter(texture, GL11.GL_TEXTURE_WIDTH);
+    this.assertAllPixels(black, BLACK_RGB);
     assertEquals(RESIZED_WIDTH, width);
     assertEquals(RESIZED_HEIGHT, height);
     assertEquals(RESIZED_WIDTH, textureWidth);
   }
 
-  private static int levelParameter(final int texture, final int name) {
+  private int levelParameter(final int texture, final int name) {
     GL11.glBindTexture(GL11.GL_TEXTURE_2D, texture);
     final int value = GL11.glGetTexLevelParameteri(GL11.GL_TEXTURE_2D, BASE_LEVEL, name);
     GL11.glBindTexture(GL11.GL_TEXTURE_2D, NO_TEXTURE);
@@ -499,35 +499,35 @@ final class GlTextureFilterTest {
   @Test
   void shouldResizeTheTextureWhenOnlyTheHeightChanges() {
     this.filter.start();
-    stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, GREEN_ARGB);
+    this.stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, GREEN_ARGB);
 
-    final boolean uploaded = stageAndUpload(this.filter, INITIAL_WIDTH, TALLER_HEIGHT, RED_ARGB);
+    final boolean uploaded = this.stageAndUpload(this.filter, INITIAL_WIDTH, TALLER_HEIGHT, RED_ARGB);
     assertTrue(uploaded);
 
     final int texture = this.filter.getTextureId();
     final int height = this.filter.getHeight();
-    final int textureHeight = levelParameter(texture, GL11.GL_TEXTURE_HEIGHT);
-    final byte[] pixels = readTexture(texture, INITIAL_WIDTH, TALLER_HEIGHT);
+    final int textureHeight = this.levelParameter(texture, GL11.GL_TEXTURE_HEIGHT);
+    final byte[] pixels = this.readTexture(texture, INITIAL_WIDTH, TALLER_HEIGHT);
     assertEquals(TALLER_HEIGHT, height);
     assertEquals(TALLER_HEIGHT, textureHeight);
-    assertAllPixels(pixels, RED_RGB);
+    this.assertAllPixels(pixels, RED_RGB);
   }
 
   @Test
   void shouldResizeTheTextureWhenOnlyTheWidthChanges() {
     this.filter.start();
-    stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, GREEN_ARGB);
+    this.stageAndUpload(this.filter, INITIAL_WIDTH, INITIAL_HEIGHT, GREEN_ARGB);
 
-    final boolean uploaded = stageAndUpload(this.filter, RESIZED_WIDTH, INITIAL_HEIGHT, BLUE_ARGB);
+    final boolean uploaded = this.stageAndUpload(this.filter, RESIZED_WIDTH, INITIAL_HEIGHT, BLUE_ARGB);
     assertTrue(uploaded);
 
     final int texture = this.filter.getTextureId();
     final int width = this.filter.getWidth();
-    final int textureWidth = levelParameter(texture, GL11.GL_TEXTURE_WIDTH);
-    final byte[] pixels = readTexture(texture, RESIZED_WIDTH, INITIAL_HEIGHT);
+    final int textureWidth = this.levelParameter(texture, GL11.GL_TEXTURE_WIDTH);
+    final byte[] pixels = this.readTexture(texture, RESIZED_WIDTH, INITIAL_HEIGHT);
     assertEquals(RESIZED_WIDTH, width);
     assertEquals(RESIZED_WIDTH, textureWidth);
-    assertAllPixels(pixels, BLUE_RGB);
+    this.assertAllPixels(pixels, BLUE_RGB);
   }
 
   @Test
@@ -535,15 +535,15 @@ final class GlTextureFilterTest {
     final int callerTexture = GL11.glGenTextures();
     this.filter.start();
     GL11.glBindTexture(GL11.GL_TEXTURE_2D, callerTexture);
-    setUnpackState(CALLER_ALIGNMENT, CALLER_ROW_LENGTH, CALLER_SKIP_ROWS, CALLER_SKIP_PIXELS);
-    stageAndUpload(this.filter, SMALL_WIDTH, SMALL_HEIGHT, GREEN_ARGB);
+    this.setUnpackState(CALLER_ALIGNMENT, CALLER_ROW_LENGTH, CALLER_SKIP_ROWS, CALLER_SKIP_PIXELS);
+    this.stageAndUpload(this.filter, SMALL_WIDTH, SMALL_HEIGHT, GREEN_ARGB);
 
     final int boundAfterUpload = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D);
-    final int[] unpackState = readUnpackState();
-    setUnpackState(DEFAULT_ALIGNMENT, DEFAULT_ROW_LENGTH, DEFAULT_SKIP, DEFAULT_SKIP);
+    final int[] unpackState = this.readUnpackState();
+    this.setUnpackState(DEFAULT_ALIGNMENT, DEFAULT_ROW_LENGTH, DEFAULT_SKIP, DEFAULT_SKIP);
 
     final int texture = this.filter.getTextureId();
-    final byte[] pixels = readTexture(texture, SMALL_WIDTH, SMALL_HEIGHT);
+    final byte[] pixels = this.readTexture(texture, SMALL_WIDTH, SMALL_HEIGHT);
 
     GL11.glBindTexture(GL11.GL_TEXTURE_2D, callerTexture);
     this.filter.start();
@@ -555,19 +555,19 @@ final class GlTextureFilterTest {
     assertEquals(callerTexture, boundAfterUpload);
     assertArrayEquals(callerUnpackState, unpackState);
     assertEquals(callerTexture, boundAfterStart);
-    assertAllPixels(pixels, GREEN_RGB);
+    this.assertAllPixels(pixels, GREEN_RGB);
 
     GL11.glDeleteTextures(callerTexture);
   }
 
-  private static void setUnpackState(final int alignment, final int rowLength, final int skipRows, final int skipPixels) {
+  private void setUnpackState(final int alignment, final int rowLength, final int skipRows, final int skipPixels) {
     GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, alignment);
     GL11.glPixelStorei(GL11.GL_UNPACK_ROW_LENGTH, rowLength);
     GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_ROWS, skipRows);
     GL11.glPixelStorei(GL11.GL_UNPACK_SKIP_PIXELS, skipPixels);
   }
 
-  private static int[] readUnpackState() {
+  private int[] readUnpackState() {
     final int alignment = GL11.glGetInteger(GL11.GL_UNPACK_ALIGNMENT);
     final int rowLength = GL11.glGetInteger(GL11.GL_UNPACK_ROW_LENGTH);
     final int skipRows = GL11.glGetInteger(GL11.GL_UNPACK_SKIP_ROWS);
@@ -580,21 +580,21 @@ final class GlTextureFilterTest {
     final CountDownLatch uploading = new CountDownLatch(1);
     final CountDownLatch finishUpload = new CountDownLatch(1);
     final CountDownLatch applied = new CountDownLatch(1);
-    final GlTextureFilter slow = slowFilter(uploading, finishUpload);
+    final GlTextureFilter slow = this.slowFilter(uploading, finishUpload);
     slow.start();
-    stage(slow, SQUARE_SIZE, SQUARE_SIZE, RED_ARGB);
-    this.startThread(() -> stageOnceUploading(slow, uploading, applied));
-    this.startThread(() -> finishUploadOnceApplied(applied, finishUpload));
+    this.stage(slow, SQUARE_SIZE, SQUARE_SIZE, RED_ARGB);
+    this.startThread(() -> this.stageOnceUploading(slow, uploading, applied));
+    this.startThread(() -> this.finishUploadOnceApplied(applied, finishUpload));
 
     final long before = System.nanoTime();
     final boolean firstUploaded = slow.upload();
     final long elapsedNanoseconds = System.nanoTime() - before;
     final long elapsedMilliseconds = TimeUnit.NANOSECONDS.toMillis(elapsedNanoseconds);
-    final boolean appliedInTime = await(applied, LATCH_TIMEOUT_SECONDS);
+    final boolean appliedInTime = this.await(applied, LATCH_TIMEOUT_SECONDS);
     final boolean pending = slow.hasPendingFrame();
     final boolean secondUploaded = slow.upload();
     final int texture = slow.getTextureId();
-    final byte[] pixels = readTexture(texture, SQUARE_SIZE, SQUARE_SIZE);
+    final byte[] pixels = this.readTexture(texture, SQUARE_SIZE, SQUARE_SIZE);
     slow.release();
 
     final boolean uploadFinishedInTime = elapsedMilliseconds < UPLOAD_LIMIT_MILLISECONDS;
@@ -603,16 +603,16 @@ final class GlTextureFilterTest {
     assertTrue(uploadFinishedInTime, () -> "the upload blocked the player for %s milliseconds".formatted(elapsedMilliseconds));
     assertTrue(pending);
     assertTrue(secondUploaded);
-    assertAllPixels(pixels, BLUE_RGB);
+    this.assertAllPixels(pixels, BLUE_RGB);
   }
 
-  private static GlTextureFilter slowFilter(final CountDownLatch uploading, final CountDownLatch finishUpload) {
+  private GlTextureFilter slowFilter(final CountDownLatch uploading, final CountDownLatch finishUpload) {
     return new GlTextureFilter() {
       @Override
       void transfer(final ByteBuffer pixels, final int width, final int height) {
         uploading.countDown();
 
-        final boolean finished = await(finishUpload, LATCH_TIMEOUT_SECONDS);
+        final boolean finished = GlTextureFilterTest.this.await(finishUpload, LATCH_TIMEOUT_SECONDS);
         assertTrue(finished, "the upload was never allowed to finish");
 
         super.transfer(pixels, width, height);
@@ -620,7 +620,7 @@ final class GlTextureFilterTest {
     };
   }
 
-  private static boolean await(final CountDownLatch latch, final long seconds) {
+  private boolean await(final CountDownLatch latch, final long seconds) {
     try {
       return latch.await(seconds, TimeUnit.SECONDS);
     } catch (final InterruptedException exception) {
@@ -639,16 +639,16 @@ final class GlTextureFilterTest {
     return thread;
   }
 
-  private static void stageOnceUploading(final GlTextureFilter filter, final CountDownLatch uploading, final CountDownLatch applied) {
-    final boolean uploadStarted = await(uploading, LATCH_TIMEOUT_SECONDS);
+  private void stageOnceUploading(final GlTextureFilter filter, final CountDownLatch uploading, final CountDownLatch applied) {
+    final boolean uploadStarted = this.await(uploading, LATCH_TIMEOUT_SECONDS);
     if (uploadStarted) {
-      stage(filter, SQUARE_SIZE, SQUARE_SIZE, BLUE_ARGB);
+      this.stage(filter, SQUARE_SIZE, SQUARE_SIZE, BLUE_ARGB);
       applied.countDown();
     }
   }
 
-  private static void finishUploadOnceApplied(final CountDownLatch applied, final CountDownLatch finishUpload) {
-    await(applied, APPLIED_TIMEOUT_SECONDS);
+  private void finishUploadOnceApplied(final CountDownLatch applied, final CountDownLatch finishUpload) {
+    this.await(applied, APPLIED_TIMEOUT_SECONDS);
     finishUpload.countDown();
   }
 
@@ -658,9 +658,9 @@ final class GlTextureFilterTest {
     final GlTextureFilter borrowing = new GlTextureFilter(borrowedTexture);
     this.filter.start();
 
-    final Throwable start = failureOnAnotherThread(borrowing::start);
-    final Throwable upload = failureOnAnotherThread(borrowing::upload);
-    final Throwable release = failureOnAnotherThread(this.filter::release);
+    final Throwable start = this.failureOnAnotherThread(borrowing::start);
+    final Throwable upload = this.failureOnAnotherThread(borrowing::upload);
+    final Throwable release = this.failureOnAnotherThread(this.filter::release);
     for (final Throwable failure : List.of(start, upload, release)) {
       assertInstanceOf(IllegalStateException.class, failure);
       final String message = failure.getMessage();
@@ -674,9 +674,9 @@ final class GlTextureFilterTest {
     GL11.glDeleteTextures(borrowedTexture);
   }
 
-  private static Throwable failureOnAnotherThread(final Runnable action) throws InterruptedException {
+  private Throwable failureOnAnotherThread(final Runnable action) throws InterruptedException {
     final List<Throwable> failures = new CopyOnWriteArrayList<>();
-    final Thread other = new Thread(() -> runWithMockedOpenGl(action, failures));
+    final Thread other = new Thread(() -> this.runWithMockedOpenGl(action, failures));
     other.start();
     other.join(JOIN_TIMEOUT_MILLISECONDS);
 
@@ -686,7 +686,7 @@ final class GlTextureFilterTest {
     return failures.getFirst();
   }
 
-  private static void runWithMockedOpenGl(final Runnable action, final List<Throwable> failures) {
+  private void runWithMockedOpenGl(final Runnable action, final List<Throwable> failures) {
     // A GL call without a context fails the test here instead of crashing the native driver.
     // The mock covers only this thread; the render thread keeps real GL.
     try (final MockedStatic<GL11> calls = mockStatic(GL11.class)) {
@@ -721,7 +721,7 @@ final class GlTextureFilterTest {
     final ImageBuffer stubbedData = dataStubbing.when(truncated);
     stubbedData.getData();
 
-    apply(this.filter, truncated);
+    this.apply(this.filter, truncated);
 
     final boolean pending = this.filter.hasPendingFrame();
     assertFalse(pending);
@@ -730,7 +730,7 @@ final class GlTextureFilterTest {
   @Test
   void shouldAcceptFramesFromAnotherThread() throws InterruptedException {
     this.filter.start();
-    final Thread player = this.startThread(() -> stage(this.filter, SQUARE_SIZE, SQUARE_SIZE, BLUE_ARGB));
+    final Thread player = this.startThread(() -> this.stage(this.filter, SQUARE_SIZE, SQUARE_SIZE, BLUE_ARGB));
     Await.until("the frame of the player thread is staged", this.filter::hasPendingFrame);
     player.join(JOIN_TIMEOUT_MILLISECONDS);
 
@@ -740,7 +740,7 @@ final class GlTextureFilterTest {
 
   @Test
   void shouldRefuseToUploadBeforeStartAndAfterRelease() {
-    stage(this.filter, SQUARE_SIZE, SQUARE_SIZE, BLUE_ARGB);
+    this.stage(this.filter, SQUARE_SIZE, SQUARE_SIZE, BLUE_ARGB);
     assertThrows(IllegalStateException.class, this.filter::upload);
 
     this.filter.start();
@@ -769,7 +769,7 @@ final class GlTextureFilterTest {
     final int borrowed = borrowing.getTextureId();
     assertEquals(existing, borrowed);
 
-    final boolean uploaded = stageAndUpload(borrowing, SQUARE_SIZE, SQUARE_SIZE, GREEN_ARGB);
+    final boolean uploaded = this.stageAndUpload(borrowing, SQUARE_SIZE, SQUARE_SIZE, GREEN_ARGB);
     assertTrue(uploaded);
 
     borrowing.release();
@@ -787,23 +787,23 @@ final class GlTextureFilterTest {
   void shouldKeepItsTextureAndDimensionsWhenStartedAgain() {
     this.filter.start();
     final int firstTexture = this.filter.getTextureId();
-    stageAndUpload(this.filter, PORTRAIT_WIDTH, PORTRAIT_HEIGHT, GREEN_ARGB);
+    this.stageAndUpload(this.filter, PORTRAIT_WIDTH, PORTRAIT_HEIGHT, GREEN_ARGB);
     this.filter.start();
 
     final int secondTexture = this.filter.getTextureId();
     final int width = this.filter.getWidth();
     final int height = this.filter.getHeight();
-    final byte[] pixels = readTexture(secondTexture, PORTRAIT_WIDTH, PORTRAIT_HEIGHT);
+    final byte[] pixels = this.readTexture(secondTexture, PORTRAIT_WIDTH, PORTRAIT_HEIGHT);
     assertEquals(firstTexture, secondTexture);
     assertEquals(PORTRAIT_WIDTH, width);
     assertEquals(PORTRAIT_HEIGHT, height);
-    assertAllPixels(pixels, GREEN_RGB);
+    this.assertAllPixels(pixels, GREEN_RGB);
   }
 
   @Test
   void shouldAllocateStorageAgainAfterAnOwnedTextureIsRecreated() {
     this.filter.start();
-    stageAndUpload(this.filter, PORTRAIT_WIDTH, PORTRAIT_HEIGHT, GREEN_ARGB);
+    this.stageAndUpload(this.filter, PORTRAIT_WIDTH, PORTRAIT_HEIGHT, GREEN_ARGB);
     this.filter.release();
     this.filter.start();
 
@@ -812,16 +812,16 @@ final class GlTextureFilterTest {
     assertEquals(0, widthBeforeUpload);
     assertEquals(0, heightBeforeUpload);
 
-    final boolean uploaded = stageAndUpload(this.filter, PORTRAIT_WIDTH, PORTRAIT_HEIGHT, BLUE_ARGB);
+    final boolean uploaded = this.stageAndUpload(this.filter, PORTRAIT_WIDTH, PORTRAIT_HEIGHT, BLUE_ARGB);
     assertTrue(uploaded);
 
     final int texture = this.filter.getTextureId();
-    final int storageWidth = levelParameter(texture, GL11.GL_TEXTURE_WIDTH);
-    final int storageHeight = levelParameter(texture, GL11.GL_TEXTURE_HEIGHT);
-    final byte[] pixels = readTexture(texture, PORTRAIT_WIDTH, PORTRAIT_HEIGHT);
+    final int storageWidth = this.levelParameter(texture, GL11.GL_TEXTURE_WIDTH);
+    final int storageHeight = this.levelParameter(texture, GL11.GL_TEXTURE_HEIGHT);
+    final byte[] pixels = this.readTexture(texture, PORTRAIT_WIDTH, PORTRAIT_HEIGHT);
     assertEquals(PORTRAIT_WIDTH, storageWidth);
     assertEquals(PORTRAIT_HEIGHT, storageHeight);
-    assertAllPixels(pixels, BLUE_RGB);
+    this.assertAllPixels(pixels, BLUE_RGB);
   }
 
   @Test
@@ -830,7 +830,7 @@ final class GlTextureFilterTest {
     final GlTextureFilter borrowing = new GlTextureFilter(texture);
     try {
       borrowing.start();
-      stageAndUpload(borrowing, PORTRAIT_WIDTH, PORTRAIT_HEIGHT, GREEN_ARGB);
+      this.stageAndUpload(borrowing, PORTRAIT_WIDTH, PORTRAIT_HEIGHT, GREEN_ARGB);
       borrowing.start();
 
       final int widthAfterStart = borrowing.getWidth();
@@ -843,10 +843,10 @@ final class GlTextureFilterTest {
 
       final int widthAfterRelease = borrowing.getWidth();
       final int heightAfterRelease = borrowing.getHeight();
-      final byte[] pixels = readTexture(texture, PORTRAIT_WIDTH, PORTRAIT_HEIGHT);
+      final byte[] pixels = this.readTexture(texture, PORTRAIT_WIDTH, PORTRAIT_HEIGHT);
       assertEquals(PORTRAIT_WIDTH, widthAfterRelease);
       assertEquals(PORTRAIT_HEIGHT, heightAfterRelease);
-      assertAllPixels(pixels, GREEN_RGB);
+      this.assertAllPixels(pixels, GREEN_RGB);
     } finally {
       borrowing.release();
       GL11.glDeleteTextures(texture);
@@ -861,7 +861,7 @@ final class GlTextureFilterTest {
     final OriginalVideoMetadata metadata = OriginalVideoMetadata.of(SINGLE_PIXEL, SINGLE_PIXEL);
     assertThrows(NullPointerException.class, () -> this.filter.applyFilter(null, metadata));
 
-    try (final ImageBuffer image = frame(SINGLE_PIXEL, SINGLE_PIXEL, BLACK_ARGB)) {
+    try (final ImageBuffer image = this.frame(SINGLE_PIXEL, SINGLE_PIXEL, BLACK_ARGB)) {
       assertThrows(NullPointerException.class, () -> this.filter.applyFilter(image, null));
     }
   }
