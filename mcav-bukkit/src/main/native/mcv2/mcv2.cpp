@@ -1232,6 +1232,8 @@ constexpr int32_t CHANNEL_MASK = 0xFF;
 constexpr int32_t GRID = 4;
 constexpr int32_t ROOT_SIZE = 32;
 constexpr int32_t BLOCK_SIZES = 3;
+constexpr int32_t SMALLEST_BLOCK_SHIFT = 3;
+constexpr int32_t SMALLEST_BLOCK_SIZE = 1 << SMALLEST_BLOCK_SHIFT;
 
 constexpr int32_t SELECTORS_AT = 6;
 
@@ -1252,7 +1254,7 @@ inline int32_t logarithm_base_two(const int32_t value) {
   return __builtin_ctz((unsigned)value);
 }
 inline int32_t size_index(const int32_t size) {
-  return logarithm_base_two(size) - 3;
+  return logarithm_base_two(size) - SMALLEST_BLOCK_SHIFT;
 }
 inline int32_t minimum_int(const int32_t first, const int32_t second) {
   return first < second ? first : second;
@@ -1277,7 +1279,7 @@ struct interpolation_axes {
 constexpr interpolation_axes make_axes() {
   interpolation_axes tables{};
   for (int32_t size_index = 0; size_index < BLOCK_SIZES; size_index++) {
-    const int32_t size = 8 << size_index;
+    const int32_t size = SMALLEST_BLOCK_SIZE << size_index;
     const int32_t span = 2 * size;
     for (int32_t pixel_index = 0; pixel_index < size; pixel_index++) {
       int32_t position = (2 * pixel_index + 1) * GRID - size;
