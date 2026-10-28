@@ -143,12 +143,13 @@ final class GlTextureFilterTest {
         window = createWindow(GLFW.GLFW_EGL_CONTEXT_API);
       }
 
-      assumeTrue(window != MemoryUtil.NULL, "no OpenGL context can be created on this machine");
+      assumeTrue(window != MemoryUtil.NULL, "No OpenGL context can be created on this machine!");
 
       GLFW.glfwMakeContextCurrent(window);
       GL.createCapabilities();
     } catch (final IllegalStateException | LinkageError exception) {
-      abort("OpenGL is not available on this machine: " + exception);
+      final String message = "OpenGL setup failed with %s on this machine!".formatted(exception);
+      abort(message);
     }
   }
 
@@ -427,7 +428,7 @@ final class GlTextureFilterTest {
     for (int pixel = 0; pixel < count; pixel++) {
       final int pixelOffset = pixel * CHANNELS;
       final byte[] actual = { pixels[pixelOffset + RED_OFFSET], pixels[pixelOffset + GREEN_OFFSET], pixels[pixelOffset + BLUE_OFFSET] };
-      assertArrayEquals(rgb, actual, "pixel " + pixel);
+      assertArrayEquals(rgb, actual, "pixel %s has the uploaded color".formatted(pixel));
     }
   }
 
@@ -594,7 +595,7 @@ final class GlTextureFilterTest {
     final boolean uploadFinishedInTime = elapsedMilliseconds < UPLOAD_LIMIT_MILLISECONDS;
     assertTrue(firstUploaded);
     assertTrue(appliedInTime);
-    assertTrue(uploadFinishedInTime, () -> "the player was blocked by the upload for " + elapsedMilliseconds + " ms");
+    assertTrue(uploadFinishedInTime, () -> "the upload blocked the player for %s milliseconds".formatted(elapsedMilliseconds));
     assertTrue(pending);
     assertTrue(secondUploaded);
     assertAllPixels(pixels, BLUE_RGB);

@@ -50,7 +50,8 @@ public final class Await {
     final long deadline = System.nanoTime() + timeout;
     while (!condition.getAsBoolean()) {
       if (System.nanoTime() - deadline > 0) {
-        fail("Timed out waiting until " + description);
+        final String message = "Waiting until %s timed out!".formatted(description);
+        fail(message);
       }
       LockSupport.parkNanos(POLL_NANOSECONDS);
     }
