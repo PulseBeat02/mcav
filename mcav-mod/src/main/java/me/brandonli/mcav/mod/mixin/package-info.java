@@ -18,6 +18,10 @@
 /**
  * The mod's mixins. Each only tells {@link Mcv2Shaders} what the game draws, and none changes what the game does;
  * Mixin requires them in a package of their own.
+ *
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
+ *
+ * @since 1.0.0
  */
 package me.brandonli.mcav.mod.mixin;
 

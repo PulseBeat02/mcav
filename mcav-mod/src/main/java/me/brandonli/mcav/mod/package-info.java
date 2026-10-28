@@ -24,5 +24,9 @@
  *
  * <p>{@link FabricEntrypoint} and {@link NeoForgeEntrypoint} are the entry points of the two loaders; each jar holds
  * one of them and the classes they share.
+ *
+ * <p>Reference parameters and return values are non-null unless marked {@code @Nullable}.
+ *
+ * @since 1.0.0
  */
 package me.brandonli.mcav.mod;

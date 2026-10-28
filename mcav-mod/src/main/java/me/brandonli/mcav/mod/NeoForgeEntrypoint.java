@@ -36,6 +36,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * The entry point of the MCV2 client mod on NeoForge: it registers the {@code mcav:mcv2} payload, starts the decoder of
  * MCV2 under shader packs, and on every client tick asks Iris whether it draws a shader pack, so MCV2 screens show this
  * player the dithered maps only while one is in use that MCV2 does not decode under.
+ *
+ * <p>This class is not thread-safe: NeoForge creates it once, while it loads mods.
+ *
+ * @since 1.0.0
  */
 @Mod(value = NeoForgeEntrypoint.MOD_ID, dist = Dist.CLIENT)
 public final class NeoForgeEntrypoint {
@@ -49,6 +53,7 @@ public final class NeoForgeEntrypoint {
    * Constructs the entry point NeoForge calls.
    *
    * @param modBus the mod's event bus
+   * @since 1.0.0
    */
   public NeoForgeEntrypoint(final IEventBus modBus) {
     this(modBus, NeoForge.EVENT_BUS, irisVersion(ModList.get()).orElse(null), System::nanoTime);

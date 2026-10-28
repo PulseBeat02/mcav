@@ -35,6 +35,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * The entry point of the MCV2 client mod on Fabric: it registers the {@code mcav:mcv2} payload, starts the decoder of
  * MCV2 under shader packs, and on every client tick asks Iris whether it draws a shader pack, so MCV2 screens show this
  * player the dithered maps only while one is in use that MCV2 does not decode under.
+ *
+ * <p>This class is not thread-safe: Fabric creates it and calls {@link #onInitializeClient()} once, on the client
+ * thread.
+ *
+ * @since 1.0.0
  */
 public final class FabricEntrypoint implements ClientModInitializer {
 
@@ -50,6 +55,8 @@ public final class FabricEntrypoint implements ClientModInitializer {
 
   /**
    * Constructs the entry point Fabric calls.
+   *
+   * @since 1.0.0
    */
   public FabricEntrypoint() {
     this(
@@ -86,6 +93,12 @@ public final class FabricEntrypoint implements ClientModInitializer {
     return version.getFriendlyString();
   }
 
+  /**
+   * Registers the {@code mcav:mcv2} payload, starts the decoder of MCV2 under shader packs, and registers the join and
+   * tick handlers that tell the server whether Iris draws a shader pack.
+   *
+   * @since 1.0.0
+   */
   @Override
   public void onInitializeClient() {
     this.payloads.register(Mcv2Payload.TYPE, Mcv2Payload.CODEC);

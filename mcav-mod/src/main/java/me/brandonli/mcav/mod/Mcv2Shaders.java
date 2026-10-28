@@ -44,7 +44,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * What the mod's mixins call: they live in a package of their own, as Mixin requires, so this is their way into the
- * decoder. Every call is on the render thread.
+ * decoder.
+ *
+ * <p>This class is not thread-safe: call it on the render thread.
+ *
+ * @since 1.0.0
  */
 public final class Mcv2Shaders {
 
@@ -59,10 +63,12 @@ public final class Mcv2Shaders {
   }
 
   /**
-   * The game extracted a map's state, before it renders the level.
+   * Tells the decoder that the game extracted a map's state, before it renders the level. Does nothing when no decoder
+   * runs or the map has no texture.
    *
    * @param state the map's render state, which names its texture
    * @param data  the map's data, its colours
+   * @since 1.0.0
    */
   public static void extracted(final MapRenderState state, final MapItemSavedData data) {
     final Identifier texture = state.texture;
@@ -72,10 +78,12 @@ public final class Mcv2Shaders {
   }
 
   /**
-   * The game posed a map, while it renders the level.
+   * Tells the decoder that the game posed a map, while it renders the level. Does nothing when no decoder runs or the
+   * map has no texture.
    *
    * @param state the map's render state
    * @param pose  the pose the map is drawn with: its top left corner is at the origin, just in front of the frame
+   * @since 1.0.0
    */
   public static void posed(final MapRenderState state, final PoseStack pose) {
     final Identifier texture = state.texture;
@@ -84,25 +92,33 @@ public final class Mcv2Shaders {
     }
   }
 
-  /** The game is about to set the projection it renders the level with. */
+  /**
+   * Tells the decoder that the game is about to set the projection it renders the level with. Does nothing when no
+   * decoder runs.
+   *
+   * @since 1.0.0
+   */
   public static void projecting() {
     ShaderDecoder.current().ifPresent(ShaderDecoder::projecting);
   }
 
   /**
-   * The game set a projection, the level's or another.
+   * Tells the decoder that the game set a projection, the level's or another. Does nothing when no decoder runs.
    *
    * @param projection the projection, a JOML 4x4 float matrix
+   * @since 1.0.0
    */
   public static void projected(final @Nullable Object projection) {
     ShaderDecoder.current().ifPresent(decoder -> decoder.projected(projection));
   }
 
   /**
-   * The game rendered the level, and with a shader pack, Iris's final image is in the main target.
+   * Tells the decoder that the game rendered the level; with a shader pack, Iris's final image is in the main target.
+   * Does nothing when no decoder runs.
    *
    * @param allocator the frame's pool of render targets
    * @param camera    the frame's camera
+   * @since 1.0.0
    */
   public static void rendered(final GraphicsResourceAllocator allocator, final CameraRenderState camera) {
     ShaderDecoder.current().ifPresent(decoder -> decoder.rendered(allocator, camera));
