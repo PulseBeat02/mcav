@@ -76,6 +76,9 @@ final class VmAudioClientTest {
 
   private static final long TIMEOUT_SECONDS = 10L;
 
+  // shorter than close waits for the reader
+  private static final long READER_HOLD_MILLISECONDS = 1_000L;
+
   private final List<byte[]> chunks = new CopyOnWriteArrayList<>();
   private final List<String> failures = new CopyOnWriteArrayList<>();
   private ServerSocket server;
@@ -425,25 +428,47 @@ final class VmAudioClientTest {
 
   @Test
   void shouldRunTheReaderAsADaemonAndWaitForItWhenClosing() throws Exception {
+    final CountDownLatch delivering = new CountDownLatch(1);
+    final CountDownLatch checked = new CountDownLatch(1);
+    final VmAudioClient.Sink slow = (samples, length) -> this.holdTheReader(delivering, checked);
     final CompletableFuture<Void> served = CompletableFuture.runAsync(() -> {
       try (final Socket socket = this.server.accept()) {
-        this.handshake(socket);
-        final InputStream input = socket.getInputStream();
+        final Streams streams = this.handshake(socket);
+        final DataOutputStream output = streams.output();
+        QemuAudioProtocolTest.writeAcknowledgement(output);
+        output.write(AUDIO_BEGIN);
+        QemuAudioProtocolTest.writeData(output, SAMPLES);
+        output.flush();
+        final DataInputStream input = streams.input();
         input.read();
       } catch (final IOException exception) {
         throw new UncheckedIOException(exception);
       }
     });
-    final VmAudioClient client = this.connect();
+    final VmAudioClient client = VmAudioClient.connect(this.address(), PASSWORD, slow, (message, failure) -> {});
     final Thread reader = client.getReader();
     final boolean daemon = reader.isDaemon();
     assertTrue(daemon, "the sound never keeps the JVM alive");
 
+    final boolean delivered = delivering.await(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    assertTrue(delivered, "the reader is in the sink");
+
     client.close();
     final boolean alive = client.isAlive();
-    assertFalse(alive, "close returns once the reader ended");
+    checked.countDown();
+    assertFalse(alive, "close returns once the reader ended, even while the sink held it");
 
     served.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+  }
+
+  private void holdTheReader(final CountDownLatch delivering, final CountDownLatch checked) {
+    delivering.countDown();
+    try {
+      final boolean _ = checked.await(READER_HOLD_MILLISECONDS, TimeUnit.MILLISECONDS);
+    } catch (final InterruptedException exception) {
+      final Thread current = Thread.currentThread();
+      current.interrupt();
+    }
   }
 
   @Test
