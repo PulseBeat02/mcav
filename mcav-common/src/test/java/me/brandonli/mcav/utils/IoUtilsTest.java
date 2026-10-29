@@ -228,6 +228,7 @@ final class IoUtilsTest {
     assertEquals("", directoryUrl);
     assertEquals("", noPath);
     assertEquals("", opaque);
+    assertThrows(IllegalArgumentException.class, () -> IoUtils.getFileNameFromUrl("https://example.com/a b"));
     assertThrows(NullPointerException.class, () -> IoUtils.getFileNameFromUrl(null));
   }
 
@@ -355,7 +356,9 @@ final class IoUtilsTest {
   @Test
   void shouldFormatBytesAsZeroPaddedHex() {
     final String hex = IoUtils.bytesToHex(new byte[] { 0x0F, (byte) 0xAB, 0x00 });
+    final String empty = IoUtils.bytesToHex(new byte[0]);
     assertEquals("0fab00", hex);
+    assertEquals("", empty);
     assertThrows(NullPointerException.class, () -> IoUtils.bytesToHex(null));
   }
 
@@ -407,6 +410,16 @@ final class IoUtilsTest {
     final boolean created = Files.isDirectory(cache);
     assertEquals(expected, cache, "a regular file where the home directory should be cannot hold the cache");
     assertTrue(created);
+  }
+
+  @Test
+  void shouldFailWhenNeitherCacheFolderCanBeCreated() throws IOException {
+    final Path home = this.directory.resolve(HOME_NAME);
+    Files.writeString(home, FILE_CONTENT);
+    final Path temporary = this.directory.resolve(TEMPORARY_NAME);
+    Files.writeString(temporary, FILE_CONTENT);
+
+    assertThrows(FileOperationException.class, () -> this.getCachedFolderIn(home, temporary));
   }
 
   @Test
