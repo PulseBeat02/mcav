@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 public final class MCAVVoiceChatPlugin implements VoicechatPlugin {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MCAVVoiceChatPlugin.class);
-  private static final String READY = "Simple Voice Chat audio is ready";
+  private static final String READY = "Simple Voice Chat audio is ready.";
   private static final String PLUGIN_ID = "mcav";
 
   private final MCAVSandbox sandbox;

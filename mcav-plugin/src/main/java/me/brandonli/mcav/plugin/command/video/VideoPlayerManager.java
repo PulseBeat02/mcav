@@ -68,7 +68,7 @@ public final class VideoPlayerManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(VideoPlayerManager.class);
 
   private static final String CLEANUP_RETAINED =
-    "The plugin is disabled; display and hologram cleanup is retained for the main-thread shutdown drain";
+    "The plugin is disabled; display and hologram cleanup is retained for the main-thread shutdown drain.";
 
   /** How often a looping video is checked for its end, in ticks: twice a second. */
   private static final long LOOP_CHECK_TICKS = 10L;

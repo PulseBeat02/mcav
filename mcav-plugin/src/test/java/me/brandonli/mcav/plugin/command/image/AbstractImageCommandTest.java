@@ -413,7 +413,7 @@ final class AbstractImageCommandTest {
       this.command.displayImage(_ -> "configuration", this.sender, "4x2", mrl, null);
       output = capture.getOutput();
     }
-    final boolean named = output.contains("Failed to load the image " + mrl);
+    final boolean named = output.contains("Image " + mrl + " could not be loaded.");
     assertTrue(named, "the log of a failed image names the media it could not load");
   }
 

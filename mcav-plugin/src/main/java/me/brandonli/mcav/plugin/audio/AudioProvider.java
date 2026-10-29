@@ -62,18 +62,18 @@ public final class AudioProvider {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AudioProvider.class);
 
-  private static final String WEB_PAGE_FAILED = "The audio web page could not be started, so its audio is not available";
+  private static final String WEB_PAGE_FAILED = "The audio web page could not be started, so its audio is not available.";
 
-  private static final String WEB_PAGE_AVAILABLE = "The audio web page is available at {}";
+  private static final String WEB_PAGE_AVAILABLE = "The audio web page is available at {}.";
 
-  private static final String DISCORD_FAILED = "The Discord bot could not connect, so its audio is not available";
+  private static final String DISCORD_FAILED = "The Discord bot could not connect, so its audio is not available.";
 
-  private static final String HAND_BACK_FAILED = "The audio outputs could not go back to the source that played before";
+  private static final String HAND_BACK_FAILED = "The audio outputs could not go back to the source that played before.";
 
   private static final String STARTUP_NOT_STOPPED =
-    "Audio startup did not stop within {} seconds; restart the server before enabling MCAV again";
+    "Audio startup did not stop within {} seconds; restart the server before enabling MCAV again.";
 
-  private static final String STARTUP_WAIT_INTERRUPTED = "Interrupted while waiting for audio startup to stop";
+  private static final String STARTUP_WAIT_INTERRUPTED = "Interrupted while waiting for audio startup to stop.";
 
   private static final long STARTUP_STOP_TIMEOUT_SECONDS = 10L;
 

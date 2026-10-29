@@ -58,6 +58,8 @@ import xyz.jpenilla.gremlin.runtime.platformsupport.PaperClasspathAppender;
  */
 public final class MCAVLoader implements PluginLoader {
 
+  private static final Logger GREMLIN_LOGGER = LoggerFactory.getLogger("Gremlin");
+
   /** The classes of the downloaded modules that the plugin's code uses, one internal name per line, from the build. */
   private static final String REQUIRED_CLASSES = "META-INF/mcav/required-classes.txt";
 
@@ -179,8 +181,7 @@ public final class MCAVLoader implements PluginLoader {
     final DependencySet dependencies = DependencySet.readFromClasspathResource(classLoader, DEPENDENCIES_RESOURCE);
     final DependencyCache cache = new DependencyCache(this.libraries);
 
-    final Logger logger = LoggerFactory.getLogger("Gremlin");
-    final GremlinLogger gremlinLogger = new Slf4jGremlinLogger(logger);
+    final GremlinLogger gremlinLogger = new Slf4jGremlinLogger(GREMLIN_LOGGER);
     try (final DependencyResolver downloader = new DependencyResolver(gremlinLogger)) {
       final ResolvedDependencySet resolvedDependencies = downloader.resolve(dependencies, cache);
       final Set<Path> jars = resolvedDependencies.jarFiles();

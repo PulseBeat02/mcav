@@ -40,7 +40,7 @@ public final class DumpCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(DumpCommand.class);
 
-  private static final String UPLOAD_FAILED = "Failed to upload the dump";
+  private static final String UPLOAD_FAILED = "Failed to upload the dump.";
 
   private final Supplier<String> uploader;
 

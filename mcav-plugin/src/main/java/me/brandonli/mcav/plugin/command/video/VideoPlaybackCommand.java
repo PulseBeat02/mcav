@@ -48,7 +48,7 @@ public final class VideoPlaybackCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VideoPlaybackCommand.class);
 
-  private static final String SEEK_ERROR = "Failed to seek the video";
+  private static final String SEEK_ERROR = "Failed to seek the video.";
 
   private static final double PERCENT = 100.0;
 

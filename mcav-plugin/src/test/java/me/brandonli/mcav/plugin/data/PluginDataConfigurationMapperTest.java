@@ -203,7 +203,7 @@ final class PluginDataConfigurationMapperTest {
 
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split("Ignoring an entry of vnc.allowed-hosts", -1).length - 1;
+    final int matches = text.split("of vnc.allowed-hosts, which is not", -1).length - 1;
     assertEquals(5, matches, text);
 
     final boolean contained = text.contains("hunter2");
@@ -239,7 +239,7 @@ final class PluginDataConfigurationMapperTest {
 
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split("Ignoring an entry of vnc.allowed-hosts", -1).length - 1;
+    final int matches = text.split("of vnc.allowed-hosts, which is not", -1).length - 1;
     assertEquals(1, matches, text);
 
     final boolean contained = text.contains("hidden-secret");
@@ -546,7 +546,7 @@ final class PluginDataConfigurationMapperTest {
 
     final String text = logged.toString(StandardCharsets.UTF_8);
 
-    final int matches = text.split("Ignoring an entry of browser.refused-hosts", -1).length - 1;
+    final int matches = text.split("of browser.refused-hosts, which is not", -1).length - 1;
     assertEquals(3, matches, text);
   }
 

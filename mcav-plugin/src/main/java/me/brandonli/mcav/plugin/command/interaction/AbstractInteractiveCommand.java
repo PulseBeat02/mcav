@@ -112,10 +112,10 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
 
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractInteractiveCommand.class);
-  private static final String START_FAILED = "Failed to start {}";
+  private static final String START_FAILED = "Starting {} failed.";
   private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
   private static final int REACH = 100;
-  private static final String CANNOT_RELEASE = "A player failed to stop";
+  private static final String CANNOT_RELEASE = "A player failed to stop.";
 
   /**
    * The plugin.

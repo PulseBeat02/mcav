@@ -57,9 +57,9 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
   private static final Equivalence<Object> FAILURE_IDENTITY = Equivalence.identity();
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractImageCommand.class);
 
-  private static final String WORKER_REFUSED = "The image worker refused to load an image";
+  private static final String WORKER_REFUSED = "The image worker refused to load an image.";
 
-  private static final String LOAD_FAILED = "Failed to load the image {}";
+  private static final String LOAD_FAILED = "Image {} could not be loaded.";
 
   /**
    * The plugin.

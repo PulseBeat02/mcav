@@ -87,9 +87,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(AbstractVideoCommand.class);
 
-  private static final String WORKER_REFUSED = "The video worker refused to start a video";
+  private static final String WORKER_REFUSED = "The video worker refused to start a video.";
 
-  private static final String PLAYBACK_FAILED = "Failed to play a video";
+  private static final String PLAYBACK_FAILED = "Failed to play a video.";
 
   /** Recognises a raw FFmpeg input, {@code format||input}, as the media argument. */
   private static final FfmpegDirectSourceDetector RAW_INPUTS = new FfmpegDirectSourceDetector();

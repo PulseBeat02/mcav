@@ -50,7 +50,7 @@ copies at once.
 If the server does not run Minecraft 26.3, the plugin logs one error line and disables itself, for example:
 
 ```text
-MCAV cannot be enabled: MCAV only supports Minecraft 26.3, but the server is running 26.1! (run MCAV on a Minecraft 26.3 server)
+MCAV cannot be enabled: MCAV only supports Minecraft 26.3, but the server is running 26.1! To fix it, run MCAV on a Minecraft 26.3 server.
 ```
 
 The same happens when Simple Voice Chat audio is enabled but the Simple Voice Chat plugin is missing (see the

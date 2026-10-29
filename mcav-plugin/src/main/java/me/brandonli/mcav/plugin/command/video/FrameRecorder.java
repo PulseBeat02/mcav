@@ -37,7 +37,7 @@ final class FrameRecorder implements Consumer<byte[]> {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(FrameRecorder.class);
 
-  private static final String CANNOT_RECORD = "Cannot record the MCV2 frames into {}, the recording stops";
+  private static final String CANNOT_RECORD = "Cannot record the MCV2 frames into {}, the recording stops.";
 
   private final Path file;
 

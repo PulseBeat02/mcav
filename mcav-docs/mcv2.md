@@ -1280,8 +1280,8 @@ The plugin's MCV2 settings are in `plugins/MCAV/config.yml`:
 | `mcv2.pack.hosting` | `injector` | Where players download the pack: `injector`, `http` or `website` |
 | `mcv2.pack.http-host`, `mcv2.pack.http-port` | empty, `25580` | For `http`: the address the players reach the server by, and the port |
 
-At startup the server log says `MCV2 encoders share N of M processors` and which pixel loops the encoder runs, such as
-`MCV2 kernels: native avx2 (linux-x86_64)`. The full syntax of every command is in [commands](plugin/commands.md),
+At startup the server log says `MCV2 encoders share N of M processors.` and which pixel loops the encoder runs, such as
+`MCV2 kernels: native avx2 (linux-x86_64).`. The full syntax of every command is in [commands](plugin/commands.md),
 and every setting in [configuration](plugin/config.md).
 
 ### The Resource Pack

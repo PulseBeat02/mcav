@@ -315,7 +315,7 @@ final class MCAVSandboxTest {
       final int threads = Pool.shared().getThreads();
       assertEquals(3, threads);
 
-      verify(this.logger).info("MCV2 encoders share {} of {} processors", 3, Runtime.getRuntime().availableProcessors());
+      verify(this.logger).info("MCV2 encoders share {} of {} processors.", 3, Runtime.getRuntime().availableProcessors());
       this.sandbox.onDisable();
     } finally {
       Pool.setSharedThreads(0);
@@ -470,8 +470,8 @@ final class MCAVSandboxTest {
     this.sandbox.onEnable();
 
     final ArgumentCaptor<Object> duration = ArgumentCaptor.forClass(Object.class);
-    verify(this.logger).info("Loading MCAV");
-    verify(this.logger).info(eq("MCAV loaded in {} ms"), duration.capture());
+    verify(this.logger).info("Loading MCAV.");
+    verify(this.logger).info(eq("MCAV loaded in {} ms."), duration.capture());
     final Object logged = duration.getValue();
     final long milliseconds = (Long) logged;
 
@@ -491,7 +491,7 @@ final class MCAVSandboxTest {
   void shouldWarnWhenThereIsNoBrowserForThisServer() {
     when(this.vmModule.isQemuInstalled()).thenReturn(true);
     this.sandbox.onEnable();
-    verify(this.logger).warn("There is no browser for the operating system and processor of this server, browsers will not be available");
+    verify(this.logger).warn("There is no browser for the operating system and processor of this server, browsers will not be available.");
 
     final boolean browserSupported = this.sandbox.isBrowserSupported();
     assertFalse(browserSupported);
@@ -503,7 +503,7 @@ final class MCAVSandboxTest {
   void shouldWarnWhenQemuIsNotInstalled() {
     when(this.browserModule.isSupported()).thenReturn(true);
     this.sandbox.onEnable();
-    verify(this.logger).warn("QEMU is not installed, virtual machines will not be available");
+    verify(this.logger).warn("QEMU is not installed, virtual machines will not be available.");
     final boolean hasQemu = this.sandbox.isQemuInstalled();
     assertFalse(hasQemu);
     this.sandbox.onDisable();
@@ -546,7 +546,7 @@ final class MCAVSandboxTest {
   }
 
   private void assertDisabledItselfWithOneError(final String reason, final String remedy) {
-    verify(this.logger).error("MCAV cannot be enabled: {} ({})", reason, remedy);
+    verify(this.logger).error("MCAV cannot be enabled: {} To fix it, {}.", reason, remedy);
     verify(this.logger).error(anyString(), any(), any());
     final PluginManager pluginManager = TestServer.pluginManager();
     verify(pluginManager).disablePlugin(this.sandbox);

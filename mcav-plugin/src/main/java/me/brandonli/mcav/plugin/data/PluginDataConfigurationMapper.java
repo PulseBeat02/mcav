@@ -102,17 +102,17 @@ public final class PluginDataConfigurationMapper {
 
   private static final int MAX_PORT = 65535;
 
-  private static final String INVALID_PORT = "Invalid {} {}, using {}";
+  private static final String INVALID_PORT = "Invalid {} {}, using {} instead.";
 
-  private static final String INVALID_REFUSED_HOST = "Ignoring an entry of {} that is not a host name or address: {}";
-  private static final String INVALID_THREADS = "Invalid {} {}, using half the processors";
+  private static final String INVALID_REFUSED_HOST = "Ignoring the entry {} of {}, which is not a host name or address.";
+  private static final String INVALID_THREADS = "Invalid {} {}, using half the processors.";
 
-  private static final String INVALID_NATIVE = "Invalid {} {}, using " + Mcv2.NATIVE_AUTO;
+  private static final String INVALID_NATIVE = "Invalid {} {}, using " + Mcv2.NATIVE_AUTO + " instead.";
 
-  private static final String INVALID_CHOICE = "Invalid {} {}, using {}";
+  private static final String INVALID_CHOICE = "Invalid {} {}, using {} instead.";
 
   // names the host and the port of the entry, never its password
-  private static final String INVALID_VNC_HOST = "Ignoring an entry of {} that is not a host and a port from 1 to 65535: {}:{}";
+  private static final String INVALID_VNC_HOST = "Ignoring the entry {}:{} of {}, which is not a host and a port from 1 to 65535.";
 
   private final MCAVSandbox plugin;
 
@@ -264,7 +264,7 @@ public final class PluginDataConfigurationMapper {
     for (final String entry : config.getStringList(BROWSER_REFUSED_HOSTS)) {
       final String host = entry.strip();
       if (host.isEmpty() || host.chars().anyMatch(character -> character == ',' || Character.isWhitespace(character))) {
-        LOGGER.warn(INVALID_REFUSED_HOST, BROWSER_REFUSED_HOSTS, entry);
+        LOGGER.warn(INVALID_REFUSED_HOST, entry, BROWSER_REFUSED_HOSTS);
       } else {
         hosts.add(host);
       }
@@ -316,7 +316,7 @@ public final class PluginDataConfigurationMapper {
       port < 1 ||
       port > MAX_PORT
     ) {
-      LOGGER.warn(INVALID_VNC_HOST, VNC_ALLOWED_HOSTS, hostValue, portValue);
+      LOGGER.warn(INVALID_VNC_HOST, hostValue, portValue, VNC_ALLOWED_HOSTS);
       return null;
     }
     final Object password = map.get("password");
@@ -324,7 +324,7 @@ public final class PluginDataConfigurationMapper {
     try {
       return new VncAllowList.Entry(host, port, secret.isEmpty() ? null : secret);
     } catch (final IllegalArgumentException invalidHost) {
-      LOGGER.warn(INVALID_VNC_HOST, VNC_ALLOWED_HOSTS, hostValue, portValue);
+      LOGGER.warn(INVALID_VNC_HOST, hostValue, portValue, VNC_ALLOWED_HOSTS);
       return null;
     }
   }

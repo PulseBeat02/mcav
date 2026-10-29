@@ -43,7 +43,7 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(VideoDevicesCommand.class);
 
-  private static final String LIST_ERROR = "Failed to list the capture devices";
+  private static final String LIST_ERROR = "Failed to list the capture devices.";
 
   private final MCAVSandbox plugin;
 

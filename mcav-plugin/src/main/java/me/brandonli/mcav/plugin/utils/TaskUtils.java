@@ -36,9 +36,9 @@ public final class TaskUtils {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TaskUtils.class);
 
-  private static final String TASK_DROPPED = "Dropped a task for the main thread because the plugin is disabled";
+  private static final String TASK_DROPPED = "Dropped a task for the main thread because the plugin is disabled.";
 
-  private static final String CALLBACK_FAILED = "A callback of a background task failed";
+  private static final String CALLBACK_FAILED = "A callback of a background task failed.";
 
   private TaskUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");

@@ -61,24 +61,24 @@ public final class MCAVSandbox extends JavaPlugin {
   private static final String MISSING_VOICE_CHAT_REMEDY =
     "install the Simple Voice Chat plugin or set simple-voice-chat.enabled to false in config.yml";
 
-  private static final String CANNOT_ENABLE = "MCAV cannot be enabled: {} ({})";
+  private static final String CANNOT_ENABLE = "MCAV cannot be enabled: {} To fix it, {}.";
 
   private static final String CANNOT_REENABLE = "Paper cannot re-enable this plugin after it has been disabled!";
 
   private static final String RESTART_REMEDY = "restart the server to enable MCAV";
 
-  private static final String LOADING = "Loading MCAV";
+  private static final String LOADING = "Loading MCAV.";
 
-  private static final String NO_QEMU = "QEMU is not installed, virtual machines will not be available";
+  private static final String NO_QEMU = "QEMU is not installed, virtual machines will not be available.";
 
   private static final String NO_BROWSER =
-    "There is no browser for the operating system and processor of this server, browsers will not be available";
+    "There is no browser for the operating system and processor of this server, browsers will not be available.";
 
-  private static final String LOADED = "MCAV loaded in {} ms";
+  private static final String LOADED = "MCAV loaded in {} ms.";
 
-  private static final String ENCODER_SHARE = "MCV2 encoders share {} of {} processors";
+  private static final String ENCODER_SHARE = "MCV2 encoders share {} of {} processors.";
 
-  private static final String ENCODER_KERNELS = "MCV2 kernels: {}";
+  private static final String ENCODER_KERNELS = "MCV2 kernels: {}.";
 
   private static final String NATIVES_FOLDER = "natives";
 

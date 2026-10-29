@@ -39,7 +39,7 @@ returned by the Paper API; the repository supplies no expected server digest. It
 
 The first start takes several minutes: it downloads Paper, then the plugin asks Gremlin to download the mcav
 modules, the JavaCV natives, VLC and yt-dlp. Wait for `Done (…)! For help, type "help"` and, just before it,
-`MCAV loaded in … ms`.
+`MCAV loaded in … ms.`.
 
 > **Testing your own changes.** `runServer` downloads the **published** `1.0.0-SNAPSHOT` modules, so by default you
 > are not watching your working tree at all. To run the modules of your build, publish them into a local repository
@@ -99,7 +99,7 @@ mcav video map @a VLC HTTP_SERVER "1920x1080" "15x9" 0 FLOYD_STEINBERG "" "/abso
 
 `HTTP_SERVER` audio needs the audio web page, which is off by default: set `enabled: true` under `http-server` in
 `mcav-plugin/run/plugins/MCAV/config.yml` and restart the server, or the command is refused. At startup the console then prints
-`The audio web page is available at http://localhost:3000/` (port 3000 unless `http-server.port` says otherwise);
+`The audio web page is available at http://localhost:3000/.` (port 3000 unless `http-server.port` says otherwise);
 open that page in a browser (forward port 3000 the same way) and press play. Listen for audio and compare its timing
 with the video; a successful connection alone does not verify synchronization.
 
