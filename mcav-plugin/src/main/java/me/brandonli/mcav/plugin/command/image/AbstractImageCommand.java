@@ -131,17 +131,17 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       new ResizeFilter(resolution.getFirst(), resolution.getSecond()).applyFilter(image);
       chain.apply(image);
       return image;
-    } catch (final RuntimeException | Error failure) {
-      ThrowableUtils.throwIfFatal(failure);
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
       try {
         image.release();
-      } catch (final RuntimeException | Error cleanupFailure) {
-        ThrowableUtils.throwIfFatal(cleanupFailure);
-        if (!FAILURE_IDENTITY.equivalent(failure, cleanupFailure)) {
-          failure.addSuppressed(cleanupFailure);
+      } catch (final RuntimeException | Error cleanupException) {
+        ThrowableUtils.throwIfFatal(cleanupException);
+        if (!FAILURE_IDENTITY.equivalent(exception, cleanupException)) {
+          exception.addSuppressed(cleanupException);
         }
       }
-      throw failure;
+      throw exception;
     }
   }
 
@@ -210,11 +210,11 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       ThrowableUtils.throwIfFatal(exception);
       try {
         this.manager.discardLoaded(generation);
-      } catch (final RuntimeException | Error cleanupFailure) {
-        ThrowableUtils.throwIfFatal(cleanupFailure);
-        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanupFailure);
+      } catch (final RuntimeException | Error cleanupException) {
+        ThrowableUtils.throwIfFatal(cleanupException);
+        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanupException);
         if (!sameFailure) {
-          exception.addSuppressed(cleanupFailure);
+          exception.addSuppressed(cleanupException);
         }
       }
       throw exception;
@@ -253,11 +253,11 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
         } else {
           image.release();
         }
-      } catch (final RuntimeException | Error cleanupFailure) {
-        ThrowableUtils.throwIfFatal(cleanupFailure);
-        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanupFailure);
+      } catch (final RuntimeException | Error cleanupException) {
+        ThrowableUtils.throwIfFatal(cleanupException);
+        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanupException);
         if (!sameFailure) {
-          exception.addSuppressed(cleanupFailure);
+          exception.addSuppressed(cleanupException);
         }
       }
       throw exception;

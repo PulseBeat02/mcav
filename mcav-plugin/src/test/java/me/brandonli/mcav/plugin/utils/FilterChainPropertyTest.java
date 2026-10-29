@@ -86,8 +86,8 @@ final class FilterChainPropertyTest {
 
       final boolean matches = chain.create().size() <= FilterChain.MAX_FILTERS;
       assertTrue(matches, text);
-    } catch (final IllegalArgumentException refused) {
-      final boolean secondMatches = refused.getMessage() != null && !refused.getMessage().isBlank();
+    } catch (final IllegalArgumentException exception) {
+      final boolean secondMatches = exception.getMessage() != null && !exception.getMessage().isBlank();
       assertTrue(secondMatches, text);
     }
   }

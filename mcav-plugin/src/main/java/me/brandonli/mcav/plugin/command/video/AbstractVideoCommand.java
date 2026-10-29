@@ -225,8 +225,8 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
     final Path overlays = plugin.getDataFolder().toPath().resolve(FilterChain.OVERLAY_FOLDER);
     try {
       return FilterChain.parse(filters, overlays, isVideo);
-    } catch (final IllegalArgumentException invalid) {
-      sender.sendMessage(Message.FILTERS_INVALID.build(Objects.requireNonNullElse(invalid.getMessage(), "")));
+    } catch (final IllegalArgumentException exception) {
+      sender.sendMessage(Message.FILTERS_INVALID.build(Objects.requireNonNullElse(exception.getMessage(), "")));
       return null;
     }
   }
@@ -544,11 +544,11 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   private static void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
     try {
       cleanup.run();
-    } catch (final RuntimeException | Error cleanupFailure) {
-      ThrowableUtils.throwIfFatal(cleanupFailure);
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
       final Equivalence<Object> identity = Equivalence.identity();
-      if (!identity.equivalent(failure, cleanupFailure)) {
-        failure.addSuppressed(cleanupFailure);
+      if (!identity.equivalent(failure, exception)) {
+        failure.addSuppressed(exception);
       }
     }
   }

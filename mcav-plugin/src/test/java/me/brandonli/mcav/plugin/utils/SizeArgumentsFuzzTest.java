@@ -44,7 +44,7 @@ final class SizeArgumentsFuzzTest {
     final Pair<Integer, Integer> size;
     try {
       size = wall ? ArgumentUtils.parseScreenDimensions(typed) : ArgumentUtils.parseDimensions(typed);
-    } catch (final IllegalArgumentException refused) {
+    } catch (final IllegalArgumentException exception) {
       return;
     }
     final int width = size.getFirst();

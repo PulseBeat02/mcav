@@ -56,7 +56,7 @@ final class QemuHardwareValuesFuzzTest {
     final String value = new String(input, 1, input.length - 1, StandardCharsets.UTF_8);
     try {
       QemuHardwareValues.check(option, value);
-    } catch (final IllegalArgumentException refused) {
+    } catch (final IllegalArgumentException exception) {
       return;
     }
 

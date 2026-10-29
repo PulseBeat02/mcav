@@ -251,7 +251,7 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       try {
         this.service.execute(() -> releaseLogged(release));
         return;
-      } catch (final RejectedExecutionException stopped) {
+      } catch (final RejectedExecutionException exception) {
         // the thread takes no more work, so the player stops here
       }
     }
@@ -444,9 +444,9 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       ThrowableUtils.throwIfFatal(exception);
       try {
         maps.release();
-      } catch (final RuntimeException | Error cleanup) {
-        ThrowableUtils.throwIfFatal(cleanup);
-        exception.addSuppressed(cleanup);
+      } catch (final RuntimeException | Error cleanupException) {
+        ThrowableUtils.throwIfFatal(cleanupException);
+        exception.addSuppressed(cleanupException);
       }
       throw exception;
     }
@@ -492,11 +492,11 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
   private void releaseAfterFailure(final Throwable exception) {
     try {
       this.releaseCurrent();
-    } catch (final RuntimeException | Error cleanup) {
-      ThrowableUtils.throwIfFatal(cleanup);
-      final boolean same = IDENTITY.equivalent(exception, cleanup);
+    } catch (final RuntimeException | Error cleanupException) {
+      ThrowableUtils.throwIfFatal(cleanupException);
+      final boolean same = IDENTITY.equivalent(exception, cleanupException);
       if (!same) {
-        exception.addSuppressed(cleanup);
+        exception.addSuppressed(cleanupException);
       }
     }
   }
@@ -532,11 +532,11 @@ public abstract class AbstractInteractiveCommand<T> implements AnnotationCommand
       ThrowableUtils.throwIfFatal(exception);
       try {
         this.finishStartTask(started, screen);
-      } catch (final RuntimeException | Error cleanup) {
-        ThrowableUtils.throwIfFatal(cleanup);
-        final boolean same = IDENTITY.equivalent(exception, cleanup);
+      } catch (final RuntimeException | Error cleanupException) {
+        ThrowableUtils.throwIfFatal(cleanupException);
+        final boolean same = IDENTITY.equivalent(exception, cleanupException);
         if (!same) {
-          exception.addSuppressed(cleanup);
+          exception.addSuppressed(cleanupException);
         }
       }
       throw exception;

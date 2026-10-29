@@ -135,7 +135,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
       // Cloud reserves a trailing integer for pagination, including a page with no command query.
       Integer.parseInt(trimmed);
       return trimmed;
-    } catch (final NumberFormatException notPageNumber) {
+    } catch (final NumberFormatException exception) {
       return ROOT_COMMAND + " " + trimmed;
     }
   }

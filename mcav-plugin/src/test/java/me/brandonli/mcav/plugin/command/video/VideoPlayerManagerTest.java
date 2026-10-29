@@ -328,7 +328,7 @@ final class VideoPlayerManagerTest {
     final Future<?> release = service.submit(() -> {
       try {
         this.manager.releaseVideoPlayer();
-      } catch (final IllegalStateException expected) {
+      } catch (final IllegalStateException exception) {
         final boolean interrupted = Thread.interrupted();
         keptInterrupt.set(interrupted);
       }
@@ -700,8 +700,8 @@ final class VideoPlayerManagerTest {
       try {
         this.manager.releaseVideoPlayer();
         finished.complete(null);
-      } catch (final RuntimeException | Error failure) {
-        finished.completeExceptionally(failure);
+      } catch (final RuntimeException | Error exception) {
+        finished.completeExceptionally(exception);
       }
     });
     try {

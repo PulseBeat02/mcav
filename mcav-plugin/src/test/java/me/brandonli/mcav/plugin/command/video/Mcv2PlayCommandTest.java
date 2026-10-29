@@ -877,9 +877,9 @@ final class Mcv2PlayCommandTest {
         final long openingStarted = System.nanoTime();
         try {
           Thread.sleep(700);
-        } catch (final InterruptedException interrupted) {
+        } catch (final InterruptedException exception) {
           Thread.currentThread().interrupt();
-          throw new IOException(interrupted);
+          throw new IOException(exception);
         }
         openingNanos.set(System.nanoTime() - openingStarted);
         return new SolidFrames(3, new CountDownLatch(0));

@@ -75,8 +75,8 @@ final class DumpRedactionPropertyTest {
       final boolean scoped = bytes.length == 16 && scope >= 0;
       final InetAddress address = scoped ? Inet6Address.getByAddress(null, bytes, scope) : InetAddress.getByAddress(bytes);
       return new InetSocketAddress(address, port);
-    } catch (final UnknownHostException impossible) {
-      throw new IllegalStateException("4 and 16 bytes are always an address!", impossible);
+    } catch (final UnknownHostException exception) {
+      throw new IllegalStateException("4 and 16 bytes are always an address!", exception);
     }
   }
 

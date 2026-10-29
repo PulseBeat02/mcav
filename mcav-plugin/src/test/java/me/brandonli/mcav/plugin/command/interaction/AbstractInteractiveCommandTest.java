@@ -1486,9 +1486,9 @@ final class AbstractInteractiveCommandTest {
         final boolean resumed = resumeFailure.await(10, TimeUnit.SECONDS);
         assertTrue(resumed, "The main thread must release the failure callback");
         return invocation.callRealMethod();
-      } catch (final Throwable callbackProblem) {
-        callbackFailure.set(callbackProblem);
-        throw callbackProblem;
+      } catch (final Throwable exception) {
+        callbackFailure.set(exception);
+        throw exception;
       }
     })
       .when(failure)

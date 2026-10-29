@@ -171,7 +171,7 @@ final class VideoFlagsParserTest {
   private String[] parseOrEmpty(final String option) {
     try {
       return this.parser.parseYTDLPFlags("--yt-dlp{" + option + "}");
-    } catch (final IllegalArgumentException refused) {
+    } catch (final IllegalArgumentException exception) {
       return new String[0];
     }
   }

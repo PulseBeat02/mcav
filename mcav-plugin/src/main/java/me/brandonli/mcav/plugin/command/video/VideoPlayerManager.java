@@ -348,10 +348,10 @@ public final class VideoPlayerManager {
   private static void cleanupAfterFailure(final Throwable failure, final Runnable cleanup) {
     try {
       cleanup.run();
-    } catch (final RuntimeException | Error cleanupFailure) {
-      ThrowableUtils.throwIfFatal(cleanupFailure);
-      if (!IDENTITY.equivalent(failure, cleanupFailure)) {
-        failure.addSuppressed(cleanupFailure);
+    } catch (final RuntimeException | Error exception) {
+      ThrowableUtils.throwIfFatal(exception);
+      if (!IDENTITY.equivalent(failure, exception)) {
+        failure.addSuppressed(exception);
       }
     }
   }

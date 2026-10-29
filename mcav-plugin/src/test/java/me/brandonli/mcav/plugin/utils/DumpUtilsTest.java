@@ -126,8 +126,8 @@ final class DumpUtilsTest {
 
         final String requestMethod = exchange.getRequestMethod();
         assertEquals("POST", requestMethod, "a dump is uploaded by POST");
-      } catch (final AssertionError failure) {
-        this.handlerFailure.compareAndSet(null, failure);
+      } catch (final AssertionError exception) {
+        this.handlerFailure.compareAndSet(null, exception);
       }
     } catch (final InterruptedException exception) {
       final Thread current = Thread.currentThread();

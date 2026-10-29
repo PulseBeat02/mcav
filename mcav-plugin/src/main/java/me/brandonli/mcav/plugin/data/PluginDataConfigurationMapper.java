@@ -323,7 +323,7 @@ public final class PluginDataConfigurationMapper {
     final String secret = password == null ? "" : password.toString();
     try {
       return new VncAllowList.Entry(host, port, secret.isEmpty() ? null : secret);
-    } catch (final IllegalArgumentException invalidHost) {
+    } catch (final IllegalArgumentException exception) {
       LOGGER.warn(INVALID_VNC_HOST, hostValue, portValue, VNC_ALLOWED_HOSTS);
       return null;
     }

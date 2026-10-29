@@ -106,7 +106,7 @@ final class FakeVncServer implements AutoCloseable {
           .daemon()
           .name("fake-vnc-client")
           .start(() -> this.serve(client));
-      } catch (final IOException closed) {
+      } catch (final IOException exception) {
         return;
       }
     }
@@ -130,7 +130,7 @@ final class FakeVncServer implements AutoCloseable {
       final PixelFormat format = new PixelFormat();
       writeServerInit(out);
       this.serveMessages(in, out, format);
-    } catch (final IOException | GeneralSecurityException disconnected) {
+    } catch (final IOException | GeneralSecurityException exception) {
       // the client left, or sent what this server does not speak
     }
   }
@@ -235,7 +235,7 @@ final class FakeVncServer implements AutoCloseable {
     this.socket.close();
     try {
       this.acceptor.join(2_000L);
-    } catch (final InterruptedException interrupted) {
+    } catch (final InterruptedException exception) {
       Thread.currentThread().interrupt();
     }
   }

@@ -93,7 +93,7 @@ final class VideoFlagsParserPropertyTest {
     final String[] arguments;
     try {
       arguments = this.parser.parseYTDLPFlags(typed);
-    } catch (final IllegalArgumentException refused) {
+    } catch (final IllegalArgumentException exception) {
       return;
     }
     YtDlpArgumentAssertions.assertSafe(typed, arguments);

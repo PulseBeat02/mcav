@@ -40,8 +40,8 @@ final class FilterChainFuzzTest {
     final FilterChain chain;
     try {
       chain = FilterChain.parse(text, NO_OVERLAYS, isVideo);
-    } catch (final IllegalArgumentException refused) {
-      final boolean thirdMatches = refused.getMessage() != null && !refused.getMessage().isBlank();
+    } catch (final IllegalArgumentException exception) {
+      final boolean thirdMatches = exception.getMessage() != null && !exception.getMessage().isBlank();
       assertTrue(thirdMatches, text);
 
       return;

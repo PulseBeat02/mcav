@@ -165,11 +165,11 @@ public final class AnnotationParserHandler {
       ThrowableUtils.throwIfFatal(exception);
       try {
         this.shutdownCommands();
-      } catch (final RuntimeException | Error cleanupFailure) {
-        ThrowableUtils.throwIfFatal(cleanupFailure);
-        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanupFailure);
+      } catch (final RuntimeException | Error cleanupException) {
+        ThrowableUtils.throwIfFatal(cleanupException);
+        final boolean sameFailure = FAILURE_IDENTITY.equivalent(exception, cleanupException);
         if (!sameFailure) {
-          exception.addSuppressed(cleanupFailure);
+          exception.addSuppressed(cleanupException);
         }
       }
       throw exception;

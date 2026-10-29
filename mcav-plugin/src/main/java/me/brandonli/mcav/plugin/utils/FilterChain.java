@@ -382,9 +382,9 @@ public final class FilterChain {
     final BasicFileAttributes attributes;
     try {
       attributes = Files.readAttributes(file, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-    } catch (final IOException missing) {
+    } catch (final IOException exception) {
       final String message = NO_OVERLAY.formatted(name);
-      throw new IllegalArgumentException(message, missing);
+      throw new IllegalArgumentException(message, exception);
     }
     if (!attributes.isRegularFile()) {
       final String message = NO_OVERLAY.formatted(name);

@@ -102,7 +102,7 @@ final class ArgumentUtilsPropertyTest {
     final Pair<Integer, Integer> size;
     try {
       size = parser.apply(typed);
-    } catch (final IllegalArgumentException refused) {
+    } catch (final IllegalArgumentException exception) {
       return;
     }
     final int width = size.getFirst();
@@ -148,7 +148,7 @@ final class ArgumentUtilsPropertyTest {
     final Pair<Integer, Integer> size;
     try {
       size = ArgumentUtils.parseScreenDimensions(typed);
-    } catch (final IllegalArgumentException refused) {
+    } catch (final IllegalArgumentException exception) {
       return;
     }
     final int width = size.getFirst();

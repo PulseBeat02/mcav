@@ -84,9 +84,9 @@ public final class DiskImages {
   private static Path resolve(final Path folder, final String image) {
     try {
       return folder.resolve(image);
-    } catch (final RuntimeException invalidPath) {
+    } catch (final RuntimeException exception) {
       final String message = "The disk image %s is not a valid file name!".formatted(image);
-      throw new IllegalArgumentException(message, invalidPath);
+      throw new IllegalArgumentException(message, exception);
     }
   }
 }

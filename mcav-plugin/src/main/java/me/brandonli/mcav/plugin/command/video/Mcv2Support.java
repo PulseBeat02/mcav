@@ -201,7 +201,7 @@ public final class Mcv2Support {
   public Mcv2PackServer.@Nullable Lease open(final CommandSender sender, final Mcv2Configuration configuration) {
     try {
       return this.packs.open(configuration);
-    } catch (final IllegalStateException full) {
+    } catch (final IllegalStateException exception) {
       sender.sendMessage(Message.MCV2_FULL.build());
       return null;
     }

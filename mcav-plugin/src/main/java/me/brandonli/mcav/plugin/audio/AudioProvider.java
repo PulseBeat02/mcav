@@ -444,9 +444,9 @@ public final class AudioProvider {
       try {
         previous.output = this.connect(previous);
         this.owner = previous;
-      } catch (final RuntimeException unavailable) {
+      } catch (final RuntimeException exception) {
         this.claims.remove(previous);
-        LOGGER.warn(HAND_BACK_FAILED, unavailable);
+        LOGGER.warn(HAND_BACK_FAILED, exception);
       }
     }
   }

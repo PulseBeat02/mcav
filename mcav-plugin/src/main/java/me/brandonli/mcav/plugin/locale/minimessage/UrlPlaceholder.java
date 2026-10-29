@@ -62,7 +62,7 @@ final class UrlPlaceholder implements ComponentRenderer<String> {
       try {
         final ClickEvent<?> replacement = ClickEvent.openUrl(target);
         rendered = rendered.clickEvent(replacement);
-      } catch (final IllegalArgumentException invalidUri) {
+      } catch (final IllegalArgumentException exception) {
         // Adventure validates URI syntax. Preserve the displayed data without offering a malformed click target.
         rendered = rendered.clickEvent(null);
       }
