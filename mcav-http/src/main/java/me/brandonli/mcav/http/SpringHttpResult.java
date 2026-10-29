@@ -19,11 +19,13 @@ package me.brandonli.mcav.http;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.util.concurrent.Uninterruptibles;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -71,6 +73,7 @@ public final class SpringHttpResult implements HttpResult {
   private static final Logger LOGGER = LoggerFactory.getLogger(SpringHttpResult.class);
   private static final int SEND_TIME_LIMIT_MILLISECONDS = 5_000;
   private static final int SEND_BUFFER_LIMIT_BYTES = 512 * 1024;
+  private static final Duration CLOSE_TIME_LIMIT = Duration.ofSeconds(1);
 
   private static final String NO_LOGGING_SYSTEM = "none";
 
@@ -145,8 +148,8 @@ public final class SpringHttpResult implements HttpResult {
 
   /**
    * Disconnects every listener with {@link CloseStatus#GOING_AWAY} and stops the embedded web server. The
-   * connections are closed on other threads, so a listener whose write is stuck never delays stopping. Calling it
-   * while the server is stopped has no effect.
+   * connections are closed on other threads, and stopping waits at most one second for them, so a listener whose
+   * write is stuck delays stopping by at most that long. Calling it while the server is stopped has no effect.
    *
    * @since 1.0.0
    */
@@ -156,7 +159,8 @@ public final class SpringHttpResult implements HttpResult {
       // Clear before disconnectListeners(): a handshake finishing during shutdown must not add a listener.
       this.acceptingListeners = false;
       final ConfigurableApplicationContext current = this.context;
-      this.disconnectListeners();
+      final List<Thread> closing = this.disconnectListeners();
+      this.awaitClosing(closing);
 
       if (current == null) {
         return;
@@ -265,13 +269,27 @@ public final class SpringHttpResult implements HttpResult {
     return uri.endsWith(PATH_SEPARATOR) ? uri : uri + PATH_SEPARATOR;
   }
 
-  private void disconnectListeners() {
+  private List<Thread> disconnectListeners() {
     final Collection<AudioListener> connected = this.listeners.values();
+    final List<Thread> closing = new ArrayList<>();
     for (final AudioListener listener : connected) {
-      // closing waits for a write in progress, so a stuck browser must not hold up stopping or starting
-      listener.closeAsync(CloseStatus.GOING_AWAY);
+      // closing waits for a write in progress, so a stuck browser holds up stopping only until CLOSE_TIME_LIMIT
+      final Thread thread = listener.closeAsync(CloseStatus.GOING_AWAY);
+      closing.add(thread);
     }
+
     this.listeners.clear();
+    return closing;
+  }
+
+  private void awaitClosing(final List<Thread> closing) {
+    final long start = System.nanoTime();
+    final long deadline = start + CLOSE_TIME_LIMIT.toNanos();
+    for (final Thread thread : closing) {
+      final long now = System.nanoTime();
+      final Duration remaining = Duration.ofNanos(deadline - now);
+      Uninterruptibles.joinUninterruptibly(thread, remaining);
+    }
   }
 
   @VisibleForTesting

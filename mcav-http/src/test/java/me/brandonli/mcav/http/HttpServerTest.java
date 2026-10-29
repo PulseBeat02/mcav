@@ -638,7 +638,7 @@ final class HttpServerTest {
   }
 
   @Test
-  void shouldStopWithoutWaitingForAListenerWhoseWriteIsStuck() throws Exception {
+  void shouldStopDespiteAListenerWhoseWriteIsStuck() throws Exception {
     final SpringHttpResult http = new SpringHttpResult(LOCALHOST, EPHEMERAL_PORT, pageDirectory, LOOPBACK);
     final CountDownLatch writeEntered = new CountDownLatch(1);
     final CountDownLatch releaseWrite = new CountDownLatch(1);
@@ -653,7 +653,7 @@ final class HttpServerTest {
       assertTrue(entered);
 
       final Duration limit = Duration.ofSeconds(TIMEOUT_SECONDS);
-      assertTimeoutPreemptively(limit, http::stop, "stop must not wait for the stuck write");
+      assertTimeoutPreemptively(limit, http::stop, "stop must give up on the stuck write");
       final boolean running = http.isRunning();
       final int listeners = http.getListenerCount();
       assertFalse(running);

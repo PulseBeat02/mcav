@@ -151,8 +151,8 @@ public interface HttpResult extends AudioFilter {
   }
 
   /**
-   * Stops the server and disconnects every listener. The server can be started again afterwards. Stopping never
-   * waits for a listener whose connection is stuck. The media information is retained across a restart.
+   * Stops the server and disconnects every listener. The server can be started again afterwards. Stopping waits at
+   * most one second for listeners whose connections are stuck. The media information is retained across a restart.
    *
    * @throws RuntimeException if closing the embedded web framework fails
    * @since 1.0.0
