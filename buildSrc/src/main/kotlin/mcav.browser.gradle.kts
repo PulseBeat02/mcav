@@ -22,6 +22,10 @@ plugins {
     id("mcav.script-testing")
 }
 
+pitest {
+    excludedGroups = setOf("cef")
+}
+
 val helperCoverage = layout.buildDirectory.file("jacoco/helper.exec")
 
 tasks.test {
