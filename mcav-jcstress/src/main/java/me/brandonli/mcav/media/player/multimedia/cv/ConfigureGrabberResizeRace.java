@@ -68,6 +68,7 @@ public class ConfigureGrabberResizeRace {
     this.player = new ConfiguringPlayer();
     this.dimensionCallback = this.player.getDimensionAttachableCallback();
     this.dimensionCallback.attach(target);
+
     this.grabber = new IdleGrabber();
   }
 

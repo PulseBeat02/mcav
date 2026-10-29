@@ -64,18 +64,21 @@ public class BufferFormatDetachRace {
     final Dimension target = Dimension.of(TARGET_WIDTH, TARGET_HEIGHT);
     this.dimensionCallback = DimensionAttachableCallback.create();
     this.dimensionCallback.attach(target);
-    final VideoPlayerMultiplexer owner = createOwner(this.dimensionCallback);
+
+    final VideoPlayerMultiplexer owner = this.createOwner();
     this.renderer = new VideoRenderer(owner);
   }
 
-  private static VideoPlayerMultiplexer createOwner(final DimensionAttachableCallback dimensionCallback) {
+  private VideoPlayerMultiplexer createOwner() {
     final ClassLoader loader = VideoPlayerMultiplexer.class.getClassLoader();
     final Class<?>[] interfaces = { VideoPlayerMultiplexer.class };
-    final InvocationHandler handler = (final Object proxy, final Method method, final Object[] arguments) -> {
-      final String name = method.getName();
-      return name.equals("getDimensionAttachableCallback") ? dimensionCallback : null;
-    };
+    final InvocationHandler handler = this::answerOwnerCall;
     return (VideoPlayerMultiplexer) Proxy.newProxyInstance(loader, interfaces, handler);
+  }
+
+  private Object answerOwnerCall(final Object proxy, final Method method, final Object[] arguments) {
+    final String name = method.getName();
+    return name.equals("getDimensionAttachableCallback") ? this.dimensionCallback : null;
   }
 
   /**

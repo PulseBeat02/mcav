@@ -38,12 +38,13 @@ public class CapabilityRetryRace {
   private static final int REFUSED = 0;
   private static final int ALLOWED = 1;
 
-  private final CapabilityGuard guard = new CapabilityGuard();
+  private final CapabilityGuard guard;
 
   /**
    * Starts with a failed preparation.
    */
   public CapabilityRetryRace() {
+    this.guard = new CapabilityGuard();
     this.guard.markPrepared(Capability.VLC, Availability.UNAVAILABLE);
   }
 

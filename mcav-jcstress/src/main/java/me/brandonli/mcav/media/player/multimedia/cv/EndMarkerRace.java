@@ -67,6 +67,7 @@ public class EndMarkerRace {
   public EndMarkerRace() {
     this.queue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
     this.queue.add(QUEUED);
+
     this.discarded = Collections.synchronizedList(new ArrayList<>());
   }
 
@@ -99,7 +100,9 @@ public class EndMarkerRace {
     final List<String> remaining = new ArrayList<>(this.queue);
     final List<String> everything = new ArrayList<>(remaining);
     everything.addAll(this.discarded);
-    outcome.r1 = remaining.contains(END) ? MARKER_QUEUED : MARKER_MISSING;
+
+    final boolean markerQueued = remaining.contains(END);
+    outcome.r1 = markerQueued ? MARKER_QUEUED : MARKER_MISSING;
     outcome.r2 = Collections.frequency(everything, QUEUED);
     final int decodedFound = Collections.frequency(everything, DECODED);
     outcome.r3 = this.keptByDecoder ? decodedFound + 1 : decodedFound;

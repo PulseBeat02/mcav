@@ -45,7 +45,14 @@ public class ProcessPublication {
 
   private static final Field PROCESS = findProcessField();
 
-  private final VmProcess machine = new VmProcess(null, null, null, null, null, null, null, START_TIMEOUT_MILLISECONDS, null);
+  private final VmProcess machine;
+
+  /**
+   * Creates a machine whose QEMU has not started.
+   */
+  public ProcessPublication() {
+    this.machine = new VmProcess(null, null, null, null, null, null, null, START_TIMEOUT_MILLISECONDS, null);
+  }
 
   private static Field findProcessField() {
     try {

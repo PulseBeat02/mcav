@@ -71,6 +71,7 @@ public class CheckThenActWindow {
       outcome.r2 = DETACHED;
       return;
     }
+
     final Dimension size = this.dimensionCallback.retrieve();
     outcome.r1 = size.getWidth();
     outcome.r2 = size.getHeight();

@@ -49,14 +49,17 @@ public class StartCancelRace {
   private static final int SOURCE_WIDTH = 128;
   private static final int SOURCE_HEIGHT = 128;
 
-  private final Screen screen = new Screen(
-    null,
-    null,
-    FIRST_MAP_ID,
-    MAP_COUNT,
-    WallPicture.of(COLUMNS, ROWS, SOURCE_WIDTH, SOURCE_HEIGHT, false)
-  );
-  private final AtomicInteger releases = new AtomicInteger();
+  private final Screen screen;
+  private final AtomicInteger releases;
+
+  /**
+   * Creates a screen of one map whose player was not released yet.
+   */
+  public StartCancelRace() {
+    final WallPicture picture = WallPicture.of(COLUMNS, ROWS, SOURCE_WIDTH, SOURCE_HEIGHT, false);
+    this.screen = new Screen(null, null, FIRST_MAP_ID, MAP_COUNT, picture);
+    this.releases = new AtomicInteger();
+  }
 
   /**
    * The worker running the start, as {@code runStartTask} and {@code finishStartTask} do: a start that begins releases
@@ -68,6 +71,7 @@ public class StartCancelRace {
     if (!began) {
       return;
     }
+
     final boolean cancelled = this.screen.finishStart();
     if (cancelled) {
       this.releases.incrementAndGet();

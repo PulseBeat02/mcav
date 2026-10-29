@@ -38,17 +38,10 @@ final class RecordingSession implements InvocationHandler {
 
   RecordingSession() {
     this.closedSynchronously = new AtomicBoolean();
+
     final ClassLoader loader = WebSocketSession.class.getClassLoader();
     final Class<?>[] interfaces = { WebSocketSession.class };
     this.proxy = (WebSocketSession) Proxy.newProxyInstance(loader, interfaces, this);
-  }
-
-  WebSocketSession getProxy() {
-    return this.proxy;
-  }
-
-  boolean isClosedSynchronously() {
-    return this.closedSynchronously.get();
   }
 
   @Override
@@ -72,6 +65,15 @@ final class RecordingSession implements InvocationHandler {
     if (!asynchronous) {
       this.closedSynchronously.set(true);
     }
+
     return null;
+  }
+
+  WebSocketSession getProxy() {
+    return this.proxy;
+  }
+
+  boolean isClosedSynchronously() {
+    return this.closedSynchronously.get();
   }
 }
