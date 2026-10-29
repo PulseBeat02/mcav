@@ -38,6 +38,10 @@ import org.openjdk.jcstress.infra.results.III_Result;
 @State
 public class LatestFrameRace {
 
+  private static final int NO_FRAME = 0;
+  private static final int FIRST_FRAME = 1;
+  private static final int SECOND_FRAME = 2;
+
   private final Mcv2LatestFrame<Integer> slot = new Mcv2LatestFrame<>();
 
   /**
@@ -45,8 +49,8 @@ public class LatestFrameRace {
    */
   @Actor
   public void video() {
-    this.slot.offer(1);
-    this.slot.offer(2);
+    this.slot.offer(FIRST_FRAME);
+    this.slot.offer(SECOND_FRAME);
   }
 
   /**
@@ -71,6 +75,6 @@ public class LatestFrameRace {
   }
 
   private static int number(final Integer frame) {
-    return frame == null ? 0 : frame;
+    return frame == null ? NO_FRAME : frame;
   }
 }

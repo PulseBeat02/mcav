@@ -41,9 +41,11 @@ import org.openjdk.jcstress.annotations.State;
 @State
 public class ProcessPublication {
 
+  private static final long START_TIMEOUT_MILLISECONDS = 0L;
+
   private static final Field PROCESS = findProcessField();
 
-  private final VmProcess machine = new VmProcess(null, null, null, null, null, null, null, 0, null);
+  private final VmProcess machine = new VmProcess(null, null, null, null, null, null, null, START_TIMEOUT_MILLISECONDS, null);
 
   private static Field findProcessField() {
     try {
@@ -83,6 +85,8 @@ public class ProcessPublication {
    */
   private static final class RunningProcess extends Process {
 
+    private static final int EXIT_STATUS = 0;
+
     @Override
     public OutputStream getOutputStream() {
       return OutputStream.nullOutputStream();
@@ -100,7 +104,7 @@ public class ProcessPublication {
 
     @Override
     public int waitFor() {
-      return 0;
+      return EXIT_STATUS;
     }
 
     @Override

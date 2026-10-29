@@ -46,8 +46,13 @@ import uk.co.caprica.vlcj.player.embedded.videosurface.callback.BufferFormat;
 @State
 public class BufferFormatDetachRace {
 
+  private static final int TARGET_WIDTH = 320;
+  private static final int TARGET_HEIGHT = 240;
+
   private static final int SOURCE_WIDTH = 640;
   private static final int SOURCE_HEIGHT = 480;
+
+  private static final int EMPTY_BUFFER_SIDE = 0;
 
   private final DimensionAttachableCallback dimensionCallback;
   private final VideoRenderer renderer;
@@ -56,7 +61,7 @@ public class BufferFormatDetachRace {
    * Creates a renderer whose target size is attached.
    */
   public BufferFormatDetachRace() {
-    final Dimension target = Dimension.of(320, 240);
+    final Dimension target = Dimension.of(TARGET_WIDTH, TARGET_HEIGHT);
     this.dimensionCallback = DimensionAttachableCallback.create();
     this.dimensionCallback.attach(target);
     final VideoPlayerMultiplexer owner = createOwner(this.dimensionCallback);
@@ -85,8 +90,8 @@ public class BufferFormatDetachRace {
       outcome.r1 = format.getWidth();
       outcome.r2 = format.getHeight();
     } catch (final IllegalArgumentException exception) {
-      outcome.r1 = 0;
-      outcome.r2 = 0;
+      outcome.r1 = EMPTY_BUFFER_SIDE;
+      outcome.r2 = EMPTY_BUFFER_SIDE;
     }
   }
 

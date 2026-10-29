@@ -45,7 +45,11 @@ import org.openjdk.jcstress.infra.results.II_Result;
 @State
 public class EncodeSnapshotRace {
 
+  private static final int START_MAP_ID = 0;
+  private static final int COLUMNS = 1;
+  private static final int ROWS = 1;
   private static final int SIDE = 16;
+
   private static final byte OLD_COLOR = 4;
   private static final byte NEW_COLOR = 8;
 
@@ -56,7 +60,7 @@ public class EncodeSnapshotRace {
    * Creates an encoder whose clients already display a frame of one color.
    */
   public EncodeSnapshotRace() {
-    final MapLayout layout = new MapLayout(0, 1, 1, SIDE, SIDE);
+    final MapLayout layout = new MapLayout(START_MAP_ID, COLUMNS, ROWS, SIDE, SIDE);
     this.encoder = new DeltaMapEncoder(layout, DeltaMapEncoder.DEFAULT_MAXIMUM_BYTES_PER_FRAME);
     final byte[] oldFrame = new byte[SIDE * SIDE];
     Arrays.fill(oldFrame, OLD_COLOR);

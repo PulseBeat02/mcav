@@ -35,6 +35,9 @@ import org.openjdk.jcstress.infra.results.I_Result;
 @State
 public class CapabilityRetryRace {
 
+  private static final int REFUSED = 0;
+  private static final int ALLOWED = 1;
+
   private final CapabilityGuard guard = new CapabilityGuard();
 
   /**
@@ -61,9 +64,9 @@ public class CapabilityRetryRace {
   public void use(final I_Result outcome) {
     try {
       this.guard.checkUsable(Capability.VLC);
-      outcome.r1 = 1;
+      outcome.r1 = ALLOWED;
     } catch (final IllegalStateException exception) {
-      outcome.r1 = 0;
+      outcome.r1 = REFUSED;
     }
   }
 }

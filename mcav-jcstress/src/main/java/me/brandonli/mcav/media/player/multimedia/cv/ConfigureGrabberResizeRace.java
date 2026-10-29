@@ -47,7 +47,14 @@ import org.openjdk.jcstress.infra.results.II_Result;
 @State
 public class ConfigureGrabberResizeRace {
 
-  private static final Source SOURCE = FileSource.path(Path.of("race.mp4"));
+  private static final Path SOURCE_PATH = Path.of("race.mp4");
+  private static final Source SOURCE = FileSource.path(SOURCE_PATH);
+
+  private static final int TARGET_WIDTH = 320;
+  private static final int TARGET_HEIGHT = 240;
+
+  private static final int LARGER_WIDTH = 640;
+  private static final int LARGER_HEIGHT = 480;
 
   private final ConfiguringPlayer player;
   private final DimensionAttachableCallback dimensionCallback;
@@ -57,7 +64,7 @@ public class ConfigureGrabberResizeRace {
    * Creates a player whose target size is attached.
    */
   public ConfigureGrabberResizeRace() {
-    final Dimension target = Dimension.of(320, 240);
+    final Dimension target = Dimension.of(TARGET_WIDTH, TARGET_HEIGHT);
     this.player = new ConfiguringPlayer();
     this.dimensionCallback = this.player.getDimensionAttachableCallback();
     this.dimensionCallback.attach(target);
@@ -81,7 +88,7 @@ public class ConfigureGrabberResizeRace {
    */
   @Actor
   public void resize() {
-    final Dimension larger = Dimension.of(640, 480);
+    final Dimension larger = Dimension.of(LARGER_WIDTH, LARGER_HEIGHT);
     this.dimensionCallback.attach(larger);
   }
 

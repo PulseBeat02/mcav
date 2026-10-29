@@ -41,7 +41,21 @@ import org.openjdk.jcstress.infra.results.I_Result;
 @State
 public class StartCancelRace {
 
-  private final Screen screen = new Screen(null, null, 0, 1, WallPicture.of(1, 1, 128, 128, false));
+  private static final int FIRST_MAP_ID = 0;
+  private static final long MAP_COUNT = 1L;
+
+  private static final int COLUMNS = 1;
+  private static final int ROWS = 1;
+  private static final int SOURCE_WIDTH = 128;
+  private static final int SOURCE_HEIGHT = 128;
+
+  private final Screen screen = new Screen(
+    null,
+    null,
+    FIRST_MAP_ID,
+    MAP_COUNT,
+    WallPicture.of(COLUMNS, ROWS, SOURCE_WIDTH, SOURCE_HEIGHT, false)
+  );
   private final AtomicInteger releases = new AtomicInteger();
 
   /**

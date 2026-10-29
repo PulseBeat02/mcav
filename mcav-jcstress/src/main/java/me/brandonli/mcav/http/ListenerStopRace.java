@@ -40,7 +40,13 @@ import org.openjdk.jcstress.infra.results.II_Result;
 @State
 public class ListenerStopRace {
 
-  private final SpringHttpResult result = new SpringHttpResult("localhost", 0, null, List.of());
+  private static final String DOMAIN = "localhost";
+  private static final int PORT = 0;
+
+  private static final int ACCEPTED = 0;
+  private static final int REFUSED = 1;
+
+  private final SpringHttpResult result = new SpringHttpResult(DOMAIN, PORT, null, List.of());
   private final RecordingSession session = new RecordingSession();
 
   /**
@@ -67,7 +73,7 @@ public class ListenerStopRace {
   @Arbiter
   public void inspect(final II_Result outcome) {
     outcome.r1 = this.result.getListenerCount();
-    outcome.r2 = this.session.isClosedSynchronously() ? 1 : 0;
+    outcome.r2 = this.session.isClosedSynchronously() ? REFUSED : ACCEPTED;
     // a leaked listener would keep its sender thread; stopping again releases it whatever the outcome
     this.result.stop();
   }
