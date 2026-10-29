@@ -61,7 +61,7 @@ public class ProcessPublication {
       return field;
     } catch (final NoSuchFieldException exception) {
       final String message = "VmProcess has no process field any more!";
-      throw new IllegalStateException(message, exception);
+      throw new LinkageError(message, exception);
     }
   }
 
@@ -78,13 +78,15 @@ public class ProcessPublication {
 
   /**
    * Publishes a running QEMU.
-   *
-   * @throws IllegalAccessException never, the field was made accessible
    */
   @Signal
-  public void launch() throws IllegalAccessException {
+  public void launch() {
     final Process running = new RunningProcess();
-    PROCESS.set(this.machine, running);
+    try {
+      PROCESS.set(this.machine, running);
+    } catch (final IllegalAccessException exception) {
+      throw new AssertionError(exception);
+    }
   }
 
   /**
