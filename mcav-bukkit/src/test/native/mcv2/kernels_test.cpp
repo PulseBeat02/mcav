@@ -302,9 +302,12 @@ void run_predict(const level_kernels& level, const kernel_trial& trial, random_g
   const int32_t width = inputs.range(1, 80);
   const int32_t height = inputs.range(1, 60);
   const vector<uint8_t> reference = inputs.unsigned_bytes((size_t)width * height * CHANNELS);
-  level.predict_(reference.data(), width, height, inputs.range(-10, width + 10), inputs.range(-10, height + 10),
-                 trial.size_, inputs.range(-MAXIMUM_MOTION, MAXIMUM_MOTION),
-                 inputs.range(-MAXIMUM_MOTION, MAXIMUM_MOTION), result.output_.data());
+  const int32_t horizontal_position = inputs.range(-10, width + 10);
+  const int32_t vertical_position = inputs.range(-10, height + 10);
+  const int32_t horizontal_motion = inputs.range(-MAXIMUM_MOTION, MAXIMUM_MOTION);
+  const int32_t vertical_motion = inputs.range(-MAXIMUM_MOTION, MAXIMUM_MOTION);
+  level.predict_(reference.data(), width, height, horizontal_position, vertical_position, trial.size_,
+                 horizontal_motion, vertical_motion, result.output_.data());
 }
 
 void run_fit(const level_kernels& level, const kernel_trial& trial, random_generator& inputs, kernel_result& result) {
@@ -350,17 +353,22 @@ void run_seeded(const level_kernels& level, const kernel_trial& trial, random_ge
   const vector<uint8_t> reference = inputs.unsigned_bytes((size_t)width * height * CHANNELS);
   vector<int32_t> seeds((size_t)inputs.range(0, 6));
   for (int32_t& seed : seeds) {
-    seed = (int32_t)((uint32_t)inputs.range(-MAXIMUM_MOTION, MAXIMUM_MOTION) << HORIZONTAL_MOTION_SHIFT) |
-           (inputs.range(-MAXIMUM_MOTION, MAXIMUM_MOTION) & VERTICAL_MOTION_MASK);
+    const int32_t horizontal_motion = inputs.range(-MAXIMUM_MOTION, MAXIMUM_MOTION);
+    const int32_t vertical_motion = inputs.range(-MAXIMUM_MOTION, MAXIMUM_MOTION);
+    seed = (int32_t)((uint32_t)horizontal_motion << HORIZONTAL_MOTION_SHIFT) | (vertical_motion & VERTICAL_MOTION_MASK);
   }
 
   vector<int32_t> block = trial.source_;
   if (inputs.range(0, OUT_OF_RANGE_ODDS) == 0) {
-    block[inputs.range(0, (int32_t)block.size() - 1)] = (int32_t)inputs.next();
+    const int32_t value = (int32_t)inputs.next();
+    const int32_t position = inputs.range(0, (int32_t)block.size() - 1);
+    block[position] = value;
   }
-  result.measured_ =
-      level.seeded_(reference.data(), width, height, block.data(), inputs.range(0, width - 1),
-                    inputs.range(0, height - 1), trial.size_, inputs.range(0, 24), seeds.data(), (int32_t)seeds.size());
+  const int32_t horizontal_position = inputs.range(0, width - 1);
+  const int32_t vertical_position = inputs.range(0, height - 1);
+  const int32_t search_range = inputs.range(0, 24);
+  result.measured_ = level.seeded_(reference.data(), width, height, block.data(), horizontal_position,
+                                   vertical_position, trial.size_, search_range, seeds.data(), (int32_t)seeds.size());
 }
 
 void run_load_source(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
@@ -368,7 +376,9 @@ void run_load_source(const level_kernels& level, const kernel_trial& trial, rand
   const int32_t width = inputs.range(1, 70);
   const int32_t height = inputs.range(1, 70);
   const vector<uint8_t> image = inputs.unsigned_bytes((size_t)width * height * CHANNELS);
-  level.load_source_(image.data(), width, height, inputs.range(0, width - 1), inputs.range(0, height - 1), trial.size_,
+  const int32_t horizontal_position = inputs.range(0, width - 1);
+  const int32_t vertical_position = inputs.range(0, height - 1);
+  level.load_source_(image.data(), width, height, horizontal_position, vertical_position, trial.size_,
                      result.output_.data());
 }
 
