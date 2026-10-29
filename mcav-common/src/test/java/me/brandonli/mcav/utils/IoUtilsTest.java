@@ -44,6 +44,7 @@ import java.nio.file.CopyOption;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
@@ -1111,6 +1112,33 @@ final class IoUtilsTest {
     IoUtils.deleteRecursively(file);
     final boolean fileExists = Files.exists(file);
     assertFalse(fileExists);
+  }
+
+  @Test
+  void shouldDeleteLinksInATreeWithoutFollowingThem() throws IOException {
+    final Path outside = this.directory.resolve(OUTSIDE_DIRECTORY);
+    final Path kept = outside.resolve(FILE_NAME);
+    Files.createDirectories(outside);
+    Files.writeString(kept, FILE_CONTENT);
+    final Path tree = this.directory.resolve(TREE_DIRECTORY);
+    final Path link = tree.resolve(LINKED_DIRECTORY);
+    Files.createDirectories(tree);
+    createSymbolicLinkOrSkip(link, outside);
+    IoUtils.deleteRecursively(tree);
+    final boolean treeExists = Files.exists(tree, LinkOption.NOFOLLOW_LINKS);
+    final String content = Files.readString(kept);
+    assertFalse(treeExists);
+    assertEquals(FILE_CONTENT, content, "the target of a link is kept");
+  }
+
+  @Test
+  void shouldDeleteALinkWhoseTargetIsGone() {
+    final Path missing = this.directory.resolve(MISSING_NAME);
+    final Path link = this.directory.resolve(LINKED_DIRECTORY);
+    createSymbolicLinkOrSkip(link, missing);
+    IoUtils.deleteRecursively(link);
+    final boolean linkExists = Files.exists(link, LinkOption.NOFOLLOW_LINKS);
+    assertFalse(linkExists);
   }
 
   @Test
