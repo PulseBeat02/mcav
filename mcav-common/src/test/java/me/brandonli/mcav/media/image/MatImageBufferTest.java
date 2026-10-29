@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.image;
 import static me.brandonli.mcav.media.ResourceAssertions.assertThrowsWhileOpening;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -46,6 +47,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +57,7 @@ import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.testing.Images;
 import me.brandonli.mcav.testing.LocalHttpServer;
 import me.brandonli.mcav.testing.TestMedia;
+import me.brandonli.mcav.utils.http.DownloadException;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.opencv.global.opencv_core;
@@ -215,6 +218,32 @@ final class MatImageBufferTest {
     final int downloadedHeight = this.downloadHeight(png);
     assertEquals(8, downloadedHeight);
     assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(invalid));
+
+    final Path missing = this.directory.resolve("missing.png");
+    final FileSource missingSource = FileSource.path(missing);
+    final String expected = "File %s is not a supported image!".formatted(missing);
+    final String previous = System.getProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY);
+    System.clearProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY);
+    try {
+      final IllegalArgumentException withLimit = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+        ImageBuffer.path(missingSource)
+      );
+      final String withLimitMessage = withLimit.getMessage();
+      final Throwable cause = withLimit.getCause();
+      assertEquals(expected, withLimitMessage);
+      assertInstanceOf(NoSuchFileException.class, cause);
+
+      System.setProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY, "0");
+      final IllegalArgumentException withoutLimit = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+        ImageBuffer.path(missingSource)
+      );
+      final String withoutLimitMessage = withoutLimit.getMessage();
+      assertEquals(expected, withoutLimitMessage);
+    } finally {
+      restoreMaximumPixels(previous);
+    }
+
+    this.assertDownloadFailure();
     assertThrowsWhileOpening(NullPointerException.class, () -> ImageBuffer.path(null));
     assertThrowsWhileOpening(NullPointerException.class, () -> ImageBuffer.uri(null));
   }
@@ -351,6 +380,20 @@ final class MatImageBufferTest {
       try (final ImageBuffer fromUri = ImageBuffer.uri(source)) {
         return fromUri.getHeight();
       }
+    } finally {
+      System.setProperty("user.home", previousHome);
+    }
+  }
+
+  private void assertDownloadFailure() {
+    final String previousHome = System.getProperty("user.home");
+    final String temporaryHome = this.directory.toString();
+    System.setProperty("user.home", temporaryHome);
+    try (final LocalHttpServer server = LocalHttpServer.start()) {
+      server.respond("/missing.png", 404, new byte[0]);
+      final URI uri = server.uri("/missing.png");
+      final UriSource source = UriSource.uri(uri);
+      assertThrowsWhileOpening(DownloadException.class, () -> ImageBuffer.uri(source));
     } finally {
       System.setProperty("user.home", previousHome);
     }
