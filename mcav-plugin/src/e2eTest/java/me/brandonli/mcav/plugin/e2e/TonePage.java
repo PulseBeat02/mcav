@@ -20,6 +20,7 @@ package me.brandonli.mcav.plugin.e2e;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -50,6 +51,12 @@ final class TonePage implements AutoCloseable {
   </script></body></html>
   """;
 
+  private static final String LOOPBACK_HOST = "localhost";
+  private static final byte[] LOOPBACK_OCTETS = { 127, 0, 0, 1 };
+
+  private static final String TONE_PATH = "/tone";
+  private static final String URL_PREFIX = "http://127.0.0.1:";
+
   private final HttpServer server;
 
   private TonePage(final HttpServer server) {
@@ -63,12 +70,12 @@ final class TonePage implements AutoCloseable {
    * @throws IOException if no port is free
    */
   static TonePage start() throws IOException {
-    final InetAddress loopback = InetAddress.getByAddress("localhost", new byte[] { 127, 0, 0, 1 });
+    final InetAddress loopback = InetAddress.getByAddress(LOOPBACK_HOST, LOOPBACK_OCTETS);
     final HttpServer server = HttpServer.create(new InetSocketAddress(loopback, 0), 0);
-    server.createContext("/tone", exchange -> {
+    server.createContext(TONE_PATH, exchange -> {
       final byte[] body = PAGE.getBytes(StandardCharsets.UTF_8);
       exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
-      exchange.sendResponseHeaders(200, body.length);
+      exchange.sendResponseHeaders(HttpURLConnection.HTTP_OK, body.length);
       try (final OutputStream output = exchange.getResponseBody()) {
         output.write(body);
       }
@@ -83,7 +90,7 @@ final class TonePage implements AutoCloseable {
    * @return the address
    */
   URI getUri() {
-    return URI.create("http://127.0.0.1:" + this.server.getAddress().getPort() + "/tone");
+    return URI.create(URL_PREFIX + this.server.getAddress().getPort() + TONE_PATH);
   }
 
   @Override

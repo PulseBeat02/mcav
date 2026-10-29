@@ -117,6 +117,40 @@ final class PaperServerEndToEndTest {
     "{\"layers\":[{\"block\":\"minecraft:bedrock\",\"height\":1},{\"block\":\"minecraft:dirt\",\"height\":2}," +
     "{\"block\":\"minecraft:grass_block\",\"height\":1}],\"biome\":\"minecraft:plains\"}";
 
+  private static final int SOUND_SECONDS = 2;
+  private static final int FREQUENCY_TOLERANCE_HERTZ = 20;
+
+  private static final String BROWSER_STARTED = "Browser started!";
+  private static final String BROWSER_RELEASED = "Browser released!";
+  private static final String RELEASE_BROWSER_COMMAND = "mcav browser release";
+
+  private static final String FIELD_SEPARATOR = " ";
+  private static final String LINE_SEPARATOR = "\n";
+
+  private static final String PLUGINS_DIRECTORY = "plugins";
+  private static final String PLUGIN_DATA_DIRECTORY = "MCAV";
+  private static final String MEDIA_DIRECTORY = "media";
+  private static final String ISO_DIRECTORY = "iso";
+  private static final String LIBRARIES_DIRECTORY = "libraries";
+  private static final String MCAV_LIBRARIES_DIRECTORY = "libraries/mcav";
+  private static final String MODULE_LIBRARIES_DIRECTORY = "libraries/mcav/me/brandonli";
+  private static final String VOICE_CHAT_DIRECTORY = "voicechat";
+
+  private static final String EULA_FILE = "eula.txt";
+  private static final String PLUGIN_JAR = "mcav-plugin.jar";
+  private static final String SERVER_PROPERTIES_FILE = "server.properties";
+  private static final String CONFIGURATION_FILE = "config.yml";
+  private static final String VOICE_CHAT_PROPERTIES_FILE = "voicechat-server.properties";
+  private static final String DEPENDENCIES_ENTRY = "mcav/plugin/dependencies.txt";
+  private static final String ENTITY_OUTLINE_EFFECT = "assets/minecraft/post_effect/entity_outline.json";
+  private static final String MEDIA_RESOURCES = "/media/";
+  private static final String MEDIA_PATH = "/media";
+
+  private static final String JAR_SUFFIX = ".jar";
+  private static final String PARTIAL_SUFFIX = ".part";
+  private static final String UNIX_JAVA_SUFFIX = "/java";
+  private static final String WINDOWS_JAVA_SUFFIX = "\\java.exe";
+
   @Test
   void shouldEnableThePluginWithItsAudioOutputsOnAHeadlessServer(@TempDir final Path serverDirectory) throws Exception {
     final boolean eulaAccepted = Boolean.getBoolean("mcav.e2e.acceptEula");
@@ -128,7 +162,7 @@ final class PaperServerEndToEndTest {
     final int httpPort = findFreePort();
     final FakeVncServer vnc = FakeVncServer.start();
     final int gamePort = prepareServer(serverDirectory, pluginJar, voiceChatJar, httpPort, vnc);
-    final Path media = serverDirectory.resolve("media");
+    final Path media = serverDirectory.resolve(MEDIA_DIRECTORY);
 
     final List<String> command = createCommand(paperJar);
     final LibraryCache libraryCache = lendLibraries(cache, serverDirectory);
@@ -177,7 +211,7 @@ final class PaperServerEndToEndTest {
   private static void assertCurrentModuleJars(final Path serverDirectory, final Path pluginJar) throws IOException {
     final String manifest;
     try (final ZipFile plugin = new ZipFile(pluginJar.toFile())) {
-      final ZipEntry entry = plugin.getEntry("mcav/plugin/dependencies.txt");
+      final ZipEntry entry = plugin.getEntry(DEPENDENCIES_ENTRY);
       assertNotNull(entry, "the plugin must carry the dependency hashes produced by this build");
       try (final InputStream input = plugin.getInputStream(entry)) {
         final byte[] bytes = input.readAllBytes();
@@ -188,7 +222,7 @@ final class PaperServerEndToEndTest {
     final List<String> lines = manifest.lines().toList();
     for (final String line : lines) {
       if (line.startsWith("me.brandonli:mcav-")) {
-        final String[] fields = line.split(" ", 2);
+        final String[] fields = line.split(FIELD_SEPARATOR, 2);
         assertEquals(2, fields.length, "module coordinates must have a SHA-256 digest");
         expected.add(fields[1]);
       }
@@ -197,7 +231,7 @@ final class PaperServerEndToEndTest {
     final boolean matches = !expected.isEmpty();
     assertTrue(matches, "the plugin must request the modules of this build");
 
-    final Path modules = serverDirectory.resolve("libraries/mcav/me/brandonli");
+    final Path modules = serverDirectory.resolve(MODULE_LIBRARIES_DIRECTORY);
     final List<Path> files;
     try (final Stream<Path> walk = Files.walk(modules)) {
       files = walk.filter(Files::isRegularFile).toList();
@@ -206,7 +240,7 @@ final class PaperServerEndToEndTest {
     for (final Path file : files) {
       final Path fileName = file.getFileName();
       final String name = fileName.toString();
-      if (name.endsWith(".jar")) {
+      if (name.endsWith(JAR_SUFFIX)) {
         actual.add(hash(file, "SHA-256"));
       }
     }
@@ -220,8 +254,8 @@ final class PaperServerEndToEndTest {
    * Hands the libraries that earlier runs downloaded, kept in the download cache of the build, to the server.
    */
   private static LibraryCache lendLibraries(final Path cache, final Path serverDirectory) throws IOException {
-    final Path cachedLibraries = cache.resolve("libraries");
-    final Path serverLibraries = serverDirectory.resolve("libraries/mcav");
+    final Path cachedLibraries = cache.resolve(LIBRARIES_DIRECTORY);
+    final Path serverLibraries = serverDirectory.resolve(MCAV_LIBRARIES_DIRECTORY);
     return LibraryCache.lend(cachedLibraries, serverLibraries);
   }
 
@@ -257,12 +291,12 @@ final class PaperServerEndToEndTest {
     throws InterruptedException {
     final int firstLine = server.getLineCount();
     final String create = "mcav browser create @a 320x240 1 3x2 0 NEAREST_COLOR HTTP_SERVER " + page.getUri();
-    runCommand(server, create, "Browser started!", BROWSER_TIMEOUT);
+    runCommand(server, create, BROWSER_STARTED, BROWSER_TIMEOUT);
     server.awaitLine(firstLine, line -> line.contains("Maps 0 to 5 show their first picture"), COMMAND_TIMEOUT);
-    final double frequency = sound.awaitFrequency(2, SOUND_TIMEOUT);
+    final double frequency = sound.awaitFrequency(SOUND_SECONDS, SOUND_TIMEOUT);
     System.out.printf(Locale.ROOT, "The page of the browser plays %.1f Hz in the audio web page%n", frequency);
 
-    final boolean matches = Math.abs(frequency - TonePage.TONE_HERTZ) < 20;
+    final boolean matches = Math.abs(frequency - TonePage.TONE_HERTZ) < FREQUENCY_TOLERANCE_HERTZ;
     assertTrue(matches, "the tone of the page has " + frequency + " Hz");
 
     // a helper runs the Java of the server, which starts no other Java; CEF's processes run programs of its folder
@@ -272,7 +306,7 @@ final class PaperServerEndToEndTest {
     final boolean empty = running.isEmpty();
     assertFalse(empty, "the browser runs in processes of its own");
 
-    runCommand(server, "mcav browser release", "Browser released!", COMMAND_TIMEOUT);
+    runCommand(server, RELEASE_BROWSER_COMMAND, BROWSER_RELEASED, COMMAND_TIMEOUT);
     awaitNoneLeft(server, "browser", browser, running);
   }
 
@@ -288,10 +322,10 @@ final class PaperServerEndToEndTest {
       ",format=raw,if=floppy -boot a";
     runCommand(server, create, "Created virtual machine!", COMMAND_TIMEOUT);
     server.awaitLine(firstLine, line -> line.contains("Maps 6 to 11 show their first picture"), COMMAND_TIMEOUT);
-    final double frequency = sound.awaitFrequency(2, SOUND_TIMEOUT);
+    final double frequency = sound.awaitFrequency(SOUND_SECONDS, SOUND_TIMEOUT);
     System.out.printf(Locale.ROOT, "The virtual machine plays %.1f Hz in the audio web page%n", frequency);
 
-    final boolean matches = Math.abs(frequency - TonePage.TONE_HERTZ) < 20;
+    final boolean matches = Math.abs(frequency - TonePage.TONE_HERTZ) < FREQUENCY_TOLERANCE_HERTZ;
     assertTrue(matches, "the tone of the machine has " + frequency + " Hz");
 
     final Predicate<String> machine = command -> command.contains("qemu-system");
@@ -343,7 +377,7 @@ final class PaperServerEndToEndTest {
     runCommand(
       server,
       "mcav browser create @a 320x240 1 3x2 20 NEAREST_COLOR NONE " + page.getUri() + " --codec mcv2",
-      "Browser started!",
+      BROWSER_STARTED,
       BROWSER_TIMEOUT
     );
     final String served = server.awaitLine(firstLine, line -> PACK_SERVED.matcher(line).find(), COMMAND_TIMEOUT);
@@ -372,11 +406,11 @@ final class PaperServerEndToEndTest {
       }
     }
 
-    final boolean matches = entries.contains("pack.mcmeta") && entries.contains("assets/minecraft/post_effect/entity_outline.json");
+    final boolean matches = entries.contains("pack.mcmeta") && entries.contains(ENTITY_OUTLINE_EFFECT);
     assertTrue(matches, String.valueOf(entries));
 
     System.out.println("The MCV2 pack " + id + " of " + zip.length + " bytes is hosted at " + pack);
-    runCommand(server, "mcav browser release", "Browser released!", COMMAND_TIMEOUT);
+    runCommand(server, RELEASE_BROWSER_COMMAND, BROWSER_RELEASED, COMMAND_TIMEOUT);
     assertLogged(server.getLines(), "MCV2 kernels: ");
   }
 
@@ -422,7 +456,7 @@ final class PaperServerEndToEndTest {
   }
 
   private static boolean isJava(final String command) {
-    return command.endsWith("/java") || command.endsWith("\\java.exe");
+    return command.endsWith(UNIX_JAVA_SUFFIX) || command.endsWith(WINDOWS_JAVA_SUFFIX);
   }
 
   /**
@@ -449,7 +483,7 @@ final class PaperServerEndToEndTest {
     return Stream.concat(before.stream(), server.findDescendants(matcher).stream())
       .filter(ProcessHandle::isAlive)
       .distinct()
-      .map(handle -> handle.pid() + " " + ServerProcess.programOf(handle))
+      .map(handle -> handle.pid() + FIELD_SEPARATOR + ServerProcess.programOf(handle))
       .toList();
   }
 
@@ -477,7 +511,7 @@ final class PaperServerEndToEndTest {
    */
   private static String fetchMediaInformation(final ServerProcess server, final int port) throws IOException, InterruptedException {
     server.awaitLine(0, line -> line.contains("The audio web page is available at"), HTTP_TIMEOUT);
-    final URI uri = URI.create("http://127.0.0.1:" + port + "/media");
+    final URI uri = URI.create("http://127.0.0.1:" + port + MEDIA_PATH);
     final HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri);
     requestBuilder.timeout(REQUEST_TIMEOUT);
     final HttpRequest request = requestBuilder.build();
@@ -552,12 +586,12 @@ final class PaperServerEndToEndTest {
     final FakeVncServer vnc
   ) throws IOException {
     final int gamePort = writeServerProperties(serverDirectory);
-    final Path eula = serverDirectory.resolve("eula.txt");
+    final Path eula = serverDirectory.resolve(EULA_FILE);
     Files.writeString(eula, "eula=true\n", StandardCharsets.UTF_8);
 
-    final Path pluginsDirectory = serverDirectory.resolve("plugins");
+    final Path pluginsDirectory = serverDirectory.resolve(PLUGINS_DIRECTORY);
     Files.createDirectories(pluginsDirectory);
-    final Path installedPlugin = pluginsDirectory.resolve("mcav-plugin.jar");
+    final Path installedPlugin = pluginsDirectory.resolve(PLUGIN_JAR);
     Files.copy(pluginJar, installedPlugin);
     final Path installedVoiceChat = pluginsDirectory.resolve(VOICE_CHAT.fileName);
     Files.copy(voiceChatJar, installedVoiceChat);
@@ -565,17 +599,17 @@ final class PaperServerEndToEndTest {
     writePluginConfiguration(pluginsDirectory, httpPort, vnc);
     writeVoiceChatConfiguration(pluginsDirectory);
     // the boot sector of mcav-vm's sound test (beep.asm there): it plays a 1000 Hz tone on the PC speaker
-    final Path images = pluginsDirectory.resolve("MCAV").resolve("iso");
+    final Path images = pluginsDirectory.resolve(PLUGIN_DATA_DIRECTORY).resolve(ISO_DIRECTORY);
     Files.createDirectories(images);
     copyResource(TONE_IMAGE, images);
-    final Path media = Files.createDirectories(serverDirectory.resolve("media"));
+    final Path media = Files.createDirectories(serverDirectory.resolve(MEDIA_DIRECTORY));
     copyResource(CLIP, media);
     copyResource(PICTURE, media);
     return gamePort;
   }
 
   private static void copyResource(final String name, final Path folder) throws IOException {
-    try (final InputStream resource = PaperServerEndToEndTest.class.getResourceAsStream("/media/" + name)) {
+    try (final InputStream resource = PaperServerEndToEndTest.class.getResourceAsStream(MEDIA_RESOURCES + name)) {
       final String message = "Resource %s does not exist!".formatted(name);
       Files.copy(Objects.requireNonNull(resource, message), folder.resolve(name));
     }
@@ -589,7 +623,7 @@ final class PaperServerEndToEndTest {
   private static int writeServerProperties(final Path serverDirectory) throws IOException {
     final int port = findFreePort();
     final String properties = String.join(
-      "\n",
+      LINE_SEPARATOR,
       "online-mode=false",
       "server-ip=127.0.0.1",
       "server-port=" + port,
@@ -605,7 +639,7 @@ final class PaperServerEndToEndTest {
       "motd=mcav end-to-end test",
       ""
     );
-    final Path file = serverDirectory.resolve("server.properties");
+    final Path file = serverDirectory.resolve(SERVER_PROPERTIES_FILE);
     Files.writeString(file, properties, StandardCharsets.UTF_8);
     return port;
   }
@@ -617,10 +651,10 @@ final class PaperServerEndToEndTest {
    */
   private static void writePluginConfiguration(final Path pluginsDirectory, final int httpPort, final FakeVncServer vnc)
     throws IOException {
-    final Path dataFolder = pluginsDirectory.resolve("MCAV");
+    final Path dataFolder = pluginsDirectory.resolve(PLUGIN_DATA_DIRECTORY);
     Files.createDirectories(dataFolder);
     final String configuration = String.join(
-      "\n",
+      LINE_SEPARATOR,
       "language: EN_US",
       "discord-bot:",
       "  enabled: false",
@@ -643,7 +677,7 @@ final class PaperServerEndToEndTest {
       "      password: " + vnc.getPassword(),
       ""
     );
-    final Path file = dataFolder.resolve("config.yml");
+    final Path file = dataFolder.resolve(CONFIGURATION_FILE);
     Files.writeString(file, configuration, StandardCharsets.UTF_8);
   }
 
@@ -651,11 +685,11 @@ final class PaperServerEndToEndTest {
    * Moves the voice chat server to a free UDP port, so the test never clashes with a voice chat server on the machine.
    */
   private static void writeVoiceChatConfiguration(final Path pluginsDirectory) throws IOException {
-    final Path voiceChatFolder = pluginsDirectory.resolve("voicechat");
+    final Path voiceChatFolder = pluginsDirectory.resolve(VOICE_CHAT_DIRECTORY);
     Files.createDirectories(voiceChatFolder);
     final int voicePort = findFreeUdpPort();
-    final Path file = voiceChatFolder.resolve("voicechat-server.properties");
-    Files.writeString(file, "port=" + voicePort + "\n", StandardCharsets.UTF_8);
+    final Path file = voiceChatFolder.resolve(VOICE_CHAT_PROPERTIES_FILE);
+    Files.writeString(file, "port=" + voicePort + LINE_SEPARATOR, StandardCharsets.UTF_8);
   }
 
   private static int findFreePort() throws IOException {
@@ -682,7 +716,7 @@ final class PaperServerEndToEndTest {
         return file;
       }
     }
-    final Path partial = cache.resolve(remoteFile.fileName + ".part");
+    final Path partial = cache.resolve(remoteFile.fileName + PARTIAL_SUFFIX);
     fetch(remoteFile.url, partial);
     final String downloadedHash = hash(partial, remoteFile.algorithm);
     assertEquals(remoteFile.expectedHash, downloadedHash, "the file downloaded from " + remoteFile.url + " is corrupt");

@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import me.brandonli.mcav.browser.BrowserOptions;
 import me.brandonli.mcav.browser.BrowserPlayer;
@@ -68,6 +69,33 @@ public final class BrowserBenchmark {
   private static final int MAP_ID = 0;
   private static final List<String> LATENCY_COLORS = List.of("#dc0000", "#7fb238", "#c7c7c7", "#f7e9a3");
 
+  private static final int ARGUMENT_COUNT = 2;
+
+  private static final List<WallSize> WALL_SIZES = List.of(
+    new WallSize(640, 640, 5, 5),
+    new WallSize(1280, 720, 10, 6),
+    new WallSize(1920, 1080, 15, 9)
+  );
+
+  private static final String ROW_START = "| ";
+  private static final String CELL_SEPARATOR = " | ";
+  private static final String ROW_END = " |";
+  private static final String HEADER_RULE = "|---|---|---|---|";
+  private static final String RESULT_SEPARATOR = " / ";
+
+  private static final String JCEF_BACKEND = "jcef";
+
+  private static final String FRAME_RATE_PAGE_NAME = "fps";
+  private static final String LATENCY_PAGE_NAME = "latency";
+
+  private static final double NANOSECONDS_PER_SECOND = 1e9;
+  private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
+
+  private static final long POLL_INTERVAL_MILLISECONDS = 20L;
+
+  private static final int MEDIAN_DIVISOR = 2;
+  private static final double NINETIETH_PERCENTILE = 0.9;
+
   private BrowserBenchmark() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -79,19 +107,19 @@ public final class BrowserBenchmark {
    * @throws Exception if the benchmark fails
    */
   public static void main(final String[] args) throws Exception {
-    if (args.length != 2) {
+    if (args.length != ARGUMENT_COUNT) {
       throw new IllegalArgumentException("Usage: BrowserBenchmark <backend> <output file>");
     }
     final String backend = args[0];
     final Path output = Path.of(args[1]);
     final Supplier<BrowserPlayer> factory = backends(backend);
-    final List<WallSize> sizes = List.of(new WallSize(640, 640, 5, 5), new WallSize(1280, 720, 10, 6), new WallSize(1920, 1080, 15, 9));
+    final List<WallSize> sizes = WALL_SIZES;
     final List<String> rows = new ArrayList<>();
     try (final BenchmarkServer server = BenchmarkServer.start()) {
       for (final WallSize size : sizes) {
         final String frameRate = measureFrameRate(factory, server, size);
         final String latency = measureLatency(factory, server, size);
-        final String row = "| " + backend + " | " + size + " | " + frameRate + " | " + latency + " |";
+        final String row = ROW_START + backend + CELL_SEPARATOR + size + CELL_SEPARATOR + frameRate + CELL_SEPARATOR + latency + ROW_END;
         System.out.println(row);
         rows.add(row);
       }
@@ -102,7 +130,7 @@ public final class BrowserBenchmark {
       " rounds) |";
     final List<String> lines = new ArrayList<>();
     lines.add(header);
-    lines.add("|---|---|---|---|");
+    lines.add(HEADER_RULE);
     lines.addAll(rows);
     Files.write(output, lines, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
     final PrintStream out = System.out;
@@ -119,7 +147,7 @@ public final class BrowserBenchmark {
   private static Supplier<BrowserPlayer> backends(final String backend) {
     final BrowserOptions local = BrowserOptions.builder().privateNetworks(true).build();
     return switch (backend) {
-      case "jcef" -> () -> BrowserPlayer.create(local);
+      case JCEF_BACKEND -> () -> BrowserPlayer.create(local);
       default -> {
         final String message = "Backend %s is unknown!".formatted(backend);
         throw new IllegalArgumentException(message);
@@ -153,7 +181,7 @@ public final class BrowserBenchmark {
     final BrowserPlayer player = factory.get();
     try {
       final MapProbe probe = attach(player, size);
-      final URI page = server.page("fps");
+      final URI page = server.page(FRAME_RATE_PAGE_NAME);
       startAndWait(player, source(page, size), probe);
       Thread.sleep(WARM_UP_MILLISECONDS);
       final long framesBefore = probe.getFrames();
@@ -161,7 +189,7 @@ public final class BrowserBenchmark {
       Thread.sleep(FRAME_RATE_MILLISECONDS);
       final long framesAfter = probe.getFrames();
       final long elapsed = System.nanoTime() - start;
-      final double perSecond = ((framesAfter - framesBefore) * 1e9) / elapsed;
+      final double perSecond = ((framesAfter - framesBefore) * NANOSECONDS_PER_SECOND) / elapsed;
       return String.format(Locale.ROOT, "%.1f", perSecond);
     } finally {
       player.release();
@@ -177,7 +205,7 @@ public final class BrowserBenchmark {
     int incomplete = 0;
     try {
       final MapProbe probe = attach(player, size);
-      final URI page = server.page("latency");
+      final URI page = server.page(LATENCY_PAGE_NAME);
       final int subscriptions = server.getSubscriptions();
       startAndWait(player, source(page, size), probe);
       server.awaitSubscription(subscriptions, START_TIMEOUT_MILLISECONDS);
@@ -194,10 +222,10 @@ public final class BrowserBenchmark {
           missed++;
           continue;
         }
-        first.add((watch.getFirstNanoseconds() - sent) / 1e6);
+        first.add((watch.getFirstNanoseconds() - sent) / NANOSECONDS_PER_MILLISECOND);
         final boolean complete = watch.awaitFull(FULL_TIMEOUT_MILLISECONDS);
         if (complete) {
-          full.add((watch.getFullNanoseconds() - sent) / 1e6);
+          full.add((watch.getFullNanoseconds() - sent) / NANOSECONDS_PER_MILLISECOND);
         } else {
           incomplete++;
         }
@@ -208,7 +236,7 @@ public final class BrowserBenchmark {
     final String missedText = missed == 0 ? "" : " (" + missed + " rounds without any packet)";
     final String incompleteText =
       incomplete == 0 ? "" : " (wall incomplete after " + FULL_TIMEOUT_MILLISECONDS + " ms in " + incomplete + " rounds)";
-    return describe(first) + " / " + describe(full) + missedText + incompleteText;
+    return describe(first) + RESULT_SEPARATOR + describe(full) + missedText + incompleteText;
   }
 
   private static void startAndWait(final BrowserPlayer player, final BrowserSource source, final MapProbe probe)
@@ -217,12 +245,12 @@ public final class BrowserBenchmark {
     if (!started) {
       throw new IllegalStateException("The browser did not start!");
     }
-    final long deadline = System.nanoTime() + START_TIMEOUT_MILLISECONDS * 1_000_000L;
+    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(START_TIMEOUT_MILLISECONDS);
     while (probe.getFrames() == 0) {
       if (System.nanoTime() > deadline) {
         throw new IllegalStateException("No frame reached the map encoder!");
       }
-      Thread.sleep(20L);
+      Thread.sleep(POLL_INTERVAL_MILLISECONDS);
     }
   }
 
@@ -232,8 +260,8 @@ public final class BrowserBenchmark {
     }
     final List<Double> sorted = new ArrayList<>(values);
     Collections.sort(sorted);
-    final double median = sorted.get(sorted.size() / 2);
-    final int ninetiethPercentileIndex = Math.min(sorted.size() - 1, (int) Math.ceil(sorted.size() * 0.9) - 1);
+    final double median = sorted.get(sorted.size() / MEDIAN_DIVISOR);
+    final int ninetiethPercentileIndex = Math.min(sorted.size() - 1, (int) Math.ceil(sorted.size() * NINETIETH_PERCENTILE) - 1);
     final double ninetiethPercentile = sorted.get(ninetiethPercentileIndex);
     return String.format(Locale.ROOT, "%.0f ms, %.0f ms", median, ninetiethPercentile);
   }

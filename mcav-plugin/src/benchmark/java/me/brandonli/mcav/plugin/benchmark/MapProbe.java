@@ -42,6 +42,19 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 final class MapProbe implements DitherResultStep {
 
+  private static final int PARALLELISM_DIVISOR = 2;
+
+  private static final int HEXADECIMAL_RADIX = 16;
+  private static final int RED_SHIFT = 16;
+  private static final int GREEN_SHIFT = 8;
+  private static final int CHANNEL_MASK = 0xFF;
+  private static final int RGB_MASK = 0xFFFFFF;
+  private static final int FIRST_OPAQUE_COLOR_INDEX = 4;
+
+  private static final long POLL_INTERVAL_MILLISECONDS = 10L;
+
+  private static final double COVERED_FRACTION = 0.9;
+
   private final MapConfiguration configuration;
   private final AtomicLong frames;
   private final AtomicLong lastPatchNanoseconds;
@@ -55,7 +68,7 @@ final class MapProbe implements DitherResultStep {
     this.lastPatchNanoseconds = new AtomicLong(System.nanoTime());
     final Runtime runtime = Runtime.getRuntime();
     final int processors = runtime.availableProcessors();
-    final int parallelism = Math.max(1, processors / 2 - 1);
+    final int parallelism = Math.max(1, processors / PARALLELISM_DIVISOR - 1);
     this.ditherPool = new ForkJoinPool(parallelism);
   }
 
@@ -66,15 +79,15 @@ final class MapProbe implements DitherResultStep {
    * @return the palette index
    */
   static byte paletteIndex(final String color) {
-    final int rgb = Integer.parseInt(color.substring(1), 16);
-    final int red = (rgb >> 16) & 0xFF;
-    final int green = (rgb >> 8) & 0xFF;
-    final int blue = rgb & 0xFF;
+    final int rgb = Integer.parseInt(color.substring(1), HEXADECIMAL_RADIX);
+    final int red = (rgb >> RED_SHIFT) & CHANNEL_MASK;
+    final int green = (rgb >> GREEN_SHIFT) & CHANNEL_MASK;
+    final int blue = rgb & CHANNEL_MASK;
     final DitherPalette palette = DitherPalette.DEFAULT_MAP_PALETTE;
     final int[] colors = palette.getPalette();
     for (int index = 0; index < colors.length; index++) {
-      final int candidate = colors[index] & 0xFFFFFF;
-      if (candidate == ((red << 16) | (green << 8) | blue) && index >= 4) {
+      final int candidate = colors[index] & RGB_MASK;
+      if (candidate == ((red << RED_SHIFT) | (green << GREEN_SHIFT) | blue) && index >= FIRST_OPAQUE_COLOR_INDEX) {
         return (byte) index;
       }
     }
@@ -149,7 +162,7 @@ final class MapProbe implements DitherResultStep {
     final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
     final long quietNanoseconds = TimeUnit.MILLISECONDS.toNanos(quietMilliseconds);
     while (System.nanoTime() - this.lastPatchNanoseconds.get() < quietNanoseconds && System.nanoTime() < deadline) {
-      Thread.sleep(10L);
+      Thread.sleep(POLL_INTERVAL_MILLISECONDS);
     }
   }
 
@@ -216,7 +229,7 @@ final class MapProbe implements DitherResultStep {
           this.first.countDown();
         }
       }
-      if (this.firstNanoseconds != 0L && this.fullNanoseconds == 0L && this.covered.cardinality() >= this.pixels * 0.9) {
+      if (this.firstNanoseconds != 0L && this.fullNanoseconds == 0L && this.covered.cardinality() >= this.pixels * COVERED_FRACTION) {
         this.fullNanoseconds = now;
         this.done.countDown();
       }

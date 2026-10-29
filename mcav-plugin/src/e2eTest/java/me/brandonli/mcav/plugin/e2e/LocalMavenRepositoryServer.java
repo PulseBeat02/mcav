@@ -47,6 +47,12 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
   private static final int HTTP_METHOD_NOT_ALLOWED = 405;
   private static final long NO_BODY = -1;
 
+  private static final String ROOT_PATH = "/";
+  private static final String PATH_SEPARATOR = "/";
+
+  private static final String HEAD_METHOD = "HEAD";
+  private static final String GET_METHOD = "GET";
+
   private final Path root;
   private final HttpServer server;
   private final ExecutorService executor;
@@ -57,7 +63,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     this.server = server;
     this.executor = Executors.newVirtualThreadPerTaskExecutor();
     this.servedFileCount = new AtomicInteger();
-    server.createContext("/", this::handle);
+    server.createContext(ROOT_PATH, this::handle);
     server.setExecutor(this.executor);
   }
 
@@ -91,8 +97,8 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
   private void handle(final HttpExchange exchange) throws IOException {
     try {
       final String method = exchange.getRequestMethod();
-      final boolean isHeadRequest = method.equals("HEAD");
-      final boolean isGetRequest = method.equals("GET");
+      final boolean isHeadRequest = method.equals(HEAD_METHOD);
+      final boolean isGetRequest = method.equals(GET_METHOD);
       if (!isHeadRequest && !isGetRequest) {
         exchange.sendResponseHeaders(HTTP_METHOD_NOT_ALLOWED, NO_BODY);
         return;
@@ -118,7 +124,7 @@ final class LocalMavenRepositoryServer implements AutoCloseable {
     if (requestPath == null) {
       return Optional.empty();
     }
-    final String relativePath = requestPath.startsWith("/") ? requestPath.substring(1) : requestPath;
+    final String relativePath = requestPath.startsWith(PATH_SEPARATOR) ? requestPath.substring(1) : requestPath;
     final Path candidate;
     try {
       candidate = this.root.resolve(relativePath);

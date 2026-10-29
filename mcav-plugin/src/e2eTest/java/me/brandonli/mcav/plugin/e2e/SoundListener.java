@@ -36,6 +36,15 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
   private static final int SAMPLE_RATE = 48_000;
   private static final int FRAME_BYTES = 4;
 
+  private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(30);
+
+  private static final String URL_PREFIX = "ws://127.0.0.1:";
+  private static final String AUDIO_PATH = "/audio";
+
+  private static final int POLL_INTERVAL_MILLISECONDS = 100;
+
+  private static final double CROSSINGS_PER_CYCLE = 2.0;
+
   private final HttpClient client;
   private final ByteArrayOutputStream pcm;
   private final WebSocket socket;
@@ -43,7 +52,7 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
   private SoundListener(final HttpClient client, final URI uri) {
     this.client = client;
     this.pcm = new ByteArrayOutputStream();
-    this.socket = client.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(30)).buildAsync(uri, this).join();
+    this.socket = client.newWebSocketBuilder().connectTimeout(CONNECT_TIMEOUT).buildAsync(uri, this).join();
   }
 
   /**
@@ -53,7 +62,7 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
    * @return the connected listener
    */
   static SoundListener connect(final int port) {
-    return new SoundListener(HttpClient.newHttpClient(), URI.create("ws://127.0.0.1:" + port + "/audio"));
+    return new SoundListener(HttpClient.newHttpClient(), URI.create(URL_PREFIX + port + AUDIO_PATH));
   }
 
   @Override
@@ -93,7 +102,7 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
         final String message = "Within %s, only %s bytes of sound arrived!".formatted(timeout, heard.length);
         throw new AssertionError(message);
       }
-      TimeUnit.MILLISECONDS.sleep(100);
+      TimeUnit.MILLISECONDS.sleep(POLL_INTERVAL_MILLISECONDS);
       heard = this.heard();
     }
     final ByteBuffer samples = ByteBuffer.wrap(heard).order(ByteOrder.LITTLE_ENDIAN);
@@ -107,7 +116,7 @@ final class SoundListener implements WebSocket.Listener, AutoCloseable {
       }
       negative = now;
     }
-    return crossings / 2.0;
+    return crossings / CROSSINGS_PER_CYCLE;
   }
 
   private byte[] heard() {
