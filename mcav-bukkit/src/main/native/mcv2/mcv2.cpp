@@ -809,7 +809,8 @@ struct int_vector {
     return {_mm512_loadu_si512(buffer)};
   }
   void store_bytes(int8_t* buffer) const {
-    _mm_storeu_si128((__m128i*)buffer, _mm512_cvtepi32_epi8(lanes_));
+    const __m128i bytes = _mm512_cvtepi32_epi8(lanes_);
+    _mm_storeu_si128((__m128i*)buffer, bytes);
   }
   void store(int32_t* buffer) const {
     _mm512_storeu_si512(buffer, lanes_);
@@ -824,7 +825,8 @@ struct int_vector {
     return {_mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)};
   }
   static int_vector load_unsigned_bytes(const uint8_t* buffer) {
-    return {_mm512_cvtepu8_epi32(_mm_loadu_si128((const __m128i*)buffer))};
+    const __m128i bytes = _mm_loadu_si128((const __m128i*)buffer);
+    return {_mm512_cvtepu8_epi32(bytes)};
   }
   friend int_vector operator+(const int_vector first, const int_vector second) {
     return {_mm512_add_epi32(first.lanes_, second.lanes_)};
@@ -842,10 +844,12 @@ struct int_vector {
     return {_mm512_or_si512(first.lanes_, second.lanes_)};
   }
   int_vector shift_left(const int32_t shift_distance) const {
-    return {_mm512_sll_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK))};
+    const __m128i distance = _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK);
+    return {_mm512_sll_epi32(lanes_, distance)};
   }
   int_vector shift_right(const int32_t shift_distance) const {
-    return {_mm512_sra_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK))};
+    const __m128i distance = _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK);
+    return {_mm512_sra_epi32(lanes_, distance)};
   }
   static int_vector minimum(const int_vector first, const int_vector second) {
     return {_mm512_min_epi32(first.lanes_, second.lanes_)};
@@ -857,7 +861,8 @@ struct int_vector {
     return {_mm512_abs_epi32(first.lanes_)};
   }
   static int_vector less(const int_vector first, const int_vector second) {
-    return {_mm512_movm_epi32(_mm512_cmplt_epi32_mask(first.lanes_, second.lanes_))};
+    const __mmask16 less_mask = _mm512_cmplt_epi32_mask(first.lanes_, second.lanes_);
+    return {_mm512_movm_epi32(less_mask)};
   }
   int32_t sum() const {
     return _mm512_reduce_add_epi32(lanes_);
@@ -874,10 +879,14 @@ struct int_vector {
   }
   static void store_channels(int32_t* buffer, const int_vector red_channels, const int_vector green_channels,
                              const int_vector blue_channels) {
-    _mm512_storeu_si512(buffer, scatter(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_, 0));
-    _mm512_storeu_si512(buffer + LANES, scatter(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_, 1));
-    _mm512_storeu_si512(buffer + 2 * LANES,
-                        scatter(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_, 2));
+    const __m512i first_vector = scatter(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_, 0);
+    _mm512_storeu_si512(buffer, first_vector);
+
+    const __m512i second_vector = scatter(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_, 1);
+    _mm512_storeu_si512(buffer + LANES, second_vector);
+
+    const __m512i third_vector = scatter(red_channels.lanes_, green_channels.lanes_, blue_channels.lanes_, 2);
+    _mm512_storeu_si512(buffer + 2 * LANES, third_vector);
   }
 
   static int_vector bits(const int8_t* buffer, const int32_t index) {
@@ -913,13 +922,16 @@ private:
 
   static __m512i gather(const __m512i first_vector, const __m512i second_vector, const __m512i third_vector,
                         const int32_t channel) {
-    const __m512i low =
-        _mm512_permutex2var_epi32(first_vector, _mm512_load_si512(GATHER_FIRST[channel]), second_vector);
-    return _mm512_permutex2var_epi32(low, _mm512_load_si512(GATHER_SECOND[channel]), third_vector);
+    const __m512i first_indexes = _mm512_load_si512(GATHER_FIRST[channel]);
+    const __m512i low = _mm512_permutex2var_epi32(first_vector, first_indexes, second_vector);
+    const __m512i second_indexes = _mm512_load_si512(GATHER_SECOND[channel]);
+    return _mm512_permutex2var_epi32(low, second_indexes, third_vector);
   }
   static __m512i scatter(const __m512i red, __m512i green, __m512i blue, const int32_t output_index) {
-    const __m512i red_green = _mm512_permutex2var_epi32(red, _mm512_load_si512(SCATTER_FIRST[output_index]), green);
-    return _mm512_permutex2var_epi32(red_green, _mm512_load_si512(SCATTER_SECOND[output_index]), blue);
+    const __m512i first_indexes = _mm512_load_si512(SCATTER_FIRST[output_index]);
+    const __m512i red_green = _mm512_permutex2var_epi32(red, first_indexes, green);
+    const __m512i second_indexes = _mm512_load_si512(SCATTER_SECOND[output_index]);
+    return _mm512_permutex2var_epi32(red_green, second_indexes, blue);
   }
 };
 
@@ -952,7 +964,8 @@ struct double_vector {
     return {_mm512_set1_pd(value)};
   }
   static double_vector load_floats(const float* buffer) {
-    return {_mm512_cvtps_pd(_mm256_loadu_ps(buffer))};
+    const __m256 floats = _mm256_loadu_ps(buffer);
+    return {_mm512_cvtps_pd(floats)};
   }
   friend double_vector operator+(const double_vector first, const double_vector second) {
     return {_mm512_add_pd(first.lanes_, second.lanes_)};
