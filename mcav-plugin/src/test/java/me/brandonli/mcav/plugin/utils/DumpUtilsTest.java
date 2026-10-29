@@ -560,7 +560,7 @@ final class DumpUtilsTest {
       "paper.jar -javaagent:agent.jar=token=topsecret hidden-tail",
     }
   )
-  void redactsTheWholeSecretFromPropertiesAndLogs(final String command) throws IOException {
+  void shouldRedactTheWholeSecretFromPropertiesAndLogs(final String command) throws IOException {
     final String property = "sun.java.command";
     final String previous = System.getProperty(property);
     final Path log = this.folder.resolve("latest.log");

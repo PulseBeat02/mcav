@@ -60,7 +60,7 @@ final class QemuHardwareValuesTest {
       "vga|virtio",
     }
   )
-  void acceptsTheValuesOfItsForms(final String name, final String value) {
+  void shouldAcceptTheValuesOfItsForms(final String name, final String value) {
     QemuHardwareValues.check(name, value);
   }
 
@@ -98,7 +98,7 @@ final class QemuHardwareValuesTest {
       "vga|std,x",
     }
   )
-  void refusesEveryOtherValue(final String name, final String value) {
+  void shouldRefuseEveryOtherValue(final String name, final String value) {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> QemuHardwareValues.check(name, value));
 
     final boolean prefixed = refused.getMessage().startsWith("Value " + value + " of the QEMU option -" + name + " ");
@@ -138,7 +138,7 @@ final class QemuHardwareValuesTest {
       "rerror=report",
     }
   )
-  void acceptsThePropertiesThatSayHowADriveIsAttached(final String part) {
+  void shouldAcceptThePropertiesThatSayHowADriveIsAttached(final String part) {
     QemuHardwareValues.checkDriveProperty(part, "file=disk.img," + part);
   }
 
@@ -161,7 +161,7 @@ final class QemuHardwareValuesTest {
       "werror=enospc,rerror=enospc",
     }
   )
-  void refusesEveryOtherPropertyOfADrive(final String part) {
+  void shouldRefuseEveryOtherPropertyOfADrive(final String part) {
     final String value = "file=disk.img," + part;
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () ->
       QemuHardwareValues.checkDriveProperty(part, value)
@@ -191,7 +191,7 @@ final class QemuHardwareValuesTest {
       "999999999|1048575998951424",
     }
   )
-  void theMemoryOfAMachineIsReadAsQemuReadsIt(final String value, final long bytes) {
+  void shouldReadTheMemoryOfAMachineAsQemuReadsIt(final String value, final long bytes) {
     final long memoryBytes = QemuHardwareValues.memoryBytes(value);
     assertEquals(bytes, memoryBytes);
   }

@@ -50,7 +50,7 @@ final class PaperServerAssertionsTest {
       "{\"duration\":0,\"view_count\":0,\"like_count\":0,\"title\":\"stale\"}",
     }
   )
-  void refusesIncompleteOrStaleIdleSnapshots(final String response) {
+  void shouldRefuseIncompleteOrStaleIdleSnapshots(final String response) {
     assertThrows(AssertionError.class, () -> PaperServerEndToEndTest.assertRanCleanly(0, response, STARTUP));
   }
 
@@ -74,7 +74,7 @@ final class PaperServerAssertionsTest {
       "[render/WARN]: Failed to start VLC playback of clip.mp4",
     }
   )
-  void refusesPlaybackFailuresAndUncaughtExceptions(final String line) {
+  void shouldRefusePlaybackFailuresAndUncaughtExceptions(final String line) {
     assertThrows(AssertionError.class, () -> PaperServerEndToEndTest.assertNoErrors(List.of(line)));
   }
 

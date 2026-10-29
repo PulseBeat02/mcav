@@ -512,7 +512,7 @@ final class PluginDataConfigurationMapperTest {
     "18446744073709551696, 3000",
     "8080.9, 3000",
   })
-  void acceptsOnlyValidPorts(final String configured, final int expected) throws IOException {
+  void shouldAcceptOnlyValidPorts(final String configured, final int expected) throws IOException {
     this.writeConfiguration("http-server:\n  port: " + configured + "\n");
     this.mapper.deserialize();
     final int port = this.mapper.getHttpPort();

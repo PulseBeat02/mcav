@@ -77,7 +77,7 @@ final class UrlPlaceholderTest {
       INJECTION,
     }
   )
-  void invalidClickTargetsKeepLiteralTextWithoutAnEvent(final String url) {
+  void shouldKeepTheLiteralTextOfAnInvalidClickTargetWithoutAnEvent(final String url) {
     final MiniMessage parser = MiniMessage.miniMessage();
     final MiniMessageTranslator translator = translator("<click:open_url:'$URL$'>$URL$</click>", parser);
     final Component argument = Component.text(url);

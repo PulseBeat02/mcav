@@ -231,7 +231,7 @@ final class FilterChainTest {
       "blur=99999",
     }
   )
-  void refusesWhatIsNotAnAllowedFilter(final String text) {
+  void shouldRefuseWhatIsNotAnAllowedFilter(final String text) {
     final IllegalArgumentException refused = assertThrows(IllegalArgumentException.class, () -> this.parse(text), text);
 
     final boolean matches = !Objects.requireNonNull(refused.getMessage()).isBlank();

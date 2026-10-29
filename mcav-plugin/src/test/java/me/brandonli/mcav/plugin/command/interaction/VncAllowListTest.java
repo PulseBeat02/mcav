@@ -85,7 +85,7 @@ final class VncAllowListTest {
       "desk[top:5901",
     }
   )
-  void refusesTextThatIsNotAHostAndAPort(final String text) {
+  void shouldRefuseTextThatIsNotAHostAndAPort(final String text) {
     final VncAllowList.Target parsed = VncAllowList.parse(text);
     assertNull(parsed);
   }

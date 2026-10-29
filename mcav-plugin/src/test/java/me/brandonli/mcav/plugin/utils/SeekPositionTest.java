@@ -97,7 +97,7 @@ final class SeekPositionTest {
       "1:2:3:4",
     }
   )
-  void refusesWhatIsNotATime(final String text) {
+  void shouldRefuseWhatIsNotATime(final String text) {
     final SeekPosition parsed = SeekPosition.parse(text);
     assertNull(parsed, text);
   }

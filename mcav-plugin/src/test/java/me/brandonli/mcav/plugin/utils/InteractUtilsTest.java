@@ -226,7 +226,7 @@ final class InteractUtilsTest {
     "CLOCKWISE_135, 76, 38",
     "COUNTER_CLOCKWISE_45, 76, 38",
   })
-  void turnsThePixelWithTheMapInsideTheFrame(final Rotation rotation, final int pixelX, final int pixelY) {
+  void shouldTurnThePixelWithTheMapInsideTheFrame(final Rotation rotation, final int pixelX, final int pixelY) {
     final ItemFrame target = this.buildSouthWall();
     when(target.getRotation()).thenReturn(rotation);
     final int[] coordinates = InteractUtils.getBoardCoordinates(this.player);

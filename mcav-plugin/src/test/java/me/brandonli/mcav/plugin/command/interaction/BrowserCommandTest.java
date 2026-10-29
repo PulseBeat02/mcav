@@ -574,7 +574,7 @@ final class BrowserCommandTest {
       "http:example.com",
     }
   )
-  void refusesAddressesThatAreNotWebPages(final String url) {
+  void shouldRefuseAddressesThatAreNotWebPages(final String url) {
     this.create("1280x720", "5x3", url);
 
     final Component error = Message.UNSUPPORTED_URL.build();

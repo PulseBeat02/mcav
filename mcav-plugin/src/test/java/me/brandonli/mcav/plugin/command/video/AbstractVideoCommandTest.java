@@ -587,7 +587,7 @@ final class AbstractVideoCommandTest {
     "http://cdn.example.com/video, file:///etc/hostname",
     "tcp://127.0.0.1:25575, https://cdn.example.com/audio",
   })
-  void refusesStreamsOfAWebPageThatAreNotOnTheWeb(final String videoStream, final String audioStream) throws IOException {
+  void shouldRefuseStreamsOfAWebPageThatAreNotOnTheWeb(final String videoStream, final String audioStream) throws IOException {
     final UrlParseDump resolved = GsonProvider.getSimple().fromJson("{}", UrlParseDump.class);
     when(this.parser.parse(any(UriSource.class))).thenReturn(resolved);
     final UriSource videoStreamSource = UriSource.uri(URI.create(videoStream));

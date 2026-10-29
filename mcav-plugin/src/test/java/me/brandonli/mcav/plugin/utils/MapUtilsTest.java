@@ -306,7 +306,7 @@ final class MapUtilsTest {
       "WEST | EAST | 0,65,0;0,65,-1;0,64,0;0,64,-1",
     }
   )
-  void buildsTheScreenRowByRowFromTheTopLeftCornerAsSeenByThePlayer(
+  void shouldBuildTheScreenRowByRowFromTheTopLeftCornerAsSeenByThePlayer(
     final BlockFace face,
     final BlockFace expectedFrameFacing,
     final String expectedFrames

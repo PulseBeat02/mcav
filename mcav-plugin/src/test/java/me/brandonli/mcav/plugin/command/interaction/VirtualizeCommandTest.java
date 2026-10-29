@@ -581,7 +581,7 @@ final class VirtualizeCommandTest {
       "-hda ../../elsewhere.img",
     }
   )
-  void refusesDiskImagesOutsideTheImageFolder(final String options) {
+  void shouldRefuseDiskImagesOutsideTheImageFolder(final String options) {
     final IllegalArgumentException failure = this.assertRefusedOptions(options);
     final String message = failure.getMessage();
     final boolean explained = message.contains("lies outside the iso folder") || message.contains("no disk image");
@@ -610,7 +610,7 @@ final class VirtualizeCommandTest {
       "-drive file=a.img,logappend=C:\\temp\\log",
     }
   )
-  void refusesHardwareOptionsThatNameAFileOrChangeTheSound(final String options) throws IOException {
+  void shouldRefuseHardwareOptionsThatNameAFileOrChangeTheSound(final String options) throws IOException {
     this.image("a.img");
     final IllegalArgumentException failure = this.assertRefusedOptions(options);
     final String message = failure.getMessage();
