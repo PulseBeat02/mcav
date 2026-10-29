@@ -50,6 +50,6 @@ final class InputMetadataExceptionTest {
   @Test
   void shouldBeAnMCAVException() {
     final InputMetadataException exception = new InputMetadataException("failure!");
-    assertInstanceOf(MCAVException.class, exception, "unreadable media is recoverable, so it is no Error");
+    assertInstanceOf(MCAVException.class, exception, "media that cannot be read fails outside the caller's control");
   }
 }

@@ -20,6 +20,7 @@ package me.brandonli.mcav.media.image;
 import static me.brandonli.mcav.media.ResourceAssertions.assertThrowsWhileOpening;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -46,6 +47,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +57,7 @@ import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.testing.Images;
 import me.brandonli.mcav.testing.LocalHttpServer;
 import me.brandonli.mcav.testing.TestMedia;
+import me.brandonli.mcav.utils.http.DownloadException;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacv.Frame;
 import org.bytedeco.opencv.global.opencv_core;
@@ -215,6 +218,32 @@ final class MatImageBufferTest {
     final int downloadedHeight = this.downloadHeight(png);
     assertEquals(8, downloadedHeight);
     assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.path(invalid));
+
+    final Path missing = this.directory.resolve("missing.png");
+    final FileSource missingSource = FileSource.path(missing);
+    final String expected = "File %s is not a supported image!".formatted(missing);
+    final String previous = System.getProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY);
+    System.clearProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY);
+    try {
+      final IllegalArgumentException withLimit = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+        ImageBuffer.path(missingSource)
+      );
+      final String withLimitMessage = withLimit.getMessage();
+      final Throwable cause = withLimit.getCause();
+      assertEquals(expected, withLimitMessage);
+      assertInstanceOf(NoSuchFileException.class, cause);
+
+      System.setProperty(DeclaredImageSize.MAXIMUM_PIXELS_PROPERTY, "0");
+      final IllegalArgumentException withoutLimit = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+        ImageBuffer.path(missingSource)
+      );
+      final String withoutLimitMessage = withoutLimit.getMessage();
+      assertEquals(expected, withoutLimitMessage);
+    } finally {
+      restoreMaximumPixels(previous);
+    }
+
+    this.assertDownloadFailure();
     assertThrowsWhileOpening(NullPointerException.class, () -> ImageBuffer.path(null));
     assertThrowsWhileOpening(NullPointerException.class, () -> ImageBuffer.uri(null));
   }
@@ -351,6 +380,20 @@ final class MatImageBufferTest {
       try (final ImageBuffer fromUri = ImageBuffer.uri(source)) {
         return fromUri.getHeight();
       }
+    } finally {
+      System.setProperty("user.home", previousHome);
+    }
+  }
+
+  private void assertDownloadFailure() {
+    final String previousHome = System.getProperty("user.home");
+    final String temporaryHome = this.directory.toString();
+    System.setProperty("user.home", temporaryHome);
+    try (final LocalHttpServer server = LocalHttpServer.start()) {
+      server.respond("/missing.png", 404, new byte[0]);
+      final URI uri = server.uri("/missing.png");
+      final UriSource source = UriSource.uri(uri);
+      assertThrowsWhileOpening(DownloadException.class, () -> ImageBuffer.uri(source));
     } finally {
       System.setProperty("user.home", previousHome);
     }
@@ -529,6 +572,32 @@ final class MatImageBufferTest {
       frameBytes.put(0, (byte) 99);
       final int first = argbAt(image, 0, 0);
       assertEquals(0xFF1E140A, first, "later changes to the frame must not show");
+    }
+
+    try (final Frame bgra = new Frame(1, 1, Frame.DEPTH_UBYTE, 4)) {
+      final ByteBuffer bgraBytes = (ByteBuffer) bgra.image[0];
+      bgraBytes.put(new byte[] { 10, 20, 30, 40 });
+      try (final ImageBuffer image = ImageBuffer.frame(bgra)) {
+        final int pixel = argbAt(image, 0, 0);
+        assertEquals(0xFF1E140A, pixel, "the fourth channel is alpha and is dropped");
+      }
+    }
+
+    try (final Frame gray = new Frame(1, 1, Frame.DEPTH_UBYTE, 1)) {
+      final ByteBuffer grayBytes = (ByteBuffer) gray.image[0];
+      grayBytes.put(new byte[] { 77 });
+      try (final ImageBuffer image = ImageBuffer.frame(gray)) {
+        final int pixel = argbAt(image, 0, 0);
+        assertEquals(0xFF4D4D4D, pixel, "one channel is gray");
+      }
+    }
+
+    try (final Frame unsupported = new Frame(1, 1, Frame.DEPTH_UBYTE, 2)) {
+      final IllegalArgumentException failure = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+        ImageBuffer.frame(unsupported)
+      );
+      final String message = failure.getMessage();
+      assertEquals("Channel count 2 is not supported!", message);
     }
 
     try (final Frame audio = new Frame()) {
@@ -946,7 +1015,11 @@ final class MatImageBufferTest {
 
   @Test
   void shouldRejectABufferedImageThatReportsNoWidth() {
-    assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.image(new ZeroWidthImage()));
+    final IllegalArgumentException failure = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+      ImageBuffer.image(new ReportedSizeImage(0, 1))
+    );
+    final String message = failure.getMessage();
+    assertEquals("Image dimensions 0x1 must be positive!", message);
   }
 
   private static long pixelAddress(final Mat mat) {
@@ -1116,7 +1189,7 @@ final class MatImageBufferTest {
   }
 
   @Test
-  void shouldCopyAreIndependent() {
+  void shouldLeaveTheOriginalUnchangedWhenItsCopyChanges() {
     try (final ImageBuffer image = Images.solid(1, 1, GREEN)) {
       final ImageBuffer copy = image.copy();
       copy.updateArgb(new int[] { BLACK }, 1, 1);
@@ -1175,12 +1248,17 @@ final class MatImageBufferTest {
     final IllegalArgumentException fromArgb = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
       ImageBuffer.buffer(pixels, width, height)
     );
+    final IllegalArgumentException fromImage = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+      ImageBuffer.image(new ReportedSizeImage(width, height))
+    );
     final String bytesMessage = fromBytes.getMessage();
     final String bufferMessage = fromBuffer.getMessage();
     final String argbMessage = fromArgb.getMessage();
+    final String imageMessage = fromImage.getMessage();
     assertEquals(expectedMessage, bytesMessage);
     assertEquals(expectedMessage, bufferMessage);
     assertEquals(expectedMessage, argbMessage);
+    assertEquals(expectedMessage, imageMessage);
 
     try (final ImageBuffer image = Images.solid(1, 1, FIRST_COLOR)) {
       final IllegalArgumentException updateBytes = assertThrows(IllegalArgumentException.class, () ->
@@ -1252,15 +1330,25 @@ final class MatImageBufferTest {
     assertEquals(0x00123456, firstInput, "the input is not modified");
   }
 
-  private static final class ZeroWidthImage extends BufferedImage {
+  private static final class ReportedSizeImage extends BufferedImage {
 
-    ZeroWidthImage() {
+    private final int width;
+    private final int height;
+
+    ReportedSizeImage(final int width, final int height) {
       super(1, 1, BufferedImage.TYPE_3BYTE_BGR);
+      this.width = width;
+      this.height = height;
     }
 
     @Override
     public int getWidth() {
-      return 0;
+      return this.width;
+    }
+
+    @Override
+    public int getHeight() {
+      return this.height;
     }
   }
 

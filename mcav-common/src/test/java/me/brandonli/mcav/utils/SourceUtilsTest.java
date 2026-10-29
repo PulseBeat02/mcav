@@ -31,6 +31,8 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.List;
+import me.brandonli.mcav.capability.Capability;
+import me.brandonli.mcav.capability.CapabilityGuard;
 import me.brandonli.mcav.capability.installer.FileMode;
 import me.brandonli.mcav.capability.installer.InstallationException;
 import me.brandonli.mcav.capability.installer.ytdlp.YtdlpInstaller;
@@ -247,6 +249,21 @@ final class SourceUtilsTest {
     final YtdlpInstaller verifiedInstaller = Mockito.verify(installer);
     verifiedInstaller.download(FileMode.EXECUTABLE);
     assertThrows(NullPointerException.class, () -> SourceUtils.isDynamicStream(null));
+  }
+
+  @Test
+  void shouldRefuseALiveCheckWhileTheLibraryPreparesYtdlp() {
+    final YtdlpInstaller installer = Mockito.mock(YtdlpInstaller.class);
+    final CapabilityGuard guard = CapabilityGuard.shared();
+    guard.markPreparing(Capability.YT_DLP);
+    try (final MockedStatic<YtdlpInstaller> installers = Mockito.mockStatic(YtdlpInstaller.class)) {
+      installers.when(YtdlpInstaller::shared).thenReturn(installer);
+      assertThrows(IllegalStateException.class, () -> SourceUtils.isDynamicStream(LIVE_URL));
+    } finally {
+      guard.forget(Capability.YT_DLP);
+    }
+
+    Mockito.verifyNoInteractions(installer);
   }
 
   @Test

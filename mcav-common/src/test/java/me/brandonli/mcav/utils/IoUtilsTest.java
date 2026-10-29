@@ -44,6 +44,7 @@ import java.nio.file.CopyOption;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
@@ -56,6 +57,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -69,6 +71,7 @@ import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.testing.LocalHttpServer;
 import me.brandonli.mcav.testing.TemporaryUserHome;
 import me.brandonli.mcav.testing.UtilityClassAssertions;
+import me.brandonli.mcav.utils.http.DownloadTooLargeException;
 import me.brandonli.mcav.utils.http.HttpStatusException;
 import me.brandonli.mcav.utils.os.Arch;
 import me.brandonli.mcav.utils.os.Bits;
@@ -84,7 +87,11 @@ import org.junit.jupiter.params.provider.ValueSource;
 final class IoUtilsTest {
 
   private static final byte[] ABC = "abc".getBytes(StandardCharsets.US_ASCII);
+  private static final byte[] DEF = "def".getBytes(StandardCharsets.US_ASCII);
   private static final Duration SHORT_RETRY_DELAY = Duration.ofMillis(1);
+  private static final Duration RETRY_DELAY = Duration.ofMillis(100);
+  private static final Duration SECOND_RETRY_DELAY = Duration.ofMillis(200);
+  private static final Duration TOTAL_RETRY_DELAY = Duration.ofMillis(300);
 
   private static final Map<String, String> CREATE_ENVIRONMENT = Map.of("create", "true");
 
@@ -228,6 +235,7 @@ final class IoUtilsTest {
     assertEquals("", directoryUrl);
     assertEquals("", noPath);
     assertEquals("", opaque);
+    assertThrows(IllegalArgumentException.class, () -> IoUtils.getFileNameFromUrl("https://example.com/a b"));
     assertThrows(NullPointerException.class, () -> IoUtils.getFileNameFromUrl(null));
   }
 
@@ -355,7 +363,9 @@ final class IoUtilsTest {
   @Test
   void shouldFormatBytesAsZeroPaddedHex() {
     final String hex = IoUtils.bytesToHex(new byte[] { 0x0F, (byte) 0xAB, 0x00 });
+    final String empty = IoUtils.bytesToHex(new byte[0]);
     assertEquals("0fab00", hex);
+    assertEquals("", empty);
     assertThrows(NullPointerException.class, () -> IoUtils.bytesToHex(null));
   }
 
@@ -376,10 +386,13 @@ final class IoUtilsTest {
       final LocalHttpServer server = LocalHttpServer.start()
     ) {
       server.respond("/image.png", 200, ABC);
+      server.respond("/image.png", 200, DEF);
       final URI imageUri = server.uri("/image.png");
       final URI missingUri = server.uri("/missing.png");
+      final URI fileUri = URI.create("file:///image.png");
       final UriSource image = UriSource.uri(imageUri);
       final UriSource missing = UriSource.uri(missingUri);
+      final UriSource file = UriSource.uri(fileUri);
 
       final Path downloaded = IoUtils.downloadImage(image);
       final byte[] content = Files.readAllBytes(downloaded);
@@ -391,8 +404,36 @@ final class IoUtilsTest {
       assertArrayEquals(ABC, content);
       assertTrue(inCache);
       assertTrue(cacheInHome);
+
+      final Path downloadedAgain = IoUtils.downloadImage(image);
+      final byte[] contentAgain = Files.readAllBytes(downloadedAgain);
+
+      assertEquals(downloaded, downloadedAgain);
+      assertArrayEquals(DEF, contentAgain, "downloading the same URL again overwrites the cached copy");
       assertThrows(HttpStatusException.class, () -> IoUtils.downloadImage(missing));
+      assertThrows(IllegalArgumentException.class, () -> IoUtils.downloadImage(file));
       assertThrows(NullPointerException.class, () -> IoUtils.downloadImage(null));
+    }
+  }
+
+  @Test
+  void shouldStopAnImageDownloadLargerThanTheLimit() throws IOException {
+    try (final TemporaryUserHome _ = TemporaryUserHome.redirectTo(this.directory); final LocalHttpServer server = LocalHttpServer.start()) {
+      final int tooLarge = Math.toIntExact(IoUtils.MAXIMUM_IMAGE_BYTES + 1);
+      server.respond("/large.png", 200, new byte[tooLarge]);
+      final URI largeUri = server.uri("/large.png");
+      final UriSource large = UriSource.uri(largeUri);
+
+      final DownloadTooLargeException thrown = assertThrows(DownloadTooLargeException.class, () -> IoUtils.downloadImage(large));
+      final String message = thrown.getMessage();
+      final String limit = "larger than the %s bytes".formatted(IoUtils.MAXIMUM_IMAGE_BYTES);
+      final boolean namesTheLimit = message.contains(limit);
+      final Path cache = IoUtils.getCachedFolder();
+      try (final Stream<Path> cached = Files.list(cache)) {
+        final long cachedCount = cached.count();
+        assertTrue(namesTheLimit);
+        assertEquals(0L, cachedCount, "neither the image nor its partial download is kept");
+      }
     }
   }
 
@@ -407,6 +448,16 @@ final class IoUtilsTest {
     final boolean created = Files.isDirectory(cache);
     assertEquals(expected, cache, "a regular file where the home directory should be cannot hold the cache");
     assertTrue(created);
+  }
+
+  @Test
+  void shouldFailWhenNeitherCacheFolderCanBeCreated() throws IOException {
+    final Path home = this.directory.resolve(HOME_NAME);
+    Files.writeString(home, FILE_CONTENT);
+    final Path temporary = this.directory.resolve(TEMPORARY_NAME);
+    Files.writeString(temporary, FILE_CONTENT);
+
+    assertThrows(FileOperationException.class, () -> this.getCachedFolderIn(home, temporary));
   }
 
   @Test
@@ -1047,17 +1098,83 @@ final class IoUtilsTest {
   }
 
   @Test
+  void shouldWaitLongerBeforeEachRetryOfADeniedMove() throws IOException {
+    final Path source = this.directory.resolve(SOURCE_NAME);
+    final Path target = this.directory.resolve(TARGET_NAME);
+    final List<Long> attemptTimes = new ArrayList<>();
+    IoUtils.moveReplacing(source, target, (_, to, _) -> this.recordAndDenyAllButTheLastAttempt(to, attemptTimes), RETRY_DELAY);
+    final long firstAttempt = attemptTimes.getFirst();
+    final long secondAttempt = attemptTimes.get(1);
+    final long lastAttempt = attemptTimes.getLast();
+    final Duration firstWait = Duration.ofNanos(secondAttempt - firstAttempt);
+    final Duration secondWait = Duration.ofNanos(lastAttempt - secondAttempt);
+    final boolean firstWaitLongEnough = firstWait.compareTo(RETRY_DELAY) >= 0;
+    final boolean secondWaitLongEnough = secondWait.compareTo(SECOND_RETRY_DELAY) >= 0;
+    final int attemptCount = attemptTimes.size();
+    assertEquals(MAXIMUM_MOVE_ATTEMPTS, attemptCount);
+    assertTrue(firstWaitLongEnough, "the first retry waits the retry delay");
+    assertTrue(secondWaitLongEnough, "the second retry waits twice the retry delay");
+  }
+
+  private void recordAndDenyAllButTheLastAttempt(final Path to, final List<Long> attemptTimes) throws AccessDeniedException {
+    final long now = System.nanoTime();
+    attemptTimes.add(now);
+    if (attemptTimes.size() < MAXIMUM_MOVE_ATTEMPTS) {
+      final String rawTo = to.toString();
+      throw new AccessDeniedException(rawTo);
+    }
+  }
+
+  @Test
   void shouldGiveUpOnAMoveThatStaysDenied() {
     final Path source = this.directory.resolve(SOURCE_NAME);
     final Path target = this.directory.resolve(TARGET_NAME);
-    final AccessDeniedException denied = new AccessDeniedException(TARGET_NAME);
+    final AtomicReference<AccessDeniedException> lastDenial = new AtomicReference<>();
     final AtomicInteger attempts = new AtomicInteger();
     final AccessDeniedException thrown = assertThrows(AccessDeniedException.class, () ->
-      IoUtils.moveReplacing(source, target, (_, _, _) -> this.countAttemptAndFail(attempts, denied), SHORT_RETRY_DELAY)
+      IoUtils.moveReplacing(source, target, (_, _, _) -> this.countAttemptAndDenyAgain(attempts, lastDenial), SHORT_RETRY_DELAY)
     );
+    final AccessDeniedException last = lastDenial.get();
     final int attemptCount = attempts.get();
-    assertSame(denied, thrown);
+    assertSame(last, thrown, "the last denial is thrown");
     assertEquals(MAXIMUM_MOVE_ATTEMPTS, attemptCount, "a move is tried three times in total");
+  }
+
+  private void countAttemptAndDenyAgain(final AtomicInteger attempts, final AtomicReference<AccessDeniedException> lastDenial)
+    throws AccessDeniedException {
+    attempts.incrementAndGet();
+
+    final AccessDeniedException denied = new AccessDeniedException(TARGET_NAME);
+    lastDenial.set(denied);
+    throw denied;
+  }
+
+  @Test
+  void shouldReportAMoveThatStaysDeniedWithTheDenialAsItsCause() throws IOException {
+    final Path source = this.directory.resolve(SOURCE_NAME);
+    final Path targetDirectory = Files.createDirectories(this.directory.resolve(TARGET_NAME));
+    final Path target = targetDirectory.resolve(FILE_NAME);
+    Files.writeString(source, FILE_CONTENT);
+    final Os operatingSystem = OsUtils.getOs();
+    final boolean posix = operatingSystem != Os.WINDOWS;
+    Assumptions.assumeTrue(posix, "Directory permissions need a POSIX file system!");
+
+    Files.setPosixFilePermissions(targetDirectory, READ_ONLY_PERMISSIONS);
+    try {
+      final boolean writable = Files.isWritable(targetDirectory);
+      Assumptions.assumeFalse(writable, "The user can write every directory!");
+
+      final long start = System.nanoTime();
+      final FileOperationException thrown = assertThrows(FileOperationException.class, () -> IoUtils.moveReplacing(source, target));
+      final long end = System.nanoTime();
+      final Duration waited = Duration.ofNanos(end - start);
+      final Throwable cause = thrown.getCause();
+      final boolean waitedForEveryRetry = waited.compareTo(TOTAL_RETRY_DELAY) >= 0;
+      assertInstanceOf(AccessDeniedException.class, cause);
+      assertTrue(waitedForEveryRetry, "a denied move is retried 100 and 200 milliseconds apart");
+    } finally {
+      Files.setPosixFilePermissions(targetDirectory, OWNER_DIRECTORY_PERMISSIONS);
+    }
   }
 
   @Test
@@ -1098,6 +1215,33 @@ final class IoUtilsTest {
     IoUtils.deleteRecursively(file);
     final boolean fileExists = Files.exists(file);
     assertFalse(fileExists);
+  }
+
+  @Test
+  void shouldDeleteLinksInATreeWithoutFollowingThem() throws IOException {
+    final Path outside = this.directory.resolve(OUTSIDE_DIRECTORY);
+    final Path kept = outside.resolve(FILE_NAME);
+    Files.createDirectories(outside);
+    Files.writeString(kept, FILE_CONTENT);
+    final Path tree = this.directory.resolve(TREE_DIRECTORY);
+    final Path link = tree.resolve(LINKED_DIRECTORY);
+    Files.createDirectories(tree);
+    createSymbolicLinkOrSkip(link, outside);
+    IoUtils.deleteRecursively(tree);
+    final boolean treeExists = Files.exists(tree, LinkOption.NOFOLLOW_LINKS);
+    final String content = Files.readString(kept);
+    assertFalse(treeExists);
+    assertEquals(FILE_CONTENT, content, "the target of a link is kept");
+  }
+
+  @Test
+  void shouldDeleteALinkWhoseTargetIsGone() {
+    final Path missing = this.directory.resolve(MISSING_NAME);
+    final Path link = this.directory.resolve(LINKED_DIRECTORY);
+    createSymbolicLinkOrSkip(link, missing);
+    IoUtils.deleteRecursively(link);
+    final boolean linkExists = Files.exists(link, LinkOption.NOFOLLOW_LINKS);
+    assertFalse(linkExists);
   }
 
   @Test

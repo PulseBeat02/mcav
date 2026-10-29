@@ -93,7 +93,7 @@ public final class MetadataUtils {
    * Reads the codec, bitrate, sample rate, channel count, and sample format of the audio track of a source.
    *
    * @param source the source
-   * @return the audio metadata
+   * @return the audio metadata, with the codec {@code unknown} when FFmpeg cannot name it
    * @throws InputMetadataException if the source cannot be opened or has no audio track
    * @throws NullPointerException   if the source is null
    * @since 1.0.0

@@ -18,6 +18,7 @@
 package me.brandonli.mcav.media.image;
 
 import static me.brandonli.mcav.media.ResourceAssertions.assertThrowsWhileOpening;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -36,6 +37,7 @@ import me.brandonli.mcav.media.source.uri.UriSource;
 import me.brandonli.mcav.testing.Images;
 import me.brandonli.mcav.testing.LocalHttpServer;
 import me.brandonli.mcav.testing.TestMedia;
+import me.brandonli.mcav.utils.http.DownloadException;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.Frame;
 import org.junit.jupiter.api.Test;
@@ -51,6 +53,7 @@ final class DynamicImageBufferTest {
   private static final String ANIMATION_NAME = "animation.gif";
   private static final String ANIMATION_URL_PATH = "/animation.gif";
   private static final String MISSING_NAME = "missing.gif";
+  private static final String MISSING_URL_PATH = "/missing.gif";
 
   private static final int TIMESTAMPED_FRAMES = 3;
   private static final long ONE_SECOND = 1_000_000L;
@@ -124,6 +127,7 @@ final class DynamicImageBufferTest {
     final ImageBuffer frame = animation.getFrame(0);
     animation.close();
     assertThrows(IllegalStateException.class, frame::getWidth);
+    assertDoesNotThrow(animation::close);
   }
 
   @Test
@@ -139,6 +143,11 @@ final class DynamicImageBufferTest {
         final int count = animation.getFrameCount();
         assertEquals(FRAME_COUNT, count);
       }
+
+      server.respond(MISSING_URL_PATH, 404, new byte[0]);
+      final URI missingUri = server.uri(MISSING_URL_PATH);
+      final UriSource missing = UriSource.uri(missingUri);
+      assertThrowsWhileOpening(DownloadException.class, () -> DynamicImageBuffer.uri(missing));
     } finally {
       System.setProperty("user.home", previousHome);
     }
