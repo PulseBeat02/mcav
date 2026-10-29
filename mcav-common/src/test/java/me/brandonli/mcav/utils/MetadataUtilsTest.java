@@ -143,6 +143,23 @@ final class MetadataUtilsTest {
     when(grabber.getSampleFormat()).thenReturn(1);
   }
 
+  @Test
+  void shouldReportAnUnknownCodecWhenFfmpegNamesNone() {
+    try (
+      final MockedConstruction<FFmpegFrameGrabber> _ = Mockito.mockConstruction(FFmpegFrameGrabber.class, (grabber, _) ->
+        this.stubMetadataWithoutCodecName(grabber)
+      )
+    ) {
+      final OriginalAudioMetadata actual = MetadataUtils.parseAudioMetadata(FileSource.path(Path.of(FIXTURE_FILE_NAME)));
+      assertEquals(OriginalAudioMetadata.of("unknown", AUDIO_BITRATE, SAMPLE_RATE, AUDIO_CHANNELS, 1), actual);
+    }
+  }
+
+  private void stubMetadataWithoutCodecName(final FFmpegFrameGrabber grabber) {
+    this.stubDeclaredMetadata(grabber);
+    when(grabber.getAudioCodecName()).thenReturn(null);
+  }
+
   @ParameterizedTest
   @EnumSource(MediaKind.class)
   void shouldStopProbingImmediatelyAtTheEndOfTheSource(final MediaKind track) throws FrameGrabber.Exception {
