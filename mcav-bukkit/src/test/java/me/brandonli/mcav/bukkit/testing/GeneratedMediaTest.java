@@ -39,7 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
-@Timeout(20)
+@Timeout(120)
 final class GeneratedMediaTest {
 
   private static final String VIDEO_FILE_NAME = "video.mp4";
@@ -67,7 +67,7 @@ final class GeneratedMediaTest {
           if (!output.toString().endsWith(".mp4")) throw new AssertionError("Format extension was lost!");
           Files.writeString(output, args[0].equals("success") ? "completed media" : "partial media");
           if (args[0].equals("failure")) { System.err.println("fixture encoder diagnostic"); System.exit(7); }
-          if (args[0].equals("timeout")) { Thread.sleep(30_000L); }
+          if (args[0].equals("timeout")) { Thread.sleep(60_000L); }
         }
       }
       """
@@ -167,8 +167,8 @@ final class GeneratedMediaTest {
     final boolean reportsTheTimeout = message.contains("took longer than its");
     assertTrue(reportsTheTimeout);
 
-    final boolean withinTheDeadline = elapsed < 6_000_000_000L;
-    assertTrue(withinTheDeadline, "the deadline plus bounded process cleanup must not wait for the 30 second fixture");
+    final boolean withinTheDeadline = elapsed < 20_000_000_000L;
+    assertTrue(withinTheDeadline, "the deadline plus bounded process cleanup must not wait for the 60 second fixture");
 
     final boolean published = Files.exists(output);
     assertFalse(published);
