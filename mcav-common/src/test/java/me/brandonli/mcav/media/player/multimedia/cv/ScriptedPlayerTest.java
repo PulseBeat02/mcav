@@ -498,6 +498,18 @@ final class ScriptedPlayerTest {
     assertThrows(NullPointerException.class, () -> player.start(VIDEO, null));
   }
 
+  @Test
+  void shouldRejectANullGrabberOrSourceWhenConfiguring() {
+    final ScriptedPlayer player = new ScriptedPlayer(ScriptedPlayerTest::endlessVideo);
+    final ScriptedFrameGrabber grabber = ScriptedFrameGrabber.of();
+
+    final NullPointerException nullGrabber = assertThrows(NullPointerException.class, () -> player.configureGrabber(null, VIDEO));
+    assertEquals("Grabber must not be null!", nullGrabber.getMessage());
+
+    final NullPointerException nullSource = assertThrows(NullPointerException.class, () -> player.configureGrabber(grabber, null));
+    assertEquals("Source must not be null!", nullSource.getMessage());
+  }
+
   private static boolean controlOnTheExecutor(final ScriptedPlayer player, final ExecutorService executor) throws Exception {
     final CompletableFuture<Boolean> startFuture = player.startAsync(VIDEO, executor);
     final boolean started = resultOf(startFuture);
