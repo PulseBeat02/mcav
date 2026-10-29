@@ -908,15 +908,20 @@ final class HttpDownloaderTest {
     final HttpHeaders headers = request.headers();
     final Optional<String> userAgent = headers.firstValue("User-Agent");
     final String method = request.method();
+    final Optional<Duration> requestTimeout = request.timeout();
     try (final HttpClient client = HttpDownloader.createClient()) {
       final HttpClient.Redirect redirect = client.followRedirects();
+      final Optional<Duration> connectTimeout = client.connectTimeout();
       assertEquals(HttpClient.Redirect.NORMAL, redirect);
+      assertEquals(Optional.of(Duration.ofSeconds(20)), connectTimeout);
     }
 
     assertEquals("GET", method);
+    assertEquals(Optional.of(Duration.ofMinutes(30)), requestTimeout);
 
-    final boolean userAgentPresent = userAgent.isPresent();
-    assertTrue(userAgentPresent);
+    final String agent = userAgent.orElse("");
+    final boolean namesMcav = agent.startsWith("mcav ");
+    assertTrue(namesMcav, "the user agent names mcav, but was " + agent);
     assertThrows(NullPointerException.class, () -> HttpDownloader.createRequest(null));
     assertThrows(DownloadException.class, () -> HttpDownloader.createDigest("NO-SUCH-ALGORITHM"));
   }
