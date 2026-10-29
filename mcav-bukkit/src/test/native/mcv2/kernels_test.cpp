@@ -17,6 +17,7 @@
  */
 
 #include <float.h>
+#include <limits.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -91,6 +92,25 @@ constexpr uint64_t FNV_OFFSET_BASIS = 0xCBF29CE484222325ull;
 constexpr uint64_t FNV_PRIME = 0x100000001B3ull;
 
 constexpr uint64_t RANDOM_SEED = 0x6D637632ull;
+
+constexpr int32_t CHANNELS = 3;
+constexpr int32_t MAXIMUM_CHANNEL = 255;
+
+constexpr int32_t ENDPOINTS = 2;
+constexpr int32_t ENDPOINT_CHANNELS = ENDPOINTS * CHANNELS;
+
+constexpr int32_t SMALLEST_BLOCK_SIZE = 8;
+constexpr int32_t BLOCK_SIZES = 3;
+
+constexpr int32_t GRID = 4;
+
+constexpr int32_t COMPACT_RECORD_BYTES = 10;
+
+constexpr int32_t MAXIMUM_MOTION = 40;
+constexpr int32_t HORIZONTAL_MOTION_SHIFT = 16;
+constexpr int32_t VERTICAL_MOTION_MASK = 0xFFFF;
+
+constexpr int32_t OUT_OF_RANGE_ODDS = 7;
 
 struct known_level {
   const char* name_;
@@ -235,10 +255,10 @@ struct kernel_result {
 };
 
 kernel_trial draw_trial(const int kernel, const int index, random_generator& random) {
-  const int32_t size = 8 << random.range(0, 2);
-  const size_t channels = (size_t)size * size * 3;
-  const vector<int32_t> source = random.integers(channels, 0, 255);
-  const vector<int32_t> prediction = random.integers(channels, 0, 255);
+  const int32_t size = SMALLEST_BLOCK_SIZE << random.range(0, BLOCK_SIZES - 1);
+  const size_t channels = (size_t)size * size * CHANNELS;
+  const vector<int32_t> source = random.integers(channels, 0, MAXIMUM_CHANNEL);
+  const vector<int32_t> prediction = random.integers(channels, 0, MAXIMUM_CHANNEL);
   const double rate = random.range(0, 100000) / 7.0;
   const double limit = random.range(0, 3) == 0 ? INFINITY : rate + random.range(0, size * size * 3000);
   return {kernel, index, size, channels, source, prediction, rate, limit};
@@ -246,7 +266,7 @@ kernel_trial draw_trial(const int kernel, const int index, random_generator& ran
 
 void run_palette(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
                  kernel_result& result) {
-  const vector<int8_t> record = inputs.bytes(6 + trial.size_ * trial.size_ / 8);
+  const vector<int8_t> record = inputs.bytes(ENDPOINT_CHANNELS + trial.size_ * trial.size_ / CHAR_BIT);
   result.measured_ = level.palette_(record.data(), trial.size_, result.output_.data(), trial.source_.data(),
                                     trial.rate_, trial.limit_);
 }
@@ -254,7 +274,7 @@ void run_palette(const level_kernels& level, const kernel_trial& trial, random_g
 void run_compact(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
                  kernel_result& result) {
   const int32_t quantizer = inputs.range(0, 2);
-  const vector<int8_t> record = inputs.bytes(10);
+  const vector<int8_t> record = inputs.bytes(COMPACT_RECORD_BYTES);
   result.measured_ = level.compact_(trial.prediction_.data(), record.data(), quantizer, trial.size_,
                                     result.output_.data(), trial.source_.data(), trial.rate_, trial.limit_);
 }
@@ -263,42 +283,44 @@ void run_predict(const level_kernels& level, const kernel_trial& trial, random_g
                  kernel_result& result) {
   const int32_t width = inputs.range(1, 80);
   const int32_t height = inputs.range(1, 60);
-  const vector<uint8_t> reference = inputs.unsigned_bytes((size_t)width * height * 3);
+  const vector<uint8_t> reference = inputs.unsigned_bytes((size_t)width * height * CHANNELS);
   level.predict_(reference.data(), width, height, inputs.range(-10, width + 10), inputs.range(-10, height + 10),
-                 trial.size_, inputs.range(-40, 40), inputs.range(-40, 40), result.output_.data());
+                 trial.size_, inputs.range(-MAXIMUM_MOTION, MAXIMUM_MOTION),
+                 inputs.range(-MAXIMUM_MOTION, MAXIMUM_MOTION), result.output_.data());
 }
 
 void run_fit(const level_kernels& level, const kernel_trial& trial, random_generator& inputs, kernel_result& result) {
   const vector<float> values = inputs.floats((size_t)trial.size_ * trial.size_);
-  const vector<float> matrix = inputs.floats((size_t)4 * trial.size_);
-  result.floats_.assign(16, 0);
+  const vector<float> matrix = inputs.floats((size_t)GRID * trial.size_);
+  result.floats_.assign(GRID * GRID, 0);
   level.fit_(values.data(), trial.size_, matrix.data(), result.floats_.data());
 }
 
 void run_cluster(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
                  kernel_result& result) {
-  const int32_t low = inputs.range(0, 255);
-  const int32_t spread = inputs.range(0, 1) ? 8 : 255;
-  vector<int32_t> block = inputs.integers(trial.channels_, low, low + spread > 255 ? 255 : low + spread);
-  if (inputs.range(0, 7) == 0) {
+  const int32_t low = inputs.range(0, MAXIMUM_CHANNEL);
+  const int32_t spread = inputs.range(0, 1) ? 8 : MAXIMUM_CHANNEL;
+  vector<int32_t> block =
+      inputs.integers(trial.channels_, low, low + spread > MAXIMUM_CHANNEL ? MAXIMUM_CHANNEL : low + spread);
+  if (inputs.range(0, OUT_OF_RANGE_ODDS) == 0) {
     for (int32_t& value : block) {
       value = (int32_t)inputs.next();
     }
   }
-  result.integers_.assign(6, 0);
+  result.integers_.assign(ENDPOINT_CHANNELS, 0);
   level.cluster_(block.data(), trial.size_, result.integers_.data());
 }
 
 void run_assign(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
                 kernel_result& result) {
-  const vector<int32_t> colors = inputs.integers(6, 0, 255);
+  const vector<int32_t> colors = inputs.integers(ENDPOINT_CHANNELS, 0, MAXIMUM_CHANNEL);
   result.bytes_.assign((size_t)trial.size_ * trial.size_, 0);
   level.assign_(trial.source_.data(), trial.size_ * trial.size_, colors.data(), result.bytes_.data());
 }
 
 void run_assign_pattern(const level_kernels& level, const kernel_trial& trial, random_generator& inputs,
                         kernel_result& result) {
-  const vector<int32_t> colors = inputs.integers(6, 0, 255);
+  const vector<int32_t> colors = inputs.integers(ENDPOINT_CHANNELS, 0, MAXIMUM_CHANNEL);
   result.bytes_.assign((size_t)trial.size_ * trial.size_, 0);
   result.measured_ = level.assign_pattern_(trial.source_.data(), trial.size_, colors.data(), result.bytes_.data());
 }
@@ -307,14 +329,15 @@ void run_seeded(const level_kernels& level, const kernel_trial& trial, random_ge
                 kernel_result& result) {
   const int32_t width = inputs.range(1, 120);
   const int32_t height = inputs.range(1, 90);
-  const vector<uint8_t> reference = inputs.unsigned_bytes((size_t)width * height * 3);
+  const vector<uint8_t> reference = inputs.unsigned_bytes((size_t)width * height * CHANNELS);
   vector<int32_t> seeds((size_t)inputs.range(0, 6));
   for (int32_t& seed : seeds) {
-    seed = (int32_t)((uint32_t)inputs.range(-40, 40) << 16) | (inputs.range(-40, 40) & 0xFFFF);
+    seed = (int32_t)((uint32_t)inputs.range(-MAXIMUM_MOTION, MAXIMUM_MOTION) << HORIZONTAL_MOTION_SHIFT) |
+           (inputs.range(-MAXIMUM_MOTION, MAXIMUM_MOTION) & VERTICAL_MOTION_MASK);
   }
 
   vector<int32_t> block = trial.source_;
-  if (inputs.range(0, 7) == 0) {
+  if (inputs.range(0, OUT_OF_RANGE_ODDS) == 0) {
     block[inputs.range(0, (int32_t)block.size() - 1)] = (int32_t)inputs.next();
   }
   result.measured_ =
@@ -326,7 +349,7 @@ void run_load_source(const level_kernels& level, const kernel_trial& trial, rand
                      kernel_result& result) {
   const int32_t width = inputs.range(1, 70);
   const int32_t height = inputs.range(1, 70);
-  const vector<uint8_t> image = inputs.unsigned_bytes((size_t)width * height * 3);
+  const vector<uint8_t> image = inputs.unsigned_bytes((size_t)width * height * CHANNELS);
   level.load_source_(image.data(), width, height, inputs.range(0, width - 1), inputs.range(0, height - 1), trial.size_,
                      result.output_.data());
 }
