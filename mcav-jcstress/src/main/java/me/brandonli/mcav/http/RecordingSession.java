@@ -43,11 +43,11 @@ final class RecordingSession implements InvocationHandler {
     this.proxy = (WebSocketSession) Proxy.newProxyInstance(loader, interfaces, this);
   }
 
-  WebSocketSession proxy() {
+  WebSocketSession getProxy() {
     return this.proxy;
   }
 
-  boolean wasClosedSynchronously() {
+  boolean isClosedSynchronously() {
     return this.closedSynchronously.get();
   }
 

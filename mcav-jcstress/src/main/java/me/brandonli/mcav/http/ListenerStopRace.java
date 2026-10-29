@@ -56,7 +56,7 @@ public class ListenerStopRace {
    */
   @Actor
   public void connect() {
-    this.result.addListener(this.session.proxy());
+    this.result.addListener(this.session.getProxy());
   }
 
   /**
@@ -67,7 +67,7 @@ public class ListenerStopRace {
   @Arbiter
   public void inspect(final II_Result outcome) {
     outcome.r1 = this.result.getListenerCount();
-    outcome.r2 = this.session.wasClosedSynchronously() ? 1 : 0;
+    outcome.r2 = this.session.isClosedSynchronously() ? 1 : 0;
     // a leaked listener would keep its sender thread; stopping again releases it whatever the outcome
     this.result.stop();
   }
