@@ -31,16 +31,20 @@ import net.kyori.adventure.text.renderer.ComponentRenderer;
 /** Keeps URL data out of the MiniMessage parser, including quoted click arguments. */
 final class UrlPlaceholder implements ComponentRenderer<String> {
 
+  private static final String PLACEHOLDER_PREFIX = "mcav_url_";
+
+  static final String URL_TOKEN = "$URL$";
+
   // A fresh opaque marker distinguishes placeholders in the template from literal $URL$ in argument components.
   private final String marker;
 
   UrlPlaceholder() {
     final UUID identifier = UUID.randomUUID();
-    this.marker = "mcav_url_" + identifier;
+    this.marker = PLACEHOLDER_PREFIX + identifier;
   }
 
   String prepare(final String message) {
-    return message.replace("$URL$", this.marker);
+    return message.replace(URL_TOKEN, this.marker);
   }
 
   @Override

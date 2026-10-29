@@ -53,6 +53,9 @@ public final class TranslationManager {
   private static final java.util.Locale DEFAULT_LOCALE = java.util.Locale.getDefault(); // fqn: Locale is this package's language
   private static final Key ADVENTURE_KEY = key(Keys.NAMESPACE, "main");
 
+  private static final String LOCALE_FILE_PREFIX = "locale/mcav_";
+  private static final String LOCALE_FILE_SUFFIX = ".properties";
+
   private final ResourceBundle bundle;
   private final PluginTranslator translator;
 
@@ -73,7 +76,7 @@ public final class TranslationManager {
   private static ResourceBundle loadBundle(final Path folder, final Locale locale) {
     final String name = locale.name();
     final String lowerCaseName = name.toLowerCase(java.util.Locale.ROOT); // fqn: Locale is this package's language
-    final String propertiesPath = "locale/mcav_%s.properties".formatted(lowerCaseName);
+    final String propertiesPath = LOCALE_FILE_PREFIX + lowerCaseName + LOCALE_FILE_SUFFIX;
     final Path file = folder.resolve(propertiesPath);
     try {
       final boolean missing = Files.notExists(file);

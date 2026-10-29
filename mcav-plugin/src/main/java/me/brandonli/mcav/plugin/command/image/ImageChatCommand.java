@@ -24,6 +24,7 @@ import me.brandonli.mcav.bukkit.media.config.ChatConfiguration;
 import me.brandonli.mcav.bukkit.media.config.ChatConfigurationBuilder;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.FilterChain;
 import me.brandonli.mcav.utils.immutable.Pair;
@@ -84,8 +85,8 @@ public final class ImageChatCommand extends AbstractImageCommand {
   public void showImage(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = "dimensions") @Quoted final String imageResolution,
-    @Argument(suggestions = "chat-characters") @Quoted final String character,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String imageResolution,
+    @Argument(suggestions = SuggestionProvider.CHAT_CHARACTERS) @Quoted final String character,
     @Greedy @FlagYielding final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {

@@ -45,6 +45,10 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
 
   private static final String LIST_ERROR = "Failed to list the capture devices.";
 
+  private static final String LABEL_SEPARATOR = ": ";
+
+  private static final String NAME_SEPARATOR = ", ";
+
   private final MCAVSandbox plugin;
 
   private final VideoPlayerManager manager;
@@ -88,8 +92,8 @@ public final class VideoDevicesCommand implements AnnotationCommandFeature {
     this.manager.setDevices(listed);
     final String names = listed
       .stream()
-      .map(device -> device.index() + ": " + device.name())
-      .collect(Collectors.joining(", "));
+      .map(device -> device.index() + LABEL_SEPARATOR + device.name())
+      .collect(Collectors.joining(NAME_SEPARATOR));
     final Component message = listed.isEmpty() ? Message.DEVICE_NONE.build() : Message.DEVICE_LIST.build(names);
     TaskUtils.runOnMainThread(this.plugin, () -> sender.sendMessage(message));
   }

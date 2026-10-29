@@ -17,6 +17,7 @@
  */
 package me.brandonli.mcav.plugin.command;
 
+import java.util.List;
 import java.util.stream.Stream;
 import me.brandonli.mcav.bukkit.media.result.Characters;
 import org.incendo.cloud.annotations.suggestion.Suggestions;
@@ -25,6 +26,62 @@ import org.incendo.cloud.annotations.suggestion.Suggestions;
  * Tab completions shared by the commands, referenced by name in their {@code @Argument(suggestions = ...)}.
  */
 public final class SuggestionProvider implements AnnotationCommandFeature {
+
+  /**
+   * The name of the map id suggestions.
+   */
+  public static final String IDS = "ids";
+
+  /**
+   * The name of the size suggestions.
+   */
+  public static final String DIMENSIONS = "dimensions";
+
+  /**
+   * The name of the pixel resolution suggestions.
+   */
+  public static final String RESOLUTIONS = "resolutions";
+
+  /**
+   * The name of the chat character suggestions.
+   */
+  public static final String CHAT_CHARACTERS = "chat-characters";
+
+  /**
+   * The name of the frame rate suggestions.
+   */
+  public static final String TARGET_FRAMES_PER_SECOND = "target-frames-per-second";
+
+  private static final List<String> ID_SUGGESTIONS = List.of("0", "5", "10", "100", "1000", "10000", "100000");
+
+  private static final List<String> DIMENSION_SUGGESTIONS = List.of("4x4", "5x5", "16x9", "16x16", "32x18");
+
+  private static final List<String> RESOLUTION_SUGGESTIONS = List.of("512x512", "640x640", "1280x720", "1280x1280", "1920x1080");
+
+  private static final List<String> CHAT_RESOLUTION_SUGGESTIONS = List.of("8x8", "16x16", "32x32");
+
+  private static final List<String> NTH_SUGGESTIONS = List.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+
+  private static final List<String> TARGET_FRAMES_PER_SECOND_SUGGESTIONS = List.of(
+    "20",
+    "30",
+    "40",
+    "50",
+    "60",
+    "70",
+    "80",
+    "90",
+    "100",
+    "120",
+    "144",
+    "240"
+  );
+
+  private static final List<String> POSITION_SUGGESTIONS = List.of("0", "+10", "-10", "+1:00", "-1:00", "1:30");
+
+  private static final List<String> VOLUME_SUGGESTIONS = List.of("0", "25", "50", "75", "100", "150", "200");
+
+  private static final List<String> SPEED_SUGGESTIONS = List.of("0.5", "0.75", "1", "1.25", "1.5", "2");
 
   /**
    * Constructs the provider.
@@ -37,9 +94,9 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    *
    * @return the suggested ids
    */
-  @Suggestions("ids")
+  @Suggestions(IDS)
   public Stream<String> suggestId() {
-    return Stream.of("0", "5", "10", "100", "1000", "10000", "100000");
+    return ID_SUGGESTIONS.stream();
   }
 
   /**
@@ -48,9 +105,9 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    *
    * @return the suggested sizes, written as {@code <width>x<height>}
    */
-  @Suggestions("dimensions")
+  @Suggestions(DIMENSIONS)
   public Stream<String> suggestDimensions() {
-    return Stream.of("4x4", "5x5", "16x9", "16x16", "32x18");
+    return DIMENSION_SUGGESTIONS.stream();
   }
 
   /**
@@ -59,9 +116,9 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    *
    * @return the suggested resolutions, written as {@code <width>x<height>}
    */
-  @Suggestions("resolutions")
+  @Suggestions(RESOLUTIONS)
   public Stream<String> suggestResolutions() {
-    return Stream.of("512x512", "640x640", "1280x720", "1280x1280", "1920x1080");
+    return RESOLUTION_SUGGESTIONS.stream();
   }
 
   /**
@@ -71,7 +128,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    */
   @Suggestions("chat-resolutions")
   public Stream<String> suggestChatResolutions() {
-    return Stream.of("8x8", "16x16", "32x32");
+    return CHAT_RESOLUTION_SUGGESTIONS.stream();
   }
 
   /**
@@ -80,7 +137,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    *
    * @return the suggested characters
    */
-  @Suggestions("chat-characters")
+  @Suggestions(CHAT_CHARACTERS)
   public Stream<String> suggestChatCharacters() {
     return Stream.of(Characters.FULL_CHARACTER, Characters.BLACK_CIRCLE, Characters.SMALL_BLACK_SQUARE);
   }
@@ -93,7 +150,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    */
   @Suggestions("nth")
   public Stream<String> suggestNth() {
-    return Stream.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+    return NTH_SUGGESTIONS.stream();
   }
 
   /**
@@ -102,9 +159,9 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    *
    * @return the suggested frame rates
    */
-  @Suggestions("target-frames-per-second")
+  @Suggestions(TARGET_FRAMES_PER_SECOND)
   public Stream<String> suggestTargetFramesPerSecond() {
-    return Stream.of("20", "30", "40", "50", "60", "70", "80", "90", "100", "120", "144", "240");
+    return TARGET_FRAMES_PER_SECOND_SUGGESTIONS.stream();
   }
 
   /**
@@ -115,7 +172,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    */
   @Suggestions("positions")
   public Stream<String> suggestPositions() {
-    return Stream.of("0", "+10", "-10", "+1:00", "-1:00", "1:30");
+    return POSITION_SUGGESTIONS.stream();
   }
 
   /**
@@ -125,7 +182,7 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    */
   @Suggestions("volumes")
   public Stream<String> suggestVolumes() {
-    return Stream.of("0", "25", "50", "75", "100", "150", "200");
+    return VOLUME_SUGGESTIONS.stream();
   }
 
   /**
@@ -135,6 +192,6 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
    */
   @Suggestions("speeds")
   public Stream<String> suggestSpeeds() {
-    return Stream.of("0.5", "0.75", "1", "1.25", "1.5", "2");
+    return SPEED_SUGGESTIONS.stream();
   }
 }

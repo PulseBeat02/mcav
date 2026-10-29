@@ -69,6 +69,13 @@ public final class MCAVLoader implements PluginLoader {
 
   private static final int NAMED_MISSING = 5;
 
+  private static final String LIBRARIES_DIRECTORY = "libraries/mcav";
+
+  private static final char PATH_SEPARATOR = '/';
+  private static final char PACKAGE_SEPARATOR = '.';
+
+  private static final String NAME_SEPARATOR = ", ";
+
   private final Path libraries;
 
   private final List<String> requiredClasses;
@@ -77,7 +84,7 @@ public final class MCAVLoader implements PluginLoader {
    * Constructs the loader. Paper creates it for you.
    */
   public MCAVLoader() {
-    this(Path.of("libraries/mcav"), readRequiredClasses(requireNonNull(MCAVLoader.class.getClassLoader())));
+    this(Path.of(LIBRARIES_DIRECTORY), readRequiredClasses(requireNonNull(MCAVLoader.class.getClassLoader())));
   }
 
   /**
@@ -137,13 +144,13 @@ public final class MCAVLoader implements PluginLoader {
     final List<String> missing = new ArrayList<>();
     for (final String required : requiredClasses) {
       if (!entries.contains(required + CLASS_SUFFIX)) {
-        missing.add(required.replace('/', '.'));
+        missing.add(required.replace(PATH_SEPARATOR, PACKAGE_SEPARATOR));
       }
     }
     if (!missing.isEmpty()) {
       final int count = missing.size();
       final List<String> named = missing.subList(0, Math.min(NAMED_MISSING, count));
-      final String names = String.join(", ", named);
+      final String names = String.join(NAME_SEPARATOR, named);
       final String message =
         "The mcav modules the server downloaded are older than this plugin, which uses classes they lack (%s), such as %s. Publish the modules of the plugin's own version, or set -Pmcav.e2e=true when you build the plugin!".formatted(
           count,

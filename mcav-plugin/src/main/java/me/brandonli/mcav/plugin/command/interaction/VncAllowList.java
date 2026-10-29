@@ -33,11 +33,20 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public record VncAllowList(List<Entry> entries) {
   private static final int MAXIMUM_PORT = 65_535;
+  private static final int MAXIMUM_PORT_DIGITS = 5;
 
   /**
    * An empty list, which allows no server.
    */
   public static final VncAllowList NONE = new VncAllowList(List.of());
+
+  private static final String OPENING_BRACKET = "[";
+  private static final String CLOSING_BRACKET = "]";
+
+  private static final char OPENING_BRACKET_CHARACTER = '[';
+  private static final char CLOSING_BRACKET_CHARACTER = ']';
+
+  private static final String PORT_SEPARATOR = ":";
 
   /**
    * Copies the entries.
@@ -65,7 +74,7 @@ public record VncAllowList(List<Entry> entries) {
      */
     public Entry {
       Preconditions.checkNotNull(host, "Host must not be null!");
-      host = host.startsWith("[") && host.endsWith("]") ? host.substring(1, host.length() - 1) : host;
+      host = host.startsWith(OPENING_BRACKET) && host.endsWith(CLOSING_BRACKET) ? host.substring(1, host.length() - 1) : host;
       Preconditions.checkArgument(!host.isBlank(), "Host must not be blank!");
       Preconditions.checkArgument(port >= 1 && port <= MAXIMUM_PORT, "Port must be from 1 to 65535!");
     }
@@ -97,7 +106,7 @@ public record VncAllowList(List<Entry> entries) {
    */
   static @Nullable Target parse(final String text) {
     Preconditions.checkNotNull(text, "Text must not be null!");
-    final int colon = text.lastIndexOf(':');
+    final int colon = text.lastIndexOf(PORT_SEPARATOR);
     if (colon <= 0 || colon == text.length() - 1) {
       return null;
     }
@@ -111,19 +120,19 @@ public record VncAllowList(List<Entry> entries) {
 
   /** A host as a command names it: brackets only around an IPv6 address, and no spaces. */
   private static @Nullable String parseHost(final String text) {
-    final boolean bracketed = text.startsWith("[") && text.endsWith("]");
+    final boolean bracketed = text.startsWith(OPENING_BRACKET) && text.endsWith(CLOSING_BRACKET);
     final String host = bracketed ? text.substring(1, text.length() - 1) : text;
-    final boolean address = host.indexOf(':') >= 0;
+    final boolean address = host.indexOf(PORT_SEPARATOR) >= 0;
     final boolean invalid = host.isEmpty() || bracketed != address || host.chars().anyMatch(VncAllowList::isOutsideAHost);
     return invalid ? null : host;
   }
 
   private static boolean isOutsideAHost(final int character) {
-    return character == '[' || character == ']' || Character.isWhitespace(character);
+    return character == OPENING_BRACKET_CHARACTER || character == CLOSING_BRACKET_CHARACTER || Character.isWhitespace(character);
   }
 
   private static int parsePort(final String text) {
-    if (text.length() > 5 || !text.chars().allMatch(Character::isDigit)) {
+    if (text.length() > MAXIMUM_PORT_DIGITS || !text.chars().allMatch(Character::isDigit)) {
       return -1;
     }
     final int port = Integer.parseInt(text);
@@ -158,6 +167,6 @@ public record VncAllowList(List<Entry> entries) {
    * @return {@code host:port}, with an IPv6 address in brackets
    */
   private static String format(final String host, final int port) {
-    return (host.indexOf(':') >= 0 ? "[" + host + "]" : host) + ":" + port;
+    return (host.indexOf(PORT_SEPARATOR) >= 0 ? OPENING_BRACKET + host + CLOSING_BRACKET : host) + PORT_SEPARATOR + port;
   }
 }

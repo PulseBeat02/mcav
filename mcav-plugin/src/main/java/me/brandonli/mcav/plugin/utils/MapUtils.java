@@ -81,6 +81,8 @@ public final class MapUtils {
    */
   public static final int MAXIMUM_NEW_MAPS = ArgumentUtils.MAXIMUM_SCREEN_SIDE * ArgumentUtils.MAXIMUM_SCREEN_SIDE;
 
+  private static final double HALF_BLOCK = 0.5;
+
   private MapUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -288,8 +290,8 @@ public final class MapUtils {
      */
     private void clearFrames(final Block frameBlock) {
       final Location centre = frameBlock.getLocation();
-      centre.add(0.5, 0.5, 0.5);
-      final Collection<Entity> occupants = this.world.getNearbyEntities(centre, 0.5, 0.5, 0.5);
+      centre.add(HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
+      final Collection<Entity> occupants = this.world.getNearbyEntities(centre, HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
       for (final Entity occupant : occupants) {
         if (occupant instanceof ItemFrame) {
           occupant.remove();

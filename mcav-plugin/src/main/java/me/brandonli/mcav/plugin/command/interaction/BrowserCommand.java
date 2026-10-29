@@ -34,6 +34,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.audio.AudioOutputs;
 import me.brandonli.mcav.plugin.audio.AudioProvider;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
@@ -237,10 +238,10 @@ public final class BrowserCommand extends AbstractInteractiveCommand<BrowserPlay
   public void createBrowser(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = "resolutions") @Quoted final String browserResolution,
+    @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String browserResolution,
     @Argument(suggestions = "nth") @Range(min = "1", max = "1000") final int nth,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
+    @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
     final AudioArgument audioType,
     @Greedy @FlagYielding final String url,

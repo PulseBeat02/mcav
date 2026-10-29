@@ -38,6 +38,7 @@ import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.audio.AudioOutputs;
 import me.brandonli.mcav.plugin.audio.AudioProvider;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.data.PluginDataConfigurationMapper;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
@@ -111,11 +112,23 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   private static final String QEMU_NETWORK = "user";
   // the least memory a machine may always have, whatever the memory of the server
   private static final long MINIMUM_MACHINE_MEMORY_BYTES = 512L << 20;
+  private static final int MACHINE_MEMORY_DIVISOR = 2;
 
   private static final Splitter DRIVE_SPLITTER = Splitter.on(',');
 
   /** A {@code --codec} and its value at the very end of the options, after whitespace or alone. */
   private static final Pattern TRAILING_CODEC = Pattern.compile("(?:^|\\s)--codec\\s+(\\S+)\\s*$");
+
+  private static final String OPTION_PREFIX = "-";
+
+  private static final String VALUE_SEPARATOR = ",";
+
+  private static final char UNIX_SEPARATOR = '/';
+  private static final char WINDOWS_SEPARATOR = '\\';
+
+  private static final String NAME_SEPARATOR = ", ";
+
+  private static final char QUOTE = '"';
 
   /**
    * Constructs the command.
@@ -286,10 +299,10 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   public void createVm(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = "resolutions") @Quoted final String vmResolution,
-    @Argument(suggestions = "target-frames-per-second") @Range(min = "1", max = "240") final int targetFramesPerSecond,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
+    @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String vmResolution,
+    @Argument(suggestions = SuggestionProvider.TARGET_FRAMES_PER_SECOND) @Range(min = "1", max = "240") final int targetFramesPerSecond,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
+    @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
     final VmPlayer.Architecture architecture,
     final AudioArgument audioType,
@@ -480,12 +493,12 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   static VmConfigurationBuilder parseOptions(final String commandLine, final Path imageFolder, final long maximumMemoryBytes) {
     final VmConfigurationBuilder builder = parseAllowedOptions(commandLine, imageFolder);
     final VmConfiguration configuration = builder.build();
-    final Optional<String> requestedMemory = configuration.find("m");
+    final Optional<String> requestedMemory = configuration.find(QemuHardwareValues.MEMORY_OPTION);
     final @Nullable String requestedValue = requestedMemory.orElse(null);
-    final String memory = Objects.requireNonNullElse(requestedValue, "128");
+    final String memory = Objects.requireNonNullElse(requestedValue, QemuHardwareValues.DEFAULT_MEMORY_SIZE);
     final long requested = QemuHardwareValues.memoryBytes(memory);
     if (requested > maximumMemoryBytes) {
-      final long maximumMebibytes = maximumMemoryBytes >> 20;
+      final long maximumMebibytes = maximumMemoryBytes >> QemuHardwareValues.MEBIBYTE_SHIFT;
       final String message = "QEMU option -m %s asks for more than the %s MiB a machine may have on this server!".formatted(
         memory,
         maximumMebibytes
@@ -513,7 +526,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * @return the most memory in bytes
    */
   static long maximumMemoryBytes(final long totalMemoryBytes) {
-    return Math.max(MINIMUM_MACHINE_MEMORY_BYTES, totalMemoryBytes / 2);
+    return Math.max(MINIMUM_MACHINE_MEMORY_BYTES, totalMemoryBytes / MACHINE_MEMORY_DIVISOR);
   }
 
   private static VmConfigurationBuilder parseAllowedOptions(final String commandLine, final Path imageFolder) {
@@ -536,7 +549,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   private static int addOption(final VmConfigurationBuilder builder, final List<String> tokens, final int index, final Path imageFolder) {
     final String token = tokens.get(index);
     final int next = index + 1;
-    if (!token.startsWith("-")) {
+    if (!token.startsWith(OPTION_PREFIX)) {
       return next;
     }
 
@@ -623,14 +636,14 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     }
     final boolean one = files == 1;
     Preconditions.checkArgument(one, "Drive %s must name its disk image exactly once, as file=<image>!", value);
-    return String.join(",", checked);
+    return String.join(VALUE_SEPARATOR, checked);
   }
 
   /**
    * Refuses a value that names a file, because only a disk image of the image folder may.
    */
   private static void requireNoPath(final String name, final String value) {
-    final boolean path = value.indexOf('/') >= 0 || value.indexOf('\\') >= 0;
+    final boolean path = value.indexOf(UNIX_SEPARATOR) >= 0 || value.indexOf(WINDOWS_SEPARATOR) >= 0;
     if (path) {
       final String message = "QEMU option -%s must not name a file, but %s does!".formatted(name, value);
       throw new IllegalArgumentException(message);
@@ -638,7 +651,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   }
 
   private static IllegalArgumentException unsupported(final String name) {
-    final String supported = String.join(", ", supportedOptions());
+    final String supported = String.join(NAME_SEPARATOR, supportedOptions());
     final String message = "QEMU option -%s is not supported, use one of %s instead!".formatted(name, supported);
     return new IllegalArgumentException(message);
   }
@@ -651,22 +664,22 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   public static List<String> supportedOptions() {
     final List<String> names = new ArrayList<>();
     for (final String flag : FLAG_OPTIONS) {
-      names.add("-" + flag);
+      names.add(OPTION_PREFIX + flag);
     }
     for (final String hardware : HARDWARE_OPTIONS) {
-      names.add("-" + hardware);
+      names.add(OPTION_PREFIX + hardware);
     }
     for (final String image : IMAGE_OPTIONS) {
-      names.add("-" + image);
+      names.add(OPTION_PREFIX + image);
     }
-    names.add("-" + DRIVE_OPTION);
+    names.add(OPTION_PREFIX + DRIVE_OPTION);
     Collections.sort(names);
     return Collections.unmodifiableList(names);
   }
 
   private static boolean isValue(final List<String> tokens, final int index) {
     final String token = tokens.get(index);
-    return !token.startsWith("-");
+    return !token.startsWith(OPTION_PREFIX);
   }
 
   /**
@@ -684,7 +697,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     final int length = commandLine.length();
     for (int index = 0; index < length; index++) {
       final char character = commandLine.charAt(index);
-      if (character == '"') {
+      if (character == QUOTE) {
         quoted = !quoted;
         inToken = true;
       } else if (quoted || !Character.isWhitespace(character)) {

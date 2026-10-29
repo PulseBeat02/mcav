@@ -94,6 +94,9 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   /** Recognises a raw FFmpeg input, {@code format||input}, as the media argument. */
   private static final FfmpegDirectSourceDetector RAW_INPUTS = new FfmpegDirectSourceDetector();
 
+  private static final String HTTP_SCHEME = "http";
+  private static final String HTTPS_SCHEME = "https";
+
   /**
    * The plugin.
    */
@@ -665,7 +668,7 @@ public abstract class AbstractVideoCommand implements AnnotationCommandFeature {
   private static void checkWebStream(final UriSource page, final UriSource stream) {
     final URI uri = stream.getUri();
     final String scheme = uri.getScheme();
-    final boolean web = "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+    final boolean web = HTTP_SCHEME.equalsIgnoreCase(scheme) || HTTPS_SCHEME.equalsIgnoreCase(scheme);
     if (!web) {
       final URI pageUri = page.getUri();
       final String message = "yt-dlp reported a stream of %s whose scheme %s is not http or https!".formatted(pageUri, scheme);

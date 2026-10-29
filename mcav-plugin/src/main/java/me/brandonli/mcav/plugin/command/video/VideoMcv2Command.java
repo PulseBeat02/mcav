@@ -28,6 +28,7 @@ import me.brandonli.mcav.media.player.pipeline.filter.video.dither.DitherFilter;
 import me.brandonli.mcav.media.player.pipeline.step.VideoPipelineStep;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.MapDisplaySettings;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.AudioArgument;
 import me.brandonli.mcav.plugin.utils.DitheringArgument;
@@ -50,6 +51,8 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
  * players whose client loads the MCV2 resource pack, and dithered onto the maps for everyone else.
  */
 public final class VideoMcv2Command extends AbstractVideoCommand {
+
+  private static final String NO_PROFILE = "none";
 
   /**
    * Constructs the command.
@@ -98,9 +101,9 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     final MultiplePlayerSelector playerSelector,
     final PlayerArgument playerType,
     final AudioArgument audioType,
-    @Argument(suggestions = "resolutions") @Quoted final String videoResolution,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
+    @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String videoResolution,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
+    @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
     final Mcv2Profile profile,
     final DitheringArgument ditheringAlgorithm,
     @Quoted final String ytdlpOptions,
@@ -149,7 +152,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
     if (value == null) {
       return Mcv2Configuration.DEFAULT_BACKLOG_LIMIT;
     }
-    return value.equals("none") ? Long.MAX_VALUE : Long.parseLong(value);
+    return value.equals(NO_PROFILE) ? Long.MAX_VALUE : Long.parseLong(value);
   }
 
   /**
@@ -159,7 +162,7 @@ public final class VideoMcv2Command extends AbstractVideoCommand {
    * @return the cap in bytes, 0 for none
    */
   static int unsentLimit() {
-    return "none".equals(System.getProperty(BACKLOG_PROPERTY)) ? 0 : Mcv2Configuration.DEFAULT_UNSENT_LIMIT;
+    return NO_PROFILE.equals(System.getProperty(BACKLOG_PROPERTY)) ? 0 : Mcv2Configuration.DEFAULT_UNSENT_LIMIT;
   }
 
   /**

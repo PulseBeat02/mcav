@@ -72,8 +72,8 @@ public final class ScreenCommand implements AnnotationCommandFeature {
   @CommandDescription("mcav.command.screen.info")
   public void buildScreen(
     final CommandSender sender,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
+    @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
     final Material material,
     final Location location
   ) {

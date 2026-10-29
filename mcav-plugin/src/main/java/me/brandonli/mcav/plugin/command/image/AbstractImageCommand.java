@@ -61,6 +61,9 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
 
   private static final String LOAD_FAILED = "Image {} could not be loaded.";
 
+  private static final char QUOTE = '"';
+  private static final int QUOTE_COUNT = 2;
+
   /**
    * The plugin.
    */
@@ -147,7 +150,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
 
   private static String unwrapMrl(final String mrl) {
     final int length = mrl.length();
-    if (length >= 2 && mrl.charAt(0) == '"' && mrl.charAt(length - 1) == '"') {
+    if (length >= QUOTE_COUNT && mrl.charAt(0) == QUOTE && mrl.charAt(length - 1) == QUOTE) {
       return mrl.substring(1, length - 1);
     }
     return mrl;

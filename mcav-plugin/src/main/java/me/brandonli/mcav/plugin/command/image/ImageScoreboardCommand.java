@@ -25,6 +25,7 @@ import me.brandonli.mcav.bukkit.media.config.ScoreboardConfigurationBuilder;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.ScoreboardArguments;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.FilterChain;
@@ -89,8 +90,8 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
   public void showImage(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = "dimensions") @Quoted final String imageResolution,
-    @Argument(suggestions = "chat-characters") @Quoted final String character,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String imageResolution,
+    @Argument(suggestions = SuggestionProvider.CHAT_CHARACTERS) @Quoted final String character,
     @Greedy @FlagYielding final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters
   ) {

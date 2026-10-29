@@ -53,6 +53,10 @@ public final class HelpCommand implements AnnotationCommandFeature {
 
   private static final String ROOT_COMMAND = "mcav";
 
+  private static final String HELP_COMMAND = "/mcav help";
+
+  private static final String WORD_SEPARATOR = " ";
+
   private final MinecraftHelp<CommandSender> minecraftHelp;
 
   /**
@@ -67,7 +71,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
     final ImmutableMinecraftHelp.CommandManagerBuildStage<CommandSender> managerStage = MinecraftHelp.builder();
     final ImmutableMinecraftHelp.AudienceProviderBuildStage<CommandSender> audienceStage = managerStage.commandManager(manager);
     final ImmutableMinecraftHelp.CommandPrefixBuildStage<CommandSender> prefixStage = audienceStage.audienceProvider(audiences);
-    final ImmutableMinecraftHelp.BuildFinal<CommandSender> finalStage = prefixStage.commandPrefix("/mcav help");
+    final ImmutableMinecraftHelp.BuildFinal<CommandSender> finalStage = prefixStage.commandPrefix(HELP_COMMAND);
     finalStage.messages(messages);
     this.minecraftHelp = finalStage.build();
   }
@@ -126,7 +130,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
     if (trimmed.isEmpty()) {
       return trimmed;
     }
-    final int separator = trimmed.indexOf(' ');
+    final int separator = trimmed.indexOf(WORD_SEPARATOR);
     final String first = separator < 0 ? trimmed : trimmed.substring(0, separator);
     if (ROOT_COMMAND.equalsIgnoreCase(first)) {
       return trimmed;
@@ -136,7 +140,7 @@ public final class HelpCommand implements AnnotationCommandFeature {
       Integer.parseInt(trimmed);
       return trimmed;
     } catch (final NumberFormatException exception) {
-      return ROOT_COMMAND + " " + trimmed;
+      return ROOT_COMMAND + WORD_SEPARATOR + trimmed;
     }
   }
 }

@@ -118,7 +118,7 @@ public abstract class MiniMessageTranslator implements Translator {
   }
 
   private Component deserializeMessage(final String message, final List<? extends ComponentLike> arguments) {
-    if (!message.contains("$URL$")) {
+    if (!message.contains(UrlPlaceholder.URL_TOKEN)) {
       return this.deserialize(message, arguments);
     }
     final ComponentLike argument = arguments.getFirst();

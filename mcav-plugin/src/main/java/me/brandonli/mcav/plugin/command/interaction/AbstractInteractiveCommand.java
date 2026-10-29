@@ -117,6 +117,8 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   private static final int REACH = 100;
   private static final String CANNOT_RELEASE = "A player failed to stop.";
 
+  private static final double HALF_BLOCK = 0.5;
+
   /**
    * The plugin.
    */
@@ -724,7 +726,7 @@ public abstract class AbstractInteractiveCommand<PlayerType> implements Annotati
   private static @Nullable ItemFrame findClosestScreen(final Block block) {
     final Location location = block.getLocation();
     final World world = location.getWorld();
-    final Collection<Entity> entities = world.getNearbyEntities(location, 0.5, 0.5, 0.5);
+    final Collection<Entity> entities = world.getNearbyEntities(location, HALF_BLOCK, HALF_BLOCK, HALF_BLOCK);
     ItemFrame closest = null;
     double closestDistance = Double.MAX_VALUE;
     for (final Entity entity : entities) {

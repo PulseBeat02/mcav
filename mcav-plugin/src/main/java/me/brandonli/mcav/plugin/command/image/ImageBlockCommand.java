@@ -24,6 +24,7 @@ import me.brandonli.mcav.bukkit.media.config.BlockConfiguration;
 import me.brandonli.mcav.bukkit.media.config.BlockConfigurationBuilder;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.FilterChain;
 import me.brandonli.mcav.utils.immutable.Pair;
@@ -85,7 +86,7 @@ public final class ImageBlockCommand extends AbstractImageCommand {
   public void showImage(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = "dimensions") @Quoted final String imageResolution,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String imageResolution,
     final Location location,
     @Greedy @FlagYielding final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters

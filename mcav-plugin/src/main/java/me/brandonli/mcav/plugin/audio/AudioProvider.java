@@ -80,6 +80,14 @@ public final class AudioProvider {
   private static final Object VIDEO = new Object();
   private static final Equivalence<Object> IDENTITY = Equivalence.identity();
 
+  private static final String VOICE_CHAT_PLUGIN = "voicechat";
+
+  private static final String DISCORD_CHANNELS_URL = "https://discord.com/channels/";
+
+  private static final String HTTP_PREFIX = "http://";
+  private static final String PORT_SEPARATOR = ":";
+  private static final String PATH_SEPARATOR = "/";
+
   private final PluginDataConfigurationMapper configuration;
   private final MCAVSandbox sandbox;
   private final ExecutorService startup;
@@ -146,7 +154,7 @@ public final class AudioProvider {
   private void registerVoiceChat() {
     final Server server = Bukkit.getServer();
     final PluginManager pluginManager = server.getPluginManager();
-    final boolean installed = pluginManager.isPluginEnabled("voicechat");
+    final boolean installed = pluginManager.isPluginEnabled(VOICE_CHAT_PLUGIN);
     if (!installed) {
       throw new MissingVoiceChatException("Simple Voice Chat audio is enabled, but the voicechat plugin is not installed!");
     }
@@ -261,7 +269,7 @@ public final class AudioProvider {
   public String constructVoiceChannelUrl() {
     final String guildId = this.configuration.getDiscordBotGuildId();
     final String channelId = this.configuration.getDiscordBotChannelId();
-    return "https://discord.com/channels/" + guildId + "/" + channelId;
+    return DISCORD_CHANNELS_URL + guildId + PATH_SEPARATOR + channelId;
   }
 
   /**
@@ -276,7 +284,7 @@ public final class AudioProvider {
     }
     final String host = this.configuration.getHttpHostName();
     final int port = this.configuration.getHttpPort();
-    return "http://" + host + ":" + port + "/";
+    return HTTP_PREFIX + host + PORT_SEPARATOR + port + PATH_SEPARATOR;
   }
 
   /**

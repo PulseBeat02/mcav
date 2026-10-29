@@ -34,6 +34,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 record WallPicture(int wallWidth, int wallHeight, int sourceWidth, int sourceHeight, boolean stretched) {
   private static final int MAP_PIXELS = 128;
 
+  private static final int SIDES = 2;
+
   /**
    * Describes the picture of a source on a wall of maps.
    *
@@ -62,8 +64,8 @@ record WallPicture(int wallWidth, int wallHeight, int sourceWidth, int sourceHei
       return new int[] { sourceX, sourceY };
     }
     // centred as the maps centre it (MapLayout): the same offset on both sides, rounded down
-    final int sourceX = wallX - (this.wallWidth - this.sourceWidth) / 2;
-    final int sourceY = wallY - (this.wallHeight - this.sourceHeight) / 2;
+    final int sourceX = wallX - (this.wallWidth - this.sourceWidth) / SIDES;
+    final int sourceY = wallY - (this.wallHeight - this.sourceHeight) / SIDES;
     final boolean inside = sourceX >= 0 && sourceY >= 0 && sourceX < this.sourceWidth && sourceY < this.sourceHeight;
     return inside ? new int[] { sourceX, sourceY } : null;
   }

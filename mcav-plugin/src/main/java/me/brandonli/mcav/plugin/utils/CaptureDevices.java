@@ -59,6 +59,8 @@ public final class CaptureDevices {
 
   private static final Pattern NODE = Pattern.compile("video(\\d{1,3})");
 
+  private static final String NAME_FILE = "name";
+
   private CaptureDevices() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -125,7 +127,7 @@ public final class CaptureDevices {
     final int index = Integer.parseInt(Objects.requireNonNull(matcher.group(1)));
     String name;
     try {
-      name = Files.readString(node.resolve("name"), StandardCharsets.UTF_8).strip();
+      name = Files.readString(node.resolve(NAME_FILE), StandardCharsets.UTF_8).strip();
     } catch (final IOException exception) {
       name = "";
     }

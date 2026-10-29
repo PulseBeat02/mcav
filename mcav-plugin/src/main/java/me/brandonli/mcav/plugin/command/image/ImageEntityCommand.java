@@ -24,6 +24,7 @@ import me.brandonli.mcav.bukkit.media.config.EntityConfiguration;
 import me.brandonli.mcav.bukkit.media.config.EntityConfigurationBuilder;
 import me.brandonli.mcav.bukkit.media.image.DisplayableImage;
 import me.brandonli.mcav.plugin.MCAVSandbox;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.FilterChain;
 import me.brandonli.mcav.utils.immutable.Pair;
@@ -86,8 +87,8 @@ public final class ImageEntityCommand extends AbstractImageCommand {
   public void showImage(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = "dimensions") @Quoted final String imageResolution,
-    @Argument(suggestions = "chat-characters") @Quoted final String character,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String imageResolution,
+    @Argument(suggestions = SuggestionProvider.CHAT_CHARACTERS) @Quoted final String character,
     final Location location,
     @Greedy @FlagYielding final String mrl,
     @Flag("filters") @Quoted final @Nullable String filters

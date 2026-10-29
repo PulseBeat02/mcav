@@ -48,6 +48,9 @@ public final class ArgumentUtils {
   /** The selector of every player online, which {@link #parseViewers} keeps following. */
   private static final String EVERYONE = "@a";
 
+  private static final String DIMENSION_SEPARATOR = "x";
+  private static final int DIMENSION_PARTS = 2;
+
   private ArgumentUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -66,8 +69,8 @@ public final class ArgumentUtils {
    */
   public static Pair<Integer, Integer> parseDimensions(final String argument) {
     Preconditions.checkNotNull(argument, "Argument must not be null!");
-    final String[] sides = argument.split("x", 2);
-    if (sides.length != 2) {
+    final String[] sides = argument.split(DIMENSION_SEPARATOR, DIMENSION_PARTS);
+    if (sides.length != DIMENSION_PARTS) {
       final String message = "Dimensions %s have an invalid format!".formatted(argument);
       throw new IllegalArgumentException(message);
     }

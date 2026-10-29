@@ -46,6 +46,15 @@ public record SeekPosition(boolean relative, long milliseconds) {
 
   private static final int MILLISECONDS_DIGITS = 3;
 
+  private static final int HOURS_GROUP = 2;
+  private static final int MINUTES_GROUP = 3;
+  private static final int SECONDS_GROUP = 4;
+  private static final int FRACTION_GROUP = 5;
+
+  private static final String FRACTION_PADDING = "00";
+
+  private static final String BACKWARD_SIGN = "-";
+
   /**
    * Parses a position.
    *
@@ -59,10 +68,10 @@ public record SeekPosition(boolean relative, long milliseconds) {
       return null;
     }
     final String sign = Objects.requireNonNull(matcher.group(1));
-    final String hours = matcher.group(2);
-    final String minutes = matcher.group(3);
-    final String seconds = Objects.requireNonNull(matcher.group(4));
-    final String fraction = matcher.group(5);
+    final String hours = matcher.group(HOURS_GROUP);
+    final String minutes = matcher.group(MINUTES_GROUP);
+    final String seconds = Objects.requireNonNull(matcher.group(SECONDS_GROUP));
+    final String fraction = matcher.group(FRACTION_GROUP);
     final long secondCount = Long.parseLong(seconds);
     final long minuteCount = minutes == null ? 0 : Long.parseLong(minutes);
     if ((minutes != null && secondCount >= SECONDS_PER_MINUTE) || (hours != null && minuteCount >= MINUTES_PER_HOUR)) {
@@ -70,13 +79,14 @@ public record SeekPosition(boolean relative, long milliseconds) {
     }
     final long hourCount = hours == null ? 0 : Long.parseLong(hours);
     final long wholeSeconds = (hourCount * MINUTES_PER_HOUR + minuteCount) * SECONDS_PER_MINUTE + secondCount;
-    final long fractionMilliseconds = fraction == null ? 0 : Long.parseLong((fraction + "00").substring(0, MILLISECONDS_DIGITS));
+    final long fractionMilliseconds =
+      fraction == null ? 0 : Long.parseLong((fraction + FRACTION_PADDING).substring(0, MILLISECONDS_DIGITS));
     final long milliseconds = wholeSeconds * MILLISECONDS_PER_SECOND + fractionMilliseconds;
     if (milliseconds > MAXIMUM_MILLISECONDS) {
       return null;
     }
     final boolean relative = !sign.isEmpty();
-    return new SeekPosition(relative, sign.equals("-") ? -milliseconds : milliseconds);
+    return new SeekPosition(relative, sign.equals(BACKWARD_SIGN) ? -milliseconds : milliseconds);
   }
 
   /**

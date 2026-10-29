@@ -26,6 +26,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -73,6 +74,34 @@ public final class DumpUtils {
   private static final String OWN_COMMAND_PREFIX = "mcav";
   private static final long MEGABYTE = 1024L * 1024L;
 
+  private static final String DOCUMENTS_PATH = "documents/";
+
+  private static final String LABEL_SEPARATOR = ": ";
+
+  private static final char LINE_SEPARATOR = '\n';
+
+  private static final String SECTION_PREFIX = "\n=== ";
+  private static final String SECTION_SUFFIX = " ===\n";
+
+  private static final String PROPERTY_SEPARATOR = "=";
+
+  private static final String OPTION_PREFIX = "-";
+
+  private static final String WORD_SEPARATOR = " ";
+
+  private static final int USER_GROUP = 2;
+  private static final int HOST_GROUP = 3;
+  private static final int QUERY_OR_FRAGMENT_GROUP = 4;
+
+  private static final String USER_SEPARATOR = "@";
+
+  private static final String ADDRESS_PREFIX = "/";
+
+  private static final int COMMAND_NAME_GROUP = 2;
+  private static final int COMMAND_ARGUMENTS_GROUP = 3;
+
+  private static final String STACK_FRAME_PREFIX = "\tat ";
+
   private DumpUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
   }
@@ -100,7 +129,7 @@ public final class DumpUtils {
   static String createAndUploadDump(final HttpClient client, final String pasteSite, final Path logFile) {
     final String dump = createDumpContents(logFile);
     try {
-      final URI endpoint = URI.create(pasteSite + "documents/");
+      final URI endpoint = URI.create(pasteSite + DOCUMENTS_PATH);
       final String response = uploadDump(client, endpoint, dump);
       final String documentKey = parseDocumentKey(response);
       return pasteSite + documentKey;
@@ -151,7 +180,7 @@ public final class DumpUtils {
     final HttpResponse.BodyHandler<String> handler = HttpResponse.BodyHandlers.ofString();
     final HttpResponse<String> response = client.send(request, handler);
     final int status = response.statusCode();
-    if (status != 200) {
+    if (status != HttpURLConnection.HTTP_OK) {
       final String message = "The paste site answered with HTTP status %s, which is not a success!".formatted(status);
       throw new IOException(message);
     }
@@ -177,15 +206,15 @@ public final class DumpUtils {
 
   private static void appendLine(final StringBuilder dump, final String name, final @Nullable Object value) {
     dump.append(name);
-    dump.append(": ");
+    dump.append(LABEL_SEPARATOR);
     dump.append(value);
-    dump.append('\n');
+    dump.append(LINE_SEPARATOR);
   }
 
   private static void appendSection(final StringBuilder dump, final String title) {
-    dump.append("\n=== ");
+    dump.append(SECTION_PREFIX);
     dump.append(title);
-    dump.append(" ===\n");
+    dump.append(SECTION_SUFFIX);
   }
 
   private static void appendSystem(final StringBuilder dump) {
@@ -249,7 +278,7 @@ public final class DumpUtils {
   }
 
   private static String redactArgument(final String argument) {
-    final int lastEquals = argument.lastIndexOf('=');
+    final int lastEquals = argument.lastIndexOf(PROPERTY_SEPARATOR);
     if (lastEquals < 0) {
       return argument;
     }
@@ -258,9 +287,9 @@ public final class DumpUtils {
     if (!secret) {
       return argument;
     }
-    final int firstEquals = argument.indexOf('=');
+    final int firstEquals = argument.indexOf(PROPERTY_SEPARATOR);
     final String name = argument.substring(0, firstEquals);
-    return name + "=" + REDACTED;
+    return name + PROPERTY_SEPARATOR + REDACTED;
   }
 
   private static void appendProperties(final StringBuilder dump) {
@@ -304,9 +333,9 @@ public final class DumpUtils {
         final String prefix = value.substring(0, words.start());
         return prefix + redacted;
       }
-      if (word.startsWith("-") && isSecret(word)) {
+      if (word.startsWith(OPTION_PREFIX) && isSecret(word)) {
         final String prefix = value.substring(0, words.end());
-        return prefix + " " + REDACTED;
+        return prefix + WORD_SEPARATOR + REDACTED;
       }
     }
     return value;
@@ -333,11 +362,11 @@ public final class DumpUtils {
     final Matcher address = WEB_ADDRESS.matcher(line);
     final StringBuilder redacted = new StringBuilder(line.length());
     while (address.find()) {
-      final String user = address.group(2);
-      final String queryOrFragment = address.group(4);
-      final String userPart = user == null ? "" : REDACTED + "@";
+      final String user = address.group(USER_GROUP);
+      final String queryOrFragment = address.group(QUERY_OR_FRAGMENT_GROUP);
+      final String userPart = user == null ? "" : REDACTED + USER_SEPARATOR;
       final String tail = queryOrFragment == null ? "" : queryOrFragment.charAt(0) + REDACTED;
-      final String replacement = address.group(1) + userPart + address.group(3) + tail;
+      final String replacement = address.group(1) + userPart + address.group(HOST_GROUP) + tail;
       address.appendReplacement(redacted, Matcher.quoteReplacement(replacement));
     }
     address.appendTail(redacted);
@@ -346,7 +375,7 @@ public final class DumpUtils {
 
   private static String redactAddresses(final String line) {
     final Matcher sixth = IPV6_ADDRESS.matcher(line);
-    final String withoutSixth = sixth.replaceAll("/" + REDACTED_ADDRESS);
+    final String withoutSixth = sixth.replaceAll(ADDRESS_PREFIX + REDACTED_ADDRESS);
     final Matcher fourth = IPV4_ADDRESS.matcher(withoutSixth);
     return fourth.replaceAll(REDACTED_ADDRESS);
   }
@@ -357,15 +386,15 @@ public final class DumpUtils {
     if (!command) {
       return line;
     }
-    final String name = matcher.group(2);
-    final String arguments = matcher.group(3);
+    final String name = matcher.group(COMMAND_NAME_GROUP);
+    final String arguments = matcher.group(COMMAND_ARGUMENTS_GROUP);
     final String commandName = Objects.requireNonNull(name);
     final boolean own = commandName.equalsIgnoreCase(OWN_COMMAND_PREFIX);
     if (own || arguments == null || arguments.isBlank()) {
       return line;
     }
-    final String prefix = line.substring(0, matcher.start(3));
-    return prefix + " " + REDACTED;
+    final String prefix = line.substring(0, matcher.start(COMMAND_ARGUMENTS_GROUP));
+    return prefix + WORD_SEPARATOR + REDACTED;
   }
 
   private static boolean isSecret(final String name) {
@@ -388,9 +417,9 @@ public final class DumpUtils {
       appendLine(dump, "Thread", threadName + " (" + state + ")");
       final StackTraceElement[] elements = entry.getValue();
       for (final StackTraceElement element : elements) {
-        dump.append("\tat ");
+        dump.append(STACK_FRAME_PREFIX);
         dump.append(element);
-        dump.append('\n');
+        dump.append(LINE_SEPARATOR);
       }
     }
   }
@@ -414,7 +443,7 @@ public final class DumpUtils {
       for (final String retained : tail) {
         final String safe = redactLogLine(retained);
         dump.append(safe);
-        dump.append('\n');
+        dump.append(LINE_SEPARATOR);
       }
     } catch (final IOException exception) {
       final String message = exception.getMessage();

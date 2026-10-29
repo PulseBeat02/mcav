@@ -54,6 +54,8 @@ public final class JukeBoxListener implements Listener {
   private static final Pattern ILLEGAL_FILE_NAME_CHARACTERS = Pattern.compile("[\\\\/:*?\"<>|]");
   private static final String MUSIC_DISC_PREFIX = "MUSIC_DISC_";
 
+  private static final String NAME_REPLACEMENT = "_";
+
   private final MCAVSandbox sandbox;
   private final Path isoFolder;
 
@@ -142,7 +144,7 @@ public final class JukeBoxListener implements Listener {
     final Matcher bracketMatcher = BRACKETS.matcher(displayName);
     final String withoutBrackets = bracketMatcher.replaceAll("");
     final Matcher illegalMatcher = ILLEGAL_FILE_NAME_CHARACTERS.matcher(withoutBrackets);
-    final String fileName = illegalMatcher.replaceAll("_");
+    final String fileName = illegalMatcher.replaceAll(NAME_REPLACEMENT);
     final Path image = this.isoFolder.resolve(fileName);
     final Path normalized = image.normalize();
     final boolean inside = normalized.startsWith(this.isoFolder);

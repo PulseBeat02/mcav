@@ -44,6 +44,7 @@ import me.brandonli.mcav.bukkit.media.mcv2.Mcv2FileEncoder;
 import me.brandonli.mcav.bukkit.media.mcv2.Mcv2PackServer;
 import me.brandonli.mcav.plugin.MCAVSandbox;
 import me.brandonli.mcav.plugin.command.AnnotationCommandFeature;
+import me.brandonli.mcav.plugin.command.SuggestionProvider;
 import me.brandonli.mcav.plugin.locale.Message;
 import me.brandonli.mcav.plugin.utils.ArgumentUtils;
 import me.brandonli.mcav.plugin.utils.TaskUtils;
@@ -92,6 +93,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   /** A stream file frames each frame with its length, a little-endian 32-bit word. */
   private static final int LENGTH_BYTES = Integer.BYTES;
+
+  private static final String PARTIAL_SUFFIX = ".part";
 
   private final MCAVSandbox plugin;
 
@@ -212,8 +215,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   public void play(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
+    @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
     @Range(min = "1") final int ticks,
     @Quoted final String file
   ) {
@@ -244,8 +247,8 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   public void stream(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
-    @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
-    @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
+    @Argument(suggestions = SuggestionProvider.DIMENSIONS) @Quoted final String blockDimensions,
+    @Argument(suggestions = SuggestionProvider.IDS) @Range(min = "0") final int mapId,
     @Range(min = "1", max = "240") final int framesPerSecond,
     @Quoted final String file
   ) {
@@ -380,7 +383,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final CommandSender sender,
     @Quoted final String file,
     @Quoted final String output,
-    @Argument(suggestions = "resolutions") @Quoted final String resolution,
+    @Argument(suggestions = SuggestionProvider.RESOLUTIONS) @Quoted final String resolution,
     final Mcv2Profile profile
   ) {
     final Pair<Integer, Integer> size = AbstractVideoCommand.parseDimensions(sender, resolution);
@@ -458,7 +461,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final Pool budget,
     final long interval
   ) {
-    final Path partial = target.resolveSibling(target.getFileName() + ".part");
+    final Path partial = target.resolveSibling(target.getFileName() + PARTIAL_SUFFIX);
     final long started = System.nanoTime();
     final LongConsumer progress = progressReporter(sender, started, interval);
     final Mcv2FileEncoder.Result result;

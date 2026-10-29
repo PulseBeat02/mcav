@@ -114,6 +114,11 @@ public final class PluginDataConfigurationMapper {
   // names the host and the port of the entry, never its password
   private static final String INVALID_VNC_HOST = "Ignoring the entry {}:{} of {}, which is not a host and a port from 1 to 65535.";
 
+  private static final String DEFAULT_HOST = "localhost";
+  private static final String DEFAULT_LOCALE = "EN_US";
+
+  private static final char HOST_SEPARATOR = ',';
+
   private final MCAVSandbox plugin;
 
   private Locale locale;
@@ -172,7 +177,7 @@ public final class PluginDataConfigurationMapper {
     this.discordBotToken = "";
     this.discordBotChannelId = "";
     this.discordBotGuildId = "";
-    this.httpHostName = "localhost";
+    this.httpHostName = DEFAULT_HOST;
     this.httpPort = DEFAULT_HTTP_PORT;
   }
 
@@ -183,14 +188,14 @@ public final class PluginDataConfigurationMapper {
    */
   public synchronized void deserialize() {
     final FileConfiguration configuration = this.loadConfiguration();
-    final String language = getString(configuration, PLUGIN_LANGUAGE, "EN_US");
+    final String language = getString(configuration, PLUGIN_LANGUAGE, DEFAULT_LOCALE);
     this.locale = Locale.fromString(language);
     this.discordBotEnabled = configuration.getBoolean(DISCORD_BOT_ENABLED, false);
     this.discordBotToken = getString(configuration, DISCORD_BOT_TOKEN_FIELD, "");
     this.discordBotChannelId = getString(configuration, DISCORD_BOT_CHANNEL_FIELD, "");
     this.discordBotGuildId = getString(configuration, DISCORD_BOT_GUILD_ID_FIELD, "");
     this.httpEnabled = configuration.getBoolean(HTTP_ENABLED, false);
-    this.httpHostName = getString(configuration, HTTP_HOST_FIELD, "localhost");
+    this.httpHostName = getString(configuration, HTTP_HOST_FIELD, DEFAULT_HOST);
     this.httpPort = readPort(configuration, HTTP_PORT_FIELD, DEFAULT_HTTP_PORT);
     this.simpleVoiceChatEnabled = configuration.getBoolean(SIMPLE_VOICE_CHAT_ENABLED, false);
     this.mcv2EncoderThreads = readEncoderThreads(configuration);
@@ -268,7 +273,7 @@ public final class PluginDataConfigurationMapper {
     final List<String> hosts = new ArrayList<>();
     for (final String entry : configuration.getStringList(BROWSER_REFUSED_HOSTS)) {
       final String host = entry.strip();
-      if (host.isEmpty() || host.chars().anyMatch(character -> character == ',' || Character.isWhitespace(character))) {
+      if (host.isEmpty() || host.chars().anyMatch(character -> character == HOST_SEPARATOR || Character.isWhitespace(character))) {
         LOGGER.warn(INVALID_REFUSED_HOST, entry, BROWSER_REFUSED_HOSTS);
       } else {
         hosts.add(host);

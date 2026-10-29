@@ -100,25 +100,43 @@ public final class FilterChain {
   /** The folder in the plugin's data folder that overlays are read from. */
   public static final String OVERLAY_FOLDER = "overlays";
 
+  private static final String GRAYSCALE_FILTER = "grayscale";
+  private static final String INVERT_FILTER = "invert";
+  private static final String FRAMES_PER_SECOND_FILTER = "fps";
+  private static final String BLUR_FILTER = "blur";
+  private static final String BILATERAL_FILTER = "bilateral";
+  private static final String THRESHOLD_FILTER = "threshold";
+  private static final String LUMINANCE_FILTER = "luminance";
+  private static final String COLOR_MAP_FILTER = "colormap";
+  private static final String TINT_FILTER = "tint";
+  private static final String FLIP_FILTER = "flip";
+  private static final String ROTATE_FILTER = "rotate";
+  private static final String CROP_FILTER = "crop";
+  private static final String RECTANGLE_FILTER = "rectangle";
+  private static final String DILATE_FILTER = "dilate";
+  private static final String ERODE_FILTER = "erode";
+  private static final String TEXT_FILTER = "text";
+  private static final String OVERLAY_FILTER = "overlay";
+
   /** The names of the filters, as the sender types them. */
   public static final List<String> NAMES = List.of(
-    "grayscale",
-    "invert",
-    "blur",
-    "bilateral",
-    "threshold",
-    "luminance",
-    "colormap",
-    "tint",
-    "flip",
-    "rotate",
-    "crop",
-    "rectangle",
-    "dilate",
-    "erode",
-    "text",
-    "overlay",
-    "fps"
+    GRAYSCALE_FILTER,
+    INVERT_FILTER,
+    BLUR_FILTER,
+    BILATERAL_FILTER,
+    THRESHOLD_FILTER,
+    LUMINANCE_FILTER,
+    COLOR_MAP_FILTER,
+    TINT_FILTER,
+    FLIP_FILTER,
+    ROTATE_FILTER,
+    CROP_FILTER,
+    RECTANGLE_FILTER,
+    DILATE_FILTER,
+    ERODE_FILTER,
+    TEXT_FILTER,
+    OVERLAY_FILTER,
+    FRAMES_PER_SECOND_FILTER
   );
 
   private static final Map<String, Integer> COLOR_MAPS = Map.ofEntries(
@@ -184,6 +202,31 @@ public final class FilterChain {
 
   private static final int BYTE = 0xff;
 
+  private static final String FILTER_SEPARATOR = ",";
+  private static final char ARGUMENT_START = '=';
+  private static final String ARGUMENT_SEPARATOR = ":";
+  private static final String NAME_SEPARATOR = ", ";
+
+  private static final String HORIZONTAL_FLIP = "h";
+  private static final String VERTICAL_FLIP = "v";
+  private static final String BOTH_FLIPS = "hv";
+
+  private static final String QUARTER_TURN = "90";
+  private static final String HALF_TURN = "180";
+  private static final String THREE_QUARTER_TURN = "270";
+
+  private static final int KERNEL_SIDES = 2;
+
+  private static final int LUMINANCE_ARGUMENTS = 2;
+  private static final int TINT_MAXIMUM_ARGUMENTS = 2;
+  private static final int CROP_ARGUMENTS = 4;
+  private static final int RECTANGLE_ARGUMENTS = 5;
+
+  private static final int RECTANGLE_COLOR_INDEX = 4;
+
+  private static final int WIDTH_INDEX = 2;
+  private static final int HEIGHT_INDEX = 3;
+
   private final List<Supplier<VideoFilter>> filters;
 
   private FilterChain(final List<Supplier<VideoFilter>> filters) {
@@ -209,7 +252,7 @@ public final class FilterChain {
       final String message = "Filters may have at most %s characters!".formatted(MAXIMUM_LENGTH);
       throw new IllegalArgumentException(message);
     }
-    final String[] specifications = text.split(",", -1);
+    final String[] specifications = text.split(FILTER_SEPARATOR, -1);
     if (specifications.length > MAXIMUM_FILTERS) {
       final String message = "At most %s filters may be chained!".formatted(MAXIMUM_FILTERS);
       throw new IllegalArgumentException(message);
@@ -222,29 +265,29 @@ public final class FilterChain {
   }
 
   private static Supplier<VideoFilter> parseFilter(final String specification, final Path overlays, final boolean isVideo) {
-    final int equals = specification.indexOf('=');
+    final int equals = specification.indexOf(ARGUMENT_START);
     final String name = (equals < 0 ? specification : specification.substring(0, equals)).toLowerCase(Locale.ROOT);
-    final List<String> arguments = equals < 0 ? List.of() : List.of(specification.substring(equals + 1).split(":", -1));
+    final List<String> arguments = equals < 0 ? List.of() : List.of(specification.substring(equals + 1).split(ARGUMENT_SEPARATOR, -1));
     return switch (name) {
-      case "grayscale" -> noArguments(name, arguments, GrayscaleFilter::new);
-      case "invert" -> noArguments(name, arguments, InvertFilter::new);
-      case "fps" -> framesPerSecond(arguments, isVideo);
-      case "blur" -> blur(arguments);
-      case "bilateral" -> bilateral(arguments);
-      case "threshold" -> threshold(arguments);
-      case "luminance" -> luminance(arguments);
-      case "colormap" -> colorMap(arguments);
-      case "tint" -> tint(arguments);
-      case "flip" -> flip(arguments);
-      case "rotate" -> rotate(arguments);
-      case "crop" -> crop(arguments);
-      case "rectangle" -> rectangle(arguments);
-      case "dilate" -> dilate(arguments);
-      case "erode" -> erode(arguments);
-      case "text" -> text(arguments);
-      case "overlay" -> overlay(arguments, overlays);
+      case GRAYSCALE_FILTER -> noArguments(name, arguments, GrayscaleFilter::new);
+      case INVERT_FILTER -> noArguments(name, arguments, InvertFilter::new);
+      case FRAMES_PER_SECOND_FILTER -> framesPerSecond(arguments, isVideo);
+      case BLUR_FILTER -> blur(arguments);
+      case BILATERAL_FILTER -> bilateral(arguments);
+      case THRESHOLD_FILTER -> threshold(arguments);
+      case LUMINANCE_FILTER -> luminance(arguments);
+      case COLOR_MAP_FILTER -> colorMap(arguments);
+      case TINT_FILTER -> tint(arguments);
+      case FLIP_FILTER -> flip(arguments);
+      case ROTATE_FILTER -> rotate(arguments);
+      case CROP_FILTER -> crop(arguments);
+      case RECTANGLE_FILTER -> rectangle(arguments);
+      case DILATE_FILTER -> dilate(arguments);
+      case ERODE_FILTER -> erode(arguments);
+      case TEXT_FILTER -> text(arguments);
+      case OVERLAY_FILTER -> overlay(arguments, overlays);
       default -> {
-        final String names = String.join(", ", NAMES);
+        final String names = String.join(NAME_SEPARATOR, NAMES);
         final String message = "Filter %s does not exist, use one of %s instead!".formatted(name, names);
         throw new IllegalArgumentException(message);
       }
@@ -260,39 +303,39 @@ public final class FilterChain {
     if (!isVideo) {
       throw new IllegalArgumentException("Filter fps counts the frames of a video, and an image has one!");
     }
-    return noArguments("fps", arguments, FramesPerSecondFilter::new);
+    return noArguments(FRAMES_PER_SECOND_FILTER, arguments, FramesPerSecondFilter::new);
   }
 
   private static Supplier<VideoFilter> blur(final List<String> arguments) {
-    count("blur", arguments, 1);
-    final int radius = whole("blur", arguments.getFirst(), 1, MAXIMUM_BLUR);
-    return () -> new BlurFilter(BlurFilter.BlurType.GAUSSIAN, 2 * radius + 1);
+    count(BLUR_FILTER, arguments, 1);
+    final int radius = whole(BLUR_FILTER, arguments.getFirst(), 1, MAXIMUM_BLUR);
+    return () -> new BlurFilter(BlurFilter.BlurType.GAUSSIAN, KERNEL_SIDES * radius + 1);
   }
 
   private static Supplier<VideoFilter> bilateral(final List<String> arguments) {
-    count("bilateral", arguments, 1);
-    final int diameter = whole("bilateral", arguments.getFirst(), 1, MAXIMUM_BILATERAL);
+    count(BILATERAL_FILTER, arguments, 1);
+    final int diameter = whole(BILATERAL_FILTER, arguments.getFirst(), 1, MAXIMUM_BILATERAL);
     return () -> new BilateralFilter(diameter, BILATERAL_SIGMA, BILATERAL_SIGMA);
   }
 
   private static Supplier<VideoFilter> threshold(final List<String> arguments) {
-    count("threshold", arguments, 1);
-    final int level = whole("threshold", arguments.getFirst(), 0, MAXIMUM_LEVEL);
+    count(THRESHOLD_FILTER, arguments, 1);
+    final int level = whole(THRESHOLD_FILTER, arguments.getFirst(), 0, MAXIMUM_LEVEL);
     return () -> new ThresholdFilter(level, MAXIMUM_LEVEL, opencv_imgproc.THRESH_BINARY);
   }
 
   private static Supplier<VideoFilter> luminance(final List<String> arguments) {
-    count("luminance", arguments, 2);
-    final double contrast = decimal("luminance", arguments.getFirst(), MAXIMUM_CONTRAST);
-    final int brightness = whole("luminance", arguments.get(1), -MAXIMUM_BRIGHTNESS, MAXIMUM_BRIGHTNESS);
+    count(LUMINANCE_FILTER, arguments, LUMINANCE_ARGUMENTS);
+    final double contrast = decimal(LUMINANCE_FILTER, arguments.getFirst(), MAXIMUM_CONTRAST);
+    final int brightness = whole(LUMINANCE_FILTER, arguments.get(1), -MAXIMUM_BRIGHTNESS, MAXIMUM_BRIGHTNESS);
     return () -> new LuminanceFilter(contrast, brightness);
   }
 
   private static Supplier<VideoFilter> colorMap(final List<String> arguments) {
-    count("colormap", arguments, 1);
+    count(COLOR_MAP_FILTER, arguments, 1);
     final Integer map = COLOR_MAPS.get(arguments.getFirst().toLowerCase(Locale.ROOT));
     if (map == null) {
-      final String names = String.join(", ", COLOR_MAPS.keySet().stream().sorted().toList());
+      final String names = String.join(NAME_SEPARATOR, COLOR_MAPS.keySet().stream().sorted().toList());
       final String message = "Colour map %s does not exist, use one of %s instead!".formatted(arguments.getFirst(), names);
       throw new IllegalArgumentException(message);
     }
@@ -300,20 +343,21 @@ public final class FilterChain {
   }
 
   private static Supplier<VideoFilter> tint(final List<String> arguments) {
-    if (arguments.isEmpty() || arguments.size() > 2) {
+    if (arguments.isEmpty() || arguments.size() > TINT_MAXIMUM_ARGUMENTS) {
       throw new IllegalArgumentException("Filter tint takes a colour such as ff8000, and a strength from 0 to 100!");
     }
-    final double[] color = color("tint", arguments.getFirst());
-    final double strength = arguments.size() == 2 ? whole("tint", arguments.get(1), 0, PERCENT) / (double) PERCENT : DEFAULT_TINT;
+    final double[] color = color(TINT_FILTER, arguments.getFirst());
+    final double strength =
+      arguments.size() == TINT_MAXIMUM_ARGUMENTS ? whole(TINT_FILTER, arguments.get(1), 0, PERCENT) / (double) PERCENT : DEFAULT_TINT;
     return () -> new TintFilter(color, strength);
   }
 
   private static Supplier<VideoFilter> flip(final List<String> arguments) {
-    count("flip", arguments, 1);
+    count(FLIP_FILTER, arguments, 1);
     final FlipFilter.FlipDirection direction = switch (arguments.getFirst()) {
-      case "h" -> FlipFilter.FlipDirection.HORIZONTAL;
-      case "v" -> FlipFilter.FlipDirection.VERTICAL;
-      case "hv" -> FlipFilter.FlipDirection.BOTH;
+      case HORIZONTAL_FLIP -> FlipFilter.FlipDirection.HORIZONTAL;
+      case VERTICAL_FLIP -> FlipFilter.FlipDirection.VERTICAL;
+      case BOTH_FLIPS -> FlipFilter.FlipDirection.BOTH;
       default -> {
         final String message = "Flip direction %s must be h, v or hv!".formatted(arguments.getFirst());
         throw new IllegalArgumentException(message);
@@ -323,11 +367,11 @@ public final class FilterChain {
   }
 
   private static Supplier<VideoFilter> rotate(final List<String> arguments) {
-    count("rotate", arguments, 1);
+    count(ROTATE_FILTER, arguments, 1);
     final RotationFilter.Rotation rotation = switch (arguments.getFirst()) {
-      case "90" -> RotationFilter.Rotation.ROTATE_90_CLOCKWISE;
-      case "180" -> RotationFilter.Rotation.ROTATE_180;
-      case "270" -> RotationFilter.Rotation.ROTATE_90_COUNTERCLOCKWISE;
+      case QUARTER_TURN -> RotationFilter.Rotation.ROTATE_90_CLOCKWISE;
+      case HALF_TURN -> RotationFilter.Rotation.ROTATE_180;
+      case THREE_QUARTER_TURN -> RotationFilter.Rotation.ROTATE_90_COUNTERCLOCKWISE;
       default -> {
         final String message = "Rotation %s must be 90, 180 or 270!".formatted(arguments.getFirst());
         throw new IllegalArgumentException(message);
@@ -337,32 +381,32 @@ public final class FilterChain {
   }
 
   private static Supplier<VideoFilter> crop(final List<String> arguments) {
-    count("crop", arguments, 4);
-    final Region region = region("crop", arguments);
+    count(CROP_FILTER, arguments, CROP_ARGUMENTS);
+    final Region region = region(CROP_FILTER, arguments);
     return () -> new RegionFilter(region, CropZoom::new);
   }
 
   private static Supplier<VideoFilter> rectangle(final List<String> arguments) {
-    count("rectangle", arguments, 5);
-    final Region region = region("rectangle", arguments);
-    final double[] color = color("rectangle", arguments.get(4));
+    count(RECTANGLE_FILTER, arguments, RECTANGLE_ARGUMENTS);
+    final Region region = region(RECTANGLE_FILTER, arguments);
+    final double[] color = color(RECTANGLE_FILTER, arguments.get(RECTANGLE_COLOR_INDEX));
     return () -> new RegionFilter(region, (left, top, width, height, _, _) -> new RectangleFilter(left, top, width, height, color));
   }
 
   private static Supplier<VideoFilter> dilate(final List<String> arguments) {
-    count("dilate", arguments, 1);
-    final int kernel = whole("dilate", arguments.getFirst(), 1, MAXIMUM_MORPHOLOGY);
+    count(DILATE_FILTER, arguments, 1);
+    final int kernel = whole(DILATE_FILTER, arguments.getFirst(), 1, MAXIMUM_MORPHOLOGY);
     return () -> new DilationFilter(kernel);
   }
 
   private static Supplier<VideoFilter> erode(final List<String> arguments) {
-    count("erode", arguments, 1);
-    final int kernel = whole("erode", arguments.getFirst(), 1, MAXIMUM_MORPHOLOGY);
+    count(ERODE_FILTER, arguments, 1);
+    final int kernel = whole(ERODE_FILTER, arguments.getFirst(), 1, MAXIMUM_MORPHOLOGY);
     return () -> new ErosionFilter(kernel);
   }
 
   private static Supplier<VideoFilter> text(final List<String> arguments) {
-    count("text", arguments, 1);
+    count(TEXT_FILTER, arguments, 1);
     final String text = arguments.getFirst();
     if (!TEXT.matcher(text).matches()) {
       final String message = "Filter text takes up to %s letters, digits, spaces and .!?'()+- characters!".formatted(MAXIMUM_TEXT);
@@ -373,7 +417,7 @@ public final class FilterChain {
 
   /** An overlay is a PNG file of the overlay folder, named without its folder or extension; links are not followed. */
   private static Supplier<VideoFilter> overlay(final List<String> arguments, final Path overlays) {
-    count("overlay", arguments, 1);
+    count(OVERLAY_FILTER, arguments, 1);
     final String name = arguments.getFirst();
     if (!OVERLAY_NAME.matcher(name).matches()) {
       throw new IllegalArgumentException("Filter overlay takes the name of a PNG file of the overlays folder, without .png!");
@@ -463,8 +507,8 @@ public final class FilterChain {
   private static Region region(final String name, final List<String> arguments) {
     final int left = whole(name, arguments.getFirst(), 0, PERCENT - 1);
     final int top = whole(name, arguments.get(1), 0, PERCENT - 1);
-    final int width = whole(name, arguments.get(2), 1, PERCENT - left);
-    final int height = whole(name, arguments.get(3), 1, PERCENT - top);
+    final int width = whole(name, arguments.get(WIDTH_INDEX), 1, PERCENT - left);
+    final int height = whole(name, arguments.get(HEIGHT_INDEX), 1, PERCENT - top);
     return new Region(left, top, width, height);
   }
 

@@ -88,6 +88,24 @@ public final class VideoFlagsParser {
     "referer"
   );
 
+  private static final char LINE_FEED = '\n';
+  private static final char CARRIAGE_RETURN = '\r';
+  private static final char NEXT_LINE = '\u0085';
+  private static final char LINE_SEPARATOR = '\u2028';
+  private static final char PARAGRAPH_SEPARATOR = '\u2029';
+
+  private static final String ESCAPED_COMMA = "\\,";
+  private static final String COMMA = ",";
+  private static final String ESCAPED_BRACE = "\\}";
+  private static final String BRACE = "}";
+
+  private static final char VALUE_SEPARATOR = '=';
+
+  private static final String OPTION_PREFIX = "-";
+  private static final String LONG_OPTION_PREFIX = "--";
+
+  private static final String NAME_SEPARATOR = ", ";
+
   /**
    * Constructs the parser, which keeps no state and can be shared.
    */
@@ -172,24 +190,30 @@ public final class VideoFlagsParser {
   }
 
   private static boolean isLineTerminator(final char character) {
-    return character == '\n' || character == '\r' || character == '\u0085' || character == '\u2028' || character == '\u2029';
+    return (
+      character == LINE_FEED ||
+      character == CARRIAGE_RETURN ||
+      character == NEXT_LINE ||
+      character == LINE_SEPARATOR ||
+      character == PARAGRAPH_SEPARATOR
+    );
   }
 
   /**
    * Turns one {@code name=value} or {@code name} option into yt-dlp arguments.
    */
   private static void appendOption(final String option, final List<String> arguments) {
-    final String commasUnescaped = option.replace("\\,", ",");
-    final String unescaped = commasUnescaped.replace("\\}", "}");
+    final String commasUnescaped = option.replace(ESCAPED_COMMA, COMMA);
+    final String unescaped = commasUnescaped.replace(ESCAPED_BRACE, BRACE);
     final String trimmed = unescaped.trim();
     if (trimmed.isEmpty()) {
       return;
     }
 
-    final int equals = trimmed.indexOf('=');
+    final int equals = trimmed.indexOf(VALUE_SEPARATOR);
     if (equals < 0) {
       requireFlagOption(trimmed);
-      arguments.add("--" + trimmed);
+      arguments.add(LONG_OPTION_PREFIX + trimmed);
       return;
     }
 
@@ -201,7 +225,7 @@ public final class VideoFlagsParser {
       throw new IllegalArgumentException("yt-dlp option name must not be empty!");
     }
     requireValueOption(cleanName, cleanValue);
-    arguments.add("--" + cleanName);
+    arguments.add(LONG_OPTION_PREFIX + cleanName);
     arguments.add(cleanValue);
   }
 
@@ -229,7 +253,7 @@ public final class VideoFlagsParser {
       throw unsupported(name);
     }
     // yt-dlp reads an argument that starts with a dash as an option of its own, whatever option it follows
-    final boolean readAsOption = value.startsWith("-");
+    final boolean readAsOption = value.startsWith(OPTION_PREFIX);
     if (readAsOption) {
       final String message = "Value %s of the yt-dlp option %s must not start with a dash!".formatted(value, name);
       throw new IllegalArgumentException(message);
@@ -237,7 +261,7 @@ public final class VideoFlagsParser {
   }
 
   private static IllegalArgumentException unsupported(final String name) {
-    final String supported = String.join(", ", supportedOptions());
+    final String supported = String.join(NAME_SEPARATOR, supportedOptions());
     final String message = "yt-dlp option %s is not supported, use one of %s instead!".formatted(name, supported);
     return new IllegalArgumentException(message);
   }
