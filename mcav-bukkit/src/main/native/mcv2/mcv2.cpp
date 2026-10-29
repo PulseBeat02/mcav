@@ -145,6 +145,10 @@ inline int32_t wrapping_shift_left(const int32_t first, const int32_t shift_dist
 inline int32_t wrapping_shift_right(const int32_t first, const int32_t shift_distance) {
   return first >> (shift_distance & SHIFT_DISTANCE_MASK);
 }
+inline int32_t wrapping_squared_difference(const int32_t first, const int32_t second) {
+  const int32_t difference = wrapping_subtraction(first, second);
+  return wrapping_multiplication(difference, difference);
+}
 
 inline uint32_t pixel_word(const uint8_t* buffer) {
   return (uint32_t)buffer[0] | (uint32_t)buffer[1] << CHAR_BIT | (uint32_t)buffer[2] << 2 * CHAR_BIT;
@@ -1406,7 +1410,8 @@ inline int32_t maximum_int(const int32_t first, const int32_t second) {
   return first > second ? first : second;
 }
 inline int32_t clamp_int(const int32_t value, const int32_t low, const int32_t high) {
-  return minimum_int(maximum_int(value, low), high);
+  const int32_t bounded_below = maximum_int(value, low);
+  return minimum_int(bounded_below, high);
 }
 
 struct interpolation_axis {
@@ -1444,9 +1449,12 @@ inline int32_t rounding_shift(const int32_t size) {
 }
 
 inline int_vector round(const int_vector value, const int32_t shift) {
-  return int_vector::minimum(
-      int_vector::maximum((value + int_vector::broadcast(1 << (shift - 1))).shift_right(shift), int_vector::zero()),
-      int_vector::broadcast(MAXIMUM_CHANNEL));
+  const int_vector rounding_bias = int_vector::broadcast(1 << (shift - 1));
+  const int_vector rounded = (value + rounding_bias).shift_right(shift);
+  const int_vector zero = int_vector::zero();
+  const int_vector non_negative = int_vector::maximum(rounded, zero);
+  const int_vector maximum_channel = int_vector::broadcast(MAXIMUM_CHANNEL);
+  return int_vector::minimum(non_negative, maximum_channel);
 }
 
 struct distortion_measure {
@@ -1488,9 +1496,11 @@ inline void interpolate_horizontally(const int32_t* nodes, const int32_t size, i
     const int32_t array_offset = node_row * size;
     for (int32_t pixel_column = 0; pixel_column < size; pixel_column++) {
       const int32_t weight = axis.weight_[pixel_column];
-      rows[array_offset + pixel_column] =
-          wrapping_addition(wrapping_multiplication(nodes[node_row * GRID + axis.lower_[pixel_column]], span - weight),
-                            wrapping_multiplication(nodes[node_row * GRID + axis.upper_[pixel_column]], weight));
+      const int32_t lower_weighted =
+          wrapping_multiplication(nodes[node_row * GRID + axis.lower_[pixel_column]], span - weight);
+      const int32_t upper_weighted =
+          wrapping_multiplication(nodes[node_row * GRID + axis.upper_[pixel_column]], weight);
+      rows[array_offset + pixel_column] = wrapping_addition(lower_weighted, upper_weighted);
     }
   }
 }
@@ -1513,7 +1523,8 @@ int64_t predicted(const int32_t* prediction, const int32_t size, int32_t* output
   for (int32_t row_index = 0; row_index < size; row_index++) {
     const int32_t source_position = row_index * row_length;
     for (int32_t offset = source_position; offset < source_position + row_length; offset += int_vector::LANES) {
-      int_vector::load(prediction + offset).store(output + offset);
+      const int_vector prediction_lanes = int_vector::load(prediction + offset);
+      prediction_lanes.store(output + offset);
     }
     add_row_distortion(measure, output, source_position, size);
 
@@ -1584,13 +1595,16 @@ int64_t compact(const int32_t* prediction, const int8_t* record, const int32_t q
     interpolate_vertically(rows, size, row_index, luma);
     const int32_t source_position = row_index * size * CHANNELS;
     for (int32_t column = 0; column < size; column += int_vector::LANES) {
-      const int_vector residual = int_vector::load(luma + column).shift_left(quantizer);
+      const int_vector luma_lanes = int_vector::load(luma + column);
+      const int_vector residual = luma_lanes.shift_left(quantizer);
       int_vector predicted_red, predicted_green, predicted_blue;
       int_vector::load_channels(prediction + source_position + column * CHANNELS, predicted_red, predicted_green,
                                 predicted_blue);
-      int_vector::store_channels(
-          output + source_position + column * CHANNELS, round(predicted_red * scale + residual, shift),
-          round(predicted_green * scale + residual, shift), round(predicted_blue * scale + residual, shift));
+      int32_t* output_pixels = output + source_position + column * CHANNELS;
+      const int_vector red = round(predicted_red * scale + residual, shift);
+      const int_vector green = round(predicted_green * scale + residual, shift);
+      const int_vector blue = round(predicted_blue * scale + residual, shift);
+      int_vector::store_channels(output_pixels, red, green, blue);
     }
     add_row_distortion(measure, output, source_position, size);
 
@@ -1603,7 +1617,8 @@ int64_t compact(const int32_t* prediction, const int8_t* record, const int32_t q
 
 inline void widen_bytes(const uint8_t* source, const int32_t count, int32_t* target) {
   for (int32_t offset = 0; offset < count; offset += int_vector::LANES) {
-    int_vector::load_unsigned_bytes(source + offset).store(target + offset);
+    const int_vector widened = int_vector::load_unsigned_bytes(source + offset);
+    widened.store(target + offset);
   }
 }
 
@@ -1737,18 +1752,16 @@ void cluster_pixels(const int32_t* source, const int32_t size, const int32_t ste
       const int32_t red = source[array_offset];
       const int32_t green = source[array_offset + 1];
       const int32_t blue = source[array_offset + 2];
-      const int32_t first_distance = wrapping_addition(
-          wrapping_addition(
-              wrapping_multiplication(wrapping_subtraction(red, first_red), wrapping_subtraction(red, first_red)),
-              wrapping_multiplication(wrapping_subtraction(green, first_green),
-                                      wrapping_subtraction(green, first_green))),
-          wrapping_multiplication(wrapping_subtraction(blue, first_blue), wrapping_subtraction(blue, first_blue)));
-      const int32_t second_distance = wrapping_addition(
-          wrapping_addition(
-              wrapping_multiplication(wrapping_subtraction(red, second_red), wrapping_subtraction(red, second_red)),
-              wrapping_multiplication(wrapping_subtraction(green, second_green),
-                                      wrapping_subtraction(green, second_green))),
-          wrapping_multiplication(wrapping_subtraction(blue, second_blue), wrapping_subtraction(blue, second_blue)));
+      const int32_t first_red_square = wrapping_squared_difference(red, first_red);
+      const int32_t first_green_square = wrapping_squared_difference(green, first_green);
+      const int32_t first_red_green = wrapping_addition(first_red_square, first_green_square);
+      const int32_t first_blue_square = wrapping_squared_difference(blue, first_blue);
+      const int32_t first_distance = wrapping_addition(first_red_green, first_blue_square);
+      const int32_t second_red_square = wrapping_squared_difference(red, second_red);
+      const int32_t second_green_square = wrapping_squared_difference(green, second_green);
+      const int32_t second_red_green = wrapping_addition(second_red_square, second_green_square);
+      const int32_t second_blue_square = wrapping_squared_difference(blue, second_blue);
+      const int32_t second_distance = wrapping_addition(second_red_green, second_blue_square);
       const int32_t endpoint = second_distance < first_distance ? 1 : 0;
       sums[endpoint * CHANNELS] += red;
       sums[endpoint * CHANNELS + 1] += green;
@@ -2012,8 +2025,11 @@ int64_t packed_interior_cost(const uint8_t* reference, const int32_t width, cons
   for (int32_t sample_row = 0; sample_row < SAMPLE_GRID; sample_row++) {
     const uint8_t* line =
         reference + ((int64_t)(block_top + samples[sample_row] + motion_y) * width + block_left + motion_x) * CHANNELS;
-    sum += four_pixel_difference(pixel_word(line + samples[0] * CHANNELS), pixel_word(line + samples[1] * CHANNELS),
-                                 pixel_word(line + samples[2] * CHANNELS), pixel_word(line + samples[3] * CHANNELS),
+    const uint32_t first_pixel = pixel_word(line + samples[0] * CHANNELS);
+    const uint32_t second_pixel = pixel_word(line + samples[1] * CHANNELS);
+    const uint32_t third_pixel = pixel_word(line + samples[2] * CHANNELS);
+    const uint32_t fourth_pixel = pixel_word(line + samples[3] * CHANNELS);
+    sum += four_pixel_difference(first_pixel, second_pixel, third_pixel, fourth_pixel,
                                  packed_samples + SAMPLE_ROW_BYTES * sample_row);
   }
   return sum;
@@ -2135,8 +2151,10 @@ int32_t seeded(const uint8_t* reference, const int32_t width, const int32_t heig
   motion_search search(reference, width, height, source_samples, packed_samples, block_left, block_top, samples);
   search.measure_once(0, 0);
   for (int32_t seed_index = 0; seed_index < seed_count; seed_index++) {
-    const int32_t seed_x = clamp_int(unpack_horizontal_motion(seeds[seed_index]), -range, range);
-    const int32_t seed_y = clamp_int(unpack_vertical_motion(seeds[seed_index]), -range, range);
+    const int32_t unpacked_x = unpack_horizontal_motion(seeds[seed_index]);
+    const int32_t seed_x = clamp_int(unpacked_x, -range, range);
+    const int32_t unpacked_y = unpack_vertical_motion(seeds[seed_index]);
+    const int32_t seed_y = clamp_int(unpacked_y, -range, range);
     search.measure_once(seed_x, seed_y);
   }
   for (int32_t step = 0; step < 2 * range; step++) {
@@ -2203,8 +2221,11 @@ template <class VectorType> void halve_lanes(const int32_t* block, const int32_t
                                    VectorType::odds(first_green_sum, second_green_sum) + two;
       const VectorType blue_sum =
           VectorType::evens(first_blue_sum, second_blue_sum) + VectorType::odds(first_blue_sum, second_blue_sum) + two;
-      VectorType::store_channels(line + (horizontal_position / 2) * CHANNELS, red_sum.shift_right(2),
-                                 green_sum.shift_right(2), blue_sum.shift_right(2));
+      int32_t* output_pixels = line + (horizontal_position / 2) * CHANNELS;
+      const VectorType red_average = red_sum.shift_right(2);
+      const VectorType green_average = green_sum.shift_right(2);
+      const VectorType blue_average = blue_sum.shift_right(2);
+      VectorType::store_channels(output_pixels, red_average, green_average, blue_average);
     }
   }
 }
@@ -2224,8 +2245,8 @@ void residual_target(const int32_t* source, const int32_t* prediction, const int
   for (; pixel + int_vector::LANES <= count; pixel += int_vector::LANES) {
     int_vector source_red, source_green, source_blue;
     int_vector::load_channels(source + pixel * CHANNELS, source_red, source_green, source_blue);
-    const float_vector luma =
-        float_vector::from_integers(source_red + source_green.shift_left(1) + source_blue) * normalization;
+    const int_vector weighted_green = source_green.shift_left(1);
+    const float_vector luma = float_vector::from_integers(source_red + weighted_green + source_blue) * normalization;
     int_vector predicted_red, predicted_green, predicted_blue;
     int_vector::load_channels(prediction + pixel * CHANNELS, predicted_red, predicted_green, predicted_blue);
     const float_vector red = float_vector::from_integers(predicted_red);
