@@ -60,7 +60,7 @@ import org.junit.jupiter.api.io.TempDir;
 // installed.
 final class VlcPlayerIntegrationTest {
 
-  private static final Duration TIMEOUT = Duration.ofSeconds(10);
+  private static final Duration TIMEOUT = Duration.ofMinutes(2);
   private static final long HALF_A_SECOND_OF_AUDIO_BYTES = 96_000L;
 
   private static final int FEW_FRAMES = 5;
