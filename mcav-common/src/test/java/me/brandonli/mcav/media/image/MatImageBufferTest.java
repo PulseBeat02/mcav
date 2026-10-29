@@ -1015,7 +1015,11 @@ final class MatImageBufferTest {
 
   @Test
   void shouldRejectABufferedImageThatReportsNoWidth() {
-    assertThrowsWhileOpening(IllegalArgumentException.class, () -> ImageBuffer.image(new ZeroWidthImage()));
+    final IllegalArgumentException failure = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+      ImageBuffer.image(new ReportedSizeImage(0, 1))
+    );
+    final String message = failure.getMessage();
+    assertEquals("Image dimensions 0x1 must be positive!", message);
   }
 
   private static long pixelAddress(final Mat mat) {
@@ -1244,12 +1248,17 @@ final class MatImageBufferTest {
     final IllegalArgumentException fromArgb = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
       ImageBuffer.buffer(pixels, width, height)
     );
+    final IllegalArgumentException fromImage = assertThrowsWhileOpening(IllegalArgumentException.class, () ->
+      ImageBuffer.image(new ReportedSizeImage(width, height))
+    );
     final String bytesMessage = fromBytes.getMessage();
     final String bufferMessage = fromBuffer.getMessage();
     final String argbMessage = fromArgb.getMessage();
+    final String imageMessage = fromImage.getMessage();
     assertEquals(expectedMessage, bytesMessage);
     assertEquals(expectedMessage, bufferMessage);
     assertEquals(expectedMessage, argbMessage);
+    assertEquals(expectedMessage, imageMessage);
 
     try (final ImageBuffer image = Images.solid(1, 1, FIRST_COLOR)) {
       final IllegalArgumentException updateBytes = assertThrows(IllegalArgumentException.class, () ->
@@ -1321,15 +1330,25 @@ final class MatImageBufferTest {
     assertEquals(0x00123456, firstInput, "the input is not modified");
   }
 
-  private static final class ZeroWidthImage extends BufferedImage {
+  private static final class ReportedSizeImage extends BufferedImage {
 
-    ZeroWidthImage() {
+    private final int width;
+    private final int height;
+
+    ReportedSizeImage(final int width, final int height) {
       super(1, 1, BufferedImage.TYPE_3BYTE_BGR);
+      this.width = width;
+      this.height = height;
     }
 
     @Override
     public int getWidth() {
-      return 0;
+      return this.width;
+    }
+
+    @Override
+    public int getHeight() {
+      return this.height;
     }
   }
 

@@ -207,7 +207,8 @@ public interface ImageBuffer extends Image {
    *
    * @param image the image to copy
    * @return the image buffer
-   * @throws IllegalArgumentException if the image dimensions exceed the maximum packed BGR buffer size
+   * @throws IllegalArgumentException if the image reports a dimension that is not positive, or its dimensions exceed the maximum
+   *                                  packed BGR buffer size
    * @throws NullPointerException     if {@code image} is null
    * @since 1.0.0
    */
