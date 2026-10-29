@@ -318,7 +318,10 @@ constexpr int32_t BROADCAST_FOURTH_LANE = _MM_SHUFFLE(3, 3, 3, 3);
 
 #if defined(MCV2_SIMD_SSE41)
 template <int BLEND_MASK> inline __m128i blend_integer_lanes(const __m128i first, const __m128i second) {
-  return _mm_castps_si128(_mm_blend_ps(_mm_castsi128_ps(first), _mm_castsi128_ps(second), BLEND_MASK));
+  const __m128 first_floats = _mm_castsi128_ps(first);
+  const __m128 second_floats = _mm_castsi128_ps(second);
+  const __m128 blended = _mm_blend_ps(first_floats, second_floats, BLEND_MASK);
+  return _mm_castps_si128(blended);
 }
 inline __m128i multiply_low_int(const __m128i first, const __m128i second) {
   return _mm_mullo_epi32(first, second);
@@ -349,41 +352,54 @@ constexpr int32_t SIGN_SHIFT = LANE_BITS - 1;
 template <int BLEND_MASK> inline __m128i blend_integer_lanes(const __m128i first, const __m128i second) {
   const __m128i mask = _mm_setr_epi32((BLEND_MASK & FIRST_LANE_BIT) ? -1 : 0, (BLEND_MASK & SECOND_LANE_BIT) ? -1 : 0,
                                       (BLEND_MASK & THIRD_LANE_BIT) ? -1 : 0, (BLEND_MASK & FOURTH_LANE_BIT) ? -1 : 0);
-  return _mm_or_si128(_mm_and_si128(mask, second), _mm_andnot_si128(mask, first));
+  const __m128i selected_second = _mm_and_si128(mask, second);
+  const __m128i selected_first = _mm_andnot_si128(mask, first);
+  return _mm_or_si128(selected_second, selected_first);
 }
 // Signed and unsigned products share the low 32 bits required by Java's wrapping arithmetic.
 inline __m128i multiply_low_int(const __m128i first, const __m128i second) {
   const __m128i even = _mm_mul_epu32(first, second);
-  const __m128i odd = _mm_mul_epu32(_mm_srli_epi64(first, LANE_BITS), _mm_srli_epi64(second, LANE_BITS));
-  return _mm_unpacklo_epi32(_mm_shuffle_epi32(even, PACK_LOW_WORDS), _mm_shuffle_epi32(odd, PACK_LOW_WORDS));
+  const __m128i first_odd_lanes = _mm_srli_epi64(first, LANE_BITS);
+  const __m128i second_odd_lanes = _mm_srli_epi64(second, LANE_BITS);
+  const __m128i odd = _mm_mul_epu32(first_odd_lanes, second_odd_lanes);
+  const __m128i packed_even = _mm_shuffle_epi32(even, PACK_LOW_WORDS);
+  const __m128i packed_odd = _mm_shuffle_epi32(odd, PACK_LOW_WORDS);
+  return _mm_unpacklo_epi32(packed_even, packed_odd);
 }
 inline __m128i minimum_int(const __m128i first, const __m128i second) {
   const __m128i less = _mm_cmplt_epi32(first, second);
-  return _mm_or_si128(_mm_and_si128(less, first), _mm_andnot_si128(less, second));
+  const __m128i first_minimums = _mm_and_si128(less, first);
+  const __m128i second_minimums = _mm_andnot_si128(less, second);
+  return _mm_or_si128(first_minimums, second_minimums);
 }
 inline __m128i maximum_int(const __m128i first, const __m128i second) {
   const __m128i greater = _mm_cmpgt_epi32(first, second);
-  return _mm_or_si128(_mm_and_si128(greater, first), _mm_andnot_si128(greater, second));
+  const __m128i first_maximums = _mm_and_si128(greater, first);
+  const __m128i second_maximums = _mm_andnot_si128(greater, second);
+  return _mm_or_si128(first_maximums, second_maximums);
 }
 // Java Math.abs leaves Integer.MIN_VALUE negative.
 inline __m128i absolute_int(const __m128i first) {
   const __m128i sign = _mm_srai_epi32(first, SIGN_SHIFT);
-  return _mm_sub_epi32(_mm_xor_si128(first, sign), sign);
+  const __m128i flipped = _mm_xor_si128(first, sign);
+  return _mm_sub_epi32(flipped, sign);
 }
 inline __m128i widen_unsigned_bytes(const __m128i bytes) {
   const __m128i zero = _mm_setzero_si128();
-  return _mm_unpacklo_epi16(_mm_unpacklo_epi8(bytes, zero), zero);
+  const __m128i words = _mm_unpacklo_epi8(bytes, zero);
+  return _mm_unpacklo_epi16(words, zero);
 }
 #endif
 
 inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t second_pixel,
                                      const uint32_t third_pixel, const uint32_t fourth_pixel,
                                      const uint8_t* sample_bytes) {
-  const __m128i absolute_differences = _mm_sad_epu8(
-      _mm_setr_epi32((int32_t)first_pixel, (int32_t)second_pixel, (int32_t)third_pixel, (int32_t)fourth_pixel),
-      _mm_loadu_si128((const __m128i*)sample_bytes));
-  return _mm_cvtsi128_si32(absolute_differences) +
-         _mm_cvtsi128_si32(_mm_srli_si128(absolute_differences, HALF_VECTOR_BYTES));
+  const __m128i pixels =
+      _mm_setr_epi32((int32_t)first_pixel, (int32_t)second_pixel, (int32_t)third_pixel, (int32_t)fourth_pixel);
+  const __m128i samples = _mm_loadu_si128((const __m128i*)sample_bytes);
+  const __m128i absolute_differences = _mm_sad_epu8(pixels, samples);
+  const __m128i upper_differences = _mm_srli_si128(absolute_differences, HALF_VECTOR_BYTES);
+  return _mm_cvtsi128_si32(absolute_differences) + _mm_cvtsi128_si32(upper_differences);
 }
 
 struct int_vector {
@@ -397,7 +413,10 @@ struct int_vector {
     _mm_storeu_si128((__m128i*)buffer, lanes_);
   }
   void store_bytes(int8_t* buffer) const {
-    const int32_t word = _mm_cvtsi128_si32(_mm_packs_epi16(_mm_packs_epi32(lanes_, lanes_), _mm_setzero_si128()));
+    const __m128i narrowed = _mm_packs_epi32(lanes_, lanes_);
+    const __m128i zero = _mm_setzero_si128();
+    const __m128i bytes = _mm_packs_epi16(narrowed, zero);
+    const int32_t word = _mm_cvtsi128_si32(bytes);
     memcpy(buffer, &word, sizeof(word));
   }
   static int_vector broadcast(const int32_t value) {
@@ -412,7 +431,8 @@ struct int_vector {
   static int_vector load_unsigned_bytes(const uint8_t* buffer) {
     int32_t word;
     memcpy(&word, buffer, sizeof(word));
-    return {widen_unsigned_bytes(_mm_cvtsi32_si128(word))};
+    const __m128i bytes = _mm_cvtsi32_si128(word);
+    return {widen_unsigned_bytes(bytes)};
   }
   friend int_vector operator+(const int_vector first, const int_vector second) {
     return {_mm_add_epi32(first.lanes_, second.lanes_)};
@@ -430,10 +450,12 @@ struct int_vector {
     return {_mm_or_si128(first.lanes_, second.lanes_)};
   }
   int_vector shift_left(const int32_t shift_distance) const {
-    return {_mm_sll_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK))};
+    const __m128i distance = _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK);
+    return {_mm_sll_epi32(lanes_, distance)};
   }
   int_vector shift_right(const int32_t shift_distance) const {
-    return {_mm_sra_epi32(lanes_, _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK))};
+    const __m128i distance = _mm_cvtsi32_si128(shift_distance & SHIFT_DISTANCE_MASK);
+    return {_mm_sra_epi32(lanes_, distance)};
   }
   static int_vector minimum(const int_vector first, const int_vector second) {
     return {minimum_int(first.lanes_, second.lanes_)};
@@ -448,9 +470,11 @@ struct int_vector {
     return {_mm_cmplt_epi32(first.lanes_, second.lanes_)};
   }
   int32_t sum() const {
-    __m128i partial_sum = _mm_add_epi32(lanes_, _mm_shuffle_epi32(lanes_, SWAP_HALVES));
-    partial_sum = _mm_add_epi32(partial_sum, _mm_shuffle_epi32(partial_sum, SWAP_PAIRS));
-    return _mm_cvtsi128_si32(partial_sum);
+    const __m128i swapped_halves = _mm_shuffle_epi32(lanes_, SWAP_HALVES);
+    const __m128i pair_sums = _mm_add_epi32(lanes_, swapped_halves);
+    const __m128i swapped_pairs = _mm_shuffle_epi32(pair_sums, SWAP_PAIRS);
+    const __m128i totals = _mm_add_epi32(pair_sums, swapped_pairs);
+    return _mm_cvtsi128_si32(totals);
   }
 
   static void load_channels(const int32_t* buffer, int_vector& red_channels, int_vector& green_channels,
@@ -459,12 +483,14 @@ struct int_vector {
     const __m128i second_vector = _mm_loadu_si128((const __m128i*)(buffer + LANES));
     const __m128i third_vector = _mm_loadu_si128((const __m128i*)(buffer + 2 * LANES));
 
-    const __m128i shuffled_red = blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(
-        blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(first_vector, second_vector), third_vector);
-    const __m128i shuffled_green = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
-        blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(second_vector, first_vector), third_vector);
-    const __m128i shuffled_blue = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
-        blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(third_vector, second_vector), first_vector);
+    const __m128i partial_red = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(first_vector, second_vector);
+    const __m128i shuffled_red = blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(partial_red, third_vector);
+
+    const __m128i partial_green = blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(second_vector, first_vector);
+    const __m128i shuffled_green = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(partial_green, third_vector);
+
+    const __m128i partial_blue = blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(third_vector, second_vector);
+    const __m128i shuffled_blue = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(partial_blue, first_vector);
 
     red_channels.lanes_ = _mm_shuffle_epi32(shuffled_red, RED_LOAD_ORDER);
     green_channels.lanes_ = _mm_shuffle_epi32(shuffled_green, GREEN_LOAD_ORDER);
@@ -472,18 +498,23 @@ struct int_vector {
   }
   static void store_channels(int32_t* buffer, const int_vector red_channels, const int_vector green_channels,
                              const int_vector blue_channels) {
-    const __m128i first_vector = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
-        blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(_mm_shuffle_epi32(red_channels.lanes_, RED_STORE_ORDER),
-                                                       _mm_shuffle_epi32(green_channels.lanes_, BROADCAST_FIRST_LANE)),
-        _mm_shuffle_epi32(blue_channels.lanes_, BROADCAST_FIRST_LANE));
-    const __m128i second_vector = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
-        blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(_mm_shuffle_epi32(green_channels.lanes_, GREEN_STORE_ORDER),
-                                                       _mm_shuffle_epi32(blue_channels.lanes_, BROADCAST_SECOND_LANE)),
-        _mm_shuffle_epi32(red_channels.lanes_, BROADCAST_THIRD_LANE));
-    const __m128i third_vector = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(
-        blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(_mm_shuffle_epi32(blue_channels.lanes_, BLUE_STORE_ORDER),
-                                                       _mm_shuffle_epi32(red_channels.lanes_, BROADCAST_FOURTH_LANE)),
-        _mm_shuffle_epi32(green_channels.lanes_, BROADCAST_FOURTH_LANE));
+    const __m128i ordered_red = _mm_shuffle_epi32(red_channels.lanes_, RED_STORE_ORDER);
+    const __m128i first_green = _mm_shuffle_epi32(green_channels.lanes_, BROADCAST_FIRST_LANE);
+    const __m128i first_blue = _mm_shuffle_epi32(blue_channels.lanes_, BROADCAST_FIRST_LANE);
+    const __m128i first_red_green = blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(ordered_red, first_green);
+    const __m128i first_vector = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(first_red_green, first_blue);
+
+    const __m128i ordered_green = _mm_shuffle_epi32(green_channels.lanes_, GREEN_STORE_ORDER);
+    const __m128i second_blue = _mm_shuffle_epi32(blue_channels.lanes_, BROADCAST_SECOND_LANE);
+    const __m128i third_red = _mm_shuffle_epi32(red_channels.lanes_, BROADCAST_THIRD_LANE);
+    const __m128i second_green_blue = blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(ordered_green, second_blue);
+    const __m128i second_vector = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(second_green_blue, third_red);
+
+    const __m128i ordered_blue = _mm_shuffle_epi32(blue_channels.lanes_, BLUE_STORE_ORDER);
+    const __m128i fourth_red = _mm_shuffle_epi32(red_channels.lanes_, BROADCAST_FOURTH_LANE);
+    const __m128i fourth_green = _mm_shuffle_epi32(green_channels.lanes_, BROADCAST_FOURTH_LANE);
+    const __m128i third_blue_red = blend_integer_lanes<EVERY_THIRD_LANE_FROM_ONE>(ordered_blue, fourth_red);
+    const __m128i third_vector = blend_integer_lanes<EVERY_THIRD_LANE_FROM_TWO>(third_blue_red, fourth_green);
 
     _mm_storeu_si128((__m128i*)buffer, first_vector);
     _mm_storeu_si128((__m128i*)(buffer + LANES), second_vector);
@@ -492,15 +523,20 @@ struct int_vector {
   static int_vector bits(const int8_t* buffer, const int32_t index) {
     const __m128i byte = _mm_set1_epi32((buffer[index >> BYTE_INDEX_SHIFT] >> (index & BIT_INDEX_MASK)) & LANE_MASK);
     const __m128i lane_bits = _mm_setr_epi32(1, 2, 4, 8);
-    return {_mm_cmpeq_epi32(_mm_and_si128(byte, lane_bits), lane_bits)};
+    const __m128i set_bits = _mm_and_si128(byte, lane_bits);
+    return {_mm_cmpeq_epi32(set_bits, lane_bits)};
   }
   static int_vector evens(const int_vector first, const int_vector second) {
-    return {
-        _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(first.lanes_), _mm_castsi128_ps(second.lanes_), EVEN_LANES))};
+    const __m128 first_floats = _mm_castsi128_ps(first.lanes_);
+    const __m128 second_floats = _mm_castsi128_ps(second.lanes_);
+    const __m128 even_floats = _mm_shuffle_ps(first_floats, second_floats, EVEN_LANES);
+    return {_mm_castps_si128(even_floats)};
   }
   static int_vector odds(const int_vector first, const int_vector second) {
-    return {
-        _mm_castps_si128(_mm_shuffle_ps(_mm_castsi128_ps(first.lanes_), _mm_castsi128_ps(second.lanes_), ODD_LANES))};
+    const __m128 first_floats = _mm_castsi128_ps(first.lanes_);
+    const __m128 second_floats = _mm_castsi128_ps(second.lanes_);
+    const __m128 odd_floats = _mm_shuffle_ps(first_floats, second_floats, ODD_LANES);
+    return {_mm_castps_si128(odd_floats)};
   }
 };
 
@@ -535,7 +571,9 @@ struct double_vector {
   static double_vector load_floats(const float* buffer) {
     int64_t pair;
     memcpy(&pair, buffer, sizeof(pair));
-    return {_mm_cvtps_pd(_mm_castsi128_ps(_mm_cvtsi64_si128(pair)))};
+    const __m128i pair_bits = _mm_cvtsi64_si128(pair);
+    const __m128 floats = _mm_castsi128_ps(pair_bits);
+    return {_mm_cvtps_pd(floats)};
   }
   friend double_vector operator+(const double_vector first, const double_vector second) {
     return {_mm_add_pd(first.lanes_, second.lanes_)};
@@ -559,11 +597,12 @@ constexpr int32_t SWAP_MIDDLE_QUARTERS = _MM_SHUFFLE(3, 1, 2, 0);
 inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t second_pixel,
                                      const uint32_t third_pixel, const uint32_t fourth_pixel,
                                      const uint8_t* sample_bytes) {
-  const __m128i absolute_differences = _mm_sad_epu8(
-      _mm_setr_epi32((int32_t)first_pixel, (int32_t)second_pixel, (int32_t)third_pixel, (int32_t)fourth_pixel),
-      _mm_loadu_si128((const __m128i*)sample_bytes));
-  return _mm_cvtsi128_si32(absolute_differences) +
-         _mm_cvtsi128_si32(_mm_srli_si128(absolute_differences, HALF_VECTOR_BYTES));
+  const __m128i pixels =
+      _mm_setr_epi32((int32_t)first_pixel, (int32_t)second_pixel, (int32_t)third_pixel, (int32_t)fourth_pixel);
+  const __m128i samples = _mm_loadu_si128((const __m128i*)sample_bytes);
+  const __m128i absolute_differences = _mm_sad_epu8(pixels, samples);
+  const __m128i upper_differences = _mm_srli_si128(absolute_differences, HALF_VECTOR_BYTES);
+  return _mm_cvtsi128_si32(absolute_differences) + _mm_cvtsi128_si32(upper_differences);
 }
 
 struct int_vector {
@@ -739,11 +778,12 @@ struct double_vector {
 inline int32_t four_pixel_difference(const uint32_t first_pixel, const uint32_t second_pixel,
                                      const uint32_t third_pixel, const uint32_t fourth_pixel,
                                      const uint8_t* sample_bytes) {
-  const __m128i absolute_differences = _mm_sad_epu8(
-      _mm_setr_epi32((int32_t)first_pixel, (int32_t)second_pixel, (int32_t)third_pixel, (int32_t)fourth_pixel),
-      _mm_loadu_si128((const __m128i*)sample_bytes));
-  return _mm_cvtsi128_si32(absolute_differences) +
-         _mm_cvtsi128_si32(_mm_srli_si128(absolute_differences, HALF_VECTOR_BYTES));
+  const __m128i pixels =
+      _mm_setr_epi32((int32_t)first_pixel, (int32_t)second_pixel, (int32_t)third_pixel, (int32_t)fourth_pixel);
+  const __m128i samples = _mm_loadu_si128((const __m128i*)sample_bytes);
+  const __m128i absolute_differences = _mm_sad_epu8(pixels, samples);
+  const __m128i upper_differences = _mm_srli_si128(absolute_differences, HALF_VECTOR_BYTES);
+  return _mm_cvtsi128_si32(absolute_differences) + _mm_cvtsi128_si32(upper_differences);
 }
 
 struct int_vector {
