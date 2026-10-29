@@ -84,7 +84,7 @@ public class BufferFormatDetachRace {
       final BufferFormat format = this.renderer.createBufferFormat(SOURCE_WIDTH, SOURCE_HEIGHT, SOURCE_WIDTH, SOURCE_HEIGHT);
       outcome.r1 = format.getWidth();
       outcome.r2 = format.getHeight();
-    } catch (final IllegalArgumentException emptyBuffer) {
+    } catch (final IllegalArgumentException exception) {
       outcome.r1 = 0;
       outcome.r2 = 0;
     }

@@ -62,7 +62,7 @@ public class CapabilityRetryRace {
     try {
       this.guard.checkUsable(Capability.VLC);
       outcome.r1 = 1;
-    } catch (final IllegalStateException unavailable) {
+    } catch (final IllegalStateException exception) {
       outcome.r1 = 0;
     }
   }
