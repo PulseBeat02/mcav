@@ -399,13 +399,13 @@ You must have QEMU installed and configured to use these commands.
 
 | **Command**                                  | `/mcav vm create`                                                                                                                   |
 |----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| **Usage**                                    | `/mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <audioType> <flags> [--codec dither\|mcv2]` |
+| **Usage**                                    | `/mcav vm create <playerSelector> <vmResolution> <targetFramesPerSecond> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <audioType> <flags> [--codec dither\|mcv2]` |
 | **Permission**                               | `mcav.command.vm.create`                                                                                                            |
 | **Description**                              | Boots a QEMU virtual machine, shows its display on a wall of maps and plays its sound in the chosen audio output. MCAV gives an `X86_64` machine its sound card itself (Intel HD Audio and the PC speaker) and holds its sound about 70 ms, so that it plays with the picture. Only one machine runs at a time, and it takes the audio output over from a video or browser until it is released. A server without QEMU, options that are not accepted, and an audio output that is off or not ready are answered with an error message. |
 | **Arguments**                                |                                                                                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the VM                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`vmResolution`       | A resolution in width×height format (example, 1280x720)                                                                             |
-| &nbsp;&nbsp;&nbsp;&nbsp;`targetFps`          | Target frames per second for the VM (1 to 240)                                                                                      |
+| &nbsp;&nbsp;&nbsp;&nbsp;`targetFramesPerSecond`          | Target frames per second for the VM (1 to 240)                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the VM display. Use FILTER_LITE for best results                                                   |
@@ -426,13 +426,13 @@ message types and encodings outside what the client supports close the connectio
 
 | **Command**                                  | `/mcav vnc create`                                                                                                                  |
 |----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
-| **Usage**                                    | `/mcav vnc create <playerSelector> <vncResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <server> [--codec dither\|mcv2]` |
+| **Usage**                                    | `/mcav vnc create <playerSelector> <vncResolution> <targetFramesPerSecond> <blockDimensions> <mapId> <ditheringAlgorithm> <server> [--codec dither\|mcv2]` |
 | **Permission**                               | `mcav.command.vnc.create`                                                                                                           |
 | **Description**                              | Connects to a listed VNC server and shows its desktop on a wall of maps; players click it and type into it like the browser         |
 | **Arguments**                                |                                                                                                                                     |
 | &nbsp;&nbsp;&nbsp;&nbsp;`playerSelector`     | A selector for the players that can see the desktop                                                                                 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`vncResolution`      | The size the desktop is scaled to, in width×height format (example, 1280x720)                                                       |
-| &nbsp;&nbsp;&nbsp;&nbsp;`targetFps`          | Frames per second streamed from the desktop (1 to 240)                                                                              |
+| &nbsp;&nbsp;&nbsp;&nbsp;`targetFramesPerSecond`          | Frames per second streamed from the desktop (1 to 240)                                                                              |
 | &nbsp;&nbsp;&nbsp;&nbsp;`blockDimensions`    | The dimensions of the map blocks                                                                                                    |
 | &nbsp;&nbsp;&nbsp;&nbsp;`mapId`              | The ID of the map. This corresponds with the id you set in `/mcav screen` to create the map screen                                  |
 | &nbsp;&nbsp;&nbsp;&nbsp;`ditheringAlgorithm` | The algorithm used for dithering the desktop. `NEAREST_COLOR` keeps text sharp                                                     |
@@ -487,7 +487,7 @@ They have no sound. Stream files live in the plugin's `mcv2` folder; a name that
 
 | **Command**                               | `/mcav mcv2 play` and `/mcav mcv2 stream`                                                              |
 |-------------------------------------------|--------------------------------------------------------------------------------------------------------|
-| **Usage**                                 | `/mcav mcv2 play <playerSelector> <blockDimensions> <mapId> <ticks> <file>` or `/mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <fps> <file>` |
+| **Usage**                                 | `/mcav mcv2 play <playerSelector> <blockDimensions> <mapId> <ticks> <file>` or `/mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <framesPerSecond> <file>` |
 | **Permission**                            | `mcav.command.mcv2.play`                                                                               |
 | **Description**                           | Plays a stream file on a wall of maps with MCV2, looping; `play` sends a frame every few server ticks, `stream` at a frame rate of its own. The file is read off the server's main thread, so a large file or a busy disk does not hold the server up, and the screen opens once it is read. The screen takes a slot of the MCV2 pack like every MCV2 screen, and replaces the stream played before, also one whose file is still being read |
 | **Arguments**                             |                                                                                                        |

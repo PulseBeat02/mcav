@@ -145,7 +145,7 @@ final class PaperServerEndToEndTest {
       System.out.println("Local repository files served: " + servedFileCount + "; cached module hashes verified against this plugin");
       runCommand(server, "plugins", "MCAV");
       runCommand(server, "mcav help", "mcav dump");
-      final String mediaInfo = fetchMediaInfo(server, httpPort);
+      final String mediaInformation = fetchMediaInformation(server, httpPort);
       try (final SoundListener sound = SoundListener.connect(httpPort); final TonePage page = TonePage.start()) {
         streamABrowser(server, sound, page);
         final boolean hasQemu = server
@@ -165,7 +165,7 @@ final class PaperServerEndToEndTest {
       server.command("stop");
       final int exitCode = server.awaitExit(SHUTDOWN_TIMEOUT);
       final List<String> output = server.getLines();
-      assertRanCleanly(exitCode, mediaInfo, output);
+      assertRanCleanly(exitCode, mediaInformation, output);
       final boolean passwordLogged = output.stream().anyMatch(line -> line.contains(vnc.getPassword()));
       assertFalse(passwordLogged, "the VNC password is never logged");
     }
@@ -235,10 +235,10 @@ final class PaperServerEndToEndTest {
     return LocalMavenRepositoryServer.start(repositoryDirectory, repositoryPort);
   }
 
-  static void assertRanCleanly(final int exitCode, final String mediaInfo, final List<String> output) {
+  static void assertRanCleanly(final int exitCode, final String mediaInformation, final List<String> output) {
     assertEquals(0, exitCode, "the server stops cleanly");
     final Gson gson = new GsonBuilder().setStrictness(Strictness.STRICT).create();
-    final JsonElement actual = gson.fromJson(mediaInfo, JsonElement.class);
+    final JsonElement actual = gson.fromJson(mediaInformation, JsonElement.class);
     final JsonObject expected = new JsonObject();
     expected.addProperty("duration", 0);
     expected.addProperty("view_count", 0);
@@ -475,7 +475,7 @@ final class PaperServerEndToEndTest {
    * Waits until the plugin reports that its audio web server, which it starts in the background, is listening, and
    * then asks the server for the media information.
    */
-  private static String fetchMediaInfo(final ServerProcess server, final int port) throws IOException, InterruptedException {
+  private static String fetchMediaInformation(final ServerProcess server, final int port) throws IOException, InterruptedException {
     server.awaitLine(0, line -> line.contains("The audio web page is available at"), HTTP_TIMEOUT);
     final URI uri = URI.create("http://127.0.0.1:" + port + "/media");
     final HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri);
@@ -721,8 +721,8 @@ final class PaperServerEndToEndTest {
       }
     }
     final byte[] hashBytes = digest.digest();
-    final HexFormat hexFormat = HexFormat.of();
-    return hexFormat.formatHex(hashBytes);
+    final HexFormat hexadecimalFormat = HexFormat.of();
+    return hexadecimalFormat.formatHex(hashBytes);
   }
 
   private static MessageDigest createDigest(final String algorithm) {

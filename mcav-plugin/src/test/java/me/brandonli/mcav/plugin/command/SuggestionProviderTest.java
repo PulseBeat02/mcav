@@ -101,7 +101,7 @@ final class SuggestionProviderTest {
 
   @Test
   void shouldSuggestFrameRates() {
-    final Stream<String> suggestions = this.provider.suggestTargetFps();
+    final Stream<String> suggestions = this.provider.suggestTargetFramesPerSecond();
     final List<String> expected = List.of("20", "30", "40", "50", "60", "70", "80", "90", "100", "120", "144", "240");
     assertSuggests(expected, suggestions);
   }

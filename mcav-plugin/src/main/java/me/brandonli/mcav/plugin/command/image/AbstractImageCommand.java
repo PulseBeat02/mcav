@@ -85,20 +85,20 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
   /**
    * Loads and shows an image, replacing the image shown before.
    *
-   * @param configProvider   creates the display configuration for the parsed resolution
-   * @param sender           who ran the command
-   * @param imageResolution  the resolution argument, such as {@code 640x640}
-   * @param mrl              the path or URL of the image, optionally enclosed in one pair of double quotes
-   * @param filters          the {@code --filters} option, see {@link FilterChain}, or {@code null} for none
+   * @param configurationProvider creates the display configuration for the parsed resolution
+   * @param sender                who ran the command
+   * @param imageResolution       the resolution argument, such as {@code 640x640}
+   * @param mrl                   the path or URL of the image, optionally enclosed in one pair of double quotes
+   * @param filters               the {@code --filters} option, see {@link FilterChain}, or {@code null} for none
    */
   public void displayImage(
-    final ImageConfigurationProvider configProvider,
+    final ImageConfigurationProvider configurationProvider,
     final CommandSender sender,
     final String imageResolution,
     final String mrl,
     final @Nullable String filters
   ) {
-    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null!");
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
     Preconditions.checkNotNull(sender, "Sender must not be null!");
     Preconditions.checkNotNull(imageResolution, "Image resolution must not be null!");
     Preconditions.checkNotNull(mrl, "MRL must not be null!");
@@ -121,7 +121,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       return;
     }
 
-    final ImageRequest request = new ImageRequest(sender, sourceMrl, resolution, configProvider);
+    final ImageRequest request = new ImageRequest(sender, sourceMrl, resolution, configurationProvider);
     this.startLoading(chain.isEmpty() ? loader : () -> filter(loader.get(), resolution, chain), request);
   }
 
@@ -198,10 +198,10 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       return;
     }
     final Pair<Integer, Integer> resolution = request.getResolution();
-    final ImageConfigurationProvider configProvider = request.getConfigProvider();
+    final ImageConfigurationProvider configurationProvider = request.getConfigurationProvider();
     try {
       final boolean scheduled = TaskUtils.runOnMainThread(this.plugin, () ->
-        this.showImage(generation, resolution, configProvider, sender)
+        this.showImage(generation, resolution, configurationProvider, sender)
       );
       if (!scheduled) {
         this.manager.discardLoaded(generation);
@@ -228,7 +228,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
   private void showImage(
     final long generation,
     final Pair<Integer, Integer> resolution,
-    final ImageConfigurationProvider configProvider,
+    final ImageConfigurationProvider configurationProvider,
     final CommandSender sender
   ) {
     final ImageBuffer image = this.manager.takeLoaded(generation);
@@ -238,7 +238,7 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     boolean adopted = false;
     try {
       this.manager.releaseImage(true);
-      final DisplayableImage display = this.createImage(resolution, configProvider);
+      final DisplayableImage display = this.createImage(resolution, configurationProvider);
       this.manager.setImage(display);
       this.manager.setCurrentImage(image);
       adopted = true;
@@ -303,11 +303,14 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
   /**
    * Creates the display for the image. Called on the main thread.
    *
-   * @param resolution     the parsed resolution
-   * @param configProvider the provider passed to {@link #displayImage}
+   * @param resolution            the parsed resolution
+   * @param configurationProvider the provider passed to {@link #displayImage}
    * @return the display
    */
-  public abstract DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configProvider);
+  public abstract DisplayableImage createImage(
+    final Pair<Integer, Integer> resolution,
+    final ImageConfigurationProvider configurationProvider
+  );
 
   /**
    * What the sender asked to show, kept while the image loads.
@@ -317,18 +320,18 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
     private final CommandSender sender;
     private final String mrl;
     private final Pair<Integer, Integer> resolution;
-    private final ImageConfigurationProvider configProvider;
+    private final ImageConfigurationProvider configurationProvider;
 
     ImageRequest(
       final CommandSender sender,
       final String mrl,
       final Pair<Integer, Integer> resolution,
-      final ImageConfigurationProvider configProvider
+      final ImageConfigurationProvider configurationProvider
     ) {
       this.sender = sender;
       this.mrl = mrl;
       this.resolution = resolution;
-      this.configProvider = configProvider;
+      this.configurationProvider = configurationProvider;
     }
 
     private CommandSender getSender() {
@@ -343,8 +346,8 @@ public abstract class AbstractImageCommand implements AnnotationCommandFeature {
       return this.resolution;
     }
 
-    private ImageConfigurationProvider getConfigProvider() {
-      return this.configProvider;
+    private ImageConfigurationProvider getConfigurationProvider() {
+      return this.configurationProvider;
     }
   }
 

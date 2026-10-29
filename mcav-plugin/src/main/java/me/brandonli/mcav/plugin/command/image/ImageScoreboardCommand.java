@@ -107,23 +107,23 @@ public final class ImageScoreboardCommand extends AbstractImageCommand {
     }
 
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
-    final ImageConfigurationProvider configProvider = resolution -> createConfiguration(resolution, players, character);
-    this.displayImage(configProvider, sender, imageResolution, mrl, filters);
+    final ImageConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, character);
+    this.displayImage(configurationProvider, sender, imageResolution, mrl, filters);
   }
 
   /**
    * Creates a sidebar display from the {@link ScoreboardConfiguration} built by the provider that the command passed
    * to {@link #displayImage}.
    *
-   * @param resolution     the parsed resolution, in characters per line and lines
-   * @param configProvider the provider that builds the scoreboard configuration
+   * @param resolution            the parsed resolution, in characters per line and lines
+   * @param configurationProvider the provider that builds the scoreboard configuration
    * @return the scoreboard display
    */
   @Override
-  public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configProvider) {
+  public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {
     Preconditions.checkNotNull(resolution, "Resolution must not be null!");
-    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null!");
-    final ScoreboardConfiguration configuration = (ScoreboardConfiguration) configProvider.buildConfiguration(resolution);
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
+    final ScoreboardConfiguration configuration = (ScoreboardConfiguration) configurationProvider.buildConfiguration(resolution);
     return DisplayableImage.scoreboard(configuration);
   }
 

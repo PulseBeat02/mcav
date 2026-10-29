@@ -171,7 +171,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   }
 
   /**
-   * Handles {@code /mcav vnc create <playerSelector> <vncResolution> <targetFps> <blockDimensions> <mapId>
+   * Handles {@code /mcav vnc create <playerSelector> <vncResolution> <targetFramesPerSecond> <blockDimensions> <mapId>
    * <ditheringAlgorithm> <server> [--codec dither|mcv2]}: connects to a VNC server and streams its desktop onto a wall
    * of maps, dithered or with MCV2.
    *
@@ -184,29 +184,31 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
    * Otherwise the connection is made in the background, and the sender is told once the desktop streams, or that it
    * could not connect, with the details in the console.
    *
-   * @param sender             who ran the command
-   * @param playerSelector     the players who see the desktop on the maps, such as a player name or {@code @a}
-   * @param vncResolution      the size the desktop is scaled to as {@code <width>x<height>} in pixels, such as
-   *                           {@code 1280x720}; use 128 times the block dimensions to fill the wall exactly
-   * @param targetFps          how many frames per second the desktop is streamed at, from 1 to 240
-   * @param blockDimensions    the size of the wall as {@code <width>x<height>} in maps, such as {@code 5x5}
-   * @param mapId              the id of the top left map of the wall, as given to {@code /mcav screen}
-   * @param ditheringAlgorithm how colors are reduced to the map palette; {@code NEAREST_COLOR} keeps text sharp, see
-   *                           {@link DitheringArgument}
-   * @param server             the VNC server as {@code host:port}, or {@code [address]:port} for an IPv6 address, as
-   *                           listed in {@code vnc.allowed-hosts}; the rest of the line up to a flag, since a quoted
-   *                           argument would refuse the colon unquoted
-   * @param codec              how the picture reaches the players, see {@link MapCodec}; the configured default when
-   *                           absent
+   * @param sender                who ran the command
+   * @param playerSelector        the players who see the desktop on the maps, such as a player name or {@code @a}
+   * @param vncResolution         the size the desktop is scaled to as {@code <width>x<height>} in pixels, such as
+   *                              {@code 1280x720}; use 128 times the block dimensions to fill the wall exactly
+   * @param targetFramesPerSecond how many frames per second the desktop is streamed at, from 1 to 240
+   * @param blockDimensions       the size of the wall as {@code <width>x<height>} in maps, such as {@code 5x5}
+   * @param mapId                 the id of the top left map of the wall, as given to {@code /mcav screen}
+   * @param ditheringAlgorithm    how colors are reduced to the map palette; {@code NEAREST_COLOR} keeps text sharp, see
+   *                              {@link DitheringArgument}
+   * @param server                the VNC server as {@code host:port}, or {@code [address]:port} for an IPv6 address, as
+   *                              listed in {@code vnc.allowed-hosts}; the rest of the line up to a flag, since a quoted
+   *                              argument would refuse the colon unquoted
+   * @param codec                 how the picture reaches the players, see {@link MapCodec}; the configured default when
+   *                              absent
    */
-  @Command("mcav vnc create <playerSelector> <vncResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <server>")
+  @Command(
+    "mcav vnc create <playerSelector> <vncResolution> <targetFramesPerSecond> <blockDimensions> <mapId> <ditheringAlgorithm> <server>"
+  )
   @Permission("mcav.command.vnc.create")
   @CommandDescription("mcav.command.vnc.create.info")
   public void createVnc(
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = "resolutions") @Quoted final String vncResolution,
-    @Argument(suggestions = "target-fps") @Range(min = "1", max = "240") final int targetFps,
+    @Argument(suggestions = "target-frames-per-second") @Range(min = "1", max = "240") final int targetFramesPerSecond,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
@@ -230,7 +232,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
       return;
     }
 
-    final VncSource source = createSource(entry, resolution, targetFps);
+    final VncSource source = createSource(entry, resolution, targetFramesPerSecond);
     final MapCodec chosen = this.chooseCodec(codec);
     final ScreenSettings settings = new ScreenSettings(sender, playerSelector, blocks, resolution, mapId, ditheringAlgorithm, chosen);
     final Screen screen = this.createScreen(settings);
@@ -240,12 +242,12 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
   /**
    * The source of a desktop. The password is the one of the server's entry, which only the source keeps.
    *
-   * @param entry      the allowed server
-   * @param resolution the size the desktop is scaled to
-   * @param targetFps  the frames per second
+   * @param entry                 the allowed server
+   * @param resolution            the size the desktop is scaled to
+   * @param targetFramesPerSecond the frames per second
    * @return the source
    */
-  static VncSource createSource(final VncAllowList.Entry entry, final Pair<Integer, Integer> resolution, final int targetFps) {
+  static VncSource createSource(final VncAllowList.Entry entry, final Pair<Integer, Integer> resolution, final int targetFramesPerSecond) {
     final VncSourceBuilder builder = VncSource.builder();
     builder.host(entry.host());
     builder.port(entry.port());
@@ -255,7 +257,7 @@ public final class VncCommand extends AbstractInteractiveCommand<VncPlayer> {
     }
     builder.screenWidth(resolution.getFirst());
     builder.screenHeight(resolution.getSecond());
-    builder.targetFrameRate(targetFps);
+    builder.targetFrameRate(targetFramesPerSecond);
     return builder.build();
   }
 

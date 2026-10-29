@@ -29,8 +29,8 @@ import net.jqwik.api.constraints.LongRange;
 final class SeekPositionPropertyTest {
 
   @Property
-  void shouldReadBackEveryFormattedTime(@ForAll @LongRange(min = 0, max = SeekPosition.MAX_MILLIS) final long millis) {
-    final long whole = millis - (millis % 1_000L);
+  void shouldReadBackEveryFormattedTime(@ForAll @LongRange(min = 0, max = SeekPosition.MAXIMUM_MILLISECONDS) final long milliseconds) {
+    final long whole = milliseconds - (milliseconds % 1_000L);
     final SeekPosition absolute = SeekPosition.parse(SeekPosition.format(whole));
     final SeekPosition forward = SeekPosition.parse("+" + SeekPosition.format(whole));
     final SeekPosition back = SeekPosition.parse("-" + SeekPosition.format(whole));
@@ -46,24 +46,26 @@ final class SeekPositionPropertyTest {
   }
 
   @Property
-  void shouldReadSecondsWithTheirMilliseconds(@ForAll @LongRange(min = 0, max = SeekPosition.MAX_MILLIS) final long millis) {
-    final String text = String.format(Locale.ROOT, "%d.%03d", millis / 1_000L, millis % 1_000L);
+  void shouldReadSecondsWithTheirMilliseconds(
+    @ForAll @LongRange(min = 0, max = SeekPosition.MAXIMUM_MILLISECONDS) final long milliseconds
+  ) {
+    final String text = String.format(Locale.ROOT, "%d.%03d", milliseconds / 1_000L, milliseconds % 1_000L);
     final SeekPosition position = SeekPosition.parse(text);
     assertNotNull(position, text);
 
-    final long positionMillis = position.millis();
-    assertEquals(millis, positionMillis);
+    final long positionMilliseconds = position.milliseconds();
+    assertEquals(milliseconds, positionMilliseconds);
   }
 
   @Property
   void shouldNeverResolveBeforeTheStart(
-    @ForAll @LongRange(min = -SeekPosition.MAX_MILLIS, max = SeekPosition.MAX_MILLIS) final long millis,
-    @ForAll @LongRange(min = 0, max = SeekPosition.MAX_MILLIS) final long current
+    @ForAll @LongRange(min = -SeekPosition.MAXIMUM_MILLISECONDS, max = SeekPosition.MAXIMUM_MILLISECONDS) final long milliseconds,
+    @ForAll @LongRange(min = 0, max = SeekPosition.MAXIMUM_MILLISECONDS) final long current
   ) {
-    final long target = new SeekPosition(true, millis).resolve(current);
+    final long target = new SeekPosition(true, milliseconds).resolve(current);
     assertTrue(target >= 0);
 
-    final long expected = Math.max(0, current + millis);
+    final long expected = Math.max(0, current + milliseconds);
     assertEquals(expected, target);
   }
 }

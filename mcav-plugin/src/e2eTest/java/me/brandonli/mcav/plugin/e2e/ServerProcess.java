@@ -42,7 +42,7 @@ import java.util.stream.Stream;
 final class ServerProcess implements AutoCloseable {
 
   private static final Duration DESTROY_TIMEOUT = Duration.ofSeconds(30);
-  private static final long POLL_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(1);
+  private static final long POLL_INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(1);
 
   private final Process process;
   private final List<String> lines;
@@ -133,9 +133,9 @@ final class ServerProcess implements AutoCloseable {
    * @throws AssertionError       if no line matches in time or the server exits first
    */
   String awaitLine(final int fromLine, final Predicate<String> matcher, final Duration timeout) throws InterruptedException {
-    final long startNanos = System.nanoTime();
-    final long timeoutNanos = timeout.toNanos();
-    final long deadline = startNanos + timeoutNanos;
+    final long startNanoseconds = System.nanoTime();
+    final long timeoutNanoseconds = timeout.toNanos();
+    final long deadline = startNanoseconds + timeoutNanoseconds;
     synchronized (this.lines) {
       int nextLine = fromLine;
       while (true) {
@@ -171,8 +171,8 @@ final class ServerProcess implements AutoCloseable {
       final String message = "The server took longer than %s to print the expected line!".formatted(timeout);
       throw new AssertionError(message);
     }
-    final long waitNanos = Math.min(remaining, POLL_INTERVAL_NANOS);
-    TimeUnit.NANOSECONDS.timedWait(this.lines, waitNanos);
+    final long waitNanoseconds = Math.min(remaining, POLL_INTERVAL_NANOSECONDS);
+    TimeUnit.NANOSECONDS.timedWait(this.lines, waitNanoseconds);
   }
 
   /**
@@ -206,13 +206,13 @@ final class ServerProcess implements AutoCloseable {
    * @throws AssertionError       if the server is still running after the timeout
    */
   int awaitExit(final Duration timeout) throws InterruptedException {
-    final long millis = timeout.toMillis();
-    final boolean exited = this.process.waitFor(millis, TimeUnit.MILLISECONDS);
+    final long milliseconds = timeout.toMillis();
+    final boolean exited = this.process.waitFor(milliseconds, TimeUnit.MILLISECONDS);
     if (!exited) {
       final String message = "The server took longer than %s to stop!".formatted(timeout);
       throw new AssertionError(message);
     }
-    this.reader.join(millis);
+    this.reader.join(milliseconds);
     return this.process.exitValue();
   }
 
@@ -251,9 +251,9 @@ final class ServerProcess implements AutoCloseable {
       return;
     }
     this.process.destroy();
-    final long millis = DESTROY_TIMEOUT.toMillis();
+    final long milliseconds = DESTROY_TIMEOUT.toMillis();
     try {
-      final boolean exited = this.process.waitFor(millis, TimeUnit.MILLISECONDS);
+      final boolean exited = this.process.waitFor(milliseconds, TimeUnit.MILLISECONDS);
       if (!exited) {
         this.process.destroyForcibly();
       }

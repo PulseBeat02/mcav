@@ -61,7 +61,7 @@ public final class DumpUtils {
   private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
   private static final Duration UPLOAD_TIMEOUT = Duration.ofSeconds(30);
   private static final Path LOG_FILE = Path.of("logs", "latest.log");
-  private static final int MAX_LOG_LINES = 2_000;
+  private static final int MAXIMUM_LOG_LINES = 2_000;
   private static final List<String> SECRET_WORDS = List.of("token", "password", "passwd", "secret", "key", "credential", "auth");
   private static final String REDACTED = "<redacted>";
   private static final String REDACTED_ADDRESS = "<redacted-address>";
@@ -213,11 +213,11 @@ public final class DumpUtils {
     final int processors = runtime.availableProcessors();
     final long freeMemory = runtime.freeMemory();
     final long totalMemory = runtime.totalMemory();
-    final long maxMemory = runtime.maxMemory();
+    final long maximumMemory = runtime.maxMemory();
     appendLine(dump, "Processors", processors);
     appendLine(dump, "Free Memory (MB)", freeMemory / MEGABYTE);
     appendLine(dump, "Total Memory (MB)", totalMemory / MEGABYTE);
-    appendLine(dump, "Max Memory (MB)", maxMemory / MEGABYTE);
+    appendLine(dump, "Max Memory (MB)", maximumMemory / MEGABYTE);
   }
 
   private static void appendJvm(final StringBuilder dump) {
@@ -407,7 +407,7 @@ public final class DumpUtils {
       String line;
       while ((line = reader.readLine()) != null) {
         tail.addLast(line);
-        if (tail.size() > MAX_LOG_LINES) {
+        if (tail.size() > MAXIMUM_LOG_LINES) {
           tail.removeFirst();
         }
       }

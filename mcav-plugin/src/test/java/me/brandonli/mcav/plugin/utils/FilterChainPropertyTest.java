@@ -39,10 +39,10 @@ final class FilterChainPropertyTest {
     return Arbitraries.oneOf(
       Arbitraries.of("grayscale", "invert", "fps"),
       Arbitraries.integers()
-        .between(1, FilterChain.MAX_BLUR)
+        .between(1, FilterChain.MAXIMUM_BLUR)
         .map(radius -> "blur=" + radius),
       Arbitraries.integers()
-        .between(1, FilterChain.MAX_BILATERAL)
+        .between(1, FilterChain.MAXIMUM_BILATERAL)
         .map(diameter -> "bilateral=" + diameter),
       Arbitraries.integers()
         .between(0, 255)
@@ -56,21 +56,21 @@ final class FilterChainPropertyTest {
         .between(0, 99)
         .map(left -> String.format(Locale.ROOT, "crop=%d:0:%d:100", left, 100 - left)),
       Arbitraries.integers()
-        .between(1, FilterChain.MAX_MORPHOLOGY)
+        .between(1, FilterChain.MAXIMUM_MORPHOLOGY)
         .map(kernel -> "dilate=" + kernel),
       Arbitraries.strings()
         .withChars("abcXYZ019 .!?'()+-")
         .ofMinLength(1)
-        .ofMaxLength(FilterChain.MAX_TEXT)
+        .ofMaxLength(FilterChain.MAXIMUM_TEXT)
         .map(text -> "text=" + text)
     );
   }
 
   @Property
-  void shouldParseEveryChainOfAllowedFilters(@ForAll final List<@From("filters") String> specs) {
-    final List<String> chain = specs.subList(0, Math.min(specs.size(), FilterChain.MAX_FILTERS));
+  void shouldParseEveryChainOfAllowedFilters(@ForAll final List<@From("filters") String> specifications) {
+    final List<String> chain = specifications.subList(0, Math.min(specifications.size(), FilterChain.MAXIMUM_FILTERS));
     final String text = String.join(",", chain);
-    if (text.length() > FilterChain.MAX_LENGTH) {
+    if (text.length() > FilterChain.MAXIMUM_LENGTH) {
       return;
     }
 
@@ -84,7 +84,7 @@ final class FilterChainPropertyTest {
     try {
       final FilterChain chain = FilterChain.parse(text, NO_OVERLAYS, true);
 
-      final boolean matches = chain.create().size() <= FilterChain.MAX_FILTERS;
+      final boolean matches = chain.create().size() <= FilterChain.MAXIMUM_FILTERS;
       assertTrue(matches, text);
     } catch (final IllegalArgumentException exception) {
       final boolean secondMatches = exception.getMessage() != null && !exception.getMessage().isBlank();

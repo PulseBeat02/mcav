@@ -96,23 +96,23 @@ public final class ImageBlockCommand extends AbstractImageCommand {
     Preconditions.checkNotNull(location, "Location must not be null!");
     Preconditions.checkNotNull(mrl, "MRL must not be null!");
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
-    final ImageConfigurationProvider configProvider = resolution -> createConfiguration(resolution, players, location);
-    this.displayImage(configProvider, sender, imageResolution, mrl, filters);
+    final ImageConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, location);
+    this.displayImage(configurationProvider, sender, imageResolution, mrl, filters);
   }
 
   /**
    * Creates a wall of blocks from the {@link BlockConfiguration} built by the provider that the command passed to
    * {@link #displayImage}.
    *
-   * @param resolution     the parsed resolution, in blocks
-   * @param configProvider the provider that builds the block configuration
+   * @param resolution            the parsed resolution, in blocks
+   * @param configurationProvider the provider that builds the block configuration
    * @return the block display
    */
   @Override
-  public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configProvider) {
+  public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {
     Preconditions.checkNotNull(resolution, "Resolution must not be null!");
-    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null!");
-    final BlockConfiguration configuration = (BlockConfiguration) configProvider.buildConfiguration(resolution);
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
+    final BlockConfiguration configuration = (BlockConfiguration) configurationProvider.buildConfiguration(resolution);
     return DisplayableImage.block(configuration);
   }
 

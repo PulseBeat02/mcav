@@ -55,7 +55,7 @@ public final class CaptureDevices {
   private static final int PROBED = 8;
 
   /** The longest name shown, which sysfs does not bound. */
-  static final int MAX_NAME = 64;
+  static final int MAXIMUM_NAME = 64;
 
   private static final Pattern NODE = Pattern.compile("video(\\d{1,3})");
 
@@ -129,7 +129,7 @@ public final class CaptureDevices {
     } catch (final IOException exception) {
       name = "";
     }
-    final String shown = name.isEmpty() ? matcher.group() : name.substring(0, Math.min(name.length(), MAX_NAME));
+    final String shown = name.isEmpty() ? matcher.group() : name.substring(0, Math.min(name.length(), MAXIMUM_NAME));
     return new Device(index, shown);
   }
 

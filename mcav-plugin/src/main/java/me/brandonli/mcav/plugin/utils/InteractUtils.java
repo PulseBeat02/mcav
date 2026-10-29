@@ -49,7 +49,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class InteractUtils {
 
   private static final int MAP_PIXELS = 128;
-  private static final int MAX_TARGET_DISTANCE = 100;
+  private static final int MAXIMUM_TARGET_DISTANCE = 100;
   private static final double FRAME_SEARCH_RADIUS = 2.0;
   private static final double BLOCK_CENTER_OFFSET = 0.5;
 
@@ -66,7 +66,7 @@ public final class InteractUtils {
    */
   public static int @Nullable [] getBoardCoordinates(final Player player) {
     Preconditions.checkNotNull(player, "Player must not be null!");
-    final Entity targetEntity = player.getTargetEntity(MAX_TARGET_DISTANCE);
+    final Entity targetEntity = player.getTargetEntity(MAXIMUM_TARGET_DISTANCE);
     if (targetEntity == null) {
       return null;
     }
@@ -110,7 +110,7 @@ public final class InteractUtils {
    * complete
    */
   private static int @Nullable [] getRelativeMapIndex(final Player player, final ItemFrame frame) {
-    final BlockFace hitFace = player.getTargetBlockFace(MAX_TARGET_DISTANCE);
+    final BlockFace hitFace = player.getTargetBlockFace(MAXIMUM_TARGET_DISTANCE);
     if (hitFace == null) {
       return null;
     }

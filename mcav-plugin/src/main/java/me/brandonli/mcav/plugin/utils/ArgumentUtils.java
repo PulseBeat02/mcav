@@ -34,16 +34,16 @@ public final class ArgumentUtils {
 
   /**
    * The largest width or height {@link #parseDimensions(String)} accepts, in pixels or blocks. 8192 pixels is the
-   * native resolution of a wall of {@value #MAX_SCREEN_SIDE} maps, so no display of the plugin needs more.
+   * native resolution of a wall of {@value #MAXIMUM_SCREEN_SIDE} maps, so no display of the plugin needs more.
    */
-  public static final int MAX_SIDE = 8192;
+  public static final int MAXIMUM_SIDE = 8192;
 
   /**
    * The largest width or height of a wall of maps that {@link #parseScreenDimensions(String)} accepts, in maps. The
    * largest wall, 64 by 64, has 4096 maps, which is the number of packets a client accepts in one bundle, so a whole
    * frame of it, and clearing it, still reach every viewer at once.
    */
-  public static final int MAX_SCREEN_SIDE = 64;
+  public static final int MAXIMUM_SCREEN_SIDE = 64;
 
   /** The selector of every player online, which {@link #parseViewers} keeps following. */
   private static final String EVERYONE = "@a";
@@ -62,7 +62,7 @@ public final class ArgumentUtils {
    * @throws NullPointerException     if the argument is {@code null}
    * @throws IllegalArgumentException if the text has no {@code x}, if either side is not a whole number (reported as
    *                                  the subclass {@link NumberFormatException}), or if either side is zero,
-   *                                  negative or larger than {@link #MAX_SIDE}
+   *                                  negative or larger than {@link #MAXIMUM_SIDE}
    */
   public static Pair<Integer, Integer> parseDimensions(final String argument) {
     Preconditions.checkNotNull(argument, "Argument must not be null!");
@@ -78,8 +78,8 @@ public final class ArgumentUtils {
       final String message = "Dimensions %s must be positive integers!".formatted(argument);
       throw new IllegalArgumentException(message);
     }
-    if (width > MAX_SIDE || height > MAX_SIDE) {
-      final String message = "Dimensions %s must be at most %s on each side!".formatted(argument, MAX_SIDE);
+    if (width > MAXIMUM_SIDE || height > MAXIMUM_SIDE) {
+      final String message = "Dimensions %s must be at most %s on each side!".formatted(argument, MAXIMUM_SIDE);
       throw new IllegalArgumentException(message);
     }
     return Pair.pair(width, height);
@@ -87,7 +87,7 @@ public final class ArgumentUtils {
 
   /**
    * Parses the size of a wall of maps written as {@code <width>x<height>}, such as {@code 5x5}. Besides the rules of
-   * {@link #parseDimensions(String)}, a side may have at most {@value #MAX_SCREEN_SIDE} maps, because every map of a
+   * {@link #parseDimensions(String)}, a side may have at most {@value #MAXIMUM_SCREEN_SIDE} maps, because every map of a
    * wall is built on the main thread and sent to every viewer.
    *
    * @param argument the size as the player typed it
@@ -99,8 +99,8 @@ public final class ArgumentUtils {
     final Pair<Integer, Integer> dimensions = parseDimensions(argument);
     final int width = dimensions.getFirst();
     final int height = dimensions.getSecond();
-    if (width > MAX_SCREEN_SIDE || height > MAX_SCREEN_SIDE) {
-      final String message = "Wall %s may be at most %s maps on each side!".formatted(argument, MAX_SCREEN_SIDE);
+    if (width > MAXIMUM_SCREEN_SIDE || height > MAXIMUM_SCREEN_SIDE) {
+      final String message = "Wall %s may be at most %s maps on each side!".formatted(argument, MAXIMUM_SCREEN_SIDE);
       throw new IllegalArgumentException(message);
     }
     return dimensions;

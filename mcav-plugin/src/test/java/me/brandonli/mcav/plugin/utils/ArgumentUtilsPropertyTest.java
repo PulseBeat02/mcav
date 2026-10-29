@@ -56,12 +56,12 @@ final class ArgumentUtilsPropertyTest {
     final IntegerArbitrary integers = Arbitraries.integers();
     final Arbitrary<String> numbers = integers.map(String::valueOf);
     final Arbitrary<String> pairs = numbers.flatMap(width -> numbers.map(height -> width + "x" + height));
-    final Arbitrary<Integer> nearWalls = nearBound(ArgumentUtils.MAX_SCREEN_SIDE);
-    final Arbitrary<Integer> nearSides = nearBound(ArgumentUtils.MAX_SIDE);
+    final Arbitrary<Integer> nearWalls = nearBound(ArgumentUtils.MAXIMUM_SCREEN_SIDE);
+    final Arbitrary<Integer> nearSides = nearBound(ArgumentUtils.MAXIMUM_SIDE);
     final Arbitrary<Integer> near = Arbitraries.oneOf(nearWalls, nearSides);
     final Arbitrary<String> nearPairs = near.flatMap(width -> near.map(height -> width + "x" + height));
-    final int wall = ArgumentUtils.MAX_SCREEN_SIDE;
-    final int side = ArgumentUtils.MAX_SIDE;
+    final int wall = ArgumentUtils.MAXIMUM_SCREEN_SIDE;
+    final int side = ArgumentUtils.MAXIMUM_SIDE;
     final Arbitrary<Integer> bounds = Arbitraries.of(
       0,
       1,
@@ -90,12 +90,12 @@ final class ArgumentUtilsPropertyTest {
 
   @Property(seed = SEED)
   void shouldKeepEveryTypedSizeWithinTheBoundsOrRefuseIt(@ForAll("typedSizes") final String typed) {
-    assertBoundedOrRefused(typed, ArgumentUtils::parseDimensions, ArgumentUtils.MAX_SIDE);
+    assertBoundedOrRefused(typed, ArgumentUtils::parseDimensions, ArgumentUtils.MAXIMUM_SIDE);
   }
 
   @Property(seed = SEED)
   void shouldKeepEveryTypedWallWithinTheBoundsOrRefuseIt(@ForAll("typedSizes") final String typed) {
-    assertBoundedOrRefused(typed, ArgumentUtils::parseScreenDimensions, ArgumentUtils.MAX_SCREEN_SIDE);
+    assertBoundedOrRefused(typed, ArgumentUtils::parseScreenDimensions, ArgumentUtils.MAXIMUM_SCREEN_SIDE);
   }
 
   private static void assertBoundedOrRefused(final String typed, final Function<String, Pair<Integer, Integer>> parser, final int maximum) {
@@ -114,8 +114,8 @@ final class ArgumentUtilsPropertyTest {
 
   @Property(seed = SEED)
   void shouldReadEveryWellFormedSizeBackExactly(
-    @ForAll @IntRange(min = 1, max = ArgumentUtils.MAX_SIDE) final int width,
-    @ForAll @IntRange(min = 1, max = ArgumentUtils.MAX_SIDE) final int height
+    @ForAll @IntRange(min = 1, max = ArgumentUtils.MAXIMUM_SIDE) final int width,
+    @ForAll @IntRange(min = 1, max = ArgumentUtils.MAXIMUM_SIDE) final int height
   ) {
     final String typed = width + "x" + height;
     final Pair<Integer, Integer> size = ArgumentUtils.parseDimensions(typed);
@@ -128,8 +128,8 @@ final class ArgumentUtilsPropertyTest {
 
   @Property(seed = SEED)
   void shouldRefuseEverySideBeyondTheBound(
-    @ForAll @IntRange(min = ArgumentUtils.MAX_SIDE + 1) final int tooLarge,
-    @ForAll @IntRange(min = 1, max = ArgumentUtils.MAX_SIDE) final int fine
+    @ForAll @IntRange(min = ArgumentUtils.MAXIMUM_SIDE + 1) final int tooLarge,
+    @ForAll @IntRange(min = 1, max = ArgumentUtils.MAXIMUM_SIDE) final int fine
   ) {
     final String tooWide = tooLarge + "x" + fine;
     final String tooHigh = fine + "x" + tooLarge;

@@ -53,7 +53,7 @@ final class SeekPositionTest {
     final SeekPosition fifthParsed = SeekPosition.parse("0");
     assertEquals(sixthExpected, fifthParsed);
 
-    final SeekPosition seventhExpected = new SeekPosition(false, SeekPosition.MAX_MILLIS);
+    final SeekPosition seventhExpected = new SeekPosition(false, SeekPosition.MAXIMUM_MILLISECONDS);
     final SeekPosition sixthParsed = SeekPosition.parse("99:59:59.999");
     assertEquals(seventhExpected, sixthParsed);
   }

@@ -95,23 +95,23 @@ public final class ImageChatCommand extends AbstractImageCommand {
     Preconditions.checkNotNull(character, "Character must not be null!");
     Preconditions.checkNotNull(mrl, "MRL must not be null!");
     final Collection<UUID> players = ArgumentUtils.parsePlayerSelectors(playerSelector);
-    final ImageConfigurationProvider configProvider = resolution -> createConfiguration(resolution, players, character);
-    this.displayImage(configProvider, sender, imageResolution, mrl, filters);
+    final ImageConfigurationProvider configurationProvider = resolution -> createConfiguration(resolution, players, character);
+    this.displayImage(configurationProvider, sender, imageResolution, mrl, filters);
   }
 
   /**
    * Creates a chat display from the {@link ChatConfiguration} built by the provider that the command passed to
    * {@link #displayImage}.
    *
-   * @param resolution     the parsed resolution, in characters per line and lines
-   * @param configProvider the provider that builds the chat configuration
+   * @param resolution            the parsed resolution, in characters per line and lines
+   * @param configurationProvider the provider that builds the chat configuration
    * @return the chat display
    */
   @Override
-  public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configProvider) {
+  public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {
     Preconditions.checkNotNull(resolution, "Resolution must not be null!");
-    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null!");
-    final ChatConfiguration configuration = (ChatConfiguration) configProvider.buildConfiguration(resolution);
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
+    final ChatConfiguration configuration = (ChatConfiguration) configurationProvider.buildConfiguration(resolution);
     return DisplayableImage.chat(configuration);
   }
 

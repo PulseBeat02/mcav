@@ -110,7 +110,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   // QEMU's own user-mode network, which vm.allow-network gives a guest
   private static final String QEMU_NETWORK = "user";
   // the least memory a machine may always have, whatever the memory of the server
-  private static final long MIN_MACHINE_MEMORY_BYTES = 512L << 20;
+  private static final long MINIMUM_MACHINE_MEMORY_BYTES = 512L << 20;
 
   private static final Splitter DRIVE_SPLITTER = Splitter.on(',');
 
@@ -236,7 +236,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
   }
 
   /**
-   * Handles {@code /mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId>
+   * Handles {@code /mcav vm create <playerSelector> <vmResolution> <targetFramesPerSecond> <blockDimensions> <mapId>
    * <ditheringAlgorithm> <architecture> <audioType> <flags> [--codec dither|mcv2]}: boots a QEMU virtual machine and
    * streams its display onto a wall of maps, dithered or with MCV2, and its sound into the chosen audio output. Only x86-64 PC and Q35 machines have sound; mcav
    * adds their sound card itself, and the flags cannot change it.
@@ -253,33 +253,33 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * sender is told "Loading virtual machine...", and later that it was created, that the QEMU program for the
    * architecture is not on the {@code PATH}, or that it failed to start, with the details in the console.
    *
-   * @param sender             who ran the command
-   * @param playerSelector     the players who see the virtual machine on the maps, such as a player name or
-   *                           {@code @a}
-   * @param vmResolution       the resolution of the display of the guest as {@code <width>x<height>} in pixels,
-   *                           such as {@code 1280x720}; use 128 times the block dimensions to fill the wall exactly
-   * @param targetFps          how many frames per second are captured from the display, from 1 to 240; higher
-   *                           values feel smoother but cost more CPU and bandwidth
-   * @param blockDimensions    the size of the wall as {@code <width>x<height>} in maps, such as {@code 5x5}
-   * @param mapId              the id of the top left map of the wall, as given to {@code /mcav screen}
-   * @param ditheringAlgorithm how colors are reduced to the map palette; {@code NEAREST_COLOR} keeps text and
-   *                           desktops sharp and stable, {@code FILTER_LITE} looks best for pictures, see
-   *                           {@link DitheringArgument}
-   * @param architecture       the processor the guest is emulated with: {@code X86_64}, {@code ARM},
-   *                           {@code AARCH64}, or {@code RISCV64}, each run by its own {@code qemu-system-*} program
-   * @param audioType          where the sound of the guest plays, as for the video commands, see
-   *                           {@link AudioArgument}; {@code NONE} keeps the machine silent
-   * @param flags              the QEMU options, the rest of the command line, such as
-   *                           {@code -cdrom "alpine linux.iso" -m 2048M}; quote values with spaces, and options QEMU
-   *                           accepts more than once, such as {@code -drive}, may be repeated. Only the options of
-   *                           {@link #supportedOptions()} are accepted, and a disk image must be a file of the
-   *                           {@value DiskImages#FOLDER_NAME} folder of the plugin, named without its folder.
-   *                           A trailing {@code --codec dither} or {@code --codec mcv2} is not a QEMU option: it
-   *                           chooses how the picture reaches the players, as the flag of the other map commands
-   *                           does, and the configured default applies without it
+   * @param sender                who ran the command
+   * @param playerSelector        the players who see the virtual machine on the maps, such as a player name or
+   *                              {@code @a}
+   * @param vmResolution          the resolution of the display of the guest as {@code <width>x<height>} in pixels,
+   *                              such as {@code 1280x720}; use 128 times the block dimensions to fill the wall exactly
+   * @param targetFramesPerSecond how many frames per second are captured from the display, from 1 to 240; higher
+   *                              values feel smoother but cost more CPU and bandwidth
+   * @param blockDimensions       the size of the wall as {@code <width>x<height>} in maps, such as {@code 5x5}
+   * @param mapId                 the id of the top left map of the wall, as given to {@code /mcav screen}
+   * @param ditheringAlgorithm    how colors are reduced to the map palette; {@code NEAREST_COLOR} keeps text and
+   *                              desktops sharp and stable, {@code FILTER_LITE} looks best for pictures, see
+   *                              {@link DitheringArgument}
+   * @param architecture          the processor the guest is emulated with: {@code X86_64}, {@code ARM},
+   *                              {@code AARCH64}, or {@code RISCV64}, each run by its own {@code qemu-system-*} program
+   * @param audioType             where the sound of the guest plays, as for the video commands, see
+   *                              {@link AudioArgument}; {@code NONE} keeps the machine silent
+   * @param flags                 the QEMU options, the rest of the command line, such as
+   *                              {@code -cdrom "alpine linux.iso" -m 2048M}; quote values with spaces, and options QEMU
+   *                              accepts more than once, such as {@code -drive}, may be repeated. Only the options of
+   *                              {@link #supportedOptions()} are accepted, and a disk image must be a file of the
+   *                              {@value DiskImages#FOLDER_NAME} folder of the plugin, named without its folder.
+   *                              A trailing {@code --codec dither} or {@code --codec mcv2} is not a QEMU option: it
+   *                              chooses how the picture reaches the players, as the flag of the other map commands
+   *                              does, and the configured default applies without it
    */
   @Command(
-    "mcav vm create <playerSelector> <vmResolution> <targetFps> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <audioType> <flags>"
+    "mcav vm create <playerSelector> <vmResolution> <targetFramesPerSecond> <blockDimensions> <mapId> <ditheringAlgorithm> <architecture> <audioType> <flags>"
   )
   @Permission("mcav.command.vm.create")
   @CommandDescription("mcav.command.vm.create.info")
@@ -287,7 +287,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     final CommandSender sender,
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = "resolutions") @Quoted final String vmResolution,
-    @Argument(suggestions = "target-fps") @Range(min = "1", max = "240") final int targetFps,
+    @Argument(suggestions = "target-frames-per-second") @Range(min = "1", max = "240") final int targetFramesPerSecond,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
     final DitheringArgument ditheringAlgorithm,
@@ -338,7 +338,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     }
     final int width = resolution.getFirst();
     final int height = resolution.getSecond();
-    final VmSettings vmSettings = VmSettings.of(width, height, targetFps);
+    final VmSettings vmSettings = VmSettings.of(width, height, targetFramesPerSecond);
     final MapCodec codec = this.chooseCodec(split.codec());
     final ScreenSettings settings = new ScreenSettings(sender, playerSelector, blocks, resolution, mapId, ditheringAlgorithm, codec);
     final Screen screen = this.createScreen(settings);
@@ -436,7 +436,7 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
     final Path dataFolder = this.plugin.getDataPath();
     final Path imageFolder = DiskImages.folderOf(dataFolder);
     try {
-      final VmConfigurationBuilder builder = parseOptions(flags, imageFolder, maxMemoryBytes());
+      final VmConfigurationBuilder builder = parseOptions(flags, imageFolder, maximumMemoryBytes());
       // without it, the guest gets mcav's network that reaches nothing, as no option of the command chooses one
       final PluginDataConfigurationMapper settings = this.plugin.getConfiguration();
       if (settings.isVmAllowNetwork()) {
@@ -471,21 +471,21 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * Parses QEMU options as {@link #parseOptions(String, Path)} does, and refuses a machine with more memory than the
    * server lets one have: a guest can use all of it, and the memory of a machine is memory of the server.
    *
-   * @param commandLine    the options
-   * @param imageFolder    the folder the disk images live in
-   * @param maxMemoryBytes the most memory a machine may have, in bytes
+   * @param commandLine        the options
+   * @param imageFolder        the folder the disk images live in
+   * @param maximumMemoryBytes the most memory a machine may have, in bytes
    * @return a builder holding the options
    * @throws IllegalArgumentException if an option is refused, or the machine would have more memory than allowed
    */
-  static VmConfigurationBuilder parseOptions(final String commandLine, final Path imageFolder, final long maxMemoryBytes) {
+  static VmConfigurationBuilder parseOptions(final String commandLine, final Path imageFolder, final long maximumMemoryBytes) {
     final VmConfigurationBuilder builder = parseAllowedOptions(commandLine, imageFolder);
     final VmConfiguration configuration = builder.build();
     final Optional<String> requestedMemory = configuration.find("m");
     final @Nullable String requestedValue = requestedMemory.orElse(null);
     final String memory = Objects.requireNonNullElse(requestedValue, "128");
     final long requested = QemuHardwareValues.memoryBytes(memory);
-    if (requested > maxMemoryBytes) {
-      final long maximumMebibytes = maxMemoryBytes >> 20;
+    if (requested > maximumMemoryBytes) {
+      final long maximumMebibytes = maximumMemoryBytes >> 20;
       final String message = "QEMU option -m %s asks for more than the %s MiB a machine may have on this server!".formatted(
         memory,
         maximumMebibytes
@@ -501,9 +501,9 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    *
    * @return the most memory in bytes
    */
-  static long maxMemoryBytes() {
+  static long maximumMemoryBytes() {
     final OperatingSystemMXBean system = ManagementFactory.getPlatformMXBean(OperatingSystemMXBean.class);
-    return maxMemoryBytes(system.getTotalMemorySize());
+    return maximumMemoryBytes(system.getTotalMemorySize());
   }
 
   /**
@@ -512,8 +512,8 @@ public final class VirtualizeCommand extends AbstractInteractiveCommand<VmPlayer
    * @param totalMemoryBytes the memory of the server in bytes
    * @return the most memory in bytes
    */
-  static long maxMemoryBytes(final long totalMemoryBytes) {
-    return Math.max(MIN_MACHINE_MEMORY_BYTES, totalMemoryBytes / 2);
+  static long maximumMemoryBytes(final long totalMemoryBytes) {
+    return Math.max(MINIMUM_MACHINE_MEMORY_BYTES, totalMemoryBytes / 2);
   }
 
   private static VmConfigurationBuilder parseAllowedOptions(final String commandLine, final Path imageFolder) {

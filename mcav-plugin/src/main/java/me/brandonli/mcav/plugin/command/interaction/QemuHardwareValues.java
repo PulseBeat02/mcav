@@ -88,7 +88,7 @@ final class QemuHardwareValues {
     "threads",
     NUMBER
   );
-  private static final Map<String, Pattern> ACCEL_PROPERTIES = Map.of(
+  private static final Map<String, Pattern> ACCELERATOR_PROPERTIES = Map.of(
     "thread",
     Pattern.compile("single|multi"),
     "tb-size",
@@ -180,7 +180,7 @@ final class QemuHardwareValues {
       case "machine" -> checkFirstAndProperties(name, value, first, WORD, rest, MACHINE_PROPERTIES);
       case "m" -> checkFirstAndProperties(name, value, first, SIZE, rest, MEMORY_PROPERTIES);
       case "smp" -> checkFirstAndProperties(name, value, first, NUMBER, rest, SMP_PROPERTIES);
-      case "accel" -> checkFirstAndProperties(name, value, first, ACCELERATOR, rest, ACCEL_PROPERTIES);
+      case "accel" -> checkFirstAndProperties(name, value, first, ACCELERATOR, rest, ACCELERATOR_PROPERTIES);
       case "boot" -> checkFirstAndProperties(name, value, first, BOOT_DEVICES, rest, BOOT_PROPERTIES);
       case "name" -> checkFirstAndProperties(name, value, first, GUEST_NAME, rest, NAME_PROPERTIES);
       case "rtc" -> checkProperties(name, value, parts, RTC_PROPERTIES);

@@ -59,9 +59,9 @@ public final class TestServer {
     final Server server = mock(Server.class);
     final Logger logger = Logger.getLogger("TestServer");
     when(server.getLogger()).thenReturn(logger);
-    final ServerBuildInfo buildInfo = mock(ServerBuildInfo.class);
+    final ServerBuildInfo buildInformation = mock(ServerBuildInfo.class);
     try (final MockedStatic<ServerBuildInfo> mocked = Mockito.mockStatic(ServerBuildInfo.class)) {
-      mocked.when(ServerBuildInfo::buildInfo).thenReturn(buildInfo);
+      mocked.when(ServerBuildInfo::buildInfo).thenReturn(buildInformation);
       Bukkit.setServer(server);
     }
     return server;

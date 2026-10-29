@@ -540,8 +540,8 @@ public enum DitheringArgument {
     bayer(BayerDither.CLUSTERED_DOT_DIAGONAL_8X8, BayerDither.CLUSTERED_DOT_DIAGONAL_8X8_MAXIMUM, PixelMapper.MAXIMUM_STRENGTH)
   );
 
-  private static DitherAlgorithm bayer(final ThresholdMatrix matrix, final int max, final float strength) {
-    final PixelMapper mapper = PixelMapper.ofPixelMapper(matrix, max, strength);
+  private static DitherAlgorithm bayer(final ThresholdMatrix matrix, final int maximum, final float strength) {
+    final PixelMapper mapper = PixelMapper.ofPixelMapper(matrix, maximum, strength);
     final OrderedDitherBuilder builder = DitherAlgorithm.ordered();
     builder.withDitherMatrix(mapper);
     return builder.build();

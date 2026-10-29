@@ -91,7 +91,7 @@ import org.mockito.Mockito;
 final class VirtualizeCommandTest {
 
   /** How long a test waits for a player stopped in the background. */
-  private static final long RELEASE_MILLIS = 5000;
+  private static final long RELEASE_MILLISECONDS = 5000;
 
   private MCAVSandbox plugin;
   private VirtualizeCommand command;
@@ -178,7 +178,7 @@ final class VirtualizeCommandTest {
     );
     final RejectedExecutionException thrown = assertThrows(RejectedExecutionException.class, () -> this.create("640x480", "5x4", ""));
     assertSame(failure, thrown);
-    verify(this.machine, timeout(RELEASE_MILLIS)).release();
+    verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
 
     final int size = this.maps.constructed().size();
     assertEquals(1, size);
@@ -336,7 +336,7 @@ final class VirtualizeCommandTest {
 
     this.create("640x480", "5x4", "");
 
-    verify(this.machine, timeout(RELEASE_MILLIS)).release();
+    verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
     final Component loading = Message.VM_LOADING.build();
     final Component path = Message.VM_PATH.build();
@@ -456,7 +456,7 @@ final class VirtualizeCommandTest {
     verify(this.provider).releaseAudioFilter(this.machine);
     verify(this.callback).detach();
     verify(sound).detach();
-    verify(this.machine, timeout(RELEASE_MILLIS)).release();
+    verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
   }
 
   @Test
@@ -466,7 +466,7 @@ final class VirtualizeCommandTest {
     this.command.releaseVM(this.sender);
     this.command.releaseVM(this.sender);
 
-    verify(this.machine, timeout(RELEASE_MILLIS)).release();
+    verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
     final Component released = Message.VM_RELEASE.build();
     this.assertReceived(released, released);
   }
@@ -852,13 +852,13 @@ final class VirtualizeCommandTest {
 
   @Test
   void shouldAllowAMachineHalfOfTheMemoryOfTheServerAndAtLeast512MiB() {
-    final long maximumMemoryBytes = VirtualizeCommand.maxMemoryBytes(16L << 30);
+    final long maximumMemoryBytes = VirtualizeCommand.maximumMemoryBytes(16L << 30);
     assertEquals(8L << 30, maximumMemoryBytes);
 
-    final long virtualizeCommandMaximumMemoryBytes = VirtualizeCommand.maxMemoryBytes(256L << 20);
+    final long virtualizeCommandMaximumMemoryBytes = VirtualizeCommand.maximumMemoryBytes(256L << 20);
     assertEquals(512L << 20, virtualizeCommandMaximumMemoryBytes);
 
-    final long limit = VirtualizeCommand.maxMemoryBytes();
+    final long limit = VirtualizeCommand.maximumMemoryBytes();
     assertTrue(limit >= 512L << 20, "at least 512 MiB: " + limit);
   }
 
@@ -936,7 +936,7 @@ final class VirtualizeCommandTest {
 
     this.create("640x480", "5x4", "");
 
-    verify(this.machine, timeout(RELEASE_MILLIS)).release();
+    verify(this.machine, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
     final Component loading = Message.VM_LOADING.build();
     final Component failed = Message.VM_ERROR.build();

@@ -48,12 +48,12 @@ import org.junit.jupiter.params.provider.EnumSource;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 final class DitheringArgumentTest {
 
-  private static final long TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(10);
-  private static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(10);
+  private static final long TIMEOUT_NANOSECONDS = TimeUnit.SECONDS.toNanos(10);
+  private static final long TIMEOUT_MILLISECONDS = TimeUnit.SECONDS.toMillis(10);
 
   private static void awaitBlocked(final Thread thread) {
     final long start = System.nanoTime();
-    final long deadline = start + TIMEOUT_NANOS;
+    final long deadline = start + TIMEOUT_NANOSECONDS;
     Thread.State state = thread.getState();
     while (state != Thread.State.BLOCKED) {
       final long now = System.nanoTime();
@@ -97,8 +97,8 @@ final class DitheringArgumentTest {
       awaitBlocked(firstThread);
       awaitBlocked(secondThread);
     }
-    firstThread.join(TIMEOUT_MILLIS);
-    secondThread.join(TIMEOUT_MILLIS);
+    firstThread.join(TIMEOUT_MILLISECONDS);
+    secondThread.join(TIMEOUT_MILLISECONDS);
 
     final DitherAlgorithm firstAlgorithm = first.get();
     final DitherAlgorithm secondAlgorithm = second.get();
@@ -151,7 +151,7 @@ final class DitheringArgumentTest {
         assertSame(expected, actual, "a warm cache read never waits for first-use initialization");
       }
     } finally {
-      reader.join(TIMEOUT_MILLIS);
+      reader.join(TIMEOUT_MILLISECONDS);
     }
   }
 

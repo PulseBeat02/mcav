@@ -47,10 +47,10 @@ final class FilterChainFuzzTest {
       return;
     }
 
-    final boolean matches = text.length() <= FilterChain.MAX_LENGTH;
+    final boolean matches = text.length() <= FilterChain.MAXIMUM_LENGTH;
     assertTrue(matches, text);
 
-    final boolean secondMatches = chain.create().size() <= FilterChain.MAX_FILTERS;
+    final boolean secondMatches = chain.create().size() <= FilterChain.MAXIMUM_FILTERS;
     assertTrue(secondMatches, text);
   }
 }

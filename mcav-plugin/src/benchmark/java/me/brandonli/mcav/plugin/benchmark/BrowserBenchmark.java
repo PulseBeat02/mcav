@@ -58,13 +58,13 @@ import me.brandonli.mcav.utils.immutable.Pair;
  */
 public final class BrowserBenchmark {
 
-  private static final long WARM_UP_MILLIS = 3_000L;
-  private static final long FRAME_RATE_MILLIS = 10_000L;
+  private static final long WARM_UP_MILLISECONDS = 3_000L;
+  private static final long FRAME_RATE_MILLISECONDS = 10_000L;
   private static final int LATENCY_ROUNDS = 20;
-  private static final long SETTLE_MILLIS = 600L;
-  private static final long LATENCY_TIMEOUT_MILLIS = 10_000L;
-  private static final long FULL_TIMEOUT_MILLIS = 3_000L;
-  private static final long START_TIMEOUT_MILLIS = 120_000L;
+  private static final long SETTLE_MILLISECONDS = 600L;
+  private static final long LATENCY_TIMEOUT_MILLISECONDS = 10_000L;
+  private static final long FULL_TIMEOUT_MILLISECONDS = 3_000L;
+  private static final long START_TIMEOUT_MILLISECONDS = 120_000L;
   private static final int MAP_ID = 0;
   private static final List<String> LATENCY_COLORS = List.of("#dc0000", "#7fb238", "#c7c7c7", "#f7e9a3");
 
@@ -155,10 +155,10 @@ public final class BrowserBenchmark {
       final MapProbe probe = attach(player, size);
       final URI page = server.page("fps");
       startAndWait(player, source(page, size), probe);
-      Thread.sleep(WARM_UP_MILLIS);
+      Thread.sleep(WARM_UP_MILLISECONDS);
       final long framesBefore = probe.getFrames();
       final long start = System.nanoTime();
-      Thread.sleep(FRAME_RATE_MILLIS);
+      Thread.sleep(FRAME_RATE_MILLISECONDS);
       final long framesAfter = probe.getFrames();
       final long elapsed = System.nanoTime() - start;
       final double perSecond = ((framesAfter - framesBefore) * 1e9) / elapsed;
@@ -180,24 +180,24 @@ public final class BrowserBenchmark {
       final URI page = server.page("latency");
       final int subscriptions = server.getSubscriptions();
       startAndWait(player, source(page, size), probe);
-      server.awaitSubscription(subscriptions, START_TIMEOUT_MILLIS);
-      Thread.sleep(WARM_UP_MILLIS);
+      server.awaitSubscription(subscriptions, START_TIMEOUT_MILLISECONDS);
+      Thread.sleep(WARM_UP_MILLISECONDS);
       for (int round = 0; round < LATENCY_ROUNDS; round++) {
         final String color = LATENCY_COLORS.get(round % LATENCY_COLORS.size());
         final byte index = MapProbe.paletteIndex(color);
-        probe.awaitQuiet(SETTLE_MILLIS, LATENCY_TIMEOUT_MILLIS);
+        probe.awaitQuiet(SETTLE_MILLISECONDS, LATENCY_TIMEOUT_MILLISECONDS);
         final MapProbe.Watch watch = probe.watch(index);
         final long sent = System.nanoTime();
         server.send(color);
-        final boolean shown = watch.awaitFirst(LATENCY_TIMEOUT_MILLIS);
+        final boolean shown = watch.awaitFirst(LATENCY_TIMEOUT_MILLISECONDS);
         if (!shown) {
           missed++;
           continue;
         }
-        first.add((watch.getFirstNanos() - sent) / 1e6);
-        final boolean complete = watch.awaitFull(FULL_TIMEOUT_MILLIS);
+        first.add((watch.getFirstNanoseconds() - sent) / 1e6);
+        final boolean complete = watch.awaitFull(FULL_TIMEOUT_MILLISECONDS);
         if (complete) {
-          full.add((watch.getFullNanos() - sent) / 1e6);
+          full.add((watch.getFullNanoseconds() - sent) / 1e6);
         } else {
           incomplete++;
         }
@@ -207,7 +207,7 @@ public final class BrowserBenchmark {
     }
     final String missedText = missed == 0 ? "" : " (" + missed + " rounds without any packet)";
     final String incompleteText =
-      incomplete == 0 ? "" : " (wall incomplete after " + FULL_TIMEOUT_MILLIS + " ms in " + incomplete + " rounds)";
+      incomplete == 0 ? "" : " (wall incomplete after " + FULL_TIMEOUT_MILLISECONDS + " ms in " + incomplete + " rounds)";
     return describe(first) + " / " + describe(full) + missedText + incompleteText;
   }
 
@@ -217,7 +217,7 @@ public final class BrowserBenchmark {
     if (!started) {
       throw new IllegalStateException("The browser did not start!");
     }
-    final long deadline = System.nanoTime() + START_TIMEOUT_MILLIS * 1_000_000L;
+    final long deadline = System.nanoTime() + START_TIMEOUT_MILLISECONDS * 1_000_000L;
     while (probe.getFrames() == 0) {
       if (System.nanoTime() > deadline) {
         throw new IllegalStateException("No frame reached the map encoder!");
@@ -233,9 +233,9 @@ public final class BrowserBenchmark {
     final List<Double> sorted = new ArrayList<>(values);
     Collections.sort(sorted);
     final double median = sorted.get(sorted.size() / 2);
-    final int p90Index = Math.min(sorted.size() - 1, (int) Math.ceil(sorted.size() * 0.9) - 1);
-    final double p90 = sorted.get(p90Index);
-    return String.format(Locale.ROOT, "%.0f ms, %.0f ms", median, p90);
+    final int ninetiethPercentileIndex = Math.min(sorted.size() - 1, (int) Math.ceil(sorted.size() * 0.9) - 1);
+    final double ninetiethPercentile = sorted.get(ninetiethPercentileIndex);
+    return String.format(Locale.ROOT, "%.0f ms, %.0f ms", median, ninetiethPercentile);
   }
 
   /**

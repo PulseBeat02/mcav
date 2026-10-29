@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit;
  */
 final class BenchmarkServer implements AutoCloseable {
 
-  private static final String FPS_PAGE = """
+  private static final String FRAMES_PER_SECOND_PAGE = """
   <!doctype html><html><body style="margin:0;overflow:hidden">
   <div id="d" style="position:fixed;left:0;top:0;right:0;bottom:0;background:#dc0000"></div>
   <script>
@@ -75,7 +75,7 @@ final class BenchmarkServer implements AutoCloseable {
     final HttpServer server = HttpServer.create(address, 0);
     final ExecutorService executor = Executors.newCachedThreadPool();
     final BenchmarkServer created = new BenchmarkServer(server, executor);
-    server.createContext("/fps", exchange -> respond(exchange, FPS_PAGE));
+    server.createContext("/fps", exchange -> respond(exchange, FRAMES_PER_SECOND_PAGE));
     server.createContext("/latency", exchange -> respond(exchange, LATENCY_PAGE));
     server.createContext("/events", created::openEvents);
     server.setExecutor(executor);
@@ -122,12 +122,12 @@ final class BenchmarkServer implements AutoCloseable {
   /**
    * Waits until a page subscribed to the events after an earlier count of subscriptions.
    *
-   * @param before        the count before the page was opened
-   * @param timeoutMillis how long to wait
+   * @param before              the count before the page was opened
+   * @param timeoutMilliseconds how long to wait
    * @throws InterruptedException if interrupted
    */
-  synchronized void awaitSubscription(final int before, final long timeoutMillis) throws InterruptedException {
-    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+  synchronized void awaitSubscription(final int before, final long timeoutMilliseconds) throws InterruptedException {
+    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
     while (this.subscriptions <= before) {
       final long remaining = TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime());
       if (remaining <= 0) {

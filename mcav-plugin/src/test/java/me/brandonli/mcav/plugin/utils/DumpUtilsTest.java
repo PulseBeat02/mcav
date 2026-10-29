@@ -295,11 +295,11 @@ final class DumpUtilsTest {
     final String javaVersion = System.getProperty("java.version");
     final String javaVendor = System.getProperty("java.vendor");
     final boolean version = dump.contains("\nOS Version: " + osVersion + "\n");
-    final boolean arch = dump.contains("\nArchitecture: " + architecture + "\n");
+    final boolean namesArchitecture = dump.contains("\nArchitecture: " + architecture + "\n");
     final boolean namesJavaVersion = dump.contains("\nJava Version: " + javaVersion + "\n");
     final boolean vendor = dump.contains("\nJava Vendor: " + javaVendor + "\n");
     assertTrue(version, dump);
-    assertTrue(arch, dump);
+    assertTrue(namesArchitecture, dump);
     assertTrue(namesJavaVersion, dump);
     assertTrue(vendor, dump);
   }
@@ -312,15 +312,15 @@ final class DumpUtilsTest {
     final String dump = DumpUtils.createDumpContents(log);
     final long afterDump = runtimeBean.getUptime();
     final Runtime runtime = Runtime.getRuntime();
-    final long maxMemory = runtime.maxMemory();
-    final long expectedMax = maxMemory / MEGABYTE;
+    final long maximumMemory = runtime.maxMemory();
+    final long expectedMaximum = maximumMemory / MEGABYTE;
     final long free = readNumber(dump, "Free Memory (MB)");
     final long total = readNumber(dump, "Total Memory (MB)");
-    final long reportedMax = readNumber(dump, "Max Memory (MB)");
+    final long reportedMaximum = readNumber(dump, "Max Memory (MB)");
     final long uptime = readNumber(dump, "Uptime (ms)");
-    assertEquals(expectedMax, reportedMax);
+    assertEquals(expectedMaximum, reportedMaximum);
     assertTrue(free <= total, "free memory of " + free + " MB above the total of " + total + " MB");
-    assertTrue(total <= expectedMax, "total memory of " + total + " MB above the maximum of " + expectedMax + " MB");
+    assertTrue(total <= expectedMaximum, "total memory of " + total + " MB above the maximum of " + expectedMaximum + " MB");
     assertTrue(beforeDump > 0, "the fixture has a nonzero uptime");
     assertTrue(uptime >= beforeDump && uptime <= afterDump, "uptime of " + uptime + " ms outside [" + beforeDump + ", " + afterDump + "]");
   }

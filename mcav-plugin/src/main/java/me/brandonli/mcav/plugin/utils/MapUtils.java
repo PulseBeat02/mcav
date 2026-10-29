@@ -79,7 +79,7 @@ public final class MapUtils {
    * The largest number of maps one call creates to reach a map id, which is the number of maps of the largest wall.
    * Creating a map writes a file, so an id far past the maps of the world would otherwise tie up the main thread.
    */
-  public static final int MAX_NEW_MAPS = ArgumentUtils.MAX_SCREEN_SIDE * ArgumentUtils.MAX_SCREEN_SIDE;
+  public static final int MAXIMUM_NEW_MAPS = ArgumentUtils.MAXIMUM_SCREEN_SIDE * ArgumentUtils.MAXIMUM_SCREEN_SIDE;
 
   private MapUtils() {
     throw new UnsupportedOperationException("Utility class cannot be instantiated!");
@@ -91,31 +91,31 @@ public final class MapUtils {
    *
    * @param id the id of the map, zero or more
    * @return the map item, with the id in its lore
-   * @throws IllegalArgumentException if the id is negative, or more than {@link #MAX_NEW_MAPS} ids past the next map
+   * @throws IllegalArgumentException if the id is negative, or more than {@link #MAXIMUM_NEW_MAPS} ids past the next map
    *                                  id the server hands out
    * @throws IllegalStateException if the requested historical map is missing and its id cannot be allocated again
    */
   public static ItemStack getMapFromID(final int id) {
     Preconditions.checkArgument(id >= 0, "Map id %s must not be negative!", id);
     final ItemStack map = createMapItemStack(id);
-    final ItemMeta nullableMeta = map.getItemMeta();
-    final ItemMeta itemMeta = requireNonNull(nullableMeta);
+    final ItemMeta nullableMetadata = map.getItemMeta();
+    final ItemMeta itemMetadata = requireNonNull(nullableMetadata);
 
     final String name = "Map ID [%s]".formatted(id);
     final Component lore = text(name, RED);
     final List<Component> lines = List.of(lore);
-    itemMeta.lore(lines);
-    map.setItemMeta(itemMeta);
+    itemMetadata.lore(lines);
+    map.setItemMeta(itemMetadata);
     return map;
   }
 
   private static ItemStack createMapItemStack(final int id) {
     final MapView view = findOrCreateMap(id);
     final ItemStack map = new ItemStack(Material.FILLED_MAP);
-    final MapMeta nullableMeta = (MapMeta) map.getItemMeta();
-    final MapMeta mapMeta = requireNonNull(nullableMeta);
-    mapMeta.setMapView(view);
-    map.setItemMeta(mapMeta);
+    final MapMeta nullableMetadata = (MapMeta) map.getItemMeta();
+    final MapMeta mapMetadata = requireNonNull(nullableMetadata);
+    mapMetadata.setMapView(view);
+    map.setItemMeta(mapMetadata);
     return map;
   }
 
@@ -134,7 +134,7 @@ public final class MapUtils {
    * Creates maps until the map with the id exists. The server hands out map ids in increasing order.
    *
    * @return the created map with exactly the requested id
-   * @throws IllegalArgumentException if the id is more than {@link #MAX_NEW_MAPS} ids past the next map id
+   * @throws IllegalArgumentException if the id is more than {@link #MAXIMUM_NEW_MAPS} ids past the next map id
    * @throws IllegalStateException    if the server has already advanced past a missing map id
    */
   private static MapView createMapsUpTo(final int id) {
@@ -144,10 +144,10 @@ public final class MapUtils {
     int currentId = created.getId();
     final long missing = (long) id - currentId;
     Preconditions.checkArgument(
-      missing <= MAX_NEW_MAPS,
+      missing <= MAXIMUM_NEW_MAPS,
       "Map id %s is more than %s ids past %s, the next map id!",
       id,
-      MAX_NEW_MAPS,
+      MAXIMUM_NEW_MAPS,
       currentId
     );
     while (currentId < id) {
@@ -172,7 +172,7 @@ public final class MapUtils {
    * @param map      the id of the map in the top left corner, zero or more
    * @throws NullPointerException     if the sender, the location or the material is {@code null}
    * @throws IllegalArgumentException if the width or the height is not positive, the map id is negative, or the
-   *                                  last map id of the screen is more than {@link #MAX_NEW_MAPS} ids past the next
+   *                                  last map id of the screen is more than {@link #MAXIMUM_NEW_MAPS} ids past the next
    *                                  map id; nothing is built then
    * @throws IllegalStateException    if a map id of the screen belonged to a map that no longer exists
    */

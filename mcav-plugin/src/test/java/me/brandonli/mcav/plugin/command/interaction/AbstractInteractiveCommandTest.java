@@ -1414,13 +1414,13 @@ final class AbstractInteractiveCommandTest {
     final ItemMeta metadata = mock(ItemMeta.class);
     when(item.getItemMeta()).thenReturn(metadata);
     when(frame.getItem()).thenReturn(item);
-    final PlayerInteractEntityEvent wrongMeta = this.rightClick(frame);
-    this.command.onPlayerInteractEntity(wrongMeta);
+    final PlayerInteractEntityEvent wrongMetadata = this.rightClick(frame);
+    this.command.onPlayerInteractEntity(wrongMetadata);
     final MapMeta mapMetadata = mock(MapMeta.class);
     when(item.getItemMeta()).thenReturn(mapMetadata);
     final PlayerInteractEntityEvent missingView = this.rightClick(frame);
     this.command.onPlayerInteractEntity(missingView);
-    verify(wrongMeta, never()).setCancelled(anyBoolean());
+    verify(wrongMetadata, never()).setCancelled(anyBoolean());
     verify(missingView, never()).setCancelled(anyBoolean());
     this.assertForwarded();
     this.interactions.verifyNoInteractions();

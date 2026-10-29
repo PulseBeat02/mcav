@@ -81,7 +81,7 @@ import org.mockito.Mockito;
 final class BrowserCommandTest {
 
   /** How long a test waits for a player stopped in the background. */
-  private static final long RELEASE_MILLIS = 5000;
+  private static final long RELEASE_MILLISECONDS = 5000;
 
   private BrowserCommand command;
   private MCAVSandbox plugin;
@@ -232,7 +232,7 @@ final class BrowserCommandTest {
     this.command.releaseBrowser(this.sender);
     verify(this.provider).releaseAudioFilter(this.browser);
     verify(this.callback).detach();
-    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
   }
 
   @Test
@@ -311,7 +311,7 @@ final class BrowserCommandTest {
 
     this.create("1280x720", "5x3", "https://example.com/page");
 
-    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
     assertNull(this.command.result);
     final Component failed = Message.BROWSER_ERROR.build();
@@ -464,7 +464,7 @@ final class BrowserCommandTest {
       this.create("1280x720", "5x3", "https://example.com")
     );
     assertSame(failure, thrown);
-    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
     this.assertCreatedScreenReleased();
   }
 
@@ -476,7 +476,7 @@ final class BrowserCommandTest {
       this.create("1280x720", "5x3", "https://example.com")
     );
     assertSame(failure, thrown);
-    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
     this.assertCreatedScreenReleased();
   }
 
@@ -509,12 +509,12 @@ final class BrowserCommandTest {
 
     this.command.releaseBrowser(this.sender);
 
-    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
     final Component released = Message.RELEASE_BROWSER.build();
     this.assertReceived(released);
     this.command.releaseBrowser(this.sender);
-    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
   }
 
   @Test
@@ -553,7 +553,7 @@ final class BrowserCommandTest {
 
     this.create("1280x720", "5x3", "https://example.com/page");
 
-    verify(this.browser, timeout(RELEASE_MILLIS)).release();
+    verify(this.browser, timeout(RELEASE_MILLISECONDS)).release();
     final Component failed = Message.BROWSER_ERROR.build();
     this.assertReceived(Message.BROWSER_LOADING.build(), failed);
   }

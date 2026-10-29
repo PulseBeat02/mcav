@@ -50,7 +50,7 @@ public final class PluginDataConfigurationMapper {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(PluginDataConfigurationMapper.class);
 
-  private static final String CONFIG_FILE = "config.yml";
+  private static final String CONFIGURATION_FILE = "config.yml";
 
   private static final String PLUGIN_LANGUAGE = "language";
 
@@ -100,7 +100,7 @@ public final class PluginDataConfigurationMapper {
 
   private static final int DEFAULT_HTTP_PORT = 3000;
 
-  private static final int MAX_PORT = 65535;
+  private static final int MAXIMUM_PORT = 65535;
 
   private static final String INVALID_PORT = "Invalid {} {}, using {} instead.";
 
@@ -182,38 +182,38 @@ public final class PluginDataConfigurationMapper {
    * @throws IllegalStateException if the file cannot be read or is not valid YAML
    */
   public synchronized void deserialize() {
-    final FileConfiguration config = this.loadConfiguration();
-    final String language = getString(config, PLUGIN_LANGUAGE, "EN_US");
+    final FileConfiguration configuration = this.loadConfiguration();
+    final String language = getString(configuration, PLUGIN_LANGUAGE, "EN_US");
     this.locale = Locale.fromString(language);
-    this.discordBotEnabled = config.getBoolean(DISCORD_BOT_ENABLED, false);
-    this.discordBotToken = getString(config, DISCORD_BOT_TOKEN_FIELD, "");
-    this.discordBotChannelId = getString(config, DISCORD_BOT_CHANNEL_FIELD, "");
-    this.discordBotGuildId = getString(config, DISCORD_BOT_GUILD_ID_FIELD, "");
-    this.httpEnabled = config.getBoolean(HTTP_ENABLED, false);
-    this.httpHostName = getString(config, HTTP_HOST_FIELD, "localhost");
-    this.httpPort = readPort(config, HTTP_PORT_FIELD, DEFAULT_HTTP_PORT);
-    this.simpleVoiceChatEnabled = config.getBoolean(SIMPLE_VOICE_CHAT_ENABLED, false);
-    this.mcv2EncoderThreads = readEncoderThreads(config);
-    this.mcv2Native = readNative(config);
-    this.mcv2DefaultCodec = readChoice(config, MCV2_DEFAULT_CODEC, MapCodec.class, MapCodec.DITHER);
-    this.mcv2PackHosting = readChoice(config, MCV2_PACK_HOSTING, Mcv2Hosting.class, Mcv2Hosting.INJECTOR);
-    this.mcv2PackHttpHost = getString(config, MCV2_PACK_HTTP_HOST, "").strip();
-    this.mcv2PackHttpPort = readPort(config, MCV2_PACK_HTTP_PORT, DEFAULT_PACK_HTTP_PORT);
-    this.browserPrivateNetworks = config.getBoolean(BROWSER_PRIVATE_NETWORKS, false);
-    this.browserJavaScriptJit = config.getBoolean(BROWSER_JAVASCRIPT_JIT, false);
-    this.browserAutoplaySound = config.getBoolean(BROWSER_AUTOPLAY_SOUND, false);
-    this.browserConfineChromium = config.getBoolean(BROWSER_CONFINE_CHROMIUM, true);
-    this.browserRefusedHosts = readRefusedHosts(config);
-    this.vmAllowNetwork = config.getBoolean(VM_ALLOW_NETWORK, false);
-    this.vncAllowList = readVncAllowList(config);
+    this.discordBotEnabled = configuration.getBoolean(DISCORD_BOT_ENABLED, false);
+    this.discordBotToken = getString(configuration, DISCORD_BOT_TOKEN_FIELD, "");
+    this.discordBotChannelId = getString(configuration, DISCORD_BOT_CHANNEL_FIELD, "");
+    this.discordBotGuildId = getString(configuration, DISCORD_BOT_GUILD_ID_FIELD, "");
+    this.httpEnabled = configuration.getBoolean(HTTP_ENABLED, false);
+    this.httpHostName = getString(configuration, HTTP_HOST_FIELD, "localhost");
+    this.httpPort = readPort(configuration, HTTP_PORT_FIELD, DEFAULT_HTTP_PORT);
+    this.simpleVoiceChatEnabled = configuration.getBoolean(SIMPLE_VOICE_CHAT_ENABLED, false);
+    this.mcv2EncoderThreads = readEncoderThreads(configuration);
+    this.mcv2Native = readNative(configuration);
+    this.mcv2DefaultCodec = readChoice(configuration, MCV2_DEFAULT_CODEC, MapCodec.class, MapCodec.DITHER);
+    this.mcv2PackHosting = readChoice(configuration, MCV2_PACK_HOSTING, Mcv2Hosting.class, Mcv2Hosting.INJECTOR);
+    this.mcv2PackHttpHost = getString(configuration, MCV2_PACK_HTTP_HOST, "").strip();
+    this.mcv2PackHttpPort = readPort(configuration, MCV2_PACK_HTTP_PORT, DEFAULT_PACK_HTTP_PORT);
+    this.browserPrivateNetworks = configuration.getBoolean(BROWSER_PRIVATE_NETWORKS, false);
+    this.browserJavaScriptJit = configuration.getBoolean(BROWSER_JAVASCRIPT_JIT, false);
+    this.browserAutoplaySound = configuration.getBoolean(BROWSER_AUTOPLAY_SOUND, false);
+    this.browserConfineChromium = configuration.getBoolean(BROWSER_CONFINE_CHROMIUM, true);
+    this.browserRefusedHosts = readRefusedHosts(configuration);
+    this.vmAllowNetwork = configuration.getBoolean(VM_ALLOW_NETWORK, false);
+    this.vncAllowList = readVncAllowList(configuration);
   }
 
   private FileConfiguration loadConfiguration() {
     final Path folder = IOUtils.getPluginDataFolderPath();
-    final Path file = folder.resolve(CONFIG_FILE);
+    final Path file = folder.resolve(CONFIGURATION_FILE);
     final boolean exists = Files.exists(file);
     if (!exists) {
-      this.plugin.saveResource(CONFIG_FILE, false);
+      this.plugin.saveResource(CONFIGURATION_FILE, false);
     }
     try (final Reader reader = Files.newBufferedReader(file)) {
       final YamlConfiguration configuration = new YamlConfiguration();
@@ -230,17 +230,17 @@ public final class PluginDataConfigurationMapper {
     }
   }
 
-  private static String getString(final FileConfiguration config, final String key, final String fallback) {
+  private static String getString(final FileConfiguration configuration, final String key, final String fallback) {
     // never null because the fallback is not null
-    final String value = config.getString(key, fallback);
+    final String value = configuration.getString(key, fallback);
     return Objects.requireNonNullElse(value, fallback);
   }
 
-  private static int readPort(final FileConfiguration config, final String key, final int fallback) {
+  private static int readPort(final FileConfiguration configuration, final String key, final int fallback) {
     // only a YAML int is taken: getInt cuts a longer number down to its low 32 bits (4294967376 reads as port 80) and
     // a fraction down to a whole number
-    final Object value = config.get(key, fallback);
-    if (!(value instanceof final Integer port) || port < 1 || port > MAX_PORT) {
+    final Object value = configuration.get(key, fallback);
+    if (!(value instanceof final Integer port) || port < 1 || port > MAXIMUM_PORT) {
       LOGGER.warn(INVALID_PORT, key, value, fallback);
       return fallback;
     }
@@ -248,8 +248,13 @@ public final class PluginDataConfigurationMapper {
   }
 
   /** Reads a setting that names a constant of an enum, in any case. */
-  private static <E extends Enum<E>> E readChoice(final FileConfiguration config, final String key, final Class<E> type, final E fallback) {
-    final String value = getString(config, key, fallback.name());
+  private static <E extends Enum<E>> E readChoice(
+    final FileConfiguration configuration,
+    final String key,
+    final Class<E> type,
+    final E fallback
+  ) {
+    final String value = getString(configuration, key, fallback.name());
     for (final E constant : EnumSet.allOf(type)) {
       if (constant.name().equalsIgnoreCase(value.strip())) {
         return constant;
@@ -259,9 +264,9 @@ public final class PluginDataConfigurationMapper {
     return fallback;
   }
 
-  private static List<String> readRefusedHosts(final FileConfiguration config) {
+  private static List<String> readRefusedHosts(final FileConfiguration configuration) {
     final List<String> hosts = new ArrayList<>();
-    for (final String entry : config.getStringList(BROWSER_REFUSED_HOSTS)) {
+    for (final String entry : configuration.getStringList(BROWSER_REFUSED_HOSTS)) {
       final String host = entry.strip();
       if (host.isEmpty() || host.chars().anyMatch(character -> character == ',' || Character.isWhitespace(character))) {
         LOGGER.warn(INVALID_REFUSED_HOST, entry, BROWSER_REFUSED_HOSTS);
@@ -272,9 +277,9 @@ public final class PluginDataConfigurationMapper {
     return List.copyOf(hosts);
   }
 
-  private static int readEncoderThreads(final FileConfiguration config) {
+  private static int readEncoderThreads(final FileConfiguration configuration) {
     // only a YAML int is taken, as for a port
-    final Object value = config.get(MCV2_ENCODER_THREADS, 0);
+    final Object value = configuration.get(MCV2_ENCODER_THREADS, 0);
     if (!(value instanceof final Integer threads) || threads < 0 || threads > Pool.MAXIMUM_THREADS) {
       LOGGER.warn(INVALID_THREADS, MCV2_ENCODER_THREADS, value);
       return 0;
@@ -282,12 +287,12 @@ public final class PluginDataConfigurationMapper {
     return threads;
   }
 
-  private static String readNative(final FileConfiguration config) {
+  private static String readNative(final FileConfiguration configuration) {
     // YAML reads an unquoted off as false, and on as true
-    if (config.isBoolean(MCV2_NATIVE)) {
-      return config.getBoolean(MCV2_NATIVE) ? Mcv2.NATIVE_AUTO : Mcv2.NATIVE_OFF;
+    if (configuration.isBoolean(MCV2_NATIVE)) {
+      return configuration.getBoolean(MCV2_NATIVE) ? Mcv2.NATIVE_AUTO : Mcv2.NATIVE_OFF;
     }
-    final String mode = getString(config, MCV2_NATIVE, Mcv2.NATIVE_AUTO);
+    final String mode = getString(configuration, MCV2_NATIVE, Mcv2.NATIVE_AUTO);
     if (!mode.equals(Mcv2.NATIVE_AUTO) && !mode.equals(Mcv2.NATIVE_OFF)) {
       LOGGER.warn(INVALID_NATIVE, MCV2_NATIVE, mode);
       return Mcv2.NATIVE_AUTO;
@@ -295,9 +300,9 @@ public final class PluginDataConfigurationMapper {
     return mode;
   }
 
-  private static VncAllowList readVncAllowList(final FileConfiguration config) {
+  private static VncAllowList readVncAllowList(final FileConfiguration configuration) {
     final List<VncAllowList.Entry> entries = new ArrayList<>();
-    for (final Map<?, ?> map : config.getMapList(VNC_ALLOWED_HOSTS)) {
+    for (final Map<?, ?> map : configuration.getMapList(VNC_ALLOWED_HOSTS)) {
       final VncAllowList.Entry entry = readVncHost(map);
       if (entry != null) {
         entries.add(entry);
@@ -314,7 +319,7 @@ public final class PluginDataConfigurationMapper {
       host.isBlank() ||
       !(portValue instanceof final Integer port) ||
       port < 1 ||
-      port > MAX_PORT
+      port > MAXIMUM_PORT
     ) {
       LOGGER.warn(INVALID_VNC_HOST, hostValue, portValue, VNC_ALLOWED_HOSTS);
       return null;

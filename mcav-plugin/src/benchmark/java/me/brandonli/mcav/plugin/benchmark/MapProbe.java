@@ -44,7 +44,7 @@ final class MapProbe implements DitherResultStep {
 
   private final MapConfiguration configuration;
   private final AtomicLong frames;
-  private final AtomicLong lastPatchNanos;
+  private final AtomicLong lastPatchNanoseconds;
   private final ForkJoinPool ditherPool;
   private @Nullable DeltaMapEncoder encoder;
   private volatile @Nullable Watch watch;
@@ -52,7 +52,7 @@ final class MapProbe implements DitherResultStep {
   MapProbe(final MapConfiguration configuration) {
     this.configuration = configuration;
     this.frames = new AtomicLong();
-    this.lastPatchNanos = new AtomicLong(System.nanoTime());
+    this.lastPatchNanoseconds = new AtomicLong(System.nanoTime());
     final Runtime runtime = Runtime.getRuntime();
     final int processors = runtime.availableProcessors();
     final int parallelism = Math.max(1, processors / 2 - 1);
@@ -101,7 +101,7 @@ final class MapProbe implements DitherResultStep {
     final long now = System.nanoTime();
     this.frames.incrementAndGet();
     if (!patches.isEmpty()) {
-      this.lastPatchNanos.set(now);
+      this.lastPatchNanoseconds.set(now);
     }
     final Watch activeWatch = this.watch;
     if (activeWatch != null) {
@@ -141,14 +141,14 @@ final class MapProbe implements DitherResultStep {
   /**
    * Waits until no patch was produced for a while, so the next change starts from a settled wall.
    *
-   * @param quietMillis   how long no patch may have been produced
-   * @param timeoutMillis how long to wait at most
+   * @param quietMilliseconds   how long no patch may have been produced
+   * @param timeoutMilliseconds how long to wait at most
    * @throws InterruptedException if interrupted
    */
-  void awaitQuiet(final long quietMillis, final long timeoutMillis) throws InterruptedException {
-    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
-    final long quietNanos = TimeUnit.MILLISECONDS.toNanos(quietMillis);
-    while (System.nanoTime() - this.lastPatchNanos.get() < quietNanos && System.nanoTime() < deadline) {
+  void awaitQuiet(final long quietMilliseconds, final long timeoutMilliseconds) throws InterruptedException {
+    final long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMilliseconds);
+    final long quietNanoseconds = TimeUnit.MILLISECONDS.toNanos(quietMilliseconds);
+    while (System.nanoTime() - this.lastPatchNanoseconds.get() < quietNanoseconds && System.nanoTime() < deadline) {
       Thread.sleep(10L);
     }
   }
@@ -183,8 +183,8 @@ final class MapProbe implements DitherResultStep {
     private final int pixels;
     private final CountDownLatch first;
     private final CountDownLatch done;
-    private volatile long firstNanos;
-    private volatile long fullNanos;
+    private volatile long firstNanoseconds;
+    private volatile long fullNanoseconds;
 
     Watch(final byte index, final int firstMapId, final int mapCount, final int pagePixels) {
       this.index = index;
@@ -211,31 +211,31 @@ final class MapProbe implements DitherResultStep {
             this.covered.set(mapOffset + row * MapLayout.MAP_SIZE + column);
           }
         }
-        if (shows && this.firstNanos == 0L) {
-          this.firstNanos = now;
+        if (shows && this.firstNanoseconds == 0L) {
+          this.firstNanoseconds = now;
           this.first.countDown();
         }
       }
-      if (this.firstNanos != 0L && this.fullNanos == 0L && this.covered.cardinality() >= this.pixels * 0.9) {
-        this.fullNanos = now;
+      if (this.firstNanoseconds != 0L && this.fullNanoseconds == 0L && this.covered.cardinality() >= this.pixels * 0.9) {
+        this.fullNanoseconds = now;
         this.done.countDown();
       }
     }
 
-    boolean awaitFirst(final long timeoutMillis) throws InterruptedException {
-      return this.first.await(timeoutMillis, TimeUnit.MILLISECONDS);
+    boolean awaitFirst(final long timeoutMilliseconds) throws InterruptedException {
+      return this.first.await(timeoutMilliseconds, TimeUnit.MILLISECONDS);
     }
 
-    boolean awaitFull(final long timeoutMillis) throws InterruptedException {
-      return this.done.await(timeoutMillis, TimeUnit.MILLISECONDS);
+    boolean awaitFull(final long timeoutMilliseconds) throws InterruptedException {
+      return this.done.await(timeoutMilliseconds, TimeUnit.MILLISECONDS);
     }
 
-    long getFirstNanos() {
-      return this.firstNanos;
+    long getFirstNanoseconds() {
+      return this.firstNanoseconds;
     }
 
-    long getFullNanos() {
-      return this.fullNanos;
+    long getFullNanoseconds() {
+      return this.fullNanoseconds;
     }
   }
 }

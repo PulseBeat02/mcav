@@ -248,16 +248,16 @@ final class FilterChainTest {
 
   @Test
   void shouldBoundTheChain() {
-    final int size = this.parse(String.join(",", Collections.nCopies(FilterChain.MAX_FILTERS, "invert")))
+    final int size = this.parse(String.join(",", Collections.nCopies(FilterChain.MAXIMUM_FILTERS, "invert")))
       .create()
       .size();
-    assertEquals(FilterChain.MAX_FILTERS, size);
+    assertEquals(FilterChain.MAXIMUM_FILTERS, size);
     assertThrows(IllegalArgumentException.class, () ->
-      this.parse(String.join(",", Collections.nCopies(FilterChain.MAX_FILTERS + 1, "invert")))
+      this.parse(String.join(",", Collections.nCopies(FilterChain.MAXIMUM_FILTERS + 1, "invert")))
     );
-    assertThrows(IllegalArgumentException.class, () -> this.parse("text=" + "a".repeat(FilterChain.MAX_TEXT + 1)));
-    this.parse("text=" + "a".repeat(FilterChain.MAX_TEXT));
-    assertThrows(IllegalArgumentException.class, () -> this.parse("invert," + "x".repeat(FilterChain.MAX_LENGTH)));
+    assertThrows(IllegalArgumentException.class, () -> this.parse("text=" + "a".repeat(FilterChain.MAXIMUM_TEXT + 1)));
+    this.parse("text=" + "a".repeat(FilterChain.MAXIMUM_TEXT));
+    assertThrows(IllegalArgumentException.class, () -> this.parse("invert," + "x".repeat(FilterChain.MAXIMUM_LENGTH)));
     assertThrows(IllegalArgumentException.class, () -> FilterChain.parse("fps", this.overlays, false), "an image has no frame rate");
     assertThrows(NullPointerException.class, () -> FilterChain.parse(null, this.overlays, true));
     assertThrows(NullPointerException.class, () -> FilterChain.parse("", null, true));
@@ -282,15 +282,16 @@ final class FilterChainTest {
 
   @Test
   void shouldTakeTheLongestChainAndTheLargestOverlayAllowed() throws IOException {
-    final String longest = String.join(",", Collections.nCopies(6, "text=" + "a".repeat(FilterChain.MAX_TEXT))) + ",text=" + "a".repeat(23);
+    final String longest =
+      String.join(",", Collections.nCopies(6, "text=" + "a".repeat(FilterChain.MAXIMUM_TEXT))) + ",text=" + "a".repeat(23);
 
     final int length = longest.length();
-    assertEquals(FilterChain.MAX_LENGTH, length);
+    assertEquals(FilterChain.MAXIMUM_LENGTH, length);
 
     final int size = this.parse(longest).create().size();
     assertEquals(7, size);
 
-    Files.write(this.overlays.resolve("largest.png"), new byte[(int) FilterChain.MAX_OVERLAY_BYTES]);
+    Files.write(this.overlays.resolve("largest.png"), new byte[(int) FilterChain.MAXIMUM_OVERLAY_BYTES]);
 
     final boolean matches = !this.parse("overlay=largest").isEmpty();
     assertTrue(matches);
@@ -396,7 +397,7 @@ final class FilterChainTest {
 
   @Test
   void shouldReadOverlaysOnlyAsSmallPngFilesOfTheOverlayFolder() throws IOException {
-    Files.write(this.overlays.resolve("big.png"), new byte[(int) FilterChain.MAX_OVERLAY_BYTES + 1]);
+    Files.write(this.overlays.resolve("big.png"), new byte[(int) FilterChain.MAXIMUM_OVERLAY_BYTES + 1]);
     assertThrows(IllegalArgumentException.class, () -> this.parse("overlay=big"));
     Files.createDirectory(this.overlays.resolve("folder.png"));
     assertThrows(IllegalArgumentException.class, () -> this.parse("overlay=folder"));

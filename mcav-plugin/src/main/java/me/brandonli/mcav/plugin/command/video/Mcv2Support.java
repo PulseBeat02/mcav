@@ -75,9 +75,9 @@ public final class Mcv2Support {
   private static final int[][] SMALLER_FRACTIONS = { { 2, 3 }, { 1, 2 } };
 
   /** The smallest size offered: 128x72. */
-  private static final int MIN_WIDTH = 128;
+  private static final int MINIMUM_WIDTH = 128;
 
-  private static final int MIN_HEIGHT = 72;
+  private static final int MINIMUM_HEIGHT = 72;
 
   private final Mcv2PackServer packs;
 
@@ -252,7 +252,7 @@ public final class Mcv2Support {
     for (final int[] fraction : SMALLER_FRACTIONS) {
       final int smallerWidth = ((width * fraction[0]) / fraction[1]) & ~1;
       final int smallerHeight = ((height * fraction[0]) / fraction[1]) & ~1;
-      if (smallerWidth >= MIN_WIDTH && smallerHeight >= MIN_HEIGHT) {
+      if (smallerWidth >= MINIMUM_WIDTH && smallerHeight >= MINIMUM_HEIGHT) {
         sizes.add(new int[] { smallerWidth, smallerHeight });
       }
     }
@@ -281,7 +281,7 @@ public final class Mcv2Support {
     if (item.getType() != Material.FILLED_MAP) {
       return false;
     }
-    final ItemMeta meta = item.getItemMeta();
-    return meta instanceof final MapMeta map && map.hasMapId() && map.getMapId() == mapId;
+    final ItemMeta metadata = item.getItemMeta();
+    return metadata instanceof final MapMeta map && map.hasMapId() && map.getMapId() == mapId;
   }
 }

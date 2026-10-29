@@ -86,8 +86,8 @@ final class ArgumentUtilsTest {
     final Pair<Integer, Integer> dimensions = ArgumentUtils.parseDimensions("8192x8192");
     final int width = dimensions.getFirst();
     final int height = dimensions.getSecond();
-    assertEquals(ArgumentUtils.MAX_SIDE, width);
-    assertEquals(ArgumentUtils.MAX_SIDE, height);
+    assertEquals(ArgumentUtils.MAXIMUM_SIDE, width);
+    assertEquals(ArgumentUtils.MAXIMUM_SIDE, height);
   }
 
   @ParameterizedTest

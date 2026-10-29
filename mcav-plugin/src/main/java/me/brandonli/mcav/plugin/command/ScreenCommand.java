@@ -59,10 +59,10 @@ public final class ScreenCommand implements AnnotationCommandFeature {
    *
    * @param sender          who builds the screen
    * @param blockDimensions the size of the wall as {@code <width>x<height>} in blocks, such as {@code 5x5}, at most
-   *                        {@value ArgumentUtils#MAX_SCREEN_SIDE} on each side; each block holds one 128x128 pixel
+   *                        {@value ArgumentUtils#MAXIMUM_SCREEN_SIDE} on each side; each block holds one 128x128 pixel
    *                        map
    * @param mapId           the id of the map in the top left corner; the wall uses this id and the following
-   *                        width times height minus one ids, which may lie at most {@value MapUtils#MAX_NEW_MAPS} ids
+   *                        width times height minus one ids, which may lie at most {@value MapUtils#MAXIMUM_NEW_MAPS} ids
    *                        past the maps the world already has
    * @param material        the block the wall is made of, such as {@code black_concrete}
    * @param location        where the wall is built, such as {@code ~ ~ ~}

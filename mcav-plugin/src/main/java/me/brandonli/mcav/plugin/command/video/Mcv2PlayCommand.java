@@ -78,13 +78,13 @@ import org.incendo.cloud.bukkit.data.MultiplePlayerSelector;
 public final class Mcv2PlayCommand implements AnnotationCommandFeature {
 
   /** How often a running file encode tells its progress. */
-  private static final long PROGRESS_NANOS = TimeUnit.SECONDS.toNanos(30);
+  private static final long PROGRESS_NANOSECONDS = TimeUnit.SECONDS.toNanos(30);
 
   /** The folder of the stream files, in the plugin's data folder. */
   static final String STREAMS = "mcv2";
 
   /** The largest stream file played, one gibibyte: a stream is held in memory while it plays. */
-  private static final long MAX_STREAM_BYTES = 1L << 30;
+  private static final long MAXIMUM_STREAM_BYTES = 1L << 30;
 
   private static final double NANOSECONDS_PER_MILLISECOND = 1e6;
 
@@ -224,7 +224,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
   }
 
   /**
-   * Handles {@code /mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <fps> <file>}: plays an MCV2 stream
+   * Handles {@code /mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <framesPerSecond> <file>}: plays an MCV2 stream
    * like {@code /mcav mcv2 play}, but at a frame rate, on its own thread: a server runs 20 ticks a second, and a stream
    * of 30 or 60 frames a second is sent between them, the way the encoder's frames are. Replaces the stream played
    * before.
@@ -235,10 +235,10 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    * @param playerSelector  the players who watch
    * @param blockDimensions the size of the wall as {@code <width>x<height>} in maps
    * @param mapId           the id of the top-left map of the wall
-   * @param fps             the frames sent per second, 1 to 240
+   * @param framesPerSecond the frames sent per second, 1 to 240
    * @param file            the stream file, in the plugin's {@code mcv2} folder
    */
-  @Command("mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <fps> <file>")
+  @Command("mcav mcv2 stream <playerSelector> <blockDimensions> <mapId> <framesPerSecond> <file>")
   @Permission("mcav.command.mcv2.play")
   @CommandDescription("mcav.command.mcv2.stream.info")
   public void stream(
@@ -246,14 +246,14 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
     final MultiplePlayerSelector playerSelector,
     @Argument(suggestions = "dimensions") @Quoted final String blockDimensions,
     @Argument(suggestions = "ids") @Range(min = "0") final int mapId,
-    @Range(min = "1", max = "240") final int fps,
+    @Range(min = "1", max = "240") final int framesPerSecond,
     @Quoted final String file
   ) {
     this.load(sender, playerSelector, blockDimensions, mapId, file, playback -> {
       final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(
         Thread.ofPlatform().daemon().name("mcav-mcv2-stream").factory()
       );
-      this.streaming = executor.scheduleAtFixedRate(playback, 0, TimeUnit.SECONDS.toNanos(1) / fps, TimeUnit.NANOSECONDS);
+      this.streaming = executor.scheduleAtFixedRate(playback, 0, TimeUnit.SECONDS.toNanos(1) / framesPerSecond, TimeUnit.NANOSECONDS);
       this.streamer = executor;
       sender.sendMessage(Message.MCV2_PLAY.build());
     });
@@ -428,7 +428,7 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       final Thread thread = Thread.ofPlatform()
         .daemon()
         .name("mcav-mcv2-file-encode")
-        .start(() -> encodeFile(sender, stoppable, source, target, width, height, profile, budget, PROGRESS_NANOS));
+        .start(() -> encodeFile(sender, stoppable, source, target, width, height, profile, budget, PROGRESS_NANOSECONDS));
       this.encoding = new FileEncode(thread, stopped);
     }
   }
@@ -498,9 +498,9 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
       final long now = System.nanoTime();
       if (now - reported[0] >= interval) {
         reported[0] = now;
-        final double millisPerFrame = (now - started) / NANOSECONDS_PER_MILLISECOND / frames;
+        final double millisecondsPerFrame = (now - started) / NANOSECONDS_PER_MILLISECOND / frames;
         sender.sendMessage(
-          Message.MCV2_ENCODE_PROGRESS.build(String.format(Locale.ROOT, "%d frames, %.0f ms per frame", frames, millisPerFrame))
+          Message.MCV2_ENCODE_PROGRESS.build(String.format(Locale.ROOT, "%d frames, %.0f ms per frame", frames, millisecondsPerFrame))
         );
       }
     };
@@ -647,11 +647,11 @@ public final class Mcv2PlayCommand implements AnnotationCommandFeature {
    *
    * @param file the stream
    * @return the frames
-   * @throws IOException if the file is not a regular file of at most {@link #MAX_STREAM_BYTES}, cannot be read or is
+   * @throws IOException if the file is not a regular file of at most {@link #MAXIMUM_STREAM_BYTES}, cannot be read or is
    *                     cut off
    */
   static List<byte[]> read(final Path file) throws IOException {
-    return read(file, MAX_STREAM_BYTES);
+    return read(file, MAXIMUM_STREAM_BYTES);
   }
 
   /**

@@ -124,11 +124,11 @@ public final class ImageMapCommand extends AbstractImageCommand {
 
     final Collection<UUID> players = ArgumentUtils.parseViewers(playerSelector, this.plugin.getOnlinePlayers());
     final MapCodec chosen = codec != null ? codec : this.plugin.getConfiguration().getMcv2DefaultCodec();
-    final ImageConfigurationProvider configProvider =
+    final ImageConfigurationProvider configurationProvider =
       chosen == MapCodec.MCV2
         ? resolution -> new Mcv2ImageSettings(sender, blocks, resolution, mapId, players, ditheringAlgorithm)
         : createProvider(blocks, mapId, players, ditheringAlgorithm);
-    this.displayImage(configProvider, sender, imageResolution, mrl, filters);
+    this.displayImage(configurationProvider, sender, imageResolution, mrl, filters);
   }
 
   private static ImageConfigurationProvider createProvider(
@@ -189,15 +189,15 @@ public final class ImageMapCommand extends AbstractImageCommand {
    * Creates a map display from the {@link MapDisplaySettings} built by the provider of {@link #showMapImage}, with
    * a dithering algorithm created for this image alone.
    *
-   * @param resolution     the parsed resolution, in pixels
-   * @param configProvider the provider that builds the map display settings
+   * @param resolution            the parsed resolution, in pixels
+   * @param configurationProvider the provider that builds the map display settings
    * @return the map display
    */
   @Override
-  public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configProvider) {
+  public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {
     Preconditions.checkNotNull(resolution, "Resolution must not be null!");
-    Preconditions.checkNotNull(configProvider, "Configuration provider must not be null!");
-    final Object built = configProvider.buildConfiguration(resolution);
+    Preconditions.checkNotNull(configurationProvider, "Configuration provider must not be null!");
+    final Object built = configurationProvider.buildConfiguration(resolution);
     if (built instanceof final Mcv2ImageSettings mcv2) {
       final DisplayableImage image = this.createMcv2Image(mcv2);
       if (image != null) {

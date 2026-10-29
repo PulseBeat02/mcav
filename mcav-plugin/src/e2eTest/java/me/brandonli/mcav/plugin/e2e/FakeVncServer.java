@@ -214,9 +214,9 @@ final class FakeVncServer implements AutoCloseable {
     final int count = this.updates.incrementAndGet();
     final int rgb = (((count * 37) & 0xff) << 16) | (((count * 91) & 0xff) << 8) | ((count * 13) & 0xff);
     final byte[] pixel = format.encode(rgb);
-    final byte[] rect = new byte[WIDTH * HEIGHT * pixel.length];
-    for (int at = 0; at < rect.length; at += pixel.length) {
-      System.arraycopy(pixel, 0, rect, at, pixel.length);
+    final byte[] rectangle = new byte[WIDTH * HEIGHT * pixel.length];
+    for (int at = 0; at < rectangle.length; at += pixel.length) {
+      System.arraycopy(pixel, 0, rectangle, at, pixel.length);
     }
     out.writeByte(0);
     out.writeByte(0);
@@ -226,7 +226,7 @@ final class FakeVncServer implements AutoCloseable {
     out.writeShort(WIDTH);
     out.writeShort(HEIGHT);
     out.writeInt(0);
-    out.write(rect);
+    out.write(rectangle);
     out.flush();
   }
 
@@ -247,14 +247,14 @@ final class FakeVncServer implements AutoCloseable {
 
     private boolean bigEndian;
 
-    private int[] max = { 255, 255, 255 };
+    private int[] maximum = { 255, 255, 255 };
 
     private int[] shift = { 16, 8, 0 };
 
     void set(final byte[] format) {
       this.bytes = (format[0] & 0xff) / 8;
       this.bigEndian = format[2] != 0;
-      this.max = new int[] { unsigned16(format, 4), unsigned16(format, 6), unsigned16(format, 8) };
+      this.maximum = new int[] { unsigned16(format, 4), unsigned16(format, 6), unsigned16(format, 8) };
       this.shift = new int[] { format[10] & 0xff, format[11] & 0xff, format[12] & 0xff };
     }
 
@@ -266,7 +266,7 @@ final class FakeVncServer implements AutoCloseable {
       long value = 0;
       for (int channel = 0; channel < 3; channel++) {
         final int level = (rgb >> (16 - 8 * channel)) & 0xff;
-        value |= (long) ((level * this.max[channel]) / 255) << this.shift[channel];
+        value |= (long) ((level * this.maximum[channel]) / 255) << this.shift[channel];
       }
       final byte[] pixel = new byte[this.bytes];
       for (int byteIndex = 0; byteIndex < this.bytes; byteIndex++) {

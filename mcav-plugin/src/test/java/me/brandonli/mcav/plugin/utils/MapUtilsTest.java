@@ -67,11 +67,11 @@ import org.mockito.Mockito;
  * Tests {@link MapUtils}.
  *
  * <p>Item stacks cannot be created without a server, so their construction is mocked; every created stack gets its
- * own mocked map meta.
+ * own mocked map metadata.
  */
 final class MapUtilsTest {
 
-  private final List<MapMeta> metas = new ArrayList<>();
+  private final List<MapMeta> mapMetadata = new ArrayList<>();
   private final List<List<?>> constructorArguments = new ArrayList<>();
   private final Map<Integer, MapView> existingMaps = new HashMap<>();
 
@@ -88,11 +88,11 @@ final class MapUtilsTest {
       return this.existingMap(id);
     });
     this.items = Mockito.mockConstruction(ItemStack.class, (item, context) -> {
-      final MapMeta meta = mock(MapMeta.class);
-      this.metas.add(meta);
+      final MapMeta metadata = mock(MapMeta.class);
+      this.mapMetadata.add(metadata);
       final List<?> arguments = context.arguments();
       this.constructorArguments.add(arguments);
-      when(item.getItemMeta()).thenReturn(meta);
+      when(item.getItemMeta()).thenReturn(metadata);
     });
   }
 
@@ -147,12 +147,12 @@ final class MapUtilsTest {
     assertSame(created, item);
     final List<?> arguments = this.constructorArguments.getFirst();
     assertEquals(List.of(Material.FILLED_MAP), arguments);
-    final MapMeta meta = this.metas.getFirst();
+    final MapMeta metadata = this.mapMetadata.getFirst();
     final MapView existing = this.existingMap(7);
-    verify(meta).setMapView(existing);
+    verify(metadata).setMapView(existing);
     final Component lore = Component.text("Map ID [7]", NamedTextColor.RED);
-    verify(meta).lore(List.of(lore));
-    verify(item, times(2)).setItemMeta(meta);
+    verify(metadata).lore(List.of(lore));
+    verify(item, times(2)).setItemMeta(metadata);
     verify(this.server, never()).createMap(any(World.class));
   }
 
@@ -170,8 +170,8 @@ final class MapUtilsTest {
     when(this.server.createMap(world)).thenReturn(third, fourth, fifth);
     MapUtils.getMapFromID(5);
     verify(this.server, times(3)).createMap(world);
-    final MapMeta meta = this.metas.getFirst();
-    verify(meta).setMapView(fifth);
+    final MapMeta metadata = this.mapMetadata.getFirst();
+    verify(metadata).setMapView(fifth);
   }
 
   @Test
@@ -184,8 +184,8 @@ final class MapUtilsTest {
     when(this.server.createMap(world)).thenReturn(created);
     MapUtils.getMapFromID(8);
     verify(this.server, times(1)).createMap(world);
-    final MapMeta meta = this.metas.getFirst();
-    verify(meta).setMapView(created);
+    final MapMeta metadata = this.mapMetadata.getFirst();
+    verify(metadata).setMapView(created);
   }
 
   /**
@@ -212,20 +212,20 @@ final class MapUtilsTest {
   @Test
   void shouldCreateAsManyMapsAsTheLargestWallNeeds() {
     final World world = this.fakeWorld.world();
-    final int wanted = 10 + MapUtils.MAX_NEW_MAPS;
+    final int wanted = 10 + MapUtils.MAXIMUM_NEW_MAPS;
     when(this.server.getMap(wanted)).thenReturn(null);
     this.handOutMapIdsFrom(world, 10);
     MapUtils.getMapFromID(wanted);
-    verify(this.server, times(MapUtils.MAX_NEW_MAPS + 1)).createMap(world);
+    verify(this.server, times(MapUtils.MAXIMUM_NEW_MAPS + 1)).createMap(world);
 
-    final int size = this.metas.size();
+    final int size = this.mapMetadata.size();
     assertEquals(1, size);
   }
 
   @Test
   void shouldRefuseToCreateMoreMapsThanTheLargestWallNeeds() {
     final World world = this.fakeWorld.world();
-    final int wanted = 11 + MapUtils.MAX_NEW_MAPS;
+    final int wanted = 11 + MapUtils.MAXIMUM_NEW_MAPS;
     when(this.server.getMap(wanted)).thenReturn(null);
     this.handOutMapIdsFrom(world, 10);
     final IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> MapUtils.getMapFromID(wanted));
@@ -233,7 +233,7 @@ final class MapUtilsTest {
     assertEquals("Map id 4107 is more than 4096 ids past 10, the next map id!", message);
     verify(this.server, times(1)).createMap(world);
 
-    final boolean empty = this.metas.isEmpty();
+    final boolean empty = this.mapMetadata.isEmpty();
     assertTrue(empty, "no map item is made for a refused id");
   }
 
@@ -254,8 +254,8 @@ final class MapUtilsTest {
     final boolean empty = this.fakeWorld.spawnedFrames().isEmpty();
     assertTrue(empty);
 
-    final boolean metasEmpty = this.metas.isEmpty();
-    assertTrue(metasEmpty);
+    final boolean mapMetadataEmpty = this.mapMetadata.isEmpty();
+    assertTrue(mapMetadataEmpty);
   }
 
   @Test
@@ -273,7 +273,7 @@ final class MapUtilsTest {
 
     verify(this.server).createMap(world);
 
-    final boolean empty = this.metas.isEmpty();
+    final boolean empty = this.mapMetadata.isEmpty();
     assertTrue(empty, "no item may silently target a map outside the requested layout");
   }
 
@@ -292,8 +292,8 @@ final class MapUtilsTest {
     final boolean empty = this.fakeWorld.spawnedFrames().isEmpty();
     assertTrue(empty);
 
-    final boolean metasEmpty = this.metas.isEmpty();
-    assertTrue(metasEmpty);
+    final boolean mapMetadataEmpty = this.mapMetadata.isEmpty();
+    assertTrue(mapMetadataEmpty);
   }
 
   @ParameterizedTest
@@ -332,9 +332,9 @@ final class MapUtilsTest {
       final List<ItemStack> constructed = this.items.constructed();
       final ItemStack item = constructed.get(index);
       verify(frame).setItem(item);
-      final MapMeta meta = this.metas.get(index);
+      final MapMeta metadata = this.mapMetadata.get(index);
       final MapView shown = this.existingMap(10 + index);
-      verify(meta).setMapView(shown);
+      verify(metadata).setMapView(shown);
       final boolean hasMapTag = FakeWorld.hasTag(frame, Keys.MAP_KEY);
       final boolean first = FakeWorld.hasTag(frame, Keys.FIRST_MAP_KEY);
       final boolean last = FakeWorld.hasTag(frame, Keys.LAST_MAP_KEY);
@@ -475,8 +475,8 @@ final class MapUtilsTest {
     final int size = frames.size();
     assertEquals(2, size);
 
-    final MapMeta first = this.metas.get(0);
-    final MapMeta second = this.metas.get(1);
+    final MapMeta first = this.mapMetadata.get(0);
+    final MapMeta second = this.mapMetadata.get(1);
     final MapView firstMap = this.existingMap(Integer.MAX_VALUE - 1);
     final MapView lastMap = this.existingMap(Integer.MAX_VALUE);
     verify(first).setMapView(firstMap);

@@ -27,24 +27,24 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Where {@code /mcav video seek} jumps to: a time from the start of the video, such as {@code 90}, {@code 1:30} or
  * {@code 1:02:03}, or a time from the current position, such as {@code +10} or {@code -1:00}. Seconds may have up to
- * three decimals, minutes and seconds after a colon are below 60, and no time is longer than {@link #MAX_MILLIS}.
+ * three decimals, minutes and seconds after a colon are below 60, and no time is longer than {@link #MAXIMUM_MILLISECONDS}.
  *
- * @param relative whether the time counts from the current position
- * @param millis   the time in milliseconds, negative only for a jump back
+ * @param relative     whether the time counts from the current position
+ * @param milliseconds the time in milliseconds, negative only for a jump back
  */
-public record SeekPosition(boolean relative, long millis) {
+public record SeekPosition(boolean relative, long milliseconds) {
   /** The longest time: 99 hours, 59 minutes and 59.999 seconds, beyond any video a server plays. */
-  public static final long MAX_MILLIS = 359_999_999L;
+  public static final long MAXIMUM_MILLISECONDS = 359_999_999L;
 
   private static final Pattern FORMAT = Pattern.compile("([+-]?)(?:(?:(\\d{1,2}):)?(\\d{1,2}):)?(\\d{1,6})(?:\\.(\\d{1,3}))?");
 
-  private static final long MILLIS_PER_SECOND = 1_000L;
+  private static final long MILLISECONDS_PER_SECOND = 1_000L;
 
   private static final int SECONDS_PER_MINUTE = 60;
 
   private static final int MINUTES_PER_HOUR = 60;
 
-  private static final int MILLIS_DIGITS = 3;
+  private static final int MILLISECONDS_DIGITS = 3;
 
   /**
    * Parses a position.
@@ -70,13 +70,13 @@ public record SeekPosition(boolean relative, long millis) {
     }
     final long hourCount = hours == null ? 0 : Long.parseLong(hours);
     final long wholeSeconds = (hourCount * MINUTES_PER_HOUR + minuteCount) * SECONDS_PER_MINUTE + secondCount;
-    final long fractionMillis = fraction == null ? 0 : Long.parseLong((fraction + "00").substring(0, MILLIS_DIGITS));
-    final long millis = wholeSeconds * MILLIS_PER_SECOND + fractionMillis;
-    if (millis > MAX_MILLIS) {
+    final long fractionMilliseconds = fraction == null ? 0 : Long.parseLong((fraction + "00").substring(0, MILLISECONDS_DIGITS));
+    final long milliseconds = wholeSeconds * MILLISECONDS_PER_SECOND + fractionMilliseconds;
+    if (milliseconds > MAXIMUM_MILLISECONDS) {
       return null;
     }
     final boolean relative = !sign.isEmpty();
-    return new SeekPosition(relative, sign.equals("-") ? -millis : millis);
+    return new SeekPosition(relative, sign.equals("-") ? -milliseconds : milliseconds);
   }
 
   /**
@@ -86,19 +86,19 @@ public record SeekPosition(boolean relative, long millis) {
    * @return the time from the start of the video in milliseconds, at least 0
    */
   public long resolve(final long current) {
-    final long target = this.relative ? current + this.millis : this.millis;
+    final long target = this.relative ? current + this.milliseconds : this.milliseconds;
     return Math.max(0, target);
   }
 
   /**
    * Formats a time as {@code h:mm:ss}, or {@code m:ss} below an hour, the way players read it.
    *
-   * @param millis the time in milliseconds, at least 0
+   * @param milliseconds the time in milliseconds, at least 0
    * @return the time, without its milliseconds
    */
-  public static String format(final long millis) {
-    Preconditions.checkArgument(millis >= 0, "Time %s must not be negative!", millis);
-    final long totalSeconds = millis / MILLIS_PER_SECOND;
+  public static String format(final long milliseconds) {
+    Preconditions.checkArgument(milliseconds >= 0, "Time %s must not be negative!", milliseconds);
+    final long totalSeconds = milliseconds / MILLISECONDS_PER_SECOND;
     final long seconds = totalSeconds % SECONDS_PER_MINUTE;
     final long totalMinutes = totalSeconds / SECONDS_PER_MINUTE;
     final long minutes = totalMinutes % MINUTES_PER_HOUR;

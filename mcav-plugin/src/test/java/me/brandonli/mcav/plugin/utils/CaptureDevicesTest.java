@@ -89,7 +89,7 @@ final class CaptureDevicesTest {
       new CaptureDevices.Device(0, "Integrated Camera"),
       new CaptureDevices.Device(2, "OBS Virtual Camera"),
       new CaptureDevices.Device(10, "video10"),
-      new CaptureDevices.Device(11, "x".repeat(CaptureDevices.MAX_NAME))
+      new CaptureDevices.Device(11, "x".repeat(CaptureDevices.MAXIMUM_NAME))
     );
     assertEquals(expected, devices);
   }

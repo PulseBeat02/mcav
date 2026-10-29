@@ -109,9 +109,9 @@ final class AbstractImageCommandTest {
     }
 
     @Override
-    public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configProvider) {
+    public DisplayableImage createImage(final Pair<Integer, Integer> resolution, final ImageConfigurationProvider configurationProvider) {
       this.resolutions.add(resolution);
-      this.providers.add(configProvider);
+      this.providers.add(configurationProvider);
       return this.display;
     }
   }

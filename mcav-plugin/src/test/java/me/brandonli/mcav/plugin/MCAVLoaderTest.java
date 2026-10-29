@@ -145,10 +145,10 @@ final class MCAVLoaderTest {
     // it reads from a file next to the jar; a jar without that file is always kept
     final Path staleLastUsed = this.cache.resolve("com/example/library/0.9/library-0.9.jar.last-used.txt");
     final Duration beyondTheWindow = Duration.ofHours(2);
-    final long windowMillis = beyondTheWindow.toMillis();
+    final long windowMilliseconds = beyondTheWindow.toMillis();
     final long now = System.currentTimeMillis();
-    final long lastUsedMillis = now - windowMillis;
-    final String lastUsedText = String.valueOf(lastUsedMillis);
+    final long lastUsedMilliseconds = now - windowMilliseconds;
+    final String lastUsedText = String.valueOf(lastUsedMilliseconds);
     Files.writeString(staleLastUsed, lastUsedText);
 
     final String hash = sha256(content);

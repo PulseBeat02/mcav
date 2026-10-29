@@ -32,17 +32,17 @@ final class SeekPositionFuzzTest {
 
   @FuzzTest(maxDuration = "30s")
   void shouldBoundOrRefuseEveryTypedPosition(final FuzzedDataProvider data) {
-    final long current = data.consumeLong(0, SeekPosition.MAX_MILLIS);
+    final long current = data.consumeLong(0, SeekPosition.MAXIMUM_MILLISECONDS);
     final String text = data.consumeRemainingAsString();
     final SeekPosition position = SeekPosition.parse(text);
     if (position == null) {
       return;
     }
 
-    final boolean matches = Math.abs(position.millis()) <= SeekPosition.MAX_MILLIS;
+    final boolean matches = Math.abs(position.milliseconds()) <= SeekPosition.MAXIMUM_MILLISECONDS;
     assertTrue(matches, text);
 
-    final boolean secondMatches = position.relative() || position.millis() >= 0;
+    final boolean secondMatches = position.relative() || position.milliseconds() >= 0;
     assertTrue(secondMatches, text);
 
     final boolean thirdMatches = position.resolve(current) >= 0;

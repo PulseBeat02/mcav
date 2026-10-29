@@ -458,11 +458,11 @@ final class MCAVSandboxTest {
 
   @Test
   void shouldLogTheStartAndHowLongLoadingTook() {
-    final AtomicLong installationMillis = new AtomicLong();
+    final AtomicLong installationMilliseconds = new AtomicLong();
     doAnswer(_ -> {
       final long before = System.currentTimeMillis();
       Thread.sleep(25);
-      installationMillis.set(System.currentTimeMillis() - before);
+      installationMilliseconds.set(System.currentTimeMillis() - before);
       return null;
     })
       .when(this.api)
@@ -475,10 +475,10 @@ final class MCAVSandboxTest {
     final Object logged = duration.getValue();
     final long milliseconds = (Long) logged;
 
-    final boolean matches = installationMillis.get() > 0;
+    final boolean matches = installationMilliseconds.get() > 0;
     assertTrue(matches, "installation consumed measurable time");
 
-    final boolean secondMatches = milliseconds >= installationMillis.get();
+    final boolean secondMatches = milliseconds >= installationMilliseconds.get();
     assertTrue(secondMatches, "the logged duration includes the entire installation");
 
     // a sum of two timestamps instead of their difference would be billions of milliseconds
@@ -530,8 +530,8 @@ final class MCAVSandboxTest {
 
   @Test
   void shouldDisableItselfWithOneErrorWhenVoiceChatIsEnabledButMissing() throws IOException {
-    final Path config = this.folder.resolve("config.yml");
-    Files.writeString(config, "simple-voice-chat:\n  enabled: true\n");
+    final Path configuration = this.folder.resolve("config.yml");
+    Files.writeString(configuration, "simple-voice-chat:\n  enabled: true\n");
 
     this.sandbox.onEnable();
 

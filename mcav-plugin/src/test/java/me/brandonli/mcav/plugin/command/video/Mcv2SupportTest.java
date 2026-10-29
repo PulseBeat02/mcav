@@ -88,10 +88,10 @@ final class Mcv2SupportTest {
   static ItemStack map(final Material material, final boolean hasId, final int id) {
     final ItemStack item = mock(ItemStack.class);
     when(item.getType()).thenReturn(material);
-    final MapMeta meta = mock(MapMeta.class);
-    when(meta.hasMapId()).thenReturn(hasId);
-    when(meta.getMapId()).thenReturn(id);
-    when(item.getItemMeta()).thenReturn(meta);
+    final MapMeta metadata = mock(MapMeta.class);
+    when(metadata.hasMapId()).thenReturn(hasId);
+    when(metadata.getMapId()).thenReturn(id);
+    when(item.getItemMeta()).thenReturn(metadata);
     return item;
   }
 

@@ -32,7 +32,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @param entries the allowed servers
  */
 public record VncAllowList(List<Entry> entries) {
-  private static final int MAX_PORT = 65_535;
+  private static final int MAXIMUM_PORT = 65_535;
 
   /**
    * An empty list, which allows no server.
@@ -67,7 +67,7 @@ public record VncAllowList(List<Entry> entries) {
       Preconditions.checkNotNull(host, "Host must not be null!");
       host = host.startsWith("[") && host.endsWith("]") ? host.substring(1, host.length() - 1) : host;
       Preconditions.checkArgument(!host.isBlank(), "Host must not be blank!");
-      Preconditions.checkArgument(port >= 1 && port <= MAX_PORT, "Port must be from 1 to 65535!");
+      Preconditions.checkArgument(port >= 1 && port <= MAXIMUM_PORT, "Port must be from 1 to 65535!");
     }
 
     /**
@@ -127,7 +127,7 @@ public record VncAllowList(List<Entry> entries) {
       return -1;
     }
     final int port = Integer.parseInt(text);
-    return port <= MAX_PORT ? port : -1;
+    return port <= MAXIMUM_PORT ? port : -1;
   }
 
   /**

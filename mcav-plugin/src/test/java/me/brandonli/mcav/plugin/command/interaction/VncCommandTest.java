@@ -65,7 +65,7 @@ import org.mockito.Mockito;
  */
 final class VncCommandTest {
 
-  private static final long RELEASE_MILLIS = 5000;
+  private static final long RELEASE_MILLISECONDS = 5000;
 
   private static final VncAllowList.Entry DESKTOP = new VncAllowList.Entry("127.0.0.1", 5901, "secret");
 
@@ -219,7 +219,7 @@ final class VncCommandTest {
     this.command.releaseVnc(this.sender);
 
     verify(this.callback).detach();
-    verify(this.desktop, timeout(RELEASE_MILLIS)).release();
+    verify(this.desktop, timeout(RELEASE_MILLISECONDS)).release();
     assertNull(this.command.player);
     this.assertReceived(Message.VNC_RELEASE.build());
   }

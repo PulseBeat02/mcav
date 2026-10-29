@@ -36,8 +36,8 @@ final class SizeArgumentsFuzzTest {
   @FuzzTest(maxDuration = "30s")
   void shouldBoundOrRefuseEveryTypedSize(final byte[] input) {
     final String typed = new String(input, StandardCharsets.UTF_8);
-    assertBoundedOrRefused(typed, false, ArgumentUtils.MAX_SIDE);
-    assertBoundedOrRefused(typed, true, ArgumentUtils.MAX_SCREEN_SIDE);
+    assertBoundedOrRefused(typed, false, ArgumentUtils.MAXIMUM_SIDE);
+    assertBoundedOrRefused(typed, true, ArgumentUtils.MAXIMUM_SCREEN_SIDE);
   }
 
   private static void assertBoundedOrRefused(final String typed, final boolean wall, final int maximum) {

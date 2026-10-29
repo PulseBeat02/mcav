@@ -97,13 +97,13 @@ public final class SuggestionProvider implements AnnotationCommandFeature {
   }
 
   /**
-   * Suggests frame rates for the {@code <targetFps>} argument of {@code /mcav vm create}. Higher rates feel smoother
+   * Suggests frame rates for the {@code <targetFramesPerSecond>} argument of {@code /mcav vm create}. Higher rates feel smoother
    * but cost more CPU for dithering and more bandwidth for the maps.
    *
    * @return the suggested frame rates
    */
-  @Suggestions("target-fps")
-  public Stream<String> suggestTargetFps() {
+  @Suggestions("target-frames-per-second")
+  public Stream<String> suggestTargetFramesPerSecond() {
     return Stream.of("20", "30", "40", "50", "60", "70", "80", "90", "100", "120", "144", "240");
   }
 

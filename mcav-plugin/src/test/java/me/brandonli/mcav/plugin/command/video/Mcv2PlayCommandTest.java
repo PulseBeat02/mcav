@@ -869,7 +869,7 @@ final class Mcv2PlayCommandTest {
   @Test
   void shouldTellTimesThatTheEncodeCouldHaveTaken() throws Exception {
     final Path output = this.folder.resolve("timed.mcs");
-    final AtomicLong openingNanos = new AtomicLong();
+    final AtomicLong openingNanoseconds = new AtomicLong();
     final long started = System.nanoTime();
     Mcv2PlayCommand.encodeFile(
       this.sender,
@@ -881,7 +881,7 @@ final class Mcv2PlayCommandTest {
           Thread.currentThread().interrupt();
           throw new IOException(exception);
         }
-        openingNanos.set(System.nanoTime() - openingStarted);
+        openingNanoseconds.set(System.nanoTime() - openingStarted);
         return new SolidFrames(3, new CountDownLatch(0));
       },
       Path.of("f.mp4"),
@@ -894,20 +894,20 @@ final class Mcv2PlayCommandTest {
     );
     final double took = (System.nanoTime() - started) / 1e6;
     final List<String> told = this.finish();
-    final double openingMillis = openingNanos.get() / 1e6;
-    assertTrue(openingMillis >= 600, "opening consumed independently measured time");
+    final double openingMilliseconds = openingNanoseconds.get() / 1e6;
+    assertTrue(openingMilliseconds >= 600, "opening consumed independently measured time");
     final Matcher progress = Pattern.compile("MCV2 encode: (\\d+) frames, (\\d+) ms per frame").matcher(told.get(2));
 
     final boolean found = progress.find();
     assertTrue(found, told.get(2));
 
-    final int integerInt = Integer.parseInt(progress.group(1));
-    assertEquals(3, integerInt);
+    final int frames = Integer.parseInt(progress.group(1));
+    assertEquals(3, frames);
 
     final boolean matches = Integer.parseInt(progress.group(2)) <= took / 3 + 0.5;
     assertTrue(matches, told.get(2) + " in " + took + " ms");
 
-    final boolean secondMatches = Integer.parseInt(progress.group(2)) >= openingMillis / 3 - 0.5;
+    final boolean secondMatches = Integer.parseInt(progress.group(2)) >= openingMilliseconds / 3 - 0.5;
     assertTrue(secondMatches, "progress includes source opening");
 
     final Matcher done = Pattern.compile(" in (\\d+) s, ").matcher(told.getLast());
@@ -918,7 +918,7 @@ final class Mcv2PlayCommandTest {
     final boolean thirdMatches = Integer.parseInt(done.group(1)) <= took / 1000 + 0.5;
     assertTrue(thirdMatches, told.getLast() + " in " + took + " ms");
 
-    final boolean fourthMatches = Integer.parseInt(done.group(1)) >= openingMillis / 1000 - 0.5;
+    final boolean fourthMatches = Integer.parseInt(done.group(1)) >= openingMilliseconds / 1000 - 0.5;
     assertTrue(fourthMatches, "completion includes source opening");
   }
 
@@ -1001,7 +1001,7 @@ final class Mcv2PlayCommandTest {
     return record;
   }
 
-  private static byte[] concat(final byte[] first, final byte[] second) {
+  private static byte[] concatenate(final byte[] first, final byte[] second) {
     final byte[] both = Arrays.copyOf(first, first.length + second.length);
     System.arraycopy(second, 0, both, first.length, second.length);
     return both;
@@ -1047,12 +1047,12 @@ final class Mcv2PlayCommandTest {
     assertEquals(1, mcv2PlayCommandSize);
 
     // after a first frame: three bytes are no length, a length past the end no frame
-    final Path shortTail = Files.write(this.folder.resolve("e.mcs"), concat(shortest, new byte[] { 1, 0, 0 }));
+    final Path shortTail = Files.write(this.folder.resolve("e.mcs"), concatenate(shortest, new byte[] { 1, 0, 0 }));
 
     final String sixthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(shortTail)).getMessage();
     assertEquals("Truncated frame length!", sixthMessage);
 
-    final Path longTail = Files.write(this.folder.resolve("f.mcs"), concat(shortest, new byte[] { 9, 0, 0, 0, 1 }));
+    final Path longTail = Files.write(this.folder.resolve("f.mcs"), concatenate(shortest, new byte[] { 9, 0, 0, 0, 1 }));
 
     final String seventhMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(longTail)).getMessage();
     assertEquals("Truncated frame!", seventhMessage);
@@ -1063,7 +1063,7 @@ final class Mcv2PlayCommandTest {
     final String eighthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(tiny)).getMessage();
     assertEquals("MCV2 frame length 1 is invalid!", eighthMessage);
 
-    final Path empties = Files.write(this.folder.resolve("i.mcs"), concat(shortest, new byte[] { 0, 0, 0, 0 }));
+    final Path empties = Files.write(this.folder.resolve("i.mcs"), concatenate(shortest, new byte[] { 0, 0, 0, 0 }));
 
     final String ninthMessage = assertThrows(IOException.class, () -> Mcv2PlayCommand.read(empties)).getMessage();
     assertEquals("MCV2 frame length 0 is invalid!", ninthMessage);
